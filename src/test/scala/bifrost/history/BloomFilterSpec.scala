@@ -1,7 +1,6 @@
 package bifrost.history
 
-/**
-  * Created by cykoz on 7/11/2017.
+/** Created by cykoz on 7/11/2017.
   */
 
 import bifrost.modifier.block.Bloom
@@ -9,16 +8,17 @@ import bifrost.{BifrostGenerators, ValidGenerators}
 
 import scala.collection.BitSet
 
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 
-class BloomFilterSpec extends AnyPropSpec
-  with ScalaCheckPropertyChecks
-  with ScalaCheckDrivenPropertyChecks
-  with Matchers
-  with BifrostGenerators
-  with ValidGenerators {
+class BloomFilterSpec
+    extends AnyPropSpec
+    with ScalaCheckPropertyChecks
+    with ScalaCheckDrivenPropertyChecks
+    with Matchers
+    with BifrostGenerators
+    with ValidGenerators {
 
   var history: History = generateHistory
 

@@ -17,8 +17,8 @@ import scorex.crypto.encode.Base58
 
 import scala.concurrent.{ExecutionContext, Future}
 
-case class UtilsApiRoute(override val settings: AppSettings)
-                        (implicit val context: ActorRefFactory, ec: ExecutionContext) extends ApiRoute {
+case class UtilsApiRoute(override val settings: AppSettings)(implicit val context: ActorRefFactory, ec: ExecutionContext)
+    extends ApiRoute {
   type HIS = History
   type MS = State
   type VL = Wallet
@@ -32,7 +32,7 @@ case class UtilsApiRoute(override val settings: AppSettings)
       case "hashBlake2b"  => hashBlake2b(params.head, id)
     }
 
-  private def generateSeed (length: Int): String = {
+  private def generateSeed(length: Int): String = {
     val seed = new Array[Byte](length)
     new SecureRandom().nextBytes(seed) //seed mutated here!
     Base58.encode(seed)
@@ -40,10 +40,10 @@ case class UtilsApiRoute(override val settings: AppSettings)
 
   /**  #### Summary
     *    Generates random seed of 32 bytes
-    * 
+    *
     * ---
     *  #### Params
-    * 
+    *
     *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	|
     *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	|
     *  | --None specified--       |           	|                     	|                                                                         |
@@ -59,7 +59,7 @@ case class UtilsApiRoute(override val settings: AppSettings)
 
   /**  #### Summary
     *    Generates random seed of specified length
-    * 
+    *
     * ---
     *  #### Params
     *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	|
@@ -75,10 +75,9 @@ case class UtilsApiRoute(override val settings: AppSettings)
     Future(Map("seed" -> generateSeed(length)).asJson)
   }
 
-  /** 
-    *  #### Summary
+  /**  #### Summary
     *    Returns Blake2b hash of specified message
-    * 
+    *
     * ---
     *  #### Params
     *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	|
@@ -91,9 +90,11 @@ case class UtilsApiRoute(override val settings: AppSettings)
     */
   private def hashBlake2b(params: Json, id: String): Future[Json] = {
     val message: String = (params \\ "message").head.asString.get
-    Future(Map(
-      "message" -> message,
-      "hash" -> Base58.encode(FastCryptographicHash(message))
-    ).asJson)
+    Future(
+      Map(
+        "message" -> message,
+        "hash"    -> Base58.encode(FastCryptographicHash(message))
+      ).asJson
+    )
   }
 }

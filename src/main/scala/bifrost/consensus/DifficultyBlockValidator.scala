@@ -29,7 +29,7 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
       val valueTarget = (target * BigDecimal(block.forgerBox.value)).toBigInt
 
       // did the forger create a block with a valid forger box and adjusted difficulty?
-      require( BigInt(hit) < valueTarget, s"$hit < $valueTarget failed, $parentDifficulty ")
+      require(BigInt(hit) < valueTarget, s"$hit < $valueTarget failed, $parentDifficulty ")
     }
   }
 }

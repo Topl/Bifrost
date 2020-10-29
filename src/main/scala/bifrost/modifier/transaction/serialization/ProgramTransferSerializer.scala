@@ -8,7 +8,7 @@ import bifrost.modifier.box.serialization.ExecutionBoxSerializer
 import bifrost.modifier.transaction.bifrostTransaction.ProgramTransfer
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 
-object ProgramTransferSerializer extends BifrostSerializer[ProgramTransfer]{
+object ProgramTransferSerializer extends BifrostSerializer[ProgramTransfer] {
 
   override def serialize(obj: ProgramTransfer, w: Writer): Unit = {
     /* from: PublicKey25519Proposition */

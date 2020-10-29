@@ -32,8 +32,11 @@ object Transaction {
 
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
-  def signTx(w: Wallet, props: IndexedSeq[PublicKey25519Proposition], message: Array[Byte]):
-  Map[PublicKey25519Proposition, Signature25519] = props.map { prop =>
+  def signTx(
+    w: Wallet,
+    props: IndexedSeq[PublicKey25519Proposition],
+    message: Array[Byte]
+  ): Map[PublicKey25519Proposition, Signature25519] = props.map { prop =>
     val secret = w.secretByPublicImage(prop).get
     val signature = PrivateKey25519Companion.sign(secret, message)
     prop -> signature

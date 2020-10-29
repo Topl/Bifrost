@@ -6,7 +6,9 @@ import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
 package object util {
+
   implicit class TimerExt(val timer: Timer) extends AnyVal {
+
     def schedule[A](f: => Future[A], delay: FiniteDuration): Future[A] = {
       val p = Promise[A]
       try {
@@ -17,8 +19,9 @@ package object util {
       p.future
     }
 
-    def retryUntil[A](f: => Future[A], cond: A => Boolean, retryInterval: FiniteDuration)
-                     (implicit ec: ExecutionContext): Future[A] =
+    def retryUntil[A](f: => Future[A], cond: A => Boolean, retryInterval: FiniteDuration)(implicit
+      ec: ExecutionContext
+    ): Future[A] =
       f.flatMap(v => if (cond(v)) Future.successful(v) else schedule(retryUntil(f, cond, retryInterval), retryInterval))
   }
 }

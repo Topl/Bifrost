@@ -89,7 +89,16 @@ object ProgramCreationSerializer extends BifrostSerializer[ProgramCreation] {
     val timestamp: Long = r.getULong()
     val data: String = r.getIntString()
 
-    ProgramCreation(executionBuilder, readOnlyStateBoxes, preInvestmentBoxes,
-                    owner, signatures, preFeeBoxes, fees, timestamp, data)
+    ProgramCreation(
+      executionBuilder,
+      readOnlyStateBoxes,
+      preInvestmentBoxes,
+      owner,
+      signatures,
+      preFeeBoxes,
+      fees,
+      timestamp,
+      data
+    )
   }
 }

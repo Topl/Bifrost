@@ -6,8 +6,7 @@ import bifrost.utils.serialization.BifrostSerializer
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
-case class MultiSignature25519(signatureSet: Set[Signature25519])
-  extends ProofOfKnowledge[PrivateKey25519, MofNProposition] {
+case class MultiSignature25519(signatureSet: Set[Signature25519]) extends ProofOfKnowledge[PrivateKey25519, MofNProposition] {
   signatureSet.foreach(sig => {
     require(sig.signature.length == MultiSignature25519.SignatureSize)
   })
@@ -31,10 +30,9 @@ case class MultiSignature25519(signatureSet: Set[Signature25519])
 
   override def serializer: BifrostSerializer[MultiSignature25519] = MultiSignature25519Serializer
 
-  override def toString: String = s"MultiSignature25519(${
-    signatureSet.tail.map(s => Base58.encode(s.signature))
-      .foldLeft(Base58.encode(signatureSet.head.signature))(_ + ", " + _)
-  })"
+  override def toString: String = s"MultiSignature25519(${signatureSet.tail
+    .map(s => Base58.encode(s.signature))
+    .foldLeft(Base58.encode(signatureSet.head.signature))(_ + ", " + _)})"
 }
 
 object MultiSignature25519 {

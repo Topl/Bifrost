@@ -18,12 +18,14 @@ import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
-case class CodeCreation(to: PublicKey25519Proposition,
-                        signature: Signature25519,
-                        code: String,
-                        override val fee: Long,
-                        override val timestamp: Long,
-                        data: String) extends Transaction {
+case class CodeCreation(
+  to: PublicKey25519Proposition,
+  signature: Signature25519,
+  code: String,
+  override val fee: Long,
+  override val timestamp: Long,
+  data: String
+) extends Transaction {
 
   override type M = CodeCreation
 
@@ -35,19 +37,21 @@ case class CodeCreation(to: PublicKey25519Proposition,
 
   lazy val hashNoNonces: Array[Byte] = FastCryptographicHash(
     to.pubKeyBytes ++
-      code.getBytes ++
-      Longs.toByteArray(fee) ++
-      Longs.toByteArray(timestamp)
+    code.getBytes ++
+    Longs.toByteArray(fee) ++
+    Longs.toByteArray(timestamp)
   )
 
   override val newBoxes: Traversable[Box] = {
 
-    val nonce = CodeCreation.nonceFromDigest(FastCryptographicHash(
-      "CodeCreation".getBytes ++
+    val nonce = CodeCreation.nonceFromDigest(
+      FastCryptographicHash(
+        "CodeCreation".getBytes ++
         to.pubKeyBytes ++
         code.getBytes ++
         hashNoNonces
-    ))
+      )
+    )
 
     val uuid = UUID.nameUUIDFromBytes(CodeBox.idFromBox(to, nonce))
 
@@ -57,15 +61,15 @@ case class CodeCreation(to: PublicKey25519Proposition,
   }
 
   override lazy val json: Json = Map(
-    "txHash" -> id.toString.asJson,
-    "txType" -> "CodeCreation".asJson,
-    "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).toSeq.asJson,
-    "to" -> Base58.encode(to.pubKeyBytes).asJson,
+    "txHash"    -> id.toString.asJson,
+    "txType"    -> "CodeCreation".asJson,
+    "newBoxes"  -> newBoxes.map(b => Base58.encode(b.id).asJson).toSeq.asJson,
+    "to"        -> Base58.encode(to.pubKeyBytes).asJson,
     "signature" -> Base58.encode(signature.signature).asJson,
-    "code" -> code.asJson,
-    "fee" -> fee.asJson,
+    "code"      -> code.asJson,
+    "fee"       -> fee.asJson,
     "timestamp" -> timestamp.asJson,
-    "data" -> data.asJson
+    "data"      -> data.asJson
   ).asJson
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
@@ -88,11 +92,7 @@ object CodeCreation {
     require(tx.signature.isValid(tx.to, tx.messageToSign), "Invalid signature")
   }
 
-  def createAndApply(w: Wallet,
-                     to: PublicKey25519Proposition,
-                     code: String,
-                     fee: Long,
-                     data: String): Try[CodeCreation] = Try {
+  def createAndApply(w: Wallet, to: PublicKey25519Proposition, code: String, fee: Long, data: String): Try[CodeCreation] = Try {
 
     val selectedSecret = w.secretByPublicImage(to).get
     val fakeSig = Signature25519(Array())

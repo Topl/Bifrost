@@ -1,7 +1,6 @@
 package bifrost.transaction
 
-/**
-  * Created by cykoz on 5/11/2017.
+/** Created by cykoz on 5/11/2017.
   */
 import bifrost.crypto.Signature25519
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
@@ -10,40 +9,39 @@ import bifrost.state.State
 import bifrost.{BifrostGenerators, ValidGenerators}
 
 import scala.util.Success
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 
-class ProgramCreationSpec extends AnyPropSpec
-  with ScalaCheckPropertyChecks
-  with ScalaCheckDrivenPropertyChecks
-  with Matchers
-  with BifrostGenerators
-  with ValidGenerators {
+class ProgramCreationSpec
+    extends AnyPropSpec
+    with ScalaCheckPropertyChecks
+    with ScalaCheckDrivenPropertyChecks
+    with Matchers
+    with BifrostGenerators
+    with ValidGenerators {
 
   property("Generated ProgramCreation Tx should be valid") {
-    forAll(validProgramCreationGen) {
-      programCreation: ProgramCreation =>
-        val semanticValid = State.syntacticValidity(programCreation)
-        semanticValid shouldBe a[Success[_]]
+    forAll(validProgramCreationGen) { programCreation: ProgramCreation =>
+      val semanticValid = State.syntacticValidity(programCreation)
+      semanticValid shouldBe a[Success[_]]
     }
   }
 
   property("Tx with modified signature should be invalid") {
-    forAll(validProgramCreationGen) {
-      programCreation: ProgramCreation =>
-        val wrongSig: Array[Byte] =
-          (programCreation.signatures.head._2.bytes.head + 1).toByte +:
-            programCreation.signatures.head._2.bytes.tail
+    forAll(validProgramCreationGen) { programCreation: ProgramCreation =>
+      val wrongSig: Array[Byte] =
+        (programCreation.signatures.head._2.bytes.head + 1).toByte +:
+        programCreation.signatures.head._2.bytes.tail
 
-        val wrongSigs: Map[PublicKey25519Proposition, Signature25519] =
-          programCreation.signatures +
-            (programCreation.signatures.head._1 -> Signature25519(wrongSig))
+      val wrongSigs: Map[PublicKey25519Proposition, Signature25519] =
+        programCreation.signatures +
+        (programCreation.signatures.head._1 -> Signature25519(wrongSig))
 
-        State.syntacticValidity(programCreation.copy(signatures = wrongSigs)).isSuccess shouldBe false
+      State.syntacticValidity(programCreation.copy(signatures = wrongSigs)).isSuccess shouldBe false
     }
   }
-/*
+  /*
   property("Tx with effective date in the past should be invalid") {
 
     lazy val pastEffDateExecutionBuilderGen: Gen[ExecutionBuilder] = for {

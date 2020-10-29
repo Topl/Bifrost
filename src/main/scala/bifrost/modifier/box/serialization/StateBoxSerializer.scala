@@ -2,7 +2,7 @@ package bifrost.modifier.box.serialization
 
 import bifrost.modifier.box.{ProgramBox, StateBox}
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
-import io.circe.{Json, parser}
+import io.circe.{parser, Json}
 
 object StateBoxSerializer extends BifrostSerializer[StateBox] {
 
@@ -17,7 +17,7 @@ object StateBoxSerializer extends BifrostSerializer[StateBox] {
     val programBox: ProgramBox = ProgramBoxSerializer.parse(r)
 
     val state: Json = parser.parse(r.getIntString()) match {
-      case Left(f) => throw f
+      case Left(f)        => throw f
       case Right(j: Json) => j
     }
 

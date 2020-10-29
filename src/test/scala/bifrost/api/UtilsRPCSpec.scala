@@ -14,11 +14,7 @@ import scala.util.{Failure, Success}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-
-class UtilsRPCSpec extends AnyWordSpec
-  with Matchers
-  with ScalatestRouteTest
-  with BifrostGenerators {
+class UtilsRPCSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with BifrostGenerators {
 
   val route = UtilsApiRoute(settings).route
 
@@ -34,8 +30,7 @@ class UtilsRPCSpec extends AnyWordSpec
 
   "Utils RPC" should {
     "Generate random seed" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -50,14 +45,13 @@ class UtilsRPCSpec extends AnyWordSpec
         (res \\ "result").head.asObject.isDefined shouldBe true
         Base58.decode(((res \\ "result").head \\ "seed").head.asString.get) match {
           case Success(seed) => seed.length shouldEqual 32
-          case Failure(_) => fail("Could not Base 58 decode seed output")
+          case Failure(_)    => fail("Could not Base 58 decode seed output")
         }
       }
     }
 
     "Generate random of given length" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -74,14 +68,13 @@ class UtilsRPCSpec extends AnyWordSpec
         (res \\ "result").head.asObject.isDefined shouldBe true
         Base58.decode(((res \\ "result").head \\ "seed").head.asString.get) match {
           case Success(seed) => seed.length shouldEqual seedLength
-          case Failure(_) => fail("Could not Base 58 decode seed output")
+          case Failure(_)    => fail("Could not Base 58 decode seed output")
         }
       }
     }
 
     "Return blake2b hash of given message" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -101,4 +94,3 @@ class UtilsRPCSpec extends AnyWordSpec
     }
   }
 }
-

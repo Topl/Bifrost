@@ -10,10 +10,7 @@ import scorex.crypto.encode.Base58
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class ProgramMethodExecutionSpec extends AnyWordSpec
-  with Matchers
-  with ScalatestRouteTest
-  with ProgramMockState {
+class ProgramMethodExecutionSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with ProgramMockState {
 
   val route: Route = ProgramApiRoute(settings, nodeViewHolderRef).route
 
@@ -25,8 +22,7 @@ class ProgramMethodExecutionSpec extends AnyWordSpec
 
     "Update mutable state in a Program and return the updated state" in {
 
-      val requestBody = ByteString(
-        s"""{
+      val requestBody = ByteString(s"""{
            |  "jsonrpc": "2.0",
            |  "id": "1",
            |  "method": "executeProgramMethod",

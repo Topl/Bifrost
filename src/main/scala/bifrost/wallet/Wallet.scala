@@ -19,9 +19,8 @@ import scorex.crypto.encode.Base58
 
 import scala.util.{Failure, Success, Try}
 
-
 case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKeyDir: String)
-  extends Vault[Transaction, Block, Wallet]
+    extends Vault[Transaction, Block, Wallet]
     with Logging {
 
   import bifrost.wallet.Wallet._
@@ -36,10 +35,11 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
 
   def boxIds: Seq[Array[Byte]] = store
     .get(BoxIdsKey)
-    .map(_
-           .data
-           .grouped(store.keySize)
-           .toSeq)
+    .map(
+      _.data
+        .grouped(store.keySize)
+        .toSeq
+    )
     .getOrElse(Seq[Array[Byte]]())
 
   // Removed filtering of 0 value boxes since they should no longer be created based on changes to newBoxes for each
@@ -72,17 +72,18 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
       .map(_.data)
       .map(ba => walletBoxSerializer.parseBytes(ba))
       .filter {
-        case s: Success[WalletBox[Any, PI, Box]] => s.value.box match {
-          case pb: PolyBox =>
+        case s: Success[WalletBox[Any, PI, Box]] =>
+          s.value.box match {
+            case pb: PolyBox =>
 //            pb.value > 0 &&
-            publicKeyString == Base58.encode(pb.proposition.pubKeyBytes)
-          case ab: ArbitBox =>
+              publicKeyString == Base58.encode(pb.proposition.pubKeyBytes)
+            case ab: ArbitBox =>
 //            ab.value > 0 &&
               publicKeyString == Base58.encode(ab.proposition.pubKeyBytes)
-          case assetB: AssetBox =>
+            case assetB: AssetBox =>
 //            assetB.amount > 0 &&
               publicKeyString == Base58.encode(assetB.proposition.pubKeyBytes)
-        }
+          }
         case _ => false
       }
       .map(_.get)
@@ -90,22 +91,22 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
 
   def publicKeys: Set[PI] = {
     //secrets.map(_.publicImage)
-    getListOfFiles(defaultKeyDir).map(file => PublicKey25519Proposition(KeyFile.readFile(file.getPath).pubKeyBytes))
-      .toSet
+    getListOfFiles(defaultKeyDir).map(file => PublicKey25519Proposition(KeyFile.readFile(file.getPath).pubKeyBytes)).toSet
   }
 
   def unlockKeyFile(publicKeyString: String, password: String): Unit = {
     val keyfiles = getListOfFiles(defaultKeyDir)
       .map(file => KeyFile.readFile(file.getPath))
-      .filter(k => k
-        .pubKeyBytes sameElements Base58
-        .decode(publicKeyString)
-        .get)
+      .filter(k =>
+        k.pubKeyBytes sameElements Base58
+          .decode(publicKeyString)
+          .get
+      )
 
     assert(keyfiles.size == 1, "Cannot find a unique publicKey in key files")
     val privKey = keyfiles.head.getPrivateKey(password) match {
       case Success(priv) => Set(priv)
-      case Failure(e) => throw e
+      case Failure(e)    => throw e
     }
     // ensure no duplicate by comparing privKey strings
     if (!secrets.map(p => Base58.encode(p.privKeyBytes)).contains(Base58.encode(privKey.head.privKeyBytes))) {
@@ -120,14 +121,15 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
   def lockKeyFile(publicKeyString: String, password: String): Unit = {
     val keyfiles = getListOfFiles(defaultKeyDir)
       .map(file => KeyFile.readFile(file.getPath))
-      .filter(k => k
-        .pubKeyBytes sameElements Base58
-        .decode(publicKeyString)
-        .get)
+      .filter(k =>
+        k.pubKeyBytes sameElements Base58
+          .decode(publicKeyString)
+          .get
+      )
     assert(keyfiles.size == 1, "Cannot find a unique publicKey in key files")
     val privKey = keyfiles.head.getPrivateKey(password) match {
       case Success(priv) => Set(priv)
-      case Failure(e) => throw e
+      case Failure(e)    => throw e
     }
     // ensure no duplicate by comparing privKey strings
     if (!secrets.map(p => Base58.encode(p.privKeyBytes)).contains(Base58.encode(privKey.head.privKeyBytes))) {
@@ -139,9 +141,8 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
 
   def secretByPublicImage(publicImage: PI): Option[S] = publicImage match {
     case p: PublicKey25519Proposition => secrets.find(s => s.publicImage == p)
-    case mn: MofNProposition => secrets.find(s => mn.setOfPubKeyBytes.exists(s.publicImage == PublicKey25519Proposition(
-      _)))
-    case _ => None
+    case mn: MofNProposition          => secrets.find(s => mn.setOfPubKeyBytes.exists(s.publicImage == PublicKey25519Proposition(_)))
+    case _                            => None
   }
 
   def generateNewSecret(): Wallet = {
@@ -165,15 +166,16 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
   }
 
   def generateNewSecret(password: String, importSeed: String): PublicKey25519Proposition = {
-    val privKey = KeyFile(password,seed = FastCryptographicHash(importSeed), defaultKeyDir = defaultKeyDir)
-      .getPrivateKey(password).get
+    val privKey = KeyFile(password, seed = FastCryptographicHash(importSeed), defaultKeyDir = defaultKeyDir)
+      .getPrivateKey(password)
+      .get
     secrets += privKey
     privKey.publicImage
   }
 
   def inWallet(publicImage: PI): Boolean = publicImage match {
     case p: PublicKey25519Proposition => publicKeys.contains(p)
-    case mn: MofNProposition => publicKeys.exists(p => mn.setOfPubKeyBytes.exists(p == PublicKey25519Proposition(_)))
+    case mn: MofNProposition          => publicKeys.exists(p => mn.setOfPubKeyBytes.exists(p == PublicKey25519Proposition(_)))
   }
 
   //we do not process offchain (e.g. by adding them to the wallet)
@@ -185,12 +187,10 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
     log.debug(s"Applying modifier to wallet: ${modifier.id.toString}")
     val changes = StateChanges(modifier).get
 
-    val newBoxes = changes
-      .toAppend
+    val newBoxes = changes.toAppend
       .filter(s => inWallet(s.proposition))
       .map { box =>
-        val boxTransaction = modifier
-          .transactions
+        val boxTransaction = modifier.transactions
           .getOrElse(Seq())
           .find(t => t.newBoxes.exists(tb => tb.id sameElements box.id))
 
@@ -212,9 +212,11 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
         .filter(b => !boxIds.exists(b._1.data sameElements _))
         .toArray
         .flatMap(_._1.data) ++
-        boxIds.filter(bi => {
+      boxIds
+        .filter(bi => {
           !boxIdsToRemove.exists(_.data sameElements bi)
-        }).flatten
+        })
+        .flatten
     )
 //    log.debug(s"${Console.RED} Number of boxes in wallet ${boxIds.length}${Console.RESET}")
 
@@ -232,7 +234,7 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
       Wallet(secrets, store, defaultKeyDir)
     }
   }
-  
+
 }
 
 object Wallet {
@@ -273,8 +275,7 @@ object Wallet {
       }
     })
     // Create directory for key files
-    val keyFileDir = settings
-      .keyFileDir
+    val keyFileDir = settings.keyFileDir
       .ensuring(pathOpt => pathOpt.forall(directoryEnsuring))
 
     Wallet(Set(), boxesStorage, keyFileDir.get)

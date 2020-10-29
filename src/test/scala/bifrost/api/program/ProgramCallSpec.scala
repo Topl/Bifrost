@@ -11,10 +11,7 @@ import scorex.crypto.encode.Base58
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class ProgramCallSpec extends AnyWordSpec
-  with Matchers
-  with ScalatestRouteTest
-  with ProgramMockState {
+class ProgramCallSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with ProgramMockState {
 
   val route: Route = ProgramApiRoute(settings, nodeViewHolderRef).route
 
@@ -24,7 +21,7 @@ class ProgramCallSpec extends AnyWordSpec
 
     manuallyApplyBoxes(boxState, 1)
 
-    view().history.bestBlock.txs.foreach{tx =>
+    view().history.bestBlock.txs.foreach { tx =>
       println(s"${tx.toString}")
     }
 

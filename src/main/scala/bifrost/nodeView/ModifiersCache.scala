@@ -7,8 +7,7 @@ import bifrost.utils.Logging
 import scala.annotation.tailrec
 import scala.collection.mutable
 
-/**
-  * A cache which is storing persistent modifiers not applied to history yet.
+/** A cache which is storing persistent modifiers not applied to history yet.
   *
   * This trait is not thread-save so it should be used only as a local field of an actor
   * and its methods should not be called from lambdas, Future, Future.map, etc.
@@ -27,13 +26,11 @@ trait ModifiersCache[PMOD <: PersistentNodeViewModifier, H <: HistoryReader[PMOD
 
   def size: Int = cache.size
 
-  /**
-    * How many elements are to be stored in the cache
+  /** How many elements are to be stored in the cache
     */
   def maxSize: Int
 
-  /**
-    * Defines a best (and application-specific) candidate to be applied.
+  /** Defines a best (and application-specific) candidate to be applied.
     *
     * @param history - an interface to history which could be needed to define a candidate
     * @return - candidate if it is found
@@ -44,8 +41,7 @@ trait ModifiersCache[PMOD <: PersistentNodeViewModifier, H <: HistoryReader[PMOD
 
   protected def onRemove(key: K): Unit = {}
 
-  /**
-    * Remove elements from cache when it is overfull
+  /** Remove elements from cache when it is overfull
     *
     * @return collection of just removed elements
     */
@@ -58,8 +54,7 @@ trait ModifiersCache[PMOD <: PersistentNodeViewModifier, H <: HistoryReader[PMOD
     }
   }
 
-  /**
-    * Remove an element from the cache.
+  /** Remove an element from the cache.
     *
     * @param key - modifier's key
     * @return - removed value if existed
@@ -86,7 +81,6 @@ trait LRUCache[PMOD <: PersistentNodeViewModifier, HR <: HistoryReader[PMOD, _]]
   // complete scan and cleaning of removed keys happen.
   private val cleaningThreshold = 50
 
-
   override protected def onPut(key: K): Unit = {
     evictionQueue.enqueue(key)
     if (evictionQueue.size > maxSize + cleaningThreshold) {
@@ -106,11 +100,12 @@ trait LRUCache[PMOD <: PersistentNodeViewModifier, HR <: HistoryReader[PMOD, _]]
   }
 }
 
-class DefaultModifiersCache[PMOD <: PersistentNodeViewModifier, HR <: HistoryReader[PMOD, _]]
-(override val maxSize: Int) extends ModifiersCache[PMOD, HR] with LRUCache[PMOD, HR] with Logging {
+class DefaultModifiersCache[PMOD <: PersistentNodeViewModifier, HR <: HistoryReader[PMOD, _]](override val maxSize: Int)
+    extends ModifiersCache[PMOD, HR]
+    with LRUCache[PMOD, HR]
+    with Logging {
 
-  /**
-    * Default implementation is just about to scan. Not efficient at all and should be probably rewritten in a
+  /** Default implementation is just about to scan. Not efficient at all and should be probably rewritten in a
     * concrete application.
     *
     * @param history - an interface to history which could be needed to define a candidate
@@ -120,19 +115,20 @@ class DefaultModifiersCache[PMOD <: PersistentNodeViewModifier, HR <: HistoryRea
   override def findCandidateKey(history: HR): Option[K] = {
 
     // find any blocks that can be removed from the default cache
-    cache.find { case (_, v) =>
+    cache
+      .find { case (_, v) =>
+        // first look for the each block's parent in the cache
+        modifierById(v.parentId) match {
 
-      // first look for the each block's parent in the cache
-      modifierById(v.parentId) match {
+          // if found, do nothing and leave the modifier in the cache for now
+          case Some(_) =>
+            false
 
-        // if found, do nothing and leave the modifier in the cache for now
-        case Some(_) =>
-          false
-
-        // see if the given block can be applied to the canonical chain or the ordered chain cache
-        case None =>
-          history.extendsKnownTine(v)
+          // see if the given block can be applied to the canonical chain or the ordered chain cache
+          case None =>
+            history.extendsKnownTine(v)
+        }
       }
-    }.map(_._1)
+      .map(_._1)
   }
 }

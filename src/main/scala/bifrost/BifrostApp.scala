@@ -53,7 +53,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   // check for gateway device and setup port forwarding
   private val upnpGateway: Option[upnp.Gateway] = if (settings.network.upnpEnabled) upnp.Gateway(settings.network) else None
 
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
   // Setup the execution environment for running the application
   protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
   private implicit val timeout: Timeout = Timeout(settings.network.controllerTimeout.getOrElse(5 seconds))
@@ -62,20 +62,27 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   // save environment into a variable for reference throughout the application
   protected val bifrostContext = new BifrostContext(settings, upnpGateway)
 
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
   // Create Bifrost singleton actors
   private val peerManagerRef: ActorRef = peer.PeerManagerRef("peerManager", settings.network, bifrostContext)
 
-  private val networkControllerRef: ActorRef = NetworkControllerRef("networkController", settings.network, peerManagerRef, bifrostContext)
+  private val networkControllerRef: ActorRef =
+    NetworkControllerRef("networkController", settings.network, peerManagerRef, bifrostContext)
 
-  private val peerSynchronizer: ActorRef = peer.PeerSynchronizerRef("PeerSynchronizer", networkControllerRef, peerManagerRef, settings.network, bifrostContext)
+  private val peerSynchronizer: ActorRef =
+    peer.PeerSynchronizerRef("PeerSynchronizer", networkControllerRef, peerManagerRef, settings.network, bifrostContext)
 
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext)
 
   private val forgerRef: ActorRef = ForgerRef("forger", nodeViewHolderRef, settings.forgingSettings, bifrostContext)
 
   private val nodeViewSynchronizer: ActorRef = NodeViewSynchronizerRef[Transaction, BifrostSyncInfo, Block, History, MemPool](
-      "nodeViewSynchronizer", networkControllerRef, nodeViewHolderRef, settings.network, bifrostContext)
+    "nodeViewSynchronizer",
+    networkControllerRef,
+    nodeViewHolderRef,
+    settings.network,
+    bifrostContext
+  )
 
   // Sequence of actors for cleanly shutting now the application
   private val actorsToStop: Seq[ActorRef] = Seq(
@@ -90,7 +97,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   // hook for initiating the shutdown procedure
   sys.addShutdownHook(BifrostApp.shutdown(actorSystem, actorsToStop))
 
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
   // Create and register controllers for API routes
   private val apiRoutes: Seq[ApiRoute] = Seq(
     UtilsApiRoute(settings),
@@ -103,7 +110,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   private val httpService = HttpService(apiRoutes)
 
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
   // Am I running on a JDK that supports JVMCI?
   val vm_version: String = System.getProperty("java.vm.version")
   System.out.printf("java.vm.version = %s%n", vm_version)
@@ -121,7 +128,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   val compiler: String = System.getProperty("jvmci.Compiler")
   System.out.printf("jvmci.Compiler = %s%n", compiler)
 
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
   def run(): Unit = {
@@ -179,14 +186,14 @@ object BifrostApp extends Logging {
   val argParser: Arg[StartupOpts] = (
     optional[String]("--config", "-c") and
       optionalOneOf[NetworkType](NetworkType.all.map(x => s"--${x.verboseName}" -> x): _*)
-    ).to[StartupOpts]
+  ).to[StartupOpts]
 
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
   def main(args: Array[String]): Unit =
     argParser.parse(args) match {
       case Success(argsParsed) => new BifrostApp(argsParsed).run()
-      case Failure(e) => throw e
+      case Failure(e)          => throw e
     }
 
   def forceStopApplication(code: Int = 1): Nothing = sys.exit(code)

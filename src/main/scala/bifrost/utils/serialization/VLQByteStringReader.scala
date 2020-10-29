@@ -18,8 +18,7 @@ class VLQByteStringReader(byteString: ByteString) extends VLQReader {
     new VLQByteStringReader(chunk)
   }
 
-  /**
-    * Get a byte at current position without advancing the position.
+  /** Get a byte at current position without advancing the position.
     *
     * @return byte at current position
     */

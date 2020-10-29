@@ -7,20 +7,21 @@ import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe.JsonObject
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 
-class ProgramMethodSpec extends AnyPropSpec
-  with ScalaCheckPropertyChecks
-  with ScalaCheckDrivenPropertyChecks
-  with Matchers
-  with BifrostGenerators
-  with ValidGenerators {
+class ProgramMethodSpec
+    extends AnyPropSpec
+    with ScalaCheckPropertyChecks
+    with ScalaCheckDrivenPropertyChecks
+    with Matchers
+    with BifrostGenerators
+    with ValidGenerators {
 
   property("Can call a function from a program") {
-    forAll(programGen) {
-      c: Program => {
+    forAll(programGen) { c: Program =>
+      {
 
         val party = propositionGen.sample.get
         val params = JsonObject.empty
@@ -35,8 +36,13 @@ class ProgramMethodSpec extends AnyPropSpec
         val stateBox = StateBox(prop, 0L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 0L)), state)
         val stateBoxTwo = StateBox(prop, 1L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 1L)), stateTwo)
         val stateBoxThree = StateBox(prop, 2L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 2L)), stateThree)
-        val codeBox = CodeBox(prop, 3L, UUID.nameUUIDFromBytes(CodeBox.idFromBox(prop, 3L)),
-          Seq("function inc() { a += 1; return a }"), Map("inc" -> Seq()))
+        val codeBox = CodeBox(
+          prop,
+          3L,
+          UUID.nameUUIDFromBytes(CodeBox.idFromBox(prop, 3L)),
+          Seq("function inc() { a += 1; return a }"),
+          Map("inc" -> Seq())
+        )
 
         val stateBoxes = Seq(stateBox, stateBoxTwo, stateBoxThree)
 
@@ -48,8 +54,8 @@ class ProgramMethodSpec extends AnyPropSpec
   }
 
   property("Calling getFromState correctly reads from a read only StateBox") {
-    forAll(programGen) {
-      c: Program => {
+    forAll(programGen) { c: Program =>
+      {
 
         val prop = c.parties.head._1
 
@@ -59,11 +65,17 @@ class ProgramMethodSpec extends AnyPropSpec
         val stateThree = s"""{ "c": 7 }""".asJson
 
         val stateBox = StateBox(prop, 0L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 0L)), state)
-        val stateBoxTwo = StateBox(prop, 1L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 1L)),stateTwo)
-        val stateBoxThree = StateBox(prop, 2L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 2L)),stateThree)
-        val codeBox = CodeBox(prop, 3L, UUID.nameUUIDFromBytes(CodeBox.idFromBox(prop, 3L)),Seq(
-          "function changeState(uuid, value, state) { state = getFromState(uuid, value) }"
-        ), Map("changeState" -> Seq("String", "String", "String")))
+        val stateBoxTwo = StateBox(prop, 1L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 1L)), stateTwo)
+        val stateBoxThree = StateBox(prop, 2L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 2L)), stateThree)
+        val codeBox = CodeBox(
+          prop,
+          3L,
+          UUID.nameUUIDFromBytes(CodeBox.idFromBox(prop, 3L)),
+          Seq(
+            "function changeState(uuid, value, state) { state = getFromState(uuid, value) }"
+          ),
+          Map("changeState" -> Seq("String", "String", "String"))
+        )
 
         val stateBoxes = Seq(
           (stateBox, UUID.nameUUIDFromBytes(stateBox.id)),
@@ -71,21 +83,22 @@ class ProgramMethodSpec extends AnyPropSpec
           (stateBoxThree, UUID.nameUUIDFromBytes(stateBoxThree.id))
         )
 
-        val args = JsonObject.fromMap(Map(
-            "uuid" -> s"_${stateBoxes.drop(1).head._2.toString.replace("-","_")}".asJson,
+        val args = JsonObject.fromMap(
+          Map(
+            "uuid"  -> s"_${stateBoxes.drop(1).head._2.toString.replace("-", "_")}".asJson,
             "value" -> "b".asJson,
             "state" -> "a".asJson
-          ))
-
+          )
+        )
 
         val mutableState = stateBoxes.head._1.state.asObject.get.toMap
-        val programCode: String = Seq(codeBox).foldLeft("")((a,b) => a ++ b.code.foldLeft("")((a,b) => a ++ (b + "\n")))
+        val programCode: String = Seq(codeBox).foldLeft("")((a, b) => a ++ b.code.foldLeft("")((a, b) => a ++ (b + "\n")))
 
         val jsre: Context = Context.create("js")
         val bindings = jsre.getBindings("js")
 
         //Pass in JSON objects for each read-only StateBox
-        stateBoxes.tail.map{ sb =>
+        stateBoxes.tail.map { sb =>
           val formattedUuid: String = "_" + sb._2.toString.replace("-", "_")
           jsre.eval("js", s"""var $formattedUuid = JSON.parse(${sb._1.state})""")
         }
@@ -106,7 +119,8 @@ class ProgramMethodSpec extends AnyPropSpec
         jsre.eval("js", s"""a = getFromState(${args("uuid").get}, ${args("value").get})""")
 
         //Return entire state of the evaluation
-        val output: Map[String, String] = bindings.getMemberKeys.toArray.map(k => k.toString -> bindings.getMember(k.toString).toString).toMap
+        val output: Map[String, String] =
+          bindings.getMemberKeys.toArray.map(k => k.toString -> bindings.getMember(k.toString).toString).toMap
         //val output: Map[String, String] = mutableState.map(s => s._1 -> bindings.getMember(s._1).toString)
 
         output("a").toInt shouldEqual 4
@@ -117,8 +131,8 @@ class ProgramMethodSpec extends AnyPropSpec
   }
 
   property("Changing the type of a variable in a mutable StateBox will error") {
-    forAll(programGen) {
-      c: Program => {
+    forAll(programGen) { c: Program =>
+      {
         val party = propositionGen.sample.get
         val params = JsonObject.empty
 
@@ -132,11 +146,16 @@ class ProgramMethodSpec extends AnyPropSpec
         val stateBox = StateBox(prop, 0L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 0L)), state)
         val stateBoxTwo = StateBox(prop, 1L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 1L)), stateTwo)
         val stateBoxThree = StateBox(prop, 2L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 2L)), stateThree)
-        val codeBox = CodeBox(prop, 3L, UUID.nameUUIDFromBytes(CodeBox.idFromBox(prop, 3L)), Seq(
-          s"""function changeType() {
+        val codeBox = CodeBox(
+          prop,
+          3L,
+          UUID.nameUUIDFromBytes(CodeBox.idFromBox(prop, 3L)),
+          Seq(s"""function changeType() {
              |  return a = "wrong"
              |}
-           """.stripMargin), Map("changeType" -> Seq()))
+           """.stripMargin),
+          Map("changeType" -> Seq())
+        )
 
         val stateBoxes = Seq(stateBox, stateBoxTwo, stateBoxThree)
 
@@ -148,8 +167,8 @@ class ProgramMethodSpec extends AnyPropSpec
   }
 
   property("Removing a mutable state variable during execution will result in an error") {
-    forAll(programGen) {
-      c: Program => {
+    forAll(programGen) { c: Program =>
+      {
         val party = propositionGen.sample.get
         /*val params = JsonObject.fromMap(
           Map("newStatus" -> stringGen.sample.get.asJson))
@@ -166,11 +185,16 @@ class ProgramMethodSpec extends AnyPropSpec
         val stateBox = StateBox(prop, 0L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 0L)), state)
         val stateBoxTwo = StateBox(prop, 1L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 1L)), stateTwo)
         val stateBoxThree = StateBox(prop, 2L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 2L)), stateThree)
-        val codeBox = CodeBox(prop, 3L, UUID.nameUUIDFromBytes(CodeBox.idFromBox(prop, 3L)), Seq(
-          s"""function deleteVar() {
+        val codeBox = CodeBox(
+          prop,
+          3L,
+          UUID.nameUUIDFromBytes(CodeBox.idFromBox(prop, 3L)),
+          Seq(s"""function deleteVar() {
              |  delete global.a
              |}
-           """.stripMargin), Map("deleteVar" -> Seq()))
+           """.stripMargin),
+          Map("deleteVar" -> Seq())
+        )
 
         val stateBoxes = Seq(stateBox, stateBoxTwo, stateBoxThree)
 
@@ -182,8 +206,8 @@ class ProgramMethodSpec extends AnyPropSpec
   }
 
   property("Calling a function with mismatched argument types should fail") {
-    forAll(programGen) {
-      c: Program => {
+    forAll(programGen) { c: Program =>
+      {
 
         val party = propositionGen.sample.get
 
@@ -199,11 +223,16 @@ class ProgramMethodSpec extends AnyPropSpec
         val stateBox = StateBox(prop, 0L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 0L)), state)
         val stateBoxTwo = StateBox(prop, 1L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 1L)), stateTwo)
         val stateBoxThree = StateBox(prop, 2L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 2L)), stateThree)
-        val codeBox = CodeBox(prop, 3L, UUID.nameUUIDFromBytes(CodeBox.idFromBox(prop, 3L)), Seq(
-          s"""add = function(a,b) {
+        val codeBox = CodeBox(
+          prop,
+          3L,
+          UUID.nameUUIDFromBytes(CodeBox.idFromBox(prop, 3L)),
+          Seq(s"""add = function(a,b) {
              |  return a + b
              |}
-           """.stripMargin), Map("add" -> Seq("Number", "Number")))
+           """.stripMargin),
+          Map("add" -> Seq("Number", "Number"))
+        )
 
         val stateBoxes = Seq(stateBox, stateBoxTwo, stateBoxThree)
 
@@ -269,7 +298,7 @@ class ProgramMethodSpec extends AnyPropSpec
     }
   }*/
 
-    /*val name: String = "assetCreation"
+  /*val name: String = "assetCreation"
     val assetCode: String = "Wheat"
     val effectiveTimestamp = Instant.now.toEpochMilli
     val expirationTimestamp = Instant.now.toEpochMilli + 10000L

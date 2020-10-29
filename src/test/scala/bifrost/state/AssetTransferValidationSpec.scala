@@ -1,7 +1,6 @@
 package bifrost.state
 
-/**
-  * Created by Matt Kindy on 6/7/2017.
+/** Created by Matt Kindy on 6/7/2017.
   */
 class AssetTransferValidationSpec extends StateSpec {
 

@@ -7,21 +7,17 @@ import bifrost.utils.{Logging, TimeProvider}
 
 import scala.concurrent.duration._
 
-/**
-  * In-memory peer database implementation supporting temporal blacklisting.
+/** In-memory peer database implementation supporting temporal blacklisting.
   */
-final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimeProvider)
-  extends PeerDatabase with Logging {
+final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimeProvider) extends PeerDatabase with Logging {
 
   private var peers = Map.empty[InetSocketAddress, PeerInfo]
 
-  /**
-    * banned peer ip -> ban expiration timestamp
+  /** banned peer ip -> ban expiration timestamp
     */
   private var blacklist = Map.empty[InetAddress, TimeProvider.Time]
 
-  /**
-    * penalized peer ip -> (accumulated penalty score, last penalty timestamp)
+  /** penalized peer ip -> (accumulated penalty score, last penalty timestamp)
     */
   private var penaltyBook = Map.empty[InetAddress, (Int, Long)]
 
@@ -35,8 +31,7 @@ final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimePr
     }
   }
 
-  override def addToBlacklist(socketAddress: InetSocketAddress,
-                              penaltyType: PenaltyType): Unit = {
+  override def addToBlacklist(socketAddress: InetSocketAddress, penaltyType: PenaltyType): Unit = {
     peers -= socketAddress
     Option(socketAddress.getAddress).foreach { address =>
       penaltyBook -= address
@@ -57,12 +52,10 @@ final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimePr
 
   override def knownPeers: Map[InetSocketAddress, PeerInfo] = peers
 
-  override def blacklistedPeers: Seq[InetAddress] = blacklist
-    .map { case (address, bannedTill) =>
-      checkBanned(address, bannedTill)
-      address
-    }
-    .toSeq
+  override def blacklistedPeers: Seq[InetAddress] = blacklist.map { case (address, bannedTill) =>
+    checkBanned(address, bannedTill)
+    address
+  }.toSeq
 
   override def isEmpty: Boolean = peers.isEmpty
 
@@ -72,8 +65,7 @@ final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimePr
   def isBlacklisted(address: InetSocketAddress): Boolean =
     Option(address.getAddress).exists(isBlacklisted)
 
-  /**
-    * Registers a new penalty in the penalty book.
+  /** Registers a new penalty in the penalty book.
     * @return - `true` if penalty threshold is reached, `false` otherwise.
     */
   def penalize(socketAddress: InetSocketAddress, penaltyType: PenaltyType): Boolean =
@@ -92,8 +84,7 @@ final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimePr
       }
     }
 
-  /**
-    * Currently accumulated penalty score for a given address.
+  /** Currently accumulated penalty score for a given address.
     */
   def penaltyScore(address: InetAddress): Int =
     penaltyBook.getOrElse(address, (0, 0L))._1

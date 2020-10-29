@@ -6,12 +6,12 @@ import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
 
 import scala.util.Try
 
-/**
-  * Abstract interface for Vault, a storage for node-specific information
+/** Abstract interface for Vault, a storage for node-specific information
   */
 
-trait Vault[TX <: GenericTransaction[_],
-            PMOD <: PersistentNodeViewModifier, V <: Vault[TX, PMOD, V]] extends NodeViewComponent with VaultReader {
+trait Vault[TX <: GenericTransaction[_], PMOD <: PersistentNodeViewModifier, V <: Vault[TX, PMOD, V]]
+    extends NodeViewComponent
+    with VaultReader {
   self: V =>
 
   type VersionTag = ModifierId

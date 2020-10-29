@@ -9,7 +9,6 @@ import bifrost.history._
 import bifrost.modifier.block.{Block, BlockSerializer}
 import io.iohk.iodb.ByteArrayWrapper
 
-
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @BenchmarkMode(Array(Mode.AverageTime))
 @Threads(1)
@@ -33,16 +32,18 @@ class DBOperations extends BifrostGenerators {
   val storageCurBlockId: ModifierId = ModifierId(history.storage.storage.get(bestBlockIdKey).get.data)
   val cacheCurBlockId: ModifierId = ModifierId(history.storage.storage.get(bestBlockIdKey).get.data)
 
-
   /* Read from storage */
   @Benchmark
   def storageTest() {
     var tmpStorageBlockId: ModifierId = storageCurBlockId
     for (_ <- 1 to numLastBlocks) {
-      val currentBlock: Block = history.storage.storage.get(ByteArrayWrapper(tmpStorageBlockId.hashBytes)).map { bw =>
-        val bytes = bw.data
-        BlockSerializer.parseBytes(bytes.tail).get
-      }.get
+      val currentBlock: Block = history.storage.storage
+        .get(ByteArrayWrapper(tmpStorageBlockId.hashBytes))
+        .map { bw =>
+          val bytes = bw.data
+          BlockSerializer.parseBytes(bytes.tail).get
+        }
+        .get
       tmpStorageBlockId = currentBlock.parentId
     }
   }
@@ -52,11 +53,13 @@ class DBOperations extends BifrostGenerators {
   def cacheTest() {
     var tmpCacheBlockId: ModifierId = cacheCurBlockId
     for (_ <- 1 to numLastBlocks) {
-      val currentBlock: Block = history.storage.blockCache.getIfPresent(ByteArrayWrapper(tmpCacheBlockId.hashBytes)).map {
-        bw =>
+      val currentBlock: Block = history.storage.blockCache
+        .getIfPresent(ByteArrayWrapper(tmpCacheBlockId.hashBytes))
+        .map { bw =>
           val bytes = bw.data
           BlockSerializer.parseBytes(bytes.tail).get
-      }.get
+        }
+        .get
       tmpCacheBlockId = currentBlock.parentId
     }
   }
@@ -77,7 +80,6 @@ class DBOperations extends BifrostGenerators {
     }
   }
 }
-
 
 /*
 package db

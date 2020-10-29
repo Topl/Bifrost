@@ -9,19 +9,20 @@ import org.scalacheck.Gen
 import scorex.crypto.signatures.Curve25519
 
 import scala.util.{Failure, Random, Success, Try}
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 
-class ProgramSpec extends AnyPropSpec
-  with ScalaCheckPropertyChecks
-  with ScalaCheckDrivenPropertyChecks
-  with Matchers
-  with BifrostGenerators
-  with ValidGenerators {
+class ProgramSpec
+    extends AnyPropSpec
+    with ScalaCheckPropertyChecks
+    with ScalaCheckDrivenPropertyChecks
+    with Matchers
+    with BifrostGenerators
+    with ValidGenerators {
 
-    //TODO Replace with
-    /*property("Calling a method not in the program will throw an error") {
+  //TODO Replace with
+  /*property("Calling a method not in the program will throw an error") {
       forAll(programGen) {
         c: Program => {
           forAll(stringGen.suchThat(!validProgramMethods.contains(_))) {
@@ -39,16 +40,16 @@ class ProgramSpec extends AnyPropSpec
     }*/
 
   property("Json works properly for ExecutionBuilderTerms") {
-    forAll(validExecutionBuilderTermsGen) {
-      t: ExecutionBuilderTerms => {
+    forAll(validExecutionBuilderTermsGen) { t: ExecutionBuilderTerms =>
+      {
         t.json.as[ExecutionBuilderTerms].right.get shouldBe t
       }
     }
   }
 
   property("Cannot create ExecutionBuilderTerms with too long of a string") {
-    forAll(Gen.choose(16 * 1024 + 1, 100000)) {
-      size: Int => {
+    forAll(Gen.choose(16 * 1024 + 1, 100000)) { size: Int =>
+      {
         Try {
           ExecutionBuilderTerms(Random.alphanumeric.take(size).mkString)
         } shouldBe a[Failure[_]]
@@ -64,7 +65,7 @@ class ProgramSpec extends AnyPropSpec
         "test",
         validInitJsGen(
           "test",
-          "testCode",
+          "testCode"
         ).sample.get
       )(JsonObject.empty)
     ).json

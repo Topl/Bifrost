@@ -8,17 +8,14 @@ import com.google.common.primitives.Longs
 
 import scala.util.Try
 
-case class StateChanges( override val boxIdsToRemove: Set[Array[Byte]],
-                         override val toAppend: Set[Box],
-                         timestamp: Long
-                       ) extends GenericStateChanges[Any, ProofOfKnowledgeProposition[PrivateKey25519], Box](boxIdsToRemove, toAppend)
+case class StateChanges(override val boxIdsToRemove: Set[Array[Byte]], override val toAppend: Set[Box], timestamp: Long)
+    extends GenericStateChanges[Any, ProofOfKnowledgeProposition[PrivateKey25519], Box](boxIdsToRemove, toAppend)
 
 object StateChanges {
   type P = ProofOfKnowledgeProposition[PrivateKey25519]
   type BX = Box
   type BPMOD = Block
   type GSC = GenericStateChanges[Any, P, BX]
-
 
   //todo - byte array set quality is incorrectly overloaded (shallow not deep), consider using ByteArrayWrapper instead
   //todo - LSMStore will throw error if given duplicate keys in toRemove or toAppend so this needs to be fixed
@@ -33,15 +30,13 @@ object StateChanges {
         }
 
       val (toRemove: Set[Array[Byte]], toAdd: Set[BX], reward: Long) =
-        boxDeltas.foldLeft((Set[Array[Byte]](), Set[BX](), 0L))(
-          (aggregate, boxDelta) => {
-            (
-              aggregate._1 ++ boxDelta._1,
-              aggregate._2 ++ boxDelta._2,
-              aggregate._3 + boxDelta._3
-            )
-          }
-        )
+        boxDeltas.foldLeft((Set[Array[Byte]](), Set[BX](), 0L))((aggregate, boxDelta) => {
+          (
+            aggregate._1 ++ boxDelta._1,
+            aggregate._2 ++ boxDelta._2,
+            aggregate._3 + boxDelta._3
+          )
+        })
 
       // compute the fees to be transferred to the validator
       val finalToAdd =
@@ -49,8 +44,7 @@ object StateChanges {
           val gen = mod.forgerBox.proposition
           val rewardNonce = Longs.fromByteArray(mod.id.hashBytes.take(Longs.BYTES))
           toAdd + PolyBox(gen, rewardNonce, reward)
-        }
-        else toAdd
+        } else toAdd
 
       // return the state changes that can be applied
       new StateChanges(toRemove, finalToAdd, mod.timestamp)

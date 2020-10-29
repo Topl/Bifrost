@@ -9,17 +9,17 @@ import bifrost.{BifrostGenerators, ValidGenerators}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import scala.util.Random
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 
-class IODBSpec extends AnyPropSpec
-  with ScalaCheckPropertyChecks
-  with ScalaCheckDrivenPropertyChecks
-  with Matchers
-  with BifrostGenerators
-  with ValidGenerators {
-
+class IODBSpec
+    extends AnyPropSpec
+    with ScalaCheckPropertyChecks
+    with ScalaCheckDrivenPropertyChecks
+    with Matchers
+    with BifrostGenerators
+    with ValidGenerators {
 
   val iFile = new File(s"/tmp/bifrost/scorextest-${Random.nextInt(10000000)}")
   iFile.mkdirs()
@@ -28,8 +28,7 @@ class IODBSpec extends AnyPropSpec
 
   property("Rollback should not touch keys before") {
 
-    /**
-      * Apply a transaction by storing its new boxes (ignore old boxes)
+    /** Apply a transaction by storing its new boxes (ignore old boxes)
       *
       * @param tx the transaction to write boxes to storage
       */
@@ -43,8 +42,7 @@ class IODBSpec extends AnyPropSpec
       blocksStorage.update(ByteArrayWrapper(tx.id.hashBytes), boxIdsToRemove, boxesToAdd)
     }
 
-    /**
-      * Check that the boxes for the transaction are all stored
+    /** Check that the boxes for the transaction are all stored
       *
       * @param tx the transaction to check has boxes in storage
       */
@@ -74,8 +72,7 @@ class IODBSpec extends AnyPropSpec
 
   property("Writing a block should result in storage of block") {
 
-    /**
-      * Apply a block by storing all of its transactions' new boxes (ignore old boxes)
+    /** Apply a block by storing all of its transactions' new boxes (ignore old boxes)
       *
       * @param b the block to write tx boxes to storage
       */
@@ -96,10 +93,10 @@ class IODBSpec extends AnyPropSpec
       blocksStorage.get(ByteArrayWrapper(block.id.hashBytes)).isDefined shouldBe true
     }
 
-    ids.foreach {
-      id => {
+    ids.foreach { id =>
+      {
         val idInStorage = blocksStorage.get(ByteArrayWrapper(id.hashBytes)) match {
-          case None => println(s"${Console.RED} Id ${id.toString} not found"); false
+          case None    => println(s"${Console.RED} Id ${id.toString} not found"); false
           case Some(_) => true
         }
         require(idInStorage)

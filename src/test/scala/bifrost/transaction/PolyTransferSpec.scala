@@ -3,21 +3,21 @@ package bifrost.transaction
 import bifrost.modifier.transaction.bifrostTransaction.PolyTransfer
 import bifrost.state.State
 import bifrost.{BifrostGenerators, ValidGenerators}
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 
-class PolyTransferSpec extends AnyPropSpec
-  with ScalaCheckPropertyChecks
-  with ScalaCheckDrivenPropertyChecks
-  with Matchers
-  with BifrostGenerators
-  with ValidGenerators {
+class PolyTransferSpec
+    extends AnyPropSpec
+    with ScalaCheckPropertyChecks
+    with ScalaCheckDrivenPropertyChecks
+    with Matchers
+    with BifrostGenerators
+    with ValidGenerators {
 
   property("Generated PolyTransfer Tx should be valid") {
-    forAll(validPolyTransferGen) {
-      polyTransfer: PolyTransfer =>
-        State.syntacticValidity(polyTransfer).isSuccess shouldBe true
+    forAll(validPolyTransferGen) { polyTransfer: PolyTransfer =>
+      State.syntacticValidity(polyTransfer).isSuccess shouldBe true
     }
   }
 

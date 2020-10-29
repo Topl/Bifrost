@@ -11,8 +11,10 @@ import scala.util.{Failure, Success, Try}
 
 case class PublicKey25519Proposition(pubKeyBytes: Array[Byte]) extends ProofOfKnowledgeProposition[PrivateKey25519] {
 
-  require(pubKeyBytes.length == Curve25519.KeyLength,
-    s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.length} found")
+  require(
+    pubKeyBytes.length == Curve25519.KeyLength,
+    s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.length} found"
+  )
 
   import PublicKey25519Proposition._
 
@@ -30,7 +32,7 @@ case class PublicKey25519Proposition(pubKeyBytes: Array[Byte]) extends ProofOfKn
 
   override def equals(obj: scala.Any): Boolean = obj match {
     case p: PublicKey25519Proposition => p.pubKeyBytes sameElements pubKeyBytes
-    case _ => false
+    case _                            => false
   }
 
   override def hashCode(): Int = (BigInt(Blake2b256(pubKeyBytes)) % Int.MaxValue).toInt

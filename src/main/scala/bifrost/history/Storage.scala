@@ -26,15 +26,17 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
   type VAL = ByteArrayWrapper
 
   private val blockLoader: CacheLoader[KEY, Option[VAL]] = new CacheLoader[KEY, Option[VAL]] {
+
     def load(key: KEY): Option[VAL] = {
       storage.get(key) match {
         case Some(blockData: VAL) => Some(blockData)
-        case _ => None
+        case _                    => None
       }
     }
   }
 
-  val blockCache: LoadingCache[KEY, Option[VAL]] = CacheBuilder.newBuilder()
+  val blockCache: LoadingCache[KEY, Option[VAL]] = CacheBuilder
+    .newBuilder()
     .expireAfterAccess(cacheExpire, MILLISECONDS)
     .maximumSize(cacheSize)
     .build[KEY, Option[VAL]](blockLoader)
@@ -120,8 +122,8 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
     val blockBloom: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
       Seq(blockBloomKey(b.serializedId) -> ByteArrayWrapper(Block.createBloom(b.txs)))
 
-    val newTransactionsToBlockIds: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = b.transactions.get.map(
-      tx => (ByteArrayWrapper(tx.serializedId), ByteArrayWrapper(GenericTransaction.modifierTypeId +: b.serializedId))
+    val newTransactionsToBlockIds: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = b.transactions.get.map(tx =>
+      (ByteArrayWrapper(tx.serializedId), ByteArrayWrapper(GenericTransaction.modifierTypeId +: b.serializedId))
     )
 
     /* update storage */
@@ -194,7 +196,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
   def bloomOf(serializedBlockId: Array[Byte]): Option[BitSet] =
     blockCache
       .get(blockBloomKey(serializedBlockId))
-      .map(b => {BitSet() ++ BloomTopics.parseFrom(b.data).topics})
+      .map(b => { BitSet() ++ BloomTopics.parseFrom(b.data).topics })
 
   def serializedParentIdOf(serializedBlockId: Array[Byte]): Option[Array[Byte]] =
     blockCache

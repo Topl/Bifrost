@@ -30,22 +30,18 @@ import scala.util.Try
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-
-class WalletRPCSpec extends AnyWordSpec
-  with Matchers
-  with ScalatestRouteTest
-  with BifrostGenerators {
+class WalletRPCSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with BifrostGenerators {
 
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
   // save environment into a variable for reference throughout the application
   protected val bifrostContext = new BifrostContext(settings, None)
 
   // Create Bifrost singleton actors
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext)
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
   // setup route for testing
   val route: Route = WalletApiRoute(settings, nodeViewHolderRef).route
@@ -64,12 +60,13 @@ class WalletRPCSpec extends AnyWordSpec
 
   private def view() = Await.result(
     (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
-    10.seconds)
+    10.seconds
+  )
 
   val publicKeys = Map(
     "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
     "producer" -> "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb",
-    "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
+    "hub"      -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
   )
 
   var newPubKey: String = ""
@@ -82,8 +79,7 @@ class WalletRPCSpec extends AnyWordSpec
 
   "WalletTrait RPC" should {
     "Get balances" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -102,8 +98,7 @@ class WalletRPCSpec extends AnyWordSpec
     }
 
     "Transfer some arbits" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -131,8 +126,7 @@ class WalletRPCSpec extends AnyWordSpec
     }
 
     "Create transfer arbits prototype" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -155,8 +149,7 @@ class WalletRPCSpec extends AnyWordSpec
     }
 
     "Transfer some polys" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -183,8 +176,7 @@ class WalletRPCSpec extends AnyWordSpec
     }
 
     "Create transfer polys prototype" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -207,8 +199,7 @@ class WalletRPCSpec extends AnyWordSpec
     }
 
     "Get open keyfiles" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -226,8 +217,7 @@ class WalletRPCSpec extends AnyWordSpec
     }
 
     "Generate a keyfile" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -247,8 +237,7 @@ class WalletRPCSpec extends AnyWordSpec
     }
 
     "Lock a keyfile" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -268,8 +257,7 @@ class WalletRPCSpec extends AnyWordSpec
     }
 
     "Unlock a keyfile" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -290,9 +278,11 @@ class WalletRPCSpec extends AnyWordSpec
         //investor, producer and hub keyfiles
         val d = new File("keyfiles/node1")
         d.listFiles.foreach(x =>
-          if(x.toString != "keyfiles/node1/2018-07-06T15-51-30Z-6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ.json" &&
-          x.toString != "keyfiles/node1/2018-07-06T15-51-35Z-F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU.json" &&
-          x.toString != "keyfiles/node1/2018-07-06T15-51-33Z-A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb.json") {
+          if (
+            x.toString != "keyfiles/node1/2018-07-06T15-51-30Z-6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ.json" &&
+            x.toString != "keyfiles/node1/2018-07-06T15-51-35Z-F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU.json" &&
+            x.toString != "keyfiles/node1/2018-07-06T15-51-33Z-A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb.json"
+          ) {
             val tempFile = new File(x.toString)
             tempFile.delete()
           }
@@ -300,7 +290,6 @@ class WalletRPCSpec extends AnyWordSpec
       }
     }
   }
-
 
   object WalletRPCSpec {
     val path: Path = Path("/tmp/bifrost/test-data")

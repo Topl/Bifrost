@@ -6,7 +6,7 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.utils.serialization.BifrostSerializer
 import scorex.crypto.signatures.Curve25519
 
-case class PrivateKey25519( privKeyBytes: Array[Byte], publicKeyBytes: Array[Byte] ) extends Secret {
+case class PrivateKey25519(privKeyBytes: Array[Byte], publicKeyBytes: Array[Byte]) extends Secret {
 
   require(privKeyBytes.length == Curve25519.KeyLength, s"${privKeyBytes.length} == ${Curve25519.KeyLength}")
   require(publicKeyBytes.length == Curve25519.KeyLength, s"${publicKeyBytes.length} == ${Curve25519.KeyLength}")
@@ -22,8 +22,6 @@ case class PrivateKey25519( privKeyBytes: Array[Byte], publicKeyBytes: Array[Byt
   override def serializer: BifrostSerializer[PrivateKey25519] = PrivateKey25519Serializer
 }
 
-
-
 object PrivateKey25519Companion extends SecretCompanion[PrivateKey25519] {
 
   override type PR = Signature25519
@@ -31,7 +29,7 @@ object PrivateKey25519Companion extends SecretCompanion[PrivateKey25519] {
   override def owns(secret: PrivateKey25519, box: GenericBox[_, Long]): Boolean = {
     box.proposition match {
       case p: PublicKey25519Proposition => p.pubKeyBytes sameElements secret.publicKeyBytes
-      case _ => false
+      case _                            => false
     }
   }
 

@@ -28,8 +28,7 @@ trait NodeViewModifier extends BytesSerializable with BifrostEncoding with JsonS
   def serializedId: Array[Byte]
 }
 
-/**
-  * It is supposed that all the modifiers (offchain transactions, blocks, blockheaders etc)
+/** It is supposed that all the modifiers (offchain transactions, blocks, blockheaders etc)
   * have identifiers of the some length fixed with the ModifierIdSize constant
   */
 object NodeViewModifier {
@@ -43,13 +42,12 @@ object NodeViewModifier {
 
   val modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
     Map(
-      Block.modifierTypeId -> BlockSerializer,
+      Block.modifierTypeId       -> BlockSerializer,
       Transaction.modifierTypeId -> TransactionSerializer
     )
 
   def idsToString(ids: Seq[(ModifierTypeId, ModifierId)])(implicit enc: BifrostEncoder): String = {
-    List(ids.headOption, ids.lastOption)
-      .flatten
+    List(ids.headOption, ids.lastOption).flatten
       .map { case (typeId, id) => s"($typeId,${enc.encodeId(id)})" }
       .mkString("[", "..", "]")
   }
@@ -61,15 +59,12 @@ object NodeViewModifier {
   def idsToString(invData: InvData)(implicit encoder: BifrostEncoder): String = idsToString(invData.typeId, invData.ids)
 }
 
-
-
 trait PersistentNodeViewModifier extends NodeViewModifier {
 
   def parentId: ModifierId
 }
 
-trait TransactionsCarryingPersistentNodeViewModifier[TX <: Transaction]
-  extends PersistentNodeViewModifier {
+trait TransactionsCarryingPersistentNodeViewModifier[TX <: Transaction] extends PersistentNodeViewModifier {
 
   def transactions: Seq[TX]
 }

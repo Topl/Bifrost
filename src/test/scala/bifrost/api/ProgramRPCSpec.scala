@@ -33,25 +33,21 @@ import scala.util.Try
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-/**
-  * Created by cykoz on 6/13/2017.
+/** Created by cykoz on 6/13/2017.
   */
 
-class ProgramRPCSpec extends AnyWordSpec
-  with Matchers
-  with ScalatestRouteTest
-  with BifrostGenerators {
+class ProgramRPCSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with BifrostGenerators {
 
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
   // save environment into a variable for reference throughout the application
   protected val bifrostContext = new BifrostContext(settings, None)
 
   // Create Bifrost singleton actors
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext)
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
   // setup route for testing
   val route: Route = ProgramApiRoute(settings, nodeViewHolderRef).route
@@ -69,14 +65,15 @@ class ProgramRPCSpec extends AnyWordSpec
   val publicKeys: Map[String, String] = Map(
     "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
     "producer" -> "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb",
-    "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
+    "hub"      -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
   )
 
   private def actOnCurrentView(v: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = v
 
   private def view() = Await.result(
     (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
-    10.seconds)
+    10.seconds
+  )
 
   // Unlock Secrets
   val gw: Wallet = view().vault
@@ -84,22 +81,19 @@ class ProgramRPCSpec extends AnyWordSpec
   gw.unlockKeyFile(publicKeys("producer"), "genesis")
   gw.unlockKeyFile(publicKeys("hub"), "genesis")
 
-
   "Program RPC" should {
 
-    val polyBoxes = view()
-      .vault
+    val polyBoxes = view().vault
       .boxes()
       .filter(_.box.isInstanceOf[PolyBox])
 
     val fees = Map(
       publicKeys("investor") -> 500,
-      publicKeys("hub") -> 0,
+      publicKeys("hub")      -> 0,
       publicKeys("producer") -> 0
     )
 
     var executionBox: Option[ExecutionBox] = None
-
 
     def manuallyApplyChanges(res: Json, version: Int): Unit = {
       // Manually manipulate state
@@ -111,9 +105,7 @@ class ProgramRPCSpec extends AnyWordSpec
           executionBox = Some(b)
         case _ =>
       }
-      val boxSC = StateChanges(txInstance.boxIdsToOpen.toSet,
-        txInstance.newBoxes.toSet,
-        System.currentTimeMillis())
+      val boxSC = StateChanges(txInstance.boxIdsToOpen.toSet, txInstance.newBoxes.toSet, System.currentTimeMillis())
       val versionId = ModifierId(Ints.toByteArray(version))
 
       view().state.applyChanges(boxSC, versionId).get
@@ -175,11 +167,17 @@ class ProgramRPCSpec extends AnyWordSpec
       val requestBodyJson = parse(programBodyTemplate).getOrElse(Json.Null)
 
       val cursor: HCursor = requestBodyJson.hcursor
-      val requestJson = cursor.downField("method")
-        .withFocus(_.mapString(_ => "createProgram")).up
-        .downField("params").downArray.downField("signatures").downField(publicKeys("investor"))
-        .withFocus(_.mapString(_ => sig)).top.get
-
+      val requestJson = cursor
+        .downField("method")
+        .withFocus(_.mapString(_ => "createProgram"))
+        .up
+        .downField("params")
+        .downArray
+        .downField("signatures")
+        .downField(publicKeys("investor"))
+        .withFocus(_.mapString(_ => sig))
+        .top
+        .get
 
       httpPOST(ByteString(requestJson.toString)) ~> route ~> check {
         val res = parse(responseAs[String]).right.get

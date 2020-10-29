@@ -8,9 +8,7 @@ import io.iohk.iodb.ByteArrayWrapper
 import scala.collection.concurrent.TrieMap
 import scala.util.Try
 
-
-case class MemPool(unconfirmed: TrieMap[ByteArrayWrapper, Transaction])
-  extends MemoryPool[Transaction, MemPool] with Logging {
+case class MemPool(unconfirmed: TrieMap[ByteArrayWrapper, Transaction]) extends MemoryPool[Transaction, MemPool] with Logging {
   override type NVCT = MemPool
 
   private def key(id: Array[Byte]): ByteArrayWrapper = ByteArrayWrapper(id)
@@ -39,10 +37,12 @@ case class MemPool(unconfirmed: TrieMap[ByteArrayWrapper, Transaction])
 
   override def put(txs: Iterable[Transaction]): Try[MemPool] = Try {
     txs.foreach(tx => unconfirmed.put(key(tx.id.hashBytes), tx))
-    txs.foreach(tx => tx.boxIdsToOpen.foreach(boxId => {
-      val exists = boxesInMempool.contains(key(boxId))
-      require(!exists)
-    }))
+    txs.foreach(tx =>
+      tx.boxIdsToOpen.foreach(boxId => {
+        val exists = boxesInMempool.contains(key(boxId))
+        require(!exists)
+      })
+    )
     txs.foreach(tx => {
       tx.boxIdsToOpen.map(boxId => {
         boxesInMempool.put(key(boxId), key(boxId))
@@ -89,7 +89,6 @@ case class MemPool(unconfirmed: TrieMap[ByteArrayWrapper, Transaction])
     unconfirmed.get(ByteArrayWrapper(modifierId.hashBytes))
   }
 }
-
 
 object MemPool {
   lazy val emptyPool: MemPool = MemPool(TrieMap())

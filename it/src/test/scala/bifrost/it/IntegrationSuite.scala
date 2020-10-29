@@ -9,10 +9,7 @@ import org.scalatest.{BeforeAndAfterAll, Suite}
 import scala.concurrent.ExecutionContext
 import scala.util.Random
 
-trait IntegrationSuite
-  extends IntegrationConstants
-    with BeforeAndAfterAll
-    with Logging { this: Suite =>
+trait IntegrationSuite extends IntegrationConstants with BeforeAndAfterAll with Logging { this: Suite =>
 
   implicit val defaultExecutionContext: ExecutionContext =
     ExecutionContext.fromExecutor(Executors.newFixedThreadPool(10))
