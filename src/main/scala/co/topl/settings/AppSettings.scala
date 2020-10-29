@@ -61,10 +61,9 @@ case class NetworkSettings (addedMaxDelay: Option[FiniteDuration],
                             upnpUseRandom           : Option[Boolean],
                             upnpGatewayTimeout      : Option[FiniteDuration])
 
-case class ForgingSettings (forgingAttempts : Int,
-                            targetBlockTime : FiniteDuration,
-                            numTxPerBlock   : Int,
-                            privateTestnet  : Option[PrivateTestnetSettings])
+case class ForgingSettings ( blockGenerationDelay: FiniteDuration,
+                             protocolVersions    : List[ProtocolSettings],
+                             privateTestnet      : Option[PrivateTestnetSettings])
 
 case class PrivateTestnetSettings (numTestnetAccts  : Int,
                                    testnetBalance   : Long,
@@ -88,6 +87,13 @@ object AppSettings extends Logging with SettingsReaders {
   def read (startupOpts: StartupOpts = StartupOpts.empty): AppSettings = {
     fromConfig(readConfig(startupOpts))
   }
+
+  /**
+    * Produces an application settings class by reading the specified HOCON configuration file
+    * @param config config factory compatible configuration
+    * @return
+    */
+  def fromConfig (config: Config): AppSettings = config.as[AppSettings](configPath)
 
   /**
     *
@@ -152,14 +158,5 @@ object AppSettings extends Logging with SettingsReaders {
         log.warn("No custom setting specified, using default configuration")
         ConfigFactory.load()
     }
-  }
-
-  /**
-    *
-    * @param config
-    * @return
-    */
-  def fromConfig (config: Config): AppSettings = {
-    config.as[AppSettings](configPath)
   }
 }
