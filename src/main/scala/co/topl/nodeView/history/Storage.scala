@@ -206,7 +206,7 @@ class Storage( private[history] val storage: LSMStore,
   def blockIdOf(transactionId: ModifierId): Option[ModifierId] =
     blockCache
       .get(ByteArrayWrapper(transactionId.hashBytes))
-      .map(id => ModifierId(id.data))
+      .map(id => ModifierId(id.data.tail))
 
   def parentChainScore(b: Block): Long = scoreOf(b.parentId).getOrElse(0L)
 
