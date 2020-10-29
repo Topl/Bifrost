@@ -6,12 +6,11 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.state.StateSpec.block
 import co.topl.settings.{AppSettings, StartupOpts}
-import co.topl.{CoreGenerators, ValidGenerators}
+import co.topl.utils.{CoreGenerators, FileUtils, ValidGenerators}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-import utils.FileUtils
 
 import scala.util.{Failure, Success}
 

@@ -1,8 +1,8 @@
 package co.topl.nodeView.history
 
-import co.topl.CoreGenerators
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
+import co.topl.utils.CoreGenerators
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec

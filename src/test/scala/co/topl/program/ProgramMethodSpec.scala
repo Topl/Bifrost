@@ -1,7 +1,7 @@
 package co.topl.program
 
 import co.topl.nodeView.state.box.{CodeBox, StateBox}
-import co.topl.{CoreGenerators, ValidGenerators}
+import co.topl.utils.{CoreGenerators, ValidGenerators}
 import io.circe.JsonObject
 import io.circe.syntax._
 import org.graalvm.polyglot.Context

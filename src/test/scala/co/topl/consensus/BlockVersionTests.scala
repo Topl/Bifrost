@@ -1,11 +1,11 @@
 package co.topl.consensus
 
-import co.topl.CoreGenerators
 import co.topl.consensus.consensusHelper.setProtocolMngr
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.State
+import co.topl.utils.CoreGenerators
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 

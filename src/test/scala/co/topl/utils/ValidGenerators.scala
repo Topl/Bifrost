@@ -1,10 +1,10 @@
-package co.topl
+package co.topl.utils
 
 import co.topl.crypto.{FastCryptographicHash, Signature25519}
 import co.topl.modifier.transaction.Transaction.{Nonce, Value}
 import co.topl.modifier.transaction._
-import co.topl.nodeView.state.box.{ PublicKeyNoncedBox, _ }
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.{PublicKeyNoncedBox, _}
 import co.topl.program._
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._

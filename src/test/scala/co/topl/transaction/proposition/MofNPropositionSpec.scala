@@ -1,8 +1,8 @@
 package co.topl.transaction.proposition
 
-import co.topl.CoreGenerators
 import co.topl.crypto.PrivateKey25519
 import co.topl.nodeView.state.box.proposition.MofNProposition
+import co.topl.utils.CoreGenerators
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}

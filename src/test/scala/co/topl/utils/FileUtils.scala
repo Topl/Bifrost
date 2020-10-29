@@ -1,4 +1,4 @@
-package utils
+package co.topl.utils
 
 import java.io.File
 import java.nio.file.Files.createTempDirectory

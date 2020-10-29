@@ -1,20 +1,19 @@
-package co.topl
+package co.topl.utils
 
 import java.io.File
 import java.time.Instant
 
 import co.topl.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
-import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.{Nonce, Value}
 import co.topl.modifier.transaction._
+import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
 import co.topl.nodeView.state.ProgramId
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.proposition.{MofNProposition, PublicKey25519Proposition}
 import co.topl.program.{Program, ProgramPreprocessor, _}
 import co.topl.settings.{AppSettings, StartupOpts}
-import co.topl.utils.Logging
 import io.circe.syntax._
 import io.circe.{Json, JsonObject}
 import io.iohk.iodb.LSMStore

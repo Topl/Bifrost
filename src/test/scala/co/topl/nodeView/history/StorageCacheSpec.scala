@@ -1,9 +1,9 @@
 package co.topl.nodeView.history
 
-import co.topl.CoreGenerators
 import co.topl.consensus.consensusHelper.setProtocolMngr
 import co.topl.consensus.protocolMngr
 import co.topl.modifier.block.Block
+import co.topl.utils.CoreGenerators
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec

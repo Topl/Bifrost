@@ -1,6 +1,6 @@
 package co.topl.program
 
-import co.topl.{CoreGenerators, ValidGenerators}
+import co.topl.utils.{CoreGenerators, ValidGenerators}
 import io.circe.JsonObject
 import io.circe.syntax._
 import org.scalatest.matchers.should.Matchers

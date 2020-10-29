@@ -3,7 +3,7 @@ package co.topl.program
 import java.time.Instant
 
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.{CoreGenerators, ValidGenerators}
+import co.topl.utils.{CoreGenerators, ValidGenerators}
 import io.circe.{Json, JsonObject}
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers

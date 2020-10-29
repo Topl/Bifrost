@@ -7,7 +7,7 @@ import co.topl.modifier.block.Block
 import co.topl.nodeView.state.StateSpec.testSettings
 import co.topl.nodeView.state.box.StateBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.{CoreGenerators, ValidGenerators}
+import co.topl.utils.{CoreGenerators, ValidGenerators}
 import com.google.common.primitives.Ints
 import io.circe.Json
 import io.circe.syntax._

@@ -6,11 +6,11 @@ import co.topl.modifier.transaction._
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import co.topl.nodeView.state.box.serialization.BoxSerializer
-import co.topl.program.{ ExecutionBuilder, ExecutionBuilderSerializer }
-import co.topl.{ CoreGenerators, ValidGenerators }
+import co.topl.program.{ExecutionBuilder, ExecutionBuilderSerializer}
+import co.topl.utils.{CoreGenerators, ValidGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import serializer.BloomTopics
 
 import scala.collection.BitSet

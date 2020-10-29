@@ -10,7 +10,7 @@ import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.{State, StateSpec}
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.state.box.{ArbitBox, AssetBox}
-import co.topl.{CoreGenerators, ValidGenerators}
+import co.topl.utils.{CoreGenerators, ValidGenerators}
 import com.google.common.primitives.{Ints, Longs}
 import org.graalvm.polyglot.Context
 import org.scalatest.matchers.should.Matchers

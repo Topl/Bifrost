@@ -4,9 +4,9 @@ import java.net.InetSocketAddress
 
 import akka.actor._
 import akka.testkit.TestKit
-import co.topl.CoreGenerators
 import co.topl.network.message.MessageSerializer
 import co.topl.settings.{AppContext, StartupOpts}
+import co.topl.utils.CoreGenerators
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.propspec.AnyPropSpecLike
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks

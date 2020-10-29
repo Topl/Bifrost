@@ -1,9 +1,8 @@
 package co.topl.it.chain
 
-import co.topl.CoreGenerators
 import co.topl.it.IntegrationSuite
 import co.topl.it.util.Node
-import co.topl.CoreGenerators
+import co.topl.utils.CoreGenerators
 import com.typesafe.config.Config
 import org.scalatest.freespec.AnyFreeSpec
 
