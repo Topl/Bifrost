@@ -4,7 +4,6 @@ import bifrost.crypto.{MultiSignature25519, Signature25519}
 import bifrost.utils.Extensions._
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 
-
 object MultiSignature25519Serializer extends BifrostSerializer[MultiSignature25519] {
 
   override def serialize(obj: MultiSignature25519, w: Writer): Unit = {

@@ -31,13 +31,13 @@ object BoxSerializer extends BifrostSerializer[Box] {
 
   override def parse(r: Reader): Box = {
     r.getByteString() match {
-      case "ArbitBox" => ArbitBoxSerializer.parse(r)
-      case "AssetBox" => AssetBoxSerializer.parse(r)
-      case "PolyBox" => PolyBoxSerializer.parse(r)
-      case "StateBox" => StateBoxSerializer.parse(r)
-      case "CodeBox" => CodeBoxSerializer.parse(r)
+      case "ArbitBox"     => ArbitBoxSerializer.parse(r)
+      case "AssetBox"     => AssetBoxSerializer.parse(r)
+      case "PolyBox"      => PolyBoxSerializer.parse(r)
+      case "StateBox"     => StateBoxSerializer.parse(r)
+      case "CodeBox"      => CodeBoxSerializer.parse(r)
       case "ExecutionBox" => ExecutionBoxSerializer.parse(r)
-      case _ => throw new Exception("Unanticipated Box Type")
+      case _              => throw new Exception("Unanticipated Box Type")
     }
   }
 }

@@ -3,8 +3,7 @@ package bifrost.utils.serialization
 import bifrost.utils.ByteArrayBuilder
 import bifrost.utils.serialization.Writer.Aux
 
-/**
-  * Not thread safe
+/** Not thread safe
   */
 class VLQByteBufferWriter(b: ByteArrayBuilder) extends Writer with VLQWriter {
   override type CH = ByteArrayBuilder
@@ -41,4 +40,3 @@ class VLQByteBufferWriter(b: ByteArrayBuilder) extends Writer with VLQWriter {
     b.toBytes
   }
 }
-

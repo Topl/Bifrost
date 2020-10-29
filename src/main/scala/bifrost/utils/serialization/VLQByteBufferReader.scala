@@ -4,8 +4,7 @@ import java.nio.ByteBuffer
 
 import bifrost.utils.serialization.Reader.Aux
 
-/**
-  * Not thread safe
+/** Not thread safe
   */
 class VLQByteBufferReader(buf: ByteBuffer) extends VLQReader {
 
@@ -28,6 +27,7 @@ class VLQByteBufferReader(buf: ByteBuffer) extends VLQReader {
   }
 
   private var _mark: Int = _
+
   @inline override def mark(): this.type = {
     _mark = buf.position()
     this

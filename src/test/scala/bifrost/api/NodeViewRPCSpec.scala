@@ -34,21 +34,18 @@ import scala.util.Try
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class NodeViewRPCSpec extends AnyWordSpec
-  with Matchers
-  with ScalatestRouteTest
-  with BifrostGenerators {
+class NodeViewRPCSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with BifrostGenerators {
 
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
   // save environment into a variable for reference throughout the application
   protected val bifrostContext = new BifrostContext(settings, None)
 
   // Create Bifrost singleton actors
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext)
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
   // setup route for testing
   val route: Route = NodeViewApiRoute(settings, nodeViewHolderRef).route
@@ -77,12 +74,13 @@ class NodeViewRPCSpec extends AnyWordSpec
 
   private def view() = Await.result(
     (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
-    10.seconds)
+    10.seconds
+  )
 
   val publicKeys = Map(
     "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
     "producer" -> "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb",
-    "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
+    "hub"      -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
   )
 
   // Unlock Secrets
@@ -96,8 +94,7 @@ class NodeViewRPCSpec extends AnyWordSpec
   var assetTxInstance: Transaction = _
   var blockId: Block.BlockId = ModifierId(Array[Byte]())
 
-  val requestBody: ByteString = ByteString(
-    s"""
+  val requestBody: ByteString = ByteString(s"""
        |{
        |   "jsonrpc": "2.0",
        |   "id": "1",
@@ -122,8 +119,7 @@ class NodeViewRPCSpec extends AnyWordSpec
 
   "NodeView RPC" should {
     "Get first 100 transactions in mempool" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -138,7 +134,7 @@ class NodeViewRPCSpec extends AnyWordSpec
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
         val txHashesArray = (res \\ "result").head \\ "txHash"
         txHashesArray.find(tx => tx.asString.get == assetTxHash) match {
-          case Some (tx) =>
+          case Some(tx) =>
             txHash = tx.asString.get
           case None =>
         }
@@ -148,7 +144,8 @@ class NodeViewRPCSpec extends AnyWordSpec
         assetTxInstance = view().pool.getById(txHashId).get
         val history = view().history
         //Create a block with the above created createAssets transaction
-        val tempBlock = Block(history.bestBlockId,
+        val tempBlock = Block(
+          history.bestBlockId,
           System.currentTimeMillis(),
           ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
           Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
@@ -161,8 +158,7 @@ class NodeViewRPCSpec extends AnyWordSpec
     }
 
     "Get transaction from the mempool by id" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -186,8 +182,7 @@ class NodeViewRPCSpec extends AnyWordSpec
     }
 
     "Get a confirmed transaction by id" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -208,8 +203,7 @@ class NodeViewRPCSpec extends AnyWordSpec
     }
 
     "Get block by id" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |
@@ -227,7 +221,7 @@ class NodeViewRPCSpec extends AnyWordSpec
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
         val txsArray = ((res \\ "result").head \\ "txs").head.asArray.get
-        txsArray.filter(tx => {(tx \\"txHash").head.asString.get == txHash})
+        txsArray.filter(tx => { (tx \\ "txHash").head.asString.get == txHash })
         //Checking that the block found contains the above createAssets transaction
         //since that block's id was used as the search parameter
         txsArray.size shouldEqual 1
@@ -235,7 +229,6 @@ class NodeViewRPCSpec extends AnyWordSpec
     }
   }
 }
-
 
 object NodeViewRPCSpec {
   val path: Path = Path("/tmp/bifrost/test-data")

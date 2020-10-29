@@ -20,7 +20,7 @@ object ExecutionBoxSerializer extends BifrostSerializer[ExecutionBox] {
 
     /* codeBoxIds: Seq[Array[Byte]] */
     w.putUInt(obj.codeBoxIds.length)
-    obj.codeBoxIds.foreach{id =>
+    obj.codeBoxIds.foreach { id =>
       w.putUInt(id.length)
       w.putBytes(id)
     }
@@ -36,7 +36,7 @@ object ExecutionBoxSerializer extends BifrostSerializer[ExecutionBox] {
     /* codeBoxIds: Seq[Array[Byte]] */
     val codeBoxIdsLength: Int = r.getUInt().toIntExact
 
-    val codeBoxIds: Seq[Array[Byte]] = (0 until codeBoxIdsLength).map{_ =>
+    val codeBoxIds: Seq[Array[Byte]] = (0 until codeBoxIdsLength).map { _ =>
       val idLength: Int = r.getUInt().toIntExact
       r.getBytes(idLength)
     }

@@ -21,15 +21,14 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
-
 /** Class route for managing assets using JSON-RPC requests
   *
   * @param settings
   * @param nodeViewHolderRef
   * @param context
   */
-case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: ActorRef)
-                        (implicit val context: ActorRefFactory) extends ApiRouteWithView {
+case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: ActorRef)(implicit val context: ActorRefFactory)
+    extends ApiRouteWithView {
   type HIS = History
   type MS = State
   type VL = Wallet
@@ -38,26 +37,26 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
 
   def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
     method match {
-      case "transferAssets" => transferAssets(params.head, id)
-      case "transferAssetsPrototype" => transferAssetsPrototype(params.head, id)
-      case "transferTargetAssets" => transferTargetAssets(params.head, id)
+      case "transferAssets"                => transferAssets(params.head, id)
+      case "transferAssetsPrototype"       => transferAssetsPrototype(params.head, id)
+      case "transferTargetAssets"          => transferTargetAssets(params.head, id)
       case "transferTargetAssetsPrototype" => transferTargetAssetsPrototype(params.head, id)
-      case "createAssets" => createAssets(params.head, id)
-      case "createAssetsPrototype" => createAssetsPrototype(params.head, id)
+      case "createAssets"                  => createAssets(params.head, id)
+      case "createAssetsPrototype"         => createAssetsPrototype(params.head, id)
     }
 
   /**  #### Summary
     *    Transfer assets from an account to a specified recipient.
-    * 
+    *
     *  #### Type
     *    Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
-    * 
+    *
     *  #### Description
     *    Default behavior of the wallet is to find the first unlocked address which hold the targeted asset.
     *    The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
-    * 
+    *
     *  #### Notes
-    *    - Change is returned to the first sender in the array of senders 
+    *    - Change is returned to the first sender in the array of senders
     * ---
     *  #### Params
     *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
@@ -82,9 +81,7 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
         Base58.decode((params \\ "recipient").head.asString.get).get
       )
       val sender: IndexedSeq[PublicKey25519Proposition] =
-        (params \\ "sender").head.asArray.get.map(key =>
-          PublicKey25519Proposition(Base58.decode(key.asString.get).get)
-        )
+        (params \\ "sender").head.asArray.get.map(key => PublicKey25519Proposition(Base58.decode(key.asString.get).get))
       val fee: Long =
         (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       val issuer = PublicKey25519Proposition(
@@ -129,16 +126,16 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
 
   /** #### Summary
     *    Transfer assets from an account to a specified recipient.
-    * 
+    *
     *  #### Type
     *    Remote -- Transaction must be used in conjunction with an external key manager service.
-    * 
+    *
     *  #### Description
     *    Default behavior of the wallet is to find the first unlocked address which hold the targetted asset.
     *    The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
-    * 
+    *
     *  #### Notes
-    *    - Change is returned to the first sender in the array of senders 
+    *    - Change is returned to the first sender in the array of senders
     * ---
     *  #### Params
     *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
@@ -156,8 +153,8 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
     * @return
     */
   private def transferAssetsPrototype(
-      params: Json,
-      id: String
+    params: Json,
+    id: String
   ): Future[Json] = {
     viewAsync().map { view =>
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
@@ -165,9 +162,7 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
         Base58.decode((params \\ "recipient").head.asString.get).get
       )
       val sender: IndexedSeq[PublicKey25519Proposition] =
-        (params \\ "sender").head.asArray.get.map(key =>
-          PublicKey25519Proposition(Base58.decode(key.asString.get).get)
-        )
+        (params \\ "sender").head.asArray.get.map(key => PublicKey25519Proposition(Base58.decode(key.asString.get).get))
       val fee: Long =
         (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       val issuer = PublicKey25519Proposition(
@@ -205,7 +200,7 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
       AssetTransfer.validatePrototype(tx) match {
         case Success(_) =>
           Map(
-            "formattedTx" -> tx.json,
+            "formattedTx"   -> tx.json,
             "messageToSign" -> Base58.encode(tx.messageToSign).asJson
           ).asJson
         case Failure(e) =>
@@ -216,15 +211,15 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
 
   /**  #### Summary
     *   Target a specific asset box and transfer to another account
-    * 
+    *
     *  #### Type
     *    Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
-    * 
+    *
     *  #### Description
     *    The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
-    * 
+    *
     *  #### Notes
-    *    - Change is returned to the first sender in the array of senders 
+    *    - Change is returned to the first sender in the array of senders
     * ---
     *  #### Params
     *
@@ -245,9 +240,7 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
     viewAsync().map { view =>
       val wallet = view.vault
       val sender: IndexedSeq[PublicKey25519Proposition] =
-        (params \\ "sender").head.asArray.get.map(key =>
-          PublicKey25519Proposition(Base58.decode(key.asString.get).get)
-        )
+        (params \\ "sender").head.asArray.get.map(key => PublicKey25519Proposition(Base58.decode(key.asString.get).get))
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
         Base58.decode((params \\ "recipient").head.asString.get).get
       )
@@ -289,15 +282,15 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
 
   /** #### Summary
     *   Target a specific asset box and transfer to another account
-    * 
+    *
     *  #### Type
     *    Remote -- Transaction must be used in conjunction with an external key manager service.
-    * 
+    *
     *  #### Description
     *    The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
-    * 
+    *
     *  #### Notes
-    *    - Change is returned to the first sender in the array of senders 
+    *    - Change is returned to the first sender in the array of senders
     * ---
     *  #### Params
     *
@@ -315,14 +308,12 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
     * @return
     */
   private def transferTargetAssetsPrototype(
-      params: Json,
-      id: String
+    params: Json,
+    id: String
   ): Future[Json] = {
     viewAsync().map { view =>
       val sender: IndexedSeq[PublicKey25519Proposition] =
-        (params \\ "sender").head.asArray.get.map(key =>
-          PublicKey25519Proposition(Base58.decode(key.asString.get).get)
-        )
+        (params \\ "sender").head.asArray.get.map(key => PublicKey25519Proposition(Base58.decode(key.asString.get).get))
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
         Base58.decode((params \\ "recipient").head.asString.get).get
       )
@@ -354,7 +345,7 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
       AssetTransfer.validatePrototype(tx) match {
         case Success(_) =>
           Map(
-            "formattedTx" -> tx.json,
+            "formattedTx"   -> tx.json,
             "messageToSign" -> Base58.encode(tx.messageToSign).asJson
           ).asJson
         case Failure(e) =>
@@ -365,14 +356,14 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
 
   /**  #### Summary
     *    Generate new assets and send them to a specified address.
-    * 
+    *
     *  #### Type
     *    Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
-    * 
+    *
     *  #### Description
     *    New boxes will be generated and placed into state under the ownership of the recipient account. Assets are uniquely defined the the combination
     *    of `issuer` and `assetCode`
-    * 
+    *
     * ---
     *  #### Params
     *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
@@ -429,14 +420,14 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
 
   /**  #### Summary
     *    Generate new assets and send them to a specified address.
-    * 
+    *
     *  #### Type
     *    Remote -- Transaction must be used in conjunction with an external key manager service.
-    * 
+    *
     *  #### Description
     *    New boxes wlll be generated and placed into state under the ownership of the recipient account. Assets are uniquely defined the the combination
     *    of `issuer` and `assetCode`
-    * 
+    *
     * ---
     *  #### Params
     *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
@@ -482,7 +473,7 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
       AssetCreation.validatePrototype(tx) match {
         case Success(_) =>
           Map(
-            "formattedTx" -> tx.json,
+            "formattedTx"   -> tx.json,
             "messageToSign" -> Base58.encode(tx.messageToSign).asJson
           ).asJson
         case Failure(e) =>

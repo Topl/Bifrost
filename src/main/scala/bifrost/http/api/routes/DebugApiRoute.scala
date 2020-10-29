@@ -17,8 +17,8 @@ import scorex.crypto.encode.Base58
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-case class DebugApiRoute(override val settings: AppSettings, nodeViewHolderRef: ActorRef)
-                        (implicit val context: ActorRefFactory) extends ApiRouteWithView {
+case class DebugApiRoute(override val settings: AppSettings, nodeViewHolderRef: ActorRef)(implicit val context: ActorRefFactory)
+    extends ApiRouteWithView {
 
   type HIS = History
   type MS = State
@@ -28,9 +28,9 @@ case class DebugApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
 
   def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
     method match {
-      case "info" => infoRoute(params.head, id)
-      case "delay" => delay(params.head, id)
-      case "myBlocks" => myBlocks(params.head, id)
+      case "info"       => infoRoute(params.head, id)
+      case "delay"      => delay(params.head, id)
+      case "myBlocks"   => myBlocks(params.head, id)
       case "generators" => generators(params.head, id)
     }
 
@@ -51,12 +51,12 @@ case class DebugApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
     * @return
     */
   private def infoRoute(params: Json, id: String): Future[Json] = {
-    viewAsync().map {view =>
+    viewAsync().map { view =>
       Map(
-        "height" -> view.history.height.toString.asJson,
-        "score" -> view.history.score.asJson,
-        "bestBlockId" -> view.history.bestBlockId.toString.asJson,
-        "bestBlock" -> view.history.bestBlock.json,
+        "height"       -> view.history.height.toString.asJson,
+        "score"        -> view.history.score.asJson,
+        "bestBlockId"  -> view.history.bestBlockId.toString.asJson,
+        "bestBlock"    -> view.history.bestBlock.json,
         "stateVersion" -> view.state.version.toString.asJson
       ).asJson
     }
@@ -64,7 +64,7 @@ case class DebugApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
 
   /**  #### Summary
     *    Calculate the average delay over a number of blocks
-    *  
+    *
     *  #### Description
     *    Find the average delay between blocks starting from a specified blockId and till a certain number of blocks forged on top of it
     *
@@ -96,7 +96,7 @@ case class DebugApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
 
   /**  #### Summary
     *    Find the number of blocks forged by public keys held by the node
-    * 
+    *
     *  #### Type
     *    Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
     *
@@ -121,7 +121,7 @@ case class DebugApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
         view.history.count(b => pubkeys.contains(b.forgerBox.proposition))
       Map(
         "pubkeys" -> pubkeys.map(pk => Base58.encode(pk.pubKeyBytes)).asJson,
-        "count" -> count.asJson
+        "count"   -> count.asJson
       ).asJson
     }
   }

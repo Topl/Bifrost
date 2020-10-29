@@ -20,15 +20,10 @@ import scorex.crypto.hash.Keccak256
 
 import scala.util.Try
 
-/**
-  * Created by cykoz on 6/22/2017.
+/** Created by cykoz on 6/22/2017.
   */
 
-case class KeyFile(pubKeyBytes: Array[Byte],
-                   cipherText: Array[Byte],
-                   mac: Array[Byte],
-                   salt: Array[Byte],
-                   iv: Array[Byte]) {
+case class KeyFile(pubKeyBytes: Array[Byte], cipherText: Array[Byte], mac: Array[Byte], salt: Array[Byte], iv: Array[Byte]) {
 
   import KeyFile._
 
@@ -49,9 +44,9 @@ case class KeyFile(pubKeyBytes: Array[Byte],
         "iv" -> Base58.encode(iv).asJson
       ).asJson,
       "cipherText" -> Base58.encode(cipherText).asJson,
-      "kdf" -> "scrypt".asJson,
-      "kdfSalt" -> Base58.encode(salt).asJson,
-      "mac" -> Base58.encode(mac).asJson
+      "kdf"        -> "scrypt".asJson,
+      "kdfSalt"    -> Base58.encode(salt).asJson,
+      "mac"        -> Base58.encode(mac).asJson
     ).asJson,
     "publicKeyId" -> Base58.encode(pubKeyBytes).asJson
   ).asJson
@@ -63,8 +58,12 @@ object KeyFile {
     SCrypt.generate(password.getBytes(StandardCharsets.UTF_8), salt, scala.math.pow(2, 18).toInt, 8, 1, 32)
   }
 
-  def getAESResult(derivedKey: Array[Byte], ivData: Array[Byte], inputText: Array[Byte], encrypt: Boolean):
-  (Array[Byte], Array[Byte]) = {
+  def getAESResult(
+    derivedKey: Array[Byte],
+    ivData: Array[Byte],
+    inputText: Array[Byte],
+    encrypt: Boolean
+  ): (Array[Byte], Array[Byte]) = {
     val cipherParams = new ParametersWithIV(new KeyParameter(derivedKey), ivData)
     val aesCtr = new BufferedBlockCipher(new SICBlockCipher(new AESEngine))
     aesCtr.init(encrypt, cipherParams)
@@ -104,31 +103,30 @@ object KeyFile {
     val jsonString = scala.io.Source.fromFile(filename)
     val key = parse(jsonString.mkString).right.get.as[KeyFile] match {
       case Right(f: KeyFile) => f
-      case Left(e) => throw new Exception(s"Could not parse KeyFile: $e")
+      case Left(e)           => throw new Exception(s"Could not parse KeyFile: $e")
     }
     jsonString.close()
     key
   }
 
-  implicit val decodeKeyFile: Decoder[KeyFile] = (c: HCursor) => for {
-    pubKeyString <- c.downField("publicKeyId").as[String]
-    cipherTextString <- c.downField("crypto").downField("cipherText").as[String]
-    macString <- c.downField("crypto").downField("mac").as[String]
-    saltString <- c.downField("crypto").downField("kdfSalt").as[String]
-    ivString <- c.downField("crypto").downField("cipherParams").downField("iv").as[String]
-  } yield {
-    val pubKey = Base58.decode(pubKeyString).get
-    val cipherText = Base58.decode(cipherTextString).get
-    val mac = Base58.decode(macString).get
-    val salt = Base58.decode(saltString).get
-    val iv = Base58.decode(ivString).get
-    KeyFile(pubKey, cipherText, mac, salt, iv)
-  }
+  implicit val decodeKeyFile: Decoder[KeyFile] = (c: HCursor) =>
+    for {
+      pubKeyString     <- c.downField("publicKeyId").as[String]
+      cipherTextString <- c.downField("crypto").downField("cipherText").as[String]
+      macString        <- c.downField("crypto").downField("mac").as[String]
+      saltString       <- c.downField("crypto").downField("kdfSalt").as[String]
+      ivString         <- c.downField("crypto").downField("cipherParams").downField("iv").as[String]
+    } yield {
+      val pubKey = Base58.decode(pubKeyString).get
+      val cipherText = Base58.decode(cipherTextString).get
+      val mac = Base58.decode(macString).get
+      val salt = Base58.decode(saltString).get
+      val iv = Base58.decode(ivString).get
+      KeyFile(pubKey, cipherText, mac, salt, iv)
+    }
 
   private val provider: OpportunisticCurve25519Provider = {
-    val constructor = classOf[OpportunisticCurve25519Provider]
-      .getDeclaredConstructors
-      .head
+    val constructor = classOf[OpportunisticCurve25519Provider].getDeclaredConstructors.head
       .asInstanceOf[Constructor[OpportunisticCurve25519Provider]]
     constructor.setAccessible(true)
     constructor.newInstance()

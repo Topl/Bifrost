@@ -13,7 +13,7 @@ trait PublicKeyNoncedBox[PKP <: PublicKey25519Proposition] extends GenericBox[PK
 
   override def equals(obj: Any): Boolean = obj match {
     case acc: PublicKeyNoncedBox[PKP] => (acc.id sameElements this.id) && acc.value == this.value
-    case _ => false
+    case _                            => false
   }
 
   override def hashCode(): Int = proposition.hashCode()

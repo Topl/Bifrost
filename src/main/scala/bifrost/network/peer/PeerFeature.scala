@@ -3,8 +3,7 @@ package bifrost.network.peer
 import bifrost.serialization.BytesSerializable
 import bifrost.utils.serialization.BifrostSerializer
 
-/**
-  * An abstract trait to describe peer capabilities.
+/** An abstract trait to describe peer capabilities.
   * During a handshake peers are sending list of their "features" to each other.
   * It is assumed that features are not changing when the node runs.
   * Maximum theoretical size of a serialized feature is 32,767 bytes.

@@ -1,6 +1,6 @@
 package bifrost.modifier.box.serialization
 
-import bifrost.modifier.box.{TokenBox, PolyBox}
+import bifrost.modifier.box.{PolyBox, TokenBox}
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object PolyBoxSerializer extends BifrostSerializer[PolyBox] {

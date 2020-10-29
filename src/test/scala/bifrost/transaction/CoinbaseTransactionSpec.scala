@@ -3,20 +3,21 @@ package bifrost.transaction
 import bifrost.modifier.transaction.bifrostTransaction.CoinbaseTransaction
 import bifrost.state.State
 import bifrost.{BifrostGenerators, ValidGenerators}
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 
-class CoinbaseTransactionSpec extends AnyPropSpec
-  with ScalaCheckPropertyChecks
-  with ScalaCheckDrivenPropertyChecks
-  with Matchers
-  with BifrostGenerators
-  with ValidGenerators {
+class CoinbaseTransactionSpec
+    extends AnyPropSpec
+    with ScalaCheckPropertyChecks
+    with ScalaCheckDrivenPropertyChecks
+    with Matchers
+    with BifrostGenerators
+    with ValidGenerators {
 
   property("Generated Coinbase Tx should be valid") {
-    forAll(validCoinbaseTransactionGen) {
-      cb: CoinbaseTransaction => State.syntacticValidity(cb).isSuccess shouldBe true
+    forAll(validCoinbaseTransactionGen) { cb: CoinbaseTransaction =>
+      State.syntacticValidity(cb).isSuccess shouldBe true
     }
 
     // test inflation val stuff works

@@ -16,10 +16,7 @@ import scorex.crypto.signatures.Curve25519
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class CodeCreationSpec extends AnyWordSpec
-  with Matchers
-  with ScalatestRouteTest
-  with ProgramMockState {
+class CodeCreationSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with ProgramMockState {
 
   val route: Route = ProgramApiRoute(settings, nodeViewHolderRef).route
 
@@ -27,8 +24,7 @@ class CodeCreationSpec extends AnyWordSpec
 
     "Create new CodeBox in state" in {
 
-      val requestBody = ByteString(
-        s"""{
+      val requestBody = ByteString(s"""{
            |  "jsonrpc": "2.0",
            |  "id": "1",
            |  "method": "createCode",
@@ -54,7 +50,8 @@ class CodeCreationSpec extends AnyWordSpec
         val txInstance: Transaction = view().pool.getById(txHashId).get
 
         val history = view().history
-        val tempBlock = Block(history.bestBlockId,
+        val tempBlock = Block(
+          history.bestBlockId,
           System.currentTimeMillis(),
           ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
           Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),

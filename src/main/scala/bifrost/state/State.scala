@@ -20,8 +20,7 @@ import scorex.crypto.encode.Base58
 
 import scala.util.{Failure, Success, Try}
 
-/**
-  * BifrostState is a data structure which deterministically defines whether an arbitrary transaction is valid and so
+/** BifrostState is a data structure which deterministically defines whether an arbitrary transaction is valid and so
   * applicable to it or not. Also has methods to get a closed box, to apply a persistent modifier, and to roll back
   * to a previous version.
   *
@@ -30,14 +29,16 @@ import scala.util.{Failure, Success, Try}
   * @param timestamp         timestamp of the block that results in this state
   * @param history           Main box storage
   */
-case class State( storage: LSMStore,
-                  override val version: VersionTag,
-                  timestamp: Long,
-                  history: History,
-                  pbr: ProgramBoxRegistry = null,
-                  tbr: TokenBoxRegistry = null,
-                  nodeKeys: Set[ByteArrayWrapper] = null
-                ) extends MinimalState[Block, State] with Logging {
+case class State(
+  storage: LSMStore,
+  override val version: VersionTag,
+  timestamp: Long,
+  history: History,
+  pbr: ProgramBoxRegistry = null,
+  tbr: TokenBoxRegistry = null,
+  nodeKeys: Set[ByteArrayWrapper] = null
+) extends MinimalState[Block, State]
+    with Logging {
 
   override type NVCT = State
   type TX = Transaction
@@ -139,8 +140,7 @@ case class State( storage: LSMStore,
     statefulValid.flatMap(_ => State.syntacticValidity(arT))
   }
 
-  /**
-    * @param poT : the PolyTransfer to validate
+  /** @param poT : the PolyTransfer to validate
     * @return
     */
   private def validatePolyTransfer(poT: PolyTransfer): Try[Unit] = {
@@ -266,8 +266,8 @@ case class State( storage: LSMStore,
             ac.newBoxes.head
               .isInstanceOf[AssetBox]
           ) // the new box is an asset box
-          Success[Unit](Unit)
-            else
+            Success[Unit](Unit)
+          else
             Failure(new Exception("Incorrect box type"))
 
         case _ => Failure(new Exception("Incorrect number of boxes created"))
@@ -276,8 +276,7 @@ case class State( storage: LSMStore,
     statefulValid.flatMap(_ => State.syntacticValidity(ac))
   }
 
-  /**
-    * Check the code is valid chain code and the newly created CodeBox is
+  /** Check the code is valid chain code and the newly created CodeBox is
     * formed properly
     *
     * @param cc : CodeCreation object
@@ -299,8 +298,7 @@ case class State( storage: LSMStore,
     statefulValid.flatMap(_ => State.syntacticValidity(cc))
   }
 
-  /**
-    * Validates ProgramCreation instance on its unlockers && timestamp of the program
+  /** Validates ProgramCreation instance on its unlockers && timestamp of the program
     *
     * @param pc : ProgramCreation object
     * @return
@@ -488,25 +486,26 @@ case class State( storage: LSMStore,
       .map(BoxSerializer.parseBytes)
       .flatMap(_.toOption)
 
-  private def generateUnlockers( from: Seq[(PublicKey25519Proposition, Transaction.Nonce)],
-                                 signatures: Map[PublicKey25519Proposition, Signature25519]
-                               ): Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
-    from.map {
-      case (prop, nonce) =>
-        new BoxUnlocker[PublicKey25519Proposition] {
-          override val closedBoxId: Array[Byte] =
-            PublicKeyNoncedBox.idFromBox(prop, nonce)
-          override val boxKey: Signature25519 = signatures.getOrElse(
-            prop,
-            throw new Exception("Signature not provided")
-          )
-        }
+  private def generateUnlockers(
+    from: Seq[(PublicKey25519Proposition, Transaction.Nonce)],
+    signatures: Map[PublicKey25519Proposition, Signature25519]
+  ): Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
+    from.map { case (prop, nonce) =>
+      new BoxUnlocker[PublicKey25519Proposition] {
+        override val closedBoxId: Array[Byte] =
+          PublicKeyNoncedBox.idFromBox(prop, nonce)
+        override val boxKey: Signature25519 = signatures.getOrElse(
+          prop,
+          throw new Exception("Signature not provided")
+        )
+      }
     }
   }
 
-  private def generateUnlockers( boxIds: Seq[Array[Byte]],
-                                 signature: Signature25519
-                               ): Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
+  private def generateUnlockers(
+    boxIds: Seq[Array[Byte]],
+    signature: Signature25519
+  ): Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
     boxIds.map { id =>
       new BoxUnlocker[PublicKey25519Proposition] {
         override val closedBoxId: Array[Byte] = id
@@ -532,9 +531,7 @@ case class State( storage: LSMStore,
       val keyFilteredBoxesToAdd =
         if (nodeKeys != null)
           changes.toAppend
-            .filter(b =>
-              nodeKeys.contains(ByteArrayWrapper(b.proposition.bytes))
-            )
+            .filter(b => nodeKeys.contains(ByteArrayWrapper(b.proposition.bytes)))
         else
           changes.toAppend
 
@@ -542,9 +539,7 @@ case class State( storage: LSMStore,
         if (nodeKeys != null)
           changes.boxIdsToRemove
             .flatMap(closedBox)
-            .filter(b =>
-              nodeKeys.contains(ByteArrayWrapper(b.proposition.bytes))
-            )
+            .filter(b => nodeKeys.contains(ByteArrayWrapper(b.proposition.bytes)))
             .map(b => b.id)
         else
           changes.boxIdsToRemove
@@ -559,8 +554,8 @@ case class State( storage: LSMStore,
 
       log.debug(
         s"Update BifrostState from version $lastVersionString to version $newVersion. " +
-          s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b.data))}, " +
-          s"adding boxes ${boxesToAdd.map(b => Base58.encode(b._1.data))}"
+        s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b.data))}, " +
+        s"adding boxes ${boxesToAdd.map(b => Base58.encode(b._1.data))}"
       )
 
       val timestamp: Long = changes.asInstanceOf[StateChanges].timestamp
@@ -610,16 +605,14 @@ object State extends Logging {
 
   def genesisState(settings: AppSettings, initialBlocks: Seq[Block], history: History): State = {
     initialBlocks
-      .foldLeft(readOrGenerate( settings, callFromGenesis = true, history)) {
-        (state, mod) =>
-          StateChanges(mod)
-            .flatMap(cs => state.applyChanges(cs, mod.id))
-            .get
+      .foldLeft(readOrGenerate(settings, callFromGenesis = true, history)) { (state, mod) =>
+        StateChanges(mod)
+          .flatMap(cs => state.applyChanges(cs, mod.id))
+          .get
       }
   }
 
-  /**
-    * Provides a single interface for syntactically validating transactions
+  /** Provides a single interface for syntactically validating transactions
     *
     * @param tx transaction to evaluate
     */

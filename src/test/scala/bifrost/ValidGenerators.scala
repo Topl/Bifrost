@@ -16,16 +16,15 @@ import scorex.crypto.encode.Base58
 
 import scala.util.{Failure, Success, Try}
 
-/**
-  * Created by cykoz on 5/11/2017.
+/** Created by cykoz on 5/11/2017.
   */
 trait ValidGenerators extends BifrostGenerators {
 
   lazy val validBifrostTransactionSeqGen: Gen[Seq[Transaction]] = for {
     seqLen <- positiveMediumIntGen
   } yield {
-    0 until seqLen map {
-      _ => {
+    0 until seqLen map { _ =>
+      {
         val g: Gen[Transaction] = sampleUntilNonEmpty(Gen.oneOf(transactionTypes))
         sampleUntilNonEmpty(g)
       }
@@ -33,29 +32,32 @@ trait ValidGenerators extends BifrostGenerators {
   }
 
   lazy val validProgramGen: Gen[Program] = for {
-    producer <- propositionGen
-    investor <- propositionGen
-    hub <- propositionGen
+    producer         <- propositionGen
+    investor         <- propositionGen
+    hub              <- propositionGen
     executionBuilder <- validExecutionBuilderGen().map(_.json)
-    id <- genBytesList(FastCryptographicHash.DigestSize)
+    id               <- genBytesList(FastCryptographicHash.DigestSize)
   } yield {
-    Program(Map(
-      "parties" -> Map(
-        Base58.encode(producer.pubKeyBytes) -> "producer",
-        Base58.encode(investor.pubKeyBytes) -> "investor",
-        Base58.encode(hub.pubKeyBytes) -> "hub"
+    Program(
+      Map(
+        "parties" -> Map(
+          Base58.encode(producer.pubKeyBytes) -> "producer",
+          Base58.encode(investor.pubKeyBytes) -> "investor",
+          Base58.encode(hub.pubKeyBytes)      -> "hub"
+        ).asJson,
+        "executionBuilder" -> executionBuilder,
+        "lastUpdated"      -> System.currentTimeMillis().asJson
       ).asJson,
-      "executionBuilder" -> executionBuilder,
-      "lastUpdated" -> System.currentTimeMillis().asJson
-    ).asJson, id)
+      id
+    )
   }
 
   lazy val validProgramCreationGen: Gen[ProgramCreation] = for {
-    executionBuilder <- validExecutionBuilderGen()
-    timestamp <- positiveLongGen
+    executionBuilder   <- validExecutionBuilderGen()
+    timestamp          <- positiveLongGen
     numInvestmentBoxes <- positiveTinyIntGen
-    data <- stringGen
-    maxFee <- positiveTinyIntGen
+    data               <- stringGen
+    maxFee             <- positiveTinyIntGen
   } yield {
     Try {
       val senderKeyPair = keyPairSetGen.sample.get.head
@@ -87,7 +89,6 @@ trait ValidGenerators extends BifrostGenerators {
       val fees = feePreBoxes.map { case (prop, preBoxes) =>
         prop -> preBoxes.map(_._2).sum
       }
-
 
       val messageToSign = Bytes.concat(
         ExecutionBuilderSerializer.toBytes(executionBuilder),
@@ -133,7 +134,7 @@ trait ValidGenerators extends BifrostGenerators {
 
   lazy val semanticallyValidProgramMethodExecutionGen: Gen[ProgramMethodExecution] = for {
     timestamp <- positiveLongGen.map(_ / 3)
-    data <- stringGen
+    data      <- stringGen
   } yield {
     val senderKeyPair = keyPairSetGen.sample.get.head
     val sender = senderKeyPair._2
@@ -147,21 +148,24 @@ trait ValidGenerators extends BifrostGenerators {
     val state = Map("a" -> "0").asJson
 
     val stateBox = StateBox(sender, 0L, UUID.nameUUIDFromBytes(StateBox.idFromBox(sender, 0L)), state)
-    val codeBox = CodeBox(sender, 1L, UUID.nameUUIDFromBytes(CodeBox.idFromBox(sender, 1L)),
-      Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number", "Number")))
-
+    val codeBox = CodeBox(
+      sender,
+      1L,
+      UUID.nameUUIDFromBytes(CodeBox.idFromBox(sender, 1L)),
+      Seq("add = function() { a = 2 + 2 }"),
+      Map("add" -> Seq("Number", "Number"))
+    )
 
     val stateUUID: UUID = UUID.nameUUIDFromBytes(stateBox.id)
     //    val proposition = MofNProposition(1, parties.map(_.pubKeyBytes).toSet)
-    val executionBox = ExecutionBox(sender, 2L, UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(sender, 2L)), Seq(stateUUID), Seq(codeBox.id))
+    val executionBox =
+      ExecutionBox(sender, 2L, UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(sender, 2L)), Seq(stateUUID), Seq(codeBox.id))
 
-
-    val boxAmounts: Seq[Long] = splitAmongN(sampleUntilNonEmpty(positiveLongGen),
-      sampleUntilNonEmpty(positiveTinyIntGen),
-      minShareSize = 0) match {
-      case Success(amounts) => amounts
-      case f: Failure[_] => throw f.exception
-    }
+    val boxAmounts: Seq[Long] =
+      splitAmongN(sampleUntilNonEmpty(positiveLongGen), sampleUntilNonEmpty(positiveTinyIntGen), minShareSize = 0) match {
+        case Success(amounts) => amounts
+        case f: Failure[_]    => throw f.exception
+      }
 
     val feeBoxes: Seq[(Nonce, Long)] = boxAmounts
       .map { boxAmount => sampleUntilNonEmpty(preFeeBoxGen(boxAmount, boxAmount)) }
@@ -170,11 +174,10 @@ trait ValidGenerators extends BifrostGenerators {
       Map(sender -> feeBoxes.toIndexedSeq)
 
     val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq
-      .flatMap {
-        case (prop, v) =>
-          v.map {
-            case (nonce, _) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
-          }
+      .flatMap { case (prop, v) =>
+        v.map { case (nonce, _) =>
+          (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
+        }
       }
 
     val senderFeePreBoxes = feePreBoxes(sender)
@@ -193,12 +196,12 @@ trait ValidGenerators extends BifrostGenerators {
 
     val hashNoNonces = FastCryptographicHash(
       executionBox.id ++
-        methodName.getBytes ++
-        sender.pubKeyBytes ++
-        parameters.noSpaces.getBytes ++
-        (executionBox.id ++ feeBoxIdKeyPairs.flatMap(_._1)) ++
-        Longs.toByteArray(timestamp) ++
-        fees.flatMap { case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
+      methodName.getBytes ++
+      sender.pubKeyBytes ++
+      parameters.noSpaces.getBytes ++
+      (executionBox.id ++ feeBoxIdKeyPairs.flatMap(_._1)) ++
+      Longs.toByteArray(timestamp) ++
+      fees.flatMap { case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
     )
 
     val messageToSign = Bytes.concat(FastCryptographicHash(executionBox.bytes ++ hashNoNonces), data.getBytes)
@@ -215,14 +218,14 @@ trait ValidGenerators extends BifrostGenerators {
       feePreBoxes,
       fees,
       timestamp,
-      data)
+      data
+    )
   }
 
-
   lazy val validPolyTransferGen: Gen[PolyTransfer] = for {
-    fee <- positiveLongGen
+    fee       <- positiveLongGen
     timestamp <- positiveLongGen
-    data <- stringGen
+    data      <- stringGen
   } yield {
     val fromKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val from = IndexedSeq((fromKeyPairs._1, Longs.fromByteArray(FastCryptographicHash("Testing").take(8))))
@@ -233,15 +236,17 @@ trait ValidGenerators extends BifrostGenerators {
   }
 
   private val testingValue: Value = Longs
-    .fromByteArray(FastCryptographicHash("Testing")
-      .take(Longs.BYTES))
+    .fromByteArray(
+      FastCryptographicHash("Testing")
+        .take(Longs.BYTES)
+    )
 
   lazy val validArbitTransferGen: Gen[ArbitTransfer] = for {
-    _ <- fromSeqGen
-    _ <- toSeqGen
-    fee <- positiveLongGen
+    _         <- fromSeqGen
+    _         <- toSeqGen
+    fee       <- positiveLongGen
     timestamp <- positiveLongGen
-    data <- stringGen
+    data      <- stringGen
   } yield {
     val fromKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val from = IndexedSeq((fromKeyPairs._1, testingValue))
@@ -252,31 +257,27 @@ trait ValidGenerators extends BifrostGenerators {
   }
 
   lazy val validCoinbaseTransactionGen: Gen[CoinbaseTransaction] = for {
-    _ <- toSeqGen
+    _         <- toSeqGen
     timestamp <- positiveLongGen
-    id <- modifierIdGen
+    id        <- modifierIdGen
   } yield {
     val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val to = IndexedSeq((toKeyPairs._2, 4L))
     val fakeSigs = IndexedSeq(Signature25519(Array()))
-    val messageToSign = CoinbaseTransaction(
-      to,
-      fakeSigs,
-      timestamp,
-      id.hashBytes).messageToSign
+    val messageToSign = CoinbaseTransaction(to, fakeSigs, timestamp, id.hashBytes).messageToSign
     // sign with own key because coinbase is literally giving yourself money
     val signatures = IndexedSeq(PrivateKey25519Companion.sign(toKeyPairs._1, messageToSign))
     CoinbaseTransaction(to, signatures, timestamp, id.hashBytes)
   }
 
   lazy val validAssetTransferGen: Gen[AssetTransfer] = for {
-    _ <- fromSeqGen
-    _ <- toSeqGen
-    fee <- positiveLongGen
+    _         <- fromSeqGen
+    _         <- toSeqGen
+    fee       <- positiveLongGen
     timestamp <- positiveLongGen
-    hub <- propositionGen
+    hub       <- propositionGen
     assetCode <- stringGen
-    data <- stringGen
+    data      <- stringGen
   } yield {
     val fromKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val from = IndexedSeq((fromKeyPairs._1, testingValue))
@@ -287,12 +288,12 @@ trait ValidGenerators extends BifrostGenerators {
   }
 
   lazy val validAssetCreationGen: Gen[AssetCreation] = for {
-    _ <- toSeqGen
-    fee <- positiveLongGen
+    _         <- toSeqGen
+    fee       <- positiveLongGen
     timestamp <- positiveLongGen
-    issuer <- keyPairSetGen
+    issuer    <- keyPairSetGen
     assetCode <- stringGen
-    data <- stringGen
+    data      <- stringGen
   } yield {
     val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val to = IndexedSeq((toKeyPairs._2, 4L))
@@ -306,4 +307,3 @@ trait ValidGenerators extends BifrostGenerators {
     AssetCreation(to, signatures, assetCode, oneHub._2, fee, timestamp, data)
   }
 }
-

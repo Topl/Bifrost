@@ -6,9 +6,9 @@ import bifrost.modifier.box.proposition.Proposition
 import bifrost.serialization.BytesSerializable
 import bifrost.utils.serialization.BifrostSerializer
 
-case class WalletBox[T, P <: Proposition, B <: GenericBox[P, T]]
-  (box: B, transactionId: ModifierId, createdAt: Long)(subclassDeser: BifrostSerializer[B])
-  extends BytesSerializable {
+case class WalletBox[T, P <: Proposition, B <: GenericBox[P, T]](box: B, transactionId: ModifierId, createdAt: Long)(
+  subclassDeser: BifrostSerializer[B]
+) extends BytesSerializable {
 
   override type M = WalletBox[T, P, B]
 

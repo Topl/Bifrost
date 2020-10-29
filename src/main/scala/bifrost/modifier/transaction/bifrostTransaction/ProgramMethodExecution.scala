@@ -19,23 +19,23 @@ import io.circe.{Decoder, HCursor, Json}
 
 import scala.util.Try
 
-case class ProgramMethodExecution(state: Seq[StateBox],
-                                  code: Seq[CodeBox],
-                                  executionBox: ExecutionBox,
-                                  methodName: String,
-                                  methodParams: Json,
-                                  owner: PublicKey25519Proposition,
-                                  signatures: Map[PublicKey25519Proposition, Signature25519],
-                                  preFeeBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
-                                  fees: Map[PublicKey25519Proposition, Long],
-                                  timestamp: Long,
-                                  data: String)
-  extends ProgramTransaction {
+case class ProgramMethodExecution(
+  state: Seq[StateBox],
+  code: Seq[CodeBox],
+  executionBox: ExecutionBox,
+  methodName: String,
+  methodParams: Json,
+  owner: PublicKey25519Proposition,
+  signatures: Map[PublicKey25519Proposition, Signature25519],
+  preFeeBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
+  fees: Map[PublicKey25519Proposition, Long],
+  timestamp: Long,
+  data: String
+) extends ProgramTransaction {
 
   override type M = ProgramMethodExecution
 
   val proposition: PublicKey25519Proposition = executionBox.proposition
-
 
   // TODO Fix instantiation to handle runtime input and/or extract to a better location
   val config: Config = ConfigFactory.load("application")
@@ -60,11 +60,11 @@ case class ProgramMethodExecution(state: Seq[StateBox],
   //TODO deprecate timestamp once fee boxes are included in nonce generation
   lazy val hashNoNonces: FastCryptographicHash.Digest = FastCryptographicHash(
     executionBox.id ++
-      methodName.getBytes ++
-      owner.pubKeyBytes ++
-      methodParams.noSpaces.getBytes ++
-      Longs.toByteArray(timestamp) ++
-      fees.flatMap { case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
+    methodName.getBytes ++
+    owner.pubKeyBytes ++
+    methodParams.noSpaces.getBytes ++
+    Longs.toByteArray(timestamp) ++
+    fees.flatMap { case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
   )
 
   override lazy val newBoxes: Traversable[Box] = {
@@ -87,17 +87,20 @@ case class ProgramMethodExecution(state: Seq[StateBox],
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
-    "state" -> state.map {
-      sb => sb.json
+    "state" -> state.map { sb =>
+      sb.json
     }.asJson,
-    "code" -> code.map {
-      cb => cb.json
+    "code" -> code.map { cb =>
+      cb.json
     }.asJson,
-    "methodName" -> methodName.asJson,
+    "methodName"   -> methodName.asJson,
     "methodParams" -> methodParams,
-    "newBoxes" -> newBoxes.map {
-      nb => nb.json
-    }.toSeq.asJson
+    "newBoxes" -> newBoxes
+      .map { nb =>
+        nb.json
+      }
+      .toSeq
+      .asJson
   )).asJson
 
   override lazy val serializer: BifrostSerializer[ProgramMethodExecution] = ProgramMethodExecutionSerializer
@@ -108,11 +111,13 @@ case class ProgramMethodExecution(state: Seq[StateBox],
   )
 
   def assetNonce(prop: PublicKey25519Proposition, hashNoNonces: Array[Byte]): Nonce = ProgramTransaction
-  .nonceFromDigest(
-    FastCryptographicHash("assetNonce".getBytes
-      ++ prop.pubKeyBytes
-      ++ hashNoNonces)
-  )
+    .nonceFromDigest(
+      FastCryptographicHash(
+        "assetNonce".getBytes
+        ++ prop.pubKeyBytes
+        ++ hashNoNonces
+      )
+    )
 
   override def toString: String = s"ProgramMethodExecution(${json.noSpaces})"
 }
@@ -123,16 +128,18 @@ object ProgramMethodExecution {
   //YT NOTE - codeBoxIds in execution box should be changed to UUIDs given their inclusion in Program Registry
 
   //noinspection ScalaStyle
-  def create(pbr: ProgramBoxRegistry,
-             uuid: UUID,
-             methodName: String,
-             methodParams: Json,
-             owner: PublicKey25519Proposition,
-             signatures: Map[PublicKey25519Proposition, Signature25519],
-             preFeeBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
-             fees: Map[PublicKey25519Proposition, Long],
-             timestamp: Long,
-             data: String): Try[ProgramMethodExecution] = Try {
+  def create(
+    pbr: ProgramBoxRegistry,
+    uuid: UUID,
+    methodName: String,
+    methodParams: Json,
+    owner: PublicKey25519Proposition,
+    signatures: Map[PublicKey25519Proposition, Signature25519],
+    preFeeBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
+    fees: Map[PublicKey25519Proposition, Long],
+    timestamp: Long,
+    data: String
+  ): Try[ProgramMethodExecution] = Try {
     val execBox = pbr.getBox(uuid).get.asInstanceOf[ExecutionBox]
     val state: Seq[StateBox] = execBox.stateBoxUUIDs.map(sb => pbr.getBox(sb).get.asInstanceOf[StateBox])
     //val codeBox = programBoxRegistry.getBox(UUID.nameUUIDFromBytes(execBox.codeBoxIds.head)).get.asInstanceOf[CodeBox]
@@ -142,36 +149,40 @@ object ProgramMethodExecution {
 
   def validate(tx: ProgramMethodExecution): Try[Unit] = Try {
 
-    require(tx.signatures(tx.owner).isValid(tx.owner, tx.messageToSign)
-      , "Either an invalid signature was submitted or the party listed was not part of the program.")
+    require(
+      tx.signatures(tx.owner).isValid(tx.owner, tx.messageToSign),
+      "Either an invalid signature was submitted or the party listed was not part of the program."
+    )
 
   }.flatMap(_ => ProgramTransaction.commonValidation(tx))
 
-  implicit val decodeProgramMethodExecution: Decoder[ProgramMethodExecution] = (c: HCursor) => for {
-    state <- c.downField("state").as[Seq[StateBox]]
-    code <- c.downField("code").as[Seq[CodeBox]]
-    executionBox <- c.downField("executionBox").as[ExecutionBox]
-    methodName <- c.downField("methodName").as[String]
-    methodParams <- c.downField("methodParams").as[Json]
-    rawOwner <- c.downField("owner").as[String]
-    rawSignatures <- c.downField("signatures").as[Map[String, String]]
-    rawPreFeeBoxes <- c.downField("preFeeBoxes").as[Map[String, IndexedSeq[(Long, Long)]]]
-    rawFees <- c.downField("fees").as[Map[String, Long]]
-    timestamp <- c.downField("timestamp").as[Long]
-    data <- c.downField("data").as[String]
-  } yield {
-    val commonArgs = ProgramTransaction.commonDecode(rawOwner, rawSignatures, rawPreFeeBoxes, rawFees)
-    ProgramMethodExecution(
-      state,
-      code,
-      executionBox,
-      methodName,
-      methodParams,
-      commonArgs._1,
-      commonArgs._2,
-      commonArgs._3,
-      commonArgs._4,
-      timestamp,
-      data)
-  }
+  implicit val decodeProgramMethodExecution: Decoder[ProgramMethodExecution] = (c: HCursor) =>
+    for {
+      state          <- c.downField("state").as[Seq[StateBox]]
+      code           <- c.downField("code").as[Seq[CodeBox]]
+      executionBox   <- c.downField("executionBox").as[ExecutionBox]
+      methodName     <- c.downField("methodName").as[String]
+      methodParams   <- c.downField("methodParams").as[Json]
+      rawOwner       <- c.downField("owner").as[String]
+      rawSignatures  <- c.downField("signatures").as[Map[String, String]]
+      rawPreFeeBoxes <- c.downField("preFeeBoxes").as[Map[String, IndexedSeq[(Long, Long)]]]
+      rawFees        <- c.downField("fees").as[Map[String, Long]]
+      timestamp      <- c.downField("timestamp").as[Long]
+      data           <- c.downField("data").as[String]
+    } yield {
+      val commonArgs = ProgramTransaction.commonDecode(rawOwner, rawSignatures, rawPreFeeBoxes, rawFees)
+      ProgramMethodExecution(
+        state,
+        code,
+        executionBox,
+        methodName,
+        methodParams,
+        commonArgs._1,
+        commonArgs._2,
+        commonArgs._3,
+        commonArgs._4,
+        timestamp,
+        data
+      )
+    }
 }

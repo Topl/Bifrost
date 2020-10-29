@@ -24,8 +24,7 @@ import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success}
 
-/**
-  * A component which is synchronizing local node view (locked inside NodeViewHolder) with the p2p network.
+/** A component which is synchronizing local node view (locked inside NodeViewHolder) with the p2p network.
   *
   * @param networkControllerRef reference to network controller actor
   * @param viewHolderRef        reference to node view holder actor
@@ -205,8 +204,7 @@ class NodeViewSynchronizer[
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
 
-  /**
-    * Announce a new modifier
+  /** Announce a new modifier
     *
     * @param m the modifier to be broadcast
     * @tparam M the type of modifier
@@ -216,16 +214,14 @@ class NodeViewSynchronizer[
     networkControllerRef ! SendToNetwork(msg, Broadcast)
   }
 
-  /**
-    * Application-specific logic to request more modifiers after application if needed to
+  /** Application-specific logic to request more modifiers after application if needed to
     * speed-up synchronization process, e.g. send Sync message for unknown or older peers
     * when our modifier is not synced yet, but no modifiers are expected from other peers
     * or request modifiers we need with known ids, that are not applied yet.
     */
   protected def requestMoreModifiers(applied: Seq[PMOD]): Unit = {}
 
-  /**
-    * Handles checking the status of modifiers that we have asked peers for using the `requestDownload` method.
+  /** Handles checking the status of modifiers that we have asked peers for using the `requestDownload` method.
     * If the modifier request targeted a peer, then we will wait for that peer to respond for a fixed interval before
     * transitioning to asking for the modifier from other random connected peers. If we still do not receive the modifier
     * after asking random peers for a fixed interval of time, we will stop requesting it.
@@ -275,8 +271,7 @@ class NodeViewSynchronizer[
 
   }
 
-  /**
-    * Announce the local synchronization status by broadcasting the latest blocks ids
+  /** Announce the local synchronization status by broadcasting the latest blocks ids
     * from the tip of our chain
     *
     * @param history history reader to use in the construction of the message
@@ -299,8 +294,7 @@ class NodeViewSynchronizer[
     networkControllerRef ! PenalizePeer(peer.connectionId.remoteAddress, PenaltyType.PermanentPenalty)
   }
 
-  /**
-    * Process sync info coming from another node
+  /** Process sync info coming from another node
     *
     * @param syncInfo a set of modifier ids from the tip of the remote peers chain
     * @param remote remote peer that sent the message
@@ -342,8 +336,7 @@ class NodeViewSynchronizer[
     }
   }
 
-  /**
-    * Send history extension to the (less developed) peer 'remote' which does not have it.
+  /** Send history extension to the (less developed) peer 'remote' which does not have it.
     *
     * @param remote remote peer ti send the message to
     * @param status CURRENTLY UNUSED (JAA - 2020.09.06)
@@ -355,8 +348,7 @@ class NodeViewSynchronizer[
       networkControllerRef ! SendToNetwork(msg, SendToPeer(remote))
     }
 
-  /**
-    * Process object ids coming from other node.
+  /** Process object ids coming from other node.
     *
     * @param invData inventory data (a sequence of modifier ids)
     * @param remote remote peer that sent the message
@@ -382,8 +374,7 @@ class NodeViewSynchronizer[
     }
   }
 
-  /**
-    * Our node needs modifiers of type `modifierTypeId` with ids `modifierIds`
+  /** Our node needs modifiers of type `modifierTypeId` with ids `modifierIds`
     * but a peer that can deliver may be unknown
     */
   protected def requestDownload(
@@ -406,8 +397,7 @@ class NodeViewSynchronizer[
     networkControllerRef ! SendToNetwork(msg, sendStrategy)
   }
 
-  /**
-    * Process a remote peer asking for objects by their ids
+  /** Process a remote peer asking for objects by their ids
     *
     * @param invData the set of modifiers ids that the peer would like to have sent to them
     * @param remote remote peer that sent the message
@@ -430,8 +420,7 @@ class NodeViewSynchronizer[
     }
   }
 
-  /**
-    * Process modifiers received from a remote peer
+  /** Process modifiers received from a remote peer
     *
     * @param data modifier data that was previously requested from a remote peer
     * @param remote remote peer that sent the message
@@ -463,8 +452,7 @@ class NodeViewSynchronizer[
     }
   }
 
-  /**
-    * Parse modifiers using specified serializer, check that its id is equal to the declared one,
+  /** Parse modifiers using specified serializer, check that its id is equal to the declared one,
     * penalize misbehaving peer for every incorrect modifier,
     * call deliveryTracker.onReceive() for every correct modifier to update its status
     *
@@ -489,8 +477,7 @@ class NodeViewSynchronizer[
     }
   }
 
-  /**
-    * Move `pmod` to `Invalid` if it is permanently invalid, to `Received` otherwise
+  /** Move `pmod` to `Invalid` if it is permanently invalid, to `Received` otherwise
     * @param remote remote peer that sent a block to our node
     * @param pmod a persistent modifier (block) received from a remote peer
     * @return boolean flagging whether the modifier was expected and ensuring it is syntactically valid
@@ -519,8 +506,7 @@ class NodeViewSynchronizer[
     networkControllerRef ! PenalizePeer(peer.connectionId.remoteAddress, PenaltyType.MisbehaviorPenalty)
   }
 
-  /**
-    * Get modifiers from remote peer,
+  /** Get modifiers from remote peer,
     * filter out spam modifiers and penalize peer for spam
     *
     * @return ids and bytes of modifiers that were requested by our node
@@ -549,8 +535,7 @@ class NodeViewSynchronizer[
     networkControllerRef ! PenalizePeer(peer.connectionId.remoteAddress, PenaltyType.SpamPenalty)
   }
 
-  /**
-    * Sends a sequence of local modifiers to a remote peer in chunks determined by the maximum packet size
+  /** Sends a sequence of local modifiers to a remote peer in chunks determined by the maximum packet size
     *
     * @param modType type of modifier that is being sent
     * @param mods sequence of local modifiers to be sent
@@ -617,8 +602,7 @@ object NodeViewSynchronizer {
       localObjects: Seq[M]
     )
 
-    /**
-      * Check delivery of modifier with type `modifierTypeId` and id `modifierId`.
+    /** Check delivery of modifier with type `modifierTypeId` and id `modifierId`.
       * `source` may be defined if we expect modifier from concrete peer or None if
       * we just need some modifier, but don't know who may it
       */
@@ -650,14 +634,12 @@ object NodeViewSynchronizer {
 
     case class DownloadRequest(modifierTypeId: ModifierTypeId, modifierId: ModifierId) extends NodeViewHolderEvent
 
-    /**
-      * After application of batch of modifiers from cache to History, NodeViewHolder sends this message,
+    /** After application of batch of modifiers from cache to History, NodeViewHolder sends this message,
       * containing all just applied modifiers and cleared from cache
       */
     case class ModifiersProcessingResult[PMOD <: PersistentNodeViewModifier](applied: Seq[PMOD], cleared: Seq[PMOD])
 
-    /**
-      * @param immediateFailure - a flag indicating whether a transaction was invalid by the moment it was received.
+    /** @param immediateFailure - a flag indicating whether a transaction was invalid by the moment it was received.
       */
     case class FailedTransaction(transactionId: ModifierId, error: Throwable, immediateFailure: Boolean)
         extends ModificationOutcome

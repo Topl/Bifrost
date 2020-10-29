@@ -10,10 +10,7 @@ import scorex.crypto.encode.Base58
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class ProgramTransferSpec extends AnyWordSpec
-  with Matchers
-  with ScalatestRouteTest
-  with ProgramMockState {
+class ProgramTransferSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with ProgramMockState {
 
   val route: Route = ProgramApiRoute(settings, nodeViewHolderRef).route
 
@@ -25,8 +22,7 @@ class ProgramTransferSpec extends AnyWordSpec
 
     "Transfer a program and create a new ExecutionBox with the updated owner" in {
 
-      val requestBody = ByteString(
-        s"""{
+      val requestBody = ByteString(s"""{
            |  "jsonrpc": "2.0",
            |  "id": "1",
            |  "method": "transferProgram",

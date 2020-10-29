@@ -2,8 +2,7 @@ package bifrost.utils.encode
 
 object ZigZagEncoder {
 
-  /**
-    * Encode a ZigZag-encoded 32-bit value.  ZigZag encodes signed integers
+  /** Encode a ZigZag-encoded 32-bit value.  ZigZag encodes signed integers
     * into values that can be efficiently encoded with varint.  (Otherwise,
     * negative values must be sign-extended to 64 bits to be varint encoded,
     * thus always taking 10 bytes on the wire.)
@@ -19,8 +18,7 @@ object ZigZagEncoder {
     (n << 1) ^ (n >> 31)
   }
 
-  /**
-    * Decode a signed value previously ZigZag-encoded with [[encodeZigZagInt]]
+  /** Decode a signed value previously ZigZag-encoded with [[encodeZigZagInt]]
     *
     * @see [[https://developers.google.com/protocol-buffers/docs/encoding#types]]
     * @param n unsigned Int previously encoded with [[encodeZigZagInt]]
@@ -31,8 +29,7 @@ object ZigZagEncoder {
     (n >>> 1) ^ -(n & 1)
   }
 
-  /**
-    * Encode a ZigZag-encoded 64-bit value.  ZigZag encodes signed integers
+  /** Encode a ZigZag-encoded 64-bit value.  ZigZag encodes signed integers
     * into values that can be efficiently encoded with varint.  (Otherwise,
     * negative values must be sign-extended to 64 bits to be varint encoded,
     * thus always taking 10 bytes on the wire.)
@@ -47,8 +44,7 @@ object ZigZagEncoder {
     (n << 1) ^ (n >> 63)
   }
 
-  /**
-    * Decode a signed value previously ZigZag-encoded with [[encodeZigZagLong]]
+  /** Decode a signed value previously ZigZag-encoded with [[encodeZigZagLong]]
     *
     * @see [[https://developers.google.com/protocol-buffers/docs/encoding#types]]
     * @param n unsigned Long previously encoded with [[encodeZigZagLong]]

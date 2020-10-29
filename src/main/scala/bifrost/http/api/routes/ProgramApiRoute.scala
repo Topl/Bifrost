@@ -24,8 +24,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
-case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef: ActorRef)
-                          (implicit val context: ActorRefFactory) extends ApiRouteWithView {
+case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef: ActorRef)(implicit val context: ActorRefFactory)
+    extends ApiRouteWithView {
   type HIS = History
   type MS = State
   type VL = Wallet
@@ -34,13 +34,13 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
 
   def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
     method match {
-      case "getProgramSignature" => getProgramSignature(params.head, id)
-      case "createCode" => createCode(params.head, id)
-      case "createProgram" => createProgram(params.head, id)
-      case "transferProgram" => transferProgram(params.head, id)
+      case "getProgramSignature"  => getProgramSignature(params.head, id)
+      case "createCode"           => createCode(params.head, id)
+      case "createProgram"        => createProgram(params.head, id)
+      case "transferProgram"      => transferProgram(params.head, id)
       case "executeProgramMethod" => executeProgramMethod(params.head, id)
-      case "programCall" => programCall(params.head, id)
-      case "filter" => bloomFilter(params, id)
+      case "programCall"          => programCall(params.head, id)
+      case "filter"               => bloomFilter(params, id)
     }
 
   def getProgramSignature(params: Json, id: String): Future[Json] = {
@@ -51,8 +51,7 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
       val state = view.state
       val tx = createProgramInstance(params, state)
       val signature = PrivateKey25519Companion.sign(selectedSecret, tx.messageToSign)
-      Map("signature" -> Base58.encode(signature.signature).asJson,
-        "tx" -> tx.json.asJson).asJson
+      Map("signature" -> Base58.encode(signature.signature).asJson, "tx" -> tx.json.asJson).asJson
     }
   }
 
@@ -64,7 +63,7 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       val data: String = (params \\ "data").headOption match {
         case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None => ""
+        case None          => ""
       }
 
       val tx = CodeCreation.createAndApply(wallet, owner, code, fee, data).get
@@ -97,11 +96,12 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
       val tbr = view.state.tbr
       val from = PublicKey25519Proposition(Base58.decode((params \\ "from").head.asString.get).get)
       val to = PublicKey25519Proposition(Base58.decode((params \\ "to").head.asString.get).get)
-      val executionBox = tbr.closedBox(Base58.decode((params \\ "programId").head.asString.get).get).get.asInstanceOf[ExecutionBox]
+      val executionBox =
+        tbr.closedBox(Base58.decode((params \\ "programId").head.asString.get).get).get.asInstanceOf[ExecutionBox]
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       val data: String = (params \\ "data").headOption match {
         case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None => ""
+        case None          => ""
       }
 
       val tx = ProgramTransfer.createAndApply(wallet, from, to, executionBox, fee, data).get
@@ -138,7 +138,7 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
       val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
       val tempTx = modifiedParams.as[ProgramMethodExecution] match {
         case Right(p: ProgramMethodExecution) => p
-        case Left(e) => throw new JsonParsingException(s"Could not parse ProgramMethodExecution: $e")
+        case Left(e)                          => throw new JsonParsingException(s"Could not parse ProgramMethodExecution: $e")
       }
       val realSignature = PrivateKey25519Companion.sign(selectedSecret, tempTx.messageToSign)
       val tx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(signingPublicKey).get) -> realSignature))
@@ -165,7 +165,7 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
 
       result match {
         case Right(value) => value
-        case Left(error) => error.getMessage.asJson
+        case Left(error)  => error.getMessage.asJson
       }
     }
   }
@@ -196,7 +196,7 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
 
     preparedProgram.as[ProgramCreation] match {
       case Right(c: ProgramCreation) => c
-      case Left(e) => throw new JsonParsingException(s"Could not parse ProgramCreation: $e")
+      case Left(e)                   => throw new JsonParsingException(s"Could not parse ProgramCreation: $e")
     }
   }
 }

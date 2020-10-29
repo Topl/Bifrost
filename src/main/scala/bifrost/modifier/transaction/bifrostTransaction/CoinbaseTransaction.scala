@@ -16,10 +16,12 @@ import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
-case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)],
-                                signatures: IndexedSeq[Signature25519],
-                                override val timestamp: Long,
-                                blockID: Array[Byte]) extends Transaction {
+case class CoinbaseTransaction(
+  to: IndexedSeq[(PublicKey25519Proposition, Long)],
+  signatures: IndexedSeq[Signature25519],
+  override val timestamp: Long,
+  blockID: Array[Byte]
+) extends Transaction {
   override type M = CoinbaseTransaction
 
   lazy val serializer: BifrostSerializer[CoinbaseTransaction] = CoinbaseTransactionSerializer
@@ -36,29 +38,30 @@ case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)
 
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
-  val nonce: Nonce = nonceFromDigest(FastCryptographicHash(
-    "CoinbaseTransaction".getBytes ++ hashNoNonces
-  ))
+  val nonce: Nonce = nonceFromDigest(
+    FastCryptographicHash(
+      "CoinbaseTransaction".getBytes ++ hashNoNonces
+    )
+  )
 
   lazy val newBoxes: Traversable[Box] =
-    if(to.head._2 > 0L) {
+    if (to.head._2 > 0L) {
       Traversable(ArbitBox(to.head._1, nonce, to.head._2))
-    }
-    else {
+    } else {
       Traversable()
     }
 
   override lazy val json: Json = Map( // tx in json form
-    "txHash" -> id.toString.asJson,
-    "txType" -> "CoinbaseTransaction".asJson,
+    "txHash"   -> id.toString.asJson,
+    "txType"   -> "CoinbaseTransaction".asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).toSeq.asJson,
     "to" -> to.map { s =>
       Map(
         "proposition" -> Base58.encode(to.head._1.pubKeyBytes).asJson,
-        "value" -> to.head._2.asJson
+        "value"       -> to.head._2.asJson
       ).asJson
     }.asJson,
-     "fee" -> fee.asJson,
+    "fee" -> fee.asJson,
     "signatures" -> signatures
       .map(s => Base58.encode(s.signature).asJson)
       .asJson,
@@ -66,47 +69,60 @@ case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)
   ).asJson
 
   def commonMessageToSign: Array[Byte] =
-    if(newBoxes.nonEmpty) {
-      newBoxes.head.bytes}
-    else {
-      Array[Byte]()} ++ // is the new box + the timestamp + the fee,
+    if (newBoxes.nonEmpty) {
+      newBoxes.head.bytes
+    } else {
+      Array[Byte]()
+    } ++ // is the new box + the timestamp + the fee,
     Longs.toByteArray(timestamp) ++
     Longs.toByteArray(fee) ++
     blockID
 
-
-  override lazy val messageToSign: Array[Byte] = Bytes.concat( // just tac on the byte string "CoinbaseTransaction" to the beginning of the common message
-    "CoinbaseTransaction".getBytes(),
-    newBoxes.foldLeft(Array[Byte]())((acc, x) => acc ++ x.bytes),
-    Longs.toByteArray(fee),
-    blockID
-  )
+  override lazy val messageToSign: Array[Byte] =
+    Bytes.concat( // just tac on the byte string "CoinbaseTransaction" to the beginning of the common message
+      "CoinbaseTransaction".getBytes(),
+      newBoxes.foldLeft(Array[Byte]())((acc, x) => acc ++ x.bytes),
+      Longs.toByteArray(fee),
+      blockID
+    )
 }
 
 object CoinbaseTransaction {
 
-  def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES)) // take in a byte array and return a nonce (long)
+  def nonceFromDigest(digest: Array[Byte]): Nonce =
+    Longs.fromByteArray(digest.take(Longs.BYTES)) // take in a byte array and return a nonce (long)
 
   def validate(tx: CoinbaseTransaction): Try[Unit] = Try {
     require(tx.to.head._2 >= 0L) // can't make negative Arbits. anti-Arbits?!?!
     require(tx.fee == 0)
     require(tx.timestamp >= 0)
-    require(tx.signatures.forall({ signature => // should be only one sig
-      signature.isValid(tx.to.head._1, tx.messageToSign) // because this is set to self the signer is also the reciever
-    }), "Invalid signature")
+    require(
+      tx.signatures.forall { signature => // should be only one sig
+        signature.isValid(tx.to.head._1, tx.messageToSign) // because this is set to self the signer is also the reciever
+      },
+      "Invalid signature"
+    )
   }
 
-  def createAndApply(w: Wallet,
-                     to: IndexedSeq[(PublicKey25519Proposition, Long)],
-                     blockID: Array[Byte] // the blockID of the parent block. EX: if this is the CB for block 100 the blockID would be the id of block 99
-                    ): Try[CoinbaseTransaction] = Try {
+  def createAndApply(
+    w: Wallet,
+    to: IndexedSeq[(PublicKey25519Proposition, Long)],
+    blockID: Array[
+      Byte
+    ] // the blockID of the parent block. EX: if this is the CB for block 100 the blockID would be the id of block 99
+  ): Try[CoinbaseTransaction] = Try {
     val selectedSecret = w.secretByPublicImage(to.head._1).get // use the receiver's pub-key to generate secret
     val fakeSigs = IndexedSeq(Signature25519(Array())) // create an index sequence of empty sigs
     val timestamp = Instant.now.toEpochMilli // generate timestamp
-    val messageToSign = CoinbaseTransaction(to, fakeSigs, timestamp, blockID).messageToSign // using your fake sigs generate a CB tx and get its msg to sign
+    val messageToSign =
+      CoinbaseTransaction(
+        to,
+        fakeSigs,
+        timestamp,
+        blockID
+      ).messageToSign // using your fake sigs generate a CB tx and get its msg to sign
     val signatures = IndexedSeq(PrivateKey25519Companion.sign(selectedSecret, messageToSign)) // sign the msg you just generated
     CoinbaseTransaction(to, signatures, timestamp, blockID) // use the sigs you just generated to make the real CB tx
   }
-
 
 }

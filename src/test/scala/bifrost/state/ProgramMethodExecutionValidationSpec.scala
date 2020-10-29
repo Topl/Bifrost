@@ -1,7 +1,6 @@
 package bifrost.state
 
-/**
-  * Created by Matt Kindy on 6/7/2017.
+/** Created by Matt Kindy on 6/7/2017.
   */
 //noinspection ScalaStyle
 class ProgramMethodExecutionValidationSpec extends ProgramSpec {
@@ -228,7 +227,7 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
   }*/
 
   //property("Attempting to validate a CME with a party that is not part of the program should error") {
-    /*forAll(arbitraryPartyProgramMethodExecutionGen(num = 1, numInProgram = 0)) {
+  /*forAll(arbitraryPartyProgramMethodExecutionGen(num = 1, numInProgram = 0)) {
       cme: ProgramMethodExecution =>
         val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
         val preExistingPolyBoxes: Set[Box] = cme.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
@@ -257,7 +256,7 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
 
   //noinspection ScalaStyle
   //property("Attempting to validate a CME with too many signatures (versus parties) should error") {
-    /*forAll(arbitraryPartyProgramMethodExecutionGen(num = Gen.choose(2, 10).sample.get, numInProgram = 1)) {
+  /*forAll(arbitraryPartyProgramMethodExecutionGen(num = Gen.choose(2, 10).sample.get, numInProgram = 1)) {
       cme: ProgramMethodExecution =>
         val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
         val preExistingPolyBoxes: Set[Box] = cme.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
