@@ -55,7 +55,7 @@ class NetworkController ( settings      : AppSettings,
   private var connections = Map.empty[InetSocketAddress, ConnectedPeer]
   private var unconfirmedConnections = Set.empty[InetSocketAddress]
 
-  // records the time of the most recent incoming message
+  // records the time of the most recent incoming message (for checking connectivity)
   private var lastIncomingMessageTime: TimeProvider.Time = _
 
   override def preStart ( ): Unit = {
@@ -101,6 +101,7 @@ class NetworkController ( settings      : AppSettings,
     case NodeViewReady =>
       log.info(s"${Console.YELLOW}Network Controller transitioning to the operational state${Console.RESET}")
       scheduleConnectionToPeer()
+      scheduleDroppingDeadConnections()
       context become operational
   }
 
@@ -211,7 +212,7 @@ class NetworkController ( settings      : AppSettings,
 
       // only attempt connections if we are connected or attempting to connect to less than max connection
       if ( connections.size + unconfirmedConnections.size < settings.network.maxConnections ) {
-        log.info(s"Looking for a new random connection")
+        log.debug(s"Looking for a new random connection")
 
         // get a set of random peers from the database (excluding connected peers)
         val randomPeerF = peerManagerRef ? RandomPeerExcluding(connections.values.flatMap(_.peerInfo).toSeq)
@@ -234,7 +235,7 @@ class NetworkController ( settings      : AppSettings,
       // Drop connections with peers if they seem to be inactive
       connections.values.foreach { cp =>
         val lastSeen = cp.peerInfo.map(_.lastSeen).getOrElse(now)
-        if ((now - lastSeen) > settings.network.syncStatusRefreshStable.toMillis) {
+        if ((now - lastSeen) > settings.network.deadConnectionTimeout.toMillis) {
           log.info(s"Dropping connection with ${cp.peerInfo}, last seen ${(now - lastSeen) / 1000} seconds ago")
           cp.handlerRef ! CloseConnection
         }
@@ -321,15 +322,17 @@ class NetworkController ( settings      : AppSettings,
     */
   private def updatePeerStatus(remote: ConnectedPeer): Unit = {
     val remoteAddress = remote.connectionId.remoteAddress
-    connections.get(remote.connectionId.remoteAddress) match {
+    connections.get(remoteAddress) match {
       case Some(cp) => cp.peerInfo match {
         case Some(pi) =>
           val now = networkTime()
           lastIncomingMessageTime = now
           connections += remoteAddress -> cp.copy(peerInfo = Some(pi.copy(lastSeen = now)))
-        case None     => log.warn("Peer info not found for a message received from: " + remoteAddress)
+
+        case None => log.warn("Peer info not found for a message received from: " + remoteAddress)
       }
-      case None     => log.warn("Connection not found for a message received from: " + remoteAddress)
+
+      case None => log.warn("Connection not found for a message received from: " + remoteAddress)
     }
   }
 
