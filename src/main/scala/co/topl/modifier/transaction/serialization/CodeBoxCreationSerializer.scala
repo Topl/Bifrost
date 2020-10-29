@@ -1,11 +1,9 @@
 package co.topl.modifier.transaction.serialization
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
-import co.topl.attestation.proposition.serialization.PublicKey25519PropositionSerializer
-import co.topl.attestation.proof.Signature25519
-import co.topl.attestation.proof.serialization.Signature25519Serializer
+import co.topl.attestation.proposition.{PublicKeyCurve25519Proposition, PublicKeyCurve25519PropositionSerializer}
+import co.topl.attestation.proof.{SignatureCurve25519, SignatureCurve25519Serializer}
 import co.topl.modifier.transaction.CodeCreation
-import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
+import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object CodeBoxCreationSerializer extends BifrostSerializer[CodeCreation]{
 
@@ -13,10 +11,10 @@ object CodeBoxCreationSerializer extends BifrostSerializer[CodeCreation]{
     w.putByteString("CodeCreation")
 
     /* to: PublicKey25519Proposition */
-    PublicKey25519PropositionSerializer.serialize(obj.to, w)
+    PublicKeyCurve25519PropositionSerializer.serialize(obj.to, w)
 
     /* signature: Signature25519 */
-    Signature25519Serializer.serialize(obj.signature, w)
+    SignatureCurve25519Serializer.serialize(obj.signature, w)
 
     /* code: String */
     w.putIntString(obj.code)
@@ -34,8 +32,8 @@ object CodeBoxCreationSerializer extends BifrostSerializer[CodeCreation]{
   override def parse(r: Reader): CodeCreation = {
     require(r.getByteString() == "CodeCreation")
 
-    val to: PublicKey25519Proposition = PublicKey25519PropositionSerializer.parse(r)
-    val signature: Signature25519 = Signature25519Serializer.parse(r)
+    val to: PublicKeyCurve25519Proposition = PublicKeyCurve25519PropositionSerializer.parse(r)
+    val signature: SignatureCurve25519 = SignatureCurve25519Serializer.parse(r)
     val code: String = r.getIntString()
     val fee: Long = r.getULong()
     val timestamp: Long = r.getULong()

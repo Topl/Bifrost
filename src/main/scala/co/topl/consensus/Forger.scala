@@ -11,7 +11,7 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
-import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import co.topl.nodeView.{ CurrentView, NodeViewHolder }
 import co.topl.settings.NetworkType.{ DevNet, LocalNet, MainNet, PrivateNet, TestNet }
 import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
@@ -136,7 +136,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
   }
 
   /** Helper function to generate a set of keys used for the genesis block (for private test networks) */
-  private def generateKeys (num: Int): Set[PublicKey25519Proposition] = {
+  private def generateKeys (num: Int): Set[PublicKeyCurve25519Proposition] = {
     keyRing.generateNewKeyPairs(num) match {
       case Success(keys) => keys.map(_.publicImage)
       case Failure(ex)   => throw ex

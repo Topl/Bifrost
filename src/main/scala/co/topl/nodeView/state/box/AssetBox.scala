@@ -1,15 +1,15 @@
 package co.topl.nodeView.state.box
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import io.circe.syntax._
 import io.circe.{ Decoder, Encoder, HCursor }
 
-case class AssetBox ( override val proposition: PublicKey25519Proposition,
-                      override val nonce      : Long,
-                      override val value      : Long,
-                      assetCode               : String,
-                      issuer                  : PublicKey25519Proposition,
-                      data                    : String
+case class AssetBox (override val proposition: PublicKeyCurve25519Proposition,
+                     override val nonce      : Long,
+                     override val value      : Long,
+                     assetCode               : String,
+                     issuer                  : PublicKeyCurve25519Proposition,
+                     data                    : String
                     ) extends TokenBox(proposition, nonce, value) {
 
   override lazy val typeOfBox: String = "Asset"
@@ -29,7 +29,7 @@ object AssetBox {
     for {
       b <- TokenBox.jsonDecode(c)
       assetCode <- c.downField("assetCode").as[String]
-      issuer <- c.downField("issuer").as[PublicKey25519Proposition]
+      issuer <- c.downField("issuer").as[PublicKeyCurve25519Proposition]
       data <- c.downField("data").as[String]
     } yield {
       val (proposition, nonce, value) = b

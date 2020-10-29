@@ -1,7 +1,7 @@
 package co.topl.nodeView.state
 
-import co.topl.attestation.proposition.Proposition
-import co.topl.nodeView.state.box.{ BoxId, GenericBox }
+import co.topl.attestation.Proposition
+import co.topl.nodeView.state.box.{BoxId, GenericBox}
 
 class GenericStateChanges[T, P <: Proposition, BX <: GenericBox[P, T]](val boxIdsToRemove: Set[BoxId], val toAppend: Set[BX])
 

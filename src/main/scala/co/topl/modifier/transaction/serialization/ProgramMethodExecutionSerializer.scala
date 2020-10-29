@@ -1,16 +1,14 @@
 package co.topl.modifier.transaction.serialization
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
-import co.topl.attestation.proposition.serialization.PublicKey25519PropositionSerializer
-import co.topl.attestation.proof.Signature25519
-import co.topl.attestation.proof.serialization.Signature25519Serializer
+import co.topl.attestation.proposition.{PublicKeyCurve25519Proposition, PublicKeyCurve25519PropositionSerializer}
+import co.topl.attestation.proof.{SignatureCurve25519, SignatureCurve25519Serializer}
 import co.topl.modifier.transaction.ProgramMethodExecution
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.nodeView.state.box._
-import co.topl.nodeView.state.box.serialization.{ CodeBoxSerializer, ExecutionBoxSerializer, StateBoxSerializer }
+import co.topl.nodeView.state.box.serialization.{CodeBoxSerializer, ExecutionBoxSerializer, StateBoxSerializer}
 import co.topl.utils.Extensions._
-import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
-import io.circe.{ Json, parser }
+import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
+import io.circe.{Json, parser}
 
 object ProgramMethodExecutionSerializer extends BifrostSerializer[ProgramMethodExecution] {
 
@@ -33,10 +31,10 @@ object ProgramMethodExecutionSerializer extends BifrostSerializer[ProgramMethodE
     w.putIntString(obj.methodParams.noSpaces)
 
     /* owner: PublicKey25519Proposition */
-    PublicKey25519PropositionSerializer.serialize(obj.owner, w)
+    PublicKeyCurve25519PropositionSerializer.serialize(obj.owner, w)
 
     /* signatures: Map[PublicKey25519Proposition, Signature25519] */
-    Signature25519Serializer.serialize(obj.signatures.head._2, w)
+    SignatureCurve25519Serializer.serialize(obj.signatures.head._2, w)
 
 
     // TODO: Jing - preFeeBoxes will be removed
@@ -74,10 +72,10 @@ object ProgramMethodExecutionSerializer extends BifrostSerializer[ProgramMethodE
       case Right(j: Json) => j
     }
 
-    val owner: PublicKey25519Proposition = PublicKey25519PropositionSerializer.parse(r)
+    val owner: PublicKeyCurve25519Proposition = PublicKeyCurve25519PropositionSerializer.parse(r)
 
-    val signatures: Map[PublicKey25519Proposition, Signature25519] = {
-      val sig = Signature25519Serializer.parse(r)
+    val signatures: Map[PublicKeyCurve25519Proposition, SignatureCurve25519] = {
+      val sig = SignatureCurve25519Serializer.parse(r)
       Map(owner -> sig)
     }
 
@@ -87,9 +85,9 @@ object ProgramMethodExecutionSerializer extends BifrostSerializer[ProgramMethodE
       val value: Long = r.getULong()
       nonce -> value
     }
-    val preFeeBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = Map(owner -> preBoxes)
+    val preFeeBoxes: Map[PublicKeyCurve25519Proposition, IndexedSeq[(Nonce, Long)]] = Map(owner -> preBoxes)
 
-    val fees: Map[PublicKey25519Proposition, Long] = Map(owner -> r.getULong())
+    val fees: Map[PublicKeyCurve25519Proposition, Long] = Map(owner -> r.getULong())
     val timestamp: Long = r.getULong()
     val data: String = r.getIntString()
 

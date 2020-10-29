@@ -1,15 +1,15 @@
 package co.topl.nodeView.state.box
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import co.topl.nodeView.state.ProgramId
 import io.circe.syntax._
 import io.circe.{ Decoder, Encoder, HCursor }
 
-case class CodeBox ( override val proposition: PublicKey25519Proposition,
-                     override val nonce      : Long,
-                     override val value      : ProgramId,
-                     code                    : Seq[String], // List of strings of JS functions
-                     interface               : Map[String, Seq[String]]
+case class CodeBox (override val proposition: PublicKeyCurve25519Proposition,
+                    override val nonce      : Long,
+                    override val value      : ProgramId,
+                    code                    : Seq[String], // List of strings of JS functions
+                    interface               : Map[String, Seq[String]]
                    ) extends ProgramBox(proposition, nonce, value) {
 
   override lazy val typeOfBox: String = "CodeBox"

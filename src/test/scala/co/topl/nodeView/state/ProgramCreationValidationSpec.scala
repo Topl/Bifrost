@@ -2,8 +2,8 @@ package co.topl.nodeView.state
 
 import java.time.Instant
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
-import co.topl.attestation.proof.Signature25519
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.ProgramCreation
@@ -277,8 +277,8 @@ class ProgramCreationValidationSpec extends ProgramSpec {
         val firstCCAddBlock = Block(
           ModifierId(Array.fill(Block.signatureLength)(1: Byte)),
           Instant.now.toEpochMilli,
-          ArbitBox(PublicKey25519Proposition(PublicKey @@ Array.fill(Curve25519.KeyLength)(0: Byte)), scala.util.Random.nextLong(), 0L),
-          Signature25519(Signature @@ Array.fill(Block.signatureLength)(0: Byte)),
+          ArbitBox(PublicKeyCurve25519Proposition(PublicKey @@ Array.fill(Curve25519.KeyLength)(0: Byte)), scala.util.Random.nextLong(), 0L),
+          SignatureCurve25519(Signature @@ Array.fill(Block.signatureLength)(0: Byte)),
           Seq(cc),
           settings.application.version.blockByte
         )

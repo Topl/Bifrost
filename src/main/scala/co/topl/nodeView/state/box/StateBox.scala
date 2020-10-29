@@ -1,11 +1,11 @@
 package co.topl.nodeView.state.box
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import co.topl.nodeView.state.ProgramId
 import io.circe.syntax._
 import io.circe.{ Decoder, Encoder, HCursor, Json }
 
-case class StateBox(override val proposition: PublicKey25519Proposition,
+case class StateBox(override val proposition: PublicKeyCurve25519Proposition,
                     override val nonce: Long,
                     override val value: ProgramId,
                     state: Json //  JSON representation of JS Variable Declarations

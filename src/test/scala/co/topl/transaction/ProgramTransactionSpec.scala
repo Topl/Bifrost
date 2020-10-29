@@ -4,8 +4,8 @@ package co.topl.transaction
   * Created by cykoz on 5/11/2017.
   */
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
-import co.topl.attestation.secrets.PrivateKey25519
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.modifier.transaction.{ ProgramCreation, ProgramMethodExecution, ProgramTransaction }
 import co.topl.nodeView.state.box.{ BoxId, CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox }
@@ -56,11 +56,11 @@ class ProgramTransactionSpec extends AnyPropSpec
     val investmentBoxIds: IndexedSeq[BoxId] = preInvestmentBoxes
       .map(n => PublicKeyNoncedBox.idFromBox(sender, n._1))
 
-    val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = {
+    val feePreBoxes: Map[PublicKeyCurve25519Proposition, IndexedSeq[(Nonce, Long)]] = {
       Map(sender -> IndexedSeq(preFeeBoxGen(minFee, maxFee).sample.get))
     }
 
-    val feeBoxIdKeyPairs: IndexedSeq[(BoxId, PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq
+    val feeBoxIdKeyPairs: IndexedSeq[(BoxId, PublicKeyCurve25519Proposition)] = feePreBoxes.toIndexedSeq
       .flatMap {
         case (prop, v) =>
           v.map {
@@ -131,7 +131,7 @@ class ProgramTransactionSpec extends AnyPropSpec
       throw new Exception("Fee bounds are irreconciliable")
     }
 
-    val (priv: PrivateKey25519, sender: PublicKey25519Proposition) = keyPairSetGen.sample.get.head
+    val (priv: PrivateKeyCurve25519, sender: PublicKeyCurve25519Proposition) = keyPairSetGen.sample.get.head
 
     val state =
       s"""
@@ -146,10 +146,10 @@ class ProgramTransactionSpec extends AnyPropSpec
 
     val executionBox = ExecutionBox(proposition, 2L, programIdGen.sample.get, Seq(stateBox.value), Seq(codeBox.value))
 
-    val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] =
+    val feePreBoxes: Map[PublicKeyCurve25519Proposition, IndexedSeq[(Nonce, Long)]] =
       Map(sender -> IndexedSeq(preFeeBoxGen(minFee, maxFee).sample.get))
 
-    val feeBoxIdKeyPairs: IndexedSeq[(BoxId, PublicKey25519Proposition)] = feePreBoxes
+    val feeBoxIdKeyPairs: IndexedSeq[(BoxId, PublicKeyCurve25519Proposition)] = feePreBoxes
       .toIndexedSeq
       .flatMap { case (prop, v) =>
         v.map {

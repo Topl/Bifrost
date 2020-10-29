@@ -1,7 +1,7 @@
 package co.topl.modifier.transaction
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
-import co.topl.attestation.proof.Signature25519
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.nodeView.state.box.{ BoxId, PolyBox, PublicKeyNoncedBox }
 import com.google.common.primitives.Ints
@@ -21,7 +21,7 @@ abstract class ProgramTransaction extends Transaction {
 
   override val fee: Long = fees.values.sum
 
-  lazy val feeBoxIdKeyPairs: IndexedSeq[(BoxId, PublicKey25519Proposition)] = preFeeBoxes.toIndexedSeq
+  lazy val feeBoxIdKeyPairs: IndexedSeq[(BoxId, PublicKeyCurve25519Proposition)] = preFeeBoxes.toIndexedSeq
     .flatMap {
       case (prop, v) =>
         v.map {
@@ -31,7 +31,7 @@ abstract class ProgramTransaction extends Transaction {
 
   def deductedFeeBoxes(hashNoNonces: Array[Byte]): IndexedSeq[PolyBox] = {
     val canSend = preFeeBoxes.mapValues(_.map(_._2).sum)
-    val preboxesLessFees: IndexedSeq[(PublicKey25519Proposition, Long)] = canSend
+    val preboxesLessFees: IndexedSeq[(PublicKeyCurve25519Proposition, Long)] = canSend
       .toIndexedSeq
       .map { case (prop, amount) => prop -> (amount - fees(prop)) }
 
@@ -54,10 +54,10 @@ abstract class ProgramTransaction extends Transaction {
 
 
 object ProgramTransaction {
-  type O = PublicKey25519Proposition
-  type SIG = Map[PublicKey25519Proposition, Signature25519]
-  type FBX = Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]]
-  type F = Map[PublicKey25519Proposition, Long]
+  type O = PublicKeyCurve25519Proposition
+  type SIG = Map[PublicKeyCurve25519Proposition, SignatureCurve25519]
+  type FBX = Map[PublicKeyCurve25519Proposition, IndexedSeq[(Nonce, Long)]]
+  type F = Map[PublicKeyCurve25519Proposition, Long]
   type RP = Map[String, String]
 
   def commonValidation(tx: ProgramTransaction): Try[Unit] = Try {

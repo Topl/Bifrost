@@ -1,7 +1,7 @@
 package co.topl.modifier.block
 
-import co.topl.attestation.proof.Signature25519
-import co.topl.attestation.secrets.PrivateKey25519
+import co.topl.attestation.proof.SignatureCurve25519
+import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block._
 import co.topl.modifier.transaction.Transaction
@@ -32,12 +32,12 @@ import scala.collection.BitSet
  *
  * - additional data: block structure version no, timestamp etc
  */
-case class Block ( parentId    : BlockId,
-                   timestamp   : Timestamp,
-                   forgerBox   : ArbitBox,
-                   signature   : Signature25519,
-                   transactions: Seq[Transaction],
-                   version     : Version
+case class Block (parentId    : BlockId,
+                  timestamp   : Timestamp,
+                  forgerBox   : ArbitBox,
+                  signature   : SignatureCurve25519,
+                  transactions: Seq[Transaction],
+                  version     : Version
                  ) extends TransactionsCarryingPersistentNodeViewModifier[Transaction] {
 
   type M = Block
@@ -51,7 +51,7 @@ case class Block ( parentId    : BlockId,
   lazy val json: Json = Block.jsonEncoder(this)
 
   lazy val messageToSign: Array[Byte] = {
-    val noSigCopy = this.copy(signature = Signature25519.empty())
+    val noSigCopy = this.copy(signature = SignatureCurve25519.empty())
     serializer.toBytes(noSigCopy)
   }
 }
@@ -66,7 +66,7 @@ object Block {
 
   val blockIdLength: Int = NodeViewModifier.ModifierIdSize
   val modifierTypeId: Byte @@ NodeViewModifier.ModifierTypeId.Tag = ModifierTypeId @@ (3: Byte)
-  val signatureLength: Int = Signature25519.SignatureSize
+  val signatureLength: Int = SignatureCurve25519.SignatureSize
 
   implicit val jsonEncoder: Encoder[Block] = { b: Block ⇒
     Map(
@@ -86,7 +86,7 @@ object Block {
       parentId <- c.downField("parentId").as[ModifierId]
       timestamp <- c.downField("timestamp").as[Timestamp]
       generatorBox <- c.downField("generatorBox").as[ArbitBox]
-      signature <- c.downField("signature").as[Signature25519]
+      signature <- c.downField("signature").as[SignatureCurve25519]
       txsSeq <- c.downField("txs").as[Seq[Transaction]]
       version <- c.downField("version").as[Byte]
     } yield {
@@ -103,19 +103,19 @@ object Block {
    * @param version
    * @return
    */
-  def create ( parentId  : BlockId,
-               timestamp : Timestamp,
-               txs       : Seq[Transaction],
-               box       : ArbitBox,
-               privateKey: PrivateKey25519,
-               version   : Version
+  def create (parentId  : BlockId,
+              timestamp : Timestamp,
+              txs       : Seq[Transaction],
+              box       : ArbitBox,
+              privateKey: PrivateKeyCurve25519,
+              version   : Version
              ): Block = {
 
     // the owner of the generator box must be the key used to sign the block
     assert(box.proposition == privateKey.publicImage)
 
     // generate block message (block with empty signature) to be signed
-    val block = Block(parentId, timestamp, box, Signature25519.empty(), txs, version)
+    val block = Block(parentId, timestamp, box, SignatureCurve25519.empty(), txs, version)
 
     // generate signature from the block message and private key
     val signature = privateKey.sign(block.messageToSign)

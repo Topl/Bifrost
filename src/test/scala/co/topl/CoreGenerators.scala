@@ -2,8 +2,8 @@ package co.topl
 
 import java.net.{ InetAddress, InetSocketAddress }
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
-import co.topl.attestation.secrets.PrivateKey25519
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.{ ModifierId, NodeViewModifier }
 import co.topl.network.message._
@@ -48,9 +48,9 @@ trait CoreGenerators {
     ip4 <- Gen.choose(0, MaxIp)
     port <- Gen.choose(0, MaxPort)
   } yield new InetSocketAddress(InetAddress.getByName(s"$ip1.$ip2.$ip3.$ip4"), port)
-  lazy val key25519Gen: Gen[(PrivateKey25519, PublicKey25519Proposition)] = genBytesList(Curve25519.KeyLength)
-    .map(s => PrivateKey25519.generateKeys(s))
-  lazy val propositionGen: Gen[PublicKey25519Proposition] = key25519Gen.map(_._2)
+  lazy val key25519Gen: Gen[(PrivateKeyCurve25519, PublicKeyCurve25519Proposition)] = genBytesList(Curve25519.KeyLength)
+    .map(s => PrivateKeyCurve25519.generateKeys(s))
+  lazy val propositionGen: Gen[PublicKeyCurve25519Proposition] = key25519Gen.map(_._2)
   val MaxVersion: Byte = 999.toByte
   val MaxIp = 255
   val MaxPort = 65535

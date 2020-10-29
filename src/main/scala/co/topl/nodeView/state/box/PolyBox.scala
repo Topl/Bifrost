@@ -1,10 +1,10 @@
 package co.topl.nodeView.state.box
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import io.circe.syntax.EncoderOps
 import io.circe.{ Decoder, Encoder, HCursor }
 
-case class PolyBox(override val proposition: PublicKey25519Proposition,
+case class PolyBox(override val proposition: PublicKeyCurve25519Proposition,
                    override val nonce: Long,
                    override val value: Long) extends TokenBox(proposition, nonce, value) {
 

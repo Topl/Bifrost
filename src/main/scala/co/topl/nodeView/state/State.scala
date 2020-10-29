@@ -2,7 +2,7 @@ package co.topl.nodeView.state
 
 import java.io.File
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction._
@@ -31,7 +31,7 @@ case class State ( override val version     : VersionTag,
                    protected val storage    : LSMStore,
                    private[state] val tbrOpt: Option[TokenBoxRegistry] = None,
                    private[state] val pbrOpt: Option[ProgramBoxRegistry] = None,
-                   nodeKeys                 : Option[Set[PublicKey25519Proposition]] = None
+                   nodeKeys                 : Option[Set[PublicKeyCurve25519Proposition]] = None
                  ) extends MinimalState[Box, Block, State]
                            with StoreInterface
                            with TransactionValidation[Transaction]
@@ -178,7 +178,7 @@ case class State ( override val version     : VersionTag,
 
       //Filtering boxes pertaining to public keys specified in settings file
       val boxesToAdd = (nodeKeys match {
-        case Some(keys) => stateChanges.toAppend.filter(b => keys.contains(PublicKey25519Proposition(PublicKey @@ b.proposition.bytes)))
+        case Some(keys) => stateChanges.toAppend.filter(b => keys.contains(PublicKeyCurve25519Proposition(PublicKey @@ b.proposition.bytes)))
         case None       => stateChanges.toAppend
       }).map(b => ByteArrayWrapper(b.id.hashBytes) -> ByteArrayWrapper(b.bytes))
 
@@ -186,7 +186,7 @@ case class State ( override val version     : VersionTag,
         case Some(keys) => stateChanges
           .boxIdsToRemove
           .flatMap(getBox)
-          .filter(b => keys.contains(PublicKey25519Proposition(PublicKey @@ b.proposition.bytes)))
+          .filter(b => keys.contains(PublicKeyCurve25519Proposition(PublicKey @@ b.proposition.bytes)))
           .map(b => b.id)
 
         case None => stateChanges.boxIdsToRemove
@@ -318,7 +318,7 @@ object State extends Logging {
       )
 
     // node keys are a set of keys that this node will restrict its state to update
-    val nodeKeys: Option[Set[PublicKey25519Proposition]] = settings.application.nodeKeys match {
+    val nodeKeys: Option[Set[PublicKeyCurve25519Proposition]] = settings.application.nodeKeys match {
       case None => None
       case Some(keys) if keys.isEmpty => None
       case Some(keys) => Some(keys.map(PublicKey25519Proposition(_)))

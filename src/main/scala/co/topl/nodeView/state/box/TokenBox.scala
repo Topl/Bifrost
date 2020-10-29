@@ -1,15 +1,15 @@
 package co.topl.nodeView.state.box
 
-import co.topl.attestation.BoxUnlocker
+import co.topl.attestation.{BoxUnlocker, KnowledgeProposition, Secret}
 import co.topl.attestation.ToplAddress.AddressContent
-import co.topl.attestation.evidence.PublicKeyAddress
-import co.topl.attestation.proposition.{ KnowledgeProposition, PublicKey25519Proposition }
-import co.topl.attestation.proof.Signature25519
-import co.topl.attestation.secrets.{ PrivateKey25519, Secret }
+import co.topl.attestation.address.PublicKeyAddress
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proof.SignatureCurve25519
+import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.modifier.transaction.Transaction
 import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
-import io.circe.{ DecodingFailure, HCursor, Json }
+import io.circe.{DecodingFailure, HCursor, Json}
 import scorex.crypto.hash.Blake2b256
 
  abstract class TokenBox( override val proposition: KnowledgeProposition[_ <: Secret],
@@ -25,9 +25,9 @@ import scorex.crypto.hash.Blake2b256
 object TokenBox {
   type Value = Long
 
-  def idFromBox[PKP <: KnowledgeProposition[PrivateKey25519]] ( box: TokenBox ): BoxId = idFromPropNonce(box.proposition, box.nonce)
+  def idFromBox[PKP <: KnowledgeProposition[PrivateKeyCurve25519]] (box: TokenBox ): BoxId = idFromPropNonce(box.proposition, box.nonce)
 
-  def idFromPropNonce ( proposition: KnowledgeProposition[PrivateKey25519], nonce: Long): BoxId = {
+  def idFromPropNonce (proposition: KnowledgeProposition[PrivateKeyCurve25519], nonce: Long): BoxId = {
     val hashBytes = Blake2b256(proposition.pubKeyBytes ++ Longs.toByteArray(nonce))
     BoxId(hashBytes)
   }
@@ -41,9 +41,9 @@ object TokenBox {
       "nonce" -> box.nonce.toString.asJson
     )
 
-  def jsonDecode(c: HCursor): Either[DecodingFailure, (PublicKey25519Proposition, Long, Long)] =
+  def jsonDecode(c: HCursor): Either[DecodingFailure, (PublicKeyCurve25519Proposition, Long, Long)] =
     for {
-      proposition <- c.downField("proposition").as[PublicKey25519Proposition]
+      proposition <- c.downField("proposition").as[PublicKeyCurve25519Proposition]
       value <- c.downField("value").as[Long]
       nonce <- c.downField("issuer").as[Long]
     } yield {
@@ -57,9 +57,9 @@ object TokenBox {
    * @param signatures
    * @return
    */
-  def generateUnlockers ( from: Seq[(PublicKey25519Proposition, Transaction.Nonce)],
-                          signatures: Map[PublicKey25519Proposition, Signature25519]
-                        ): Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
+  def generateUnlockers (from: Seq[(PublicKeyCurve25519Proposition, Transaction.Nonce)],
+                         signatures: Map[PublicKeyCurve25519Proposition, SignatureCurve25519]
+                        ): Traversable[BoxUnlocker[PublicKeyCurve25519Proposition]] = {
     from.map {
       case (prop, nonce) =>
         val boxId = PublicKeyNoncedBox.idFromBox(prop, nonce)
@@ -69,8 +69,8 @@ object TokenBox {
   }
 
   def generateUnlockers ( boxIds   : Seq[BoxId],
-                          signature: Signature25519
-                        ): Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
+                          signature: SignatureCurve25519
+                        ): Traversable[BoxUnlocker[PublicKeyCurve25519Proposition]] = {
     boxIds.map { id =>
       new BoxUnlocker(id, signature)
     }

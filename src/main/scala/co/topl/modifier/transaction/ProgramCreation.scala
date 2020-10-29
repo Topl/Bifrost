@@ -1,7 +1,7 @@
 package co.topl.modifier.transaction
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
-import co.topl.attestation.proof.Signature25519
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.nodeView.state.box.{ Box, _ }
 import co.topl.nodeView.state.{ ProgramId, StateReader }
@@ -30,10 +30,10 @@ import scala.util.{ Failure, Success, Try }
 case class ProgramCreation(executionBuilder: ExecutionBuilder,
                            readOnlyStateBoxes: Seq[ProgramId],
                            preInvestmentBoxes: IndexedSeq[(Nonce, Long)],
-                           owner: PublicKey25519Proposition,
-                           signatures: Map[PublicKey25519Proposition, Signature25519],
-                           preFeeBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
-                           fees: Map[PublicKey25519Proposition, Long],
+                           owner: PublicKeyCurve25519Proposition,
+                           signatures: Map[PublicKeyCurve25519Proposition, SignatureCurve25519],
+                           preFeeBoxes: Map[PublicKeyCurve25519Proposition, IndexedSeq[(Nonce, Long)]],
+                           fees: Map[PublicKeyCurve25519Proposition, Long],
                            timestamp: Long,
                            data: String)
   extends ProgramTransaction {
@@ -140,10 +140,10 @@ object ProgramCreation {
     executionBuilder <- c.downField("executionBuilder").as[ExecutionBuilder]
     readOnlyStateBoxes <- c.downField("readOnlyStateBoxes").as[Seq[ProgramId]]
     preInvestmentBoxes <- c.downField("preInvestmentBoxes").as[IndexedSeq[(Nonce, Long)]]
-    owner <- c.downField("owner").as[PublicKey25519Proposition]
-    signatures <- c.downField("signatures").as[Map[PublicKey25519Proposition, Signature25519]]
-    preFeeBoxes <- c.downField("preFeeBoxes").as[Map[PublicKey25519Proposition, IndexedSeq[(Long, Long)]]]
-    fees <- c.downField("fees").as[Map[PublicKey25519Proposition, Long]]
+    owner <- c.downField("owner").as[PublicKeyCurve25519Proposition]
+    signatures <- c.downField("signatures").as[Map[PublicKeyCurve25519Proposition, SignatureCurve25519]]
+    preFeeBoxes <- c.downField("preFeeBoxes").as[Map[PublicKeyCurve25519Proposition, IndexedSeq[(Long, Long)]]]
+    fees <- c.downField("fees").as[Map[PublicKeyCurve25519Proposition, Long]]
     timestamp <- c.downField("timestamp").as[Long]
     data <- c.downField("data").as[String]
   } yield {

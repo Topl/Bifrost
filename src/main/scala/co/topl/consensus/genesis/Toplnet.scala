@@ -1,8 +1,8 @@
 package co.topl.consensus.genesis
 
 import co.topl.consensus.Forger.ChainParams
-import co.topl.attestation.proposition.PublicKey25519Proposition
-import co.topl.attestation.proof.Signature25519
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ ArbitTransfer, PolyTransfer }
@@ -76,12 +76,12 @@ case object Toplnet extends GenesisProvider {
 
   def getGenesisBlock: Try[(Block, ChainParams)] = Try {
 
-    val memberKeys = members.keys.map(PublicKey25519Proposition.apply)
+    val memberKeys = members.keys.map(PublicKeyCurve25519Proposition.apply)
 
     val txInput = (
       IndexedSeq(genesisAcct.publicImage -> 0L),
       memberKeys.zip(members.values).toIndexedSeq,
-      Map(genesisAcct.publicImage -> Signature25519.genesis()),
+      Map(genesisAcct.publicImage -> SignatureCurve25519.genesis()),
       0L,
       0L,
       "")
@@ -90,7 +90,7 @@ case object Toplnet extends GenesisProvider {
 
     val generatorBox = ArbitBox(genesisAcct.publicImage, 0, totalStake)
 
-    val signature = Signature25519.genesis()
+    val signature = SignatureCurve25519.genesis()
 
     val block = Block(History.GenesisParentId, 0L, generatorBox, signature, txs, blockVersion.blockByte)
 

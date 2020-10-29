@@ -1,7 +1,7 @@
 package co.topl.modifier.transaction
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
-import co.topl.attestation.proof.Signature25519
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.nodeView.state.box.{ Box, BoxId, CodeBox }
 import co.topl.nodeView.state.{ ProgramId, StateReader }
 import co.topl.program.ProgramPreprocessor
@@ -12,12 +12,12 @@ import scorex.crypto.hash.Blake2b256
 
 import scala.util.{ Failure, Success, Try }
 
-case class CodeCreation ( to       : PublicKey25519Proposition,
-                          signature: Signature25519,
-                          code     : String,
-                          fee      : Long,
-                          timestamp: Long,
-                          data     : String
+case class CodeCreation (to       : PublicKeyCurve25519Proposition,
+                         signature: SignatureCurve25519,
+                         code     : String,
+                         fee      : Long,
+                         timestamp: Long,
+                         data     : String
                         ) extends Transaction {
 
   override lazy val boxIdsToOpen: IndexedSeq[BoxId] = IndexedSeq()
@@ -81,8 +81,8 @@ object CodeCreation {
 
   implicit val jsonDecoder: Decoder[CodeCreation] = (c: HCursor) =>
     for {
-      to <- c.downField("to").as[PublicKey25519Proposition]
-      signature <- c.downField("signature").as[Signature25519]
+      to <- c.downField("to").as[PublicKeyCurve25519Proposition]
+      signature <- c.downField("signature").as[SignatureCurve25519]
       code <- c.downField("code").as[String]
       fee <- c.downField("fee").as[Long]
       timestamp <-c.downField("timestamp").as[Long]

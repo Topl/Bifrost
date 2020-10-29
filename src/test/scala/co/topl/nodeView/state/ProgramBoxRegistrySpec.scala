@@ -2,7 +2,7 @@ package co.topl.nodeView.state
 
 import co.topl.consensus.KeyRing
 import co.topl.consensus.genesis.PrivateTestnet
-import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.state.StateSpec.testSettings
@@ -41,8 +41,8 @@ class ProgramBoxRegistrySpec extends StateSpec
 
   val state: State = createState(StateSpec.settingsFilename)
 
-  val pubKey: PublicKey25519Proposition =
-    PublicKey25519Proposition(PublicKey @@ Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
+  val pubKey: PublicKeyCurve25519Proposition =
+    PublicKeyCurve25519Proposition(PublicKey @@ Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
 
   val stateOne: Json =
     s"""

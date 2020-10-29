@@ -3,7 +3,7 @@ package co.topl.nodeView.state
 import java.io.File
 
 import co.topl.nodeView.state.MinimalState.VersionTag
-import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import co.topl.nodeView.state.box.{BoxId, TokenBox}
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
@@ -19,7 +19,7 @@ import scala.util.{Failure, Success, Try}
  * @param nodeKeys set of node keys that denote the state this node will maintain (useful for personal wallet nodes)
  */
 class TokenBoxRegistry ( protected val storage: LSMStore,
-                         nodeKeys: Option[Set[PublicKey25519Proposition]]
+                         nodeKeys: Option[Set[PublicKeyCurve25519Proposition]]
                        ) extends Registry[TokenBoxRegistry.K, TokenBoxRegistry.V] {
 
   import TokenBoxRegistry.{K, V}
@@ -115,10 +115,10 @@ class TokenBoxRegistry ( protected val storage: LSMStore,
 
 object TokenBoxRegistry extends Logging {
 
-  type K = PublicKey25519Proposition
+  type K = PublicKeyCurve25519Proposition
   type V = Long
 
-  def readOrGenerate ( settings: AppSettings, nodeKeys: Option[Set[PublicKey25519Proposition]] ): Option[TokenBoxRegistry] = {
+  def readOrGenerate ( settings: AppSettings, nodeKeys: Option[Set[PublicKeyCurve25519Proposition]] ): Option[TokenBoxRegistry] = {
     if (settings.application.enableTBR) {
       log.info("Initializing state with Token Box Registry")
 

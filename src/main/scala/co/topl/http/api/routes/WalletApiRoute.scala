@@ -2,7 +2,7 @@ package co.topl.http.api.routes
 
 import akka.actor.{ ActorRef, ActorRefFactory }
 import akka.http.scaladsl.server.Route
-import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import co.topl.http.api.ApiRouteWithView
 import co.topl.modifier.transaction._
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
@@ -37,7 +37,7 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
       case "broadcastTx"             => broadcastTx(params.head, id)
     }
 
-  def checkPublicKey (keys: Seq[PublicKey25519Proposition], view: CV): Unit = {
+  def checkPublicKey (keys: Seq[PublicKeyCurve25519Proposition], view: CV): Unit = {
     if ( !view.state.hasTBR )
       throw new Exception("TokenBoxRegistry not defined for node")
 
@@ -147,8 +147,8 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
   private def transferPolysPrototype ( implicit params: Json, id: String ): Future[Json] = {
     viewAsync().map { view =>
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-      val recipient: PublicKey25519Proposition = PublicKey25519Proposition((params \\ "recipient").head.asString.get)
-      val sender: IndexedSeq[PublicKey25519Proposition] =
+      val recipient: PublicKeyCurve25519Proposition = PublicKey25519Proposition((params \\ "recipient").head.asString.get)
+      val sender: IndexedSeq[PublicKeyCurve25519Proposition] =
         (params \\ "sender").head.asArray.get.map(key => PublicKey25519Proposition(key.asString.get))
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).get
       val data: String = parseOptional("data", "")
@@ -274,8 +274,8 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
   private def transferArbitsPrototype ( implicit params: Json, id: String ): Future[Json] = {
     viewAsync().map { view =>
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-      val recipient: PublicKey25519Proposition = PublicKey25519Proposition((params \\ "recipient").head.asString.get)
-      val sender: IndexedSeq[PublicKey25519Proposition] =
+      val recipient: PublicKeyCurve25519Proposition = PublicKey25519Proposition((params \\ "recipient").head.asString.get)
+      val sender: IndexedSeq[PublicKeyCurve25519Proposition] =
         (params \\ "sender").head.asArray.get.map(key => PublicKey25519Proposition(key.asString.get))
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).get
       val data: String = parseOptional("data", "")
@@ -324,7 +324,7 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
 
       checkPublicKey(publicKeys, view)
 
-      val boxes: Map[PublicKey25519Proposition, Map[String, Seq[TokenBox]]] =
+      val boxes: Map[PublicKeyCurve25519Proposition, Map[String, Seq[TokenBox]]] =
         publicKeys
           .map(k => {
             val orderedBoxes = view.state.getTokenBoxes(k) match {
@@ -335,7 +335,7 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
           }).toMap
 
 
-      val balances: Map[PublicKey25519Proposition, Map[String, Long]] =
+      val balances: Map[PublicKeyCurve25519Proposition, Map[String, Long]] =
         boxes.map {
           case (prop, assets) => prop -> assets.map {
             case (boxType, boxes) => (boxType, boxes.map(_.value).sum)

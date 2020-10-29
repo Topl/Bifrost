@@ -1,22 +1,21 @@
 package co.topl.serialization
 
-import co.topl.attestation.proposition.MofNProposition
-import co.topl.attestation.proposition.serialization.MofNPropositionSerializer
-import co.topl.modifier.block.{ Block, BlockSerializer }
+import co.topl.attestation.proposition.{ThresholdCurve25519Proposition, ThresholdCurve25519PropositionSerializer}
+import co.topl.modifier.block.{Block, BlockSerializer}
 import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.serialization._
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.serialization.BoxSerializer
-import co.topl.program.{ ExecutionBuilder, ExecutionBuilderSerializer }
-import co.topl.{ BifrostGenerators, ValidGenerators }
+import co.topl.program.{ExecutionBuilder, ExecutionBuilderSerializer}
+import co.topl.{BifrostGenerators, ValidGenerators}
 import org.scalatest.Ignore
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import serializer.BloomTopics
 
 import scala.collection.BitSet
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
 /**
   * Created by cykoz on 4/12/17.
@@ -31,12 +30,12 @@ class SerializationTests extends AnyPropSpec
 
   property("oneOfNProposition Serialization") {
     forAll(oneOfNPropositionGen) {
-      case (_, mn: MofNProposition) =>
-        val parsed = MofNPropositionSerializer
-          .parseBytes(MofNPropositionSerializer.toBytes(mn))
+      case (_, mn: ThresholdCurve25519Proposition) =>
+        val parsed = ThresholdCurve25519PropositionSerializer
+          .parseBytes(ThresholdCurve25519PropositionSerializer.toBytes(mn))
           .get
 
-        parsed.m shouldBe mn.m
+        parsed.threshold shouldBe mn.threshold
         parsed.setOfPubKeyBytes should contain theSameElementsAs mn.setOfPubKeyBytes
     }
   }

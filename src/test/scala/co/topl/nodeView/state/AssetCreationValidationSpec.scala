@@ -2,8 +2,8 @@ package co.topl.nodeView.state
 
 import java.time.Instant
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
-import co.topl.attestation.proof.Signature25519
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ AssetCreation, AssetTransfer }
@@ -24,8 +24,8 @@ class AssetCreationValidationSpec extends StateSpec {
         val block = Block(
           ModifierId(Array.fill(Block.signatureLength)(-1: Byte)),
           Instant.now.toEpochMilli,
-          ArbitBox(PublicKey25519Proposition(PublicKey @@ Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L), /////Check Arbit box
-          Signature25519(Signature @@ Array.fill(Block.signatureLength)(0: Byte)),
+          ArbitBox(PublicKeyCurve25519Proposition(PublicKey @@ Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L), /////Check Arbit box
+          SignatureCurve25519(Signature @@ Array.fill(Block.signatureLength)(0: Byte)),
           Seq(assetCreation),
           settings.application.version.blockByte
         )
@@ -52,8 +52,8 @@ class AssetCreationValidationSpec extends StateSpec {
         val headSig = assetCreation.signatures.head
         val wrongSig: Array[Byte] = (headSig._2.bytes.head + 1).toByte +: headSig._2.bytes.tail
 
-        val wrongSigs: Map[PublicKey25519Proposition, Signature25519] =
-          assetCreation.signatures + (headSig._1 -> Signature25519(Signature @@ wrongSig))
+        val wrongSigs: Map[PublicKeyCurve25519Proposition, SignatureCurve25519] =
+          assetCreation.signatures + (headSig._1 -> SignatureCurve25519(Signature @@ wrongSig))
 
         val invalidAC = assetCreation.copy(signatures = wrongSigs)
 

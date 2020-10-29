@@ -1,10 +1,10 @@
 package co.topl.nodeView.state.box
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import com.google.common.primitives.Longs
 import scorex.crypto.hash.Blake2b256
 
-trait PublicKeyNoncedBox[PKP <: PublicKey25519Proposition] extends GenericBox[PKP, Long] {
+trait PublicKeyNoncedBox[PKP <: PublicKeyCurve25519Proposition] extends GenericBox[PKP, Long] {
   val nonce: Long
 
   lazy val id: BoxId = PublicKeyNoncedBox.idFromBox(proposition, nonce)
@@ -21,7 +21,7 @@ trait PublicKeyNoncedBox[PKP <: PublicKey25519Proposition] extends GenericBox[PK
 
 object PublicKeyNoncedBox {
 
-  def idFromBox[PKP <: PublicKey25519Proposition](prop: PKP, nonce: Long): BoxId = {
+  def idFromBox[PKP <: PublicKeyCurve25519Proposition] (prop: PKP, nonce: Long): BoxId = {
     val hashBytes = Blake2b256(prop.pubKeyBytes ++ Longs.toByteArray(nonce))
     BoxId(hashBytes)
   }

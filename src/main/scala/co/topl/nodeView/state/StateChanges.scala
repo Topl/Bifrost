@@ -1,16 +1,16 @@
 package co.topl.nodeView.state
 
-import co.topl.attestation.proposition.KnowledgeProposition
-import co.topl.attestation.secrets.PrivateKey25519
+import co.topl.attestation.KnowledgeProposition
+import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.modifier.block.Block
-import co.topl.nodeView.state.box.{ Box, BoxId, PolyBox }
+import co.topl.nodeView.state.box.{Box, BoxId, PolyBox}
 import com.google.common.primitives.Longs
 
 import scala.util.Try
 
 case class StateChanges( override val boxIdsToRemove: Set[BoxId],
                          override val toAppend: Set[Box],
-                       ) extends GenericStateChanges[Any, KnowledgeProposition[PrivateKey25519], Box](boxIdsToRemove, toAppend)
+                       ) extends GenericStateChanges[Any, KnowledgeProposition[PrivateKeyCurve25519], Box](boxIdsToRemove, toAppend)
 
 object StateChanges {
   type BX = Box

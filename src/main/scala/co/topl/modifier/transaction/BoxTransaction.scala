@@ -1,6 +1,6 @@
 package co.topl.modifier.transaction
 
-import co.topl.attestation.proposition.Proposition
+import co.topl.attestation.Proposition
 import co.topl.nodeView.state.box.GenericBox
 import com.google.common.primitives.Longs
 

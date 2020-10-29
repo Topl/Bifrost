@@ -4,7 +4,7 @@ import akka.actor.{ ActorRef, ActorRefFactory }
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import co.topl.consensus.Forger.ReceivableMessages._
-import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import co.topl.http.api.ApiRoute
 import co.topl.settings.RESTApiSettings
 import io.circe.Json
@@ -108,9 +108,9 @@ case class KeyManagementApiRoute ( override val settings: RESTApiSettings, keyHo
   private def generateKeyfile ( params: Json, id: String ): Future[Json] = {
     val password: String = (params \\ "password").head.asString.get
 
-    (keyHolderRef ? CreateKey(password)).mapTo[Try[PublicKey25519Proposition]].map {
-      case Success(pk: PublicKey25519Proposition) => Map( "publicKey" -> pk.asJson).asJson
-      case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
+    (keyHolderRef ? CreateKey(password)).mapTo[Try[PublicKeyCurve25519Proposition]].map {
+      case Success(pk: PublicKeyCurve25519Proposition) => Map( "publicKey" -> pk.asJson).asJson
+      case Failure(ex)                                 => throw new Error(s"An error occurred while creating a new keyfile. $ex")
     }
   }
 
@@ -139,9 +139,9 @@ case class KeyManagementApiRoute ( override val settings: RESTApiSettings, keyHo
     val seedPhrase: String = (params \\ "seedPhrase").head.asString.get
     val seedPhraseLang: String = parseOptional("seedPhraseLang", "en")
 
-    (keyHolderRef ? ImportKey(password, seedPhrase, seedPhraseLang)).mapTo[Try[PublicKey25519Proposition]].map {
-      case Success(pk: PublicKey25519Proposition) => Map( "publicKey" -> pk.asJson).asJson
-      case Failure(ex) => throw new Error(s"An error occurred while importing the seed phrase. $ex")
+    (keyHolderRef ? ImportKey(password, seedPhrase, seedPhraseLang)).mapTo[Try[PublicKeyCurve25519Proposition]].map {
+      case Success(pk: PublicKeyCurve25519Proposition) => Map( "publicKey" -> pk.asJson).asJson
+      case Failure(ex)                                 => throw new Error(s"An error occurred while importing the seed phrase. $ex")
     }
   }
 
@@ -164,7 +164,7 @@ case class KeyManagementApiRoute ( override val settings: RESTApiSettings, keyHo
    * @return
    */
   private def listOpenKeyfiles ( params: Json, id: String ): Future[Json] = {
-    (keyHolderRef ? ListKeys).mapTo[Set[PublicKey25519Proposition]].map {b =>
+    (keyHolderRef ? ListKeys).mapTo[Set[PublicKeyCurve25519Proposition]].map { b =>
       Map("unlocked" -> b.map(_.toString).asJson).asJson
     }
   }

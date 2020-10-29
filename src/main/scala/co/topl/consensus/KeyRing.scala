@@ -2,22 +2,22 @@ package co.topl.consensus
 
 import java.io.File
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
-import co.topl.attestation.secrets.PrivateKey25519
-import co.topl.crypto.Bip39
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.secrets.PrivateKeyCurve25519
+import co.topl.crypto.{Bip39, KeyFile}
 import co.topl.utils.Logging
 import scorex.crypto.hash.Blake2b256
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
-class KeyRing ( private var secrets: Set[PrivateKey25519],
-                defaultKeyDir      : File
+class KeyRing (private var secrets: Set[PrivateKeyCurve25519],
+               defaultKeyDir      : File
               ) extends Logging {
 
   import KeyRing.getListOfFiles
 
-  type S = PrivateKey25519
-  type PI = PrivateKey25519.PK
+  type S = PrivateKeyCurve25519
+  type PI = PrivateKeyCurve25519.PK
 
   /**
    * Retrieves a list of public images for the secrets currently held in the keyring
@@ -28,7 +28,7 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
 
   /**Find a secret given it's public image */
   private[consensus] def secretByPublicImage(publicImage: PI): Option[S] = publicImage match {
-    case p: PublicKey25519Proposition => secrets.find(s => s.publicImage == p)
+    case p: PublicKeyCurve25519Proposition => secrets.find(s => s.publicImage == p)
     //case mn: MofNProposition          => secrets.find(s => mn.setOfPubKeyBytes.exists(s.publicImage == PublicKey25519Proposition(_)))
     case _ => None
   }
@@ -65,7 +65,7 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
    *
    * @param password
    */
-  def generateKeyFile (password: String): Try[PublicKey25519Proposition] = {
+  def generateKeyFile (password: String): Try[PublicKeyCurve25519Proposition] = {
     // generate a new random key pair and save to disk
     generateNewKeyPairs().map { sk =>
       exportKeyfile(sk.head.publicImage, password)
@@ -74,7 +74,7 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
   }
 
   /**  */
-  def generateNewKeyPairs (num: Int = 1): Try[Set[PrivateKey25519]] = Try {
+  def generateNewKeyPairs (num: Int = 1): Try[Set[PrivateKeyCurve25519]] = Try {
     if (num >= 1) {
       val newSecrets = (1 to num).map(_ => KeyFile.generateKeyPair._1).toSet
       secrets ++= newSecrets
@@ -90,7 +90,7 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
    * @param lang
    * @return
    */
-  def importPhrase (password: String, mnemonic: String, lang: String): Try[PublicKey25519Proposition] = Try {
+  def importPhrase (password: String, mnemonic: String, lang: String): Try[PublicKeyCurve25519Proposition] = Try {
     // create the BIP object used to verify the chosen language
     val bip = Bip39(lang)
 
@@ -114,7 +114,7 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
     * @param password
     * @return
     */
-  def exportKeyfile (publicImage: PublicKey25519Proposition, password: String): Try[Unit] = Try {
+  def exportKeyfile (publicImage: PublicKeyCurve25519Proposition, password: String): Try[Unit] = Try {
     secretByPublicImage(publicImage) match {
       case Some(sk) => KeyFile(password, sk).saveToDisk(defaultKeyDir.getAbsolutePath)
       case _        => Failure(new Error("Unable to find a matching secret in the key ring"))
@@ -132,7 +132,7 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
    * @param password        password used to decrypt the keyfile
    * @return the relevant PrivateKey25519 to be processed
    */
-  private def checkValid ( address: String, password: String ): PrivateKey25519 = {
+  private def checkValid ( address: String, password: String ): PrivateKeyCurve25519 = {
     val keyfile = listKeyFiles.filter {
       _.publicKeyFromAddress == PublicKey25519Proposition(address)
     }

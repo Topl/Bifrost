@@ -10,7 +10,7 @@ import co.topl.modifier.{ ModifierId, NodeViewModifier }
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.History.GenesisParentId
-import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
 import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
@@ -62,7 +62,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
 
   private def isGenesis(b: Block): Boolean = storage.isGenesis(b)
 
-  def blockForger(m: Block): PublicKey25519Proposition = m.forgerBox.proposition
+  def blockForger(m: Block): PublicKeyCurve25519Proposition = m.forgerBox.proposition
 
   def count(f: Block => Boolean): Int = filter(f).length
 
@@ -313,8 +313,8 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     *
     * @return a map from public keys of forgers to the number of blocks they have forged
     */
-  def forgerDistribution(): Map[PublicKey25519Proposition, Int] = {
-    val map = collection.mutable.Map[PublicKey25519Proposition, Int]().withDefaultValue(0)
+  def forgerDistribution(): Map[PublicKeyCurve25519Proposition, Int] = {
+    val map = collection.mutable.Map[PublicKeyCurve25519Proposition, Int]().withDefaultValue(0)
 
     /**
       * Finds the forger for this block, increments their block number entry in `map`, and continues down the chain

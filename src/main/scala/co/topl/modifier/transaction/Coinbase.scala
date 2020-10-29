@@ -1,7 +1,7 @@
 package co.topl.modifier.transaction
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
-import co.topl.attestation.proof.Signature25519
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.Nonce
@@ -14,10 +14,10 @@ import scorex.crypto.hash.{ Blake2b256, Digest32 }
 
 import scala.util.Try
 
-case class Coinbase ( to        : IndexedSeq[(PublicKey25519Proposition, Long)],
-                      signatures: Map[PublicKey25519Proposition, Signature25519],
-                      timestamp : Long,
-                      parentId  : ModifierId
+case class Coinbase (to        : IndexedSeq[(PublicKeyCurve25519Proposition, Long)],
+                     signatures: Map[PublicKeyCurve25519Proposition, SignatureCurve25519],
+                     timestamp : Long,
+                     parentId  : ModifierId
                     ) extends Transaction {
 
   lazy val fee = 0L // you don't ever pay for a Coinbase TX since you'd be paying yourself so fee must equal 0
@@ -67,8 +67,8 @@ object Coinbase {
 
   implicit val jsonDecoder: Decoder[Coinbase] = (c: HCursor) =>
     for {
-      to <- c.downField("to").as[IndexedSeq[(PublicKey25519Proposition, Long)]]
-      signatures <- c.downField("signatures").as[Map[PublicKey25519Proposition, Signature25519]]
+      to <- c.downField("to").as[IndexedSeq[(PublicKeyCurve25519Proposition, Long)]]
+      signatures <- c.downField("signatures").as[Map[PublicKeyCurve25519Proposition, SignatureCurve25519]]
       timestamp <- c.downField("timestamp").as[Long]
       parentId <- c.downField("parentId").as[ModifierId]
     } yield {
@@ -84,13 +84,13 @@ object Coinbase {
    * @param parentId id of the block preceding the block including this transaction
    * @return a raw conbase transaction
    */
-  def createRaw ( rewardAddr: PublicKey25519Proposition,
-                  amount: Long,
-                  timestamp: Long,
-                  parentId: Block.BlockId
+  def createRaw (rewardAddr: PublicKeyCurve25519Proposition,
+                 amount: Long,
+                 timestamp: Long,
+                 parentId: Block.BlockId
                 ): Coinbase = {
     val to = IndexedSeq((rewardAddr, amount))
-    val sig = Map(rewardAddr ->  Signature25519.empty())
+    val sig = Map(rewardAddr ->  SignatureCurve25519.empty())
     Coinbase(to, sig, timestamp, parentId)
   }
 

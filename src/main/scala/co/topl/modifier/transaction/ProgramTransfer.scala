@@ -1,7 +1,7 @@
 package co.topl.modifier.transaction
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
-import co.topl.attestation.proof.Signature25519
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{ Box, BoxId, ExecutionBox, ProgramBox }
 import com.google.common.primitives.{ Bytes, Longs }
@@ -11,9 +11,9 @@ import scorex.crypto.hash.Blake2b256
 
 import scala.util.{ Failure, Success, Try }
 
-case class ProgramTransfer (from        : PublicKey25519Proposition,
-                            to          : PublicKey25519Proposition,
-                            signature   : Signature25519,
+case class ProgramTransfer (from        : PublicKeyCurve25519Proposition,
+                            to          : PublicKeyCurve25519Proposition,
+                            signature   : SignatureCurve25519,
                             executionBox: ExecutionBox,
                             fee         : Long,
                             timestamp   : Long,
@@ -70,9 +70,9 @@ object ProgramTransfer {
 
   implicit val jsonDecoder: Decoder[ProgramTransfer] = (c: HCursor) =>
     for {
-      from <- c.downField("from").as[PublicKey25519Proposition]
-      to <- c.downField("to").as[PublicKey25519Proposition]
-      signature <- c.downField("signature").as[Signature25519]
+      from <- c.downField("from").as[PublicKeyCurve25519Proposition]
+      to <- c.downField("to").as[PublicKeyCurve25519Proposition]
+      signature <- c.downField("signature").as[SignatureCurve25519]
       executionBox <- c.downField("executionBox").as[ExecutionBox]
       fee <- c.downField("fee").as[Long]
       timestamp <- c.downField("timestamp").as[Long]

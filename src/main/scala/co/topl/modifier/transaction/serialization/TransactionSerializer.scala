@@ -1,9 +1,8 @@
 package co.topl.modifier.transaction.serialization
 
-import co.topl.attestation.proposition.KnowledgeProposition
-import co.topl.attestation.secrets.Secret
+import co.topl.attestation.{KnowledgeProposition, Secret}
 import co.topl.modifier.transaction._
-import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
+import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object TransactionSerializer extends BifrostSerializer[Transaction[_ <: Secret, _ <: KnowledgeProposition[_]]] {
 

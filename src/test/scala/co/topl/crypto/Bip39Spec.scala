@@ -1,7 +1,6 @@
 package co.topl.crypto
 
-import co.topl.attestation.secrets.PrivateKey25519
-import co.topl.consensus.KeyFile
+import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.utils.Logging
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -82,9 +81,9 @@ class Bip39Spec extends AnyFlatSpec
     val seed2 = pt.hexToUuid(pt.phraseToHex(phrase))
     val seed1Hash: Array[Byte] = Blake2b256(seed1)
     val seed2Hash: Array[Byte] = Blake2b256(seed2)
-    val key1 = PrivateKey25519.generateKeys(seed1Hash)
-    val key2 = PrivateKey25519.generateKeys(seed2Hash)
-    val key3 = PrivateKey25519.generateKeys(Blake2b256(uuidString))
+    val key1 = PrivateKeyCurve25519.generateKeys(seed1Hash)
+    val key2 = PrivateKeyCurve25519.generateKeys(seed2Hash)
+    val key3 = PrivateKeyCurve25519.generateKeys(Blake2b256(uuidString))
 
     KeyFile.generateKeyPair(seed1Hash)
 

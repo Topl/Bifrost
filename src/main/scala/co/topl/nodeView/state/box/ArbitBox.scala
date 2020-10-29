@@ -1,9 +1,8 @@
 package co.topl.nodeView.state.box
 
-import co.topl.attestation.proposition.KnowledgeProposition
-import co.topl.attestation.secrets.Secret
+import co.topl.attestation.{KnowledgeProposition, Secret}
 import io.circe.syntax.EncoderOps
-import io.circe.{ Decoder, Encoder, HCursor }
+import io.circe.{Decoder, Encoder, HCursor}
 
 case class ArbitBox( override val proposition: KnowledgeProposition[_ <: Secret],
                      override val nonce: Long,

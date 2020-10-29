@@ -2,9 +2,9 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
-import co.topl.attestation.proof.Signature25519
-import co.topl.attestation.secrets.PrivateKey25519
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proof.SignatureCurve25519
+import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.modifier.transaction
 import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
 import co.topl.nodeView.state.box.{ PolyBox, TokenBox }
@@ -15,12 +15,12 @@ import scorex.crypto.hash.Blake2b256
 
 import scala.util.{ Failure, Success, Try }
 
-case class PolyTransfer ( override val from      : IndexedSeq[(PublicKey25519Proposition, Nonce)],
-                          override val to        : IndexedSeq[(PublicKey25519Proposition, Long)],
-                          override val signatures: Map[PublicKey25519Proposition, Signature25519],
-                          override val fee       : Long,
-                          override val timestamp : Long,
-                          override val data      : String
+case class PolyTransfer (override val from      : IndexedSeq[(PublicKeyCurve25519Proposition, Nonce)],
+                         override val to        : IndexedSeq[(PublicKeyCurve25519Proposition, Long)],
+                         override val signatures: Map[PublicKeyCurve25519Proposition, SignatureCurve25519],
+                         override val fee       : Long,
+                         override val timestamp : Long,
+                         override val data      : String
                         ) extends TransferTransaction(from, to, signatures, fee, timestamp, data) {
 
   override lazy val messageToSign: Array[Byte] = "PolyTransfer".getBytes() ++ super.messageToSign
@@ -65,9 +65,9 @@ object PolyTransfer extends TransferCompanion {
 
   implicit val jsonDecoder: Decoder[PolyTransfer] = (c: HCursor) =>
     for {
-      from <- c.downField("from").as[IndexedSeq[(PublicKey25519Proposition, Long)]]
-      to <- c.downField("to").as[IndexedSeq[(PublicKey25519Proposition, Long)]]
-      signatures <- c.downField("signatures").as[Map[PublicKey25519Proposition, Signature25519]]
+      from <- c.downField("from").as[IndexedSeq[(PublicKeyCurve25519Proposition, Long)]]
+      to <- c.downField("to").as[IndexedSeq[(PublicKeyCurve25519Proposition, Long)]]
+      signatures <- c.downField("signatures").as[Map[PublicKeyCurve25519Proposition, SignatureCurve25519]]
       fee <- c.downField("fee").as[Long]
       timestamp <- c.downField("timestamp").as[Long]
       data <- c.downField("data").as[String]
@@ -84,11 +84,11 @@ object PolyTransfer extends TransferCompanion {
    * @param data
    * @return
    */
-  def apply ( from     : IndexedSeq[(PrivateKey25519, Nonce)],
-              to       : IndexedSeq[(PublicKey25519Proposition, Value)],
-              fee      : Long,
-              timestamp: Long,
-              data     : String
+  def apply (from     : IndexedSeq[(PrivateKeyCurve25519, Nonce)],
+             to       : IndexedSeq[(PublicKeyCurve25519Proposition, Value)],
+             fee      : Long,
+             timestamp: Long,
+             data     : String
             ): PolyTransfer = {
     val params = parametersForApply(from, to, fee, timestamp, "PolyTransfer", data).get
     transaction.PolyTransfer(params._1, to, params._2, fee, timestamp, data)
@@ -103,11 +103,11 @@ object PolyTransfer extends TransferCompanion {
    * @param data
    * @return
    */
-  def createPrototype ( stateReader: SR,
-                        toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
-                        sender   : IndexedSeq[PublicKey25519Proposition],
-                        fee      : Long,
-                        data     : String
+  def createPrototype (stateReader: SR,
+                       toReceive: IndexedSeq[(PublicKeyCurve25519Proposition, Long)],
+                       sender   : IndexedSeq[PublicKeyCurve25519Proposition],
+                       fee      : Long,
+                       data     : String
                       ): Try[PolyTransfer] = Try {
     val params = parametersForCreate(stateReader, toReceive, sender, fee, "PolyTransfer")
     val timestamp = Instant.now.toEpochMilli

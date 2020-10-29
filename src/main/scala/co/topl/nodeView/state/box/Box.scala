@@ -1,10 +1,9 @@
 package co.topl.nodeView.state.box
 
-import co.topl.attestation.proposition.KnowledgeProposition
-import co.topl.attestation.secrets.Secret
+import co.topl.attestation.{KnowledgeProposition, Secret}
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.utils.serialization.BifrostSerializer
-import io.circe.{ Decoder, Encoder, HCursor, Json }
+import io.circe.{Decoder, Encoder, HCursor, Json}
 
 /**
  * Created by Matthew on 4/11/2017.
@@ -17,8 +16,6 @@ abstract class Box( val proposition: KnowledgeProposition[_ <: Secret],
   override type M = Box
 
   val typeOfBox: String
-
-  //lazy val publicKey: ProofOfKnowledgeProposition[PrivateKey25519] = proposition
 
   override lazy val json: Json = Box.jsonEncoder(this)
 

@@ -1,8 +1,8 @@
 package co.topl.consensus.genesis
 
 import co.topl.consensus.Forger.ChainParams
-import co.topl.attestation.proposition.PublicKey25519Proposition
-import co.topl.attestation.proof.Signature25519
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ ArbitTransfer, PolyTransfer }
@@ -12,8 +12,8 @@ import co.topl.settings.{ AppSettings, Version }
 
 import scala.util.Try
 
-case class PrivateTestnet ( keyGen  : Int => Set[PublicKey25519Proposition],
-                            settings: AppSettings) extends GenesisProvider {
+case class PrivateTestnet (keyGen  : Int => Set[PublicKeyCurve25519Proposition],
+                           settings: AppSettings) extends GenesisProvider {
 
   override protected val blockChecksum: ModifierId = ModifierId(Array.fill(32)(0: Byte))
 
@@ -40,7 +40,7 @@ case class PrivateTestnet ( keyGen  : Int => Set[PublicKey25519Proposition],
     val txInput = (
       IndexedSeq(genesisAcct.publicImage -> 0L),
       keyGen(numberOfKeys).map(_ -> balance).toIndexedSeq,
-      Map(genesisAcct.publicImage -> Signature25519.genesis()),
+      Map(genesisAcct.publicImage -> SignatureCurve25519.genesis()),
       0L,
       0L,
       "")
@@ -49,7 +49,7 @@ case class PrivateTestnet ( keyGen  : Int => Set[PublicKey25519Proposition],
 
     val generatorBox = ArbitBox(genesisAcct.publicImage, 0, privateTotalStake)
 
-    val signature = Signature25519.genesis()
+    val signature = SignatureCurve25519.genesis()
 
     val block = Block(History.GenesisParentId, 0L, generatorBox, signature, txs, blockVersion.blockByte)
 

@@ -2,8 +2,8 @@ package co.topl.program
 
 import java.nio.file.{ Files, Path }
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
-import co.topl.attestation.proof.Signature25519
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.utils.Gzip
 import com.oracle.js.parser.ir.visitor.NodeVisitor
 import com.oracle.js.parser.ir.{ FunctionNode, LexicalContext, Node, VarNode }
@@ -26,7 +26,7 @@ case class ProgramPreprocessor(name: String,
                                //state: Json,
                                variables: Json,
                                code: Map[String, String],
-                               signed: Option[(PublicKey25519Proposition, Signature25519)])
+                               signed: Option[(PublicKeyCurve25519Proposition, SignatureCurve25519)])
 
 
 
@@ -78,7 +78,7 @@ object ProgramPreprocessor {
     }
   }
 
-  def apply(name: String, initjs: String, signed: Option[(PublicKey25519Proposition, Signature25519)] = None)(args: JsonObject): ProgramPreprocessor = {
+  def apply (name: String, initjs: String, signed: Option[(PublicKeyCurve25519Proposition, SignatureCurve25519)] = None)(args: JsonObject): ProgramPreprocessor = {
 
     //val modifiedInitjs = initjs.replaceFirst("\\{", "\\{\n" + ValkyrieFunctions().reserved + "\n")
     //println(">>>>>>>>>>>>>>>>>>>>> initjs + reservedFunctions: " + modifiedInitjs)
@@ -105,12 +105,12 @@ object ProgramPreprocessor {
     val announcedRegistry: Option[Map[String, Seq[String]]] =
       (json \\ "interface").headOption.map(_.as[Map[String, Seq[String]]].right.get)
 
-    val signed: Option[(PublicKey25519Proposition, Signature25519)] = (json \\ "signed")
+    val signed: Option[(PublicKeyCurve25519Proposition, SignatureCurve25519)] = (json \\ "signed")
       .headOption
       .map(_.as[(String, String)].right.get)
       .map{pair =>
         val pub = PublicKey25519Proposition(pair._1)
-        val sig = Signature25519(pair._2)
+        val sig = SignatureCurve25519(pair._2)
         pub -> sig}
 
     val (interface, /*cleanModuleState,*/ variables, code) = deriveFromInit(initjs, name, announcedRegistry)(args)
@@ -343,7 +343,7 @@ object ProgramPreprocessor {
       code,
       signed.map{pair =>
         val pub = PublicKey25519Proposition(pair._1)
-        val sig = Signature25519(pair._2)
+        val sig = SignatureCurve25519(pair._2)
         pub -> sig
       }
     )

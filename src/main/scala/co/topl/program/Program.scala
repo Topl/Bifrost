@@ -1,6 +1,6 @@
 package co.topl.program
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import co.topl.nodeView.state.box.{ CodeBox, StateBox }
 import co.topl.utils.exceptions.{ ChainProgramException, JsonParsingException }
 import io.circe._
@@ -18,10 +18,10 @@ import scala.util.Try
  * @param id               Unique identifier
  * @param executionBuilder Context for the state and code to execute methods on the program
  */
-case class Program ( parties         : Map[PublicKey25519Proposition, String],
-                     lastUpdated     : Long,
-                     id              : Array[Byte],
-                     executionBuilder: Json
+case class Program (parties         : Map[PublicKeyCurve25519Proposition, String],
+                    lastUpdated     : Long,
+                    id              : Array[Byte],
+                    executionBuilder: Json
                    ) {
 
   val MIN_PARTIES: Int = 2
@@ -66,7 +66,7 @@ object Program {
       .map(_.toMap)
       .get
 
-    val parties: Map[PublicKey25519Proposition, String] = jsonMap("parties").asObject match {
+    val parties: Map[PublicKeyCurve25519Proposition, String] = jsonMap("parties").asObject match {
       case Some(partiesObject) =>
         partiesObject
           .toMap
@@ -74,7 +74,7 @@ object Program {
             party =>
               val publicKey = PublicKey @@ Base58.decode(party._1).get
               val role = party._2.asString.get
-              new PublicKey25519Proposition(publicKey) -> role
+              new PublicKeyCurve25519Proposition(publicKey) -> role
           }
       case None                => throw new JsonParsingException(s"Error: ${jsonMap("parties")}")
     }
@@ -99,7 +99,7 @@ object Program {
    */
   //noinspection ScalaStyle
   def execute ( stateBoxes: Seq[StateBox], codeBoxes: Seq[CodeBox], methodName: String )
-              ( party: PublicKey25519Proposition )
+              ( party: PublicKeyCurve25519Proposition )
               ( args: JsonObject ): Try[Json] = {
 
     Try {

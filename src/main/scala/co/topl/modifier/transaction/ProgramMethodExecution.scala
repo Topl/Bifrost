@@ -1,7 +1,7 @@
 package co.topl.modifier.transaction
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
-import co.topl.attestation.proof.{ MultiSignature25519, Signature25519 }
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proof.{ ThresholdSignatureCurve25519, SignatureCurve25519 }
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.{ ProgramId, State, StateReader }
@@ -14,20 +14,20 @@ import scorex.crypto.hash.{ Blake2b256, Digest32 }
 
 import scala.util.{ Failure, Success, Try }
 
-case class ProgramMethodExecution ( executionBox: ExecutionBox,
-                                    stateBoxes  : Seq[StateBox],
-                                    codeBoxes   : Seq[CodeBox],
-                                    methodName  : String,
-                                    methodParams: Json,
-                                    owner       : PublicKey25519Proposition,
-                                    signatures  : Map[PublicKey25519Proposition, Signature25519],
-                                    preFeeBoxes : Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
-                                    fees        : Map[PublicKey25519Proposition, Long],
-                                    timestamp   : Long,
-                                    data        : String
+case class ProgramMethodExecution (executionBox: ExecutionBox,
+                                   stateBoxes  : Seq[StateBox],
+                                   codeBoxes   : Seq[CodeBox],
+                                   methodName  : String,
+                                   methodParams: Json,
+                                   owner       : PublicKeyCurve25519Proposition,
+                                   signatures  : Map[PublicKeyCurve25519Proposition, SignatureCurve25519],
+                                   preFeeBoxes : Map[PublicKeyCurve25519Proposition, IndexedSeq[(Nonce, Long)]],
+                                   fees        : Map[PublicKeyCurve25519Proposition, Long],
+                                   timestamp   : Long,
+                                   data        : String
                                   ) extends ProgramTransaction {
 
-  val proposition: PublicKey25519Proposition = executionBox.proposition
+  val proposition: PublicKeyCurve25519Proposition = executionBox.proposition
 
   // TODO Fix instantiation to handle runtime input and/or extract to a better location
 //  val config  : Config      = ConfigFactory.load("application")
@@ -124,10 +124,10 @@ object ProgramMethodExecution {
       codeBoxes <- c.downField("code").as[Seq[CodeBox]]
       methodName <- c.downField("methodName").as[String]
       methodParams <- c.downField("methodParams").as[Json]
-      owner <- c.downField("owner").as[PublicKey25519Proposition]
-      signatures <- c.downField("signatures").as[Map[PublicKey25519Proposition, Signature25519]]
-      preFeeBoxes <- c.downField("preFeeBoxes").as[Map[PublicKey25519Proposition, IndexedSeq[(Long, Long)]]]
-      fees <- c.downField("fees").as[Map[PublicKey25519Proposition, Long]]
+      owner <- c.downField("owner").as[PublicKeyCurve25519Proposition]
+      signatures <- c.downField("signatures").as[Map[PublicKeyCurve25519Proposition, SignatureCurve25519]]
+      preFeeBoxes <- c.downField("preFeeBoxes").as[Map[PublicKeyCurve25519Proposition, IndexedSeq[(Long, Long)]]]
+      fees <- c.downField("fees").as[Map[PublicKeyCurve25519Proposition, Long]]
       timestamp <- c.downField("timestamp").as[Long]
       data <- c.downField("data").as[String]
     } yield {
@@ -149,16 +149,16 @@ object ProgramMethodExecution {
    * @param data
    * @return
    */
-  def create ( state       : State,
-               programId   : ProgramId,
-               methodName  : String,
-               methodParams: Json,
-               owner       : PublicKey25519Proposition,
-               signatures  : Map[PublicKey25519Proposition, Signature25519],
-               preFeeBoxes : Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
-               fees        : Map[PublicKey25519Proposition, Long],
-               timestamp   : Long,
-               data        : String
+  def create (state       : State,
+              programId   : ProgramId,
+              methodName  : String,
+              methodParams: Json,
+              owner       : PublicKeyCurve25519Proposition,
+              signatures  : Map[PublicKeyCurve25519Proposition, SignatureCurve25519],
+              preFeeBoxes : Map[PublicKeyCurve25519Proposition, IndexedSeq[(Nonce, Long)]],
+              fees        : Map[PublicKeyCurve25519Proposition, Long],
+              timestamp   : Long,
+              data        : String
              ): Try[ProgramMethodExecution] = Try {
 
     val execBox = state.getProgramBox[ExecutionBox](programId).get
@@ -208,10 +208,10 @@ object ProgramMethodExecution {
 
     //TODO get execution box from box registry using UUID before using its actual id to get it from storage
     val executionBox: ExecutionBox = state.getBox(tx.executionBox.id).get.asInstanceOf[ExecutionBox]
-    val programProposition: PublicKey25519Proposition = executionBox.proposition
+    val programProposition: PublicKeyCurve25519Proposition = executionBox.proposition
 
     /* This person belongs to program */
-    if ( !MultiSignature25519(tx.signatures.values.toSet).isValid(programProposition, tx.messageToSign) ) {
+    if ( !ThresholdSignatureCurve25519(tx.signatures.values.toSet).isValid(programProposition, tx.messageToSign) ) {
       throw new TransactionValidationException(s"Signature is invalid for ExecutionBox")
     }
 

@@ -2,8 +2,8 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
-import co.topl.attestation.proof.Signature25519
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{ AssetBox, Box, BoxId, TokenBox }
 import com.google.common.primitives.{ Bytes, Ints, Longs }
@@ -13,13 +13,13 @@ import scorex.crypto.hash.Blake2b256
 
 import scala.util.{ Failure, Success, Try }
 
-case class AssetCreation ( to: IndexedSeq[(PublicKey25519Proposition, Long)],
-                           signatures: Map[PublicKey25519Proposition, Signature25519],
-                           assetCode : String,
-                           issuer    : PublicKey25519Proposition,
-                           fee       : Long,
-                           timestamp : Long,
-                           data      : String
+case class AssetCreation (to: IndexedSeq[(PublicKeyCurve25519Proposition, Long)],
+                          signatures: Map[PublicKeyCurve25519Proposition, SignatureCurve25519],
+                          assetCode : String,
+                          issuer    : PublicKeyCurve25519Proposition,
+                          fee       : Long,
+                          timestamp : Long,
+                          data      : String
                          ) extends Transaction {
 
   override lazy val boxIdsToOpen: IndexedSeq[BoxId] = IndexedSeq()
@@ -85,10 +85,10 @@ object AssetCreation {
 
   implicit val jsonDecoder: Decoder[AssetCreation] = ( c: HCursor ) =>
     for {
-      to <- c.downField("to").as[IndexedSeq[(PublicKey25519Proposition, Long)]]
-      signatures <- c.downField("signatures").as[Map[PublicKey25519Proposition, Signature25519]]
+      to <- c.downField("to").as[IndexedSeq[(PublicKeyCurve25519Proposition, Long)]]
+      signatures <- c.downField("signatures").as[Map[PublicKeyCurve25519Proposition, SignatureCurve25519]]
       assetCode <- c.downField("assetCode").as[String]
-      issuer <- c.downField("issuer").as[PublicKey25519Proposition]
+      issuer <- c.downField("issuer").as[PublicKeyCurve25519Proposition]
       fee <- c.downField("fee").as[Long]
       timestamp <- c.downField("timestamp").as[Long]
       data <- c.downField("data").as[String]
@@ -96,11 +96,11 @@ object AssetCreation {
       AssetCreation(to, signatures, assetCode, issuer, fee, timestamp, data)
     }
 
-  def createRaw ( to: IndexedSeq[(PublicKey25519Proposition, Long)],
-                  fee: Long,
-                  issuer: PublicKey25519Proposition,
-                  assetCode: String,
-                  data: String
+  def createRaw (to: IndexedSeq[(PublicKeyCurve25519Proposition, Long)],
+                 fee: Long,
+                 issuer: PublicKeyCurve25519Proposition,
+                 assetCode: String,
+                 data: String
                 ): Try[AssetCreation] = Try {
 
     val timestamp = Instant.now.toEpochMilli

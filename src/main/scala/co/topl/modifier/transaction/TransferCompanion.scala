@@ -1,8 +1,8 @@
 package co.topl.modifier.transaction
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
-import co.topl.attestation.proof.Signature25519
-import co.topl.attestation.secrets.PrivateKey25519
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proof.SignatureCurve25519
+import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box._
@@ -23,20 +23,20 @@ trait TransferCompanion {
    * @param extraArgs
    * @return
    */
-  def parametersForApply ( from: IndexedSeq[(PrivateKey25519, Nonce)],
-                           to: IndexedSeq[(PublicKey25519Proposition, Value)],
-                           fee      : Long,
-                           timestamp: Long,
-                           txType   : String,
-                           extraArgs: Any*
+  def parametersForApply (from: IndexedSeq[(PrivateKeyCurve25519, Nonce)],
+                          to: IndexedSeq[(PublicKeyCurve25519Proposition, Value)],
+                          fee      : Long,
+                          timestamp: Long,
+                          txType   : String,
+                          extraArgs: Any*
                          ):
-  Try[(IndexedSeq[(PublicKey25519Proposition, Nonce)], Map[PublicKey25519Proposition, Signature25519])] = Try {
+  Try[(IndexedSeq[(PublicKeyCurve25519Proposition, Nonce)], Map[PublicKeyCurve25519Proposition, SignatureCurve25519])] = Try {
     val fromPub = from.map { case (pr, n) => pr.publicImage -> n }
 
     val undersigned = txType match {
       case "PolyTransfer"  => PolyTransfer(fromPub, to, Map(), fee, timestamp, extraArgs(0).asInstanceOf[String])
       case "ArbitTransfer" => ArbitTransfer(fromPub, to, Map(), fee, timestamp, extraArgs(0).asInstanceOf[String])
-      case "AssetTransfer" => AssetTransfer(fromPub, to, Map(), extraArgs(0).asInstanceOf[PublicKey25519Proposition],
+      case "AssetTransfer" => AssetTransfer(fromPub, to, Map(), extraArgs(0).asInstanceOf[PublicKeyCurve25519Proposition],
                                             extraArgs(1).asInstanceOf[String], fee, timestamp, extraArgs(2).asInstanceOf[String])
     }
 
@@ -55,17 +55,17 @@ trait TransferCompanion {
    * @param extraArgs
    * @return
    */
-  def parametersForCreate ( state    : SR,
-                            toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
-                            sender   : IndexedSeq[PublicKey25519Proposition],
-                            fee      : Long,
-                            txType   : String,
-                            extraArgs: Any*
+  def parametersForCreate (state    : SR,
+                           toReceive: IndexedSeq[(PublicKeyCurve25519Proposition, Long)],
+                           sender   : IndexedSeq[PublicKeyCurve25519Proposition],
+                           fee      : Long,
+                           txType   : String,
+                           extraArgs: Any*
                           ):
-  (IndexedSeq[(PublicKey25519Proposition, Long, Long)], IndexedSeq[(PublicKey25519Proposition, Long)]) = {
+  (IndexedSeq[(PublicKeyCurve25519Proposition, Long, Long)], IndexedSeq[(PublicKeyCurve25519Proposition, Long)]) = {
 
     toReceive
-      .foldLeft((IndexedSeq[(PublicKey25519Proposition, Long, Long)](), IndexedSeq[(PublicKey25519Proposition, Long)]())) {
+      .foldLeft((IndexedSeq[(PublicKeyCurve25519Proposition, Long, Long)](), IndexedSeq[(PublicKeyCurve25519Proposition, Long)]())) {
         case (a, (recipient, amount)) =>
 
           // Restrict box search to specified public keys if provided
@@ -95,16 +95,16 @@ trait TransferCompanion {
                                            case a: AssetBox
                                              if (a.assetCode equals extraArgs(1).asInstanceOf[String]) &&
                                                (a.issuer equals extraArgs(0)
-                                                 .asInstanceOf[PublicKey25519Proposition]) =>
+                                                 .asInstanceOf[PublicKeyCurve25519Proposition]) =>
                                              Some(a)
-                                           case _                                          => None
+                                           case _                                               => None
                                          })
               }
           }
 
           if ( keyAndTypeFilteredBoxes.length < 1 ) throw new Exception("No boxes found to fund transaction")
 
-          val senderInputBoxes: IndexedSeq[(PublicKey25519Proposition, Nonce, Long)] = keyAndTypeFilteredBoxes
+          val senderInputBoxes: IndexedSeq[(PublicKeyCurve25519Proposition, Nonce, Long)] = keyAndTypeFilteredBoxes
             .map(b => (b.proposition, b.nonce, b.value))
             .toIndexedSeq
 
@@ -117,10 +117,10 @@ trait TransferCompanion {
 
           // Updated sender balance for specified box type (this is the change calculation for sender)
           //TODO reconsider? - returns change to first key in list
-          val senderUpdatedBalance: (PublicKey25519Proposition, Long) = (sender.head, canSend - amount - fee)
+          val senderUpdatedBalance: (PublicKeyCurve25519Proposition, Long) = (sender.head, canSend - amount - fee)
 
           // create the list of outputs (senderChangeOut & recipientOut)
-          val to: IndexedSeq[(PublicKey25519Proposition, Long)] = IndexedSeq(senderUpdatedBalance, (recipient, amount))
+          val to: IndexedSeq[(PublicKeyCurve25519Proposition, Long)] = IndexedSeq(senderUpdatedBalance, (recipient, amount))
 
           require(senderInputBoxes.map(_._3).sum - to.map(_._2).sum == fee)
           (a._1 ++ senderInputBoxes, a._2 ++ to)

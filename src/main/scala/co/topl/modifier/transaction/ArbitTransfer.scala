@@ -2,25 +2,26 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.attestation.evidence.Evidence
-import co.topl.attestation.proposition.{ KnowledgeProposition, PublicKey25519Proposition }
-import co.topl.attestation.proof.{ ProofOfKnowledge, Signature25519 }
-import co.topl.attestation.secrets.{ PrivateKey25519, Secret }
-import co.topl.nodeView.state.box.{ ArbitBox, Box, TokenBox }
+import co.topl.attestation.{KnowledgeProposition, Secret}
+import co.topl.attestation.address.Address
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proof.{ProofOfKnowledge, SignatureCurve25519}
+import co.topl.attestation.secrets.PrivateKeyCurve25519
+import co.topl.nodeView.state.box.{ArbitBox, Box, TokenBox}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
-import io.circe.{ Decoder, Encoder, HCursor }
+import io.circe.{Decoder, Encoder, HCursor}
 import scorex.crypto.hash.Blake2b256
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 case class ArbitTransfer[S <: Secret, P <: KnowledgeProposition[S]]
-  ( override val from      : IndexedSeq[(Evidence, Box.Nonce)],
-    override val to        : IndexedSeq[(Evidence, TokenBox.Value)],
-    override val signatures: Map[P, ProofOfKnowledge[S, P]],
-    override val fee       : Long,
-    override val timestamp : Long,
-    override val data      : String
+  (override val from      : IndexedSeq[(Address, Box.Nonce)],
+   override val to        : IndexedSeq[(Address, TokenBox.Value)],
+   override val signatures: Map[P, ProofOfKnowledge[S, P]],
+   override val fee       : Long,
+   override val timestamp : Long,
+   override val data      : String
   ) extends TransferTransaction[S, P](from, to, signatures, fee, timestamp, data) {
 
   override lazy val messageToSign: Array[Byte] = "ArbitTransfer".getBytes ++ super.messageToSign
@@ -48,8 +49,8 @@ case class ArbitTransfer[S <: Secret, P <: KnowledgeProposition[S]]
 //noinspection ScalaStyle
 object ArbitTransfer extends TransferCompanion {
 
-  implicit val jsonEncoder: Encoder[ArbitTransfer[PrivateKey25519, Evidence]] = {
-    tx: ArbitTransfer[PrivateKey25519, Evidence] =>
+  implicit val jsonEncoder: Encoder[ArbitTransfer[PrivateKeyCurve25519, Address]] = {
+    tx: ArbitTransfer[PrivateKeyCurve25519, Address] =>
       Map(
         "txHash" -> tx.id.asJson,
         "txType" -> "ArbitTransfer".asJson,
@@ -66,9 +67,9 @@ object ArbitTransfer extends TransferCompanion {
 
   implicit val jsonDecoder: Decoder[ArbitTransfer] = ( c: HCursor ) =>
     for {
-      from <- c.downField("from").as[IndexedSeq[(PublicKey25519Proposition, Long)]]
-      to <- c.downField("to").as[IndexedSeq[(PublicKey25519Proposition, Long)]]
-      signatures <- c.downField("signatures").as[Map[PublicKey25519Proposition, Signature25519]]
+      from <- c.downField("from").as[IndexedSeq[(PublicKeyCurve25519Proposition, Long)]]
+      to <- c.downField("to").as[IndexedSeq[(PublicKeyCurve25519Proposition, Long)]]
+      signatures <- c.downField("signatures").as[Map[PublicKeyCurve25519Proposition, SignatureCurve25519]]
       fee <- c.downField("fee").as[Long]
       timestamp <- c.downField("timestamp").as[Long]
       data <- c.downField("data").as[String]
@@ -85,11 +86,11 @@ object ArbitTransfer extends TransferCompanion {
    * @param data
    * @return
    */
-  def apply ( from     : IndexedSeq[(PrivateKey25519, Nonce)],
-              to       : IndexedSeq[(PublicKey25519Proposition, Value)],
-              fee      : Long,
-              timestamp: Long,
-              data     : String
+  def apply (from     : IndexedSeq[(PrivateKeyCurve25519, Nonce)],
+             to       : IndexedSeq[(PublicKeyCurve25519Proposition, Value)],
+             fee      : Long,
+             timestamp: Long,
+             data     : String
             ): ArbitTransfer = {
     val params = parametersForApply(from, to, fee, timestamp, "ArbitTransfer", data).get
     new ArbitTransfer(params._1, to, params._2, fee, timestamp, data)
@@ -104,9 +105,9 @@ object ArbitTransfer extends TransferCompanion {
    * @param data
    * @return
    */
-  def createPrototype ( stateReader: SR,
-                        toReceive  : IndexedSeq[(PublicKey25519Proposition, Long)],
-                        sender     : IndexedSeq[PublicKey25519Proposition], fee: Long, data: String
+  def createPrototype (stateReader: SR,
+                       toReceive  : IndexedSeq[(PublicKeyCurve25519Proposition, Long)],
+                       sender     : IndexedSeq[PublicKeyCurve25519Proposition], fee: Long, data: String
                       ): Try[ArbitTransfer] = Try {
     val params = parametersForCreate(stateReader, toReceive, sender, fee, "ArbitTransfer")
     val timestamp = Instant.now.toEpochMilli

@@ -1,14 +1,13 @@
 package co.topl.modifier.block
 
-import co.topl.attestation.proof.Signature25519
-import co.topl.attestation.proof.serialization.Signature25519Serializer
+import co.topl.attestation.proof.{SignatureCurve25519, SignatureCurve25519Serializer}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.utils.Extensions._
-import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
+import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object BlockSerializer extends BifrostSerializer[Block] {
 
@@ -26,7 +25,7 @@ object BlockSerializer extends BifrostSerializer[Block] {
     BoxSerializer.serialize(block.forgerBox, w)
 
     /* signature: Signature25519 */
-    Signature25519Serializer.serialize(block.signature, w)
+    SignatureCurve25519Serializer.serialize(block.signature, w)
 
     /* txsLength: Int */
     w.putUInt(block.transactions.length)
@@ -50,7 +49,7 @@ object BlockSerializer extends BifrostSerializer[Block] {
 
     val generatorBox: ArbitBox = BoxSerializer.parse(r).asInstanceOf[ArbitBox]
 
-    val signature: Signature25519 = Signature25519Serializer.parse(r)
+    val signature: SignatureCurve25519 = SignatureCurve25519Serializer.parse(r)
 
     val txsLength: Int = r.getUInt().toIntExact
     val txs: Seq[Transaction] = (0 until txsLength).map(_ => TransactionSerializer.parse(r))

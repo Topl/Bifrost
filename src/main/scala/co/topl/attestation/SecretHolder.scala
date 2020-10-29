@@ -1,7 +1,6 @@
-package co.topl.attestation.secrets
+package co.topl.attestation
 
 import co.topl.attestation.proof.ProofOfKnowledge
-import co.topl.attestation.proposition.KnowledgeProposition
 import co.topl.utils.serialization.BytesSerializable
 
 trait Secret extends BytesSerializable {
@@ -17,8 +16,6 @@ trait Secret extends BytesSerializable {
   def instance: S = self
 
   def publicImage: PK
-
-  //def owns(box: GenericBox[_ <: PK, _]): Boolean
 
   def sign(message: Array[Byte]): PR
 }

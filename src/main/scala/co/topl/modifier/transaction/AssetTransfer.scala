@@ -2,9 +2,9 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
-import co.topl.attestation.proof.Signature25519
-import co.topl.attestation.secrets.PrivateKey25519
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proof.SignatureCurve25519
+import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.modifier.transaction
 import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
 import co.topl.nodeView.state.box.{ AssetBox, TokenBox }
@@ -15,14 +15,14 @@ import scorex.crypto.hash.Blake2b256
 
 import scala.util.{ Failure, Success, Try }
 
-case class AssetTransfer ( override val from      : IndexedSeq[(PublicKey25519Proposition, Nonce)],
-                           override val to        : IndexedSeq[(PublicKey25519Proposition, Long)],
-                           override val signatures: Map[PublicKey25519Proposition, Signature25519],
-                           issuer                 : PublicKey25519Proposition,
-                           assetCode              : String,
-                           override val fee       : Long,
-                           override val timestamp : Long,
-                           override val data      : String
+case class AssetTransfer (override val from      : IndexedSeq[(PublicKeyCurve25519Proposition, Nonce)],
+                          override val to        : IndexedSeq[(PublicKeyCurve25519Proposition, Long)],
+                          override val signatures: Map[PublicKeyCurve25519Proposition, SignatureCurve25519],
+                          issuer                 : PublicKeyCurve25519Proposition,
+                          assetCode              : String,
+                          override val fee       : Long,
+                          override val timestamp : Long,
+                          override val data      : String
                          ) extends TransferTransaction(from, to, signatures, fee, timestamp, data) {
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
@@ -72,13 +72,13 @@ object AssetTransfer extends TransferCompanion {
 
   implicit val jsonDecoder: Decoder[AssetTransfer] = ( c: HCursor ) =>
     for {
-      from <- c.downField("from").as[IndexedSeq[(PublicKey25519Proposition, Long)]]
-      to <- c.downField("to").as[IndexedSeq[(PublicKey25519Proposition, Long)]]
-      signatures <- c.downField("signatures").as[Map[PublicKey25519Proposition, Signature25519]]
+      from <- c.downField("from").as[IndexedSeq[(PublicKeyCurve25519Proposition, Long)]]
+      to <- c.downField("to").as[IndexedSeq[(PublicKeyCurve25519Proposition, Long)]]
+      signatures <- c.downField("signatures").as[Map[PublicKeyCurve25519Proposition, SignatureCurve25519]]
       fee <- c.downField("fee").as[Long]
       timestamp <- c.downField("timestamp").as[Long]
       data <- c.downField("data").as[String]
-      issuer <- c.downField("issuer").as[PublicKey25519Proposition]
+      issuer <- c.downField("issuer").as[PublicKeyCurve25519Proposition]
       assetCode <- c.downField("assetCode").as[String]
     } yield {
       AssetTransfer(from, to, signatures, issuer, assetCode, fee, timestamp, data)
@@ -95,13 +95,13 @@ object AssetTransfer extends TransferCompanion {
    * @param data
    * @return
    */
-  def apply ( from     : IndexedSeq[(PrivateKey25519, Nonce)],
-              to       : IndexedSeq[(PublicKey25519Proposition, Value)],
-              issuer   : PublicKey25519Proposition,
-              assetCode: String,
-              fee      : Long,
-              timestamp: Long,
-              data     : String
+  def apply (from     : IndexedSeq[(PrivateKeyCurve25519, Nonce)],
+             to       : IndexedSeq[(PublicKeyCurve25519Proposition, Value)],
+             issuer   : PublicKeyCurve25519Proposition,
+             assetCode: String,
+             fee      : Long,
+             timestamp: Long,
+             data     : String
             ): AssetTransfer = {
 
     val params = parametersForApply(from, to, fee, timestamp, "AssetTransfer", issuer, assetCode, data).get
@@ -121,9 +121,9 @@ object AssetTransfer extends TransferCompanion {
    * @return
    */
   def createRaw (stateReader: SR,
-                 toReceive  : IndexedSeq[(PublicKey25519Proposition, Long)],
-                 sender     : IndexedSeq[PublicKey25519Proposition],
-                 issuer     : PublicKey25519Proposition,
+                 toReceive  : IndexedSeq[(PublicKeyCurve25519Proposition, Long)],
+                 sender     : IndexedSeq[PublicKeyCurve25519Proposition],
+                 issuer     : PublicKeyCurve25519Proposition,
                  assetCode  : String,
                  fee        : Long,
                  data       : String,

@@ -1,7 +1,7 @@
 package co.topl
 
-import co.topl.attestation.proposition.PublicKey25519Proposition
-import co.topl.attestation.proof.Signature25519
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
 import co.topl.modifier.transaction._
 import co.topl.nodeView.state.box.{ PublicKeyNoncedBox, _ }
@@ -80,14 +80,14 @@ trait ValidGenerators extends BifrostGenerators {
 
       val readOnlyIds = Seq(stateBoxTwo.value, stateBoxThree.value)
 
-      val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] =
+      val feePreBoxes: Map[PublicKeyCurve25519Proposition, IndexedSeq[(Nonce, Long)]] =
         Map(sender -> IndexedSeq(preFeeBoxGen(0L, maxFee).sample.get))
 
       val fees = feePreBoxes.map { case (prop, preBoxes) =>
         prop -> preBoxes.map(_._2).sum
       }
 
-      val falseSig = Map(sender -> Signature25519(Signature @@ Array.emptyByteArray))
+      val falseSig = Map(sender -> SignatureCurve25519(Signature @@ Array.emptyByteArray))
       val pc = ProgramCreation(executionBuilder, readOnlyIds, preInvestmentBoxes, sender, falseSig, feePreBoxes, fees, timestamp, data)
       val signature = Map(sender -> senderKeyPair._1.sign(pc.messageToSign))
 
@@ -149,10 +149,10 @@ trait ValidGenerators extends BifrostGenerators {
     val feeBoxes: Seq[(Nonce, Long)] = boxAmounts
       .map { boxAmount => sampleUntilNonEmpty(preFeeBoxGen(boxAmount, boxAmount)) }
 
-    val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Nonce)]] =
+    val feePreBoxes: Map[PublicKeyCurve25519Proposition, IndexedSeq[(Nonce, Nonce)]] =
       Map(sender -> feeBoxes.toIndexedSeq)
 
-    val feeBoxIdKeyPairs: IndexedSeq[(BoxId, PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq
+    val feeBoxIdKeyPairs: IndexedSeq[(BoxId, PublicKeyCurve25519Proposition)] = feePreBoxes.toIndexedSeq
       .flatMap {
         case (prop, v) =>
           v.map {
