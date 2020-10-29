@@ -202,7 +202,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
       // check forging eligibility
       leaderElection(history.bestBlock, history.height, history.difficulty, boxes, coinbase, transactions) match {
         case Some(block) =>
-          log.debug(s"Locally generated block: $block ${block.json}")
+          log.debug(s"Locally generated block: $block")
           context.system.eventStream.publish(LocallyGeneratedModifier[Block](block))
 
         case None => log.debug(s"Failed to generate block")

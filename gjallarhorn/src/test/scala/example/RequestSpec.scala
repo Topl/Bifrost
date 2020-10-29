@@ -7,6 +7,7 @@ import _root_.requests.{Requests, RequestsManager}
 import akka.util.{ByteString, Timeout}
 import crypto.{PrivateKey25519, PublicKey25519Proposition}
 import io.circe.{Json, parser}
+import io.circe.parser._
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import scorex.crypto.hash.Blake2b256
@@ -73,9 +74,20 @@ class RequestSpec extends AsyncFlatSpec
   def parseForBoxId(json: Json): String = {
     val result = (json \\ "result").head
     val newBoxes = (result \\ "newBoxes").head.toString().trim.stripPrefix("[").stripSuffix("]").trim
-    newBoxes
+    parse(newBoxes) match {
+      case Right(json) => (json \\ "id").head.toString()
+      case Left(e) => sys.error(s"could not parse: $newBoxes")
+    }
   }
 
+  it should "connect to bifrost actor when the gjallarhorn app starts" in {
+    val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
+      "akka.tcp://bifrost-client@127.0.0.1:9087/user/walletConnectionHandler").resolveOne(), 10.seconds)
+    walletManagerRef ! GjallarhornStarted(bifrostActor)
+    Thread.sleep(100)
+    val connected = Await.result((walletManagerRef ? IsConnected).mapTo[Boolean], 10.seconds)
+    assert(connected)
+  }
 
  it should "receive a successful response from Bifrost upon creating asset" in {
    val createAssetRequest: ByteString = ByteString(
@@ -154,6 +166,14 @@ class RequestSpec extends AsyncFlatSpec
     }
   }
 
+  it should "receive a block from bifrost after creating a transaction" in {
+    val newBlock: Option[String] = Await.result((walletManagerRef ? GetNewBlock).mapTo[Option[String]], 100.seconds)
+    newBlock match {
+      case Some(block) => assert(block.contains("timestamp") && block.contains("signature") && block.contains("id") && block.contains("newBoxes"))
+      case None => sys.error("no new blocks")
+    }
+  }
+
   it should "receive a successful response from Bifrost upon transfering a poly" in {
     val transferPolysRequest: ByteString = ByteString(
       s"""
@@ -177,24 +197,6 @@ class RequestSpec extends AsyncFlatSpec
   }
 
 
-  it should "connect to bifrost actor when the gjallarhorn app starts" in {
-    val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
-      "akka.tcp://bifrost-client@127.0.0.1:9087/user/walletConnectionHandler").resolveOne(), 10.seconds)
-    walletManagerRef ! GjallarhornStarted(bifrostActor)
-    Thread.sleep(100)
-    val connected = Await.result((walletManagerRef ? IsConnected).mapTo[Boolean], 10.seconds)
-    assert(connected)
-  }
-
-  it should "receive a block from bifrost after 5000ms" in {
-    Thread.sleep(5000)
-    val newBlock: Option[String] = Await.result((walletManagerRef ? GetNewBlock).mapTo[Option[String]], 100.seconds)
-    newBlock match {
-      case Some(block) => assert(block.contains("timestamp") && block.contains("signature") && block.contains("id") && block.contains("newBoxes"))
-      case None => sys.error("no new blocks")
-    }
-  }
-
  it should "send msg to bifrost actor when the gjallarhorn app stops" in {
     val bifrostResponse: String = Await.result((walletManagerRef ? GjallarhornStopped).mapTo[String], 100.seconds)
     assert(bifrostResponse.contains("The remote wallet Actor[akka.tcp://requestTest@127.0.0.1") &&
@@ -204,20 +206,7 @@ class RequestSpec extends AsyncFlatSpec
   it should "update wallet correctly after receiving new block" in {
     val block: ByteString = ByteString(
       s"""
-         |{
-         |   "timestamp" : 1603750438238,
-         |   "signature" : "Signature25519(4FjrDM9uUue7syi4xXNH2PC65bDuZStQvU6QV2qmeUJ81DJEf3XMVzwxKyQzyWs2WWvXoWG9nLh5nD7ND1ShtEaa)",
-         |   "blockSize" : 335,
-         |   "generatorBox" : {
-         |      "nonce" : "-439024012794791436",
-         |      "id" : "44SWAsPAUdRgm68qgo9joNM9BiRnDfJvQsQNRaA6oLVi",
-         |      "type" : "Arbit",
-         |      "proposition" : "4YCxsBZujUFEfEaRWhhURgzvWEzN8BWbbho1qEovmhunN7c9fQ",
-         |      "value" : "1000000"
-         |   },
-         |   "version" : 0,
-         |   "id" : "CzrMgZskNAwoEE1F65yh7i8WMbYSW6bN3HMRbLKGQ5re",
-         |   "txs" : [
+         |    [
          |      {
          |        "txType" : "Coinbase",
          |        "txHash" : "HK5CxRpT1xXBbLeQRnxzBfMZkTr2czwbEcCchRofsx9z",
@@ -291,9 +280,7 @@ class RequestSpec extends AsyncFlatSpec
          |        ],
          |        "fee" : 0
          |      }
-         |    ],
-         |   "parentId" : "CzrMgZskNAwoEE1F65yh7i8WMbYSW6bN3HMRbLKGQ5re"
-         |}
+         |    ]
          """.stripMargin)
     parser.parse(block.utf8String) match {
       case Right(blockJson) =>

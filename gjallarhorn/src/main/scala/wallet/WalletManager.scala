@@ -126,10 +126,7 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
   def newBlock(blockMsg: String): Unit = {
     val block : String = blockMsg.substring("new block added: ".length)
     log.info(s"Wallet Manager received new block: $block")
-    parse(block) match {
-      case Right(blockJson) => updateWalletFromBlock(blockJson)
-      case Left(e) => sys.error(s"Could not parse json $e")
-    }
+    updateWalletFromBlock(block)
     newestBlock = Some(block)
   }
 
@@ -155,37 +152,34 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
     add
   }
 
-  def updateWalletFromBlock(newBlock: Json): Unit = {
+  def updateWalletFromBlock(txs: String): Unit = {
     var add: MMap[String, MMap[String, Json]] = MMap.empty
     //val remove: List[(String, List[String])] = List.empty
     var idsToRemove: List[String] = List.empty
-    val tx: Json = (newBlock \\ "txs").head
-    val newBoxes = tx \\ "newBoxes"
-    if ((newBoxes.head \\ "proposition").nonEmpty) {
-      var transactions: Array[String] = tx.toString().trim.stripPrefix("[").stripSuffix("]").
-        split("fee")
-      transactions = transactions.map(asset => {
-        if (transactions.indexOf(asset) != transactions.length-1) {
-          if (transactions.indexOf(asset) != 0) {
-            asset.trim.substring(3).trim.substring(2).trim.substring(2).trim
-              .substring(0, asset.length-14).trim.stripSuffix(",").concat("}")
-          }else asset.substring(0, asset.length-2).trim.stripSuffix(",").concat("}")
-        } else asset.trim.substring(3).trim.substring(2).trim
-      })
-      transactions.foreach(txString => {
+    var transactions: Array[String] = txs.trim.stripPrefix("[").stripSuffix("]").split("fee")
+    transactions = transactions.map(asset => {
+      if (transactions.indexOf(asset) != transactions.length-1) {
+        if (transactions.indexOf(asset) != 0) {
+          asset.trim.substring(3).trim.substring(2).trim.substring(2).trim
+            .substring(0, asset.length-14).trim.stripSuffix(",").concat("}")
+        }else asset.substring(0, asset.length-2).trim.stripSuffix(",").concat("}")
+      } else asset.trim.substring(3).trim.substring(2).trim
+    })
+    transactions.foreach(txString => {
+      if (txString.length > 1) {
         val txJson: Either[ParsingFailure, Json] = parse(txString)
         txJson match {
           case Right(json) =>
             val newBoxes = (json \\ "newBoxes").head
             add = parseBoxesToAdd(newBoxes, add)
-            if ((tx \\ "boxesToRemove").nonEmpty) {
-              val boxesToRemove: List[Json] = tx \\ "boxesToRemove"
+            if ((json \\ "boxesToRemove").nonEmpty) {
+              val boxesToRemove: List[Json] = json \\ "boxesToRemove"
               idsToRemove = boxesToRemove.map(box => box.toString().trim.stripPrefix("[").stripSuffix("]").trim.stripPrefix("\"").stripSuffix("\""))
             }
           case Left(e) => println("could not parse: " + txString)
         }
-      })
-    }
+      }
+    })
     addAndRemoveBoxes(add, idsToRemove)
   }
 

@@ -71,7 +71,7 @@ object AssetCreation {
     Map(
       "txHash" -> tx.id.toString.asJson,
       "txType" -> "AssetCreation".asJson,
-      "newBoxes" -> tx.newBoxes.map(b => b.id.toString).toSeq.asJson,
+      "newBoxes" -> tx.newBoxes.map(_.json).toSeq.asJson,
       "to" -> tx.to.asJson,
       "issuer" -> tx.issuer.asJson,
       "assetCode" -> tx.assetCode.asJson,

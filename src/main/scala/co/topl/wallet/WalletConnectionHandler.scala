@@ -4,11 +4,15 @@ import akka.actor.{Actor, ActorRef}
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import co.topl.modifier.block.Block
+import co.topl.modifier.transaction._
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.{ModificationOutcome, SemanticallySuccessfulModifier}
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.utils.Logging
 import co.topl.wallet.AssetRequests.AssetRequest
 import co.topl.wallet.WalletRequests.WalletRequest
+import io.circe.Json
 import io.circe.parser.parse
+import io.circe.syntax._
 
 import scala.concurrent.ExecutionContext
 import scala.util.Success
@@ -20,7 +24,7 @@ class WalletConnectionHandler ( implicit ec: ExecutionContext ) extends Actor wi
 
   var remoteWalletActor: Option[ActorRef] = None
 
-  var remoteWalletKeys: Set[String] = Set.empty
+  var remoteWalletKeys: Set[PublicKey25519Proposition] = Set.empty
 
   implicit val timeout: Timeout = 10.seconds
 
@@ -28,19 +32,22 @@ class WalletConnectionHandler ( implicit ec: ExecutionContext ) extends Actor wi
     context.system.eventStream.subscribe(self, classOf[ModificationOutcome])
   }
 
-  /*
-   case NewBlockAdded(block: Block) => {
-      remoteWalletActor match {
-        case Some(actor) => {
-          actor ! s"new block added: ${block.json}"
-        }
-        case None => System.out.println("no wallet running")
+  def parseBlockForKeys(block: Block): Option[Json] = {
+    var txs: Seq[Transaction] = Seq.empty
+    block.transactions.foreach(tx =>
+      tx match {
+        case tx: CodeCreation => if (remoteWalletKeys.contains(tx.to)) txs :+= tx
+        case tx: ProgramTransfer => if (remoteWalletKeys.contains(tx.to)) txs :+= tx
+        case tx: PolyTransfer => if (remoteWalletKeys.toSeq.intersect(tx.to.map(_._1)).nonEmpty) txs :+= tx
+        case tx: ArbitTransfer => if (remoteWalletKeys.toSeq.intersect(tx.to.map(_._1)).nonEmpty) txs :+= tx
+        case tx: AssetTransfer => if (remoteWalletKeys.toSeq.intersect(tx.to.map(_._1)).nonEmpty) txs :+= tx
+        case tx: AssetCreation => if (remoteWalletKeys.toSeq.intersect(tx.to.map(_._1)).nonEmpty) txs :+= tx
+        case tx: Coinbase => if (remoteWalletKeys.toSeq.intersect(tx.to.map(_._1)).nonEmpty) txs :+= tx
       }
-      context.system.eventStream.publish(s"publishing new block: $block")
-     /* val lookupBus = new LookupBusImpl
-      lookupBus.publish(MsgEnvelope("New block added", block))*/
-    }
-   */
+    )
+    if (txs.nonEmpty) Some(txs.asJson)
+    else None
+  }
 
   def sendRequest(params: String, walletRef: ActorRef, requestType: String): Unit = {
     parse(params) match {
@@ -70,13 +77,14 @@ class WalletConnectionHandler ( implicit ec: ExecutionContext ) extends Actor wi
 
   def parseKeys (keys: String): Unit = {
     val keysArr: Array[String] = keys.split(",")
-    remoteWalletKeys = keysArr.map( key =>
+    val keystrings = keysArr.map( key =>
       if (keysArr.indexOf(key) == 0)
         key.substring("Set(".length)
       else if (keysArr.indexOf(key) == keysArr.length-1)
         key.substring(1, key.length-1)
       else key.substring(1)
     ).toSet
+    remoteWalletKeys = keystrings.map(key => PublicKey25519Proposition(key))
   }
 
   def msgHandler(msg: String): Unit = {
@@ -92,6 +100,7 @@ class WalletConnectionHandler ( implicit ec: ExecutionContext ) extends Actor wi
     }
     if (msg == "Remote wallet actor stopped") {
       remoteWalletActor = None
+      remoteWalletKeys = Set.empty
       sender ! s"The remote wallet ${sender()} has been removed from the WalletConnectionHandler in Bifrost"
     }
 
@@ -119,11 +128,14 @@ class WalletConnectionHandler ( implicit ec: ExecutionContext ) extends Actor wi
     case GetRemoteWalletRef => sender ! remoteWalletActor
 
     case SemanticallySuccessfulModifier(block: Block) => {
-      remoteWalletActor match {
-        case Some(actor) => {
-          actor ! s"new block added: ${block.json}"
+      parseBlockForKeys(block) match {
+        case Some(blockJson) => {
+            remoteWalletActor match {
+              case Some(actor) => actor ! s"new block added: $blockJson"
+              case None => System.out.println("no wallet running")
+            }
         }
-        case None => System.out.println("no wallet running")
+        case None => System.out.println("No keys in new block")
       }
     }
 
