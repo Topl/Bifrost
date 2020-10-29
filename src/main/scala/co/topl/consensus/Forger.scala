@@ -120,7 +120,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
   /** Helper function to enable private forging if we can expects keys in the key ring */
   private def checkPrivateForging (): Unit =
-    if (appContext.networkType.isPrivateForger && keyRing.publicKeys.nonEmpty) self ! StartForging
+    if (appContext.networkType.startWithForging && keyRing.publicKeys.nonEmpty) self ! StartForging
 
   /** Schedule a forging attempt */
   private def scheduleForgingAttempt (): Unit = {
@@ -136,8 +136,8 @@ class Forger (settings: AppSettings, appContext: AppContext )
   }
 
   /** Helper function to generate a set of keys used for the genesis block (for private test networks) */
-  private def generateKeys (num: Int): Set[PublicKeyCurve25519Proposition] = {
-    keyRing.generateNewKeyPairs(num) match {
+  private def generateKeys (num: Int, seed: Option[String] = None): Set[PublicKeyCurve25519Proposition] = {
+    keyRing.generateNewKeyPairs(num, seed) match {
       case Success(keys) => keys.map(_.publicImage)
       case Failure(ex)   => throw ex
     }
@@ -148,12 +148,12 @@ class Forger (settings: AppSettings, appContext: AppContext )
     */
   private def initializeGenesis: Try[Block] = {
     ( appContext.networkType match {
-      case MainNet    => Toplnet.getGenesisBlock
-      case TestNet    => ???
-      case DevNet     => ???
-      case LocalNet   => ???
-      case PrivateNet => PrivateTestnet(generateKeys, settings).getGenesisBlock
-      case _          => throw new Error("Undefined network type.")
+      case MainNet(opts)    => Toplnet.getGenesisBlock
+      case TestNet(opts)    => ???
+      case DevNet(opts)     => ???
+      case LocalNet(opts)   => PrivateTestnet(generateKeys, settings, opts).getGenesisBlock
+      case PrivateNet(opts) => PrivateTestnet(generateKeys, settings, opts).getGenesisBlock
+      case _                => throw new Error("Undefined network type.")
     } ).map {
       case (block: Block, ChainParams(totalStake, initDifficulty)) =>
         maxStake = totalStake

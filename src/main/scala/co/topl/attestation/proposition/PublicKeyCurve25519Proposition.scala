@@ -23,8 +23,6 @@ case class PublicKeyCurve25519Proposition (private[proposition] val pubKeyBytes:
 
   override def serializer: BifrostSerializer[PublicKeyCurve25519Proposition] = PublicKeyCurve25519PropositionSerializer
 
-  override def toString: String = Base58.encode(bytes)
-
   override def equals(obj: Any): Boolean = obj match {
     case p: PublicKeyCurve25519Proposition => p.pubKeyBytes sameElements pubKeyBytes
     case _                                 => false

@@ -43,7 +43,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
   }
 
   private val settingsFilename = "src/test/resources/test.conf"
-  val settings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))
+  val settings: AppSettings = AppSettings.read(StartupOpts.empty.copy(userConfigPathOpt = Some(settingsFilename)))
   val settings_version0: AppSettings = settings.copy(application = settings.application.copy(version = new Version(0,0,0)))
 
 

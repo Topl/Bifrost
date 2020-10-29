@@ -213,7 +213,7 @@ class AssetRPCSpec extends AnyWordSpec
            |   "id": "1",
            |   "method": "transferTargetAssetsPrototype",
            |   "params": [{
-           |     "sender": ["${Base58.encode(asset.get.proposition.pubKeyBytes)}"],
+           |     "sender": ["${asset.get.proposition.address}"],
            |     "recipient": "${publicKeys("producer")}",
            |     "assetId": "${asset.get.id}",
            |     "amount": 1,

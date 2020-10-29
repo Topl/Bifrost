@@ -1,22 +1,24 @@
 package co.topl.crypto
 
-import java.io.{BufferedWriter, FileWriter}
+import java.io.{ BufferedWriter, FileWriter }
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
+import co.topl.attestation.address.Address
+import co.topl.attestation.address.AddressEncoder.NetworkPrefix
 import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import co.topl.attestation.secrets.PrivateKeyCurve25519
 import io.circe.parser.parse
 import io.circe.syntax._
-import io.circe.{Decoder, Encoder, HCursor}
+import io.circe.{ Decoder, Encoder, HCursor }
 import org.bouncycastle.crypto.BufferedBlockCipher
 import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
-import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
+import org.bouncycastle.crypto.params.{ KeyParameter, ParametersWithIV }
 import scorex.crypto.hash.Blake2b256
-import scorex.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
+import scorex.crypto.signatures.{ Curve25519, PrivateKey, PublicKey }
 import scorex.util.Random.randomBytes
 import scorex.util.encode.Base58
 
@@ -25,26 +27,26 @@ import scala.util.Try
 /**
   * Created by cykoz on 6/22/2017.
   */
-case class KeyFile ( address   : String,
-                     cipherText: Array[Byte],
-                     mac       : Array[Byte],
-                     salt      : Array[Byte],
-                     iv        : Array[Byte]) {
-
-  lazy val publicKeyFromAddress: PublicKeyCurve25519Proposition = PublicKeyCurve25519Proposition(address)
+case class Curve25519KeyFile ( address   : Address,
+                               cipherText: Array[Byte],
+                               mac       : Array[Byte],
+                               salt      : Array[Byte],
+                               iv        : Array[Byte]
+                             )(implicit networkPrefix: NetworkPrefix) {
 
   private[consensus] def getPrivateKey (password: String): Try[PrivateKeyCurve25519] = Try {
-    val derivedKey = KeyFile.getDerivedKey(password, salt)
-    val calcMAC = KeyFile.getMAC(derivedKey, cipherText)
+    val derivedKey = Curve25519KeyFile.getDerivedKey(password, salt)
+    val calcMAC = Curve25519KeyFile.getMAC(derivedKey, cipherText)
     require(calcMAC sameElements mac, "MAC does not match. Try again")
 
-    KeyFile.getAESResult(derivedKey, iv, cipherText, encrypt = false) match {
+    Curve25519KeyFile.getAESResult(derivedKey, iv, cipherText, encrypt = false) match {
       case (cipherBytes, _) => cipherBytes.grouped(Curve25519.KeyLength).toSeq match {
         case Seq(skBytes, pkBytes) =>
           // recreate the private key
           val privateKey = new PrivateKeyCurve25519(PrivateKey @@ skBytes, PublicKey @@ pkBytes)
+          val derivedAddress = Address.from(privateKey.publicImage)
           // check that the address given in the keyfile matches the public key
-          require(publicKeyFromAddress == privateKey.publicImage, "PublicKey in file is invalid")
+          require(address == derivedAddress, "PublicKey in file is invalid")
           privateKey
       }
     }
@@ -53,7 +55,7 @@ case class KeyFile ( address   : String,
   private[consensus] def saveToDisk (dir: String): Try[Unit] = Try {
     val dateString = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString.replace(":", "-")
     val w = new BufferedWriter(new FileWriter(s"$dir/$dateString-${this.address}.json"))
-    w.write(KeyFile.jsonEncoder.toString)
+    w.write(Curve25519KeyFile.jsonEncoder.toString)
     w.close()
   }
 }
@@ -61,9 +63,9 @@ case class KeyFile ( address   : String,
 
 
 
-object KeyFile {
+object Curve25519KeyFile {
 
-  implicit val jsonEncoder: Encoder[KeyFile] = { kf: KeyFile ⇒
+  implicit val jsonEncoder: Encoder[Curve25519KeyFile] = { kf: Curve25519KeyFile ⇒
     Map(
       "crypto" -> Map(
         "cipher" -> "aes-128-ctr".asJson,
@@ -77,9 +79,9 @@ object KeyFile {
     ).asJson
   }
 
-  implicit val jsonDecoder: Decoder[KeyFile] = (c: HCursor) =>
+  implicit val jsonDecoder: Decoder[Curve25519KeyFile] = ( c: HCursor) =>
     for {
-      address <- c.downField("address").as[String]
+      address <- c.downField("address").as[Address]
       cipherTextString <- c.downField("crypto").downField("cipherText").as[String]
       macString <- c.downField("crypto").downField("mac").as[String]
       saltString <- c.downField("crypto").downField("kdfSalt").as[String]
@@ -90,7 +92,8 @@ object KeyFile {
       val salt = Base58.decode(saltString).get
       val iv = Base58.decode(ivString).get
 
-      new KeyFile(address, cipherText, mac, salt, iv)
+      implicit val netPrefix: NetworkPrefix = address.networkPrefix
+      new Curve25519KeyFile(address, cipherText, mac, salt, iv)
     }
 
   /**
@@ -99,7 +102,7 @@ object KeyFile {
     * @param password string used to encrypt the private key when saved to disk
     * @return
     */
-  def apply (password: String, secretKey: PrivateKeyCurve25519): KeyFile = {
+  def apply (password: String, secretKey: PrivateKeyCurve25519)(implicit networkPrefix: NetworkPrefix): Curve25519KeyFile = {
     // get random bytes to obfuscate the cipher
     val salt = randomBytes(32)
     val ivData = randomBytes(16)
@@ -110,24 +113,28 @@ object KeyFile {
     // encrypt private key
     val (cipherText, mac) = getAESResult(derivedKey, ivData, secretKey.bytes, encrypt = true)
 
-    new KeyFile(secretKey.publicImage.toString, cipherText, mac, salt, ivData)
+    val address = Address.from(secretKey.publicImage)
+
+    new Curve25519KeyFile(address, cipherText, mac, salt, ivData)
   }
 
   /** helper function to create a new random keyfile */
-  def generateKeyPair: (PrivateKeyCurve25519, PublicKeyCurve25519Proposition) = PrivateKeyCurve25519.generateKeys(randomBytes(128))
+  def generateKeyPair: (PrivateKeyCurve25519, PublicKeyCurve25519Proposition) =
+    PrivateKeyCurve25519.generateKeys(randomBytes(128))
 
-  def generateKeyPair (seed: Array[Byte]): (PrivateKeyCurve25519, PublicKeyCurve25519Proposition) = PrivateKeyCurve25519.generateKeys(seed)
+  def generateKeyPair (seed: Array[Byte]): (PrivateKeyCurve25519, PublicKeyCurve25519Proposition) =
+    PrivateKeyCurve25519.generateKeys(seed)
 
   /**
     *
     * @param filename
     * @return
     */
-  def readFile (filename: String): KeyFile = {
+  def readFile (filename: String): Curve25519KeyFile = {
     val jsonString = scala.io.Source.fromFile(filename)
-    val key = parse(jsonString.mkString).right.get.as[KeyFile] match {
-      case Right(f: KeyFile) => f
-      case Left(e)           => throw new Exception(s"Could not parse KeyFile: $e")
+    val key = parse(jsonString.mkString).right.get.as[Curve25519KeyFile] match {
+      case Right(f: Curve25519KeyFile) => f
+      case Left(e)                     => throw new Exception(s"Could not parse KeyFile: $e")
     }
     jsonString.close()
     key
@@ -140,7 +147,8 @@ object KeyFile {
     * @return
     */
   private def getDerivedKey (password: String, salt: Array[Byte]): Array[Byte] = {
-    SCrypt.generate(password.getBytes(StandardCharsets.UTF_8), salt, scala.math.pow(2, 18).toInt, 8, 1, 32)
+    val passwordBytes = password.getBytes(StandardCharsets.UTF_8)
+    SCrypt.generate(passwordBytes, salt, scala.math.pow(2, 18).toInt, 8, 1, 32)
   }
 
   /**
@@ -149,9 +157,8 @@ object KeyFile {
    * @param cipherText
    * @return
    */
-  private def getMAC (derivedKey: Array[Byte], cipherText: Array[Byte]): Array[Byte] = {
+  private def getMAC (derivedKey: Array[Byte], cipherText: Array[Byte]): Array[Byte] =
     Blake2b256(derivedKey.slice(16, 32) ++ cipherText)
-  }
 
   /**
     *

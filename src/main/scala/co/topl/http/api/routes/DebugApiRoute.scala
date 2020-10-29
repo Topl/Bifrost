@@ -138,7 +138,7 @@ case class DebugApiRoute(override val settings: RESTApiSettings, nodeViewHolderR
     viewAsync().map { view =>
       val map: Map[String, Int] = view.history
         .forgerDistribution()
-        .map(d => Base58.encode(d._1.pubKeyBytes) -> d._2)
+        .map(d => d._1.address -> d._2)
       map.asJson
     }
   }

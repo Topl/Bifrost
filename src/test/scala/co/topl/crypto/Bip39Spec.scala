@@ -85,7 +85,7 @@ class Bip39Spec extends AnyFlatSpec
     val key2 = PrivateKeyCurve25519.generateKeys(seed2Hash)
     val key3 = PrivateKeyCurve25519.generateKeys(Blake2b256(uuidString))
 
-    KeyFile.generateKeyPair(seed1Hash)
+    Curve25519KeyFile.generateKeyPair(seed1Hash)
 
     key1 shouldEqual key2
     key2 shouldEqual key3

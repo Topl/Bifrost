@@ -11,10 +11,9 @@ import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 
 import scala.util.{Failure, Success}
 
-case class Address( private[attestation] val networkPrefix: NetworkPrefix,
-                    private[attestation] val typePrefix: EvidenceTypePrefix,
+case class Address( private[attestation] val typePrefix: EvidenceTypePrefix,
                     private[attestation] val content: EvidenceContent
-                  ) extends BytesSerializable {
+                  ) (implicit val networkPrefix: NetworkPrefix) extends BytesSerializable {
 
   type M = Address
 
@@ -41,7 +40,7 @@ object Address {
     }
 
   def from[E: Evidence] (proposition: E)(implicit networkPrefix: NetworkPrefix): Address =
-    Address(networkPrefix, proposition.typePrefix, proposition.generateEvidence)
+    Address(proposition.typePrefix, proposition.generateEvidence)
 
   implicit val jsonEncoder: Encoder[Address] = (addr: Address) => addr.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[Address] = (addr: Address) => addr.toString

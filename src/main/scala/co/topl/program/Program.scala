@@ -49,7 +49,7 @@ case class Program (parties         : Map[PublicKeyCurve25519Proposition, String
     "executionBuilder" -> executionBuilder,
     "parties" -> parties
       .map(p => {
-        Base58.encode(p._1.pubKeyBytes) -> p._2.asJson
+        p._1.address -> p._2.asJson
       })
       .asJson,
     "lastUpdated" -> lastUpdated.asJson,
