@@ -199,11 +199,10 @@ class Forger (settings: AppSettings, appContext: AppContext )
         case Success(txs) => txs
         case Failure(ex)  => throw ex
       }
-
       // check forging eligibility
       leaderElection(history.bestBlock, history.height, history.difficulty, boxes, coinbase, transactions) match {
         case Some(block) =>
-          log.debug(s"Locally generated block: $block")
+          log.debug(s"Locally generated block: $block ${block.json}")
           context.system.eventStream.publish(LocallyGeneratedModifier[Block](block))
 
         case None => log.debug(s"Failed to generate block")
@@ -269,7 +268,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
       val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.flatMap(_.boxIdsToOpen).contains(id))
       val validBoxes = tx.newBoxes.forall(b ⇒ state.getBox(b.id).isEmpty)
 
-      if ( validBoxes ) memPool.remove(tx)
+      if ( !validBoxes ) memPool.remove(tx)
 
       state.validate(tx) match {
         case Success(_) if txNotIncluded => txAcc :+ tx
@@ -300,7 +299,6 @@ class Forger (settings: AppSettings, appContext: AppContext )
                              ): Option[Block] = {
 
     val target = calcAdjustedTarget(parent, parentHeight, parentDifficulty, forgeTime)
-
     // test procedure to determine eligibility
     val successfulHits = boxes.map { box =>
       (box, calcHit(parent)(box))
@@ -315,7 +313,6 @@ class Forger (settings: AppSettings, appContext: AppContext )
         case Some(sk) =>
           // use the secret key that owns the successful box to sign the coinbase transaction
           val signedCb = coinbase.copy(signatures = Map(sk.publicImage -> sk.sign(coinbase.messageToSign)))
-
           // add the signed coinbase transaction to the block and return
           Some(Block.create(parent.id, forgeTime, signedCb +: txsToInclude, box, sk, blockVersion(parentHeight + 1)))
 

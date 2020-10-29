@@ -97,7 +97,6 @@ class RequestSpec extends AsyncFlatSpec
     transaction = requests.sendRequest(createAssetRequest, "asset")
     assert(transaction.isInstanceOf[Json])
     newBoxId = parseForBoxId(transaction)
-   println(transaction)
     (transaction \\ "error").isEmpty shouldBe true
     (transaction \\ "result").head.asObject.isDefined shouldBe true
   }
@@ -123,14 +122,11 @@ class RequestSpec extends AsyncFlatSpec
 
   it should "receive a successful and correct response from Bifrost upon requesting balances" in {
     Thread.sleep(10000)
-    println("pk1: " + pk1.toString)
-    println("pk2: " + pk2.toString)
     balanceResponse = requests.getBalances(publicKeys)
     assert(balanceResponse.isInstanceOf[Json])
     (balanceResponse \\ "error").isEmpty shouldBe true
     val result: Json = (balanceResponse \\ "result").head
     result.asObject.isDefined shouldBe true
-    println (result)
     (((result \\ pk1.toString).head \\ "Boxes").head \\ "Asset").
       head.toString().contains(newBoxId) shouldBe true
   }
@@ -234,7 +230,7 @@ class RequestSpec extends AsyncFlatSpec
          |            "nonce": "-9110370178208068175",
          |            "id": "GGDsEQdd5cnbgjKkac9HLpp2joGo6bWgmS2KvhJgd8b8",
          |            "type": "Arbit",
-         |            "proposition": "${pk1.toString}",
+         |            "proposition": "${pk2.toString}",
          |            "value": "1000000"
          |          },
          |          {
@@ -280,7 +276,7 @@ class RequestSpec extends AsyncFlatSpec
          |             "nonce": "-59884751870915922381",
          |             "id": "GgNqzkSywewv10vCrb99UakEw1Myn5mqYXo3N4a6PWVW",
          |             "type": "Poly",
-         |             "proposition": "${pk1.toString}",
+         |             "proposition": "${pk2.toString}",
          |             "value": "1000000"
          |          }
          |        ],
@@ -305,16 +301,16 @@ class RequestSpec extends AsyncFlatSpec
         Thread.sleep(1000)
         val walletBoxes: MMap[String, MMap[String, Json]] = Await.result((walletManagerRef ? GetWallet)
           .mapTo[MMap[String, MMap[String, Json]]], 10.seconds)
-        val pk1Boxes: Option[MMap[String, Json]] = walletBoxes.get(pk1.toString)
+        val pk1Boxes: Option[MMap[String, Json]] = walletBoxes.get(pk2.toString)
         pk1Boxes match {
           case Some(map) =>
-            assert(map.size == 3)
+            assert(map.size == 2)
             assert(map.contains("GGDsEQdd5cnbgjKkac9HLpp2joGo6bWgmS2KvhJgd8b8"))
             map.get("GgNqzkSywewv10vCrb99UakEw1Myn5mqYXo3N4a6PWVW") match {
               case Some(json) => assert((json \\ "type").head.toString() == "\"Poly\"")
               case None => sys.error ("poly box was not found!")
             }
-          case None => sys.error(s"no mapping for given public key: ${pk1.toString}")
+          case None => sys.error(s"no mapping for given public key: ${pk2.toString}")
         }
       case Left(e) => sys.error(s"Could not parse json $e")
     }
