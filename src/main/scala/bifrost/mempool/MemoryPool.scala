@@ -5,8 +5,7 @@ import bifrost.nodeView.NodeViewComponent
 
 import scala.util.Try
 
-/**
-  * Unconfirmed transactions pool
+/** Unconfirmed transactions pool
   *
   * @tparam TX -type of transaction the pool contains
   */
@@ -41,8 +40,7 @@ trait MemoryPool[TX <: GenericTransaction[_], M <: MemoryPool[TX, M]] extends No
 
   def size: Int
 
-  /**
-    * @return read-only copy of this state
+  /** @return read-only copy of this state
     */
   def getReader: MemPoolReader[TX] = this
 }

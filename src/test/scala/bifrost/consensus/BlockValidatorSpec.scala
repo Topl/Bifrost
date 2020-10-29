@@ -7,10 +7,7 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class BlockValidatorSpec extends AnyPropSpec
-  with ScalaCheckPropertyChecks
-  with Matchers
-  with BifrostGenerators {
+class BlockValidatorSpec extends AnyPropSpec with ScalaCheckPropertyChecks with Matchers with BifrostGenerators {
 
   val history: History = generateHistory
 

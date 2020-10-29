@@ -9,7 +9,7 @@ import bifrost.modifier.transaction.bifrostTransaction.ProgramMethodExecution
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.utils.Extensions._
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
-import io.circe.{Json, parser}
+import io.circe.{parser, Json}
 
 object ProgramMethodExecutionSerializer extends BifrostSerializer[ProgramMethodExecution] {
 
@@ -36,7 +36,6 @@ object ProgramMethodExecutionSerializer extends BifrostSerializer[ProgramMethodE
 
     /* signatures: Map[PublicKey25519Proposition, Signature25519] */
     Signature25519Serializer.serialize(obj.signatures.head._2, w)
-
 
     // TODO: Jing - preFeeBoxes will be removed
     /* preFeeBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] */
@@ -66,7 +65,7 @@ object ProgramMethodExecutionSerializer extends BifrostSerializer[ProgramMethodE
     val methodName: String = r.getByteString()
 
     val methodParams: Json = parser.parse(r.getIntString()) match {
-      case Left(f) => throw f
+      case Left(f)        => throw f
       case Right(j: Json) => j
     }
 
@@ -89,7 +88,18 @@ object ProgramMethodExecutionSerializer extends BifrostSerializer[ProgramMethodE
     val timestamp: Long = r.getULong()
     val data: String = r.getIntString()
 
-    ProgramMethodExecution(state, code, executionBox, methodName, methodParams,
-                           owner, signatures, preFeeBoxes, fees, timestamp, data)
+    ProgramMethodExecution(
+      state,
+      code,
+      executionBox,
+      methodName,
+      methodParams,
+      owner,
+      signatures,
+      preFeeBoxes,
+      fees,
+      timestamp,
+      data
+    )
   }
 }

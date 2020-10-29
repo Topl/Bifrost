@@ -36,13 +36,13 @@ trait ProgramMockState extends BifrostGenerators {
   private implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
   private implicit lazy val executionContext: ExecutionContext = actorSystem.dispatcher
 
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
   // save environment into a variable for reference throughout the application
   protected val bifrostContext = new BifrostContext(settings, None)
 
   // Create Bifrost singleton actors
   protected val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext)
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 
@@ -58,14 +58,12 @@ trait ProgramMockState extends BifrostGenerators {
 
   protected def view(): CurrentView[History, State, Wallet, MemPool] = Await.result(
     (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
-    10.seconds)
-
+    10.seconds
+  )
 
   def manuallyApplyBoxes(boxes: Set[Box], version: Int): Unit = {
     // Manually manipulate state
-    val boxSC = StateChanges(Set(),
-      boxes,
-      System.currentTimeMillis())
+    val boxSC = StateChanges(Set(), boxes, System.currentTimeMillis())
     val versionId = ModifierId(Ints.toByteArray(version))
 
     view().state.applyChanges(boxSC, versionId).get
@@ -74,8 +72,7 @@ trait ProgramMockState extends BifrostGenerators {
   val publicKey = "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"
   val prop: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode(publicKey).get)
 
-  val polyBoxes = view()
-    .vault
+  val polyBoxes = view().vault
     .boxes()
     .filter(_.box.isInstanceOf[PolyBox])
 
@@ -93,7 +90,15 @@ trait ProgramMockState extends BifrostGenerators {
        |""".stripMargin
 
   val stateBox = StateBox(prop, 0L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 0L)), Map("a" -> 0, "b" -> 1).asJson)
-  val codeBox = CodeBox(prop, 1L, UUID.nameUUIDFromBytes(CodeBox.idFromBox(prop, 1L)),
-    Seq("add = function(x,y) { a = x + y; return a }"), Map("add" -> Seq("Number", "Number")))
-  val executionBox = ExecutionBox(prop, 2L, UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(prop, 2L)), Seq(stateBox.value), Seq(codeBox.id))
+
+  val codeBox = CodeBox(
+    prop,
+    1L,
+    UUID.nameUUIDFromBytes(CodeBox.idFromBox(prop, 1L)),
+    Seq("add = function(x,y) { a = x + y; return a }"),
+    Map("add" -> Seq("Number", "Number"))
+  )
+
+  val executionBox =
+    ExecutionBox(prop, 2L, UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(prop, 2L)), Seq(stateBox.value), Seq(codeBox.id))
 }

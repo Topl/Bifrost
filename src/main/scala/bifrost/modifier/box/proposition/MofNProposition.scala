@@ -8,12 +8,13 @@ import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.Curve25519
 
 //noinspection ScalaStyle
-case class MofNProposition(m: Int, setOfPubKeyBytes: Set[Array[Byte]])
-  extends ProofOfKnowledgeProposition[PrivateKey25519] {
+case class MofNProposition(m: Int, setOfPubKeyBytes: Set[Array[Byte]]) extends ProofOfKnowledgeProposition[PrivateKey25519] {
 
   setOfPubKeyBytes.foreach(pubKeyBytes => {
-    require(pubKeyBytes.length == Curve25519.KeyLength,
-            s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.length} found")
+    require(
+      pubKeyBytes.length == Curve25519.KeyLength,
+      s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.length} found"
+    )
   })
 
   private def bytesWithVersion: Array[Byte] = AddressVersion +: setOfPubKeyBytes.foldLeft(Array[Byte]())(_ ++ _)
@@ -41,7 +42,7 @@ case class MofNProposition(m: Int, setOfPubKeyBytes: Set[Array[Byte]])
 
   override def equals(obj: scala.Any): Boolean = obj match {
     case p: MofNProposition => p.m == m && p.setOfPubKeyBytes == setOfPubKeyBytes
-    case _ => false
+    case _                  => false
   }
 
   override def hashCode(): Int = (BigInt(Blake2b256(serializer.toBytes(this))) % Int.MaxValue).toInt

@@ -39,16 +39,16 @@ object TransactionSerializer extends BifrostSerializer[Transaction] {
 
   override def parse(r: Reader): Transaction = {
     r.getByteString() match {
-      case "ProgramCreation" => ProgramCreationSerializer.parse(r)
+      case "ProgramCreation"        => ProgramCreationSerializer.parse(r)
       case "ProgramMethodExecution" => ProgramMethodExecutionSerializer.parse(r)
 
       case "ProgramTransfer" => ProgramTransferSerializer.parse(r)
 
-      case "PolyTransfer" => PolyTransferSerializer.parse(r)
+      case "PolyTransfer"  => PolyTransferSerializer.parse(r)
       case "ArbitTransfer" => ArbitTransferSerializer.parse(r)
       case "AssetTransfer" => AssetTransferSerializer.parse(r)
 
-      case "AssetCreation" => AssetCreationSerializer.parse(r)
+      case "AssetCreation"       => AssetCreationSerializer.parse(r)
       case "CoinbaseTransaction" => CoinbaseTransactionSerializer.parse(r)
     }
   }

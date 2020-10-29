@@ -17,31 +17,40 @@ import scala.util.Try
 case class ProgramBoxRegistry(pbrStore: LSMStore, stateStore: LSMStore) extends Logging {
 
   def closedBox(boxId: Array[Byte]): Option[Box] =
-    stateStore.get(ByteArrayWrapper(boxId))
+    stateStore
+      .get(ByteArrayWrapper(boxId))
       .map(_.data)
       .map(BoxSerializer.parseBytes)
       .flatMap(_.toOption)
 
-  def getBoxId(k: UUID) : Option[Array[Byte]] =
-    pbrStore.get(ProgramBoxRegistry.uuidToBaw(k))
+  def getBoxId(k: UUID): Option[Array[Byte]] =
+    pbrStore
+      .get(ProgramBoxRegistry.uuidToBaw(k))
       .map(_.data)
 
-  def getBox(k: UUID) : Option[Box] =
+  def getBox(k: UUID): Option[Box] =
     getBoxId(k).flatMap(closedBox)
-
 
   //YT NOTE - Using this function signature means boxes being removed from state must contain UUID (key) information
   //YT NOTE - Might be better to use transactions as parameters instead of boxes
 
-  def updateFromState(newVersion: VersionTag, keyFilteredBoxIdsToRemove: Set[Array[Byte]], keyFilteredBoxesToAdd: Set[Box]): Try[ProgramBoxRegistry] = Try {
+  def updateFromState(
+    newVersion: VersionTag,
+    keyFilteredBoxIdsToRemove: Set[Array[Byte]],
+    keyFilteredBoxesToAdd: Set[Box]
+  ): Try[ProgramBoxRegistry] = Try {
     log.debug(s"${Console.GREEN} Update ProgramBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
 
-    val boxIdsToRemove: Set[ByteArrayWrapper] = (keyFilteredBoxIdsToRemove -- keyFilteredBoxesToAdd.map(_.id)).map(ByteArrayWrapper.apply)
+    val boxIdsToRemove: Set[ByteArrayWrapper] =
+      (keyFilteredBoxIdsToRemove -- keyFilteredBoxesToAdd.map(_.id)).map(ByteArrayWrapper.apply)
 
     //Getting all uuids being updated
     val uuidsToAppend: Map[UUID, Array[Byte]] =
-      keyFilteredBoxesToAdd.filter(_.isInstanceOf[ProgramBox]).map(_.asInstanceOf[ProgramBox])
-        .map(box => box.value -> box.id).toMap
+      keyFilteredBoxesToAdd
+        .filter(_.isInstanceOf[ProgramBox])
+        .map(_.asInstanceOf[ProgramBox])
+        .map(box => box.value -> box.id)
+        .toMap
 
     //Getting set of all boxes whose uuids are not being updated and hence should be tombstoned in LSMStore
     val uuidsToRemove: Set[UUID] =
@@ -66,7 +75,6 @@ case class ProgramBoxRegistry(pbrStore: LSMStore, stateStore: LSMStore) extends 
     ProgramBoxRegistry(pbrStore, stateStore)
   }
 
-
   def rollbackTo(version: VersionTag, stateStore: LSMStore): Try[ProgramBoxRegistry] = Try {
     if (pbrStore.lastVersionID.exists(_.data sameElements version.hashBytes)) {
       this
@@ -84,7 +92,7 @@ object ProgramBoxRegistry extends Logging {
   final val bytesInAUUID = 16
   final val bytesInABoxID = 32
 
-  def apply(s1: LSMStore, s2:LSMStore) : ProgramBoxRegistry = {
+  def apply(s1: LSMStore, s2: LSMStore): ProgramBoxRegistry = {
     new ProgramBoxRegistry(s1, s2)
   }
 
@@ -93,7 +101,9 @@ object ProgramBoxRegistry extends Logging {
     ByteArrayWrapper(
       FastCryptographicHash(
         ByteArrayWrapper.fromLong(v.getMostSignificantBits).data ++
-        ByteArrayWrapper.fromLong(v.getLeastSignificantBits).data))
+        ByteArrayWrapper.fromLong(v.getLeastSignificantBits).data
+      )
+    )
   }
 
   def readOrGenerate(settings: AppSettings, stateStore: LSMStore): Option[ProgramBoxRegistry] = {
@@ -102,7 +112,12 @@ object ProgramBoxRegistry extends Logging {
     pbrDirOpt.map(readOrGenerate(_, logDirOpt, settings, stateStore))
   }
 
-  def readOrGenerate(pbrDir: String, logDirOpt: Option[String], settings: AppSettings, stateStore: LSMStore): ProgramBoxRegistry = {
+  def readOrGenerate(
+    pbrDir: String,
+    logDirOpt: Option[String],
+    settings: AppSettings,
+    stateStore: LSMStore
+  ): ProgramBoxRegistry = {
     val iFile = new File(s"$pbrDir")
     iFile.mkdirs()
     val pbrStore = new LSMStore(iFile)
@@ -118,4 +133,3 @@ object ProgramBoxRegistry extends Logging {
   }
 
 }
-

@@ -18,32 +18,28 @@ class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends BifrostE
 
   private var chainCache = cache
 
-  /**
-   * Publicly accessible method to check if a block can be applied into the cache
-   *
-   * @param modifier block that we are attempting to apply into the cache
-   * @return 'true' if the parent ID of the given modifier is available in the cache
-   */
+  /** Publicly accessible method to check if a block can be applied into the cache
+    *
+    * @param modifier block that we are attempting to apply into the cache
+    * @return 'true' if the parent ID of the given modifier is available in the cache
+    */
   def applicableInCache(modifier: Block): Boolean = chainCache.getCacheBlock(modifier.parentId).nonEmpty
 
-  /**
-    * Publicly accessible method to check if a block exists in the cache
+  /** Publicly accessible method to check if a block exists in the cache
     *
     * @param id block id that we are checking for
     * @return 'true' is the block ID of the given modifier is available in the cache
     */
   def contains(id: ModifierId): Boolean = chainCache.getCacheBlock(id).nonEmpty
 
-  /**
-    * Publicly accessible method to retrieve a block from the cache
+  /** Publicly accessible method to retrieve a block from the cache
     *
     * @param id id of the block to retrieve
     * @return
     */
   def getCacheBlock(id: ModifierId): Option[CacheBlock] = chainCache.getCacheBlock(id)
 
-  /**
-    * Process a single block and determine if any of the possible chains in the
+  /** Process a single block and determine if any of the possible chains in the
     * chain cache are taller than the main chain section
     *
     * @param block - new block to put in cache
@@ -58,11 +54,11 @@ class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends BifrostE
       val newHeight = history.storage.heightOf(block.parentId).get + 1
       val newBaseDifficulty = consensus.calcNewBaseDifficulty(parentDifficulty, prevTimes)
 
-      chainCache = chainCache.add( block, newHeight, newBaseDifficulty, prevTimes )
+      chainCache = chainCache.add(block, newHeight, newBaseDifficulty, prevTimes)
 
       ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
 
-    // if not starting a new branch, can it extend an already known tine?
+      // if not starting a new branch, can it extend an already known tine?
     } else if (applicableInCache(block)) {
       val cacheParent = chainCache.getCacheBlock(block.parentId).get
 
@@ -72,22 +68,20 @@ class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends BifrostE
       val newHeight = cacheParent.height + 1
       val newBaseDifficulty = consensus.calcNewBaseDifficulty(parentDifficulty, prevTimes)
 
-      chainCache = chainCache.add( block, newHeight, newBaseDifficulty, prevTimes )
+      chainCache = chainCache.add(block, newHeight, newBaseDifficulty, prevTimes)
 
-        // if new chain is longer, calculate and return the ProgressInfo needed to switch tines
-        if (newHeight > history.height) {
-          val newChain = possibleChain(chainCache.getCacheBlock(block.id).get)
-          val commonAncestor = history.modifierById(newChain.head.parentId).get
-          val oldChain = history.lastBlocks(
-            history.height - history.storage.heightOf(commonAncestor.id).get,
-            history.bestBlock )
+      // if new chain is longer, calculate and return the ProgressInfo needed to switch tines
+      if (newHeight > history.height) {
+        val newChain = possibleChain(chainCache.getCacheBlock(block.id).get)
+        val commonAncestor = history.modifierById(newChain.head.parentId).get
+        val oldChain = history.lastBlocks(history.height - history.storage.heightOf(commonAncestor.id).get, history.bestBlock)
 
-          ProgressInfo(Some(commonAncestor.id), oldChain, newChain, Seq.empty)
+        ProgressInfo(Some(commonAncestor.id), oldChain, newChain, Seq.empty)
 
         // otherwise, exit after adding the new block to the chain cache
-        } else ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
+      } else ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
 
-    // if no parent, log and do not add the block to the chain cache
+      // if no parent, log and do not add the block to the chain cache
     } else {
       log.warn(s"Received orphan block")
       ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
@@ -100,15 +94,14 @@ class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends BifrostE
     pi
   }
 
-  /**
-   * construct a sequence of blocks to be switched to
-   *
-   * @param from starting point to recurse from at the tip of the chain
-   * @return a sequence of blocks from the new highest block to the common ancestor
-   */
+  /** construct a sequence of blocks to be switched to
+    *
+    * @param from starting point to recurse from at the tip of the chain
+    * @return a sequence of blocks from the new highest block to the common ancestor
+    */
   private def possibleChain(from: CacheBlock): Seq[Block] = {
     @tailrec
-    def loop( currBlock: Option[CacheBlock], height: Long, acc: Seq[Block]): Seq[Block] = {
+    def loop(currBlock: Option[CacheBlock], height: Long, acc: Seq[Block]): Seq[Block] = {
       currBlock match {
         case Some(b) ⇒ loop(chainCache.getCacheBlock(b.block.parentId), height - 1, b.block +: acc)
         case None ⇒ acc

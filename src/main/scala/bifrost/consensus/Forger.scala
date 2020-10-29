@@ -7,9 +7,9 @@ import bifrost.mempool.MemPool
 import bifrost.modifier.block.Block
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.transaction.bifrostTransaction.{ CoinbaseTransaction, Transaction }
+import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, Transaction}
 import bifrost.nodeView.CurrentView
-import bifrost.settings.{ BifrostContext, ForgingSettings }
+import bifrost.settings.{BifrostContext, ForgingSettings}
 import bifrost.state.State
 import bifrost.utils.Logging
 import bifrost.wallet.Wallet
@@ -17,12 +17,12 @@ import bifrost.wallet.Wallet
 import scala.concurrent.ExecutionContext
 import scala.util.Try
 
-/**
- * Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
- * Must be singleton
- */
-class Forger(viewHolderRef: ActorRef, settings: ForgingSettings, bifrostContext: BifrostContext)
-            (implicit ec: ExecutionContext) extends Actor with Logging {
+/** Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
+  * Must be singleton
+  */
+class Forger(viewHolderRef: ActorRef, settings: ForgingSettings, bifrostContext: BifrostContext)(implicit ec: ExecutionContext)
+    extends Actor
+    with Logging {
 
   type CV = CurrentView[History, State, Wallet, MemPool]
 
@@ -30,7 +30,7 @@ class Forger(viewHolderRef: ActorRef, settings: ForgingSettings, bifrostContext:
   import Forger.ReceivableMessages._
 
   // Import the types of messages this actor SENDS
-  import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{ GetDataFromCurrentView, LocallyGeneratedModifier }
+  import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
 
   val TransactionsInBlock = 100 //should be a part of consensus, but for our app is okay
 
@@ -80,33 +80,36 @@ class Forger(viewHolderRef: ActorRef, settings: ForgingSettings, bifrostContext:
     case _ => nonsense
   }
 
-  private def nonsense: Receive = {
-    case nonsense: Any =>
-      log.warn(s"Forger (in context ${context.toString}): got unexpected input $nonsense from ${sender()}")
+  private def nonsense: Receive = { case nonsense: Any =>
+    log.warn(s"Forger (in context ${context.toString}): got unexpected input $nonsense from ${sender()}")
   }
 
 ////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
-  /**
-   * wrapper function to encapsulate the returned CurrentView
-   *
-   * @param view the view returned from NodeViewHolder
-   * @return
-   */
+  /** wrapper function to encapsulate the returned CurrentView
+    *
+    * @param view the view returned from NodeViewHolder
+    * @return
+    */
   def actOnCurrentView(view: CV): CV = view
 
   private def tryForging(h: History, s: State, w: Wallet, m: MemPool): Unit = {
     log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${h.height}${Console.RESET}")
     log.info("chain difficulty: " + h.difficulty)
 
-    val boxes: Seq[ArbitBox] = w.boxes().filter(_.box match {
-      case a: ArbitBox => s.closedBox(a.id).isDefined
-      case _ => false
-    }).map(_.box.asInstanceOf[ArbitBox])
+    val boxes: Seq[ArbitBox] = w
+      .boxes()
+      .filter(_.box match {
+        case a: ArbitBox => s.closedBox(a.id).isDefined
+        case _           => false
+      })
+      .map(_.box.asInstanceOf[ArbitBox])
 
     val boxKeys = boxes.flatMap(b => w.secretByPublicImage(b.proposition).map(s => (b, s)))
-    log.debug(s"Trying to generate block on top of ${h.bestBlock.id} with balance " +
-      s"${boxKeys.map(_._1.value).sum}")
+    log.debug(
+      s"Trying to generate block on top of ${h.bestBlock.id} with balance " +
+      s"${boxKeys.map(_._1.value).sum}"
+    )
 
     val transactions = pickTransactions(m, s, w, h.bestBlock).get
 
@@ -121,11 +124,7 @@ class Forger(viewHolderRef: ActorRef, settings: ForgingSettings, bifrostContext:
     context.system.scheduler.scheduleOnce(settings.blockGenerationDelay)(viewHolderRef ! GetDataFromCurrentView(actOnCurrentView))
   }
 
-  def pickTransactions(memPool: MemPool,
-                       state: State,
-                       wallet: Wallet,
-                       parent: Block
-                      ): Try[Seq[Transaction]] = Try {
+  def pickTransactions(memPool: MemPool, state: State, wallet: Wallet, parent: Block): Try[Seq[Transaction]] = Try {
 
     lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(wallet.secrets.head.publicImage.pubKeyBytes)
     val infVal = 0 //Await.result(infQ ? view._1.height, Duration.Inf).asInstanceOf[Long]
@@ -139,7 +138,7 @@ class Forger(viewHolderRef: ActorRef, settings: ForgingSettings, bifrostContext:
         txValid.failed.get.printStackTrace()
         memPool.remove(tx)
       }
-      if(!invalidBoxes) {
+      if (!invalidBoxes) {
         memPool.remove(tx)
       }
 
@@ -148,19 +147,23 @@ class Forger(viewHolderRef: ActorRef, settings: ForgingSettings, bifrostContext:
     CB +: regTxs
   }
 
-  def iteration(parent: Block,
-                difficulty: Long,
-                boxKeys: Seq[(ArbitBox, PrivateKey25519)],
-                txsToInclude: Seq[Transaction],
-                version: Block.Version): Option[Block] = {
+  def iteration(
+    parent: Block,
+    difficulty: Long,
+    boxKeys: Seq[(ArbitBox, PrivateKey25519)],
+    txsToInclude: Seq[Transaction],
+    version: Block.Version
+  ): Option[Block] = {
 
     val timestamp = bifrostContext.timeProvider.time()
     val target = calcAdjustedTarget(parent, difficulty, timestamp)
 
-    val successfulHits = boxKeys.map { boxKey =>
-      val h = calcHit(parent)(boxKey._1)
-      (boxKey, h)
-    }.filter(t => BigInt(t._2) < (((t._1._1.value) * target)).toBigInt)
+    val successfulHits = boxKeys
+      .map { boxKey =>
+        val h = calcHit(parent)(boxKey._1)
+        (boxKey, h)
+      }
+      .filter(t => BigInt(t._2) < ((t._1._1.value) * target).toBigInt)
     log.debug(s"Successful hits: ${successfulHits.size}")
 
     successfulHits.headOption.map { case (boxKey, _) =>
@@ -189,15 +192,21 @@ object Forger {
 //////////////////////////////// ACTOR REF HELPER //////////////////////////////////
 
 object ForgerRef {
-  def props(nodeViewHolderRef: ActorRef, settings: ForgingSettings, bifrostContext: BifrostContext)
-           (implicit ec: ExecutionContext): Props =
+
+  def props(nodeViewHolderRef: ActorRef, settings: ForgingSettings, bifrostContext: BifrostContext)(implicit
+    ec: ExecutionContext
+  ): Props =
     Props(new Forger(nodeViewHolderRef, settings, bifrostContext))
 
-  def apply(nodeViewHolderRef: ActorRef, settings: ForgingSettings, bifrostContext: BifrostContext)
-           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+  def apply(nodeViewHolderRef: ActorRef, settings: ForgingSettings, bifrostContext: BifrostContext)(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): ActorRef =
     system.actorOf(props(nodeViewHolderRef, settings, bifrostContext))
 
-  def apply(name: String, nodeViewHolderRef: ActorRef, settings: ForgingSettings, bifrostContext: BifrostContext)
-           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+  def apply(name: String, nodeViewHolderRef: ActorRef, settings: ForgingSettings, bifrostContext: BifrostContext)(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): ActorRef =
     system.actorOf(props(nodeViewHolderRef, settings, bifrostContext), name)
 }

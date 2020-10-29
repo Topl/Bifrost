@@ -20,18 +20,17 @@ import scorex.crypto.signatures.Curve25519
 
 import scala.util.Failure
 
-/**
-  * Created by Matt Kindy on 6/7/2017.
+/** Created by Matt Kindy on 6/7/2017.
   */
 class ProgramCreationValidationSpec extends ProgramSpec {
 
   //noinspection ScalaStyle
   def arbitraryPartyProgramCreationGen(num: Int): Gen[ProgramCreation] = for {
-    executionBuilder <- validExecutionBuilderGen()
-    timestamp <- positiveLongGen
-    numFeeBoxes <- positiveTinyIntGen
+    executionBuilder   <- validExecutionBuilderGen()
+    timestamp          <- positiveLongGen
+    numFeeBoxes        <- positiveTinyIntGen
     numInvestmentBoxes <- positiveTinyIntGen
-    data <- stringGen
+    data               <- stringGen
   } yield {
     val (priv: PrivateKey25519, owner: PublicKey25519Proposition) = keyPairSetGen.sample.get.head
 
@@ -41,23 +40,19 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] =
       Map(owner -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get })
 
-    val fees = feePreBoxes.map {
-      case (prop, preBoxes) =>
-        val providedFunds = preBoxes.map(_._2).sum
-        val possibleFeeValue = providedFunds -
-          Gen
-            .choose(0L, boundedBy(providedFunds, 0, Long.MaxValue))
-            .sample
-            .get
+    val fees = feePreBoxes.map { case (prop, preBoxes) =>
+      val providedFunds = preBoxes.map(_._2).sum
+      val possibleFeeValue = providedFunds -
+        Gen
+          .choose(0L, boundedBy(providedFunds, 0, Long.MaxValue))
+          .sample
+          .get
 
-        prop -> possibleFeeValue
+      prop -> possibleFeeValue
     }
 
-    val messageToSign = Bytes.concat(
-      ExecutionBuilderSerializer.toBytes(executionBuilder),
-      owner.pubKeyBytes,
-      data.getBytes)
-      //boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _))
+    val messageToSign = Bytes.concat(ExecutionBuilderSerializer.toBytes(executionBuilder), owner.pubKeyBytes, data.getBytes)
+    //boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _))
 
     val signature = Map(owner -> PrivateKey25519Companion.sign(priv, messageToSign))
 
@@ -76,143 +71,121 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
     val readOnlyUUIDs = Seq(UUID.nameUUIDFromBytes(stateBoxTwo.id), UUID.nameUUIDFromBytes(stateBoxThree.id))
 
-    ProgramCreation(
-      executionBuilder,
-      readOnlyUUIDs,
-      preInvestmentBoxes,
-      owner,
-      signature,
-      feePreBoxes,
-      fees,
-      timestamp,
-      data)
+    ProgramCreation(executionBuilder, readOnlyUUIDs, preInvestmentBoxes, owner, signature, feePreBoxes, fees, timestamp, data)
   }
 
   private def boundedBy(sum: Long, min: Long, max: Long) = Math.max(min, Math.min(max, sum))
 
-  property("A block with valid program creation will result " +
-             "in a program entry and updated poly boxes in the LSMStore") {
+  property(
+    "A block with valid program creation will result " +
+    "in a program entry and updated poly boxes in the LSMStore"
+  ) {
     // Create block with program creation
-    forAll(validProgramCreationGen) {
-      programCreation: ProgramCreation =>
-        val block = Block(
-          ModifierId(Array.fill(Block.signatureLength)(-1: Byte)),
-          Instant.now.toEpochMilli,
-          ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-          Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
-          Seq(programCreation),
-          settings.forgingSettings.version
-        )
+    forAll(validProgramCreationGen) { programCreation: ProgramCreation =>
+      val block = Block(
+        ModifierId(Array.fill(Block.signatureLength)(-1: Byte)),
+        Instant.now.toEpochMilli,
+        ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
+        Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
+        Seq(programCreation),
+        settings.forgingSettings.version
+      )
 
-        val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(programCreation)
+      val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(programCreation)
 
-        val executionBox = programCreation.newBoxes.head.asInstanceOf[ExecutionBox]
-        val stateBox = programCreation.newBoxes.drop(1).head.asInstanceOf[StateBox]
-        val codeBox = programCreation.newBoxes.drop(2).head.asInstanceOf[CodeBox]
-        val returnedPolyBox: PolyBox = programCreation.newBoxes.last match {
-          case p: PolyBox => p
-          case _ => throw new Exception("Was expecting PolyBoxes but found something else")
-        }
+      val executionBox = programCreation.newBoxes.head.asInstanceOf[ExecutionBox]
+      val stateBox = programCreation.newBoxes.drop(1).head.asInstanceOf[StateBox]
+      val codeBox = programCreation.newBoxes.drop(2).head.asInstanceOf[CodeBox]
+      val returnedPolyBox: PolyBox = programCreation.newBoxes.last match {
+        case p: PolyBox => p
+        case _          => throw new Exception("Was expecting PolyBoxes but found something else")
+      }
 
-        val stateBoxBytes = BoxSerializer.toBytes(stateBox)
-        val codeBoxBytes = BoxSerializer.toBytes(codeBox)
-        val executionBoxBytes = BoxSerializer.toBytes(executionBox)
-        val returnedPolyBoxBytes = BoxSerializer.toBytes(returnedPolyBox)
+      val stateBoxBytes = BoxSerializer.toBytes(stateBox)
+      val codeBoxBytes = BoxSerializer.toBytes(codeBox)
+      val executionBoxBytes = BoxSerializer.toBytes(executionBox)
+      val returnedPolyBoxBytes = BoxSerializer.toBytes(returnedPolyBox)
 
-        val necessaryBoxesSC = StateChanges(
-          Set(),
-          preExistingPolyBoxes,
-          Instant.now.toEpochMilli)
+      val necessaryBoxesSC = StateChanges(Set(), preExistingPolyBoxes, Instant.now.toEpochMilli)
 
-        val preparedState = StateSpec
-          .genesisState
-          .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(23)))
-          .get
+      val preparedState = StateSpec.genesisState
+        .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(23)))
+        .get
 
-        val newState = preparedState
-          .applyChanges(StateChanges(block).get, ModifierId(Ints.toByteArray(24)))
-          .get
+      val newState = preparedState
+        .applyChanges(StateChanges(block).get, ModifierId(Ints.toByteArray(24)))
+        .get
 
-        require(newState.storage.get(ByteArrayWrapper(returnedPolyBox.id)) match {
-                  case Some(wrapper) => wrapper.data sameElements returnedPolyBoxBytes
-                  case None => false
-                })
+      require(newState.storage.get(ByteArrayWrapper(returnedPolyBox.id)) match {
+        case Some(wrapper) => wrapper.data sameElements returnedPolyBoxBytes
+        case None          => false
+      })
 
-        require(newState.storage.get(ByteArrayWrapper(stateBox.id)) match {
-          case Some(wrapper) => wrapper.data sameElements stateBoxBytes
-          case None ⇒ false
-        })
+      require(newState.storage.get(ByteArrayWrapper(stateBox.id)) match {
+        case Some(wrapper) => wrapper.data sameElements stateBoxBytes
+        case None ⇒ false
+      })
 
-        require(newState.storage.get(ByteArrayWrapper(codeBox.id)) match {
-          case Some(wrapper) => wrapper.data sameElements codeBoxBytes
-          case None ⇒ false
-        })
+      require(newState.storage.get(ByteArrayWrapper(codeBox.id)) match {
+        case Some(wrapper) => wrapper.data sameElements codeBoxBytes
+        case None ⇒ false
+      })
 
-        require(newState.storage.get(ByteArrayWrapper(executionBox.id)) match {
-          case Some(wrapper) => wrapper.data sameElements executionBoxBytes
-          case None ⇒ false
-        })
+      require(newState.storage.get(ByteArrayWrapper(executionBox.id)) match {
+        case Some(wrapper) => wrapper.data sameElements executionBoxBytes
+        case None ⇒ false
+      })
 
-        /* Checks that the total sum of polys returned is total amount submitted minus total fees */
-        returnedPolyBox.value shouldEqual
-          preExistingPolyBoxes
-            .map { case pb: PolyBox => pb.value }
-            .sum - programCreation.fee
+      /* Checks that the total sum of polys returned is total amount submitted minus total fees */
+      returnedPolyBox.value shouldEqual
+      preExistingPolyBoxes.map { case pb: PolyBox => pb.value }.sum - programCreation.fee
 
+      /* Checks that the amount returned in polys is equal to amount sent in less fees */
+      programCreation.fees.foreach { case (prop, fee) =>
+        val output = if (returnedPolyBox.proposition equals prop) returnedPolyBox.value else 0
+        val input = (preExistingPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop => pb.value }).sum
+        val investment = 0
 
-        /* Checks that the amount returned in polys is equal to amount sent in less fees */
-        programCreation.fees.foreach { case (prop, fee) =>
-          val output = if (returnedPolyBox.proposition equals prop) returnedPolyBox.value else 0
-          val input = (preExistingPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop => pb.value }).sum
-          val investment = 0
+        output shouldEqual (input - fee - investment)
+      }
 
-          output shouldEqual (input - fee - investment)
-        }
+      /* Expect none of the preexisting boxes to still be around */
+      preExistingPolyBoxes
+        .foreach(pb => newState.storage.get(ByteArrayWrapper(pb.id)) shouldBe empty)
 
-
-        /* Expect none of the preexisting boxes to still be around */
-        preExistingPolyBoxes
-          .foreach(pb => newState.storage.get(ByteArrayWrapper(pb.id)) shouldBe empty)
-
-        StateSpec.genesisState = newState
-          .rollbackTo(StateSpec.genesisBlockId)
-          .get
+      StateSpec.genesisState = newState
+        .rollbackTo(StateSpec.genesisBlockId)
+        .get
     }
   }
 
   property("Attempting to validate a program creation tx without valid signatures should error") {
-    forAll(validProgramCreationGen) {
-      programCreation: ProgramCreation =>
+    forAll(validProgramCreationGen) { programCreation: ProgramCreation =>
+      val wrongSig: Array[Byte] = (programCreation.signatures.head._2.bytes.head + 1).toByte +:
+        programCreation.signatures.head._2.bytes.tail
 
-        val wrongSig: Array[Byte] = (programCreation.signatures.head._2.bytes.head + 1).toByte +:
-          programCreation.signatures.head._2.bytes.tail
+      val wrongSigs: Map[PublicKey25519Proposition, Signature25519] = programCreation.signatures +
+        (programCreation.signatures.head._1 -> Signature25519(wrongSig))
 
-        val wrongSigs: Map[PublicKey25519Proposition, Signature25519] = programCreation.signatures +
-          (programCreation.signatures.head._1 -> Signature25519(wrongSig))
+      val invalidPC = programCreation.copy(signatures = wrongSigs)
 
-        val invalidPC = programCreation.copy(signatures = wrongSigs)
+      val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(programCreation)
 
-        val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(programCreation)
+      val necessaryBoxesSC = StateChanges(Set(), preExistingPolyBoxes, Instant.now.toEpochMilli)
 
-        val necessaryBoxesSC = StateChanges(
-          Set(),
-          preExistingPolyBoxes,
-          Instant.now.toEpochMilli)
+      val preparedState = StateSpec.genesisState
+        .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(25)))
+        .get
 
-        val preparedState = StateSpec
-          .genesisState
-          .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(25)))
-          .get
+      val newState = preparedState.validate(invalidPC)
 
-        val newState = preparedState.validate(invalidPC)
+      StateSpec.genesisState = preparedState
+        .rollbackTo(StateSpec.genesisBlockId)
+        .get
 
-        StateSpec.genesisState = preparedState
-          .rollbackTo(StateSpec.genesisBlockId)
-          .get
+      newState shouldBe a[Failure[_]]
 
-        newState shouldBe a[Failure[_]]
-
-        newState.failed.get.getMessage shouldBe "Incorrect unlocker"
+      newState.failed.get.getMessage shouldBe "Incorrect unlocker"
     }
   }
 
@@ -248,7 +221,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 //  }
 
   //TODO Add back in when timestamps will be used for Programs
-/*
+  /*
   property(
     "Attempting to validate a program creation tx with a timestamp that is before the last block timestamp should error")
   {
@@ -277,46 +250,45 @@ class ProgramCreationValidationSpec extends ProgramSpec {
         newState.failed.get.getMessage shouldBe "ProgramCreation attempts to write into the past"
     }
   }
-*/
+   */
 
-  property("Attempting to validate a program creation tx " +
-             "with the same id as an existing program should error") {
-    forAll(validProgramCreationGen) {
-      cc: ProgramCreation =>
+  property(
+    "Attempting to validate a program creation tx " +
+    "with the same id as an existing program should error"
+  ) {
+    forAll(validProgramCreationGen) { cc: ProgramCreation =>
+      val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(cc)
 
-        val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(cc)
+      val necessaryBoxesSC = StateChanges(Set(), preExistingPolyBoxes, cc.timestamp)
 
-        val necessaryBoxesSC = StateChanges(Set(), preExistingPolyBoxes, cc.timestamp)
+      val firstCCAddBlock = Block(
+        ModifierId(Array.fill(Block.signatureLength)(1: Byte)),
+        Instant.now.toEpochMilli,
+        ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
+        Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
+        Seq(cc),
+        settings.forgingSettings.version
+      )
 
-        val firstCCAddBlock = Block(
-          ModifierId(Array.fill(Block.signatureLength)(1: Byte)),
-          Instant.now.toEpochMilli,
-          ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-          Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
-          Seq(cc),
-          settings.forgingSettings.version
-        )
+      val necessaryState = StateSpec.genesisState
+        .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(29)))
+        .get
 
-        val necessaryState = StateSpec
-          .genesisState
-          .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(29)))
-          .get
+      val preparedChanges = StateChanges(firstCCAddBlock).get
+      val preparedState = necessaryState
+        .applyChanges(preparedChanges, ModifierId(Ints.toByteArray(30)))
+        .get
+        .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(31)))
+        .get
 
-        val preparedChanges = StateChanges(firstCCAddBlock).get
-        val preparedState = necessaryState
-          .applyChanges(preparedChanges, ModifierId(Ints.toByteArray(30)))
-          .get
-          .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(31)))
-          .get
+      val newState = preparedState.validate(cc)
 
-        val newState = preparedState.validate(cc)
+      StateSpec.genesisState = preparedState
+        .rollbackTo(StateSpec.genesisBlockId)
+        .get
 
-        StateSpec.genesisState = preparedState
-          .rollbackTo(StateSpec.genesisBlockId)
-          .get
-
-        newState shouldBe a[Failure[_]]
-        newState.failed.get.getMessage shouldBe "ProgramCreation attempts to overwrite existing program"
+      newState shouldBe a[Failure[_]]
+      newState.failed.get.getMessage shouldBe "ProgramCreation attempts to overwrite existing program"
     }
   }
 }

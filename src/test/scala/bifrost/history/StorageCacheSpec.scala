@@ -1,6 +1,5 @@
 package bifrost.history
 
-
 import bifrost.BifrostGenerators
 import bifrost.modifier.block.Block
 import bifrost.settings.{AppSettings, StartupOpts}
@@ -10,14 +9,9 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 
-class StorageCacheSpec extends AnyPropSpec
-  with ScalaCheckPropertyChecks
-  with Matchers
-  with BifrostGenerators {
+class StorageCacheSpec extends AnyPropSpec with ScalaCheckPropertyChecks with Matchers with BifrostGenerators {
 
   var history: History = generateHistory
-
-
 
   property("The genesis block is stored in cache") {
     val genesisBlockId = ByteArrayWrapper(Array.fill(history.storage.storage.keySize)(-1: Byte))
@@ -29,7 +23,7 @@ class StorageCacheSpec extends AnyPropSpec
     val bestBlockIdKey = ByteArrayWrapper(Array.fill(history.storage.storage.keySize)(-1: Byte))
 
     /* Append a new block, make sure it is updated in cache, then drop it */
-    val fstBlock:Block = BlockGen.sample.get.copy(parentId = history.bestBlockId)
+    val fstBlock: Block = BlockGen.sample.get.copy(parentId = history.bestBlockId)
     history = history.append(fstBlock).get._1
 
     history.storage.blockCache.getIfPresent(bestBlockIdKey) should not be null
@@ -42,7 +36,7 @@ class StorageCacheSpec extends AnyPropSpec
 
     /* Append multiple times */
     forAll(BlockGen) { blockTemp =>
-      val block:Block = blockTemp.copy(parentId = history.bestBlockId)
+      val block: Block = blockTemp.copy(parentId = history.bestBlockId)
 
       history = history.append(block).get._1
     }
@@ -61,11 +55,11 @@ class StorageCacheSpec extends AnyPropSpec
   property("The new block updated is stored in cache") {
 
     forAll(BlockGen) { blockTemp =>
-      val block:Block = blockTemp.copy(parentId = history.bestBlockId)
+      val block: Block = blockTemp.copy(parentId = history.bestBlockId)
 
       history = history.append(block).get._1
       history.storage.blockCache.getIfPresent(ByteArrayWrapper(block.id.hashBytes)) shouldEqual
-        history.storage.storage.get(ByteArrayWrapper(block.id.hashBytes))
+      history.storage.storage.get(ByteArrayWrapper(block.id.hashBytes))
     }
   }
 
@@ -92,7 +86,7 @@ class StorageCacheSpec extends AnyPropSpec
 
     history.storage.blockCache.getIfPresent(ByteArrayWrapper(fstBlock.id.hashBytes)) shouldBe null
   }
-  */
+   */
 
   property("blockLoader should correctly return a block from storage not found in cache") {
     val block: Block = BlockGen.sample.get.copy(parentId = history.bestBlockId)

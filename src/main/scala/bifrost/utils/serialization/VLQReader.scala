@@ -7,10 +7,9 @@ import bifrost.utils.encode.ZigZagEncoder._
 
 trait VLQReader extends Reader {
 
-  @inline override def getUByte(): Int = getByte() & 0xFF
+  @inline override def getUByte(): Int = getByte() & 0xff
 
-  /**
-    * Decode signed Short previously encoded with [[VLQWriter.putShort]] using VLQ and then ZigZag.
+  /** Decode signed Short previously encoded with [[VLQWriter.putShort]] using VLQ and then ZigZag.
     *
     * @note Uses VLQ and then ZigZag encoding. Should be used to decode '''only''' a value that was previously
     *       encoded with [[VLQByteBufferWriter.putShort]].
@@ -22,20 +21,18 @@ trait VLQReader extends Reader {
     decodeZigZagInt(getULong().toInt).toShort
   }
 
-  /**
-    * Decode Short previously encoded with [[VLQWriter.putUShort]] using VLQ.
+  /** Decode Short previously encoded with [[VLQWriter.putUShort]] using VLQ.
     * @see [[https://en.wikipedia.org/wiki/Variable-length_quantity]]
     * @return Int
     * @throws AssertionError for deserialized values not in unsigned Short range
     */
   @inline override def getUShort(): Int = {
     val x = getULong().toInt
-    require(x >= 0 && x <= 0xFFFF, s"$x is out of unsigned short range")
+    require(x >= 0 && x <= 0xffff, s"$x is out of unsigned short range")
     x
   }
 
-  /**
-    * Decode signed Int previously encoded with [[VLQWriter.putInt]] using VLQ with ZigZag.
+  /** Decode signed Int previously encoded with [[VLQWriter.putInt]] using VLQ with ZigZag.
     *
     * @note Uses ZigZag encoding. Should be used to decode '''only''' a value that was previously
     *       encoded with [[VLQByteBufferWriter.putInt]].
@@ -47,19 +44,17 @@ trait VLQReader extends Reader {
     decodeZigZagInt(getULong().toInt)
   }
 
-  /**
-    * Decode Int previously encoded with [[VLQWriter.putUInt]] using VLQ.
+  /** Decode Int previously encoded with [[VLQWriter.putUInt]] using VLQ.
     * @see [[https://en.wikipedia.org/wiki/Variable-length_quantity]]
     * @return Long
     */
   @inline override def getUInt(): Long = {
     val x = getULong()
-    require(x >= 0L && x <= 0xFFFFFFFFL, s"$x is out of unsigned int range")
+    require(x >= 0L && x <= 0xffffffffL, s"$x is out of unsigned int range")
     x
   }
 
-  /**
-    * Decode signed Long previously encoded with [[VLQWriter.putLong]] using VLQ with ZigZag.
+  /** Decode signed Long previously encoded with [[VLQWriter.putLong]] using VLQ with ZigZag.
     *
     * @note Uses ZigZag encoding. Should be used to decode '''only''' a value that was previously
     *       encoded with [[VLQWriter.putLong]].
@@ -68,8 +63,7 @@ trait VLQReader extends Reader {
     */
   @inline override def getLong(): Long = decodeZigZagLong(getULong())
 
-  /**
-    * Decode Long previously encoded with [[VLQWriter.putULong]] using VLQ.
+  /** Decode Long previously encoded with [[VLQWriter.putULong]] using VLQ.
     * @see [[https://en.wikipedia.org/wiki/Variable-length_quantity]]
     * @return Long
     */
@@ -81,7 +75,7 @@ trait VLQReader extends Reader {
     var shift = 0
     while (shift < 64) {
       val b = getByte()
-      result = result | ((b & 0x7F).toLong << shift)
+      result = result | ((b & 0x7f).toLong << shift)
       if ((b & 0x80) == 0) return result
       shift += 7
     }
@@ -109,8 +103,7 @@ trait VLQReader extends Reader {
       None
   }
 
-  /**
-    * Decode String is shorter than 256 bytes
+  /** Decode String is shorter than 256 bytes
     *
     * @return
     */
@@ -119,8 +112,7 @@ trait VLQReader extends Reader {
     new String(getBytes(size))
   }
 
-  /**
-    * Decode String is greater than 256 bytes
+  /** Decode String is greater than 256 bytes
     *
     * @return
     */

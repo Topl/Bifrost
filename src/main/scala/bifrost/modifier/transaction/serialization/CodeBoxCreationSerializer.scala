@@ -6,7 +6,7 @@ import bifrost.modifier.box.proposition.{PublicKey25519Proposition, PublicKey255
 import bifrost.modifier.transaction.bifrostTransaction.CodeCreation
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 
-object CodeBoxCreationSerializer extends BifrostSerializer[CodeCreation]{
+object CodeBoxCreationSerializer extends BifrostSerializer[CodeCreation] {
 
   override def serialize(obj: CodeCreation, w: Writer): Unit = {
     w.putByteString("CodeCreation")

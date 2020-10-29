@@ -24,21 +24,18 @@ import scala.util.Try
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class DebugRPCSpec extends AnyWordSpec
-  with Matchers
-  with ScalatestRouteTest
-  with BifrostGenerators {
+class DebugRPCSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with BifrostGenerators {
 
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
   // save environment into a variable for reference throughout the application
   protected val bifrostContext = new BifrostContext(settings, None)
 
   // Create Bifrost singleton actors
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext)
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
   // setup route for testing
   val route: Route = DebugApiRoute(settings, nodeViewHolderRef).route
@@ -57,12 +54,12 @@ class DebugRPCSpec extends AnyWordSpec
 
   private def view() = Await.result(
     (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
-    10.seconds)
+    10.seconds
+  )
 
   "Debug RPC" should {
     "Get chain information" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -79,8 +76,7 @@ class DebugRPCSpec extends AnyWordSpec
     }
 
     "Compute block delay" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -100,8 +96,7 @@ class DebugRPCSpec extends AnyWordSpec
     }
 
     "Find number of blocks forged by publicKeys held in current node" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -118,8 +113,7 @@ class DebugRPCSpec extends AnyWordSpec
     }
 
     "Return a map of public keys to the number of blocks they have forged in the chain's history" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -174,7 +168,6 @@ class DebugRPCSpec extends AnyWordSpec
 //    }
 
   }
-
 
   object DebugRPCSpec {
     val path: Path = Path("/tmp/bifrost/test-data")

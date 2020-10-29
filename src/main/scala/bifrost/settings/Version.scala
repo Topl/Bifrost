@@ -3,8 +3,7 @@ package bifrost.settings
 import bifrost.serialization.BytesSerializable
 import bifrost.utils.serialization._
 
-/**
-  * Version of p2p protocol. Node can only process messages of it's version or lower.
+/** Version of p2p protocol. Node can only process messages of it's version or lower.
   */
 case class Version(firstDigit: Byte, secondDigit: Byte, thirdDigit: Byte) extends BytesSerializable with Ordered[Version] {
   override type M = Version
@@ -21,6 +20,7 @@ case class Version(firstDigit: Byte, secondDigit: Byte, thirdDigit: Byte) extend
 }
 
 object Version {
+
   def apply(v: String): Version = {
     val splitted = v.split("\\.")
     Version(splitted(0).toByte, splitted(1).toByte, splitted(2).toByte)

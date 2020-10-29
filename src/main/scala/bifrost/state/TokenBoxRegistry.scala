@@ -15,7 +15,8 @@ import scala.util.Try
 case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Logging {
 
   def closedBox(boxId: Array[Byte]): Option[Box] =
-    stateStore.get(ByteArrayWrapper(boxId))
+    stateStore
+      .get(ByteArrayWrapper(boxId))
       .map(_.data)
       .map(BoxSerializer.parseBytes)
       .flatMap(_.toOption)
@@ -26,14 +27,15 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
   //Assumes that boxIds are fixed length equal to store's keySize (32 bytes)
   def boxIdsByKey(pubKeyBytes: Array[Byte]): Seq[Array[Byte]] =
     tbrStore
-    .get(ByteArrayWrapper(pubKeyBytes))
-    .map(_
-      .data
-      .grouped(stateStore.keySize)
-      .toSeq)
-    .getOrElse(Seq[Array[Byte]]())
+      .get(ByteArrayWrapper(pubKeyBytes))
+      .map(
+        _.data
+          .grouped(stateStore.keySize)
+          .toSeq
+      )
+      .getOrElse(Seq[Array[Byte]]())
 
-    def boxesByKey(publicKey: PublicKey25519Proposition): Seq[Box] =
+  def boxesByKey(publicKey: PublicKey25519Proposition): Seq[Box] =
     boxesByKey(publicKey.pubKeyBytes)
 
   def boxesByKey(pubKeyBytes: Array[Byte]): Seq[Box] = {
@@ -41,13 +43,12 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
       .map(id => closedBox(id))
       .filter {
         case box: Some[Box] => true
-        case None => false
+        case None           => false
       }
       .map(_.get)
   }
 
-  /**
-    * @param newVersion - block id
+  /** @param newVersion - block id
     * @param keyFilteredBoxIdsToRemove
     * @param keyFilteredBoxesToAdd
     * - key filtered boxIdsToRemove and boxesToAppend extracted from block (in BifrostState)
@@ -58,14 +59,18 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
     *         where M = Number of boxes to remove
     *         N = Number of boxes owned by a public key
     *         L = Number of boxes to append
-    *
     */
   //noinspection ScalaStyle
-  def updateFromState(newVersion: VersionTag, keyFilteredBoxIdsToRemove: Set[Array[Byte]], keyFilteredBoxesToAdd: Set[Box]): Try[TokenBoxRegistry] = Try {
+  def updateFromState(
+    newVersion: VersionTag,
+    keyFilteredBoxIdsToRemove: Set[Array[Byte]],
+    keyFilteredBoxesToAdd: Set[Box]
+  ): Try[TokenBoxRegistry] = Try {
     log.debug(s"${Console.GREEN} Update TokenBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
 
     /* This seeks to avoid the scenario where there is remove and then update of the same keys */
-    val boxIdsToRemove: Set[ByteArrayWrapper] = (keyFilteredBoxIdsToRemove -- keyFilteredBoxesToAdd.map(b => b.id)).map(ByteArrayWrapper.apply)
+    val boxIdsToRemove: Set[ByteArrayWrapper] =
+      (keyFilteredBoxIdsToRemove -- keyFilteredBoxesToAdd.map(b => b.id)).map(ByteArrayWrapper.apply)
 
     var boxesToRemove: Map[Array[Byte], Array[Byte]] = Map()
     var boxesToAppend: Map[Array[Byte], Array[Byte]] = Map()
@@ -89,19 +94,20 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
           case _ =>
         })
 
-      (boxesToRemove.map(boxToKey => ByteArrayWrapper(boxToKey._2)) ++ boxesToAppend.map(boxToKey => ByteArrayWrapper(boxToKey._2))).toSet
+      (boxesToRemove.map(boxToKey => ByteArrayWrapper(boxToKey._2)) ++ boxesToAppend.map(boxToKey =>
+        ByteArrayWrapper(boxToKey._2)
+      )).toSet
     }
 
     //Get old boxIds list for each of the above public keys
-    var keysToBoxIds: Map[ByteArrayWrapper, Seq[Array[Byte]]] = keysSet.map(
-      publicKey => publicKey -> boxIdsByKey(publicKey.data)
-    ).toMap
+    var keysToBoxIds: Map[ByteArrayWrapper, Seq[Array[Byte]]] =
+      keysSet.map(publicKey => publicKey -> boxIdsByKey(publicKey.data)).toMap
 
     //For each box in temporary map match against public key and remove/append to boxIdsList in original keysToBoxIds map
-    for((boxId, publicKey) <- boxesToRemove) {
+    for ((boxId, publicKey) <- boxesToRemove) {
       keysToBoxIds += (ByteArrayWrapper(publicKey) -> keysToBoxIds(ByteArrayWrapper(publicKey)).filterNot(_ sameElements boxId))
     }
-    for((boxId, publicKey) <- boxesToAppend) {
+    for ((boxId, publicKey) <- boxesToAppend) {
       //Prepending to list is O(1) while appending is O(n)
       keysToBoxIds += (ByteArrayWrapper(publicKey) -> (boxId +: keysToBoxIds(ByteArrayWrapper(publicKey))))
     }
@@ -109,8 +115,7 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
     tbrStore.update(
       ByteArrayWrapper(newVersion.hashBytes),
       Seq(),
-      keysToBoxIds.map(element =>
-        element._1 -> ByteArrayWrapper(element._2.flatten.toArray))
+      keysToBoxIds.map(element => element._1 -> ByteArrayWrapper(element._2.flatten.toArray))
     )
 
     TokenBoxRegistry(tbrStore, stateStore)
@@ -130,8 +135,8 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
 
 object TokenBoxRegistry extends Logging {
 
-  def apply(s1: LSMStore, s2: LSMStore) : TokenBoxRegistry = {
-    new TokenBoxRegistry (s1, s2)
+  def apply(s1: LSMStore, s2: LSMStore): TokenBoxRegistry = {
+    new TokenBoxRegistry(s1, s2)
   }
 
   def readOrGenerate(settings: AppSettings, stateStore: LSMStore): Option[TokenBoxRegistry] = {

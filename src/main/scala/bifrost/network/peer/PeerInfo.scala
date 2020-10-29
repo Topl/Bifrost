@@ -5,21 +5,17 @@ import java.net.InetSocketAddress
 import bifrost.network.ConnectionDirection
 import bifrost.settings.Version
 
-/**
-  * Information about peer to be stored in PeerDatabase
+/** Information about peer to be stored in PeerDatabase
   *
   * @param peerSpec       - general information about the peer
   * @param lastSeen       - timestamp when this peer was last seen in the network
   * @param connectionType - type of connection (Incoming/Outgoing) established to this peer if any
   */
-case class PeerInfo(peerSpec: PeerSpec,
-                    lastSeen: Long,
-                    connectionType: Option[ConnectionDirection] = None)
+case class PeerInfo(peerSpec: PeerSpec, lastSeen: Long, connectionType: Option[ConnectionDirection] = None)
 
 object PeerInfo {
 
-  /**
-    * Create peer info from address only, when we don't know other fields
+  /** Create peer info from address only, when we don't know other fields
     * (e.g. we got this information from config or from API)
     */
   def fromAddress(address: InetSocketAddress): PeerInfo = {

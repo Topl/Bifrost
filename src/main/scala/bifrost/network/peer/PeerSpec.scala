@@ -4,8 +4,7 @@ import java.net.InetSocketAddress
 
 import bifrost.settings.Version
 
-/**
-  * Declared information about peer
+/** Declared information about peer
   *
   * @param agentName       - Network agent name. May contain information about client code
   *                        stack, starting from core code-base up to the end graphical interface.

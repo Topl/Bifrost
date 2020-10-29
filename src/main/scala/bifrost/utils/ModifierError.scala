@@ -17,7 +17,8 @@ trait ModifierError {
   */
 @SuppressWarnings(Array("org.wartremover.warts.Null"))
 class MalformedModifierError(val message: String, cause: Option[Throwable] = None)
-  extends Exception(message, cause.orNull) with ModifierError {
+    extends Exception(message, cause.orNull)
+    with ModifierError {
   def isFatal: Boolean = true
   def toThrowable: Throwable = this
 }
@@ -26,17 +27,17 @@ class MalformedModifierError(val message: String, cause: Option[Throwable] = Non
   */
 @SuppressWarnings(Array("org.wartremover.warts.Null"))
 class RecoverableModifierError(val message: String, cause: Option[Throwable] = None)
-  extends Exception(message, cause.orNull) with ModifierError {
+    extends Exception(message, cause.orNull)
+    with ModifierError {
   def isFatal: Boolean = false
   def toThrowable: Throwable = this
 }
-
 
 /** Composite error class that can hold more than one modifier error inside. This was not made a `ModifierError` instance
   * intentionally to prevent nesting `MultipleErrors` to `MultipleErrors`
   */
 @SuppressWarnings(Array("org.wartremover.warts.Null"))
 case class MultipleErrors(errors: Seq[ModifierError])
-  extends Exception(errors.mkString(" | "), errors.headOption.map(_.toThrowable).orNull) {
+    extends Exception(errors.mkString(" | "), errors.headOption.map(_.toThrowable).orNull) {
   def isFatal: Boolean = errors.exists(_.isFatal)
 }

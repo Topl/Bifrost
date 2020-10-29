@@ -1,7 +1,6 @@
 package bifrost.transaction
 
-/**
-  * Created by cykoz on 5/11/2017.
+/** Created by cykoz on 5/11/2017.
   */
 
 import java.util.UUID
@@ -18,117 +17,112 @@ import io.circe.syntax._
 import org.scalacheck.Gen
 
 import scala.collection.immutable.Seq
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 
-class ProgramTransactionSpec extends AnyPropSpec
-  with ScalaCheckPropertyChecks
-  with ScalaCheckDrivenPropertyChecks
-  with Matchers
-  with BifrostGenerators
-  with ValidGenerators {
+class ProgramTransactionSpec
+    extends AnyPropSpec
+    with ScalaCheckPropertyChecks
+    with ScalaCheckDrivenPropertyChecks
+    with Matchers
+    with BifrostGenerators
+    with ValidGenerators {
 
   //noinspection ScalaStyle
-  def potentiallyInvalidProgramCreationGen(minFee: Long,
-                                            maxFee: Long,
-                                            minFeeSum: Long,
-                                            maxFeeSum: Long): Gen[ProgramCreation] = for {
-    executionBuilder <- validExecutionBuilderGen()
-    timestamp <- positiveLongGen
-    numInvestmentBoxes <- positiveTinyIntGen
-    data <- stringGen
-  } yield {
-    /* 2*maxFee > 0 checks if 3*maxFee would overflow twice or not, same for minFee (underflow) */
-    if ((minFeeSum > 3 * maxFee && 2 * maxFee > 0)
-      || (maxFeeSum < 3 * minFee && 2 * minFee < 0)
-      || minFeeSum > maxFeeSum
-      || maxFee < minFee) {
-      throw new Exception("Fee bounds are irreconciliable")
-    }
-
-    val keyPair = keyPairSetGen.sample.get.head
-    val sender = keyPair._2
-
-    val preInvestmentBoxes: IndexedSeq[(Nonce, Long)] = (0 until numInvestmentBoxes).map { _ =>
-      positiveLongGen.sample.get -> (positiveLongGen.sample.get / 1e5.toLong + 1L)
-    }
-
-    val investmentBoxIds: IndexedSeq[Array[Byte]] = preInvestmentBoxes
-      .map(n => PublicKeyNoncedBox.idFromBox(sender, n._1))
-
-    val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = {
-      Map(sender -> IndexedSeq(preFeeBoxGen(minFee, maxFee).sample.get))
-    }
-
-    val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq
-      .flatMap {
-        case (prop, v) =>
-          v.map {
-            case (nonce, _) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
-          }
+  def potentiallyInvalidProgramCreationGen(minFee: Long, maxFee: Long, minFeeSum: Long, maxFeeSum: Long): Gen[ProgramCreation] =
+    for {
+      executionBuilder   <- validExecutionBuilderGen()
+      timestamp          <- positiveLongGen
+      numInvestmentBoxes <- positiveTinyIntGen
+      data               <- stringGen
+    } yield {
+      /* 2*maxFee > 0 checks if 3*maxFee would overflow twice or not, same for minFee (underflow) */
+      if (
+        (minFeeSum > 3 * maxFee && 2 * maxFee > 0)
+        || (maxFeeSum < 3 * minFee && 2 * minFee < 0)
+        || minFeeSum > maxFeeSum
+        || maxFee < minFee
+      ) {
+        throw new Exception("Fee bounds are irreconciliable")
       }
 
-    val fees = feePreBoxes.map { case (prop, preBoxes) =>
-      val available = preBoxes.map(_._2).sum
-      prop -> available
-    }
+      val keyPair = keyPairSetGen.sample.get.head
+      val sender = keyPair._2
 
-    val messageToSign = Bytes.concat(
-      ExecutionBuilderSerializer.toBytes(executionBuilder),
-      //roles.zip(parties).sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes),
-      keyPair._2.pubKeyBytes,
-      (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _),
-      data.getBytes)
+      val preInvestmentBoxes: IndexedSeq[(Nonce, Long)] = (0 until numInvestmentBoxes).map { _ =>
+        positiveLongGen.sample.get -> (positiveLongGen.sample.get / 1e5.toLong + 1L)
+      }
 
-    val signatures = Map(sender -> PrivateKey25519Companion.sign(keyPair._1, messageToSign))
+      val investmentBoxIds: IndexedSeq[Array[Byte]] = preInvestmentBoxes
+        .map(n => PublicKeyNoncedBox.idFromBox(sender, n._1))
 
+      val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = {
+        Map(sender -> IndexedSeq(preFeeBoxGen(minFee, maxFee).sample.get))
+      }
 
-    val stateTwo =
-      s"""
+      val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq
+        .flatMap { case (prop, v) =>
+          v.map { case (nonce, _) =>
+            (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
+          }
+        }
+
+      val fees = feePreBoxes.map { case (prop, preBoxes) =>
+        val available = preBoxes.map(_._2).sum
+        prop -> available
+      }
+
+      val messageToSign = Bytes.concat(
+        ExecutionBuilderSerializer.toBytes(executionBuilder),
+        //roles.zip(parties).sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes),
+        keyPair._2.pubKeyBytes,
+        (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _),
+        data.getBytes
+      )
+
+      val signatures = Map(sender -> PrivateKey25519Companion.sign(keyPair._1, messageToSign))
+
+      val stateTwo =
+        s"""
          |{ "b": 0 }
          """.stripMargin.asJson
 
-    val stateThree =
-      s"""
+      val stateThree =
+        s"""
          |{ "c": 0 }
          """.stripMargin.asJson
 
-    val stateBoxTwo = StateBox(sender, 1L, null, stateTwo)
-    val stateBoxThree = StateBox(sender, 2L, null, stateThree)
+      val stateBoxTwo = StateBox(sender, 1L, null, stateTwo)
+      val stateBoxThree = StateBox(sender, 2L, null, stateThree)
 
-    val readOnlyUUIDs = Seq(UUID.nameUUIDFromBytes(stateBoxTwo.id), UUID.nameUUIDFromBytes(stateBoxThree.id))
+      val readOnlyUUIDs = Seq(UUID.nameUUIDFromBytes(stateBoxTwo.id), UUID.nameUUIDFromBytes(stateBoxThree.id))
 
-    ProgramCreation(
-      executionBuilder,
-      readOnlyUUIDs,
-      preInvestmentBoxes,
-      sender,
-      signatures,
-      feePreBoxes,
-      fees,
-      timestamp,
-      data)
-  }
+      ProgramCreation(executionBuilder, readOnlyUUIDs, preInvestmentBoxes, sender, signatures, feePreBoxes, fees, timestamp, data)
+    }
 
   //noinspection ScalaStyle
-  def potentiallyInvalidProgramMethodExecutionGen(minFee: Long,
-                                                   maxFee: Long,
-                                                   minFeeSum: Long,
-                                                   maxFeeSum: Long): Gen[ProgramMethodExecution] = for {
-    methodName <- Gen.oneOf(validProgramMethods)
-    parameters <- jsonGen()
-    timestamp <- positiveLongGen.map(_ / 3)
+  def potentiallyInvalidProgramMethodExecutionGen(
+    minFee: Long,
+    maxFee: Long,
+    minFeeSum: Long,
+    maxFeeSum: Long
+  ): Gen[ProgramMethodExecution] = for {
+    methodName        <- Gen.oneOf(validProgramMethods)
+    parameters        <- jsonGen()
+    timestamp         <- positiveLongGen.map(_ / 3)
     deliveredQuantity <- positiveLongGen
-    effDelta <- positiveLongGen.map(_ / 3)
-    expDelta <- positiveLongGen.map(_ / 3)
-    data <- stringGen
+    effDelta          <- positiveLongGen.map(_ / 3)
+    expDelta          <- positiveLongGen.map(_ / 3)
+    data              <- stringGen
   } yield {
     /* 2*maxFee > 0 checks if 3*maxFee would overflow twice or not, same for minFee (underflow) */
-    if ((minFeeSum > 3 * maxFee && 2 * maxFee > 0)
+    if (
+      (minFeeSum > 3 * maxFee && 2 * maxFee > 0)
       || (maxFeeSum < 3 * minFee && 2 * minFee < 0)
       || minFeeSum > maxFeeSum
-      || maxFee < minFee) {
+      || maxFee < minFee
+    ) {
       throw new Exception("Fee bounds are irreconciliable")
     }
 
@@ -141,43 +135,52 @@ class ProgramTransactionSpec extends AnyPropSpec
 
     val stateBox = StateBox(sender, 0L, UUID.nameUUIDFromBytes(StateBox.idFromBox(sender, 0L)), state)
 
-    val codeBox = CodeBox(sender, 1L, UUID.nameUUIDFromBytes(CodeBox.idFromBox(sender, 1L)), Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number, Number")))
+    val codeBox = CodeBox(
+      sender,
+      1L,
+      UUID.nameUUIDFromBytes(CodeBox.idFromBox(sender, 1L)),
+      Seq("add = function() { a = 2 + 2 }"),
+      Map("add" -> Seq("Number, Number"))
+    )
 
     val stateBoxUUID: UUID = UUID.nameUUIDFromBytes(stateBox.id)
 
     val proposition = sender
 
-    val executionBox = ExecutionBox(proposition, 2L, UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(proposition, 2L)), Seq(stateBoxUUID), Seq(codeBox.id))
+    val executionBox = ExecutionBox(
+      proposition,
+      2L,
+      UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(proposition, 2L)),
+      Seq(stateBoxUUID),
+      Seq(codeBox.id)
+    )
 
     val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] =
       Map(sender -> IndexedSeq(preFeeBoxGen(minFee, maxFee).sample.get))
 
-    val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes
-      .toIndexedSeq
+    val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq
       .flatMap { case (prop, v) =>
-        v.map {
-          case (nonce, value) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
+        v.map { case (nonce, value) =>
+          (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
         }
       }
 
-    val fees = feePreBoxes.map {
-      case (prop, preBoxes) =>
-        val available = preBoxes.map(_._2).sum
-        prop -> available
+    val fees = feePreBoxes.map { case (prop, preBoxes) =>
+      val available = preBoxes.map(_._2).sum
+      prop -> available
     }
 
     val hashNoNonces = FastCryptographicHash(
       executionBox.id
-        ++ methodName.getBytes
-        ++ sender.pubKeyBytes
-        ++ parameters.noSpaces.getBytes
-        ++ (executionBox.id ++ feeBoxIdKeyPairs.flatMap(_._1))
-        ++ Longs.toByteArray(timestamp)
-        ++ fees.flatMap { case (prop, feeValue) => prop.pubKeyBytes ++ Longs.toByteArray(feeValue) })
+      ++ methodName.getBytes
+      ++ sender.pubKeyBytes
+      ++ parameters.noSpaces.getBytes
+      ++ (executionBox.id ++ feeBoxIdKeyPairs.flatMap(_._1))
+      ++ Longs.toByteArray(timestamp)
+      ++ fees.flatMap { case (prop, feeValue) => prop.pubKeyBytes ++ Longs.toByteArray(feeValue) }
+    )
 
-    val messageToSign = Bytes.concat(
-      FastCryptographicHash(executionBox.bytes ++ hashNoNonces),
-        data.getBytes)
+    val messageToSign = Bytes.concat(FastCryptographicHash(executionBox.bytes ++ hashNoNonces), data.getBytes)
     val signature = PrivateKey25519Companion.sign(priv, messageToSign)
 
     ProgramMethodExecution(
@@ -195,14 +198,16 @@ class ProgramTransactionSpec extends AnyPropSpec
     )
   }
 
-  def potentiallyInvalidProgramTransactionGen(minFee: Long = 0,
-                                               maxFee: Long = Long.MaxValue,
-                                               minFeeSum: Long = 0,
-                                               maxFeeSum: Long = Long.MaxValue): Gen[ProgramTransaction] = for {
+  def potentiallyInvalidProgramTransactionGen(
+    minFee: Long = 0,
+    maxFee: Long = Long.MaxValue,
+    minFeeSum: Long = 0,
+    maxFeeSum: Long = Long.MaxValue
+  ): Gen[ProgramTransaction] = for {
     txType <- Gen.oneOf(ProgramCreation, ProgramMethodExecution)
   } yield {
     val typeGen: Gen[ProgramTransaction] = txType match {
-      case ProgramCreation => potentiallyInvalidProgramCreationGen(minFee, maxFee, minFeeSum, maxFeeSum)
+      case ProgramCreation        => potentiallyInvalidProgramCreationGen(minFee, maxFee, minFeeSum, maxFeeSum)
       case ProgramMethodExecution => potentiallyInvalidProgramMethodExecutionGen(minFee, maxFee, minFeeSum, maxFeeSum)
     }
 
@@ -259,7 +264,6 @@ class ProgramTransactionSpec extends AnyPropSpec
     }
   }*/
 
-
   /* property(
     "ProgramTransaction which has preFeeBoxes summing to less than fee amounts " +
       "will error on semantic validation") {
@@ -270,6 +274,5 @@ class ProgramTransactionSpec extends AnyPropSpec
              "will error on semantic validation") {
 
   } */
-
 
 }

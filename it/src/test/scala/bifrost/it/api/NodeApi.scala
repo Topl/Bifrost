@@ -28,12 +28,14 @@ trait NodeApi {
 
   protected val timer: Timer = new HashedWheelTimer()
 
-  def post(path: String, data: String ,f: RequestBuilder ⇒ RequestBuilder = identity): Future[Response] =
+  def post(path: String, data: String, f: RequestBuilder ⇒ RequestBuilder = identity): Future[Response] =
     retrying(
-      f(_post(s"http://$restAddress:$nodeRpcPort$path")
-        .setHeader("Content-Type", "application/json")
-        .setBody(data)
-      ).build())
+      f(
+        _post(s"http://$restAddress:$nodeRpcPort$path")
+          .setHeader("Content-Type", "application/json")
+          .setBody(data)
+      ).build()
+    )
 
   def rpcFormat(method: String, params: String = "[{}]"): String =
     s"""
@@ -49,28 +51,36 @@ trait NodeApi {
     post("/debug", data).map(_ ⇒ this)
   }
 
-
-  def retrying(request: Request,
-               interval: FiniteDuration = 1.second,
-               statusCode: Int = HttpConstants.ResponseStatusCodes.OK_200): Future[Response] = {
+  def retrying(
+    request: Request,
+    interval: FiniteDuration = 1.second,
+    statusCode: Int = HttpConstants.ResponseStatusCodes.OK_200
+  ): Future[Response] = {
     def executeRequest: Future[Response] = {
       log.trace(s"Executing request '$request'")
-      client.executeRequest(request, new AsyncCompletionHandler[Response] {
-        override def onCompleted(response: Response): Response = {
-          if (response.getStatusCode == statusCode) {
-            log.debug(s"Request: ${request.getUrl} \n Response: ${response.getResponseBody}")
-            response
-          } else {
-            log.debug(s"Request:  ${request.getUrl} \n Unexpected status code(${response.getStatusCode}): " +
-              s"${response.getResponseBody}")
-            throw NodeApi.UnexpectedStatusCodeException(request, response)
+      client
+        .executeRequest(
+          request,
+          new AsyncCompletionHandler[Response] {
+            override def onCompleted(response: Response): Response = {
+              if (response.getStatusCode == statusCode) {
+                log.debug(s"Request: ${request.getUrl} \n Response: ${response.getResponseBody}")
+                response
+              } else {
+                log.debug(
+                  s"Request:  ${request.getUrl} \n Unexpected status code(${response.getStatusCode}): " +
+                  s"${response.getResponseBody}"
+                )
+                throw NodeApi.UnexpectedStatusCodeException(request, response)
+              }
+            }
           }
-        }
-      }).toCompletableFuture.toScala
-        .recoverWith {
-          case e@(_: IOException | _: TimeoutException) =>
-            log.debug(s"Failed to execute request '$request' with error: ${e.getMessage}")
-            timer.schedule(executeRequest, interval)
+        )
+        .toCompletableFuture
+        .toScala
+        .recoverWith { case e @ (_: IOException | _: TimeoutException) =>
+          log.debug(s"Failed to execute request '$request' with error: ${e.getMessage}")
+          timer.schedule(executeRequest, interval)
         }
     }
 
@@ -81,6 +91,8 @@ trait NodeApi {
 object NodeApi {
 
   case class UnexpectedStatusCodeException(request: Request, response: Response)
-    extends Exception(s"Request: ${request.getUrl}\n Unexpected status code (${response.getStatusCode}): " +
-      s"${response.getResponseBody}")
+      extends Exception(
+        s"Request: ${request.getUrl}\n Unexpected status code (${response.getStatusCode}): " +
+        s"${response.getResponseBody}"
+      )
 }

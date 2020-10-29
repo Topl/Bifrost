@@ -4,8 +4,7 @@ import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
 import bifrost.modifier.{ContainsModifiers, ModifierId}
 import bifrost.nodeView.NodeViewComponent
 
-/**
-  * Unconfirmed transactions pool
+/** Unconfirmed transactions pool
   *
   * @tparam TX -type of transaction the pool contains
   */

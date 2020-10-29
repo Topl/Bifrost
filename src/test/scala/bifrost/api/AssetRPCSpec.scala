@@ -35,24 +35,20 @@ import scala.util.Try
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-/**
-  * Created by cykoz on 7/3/2017.
+/** Created by cykoz on 7/3/2017.
   */
-class AssetRPCSpec extends AnyWordSpec
-  with Matchers
-  with ScalatestRouteTest
-  with BifrostGenerators {
+class AssetRPCSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with BifrostGenerators {
 
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
   // save environment into a variable for reference throughout the application
   protected val bifrostContext = new BifrostContext(settings, None)
 
   // Create Bifrost singleton actors
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext)
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
   // setup route for testing
   val route: Route = AssetApiRoute(settings, nodeViewHolderRef).route
@@ -80,12 +76,13 @@ class AssetRPCSpec extends AnyWordSpec
 
   private def view() = Await.result(
     (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
-    10.seconds)
+    10.seconds
+  )
 
   val publicKeys = Map(
     "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
     "producer" -> "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb",
-    "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
+    "hub"      -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
   )
   // Unlock Secrets
   val gw: Wallet = view().vault
@@ -98,8 +95,7 @@ class AssetRPCSpec extends AnyWordSpec
 
   "Asset RPC" should {
     "Create some assets" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -125,7 +121,8 @@ class AssetRPCSpec extends AnyWordSpec
         asset = Option(txInstance.newBoxes.head.asInstanceOf[AssetBox])
 
         val history = view().history
-        val tempBlock = Block(history.bestBlockId,
+        val tempBlock = Block(
+          history.bestBlockId,
           System.currentTimeMillis(),
           ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
           Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
@@ -139,8 +136,7 @@ class AssetRPCSpec extends AnyWordSpec
     }
 
     "Create assets prototype" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "2",
@@ -165,8 +161,7 @@ class AssetRPCSpec extends AnyWordSpec
     }
 
     "Sign createAssets Prototype transaction" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |  "jsonrpc": "2.0",
            |  "id": "3",
@@ -187,14 +182,12 @@ class AssetRPCSpec extends AnyWordSpec
     }
 
     "Broadcast createAssetsPrototype transaction" in {
-      val secret = view().vault.secretByPublicImage(
-        PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get)).get
+      val secret = view().vault.secretByPublicImage(PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get)).get
       val tempTx = tx.as[AssetCreation].right.get
       val sig = PrivateKey25519Companion.sign(secret, tempTx.messageToSign)
       val signedTx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get) -> sig))
 
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |  "jsonrpc": "2.0",
            |  "id": "1",
@@ -213,8 +206,7 @@ class AssetRPCSpec extends AnyWordSpec
     }
 
     "Transfer target asset prototype" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -240,14 +232,12 @@ class AssetRPCSpec extends AnyWordSpec
 
     "Broadcast transferTargetAssetsPrototype" in {
       val prop = (tx \\ "from").head.asArray.get.head.asArray.get.head.asString.get
-      val secret = view().vault.secretByPublicImage(
-        PublicKey25519Proposition(Base58.decode(prop).get)).get
+      val secret = view().vault.secretByPublicImage(PublicKey25519Proposition(Base58.decode(prop).get)).get
       val tempTx = tx.as[AssetTransfer].right.get
       val sig = PrivateKey25519Companion.sign(secret, tempTx.messageToSign)
       val signedTx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get) -> sig))
 
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |  "jsonrpc": "2.0",
            |  "id": "1",
@@ -266,8 +256,7 @@ class AssetRPCSpec extends AnyWordSpec
     }
 
     "Transfer a target asset" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -291,8 +280,7 @@ class AssetRPCSpec extends AnyWordSpec
     }
 
     "Transfer some assets" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -323,8 +311,7 @@ class AssetRPCSpec extends AnyWordSpec
     }
 
     "Create transfer assets prototype" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",

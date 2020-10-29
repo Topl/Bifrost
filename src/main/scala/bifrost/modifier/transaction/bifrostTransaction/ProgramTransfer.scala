@@ -18,13 +18,15 @@ import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
-case class ProgramTransfer(from: PublicKey25519Proposition,
-                           to: PublicKey25519Proposition,
-                           signature: Signature25519,
-                           executionBox: ExecutionBox,
-                           fee: Long,
-                           timestamp: Long,
-                           data: String) extends Transaction {
+case class ProgramTransfer(
+  from: PublicKey25519Proposition,
+  to: PublicKey25519Proposition,
+  signature: Signature25519,
+  executionBox: ExecutionBox,
+  fee: Long,
+  timestamp: Long,
+  data: String
+) extends Transaction {
 
   override type M = ProgramTransfer
 
@@ -34,8 +36,8 @@ case class ProgramTransfer(from: PublicKey25519Proposition,
 
   lazy val hashNoNonces: Array[Byte] = FastCryptographicHash(
     to.pubKeyBytes
-      ++ Longs.toByteArray(fee)
-      ++ data.getBytes
+    ++ Longs.toByteArray(fee)
+    ++ data.getBytes
   )
 
   override lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(executionBox.id)
@@ -43,10 +45,12 @@ case class ProgramTransfer(from: PublicKey25519Proposition,
   override lazy val newBoxes: Traversable[Box] = {
 
     val nonce = ProgramTransfer.nonceFromDigest(
-      FastCryptographicHash("ProgramTransfer".getBytes
+      FastCryptographicHash(
+        "ProgramTransfer".getBytes
         ++ to.pubKeyBytes
         ++ hashNoNonces
-      ))
+      )
+    )
 
     val uuid = UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(to, nonce))
 
@@ -55,22 +59,22 @@ case class ProgramTransfer(from: PublicKey25519Proposition,
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     "ProgramTransfer".getBytes
-      ++ to.pubKeyBytes
-      ++ newBoxes.head.bytes
-      ++ Longs.toByteArray(fee)
+    ++ to.pubKeyBytes
+    ++ newBoxes.head.bytes
+    ++ Longs.toByteArray(fee)
   )
 
   override lazy val json: Json = Map(
-    "txHash" -> id.toString.asJson,
-    "txType" -> "ProgramTransfer".asJson,
-    "newBoxes" -> Base58.encode(newBoxes.head.id).asJson,
+    "txHash"        -> id.toString.asJson,
+    "txType"        -> "ProgramTransfer".asJson,
+    "newBoxes"      -> Base58.encode(newBoxes.head.id).asJson,
     "boxesToRemove" -> Base58.encode(boxIdsToOpen.head).asJson,
-    "from" -> Base58.encode(from.pubKeyBytes).asJson,
-    "to" -> Base58.encode(to.pubKeyBytes).asJson,
-    "signature" -> Base58.encode(signature.signature).asJson,
-    "fee" -> fee.asJson,
-    "timestamp" -> timestamp.asJson,
-    "data" -> data.asJson
+    "from"          -> Base58.encode(from.pubKeyBytes).asJson,
+    "to"            -> Base58.encode(to.pubKeyBytes).asJson,
+    "signature"     -> Base58.encode(signature.signature).asJson,
+    "fee"           -> fee.asJson,
+    "timestamp"     -> timestamp.asJson,
+    "data"          -> data.asJson
   ).asJson
 }
 
@@ -78,12 +82,14 @@ object ProgramTransfer {
 
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(8))
 
-  def createAndApply(w: Wallet,
-                     from: PublicKey25519Proposition,
-                     to: PublicKey25519Proposition,
-                     executionBox: ExecutionBox,
-                     fee: Long,
-                     data: String): Try[ProgramTransfer] = Try {
+  def createAndApply(
+    w: Wallet,
+    from: PublicKey25519Proposition,
+    to: PublicKey25519Proposition,
+    executionBox: ExecutionBox,
+    fee: Long,
+    data: String
+  ): Try[ProgramTransfer] = Try {
 
     val selectedSecret = w.secretByPublicImage(from).get
     val fakeSig = Signature25519(Array())

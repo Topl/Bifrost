@@ -9,6 +9,7 @@ trait SendingStrategy {
 }
 
 object SendToRandom extends SendingStrategy {
+
   override def choose(peers: Seq[ConnectedPeer]): Seq[ConnectedPeer] = {
     if (peers.nonEmpty) {
       Seq(peers(Random.nextInt(peers.length)))
@@ -23,6 +24,7 @@ case object Broadcast extends SendingStrategy {
 }
 
 case class BroadcastExceptOf(exceptOf: Seq[ConnectedPeer]) extends SendingStrategy {
+
   override def choose(peers: Seq[ConnectedPeer]): Seq[ConnectedPeer] =
     peers.filterNot(exceptOf.contains)
 }
@@ -36,6 +38,7 @@ case class SendToPeers(chosenPeers: Seq[ConnectedPeer]) extends SendingStrategy 
 }
 
 case class SendToRandomFromChosen(chosenPeers: Seq[ConnectedPeer]) extends SendingStrategy {
+
   override def choose(peers: Seq[ConnectedPeer]): Seq[ConnectedPeer] =
     Seq(chosenPeers(Random.nextInt(chosenPeers.length)))
 }

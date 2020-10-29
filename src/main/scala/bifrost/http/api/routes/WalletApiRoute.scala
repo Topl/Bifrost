@@ -22,8 +22,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
-case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef: ActorRef)
-                         (implicit val context: ActorRefFactory)extends ApiRouteWithView {
+case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef: ActorRef)(implicit val context: ActorRefFactory)
+    extends ApiRouteWithView {
   type HIS = History
   type MS = State
   type VL = Wallet
@@ -32,30 +32,30 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
 
   def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
     method match {
-      case "transferPolys"  => transferPolys(params.head, id)
-      case "transferArbits" => transferArbits(params.head, id)
+      case "transferPolys"           => transferPolys(params.head, id)
+      case "transferArbits"          => transferArbits(params.head, id)
       case "transferArbitsPrototype" => transferArbitsPrototype(params.head, id)
-      case "transferPolysPrototype" => transferPolysPrototype(params.head, id)
-      case "balances"         => balances(params.head, id)
-      case "unlockKeyfile"    => unlockKeyfile(params.head, id)
-      case "lockKeyfile"      => lockKeyfile(params.head, id)
-      case "generateKeyfile"  => generateKeyfile(params.head, id)
-      case "listOpenKeyfiles" => listOpenKeyfiles(params.head, id)
-      case "importSeedPhrase" => importKeyfile(params.head, id)
-      case "signTx"           => signTx(params.head, id)
-      case "broadcastTx"      => broadcastTx(params.head, id)
+      case "transferPolysPrototype"  => transferPolysPrototype(params.head, id)
+      case "balances"                => balances(params.head, id)
+      case "unlockKeyfile"           => unlockKeyfile(params.head, id)
+      case "lockKeyfile"             => lockKeyfile(params.head, id)
+      case "generateKeyfile"         => generateKeyfile(params.head, id)
+      case "listOpenKeyfiles"        => listOpenKeyfiles(params.head, id)
+      case "importSeedPhrase"        => importKeyfile(params.head, id)
+      case "signTx"                  => signTx(params.head, id)
+      case "broadcastTx"             => broadcastTx(params.head, id)
     }
 
   /**  #### Summary
     *    Transfer Polys from an account to a specified recipient.
-    * 
+    *
     *  #### Type
     *    Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
-    * 
+    *
     *  #### Description
     *    Default behavior of the wallet is to find the first unlocked address which hold Polys.
     *    The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
-    * 
+    *
     *  #### Notes
     *    - Change is returned to the first sender in the array of senders
     *  ---
@@ -81,9 +81,7 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
       )
       val sender: IndexedSeq[PublicKey25519Proposition] =
         (params \\ "sender").head.asArray.get
-          .map(key =>
-            PublicKey25519Proposition(Base58.decode(key.asString.get).get)
-          )
+          .map(key => PublicKey25519Proposition(Base58.decode(key.asString.get).get))
       val fee: Long =
         (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       // Optional API parameters
@@ -125,14 +123,14 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
 
   /**  #### Summary
     *    Transfer Polys from an account to a specified recipient.
-    * 
+    *
     *  #### Type
     *    Remote -- Transaction must be used in conjunction with an external key manager service.
-    * 
+    *
     *  #### Description
     *    Default behavior of the wallet is to find the first unlocked address which hold Polys.
     *    The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
-    * 
+    *
     *  #### Notes
     *    - Change is returned to the first sender in the array of senders
     *  ---
@@ -157,9 +155,7 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
       )
       val sender: IndexedSeq[PublicKey25519Proposition] =
         (params \\ "sender").head.asArray.get
-          .map(key =>
-            PublicKey25519Proposition(Base58.decode(key.asString.get).get)
-          )
+          .map(key => PublicKey25519Proposition(Base58.decode(key.asString.get).get))
       val fee: Long =
         (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       // Optional API parameters
@@ -198,14 +194,14 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
 
   /**  #### Summary
     *    Transfer Arbits from an account to a specified recipient.
-    * 
+    *
     *  #### Type
     *    Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
-    * 
+    *
     *  #### Description
     *    Default behavior of the wallet is to find the first unlocked address which hold Arbits.
     *    The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
-    * 
+    *
     *  #### Notes
     *    - Change is returned to the first sender in the array of senders
     *  ---
@@ -231,9 +227,7 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
       )
       val sender: IndexedSeq[PublicKey25519Proposition] =
         (params \\ "sender").head.asArray.get
-          .map(key =>
-            PublicKey25519Proposition(Base58.decode(key.asString.get).get)
-          )
+          .map(key => PublicKey25519Proposition(Base58.decode(key.asString.get).get))
       val fee: Long =
         (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       // Optional API parameters
@@ -273,14 +267,14 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
 
   /**  #### Summary
     *    Transfer Polys from an account to a specified recipient.
-    * 
+    *
     *  #### Type
     *    Remote -- Transaction must be used in conjunction with an external key manager service.
-    * 
+    *
     *  #### Description
     *    Default behavior of the wallet is to find the first unlocked address which hold Arbits.
     *    The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
-    * 
+    *
     *  #### Notes
     *    - Change is returned to the first sender in the array of senders
     *  ---
@@ -298,8 +292,8 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
     * @return
     */
   private def transferArbitsPrototype(
-      params: Json,
-      id: String
+    params: Json,
+    id: String
   ): Future[Json] = {
     viewAsync().map { view =>
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
@@ -308,9 +302,7 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
       )
       val sender: IndexedSeq[PublicKey25519Proposition] =
         (params \\ "sender").head.asArray.get
-          .map(key =>
-            PublicKey25519Proposition(Base58.decode(key.asString.get).get)
-          )
+          .map(key => PublicKey25519Proposition(Base58.decode(key.asString.get).get))
       val fee: Long =
         (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       // Optional API parameters
@@ -349,13 +341,13 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
 
   /**  #### Summary
     *    Lookup balances
-    * 
+    *
     *  #### Type
     *    Remote -- Transaction must be used in conjunction with an external key manager service.
-    * 
+    *
     *  #### Description
     *    Check balances of specified keys.
-    * 
+    *
     *  #### Notes
     *    - Requires the Token Box Registry to be active
     *  ---
@@ -363,7 +355,7 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
     *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
     *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
     *  | publicKey              	| String[]   	| Required            	| Public key whose balances are to be retrieved                            	|
-    * 
+    *
     * @param params input parameters as specified above
     * @param id request identifier
     * @return
@@ -371,40 +363,37 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
   private def balances(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val tbr = view.state.tbr
-      val publicKeys = (params \\ "publicKeys").head.asArray.get.map(k =>
-        PublicKey25519Proposition(Base58.decode(k.asString.get).get)
-      )
+      val publicKeys =
+        (params \\ "publicKeys").head.asArray.get.map(k => PublicKey25519Proposition(Base58.decode(k.asString.get).get))
       val boxes: Map[PublicKey25519Proposition, Map[String, Seq[Box]]] =
         publicKeys
           .map(k => k -> tbr.boxesByKey(k).groupBy[String](_.typeOfBox))
           .toMap
       val balances: Map[PublicKey25519Proposition, (String, String)] =
-        boxes.map {
-          case (prop, boxes) =>
-            val sums = (
-              if (boxes.contains("Poly"))
-                boxes("Poly")
-                  .foldLeft(0L)((a, b) => a + b.value.asInstanceOf[Long])
-                  .toString
-              else "0",
-              if (boxes.contains("Arbit"))
-                boxes("Arbit")
-                  .foldLeft(0L)((a, b) => a + b.value.asInstanceOf[Long])
-                  .toString
-              else "0"
-            )
-            prop -> sums
+        boxes.map { case (prop, boxes) =>
+          val sums = (
+            if (boxes.contains("Poly"))
+              boxes("Poly")
+                .foldLeft(0L)((a, b) => a + b.value.asInstanceOf[Long])
+                .toString
+            else "0",
+            if (boxes.contains("Arbit"))
+              boxes("Arbit")
+                .foldLeft(0L)((a, b) => a + b.value.asInstanceOf[Long])
+                .toString
+            else "0"
+          )
+          prop -> sums
         }
 
-      boxes.map {
-        case (prop, boxes) =>
-          Base58.encode(prop.pubKeyBytes) -> Map(
-            "Balances" -> Map(
-              "Polys" -> balances(prop)._1,
-              "Arbits" -> balances(prop)._2
-            ).asJson,
-            "Boxes" -> boxes.map(b => b._1 -> b._2.map(_.json).asJson).asJson
-          )
+      boxes.map { case (prop, boxes) =>
+        Base58.encode(prop.pubKeyBytes) -> Map(
+          "Balances" -> Map(
+            "Polys"  -> balances(prop)._1,
+            "Arbits" -> balances(prop)._2
+          ).asJson,
+          "Boxes" -> boxes.map(b => b._1 -> b._2.map(_.json).asJson).asJson
+        )
       }.asJson
 
     }
@@ -412,10 +401,10 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
 
   /**  #### Summary
     *    Generate a new keyfile in local storage
-    * 
+    *
     *  #### Type
     *    Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
-    * 
+    *
     *  #### Description
     *    Generate and save a new encrypted private keyfile using Curve25519 key pairs.
     *  ---
@@ -441,10 +430,10 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
 
   /**  #### Summary
     *    Import key from mnemonic
-    * 
+    *
     *  #### Type
     *    Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
-    * 
+    *
     *  #### Description
     *    Allows a user to import a 12, 15, 18, 21, or 24 word mnemonic (seed phrase) and generate an encrypted Keyfile
     *  ---
@@ -484,10 +473,10 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
 
   /**  #### Summary
     *    Unlock keyfile
-    * 
+    *
     *  #### Type
     *    Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
-    * 
+    *
     *  #### Description
     *    Unlock an encrypted keyfile which exists in your keyfile directory. This will add the secret key to wallet and allow signing of transactions on behalf of that key
     *  ---
@@ -515,10 +504,10 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
 
   /**  #### Summary
     *    Lock keyfile
-    * 
+    *
     *  #### Type
     *    Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
-    * 
+    *
     *  #### Description
     *    Lock a previously unlocked keyfile in your wallet.
     *  ---
@@ -546,10 +535,10 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
 
   /**  #### Summary
     *    Return list of open keyfiles
-    * 
+    *
     *  #### Type
     *    Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
-    * 
+    *
     *  #### Description
     *    Check which keyfiles are currently unlocked in your wallet. This method takes no input arguments.
     *  ---
@@ -576,13 +565,13 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
 
   /**  #### Summary
     *    Sign a prototype transaction
-    * 
+    *
     *  #### Type
     *    Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
-    * 
+    *
     *  #### Description
     *    Generate and return a signature attached to the specified transaction
-    * 
+    *
     *  #### Notes
     *    - Currently only enabled for `AssetCreation` and `AssetTransfer` transactions
     *  ---
@@ -599,9 +588,8 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
   private def signTx(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
-      val props = (params \\ "signingKeys").head.asArray.get.map(k =>
-        PublicKey25519Proposition(Base58.decode(k.asString.get).get)
-      )
+      val props =
+        (params \\ "signingKeys").head.asArray.get.map(k => PublicKey25519Proposition(Base58.decode(k.asString.get).get))
       val tx = (params \\ "protoTx").head
       val txType = (tx \\ "txType").head.asString.get
       val txInstance = txType match {
@@ -626,13 +614,13 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
 
   /**  #### Summary
     *    Broadcast transaction
-    * 
+    *
     *  #### Type
     *    Remote -- Route must be used in conjunction with an external key manager service.
-    * 
+    *
     *  #### Description
     *    Place specified signed transaction into the mempool and broadcast to other nodes
-    * 
+    *
     *  #### Notes
     *    - Currently only enabled for `AssetCreation` and `AssetTransfer` transactions
     *  ---
@@ -640,7 +628,7 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
     *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	      |
     *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	      |
     *  | tx                 	    | object     	| Required            	| A full formatted transaction JSON object (prototype transaction + signatures) |
-    * 
+    *
     * @param params input parameters as specified above
     * @param id request identifier
     * @return

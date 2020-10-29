@@ -41,7 +41,7 @@ class Gateway(gateway: GatewayDevice, port: Int) extends Logging {
     }
   }
 
-  def getLocalAddressForExternalPort(externalPort: Int):Option[InetSocketAddress] = {
+  def getLocalAddressForExternalPort(externalPort: Int): Option[InetSocketAddress] = {
     try {
       val entry = new PortMappingEntry
       if (gateway.getSpecificPortMappingEntry(externalPort, "TCP", entry)) {
@@ -63,7 +63,7 @@ object Gateway extends Logging {
   def getPort(settings: NetworkSettings): Int = {
     settings.upnpUseRandom match {
       case Some(_) => scala.util.Random.nextInt(15000) + 50000
-      case _ => settings.bindAddress.getPort
+      case _       => settings.bindAddress.getPort
     }
   }
 

@@ -14,13 +14,11 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{FiniteDuration, _}
 
-/**
-  * SyncTracker caches the peers' statuses (i.e. whether they are ahead or behind this node)
+/** SyncTracker caches the peers' statuses (i.e. whether they are ahead or behind this node)
   */
-class SyncTracker(nvsRef: ActorRef,
-                  context: ActorContext,
-                  networkSettings: NetworkSettings,
-                  timeProvider: TimeProvider)(implicit ec: ExecutionContext) extends Logging {
+class SyncTracker(nvsRef: ActorRef, context: ActorContext, networkSettings: NetworkSettings, timeProvider: TimeProvider)(implicit
+  ec: ExecutionContext
+) extends Logging {
 
   import bifrost.utils.TimeProvider.Time
 
@@ -69,12 +67,12 @@ class SyncTracker(nvsRef: ActorRef,
   def clearStatus(remote: InetSocketAddress): Unit = {
     statuses.find(_._1.connectionId.remoteAddress == remote) match {
       case Some((peer, _)) => statuses -= peer
-      case None => log.warn(s"Trying to clear status for $remote, but it is not found")
+      case None            => log.warn(s"Trying to clear status for $remote, but it is not found")
     }
 
     lastSyncSentTime.find(_._1.connectionId.remoteAddress == remote) match {
       case Some((peer, _)) => statuses -= peer
-      case None => log.warn(s"Trying to clear last sync time for $remote, but it is not found")
+      case None            => log.warn(s"Trying to clear last sync time for $remote, but it is not found")
     }
   }
 
@@ -91,8 +89,7 @@ class SyncTracker(nvsRef: ActorRef,
 
   private def numOfSeniors(): Int = statuses.count(_._2 == Older)
 
-  /**
-    * Return the peers to which this node should send a sync signal, including:
+  /** Return the peers to which this node should send a sync signal, including:
     * outdated peers, if any, otherwise, all the peers with unknown status plus a random peer with
     * `Older` status.
     * Updates lastSyncSentTime for all returned peers as a side effect

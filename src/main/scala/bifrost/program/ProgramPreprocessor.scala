@@ -24,25 +24,26 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 import scala.util.matching.Regex
 
-/**
-  * Created by Matt Kindy on 7/27/2017.
+/** Created by Matt Kindy on 7/27/2017.
   */
-case class ProgramPreprocessor(name: String,
-                               initjs: String,
-                               interface: Map[String, Seq[String]],
-                               //state: Json,
-                               variables: Json,
-                               code: Map[String, String],
-                               signed: Option[(PublicKey25519Proposition, Signature25519)]) extends JsonSerializable {
+case class ProgramPreprocessor(
+  name: String,
+  initjs: String,
+  interface: Map[String, Seq[String]],
+  //state: Json,
+  variables: Json,
+  code: Map[String, String],
+  signed: Option[(PublicKey25519Proposition, Signature25519)]
+) extends JsonSerializable {
 
   lazy val json: Json = Map(
     //"state" -> Base64.encode(Gzip.encode(ByteString(state.noSpaces.getBytes)).toArray[Byte]).asJson,
-    "name" -> name.asJson,
-    "initjs" -> Base64.encode(Gzip.encode(ByteString(initjs.getBytes)).toArray[Byte]).asJson,
+    "name"      -> name.asJson,
+    "initjs"    -> Base64.encode(Gzip.encode(ByteString(initjs.getBytes)).toArray[Byte]).asJson,
     "interface" -> interface.map(a => a._1 -> a._2.map(_.asJson).asJson).asJson,
     "variables" -> variables.asJson,
-    "code" -> code.map(a => a._1 -> a._2).asJson,
-    "signed" -> signed.map(pair => Base58.encode(pair._1.pubKeyBytes) -> Base58.encode(pair._2.bytes)).asJson
+    "code"      -> code.map(a => a._1 -> a._2).asJson,
+    "signed"    -> signed.map(pair => Base58.encode(pair._1.pubKeyBytes) -> Base58.encode(pair._2.bytes)).asJson
   ).asJson
 }
 
@@ -89,19 +90,27 @@ object ProgramPreprocessor {
     val parsed = parse(new String(Files.readAllBytes(modulePath)))
 
     parsed match {
-      case Left(f) => throw f
+      case Left(f)     => throw f
       case Right(json) => wrapperFromJson(json, args)
     }
   }
 
-  def apply(name: String, initjs: String, signed: Option[(PublicKey25519Proposition, Signature25519)] = None)(args: JsonObject): ProgramPreprocessor = {
+  def apply(name: String, initjs: String, signed: Option[(PublicKey25519Proposition, Signature25519)] = None)(
+    args: JsonObject
+  ): ProgramPreprocessor = {
 
     //val modifiedInitjs = initjs.replaceFirst("\\{", "\\{\n" + ValkyrieFunctions().reserved + "\n")
     //println(">>>>>>>>>>>>>>>>>>>>> initjs + reservedFunctions: " + modifiedInitjs)
 
     val (interface, /*cleanModuleState,*/ variables, code) = deriveFromInit(initjs /*modifiedInitjs*/, name)(args)
 
-    ProgramPreprocessor(name, initjs /*modifiedInitjs*/, interface, /*parse(cleanModuleState).right.getOrElse(JsonObject.empty.asJson),*/ variables, code, signed)
+    ProgramPreprocessor(
+      name,
+      initjs /*modifiedInitjs*/,
+      interface, /*parse(cleanModuleState).right.getOrElse(JsonObject.empty.asJson),*/ variables,
+      code,
+      signed
+    )
   }
 
   private def wrapperFromJson(json: Json, args: JsonObject): ProgramPreprocessor = {
@@ -121,8 +130,7 @@ object ProgramPreprocessor {
     val announcedRegistry: Option[Map[String, Seq[String]]] =
       (json \\ "interface").headOption.map(_.as[Map[String, Seq[String]]].right.get)
 
-    val signed: Option[(PublicKey25519Proposition, Signature25519)] = (json \\ "signed")
-      .headOption
+    val signed: Option[(PublicKey25519Proposition, Signature25519)] = (json \\ "signed").headOption
       .map(_.as[(String, String)].right.get)
       .map(pair => PublicKey25519Proposition(Base58.decode(pair._1).get) -> Signature25519(Base58.decode(pair._2).get))
 
@@ -132,8 +140,9 @@ object ProgramPreprocessor {
   }
 
   //noinspection ScalaStyle
-  private def deriveFromInit(initjs: String, name: String, announcedRegistry: Option[Map[String, Seq[String]]] = None)(args: JsonObject):
-    (Map[String, Seq[String]], /*String,*/ Json, Map[String, String]) = {
+  private def deriveFromInit(initjs: String, name: String, announcedRegistry: Option[Map[String, Seq[String]]] = None)(
+    args: JsonObject
+  ): (Map[String, Seq[String]], /*String,*/ Json, Map[String, String]) = {
 
     val jsre: Context = Context.create("js")
 
@@ -148,7 +157,7 @@ object ProgramPreprocessor {
      */
 
     /* Interpret interface from object */
-   /* val esprimajs: InputStream = classOf[ProgramPreprocessor].getResourceAsStream("/esprima.js")
+    /* val esprimajs: InputStream = classOf[ProgramPreprocessor].getResourceAsStream("/esprima.js")
     jsre.eval(new InputStreamReader(esprimajs))*/
 
     /*val defineEsprimaFnParamParser =
@@ -164,7 +173,6 @@ object ProgramPreprocessor {
 
     jsre.eval(defineEsprimaFnParamParser)*/
 
-
     //println(s">>>>>>>>>>> Registry: $interface")
 
     //val variables: Seq[String] = deriveState(jsre, initjs)
@@ -174,7 +182,7 @@ object ProgramPreprocessor {
 
     val code: Map[String, String] = deriveFunctions(jsre, initjs)
 
-    val interface = if(announcedRegistry.isDefined && checkRegistry(jsre, announcedRegistry.get)) {
+    val interface = if (announcedRegistry.isDefined && checkRegistry(jsre, announcedRegistry.get)) {
       announcedRegistry.get
     } else {
       val interfaceRes = deriveRegistry(jsre, initjs)
@@ -187,11 +195,14 @@ object ProgramPreprocessor {
 
   private def checkRegistry(jsre: Context, announcedRegistry: Map[String, Seq[String]]): Boolean = {
     announcedRegistry.keySet.forall(k => {
-      jsre.eval("js",
-        s"""
+      jsre
+        .eval(
+          "js",
+          s"""
            |typeof c.$k === "function" ? getParameters(c.$k).length === ${announcedRegistry(k).size} : false
          """.stripMargin
-      ).asInstanceOf[Boolean]
+        )
+        .asInstanceOf[Boolean]
     })
   }
 
@@ -209,8 +220,10 @@ object ProgramPreprocessor {
 
       for (i <- 0 until tokenStream.last()) {
         val token = tokenStream.get(i)
-        if(Token.descType(tokenStream.get(i)) == TokenType.COMMENT &&
-          Token.descType(tokenStream.get(i + 4)) == TokenType.FUNCTION) {
+        if (
+          Token.descType(tokenStream.get(i)) == TokenType.COMMENT &&
+          Token.descType(tokenStream.get(i + 4)) == TokenType.FUNCTION
+        ) {
           commentList += source.getString(token)
         }
       }
@@ -246,7 +259,6 @@ object ProgramPreprocessor {
       .functionStatementBehavior(ScriptEnvironment.FunctionStatementBehavior.ERROR)
       .build()
 
-
     val errManager = new ErrorManager.ThrowErrorManager
     val src = Source.sourceFor("script", initjs)
     val parser: Parser = new Parser(scriptEnv, src, errManager)
@@ -270,11 +282,11 @@ object ProgramPreprocessor {
 
       jsre.eval("js", initjs)
 
-      vars.map{ v =>
+      vars.map { v =>
         jsre.eval("js", s"typeof ${v._1}").toString match {
           case "number" => varJson += (v._1 -> JsonNumber.fromString(v._2.toString).get.asJson)
           case "string" => varJson += (v._1 -> v._2.asJson)
-          case _ => throw new ClassCastException("Not a valid JavaScript type")
+          case _        => throw new ClassCastException("Not a valid JavaScript type")
         }
       }
       varJson.toMap.asJson
@@ -284,7 +296,6 @@ object ProgramPreprocessor {
   }
 
   private def deriveFunctions(jsre: Context, initjs: String): Map[String, String] = {
-
 
     val scriptEnv: ScriptEnvironment = ScriptEnvironment.builder
       .ecmaScriptVersion(8)
@@ -325,34 +336,40 @@ object ProgramPreprocessor {
 
   implicit val encodeTerms: Encoder[ProgramPreprocessor] = (b: ProgramPreprocessor) => b.json
 
-  implicit val decodeTerms: Decoder[ProgramPreprocessor] = (c: HCursor) => for {
-    //state <- c.downField("state").as[String]
-    name <- c.downField("name").as[String]
-    initjs <- c.downField("initjs").as[String]
-    interface <- c.downField("interface").as[Map[String, Seq[String]]]
-    variables <- c.downField("variables").as[Json]
-    code <- c.downField("code").as[Map[String, String]]
-    signed <- c.downField("signed").as[Option[(String, String)]]
-  } yield {
+  implicit val decodeTerms: Decoder[ProgramPreprocessor] = (c: HCursor) =>
+    for {
+      //state <- c.downField("state").as[String]
+      name      <- c.downField("name").as[String]
+      initjs    <- c.downField("initjs").as[String]
+      interface <- c.downField("interface").as[Map[String, Seq[String]]]
+      variables <- c.downField("variables").as[Json]
+      code      <- c.downField("code").as[Map[String, String]]
+      signed    <- c.downField("signed").as[Option[(String, String)]]
+    } yield {
 
-    def decodeGzip(zipped: String): Future[ByteString] = {
-      Gzip.decode(ByteString(Base64.decode(zipped)))
-    }
+      def decodeGzip(zipped: String): Future[ByteString] = {
+        Gzip.decode(ByteString(Base64.decode(zipped)))
+      }
 
-    Await.result({
-      import scala.concurrent.ExecutionContext.Implicits.global
-      for {
-        decodedInitjs <- decodeGzip(initjs)
-        //decodedState <- decodeGzip(state)
-      } yield ProgramPreprocessor(
-        name,
-        new String(decodedInitjs.toArray[Byte]),
-        interface,
-        //parse(new String(decodedState.toArray[Byte])).right.get,
-        variables,
-        code,
-        signed.map(pair => PublicKey25519Proposition(Base58.decode(pair._1).get) -> Signature25519(Base58.decode(pair._2).get))
+      Await.result(
+        {
+          import scala.concurrent.ExecutionContext.Implicits.global
+          for {
+            decodedInitjs <- decodeGzip(initjs)
+            //decodedState <- decodeGzip(state)
+          } yield ProgramPreprocessor(
+            name,
+            new String(decodedInitjs.toArray[Byte]),
+            interface,
+            //parse(new String(decodedState.toArray[Byte])).right.get,
+            variables,
+            code,
+            signed.map(pair =>
+              PublicKey25519Proposition(Base58.decode(pair._1).get) -> Signature25519(Base58.decode(pair._2).get)
+            )
+          )
+        },
+        Duration.Inf
       )
-    }, Duration.Inf)
-  }
+    }
 }

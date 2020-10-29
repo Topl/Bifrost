@@ -7,7 +7,7 @@ import bifrost.nodeView.NodeViewModifier
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 class WalletBoxSerializer[T, P <: Proposition, B <: GenericBox[P, T]](subclassDeser: BifrostSerializer[B])
-  extends BifrostSerializer[WalletBox[T, P, B]] {
+    extends BifrostSerializer[WalletBox[T, P, B]] {
 
   override def serialize(obj: WalletBox[T, P, B], w: Writer): Unit = {
     /* box: B */

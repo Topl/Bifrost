@@ -24,8 +24,7 @@ import scorex.crypto.encode.Base58
 import scala.util.{Random, Try}
 import bifrost.utils.Logging
 
-/**
-  * Created by cykoz on 4/12/17.
+/** Created by cykoz on 4/12/17.
   */
 trait BifrostGenerators extends CoreGenerators with Logging {
 
@@ -46,49 +45,47 @@ trait BifrostGenerators extends CoreGenerators with Logging {
   def unfoldLeft[A, B](seed: B)(f: B => Option[(A, B)]): Seq[A] = {
     f(seed) match {
       case Some((a, b)) => a +: unfoldLeft(b)(f)
-      case None => Nil
+      case None         => Nil
     }
   }
 
-  def splitAmongN(toSplit: Long,
-                  n: Int,
-                  minShareSize: Long = Long.MinValue,
-                  maxShareSize: Long = Long.MaxValue): Try[Seq[Long]] = Try {
-    unfoldLeft((toSplit, n)) { case (amountLeft: Long, shares: Int) =>
-      if (shares > 0) {
+  def splitAmongN(toSplit: Long, n: Int, minShareSize: Long = Long.MinValue, maxShareSize: Long = Long.MaxValue): Try[Seq[Long]] =
+    Try {
+      unfoldLeft((toSplit, n)) { case (amountLeft: Long, shares: Int) =>
+        if (shares > 0) {
 
-        val longRange = BigInt(Long.MaxValue) - BigInt(Long.MinValue)
-        val canOverflowOrUnderflowFully = BigInt(shares - 1) * (BigInt(maxShareSize) - BigInt(minShareSize)) >= longRange
+          val longRange = BigInt(Long.MaxValue) - BigInt(Long.MinValue)
+          val canOverflowOrUnderflowFully = BigInt(shares - 1) * (BigInt(maxShareSize) - BigInt(minShareSize)) >= longRange
 
-        var noMoreThan: Long = ((BigInt(amountLeft) - BigInt(shares - 1) * BigInt(minShareSize)) % longRange).toLong
-        var noLessThan: Long = ((BigInt(amountLeft) - BigInt(shares - 1) * BigInt(maxShareSize)) % longRange).toLong
+          var noMoreThan: Long = ((BigInt(amountLeft) - BigInt(shares - 1) * BigInt(minShareSize)) % longRange).toLong
+          var noLessThan: Long = ((BigInt(amountLeft) - BigInt(shares - 1) * BigInt(maxShareSize)) % longRange).toLong
 
-        if (canOverflowOrUnderflowFully) {
-          noMoreThan = maxShareSize
-          noLessThan = minShareSize
-        }
+          if (canOverflowOrUnderflowFully) {
+            noMoreThan = maxShareSize
+            noLessThan = minShareSize
+          }
 
-        var thisPortion: Long = 0L
+          var thisPortion: Long = 0L
 
-        if (noLessThan <= maxShareSize && noMoreThan >= minShareSize && noLessThan <= noMoreThan) {
-          val boundedSample = sampleUntilNonEmpty(Gen.choose(noLessThan, noMoreThan))
-          thisPortion = Math.min(Math.max(boundedSample, minShareSize), maxShareSize)
-        } else if (noLessThan <= maxShareSize) {
-          val boundedSample = sampleUntilNonEmpty(Gen.choose(noLessThan, maxShareSize))
-          thisPortion = Math.max(boundedSample, minShareSize)
-        } else if (noMoreThan >= minShareSize) {
-          val boundedSample = sampleUntilNonEmpty(Gen.choose(minShareSize, noMoreThan))
-          thisPortion = Math.min(boundedSample, maxShareSize)
+          if (noLessThan <= maxShareSize && noMoreThan >= minShareSize && noLessThan <= noMoreThan) {
+            val boundedSample = sampleUntilNonEmpty(Gen.choose(noLessThan, noMoreThan))
+            thisPortion = Math.min(Math.max(boundedSample, minShareSize), maxShareSize)
+          } else if (noLessThan <= maxShareSize) {
+            val boundedSample = sampleUntilNonEmpty(Gen.choose(noLessThan, maxShareSize))
+            thisPortion = Math.max(boundedSample, minShareSize)
+          } else if (noMoreThan >= minShareSize) {
+            val boundedSample = sampleUntilNonEmpty(Gen.choose(minShareSize, noMoreThan))
+            thisPortion = Math.min(boundedSample, maxShareSize)
+          } else {
+            throw new Exception("Cannot split")
+          }
+
+          Some((thisPortion, (amountLeft - thisPortion, shares - 1)))
         } else {
-          throw new Exception("Cannot split")
+          None
         }
-
-        Some((thisPortion, (amountLeft - thisPortion, shares - 1)))
-      } else {
-        None
       }
     }
-  }
 
   lazy val stringGen: Gen[String] = Gen.alphaNumStr.suchThat(!_.isEmpty) //nonEmptyBytesGen.map(new String(_))
 
@@ -101,17 +98,19 @@ trait BifrostGenerators extends CoreGenerators with Logging {
   def jsonGen(depth: Int = 0): Gen[Json] = for {
     numFields <- positiveTinyIntGen
   } yield {
-    (0 until numFields).map { _ =>
-      sampleUntilNonEmpty(stringGen) -> (
-        sampleUntilNonEmpty(jsonTypeGen) match {
+    (0 until numFields)
+      .map { _ =>
+        sampleUntilNonEmpty(stringGen) -> (sampleUntilNonEmpty(jsonTypeGen) match {
           case "Object" if depth < 2 => sampleUntilNonEmpty(jsonGen(depth + 1))
-          case "Array" if depth < 3 => sampleUntilNonEmpty(jsonArrayGen(depth + 1))
-          case "Boolean" => sampleUntilNonEmpty(booleanGen).asJson
-          case "String" => sampleUntilNonEmpty(stringGen).asJson
-          case "Number" => sampleUntilNonEmpty(positiveDoubleGen).asJson
-          case _ => sampleUntilNonEmpty(stringGen).asJson
+          case "Array" if depth < 3  => sampleUntilNonEmpty(jsonArrayGen(depth + 1))
+          case "Boolean"             => sampleUntilNonEmpty(booleanGen).asJson
+          case "String"              => sampleUntilNonEmpty(stringGen).asJson
+          case "Number"              => sampleUntilNonEmpty(positiveDoubleGen).asJson
+          case _                     => sampleUntilNonEmpty(stringGen).asJson
         })
-    }.toMap.asJson
+      }
+      .toMap
+      .asJson
   }
 
   def jsonArrayGen(depth: Int = 0): Gen[Json] = for {
@@ -120,11 +119,11 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     ((0 until numFields) map { _ =>
       sampleUntilNonEmpty(jsonTypeGen) match {
         case "Object" if depth < 2 => sampleUntilNonEmpty(jsonGen(depth + 1))
-        case "Array" if depth < 3 => sampleUntilNonEmpty(jsonArrayGen(depth + 1))
-        case "Boolean" => sampleUntilNonEmpty(booleanGen).asJson
-        case "String" => sampleUntilNonEmpty(stringGen).asJson
-        case "Number" => sampleUntilNonEmpty(positiveDoubleGen).asJson
-        case _ => sampleUntilNonEmpty(stringGen).asJson
+        case "Array" if depth < 3  => sampleUntilNonEmpty(jsonArrayGen(depth + 1))
+        case "Boolean"             => sampleUntilNonEmpty(booleanGen).asJson
+        case "String"              => sampleUntilNonEmpty(stringGen).asJson
+        case "Number"              => sampleUntilNonEmpty(positiveDoubleGen).asJson
+        case _                     => sampleUntilNonEmpty(stringGen).asJson
       }
     }).asJson
   }
@@ -139,11 +138,11 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     numDigits <- Gen.choose(0, 78)
   } yield {
     (0 until numDigits)
-      .map {
-        _ => sampleUntilNonEmpty(digitGen)
+      .map { _ =>
+        sampleUntilNonEmpty(digitGen)
       }
       .foldLeft(sampleUntilNonEmpty(digitGen).toString)((a, b) => a + b) +
-      sampleUntilNonEmpty(digitGen).toString
+    sampleUntilNonEmpty(digitGen).toString
   }
 
   lazy val positiveDoubleGen: Gen[Double] = Gen.choose(0, Double.MaxValue)
@@ -157,7 +156,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
   }
 
   lazy val bigDecimalGen: Gen[BigDecimal] = for {
-    wholeNumber <- numStringGen
+    wholeNumber    <- numStringGen
     decimalPortion <- numStringGen
   } yield {
     BigDecimal(wholeNumber + "." + decimalPortion)
@@ -182,27 +181,27 @@ trait BifrostGenerators extends CoreGenerators with Logging {
 
   lazy val polyBoxGen: Gen[PolyBox] = for {
     proposition <- propositionGen
-    nonce <- positiveLongGen
-    value <- positiveLongGen
+    nonce       <- positiveLongGen
+    value       <- positiveLongGen
   } yield {
     PolyBox(proposition, nonce, value)
   }
 
   lazy val arbitBoxGen: Gen[ArbitBox] = for {
     proposition <- propositionGen
-    nonce <- positiveLongGen
-    value <- positiveLongGen
+    nonce       <- positiveLongGen
+    value       <- positiveLongGen
   } yield {
     ArbitBox(proposition, nonce, value)
   }
 
   lazy val assetBoxGen: Gen[AssetBox] = for {
     proposition <- propositionGen
-    nonce <- positiveLongGen
-    value <- positiveLongGen
-    asset <- stringGen
-    hub <- propositionGen
-    data <- stringGen
+    nonce       <- positiveLongGen
+    value       <- positiveLongGen
+    asset       <- stringGen
+    hub         <- propositionGen
+    data        <- stringGen
   } yield {
     AssetBox(proposition, nonce, value, asset, hub, data)
   }
@@ -211,18 +210,18 @@ trait BifrostGenerators extends CoreGenerators with Logging {
 
   lazy val stateBoxGen: Gen[StateBox] = for {
     proposition <- propositionGen
-    value <- stringGen
-    nonce <- positiveLongGen
+    value       <- stringGen
+    nonce       <- positiveLongGen
   } yield {
     StateBox(proposition, nonce, UUID.nameUUIDFromBytes(StateBox.idFromBox(proposition, nonce)), value.asJson)
   }
 
   lazy val codeBoxGen: Gen[CodeBox] = for {
     proposition <- propositionGen
-    nonce <- positiveLongGen
-    methodLen <- positiveTinyIntGen
-    methods <- Gen.containerOfN[Seq, String](methodLen, stringGen)
-    paramLen <- positiveTinyIntGen
+    nonce       <- positiveLongGen
+    methodLen   <- positiveTinyIntGen
+    methods     <- Gen.containerOfN[Seq, String](methodLen, stringGen)
+    paramLen    <- positiveTinyIntGen
   } yield {
 
     val interface: Map[String, Seq[String]] = methods.map {
@@ -234,16 +233,20 @@ trait BifrostGenerators extends CoreGenerators with Logging {
 
   lazy val executionBoxGen: Gen[ExecutionBox] = for {
     proposition <- propositionGen
-    codeBox_1 <- codeBoxGen
-    codeBox_2 <- codeBoxGen
-    nonce <- positiveLongGen
-    stateBox_1 <- stateBoxGen
-    stateBox_2 <- stateBoxGen
+    codeBox_1   <- codeBoxGen
+    codeBox_2   <- codeBoxGen
+    nonce       <- positiveLongGen
+    stateBox_1  <- stateBoxGen
+    stateBox_2  <- stateBoxGen
   } yield {
 
-    ExecutionBox(proposition, nonce, UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(proposition, nonce)),
+    ExecutionBox(
+      proposition,
+      nonce,
+      UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(proposition, nonce)),
       Seq(UUID.nameUUIDFromBytes(stateBox_1.id), UUID.nameUUIDFromBytes(stateBox_2.id)),
-      Seq(codeBox_1.id, codeBox_2.id))
+      Seq(codeBox_1.id, codeBox_2.id)
+    )
   }
 
   // TODO refactor out partiesGen and replace with proposition
@@ -254,13 +257,12 @@ trait BifrostGenerators extends CoreGenerators with Logging {
   }
 
   lazy val validExecutionBuilderTermsGen: Gen[ExecutionBuilderTerms] = for {
-    size <- Gen.choose(1, 1024-1)
+    size <- Gen.choose(1, 1024 - 1)
   } yield {
     ExecutionBuilderTerms(Random.alphanumeric.take(size).mkString)
   }
 
-  def validInitJsGen(name: String,
-                     assetCode: String): Gen[String] = for {
+  def validInitJsGen(name: String, assetCode: String): Gen[String] = for {
     _ <- stringGen
   } yield {
     s"""
@@ -323,9 +325,9 @@ trait BifrostGenerators extends CoreGenerators with Logging {
   // TODO: This results in an empty generator far too often. Fix needed
   def validExecutionBuilderGen(): Gen[ExecutionBuilder] = for {
     assetCode <- alphanumeric
-    terms <- validExecutionBuilderTermsGen
-    name <- alphanumeric.suchThat(str => !Character.isDigit(str.charAt(0)))
-    initjs <- validInitJsGen(name, assetCode)
+    terms     <- validExecutionBuilderTermsGen
+    name      <- alphanumeric.suchThat(str => !Character.isDigit(str.charAt(0)))
+    initjs    <- validInitJsGen(name, assetCode)
   } yield {
     ExecutionBuilder(terms, assetCode, ProgramPreprocessor(name, initjs)(JsonObject.empty))
   }
@@ -333,41 +335,44 @@ trait BifrostGenerators extends CoreGenerators with Logging {
   lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))
 
   lazy val programGen: Gen[Program] = for {
-    producer <- propositionGen
-    investor <- propositionGen
-    hub <- propositionGen
-    storage <- jsonGen()
-    status <- jsonGen()
+    producer         <- propositionGen
+    investor         <- propositionGen
+    hub              <- propositionGen
+    storage          <- jsonGen()
+    status           <- jsonGen()
     executionBuilder <- validExecutionBuilderGen().map(_.json)
-    id <- genBytesList(FastCryptographicHash.DigestSize)
+    id               <- genBytesList(FastCryptographicHash.DigestSize)
   } yield {
-    Program(Map(
-      "parties" -> Map(
-        Base58.encode(producer.pubKeyBytes) -> "producer",
-        Base58.encode(investor.pubKeyBytes) -> "investor",
-        Base58.encode(hub.pubKeyBytes) -> "hub"
+    Program(
+      Map(
+        "parties" -> Map(
+          Base58.encode(producer.pubKeyBytes) -> "producer",
+          Base58.encode(investor.pubKeyBytes) -> "investor",
+          Base58.encode(hub.pubKeyBytes)      -> "hub"
+        ).asJson,
+        "storage"          -> Map("status" -> status, "other" -> storage).asJson,
+        "executionBuilder" -> executionBuilder,
+        "lastUpdated"      -> System.currentTimeMillis().asJson
       ).asJson,
-      "storage" -> Map("status" -> status, "other" -> storage).asJson,
-      "executionBuilder" -> executionBuilder,
-      "lastUpdated" -> System.currentTimeMillis().asJson
-    ).asJson, id)
+      id
+    )
   }
 
   def preFeeBoxGen(minFee: Long = 0, maxFee: Long = Long.MaxValue): Gen[(Nonce, Long)] = for {
-    nonce <- Gen.choose(Long.MinValue, Long.MaxValue)
+    nonce  <- Gen.choose(Long.MinValue, Long.MaxValue)
     amount <- Gen.choose(minFee, maxFee)
   } yield {
     (nonce, amount)
   }
 
   lazy val programCreationGen: Gen[ProgramCreation] = for {
-    executionBuilder <- validExecutionBuilderGen()
+    executionBuilder   <- validExecutionBuilderGen()
     readOnlyStateBoxes <- stateBoxGen
     numInvestmentBoxes <- positiveTinyIntGen
-    owner <- partiesGen
-    numFeeBoxes <- positiveTinyIntGen
-    timestamp <- positiveLongGen
-    data <- stringGen
+    owner              <- partiesGen
+    numFeeBoxes        <- positiveTinyIntGen
+    timestamp          <- positiveLongGen
+    data               <- stringGen
   } yield {
     ProgramCreation(
       executionBuilder,
@@ -379,22 +384,23 @@ trait BifrostGenerators extends CoreGenerators with Logging {
       Map(owner -> (0 until numFeeBoxes).map { _ => sampleUntilNonEmpty(preFeeBoxGen()) }),
       Map(owner -> sampleUntilNonEmpty(positiveTinyIntGen).toLong),
       timestamp,
-      data)
+      data
+    )
   }
 
   lazy val programMethodExecutionGen: Gen[ProgramMethodExecution] = for {
     //methodName <- stringGen
-    stateBoxes <- positiveTinyIntGen
+    stateBoxes   <- positiveTinyIntGen
     executionBox <- executionBoxGen
-    codeBoxes <- positiveTinyIntGen
+    codeBoxes    <- positiveTinyIntGen
     //parameters <- jsonArrayGen()
-    sig <- signatureGen
+    sig         <- signatureGen
     numFeeBoxes <- positiveTinyIntGen
-    stateNonce <- positiveLongGen
-    codeNonce <- positiveLongGen
-    timestamp <- positiveLongGen
-    party <- propositionGen
-    data <- stringGen
+    stateNonce  <- positiveLongGen
+    codeNonce   <- positiveLongGen
+    timestamp   <- positiveLongGen
+    party       <- propositionGen
+    data        <- stringGen
   } yield {
 
     /*val state = (0 until stateBoxes).map { _ =>
@@ -411,8 +417,13 @@ trait BifrostGenerators extends CoreGenerators with Logging {
 
     val state = StateBox(party, stateNonce, UUID.nameUUIDFromBytes(StateBox.idFromBox(party, stateNonce)), Map("a" -> 0).asJson)
 
-    val code = CodeBox(party, codeNonce, UUID.nameUUIDFromBytes(CodeBox.idFromBox(party, codeNonce)),
-      Seq("inc = function() { a += 1; }"), Map("inc" -> Seq()))
+    val code = CodeBox(
+      party,
+      codeNonce,
+      UUID.nameUUIDFromBytes(CodeBox.idFromBox(party, codeNonce)),
+      Seq("inc = function() { a += 1; }"),
+      Map("inc" -> Seq())
+    )
 
     ProgramMethodExecution(
       Seq(state),
@@ -425,15 +436,16 @@ trait BifrostGenerators extends CoreGenerators with Logging {
       Map(party -> (0 until numFeeBoxes).map { _ => sampleUntilNonEmpty(preFeeBoxGen()) }),
       Map(party -> sampleUntilNonEmpty(positiveTinyIntGen).toLong),
       timestamp,
-      data)
+      data
+    )
   }
 
   lazy val codeBoxCreationGen: Gen[CodeCreation] = for {
-    to <- propositionGen
+    to        <- propositionGen
     signature <- signatureGen
-    fee <- positiveLongGen
+    fee       <- positiveLongGen
     timestamp <- positiveLongGen
-    data <- stringGen
+    data      <- stringGen
   } yield {
 
     val code: String =
@@ -451,13 +463,13 @@ trait BifrostGenerators extends CoreGenerators with Logging {
   }
 
   lazy val programTransferGen: Gen[ProgramTransfer] = for {
-    from <- propositionGen
-    to <- propositionGen
-    signature <- signatureGen
+    from         <- propositionGen
+    to           <- propositionGen
+    signature    <- signatureGen
     executionBox <- executionBoxGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    data <- stringGen
+    fee          <- positiveLongGen
+    timestamp    <- positiveLongGen
+    data         <- stringGen
   } yield {
 
     ProgramTransfer(from, to, signature, executionBox, fee, timestamp, data)
@@ -465,28 +477,28 @@ trait BifrostGenerators extends CoreGenerators with Logging {
 
   lazy val assetHubGen: Gen[(String, PublicKey25519Proposition)] = for {
     asset <- stringGen
-    hub <- propositionGen
+    hub   <- propositionGen
   } yield {
     (asset, hub)
   }
 
   lazy val ctFromGen: Gen[(PublicKey25519Proposition, Nonce)] = for {
     proposition <- propositionGen
-    nonce <- positiveLongGen
+    nonce       <- positiveLongGen
   } yield {
     (proposition, nonce)
   }
 
   lazy val ctToGen: Gen[(PublicKey25519Proposition, Long)] = for {
     proposition <- propositionGen
-    amount <- positiveLongGen
+    amount      <- positiveLongGen
   } yield {
     (proposition, amount)
   }
 
   lazy val fromGen: Gen[(PublicKey25519Proposition, Nonce)] = for {
     proposition <- propositionGen
-    nonce <- positiveLongGen
+    nonce       <- positiveLongGen
   } yield {
     (proposition, nonce)
   }
@@ -499,7 +511,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
 
   lazy val toGen: Gen[(PublicKey25519Proposition, Long)] = for {
     proposition <- propositionGen
-    value <- positiveLongGen
+    value       <- positiveLongGen
   } yield {
     (proposition, value)
   }
@@ -517,48 +529,48 @@ trait BifrostGenerators extends CoreGenerators with Logging {
   }
 
   lazy val polyTransferGen: Gen[PolyTransfer] = for {
-    from <- fromSeqGen
-    to <- toSeqGen
+    from       <- fromSeqGen
+    to         <- toSeqGen
     signatures <- sigSeqGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    data <- stringGen
+    fee        <- positiveLongGen
+    timestamp  <- positiveLongGen
+    data       <- stringGen
   } yield {
     PolyTransfer(from, to, from.map(a => a._1).zip(signatures).toMap, fee, timestamp, data)
   }
 
   lazy val arbitTransferGen: Gen[ArbitTransfer] = for {
-    from <- fromSeqGen
-    to <- toSeqGen
+    from       <- fromSeqGen
+    to         <- toSeqGen
     signatures <- sigSeqGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    data <- stringGen
+    fee        <- positiveLongGen
+    timestamp  <- positiveLongGen
+    data       <- stringGen
   } yield {
     ArbitTransfer(from, to, from.map(a => a._1).zip(signatures).toMap, fee, timestamp, data)
   }
 
   lazy val assetTransferGen: Gen[AssetTransfer] = for {
-    from <- fromSeqGen
-    to <- toSeqGen
+    from       <- fromSeqGen
+    to         <- toSeqGen
     signatures <- sigSeqGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    hub <- propositionGen
-    assetCode <- stringGen
-    data <- stringGen
+    fee        <- positiveLongGen
+    timestamp  <- positiveLongGen
+    hub        <- propositionGen
+    assetCode  <- stringGen
+    data       <- stringGen
   } yield {
     AssetTransfer(from, to, from.map(a => a._1).zip(signatures).toMap, hub, assetCode, fee, timestamp, data)
   }
 
   lazy val assetCreationGen: Gen[AssetCreation] = for {
-    to <- toSeqGen
+    to         <- toSeqGen
     signatures <- sigSeqGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    hub <- propositionGen
-    assetCode <- stringGen
-    data <- stringGen
+    fee        <- positiveLongGen
+    timestamp  <- positiveLongGen
+    hub        <- propositionGen
+    assetCode  <- stringGen
+    data       <- stringGen
   } yield {
     AssetCreation(to, Map(hub -> signatures.head), assetCode, hub, fee, timestamp, data)
   }
@@ -588,14 +600,21 @@ trait BifrostGenerators extends CoreGenerators with Logging {
 
   //TODO Add programCreationGen after fixing serialization
   val transactionTypes: Seq[Gen[Transaction]] =
-    Seq(polyTransferGen, arbitTransferGen, assetTransferGen,
-      assetCreationGen, programCreationGen, programMethodExecutionGen, programTransferGen)
+    Seq(
+      polyTransferGen,
+      arbitTransferGen,
+      assetTransferGen,
+      assetCreationGen,
+      programCreationGen,
+      programMethodExecutionGen,
+      programTransferGen
+    )
 
   lazy val bifrostTransactionSeqGen: Gen[Seq[Transaction]] = for {
     seqLen <- positiveMediumIntGen
   } yield {
-    0 until seqLen map {
-      _ => {
+    0 until seqLen map { _ =>
+      {
         val g = sampleUntilNonEmpty(Gen.oneOf(transactionTypes))
 
         var sampled = g.sample
@@ -606,7 +625,6 @@ trait BifrostGenerators extends CoreGenerators with Logging {
       }
     }
   }
-
 
   lazy val intSeqGen: Gen[Seq[Int]] = for {
     seqLen <- positiveMediumIntGen
@@ -621,11 +639,11 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     .map(_.toArray)
 
   lazy val BlockGen: Gen[Block] = for {
-    parentId <- specificLengthBytesGen(Block.blockIdLength)
-    timestamp <- positiveLongGen
+    parentId     <- specificLengthBytesGen(Block.blockIdLength)
+    timestamp    <- positiveLongGen
     generatorBox <- arbitBoxGen
-    signature <- signatureGen
-    txs <- bifrostTransactionSeqGen
+    signature    <- signatureGen
+    txs          <- bifrostTransactionSeqGen
   } yield {
     Block(ModifierId(parentId), timestamp, generatorBox, signature, txs, settings.forgingSettings.version)
   }
@@ -646,7 +664,8 @@ trait BifrostGenerators extends CoreGenerators with Logging {
       Seq(),
       ArbitBox(keyPair._2, 0L, 0L),
       keyPair._1,
-      settings.forgingSettings.version)
+      settings.forgingSettings.version
+    )
   }
 
   def generateHistory: History = {

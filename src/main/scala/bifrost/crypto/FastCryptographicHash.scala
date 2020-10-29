@@ -2,9 +2,8 @@ package bifrost.crypto
 
 import scorex.crypto.hash.{Blake2b256, CryptographicHash32}
 
-/**
- * Interface for fast and secure Blake2b hash function
- */
+/** Interface for fast and secure Blake2b hash function
+  */
 
 object FastCryptographicHash extends CryptographicHash32 {
 

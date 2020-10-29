@@ -44,14 +44,13 @@ trait ApiRoute extends Directives {
   private def isValid(keyOpt: Option[String]): Boolean = {
     lazy val keyHash: Option[CryptographicHash#Digest] = keyOpt.map(Blake2b256(_))
     (apiKeyHash, keyHash) match {
-      case (None, _) => true
+      case (None, _)                      => true
       case (Some(expected), Some(passed)) => expected sameElements passed
-      case _ => false
+      case _                              => false
     }
   }
 
-
-  protected final def basicRoute( handler: (String, Vector[Json], String) => Future[Json]): Route = path("") {
+  protected final def basicRoute(handler: (String, Vector[Json], String) => Future[Json]): Route = path("") {
     entity(as[String]) { body =>
       withAuth {
         postJsonRoute {
@@ -77,7 +76,7 @@ trait ApiRoute extends Directives {
                 Await.result(response, timeout.duration)
               } match {
                 case Success(resp) => SuccessResponse(resp, reqId)
-                case Failure(e) => ErrorResponse(e, 500, reqId, verbose = settings.verboseAPI)
+                case Failure(e)    => ErrorResponse(e, 500, reqId, verbose = settings.verboseAPI)
               }
           }
         }

@@ -16,10 +16,8 @@ case class InvData(typeId: ModifierTypeId, ids: Seq[ModifierId])
 
 case class PeersData(peers: Seq[PeerSpec])
 
-
 /** ------------------------------------------------------------------------------------------------------------------ */
-/**
-  * The `SyncInfo` message requests an `Inv` message that provides modifier ids
+/** The `SyncInfo` message requests an `Inv` message that provides modifier ids
   * required be sender to synchronize his blockchain with the recipient.
   * It allows a peer which has been disconnected or started for the first
   * time to get the data it needs to request the blocks it hasn't seen.
@@ -49,12 +47,10 @@ object SyncInfoSpec {
 }
 
 /** ------------------------------------------------------------------------------------------------------------------ */
-/**
-  * The `Inv` message (inventory message) transmits one or more inventories of
+/** The `Inv` message (inventory message) transmits one or more inventories of
   * objects known to the transmitting peer.
   * It can be sent unsolicited to announce new transactions or blocks,
   * or it can be sent in reply to a `SyncInfo` message (or application-specific messages like `GetMempool`).
-  *
   */
 class InvSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
 
@@ -95,8 +91,7 @@ object InvSpec {
 }
 
 /** ------------------------------------------------------------------------------------------------------------------ */
-/**
-  * The `RequestModifier` message requests one or more modifiers from another node.
+/** The `RequestModifier` message requests one or more modifiers from another node.
   * The objects are requested by an inventory, which the requesting node
   * typically received previously by way of an `Inv` message.
   *
@@ -105,7 +100,6 @@ object InvSpec {
   * they’ve pruned old transactions from their block database.
   * For this reason, the `RequestModifier` message should usually only be used to request
   * data from a node which previously advertised it had that data by sending an `Inv` message.
-  *
   */
 class RequestModifierSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
 
@@ -113,7 +107,6 @@ class RequestModifierSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
   override val messageName: String = RequestModifierSpec.MessageName
 
   private val invSpec = new InvSpec(maxInvObjects)
-
 
   override def serialize(data: InvData, w: Writer): Unit = {
     invSpec.serialize(data, w)
@@ -130,8 +123,7 @@ object RequestModifierSpec {
 }
 
 /** ------------------------------------------------------------------------------------------------------------------ */
-/**
-  * The `Modifier` message is a reply to a `RequestModifier` message which requested these modifiers.
+/** The `Modifier` message is a reply to a `RequestModifier` message which requested these modifiers.
   */
 class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] with Logging {
 
@@ -161,8 +153,10 @@ class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] wi
     }
 
     if (msgSize > maxMessageSize) {
-      log.warn(s"Message with modifiers ${modifiers.keySet} have size $msgSize exceeding limit $maxMessageSize." +
-        s" Sending ${w.length() - start} bytes instead")
+      log.warn(
+        s"Message with modifiers ${modifiers.keySet} have size $msgSize exceeding limit $maxMessageSize." +
+        s" Sending ${w.length() - start} bytes instead"
+      )
     }
   }
 
@@ -185,8 +179,7 @@ object ModifiersSpec {
 }
 
 /** ------------------------------------------------------------------------------------------------------------------ */
-/**
-  * The `GetPeer` message requests an `Peers` message from the receiving node,
+/** The `GetPeer` message requests an `Peers` message from the receiving node,
   * preferably one with lots of `PeerSpec` of other receiving nodes.
   * The transmitting node can use those `PeerSpec` addresses to quickly update
   * its database of available nodes rather than waiting for unsolicited `Peers`
@@ -210,8 +203,7 @@ object GetPeersSpec {
 }
 
 /** ------------------------------------------------------------------------------------------------------------------ */
-/**
-  * The `Peers` message is a reply to a `GetPeer` message and relays connection information about peers
+/** The `Peers` message is a reply to a `GetPeer` message and relays connection information about peers
   * on the network.
   */
 class PeersSpec(featureSerializers: PeerFeature.Serializers, peersLimit: Int) extends MessageSpecV1[PeersData] {
@@ -243,8 +235,7 @@ object PeersSpec {
 }
 
 /** ------------------------------------------------------------------------------------------------------------------ */
-/**
-  * The `Handshake` message provides information about the transmitting node
+/** The `Handshake` message provides information about the transmitting node
   * to the receiving node at the beginning of a connection. Until both peers
   * have exchanged `Handshake` messages, no other messages will be accepted.
   */

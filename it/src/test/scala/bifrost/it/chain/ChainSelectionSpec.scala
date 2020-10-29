@@ -6,10 +6,7 @@ import bifrost.it.util.Node
 import com.typesafe.config.Config
 import org.scalatest.freespec.AnyFreeSpec
 
-
-class ChainSelectionSpec extends AnyFreeSpec
-  with IntegrationSuite
-  with BifrostGenerators {
+class ChainSelectionSpec extends AnyFreeSpec with IntegrationSuite with BifrostGenerators {
 
   val numNodes: Int = 2
 

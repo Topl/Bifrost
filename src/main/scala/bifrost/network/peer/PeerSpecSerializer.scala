@@ -7,6 +7,7 @@ import bifrost.utils.Extensions._
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 class PeerSpecSerializer(featureSerializers: PeerFeature.Serializers) extends BifrostSerializer[PeerSpec] {
+
   override def serialize(obj: PeerSpec, w: Writer): Unit = {
     /* agentName: String */
     w.putByteString(obj.agentName)

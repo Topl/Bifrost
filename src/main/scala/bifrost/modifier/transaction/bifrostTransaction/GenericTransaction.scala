@@ -6,9 +6,7 @@ import bifrost.modifier.box.proposition.Proposition
 import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 
-
-/**
-  * A transaction is an atomic state modifier
+/** A transaction is an atomic state modifier
   */
 
 abstract class GenericTransaction[P <: Proposition] extends NodeViewModifier {
@@ -24,7 +22,6 @@ abstract class GenericTransaction[P <: Proposition] extends NodeViewModifier {
 
   lazy val serializedId: Array[Byte] = FastCryptographicHash(messageToSign)
 }
-
 
 object GenericTransaction {
   val modifierTypeId = NodeViewModifier.ModifierTypeId @@ (2: Byte)

@@ -11,10 +11,11 @@ import scorex.crypto.encode.Base64
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
-case class ExecutionBuilderTerms(terms: String){
+case class ExecutionBuilderTerms(terms: String) {
 
-  require(terms.length < 16*1024)
-  lazy val json: Json = if(terms.length > 1024) {
+  require(terms.length < 16 * 1024)
+
+  lazy val json: Json = if (terms.length > 1024) {
     s"gzip:${Base64.encode(Gzip.encode(ByteString(terms.getBytes)).toArray[Byte])}".asJson
   } else {
     terms.asJson
@@ -32,19 +33,23 @@ object ExecutionBuilderTerms {
     Gzip.decode(ByteString(Base64.decode(zipped)))
   }
 
-  implicit val decodeTerms: Decoder[ExecutionBuilderTerms] = (c: HCursor) => for {
-    terms <- c.as[String]
-  } yield {
+  implicit val decodeTerms: Decoder[ExecutionBuilderTerms] = (c: HCursor) =>
+    for {
+      terms <- c.as[String]
+    } yield {
 
-    if(terms.startsWith("gzip:")) {
-      Await.result({
-        import scala.concurrent.ExecutionContext.Implicits.global
-        for {
-          decodedTerms <- decodeGzip(terms.substring("gzip:".length))
-        } yield ExecutionBuilderTerms(new String(decodedTerms.toArray[Byte]))
-      }, Duration.Inf)
-    } else {
-      ExecutionBuilderTerms(terms)
+      if (terms.startsWith("gzip:")) {
+        Await.result(
+          {
+            import scala.concurrent.ExecutionContext.Implicits.global
+            for {
+              decodedTerms <- decodeGzip(terms.substring("gzip:".length))
+            } yield ExecutionBuilderTerms(new String(decodedTerms.toArray[Byte]))
+          },
+          Duration.Inf
+        )
+      } else {
+        ExecutionBuilderTerms(terms)
+      }
     }
-  }
 }

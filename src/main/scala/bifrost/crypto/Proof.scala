@@ -3,8 +3,7 @@ package bifrost.crypto
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, Proposition}
 import bifrost.serialization.BytesSerializable
 
-/**
-  * The most general abstraction of fact a prover can provide a non-interactive proof
+/** The most general abstraction of fact a prover can provide a non-interactive proof
   * to open a box or to modify an account
   *
   * A proof is non-interactive and thus serializable

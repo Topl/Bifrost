@@ -15,8 +15,7 @@ import bifrost.wallet.Vault
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
-/**
-  * Composite local view of the node
+/** Composite local view of the node
   *
   * Contains instances for History, MinimalState, Vault, MemoryPool.
   * The instances are read-only for external world.
@@ -26,14 +25,15 @@ import scala.util.{Failure, Success, Try}
   * @tparam PMOD
   */
 trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifier]
-  extends Actor with Logging with BifrostEncoding {
+    extends Actor
+    with Logging
+    with BifrostEncoding {
 
   // Import the types of messages this actor can RECEIVE
   import GenericNodeViewHolder.ReceivableMessages._
 
   // Import the types of messages this actor can SEND
   import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
-
 
   type SI <: SyncInfo
   type HIS <: GenericHistory[PMOD, SI, HIS]
@@ -43,22 +43,22 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
 
   type NodeView = (HIS, MS, VL, MP)
 
-  case class UpdateInformation(history: HIS,
-                               state: MS,
-                               failedMod: Option[PMOD],
-                               alternativeProgressInfo: Option[ProgressInfo[PMOD]],
-                               suffix: IndexedSeq[PMOD])
+  case class UpdateInformation(
+    history: HIS,
+    state: MS,
+    failedMod: Option[PMOD],
+    alternativeProgressInfo: Option[ProgressInfo[PMOD]],
+    suffix: IndexedSeq[PMOD]
+  )
 
   val settings: AppSettings
 
-  /**
-    * Cache for modifiers. If modifiers are coming out-of-order, they are to be stored in this cache.
+  /** Cache for modifiers. If modifiers are coming out-of-order, they are to be stored in this cache.
     */
   protected lazy val modifiersCache: ModifiersCache[PMOD, HIS] =
     new DefaultModifiersCache[PMOD, HIS](settings.network.maxModifiersCacheSize)
 
-  /**
-    * The main data structure a node software is taking care about, a node view consists
+  /** The main data structure a node software is taking care about, a node view consists
     * of four elements to be updated atomically: history (log of persistent modifiers),
     * state (result of log's modifiers application to pre-historical(genesis) state,
     * user-specific information stored in vault (it could be e.g. a wallet), and a memory pool.
@@ -100,36 +100,30 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
       }
   }
 
-  protected def getCurrentInfo: Receive = {
-    case GetDataFromCurrentView(f) =>
-      sender() ! f(CurrentView(history(), minimalState(), vault(), memoryPool()))
+  protected def getCurrentInfo: Receive = { case GetDataFromCurrentView(f) =>
+    sender() ! f(CurrentView(history(), minimalState(), vault(), memoryPool()))
   }
 
-  protected def getNodeViewChanges: Receive = {
-    case GetNodeViewChanges(history, state, vault, mempool) =>
-      if (history) sender() ! ChangedHistory(nodeView._1.getReader)
-      if (state) sender() ! ChangedState(nodeView._2.getReader)
-      if (vault) sender() ! ChangedVault(nodeView._3.getReader)
-      if (mempool) sender() ! ChangedMempool(nodeView._4.getReader)
+  protected def getNodeViewChanges: Receive = { case GetNodeViewChanges(history, state, vault, mempool) =>
+    if (history) sender() ! ChangedHistory(nodeView._1.getReader)
+    if (state) sender() ! ChangedState(nodeView._2.getReader)
+    if (vault) sender() ! ChangedVault(nodeView._3.getReader)
+    if (mempool) sender() ! ChangedMempool(nodeView._4.getReader)
   }
 
-  protected def nonsense: Receive = {
-    case nonsense: Any =>
-      log.warn(s"NodeViewHolder: got unexpected input $nonsense from ${sender()}")
+  protected def nonsense: Receive = { case nonsense: Any =>
+    log.warn(s"NodeViewHolder: got unexpected input $nonsense from ${sender()}")
   }
-
 
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
 
-  /**
-    * Restore a local view during a node startup. If no any stored view found
+  /** Restore a local view during a node startup. If no any stored view found
     * (e.g. if it is a first launch of a node) None is to be returned
     */
   def restoreState(): Option[NodeView]
 
-  /**
-    * Hard-coded initial view all the honest nodes in a network are making progress from.
+  /** Hard-coded initial view all the honest nodes in a network are making progress from.
     */
   protected def genesisState: NodeView
 
@@ -141,14 +135,14 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
 
   protected def memoryPool(): MP = nodeView._4
 
-  /**
-   * Handles adding remote modifiers to the default cache and then attempts to apply them to the history.
-   * Since this cache is unordered, we continue to loop through the cache until it's size remains constant.
-   * This indicates that no more modifiers in the cache can be appended into history
-   *
-   * @param mods recieved persistent modifiers from the remote peer
-   */
+  /** Handles adding remote modifiers to the default cache and then attempts to apply them to the history.
+    * Since this cache is unordered, we continue to loop through the cache until it's size remains constant.
+    * This indicates that no more modifiers in the cache can be appended into history
+    *
+    * @param mods recieved persistent modifiers from the remote peer
+    */
   protected def processRemoteModifiers(mods: Seq[PMOD]): Unit = {
+
     /** First-order loop that tries to pop blocks out of the cache and apply them into history */
     @tailrec
     def applyLoop(applied: Seq[PMOD]): Seq[PMOD] = {
@@ -246,7 +240,6 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
                 log.info(s"Persistent modifier ${pmod.encodedId} applied successfully")
                 updateNodeView(Some(newHistory), Some(newMinState), Some(newVault), Some(newMemPool))
 
-
               case Failure(e) =>
                 log.warn(s"Can`t apply persistent modifier (id: ${pmod.encodedId}, contents: $pmod) to minimal state", e)
                 updateNodeView(updatedHistory = Some(newHistory))
@@ -266,7 +259,7 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
 
   protected def extractTransactions(mod: PMOD): Seq[TX] = mod match {
     case tcm: TransactionsCarryingPersistentNodeViewModifier[TX] => tcm.transactions
-    case _ => Seq()
+    case _                                                       => Seq()
   }
 
   private def requestDownloads(pi: ProgressInfo[PMOD]): Unit =
@@ -279,44 +272,45 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
     if (idx == -1) IndexedSeq() else suffix.drop(idx)
   }
 
-
   /** Below is a description of how state updates are managed */
   /** ------------------------------------------------------------------------------------------------------------------- /
-  Assume that history knows the following blocktree:
-
-           G
-          / \
-         *   G
-        /     \
-       *       G
-
-    where path with G-s is about canonical chain (G means semantically valid modifier), path with * is sidechain (* means
-    that semantic validity is unknown). New modifier is coming to the sidechain, it sends rollback to the root +
-    application of the sidechain to the state. Assume that state is finding that some modifier in the sidechain is
-    incorrect:
-
-           G
-          / \
-         G   G
-        /     \
-       B       G
-      /
-     *
-
-  In this case history should be informed about the bad modifier and it should retarget state
-
-    //todo: improve the comment below
-
-    We assume that we apply modifiers sequentially (on a single modifier coming from the network or generated locally),
-    and in case of failed application of some modifier in a progressInfo, rollback point in an alternative should be not
-    earlier than a rollback point of an initial progressInfo.
-  / ---------------------------------------------------------------------------------------------------------------------- **/
+    *  Assume that history knows the following blocktree:
+    *
+    *           G
+    *          / \
+    *   G
+    *        /     \
+    *       G
+    *
+    *    where path with G-s is about canonical chain (G means semantically valid modifier), path with * is sidechain (* means
+    *    that semantic validity is unknown). New modifier is coming to the sidechain, it sends rollback to the root +
+    *    application of the sidechain to the state. Assume that state is finding that some modifier in the sidechain is
+    *    incorrect:
+    *
+    *           G
+    *          / \
+    *         G   G
+    *        /     \
+    *       B       G
+    *      /
+    *
+    *  In this case history should be informed about the bad modifier and it should retarget state
+    *
+    *    //todo: improve the comment below
+    *
+    *    We assume that we apply modifiers sequentially (on a single modifier coming from the network or generated locally),
+    *    and in case of failed application of some modifier in a progressInfo, rollback point in an alternative should be not
+    *    earlier than a rollback point of an initial progressInfo.
+    *  / ---------------------------------------------------------------------------------------------------------------------- *
+    */
 
   @tailrec
-  private def updateState(history: HIS,
-                          state: MS,
-                          progressInfo: ProgressInfo[PMOD],
-                          suffixApplied: IndexedSeq[PMOD]): (HIS, Try[MS], Seq[PMOD]) = {
+  private def updateState(
+    history: HIS,
+    state: MS,
+    progressInfo: ProgressInfo[PMOD],
+    suffixApplied: IndexedSeq[PMOD]
+  ): (HIS, Try[MS], Seq[PMOD]) = {
     requestDownloads(progressInfo)
 
     val (stateToApplyTry: Try[MS], suffixTrimmed: IndexedSeq[PMOD]) = if (progressInfo.chainSwitchingNeeded) {
@@ -346,22 +340,25 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
     }
   }
 
-  /**
-   * Update NodeView with new components and notify subscribers of changed components
-   *
-   * @param updatedHistory
-   * @param updatedState
-   * @param updatedVault
-   * @param updatedMempool
-   */
-  protected def updateNodeView(updatedHistory: Option[HIS] = None,
-                               updatedState: Option[MS] = None,
-                               updatedVault: Option[VL] = None,
-                               updatedMempool: Option[MP] = None): Unit = {
-    val newNodeView = (updatedHistory.getOrElse(history()),
+  /** Update NodeView with new components and notify subscribers of changed components
+    *
+    * @param updatedHistory
+    * @param updatedState
+    * @param updatedVault
+    * @param updatedMempool
+    */
+  protected def updateNodeView(
+    updatedHistory: Option[HIS] = None,
+    updatedState: Option[MS] = None,
+    updatedVault: Option[VL] = None,
+    updatedMempool: Option[MP] = None
+  ): Unit = {
+    val newNodeView = (
+      updatedHistory.getOrElse(history()),
       updatedState.getOrElse(minimalState()),
       updatedVault.getOrElse(vault()),
-      updatedMempool.getOrElse(memoryPool()))
+      updatedMempool.getOrElse(memoryPool())
+    )
     if (updatedHistory.nonEmpty) {
       context.system.eventStream.publish(ChangedHistory(newNodeView._1.getReader))
     }
@@ -388,16 +385,18 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
       !appliedTxs.exists(t => t.id == tx.id) && {
         state match {
           case v: TransactionValidation[TX] => v.validate(tx).isSuccess
-          case _ => true
+          case _                            => true
         }
       }
     }
   }
 
-  protected def applyState(history: HIS,
-                           stateToApply: MS,
-                           suffixTrimmed: IndexedSeq[PMOD],
-                           progressInfo: ProgressInfo[PMOD]): UpdateInformation = {
+  protected def applyState(
+    history: HIS,
+    stateToApply: MS,
+    suffixTrimmed: IndexedSeq[PMOD],
+    progressInfo: ProgressInfo[PMOD]
+  ): UpdateInformation = {
 
     val updateInfoInit = UpdateInformation(history, stateToApply, None, None, suffixTrimmed)
 
@@ -434,7 +433,7 @@ object GenericNodeViewHolder {
     // Modifiers received from the remote peer with new elements in it
     case class ModifiersFromRemote[PM <: PersistentNodeViewModifier](modifiers: Iterable[PM])
 
-    sealed trait NewTransactions[TX <: Transaction]{val txs: Iterable[TX]}
+    sealed trait NewTransactions[TX <: Transaction] { val txs: Iterable[TX] }
 
     case class LocallyGeneratedTransaction[TX <: Transaction](tx: TX) extends NewTransactions[TX] {
       override val txs: Iterable[TX] = Iterable(tx)

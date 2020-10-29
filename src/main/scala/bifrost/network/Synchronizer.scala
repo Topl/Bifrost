@@ -8,16 +8,18 @@ import scala.util.{Failure, Success}
 
 trait Synchronizer extends Logging {
 
-  protected val msgHandlers: PartialFunction[(MessageSpec[_], _, ConnectedPeer), Unit] // these are the case statements for identifying the message handlers
+  protected val msgHandlers: PartialFunction[
+    (MessageSpec[_], _, ConnectedPeer),
+    Unit
+  ] // these are the case statements for identifying the message handlers
 
-  /**
-   * This method will attempt to parse a message from a remote peer into it class representation and use
-   * the defined message handlers for processing the message
-   *
-   * @param spec the message specification (basically a header informing of the message type)
-   * @param msgBytes a ByteString of the message data that must be parsed
-   * @param source the remote peer that sent the message
-   */
+  /** This method will attempt to parse a message from a remote peer into it class representation and use
+    * the defined message handlers for processing the message
+    *
+    * @param spec the message specification (basically a header informing of the message type)
+    * @param msgBytes a ByteString of the message data that must be parsed
+    * @param source the remote peer that sent the message
+    */
   protected def parseAndHandle(spec: MessageSpec[Any], msgBytes: Array[Byte], source: ConnectedPeer): Unit = {
     // attempt to parse the message
     spec.parseBytes(msgBytes) match {
@@ -34,11 +36,10 @@ trait Synchronizer extends Logging {
     }
   }
 
-  /**
-   * Handles how a peer that sent un-parsable data should be handled
-   *
-   * @param peer peer that sent the offending message
-   */
+  /** Handles how a peer that sent un-parsable data should be handled
+    *
+    * @param peer peer that sent the offending message
+    */
   protected def penalizeMaliciousPeer(peer: ConnectedPeer): Unit
 
 }
