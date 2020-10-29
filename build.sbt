@@ -59,7 +59,7 @@ val testingDependencies = Seq(
   "org.scalactic" %% "scalactic" % "3.2.2" % Test,
   "org.scalatest" %% "scalatest" % "3.2.2" % Test,
   "org.scalacheck" %% "scalacheck" % "1.14.3" % Test,
-  "org.scalatestplus" %% "scalacheck-1-14" % "3.2.0.0" % Test,
+  "org.scalatestplus" %% "scalacheck-1-14" % "3.2.2.0" % Test,
   "com.spotify" % "docker-client" % "8.16.0" % Test,
   "org.asynchttpclient" % "async-http-client" % "2.7.0" % Test
 )
