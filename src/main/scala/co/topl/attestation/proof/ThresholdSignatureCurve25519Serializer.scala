@@ -17,6 +17,6 @@ object ThresholdSignatureCurve25519Serializer extends BifrostSerializer[Threshol
     val signatureSetLength: Int = r.getUInt().toIntExact
     val signatureSet: Set[SignatureCurve25519] = (0 until signatureSetLength).map(_ => SignatureCurve25519Serializer.parse(r)).toSet
 
-    proof.ThresholdSignatureCurve25519(signatureSet)
+    ThresholdSignatureCurve25519(signatureSet)
   }
 }

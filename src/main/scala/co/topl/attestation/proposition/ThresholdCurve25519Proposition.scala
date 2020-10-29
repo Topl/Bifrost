@@ -30,11 +30,7 @@ case class ThresholdCurve25519Proposition (threshold: Int, pubKeyProps: Set[Publ
 
   // TODO: only works for m == 1
   def verify(message: Array[Byte], signature: ThresholdSignatureCurve25519): Boolean = {
-    val numValidSigs = pubKeyProps
-      .map(prop => signature.isValid())
-      .count(_ == true)
 
-    numValidSigs >= threshold
   }
 
   override def equals(obj: scala.Any): Boolean = obj match {

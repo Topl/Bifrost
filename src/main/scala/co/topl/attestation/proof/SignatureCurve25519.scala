@@ -36,8 +36,6 @@ object SignatureCurve25519 {
       case Failure(ex)                       => throw ex
     }
 
-  val g: Try[Proof[PublicKeyCurve25519Proposition]] = proofDecoder.decodeString("s")
-
   /** Returns a signature filled with 1's for use in genesis signatures */
   def genesis (): SignatureCurve25519 = {
     SignatureCurve25519(Signature @@ Array.fill(SignatureCurve25519.SignatureSize)(1: Byte))
