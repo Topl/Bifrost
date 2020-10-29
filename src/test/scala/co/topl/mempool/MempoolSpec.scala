@@ -35,7 +35,7 @@ class MempoolSpec extends AnyPropSpec
     (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]],
     10.seconds)
 
-  ignore("Repeated transactions already in history should be discarded " +
+  property("Repeated transactions already in history should be discarded " +
     "when received by the node view") {
     val txs = view().history.bestBlock.transactions
     txs.foreach(tx ⇒ nodeViewHolderRef ! LocallyGeneratedTransaction[Transaction](tx))
