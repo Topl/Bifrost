@@ -1,18 +1,12 @@
 package co.topl.api.program
 
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import co.topl.http.api.routes.ProgramApiRoute
 import io.circe.parser.parse
 import io.circe.syntax._
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 
-class ProgramCallSpec extends AnyWordSpec
-  with Matchers
-  with ScalatestRouteTest
-  with ProgramMockState {
+class ProgramCallSpec extends ProgramRPCMockState {
 
   val route: Route = ProgramApiRoute(settings.restApi, nodeViewHolderRef).route
 

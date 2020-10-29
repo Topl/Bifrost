@@ -1,17 +1,11 @@
 package co.topl.api.program
 
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import co.topl.http.api.routes.ProgramApiRoute
 import io.circe.parser.parse
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 
-class ProgramMethodExecutionSpec extends AnyWordSpec
-  with Matchers
-  with ScalatestRouteTest
-  with ProgramMockState {
+class ProgramMethodExecutionSpec extends ProgramRPCMockState {
 
   val route: Route = ProgramApiRoute(settings.restApi, nodeViewHolderRef).route
 
@@ -53,8 +47,6 @@ class ProgramMethodExecutionSpec extends AnyWordSpec
 
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
-
-        println(res)
 
         (res \\ "result").head.isObject shouldEqual true
         (res \\ "error").isEmpty shouldEqual true

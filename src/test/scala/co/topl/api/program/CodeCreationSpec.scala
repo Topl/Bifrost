@@ -1,7 +1,6 @@
 package co.topl.api.program
 
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import co.topl.http.api.routes.ProgramApiRoute
 import co.topl.modifier.ModifierId
@@ -9,13 +8,8 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.box.ArbitBox
 import io.circe.parser.parse
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 
-class CodeCreationSpec extends AnyWordSpec
-  with Matchers
-  with ScalatestRouteTest
-  with ProgramMockState {
+class CodeCreationSpec extends ProgramRPCMockState {
 
   val route: Route = ProgramApiRoute(settings.restApi, nodeViewHolderRef).route
 
