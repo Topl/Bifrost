@@ -32,7 +32,7 @@ class CodeCreationSpec extends ProgramRPCMockState {
            |""".stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
 
         println(s"$res")
 

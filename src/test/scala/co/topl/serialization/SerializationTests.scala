@@ -83,7 +83,8 @@ class SerializationTests extends AnyPropSpec
           .get
 
         val serialized = BoxSerializer.toBytes(parsed)
-        json.as[StateBox].right.get.bytes sameElements BoxSerializer.toBytes(b) shouldBe true
+        val resBox: StateBox = json.as[StateBox] match {case Right(re) => re; case Left(ex) => throw ex}
+        resBox.bytes sameElements BoxSerializer.toBytes(b) shouldBe true
         serialized sameElements BoxSerializer.toBytes(b) shouldBe true
     }
   }
@@ -97,7 +98,8 @@ class SerializationTests extends AnyPropSpec
           .get
 
         val serialized = BoxSerializer.toBytes(parsed)
-        json.as[CodeBox].right.get.bytes sameElements BoxSerializer.toBytes(b) shouldBe true
+        val resBox: CodeBox = json.as[CodeBox] match {case Right(re) => re; case Left(ex) => throw ex}
+        resBox.bytes sameElements BoxSerializer.toBytes(b) shouldBe true
         serialized sameElements BoxSerializer.toBytes(b) shouldBe true
     }
   }
@@ -111,7 +113,8 @@ class SerializationTests extends AnyPropSpec
           .get
 
         val serialized = BoxSerializer.toBytes(parsed)
-        json.as[ExecutionBox].right.get.bytes sameElements BoxSerializer.toBytes(b) shouldBe true
+        val resBox: ExecutionBox = json.as[ExecutionBox] match {case Right(re) => re; case Left(ex) => throw ex}
+        resBox.bytes sameElements BoxSerializer.toBytes(b) shouldBe true
         serialized sameElements BoxSerializer.toBytes(b) shouldBe true
     }
   }

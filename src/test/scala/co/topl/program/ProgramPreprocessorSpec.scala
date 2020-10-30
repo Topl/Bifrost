@@ -103,7 +103,8 @@ class ProgramPreprocessorSpec extends AnyPropSpec
   /*property("Json encoding and decoding should work") {
     //val wrapper = ProgramPreprocessor(osAppropriatePath)(args)
     val wrapper = ProgramPreprocessor(name, program)(JsonObject.empty)
-    wrapper.json.as[ProgramPreprocessor].right.get shouldEqual wrapper
+                    .json.as[ProgramPreprocessor] match {case Right(re) => re; case Left(ex) => throw ex}
+    wrapper shouldEqual wrapper
   }*/
 
   property("ProgramPreprocessor should split a single script into separate state and code objects") {

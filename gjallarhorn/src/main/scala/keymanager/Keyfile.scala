@@ -156,7 +156,8 @@ object KeyFile {
     */
   def readFile(filename: String): KeyFile = {
     val jsonString = scala.io.Source.fromFile(filename).mkString
-    parse(jsonString).right.get.as[KeyFile] match {
+    val res: Json = parse(jsonString) match {case Right(re) => re; case Left(ex) => throw ex}
+    res.as[KeyFile] match {
       case Right(f: KeyFile) => f
       case Left(e) => throw new Exception(s"Could not parse KeyFile: $e")
     }

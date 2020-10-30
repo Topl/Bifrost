@@ -107,7 +107,7 @@ class AssetRPCSpec extends AnyWordSpec
 //        """.stripMargin)
 //
 //      httpPOST(requestBody) ~> route ~> check {
-//        val res = parse(responseAs[String]).right.get
+//        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
 //        (res \\ "error").isEmpty shouldBe true
 //        (res \\ "result").head.asObject.isDefined shouldBe true
 //        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
@@ -148,7 +148,7 @@ class AssetRPCSpec extends AnyWordSpec
         """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         tx = ((res \\ "result").head \\ "formattedTx").head
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
@@ -170,7 +170,7 @@ class AssetRPCSpec extends AnyWordSpec
 //          """.stripMargin)
 //
 //      walletHttpPOST(requestBody) ~> walletRoute ~> check {
-//        val res = parse(responseAs[String]).right.get
+//        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
 //        tx = (res \\ "result").head
 //        (res \\ "error").isEmpty shouldBe true
 //        (res \\ "result").head.asObject.isDefined shouldBe true
@@ -180,7 +180,7 @@ class AssetRPCSpec extends AnyWordSpec
 //    "Broadcast createAssetsPrototype transaction" in {
 //      val secret = view().vault.secretByPublicImage(
 //        PublicKey25519Proposition(PublicKey @@ Base58.decode(publicKeys("hub")).get)).get
-//      val tempTx = tx.as[AssetCreation].right.get
+//      val tempTx = tx.as[AssetCreation] match {case Right(re) => re; case Left(ex) => throw ex}
 //      val sig = secret.sign(tempTx.messageToSign)
 //      val signedTx = tempTx.copy(signatures = Map(PublicKey25519Proposition(PublicKey @@ Base58.decode(publicKeys("hub")).get) -> sig))
 //
@@ -197,7 +197,7 @@ class AssetRPCSpec extends AnyWordSpec
 //        """.stripMargin)
 //
 //      walletHttpPOST(requestBody) ~> walletRoute ~> check {
-//        val res = parse(responseAs[String]).right.get
+//        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
 //        (res \\ "error").isEmpty shouldBe true
 //        (res \\ "result").head.asObject.isDefined shouldBe true
 //      }
@@ -222,7 +222,7 @@ class AssetRPCSpec extends AnyWordSpec
         """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         tx = ((res \\ "result").head \\ "formattedTx").head
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
@@ -232,7 +232,7 @@ class AssetRPCSpec extends AnyWordSpec
 //    "Broadcast transferTargetAssetsPrototype" in {
 //      val prop = (tx \\ "from").head.asArray.get.head.asArray.get.head.asString.get
 //      val secret = view().vault.secretByPublicImage(PublicKey25519Proposition(PublicKey @@ Base58.decode(prop).get)).get
-//      val tempTx = tx.as[AssetTransfer].right.get
+//      val tempTx = tx.as[AssetTransfer] match {case Right(re) => re; case Left(ex) => throw ex}
 //      val sig = PrivateKey25519Companion.sign(secret, tempTx.messageToSign)
 //      val signedTx = tempTx.copy(signatures = Map(PublicKey25519Proposition(PublicKey @@ Base58.decode(publicKeys("hub")).get) -> sig))
 //
@@ -249,7 +249,7 @@ class AssetRPCSpec extends AnyWordSpec
 //        """.stripMargin)
 //
 //      walletHttpPOST(requestBody) ~> walletRoute ~> check {
-//        val res = parse(responseAs[String]).right.get
+//        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
 //        (res \\ "error").isEmpty shouldBe true
 //        (res \\ "result").head.asObject.isDefined shouldBe true
 //      }
@@ -274,7 +274,7 @@ class AssetRPCSpec extends AnyWordSpec
 //        """.stripMargin)
 //
 //      httpPOST(requestBody) ~> route ~> check {
-//        val res = parse(responseAs[String]).right.get
+//        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
 //        (res \\ "error").isEmpty shouldBe true
 //        (res \\ "result").head.asObject.isDefined shouldBe true
 //      }
@@ -300,7 +300,7 @@ class AssetRPCSpec extends AnyWordSpec
 //        """.stripMargin)
 //
 //      httpPOST(requestBody) ~> route ~> check {
-//        val res = parse(responseAs[String]).right.get
+//        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
 //        (res \\ "error").isEmpty shouldBe true
 //        (res \\ "result").head.asObject.isDefined shouldBe true
 //
@@ -332,7 +332,7 @@ class AssetRPCSpec extends AnyWordSpec
         """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
       }

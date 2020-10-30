@@ -144,7 +144,7 @@ class ProgramRPCSpec extends AnyWordSpec
     "Get programCreation signature" in {
       val requestBody = ByteString(programBodyTemplate.stripMargin)
       httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "result").head.asObject.isDefined shouldEqual true
         sig = ((res \\ "result").head.asJson \\ "signature").head.asString.get
         sig.nonEmpty shouldEqual true
@@ -170,7 +170,7 @@ class ProgramRPCSpec extends AnyWordSpec
 
 
       httpPOST(ByteString(requestJson.toString)) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "result").head.asObject.isDefined shouldEqual true
         //a new transaction in the mempool
         view().pool.take(1).toList.size shouldEqual 1
@@ -215,7 +215,7 @@ class ProgramRPCSpec extends AnyWordSpec
         """.stripMargin
 
       httpPOST(ByteString(requestBody)) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "result").head.asObject.isDefined shouldEqual true
         // Manually modify state
         manuallyApplyChanges(res, 9)
@@ -228,7 +228,7 @@ class ProgramRPCSpec extends AnyWordSpec
 
         val state = root.value.executionBuilder.core.json.getOption(boxContent).get.as[BaseModuleWrapper].right.get.state
           .asString.get
-        (parse(state).right.get \\ "status").head.asString.get shouldBe "in progress"
+        (parse(state) match {case Right(re) => re; case Left(ex) => throw ex} \\ "status").head.asString.get shouldBe "in progress"
       }
     }*/
 
@@ -244,7 +244,7 @@ class ProgramRPCSpec extends AnyWordSpec
         """.stripMargin
 
       httpPOST(ByteString(requestBody)) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "result").head.asArray.get.nonEmpty shouldEqual true
         ((res \\ "result").head \\ "transactionHash").head.asString.get shouldEqual Base58.encode(completionTx.get.id)
       }
@@ -265,7 +265,7 @@ class ProgramRPCSpec extends AnyWordSpec
 //           |}
 //        """.stripMargin
 //      httpPOST(ByteString(requestBody)) ~> route ~> check {
-//        val res = parse(responseAs[String]).right.get
+//        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
 //        (res \\ "result").head.asObject.isDefined shouldEqual true
 //        val msgManager = Await.result((nodeViewHolderRef ? GetMessageManager).mapTo[MessageManager], 5.seconds)
 //        msgManager.m.take(1).head.messageBytes.toByteArray sameElements tempProposal.toByteArray shouldBe true
@@ -286,7 +286,7 @@ class ProgramRPCSpec extends AnyWordSpec
 //        """.stripMargin
 //
 //      httpPOST(ByteString(requestBody)) ~> route ~> check {
-//        val res = parse(responseAs[String]).right.get
+//        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
 //        (res \\ "result").head.asObject.isDefined shouldEqual true
 //        ((res \\ "result").head \\ "totalProposals").head.asNumber.get.toInt.get shouldEqual 1
 //      }

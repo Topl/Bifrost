@@ -76,7 +76,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          """.stripMargin)
 
     httpPOST(createAssetRequest) ~> route ~> check {
-      val res = parse(responseAs[String]).right.get
+      val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
       (res \\ "error").isEmpty shouldBe true
       (res \\ "result").head.asObject.isDefined shouldBe true
     }

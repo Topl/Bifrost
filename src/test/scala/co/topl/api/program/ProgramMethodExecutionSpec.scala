@@ -46,7 +46,7 @@ class ProgramMethodExecutionSpec extends ProgramRPCMockState {
            |""".stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
 
         (res \\ "result").head.isObject shouldEqual true
         (res \\ "error").isEmpty shouldEqual true

@@ -388,8 +388,8 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
 //      val tx = (params \\ "protoTx").head
 //      val txType = (tx \\ "txType").head.asString.get
 //      val txInstance = txType match {
-//        case "AssetCreation" => tx.as[AssetCreation].right.get
-//        case "AssetTransfer" => tx.as[AssetTransfer].right.get
+//        case "AssetCreation" => tx.as[AssetCreation] match {case Right(re) => re; case Left(ex) => throw ex}
+//        case "AssetTransfer" => tx.as[AssetTransfer] match {case Right(re) => re; case Left(ex) => throw ex}
 //        case _               =>
 //          throw new Exception(s"Could not find valid transaction type $txType")
 //      }
@@ -433,8 +433,8 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
       val tx = (params \\ "tx").head
       val txType = (tx \\ "txType").head.asString.get
       val txInstance: Transaction = txType match {
-        case "AssetCreation" => tx.as[AssetCreation].right.get
-        case "AssetTransfer" => tx.as[AssetTransfer].right.get
+        case "AssetCreation" => tx.as[AssetCreation] match {case Right(re) => re; case Left(ex) => throw ex}
+        case "AssetTransfer" => tx.as[AssetTransfer] match {case Right(re) => re; case Left(ex) => throw ex}
         case _               =>
           throw new Exception(s"Could not find valid transaction type $txType")
       }

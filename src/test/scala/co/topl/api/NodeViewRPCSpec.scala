@@ -104,7 +104,7 @@ class NodeViewRPCSpec extends AnyWordSpec
         """.stripMargin)
 
   httpPOSTAsset(requestBody) ~> routeAsset ~> check {
-    val res = parse(responseAs[String]).right.get
+    val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
     (res \\ "error").isEmpty shouldBe true
     (res \\ "result").head.asObject.isDefined shouldBe true
     assetTxHash = ((res \\ "result").head \\ "txHash").head.asString.get
@@ -123,7 +123,7 @@ class NodeViewRPCSpec extends AnyWordSpec
           """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
         val txHashesArray = (res \\ "result").head \\ "txHash"
@@ -165,7 +165,7 @@ class NodeViewRPCSpec extends AnyWordSpec
           """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
         ((res \\ "result").head \\ "txHash").head.asString.get shouldEqual txHash
@@ -190,7 +190,7 @@ class NodeViewRPCSpec extends AnyWordSpec
           """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
         ((res \\ "result").head \\ "txHash").head.asString.get shouldEqual txHash
@@ -213,7 +213,7 @@ class NodeViewRPCSpec extends AnyWordSpec
           """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
         val txsArray = ((res \\ "result").head \\ "txs").head.asArray.get

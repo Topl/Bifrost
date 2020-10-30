@@ -7,6 +7,7 @@ import akka.util.ByteString
 import co.topl.crypto.FastCryptographicHash
 import co.topl.http.api.routes.UtilsApiRoute
 import co.topl.utils.CoreGenerators
+import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -44,7 +45,7 @@ class UtilsRPCSpec extends AnyWordSpec
         """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
         Base58.decode(((res \\ "result").head \\ "seed").head.asString.get) match {
@@ -68,7 +69,7 @@ class UtilsRPCSpec extends AnyWordSpec
       """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
         Base58.decode(((res \\ "result").head \\ "seed").head.asString.get) match {
@@ -92,7 +93,7 @@ class UtilsRPCSpec extends AnyWordSpec
       """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
         ((res \\ "result").head \\ "hash").head.asString.get shouldEqual Base58.encode(FastCryptographicHash("Hello World"))

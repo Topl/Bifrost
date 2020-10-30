@@ -93,7 +93,7 @@
 //        """.stripMargin)
 //
 //      httpPOST(requestBody) ~> route ~> check {
-//        val res = parse(responseAs[String]).right.get
+//        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
 //        (res \\ "error").isEmpty shouldBe true
 //        (res \\ "result").head.asObject.isDefined shouldBe true
 //      }
@@ -117,7 +117,7 @@
 //        """.stripMargin)
 //
 //      httpPOST(requestBody) ~> route ~> check {
-//        val res = parse(responseAs[String]).right.get
+//        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
 //        (res \\ "error").isEmpty shouldBe true
 //        (res \\ "result").head.asObject.isDefined shouldBe true
 //        //Removing transaction from mempool so as not to affect ProgramRPC tests
@@ -146,7 +146,7 @@
 //        """.stripMargin)
 //
 //      httpPOST(requestBody) ~> route ~> check {
-//        val res = parse(responseAs[String]).right.get
+//        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
 //        (res \\ "error").isEmpty shouldBe true
 //        (res \\ "result").head.asObject.isDefined shouldBe true
 //      }
@@ -170,7 +170,7 @@
 //        """.stripMargin)
 //
 //      httpPOST(requestBody) ~> route ~> check {
-//        val res = parse(responseAs[String]).right.get
+//        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
 //        (res \\ "error").isEmpty shouldBe true
 //        (res \\ "result").head.asObject.isDefined shouldBe true
 //        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
@@ -198,7 +198,7 @@
 //        """.stripMargin)
 //
 //      httpPOST(requestBody) ~> route ~> check {
-//        val res = parse(responseAs[String]).right.get
+//        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
 //        (res \\ "error").isEmpty shouldBe true
 //        (res \\ "result").head.asObject.isDefined shouldBe true
 //      }
@@ -216,10 +216,10 @@
 //        """.stripMargin)
 //
 //      httpPOST(requestBody) ~> route ~> check {
-//        val res = parse(responseAs[String]).right.get
+//        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
 //        (res \\ "error").isEmpty shouldBe true
 //        (res \\ "result").head.asArray.isDefined shouldBe true
-//        (res \\ "result").head.as[List[String]].right.get == publicKeys.values.toList shouldBe true
+//        (res \\ "result").head.as[List[String]] match {case Right(re) => re; case Left(ex) => throw ex} == publicKeys.values.toList shouldBe true
 //      }
 //    }
 //
@@ -237,7 +237,7 @@
 //        """.stripMargin)
 //
 //      httpPOST(requestBody) ~> route ~> check {
-//        val res = parse(responseAs[String]).right.get
+//        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
 //        (res \\ "error").isEmpty shouldBe true
 //        (res \\ "result").head.asObject.isDefined shouldBe true
 //        newPubKey = ((res \\ "result").head \\ "publicKey").head.asString.get
@@ -259,7 +259,7 @@
 //        """.stripMargin)
 //
 //      httpPOST(requestBody) ~> route ~> check {
-//        val res = parse(responseAs[String]).right.get
+//        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
 //        (res \\ "error").isEmpty shouldBe true
 //        (res \\ "result").head.asObject.isDefined shouldBe true
 //      }
@@ -280,7 +280,7 @@
 //        """.stripMargin)
 //
 //      httpPOST(requestBody) ~> route ~> check {
-//        val res = parse(responseAs[String]).right.get
+//        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
 //        (res \\ "error").isEmpty shouldBe true
 //        (res \\ "result").head.asObject.isDefined shouldBe true
 //

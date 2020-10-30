@@ -41,7 +41,8 @@ class ProgramSpec extends AnyPropSpec
   property("Json works properly for ExecutionBuilderTerms") {
     forAll(validExecutionBuilderTermsGen) {
       t: ExecutionBuilderTerms => {
-        t.json.as[ExecutionBuilderTerms].right.get shouldBe t
+        val res = t.json.as[ExecutionBuilderTerms] match {case Right(re) => re; case Left(ex) => throw ex}
+        res shouldBe t
       }
     }
   }

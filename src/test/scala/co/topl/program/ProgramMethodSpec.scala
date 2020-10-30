@@ -38,8 +38,9 @@ class ProgramMethodSpec extends AnyPropSpec
         val stateBoxes = Seq(stateBox, stateBoxTwo, stateBoxThree)
 
         val result = Program.execute(stateBoxes, Seq(codeBox), "inc")(party)(params).get
+                            .hcursor.get[Int]("a") match {case Right(re) => re; case Left(ex) => throw ex}
 
-        result.hcursor.get[Int]("a").right.get shouldEqual 1
+        result shouldEqual 1
       }
     }
   }
