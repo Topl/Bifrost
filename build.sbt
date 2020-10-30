@@ -76,7 +76,7 @@ val miscDependencies = Seq(
   "com.google.guava" % "guava" % "30.0-jre",
   "com.iheart" %% "ficus" % "1.5.0",
   "org.rudogma" %% "supertagged" % "1.5",
-  "com.joefkelley" %% "argyle" % "1.0.0",
+  "com.joefkelley" %% "argyle" % "1.0.0"
 ) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
 
 
@@ -104,7 +104,7 @@ libraryDependencies  ++= Seq(
   "org.scalanlp" %% "breeze" % "1.1",
   "com.google.protobuf" % "protobuf-java" % "3.13.0",
   "com.thesamet.scalapb" %% "lenses" % "0.10.8",
-  "com.typesafe" % "config" % "1.4.0",
+  "com.typesafe" % "config" % "1.4.1"
 )
 
 scalacOptions ++= Seq(
