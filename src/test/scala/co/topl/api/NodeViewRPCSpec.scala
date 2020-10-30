@@ -8,7 +8,7 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import co.topl.crypto.Signature25519
-import co.topl.http.api.routes.{AssetApiRoute, NodeViewApiRoute}
+import co.topl.http.api.routes.NodeViewApiRoute
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{AssetCreation, Transaction}

@@ -15,7 +15,7 @@ import scala.util.Failure
 /**
   * Created by Matt Kindy on 6/7/2017.
   */
-class ProgramCreationValidationSpec extends ProgramSpec {
+class ProgramCreationValidationSpec extends StateSpec {
 
 //  //noinspection ScalaStyle
 //  def arbitraryPartyProgramCreationGen(num: Int): Gen[ProgramCreation] = for {
@@ -281,8 +281,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           settings.application.version.blockByte
         )
 
-        val necessaryState = StateSpec
-          .genesisState()
+        val necessaryState = createState(StateSpec.settingsFilename)
           .applyModifier(firstCCAddBlock)
           .get
 

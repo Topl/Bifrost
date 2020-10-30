@@ -47,8 +47,6 @@ object StateSpec {
       case Failure(ex)   => throw ex
     } }, testSettings).getGenesisBlock.get._1
 
-  def genesisState(): State = State.genesisState(testSettings, Seq(block)).copy()
-
   val genesisBlockId: ModifierId = block.id
 
 }
