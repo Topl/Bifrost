@@ -7,9 +7,10 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.box.ArbitBox
+import co.topl.utils.RPCHelpers
 import io.circe.parser.parse
 
-class CodeCreationSpec extends ProgramRPCMockState {
+class CodeCreationSpec extends ProgramRPCMockState with RPCHelpers {
 
   val route: Route = ProgramApiRoute(settings.restApi, nodeViewHolderRef).route
 
@@ -17,24 +18,18 @@ class CodeCreationSpec extends ProgramRPCMockState {
 
     "Create new CodeBox in state" in {
 
-      val requestBody = ByteString(
-        s"""{
-           |  "jsonrpc": "2.0",
-           |  "id": "1",
-           |  "method": "createCode",
-           |  "params": [{
-           |    "publicKey": "${publicKeys("investor")}",
-           |    "code": "add = function(a,b) { return a + b }",
-           |    "fee": 0,
-           |    "data": ""
-           |  }]
-           |}
-           |""".stripMargin)
+      val params =
+        s"""
+           |"publicKey": "${publicKeys("investor")}",
+           |"code": "add = function(a,b) { return a + b }",
+           |"fee": 0,
+           |"data": ""
+           |""".stripMargin
 
-      httpPOST(requestBody) ~> route ~> check {
+      val request = formRequest("createCode", params)
+
+      httpPOST(request) ~> route ~> check {
         val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
-
-        println(s"$res")
 
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
