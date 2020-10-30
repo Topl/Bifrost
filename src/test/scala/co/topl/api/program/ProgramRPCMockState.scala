@@ -19,8 +19,8 @@ import io.circe.syntax._
 import org.scalatest.matchers.should
 import org.scalatest.wordspec.AnyWordSpec
 
+import scala.concurrent.Await
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext}
 import scala.reflect.io.Path
 import scala.util.Try
 
@@ -32,9 +32,7 @@ trait ProgramRPCMockState extends AnyWordSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  // TODO: fix actor system creation with ScalatestRouteTest (using private for now)
-  private implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
-  private implicit lazy val executionContext: ExecutionContext = actorSystem.dispatcher
+  override def createActorSystem(): ActorSystem = ActorSystem(settings.network.agentName)
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // save environment into a variable for reference throughout the application
