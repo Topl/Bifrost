@@ -130,7 +130,7 @@ class ProgramRPCSpec extends AnyWordSpec
           "owner": "${publicKeys("investor")}",
           "signatures": ${Map(publicKeys("investor") -> "".asJson).asJson},
           "preFeeBoxes": {
-            "${publicKeys("investor")}": [[${polyBoxes.head.nonce}, ${polyBoxes.head.value}]]
+            "${publicKeys("investor")}": [[]]
           },
           "fees": ${fees.asJson},
           "timestamp": ${System.currentTimeMillis},

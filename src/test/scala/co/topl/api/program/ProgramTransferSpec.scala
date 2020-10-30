@@ -1,13 +1,12 @@
 package co.topl.api.program
 
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import co.topl.http.api.routes.ProgramApiRoute
 import io.circe.Json
 import io.circe.parser.parse
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
+
+import scala.util.Random
 
 class ProgramTransferSpec extends ProgramRPCMockState {
 
@@ -17,7 +16,9 @@ class ProgramTransferSpec extends ProgramRPCMockState {
 
     val boxState = Seq(stateBox, codeBox, executionBox)
 
-    directlyAddPBRStorage(1, boxState)
+    val version = Random.nextInt
+
+    directlyAddPBRStorage(version, boxState)
 
     "Transfer a program and create a new ExecutionBox with the updated owner" in {
 

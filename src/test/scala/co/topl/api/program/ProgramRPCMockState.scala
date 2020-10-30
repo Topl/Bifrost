@@ -21,16 +21,11 @@ import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import scala.reflect.io.Path
-import scala.util.Try
 
 trait ProgramRPCMockState extends AnyWordSpec
   with CoreGenerators
   with should.Matchers
   with ScalatestRouteTest {
-
-  val path: Path = Path("/tmp/bifrost/test-data")
-  Try(path.deleteRecursively())
 
   override def createActorSystem(): ActorSystem = ActorSystem(settings.network.agentName)
 

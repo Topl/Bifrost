@@ -6,6 +6,8 @@ import co.topl.http.api.routes.ProgramApiRoute
 import io.circe.parser.parse
 import io.circe.syntax._
 
+import scala.util.Random
+
 class ProgramCallSpec extends ProgramRPCMockState {
 
   val route: Route = ProgramApiRoute(settings.restApi, nodeViewHolderRef).route
@@ -13,8 +15,9 @@ class ProgramCallSpec extends ProgramRPCMockState {
   "programCall" should {
 
     val boxState = Seq(stateBox, codeBox, executionBox)
+    val version = Random.nextInt
 
-    directlyAddPBRStorage(1, boxState)
+    directlyAddPBRStorage(version, boxState)
 
     view().history.bestBlock.transactions.foreach{ tx =>
       println(s"${tx.toString}")

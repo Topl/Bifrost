@@ -11,8 +11,8 @@ import co.topl.crypto.Signature25519
 import co.topl.http.api.routes.{AssetApiRoute, NodeViewApiRoute}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.Transaction
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
+import co.topl.modifier.transaction.{AssetCreation, Transaction}
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedTransaction}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
@@ -51,7 +51,7 @@ class NodeViewRPCSpec extends AnyWordSpec
   // setup route for testing
   val route: Route = NodeViewApiRoute(settings.restApi, nodeViewHolderRef).route
 
-  val routeAsset: Route = AssetApiRoute(settings.restApi, nodeViewHolderRef).route
+  implicit val timeout: Timeout = Timeout(10.seconds)
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
@@ -61,15 +61,6 @@ class NodeViewRPCSpec extends AnyWordSpec
     ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
 
-  def httpPOSTAsset(jsonRequest: ByteString): HttpRequest = {
-    HttpRequest(
-      HttpMethods.POST,
-      uri = "/asset/",
-      entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    ).withHeaders(RawHeader("x-api-key", "test_key"))
-  }
-
-  implicit val timeout: Timeout = Timeout(10.seconds)
 
   private def view() = Await.result(
     (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]],
@@ -81,34 +72,13 @@ class NodeViewRPCSpec extends AnyWordSpec
     "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
   )
 
+  val tx: AssetCreation = assetCreationGen.sample.get
   var txHash: String = ""
-  var assetTxHash: String = ""
+  var assetTxHash: String = tx.id.toString
   var assetTxInstance: Transaction = _
   var blockId: Block.BlockId = _
 
-  val requestBody: ByteString = ByteString(
-    s"""
-       |{
-       |   "jsonrpc": "2.0",
-       |   "id": "1",
-       |   "method": "createAssets",
-       |   "params": [{
-       |     "issuer": "${publicKeys("hub")}",
-       |     "recipient": "${publicKeys("investor")}",
-       |     "amount": 10,
-       |     "assetCode": "x",
-       |     "fee": 0,
-       |     "data": ""
-       |   }]
-       |}
-        """.stripMargin)
-
-  httpPOSTAsset(requestBody) ~> routeAsset ~> check {
-    val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
-    (res \\ "error").isEmpty shouldBe true
-    (res \\ "result").head.asObject.isDefined shouldBe true
-    assetTxHash = ((res \\ "result").head \\ "txHash").head.asString.get
-  }
+  nodeViewHolderRef ! LocallyGeneratedTransaction[Transaction](tx)
 
   "NodeView RPC" should {
     "Get first 100 transactions in mempool" in {

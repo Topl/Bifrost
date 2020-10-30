@@ -5,6 +5,8 @@ import akka.util.ByteString
 import co.topl.http.api.routes.ProgramApiRoute
 import io.circe.parser.parse
 
+import scala.util.Random
+
 class ProgramMethodExecutionSpec extends ProgramRPCMockState {
 
   val route: Route = ProgramApiRoute(settings.restApi, nodeViewHolderRef).route
@@ -12,8 +14,9 @@ class ProgramMethodExecutionSpec extends ProgramRPCMockState {
   "executeProgramMethod" should {
 
     val boxState = Seq(stateBox, codeBox, executionBox)
+    val version = Random.nextInt
 
-    directlyAddPBRStorage(1, boxState)
+    directlyAddPBRStorage(version, boxState)
 
     "Update mutable state in a Program and return the updated state" in {
 
