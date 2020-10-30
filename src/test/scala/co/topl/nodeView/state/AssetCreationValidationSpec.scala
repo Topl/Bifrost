@@ -29,7 +29,7 @@ class AssetCreationValidationSpec extends StateSpec {
           settings.application.version.blockByte
         )
 
-        val newState = createState(StateSpec.settingsFilename)
+        val newState = createState()
           .applyModifier(block)
           .get
 
@@ -78,7 +78,7 @@ class AssetCreationValidationSpec extends StateSpec {
 //          .applyModifier(firstCCAddBlock)
 //          .get
 
-        val newState = createState(StateSpec.settingsFilename)
+        val newState = createState()
           .validate(invalidAC)
 
         newState shouldBe a[Failure[_]]

@@ -4,21 +4,16 @@ import co.topl.consensus.consensusHelper.setProtocolMngr
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.history.History
-import co.topl.nodeView.state.State
-import co.topl.utils.CoreGenerators
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.propspec.AnyPropSpec
+import co.topl.nodeView.state.{State, StateSpec}
 
-class BlockVersionTests extends AnyPropSpec
-  with Matchers
-  with CoreGenerators {
+class BlockVersionTests extends StateSpec {
 
-  /* Initialize protocolMngr */
+/* Initialize protocolMngr */
   setProtocolMngr(settings)
 
   val fstVersion: Byte = protocolMngr.applicable.map(_.blockVersion).min.get
   var history: History = generateHistory(fstVersion)
-  var state: State = State.readOrGenerate(settings)
+  var state: State = createState()
 
   /* Don't make a test.conf that has a version with a really large startBlock */
   val blocksToAppend: Int = protocolMngr.applicable.maxBy(_.startBlock).startBlock.toInt
@@ -26,7 +21,7 @@ class BlockVersionTests extends AnyPropSpec
 
   for (_ <- 1 to blocksToAppend) {
     val oneBlock: Block = BlockGen.sample.get.copy(parentId = history.bestBlockId, transactions = Seq(), version = blockVersion(history.height + 1))
-//    val oneBlock: Block = BlockGen.sample.get.copy(parentId = history.bestBlockId, version = blockVersion(history.height+1))
+//    val oneBlock: Block = BlockGen.sample.get.copy(parentId = history.bestBlockId, version = blockVersion(history.height + 1))
     history = history.append(oneBlock).get._1
     state = state.applyModifier(oneBlock).get
   }

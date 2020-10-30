@@ -281,7 +281,7 @@ class ProgramCreationValidationSpec extends StateSpec {
           settings.application.version.blockByte
         )
 
-        val necessaryState = createState(StateSpec.settingsFilename)
+        val necessaryState = createState()
           .applyModifier(firstCCAddBlock)
           .get
 

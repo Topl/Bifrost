@@ -17,7 +17,7 @@ class TokenBoxRegistrySpec extends StateSpec
   with CoreGenerators
   with ValidGenerators {
 
-  val state: State = createState(StateSpec.settingsFilename)
+  val state: State = createState()
 
   property("Token boxes should be inserted into the registry") {
     forAll(tokenBoxesGen) { tokens =>

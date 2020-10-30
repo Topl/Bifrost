@@ -4,41 +4,23 @@ import co.topl.consensus.KeyRing
 import co.topl.consensus.genesis.PrivateTestnet
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.nodeView.state.StateSpec.testSettings
 import co.topl.nodeView.state.box.StateBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.utils.{CoreGenerators, ValidGenerators}
 import com.google.common.primitives.Ints
 import io.circe.Json
 import io.circe.syntax._
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scorex.crypto.signatures.PublicKey
 import scorex.util.encode.Base58
 
 import scala.reflect.io.Path
 import scala.util.{Failure, Success, Try}
 
-class ProgramBoxRegistrySpec extends StateSpec
-  with ScalaCheckPropertyChecks
-  with ScalaCheckDrivenPropertyChecks
-  with Matchers
-  with BeforeAndAfterAll
-  with CoreGenerators
-  with ValidGenerators {
+class ProgramBoxRegistrySpec extends StateSpec {
 
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val keyRing: KeyRing = KeyRing(path + "/keyfiles")
-  val genesisBlock: Block = PrivateTestnet((_: Int) => {
-    keyRing.generateNewKeyPairs(num = 3) match {
-      case Success(keys) => keys.map(_.publicImage)
-      case Failure(ex)   => throw ex
-    } }, testSettings).getGenesisBlock.get._1
-
-  val state: State = createState(StateSpec.settingsFilename)
+  val state: State = createState()
 
   val pubKey: PublicKey25519Proposition =
     PublicKey25519Proposition(PublicKey @@ Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)

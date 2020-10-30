@@ -174,7 +174,7 @@ class ValkyrieSpec extends AnyPropSpec
 
     assert(valkyrieController != null)
 
-    val state: State = State.readOrGenerate(StateSpec.testSettings)
+    val state: State = State.readOrGenerate(settings)
 
     assert(state.getTokenBoxes(PublicKey25519Proposition(publicKeys("investor"))).nonEmpty)
 
