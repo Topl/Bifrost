@@ -2,10 +2,10 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.attestation.{KnowledgeProposition, Secret}
+import co.topl.attestation.Secret
 import co.topl.attestation.address.Address
-import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
-import co.topl.attestation.proof.{ProofOfKnowledge, SignatureCurve25519}
+import co.topl.attestation.proposition.{KnowledgeProposition, Proposition, PublicKeyCurve25519Proposition}
+import co.topl.attestation.proof.{Proof, ProofOfKnowledge, SignatureCurve25519}
 import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.nodeView.state.box.{ArbitBox, Box, TokenBox}
 import com.google.common.primitives.Ints
@@ -15,14 +15,13 @@ import scorex.crypto.hash.Blake2b256
 
 import scala.util.{Failure, Success, Try}
 
-case class ArbitTransfer[S <: Secret, P <: KnowledgeProposition[S]]
-  (override val from      : IndexedSeq[(Address, Box.Nonce)],
-   override val to        : IndexedSeq[(Address, TokenBox.Value)],
-   override val signatures: Map[P, ProofOfKnowledge[S, P]],
-   override val fee       : Long,
-   override val timestamp : Long,
-   override val data      : String
-  ) extends TransferTransaction[S, P](from, to, signatures, fee, timestamp, data) {
+case class ArbitTransfer[P <: Proposition, PR <: Proof[P]] (override val from      : IndexedSeq[(Address, Box.Nonce)],
+                                                            override val to        : IndexedSeq[(Address, TokenBox.Value)],
+                                                            override val signatures: Map[P, PR],
+                                                            override val fee       : Long,
+                                                            override val timestamp : Long,
+                                                            override val data      : String
+                                                           ) extends TransferTransaction[P, PR](from, to, signatures, fee, timestamp, data) {
 
   override lazy val messageToSign: Array[Byte] = "ArbitTransfer".getBytes ++ super.messageToSign
 

@@ -1,6 +1,5 @@
 package co.topl.attestation.proof
 
-import co.topl.attestation.proof
 import co.topl.utils.Extensions._
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
@@ -15,7 +14,8 @@ object ThresholdSignatureCurve25519Serializer extends BifrostSerializer[Threshol
 
   override def parse(r: Reader): ThresholdSignatureCurve25519 = {
     val signatureSetLength: Int = r.getUInt().toIntExact
-    val signatureSet: Set[SignatureCurve25519] = (0 until signatureSetLength).map(_ => SignatureCurve25519Serializer.parse(r)).toSet
+    val signatureSet: Set[SignatureCurve25519] =
+      (0 until signatureSetLength).map(_ => SignatureCurve25519Serializer.parse(r)).toSet
 
     ThresholdSignatureCurve25519(signatureSet)
   }

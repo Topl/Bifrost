@@ -3,7 +3,7 @@ package co.topl.network
 import java.net.InetSocketAddress
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import co.topl.attestation.Proposition
+import co.topl.attestation.proposition.Proposition
 import co.topl.modifier.NodeViewModifier.{ModifierTypeId, idsToString}
 import co.topl.modifier.block.PersistentNodeViewModifier
 import co.topl.modifier.transaction.Transaction

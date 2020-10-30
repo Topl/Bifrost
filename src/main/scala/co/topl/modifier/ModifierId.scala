@@ -33,15 +33,8 @@ object ModifierId {
       case Failure(ex)  => throw ex
     }
 
-  implicit val jsonEncoder: Encoder[ModifierId] =
-    (id: ModifierId) => id.toString.asJson
-
-  implicit val jsonDecoder: Decoder[ModifierId] =
-    Decoder.decodeString.emapTry { id => Try(ModifierId(id)) }
-
-  implicit val jsonKeyEncoder: KeyEncoder[ModifierId] =
-    ( id: ModifierId ) => id.toString
-
-  implicit val jsonKeyDecoder: KeyDecoder[ModifierId] =
-    ( id: String ) => Some(ModifierId(id))
+  implicit val jsonEncoder: Encoder[ModifierId] = (id: ModifierId) => id.toString.asJson
+  implicit val jsonKeyEncoder: KeyEncoder[ModifierId] = (id: ModifierId) => id.toString
+  implicit val jsonDecoder: Decoder[ModifierId] = Decoder.decodeString.emapTry { id => Try(ModifierId(id)) }
+  implicit val jsonKeyDecoder: KeyDecoder[ModifierId] = (id: String) => Some(ModifierId(id))
 }

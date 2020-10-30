@@ -44,7 +44,7 @@ object Address {
 
   implicit val jsonEncoder: Encoder[Address] = (addr: Address) => addr.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[Address] = (addr: Address) => addr.toString
-  implicit val jsonDecoder: Decoder[Address] = Decoder.decodeString.emapTry(AddressEncoder.fromString)
-  implicit val jsonKeyDecoder: KeyDecoder[Address] = AddressEncoder.fromString(_: String).toOption
+  implicit val jsonDecoder: Decoder[Address] = Decoder.decodeString.map(apply)
+  implicit val jsonKeyDecoder: KeyDecoder[Address] = (str: String) => Some(apply(str))
 }
 

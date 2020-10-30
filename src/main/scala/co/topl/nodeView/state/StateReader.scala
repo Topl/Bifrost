@@ -1,6 +1,6 @@
 package co.topl.nodeView.state
 
-import co.topl.attestation.Proposition
+import co.topl.attestation.proposition.Proposition
 import co.topl.nodeView.NodeViewComponent
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.nodeView.state.box._

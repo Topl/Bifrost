@@ -1,6 +1,7 @@
 package co.topl.nodeView.state.box
 
-import co.topl.attestation.{KnowledgeProposition, Secret}
+import co.topl.attestation.Secret
+import co.topl.attestation.proposition.KnowledgeProposition
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.utils.serialization.BifrostSerializer
 import io.circe.{Decoder, Encoder, HCursor, Json}

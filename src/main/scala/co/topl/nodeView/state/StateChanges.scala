@@ -1,6 +1,6 @@
 package co.topl.nodeView.state
 
-import co.topl.attestation.KnowledgeProposition
+import co.topl.attestation.proposition.KnowledgeProposition
 import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.modifier.block.Block
 import co.topl.nodeView.state.box.{Box, BoxId, PolyBox}

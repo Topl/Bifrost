@@ -1,6 +1,7 @@
 package co.topl.nodeView.state.box
 
-import co.topl.attestation.{KnowledgeProposition, Secret}
+import co.topl.attestation.Secret
+import co.topl.attestation.proposition.KnowledgeProposition
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 

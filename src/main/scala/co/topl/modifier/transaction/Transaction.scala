@@ -1,6 +1,8 @@
 package co.topl.modifier.transaction
 
-import co.topl.attestation.{KnowledgeProposition, Secret}
+import co.topl.attestation.Secret
+import co.topl.attestation.proof.Proof
+import co.topl.attestation.proposition.{KnowledgeProposition, Proposition}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.nodeView.state.box.{Box, BoxId}
@@ -9,15 +11,15 @@ import com.google.common.primitives.Longs
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import supertagged.@@
 
-trait Transaction[S <: Secret, P <: KnowledgeProposition[S]] extends BoxTransaction[P, Any, Box] {
+trait Transaction[P <: Proposition, PR <: Proof[P]] extends BoxTransaction[P, Any, Box] {
 
-  override type M = Transaction[S, P]
+  override type M = Transaction[_ <: Proposition, _ <: Proof[_]]
 
   override val modifierTypeId: ModifierTypeId = Transaction.modifierTypeId
 
   override lazy val json: Json = Transaction.jsonEncoder(this)
 
-  override lazy val serializer: BifrostSerializer[Transaction[S, P]] = TransactionSerializer
+  override lazy val serializer: BifrostSerializer[Transaction[_ <: Proposition, _ <: Proof[_]]] = TransactionSerializer
 
   lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = None
 

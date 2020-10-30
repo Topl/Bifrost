@@ -4,15 +4,10 @@ import co.topl.attestation.Evidence
 import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
-import scala.util.{Failure, Try}
+import scala.util.Try
 
 object AddressEncoder {
   type NetworkPrefix = Byte
-  val mainNetPrefix: NetworkPrefix = 1.toByte
-  val testNetPrefix: NetworkPrefix = 16.toByte
-  val devNetPrefix: NetworkPrefix = 32.toByte
-  val localNetPrefix: NetworkPrefix = 48.toByte
-  val privateNetPrefix: NetworkPrefix = 64.toByte
 
   val checksumLength = 4
 

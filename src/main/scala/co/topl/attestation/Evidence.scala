@@ -1,6 +1,7 @@
 package co.topl.attestation
 
 import co.topl.attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
+import co.topl.attestation.proposition.Proposition
 import supertagged.TaggedType
 
 /**
@@ -8,7 +9,7 @@ import supertagged.TaggedType
   * for tht proposition. The evidence content is then used to construct an address that holds outputs from a transaction.
   * @tparam P a proposition that is used to encumber a UTXO
   */
-trait Evidence[P <: Proposition] {
+sealed trait Evidence[P <: Proposition] {
   def generateEvidence (prop: P): EvidenceContent
   def typePrefix (prop: P): EvidenceTypePrefix = prop.typePrefix
 }
@@ -19,8 +20,8 @@ object Evidence {
 
   object syntax {
     implicit final class Ops[P: Evidence](private val value: P) {
-      def generateEvidence(implicit ev: Evidence[P]): EvidenceContent = ev.generateEvidence(value)
-      def typePrefix(implicit ev: Evidence[P]): EvidenceTypePrefix = ev.typePrefix(value)
+      def generateEvidence: EvidenceContent = Evidence[P].generateEvidence(value)
+      def typePrefix: EvidenceTypePrefix = Evidence[P].typePrefix(value)
     }
   }
 

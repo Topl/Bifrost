@@ -1,20 +1,20 @@
 package co.topl.modifier.transaction
 
-import co.topl.attestation.{KnowledgeProposition, Secret}
+import co.topl.attestation.Secret
 import co.topl.attestation.address.Address
-import co.topl.attestation.proof.ProofOfKnowledge
+import co.topl.attestation.proof.{Proof, ProofOfKnowledge}
+import co.topl.attestation.proposition.{KnowledgeProposition, Proposition}
 import co.topl.nodeView.state.box.{Box, BoxId, PublicKeyNoncedBox, TokenBox}
 import com.google.common.primitives.Longs
 import scorex.crypto.hash.{Blake2b256, Digest32}
 
-abstract class TransferTransaction[S <: Secret, P <: KnowledgeProposition[S]]
-(val from      : IndexedSeq[(Address, Box.Nonce)],
- val to        : IndexedSeq[(Address, TokenBox.Value)],
- val signatures: Map[P, ProofOfKnowledge[S, P]],
- val fee       : Long,
- val timestamp : Long,
- val data      : String
-) extends Transaction {
+abstract class TransferTransaction[P <: Proposition, PR <: Proof[P]] (val from      : IndexedSeq[(Address, Box.Nonce)],
+                                                                      val to        : IndexedSeq[(Address, TokenBox.Value)],
+                                                                      val signatures: Map[P, PR],
+                                                                      val fee       : Long,
+                                                                      val timestamp : Long,
+                                                                      val data      : String
+                                                                     ) extends Transaction {
 
   override val newBoxes: Traversable[TokenBox]
 

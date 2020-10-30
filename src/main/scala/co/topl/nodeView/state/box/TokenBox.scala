@@ -1,9 +1,9 @@
 package co.topl.nodeView.state.box
 
-import co.topl.attestation.{BoxUnlocker, KnowledgeProposition, Secret}
+import co.topl.attestation.{BoxUnlocker, Secret}
 import co.topl.attestation.ToplAddress.AddressContent
 import co.topl.attestation.address.PublicKeyAddress
-import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proposition.{KnowledgeProposition, PublicKeyCurve25519Proposition}
 import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.modifier.transaction.Transaction

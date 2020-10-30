@@ -20,7 +20,8 @@ object ThresholdCurve25519PropositionSerializer extends BifrostSerializer[Thresh
     val threshold: Int = r.getUInt().toIntExact
 
     val numSigs: Int = r.getUInt().toIntExact
-    val signatures: Set[SignatureCurve25519] = (0 until numSigs).map(_ => PublicKeyCurve25519PropositionSerializer.parse(r)).toSet
+    val signatures: Set[PublicKeyCurve25519Proposition] =
+      (0 until numSigs).map(_ => PublicKeyCurve25519PropositionSerializer.parse(r)).toSet
 
     ThresholdCurve25519Proposition(threshold, signatures)
   }
