@@ -1,4 +1,4 @@
-package co.topl.attestation
+package co.topl.attestation.secrets
 
 import co.topl.attestation.proof.ProofOfKnowledge
 import co.topl.attestation.proposition.KnowledgeProposition

@@ -9,8 +9,11 @@ import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
 import scala.util.{Failure, Success}
 
 /**
-  * @param sigBytes 25519 signature
-  */
+ * A proof corresponding to a PublicKeyCurve25519 proposition. This is a zero-knowledge proof that argues knowledge of
+ * the underlying private key associated with a public key
+ *
+ * @param sigBytes 25519 signature
+ */
 case class SignatureCurve25519 (private[proof] val sigBytes: Signature)
   extends ProofOfKnowledge[PrivateKeyCurve25519, PublicKeyCurve25519Proposition] {
 

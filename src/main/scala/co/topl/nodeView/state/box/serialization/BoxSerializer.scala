@@ -1,11 +1,12 @@
 package co.topl.nodeView.state.box.serialization
 
+import co.topl.attestation.proposition.Proposition
 import co.topl.nodeView.state.box._
 import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
 
-object BoxSerializer extends BifrostSerializer[Box] {
+object BoxSerializer extends BifrostSerializer[Box[_]] {
 
-  override def serialize ( obj: Box, w: Writer ): Unit = {
+  override def serialize ( obj: Box[_], w: Writer ): Unit = {
     obj match {
       case obj: PolyBox      =>
         w.putByteString("PolyBox")
@@ -29,7 +30,7 @@ object BoxSerializer extends BifrostSerializer[Box] {
     }
   }
 
-  override def parse ( r: Reader ): Box = {
+  override def parse ( r: Reader ): Box[_] = {
     r.getByteString() match {
       case "ArbitBox"     => ArbitBoxSerializer.parse(r)
       case "AssetBox"     => AssetBoxSerializer.parse(r)

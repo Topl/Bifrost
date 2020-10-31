@@ -2,15 +2,17 @@ package co.topl.nodeView.state
 
 import java.io.File
 
+import co.topl.attestation.EvidenceProducer
+import co.topl.attestation.EvidenceProducer.EvidenceContent
 import co.topl.nodeView.state.MinimalState.VersionTag
-import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
-import co.topl.nodeView.state.box.{BoxId, TokenBox}
+import co.topl.attestation.proposition.{ Proposition, PublicKeyCurve25519Proposition }
+import co.topl.nodeView.state.box.{ BoxId, TokenBox }
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
 import com.google.common.primitives.Longs
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
+import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /**
  * A registry containing mappings from public keys to a sequence of boxIds
@@ -25,14 +27,14 @@ class TokenBoxRegistry ( protected val storage: LSMStore,
   import TokenBoxRegistry.{K, V}
 
   //----- input and output transformation functions
-  override protected val registryInput: K => Array[Byte] = (key: K) => key.pubKeyBytes
+  override protected val registryInput: K => Array[Byte] = (key: K) => key
 
   override protected val registryOutput: Array[Byte] => Seq[V] =
     (value: Array[Byte]) => value.grouped(Longs.BYTES).toSeq.map(v => Longs.fromByteArray(v))
 
   override protected val registryOut2StateIn: (K, V) => BoxId = ( key: K, value: V) => TokenBox.idFromPropNonce(key, value)
 
-  protected[state] def getBox ( key: K, state: SR): Option[Seq[TokenBox]] = super.getBox[TokenBox](key, state)
+  protected[state] def getBox[E: EvidenceProducer] ( key: K, state: SR): Option[Seq[TokenBox[E]]] = super.getBox[TokenBox](key, state)
 
 
   /**
@@ -115,7 +117,7 @@ class TokenBoxRegistry ( protected val storage: LSMStore,
 
 object TokenBoxRegistry extends Logging {
 
-  type K = PublicKeyCurve25519Proposition
+  type K = EvidenceContent
   type V = Long
 
   def readOrGenerate ( settings: AppSettings, nodeKeys: Option[Set[PublicKeyCurve25519Proposition]] ): Option[TokenBoxRegistry] = {

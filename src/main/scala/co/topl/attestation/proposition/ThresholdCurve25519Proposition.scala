@@ -1,17 +1,17 @@
 package co.topl.attestation.proposition
 
-import co.topl.attestation.Evidence
-import co.topl.attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
-import co.topl.attestation.address.Address
-import co.topl.attestation.address.AddressEncoder.NetworkPrefix
+import co.topl.attestation.{ Address, Evidence, EvidenceProducer }
+import co.topl.attestation.EvidenceProducer.{ EvidenceContent, EvidenceTypePrefix }
+import co.topl.attestation.AddressEncoder.NetworkPrefix
+import co.topl.attestation.Evidence.{ EvidenceContent, EvidenceTypePrefix }
 import co.topl.attestation.proof.Proof
 import co.topl.attestation.secrets.PrivateKeyCurve25519
 import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
+import io.circe.{ Decoder, Encoder, KeyDecoder, KeyEncoder }
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.Curve25519
 
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 case class ThresholdCurve25519Proposition (threshold: Int, pubKeyProps: Set[PublicKeyCurve25519Proposition])
   extends KnowledgeProposition[PrivateKeyCurve25519] {
@@ -20,8 +20,6 @@ case class ThresholdCurve25519Proposition (threshold: Int, pubKeyProps: Set[Publ
     require(prop.pubKeyBytes.length == Curve25519.KeyLength,
             s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${prop.pubKeyBytes.length} found")
   })
-
-  override val typePrefix: EvidenceTypePrefix = ThresholdCurve25519Proposition.typePrefix
 
   def address(implicit networkPrefix: NetworkPrefix): Address = Address.from(this)
 
@@ -38,9 +36,9 @@ object ThresholdCurve25519Proposition {
       case Failure(ex) => throw ex
     }
 
-  implicit val propEvidence: Evidence[ThresholdCurve25519Proposition] =
-    Evidence.instance[ThresholdCurve25519Proposition] {
-      prop: ThresholdCurve25519Proposition => EvidenceContent @@ Blake2b256(prop.bytes).repr
+  implicit val propEvidence: EvidenceProducer[ThresholdCurve25519Proposition] =
+    EvidenceProducer.instance[ThresholdCurve25519Proposition] {
+      prop: ThresholdCurve25519Proposition => Evidence(typePrefix, EvidenceContent @@ Blake2b256(prop.bytes))
     }
 
   // see circe documentation for custom encoder / decoders

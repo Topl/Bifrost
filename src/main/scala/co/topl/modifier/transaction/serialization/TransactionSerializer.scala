@@ -1,10 +1,10 @@
 package co.topl.modifier.transaction.serialization
 
-import co.topl.attestation.Secret
 import co.topl.attestation.proof.Proof
-import co.topl.attestation.proposition.{KnowledgeProposition, Proposition}
+import co.topl.attestation.proposition.{ KnowledgeProposition, Proposition }
+import co.topl.attestation.secrets.Secret
 import co.topl.modifier.transaction._
-import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
+import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
 
 object TransactionSerializer extends BifrostSerializer[Transaction[_ <: Proposition, _ <: Proof[_]]] {
 

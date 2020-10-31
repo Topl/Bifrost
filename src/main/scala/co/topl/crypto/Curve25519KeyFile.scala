@@ -5,8 +5,8 @@ import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
-import co.topl.attestation.address.Address
-import co.topl.attestation.address.AddressEncoder.NetworkPrefix
+import co.topl.attestation.Address
+import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import co.topl.attestation.secrets.PrivateKeyCurve25519
 import io.circe.parser.parse

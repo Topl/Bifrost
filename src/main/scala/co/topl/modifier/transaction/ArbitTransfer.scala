@@ -2,18 +2,17 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.attestation.Secret
-import co.topl.attestation.address.Address
-import co.topl.attestation.proposition.{KnowledgeProposition, Proposition, PublicKeyCurve25519Proposition}
-import co.topl.attestation.proof.{Proof, ProofOfKnowledge, SignatureCurve25519}
-import co.topl.attestation.secrets.PrivateKeyCurve25519
-import co.topl.nodeView.state.box.{ArbitBox, Box, TokenBox}
+import co.topl.attestation.Address
+import co.topl.attestation.proposition.{ KnowledgeProposition, Proposition, PublicKeyCurve25519Proposition }
+import co.topl.attestation.proof.{ Proof, ProofOfKnowledge, SignatureCurve25519 }
+import co.topl.attestation.secrets.{ PrivateKeyCurve25519, Secret }
+import co.topl.nodeView.state.box.{ ArbitBox, Box, TokenBox }
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, HCursor}
+import io.circe.{ Decoder, Encoder, HCursor }
 import scorex.crypto.hash.Blake2b256
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 case class ArbitTransfer[P <: Proposition, PR <: Proof[P]] (override val from      : IndexedSeq[(Address, Box.Nonce)],
                                                             override val to        : IndexedSeq[(Address, TokenBox.Value)],

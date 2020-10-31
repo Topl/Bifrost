@@ -1,6 +1,5 @@
-package co.topl.attestation.address
+package co.topl.attestation
 
-import co.topl.attestation.Evidence
 import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
@@ -43,7 +42,7 @@ object AddressEncoder {
       require(genChecksum(bytes.dropRight(checksumLength)) sameElements bytes.takeRight(checksumLength),
         s"Invalid address: Checksum fails for $addrStr")
 
-      AddressSerializer.parseBytes(bytes)
+      Address.parseBytes(bytes)
     }
   }
 }

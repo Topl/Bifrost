@@ -1,12 +1,12 @@
 package co.topl.modifier.transaction
 
-import co.topl.attestation.Secret
-import co.topl.attestation.address.Address
-import co.topl.attestation.proof.{Proof, ProofOfKnowledge}
-import co.topl.attestation.proposition.{KnowledgeProposition, Proposition}
-import co.topl.nodeView.state.box.{Box, BoxId, PublicKeyNoncedBox, TokenBox}
+import co.topl.attestation.Address
+import co.topl.attestation.proof.{ Proof, ProofOfKnowledge }
+import co.topl.attestation.proposition.{ KnowledgeProposition, Proposition }
+import co.topl.attestation.secrets.Secret
+import co.topl.nodeView.state.box.{ Box, BoxId, PublicKeyNoncedBox, TokenBox }
 import com.google.common.primitives.Longs
-import scorex.crypto.hash.{Blake2b256, Digest32}
+import scorex.crypto.hash.{ Blake2b256, Digest32 }
 
 abstract class TransferTransaction[P <: Proposition, PR <: Proof[P]] (val from      : IndexedSeq[(Address, Box.Nonce)],
                                                                       val to        : IndexedSeq[(Address, TokenBox.Value)],

@@ -1,12 +1,12 @@
 package co.topl.attestation.proof
 
-import co.topl.attestation.Secret
-import co.topl.attestation.proposition.{KnowledgeProposition, Proposition, PropositionSerializer}
-import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
+import co.topl.attestation.proposition.{ KnowledgeProposition, Proposition, PropositionSerializer }
+import co.topl.attestation.secrets.Secret
+import co.topl.utils.serialization.{ BifrostSerializer, BytesSerializable }
 import com.google.common.primitives.Ints
 import scorex.util.encode.Base58
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /**
   * The most general abstraction of fact a prover can provide a non-interactive proof

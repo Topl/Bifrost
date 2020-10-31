@@ -10,7 +10,7 @@ import io.circe.syntax.EncoderOps
 import io.circe.{ DecodingFailure, HCursor, Json }
 import scorex.crypto.hash.Blake2b256
 
-abstract class ProgramBox (override val proposition: PublicKeyCurve25519Proposition,
+abstract class ProgramBox (override val evidence: Evidence,
                            override val nonce      : Long,
                            override val value      : ProgramId
                           ) extends Box(proposition, nonce, value) {

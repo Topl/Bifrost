@@ -1,6 +1,6 @@
 package co.topl.attestation.secrets
 
-import co.topl.attestation.{ Secret, SecretCompanion }
+import co.topl.attestation.SecretCompanion
 import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import co.topl.utils.serialization.BifrostSerializer

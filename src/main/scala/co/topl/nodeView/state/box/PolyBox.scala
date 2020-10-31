@@ -1,21 +1,22 @@
 package co.topl.nodeView.state.box
 
-import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.Evidence
+import co.topl.nodeView.state.box.Box.BoxType
 import io.circe.syntax.EncoderOps
 import io.circe.{ Decoder, Encoder, HCursor }
 
-case class PolyBox(override val proposition: PublicKeyCurve25519Proposition,
-                   override val nonce: Long,
-                   override val value: Long) extends TokenBox(proposition, nonce, value) {
-
-  override lazy val typeOfBox: String = "Poly"
-}
+case class PolyBox(override val evidence: Evidence,
+                   override val nonce: Box.Nonce,
+                   override val value: TokenBox.Value
+                  ) extends TokenBox(evidence, nonce, value, PolyBox.boxTypePrefix)
 
 object PolyBox {
-  implicit val jsonEncoder: Encoder[PolyBox] =  (box: PolyBox) => TokenBox.jsonEncode(box).asJson
+  val boxTypePrefix: BoxType = 2: Byte
+
+  implicit val jsonEncoder: Encoder[PolyBox] =  (box: PolyBox) => Box.jsonEncode(box).asJson
 
   implicit val jsonDecoder: Decoder[PolyBox] = ( c: HCursor ) =>
-    TokenBox.jsonDecode(c).map {
+    Box.jsonDecode(c).map {
       case (proposition, nonce, value) => PolyBox(proposition, nonce, value)
     }
 }

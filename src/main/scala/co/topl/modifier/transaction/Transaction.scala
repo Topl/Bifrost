@@ -1,14 +1,14 @@
 package co.topl.modifier.transaction
 
-import co.topl.attestation.Secret
 import co.topl.attestation.proof.Proof
-import co.topl.attestation.proposition.{KnowledgeProposition, Proposition}
+import co.topl.attestation.proposition.{ KnowledgeProposition, Proposition }
+import co.topl.attestation.secrets.Secret
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.transaction.serialization.TransactionSerializer
-import co.topl.nodeView.state.box.{Box, BoxId}
+import co.topl.nodeView.state.box.{ Box, BoxId }
 import co.topl.utils.serialization.BifrostSerializer
 import com.google.common.primitives.Longs
-import io.circe.{Decoder, Encoder, HCursor, Json}
+import io.circe.{ Decoder, Encoder, HCursor, Json }
 import supertagged.@@
 
 trait Transaction[P <: Proposition, PR <: Proof[P]] extends BoxTransaction[P, Any, Box] {

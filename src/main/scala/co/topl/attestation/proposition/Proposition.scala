@@ -1,21 +1,19 @@
 package co.topl.attestation.proposition
 
-import co.topl.attestation.Evidence.EvidenceTypePrefix
-import co.topl.attestation.Secret
-import co.topl.attestation.address.Address
-import co.topl.attestation.address.AddressEncoder.NetworkPrefix
-import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
+import co.topl.attestation.Address
+import co.topl.attestation.AddressEncoder.NetworkPrefix
+import co.topl.attestation.secrets.Secret
+import co.topl.utils.serialization.{ BifrostSerializer, BytesSerializable }
 import com.google.common.primitives.Ints
 import scorex.util.encode.Base58
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 // Propositions are challenges that must be satisfied by the prover.
 // In most cases, propositions are used by transactions issuers (spenders) to prove the right
 // to use a UTXO in a transaction.
 sealed trait Proposition extends BytesSerializable {
 
-  val typePrefix: EvidenceTypePrefix
   def address(implicit networkPrefix: NetworkPrefix): Address
 
   override type M = Proposition

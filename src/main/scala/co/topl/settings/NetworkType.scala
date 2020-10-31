@@ -1,6 +1,6 @@
 package co.topl.settings
 
-import co.topl.attestation.address.AddressEncoder.NetworkPrefix
+import co.topl.attestation.AddressEncoder.NetworkPrefix
 
 sealed abstract class NetworkType(val verboseName     : String,
                                   val netPrefix       : NetworkPrefix,
