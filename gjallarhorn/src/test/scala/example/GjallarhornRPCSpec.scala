@@ -14,7 +14,7 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import io.circe.parser.parse
 import keymanager.{KeyManagerRef, Keys}
 import requests.Requests
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import wallet.WalletManager
 

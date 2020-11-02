@@ -16,7 +16,7 @@ import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
 import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
 import org.whispersystems.curve25519.OpportunisticCurve25519Provider
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 import scorex.crypto.hash.{Blake2b256, Keccak256}
 
 import scala.util.Try

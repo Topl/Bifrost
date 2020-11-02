@@ -4,7 +4,7 @@ import crypto.{PrivateKey25519, PrivateKey25519Companion, PublicKey25519Proposit
 import keymanager.{KeyFile, Keys}
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 import scorex.crypto.hash.Blake2b256
 
 import scala.reflect.io.Path

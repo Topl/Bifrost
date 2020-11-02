@@ -6,7 +6,7 @@ import akka.http.scaladsl.server.{Directive0, Directives, Route}
 import akka.util.Timeout
 import io.circe.Json
 import io.circe.parser.parse
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 import scorex.crypto.hash.{Blake2b256, CryptographicHash}
 
 import scala.concurrent.duration._

@@ -2,7 +2,7 @@ package keymanager
 
 import java.io.File
 
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 import com.typesafe.scalalogging.StrictLogging
 import crypto.{PrivateKey25519, ProofOfKnowledgeProposition, PublicKey25519Proposition}
 

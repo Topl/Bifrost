@@ -13,7 +13,7 @@ import io.circe.syntax._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 import settings.AppSettings
 
 
