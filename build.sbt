@@ -58,7 +58,7 @@ val loggingDependencies = Seq(
 val testingDependencies = Seq(
   "org.scalactic" %% "scalactic" % "3.2.2" % Test,
   "org.scalatest" %% "scalatest" % "3.2.2" % Test,
-  "org.scalacheck" %% "scalacheck" % "1.14.3" % Test,
+  "org.scalacheck" %% "scalacheck" % "1.15.0" % Test,
   "org.scalatestplus" %% "scalacheck-1-14" % "3.2.2.0" % Test,
   "com.spotify" % "docker-client" % "8.16.0" % Test,
   "org.asynchttpclient" % "async-http-client" % "2.12.1" % Test
@@ -66,7 +66,7 @@ val testingDependencies = Seq(
 
 val cryptoDependencies = Seq(
   "org.scorexfoundation" %% "scrypto" % "2.1.9",
-  "org.bouncycastle" % "bcprov-jdk15on" % "1.66",
+  "org.bouncycastle" % "bcprov-jdk15on" % "1.67",
   "org.whispersystems" % "curve25519-java" % "0.5.0"
 )
 
