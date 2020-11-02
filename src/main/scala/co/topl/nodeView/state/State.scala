@@ -321,7 +321,7 @@ object State extends Logging {
     val nodeKeys: Option[Set[PublicKey25519Proposition]] = settings.application.nodeKeys match {
       case None => None
       case Some(keys) if keys.isEmpty => None
-      case Some(keys) => Some(keys.map(k => PublicKey25519Proposition(k)))
+      case Some(keys) => Some(keys.map(PublicKey25519Proposition(_)))
     }
 
     if ( nodeKeys.isDefined ) log.info(s"Initializing state to watch for public keys: $nodeKeys")
