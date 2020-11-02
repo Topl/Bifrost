@@ -21,7 +21,9 @@ import scala.concurrent.{Await, ExecutionContextExecutor}
 import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.duration._
 
-
+/**
+  * Must be running bifrost with --local and --seed genesis
+  */
 class RequestSpec extends AsyncFlatSpec
   with Matchers
   with GjallarhornGenerators {

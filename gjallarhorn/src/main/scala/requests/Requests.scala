@@ -43,7 +43,6 @@ class Requests (settings: AppSettings, requestsManager: ActorRef)
     val response = http.singleRequest(request)
     response.flatMap {
       case _@HttpResponse(StatusCodes.OK, _, entity, _) =>
-        println("http response: " + response)
         entity.dataBytes.runFold(ByteString.empty) { case (acc, b) => acc ++ b }
       case _ => sys.error("something wrong")
     }
@@ -51,7 +50,6 @@ class Requests (settings: AppSettings, requestsManager: ActorRef)
 
   def byteStringToJSON(data: Future[ByteString]): Json = {
     val parsedData: Future[Json] = data.map { x =>
-      println("data: " + x.utf8String)
       parser.parse(x.utf8String) match {
         case Right(parsed) => parsed
         case Left(e) => throw e.getCause

@@ -63,7 +63,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   private val forgerRef: ActorRef = ForgerRef(Forger.actorName, settings, appContext)
 
-  private val walletConnectionHandlerRef: ActorRef = actorSystem.actorOf(Props(new WalletConnectionHandler), name = "walletConnectionHandler")
+  private val walletConnectionHandlerRef: ActorRef = actorSystem.actorOf(Props(new WalletConnectionHandler(settings)), name = "walletConnectionHandler")
 
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef(NodeViewHolder.actorName, settings, appContext)
 
