@@ -28,7 +28,7 @@ class Requests (settings: AppSettings, requestsManager: ActorRef)
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 
-  val declaredAddress = settings.declaredAddress
+  val declaredAddress: String = settings.declaredAddress
 
   //Generic Method for HTTP POST request
   def httpPOST(jsonRequest: ByteString, path: String): HttpRequest = {
@@ -108,10 +108,9 @@ class Requests (settings: AppSettings, requestsManager: ActorRef)
       val privKey = keyManager.secrets.find(sk => sk.publicKeyBytes sameElements pubKey.pubKeyBytes)
 
       privKey match {
-        case Some(sk) => {
+        case Some(sk) =>
             val signature = Base58.encode(sk.sign(Base58.decode(messageToSign.asString.get).get).signature)
             (pk, signature)
-        }
         case None => throw new NoSuchElementException
       }
     }
@@ -141,28 +140,26 @@ class Requests (settings: AppSettings, requestsManager: ActorRef)
 
   /**
     *
-    * @param request
+    * @param request - the request to send as a byteString
     * @param path - asset or wallet request
     * @return
     */
   def sendRequest(request: ByteString, path: String): Json  = {
-    settings.useApiRoute match {
-      case true =>
-        val sendTx = httpPOST(request, path)
-        val data = requestResponseByteString(sendTx)
-        byteStringToJSON(data)
-
-      case false =>
-        val req: Json = byteStringToJSON(request)
-        path match {
-          case "asset" =>
-            val result = Await.result((requestsManager ? AssetRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
-            createJsonResponse(req, result)
-          case "wallet" =>
-            val result = Await.result(
-              (requestsManager ? WalletRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
-            createJsonResponse(req, result)
-        }
+    if (settings.useApiRoute) {
+      val sendTx = httpPOST(request, path)
+      val data = requestResponseByteString(sendTx)
+      byteStringToJSON(data)
+    } else {
+      val req: Json = byteStringToJSON(request)
+      path match {
+        case "asset" =>
+          val result = Await.result((requestsManager ? AssetRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
+          createJsonResponse(req, result)
+        case "wallet" =>
+          val result = Await.result(
+            (requestsManager ? WalletRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
+          createJsonResponse(req, result)
+      }
     }
   }
 
@@ -173,7 +170,7 @@ class Requests (settings: AppSettings, requestsManager: ActorRef)
   def getBalances (publicKeys: Set[String]): Json = {
     val keysWithQuotes: Set[String] = publicKeys.map(pk => s""""$pk"""")
     val keys: String = keysWithQuotes.mkString(", \n")
-    val json = (
+    val json =
       s"""
          |{
          |   "jsonrpc": "2.0",
@@ -188,7 +185,6 @@ class Requests (settings: AppSettings, requestsManager: ActorRef)
          |   ]
          |}
        """
-    )
     val requestBody = ByteString(json.stripMargin)
     sendRequest(requestBody, "wallet")
   }

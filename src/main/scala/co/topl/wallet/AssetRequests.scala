@@ -141,9 +141,7 @@ class AssetRequests (nodeViewHolderRef: ActorRef)
     */
   private def createAssetsPrototype(implicit params: Json): Future[String] = {
     (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]].map { view =>
-     println("issuer: " + (params \\ "issuer").head.asString.get)
       val issuer = PublicKey25519Proposition((params \\ "issuer").head.asString.get)
-      println("receipient: " + (params \\ "recipient").head.asString.get)
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition((params \\ "recipient").head.asString.get)
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val assetCode: String = (params \\ "assetCode").head.asString.get

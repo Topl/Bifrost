@@ -15,7 +15,6 @@ import co.topl.utils.Logging
 import co.topl.wallet.WalletRequests.WalletRequest
 import io.circe.{Decoder, Json}
 import io.circe.syntax._
-import scorex.util.encode.Base58
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._

@@ -23,6 +23,11 @@ import scala.util.Success
 import scala.concurrent.duration._
 
 
+/**
+  * Manages the communication between Bifrost and a running wallet.
+  * @param settings - the current AppSettings from Bifrost.
+  * @param ec - the execution context used for futures.
+  */
 class WalletConnectionHandler (settings: AppSettings)
                               (implicit ec: ExecutionContext) extends Actor with Logging {
   import WalletConnectionHandler._
@@ -67,6 +72,12 @@ class WalletConnectionHandler (settings: AppSettings)
     Await.result(parsedData, 20 seconds)
   }
 
+  /**
+    * Parses a block, looking for the public keys from the remote wallet.
+    * @param block - a new block that was just added.
+    * @return - returns json of the transactions from the new block if it contains public keys from the remote wallet.
+    *         Otherwise, returns None.
+    */
   def parseBlockForKeys(block: Block): Option[Json] = {
     var txs: Seq[Transaction] = Seq.empty
     block.transactions.foreach(tx =>

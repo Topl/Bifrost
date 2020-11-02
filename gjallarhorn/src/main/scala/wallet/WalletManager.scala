@@ -11,7 +11,11 @@ import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
-
+/**
+  * The WalletManager manages the communication between Bifrost and Gjallarhorn
+  * Mainly, the WalletManager receives new blocks from Bifrost in order to updates its wallet boxes.
+  * @param publicKeys: the set of publicKeys that the WalletManager should keep track of.
+  */
 class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
 
   import WalletManager._
@@ -19,7 +23,8 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
   implicit val timeout: Timeout = 10.seconds
 
   /**
-    * Represents the wallet boxes: publicKey1 -> {id1 -> walletBox1, id2 -> walletBox2, ...}, publicKey2 -> {},...
+    * Represents the wallet boxes: as a mapping of publicKeys to a map of its id's mapped to walletBox.
+    * Ex: publicKey1 -> {id1 -> walletBox1, id2 -> walletBox2, ...}, publicKey2 -> {},...
     */
   var walletBoxes: MMap[String, MMap[String, Json]] = {
     val returnVal: MMap[String, MMap[String, Json]] = MMap.empty
@@ -42,11 +47,19 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
     super.preRestart(reason, message)
   }
 
+  /**
+    * Function called when Gjallarhorn app starts up - used to inform Bifrost about this running wallet.
+    * @param bifrost - the ActorRef for Bifrost's WalletConnectionHandler
+    */
   def gjalStart(bifrost: ActorRef): Unit = {
     bifrostActorRef = Some(bifrost)
     bifrost ! s"Remote wallet actor initialized. My public keys are: ${walletBoxes.keySet}"
   }
 
+  /**
+    * Handles messages received from Bifrost
+    * @param msg - handles "received new wallet" or "new block added" messages.
+    */
   def msgHandling(msg: String): Unit = {
     if (msg.contains("received new wallet from:")) {
       connectedToBifrost = true
@@ -55,17 +68,6 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
     if (msg.contains("new block added")) {
       newBlock(msg)
     }
-  }
-
-  def parseJsonList(list: Json): Array[String] = {
-    var listArray: Array[String] = list.toString().trim.stripPrefix("[").stripSuffix("]").
-      split("},")
-   listArray = listArray.map(asset => {
-      if (listArray.indexOf(asset) != listArray.length-1) {
-        asset.concat("}")
-      } else asset
-    })
-    listArray
   }
 
   //------------------------------------------------------------------------------------
@@ -123,6 +125,26 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
   //------------------------------------------------------------------------------------
   //Methods for parsing new block from Bifrost:
 
+  /**
+    * Given a json of a list of newBoxes, parses the json into an array of strings.
+    * @param list - the list of newBoxes in json
+    * @return - returns an array of strings that represent the list of boxes.
+    */
+  def parseJsonList(list: Json): Array[String] = {
+    var listArray: Array[String] = list.toString().trim.stripPrefix("[").stripSuffix("]").
+      split("},")
+    listArray = listArray.map(asset => {
+      if (listArray.indexOf(asset) != listArray.length-1) {
+        asset.concat("}")
+      } else asset
+    })
+    listArray
+  }
+
+  /**
+    * Parses a new block received from Bifrost and saves it to the "newestBlock" value.
+    * @param blockMsg - the json of the new block in string form.
+    */
   def newBlock(blockMsg: String): Unit = {
     val block : String = blockMsg.substring("new block added: ".length)
     log.info(s"Wallet Manager received new block: $block")
@@ -130,7 +152,12 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
     newestBlock = Some(block)
   }
 
-
+  /**
+    * Parses through newBoxes and adds the boxes to the map of boxes to add to the wallet.
+    * @param newBoxes - newBoxes for a specific transaction.
+    * @param add - the current map of boxes to add.
+    * @return - the updates map of boxes to add with the newBoxes.
+    */
   def parseBoxesToAdd (newBoxes: Json, add: MMap[String, MMap[String, Json]]): MMap[String, MMap[String, Json]] = {
     val boxes: Array[String] = parseJsonList(newBoxes)
     boxes.foreach(boxString => {
@@ -152,6 +179,10 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
     add
   }
 
+  /**
+    * Parses through the transactions to update the wallet with new boxes or boxes to remove.
+    * @param txs - the transactions from the new block.
+    */
   def updateWalletFromBlock(txs: String): Unit = {
     var add: MMap[String, MMap[String, Json]] = MMap.empty
     //val remove: List[(String, List[String])] = List.empty
@@ -184,7 +215,7 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
   }
 
   /**
-    *
+    * Given the boxes to add and remove, updates the "walletBoxes" accordingly.
     * @param add - boxes to add in the form: public key -> {id1 -> box}, {id2 -> box2}
     * @param remove - boxes to remove in the form: {(public key, {id1, id2}), (publicKey2, {id3, id4})}
     */
@@ -245,13 +276,17 @@ object WalletManager {
     * @param updatedBoxes - the current balances from Bifrost
     */
   case class UpdateWallet(updatedBoxes: Json)
-  //case class UpdateWallet(add: MMap[String, MMap[String, Json]], remove: List[(String, List[String])])
 
   case class GjallarhornStarted(bifrostActorRef: ActorRef)
+
   case object GjallarhornStopped
+
   case object GetNewBlock
+
   case class NewBlock(block: String)
+
   case object GetWallet
+
   case object IsConnected
 
 }
