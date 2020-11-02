@@ -1,11 +1,12 @@
 package co.topl.nodeView.state.box
 
+import co.topl.attestation.Evidence
 import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import co.topl.nodeView.state.ProgramId
 import io.circe.syntax._
 import io.circe.{ Decoder, Encoder, HCursor }
 
-case class ExecutionBox(override val proposition: PublicKeyCurve25519Proposition,
+case class ExecutionBox(override val evidence   : Evidence,
                         override val nonce      : Long,
                         override val value      : ProgramId,
                         stateBoxIds             : Seq[ProgramId],
@@ -18,7 +19,7 @@ case class ExecutionBox(override val proposition: PublicKeyCurve25519Proposition
 object ExecutionBox {
 
   implicit val jsonEncoder: Encoder[ExecutionBox] = { box: ExecutionBox =>
-    (ProgramBox.jsonEncode(box) ++ Map(
+    (Box.jsonEncode(box) ++ Map(
       "stateBoxIds" -> box.stateBoxIds.asJson,
       "codeBoxIds" -> box.codeBoxIds.asJson
     )).asJson
@@ -26,7 +27,7 @@ object ExecutionBox {
 
   implicit val jsonDecoder: Decoder[ExecutionBox] = ( c: HCursor ) =>
     for {
-      b <- ProgramBox.jsonDecode(c)
+      b <- Box.jsonDecode[ProgramId](c)
       stateBoxIds <- c.downField("stateBoxIds").as[Seq[ProgramId]]
       codeBoxIds <- c.downField("codeBoxIds").as[Seq[ProgramId]]
     } yield {

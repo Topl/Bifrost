@@ -1,6 +1,6 @@
 package co.topl.nodeView.state.box
 
-import co.topl.attestation.BoxUnlocker
+import co.topl.attestation.{ BoxUnlocker, Evidence }
 import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.modifier.transaction.Transaction
@@ -10,29 +10,30 @@ import io.circe.syntax.EncoderOps
 import io.circe.{ DecodingFailure, HCursor, Json }
 import scorex.crypto.hash.Blake2b256
 
-abstract class ProgramBox (override val evidence: Evidence,
-                           override val nonce      : Long,
-                           override val value      : ProgramId
-                          ) extends Box(proposition, nonce, value) {
-  self =>
+abstract class ProgramBox (override val evidence     : Evidence,
+                           override val value        : ProgramId,
+                           override val nonce        : Box.Nonce,
+                           override val boxTypePrefix: Box.BoxType
+                          ) extends Box[ProgramId](evidence, value, nonce, boxTypePrefix) {
 
-  lazy val id: BoxId = ProgramBox.idFromBox(self)
+  override lazy val id: BoxId = ProgramBox.idFromBox(this)
 }
 
 
 
 object ProgramBox {
-  def idFromBox[PKP <: PublicKeyCurve25519Proposition] (box: ProgramBox ): BoxId = {
+  def idFromBox (box: ProgramBox): BoxId = {
     val hashBytes = Blake2b256(
-      box.proposition.pubKeyBytes ++
-        box.typeOfBox.getBytes ++
-        Longs.toByteArray(box.nonce))
+        box.boxTypePrefix +:
+          box.evidence.bytes ++
+          Longs.toByteArray(box.nonce))
 
     BoxId(hashBytes)
   }
 
   def jsonEncode(box: ProgramBox): Map[String, Json] =
-    Map(
+    (Box.jsonEncode(box) ++ Map(
+      Map(
       "id" -> box.id.toString.asJson,
       "type" -> box.typeOfBox.asJson,
       "proposition" -> box.proposition.toString.asJson,
