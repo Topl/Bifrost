@@ -4,7 +4,7 @@ import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import co.topl.attestation.proof.{ ThresholdSignatureCurve25519, SignatureCurve25519 }
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.nodeView.state.box._
-import co.topl.nodeView.state.{ ProgramId, State, StateReader }
+import co.topl.nodeView.state.{ State, StateReader }
 import co.topl.program.Program
 import co.topl.utils.exceptions.TransactionValidationException
 import com.google.common.primitives.{ Bytes, Longs }

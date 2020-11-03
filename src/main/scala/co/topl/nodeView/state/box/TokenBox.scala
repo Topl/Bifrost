@@ -1,10 +1,9 @@
 package co.topl.nodeView.state.box
 
-import co.topl.attestation.proof.SignatureCurve25519
-import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
-import co.topl.attestation.{ BoxUnlocker, Evidence, EvidenceProducer }
-import io.circe.syntax.EncoderOps
-import io.circe.{ DecodingFailure, HCursor, Json }
+import co.topl.attestation.EvidenceProducer.syntax._
+import co.topl.attestation.proof.Proof
+import co.topl.attestation.proposition.Proposition
+import co.topl.attestation.{Address, BoxUnlocker, Evidence, EvidenceProducer}
 
 abstract class TokenBox ( override val evidence     : Evidence,
                           override val nonce        : Box.Nonce,
@@ -19,26 +18,28 @@ object TokenBox {
   /**
    * Generate a series of unlockers for a transactions that is used to validate the transaction
    *
-   * @param from
-   * @param signatures
-   * @return
+   * @param from a sequence of Address -> Nonce from which the box id's for the transaction can be generated
+   * @param proof a map of propositions matching the evidence contained in the given addresses, as well as proof satisfying the proposition
+   * @return a set of box unlockers that
    */
-  def generateUnlockers (from: Seq[(PublicKeyCurve25519Proposition, Box.Nonce)],
-                         signatures: Map[PublicKeyCurve25519Proposition, SignatureCurve25519]
-                        ): Traversable[BoxUnlocker[PublicKeyCurve25519Proposition]] = {
+  def generateUnlockers[P <: Proposition: EvidenceProducer] (from: Seq[(Address, Box.Nonce)],
+                                                             proof: Map[P, Proof[P]],
+                                                            ): Traversable[BoxUnlocker[P]] = {
+    val evidence = proof.keys.map { prop =>
+      prop.generateEvidence -> prop
+    }
+
     from.map {
-      case (prop, nonce) =>
-        val boxId = PublicKeyNoncedBox.idFromBox(prop, nonce)
-        val boxKey = signatures.getOrElse(prop, throw new Exception("Signature not provided"))
+      case (addr, nonce) =>
+        val boxId = BoxId.idFromEviNonce(addr.evidence, nonce)
+        val boxKey = evidence.collectFirst[Proof[P]]{
+          case (ev, prop) if ev == addr.evidence => proof(prop)
+        }.get
         new BoxUnlocker(boxId, boxKey)
     }
   }
 
-  def generateUnlockers ( boxIds   : Seq[BoxId],
-                          signature: SignatureCurve25519
-                        ): Traversable[BoxUnlocker[PublicKeyCurve25519Proposition]] = {
-    boxIds.map { id =>
-      new BoxUnlocker(id, signature)
-    }
-  }
+  def generateUnlockers[P <: Proposition] (boxIds: Seq[BoxId], proof: Proof[P]): Traversable[BoxUnlocker[P]] =
+    boxIds.map(new BoxUnlocker(_, proof))
+
 }

@@ -1,8 +1,7 @@
 package co.topl.nodeView.state.box.serialization
 
 import co.topl.attestation.proposition.{PublicKeyCurve25519Proposition, PublicKeyCurve25519PropositionSerializer}
-import co.topl.nodeView.state.ProgramId
-import co.topl.nodeView.state.box.ProgramBox
+import co.topl.nodeView.state.box.{ProgramBox, ProgramId}
 import co.topl.utils.serialization.{Reader, Writer}
 
 object ProgramBoxSerializer {

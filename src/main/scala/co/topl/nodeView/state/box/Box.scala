@@ -33,7 +33,7 @@ object Box {
   type Nonce = Long
   type BoxType = Byte
 
-  def jsonEncode(box: TokenBox): Map[String, Json] =
+  def jsonEncode[T](box: Box[T]): Map[String, Json] =
     Map(
       "id" -> box.id.toString.asJson,
       "type" -> prefixToTypeString(box.boxTypePrefix).asJson,

@@ -3,7 +3,7 @@ package co.topl.modifier.transaction
 import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.nodeView.state.box.{ Box, BoxId, CodeBox }
-import co.topl.nodeView.state.{ ProgramId, StateReader }
+import co.topl.nodeView.state.StateReader
 import co.topl.program.ProgramPreprocessor
 import com.google.common.primitives.{ Bytes, Longs }
 import io.circe.syntax._

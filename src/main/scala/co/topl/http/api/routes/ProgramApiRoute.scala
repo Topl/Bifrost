@@ -8,7 +8,7 @@ import co.topl.nodeView.NodeViewHolder.ReceivableMessages.LocallyGeneratedTransa
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.box.{ ExecutionBox, StateBox }
-import co.topl.nodeView.state.{ ProgramId, State }
+import co.topl.nodeView.state.State
 import co.topl.program.{ ExecutionBuilder, ExecutionBuilderTerms, ProgramPreprocessor }
 import co.topl.settings.RESTApiSettings
 import co.topl.utils.exceptions.JsonParsingException

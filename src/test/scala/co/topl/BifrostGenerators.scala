@@ -3,29 +3,28 @@ package co.topl
 import java.io.File
 import java.time.Instant
 
-import co.topl.attestation.proposition.{ ThresholdCurve25519Proposition, PublicKeyCurve25519Proposition }
+import co.topl.attestation.proposition.{PublicKeyCurve25519Proposition, ThresholdCurve25519Proposition}
 import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
+import co.topl.modifier.transaction.Transaction.{Nonce, Value}
 import co.topl.modifier.transaction._
 import co.topl.network.message.BifrostSyncInfo
-import co.topl.nodeView.history.{ BlockProcessor, History, Storage }
-import co.topl.nodeView.state.ProgramId
-import co.topl.nodeView.state.box._
-import co.topl.program.{ Program, ProgramPreprocessor, _ }
-import co.topl.settings.{ AppSettings, StartupOpts, Version }
+import co.topl.nodeView.history.{BlockProcessor, History, Storage}
+import co.topl.nodeView.state.box.{ProgramId, _}
+import co.topl.program.{Program, ProgramPreprocessor, _}
+import co.topl.settings.{AppSettings, StartupOpts, Version}
 import co.topl.utils.Logging
 import io.circe.syntax._
-import io.circe.{ Json, JsonObject }
+import io.circe.{Json, JsonObject}
 import io.iohk.iodb.LSMStore
-import org.scalacheck.{ Arbitrary, Gen }
+import org.scalacheck.{Arbitrary, Gen}
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.Signature
 import scorex.util.encode.Base58
 
-import scala.util.{ Random, Try }
+import scala.util.{Random, Try}
 
 /**
   * Created by cykoz on 4/12/17.
