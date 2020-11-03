@@ -1,10 +1,10 @@
 package co.topl.nodeView.state.box
 
-import co.topl.crypto.FastCryptographicHash
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import scorex.util.encode.Base58
+import scorex.crypto.hash.Blake2b256
 
 import scala.util.{Failure, Success, Try}
 
@@ -22,7 +22,7 @@ case class BoxId (hashBytes: Array[Byte]) {
 }
 
 object BoxId {
-  val size: Int = FastCryptographicHash.DigestSize // boxId is a 32 byte identifier
+  val size: Int = Blake2b256.DigestSize // boxId is a 32 byte identifier
 
   def apply(id: String): BoxId = {
     Base58.decode(id) match {

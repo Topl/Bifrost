@@ -1,13 +1,11 @@
 package co.topl.nodeView.history
 
 import co.topl.consensus
-import co.topl.crypto.FastCryptographicHash
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.history.BlockProcessor.ChainCache
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.utils.Logging
-import io.iohk.iodb.ByteArrayWrapper
 
 import scala.annotation.tailrec
 import scala.collection.immutable.TreeMap
@@ -128,11 +126,6 @@ object BlockProcessor extends Logging {
   def apply(maxDepth: Int): BlockProcessor = new BlockProcessor(emptyCache, maxDepth)
 
   def emptyCache: ChainCache = ChainCache(TreeMap.empty)
-
-  def chainStatusKey(id: ModifierId): ByteArrayWrapper =
-    ByteArrayWrapper(
-      FastCryptographicHash("main_chain".getBytes ++ id.hashBytes)
-    )
 
   /** Wrapper for storing a block and its height in the chain cache */
   case class CacheBlock(block: Block, height: Long, baseDifficulty: Long, prevBlockTimes: Seq[Block.Timestamp])

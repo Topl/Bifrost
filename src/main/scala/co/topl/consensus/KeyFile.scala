@@ -20,35 +20,39 @@ import scorex.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
 import scorex.util.Random.randomBytes
 import scorex.util.encode.Base58
 
-import scala.util.Try
+import scala.util.{ Failure, Success, Try }
 
 /**
   * Created by cykoz on 6/22/2017.
   */
-case class KeyFile (pubKeyBytes: Array[Byte],
-                    cipherText : Array[Byte],
-                    mac        : Array[Byte],
-                    salt       : Array[Byte],
-                    iv         : Array[Byte]) {
+case class KeyFile ( address   : Array[Byte],
+                     cipherText: Array[Byte],
+                     mac       : Array[Byte],
+                     salt      : Array[Byte],
+                     iv        : Array[Byte]) {
+
+  lazy val publicKeyFromAddress: PublicKey25519Proposition = PublicKey25519Proposition(Base58.encode(address))
 
   private[consensus] def getPrivateKey (password: String): Try[PrivateKey25519] = Try {
     val derivedKey = KeyFile.getDerivedKey(password, salt)
     require(Keccak256(derivedKey.slice(16, 32) ++ cipherText) sameElements mac, "MAC does not match. Try again")
 
-    val privateKey = KeyFile.getAESResult(derivedKey, iv, cipherText, encrypt = false) match {
-        case (decrypted, _) => decrypted.grouped(Curve25519.KeyLength).toSeq match {
-          case Seq(skBytes) => new PrivateKey25519(PrivateKey @@ skBytes, PublicKey @@ pubKeyBytes)
+    KeyFile.getAESResult(derivedKey, iv, cipherText, encrypt = false) match {
+        case (cipherBytes, _) => cipherBytes.grouped(Curve25519.KeyLength).toSeq match {
+          case Seq(skBytes, pkBytes) => {
+            // recreate the private key
+            val privateKey = new PrivateKey25519(PrivateKey @@ skBytes, PublicKey @@ pkBytes)
+            // check that the address given in the keyfile matches the public key
+            require(publicKeyFromAddress == privateKey.publicImage, "PublicKey in file is invalid")
+            privateKey
+          }
         }
       }
-
-    require(pubKeyBytes sameElements privateKey.publicImage.pubKeyBytes, "PublicKey in file is invalid")
-
-    privateKey
   }
 
   private[consensus] def saveToDisk (dir: String): Try[Unit] = Try {
     val dateString = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString.replace(":", "-")
-    val w = new BufferedWriter(new FileWriter(s"$dir/$dateString-${Base58.encode(this.pubKeyBytes)}.json"))
+    val w = new BufferedWriter(new FileWriter(s"$dir/$dateString-${Base58.encode(this.address)}.json"))
     w.write(KeyFile.jsonEncoder.toString)
     w.close()
   }
@@ -69,25 +73,25 @@ object KeyFile {
         "kdfSalt" -> Base58.encode(kf.salt).asJson,
         "mac" -> Base58.encode(kf.mac).asJson
       ).asJson,
-      "publicKeyId" -> Base58.encode(kf.pubKeyBytes).asJson
+      "address" -> Base58.encode(kf.address).asJson
     ).asJson
   }
 
   implicit val jsonDecoder: Decoder[KeyFile] = (c: HCursor) =>
     for {
-      pubKeyString <- c.downField("publicKeyId").as[String]
+      address <- c.downField("address").as[String]
       cipherTextString <- c.downField("crypto").downField("cipherText").as[String]
       macString <- c.downField("crypto").downField("mac").as[String]
       saltString <- c.downField("crypto").downField("kdfSalt").as[String]
       ivString <- c.downField("crypto").downField("cipherParams").downField("iv").as[String]
     } yield {
-      val pubKey = Base58.decode(pubKeyString).get
+      val addr = Base58.decode(address).get
       val cipherText = Base58.decode(cipherTextString).get
       val mac = Base58.decode(macString).get
       val salt = Base58.decode(saltString).get
       val iv = Base58.decode(ivString).get
 
-      new KeyFile(pubKey, cipherText, mac, salt, iv)
+      new KeyFile(addr, cipherText, mac, salt, iv)
     }
 
   /**

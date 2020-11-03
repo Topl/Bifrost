@@ -1,9 +1,9 @@
 package co.topl.modifier.transaction
 
-import co.topl.crypto.FastCryptographicHash
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.nodeView.state.box.proposition.Proposition
+import scorex.crypto.hash.Blake2b256
 import supertagged.@@
 
 
@@ -18,7 +18,7 @@ abstract class GenericTransaction[P <: Proposition] extends NodeViewModifier {
 
   val timestamp: Long
 
-  val id: ModifierId = ModifierId(FastCryptographicHash(messageToSign))
+  val id: ModifierId = ModifierId(Blake2b256(messageToSign))
 
   def messageToSign: Array[Byte]
 
