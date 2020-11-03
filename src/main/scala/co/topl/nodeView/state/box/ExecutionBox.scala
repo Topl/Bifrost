@@ -1,7 +1,6 @@
 package co.topl.nodeView.state.box
 
 import co.topl.attestation.Evidence
-import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import co.topl.nodeView.state.ProgramId
 import io.circe.syntax._
 import io.circe.{ Decoder, Encoder, HCursor }

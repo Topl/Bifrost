@@ -33,13 +33,6 @@ object Box {
   type Nonce = Long
   type BoxType = Byte
 
-  def idFromBox[T] (box: Box[T]): BoxId = idFromPropNonce(box.evidence, box.nonce)
-
-  def idFromPropNonce (evidence: Evidence, nonce: Box.Nonce): BoxId = {
-    val hashBytes = Blake2b256(evidence.bytes ++ Longs.toByteArray(nonce))
-    BoxId(hashBytes)
-  }
-
   def jsonEncode(box: TokenBox): Map[String, Json] =
     Map(
       "id" -> box.id.toString.asJson,
