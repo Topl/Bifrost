@@ -97,8 +97,7 @@ libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "19.3.4"
 libraryDependencies += "org.graalvm.js" % "js" % "19.3.4"
 
 // https://mvnrepository.com/artifact/org.graalvm.truffle/truffle-api
-libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.3.3"
-
+libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.3.4"
 
 libraryDependencies  ++= Seq(
   "org.scalanlp" %% "breeze" % "1.1",
