@@ -91,7 +91,7 @@ libraryDependencies ++= Seq(
 )
 
 // https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
-libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "19.3.3"
+libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "19.3.4"
 
 // https://mvnrepository.com/artifact/org.graalvm.js/js
 libraryDependencies += "org.graalvm.js" % "js" % "19.3.4"
