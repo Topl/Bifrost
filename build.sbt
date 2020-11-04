@@ -59,7 +59,7 @@ val loggingDependencies = Seq(
 val testingDependencies = Seq(
   "org.scalactic" %% "scalactic" % "3.2.2" % Test,
   "org.scalatest" %% "scalatest" % "3.2.2" % Test,
-  "org.scalacheck" %% "scalacheck" % "1.14.3" % Test,
+  "org.scalacheck" %% "scalacheck" % "1.15.0" % Test,
   "org.scalatestplus" %% "scalacheck-1-14" % "3.2.2.0" % Test,
   "com.spotify" % "docker-client" % "8.16.0" % Test,
   "org.asynchttpclient" % "async-http-client" % "2.12.1" % Test
@@ -67,7 +67,7 @@ val testingDependencies = Seq(
 
 val cryptoDependencies = Seq(
   "org.scorexfoundation" %% "scrypto" % "2.1.9",
-  "org.bouncycastle" % "bcprov-jdk15on" % "1.66",
+  "org.bouncycastle" % "bcprov-jdk15on" % "1.67",
   "org.whispersystems" % "curve25519-java" % "0.5.0"
 )
 
@@ -78,7 +78,6 @@ val miscDependencies = Seq(
   "com.iheart" %% "ficus" % "1.5.0",
   "org.rudogma" %% "supertagged" % "1.5",
   "com.joefkelley" %% "argyle" % "1.0.0",
-  "io.netty" % "netty" % "3.10.6.Final"
 ) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
 
 
@@ -106,7 +105,7 @@ libraryDependencies  ++= Seq(
   "org.scalanlp" %% "breeze" % "1.1",
   "com.google.protobuf" % "protobuf-java" % "3.13.0",
   "com.thesamet.scalapb" %% "lenses" % "0.10.8",
-  "com.typesafe" % "config" % "1.4.0",
+  "com.typesafe" % "config" % "1.4.1"
 )
 
 scalacOptions ++= Seq(
