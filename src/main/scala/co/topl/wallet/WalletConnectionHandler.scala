@@ -6,20 +6,19 @@ import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, HttpResponse, MediaTypes, StatusCodes}
 import akka.pattern.{ask, pipe}
 import akka.util.{ByteString, Timeout}
+import co.topl.http.api.routes.{AssetApiRoute, WalletApiRoute}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction._
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.{ModificationOutcome, SemanticallySuccessfulModifier}
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
-import co.topl.wallet.AssetRequests.AssetRequest
-import co.topl.wallet.WalletRequests.WalletRequest
 import io.circe.{Json, parser}
 import io.circe.parser.parse
 import io.circe.syntax._
 
 import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.util.Success
+import scala.util.{Failure, Success}
 import scala.concurrent.duration._
 
 
@@ -28,7 +27,7 @@ import scala.concurrent.duration._
   * @param settings - the current AppSettings from Bifrost.
   * @param ec - the execution context used for futures.
   */
-class WalletConnectionHandler (settings: AppSettings)
+class WalletConnectionHandler (settings: AppSettings, nodeViewHolderRef: ActorRef)
                               (implicit ec: ExecutionContext) extends Actor with Logging {
   import WalletConnectionHandler._
 
@@ -43,33 +42,6 @@ class WalletConnectionHandler (settings: AppSettings)
 
   override def preStart(): Unit = {
     context.system.eventStream.subscribe(self, classOf[ModificationOutcome])
-  }
-
-  def httpPost(jsonRequest: ByteString, path: String): HttpRequest = {
-    HttpRequest(
-      HttpMethods.POST,
-      uri = path,
-      entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    ).withHeaders(RawHeader("x-api-key", "test_key"))
-  }
-
-  def requestResponseByteString(request: HttpRequest): Future[ByteString] = {
-    val response = http.singleRequest(request)
-    response.flatMap {
-      case _@HttpResponse(StatusCodes.OK, _, entity, _) =>
-        entity.dataBytes.runFold(ByteString.empty) { case (acc, b) => acc ++ b }
-      case _ => sys.error("something wrong")
-    }
-  }
-
-  def byteStringToJSON(data: Future[ByteString]): Json = {
-    val parsedData: Future[Json] = data.map { x =>
-      parser.parse(x.utf8String) match {
-        case Right(parsed) => parsed
-        case Left(e) => throw e.getCause
-      }
-    }
-    Await.result(parsedData, 20 seconds)
   }
 
   /**
@@ -98,42 +70,29 @@ class WalletConnectionHandler (settings: AppSettings)
   def sendRequestApi(params: String, walletRef: ActorRef, requestType: String): Unit = {
     parse(params) match {
       case Right(tx) =>
+        val id = (tx \\ "id").head.asString.get
+        val params = (tx \\ "params").head.asArray.get
+        require(params.size <= 1, s"size of params is ${params.size}")
+        val method = (tx \\ "method").head.asString.get
         requestType match {
           case "asset" =>
-            val sendTx = httpPost(ByteString(tx.toString()), "/asset/")
-            val data = requestResponseByteString(sendTx)
-            walletRef ! byteStringToJSON(data)
+            val assetRoute = AssetApiRoute(settings.restApi, nodeViewHolderRef)
+            val futureResponse: Future[Json] = assetRoute.handlers(method, params, id)
+            val stringResponse: Future[String] = futureResponse.transformWith {
+              case Success(resp) => Future(resp.noSpaces)
+              case Failure(ex) => Future("Did not receive a response from asset route.")
+            }
+            stringResponse.pipeTo(walletRef)
           case "wallet" =>
-            val sendTx = httpPost(ByteString(tx.toString()), "/wallet/")
-            val data = requestResponseByteString(sendTx)
-            walletRef ! byteStringToJSON(data)
+            val walletRoute = WalletApiRoute(settings.restApi, nodeViewHolderRef)
+            val futureResponse: Future[Json] = walletRoute.handlers(method, params, id)
+            val stringResponse: Future[String] = futureResponse.transformWith {
+              case Success(resp) => Future(resp.noSpaces)
+              case Failure(ex) => Future("Did not receive a response from wallet route.")
+            }
+            stringResponse.pipeTo(walletRef)
         }
       case Left(error) => throw new Exception(s"error: $error")
-    }
-  }
-
-  def sendRequest(params: String, walletRef: ActorRef, requestType: String): Unit = {
-    parse(params) match {
-      case Right(tx) =>
-        requestType match {
-          case "asset" =>
-            context.actorSelection("../" + AssetRequests.actorName).resolveOne().onComplete {
-              case Success(request: ActorRef) =>
-                    val futureResponse = request ? AssetRequest(tx)
-                    futureResponse.pipeTo(walletRef)
-              case _ =>
-                log.warn("No ledger actor found. Can not update view.")
-            }
-          case "wallet" =>
-            context.actorSelection("../" + WalletRequests.actorName).resolveOne().onComplete {
-              case Success(request: ActorRef) =>
-                val futureResponse = request ? WalletRequest(tx)
-                futureResponse.pipeTo(walletRef)
-              case _ =>
-                log.warn("No ledger actor found. Can not update view.")
-            }
-        }
-      case Left(error)  => throw new Exception (s"error: $error")
     }
   }
 
@@ -169,7 +128,6 @@ class WalletConnectionHandler (settings: AppSettings)
       println("Wallet Connection handler received asset transaction: " + txString)
       val walletActorRef: ActorRef = sender()
       sendRequestApi(txString, walletActorRef, "asset")
-      //sendRequest(txString, walletActorRef, "asset")
     }
 
     if (msg.contains("wallet request:")) {
@@ -177,7 +135,6 @@ class WalletConnectionHandler (settings: AppSettings)
       println("Wallet connection handler received wallet request: " + params)
       val walletActorRef: ActorRef = sender()
       sendRequestApi(params, walletActorRef, "wallet")
-      //sendRequest(params, walletActorRef, "wallet")
     }
   }
 

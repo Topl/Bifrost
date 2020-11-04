@@ -2,7 +2,6 @@ package example
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
-import akka.http.scaladsl.{Http, HttpExt}
 import _root_.requests.{Requests, RequestsManager}
 import akka.util.{ByteString, Timeout}
 import crypto.{PrivateKey25519, PublicKey25519Proposition}
@@ -31,8 +30,6 @@ class RequestSpec extends AsyncFlatSpec
   implicit val actorSystem: ActorSystem = ActorSystem("requestTest", requestConfig)
   implicit val context: ExecutionContextExecutor = actorSystem.dispatcher
   implicit val timeout: Timeout = 30.seconds
-
-  val http: HttpExt = Http(actorSystem)
 
   val requestsManagerRef: ActorRef = actorSystem.actorOf(Props(new RequestsManager), name = "RequestsManager")
 
@@ -63,7 +60,6 @@ class RequestSpec extends AsyncFlatSpec
   }
 
   val publicKeys: Set[String] = Set(pk1.toString, pk2.toString, pk3.toString, genesisPubKey)
-
   val walletManagerRef: ActorRef = actorSystem.actorOf(Props(new WalletManager(publicKeys)), name = "WalletManager")
 
   val amount = 10
@@ -157,13 +153,12 @@ class RequestSpec extends AsyncFlatSpec
 
     val pubKeyWithBoxes: Option[MMap[String, Json]] = walletBoxes.get(pk1.toString)
     pubKeyWithBoxes match {
-      case Some(map) => {
+      case Some(map) =>
         val firstBox: Option[Json] = map.get(newBoxId)
         firstBox match {
           case Some(json) => assert ((json \\ "value").head.toString() == "\"10\"")
           case None => sys.error("no keys in mapping")
         }
-      }
       case None => sys.error(s"no mapping for given public key: ${pk1.toString}")
     }
   }

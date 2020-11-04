@@ -22,7 +22,7 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.settings.{AppContext, AppSettings, NetworkType, RuntimeOpts, StartupOpts}
 import co.topl.utils.Logging
-import co.topl.wallet.{AssetRequests, WalletConnectionHandler, WalletRequests}
+import co.topl.wallet.WalletConnectionHandler
 import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
 import com.typesafe.config.{Config, ConfigFactory}
 import kamon.Kamon
@@ -63,13 +63,10 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   private val forgerRef: ActorRef = ForgerRef(Forger.actorName, settings, appContext)
 
-  private val walletConnectionHandlerRef: ActorRef = actorSystem.actorOf(Props(new WalletConnectionHandler(settings)), name = "walletConnectionHandler")
-
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef(NodeViewHolder.actorName, settings, appContext)
 
-  private val assetRequestsRef: ActorRef = actorSystem.actorOf(Props(new AssetRequests(nodeViewHolderRef)), name = AssetRequests.actorName)
-
-  private val walletRequestsRef: ActorRef = actorSystem.actorOf(Props(new WalletRequests(nodeViewHolderRef)), name = WalletRequests.actorName)
+  private val walletConnectionHandlerRef: ActorRef = actorSystem.actorOf(
+    Props(new WalletConnectionHandler(settings, nodeViewHolderRef)), name = "walletConnectionHandler")
 
   private val peerSynchronizer: ActorRef = PeerSynchronizerRef(PeerSynchronizer.actorName, networkControllerRef, peerManagerRef, settings, appContext)
 
@@ -84,9 +81,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     nodeViewSynchronizer,
     forgerRef,
     nodeViewHolderRef,
-    walletConnectionHandlerRef,
-    assetRequestsRef,
-    walletRequestsRef
+    walletConnectionHandlerRef
   )
 
   // hook for initiating the shutdown procedure

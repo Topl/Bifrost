@@ -78,6 +78,7 @@ val miscDependencies = Seq(
   "com.iheart" %% "ficus" % "1.5.0",
   "org.rudogma" %% "supertagged" % "1.5",
   "com.joefkelley" %% "argyle" % "1.0.0",
+  "io.netty" % "netty" % "3.10.6.Final"
 ) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
 
 

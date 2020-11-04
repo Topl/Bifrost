@@ -45,19 +45,13 @@ case class GjallarhornApiRoute(settings: AppSettings,
     * @return - a response after creating transaction.
     */
   private def createTransaction(params: Json, id: String): Future[Json] = {
-    settings.useApiRoute match {
-      case true =>
-        val method: String = (params \\ "method").head.asString.get
-        val innerParams: Json = (params \\ "params").head.asArray.get.head
-        val tx = requests.transaction(method, innerParams)
+      val method: String = (params \\ "method").head.asString.get
+      val innerParams: Json = (params \\ "params").head.asArray.get.head
+      val tx = requests.transaction(method, innerParams)
 
-        Future {
-          requests.sendRequest(tx, "asset")
-        }
-
-      case false =>
-        (requestsManager ? AssetRequest(params)).mapTo[String].map(_.asJson)
-    }
+      Future {
+        requests.sendRequest(tx, "asset")
+      }
   }
 
   /**
