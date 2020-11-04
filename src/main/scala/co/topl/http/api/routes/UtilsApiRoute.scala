@@ -4,7 +4,6 @@ import java.security.SecureRandom
 
 import akka.actor.ActorRefFactory
 import akka.http.scaladsl.server.Route
-import co.topl.crypto.FastCryptographicHash
 import co.topl.http.api.ApiRoute
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
@@ -13,6 +12,7 @@ import co.topl.settings.RESTApiSettings
 import io.circe.Json
 import io.circe.syntax._
 import scorex.util.encode.Base58
+import scorex.crypto.hash.Blake2b256
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -91,7 +91,7 @@ case class UtilsApiRoute(override val settings: RESTApiSettings)
     val message: String = (params \\ "message").head.asString.get
     Future(Map(
       "message" -> message,
-      "hash" -> Base58.encode(FastCryptographicHash(message))
+      "hash" -> Base58.encode(Blake2b256(message))
     ).asJson)
   }
 }

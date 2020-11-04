@@ -1,7 +1,6 @@
 package co.topl.nodeView.history
 
 import co.topl.consensus
-import co.topl.crypto.FastCryptographicHash
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{ Block, BlockSerializer }
 import co.topl.modifier.transaction.GenericTransaction
@@ -9,7 +8,7 @@ import co.topl.utils.Logging
 import com.google.common.cache.{ CacheBuilder, CacheLoader, LoadingCache }
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
-import scorex.crypto.hash.Sha256
+import scorex.crypto.hash.{ Blake2b256, Sha256 }
 
 import scala.util.Success
 
@@ -163,7 +162,7 @@ class Storage( private[history] val storage: LSMStore,
     ByteArrayWrapper(Sha256("parentId".getBytes ++ blockId))
 
   def blockTimestampKey: ByteArrayWrapper =
-    ByteArrayWrapper(FastCryptographicHash("timestamp".getBytes))
+    ByteArrayWrapper(Blake2b256("timestamp".getBytes))
 
   private def blockBloomKey(blockId: Array[Byte]): ByteArrayWrapper =
     ByteArrayWrapper(Sha256("bloom".getBytes ++ blockId))

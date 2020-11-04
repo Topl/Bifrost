@@ -126,13 +126,13 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
   /**
    * Check if given publicKey string is valid and contained in the key file directory
    *
-   * @param publicKeyString Base58 encoded public key to query
+   * @param address Base58 encoded public key to query
    * @param password        password used to decrypt the keyfile
    * @return the relevant PrivateKey25519 to be processed
    */
-  private def checkValid ( publicKeyString: String, password: String ): PrivateKey25519 = {
+  private def checkValid ( address: String, password: String ): PrivateKey25519 = {
     val keyfile = listKeyFiles.filter {
-      _.pubKeyBytes sameElements PublicKey25519Proposition(publicKeyString).pubKeyBytes
+      _.publicKeyFromAddress == PublicKey25519Proposition(address)
     }
 
     assert(keyfile.size == 1, "Cannot find a unique publicKey in key files")
