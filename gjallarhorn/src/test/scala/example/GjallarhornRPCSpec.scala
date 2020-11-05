@@ -17,6 +17,7 @@ import keymanager.{KeyManagerRef, Keys}
 import requests.{Requests, RequestsManager}
 import scorex.crypto.hash.{Blake2b256, Digest32}
 
+import scala.concurrent.Await
 import scala.concurrent.duration._
 
 class GjallarhornRPCSpec extends AsyncFlatSpec
@@ -29,6 +30,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   implicit val timeout: Timeout = Timeout(10.seconds)
 
   override def createActorSystem(): ActorSystem = ActorSystem("gjallarhornTest", config)
+
   val http: HttpExt = Http(system)
 
   val seed1: Digest32 = Blake2b256(java.util.UUID.randomUUID.toString)
@@ -41,10 +43,13 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   val keyManagerRef: ActorRef = KeyManagerRef("keyManager", "keyfiles")
   val keyFileDir = "keyfiles/keyManagerTest"
   val keyManager = Keys(keyFileDir)
-  val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager), name = "RequestsManager")
-  val requests: Requests = new Requests(settings, requestsManagerRef)
 
+  val bifrostActor: ActorRef = Await.result(system.actorSelection(
+    s"akka.tcp://${settings.chainProvider}/user/walletConnectionHandler").resolveOne(), 10.seconds)
+  val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager(bifrostActor)), name = "RequestsManager")
+  val requests: Requests = new Requests(settings, requestsManagerRef)
   val route: Route = GjallarhornApiRoute(settings, keyManagerRef, requestsManagerRef, requests).route
+
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
@@ -54,37 +59,38 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
 
-  it should "get a successful JSON response" in {
-    val createAssetRequest = ByteString(
-      s"""
-         |{
-         |   "jsonrpc": "2.0",
-         |   "id": "2",
-         |   "method": "createTransaction",
-         |   "params": [{
-         |     "method": "createAssetsPrototype",
-         |     "params": [{
-         |        "issuer": "${pk1.toString}",
-         |        "recipient": "${pk2.toString}",
-         |        "amount": $amount,
-         |        "assetCode": "etherAssets",
-         |        "fee": 0,
-         |        "data": ""
-         |     }]
-         |   }]
-         |}
+  def test(requests: Requests, route: Route): Unit = {
+    it should "get a successful JSON response" in {
+      val createAssetRequest = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "2",
+           |   "method": "createTransaction",
+           |   "params": [{
+           |     "method": "createAssetsPrototype",
+           |     "params": [{
+           |        "issuer": "${pk1.toString}",
+           |        "recipient": "${pk2.toString}",
+           |        "amount": $amount,
+           |        "assetCode": "etherAssets",
+           |        "fee": 0,
+           |        "data": ""
+           |     }]
+           |   }]
+           |}
          """.stripMargin)
 
-    httpPOST(createAssetRequest) ~> route ~> check {
-      val responseString = responseAs[String].replace("\\", "")
-      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
-        case Left(f) => throw f
-        case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          (res \\ "result").head.asObject.isDefined shouldBe true
+      httpPOST(createAssetRequest) ~> route ~> check {
+        val responseString = responseAs[String].replace("\\", "")
+        parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+          case Left(f) => throw f
+          case Right(res: Json) =>
+            (res \\ "error").isEmpty shouldBe true
+            (res \\ "result").head.asObject.isDefined shouldBe true
+        }
       }
     }
   }
-
 
 }

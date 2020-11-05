@@ -5,23 +5,19 @@ import akka.util.Timeout
 import akka.pattern.{ask, pipe}
 import io.circe.Json
 import utils.Logging
-import wallet.WalletManager.GjallarhornStarted
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.util.Success
 
 /**
   * Manages requests from Gjallarhorn to Bifrost
   * @param ec - the execution context used for Futures.
   */
-class RequestsManager ( implicit ec: ExecutionContext ) extends Actor with Logging {
+class RequestsManager (val bifrostActorRef: ActorRef)( implicit ec: ExecutionContext ) extends Actor with Logging {
 
   import RequestsManager._
 
   implicit val timeout: Timeout = 30.seconds
-
-  var bifrostActorRef: Option[ActorRef] = None
 
 
   /**
@@ -30,18 +26,11 @@ class RequestsManager ( implicit ec: ExecutionContext ) extends Actor with Loggi
     * @param sendResponseTo - the actor ref to send response to.
     */
   def sendToBifrost(msg: String, sendResponseTo: ActorRef): Unit = {
-    context.actorSelection("akka.tcp://bifrost-client@127.0.0.1:9087/user/walletConnectionHandler").resolveOne().onComplete {
-      case Success(bifrost: ActorRef) =>
-        val futureResponse = bifrost ? msg
-        futureResponse.pipeTo(sendResponseTo)
-      case _ =>
-        log.warn("There is no bifrost actor reference to send to.")
-    }
+    val futureResponse = bifrostActorRef ? msg
+    futureResponse.pipeTo(sendResponseTo)
   }
 
   override def receive: Receive = {
-
-    case GjallarhornStarted(bifrostActor: ActorRef) => bifrostActorRef = Some(bifrostActor)
 
     case AssetRequest(tx: Json) =>
       val from: ActorRef = sender()

@@ -31,8 +31,10 @@ class RequestSpec extends AsyncFlatSpec
   implicit val context: ExecutionContextExecutor = actorSystem.dispatcher
   implicit val timeout: Timeout = 30.seconds
 
-  val requestsManagerRef: ActorRef = actorSystem.actorOf(Props(new RequestsManager), name = "RequestsManager")
+  val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
+    s"akka.tcp://${settings.chainProvider}/user/walletConnectionHandler").resolveOne(), 10.seconds)
 
+  val requestsManagerRef: ActorRef = actorSystem.actorOf(Props(new RequestsManager(bifrostActor)), name = "RequestsManager")
   val requests = new Requests(requestSettings, requestsManagerRef)
 
   val seed1: Array[Byte] = Blake2b256(java.util.UUID.randomUUID.toString)
@@ -60,13 +62,11 @@ class RequestSpec extends AsyncFlatSpec
   }
 
   val publicKeys: Set[String] = Set(pk1.toString, pk2.toString, pk3.toString, genesisPubKey)
-  val walletManagerRef: ActorRef = actorSystem.actorOf(Props(new WalletManager(publicKeys)), name = "WalletManager")
+  val walletManagerRef: ActorRef = actorSystem.actorOf(Props(new WalletManager(publicKeys, bifrostActor)), name = "WalletManager")
 
   val amount = 10
-
   var transaction: Json = Json.Null
   var signedTransaction: Json = Json.Null
-
   var newBoxId: String = ""
 
   def parseForBoxId(json: Json): String = {
@@ -79,16 +79,14 @@ class RequestSpec extends AsyncFlatSpec
   }
 
   it should "connect to bifrost actor when the gjallarhorn app starts" in {
-    val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
-      "akka.tcp://bifrost-client@127.0.0.1:9087/user/walletConnectionHandler").resolveOne(), 10.seconds)
-    walletManagerRef ! GjallarhornStarted(bifrostActor)
+    walletManagerRef ! GjallarhornStarted
     Thread.sleep(100)
     val connected = Await.result((walletManagerRef ? IsConnected).mapTo[Boolean], 10.seconds)
     assert(connected)
   }
 
- it should "receive a successful response from Bifrost upon creating asset" in {
-   val createAssetRequest: ByteString = ByteString(
+  it should "receive a successful response from Bifrost upon creating asset" in {
+    val createAssetRequest: ByteString = ByteString(
       s"""
          |{
          |   "jsonrpc": "2.0",
@@ -103,7 +101,7 @@ class RequestSpec extends AsyncFlatSpec
          |     "data": ""
          |   }]
          |}
-         """.stripMargin)
+       """.stripMargin)
     transaction = requests.sendRequest(createAssetRequest, "asset")
     assert(transaction.isInstanceOf[Json])
     newBoxId = parseForBoxId(transaction)
@@ -156,7 +154,7 @@ class RequestSpec extends AsyncFlatSpec
       case Some(map) =>
         val firstBox: Option[Json] = map.get(newBoxId)
         firstBox match {
-          case Some(json) => assert ((json \\ "value").head.toString() == "\"10\"")
+          case Some(json) => assert((json \\ "value").head.toString() == "\"10\"")
           case None => sys.error("no keys in mapping")
         }
       case None => sys.error(s"no mapping for given public key: ${pk1.toString}")
@@ -186,7 +184,7 @@ class RequestSpec extends AsyncFlatSpec
          |     "data": ""
          |   }]
          |}
-         """.stripMargin)
+       """.stripMargin)
     val tx = requests.sendRequest(transferPolysRequest, "wallet")
     assert(tx.isInstanceOf[Json])
     (transaction \\ "error").isEmpty shouldBe true
@@ -194,7 +192,7 @@ class RequestSpec extends AsyncFlatSpec
   }
 
 
- it should "send msg to bifrost actor when the gjallarhorn app stops" in {
+  it should "send msg to bifrost actor when the gjallarhorn app stops" in {
     val bifrostResponse: String = Await.result((walletManagerRef ? GjallarhornStopped).mapTo[String], 100.seconds)
     assert(bifrostResponse.contains("The remote wallet Actor[akka.tcp://requestTest@127.0.0.1") &&
       bifrostResponse.contains("has been removed from the WalletConnectionHandler in Bifrost"))
@@ -278,7 +276,7 @@ class RequestSpec extends AsyncFlatSpec
          |        "fee" : 0
          |      }
          |    ]
-         """.stripMargin)
+       """.stripMargin)
     parser.parse(block.utf8String) match {
       case Right(blockJson) =>
         walletManagerRef ! s"new block added: $blockJson"
@@ -292,7 +290,7 @@ class RequestSpec extends AsyncFlatSpec
             assert(map.contains("GGDsEQdd5cnbgjKkac9HLpp2joGo6bWgmS2KvhJgd8b8"))
             map.get("GgNqzkSywewv10vCrb99UakEw1Myn5mqYXo3N4a6PWVW") match {
               case Some(json) => assert((json \\ "type").head.toString() == "\"Poly\"")
-              case None => sys.error ("poly box was not found!")
+              case None => sys.error("poly box was not found!")
             }
           case None => sys.error(s"no mapping for given public key: ${pk2.toString}")
         }

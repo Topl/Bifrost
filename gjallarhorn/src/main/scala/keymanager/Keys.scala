@@ -4,7 +4,8 @@ import java.io.File
 
 import com.google.common.primitives.Ints
 import scorex.util.encode.Base58
-import crypto.{FastCryptographicHash, PrivateKey25519, PublicKey25519Proposition}
+import crypto.{PrivateKey25519, PublicKey25519Proposition}
+import scorex.crypto.hash.Blake2b256
 import utils.Logging
 
 import scala.util.{Failure, Success, Try}
@@ -21,7 +22,7 @@ case class Keys(var secrets: Set[PrivateKey25519],
     * @return - the public keys as ProofOfKnowledgePropositions
     */
   def publicKeys: Set[PI] = {
-    secrets.map(_.publicImage).toSet
+    secrets.map(_.publicImage)
     /*getListOfFiles(defaultKeyDir).map(file => PublicKey25519Proposition(PublicKey @@ KeyFile.readFile(file.getPath).pubKeyBytes))
       .toSet*/
   }
@@ -47,7 +48,7 @@ case class Keys(var secrets: Set[PrivateKey25519],
 
   /**
     * Given a public key and password, unlock the associated key file.
-    * @param publicKeyString
+    * @param publicKeyString - public key as string
     * @param password - password for the given public key.
     */
   def unlockKeyFile(publicKeyString: String, password: String): Try[Unit] = Try{
@@ -64,7 +65,7 @@ case class Keys(var secrets: Set[PrivateKey25519],
 
   /**
     * Given a public key and password, locks a key file.
-    * @param publicKeyString
+    * @param publicKeyString - public key as string
     * @param password - password associated with public key.
     */
   def lockKeyFile(publicKeyString: String, password: String): Try[Unit] = Try{
@@ -79,7 +80,7 @@ case class Keys(var secrets: Set[PrivateKey25519],
 
   /**
     *
-    * @param password
+    * @param password - the password assigned to the new key file
     */
   def generateKeyFile (password: String): Try[PublicKey25519Proposition] = {
     // generate a new random key pair and save to disk
@@ -105,9 +106,9 @@ case class Keys(var secrets: Set[PrivateKey25519],
 
   /**
     *
-    * @param password
-    * @param mnemonic
-    * @param lang
+    * @param password - password to use for new key
+    * @param mnemonic - the phrase
+    * @param lang - the language
     * @return
     */
   def importPhrase (password: String, mnemonic: String, lang: String): Try[PublicKey25519Proposition] = Try {
@@ -119,7 +120,7 @@ case class Keys(var secrets: Set[PrivateKey25519],
 
     // calculate the new keyfile and return
     val seed = bip.hexToUuid(bip.phraseToHex(mnemonic))
-    val (sk, pk) = KeyFile.generateKeyPair(FastCryptographicHash(seed))
+    val (sk, pk) = KeyFile.generateKeyPair(Blake2b256.hash(seed))
 
     // add secret to the keyring
     secrets += sk
@@ -131,16 +132,15 @@ case class Keys(var secrets: Set[PrivateKey25519],
 
   /**
     *
-    * @param publicImage
-    * @param password
+    * @param publicImage - public key proposition for key file to export
+    * @param password - password for the key to export
     * @return
     */
   def exportKeyfile (publicImage: PublicKey25519Proposition, password: String): Try[Unit] = Try {
     secretByPublicImage(publicImage) match {
-      case Some(sk) => {
+      case Some(sk) =>
         val file = KeyFile(password, sk)
         file.saveToDisk(defaultKeyDir.getAbsolutePath)
-      }
       case _        => Failure(new Error("Unable to find a matching secret in the key ring"))
     }
   }

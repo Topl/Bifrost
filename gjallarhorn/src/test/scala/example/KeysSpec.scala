@@ -2,6 +2,7 @@ package example
 
 import crypto.{PrivateKey25519, PublicKey25519Proposition}
 import keymanager.{KeyFile, Keys}
+import org.scalatest.DoNotDiscover
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import scorex.crypto.hash.{Blake2b256, Digest32}
@@ -9,6 +10,7 @@ import scorex.crypto.hash.{Blake2b256, Digest32}
 import scala.reflect.io.Path
 import scala.util.{Failure, Success, Try}
 
+@DoNotDiscover
 class KeysSpec extends AsyncFlatSpec with Matchers {
   val randomBytes1: Digest32 = Blake2b256(java.util.UUID.randomUUID.toString)
   val randomBytes2: Digest32 = Blake2b256(java.util.UUID.randomUUID.toString)
@@ -35,9 +37,15 @@ class KeysSpec extends AsyncFlatSpec with Matchers {
   var keyFiles: Set[KeyFile] = Set()
 
   //Hashmap where seeds map to public/private keypair
-  val (priv, pub) = PrivateKey25519.generateKeys(seed1)
+  var (priv, pub) = PrivateKey25519.generateKeys(seed1)
   if (!keyManager.publicKeys.contains(pub)) {
-    keyFiles += KeyFile(password, priv)
+    keyManager.generateKeyFile(password)
+    keyFiles += KeyFile.readFile(Keys.getListOfFiles(keyManager.defaultKeyDir).head.getPath)
+  }
+  println("first key file: " + keyFiles.head)
+  keyFiles.head.getPrivateKey(password) match {
+    case Success(pk) => priv = pk
+    case Failure(e) => throw e
   }
   pubKeys += pub
   privKeys += priv
@@ -89,26 +97,31 @@ class KeysSpec extends AsyncFlatSpec with Matchers {
   //KeyManager
 
   var pubKey: PublicKey25519Proposition = pk1
+  val password2: String = "password2"
 
-  it should "Have 1 keyfile" in {
-    keyManager.generateKeyFile(password) match {
+  it should "Have 2 keyfiles" in {
+    assert(Keys.getListOfFiles(keyManager.defaultKeyDir).size == 1)
+    keyManager.generateKeyFile(password2) match {
       case Success(pk) => pubKey = pk
       case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
     }
-    keyFiles += KeyFile.readFile(Keys.getListOfFiles(keyManager.defaultKeyDir).head.getPath)
+    keyFiles = Keys.getListOfFiles(keyManager.defaultKeyDir).map(file => KeyFile.readFile(file.getPath)).toSet
+    println("first key file: " + keyFiles.head)
+    println("second key file: " + keyFiles.tail.head)
     assert(keyFiles.size == 2)
-    assert(keyManager.publicKeys.size == 1)
-    assert(Keys.getListOfFiles(keyManager.defaultKeyDir).size == 1)
+    assert(keyManager.publicKeys.size == 2)
+    assert(Keys.getListOfFiles(keyManager.defaultKeyDir).size == 2)
   }
 
-  it should "Be locked yes path" in {
-    keyManager.lockKeyFile(pubKey.address, password).get
-    assert(keyManager.secrets.isEmpty)
-  }
-
-  it should "Be unlocked yes path" in {
-    keyManager.unlockKeyFile(pubKey.toString, password)
+  it should "Be locked" in {
+    assert(keyManager.secrets.size == 2)
+    keyManager.lockKeyFile(pubKey.address, password2).get
     assert(keyManager.secrets.size == 1)
+  }
+
+  it should "Be unlocked" in {
+    keyManager.unlockKeyFile(pubKey.toString, password2)
+    assert(keyManager.secrets.size == 2)
   }
 
 
@@ -117,34 +130,27 @@ class KeysSpec extends AsyncFlatSpec with Matchers {
 
    //Export is formatted JSON to keystore file
   //TODO: How do you add a keyFile to Keys (KeyRing)?
-  /*it should "grab list of files and convert to KeyFile" in {
-    keyManager.generateNewKeyPairs(1,Some(seedString)) match {
-      case Success(privKeys) => {
-        keyManager.exportKeyfile(KeyFile(password, privKeys.head).publicKeyFromAddress, password)
-      }
-      case Failure(e) => throw new Error (s"$e")
-    }
+  it should "grab list of files and convert to KeyFile" in {
 
-    println("pub: " + pub)
     val exportedKeys: List[KeyFile] = Keys.getListOfFiles(keyManager.defaultKeyDir)
       .map(file => {
         KeyFile.readFile(file.getPath)
       })
 
-    keyFiles.foreach { key =>
-      assert(exportedKeys.contains(key))
+    keyFiles.map(_.publicKeyFromAddress).foreach { pubKey =>
+      assert(exportedKeys.map(_.publicKeyFromAddress).contains(pubKey))
     }
     assert (keyFiles.size == exportedKeys.size)
-  }*/
+  }
 
   it should "Have keys stored in the proper format" in {
-    val privKey = keyFiles.head.getPrivateKey(password).get
+    val privKey = keyFiles.head.getPrivateKey(password2).get
     assert(privKey.isInstanceOf[PrivateKey25519])
     val pubKey = privKey.publicKeyBytes
     assert(pubKey.isInstanceOf[Array[Byte]])
   }
   it should "Be used to import keys" in {
-    val privKey = keyFiles.head.getPrivateKey(password).get
+    val privKey = keyFiles.head.getPrivateKey(password2).get
     assert(privKey.privKeyBytes === privKeys.head.privKeyBytes)
     val pubKey = privKey.publicKeyBytes
     assert(pubKey === pubKeys.head.pubKeyBytes)

@@ -35,10 +35,9 @@ class KeyManager(keyDir: String) extends Actor {
         val privKey = keyManager.secrets.find(sk => sk.publicKeyBytes sameElements pubKey.pubKeyBytes)
 
         privKey match {
-          case Some(sk) => {
-            val signature = Base58.encode(sk.sign(Base58.decode(msg.asString.get).get).signature)
+          case Some(sk) =>
+            val signature: String = sk.sign(Base58.decode(msg.asString.get).get).toString
             (pk, signature)
-          }
           case None => throw new NoSuchElementException
         }
       }

@@ -16,7 +16,7 @@ import scala.concurrent.duration._
   * Mainly, the WalletManager receives new blocks from Bifrost in order to updates its wallet boxes.
   * @param publicKeys: the set of publicKeys that the WalletManager should keep track of.
   */
-class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
+class WalletManager(publicKeys: Set[String], bifrostActorRef: ActorRef) extends Actor with Logging {
 
   import WalletManager._
 
@@ -34,8 +34,6 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
     returnVal
   }
 
-  var bifrostActorRef: Option[ActorRef] = None
-
   var newestBlock: Option[String] = None
 
   var connectedToBifrost: Boolean = false
@@ -45,15 +43,6 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
     log.info(s"WalletManagerActor reason: ${reason.getMessage}")
     log.info(s"WalletManagerActor message: ${message.getOrElse("")}")
     super.preRestart(reason, message)
-  }
-
-  /**
-    * Function called when Gjallarhorn app starts up - used to inform Bifrost about this running wallet.
-    * @param bifrost - the ActorRef for Bifrost's WalletConnectionHandler
-    */
-  def gjalStart(bifrost: ActorRef): Unit = {
-    bifrostActorRef = Some(bifrost)
-    bifrost ! s"Remote wallet actor initialized. My public keys are: ${walletBoxes.keySet}"
   }
 
   /**
@@ -238,7 +227,7 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
   }
 
   override def receive: Receive = {
-    case GjallarhornStarted(actorRef: ActorRef) => gjalStart(actorRef)
+    case GjallarhornStarted => bifrostActorRef ! s"Remote wallet actor initialized. My public keys are: ${walletBoxes.keySet}"
 
     case msg: String => msgHandling(msg)
 
@@ -255,12 +244,8 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
       }
     }*/
     case GjallarhornStopped =>
-      bifrostActorRef match {
-        case Some(actorRef) =>
-          val response: String = Await.result((actorRef ? "Remote wallet actor stopped").mapTo[String], 10.seconds)
-          sender ! response
-        case None => log.error("actor ref was not found.")
-      }
+      val response: String = Await.result((bifrostActorRef ? "Remote wallet actor stopped").mapTo[String], 10.seconds)
+      sender ! response
 
     case GetWallet => sender ! walletBoxes
 
@@ -277,7 +262,7 @@ object WalletManager {
     */
   case class UpdateWallet(updatedBoxes: Json)
 
-  case class GjallarhornStarted(bifrostActorRef: ActorRef)
+  case object GjallarhornStarted
 
   case object GjallarhornStopped
 

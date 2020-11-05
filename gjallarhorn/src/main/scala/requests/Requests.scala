@@ -145,21 +145,23 @@ class Requests (settings: AppSettings, requestsManager: ActorRef)
     * @return
     */
   def sendRequest(request: ByteString, path: String): Json  = {
-    if (settings.useApiRoute) {
-      val sendTx = httpPOST(request, path)
-      val data = requestResponseByteString(sendTx)
-      byteStringToJSON(data)
-    } else {
-      val req: Json = byteStringToJSON(request)
-      path match {
-        case "asset" =>
-          val result = Await.result((requestsManager ? AssetRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
-          createJsonResponse(req, result)
-        case "wallet" =>
-          val result = Await.result(
-            (requestsManager ? WalletRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
-          createJsonResponse(req, result)
-      }
+    settings.communicationMode match {
+      case "useTcp" =>
+        val sendTx = httpPOST(request, path)
+        val data = requestResponseByteString(sendTx)
+        byteStringToJSON(data)
+
+      case "useAkka" =>
+        val req: Json = byteStringToJSON(request)
+        path match {
+          case "asset" =>
+            val result = Await.result((requestsManager ? AssetRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
+            createJsonResponse(req, result)
+          case "wallet" =>
+            val result = Await.result(
+              (requestsManager ? WalletRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
+            createJsonResponse(req, result)
+        }
     }
   }
 
@@ -168,24 +170,9 @@ class Requests (settings: AppSettings, requestsManager: ActorRef)
   }
 
   def getBalances (publicKeys: Set[String]): Json = {
-    val keysWithQuotes: Set[String] = publicKeys.map(pk => s""""$pk"""")
-    val keys: String = keysWithQuotes.mkString(", \n")
-    val json =
-      s"""
-         |{
-         |   "jsonrpc": "2.0",
-         |   "id": "1",
-         |   "method": "balances",
-         |   "params": [
-         |      {
-         |        "publicKeys": [
-         |            $keys
-         |        ]
-         |      }
-         |   ]
-         |}
-       """
-    val requestBody = ByteString(json.stripMargin)
+    val keysJson: Set[Json] = publicKeys.map(_.asJson)
+    val params: Json = Map("publicKeys" -> keysJson.toList).asJson
+    val requestBody = transaction("balances", params)
     sendRequest(requestBody, "wallet")
   }
 }

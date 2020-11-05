@@ -1,12 +1,11 @@
 import akka.actor.{ActorRef, ActorSystem, DeadLetter, PoisonPill, Props}
-import akka.pattern.ask
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import http.GjallarhornApiRoute
 import keymanager.{KeyManagerRef, Keys}
 import requests.{Requests, RequestsManager}
-import settings.{AppSettings, NetworkType, StartupOpts}
+import settings.{AppSettings, StartupOpts}
 import utils.Logging
 import wallet.{DeadLetterListener, WalletManager}
 import wallet.WalletManager.{GjallarhornStarted, GjallarhornStopped}
@@ -26,10 +25,7 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   val keyFileDir: String = settings.keyFileDir
   val keyManager: Keys = Keys(keyFileDir)
 
-  val walletManagerRef: ActorRef = system.actorOf(Props(new WalletManager(keyManager.listOpenKeyFiles)), name = "WalletManager")
-  val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager), name = "RequestsManager")
-
-  val listener = system.actorOf(Props[DeadLetterListener]())
+  val listener: ActorRef = system.actorOf(Props[DeadLetterListener]())
   system.eventStream.subscribe(listener, classOf[DeadLetter])
 
   if (settings.chainProvider == "") {
@@ -37,10 +33,9 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   }else{
     log.info("gjallarhorn running in online mode. Trying to connect to Bifrost...")
     system.actorSelection(s"akka.tcp://${settings.chainProvider}/user/walletConnectionHandler").resolveOne().onComplete {
-      case Success(actor) => {
+      case Success(actor) =>
         log.info(s"bifrst actor ref was found: $actor")
-        walletManagerRef ! GjallarhornStarted(actor)
-      }
+        setUpOnlineMode(actor)
       case Failure(ex) =>
         log.error(s"bifrost actor ref not found at: akka.tcp://${settings.chainProvider}. Terminating application!${Console.RESET}")
         GjallarhornApp.shutdown(system, Seq(keyManagerRef))
@@ -48,29 +43,30 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   }
 
   //sequence of actors for cleanly shutting down the application
-   private val actorsToStop: Seq[ActorRef] = Seq(
-     keyManagerRef,
-     walletManagerRef,
-     requestsManagerRef
-   )
+   private val actorsToStop: Seq[ActorRef] = Seq(keyManagerRef)
 
   //hook for initiating the shutdown procedure
   sys.addShutdownHook(GjallarhornApp.shutdown(system, actorsToStop))
 
-  val requests: Requests = new Requests(settings, requestsManagerRef)
-  val httpPort: Int = settings.rpcPort
+  def setUpOnlineMode(bifrost: ActorRef): Unit = {
+    val walletManagerRef: ActorRef = system.actorOf(Props(new WalletManager(keyManager.listOpenKeyFiles, bifrost)), name = "WalletManager")
+    val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager(bifrost)), name = "RequestsManager")
+    actorsToStop ++ Seq(walletManagerRef, requestsManagerRef)
+    walletManagerRef ! GjallarhornStarted
+    val requests: Requests = new Requests(settings, requestsManagerRef)
+    val apiRoute: Route = GjallarhornApiRoute(settings, keyManagerRef, requestsManagerRef, requests).route
 
-  private val apiRoute: Route = GjallarhornApiRoute(settings, keyManagerRef, requestsManagerRef, requests).route
+    val httpPort: Int = settings.rpcPort
 
-  Http().newServerAt("localhost", httpPort).bind(apiRoute).onComplete {
-    case Success(serverBinding) =>
-      log.info(s"${Console.YELLOW}HTTP server bound to ${serverBinding.localAddress}${Console.RESET}")
+    Http().newServerAt("localhost", httpPort).bind(apiRoute).onComplete {
+      case Success(serverBinding) =>
+        log.info(s"${Console.YELLOW}HTTP server bound to ${serverBinding.localAddress}${Console.RESET}")
 
-    case Failure(ex) =>
-      log.error(s"${Console.YELLOW}Failed to bind to localhost:$httpPort. Terminating application!${Console.RESET}", ex)
-      GjallarhornApp.shutdown(system, actorsToStop)
+      case Failure(ex) =>
+        log.error(s"${Console.YELLOW}Failed to bind to localhost:$httpPort. Terminating application!${Console.RESET}", ex)
+        GjallarhornApp.shutdown(system, actorsToStop)
+    }
   }
-
 
   def run(): Unit = {
 
@@ -79,20 +75,10 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
 object GjallarhornApp extends Logging {
 
-  import com.joefkelley.argyle._
-
   implicit val timeout: Timeout = 10.seconds
 
-  val argParser: Arg[StartupOpts] = (
-    optional[String]("--config", "-c") and
-      optionalOneOf[NetworkType](NetworkType.all.map(x => s"--${x.verboseName}" -> x): _*)
-    ).to[StartupOpts]
-
   def main(args: Array[String]): Unit = {
-    argParser.parse(args) match {
-      case Success(argsParsed) => new GjallarhornApp(argsParsed).run()
-      case Failure(e) => throw e
-    }
+    new GjallarhornApp(StartupOpts.empty).run()
   }
 
   def shutdown(system: ActorSystem, actors: Seq[ActorRef]): Unit = {
@@ -100,8 +86,7 @@ object GjallarhornApp extends Logging {
     if (wallet.nonEmpty) {
       log.info ("Telling Bifrost that this wallet is shutting down.")
       val walletManager: ActorRef = wallet.head
-      val bifrostResponse: String = Await.result((walletManager ? GjallarhornStopped).mapTo[String], 100.seconds)
-      log.info(s"$bifrostResponse")
+      walletManager ! GjallarhornStopped
     }
     log.warn("Terminating Actors")
     actors.foreach { a => a ! PoisonPill }

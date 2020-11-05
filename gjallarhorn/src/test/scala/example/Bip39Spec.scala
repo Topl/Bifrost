@@ -1,9 +1,10 @@
 package example
 
-import crypto.{FastCryptographicHash, PrivateKey25519}
+import crypto.PrivateKey25519
 import keymanager.{Bip39, KeyFile}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import scorex.crypto.hash.Blake2b256
 
 import scala.reflect.io.Path
 import scala.util.Try
@@ -67,13 +68,13 @@ class Bip39Spec extends AnyFlatSpec with Matchers {
     Try(path.createDirectory())
     val password = "password"
     val (seedHex,phrase) = pt.uuidSeedPhrase(uuidString)
-    val seed1 = pt.hexToUuid(seedHex)
-    val seed2 = pt.hexToUuid(pt.phraseToHex(phrase))
-    val seed1Hash: Array[Byte] = FastCryptographicHash(seed1)
-    val seed2Hash: Array[Byte] = FastCryptographicHash(seed2)
+    val seed1: String = pt.hexToUuid(seedHex)
+    val seed2: String = pt.hexToUuid(pt.phraseToHex(phrase))
+    val seed1Hash: Array[Byte] = Blake2b256.hash(seed1)
+    val seed2Hash: Array[Byte] = Blake2b256.hash(seed2)
     val key1 = PrivateKey25519.generateKeys(seed1Hash)
     val key2 = PrivateKey25519.generateKeys(seed2Hash)
-    val key3 = PrivateKey25519.generateKeys(FastCryptographicHash(uuidString))
+    val key3 = PrivateKey25519.generateKeys(Blake2b256.hash(uuidString))
 
     KeyFile.generateKeyPair(seed1Hash)
 

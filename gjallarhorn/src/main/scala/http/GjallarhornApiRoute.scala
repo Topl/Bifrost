@@ -76,9 +76,9 @@ case class GjallarhornApiRoute(settings: AppSettings,
     * @return
     */
   private def broadcastTx(params: Json, id: String): Future[Json] = {
-    settings.useApiRoute match {
-      case true => Future{requests.broadcastTx(params)}
-      case false => (requestsManager ? WalletRequest(params)).mapTo[String].map(_.asJson)
+    settings.communicationMode match {
+      case "useTcp" => Future{requests.broadcastTx(params)}
+      case "useAkka" => (requestsManager ? WalletRequest(params)).mapTo[String].map(_.asJson)
     }
   }
 
