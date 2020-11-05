@@ -1,8 +1,6 @@
 package co.topl.modifier.transaction
 
-import co.topl.attestation.proof.Proof
-import co.topl.attestation.proposition.{ KnowledgeProposition, Proposition }
-import co.topl.attestation.secrets.Secret
+import co.topl.attestation.proposition.Proposition
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.nodeView.state.box.{ Box, BoxId }
@@ -11,15 +9,15 @@ import com.google.common.primitives.Longs
 import io.circe.{ Decoder, Encoder, HCursor, Json }
 import supertagged.@@
 
-trait Transaction[P <: Proposition, PR <: Proof[P]] extends BoxTransaction[P, Any, Box] {
+trait Transaction[T, P <: Proposition] extends BoxTransaction[T, P, Box[T]] {
 
-  override type M = Transaction[_ <: Proposition, _ <: Proof[_]]
+  override type M = Transaction[_, _ <: Proposition]
 
   override val modifierTypeId: ModifierTypeId = Transaction.modifierTypeId
 
   override lazy val json: Json = Transaction.jsonEncoder(this)
 
-  override lazy val serializer: BifrostSerializer[Transaction[_ <: Proposition, _ <: Proof[_]]] = TransactionSerializer
+  override lazy val serializer: BifrostSerializer[Transaction[_, _ <: Proposition]] = TransactionSerializer
 
   lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = None
 
@@ -33,7 +31,7 @@ object Transaction {
 
   def nonceFromDigest ( digest: Array[Byte] ): Box.Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
-  implicit val jsonEncoder: Encoder[Transaction] = {
+  implicit val jsonEncoder: Encoder[Transaction[_, _]] = {
     case tx: CodeCreation           => CodeCreation.jsonEncoder(tx)
     case tx: ProgramCreation        => ProgramCreation.jsonEncoder(tx)
     case tx: ProgramMethodExecution => ProgramMethodExecution.jsonEncoder(tx)
@@ -45,7 +43,7 @@ object Transaction {
     case tx: Coinbase               => Coinbase.jsonEncoder(tx)
   }
 
-  implicit val jsonDecoder: Decoder[Transaction] = { c: HCursor =>
+  implicit val jsonDecoder: Decoder[Transaction[_, _]] = { c: HCursor =>
     c.downField("txType").as[String].map {
       case "CodeCreation"           => CodeCreation.jsonDecoder(c)
       case "ProgramCreation"        => ProgramCreation.jsonDecoder(c)

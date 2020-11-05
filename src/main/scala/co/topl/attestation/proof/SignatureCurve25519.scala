@@ -46,8 +46,17 @@ object SignatureCurve25519 {
 
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html
-  implicit val jsonEncoder: Encoder[SignatureCurve25519] = (sig: SignatureCurve25519) => sig.toString.asJson
-  implicit val jsonKeyEncoder: KeyEncoder[SignatureCurve25519] = (sig: SignatureCurve25519) => sig.toString
+  implicit val jsonEncoder: Encoder[SignatureCurve25519] = (sig: SignatureCurve25519) => Map {
+    "proofType" -> "SignatureCurve25519"
+    "data" -> sig.toString
+  }.asJson
+
+  implicit val jsonKeyEncoder: KeyEncoder[SignatureCurve25519] = (sig: SignatureCurve25519) => Map {
+    "proofType" -> "SignatureCurve25519"
+    "data" -> sig.toString
+  }.asJson
+
+
   implicit val jsonDecoder: Decoder[SignatureCurve25519] = Decoder.decodeString.map(apply)
   implicit val jsonKeyDecoder: KeyDecoder[SignatureCurve25519] = (str: String) => Some(apply(str))
 }

@@ -7,7 +7,7 @@ import com.google.common.primitives.Longs
 /**
   * Created by cykoz on 4/13/17.
   */
-abstract class BoxTransaction[P <: Proposition, T, BX <: GenericBox[P, T]] extends GenericTransaction[P] {
+abstract class BoxTransaction[T, P <: Proposition, BX <: GenericBox[T]] extends GenericTransaction[P] {
 
   self =>
 

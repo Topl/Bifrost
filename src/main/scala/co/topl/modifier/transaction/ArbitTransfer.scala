@@ -14,13 +14,13 @@ import scorex.crypto.hash.Blake2b256
 
 import scala.util.{Failure, Success, Try}
 
-case class ArbitTransfer[P <: Proposition, PR <: Proof[P]] (override val from      : IndexedSeq[(Address, Box.Nonce)],
-                                                            override val to        : IndexedSeq[(Address, TokenBox.Value)],
-                                                            override val signatures: Map[P, PR],
-                                                            override val fee       : Long,
-                                                            override val timestamp : Long,
-                                                            override val data      : String
-                                                           ) extends TransferTransaction[P, PR](from, to, signatures, fee, timestamp, data) {
+case class ArbitTransfer[P <: Proposition] (override val from      : IndexedSeq[(Address, Box.Nonce)],
+                                            override val to        : IndexedSeq[(Address, TokenBox.Value)],
+                                            override val signatures: Map[P, Proof[P]],
+                                            override val fee       : Long,
+                                            override val timestamp : Long,
+                                            override val data      : String
+                                           ) extends TransferTransaction[P](from, to, signatures, fee, timestamp, data) {
 
   override lazy val messageToSign: Array[Byte] = "ArbitTransfer".getBytes ++ super.messageToSign
 
@@ -45,12 +45,12 @@ case class ArbitTransfer[P <: Proposition, PR <: Proof[P]] (override val from   
 //noinspection ScalaStyle
 object ArbitTransfer extends TransferCompanion {
 
-  implicit val jsonEncoder: Encoder[ArbitTransfer[PrivateKeyCurve25519, Address]] = {
-    tx: ArbitTransfer[PrivateKeyCurve25519, Address] =>
+  implicit def jsonEncoder[P <: Proposition]: Encoder[ArbitTransfer[P]] = {
+    tx: ArbitTransfer[P] =>
       Map(
         "txHash" -> tx.id.asJson,
         "txType" -> "ArbitTransfer".asJson,
-        "newBoxes" -> tx.newBoxes.map(_.json).toSeq.asJson,
+        "newBoxes" -> tx.newBoxes.toSeq.asJson,
         "boxesToRemove" -> tx.boxIdsToOpen.asJson,
         "from" -> tx.from.asJson,
         "to" -> tx.to.asJson,
@@ -61,11 +61,11 @@ object ArbitTransfer extends TransferCompanion {
       ).asJson
   }
 
-  implicit val jsonDecoder: Decoder[ArbitTransfer] = ( c: HCursor ) =>
+  implicit def jsonDecoder[P <: Proposition]: Decoder[ArbitTransfer[P]] = ( c: HCursor ) =>
     for {
-      from <- c.downField("from").as[IndexedSeq[(PublicKeyCurve25519Proposition, Long)]]
-      to <- c.downField("to").as[IndexedSeq[(PublicKeyCurve25519Proposition, Long)]]
-      signatures <- c.downField("signatures").as[Map[PublicKeyCurve25519Proposition, SignatureCurve25519]]
+      from <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
+      to <- c.downField("to").as[IndexedSeq[(Address, TokenBox.Value)]]
+      signatures <- c.downField("signatures").as[Map[P, Proof[P]]]
       fee <- c.downField("fee").as[Long]
       timestamp <- c.downField("timestamp").as[Long]
       data <- c.downField("data").as[String]

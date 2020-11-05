@@ -5,6 +5,7 @@ import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.secrets.Secret
 import co.topl.utils.serialization.{ BifrostSerializer, BytesSerializable }
 import com.google.common.primitives.Ints
+import io.circe.{ Decoder, Encoder, HCursor, KeyEncoder }
 import scorex.util.encode.Base58
 
 import scala.util.{ Failure, Success, Try }
@@ -36,6 +37,33 @@ object Proposition {
       case Success(prop: P) => Success(prop)
       case _                => Failure(new Error("Failed to parse a proposition from the given string"))
     })
+
+  implicit def jsonEncoder[P <: Proposition]: Encoder[P] = {
+    case prop: PublicKeyCurve25519Proposition => PublicKeyCurve25519Proposition.jsonEncoder(prop)
+    case prop: ThresholdCurve25519Proposition => ThresholdCurve25519Proposition.jsonEncoder(prop)
+  }
+
+  implicit def jsonKeyEncoder[P <: Proposition]: KeyEncoder[P] = {
+    case prop: PublicKeyCurve25519Proposition => PublicKeyCurve25519Proposition.jsonKeyEncoder(prop)
+    case prop: ThresholdCurve25519Proposition => ThresholdCurve25519Proposition.jsonKeyEncoder(prop)
+  }
+
+  implicit def jsonDecoder[P <: Proposition]: Decoder[P] = { c: HCursor =>
+    c.downField("type").as[String].map {
+      case "CodeCreation"           => CodeCreation.jsonDecoder(c)
+      case "ProgramCreation"        => ProgramCreation.jsonDecoder(c)
+      case "ProgramMethodExecution" => ProgramMethodExecution.jsonDecoder(c)
+      case "ProgramTransfer"        => ProgramTransfer.jsonDecoder(c)
+      case "PolyTransfer"           => PolyTransfer.jsonDecoder(c)
+      case "ArbitTransfer"          => ArbitTransfer.jsonDecoder(c)
+      case "AssetTransfer"          => AssetTransfer.jsonDecoder(c)
+      case "AssetCreation"          => AssetCreation.jsonDecoder(c)
+      case "Coinbase"               => Coinbase.jsonDecoder(c)
+    } match {
+      case Right(tx) => tx
+      case Left(ex)  => throw ex
+    }
+  }
 }
 
 // Knowledge propositions require the prover to supply a proof attesting to their knowledge

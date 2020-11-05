@@ -19,9 +19,7 @@ abstract class Box[T] ( val evidence     : Evidence,
 
   type M = Box[_]
 
-  lazy val id: BoxId = Box.idFromBox(this)
-
-  lazy val json: Json = Box.jsonEncoder(this)
+  lazy val id: BoxId = BoxId(this)
 
   def serializer: BifrostSerializer[Box[_]] = BoxSerializer
 
@@ -60,7 +58,7 @@ object Box {
     case CodeBox.boxTypePrefix      => "CodeBox"
   }
 
-  implicit val jsonEncoder: Encoder[Box[_]] = {
+  implicit def jsonEncoder: Encoder[Box[_]] = {
     case box: ArbitBox     => ArbitBox.jsonEncoder(box)
     case box: PolyBox      => PolyBox.jsonEncoder(box)
     case box: AssetBox     => AssetBox.jsonEncoder(box)

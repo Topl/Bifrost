@@ -24,7 +24,7 @@ case class BoxId (hashBytes: Array[Byte]) {
 object BoxId {
   val size: Int = Blake2b256.DigestSize // boxId is a 32 byte identifier
 
-  def apply[T] (box: Box[T]): BoxId = idFromPropNonce(box.evidence, box.nonce)
+  def apply[T] (box: Box[T]): BoxId = idFromEviNonce(box.evidence, box.nonce)
 
   def apply(id: String): BoxId = {
     Base58.decode(id) match {

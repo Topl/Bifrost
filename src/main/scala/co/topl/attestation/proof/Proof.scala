@@ -4,6 +4,7 @@ import co.topl.attestation.proposition.{ KnowledgeProposition, Proposition, Prop
 import co.topl.attestation.secrets.Secret
 import co.topl.utils.serialization.{ BifrostSerializer, BytesSerializable }
 import com.google.common.primitives.Ints
+import io.circe.{ Encoder, KeyEncoder }
 import scorex.util.encode.Base58
 
 import scala.util.{ Failure, Success, Try }
@@ -38,6 +39,16 @@ object Proof {
       case Success(prop: PR) => Success(prop)
       case _                => Failure(new Error("Failed to parse a proposition from the given string"))
     })
+
+  implicit def jsonEncoder[P <: Proposition]: Encoder[Proof[P]] = {
+    case pr: SignatureCurve25519          => SignatureCurve25519.jsonEncoder(pr)
+    case pr: ThresholdSignatureCurve25519 => ThresholdSignatureCurve25519.jsonEncoder(pr)
+  }
+
+  implicit def jsonKeyEncoder[P <: Proposition]: KeyEncoder[Proof[P]] = {
+    case pr: SignatureCurve25519          => SignatureCurve25519.jsonKeyEncoder(pr)
+    case pr: ThresholdSignatureCurve25519 => ThresholdSignatureCurve25519.jsonKeyEncoder(pr)
+  }
 }
 
 trait ProofOfKnowledge[S <: Secret, P <: KnowledgeProposition[S]] extends Proof[P]
