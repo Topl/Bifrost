@@ -6,9 +6,9 @@ import co.topl.attestation.secrets.Secret
 import co.topl.modifier.transaction._
 import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
 
-object TransactionSerializer extends BifrostSerializer[Transaction[_, _ <: Proposition]] {
+object TransactionSerializer extends BifrostSerializer[Transaction[_, _ <: Proposition, _ <: Proof[_]]] {
 
-  override def serialize(obj: Transaction[_, _ <: Proposition], w: Writer): Unit = {
+  override def serialize(obj: Transaction[_, _ <: Proposition, _ <: Proof[_]], w: Writer): Unit = {
     obj match {
       case obj: CodeCreation =>
         w.putByteString("CodeCreation")
@@ -27,7 +27,7 @@ object TransactionSerializer extends BifrostSerializer[Transaction[_, _ <: Propo
       case obj: PolyTransfer =>
         w.putByteString("PolyTransfer")
         PolyTransferSerializer.serialize(obj, w)
-      case obj: ArbitTransfer =>
+      case obj: ArbitTransfer[_ <: Proposition, _ <: Proof[_]] =>
         w.putByteString("ArbitTransfer")
         ArbitTransferSerializer.serialize(obj, w)
       case obj: AssetTransfer =>
@@ -43,7 +43,7 @@ object TransactionSerializer extends BifrostSerializer[Transaction[_, _ <: Propo
     }
   }
 
-  override def parse(r: Reader): Transaction[_, _ <: Proposition] = {
+  override def parse(r: Reader): Transaction[_, _ <: Proposition, _ <: Proof[_]] = {
     r.getByteString() match {
       case "CodeCreation" => CodeBoxCreationSerializer.parse(r)
       case "ProgramCreation" => ProgramCreationSerializer.parse(r)

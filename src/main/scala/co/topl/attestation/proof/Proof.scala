@@ -1,13 +1,12 @@
 package co.topl.attestation.proof
 
-import co.topl.attestation.proposition.{ KnowledgeProposition, Proposition, PropositionSerializer }
+import co.topl.attestation.proposition.{KnowledgeProposition, Proposition}
 import co.topl.attestation.secrets.Secret
-import co.topl.utils.serialization.{ BifrostSerializer, BytesSerializable }
+import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import com.google.common.primitives.Ints
-import io.circe.{ Encoder, KeyEncoder }
 import scorex.util.encode.Base58
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
   * The most general abstraction of fact a prover can provide a non-interactive proof
@@ -33,22 +32,13 @@ sealed trait Proof[P <: Proposition] extends BytesSerializable {
 
 }
 
+trait ProofOfKnowledge[S <: Secret, P <: KnowledgeProposition[S]] extends Proof[P]
+
+
 object Proof {
   def fromString[P <: Proposition, PR <: Proof[P]] (str: String): Try[PR] =
     Base58.decode(str).flatMap(bytes => ProofSerializer.parseBytes(bytes) match {
       case Success(prop: PR) => Success(prop)
       case _                => Failure(new Error("Failed to parse a proposition from the given string"))
     })
-
-  implicit def jsonEncoder[P <: Proposition]: Encoder[Proof[P]] = {
-    case pr: SignatureCurve25519          => SignatureCurve25519.jsonEncoder(pr)
-    case pr: ThresholdSignatureCurve25519 => ThresholdSignatureCurve25519.jsonEncoder(pr)
-  }
-
-  implicit def jsonKeyEncoder[P <: Proposition]: KeyEncoder[Proof[P]] = {
-    case pr: SignatureCurve25519          => SignatureCurve25519.jsonKeyEncoder(pr)
-    case pr: ThresholdSignatureCurve25519 => ThresholdSignatureCurve25519.jsonKeyEncoder(pr)
-  }
 }
-
-trait ProofOfKnowledge[S <: Secret, P <: KnowledgeProposition[S]] extends Proof[P]

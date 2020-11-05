@@ -2,10 +2,10 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.attestation.Address
-import co.topl.attestation.proof.{Proof, SignatureCurve25519}
-import co.topl.attestation.proposition.{Proposition, PublicKeyCurve25519Proposition}
-import co.topl.attestation.secrets.PrivateKeyCurve25519
+import co.topl.attestation
+import co.topl.attestation.proof.Proof
+import co.topl.attestation.proposition.Proposition
+import co.topl.attestation.{Address, BoxUnlocker, EvidenceProducer}
 import co.topl.nodeView.state.box.{ArbitBox, Box, TokenBox}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
@@ -14,13 +14,13 @@ import scorex.crypto.hash.Blake2b256
 
 import scala.util.{Failure, Success, Try}
 
-case class ArbitTransfer[P <: Proposition] (override val from      : IndexedSeq[(Address, Box.Nonce)],
+case class ArbitTransfer[P <: Proposition] (signatures             : Map[P, _ <: Proof[P]],
+                                            override val from      : IndexedSeq[(Address, Box.Nonce)],
                                             override val to        : IndexedSeq[(Address, TokenBox.Value)],
-                                            override val signatures: Map[P, Proof[P]],
                                             override val fee       : Long,
                                             override val timestamp : Long,
                                             override val data      : String
-                                           ) extends TransferTransaction[P](from, to, signatures, fee, timestamp, data) {
+                                           ) extends TransferTransaction[P, _ <: Proof[P]](from, to, signatures, fee, timestamp, data) {
 
   override lazy val messageToSign: Array[Byte] = "ArbitTransfer".getBytes ++ super.messageToSign
 
@@ -39,7 +39,7 @@ case class ArbitTransfer[P <: Proposition] (override val from      : IndexedSeq[
         ArbitBox(addr.evidence, nonce, value)
       }
 
-  override def toString: String = s"ArbitTransfer(${json.noSpaces})"
+  override def toString: String = s"ArbitTransfer(${ArbitTransfer.jsonEncoder(this).noSpaces})"
 }
 
 //noinspection ScalaStyle
@@ -50,11 +50,12 @@ object ArbitTransfer extends TransferCompanion {
       Map(
         "txHash" -> tx.id.asJson,
         "txType" -> "ArbitTransfer".asJson,
+        "propositionType" -> Proposition.getPropTypeString(tx).asJson,
         "newBoxes" -> tx.newBoxes.toSeq.asJson,
         "boxesToRemove" -> tx.boxIdsToOpen.asJson,
         "from" -> tx.from.asJson,
         "to" -> tx.to.asJson,
-        "signatures" -> tx.signatures.asJson,
+        "signatures" -> attestation.jsonEncoder(tx.signatures),
         "fee" -> tx.fee.asJson,
         "timestamp" -> tx.timestamp.asJson,
         "data" -> tx.data.asJson
@@ -65,32 +66,14 @@ object ArbitTransfer extends TransferCompanion {
     for {
       from <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
       to <- c.downField("to").as[IndexedSeq[(Address, TokenBox.Value)]]
-      signatures <- c.downField("signatures").as[Map[P, Proof[P]]]
       fee <- c.downField("fee").as[Long]
       timestamp <- c.downField("timestamp").as[Long]
       data <- c.downField("data").as[String]
+      attType <- c.downField("propositionType").as[String]
     } yield {
-      ArbitTransfer(from, to, signatures, fee, timestamp, data)
+      val signatures = attestation.jsonDecoder[P, _ <: Proof[P]](attType, c.downField("signatures"))
+      new ArbitTransfer[P](signatures, from, to, fee, timestamp, data)
     }
-
-  /**
-   *
-   * @param from
-   * @param to
-   * @param fee
-   * @param timestamp
-   * @param data
-   * @return
-   */
-  def apply (from     : IndexedSeq[(PrivateKeyCurve25519, Nonce)],
-             to       : IndexedSeq[(PublicKeyCurve25519Proposition, Value)],
-             fee      : Long,
-             timestamp: Long,
-             data     : String
-            ): ArbitTransfer = {
-    val params = parametersForApply(from, to, fee, timestamp, "ArbitTransfer", data).get
-    new ArbitTransfer(params._1, to, params._2, fee, timestamp, data)
-  }
 
   /**
    *
@@ -101,10 +84,12 @@ object ArbitTransfer extends TransferCompanion {
    * @param data
    * @return
    */
-  def createPrototype (stateReader: SR,
-                       toReceive  : IndexedSeq[(PublicKeyCurve25519Proposition, Long)],
-                       sender     : IndexedSeq[PublicKeyCurve25519Proposition], fee: Long, data: String
-                      ): Try[ArbitTransfer] = Try {
+  def createRaw[P <: Proposition] (stateReader: SR,
+                 toReceive  : IndexedSeq[(Address, Long)],
+                 sender     : IndexedSeq[Address],
+                 fee        : Long,
+                 data       : String
+                ): Try[ArbitTransfer[P]] = Try {
     val params = parametersForCreate(stateReader, toReceive, sender, fee, "ArbitTransfer")
     val timestamp = Instant.now.toEpochMilli
     ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), fee, timestamp, data)
@@ -115,7 +100,7 @@ object ArbitTransfer extends TransferCompanion {
    * @param tx
    * @return
    */
-  def validatePrototype ( tx: ArbitTransfer ): Try[Unit] = validateTransfer(tx, withSigs = false)
+  def validatePrototype ( tx: ArbitTransfer[_] ): Try[Unit] = validateTransfer(tx, withSigs = false)
 
   /**
    *
@@ -123,7 +108,7 @@ object ArbitTransfer extends TransferCompanion {
    * @param state
    * @return
    */
-  def semanticValidate ( tx: ArbitTransfer, state: SR ): Try[Unit] = {
+  def semanticValidate[P <: Proposition: EvidenceProducer] (tx: ArbitTransfer[P], state: SR ): Try[Unit] = {
 
     // check that the transaction is correctly formed before checking state
     syntacticValidate(tx) match {
@@ -133,25 +118,28 @@ object ArbitTransfer extends TransferCompanion {
 
     // compute transaction values used for validation
     val txOutput = tx.newBoxes.map(b => b.value).sum
-    val unlockers = TokenBox.generateUnlockers(tx.from, tx.signatures)
+    val unlockers = BoxUnlocker.generate(tx.from, tx.signatures)
 
     // iterate through the unlockers and sum up the value of the box for each valid unlocker
     unlockers.foldLeft[Try[Long]](Success(0L))(( trySum, unlocker ) => {
       trySum.flatMap { partialSum =>
         state.getBox(unlocker.closedBoxId) match {
-          case Some(box: ArbitBox) if unlocker.boxKey
-            .isValid(box.proposition, tx.messageToSign) => Success(partialSum + box.value)
-          case Some(_)                                  => Failure(new Exception("Invalid unlocker"))
-          case None                                     => Failure(new Exception(s"Box for unlocker $unlocker cannot be found in state"))
-          case _                                        => Failure(new Exception("Invalid Box type for this transaction"))
+          case Some(box: ArbitBox) if unlocker.boxKey.isValid(unlocker.proposition, tx.messageToSign) =>
+            Success(partialSum + box.value)
+
+          case Some(_) => Failure(new Exception("Invalid unlocker"))
+          case None    => Failure(new Exception(s"Box for unlocker $unlocker cannot be found in state"))
+          case _       => Failure(new Exception("Invalid Box type for this transaction"))
         }
       }
     }) match {
-      case Success(sum: Long) if txOutput == sum - tx.fee => Success(Unit)
-      case Success(sum: Long)                             => Failure(new Exception(s"Tx output value not equal to input value. $txOutput != ${
-        sum - tx.fee
-      }"))
-      case Failure(e)                                     => throw e
+      case Success(sum: Long) if txOutput == sum - tx.fee =>
+        Success(Unit)
+
+      case Success(sum: Long) =>
+        Failure(new Exception(s"Tx output value not equal to input value. $txOutput != ${sum - tx.fee}"))
+
+      case Failure(e) => throw e
     }
   }
 
@@ -160,7 +148,7 @@ object ArbitTransfer extends TransferCompanion {
    * @param tx
    * @return
    */
-  def syntacticValidate ( tx: ArbitTransfer ): Try[Unit] = validateTransfer(tx)
+  def syntacticValidate ( tx: ArbitTransfer[_] ): Try[Unit] = validateTransfer(tx)
 }
 
 

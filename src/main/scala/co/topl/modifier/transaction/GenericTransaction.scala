@@ -1,5 +1,6 @@
 package co.topl.modifier.transaction
 
+import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.{ModifierId, NodeViewModifier}
@@ -10,13 +11,15 @@ import supertagged.@@
 /**
   * A transaction is an atomic state modifier
   */
-abstract class GenericTransaction[P <: Proposition] extends NodeViewModifier {
+abstract class GenericTransaction[P <: Proposition, PR <: Proof[P]] extends NodeViewModifier {
 
-  override val modifierTypeId: ModifierTypeId = GenericTransaction.modifierTypeId
+  val modifierTypeId: ModifierTypeId = GenericTransaction.modifierTypeId
 
   val fee: Long
 
   val timestamp: Long
+
+  val attestation: Map[P, PR]
 
   val id: ModifierId = ModifierId(Blake2b256(messageToSign))
 

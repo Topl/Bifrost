@@ -1,17 +1,16 @@
 package co.topl.attestation.proposition
 
-import co.topl.attestation.{ Address, Evidence, EvidenceProducer }
-import co.topl.attestation.EvidenceProducer.{ EvidenceContent, EvidenceTypePrefix }
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.Evidence.{ EvidenceContent, EvidenceTypePrefix }
+import co.topl.attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
 import co.topl.attestation.proof.Proof
 import co.topl.attestation.secrets.PrivateKeyCurve25519
+import co.topl.attestation.{Address, Evidence, EvidenceProducer}
 import io.circe.syntax.EncoderOps
-import io.circe.{ Decoder, Encoder, KeyDecoder, KeyEncoder }
+import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.Curve25519
 
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
 case class ThresholdCurve25519Proposition (threshold: Int, pubKeyProps: Set[PublicKeyCurve25519Proposition])
   extends KnowledgeProposition[PrivateKeyCurve25519] {

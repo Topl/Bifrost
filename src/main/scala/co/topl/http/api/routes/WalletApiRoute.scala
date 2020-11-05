@@ -283,7 +283,7 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
       checkPublicKey(sender, view)
 
       val tx = ArbitTransfer
-        .createPrototype(view.state, IndexedSeq((recipient, amount)), sender, fee, data)
+        .createRaw(view.state, IndexedSeq((recipient, amount)), sender, fee, data)
         .get
 
       // Update nodeView with new TX

@@ -1,23 +1,18 @@
 package co.topl.modifier.transaction
 
+import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
-import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.transaction.serialization.TransactionSerializer
-import co.topl.nodeView.state.box.{ Box, BoxId }
+import co.topl.nodeView.state.box.{Box, BoxId}
 import co.topl.utils.serialization.BifrostSerializer
 import com.google.common.primitives.Longs
-import io.circe.{ Decoder, Encoder, HCursor, Json }
-import supertagged.@@
+import io.circe.{Decoder, Encoder, HCursor}
 
-trait Transaction[T, P <: Proposition] extends BoxTransaction[T, P, Box[T]] {
+trait Transaction[T, P <: Proposition, PR <: Proof[P]] extends BoxTransaction[T, P, PR, Box[T]] {
 
-  override type M = Transaction[_, _ <: Proposition]
+  override type M = Transaction[_, _ <: Proposition, _ <: Proof[_]]
 
-  override val modifierTypeId: ModifierTypeId = Transaction.modifierTypeId
-
-  override lazy val json: Json = Transaction.jsonEncoder(this)
-
-  override lazy val serializer: BifrostSerializer[Transaction[_, _ <: Proposition]] = TransactionSerializer
+  override lazy val serializer: BifrostSerializer[Transaction[_, _ <: Proposition, _ <: Proof[_]]] = TransactionSerializer
 
   lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = None
 
@@ -27,17 +22,15 @@ trait Transaction[T, P <: Proposition] extends BoxTransaction[T, P, Box[T]] {
 
 object Transaction {
 
-  val modifierTypeId: Byte @@ ModifierTypeId.Tag = ModifierTypeId @@ (2: Byte)
-
   def nonceFromDigest ( digest: Array[Byte] ): Box.Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
-  implicit val jsonEncoder: Encoder[Transaction[_, _]] = {
+  implicit def jsonEncoder[T, P <: Proposition, PR <: Proof[P]]: Encoder[Transaction[_, _, _]] = {
     case tx: CodeCreation           => CodeCreation.jsonEncoder(tx)
     case tx: ProgramCreation        => ProgramCreation.jsonEncoder(tx)
     case tx: ProgramMethodExecution => ProgramMethodExecution.jsonEncoder(tx)
     case tx: ProgramTransfer        => ProgramTransfer.jsonEncoder(tx)
     case tx: PolyTransfer           => PolyTransfer.jsonEncoder(tx)
-    case tx: ArbitTransfer          => ArbitTransfer.jsonEncoder(tx)
+    case tx: ArbitTransfer[P, PR]   => ArbitTransfer.jsonEncoder[P, PR](tx)
     case tx: AssetTransfer          => AssetTransfer.jsonEncoder(tx)
     case tx: AssetCreation          => AssetCreation.jsonEncoder(tx)
     case tx: Coinbase               => Coinbase.jsonEncoder(tx)

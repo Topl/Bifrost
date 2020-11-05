@@ -3,22 +3,22 @@ package co.topl.modifier.transaction
 import co.topl.attestation.Address
 import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
-import co.topl.nodeView.state.box.{ Box, BoxId, TokenBox }
+import co.topl.nodeView.state.box.{Box, BoxId, TokenBox}
 import com.google.common.primitives.Longs
-import scorex.crypto.hash.{ Blake2b256, Digest32 }
+import scorex.crypto.hash.{Blake2b256, Digest32}
 
-abstract class TransferTransaction[P <: Proposition] (val from      : IndexedSeq[(Address, Box.Nonce)],
-                                                      val to        : IndexedSeq[(Address, TokenBox.Value)],
-                                                      val signatures: Map[P, Proof[P]],
-                                                      val fee       : Long,
-                                                      val timestamp : Long,
-                                                      val data      : String
-                                                     ) extends Transaction[TokenBox.Value, P] {
+abstract class TransferTransaction[P <: Proposition, PR <: Proof[P]] (val from       : IndexedSeq[(Address, Box.Nonce)],
+                                                                      val to         : IndexedSeq[(Address, TokenBox.Value)],
+                                                                      val attestation: Map[P, PR],
+                                                                      val fee        : Long,
+                                                                      val timestamp  : Long,
+                                                                      val data       : String
+                                                                     ) extends Transaction[TokenBox.Value, P, PR] {
 
   override val newBoxes: Traversable[TokenBox]
 
-  lazy val boxIdsToOpen: IndexedSeq[BoxId] = from.map { case (evidence, nonce) =>
-    BoxId.idFromEviNonce(evidence, nonce)
+  lazy val boxIdsToOpen: IndexedSeq[BoxId] = from.map { case (addr, nonce) =>
+    BoxId.idFromEviNonce(addr.evidence, nonce)
   }
 
   // todo: JAA - why not include the from bytes here? I assume this was intentional because the name is "no nonces" so was that a problem?

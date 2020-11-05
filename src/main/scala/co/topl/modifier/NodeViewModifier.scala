@@ -1,16 +1,16 @@
 package co.topl.modifier
 
-import co.topl.modifier.block.{ Block, BlockSerializer }
-import co.topl.modifier.transaction.Transaction
+import co.topl.modifier.block.{Block, BlockSerializer}
+import co.topl.modifier.transaction.GenericTransaction
 import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.network.message.InvData
-import co.topl.utils.serialization.{ BifrostSerializer, BytesSerializable, JsonEncodable }
+import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import com.typesafe.config.ConfigFactory
 import supertagged.TaggedType
 
 import scala.util.Try
 
-trait NodeViewModifier extends BytesSerializable with JsonEncodable {
+trait NodeViewModifier extends BytesSerializable {
   self =>
 
   import NodeViewModifier.ModifierTypeId
@@ -36,7 +36,7 @@ object NodeViewModifier {
   val modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
     Map(
       Block.modifierTypeId -> BlockSerializer,
-      Transaction.modifierTypeId -> TransactionSerializer
+      GenericTransaction.modifierTypeId -> TransactionSerializer
     )
 
   def idsToString(ids: Seq[(ModifierTypeId, ModifierId)]): String = {
