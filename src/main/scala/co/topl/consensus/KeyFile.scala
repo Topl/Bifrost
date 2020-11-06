@@ -145,15 +145,6 @@ object KeyFile {
     SCrypt.generate(passwordBytes, salt, scala.math.pow(2, 18).toInt, 8, 1, 32)
   }
 
-  /**
-    *
-    * @param derivedKey
-    * @param cipherText
-    * @return
-    */
-  private def getMAC (derivedKey: Array[Byte], cipherText: Array[Byte]): Array[Byte] = {
-    Blake2b256(derivedKey.slice(16, 32) ++ cipherText)
-  }
 
   /**
    *
