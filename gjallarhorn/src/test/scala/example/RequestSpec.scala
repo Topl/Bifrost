@@ -46,7 +46,7 @@ class RequestSpec extends AsyncFlatSpec
   val (sk3, pk3): (PrivateKey25519, PublicKey25519Proposition) = PrivateKey25519.generateKeys(seed3)
   var pk1: PublicKey25519Proposition = pk2
 
-  val keyFileDir = "keyfiles/keyManagerTest"
+  val keyFileDir = "keyfiles/requestTestKeys"
   val path: Path = Path(keyFileDir)
   Try(path.deleteRecursively())
   Try(path.createDirectory())
@@ -162,7 +162,7 @@ class RequestSpec extends AsyncFlatSpec
   }
 
   it should "receive a block from bifrost after creating a transaction" in {
-    val newBlock: Option[String] = Await.result((walletManagerRef ? GetNewBlock).mapTo[Option[String]], 100.seconds)
+    val newBlock: Option[String] = Await.result((walletManagerRef ? GetNewBlock).mapTo[Option[String]], 10.seconds)
     newBlock match {
       case Some(block) => assert(block.contains("timestamp") && block.contains("signature") && block.contains("id") && block.contains("newBoxes"))
       case None => sys.error("no new blocks")

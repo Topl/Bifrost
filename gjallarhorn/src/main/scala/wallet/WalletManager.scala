@@ -3,9 +3,12 @@ package wallet
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.ask
 import akka.util.Timeout
+import crypto.Transaction
 import io.circe.{Json, ParsingFailure, parser}
 import io.circe.parser.parse
+import io.circe.syntax.EncoderOps
 import utils.Logging
+import cats.syntax.show._
 
 import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.Await
@@ -136,70 +139,36 @@ class WalletManager(publicKeys: Set[String], bifrostActorRef: ActorRef) extends 
   def newBlock(blockMsg: String): Unit = {
     val blockTxs : String = blockMsg.substring("new block added: ".length)
     log.info(s"Wallet Manager received new block with transactions: $blockTxs")
-    updateWalletFromBlock(blockTxs)
+    parseTxsFromBlock(blockTxs)
     newestTransactions = Some(blockTxs)
   }
 
-  /**
-    * Parses through newBoxes and adds the boxes to the map of boxes to add to the wallet.
-    * @param newBoxes - newBoxes for a specific transaction.
-    * @param add - the current map of boxes to add.
-    * @return - the updates map of boxes to add with the newBoxes.
-    */
-  def parseBoxesToAdd (newBoxes: Json, add: MMap[String, MMap[String, Json]]): MMap[String, MMap[String, Json]] = {
-    val boxes: Array[String] = parseJsonList(newBoxes)
-    boxes.foreach(boxString => {
-      val boxJson: Either[ParsingFailure, Json] = parse(boxString)
-      boxJson match {
-        case Right(json) =>
-          val publicKey: String = (json \\ "proposition").head.toString().replace("\"", "")
-          var idToBox: MMap[String, Json] = MMap.empty
-          add.get(publicKey) match {
-            case Some(boxesMap) => idToBox = boxesMap
-            case None => idToBox = MMap.empty
-          }
-          val id: String = (json \\ "id").head.toString().replace("\"", "")
-          idToBox.put(id, json)
-          add.put(publicKey, idToBox)
-        case Left(e) => sys.error(s"Could not parse json: $e")
-      }
-    })
-    add
-  }
-
-  /**
-    * Parses through the transactions to update the wallet with new boxes or boxes to remove.
-    * @param txs - the transactions from the new block.
-    */
-  def updateWalletFromBlock(txs: String): Unit = {
-    var add: MMap[String, MMap[String, Json]] = MMap.empty
-    //val remove: List[(String, List[String])] = List.empty
-    var idsToRemove: List[String] = List.empty
-    var transactions: Array[String] = txs.trim.stripPrefix("[").stripSuffix("]").split("fee")
-    transactions = transactions.map(asset => {
-      if (transactions.indexOf(asset) != transactions.length-1) {
-        if (transactions.indexOf(asset) != 0) {
-          asset.trim.substring(3).trim.substring(2).trim.substring(2).trim
-            .substring(0, asset.length-14).trim.stripSuffix(",").concat("}")
-        }else asset.substring(0, asset.length-2).trim.stripSuffix(",").concat("}")
-      } else asset.trim.substring(3).trim.substring(2).trim
-    })
-    transactions.foreach(txString => {
-      if (txString.length > 1) {
-        val txJson: Either[ParsingFailure, Json] = parse(txString)
-        txJson match {
-          case Right(json) =>
-            val newBoxes = (json \\ "newBoxes").head
-            add = parseBoxesToAdd(newBoxes, add)
-            if ((json \\ "boxesToRemove").nonEmpty) {
-              val boxesToRemove: List[Json] = json \\ "boxesToRemove"
-              idsToRemove = boxesToRemove.map(box => box.toString().trim.stripPrefix("[").stripSuffix("]").trim.stripPrefix("\"").stripSuffix("\""))
+  def parseTxsFromBlock(txs: String): Unit = {
+    parser.decode[List[Transaction]](txs) match {
+      case Right(transactions) =>
+        val add: MMap[String, MMap[String, Json]] = MMap.empty
+        var idsToRemove: List[String] = List.empty
+        transactions.foreach(tx => {
+          tx.newBoxes.foreach(newBox => {
+            val publicKey: String = newBox.proposition.toString
+            var idToBox: MMap[String, Json] = MMap.empty
+            add.get(publicKey) match {
+              case Some(boxesMap) => idToBox = boxesMap
+              case None => idToBox = MMap.empty
             }
-          case Left(e) => println("could not parse: " + txString)
-        }
-      }
-    })
-    addAndRemoveBoxes(add, idsToRemove)
+            val id: String = newBox.id
+            idToBox.put(id, newBox.asJson)
+            add.put(publicKey, idToBox)
+          })
+          idsToRemove = tx.boxesToRemove match {
+            case Some(seq) => seq.toList
+            case None => List.empty
+          }
+        })
+        addAndRemoveBoxes(add, idsToRemove)
+      case Left(ex) => println(s"Not able to parse transactions: ${ex.show}")
+    }
+
   }
 
   /**
@@ -217,9 +186,6 @@ class WalletManager(publicKeys: Set[String], bifrostActorRef: ActorRef) extends 
         case None =>
       }
     }
-    /*remove.foreach { case (publicKey, ids) =>
-      walletBoxes.get(publicKey).map(boxes => ids.foreach(boxes.remove))
-    }*/
     add.foreach { case (publicKey, newBoxes) =>
       walletBoxes.get(publicKey).map(boxes => newBoxes.foreach(box => boxes.put(box._1, box._2)))
     }
@@ -234,14 +200,6 @@ class WalletManager(publicKeys: Set[String], bifrostActorRef: ActorRef) extends 
 
     case UpdateWallet(updatedBoxes) => sender ! parseAndUpdate(updatedBoxes)
 
-    /*case UpdateWallet(add, remove) => {
-      remove.foreach { case (publicKey, ids) =>
-        walletBoxes.get(publicKey).map(boxes => ids.foreach(boxes.remove))
-      }
-      add.foreach { case (publicKey, newBoxes) =>
-        walletBoxes.get(publicKey).map(boxes => newBoxes.foreach(box => boxes.put(box._1, box._2)))
-      }
-    }*/
     case GjallarhornStopped =>
       val response: String = Await.result((bifrostActorRef ? "Remote wallet actor stopped").mapTo[String], 10.seconds)
       sender ! response

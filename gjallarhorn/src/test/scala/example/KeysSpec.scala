@@ -98,7 +98,7 @@ class KeysSpec extends AsyncFlatSpec with Matchers {
   val password2: String = "password2"
 
   it should "Have 2 keyfiles" in {
-    assert(Keys.getListOfFiles(keyManager.defaultKeyDir).size == 1)
+    assert(Keys.getListOfFiles(keyManager.defaultKeyDir).size == 1 && keyFiles.size == 1)
     keyManager.generateKeyFile(password2) match {
       case Success(pk) =>
         pubKey = pk
