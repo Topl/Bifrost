@@ -14,9 +14,9 @@ import org.bouncycastle.crypto.BufferedBlockCipher
 import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
-import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
+import org.bouncycastle.crypto.params.{ KeyParameter, ParametersWithIV }
 import scorex.crypto.hash.Blake2b256
-import scorex.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
+import scorex.crypto.signatures.{ Curve25519, PrivateKey, PublicKey }
 import scorex.util.Random.randomBytes
 import scorex.util.encode.Base58
 
@@ -25,11 +25,12 @@ import scala.util.Try
 /**
   * Created by cykoz on 6/22/2017.
   */
-case class KeyFile (address    : String,
-                    cipherText : Array[Byte],
-                    mac        : Array[Byte],
-                    salt       : Array[Byte],
-                    iv         : Array[Byte]) {
+
+case class KeyFile ( address   : String,
+                     cipherText: Array[Byte],
+                     mac       : Array[Byte],
+                     salt      : Array[Byte],
+                     iv        : Array[Byte]) {
 
   lazy val publicKeyFromAddress: PublicKey25519Proposition = PublicKey25519Proposition(address)
 
@@ -153,6 +154,15 @@ object KeyFile {
   private def getMAC (derivedKey: Array[Byte], cipherText: Array[Byte]): Array[Byte] = {
     Blake2b256(derivedKey.slice(16, 32) ++ cipherText)
   }
+
+  /**
+   *
+   * @param derivedKey
+   * @param cipherText
+   * @return
+   */
+  private def getMAC (derivedKey: Array[Byte], cipherText: Array[Byte]): Array[Byte] =
+    Blake2b256(derivedKey.slice(16, 32) ++ cipherText)
 
   /**
     *
