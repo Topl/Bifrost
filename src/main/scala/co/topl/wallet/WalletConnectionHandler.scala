@@ -63,8 +63,8 @@ class WalletConnectionHandler (settings: AppSettings, nodeViewHolderRef: ActorRe
         case tx: Coinbase => if (remoteWalletKeys.toSeq.intersect(tx.to.map(_._1)).nonEmpty) txs :+= tx
       }
       if (txs.nonEmpty) Some(txs.asJson)
-    }
-    None
+      else None
+    }else None
   }
 
   def sendRequestApi(params: String, walletRef: ActorRef, requestType: String): Unit = {
