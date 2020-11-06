@@ -8,13 +8,15 @@ import co.topl.http.api.routes.{AssetApiRoute, WalletApiRoute}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction._
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.{ModificationOutcome, SemanticallySuccessfulModifier}
+import co.topl.nodeView.state.box.TokenBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
-import io.circe.Json
+import io.circe.{Json, parser}
 import io.circe.parser.parse
 import io.circe.syntax._
 
+import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 import scala.concurrent.duration._

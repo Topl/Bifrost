@@ -3,7 +3,7 @@ package wallet
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.ask
 import akka.util.Timeout
-import io.circe.{Json, ParsingFailure}
+import io.circe.{Json, ParsingFailure, parser}
 import io.circe.parser.parse
 import utils.Logging
 
@@ -34,14 +34,13 @@ class WalletManager(publicKeys: Set[String], bifrostActorRef: ActorRef) extends 
     returnVal
   }
 
-  var newestBlock: Option[String] = None
+  var newestTransactions: Option[String] = None
 
   var connectedToBifrost: Boolean = false
 
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
-    log.info("WalletManagerActor: preRestart")
-    log.info(s"WalletManagerActor reason: ${reason.getMessage}")
-    log.info(s"WalletManagerActor message: ${message.getOrElse("")}")
+    log.debug(s"WalletManagerActor: preRestart ${reason.getMessage}")
+    log.debug(s"WalletManagerActor message: ${message.getOrElse("")}")
     super.preRestart(reason, message)
   }
 
@@ -135,10 +134,10 @@ class WalletManager(publicKeys: Set[String], bifrostActorRef: ActorRef) extends 
     * @param blockMsg - the json of the new block in string form.
     */
   def newBlock(blockMsg: String): Unit = {
-    val block : String = blockMsg.substring("new block added: ".length)
-    log.info(s"Wallet Manager received new block: $block")
-    updateWalletFromBlock(block)
-    newestBlock = Some(block)
+    val blockTxs : String = blockMsg.substring("new block added: ".length)
+    log.info(s"Wallet Manager received new block with transactions: $blockTxs")
+    updateWalletFromBlock(blockTxs)
+    newestTransactions = Some(blockTxs)
   }
 
   /**
@@ -231,7 +230,7 @@ class WalletManager(publicKeys: Set[String], bifrostActorRef: ActorRef) extends 
 
     case msg: String => msgHandling(msg)
 
-    case GetNewBlock => sender ! newestBlock
+    case GetNewBlock => sender ! newestTransactions
 
     case UpdateWallet(updatedBoxes) => sender ! parseAndUpdate(updatedBoxes)
 
