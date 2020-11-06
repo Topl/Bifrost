@@ -2,7 +2,9 @@ package co.topl.nodeView.state
 
 import java.io.File
 
-import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.Address
+import co.topl.attestation.proof.Proof
+import co.topl.attestation.proposition.{Proposition, PublicKeyCurve25519Proposition}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction._
@@ -11,12 +13,12 @@ import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
-import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.signatures.PublicKey
 import scorex.util.encode.Base58
 
 import scala.reflect.ClassTag
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
  * BifrostState is a data structure which deterministically defines whether an arbitrary transaction is valid and so
@@ -32,9 +34,9 @@ case class State ( override val version     : VersionTag,
                    private[state] val tbrOpt: Option[TokenBoxRegistry] = None,
                    private[state] val pbrOpt: Option[ProgramBoxRegistry] = None,
                    nodeKeys                 : Option[Set[PublicKeyCurve25519Proposition]] = None
-                 ) extends MinimalState[Box, Block, State]
+                 ) extends MinimalState[Box[_], Block, State]
                            with StoreInterface
-                           with TransactionValidation[Transaction]
+                           with TransactionValidation[Transaction[_, _ <: Proposition, _ <: Proof[_]]]
                            with Logging {
 
   override type NVCT = State
@@ -59,7 +61,7 @@ case class State ( override val version     : VersionTag,
    * @param id unique identifier where the box data is stored
    * @return
    */
-  override def getBox( id: BoxId ): Option[Box] =
+  override def getBox( id: BoxId ): Option[Box[_]] =
     getFromStorage(id.hashBytes)
       .map(BoxSerializer.parseBytes)
       .flatMap(_.toOption)
@@ -318,10 +320,10 @@ object State extends Logging {
       )
 
     // node keys are a set of keys that this node will restrict its state to update
-    val nodeKeys: Option[Set[PublicKeyCurve25519Proposition]] = settings.application.nodeKeys match {
+    val nodeKeys: Option[Set[Address]] = settings.application.nodeKeys match {
       case None => None
       case Some(keys) if keys.isEmpty => None
-      case Some(keys) => Some(keys.map(PublicKey25519Proposition(_)))
+      case Some(keys) => Some(keys.map(Address(_)))
     }
 
     if ( nodeKeys.isDefined ) log.info(s"Initializing state to watch for public keys: $nodeKeys")

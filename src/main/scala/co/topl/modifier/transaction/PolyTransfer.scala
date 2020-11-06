@@ -119,14 +119,14 @@ object PolyTransfer extends TransferCompanion {
    * @param tx
    * @return
    */
-  def validatePrototype(tx: PolyTransfer): Try[Unit] = validateTransfer(tx, withSigs = false)
+  def validatePrototype(tx: PolyTransfer): Try[Unit] = syntacticValidateTransfer(tx, withSigs = false)
 
   /**
    *
    * @param tx
    * @return
    */
-  def syntacticValidate(tx: PolyTransfer): Try[Unit] = validateTransfer(tx)
+  def syntacticValidate(tx: PolyTransfer): Try[Unit] = syntacticValidateTransfer(tx)
 
   /**
    *

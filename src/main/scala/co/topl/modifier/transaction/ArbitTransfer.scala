@@ -85,14 +85,14 @@ object ArbitTransfer extends TransferCompanion {
    * @return
    */
   def createRaw[P <: Proposition] (stateReader: SR,
-                 toReceive  : IndexedSeq[(Address, Long)],
-                 sender     : IndexedSeq[Address],
-                 fee        : Long,
-                 data       : String
-                ): Try[ArbitTransfer[P]] = Try {
+                                   toReceive  : IndexedSeq[(Address, TokenBox.Value)],
+                                   sender     : IndexedSeq[Address],
+                                   fee        : Long,
+                                   data       : String
+                                  ): Try[ArbitTransfer[P]] = Try {
     val params = parametersForCreate(stateReader, toReceive, sender, fee, "ArbitTransfer")
     val timestamp = Instant.now.toEpochMilli
-    ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), fee, timestamp, data)
+    ArbitTransfer[P](Map(), params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
   }
 
   /**
@@ -100,7 +100,16 @@ object ArbitTransfer extends TransferCompanion {
    * @param tx
    * @return
    */
-  def validatePrototype ( tx: ArbitTransfer[_] ): Try[Unit] = validateTransfer(tx, withSigs = false)
+  def validatePrototype[P <: Proposition: EvidenceProducer] (tx: ArbitTransfer[P]): Try[Unit] =
+    syntacticValidateTransfer(tx, withSigs = false)
+
+  /**
+    *
+    * @param tx
+    * @return
+    */
+  def syntacticValidate[P <: Proposition: EvidenceProducer] (tx: ArbitTransfer[P]): Try[Unit] =
+    syntacticValidateTransfer(tx)
 
   /**
    *
@@ -142,13 +151,6 @@ object ArbitTransfer extends TransferCompanion {
       case Failure(e) => throw e
     }
   }
-
-  /**
-   *
-   * @param tx
-   * @return
-   */
-  def syntacticValidate ( tx: ArbitTransfer[_] ): Try[Unit] = validateTransfer(tx)
 }
 
 

@@ -19,7 +19,7 @@ import scala.util.{ Failure, Success }
  * @param evidence a commitment produced from a proposition that identifies that proposition.
  * @param networkPrefix a runtime specified parameter denoting the type of network that is executing
  */
-case class Address(evidence: Evidence)(implicit val networkPrefix: NetworkPrefix) extends BytesSerializable {
+case class Address(evidence: Evidence)(implicit private val networkPrefix: NetworkPrefix) extends BytesSerializable {
 
   type M = Address
 

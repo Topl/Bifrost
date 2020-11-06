@@ -1,8 +1,9 @@
 package co.topl.modifier.transaction
 
-import co.topl.attestation.proof.SignatureCurve25519
-import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
-import co.topl.attestation.secrets.PrivateKeyCurve25519
+import co.topl.attestation.EvidenceProducer.syntax._
+import co.topl.attestation.proof.Proof
+import co.topl.attestation.proposition.Proposition
+import co.topl.attestation.{Address, EvidenceProducer}
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box._
 
@@ -23,95 +24,104 @@ trait TransferCompanion {
    * @return
    */
   def parametersForCreate (state    : SR,
-                           toReceive: IndexedSeq[(PublicKeyCurve25519Proposition, Long)],
-                           sender   : IndexedSeq[PublicKeyCurve25519Proposition],
+                           toReceive: IndexedSeq[(Address, TokenBox.Value)],
+                           sender   : IndexedSeq[Address],
                            fee      : Long,
                            txType   : String,
                            extraArgs: Any*
-                          ):
-  (IndexedSeq[(PublicKeyCurve25519Proposition, Long, Long)], IndexedSeq[(PublicKeyCurve25519Proposition, Long)]) = {
+                          ): (IndexedSeq[(Address, Long, Long)], IndexedSeq[(Address, Long)]) = {
 
     toReceive
-      .foldLeft((IndexedSeq[(PublicKeyCurve25519Proposition, Long, Long)](), IndexedSeq[(PublicKeyCurve25519Proposition, Long)]())) {
-        case (a, (recipient, amount)) =>
+      .foldLeft((IndexedSeq[(Address, Box.Nonce, TokenBox.Value)](), IndexedSeq[(Address, TokenBox.Value)]())) {
+        case (acc, (recipient, amount)) =>
 
-          // Restrict box search to specified public keys if provided
-          val keyFilteredBoxes = sender.flatMap(s => state.getTokenBoxes(s)).flatten
-
-          // Match only the type of boxes specified by txType
-          val keyAndTypeFilteredBoxes: Seq[TokenBox] = txType match {
-            case "PolyTransfer"  =>
-              keyFilteredBoxes.flatMap(_ match {
-                                         case p: PolyBox => Some(p)
-                                         case _          => None
-                                       })
-            case "ArbitTransfer" =>
-              keyFilteredBoxes.flatMap(_ match {
-                                         case a: ArbitBox => Some(a)
-                                         case _           => None
-                                       })
-            case "AssetTransfer" =>
-              if ( extraArgs(2).asInstanceOf[Option[String]].isDefined ) {
-                keyFilteredBoxes.flatMap(_ match {
-                                           case a: AssetBox
-                                             if (a.id equals extraArgs(2).asInstanceOf[Option[String]].get) =>
-                                             Some(a)
-                                         })
-              } else {
-                keyFilteredBoxes.flatMap(_ match {
-                                           case a: AssetBox
-                                             if (a.assetCode equals extraArgs(1).asInstanceOf[String]) &&
-                                               (a.issuer equals extraArgs(0)
-                                                 .asInstanceOf[PublicKeyCurve25519Proposition]) =>
-                                             Some(a)
-                                           case _                                               => None
-                                         })
+          // Lookup boxes for the given addresses
+          val senderInputBoxes = sender.flatMap { s =>
+            state.getTokenBoxes(s)
+              .getOrElse(throw new Exception("No boxes found to fund transaction"))
+              .map {
+                case bx: PolyBox => (s, bx.nonce, bx.value)
+                case bx: ArbitBox if txType == "ArbitTransfer" => (s, bx.nonce, bx.value)
+                case bx: AssetBox if txType == "AssetTransfer" => (s, bx.nonce, bx.value)
               }
           }
 
-          if ( keyAndTypeFilteredBoxes.length < 1 ) throw new Exception("No boxes found to fund transaction")
 
-          val senderInputBoxes: IndexedSeq[(PublicKeyCurve25519Proposition, Nonce, Long)] = keyAndTypeFilteredBoxes
-            .map(b => (b.proposition, b.nonce, b.value))
-            .toIndexedSeq
 
           // amount available to send in tx
           val canSend = senderInputBoxes.map(_._3).sum
 
-          if ( canSend < amount + fee ) throw new Exception("Not enough funds to create transaction")
-
-          require(canSend >= (toReceive.map(_._2).sum + fee))
+          require(canSend >= (toReceive.map(_._2).sum + fee), "Not enough funds to create transaction")
 
           // Updated sender balance for specified box type (this is the change calculation for sender)
-          //TODO reconsider? - returns change to first key in list
-          val senderUpdatedBalance: (PublicKeyCurve25519Proposition, Long) = (sender.head, canSend - amount - fee)
+          //TODO JAA - reconsider how change is sent - currently returns change to first sender in list
+          val senderUpdatedBalance: (Address, TokenBox.Value) = (sender.head, canSend - amount - fee)
 
           // create the list of outputs (senderChangeOut & recipientOut)
-          val to: IndexedSeq[(PublicKeyCurve25519Proposition, Long)] = IndexedSeq(senderUpdatedBalance, (recipient, amount))
+          val to: IndexedSeq[(Address, TokenBox.Value)] = IndexedSeq(senderUpdatedBalance, (recipient, amount))
 
           require(senderInputBoxes.map(_._3).sum - to.map(_._2).sum == fee)
-          (a._1 ++ senderInputBoxes, a._2 ++ to)
+          (acc._1 ++ senderInputBoxes, acc._2 ++ to)
+
+//          // Match only the type of boxes specified by txType
+//          val keyAndTypeFilteredBoxes: Seq[TokenBox] = txType match {
+//            case "PolyTransfer"  =>
+//              senderBoxes.flatMap(_ match {
+//                case p: PolyBox => Some(p)
+//                case _          => None
+//              })
+//            case "ArbitTransfer" =>
+//              senderBoxes.flatMap(_ match {
+//                case a: ArbitBox => Some(a)
+//                case _           => None
+//              })
+//            case "AssetTransfer" =>
+//              if ( extraArgs(2).asInstanceOf[Option[String]].isDefined ) {
+//                senderBoxes.flatMap(_ match {
+//                  case a: AssetBox
+//                    if (a.id equals extraArgs(2).asInstanceOf[Option[String]].get) =>
+//                    Some(a)
+//                })
+//              } else {
+//                senderBoxes.flatMap(_ match {
+//                  case a: AssetBox
+//                    if (a.assetCode equals extraArgs(1).asInstanceOf[String]) &&
+//                      (a.issuer equals extraArgs(0)
+//                        .asInstanceOf[PublicKeyCurve25519Proposition]) =>
+//                    Some(a)
+//                  case _                                               => None
+//                })
+//              }
+//          }
       }
   }
 
   /**
-   *
-   * @param tx
-   * @param withSigs
-   * @return
+   * Syntactic validation of a transfer transaction
+    *
+   * @param tx an instance of a transaction to check
+   * @param withSigs boolean flag controlling whether signature verification should be checked or skipped
+   * @return success or failure indicating the validity of the transaction
    */
-  def validateTransfer ( tx: TransferTransaction, withSigs: Boolean = true ): Try[Unit] = Try {
+  def syntacticValidateTransfer[
+    P <: Proposition: EvidenceProducer,
+    PR <: Proof[P]
+  ] (tx: TransferTransaction[P, PR],
+     withSigs: Boolean = true): Try[Unit] = Try {
     require(tx.to.forall(_._2 > 0L)) // amount sent must be greater than 0
     require(tx.fee >= 0) // fee must be non-negative
     require(tx.timestamp >= 0) // timestamp must be valid
 
     // prototype transactions do not contain signatures at creation
     if ( withSigs ) {
-      require(tx.signatures.forall {
-        case (prop, sign) => sign.isValid(prop, tx.messageToSign)
+      // ensure that the signatures are valid signatures with the body of the transaction
+      require(tx.attestation.forall {
+        case (prop, proof) => proof.isValid(prop, tx.messageToSign)
       })
+
+      // ensure that the propositions match the addresses given
       require(tx.from.forall {
-        case (prop, nonce) => tx.signatures.contains(prop)
+        case (addr, _) => tx.attestation.keys.map(_.generateEvidence).toSeq.contains(addr.evidence)
       })
     }
 

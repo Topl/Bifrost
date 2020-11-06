@@ -139,14 +139,14 @@ object AssetTransfer extends TransferCompanion {
    * @param tx
    * @return
    */
-  def validatePrototype ( tx: AssetTransfer ): Try[Unit] = validateTransfer(tx, withSigs = false)
+  def validatePrototype ( tx: AssetTransfer ): Try[Unit] = syntacticValidateTransfer(tx, withSigs = false)
 
   /**
    *
    * @param tx
    * @return
    */
-  def syntacticValidate ( tx: AssetTransfer ): Try[Unit] = validateTransfer(tx)
+  def syntacticValidate ( tx: AssetTransfer ): Try[Unit] = syntacticValidateTransfer(tx)
 
   /**
    *

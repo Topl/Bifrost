@@ -2,17 +2,15 @@ package co.topl.nodeView.state
 
 import java.io.File
 
-import co.topl.attestation.EvidenceProducer
-import co.topl.attestation.EvidenceProducer.EvidenceContent
+import co.topl.attestation.{Address, Evidence}
 import co.topl.nodeView.state.MinimalState.VersionTag
-import co.topl.attestation.proposition.{ Proposition, PublicKeyCurve25519Proposition }
-import co.topl.nodeView.state.box.{ BoxId, TokenBox }
+import co.topl.nodeView.state.box.{Box, BoxId, TokenBox}
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
 import com.google.common.primitives.Longs
-import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
  * A registry containing mappings from public keys to a sequence of boxIds
@@ -21,20 +19,20 @@ import scala.util.{ Failure, Success, Try }
  * @param nodeKeys set of node keys that denote the state this node will maintain (useful for personal wallet nodes)
  */
 class TokenBoxRegistry ( protected val storage: LSMStore,
-                         nodeKeys: Option[Set[PublicKeyCurve25519Proposition]]
+                         nodeKeys: Option[Set[Address]]
                        ) extends Registry[TokenBoxRegistry.K, TokenBoxRegistry.V] {
 
   import TokenBoxRegistry.{K, V}
 
   //----- input and output transformation functions
-  override protected val registryInput: K => Array[Byte] = (key: K) => key
+  override protected val registryInput: K => Array[Byte] = (key: K) => key.bytes
 
   override protected val registryOutput: Array[Byte] => Seq[V] =
     (value: Array[Byte]) => value.grouped(Longs.BYTES).toSeq.map(v => Longs.fromByteArray(v))
 
-  override protected val registryOut2StateIn: (K, V) => BoxId = ( key: K, value: V) => TokenBox.idFromPropNonce(key, value)
+  override protected val registryOut2StateIn: (K, V) => BoxId = ( key: K, value: V) => BoxId.idFromEviNonce(key.evidence, value)
 
-  protected[state] def getBox[E: EvidenceProducer] ( key: K, state: SR): Option[Seq[TokenBox[E]]] = super.getBox[TokenBox](key, state)
+  protected[state] def getBox( key: K, state: SR): Option[Seq[TokenBox]] = super.getBox[TokenBox](key, state)
 
 
   /**
@@ -55,7 +53,7 @@ class TokenBoxRegistry ( protected val storage: LSMStore,
 
     Try {
       def filterByNodeKeys(updates: Map[K, Seq[V]]): Map[K, Seq[V]] = nodeKeys match {
-        case Some(keys) => updates.filter(b => keys.contains(b._1))
+        case Some(keys) => updates.filter(b => keys.map(_.evidence).contains(b._1))
         case None       => updates
       }
 
@@ -117,10 +115,10 @@ class TokenBoxRegistry ( protected val storage: LSMStore,
 
 object TokenBoxRegistry extends Logging {
 
-  type K = EvidenceContent
-  type V = Long
+  type K = Address
+  type V = Box.Nonce
 
-  def readOrGenerate ( settings: AppSettings, nodeKeys: Option[Set[PublicKeyCurve25519Proposition]] ): Option[TokenBoxRegistry] = {
+  def readOrGenerate ( settings: AppSettings, nodeKeys: Option[Set[Address]] ): Option[TokenBoxRegistry] = {
     if (settings.application.enableTBR) {
       log.info("Initializing state with Token Box Registry")
 
