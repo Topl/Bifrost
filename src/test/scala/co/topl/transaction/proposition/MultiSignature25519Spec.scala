@@ -6,13 +6,14 @@ import co.topl.nodeView.state.box.proposition.{MofNProposition, PublicKey25519Pr
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import utils.NoShrink
 
 class MultiSignature25519Spec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
-  with BifrostGenerators {
-
+  with BifrostGenerators
+  with NoShrink {
 
   property("A MultiSignature25519 created from single Signature25519 " +
              "should be valid for oneOfNProposition") {

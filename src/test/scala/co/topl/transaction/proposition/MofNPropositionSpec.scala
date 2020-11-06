@@ -6,12 +6,14 @@ import co.topl.nodeView.state.box.proposition.MofNProposition
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import utils.NoShrink
 
 class MofNPropositionSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
-  with BifrostGenerators {
+  with BifrostGenerators
+  with NoShrink {
 
   property("Any signature from set validates") {
     forAll(oneOfNPropositionGen) {
