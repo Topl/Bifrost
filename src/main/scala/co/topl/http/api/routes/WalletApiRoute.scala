@@ -320,12 +320,12 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
   private def balances ( params: Json, id: String ): Future[Json] = {
     viewAsync().map { view =>
       // parse the required arguments from the request
-      val publicKeys = (params \\ "publicKeys").head.asArray.get.map(k => PublicKey25519Proposition(k.asString.get))
+      val addresses = (params \\ "addresses").head.asArray.get.map(k => PublicKey25519Proposition(k.asString.get))
 
-      checkPublicKey(publicKeys, view)
+      checkPublicKey(addresses, view)
 
       val boxes: Map[PublicKey25519Proposition, Map[String, Seq[TokenBox]]] =
-        publicKeys
+        addresses
           .map(k => {
             val orderedBoxes = view.state.getTokenBoxes(k) match {
               case Some(boxes) => boxes.groupBy[String](b => b.typeOfBox)
@@ -344,7 +344,7 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
 
       boxes.map {
         case (prop, boxes) =>
-          Base58.encode(prop.pubKeyBytes) -> Map(
+          prop.address -> Map(
             "Balances" -> Map(
               "Polys" -> balances(prop).getOrElse("Poly", 0L),
               "Arbits" -> balances(prop).getOrElse("Arbit", 0L)
