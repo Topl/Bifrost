@@ -9,7 +9,7 @@ import co.topl.consensus.Forger.ReceivableMessages.GenerateGenesis
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.{Block, BlockSerializer, PersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier}
 import co.topl.modifier.transaction.serialization.TransactionSerializer
-import co.topl.modifier.transaction.{GenericTransaction, Transaction}
+import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
 import co.topl.nodeView.NodeViewHolder.UpdateInformation
@@ -65,7 +65,7 @@ class NodeViewHolder ( settings: AppSettings,
 
   lazy val modifierCompanions: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
     Map(Block.modifierTypeId -> BlockSerializer,
-      GenericTransaction.modifierTypeId -> TransactionSerializer)
+        Transaction.modifierTypeId -> TransactionSerializer)
 
   /** Define actor control behavior */
   override def preStart(): Unit = {
@@ -514,11 +514,11 @@ object NodeViewHolder {
 
     sealed trait NewTransactions[TX <: Transaction]{val txs: Iterable[TX]}
 
-    case class LocallyGeneratedTransaction[TX <: Transaction](tx: TX) extends NewTransactions[TX] {
+    case class LocallyGeneratedTransaction[TX <: Transaction] ( tx: TX) extends NewTransactions[TX] {
       override val txs: Iterable[TX] = Iterable(tx)
     }
 
-    case class TransactionsFromRemote[TX <: Transaction](txs: Iterable[TX]) extends NewTransactions[TX]
+    case class TransactionsFromRemote[TX <: Transaction] ( txs: Iterable[TX]) extends NewTransactions[TX]
 
     case class EliminateTransactions(ids: Seq[ModifierId])
 

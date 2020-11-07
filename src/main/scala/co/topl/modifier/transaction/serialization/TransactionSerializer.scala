@@ -4,11 +4,12 @@ import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.{ KnowledgeProposition, Proposition }
 import co.topl.attestation.secrets.Secret
 import co.topl.modifier.transaction._
+import co.topl.nodeView.state.box.GenericBox
 import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
 
-object TransactionSerializer extends BifrostSerializer[Transaction[_, _ <: Proposition, _ <: Proof[_]]] {
+object TransactionSerializer extends BifrostSerializer[Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: GenericBox[_]]] {
 
-  override def serialize(obj: Transaction[_, _ <: Proposition, _ <: Proof[_]], w: Writer): Unit = {
+  override def serialize( obj: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: GenericBox[_]], w: Writer): Unit = {
     obj match {
       case obj: CodeCreation =>
         w.putByteString("CodeCreation")
@@ -43,7 +44,7 @@ object TransactionSerializer extends BifrostSerializer[Transaction[_, _ <: Propo
     }
   }
 
-  override def parse(r: Reader): Transaction[_, _ <: Proposition, _ <: Proof[_]] = {
+  override def parse(r: Reader): Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: GenericBox[_]] = {
     r.getByteString() match {
       case "CodeCreation" => CodeBoxCreationSerializer.parse(r)
       case "ProgramCreation" => ProgramCreationSerializer.parse(r)

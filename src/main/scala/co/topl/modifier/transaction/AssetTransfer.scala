@@ -129,7 +129,7 @@ object AssetTransfer extends TransferCompanion {
                  data       : String,
                  assetId    : Option[String] = None
                  ): Try[AssetTransfer] = Try {
-    val params = parametersForCreate(stateReader, toReceive, sender, fee, "AssetTransfer", issuer, assetCode, assetId)
+    val params = createRawTransferTx(stateReader, toReceive, sender, fee, "AssetTransfer", issuer, assetCode, assetId)
     val timestamp = Instant.now.toEpochMilli
     AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), issuer, assetCode, fee, timestamp, data)
   }

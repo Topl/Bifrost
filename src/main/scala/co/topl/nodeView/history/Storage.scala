@@ -3,7 +3,6 @@ package co.topl.nodeView.history
 import co.topl.consensus
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{ Block, BlockSerializer }
-import co.topl.modifier.transaction.GenericTransaction
 import co.topl.utils.Logging
 import com.google.common.cache.{ CacheBuilder, CacheLoader, LoadingCache }
 import com.google.common.primitives.Longs
@@ -122,7 +121,7 @@ class Storage( private[history] val storage: LSMStore,
       Seq(blockBloomKey(b.id.hashBytes) -> ByteArrayWrapper(Block.createBloom(b.transactions)))
 
     val newTransactionsToBlockIds: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = b.transactions.map(
-      tx => (ByteArrayWrapper(tx.id.hashBytes), ByteArrayWrapper(GenericTransaction.modifierTypeId +: b.id.hashBytes))
+      tx => (ByteArrayWrapper(tx.id.hashBytes), ByteArrayWrapper(Transaction.modifierTypeId +: b.id.hashBytes))
     )
 
     /* update storage */

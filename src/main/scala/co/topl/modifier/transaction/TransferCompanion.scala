@@ -3,98 +3,98 @@ package co.topl.modifier.transaction
 import co.topl.attestation.EvidenceProducer.syntax._
 import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
-import co.topl.attestation.{Address, EvidenceProducer}
+import co.topl.attestation.{ Address, BoxUnlocker, EvidenceProducer }
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box._
 
-import scala.util.Try
+import scala.util.{ Failure, Success, Try }
 
 trait TransferCompanion {
 
   type SR = StateReader[Box[_]]
 
   /**
+   * Determines the input boxes needed to create a transfer transaction
    *
-   * @param state
-   * @param toReceive
-   * @param sender
-   * @param fee
-   * @param txType
-   * @param extraArgs
+   * @param state a read-only version of the nodes current state
+   * @param toReceive the recipients of boxes
+   * @param sender the set of addresses that will contribute boxes to this transaction
+   * @param fee the fee to be paid for the transaction
+   * @param txType the type of transfer
+   * @param assetArgs a tuple of asset specific details for finding the right asset boxes to be sent in a transfer
+   * @return the input box information and output data needed to create the transaction case class
+   */
+  def createRawTransferTx ( state        : SR,
+                            toReceive    : IndexedSeq[(Address, TokenBox.Value)],
+                            sender       : IndexedSeq[Address],
+                            changeAddress: Address,
+                            fee          : TokenBox.Value,
+                            txType       : String,
+                            assetArgs    : Option[(Address, String, String)] = None // (issuer, assetCode, assetId)
+                          ): Try[(IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, TokenBox.Value)])] = Try {
+
+    // Lookup boxes for the given senders
+    val senderBoxes =
+      sender.flatMap { s =>
+        state.getTokenBoxes(s)
+          .getOrElse(throw new Exception("No boxes found to fund transaction")) // isn't this just an empty sequence instead of None?
+          .map {
+            case bx: PolyBox  => ("Poly", s, bx) // always get polys because this is how fees are paid
+            case bx: ArbitBox if txType == "ArbitTransfer" => ("Arbit", s, bx)
+            case bx: AssetBox if (txType == "AssetTransfer" &&
+              bx.assetCode == assetArgs.getOrElse(throw new Error("Undefined assetCode parameter"))._2 &&
+              bx.issuer == assetArgs.getOrElse(throw new Error("Undefined asset issuer parameter"))._1) => ("Asset", s, bx)
+          }
+      }.groupBy(_._1)
+
+    // ensure there are enough polys to pay the fee
+    require(senderBoxes("Poly").map(_._3.value).sum >= fee, s"Insufficient funds available to pay transaction fee.")
+
+    // create the list of inputs and outputs (senderChangeOut & recipientOut)
+    val (availableToSpend, inputs, outputs) = txType match {
+      case "PolyTransfer"  =>
+        (
+          senderBoxes("Poly").map(_._3.value).sum - fee,
+          senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
+          (changeAddress, senderBoxes("Poly").map(_._3.value).sum - fee - toReceive.map(_._2).sum) +: toReceive
+        )
+
+      case "ArbitTransfer" => senderBoxes("Arbit").map(_._3.value).sum
+        (
+          senderBoxes("Arbit").map(_._3.value).sum,
+          senderBoxes("Arbit").map(bxs => (bxs._2, bxs._3.nonce)),
+          (changeAddress, senderBoxes("Poly").map(_._3.value).sum - fee) +: toReceive
+        )
+
+      case "AssetTransfer" =>
+        (
+          senderBoxes("Asset").map(_._3.value).sum,
+          senderBoxes("Asset").map(bxs => (bxs._2, bxs._3.nonce)),
+          (changeAddress, senderBoxes("Poly").map(_._3.value).sum - fee) +: toReceive
+        )
+    }
+
+    // ensure there are sufficient funds from the sender boxes to create all outputs
+    require(availableToSpend >= (toReceive.map(_._2).sum), "Insufficient funds available to create transaction.")
+
+    (inputs, outputs)
+  }
+
+  /**
+   *
+   * @param tx
    * @return
    */
-  def parametersForCreate (state    : SR,
-                           toReceive: IndexedSeq[(Address, TokenBox.Value)],
-                           sender   : IndexedSeq[Address],
-                           fee      : Long,
-                           txType   : String,
-                           extraArgs: Any*
-                          ): (IndexedSeq[(Address, Long, Long)], IndexedSeq[(Address, Long)]) = {
+  def validatePrototype[P <: Proposition: EvidenceProducer, PR <: Proof[P]] (tx: TransferTransaction[P, PR]): Try[Unit] =
+    syntacticValidateTransfer(tx, withSigs = false)
 
-    toReceive
-      .foldLeft((IndexedSeq[(Address, Box.Nonce, TokenBox.Value)](), IndexedSeq[(Address, TokenBox.Value)]())) {
-        case (acc, (recipient, amount)) =>
-
-          // Lookup boxes for the given addresses
-          val senderInputBoxes = sender.flatMap { s =>
-            state.getTokenBoxes(s)
-              .getOrElse(throw new Exception("No boxes found to fund transaction"))
-              .map {
-                case bx: PolyBox => (s, bx.nonce, bx.value)
-                case bx: ArbitBox if txType == "ArbitTransfer" => (s, bx.nonce, bx.value)
-                case bx: AssetBox if txType == "AssetTransfer" => (s, bx.nonce, bx.value)
-              }
-          }
-
-
-
-          // amount available to send in tx
-          val canSend = senderInputBoxes.map(_._3).sum
-
-          require(canSend >= (toReceive.map(_._2).sum + fee), "Not enough funds to create transaction")
-
-          // Updated sender balance for specified box type (this is the change calculation for sender)
-          //TODO JAA - reconsider how change is sent - currently returns change to first sender in list
-          val senderUpdatedBalance: (Address, TokenBox.Value) = (sender.head, canSend - amount - fee)
-
-          // create the list of outputs (senderChangeOut & recipientOut)
-          val to: IndexedSeq[(Address, TokenBox.Value)] = IndexedSeq(senderUpdatedBalance, (recipient, amount))
-
-          require(senderInputBoxes.map(_._3).sum - to.map(_._2).sum == fee)
-          (acc._1 ++ senderInputBoxes, acc._2 ++ to)
-
-//          // Match only the type of boxes specified by txType
-//          val keyAndTypeFilteredBoxes: Seq[TokenBox] = txType match {
-//            case "PolyTransfer"  =>
-//              senderBoxes.flatMap(_ match {
-//                case p: PolyBox => Some(p)
-//                case _          => None
-//              })
-//            case "ArbitTransfer" =>
-//              senderBoxes.flatMap(_ match {
-//                case a: ArbitBox => Some(a)
-//                case _           => None
-//              })
-//            case "AssetTransfer" =>
-//              if ( extraArgs(2).asInstanceOf[Option[String]].isDefined ) {
-//                senderBoxes.flatMap(_ match {
-//                  case a: AssetBox
-//                    if (a.id equals extraArgs(2).asInstanceOf[Option[String]].get) =>
-//                    Some(a)
-//                })
-//              } else {
-//                senderBoxes.flatMap(_ match {
-//                  case a: AssetBox
-//                    if (a.assetCode equals extraArgs(1).asInstanceOf[String]) &&
-//                      (a.issuer equals extraArgs(0)
-//                        .asInstanceOf[PublicKeyCurve25519Proposition]) =>
-//                    Some(a)
-//                  case _                                               => None
-//                })
-//              }
-//          }
-      }
-  }
+  /**
+   *
+   * @param tx
+   * @return
+   */
+  def syntacticValidate[P <: Proposition: EvidenceProducer, PR <: Proof[P]] (tx: TransferTransaction[P, PR]): Try[Unit] =
+    syntacticValidateTransfer(tx)
 
   /**
    * Syntactic validation of a transfer transaction
@@ -106,8 +106,8 @@ trait TransferCompanion {
   def syntacticValidateTransfer[
     P <: Proposition: EvidenceProducer,
     PR <: Proof[P]
-  ] (tx: TransferTransaction[P, PR],
-     withSigs: Boolean = true): Try[Unit] = Try {
+  ] ( tx: TransferTransaction[P, PR],
+      withSigs: Boolean = true): Try[Unit] = Try {
     require(tx.to.forall(_._2 > 0L)) // amount sent must be greater than 0
     require(tx.fee >= 0) // fee must be non-negative
     require(tx.timestamp >= 0) // timestamp must be valid
@@ -127,5 +127,50 @@ trait TransferCompanion {
 
     // ensure that the input and output lists of box ids are unique
     require(tx.newBoxes.forall(b ⇒ !tx.boxIdsToOpen.contains(b.id)))
+  }
+
+  /**
+   *
+   * @param tx
+   * @param state
+   * @return
+   */
+  def semanticValidate[
+    P <: Proposition: EvidenceProducer,
+    PR <: Proof[P]
+  ] ( tx: TransferTransaction[P, PR],
+      state: SR ): Try[Unit] = {
+
+    // check that the transaction is correctly formed before checking state
+    syntacticValidate(tx) match {
+      case Failure(e) => throw e
+      case _          => // continue processing
+    }
+
+    // compute transaction values used for validation
+    val txOutput = tx.newBoxes.map(b => b.value).sum
+    val unlockers = BoxUnlocker.generate(tx.from, tx.attestation)
+
+    // iterate through the unlockers and sum up the value of the box for each valid unlocker
+    unlockers.foldLeft[Try[Long]](Success(0L))(( trySum, unlocker ) => {
+      trySum.flatMap { partialSum =>
+        state.getBox(unlocker.closedBoxId) match {
+          case Some(box: TokenBox) if unlocker.boxKey.isValid(unlocker.proposition, tx.messageToSign) =>
+            Success(partialSum + box.value)
+
+          case Some(_) => Failure(new Exception("Invalid unlocker"))
+          case None    => Failure(new Exception(s"Box for unlocker $unlocker cannot be found in state"))
+          case _       => Failure(new Exception("Invalid Box type for this transaction"))
+        }
+      }
+    }) match {
+      case Success(sum: Long) if txOutput == sum - tx.fee =>
+        Success(Unit)
+
+      case Success(sum: Long) =>
+        Failure(new Exception(s"Tx output value not equal to input value. $txOutput != ${sum - tx.fee}"))
+
+      case Failure(e) => throw e
+    }
   }
 }

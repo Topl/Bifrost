@@ -32,12 +32,12 @@ import scala.collection.BitSet
  *
  * - additional data: block structure version no, timestamp etc
  */
-case class Block (parentId    : BlockId,
-                  timestamp   : Timestamp,
-                  forgerBox   : ArbitBox,
-                  signature   : SignatureCurve25519,
-                  transactions: Seq[Transaction],
-                  version     : Version
+case class Block ( parentId    : BlockId,
+                   timestamp   : Timestamp,
+                   forgerBox   : ArbitBox,
+                   signature   : SignatureCurve25519,
+                   transactions: Seq[Transaction],
+                   version     : Version
                  ) extends TransactionsCarryingPersistentNodeViewModifier[Transaction] {
 
   type M = Block
@@ -103,12 +103,12 @@ object Block {
    * @param version
    * @return
    */
-  def create (parentId  : BlockId,
-              timestamp : Timestamp,
-              txs       : Seq[Transaction],
-              box       : ArbitBox,
-              privateKey: PrivateKeyCurve25519,
-              version   : Version
+  def create ( parentId  : BlockId,
+               timestamp : Timestamp,
+               txs       : Seq[Transaction],
+               box       : ArbitBox,
+               privateKey: PrivateKeyCurve25519,
+               version   : Version
              ): Block = {
 
     // the owner of the generator box must be the key used to sign the block

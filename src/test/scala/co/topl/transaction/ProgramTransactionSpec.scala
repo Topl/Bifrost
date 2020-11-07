@@ -22,11 +22,11 @@ import scorex.crypto.hash.Blake2b256
 import scala.collection.immutable.Seq
 
 class ProgramTransactionSpec extends AnyPropSpec
-  with ScalaCheckPropertyChecks
-  with ScalaCheckDrivenPropertyChecks
-  with Matchers
-  with BifrostGenerators
-  with ValidGenerators {
+                                     with ScalaCheckPropertyChecks
+                                     with ScalaCheckDrivenPropertyChecks
+                                     with Matchers
+                                     with BifrostGenerators
+                                     with ValidGenerators {
 
   //noinspection ScalaStyle
   def potentiallyInvalidProgramCreationGen(minFee: Long,

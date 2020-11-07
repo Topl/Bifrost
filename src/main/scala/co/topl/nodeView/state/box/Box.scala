@@ -40,7 +40,7 @@ object Box {
       "nonce" -> box.nonce.toString.asJson
       )
 
-  def jsonDecode[T](c: HCursor)(implicit valueEncoder: Decoder[T]): Either[DecodingFailure, (Evidence, Long, T)] =
+  def jsonDecode[T](c: HCursor)(implicit valueDecoder: Decoder[T]): Either[DecodingFailure, (Evidence, Long, T)] =
     for {
       evidence <- c.downField("evidence").as[Evidence]
       value <- c.downField("value").as[T]

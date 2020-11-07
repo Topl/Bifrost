@@ -371,7 +371,7 @@ class NodeViewSynchronizer[
         val newModifierIds = modifierTypeId match {
           case Transaction.modifierTypeId =>
             invData.ids.filter(mid => deliveryTracker.status(mid, mempool) == ModifiersStatus.Unknown)
-          case _ =>
+          case _                          =>
             invData.ids.filter(mid => deliveryTracker.status(mid, history) == ModifiersStatus.Unknown)
         }
 
@@ -640,7 +640,7 @@ object NodeViewSynchronizer {
     case class ChangedHistory[HR <: HistoryReader[_ <: PersistentNodeViewModifier, _ <: SyncInfo]](reader: HR)
         extends NodeViewChange
 
-    case class ChangedMempool[MR <: MemPoolReader[_ <: Transaction]](mempool: MR) extends NodeViewChange
+    case class ChangedMempool[MR <: MemPoolReader[_ <: Transaction]] ( mempool: MR) extends NodeViewChange
 
     case class ChangedState[SR <: StateReader[_ <: GenericBox[_ <: Proposition, _]]](reader: SR) extends NodeViewChange
 
@@ -663,7 +663,7 @@ object NodeViewSynchronizer {
     case class FailedTransaction(transactionId: ModifierId, error: Throwable, immediateFailure: Boolean)
         extends ModificationOutcome
 
-    case class SuccessfulTransaction[TX <: Transaction](transaction: TX) extends ModificationOutcome
+    case class SuccessfulTransaction[TX <: Transaction[_, _, _, _]] ( transaction: TX) extends ModificationOutcome
 
     case class SyntacticallyFailedModification[PMOD <: PersistentNodeViewModifier](modifier: PMOD, error: Throwable)
         extends ModificationOutcome

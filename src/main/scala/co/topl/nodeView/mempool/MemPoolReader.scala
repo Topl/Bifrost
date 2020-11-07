@@ -1,7 +1,7 @@
 package co.topl.nodeView.mempool
 
-import co.topl.modifier.transaction.GenericTransaction
-import co.topl.modifier.{ContainsModifiers, ModifierId}
+import co.topl.modifier.transaction.Transaction
+import co.topl.modifier.{ ContainsModifiers, ModifierId }
 import co.topl.nodeView.NodeViewComponent
 
 /**
@@ -9,7 +9,7 @@ import co.topl.nodeView.NodeViewComponent
   *
   * @tparam TX -type of transaction the pool contains
   */
-trait MemPoolReader[TX <: GenericTransaction[_]] extends NodeViewComponent with ContainsModifiers[TX] {
+trait MemPoolReader[TX <: Transaction[_, _, _, _]] extends NodeViewComponent with ContainsModifiers[TX] {
 
   //getters
   override def modifierById(modifierId: ModifierId): Option[TX]

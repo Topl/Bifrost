@@ -109,7 +109,7 @@ object PolyTransfer extends TransferCompanion {
                        fee      : Long,
                        data     : String
                       ): Try[PolyTransfer] = Try {
-    val params = parametersForCreate(stateReader, toReceive, sender, fee, "PolyTransfer")
+    val params = createRawTransferTx(stateReader, toReceive, sender, fee, "PolyTransfer")
     val timestamp = Instant.now.toEpochMilli
     PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), fee, timestamp, data)
   }
