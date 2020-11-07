@@ -3,16 +3,14 @@ package co.topl.modifier.transaction
 import java.time.Instant
 
 import co.topl.attestation
+import co.topl.attestation.Address
 import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
-import co.topl.attestation.{Address, BoxUnlocker, EvidenceProducer}
 import co.topl.nodeView.state.box.{ArbitBox, Box, TokenBox}
-import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
-import scorex.crypto.hash.Blake2b256
 
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 case class ArbitTransfer[P <: Proposition] (signatures             : Map[P, _ <: Proof[P]],
                                             override val from      : IndexedSeq[(Address, Box.Nonce)],
@@ -24,8 +22,10 @@ case class ArbitTransfer[P <: Proposition] (signatures             : Map[P, _ <:
 
   override val transactionName = "ArbitTransfer"
 
-  override lazy val newBoxes: Traversable[ArbitBox] =
+  override lazy val newBoxes: Traversable[ArbitBox] = {
+    TransferTransaction.boxParams(this).map(
     ArbitBox(addr.evidence, nonce, value)
+  }
 
 
 }

@@ -1,15 +1,15 @@
 package co.topl.modifier.transaction
 
 import co.topl.attestation.EvidenceProducer.syntax._
-import co.topl.attestation.{ Address, BoxUnlocker, EvidenceProducer }
 import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
+import co.topl.attestation.{Address, BoxUnlocker, Evidence, EvidenceProducer}
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.state.box.{ ArbitBox, AssetBox, Box, BoxId, PolyBox, TokenBox }
-import com.google.common.primitives.{ Ints, Longs }
-import scorex.crypto.hash.{ Blake2b256, Digest32 }
+import co.topl.nodeView.state.box._
+import com.google.common.primitives.Ints
+import scorex.crypto.hash.Blake2b256
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 abstract class TransferTransaction[P <: Proposition, PR <: Proof[P]] ( val from: IndexedSeq[(Address, Box.Nonce)],
                                                                        val to: IndexedSeq[(Address, TokenBox.Value)],
@@ -23,14 +23,6 @@ abstract class TransferTransaction[P <: Proposition, PR <: Proof[P]] ( val from:
     BoxId.idFromEviNonce(addr.evidence, nonce)
   }
 
-  // todo: JAA - why not include the from bytes here? I assume this was intentional because the name is "no nonces" so was that a problem?
-  lazy val hashNoNonces: Digest32 = Blake2b256(
-    to.flatMap(_._1.bytes).toArray ++
-      Longs.toByteArray(timestamp) ++
-      Longs.toByteArray(fee) ++
-      data.getBytes
-  )
-
   override lazy val messageToSign: Array[Byte] =
     super.messageToSign ++
       to.flatMap(_._1.bytes).toArray ++
@@ -42,22 +34,20 @@ abstract class TransferTransaction[P <: Proposition, PR <: Proof[P]] ( val from:
 
 object TransferTransaction {
 
-  def transactionDigest(tx: TransferTransaction[_ <: Proposition, _ <: Proof[_]]): Digest32 = {
-    
+  /** Computes a unique nonce value based on the transaction inputs and returns the details needed to create the output boxes for the transaction */
+  def boxParams(tx: TransferTransaction[_ <: Proposition, _ <: Proof[_]]): Traversable[(Evidence, Box.Nonce, TokenBox.Value)] = {
+    val inputBytes = tx.boxIdsToOpen.foldLeft(Array[Byte]())((acc, x) => acc ++ x.hashBytes)
 
-    tx.to.filter(_._2 > 0L)
+    tx.to
+      .filter(_._2 > 0L)
       .zipWithIndex
-      .map {
-        case ((addr, value), idx) =>
-        Transaction.nonceFromDigest(
-            Blake2b256(
-              tx.transactionName.getBytes
-                ++ addr.bytes
-                ++ hashNoNonces
-                ++ Ints.toByteArray(idx)))
+      .map { case ((addr, value), idx) =>
+        val digest = Blake2b256(inputBytes ++ Ints.toByteArray(idx))
+        val nonce = Transaction.nonceFromDigest(digest)
+
+        (addr.evidence, nonce, value)
       }
   }
-
 
   /**
    * Determines the input boxes needed to create a transfer transaction
@@ -102,7 +92,7 @@ object TransferTransaction {
         (
           senderBoxes("Poly").map(_._3.value).sum - fee,
           senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
-          (changeAddress, senderBoxes("Poly").map(_._3.value).sum - fee - toReceive.map(_._2).sum) +: toReceive
+          (changeAddress, senderBoxes("Poly").map(_._3.value).sum - fee - toReceive.map(_._2).sum, PolyBox.boxTypePrefix) +: toReceive
         )
 
       case "ArbitTransfer" => senderBoxes("Arbit").map(_._3.value).sum
