@@ -25,8 +25,8 @@ object ArbitTransferSerializer extends BifrostSerializer[ArbitTransfer[_ <: Prop
     }
 
     /* signatures: Map[PublicKey25519Proposition, Signature25519] */
-    w.putUInt(obj.signatures.size)
-    obj.signatures.foreach { case (prop, sig) =>
+    w.putUInt(obj.attestation.size)
+    obj.attestation.foreach { case (prop, sig) =>
       PropositionSerializer.serialize(prop, w)
       ProofSerializer.serialize(sig, w)
     }

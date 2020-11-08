@@ -45,8 +45,8 @@ object Proposition {
       case _                => Failure(new Error("Failed to parse a proposition from the given string"))
     })
 
-  def getPropTypeString[TX[_], P <: Proposition] (obj: TX[P]): String = obj match {
-    case _: TX[PublicKeyCurve25519Proposition] => "PublicKeyCurve25519"
-    case _: TX[ThresholdCurve25519Proposition] => "ThresholdCurve25519"
+  def getPropTypeString[TX[_,_], P <: Proposition] (obj: TX[P,_]): String = obj match {
+    case _: TX[PublicKeyCurve25519Proposition, _] => "PublicKeyCurve25519"
+    case _: TX[ThresholdCurve25519Proposition, _] => "ThresholdCurve25519"
   }
 }
