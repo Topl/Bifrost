@@ -92,7 +92,7 @@ object TransferTransaction {
         (
           senderBoxes("Poly").map(_._3.value).sum - fee,
           senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
-          (changeAddress, senderBoxes("Poly").map(_._3.value).sum - fee - toReceive.map(_._2).sum, PolyBox.boxTypePrefix) +: toReceive
+          (changeAddress, senderBoxes("Poly").map(_._3.value).sum - fee - toReceive.map(_._2).sum) +: toReceive
         )
 
       case "ArbitTransfer" => senderBoxes("Arbit").map(_._3.value).sum

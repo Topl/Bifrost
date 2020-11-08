@@ -130,19 +130,3 @@ object CodeCreation {
 
   }
 }
-
-//  def createAndApply(w: Wallet,
-//                     to: PublicKey25519Proposition,
-//                     code: String,
-//                     fee: Long,
-//                     data: String): Try[CodeCreation] = Try {
-//
-//    val selectedSecret = w.secretByPublicImage(to).get
-//    val fakeSig = Signature25519(Array())
-//    val timestamp = Instant.now.toEpochMilli
-//    val unsignedTx = CodeCreation(to, fakeSig, code, fee, timestamp, data)
-//
-//    val signature = selectedSecret.sign(unsignedTx.messageToSign)
-//
-//    unsignedTx.copy(signature = signature)
-//  }

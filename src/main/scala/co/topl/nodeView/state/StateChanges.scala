@@ -13,7 +13,7 @@ case class StateChanges( override val boxIdsToRemove: Set[BoxId],
                        ) extends GenericStateChanges[Any, KnowledgeProposition[PrivateKeyCurve25519], Box](boxIdsToRemove, toAppend)
 
 object StateChanges {
-  type BX = Box
+  type BX = Box[_]
   type BPMOD = Block
 
   def apply(mod: BPMOD): Try[StateChanges] =

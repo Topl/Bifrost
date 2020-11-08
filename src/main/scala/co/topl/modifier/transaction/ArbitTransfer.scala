@@ -6,7 +6,8 @@ import co.topl.attestation
 import co.topl.attestation.Address
 import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
-import co.topl.nodeView.state.box.{ArbitBox, Box, TokenBox}
+import co.topl.nodeView.state.StateReader
+import co.topl.nodeView.state.box.{ArbitBox, Box, PolyBox, TokenBox}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 
@@ -22,12 +23,10 @@ case class ArbitTransfer[P <: Proposition] (signatures             : Map[P, _ <:
 
   override val transactionName = "ArbitTransfer"
 
-  override lazy val newBoxes: Traversable[ArbitBox] = {
-    TransferTransaction.boxParams(this).map(
-    ArbitBox(addr.evidence, nonce, value)
+  override lazy val newBoxes: Traversable[TokenBox] = {
+    val params = TransferTransaction.boxParams(this)
+    Traversable((PolyBox.apply _).tupled(params.head)) ++ params.tail.map((ArbitBox.apply _).tupled(_))
   }
-
-
 }
 
 //noinspection ScalaStyle
@@ -72,14 +71,14 @@ object ArbitTransfer {
    * @param data
    * @return
    */
-  def createRaw[P <: Proposition] (stateReader  : SR,
+  def createRaw[P <: Proposition] (stateReader  : StateReader[TokenBox],
                                    toReceive    : IndexedSeq[(Address, TokenBox.Value)],
                                    sender       : IndexedSeq[Address],
                                    changeAddress: Address,
                                    fee          : Long,
                                    data         : String
                                   ): Try[ArbitTransfer[P]] =
-    createRawTransferTx(stateReader, toReceive, sender, changeAddress, fee, "ArbitTransfer").map {
+    TransferTransaction.createRawTransferTx(stateReader, toReceive, sender, changeAddress, fee, "ArbitTransfer").map {
       case (inputs, outputs) => ArbitTransfer[P](Map(), inputs, outputs, fee, Instant.now.toEpochMilli, data)
     }
 }
