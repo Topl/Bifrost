@@ -1,6 +1,7 @@
 package co.topl.modifier.block
 
 import co.topl.attestation.proof.{SignatureCurve25519, SignatureCurve25519Serializer}
+import co.topl.attestation.proposition.{PublicKeyCurve25519Proposition, PublicKeyCurve25519PropositionSerializer}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.serialization.TransactionSerializer
@@ -23,6 +24,9 @@ object BlockSerializer extends BifrostSerializer[Block] {
 
     /* generatorBox: ArbitBox */
     BoxSerializer.serialize(block.forgerBox, w)
+
+    /* publicKey: PublicKeyCurve25519Proposition */
+    PublicKeyCurve25519PropositionSerializer.serialize(block.publicKey, w)
 
     /* signature: Signature25519 */
     SignatureCurve25519Serializer.serialize(block.signature, w)
@@ -49,11 +53,13 @@ object BlockSerializer extends BifrostSerializer[Block] {
 
     val generatorBox: ArbitBox = BoxSerializer.parse(r).asInstanceOf[ArbitBox]
 
+    val publicKey: PublicKeyCurve25519Proposition = PublicKeyCurve25519PropositionSerializer.parse(r)
+
     val signature: SignatureCurve25519 = SignatureCurve25519Serializer.parse(r)
 
     val txsLength: Int = r.getUInt().toIntExact
-    val txs: Seq[Transaction] = (0 until txsLength).map(_ => TransactionSerializer.parse(r))
+    val txs: Seq[Transaction[_, _, _, _]] = (0 until txsLength).map(_ => TransactionSerializer.parse(r))
 
-    Block(parentId, timestamp, generatorBox, signature, txs, version)
+    Block(parentId, timestamp, generatorBox, publicKey, signature, txs, version)
   }
 }

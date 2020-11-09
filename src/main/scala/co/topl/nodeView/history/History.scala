@@ -4,21 +4,21 @@ import java.io.File
 
 import co.topl.consensus
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
-import co.topl.modifier.block.{ Block, BlockValidator, Bloom }
+import co.topl.modifier.block.{Block, Bloom}
 import co.topl.modifier.transaction.Transaction
-import co.topl.modifier.{ ModifierId, NodeViewModifier }
+import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.History.GenesisParentId
 import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.consensus.{BlockValidator, DifficultyBlockValidator, SyntaxBlockValidator}
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
-import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import scala.annotation.tailrec
 import scala.collection.BitSet
-
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
   * A representation of the entire blockchain (whether it's a blocktree, blockchain, etc.)
@@ -62,7 +62,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
 
   private def isGenesis(b: Block): Boolean = storage.isGenesis(b)
 
-  def blockForger(m: Block): PublicKeyCurve25519Proposition = m.forgerBox.proposition
+  def blockForger(m: Block): PublicKeyCurve25519Proposition = m.publicKey
 
   def count(f: Block => Boolean): Int = filter(f).length
 
@@ -358,7 +358,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
    * @param queryBloomTopics topics to search the the block bloom filter for
    * @return
    */
-  def bloomFilter(queryBloomTopics: IndexedSeq[Array[Byte]]): Seq[Transaction] = {
+  def bloomFilter(queryBloomTopics: IndexedSeq[Array[Byte]]): Seq[Transaction[_, _, _, _]] = {
     val queryBloom: BitSet = Bloom.calcBloom(queryBloomTopics.head, queryBloomTopics.tail)
     val f: BitSet => Boolean = {
       blockBloom =>
@@ -563,7 +563,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     * @param txId the modifier ID associated with the transaction
     * @return an optional transaction from a block
     */
-  override def txById(txId: ModifierId): Option[Transaction] = {
+  override def txById(txId: ModifierId): Option[Transaction[_, _, _, _]] = {
     storage.blockIdOf(txId).flatMap { id =>
       storage
         .modifierById(id)
@@ -591,10 +591,8 @@ object History extends Logging {
     val blockProcessor = BlockProcessor(settings.network.maxChainCacheDepth)
 
     val validators = Seq(
-      new consensus.DifficultyBlockValidator(storage, blockProcessor)
-      // fixme: JAA - 2020.07.19 - why are these commented out?
-      //new ParentBlockValidator(storage),
-      //new SemanticBlockValidator(FastCryptographicHash)
+      new DifficultyBlockValidator(storage, blockProcessor),
+      new SyntaxBlockValidator
     )
 
     new History(storage, blockProcessor, validators)
