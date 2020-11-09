@@ -18,7 +18,7 @@ class MofNPropositionSpec extends AnyPropSpec
   property("Any signature from set validates") {
     forAll(oneOfNPropositionGen) {
       case (keySet: Set[PrivateKey25519], mn: MofNProposition) =>
-        val message = nonEmptyBytesGen.sample.get
+        val message = nonEmptyBytesGen.sample.getOrElse(Array.fill(positiveMediumIntGen.sample.get)(1: Byte))
         keySet
           .map(_.sign(message))
           .map(sig => mn.verify(message, sig.signature))
