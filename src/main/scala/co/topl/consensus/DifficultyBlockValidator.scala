@@ -7,10 +7,8 @@ import scala.util.Try
 
 class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor) extends BlockValidator[Block] {
 
-  def validate(block: Block): Try[Unit] = checkConsensusRules(block)
-
   //PoS consensus rules checks, throws exception if anything wrong
-  private def checkConsensusRules(block: Block): Try[Unit] = Try {
+  def validate(block: Block): Try[Unit] = Try {
     if (!storage.isGenesis(block)) {
       // find the source of the parent block (either storage or chain cache)
       val (parent, parentDifficulty, parentHeight) = blockProcessor.getCacheBlock(block.parentId) match {
@@ -33,5 +31,12 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
       // did the forger create a block with a valid forger box and adjusted difficulty?
       require( BigInt(hit) < valueTarget, s"$hit < $valueTarget failed, $parentDifficulty ")
     }
+  }
+}
+
+class SyntaxBlockValidator() extends BlockValidator[Block] {
+  def validate(block: Block): Try[Unit] = {
+    bl
+    block.signature.isValid()
   }
 }

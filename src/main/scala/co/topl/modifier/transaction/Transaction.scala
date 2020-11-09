@@ -59,34 +59,18 @@ object Transaction {
 
   def prefixToTypeString(prefix: TxType): String = prefix match {
     case ArbitTransfer.txTypePrefix     => "ArbitTransfer"
-    case PolyTransfer.tx      => "ProgramCreation"
-    case AssetBox.boxTypePrefix     => "ProgramMethodExecution"
-    case ExecutionBox.boxTypePrefix => "ProgramTransfer"
-    case StateBox.boxTypePrefix     => "PolyTransfer"
-    case CodeBox.boxTypePrefix      => "ArbitTransfer"
-
-   "CodeCreation"
-   "ProgramCreation"
-   "ProgramMethodExecution
-   "ProgramTransfer"
-   "PolyTransfer"
-
-   "AssetTransfer"
-   "AssetCreation"
-   "Coinbase"
-
+    case PolyTransfer.txTypePrefix      => "PolyTransfer"
+    case AssetTransfer.txTypePrefix     => "AssetTransfer"
   }
 
-  implicit def jsonEncoder[T, P <: Proposition, PR <: Proof[P]]: Encoder[Transaction[_, _, _, _]] = {
+  implicit def jsonEncoder[T, P <: Proposition, PR <: Proof[P], BX <: GenericBox[T]]: Encoder[Transaction[_, _, _, _]] = {
     case tx: CodeCreation           => CodeCreation.jsonEncoder(tx)
     case tx: ProgramCreation        => ProgramCreation.jsonEncoder(tx)
     case tx: ProgramMethodExecution => ProgramMethodExecution.jsonEncoder(tx)
     case tx: ProgramTransfer        => ProgramTransfer.jsonEncoder(tx)
     case tx: PolyTransfer[P, PR]    => PolyTransfer.jsonEncoder[P, PR](tx)
     case tx: ArbitTransfer[P, PR]   => ArbitTransfer.jsonEncoder[P, PR](tx)
-    case tx: AssetTransfer          => AssetTransfer.jsonEncoder(tx)
-    case tx: AssetCreation          => AssetCreation.jsonEncoder(tx)
-    case tx: Coinbase               => Coinbase.jsonEncoder(tx)
+    case tx: AssetTransfer[P, PR]   => AssetTransfer.jsonEncoder(tx)
   }
 
   implicit val jsonDecoder: Decoder[Transaction[_, _, _, _]] = { c   : HCursor =>
@@ -98,8 +82,6 @@ object Transaction {
       case "PolyTransfer"           => PolyTransfer.jsonDecoder(c)
       case "ArbitTransfer"          => ArbitTransfer.jsonDecoder(c)
       case "AssetTransfer"          => AssetTransfer.jsonDecoder(c)
-      case "AssetCreation"          => AssetCreation.jsonDecoder(c)
-      case "Coinbase"               => Coinbase.jsonDecoder(c)
     } match {
       case Right(tx) => tx
       case Left(ex)  => throw ex

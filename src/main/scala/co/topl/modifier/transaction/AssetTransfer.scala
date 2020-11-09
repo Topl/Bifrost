@@ -2,66 +2,84 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
-import co.topl.attestation.proof.SignatureCurve25519
-import co.topl.attestation.secrets.PrivateKeyCurve25519
-import co.topl.modifier.transaction
-import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
-import co.topl.nodeView.state.box.{ AssetBox, TokenBox }
-import com.google.common.primitives.{ Bytes, Ints }
+import co.topl.attestation
+import co.topl.attestation.Address
+import co.topl.attestation.proof.Proof
+import co.topl.attestation.proposition.Proposition
+import co.topl.modifier.transaction.Transaction.TxType
+import co.topl.nodeView.state.StateReader
+import co.topl.nodeView.state.box.{AssetBox, Box, PolyBox, TokenBox}
+import com.google.common.primitives.Bytes
 import io.circe.syntax._
-import io.circe.{ Decoder, Encoder, HCursor }
-import scorex.crypto.hash.Blake2b256
+import io.circe.{Decoder, Encoder, HCursor}
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.Try
 
-case class AssetTransfer (override val from      : IndexedSeq[(PublicKeyCurve25519Proposition, Nonce)],
-                          override val to        : IndexedSeq[(PublicKeyCurve25519Proposition, Long)],
-                          override val signatures: Map[PublicKeyCurve25519Proposition, SignatureCurve25519],
-                          issuer                 : PublicKeyCurve25519Proposition,
-                          assetCode              : String,
-                          override val fee       : Long,
-                          override val timestamp : Long,
-                          override val data      : String
-                         ) extends TransferTransaction(from, to, signatures, fee, timestamp, data) {
+case class AssetTransfer[
+  P <: Proposition,
+  PR <: Proof[P]
+] (override val from       : IndexedSeq[(Address, Box.Nonce)],
+   override val to         : IndexedSeq[(Address, TokenBox.Value)],
+   override val attestation: Map[P, PR],
+   issuer                  : Address,
+   assetCode               : String,
+   override val fee        : Long,
+   override val timestamp  : Long,
+   override val data       : String,
+   override val minting    : Boolean
+  ) extends TransferTransaction[P, PR](from, to, attestation, fee, timestamp, data, minting) {
 
-  override lazy val messageToSign: Array[Byte] = Bytes.concat(
-    "AssetTransfer".getBytes(),
+  override val txTypePrefix: TxType = AssetTransfer.txTypePrefix
+
+  override lazy val newBoxes: Traversable[TokenBox] = {
+    val params = TransferTransaction.boxParams(this)
+    Traversable((PolyBox.apply _).tupled(params.head)) ++
+      params.tail.map(p => (AssetBox(p._1, p._2, p._3, assetCode, issuer, data)))
+  }
+
+  override lazy val messageToSign: Array[Byte] = Bytes.concat(,
     super.messageToSign,
-    issuer.pubKeyBytes,
+    issuer.bytes,
     assetCode.getBytes,
     )
-
-  override lazy val newBoxes: Traversable[AssetBox] = to
-    .filter(toInstance => toInstance._2 > 0L)
-    .zipWithIndex
-    .map {
-      case ((prop, value), idx) =>
-        val nonce = Transaction.nonceFromDigest(Blake2b256(
-          "AssetTransfer".getBytes ++
-            prop.pubKeyBytes ++
-            issuer.pubKeyBytes ++
-            assetCode.getBytes ++
-            hashNoNonces ++
-            Ints.toByteArray(idx)
-          ))
-        AssetBox(prop, nonce, value, assetCode, issuer, data)
-    }
-
-  override def toString: String = s"AssetTransfer(${json.noSpaces})"
 }
 
-object AssetTransfer extends TransferCompanion {
+object AssetTransfer {
+  val txTypePrefix: TxType = 3: Byte
 
-  implicit val jsonEncoder: Encoder[AssetTransfer] = { tx: AssetTransfer =>
+  /**
+    *
+    * @param stateReader
+    * @param toReceive
+    * @param sender
+    * @param fee
+    * @param data
+    * @return
+    */
+  def createRaw[P <: Proposition, PR <: Proof[P]] (stateReader  : StateReader[TokenBox],
+                                                   toReceive    : IndexedSeq[(Address, TokenBox.Value)],
+                                                   sender       : IndexedSeq[Address],
+                                                   changeAddress: Address,
+                                                   issuer       : Address,
+                                                   assetCode    : String,
+                                                   fee          : Long,
+                                                   data         : String,
+                                                   minting      : Boolean
+                                                  ): Try[AssetTransfer[P, PR]] =
+    TransferTransaction.createRawTransferTx(stateReader, toReceive, sender, changeAddress, fee, "AssetTransfer", Some((issuer, assetCode))).map {
+      case (inputs, outputs) => AssetTransfer[P, PR](inputs, outputs, Map(), issuer, assetCode, fee, Instant.now.toEpochMilli, data, minting)
+    }
+
+  implicit def jsonEncoder[P <: Proposition, PR <: Proof[P]]: Encoder[AssetTransfer[P, PR]] = { tx: AssetTransfer[P, PR] =>
     Map(
-      "txHash" -> tx.id.asJson,
+      "txId" -> tx.id.asJson,
       "txType" -> "AssetTransfer".asJson,
-      "newBoxes" -> tx.newBoxes.map(_.json).toSeq.asJson,
+      "propositionType" -> Proposition.getPropTypeString(tx).asJson,
+      "newBoxes" -> tx.newBoxes.toSeq.asJson,
       "boxesToRemove" -> tx.boxIdsToOpen.asJson,
       "from" -> tx.from.asJson,
       "to" -> tx.to.asJson,
-      "signatures" -> tx.signatures.asJson,
+      "signatures" -> attestation.jsonEncoder(tx.attestation),
       "fee" -> tx.fee.asJson,
       "timestamp" -> tx.timestamp.asJson,
       "data" -> tx.data.asJson,
@@ -70,115 +88,19 @@ object AssetTransfer extends TransferCompanion {
       ).asJson
   }
 
-  implicit val jsonDecoder: Decoder[AssetTransfer] = ( c: HCursor ) =>
+  implicit def jsonDecoder[P <: Proposition, PR <: Proof[P]]: Decoder[AssetTransfer[P, PR]] = ( c: HCursor ) =>
     for {
-      from <- c.downField("from").as[IndexedSeq[(PublicKeyCurve25519Proposition, Long)]]
-      to <- c.downField("to").as[IndexedSeq[(PublicKeyCurve25519Proposition, Long)]]
-      signatures <- c.downField("signatures").as[Map[PublicKeyCurve25519Proposition, SignatureCurve25519]]
+      from <- c.downField("from").as[IndexedSeq[(Address, Long)]]
+      to <- c.downField("to").as[IndexedSeq[(Address, Long)]]
       fee <- c.downField("fee").as[Long]
       timestamp <- c.downField("timestamp").as[Long]
       data <- c.downField("data").as[String]
-      issuer <- c.downField("issuer").as[PublicKeyCurve25519Proposition]
+      issuer <- c.downField("issuer").as[Address]
       assetCode <- c.downField("assetCode").as[String]
+      minting <- c.downField("minting").as[Boolean]
+      attType <- c.downField("propositionType").as[String]
     } yield {
-      AssetTransfer(from, to, signatures, issuer, assetCode, fee, timestamp, data)
+      val signatures = attestation.jsonDecoder[P, PR](attType, c.downField("signatures"))
+      AssetTransfer(from, to, signatures, issuer, assetCode, fee, timestamp, data, minting)
     }
-
-  /**
-   *
-   * @param from
-   * @param to
-   * @param issuer
-   * @param assetCode
-   * @param fee
-   * @param timestamp
-   * @param data
-   * @return
-   */
-  def apply (from     : IndexedSeq[(PrivateKeyCurve25519, Nonce)],
-             to       : IndexedSeq[(PublicKeyCurve25519Proposition, Value)],
-             issuer   : PublicKeyCurve25519Proposition,
-             assetCode: String,
-             fee      : Long,
-             timestamp: Long,
-             data     : String
-            ): AssetTransfer = {
-
-    val params = parametersForApply(from, to, fee, timestamp, "AssetTransfer", issuer, assetCode, data).get
-    transaction.AssetTransfer(params._1, to, params._2, issuer, assetCode, fee, timestamp, data)
-  }
-
-  /**
-   *
-   * @param stateReader
-   * @param toReceive
-   * @param sender
-   * @param issuer
-   * @param assetCode
-   * @param fee
-   * @param data
-   * @param assetId
-   * @return
-   */
-  def createRaw (stateReader: SR,
-                 toReceive  : IndexedSeq[(PublicKeyCurve25519Proposition, Long)],
-                 sender     : IndexedSeq[PublicKeyCurve25519Proposition],
-                 issuer     : PublicKeyCurve25519Proposition,
-                 assetCode  : String,
-                 fee        : Long,
-                 data       : String
-                 ): Try[AssetTransfer] = Try {
-    val params = createRawTransferTx(stateReader, toReceive, sender, fee, "AssetTransfer", (issuer, assetCode))
-    val timestamp = Instant.now.toEpochMilli
-    AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), issuer, assetCode, fee, timestamp, data)
-  }
-
-  /**
-   *
-   * @param tx
-   * @return
-   */
-  def validatePrototype ( tx: AssetTransfer ): Try[Unit] = syntacticValidateTransfer(tx, withSigs = false)
-
-  /**
-   *
-   * @param tx
-   * @return
-   */
-  def syntacticValidate ( tx: AssetTransfer ): Try[Unit] = syntacticValidateTransfer(tx)
-
-  /**
-   *
-   * @param tx
-   * @param state
-   * @return
-   */
-  def semanticValidate ( tx: AssetTransfer, state: SR ): Try[Unit] = {
-
-    // check that the transaction is correctly formed before checking state
-    syntacticValidate(tx) match {
-      case Failure(e) => throw e
-      case _          => // continue processing
-    }
-
-    // compute transaction values used for validation
-    val txOutput = tx.newBoxes.map(b => b.value).sum
-    val unlockers = TokenBox.generateUnlockers(tx.from, tx.signatures)
-
-    // iterate through the unlockers and sum up the value of the box for each valid unlocker
-    unlockers.foldLeft[Try[Long]](Success(0L))(( trySum, unlocker ) => {
-      trySum.flatMap { partialSum =>
-        state.getBox(unlocker.closedBoxId) match {
-          case Some(box: AssetBox) if unlocker.boxKey.isValid(box.proposition, tx.messageToSign) => Success(partialSum + box.value)
-          case Some(_) => Failure(new Exception("Invalid unlocker"))
-          case None    => Failure(new Exception(s"Box for unlocker $unlocker cannot be found in state"))
-          case _       => Failure(new Exception("Invalid Box type for this transaction"))
-        }
-      }
-    }) match {
-      case Success(sum: Long) if txOutput == sum - tx.fee => Success(Unit)
-      case Success(sum: Long) => Failure(new Exception(s"Tx output value not equal to input value. $txOutput != ${sum - tx.fee}"))
-      case Failure(e)         => throw e
-    }
-  }
 }

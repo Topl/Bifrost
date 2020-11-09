@@ -1,15 +1,17 @@
 package co.topl.modifier.block
 
+import co.topl.attestation.EvidenceProducer.syntax._
 import co.topl.attestation.proof.SignatureCurve25519
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block._
 import co.topl.modifier.transaction.Transaction
-import co.topl.modifier.{ ModifierId, NodeViewModifier }
+import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.utils.serialization.BifrostSerializer
 import io.circe.syntax._
-import io.circe.{ Decoder, Encoder, HCursor, Json }
+import io.circe.{Decoder, Encoder, HCursor, Json}
 import scorex.crypto.hash.Blake2b256
 import supertagged.@@
 // fixme: JAA 0 2020.07.19 - why is protobuf still used here?
@@ -32,13 +34,14 @@ import scala.collection.BitSet
  *
  * - additional data: block structure version no, timestamp etc
  */
-case class Block ( parentId    : BlockId,
-                   timestamp   : Timestamp,
-                   forgerBox   : ArbitBox,
-                   signature   : SignatureCurve25519,
-                   transactions: Seq[Transaction],
-                   version     : Version
-                 ) extends TransactionsCarryingPersistentNodeViewModifier[Transaction] {
+case class Block (parentId    : BlockId,
+                  timestamp   : Timestamp,
+                  forgerBox   : ArbitBox,
+                  publicKey   : PublicKeyCurve25519Proposition,
+                  signature   : SignatureCurve25519,
+                  transactions: Seq[Transaction[_, _, _, _]],
+                  version     : Version
+                 ) extends TransactionsCarryingPersistentNodeViewModifier[Transaction[_, _, _, _]] {
 
   type M = Block
 
@@ -74,8 +77,9 @@ object Block {
       "parentId" -> b.id.toString.asJson,
       "timestamp" -> b.timestamp.asJson,
       "generatorBox" -> b.forgerBox.asJson,
+      "publicKey" -> b.publicKey.asJson,
       "signature" -> b.signature.asJson,
-      "txs" -> b.transactions.map(_.json).asJson,
+      "txs" -> b.transactions.asJson,
       "version" -> b.version.asJson,
       "blockSize" -> b.serializer.toBytes(b).length.asJson
       ).asJson
@@ -86,11 +90,12 @@ object Block {
       parentId <- c.downField("parentId").as[ModifierId]
       timestamp <- c.downField("timestamp").as[Timestamp]
       generatorBox <- c.downField("generatorBox").as[ArbitBox]
+      publicKey <- c.downField("publicKey").as[PublicKeyCurve25519Proposition]
       signature <- c.downField("signature").as[SignatureCurve25519]
-      txsSeq <- c.downField("txs").as[Seq[Transaction]]
+      txsSeq <- c.downField("txs").as[Seq[Transaction[_, _, _, _]]]
       version <- c.downField("version").as[Byte]
     } yield {
-      Block(parentId, timestamp, generatorBox, signature, txsSeq, version)
+      Block(parentId, timestamp, generatorBox, publicKey, signature, txsSeq, version)
     }
 
   /**
@@ -105,17 +110,17 @@ object Block {
    */
   def create ( parentId  : BlockId,
                timestamp : Timestamp,
-               txs       : Seq[Transaction],
+               txs       : Seq[Transaction[_, _, _, _]],
                box       : ArbitBox,
                privateKey: PrivateKeyCurve25519,
                version   : Version
              ): Block = {
 
     // the owner of the generator box must be the key used to sign the block
-    assert(box.proposition == privateKey.publicImage)
+    assert(box.evidence == privateKey.publicImage.generateEvidence)
 
     // generate block message (block with empty signature) to be signed
-    val block = Block(parentId, timestamp, box, SignatureCurve25519.empty(), txs, version)
+    val block = Block(parentId, timestamp, box, privateKey.publicImage, SignatureCurve25519.empty(), txs, version)
 
     // generate signature from the block message and private key
     val signature = privateKey.sign(block.messageToSign)
@@ -129,7 +134,7 @@ object Block {
    * @param txs
    * @return
    */
-  def createBloom ( txs: Seq[Transaction] ): Array[Byte] = {
+  def createBloom ( txs: Seq[Transaction[_, _, _, _]] ): Array[Byte] = {
     val bloomBitSet = txs.foldLeft(BitSet.empty)(
       ( total, b ) =>
         b.bloomTopics match {
