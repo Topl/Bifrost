@@ -1,14 +1,14 @@
 package co.topl.nodeView.state.box.serialization
 
-import co.topl.attestation.proposition.{PublicKeyCurve25519Proposition, PublicKeyCurve25519PropositionSerializer}
+import co.topl.attestation.Evidence
 import co.topl.nodeView.state.box.TokenBox
-import co.topl.utils.serialization.{Reader, Writer}
+import co.topl.utils.serialization.{ Reader, Writer }
 
 object TokenBoxSerializer {
 
   def serialize(obj: TokenBox, w: Writer): Unit = {
     /* proposition: PublicKey25519Proposition */
-    PublicKeyCurve25519PropositionSerializer.serialize(obj.proposition, w)
+    Evidence.serialize(obj.evidence, w)
 
     /* nonce: Long */
     w.putLong(obj.nonce)
@@ -17,7 +17,7 @@ object TokenBoxSerializer {
     w.putULong(obj.value)
   }
 
-  def parse(r: Reader): (PublicKeyCurve25519Proposition, Long, Long) = {
-    (PublicKeyCurve25519PropositionSerializer.parse(r), r.getLong(), r.getULong())
+  def parse(r: Reader): (Evidence, Long, Long) = {
+    (Evidence.parse(r), r.getLong(), r.getULong())
   }
 }

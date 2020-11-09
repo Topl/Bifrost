@@ -10,7 +10,7 @@ case class ExecutionBox(override val evidence   : Evidence,
                         override val value      : ProgramId,
                         stateBoxIds             : Seq[ProgramId],
                         codeBoxIds              : Seq[ProgramId]
-                        ) extends ProgramBox(evidence, value, nonce, ExecutionBox.boxTypePrefix)
+                        ) extends ProgramBox(evidence, nonce, value, ExecutionBox.boxTypePrefix)
 
 object ExecutionBox {
   val boxTypePrefix: BoxType = 11: Byte
@@ -28,7 +28,7 @@ object ExecutionBox {
       stateBoxIds <- c.downField("stateBoxIds").as[Seq[ProgramId]]
       codeBoxIds <- c.downField("codeBoxIds").as[Seq[ProgramId]]
     } yield {
-      val (proposition, nonce, programId) = b
-      ExecutionBox(proposition, nonce, programId, stateBoxIds, codeBoxIds)
+      val (evidence, nonce, programId) = b
+      ExecutionBox(evidence, nonce, programId, stateBoxIds, codeBoxIds)
     }
 }

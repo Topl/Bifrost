@@ -27,12 +27,12 @@ object AssetBox {
 
   implicit val jsonDecoder: Decoder[AssetBox] = ( c: HCursor ) =>
     for {
-      b <- Box.jsonDecode(c)
+      b <- Box.jsonDecode[TokenBox.Value](c)
       assetCode <- c.downField("assetCode").as[String]
       issuer <- c.downField("issuer").as[Address]
       data <- c.downField("data").as[String]
     } yield {
-      val (proposition, nonce, value) = b
-      AssetBox(proposition, nonce, value, assetCode, issuer, data)
+      val (evidence, nonce, value) = b
+      AssetBox(evidence, nonce, value, assetCode, issuer, data)
     }
 }

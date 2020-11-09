@@ -3,7 +3,7 @@ package co.topl.nodeView.state.box
 import co.topl.attestation.Evidence
 import co.topl.nodeView.state.box.Box.BoxType
 import io.circe.syntax._
-import io.circe.{Decoder, Encoder, HCursor, Json}
+import io.circe.{ Decoder, Encoder, HCursor, Json }
 
 case class StateBox(override val evidence   : Evidence,
                     override val nonce      : Box.Nonce,
@@ -22,10 +22,10 @@ object StateBox {
 
   implicit val jsonDecoder: Decoder[StateBox] = ( c: HCursor ) =>
     for {
-      b <- Box.jsonDecode(c)
+      b <- Box.jsonDecode[ProgramId](c)
       state <- c.downField("state").as[Json]
     } yield {
-      val (proposition, nonce, programId) = b
-      StateBox(proposition, nonce, programId, state)
+      val (evidence, nonce, programId) = b
+      StateBox(evidence, nonce, programId, state)
     }
 }

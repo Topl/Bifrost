@@ -10,7 +10,7 @@ object PolyBoxSerializer extends BifrostSerializer[PolyBox] {
   }
 
   override def parse(r: Reader): PolyBox = {
-    val (proposition, nonce, value) = TokenBoxSerializer.parse(r)
-    PolyBox(proposition, nonce, value)
+    val (evidence, nonce, value) = TokenBoxSerializer.parse(r)
+    PolyBox(evidence, nonce, value)
   }
 }

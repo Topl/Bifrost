@@ -159,7 +159,7 @@ object ProgramCreation {
   def syntacticValidate(tx: ProgramCreation, withSigs: Boolean = true): Try[Unit] = Try {
     require(ExecutionBuilder.validate(tx.executionBuilder).isSuccess)
     require(tx.signatures(tx.owner).isValid(tx.owner, tx.messageToSign), "Not all signatures were valid")
-  }.flatMap(_ => ProgramTransaction.commonValidation(tx))
+  }.flatMap(_ => ProgramTransaction.syntacticValidate(tx))
 
   /**
    *

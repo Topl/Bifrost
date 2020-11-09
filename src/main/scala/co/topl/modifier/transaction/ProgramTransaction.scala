@@ -1,9 +1,8 @@
 package co.topl.modifier.transaction
 
-import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import co.topl.attestation.proof.SignatureCurve25519
-import co.topl.modifier.transaction.Transaction.Nonce
-import co.topl.nodeView.state.box.{ BoxId, PolyBox, PublicKeyNoncedBox }
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.nodeView.state.box.{ BoxId, PolyBox }
 import com.google.common.primitives.Ints
 import scorex.crypto.hash.Blake2b256
 
@@ -60,7 +59,7 @@ object ProgramTransaction {
   type F = Map[PublicKeyCurve25519Proposition, Long]
   type RP = Map[String, String]
 
-  def commonValidation(tx: ProgramTransaction): Try[Unit] = Try {
+  def syntacticValidate ( tx: ProgramTransaction): Try[Unit] = Try {
 
     /* Check for no-overflow and non-negativity of fees*/
     tx.fees.values.foreach(v => require(v >= 0, "There was a negative fee"))

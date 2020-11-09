@@ -179,7 +179,7 @@ object ProgramMethodExecution {
   def syntacticValidate ( tx: ProgramMethodExecution, withSigs: Boolean = true ): Try[Unit] = Try {
     require(tx.signatures(tx.owner).isValid(tx.owner, tx.messageToSign)
             , "Either an invalid signature was submitted or the party listed was not part of the program.")
-  }.flatMap(_ => ProgramTransaction.commonValidation(tx))
+  }.flatMap(_ => ProgramTransaction.syntacticValidate(tx))
 
   /**
    *

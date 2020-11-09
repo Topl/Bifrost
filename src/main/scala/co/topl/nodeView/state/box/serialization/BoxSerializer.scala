@@ -1,6 +1,5 @@
 package co.topl.nodeView.state.box.serialization
 
-import co.topl.attestation.proposition.Proposition
 import co.topl.nodeView.state.box._
 import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
 

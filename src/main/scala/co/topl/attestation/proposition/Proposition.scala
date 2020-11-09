@@ -2,15 +2,12 @@ package co.topl.attestation.proposition
 
 import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.proof.{Proof, SignatureCurve25519, ThresholdSignatureCurve25519}
 import co.topl.attestation.secrets.Secret
-import co.topl.modifier.transaction.Transaction
-import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
+import co.topl.utils.serialization.{ BifrostSerializer, BytesSerializable }
 import com.google.common.primitives.Ints
-import io.circe.{Decoder, DecodingFailure, Encoder, HCursor, Json, KeyDecoder, KeyEncoder}
 import scorex.util.encode.Base58
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 // Propositions are challenges that must be satisfied by the prover.
 // In most cases, propositions are used by transactions issuers (spenders) to prove the right

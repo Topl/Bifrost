@@ -16,7 +16,7 @@ object ArbitBox {
   implicit val jsonEncoder: Encoder[ArbitBox] =  (box: ArbitBox) => Box.jsonEncode(box).asJson
 
   implicit val jsonDecoder: Decoder[ArbitBox] = ( c: HCursor ) =>
-    Box.jsonDecode(c).map {
-      case (proposition, nonce, value) => ArbitBox(proposition, nonce, value)
+    Box.jsonDecode[TokenBox.Value](c).map {
+      case (evidence, nonce, value) => ArbitBox(evidence, nonce, value)
     }
 }

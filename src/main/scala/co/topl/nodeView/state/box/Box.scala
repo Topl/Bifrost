@@ -4,15 +4,14 @@ import co.topl.attestation.Evidence
 import co.topl.nodeView.state.box.Box.{ BoxType, Nonce }
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.utils.serialization.BifrostSerializer
-import com.google.common.primitives.{ Ints, Longs }
+import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{ Decoder, DecodingFailure, Encoder, HCursor, Json }
-import scorex.crypto.hash.Blake2b256
 
 /**
  * Created by Matthew on 4/11/2017.
  */
-abstract class Box[T] ( val evidence     : Evidence,
+sealed abstract class Box[T] ( val evidence     : Evidence,
                         val value        : T,
                         val nonce        : Nonce,
                         val boxTypePrefix: BoxType
@@ -25,6 +24,33 @@ abstract class Box[T] ( val evidence     : Evidence,
   def serializer: BifrostSerializer[Box[_]] = BoxSerializer
 
   override def hashCode(): Int = Ints.fromByteArray(bytes)
+}
+
+abstract class TokenBox ( override val evidence     : Evidence,
+                          override val nonce        : Nonce,
+                          override val value        : TokenBox.Value,
+                          override val boxTypePrefix: BoxType
+                        ) extends Box[TokenBox.Value](evidence, nonce, value, boxTypePrefix)
+
+abstract class ProgramBox (override val evidence     : Evidence,
+                           override val nonce        : Nonce,
+                           override val value        : ProgramId,
+                           override val boxTypePrefix: BoxType
+                          ) extends Box[ProgramId](evidence, value, nonce, boxTypePrefix)
+
+
+object TokenBox {
+  type Value = Long
+
+  implicit def jsonEncoder: Encoder[TokenBox] = Box.jsonEncoder match {
+    case enc: Encoder[TokenBox] => enc
+  }
+}
+
+object ProgramBox {
+  implicit def jsonEncoder: Encoder[ProgramBox] = Box.jsonEncoder match {
+    case enc: Encoder[ProgramBox] => enc
+  }
 }
 
 

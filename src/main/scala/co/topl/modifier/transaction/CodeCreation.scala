@@ -1,8 +1,9 @@
 package co.topl.modifier.transaction
 
+import co.topl.attestation.Address
 import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import co.topl.attestation.proof.SignatureCurve25519
-import co.topl.nodeView.state.box.{ Box, BoxId, CodeBox }
+import co.topl.nodeView.state.box.{ Box, BoxId, CodeBox, ProgramBox }
 import co.topl.nodeView.state.StateReader
 import co.topl.program.ProgramPreprocessor
 import com.google.common.primitives.{ Bytes, Longs }
@@ -12,7 +13,7 @@ import scorex.crypto.hash.Blake2b256
 
 import scala.util.{ Failure, Success, Try }
 
-case class CodeCreation (to       : PublicKeyCurve25519Proposition,
+case class CodeCreation (to       : Address,
                          signature: SignatureCurve25519,
                          code     : String,
                          fee      : Long,
@@ -64,7 +65,7 @@ case class CodeCreation (to       : PublicKeyCurve25519Proposition,
 
 object CodeCreation {
 
-  type SR = StateReader[Box]
+  type SR = StateReader[ProgramBox]
 
   implicit val jsonEncoder: Encoder[CodeCreation] = ( tx: CodeCreation ) =>
     Map(

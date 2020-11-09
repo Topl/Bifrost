@@ -16,7 +16,7 @@ object PolyBox {
   implicit val jsonEncoder: Encoder[PolyBox] =  (box: PolyBox) => Box.jsonEncode(box).asJson
 
   implicit val jsonDecoder: Decoder[PolyBox] = ( c: HCursor ) =>
-    Box.jsonDecode(c).map {
-      case (proposition, nonce, value) => PolyBox(proposition, nonce, value)
+    Box.jsonDecode[TokenBox.Value](c).map {
+      case (evidence, nonce, value) => PolyBox(evidence, nonce, value)
     }
 }
