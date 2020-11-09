@@ -3,13 +3,14 @@ package co.topl.modifier.transaction
 import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
+import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.serialization.TransactionSerializer
-import co.topl.modifier.{ModifierId, NodeViewModifier}
-import co.topl.nodeView.state.box.{Box, BoxId, GenericBox}
+import co.topl.modifier.{ ModifierId, NodeViewModifier }
+import co.topl.nodeView.state.box.{ Box, BoxId, GenericBox }
 import co.topl.utils.serialization.BifrostSerializer
 import com.google.common.primitives.Longs
-import io.circe.{Decoder, Encoder, HCursor}
-import scorex.crypto.hash.{Blake2b256, Digest32}
+import io.circe.{ Decoder, Encoder, HCursor }
+import scorex.crypto.hash.{ Blake2b256, Digest32 }
 
 abstract class Transaction[T, P <: Proposition, PR <: Proof[P], BX <: GenericBox[T]] extends NodeViewModifier {
 
@@ -22,10 +23,8 @@ abstract class Transaction[T, P <: Proposition, PR <: Proof[P], BX <: GenericBox
 
   lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = None
 
-  lazy val digest: Digest32 = Blake2b256(messageToSign)
-
   lazy val messageToSign: Array[Byte] =
-    transactionName.getBytes() ++
+    txTypePrefix +:
       newBoxes.foldLeft(Array[Byte]())((acc, x) => acc ++ x.bytes) ++
       boxIdsToOpen.foldLeft(Array[Byte]())((acc, x) => acc ++ x.hashBytes) ++
       Longs.toByteArray(timestamp) ++
@@ -33,7 +32,7 @@ abstract class Transaction[T, P <: Proposition, PR <: Proof[P], BX <: GenericBox
 
   val modifierTypeId: ModifierTypeId = Transaction.modifierTypeId
 
-  val transactionName: String
+  val txTypePrefix: TxType
 
   val boxIdsToOpen: IndexedSeq[BoxId]
 
@@ -45,7 +44,7 @@ abstract class Transaction[T, P <: Proposition, PR <: Proof[P], BX <: GenericBox
 
   val newBoxes: Traversable[BX]
 
-  override def toString: String = this.transactionName + Transaction.jsonEncoder(this).noSpaces
+  override def toString: String = Transaction.prefixToTypeString(txTypePrefix) + Transaction.jsonEncoder(this).noSpaces
 
 }
 
@@ -54,15 +53,37 @@ object Transaction {
   type TransactionId = ModifierId
   val modifierTypeId: ModifierTypeId = ModifierTypeId @@ (2: Byte)
 
+  type TxType = Byte
+
   def nonceFromDigest (digest: Digest32): Box.Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
+
+  def prefixToTypeString(prefix: TxType): String = prefix match {
+    case ArbitTransfer.txTypePrefix     => "ArbitTransfer"
+    case PolyTransfer.tx      => "ProgramCreation"
+    case AssetBox.boxTypePrefix     => "ProgramMethodExecution"
+    case ExecutionBox.boxTypePrefix => "ProgramTransfer"
+    case StateBox.boxTypePrefix     => "PolyTransfer"
+    case CodeBox.boxTypePrefix      => "ArbitTransfer"
+
+   "CodeCreation"
+   "ProgramCreation"
+   "ProgramMethodExecution
+   "ProgramTransfer"
+   "PolyTransfer"
+
+   "AssetTransfer"
+   "AssetCreation"
+   "Coinbase"
+
+  }
 
   implicit def jsonEncoder[T, P <: Proposition, PR <: Proof[P]]: Encoder[Transaction[_, _, _, _]] = {
     case tx: CodeCreation           => CodeCreation.jsonEncoder(tx)
     case tx: ProgramCreation        => ProgramCreation.jsonEncoder(tx)
     case tx: ProgramMethodExecution => ProgramMethodExecution.jsonEncoder(tx)
     case tx: ProgramTransfer        => ProgramTransfer.jsonEncoder(tx)
-    case tx: PolyTransfer           => PolyTransfer.jsonEncoder(tx)
-    case tx: ArbitTransfer[P]   => ArbitTransfer.jsonEncoder[P](tx)
+    case tx: PolyTransfer[P, PR]    => PolyTransfer.jsonEncoder[P, PR](tx)
+    case tx: ArbitTransfer[P, PR]   => ArbitTransfer.jsonEncoder[P, PR](tx)
     case tx: AssetTransfer          => AssetTransfer.jsonEncoder(tx)
     case tx: AssetCreation          => AssetCreation.jsonEncoder(tx)
     case tx: Coinbase               => Coinbase.jsonEncoder(tx)

@@ -10,21 +10,21 @@ import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 object ArbitTransferSerializer extends BifrostSerializer[ArbitTransfer[_ <: Proposition, _ <: Proof[_]]] {
 
   override def serialize(obj: ArbitTransfer[_ <: Proposition, _ <: Proof[_]], w: Writer): Unit = {
-    /* from: IndexedSeq[(PublicKey25519Proposition, Nonce)] */
+    /* from: IndexedSeq[(Address, Nonce)] */
     w.putUInt(obj.from.length)
     obj.from.foreach { case (addr, nonce) =>
       Address.serialize(addr, w)
       w.putLong(nonce)
     }
 
-    /* to: IndexedSeq[(PublicKey25519Proposition, Long)] */
+    /* to: IndexedSeq[(Address, Long)] */
     w.putUInt(obj.to.length)
     obj.to.foreach { case (addr, value) =>
       Address.serialize(addr, w)
       w.putLong(value)
     }
 
-    /* signatures: Map[PublicKey25519Proposition, Signature25519] */
+    /* signatures: Map[Proposition, Proof] */
     w.putUInt(obj.attestation.size)
     obj.attestation.foreach { case (prop, sig) =>
       PropositionSerializer.serialize(prop, w)
@@ -39,6 +39,9 @@ object ArbitTransferSerializer extends BifrostSerializer[ArbitTransfer[_ <: Prop
 
     /* data: String */
     w.putIntString(obj.data)
+
+    /* minting: Boolean */
+    w.putBoolean(obj.minting)
   }
 
   override def parse(r: Reader): ArbitTransfer[_ <: Proposition, _ <: Proof[_]] = {
@@ -66,7 +69,8 @@ object ArbitTransferSerializer extends BifrostSerializer[ArbitTransfer[_ <: Prop
     val fee: Long = r.getULong()
     val timestamp: Long = r.getULong()
     val data: String = r.getIntString()
+    val minting: Boolean = r.getBoolean()
 
-    new ArbitTransfer(signatures, from, to, fee, timestamp, data)
+    new ArbitTransfer(from, to, signatures, fee, timestamp, data, minting)
   }
 }

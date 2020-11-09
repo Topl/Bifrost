@@ -4,16 +4,17 @@ import java.time.Instant
 
 import co.topl.attestation
 import co.topl.attestation.Address
-import co.topl.attestation.proof.{Proof, SignatureCurve25519}
-import co.topl.attestation.proposition.{Proposition, PublicKeyCurve25519Proposition}
+import co.topl.attestation.proof.{ Proof, SignatureCurve25519 }
+import co.topl.attestation.proposition.{ Proposition, PublicKeyCurve25519Proposition }
 import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.modifier.transaction
+import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.state.box.{Box, PolyBox, TokenBox}
+import co.topl.nodeView.state.box.{ Box, PolyBox, TokenBox }
 import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, HCursor}
+import io.circe.{ Decoder, Encoder, HCursor }
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 case class PolyTransfer[
   P <: Proposition,
@@ -23,10 +24,11 @@ case class PolyTransfer[
    override val attestation: Map[P, PR],
    override val fee        : Long,
    override val timestamp  : Long,
-   override val data       : String
-  ) extends TransferTransaction[P, PR](from, to, attestation, fee, timestamp, data) {
+   override val data       : String,
+   override val minting    : Boolean = false
+  ) extends TransferTransaction[P, PR](from, to, attestation, fee, timestamp, data, minting) {
 
-  override val transactionName = "PolyTransfer"
+  override val txTypePrefix: TxType = PolyTransfer.txTypePrefix
 
   override lazy val newBoxes: Traversable[TokenBox] = {
     TransferTransaction.boxParams(this).map((PolyBox.apply _).tupled(_))
@@ -34,6 +36,7 @@ case class PolyTransfer[
 }
 
 object PolyTransfer {
+  val txTypePrefix: TxType = 2: Byte
 
   implicit def jsonEncoder[P <: Proposition, PR <: Proof[P]]: Encoder[PolyTransfer[P, PR]] = {
     tx: PolyTransfer[P, PR] =>
@@ -48,6 +51,7 @@ object PolyTransfer {
         "signatures" -> attestation.jsonEncoder(tx.attestation),
         "fee" -> tx.fee.asJson,
         "timestamp" -> tx.timestamp.asJson,
+        "minting" -> tx.minting.asJson,
         "data" -> tx.data.asJson
       ).asJson
   }

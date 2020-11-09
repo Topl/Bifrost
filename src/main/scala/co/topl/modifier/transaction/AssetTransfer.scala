@@ -126,10 +126,9 @@ object AssetTransfer extends TransferCompanion {
                  issuer     : PublicKeyCurve25519Proposition,
                  assetCode  : String,
                  fee        : Long,
-                 data       : String,
-                 assetId    : Option[String] = None
+                 data       : String
                  ): Try[AssetTransfer] = Try {
-    val params = createRawTransferTx(stateReader, toReceive, sender, fee, "AssetTransfer", issuer, assetCode, assetId)
+    val params = createRawTransferTx(stateReader, toReceive, sender, fee, "AssetTransfer", (issuer, assetCode))
     val timestamp = Instant.now.toEpochMilli
     AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), issuer, assetCode, fee, timestamp, data)
   }

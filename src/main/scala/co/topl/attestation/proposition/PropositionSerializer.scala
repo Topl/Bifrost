@@ -1,9 +1,9 @@
 package co.topl.attestation.proposition
 
-import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
+import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
 
 object PropositionSerializer extends BifrostSerializer[Proposition] {
-  def serialize(obj: Proposition, w: Writer): Unit = {
+  override def serialize(obj: Proposition, w: Writer): Unit = {
     obj match {
       case obj: PublicKeyCurve25519Proposition =>
         w.put(PublicKeyCurve25519Proposition.typePrefix)
@@ -15,7 +15,7 @@ object PropositionSerializer extends BifrostSerializer[Proposition] {
     }
   }
 
-  def parse(r: Reader): Proposition = {
+  override def parse(r: Reader): Proposition = {
     r.getByte() match {
       case PublicKeyCurve25519Proposition.typePrefix => PublicKeyCurve25519PropositionSerializer.parse(r)
       case ThresholdCurve25519Proposition.typePrefix => ThresholdCurve25519PropositionSerializer.parse(r)

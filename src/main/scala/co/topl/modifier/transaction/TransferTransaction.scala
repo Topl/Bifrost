@@ -3,20 +3,22 @@ package co.topl.modifier.transaction
 import co.topl.attestation.EvidenceProducer.syntax._
 import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
-import co.topl.attestation.{Address, BoxUnlocker, Evidence, EvidenceProducer}
+import co.topl.attestation.{ Address, BoxUnlocker, Evidence, EvidenceProducer }
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box._
 import com.google.common.primitives.Ints
+import scorex.util.encode.Base58
 import scorex.crypto.hash.Blake2b256
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 abstract class TransferTransaction[P <: Proposition, PR <: Proof[P]] ( val from: IndexedSeq[(Address, Box.Nonce)],
                                                                        val to: IndexedSeq[(Address, TokenBox.Value)],
                                                                        val attestation: Map[P, PR],
                                                                        val fee: Long,
                                                                        val timestamp: Long,
-                                                                       val data: String
+                                                                       val data: String,
+                                                                       val minting: Boolean
                                                                      ) extends Transaction[TokenBox.Value, P, PR, TokenBox] {
 
   lazy val boxIdsToOpen: IndexedSeq[BoxId] = from.map { case (addr, nonce) =>
@@ -26,7 +28,7 @@ abstract class TransferTransaction[P <: Proposition, PR <: Proof[P]] ( val from:
   override lazy val messageToSign: Array[Byte] =
     super.messageToSign ++
       to.flatMap(_._1.bytes).toArray ++
-      data.getBytes
+      data.getBytes :+ (if (minting) 1: Byte else 0: Byte)
 }
 
 
@@ -66,7 +68,7 @@ object TransferTransaction {
                             changeAddress: Address,
                             fee          : TokenBox.Value,
                             txType       : String,
-                            assetArgs    : Option[(Address, String, String)] = None // (issuer, assetCode, assetId)
+                            assetArgs    : Option[(Address, String)] = None // (issuer, assetCode, assetId)
                           ): Try[(IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, TokenBox.Value)])] = Try {
 
     // Lookup boxes for the given senders
@@ -138,8 +140,11 @@ object TransferTransaction {
       withSigs: Boolean = true): Try[Unit] = Try {
 
     require(tx.to.forall(_._2 > 0L), "Amount sent must be greater than 0")
-    require(tx.fee > 0L, "Fee must be a non-zero positive value")
+    require(tx.from.nonEmpty, "Transaction must specify at least one input box")
+    require(tx.fee >= 0L, "Fee must be a positive value")
     require(tx.timestamp >= 0L, "Invalid timestamp")
+    require(Base58.decode(tx.data).fold(_ => false, _.length <= 128), "Data field must be less than 128 bytes") // todo: JAA - check that this works with empty data
+
 
     // prototype transactions do not contain signatures at creation
     if (withSigs) {
@@ -158,11 +163,14 @@ object TransferTransaction {
     require(tx.newBoxes.forall(b ⇒ !tx.boxIdsToOpen.contains(b.id)), "The set of input box ids contains one or more of the output ids")
   }
 
+
+
   /**
+   * Checks the stateful validity of a transaction
    *
-   * @param tx
-   * @param state
-   * @return
+   * @param tx the transaction to check
+   * @param state the state to check the validity against
+   * @return a success or failure denoting the result of this check
    */
   def semanticValidate[
     P <: Proposition: EvidenceProducer,
@@ -193,13 +201,18 @@ object TransferTransaction {
         }
       }
     }) match {
+      // a normal transfer will fall in this case
       case Success(sum: Long) if txOutput == sum - tx.fee =>
         Success(Unit)
 
-      case Success(sum: Long) =>
-        Failure(new Exception(s"Tx output value not equal to input value. $txOutput != ${sum - tx.fee}"))
+      // a minting transaction (of either Arbit, Polys, or Assets) will fall in this case
+      case Success(_: Long) if tx.minting =>
+        Success(Unit)
 
-      case Failure(e) => throw e
+      case Success(sum: Long) if !tx.minting && txOutput != sum - tx.fee =>
+        Failure(new Exception(s"Tx output value does not equal input value for non-minting transaction. $txOutput != ${sum - tx.fee}"))
+
+      case Failure(e) => Failure(e)
     }
   }
 }

@@ -1,6 +1,7 @@
 package co.topl.nodeView.state.box
 
 import co.topl.attestation.Evidence
+import co.topl.nodeView.state.box.Box.{ BoxType, Nonce }
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.utils.serialization.BifrostSerializer
 import com.google.common.primitives.{ Ints, Longs }
@@ -13,8 +14,8 @@ import scorex.crypto.hash.Blake2b256
  */
 abstract class Box[T] ( val evidence     : Evidence,
                         val value        : T,
-                        val nonce        : Box.Nonce,
-                        val boxTypePrefix: Box.BoxType
+                        val nonce        : Nonce,
+                        val boxTypePrefix: BoxType
                       ) extends GenericBox[T] {
 
   type M = Box[_]
