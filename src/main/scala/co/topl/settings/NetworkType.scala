@@ -1,8 +1,6 @@
 package co.topl.settings
 
-sealed abstract class NetworkType(val verboseName    : String,
-                                  val startWithForging: Boolean = false
-                                  )
+sealed abstract class NetworkType(val verboseName: String, val startWithForging: Boolean = false)
 
 object NetworkType {
 
@@ -30,5 +28,4 @@ object NetworkType {
   case class DevNet(opts: RuntimeOpts = RuntimeOpts.empty) extends NetworkType("hel", startWithForging = opts.startWithForging)
   case class LocalNet(opts: RuntimeOpts = RuntimeOpts.empty) extends NetworkType("local", startWithForging = opts.startWithForging)
   case class PrivateNet(opts: RuntimeOpts = RuntimeOpts.empty) extends NetworkType("private", startWithForging = true)
-
 }
