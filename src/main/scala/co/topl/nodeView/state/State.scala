@@ -2,9 +2,10 @@ package co.topl.nodeView.state
 
 import java.io.File
 
-import co.topl.attestation.Address
+import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.proof.Proof
-import co.topl.attestation.proposition.{Proposition, PublicKeyCurve25519Proposition}
+import co.topl.attestation.proposition.Proposition
+import co.topl.attestation.{ Address, EvidenceProducer }
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction._
@@ -13,12 +14,11 @@ import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import scorex.crypto.signatures.PublicKey
+import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 import scorex.util.encode.Base58
 
 import scala.reflect.ClassTag
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /**
  * BifrostState is a data structure which deterministically defines whether an arbitrary transaction is valid and so
@@ -33,11 +33,11 @@ case class State ( override val version     : VersionTag,
                    protected val storage    : LSMStore,
                    private[state] val tbrOpt: Option[TokenBoxRegistry] = None,
                    private[state] val pbrOpt: Option[ProgramBoxRegistry] = None,
-                   nodeKeys                 : Option[Set[PublicKeyCurve25519Proposition]] = None
-                 ) extends MinimalState[Box[_], Block, State]
-                           with StoreInterface
-                           with TransactionValidation[Transaction[_, _ <: Proposition, _ <: Proof[_]]]
-                           with Logging {
+                   nodeKeys                 : Option[Set[Address]] = None
+                 ) (implicit networkPrefix: NetworkPrefix) extends MinimalState[Box[_], Block, State]
+                                                                   with StoreInterface
+                                                                   with TransactionValidation[Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: GenericBox[_]]]
+                                                                   with Logging {
 
   override type NVCT = State
 
@@ -180,7 +180,7 @@ case class State ( override val version     : VersionTag,
 
       //Filtering boxes pertaining to public keys specified in settings file
       val boxesToAdd = (nodeKeys match {
-        case Some(keys) => stateChanges.toAppend.filter(b => keys.contains(PublicKeyCurve25519Proposition(PublicKey @@ b.proposition.bytes)))
+        case Some(keys) => stateChanges.toAppend.filter(b => keys.contains(Address(b.evidence)))
         case None       => stateChanges.toAppend
       }).map(b => ByteArrayWrapper(b.id.hashBytes) -> ByteArrayWrapper(b.bytes))
 
@@ -188,7 +188,7 @@ case class State ( override val version     : VersionTag,
         case Some(keys) => stateChanges
           .boxIdsToRemove
           .flatMap(getBox)
-          .filter(b => keys.contains(PublicKeyCurve25519Proposition(PublicKey @@ b.proposition.bytes)))
+          .filter(b => keys.contains(Address(b.evidence)))
           .map(b => b.id)
 
         case None => stateChanges.boxIdsToRemove
@@ -251,17 +251,16 @@ case class State ( override val version     : VersionTag,
     }
   }
 
-  override def validate ( transaction: Transaction ): Try[Unit] = {
+  override def validate[P <: Proposition: EvidenceProducer, PR <: Proof[P]]
+    (transaction: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: GenericBox[_]] ): Try[Unit] = {
     transaction match {
-      case tx: Coinbase               => Coinbase.semanticValidate(tx, getReader)
-      case tx: ArbitTransfer          => ArbitTransfer.semanticValidate(tx, getReader)
-      case tx: PolyTransfer           => PolyTransfer.semanticValidate(tx, getReader)
-      case tx: AssetTransfer          => AssetTransfer.semanticValidate(tx, getReader)
-      case tx: ProgramTransfer        => ProgramTransfer.semanticValidate(tx, getReader)
-      case tx: AssetCreation          => AssetCreation.semanticValidate(tx, getReader)
-      case tx: CodeCreation           => CodeCreation.semanticValidate(tx, getReader)
-      case tx: ProgramCreation        => ProgramCreation.semanticValidate(tx, getReader)
-      case tx: ProgramMethodExecution => ProgramMethodExecution.semanticValidate(tx, getReader)
+      case tx: ArbitTransfer[P, PR]   => TransferTransaction.semanticValidate(tx, getReader)
+      case tx: PolyTransfer[P, PR]    => TransferTransaction.semanticValidate(tx, getReader)
+      case tx: AssetTransfer[P, PR]   => TransferTransaction.semanticValidate(tx, getReader)
+//      case tx: ProgramTransfer        => ProgramTransfer.semanticValidate(tx, getReader)
+//      case tx: CodeCreation           => CodeCreation.semanticValidate(tx, getReader)
+//      case tx: ProgramCreation        => ProgramCreation.semanticValidate(tx, getReader)
+//      case tx: ProgramMethodExecution => ProgramMethodExecution.semanticValidate(tx, getReader)
       case _                          => throw new Exception("State validity not implemented for " + transaction.getClass.toGenericString)
     }
   }
@@ -272,7 +271,8 @@ case class State ( override val version     : VersionTag,
 
 object State extends Logging {
 
-  def genesisState ( settings: AppSettings, initialBlocks: Seq[Block] ): State = {
+  def genesisState (settings: AppSettings, initialBlocks: Seq[Block])
+                   (implicit networkPrefix: NetworkPrefix): State = {
     initialBlocks
       .foldLeft(readOrGenerate(settings)) {
         (state, mod) => state.applyModifier(mod).get
@@ -282,22 +282,20 @@ object State extends Logging {
   /**
    * Provides a single interface for syntactically validating transactions
    *
-   * @param tx transaction to evaluate
+   * @param transaction the transaction to evaluate
    */
-  def syntacticValidity[TX] ( tx: TX ): Try[Unit] = {
-    tx match {
-      case tx: PolyTransfer           => PolyTransfer.syntacticValidate(tx)
-      case tx: ArbitTransfer          => ArbitTransfer.syntacticValidate(tx)
-      case tx: AssetTransfer          => AssetTransfer.syntacticValidate(tx)
-      case tx: ProgramTransfer        => ProgramTransfer.syntacticValidate(tx)
-      case tx: AssetCreation          => AssetCreation.syntacticValidate(tx)
-      case tx: CodeCreation           => CodeCreation.syntacticValidate(tx)
-      case tx: ProgramCreation        => ProgramCreation.syntacticValidate(tx)
-      case tx: ProgramMethodExecution => ProgramMethodExecution.syntacticValidate(tx)
-      case tx: Coinbase               => Coinbase.syntacticValidate(tx)
-      case _                          =>
+  def syntacticValidity[P <: Proposition: EvidenceProducer, PR <: Proof[P]] (transaction: Transaction[_, P, PR, _]): Try[Unit] = {
+    transaction match {
+      case tx: ArbitTransfer[P, PR]   => TransferTransaction.syntacticValidate(tx)
+      case tx: PolyTransfer[P, PR]    => TransferTransaction.syntacticValidate(tx)
+      case tx: AssetTransfer[P, PR]   => TransferTransaction.syntacticValidate(tx)
+//      case tx: ProgramTransfer        => ProgramTransfer.syntacticValidate(tx)
+//      case tx: CodeCreation           => CodeCreation.syntacticValidate(tx)
+//      case tx: ProgramCreation        => ProgramCreation.syntacticValidate(tx)
+//      case tx: ProgramMethodExecution => ProgramMethodExecution.syntacticValidate(tx)
+      case _ =>
         throw new UnsupportedOperationException(
-          "Semantic validity not implemented for " + tx.getClass.toGenericString
+          "Semantic validity not implemented for " + transaction.getClass.toGenericString
           )
     }
   }
@@ -309,7 +307,8 @@ object State extends Logging {
     new File(s"$dataDir/state")
   }
 
-  def readOrGenerate (settings: AppSettings): State = {
+  def readOrGenerate (settings: AppSettings)
+                     (implicit networkPrefix: NetworkPrefix): State = {
     val sFile = stateFile(settings)
     sFile.mkdirs()
     val storage = new LSMStore(sFile)

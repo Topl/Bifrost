@@ -1,49 +1,34 @@
 package co.topl.nodeView.state
 
-import co.topl.attestation.proposition.KnowledgeProposition
-import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.modifier.block.Block
-import co.topl.nodeView.state.box.{Box, BoxId, PolyBox}
-import com.google.common.primitives.Longs
+import co.topl.nodeView.state.box.{ Box, BoxId }
 
 import scala.util.Try
 
 case class StateChanges( override val boxIdsToRemove: Set[BoxId],
-                         override val toAppend: Set[Box],
-                       ) extends GenericStateChanges[Any, KnowledgeProposition[PrivateKeyCurve25519], Box](boxIdsToRemove, toAppend)
+                         override val toAppend: Set[Box[_]],
+                       ) extends GenericStateChanges[_, Box[_]](boxIdsToRemove, toAppend)
 
 object StateChanges {
   type BX = Box[_]
   type BPMOD = Block
 
-  def apply(mod: BPMOD): Try[StateChanges] =
-    Try {
-
+  def apply(mod: BPMOD): Try[StateChanges] = Try {
       // extract the needed box data from all transactions within a block and
       // aggregate the transaction data into separate lists for updating state
-      val (toRemove: Set[BoxId], toAdd: Set[BX], reward: Long) =
+      val (toRemove: Set[BoxId], toAdd: Set[BX]) =
         mod.transactions.map {
-          tx => (tx.boxIdsToOpen.toSet, tx.newBoxes.toSet, tx.fee)
-        }.foldLeft((Set[BoxId](), Set[BX](), 0L))(
+          tx => (tx.boxIdsToOpen.toSet, tx.newBoxes.toSet)
+        }.foldLeft((Set[BoxId](), Set[BX]()))(
           (aggregate, boxDelta) => {
             (
               aggregate._1 ++ boxDelta._1,
-              aggregate._2 ++ boxDelta._2,
-              aggregate._3 + boxDelta._3
+              aggregate._2 ++ boxDelta._2
             )
           }
         )
 
-      // compute the fees to be transferred to the validator
-      val finalToAdd =
-        if (reward != 0) {
-          val gen = mod.forgerBox.proposition
-          val rewardNonce = Longs.fromByteArray(mod.id.hashBytes.take(Longs.BYTES))
-          toAdd + PolyBox(gen, rewardNonce, reward)
-        }
-        else toAdd
-
       // return the state changes that can be applied
-      new StateChanges(toRemove, finalToAdd)
+      new StateChanges(toRemove, toAdd)
     }
 }

@@ -34,6 +34,11 @@ case class PrivateKeyCurve25519 (private[crypto] val privKeyBytes  : PrivateKey,
 
 object PrivateKeyCurve25519 extends SecretCompanion[PrivateKeyCurve25519] {
 
+  implicit val secretGenerator: SecretGenerator[PrivateKeyCurve25519] =
+    SecretGenerator.instance[PrivateKeyCurve25519] {
+      seed: Array[Byte] => generateKeys(seed)._1
+    }
+
   override def verify(message: Array[Byte], publicImage: PublicKeyCurve25519Proposition, proof: SignatureCurve25519): Boolean =
     Curve25519.verify(Signature @@ proof.bytes, message, PublicKey @@ publicImage.bytes)
 

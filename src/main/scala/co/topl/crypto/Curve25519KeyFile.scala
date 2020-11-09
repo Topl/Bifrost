@@ -8,7 +8,7 @@ import java.time.temporal.ChronoUnit
 import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
-import co.topl.attestation.secrets.PrivateKeyCurve25519
+import co.topl.attestation.secrets.{ PrivateKeyCurve25519, SecretGenerator }
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{ Decoder, Encoder, HCursor }
@@ -17,7 +17,7 @@ import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
 import org.bouncycastle.crypto.params.{ KeyParameter, ParametersWithIV }
-import scorex.crypto.hash.Blake2b256
+import scorex.crypto.hash.{ Blake2b256, Digest32 }
 import scorex.crypto.signatures.{ Curve25519, PrivateKey, PublicKey }
 import scorex.util.Random.randomBytes
 import scorex.util.encode.Base58
@@ -117,13 +117,6 @@ object Curve25519KeyFile {
 
     new Curve25519KeyFile(address, cipherText, mac, salt, ivData)
   }
-
-  /** helper function to create a new random keyfile */
-  def generateKeyPair: (PrivateKeyCurve25519, PublicKeyCurve25519Proposition) =
-    PrivateKeyCurve25519.generateKeys(randomBytes(128))
-
-  def generateKeyPair (seed: Array[Byte]): (PrivateKeyCurve25519, PublicKeyCurve25519Proposition) =
-    PrivateKeyCurve25519.generateKeys(seed)
 
   /**
     *

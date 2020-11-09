@@ -2,16 +2,18 @@ package co.topl.consensus
 
 import akka.actor._
 import akka.util.Timeout
+import co.topl.attestation.AddressEncoder.NetworkPrefix
+import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.consensus.Forger.ChainParams
 import co.topl.consensus.genesis.{ PrivateTestnet, Toplnet }
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ Coinbase, Transaction }
+import co.topl.modifier.transaction.{ ArbitTransfer, Transaction }
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{ GetDataFromCurrentView, LocallyGeneratedModifier }
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
-import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 import co.topl.nodeView.{ CurrentView, NodeViewHolder }
 import co.topl.settings.NetworkType.{ DevNet, LocalNet, MainNet, PrivateNet, TestNet }
 import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
@@ -33,9 +35,12 @@ class Forger (settings: AppSettings, appContext: AppContext )
   // Import the types of messages this actor RECEIVES
   import Forger.ReceivableMessages._
 
+  // Establish the expected network prefix for addresses
+  implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
+
   // holder of private keys that are used to forge
   private val keyFileDir = settings.application.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
-  private val keyRing = KeyRing(keyFileDir)
+  private val keyRing = KeyRing[PrivateKeyCurve25519](keyFileDir)
 
   // a timestamp updated on each forging attempt
   private var forgeTime: Time = appContext.timeProvider.time()
@@ -148,9 +153,9 @@ class Forger (settings: AppSettings, appContext: AppContext )
     */
   private def initializeGenesis: Try[Block] = {
     ( appContext.networkType match {
-      case MainNet(opts)    => Toplnet.getGenesisBlock
-      case TestNet(opts)    => ???
-      case DevNet(opts)     => ???
+      case MainNet(_)       => Toplnet.getGenesisBlock
+      case TestNet(_)       => ???
+      case DevNet(_)        => ???
       case LocalNet(opts)   => PrivateTestnet(generateKeys, settings, opts).getGenesisBlock
       case PrivateNet(opts) => PrivateTestnet(generateKeys, settings, opts).getGenesisBlock
       case _                => throw new Error("Undefined network type.")
@@ -200,6 +205,12 @@ class Forger (settings: AppSettings, appContext: AppContext )
         case Failure(ex)  => throw ex
       }
 
+      // TODO: Create the fee reward transaction
+      val feeReward = createFeeTransaction() match {
+        case Succes(tx) => tx
+        case Failure(ex) => throw ex
+      }
+
       // check forging eligibility
       leaderElection(history.bestBlock, history.height, history.difficulty, boxes, coinbase, transactions) match {
         case Some(block) =>
@@ -243,14 +254,27 @@ class Forger (settings: AppSettings, appContext: AppContext )
    * @param parentId block id of the current head of the chain
    * @return an unsigned coinbase transaction
    */
-  private def createCoinbase ( parentId: Block.BlockId ): Try[Coinbase] = Try {
+  private def createCoinbase ( parentId: Block.BlockId ): Try[ArbitTransfer] = Try {
     //todo: JAA - we may want to reconsider how to specify the reward address
     val rewardAddr = keyRing.publicKeys.headOption match {
       case Some(pk) => pk
       case _        => throw new Error("Attempted to forge but no keyfiles are unlocked!")
     }
 
+    val to = IndexedSeq((rewardAddr, inflation))
+    ArbitTransfer(IndexedSeq(), )
+
     Coinbase.createRaw(rewardAddr, inflation, forgeTime, parentId)
+  }
+
+  private def createFeeTransaction(amount: TokenBox.Value): Try[PoluTransfer] = Try {
+    //todo: JAA - we may want to reconsider how to specify the reward address
+    val rewardAddr = keyRing.publicKeys.headOption match {
+      case Some(pk) => pk
+      case _        => throw new Error("Attempted to forge but no keyfiles are unlocked!")
+    }
+
+
   }
 
   /**

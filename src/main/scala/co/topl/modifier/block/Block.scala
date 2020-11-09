@@ -1,17 +1,17 @@
 package co.topl.modifier.block
 
 import co.topl.attestation.EvidenceProducer.syntax._
-import co.topl.attestation.proof.SignatureCurve25519
-import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proof.{ Proof, SignatureCurve25519 }
+import co.topl.attestation.proposition.{ Proposition, PublicKeyCurve25519Proposition }
 import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block._
 import co.topl.modifier.transaction.Transaction
-import co.topl.modifier.{ModifierId, NodeViewModifier}
-import co.topl.nodeView.state.box.ArbitBox
+import co.topl.modifier.{ ModifierId, NodeViewModifier }
+import co.topl.nodeView.state.box.{ ArbitBox, Box, GenericBox }
 import co.topl.utils.serialization.BifrostSerializer
 import io.circe.syntax._
-import io.circe.{Decoder, Encoder, HCursor, Json}
+import io.circe.{ Decoder, Encoder, HCursor, Json }
 import scorex.crypto.hash.Blake2b256
 import supertagged.@@
 // fixme: JAA 0 2020.07.19 - why is protobuf still used here?
@@ -34,14 +34,14 @@ import scala.collection.BitSet
  *
  * - additional data: block structure version no, timestamp etc
  */
-case class Block (parentId    : BlockId,
+case class Block( parentId    : BlockId,
                   timestamp   : Timestamp,
                   forgerBox   : ArbitBox,
                   publicKey   : PublicKeyCurve25519Proposition,
                   signature   : SignatureCurve25519,
-                  transactions: Seq[Transaction[_, _, _, _]],
+                  transactions: Seq[Block.TX],
                   version     : Version
-                 ) extends TransactionsCarryingPersistentNodeViewModifier[Transaction[_, _, _, _]] {
+                ) extends TransactionsCarryingPersistentNodeViewModifier[Block.TX] {
 
   type M = Block
 
@@ -50,8 +50,6 @@ case class Block (parentId    : BlockId,
   lazy val modifierTypeId: ModifierTypeId = Block.modifierTypeId
 
   lazy val serializer: BifrostSerializer[Block] = BlockSerializer
-
-  lazy val json: Json = Block.jsonEncoder(this)
 
   lazy val messageToSign: Array[Byte] = {
     val noSigCopy = this.copy(signature = SignatureCurve25519.empty())
@@ -66,6 +64,7 @@ object Block {
   type BlockId = ModifierId
   type Timestamp = Long
   type Version = Byte
+  type TX = Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]
 
   val blockIdLength: Int = NodeViewModifier.ModifierIdSize
   val modifierTypeId: Byte @@ NodeViewModifier.ModifierTypeId.Tag = ModifierTypeId @@ (3: Byte)
@@ -92,7 +91,7 @@ object Block {
       generatorBox <- c.downField("generatorBox").as[ArbitBox]
       publicKey <- c.downField("publicKey").as[PublicKeyCurve25519Proposition]
       signature <- c.downField("signature").as[SignatureCurve25519]
-      txsSeq <- c.downField("txs").as[Seq[Transaction[_, _, _, _]]]
+      txsSeq <- c.downField("txs").as[Seq[TX]]
       version <- c.downField("version").as[Byte]
     } yield {
       Block(parentId, timestamp, generatorBox, publicKey, signature, txsSeq, version)
@@ -110,7 +109,7 @@ object Block {
    */
   def create ( parentId  : BlockId,
                timestamp : Timestamp,
-               txs       : Seq[Transaction[_, _, _, _]],
+               txs       : Seq[TX],
                box       : ArbitBox,
                privateKey: PrivateKeyCurve25519,
                version   : Version
@@ -134,7 +133,7 @@ object Block {
    * @param txs
    * @return
    */
-  def createBloom ( txs: Seq[Transaction[_, _, _, _]] ): Array[Byte] = {
+  def createBloom ( txs: Seq[TX] ): Array[Byte] = {
     val bloomBitSet = txs.foldLeft(BitSet.empty)(
       ( total, b ) =>
         b.bloomTopics match {

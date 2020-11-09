@@ -1,31 +1,32 @@
 package co.topl.nodeView
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
 import akka.pattern.ask
 import akka.util.Timeout
+import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.consensus.Forger
 import co.topl.consensus.Forger.ChainParams
 import co.topl.consensus.Forger.ReceivableMessages.GenerateGenesis
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
-import co.topl.modifier.block.{Block, BlockSerializer, PersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier}
+import co.topl.modifier.block.{ Block, BlockSerializer, PersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier }
 import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.modifier.transaction.Transaction
-import co.topl.modifier.{ModifierId, NodeViewModifier}
+import co.topl.modifier.{ ModifierId, NodeViewModifier }
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
 import co.topl.nodeView.NodeViewHolder.UpdateInformation
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.box.Box
-import co.topl.nodeView.state.{State, TransactionValidation}
-import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
+import co.topl.nodeView.state.{ State, TransactionValidation }
+import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
 import co.topl.utils.Logging
 import co.topl.utils.serialization.BifrostSerializer
 
 import scala.annotation.tailrec
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.{ Await, ExecutionContext, Future }
+import scala.util.{ Failure, Success, Try }
 
 /**
   * Composite local view of the node
@@ -56,6 +57,9 @@ class NodeViewHolder ( settings: AppSettings,
     * user-specific information stored in vault (it could be e.g. a wallet), and a memory pool.
     */
   private var nodeView: NodeView = restoreState().getOrElse(genesisState)
+
+  // Establish the expected network prefix for addresses
+  implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
   /**
     * Cache for modifiers. If modifiers are coming out-of-order, they are to be stored in this cache.

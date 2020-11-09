@@ -31,8 +31,6 @@ abstract class TransferTransaction[P <: Proposition, PR <: Proof[P]] ( val from:
 }
 
 
-
-
 object TransferTransaction {
 
   /** Computes a unique nonce value based on the transaction inputs and returns the details needed to create the output boxes for the transaction */
@@ -173,7 +171,7 @@ object TransferTransaction {
     P <: Proposition: EvidenceProducer,
     PR <: Proof[P]
   ] ( tx: TransferTransaction[P, PR],
-      state: StateReader[TokenBox] ): Try[Unit] = {
+      state: StateReader[Box[_]] ): Try[Unit] = {
 
     // check that the transaction is correctly formed before checking state
     syntacticValidate(tx) match {

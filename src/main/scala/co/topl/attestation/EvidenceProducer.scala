@@ -1,6 +1,5 @@
 package co.topl.attestation
 
-import co.topl.attestation.Evidence.EvidenceTypePrefix
 import co.topl.attestation.proposition.Proposition
 
 /**

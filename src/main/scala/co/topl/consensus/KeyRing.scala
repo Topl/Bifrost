@@ -2,20 +2,21 @@ package co.topl.consensus
 
 import java.io.File
 
+import co.topl.attestation.Address
+import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
-import co.topl.attestation.secrets.{ PrivateKeyCurve25519, Secret }
+import co.topl.attestation.secrets.{ PrivateKeyCurve25519, Secret, SecretGenerator }
 import co.topl.crypto.{ Bip39, Curve25519KeyFile }
 import co.topl.utils.Logging
 import scorex.crypto.hash.Blake2b256
 import com.google.common.primitives.Ints
+import scorex.util.Random.randomBytes
 
 import scala.util.{ Failure, Success, Try }
 
-class KeyRing[S <: Secret] (private var secrets: Set[S],
-               defaultKeyDir      : File
-              ) extends Logging {
-
-  import KeyRing.getListOfFiles
+class KeyRing[S <: Secret] (private var secrets: Set[S], defaultKeyDir: File)
+                         (implicit networkPrefix: NetworkPrefix, sg: SecretGenerator[S])
+  extends Logging {
 
   type PI = S#PK
 
@@ -73,19 +74,19 @@ class KeyRing[S <: Secret] (private var secrets: Set[S],
     }
   }
 
-  /**  */
-  def generateNewKeyPairs (num: Int = 1, seedOpt: Option[String] = None): Try[Set[S]] = Try {
-    if (num >= 1) {
-      val newSecrets = seedOpt match {
-        case Some(seed) => (1 to num).map(i => Curve25519KeyFile.generateKeyPair(Ints.toByteArray(i) ++ seed.getBytes())._1).toSet
-        case _          => (1 to num).map(_ => Curve25519KeyFile.generateKeyPair._1).toSet
-      }
+  def generateNewKeyPairs (num: Int = 1, seedOpt: Option[String] = None): Try[Set[S]] =
+    Try {
+      if (num >= 1) {
+        val newSecrets = seedOpt match {
+          case Some(seed) => (1 to num).map(i => sg.generateSecret(Ints.toByteArray(i) ++ seed.getBytes())).toSet
+          case _          => (1 to num).map(_ => sg.generateSecret(randomBytes(128))).toSet
+        }
 
-      secrets ++= newSecrets
-      newSecrets
+        secrets ++= newSecrets
+        newSecrets
+      }
+      else throw new Error("Number of requested keys must be greater than or equal to 1")
     }
-    else throw new Error("Number of requested keys must be greater than or equal to 1")
-  }
 
   /**
    *
@@ -94,7 +95,7 @@ class KeyRing[S <: Secret] (private var secrets: Set[S],
    * @param lang
    * @return
    */
-  def importPhrase (password: String, mnemonic: String, lang: String): Try[PI] = Try {
+  def importPhrase (password: String, mnemonic: String, lang: String)(implicit sg: SecretGenerator[S]): Try[PI] = Try {
     // create the BIP object used to verify the chosen language
     val bip = Bip39(lang)
 
@@ -103,13 +104,13 @@ class KeyRing[S <: Secret] (private var secrets: Set[S],
 
     // calculate the new keyfile and return
     val seed = bip.hexToUuid(bip.phraseToHex(mnemonic))
-    val (sk, pk) = Curve25519KeyFile.generateKeyPair(Blake2b256(seed))
+    val sk = sg.generateSecret(Blake2b256(seed))
 
     // add secret to the keyring
     secrets += sk
 
     // return the public image of the key that was added
-    pk
+    sk.publicImage
   }
 
   /**
@@ -120,14 +121,14 @@ class KeyRing[S <: Secret] (private var secrets: Set[S],
     */
   def exportKeyfile (publicImage: PI, password: String): Try[Unit] = Try {
     secretByPublicImage(publicImage) match {
-      case Some(sk) => KeyFile(password, sk).saveToDisk(defaultKeyDir.getAbsolutePath)
+      case Some(sk: PrivateKeyCurve25519) => Curve25519KeyFile(password, sk).saveToDisk(defaultKeyDir.getAbsolutePath)
       case _        => Failure(new Error("Unable to find a matching secret in the key ring"))
     }
   }
 
   /** Return a list of KeuFile instances for all keys in the key file directory */
   private def listKeyFiles: List[Curve25519KeyFile] =
-    getListOfFiles(defaultKeyDir).map(file => Curve25519KeyFile.readFile(file.getPath))
+    KeyRing.getListOfFiles(defaultKeyDir).map(file => Curve25519KeyFile.readFile(file.getPath))
 
   /**
    * Check if given publicKey string is valid and contained in the key file directory
@@ -138,26 +139,26 @@ class KeyRing[S <: Secret] (private var secrets: Set[S],
    */
   private def checkValid ( address: String, password: String ): S = {
     val keyfile = listKeyFiles.filter {
-      _.publicKeyFromAddress == PublicKeyCurve25519Proposition(address)
+      _.address == Address(address)
     }
 
-    assert(keyfile.size == 1, "Cannot find a unique publicKey in key files")
+    assert(keyfile.size == 1, s"Cannot find a unique matching keyfile in $defaultKeyDir")
 
     keyfile.head.getPrivateKey(password) match {
-      case Success(privKey) => privKey
-      case Failure(e)       => throw e
+      case Success(privKey: S) => privKey
+      case Failure(e)          => throw e
     }
   }
 }
 
 object KeyRing {
-  def apply (path: String): KeyRing = {
+  def apply[S <: Secret: SecretGenerator] (path: String)(implicit networkPrefix: NetworkPrefix): KeyRing[S] = {
     val dir = new File(path)
     dir.mkdirs()
-    new KeyRing(Set(), dir)
+    new KeyRing[S](Set(), dir)
   }
 
-  def getListOfFiles ( dir: File ): List[File] = {
+  def getListOfFiles (dir: File): List[File] = {
     if ( dir.exists && dir.isDirectory ) dir.listFiles.filter(_.isFile).toList
     else List[File]()
   }
