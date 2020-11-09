@@ -1,8 +1,7 @@
 package co.topl.modifier.transaction
 
+import co.topl.attestation.proof.{ SignatureCurve25519, ThresholdSignatureCurve25519 }
 import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
-import co.topl.attestation.proof.{ ThresholdSignatureCurve25519, SignatureCurve25519 }
-import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.{ State, StateReader }
 import co.topl.program.Program

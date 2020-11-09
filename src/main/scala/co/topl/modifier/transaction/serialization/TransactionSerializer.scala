@@ -19,36 +19,25 @@ object TransactionSerializer extends BifrostSerializer[Transaction[_, _ <: Propo
         w.put(PolyTransfer.txTypePrefix)
         PolyTransferSerializer.serialize(obj, w)
 
-      case obj: AssetTransfer =>
-        w.putByteString("AssetTransfer")
+      case obj: AssetTransfer[_ <: Proposition, _ <: Proof[_]] =>
+        w.put(AssetTransfer.txTypePrefix)
         AssetTransferSerializer.serialize(obj, w)
 
       case obj: CodeCreation =>
-        w.putByteString("CodeCreation")
+        w.put(CodeCreation.txTypePrefix)
         CodeBoxCreationSerializer.serialize(obj, w)
 
       case obj: ProgramCreation =>
-        w.putByteString("ProgramCreation")
+        w.put(ProgramCreation.txTypePrefix)
         ProgramCreationSerializer.serialize(obj, w)
 
       case obj: ProgramMethodExecution =>
-        w.putByteString("ProgramMethodExecution")
+        w.put(PolyTrProgramMethodExecutionansfer.txTypePrefix)
         ProgramMethodExecutionSerializer.serialize(obj, w)
 
       case obj: ProgramTransfer =>
-        w.putByteString("ProgramTransfer")
+        w.put(ProgramTransfer.txTypePrefix)
         ProgramTransferSerializer.serialize(obj, w)
-
-
-
-
-      case obj: AssetCreation =>
-        w.putByteString("AssetCreation")
-        AssetCreationSerializer.serialize(obj, w)
-
-      case obj: Coinbase      =>
-        w.putByteString("Coinbase")
-        CoinbaseSerializer.serialize(obj, w)
     }
   }
 
@@ -56,17 +45,11 @@ object TransactionSerializer extends BifrostSerializer[Transaction[_, _ <: Propo
     r.getByte() match {
       case ArbitTransfer.txTypePrefix => ArbitTransferSerializer.parse(r)
       case PolyTransfer.txTypePrefix  => PolyTransferSerializer.parse(r)
-
-      case "CodeCreation" => CodeBoxCreationSerializer.parse(r)
-      case "ProgramCreation" => ProgramCreationSerializer.parse(r)
-      case "ProgramMethodExecution" => ProgramMethodExecutionSerializer.parse(r)
-
-      case "ProgramTransfer" => ProgramTransferSerializer.parse(r)
-
-      case "AssetTransfer" => AssetTransferSerializer.parse(r)
-
-      case "AssetCreation" => AssetCreationSerializer.parse(r)
-      case "Coinbase" => CoinbaseSerializer.parse(r)
+      case AssetTransfer.txTypePrefix  => AssetTransferSerializer.parse(r)
+      case CodeCreation.txTypePrefix  => CodeCreationTransferSerializer.parse(r)
+      case ProgramCreation.txTypePrefix  => ProgramCreationTransferSerializer.parse(r)
+      case ProgramMethodExecution.txTypePrefix  => ProgramMethodExecutionTransferSerializer.parse(r)
+      case ProgramTransfer.txTypePrefix  => ProgramTransferTransferSerializer.parse(r)
     }
   }
 }

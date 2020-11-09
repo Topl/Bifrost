@@ -27,7 +27,6 @@ abstract class TransferTransaction[P <: Proposition, PR <: Proof[P]] ( val from:
 
   override lazy val messageToSign: Array[Byte] =
     super.messageToSign ++
-      to.flatMap(_._1.bytes).toArray ++
       data.getBytes :+ (if (minting) 1: Byte else 0: Byte)
 }
 
@@ -62,13 +61,13 @@ object TransferTransaction {
    * @param assetArgs a tuple of asset specific details for finding the right asset boxes to be sent in a transfer
    * @return the input box information and output data needed to create the transaction case class
    */
-  def createRawTransferTx ( state        : StateReader[TokenBox],
-                            toReceive    : IndexedSeq[(Address, TokenBox.Value)],
-                            sender       : IndexedSeq[Address],
-                            changeAddress: Address,
-                            fee          : TokenBox.Value,
-                            txType       : String,
-                            assetArgs    : Option[(Address, String)] = None // (issuer, assetCode, assetId)
+  def createRawTransferParams ( state: StateReader[TokenBox],
+                                toReceive: IndexedSeq[(Address, TokenBox.Value)],
+                                sender: IndexedSeq[Address],
+                                changeAddress: Address,
+                                fee: TokenBox.Value,
+                                txType: String,
+                                assetArgs: Option[(Address, String)] = None // (issuer, assetCode)
                           ): Try[(IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, TokenBox.Value)])] = Try {
 
     // Lookup boxes for the given senders
@@ -162,8 +161,6 @@ object TransferTransaction {
     // ensure that the input and output lists of box ids are unique
     require(tx.newBoxes.forall(b ⇒ !tx.boxIdsToOpen.contains(b.id)), "The set of input box ids contains one or more of the output ids")
   }
-
-
 
   /**
    * Checks the stateful validity of a transaction

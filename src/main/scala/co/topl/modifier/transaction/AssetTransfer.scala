@@ -66,7 +66,7 @@ object AssetTransfer {
                                                    data         : String,
                                                    minting      : Boolean
                                                   ): Try[AssetTransfer[P, PR]] =
-    TransferTransaction.createRawTransferTx(stateReader, toReceive, sender, changeAddress, fee, "AssetTransfer", Some((issuer, assetCode))).map {
+    TransferTransaction.createRawTransferParams(stateReader, toReceive, sender, changeAddress, fee, "AssetTransfer", Some((issuer, assetCode))).map {
       case (inputs, outputs) => AssetTransfer[P, PR](inputs, outputs, Map(), issuer, assetCode, fee, Instant.now.toEpochMilli, data, minting)
     }
 

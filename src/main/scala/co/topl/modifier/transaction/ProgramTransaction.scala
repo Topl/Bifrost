@@ -14,39 +14,39 @@ abstract class ProgramTransaction extends Transaction {
 
   def signatures: ProgramTransaction.SIG
 
-  def preFeeBoxes: ProgramTransaction.FBX
+//  def preFeeBoxes: ProgramTransaction.FBX
 
-  def fees: ProgramTransaction.F
+//  def fees: ProgramTransaction.F
 
   override val fee: Long = fees.values.sum
 
-  lazy val feeBoxIdKeyPairs: IndexedSeq[(BoxId, PublicKeyCurve25519Proposition)] = preFeeBoxes.toIndexedSeq
-    .flatMap {
-      case (prop, v) =>
-        v.map {
-          case (nonce, _) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
-        }
-    }
+//  lazy val feeBoxIdKeyPairs: IndexedSeq[(BoxId, PublicKeyCurve25519Proposition)] = preFeeBoxes.toIndexedSeq
+//    .flatMap {
+//      case (prop, v) =>
+//        v.map {
+//          case (nonce, _) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
+//        }
+//    }
 
-  def deductedFeeBoxes(hashNoNonces: Array[Byte]): IndexedSeq[PolyBox] = {
-    val canSend = preFeeBoxes.mapValues(_.map(_._2).sum)
-    val preboxesLessFees: IndexedSeq[(PublicKeyCurve25519Proposition, Long)] = canSend
-      .toIndexedSeq
-      .map { case (prop, amount) => prop -> (amount - fees(prop)) }
-
-    preboxesLessFees.zipWithIndex
-      .map {
-        case ((prop, value), idx) =>
-          val nonce = Transaction
-            .nonceFromDigest(
-              Blake2b256("ProgramCreation".getBytes
-                ++ prop.pubKeyBytes
-                ++ hashNoNonces
-                ++ Ints.toByteArray(idx)))
-
-          PolyBox(prop, nonce, value)
-      }
-  }
+//  def deductedFeeBoxes(hashNoNonces: Array[Byte]): IndexedSeq[PolyBox] = {
+//    val canSend = preFeeBoxes.mapValues(_.map(_._2).sum)
+//    val preboxesLessFees: IndexedSeq[(PublicKeyCurve25519Proposition, Long)] = canSend
+//      .toIndexedSeq
+//      .map { case (prop, amount) => prop -> (amount - fees(prop)) }
+//
+//    preboxesLessFees.zipWithIndex
+//      .map {
+//        case ((prop, value), idx) =>
+//          val nonce = Transaction
+//            .nonceFromDigest(
+//              Blake2b256("ProgramCreation".getBytes
+//                ++ prop.pubKeyBytes
+//                ++ hashNoNonces
+//                ++ Ints.toByteArray(idx)))
+//
+//          PolyBox(prop, nonce, value)
+//      }
+//  }
 }
 
 

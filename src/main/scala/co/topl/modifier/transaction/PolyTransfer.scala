@@ -85,7 +85,7 @@ object PolyTransfer {
                                                    fee          : Long,
                                                    data         : String
                                                   ): Try[PolyTransfer[P, PR]] =
-    TransferTransaction.createRawTransferTx(stateReader, toReceive, sender, changeAddress, fee, "PolyTransfer").map {
+    TransferTransaction.createRawTransferParams(stateReader, toReceive, sender, changeAddress, fee, "PolyTransfer").map {
       case (inputs, outputs) => PolyTransfer[P, PR](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data)
     }
 }

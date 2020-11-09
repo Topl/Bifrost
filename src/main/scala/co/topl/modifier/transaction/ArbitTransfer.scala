@@ -4,8 +4,9 @@ import java.time.Instant
 
 import co.topl.attestation
 import co.topl.attestation.Address
-import co.topl.attestation.proof.Proof
+import co.topl.attestation.proof.{ Proof, SignatureCurve25519 }
 import co.topl.attestation.proposition.Proposition
+import co.topl.modifier.block.Block.BlockId
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{ ArbitBox, Box, PolyBox, TokenBox }
@@ -53,7 +54,7 @@ object ArbitTransfer {
                                                    fee          : Long,
                                                    data         : String
                                                   ): Try[ArbitTransfer[P, PR]] =
-    TransferTransaction.createRawTransferTx(stateReader, toReceive, sender, changeAddress, fee, "ArbitTransfer").map {
+    TransferTransaction.createRawTransferParams(stateReader, toReceive, sender, changeAddress, fee, "ArbitTransfer").map {
       case (inputs, outputs) => ArbitTransfer[P, PR](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data)
     }
 

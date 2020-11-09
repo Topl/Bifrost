@@ -47,11 +47,11 @@ case class Program (parties         : Map[PublicKeyCurve25519Proposition, String
 
   lazy val json: Json = Map(
     "executionBuilder" -> executionBuilder,
-    "parties" -> parties
-      .map(p => {
-        p._1.address -> p._2.asJson
-      })
-      .asJson,
+//    "parties" -> parties
+//      .map(p => {
+//        p._1.address -> p._2.asJson
+//      })
+//      .asJson,
     "lastUpdated" -> lastUpdated.asJson,
     "id" -> Base58.encode(id).asJson
     ).asJson

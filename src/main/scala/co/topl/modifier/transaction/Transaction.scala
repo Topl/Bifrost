@@ -36,13 +36,13 @@ abstract class Transaction[T, P <: Proposition, PR <: Proof[P], BX <: GenericBox
 
   val boxIdsToOpen: IndexedSeq[BoxId]
 
-  val fee: Long
-
-  val timestamp: Long
+  val newBoxes: Traversable[BX]
 
   val attestation: Map[P, PR]
 
-  val newBoxes: Traversable[BX]
+  val fee: Long
+
+  val timestamp: Long
 
   override def toString: String = Transaction.prefixToTypeString(txTypePrefix) + Transaction.jsonEncoder(this).noSpaces
 
