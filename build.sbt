@@ -57,9 +57,9 @@ val loggingDependencies = Seq(
 )
 
 val testingDependencies = Seq(
-  "org.scalactic" %% "scalactic" % "3.2.2" % Test,
-  "org.scalatest" %% "scalatest" % "3.2.2" % Test,
-  "org.scalacheck" %% "scalacheck" % "1.15.0" % Test,
+  "org.scalactic" %% "scalactic" % "3.2.3" % Test,
+  "org.scalatest" %% "scalatest" % "3.2.3" % Test,
+  "org.scalacheck" %% "scalacheck" % "1.15.1" % Test,
   "org.scalatestplus" %% "scalacheck-1-14" % "3.2.2.0" % Test,
   "com.spotify" % "docker-client" % "8.16.0" % Test,
   "org.asynchttpclient" % "async-http-client" % "2.12.1" % Test
@@ -93,14 +93,13 @@ libraryDependencies ++= Seq(
 )
 
 // https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
-libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "19.3.3"
+libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "19.3.4"
 
 // https://mvnrepository.com/artifact/org.graalvm.js/js
-libraryDependencies += "org.graalvm.js" % "js" % "19.3.3"
+libraryDependencies += "org.graalvm.js" % "js" % "19.3.4"
 
 // https://mvnrepository.com/artifact/org.graalvm.truffle/truffle-api
-libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.3.3"
-
+libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.3.4"
 
 libraryDependencies  ++= Seq(
   "org.scalanlp" %% "breeze" % "1.1",
