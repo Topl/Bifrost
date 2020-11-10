@@ -6,7 +6,7 @@ addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.5")
 
 addSbtPlugin("org.scalastyle" %% "scalastyle-sbt-plugin" % "1.0.0")
 
-//addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.3.5")
+addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.6.1")
 
 addSbtPlugin("com.github.gseitz" % "sbt-release" % "1.0.13")
 
@@ -20,6 +20,6 @@ addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.3.7")
 
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.4.0")
 
-addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.9.18-1")
+addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.9.21")
 
 addSbtPlugin("org.wartremover" % "sbt-wartremover" % "2.4.13")
