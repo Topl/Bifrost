@@ -6,20 +6,21 @@ import co.topl.nodeView.state.box.proposition.{MofNProposition, PublicKey25519Pr
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import utils.NoShrink
 
 class MultiSignature25519Spec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
-  with BifrostGenerators {
-
+  with BifrostGenerators
+  with NoShrink {
 
   property("A MultiSignature25519 created from single Signature25519 " +
              "should be valid for oneOfNProposition") {
 
     forAll(keyPairSetGen) {
       s: Set[(PrivateKey25519, PublicKey25519Proposition)] =>
-        val message = nonEmptyBytesGen.sample.get
+        val message = nonEmptyBytesGen.sample.getOrElse(Array.fill(positiveMediumIntGen.sample.get)(1: Byte))
         val signatures = s.map(_._1.sign(message))
         val oneOfNProposition = MofNProposition(1, s.map(keyPair => keyPair._2.pubKeyBytes))
 
@@ -32,7 +33,7 @@ class MultiSignature25519Spec extends AnyPropSpec
 
     forAll(keyPairSetGen) {
       s: Set[(PrivateKey25519, PublicKey25519Proposition)] =>
-        val message = nonEmptyBytesGen.sample.get
+        val message = nonEmptyBytesGen.sample.getOrElse(Array.fill(positiveMediumIntGen.sample.get)(1: Byte))
         val signatures = s.map(_._1.sign(message))
 
         val oneOfNProposition = MofNProposition(2, s.map(keyPair => keyPair._2.pubKeyBytes))
