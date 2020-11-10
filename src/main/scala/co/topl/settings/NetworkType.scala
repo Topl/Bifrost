@@ -1,6 +1,6 @@
 package co.topl.settings
 
-/**
+/** Attributes of a network type such as its name and whether to start forging once it's ready
  * @param verboseName name of the network type
  * @param startWithForging is true if the node should start forging when it's ready
  */
@@ -12,8 +12,7 @@ object NetworkType {
 
   def fromString(name: String): Option[NetworkType] = all.find(_.verboseName == name)
 
-  /**
-   * Creates a usable instance of the network type during application initialization
+  /** Creates a usable instance of the network type during application initialization
    *
    * @param net the specified network type from the command line
    * @param opts runtime parameters used to control the behavior of the chosen entwork type

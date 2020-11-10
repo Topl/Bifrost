@@ -22,7 +22,7 @@ case class ProtocolSettings(
   numTxPerBlock  : Option[Int] = None,
   blockVersion   : Option[Byte] = None) extends Ordered[ProtocolSettings] {
 
-  /** want reverse ordering such that the highest start block is first in the list
+  /** Want reverse ordering such that the highest start block is first in the list
   so that traversing the sortedSet will find the first applicable settings */
   def compare(that: ProtocolSettings): Int =
     -1 * (this.startBlock compare that.startBlock)

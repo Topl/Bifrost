@@ -4,7 +4,7 @@ import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 /** Serializer for Version class */
 object VersionSerializer extends BifrostSerializer[Version] {
-  
+
   override def serialize(obj: Version, w: Writer): Unit = {
     w.put(obj.firstDigit)
     w.put(obj.secondDigit)
