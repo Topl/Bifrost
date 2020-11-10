@@ -25,13 +25,11 @@ class KeyRing[S <: Secret] (private var secrets: Set[S], defaultKeyDir: File)
    *
    * @return - the public keys as ProofOfKnowledgePropositions
    */
-  def publicKeys: Set[PI] = secrets.map(_.publicImage)
+  def addresses: Set[Address] = secrets.map(_.publicImage.address)
 
   /**Find a secret given it's public image */
-  private[consensus] def secretByPublicImage(publicImage: PI): Option[S] = publicImage match {
-    case p: PI => secrets.find(s => s.publicImage == p)
-    //case mn: MofNProposition          => secrets.find(s => mn.setOfPubKeyBytes.exists(s.publicImage == PublicKey25519Proposition(_)))
-    case _ => None
+  private[consensus] def secretByAddress (addr: Address): Option[S] = {
+    secrets.find(_.publicImage.address == addr)
   }
 
   /**
@@ -120,7 +118,7 @@ class KeyRing[S <: Secret] (private var secrets: Set[S], defaultKeyDir: File)
     * @return
     */
   def exportKeyfile (publicImage: PI, password: String): Try[Unit] = Try {
-    secretByPublicImage(publicImage) match {
+    secretByAddress(publicImage) match {
       case Some(sk: PrivateKeyCurve25519) => Curve25519KeyFile(password, sk).saveToDisk(defaultKeyDir.getAbsolutePath)
       case _        => Failure(new Error("Unable to find a matching secret in the key ring"))
     }

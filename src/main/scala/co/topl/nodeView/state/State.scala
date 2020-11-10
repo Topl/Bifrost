@@ -252,7 +252,7 @@ case class State ( override val version     : VersionTag,
   }
 
   override def validate[P <: Proposition: EvidenceProducer, PR <: Proof[P]]
-    (transaction: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: GenericBox[_]] ): Try[Unit] = {
+    (transaction: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: GenericBox[_]]): Try[Unit] = {
     transaction match {
       case tx: ArbitTransfer[P, PR]   => TransferTransaction.semanticValidate(tx, getReader)
       case tx: PolyTransfer[P, PR]    => TransferTransaction.semanticValidate(tx, getReader)
@@ -261,7 +261,7 @@ case class State ( override val version     : VersionTag,
 //      case tx: CodeCreation           => CodeCreation.semanticValidate(tx, getReader)
 //      case tx: ProgramCreation        => ProgramCreation.semanticValidate(tx, getReader)
 //      case tx: ProgramMethodExecution => ProgramMethodExecution.semanticValidate(tx, getReader)
-      case _                          => throw new Exception("State validity not implemented for " + transaction.getClass.toGenericString)
+      case _ => throw new Exception("State validity not implemented for " + transaction.getClass.toGenericString)
     }
   }
 }

@@ -1,8 +1,11 @@
 package co.topl.nodeView.mempool
 
+import co.topl.attestation.proof.Proof
+import co.topl.attestation.proposition.Proposition
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.NodeViewComponent
+import co.topl.nodeView.state.box.Box
 
 import scala.util.Try
 
@@ -11,7 +14,7 @@ import scala.util.Try
   *
   * @tparam TX -type of transaction the pool contains
   */
-trait MemoryPool[TX <: Transaction[_, _, _, _], M <: MemoryPool[TX, M]] extends NodeViewComponent with MemPoolReader[TX] {
+trait MemoryPool[TX <: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]], M <: MemoryPool[TX, M]] extends NodeViewComponent with MemPoolReader[TX] {
 
   //getters
   def modifierById(id: ModifierId): Option[TX]

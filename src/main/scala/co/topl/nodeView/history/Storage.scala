@@ -2,12 +2,13 @@ package co.topl.nodeView.history
 
 import co.topl.consensus
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.{ Block, BlockSerializer }
+import co.topl.modifier.block.{Block, BlockSerializer}
+import co.topl.modifier.transaction.Transaction
 import co.topl.utils.Logging
-import com.google.common.cache.{ CacheBuilder, CacheLoader, LoadingCache }
+import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.google.common.primitives.Longs
-import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
-import scorex.crypto.hash.{ Blake2b256, Sha256 }
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
+import scorex.crypto.hash.{Blake2b256, Sha256}
 
 import scala.util.Success
 

@@ -4,14 +4,13 @@ import java.time.Instant
 
 import co.topl.attestation
 import co.topl.attestation.Address
-import co.topl.attestation.proof.{ Proof, SignatureCurve25519 }
+import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
-import co.topl.modifier.block.Block.BlockId
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.state.box.{ ArbitBox, Box, PolyBox, TokenBox }
+import co.topl.nodeView.state.box.{ArbitBox, Box, PolyBox, TokenBox}
 import io.circe.syntax.EncoderOps
-import io.circe.{ Decoder, Encoder, HCursor }
+import io.circe.{Decoder, Encoder, HCursor}
 
 import scala.util.Try
 

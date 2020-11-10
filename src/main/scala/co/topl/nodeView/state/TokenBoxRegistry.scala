@@ -2,7 +2,7 @@ package co.topl.nodeView.state
 
 import java.io.File
 
-import co.topl.attestation.{Address, Evidence}
+import co.topl.attestation.Address
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.nodeView.state.box.{Box, BoxId, TokenBox}
 import co.topl.settings.AppSettings
@@ -53,7 +53,7 @@ class TokenBoxRegistry ( protected val storage: LSMStore,
 
     Try {
       def filterByNodeKeys(updates: Map[K, Seq[V]]): Map[K, Seq[V]] = nodeKeys match {
-        case Some(keys) => updates.filter(b => keys.map(_.evidence).contains(b._1))
+        case Some(keys) => updates.filter(b => keys.contains(b._1))
         case None       => updates
       }
 

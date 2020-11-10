@@ -3,6 +3,7 @@ package co.topl.network
 import java.net.InetSocketAddress
 
 import akka.actor.{ActorRef, ActorSystem, Props}
+import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
 import co.topl.modifier.NodeViewModifier.{ModifierTypeId, idsToString}
 import co.topl.modifier.block.PersistentNodeViewModifier
@@ -17,7 +18,7 @@ import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.state.box.GenericBox
+import co.topl.nodeView.state.box.{Box, GenericBox}
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.serialization.BifrostSerializer
 import co.topl.utils.{Logging, MalformedModifierError}
@@ -35,7 +36,7 @@ import scala.util.{Failure, Success}
   * @tparam TX transaction
   */
 class NodeViewSynchronizer[
-  TX <: Transaction,
+  TX <: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]],
   SI <: SyncInfo,
   PMOD <: PersistentNodeViewModifier,
   HR <: HistoryReader[PMOD, SI]: ClassTag,
@@ -640,9 +641,9 @@ object NodeViewSynchronizer {
     case class ChangedHistory[HR <: HistoryReader[_ <: PersistentNodeViewModifier, _ <: SyncInfo]](reader: HR)
         extends NodeViewChange
 
-    case class ChangedMempool[MR <: MemPoolReader[_ <: Transaction]] ( mempool: MR) extends NodeViewChange
+    case class ChangedMempool[MR <: MemPoolReader[_ <: Transaction[_, _, _, _]]] ( mempool: MR) extends NodeViewChange
 
-    case class ChangedState[SR <: StateReader[_ <: GenericBox[_ <: Proposition, _]]](reader: SR) extends NodeViewChange
+    case class ChangedState[SR <: StateReader[_ <: GenericBox[_]]](reader: SR) extends NodeViewChange
 
     case class NewOpenSurface(newSurface: Seq[ModifierId]) extends NodeViewHolderEvent
 
@@ -691,7 +692,7 @@ object NodeViewSynchronizer {
 object NodeViewSynchronizerRef {
 
   def apply[
-    TX <: Transaction,
+    TX <: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]],
     SI <: SyncInfo,
     PMOD <: PersistentNodeViewModifier,
     HR <: HistoryReader[PMOD, SI]: ClassTag,
@@ -705,7 +706,7 @@ object NodeViewSynchronizerRef {
     system.actorOf(props[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, settings, appContext))
 
   def props[
-    TX <: Transaction,
+    TX <: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]],
     SI <: SyncInfo,
     PMOD <: PersistentNodeViewModifier,
     HR <: HistoryReader[PMOD, SI]: ClassTag,
@@ -719,7 +720,7 @@ object NodeViewSynchronizerRef {
     Props(new NodeViewSynchronizer[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, settings, appContext))
 
   def apply[
-    TX <: Transaction,
+    TX <: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]],
     SI <: SyncInfo,
     PMOD <: PersistentNodeViewModifier,
     HR <: HistoryReader[PMOD, SI]: ClassTag,

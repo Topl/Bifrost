@@ -1,7 +1,8 @@
 package co.topl.consensus
 
+import co.topl.attestation.proposition.Proposition
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
+import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction, TransferTransaction}
 import co.topl.nodeView.history.{BlockProcessor, Storage}
 
 import scala.util.Try
@@ -39,20 +40,31 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
 }
 
 class SyntaxBlockValidator extends BlockValidator[Block] {
+  val forgeRewardsCheck: (Transaction[_,_,_,_], Block) => Unit = (tx: Transaction[_,_,_,_], b: Block) =>
+    require(tx.attestation.keys.toSeq.contains(b.publicKey),
+      "The minting transactions must match the block forging details")
+
   def validate(block: Block): Try[Unit] = Try {
     // check block signature is valid
     require(block.signature.isValid(block.publicKey, block.messageToSign), "Failed to validate block signature")
 
     // ensure only a single Arbit coinbase transaction
-    val numArbitCoinbase = block.transactions.count{
-      case tx: ArbitTransfer[_,_] => tx.minting
+    val numArbitCoinbase = block.transactions.count {
+      case tx: ArbitTransfer[_, _] => tx.minting
     }
     require(numArbitCoinbase == 1, "Invalid number of Arbit coinbase transactions.")
 
     // ensure only a single Poly coinbase transaction (as of 2020.11.08 this is zero)
-    val numPolyCoinbase = block.transactions.count{
-      case tx: PolyTransfer[_,_] => tx.minting
+    val numPolyCoinbase = block.transactions.count {
+      case tx: PolyTransfer[_, _] => tx.minting
     }
     require(numPolyCoinbase == 0, "Invalid number of Poly coinbase transactions.")
+
+    // the signature on the block should match the signature used in the Arbit and Poly minting transactions
+    block.transactions.zipWithIndex.map {
+      case (tx: ArbitTransfer[_,_], 0) if tx.minting => forgeRewardsCheck(tx, block)
+      case (tx: PolyTransfer[_,_], 1) => forgeRewardsCheck(tx, block)
+      case (tx: TransferTransaction[_,_], _) if tx.
+    }
   }
 }

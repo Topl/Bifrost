@@ -1,16 +1,17 @@
 package co.topl.modifier.transaction
 
+import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.EvidenceProducer.syntax._
 import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
-import co.topl.attestation.{ Address, BoxUnlocker, Evidence, EvidenceProducer }
+import co.topl.attestation.{Address, BoxUnlocker, Evidence, EvidenceProducer}
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box._
 import com.google.common.primitives.Ints
 import scorex.util.encode.Base58
 import scorex.crypto.hash.Blake2b256
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 abstract class TransferTransaction[P <: Proposition, PR <: Proof[P]] ( val from: IndexedSeq[(Address, Box.Nonce)],
                                                                        val to: IndexedSeq[(Address, TokenBox.Value)],
@@ -133,11 +134,11 @@ object TransferTransaction {
   def syntacticValidate[
     P <: Proposition: EvidenceProducer,
     PR <: Proof[P]
-  ] ( tx: TransferTransaction[P, PR],
-      withSigs: Boolean = true): Try[Unit] = Try {
+  ] ( tx: TransferTransaction[P, PR], withSigs: Boolean = true)
+    (implicit networkPrefix: NetworkPrefix): Try[Unit] = Try {
 
     require(tx.to.forall(_._2 > 0L), "Amount sent must be greater than 0")
-    require(tx.from.nonEmpty, "Transaction must specify at least one input box")
+    require(tx.from.nonEmpty, "Transaction must specify at least one input box") // this will fail on arbit coinbase
     require(tx.fee >= 0L, "Fee must be a positive value")
     require(tx.timestamp >= 0L, "Invalid timestamp")
     require(Base58.decode(tx.data).fold(_ => false, _.length <= 128), "Data field must be less than 128 bytes") // todo: JAA - check that this works with empty data
@@ -150,10 +151,16 @@ object TransferTransaction {
         case (prop, proof) => proof.isValid(prop, tx.messageToSign)
       }, "The provided proposition is not satisfied by the given proof")
 
-      // ensure that the propositions match the addresses given
+      // ensure that the propositions match the from addresses (skip for minting since no from address)
       require(tx.from.forall {
-        case (addr, _) => tx.attestation.keys.map(_.generateEvidence).toSeq.contains(addr.evidence)
+        case (addr, _) if !tx.minting => tx.attestation.keys.map(_.generateEvidence).toSeq.contains(addr.evidence)
       }, "The proposition(s) given do not match the evidence contained in the input boxes")
+
+      tx match {
+        case t: AssetTransfer[P,PR] if tx.minting =>
+          require(t.attestation.keys.map(_.address).toSeq.contains(t.issuer), "Asset minting must include the issuers signature")
+        case _ => //skip for other transfers
+      }
     }
 
     // ensure that the input and output lists of box ids are unique

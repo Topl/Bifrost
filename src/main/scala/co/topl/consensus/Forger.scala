@@ -2,26 +2,28 @@ package co.topl.consensus
 
 import akka.actor._
 import akka.util.Timeout
+import co.topl.attestation.{Address, EvidenceProducer}
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proof.Proof
+import co.topl.attestation.proposition.{Proposition, PublicKeyCurve25519Proposition}
 import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.consensus.Forger.ChainParams
-import co.topl.consensus.genesis.{ PrivateTestnet, Toplnet }
+import co.topl.consensus.genesis.{PrivateTestnet, Toplnet}
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ ArbitTransfer, Transaction }
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{ GetDataFromCurrentView, LocallyGeneratedModifier }
+import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.ArbitBox
-import co.topl.nodeView.{ CurrentView, NodeViewHolder }
-import co.topl.settings.NetworkType.{ DevNet, LocalNet, MainNet, PrivateNet, TestNet }
-import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
+import co.topl.nodeView.state.box.{ArbitBox, Box, TokenBox}
+import co.topl.nodeView.{CurrentView, NodeViewHolder}
+import co.topl.settings.NetworkType.{DevNet, LocalNet, MainNet, PrivateNet, TestNet}
+import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.Logging
 import co.topl.utils.TimeProvider.Time
 
 import scala.concurrent.ExecutionContext
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
  * Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
@@ -31,6 +33,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
              ( implicit ec: ExecutionContext ) extends Actor with Logging {
 
   //type HR = HistoryReader[Block, BifrostSyncInfo]
+  type TX = Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]
 
   // Import the types of messages this actor RECEIVES
   import Forger.ReceivableMessages._
@@ -41,6 +44,10 @@ class Forger (settings: AppSettings, appContext: AppContext )
   // holder of private keys that are used to forge
   private val keyFileDir = settings.application.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
   private val keyRing = KeyRing[PrivateKeyCurve25519](keyFileDir)
+
+  // designate a rewards address
+  // todo - add an API route for updating the rewards address
+  private val rewardAddress = keyRing.addresses.headOption
 
   // a timestamp updated on each forging attempt
   private var forgeTime: Time = appContext.timeProvider.time()
@@ -99,7 +106,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
       log.info(s"Forger: Received a stop signal. Forging will terminate after this trial")
       context become readyToForge
 
-    case CurrentView(history: History, state: State, mempool: MemPool) =>
+    case CurrentView(history: History, state: State, mempool: MemPool[_]) =>
       updateForgeTime() // update the forge timestamp
       tryForging(history, state, mempool) // initiate forging attempt
       scheduleForgingAttempt() // schedule the next forging attempt
@@ -110,7 +117,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
     case LockKey(addr, password)             => sender() ! keyRing.lockKeyFile(addr, password)
     case CreateKey(password)                 => sender() ! keyRing.generateKeyFile(password)
     case ImportKey(password, mnemonic, lang) => sender() ! keyRing.importPhrase(password, mnemonic, lang)
-    case ListKeys                            => sender() ! keyRing.publicKeys
+    case ListKeys                            => sender() ! keyRing.addresses
   }
 
   private def nonsense: Receive = {
@@ -125,7 +132,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
   /** Helper function to enable private forging if we can expects keys in the key ring */
   private def checkPrivateForging (): Unit =
-    if (appContext.networkType.startWithForging && keyRing.publicKeys.nonEmpty) self ! StartForging
+    if (appContext.networkType.startWithForging && keyRing.addresses.nonEmpty) self ! StartForging
 
   /** Schedule a forging attempt */
   private def scheduleForgingAttempt (): Unit = {
@@ -176,12 +183,14 @@ class Forger (settings: AppSettings, appContext: AppContext )
    * @param state   state instance for semantic validity tests of transactions
    * @param memPool mempool instance for picking transactions to include in the block if created
    */
-  private def tryForging ( history: History, state: State, memPool: MemPool): Unit = {
+  private def tryForging ( history: History, state: State, memPool: MemPool[TX]): Unit = {
     log.debug(s"${Console.YELLOW}Attempting to forge with settings ${protocolMngr.current(history.height)}${Console.RESET}")
     log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${history.height}${Console.RESET}")
     log.info("chain difficulty: " + history.difficulty)
 
     try {
+      val rewardAddr = rewardAddress.getOrElse(throw new Error("No rewards address specified"))
+
       // get the set of boxes to use for testing
       val boxes = getArbitBoxes(state) match {
         case Success(boxes) => boxes
@@ -194,7 +203,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
       require(boxes.map(_.value).sum > 0, "No Arbits could be found to stake with, exiting attempt")
 
       // create the coinbase reward transaction
-      val coinbase = createCoinbase(history.bestBlock.id) match {
+      val coinbase = createCoinbase(history.bestBlock.id, rewardAddr) match {
         case Success(cb) => cb
         case Failure(ex) => throw ex
       }
@@ -206,8 +215,9 @@ class Forger (settings: AppSettings, appContext: AppContext )
       }
 
       // TODO: Create the fee reward transaction
-      val feeReward = createFeeTransaction() match {
-        case Succes(tx) => tx
+      val feeAmt = transactions.map(_.fee).sum
+      val feeReward = createFeeTransaction(feeAmt, rewardAddr) match {
+        case Success(tx) => tx
         case Failure(ex) => throw ex
       }
 
@@ -233,10 +243,8 @@ class Forger (settings: AppSettings, appContext: AppContext )
    * @return a set of arbit boxes to use for testing leadership eligibility
    */
   private def getArbitBoxes ( state: State ): Try[Set[ArbitBox]] = Try {
-    val publicKeys = keyRing.publicKeys
-
-    if ( publicKeys.nonEmpty ) {
-      publicKeys.flatMap {
+    if ( keyRing.addresses.nonEmpty ) {
+      keyRing.addresses.flatMap {
         state.getTokenBoxes(_)
           .getOrElse(Seq())
           .collect { case box: ArbitBox => box }
@@ -254,27 +262,14 @@ class Forger (settings: AppSettings, appContext: AppContext )
    * @param parentId block id of the current head of the chain
    * @return an unsigned coinbase transaction
    */
-  private def createCoinbase ( parentId: Block.BlockId ): Try[ArbitTransfer] = Try {
-    //todo: JAA - we may want to reconsider how to specify the reward address
-    val rewardAddr = keyRing.publicKeys.headOption match {
-      case Some(pk) => pk
-      case _        => throw new Error("Attempted to forge but no keyfiles are unlocked!")
-    }
-
-    val to = IndexedSeq((rewardAddr, inflation))
-    ArbitTransfer(IndexedSeq(), )
-
-    Coinbase.createRaw(rewardAddr, inflation, forgeTime, parentId)
+  private def createCoinbase (parentId: Block.BlockId, rewardAdr: Address): Try[ArbitTransfer[_,_]] = Try {
+    val to = IndexedSeq((rewardAdr, inflation))
+    ArbitTransfer(IndexedSeq(), to, Map(), 0, forgeTime, "", minting = true)
   }
 
-  private def createFeeTransaction(amount: TokenBox.Value): Try[PoluTransfer] = Try {
-    //todo: JAA - we may want to reconsider how to specify the reward address
-    val rewardAddr = keyRing.publicKeys.headOption match {
-      case Some(pk) => pk
-      case _        => throw new Error("Attempted to forge but no keyfiles are unlocked!")
-    }
-
-
+  private def createFeeTransaction(amount: TokenBox.Value, rewardAdr: Address): Try[PolyTransfer[_,_]] = Try {
+    val to = IndexedSeq((rewardAdr, amount))
+    PolyTransfer(IndexedSeq(), to, Map(), 0, forgeTime, "")
   }
 
   /**
@@ -284,24 +279,27 @@ class Forger (settings: AppSettings, appContext: AppContext )
    * @param state   state to use for semantic validity checking
    * @return a sequence of valid transactions
    */
-  private def pickTransactions ( memPool: MemPool,
-                                 state  : State,
-                                 chainHeight: Long
-                               ): Try[Seq[Transaction]] = Try {
+  private def pickTransactions
+  ( memPool: MemPool[TX],
+    state  : State,
+    chainHeight: Long
+  ): Try[Seq[TX]] = Try {
 
-    memPool.take(numTxInBlock(chainHeight)).foldLeft(Seq[Transaction]()) { case (txAcc, tx) =>
+    memPool.take(numTxInBlock(chainHeight)).foldLeft(Seq[TX]()) { case (txAcc, tx) =>
       val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.flatMap(_.boxIdsToOpen).contains(id))
       val validBoxes = tx.newBoxes.forall(b ⇒ state.getBox(b.id).isEmpty)
 
       if ( validBoxes ) memPool.remove(tx)
 
-      state.validate(tx) match {
-        case Success(_) if txNotIncluded => txAcc :+ tx
-        case Success(_)                  => txAcc
-        case Failure(ex)                 =>
-          log.debug(s"${Console.RED}Invalid Unconfirmed transaction $tx. Removing transaction${Console.RESET}. Failure: $ex")
-          txAcc
-      }
+      txAcc :+ tx
+
+//      state.validate(tx) match {
+//        case Success(_) if txNotIncluded => txAcc :+ tx
+//        case Success(_)                  => txAcc
+//        case Failure(ex)                 =>
+//          log.debug(s"${Console.RED}Invalid Unconfirmed transaction $tx. Removing transaction${Console.RESET}. Failure: $ex")
+//          txAcc
+//      }
     }
   }
 
@@ -319,8 +317,8 @@ class Forger (settings: AppSettings, appContext: AppContext )
                                parentHeight: Long,
                                parentDifficulty: Long,
                                boxes     : Set[ArbitBox],
-                               coinbase  : Coinbase,
-                               txsToInclude: Seq[Transaction]
+                               coinbase  : ArbitTransfer[_,_],
+                               txsToInclude: Seq[TX]
                              ): Option[Block] = {
 
     val target = calcAdjustedTarget(parent, parentHeight, parentDifficulty, forgeTime)
@@ -335,7 +333,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
     log.debug(s"Successful hits: ${successfulHits.size}")
 
     successfulHits.headOption.flatMap { case (box, _) =>
-      keyRing.secretByPublicImage(box.proposition) match {
+      keyRing.secretByAddress(box.proposition) match {
         case Some(sk) =>
           // use the secret key that owns the successful box to sign the coinbase transaction
           val signedCb = coinbase.copy(signatures = Map(sk.publicImage -> sk.sign(coinbase.messageToSign)))
