@@ -15,8 +15,7 @@ case class InvData(typeId: ModifierTypeId, ids: Seq[ModifierId])
 
 case class PeersData(peers: Seq[PeerSpec])
 
-
-/** ------------------------------------------------------------------------------------------------------------------ */
+/* ----------------------------------------------------------------------------------------------------------------- */
 /**
   * The `SyncInfo` message requests an `Inv` message that provides modifier ids
   * required be sender to synchronize his blockchain with the recipient.
@@ -47,13 +46,13 @@ object SyncInfoSpec {
   val MessageName: String = "Sync"
 }
 
-/** ------------------------------------------------------------------------------------------------------------------ */
-/**
-  * The `Inv` message (inventory message) transmits one or more inventories of
+/* ----------------------------------------------------------------------------------------------------------------- */
+/** The `Inv` message (inventory message) transmits one or more inventories of
   * objects known to the transmitting peer.
   * It can be sent unsolicited to announce new transactions or blocks,
   * or it can be sent in reply to a `SyncInfo` message (or application-specific messages like `GetMempool`).
   *
+  * @param maxInvObjects maximum inventory objects
   */
 class InvSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
 
@@ -94,8 +93,7 @@ object InvSpec {
 }
 
 /** ------------------------------------------------------------------------------------------------------------------ */
-/**
-  * The `RequestModifier` message requests one or more modifiers from another node.
+/** The `RequestModifier` message requests one or more modifiers from another node.
   * The objects are requested by an inventory, which the requesting node
   * typically received previously by way of an `Inv` message.
   *
@@ -105,6 +103,7 @@ object InvSpec {
   * For this reason, the `RequestModifier` message should usually only be used to request
   * data from a node which previously advertised it had that data by sending an `Inv` message.
   *
+  * @param maxInvObjects maximum inventory objects
   */
 class RequestModifierSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
 

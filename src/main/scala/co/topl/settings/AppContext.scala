@@ -10,11 +10,11 @@ import co.topl.utils.NetworkTimeProvider
 import scala.concurrent.ExecutionContext
 
 /** Info that Bifrost needs based on the settings and user options
- *
- * @param settings application settings
- * @param startupOpts user defined startup options
- * @param upnpGateway Option of Gateway class handling gateway device and port forwarding
- */
+  *
+  * @param settings application settings
+  * @param startupOpts user defined startup options
+  * @param upnpGateway Option of Gateway class handling gateway device and port forwarding
+  */
 class AppContext(
   settings: AppSettings,
   startupOpts: StartupOpts,
