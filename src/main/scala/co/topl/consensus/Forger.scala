@@ -279,7 +279,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
    * @param state   state to use for semantic validity checking
    * @return a sequence of valid transactions
    */
-  private def pickTransactions (memPool: MemPool, state  : State, chainHeight: Long): Try[Seq[TX]] = Try {
+  private def pickTransactions (memPool: MemPool, state: State, chainHeight: Long): Try[Seq[TX]] = Try {
 
     memPool.take(numTxInBlock(chainHeight)).foldLeft(Seq[TX]()) { case (txAcc, tx) =>
       val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.flatMap(_.boxIdsToOpen).contains(id))
@@ -287,14 +287,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
       if ( validBoxes ) memPool.remove(tx)
 
-      (tx match {
-        case t: Transaction[_, PublicKeyPropositionCurve25519, _, _] =>
-          state.validate[PublicKeyPropositionCurve25519](t)
-
-        case t: Transaction[_, ThresholdPropositionCurve25519, _, _] =>
-          state.validate[ThresholdPropositionCurve25519](t)
-
-      }) match {
+      state.validate(tx) match {
         case Success(_) if txNotIncluded => txAcc :+ tx
         case Success(_)                  => txAcc
         case Failure(ex)                 =>

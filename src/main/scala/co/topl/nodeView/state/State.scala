@@ -3,8 +3,8 @@ package co.topl.nodeView.state
 import java.io.File
 
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.proof.Proof
-import co.topl.attestation.proposition.Proposition
+import co.topl.attestation.proof.{ Proof, SignatureCurve25519, ThresholdSignatureCurve25519 }
+import co.topl.attestation.proposition.{ Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519 }
 import co.topl.attestation.{ Address, EvidenceProducer }
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -251,9 +251,14 @@ case class State ( override val version     : VersionTag,
     }
   }
 
-  override def validate[P <: Proposition: EvidenceProducer] (transaction: Transaction[_, P, _, _]): Try[Unit] = {
+  override def validate[TX: Transaction] (transaction: TX): Try[Unit] = {
     transaction match {
-      case tx: TransferTransaction[P, _]   => TransferTransaction.semanticValidate(tx, getReader)
+      case tx: TransferTransaction[PublicKeyPropositionCurve25519, SignatureCurve25519] =>
+        TransferTransaction.semanticValidate(tx, getReader)
+
+      case tx: TransferTransaction[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519] =>
+        TransferTransaction.semanticValidate(tx, getReader)
+
 //      case tx: ProgramTransfer        => ProgramTransfer.semanticValidate(tx, getReader)
 //      case tx: CodeCreation           => CodeCreation.semanticValidate(tx, getReader)
 //      case tx: ProgramCreation        => ProgramCreation.semanticValidate(tx, getReader)

@@ -44,7 +44,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
   import NodeViewHolder.ReceivableMessages._
 
   type BX = Box[_]
-  type TX = Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: BX]
+  type TX = Transaction[_, Proposition, Proof[_], _ <: BX]
   type PMOD = Block
   type HIS = History
   type MS = State
@@ -245,7 +245,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
   protected def txModify(tx: TX): Unit = {
     //todo: async validation?
     val errorOpt: Option[Throwable] = minimalState() match {
-      case txValidator: TransactionValidation[TX] =>
+      case txValidator: TransactionValidation =>
         txValidator.validate(tx) match {
           case Success(_) => None
           case Failure(e) => Some(e)
@@ -450,7 +450,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
     memPool.putWithoutCheck(rolledBackTxs).filter { tx =>
       !appliedTxs.exists(t => t.id == tx.id) && {
         state match {
-          case v: TransactionValidation[TX] => v.validate(tx).isSuccess
+          case v: TransactionValidation => v.validate(tx).isSuccess
           case _ => true
         }
       }

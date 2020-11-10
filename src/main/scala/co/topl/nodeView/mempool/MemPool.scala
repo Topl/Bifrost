@@ -4,16 +4,18 @@ import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
-import co.topl.nodeView.state.box.{Box, BoxId}
+import co.topl.nodeView.state.box.{ Box, BoxId }
 import co.topl.utils.Logging
 
 import scala.collection.concurrent.TrieMap
 import scala.util.Try
 
-case class MemPool(unconfirmed: TrieMap[ModifierId, Transaction[_, Proposition, Proof[_], Box[_]]])
-  extends MemoryPool[MemPool] with Logging {
+case class MemPool[TX <: Transaction[_, Proposition, Proof[_], Box[_]]](unconfirmed: TrieMap[ModifierId, TX])
+  extends MemoryPool[TX, MemPool[TX]] with Logging {
 
-  override type NVCT = MemPool
+  override type NVCT = MemPool[TX]
+
+  
 
   //private def key(id: Array[Byte]): ByteArrayWrapper = ByteArrayWrapper(id)
 
@@ -29,7 +31,7 @@ case class MemPool(unconfirmed: TrieMap[ModifierId, Transaction[_, Proposition, 
   override def size: Int = unconfirmed.size
 
   //modifiers
-  override def put(tx: TX): Try[MemPool] = Try {
+  override def put(tx: TX): Try[MemPool[TX]] = Try {
     unconfirmed.put(tx.id, tx)
     tx.boxIdsToOpen.foreach(boxId => require(!boxesInMempool.contains(boxId)))
     tx.boxIdsToOpen.foreach(boxId => boxesInMempool.put(boxId, boxId))
@@ -41,7 +43,7 @@ case class MemPool(unconfirmed: TrieMap[ModifierId, Transaction[_, Proposition, 
    * @param txs
    * @return
    */
-  override def put(txs: Iterable[TX]): Try[MemPool] = Try {
+  override def put(txs: Iterable[TX]): Try[MemPool[TX]] = Try {
     txs.foreach(tx => unconfirmed.put(tx.id, tx))
     txs.foreach(tx => tx.boxIdsToOpen.foreach {
       boxId => require(!boxesInMempool.contains(boxId))
@@ -57,7 +59,7 @@ case class MemPool(unconfirmed: TrieMap[ModifierId, Transaction[_, Proposition, 
    * @param txs
    * @return
    */
-  override def putWithoutCheck(txs: Iterable[TX]): MemPool = {
+  override def putWithoutCheck(txs: Iterable[TX]): MemPool[TX] = {
     txs.foreach(tx => unconfirmed.put(tx.id, tx))
     txs.foreach(tx => tx.boxIdsToOpen.map {
       boxId => boxesInMempool.put(boxId, boxId)
@@ -70,7 +72,7 @@ case class MemPool(unconfirmed: TrieMap[ModifierId, Transaction[_, Proposition, 
    * @param tx
    * @return
    */
-  override def remove(tx: TX): MemPool = {
+  override def remove(tx: TX): MemPool[TX] = {
     unconfirmed.remove(tx.id)
     this
   }
@@ -88,7 +90,7 @@ case class MemPool(unconfirmed: TrieMap[ModifierId, Transaction[_, Proposition, 
    * @param condition
    * @return
    */
-  override def filter(condition: TX => Boolean): MemPool = {
+  override def filter(condition: TX => Boolean): MemPool[TX] = {
     unconfirmed.retain { (_, v) =>
       if (condition(v)) {
         true
@@ -104,6 +106,6 @@ case class MemPool(unconfirmed: TrieMap[ModifierId, Transaction[_, Proposition, 
 }
 
 
-object MemPool {
-  lazy val emptyPool: MemPool = MemPool(TrieMap())
+object MemPool[TX] {
+  lazy val emptyPool: MemPool[TX] = MemPool[TX](TrieMap())
 }
