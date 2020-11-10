@@ -1,7 +1,7 @@
 package co.topl.consensus.genesis
 
 import co.topl.consensus.Forger.ChainParams
-import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
 import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -76,7 +76,7 @@ case object Toplnet extends GenesisProvider {
 
   def getGenesisBlock: Try[(Block, ChainParams)] = Try {
 
-    val memberKeys = members.keys.map(PublicKeyCurve25519Proposition.apply)
+    val memberKeys = members.keys.map(PublicKeyPropositionCurve25519.apply)
 
     val txInput = (
       IndexedSeq(genesisAcct.publicImage -> 0L),

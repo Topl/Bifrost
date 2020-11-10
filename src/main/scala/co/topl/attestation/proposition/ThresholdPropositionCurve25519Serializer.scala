@@ -5,9 +5,9 @@ import co.topl.utils.Extensions._
 import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
 import scorex.crypto.signatures.{ Curve25519, PublicKey }
 
-object ThresholdCurve25519PropositionSerializer extends BifrostSerializer[ThresholdCurve25519Proposition] {
+object ThresholdPropositionCurve25519Serializer extends BifrostSerializer[ThresholdPropositionCurve25519] {
 
-  override def serialize(obj: ThresholdCurve25519Proposition, w: Writer): Unit = {
+  override def serialize( obj: ThresholdPropositionCurve25519, w: Writer): Unit = {
     /* m: Int */
     w.putUInt(obj.threshold)
 
@@ -16,13 +16,13 @@ object ThresholdCurve25519PropositionSerializer extends BifrostSerializer[Thresh
     obj.pubKeyProps.foreach(prop => w.putBytes(prop.pubKeyBytes))
   }
 
-  override def parse(r: Reader): ThresholdCurve25519Proposition = {
+  override def parse(r: Reader): ThresholdPropositionCurve25519 = {
     val threshold: Int = r.getUInt().toIntExact
 
     val numSigs: Int = r.getUInt().toIntExact
-    val signatures: Set[PublicKeyCurve25519Proposition] =
-      (0 until numSigs).map(_ => PublicKeyCurve25519PropositionSerializer.parse(r)).toSet
+    val signatures: Set[PublicKeyPropositionCurve25519] =
+      (0 until numSigs).map(_ => PublicKeyPropositionCurve25519Serializer.parse(r)).toSet
 
-    ThresholdCurve25519Proposition(threshold, signatures)
+    ThresholdPropositionCurve25519(threshold, signatures)
   }
 }

@@ -2,28 +2,28 @@ package co.topl.consensus
 
 import akka.actor._
 import akka.util.Timeout
-import co.topl.attestation.{Address, EvidenceProducer}
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.proof.Proof
-import co.topl.attestation.proposition.{Proposition, PublicKeyCurve25519Proposition}
+import co.topl.attestation.proposition.{ Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519 }
 import co.topl.attestation.secrets.PrivateKeyCurve25519
+import co.topl.attestation.{ Address, EvidenceProducer }
 import co.topl.consensus.Forger.ChainParams
-import co.topl.consensus.genesis.{PrivateTestnet, Toplnet}
+import co.topl.consensus.genesis.{ PrivateTestnet, Toplnet }
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
+import co.topl.modifier.transaction.{ ArbitTransfer, PolyTransfer, Transaction, TransferTransaction }
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{ GetDataFromCurrentView, LocallyGeneratedModifier }
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.{ArbitBox, Box, TokenBox}
-import co.topl.nodeView.{CurrentView, NodeViewHolder}
-import co.topl.settings.NetworkType.{DevNet, LocalNet, MainNet, PrivateNet, TestNet}
-import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
+import co.topl.nodeView.state.box.{ ArbitBox, Box, TokenBox }
+import co.topl.nodeView.{ CurrentView, NodeViewHolder }
+import co.topl.settings.NetworkType.{ DevNet, LocalNet, MainNet, PrivateNet, TestNet }
+import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
 import co.topl.utils.Logging
 import co.topl.utils.TimeProvider.Time
 
 import scala.concurrent.ExecutionContext
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /**
  * Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
@@ -33,7 +33,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
              ( implicit ec: ExecutionContext ) extends Actor with Logging {
 
   //type HR = HistoryReader[Block, BifrostSyncInfo]
-  type TX = Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]
+  type TX = Transaction[_, Proposition, Proof[_], Box[_]]
 
   // Import the types of messages this actor RECEIVES
   import Forger.ReceivableMessages._
@@ -106,7 +106,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
       log.info(s"Forger: Received a stop signal. Forging will terminate after this trial")
       context become readyToForge
 
-    case CurrentView(history: History, state: State, mempool: MemPool[_]) =>
+    case CurrentView(history: History, state: State, mempool: MemPool) =>
       updateForgeTime() // update the forge timestamp
       tryForging(history, state, mempool) // initiate forging attempt
       scheduleForgingAttempt() // schedule the next forging attempt
@@ -148,7 +148,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
   }
 
   /** Helper function to generate a set of keys used for the genesis block (for private test networks) */
-  private def generateKeys (num: Int, seed: Option[String] = None): Set[PublicKeyCurve25519Proposition] = {
+  private def generateKeys (num: Int, seed: Option[String] = None): Set[PublicKeyPropositionCurve25519] = {
     keyRing.generateNewKeyPairs(num, seed) match {
       case Success(keys) => keys.map(_.publicImage)
       case Failure(ex)   => throw ex
@@ -183,7 +183,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
    * @param state   state instance for semantic validity tests of transactions
    * @param memPool mempool instance for picking transactions to include in the block if created
    */
-  private def tryForging ( history: History, state: State, memPool: MemPool[TX]): Unit = {
+  private def tryForging ( history: History, state: State, memPool: MemPool): Unit = {
     log.debug(s"${Console.YELLOW}Attempting to forge with settings ${protocolMngr.current(history.height)}${Console.RESET}")
     log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${history.height}${Console.RESET}")
     log.info("chain difficulty: " + history.difficulty)
@@ -203,7 +203,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
       require(boxes.map(_.value).sum > 0, "No Arbits could be found to stake with, exiting attempt")
 
       // create the coinbase reward transaction
-      val coinbase = createCoinbase(history.bestBlock.id, rewardAddr) match {
+      val arbitReward = createArbitReward(history.bestBlock.id, rewardAddr) match {
         case Success(cb) => cb
         case Failure(ex) => throw ex
       }
@@ -214,15 +214,15 @@ class Forger (settings: AppSettings, appContext: AppContext )
         case Failure(ex)  => throw ex
       }
 
-      // TODO: Create the fee reward transaction
-      val feeAmt = transactions.map(_.fee).sum
-      val feeReward = createFeeTransaction(feeAmt, rewardAddr) match {
+      val polyReward = createPolyReward(transactions.map(_.fee).sum, rewardAddr) match {
         case Success(tx) => tx
         case Failure(ex) => throw ex
       }
 
+      val rewards = Seq(arbitReward, polyReward)
+
       // check forging eligibility
-      leaderElection(history.bestBlock, history.height, history.difficulty, boxes, coinbase, transactions) match {
+      leaderElection(history.bestBlock, history.height, history.difficulty, boxes, rewards, transactions) match {
         case Some(block) =>
           log.debug(s"Locally generated block: $block")
           context.system.eventStream.publish(LocallyGeneratedModifier[Block](block))
@@ -262,14 +262,14 @@ class Forger (settings: AppSettings, appContext: AppContext )
    * @param parentId block id of the current head of the chain
    * @return an unsigned coinbase transaction
    */
-  private def createCoinbase (parentId: Block.BlockId, rewardAdr: Address): Try[ArbitTransfer[_,_]] = Try {
+  private def createArbitReward (parentId: Block.BlockId, rewardAdr: Address): Try[ArbitTransfer[_,_]] = Try {
     val to = IndexedSeq((rewardAdr, inflation))
     ArbitTransfer(IndexedSeq(), to, Map(), 0, forgeTime, "", minting = true)
   }
 
-  private def createFeeTransaction(amount: TokenBox.Value, rewardAdr: Address): Try[PolyTransfer[_,_]] = Try {
+  private def createPolyReward(amount: TokenBox.Value, rewardAdr: Address): Try[PolyTransfer[_,_]] = Try {
     val to = IndexedSeq((rewardAdr, amount))
-    PolyTransfer(IndexedSeq(), to, Map(), 0, forgeTime, "")
+    PolyTransfer(IndexedSeq(), to, Map(), 0, forgeTime, "", minting = true)
   }
 
   /**
@@ -279,11 +279,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
    * @param state   state to use for semantic validity checking
    * @return a sequence of valid transactions
    */
-  private def pickTransactions
-  ( memPool: MemPool[TX],
-    state  : State,
-    chainHeight: Long
-  ): Try[Seq[TX]] = Try {
+  private def pickTransactions (memPool: MemPool, state  : State, chainHeight: Long): Try[Seq[TX]] = Try {
 
     memPool.take(numTxInBlock(chainHeight)).foldLeft(Seq[TX]()) { case (txAcc, tx) =>
       val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.flatMap(_.boxIdsToOpen).contains(id))
@@ -291,15 +287,20 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
       if ( validBoxes ) memPool.remove(tx)
 
-      txAcc :+ tx
+      (tx match {
+        case t: Transaction[_, PublicKeyPropositionCurve25519, _, _] =>
+          state.validate[PublicKeyPropositionCurve25519](t)
 
-//      state.validate(tx) match {
-//        case Success(_) if txNotIncluded => txAcc :+ tx
-//        case Success(_)                  => txAcc
-//        case Failure(ex)                 =>
-//          log.debug(s"${Console.RED}Invalid Unconfirmed transaction $tx. Removing transaction${Console.RESET}. Failure: $ex")
-//          txAcc
-//      }
+        case t: Transaction[_, ThresholdPropositionCurve25519, _, _] =>
+          state.validate[ThresholdPropositionCurve25519](t)
+
+      }) match {
+        case Success(_) if txNotIncluded => txAcc :+ tx
+        case Success(_)                  => txAcc
+        case Failure(ex)                 =>
+          log.debug(s"${Console.RED}Invalid Unconfirmed transaction $tx. Removing transaction${Console.RESET}. Failure: $ex")
+          txAcc
+      }
     }
   }
 
@@ -317,7 +318,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
                                parentHeight: Long,
                                parentDifficulty: Long,
                                boxes     : Set[ArbitBox],
-                               coinbase  : ArbitTransfer[_,_],
+                               rawRewards: Seq[TransferTransaction[_,_]],
                                txsToInclude: Seq[TX]
                              ): Option[Block] = {
 
@@ -333,16 +334,19 @@ class Forger (settings: AppSettings, appContext: AppContext )
     log.debug(s"Successful hits: ${successfulHits.size}")
 
     successfulHits.headOption.flatMap { case (box, _) =>
-      keyRing.secretByAddress(box.proposition) match {
+      keyRing.secretByAddress(Address(box.evidence)) match {
         case Some(sk) =>
-          // use the secret key that owns the successful box to sign the coinbase transaction
-          val signedCb = coinbase.copy(signatures = Map(sk.publicImage -> sk.sign(coinbase.messageToSign)))
+          // use the secret key that owns the successful box to sign the rewards transactions
+          val signedRewards = rawRewards.map {
+            case tx: ArbitTransfer[_, _] => tx.copy(attestation = Map(sk.publicImage -> sk.sign(tx.messageToSign)))
+            case tx: PolyTransfer[_, _]  => tx.copy(attestation = Map(sk.publicImage -> sk.sign(tx.messageToSign)))
+          }
 
           // add the signed coinbase transaction to the block and return
-          Some(Block.create(parent.id, forgeTime, signedCb +: txsToInclude, box, sk, blockVersion(parentHeight + 1)))
+          Some(Block.create(parent.id, forgeTime, signedRewards ++ txsToInclude, box, sk, blockVersion(parentHeight + 1)))
 
         case _ =>
-          log.warn(s"Could not find the secret for public image ${box.proposition}. Failed to forge block")
+          log.warn(s"Could not find the secret for address ${Address(box.evidence)}. Failed to forge block")
           None
       }
     }

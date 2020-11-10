@@ -1,7 +1,7 @@
 package co.topl.transaction.proposition
 
 import co.topl.BifrostGenerators
-import co.topl.attestation.proposition.{ ThresholdCurve25519Proposition, PublicKeyCurve25519Proposition }
+import co.topl.attestation.proposition.{ ThresholdPropositionCurve25519, PublicKeyPropositionCurve25519 }
 import co.topl.attestation.proof.ThresholdSignatureCurve25519
 import co.topl.attestation.secrets.PrivateKeyCurve25519
 import org.scalatest.matchers.should.Matchers
@@ -19,7 +19,7 @@ class MultiSignatureCurve25519Spec extends AnyPropSpec
              "should be valid for oneOfNProposition") {
 
     forAll(keyPairSetGen) {
-      s: Set[(PrivateKeyCurve25519, PublicKeyCurve25519Proposition)] =>
+      s: Set[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] =>
         val message = nonEmptyBytesGen.sample.get
         val signatures = s.map(_._1.sign(message))
         val oneOfNProposition = ThresholdCurve25519Proposition(1, s.map(keyPair => keyPair._2.pubKeyBytes))
@@ -32,7 +32,7 @@ class MultiSignatureCurve25519Spec extends AnyPropSpec
              "should not be valid for twoOfNProposition") {
 
     forAll(keyPairSetGen) {
-      s: Set[(PrivateKeyCurve25519, PublicKeyCurve25519Proposition)] =>
+      s: Set[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] =>
         val message = nonEmptyBytesGen.sample.get
         val signatures = s.map(_._1.sign(message))
 

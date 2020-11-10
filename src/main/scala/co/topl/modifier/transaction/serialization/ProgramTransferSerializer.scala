@@ -1,6 +1,6 @@
 package co.topl.modifier.transaction.serialization
 
-import co.topl.attestation.proposition.{PublicKeyCurve25519Proposition, PublicKeyCurve25519PropositionSerializer}
+import co.topl.attestation.proposition.{PublicKeyPropositionCurve25519, PublicKeyPropositionCurve25519Serializer}
 import co.topl.attestation.proof.{SignatureCurve25519, SignatureCurve25519Serializer}
 import co.topl.modifier.transaction.ProgramTransfer
 import co.topl.nodeView.state.box.ExecutionBox
@@ -11,10 +11,10 @@ object ProgramTransferSerializer extends BifrostSerializer[ProgramTransfer]{
 
   override def serialize(obj: ProgramTransfer, w: Writer): Unit = {
     /* from: PublicKey25519Proposition */
-    PublicKeyCurve25519PropositionSerializer.serialize(obj.from, w)
+    PublicKeyPropositionCurve25519Serializer.serialize(obj.from, w)
 
     /* to: PublicKey25519Proposition */
-    PublicKeyCurve25519PropositionSerializer.serialize(obj.to, w)
+    PublicKeyPropositionCurve25519Serializer.serialize(obj.to, w)
 
     /* signature: Signature25519 */
     SignatureCurve25519Serializer.serialize(obj.signature, w)
@@ -33,8 +33,8 @@ object ProgramTransferSerializer extends BifrostSerializer[ProgramTransfer]{
   }
 
   override def parse(r: Reader): ProgramTransfer = {
-    val from: PublicKeyCurve25519Proposition = PublicKeyCurve25519PropositionSerializer.parse(r)
-    val to: PublicKeyCurve25519Proposition = PublicKeyCurve25519PropositionSerializer.parse(r)
+    val from: PublicKeyPropositionCurve25519 = PublicKeyPropositionCurve25519Serializer.parse(r)
+    val to: PublicKeyPropositionCurve25519 = PublicKeyPropositionCurve25519Serializer.parse(r)
     val signature: SignatureCurve25519 = SignatureCurve25519Serializer.parse(r)
     val executionBox: ExecutionBox = ExecutionBoxSerializer.parse(r)
     val fee: Long = r.getULong()

@@ -36,7 +36,7 @@ case class State ( override val version     : VersionTag,
                    nodeKeys                 : Option[Set[Address]] = None
                  ) (implicit networkPrefix: NetworkPrefix) extends MinimalState[Box[_], Block, State]
                                                                    with StoreInterface
-                                                                   with TransactionValidation[Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: GenericBox[_]]]
+                                                                   with TransactionValidation
                                                                    with Logging {
 
   override type NVCT = State
@@ -251,12 +251,9 @@ case class State ( override val version     : VersionTag,
     }
   }
 
-  override def validate[P <: Proposition: EvidenceProducer, PR <: Proof[P]]
-    (transaction: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: GenericBox[_]]): Try[Unit] = {
+  override def validate[P <: Proposition: EvidenceProducer] (transaction: Transaction[_, P, _, _]): Try[Unit] = {
     transaction match {
-      case tx: ArbitTransfer[P, PR]   => TransferTransaction.semanticValidate(tx, getReader)
-      case tx: PolyTransfer[P, PR]    => TransferTransaction.semanticValidate(tx, getReader)
-      case tx: AssetTransfer[P, PR]   => TransferTransaction.semanticValidate(tx, getReader)
+      case tx: TransferTransaction[P, _]   => TransferTransaction.semanticValidate(tx, getReader)
 //      case tx: ProgramTransfer        => ProgramTransfer.semanticValidate(tx, getReader)
 //      case tx: CodeCreation           => CodeCreation.semanticValidate(tx, getReader)
 //      case tx: ProgramCreation        => ProgramCreation.semanticValidate(tx, getReader)
@@ -284,11 +281,12 @@ object State extends Logging {
    *
    * @param transaction the transaction to evaluate
    */
-  def syntacticValidity[P <: Proposition: EvidenceProducer, PR <: Proof[P]] (transaction: Transaction[_, P, PR, _]): Try[Unit] = {
+  def syntacticValidity[P <: Proposition: EvidenceProducer, TX: Transaction] (transaction: TX)
+    (implicit networkPrefix: NetworkPrefix): Try[Unit] = {
     transaction match {
-      case tx: ArbitTransfer[P, PR]   => TransferTransaction.syntacticValidate(tx)
-      case tx: PolyTransfer[P, PR]    => TransferTransaction.syntacticValidate(tx)
-      case tx: AssetTransfer[P, PR]   => TransferTransaction.syntacticValidate(tx)
+      case tx: ArbitTransfer[P, _]   => TransferTransaction.syntacticValidate(tx)
+      case tx: PolyTransfer[P, _]    => TransferTransaction.syntacticValidate(tx)
+      case tx: AssetTransfer[P, _]   => TransferTransaction.syntacticValidate(tx)
 //      case tx: ProgramTransfer        => ProgramTransfer.syntacticValidate(tx)
 //      case tx: CodeCreation           => CodeCreation.syntacticValidate(tx)
 //      case tx: ProgramCreation        => ProgramCreation.syntacticValidate(tx)

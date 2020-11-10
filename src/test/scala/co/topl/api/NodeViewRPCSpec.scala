@@ -8,7 +8,7 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ ByteString, Timeout }
 import co.topl.BifrostGenerators
-import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
 import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.http.api.routes.{ AssetApiRoute, NodeViewApiRoute }
 import co.topl.modifier.ModifierId
@@ -141,12 +141,12 @@ class NodeViewRPCSpec extends AnyWordSpec
         val history = view().history
         //Create a block with the above created createAssets transaction
         val tempBlock = Block(history.bestBlockId,
-          System.currentTimeMillis(),
-          ArbitBox(PublicKeyCurve25519Proposition(PublicKey @@ history.bestBlockId.hashBytes), 0L, 10000L),
-          SignatureCurve25519(Signature @@ Array.fill(Curve25519.SignatureLength)(1: Byte)),
-          Seq(assetTxInstance),
-          settings.application.version.blockByte
-        )
+                              System.currentTimeMillis(),
+                              ArbitBox(PublicKeyPropositionCurve25519(PublicKey @@ history.bestBlockId.hashBytes), 0L, 10000L),
+                              SignatureCurve25519(Signature @@ Array.fill(Curve25519.SignatureLength)(1: Byte)),
+                              Seq(assetTxInstance),
+                              settings.application.version.blockByte
+                              )
         history.append(tempBlock)
         blockId = tempBlock.id
       }

@@ -1,6 +1,6 @@
 package co.topl.attestation.proof
 
-import co.topl.attestation.proposition.ThresholdCurve25519Proposition
+import co.topl.attestation.proposition.ThresholdPropositionCurve25519
 import co.topl.attestation.secrets.PrivateKeyCurve25519
 import io.circe.syntax.EncoderOps
 import io.circe.{ Decoder, Encoder, KeyDecoder, KeyEncoder }
@@ -9,13 +9,13 @@ import scorex.crypto.signatures.{ Curve25519, PublicKey }
 import scala.util.{ Failure, Success, Try }
 
 case class ThresholdSignatureCurve25519 (private[proof] val signatures: Set[SignatureCurve25519])
-  extends ProofOfKnowledge[PrivateKeyCurve25519, ThresholdCurve25519Proposition] {
+  extends ProofOfKnowledge[PrivateKeyCurve25519, ThresholdPropositionCurve25519] {
 
   signatures.foreach(sig => {
     require(sig.sigBytes.length == ThresholdSignatureCurve25519.SignatureSize)
   })
 
-  override def isValid(proposition: ThresholdCurve25519Proposition, message: Array[Byte]): Boolean = Try {
+  override def isValid( proposition: ThresholdPropositionCurve25519, message: Array[Byte]): Boolean = Try {
     // check that we have at least m signatures
     // JAA - the Try wraps this to expression so this check may prematurely exit evaluation and return false
     //       (i.e. the check should fail quickly)

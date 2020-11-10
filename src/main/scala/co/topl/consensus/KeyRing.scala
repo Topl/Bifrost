@@ -4,7 +4,7 @@ import java.io.File
 
 import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
 import co.topl.attestation.secrets.{ PrivateKeyCurve25519, Secret, SecretGenerator }
 import co.topl.crypto.{ Bip39, Curve25519KeyFile }
 import co.topl.utils.Logging

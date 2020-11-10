@@ -1,7 +1,7 @@
 package co.topl.nodeView.state.box
 
 import co.topl.attestation.{Address, Evidence}
-import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
 import co.topl.nodeView.state.box.Box.BoxType
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}

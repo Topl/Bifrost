@@ -2,7 +2,7 @@ package co.topl.http.api.routes
 
 import akka.actor.{ ActorRef, ActorRefFactory }
 import akka.http.scaladsl.server.Route
-import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
 import co.topl.http.api.ApiRouteWithView
 import co.topl.modifier.transaction.{ AssetCreation, AssetTransfer }
 import co.topl.nodeView.history.History
@@ -150,8 +150,8 @@ case class AssetApiRoute( override val settings: RESTApiSettings, nodeViewHolder
     viewAsync().map { view =>
       // parse arguments from the request
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-      val recipient: PublicKeyCurve25519Proposition = PublicKey25519Proposition((params \\ "recipient").head.asString.get)
-      val sender: IndexedSeq[PublicKeyCurve25519Proposition] =
+      val recipient: PublicKeyPropositionCurve25519 = PublicKey25519Proposition((params \\ "recipient").head.asString.get)
+      val sender: IndexedSeq[PublicKeyPropositionCurve25519] =
         (params \\ "sender").head.asArray.get.map { key =>
           PublicKey25519Proposition(key.asString.get)
         }
@@ -292,11 +292,11 @@ case class AssetApiRoute( override val settings: RESTApiSettings, nodeViewHolder
   private def transferTargetAssetsPrototype(implicit params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       // parse required arguments from the request
-      val sender: IndexedSeq[PublicKeyCurve25519Proposition] =
+      val sender: IndexedSeq[PublicKeyPropositionCurve25519] =
         (params \\ "sender").head.asArray.get.map { key =>
           PublicKey25519Proposition(key.asString.get)
         }
-      val recipient: PublicKeyCurve25519Proposition = PublicKey25519Proposition((params \\ "recipient").head.asString.get)
+      val recipient: PublicKeyPropositionCurve25519 = PublicKey25519Proposition((params \\ "recipient").head.asString.get)
       val assetId: BoxId = BoxId((params \\ "assetId").head.asString.get)
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
@@ -447,7 +447,7 @@ case class AssetApiRoute( override val settings: RESTApiSettings, nodeViewHolder
   private def createAssetsPrototype(implicit params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val issuer = PublicKey25519Proposition((params \\ "issuer").head.asString.get)
-      val recipient: PublicKeyCurve25519Proposition = PublicKey25519Proposition((params \\ "recipient").head.asString.get)
+      val recipient: PublicKeyPropositionCurve25519 = PublicKey25519Proposition((params \\ "recipient").head.asString.get)
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val assetCode: String = (params \\ "assetCode").head.asString.get
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).get

@@ -1,9 +1,10 @@
 package co.topl.nodeView.mempool
 
+import co.topl.attestation.EvidenceProducer
 import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
 import co.topl.modifier.transaction.Transaction
-import co.topl.modifier.{ContainsModifiers, ModifierId}
+import co.topl.modifier.{ ContainsModifiers, ModifierId }
 import co.topl.nodeView.NodeViewComponent
 import co.topl.nodeView.state.box.Box
 
@@ -12,7 +13,9 @@ import co.topl.nodeView.state.box.Box
   *
   * @tparam TX -type of transaction the pool contains
   */
-trait MemPoolReader[TX <: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]] extends NodeViewComponent with ContainsModifiers[TX] {
+trait MemPoolReader extends NodeViewComponent with ContainsModifiers[Transaction[_, Proposition, Proof[_], Box[_]]] {
+
+  type TX = Transaction[_, Proposition, Proof[_], Box[_]]
 
   //getters
   override def modifierById(modifierId: ModifierId): Option[TX]
@@ -26,6 +29,6 @@ trait MemPoolReader[TX <: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: B
 
   def size: Int
 
-  def take(limit: Int): Iterable[TX]
+  def take[P: Proposition: EvidenceProducer, T: Transaction[_, P, Proof[P], Box[_]]] ( limit: Int): Iterable[T]
 
 }

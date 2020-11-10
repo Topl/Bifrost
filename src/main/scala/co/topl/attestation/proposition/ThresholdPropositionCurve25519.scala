@@ -12,7 +12,7 @@ import scorex.crypto.signatures.Curve25519
 
 import scala.util.{Failure, Success}
 
-case class ThresholdCurve25519Proposition (threshold: Int, pubKeyProps: Set[PublicKeyCurve25519Proposition])
+case class ThresholdPropositionCurve25519 ( threshold: Int, pubKeyProps: Set[PublicKeyPropositionCurve25519])
   extends KnowledgeProposition[PrivateKeyCurve25519] {
 
   pubKeyProps.foreach(prop => {
@@ -25,25 +25,25 @@ case class ThresholdCurve25519Proposition (threshold: Int, pubKeyProps: Set[Publ
 }
 
 
-object ThresholdCurve25519Proposition {
+object ThresholdPropositionCurve25519 {
   // type prefix used for address creation
   val typePrefix: EvidenceTypePrefix = 2: Byte
 
-  def apply(str: String): ThresholdCurve25519Proposition =
+  def apply(str: String): ThresholdPropositionCurve25519 =
     Proof.fromString(str) match {
       case Success(prop) => prop
       case Failure(ex) => throw ex
     }
 
-  implicit val propEvidence: EvidenceProducer[ThresholdCurve25519Proposition] =
-    EvidenceProducer.instance[ThresholdCurve25519Proposition] {
-      prop: ThresholdCurve25519Proposition => Evidence(typePrefix, EvidenceContent @@ Blake2b256(prop.bytes))
+  implicit val propEvidence: EvidenceProducer[ThresholdPropositionCurve25519] =
+    EvidenceProducer.instance[ThresholdPropositionCurve25519] {
+      prop: ThresholdPropositionCurve25519 => Evidence(typePrefix, EvidenceContent @@ Blake2b256(prop.bytes))
     }
 
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html
-  implicit val jsonEncoder: Encoder[ThresholdCurve25519Proposition] = (prop: ThresholdCurve25519Proposition) => prop.toString.asJson
-  implicit val jsonKeyEncoder: KeyEncoder[ThresholdCurve25519Proposition] = (prop: ThresholdCurve25519Proposition) => prop.toString
-  implicit val jsonDecoder: Decoder[ThresholdCurve25519Proposition] = Decoder.decodeString.map(apply)
-  implicit val jsonKeyDecoder: KeyDecoder[ThresholdCurve25519Proposition] = (str: String) => Some(apply(str))
+  implicit val jsonEncoder: Encoder[ThresholdPropositionCurve25519] = ( prop: ThresholdPropositionCurve25519) => prop.toString.asJson
+  implicit val jsonKeyEncoder: KeyEncoder[ThresholdPropositionCurve25519] = ( prop: ThresholdPropositionCurve25519) => prop.toString
+  implicit val jsonDecoder: Decoder[ThresholdPropositionCurve25519] = Decoder.decodeString.map(apply)
+  implicit val jsonKeyDecoder: KeyDecoder[ThresholdPropositionCurve25519] = ( str: String) => Some(apply(str))
 }

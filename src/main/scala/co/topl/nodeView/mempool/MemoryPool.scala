@@ -14,7 +14,7 @@ import scala.util.Try
   *
   * @tparam TX -type of transaction the pool contains
   */
-trait MemoryPool[TX <: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]], M <: MemoryPool[TX, M]] extends NodeViewComponent with MemPoolReader[TX] {
+trait MemoryPool[M <: MemoryPool[M]] extends NodeViewComponent with MemPoolReader {
 
   //getters
   def modifierById(id: ModifierId): Option[TX]
@@ -46,5 +46,5 @@ trait MemoryPool[TX <: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[
   /**
     * @return read-only copy of this state
     */
-  def getReader: MemPoolReader[TX] = this
+  def getReader: MemPoolReader = this
 }

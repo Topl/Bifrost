@@ -2,7 +2,7 @@ package co.topl.modifier.block
 
 import co.topl.attestation.EvidenceProducer.syntax._
 import co.topl.attestation.proof.{ Proof, SignatureCurve25519 }
-import co.topl.attestation.proposition.{ Proposition, PublicKeyCurve25519Proposition }
+import co.topl.attestation.proposition.{ Proposition, PublicKeyPropositionCurve25519 }
 import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block._
@@ -37,7 +37,7 @@ import scala.collection.BitSet
 case class Block( parentId    : BlockId,
                   timestamp   : Timestamp,
                   forgerBox   : ArbitBox,
-                  publicKey   : PublicKeyCurve25519Proposition,
+                  publicKey   : PublicKeyPropositionCurve25519,
                   signature   : SignatureCurve25519,
                   transactions: Seq[Block.TX],
                   version     : Version
@@ -89,7 +89,7 @@ object Block {
       parentId <- c.downField("parentId").as[ModifierId]
       timestamp <- c.downField("timestamp").as[Timestamp]
       generatorBox <- c.downField("generatorBox").as[ArbitBox]
-      publicKey <- c.downField("publicKey").as[PublicKeyCurve25519Proposition]
+      publicKey <- c.downField("publicKey").as[PublicKeyPropositionCurve25519]
       signature <- c.downField("signature").as[SignatureCurve25519]
       txsSeq <- c.downField("txs").as[Seq[TX]]
       version <- c.downField("version").as[Byte]

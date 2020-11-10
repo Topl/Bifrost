@@ -5,7 +5,7 @@ import java.util
 
 import InstrumentClasses.ProgramController
 import InstrumentClasses.TokenClasses._
-import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.box.{ ArbitBox, AssetBox }
 import co.topl.nodeView.state.{ State, StateSpec }
@@ -81,10 +81,10 @@ class ValkyrieSpec extends AnyPropSpec
 
     val assetInstance: AssetInstance = valkyrieController.getNewAssetInstances.get(0)
 
-    val proposition: PublicKeyCurve25519Proposition = PublicKey25519Proposition(assetInstance.publicKey)
+    val proposition: PublicKeyPropositionCurve25519 = PublicKey25519Proposition(assetInstance.publicKey)
     val amount: Long = assetInstance.amount
     val assetCode: String = assetInstance.assetCode
-    val issuer: PublicKeyCurve25519Proposition = PublicKey25519Proposition(assetInstance.issuer)
+    val issuer: PublicKeyPropositionCurve25519 = PublicKey25519Proposition(assetInstance.issuer)
     val data: String = assetInstance.data
 
     val timestamp = Instant.now.toEpochMilli
@@ -135,10 +135,10 @@ class ValkyrieSpec extends AnyPropSpec
 
     val assetInstance: AssetInstance = valkyrieController.getNewAssetInstances.get(0)
 
-    val proposition: PublicKeyCurve25519Proposition = PublicKey25519Proposition(assetInstance.publicKey)
+    val proposition: PublicKeyPropositionCurve25519 = PublicKey25519Proposition(assetInstance.publicKey)
     val amount: Long = assetInstance.amount
     val assetCode: String = assetInstance.assetCode
-    val issuer: PublicKeyCurve25519Proposition = PublicKey25519Proposition(assetInstance.issuer)
+    val issuer: PublicKeyPropositionCurve25519 = PublicKey25519Proposition(assetInstance.issuer)
     val data: String = assetInstance.data
 
     val timestamp = Instant.now.toEpochMilli
@@ -206,7 +206,7 @@ class ValkyrieSpec extends AnyPropSpec
     //Parsing the new arbit instance as an arbit box
     val newArbitInstance1: ArbitInstance = valkyrieController.getNewArbitInstances.get(0)
 
-    val proposition: PublicKeyCurve25519Proposition = PublicKey25519Proposition(newArbitInstance1.publicKey)
+    val proposition: PublicKeyPropositionCurve25519 = PublicKey25519Proposition(newArbitInstance1.publicKey)
     val amount: Long = newArbitInstance1.amount
 
     val timestamp = Instant.now.toEpochMilli

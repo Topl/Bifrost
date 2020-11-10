@@ -5,7 +5,7 @@ import java.time.Instant
 import co.topl.attestation
 import co.topl.attestation.Address
 import co.topl.attestation.proof.{ Proof, SignatureCurve25519 }
-import co.topl.attestation.proposition.{ Proposition, PublicKeyCurve25519Proposition }
+import co.topl.attestation.proposition.{ Proposition, PublicKeyPropositionCurve25519 }
 import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.modifier.transaction
 import co.topl.modifier.transaction.Transaction.TxType

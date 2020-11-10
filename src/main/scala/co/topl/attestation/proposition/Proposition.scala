@@ -1,8 +1,10 @@
 package co.topl.attestation.proposition
 
-import co.topl.attestation.Address
+import co.topl.attestation.{ Address, EvidenceProducer }
 import co.topl.attestation.AddressEncoder.NetworkPrefix
+import co.topl.attestation.proof.{ Proof, SignatureCurve25519 }
 import co.topl.attestation.secrets.Secret
+import co.topl.modifier.transaction.Transaction
 import co.topl.utils.serialization.{ BifrostSerializer, BytesSerializable }
 import com.google.common.primitives.Ints
 import scorex.util.encode.Base58
@@ -43,7 +45,7 @@ object Proposition {
     })
 
   def getPropTypeString[TX[_,_], P <: Proposition] (obj: TX[P,_]): String = obj match {
-    case _: TX[PublicKeyCurve25519Proposition, _] => "PublicKeyCurve25519"
-    case _: TX[ThresholdCurve25519Proposition, _] => "ThresholdCurve25519"
+    case _: TX[PublicKeyPropositionCurve25519, _] => "PublicKeyCurve25519"
+    case _: TX[ThresholdPropositionCurve25519, _] => "ThresholdCurve25519"
   }
 }

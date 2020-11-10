@@ -1,12 +1,13 @@
 package co.topl.modifier.transaction
 
+import co.topl.attestation.EvidenceProducer
 import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.modifier.{ ModifierId, NodeViewModifier }
-import co.topl.nodeView.state.box.{ Box, BoxId, GenericBox }
+import co.topl.nodeView.state.box.{ Box, BoxId }
 import co.topl.utils.serialization.BifrostSerializer
 import com.google.common.primitives.Longs
 import io.circe.{ Decoder, Encoder, HCursor }
@@ -24,7 +25,7 @@ abstract class Transaction[T, P <: Proposition, PR <: Proof[P], BX <: Box[T]] ex
   lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = None
 
   lazy val messageToSign: Array[Byte] =
-    txTypePrefix +:
+    Array(txTypePrefix) ++
       newBoxes.foldLeft(Array[Byte]())((acc, x) => acc ++ x.bytes) ++
       boxIdsToOpen.foldLeft(Array[Byte]())((acc, x) => acc ++ x.hashBytes) ++
       Longs.toByteArray(timestamp) ++

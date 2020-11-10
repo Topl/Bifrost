@@ -1,6 +1,6 @@
 package co.topl.modifier.transaction.serialization
 
-import co.topl.attestation.proposition.{PublicKeyCurve25519Proposition, PublicKeyCurve25519PropositionSerializer}
+import co.topl.attestation.proposition.{PublicKeyPropositionCurve25519, PublicKeyPropositionCurve25519Serializer}
 import co.topl.attestation.proof.{SignatureCurve25519, SignatureCurve25519Serializer}
 import co.topl.modifier.transaction.ProgramMethodExecution
 import co.topl.modifier.transaction.Transaction.Nonce
@@ -31,7 +31,7 @@ object ProgramMethodExecutionSerializer extends BifrostSerializer[ProgramMethodE
     w.putIntString(obj.methodParams.noSpaces)
 
     /* owner: PublicKey25519Proposition */
-    PublicKeyCurve25519PropositionSerializer.serialize(obj.owner, w)
+    PublicKeyPropositionCurve25519Serializer.serialize(obj.owner, w)
 
     /* signatures: Map[PublicKey25519Proposition, Signature25519] */
     SignatureCurve25519Serializer.serialize(obj.signatures.head._2, w)
@@ -72,9 +72,9 @@ object ProgramMethodExecutionSerializer extends BifrostSerializer[ProgramMethodE
       case Right(j: Json) => j
     }
 
-    val owner: PublicKeyCurve25519Proposition = PublicKeyCurve25519PropositionSerializer.parse(r)
+    val owner: PublicKeyPropositionCurve25519 = PublicKeyPropositionCurve25519Serializer.parse(r)
 
-    val signatures: Map[PublicKeyCurve25519Proposition, SignatureCurve25519] = {
+    val signatures: Map[PublicKeyPropositionCurve25519, SignatureCurve25519] = {
       val sig = SignatureCurve25519Serializer.parse(r)
       Map(owner -> sig)
     }
@@ -85,9 +85,9 @@ object ProgramMethodExecutionSerializer extends BifrostSerializer[ProgramMethodE
       val value: Long = r.getULong()
       nonce -> value
     }
-    val preFeeBoxes: Map[PublicKeyCurve25519Proposition, IndexedSeq[(Nonce, Long)]] = Map(owner -> preBoxes)
+    val preFeeBoxes: Map[PublicKeyPropositionCurve25519, IndexedSeq[(Nonce, Long)]] = Map(owner -> preBoxes)
 
-    val fees: Map[PublicKeyCurve25519Proposition, Long] = Map(owner -> r.getULong())
+    val fees: Map[PublicKeyPropositionCurve25519, Long] = Map(owner -> r.getULong())
     val timestamp: Long = r.getULong()
     val data: String = r.getIntString()
 

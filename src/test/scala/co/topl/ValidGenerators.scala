@@ -1,6 +1,6 @@
 package co.topl
 
-import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
 import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
 import co.topl.modifier.transaction._
@@ -80,7 +80,7 @@ trait ValidGenerators extends BifrostGenerators {
 
       val readOnlyIds = Seq(stateBoxTwo.value, stateBoxThree.value)
 
-      val feePreBoxes: Map[PublicKeyCurve25519Proposition, IndexedSeq[(Nonce, Long)]] =
+      val feePreBoxes: Map[PublicKeyPropositionCurve25519, IndexedSeq[(Nonce, Long)]] =
         Map(sender -> IndexedSeq(preFeeBoxGen(0L, maxFee).sample.get))
 
       val fees = feePreBoxes.map { case (prop, preBoxes) =>
@@ -149,10 +149,10 @@ trait ValidGenerators extends BifrostGenerators {
     val feeBoxes: Seq[(Nonce, Long)] = boxAmounts
       .map { boxAmount => sampleUntilNonEmpty(preFeeBoxGen(boxAmount, boxAmount)) }
 
-    val feePreBoxes: Map[PublicKeyCurve25519Proposition, IndexedSeq[(Nonce, Nonce)]] =
+    val feePreBoxes: Map[PublicKeyPropositionCurve25519, IndexedSeq[(Nonce, Nonce)]] =
       Map(sender -> feeBoxes.toIndexedSeq)
 
-    val feeBoxIdKeyPairs: IndexedSeq[(BoxId, PublicKeyCurve25519Proposition)] = feePreBoxes.toIndexedSeq
+    val feeBoxIdKeyPairs: IndexedSeq[(BoxId, PublicKeyPropositionCurve25519)] = feePreBoxes.toIndexedSeq
       .flatMap {
         case (prop, v) =>
           v.map {

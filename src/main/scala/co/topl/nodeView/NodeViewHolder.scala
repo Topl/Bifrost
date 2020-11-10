@@ -4,13 +4,15 @@ import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
 import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.attestation.AddressEncoder.NetworkPrefix
+import co.topl.attestation.EvidenceProducer
+import co.topl.attestation.proof.Proof
+import co.topl.attestation.proposition.Proposition
 import co.topl.consensus.Forger
-import co.topl.consensus.Forger.ChainParams
 import co.topl.consensus.Forger.ReceivableMessages.GenerateGenesis
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.{ Block, BlockSerializer, PersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier }
-import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.modifier.transaction.Transaction
+import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.modifier.{ ModifierId, NodeViewModifier }
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
 import co.topl.nodeView.NodeViewHolder.UpdateInformation
@@ -35,15 +37,14 @@ import scala.util.{ Failure, Success, Try }
   * The instances are read-only for external world.
   * Updates of the composite view(the instances are to be performed atomically.
   */
-class NodeViewHolder ( settings: AppSettings,
-                       appContext: AppContext )
+class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
                      ( implicit ec: ExecutionContext ) extends Actor with Logging {
 
   // Import the types of messages this actor can RECEIVE
   import NodeViewHolder.ReceivableMessages._
 
-  type BX = Box
-  type TX = Transaction
+  type BX = Box[_]
+  type TX = Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: BX]
   type PMOD = Block
   type HIS = History
   type MS = State
@@ -114,7 +115,7 @@ class NodeViewHolder ( settings: AppSettings,
   }
 
   protected def transactionsProcessing: Receive = {
-    case newTxs: NewTransactions[Transaction] @unchecked =>
+    case newTxs: NewTransactions[TX] =>
       newTxs.txs.foreach(txModify)
 
     case EliminateTransactions(ids) =>

@@ -2,7 +2,7 @@ package co.topl.program
 
 import java.time.Instant
 
-import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
 import co.topl.{ BifrostGenerators, ValidGenerators }
 import io.circe.{ Json, JsonObject }
 import org.scalacheck.Gen
@@ -69,8 +69,8 @@ class ProgramSpec extends AnyPropSpec
       )(JsonObject.empty)
     ).json
 
-  def getMockPublicKeyProposition(fillByte: Byte): PublicKeyCurve25519Proposition = {
-    PublicKeyCurve25519Proposition(PublicKey @@ Array.fill(Curve25519.KeyLength)(fillByte))
+  def getMockPublicKeyProposition(fillByte: Byte): PublicKeyPropositionCurve25519 = {
+    PublicKeyPropositionCurve25519(PublicKey @@ Array.fill(Curve25519.KeyLength)(fillByte))
   }
 
   property("Can create program") {

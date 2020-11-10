@@ -3,7 +3,7 @@ package co.topl.transaction
 /**
   * Created by cykoz on 5/11/2017.
   */
-import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
 import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.modifier.transaction.ProgramCreation
 import co.topl.nodeView.state.State
@@ -37,7 +37,7 @@ class ProgramCreationSpec extends AnyPropSpec
           (programCreation.signatures.head._2.bytes.head + 1).toByte +:
             programCreation.signatures.head._2.bytes.tail
 
-        val wrongSigs: Map[PublicKeyCurve25519Proposition, SignatureCurve25519] =
+        val wrongSigs: Map[PublicKeyPropositionCurve25519, SignatureCurve25519] =
           programCreation.signatures +
             (programCreation.signatures.head._1 -> SignatureCurve25519(Signature @@ wrongSig))
 

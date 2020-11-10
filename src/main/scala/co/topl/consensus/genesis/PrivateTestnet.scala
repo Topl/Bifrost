@@ -1,7 +1,7 @@
 package co.topl.consensus.genesis
 
 import co.topl.consensus.Forger.ChainParams
-import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
+import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
 import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -13,7 +13,7 @@ import co.topl.settings.{ AppSettings, RuntimeOpts, Version }
 
 import scala.util.Try
 
-case class PrivateTestnet ( keyGen  : (Int, Option[String]) => Set[PublicKeyCurve25519Proposition],
+case class PrivateTestnet ( keyGen  : (Int, Option[String]) => Set[PublicKeyPropositionCurve25519],
                             settings: AppSettings,
                             opts    : RuntimeOpts
                           ) extends GenesisProvider {

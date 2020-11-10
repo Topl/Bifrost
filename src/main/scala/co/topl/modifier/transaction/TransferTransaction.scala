@@ -121,7 +121,8 @@ object TransferTransaction {
    * @param tx
    * @return
    */
-  def validatePrototype[P <: Proposition: EvidenceProducer, PR <: Proof[P]] (tx: TransferTransaction[P, PR]): Try[Unit] =
+  def validatePrototype[P <: Proposition: EvidenceProducer, PR <: Proof[P]]
+    (tx: TransferTransaction[P, PR])(implicit networkPrefix: NetworkPrefix): Try[Unit] =
     syntacticValidate(tx, withSigs = false)
 
   /**
@@ -131,10 +132,8 @@ object TransferTransaction {
    * @param withSigs boolean flag controlling whether signature verification should be checked or skipped
    * @return success or failure indicating the validity of the transaction
    */
-  def syntacticValidate[
-    P <: Proposition: EvidenceProducer,
-    PR <: Proof[P]
-  ] ( tx: TransferTransaction[P, PR], withSigs: Boolean = true)
+  def syntacticValidate[P <: Proposition: EvidenceProducer, PR <: Proof[P]]
+    ( tx: TransferTransaction[P, PR], withSigs: Boolean = true)
     (implicit networkPrefix: NetworkPrefix): Try[Unit] = Try {
 
     require(tx.to.forall(_._2 > 0L), "Amount sent must be greater than 0")
@@ -174,11 +173,9 @@ object TransferTransaction {
    * @param state the state to check the validity against
    * @return a success or failure denoting the result of this check
    */
-  def semanticValidate[
-    P <: Proposition: EvidenceProducer,
-    PR <: Proof[P]
-  ] ( tx: TransferTransaction[P, PR],
-      state: StateReader[Box[_]] ): Try[Unit] = {
+  def semanticValidate[P <: Proposition: EvidenceProducer, PR <: Proof[P]]
+    ( tx: TransferTransaction[P, PR], state: StateReader[Box[_]])
+    (implicit networkPrefix: NetworkPrefix): Try[Unit] = {
 
     // check that the transaction is correctly formed before checking state
     syntacticValidate(tx) match {

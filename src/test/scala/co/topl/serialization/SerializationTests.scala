@@ -1,6 +1,6 @@
 package co.topl.serialization
 
-import co.topl.attestation.proposition.{ThresholdCurve25519Proposition, ThresholdCurve25519PropositionSerializer}
+import co.topl.attestation.proposition.{ThresholdPropositionCurve25519, ThresholdPropositionCurve25519Serializer}
 import co.topl.modifier.block.{Block, BlockSerializer}
 import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.serialization._
@@ -30,9 +30,9 @@ class SerializationTests extends AnyPropSpec
 
   property("oneOfNProposition Serialization") {
     forAll(oneOfNPropositionGen) {
-      case (_, mn: ThresholdCurve25519Proposition) =>
-        val parsed = ThresholdCurve25519PropositionSerializer
-          .parseBytes(ThresholdCurve25519PropositionSerializer.toBytes(mn))
+      case (_, mn: ThresholdPropositionCurve25519) =>
+        val parsed = ThresholdPropositionCurve25519Serializer
+          .parseBytes(ThresholdPropositionCurve25519Serializer.toBytes(mn))
           .get
 
         parsed.threshold shouldBe mn.threshold

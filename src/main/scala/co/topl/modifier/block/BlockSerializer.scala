@@ -1,7 +1,7 @@
 package co.topl.modifier.block
 
 import co.topl.attestation.proof.{SignatureCurve25519, SignatureCurve25519Serializer}
-import co.topl.attestation.proposition.{PublicKeyCurve25519Proposition, PublicKeyCurve25519PropositionSerializer}
+import co.topl.attestation.proposition.{PublicKeyPropositionCurve25519, PublicKeyPropositionCurve25519Serializer}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.serialization.TransactionSerializer
@@ -26,7 +26,7 @@ object BlockSerializer extends BifrostSerializer[Block] {
     BoxSerializer.serialize(block.forgerBox, w)
 
     /* publicKey: PublicKeyCurve25519Proposition */
-    PublicKeyCurve25519PropositionSerializer.serialize(block.publicKey, w)
+    PublicKeyPropositionCurve25519Serializer.serialize(block.publicKey, w)
 
     /* signature: Signature25519 */
     SignatureCurve25519Serializer.serialize(block.signature, w)
@@ -53,7 +53,7 @@ object BlockSerializer extends BifrostSerializer[Block] {
 
     val generatorBox: ArbitBox = BoxSerializer.parse(r).asInstanceOf[ArbitBox]
 
-    val publicKey: PublicKeyCurve25519Proposition = PublicKeyCurve25519PropositionSerializer.parse(r)
+    val publicKey: PublicKeyPropositionCurve25519 = PublicKeyPropositionCurve25519Serializer.parse(r)
 
     val signature: SignatureCurve25519 = SignatureCurve25519Serializer.parse(r)
 

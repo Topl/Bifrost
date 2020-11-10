@@ -11,7 +11,7 @@ import scorex.crypto.signatures.{ Curve25519, PublicKey }
 
 import scala.util.{ Failure, Success }
 
-case class PublicKeyCurve25519Proposition ( private[proposition] val pubKeyBytes: PublicKey )
+case class PublicKeyPropositionCurve25519 ( private[proposition] val pubKeyBytes: PublicKey )
   extends KnowledgeProposition[PrivateKeyCurve25519] {
 
   require(pubKeyBytes.length == Curve25519.KeyLength,
@@ -21,25 +21,25 @@ case class PublicKeyCurve25519Proposition ( private[proposition] val pubKeyBytes
 
 }
 
-object PublicKeyCurve25519Proposition {
+object PublicKeyPropositionCurve25519 {
   // type prefix used for address creation
   val typePrefix: EvidenceTypePrefix = 1: Byte
 
-  def apply(str: String): PublicKeyCurve25519Proposition =
+  def apply(str: String): PublicKeyPropositionCurve25519 =
     Proposition.fromString(str) match {
       case Success(pk) => pk
       case Failure(ex) => throw ex
     }
 
-  implicit val evidenceOfKnowledge: EvidenceProducer[PublicKeyCurve25519Proposition] =
-    EvidenceProducer.instance[PublicKeyCurve25519Proposition] {
-      prop: PublicKeyCurve25519Proposition => Evidence(typePrefix, EvidenceContent @@ Blake2b256(prop.bytes))
+  implicit val propEvidence: EvidenceProducer[PublicKeyPropositionCurve25519] =
+    EvidenceProducer.instance[PublicKeyPropositionCurve25519] {
+      prop: PublicKeyPropositionCurve25519 => Evidence(typePrefix, EvidenceContent @@ Blake2b256(prop.bytes))
     }
 
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html
-  implicit val jsonEncoder: Encoder[PublicKeyCurve25519Proposition] = (prop: PublicKeyCurve25519Proposition) => prop.toString.asJson
-  implicit val jsonKeyEncoder: KeyEncoder[PublicKeyCurve25519Proposition] = (prop: PublicKeyCurve25519Proposition) => prop.toString
-  implicit val jsonDecoder: Decoder[PublicKeyCurve25519Proposition] = Decoder.decodeString.map(apply)
-  implicit val jsonKeyDecoder: KeyDecoder[PublicKeyCurve25519Proposition] = (str: String) => Some(apply(str))
+  implicit val jsonEncoder: Encoder[PublicKeyPropositionCurve25519] = ( prop: PublicKeyPropositionCurve25519) => prop.toString.asJson
+  implicit val jsonKeyEncoder: KeyEncoder[PublicKeyPropositionCurve25519] = ( prop: PublicKeyPropositionCurve25519) => prop.toString
+  implicit val jsonDecoder: Decoder[PublicKeyPropositionCurve25519] = Decoder.decodeString.map(apply)
+  implicit val jsonKeyDecoder: KeyDecoder[PublicKeyPropositionCurve25519] = ( str: String) => Some(apply(str))
 }
