@@ -7,7 +7,7 @@ import com.google.common.primitives.Longs
 import scorex.crypto.hash.Blake2b256
 
 import scala.concurrent.duration._
-import scala.math.{ max, min }
+import scala.math.{max, min}
 
 package object consensus {
   private var _protocolMngr: ProtocolVersioner = ProtocolVersioner.empty

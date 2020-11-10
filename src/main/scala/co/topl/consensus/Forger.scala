@@ -3,23 +3,23 @@ package co.topl.consensus
 import akka.actor._
 import akka.util.Timeout
 import co.topl.consensus.Forger.ChainParams
-import co.topl.consensus.genesis.{ PrivateTestnet, Toplnet }
+import co.topl.consensus.genesis.{PrivateTestnet, Toplnet}
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ Coinbase, Transaction }
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{ GetDataFromCurrentView, LocallyGeneratedModifier }
+import co.topl.modifier.transaction.{Coinbase, Transaction}
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.{ CurrentView, NodeViewHolder }
-import co.topl.settings.NetworkType.{ DevNet, LocalNet, MainNet, PrivateNet, TestNet }
-import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
+import co.topl.nodeView.{CurrentView, NodeViewHolder}
+import co.topl.settings.NetworkType.{DevNet, LocalNet, MainNet, PrivateNet, TestNet}
+import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.Logging
 import co.topl.utils.TimeProvider.Time
 
 import scala.concurrent.ExecutionContext
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
  * Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
@@ -199,7 +199,6 @@ class Forger (settings: AppSettings, appContext: AppContext )
         case Success(txs) => txs
         case Failure(ex)  => throw ex
       }
-
       // check forging eligibility
       leaderElection(history.bestBlock, history.height, history.difficulty, boxes, coinbase, transactions) match {
         case Some(block) =>
@@ -301,7 +300,6 @@ class Forger (settings: AppSettings, appContext: AppContext )
                              ): Option[Block] = {
 
     val target = calcAdjustedTarget(parent, parentHeight, parentDifficulty, forgeTime)
-
     // test procedure to determine eligibility
     val successfulHits = boxes.map { box =>
       (box, calcHit(parent)(box))
@@ -316,7 +314,6 @@ class Forger (settings: AppSettings, appContext: AppContext )
         case Some(sk) =>
           // use the secret key that owns the successful box to sign the coinbase transaction
           val signedCb = coinbase.copy(signatures = Map(sk.publicImage -> sk.sign(coinbase.messageToSign)))
-
           // add the signed coinbase transaction to the block and return
           Some(Block.create(parent.id, forgeTime, signedCb +: txsToInclude, box, sk, blockVersion(parentHeight + 1)))
 
