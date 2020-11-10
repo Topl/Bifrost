@@ -1,5 +1,9 @@
 package co.topl.settings
 
+/**
+ * @param verboseName name of the network type
+ * @param startWithForging is true if the node should start forging when it's ready
+ */
 sealed abstract class NetworkType(val verboseName: String, val startWithForging: Boolean = false)
 
 object NetworkType {
@@ -13,7 +17,7 @@ object NetworkType {
    *
    * @param net the specified network type from the command line
    * @param opts runtime parameters used to control the behavior of the chosen entwork type
-   * @return
+   * @return NetworkType case class
    */
   def fillNetworkType(net: NetworkType, opts: RuntimeOpts): NetworkType = net match {
     case MainNet(_) => MainNet(opts)

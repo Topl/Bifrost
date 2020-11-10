@@ -10,17 +10,17 @@ package co.topl.settings
  * @param networkTypeOpt string designating the type of network to be launched
  * @param runtimeParams all runtime determined application settings
  */
-final case class StartupOpts( userConfigPathOpt: Option[String] = None,
-                              networkTypeOpt: Option[NetworkType] = None,
-                              runtimeParams: RuntimeOpts = RuntimeOpts.empty
-                            )
+final case class StartupOpts(
+  userConfigPathOpt: Option[String] = None,
+  networkTypeOpt: Option[NetworkType] = None,
+  runtimeParams: RuntimeOpts = RuntimeOpts.empty)
 
 object StartupOpts {
-  // used defaults above to simplify the empty
+  /** used defaults above to simplify the empty */
   def empty: StartupOpts = new StartupOpts()
 }
 
-/* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+/* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
 /**
  * Parameters that control the application behavior that are specified at runtime.
@@ -30,9 +30,7 @@ object StartupOpts {
  * @param seed a string used to deterministically generate key files (only applicable for local and private networks)
  * @param startWithForging a boolean controlling whether the node should attempt forging immediately on start
  */
-final case class RuntimeOpts( seed: Option[String] = None,
-                              startWithForging: Boolean = false
-                            )
+final case class RuntimeOpts(seed: Option[String] = None, startWithForging: Boolean = false)
 
 object RuntimeOpts {
   def empty: RuntimeOpts = RuntimeOpts()

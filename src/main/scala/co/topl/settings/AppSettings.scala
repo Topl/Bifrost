@@ -91,7 +91,7 @@ object AppSettings extends Logging with SettingsReaders {
    * @param startupOpts startup options such as the path of the user defined config and network type
    * @return application settings
    */
-  def read (startupOpts: StartupOpts = StartupOpts.empty): AppSettings = {
+  def read(startupOpts: StartupOpts = StartupOpts.empty): AppSettings = {
     fromConfig(readConfig(startupOpts))
   }
 
@@ -100,14 +100,14 @@ object AppSettings extends Logging with SettingsReaders {
    * @param config config factory compatible configuration
    * @return application settings
    */
-  def fromConfig (config: Config): AppSettings = config.as[AppSettings](configPath)
+  def fromConfig(config: Config): AppSettings = config.as[AppSettings](configPath)
 
   /** Based on the startup arguments given by the user, modify and return the default application config
    *
    * @param args startup options such as the path of the user defined config and network type
    * @return config factory compatible configuration
    */
-  def readConfig (args : StartupOpts): Config = {
+  def readConfig(args: StartupOpts): Config = {
 
     val networkPath = args.networkTypeOpt.flatMap {
       networkType =>
@@ -133,7 +133,7 @@ object AppSettings extends Logging with SettingsReaders {
     } yield file
 
     (userConfigFileOpt, networkConfigFileOpt) match {
-      /* If there are user provided settings or network type, overwrite default settings with user specified ones */
+      /** If there are user provided settings or network type, overwrite default settings with user specified ones */
       case (Some(file), None) ⇒
         log.warn(s"${Console.YELLOW}Found custom settings. " +
           s"Using default settings for ones not specified in custom Settings${Console.RESET}")
@@ -165,7 +165,7 @@ object AppSettings extends Logging with SettingsReaders {
           .withFallback(ConfigFactory.defaultApplication())
           .resolve()
 
-      /* Use default settings if no startup options is found */
+      /** Use default settings if no startup options is found */
       case _ ⇒
         log.warn(s"${Console.YELLOW}No custom setting specified, using default configuration${Console.RESET}")
         ConfigFactory.load()
