@@ -1,6 +1,6 @@
 package co.topl.consensus
 
-import java.io.{ BufferedWriter, FileWriter }
+import java.io.{BufferedWriter, FileWriter}
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -9,7 +9,7 @@ import co.topl.crypto.PrivateKey25519
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import io.circe.parser.parse
 import io.circe.syntax._
-import io.circe.{ Decoder, Encoder, HCursor }
+import io.circe.{Decoder, Encoder, HCursor}
 import org.bouncycastle.crypto.BufferedBlockCipher
 import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.generators.SCrypt
@@ -25,6 +25,7 @@ import scala.util.Try
 /**
   * Created by cykoz on 6/22/2017.
   */
+
 case class KeyFile ( address   : String,
                      cipherText: Array[Byte],
                      mac       : Array[Byte],
@@ -53,7 +54,7 @@ case class KeyFile ( address   : String,
   private[consensus] def saveToDisk (dir: String): Try[Unit] = Try {
     val dateString = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString.replace(":", "-")
     val w = new BufferedWriter(new FileWriter(s"$dir/$dateString-${this.address}.json"))
-    w.write(KeyFile.jsonEncoder.toString)
+    w.write(KeyFile.jsonEncoder(this).toString)
     w.close()
   }
 }
@@ -143,6 +144,7 @@ object KeyFile {
     val passwordBytes = password.getBytes(StandardCharsets.UTF_8)
     SCrypt.generate(passwordBytes, salt, scala.math.pow(2, 18).toInt, 8, 1, 32)
   }
+
 
   /**
    *

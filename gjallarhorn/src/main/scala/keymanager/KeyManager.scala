@@ -1,10 +1,11 @@
 package keymanager
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import crypto.{PrivateKey25519Companion, PublicKey25519Proposition}
+import crypto.PublicKey25519Proposition
 import io.circe.Json
 import io.circe.syntax._
-import scorex.crypto.encode.Base58
+import scorex.crypto.signatures.PublicKey
+import scorex.util.encode.Base58
 
 import scala.concurrent.ExecutionContext
 
@@ -13,29 +14,29 @@ class KeyManager(keyDir: String) extends Actor {
 
   import KeyManager._
 
-  val keyManager: Keys = Keys(Set.empty, keyDir)
+  val keyManager: Keys = Keys(keyDir)
 
   //Overload messaging, stateful necessary
   // is the idea here to have another keys actor??? So that the keyManager requests using ask (?), then key tells (!) sender?
   override def receive: Receive = {
     case GenerateKeyFile(password) =>
-      sender ! Base58.encode(KeyFile(password, defaultKeyDir = keyManager.defaultKeyDir).pubKeyBytes)
+      sender ! keyManager.generateKeyFile(password)
 
     case UnlockKeyFile(pubKeyString, password) => keyManager.unlockKeyFile(pubKeyString, password)
 
     case LockKeyFile(pubKeyString, password) => keyManager.lockKeyFile(pubKeyString, password)
 
-    case GetOpenKeyfiles() =>
+    case GetOpenKeyfiles =>
       sender ! keyManager.listOpenKeyFiles
 
     case SignTx(tx, keys, msg) =>
       val sigs: List[(String, String)] = keys.map { pk =>
-        val pubKey = PublicKey25519Proposition(Base58.decode(pk).get)
+        val pubKey = PublicKey25519Proposition(PublicKey @@ Base58.decode(pk).get )
         val privKey = keyManager.secrets.find(sk => sk.publicKeyBytes sameElements pubKey.pubKeyBytes)
 
         privKey match {
           case Some(sk) => {
-            val signature = Base58.encode(PrivateKey25519Companion.sign(sk, Base58.decode(msg.asString.get).get).signature)
+            val signature = Base58.encode(sk.sign(Base58.decode(msg.asString.get).get).signature)
             (pk, signature)
           }
           case None => throw new NoSuchElementException
@@ -53,7 +54,7 @@ object KeyManager {
   case class GenerateKeyFile(password: String)
   case class UnlockKeyFile(publicKeyString: String, password: String)
   case class LockKeyFile(publicKeyString: String, password: String)
-  case class GetOpenKeyfiles()
+  case object GetOpenKeyfiles
   case class SignTx(transaction: Json, signingKeys: List[String], messageToSign: Json)
 }
 

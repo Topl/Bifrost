@@ -31,6 +31,7 @@ val akkaDependencies = Seq(
   "com.typesafe.akka" %% "akka-stream" % akkaVersion,
   "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
   "com.typesafe.akka" %% "akka-http-core" % akkaHttpVersion,
+  "com.typesafe.akka" %% "akka-remote" % akkaVersion,
   "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
   "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion % Test,
   "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % Test,
@@ -76,7 +77,8 @@ val miscDependencies = Seq(
   "com.google.guava" % "guava" % "30.0-jre",
   "com.iheart" %% "ficus" % "1.5.0",
   "org.rudogma" %% "supertagged" % "1.5",
-  "com.joefkelley" %% "argyle" % "1.0.0"
+  "com.joefkelley" %% "argyle" % "1.0.0",
+  "io.netty" % "netty" % "3.10.6.Final"
 ) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
 
 

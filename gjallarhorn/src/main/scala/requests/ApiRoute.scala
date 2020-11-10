@@ -4,10 +4,11 @@ import akka.actor.ActorRefFactory
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 import akka.http.scaladsl.server.{Directive0, Directives, Route}
 import akka.util.Timeout
-import io.circe.Json
+import io.circe.{Decoder, Json}
 import io.circe.parser.parse
-import scorex.crypto.encode.Base58
-import scorex.crypto.hash.{Blake2b256, CryptographicHash}
+import scorex.crypto.hash.{Blake2b256, Digest32}
+import scorex.util.encode.Base58
+import settings.AppSettings
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
@@ -16,11 +17,14 @@ import scala.util.{Failure, Success, Try}
 trait ApiRoute extends Directives {
   val context: ActorRefFactory
   val route: Route
+  val settings: AppSettings
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
   lazy val corsAllowed: Boolean = true
-  lazy val apiKeyHash: Option[Array[Byte]] = None
+  lazy val apiKeyHash: Option[Array[Byte]] =
+    if (settings.apiKeyHash == "") None
+    else Base58.decode(settings.apiKeyHash).toOption
 
   def actorRefFactory: ActorRefFactory = context
 
@@ -56,11 +60,25 @@ trait ApiRoute extends Directives {
     * @return - true if the key is a valid API key, false otherwise.
     */
   private def isValid(keyOpt: Option[String]): Boolean = {
-    lazy val keyHash: Option[CryptographicHash#Digest] = keyOpt.map(Blake2b256(_))
+    lazy val keyHash: Option[Digest32] = keyOpt.map(Blake2b256(_))
     (apiKeyHash, keyHash) match {
       case (None, _) => true
       case (Some(expected), Some(passed)) => expected sameElements passed
       case _ => false
+    }
+  }
+
+  /**
+    * Helper function to parse optional parameters from the request
+    * @param key optional key to be looked for
+    * @param default default return value
+    * @tparam A type of the value expected to be retrieved
+    * @return the provided value or the default
+    */
+  def parseOptional[A](key: String, default: A)(implicit params: Json, decode: Decoder[A]): A = {
+    params.hcursor.downField(key).as[A] match {
+      case Right(value) => value
+      case Left(_)      => default
     }
   }
 
