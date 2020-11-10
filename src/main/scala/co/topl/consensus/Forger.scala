@@ -266,9 +266,10 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
     memPool.take(numTxInBlock(chainHeight)).foldLeft(Seq[Transaction]()) { case (txAcc, tx) =>
       val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.flatMap(_.boxIdsToOpen).contains(id))
-      val validBoxes = tx.newBoxes.forall(b ⇒ state.getBox(b.id).isEmpty)
+      // if any newly created box matches a box already in the UTXO set, remove the transaction
+      val idExists = tx.newBoxes.exists(b => state.getBox(b.id).isDefined)
 
-      if ( !validBoxes ) memPool.remove(tx)
+      if (idExists) memPool.remove(tx)
 
       state.validate(tx) match {
         case Success(_) if txNotIncluded => txAcc :+ tx
