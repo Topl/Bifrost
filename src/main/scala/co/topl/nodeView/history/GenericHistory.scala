@@ -20,8 +20,7 @@ import scala.util.Try
   * To say "longest chain" is the canonical one is simplification, usually some kind of "cumulative difficulty"
   * function has been used instead, even in PoW systems.
   */
-trait GenericHistory[
-  PM <: PersistentNodeViewModifier,
+trait GenericHistory[PM <: PersistentNodeViewModifier,
   SI <: SyncInfo,
   HT <: GenericHistory[PM, SI, HT]
 ] extends NodeViewComponent with HistoryReader[PM, SI] {
@@ -59,7 +58,7 @@ trait GenericHistory[
 
   def modifierById(modifierId: String): Option[PM] = Try(ModifierId(modifierId)).toOption.flatMap(modifierById)
 
-  def txById(txId: ModifierId): Option[Transaction]
+  def transactionById(txId: ModifierId): Option[Transaction]
 
   def append(modifier: PM): Try[(HT, ProgressInfo[PM])]
 

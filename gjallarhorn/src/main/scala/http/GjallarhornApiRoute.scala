@@ -4,9 +4,10 @@ import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import requests.{ApiRoute, Requests}
-import io.circe.Json
+import io.circe.{Encoder, Json}
 import io.circe.syntax._
 import keymanager.KeyManager._
+import requests.RequestsManager.{WalletRequest, AssetRequest}
 import settings.AppSettings
 
 import scala.concurrent.Future
@@ -14,7 +15,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 case class GjallarhornApiRoute(settings: AppSettings,
                                keyManager: ActorRef,
-                               walletManager: ActorRef,
+                               requestsManager: ActorRef,
                                requests: Requests)
                               (implicit val context: ActorRefFactory,
                                implicit val actorSystem: ActorSystem) extends ApiRoute {
@@ -44,8 +45,13 @@ case class GjallarhornApiRoute(settings: AppSettings,
     * @return - a response after creating transaction.
     */
   private def createTransaction(params: Json, id: String): Future[Json] = {
-    val tx = requests.transaction(params)
-    Future{requests.sendRequest(tx, "asset")}
+      val method: String = (params \\ "method").head.asString.get
+      val innerParams: Json = (params \\ "params").head.asArray.get.head
+      val tx = requests.transaction(method, innerParams)
+
+      Future {
+        requests.sendRequest(tx, "asset")
+      }
   }
 
   /**
@@ -70,7 +76,10 @@ case class GjallarhornApiRoute(settings: AppSettings,
     * @return
     */
   private def broadcastTx(params: Json, id: String): Future[Json] = {
-    Future{requests.broadcastTx(params)}
+    settings.useApiRoute match {
+      case true => Future{requests.broadcastTx(params)}
+      case false => (requestsManager ? WalletRequest(params)).mapTo[String].map(_.asJson)
+    }
   }
 
 
@@ -81,7 +90,7 @@ case class GjallarhornApiRoute(settings: AppSettings,
     * @return - a list of the open key files once they are retrieved.
     */
   private def listOpenKeyfiles(params: Json, id: String): Future[Json] = {
-    (keyManager ? GetOpenKeyfiles()).mapTo[Set[String]].map(_.asJson)
+    (keyManager ? GetOpenKeyfiles).mapTo[Set[String]].map(_.asJson)
   }
 
   /**

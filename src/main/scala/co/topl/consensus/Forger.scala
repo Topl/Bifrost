@@ -3,23 +3,23 @@ package co.topl.consensus
 import akka.actor._
 import akka.util.Timeout
 import co.topl.consensus.Forger.ChainParams
-import co.topl.consensus.genesis.{ PrivateTestnet, Toplnet }
+import co.topl.consensus.genesis.{PrivateTestnet, Toplnet}
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ Coinbase, Transaction }
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{ GetDataFromCurrentView, LocallyGeneratedModifier }
+import co.topl.modifier.transaction.{Coinbase, Transaction}
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.{ CurrentView, NodeViewHolder }
-import co.topl.settings.NetworkType.{ DevNet, LocalNet, MainNet, PrivateNet, TestNet }
-import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
+import co.topl.nodeView.{CurrentView, NodeViewHolder}
+import co.topl.settings.NetworkType.{DevNet, LocalNet, MainNet, PrivateNet, TestNet}
+import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.Logging
 import co.topl.utils.TimeProvider.Time
 
 import scala.concurrent.ExecutionContext
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
  * Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
@@ -120,7 +120,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
   /** Helper function to enable private forging if we can expects keys in the key ring */
   private def checkPrivateForging (): Unit =
-    if (appContext.networkType.isPrivateForger && keyRing.publicKeys.nonEmpty) self ! StartForging
+    if (appContext.networkType.startWithForging && keyRing.publicKeys.nonEmpty) self ! StartForging
 
   /** Schedule a forging attempt */
   private def scheduleForgingAttempt (): Unit = {
@@ -136,8 +136,8 @@ class Forger (settings: AppSettings, appContext: AppContext )
   }
 
   /** Helper function to generate a set of keys used for the genesis block (for private test networks) */
-  private def generateKeys (num: Int): Set[PublicKey25519Proposition] = {
-    keyRing.generateNewKeyPairs(num) match {
+  private def generateKeys (num: Int, seed: Option[String] = None): Set[PublicKey25519Proposition] = {
+    keyRing.generateNewKeyPairs(num, seed) match {
       case Success(keys) => keys.map(_.publicImage)
       case Failure(ex)   => throw ex
     }
@@ -148,12 +148,12 @@ class Forger (settings: AppSettings, appContext: AppContext )
     */
   private def initializeGenesis: Try[Block] = {
     ( appContext.networkType match {
-      case MainNet    => Toplnet.getGenesisBlock
-      case TestNet    => ???
-      case DevNet     => ???
-      case LocalNet   => ???
-      case PrivateNet => PrivateTestnet(generateKeys, settings).getGenesisBlock
-      case _          => throw new Error("Undefined network type.")
+      case MainNet(opts)    => Toplnet.getGenesisBlock
+      case TestNet(opts)    => ???
+      case DevNet(opts)     => ???
+      case LocalNet(opts)   => PrivateTestnet(generateKeys, settings, opts).getGenesisBlock
+      case PrivateNet(opts) => PrivateTestnet(generateKeys, settings, opts).getGenesisBlock
+      case _                => throw new Error("Undefined network type.")
     } ).map {
       case (block: Block, ChainParams(totalStake, initDifficulty)) =>
         maxStake = totalStake
@@ -199,7 +199,6 @@ class Forger (settings: AppSettings, appContext: AppContext )
         case Success(txs) => txs
         case Failure(ex)  => throw ex
       }
-
       // check forging eligibility
       leaderElection(history.bestBlock, history.height, history.difficulty, boxes, coinbase, transactions) match {
         case Some(block) =>
@@ -267,9 +266,10 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
     memPool.take(numTxInBlock(chainHeight)).foldLeft(Seq[Transaction]()) { case (txAcc, tx) =>
       val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.flatMap(_.boxIdsToOpen).contains(id))
-      val validBoxes = tx.newBoxes.forall(b ⇒ state.getBox(b.id).isEmpty)
+      // if any newly created box matches a box already in the UTXO set, remove the transaction
+      val idExists = tx.newBoxes.exists(b => state.getBox(b.id).isDefined)
 
-      if ( validBoxes ) memPool.remove(tx)
+      if (idExists) memPool.remove(tx)
 
       state.validate(tx) match {
         case Success(_) if txNotIncluded => txAcc :+ tx
@@ -300,7 +300,6 @@ class Forger (settings: AppSettings, appContext: AppContext )
                              ): Option[Block] = {
 
     val target = calcAdjustedTarget(parent, parentHeight, parentDifficulty, forgeTime)
-
     // test procedure to determine eligibility
     val successfulHits = boxes.map { box =>
       (box, calcHit(parent)(box))
@@ -315,7 +314,6 @@ class Forger (settings: AppSettings, appContext: AppContext )
         case Some(sk) =>
           // use the secret key that owns the successful box to sign the coinbase transaction
           val signedCb = coinbase.copy(signatures = Map(sk.publicImage -> sk.sign(coinbase.messageToSign)))
-
           // add the signed coinbase transaction to the block and return
           Some(Block.create(parent.id, forgeTime, signedCb +: txsToInclude, box, sk, blockVersion(parentHeight + 1)))
 

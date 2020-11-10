@@ -17,7 +17,7 @@ import scala.util.{Failure, Success, Try}
 case class KeyManagementApiRoute ( override val settings: RESTApiSettings, keyHolderRef: ActorRef )
                                  ( implicit val context: ActorRefFactory ) extends ApiRoute {
 
-  override val route: Route = pathPrefix("") { basicRoute(handlers) }
+  override val route: Route = { basicRoute(handlers) }
 
   private def handlers ( method: String, params: Vector[Json], id: String ): Future[Json] =
     method match {
@@ -109,7 +109,7 @@ case class KeyManagementApiRoute ( override val settings: RESTApiSettings, keyHo
     val password: String = (params \\ "password").head.asString.get
 
     (keyHolderRef ? CreateKey(password)).mapTo[Try[PublicKey25519Proposition]].map {
-      case Success(pk: PublicKey25519Proposition) => Map( "publicKey" -> pk.asJson).asJson
+      case Success(pk: PublicKey25519Proposition) => Map( "address" -> pk.asJson).asJson
       case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
     }
   }

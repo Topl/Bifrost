@@ -21,7 +21,7 @@ trait ApiRoute extends Directives {
   implicit val timeout: Timeout = Timeout(settings.timeout)
 
   lazy val corsAllowed: Boolean = settings.corsAllowed
-  lazy val apiKeyHash: Option[Array[Byte]] = Base58.decode(settings.apiKeyHash).toOption
+  lazy val apiKeyHash: Option[Array[Byte]] = None
 
   def actorRefFactory: ActorRefFactory = context
 
@@ -47,7 +47,7 @@ trait ApiRoute extends Directives {
   def withAuth(route: => Route): Route = {
     optionalHeaderValueByName("x-api-key") { keyOpt =>
       if (isValid(keyOpt)) route
-      else complete(HttpEntity(ContentTypes.`application/json`, "Provided API key is not correct"))
+      else complete(HttpEntity(ContentTypes.`application/json`, s"Provided API key: ${settings.apiKeyHash} is not correct"))
     }
   }
 

@@ -2,12 +2,12 @@ package co.topl
 
 import java.lang.management.ManagementFactory
 
-import akka.actor.{ActorRef, ActorSystem, PoisonPill}
+import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.http.scaladsl.Http
 import akka.io.Tcp
 import akka.pattern.ask
 import akka.util.Timeout
-import co.topl.consensus.{Forger, ForgerRef}
+import co.topl.consensus.{ Forger, ForgerRef }
 import co.topl.http.HttpService
 import co.topl.http.api.ApiRoute
 import co.topl.http.api.routes._
@@ -17,18 +17,19 @@ import co.topl.network.NetworkController.ReceivableMessages.BindP2P
 import co.topl.network._
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.network.upnp.Gateway
-import co.topl.nodeView.{NodeViewHolder, NodeViewHolderRef}
+import co.topl.nodeView.{ NodeViewHolder, NodeViewHolderRef }
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
-import co.topl.settings.{AppContext, AppSettings, NetworkType, StartupOpts}
+import co.topl.settings.{ AppContext, AppSettings, NetworkType, RuntimeOpts, StartupOpts }
 import co.topl.utils.Logging
-import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
-import com.typesafe.config.{Config, ConfigFactory}
+import co.topl.wallet.WalletConnectionHandler
+import com.sun.management.{ HotSpotDiagnosticMXBean, VMOption }
+import com.typesafe.config.{ Config, ConfigFactory }
 import kamon.Kamon
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.concurrent.{ Await, ExecutionContext, Future }
+import scala.util.{ Failure, Success }
 
 class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
@@ -64,6 +65,9 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef(NodeViewHolder.actorName, settings, appContext)
 
+  private val walletConnectionHandlerRef: ActorRef = actorSystem.actorOf(
+    Props(new WalletConnectionHandler(settings, nodeViewHolderRef)), name = "walletConnectionHandler")
+
   private val peerSynchronizer: ActorRef = PeerSynchronizerRef(PeerSynchronizer.actorName, networkControllerRef, peerManagerRef, settings, appContext)
 
   private val nodeViewSynchronizer: ActorRef = NodeViewSynchronizerRef[TX, BSI, PMOD, HIS, MP](
@@ -76,7 +80,8 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     peerSynchronizer,
     nodeViewSynchronizer,
     forgerRef,
-    nodeViewHolderRef
+    nodeViewHolderRef,
+    walletConnectionHandlerRef
   )
 
   // hook for initiating the shutdown procedure
@@ -166,10 +171,13 @@ object BifrostApp extends Logging {
   import com.joefkelley.argyle._ // import for parsing command line arguments
 
   // parse command line arguments
-  val argParser: Arg[StartupOpts] = (
-    optional[String]("--config", "-c") and
-      optionalOneOf[NetworkType](NetworkType.all.map(x => s"--${x.verboseName}" -> x) : _*)
-    ).to[StartupOpts]
+  val argParser: Arg[StartupOpts] =
+    (optional[String]("--config", "-c") and
+      optionalOneOf[NetworkType](NetworkType.all.map(x => s"--${x.verboseName}" -> x) : _*) and
+      ( optional[String]("--seed", "-s") and
+        flag("--forge", "-f")
+        ).to[RuntimeOpts]
+      ).to[StartupOpts]
 
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////

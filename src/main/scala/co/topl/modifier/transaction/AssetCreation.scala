@@ -30,7 +30,7 @@ case class AssetCreation ( to: IndexedSeq[(PublicKey25519Proposition, Long)],
     Longs.toByteArray(fee)
   )
 
-  override lazy val newBoxes: Traversable[TokenBox] = {
+  override lazy val newBoxes: Traversable[AssetBox] = {
     to
       .filter(toInstance => toInstance._2 > 0L)
       .zipWithIndex
@@ -71,7 +71,7 @@ object AssetCreation {
     Map(
       "txHash" -> tx.id.toString.asJson,
       "txType" -> "AssetCreation".asJson,
-      "newBoxes" -> tx.newBoxes.map(b => b.id.toString).toSeq.asJson,
+      "newBoxes" -> tx.newBoxes.map(_.json).toSeq.asJson,
       "to" -> tx.to.asJson,
       "issuer" -> tx.issuer.asJson,
       "assetCode" -> tx.assetCode.asJson,
@@ -83,6 +83,7 @@ object AssetCreation {
   }
 
   implicit val jsonDecoder: Decoder[AssetCreation] = ( c: HCursor ) =>
+
     for {
       to <- c.downField("to").as[IndexedSeq[(PublicKey25519Proposition, Long)]]
       signatures <- c.downField("signatures").as[Map[PublicKey25519Proposition, Signature25519]]
