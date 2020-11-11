@@ -13,14 +13,14 @@ import scorex.crypto.hash.Blake2b256
 
 import scala.util.{Failure, Success, Try}
 
-abstract class TransferTransaction[P <: Proposition, PR <: Proof[P]] ( val from: IndexedSeq[(Address, Box.Nonce)],
-                                                                       val to: IndexedSeq[(Address, TokenBox.Value)],
-                                                                       val attestation: Map[P, PR],
-                                                                       val fee: Long,
-                                                                       val timestamp: Long,
-                                                                       val data: String,
-                                                                       val minting: Boolean
-                                                                     ) extends Transaction[TokenBox.Value, P, PR, TokenBox] {
+abstract class TransferTransaction[P <: Proposition] ( val from: IndexedSeq[(Address, Box.Nonce)],
+                                                       val to: IndexedSeq[(Address, TokenBox.Value)],
+                                                       val attestation: Map[P, _ <: Proof[P]],
+                                                       val fee: Long,
+                                                       val timestamp: Long,
+                                                       val data: String,
+                                                       val minting: Boolean
+                                                     ) extends Transaction[TokenBox.Value, P, TokenBox] {
 
   lazy val boxIdsToOpen: IndexedSeq[BoxId] = from.map { case (addr, nonce) =>
     BoxId.idFromEviNonce(addr.evidence, nonce)
@@ -35,7 +35,7 @@ abstract class TransferTransaction[P <: Proposition, PR <: Proof[P]] ( val from:
 object TransferTransaction {
 
   /** Computes a unique nonce value based on the transaction inputs and returns the details needed to create the output boxes for the transaction */
-  def boxParams(tx: TransferTransaction[_ <: Proposition, _ <: Proof[_]]): Traversable[(Evidence, Box.Nonce, TokenBox.Value)] = {
+  def boxParams(tx: TransferTransaction[_ <: Proposition]): Traversable[(Evidence, Box.Nonce, TokenBox.Value)] = {
     val inputBytes = tx.boxIdsToOpen.foldLeft(Array[Byte]())((acc, x) => acc ++ x.hashBytes)
 
     tx.to
@@ -121,8 +121,8 @@ object TransferTransaction {
    * @param tx
    * @return
    */
-  def validatePrototype[P <: Proposition: EvidenceProducer, PR <: Proof[P]]
-    (tx: TransferTransaction[P, PR])(implicit networkPrefix: NetworkPrefix): Try[Unit] =
+  def validatePrototype[P <: Proposition: EvidenceProducer]
+    (tx: TransferTransaction[P])(implicit networkPrefix: NetworkPrefix): Try[Unit] =
     syntacticValidate(tx, withSigs = false)
 
   /**
@@ -132,8 +132,8 @@ object TransferTransaction {
    * @param withSigs boolean flag controlling whether signature verification should be checked or skipped
    * @return success or failure indicating the validity of the transaction
    */
-  def syntacticValidate[P <: Proposition: EvidenceProducer, PR <: Proof[P]]
-    ( tx: TransferTransaction[P, PR], withSigs: Boolean = true)
+  def syntacticValidate[P <: Proposition: EvidenceProducer]
+    ( tx: TransferTransaction[P], withSigs: Boolean = true)
     (implicit networkPrefix: NetworkPrefix): Try[Unit] = Try {
 
     require(tx.to.forall(_._2 > 0L), "Amount sent must be greater than 0")
@@ -156,7 +156,7 @@ object TransferTransaction {
       }, "The proposition(s) given do not match the evidence contained in the input boxes")
 
       tx match {
-        case t: AssetTransfer[P,PR] if tx.minting =>
+        case t: AssetTransfer[P] if tx.minting =>
           require(t.attestation.keys.map(_.address).toSeq.contains(t.issuer), "Asset minting must include the issuers signature")
         case _ => //skip for other transfers
       }
@@ -173,8 +173,8 @@ object TransferTransaction {
    * @param state the state to check the validity against
    * @return a success or failure denoting the result of this check
    */
-  def semanticValidate[P <: Proposition: EvidenceProducer, PR <: Proof[P]]
-    ( tx: TransferTransaction[P, PR], state: StateReader[Box[_]])
+  def semanticValidate[P <: Proposition: EvidenceProducer]
+    (tx: TransferTransaction[P], state: StateReader[Box[_]])
     (implicit networkPrefix: NetworkPrefix): Try[Unit] = {
 
     // check that the transaction is correctly formed before checking state
@@ -191,7 +191,7 @@ object TransferTransaction {
     unlockers.foldLeft[Try[Long]](Success(0L))(( trySum, unlocker ) => {
       trySum.flatMap { partialSum =>
         state.getBox(unlocker.closedBoxId) match {
-          case Some(box: TokenBox) if unlocker.boxKey.isValid(unlocker.proposition, tx.messageToSign) =>
+          case Some(box: TokenBox) if unlocker.proof.isValid(unlocker.proposition, tx.messageToSign) =>
             Success(partialSum + box.value)
 
           case Some(_) => Failure(new Exception("Invalid unlocker"))

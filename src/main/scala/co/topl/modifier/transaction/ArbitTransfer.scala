@@ -15,16 +15,15 @@ import io.circe.{Decoder, Encoder, HCursor}
 import scala.util.Try
 
 case class ArbitTransfer[
-  P <: Proposition,
-  PR <: Proof[P]
+  P <: Proposition
 ] (override val from       : IndexedSeq[(Address, Box.Nonce)],
    override val to         : IndexedSeq[(Address, TokenBox.Value)],
-   override val attestation: Map[P, PR],
+   override val attestation: Map[P, _ <: Proof[P]],
    override val fee        : Long,
    override val timestamp  : Long,
    override val data       : String,
    override val minting    : Boolean = false
-  ) extends TransferTransaction[P, PR](from, to, attestation, fee, timestamp, data, minting) {
+  ) extends TransferTransaction[P](from, to, attestation, fee, timestamp, data, minting) {
 
   override val txTypePrefix: TxType = ArbitTransfer.txTypePrefix
 
@@ -46,19 +45,19 @@ object ArbitTransfer {
    * @param data
    * @return
    */
-  def createRaw[P <: Proposition, PR <: Proof[P]] (stateReader  : StateReader[TokenBox],
+  def createRaw[P <: Proposition] (stateReader  : StateReader[TokenBox],
                                                    toReceive    : IndexedSeq[(Address, TokenBox.Value)],
                                                    sender       : IndexedSeq[Address],
                                                    changeAddress: Address,
                                                    fee          : Long,
                                                    data         : String
-                                                  ): Try[ArbitTransfer[P, PR]] =
+                                                  ): Try[ArbitTransfer[P]] =
     TransferTransaction.createRawTransferParams(stateReader, toReceive, sender, changeAddress, fee, "ArbitTransfer").map {
-      case (inputs, outputs) => ArbitTransfer[P, PR](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data)
+      case (inputs, outputs) => ArbitTransfer[P](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data)
     }
 
-  implicit def jsonEncoder[P <: Proposition, PR <: Proof[P]]: Encoder[ArbitTransfer[P, PR]] = {
-    tx: ArbitTransfer[P, PR] =>
+  implicit def jsonEncoder[P <: Proposition]: Encoder[ArbitTransfer[P]] = {
+    tx: ArbitTransfer[P] =>
       Map(
         "txId" -> tx.id.asJson,
         "txType" -> "ArbitTransfer".asJson,
@@ -75,7 +74,7 @@ object ArbitTransfer {
       ).asJson
   }
 
-  implicit def jsonDecoder[P <: Proposition, PR <: Proof[P]]: Decoder[ArbitTransfer[P, PR]] = ( c: HCursor ) =>
+  implicit def jsonDecoder[P <: Proposition]: Decoder[ArbitTransfer[P]] = ( c: HCursor ) =>
     for {
       from <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
       to <- c.downField("to").as[IndexedSeq[(Address, TokenBox.Value)]]
@@ -83,8 +82,8 @@ object ArbitTransfer {
       timestamp <- c.downField("timestamp").as[Long]
       data <- c.downField("data").as[String]
       attType <- c.downField("propositionType").as[String]
-      signatures <- attestation.jsonDecoder[P, PR](attType, c.downField("signatures"))
+      signatures <- attestation.jsonDecoder[P](attType, c.downField("signatures"))
     } yield {
-      new ArbitTransfer[P, PR](from, to, signatures, fee, timestamp, data)
+      new ArbitTransfer[P](from, to, signatures, fee, timestamp, data)
     }
 }

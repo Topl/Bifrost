@@ -5,11 +5,11 @@ import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
 import co.topl.nodeView.state.box.{Box, BoxId}
 
-sealed abstract class Unlocker[P <: Proposition]
+sealed abstract class Unlocker[P <: Proposition, PR <: Proof[P]]
 
-class BoxUnlocker[P <: Proposition, PR <: Proof[P]](val closedBoxId: BoxId, val proposition: P, val boxKey: PR) extends Unlocker[P] {
+class BoxUnlocker[P <: Proposition, PR <: Proof[P]](val closedBoxId: BoxId, val proposition: P, val proof: PR) extends Unlocker[P, PR] {
 
-  override def toString: String = s"BoxUnlocker(id: $closedBoxId, boxKey: $boxKey)"
+  override def toString: String = s"BoxUnlocker(id: $closedBoxId, boxKey: $proof)"
 }
 
 object BoxUnlocker {
@@ -23,9 +23,9 @@ object BoxUnlocker {
     * @param attestation a map of propositions matching the evidence contained in the given addresses, as well as proof satisfying the proposition
     * @return a set of box unlockers that
     */
-  def generate[P <: Proposition: EvidenceProducer, PR <: Proof[P]] (from: Seq[(Address, Box.Nonce)],
-                                                                    attestation: Map[P, _ <: Proof[P]],
-                                                                   ): Traversable[BoxUnlocker[P, _ <: Proof[P]]] = {
+  def generate[P <: Proposition: EvidenceProducer] (from: Seq[(Address, Box.Nonce)],
+                                                    attestation: Map[P, _ <: Proof[P]],
+                                                   ): Traversable[BoxUnlocker[P, _ <: Proof[P]]] = {
     val evidence = attestation.keys.map { prop =>
       prop.generateEvidence -> prop
     }
