@@ -2,7 +2,7 @@ package co.topl.transaction.proposition
 
 import co.topl.crypto.{MultiSignature25519, PrivateKey25519}
 import co.topl.nodeView.state.box.proposition.{MofNProposition, PublicKey25519Proposition}
-import co.topl.utils.CoreGenerators
+import co.topl.utils.{CoreGenerators, NoShrink}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
@@ -11,15 +11,15 @@ class MultiSignature25519Spec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
-  with CoreGenerators {
-
+  with CoreGenerators
+  with NoShrink {
 
   property("A MultiSignature25519 created from single Signature25519 " +
              "should be valid for oneOfNProposition") {
 
     forAll(keyPairSetGen) {
       s: Set[(PrivateKey25519, PublicKey25519Proposition)] =>
-        val message = nonEmptyBytesGen.sample.get
+        val message = nonEmptyBytesGen.sample.getOrElse(Array.fill(positiveMediumIntGen.sample.get)(1: Byte))
         val signatures = s.map(_._1.sign(message))
         val oneOfNProposition = MofNProposition(1, s.map(keyPair => keyPair._2.pubKeyBytes))
 
@@ -32,7 +32,7 @@ class MultiSignature25519Spec extends AnyPropSpec
 
     forAll(keyPairSetGen) {
       s: Set[(PrivateKey25519, PublicKey25519Proposition)] =>
-        val message = nonEmptyBytesGen.sample.get
+        val message = nonEmptyBytesGen.sample.getOrElse(Array.fill(positiveMediumIntGen.sample.get)(1: Byte))
         val signatures = s.map(_._1.sign(message))
 
         val oneOfNProposition = MofNProposition(2, s.map(keyPair => keyPair._2.pubKeyBytes))

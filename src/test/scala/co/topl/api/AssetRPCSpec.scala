@@ -21,7 +21,6 @@ import io.circe.parser.parse
 import io.circe.syntax._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import scorex.util.encode.Base58
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -80,9 +79,9 @@ class AssetRPCSpec extends AnyWordSpec
     "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
   )
   // Unlock Secrets
-//  gw.unlockKeyFile(publicKeys("investor"), "genesis")
-//  gw.unlockKeyFile(publicKeys("producer"), "genesis")
-//  gw.unlockKeyFile(publicKeys("hub"), "genesis")
+  //  gw.unlockKeyFile(publicKeys("investor"), "genesis")
+  //  gw.unlockKeyFile(publicKeys("producer"), "genesis")
+  //  gw.unlockKeyFile(publicKeys("hub"), "genesis")
 
   var asset: Option[AssetBox] = None
   var tx: Json = "".asJson
@@ -211,7 +210,7 @@ class AssetRPCSpec extends AnyWordSpec
            |   "id": "1",
            |   "method": "transferTargetAssetsPrototype",
            |   "params": [{
-           |     "sender": ["${Base58.encode(asset.get.proposition.pubKeyBytes)}"],
+           |     "sender": ["${asset.get.proposition.address}"],
            |     "recipient": "${publicKeys("producer")}",
            |     "assetId": "${asset.get.id}",
            |     "amount": 1,

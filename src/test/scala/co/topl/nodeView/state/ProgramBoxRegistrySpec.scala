@@ -1,9 +1,6 @@
 package co.topl.nodeView.state
 
-import co.topl.consensus.KeyRing
-import co.topl.consensus.genesis.PrivateTestnet
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.Block
 import co.topl.nodeView.state.box.StateBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import com.google.common.primitives.Ints
@@ -13,7 +10,7 @@ import scorex.crypto.signatures.PublicKey
 import scorex.util.encode.Base58
 
 import scala.reflect.io.Path
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 class ProgramBoxRegistrySpec extends StateSpec {
 

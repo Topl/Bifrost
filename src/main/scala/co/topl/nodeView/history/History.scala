@@ -563,7 +563,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     * @param txId the modifier ID associated with the transaction
     * @return an optional transaction from a block
     */
-  override def txById(txId: ModifierId): Option[Transaction] = {
+  override def transactionById(txId: ModifierId): Option[Transaction] = {
     storage.blockIdOf(txId).flatMap { id =>
       storage
         .modifierById(id)

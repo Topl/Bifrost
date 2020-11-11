@@ -12,6 +12,7 @@ import co.topl.nodeView.state.State
 import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
 import co.topl.settings.{AppContext, StartupOpts}
 import co.topl.utils.CoreGenerators
+import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
@@ -20,6 +21,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 
+@DoNotDiscover
 class MempoolSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with Matchers

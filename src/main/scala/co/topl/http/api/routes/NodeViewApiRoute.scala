@@ -71,18 +71,14 @@ case class NodeViewApiRoute(override val settings: RESTApiSettings, nodeViewHold
 
       val blockId = view.history.blockContainingTx(transactionId).get
       val blockNumber = view.history.storage.heightOf(blockId)
-      val tx = view.history.storage
-        .modifierById(blockId)
-        .get
-        .transactions
-        .filter(_.id == transactionId)
-        .head
-
-      tx.json.asObject.get
-        .add("blockNumber", blockNumber.asJson)
-        .add("blockId", blockId.toString.asJson)
-        .asJson
-
+      view.history.transactionById(transactionId) match {
+        case Some(tx) =>
+          tx.json.asObject.get
+            .add("blockNumber", blockNumber.asJson)
+            .add("blockId", blockId.toString.asJson)
+            .asJson
+        case None => throw new Exception("transaction not found in history")
+      }
     }
   }
 
@@ -105,7 +101,7 @@ case class NodeViewApiRoute(override val settings: RESTApiSettings, nodeViewHold
       val transactionId: ModifierId = ModifierId((params \\ "transactionId").head.asString.get)
       view.pool.modifierById(transactionId) match {
         case Some(tx) => tx.json
-        case None     => throw new Error("Unable to retrieve transaction")
+        case None     => throw new Exception("Unable to retrieve transaction")
       }
     }
   }

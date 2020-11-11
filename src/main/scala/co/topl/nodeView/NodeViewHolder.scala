@@ -242,7 +242,7 @@ class NodeViewHolder ( settings: AppSettings,
     val errorOpt: Option[Throwable] = minimalState() match {
       case txValidator: TransactionValidation[TX] =>
         txValidator.validate(tx) match {
-          case Success(_) => history().txById(tx.id) match {
+          case Success(_) => history().transactionById(tx.id) match {
             case Some(_) => throw new Error("transaction already in history")
             case _ | None => None
           }

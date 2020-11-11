@@ -8,10 +8,15 @@ import utils.Logging
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 
-case class AppSettings(rpcPort: Int,
+case class AppSettings(declaredAddress: String,
+                        rpcPort: Int,
                        requestPort: Int,
                        requestAddress: String,
-                       keyFileDir: String)
+                       keyFileDir: String,
+                       chainProvider: String,
+                       apiKeyHash: String,
+                       useApiRoute: Boolean)
+
 
 object AppSettings extends Logging with SettingsReaders {
 

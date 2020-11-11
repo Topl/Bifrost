@@ -1,9 +1,15 @@
 package serialization
 
 import scala.util.Try
+import utils.serialization.{Reader, Writer}
 
-trait Serializer[M] {
-  def toBytes(obj: M): Array[Byte]
+trait Serializer[TFamily, T <: TFamily, R <: Reader, W <: Writer] {
 
-  def parseBytes(bytes: Array[Byte]): Try[M]
+  def serialize(obj: T, w: W): Unit
+
+  def parse(r: R): TFamily
+
+  def parseTry(r: R): Try[TFamily] = {
+    Try(parse(r))
+  }
 }
