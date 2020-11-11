@@ -1,7 +1,6 @@
 package co.topl.api.program
 
 import akka.http.scaladsl.server.Route
-import akka.util.ByteString
 import co.topl.http.api.routes.ProgramApiRoute
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -18,9 +17,12 @@ class CodeCreationSpec extends ProgramRPCMockState with RPCHelpers {
 
     "Create new CodeBox in state" in {
 
+      println(s"$publicKey")
+      println(s"${publicKey.pubKeyBytes.length}")
+
       val params =
         s"""
-           |"publicKey": "${publicKeys("investor")}",
+           |"publicKey": "$publicKey",
            |"code": "add = function(a,b) { return a + b }",
            |"fee": 0,
            |"data": ""
@@ -43,7 +45,7 @@ class CodeCreationSpec extends ProgramRPCMockState with RPCHelpers {
           history.bestBlockId,
           System.currentTimeMillis(),
           Seq(txInstance),
-          ArbitBox(prop, 0L, 10000L),
+          ArbitBox(publicKey, 0L, 10000L),
           signSk,
           settings.application.version.blockByte
         )

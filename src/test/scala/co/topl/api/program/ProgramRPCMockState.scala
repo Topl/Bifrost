@@ -64,12 +64,11 @@ trait ProgramRPCMockState extends AnyWordSpec
     "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
     )
 
-  val publicKey = "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"
-  val prop: PublicKey25519Proposition = PublicKey25519Proposition(publicKeys("investor"))
+  val publicKey: PublicKey25519Proposition = propositionGen.sample.get
 
-  val polyBoxes: Seq[TokenBox] = view().state.getTokenBoxes(prop).getOrElse(Seq())
+  val polyBoxes: Seq[TokenBox] = view().state.getTokenBoxes(publicKey).getOrElse(Seq())
 
-  val fees: Map[String, Int] = Map(publicKey -> 500)
+  val fees: Map[String, Int] = Map(publicKey.toString -> 500)
 
   val program: String =
     s"""
@@ -82,7 +81,7 @@ trait ProgramRPCMockState extends AnyWordSpec
        |}
        |""".stripMargin
 
-  val stateBox: StateBox = StateBox(prop, 0L, programIdGen.sample.get, Map("a" -> 0, "b" -> 1).asJson)
-  val codeBox: CodeBox = CodeBox(prop, 1L, programIdGen.sample.get, Seq("add = function(x,y) { a = x + y; return a }"), Map("add" -> Seq("Number", "Number")))
-  val executionBox: ExecutionBox = ExecutionBox(prop, 2L, programIdGen.sample.get, Seq(stateBox.value), Seq(codeBox.value))
+  val stateBox: StateBox = StateBox(publicKey, 0L, programIdGen.sample.get, Map("a" -> 0, "b" -> 1).asJson)
+  val codeBox: CodeBox = CodeBox(publicKey, 1L, programIdGen.sample.get, Seq("add = function(x,y) { a = x + y; return a }"), Map("add" -> Seq("Number", "Number")))
+  val executionBox: ExecutionBox = ExecutionBox(publicKey, 2L, programIdGen.sample.get, Seq(stateBox.value), Seq(codeBox.value))
 }
