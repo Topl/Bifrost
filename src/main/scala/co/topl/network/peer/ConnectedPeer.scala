@@ -3,8 +3,7 @@ package co.topl.network.peer
 import akka.actor.ActorRef
 import co.topl.network.ConnectionId
 
-/**
-  * Peer connected to our node
+/** Peer connected to our node
   *
   * @param connectionId - connection address
   * @param handlerRef   - reference to PeerConnectionHandler that is responsible for communication with this peer

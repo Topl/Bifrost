@@ -16,14 +16,13 @@ trait Synchronizer extends Actor with Logging {
     case Message(spec, Left(msgBytes), Some(source)) => parseAndHandle(spec, msgBytes, source)
   }
 
-  /**
-   * This method will attempt to parse a message from a remote peer into it class representation and use
-   * the defined message handlers for processing the message
-   *
-   * @param spec the message specification (basically a header informing of the message type)
-   * @param msgBytes a ByteString of the message data that must be parsed
-   * @param source the remote peer that sent the message
-   */
+  /** This method will attempt to parse a message from a remote peer into it class representation and use
+    * the defined message handlers for processing the message
+    *
+    * @param spec the message specification (basically a header informing of the message type)
+    * @param msgBytes a ByteString of the message data that must be parsed
+    * @param source the remote peer that sent the message
+    */
   protected def parseAndHandle(spec: MessageSpec[Any], msgBytes: Array[Byte], source: ConnectedPeer): Unit = {
     // attempt to parse the message
     spec.parseBytes(msgBytes) match {

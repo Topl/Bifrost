@@ -75,9 +75,9 @@ class NetworkController ( settings      : AppSettings,
 
   private def operational: Receive =
     businessLogic orElse
-      peerCommands orElse
-      connectionEvents orElse
-      nonsense
+    peerCommands orElse
+    connectionEvents orElse
+    nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   private def initialization: Receive = {

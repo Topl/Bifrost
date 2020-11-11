@@ -9,15 +9,17 @@ import co.topl.utils.Extensions._
 import co.topl.utils.Logging
 import co.topl.utils.serialization.{Reader, Writer}
 
+/** Sequence of modifiers to send to the remote peer */
 case class ModifiersData(typeId: ModifierTypeId, modifiers: Map[ModifierId, Array[Byte]])
 
+/** Inventory data (a sequence of modifier ids) */
 case class InvData(typeId: ModifierTypeId, ids: Seq[ModifierId])
 
+/** Sequence of PeerSpec containing the declared information about peer */
 case class PeersData(peers: Seq[PeerSpec])
 
 /* ----------------------------------------------------------------------------------------------------------------- */
-/**
-  * The `SyncInfo` message requests an `Inv` message that provides modifier ids
+/** The `SyncInfo` message requests an `Inv` message that provides modifier ids
   * required be sender to synchronize his blockchain with the recipient.
   * It allows a peer which has been disconnected or started for the first
   * time to get the data it needs to request the blocks it hasn't seen.
@@ -128,8 +130,9 @@ object RequestModifierSpec {
 }
 
 /** ------------------------------------------------------------------------------------------------------------------ */
-/**
-  * The `Modifier` message is a reply to a `RequestModifier` message which requested these modifiers.
+/** The `Modifier` message is a reply to a `RequestModifier` message which requested these modifiers.
+  *
+  * @param maxMessageSize maximum income package size (bytes), maxPacketSize in configs
   */
 class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] with Logging {
 
@@ -183,8 +186,7 @@ object ModifiersSpec {
 }
 
 /** ------------------------------------------------------------------------------------------------------------------ */
-/**
-  * The `GetPeer` message requests an `Peers` message from the receiving node,
+/** The `GetPeer` message requests an `Peers` message from the receiving node,
   * preferably one with lots of `PeerSpec` of other receiving nodes.
   * The transmitting node can use those `PeerSpec` addresses to quickly update
   * its database of available nodes rather than waiting for unsolicited `Peers`
@@ -208,9 +210,11 @@ object GetPeersSpec {
 }
 
 /** ------------------------------------------------------------------------------------------------------------------ */
-/**
-  * The `Peers` message is a reply to a `GetPeer` message and relays connection information about peers
+/** The `Peers` message is a reply to a `GetPeer` message and relays connection information about peers
   * on the network.
+  *
+  * @param featureSerializers searializer for feature
+  * @param peersLimit maximum number of PeerSpec objects in one Peers message
   */
 class PeersSpec(featureSerializers: PeerFeature.Serializers, peersLimit: Int) extends MessageSpecV1[PeersData] {
 
@@ -241,8 +245,7 @@ object PeersSpec {
 }
 
 /** ------------------------------------------------------------------------------------------------------------------ */
-/**
-  * The `Handshake` message provides information about the transmitting node
+/** The `Handshake` message provides information about the transmitting node
   * to the receiving node at the beginning of a connection. Until both peers
   * have exchanged `Handshake` messages, no other messages will be accepted.
   */

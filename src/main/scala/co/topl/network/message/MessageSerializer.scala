@@ -9,6 +9,7 @@ import scorex.crypto.hash.Blake2b256
 
 import scala.util.Try
 
+/** Serializer for Message case class */
 class MessageSerializer(specs: Seq[MessageSpec[_]], magicBytes: Array[Byte]) {
 
   import scala.language.existentials
@@ -32,7 +33,7 @@ class MessageSerializer(specs: Seq[MessageSpec[_]], magicBytes: Array[Byte]) {
     builder.result()
   }
 
-  //MAGIC ++ Array(spec.messageCode) ++ Ints.toByteArray(dataLength) ++ dataWithChecksum
+  /** MAGIC ++ Array(spec.messageCode) ++ Ints.toByteArray(dataLength) ++ dataWithChecksum */
   def deserialize(byteString: ByteString, sourceOpt: Option[ConnectedPeer]): Try[Option[Message[_]]] = Try {
     if (byteString.length < Message.HeaderLength) {
       None
@@ -42,12 +43,12 @@ class MessageSerializer(specs: Seq[MessageSpec[_]], magicBytes: Array[Byte]) {
       val msgCode = it.getByte
       val length = it.getInt
 
-      //peer is from another network
+      /** peer is from another network */
       if (!java.util.Arrays.equals(magic, magicBytes)) {
         throw MaliciousBehaviorException(s"Wrong magic bytes, expected ${magicBytes.mkString}, got ${magic.mkString}")
       }
 
-      //peer is trying to cause buffer overflow or breaking the parsing
+      /** peer is trying to cause buffer overflow or breaking the parsing */
       if (length < 0) {
         throw MaliciousBehaviorException("Data length is negative!")
       }
@@ -62,7 +63,7 @@ class MessageSerializer(specs: Seq[MessageSpec[_]], magicBytes: Array[Byte]) {
           val data = it.getBytes(length)
           val digest = Blake2b256.hash(data).take(Message.ChecksumLength)
 
-          //peer reported incorrect checksum
+          /** peer reported incorrect checksum */
           if (!java.util.Arrays.equals(checksum, digest)) {
             throw MaliciousBehaviorException(s"Wrong checksum, expected ${checksum.mkString}, got ${checksum.mkString}")
           }

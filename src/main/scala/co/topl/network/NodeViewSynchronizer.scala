@@ -217,16 +217,14 @@ class NodeViewSynchronizer[
     networkControllerRef ! SendToNetwork(msg, Broadcast)
   }
 
-  /**
-    * Application-specific logic to request more modifiers after application if needed to
+  /** Application-specific logic to request more modifiers after application if needed to
     * speed-up synchronization process, e.g. send Sync message for unknown or older peers
     * when our modifier is not synced yet, but no modifiers are expected from other peers
     * or request modifiers we need with known ids, that are not applied yet.
     */
   protected def requestMoreModifiers(applied: Seq[PMOD]): Unit = {}
 
-  /**
-    * Handles checking the status of modifiers that we have asked peers for using the `requestDownload` method.
+  /** Handles checking the status of modifiers that we have asked peers for using the `requestDownload` method.
     * If the modifier request targeted a peer, then we will wait for that peer to respond for a fixed interval before
     * transitioning to asking for the modifier from other random connected peers. If we still do not receive the modifier
     * after asking random peers for a fixed interval of time, we will stop requesting it.
@@ -276,8 +274,7 @@ class NodeViewSynchronizer[
 
   }
 
-  /**
-    * Announce the local synchronization status by broadcasting the latest blocks ids
+  /** Announce the local synchronization status by broadcasting the latest blocks ids
     * from the tip of our chain
     *
     * @param history history reader to use in the construction of the message
@@ -300,8 +297,7 @@ class NodeViewSynchronizer[
     networkControllerRef ! PenalizePeer(peer.connectionId.remoteAddress, PenaltyType.PermanentPenalty)
   }
 
-  /**
-    * Process sync info coming from another node
+  /** Process sync info coming from another node
     *
     * @param syncInfo a set of modifier ids from the tip of the remote peers chain
     * @param remote remote peer that sent the message
