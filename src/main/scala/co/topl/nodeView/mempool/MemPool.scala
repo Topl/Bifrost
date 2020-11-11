@@ -10,14 +10,11 @@ import co.topl.utils.Logging
 import scala.collection.concurrent.TrieMap
 import scala.util.Try
 
-case class MemPool[TX <: Transaction[_, Proposition, Proof[_], Box[_]]](unconfirmed: TrieMap[ModifierId, TX])
-  extends MemoryPool[TX, MemPool[TX]] with Logging {
+case class MemPool(unconfirmed: TrieMap[ModifierId, Transaction[_, Proposition, Proof[_], Box[_]]])
+  extends MemoryPool[Transaction[_, Proposition, Proof[_], Box[_]], MemPool] with Logging {
 
-  override type NVCT = MemPool[TX]
-
-  
-
-  //private def key(id: Array[Byte]): ByteArrayWrapper = ByteArrayWrapper(id)
+  override type NVCT = MemPool
+  type TX = Transaction[_, Proposition, Proof[_], Box[_]]
 
   private val boxesInMempool = new TrieMap[BoxId, BoxId]()
 
@@ -31,7 +28,7 @@ case class MemPool[TX <: Transaction[_, Proposition, Proof[_], Box[_]]](unconfir
   override def size: Int = unconfirmed.size
 
   //modifiers
-  override def put(tx: TX): Try[MemPool[TX]] = Try {
+  override def put(tx: TX): Try[MemPool] = Try {
     unconfirmed.put(tx.id, tx)
     tx.boxIdsToOpen.foreach(boxId => require(!boxesInMempool.contains(boxId)))
     tx.boxIdsToOpen.foreach(boxId => boxesInMempool.put(boxId, boxId))
@@ -43,7 +40,7 @@ case class MemPool[TX <: Transaction[_, Proposition, Proof[_], Box[_]]](unconfir
    * @param txs
    * @return
    */
-  override def put(txs: Iterable[TX]): Try[MemPool[TX]] = Try {
+  override def put(txs: Iterable[TX]): Try[MemPool] = Try {
     txs.foreach(tx => unconfirmed.put(tx.id, tx))
     txs.foreach(tx => tx.boxIdsToOpen.foreach {
       boxId => require(!boxesInMempool.contains(boxId))
@@ -59,7 +56,7 @@ case class MemPool[TX <: Transaction[_, Proposition, Proof[_], Box[_]]](unconfir
    * @param txs
    * @return
    */
-  override def putWithoutCheck(txs: Iterable[TX]): MemPool[TX] = {
+  override def putWithoutCheck(txs: Iterable[TX]): MemPool = {
     txs.foreach(tx => unconfirmed.put(tx.id, tx))
     txs.foreach(tx => tx.boxIdsToOpen.map {
       boxId => boxesInMempool.put(boxId, boxId)
@@ -72,7 +69,7 @@ case class MemPool[TX <: Transaction[_, Proposition, Proof[_], Box[_]]](unconfir
    * @param tx
    * @return
    */
-  override def remove(tx: TX): MemPool[TX] = {
+  override def remove(tx: TX): MemPool = {
     unconfirmed.remove(tx.id)
     this
   }
@@ -90,7 +87,7 @@ case class MemPool[TX <: Transaction[_, Proposition, Proof[_], Box[_]]](unconfir
    * @param condition
    * @return
    */
-  override def filter(condition: TX => Boolean): MemPool[TX] = {
+  override def filter(condition: TX => Boolean): MemPool = {
     unconfirmed.retain { (_, v) =>
       if (condition(v)) {
         true
@@ -106,6 +103,6 @@ case class MemPool[TX <: Transaction[_, Proposition, Proof[_], Box[_]]](unconfir
 }
 
 
-object MemPool[TX] {
-  lazy val emptyPool: MemPool[TX] = MemPool[TX](TrieMap())
+object MemPool {
+  lazy val emptyPool: MemPool = MemPool(TrieMap())
 }

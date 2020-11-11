@@ -1,9 +1,10 @@
 package co.topl.consensus
 
+import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction, TransferTransaction}
-import co.topl.nodeView.history.{BlockProcessor, Storage}
+import co.topl.modifier.transaction.{ ArbitTransfer, PolyTransfer, Transaction, TransferTransaction }
+import co.topl.nodeView.history.{ BlockProcessor, Storage }
 
 import scala.util.Try
 
@@ -14,32 +15,30 @@ trait BlockValidator[PM <: Block] {
 
 class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor) extends BlockValidator[Block] {
   def validate(block: Block): Try[Unit] = Try {
-    if (!storage.isGenesis(block)) {
-      // find the source of the parent block (either storage or chain cache)
-      val (parent, parentDifficulty, parentHeight) = blockProcessor.getCacheBlock(block.parentId) match {
-        case Some(cacheParent) =>
-          (cacheParent.block, cacheParent.baseDifficulty, cacheParent.height)
-        case None =>
-          (storage.modifierById(block.parentId).get,
-            storage.difficultyOf(block.parentId).get,
-            storage.heightOf(block.parentId).get)
-      }
-
-      // calculate the hit value from the forger box included in the new block
-      val hit = calcHit(parent)(block.forgerBox)
-
-      // calculate the adjusted difficulty the forger would have used to determine eligibility
-      val timestamp = block.timestamp
-      val target = calcAdjustedTarget(parent, parentHeight, parentDifficulty, timestamp)
-      val valueTarget = (target * BigDecimal(block.forgerBox.value)).toBigInt
-
-      // did the forger create a block with a valid forger box and adjusted difficulty?
-      require( BigInt(hit) < valueTarget, s"$hit < $valueTarget failed, $parentDifficulty ")
+    // find the source of the parent block (either storage or chain cache)
+    val (parent, parentDifficulty, parentHeight) = blockProcessor.getCacheBlock(block.parentId) match {
+      case Some(cacheParent) =>
+        (cacheParent.block, cacheParent.baseDifficulty, cacheParent.height)
+      case None =>
+        (storage.modifierById(block.parentId).get,
+          storage.difficultyOf(block.parentId).get,
+          storage.heightOf(block.parentId).get)
     }
+
+    // calculate the hit value from the forger box included in the new block
+    val hit = calcHit(parent)(block.forgerBox)
+
+    // calculate the adjusted difficulty the forger would have used to determine eligibility
+    val timestamp = block.timestamp
+    val target = calcAdjustedTarget(parent, parentHeight, parentDifficulty, timestamp)
+    val valueTarget = (target * BigDecimal(block.forgerBox.value)).toBigInt
+
+    // did the forger create a block with a valid forger box and adjusted difficulty?
+    require( BigInt(hit) < valueTarget, s"$hit < $valueTarget failed, $parentDifficulty ")
   }
 }
 
-class SyntaxBlockValidator(storage: Storage) extends BlockValidator[Block] {
+class SyntaxBlockValidator extends BlockValidator[Block] {
   // the signature on the block should match the signature used in the Arbit and Poly minting transactions
   val forgerEntitlementCheck: (Transaction[_,_,_,_], Block) => Unit = ( tx: Transaction[_,_,_,_], b: Block) =>
     require(tx.attestation.keys.toSeq.contains(b.publicKey),
@@ -48,6 +47,7 @@ class SyntaxBlockValidator(storage: Storage) extends BlockValidator[Block] {
   def validate(block: Block): Try[Unit] = Try {
     // check block signature is valid
     require(block.signature.isValid(block.publicKey, block.messageToSign), "Failed to validate block signature")
+
 
     // ensure only a single Arbit minting transaction
     val numArbitCoinbase = block.transactions.count {
@@ -64,7 +64,7 @@ class SyntaxBlockValidator(storage: Storage) extends BlockValidator[Block] {
     // enforce the structure of the Arbit and Poly minting transactions
     block.transactions.zipWithIndex.map {
       case (tx, 0) => tx match {
-        case tx: ArbitTransfer[_,_] if tx.minting => {
+        case tx: ArbitTransfer[_ <: Proposition, _ <: Proof[_]] if tx.minting => {
           forgerEntitlementCheck(tx, block)
           require(tx.to.map(_._2).sum == inflation,
                   "The inflation amount in the block must match the output of the Arbit rewards transaction")

@@ -4,7 +4,6 @@ import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
 import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.EvidenceProducer
 import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
 import co.topl.consensus.Forger
@@ -43,8 +42,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
   // Import the types of messages this actor can RECEIVE
   import NodeViewHolder.ReceivableMessages._
 
-  type BX = Box[_]
-  type TX = Transaction[_, Proposition, Proof[_], _ <: BX]
+  type TX = Transaction[_, Proposition, Proof[_], Box[_]]
   type PMOD = Block
   type HIS = History
   type MS = State
@@ -245,7 +243,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
   protected def txModify(tx: TX): Unit = {
     //todo: async validation?
     val errorOpt: Option[Throwable] = minimalState() match {
-      case txValidator: TransactionValidation =>
+      case txValidator: TransactionValidation[Transaction[_,_,_,_]] =>
         txValidator.validate(tx) match {
           case Success(_) => None
           case Failure(e) => Some(e)
@@ -450,7 +448,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
     memPool.putWithoutCheck(rolledBackTxs).filter { tx =>
       !appliedTxs.exists(t => t.id == tx.id) && {
         state match {
-          case v: TransactionValidation => v.validate(tx).isSuccess
+          case v: TransactionValidation[TX] => v.validate(tx).isSuccess
           case _ => true
         }
       }
@@ -517,13 +515,13 @@ object NodeViewHolder {
 
     case class LocallyGeneratedModifier[PMOD <: PersistentNodeViewModifier](pmod: PMOD)
 
-    sealed trait NewTransactions[TX <: Transaction]{val txs: Iterable[TX]}
+    sealed trait NewTransactions[TX <: Transaction[_,_,_,_]]{val txs: Iterable[TX]}
 
-    case class LocallyGeneratedTransaction[TX <: Transaction] ( tx: TX) extends NewTransactions[TX] {
+    case class LocallyGeneratedTransaction[TX <: Transaction[_,_,_,_]] ( tx: TX) extends NewTransactions[TX] {
       override val txs: Iterable[TX] = Iterable(tx)
     }
 
-    case class TransactionsFromRemote[TX <: Transaction] ( txs: Iterable[TX]) extends NewTransactions[TX]
+    case class TransactionsFromRemote[TX <: Transaction[_,_,_,_]] ( txs: Iterable[TX]) extends NewTransactions[TX]
 
     case class EliminateTransactions(ids: Seq[ModifierId])
 

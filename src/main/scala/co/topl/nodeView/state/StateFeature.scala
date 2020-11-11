@@ -6,10 +6,10 @@ import scala.util.Try
 
 trait StateFeature
 
-trait TransactionValidation extends StateFeature {
-  def filterValid[TX: Transaction] (txs: Seq[TX]): Seq[TX] = txs.filter(isValid)
+trait TransactionValidation[TX <: Transaction[_,_,_,_]] extends StateFeature {
+  def filterValid (txs: Seq[TX]): Seq[TX] = txs.filter(isValid)
 
-  def isValid[TX: Transaction] (tx: TX): Boolean = validate(tx).isSuccess
+  def isValid (tx: TX): Boolean = validate(tx).isSuccess
 
-  def validate[TX: Transaction] (transaction: TX): Try[Unit]
+  def validate (transaction: TX): Try[Unit]
 }

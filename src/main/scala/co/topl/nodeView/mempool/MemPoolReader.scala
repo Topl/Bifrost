@@ -1,16 +1,12 @@
 package co.topl.nodeView.mempool
 
-import co.topl.attestation.proof.Proof
-import co.topl.attestation.proposition.Proposition
-import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ ContainsModifiers, ModifierId }
 import co.topl.nodeView.NodeViewComponent
-import co.topl.nodeView.state.box.Box
 
 /**
   * Unconfirmed transactions pool
   */
-trait MemPoolReader[TX <: Transaction[_, Proposition, Proof[_], Box[_]]]
+trait MemPoolReader[TX]
   extends NodeViewComponent with ContainsModifiers[TX] {
 
   //getters

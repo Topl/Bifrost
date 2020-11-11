@@ -36,7 +36,7 @@ case class State ( override val version     : VersionTag,
                    nodeKeys                 : Option[Set[Address]] = None
                  ) (implicit networkPrefix: NetworkPrefix) extends MinimalState[Box[_], Block, State]
                                                                    with StoreInterface
-                                                                   with TransactionValidation
+                                                                   with TransactionValidation[Transaction[_,_,_,_]]
                                                                    with Logging {
 
   override type NVCT = State
@@ -251,7 +251,7 @@ case class State ( override val version     : VersionTag,
     }
   }
 
-  override def validate[TX: Transaction] (transaction: TX): Try[Unit] = {
+  override def validate (transaction: Transaction[_,_,_,_]): Try[Unit] = {
     transaction match {
       case tx: TransferTransaction[PublicKeyPropositionCurve25519, SignatureCurve25519] =>
         TransferTransaction.semanticValidate(tx, getReader)

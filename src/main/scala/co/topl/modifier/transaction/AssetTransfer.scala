@@ -37,11 +37,10 @@ case class AssetTransfer[
       params.tail.map(p => (AssetBox(p._1, p._2, p._3, assetCode, issuer, data)))
   }
 
-  override lazy val messageToSign: Array[Byte] = Bytes.concat(,
-    super.messageToSign,
-    issuer.bytes,
-    assetCode.getBytes,
-    )
+  override lazy val messageToSign: Array[Byte] =
+    super.messageToSign ++
+    issuer.bytes ++
+    assetCode.getBytes
 }
 
 object AssetTransfer {
@@ -99,8 +98,8 @@ object AssetTransfer {
       assetCode <- c.downField("assetCode").as[String]
       minting <- c.downField("minting").as[Boolean]
       attType <- c.downField("propositionType").as[String]
+      signatures <- attestation.jsonDecoder[P, PR](attType, c.downField("signatures"))
     } yield {
-      val signatures = attestation.jsonDecoder[P, PR](attType, c.downField("signatures"))
       AssetTransfer(from, to, signatures, issuer, assetCode, fee, timestamp, data, minting)
     }
 }

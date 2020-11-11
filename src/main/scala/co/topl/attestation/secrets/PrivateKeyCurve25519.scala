@@ -5,8 +5,8 @@ import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
 import co.topl.utils.serialization.BifrostSerializer
 import scorex.crypto.signatures.{ Curve25519, PrivateKey, PublicKey, Signature }
 
-case class PrivateKeyCurve25519 (private[crypto] val privKeyBytes  : PrivateKey,
-                                 private[crypto] val publicKeyBytes: PublicKey
+case class PrivateKeyCurve25519 (private[secrets] val privKeyBytes  : PrivateKey,
+                                 private[secrets] val publicKeyBytes: PublicKey
                           ) extends Secret {
 
   require(privKeyBytes.length == Curve25519.KeyLength, s"${privKeyBytes.length} == ${Curve25519.KeyLength}")

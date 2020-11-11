@@ -37,8 +37,7 @@ trait ProofOfKnowledge[S <: Secret, P <: KnowledgeProposition[S]] extends Proof[
 
 object Proof {
   def fromString[P <: Proposition, PR <: Proof[P]] (str: String): Try[PR] =
-    Base58.decode(str).flatMap(bytes => ProofSerializer.parseBytes(bytes) match {
-      case Success(prop: PR) => Success(prop)
-      case _                => Failure(new Error("Failed to parse a proposition from the given string"))
+    Base58.decode(str).flatMap(bytes => ProofSerializer.parseBytes(bytes).map {
+      case prop: PR => prop
     })
 }

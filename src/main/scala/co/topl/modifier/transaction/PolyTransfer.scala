@@ -64,8 +64,8 @@ object PolyTransfer {
       timestamp <- c.downField("timestamp").as[Long]
       data <- c.downField("data").as[String]
       attType <- c.downField("propositionType").as[String]
+      signatures <- attestation.jsonDecoder[P, PR](attType, c.downField("signatures"))
     } yield {
-      val signatures = attestation.jsonDecoder[P, PR](attType, c.downField("signatures"))
       new PolyTransfer[P, PR](from, to, signatures, fee, timestamp, data)
     }
 

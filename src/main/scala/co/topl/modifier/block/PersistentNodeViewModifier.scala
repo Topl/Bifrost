@@ -3,7 +3,8 @@ package co.topl.modifier.block
 import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
 import co.topl.modifier.transaction.Transaction
-import co.topl.modifier.{ModifierId, NodeViewModifier}
+import co.topl.modifier.{ ModifierId, NodeViewModifier }
+import co.topl.nodeView.state.box.Box
 import io.circe.Encoder
 
 sealed trait PersistentNodeViewModifier extends NodeViewModifier {
@@ -11,7 +12,7 @@ sealed trait PersistentNodeViewModifier extends NodeViewModifier {
   def parentId: ModifierId
 }
 
-trait TransactionsCarryingPersistentNodeViewModifier[TX <: Transaction[_, _ <: Proposition, _ <: Proof[_], _]] extends PersistentNodeViewModifier {
+trait TransactionsCarryingPersistentNodeViewModifier[TX <: Transaction[_, Proposition, Proof[_], Box[_]]] extends PersistentNodeViewModifier {
 
   def transactions: Seq[TX]
 }

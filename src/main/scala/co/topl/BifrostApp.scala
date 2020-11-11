@@ -33,7 +33,7 @@ import scala.util.{ Failure, Success }
 class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   type BSI = BifrostSyncInfo
-  type TX = Transaction
+  type TX = Transaction[_,_,_,_]
   type PMOD = Block
   type HIS = History
   type MP = MemPool

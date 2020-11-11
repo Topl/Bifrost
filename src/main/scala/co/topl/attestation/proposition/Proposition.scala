@@ -4,7 +4,7 @@ import co.topl.attestation.{ Address, EvidenceProducer }
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.proof.{ Proof, SignatureCurve25519 }
 import co.topl.attestation.secrets.Secret
-import co.topl.modifier.transaction.Transaction
+import co.topl.modifier.transaction.{ Transaction, TransferTransaction }
 import co.topl.utils.serialization.{ BifrostSerializer, BytesSerializable }
 import com.google.common.primitives.Ints
 import scorex.util.encode.Base58
@@ -39,13 +39,12 @@ trait KnowledgeProposition[S <: Secret] extends Proposition
 
 object Proposition {
   def fromString[P <: Proposition] (str: String): Try[P] =
-    Base58.decode(str).flatMap(bytes => PropositionSerializer.parseBytes(bytes) match {
-      case Success(prop: P) => Success(prop)
-      case _                => Failure(new Error("Failed to parse a proposition from the given string"))
+    Base58.decode(str).flatMap(bytes => PropositionSerializer.parseBytes(bytes).map {
+      case prop: P => prop
     })
 
-  def getPropTypeString[TX[_,_], P <: Proposition] (obj: TX[P,_]): String = obj match {
-    case _: TX[PublicKeyPropositionCurve25519, _] => "PublicKeyCurve25519"
-    case _: TX[ThresholdPropositionCurve25519, _] => "ThresholdCurve25519"
+  def getPropTypeString[TX: TransferTransaction] (obj: TX): String = obj match {
+    case _: TransferTransaction[PublicKeyPropositionCurve25519, _] => "PublicKeyCurve25519"
+    case _: TransferTransaction[ThresholdPropositionCurve25519, _] => "ThresholdCurve25519"
   }
 }

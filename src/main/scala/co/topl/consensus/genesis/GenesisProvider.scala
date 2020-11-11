@@ -1,5 +1,7 @@
 package co.topl.consensus.genesis
 
+import co.topl.attestation.Address
+import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.consensus.Forger.ChainParams
 import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
 import co.topl.attestation.proof.SignatureCurve25519
@@ -15,15 +17,14 @@ import scala.util.Try
 
 trait GenesisProvider extends Logging {
 
-  type POLY = (
-    IndexedSeq[(PublicKeyPropositionCurve25519, Long)],
-      IndexedSeq[(PublicKeyPropositionCurve25519, Long)],
-      Map[PublicKeyPropositionCurve25519, SignatureCurve25519], Long, Long, String) => PolyTransfer
+  implicit val networkPrefix: NetworkPrefix
 
-  type ARB = (
-    IndexedSeq[(PublicKeyPropositionCurve25519, Long)],
-      IndexedSeq[(PublicKeyPropositionCurve25519, Long)],
-      Map[PublicKeyPropositionCurve25519, SignatureCurve25519], Long, Long, String) => ArbitTransfer
+  type CreationsParams = (IndexedSeq[(Address, Long)], IndexedSeq[(Address, Long)],
+      Map[PublicKeyPropositionCurve25519, SignatureCurve25519], Long, Long, String, Boolean)
+
+  type POLY = CreationsParams => PolyTransfer[PublicKeyPropositionCurve25519, SignatureCurve25519]
+
+  type ARB = CreationsParams => ArbitTransfer[PublicKeyPropositionCurve25519, SignatureCurve25519]
 
   protected lazy val genesisAcct: PrivateKeyCurve25519 = PrivateKeyCurve25519(PrivateKey @@ Array.fill(32)(2: Byte), PublicKey @@ Array.fill(32)(2: Byte))
 
