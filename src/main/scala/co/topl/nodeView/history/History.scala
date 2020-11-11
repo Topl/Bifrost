@@ -522,16 +522,13 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
   override def syncInfo: BifrostSyncInfo =
     if (isEmpty) {
       BifrostSyncInfo(Seq.empty)
-
     } else {
       val startingPoints = lastHeaders(BifrostSyncInfo.MaxLastBlocks)
 
-      if (startingPoints.headOption.contains(GenesisParentId)) {
+      if (startingPoints.headOption.contains(GenesisParentId))
         BifrostSyncInfo(GenesisParentId +: startingPoints)
-
-      } else {
+      else
         BifrostSyncInfo(startingPoints)
-      }
     }
 
   /**Return last count headers from best headers chain if exist or chain up to genesis otherwise */
