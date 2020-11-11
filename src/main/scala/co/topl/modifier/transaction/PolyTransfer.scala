@@ -4,26 +4,29 @@ import java.time.Instant
 
 import co.topl.attestation
 import co.topl.attestation.Address
-import co.topl.attestation.proof.Proof
-import co.topl.attestation.proposition.Proposition
+import co.topl.attestation.proof.{ Proof, SignatureCurve25519 }
+import co.topl.attestation.proposition.{ Proposition, PublicKeyPropositionCurve25519 }
+import co.topl.attestation.secrets.PrivateKeyCurve25519
+import co.topl.modifier.transaction
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{ Box, PolyBox, TokenBox }
 import io.circe.syntax.EncoderOps
 import io.circe.{ Decoder, Encoder, HCursor }
 
-import scala.util.Try
+import scala.util.{ Failure, Success, Try }
 
 case class PolyTransfer[
-  P <: Proposition
+  P <: Proposition,
+  PR <: Proof[P]
 ] (override val from       : IndexedSeq[(Address, Box.Nonce)],
    override val to         : IndexedSeq[(Address, TokenBox.Value)],
-   override val attestation: Map[P, _ <: Proof[P]],
+   override val attestation: Map[P, PR],
    override val fee        : Long,
    override val timestamp  : Long,
    override val data       : String,
    override val minting    : Boolean = false
-  ) extends TransferTransaction[P](from, to, attestation, fee, timestamp, data, minting) {
+  ) extends TransferTransaction[P, PR](from, to, attestation, fee, timestamp, data, minting) {
 
   override val txTypePrefix: TxType = PolyTransfer.txTypePrefix
 
@@ -35,8 +38,8 @@ case class PolyTransfer[
 object PolyTransfer {
   val txTypePrefix: TxType = 2: Byte
 
-  implicit def jsonEncoder[P <: Proposition]: Encoder[PolyTransfer[P]] = {
-    tx: PolyTransfer[P] =>
+  implicit def jsonEncoder[P <: Proposition, PR <: Proof[P]]: Encoder[PolyTransfer[P, PR]] = {
+    tx: PolyTransfer[P, PR] =>
       Map(
         "txId" -> tx.id.asJson,
         "txType" -> "PolyTransfer".asJson,
@@ -53,7 +56,7 @@ object PolyTransfer {
       ).asJson
   }
 
-  implicit def jsonDecoder[P <: Proposition]: Decoder[PolyTransfer[P]] = ( c: HCursor ) =>
+  implicit def jsonDecoder[P <: Proposition, PR <: Proof[P]]: Decoder[PolyTransfer[P, PR]] = ( c: HCursor ) =>
     for {
       from <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
       to <- c.downField("to").as[IndexedSeq[(Address, TokenBox.Value)]]
@@ -61,9 +64,9 @@ object PolyTransfer {
       timestamp <- c.downField("timestamp").as[Long]
       data <- c.downField("data").as[String]
       attType <- c.downField("propositionType").as[String]
-      signatures <- attestation.jsonDecoder[P](attType, c.downField("signatures"))
+      signatures <- attestation.jsonDecoder[P, PR](attType, c.downField("signatures"))
     } yield {
-      new PolyTransfer[P](from, to, signatures, fee, timestamp, data)
+      new PolyTransfer[P, PR](from, to, signatures, fee, timestamp, data)
     }
 
   /**
@@ -75,14 +78,14 @@ object PolyTransfer {
     * @param data
     * @return
     */
-  def createRaw[P <: Proposition] (stateReader  : StateReader[TokenBox],
+  def createRaw[P <: Proposition, PR <: Proof[P]] (stateReader  : StateReader[TokenBox],
                                                    toReceive    : IndexedSeq[(Address, TokenBox.Value)],
                                                    sender       : IndexedSeq[Address],
                                                    changeAddress: Address,
                                                    fee          : Long,
                                                    data         : String
-                                                  ): Try[PolyTransfer[P]] =
+                                                  ): Try[PolyTransfer[P, PR]] =
     TransferTransaction.createRawTransferParams(stateReader, toReceive, sender, changeAddress, fee, "PolyTransfer").map {
-      case (inputs, outputs) => PolyTransfer[P](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data)
+      case (inputs, outputs) => PolyTransfer[P, PR](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data)
     }
 }

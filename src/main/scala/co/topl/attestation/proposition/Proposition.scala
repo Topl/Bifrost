@@ -43,8 +43,8 @@ object Proposition {
       case prop: P => prop
     })
 
-  def getPropTypeString[TX <: TransferTransaction[_ <: Proposition]] (obj: TX): String = obj match {
-    case _: TransferTransaction[PublicKeyPropositionCurve25519] => "PublicKeyCurve25519"
-    case _: TransferTransaction[ThresholdPropositionCurve25519] => "ThresholdCurve25519"
+  def getPropTypeString[TX: TransferTransaction] (obj: TX): String = obj match {
+    case _: TransferTransaction[PublicKeyPropositionCurve25519, _] => "PublicKeyCurve25519"
+    case _: TransferTransaction[ThresholdPropositionCurve25519, _] => "ThresholdCurve25519"
   }
 }

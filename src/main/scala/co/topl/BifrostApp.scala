@@ -7,7 +7,6 @@ import akka.http.scaladsl.Http
 import akka.io.Tcp
 import akka.pattern.ask
 import akka.util.Timeout
-import co.topl.attestation.proposition.Proposition
 import co.topl.consensus.{ Forger, ForgerRef }
 import co.topl.http.HttpService
 import co.topl.http.api.ApiRoute
@@ -21,7 +20,6 @@ import co.topl.network.upnp.Gateway
 import co.topl.nodeView.{ NodeViewHolder, NodeViewHolderRef }
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
-import co.topl.nodeView.state.box.Box
 import co.topl.settings.{ AppContext, AppSettings, NetworkType, RuntimeOpts, StartupOpts }
 import co.topl.utils.Logging
 import com.sun.management.{ HotSpotDiagnosticMXBean, VMOption }
@@ -35,7 +33,7 @@ import scala.util.{ Failure, Success }
 class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   type BSI = BifrostSyncInfo
-  type TX = Transaction[_,_ <: Proposition, _ <: Box[_]]
+  type TX = Transaction[_,_,_,_]
   type PMOD = Block
   type HIS = History
   type MP = MemPool

@@ -36,7 +36,7 @@ import scala.util.{Failure, Success}
   * @tparam TX transaction
   */
 class NodeViewSynchronizer[
-  TX <: Transaction[_, _ <: Proposition, _ <: Box[_]],
+  TX <: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]],
   SI <: SyncInfo,
   PMOD <: PersistentNodeViewModifier,
   HR <: HistoryReader[PMOD, SI]: ClassTag,
@@ -641,7 +641,7 @@ object NodeViewSynchronizer {
     case class ChangedHistory[HR <: HistoryReader[_ <: PersistentNodeViewModifier, _ <: SyncInfo]](reader: HR)
         extends NodeViewChange
 
-    case class ChangedMempool[MR <: MemPoolReader[_ <: Transaction[_, _ <: Proposition, _ <: Box[_]]]] ( mempool: MR) extends NodeViewChange
+    case class ChangedMempool[MR <: MemPoolReader[_ <: Transaction[_, _, _, _]]] ( mempool: MR) extends NodeViewChange
 
     case class ChangedState[SR <: StateReader[_ <: GenericBox[_]]](reader: SR) extends NodeViewChange
 
@@ -664,7 +664,7 @@ object NodeViewSynchronizer {
     case class FailedTransaction(transactionId: ModifierId, error: Throwable, immediateFailure: Boolean)
         extends ModificationOutcome
 
-    case class SuccessfulTransaction[TX <: Transaction[_, _ <: Proposition, _ <: Box[_]]] ( transaction: TX) extends ModificationOutcome
+    case class SuccessfulTransaction[TX <: Transaction[_, _, _, _]] ( transaction: TX) extends ModificationOutcome
 
     case class SyntacticallyFailedModification[PMOD <: PersistentNodeViewModifier](modifier: PMOD, error: Throwable)
         extends ModificationOutcome
@@ -692,7 +692,7 @@ object NodeViewSynchronizer {
 object NodeViewSynchronizerRef {
 
   def apply[
-    TX <: Transaction[_, _ <: Proposition, _ <: Box[_]],
+    TX <: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]],
     SI <: SyncInfo,
     PMOD <: PersistentNodeViewModifier,
     HR <: HistoryReader[PMOD, SI]: ClassTag,
@@ -706,7 +706,7 @@ object NodeViewSynchronizerRef {
     system.actorOf(props[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, settings, appContext))
 
   def props[
-    TX <: Transaction[_, _ <: Proposition, _ <: Box[_]],
+    TX <: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]],
     SI <: SyncInfo,
     PMOD <: PersistentNodeViewModifier,
     HR <: HistoryReader[PMOD, SI]: ClassTag,
@@ -720,7 +720,7 @@ object NodeViewSynchronizerRef {
     Props(new NodeViewSynchronizer[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, settings, appContext))
 
   def apply[
-    TX <: Transaction[_, _ <: Proposition, _ <: Box[_]],
+    TX <: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]],
     SI <: SyncInfo,
     PMOD <: PersistentNodeViewModifier,
     HR <: HistoryReader[PMOD, SI]: ClassTag,

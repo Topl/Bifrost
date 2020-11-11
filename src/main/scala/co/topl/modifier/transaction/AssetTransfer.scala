@@ -8,24 +8,26 @@ import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.state.box.{ AssetBox, Box, PolyBox, TokenBox }
+import co.topl.nodeView.state.box.{AssetBox, Box, PolyBox, TokenBox}
+import com.google.common.primitives.Bytes
 import io.circe.syntax._
-import io.circe.{ Decoder, Encoder, HCursor }
+import io.circe.{Decoder, Encoder, HCursor}
 
 import scala.util.Try
 
 case class AssetTransfer[
-  P <: Proposition
+  P <: Proposition,
+  PR <: Proof[P]
 ] (override val from       : IndexedSeq[(Address, Box.Nonce)],
    override val to         : IndexedSeq[(Address, TokenBox.Value)],
-   override val attestation: Map[P, _ <: Proof[P]],
+   override val attestation: Map[P, PR],
    issuer                  : Address,
    assetCode               : String,
    override val fee        : Long,
    override val timestamp  : Long,
    override val data       : String,
    override val minting    : Boolean
-  ) extends TransferTransaction[P](from, to, attestation, fee, timestamp, data, minting) {
+  ) extends TransferTransaction[P, PR](from, to, attestation, fee, timestamp, data, minting) {
 
   override val txTypePrefix: TxType = AssetTransfer.txTypePrefix
 
@@ -53,7 +55,7 @@ object AssetTransfer {
     * @param data
     * @return
     */
-  def createRaw[P <: Proposition] (stateReader  : StateReader[TokenBox],
+  def createRaw[P <: Proposition, PR <: Proof[P]] (stateReader  : StateReader[TokenBox],
                                                    toReceive    : IndexedSeq[(Address, TokenBox.Value)],
                                                    sender       : IndexedSeq[Address],
                                                    changeAddress: Address,
@@ -62,12 +64,12 @@ object AssetTransfer {
                                                    fee          : Long,
                                                    data         : String,
                                                    minting      : Boolean
-                                                  ): Try[AssetTransfer[P]] =
+                                                  ): Try[AssetTransfer[P, PR]] =
     TransferTransaction.createRawTransferParams(stateReader, toReceive, sender, changeAddress, fee, "AssetTransfer", Some((issuer, assetCode))).map {
-      case (inputs, outputs) => AssetTransfer[P](inputs, outputs, Map(), issuer, assetCode, fee, Instant.now.toEpochMilli, data, minting)
+      case (inputs, outputs) => AssetTransfer[P, PR](inputs, outputs, Map(), issuer, assetCode, fee, Instant.now.toEpochMilli, data, minting)
     }
 
-  implicit def jsonEncoder[P <: Proposition]: Encoder[AssetTransfer[P]] = { tx: AssetTransfer[P] =>
+  implicit def jsonEncoder[P <: Proposition, PR <: Proof[P]]: Encoder[AssetTransfer[P, PR]] = { tx: AssetTransfer[P, PR] =>
     Map(
       "txId" -> tx.id.asJson,
       "txType" -> "AssetTransfer".asJson,
@@ -85,7 +87,7 @@ object AssetTransfer {
       ).asJson
   }
 
-  implicit def jsonDecoder[P <: Proposition]: Decoder[AssetTransfer[P]] = ( c: HCursor ) =>
+  implicit def jsonDecoder[P <: Proposition, PR <: Proof[P]]: Decoder[AssetTransfer[P, PR]] = ( c: HCursor ) =>
     for {
       from <- c.downField("from").as[IndexedSeq[(Address, Long)]]
       to <- c.downField("to").as[IndexedSeq[(Address, Long)]]
@@ -96,7 +98,7 @@ object AssetTransfer {
       assetCode <- c.downField("assetCode").as[String]
       minting <- c.downField("minting").as[Boolean]
       attType <- c.downField("propositionType").as[String]
-      signatures <- attestation.jsonDecoder[P](attType, c.downField("signatures"))
+      signatures <- attestation.jsonDecoder[P, PR](attType, c.downField("signatures"))
     } yield {
       AssetTransfer(from, to, signatures, issuer, assetCode, fee, timestamp, data, minting)
     }

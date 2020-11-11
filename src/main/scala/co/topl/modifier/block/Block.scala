@@ -64,7 +64,7 @@ object Block {
   type BlockId = ModifierId
   type Timestamp = Long
   type Version = Byte
-  type TX = Transaction[_, _ <: Proposition, _ <: Box[_]]
+  type TX = Transaction[_, Proposition, Proof[_], Box[_]]
 
   val blockIdLength: Int = NodeViewModifier.ModifierIdSize
   val modifierTypeId: Byte @@ NodeViewModifier.ModifierTypeId.Tag = ModifierTypeId @@ (3: Byte)

@@ -1,15 +1,15 @@
 package co.topl.modifier.transaction.serialization
 
 import co.topl.attestation.Address
-import co.topl.attestation.proof.ProofSerializer
-import co.topl.attestation.proposition.{ Proposition, PropositionSerializer }
+import co.topl.attestation.proof.{Proof, ProofSerializer}
+import co.topl.attestation.proposition.{Proposition, PropositionSerializer}
 import co.topl.modifier.transaction.ArbitTransfer
 import co.topl.utils.Extensions._
-import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
+import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
-object ArbitTransferSerializer extends BifrostSerializer[ArbitTransfer[_ <: Proposition]] {
+object ArbitTransferSerializer extends BifrostSerializer[ArbitTransfer[_ <: Proposition, _ <: Proof[_]]] {
 
-  override def serialize(obj: ArbitTransfer[_ <: Proposition], w: Writer): Unit = {
+  override def serialize(obj: ArbitTransfer[_ <: Proposition, _ <: Proof[_]], w: Writer): Unit = {
     /* from: IndexedSeq[(Address, Nonce)] */
     w.putUInt(obj.from.length)
     obj.from.foreach { case (addr, nonce) =>
@@ -44,7 +44,7 @@ object ArbitTransferSerializer extends BifrostSerializer[ArbitTransfer[_ <: Prop
     w.putBoolean(obj.minting)
   }
 
-  override def parse(r: Reader): ArbitTransfer[_ <: Proposition] = {
+  override def parse(r: Reader): ArbitTransfer[_ <: Proposition, _ <: Proof[_]] = {
     val fromLength: Int = r.getUInt().toIntExact
     val from = (0 until fromLength).map { _ =>
       val addr = Address.parse(r)
