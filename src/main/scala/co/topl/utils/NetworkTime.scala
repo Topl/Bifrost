@@ -25,10 +25,10 @@ class NetworkTimeProvider(ntpSettings: NetworkTimeProviderSettings)(implicit ec:
   client.setDefaultTimeout(ntpSettings.timeout.toMillis.toInt)
   client.open()
 
-  /**
-   * Check if the NTP offset should be updated and returns current time (milliseconds)
-   * @return the current timestamp in milliseconds
-   */
+  /** Check if the NTP offset should be updated and returns current time (milliseconds)
+    *
+    * @return the current timestamp in milliseconds
+    */
   override def time(): TimeProvider.Time = {
     checkUpdateRequired()
     NetworkTime.localWithOffset(offset.get())

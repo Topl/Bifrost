@@ -520,9 +520,9 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     * this syncInfo message and calculate modifiers missed by our node.
     */
   override def syncInfo: BifrostSyncInfo =
-    if (isEmpty) {
+    if (isEmpty)
       BifrostSyncInfo(Seq.empty)
-    } else {
+    else {
       val startingPoints = lastHeaders(BifrostSyncInfo.MaxLastBlocks)
 
       if (startingPoints.headOption.contains(GenesisParentId))

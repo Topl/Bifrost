@@ -39,7 +39,7 @@ class PeerManager (settings: AppSettings,
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
-  // ----------- CONTEXT
+  // ----------- CONTEXT ----------- //
   override def receive: Receive =
     initialization orElse nonsense
 
@@ -47,7 +47,7 @@ class PeerManager (settings: AppSettings,
     peersManagement orElse
     nonsense
 
-  // ----------- MESSAGE PROCESSING FUNCTIONS
+  // ----------- MESSAGE PROCESSING FUNCTIONS ----------- //
   private def initialization(): Receive = {
     case NodeViewReady =>
       log.info(s"${Console.YELLOW}PeerManager transitioning to the operational state${Console.RESET}")
@@ -62,7 +62,7 @@ class PeerManager (settings: AppSettings,
       else sender() ! ConnectionConfirmed(connectionId, handlerRef)
 
     case AddOrUpdatePeer(peerInfo) =>
-      // We have connected to a peer and got peerInfo from them
+      /** We have connected to a peer and got peerInfo from them */
       if (!isSelf(peerInfo.peerSpec)) peerDatabase.addOrUpdateKnownPeer(peerInfo)
 
     case Penalize(peer, penaltyType) =>
@@ -74,7 +74,7 @@ class PeerManager (settings: AppSettings,
       }
 
     case AddPeerIfEmpty(peerSpec) =>
-      // We have received peer data from other peers. It might be modified and should not affect existing data if any
+      /** We have received peer data from other peers. It might be modified and should not affect existing data if any */
       if (peerSpec.address.forall(a => peerDatabase.get(a).isEmpty) && !isSelf(peerSpec)) {
         val peerInfo: PeerInfo = PeerInfo(peerSpec, 0, None)
         log.info(s"New discovered peer: $peerInfo")
@@ -99,9 +99,7 @@ class PeerManager (settings: AppSettings,
 ////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
 
-  /**
-    * Given a peer's address, returns `true` if the peer is the same is this node.
-    */
+  /** Given a peer's address, returns `true` if the peer is the same is this node. */
   private def isSelf(peerAddress: InetSocketAddress): Boolean = {
     NetworkUtils.isSelf(peerAddress, settings.network.bindAddress, appContext.externalNodeAddress)
   }
@@ -127,7 +125,7 @@ object PeerManager {
 
     case class Blacklisted(remote: InetSocketAddress)
 
-    // peerListOperations messages
+    /** peerListOperations messages */
     case class AddOrUpdatePeer(data: PeerInfo)
 
     case class PeerSeen(peerInfo: PeerInfo)
@@ -136,20 +134,16 @@ object PeerManager {
 
     case class RemovePeer(address: InetSocketAddress)
 
-    /**
-      * Message to get peers from known peers map filtered by `choose` function
-      */
+    /** Message to get peers from known peers map filtered by `choose` function */
     trait GetPeers[T] {
       def choose(knownPeers: Map[InetSocketAddress, PeerInfo],
                  blacklistedPeers: Seq[InetAddress],
                  appContext: AppContext): T
     }
 
-    /**
-     * Choose at most `howMany` random peers, which were connected to our peer and weren't blacklisted.
-     *
-     * Used in peer propagation: peers chosen are recommended to a peer asking our node about more peers.
-     */
+    /** Choose at most `howMany` random peers, which were connected to our peer and weren't blacklisted.
+      * Used in peer propagation: peers chosen are recommended to a peer asking our node about more peers.
+      */
     case class RecentlySeenPeers(howMany: Int) extends GetPeers[Seq[PeerInfo]] {
       override def choose(knownPeers: Map[InetSocketAddress, PeerInfo],
                           blacklistedPeers: Seq[InetAddress],
