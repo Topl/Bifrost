@@ -3,7 +3,7 @@ package co.topl.modifier.transaction
 import java.time.Instant
 
 import co.topl.attestation
-import co.topl.attestation.Address
+import co.topl.attestation.{Address, EvidenceProducer}
 import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
 import co.topl.modifier.transaction.Transaction.TxType
@@ -16,7 +16,7 @@ import io.circe.{Decoder, Encoder, HCursor}
 import scala.util.Try
 
 case class AssetTransfer[
-  P <: Proposition,
+  P <: Proposition: EvidenceProducer,
   PR <: Proof[P]
 ] (override val from       : IndexedSeq[(Address, Box.Nonce)],
    override val to         : IndexedSeq[(Address, TokenBox.Value)],
@@ -55,16 +55,19 @@ object AssetTransfer {
     * @param data
     * @return
     */
-  def createRaw[P <: Proposition, PR <: Proof[P]] (stateReader  : StateReader[TokenBox],
-                                                   toReceive    : IndexedSeq[(Address, TokenBox.Value)],
-                                                   sender       : IndexedSeq[Address],
-                                                   changeAddress: Address,
-                                                   issuer       : Address,
-                                                   assetCode    : String,
-                                                   fee          : Long,
-                                                   data         : String,
-                                                   minting      : Boolean
-                                                  ): Try[AssetTransfer[P, PR]] =
+  def createRaw[
+    P <: Proposition: EvidenceProducer,
+    PR <: Proof[P]
+  ] (stateReader  : StateReader[TokenBox],
+     toReceive    : IndexedSeq[(Address, TokenBox.Value)],
+     sender       : IndexedSeq[Address],
+     changeAddress: Address,
+     issuer       : Address,
+     assetCode    : String,
+     fee          : Long,
+     data         : String,
+     minting      : Boolean
+    ): Try[AssetTransfer[P, PR]] =
     TransferTransaction.createRawTransferParams(stateReader, toReceive, sender, changeAddress, fee, "AssetTransfer", Some((issuer, assetCode))).map {
       case (inputs, outputs) => AssetTransfer[P, PR](inputs, outputs, Map(), issuer, assetCode, fee, Instant.now.toEpochMilli, data, minting)
     }
@@ -87,7 +90,7 @@ object AssetTransfer {
       ).asJson
   }
 
-  implicit def jsonDecoder[P <: Proposition, PR <: Proof[P]]: Decoder[AssetTransfer[P, PR]] = ( c: HCursor ) =>
+  implicit def jsonDecoder[P <: Proposition: EvidenceProducer, PR <: Proof[P]]: Decoder[AssetTransfer[P, PR]] = ( c: HCursor ) =>
     for {
       from <- c.downField("from").as[IndexedSeq[(Address, Long)]]
       to <- c.downField("to").as[IndexedSeq[(Address, Long)]]

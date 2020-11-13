@@ -3,7 +3,7 @@ package co.topl.modifier.transaction
 import java.time.Instant
 
 import co.topl.attestation
-import co.topl.attestation.Address
+import co.topl.attestation.{Address, EvidenceProducer}
 import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
 import co.topl.modifier.transaction.Transaction.TxType
@@ -15,7 +15,7 @@ import io.circe.{Decoder, Encoder, HCursor}
 import scala.util.Try
 
 case class ArbitTransfer[
-  P <: Proposition,
+  P <: Proposition: EvidenceProducer,
   PR <: Proof[P]
 ] (override val from       : IndexedSeq[(Address, Box.Nonce)],
    override val to         : IndexedSeq[(Address, TokenBox.Value)],
@@ -46,13 +46,16 @@ object ArbitTransfer {
    * @param data
    * @return
    */
-  def createRaw[P <: Proposition, PR <: Proof[P]] (stateReader  : StateReader[TokenBox],
-                                                   toReceive    : IndexedSeq[(Address, TokenBox.Value)],
-                                                   sender       : IndexedSeq[Address],
-                                                   changeAddress: Address,
-                                                   fee          : Long,
-                                                   data         : String
-                                                  ): Try[ArbitTransfer[P, PR]] =
+  def createRaw[
+    P <: Proposition: EvidenceProducer,
+    PR <: Proof[P]
+  ] (stateReader  : StateReader[TokenBox],
+     toReceive    : IndexedSeq[(Address, TokenBox.Value)],
+     sender       : IndexedSeq[Address],
+     changeAddress: Address,
+     fee          : Long,
+     data         : String
+    ): Try[ArbitTransfer[P, PR]] =
     TransferTransaction.createRawTransferParams(stateReader, toReceive, sender, changeAddress, fee, "ArbitTransfer").map {
       case (inputs, outputs) => ArbitTransfer[P, PR](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data)
     }
@@ -75,7 +78,7 @@ object ArbitTransfer {
       ).asJson
   }
 
-  implicit def jsonDecoder[P <: Proposition, PR <: Proof[P]]: Decoder[ArbitTransfer[P, PR]] = ( c: HCursor ) =>
+  implicit def jsonDecoder[P <: Proposition: EvidenceProducer, PR <: Proof[P]]: Decoder[ArbitTransfer[P, PR]] = ( c: HCursor ) =>
     for {
       from <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
       to <- c.downField("to").as[IndexedSeq[(Address, TokenBox.Value)]]

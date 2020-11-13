@@ -13,7 +13,7 @@ case class BoxId (hashBytes: Array[Byte]) {
 
   override def hashCode: Int = Ints.fromByteArray(hashBytes)
 
-  override def equals(obj: Any): Boolean = {
+  override def equals(obj: Any): Boolean = obj match {
     case obj: BoxId => obj.hashBytes sameElements hashBytes
     case _ => false
   }

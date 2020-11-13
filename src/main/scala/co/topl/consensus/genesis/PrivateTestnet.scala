@@ -1,22 +1,23 @@
 package co.topl.consensus.genesis
 
-import co.topl.consensus.Forger.ChainParams
-import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
+import co.topl.attestation.AddressEncoder.NetworkPrefix
+import co.topl.attestation.EvidenceProducer.syntax._
 import co.topl.attestation.proof.SignatureCurve25519
+import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
+import co.topl.consensus.Forger.ChainParams
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ ArbitTransfer, PolyTransfer }
+import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.box.ArbitBox
-import co.topl.settings.{ AppSettings, Version }
-import co.topl.settings.{ AppSettings, RuntimeOpts, Version }
+import co.topl.settings.{AppSettings, RuntimeOpts, Version}
 
 import scala.util.Try
 
 case class PrivateTestnet ( keyGen  : (Int, Option[String]) => Set[PublicKeyPropositionCurve25519],
                             settings: AppSettings,
                             opts    : RuntimeOpts
-                          ) extends GenesisProvider {
+                          )(implicit val networkPrefix: NetworkPrefix) extends GenesisProvider {
 
   override protected val blockChecksum: ModifierId = ModifierId(Array.fill(32)(0: Byte))
 
@@ -41,20 +42,26 @@ case class PrivateTestnet ( keyGen  : (Int, Option[String]) => Set[PublicKeyProp
     val privateTotalStake = numberOfKeys * balance
 
     val txInput = (
-      IndexedSeq(genesisAcct.publicImage -> 0L),
-      keyGen(numberOfKeys, opts.seed).map(_ -> balance).toIndexedSeq,
+      IndexedSeq(genesisAcct.publicImage.address -> 0L),
+      keyGen(numberOfKeys, opts.seed).map(_.address -> balance).toIndexedSeq,
       Map(genesisAcct.publicImage -> SignatureCurve25519.genesis()),
       0L,
       0L,
-      "")
+      "",
+      false)
 
-    val txs = Seq((ArbitTransfer.apply: ARB).tupled(txInput), (PolyTransfer.apply: POLY).tupled(txInput))
+    val txs = Seq(
+      ArbitTransfer[PublicKeyPropositionCurve25519,SignatureCurve25519]
+        (txInput._1,txInput._2,txInput._3,txInput._4,txInput._5,txInput._6,txInput._7),
+      PolyTransfer[PublicKeyPropositionCurve25519,SignatureCurve25519]
+        (txInput._1,txInput._2,txInput._3,txInput._4,txInput._5,txInput._6,txInput._7)
+    )
 
-    val generatorBox = ArbitBox(genesisAcct.publicImage, 0, privateTotalStake)
+    val generatorBox = ArbitBox(genesisAcct.publicImage.generateEvidence, 0, privateTotalStake)
 
     val signature = SignatureCurve25519.genesis()
 
-    val block = Block(History.GenesisParentId, 0L, generatorBox, signature, txs, blockVersion.blockByte)
+    val block = Block(History.GenesisParentId, 0L, generatorBox, genesisAcct.publicImage, signature, txs, blockVersion.blockByte)
 
     log.debug(s"Initialize state with transactions ${txs}")
 

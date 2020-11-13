@@ -14,11 +14,11 @@ import scorex.util.Random.randomBytes
 
 import scala.util.{ Failure, Success, Try }
 
-class KeyRing[S <: Secret] (private var secrets: Set[S], defaultKeyDir: File)
-                         (implicit networkPrefix: NetworkPrefix, sg: SecretGenerator[S])
+class KeyRing (private var secrets: Set[PrivateKeyCurve25519], defaultKeyDir: File)
+              (implicit networkPrefix: NetworkPrefix, sg: SecretGenerator[PrivateKeyCurve25519])
   extends Logging {
 
-  type PI = S#PK
+  type PI = PrivateKeyCurve25519#PK
 
   /**
    * Retrieves a list of public images for the secrets currently held in the keyring
@@ -28,7 +28,7 @@ class KeyRing[S <: Secret] (private var secrets: Set[S], defaultKeyDir: File)
   def addresses: Set[Address] = secrets.map(_.publicImage.address)
 
   /**Find a secret given it's public image */
-  private[consensus] def secretByAddress (addr: Address): Option[S] = {
+  private[consensus] def secretByAddress (addr: Address): Option[PrivateKeyCurve25519] = {
     secrets.find(_.publicImage.address == addr)
   }
 
@@ -67,12 +67,12 @@ class KeyRing[S <: Secret] (private var secrets: Set[S], defaultKeyDir: File)
   def generateKeyFile (password: String): Try[PI] = {
     // generate a new random key pair and save to disk
     generateNewKeyPairs().map { sk =>
-      exportKeyfile(sk.head.publicImage, password)
+      exportKeyfile(sk.head.publicImage.address, password)
       sk.head.publicImage
     }
   }
 
-  def generateNewKeyPairs (num: Int = 1, seedOpt: Option[String] = None): Try[Set[S]] =
+  def generateNewKeyPairs (num: Int = 1, seedOpt: Option[String] = None): Try[Set[PrivateKeyCurve25519]] =
     Try {
       if (num >= 1) {
         val newSecrets = seedOpt match {
@@ -93,7 +93,7 @@ class KeyRing[S <: Secret] (private var secrets: Set[S], defaultKeyDir: File)
    * @param lang
    * @return
    */
-  def importPhrase (password: String, mnemonic: String, lang: String)(implicit sg: SecretGenerator[S]): Try[PI] = Try {
+  def importPhrase (password: String, mnemonic: String, lang: String)(implicit sg: SecretGenerator[PrivateKeyCurve25519]): Try[PI] = Try {
     // create the BIP object used to verify the chosen language
     val bip = Bip39(lang)
 
@@ -113,14 +113,14 @@ class KeyRing[S <: Secret] (private var secrets: Set[S], defaultKeyDir: File)
 
   /**
     *
-    * @param publicImage
+    * @param address
     * @param password
     * @return
     */
-  def exportKeyfile (publicImage: PI, password: String): Try[Unit] = Try {
-    secretByAddress(publicImage) match {
+  def exportKeyfile (address: Address, password: String): Try[Unit] = Try {
+    secretByAddress(address) match {
       case Some(sk: PrivateKeyCurve25519) => Curve25519KeyFile(password, sk).saveToDisk(defaultKeyDir.getAbsolutePath)
-      case _        => Failure(new Error("Unable to find a matching secret in the key ring"))
+      case _ => Failure(new Error("Unable to find a matching secret in the key ring"))
     }
   }
 
@@ -135,7 +135,7 @@ class KeyRing[S <: Secret] (private var secrets: Set[S], defaultKeyDir: File)
    * @param password        password used to decrypt the keyfile
    * @return the relevant PrivateKey25519 to be processed
    */
-  private def checkValid ( address: String, password: String ): S = {
+  private def checkValid ( address: String, password: String ): PrivateKeyCurve25519 = {
     val keyfile = listKeyFiles.filter {
       _.address == Address(address)
     }
@@ -143,17 +143,17 @@ class KeyRing[S <: Secret] (private var secrets: Set[S], defaultKeyDir: File)
     assert(keyfile.size == 1, s"Cannot find a unique matching keyfile in $defaultKeyDir")
 
     keyfile.head.getPrivateKey(password) match {
-      case Success(privKey: S) => privKey
-      case Failure(e)          => throw e
+      case Success(privKey) => privKey
+      case Failure(e)       => throw e
     }
   }
 }
 
 object KeyRing {
-  def apply[S <: Secret: SecretGenerator] (path: String)(implicit networkPrefix: NetworkPrefix): KeyRing[S] = {
+  def apply[S <: Secret: SecretGenerator] (path: String)(implicit networkPrefix: NetworkPrefix): KeyRing = {
     val dir = new File(path)
     dir.mkdirs()
-    new KeyRing[S](Set(), dir)
+    new KeyRing(Set(), dir)
   }
 
   def getListOfFiles (dir: File): List[File] = {

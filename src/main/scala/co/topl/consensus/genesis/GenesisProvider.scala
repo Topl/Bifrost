@@ -8,23 +8,17 @@ import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ ArbitTransfer, PolyTransfer }
+import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
+import co.topl.nodeView.state.box.{Box, TokenBox}
 import co.topl.settings.Version
 import co.topl.utils.Logging
-import scorex.crypto.signatures.{ PrivateKey, PublicKey }
+import scorex.crypto.signatures.{PrivateKey, PublicKey}
 
 import scala.util.Try
 
 trait GenesisProvider extends Logging {
 
   implicit val networkPrefix: NetworkPrefix
-
-  type CreationsParams = (IndexedSeq[(Address, Long)], IndexedSeq[(Address, Long)],
-      Map[PublicKeyPropositionCurve25519, SignatureCurve25519], Long, Long, String, Boolean)
-
-  type POLY = CreationsParams => PolyTransfer[PublicKeyPropositionCurve25519, SignatureCurve25519]
-
-  type ARB = CreationsParams => ArbitTransfer[PublicKeyPropositionCurve25519, SignatureCurve25519]
 
   protected lazy val genesisAcct: PrivateKeyCurve25519 = PrivateKeyCurve25519(PrivateKey @@ Array.fill(32)(2: Byte), PublicKey @@ Array.fill(32)(2: Byte))
 

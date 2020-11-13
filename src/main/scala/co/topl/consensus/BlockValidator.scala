@@ -64,7 +64,7 @@ class SyntaxBlockValidator extends BlockValidator[Block] {
     // enforce the structure of the Arbit and Poly minting transactions
     block.transactions.zipWithIndex.map {
       case (tx, 0) => tx match {
-        case tx: ArbitTransfer[_ <: Proposition, _ <: Proof[_]] if tx.minting => {
+        case tx: ArbitTransfer[_,_] if tx.minting => {
           forgerEntitlementCheck(tx, block)
           require(tx.to.map(_._2).sum == inflation,
                   "The inflation amount in the block must match the output of the Arbit rewards transaction")

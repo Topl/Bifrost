@@ -11,15 +11,15 @@ object TransactionSerializer extends BifrostSerializer[Transaction[_, _ <: Propo
 
   override def serialize( obj: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]], w: Writer): Unit = {
     obj match {
-      case obj: ArbitTransfer[_ <: Proposition, _ <: Proof[_]] =>
+      case obj: ArbitTransfer[_,_] =>
         w.put(ArbitTransfer.txTypePrefix)
         ArbitTransferSerializer.serialize(obj, w)
 
-      case obj: PolyTransfer[_ <: Proposition, _ <: Proof[_]] =>
+      case obj: PolyTransfer[_,_] =>
         w.put(PolyTransfer.txTypePrefix)
         PolyTransferSerializer.serialize(obj, w)
 
-      case obj: AssetTransfer[_ <: Proposition, _ <: Proof[_]] =>
+      case obj: AssetTransfer[_,_] =>
         w.put(AssetTransfer.txTypePrefix)
         AssetTransferSerializer.serialize(obj, w)
 

@@ -42,7 +42,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
   // Import the types of messages this actor can RECEIVE
   import NodeViewHolder.ReceivableMessages._
 
-  type TX = Transaction[_, Proposition, Proof[_], Box[_]]
+  type TX = Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]
   type PMOD = Block
   type HIS = History
   type MS = State
@@ -243,7 +243,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
   protected def txModify(tx: TX): Unit = {
     //todo: async validation?
     val errorOpt: Option[Throwable] = minimalState() match {
-      case txValidator: TransactionValidation[Transaction[_,_,_,_]] =>
+      case txValidator: TransactionValidation[TX] =>
         txValidator.validate(tx) match {
           case Success(_) => None
           case Failure(e) => Some(e)

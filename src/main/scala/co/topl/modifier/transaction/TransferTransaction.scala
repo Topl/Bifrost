@@ -13,14 +13,17 @@ import scorex.crypto.hash.Blake2b256
 
 import scala.util.{Failure, Success, Try}
 
-abstract class TransferTransaction[P <: Proposition, PR <: Proof[P]] ( val from: IndexedSeq[(Address, Box.Nonce)],
-                                                                       val to: IndexedSeq[(Address, TokenBox.Value)],
-                                                                       val attestation: Map[P, PR],
-                                                                       val fee: Long,
-                                                                       val timestamp: Long,
-                                                                       val data: String,
-                                                                       val minting: Boolean
-                                                                     ) extends Transaction[TokenBox.Value, P, PR, TokenBox] {
+abstract class TransferTransaction[
+  P <: Proposition: EvidenceProducer,
+  PR <: Proof[P]
+] ( val from: IndexedSeq[(Address, Box.Nonce)],
+    val to: IndexedSeq[(Address, TokenBox.Value)],
+    val attestation: Map[P, PR],
+    val fee: Long,
+    val timestamp: Long,
+    val data: String,
+    val minting: Boolean
+  ) extends Transaction[TokenBox.Value, P, PR, TokenBox] {
 
   lazy val boxIdsToOpen: IndexedSeq[BoxId] = from.map { case (addr, nonce) =>
     BoxId.idFromEviNonce(addr.evidence, nonce)
@@ -33,6 +36,8 @@ abstract class TransferTransaction[P <: Proposition, PR <: Proof[P]] ( val from:
 
 
 object TransferTransaction {
+
+  def unapply[P, PR](tx: TransferTransaction[P, PR]) = Some(tx.attestation.keys.head)
 
   /** Computes a unique nonce value based on the transaction inputs and returns the details needed to create the output boxes for the transaction */
   def boxParams(tx: TransferTransaction[_ <: Proposition, _ <: Proof[_]]): Traversable[(Evidence, Box.Nonce, TokenBox.Value)] = {
@@ -132,9 +137,11 @@ object TransferTransaction {
    * @param withSigs boolean flag controlling whether signature verification should be checked or skipped
    * @return success or failure indicating the validity of the transaction
    */
-  def syntacticValidate[P <: Proposition: EvidenceProducer, PR <: Proof[P]]
+  def syntacticValidate[P <: Proposition, PR <: Proof[P]]
     ( tx: TransferTransaction[P, PR], withSigs: Boolean = true)
     (implicit networkPrefix: NetworkPrefix): Try[Unit] = Try {
+
+    implicit val evidenceProducer: EvidenceProducer[P] = tx.ev
 
     require(tx.to.forall(_._2 > 0L), "Amount sent must be greater than 0")
     require(tx.from.nonEmpty, "Transaction must specify at least one input box") // this will fail on arbit coinbase

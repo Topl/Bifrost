@@ -36,7 +36,7 @@ case class State ( override val version     : VersionTag,
                    nodeKeys                 : Option[Set[Address]] = None
                  ) (implicit networkPrefix: NetworkPrefix) extends MinimalState[Box[_], Block, State]
                                                                    with StoreInterface
-                                                                   with TransactionValidation[Transaction[_,_,_,_]]
+                                                                   with TransactionValidation[Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]]
                                                                    with Logging {
 
   override type NVCT = State
@@ -251,7 +251,7 @@ case class State ( override val version     : VersionTag,
     }
   }
 
-  override def validate (transaction: Transaction[_,_,_,_]): Try[Unit] = {
+  override def validate (transaction: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]): Try[Unit] = {
     transaction match {
       case tx: TransferTransaction[PublicKeyPropositionCurve25519, SignatureCurve25519] =>
         TransferTransaction.semanticValidate(tx, getReader)
@@ -286,12 +286,9 @@ object State extends Logging {
    *
    * @param transaction the transaction to evaluate
    */
-  def syntacticValidity[P <: Proposition: EvidenceProducer, TX: Transaction] (transaction: TX)
-    (implicit networkPrefix: NetworkPrefix): Try[Unit] = {
-    transaction match {
-      case tx: ArbitTransfer[P, _]   => TransferTransaction.syntacticValidate(tx)
-      case tx: PolyTransfer[P, _]    => TransferTransaction.syntacticValidate(tx)
-      case tx: AssetTransfer[P, _]   => TransferTransaction.syntacticValidate(tx)
+  def syntacticValidity[P <: Proposition, PR <: Proof[P]](transaction: Transaction[_, P, PR, Box[_]])
+                       (implicit networkPrefix: NetworkPrefix): Try[Unit] = transaction match {
+      case tx: TransferTransaction[P @unchecked, PR @unchecked] => TransferTransaction.syntacticValidate(tx)
 //      case tx: ProgramTransfer        => ProgramTransfer.syntacticValidate(tx)
 //      case tx: CodeCreation           => CodeCreation.syntacticValidate(tx)
 //      case tx: ProgramCreation        => ProgramCreation.syntacticValidate(tx)
@@ -301,7 +298,6 @@ object State extends Logging {
           "Semantic validity not implemented for " + transaction.getClass.toGenericString
           )
     }
-  }
 
   def exists(settings: AppSettings): Boolean = stateFile(settings).exists()
 

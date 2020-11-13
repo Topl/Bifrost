@@ -14,7 +14,7 @@ case class ProgramId (private val hashBytes: Array[Byte]) extends BytesSerializa
   override type M = ProgramId
   override def serializer: BifrostSerializer[ProgramId] = ProgramId
 
-  override def equals(obj: Any): Boolean = {
+  override def equals(obj: Any): Boolean = obj match {
     case obj: ProgramId => obj.hashBytes sameElements hashBytes
     case _ => false
   }

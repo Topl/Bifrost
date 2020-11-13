@@ -91,8 +91,12 @@ case object Toplnet extends GenesisProvider {
       "",
       false)
 
-    val txs = Seq((ArbitTransfer[PublicKeyPropositionCurve25519,SignatureCurve25519].apply _).tupled(txInput),
-                  (PolyTransfer[PublicKeyPropositionCurve25519,SignatureCurve25519].apply _).tupled(txInput))
+    val txs = Seq(
+      ArbitTransfer[PublicKeyPropositionCurve25519,SignatureCurve25519]
+        (txInput._1,txInput._2,txInput._3,txInput._4,txInput._5,txInput._6,txInput._7),
+      PolyTransfer[PublicKeyPropositionCurve25519,SignatureCurve25519]
+        (txInput._1,txInput._2,txInput._3,txInput._4,txInput._5,txInput._6,txInput._7)
+    )
 
     val generatorBox = ArbitBox(genesisAcct.publicImage.generateEvidence, 0, totalStake)
 

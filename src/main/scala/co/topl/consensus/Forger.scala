@@ -3,27 +3,27 @@ package co.topl.consensus
 import akka.actor._
 import akka.util.Timeout
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.proof.Proof
-import co.topl.attestation.proposition.{ Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519 }
+import co.topl.attestation.proof.{Proof, SignatureCurve25519}
+import co.topl.attestation.proposition.{Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
 import co.topl.attestation.secrets.PrivateKeyCurve25519
-import co.topl.attestation.{ Address, EvidenceProducer }
+import co.topl.attestation.{Address, EvidenceProducer}
 import co.topl.consensus.Forger.ChainParams
-import co.topl.consensus.genesis.{ PrivateTestnet, Toplnet }
+import co.topl.consensus.genesis.{PrivateTestnet, Toplnet}
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ ArbitTransfer, PolyTransfer, Transaction, TransferTransaction }
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{ GetDataFromCurrentView, LocallyGeneratedModifier }
+import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction, TransferTransaction}
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.{ ArbitBox, Box, TokenBox }
-import co.topl.nodeView.{ CurrentView, NodeViewHolder }
-import co.topl.settings.NetworkType.{ DevNet, LocalNet, MainNet, PrivateNet, TestNet }
-import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
+import co.topl.nodeView.state.box.{ArbitBox, Box, TokenBox}
+import co.topl.nodeView.{CurrentView, NodeViewHolder}
+import co.topl.settings.NetworkType.{DevNet, LocalNet, MainNet, PrivateNet, TestNet}
+import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.Logging
 import co.topl.utils.TimeProvider.Time
 
 import scala.concurrent.ExecutionContext
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
  * Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
@@ -262,14 +262,12 @@ class Forger (settings: AppSettings, appContext: AppContext )
    * @param parentId block id of the current head of the chain
    * @return an unsigned coinbase transaction
    */
-  private def createArbitReward (parentId: Block.BlockId, rewardAdr: Address): Try[ArbitTransfer[_,_]] = Try {
-    val to = IndexedSeq((rewardAdr, inflation))
-    ArbitTransfer(IndexedSeq(), to, Map(), 0, forgeTime, "", minting = true)
+  private def createArbitReward(parentId: Block.BlockId, rewardAdr: Address): Try[ArbitTransfer[PublicKeyPropositionCurve25519, SignatureCurve25519]] = Try {
+    ArbitTransfer(IndexedSeq(), IndexedSeq((rewardAdr, inflation)), Map[PublicKeyPropositionCurve25519, SignatureCurve25519](), 0, forgeTime, "", minting = true)
   }
 
-  private def createPolyReward(amount: TokenBox.Value, rewardAdr: Address): Try[PolyTransfer[_,_]] = Try {
-    val to = IndexedSeq((rewardAdr, amount))
-    PolyTransfer(IndexedSeq(), to, Map(), 0, forgeTime, "", minting = true)
+  private def createPolyReward(amount: TokenBox.Value, rewardAdr: Address): Try[PolyTransfer[PublicKeyPropositionCurve25519, SignatureCurve25519]] = Try {
+    PolyTransfer(IndexedSeq(), IndexedSeq((rewardAdr, amount)), Map[PublicKeyPropositionCurve25519, SignatureCurve25519](), 0, forgeTime, "", minting = true)
   }
 
   /**

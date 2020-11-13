@@ -3,21 +3,21 @@ package co.topl.modifier.transaction
 import java.time.Instant
 
 import co.topl.attestation
-import co.topl.attestation.Address
-import co.topl.attestation.proof.{ Proof, SignatureCurve25519 }
-import co.topl.attestation.proposition.{ Proposition, PublicKeyPropositionCurve25519 }
+import co.topl.attestation.{Address, EvidenceProducer}
+import co.topl.attestation.proof.{Proof, SignatureCurve25519}
+import co.topl.attestation.proposition.{Proposition, PublicKeyPropositionCurve25519}
 import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.modifier.transaction
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.state.box.{ Box, PolyBox, TokenBox }
+import co.topl.nodeView.state.box.{Box, PolyBox, TokenBox}
 import io.circe.syntax.EncoderOps
-import io.circe.{ Decoder, Encoder, HCursor }
+import io.circe.{Decoder, Encoder, HCursor}
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 case class PolyTransfer[
-  P <: Proposition,
+  P <: Proposition: EvidenceProducer,
   PR <: Proof[P]
 ] (override val from       : IndexedSeq[(Address, Box.Nonce)],
    override val to         : IndexedSeq[(Address, TokenBox.Value)],
@@ -38,6 +38,29 @@ case class PolyTransfer[
 object PolyTransfer {
   val txTypePrefix: TxType = 2: Byte
 
+  /**
+    *
+    * @param stateReader
+    * @param toReceive
+    * @param sender
+    * @param fee
+    * @param data
+    * @return
+    */
+  def createRaw[
+    P <: Proposition: EvidenceProducer,
+    PR <: Proof[P]
+  ] (stateReader  : StateReader[TokenBox],
+     toReceive    : IndexedSeq[(Address, TokenBox.Value)],
+     sender       : IndexedSeq[Address],
+     changeAddress: Address,
+     fee          : Long,
+     data         : String
+    ): Try[PolyTransfer[P, PR]] =
+    TransferTransaction.createRawTransferParams(stateReader, toReceive, sender, changeAddress, fee, "PolyTransfer").map {
+      case (inputs, outputs) => PolyTransfer[P, PR](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data)
+    }
+
   implicit def jsonEncoder[P <: Proposition, PR <: Proof[P]]: Encoder[PolyTransfer[P, PR]] = {
     tx: PolyTransfer[P, PR] =>
       Map(
@@ -56,7 +79,7 @@ object PolyTransfer {
       ).asJson
   }
 
-  implicit def jsonDecoder[P <: Proposition, PR <: Proof[P]]: Decoder[PolyTransfer[P, PR]] = ( c: HCursor ) =>
+  implicit def jsonDecoder[P <: Proposition: EvidenceProducer, PR <: Proof[P]]: Decoder[PolyTransfer[P, PR]] = (c: HCursor) =>
     for {
       from <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
       to <- c.downField("to").as[IndexedSeq[(Address, TokenBox.Value)]]
@@ -67,25 +90,5 @@ object PolyTransfer {
       signatures <- attestation.jsonDecoder[P, PR](attType, c.downField("signatures"))
     } yield {
       new PolyTransfer[P, PR](from, to, signatures, fee, timestamp, data)
-    }
-
-  /**
-    *
-    * @param stateReader
-    * @param toReceive
-    * @param sender
-    * @param fee
-    * @param data
-    * @return
-    */
-  def createRaw[P <: Proposition, PR <: Proof[P]] (stateReader  : StateReader[TokenBox],
-                                                   toReceive    : IndexedSeq[(Address, TokenBox.Value)],
-                                                   sender       : IndexedSeq[Address],
-                                                   changeAddress: Address,
-                                                   fee          : Long,
-                                                   data         : String
-                                                  ): Try[PolyTransfer[P, PR]] =
-    TransferTransaction.createRawTransferParams(stateReader, toReceive, sender, changeAddress, fee, "PolyTransfer").map {
-      case (inputs, outputs) => PolyTransfer[P, PR](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data)
     }
 }

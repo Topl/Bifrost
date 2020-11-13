@@ -24,7 +24,7 @@ sealed trait Proof[P <: Proposition] extends BytesSerializable {
   override def toString: String = Base58.encode(bytes)
 
   override def equals (obj: Any): Boolean = obj match {
-    case pr: Proof[P] => pr.bytes sameElements bytes
+    case pr: Proof[_] => pr.bytes sameElements bytes
     case _ => false
   }
 
@@ -38,6 +38,6 @@ trait ProofOfKnowledge[S <: Secret, P <: KnowledgeProposition[S]] extends Proof[
 object Proof {
   def fromString[P <: Proposition, PR <: Proof[P]] (str: String): Try[PR] =
     Base58.decode(str).flatMap(bytes => ProofSerializer.parseBytes(bytes).map {
-      case prop: PR => prop
+      case prop: PR @unchecked => prop
     })
 }

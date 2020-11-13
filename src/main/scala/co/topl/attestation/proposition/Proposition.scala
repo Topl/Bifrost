@@ -40,11 +40,11 @@ trait KnowledgeProposition[S <: Secret] extends Proposition
 object Proposition {
   def fromString[P <: Proposition] (str: String): Try[P] =
     Base58.decode(str).flatMap(bytes => PropositionSerializer.parseBytes(bytes).map {
-      case prop: P => prop
+      case prop: P @unchecked => prop
     })
 
-  def getPropTypeString[TX: TransferTransaction] (obj: TX): String = obj match {
-    case _: TransferTransaction[PublicKeyPropositionCurve25519, _] => "PublicKeyCurve25519"
-    case _: TransferTransaction[ThresholdPropositionCurve25519, _] => "ThresholdCurve25519"
+  def getPropTypeString(tx: TransferTransaction[_ <: Proposition, _ <: Proof[_]]): String = tx.getPropositionType match {
+    case _: PublicKeyPropositionCurve25519 => "PublicKeyCurve25519"
+    case _: ThresholdPropositionCurve25519 => "ThresholdCurve25519"
   }
 }

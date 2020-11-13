@@ -7,7 +7,7 @@ import scala.util.Try
 
 case class StateChanges( override val boxIdsToRemove: Set[BoxId],
                          override val toAppend: Set[Box[_]],
-                       ) extends GenericStateChanges[_, Box[_]](boxIdsToRemove, toAppend)
+                       ) extends GenericStateChanges[Any, Box[_]](boxIdsToRemove, toAppend)
 
 object StateChanges {
   type BX = Box[_]

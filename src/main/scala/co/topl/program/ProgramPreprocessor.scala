@@ -109,7 +109,7 @@ object ProgramPreprocessor {
       .headOption
       .map(_.as[(String, String)].right.get)
       .map{pair =>
-        val pub = PublicKey25519Proposition(pair._1)
+        val pub = PublicKeyPropositionCurve25519(pair._1)
         val sig = SignatureCurve25519(pair._2)
         pub -> sig}
 
@@ -342,7 +342,7 @@ object ProgramPreprocessor {
       variables,
       code,
       signed.map{pair =>
-        val pub = PublicKey25519Proposition(pair._1)
+        val pub = PublicKeyPropositionCurve25519(pair._1)
         val sig = SignatureCurve25519(pair._2)
         pub -> sig
       }

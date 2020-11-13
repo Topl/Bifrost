@@ -34,7 +34,7 @@ case class Curve25519KeyFile ( address   : Address,
                                iv        : Array[Byte]
                              )(implicit networkPrefix: NetworkPrefix) {
 
-  private[consensus] def getPrivateKey (password: String): Try[PrivateKeyCurve25519] = Try {
+  def getPrivateKey (password: String): Try[PrivateKeyCurve25519] = Try {
     val derivedKey = Curve25519KeyFile.getDerivedKey(password, salt)
     val calcMAC = Curve25519KeyFile.getMAC(derivedKey, cipherText)
     require(calcMAC sameElements mac, "MAC does not match. Try again")
@@ -52,7 +52,7 @@ case class Curve25519KeyFile ( address   : Address,
     }
   }
 
-  private[consensus] def saveToDisk (dir: String): Try[Unit] = Try {
+  def saveToDisk (dir: String): Try[Unit] = Try {
     val dateString = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString.replace(":", "-")
     val w = new BufferedWriter(new FileWriter(s"$dir/$dateString-${this.address}.json"))
     w.write(Curve25519KeyFile.jsonEncoder.toString)

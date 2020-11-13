@@ -43,13 +43,13 @@ object TokenBox {
   type Value = Long
 
   implicit def jsonEncoder: Encoder[TokenBox] = Box.jsonEncoder match {
-    case enc: Encoder[TokenBox] => enc
+    case enc: Encoder[TokenBox @unchecked] => enc
   }
 }
 
 object ProgramBox {
   implicit def jsonEncoder: Encoder[ProgramBox] = Box.jsonEncoder match {
-    case enc: Encoder[ProgramBox] => enc
+    case enc: Encoder[ProgramBox @unchecked] => enc
   }
 }
 
