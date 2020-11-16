@@ -20,18 +20,16 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-/**
- * Control all network interaction
- * must be singleton
- */
-class NetworkController ( settings      : AppSettings,
-                          peerManagerRef: ActorRef,
-                          appContext    : AppContext,
-                          tcpManager    : ActorRef
-                        )( implicit ec: ExecutionContext )
-  extends Actor with Logging {
+/** Control all network interaction
+  * must be singleton
+  */
+class NetworkController(
+  settings      : AppSettings,
+  peerManagerRef: ActorRef,
+  appContext    : AppContext,
+  tcpManager    : ActorRef)( implicit ec: ExecutionContext ) extends Actor with Logging {
 
-  // Import the types of messages this actor can RECEIVE
+  /** Import the types of messages this actor can RECEIVE */
   import NetworkController.ReceivableMessages._
 
   private lazy val bindAddress = settings.network.bindAddress
@@ -39,16 +37,15 @@ class NetworkController ( settings      : AppSettings,
   private implicit val timeout: Timeout = Timeout(settings.network.controllerTimeout.getOrElse(5 seconds))
   override val supervisorStrategy: OneForOneStrategy = OneForOneStrategy(
     maxNrOfRetries = NetworkController.ChildActorHandlingRetriesNr,
-    withinTimeRange = 1.minute
-    ) {
-    case _: ActorKilledException         => Stop
-    case _: DeathPactException           => Stop
-    case e: ActorInitializationException =>
-      log.warn(s"Stopping child actor failed with: $e")
-      Stop
-    case e: Exception                    =>
-      log.warn(s"Restarting child actor failed with: $e")
-      Restart
+    withinTimeRange = 1.minute) {
+      case _: ActorKilledException         => Stop
+      case _: DeathPactException           => Stop
+      case e: ActorInitializationException =>
+        log.warn(s"Stopping child actor failed with: $e")
+        Stop
+      case e: Exception                    =>
+        log.warn(s"Restarting child actor failed with: $e")
+        Restart
   }
 
   private var messageHandlers = Map.empty[message.Message.MessageCode, ActorRef]
@@ -281,9 +278,11 @@ class NetworkController ( settings      : AppSettings,
     log.info {
       connectionId.direction match {
         case Incoming =>
-          s"New incoming connection from ${connectionId.remoteAddress} established (bound to local ${connectionId.localAddress})"
+          s"New incoming connection from ${connectionId.remoteAddress} " +
+            s"established (bound to local ${connectionId.localAddress})"
         case Outgoing =>
-          s"New outgoing connection to ${connectionId.remoteAddress} established (bound to local ${connectionId.localAddress})"
+          s"New outgoing connection to ${connectionId.remoteAddress} " +
+            s"established (bound to local ${connectionId.localAddress})"
       }
     }
 
@@ -316,8 +315,8 @@ class NetworkController ( settings      : AppSettings,
     unconfirmedConnections -= connectionId.remoteAddress
   }
 
-  /**
-    * Updates the local peer information when we receive new messages
+  /** Updates the local peer information when we receive new messages
+    *
     * @param remote a connected peer that sent a message
     */
   private def updatePeerStatus(remote: ConnectedPeer): Unit = {
@@ -336,8 +335,7 @@ class NetworkController ( settings      : AppSettings,
     }
   }
 
-  /**
-    * Saves a new peer into the database
+  /** Saves a new peer into the database
     *
     * @param peerInfo connected peer information
     * @param peerHandlerRef dedicated handler actor reference
@@ -349,7 +347,7 @@ class NetworkController ( settings      : AppSettings,
       val remoteAddress = connectedPeer.connectionId.remoteAddress
       val peerAddress = peerInfo.peerSpec.address.getOrElse(remoteAddress)
 
-      //drop connection to self if occurred or peer already connected
+      /** drop connection to self if occurred or peer already connected */
       val shouldDrop = isSelf(remoteAddress) ||
         connectionForPeerAddress(peerAddress).exists(
           _.handlerRef != peerHandlerRef
@@ -361,28 +359,28 @@ class NetworkController ( settings      : AppSettings,
       } else {
         peerManagerRef ! AddOrUpdatePeer(peerInfo)
 
-        // Use remoteAddress as peer's address, if there is no address info in it's PeerInfo
-        val updatedPeerSpec = peerInfo.peerSpec.copy(declaredAddress = Some(peerInfo.peerSpec.address.getOrElse(remoteAddress)))
+        /** Use remoteAddress as peer's address, if there is no address info in it's PeerInfo */
+        val updatedPeerSpec = peerInfo.peerSpec.copy(declaredAddress =
+          Some(peerInfo.peerSpec.address.getOrElse(remoteAddress)))
         val updatedPeerInfo = peerInfo.copy(peerSpec = updatedPeerSpec)
         val updatedConnectedPeer = connectedPeer.copy(peerInfo = Some(updatedPeerInfo))
 
-        // update connections map
+        /** update connections map */
         connections += remoteAddress -> updatedConnectedPeer
 
-        // publish handshake to all subscribers
+        /** publish handshake to all subscribers */
         context.system.eventStream.publish(HandshakedPeer(updatedConnectedPeer))
       }
     }
   }
 
-  /**
-   * Returns connections filtered by given SendingStrategy and Version.
-   * Exclude all connections with lower version and apply sendingStrategy to remaining connected peers
-   *
-   * @param sendingStrategy - SendingStrategy
-   * @param version         - minimal version required
-   * @return sequence of ConnectedPeer instances according SendingStrategy
-   */
+  /** Returns connections filtered by given SendingStrategy and Version.
+    * Exclude all connections with lower version and apply sendingStrategy to remaining connected peers
+    *
+    * @param sendingStrategy - SendingStrategy
+    * @param version         - minimal version required
+    * @return sequence of ConnectedPeer instances according SendingStrategy
+    */
   private def filterConnections ( sendingStrategy: SendingStrategy,
                                   version        : Version
                                 ): Seq[ConnectedPeer] = {
@@ -392,24 +390,22 @@ class NetworkController ( settings      : AppSettings,
       )
   }
 
-  /**
-   * Returns connection for given PeerConnectionHandler ActorRef
-   *
-   * @param handler ActorRef on PeerConnectionHandler actor
-   * @return Some(ConnectedPeer) when the connection exists for this handler, and None otherwise
-   */
+  /** Returns connection for given PeerConnectionHandler ActorRef
+    *
+    * @param handler ActorRef on PeerConnectionHandler actor
+    * @return Some(ConnectedPeer) when the connection exists for this handler, and None otherwise
+    */
   private def connectionForHandler ( handler: ActorRef ): Option[ConnectedPeer] = {
     connections.values.find { connectedPeer =>
       connectedPeer.handlerRef == handler
     }
   }
 
-  /**
-   * Returns connection for given address of the peer
-   *
-   * @param peerAddress - socket address of peer
-   * @return Some(ConnectedPeer) when the connection exists for this peer, and None otherwise
-   */
+  /** Returns connection for given address of the peer
+    *
+    * @param peerAddress - socket address of peer
+    * @return Some(ConnectedPeer) when the connection exists for this peer, and None otherwise
+    */
   private def connectionForPeerAddress ( peerAddress: InetSocketAddress ): Option[ConnectedPeer] = {
     connections.values.find { connectedPeer =>
       connectedPeer.connectionId.remoteAddress == peerAddress ||
@@ -430,31 +426,30 @@ class NetworkController ( settings      : AppSettings,
       )
   }
 
-  /**
-   * Returns local address of peer for local connections and WAN address of peer for
-   * external connections. When local address is not known, try to ask it at the UPnP gateway
-   *
-   * @param peer - known information about peer
-   * @return socket address of the peer
-   */
+  /** Returns local address of peer for local connections and WAN address of peer for
+    * external connections. When local address is not known, try to ask it at the UPnP gateway
+    *
+    * @param peer - known information about peer
+    * @return socket address of the peer
+    */
   private def getPeerAddress ( peer: PeerInfo ): Option[InetSocketAddress] = {
     (peer.peerSpec.localAddressOpt, peer.peerSpec.declaredAddress) match {
       case (Some(localAddr), _) =>
         Some(localAddr)
 
-      case (None, Some(declaredAddress)) if appContext.externalNodeAddress.exists(_.getAddress == declaredAddress.getAddress) =>
+      case (None, Some(declaredAddress))
+        if appContext.externalNodeAddress.exists(_.getAddress == declaredAddress.getAddress) =>
         appContext.upnpGateway.flatMap(_.getLocalAddressForExternalPort(declaredAddress.getPort))
 
       case _ => peer.peerSpec.declaredAddress
     }
   }
 
-  /**
-   * Returns the node address reachable from Internet
-   *
-   * @param localSocketAddress - local socket address of the connection to the peer
-   * @return - socket address of the node
-   */
+  /** Returns the node address reachable from Internet
+    *
+    * @param localSocketAddress - local socket address of the connection to the peer
+    * @return - socket address of the node
+    */
   private def getNodeAddressForPeer ( localSocketAddress: InetSocketAddress ): Option[InetSocketAddress] = {
     val localAddr = localSocketAddress.getAddress
     appContext.externalNodeAddress match {

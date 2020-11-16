@@ -23,6 +23,7 @@ final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimePr
   /** penalized peer ip -> (accumulated penalty score, last penalty timestamp) */
   private var penaltyBook = Map.empty[InetAddress, (Int, Long)]
 
+  /** Get peer from database */
   override def get(peer: InetSocketAddress): Option[PeerInfo] = peers.get(peer)
 
   /** Add peer to the database(a Map of InetSocketAddress with PeerInfo) if it's not blacklisted */
@@ -80,7 +81,9 @@ final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimePr
 
   /** Registers a new penalty in the penalty book.
     *
-    * @return `true` if penalty threshold is reached, `false` otherwise.
+    * @param socketAddress InetSocketAddress of the peer
+    * @param penaltyType type of the penalty
+    * @return `true` if penalty threshold is reached, `false` otherwise
     */
   def penalize(socketAddress: InetSocketAddress, penaltyType: PenaltyType): Boolean =
     Option(socketAddress.getAddress).exists { address =>
