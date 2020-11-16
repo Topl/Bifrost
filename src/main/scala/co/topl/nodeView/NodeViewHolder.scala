@@ -1,33 +1,34 @@
 package co.topl.nodeView
 
-import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.attestation.AddressEncoder.NetworkPrefix
+import co.topl.attestation.EvidenceProducer
 import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
 import co.topl.consensus.Forger
 import co.topl.consensus.Forger.ReceivableMessages.GenerateGenesis
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
-import co.topl.modifier.block.{ Block, BlockSerializer, PersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier }
-import co.topl.modifier.transaction.Transaction
+import co.topl.modifier.block.{Block, BlockSerializer, PersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier}
+import co.topl.modifier.transaction.{Transaction, TransactionValidation}
 import co.topl.modifier.transaction.serialization.TransactionSerializer
-import co.topl.modifier.{ ModifierId, NodeViewModifier }
+import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
 import co.topl.nodeView.NodeViewHolder.UpdateInformation
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.box.Box
-import co.topl.nodeView.state.{ State, TransactionValidation }
-import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
+import co.topl.nodeView.state.State
+import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.Logging
 import co.topl.utils.serialization.BifrostSerializer
 
 import scala.annotation.tailrec
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{ Await, ExecutionContext, Future }
-import scala.util.{ Failure, Success, Try }
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.util.{Failure, Success, Try}
 
 /**
   * Composite local view of the node
@@ -42,7 +43,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
   // Import the types of messages this actor can RECEIVE
   import NodeViewHolder.ReceivableMessages._
 
-  type TX = Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]
+  type TX = NodeViewHolder.TX
   type PMOD = Block
   type HIS = History
   type MS = State
@@ -113,8 +114,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
   }
 
   protected def transactionsProcessing: Receive = {
-    case newTxs: NewTransactions[TX] =>
-      newTxs.txs.foreach(txModify)
+    case newTxs: NewTransactions => newTxs.txs.foreach(txModify)
 
     case EliminateTransactions(ids) =>
       val updatedPool = memoryPool().filter(tx => !ids.contains(tx.id))
@@ -242,13 +242,11 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
     */
   protected def txModify(tx: TX): Unit = {
     //todo: async validation?
-    val errorOpt: Option[Throwable] = minimalState() match {
-      case txValidator: TransactionValidation[TX] =>
-        txValidator.validate(tx) match {
+    val errorOpt: Option[Throwable] = {
+      minimalState().semanticValidate(tx)(tx.evidenceProducer) match {
           case Success(_) => None
           case Failure(e) => Some(e)
         }
-      case _ => None
     }
 
     errorOpt match {
@@ -447,10 +445,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
 
     memPool.putWithoutCheck(rolledBackTxs).filter { tx =>
       !appliedTxs.exists(t => t.id == tx.id) && {
-        state match {
-          case v: TransactionValidation[TX] => v.validate(tx).isSuccess
-          case _ => true
-        }
+        state.semanticValidate(tx)(tx.evidenceProducer).isSuccess
       }
     }
   }
@@ -493,6 +488,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
 /////////////////////////////// COMPANION SINGLETON ////////////////////////////////
 
 object NodeViewHolder {
+  type TX = Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]
 
   val actorName = "nodeViewHolder"
 
@@ -503,6 +499,7 @@ object NodeViewHolder {
                                                                             suffix: IndexedSeq[PMOD])
 
   object ReceivableMessages {
+
 
     // Explicit request of NodeViewChange events of certain types.
     case class GetNodeViewChanges(history: Boolean, state: Boolean, mempool: Boolean)
@@ -515,13 +512,13 @@ object NodeViewHolder {
 
     case class LocallyGeneratedModifier[PMOD <: PersistentNodeViewModifier](pmod: PMOD)
 
-    sealed trait NewTransactions[TX <: Transaction[_,_,_,_]]{val txs: Iterable[TX]}
+    sealed trait NewTransactions{val txs: Iterable[TX]}
 
-    case class LocallyGeneratedTransaction[TX <: Transaction[_,_,_,_]] ( tx: TX) extends NewTransactions[TX] {
+    case class LocallyGeneratedTransaction(tx: TX) extends NewTransactions {
       override val txs: Iterable[TX] = Iterable(tx)
     }
 
-    case class TransactionsFromRemote[TX <: Transaction[_,_,_,_]] ( txs: Iterable[TX]) extends NewTransactions[TX]
+    case class TransactionsFromRemote(txs: Iterable[TX]) extends NewTransactions
 
     case class EliminateTransactions(ids: Seq[ModifierId])
 

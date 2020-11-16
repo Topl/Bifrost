@@ -3,9 +3,9 @@ package co.topl.nodeView.state
 import java.io.File
 
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.proof.{ Proof, SignatureCurve25519, ThresholdSignatureCurve25519 }
-import co.topl.attestation.proposition.{ Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519 }
-import co.topl.attestation.{ Address, EvidenceProducer }
+import co.topl.attestation.proof.Proof
+import co.topl.attestation.proposition.{Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
+import co.topl.attestation.{Address, EvidenceProducer}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction._
@@ -14,11 +14,11 @@ import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
-import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.util.encode.Base58
 
 import scala.reflect.ClassTag
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
  * BifrostState is a data structure which deterministically defines whether an arbitrary transaction is valid and so
@@ -34,9 +34,8 @@ case class State ( override val version     : VersionTag,
                    private[state] val tbrOpt: Option[TokenBoxRegistry] = None,
                    private[state] val pbrOpt: Option[ProgramBoxRegistry] = None,
                    nodeKeys                 : Option[Set[Address]] = None
-                 ) (implicit networkPrefix: NetworkPrefix) extends MinimalState[Box[_], Block, State]
+                 ) (implicit networkPrefix: NetworkPrefix) extends MinimalState[Block, State]
                                                                    with StoreInterface
-                                                                   with TransactionValidation[Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]]
                                                                    with Logging {
 
   override type NVCT = State
@@ -251,28 +250,37 @@ case class State ( override val version     : VersionTag,
     }
   }
 
-  override def validate (transaction: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]): Try[Unit] = {
-    transaction match {
-      case tx: TransferTransaction[PublicKeyPropositionCurve25519, SignatureCurve25519] =>
-        TransferTransaction.semanticValidate(tx, getReader)
+  /**
+    *
+    * @param transaction
+    * @return
+    */
+  def semanticValidate(transaction: Transaction[_,_,_,_])(implicit networkPrefix: NetworkPrefix): Try[Unit] = {
 
-      case tx: TransferTransaction[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519] =>
-        TransferTransaction.semanticValidate(tx, getReader)
+    transaction.semanticValidate(getReader)
 
-//      case tx: ProgramTransfer        => ProgramTransfer.semanticValidate(tx, getReader)
-//      case tx: CodeCreation           => CodeCreation.semanticValidate(tx, getReader)
-//      case tx: ProgramCreation        => ProgramCreation.semanticValidate(tx, getReader)
-//      case tx: ProgramMethodExecution => ProgramMethodExecution.semanticValidate(tx, getReader)
-      case _ => throw new Exception("State validity not implemented for " + transaction.getClass.toGenericString)
-    }
+//  transaction match {
+//      case tx: TransferTransaction[_,_] =>
+//        TransferTransaction.semanticValidate(tx, getReader)(tx.evidenceProducer, networkPrefix)
+//
+//            case tx: ProgramTransfer        => ProgramTransfer.semanticValidate(tx, getReader)
+//            case tx: CodeCreation           => CodeCreation.semanticValidate(tx, getReader)
+//            case tx: ProgramCreation        => ProgramCreation.semanticValidate(tx, getReader)
+//            case tx: ProgramMethodExecution => ProgramMethodExecution.semanticValidate(tx, getReader)
+//      case _ => throw new Exception("State validity not implemented for " + transaction.getClass.toGenericString)
+//    }
   }
 }
 
-
-
-
 object State extends Logging {
 
+  /**
+    *
+    * @param settings
+    * @param initialBlocks
+    * @param networkPrefix
+    * @return
+    */
   def genesisState (settings: AppSettings, initialBlocks: Seq[Block])
                    (implicit networkPrefix: NetworkPrefix): State = {
     initialBlocks
@@ -281,31 +289,42 @@ object State extends Logging {
       }
   }
 
-  /**
-   * Provides a single interface for syntactically validating transactions
-   *
-   * @param transaction the transaction to evaluate
-   */
-  def syntacticValidity[P <: Proposition, PR <: Proof[P]](transaction: Transaction[_, P, PR, Box[_]])
-                       (implicit networkPrefix: NetworkPrefix): Try[Unit] = transaction match {
-      case tx: TransferTransaction[P @unchecked, PR @unchecked] => TransferTransaction.syntacticValidate(tx)
-//      case tx: ProgramTransfer        => ProgramTransfer.syntacticValidate(tx)
-//      case tx: CodeCreation           => CodeCreation.syntacticValidate(tx)
-//      case tx: ProgramCreation        => ProgramCreation.syntacticValidate(tx)
-//      case tx: ProgramMethodExecution => ProgramMethodExecution.syntacticValidate(tx)
-      case _ =>
-        throw new UnsupportedOperationException(
-          "Semantic validity not implemented for " + transaction.getClass.toGenericString
-          )
-    }
+//  /**
+//   * Provides a single interface for syntactically validating transactions
+//   *
+//   * @param transaction the transaction to evaluate
+//   */
+//  def syntacticValidity(transaction: Transaction[_,_,_,_])(implicit networkPrefix: NetworkPrefix): Try[Unit] = {
+//
+//    transaction.syntacticValidate
+//
+////    transaction match {
+////      case tx: ArbitTransfer[P, PR] => TransactionValidation[ArbitTransfer[P, PR]].syntacticValidate(tx)
+////      case _ =>
+////        throw new UnsupportedOperationException(
+////          "Semantic validity not implemented for " + transaction.getClass.toGenericString
+////        )
+////    }
+//  }
 
   def exists(settings: AppSettings): Boolean = stateFile(settings).exists()
 
+  /**
+    * Construct and returns the directory where state data will be stored
+    * @param settings the configuration file for the node
+    * @return a file where data is stored
+    */
   def stateFile(settings: AppSettings): File = {
     val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
     new File(s"$dataDir/state")
   }
 
+  /**
+    *
+    * @param settings
+    * @param networkPrefix
+    * @return
+    */
   def readOrGenerate (settings: AppSettings)
                      (implicit networkPrefix: NetworkPrefix): State = {
     val sFile = stateFile(settings)

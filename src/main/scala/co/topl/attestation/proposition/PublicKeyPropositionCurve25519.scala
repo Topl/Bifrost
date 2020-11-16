@@ -27,19 +27,19 @@ object PublicKeyPropositionCurve25519 {
 
   def apply(str: String): PublicKeyPropositionCurve25519 =
     Proposition.fromString(str) match {
-      case Success(pk) => pk
-      case Failure(ex) => throw ex
+      case Success(pk: PublicKeyPropositionCurve25519) => pk
+      case Failure(ex)                                 => throw ex
     }
 
-  implicit val propEvidence: EvidenceProducer[PublicKeyPropositionCurve25519] =
+  implicit val evProducer: EvidenceProducer[PublicKeyPropositionCurve25519] =
     EvidenceProducer.instance[PublicKeyPropositionCurve25519] {
       prop: PublicKeyPropositionCurve25519 => Evidence(typePrefix, EvidenceContent @@ Blake2b256(prop.bytes))
     }
 
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html
-  implicit val jsonEncoder: Encoder[PublicKeyPropositionCurve25519] = ( prop: PublicKeyPropositionCurve25519) => prop.toString.asJson
-  implicit val jsonKeyEncoder: KeyEncoder[PublicKeyPropositionCurve25519] = ( prop: PublicKeyPropositionCurve25519) => prop.toString
+  implicit val jsonEncoder: Encoder[PublicKeyPropositionCurve25519] = (prop: PublicKeyPropositionCurve25519) => prop.toString.asJson
+  implicit val jsonKeyEncoder: KeyEncoder[PublicKeyPropositionCurve25519] = (prop: PublicKeyPropositionCurve25519) => prop.toString
   implicit val jsonDecoder: Decoder[PublicKeyPropositionCurve25519] = Decoder.decodeString.map(apply)
-  implicit val jsonKeyDecoder: KeyDecoder[PublicKeyPropositionCurve25519] = ( str: String) => Some(apply(str))
+  implicit val jsonKeyDecoder: KeyDecoder[PublicKeyPropositionCurve25519] = (str: String) => Some(apply(str))
 }

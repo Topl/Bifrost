@@ -16,7 +16,7 @@ import io.circe.{Decoder, Encoder, HCursor}
 import scala.util.Try
 
 case class AssetTransfer[
-  P <: Proposition: EvidenceProducer,
+  P <: Proposition,
   PR <: Proof[P]
 ] (override val from       : IndexedSeq[(Address, Box.Nonce)],
    override val to         : IndexedSeq[(Address, TokenBox.Value)],
@@ -56,9 +56,9 @@ object AssetTransfer {
     * @return
     */
   def createRaw[
-    P <: Proposition: EvidenceProducer,
+    P <: Proposition,
     PR <: Proof[P]
-  ] (stateReader  : StateReader[TokenBox],
+  ] (stateReader  : StateReader,
      toReceive    : IndexedSeq[(Address, TokenBox.Value)],
      sender       : IndexedSeq[Address],
      changeAddress: Address,
@@ -90,7 +90,7 @@ object AssetTransfer {
       ).asJson
   }
 
-  implicit def jsonDecoder[P <: Proposition: EvidenceProducer, PR <: Proof[P]]: Decoder[AssetTransfer[P, PR]] = ( c: HCursor ) =>
+  implicit def jsonDecoder: Decoder[AssetTransfer[_ <: Proposition, _ <: Proof[_]]] = ( c: HCursor ) =>
     for {
       from <- c.downField("from").as[IndexedSeq[(Address, Long)]]
       to <- c.downField("to").as[IndexedSeq[(Address, Long)]]
@@ -101,7 +101,7 @@ object AssetTransfer {
       assetCode <- c.downField("assetCode").as[String]
       minting <- c.downField("minting").as[Boolean]
       attType <- c.downField("propositionType").as[String]
-      signatures <- attestation.jsonDecoder[P, PR](attType, c.downField("signatures"))
+      signatures <- attestation.jsonDecoder(attType, c.downField("signatures"))
     } yield {
       AssetTransfer(from, to, signatures, issuer, assetCode, fee, timestamp, data, minting)
     }

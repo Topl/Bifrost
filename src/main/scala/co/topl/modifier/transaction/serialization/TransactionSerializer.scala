@@ -7,9 +7,9 @@ import co.topl.modifier.transaction._
 import co.topl.nodeView.state.box.{ Box, GenericBox }
 import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
 
-object TransactionSerializer extends BifrostSerializer[Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]] {
+object TransactionSerializer extends BifrostSerializer[Transaction[_,_,_,_]] {
 
-  override def serialize( obj: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]], w: Writer): Unit = {
+  override def serialize(obj: Transaction[_,_,_,_], w: Writer): Unit = {
     obj match {
       case obj: ArbitTransfer[_,_] =>
         w.put(ArbitTransfer.txTypePrefix)
@@ -41,7 +41,7 @@ object TransactionSerializer extends BifrostSerializer[Transaction[_, _ <: Propo
     }
   }
 
-  override def parse(r: Reader): Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]] = {
+  override def parse(r: Reader): Transaction[_,_,_,_] = {
     r.getByte() match {
       case ArbitTransfer.txTypePrefix => ArbitTransferSerializer.parse(r)
       case PolyTransfer.txTypePrefix  => PolyTransferSerializer.parse(r)

@@ -6,12 +6,11 @@ import io.circe.syntax.EncoderOps
 import io.circe.{ACursor, DecodingFailure, Json}
 
 package object attestation {
-  def jsonDecoder[P <: Proposition, PR <: Proof[P]] (propType: String, attestation: ACursor): Either[DecodingFailure, Map[P, PR]] = {
-    (propType match {
+  def jsonDecoder(propType: String, attestation: ACursor): Either[DecodingFailure, Map[_ <: Proposition, _ <: Proof[_]]] = {
+    propType match {
       case "PublicKeyCurve25519" => attestation.as[Map[PublicKeyPropositionCurve25519, SignatureCurve25519]]
       case "ThresholdCurve25519" => attestation.as[Map[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]]
-    }).map {
-      case att: Map[P @unchecked, PR @unchecked] => att
+      case _ => throw new Error("No mapping has been defined from the propType string to a concrete attestation")
     }
   }
 

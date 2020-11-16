@@ -9,7 +9,7 @@ import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object ArbitTransferSerializer extends BifrostSerializer[ArbitTransfer[_ <: Proposition, _ <: Proof[_]]] {
 
-  override def serialize(obj: ArbitTransfer[_ <: Proposition, _ <: Proof[_]], w: Writer): Unit = {
+  def serialize2(obj: ArbitTransfer[_ <: Proposition, _ <: Proof[_ <: Proposition]], w: Writer): Unit = {
     /* from: IndexedSeq[(Address, Nonce)] */
     w.putUInt(obj.from.length)
     obj.from.foreach { case (addr, nonce) =>

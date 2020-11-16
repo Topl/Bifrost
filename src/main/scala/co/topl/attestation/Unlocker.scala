@@ -23,9 +23,13 @@ object BoxUnlocker {
     * @param attestation a map of propositions matching the evidence contained in the given addresses, as well as proof satisfying the proposition
     * @return a set of box unlockers that
     */
-  def generate[P <: Proposition: EvidenceProducer, PR <: Proof[P]] (from: Seq[(Address, Box.Nonce)],
-                                                                    attestation: Map[P, _ <: Proof[P]],
-                                                                   ): Traversable[BoxUnlocker[P, _ <: Proof[P]]] = {
+  def generate[
+    P <: Proposition: EvidenceProducer,
+    PR <: Proof[P]
+  ] (from: Seq[(Address, Box.Nonce)],
+     attestation: Map[P, PR],
+    ): Traversable[BoxUnlocker[P, PR]] = {
+
     val evidence = attestation.keys.map { prop =>
       prop.generateEvidence -> prop
     }
@@ -33,7 +37,7 @@ object BoxUnlocker {
     from.map {
       case (addr, nonce) =>
         val boxId = BoxId.idFromEviNonce(addr.evidence, nonce)
-        val (prop, proof) = evidence.collectFirst[(P, _ <: Proof[P])]{
+        val (prop, proof) = evidence.collectFirst[(P, PR)]{
           case (ev, prop) if ev == addr.evidence => prop -> attestation(prop)
         }.get
         new BoxUnlocker(boxId, prop, proof)

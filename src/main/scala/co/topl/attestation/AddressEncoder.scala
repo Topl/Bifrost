@@ -11,7 +11,7 @@ object AddressEncoder {
   val checksumLength = 4
 
   //addresses are 38 bytes (1 for network prefix, 1 for type prefix, 32 for content, 4 for checksum)
-  val encodeEvidenceLength: Int = 2 + Evidence.contentLength + checksumLength
+  private val encodeEvidenceLength: Int = 2 + Evidence.contentLength + checksumLength
 
   /**
     * Helper method to query the network prefix in an encoded address string

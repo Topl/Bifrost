@@ -10,7 +10,7 @@ import scala.util.Try
 
 trait Registry[K, V] extends StoreInterface with Logging {
 
-  type SR = StateReader[_<: GenericBox[_]]
+  type SR = StateReader
 
   protected def update (newVersion: VersionTag, toRemove: Map[K, Seq[V]], toAppend: Map[K, Seq[V]]): Try[Registry[K, V]]
 

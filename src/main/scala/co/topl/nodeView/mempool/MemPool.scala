@@ -10,11 +10,11 @@ import co.topl.utils.Logging
 import scala.collection.concurrent.TrieMap
 import scala.util.Try
 
-case class MemPool(unconfirmed: TrieMap[ModifierId, Transaction[_, Proposition, Proof[_], Box[_]]])
-  extends MemoryPool[Transaction[_, Proposition, Proof[_], Box[_]], MemPool] with Logging {
+case class MemPool(unconfirmed: TrieMap[ModifierId, Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]])
+  extends MemoryPool[Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]], MemPool] with Logging {
 
   override type NVCT = MemPool
-  type TX = Transaction[_, Proposition, Proof[_], Box[_]]
+  type TX = Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]
 
   private val boxesInMempool = new TrieMap[BoxId, BoxId]()
 

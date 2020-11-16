@@ -2,11 +2,11 @@ package co.topl.consensus
 
 import akka.actor._
 import akka.util.Timeout
+import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.proof.{Proof, SignatureCurve25519}
-import co.topl.attestation.proposition.{Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
+import co.topl.attestation.proposition.{Proposition, PublicKeyPropositionCurve25519}
 import co.topl.attestation.secrets.PrivateKeyCurve25519
-import co.topl.attestation.{Address, EvidenceProducer}
 import co.topl.consensus.Forger.ChainParams
 import co.topl.consensus.genesis.{PrivateTestnet, Toplnet}
 import co.topl.modifier.block.Block
@@ -17,7 +17,7 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.{ArbitBox, Box, TokenBox}
 import co.topl.nodeView.{CurrentView, NodeViewHolder}
-import co.topl.settings.NetworkType.{DevNet, LocalNet, MainNet, PrivateNet, TestNet}
+import co.topl.settings.NetworkType._
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.Logging
 import co.topl.utils.TimeProvider.Time
@@ -33,7 +33,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
              ( implicit ec: ExecutionContext ) extends Actor with Logging {
 
   //type HR = HistoryReader[Block, BifrostSyncInfo]
-  type TX = Transaction[_, Proposition, Proof[_], Box[_]]
+  type TX = Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]
 
   // Import the types of messages this actor RECEIVES
   import Forger.ReceivableMessages._
@@ -279,20 +279,21 @@ class Forger (settings: AppSettings, appContext: AppContext )
    */
   private def pickTransactions (memPool: MemPool, state: State, chainHeight: Long): Try[Seq[TX]] = Try {
 
-    memPool.take(numTxInBlock(chainHeight)).foldLeft(Seq[TX]()) { case (txAcc, tx) =>
-      val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.flatMap(_.boxIdsToOpen).contains(id))
-      val validBoxes = tx.newBoxes.forall(b ⇒ state.getBox(b.id).isEmpty)
+    memPool.take(numTxInBlock(chainHeight))
+      .foldLeft(Seq[TX]()) { case (txAcc, tx) =>
+        val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.flatMap(_.boxIdsToOpen).contains(id))
+        val validBoxes = tx.newBoxes.forall(b ⇒ state.getBox(b.id).isEmpty)
 
-      if ( validBoxes ) memPool.remove(tx)
+        if (validBoxes) memPool.remove(tx)
 
-      state.validate(tx) match {
-        case Success(_) if txNotIncluded => txAcc :+ tx
-        case Success(_)                  => txAcc
-        case Failure(ex)                 =>
-          log.debug(s"${Console.RED}Invalid Unconfirmed transaction $tx. Removing transaction${Console.RESET}. Failure: $ex")
-          txAcc
+        state.semanticValidate(tx) match {
+          case Success(_) if txNotIncluded => txAcc :+ tx
+          case Success(_)                  => txAcc
+          case Failure(ex)                 =>
+            log.debug(s"${Console.RED}Invalid Unconfirmed transaction $tx. Removing transaction${Console.RESET}. Failure: $ex")
+            txAcc
+        }
       }
-    }
   }
 
   /**
@@ -329,8 +330,8 @@ class Forger (settings: AppSettings, appContext: AppContext )
         case Some(sk) =>
           // use the secret key that owns the successful box to sign the rewards transactions
           val signedRewards = rawRewards.map {
-            case tx: ArbitTransfer[_, _] => tx.copy(attestation = Map(sk.publicImage -> sk.sign(tx.messageToSign)))
-            case tx: PolyTransfer[_, _]  => tx.copy(attestation = Map(sk.publicImage -> sk.sign(tx.messageToSign)))
+            case tx: ArbitTransfer[_,_] => tx.copy(attestation = Map(sk.publicImage -> sk.sign(tx.messageToSign)))
+            case tx: PolyTransfer[_,_]  => tx.copy(attestation = Map(sk.publicImage -> sk.sign(tx.messageToSign)))
           }
 
           // add the signed coinbase transaction to the block and return

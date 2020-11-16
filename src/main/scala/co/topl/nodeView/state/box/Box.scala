@@ -42,15 +42,11 @@ abstract class ProgramBox (override val evidence     : Evidence,
 object TokenBox {
   type Value = Long
 
-  implicit def jsonEncoder: Encoder[TokenBox] = Box.jsonEncoder match {
-    case enc: Encoder[TokenBox @unchecked] => enc
-  }
+  implicit def jsonEncoder: Encoder[TokenBox] = (bx: TokenBox) => Box.jsonEncoder(bx)
 }
 
 object ProgramBox {
-  implicit def jsonEncoder: Encoder[ProgramBox] = Box.jsonEncoder match {
-    case enc: Encoder[ProgramBox @unchecked] => enc
-  }
+  implicit def jsonEncoder: Encoder[ProgramBox] = (bx: ProgramBox) => Box.jsonEncoder(bx)
 }
 
 

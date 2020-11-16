@@ -17,8 +17,8 @@ import scala.util.Try
   * Abstract functional interface of state which is a result of a sequential blocks applying
   */
 
-trait MinimalState[BX <: GenericBox[_], M <: PersistentNodeViewModifier, MS <: MinimalState[BX, M, MS]]
-    extends NodeViewComponent with StateReader[BX]{
+trait MinimalState[M <: PersistentNodeViewModifier, MS <: MinimalState[M, MS]]
+    extends NodeViewComponent with StateReader{
 
   self: MS =>
 
@@ -28,7 +28,7 @@ trait MinimalState[BX <: GenericBox[_], M <: PersistentNodeViewModifier, MS <: M
 
   def rollbackTo(version: VersionTag): Try[MS]
 
-  def getReader: StateReader[BX] = this
+  def getReader: StateReader = this
 }
 
 object MinimalState {

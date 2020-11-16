@@ -6,7 +6,7 @@ import co.topl.nodeView.state.box._
 
 import scala.reflect.ClassTag
 
-trait StateReader[BX <: GenericBox[_]] extends NodeViewComponent {
+trait StateReader extends NodeViewComponent {
 
   type KP = ProgramBoxRegistry.K
   type KT = TokenBoxRegistry.K

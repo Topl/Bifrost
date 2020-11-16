@@ -82,7 +82,7 @@ class AssetCreationValidationSpec extends StateSpec {
 
         val newState = StateSpec
           .genesisState()
-          .validate(invalidAC)
+          .semanticValidate(invalidAC)
 
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe "requirement failed: Invalid signatures"

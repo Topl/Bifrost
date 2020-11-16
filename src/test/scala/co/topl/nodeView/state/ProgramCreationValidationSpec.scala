@@ -288,7 +288,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           .applyModifier(firstCCAddBlock)
           .get
 
-        val newState = necessaryState.validate(cc)
+        val newState = necessaryState.semanticValidate(cc)
 
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe "ProgramCreation attempts to overwrite existing program"

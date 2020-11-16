@@ -6,6 +6,8 @@ import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
 import co.topl.attestation.{Address, BoxUnlocker, Evidence, EvidenceProducer}
 import co.topl.nodeView.state.StateReader
+import co.topl.nodeView.state.box.Box.Nonce
+import co.topl.nodeView.state.box.TokenBox.Value
 import co.topl.nodeView.state.box._
 import com.google.common.primitives.Ints
 import scorex.util.encode.Base58
@@ -32,15 +34,20 @@ abstract class TransferTransaction[
   override lazy val messageToSign: Array[Byte] =
     super.messageToSign ++
       data.getBytes :+ (if (minting) 1: Byte else 0: Byte)
+
+  def semanticValidate (stateReader: StateReader)(implicit networkPrefix: NetworkPrefix): Try[Unit] =
+    TransferTransaction.semanticValidate(this, stateReader)
+
+  def syntacticValidate (implicit networkPrefix: NetworkPrefix): Try[Unit] =
+    TransferTransaction.syntacticValidate(this)
+
 }
 
 
 object TransferTransaction {
 
-  def unapply[P, PR](tx: TransferTransaction[P, PR]) = Some(tx.attestation.keys.head)
-
   /** Computes a unique nonce value based on the transaction inputs and returns the details needed to create the output boxes for the transaction */
-  def boxParams(tx: TransferTransaction[_ <: Proposition, _ <: Proof[_]]): Traversable[(Evidence, Box.Nonce, TokenBox.Value)] = {
+  def boxParams(tx: TransferTransaction[_,_]): Traversable[(Evidence, Box.Nonce, TokenBox.Value)] = {
     val inputBytes = tx.boxIdsToOpen.foldLeft(Array[Byte]())((acc, x) => acc ++ x.hashBytes)
 
     tx.to
@@ -65,7 +72,7 @@ object TransferTransaction {
    * @param assetArgs a tuple of asset specific details for finding the right asset boxes to be sent in a transfer
    * @return the input box information and output data needed to create the transaction case class
    */
-  def createRawTransferParams ( state: StateReader[TokenBox],
+  def createRawTransferParams ( state: StateReader,
                                 toReceive: IndexedSeq[(Address, TokenBox.Value)],
                                 sender: IndexedSeq[Address],
                                 changeAddress: Address,
@@ -137,11 +144,11 @@ object TransferTransaction {
    * @param withSigs boolean flag controlling whether signature verification should be checked or skipped
    * @return success or failure indicating the validity of the transaction
    */
-  def syntacticValidate[P <: Proposition, PR <: Proof[P]]
-    ( tx: TransferTransaction[P, PR], withSigs: Boolean = true)
+  def syntacticValidate[
+    P <: Proposition: EvidenceProducer,
+    PR <: Proof[P]
+  ] ( tx: TransferTransaction[P, PR], withSigs: Boolean = true)
     (implicit networkPrefix: NetworkPrefix): Try[Unit] = Try {
-
-    implicit val evidenceProducer: EvidenceProducer[P] = tx.ev
 
     require(tx.to.forall(_._2 > 0L), "Amount sent must be greater than 0")
     require(tx.from.nonEmpty, "Transaction must specify at least one input box") // this will fail on arbit coinbase
@@ -163,7 +170,7 @@ object TransferTransaction {
       }, "The proposition(s) given do not match the evidence contained in the input boxes")
 
       tx match {
-        case t: AssetTransfer[P,PR] if tx.minting =>
+        case t: AssetTransfer[_, _] if tx.minting =>
           require(t.attestation.keys.map(_.address).toSeq.contains(t.issuer), "Asset minting must include the issuers signature")
         case _ => //skip for other transfers
       }
@@ -180,8 +187,10 @@ object TransferTransaction {
    * @param state the state to check the validity against
    * @return a success or failure denoting the result of this check
    */
-  def semanticValidate[P <: Proposition: EvidenceProducer, PR <: Proof[P]]
-    ( tx: TransferTransaction[P, PR], state: StateReader[Box[_]])
+  def semanticValidate[
+    P <: Proposition: EvidenceProducer,
+    PR <: Proof[P]
+  ] (tx: TransferTransaction[P, PR], state: StateReader)
     (implicit networkPrefix: NetworkPrefix): Try[Unit] = {
 
     // check that the transaction is correctly formed before checking state

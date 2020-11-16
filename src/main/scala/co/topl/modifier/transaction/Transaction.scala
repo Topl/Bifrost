@@ -1,27 +1,29 @@
 package co.topl.modifier.transaction
 
+import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.EvidenceProducer
 import co.topl.attestation.proof.Proof
-import co.topl.attestation.proposition.Proposition
+import co.topl.attestation.proposition.{Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.serialization.TransactionSerializer
-import co.topl.modifier.{ ModifierId, NodeViewModifier }
-import co.topl.nodeView.state.box.{ Box, BoxId }
+import co.topl.modifier.{ModifierId, NodeViewModifier}
+import co.topl.nodeView.state.StateReader
+import co.topl.nodeView.state.box.{Box, BoxId}
 import co.topl.utils.serialization.BifrostSerializer
 import com.google.common.primitives.Longs
-import io.circe.{ Decoder, Encoder, HCursor }
-import scorex.crypto.hash.{ Blake2b256, Digest32 }
+import io.circe.{Decoder, Encoder, HCursor}
+import scorex.crypto.hash.{Blake2b256, Digest32}
+
+import scala.util.Try
 
 abstract class Transaction[T, P <: Proposition: EvidenceProducer, PR <: Proof[P], BX <: Box[T]] extends NodeViewModifier {
 
-  override type M = Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]
-
-  implicit val ev: EvidenceProducer[P] = EvidenceProducer.apply[P]
+  override type M = Transaction[_,_,_,_]
 
   override lazy val id: ModifierId = ModifierId(Blake2b256(messageToSign))
 
-  override lazy val serializer: BifrostSerializer[Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]] =
+  override lazy val serializer: BifrostSerializer[Transaction[_,_,_,_]] =
     TransactionSerializer
 
   lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = None
@@ -49,8 +51,11 @@ abstract class Transaction[T, P <: Proposition: EvidenceProducer, PR <: Proof[P]
 
   override def toString: String = Transaction.prefixToTypeString(txTypePrefix) + Transaction.jsonEncoder(this).noSpaces
 
-  /** Helper method to query the proposition type for pattern matching with concrete instances */
-  def getPropositionType: Proposition = this.attestation.head._1
+  def getPropositionType: P = attestation.head._1
+
+  def semanticValidate (stateReader: StateReader)(implicit networkPrefix: NetworkPrefix): Try[Unit]
+
+  def syntacticValidate (implicit networkPrefix: NetworkPrefix): Try[Unit]
 
 }
 
@@ -70,13 +75,13 @@ object Transaction {
   }
 
   implicit def jsonEncoder: Encoder[Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]] = {
-//    case tx: CodeCreation           => CodeCreation.jsonEncoder(tx)
-//    case tx: ProgramCreation        => ProgramCreation.jsonEncoder(tx)
-//    case tx: ProgramMethodExecution => ProgramMethodExecution.jsonEncoder(tx)
-//    case tx: ProgramTransfer        => ProgramTransfer.jsonEncoder(tx)
-    case tx: PolyTransfer[_ <: Proposition, _ <: Proof[_]]    => PolyTransfer.jsonEncoder(tx)
-    case tx: ArbitTransfer[_ <: Proposition, _ <: Proof[_]]   => ArbitTransfer.jsonEncoder(tx)
-    case tx: AssetTransfer[_ <: Proposition, _ <: Proof[_]]   => AssetTransfer.jsonEncoder(tx)
+    //    case tx: CodeCreation           => CodeCreation.jsonEncoder(tx)
+    //    case tx: ProgramCreation        => ProgramCreation.jsonEncoder(tx)
+    //    case tx: ProgramMethodExecution => ProgramMethodExecution.jsonEncoder(tx)
+    //    case tx: ProgramTransfer        => ProgramTransfer.jsonEncoder(tx)
+    case tx: PolyTransfer[_,_]    => PolyTransfer.jsonEncoder(tx)
+    case tx: ArbitTransfer[_,_]   => ArbitTransfer.jsonEncoder(tx)
+    case tx: AssetTransfer[_,_]   => AssetTransfer.jsonEncoder(tx)
   }
 
   implicit val jsonDecoder: Decoder[Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]] = { c: HCursor =>

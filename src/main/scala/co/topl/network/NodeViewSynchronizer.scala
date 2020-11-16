@@ -6,7 +6,7 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
 import co.topl.modifier.NodeViewModifier.{ModifierTypeId, idsToString}
-import co.topl.modifier.block.PersistentNodeViewModifier
+import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.network.ModifiersStatus.Requested
@@ -18,7 +18,7 @@ import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.state.box.{Box, GenericBox}
+import co.topl.nodeView.state.box.Box
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.serialization.BifrostSerializer
 import co.topl.utils.{Logging, MalformedModifierError}
@@ -449,15 +449,15 @@ class NodeViewSynchronizer[
     val requestedModifiers = processSpam(remote, typeId, modifiers)
 
     modifierSerializers.get(typeId) match {
-      case Some(serializer: BifrostSerializer[TX] @unchecked) if typeId == Transaction.modifierTypeId =>
+      case Some(serializer: BifrostSerializer[TX @unchecked]) if typeId == Transaction.modifierTypeId =>
         // parse all transactions and send them to node view holder
-        val parsed: Iterable[TX] = parseModifiers(requestedModifiers, serializer, remote)
+        val parsed = parseModifiers(requestedModifiers, serializer, remote)
         viewHolderRef ! TransactionsFromRemote(parsed)
 
-      case Some(serializer: BifrostSerializer[PMOD] @unchecked) =>
+      case Some(serializer: BifrostSerializer[PMOD @unchecked]) if typeId == Block.modifierTypeId =>
         // parse all modifiers and put them to modifiers cache
-        val parsed: Iterable[PMOD] = parseModifiers(requestedModifiers, serializer, remote)
-        val valid: Iterable[PMOD] = parsed.filter(validateAndSetStatus(remote, _))
+        val parsed = parseModifiers(requestedModifiers, serializer, remote)
+        val valid = parsed.filter(validateAndSetStatus(remote, _))
         if (valid.nonEmpty) viewHolderRef ! ModifiersFromRemote[PMOD](valid)
 
       case _ =>
@@ -502,7 +502,7 @@ class NodeViewSynchronizer[
     historyReaderOpt match {
       case Some(hr) =>
         hr.applicableTry(pmod) match {
-          case Failure(e) if e.isInstanceOf[MalformedModifierError] =>
+          case Failure(e: Throwable) if e.isInstanceOf[MalformedModifierError] =>
             log.warn(s"Modifier ${pmod.id} is permanently invalid", e)
             deliveryTracker.setInvalid(pmod.id)
             penalizeMisbehavingPeer(remote)
@@ -643,7 +643,7 @@ object NodeViewSynchronizer {
 
     case class ChangedMempool[MR <: MemPoolReader[_ <: Transaction[_, _, _, _]]] ( mempool: MR) extends NodeViewChange
 
-    case class ChangedState[SR <: StateReader[_ <: GenericBox[_]]](reader: SR) extends NodeViewChange
+    case class ChangedState[SR <: StateReader](reader: SR) extends NodeViewChange
 
     case class NewOpenSurface(newSurface: Seq[ModifierId]) extends NodeViewHolderEvent
 
@@ -664,7 +664,7 @@ object NodeViewSynchronizer {
     case class FailedTransaction(transactionId: ModifierId, error: Throwable, immediateFailure: Boolean)
         extends ModificationOutcome
 
-    case class SuccessfulTransaction[TX <: Transaction[_, _, _, _]] ( transaction: TX) extends ModificationOutcome
+    case class SuccessfulTransaction[TX <:  Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]] (transaction: TX) extends ModificationOutcome
 
     case class SyntacticallyFailedModification[PMOD <: PersistentNodeViewModifier](modifier: PMOD, error: Throwable)
         extends ModificationOutcome

@@ -30,9 +30,9 @@ object ThresholdPropositionCurve25519 {
   val typePrefix: EvidenceTypePrefix = 2: Byte
 
   def apply(str: String): ThresholdPropositionCurve25519 =
-    Proof.fromString(str) match {
-      case Success(prop) => prop
-      case Failure(ex) => throw ex
+    Proposition.fromString(str) match {
+      case Success(prop: ThresholdPropositionCurve25519) => prop
+      case Failure(ex)                                   => throw ex
     }
 
   implicit val propEvidence: EvidenceProducer[ThresholdPropositionCurve25519] =
