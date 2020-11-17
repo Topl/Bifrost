@@ -486,8 +486,7 @@ class NodeViewSynchronizer[
     }
   }
 
-  /**
-    * Move `pmod` to `Invalid` if it is permanently invalid, to `Received` otherwise
+  /** Move `pmod` to `Invalid` if it is permanently invalid, to `Received` otherwise
     * @param remote remote peer that sent a block to our node
     * @param pmod a persistent modifier (block) received from a remote peer
     * @return boolean flagging whether the modifier was expected and ensuring it is syntactically valid
