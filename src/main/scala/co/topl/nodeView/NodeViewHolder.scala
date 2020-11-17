@@ -4,14 +4,13 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.EvidenceProducer
 import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
 import co.topl.consensus.Forger
 import co.topl.consensus.Forger.ReceivableMessages.GenerateGenesis
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.{Block, BlockSerializer, PersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier}
-import co.topl.modifier.transaction.{Transaction, TransactionValidation}
+import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
@@ -19,8 +18,8 @@ import co.topl.nodeView.NodeViewHolder.UpdateInformation
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
-import co.topl.nodeView.state.box.Box
 import co.topl.nodeView.state.State
+import co.topl.nodeView.state.box.Box
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.Logging
 import co.topl.utils.serialization.BifrostSerializer
@@ -243,7 +242,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
   protected def txModify(tx: TX): Unit = {
     //todo: async validation?
     val errorOpt: Option[Throwable] = {
-      minimalState().semanticValidate(tx)(tx.evidenceProducer) match {
+      minimalState().semanticValidate(tx) match {
           case Success(_) => None
           case Failure(e) => Some(e)
         }
@@ -445,7 +444,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
 
     memPool.putWithoutCheck(rolledBackTxs).filter { tx =>
       !appliedTxs.exists(t => t.id == tx.id) && {
-        state.semanticValidate(tx)(tx.evidenceProducer).isSuccess
+        state.semanticValidate(tx).isSuccess
       }
     }
   }

@@ -30,19 +30,18 @@ case class SignatureCurve25519 (private[proof] val sigBytes: Signature)
 object SignatureCurve25519 {
   lazy val SignatureSize: Int = Curve25519.SignatureLength
 
+  /** Helper function to create empty signatures */
+  lazy val empty: SignatureCurve25519 = SignatureCurve25519(Signature @@ Array.emptyByteArray)
+
+  /** Returns a signature filled with 1's for use in genesis signatures */
+  lazy val genesis: SignatureCurve25519 =
+    SignatureCurve25519(Signature @@ Array.fill(SignatureCurve25519.SignatureSize)(1: Byte))
+
   def apply (str: String): SignatureCurve25519 =
     Proof.fromString(str) match {
       case Success(sig: SignatureCurve25519) => sig
       case Failure(ex)                       => throw ex
     }
-
-  /** Returns a signature filled with 1's for use in genesis signatures */
-  def genesis (): SignatureCurve25519 = {
-    SignatureCurve25519(Signature @@ Array.fill(SignatureCurve25519.SignatureSize)(1: Byte))
-  }
-
-  /** Helper function to create empty signatures */
-  def empty (): SignatureCurve25519 = SignatureCurve25519(Signature @@ Array.emptyByteArray)
 
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html

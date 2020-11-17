@@ -17,8 +17,10 @@ case class ThresholdPropositionCurve25519 ( threshold: Int, pubKeyProps: Set[Pub
 
   pubKeyProps.foreach(prop => {
     require(prop.pubKeyBytes.length == Curve25519.KeyLength,
-            s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${prop.pubKeyBytes.length} found")
+      s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${prop.pubKeyBytes.length} found")
   })
+
+  val propTypeString: String = ThresholdPropositionCurve25519.typeString
 
   def address(implicit networkPrefix: NetworkPrefix): Address = Address.from(this)
 
@@ -28,6 +30,9 @@ case class ThresholdPropositionCurve25519 ( threshold: Int, pubKeyProps: Set[Pub
 object ThresholdPropositionCurve25519 {
   // type prefix used for address creation
   val typePrefix: EvidenceTypePrefix = 2: Byte
+  val typeString: String = "ThresholdCurve25519"
+
+  val empty = apply("test")
 
   def apply(str: String): ThresholdPropositionCurve25519 =
     Proposition.fromString(str) match {
@@ -35,7 +40,7 @@ object ThresholdPropositionCurve25519 {
       case Failure(ex)                                   => throw ex
     }
 
-  implicit val propEvidence: EvidenceProducer[ThresholdPropositionCurve25519] =
+  implicit val evProducer: EvidenceProducer[ThresholdPropositionCurve25519] =
     EvidenceProducer.instance[ThresholdPropositionCurve25519] {
       prop: ThresholdPropositionCurve25519 => Evidence(typePrefix, EvidenceContent @@ Blake2b256(prop.bytes))
     }

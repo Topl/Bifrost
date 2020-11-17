@@ -76,7 +76,7 @@ object AssetTransfer {
     Map(
       "txId" -> tx.id.asJson,
       "txType" -> "AssetTransfer".asJson,
-      "propositionType" -> Proposition.getPropTypeString(tx).asJson,
+      "propositionType" -> tx.getPropTypeString.asJson,
       "newBoxes" -> tx.newBoxes.toSeq.asJson,
       "boxesToRemove" -> tx.boxIdsToOpen.asJson,
       "from" -> tx.from.asJson,

@@ -1,29 +1,36 @@
 package co.topl.attestation.proposition
 
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.Evidence.{ EvidenceContent, EvidenceTypePrefix }
+import co.topl.attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
+import co.topl.attestation.proof.Proof
 import co.topl.attestation.secrets.PrivateKeyCurve25519
-import co.topl.attestation.{ Address, Evidence, EvidenceProducer }
+import co.topl.attestation.{Address, Evidence, EvidenceProducer}
 import io.circe.syntax.EncoderOps
-import io.circe.{ Decoder, Encoder, KeyDecoder, KeyEncoder }
+import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import scorex.crypto.hash.Blake2b256
-import scorex.crypto.signatures.{ Curve25519, PublicKey }
+import scorex.crypto.signatures.{Curve25519, PublicKey}
 
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
 case class PublicKeyPropositionCurve25519 ( private[proposition] val pubKeyBytes: PublicKey )
   extends KnowledgeProposition[PrivateKeyCurve25519] {
 
   require(pubKeyBytes.length == Curve25519.KeyLength,
-          s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.length} found")
+    s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.length} found")
+
+  val propTypeString: String = PublicKeyPropositionCurve25519.typeString
 
   def address (implicit networkPrefix: NetworkPrefix): Address = Address.from(this)
+
+  override type EV = PublicKeyPropositionCurve25519
+  implicit val getMorEvidence: EvidenceProducer[PublicKeyPropositionCurve25519] = PublicKeyPropositionCurve25519.evProducer
 
 }
 
 object PublicKeyPropositionCurve25519 {
   // type prefix used for address creation
   val typePrefix: EvidenceTypePrefix = 1: Byte
+  val typeString: String = "PublicKeyCurve25519"
 
   def apply(str: String): PublicKeyPropositionCurve25519 =
     Proposition.fromString(str) match {

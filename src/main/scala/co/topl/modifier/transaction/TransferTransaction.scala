@@ -2,30 +2,27 @@ package co.topl.modifier.transaction
 
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.EvidenceProducer.syntax._
-import co.topl.attestation.proof.Proof
-import co.topl.attestation.proposition.Proposition
+import co.topl.attestation.proof.{Proof, SignatureCurve25519}
+import co.topl.attestation.proposition.{Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
 import co.topl.attestation.{Address, BoxUnlocker, Evidence, EvidenceProducer}
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.state.box.Box.Nonce
-import co.topl.nodeView.state.box.TokenBox.Value
 import co.topl.nodeView.state.box._
 import com.google.common.primitives.Ints
-import scorex.util.encode.Base58
 import scorex.crypto.hash.Blake2b256
+import scorex.util.encode.Base58
 
 import scala.util.{Failure, Success, Try}
 
 abstract class TransferTransaction[
-  P <: Proposition: EvidenceProducer,
-  PR <: Proof[P]
+  P <: Proposition: EvidenceProducer
 ] ( val from: IndexedSeq[(Address, Box.Nonce)],
     val to: IndexedSeq[(Address, TokenBox.Value)],
-    val attestation: Map[P, PR],
+    val attestation: Map[P, Proof[P]],
     val fee: Long,
     val timestamp: Long,
     val data: String,
     val minting: Boolean
-  ) extends Transaction[TokenBox.Value, P, PR, TokenBox] {
+  ) extends Transaction[TokenBox.Value, P, TokenBox] {
 
   lazy val boxIdsToOpen: IndexedSeq[BoxId] = from.map { case (addr, nonce) =>
     BoxId.idFromEviNonce(addr.evidence, nonce)
@@ -38,6 +35,7 @@ abstract class TransferTransaction[
   def semanticValidate (stateReader: StateReader)(implicit networkPrefix: NetworkPrefix): Try[Unit] =
     TransferTransaction.semanticValidate(this, stateReader)
 
+
   def syntacticValidate (implicit networkPrefix: NetworkPrefix): Try[Unit] =
     TransferTransaction.syntacticValidate(this)
 
@@ -47,7 +45,7 @@ abstract class TransferTransaction[
 object TransferTransaction {
 
   /** Computes a unique nonce value based on the transaction inputs and returns the details needed to create the output boxes for the transaction */
-  def boxParams(tx: TransferTransaction[_,_]): Traversable[(Evidence, Box.Nonce, TokenBox.Value)] = {
+  def boxParams(tx: TransferTransaction[_]): Traversable[(Evidence, Box.Nonce, TokenBox.Value)] = {
     val inputBytes = tx.boxIdsToOpen.foldLeft(Array[Byte]())((acc, x) => acc ++ x.hashBytes)
 
     tx.to
@@ -133,8 +131,10 @@ object TransferTransaction {
    * @param tx
    * @return
    */
-  def validatePrototype[P <: Proposition: EvidenceProducer, PR <: Proof[P]]
-    (tx: TransferTransaction[P, PR])(implicit networkPrefix: NetworkPrefix): Try[Unit] =
+  def validatePrototype[
+    P <: Proposition: EvidenceProducer
+  ] (tx: TransferTransaction[P])
+    (implicit networkPrefix: NetworkPrefix): Try[Unit] =
     syntacticValidate(tx, withSigs = false)
 
   /**
@@ -145,9 +145,8 @@ object TransferTransaction {
    * @return success or failure indicating the validity of the transaction
    */
   def syntacticValidate[
-    P <: Proposition: EvidenceProducer,
-    PR <: Proof[P]
-  ] ( tx: TransferTransaction[P, PR], withSigs: Boolean = true)
+    P <: Proposition: EvidenceProducer
+  ] ( tx: TransferTransaction[P], withSigs: Boolean = true)
     (implicit networkPrefix: NetworkPrefix): Try[Unit] = Try {
 
     require(tx.to.forall(_._2 > 0L), "Amount sent must be greater than 0")
@@ -188,9 +187,8 @@ object TransferTransaction {
    * @return a success or failure denoting the result of this check
    */
   def semanticValidate[
-    P <: Proposition: EvidenceProducer,
-    PR <: Proof[P]
-  ] (tx: TransferTransaction[P, PR], state: StateReader)
+    P <: Proposition: EvidenceProducer
+  ] (tx: TransferTransaction[P], state: StateReader)
     (implicit networkPrefix: NetworkPrefix): Try[Unit] = {
 
     // check that the transaction is correctly formed before checking state

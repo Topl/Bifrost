@@ -1,11 +1,12 @@
 package co.topl.attestation.proposition
 
-import co.topl.attestation.Address
+import co.topl.attestation.{Address, EvidenceProducer}
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.secrets.Secret
-import co.topl.modifier.transaction.Transaction
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import com.google.common.primitives.Ints
+import io.circe.syntax.EncoderOps
+import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import scorex.util.encode.Base58
 
 import scala.util.Try
@@ -14,6 +15,8 @@ import scala.util.Try
 // In most cases, propositions are used by transactions issuers (spenders) to prove the right
 // to use a UTXO in a transaction.
 sealed trait Proposition extends BytesSerializable {
+
+  val propTypeString: String
 
   override type M = Proposition
   override def serializer: BifrostSerializer[Proposition] = PropositionSerializer
@@ -28,20 +31,21 @@ sealed trait Proposition extends BytesSerializable {
   }
 
   override def hashCode(): Int = Ints.fromByteArray(bytes)
-
 }
-
-// Knowledge propositions require the prover to supply a proof attesting to their knowledge
-// of secret information.
-trait KnowledgeProposition[S <: Secret] extends Proposition
-
 
 object Proposition {
   def fromString (str: String): Try[_ <: Proposition] =
     Base58.decode(str).flatMap(bytes => PropositionSerializer.parseBytes(bytes))
 
-  def getPropTypeString(tx: Transaction[_,_,_,_]): String = tx.getPropositionType match {
-    case _: PublicKeyPropositionCurve25519 => "PublicKeyCurve25519"
-    case _: ThresholdPropositionCurve25519 => "ThresholdCurve25519"
+  implicit def evProducer[P <: Proposition]: EvidenceProducer[P] = {
+    case PublicKeyPropositionCurve25519 => PublicKeyPropositionCurve25519.evProducer
+    case ThresholdPropositionCurve25519 => ThresholdPropositionCurve25519.evProducer
   }
+
+  implicit def jsonKeyEncoder[P <: Proposition]: KeyEncoder[P] = (prop: P) => prop.toString
+  implicit val jsonKeyDecoder: KeyDecoder[Proposition] = (str: String) => fromString(str).toOption
 }
+
+// Knowledge propositions require the prover to supply a proof attesting to their knowledge
+// of secret information.
+trait KnowledgeProposition[S <: Secret] extends Proposition
