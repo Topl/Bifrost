@@ -16,13 +16,13 @@ import scorex.crypto.hash.{Blake2b256, Digest32}
 
 import scala.util.Try
 
-abstract class Transaction[T, P <: Proposition, BX <: Box[T]] extends NodeViewModifier {
+abstract class Transaction[T, P <: Proposition] extends NodeViewModifier {
 
-  override type M = Transaction[_,_,_]
+  override type M = Transaction[_, _ <: Proposition]
 
   override lazy val id: ModifierId = ModifierId(Blake2b256(messageToSign))
 
-  override lazy val serializer: BifrostSerializer[Transaction[_,_,_]] =
+  override lazy val serializer: BifrostSerializer[Transaction[_, _ <: Proposition]] =
     TransactionSerializer
 
   lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = None
@@ -40,7 +40,7 @@ abstract class Transaction[T, P <: Proposition, BX <: Box[T]] extends NodeViewMo
 
   val boxIdsToOpen: IndexedSeq[BoxId]
 
-  val newBoxes: Traversable[BX]
+  val newBoxes: Traversable[Box[T]]
 
   val attestation: Map[P, Proof[P]]
 
@@ -60,10 +60,10 @@ abstract class Transaction[T, P <: Proposition, BX <: Box[T]] extends NodeViewMo
 
 
 object Transaction {
+  type TX = Transaction[_, _ <: Proposition]
+  type TxType = Byte
   type TransactionId = ModifierId
   val modifierTypeId: ModifierTypeId = ModifierTypeId @@ (2: Byte)
-
-  type TxType = Byte
 
   def nonceFromDigest (digest: Digest32): Box.Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
@@ -73,17 +73,17 @@ object Transaction {
     case AssetTransfer.txTypePrefix     => "AssetTransfer"
   }
 
-  implicit def jsonEncoder: Encoder[Transaction[_, _ <: Proposition, _ <: Box[_]]] = {
+  implicit def jsonEncoder: Encoder[Transaction[_, _ <: Proposition]] = {
     //    case tx: CodeCreation           => CodeCreation.jsonEncoder(tx)
     //    case tx: ProgramCreation        => ProgramCreation.jsonEncoder(tx)
     //    case tx: ProgramMethodExecution => ProgramMethodExecution.jsonEncoder(tx)
     //    case tx: ProgramTransfer        => ProgramTransfer.jsonEncoder(tx)
-    case tx: PolyTransfer[_,_]    => PolyTransfer.jsonEncoder(tx)
+    case tx: PolyTransfer[_]    => PolyTransfer.jsonEncoder(tx)
     case tx: ArbitTransfer[_]   => ArbitTransfer.jsonEncoder(tx)
-    case tx: AssetTransfer[_,_]   => AssetTransfer.jsonEncoder(tx)
+    case tx: AssetTransfer[_]   => AssetTransfer.jsonEncoder(tx)
   }
 
-  implicit val jsonDecoder: Decoder[Transaction[_, _ <: Proposition, _ <: Box[_]]] = { c: HCursor =>
+  implicit val jsonDecoder: Decoder[Transaction[_, _ <: Proposition]] = { c: HCursor =>
     c.downField("txType").as[String].map {
 //      case "CodeCreation"           => CodeCreation.jsonDecoder(c)
 //      case "ProgramCreation"        => ProgramCreation.jsonDecoder(c)

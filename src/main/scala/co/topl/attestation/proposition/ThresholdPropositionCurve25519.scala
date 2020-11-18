@@ -21,6 +21,7 @@ case class ThresholdPropositionCurve25519 ( threshold: Int, pubKeyProps: Set[Pub
   })
 
   val propTypeString: String = ThresholdPropositionCurve25519.typeString
+  val propTypePrefix: EvidenceTypePrefix = ThresholdPropositionCurve25519.typePrefix
 
   def address(implicit networkPrefix: NetworkPrefix): Address = Address.from(this)
 

@@ -14,7 +14,7 @@ import scala.util.Try
   *
   * @tparam M -type of this memory pool
   */
-trait MemoryPool[TX <: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]], M <: MemoryPool[TX, M]]
+trait MemoryPool[TX <: Transaction[_,_], M <: MemoryPool[TX, M]]
   extends NodeViewComponent with MemPoolReader[TX] {
 
   //getters

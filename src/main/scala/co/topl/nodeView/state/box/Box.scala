@@ -12,10 +12,10 @@ import io.circe.{ Decoder, DecodingFailure, Encoder, HCursor, Json }
  * Created by Matthew on 4/11/2017.
  */
 sealed abstract class Box[T] ( val evidence     : Evidence,
-                        val value        : T,
-                        val nonce        : Nonce,
-                        val boxTypePrefix: BoxType
-                      ) extends GenericBox[T] {
+                               val value        : T,
+                               val nonce        : Nonce,
+                               val boxTypePrefix: BoxType
+                             ) extends GenericBox[T] {
 
   type M = Box[_]
 

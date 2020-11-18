@@ -1,12 +1,12 @@
 package co.topl.attestation.proof
 
-import co.topl.attestation.proposition.ThresholdPropositionCurve25519
+import co.topl.attestation.proposition.{PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
 import co.topl.attestation.secrets.PrivateKeyCurve25519
 import io.circe.syntax.EncoderOps
-import io.circe.{ Decoder, Encoder, KeyDecoder, KeyEncoder }
-import scorex.crypto.signatures.{ Curve25519, PublicKey }
+import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
+import scorex.crypto.signatures.{Curve25519, PublicKey}
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 case class ThresholdSignatureCurve25519 (private[proof] val signatures: Set[SignatureCurve25519])
   extends ProofOfKnowledge[PrivateKeyCurve25519, ThresholdPropositionCurve25519] {

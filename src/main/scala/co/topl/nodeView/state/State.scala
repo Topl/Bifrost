@@ -2,10 +2,8 @@ package co.topl.nodeView.state
 
 import java.io.File
 
+import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.proof.Proof
-import co.topl.attestation.proposition.{Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
-import co.topl.attestation.{Address, EvidenceProducer}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction._
@@ -255,20 +253,8 @@ case class State ( override val version     : VersionTag,
     * @param transaction
     * @return
     */
-  def semanticValidate(transaction: Transaction[_,_,_,_])(implicit networkPrefix: NetworkPrefix): Try[Unit] = {
-
+  def semanticValidate(transaction: Transaction.TX)(implicit networkPrefix: NetworkPrefix): Try[Unit] = {
     transaction.semanticValidate(getReader)
-
-//  transaction match {
-//      case tx: TransferTransaction[_,_] =>
-//        TransferTransaction.semanticValidate(tx, getReader)(tx.evidenceProducer, networkPrefix)
-//
-//            case tx: ProgramTransfer        => ProgramTransfer.semanticValidate(tx, getReader)
-//            case tx: CodeCreation           => CodeCreation.semanticValidate(tx, getReader)
-//            case tx: ProgramCreation        => ProgramCreation.semanticValidate(tx, getReader)
-//            case tx: ProgramMethodExecution => ProgramMethodExecution.semanticValidate(tx, getReader)
-//      case _ => throw new Exception("State validity not implemented for " + transaction.getClass.toGenericString)
-//    }
   }
 }
 
@@ -288,24 +274,6 @@ object State extends Logging {
         (state, mod) => state.applyModifier(mod).get
       }
   }
-
-//  /**
-//   * Provides a single interface for syntactically validating transactions
-//   *
-//   * @param transaction the transaction to evaluate
-//   */
-//  def syntacticValidity(transaction: Transaction[_,_,_,_])(implicit networkPrefix: NetworkPrefix): Try[Unit] = {
-//
-//    transaction.syntacticValidate
-//
-////    transaction match {
-////      case tx: ArbitTransfer[P, PR] => TransactionValidation[ArbitTransfer[P, PR]].syntacticValidate(tx)
-////      case _ =>
-////        throw new UnsupportedOperationException(
-////          "Semantic validity not implemented for " + transaction.getClass.toGenericString
-////        )
-////    }
-//  }
 
   def exists(settings: AppSettings): Boolean = stateFile(settings).exists()
 

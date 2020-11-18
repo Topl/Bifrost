@@ -4,18 +4,18 @@ import akka.actor._
 import akka.util.Timeout
 import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.proof.{Proof, SignatureCurve25519}
-import co.topl.attestation.proposition.{Proposition, PublicKeyPropositionCurve25519}
+import co.topl.attestation.proof.SignatureCurve25519
+import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
 import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.consensus.Forger.ChainParams
 import co.topl.consensus.genesis.{PrivateTestnet, Toplnet}
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction, TransferTransaction}
+import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.{ArbitBox, Box, TokenBox}
+import co.topl.nodeView.state.box.{ArbitBox, TokenBox}
 import co.topl.nodeView.{CurrentView, NodeViewHolder}
 import co.topl.settings.NetworkType._
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
@@ -33,7 +33,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
              ( implicit ec: ExecutionContext ) extends Actor with Logging {
 
   //type HR = HistoryReader[Block, BifrostSyncInfo]
-  type TX = Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]
+  type TX = Transaction.TX
 
   // Import the types of messages this actor RECEIVES
   import Forger.ReceivableMessages._
@@ -262,13 +262,33 @@ class Forger (settings: AppSettings, appContext: AppContext )
    * @param parentId block id of the current head of the chain
    * @return an unsigned coinbase transaction
    */
-  private def createArbitReward(parentId: Block.BlockId, rewardAdr: Address): Try[ArbitTransfer[PublicKeyPropositionCurve25519, SignatureCurve25519]] = Try {
-    ArbitTransfer(IndexedSeq(), IndexedSeq((rewardAdr, inflation)), Map[PublicKeyPropositionCurve25519, SignatureCurve25519](), 0, forgeTime, "", minting = true)
-  }
+  private def createArbitReward(parentId: Block.BlockId,
+                                rewardAdr: Address
+                               ): Try[ArbitTransfer[PublicKeyPropositionCurve25519]] =
+    Try {
+      ArbitTransfer(IndexedSeq(),
+        IndexedSeq((rewardAdr, inflation)),
+        Map[PublicKeyPropositionCurve25519, SignatureCurve25519](),
+        0,
+        forgeTime,
+        "",
+        minting = true
+      )
+    }
 
-  private def createPolyReward(amount: TokenBox.Value, rewardAdr: Address): Try[PolyTransfer[PublicKeyPropositionCurve25519, SignatureCurve25519]] = Try {
-    PolyTransfer(IndexedSeq(), IndexedSeq((rewardAdr, amount)), Map[PublicKeyPropositionCurve25519, SignatureCurve25519](), 0, forgeTime, "", minting = true)
-  }
+  private def createPolyReward(amount: TokenBox.Value,
+                               rewardAdr: Address
+                              ): Try[PolyTransfer[PublicKeyPropositionCurve25519]] =
+    Try {
+      PolyTransfer(IndexedSeq(),
+        IndexedSeq((rewardAdr, amount)),
+        Map[PublicKeyPropositionCurve25519, SignatureCurve25519](),
+        0,
+        forgeTime,
+        "",
+        minting = true
+      )
+    }
 
   /**
    * Pick a set of transactions from the mempool that result in a valid state when applied to the current state
@@ -290,7 +310,8 @@ class Forger (settings: AppSettings, appContext: AppContext )
           case Success(_) if txNotIncluded => txAcc :+ tx
           case Success(_)                  => txAcc
           case Failure(ex)                 =>
-            log.debug(s"${Console.RED}Invalid Unconfirmed transaction $tx. Removing transaction${Console.RESET}. Failure: $ex")
+            log.debug(s"${Console.RED}Invalid Unconfirmed transaction $tx. " +
+              s"Removing transaction${Console.RESET}. Failure: $ex")
             txAcc
         }
       }
@@ -310,7 +331,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
                                parentHeight: Long,
                                parentDifficulty: Long,
                                boxes     : Set[ArbitBox],
-                               rawRewards: Seq[TransferTransaction[_,_]],
+                               rawRewards: Seq[TX],
                                txsToInclude: Seq[TX]
                              ): Option[Block] = {
 
@@ -330,8 +351,8 @@ class Forger (settings: AppSettings, appContext: AppContext )
         case Some(sk) =>
           // use the secret key that owns the successful box to sign the rewards transactions
           val signedRewards = rawRewards.map {
-            case tx: ArbitTransfer[_,_] => tx.copy(attestation = Map(sk.publicImage -> sk.sign(tx.messageToSign)))
-            case tx: PolyTransfer[_,_]  => tx.copy(attestation = Map(sk.publicImage -> sk.sign(tx.messageToSign)))
+            case tx: ArbitTransfer[_] => tx.copy(attestation = Map(sk.publicImage -> sk.sign(tx.messageToSign)))
+            case tx: PolyTransfer[_]  => tx.copy(attestation = Map(sk.publicImage -> sk.sign(tx.messageToSign)))
           }
 
           // add the signed coinbase transaction to the block and return

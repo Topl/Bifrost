@@ -1,10 +1,8 @@
 package co.topl.consensus
 
-import co.topl.attestation.proof.Proof
-import co.topl.attestation.proposition.Proposition
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ ArbitTransfer, PolyTransfer, Transaction, TransferTransaction }
-import co.topl.nodeView.history.{ BlockProcessor, Storage }
+import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
+import co.topl.nodeView.history.{BlockProcessor, Storage}
 
 import scala.util.Try
 
@@ -40,9 +38,10 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
 
 class SyntaxBlockValidator extends BlockValidator[Block] {
   // the signature on the block should match the signature used in the Arbit and Poly minting transactions
-  val forgerEntitlementCheck: (Transaction[_,_,_,_], Block) => Unit = ( tx: Transaction[_,_,_,_], b: Block) =>
-    require(tx.attestation.keys.toSeq.contains(b.publicKey),
-      "The forger entitled transactions must match the block details")
+  val forgerEntitlementCheck: (Transaction[_,_], Block) => Unit =
+    (tx: Transaction[_,_], b: Block) =>
+      require(tx.attestation.keys.toSeq.contains(b.publicKey),
+        "The forger entitled transactions must match the block details")
 
   def validate(block: Block): Try[Unit] = Try {
     // check block signature is valid
@@ -51,34 +50,32 @@ class SyntaxBlockValidator extends BlockValidator[Block] {
 
     // ensure only a single Arbit minting transaction
     val numArbitCoinbase = block.transactions.count {
-      case tx: ArbitTransfer[_, _] => tx.minting
+      case tx: ArbitTransfer[_] => tx.minting
     }
     require(numArbitCoinbase == 1, "Invalid number of Arbit rewards transactions.")
 
     // ensure only a single Poly minting transaction
     val numPolyCoinbase = block.transactions.count {
-      case tx: PolyTransfer[_, _] => tx.minting
+      case tx: PolyTransfer[_] => tx.minting
     }
     require(numPolyCoinbase == 1, "Invalid number of Poly rewards transactions.")
 
     // enforce the structure of the Arbit and Poly minting transactions
     block.transactions.zipWithIndex.map {
       case (tx, 0) => tx match {
-        case tx: ArbitTransfer[_,_] if tx.minting => {
+        case tx: ArbitTransfer[_] if tx.minting =>
           forgerEntitlementCheck(tx, block)
           require(tx.to.map(_._2).sum == inflation,
                   "The inflation amount in the block must match the output of the Arbit rewards transaction")
-        }
 
         case _ => throw new Error("The first transaction in a block must be a minting ArbitTransfer")
       }
 
       case (tx, 1) => tx match {
-        case tx: PolyTransfer[_,_] if tx.minting => {
+        case tx: PolyTransfer[_] if tx.minting =>
           forgerEntitlementCheck(tx, block)
           require(block.transactions.map(_.fee).sum == tx.to.map(_._2).sum,
                   "The sum of the fees in the block must match the output of the Poly rewards transaction")
-        }
 
         case _ => throw new Error("The second transaction in a block must be a minting PolyTransfer")
       }

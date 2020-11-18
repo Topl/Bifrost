@@ -2,6 +2,7 @@ package co.topl.attestation.proposition
 
 import co.topl.attestation.{Address, EvidenceProducer}
 import co.topl.attestation.AddressEncoder.NetworkPrefix
+import co.topl.attestation.Evidence.EvidenceTypePrefix
 import co.topl.attestation.secrets.Secret
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import com.google.common.primitives.Ints
@@ -17,6 +18,7 @@ import scala.util.Try
 sealed trait Proposition extends BytesSerializable {
 
   val propTypeString: String
+  val propTypePrefix: EvidenceTypePrefix
 
   override type M = Proposition
   override def serializer: BifrostSerializer[Proposition] = PropositionSerializer
@@ -37,10 +39,10 @@ object Proposition {
   def fromString (str: String): Try[_ <: Proposition] =
     Base58.decode(str).flatMap(bytes => PropositionSerializer.parseBytes(bytes))
 
-  implicit def evProducer[P <: Proposition]: EvidenceProducer[P] = {
-    case PublicKeyPropositionCurve25519 => PublicKeyPropositionCurve25519.evProducer
-    case ThresholdPropositionCurve25519 => ThresholdPropositionCurve25519.evProducer
-  }
+//  implicit def evProducer: EvidenceProducer[Proposition] = {
+//    case PublicKeyPropositionCurve25519 => PublicKeyPropositionCurve25519.evProducer
+//    case ThresholdPropositionCurve25519 => ThresholdPropositionCurve25519.evProducer
+//  }
 
   implicit def jsonKeyEncoder[P <: Proposition]: KeyEncoder[P] = (prop: P) => prop.toString
   implicit val jsonKeyDecoder: KeyDecoder[Proposition] = (str: String) => fromString(str).toOption

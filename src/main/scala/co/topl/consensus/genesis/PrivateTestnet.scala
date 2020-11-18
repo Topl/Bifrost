@@ -44,26 +44,26 @@ case class PrivateTestnet ( keyGen  : (Int, Option[String]) => Set[PublicKeyProp
     val txInput = (
       IndexedSeq(genesisAcct.publicImage.address -> 0L),
       keyGen(numberOfKeys, opts.seed).map(_.address -> balance).toIndexedSeq,
-      Map(genesisAcct.publicImage -> SignatureCurve25519.genesis()),
+      Map(genesisAcct.publicImage -> SignatureCurve25519.genesis),
       0L,
       0L,
       "",
       false)
 
     val txs = Seq(
-      ArbitTransfer[PublicKeyPropositionCurve25519,SignatureCurve25519]
+      ArbitTransfer[PublicKeyPropositionCurve25519]
         (txInput._1,txInput._2,txInput._3,txInput._4,txInput._5,txInput._6,txInput._7),
-      PolyTransfer[PublicKeyPropositionCurve25519,SignatureCurve25519]
+      PolyTransfer[PublicKeyPropositionCurve25519]
         (txInput._1,txInput._2,txInput._3,txInput._4,txInput._5,txInput._6,txInput._7)
     )
 
     val generatorBox = ArbitBox(genesisAcct.publicImage.generateEvidence, 0, privateTotalStake)
 
-    val signature = SignatureCurve25519.genesis()
+    val signature = SignatureCurve25519.genesis
 
     val block = Block(History.GenesisParentId, 0L, generatorBox, genesisAcct.publicImage, signature, txs, blockVersion.blockByte)
 
-    log.debug(s"Initialize state with transactions ${txs}")
+    log.debug(s"Initialize state with transactions $txs")
 
     (block, ChainParams(privateTotalStake, initialDifficulty))
   }

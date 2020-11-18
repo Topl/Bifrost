@@ -3,7 +3,6 @@ package co.topl.network
 import java.net.InetSocketAddress
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import co.topl.attestation.proof.Proof
 import co.topl.attestation.proposition.Proposition
 import co.topl.modifier.NodeViewModifier.{ModifierTypeId, idsToString}
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
@@ -18,7 +17,6 @@ import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.state.box.Box
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.serialization.BifrostSerializer
 import co.topl.utils.{Logging, MalformedModifierError}
@@ -36,20 +34,19 @@ import scala.util.{Failure, Success}
   * @tparam TX transaction
   */
 class NodeViewSynchronizer[
-  TX <: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]],
+  TX <: Transaction[_, _ <: Proposition],
   SI <: SyncInfo,
   PMOD <: PersistentNodeViewModifier,
   HR <: HistoryReader[PMOD, SI]: ClassTag,
   MR <: MemPoolReader[TX]: ClassTag
-]( networkControllerRef: ActorRef,
-   viewHolderRef       : ActorRef,
-   settings            : AppSettings,
-   appContext          : AppContext
-)(implicit ec: ExecutionContext) extends Synchronizer with Logging {
+](networkControllerRef: ActorRef,
+  viewHolderRef       : ActorRef,
+  settings            : AppSettings,
+  appContext          : AppContext
+ )(implicit ec: ExecutionContext) extends Synchronizer with Logging {
 
   // Import the types of messages this actor may SEND
   import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
-
 
   // the maximum number of inventory modifiers to compare with remote peers
   protected val desiredInvObjects: Int = settings.network.desiredInvObjects
@@ -610,7 +607,9 @@ object NodeViewSynchronizer {
 
     trait NodeViewHolderEvent
 
-    trait NodeViewChange extends NodeViewHolderEvent
+    trait NodeViewChange[R] extends NodeViewHolderEvent {
+      val reader: R
+    }
 
     // hierarchy of events regarding modifiers application outcome
     trait ModificationOutcome extends NodeViewHolderEvent
@@ -639,11 +638,11 @@ object NodeViewSynchronizer {
     case class DisconnectedPeer(remote: InetSocketAddress) extends PeerManagerEvent
 
     case class ChangedHistory[HR <: HistoryReader[_ <: PersistentNodeViewModifier, _ <: SyncInfo]](reader: HR)
-        extends NodeViewChange
+        extends NodeViewChange[HR]
 
-    case class ChangedMempool[MR <: MemPoolReader[_ <: Transaction[_, _, _, _]]] ( mempool: MR) extends NodeViewChange
+    case class ChangedMempool[MR <: MemPoolReader[_ <: Transaction[_,_]]] (reader: MR) extends NodeViewChange[MR]
 
-    case class ChangedState[SR <: StateReader](reader: SR) extends NodeViewChange
+    case class ChangedState[SR <: StateReader](reader: SR) extends NodeViewChange[SR]
 
     case class NewOpenSurface(newSurface: Seq[ModifierId]) extends NodeViewHolderEvent
 
@@ -664,7 +663,7 @@ object NodeViewSynchronizer {
     case class FailedTransaction(transactionId: ModifierId, error: Throwable, immediateFailure: Boolean)
         extends ModificationOutcome
 
-    case class SuccessfulTransaction[TX <:  Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]] (transaction: TX) extends ModificationOutcome
+    case class SuccessfulTransaction[TX <:  Transaction[_,_]] (transaction: TX) extends ModificationOutcome
 
     case class SyntacticallyFailedModification[PMOD <: PersistentNodeViewModifier](modifier: PMOD, error: Throwable)
         extends ModificationOutcome
@@ -692,45 +691,45 @@ object NodeViewSynchronizer {
 object NodeViewSynchronizerRef {
 
   def apply[
-    TX <: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]],
+    TX <: Transaction[_, _ <: Proposition],
     SI <: SyncInfo,
     PMOD <: PersistentNodeViewModifier,
     HR <: HistoryReader[PMOD, SI]: ClassTag,
     MR <: MemPoolReader[TX]: ClassTag
   ](
-    networkControllerRef: ActorRef,
-    viewHolderRef: ActorRef,
-    settings: AppSettings,
-    appContext: AppContext
-  )(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+     networkControllerRef: ActorRef,
+     viewHolderRef: ActorRef,
+     settings: AppSettings,
+     appContext: AppContext
+   )(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
     system.actorOf(props[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, settings, appContext))
 
   def props[
-    TX <: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]],
+    TX <: Transaction[_, _ <: Proposition],
     SI <: SyncInfo,
     PMOD <: PersistentNodeViewModifier,
     HR <: HistoryReader[PMOD, SI]: ClassTag,
     MR <: MemPoolReader[TX]: ClassTag
   ](
-    networkControllerRef: ActorRef,
-    viewHolderRef: ActorRef,
-    settings: AppSettings,
-    appContext: AppContext
-  )(implicit ec: ExecutionContext): Props =
+     networkControllerRef: ActorRef,
+     viewHolderRef: ActorRef,
+     settings: AppSettings,
+     appContext: AppContext
+   )(implicit ec: ExecutionContext): Props =
     Props(new NodeViewSynchronizer[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, settings, appContext))
 
   def apply[
-    TX <: Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]],
+    TX <: Transaction[_, _ <: Proposition],
     SI <: SyncInfo,
     PMOD <: PersistentNodeViewModifier,
     HR <: HistoryReader[PMOD, SI]: ClassTag,
     MR <: MemPoolReader[TX]: ClassTag
   ](
-    name: String,
-    networkControllerRef: ActorRef,
-    viewHolderRef: ActorRef,
-    settings: AppSettings,
-    appContext: AppContext
-  )(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+     name: String,
+     networkControllerRef: ActorRef,
+     viewHolderRef: ActorRef,
+     settings: AppSettings,
+     appContext: AppContext
+   )(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
     system.actorOf(props[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, settings, appContext), name)
 }

@@ -22,7 +22,7 @@ abstract class TransferTransaction[
     val timestamp: Long,
     val data: String,
     val minting: Boolean
-  ) extends Transaction[TokenBox.Value, P, TokenBox] {
+  ) extends Transaction[TokenBox.Value, P] {
 
   lazy val boxIdsToOpen: IndexedSeq[BoxId] = from.map { case (addr, nonce) =>
     BoxId.idFromEviNonce(addr.evidence, nonce)
@@ -169,7 +169,7 @@ object TransferTransaction {
       }, "The proposition(s) given do not match the evidence contained in the input boxes")
 
       tx match {
-        case t: AssetTransfer[_, _] if tx.minting =>
+        case t: AssetTransfer[_] if tx.minting =>
           require(t.attestation.keys.map(_.address).toSeq.contains(t.issuer), "Asset minting must include the issuers signature")
         case _ => //skip for other transfers
       }

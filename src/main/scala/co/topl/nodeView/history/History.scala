@@ -360,7 +360,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
    * @param queryBloomTopics topics to search the the block bloom filter for
    * @return
    */
-  def bloomFilter(queryBloomTopics: IndexedSeq[Array[Byte]]): Seq[Transaction[_, _, _, _]] = {
+  def bloomFilter(queryBloomTopics: IndexedSeq[Array[Byte]]): Seq[Transaction.TX] = {
     val queryBloom: BitSet = Bloom.calcBloom(queryBloomTopics.head, queryBloomTopics.tail)
     val f: BitSet => Boolean = {
       blockBloom =>
@@ -565,7 +565,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     * @param txId the modifier ID associated with the transaction
     * @return an optional transaction from a block
     */
-  override def txById(txId: ModifierId): Option[Transaction[_, _, _, _]] = {
+  override def txById(txId: ModifierId): Option[Transaction.TX] = {
     storage.blockIdOf(txId).flatMap { id =>
       storage
         .modifierById(id)

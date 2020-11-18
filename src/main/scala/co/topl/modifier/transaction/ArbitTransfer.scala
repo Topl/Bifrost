@@ -2,7 +2,6 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.attestation
 import co.topl.attestation.proof.{Proof, SignatureCurve25519, ThresholdSignatureCurve25519}
 import co.topl.attestation.proposition.{Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
 import co.topl.attestation.{Address, EvidenceProducer}
@@ -77,14 +76,7 @@ object ArbitTransfer {
       ).asJson
   }
 
-  def jsonDecoder: Decoder[ArbitTransfer[Proposition]] =
-    (c: HCursor) => c.downField("propositionType").as[String].flatMap { b =>
-      case PublicKeyPropositionCurve25519.typeString =>  jsonDecoderPubKey(c)
-      case ThresholdPropositionCurve25519.typeString => ???
-    }
-
-
-  implicit def jsonDecoderPubKey: Decoder[ArbitTransfer[PublicKeyPropositionCurve25519]] =
+  implicit def jsonDecoder: Decoder[ArbitTransfer[_ <: Proposition]] =
     (c: HCursor) =>
       for {
         from <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
@@ -92,8 +84,21 @@ object ArbitTransfer {
         fee <- c.downField("fee").as[Long]
         timestamp <- c.downField("timestamp").as[Long]
         data <- c.downField("data").as[String]
-        sigs <- c.downField("signatures").as[Map[PublicKeyPropositionCurve25519, SignatureCurve25519]]
+        propType <- c.downField("propositionType").as[String]
       } yield {
-        new ArbitTransfer[PublicKeyPropositionCurve25519](from, to, sigs, fee, timestamp, data)
+        (propType match {
+          case PublicKeyPropositionCurve25519.typeString =>
+            c.downField("signatures").as[Map[PublicKeyPropositionCurve25519, SignatureCurve25519]].map {
+              new ArbitTransfer[PublicKeyPropositionCurve25519](from, to, _, fee, timestamp, data)
+            }
+
+          case ThresholdPropositionCurve25519.typeString =>
+            c.downField("signatures").as[Map[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]].map {
+              new ArbitTransfer[ThresholdPropositionCurve25519](from, to, _, fee, timestamp, data)
+            }
+        }) match {
+          case Right(tx) => tx
+          case Left(ex)  => throw ex
+        }
       }
 }

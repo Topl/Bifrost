@@ -1,15 +1,20 @@
 package co.topl.modifier.transaction.serialization
 
 import co.topl.attestation.Address
-import co.topl.attestation.proof.{ Proof, ProofSerializer }
-import co.topl.attestation.proposition.{ Proposition, PropositionSerializer }
+import co.topl.attestation.proof.{ProofSerializer, SignatureCurve25519, ThresholdSignatureCurve25519}
+import co.topl.attestation.proposition.{Proposition, PropositionSerializer, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
 import co.topl.modifier.transaction.PolyTransfer
 import co.topl.utils.Extensions._
-import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
+import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
-object PolyTransferSerializer extends BifrostSerializer[PolyTransfer[_ <: Proposition, _ <: Proof[_]]] {
+import scala.language.existentials
 
-  override def serialize(obj: PolyTransfer[_ <: Proposition, _ <: Proof[_ <: Proposition]], w: Writer): Unit = {
+object PolyTransferSerializer extends BifrostSerializer[PolyTransfer[_ <: Proposition]] {
+
+  override def serialize(obj: PolyTransfer[_ <: Proposition], w: Writer): Unit = {
+    /* Byte */ //this is used to signal the types of propositions in the transactions
+    w.put(obj.attestation.head._1.propTypePrefix)
+
     /* from: IndexedSeq[(Address, Nonce)] */
     w.putUInt(obj.from.length)
     obj.from.foreach { case (addr, nonce) =>
@@ -44,7 +49,9 @@ object PolyTransferSerializer extends BifrostSerializer[PolyTransfer[_ <: Propos
     w.putBoolean(obj.minting)
   }
 
-  override def parse(r: Reader): PolyTransfer[_ <: Proposition, _ <: Proof[_]] = {
+  override def parse(r: Reader): PolyTransfer[_ <: Proposition] = {
+    val propTypePrefix = r.getByte()
+
     val fromLength: Int = r.getUInt().toIntExact
     val from = (0 until fromLength).map { _ =>
       val addr = Address.parse(r)
@@ -60,17 +67,27 @@ object PolyTransferSerializer extends BifrostSerializer[PolyTransfer[_ <: Propos
     }
 
     val signaturesLength: Int = r.getUInt().toIntExact
-    val signatures = (0 until signaturesLength).map { _ =>
+    val signatures = Map((0 until signaturesLength).map { _ =>
       val prop = PropositionSerializer.parse(r)
       val sig = ProofSerializer.parse(r)
       prop -> sig
-    }.toMap
+    }: _*)
 
     val fee: Long = r.getULong()
     val timestamp: Long = r.getULong()
     val data: String = r.getIntString()
-    val minting: Boolean = r.getBits(1).head
+    val minting: Boolean = r.getBoolean()
 
-    PolyTransfer(from, to, signatures, fee, timestamp, data, minting)
+    propTypePrefix match {
+      case PublicKeyPropositionCurve25519.typePrefix =>
+        require(signatures.forall(_._1.propTypeString == PublicKeyPropositionCurve25519.typeString))
+        val sigs = signatures.asInstanceOf[Map[PublicKeyPropositionCurve25519, SignatureCurve25519]]
+        PolyTransfer(from, to, sigs, fee, timestamp, data, minting)
+
+      case ThresholdPropositionCurve25519.typePrefix =>
+        require(signatures.forall(_._1.propTypeString == ThresholdPropositionCurve25519.typeString))
+        val sigs = signatures.asInstanceOf[Map[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]]
+        PolyTransfer(from, to, sigs, fee, timestamp, data, minting)
+    }
   }
 }

@@ -39,9 +39,9 @@ case class Block( parentId    : BlockId,
                   forgerBox   : ArbitBox,
                   publicKey   : PublicKeyPropositionCurve25519,
                   signature   : SignatureCurve25519,
-                  transactions: Seq[Block.TX],
+                  transactions: Seq[Transaction.TX],
                   version     : Version
-                ) extends TransactionsCarryingPersistentNodeViewModifier[Block.TX] {
+                ) extends TransactionsCarryingPersistentNodeViewModifier[Transaction.TX] {
 
   type M = Block
 
@@ -52,7 +52,7 @@ case class Block( parentId    : BlockId,
   lazy val serializer: BifrostSerializer[Block] = BlockSerializer
 
   lazy val messageToSign: Array[Byte] = {
-    val noSigCopy = this.copy(signature = SignatureCurve25519.empty())
+    val noSigCopy = this.copy(signature = SignatureCurve25519.empty)
     serializer.toBytes(noSigCopy)
   }
 }
@@ -64,7 +64,6 @@ object Block {
   type BlockId = ModifierId
   type Timestamp = Long
   type Version = Byte
-  type TX = Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]
 
   val blockIdLength: Int = NodeViewModifier.ModifierIdSize
   val modifierTypeId: Byte @@ NodeViewModifier.ModifierTypeId.Tag = ModifierTypeId @@ (3: Byte)
@@ -91,7 +90,7 @@ object Block {
       generatorBox <- c.downField("generatorBox").as[ArbitBox]
       publicKey <- c.downField("publicKey").as[PublicKeyPropositionCurve25519]
       signature <- c.downField("signature").as[SignatureCurve25519]
-      txsSeq <- c.downField("txs").as[Seq[TX]]
+      txsSeq <- c.downField("txs").as[Seq[Transaction.TX]]
       version <- c.downField("version").as[Byte]
     } yield {
       Block(parentId, timestamp, generatorBox, publicKey, signature, txsSeq, version)
@@ -109,7 +108,7 @@ object Block {
    */
   def create ( parentId  : BlockId,
                timestamp : Timestamp,
-               txs       : Seq[TX],
+               txs       : Seq[Transaction.TX],
                box       : ArbitBox,
                privateKey: PrivateKeyCurve25519,
                version   : Version
@@ -119,7 +118,7 @@ object Block {
     assert(box.evidence == privateKey.publicImage.generateEvidence)
 
     // generate block message (block with empty signature) to be signed
-    val block = Block(parentId, timestamp, box, privateKey.publicImage, SignatureCurve25519.empty(), txs, version)
+    val block = Block(parentId, timestamp, box, privateKey.publicImage, SignatureCurve25519.empty, txs, version)
 
     // generate signature from the block message and private key
     val signature = privateKey.sign(block.messageToSign)
@@ -133,7 +132,7 @@ object Block {
    * @param txs
    * @return
    */
-  def createBloom ( txs: Seq[TX] ): Array[Byte] = {
+  def createBloom (txs: Seq[Transaction.TX]): Array[Byte] = {
     val bloomBitSet = txs.foldLeft(BitSet.empty)(
       ( total, b ) =>
         b.bloomTopics match {

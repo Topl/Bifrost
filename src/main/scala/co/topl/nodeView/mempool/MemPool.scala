@@ -1,20 +1,18 @@
 package co.topl.nodeView.mempool
 
-import co.topl.attestation.proof.Proof
-import co.topl.attestation.proposition.Proposition
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
-import co.topl.nodeView.state.box.{ Box, BoxId }
+import co.topl.nodeView.state.box.BoxId
 import co.topl.utils.Logging
 
 import scala.collection.concurrent.TrieMap
 import scala.util.Try
 
-case class MemPool(unconfirmed: TrieMap[ModifierId, Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]])
-  extends MemoryPool[Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]], MemPool] with Logging {
+case class MemPool(unconfirmed: TrieMap[ModifierId, Transaction.TX])
+  extends MemoryPool[Transaction.TX, MemPool] with Logging {
 
   override type NVCT = MemPool
-  type TX = Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]
+  type TX = Transaction.TX
 
   private val boxesInMempool = new TrieMap[BoxId, BoxId]()
 

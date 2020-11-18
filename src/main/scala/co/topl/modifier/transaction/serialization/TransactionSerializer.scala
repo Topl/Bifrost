@@ -1,25 +1,27 @@
 package co.topl.modifier.transaction.serialization
 
 import co.topl.attestation.proof.Proof
-import co.topl.attestation.proposition.{ KnowledgeProposition, Proposition }
+import co.topl.attestation.proposition.{KnowledgeProposition, Proposition}
 import co.topl.attestation.secrets.Secret
 import co.topl.modifier.transaction._
-import co.topl.nodeView.state.box.{ Box, GenericBox }
-import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
+import co.topl.nodeView.state.box.{Box, GenericBox}
+import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
-object TransactionSerializer extends BifrostSerializer[Transaction[_,_,_,_]] {
+import scala.util.{Failure, Success}
 
-  override def serialize(obj: Transaction[_,_,_,_], w: Writer): Unit = {
+object TransactionSerializer extends BifrostSerializer[Transaction[_, _ <: Proposition]] {
+
+  override def serialize(obj: Transaction[_, _ <: Proposition], w: Writer): Unit = {
     obj match {
-      case obj: ArbitTransfer[_,_] =>
+      case obj: ArbitTransfer[_] =>
         w.put(ArbitTransfer.txTypePrefix)
         ArbitTransferSerializer.serialize(obj, w)
 
-      case obj: PolyTransfer[_,_] =>
+      case obj: PolyTransfer[_] =>
         w.put(PolyTransfer.txTypePrefix)
         PolyTransferSerializer.serialize(obj, w)
 
-      case obj: AssetTransfer[_,_] =>
+      case obj: AssetTransfer[_] =>
         w.put(AssetTransfer.txTypePrefix)
         AssetTransferSerializer.serialize(obj, w)
 
@@ -41,15 +43,18 @@ object TransactionSerializer extends BifrostSerializer[Transaction[_,_,_,_]] {
     }
   }
 
-  override def parse(r: Reader): Transaction[_,_,_,_] = {
-    r.getByte() match {
-      case ArbitTransfer.txTypePrefix => ArbitTransferSerializer.parse(r)
-      case PolyTransfer.txTypePrefix  => PolyTransferSerializer.parse(r)
-      case AssetTransfer.txTypePrefix  => AssetTransferSerializer.parse(r)
+  override def parse(r: Reader): Transaction[_, _ <: Proposition] = {
+    (r.getByte() match {
+      case ArbitTransfer.txTypePrefix => ArbitTransferSerializer.parseTry(r)
+      case PolyTransfer.txTypePrefix  => PolyTransferSerializer.parseTry(r)
+      case AssetTransfer.txTypePrefix  => AssetTransferSerializer.parseTry(r)
 //      case CodeCreation.txTypePrefix  => CodeCreationTransferSerializer.parse(r)
 //      case ProgramCreation.txTypePrefix  => ProgramCreationTransferSerializer.parse(r)
 //      case ProgramMethodExecution.txTypePrefix  => ProgramMethodExecutionTransferSerializer.parse(r)
 //      case ProgramTransfer.txTypePrefix  => ProgramTransferTransferSerializer.parse(r)
+    }) match {
+      case Success(tx) => tx
+      case Failure(ex) => throw ex
     }
   }
 }

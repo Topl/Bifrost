@@ -58,7 +58,7 @@ object BlockSerializer extends BifrostSerializer[Block] {
     val signature: SignatureCurve25519 = SignatureCurve25519Serializer.parse(r)
 
     val txsLength: Int = r.getUInt().toIntExact
-    val txs: Seq[Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]] = (0 until txsLength).map(_ => TransactionSerializer.parse(r))
+    val txs: Seq[Transaction.TX] = (0 until txsLength).map(_ => TransactionSerializer.parse(r))
 
     Block(parentId, timestamp, generatorBox, publicKey, signature, txs, version)
   }

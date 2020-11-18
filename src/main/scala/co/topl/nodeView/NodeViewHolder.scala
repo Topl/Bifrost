@@ -4,8 +4,6 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.proof.Proof
-import co.topl.attestation.proposition.Proposition
 import co.topl.consensus.Forger
 import co.topl.consensus.Forger.ReceivableMessages.GenerateGenesis
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
@@ -19,7 +17,6 @@ import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.Box
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.Logging
 import co.topl.utils.serialization.BifrostSerializer
@@ -42,7 +39,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
   // Import the types of messages this actor can RECEIVE
   import NodeViewHolder.ReceivableMessages._
 
-  type TX = NodeViewHolder.TX
+  type TX = Transaction.TX
   type PMOD = Block
   type HIS = History
   type MS = State
@@ -316,7 +313,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
     * @return
     */
   protected def extractTransactions(mod: PMOD): Seq[TX] = mod match {
-    case tcm: TransactionsCarryingPersistentNodeViewModifier[TX] => tcm.transactions
+    case tcm: TransactionsCarryingPersistentNodeViewModifier[_] => tcm.transactions
     case _ => Seq()
   }
 
@@ -487,8 +484,6 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
 /////////////////////////////// COMPANION SINGLETON ////////////////////////////////
 
 object NodeViewHolder {
-  type TX = Transaction[_, _ <: Proposition, _ <: Proof[_], _ <: Box[_]]
-
   val actorName = "nodeViewHolder"
 
   case class UpdateInformation[HIS, MS, PMOD <: PersistentNodeViewModifier](history: HIS,
@@ -511,13 +506,13 @@ object NodeViewHolder {
 
     case class LocallyGeneratedModifier[PMOD <: PersistentNodeViewModifier](pmod: PMOD)
 
-    sealed trait NewTransactions{val txs: Iterable[TX]}
+    sealed trait NewTransactions{val txs: Iterable[Transaction.TX]}
 
-    case class LocallyGeneratedTransaction(tx: TX) extends NewTransactions {
-      override val txs: Iterable[TX] = Iterable(tx)
+    case class LocallyGeneratedTransaction(tx: Transaction.TX) extends NewTransactions {
+      override val txs: Iterable[Transaction.TX] = Iterable(tx)
     }
 
-    case class TransactionsFromRemote(txs: Iterable[TX]) extends NewTransactions
+    case class TransactionsFromRemote(txs: Iterable[Transaction.TX]) extends NewTransactions
 
     case class EliminateTransactions(ids: Seq[ModifierId])
 

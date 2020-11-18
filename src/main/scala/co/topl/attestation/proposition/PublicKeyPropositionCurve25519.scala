@@ -19,11 +19,9 @@ case class PublicKeyPropositionCurve25519 ( private[proposition] val pubKeyBytes
     s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.length} found")
 
   val propTypeString: String = PublicKeyPropositionCurve25519.typeString
+  val propTypePrefix: EvidenceTypePrefix = PublicKeyPropositionCurve25519.typePrefix
 
   def address (implicit networkPrefix: NetworkPrefix): Address = Address.from(this)
-
-  override type EV = PublicKeyPropositionCurve25519
-  implicit val getMorEvidence: EvidenceProducer[PublicKeyPropositionCurve25519] = PublicKeyPropositionCurve25519.evProducer
 
 }
 

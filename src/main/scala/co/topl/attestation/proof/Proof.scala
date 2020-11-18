@@ -5,7 +5,7 @@ import co.topl.attestation.secrets.Secret
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
+import io.circe.{Decoder, Encoder}
 import scorex.util.encode.Base58
 
 import scala.util.Try

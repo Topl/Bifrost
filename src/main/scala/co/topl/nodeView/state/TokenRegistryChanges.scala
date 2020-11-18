@@ -4,7 +4,7 @@ import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.TransferTransaction
-import co.topl.nodeView.state.box.TokenBox
+import co.topl.nodeView.state.box.{Box, ProgramBox, TokenBox}
 
 import scala.util.Try
 
@@ -20,11 +20,11 @@ object TokenRegistryChanges {
     Try {
 
       // extract the needed box data from all transactions within a block
-      val (fromSeq: Seq[(K, Long)], toSeq: Seq[TokenBox]) =
+      val (fromSeq, toSeq) =
         mod.transactions.map{
-              case tx: TransferTransaction[_, _] => (tx.from, tx.newBoxes.toSeq)
+              case tx: TransferTransaction[_] => (tx.from, tx.newBoxes.toSeq)
               case _  => (Seq(), Seq()) // JAA - not sure if this is needed but added to be exhaustive
-            }.foldLeft((Seq[(K, Long)](), Seq[TokenBox]()))(( acc, txData ) => {
+            }.foldLeft((Seq[(K, Long)](), Seq[Box[TokenBox.Value]]()))(( acc, txData ) => {
               (acc._1 ++ txData._1, acc._2 ++ txData._2)
             })
 
