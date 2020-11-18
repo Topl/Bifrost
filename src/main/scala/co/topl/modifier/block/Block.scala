@@ -1,17 +1,15 @@
 package co.topl.modifier.block
 
 import co.topl.attestation.EvidenceProducer.syntax._
-import co.topl.attestation.proof.{ Proof, SignatureCurve25519 }
-import co.topl.attestation.proposition.{ Proposition, PublicKeyPropositionCurve25519 }
-import co.topl.attestation.secrets.PrivateKeyCurve25519
+import co.topl.attestation.{PrivateKeyCurve25519, Proposition, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block._
 import co.topl.modifier.transaction.Transaction
-import co.topl.modifier.{ ModifierId, NodeViewModifier }
-import co.topl.nodeView.state.box.{ ArbitBox, Box, GenericBox }
+import co.topl.modifier.{ModifierId, NodeViewModifier}
+import co.topl.nodeView.state.box.ArbitBox
 import co.topl.utils.serialization.BifrostSerializer
 import io.circe.syntax._
-import io.circe.{ Decoder, Encoder, HCursor, Json }
+import io.circe.{Decoder, Encoder, HCursor}
 import scorex.crypto.hash.Blake2b256
 import supertagged.@@
 // fixme: JAA 0 2020.07.19 - why is protobuf still used here?
@@ -69,33 +67,6 @@ object Block {
   val modifierTypeId: Byte @@ NodeViewModifier.ModifierTypeId.Tag = ModifierTypeId @@ (3: Byte)
   val signatureLength: Int = SignatureCurve25519.SignatureSize
 
-  implicit val jsonEncoder: Encoder[Block] = { b: Block ⇒
-    Map(
-      "id" -> b.id.toString.asJson,
-      "parentId" -> b.id.toString.asJson,
-      "timestamp" -> b.timestamp.asJson,
-      "generatorBox" -> b.forgerBox.asJson,
-      "publicKey" -> b.publicKey.asJson,
-      "signature" -> b.signature.asJson,
-      "txs" -> b.transactions.asJson,
-      "version" -> b.version.asJson,
-      "blockSize" -> b.serializer.toBytes(b).length.asJson
-      ).asJson
-  }
-
-  implicit val jsonDecoder: Decoder[Block] = (c: HCursor) =>
-    for {
-      parentId <- c.downField("parentId").as[ModifierId]
-      timestamp <- c.downField("timestamp").as[Timestamp]
-      generatorBox <- c.downField("generatorBox").as[ArbitBox]
-      publicKey <- c.downField("publicKey").as[PublicKeyPropositionCurve25519]
-      signature <- c.downField("signature").as[SignatureCurve25519]
-      txsSeq <- c.downField("txs").as[Seq[Transaction.TX]]
-      version <- c.downField("version").as[Byte]
-    } yield {
-      Block(parentId, timestamp, generatorBox, publicKey, signature, txsSeq, version)
-    }
-
   /**
    *
    * @param parentId
@@ -142,4 +113,31 @@ object Block {
       ).toSeq
     BloomTopics(bloomBitSet).toByteArray
   }
+
+  implicit val jsonEncoder: Encoder[Block] = { b: Block ⇒
+    Map(
+      "id" -> b.id.toString.asJson,
+      "parentId" -> b.id.toString.asJson,
+      "timestamp" -> b.timestamp.asJson,
+      "generatorBox" -> b.forgerBox.asJson,
+      "publicKey" -> b.publicKey.asJson,
+      "signature" -> b.signature.asJson,
+      "txs" -> b.transactions.asJson,
+      "version" -> b.version.asJson,
+      "blockSize" -> b.serializer.toBytes(b).length.asJson
+    ).asJson
+  }
+
+  implicit val jsonDecoder: Decoder[Block] = (c: HCursor) =>
+    for {
+      parentId <- c.downField("parentId").as[ModifierId]
+      timestamp <- c.downField("timestamp").as[Timestamp]
+      generatorBox <- c.downField("generatorBox").as[ArbitBox]
+      publicKey <- c.downField("publicKey").as[PublicKeyPropositionCurve25519]
+      signature <- c.downField("signature").as[SignatureCurve25519]
+      txsSeq <- c.downField("txs").as[Seq[Transaction.TX]]
+      version <- c.downField("version").as[Byte]
+    } yield {
+      Block(parentId, timestamp, generatorBox, publicKey, signature, txsSeq, version)
+    }
 }

@@ -4,10 +4,10 @@ import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import co.topl.attestation.AddressEncoder.NetworkPrefix
+import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.consensus.Forger.ReceivableMessages._
-import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
 import co.topl.http.api.ApiRoute
-import co.topl.settings.{AppContext, RESTApiSettings}
+import co.topl.settings.{AppContext, RPCApiSettings}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
@@ -15,7 +15,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
-case class KeyManagementApiRoute ( override val settings: RESTApiSettings, appContext: AppContext, keyHolderRef: ActorRef )
+case class KeyManagementApiRoute (override val settings: RPCApiSettings, appContext: AppContext, keyHolderRef: ActorRef )
                                  ( implicit val context: ActorRefFactory ) extends ApiRoute {
 
   override val route: Route = { basicRoute(handlers) }

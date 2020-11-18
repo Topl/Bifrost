@@ -2,9 +2,7 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.attestation.proof.{Proof, SignatureCurve25519, ThresholdSignatureCurve25519}
-import co.topl.attestation.proposition.{Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
-import co.topl.attestation.{Address, EvidenceProducer}
+import co.topl.attestation._
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{ArbitBox, Box, PolyBox, TokenBox}
@@ -45,8 +43,7 @@ object ArbitTransfer {
    * @return
    */
   def createRaw[
-    P <: Proposition: EvidenceProducer,
-    PR <: Proof[P]
+    P <: Proposition: EvidenceProducer
   ] (stateReader  : StateReader,
      toReceive    : IndexedSeq[(Address, TokenBox.Value)],
      sender       : IndexedSeq[Address],

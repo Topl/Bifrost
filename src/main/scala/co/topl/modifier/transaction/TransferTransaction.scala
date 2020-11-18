@@ -2,9 +2,7 @@ package co.topl.modifier.transaction
 
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.EvidenceProducer.syntax._
-import co.topl.attestation.proof.{Proof, SignatureCurve25519}
-import co.topl.attestation.proposition.{Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
-import co.topl.attestation.{Address, BoxUnlocker, Evidence, EvidenceProducer}
+import co.topl.attestation._
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box._
 import com.google.common.primitives.Ints
@@ -28,7 +26,7 @@ abstract class TransferTransaction[
     BoxId.idFromEviNonce(addr.evidence, nonce)
   }
 
-  override lazy val messageToSign: Array[Byte] =
+  override def messageToSign: Array[Byte] =
     super.messageToSign ++
       data.getBytes :+ (if (minting) 1: Byte else 0: Byte)
 

@@ -1,10 +1,7 @@
 package co.topl.modifier.block
 
-import co.topl.attestation.proof.Proof
-import co.topl.attestation.proposition.Proposition
 import co.topl.modifier.transaction.Transaction
-import co.topl.modifier.{ ModifierId, NodeViewModifier }
-import co.topl.nodeView.state.box.Box
+import co.topl.modifier.{ModifierId, NodeViewModifier}
 import io.circe.Encoder
 
 sealed trait PersistentNodeViewModifier extends NodeViewModifier {

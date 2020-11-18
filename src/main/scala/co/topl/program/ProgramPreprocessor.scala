@@ -1,13 +1,12 @@
 package co.topl.program
 
-import java.nio.file.{ Files, Path }
+import java.nio.file.{Files, Path}
 
-import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
-import co.topl.attestation.proof.SignatureCurve25519
+import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.utils.Gzip
 import com.oracle.js.parser.ir.visitor.NodeVisitor
-import com.oracle.js.parser.ir.{ FunctionNode, LexicalContext, Node, VarNode }
-import com.oracle.js.parser.{ ErrorManager, Lexer, ScriptEnvironment, Source, Token, TokenStream, TokenType, Parser => GraalParser }
+import com.oracle.js.parser.ir.{FunctionNode, LexicalContext, Node, VarNode}
+import com.oracle.js.parser.{ErrorManager, Lexer, ScriptEnvironment, Source, Token, TokenStream, TokenType, Parser => GraalParser}
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.Context

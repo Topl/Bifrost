@@ -1,12 +1,12 @@
 package co.topl.nodeView.state.box
 
 import co.topl.attestation.Evidence
-import co.topl.nodeView.state.box.Box.{ BoxType, Nonce }
+import co.topl.nodeView.state.box.Box.{BoxType, Nonce}
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.utils.serialization.BifrostSerializer
 import com.google.common.primitives.Ints
+import io.circe._
 import io.circe.syntax.EncoderOps
-import io.circe.{ Decoder, DecodingFailure, Encoder, HCursor, Json }
 
 /**
  * Created by Matthew on 4/11/2017.
@@ -88,6 +88,7 @@ object Box {
     case box: ExecutionBox => ExecutionBox.jsonEncoder(box)
     case box: StateBox     => StateBox.jsonEncoder(box)
     case box: CodeBox      => CodeBox.jsonEncoder(box)
+    case _                 => throw new java.lang.Error(s"No matching encoder found")
   }
 
   implicit val jsonDecoder: Decoder[Box[_]] = { c: HCursor =>

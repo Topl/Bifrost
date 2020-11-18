@@ -2,7 +2,9 @@ package co.topl.nodeView.history
 
 import java.io.File
 
+import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.consensus
+import co.topl.consensus.{BlockValidator, DifficultyBlockValidator, SyntaxBlockValidator}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.{Block, Bloom}
 import co.topl.modifier.transaction.Transaction
@@ -10,8 +12,6 @@ import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.History.GenesisParentId
-import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
-import co.topl.consensus.{BlockValidator, DifficultyBlockValidator, SyntaxBlockValidator}
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}

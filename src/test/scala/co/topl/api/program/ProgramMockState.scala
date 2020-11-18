@@ -1,23 +1,23 @@
 package co.topl.api.program
 
-import akka.actor.{ ActorRef, ActorSystem }
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.{ HttpEntity, HttpMethods, HttpRequest, MediaTypes }
+import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.pattern.ask
-import akka.util.{ ByteString, Timeout }
+import akka.util.{ByteString, Timeout}
 import co.topl.BifrostGenerators
-import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
+import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box._
-import co.topl.nodeView.{ CurrentView, NodeViewHolderRef, state }
-import co.topl.settings.{ AppContext, StartupOpts }
+import co.topl.nodeView.{CurrentView, NodeViewHolderRef, state}
+import co.topl.settings.{AppContext, StartupOpts}
 import io.circe.syntax._
 
 import scala.concurrent.duration._
-import scala.concurrent.{ Await, ExecutionContext }
+import scala.concurrent.{Await, ExecutionContext}
 import scala.reflect.io.Path
 import scala.util.Try
 

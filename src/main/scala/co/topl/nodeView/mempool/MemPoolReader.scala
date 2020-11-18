@@ -1,12 +1,12 @@
 package co.topl.nodeView.mempool
 
-import co.topl.modifier.{ ContainsModifiers, ModifierId }
+import co.topl.modifier.{ContainsModifiers, ModifierId, NodeViewModifier}
 import co.topl.nodeView.NodeViewComponent
 
 /**
   * Unconfirmed transactions pool
   */
-trait MemPoolReader[TX]
+trait MemPoolReader[TX <: NodeViewModifier]
   extends NodeViewComponent with ContainsModifiers[TX] {
 
   //getters

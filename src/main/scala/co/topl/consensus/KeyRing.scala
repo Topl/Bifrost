@@ -2,17 +2,15 @@ package co.topl.consensus
 
 import java.io.File
 
-import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
-import co.topl.attestation.secrets.{ PrivateKeyCurve25519, Secret, SecretGenerator }
-import co.topl.crypto.{ Bip39, Curve25519KeyFile }
+import co.topl.attestation.{Address, PrivateKeyCurve25519, Secret, SecretGenerator}
+import co.topl.crypto.{Bip39, Curve25519KeyFile}
 import co.topl.utils.Logging
-import scorex.crypto.hash.Blake2b256
 import com.google.common.primitives.Ints
+import scorex.crypto.hash.Blake2b256
 import scorex.util.Random.randomBytes
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 class KeyRing (private var secrets: Set[PrivateKeyCurve25519], defaultKeyDir: File)
               (implicit networkPrefix: NetworkPrefix, sg: SecretGenerator[PrivateKeyCurve25519])

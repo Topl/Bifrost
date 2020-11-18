@@ -1,13 +1,13 @@
 package co.topl.network
 
-import akka.actor.{ ActorRef, ActorSystem, Props }
+import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
-import co.topl.network.NetworkController.ReceivableMessages.{ PenalizePeer, RegisterMessageSpecs, SendToNetwork }
-import co.topl.network.PeerManager.ReceivableMessages.{ AddPeerIfEmpty, RecentlySeenPeers }
+import co.topl.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
+import co.topl.network.PeerManager.ReceivableMessages.{AddPeerIfEmpty, RecentlySeenPeers}
 import co.topl.network.message._
-import co.topl.network.peer.{ ConnectedPeer, PeerInfo, PeerSpec, PenaltyType }
-import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
+import co.topl.network.peer.{ConnectedPeer, PeerInfo, PeerSpec, PenaltyType}
+import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.Logging
 import shapeless.syntax.typeable._
 

@@ -85,13 +85,12 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // Create and register controllers for API routes
   private val apiRoutes: Seq[ApiRoute] = Seq(
-    UtilsApiRoute(settings.restApi),
-    KeyManagementApiRoute(settings.restApi, forgerRef),
-    AssetApiRoute(settings.restApi, nodeViewHolderRef),
-    DebugApiRoute(settings.restApi, nodeViewHolderRef),
-    WalletApiRoute(settings.restApi, nodeViewHolderRef),
-    ProgramApiRoute(settings.restApi, nodeViewHolderRef),
-    NodeViewApiRoute(settings.restApi, nodeViewHolderRef)
+    UtilsApiRoute(settings.rpcApi, appContext),
+    KeyManagementApiRoute(settings.rpcApi, appContext, forgerRef),
+    AssetApiRoute(settings.rpcApi, appContext, nodeViewHolderRef),
+    DebugApiRoute(settings.rpcApi, appContext, nodeViewHolderRef),
+    WalletApiRoute(settings.rpcApi, appContext, nodeViewHolderRef),
+    NodeViewApiRoute(settings.rpcApi, appContext, nodeViewHolderRef)
   )
 
   private val httpService = HttpService(apiRoutes)
@@ -122,10 +121,10 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
     log.debug(s"Available processors: ${Runtime.getRuntime.availableProcessors}")
     log.debug(s"Max memory available: ${Runtime.getRuntime.maxMemory}")
-    log.debug(s"RPC is allowed at: ${settings.restApi.bindAddress}")
+    log.debug(s"RPC is allowed at: ${settings.rpcApi.bindAddress}")
 
-    val httpHost = settings.restApi.bindAddress.getHostName
-    val httpPort = settings.restApi.bindAddress.getPort
+    val httpHost = settings.rpcApi.bindAddress.getHostName
+    val httpPort = settings.rpcApi.bindAddress.getPort
 
     /** Helper function to kill the application if needed */
     def failedP2P(): Unit = {

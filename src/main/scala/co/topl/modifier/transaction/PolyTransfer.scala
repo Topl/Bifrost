@@ -2,19 +2,14 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.attestation
-import co.topl.attestation.{Address, EvidenceProducer}
-import co.topl.attestation.proof.{Proof, SignatureCurve25519, ThresholdSignatureCurve25519}
-import co.topl.attestation.proposition.{Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
-import co.topl.attestation.secrets.PrivateKeyCurve25519
-import co.topl.modifier.transaction
+import co.topl.attestation._
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{Box, PolyBox, TokenBox}
 import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, DecodingFailure, Encoder, HCursor}
+import io.circe.{Decoder, Encoder, HCursor}
 
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 case class PolyTransfer[
   P <: Proposition: EvidenceProducer,

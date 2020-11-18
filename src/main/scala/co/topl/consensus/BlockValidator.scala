@@ -79,6 +79,8 @@ class SyntaxBlockValidator extends BlockValidator[Block] {
 
         case _ => throw new Error("The second transaction in a block must be a minting PolyTransfer")
       }
+
+      case _ => // do nothing
     }
   }
 }

@@ -1,11 +1,8 @@
 package co.topl.nodeView.mempool
 
-import co.topl.attestation.proof.Proof
-import co.topl.attestation.proposition.Proposition
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.NodeViewComponent
-import co.topl.nodeView.state.box.Box
 
 import scala.util.Try
 

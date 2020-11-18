@@ -1,17 +1,13 @@
 package co.topl.modifier.transaction.serialization
 
-import co.topl.attestation.proof.Proof
-import co.topl.attestation.proposition.{KnowledgeProposition, Proposition}
-import co.topl.attestation.secrets.Secret
 import co.topl.modifier.transaction._
-import co.topl.nodeView.state.box.{Box, GenericBox}
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 import scala.util.{Failure, Success}
 
-object TransactionSerializer extends BifrostSerializer[Transaction[_, _ <: Proposition]] {
+object TransactionSerializer extends BifrostSerializer[Transaction.TX] {
 
-  override def serialize(obj: Transaction[_, _ <: Proposition], w: Writer): Unit = {
+  override def serialize(obj: Transaction.TX, w: Writer): Unit = {
     obj match {
       case obj: ArbitTransfer[_] =>
         w.put(ArbitTransfer.txTypePrefix)
@@ -43,7 +39,7 @@ object TransactionSerializer extends BifrostSerializer[Transaction[_, _ <: Propo
     }
   }
 
-  override def parse(r: Reader): Transaction[_, _ <: Proposition] = {
+  override def parse(r: Reader): Transaction.TX = {
     (r.getByte() match {
       case ArbitTransfer.txTypePrefix => ArbitTransferSerializer.parseTry(r)
       case PolyTransfer.txTypePrefix  => PolyTransferSerializer.parseTry(r)

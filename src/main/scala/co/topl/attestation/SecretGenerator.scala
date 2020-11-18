@@ -1,6 +1,4 @@
-package co.topl.attestation.secrets
-
-import scorex.crypto.hash.Digest32
+package co.topl.attestation
 
 /**
  * SecretGenerator is a type-class that describes a class ability to generate a secret

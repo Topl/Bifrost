@@ -1,6 +1,6 @@
 package co.topl.nodeView.state.box
 
-import co.topl.attestation.{ Evidence, EvidenceProducer }
+import co.topl.attestation.Evidence
 import co.topl.utils.serialization.BytesSerializable
 
 /**

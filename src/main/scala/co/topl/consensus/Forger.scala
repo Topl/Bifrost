@@ -2,11 +2,8 @@ package co.topl.consensus
 
 import akka.actor._
 import akka.util.Timeout
-import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.proof.SignatureCurve25519
-import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
-import co.topl.attestation.secrets.PrivateKeyCurve25519
+import co.topl.attestation.{Address, PrivateKeyCurve25519, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.Forger.ChainParams
 import co.topl.consensus.genesis.{PrivateTestnet, Toplnet}
 import co.topl.modifier.block.Block

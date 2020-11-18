@@ -9,14 +9,14 @@ import co.topl.modifier.ModifierId
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.settings.{AppContext, RESTApiSettings}
+import co.topl.settings.{AppContext, RPCApiSettings}
 import io.circe.Json
 import io.circe.syntax._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-case class DebugApiRoute(settings: RESTApiSettings, appContext: AppContext, nodeViewHolderRef: ActorRef)
+case class DebugApiRoute(settings: RPCApiSettings, appContext: AppContext, nodeViewHolderRef: ActorRef)
                         (implicit val context: ActorRefFactory) extends ApiRouteWithView {
 
   type HIS = History

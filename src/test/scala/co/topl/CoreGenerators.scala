@@ -1,14 +1,13 @@
 package co.topl
 
-import java.net.{ InetAddress, InetSocketAddress }
+import java.net.{InetAddress, InetSocketAddress}
 
-import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
-import co.topl.attestation.secrets.PrivateKeyCurve25519
+import co.topl.attestation.{PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
-import co.topl.modifier.{ ModifierId, NodeViewModifier }
+import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.network.message._
 import co.topl.settings.Version
-import org.scalacheck.{ Arbitrary, Gen }
+import org.scalacheck.{Arbitrary, Gen}
 import scorex.crypto.signatures.Curve25519
 
 //Generators of objects from scorex-core

@@ -5,7 +5,7 @@ import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 import akka.http.scaladsl.server.{Directive0, Directives, Route}
 import akka.util.Timeout
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.settings.{AppContext, RESTApiSettings}
+import co.topl.settings.{AppContext, RPCApiSettings}
 import io.circe.parser.parse
 import io.circe.{Decoder, Json}
 import scorex.crypto.hash.{Blake2b256, Digest32}
@@ -15,7 +15,7 @@ import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
 trait ApiRoute extends Directives {
-  val settings: RESTApiSettings
+  val settings: RPCApiSettings
   val appContext: AppContext
   val context: ActorRefFactory
   val route: Route

@@ -2,16 +2,16 @@ package co.topl.program
 
 import java.time.Instant
 
-import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
-import co.topl.{ BifrostGenerators, ValidGenerators }
-import io.circe.{ Json, JsonObject }
+import co.topl.attestation.PublicKeyPropositionCurve25519
+import co.topl.{BifrostGenerators, ValidGenerators}
+import io.circe.{Json, JsonObject}
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
-import scorex.crypto.signatures.{ Curve25519, PublicKey }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import scorex.crypto.signatures.{Curve25519, PublicKey}
 
-import scala.util.{ Failure, Random, Success, Try }
+import scala.util.{Failure, Random, Success, Try}
 
 class ProgramSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks

@@ -4,24 +4,28 @@ import java.security.SecureRandom
 
 import akka.actor.ActorRefFactory
 import akka.http.scaladsl.server.Route
+import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.http.api.ApiRoute
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.settings.RESTApiSettings
+import co.topl.settings.{AppContext, RPCApiSettings}
 import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, Future}
 
-case class UtilsApiRoute(override val settings: RESTApiSettings)
+case class UtilsApiRoute(override val settings: RPCApiSettings, appContext: AppContext)
                         (implicit val context: ActorRefFactory, ec: ExecutionContext) extends ApiRoute {
   type HIS = History
   type MS = State
   type MP = MemPool
-  override val route: Route = pathPrefix("utils") { basicRoute(handlers) }
+  override val route: Route ={ basicRoute(handlers) }
+
+  // Establish the expected network prefix for addresses
+  implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
   def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
     method match {

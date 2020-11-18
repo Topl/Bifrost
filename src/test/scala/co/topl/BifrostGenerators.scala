@@ -3,9 +3,9 @@ package co.topl
 import java.io.File
 import java.time.Instant
 
-import co.topl.attestation.proposition.{PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
+import co.topl.attestation.{PrivateKeyCurve25519, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
+import co.topl.attestation.proposition.ThresholdPropositionCurve25519
 import co.topl.attestation.proof.SignatureCurve25519
-import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.{Nonce, Value}

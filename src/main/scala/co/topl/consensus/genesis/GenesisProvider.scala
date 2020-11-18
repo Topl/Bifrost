@@ -1,15 +1,10 @@
 package co.topl.consensus.genesis
 
-import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
+import co.topl.attestation.PrivateKeyCurve25519
 import co.topl.consensus.Forger.ChainParams
-import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
-import co.topl.attestation.proof.SignatureCurve25519
-import co.topl.attestation.secrets.PrivateKeyCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
-import co.topl.nodeView.state.box.{Box, TokenBox}
 import co.topl.settings.Version
 import co.topl.utils.Logging
 import scorex.crypto.signatures.{PrivateKey, PublicKey}

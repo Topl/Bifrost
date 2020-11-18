@@ -2,14 +2,10 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.attestation
-import co.topl.attestation.{Address, EvidenceProducer}
-import co.topl.attestation.proof.{Proof, SignatureCurve25519, ThresholdSignatureCurve25519}
-import co.topl.attestation.proposition.{Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
+import co.topl.attestation._
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{AssetBox, Box, PolyBox, TokenBox}
-import com.google.common.primitives.Bytes
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
 
@@ -36,7 +32,7 @@ case class AssetTransfer[
       params.tail.map(p => (AssetBox(p._1, p._2, p._3, assetCode, issuer, data)))
   }
 
-  override lazy val messageToSign: Array[Byte] =
+  override def messageToSign: Array[Byte] =
     super.messageToSign ++
     issuer.bytes ++
     assetCode.getBytes

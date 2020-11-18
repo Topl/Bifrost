@@ -2,7 +2,7 @@ package co.topl.nodeView.state.box.serialization
 
 import co.topl.attestation.Evidence
 import co.topl.nodeView.state.box.TokenBox
-import co.topl.utils.serialization.{ Reader, Writer }
+import co.topl.utils.serialization.{Reader, Writer}
 
 object TokenBoxSerializer {
 

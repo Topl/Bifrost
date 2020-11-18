@@ -1,8 +1,7 @@
 package co.topl.modifier.transaction.serialization
 
-import co.topl.attestation.Address
-import co.topl.attestation.proof.{ProofSerializer, SignatureCurve25519, ThresholdSignatureCurve25519}
-import co.topl.attestation.proposition.{Proposition, PropositionSerializer, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
+import co.topl.attestation.serialization.{ProofSerializer, PropositionSerializer}
+import co.topl.attestation._
 import co.topl.modifier.transaction.AssetTransfer
 import co.topl.utils.Extensions._
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}

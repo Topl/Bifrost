@@ -1,7 +1,5 @@
-package co.topl.attestation.secrets
+package co.topl.attestation
 
-import co.topl.attestation.proof.ProofOfKnowledge
-import co.topl.attestation.proposition.KnowledgeProposition
 import co.topl.utils.serialization.BytesSerializable
 
 trait Secret extends BytesSerializable {

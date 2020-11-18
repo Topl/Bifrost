@@ -1,5 +1,6 @@
-package co.topl.attestation.proof
+package co.topl.attestation.serialization
 
+import co.topl.attestation.SignatureCurve25519
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 import scorex.crypto.signatures.Signature
 

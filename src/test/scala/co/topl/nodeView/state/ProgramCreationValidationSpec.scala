@@ -2,14 +2,14 @@ package co.topl.nodeView.state
 
 import java.time.Instant
 
-import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
+import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.ProgramCreation
 import co.topl.nodeView.state.box._
 import org.scalatest.Ignore
-import scorex.crypto.signatures.{ Curve25519, PublicKey, Signature }
+import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
 
 import scala.util.Failure
 

@@ -3,7 +3,7 @@ package co.topl.nodeView.state.box
 import co.topl.attestation.Evidence
 import co.topl.nodeView.state.box.Box.BoxType
 import io.circe.syntax.EncoderOps
-import io.circe.{ Decoder, Encoder, HCursor }
+import io.circe.{Decoder, Encoder, HCursor}
 
 case class PolyBox(override val evidence: Evidence,
                    override val nonce: Box.Nonce,

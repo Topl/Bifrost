@@ -5,12 +5,12 @@ import java.util
 
 import InstrumentClasses.ProgramController
 import InstrumentClasses.TokenClasses._
-import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
+import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.modifier.transaction.Transaction
-import co.topl.nodeView.state.box.{ ArbitBox, AssetBox }
-import co.topl.nodeView.state.{ State, StateSpec }
-import co.topl.{ BifrostGenerators, ValidGenerators }
-import com.google.common.primitives.{ Ints, Longs }
+import co.topl.nodeView.state.box.{ArbitBox, AssetBox}
+import co.topl.nodeView.state.{State, StateSpec}
+import co.topl.{BifrostGenerators, ValidGenerators}
+import com.google.common.primitives.{Ints, Longs}
 import org.graalvm.polyglot.Context
 import org.scalatest.Ignore
 import org.scalatest.matchers.should.Matchers

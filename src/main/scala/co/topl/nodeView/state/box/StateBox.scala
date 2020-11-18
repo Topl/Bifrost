@@ -3,7 +3,7 @@ package co.topl.nodeView.state.box
 import co.topl.attestation.Evidence
 import co.topl.nodeView.state.box.Box.BoxType
 import io.circe.syntax._
-import io.circe.{ Decoder, Encoder, HCursor, Json }
+import io.circe.{Decoder, Encoder, HCursor, Json}
 
 case class StateBox(override val evidence   : Evidence,
                     override val nonce      : Box.Nonce,

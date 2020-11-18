@@ -1,13 +1,13 @@
 package co.topl.attestation
 
+import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.EvidenceProducer.syntax._
-import AddressEncoder.NetworkPrefix
-import co.topl.utils.serialization.{ BifrostSerializer, BytesSerializable, Reader, Writer }
+import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
-import io.circe.{ Decoder, Encoder, KeyDecoder, KeyEncoder }
+import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
 /**
  * An address is a network specific commitment to a proposition encumbering a box. Addresses incorporate the evidence type
@@ -49,7 +49,7 @@ object Address extends BifrostSerializer[Address] {
    * Generates an Address from a proppsition. This method enables propositions to have an accessor method
    * like .address that will return the Address for that instance of the proposition.
    */
-  def from[E: EvidenceProducer](proposition: E)(implicit networkPrefix: NetworkPrefix): Address =
+  def from[P <: Proposition: EvidenceProducer](proposition: P)(implicit networkPrefix: NetworkPrefix): Address =
     Address(proposition.generateEvidence)
 
   implicit val jsonEncoder: Encoder[Address] = (addr: Address) => addr.toString.asJson

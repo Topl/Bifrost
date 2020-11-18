@@ -1,6 +1,6 @@
 package co.topl.nodeView.state
 
-import co.topl.nodeView.state.box.{ BoxId, GenericBox }
+import co.topl.nodeView.state.box.{BoxId, GenericBox}
 
-class GenericStateChanges[T, BX <: GenericBox[T]](val boxIdsToRemove: Set[BoxId], val toAppend: Set[BX])
+class GenericStateChanges[BX <: GenericBox[_]](val boxIdsToRemove: Seq[BoxId], val toAppend: Seq[BX])
 

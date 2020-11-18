@@ -15,7 +15,7 @@ class ProgramMethodExecutionSpec extends AnyWordSpec
   with ScalatestRouteTest
   with ProgramMockState {
 
-  val route: Route = ProgramApiRoute(settings.restApi, nodeViewHolderRef).route
+  val route: Route = ProgramApiRoute(settings.rpcApi, nodeViewHolderRef).route
 
   "executeProgramMethod" should {
 

@@ -1,6 +1,7 @@
-package co.topl.attestation.proposition
+package co.topl.attestation.serialization
 
-import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
+import co.topl.attestation.{Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
+import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object PropositionSerializer extends BifrostSerializer[Proposition] {
   override def serialize(obj: Proposition, w: Writer): Unit = {

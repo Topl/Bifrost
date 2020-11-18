@@ -1,6 +1,7 @@
 package co.topl.serialization
 
-import co.topl.attestation.proposition.{ThresholdPropositionCurve25519, ThresholdPropositionCurve25519Serializer}
+import co.topl.attestation.ThresholdPropositionCurve25519
+import co.topl.attestation.serialization.ThresholdPropositionCurve25519Serializer
 import co.topl.modifier.block.{Block, BlockSerializer}
 import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.serialization._

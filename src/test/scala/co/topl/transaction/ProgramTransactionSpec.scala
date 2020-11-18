@@ -4,19 +4,18 @@ package co.topl.transaction
   * Created by cykoz on 5/11/2017.
   */
 
-import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
-import co.topl.attestation.secrets.PrivateKeyCurve25519
+import co.topl.attestation.{PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
 import co.topl.modifier.transaction.Transaction.Nonce
-import co.topl.modifier.transaction.{ ProgramCreation, ProgramMethodExecution, ProgramTransaction }
-import co.topl.nodeView.state.box.{ BoxId, CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox }
+import co.topl.modifier.transaction.{ProgramCreation, ProgramMethodExecution, ProgramTransaction}
+import co.topl.nodeView.state.box.{BoxId, CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox}
 import co.topl.program.ExecutionBuilderSerializer
-import co.topl.{ BifrostGenerators, ValidGenerators }
-import com.google.common.primitives.{ Bytes, Longs }
+import co.topl.{BifrostGenerators, ValidGenerators}
+import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scorex.crypto.hash.Blake2b256
 
 import scala.collection.immutable.Seq

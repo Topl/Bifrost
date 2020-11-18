@@ -1,24 +1,22 @@
 package co.topl.crypto
 
-import java.io.{ BufferedWriter, FileWriter }
+import java.io.{BufferedWriter, FileWriter}
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
-import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
-import co.topl.attestation.secrets.{ PrivateKeyCurve25519, SecretGenerator }
+import co.topl.attestation.{Address, PrivateKeyCurve25519}
 import io.circe.parser.parse
 import io.circe.syntax._
-import io.circe.{ Decoder, Encoder, HCursor }
+import io.circe.{Decoder, Encoder, HCursor}
 import org.bouncycastle.crypto.BufferedBlockCipher
 import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
-import org.bouncycastle.crypto.params.{ KeyParameter, ParametersWithIV }
-import scorex.crypto.hash.{ Blake2b256, Digest32 }
-import scorex.crypto.signatures.{ Curve25519, PrivateKey, PublicKey }
+import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
+import scorex.crypto.hash.Blake2b256
+import scorex.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
 import scorex.util.Random.randomBytes
 import scorex.util.encode.Base58
 

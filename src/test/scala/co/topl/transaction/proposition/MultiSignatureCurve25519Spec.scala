@@ -1,12 +1,12 @@
 package co.topl.transaction.proposition
 
 import co.topl.BifrostGenerators
-import co.topl.attestation.proposition.{ ThresholdPropositionCurve25519, PublicKeyPropositionCurve25519 }
+import co.topl.attestation.{PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
+import co.topl.attestation.proposition.ThresholdPropositionCurve25519
 import co.topl.attestation.proof.ThresholdSignatureCurve25519
-import co.topl.attestation.secrets.PrivateKeyCurve25519
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 class MultiSignatureCurve25519Spec extends AnyPropSpec
                                    with ScalaCheckPropertyChecks

@@ -2,15 +2,15 @@ package co.topl.api
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.{ HttpEntity, HttpMethods, HttpRequest, MediaTypes }
+import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
-import akka.util.{ ByteString, Timeout }
+import akka.util.{ByteString, Timeout}
 import co.topl.BifrostGenerators
-import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
+import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.attestation.proof.SignatureCurve25519
-import co.topl.http.api.routes.{ AssetApiRoute, NodeViewApiRoute }
+import co.topl.http.api.routes.{AssetApiRoute, NodeViewApiRoute}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
@@ -19,14 +19,14 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
-import co.topl.nodeView.{ CurrentView, NodeViewHolderRef }
-import co.topl.settings.{ AppContext, StartupOpts }
+import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
+import co.topl.settings.{AppContext, StartupOpts}
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import scorex.crypto.signatures.{ Curve25519, PublicKey, Signature }
+import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -51,9 +51,9 @@ class NodeViewRPCSpec extends AnyWordSpec
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
   // setup route for testing
-  val route: Route = NodeViewApiRoute(settings.restApi, nodeViewHolderRef).route
+  val route: Route = NodeViewApiRoute(settings.rpcApi, nodeViewHolderRef).route
 
-  val routeAsset: Route = AssetApiRoute(settings.restApi, nodeViewHolderRef).route
+  val routeAsset: Route = AssetApiRoute(settings.rpcApi, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(

@@ -5,7 +5,7 @@ import scorex.crypto.hash.Sha256
 
 import scala.io.Source
 import scala.math.BigInt
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
  * AMS Feb 2019:

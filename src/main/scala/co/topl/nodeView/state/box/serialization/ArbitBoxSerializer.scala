@@ -1,7 +1,7 @@
 package co.topl.nodeView.state.box.serialization
 
 import co.topl.nodeView.state.box.ArbitBox
-import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
+import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object ArbitBoxSerializer extends BifrostSerializer[ArbitBox] {
 

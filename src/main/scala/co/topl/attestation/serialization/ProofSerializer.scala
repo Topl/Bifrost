@@ -1,7 +1,7 @@
-package co.topl.attestation.proof
+package co.topl.attestation.serialization
 
-import co.topl.attestation.proposition.{Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
-import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
+import co.topl.attestation._
+import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object ProofSerializer extends BifrostSerializer[Proof[_]] {
   def serialize(obj: Proof[_], w: Writer): Unit = {

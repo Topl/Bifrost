@@ -1,11 +1,11 @@
 package co.topl.modifier.block
 
-import co.topl.attestation.proof.{Proof, SignatureCurve25519, SignatureCurve25519Serializer}
-import co.topl.attestation.proposition.{Proposition, PublicKeyPropositionCurve25519, PublicKeyPropositionCurve25519Serializer}
+import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.attestation.serialization.{PublicKeyPropositionCurve25519Serializer, SignatureCurve25519Serializer}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.serialization.TransactionSerializer
-import co.topl.nodeView.state.box.{ArbitBox, Box}
+import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.utils.Extensions._
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}

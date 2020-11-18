@@ -19,11 +19,11 @@ case class ApplicationSettings (dataDir: Option[String],
                                 cacheExpire: Int,
                                 cacheSize: Int)
 
-case class RESTApiSettings (bindAddress: InetSocketAddress,
-                            apiKeyHash : String,
-                            corsAllowed: Boolean,
-                            timeout    : FiniteDuration,
-                            verboseAPI : Boolean)
+case class RPCApiSettings(bindAddress: InetSocketAddress,
+                          apiKeyHash : String,
+                          corsAllowed: Boolean,
+                          timeout    : FiniteDuration,
+                          verboseAPI : Boolean)
 
 case class NetworkSettings (addedMaxDelay: Option[FiniteDuration],
                             agentName: String,
@@ -71,7 +71,7 @@ case class PrivateTestnetSettings (numTestnetAccts  : Int,
 case class AppSettings (application: ApplicationSettings,
                         network    : NetworkSettings,
                         forging    : ForgingSettings,
-                        restApi    : RESTApiSettings,
+                        rpcApi     : RPCApiSettings,
                         ntp        : NetworkTimeProviderSettings)
 
 object AppSettings extends Logging with SettingsReaders {

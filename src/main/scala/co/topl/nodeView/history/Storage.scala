@@ -17,7 +17,7 @@ import serializer.BloomTopics
 
 import scala.collection.BitSet
 import scala.concurrent.duration.MILLISECONDS
-import scala.util.{ Failure, Try }
+import scala.util.{Failure, Try}
 
 class Storage( private[history] val storage: LSMStore,
                private val cacheExpire: Int,

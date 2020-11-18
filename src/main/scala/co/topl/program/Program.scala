@@ -1,11 +1,11 @@
 package co.topl.program
 
-import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
-import co.topl.nodeView.state.box.{ CodeBox, StateBox }
-import co.topl.utils.exceptions.{ ChainProgramException, JsonParsingException }
+import co.topl.attestation.PublicKeyPropositionCurve25519
+import co.topl.nodeView.state.box.{CodeBox, StateBox}
+import co.topl.utils.exceptions.{ChainProgramException, JsonParsingException}
 import io.circe._
 import io.circe.syntax._
-import org.graalvm.polyglot.{ Context, Value }
+import org.graalvm.polyglot.{Context, Value}
 import scorex.crypto.signatures.PublicKey
 import scorex.util.encode.Base58
 

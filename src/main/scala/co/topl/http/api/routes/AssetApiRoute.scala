@@ -2,15 +2,14 @@ package co.topl.http.api.routes
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
-import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.proposition.{PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
+import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
 import co.topl.http.api.ApiRouteWithView
 import co.topl.modifier.transaction.AssetTransfer
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.settings.{AppContext, RESTApiSettings}
+import co.topl.settings.{AppContext, RPCApiSettings}
 import io.circe.Json
 import io.circe.syntax._
 import scorex.util.encode.Base58
@@ -26,7 +25,7 @@ import scala.util.{Failure, Success}
   * @param settings the settings for HTTP REST API
   * @param context reference to the actor system used to create new actors for handling requests
   */
-case class AssetApiRoute(settings: RESTApiSettings, appContext: AppContext, nodeViewHolderRef: ActorRef)
+case class AssetApiRoute(settings: RPCApiSettings, appContext: AppContext, nodeViewHolderRef: ActorRef)
                         (implicit val context: ActorRefFactory) extends ApiRouteWithView {
   type HIS = History
   type MS = State
@@ -72,7 +71,7 @@ case class AssetApiRoute(settings: RESTApiSettings, appContext: AppContext, node
   private def transferAssetsPrototype(implicit params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       // parse arguments from the request
-      val tx = for {
+      (for {
         propType <- (params \\ "propositionType").head.as[String]
         recipients <- (params \\ "recipient").head.as[IndexedSeq[(Address, Long)]]
         sender <- (params \\ "sender").head.as[IndexedSeq[Address]]
@@ -105,9 +104,7 @@ case class AssetApiRoute(settings: RESTApiSettings, appContext: AppContext, node
           case Success(tx) => tx
           case Failure(ex) => throw new Error(s"Failed to create raw AssetTransfer with error: $ex")
         }
-      }
-
-      tx match {
+      }) match {
         case Right(tx) =>
           // validate and update nodeView with new TX
           tx.rawValidate match {
@@ -119,7 +116,6 @@ case class AssetApiRoute(settings: RESTApiSettings, appContext: AppContext, node
             case Failure(e) =>
               throw new Exception(s"Could not validate transaction: $e")
           }
-
 
         case Left(ex) => throw ex
       }

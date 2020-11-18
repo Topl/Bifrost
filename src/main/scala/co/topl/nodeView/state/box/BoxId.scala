@@ -1,13 +1,13 @@
 package co.topl.nodeView.state.box
 
 import co.topl.attestation.Evidence
-import com.google.common.primitives.{ Ints, Longs }
+import com.google.common.primitives.{Ints, Longs}
 import io.circe.syntax.EncoderOps
-import io.circe.{ Decoder, Encoder, KeyDecoder, KeyEncoder }
+import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
 case class BoxId (hashBytes: Array[Byte]) {
 
