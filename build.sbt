@@ -66,7 +66,7 @@ val testingDependencies = Seq(
 )
 
 val cryptoDependencies = Seq(
-  "org.scorexfoundation" %% "scrypto" % "2.1.9",
+  "org.scorexfoundation" %% "scrypto" % "2.1.10",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.67",
   "org.whispersystems" % "curve25519-java" % "0.5.0"
 )
