@@ -125,6 +125,7 @@ class NetworkController(
   }
 
   private def peerCommands: Receive = {
+    /** used to periodically connecting to peers */
     case ConnectTo(peer) =>
       connectTo(peer)
 
@@ -152,13 +153,17 @@ class NetworkController(
       val connectionId = ConnectionId(remoteAddress, localAddress, connectionDirection)
       log.info(s"Unconfirmed connection: ($remoteAddress, $localAddress) => $connectionId")
 
+      /** add to connections if we received unconfirmed outgoing connection */
       if ( connectionDirection.isOutgoing ) createPeerConnectionHandler(connectionId, sender())
+      /** confirm connection if the peer of this incoming connection is not blacklisted */
       else peerManagerRef ! ConfirmConnection(connectionId, sender())
 
+    /** close connection if a connection is already established */
     case Tcp.Connected(remoteAddress, _) =>
       log.warn(s"Connection to peer $remoteAddress is already established")
       sender() ! Tcp.Close
 
+    /** this is received once PeerManager makes sure that the peer is not blacklisted */
     case ConnectionConfirmed(connectionId, handlerRef) =>
       log.info(s"Connection confirmed to $connectionId")
       createPeerConnectionHandler(connectionId, handlerRef)
@@ -167,6 +172,7 @@ class NetworkController(
       log.info(s"Incoming connection from ${connectionId.remoteAddress} denied")
       handlerRef ! Tcp.Close
 
+    /** receive this when a PeerConnnectionHandler received and processed a handshake, then save peer to PeerDatabse */
     case Handshaked(connectedPeer) =>
       handleHandshake(connectedPeer, sender())
 
@@ -177,7 +183,7 @@ class NetworkController(
         case None    => log.info("Failed to connect to : " + c.remoteAddress)
       }
 
-      /** If enough live connections, remove unresponsive peer from the database
+      /** If there is enough live connections, remove unresponsive peer from the database
         * In not enough live connections, maybe connectivity lost but the node has not updated its status, no ban then
         */
       if (connections.size > settings.network.maxConnections / 2) {

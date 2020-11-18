@@ -49,6 +49,12 @@ class SyncTracker(nvsRef: ActorRef,
     if (stableSyncRegime) networkSettings.syncIntervalStable
     else networkSettings.syncInterval
 
+  /** when peerConnectionSynchronizer finds a new peer, it updates the SyncTracker and publish info about whether
+    * there is a better neighbour or not
+    *
+    * @param peer new peer
+    * @param status result of history comparison between self and the new peer
+    */
   def updateStatus(peer: ConnectedPeer, status: HistoryComparisonResult): Unit = {
     val seniorsBefore = numOfSeniors()
     statuses += peer -> status
