@@ -1,40 +1,21 @@
 package co.topl.api
 
-import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.server.Route
 import akka.util.ByteString
-import co.topl.http.api.routes.{AssetApiRoute, WalletApiRoute}
+import co.topl.http.api.routes.AssetApiRoute
 import co.topl.nodeView.state.box.AssetBox
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
-import org.scalatest.matchers.should
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 class AssetRPCSpec extends AnyWordSpec
-  with should.Matchers
+  with Matchers
   with RPCMockState {
 
   // setup route for testing
   val route: Route = AssetApiRoute(settings.restApi, nodeViewHolderRef).route
-  val walletRoute: Route = WalletApiRoute(settings.restApi, nodeViewHolderRef).route
-
-  def httpPOST(jsonRequest: ByteString): HttpRequest = {
-    HttpRequest(
-      HttpMethods.POST,
-      uri = "/asset/",
-      entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    ).withHeaders(RawHeader("x-api-key", "test_key"))
-  }
-
-  def walletHttpPOST(jsonRequest: ByteString): HttpRequest = {
-    HttpRequest(
-      HttpMethods.POST,
-      uri = "/wallet/",
-      entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    ).withHeaders(RawHeader("x-api-key", "test_key"))
-  }
 
   val publicKeys = Map(
     "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
@@ -65,7 +46,7 @@ class AssetRPCSpec extends AnyWordSpec
            |}
         """.stripMargin)
 
-      httpPOST(requestBody) ~> route ~> check {
+      httpPOST("/asset/", requestBody) ~> route ~> check {
         val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         tx = ((res \\ "result").head \\ "formattedTx").head
         (res \\ "error").isEmpty shouldBe true
@@ -139,7 +120,7 @@ class AssetRPCSpec extends AnyWordSpec
            |}
         """.stripMargin)
 
-      httpPOST(requestBody) ~> route ~> check {
+      httpPOST("/asset/", requestBody) ~> route ~> check {
         val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         tx = ((res \\ "result").head \\ "formattedTx").head
         (res \\ "error").isEmpty shouldBe true
@@ -249,7 +230,7 @@ class AssetRPCSpec extends AnyWordSpec
            |}
         """.stripMargin)
 
-      httpPOST(requestBody) ~> route ~> check {
+      httpPOST("/asset/", requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
