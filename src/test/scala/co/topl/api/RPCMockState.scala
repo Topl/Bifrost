@@ -1,8 +1,10 @@
 package co.topl.api
 
 import akka.actor.{ActorRef, ActorSystem}
+import akka.http.scaladsl.model.headers.RawHeader
+import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import akka.util.Timeout
+import akka.util.{ByteString, Timeout}
 import co.topl.consensus.{Forger, ForgerRef}
 import co.topl.nodeView.NodeViewHolderRef
 import co.topl.settings.{AppContext, StartupOpts}
@@ -27,4 +29,13 @@ trait RPCMockState extends AnyWordSpec
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
   implicit val timeout: Timeout = Timeout(10.seconds)
+
+
+  def httpPOST(uri: String, jsonRequest: ByteString): HttpRequest = {
+    HttpRequest(
+      HttpMethods.POST,
+      uri = uri,
+      entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
+    ).withHeaders(RawHeader("x-api-key", "test_key"))
+  }
 }
