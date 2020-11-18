@@ -1,43 +1,27 @@
 package co.topl.api.program
 
-import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
-import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
-import akka.util.{ByteString, Timeout}
+import akka.util.ByteString
+import co.topl.api.RPCMockState
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.{CurrentView, NodeViewHolderRef, state}
-import co.topl.settings.{AppContext, StartupOpts}
-import co.topl.utils.CoreGenerators
+import co.topl.nodeView.{CurrentView, state}
 import io.circe.syntax._
 import org.scalatest.matchers.should
-import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
-trait ProgramRPCMockState extends AnyWordSpec
-  with CoreGenerators
-  with should.Matchers
-  with ScalatestRouteTest {
+trait ProgramRPCMockState extends RPCMockState
+  with should.Matchers {
 
-  override def createActorSystem(): ActorSystem = ActorSystem(settings.network.agentName)
 
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
-  // save environment into a variable for reference throughout the application
-  protected val appContext = new AppContext(settings, StartupOpts.empty, None)
-
-  // Create Bifrost singleton actors
-  protected val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
-
-  implicit val timeout: Timeout = Timeout(10.seconds)
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(

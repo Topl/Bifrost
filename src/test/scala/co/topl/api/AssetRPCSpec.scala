@@ -1,50 +1,20 @@
 package co.topl.api
 
-import akka.actor.{ActorRef, PoisonPill}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.testkit.ScalatestRouteTest
-import akka.pattern.ask
-import akka.util.{ByteString, Timeout}
+import akka.util.ByteString
 import co.topl.http.api.routes.{AssetApiRoute, WalletApiRoute}
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import co.topl.nodeView.history.History
-import co.topl.nodeView.mempool.MemPool
-import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.AssetBox
-import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
-import co.topl.settings.{AppContext, StartupOpts}
-import co.topl.utils.CoreGenerators
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
-import org.scalatest.matchers.should.Matchers
+import org.scalatest.matchers.should
 import org.scalatest.wordspec.AnyWordSpec
 
-import scala.concurrent.Await
-import scala.concurrent.duration._
-import scala.reflect.io.Path
-import scala.util.Try
-
-/**
-  * Created by cykoz on 7/3/2017.
-  */
 class AssetRPCSpec extends AnyWordSpec
-  with Matchers
-  with ScalatestRouteTest
-  with CoreGenerators {
-
-  val path: Path = Path("/tmp/bifrost/test-data")
-  Try(path.deleteRecursively())
-
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
-  // save environment into a variable for reference throughout the application
-  protected val appContext = new AppContext(settings, StartupOpts.empty, None)
-
-  // Create Bifrost singleton actors
-  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  with should.Matchers
+  with RPCMockState {
 
   // setup route for testing
   val route: Route = AssetApiRoute(settings.restApi, nodeViewHolderRef).route
@@ -66,67 +36,16 @@ class AssetRPCSpec extends AnyWordSpec
     ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
 
-  implicit val timeout: Timeout = Timeout(10.seconds)
-
-
-  private def view(): CurrentView[History, State, MemPool] = Await.result(
-    (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]],
-    10.seconds)
-
   val publicKeys = Map(
     "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
     "producer" -> "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb",
     "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
   )
-  // Unlock Secrets
-  //  gw.unlockKeyFile(publicKeys("investor"), "genesis")
-  //  gw.unlockKeyFile(publicKeys("producer"), "genesis")
-  //  gw.unlockKeyFile(publicKeys("hub"), "genesis")
 
   var asset: Option[AssetBox] = None
   var tx: Json = "".asJson
 
   "Asset RPC" should {
-//    "Create some assets" in {
-//      val requestBody = ByteString(
-//        s"""
-//           |{
-//           |   "jsonrpc": "2.0",
-//           |   "id": "1",
-//           |   "method": "createAssets",
-//           |   "params": [{
-//           |     "issuer": "${publicKeys("hub")}",
-//           |     "recipient": "${publicKeys("investor")}",
-//           |     "amount": 10,
-//           |     "assetCode": "etherAssets",
-//           |     "fee": 0,
-//           |     "data": ""
-//           |   }]
-//           |}
-//        """.stripMargin)
-//
-//      httpPOST(requestBody) ~> route ~> check {
-//        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
-//        (res \\ "error").isEmpty shouldBe true
-//        (res \\ "result").head.asObject.isDefined shouldBe true
-//        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-//        val txHashId = ModifierId(Base58.decode(txHash).get)
-//        val txInstance: Transaction = view().pool.modifierById(txHashId).get
-//        asset = Option(txInstance.newBoxes.head.asInstanceOf[AssetBox])
-//
-//        val history = view().history
-//        val tempBlock = Block(history.bestBlockId,
-//          System.currentTimeMillis(),
-//          ArbitBox(PublicKey25519Proposition(PublicKey @@ history.bestBlockId.hashBytes), 0L, 10000L),
-//          Signature25519(Signature @@ Array.fill(Curve25519.SignatureLength)(1: Byte)),
-//          Seq(txInstance),
-//          settings.forgingSettings.version
-//        )
-//        view().state.applyModifier(tempBlock)
-//        view().pool.remove(txInstance)
-//        //Dont need further checks here since the subsequent tests would fail if this one did
-//      }
-//    }
 
     "Create assets prototype" in {
       val requestBody = ByteString(
@@ -336,10 +255,5 @@ class AssetRPCSpec extends AnyWordSpec
         (res \\ "result").head.asObject.isDefined shouldBe true
       }
     }
-  }
-
-  override def afterAll() {
-    view().pool.unconfirmed.clear
-    nodeViewHolderRef ! PoisonPill
   }
 }
