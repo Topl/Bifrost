@@ -20,7 +20,12 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-/** Control all network interaction, must be singleton */
+/** Control all network interaction, must be singleton
+  * @param settings app settings for Bifrost
+  * @param peerManagerRef ActorRef of peerManager
+  * @param appContext Info that Bifrost needs based on the settings and user options
+  * @param tcpManager a reference to the manager actor for the Tcp IO extension
+  */
 class NetworkController(
   settings      : AppSettings,
   peerManagerRef: ActorRef,
@@ -53,7 +58,7 @@ class NetworkController(
   /** records the time of the most recent incoming message (for checking connectivity) */
   private var lastIncomingMessageTime: TimeProvider.Time = _
 
-  override def preStart ( ): Unit = {
+  override def preStart(): Unit = {
     log.info(s"Declared address: ${appContext.externalNodeAddress}")
 
     /** register for application initialization message */
@@ -66,7 +71,7 @@ class NetworkController(
   // ----------- CONTEXT ----------- //
   override def receive: Receive =
     initialization orElse
-      nonsense
+    nonsense
 
   private def operational: Receive =
     businessLogic orElse
@@ -78,8 +83,10 @@ class NetworkController(
   private def initialization: Receive = {
     case BindP2P =>
       /** check own declared address for validity */
-      val addrValidationResult = if ( validateDeclaredAddress() ) {
-        /** send a bind signal to the TCP manager to designate this actor as the handler to accept incoming connections */
+      val addrValidationResult = if (validateDeclaredAddress()) {
+        /** send a bind signal to the TCP manager to designate this actor as the
+          * handler to accept incoming connections
+          */
         tcpManager ? Tcp.Bind(self, bindAddress, options = Nil, pullMode = false)
       } else {
         throw new Error("Address validation failed. Aborting application startup.")
@@ -89,10 +96,11 @@ class NetworkController(
 
     case RegisterMessageSpecs(specs, handler) =>
       log.info(s"${Console.YELLOW}Registered ${sender()} as the handler for " +
-          s"${specs.map(s => s.messageCode -> s.messageName)}${Console.RESET}"
-        )
+          s"${specs.map(s => s.messageCode -> s.messageName)}${Console.RESET}")
+      /** add the message code and its corresponding handler actorRef to the map */
       messageHandlers ++= specs.map(_.messageCode -> handler)
 
+    /** start attempting to connect to peers when NodeViewHolder is ready */
     case NodeViewReady =>
       log.info(s"${Console.YELLOW}Network Controller transitioning to the operational state${Console.RESET}")
       scheduleConnectionToPeer()
@@ -136,6 +144,7 @@ class NetworkController(
 
   private def connectionEvents: Receive = {
     case Tcp.Connected(remoteAddress, localAddress) if connectionForPeerAddress(remoteAddress).isEmpty =>
+      /** this should be an incoming connection if remoteAddress is not in connections and is not in unconfirmed */
       val connectionDirection: ConnectionDirection =
         if (unconfirmedConnections.contains(remoteAddress)) Outgoing
         else Incoming
@@ -466,7 +475,7 @@ class NetworkController(
   }
 
   /** Attempts to validate the declared address defined in the settings file */
-  private def validateDeclaredAddress ( ): Boolean = {
+  private def validateDeclaredAddress(): Boolean = {
     settings.network.declaredAddress match {
       case Some(mySocketAddress: InetSocketAddress) =>
         Try {
