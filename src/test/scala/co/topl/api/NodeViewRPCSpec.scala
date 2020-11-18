@@ -1,26 +1,20 @@
 package co.topl.api
 
-import akka.actor.ActorRef
-import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
-import akka.util.{ByteString, Timeout}
+import akka.util.ByteString
 import co.topl.crypto.Signature25519
 import co.topl.http.api.routes.NodeViewApiRoute
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{AssetCreation, Transaction}
+import co.topl.nodeView.CurrentView
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedTransaction}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
-import co.topl.settings.{AppContext, StartupOpts}
-import co.topl.utils.CoreGenerators
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
@@ -34,33 +28,10 @@ import scala.util.Try
 
 class NodeViewRPCSpec extends AnyWordSpec
   with Matchers
-  with ScalatestRouteTest
-  with CoreGenerators {
-
-  val path: Path = Path("/tmp/bifrost/test-data")
-  Try(path.deleteRecursively())
-
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
-  // save environment into a variable for reference throughout the application
-  protected val appContext = new AppContext(settings, StartupOpts.empty, None)
-
-  // Create Bifrost singleton actors
-  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  with RPCMockState {
 
   // setup route for testing
   val route: Route = NodeViewApiRoute(settings.restApi, nodeViewHolderRef).route
-
-  implicit val timeout: Timeout = Timeout(10.seconds)
-
-  def httpPOST(jsonRequest: ByteString): HttpRequest = {
-    HttpRequest(
-      HttpMethods.POST,
-      uri = "/nodeView/",
-      entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    ).withHeaders(RawHeader("x-api-key", "test_key"))
-  }
-
 
   private def view() = Await.result(
     (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]],
@@ -92,7 +63,7 @@ class NodeViewRPCSpec extends AnyWordSpec
            |}
           """.stripMargin)
 
-      httpPOST(requestBody) ~> route ~> check {
+      httpPOST("/nodeview/", requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
@@ -134,7 +105,7 @@ class NodeViewRPCSpec extends AnyWordSpec
            |
           """.stripMargin)
 
-      httpPOST(requestBody) ~> route ~> check {
+      httpPOST("/nodeview/", requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
@@ -159,7 +130,7 @@ class NodeViewRPCSpec extends AnyWordSpec
            |
           """.stripMargin)
 
-      httpPOST(requestBody) ~> route ~> check {
+      httpPOST("/nodeview/", requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
@@ -182,7 +153,7 @@ class NodeViewRPCSpec extends AnyWordSpec
            |
           """.stripMargin)
 
-      httpPOST(requestBody) ~> route ~> check {
+      httpPOST("/nodeview/", requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true

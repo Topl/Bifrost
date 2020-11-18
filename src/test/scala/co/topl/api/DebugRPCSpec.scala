@@ -1,57 +1,27 @@
 package co.topl.api
 
-import akka.actor.ActorRef
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
-import akka.util.{ByteString, Timeout}
+import akka.util.ByteString
 import co.topl.http.api.routes.DebugApiRoute
+import co.topl.nodeView.CurrentView
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
-import co.topl.settings.{AppContext, StartupOpts}
-import co.topl.utils.CoreGenerators
 import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import scala.reflect.io.Path
-import scala.util.Try
 
 class DebugRPCSpec extends AnyWordSpec
   with Matchers
-  with ScalatestRouteTest
-  with CoreGenerators {
-
-  val path: Path = Path("/tmp/bifrost/test-data")
-  Try(path.deleteRecursively())
-
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
-  // save environment into a variable for reference throughout the application
-  protected val appContext = new AppContext(settings, StartupOpts.empty, None)
-
-  // Create Bifrost singleton actors
-  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  with RPCMockState {
 
   // setup route for testing
   val route: Route = DebugApiRoute(settings.restApi, nodeViewHolderRef).route
-
-  def httpPOST(jsonRequest: ByteString): HttpRequest = {
-    HttpRequest(
-      HttpMethods.POST,
-      uri = "/debug/",
-      entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    ).withHeaders(RawHeader("x-api-key", "test_key"))
-  }
-
-  implicit val timeout: Timeout = Timeout(10.seconds)
 
   private def view() = Await.result(
     (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]],
@@ -69,7 +39,7 @@ class DebugRPCSpec extends AnyWordSpec
            |}
         """.stripMargin)
 
-      httpPOST(requestBody) ~> route ~> check {
+      httpPOST("/debug/", requestBody) ~> route ~> check {
         val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
@@ -90,7 +60,7 @@ class DebugRPCSpec extends AnyWordSpec
            |}
         """.stripMargin)
 
-      httpPOST(requestBody) ~> route ~> check {
+      httpPOST("/debug/", requestBody) ~> route ~> check {
         val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
@@ -108,7 +78,7 @@ class DebugRPCSpec extends AnyWordSpec
            |}
         """.stripMargin)
 
-      httpPOST(requestBody) ~> route ~> check {
+      httpPOST("/debug/", requestBody) ~> route ~> check {
         val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
@@ -126,31 +96,12 @@ class DebugRPCSpec extends AnyWordSpec
            |}
         """.stripMargin)
 
-      httpPOST(requestBody) ~> route ~> check {
+      httpPOST("/debug/", requestBody) ~> route ~> check {
         val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
       }
     }
-
-    /*"Print the full chain" in {
-      val requestBody = ByteString(
-        s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "1",
-           |   "method": "chain",
-           |   "params": [{}]
-           |}
-        """.stripMargin)
-
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").head.asObject.isDefined shouldBe true
-      }
-    }
-     */
 
     //Currently not implemented
 //    "Check if node is synced to canonical chain" in {
@@ -171,11 +122,5 @@ class DebugRPCSpec extends AnyWordSpec
 //      }
 //    }
 
-  }
-
-
-  object DebugRPCSpec {
-    val path: Path = Path("/tmp/bifrost/test-data")
-    Try(path.deleteRecursively())
   }
 }
