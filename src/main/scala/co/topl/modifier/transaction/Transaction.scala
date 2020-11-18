@@ -56,6 +56,8 @@ abstract class Transaction[T, P <: Proposition] extends NodeViewModifier {
 
   def syntacticValidate (implicit networkPrefix: NetworkPrefix): Try[Unit]
 
+  def rawValidate (implicit networkPrefix: NetworkPrefix): Try[Unit]
+
 }
 
 

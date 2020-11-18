@@ -1,33 +1,36 @@
 package co.topl.http.api.routes
 
-import akka.actor.{ ActorRef, ActorRefFactory }
+import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
+import co.topl.attestation.Address
+import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.http.api.ApiRouteWithView
 import co.topl.modifier.ModifierId
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.settings.RESTApiSettings
+import co.topl.settings.{AppContext, RESTApiSettings}
 import io.circe.Json
 import io.circe.syntax._
-import scorex.util.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-case class DebugApiRoute(override val settings: RESTApiSettings, nodeViewHolderRef: ActorRef)
+case class DebugApiRoute(settings: RESTApiSettings, appContext: AppContext, nodeViewHolderRef: ActorRef)
                         (implicit val context: ActorRefFactory) extends ApiRouteWithView {
 
   type HIS = History
   type MS = State
   type MP = MemPool
-  override val route: Route = pathPrefix("debug") { basicRoute(handlers) }
+  override val route: Route = { basicRoute(handlers) }
+
+  // Establish the expected network prefix for addresses
+  implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
   def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
     method match {
       case "info" => infoRoute(params.head, id)
       case "delay" => delay(params.head, id)
-//      case "myBlocks" => myBlocks(params.head, id)
       case "generators" => generators(params.head, id)
     }
 
@@ -90,38 +93,6 @@ case class DebugApiRoute(override val settings: RESTApiSettings, nodeViewHolderR
   }
 
   /**  #### Summary
-    *    Find the number of blocks forged by public keys held by the node
-    * 
-    *  #### Type
-    *    Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
-    *
-    * ---
-    *  #### Params
-    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	|
-    *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	|
-    *  | --None specified--       |           	|                     	|                                                                         |
-    *
-//    * @param params input parameters as specified above
-//    * @param id request identifier
-//    * @return
-//    */
-//  private def myBlocks(params: Json, id: String): Future[Json] = {
-//    viewAsync().map { view =>
-//      val pubkeys: Set[PublicKey25519Proposition] =
-//        view.vault.publicKeys.flatMap {
-//          case pkp: PublicKey25519Proposition => Some(pkp)
-//          case _                              => None
-//        }
-//      val count =
-//        view.history.count(b => pubkeys.contains(b.forgerBox.proposition))
-//      Map(
-//        "pubkeys" -> pubkeys.map(pk => Base58.encode(pk.pubKeyBytes)).asJson,
-//        "count" -> count.asJson
-//      ).asJson
-//    }
-//  }
-
-  /**  #### Summary
     *    Find distribution of block generators from all public keys in the chain's history
     *
     * ---
@@ -136,7 +107,7 @@ case class DebugApiRoute(override val settings: RESTApiSettings, nodeViewHolderR
     */
   private def generators(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
-      val map: Map[String, Int] = view.history
+      val map: Map[Address, Int] = view.history
         .forgerDistribution()
         .map(d => d._1.address -> d._2)
       map.asJson

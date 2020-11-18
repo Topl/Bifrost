@@ -3,10 +3,11 @@ package co.topl.http.api.routes
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
+import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.consensus.Forger.ReceivableMessages._
 import co.topl.attestation.proposition.PublicKeyPropositionCurve25519
 import co.topl.http.api.ApiRoute
-import co.topl.settings.RESTApiSettings
+import co.topl.settings.{AppContext, RESTApiSettings}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
@@ -14,10 +15,13 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
-case class KeyManagementApiRoute ( override val settings: RESTApiSettings, keyHolderRef: ActorRef )
+case class KeyManagementApiRoute ( override val settings: RESTApiSettings, appContext: AppContext, keyHolderRef: ActorRef )
                                  ( implicit val context: ActorRefFactory ) extends ApiRoute {
 
   override val route: Route = { basicRoute(handlers) }
+
+  // Establish the expected network prefix for addresses
+  implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
   private def handlers ( method: String, params: Vector[Json], id: String ): Future[Json] =
     method match {
@@ -82,7 +86,7 @@ case class KeyManagementApiRoute ( override val settings: RESTApiSettings, keyHo
     val password: String = (params \\ "password").head.asString.get
 
     (keyHolderRef ? LockKey(publicKey, password)).mapTo[Try[Unit]].map {
-      case Success(_)  => Map( publicKey -> "locked".asJson).asJson
+      case Success(_)  => Map(publicKey -> "locked".asJson).asJson
       case Failure(ex) => throw new Error(s"An error occurred while trying to lock the keyfile. $ex")
     }
   }

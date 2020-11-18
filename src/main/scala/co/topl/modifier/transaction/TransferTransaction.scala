@@ -39,6 +39,9 @@ abstract class TransferTransaction[
   def syntacticValidate (implicit networkPrefix: NetworkPrefix): Try[Unit] =
     TransferTransaction.syntacticValidate(this)
 
+  def rawValidate (implicit networkPrefix: NetworkPrefix): Try[Unit] =
+    TransferTransaction.syntacticValidate(this, withSigs = false)
+
 }
 
 

@@ -2,6 +2,7 @@ package co.topl.settings
 
 import java.net.InetSocketAddress
 
+import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.network.message._
 import co.topl.network.upnp.Gateway
 import co.topl.network.{NodeViewSynchronizer, PeerSynchronizer, peer}

@@ -1,25 +1,29 @@
 package co.topl.http.api.routes
 
-import akka.actor.{ ActorRef, ActorRefFactory }
+import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
+import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.http.api.ApiRouteWithView
 import co.topl.modifier.ModifierId
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.settings.RESTApiSettings
+import co.topl.settings.{AppContext, RESTApiSettings}
 import io.circe.Json
 import io.circe.syntax._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-case class NodeViewApiRoute(override val settings: RESTApiSettings, nodeViewHolderRef: ActorRef)
+case class NodeViewApiRoute(override val settings: RESTApiSettings, appContext: AppContext, nodeViewHolderRef: ActorRef)
                            (implicit val context: ActorRefFactory) extends ApiRouteWithView {
   type HIS = History
   type MS = State
   type MP = MemPool
-  override val route: Route = pathPrefix("nodeView") { basicRoute(handlers) }
+  override val route: Route ={ basicRoute(handlers) }
+
+  // Establish the expected network prefix for addresses
+  implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
   def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
     method match {
@@ -45,7 +49,7 @@ case class NodeViewApiRoute(override val settings: RESTApiSettings, nodeViewHold
     */
   private def mempool(params: Json, id: String): Future[Json] = {
     viewAsync().map {
-      view => view.pool.take(100).map(_.json).asJson
+      view => view.pool.take(100).asJson
     }
   }
 
@@ -77,11 +81,11 @@ case class NodeViewApiRoute(override val settings: RESTApiSettings, nodeViewHold
         .filter(_.id == transactionId)
         .head
 
-      tx.json.asObject.get
-        .add("blockNumber", blockNumber.asJson)
-        .add("blockId", blockId.toString.asJson)
-        .asJson
-
+      tx.asJson.deepMerge{
+        Map("blockNumber" -> blockNumber.toString,
+          "blockId" -> blockId.toString
+        ).asJson
+      }
     }
   }
 
@@ -103,7 +107,7 @@ case class NodeViewApiRoute(override val settings: RESTApiSettings, nodeViewHold
     viewAsync().map { view =>
       val transactionId: ModifierId = ModifierId((params \\ "transactionId").head.asString.get)
       view.pool.modifierById(transactionId) match {
-        case Some(tx) => tx.json
+        case Some(tx) => tx.asJson
         case None     => throw new Error("Unable to retrieve transaction")
       }
     }
