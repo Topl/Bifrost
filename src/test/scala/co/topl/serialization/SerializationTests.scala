@@ -1,6 +1,6 @@
 package co.topl.serialization
 
-import co.topl.modifier.block.{Block, BlockSerializer}
+import co.topl.modifier.block.{Block, BlockSerializer, BloomFilter, BloomFilterSerializer}
 import co.topl.modifier.transaction.serialization._
 import co.topl.modifier.transaction._
 import co.topl.nodeView.state.box._
@@ -12,7 +12,6 @@ import org.scalatest.Ignore
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-import serializer.BloomTopics
 
 import scala.collection.BitSet
 import scala.util.{Failure, Success}
@@ -262,12 +261,13 @@ class SerializationTests extends AnyPropSpec
   property("Bloom Serialization") {
     forAll(intSeqGen) {
       intSeq: Seq[Int] =>
-        val parsed = BitSet() ++ BloomTopics
-          .parseFrom(BloomTopics(intSeq).toByteArray)
-          .topics
+        val bloom = BloomFilter(BitSet(intSeq: _*))
+        val parsed: BloomFilter = BloomFilterSerializer
+          .parseBytes(BloomFilterSerializer.toBytes(bloom))
+          .get
 
-        BloomTopics(parsed.toSeq).toByteArray sameElements
-          BloomTopics((BitSet() ++ intSeq).toSeq).toByteArray shouldBe true
+        BloomFilterSerializer.toBytes(parsed) sameElements
+          BloomFilterSerializer.toBytes(bloom) shouldBe true
     }
   }
 }
