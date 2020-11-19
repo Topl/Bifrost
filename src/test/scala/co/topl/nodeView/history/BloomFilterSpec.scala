@@ -4,13 +4,10 @@ package co.topl.nodeView.history
   * Created by cykoz on 7/11/2017.
   */
 
-import co.topl.modifier.block.Bloom
+import co.topl.modifier.block.BloomFilter
 import co.topl.utils.{CoreGenerators, ValidGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-
-import scala.collection.BitSet
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 import scala.collection.BitSet
