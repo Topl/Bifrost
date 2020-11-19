@@ -27,6 +27,10 @@ case class ProtocolSettings(
   def compare(that: ProtocolSettings): Int =
     -1 * (this.startBlock compare that.startBlock)
 
-  def equals(that: ProtocolSettings): Boolean =
-    this.startBlock == that.startBlock
+  override def equals(obj: Any): Boolean = obj match {
+    case ps: ProtocolSettings => this.startBlock == ps.startBlock
+    case _ => false
+  }
+
+  override def hashCode(): Int = (this.startBlock % Int.MaxValue).toInt
 }
