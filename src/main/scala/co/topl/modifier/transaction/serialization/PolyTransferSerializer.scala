@@ -25,7 +25,7 @@ object PolyTransferSerializer extends BifrostSerializer[PolyTransfer[_ <: Propos
     w.putUInt(obj.to.length)
     obj.to.foreach { case (addr, value) =>
       Address.serialize(addr, w)
-      w.putLong(value)
+      w.putULong(value)
     }
 
     /* signatures: Map[Proposition, Proof] */

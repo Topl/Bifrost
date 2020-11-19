@@ -167,11 +167,13 @@ class NodeViewHolder ( settings: AppSettings )
     val genesisBlock = Await.result(getGenesisBlock, timeout.duration)
 
     // generate the nodeView and return
-    (
+    val g = (
       History.readOrGenerate(settings).append(genesisBlock).get._1,
       State.genesisState(settings, Seq(genesisBlock)),
       MemPool.emptyPool
     )
+    println(s"\n>>>>>>>>>>>> ${g._1.bestBlock}")
+    g
   }
 
   private def getGenesisBlock(implicit timeout: Timeout): Future[Block] = {

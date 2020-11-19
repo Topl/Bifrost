@@ -53,7 +53,7 @@ case class Block( parentId    : BlockId,
     this.copy(signature = SignatureCurve25519.empty).bytes
   }
 
-  override def toString: String = Block.jsonEncoder(this).noSpaces
+  override def toString: String = Block.jsonEncoder(this).spaces2
 }
 
 

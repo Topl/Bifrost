@@ -6,7 +6,7 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.nodeView.state.box.ArbitBox
-import co.topl.nodeView.state.box.serialization.BoxSerializer
+import co.topl.nodeView.state.box.serialization.{ArbitBoxSerializer, BoxSerializer}
 import co.topl.utils.Extensions._
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
@@ -23,7 +23,7 @@ object BlockSerializer extends BifrostSerializer[Block] {
     w.putULong(block.timestamp)
 
     /* generatorBox: ArbitBox */
-    BoxSerializer.serialize(block.forgerBox, w)
+    ArbitBoxSerializer.serialize(block.forgerBox, w)
 
     /* publicKey: PublicKeyCurve25519Proposition */
     PublicKeyPropositionCurve25519Serializer.serialize(block.publicKey, w)
@@ -40,18 +40,14 @@ object BlockSerializer extends BifrostSerializer[Block] {
 
   override def parse(r: Reader): Block = {
     /* The order of the getByte, getLong... calls should not be changed */
-
-    // TODO: Jing - Version should be used in the future to determine if we need additional procedures in parsing
-    val version: Byte = r.getByte()
-
     // TODO: Jing - maybe we could check that the size of bytes to read in reader is less or equal to the max size of a block
+
+    val version: Byte = r.getByte()
 
     val parentId: ModifierId = ModifierId(r.getBytes(Block.blockIdLength))
     val timestamp: Long = r.getULong()
 
-    // TODO: Jing - scorex uses toIntExact to make sure the Long does not exceed the length of an Int
-
-    val generatorBox: ArbitBox = BoxSerializer.parse(r).asInstanceOf[ArbitBox]
+    val generatorBox: ArbitBox = ArbitBoxSerializer.parse(r)
 
     val publicKey: PublicKeyPropositionCurve25519 = PublicKeyPropositionCurve25519Serializer.parse(r)
 
