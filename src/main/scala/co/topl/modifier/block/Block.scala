@@ -5,15 +5,11 @@ import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block._
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ModifierId, NodeViewModifier}
-import co.topl.nodeView.history.History
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.utils.serialization.BifrostSerializer
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor, Json}
-import scorex.crypto.signatures.Signature
 import supertagged.@@
-// fixme: JAA 0 2020.07.19 - why is protobuf still used here?
-import serializer.BloomTopics
 
 import scala.collection.BitSet
 
@@ -124,19 +120,14 @@ object Block {
     block.copy(signature = signature)
   }
 
-  /**
-   *
-   * @param txs
-   * @return
-   */
   def createBloom ( txs: Seq[Transaction] ): Array[Byte] = {
-    val bloomBitSet = txs.foldLeft(BitSet.empty)(
+    val bloomBitSet: BitSet = txs.foldLeft(BitSet.empty)(
       ( total, b ) =>
         b.bloomTopics match {
-          case Some(e) => total ++ Bloom.calcBloom(e.head, e.tail)
+          case Some(e) => total ++ BloomFilter.calcBloom(e.head, e.tail)
           case None    => total
         }
-      ).toSeq
-    BloomTopics(bloomBitSet).toByteArray
+      )
+    BloomFilter(bloomBitSet).topics.foldLeft[Array[Byte]](Array.empty)((a,b) => a :+ b.toByte)
   }
 }

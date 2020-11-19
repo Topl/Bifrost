@@ -25,7 +25,7 @@ class BloomFilterSpec extends AnyPropSpec
   var history: History = generateHistory(0: Byte)
 
   property("Verify Bloom Calculation is correct") {
-    val set = Bloom.calcBloom(Array.fill(32)(1), IndexedSeq(Array.fill(32)(1)))
+    val set = BloomFilter.calcBloom(Array.fill(32)(1), IndexedSeq(Array.fill(32)(1)))
     set shouldEqual BitSet(10, 138, 201)
   }
 

@@ -1,5 +1,6 @@
 package co.topl.modifier.block
 
+import co.topl.utils.serialization.BifrostSerializer
 import scorex.crypto.hash.Keccak256
 
 import scala.collection.BitSet
@@ -8,7 +9,12 @@ import scala.collection.BitSet
   * This implementation of Bloom filter is specced in the Ethereum Yellow Paper
   * for more information, visit: http://gavwood.com/paper.pdf
   */
-object Bloom {
+case class BloomFilter(topics: BitSet) {
+
+  lazy val serializer: BifrostSerializer[BloomFilter] = BloomFilterSerializer
+}
+
+object BloomFilter {
   def calcBloom(origin: Array[Byte], topics: IndexedSeq[Array[Byte]]): BitSet = {
     // taking the low-order 11 bits (mod 2048) of each of the first three pairs of bytes in a Keccak-256 hash
     val indices = (origin +: topics).flatMap { x =>
@@ -22,3 +28,4 @@ object Bloom {
     BitSet() ++ indices
   }
 }
+
