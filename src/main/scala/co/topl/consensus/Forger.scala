@@ -194,6 +194,8 @@ class Forger (settings: AppSettings, appContext: AppContext )
         case Failure(ex)    => throw ex
       }
 
+      println(s"\n>>>>>>>>>>>>>> boxes: $boxes")
+
       log.debug(s"Trying to generate block from total stake ${boxes.map(_.value).sum}")
       require(boxes.map(_.value).sum > 0, "No Arbits could be found to stake with, exiting attempt")
 
