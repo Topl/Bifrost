@@ -531,15 +531,11 @@ object NodeViewHolder {
 
 object NodeViewHolderRef {
 
-  def apply ( settings: AppSettings, appContext: AppContext )
-            ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
-    system.actorOf(props(settings, appContext))
+  def props ( settings: AppSettings, appContext: AppContext )
+            ( implicit ec: ExecutionContext ): Props =
+    Props(new NodeViewHolder(settings, appContext))
 
   def apply ( name: String, settings: AppSettings, appContext: AppContext )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
     system.actorOf(props(settings, appContext), name)
-
-  def props ( settings: AppSettings, appContext: AppContext )
-            ( implicit ec: ExecutionContext ): Props =
-    Props(new NodeViewHolder(settings, appContext))
 }

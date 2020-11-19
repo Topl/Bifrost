@@ -126,13 +126,6 @@ object PeerSynchronizer {
 
 object PeerSynchronizerRef {
 
-  def apply ( networkControllerRef: ActorRef,
-              peerManager: ActorRef,
-              settings   : AppSettings,
-              appContext : AppContext
-            )( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
-    system.actorOf(props(networkControllerRef, peerManager, settings, appContext))
-
   def apply ( name: String,
               networkControllerRef: ActorRef,
               peerManager         : ActorRef,

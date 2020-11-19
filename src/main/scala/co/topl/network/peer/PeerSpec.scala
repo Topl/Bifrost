@@ -23,9 +23,8 @@ case class PeerSpec(
   features: Seq[PeerFeature]
 ) {
 
-  lazy val localAddressOpt: Option[InetSocketAddress] = {
+  lazy val localAddressOpt: Option[InetSocketAddress] =
     features.collectFirst { case LocalAddressPeerFeature(addr) => addr }
-  }
 
   def reachablePeer: Boolean = address.isDefined
 

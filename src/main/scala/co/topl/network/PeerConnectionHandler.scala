@@ -56,7 +56,6 @@ class PeerConnectionHandler( networkControllerRef: ActorRef,
     // On instantiation of a PeerConnectionHandler, send ResumeReading to the TCP system since the
     // connection was created with pullMode = true (this is done in the NetworkController)
     // https://doc.akka.io/docs/akka/current/io-tcp.html#read-back-pressure-with-pull-mode
-    // JAA - 20200810 - I think this is done to give the PCH time to spin up before the TCP system forwards it messages
     connection ! Tcp.ResumeReading
 
     // transition to create and listen for a handshake from the remote peer
@@ -68,7 +67,7 @@ class PeerConnectionHandler( networkControllerRef: ActorRef,
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
-  // ----------- CONTEXTS
+  // ----------- CONTEXTS ----------- //
   // The following functions are the contexts that a peerConnectionHandler can occupy
   // depending on the state of the connection.
 
@@ -321,12 +320,4 @@ object PeerConnectionHandlerRef {
              connectionDescription: ConnectionDescription
            )(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
     system.actorOf(props(networkControllerRef, settings, appContext, connectionDescription))
-
-  def apply( name: String,
-             networkControllerRef: ActorRef,
-             settings: AppSettings,
-             appContext: AppContext,
-             connectionDescription: ConnectionDescription)
-           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(networkControllerRef, settings, appContext, connectionDescription), name)
 }
