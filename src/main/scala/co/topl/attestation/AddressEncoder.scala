@@ -5,13 +5,19 @@ import scorex.util.encode.Base58
 
 import scala.util.Try
 
+/**
+ * The Address encoder dictates how addresses are cast To and From strings. Since this is the primary
+ * method users will interact with the protocol, the Address encoder adds a 4 byte checksum to the Address
+ * as a quick check that may be used with external systems.
+ */
 object AddressEncoder {
   type NetworkPrefix = Byte
 
   val checksumLength = 4
 
-  //addresses are 38 bytes (1 for network prefix, 1 for type prefix, 32 for content, 4 for checksum)
-  private val encodeEvidenceLength: Int = 2 + Evidence.contentLength + checksumLength
+  //encoded addresses are 38 bytes (1 for network prefix, 1 for type prefix, 32 for content, 4 for checksum)
+  // ENCODED ADDRESS != ADDRESS (Address are contained in an encoded address)
+  private val encodedAddressLength: Int = Address.addressSize + checksumLength
 
   /**
     * Helper method to query the network prefix in an encoded address string
@@ -38,7 +44,7 @@ object AddressEncoder {
 
   def fromString(addrStr: String): Try[Address] = {
     Base58.decode(addrStr).flatMap { bytes =>
-      require(bytes.length == encodeEvidenceLength, s"Invalid address: Not the required length")
+      require(bytes.length == encodedAddressLength, s"Invalid address: Not the required length")
       require(genChecksum(bytes.dropRight(checksumLength)) sameElements bytes.takeRight(checksumLength),
         s"Invalid address: Checksum fails for $addrStr")
 

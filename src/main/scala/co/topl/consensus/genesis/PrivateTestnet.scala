@@ -40,14 +40,16 @@ case class PrivateTestnet ( keyGen  : (Int, Option[String]) => Set[PublicKeyProp
     // map the members to their balances then continue as normal
     val privateTotalStake = numberOfKeys * balance
 
+    val accts = keyGen(numberOfKeys, opts.seed)
+
     val txInput = (
-      IndexedSeq(genesisAcct.publicImage.address -> 0L),
-      keyGen(numberOfKeys, opts.seed).map(_.address -> balance).toIndexedSeq,
+      IndexedSeq(),
+      (genesisAcct.publicImage.address -> 0L) +: accts.map(_.address -> balance).toIndexedSeq,
       Map(genesisAcct.publicImage -> SignatureCurve25519.genesis),
       0L,
       0L,
       "",
-      false)
+      true)
 
     val txs = Seq(
       ArbitTransfer[PublicKeyPropositionCurve25519]
@@ -62,7 +64,7 @@ case class PrivateTestnet ( keyGen  : (Int, Option[String]) => Set[PublicKeyProp
 
     val block = Block(History.GenesisParentId, 0L, generatorBox, genesisAcct.publicImage, signature, txs, blockVersion.blockByte)
 
-    log.debug(s"Initialize state with transactions $txs")
+    log.debug(s"Initialize state with block $block")
 
     (block, ChainParams(privateTotalStake, initialDifficulty))
   }

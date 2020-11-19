@@ -53,6 +53,11 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   // save runtime environment into a variable for reference throughout the application
   protected val appContext = new AppContext(settings, startupOpts, upnpGateway)
+  log.debug(s"${Console.MAGENTA}Runtime network parameters:" +
+    s"type - ${appContext.networkType.verboseName}, " +
+    s"prefix - ${appContext.networkType.netPrefix}, " +
+    s"forging status: ${appContext.networkType.startWithForging}" +
+    s"${Console.RESET}")
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // Create Bifrost singleton actors

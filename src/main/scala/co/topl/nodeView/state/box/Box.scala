@@ -1,6 +1,7 @@
 package co.topl.nodeView.state.box
 
 import co.topl.attestation.Evidence
+import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.box.Box.{BoxType, Nonce}
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.utils.serialization.BifrostSerializer
@@ -22,6 +23,10 @@ sealed abstract class Box[T] ( val evidence     : Evidence,
   lazy val id: BoxId = BoxId(this)
 
   def serializer: BifrostSerializer[Box[_]] = BoxSerializer
+
+  override def toString: String =
+    Box.prefixToTypeString(boxTypePrefix) +
+      Box.jsonEncoder(this).noSpaces
 
   override def hashCode(): Int = Ints.fromByteArray(bytes)
 }

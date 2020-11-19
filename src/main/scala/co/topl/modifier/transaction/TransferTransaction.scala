@@ -2,10 +2,13 @@ package co.topl.modifier.transaction
 
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.EvidenceProducer.syntax._
-import co.topl.attestation._
+import co.topl.attestation.{Evidence, _}
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.state.box._
-import com.google.common.primitives.Ints
+import co.topl.nodeView.state.box.Box.Nonce
+import co.topl.nodeView.state.box.TokenBox.Value
+import co.topl.nodeView.state.box.{Box, _}
+import com.google.common.base.Utf8
+import com.google.common.primitives.{Ints, Longs}
 import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
@@ -33,7 +36,6 @@ abstract class TransferTransaction[
   def semanticValidate (stateReader: StateReader)(implicit networkPrefix: NetworkPrefix): Try[Unit] =
     TransferTransaction.semanticValidate(this, stateReader)
 
-
   def syntacticValidate (implicit networkPrefix: NetworkPrefix): Try[Unit] =
     TransferTransaction.syntacticValidate(this)
 
@@ -45,19 +47,33 @@ abstract class TransferTransaction[
 
 object TransferTransaction {
 
-  /** Computes a unique nonce value based on the transaction inputs and returns the details needed to create the output boxes for the transaction */
-  def boxParams(tx: TransferTransaction[_]): Traversable[(Evidence, Box.Nonce, TokenBox.Value)] = {
-    val inputBytes = tx.boxIdsToOpen.foldLeft(Array[Byte]())((acc, x) => acc ++ x.hashBytes)
+  case class BoxParams(evidence: Evidence, nonce: Box.Nonce, value: TokenBox.Value)
 
-    tx.to
+  /** Computes a unique nonce value based on the transaction type and
+   * inputs and returns the details needed to create the output boxes for the transaction */
+  def boxParams(tx: TransferTransaction[_]): (BoxParams, Traversable[BoxParams]) = {
+    // known input data (similar to messageToSign but without newBoxes since they aren't known yet)
+    val inputBytes =
+      Array(tx.txTypePrefix) ++
+        tx.boxIdsToOpen.foldLeft(Array[Byte]())((acc, x) => acc ++ x.hashBytes) ++
+        Longs.toByteArray(tx.timestamp) ++
+        Longs.toByteArray(tx.fee)
+
+    def calcNonce(index: Int): Box.Nonce = {
+      val digest = Blake2b256(inputBytes ++ Ints.toByteArray(index))
+      Transaction.nonceFromDigest(digest)
+    }
+
+    val feeParams = BoxParams(tx.to.head._1.evidence, calcNonce(0), tx.to.head._2)
+
+    val outputParams = tx.to.tail
       .filter(_._2 > 0L)
       .zipWithIndex
       .map { case ((addr, value), idx) =>
-        val digest = Blake2b256(inputBytes ++ Ints.toByteArray(idx))
-        val nonce = Transaction.nonceFromDigest(digest)
-
-        (addr.evidence, nonce, value)
+        BoxParams(addr.evidence, calcNonce(idx + 1), value)
       }
+
+    (feeParams, outputParams)
   }
 
   /**
@@ -128,17 +144,6 @@ object TransferTransaction {
   }
 
   /**
-   *
-   * @param tx
-   * @return
-   */
-  def validatePrototype[
-    P <: Proposition: EvidenceProducer
-  ] (tx: TransferTransaction[P])
-    (implicit networkPrefix: NetworkPrefix): Try[Unit] =
-    syntacticValidate(tx, withSigs = false)
-
-  /**
    * Syntactic validation of a transfer transaction
    *
    * @param tx an instance of a transaction to check
@@ -150,11 +155,22 @@ object TransferTransaction {
   ] ( tx: TransferTransaction[P], withSigs: Boolean = true)
     (implicit networkPrefix: NetworkPrefix): Try[Unit] = Try {
 
+    // enforce transaction specific requirements
+    tx match {
+      case t: ArbitTransfer[_] if t.minting =>
+      case t: PolyTransfer[_] if t.minting =>
+      case t @ _ => require(t.from.nonEmpty, "Non-block reward transactions must specify at least one input box")
+    }
+
     require(tx.to.forall(_._2 > 0L), "Amount sent must be greater than 0")
-    require(tx.from.nonEmpty, "Transaction must specify at least one input box") // this will fail on arbit coinbase
     require(tx.fee >= 0L, "Fee must be a positive value")
     require(tx.timestamp >= 0L, "Invalid timestamp")
-    require(Base58.decode(tx.data).fold(_ => false, _.length <= 128), "Data field must be less than 128 bytes") // todo: JAA - check that this works with empty data
+
+    // todo: JAA - check that this works with empty data
+    // need to have UTF-8 encoding!!
+    "this is some data".getBytes("utf8").length
+    "test".getBytes("UTF-8").length
+    require(Base58.decode(tx.data).fold(_ => false, _.length <= 128), "Data field must be less than 128 bytes")
 
 
     // prototype transactions do not contain signatures at creation

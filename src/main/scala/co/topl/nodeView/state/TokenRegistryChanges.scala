@@ -16,15 +16,15 @@ object TokenRegistryChanges {
   type K = TokenBoxRegistry.K
   type V = TokenBoxRegistry.V
 
-  def apply ( mod: Block )(implicit networkPrefix: NetworkPrefix): Try[TokenRegistryChanges] =
+  def apply (mod: Block)(implicit networkPrefix: NetworkPrefix): Try[TokenRegistryChanges] =
     Try {
 
       // extract the needed box data from all transactions within a block
       val (fromSeq, toSeq) =
         mod.transactions.map{
-              case tx: TransferTransaction[_] => (tx.from, tx.newBoxes.toSeq)
+              case tx: TransferTransaction[_] => (tx.from, tx.newBoxes)
               case _  => (Seq(), Seq()) // JAA - not sure if this is needed but added to be exhaustive
-            }.foldLeft((Seq[(K, Long)](), Seq[Box[TokenBox.Value]]()))(( acc, txData ) => {
+            }.foldLeft((Seq[(K, Box.Nonce)](), Seq[Box[TokenBox.Value]]()))(( acc, txData ) => {
               (acc._1 ++ txData._1, acc._2 ++ txData._2)
             })
 

@@ -47,18 +47,17 @@ class SyntaxBlockValidator extends BlockValidator[Block] {
     // check block signature is valid
     require(block.signature.isValid(block.publicKey, block.messageToSign), "Failed to validate block signature")
 
-
     // ensure only a single Arbit minting transaction
     val numArbitCoinbase = block.transactions.count {
       case tx: ArbitTransfer[_] => tx.minting
     }
-    require(numArbitCoinbase == 1, "Invalid number of Arbit rewards transactions.")
+    require(numArbitCoinbase == 1, "Invalid number of Arbit reward transactions.")
 
     // ensure only a single Poly minting transaction
     val numPolyCoinbase = block.transactions.count {
       case tx: PolyTransfer[_] => tx.minting
     }
-    require(numPolyCoinbase == 1, "Invalid number of Poly rewards transactions.")
+    require(numPolyCoinbase == 1, "Invalid number of Poly reward transactions.")
 
     // enforce the structure of the Arbit and Poly minting transactions
     block.transactions.zipWithIndex.map {

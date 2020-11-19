@@ -33,8 +33,8 @@ import scala.util.{Failure, Success, Try}
   * The instances are read-only for external world.
   * Updates of the composite view(the instances are to be performed atomically.
   */
-class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
-                     ( implicit ec: ExecutionContext ) extends Actor with Logging {
+class NodeViewHolder ( settings: AppSettings )
+                     ( implicit ec: ExecutionContext, np: NetworkPrefix ) extends Actor with Logging {
 
   // Import the types of messages this actor can RECEIVE
   import NodeViewHolder.ReceivableMessages._
@@ -54,9 +54,6 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
     */
   private var nodeView: NodeView = restoreState().getOrElse(genesisState)
 
-  // Establish the expected network prefix for addresses
-  implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
-
   /**
     * Cache for modifiers. If modifiers are coming out-of-order, they are to be stored in this cache.
     */
@@ -66,6 +63,8 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
   lazy val modifierCompanions: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
     Map(Block.modifierTypeId -> BlockSerializer,
         Transaction.modifierTypeId -> TransactionSerializer)
+
+
 
   /** Define actor control behavior */
   override def preStart(): Unit = {
@@ -498,7 +497,7 @@ object NodeViewHolder {
     // Explicit request of NodeViewChange events of certain types.
     case class GetNodeViewChanges(history: Boolean, state: Boolean, mempool: Boolean)
 
-    // Retrieve data from current view with an optional callback function to modify the view
+    // Retrieve data from current view
     case object GetDataFromCurrentView
 
     // Modifiers received from the remote peer with new elements in it
@@ -535,5 +534,5 @@ object NodeViewHolderRef {
 
   def props ( settings: AppSettings, appContext: AppContext )
             ( implicit ec: ExecutionContext ): Props =
-    Props(new NodeViewHolder(settings, appContext))
+    Props(new NodeViewHolder(settings)(ec, appContext.networkType.netPrefix))
 }

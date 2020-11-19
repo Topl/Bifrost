@@ -50,9 +50,10 @@ case class Block( parentId    : BlockId,
   lazy val serializer: BifrostSerializer[Block] = BlockSerializer
 
   lazy val messageToSign: Array[Byte] = {
-    val noSigCopy = this.copy(signature = SignatureCurve25519.empty)
-    serializer.toBytes(noSigCopy)
+    this.copy(signature = SignatureCurve25519.empty).bytes
   }
+
+  override def toString: String = Block.jsonEncoder(this).noSpaces
 }
 
 
@@ -117,7 +118,7 @@ object Block {
   implicit val jsonEncoder: Encoder[Block] = { b: Block ⇒
     Map(
       "id" -> b.id.toString.asJson,
-      "parentId" -> b.id.toString.asJson,
+      "parentId" -> b.parentId.toString.asJson,
       "timestamp" -> b.timestamp.asJson,
       "generatorBox" -> b.forgerBox.asJson,
       "publicKey" -> b.publicKey.asJson,

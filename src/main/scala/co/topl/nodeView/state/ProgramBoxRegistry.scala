@@ -105,7 +105,7 @@ object ProgramBoxRegistry extends Logging {
 
       val file = new File(s"$dataDir/programBoxRegistry")
       file.mkdirs()
-      val storage = new LSMStore(file)
+      val storage = new LSMStore(file, keySize = ProgramId.size)
 
       Some(new ProgramBoxRegistry(storage))
 

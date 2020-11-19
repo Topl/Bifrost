@@ -4,6 +4,7 @@ import java.time.Instant
 
 import co.topl.attestation._
 import co.topl.modifier.transaction.Transaction.TxType
+import co.topl.modifier.transaction.TransferTransaction.BoxParams
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{AssetBox, Box, PolyBox, TokenBox}
 import io.circe.syntax._
@@ -28,8 +29,15 @@ case class AssetTransfer[
 
   override lazy val newBoxes: Traversable[TokenBox] = {
     val params = TransferTransaction.boxParams(this)
-    Traversable((PolyBox.apply _).tupled(params.head)) ++
-      params.tail.map(p => (AssetBox(p._1, p._2, p._3, assetCode, issuer, data)))
+
+    val feeBox =
+      if (fee > 0L) Traversable((PolyBox.apply _).tupled(BoxParams.unapply(params._1).get))
+      else Traversable()
+
+    feeBox ++ params._2.map { p =>
+      val pi = BoxParams.unapply(p).get
+      AssetBox(pi._1, pi._2, pi._3, assetCode, issuer, data)
+    }
   }
 
   override def messageToSign: Array[Byte] =

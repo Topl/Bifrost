@@ -26,8 +26,6 @@ abstract class Transaction[T <: Any, P <: Proposition] extends NodeViewModifier 
 
   lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = None
 
-
-
   val modifierTypeId: ModifierTypeId = Transaction.modifierTypeId
 
   val txTypePrefix: TxType

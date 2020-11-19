@@ -4,6 +4,7 @@ import java.time.Instant
 
 import co.topl.attestation._
 import co.topl.modifier.transaction.Transaction.TxType
+import co.topl.modifier.transaction.TransferTransaction.BoxParams
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{Box, PolyBox, TokenBox}
 import io.circe.syntax.EncoderOps
@@ -25,7 +26,13 @@ case class PolyTransfer[
   override val txTypePrefix: TxType = PolyTransfer.txTypePrefix
 
   override lazy val newBoxes: Traversable[TokenBox] = {
-    TransferTransaction.boxParams(this).map((PolyBox.apply _).tupled(_))
+    val params = TransferTransaction.boxParams(this)
+
+    val feeBox =
+      if (fee > 0L) Traversable((PolyBox.apply _).tupled(BoxParams.unapply(params._1).get))
+      else Traversable()
+
+    feeBox ++ params._2.map(p => (PolyBox.apply _).tupled(BoxParams.unapply(p).get))
   }
 }
 

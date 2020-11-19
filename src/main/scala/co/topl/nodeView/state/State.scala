@@ -94,7 +94,7 @@ case class State ( override val version     : VersionTag,
    * @param key storage key used to identify value(s) in registry
    * @return a sequence of boxes stored beneath the specified key
    */
-  def registryLookup[K] ( key: K ): Option[Seq[BoxId]] = {
+  def registryLookup[K] (key: K): Option[Seq[BoxId]] = {
     key match {
       case k: TokenBoxRegistry.K if tbrOpt.isDefined   => tbrOpt.get.lookup(k)
       case k: ProgramBoxRegistry.K if pbrOpt.isDefined => pbrOpt.get.lookup(k)
@@ -297,7 +297,7 @@ object State extends Logging {
                      (implicit networkPrefix: NetworkPrefix): State = {
     val sFile = stateFile(settings)
     sFile.mkdirs()
-    val storage = new LSMStore(sFile)
+    val storage = new LSMStore(sFile, keySize = BoxId.size)
 
     val version: VersionTag = ModifierId(
       storage.lastVersionID

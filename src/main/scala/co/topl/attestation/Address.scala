@@ -38,6 +38,8 @@ case class Address(evidence: Evidence)(implicit val networkPrefix: NetworkPrefix
 
 
 object Address extends BifrostSerializer[Address] {
+  // the byte length of an address (network prefix + Evidence type + evidence content)
+  val addressSize: Int = 1 + Evidence.size
 
   def apply(addrStr: String): Address =
     AddressEncoder.fromString(addrStr) match {

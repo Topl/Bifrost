@@ -27,7 +27,7 @@ import scala.util.{Failure, Success, Try}
  * Must be singleton
  */
 class Forger (settings: AppSettings, appContext: AppContext )
-             ( implicit ec: ExecutionContext ) extends Actor with Logging {
+             ( implicit ec: ExecutionContext, np: NetworkPrefix ) extends Actor with Logging {
 
   //type HR = HistoryReader[Block, BifrostSyncInfo]
   type TX = Transaction.TX
@@ -35,16 +35,12 @@ class Forger (settings: AppSettings, appContext: AppContext )
   // Import the types of messages this actor RECEIVES
   import Forger.ReceivableMessages._
 
-  // Establish the expected network prefix for addresses
-  implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
-
   // holder of private keys that are used to forge
   private val keyFileDir = settings.application.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
   private val keyRing = KeyRing[PrivateKeyCurve25519](keyFileDir)
 
   // designate a rewards address
-  // todo - add an API route for updating the rewards address
-  private val rewardAddress = keyRing.addresses.headOption
+  private var rewardAddress: Option[Address] = None
 
   // a timestamp updated on each forging attempt
   private var forgeTime: Time = appContext.timeProvider.time()
@@ -115,6 +111,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
     case CreateKey(password)                 => sender() ! keyRing.generateKeyFile(password)
     case ImportKey(password, mnemonic, lang) => sender() ! keyRing.importPhrase(password, mnemonic, lang)
     case ListKeys                            => sender() ! keyRing.addresses
+    //TODO: JAA - add route to update rewards address
   }
 
   private def nonsense: Receive = {
@@ -138,7 +135,8 @@ class Forger (settings: AppSettings, appContext: AppContext )
     context.actorSelection("../" + NodeViewHolder.actorName).resolveOne().onComplete {
       case Success(nvh: ActorRef) =>
         context.system.scheduler.scheduleOnce(settings.forging.blockGenerationDelay)(nvh ! GetDataFromCurrentView)
-      case _                      =>
+
+      case _ =>
         log.warn("No ledger actor found. Stopping forging attempts")
         self ! StopForging
     }
@@ -165,6 +163,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
       case _                => throw new Error("Undefined network type.")
     } ).map {
       case (block: Block, ChainParams(totalStake, initDifficulty)) =>
+        rewardAddress = keyRing.addresses.headOption
         maxStake = totalStake
         difficulty = initDifficulty
         height = 0
@@ -180,10 +179,11 @@ class Forger (settings: AppSettings, appContext: AppContext )
    * @param state   state instance for semantic validity tests of transactions
    * @param memPool mempool instance for picking transactions to include in the block if created
    */
-  private def tryForging ( history: History, state: State, memPool: MemPool): Unit = {
-    log.debug(s"${Console.YELLOW}Attempting to forge with settings ${protocolMngr.current(history.height)}${Console.RESET}")
-    log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${history.height}${Console.RESET}")
-    log.info("chain difficulty: " + history.difficulty)
+  private def tryForging (history: History, state: State, memPool: MemPool): Unit = {
+    log.debug(s"${Console.MAGENTA}Attempting to forge with settings ${protocolMngr.current(history.height)}" +
+      s"and from addresses: ${keyRing.addresses}${Console.RESET}")
+    log.info(s"${Console.CYAN}Trying to generate a new block on top of ${history.bestBlock.id}. Parent has " +
+      s"height ${history.height } and difficulty ${history.difficulty} ${Console.RESET}")
 
     try {
       val rewardAddr = rewardAddress.getOrElse(throw new Error("No rewards address specified"))
@@ -194,9 +194,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
         case Failure(ex)    => throw ex
       }
 
-      log.debug(s"Trying to generate block on top of ${history.bestBlock.id} with balance " +
-        s"${boxes.map(_.value).sum}")
-
+      log.debug(s"Trying to generate block from total stake ${boxes.map(_.value).sum}")
       require(boxes.map(_.value).sum > 0, "No Arbits could be found to stake with, exiting attempt")
 
       // create the coinbase reward transaction
@@ -239,7 +237,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
    * @param state state instance used to lookup the balance for all unlocked keys
    * @return a set of arbit boxes to use for testing leadership eligibility
    */
-  private def getArbitBoxes ( state: State ): Try[Set[ArbitBox]] = Try {
+  private def getArbitBoxes (state: State): Try[Set[ArbitBox]] = Try {
     if ( keyRing.addresses.nonEmpty ) {
       keyRing.addresses.flatMap {
         state.getTokenBoxes(_)
@@ -263,7 +261,8 @@ class Forger (settings: AppSettings, appContext: AppContext )
                                 rewardAdr: Address
                                ): Try[ArbitTransfer[PublicKeyPropositionCurve25519]] =
     Try {
-      ArbitTransfer(IndexedSeq(),
+      ArbitTransfer(
+        IndexedSeq(),
         IndexedSeq((rewardAdr, inflation)),
         Map[PublicKeyPropositionCurve25519, SignatureCurve25519](),
         0,
@@ -277,7 +276,8 @@ class Forger (settings: AppSettings, appContext: AppContext )
                                rewardAdr: Address
                               ): Try[PolyTransfer[PublicKeyPropositionCurve25519]] =
     Try {
-      PolyTransfer(IndexedSeq(),
+      PolyTransfer(
+        IndexedSeq(),
         IndexedSeq((rewardAdr, amount)),
         Map[PublicKeyPropositionCurve25519, SignatureCurve25519](),
         0,
@@ -400,7 +400,7 @@ object Forger {
 object ForgerRef {
   def props ( settings: AppSettings, appContext: AppContext )
             ( implicit ec: ExecutionContext ): Props =
-    Props(new Forger(settings, appContext))
+    Props(new Forger(settings, appContext)(ec, appContext.networkType.netPrefix))
 
   def apply ( settings: AppSettings, appContext: AppContext )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
