@@ -9,22 +9,28 @@ import co.topl.utils.NetworkTimeProvider
 
 import scala.concurrent.ExecutionContext
 
-class AppContext ( settings: AppSettings,
-                   startupOpts: StartupOpts,
-                   val upnpGateway: Option[Gateway]
-                 )(implicit ec: ExecutionContext) {
+/** Info that Bifrost needs based on the settings and user options
+  *
+  * @param settings application settings
+  * @param startupOpts user defined startup options
+  * @param upnpGateway Option of Gateway class handling gateway device and port forwarding
+  */
+class AppContext(
+  settings: AppSettings,
+  startupOpts: StartupOpts,
+  val upnpGateway: Option[Gateway])(implicit ec: ExecutionContext) {
 
-  // save your address for sending to others peers
+  /** Save your address for sending to others peers */
   val externalNodeAddress: Option[InetSocketAddress] = {
     settings.network.declaredAddress orElse {
       upnpGateway.map(u => new InetSocketAddress(u.externalAddress, u.mappedPort))
     }
   }
 
-  // save a common time provider to be used
+  /** Save a common time provider to be used */
   val timeProvider = new NetworkTimeProvider(settings.ntp)
 
-  // save chosen network for loading genesis config
+  /** Save chosen network for loading genesis config */
   val networkType: NetworkType = {
     val opts = startupOpts.runtimeParams
     startupOpts.networkTypeOpt match {
@@ -33,11 +39,11 @@ class AppContext ( settings: AppSettings,
     }
   }
 
-  // enumerate features and message specs present for communicating between peers
+  /** Enumerate features and message specs present for communicating between peers */
   val features: Seq[peer.PeerFeature] = Seq()
   val featureSerializers: peer.PeerFeature.Serializers = features.map(f => f.featureId -> f.serializer).toMap
 
-  // instantiate and populate the local message handler for peer management requests from remote peers
+  /** Instantiate and populate the local message handler for peer management requests from remote peers */
   val peerSyncRemoteMessages: PeerSynchronizer.RemoteMessageHandler = {
     val getPeersSpec = new GetPeersSpec
     val peersSpec = new PeersSpec(featureSerializers, settings.network.maxPeerSpecObjects)
@@ -45,7 +51,7 @@ class AppContext ( settings: AppSettings,
     PeerSynchronizer.RemoteMessageHandler(peersSpec, getPeersSpec)
   }
 
-  // instantiate and populate the local message handler for node view management requests from remote peers
+  /** Instantiate and populate the local message handler for node view management requests from remote peers */
   val nodeViewSyncRemoteMessages: NodeViewSynchronizer.RemoteMessageHandler = {
     val syncInfoSpec = new SyncInfoSpec
     val invSpec = new InvSpec(settings.network.maxInvObjects)
@@ -56,5 +62,4 @@ class AppContext ( settings: AppSettings,
   }
 
   val messageSpecs: Seq[MessageSpec[_]] = peerSyncRemoteMessages.toSeq ++ nodeViewSyncRemoteMessages.toSeq
-
 }

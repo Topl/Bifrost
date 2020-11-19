@@ -10,97 +10,104 @@ import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 
 import scala.concurrent.duration._
 
-case class ApplicationSettings (dataDir: Option[String],
-                                keyFileDir: Option[String],
-                                enablePBR: Boolean,
-                                enableTBR: Boolean,
-                                nodeKeys: Option[Set[String]],
-                                version: Version,
-                                cacheExpire: Int,
-                                cacheSize: Int)
+case class ApplicationSettings(
+  dataDir: Option[String],
+  keyFileDir: Option[String],
+  enablePBR: Boolean,
+  enableTBR: Boolean,
+  nodeKeys: Option[Set[String]],
+  version: Version,
+  cacheExpire: Int,
+  cacheSize: Int)
 
-case class RESTApiSettings (bindAddress: InetSocketAddress,
-                            apiKeyHash : String,
-                            corsAllowed: Boolean,
-                            timeout    : FiniteDuration,
-                            verboseAPI : Boolean)
+case class RESTApiSettings(
+  bindAddress: InetSocketAddress,
+  apiKeyHash : String,
+  corsAllowed: Boolean,
+  timeout    : FiniteDuration,
+  verboseAPI : Boolean)
 
-case class NetworkSettings (addedMaxDelay: Option[FiniteDuration],
-                            agentName: String,
-                            applicationNameLimit: Int,
-                            bindAddress             : InetSocketAddress,
-                            connectionTimeout       : FiniteDuration,
-                            controllerTimeout       : Option[FiniteDuration],
-                            deadConnectionTimeout   : FiniteDuration,
-                            declaredAddress         : Option[InetSocketAddress],
-                            deliveryTimeout: FiniteDuration,
-                            desiredInvObjects: Int,
-                            getPeersInterval        : FiniteDuration,
-                            handshakeTimeout        : FiniteDuration,
-                            knownPeers              : Seq[InetSocketAddress],
-                            magicBytes: Array[Byte],
-                            maxConnections          : Int,
-                            maxDeliveryChecks       : Int,
-                            maxHandshakeSize        : Int,
-                            maxInvObjects           : Int,
-                            maxModifiersCacheSize   : Int,
-                            maxChainCacheDepth      : Int,
-                            maxPacketSize           : Int,
-                            maxPeerSpecObjects: Int,
-                            nodeName: String,
-                            penaltySafeInterval: FiniteDuration,
-                            penaltyScoreThreshold: Int,
-                            syncInterval            : FiniteDuration,
-                            syncIntervalStable      : FiniteDuration,
-                            syncStatusRefresh       : FiniteDuration,
-                            syncStatusRefreshStable : FiniteDuration,
-                            syncTimeout             : Option[FiniteDuration],
-                            temporalBanDuration     : FiniteDuration,
-                            upnpDiscoverTimeout     : Option[FiniteDuration],
-                            upnpEnabled             : Boolean,
-                            upnpUseRandom           : Option[Boolean],
-                            upnpGatewayTimeout      : Option[FiniteDuration])
+case class NetworkSettings(
+  addedMaxDelay: Option[FiniteDuration],
+  agentName: String,
+  applicationNameLimit: Int,
+  bindAddress             : InetSocketAddress,
+  connectionTimeout       : FiniteDuration,
+  controllerTimeout       : Option[FiniteDuration],
+  deadConnectionTimeout   : FiniteDuration,
+  declaredAddress         : Option[InetSocketAddress],
+  deliveryTimeout: FiniteDuration,
+  desiredInvObjects: Int,
+  getPeersInterval        : FiniteDuration,
+  handshakeTimeout        : FiniteDuration,
+  knownPeers              : Seq[InetSocketAddress],
+  magicBytes: Array[Byte],
+  maxConnections          : Int,
+  maxDeliveryChecks       : Int,
+  maxHandshakeSize        : Int,
+  maxInvObjects           : Int,
+  maxModifiersCacheSize   : Int,
+  maxChainCacheDepth      : Int,
+  maxPacketSize           : Int,
+  maxPeerSpecObjects: Int,
+  nodeName: String,
+  penaltySafeInterval: FiniteDuration,
+  penaltyScoreThreshold: Int,
+  syncInterval            : FiniteDuration,
+  syncIntervalStable      : FiniteDuration,
+  syncStatusRefresh       : FiniteDuration,
+  syncStatusRefreshStable : FiniteDuration,
+  syncTimeout             : Option[FiniteDuration],
+  temporalBanDuration     : FiniteDuration,
+  upnpDiscoverTimeout     : Option[FiniteDuration],
+  upnpEnabled             : Boolean,
+  upnpUseRandom           : Option[Boolean],
+  upnpGatewayTimeout      : Option[FiniteDuration])
 
-case class ForgingSettings ( blockGenerationDelay: FiniteDuration,
-                             protocolVersions    : List[ProtocolSettings],
-                             privateTestnet      : Option[PrivateTestnetSettings])
+case class ForgingSettings(
+  blockGenerationDelay: FiniteDuration,
+  protocolVersions    : List[ProtocolSettings],
+  privateTestnet      : Option[PrivateTestnetSettings])
 
-case class PrivateTestnetSettings (numTestnetAccts  : Int,
-                                   testnetBalance   : Long,
-                                   initialDifficulty: Long)
+case class PrivateTestnetSettings(
+  numTestnetAccts  : Int,
+  testnetBalance   : Long,
+  initialDifficulty: Long)
 
-case class AppSettings (application: ApplicationSettings,
-                        network    : NetworkSettings,
-                        forging    : ForgingSettings,
-                        restApi    : RESTApiSettings,
-                        ntp        : NetworkTimeProviderSettings)
+case class AppSettings(
+  application: ApplicationSettings,
+  network    : NetworkSettings,
+  forging    : ForgingSettings,
+  restApi    : RESTApiSettings,
+  ntp        : NetworkTimeProviderSettings)
 
+/** Application settings for Bifrost */
 object AppSettings extends Logging with SettingsReaders {
 
   protected val configPath: String = "bifrost"
 
-  /**
+  /** Produces an application settings class, and modify the default settings if user options are provided
     *
-    * @param startupOpts
-    * @return
+    * @param startupOpts startup options such as the path of the user defined config and network type
+    * @return application settings
     */
-  def read (startupOpts: StartupOpts = StartupOpts.empty): AppSettings = {
+  def read(startupOpts: StartupOpts = StartupOpts.empty): AppSettings = {
     fromConfig(readConfig(startupOpts))
   }
 
-  /**
-    * Produces an application settings class by reading the specified HOCON configuration file
-    * @param config config factory compatible configuration
-    * @return
-    */
-  def fromConfig (config: Config): AppSettings = config.as[AppSettings](configPath)
-
-  /**
+  /** Produces an application settings class by reading the specified HOCON configuration file
     *
-    * @param args
-    * @return
+    * @param config config factory compatible configuration
+    * @return application settings
     */
-  def readConfig (args : StartupOpts): Config = {
+  def fromConfig(config: Config): AppSettings = config.as[AppSettings](configPath)
+
+  /** Based on the startup arguments given by the user, modify and return the default application config
+    *
+    * @param args startup options such as the path of the user defined config and network type
+    * @return config factory compatible configuration
+    */
+  def readConfig(args: StartupOpts): Config = {
 
     val networkPath = args.networkTypeOpt.flatMap {
       networkType =>
@@ -108,8 +115,10 @@ object AppSettings extends Logging with SettingsReaders {
         Option(s"src/main/resources/${networkType.verboseName}.conf")
     }
 
-    args.networkTypeOpt.fold(log.warn("No network specified, running as local testnet."))(
-      networkType => log.info(s"Running in ${networkType.verboseName} network mode"))
+    val networkName: String = args.networkTypeOpt.flatMap(networkType => Option(networkType.verboseName)).getOrElse{
+      log.warn(s"${Console.YELLOW}No network specified, running as local testnet.${Console.RESET}")
+      "No Network Specified"
+    }
 
     val networkConfigFileOpt = for {
       filePathOpt <- networkPath
@@ -124,9 +133,10 @@ object AppSettings extends Logging with SettingsReaders {
     } yield file
 
     (userConfigFileOpt, networkConfigFileOpt) match {
-      /* If both are provided, user provided settings should override the default setting */
+      /** If there are user provided settings or network type, overwrite default settings with user specified ones */
       case (Some(file), None) ⇒
-        log.warn("Found custom settings. Using default settings for ones not specified in custom Settings")
+        log.warn(s"${Console.YELLOW}Found custom settings. " +
+          s"Using default settings for ones not specified in custom Settings${Console.RESET}")
         val config = ConfigFactory.parseFile(file)
         ConfigFactory
           .defaultOverrides()
@@ -135,15 +145,17 @@ object AppSettings extends Logging with SettingsReaders {
           .resolve()
 
       case (None, Some(networkConfigFile)) ⇒
-        val config = ConfigFactory.parseFile(networkConfigFile)
+        log.warn(s"${Console.YELLOW}Using ${networkName} settings${Console.RESET}")
+        val networkConfig = ConfigFactory.parseFile(networkConfigFile)
         ConfigFactory
           .defaultOverrides()
-          .withFallback(config)
+          .withFallback(networkConfig)
           .withFallback(ConfigFactory.defaultApplication())
           .resolve()
 
       case (Some(file), Some(networkConfigFile)) =>
-        log.warn(s"Found custom settings. Using network settings for ones not specified in custom Settings")
+        log.warn(s"${Console.YELLOW}Found custom settings. " +
+          s"Using ${networkName} settings for ones not specified in custom Settings${Console.RESET}")
         val config = ConfigFactory.parseFile(file)
         val networkConfig = ConfigFactory.parseFile(networkConfigFile)
         ConfigFactory
@@ -153,8 +165,9 @@ object AppSettings extends Logging with SettingsReaders {
           .withFallback(ConfigFactory.defaultApplication())
           .resolve()
 
+      /** Use default settings if no startup options is found */
       case _ ⇒
-        log.warn("No custom setting specified, using default configuration")
+        log.warn(s"${Console.YELLOW}No custom setting specified, using default configuration${Console.RESET}")
         ConfigFactory.load()
     }
   }

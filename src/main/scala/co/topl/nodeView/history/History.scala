@@ -441,8 +441,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     (new History(storage, fullBlockProcessor, validators), progInfo)
   }
   
-  /**
-    * Whether a modifier could be applied to the history
+  /** Whether a modifier could be applied to the history
     *
     * @param modifier - modifier to apply
     * @return `Success` if modifier can be applied, `Failure(ModifierError)` if can not
@@ -490,9 +489,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     }
   }
 
-  /**
-    * Ids of modifiers, that node with info should download and apply to synchronize
-    */
+  /** Ids of modifiers, that node with info should download and apply to synchronize */
   override def continuationIds(info: BifrostSyncInfo, size: Int): ModifierIds = {
     // case where we are at genesis
     if (isEmpty) {
@@ -519,25 +516,19 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     }
   }
 
-  /**
-    * Information about our node synchronization status. Other node should be able to compare it's view with ours by
+  /** Information about our node synchronization status. Other node should be able to compare it's view with ours by
     * this syncInfo message and calculate modifiers missed by our node.
-    *
-    * @return
     */
   override def syncInfo: BifrostSyncInfo =
-    if (isEmpty) {
+    if (isEmpty)
       BifrostSyncInfo(Seq.empty)
-
-    } else {
+    else {
       val startingPoints = lastHeaders(BifrostSyncInfo.MaxLastBlocks)
 
-      if (startingPoints.headOption.contains(GenesisParentId)) {
+      if (startingPoints.headOption.contains(GenesisParentId))
         BifrostSyncInfo(GenesisParentId +: startingPoints)
-
-      } else {
+      else
         BifrostSyncInfo(startingPoints)
-      }
     }
 
   /**Return last count headers from best headers chain if exist or chain up to genesis otherwise */

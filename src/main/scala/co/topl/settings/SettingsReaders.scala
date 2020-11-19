@@ -6,6 +6,7 @@ import java.net.InetSocketAddress
 import com.typesafe.config.Config
 import net.ceedubs.ficus.readers.ValueReader
 
+/** Reader for files/byte values/inet socket addresses from configs */
 trait SettingsReaders {
 
   implicit val fileReader: ValueReader[File] = (cfg, path) => new File(cfg.getString(path))
