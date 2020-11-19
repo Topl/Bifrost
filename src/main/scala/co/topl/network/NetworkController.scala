@@ -124,6 +124,7 @@ class NetworkController(
       }
   }
 
+  /** methods used to manage peers */
   private def peerCommands: Receive = {
     /** used to periodically connecting to peers */
     case ConnectTo(peer) =>
@@ -580,26 +581,12 @@ object NetworkController {
 
 object NetworkControllerRef {
 
-  def apply(
-    settings      : AppSettings,
-    peerManagerRef: ActorRef,
-    appContext    : AppContext)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(settings, peerManagerRef, appContext, IO(Tcp)))
-
   def props(
-    settings      : AppSettings,
-    peerManagerRef: ActorRef,
-    appContext    : AppContext,
-    tcpManager    : ActorRef)(implicit ec: ExecutionContext): Props =
+             settings      : AppSettings,
+             peerManagerRef: ActorRef,
+             appContext    : AppContext,
+             tcpManager    : ActorRef)(implicit ec: ExecutionContext): Props =
     Props(new NetworkController(settings, peerManagerRef, appContext, tcpManager))
-
-  def apply(
-    name: String,
-    settings      : AppSettings,
-    peerManagerRef: ActorRef,
-    appContext    : AppContext,
-    tcpManager    : ActorRef)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(settings, peerManagerRef, appContext, tcpManager), name)
 
   def apply(
     name          : String,

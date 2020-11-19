@@ -685,20 +685,6 @@ object NodeViewSynchronizer {
 
 object NodeViewSynchronizerRef {
 
-  def apply[
-    TX <: Transaction,
-    SI <: SyncInfo,
-    PMOD <: PersistentNodeViewModifier,
-    HR <: HistoryReader[PMOD, SI]: ClassTag,
-    MR <: MemPoolReader[TX]: ClassTag
-  ](
-    networkControllerRef: ActorRef,
-    viewHolderRef: ActorRef,
-    settings: AppSettings,
-    appContext: AppContext
-  )(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, settings, appContext))
-
   def props[
     TX <: Transaction,
     SI <: SyncInfo,

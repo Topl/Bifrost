@@ -116,13 +116,6 @@ final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimePr
   def penaltyScore(socketAddress: InetSocketAddress): Int =
     Option(socketAddress.getAddress).map(penaltyScore).getOrElse(0)
 
-  /** @return `true` if a peer should still be on blacklist */
-  private def checkBanned(address: InetAddress, bannedTill: Long): Boolean = {
-    val stillBanned = timeProvider.time() < bannedTill
-    if (!stillBanned) removeFromBlacklist(address)
-    stillBanned
-  }
-
   /** @return the penalty score for the given penalty type */
   private def penaltyScore(penaltyType: PenaltyType): Int =
     penaltyType match {
@@ -135,6 +128,13 @@ final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimePr
       case PenaltyType.PermanentPenalty =>
         PenaltyType.PermanentPenalty.penaltyScore
     }
+
+  /** @return `true` if a peer should still be on blacklist */
+  private def checkBanned(address: InetAddress, bannedTill: Long): Boolean = {
+    val stillBanned = timeProvider.time() < bannedTill
+    if (!stillBanned) removeFromBlacklist(address)
+    stillBanned
+  }
 
   /** @return the penalty duration for the peer that is going on the blacklist */
   private def penaltyDuration(penalty: PenaltyType): Long =
