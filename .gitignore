@@ -7,7 +7,7 @@
 .metals/
 .bloop/
 .bsp/
-.out/
+out/
 *.iml
 
 # scala build folders
