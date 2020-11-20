@@ -1,26 +1,18 @@
 package co.topl.api
 
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
 import akka.util.ByteString
 import co.topl.http.api.routes.ProgramApiRoute
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import co.topl.nodeView.history.History
-import co.topl.nodeView.mempool.MemPool
-import co.topl.nodeView.state.State
+import co.topl.nodeView.state
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.{CurrentView, state}
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-
-import scala.concurrent.Await
-import scala.concurrent.duration._
 
 /**
   * Created by cykoz on 6/13/2017.
@@ -32,10 +24,6 @@ class ProgramRPCSpec extends AnyWordSpec
 
   // setup route for testing
   val route: Route = ProgramApiRoute(settings.restApi, nodeViewHolderRef).route
-
-  private def view() = Await.result(
-    (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]],
-    10.seconds)
 
   lazy val (signSk, signPk) = sampleUntilNonEmpty(keyPairSetGen).head
 

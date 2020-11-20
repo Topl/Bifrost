@@ -2,21 +2,13 @@ package co.topl.api.program
 
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
-import akka.pattern.ask
 import akka.util.ByteString
 import co.topl.api.RPCMockState
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import co.topl.nodeView.history.History
-import co.topl.nodeView.mempool.MemPool
-import co.topl.nodeView.state.State
+import co.topl.nodeView.state
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.{CurrentView, state}
 import io.circe.syntax._
 import org.scalatest.matchers.should
-
-import scala.concurrent.Await
-import scala.concurrent.duration._
 
 trait ProgramRPCMockState extends RPCMockState
   with should.Matchers {
@@ -30,10 +22,6 @@ trait ProgramRPCMockState extends RPCMockState
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
     ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
-
-  protected def view(): CurrentView[History, State, MemPool] = Await.result(
-    (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]],
-    10.seconds)
 
   def directlyAddPBRStorage(version: Int, boxes: Seq[ProgramBox]): Unit = {
     // Manually manipulate state

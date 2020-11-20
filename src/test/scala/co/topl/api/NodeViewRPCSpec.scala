@@ -1,18 +1,13 @@
 package co.topl.api
 
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
 import akka.util.ByteString
 import co.topl.crypto.Signature25519
 import co.topl.http.api.routes.NodeViewApiRoute
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{AssetCreation, Transaction}
-import co.topl.nodeView.CurrentView
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedTransaction}
-import co.topl.nodeView.history.History
-import co.topl.nodeView.mempool.MemPool
-import co.topl.nodeView.state.State
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import io.circe.Json
@@ -21,8 +16,6 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
 
-import scala.concurrent.Await
-import scala.concurrent.duration._
 import scala.reflect.io.Path
 import scala.util.Try
 
@@ -32,10 +25,6 @@ class NodeViewRPCSpec extends AnyWordSpec
 
   // setup route for testing
   val route: Route = NodeViewApiRoute(settings.restApi, nodeViewHolderRef).route
-
-  private def view() = Await.result(
-    (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]],
-    10.seconds)
 
   val publicKeys = Map(
     "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",

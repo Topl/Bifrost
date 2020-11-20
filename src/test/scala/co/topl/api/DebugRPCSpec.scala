@@ -1,20 +1,11 @@
 package co.topl.api
 
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
 import akka.util.ByteString
 import co.topl.http.api.routes.DebugApiRoute
-import co.topl.nodeView.CurrentView
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import co.topl.nodeView.history.History
-import co.topl.nodeView.mempool.MemPool
-import co.topl.nodeView.state.State
 import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-
-import scala.concurrent.Await
-import scala.concurrent.duration._
 
 class DebugRPCSpec extends AnyWordSpec
   with Matchers
