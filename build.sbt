@@ -92,13 +92,13 @@ libraryDependencies ++= Seq(
 )
 
 // https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
-libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "19.3.4"
+libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "19.3.1"
 
 // https://mvnrepository.com/artifact/org.graalvm.js/js
-libraryDependencies += "org.graalvm.js" % "js" % "19.3.4"
+libraryDependencies += "org.graalvm.js" % "js" % "19.3.1"
 
 // https://mvnrepository.com/artifact/org.graalvm.truffle/truffle-api
-libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.3.4"
+libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.3.1"
 
 libraryDependencies ++= Seq(
   "org.scalanlp"         %% "breeze"        % "1.1",
