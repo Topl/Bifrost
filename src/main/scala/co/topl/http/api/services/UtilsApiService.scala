@@ -1,11 +1,11 @@
-package co.topl.http.api.routes
+package co.topl.http.api.services
 
 import java.security.SecureRandom
 
 import akka.actor.ActorRefFactory
 import akka.http.scaladsl.server.Route
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.http.api.ApiRoute
+import co.topl.http.api.ApiService
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
@@ -17,22 +17,21 @@ import scorex.util.encode.Base58
 
 import scala.concurrent.{ExecutionContext, Future}
 
-case class UtilsApiRoute(override val settings: RPCApiSettings, appContext: AppContext)
-                        (implicit val context: ActorRefFactory, ec: ExecutionContext) extends ApiRoute {
+case class UtilsApiService(override val settings: RPCApiSettings, appContext: AppContext)
+                          (implicit val context: ActorRefFactory, ec: ExecutionContext) extends ApiService {
   type HIS = History
   type MS = State
   type MP = MemPool
-  override val route: Route ={ basicRoute(handlers) }
 
   // Establish the expected network prefix for addresses
   implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
-  def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
-    method match {
-      case "seed"         => seedRoute(params.head, id)
-      case "seedOfLength" => seedOfLength(params.head, id)
-      case "hashBlake2b"  => hashBlake2b(params.head, id)
-    }
+  // partial function for identifying local method handlers exposed by the api
+  val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
+    case ("seed", params, id)         => seedRoute(params.head, id)
+    case ("seedOfLength", params, id) => seedOfLength(params.head, id)
+    case ("hashBlake2b", params, id)  => hashBlake2b(params.head, id)
+  }
 
   private def generateSeed (length: Int): String = {
     val seed = new Array[Byte](length)

@@ -16,8 +16,6 @@ class KeyRing (private var secrets: Set[PrivateKeyCurve25519], defaultKeyDir: Fi
               (implicit networkPrefix: NetworkPrefix, sg: SecretGenerator[PrivateKeyCurve25519])
   extends Logging {
 
-  type PI = PrivateKeyCurve25519#PK
-
   /**
    * Retrieves a list of public images for the secrets currently held in the keyring
    *
@@ -62,11 +60,11 @@ class KeyRing (private var secrets: Set[PrivateKeyCurve25519], defaultKeyDir: Fi
    *
    * @param password
    */
-  def generateKeyFile (password: String): Try[PI] = {
+  def generateKeyFile (password: String): Try[Address] = {
     // generate a new random key pair and save to disk
     generateNewKeyPairs().map { sk =>
       exportKeyfile(sk.head.publicImage.address, password)
-      sk.head.publicImage
+      sk.head.publicImage.address
     }
   }
 
@@ -91,7 +89,7 @@ class KeyRing (private var secrets: Set[PrivateKeyCurve25519], defaultKeyDir: Fi
    * @param lang
    * @return
    */
-  def importPhrase (password: String, mnemonic: String, lang: String)(implicit sg: SecretGenerator[PrivateKeyCurve25519]): Try[PI] = Try {
+  def importPhrase (password: String, mnemonic: String, lang: String)(implicit sg: SecretGenerator[PrivateKeyCurve25519]): Try[Address] = Try {
     // create the BIP object used to verify the chosen language
     val bip = Bip39(lang)
 
@@ -106,7 +104,7 @@ class KeyRing (private var secrets: Set[PrivateKeyCurve25519], defaultKeyDir: Fi
     secrets += sk
 
     // return the public image of the key that was added
-    sk.publicImage
+    sk.publicImage.address
   }
 
   /**

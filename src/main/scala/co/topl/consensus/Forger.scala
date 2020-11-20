@@ -190,11 +190,9 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
       // get the set of boxes to use for testing
       val boxes = getArbitBoxes(state) match {
-        case Success(boxes) => boxes
-        case Failure(ex)    => throw ex
+        case Success(bx) => bx
+        case Failure(ex) => throw ex
       }
-
-      println(s"\n>>>>>>>>>>>>>> boxes: $boxes")
 
       log.debug(s"Trying to generate block from total stake ${boxes.map(_.value).sum}")
       require(boxes.map(_.value).sum > 0, "No Arbits could be found to stake with, exiting attempt")
@@ -239,13 +237,13 @@ class Forger (settings: AppSettings, appContext: AppContext )
    * @param state state instance used to lookup the balance for all unlocked keys
    * @return a set of arbit boxes to use for testing leadership eligibility
    */
-  private def getArbitBoxes (state: State): Try[Set[ArbitBox]] = Try {
+  private def getArbitBoxes (state: State): Try[Seq[ArbitBox]] = Try {
     if ( keyRing.addresses.nonEmpty ) {
       keyRing.addresses.flatMap {
         state.getTokenBoxes(_)
           .getOrElse(Seq())
           .collect { case box: ArbitBox => box }
-      }
+      }.toSeq
     } else {
       throw new Error("No boxes available for forging!")
     }
@@ -329,7 +327,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
   private def leaderElection ( parent: Block,
                                parentHeight: Long,
                                parentDifficulty: Long,
-                               boxes     : Set[ArbitBox],
+                               boxes     : Seq[ArbitBox],
                                rawRewards: Seq[TX],
                                txsToInclude: Seq[TX]
                              ): Option[Block] = {

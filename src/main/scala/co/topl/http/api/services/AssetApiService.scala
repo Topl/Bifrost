@@ -1,10 +1,10 @@
-package co.topl.http.api.routes
+package co.topl.http.api.services
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
-import co.topl.http.api.ApiRouteWithView
+import co.topl.http.api.ApiServiceWithView
 import co.topl.modifier.transaction.AssetTransfer
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
@@ -25,20 +25,19 @@ import scala.util.{Failure, Success}
   * @param settings the settings for HTTP REST API
   * @param context reference to the actor system used to create new actors for handling requests
   */
-case class AssetApiRoute(settings: RPCApiSettings, appContext: AppContext, nodeViewHolderRef: ActorRef)
-                        (implicit val context: ActorRefFactory) extends ApiRouteWithView {
+case class AssetApiService(settings: RPCApiSettings, appContext: AppContext, nodeViewHolderRef: ActorRef)
+                          (implicit val context: ActorRefFactory) extends ApiServiceWithView {
   type HIS = History
   type MS = State
   type MP = MemPool
-  override val route: Route = { basicRoute(handlers) }
 
   // Establish the expected network prefix for addresses
   implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
-  def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
-    method match {
-      case "transferAssetsPrototype" => transferAssetsPrototype(params.head, id)
-    }
+  // partial function for identifying local method handlers exposed by the api
+  val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
+    case ("transferAssetsPrototype", params, id) => transferAssetsPrototype(params.head, id)
+  }
 
   /** #### Summary
     *    Transfer assets from an account to a specified recipient.

@@ -10,7 +10,7 @@ import akka.util.{ByteString, Timeout}
 import co.topl.BifrostGenerators
 import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.attestation.proof.SignatureCurve25519
-import co.topl.http.api.routes.{AssetApiRoute, NodeViewApiRoute}
+import co.topl.http.api.services.{AssetApiService, NodeViewApiService}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction

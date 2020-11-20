@@ -44,18 +44,21 @@ class SyntaxBlockValidator extends BlockValidator[Block] {
         "The forger entitled transactions must match the block details")
 
   def validate(block: Block): Try[Unit] = Try {
+
     // check block signature is valid
     require(block.signature.isValid(block.publicKey, block.messageToSign), "Failed to validate block signature")
 
     // ensure only a single Arbit minting transaction
     val numArbitCoinbase = block.transactions.count {
       case tx: ArbitTransfer[_] => tx.minting
+      case _ => false
     }
     require(numArbitCoinbase == 1, "Invalid number of Arbit reward transactions.")
 
     // ensure only a single Poly minting transaction
     val numPolyCoinbase = block.transactions.count {
       case tx: PolyTransfer[_] => tx.minting
+      case _ => false
     }
     require(numPolyCoinbase == 1, "Invalid number of Poly reward transactions.")
 

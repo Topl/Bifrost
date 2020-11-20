@@ -9,8 +9,8 @@ import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.consensus.{Forger, ForgerRef}
 import co.topl.http.HttpService
-import co.topl.http.api.ApiRoute
-import co.topl.http.api.routes._
+import co.topl.http.api.ApiService
+import co.topl.http.api.services._
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.NetworkController.ReceivableMessages.BindP2P
@@ -89,16 +89,16 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // Create and register controllers for API routes
-  private val apiRoutes: Seq[ApiRoute] = Seq(
-    UtilsApiRoute(settings.rpcApi, appContext),
-    KeyManagementApiRoute(settings.rpcApi, appContext, forgerRef),
-    AssetApiRoute(settings.rpcApi, appContext, nodeViewHolderRef),
-    DebugApiRoute(settings.rpcApi, appContext, nodeViewHolderRef),
-    WalletApiRoute(settings.rpcApi, appContext, nodeViewHolderRef),
-    NodeViewApiRoute(settings.rpcApi, appContext, nodeViewHolderRef)
+  private val apiRoutes: Seq[ApiService] = Seq(
+    UtilsApiService(settings.rpcApi, appContext),
+    KeyManagementApiService(settings.rpcApi, appContext, forgerRef),
+    AssetApiService(settings.rpcApi, appContext, nodeViewHolderRef),
+    DebugApiService(settings.rpcApi, appContext, nodeViewHolderRef),
+    WalletApiService(settings.rpcApi, appContext, nodeViewHolderRef),
+    NodeViewApiService(settings.rpcApi, appContext, nodeViewHolderRef)
   )
 
-  private val httpService = HttpService(apiRoutes)
+  private val httpService = HttpService(apiRoutes, settings.rpcApi)
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // Am I running on a JDK that supports JVMCI?

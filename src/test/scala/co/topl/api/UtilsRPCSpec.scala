@@ -5,7 +5,7 @@ import akka.http.scaladsl.model.{ HttpEntity, HttpMethods, HttpRequest, MediaTyp
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import co.topl.BifrostGenerators
-import co.topl.http.api.routes.UtilsApiRoute
+import co.topl.http.api.services.UtilsApiService
 import io.circe.parser.parse
 import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers

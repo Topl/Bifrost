@@ -11,6 +11,7 @@ object PublicKeyPropositionCurve25519Serializer extends BifrostSerializer[Public
   }
 
   override def parse(r: Reader): PublicKeyPropositionCurve25519 = {
-    PublicKeyPropositionCurve25519(PublicKey @@ r.getBytes(Curve25519.KeyLength))
+    val proposition = r.getBytes(Curve25519.KeyLength)
+    PublicKeyPropositionCurve25519(PublicKey @@ proposition)
   }
 }

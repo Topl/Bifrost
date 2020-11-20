@@ -1,10 +1,10 @@
-package co.topl.http.api.routes
+package co.topl.http.api.services
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.http.api.ApiRouteWithView
+import co.topl.http.api.ApiServiceWithView
 import co.topl.modifier.ModifierId
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
@@ -16,23 +16,22 @@ import io.circe.syntax._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-case class DebugApiRoute(settings: RPCApiSettings, appContext: AppContext, nodeViewHolderRef: ActorRef)
-                        (implicit val context: ActorRefFactory) extends ApiRouteWithView {
+case class DebugApiService(settings: RPCApiSettings, appContext: AppContext, nodeViewHolderRef: ActorRef)
+                          (implicit val context: ActorRefFactory) extends ApiServiceWithView {
 
   type HIS = History
   type MS = State
   type MP = MemPool
-  override val route: Route = { basicRoute(handlers) }
 
   // Establish the expected network prefix for addresses
   implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
-  def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
-    method match {
-      case "info" => infoRoute(params.head, id)
-      case "delay" => delay(params.head, id)
-      case "generators" => generators(params.head, id)
-    }
+  // partial function for identifying local method handlers exposed by the api
+  val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
+    case ("info", params, id)       => infoRoute(params.head, id)
+    case ("delay", params, id)      => delay(params.head, id)
+    case ("generators", params, id) => generators(params.head, id)
+  }
 
   /**  #### Summary
     *    Retrieve the best block

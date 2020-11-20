@@ -50,7 +50,7 @@ sealed trait KnowledgeProposition[S <: Secret] extends Proposition
 
 /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
-case class PublicKeyPropositionCurve25519 ( private[attestation] val pubKeyBytes: PublicKey )
+case class PublicKeyPropositionCurve25519 (private[attestation] val pubKeyBytes: PublicKey)
   extends KnowledgeProposition[PrivateKeyCurve25519] {
 
   require(pubKeyBytes.length == Curve25519.KeyLength,

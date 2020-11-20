@@ -60,8 +60,9 @@ case class SignatureCurve25519(private[attestation] val sigBytes: Signature)
   require(sigBytes.isEmpty || sigBytes.length == Curve25519.SignatureLength,
     s"${sigBytes.length} != ${Curve25519.SignatureLength}")
 
-  def isValid(proposition: PublicKeyPropositionCurve25519, message: Array[Byte]): Boolean =
-    Curve25519.verify(sigBytes, message, PublicKey @@ proposition.bytes)
+  def isValid(proposition: PublicKeyPropositionCurve25519, message: Array[Byte]): Boolean = {
+    Curve25519.verify(sigBytes, message, PublicKey @@ proposition.pubKeyBytes)
+  }
 }
 
 object SignatureCurve25519 {
@@ -107,7 +108,7 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
     // only need to check until the threshold is exceeded
     val numValidSigs = signatures.foldLeft(0) { (acc, sig) =>
       if (acc < proposition.threshold) {
-        if (proposition.pubKeyProps.exists(prop => Curve25519.verify(sig.sigBytes, message, PublicKey @@ prop.bytes))) {
+        if (proposition.pubKeyProps.exists(prop => Curve25519.verify(sig.sigBytes, message, PublicKey @@ prop.pubKeyBytes))) {
           1
         } else {
           0

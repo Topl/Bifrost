@@ -1,10 +1,10 @@
-package co.topl.http.api.routes
+package co.topl.http.api.services
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.{Address, Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
-import co.topl.http.api.ApiRouteWithView
+import co.topl.http.api.ApiServiceWithView
 import co.topl.modifier.transaction._
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
 import co.topl.nodeView.history.History
@@ -20,23 +20,22 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
-case class WalletApiRoute (override val settings: RPCApiSettings, appContext: AppContext, nodeViewHolderRef: ActorRef )
-                          ( implicit val context: ActorRefFactory ) extends ApiRouteWithView {
+case class WalletApiService(override val settings: RPCApiSettings, appContext: AppContext, nodeViewHolderRef: ActorRef )
+                           ( implicit val context: ActorRefFactory ) extends ApiServiceWithView {
   type HIS = History
   type MS = State
   type MP = MemPool
-  override val route: Route = { basicRoute(handlers) }
 
   // Establish the expected network prefix for addresses
   implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
-  def handlers ( method: String, params: Vector[Json], id: String ): Future[Json] =
-    method match {
-      case "transferArbitsPrototype" => transferArbitsPrototype(params.head, id)
-      case "transferPolysPrototype"  => transferPolysPrototype(params.head, id)
-      case "balances"                => balances(params.head, id)
-      case "broadcastTx"             => broadcastTx(params.head, id)
-    }
+  // partial function for identifying local method handlers exposed by the api
+  val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
+    case ("transferArbitsPrototype", params, id) => transferArbitsPrototype(params.head, id)
+    case ("transferPolysPrototype", params, id)  => transferPolysPrototype(params.head, id)
+    case ("balances", params, id)                => balances(params.head, id)
+    case ("broadcastTx", params, id)             => broadcastTx(params.head, id)
+  }
 
   def checkPublicKey ( keys: Seq[Address], view: CV): Unit = {
     if ( !view.state.hasTBR )

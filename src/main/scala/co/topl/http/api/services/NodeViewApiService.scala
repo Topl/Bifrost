@@ -1,9 +1,9 @@
-package co.topl.http.api.routes
+package co.topl.http.api.services
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.http.api.ApiRouteWithView
+import co.topl.http.api.ApiServiceWithView
 import co.topl.modifier.ModifierId
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
@@ -15,23 +15,22 @@ import io.circe.syntax._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-case class NodeViewApiRoute(override val settings: RPCApiSettings, appContext: AppContext, nodeViewHolderRef: ActorRef)
-                           (implicit val context: ActorRefFactory) extends ApiRouteWithView {
+case class NodeViewApiService(override val settings: RPCApiSettings, appContext: AppContext, nodeViewHolderRef: ActorRef)
+                             (implicit val context: ActorRefFactory) extends ApiServiceWithView {
   type HIS = History
   type MS = State
   type MP = MemPool
-  override val route: Route ={ basicRoute(handlers) }
 
   // Establish the expected network prefix for addresses
   implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
-  def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
-    method match {
-      case "mempool"                => mempool(params.head, id)
-      case "transactionById"        => transactionById(params.head, id)
-      case "blockById"              => blockById(params.head, id)
-      case "transactionFromMempool" => transactionFromMempool(params.head, id)
-    }
+  // partial function for identifying local method handlers exposed by the api
+  val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
+    case ("mempool", params, id)                => mempool(params.head, id)
+    case ("transactionById", params, id)        => transactionById(params.head, id)
+    case ("blockById", params, id)              => blockById(params.head, id)
+    case ("transactionFromMempool", params, id) => transactionFromMempool(params.head, id)
+  }
 
   /**  #### Summary
     *    Get the first 100 transactions in the mempool (sorted by fee amount)

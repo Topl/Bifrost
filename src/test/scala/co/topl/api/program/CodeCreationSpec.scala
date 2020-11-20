@@ -3,7 +3,7 @@ package co.topl.api.program
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
-import co.topl.http.api.routes.ProgramApiRoute
+import co.topl.http.api.services.ProgramApiRoute
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction

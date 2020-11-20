@@ -3,7 +3,7 @@ package co.topl.api.program
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
-import co.topl.http.api.routes.ProgramApiRoute
+import co.topl.http.api.services.ProgramApiRoute
 import io.circe.parser.parse
 import io.circe.syntax._
 import org.scalatest.DoNotDiscover
