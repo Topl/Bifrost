@@ -23,10 +23,6 @@ class DebugRPCSpec extends AnyWordSpec
   // setup route for testing
   val route: Route = DebugApiRoute(settings.restApi, nodeViewHolderRef).route
 
-  private def view() = Await.result(
-    (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]],
-    10.seconds)
-
   "Debug RPC" should {
     "Get chain information" in {
       val requestBody = ByteString(

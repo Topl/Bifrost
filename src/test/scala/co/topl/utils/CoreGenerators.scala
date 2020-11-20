@@ -237,7 +237,8 @@ trait CoreGenerators extends Logging {
     ExecutionBuilder(terms, assetCode, ProgramPreprocessor(name, initjs)(JsonObject.empty))
   }
 
-  lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(bytes => Signature25519(Signature @@ bytes))
+  lazy val signatureGen: Gen[Signature25519] =
+    genBytesList(Signature25519.SignatureSize).map(bytes => Signature25519(Signature @@ bytes))
 
   lazy val programIdGen: Gen[ProgramId] = for {
     seed <- specificLengthBytesGen(ProgramId.size)

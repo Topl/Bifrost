@@ -4,13 +4,19 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
+import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import co.topl.consensus.{Forger, ForgerRef}
-import co.topl.nodeView.NodeViewHolderRef
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
+import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
+import co.topl.nodeView.history.History
+import co.topl.nodeView.mempool.MemPool
+import co.topl.nodeView.state.State
 import co.topl.settings.{AppContext, StartupOpts}
 import co.topl.utils.CoreGenerators
 import org.scalatest.wordspec.AnyWordSpec
 
+import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 
 trait RPCMockState extends AnyWordSpec
@@ -38,4 +44,8 @@ trait RPCMockState extends AnyWordSpec
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
     ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
+
+  protected def view() = Await.result(
+    (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]],
+    10.seconds)
 }
