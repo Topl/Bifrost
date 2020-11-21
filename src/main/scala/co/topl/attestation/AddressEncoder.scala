@@ -36,19 +36,21 @@ object AddressEncoder {
   private def genChecksum(addrBytes: Array[Byte]): Array[Byte] = Blake2b256(addrBytes).take(checksumLength)
 
   def toString(addr: Address): String = {
-    val addressBytes = addr.bytes
-    val checksum = genChecksum(addressBytes)
+    val addrBytes = addr.bytes
+    val checksum = genChecksum(addrBytes)
 
-    Base58.encode(addressBytes ++ checksum)
+    Base58.encode(addrBytes ++ checksum)
   }
 
   def fromString(addrStr: String): Try[Address] = {
     Base58.decode(addrStr).flatMap { bytes =>
       require(bytes.length == encodedAddressLength, s"Invalid address: Not the required length")
-      require(genChecksum(bytes.dropRight(checksumLength)) sameElements bytes.takeRight(checksumLength),
-        s"Invalid address: Checksum fails for $addrStr")
 
-      Address.parseBytes(bytes)
+      val addrBytes = bytes.dropRight(checksumLength)
+      val checksum = bytes.takeRight(checksumLength)
+      require(genChecksum(addrBytes) sameElements checksum, s"Invalid address: Checksum fails for $addrStr")
+
+      Address.parseBytes(addrBytes)
     }
   }
 }
