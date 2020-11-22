@@ -12,8 +12,6 @@ import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
 import scorex.crypto.hash.Blake2b256
 import supertagged.@@
-// fixme: JAA 0 2020.07.19 - why is protobuf still used here?
-import serializer.BloomTopics
 
 import scala.collection.BitSet
 
@@ -99,20 +97,15 @@ object Block {
     block.copy(signature = signature)
   }
 
-  /**
-   *
-   * @param txs
-   * @return
-   */
   def createBloom (txs: Seq[Transaction.TX]): Array[Byte] = {
-    val bloomBitSet = txs.foldLeft(BitSet.empty)(
+    val bloomBitSet: BitSet = txs.foldLeft(BitSet.empty)(
       ( total, b ) =>
         b.bloomTopics match {
-          case Some(e) => total ++ Bloom.calcBloom(e.head, e.tail)
+          case Some(e) => total ++ BloomFilter.calcBloom(e.head, e.tail)
           case None    => total
         }
-      ).toSeq
-    BloomTopics(bloomBitSet).toByteArray
+      )
+    BloomFilter(bloomBitSet).topics.foldLeft[Array[Byte]](Array.empty)((a,b) => a :+ b.toByte)
   }
 
   implicit val jsonEncoder: Encoder[Block] = { b: Block ⇒

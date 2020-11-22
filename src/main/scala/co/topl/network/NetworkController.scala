@@ -235,7 +235,7 @@ class NetworkController ( settings      : AppSettings,
       // Drop connections with peers if they seem to be inactive
       connections.values.foreach { cp =>
         val lastSeen = cp.peerInfo.map(_.lastSeen).getOrElse(now)
-        if ((now - lastSeen) > settings.network.syncStatusRefreshStable.toMillis) {
+        if ((now - lastSeen) > settings.network.deadConnectionTimeout.toMillis) {
           log.info(s"Dropping connection with ${cp.peerInfo}, last seen ${(now - lastSeen) / 1000} seconds ago")
           cp.handlerRef ! CloseConnection
         }
@@ -322,7 +322,7 @@ class NetworkController ( settings      : AppSettings,
     */
   private def updatePeerStatus(remote: ConnectedPeer): Unit = {
     val remoteAddress = remote.connectionId.remoteAddress
-    connections.get(remote.connectionId.remoteAddress) match {
+    connections.get(remoteAddress) match {
       case Some(cp) => cp.peerInfo match {
         case Some(pi) =>
           val now = networkTime()

@@ -6,7 +6,7 @@ import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.consensus
 import co.topl.consensus.{BlockValidator, DifficultyBlockValidator, SyntaxBlockValidator}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
-import co.topl.modifier.block.{Block, Bloom}
+import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.network.message.BifrostSyncInfo
@@ -361,7 +361,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
    * @return
    */
   def bloomFilter(queryBloomTopics: IndexedSeq[Array[Byte]]): Seq[Transaction.TX] = {
-    val queryBloom: BitSet = Bloom.calcBloom(queryBloomTopics.head, queryBloomTopics.tail)
+    val queryBloom: BitSet = BloomFilter.calcBloom(queryBloomTopics.head, queryBloomTopics.tail)
     val f: BitSet => Boolean = {
       blockBloom =>
         val andRes = blockBloom & queryBloom
@@ -565,7 +565,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     * @param txId the modifier ID associated with the transaction
     * @return an optional transaction from a block
     */
-  override def txById(txId: ModifierId): Option[Transaction.TX] = {
+  override def transactionById(txId: ModifierId): Option[Transaction.TX] = {
     storage.blockIdOf(txId).flatMap { id =>
       storage
         .modifierById(id)

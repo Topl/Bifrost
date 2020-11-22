@@ -299,9 +299,10 @@ class Forger (settings: AppSettings, appContext: AppContext )
     memPool.take(numTxInBlock(chainHeight))
       .foldLeft(Seq[TX]()) { case (txAcc, tx) =>
         val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.flatMap(_.boxIdsToOpen).contains(id))
-        val validBoxes = tx.newBoxes.forall(b ⇒ state.getBox(b.id).isEmpty)
+        // if any newly created box matches a box already in the UTXO set, remove the transaction
+      val idExists = tx.newBoxes.exists(b => state.getBox(b.id).isDefined)
 
-        if (validBoxes) memPool.remove(tx)
+        if (idExists) memPool.remove(tx)
 
         state.semanticValidate(tx) match {
           case Success(_) if txNotIncluded => txAcc :+ tx
@@ -333,7 +334,6 @@ class Forger (settings: AppSettings, appContext: AppContext )
                              ): Option[Block] = {
 
     val target = calcAdjustedTarget(parent, parentHeight, parentDifficulty, forgeTime)
-
     // test procedure to determine eligibility
     val successfulHits = boxes.map { box =>
       (box, calcHit(parent)(box))
@@ -351,7 +351,6 @@ class Forger (settings: AppSettings, appContext: AppContext )
             case tx: ArbitTransfer[_] => tx.copy(attestation = Map(sk.publicImage -> sk.sign(tx.messageToSign)))
             case tx: PolyTransfer[_]  => tx.copy(attestation = Map(sk.publicImage -> sk.sign(tx.messageToSign)))
           }
-
           // add the signed coinbase transaction to the block and return
           Some(Block.create(parent.id, forgeTime, signedRewards ++ txsToInclude, box, sk, blockVersion(parentHeight + 1)))
 

@@ -59,7 +59,7 @@ trait GenericHistory[
 
   def modifierById(modifierId: String): Option[PM] = Try(ModifierId(modifierId)).toOption.flatMap(modifierById)
 
-  def txById(txId: ModifierId): Option[Transaction[_,_]]
+  def transactionById(txId: ModifierId): Option[Transaction[_,_]]
 
   def append(modifier: PM): Try[(HT, ProgressInfo[PM])]
 

@@ -25,6 +25,7 @@ import scala.util.Try
 /**
   * Created by cykoz on 6/22/2017.
   */
+
 case class Curve25519KeyFile ( address   : Address,
                                cipherText: Array[Byte],
                                mac       : Array[Byte],
@@ -53,7 +54,7 @@ case class Curve25519KeyFile ( address   : Address,
   def saveToDisk (dir: String): Try[Unit] = Try {
     val dateString = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString.replace(":", "-")
     val w = new BufferedWriter(new FileWriter(s"$dir/$dateString-${this.address}.json"))
-    w.write(Curve25519KeyFile.jsonEncoder.toString)
+    w.write(Curve25519KeyFile.jsonEncoder(this).toString)
     w.close()
   }
 }
@@ -141,6 +142,7 @@ object Curve25519KeyFile {
     val passwordBytes = password.getBytes(StandardCharsets.UTF_8)
     SCrypt.generate(passwordBytes, salt, scala.math.pow(2, 18).toInt, 8, 1, 32)
   }
+
 
   /**
    *

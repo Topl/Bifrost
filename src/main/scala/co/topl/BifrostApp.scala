@@ -2,7 +2,7 @@ package co.topl
 
 import java.lang.management.ManagementFactory
 
-import akka.actor.{ActorRef, ActorSystem, PoisonPill}
+import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.http.scaladsl.Http
 import akka.io.Tcp
 import akka.pattern.ask
@@ -22,6 +22,7 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.{NodeViewHolder, NodeViewHolderRef}
 import co.topl.settings._
 import co.topl.utils.Logging
+import co.topl.wallet.{WalletConnectionHandler, WalletConnectionHandlerRef}
 import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
 import com.typesafe.config.{Config, ConfigFactory}
 import kamon.Kamon
@@ -69,6 +70,8 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef(NodeViewHolder.actorName, settings, appContext)
 
+  private val walletConnectionHandlerRef: ActorRef = WalletConnectionHandlerRef(WalletConnectionHandler.actorName, settings, appContext, nodeViewHolderRef)
+
   private val peerSynchronizer: ActorRef = PeerSynchronizerRef(PeerSynchronizer.actorName, networkControllerRef, peerManagerRef, settings, appContext)
 
   private val nodeViewSynchronizer: ActorRef = NodeViewSynchronizerRef[TX, BSI, PMOD, HIS, MP](
@@ -81,7 +84,8 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     peerSynchronizer,
     nodeViewSynchronizer,
     forgerRef,
-    nodeViewHolderRef
+    nodeViewHolderRef,
+    walletConnectionHandlerRef
   )
 
   // hook for initiating the shutdown procedure

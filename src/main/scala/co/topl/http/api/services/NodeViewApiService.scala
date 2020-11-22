@@ -107,7 +107,7 @@ case class NodeViewApiService(override val settings: RPCApiSettings, appContext:
       val transactionId: ModifierId = ModifierId((params \\ "transactionId").head.asString.get)
       view.pool.modifierById(transactionId) match {
         case Some(tx) => tx.asJson
-        case None     => throw new Error("Unable to retrieve transaction")
+        case None     => throw new Exception("Unable to retrieve transaction")
       }
     }
   }

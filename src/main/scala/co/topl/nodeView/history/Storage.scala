@@ -2,7 +2,7 @@ package co.topl.nodeView.history
 
 import co.topl.consensus
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.{Block, BlockSerializer}
+import co.topl.modifier.block.{Block, BlockSerializer, BloomFilterSerializer}
 import co.topl.modifier.transaction.Transaction
 import co.topl.utils.Logging
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
@@ -10,14 +10,9 @@ import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.hash.{Blake2b256, Sha256}
 
-import scala.util.Success
-
-// fixme: JAA 0 2020.07.19 - why is protobuf still used here?
-import serializer.BloomTopics
-
 import scala.collection.BitSet
 import scala.concurrent.duration.MILLISECONDS
-import scala.util.{Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 class Storage( private[history] val storage: LSMStore,
                private val cacheExpire: Int,
@@ -129,11 +124,11 @@ class Storage( private[history] val storage: LSMStore,
     storage.update(
       ByteArrayWrapper(b.id.hashBytes),
       Seq(),
-      blockK ++ blockDiff ++ blockH ++ idHeight ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ blockBloom ++ parentBlock
+      blockK ++ blockDiff ++ blockH ++ idHeight ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds  ++ blockBloom ++ parentBlock
     )
 
     /* update the cache the in the same way */
-    (blockK ++ blockDiff ++ blockH ++ idHeight ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ blockBloom ++ parentBlock)
+    (blockK ++ blockDiff ++ blockH ++ idHeight ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds  ++ blockBloom ++ parentBlock)
       .foreach(key => blockCache.put(key._1, Some(key._2)))
   }
 
@@ -195,7 +190,7 @@ class Storage( private[history] val storage: LSMStore,
   def bloomOf(serializedBlockId: Array[Byte]): Option[BitSet] =
     blockCache
       .get(blockBloomKey(serializedBlockId))
-      .map(b => {BitSet() ++ BloomTopics.parseFrom(b.data).topics})
+      .map(b => BloomFilterSerializer.parseBytes(b.data).map(_.topics).get)
 
   def serializedParentIdOf(blockId: Array[Byte]): Option[Array[Byte]] =
     blockCache
@@ -205,7 +200,7 @@ class Storage( private[history] val storage: LSMStore,
   def blockIdOf(transactionId: ModifierId): Option[ModifierId] =
     blockCache
       .get(ByteArrayWrapper(transactionId.hashBytes))
-      .map(id => ModifierId(id.data))
+      .map(id => ModifierId(id.data.tail))
 
   def parentChainScore(b: Block): Long = scoreOf(b.parentId).getOrElse(0L)
 
