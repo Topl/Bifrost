@@ -99,10 +99,10 @@ object Block {
 
   def createBloom (txs: Seq[Transaction.TX]): Array[Byte] = {
     val bloomBitSet: BitSet = txs.foldLeft(BitSet.empty)(
-      ( total, b ) =>
-        b.bloomTopics match {
-          case Some(e) => total ++ BloomFilter.calcBloom(e.head, e.tail)
-          case None    => total
+      (accBitSet, btx) =>
+        btx.bloomTopics match {
+          case Some(e) => accBitSet ++ BloomFilter(e.head, e.tail)
+          case None    => accBitSet
         }
       )
     BloomFilter(bloomBitSet).topics.foldLeft[Array[Byte]](Array.empty)((a,b) => a :+ b.toByte)

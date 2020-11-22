@@ -2,7 +2,7 @@ package co.topl.nodeView.history
 
 import co.topl.consensus
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.{Block, BlockSerializer, BloomFilterSerializer}
+import co.topl.modifier.block.{Block, BlockSerializer, BloomFilter}
 import co.topl.modifier.transaction.Transaction
 import co.topl.utils.Logging
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
@@ -190,7 +190,7 @@ class Storage( private[history] val storage: LSMStore,
   def bloomOf(serializedBlockId: Array[Byte]): Option[BitSet] =
     blockCache
       .get(blockBloomKey(serializedBlockId))
-      .map(b => BloomFilterSerializer.parseBytes(b.data).map(_.topics).get)
+      .map(b => BloomFilter.parseBytes(b.data).map(_.topics).get)
 
   def serializedParentIdOf(blockId: Array[Byte]): Option[Array[Byte]] =
     blockCache

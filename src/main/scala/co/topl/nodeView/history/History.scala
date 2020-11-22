@@ -361,7 +361,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
    * @return
    */
   def bloomFilter(queryBloomTopics: IndexedSeq[Array[Byte]]): Seq[Transaction.TX] = {
-    val queryBloom: BitSet = BloomFilter.calcBloom(queryBloomTopics.head, queryBloomTopics.tail)
+    val queryBloom: BitSet = BloomFilter.apply(queryBloomTopics.head, queryBloomTopics.tail)
     val f: BitSet => Boolean = {
       blockBloom =>
         val andRes = blockBloom & queryBloom
