@@ -114,7 +114,7 @@ class Storage( private[history] val storage: LSMStore,
       }
 
     val blockBloom: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
-      Seq(blockBloomKey(b.id.hashBytes) -> ByteArrayWrapper(Block.createBloom(b.transactions)))
+      Seq(blockBloomKey(b.id.hashBytes) -> ByteArrayWrapper(Block.createBloom(b.transactions).bytes))
 
     val newTransactionsToBlockIds: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = b.transactions.map(
       tx => (ByteArrayWrapper(tx.id.hashBytes), ByteArrayWrapper(Transaction.modifierTypeId +: b.id.hashBytes))
@@ -187,10 +187,10 @@ class Storage( private[history] val storage: LSMStore,
         .map(b => Longs.fromByteArray(b.data))
     }
 
-  def bloomOf(serializedBlockId: Array[Byte]): Option[BitSet] =
+  def bloomOf(serializedBlockId: Array[Byte]): Option[BloomFilter] =
     blockCache
       .get(blockBloomKey(serializedBlockId))
-      .map(b => BloomFilter.parseBytes(b.data).map(_.value).get)
+      .map(b => BloomFilter.parseBytes(b.data).get)
 
   def serializedParentIdOf(blockId: Array[Byte]): Option[Array[Byte]] =
     blockCache

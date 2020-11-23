@@ -2,8 +2,13 @@ package co.topl.modifier.block
 
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
+import io.circe.syntax.EncoderOps
+import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
+import scorex.util.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import supertagged.TaggedType
+
+import scala.util.Try
 
 /**
  * This implementation of Bloom filter is inspired from the Ethereum Yellow Paper
@@ -35,6 +40,8 @@ class BloomFilter private (private val value: Array[Long]) extends BytesSerializ
       case (idx, bits) => (value(idx) & bits) != 0L
     }
   }
+
+  override def toString: String = Base58.encode(bytes)
 
 }
 
@@ -68,7 +75,7 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
     val indices: Set[Int] = topics.flatMap(calculateIndices)
 
     /** Generate a long corresponding to the indices calculated */
-    val longsForFilter = generateLongs(indices)
+    val longsForFilter: Map[Int, Long] = generateLongs(indices)
 
     /** Compute the fixed length Array[Long] by bit-wise OR operations
      * with the matching index from the input BloomFilter */
@@ -137,13 +144,20 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
         case (elem, values) => elem -> values.foldLeft(0L)((acc, bits) => acc | bits._1)
       }
 
+  /** Recreate a bloom filter from a string encoding */
+  private def fromString(str: String): Try[BloomFilter] = Base58.decode(str).flatMap(parseBytes)
+
+  implicit val jsonEncoder: Encoder[BloomFilter] = (bf: BloomFilter) => bf.toString.asJson
+  implicit val jsonKeyEncoder: KeyEncoder[BloomFilter] = (bf: BloomFilter) => bf.toString
+  implicit val jsonDecoder: Decoder[BloomFilter] = Decoder.decodeString.emapTry(fromString)
+  implicit val jsonKeyDecoder: KeyDecoder[BloomFilter] = (str: String) => fromString(str).toOption
 
   override def serialize(obj: BloomFilter, w: Writer): Unit = {
     obj.value.foreach(l => w.putLong(l))
   }
 
   override def parse(r: Reader): BloomFilter = {
-    val value: Array[Long] = Array(for (_ <- 0 until numLongs) yield r.getLong())
+    val value: Array[Long] = (for (_ <- 0 until numLongs) yield r.getLong()).toArray
     new BloomFilter(value)
   }
 }

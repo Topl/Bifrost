@@ -6,6 +6,7 @@ import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.consensus
 import co.topl.consensus.{BlockValidator, DifficultyBlockValidator, SyntaxBlockValidator}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
+import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ModifierId, NodeViewModifier}
@@ -17,7 +18,6 @@ import co.topl.utils.Logging
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import scala.annotation.tailrec
-import scala.collection.BitSet
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -342,14 +342,16 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     * @param f : predicate that tests whether a queryBloom is compatible with a block's bloom
     * @return Seq of blockId that satisfies f
     */
-  def getBlockIdsByBloom(f: BitSet => Boolean): Seq[ModifierId] = {
+  def getBlockIdsByBloom(f: BloomFilter => Boolean): Seq[ModifierId] = {
     @tailrec
-    def loop(current: Array[Byte], acc: Seq[Array[Byte]]): Seq[ModifierId] = storage.serializedParentIdOf(current) match {
-      case Some(value) =>
-        if (f(storage.bloomOf(current).get)) loop(value, current +: acc) else loop(value, acc)
-      case None =>
-        if (f(storage.bloomOf(current).get)) (current +: acc).map(ModifierId(_)) else acc.map(ModifierId(_))
-    }
+    def loop(current: Array[Byte], acc: Seq[Array[Byte]]): Seq[ModifierId] =
+      storage.serializedParentIdOf(current) match {
+        case Some(value) =>
+          if (f(storage.bloomOf(current).get)) loop(value, current +: acc) else loop(value, acc)
+
+        case None =>
+          if (f(storage.bloomOf(current).get)) (current +: acc).map(ModifierId(_)) else acc.map(ModifierId(_))
+      }
 
     loop(storage.bestBlockId.hashBytes, Seq())
   }
@@ -360,27 +362,23 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
    * @param queryBloomTopics topics to search the the block bloom filter for
    * @return
    */
-  def bloomFilter(queryBloomTopics: IndexedSeq[Array[Byte]]): Seq[Transaction.TX] = {
-    val queryBloom: BitSet = BloomFilter.apply(queryBloomTopics.head, queryBloomTopics.tail)
-    val f: BitSet => Boolean = {
-      blockBloom =>
-        val andRes = blockBloom & queryBloom
-        queryBloom equals andRes
+  def bloomFilter(queryBloomTopics: IndexedSeq[BloomTopic]): Seq[Transaction.TX] = {
+    val f: BloomFilter => Boolean = {
+      blockBloom => queryBloomTopics.forall(blockBloom.contains)
     }
+
     // Go through all pertinent txs to filter out false positives
-    getBlockIdsByBloom(f).flatMap(b =>
-      modifierById(b).get.transactions.filter(tx =>
-        tx.bloomTopics match {
-          case Some(txBlooms) =>
-            var res = false
-            val txBloomsWrapper = txBlooms.map(ByteArrayWrapper(_))
-            val queryBloomsWrapper = queryBloomTopics.map(ByteArrayWrapper(_))
-            res = txBloomsWrapper.intersect(queryBloomsWrapper).length == queryBloomsWrapper.length
-            res
-          case None => false
+    getBlockIdsByBloom(f).flatMap { b =>
+      modifierById(b).get.transactions.filter { tx =>
+        tx.bloomTopics.exists { txTopic =>
+          val txBloomsWrapper = ByteArrayWrapper(txTopic)
+          val queryBloomsWrapper = queryBloomTopics.map(ByteArrayWrapper(_))
+          queryBloomsWrapper.contains(txBloomsWrapper)
         }
-                                              ))
+      }
+    }
   }
+
 
   /**
     * Find common suffixes for two chains starting from forkBlock

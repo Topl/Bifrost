@@ -4,6 +4,7 @@ import co.topl.attestation.EvidenceProducer.syntax._
 import co.topl.attestation.{PrivateKeyCurve25519, Proposition, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block._
+import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.nodeView.state.box.ArbitBox
@@ -51,6 +52,8 @@ case class Block( parentId    : BlockId,
     this.copy(signature = SignatureCurve25519.empty).bytes
   }
 
+  lazy val bloomFilter: BloomFilter = Block.createBloom(transactions)
+
   override def toString: String = Block.jsonEncoder(this).noSpaces
 }
 
@@ -97,15 +100,12 @@ object Block {
     block.copy(signature = signature)
   }
 
-  def createBloom (txs: Seq[Transaction.TX]): Array[Byte] = {
-    val bloomBitSet: BitSet = txs.foldLeft(BitSet.empty)(
-      (accBitSet, tx) =>
-        tx.bloomTopics match {
-          case Some(e) => accBitSet ++ BloomFilter(e.head, e.tail)
-          case None    => accBitSet
-        }
-      )
-    BloomFilter(bloomBitSet).value.foldLeft[Array[Byte]](Array.empty)((a, b) => a :+ b.toByte)
+  def createBloom (txs: Seq[Transaction.TX]): BloomFilter = {
+    val topics = txs.foldLeft(Set[BloomTopic]())((acc, tx) => {
+      acc ++ tx.bloomTopics
+    })
+
+    BloomFilter(topics)
   }
 
   implicit val jsonEncoder: Encoder[Block] = { b: Block ⇒
@@ -117,6 +117,7 @@ object Block {
       "publicKey" -> b.publicKey.asJson,
       "signature" -> b.signature.asJson,
       "txs" -> b.transactions.asJson,
+      "bloomFilter" -> b.bloomFilter.asJson,
       "version" -> b.version.asJson,
       "blockSize" -> b.serializer.toBytes(b).length.asJson
     ).asJson
