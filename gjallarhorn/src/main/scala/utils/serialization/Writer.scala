@@ -46,7 +46,7 @@ trait Writer {
     * Encode integer as an unsigned byte asserting the range check
     * @param x integer value to encode
     * @return
-    * @throws AssertionError if x is outside of the unsigned byte range
+    * throws `AssertionError` if x is outside of the unsigned byte range
     */
   def putUByte(x: Int): this.type = {
     require(x >= 0 && x <= 0xFF, s"$x is out of unsigned byte range")

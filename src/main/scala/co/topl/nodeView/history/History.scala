@@ -308,19 +308,15 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     }
   }
 
-  /**
-    * Calculates the distribution of blocks to forgers
+  /** Calculates the distribution of blocks to forgers
     *
     * @return a map from public keys of forgers to the number of blocks they have forged
     */
   def forgerDistribution(): Map[PublicKey25519Proposition, Int] = {
     val map = collection.mutable.Map[PublicKey25519Proposition, Int]().withDefaultValue(0)
 
-    /**
-      * Finds the forger for this block, increments their block number entry in `map`, and continues down the chain
-      *
-      * @param m the current block for which to increment the forger entry
-      */
+    /** Finds the forger for this block, increments their block number entry in `map`, and continues down the chain */
+    /** m is the current block for which to increment the forger entry */
     @tailrec
     def loopBackAndIncrementForger(m: Block): Unit = {
       val forger = blockForger(m)
@@ -335,9 +331,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     map.toMap
   }
 
-  /**
-    *
-    * @param f : predicate that tests whether a queryBloom is compatible with a block's bloom
+  /** @param f : predicate that tests whether a queryBloom is compatible with a block's bloom
     * @return Seq of blockId that satisfies f
     */
   def getBlockIdsByBloom(f: BitSet => Boolean): Seq[ModifierId] = {
@@ -407,8 +401,11 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
   }.ensuring(r => r._1.head == r._2.head)
 
   /**
-    * Average delay in milliseconds between last $blockNum blocks starting from $block
+    * Average delay in milliseconds between last \$blockNum blocks starting from \$block
     * Debug only
+    *
+    * @param id modifier to start at
+    * @param blockNum number of blocks to traverse back
     */
   def averageDelay(id: ModifierId, blockNum: Int): Try[Long] = Try {
     val block = modifierById(id).get
