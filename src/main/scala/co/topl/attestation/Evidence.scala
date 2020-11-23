@@ -49,7 +49,7 @@ object Evidence extends BifrostSerializer[Evidence] {
     }
   }
 
-  def apply(str: String): Evidence =
+  private def apply(str: String): Evidence =
     Base58.decode(str).flatMap(fromBytes) match {
       case Success(ec) => ec
       case Failure(ex) => throw ex

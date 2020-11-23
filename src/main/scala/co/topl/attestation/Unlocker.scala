@@ -1,6 +1,6 @@
 package co.topl.attestation
 
-import co.topl.attestation.EvidenceProducer.syntax._
+import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.nodeView.state.box.{Box, BoxId}
 
 sealed abstract class Unlocker[P <: Proposition]
@@ -21,12 +21,8 @@ object BoxUnlocker {
     * @param attestation a map of propositions matching the evidence contained in the given addresses, as well as proof satisfying the proposition
     * @return a set of box unlockers that
     */
-  def generate[
-    P <: Proposition: EvidenceProducer,
-    PR <: Proof[P]
-  ] (from: Seq[(Address, Box.Nonce)],
-     attestation: Map[P, PR],
-    ): Traversable[BoxUnlocker[P, PR]] = {
+  def generate[P <: Proposition: EvidenceProducer, PR <: Proof[P]]
+  (from: Seq[(Address, Box.Nonce)], attestation: Map[P, PR]): Traversable[BoxUnlocker[P, PR]] = {
 
     val evidence = attestation.keys.map { prop =>
       prop.generateEvidence -> prop
@@ -38,6 +34,7 @@ object BoxUnlocker {
         val (prop, proof) = evidence.collectFirst[(P, PR)]{
           case (ev, prop) if ev == addr.evidence => prop -> attestation(prop)
         }.get
+
         new BoxUnlocker(boxId, prop, proof)
     }
   }

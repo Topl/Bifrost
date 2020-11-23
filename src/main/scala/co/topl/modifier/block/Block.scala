@@ -1,6 +1,6 @@
 package co.topl.modifier.block
 
-import co.topl.attestation.EvidenceProducer.syntax._
+import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.attestation.{PrivateKeyCurve25519, Proposition, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block._

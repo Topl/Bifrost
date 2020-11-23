@@ -1,7 +1,7 @@
 package co.topl.consensus.genesis
 
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.EvidenceProducer.syntax._
+import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.Forger.ChainParams
 import co.topl.modifier.ModifierId
