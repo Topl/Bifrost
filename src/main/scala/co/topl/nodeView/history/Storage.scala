@@ -190,7 +190,7 @@ class Storage( private[history] val storage: LSMStore,
   def bloomOf(serializedBlockId: Array[Byte]): Option[BitSet] =
     blockCache
       .get(blockBloomKey(serializedBlockId))
-      .map(b => BloomFilter.parseBytes(b.data).map(_.topics).get)
+      .map(b => BloomFilter.parseBytes(b.data).map(_.value).get)
 
   def serializedParentIdOf(blockId: Array[Byte]): Option[Array[Byte]] =
     blockCache

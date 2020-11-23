@@ -99,13 +99,13 @@ object Block {
 
   def createBloom (txs: Seq[Transaction.TX]): Array[Byte] = {
     val bloomBitSet: BitSet = txs.foldLeft(BitSet.empty)(
-      (accBitSet, btx) =>
-        btx.bloomTopics match {
+      (accBitSet, tx) =>
+        tx.bloomTopics match {
           case Some(e) => accBitSet ++ BloomFilter(e.head, e.tail)
           case None    => accBitSet
         }
       )
-    BloomFilter(bloomBitSet).topics.foldLeft[Array[Byte]](Array.empty)((a,b) => a :+ b.toByte)
+    BloomFilter(bloomBitSet).value.foldLeft[Array[Byte]](Array.empty)((a, b) => a :+ b.toByte)
   }
 
   implicit val jsonEncoder: Encoder[Block] = { b: Block ⇒

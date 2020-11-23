@@ -3,6 +3,7 @@ package co.topl.modifier.transaction
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.EvidenceProducer.syntax._
 import co.topl.attestation.{Evidence, _}
+import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.Box.Nonce
 import co.topl.nodeView.state.box.TokenBox.Value
@@ -24,6 +25,8 @@ abstract class TransferTransaction[
     val data: String,
     val minting: Boolean
   ) extends Transaction[TokenBox.Value, P] {
+
+  lazy val bloomTopics: IndexedSeq[BloomTopic] = to.map(BloomTopic @@ _._1.bytes)
 
   lazy val boxIdsToOpen: IndexedSeq[BoxId] = from.map { case (addr, nonce) =>
     BoxId.idFromEviNonce(addr.evidence, nonce)
