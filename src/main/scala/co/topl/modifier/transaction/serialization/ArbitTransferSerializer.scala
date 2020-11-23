@@ -1,7 +1,7 @@
 package co.topl.modifier.transaction.serialization
 
-import co.topl.attestation.serialization.{ProofSerializer, PropositionSerializer}
 import co.topl.attestation._
+import co.topl.attestation.serialization.{ProofSerializer, PropositionSerializer}
 import co.topl.modifier.transaction.ArbitTransfer
 import co.topl.utils.Extensions._
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
@@ -67,8 +67,16 @@ object ArbitTransferSerializer extends BifrostSerializer[ArbitTransfer[_ <: Prop
 
     val signaturesLength: Int = r.getUInt().toIntExact
     val signatures = Map((0 until signaturesLength).map { _ =>
-      val prop = PropositionSerializer.parse(r)
-      val sig = ProofSerializer.parse(r)
+      val prop = PropositionSerializer.parse(r) match {
+        case prop: PublicKeyPropositionCurve25519 if prop.propTypePrefix == propTypePrefix => prop
+        case prop: ThresholdPropositionCurve25519 if prop.propTypePrefix == propTypePrefix => prop
+      }
+
+      val sig = ProofSerializer.parse(r) match {
+        case prop: PublicKeyPropositionCurve25519 if prop.propTypePrefix == propTypePrefix => prop
+        case prop: ThresholdPropositionCurve25519 if prop.propTypePrefix == propTypePrefix => prop
+      }
+
       prop -> sig
     }: _*)
 
@@ -79,12 +87,12 @@ object ArbitTransferSerializer extends BifrostSerializer[ArbitTransfer[_ <: Prop
 
     propTypePrefix match {
       case PublicKeyPropositionCurve25519.typePrefix =>
-        require(signatures.forall(_._1.propTypeString == PublicKeyPropositionCurve25519.typeString))
+        require(signatures.forall(_._1.propTypePrefix == PublicKeyPropositionCurve25519.typePrefix))
         val sigs = signatures.asInstanceOf[Map[PublicKeyPropositionCurve25519, SignatureCurve25519]]
         ArbitTransfer(from, to, sigs, fee, timestamp, data, minting)
 
       case ThresholdPropositionCurve25519.typePrefix =>
-        require(signatures.forall(_._1.propTypeString == ThresholdPropositionCurve25519.typeString))
+        require(signatures.forall(_._1.propTypePrefix == ThresholdPropositionCurve25519.typePrefix))
         val sigs = signatures.asInstanceOf[Map[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]]
         ArbitTransfer(from, to, sigs, fee, timestamp, data, minting)
     }

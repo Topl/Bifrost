@@ -7,7 +7,7 @@ import co.topl.nodeView.history.{BlockProcessor, Storage}
 import scala.util.Try
 
 //PoS consensus rules checks, throws exception if anything wrong
-trait BlockValidator[PM <: Block] {
+sealed trait BlockValidator[PM <: Block] {
   def validate(block: PM): Try[Unit]
 }
 

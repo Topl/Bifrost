@@ -16,7 +16,7 @@ object EvidenceProducer {
     override def generateEvidence (prop: P): Evidence = f(prop)
   }
 
-  object syntax {
+  object Syntax {
     implicit final class ProducerOps[P<: Proposition: EvidenceProducer] ( private val value: P) {
       def generateEvidence: Evidence = EvidenceProducer[P].generateEvidence(value)
     }

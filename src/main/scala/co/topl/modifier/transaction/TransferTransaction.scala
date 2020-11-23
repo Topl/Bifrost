@@ -1,7 +1,7 @@
 package co.topl.modifier.transaction
 
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.EvidenceProducer.syntax._
+import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.attestation.{Evidence, _}
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.nodeView.state.StateReader
@@ -43,7 +43,7 @@ abstract class TransferTransaction[
     TransferTransaction.syntacticValidate(this)
 
   def rawValidate (implicit networkPrefix: NetworkPrefix): Try[Unit] =
-    TransferTransaction.syntacticValidate(this, withSigs = false)
+    TransferTransaction.syntacticValidate(this, hasAttMap = false)
 
 }
 
@@ -150,42 +150,36 @@ object TransferTransaction {
    * Syntactic validation of a transfer transaction
    *
    * @param tx an instance of a transaction to check
-   * @param withSigs boolean flag controlling whether signature verification should be checked or skipped
+   * @param hasAttMap boolean flag controlling whether signature verification should be checked or skipped
    * @return success or failure indicating the validity of the transaction
    */
   def syntacticValidate[
     P <: Proposition: EvidenceProducer
-  ] ( tx: TransferTransaction[P], withSigs: Boolean = true)
+  ] (tx: TransferTransaction[P], hasAttMap: Boolean = true)
     (implicit networkPrefix: NetworkPrefix): Try[Unit] = Try {
 
     // enforce transaction specific requirements
     tx match {
-      case t: ArbitTransfer[_] if t.minting =>
-      case t: PolyTransfer[_] if t.minting =>
+      case t: ArbitTransfer[_] if t.minting => // Arbit block rewards
+      case t: PolyTransfer[_] if t.minting =>  // Poly block rewards
       case t @ _ => require(t.from.nonEmpty, "Non-block reward transactions must specify at least one input box")
     }
 
     require(tx.to.forall(_._2 > 0L), "Amount sent must be greater than 0")
     require(tx.fee >= 0L, "Fee must be a positive value")
     require(tx.timestamp >= 0L, "Invalid timestamp")
-
-    // todo: JAA - check that this works with empty data
-    // need to have UTF-8 encoding!!
-    "this is some data".getBytes("utf8").length
-    "test".getBytes("UTF-8").length
-    require(Base58.decode(tx.data).fold(_ => false, _.length <= 128), "Data field must be less than 128 bytes")
-
+    require(tx.data.getBytes("UTF-8").length <= 128, "Data field must be less than 128 bytes")
 
     // prototype transactions do not contain signatures at creation
-    if (withSigs) {
+    if (hasAttMap) {
       // ensure that the signatures are valid signatures with the body of the transaction
       require(tx.attestation.forall {
         case (prop, proof) => proof.isValid(prop, tx.messageToSign)
       }, "The provided proposition is not satisfied by the given proof")
 
-      // ensure that the propositions match the from addresses (skip for minting since no from address)
+      // ensure that the propositions match the from addresses
       require(tx.from.forall {
-        case (addr, _) if !tx.minting => tx.attestation.keys.map(_.generateEvidence).toSeq.contains(addr.evidence)
+        case (addr, _) => tx.attestation.keys.map(_.generateEvidence).toSeq.contains(addr.evidence)
       }, "The proposition(s) given do not match the evidence contained in the input boxes")
 
       tx match {
