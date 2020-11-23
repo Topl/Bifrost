@@ -76,7 +76,7 @@ class ProgramRPCSpec extends AnyWordSpec
       {
         "jsonrpc": "2.0",
         "id": "16",
-        "method": "getProgramSignature",
+        "method": "createProgram",
         "params": [{
          "signingPublicKey": "${publicKeys("investor")}",
           "program": $program,
@@ -94,18 +94,7 @@ class ProgramRPCSpec extends AnyWordSpec
       }
       """
 
-    var sig = ""
-
-    "Get programCreation signature" in {
-      val requestBody = ByteString(programBodyTemplate.stripMargin)
-      httpPOST("/program/", requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
-        (res \\ "result").head.asObject.isDefined shouldEqual true
-        sig = ((res \\ "result").head.asJson \\ "signature").head.asString.get
-        sig.nonEmpty shouldEqual true
-        (res \\ "error").isEmpty shouldEqual true
-      }
-    }
+    val sig = ""
 
     "Create the Program" in {
 
@@ -118,8 +107,7 @@ class ProgramRPCSpec extends AnyWordSpec
       val requestBodyJson = parse(programBodyTemplate).getOrElse(Json.Null)
 
       val cursor: HCursor = requestBodyJson.hcursor
-      val requestJson = cursor.downField("method")
-        .withFocus(_.mapString(_ => "createProgram")).up
+      val requestJson = cursor
         .downField("params").downArray.downField("signatures").downField(publicKeys("investor"))
         .withFocus(_.mapString(_ => sig)).top.get
 
@@ -204,47 +192,5 @@ class ProgramRPCSpec extends AnyWordSpec
         ((res \\ "result").head \\ "transactionHash").head.asString.get shouldEqual Base58.encode(completionTx.get.id)
       }
     }*/
-
-//    "Post a Proposal" in {
-//      val tempProposal = ProducerProposal(
-//        com.google.protobuf.ByteString.copyFrom("testProducer".getBytes),
-//        ProposalDetails(assetCode = "assetCode", fundingNeeds = Some(ProposalDetails.Range(0, 1000)))
-//      )
-//      val requestBody =
-//        s"""
-//           |{
-//           |  "jsonrpc" : "2.0",
-//           |  "id" : "24",
-//           |  "method": "postProposals",
-//           |  "params" : [${JsonFormat.toJsonString(tempProposal)}]
-//           |}
-//        """.stripMargin
-//      httpPOST(ByteString(requestBody)) ~> route ~> check {
-//        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
-//        (res \\ "result").head.asObject.isDefined shouldEqual true
-//        val msgManager = Await.result((nodeViewHolderRef ? GetMessageManager).mapTo[MessageManager], 5.seconds)
-//        msgManager.m.take(1).head.messageBytes.toByteArray sameElements tempProposal.toByteArray shouldBe true
-//      }
-//    }
-//
-//    "Retrieve Proposals" in {
-//      val requestBody =
-//        s"""
-//           |{
-//           |  "jsonrpc" : "2.0",
-//           |  "id" : "24",
-//           |  "method": "retrieveProposals",
-//           |  "params" : [{
-//           |    "limit": 10
-//           |  }]
-//           |}
-//        """.stripMargin
-//
-//      httpPOST(ByteString(requestBody)) ~> route ~> check {
-//        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
-//        (res \\ "result").head.asObject.isDefined shouldEqual true
-//        ((res \\ "result").head \\ "totalProposals").head.asNumber.get.toInt.get shouldEqual 1
-//      }
-//    }
   }
 }
