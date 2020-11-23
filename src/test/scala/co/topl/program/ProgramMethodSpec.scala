@@ -5,10 +5,12 @@ import co.topl.utils.{CoreGenerators, ValidGenerators}
 import io.circe.JsonObject
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
+import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
+@DoNotDiscover
 class ProgramMethodSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks

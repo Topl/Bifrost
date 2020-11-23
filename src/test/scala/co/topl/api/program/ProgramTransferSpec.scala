@@ -5,9 +5,11 @@ import akka.util.ByteString
 import co.topl.http.api.routes.ProgramApiRoute
 import io.circe.Json
 import io.circe.parser.parse
+import org.scalatest.DoNotDiscover
 
 import scala.util.Random
 
+@DoNotDiscover
 class ProgramTransferSpec extends ProgramRPCMockState {
 
   val route: Route = ProgramApiRoute(settings.restApi, nodeViewHolderRef).route

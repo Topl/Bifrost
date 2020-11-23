@@ -4,9 +4,11 @@ import akka.http.scaladsl.server.Route
 import akka.util.ByteString
 import co.topl.http.api.routes.ProgramApiRoute
 import io.circe.parser.parse
+import org.scalatest.DoNotDiscover
 
 import scala.util.Random
 
+@DoNotDiscover
 class ProgramMethodExecutionSpec extends ProgramRPCMockState {
 
   val route: Route = ProgramApiRoute(settings.restApi, nodeViewHolderRef).route

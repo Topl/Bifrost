@@ -8,7 +8,9 @@ import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.utils.RPCHelpers
 import io.circe.parser.parse
+import org.scalatest.DoNotDiscover
 
+@DoNotDiscover
 class CodeCreationSpec extends ProgramRPCMockState with RPCHelpers {
 
   val route: Route = ProgramApiRoute(settings.restApi, nodeViewHolderRef).route
@@ -16,9 +18,6 @@ class CodeCreationSpec extends ProgramRPCMockState with RPCHelpers {
   "CodeCreation" should {
 
     "Create new CodeBox in state" in {
-
-      println(s"$publicKey")
-      println(s"${publicKey.pubKeyBytes.length}")
 
       val params =
         s"""

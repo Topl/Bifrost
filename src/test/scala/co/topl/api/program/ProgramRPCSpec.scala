@@ -1,7 +1,8 @@
-package co.topl.api
+package co.topl.api.program
 
 import akka.http.scaladsl.server.Route
 import akka.util.ByteString
+import co.topl.api.RPCMockState
 import co.topl.http.api.routes.ProgramApiRoute
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
@@ -11,13 +12,11 @@ import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
+import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-/**
-  * Created by cykoz on 6/13/2017.
-  */
-
+@DoNotDiscover
 class ProgramRPCSpec extends AnyWordSpec
   with Matchers
   with RPCMockState {
