@@ -11,10 +11,7 @@ import co.topl.settings.Version
   * @param lastSeen timestamp when this peer was last seen in the network
   * @param connectionType type of connection (Incoming/Outgoing) established to this peer if any
   */
-case class PeerInfo(
-  peerSpec: PeerSpec,
-  lastSeen: Long,
-  connectionType: Option[ConnectionDirection] = None)
+case class PeerInfo(peerSpec: PeerSpec, lastSeen: Long, connectionType: Option[ConnectionDirection] = None)
 
 object PeerInfo {
 

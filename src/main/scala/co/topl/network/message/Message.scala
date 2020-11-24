@@ -15,9 +15,10 @@ import scala.util.{Success, Try}
   * @tparam Content message data type
   */
 case class Message[Content](
-  spec: MessageSpec[Content],
-  input: Either[Array[Byte], Content],
-  source: Option[ConnectedPeer]) extends DeadLetterSuppression {
+  spec:   MessageSpec[Content],
+  input:  Either[Array[Byte], Content],
+  source: Option[ConnectedPeer]
+) extends DeadLetterSuppression {
 
   import Message._
 

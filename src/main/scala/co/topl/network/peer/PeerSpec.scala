@@ -16,11 +16,11 @@ import co.topl.settings.Version
   * @param features Set of node capabilities
   */
 case class PeerSpec(
-  agentName: String,
-  version: Version,
-  nodeName: String,
+  agentName:       String,
+  version:         Version,
+  nodeName:        String,
   declaredAddress: Option[InetSocketAddress],
-  features: Seq[PeerFeature]
+  features:        Seq[PeerFeature]
 ) {
 
   lazy val localAddressOpt: Option[InetSocketAddress] =
