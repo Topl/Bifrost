@@ -11,15 +11,17 @@ package co.topl.settings
   */
 final case class StartupOpts(
   userConfigPathOpt: Option[String] = None,
-  networkTypeOpt: Option[NetworkType] = None,
-  runtimeParams: RuntimeOpts = RuntimeOpts.empty)
+  networkTypeOpt:    Option[NetworkType] = None,
+  runtimeParams:     RuntimeOpts = RuntimeOpts.empty
+)
 
 object StartupOpts {
+
   /** used defaults above to simplify the empty */
   def empty: StartupOpts = new StartupOpts()
 }
 
-/* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+/* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
 /** Parameters that control the application behavior that are specified at runtime.
   * These settings could just as well be defined in the config file but may be
