@@ -37,5 +37,6 @@ object NetworkType {
 
   case class LocalNet(opts: RuntimeOpts = RuntimeOpts.empty)
       extends NetworkType("local", startWithForging = opts.startWithForging)
-  case class PrivateNet(opts: RuntimeOpts = RuntimeOpts.empty) extends NetworkType("private", startWithForging = true)
+  case class PrivateNet(opts: RuntimeOpts = RuntimeOpts.empty)
+      extends NetworkType("private", startWithForging = true)
 }

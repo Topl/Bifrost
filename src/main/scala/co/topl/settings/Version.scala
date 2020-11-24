@@ -10,9 +10,11 @@ import co.topl.utils.serialization.{BytesSerializable, _}
   * @param thirdDigit Minor changes
   */
 class Version(
-  val firstDigit: Byte,
+  val firstDigit:  Byte,
   val secondDigit: Byte,
-  val thirdDigit: Byte) extends BytesSerializable with Ordered[Version] {
+  val thirdDigit:  Byte
+) extends BytesSerializable
+    with Ordered[Version] {
 
   override type M = Version
 
@@ -22,7 +24,7 @@ class Version(
 
   override def toString: String = s"${firstDigit.toString}.${secondDigit.toString}.${thirdDigit.toString}"
 
-  override def compare (that: Version): Int =
+  override def compare(that: Version): Int =
     if (this.firstDigit != that.firstDigit) {
       this.firstDigit - that.firstDigit
     } else if (this.secondDigit != that.secondDigit) {

@@ -14,11 +14,12 @@ import scala.concurrent.duration.FiniteDuration
   * @param numTxPerBlock number of transactions per block
   * @param blockVersion applicable block serializer version
   */
-case class ProtocolSettings(version: Version,
-                            startBlock: Long,
-                            targetBlockTime: Option[FiniteDuration] = None,
-                            numTxPerBlock: Option[Int] = None,
-                            blockVersion: Option[Byte] = None
+case class ProtocolSettings(
+  version:         Version,
+  startBlock:      Long,
+  targetBlockTime: Option[FiniteDuration] = None,
+  numTxPerBlock:   Option[Int] = None,
+  blockVersion:    Option[Byte] = None
 ) extends Ordered[ProtocolSettings] {
 
   /** Want reverse ordering such that the highest start block is first in the list so that traversing the sortedSet

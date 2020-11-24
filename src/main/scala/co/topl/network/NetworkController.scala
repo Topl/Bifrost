@@ -12,7 +12,7 @@ import co.topl.network.PeerConnectionHandler.ReceivableMessages.CloseConnection
 import co.topl.network.PeerManager.ReceivableMessages._
 import co.topl.network.message.Message
 import co.topl.network.peer.{ConnectedPeer, PeerInfo, PenaltyType, _}
-import co.topl.settings.{AppContext, AppSettings, NetworkSettings, NodeViewReady, Version}
+import co.topl.settings.{AppContext, AppSettings, NodeViewReady, Version}
 import co.topl.utils.TimeProvider.Time
 import co.topl.utils.{Logging, NetworkUtils, TimeProvider}
 

@@ -4,7 +4,7 @@ import java.net.InetSocketAddress
 
 import co.topl.network.message._
 import co.topl.network.upnp.Gateway
-import co.topl.network.{NodeViewSynchronizer, PeerSynchronizer, peer}
+import co.topl.network.{peer, NodeViewSynchronizer, PeerSynchronizer}
 import co.topl.utils.NetworkTimeProvider
 
 import scala.concurrent.ExecutionContext
@@ -16,9 +16,10 @@ import scala.concurrent.ExecutionContext
   * @param upnpGateway Option of Gateway class handling gateway device and port forwarding
   */
 class AppContext(
-  settings: AppSettings,
-  startupOpts: StartupOpts,
-  val upnpGateway: Option[Gateway])(implicit ec: ExecutionContext) {
+  settings:        AppSettings,
+  startupOpts:     StartupOpts,
+  val upnpGateway: Option[Gateway]
+)(implicit ec:     ExecutionContext) {
 
   /** Save your address for sending to others peers */
   val externalNodeAddress: Option[InetSocketAddress] = {
