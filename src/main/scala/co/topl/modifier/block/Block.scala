@@ -6,6 +6,7 @@ import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block._
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.transaction.Transaction
+import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.utils.serialization.BifrostSerializer
@@ -31,37 +32,29 @@ import supertagged.@@
  *
  * - additional data: block structure version no, timestamp etc
  */
-case class BlockHeader
-
-case class BlockBody(transactions: Seq[Transaction.TX]) extends TransactionsCarryingPersistentNodeViewModifier[Transaction.TX] {
-  lazy val bloomFilter: BloomFilter = Block.createBloom(transactions)
-
-  lazy val merkelTree: MerkleTree[Digest32] =
-    MerkleTree(transactions.map(tx => LeafData @@ tx.bytes))(Blake2b256)
-}
-
 case class Block( parentId    : BlockId,
                   timestamp   : Timestamp,
                   forgerBox   : ArbitBox,
                   publicKey   : PublicKeyPropositionCurve25519,
                   signature   : SignatureCurve25519,
-
+                  transactions: Seq[Transaction.TX],
                   version     : Version
-                ) {
-
-  type M = Block
+                ) extends TransactionsCarryingPersistentNodeViewModifier[Transaction.TX] {
 
   lazy val id: BlockId = ModifierId(Blake2b256(messageToSign))
 
   lazy val modifierTypeId: ModifierTypeId = Block.modifierTypeId
 
-  lazy val serializer: BifrostSerializer[Block] = BlockSerializer
+  lazy val messageToSign: Array[Byte] = this.copy(signature = SignatureCurve25519.empty).bytes
 
-  lazy val messageToSign: Array[Byte] = {
-    this.copy(signature = SignatureCurve25519.empty).bytes
-  }
+  lazy val merkleTree: MerkleTree[Digest32] =
+    MerkleTree(transactions.map(tx => LeafData @@ tx.bytes))(Blake2b256)
 
+  lazy val bloomFilter: BloomFilter = Block.createBloom(transactions)
 
+  lazy val body: BlockBody = BlockBody(id, parentId, transactions)
+  lazy val header: BlockHeader =
+    BlockHeader(id, parentId, timestamp, forgerBox, publicKey, signature, merkleTree.rootHash, bloomFilter, version)
 
   override def toString: String = Block.jsonEncoder(this).noSpaces
 }
@@ -77,6 +70,19 @@ object Block {
   val blockIdLength: Int = NodeViewModifier.ModifierIdSize
   val modifierTypeId: Byte @@ NodeViewModifier.ModifierTypeId.Tag = ModifierTypeId @@ (3: Byte)
   val signatureLength: Int = SignatureCurve25519.SignatureSize
+
+  /**
+   * Creates a full block from the individual components
+   * @param header the header information needed by the consensus layer
+   * @param body the block body containing transactions
+   * @return a full block
+   */
+  def fromComponents(header: BlockHeader, body: BlockBody): Block = {
+    val (_, parentId, timestamp, forgerBox, publicKey, signature, _, _, version) = BlockHeader.unapply(header).get
+    val transactions = body.transactions
+
+    Block(parentId, timestamp, forgerBox, publicKey, signature, transactions, version)
+  }
 
   /**
    *
@@ -109,6 +115,11 @@ object Block {
     block.copy(signature = signature)
   }
 
+  /**
+   * Calculates a bloom filter based on the topics in the transactions
+   * @param txs sequence of transaction to create the bloom for
+   * @return a bloom filter
+   */
   def createBloom (txs: Seq[Transaction.TX]): BloomFilter = {
     val topics = txs.foldLeft(Set[BloomTopic]())((acc, tx) => {
       acc ++ tx.bloomTopics
