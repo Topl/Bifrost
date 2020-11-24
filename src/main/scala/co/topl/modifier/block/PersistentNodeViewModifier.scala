@@ -9,7 +9,7 @@ sealed trait PersistentNodeViewModifier extends NodeViewModifier {
   def parentId: ModifierId
 }
 
-trait TransactionsCarryingPersistentNodeViewModifier[TX <: Transaction[_,_]] extends PersistentNodeViewModifier {
+trait TransactionsCarryingPersistentNodeViewModifier[TX <: Transaction.TX] extends PersistentNodeViewModifier {
 
   def transactions: Seq[TX]
 }

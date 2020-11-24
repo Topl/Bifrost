@@ -11,10 +11,10 @@ import co.topl.nodeView.state.box.ArbitBox
 import co.topl.utils.serialization.BifrostSerializer
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
-import scorex.crypto.hash.Blake2b256
+import scorex.crypto.authds.LeafData
+import scorex.crypto.authds.merkle.MerkleTree
+import scorex.crypto.hash.{Blake2b256, Digest32}
 import supertagged.@@
-
-import scala.collection.BitSet
 
 /**
  * A block is an atomic piece of data network participates are agreed on.
@@ -31,14 +31,23 @@ import scala.collection.BitSet
  *
  * - additional data: block structure version no, timestamp etc
  */
+case class BlockHeader
+
+case class BlockBody(transactions: Seq[Transaction.TX]) extends TransactionsCarryingPersistentNodeViewModifier[Transaction.TX] {
+  lazy val bloomFilter: BloomFilter = Block.createBloom(transactions)
+
+  lazy val merkelTree: MerkleTree[Digest32] =
+    MerkleTree(transactions.map(tx => LeafData @@ tx.bytes))(Blake2b256)
+}
+
 case class Block( parentId    : BlockId,
                   timestamp   : Timestamp,
                   forgerBox   : ArbitBox,
                   publicKey   : PublicKeyPropositionCurve25519,
                   signature   : SignatureCurve25519,
-                  transactions: Seq[Transaction.TX],
+
                   version     : Version
-                ) extends TransactionsCarryingPersistentNodeViewModifier[Transaction.TX] {
+                ) {
 
   type M = Block
 
@@ -52,7 +61,7 @@ case class Block( parentId    : BlockId,
     this.copy(signature = SignatureCurve25519.empty).bytes
   }
 
-  lazy val bloomFilter: BloomFilter = Block.createBloom(transactions)
+
 
   override def toString: String = Block.jsonEncoder(this).noSpaces
 }
