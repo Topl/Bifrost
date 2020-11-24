@@ -120,7 +120,7 @@ class DeliveryTracker(
                   (implicit ec: ExecutionContext): Unit = ids.foreach(setRequested(_, typeId, cp))
 
   /** Modified with id `id` is permanently invalid - set its status to `Invalid`
-    * and return [[ConnectedPeer]] which sent bad modifier.
+    * and return [[peer.ConnectedPeer]] which sent bad modifier.
     */
   def setInvalid(id: ModifierId): Option[ConnectedPeer] = {
     val oldStatus: ModifiersStatus = status(id)

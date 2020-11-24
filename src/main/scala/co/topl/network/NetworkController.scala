@@ -173,7 +173,9 @@ class NetworkController(
       log.info(s"Incoming connection from ${connectionId.remoteAddress} denied")
       handlerRef ! Tcp.Close
 
-    /** receive this when a PeerConnnectionHandler received and processed a handshake, then save peer to PeerDatabse */
+    /** receive this when a PeerConnnectionHandler received and processed a handshake, then save peer to PeerDatabse
+      * [[PeerConnectionHandler.processHandshake]]
+      */
     case Handshaked(connectedPeer) =>
       handleHandshake(connectedPeer, sender())
 
@@ -252,6 +254,7 @@ class NetworkController(
   }
 
   /** Connect to peer
+    * [[NetworkController.scheduleConnectionToPeer]] uses this function to periodically attempt to connect to peers
     *
     * @param peer - PeerInfo
     */
@@ -470,9 +473,7 @@ class NetworkController(
         } else {
           val listenAddrs = NetworkUtils
             .getListenAddresses(settings.network.bindAddress)
-            .filterNot(addr =>
-                         addr.getAddress.isSiteLocalAddress || addr.getAddress.isLoopbackAddress
-                       )
+            .filterNot(addr => addr.getAddress.isSiteLocalAddress || addr.getAddress.isLoopbackAddress)
 
           listenAddrs
             .find(addr => localAddr == addr.getAddress)
@@ -523,6 +524,7 @@ class NetworkController(
     }
   }
 
+  /** Close connection with a peer: remove related connections, and send CloseConnection to peer */
   private def closeConnection ( peerAddress: InetSocketAddress ): Unit =
     connections.get(peerAddress).foreach { peer =>
       connections = connections.filterNot {
@@ -581,17 +583,15 @@ object NetworkController {
 
 object NetworkControllerRef {
 
-  def props(
-             settings      : AppSettings,
-             peerManagerRef: ActorRef,
-             appContext    : AppContext,
-             tcpManager    : ActorRef)(implicit ec: ExecutionContext): Props =
+  def props(settings      : AppSettings,
+            peerManagerRef: ActorRef,
+            appContext    : AppContext,
+            tcpManager    : ActorRef)(implicit ec: ExecutionContext): Props =
     Props(new NetworkController(settings, peerManagerRef, appContext, tcpManager))
 
-  def apply(
-    name          : String,
-    settings      : AppSettings,
-    peerManagerRef: ActorRef,
-    appContext    : AppContext)( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
-    system.actorOf(props(settings, peerManagerRef, appContext, IO(Tcp)), name)
+  def apply(name          : String,
+            settings      : AppSettings,
+            peerManagerRef: ActorRef,
+            appContext    : AppContext)( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
+            system.actorOf(props(settings, peerManagerRef, appContext, IO(Tcp)), name)
 }
