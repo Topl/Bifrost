@@ -148,7 +148,7 @@ object AppSettings extends Logging with SettingsReaders {
           .resolve()
 
       case (None, Some(networkConfigFile)) ⇒
-        log.warn(s"${Console.YELLOW}Using ${networkName} settings${Console.RESET}")
+        log.warn(s"${Console.YELLOW}Using $networkName settings${Console.RESET}")
         val networkConfig = ConfigFactory.parseFile(networkConfigFile)
         ConfigFactory
           .defaultOverrides()
@@ -159,7 +159,7 @@ object AppSettings extends Logging with SettingsReaders {
       case (Some(file), Some(networkConfigFile)) =>
         log.warn(
           s"${Console.YELLOW}Found custom settings. " +
-          s"Using ${networkName} settings for ones not specified in custom Settings${Console.RESET}"
+          s"Using $networkName settings for ones not specified in custom Settings${Console.RESET}"
         )
         val config = ConfigFactory.parseFile(file)
         val networkConfig = ConfigFactory.parseFile(networkConfigFile)

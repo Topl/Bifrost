@@ -28,5 +28,4 @@ trait PeerDatabase {
   def isBlacklisted(address: InetAddress): Boolean
 
   def remove(address: InetSocketAddress): Unit
-
 }

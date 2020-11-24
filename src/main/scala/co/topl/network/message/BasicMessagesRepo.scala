@@ -114,7 +114,6 @@ class RequestModifierSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
 
   private val invSpec = new InvSpec(maxInvObjects)
 
-
   override def serialize(data: InvData, w: Writer): Unit = {
     invSpec.serialize(data, w)
   }
@@ -162,8 +161,10 @@ class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] wi
     }
 
     if (msgSize > maxMessageSize) {
-      log.warn(s"Message with modifiers ${modifiers.keySet} have size $msgSize exceeding limit $maxMessageSize." +
-        s" Sending ${w.length() - start} bytes instead")
+      log.warn(
+        s"Message with modifiers ${modifiers.keySet} have size $msgSize exceeding limit $maxMessageSize." +
+        s" Sending ${w.length() - start} bytes instead"
+      )
     }
   }
 

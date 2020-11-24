@@ -13,7 +13,8 @@ import scala.concurrent.duration._
   * @param timeProvider NetworkTimeProvider that provides the current timestamp in milliseconds with ntp offset checked
   */
 final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimeProvider)
-  extends PeerDatabase with Logging {
+    extends PeerDatabase
+    with Logging {
 
   private var peers = Map.empty[InetSocketAddress, PeerInfo]
 
@@ -62,12 +63,10 @@ final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimePr
   override def knownPeers: Map[InetSocketAddress, PeerInfo] = peers
 
   /** @return a sequence of blacklisted peers */
-  override def blacklistedPeers: Seq[InetAddress] = blacklist
-    .map { case (address, bannedTill) =>
-      checkBanned(address, bannedTill)
-      address
-    }
-    .toSeq
+  override def blacklistedPeers: Seq[InetAddress] = blacklist.map { case (address, bannedTill) =>
+    checkBanned(address, bannedTill)
+    address
+  }.toSeq
 
   override def isEmpty: Boolean = peers.isEmpty
 
@@ -144,5 +143,4 @@ final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimePr
       case PenaltyType.PermanentPenalty =>
         (360 * 10).days.toMillis
     }
-
 }
