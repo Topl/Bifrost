@@ -1,20 +1,15 @@
 package co.topl.modifier.block
 
 import co.topl.attestation.EvidenceProducer.Syntax._
-import co.topl.attestation.{PrivateKeyCurve25519, Proposition, PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.attestation.{PrivateKeyCurve25519, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block._
-import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.transaction.Transaction
-import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.nodeView.state.box.ArbitBox
-import co.topl.utils.serialization.BifrostSerializer
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
-import scorex.crypto.authds.LeafData
-import scorex.crypto.authds.merkle.MerkleTree
-import scorex.crypto.hash.{Blake2b256, Digest32}
+import scorex.crypto.hash.Blake2b256
 import supertagged.@@
 
 /**
@@ -39,27 +34,18 @@ case class Block( parentId    : BlockId,
                   signature   : SignatureCurve25519,
                   transactions: Seq[Transaction.TX],
                   version     : Version
-                ) extends TransactionsCarryingPersistentNodeViewModifier[Transaction.TX] {
-
-  lazy val id: BlockId = ModifierId(Blake2b256(messageToSign))
+                ) extends TransactionCarryingPersistentNodeViewModifier[Transaction.TX] {
 
   lazy val modifierTypeId: ModifierTypeId = Block.modifierTypeId
 
+  lazy val id: BlockId = ModifierId(Blake2b256(messageToSign))
+
   lazy val messageToSign: Array[Byte] = this.copy(signature = SignatureCurve25519.empty).bytes
 
-  lazy val merkleTree: MerkleTree[Digest32] =
-    MerkleTree(transactions.map(tx => LeafData @@ tx.bytes))(Blake2b256)
-
-  lazy val bloomFilter: BloomFilter = Block.createBloom(transactions)
-
-  lazy val body: BlockBody = BlockBody(id, parentId, transactions)
-  lazy val header: BlockHeader =
-    BlockHeader(id, parentId, timestamp, forgerBox, publicKey, signature, merkleTree.rootHash, bloomFilter, version)
+  def toComponents: (BlockHeader, BlockBody) = Block.toComponents(this)
 
   override def toString: String = Block.jsonEncoder(this).noSpaces
 }
-
-
 
 object Block {
 
@@ -70,6 +56,25 @@ object Block {
   val blockIdLength: Int = NodeViewModifier.ModifierIdSize
   val modifierTypeId: Byte @@ NodeViewModifier.ModifierTypeId.Tag = ModifierTypeId @@ (3: Byte)
   val signatureLength: Int = SignatureCurve25519.SignatureSize
+
+  def toComponents(block: Block): (BlockHeader, BlockBody) = {
+    val header: BlockHeader =
+      BlockHeader(
+        block.id,
+        block.parentId,
+        block.timestamp,
+        block.forgerBox,
+        block.publicKey,
+        block.signature,
+        block.merkleTree.rootHash,
+        block.bloomFilter,
+        block.version
+      )
+
+    val body: BlockBody = BlockBody(block.id, block.parentId, block.transactions)
+
+    (header, body)
+  }
 
   /**
    * Creates a full block from the individual components
@@ -115,20 +120,10 @@ object Block {
     block.copy(signature = signature)
   }
 
-  /**
-   * Calculates a bloom filter based on the topics in the transactions
-   * @param txs sequence of transaction to create the bloom for
-   * @return a bloom filter
-   */
-  def createBloom (txs: Seq[Transaction.TX]): BloomFilter = {
-    val topics = txs.foldLeft(Set[BloomTopic]())((acc, tx) => {
-      acc ++ tx.bloomTopics
-    })
 
-    BloomFilter(topics)
-  }
 
   implicit val jsonEncoder: Encoder[Block] = { b: Block ⇒
+    val (header, body) = b.toComponents
     Map(
       "id" -> b.id.toString.asJson,
       "parentId" -> b.parentId.toString.asJson,

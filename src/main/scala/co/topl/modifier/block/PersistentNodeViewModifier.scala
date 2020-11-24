@@ -13,17 +13,13 @@ trait PersistentNodeViewModifier extends NodeViewModifier {
   def parentId: ModifierId
 }
 
-trait TransactionsCarryingPersistentNodeViewModifier[TX <: Transaction.TX] extends PersistentNodeViewModifier {
-  def transactions: Seq[TX]
-}
-
 object PersistentNodeViewModifier extends BifrostSerializer[PersistentNodeViewModifier] {
 
   override def serialize(obj: PersistentNodeViewModifier, w: Writer): Unit = {
     obj match {
-      case obj: ArbitTransfer[_] =>
-        w.put(ArbitTransfer.txTypePrefix)
-        ArbitTransferSerializer.serialize(obj, w)
+      case obj: Block =>
+        w.put(Block.modifierTypeId)
+        BlockSerializer.serialize(obj, w)
 
       case obj: PolyTransfer[_] =>
         w.put(PolyTransfer.txTypePrefix)
