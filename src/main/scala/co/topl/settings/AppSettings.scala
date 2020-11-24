@@ -115,7 +115,7 @@ object AppSettings extends Logging with SettingsReaders {
       Option(s"src/main/resources/${networkType.verboseName}.conf")
     }
 
-    val networkName: String = args.networkTypeOpt.flatMap(networkType => Option(networkType.verboseName)).getOrElse{
+    val networkName: String = args.networkTypeOpt.flatMap(networkType => Option(networkType.verboseName)).getOrElse {
       log.warn(s"${Console.YELLOW}No network specified, running as local testnet.${Console.RESET}")
       "No Network Specified"
     }
@@ -135,8 +135,10 @@ object AppSettings extends Logging with SettingsReaders {
     (userConfigFileOpt, networkConfigFileOpt) match {
       /** If there are user provided settings or network type, overwrite default settings with user specified ones */
       case (Some(file), None) ⇒
-        log.warn(s"${Console.YELLOW}Found custom settings. " +
-          s"Using default settings for ones not specified in custom Settings${Console.RESET}")
+        log.warn(
+          s"${Console.YELLOW}Found custom settings. " +
+          s"Using default settings for ones not specified in custom Settings${Console.RESET}"
+        )
         val config = ConfigFactory.parseFile(file)
         ConfigFactory
           .defaultOverrides()
@@ -154,8 +156,10 @@ object AppSettings extends Logging with SettingsReaders {
           .resolve()
 
       case (Some(file), Some(networkConfigFile)) =>
-        log.warn(s"${Console.YELLOW}Found custom settings. " +
-          s"Using ${networkName} settings for ones not specified in custom Settings${Console.RESET}")
+        log.warn(
+          s"${Console.YELLOW}Found custom settings. " +
+          s"Using ${networkName} settings for ones not specified in custom Settings${Console.RESET}"
+        )
         val config = ConfigFactory.parseFile(file)
         val networkConfig = ConfigFactory.parseFile(networkConfigFile)
         ConfigFactory
