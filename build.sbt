@@ -8,13 +8,13 @@ lazy val commonSettings = Seq(
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   organization := "co.topl",
-  version := "1.2.0",
+  version := "1.3.0",
 //  wartremoverErrors := Warts.unsafe // settings for wartremover
 )
 
 scalaVersion := "2.12.12"
 organization := "co.topl"
-version := "1.2.0"
+version := "1.3.0"
 
 mainClass in assembly := Some("co.topl.BifrostApp")
 test in assembly := {}
@@ -25,6 +25,7 @@ resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releas
 val akkaVersion = "2.6.10"
 val akkaHttpVersion = "10.2.1"
 val circeVersion = "0.13.0"
+val kamonVersion = "2.1.9"
 
 val akkaDependencies = Seq(
   "com.typesafe.akka" %% "akka-actor" % akkaVersion,
@@ -86,10 +87,10 @@ libraryDependencies ++= akkaDependencies ++ networkDependencies ++ apiDependenci
 
 // monitoring dependencies
 libraryDependencies ++= Seq(
-  "io.kamon" %% "kamon-bundle" % "2.1.9",
-  "io.kamon" %% "kamon-core" % "2.1.9",
-  "io.kamon" %% "kamon-influxdb" % "2.1.9",
-  "io.kamon" %% "kamon-zipkin" % "2.1.9"
+  "io.kamon" %% "kamon-bundle" % kamonVersion,
+  "io.kamon" %% "kamon-core" % kamonVersion,
+  "io.kamon" %% "kamon-influxdb" % kamonVersion,
+  "io.kamon" %% "kamon-zipkin" % kamonVersion
 )
 
 // https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
@@ -157,8 +158,7 @@ homepage := Some(url("https://github.com/Topl/Bifrost"))
 
 assemblyJarName := s"bifrost-${version.value}.jar"
 
-assemblyMergeStrategy in assembly ~= {
-  old: (String => MergeStrategy) => {
+assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) => {
     case ps if ps.endsWith(".SF")      => MergeStrategy.discard
     case ps if ps.endsWith(".DSA")     => MergeStrategy.discard
     case ps if ps.endsWith(".RSA")     => MergeStrategy.discard
@@ -167,7 +167,7 @@ assemblyMergeStrategy in assembly ~= {
     case PathList("module-info.class") => MergeStrategy.discard
     case PathList("module-info.java")  => MergeStrategy.discard
     case "META-INF/truffle/instrument" => MergeStrategy.concat
-    case "META-INF/truffle/language"   => MergeStrategy.discard
+    case "META-INF/truffle/language"   => MergeStrategy.rename
     case x => old(x)
   }
 }
