@@ -15,7 +15,6 @@ import io.circe.Json
 import io.circe.syntax._
 import scorex.util.encode.Base58
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 

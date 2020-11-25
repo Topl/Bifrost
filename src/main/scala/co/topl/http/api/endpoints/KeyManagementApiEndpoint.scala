@@ -18,6 +18,7 @@ import scala.util.{Failure, Success, Try}
 case class KeyManagementApiEndpoint (override val settings: RPCApiSettings, appContext: AppContext, keyHolderRef: ActorRef )
                                     ( implicit val context: ActorRefFactory ) extends ApiEndpoint {
 
+
   // Establish the expected network prefix for addresses
   implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 

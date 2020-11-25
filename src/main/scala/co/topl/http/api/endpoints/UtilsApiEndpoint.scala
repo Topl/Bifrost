@@ -2,8 +2,6 @@ package co.topl.http.api.endpoints
 
 import java.security.SecureRandom
 
-import akka.actor.ActorRefFactory
-import akka.http.scaladsl.server.Route
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.http.api.ApiEndpoint
 import co.topl.nodeView.history.History
@@ -18,7 +16,7 @@ import scorex.util.encode.Base58
 import scala.concurrent.{ExecutionContext, Future}
 
 case class UtilsApiEndpoint (override val settings: RPCApiSettings, appContext: AppContext)
-                            (implicit val context: ActorRefFactory, ec: ExecutionContext) extends ApiEndpoint {
+                            (implicit val  ec: ExecutionContext) extends ApiEndpoint {
   type HIS = History
   type MS = State
   type MP = MemPool

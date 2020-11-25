@@ -1,7 +1,6 @@
 package co.topl.http.api.endpoints
 
 import akka.actor.{ActorRef, ActorRefFactory}
-import akka.http.scaladsl.server.Route
 import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.http.api.ApiEndpointWithView
