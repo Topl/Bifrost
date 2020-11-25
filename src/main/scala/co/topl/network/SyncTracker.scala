@@ -26,14 +26,12 @@ class SyncTracker(
   import co.topl.utils.TimeProvider.Time
 
   private var schedule: Option[Cancellable] = None
-
   private val statuses = mutable.Map[ConnectedPeer, HistoryComparisonResult]()
   private val lastSyncSentTime = mutable.Map[ConnectedPeer, Time]()
-
   private var lastSyncInfoSentTime: Time = 0L
-
   private var stableSyncRegime = false
 
+  /** Schedule a SendLocalSyncInfo message to be sent at a fixed interval */
   def scheduleSendSyncInfo(): Unit = {
     schedule foreach { _.cancel() }
     schedule = Some(
@@ -41,10 +39,12 @@ class SyncTracker(
     )
   }
 
+  /** Synchronization status update interval for stable regime(when syncing is done) or one that is still syncing */
   def maxInterval(): FiniteDuration =
     if (stableSyncRegime) networkSettings.syncStatusRefreshStable
     else networkSettings.syncStatusRefresh
 
+  /** Interval between `SyncInfo` messages when our node is already synchronized or when our node is still syncing */
   def minInterval(): FiniteDuration =
     if (stableSyncRegime) networkSettings.syncIntervalStable
     else networkSettings.syncInterval
@@ -91,11 +91,14 @@ class SyncTracker(
     lastSyncInfoSentTime = currentTime
   }
 
+  /** Time elapsed since last synchronization */
   def elapsedTimeSinceLastSync(): Long = timeProvider.time() - lastSyncInfoSentTime
 
+  /** A peer with a lastSyncSentTime greater than the maxInterval is outdated */
   private def outdatedPeers(): Seq[ConnectedPeer] =
     lastSyncSentTime.filter(t => (timeProvider.time() - t._2).millis > maxInterval()).keys.toSeq
 
+  /** Number of peers that are older */
   private def numOfSeniors(): Int = statuses.count(_._2 == Older)
 
   /** Return the peers to which this node should send a sync signal, including:
