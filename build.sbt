@@ -25,6 +25,7 @@ resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releas
 val akkaVersion = "2.6.10"
 val akkaHttpVersion = "10.2.1"
 val circeVersion = "0.13.0"
+val kamonVersion = "2.1.9"
 
 val akkaDependencies = Seq(
   "com.typesafe.akka" %% "akka-actor" % akkaVersion,
@@ -86,10 +87,10 @@ libraryDependencies ++= akkaDependencies ++ networkDependencies ++ apiDependenci
 
 // monitoring dependencies
 libraryDependencies ++= Seq(
-  "io.kamon" %% "kamon-bundle" % "2.1.8",
-  "io.kamon" %% "kamon-core" % "2.1.8",
-  "io.kamon" %% "kamon-influxdb" % "2.1.8",
-  "io.kamon" %% "kamon-zipkin" % "2.1.8"
+  "io.kamon" %% "kamon-bundle" % kamonVersion,
+  "io.kamon" %% "kamon-core" % kamonVersion,
+  "io.kamon" %% "kamon-influxdb" % kamonVersion,
+  "io.kamon" %% "kamon-zipkin" % kamonVersion
 )
 
 // https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
