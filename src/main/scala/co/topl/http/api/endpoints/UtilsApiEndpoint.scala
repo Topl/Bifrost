@@ -1,11 +1,11 @@
-package co.topl.http.api.services
+package co.topl.http.api.endpoints
 
 import java.security.SecureRandom
 
 import akka.actor.ActorRefFactory
 import akka.http.scaladsl.server.Route
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.http.api.ApiService
+import co.topl.http.api.ApiEndpoint
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
@@ -17,8 +17,8 @@ import scorex.util.encode.Base58
 
 import scala.concurrent.{ExecutionContext, Future}
 
-case class UtilsApiService(override val settings: RPCApiSettings, appContext: AppContext)
-                          (implicit val context: ActorRefFactory, ec: ExecutionContext) extends ApiService {
+case class UtilsApiEndpoint (override val settings: RPCApiSettings, appContext: AppContext)
+                            (implicit val context: ActorRefFactory, ec: ExecutionContext) extends ApiEndpoint {
   type HIS = History
   type MS = State
   type MP = MemPool
@@ -28,9 +28,9 @@ case class UtilsApiService(override val settings: RPCApiSettings, appContext: Ap
 
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
-    case ("seed", params, id)         => seedRoute(params.head, id)
-    case ("seedOfLength", params, id) => seedOfLength(params.head, id)
-    case ("hashBlake2b", params, id)  => hashBlake2b(params.head, id)
+    case ("util_seed", params, id)            => seedRoute(params.head, id)
+    case ("util_seedOfLength", params, id)    => seedOfLength(params.head, id)
+    case ("util_hashBlake2b256", params, id)  => hashBlake2b256(params.head, id)
   }
 
   private def generateSeed (length: Int): String = {
@@ -90,7 +90,7 @@ case class UtilsApiService(override val settings: RPCApiSettings, appContext: Ap
     * @param id request identifier
     * @return
     */
-  private def hashBlake2b(params: Json, id: String): Future[Json] = {
+  private def hashBlake2b256(params: Json, id: String): Future[Json] = {
     val message: String = (params \\ "message").head.asString.get
     Future(Map(
       "message" -> message,

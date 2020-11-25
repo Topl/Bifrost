@@ -8,13 +8,13 @@ lazy val commonSettings = Seq(
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   organization := "co.topl",
-  version := "1.1.0",
+  version := "1.2.0",
 //  wartremoverErrors := Warts.unsafe // settings for wartremover
 )
 
 scalaVersion := "2.12.12"
 organization := "co.topl"
-version := "1.1.0"
+version := "1.2.0"
 
 mainClass in assembly := Some("co.topl.BifrostApp")
 test in assembly := {}

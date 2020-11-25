@@ -1,10 +1,10 @@
-package co.topl.http.api.services
+package co.topl.http.api.endpoints
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.http.api.ApiServiceWithView
+import co.topl.http.api.ApiEndpointWithView
 import co.topl.modifier.ModifierId
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
@@ -16,8 +16,8 @@ import io.circe.syntax._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-case class DebugApiService(settings: RPCApiSettings, appContext: AppContext, nodeViewHolderRef: ActorRef)
-                          (implicit val context: ActorRefFactory) extends ApiServiceWithView {
+case class DebugApiEndpoint (settings: RPCApiSettings, appContext: AppContext, nodeViewHolderRef: ActorRef)
+                            (implicit val context: ActorRefFactory) extends ApiEndpointWithView {
 
   type HIS = History
   type MS = State
@@ -28,38 +28,10 @@ case class DebugApiService(settings: RPCApiSettings, appContext: AppContext, nod
 
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
-    case ("info", params, id)       => infoRoute(params.head, id)
     case ("delay", params, id)      => delay(params.head, id)
     case ("generators", params, id) => generators(params.head, id)
   }
 
-  /**  #### Summary
-    *    Retrieve the best block
-    *
-    *  #### Description
-    *    Find information about the current state of the chain including height, score, bestBlockId, etc
-    *
-    * ---
-    *  #### Params
-    *  | Fields                 	| Data type 	| Required / Optional 	| Description                                                            	|
-    *  |--------------------------|-------------|-----------------------|-------------------------------------------------------------------------|
-    *  | --None specified--       |           	|                     	|                                                                         |
-    *
-    * @param params input parameters as specified above
-    * @param id request identifier
-    * @return
-    */
-  private def infoRoute(params: Json, id: String): Future[Json] = {
-    viewAsync().map {view =>
-      Map(
-        "height" -> view.history.height.toString.asJson,
-        "score" -> view.history.score.asJson,
-        "bestBlockId" -> view.history.bestBlockId.toString.asJson,
-        "bestBlock" -> view.history.bestBlock.asJson,
-        "stateVersion" -> view.state.version.toString.asJson
-      ).asJson
-    }
-  }
 
   /**  #### Summary
     *    Calculate the average delay over a number of blocks

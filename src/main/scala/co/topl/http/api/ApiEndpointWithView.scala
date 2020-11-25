@@ -10,7 +10,7 @@ import co.topl.nodeView.state.State
 
 import scala.concurrent.Future
 
-trait ApiServiceWithView extends ApiService {
+trait ApiEndpointWithView extends ApiEndpoint {
 
   val nodeViewHolderRef: ActorRef
 
