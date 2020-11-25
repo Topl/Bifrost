@@ -15,7 +15,7 @@ import io.circe.Json
 import io.circe.syntax._
 import scorex.util.encode.Base58
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 
@@ -26,7 +26,7 @@ import scala.util.{Failure, Success}
   * @param context reference to the actor system used to create new actors for handling requests
   */
 case class TransactionApiEndpoint (settings: RPCApiSettings, appContext: AppContext, nodeViewHolderRef: ActorRef)
-                                  (implicit val context: ActorRefFactory) extends ApiEndpointWithView {
+                                  (implicit val  ec: ExecutionContext) extends ApiEndpointWithView {
   type HIS = History
   type MS = State
   type MP = MemPool

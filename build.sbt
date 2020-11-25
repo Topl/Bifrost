@@ -86,10 +86,10 @@ libraryDependencies ++= akkaDependencies ++ networkDependencies ++ apiDependenci
 
 // monitoring dependencies
 libraryDependencies ++= Seq(
-  "io.kamon" %% "kamon-bundle" % "2.1.8",
-  "io.kamon" %% "kamon-core" % "2.1.8",
-  "io.kamon" %% "kamon-influxdb" % "2.1.8",
-  "io.kamon" %% "kamon-zipkin" % "2.1.8"
+  "io.kamon" %% "kamon-bundle" % "2.1.9",
+  "io.kamon" %% "kamon-core" % "2.1.9",
+  "io.kamon" %% "kamon-influxdb" % "2.1.9",
+  "io.kamon" %% "kamon-zipkin" % "2.1.9"
 )
 
 // https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
@@ -157,7 +157,8 @@ homepage := Some(url("https://github.com/Topl/Bifrost"))
 
 assemblyJarName := s"bifrost-${version.value}.jar"
 
-assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) => {
+assemblyMergeStrategy in assembly ~= {
+  old: (String => MergeStrategy) => {
     case ps if ps.endsWith(".SF")      => MergeStrategy.discard
     case ps if ps.endsWith(".DSA")     => MergeStrategy.discard
     case ps if ps.endsWith(".RSA")     => MergeStrategy.discard
@@ -166,7 +167,7 @@ assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) => {
     case PathList("module-info.class") => MergeStrategy.discard
     case PathList("module-info.java")  => MergeStrategy.discard
     case "META-INF/truffle/instrument" => MergeStrategy.concat
-    case "META-INF/truffle/language"   => MergeStrategy.rename
+    case "META-INF/truffle/language"   => MergeStrategy.discard
     case x => old(x)
   }
 }
