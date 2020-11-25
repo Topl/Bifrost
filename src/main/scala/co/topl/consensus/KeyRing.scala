@@ -20,7 +20,6 @@ class KeyRing[
    private val keyfileOps: KeyfileCompanion[S, KF])
   (implicit networkPrefix: NetworkPrefix, sg: SecretGenerator[S]) extends Logging {
 
-  type PK = S#PK
   type PR = S#PR
 
   /**
@@ -38,9 +37,9 @@ class KeyRing[
     }
 
   /** Lookup the public key associated with an address */
-  def lookupPublicKey (addr: Address): Try[PK] =
+  def lookupPublicKey (addr: Address): Try[S#PK] =
     secrets.find(_.publicImage.address == addr) match {
-      case Some(sk: PK) => Success(sk.publicImage)
+      case Some(sk) => Success(sk.publicImage)
       case _ => throw new Error("Unable to find secret for the given address")
     }
 
@@ -132,7 +131,7 @@ class KeyRing[
     */
   def exportKeyfile (address: Address, password: String): Try[Unit] = Try {
     secretByAddress(address) match {
-      case Some(sk: S) => keyfileOps.saveToDisk(defaultKeyDir.getAbsolutePath, password, sk)
+      case Some(sk) => keyfileOps.saveToDisk(defaultKeyDir.getAbsolutePath, password, sk)
       case _ => Failure(new Error("Unable to find a matching secret in the key ring"))
     }
   }
@@ -161,8 +160,8 @@ class KeyRing[
     assert(keyfile.size == 1, s"Cannot find a unique matching keyfile in $defaultKeyDir")
 
     keyfileOps.decryptSecret(keyfile.head, password) match {
-      case Success(privKey: S) => privKey
-      case Failure(e)          => throw e
+      case Success(sk) => sk
+      case Failure(e)  => throw e
     }
   }
 }

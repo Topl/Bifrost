@@ -17,5 +17,4 @@ trait Secret extends BytesSerializable {
   def publicImage: PK
 
   def sign(message: Array[Byte]): PR
-  }
 }

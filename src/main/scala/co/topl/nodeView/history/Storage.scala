@@ -2,6 +2,7 @@ package co.topl.nodeView.history
 
 import co.topl.consensus
 import co.topl.modifier.ModifierId
+import co.topl.modifier.block.TransactionsCarryingPersistentNodeViewModifier
 import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.transaction.Transaction
@@ -11,7 +12,6 @@ import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.hash.{Blake2b256, Sha256}
 
-import scala.collection.BitSet
 import scala.concurrent.duration.MILLISECONDS
 import scala.util.{Failure, Success, Try}
 
@@ -115,7 +115,8 @@ class Storage( private[history] val storage: LSMStore,
       }
 
     val blockBloom: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
-      Seq(blockBloomKey(b.id.hashBytes) -> ByteArrayWrapper(Block.createBloom(b.transactions).bytes))
+      Seq(blockBloomKey(b.id.hashBytes) ->
+        ByteArrayWrapper(TransactionsCarryingPersistentNodeViewModifier.createBloom(b.transactions).bytes))
 
     val newTransactionsToBlockIds: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = b.transactions.map(
       tx => (ByteArrayWrapper(tx.id.hashBytes), ByteArrayWrapper(Transaction.modifierTypeId +: b.id.hashBytes))

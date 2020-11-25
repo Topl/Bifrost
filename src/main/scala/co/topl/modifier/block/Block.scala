@@ -150,8 +150,6 @@ object Block {
     signFunction(block.messageToSign).map(s => block.copy(signature = s))
   }
 
-
-
   implicit val jsonEncoder: Encoder[Block] = { b: Block ⇒
     val (header, body) = b.toComponents
     Map(
