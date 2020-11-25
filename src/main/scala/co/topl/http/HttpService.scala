@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import co.topl.http.api.{ApiResponse, ApiService, ErrorResponse, SuccessResponse}
+import co.topl.http.api.{ApiResponse, ApiEndpoint, ErrorResponse, SuccessResponse}
 import co.topl.settings.RPCApiSettings
 import io.circe.Json
 import io.circe.parser.parse
@@ -14,7 +14,7 @@ import scorex.util.encode.Base58
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
-final case class HttpService(apiServices: Seq[ApiService], settings: RPCApiSettings)(implicit val system: ActorSystem)
+final case class HttpService (apiServices: Seq[ApiEndpoint], settings: RPCApiSettings)(implicit val system: ActorSystem)
   extends CorsSupport {
 
   val timeout: Timeout = Timeout(settings.timeout)

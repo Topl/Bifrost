@@ -6,8 +6,8 @@ import akka.pattern.pipe
 import akka.util.Timeout
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.PublicKeyPropositionCurve25519
-import co.topl.http.api.ApiService
-import co.topl.http.api.services.{AssetApiService, WalletApiService}
+import co.topl.http.api.ApiEndpoint
+import co.topl.http.api.endpoints.TransactionApiEndpoint
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction._
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.{ModificationOutcome, SemanticallySuccessfulModifier}
@@ -83,7 +83,7 @@ class WalletConnectionHandler(settings: RPCApiSettings, appContext: AppContext, 
    * @param req parameters to fulfill the request
    * @param actorRef the actor to respond to
    */
-  def processRequest(apiService: ApiService, req: (String, Vector[Json], String), actorRef: ActorRef): Unit = {
+  def processRequest(apiService: ApiEndpoint, req: (String, Vector[Json], String), actorRef: ActorRef): Unit = {
     apiService
       .handlers(req._1, req._2, req._3)
       .transformWith {
@@ -111,16 +111,9 @@ class WalletConnectionHandler(settings: RPCApiSettings, appContext: AppContext, 
         }
 
         requestType match {
-          case "asset" =>
+          case "transfer" =>
             processRequest(
-              AssetApiService(settings, appContext, nodeViewHolderRef),
-              (method, params, id),
-              walletRef
-            )
-
-          case "wallet" =>
-            processRequest(
-              WalletApiService(settings, appContext, nodeViewHolderRef),
+              TransactionApiEndpoint(settings, appContext, nodeViewHolderRef),
               (method, params, id),
               walletRef
             )

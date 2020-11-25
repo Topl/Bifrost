@@ -1,4 +1,4 @@
-package co.topl.http.api.services
+package co.topl.http.api.endpoints
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
@@ -6,7 +6,7 @@ import akka.pattern.ask
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.consensus.Forger.ReceivableMessages._
-import co.topl.http.api.ApiService
+import co.topl.http.api.ApiEndpoint
 import co.topl.settings.{AppContext, RPCApiSettings}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -15,19 +15,20 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
-case class KeyManagementApiService(override val settings: RPCApiSettings, appContext: AppContext, keyHolderRef: ActorRef )
-                                  ( implicit val context: ActorRefFactory ) extends ApiService {
+case class KeyManagementApiEndpoint (override val settings: RPCApiSettings, appContext: AppContext, keyHolderRef: ActorRef )
+                                    ( implicit val context: ActorRefFactory ) extends ApiEndpoint {
+
 
   // Establish the expected network prefix for addresses
   implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
-    case ("unlockKeyfile", params, id)    => unlockKeyfile(params.head, id)
-    case ("lockKeyfile", params, id)      => lockKeyfile(params.head, id)
-    case ("generateKeyfile", params, id)  => generateKeyfile(params.head, id)
-    case ("importSeedPhrase", params, id) => importKeyfile(params.head, id)
-    case ("listOpenKeyfiles", params, id) => listOpenKeyfiles(params.head, id)
+    case ("admin_unlockKeyfile", params, id)    => unlockKeyfile(params.head, id)
+    case ("admin_lockKeyfile", params, id)      => lockKeyfile(params.head, id)
+    case ("admin_generateKeyfile", params, id)  => generateKeyfile(params.head, id)
+    case ("admin_importSeedPhrase", params, id) => importKeyfile(params.head, id)
+    case ("admin_listOpenKeyfiles", params, id) => listOpenKeyfiles(params.head, id)
   }
 
   /** #### Summary
