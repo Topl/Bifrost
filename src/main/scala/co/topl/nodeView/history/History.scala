@@ -4,7 +4,7 @@ import java.io.File
 
 import co.topl.consensus
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
-import co.topl.modifier.block.{ Block, BlockValidator, Bloom }
+import co.topl.modifier.block.{ Block, BlockValidator, BloomFilter }
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ ModifierId, NodeViewModifier }
 import co.topl.network.message.BifrostSyncInfo
@@ -353,7 +353,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
    * @return
    */
   def bloomFilter(queryBloomTopics: IndexedSeq[Array[Byte]]): Seq[Transaction] = {
-    val queryBloom: BitSet = Bloom.calcBloom(queryBloomTopics.head, queryBloomTopics.tail)
+    val queryBloom: BitSet = BloomFilter.calcBloom(queryBloomTopics.head, queryBloomTopics.tail)
     val f: BitSet => Boolean = {
       blockBloom =>
         val andRes = blockBloom & queryBloom

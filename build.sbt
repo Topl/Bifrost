@@ -66,7 +66,7 @@ val testingDependencies = Seq(
 )
 
 val cryptoDependencies = Seq(
-  "org.scorexfoundation" %% "scrypto"         % "2.1.9",
+  "org.scorexfoundation" %% "scrypto"         % "2.1.10",
   "org.bouncycastle"      % "bcprov-jdk15on"  % "1.67",
   "org.whispersystems"    % "curve25519-java" % "0.5.0"
 )
@@ -101,10 +101,8 @@ libraryDependencies += "org.graalvm.js" % "js" % "19.3.1"
 libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.3.1"
 
 libraryDependencies ++= Seq(
-  "org.scalanlp"         %% "breeze"        % "1.1",
-  "com.google.protobuf"   % "protobuf-java" % "3.13.0",
-  "com.thesamet.scalapb" %% "lenses"        % "0.10.8",
-  "com.typesafe"          % "config"        % "1.4.1"
+  "org.scalanlp" %% "breeze" % "1.1",
+  "com.typesafe"  % "config" % "1.4.1"
 )
 
 scalacOptions ++= Seq(
@@ -187,12 +185,6 @@ assemblyExcludedJars in assembly := {
 
 connectInput in run := true
 outputStrategy := Some(StdoutOutput)
-
-PB.targets in Compile := Seq(
-  scalapb.gen() -> (sourceManaged in Compile).value
-)
-
-PB.pythonExe := "C:\\Python27\\python.exe"
 
 connectInput in run := true
 outputStrategy := Some(StdoutOutput)
