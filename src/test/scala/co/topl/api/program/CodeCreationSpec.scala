@@ -52,7 +52,7 @@ class CodeCreationSpec extends AnyWordSpec
         val txInstance: Transaction = view().pool.modifierById(txHashId).get
 
         val history = view().history
-        val tempBlock = Block.create(
+        val tempBlock = Block.createAndSign(
           history.bestBlockId,
           System.currentTimeMillis(),
           Seq(txInstance),

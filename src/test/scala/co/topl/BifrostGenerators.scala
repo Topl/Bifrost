@@ -659,7 +659,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
   lazy val genesisBlockGen: Gen[Block] = for {
     keyPair ← key25519Gen
   } yield {
-    Block.create(
+    Block.createAndSign(
       History.GenesisParentId,
       Instant.now().toEpochMilli,
       Seq(),

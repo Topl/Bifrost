@@ -24,19 +24,21 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
     }
 
     // calculate the hit value from the forger box included in the new block
-    val hit = calcHit(parent)(block.forgerBox)
+    val hit = calcHit(parent)(block.generatorBox)
 
     // calculate the adjusted difficulty the forger would have used to determine eligibility
     val timestamp = block.timestamp
     val target = calcAdjustedTarget(parent, parentHeight, parentDifficulty, timestamp)
-    val valueTarget = (target * BigDecimal(block.forgerBox.value)).toBigInt
+    val valueTarget = (target * BigDecimal(block.generatorBox.value)).toBigInt
 
     // did the forger create a block with a valid forger box and adjusted difficulty?
-    require( BigInt(hit) < valueTarget, s"$hit < $valueTarget failed, $parentDifficulty ")
+    require(BigInt(hit) < valueTarget, s"$hit < $valueTarget failed, $parentDifficulty ")
   }
 }
 
 class SyntaxBlockValidator extends BlockValidator[Block] {
+  //todo: decide on a maximum size for blocks and enforce here
+
   // the signature on the block should match the signature used in the Arbit and Poly minting transactions
   val forgerEntitlementCheck: (Transaction[_,_], Block) => Unit =
     (tx: Transaction[_,_], b: Block) =>

@@ -6,7 +6,9 @@ import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.{Address, PrivateKeyCurve25519, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.Forger.ChainParams
 import co.topl.consensus.genesis.{PrivateTestnet, Toplnet}
+import co.topl.crypto.KeyfileCurve25519
 import co.topl.modifier.block.Block
+import co.topl.modifier.block.Block.Timestamp
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
 import co.topl.nodeView.history.History
@@ -37,7 +39,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
   // holder of private keys that are used to forge
   private val keyFileDir = settings.application.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
-  private val keyRing = KeyRing[PrivateKeyCurve25519](keyFileDir)
+  private val keyRing = KeyRing[PrivateKeyCurve25519, KeyfileCurve25519](keyFileDir)
 
   // designate a rewards address
   private var rewardAddress: Option[Address] = None
@@ -209,20 +211,22 @@ class Forger (settings: AppSettings, appContext: AppContext )
         case Failure(ex)  => throw ex
       }
 
+      // create the unsigned fee reward transaction
       val polyReward = createPolyReward(transactions.map(_.fee).sum, rewardAddr) match {
         case Success(tx) => tx
         case Failure(ex) => throw ex
       }
 
-      val rewards = Seq(arbitReward, polyReward)
+      // retrieve the latest TWO block times for updating the difficulty if we forge a new blow
+      val prevTimes = history.lastBlocks(nxtBlockNum, history.bestBlock).map(_.timestamp).toVector
 
       // check forging eligibility
-      leaderElection(history.bestBlock, history.height, history.difficulty, boxes, rewards, transactions) match {
+      leaderElection(history.bestBlock, prevTimes, boxes, Seq(arbitReward, polyReward), transactions) match {
         case Some(block) =>
           log.debug(s"Locally generated block: $block")
           context.system.eventStream.publish(LocallyGeneratedModifier[Block](block))
 
-        case None => log.debug(s"Failed to generate block")
+        case _ => log.debug(s"Failed to generate block")
       }
     } catch {
       case ex: Throwable =>
@@ -300,7 +304,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
       .foldLeft(Seq[TX]()) { case (txAcc, tx) =>
         val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.flatMap(_.boxIdsToOpen).contains(id))
         // if any newly created box matches a box already in the UTXO set, remove the transaction
-      val idExists = tx.newBoxes.exists(b => state.getBox(b.id).isDefined)
+        val idExists = tx.newBoxes.exists(b => state.getBox(b.id).isDefined)
 
         if (idExists) memPool.remove(tx)
 
@@ -319,21 +323,19 @@ class Forger (settings: AppSettings, appContext: AppContext )
    * Performs the leader election procedure and returns a block if successful
    *
    * @param parent       block to forge on top of
-   * @param parentHeight height of the block being forged on top of
-   * @param parentDifficulty   base difficulty of the parent block
    * @param boxes        set of Arbit boxes to attempt to forge with
    * @param txsToInclude sequence of transactions for inclusion in the block body
    * @return a block if the leader election is successful (none if test failed)
    */
-  private def leaderElection ( parent: Block,
-                               parentHeight: Long,
-                               parentDifficulty: Long,
-                               boxes     : Seq[ArbitBox],
-                               rawRewards: Seq[TX],
+  private def leaderElection ( parent      : Block,
+                               prevTimes   : Vector[Timestamp],
+                               boxes       : Seq[ArbitBox],
+                               rawRewards  : Seq[TX],
                                txsToInclude: Seq[TX]
                              ): Option[Block] = {
 
-    val target = calcAdjustedTarget(parent, parentHeight, parentDifficulty, forgeTime)
+    val target = calcAdjustedTarget(parent, parent.height, parent.difficulty, forgeTime)
+
     // test procedure to determine eligibility
     val successfulHits = boxes.map { box =>
       (box, calcHit(parent)(box))
@@ -343,19 +345,55 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
     log.debug(s"Successful hits: ${successfulHits.size}")
 
-    successfulHits.headOption.flatMap { case (box, _) =>
-      keyRing.secretByAddress(Address(box.evidence)) match {
-        case Some(sk) =>
-          // use the secret key that owns the successful box to sign the rewards transactions
-          val signedRewards = rawRewards.map {
-            case tx: ArbitTransfer[_] => tx.copy(attestation = Map(sk.publicImage -> sk.sign(tx.messageToSign)))
-            case tx: PolyTransfer[_]  => tx.copy(attestation = Map(sk.publicImage -> sk.sign(tx.messageToSign)))
-          }
-          // add the signed coinbase transaction to the block and return
-          Some(Block.create(parent.id, forgeTime, signedRewards ++ txsToInclude, box, sk, blockVersion(parentHeight + 1)))
+    successfulHits.headOption.flatMap {
+      case (box, _) => {
+        // generate the address the owns the generator box
+        val matchingAddr = Address(box.evidence)
 
-        case _ =>
-          log.warn(s"Could not find the secret for address ${Address(box.evidence)}. Failed to forge block")
+        // use the private key that owns the generator box to create a function that will sign the new block
+        val signingFunction: Array[Byte] => Try[SignatureCurve25519] =
+          (messageToSign: Array[Byte]) => keyRing.signWithAddress(matchingAddr, messageToSign)
+
+        // lookup the public associated with the box,
+        // (this is separate from the signing function so that the private key never leaves the KeyRing)
+        val publicKey: PublicKeyPropositionCurve25519 = keyRing.lookupPublicKey(matchingAddr) match {
+          case Success(pk) => pk
+          case Failure(ex) => throw ex
+        }
+
+        // use the secret key that owns the successful box to sign the rewards transactions
+        def getAttMap(tx: TX): Map[PublicKeyPropositionCurve25519, SignatureCurve25519] = {
+          val sig = signingFunction(tx.messageToSign) match {
+            case Success(sig) => sig
+            case Failure(ex) => throw ex
+          }
+          Map(publicKey -> sig)
+        }
+
+        val signedRewards = rawRewards.map {
+          case tx: ArbitTransfer[_] => tx.copy(attestation = getAttMap(tx))
+          case tx: PolyTransfer[_] => tx.copy(attestation = getAttMap(tx))
+        }
+
+        // calculate the newly forged blocks updated difficulty
+        val newDifficulty = calcNewBaseDifficulty(parent.height + 1, parent.difficulty, prevTimes :+ forgeTime)
+
+        // add the signed coinbase transaction to the block, sign it, and return the newly forged block
+        Block.createAndSign(
+          parent.id,
+          forgeTime,
+          signedRewards ++ txsToInclude,
+          box,
+          publicKey,
+          parent.height + 1,
+          newDifficulty,
+          blockVersion(parent.height + 1)
+        )(signingFunction)
+
+      } match {
+        case Success(block) => Some(block)
+        case Failure(ex) =>
+          log.warn(s"A successful hit was found but failed to forge block due to exception: $ex")
           None
       }
     }
