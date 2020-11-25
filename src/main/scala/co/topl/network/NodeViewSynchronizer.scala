@@ -158,10 +158,12 @@ class NodeViewSynchronizer[
   }
 
   protected def viewHolderEvents: Receive = {
+    /** Update status of the modifier as Held and announce the new valid modifier if a transaction is successful*/
     case SuccessfulTransaction(tx) =>
       deliveryTracker.setHeld(tx.id)
       broadcastModifierInv(tx)
 
+    /** Set modifier as invalid and penalize peer if this invalid modifier is the first one from the peer */
     case FailedTransaction(id, _, immediateFailure) =>
       val senderOpt = deliveryTracker.setInvalid(id)
 
