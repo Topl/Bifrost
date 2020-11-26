@@ -82,22 +82,23 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     log.debug(s"Trying to append block ${block.id} to history")
 
     // test new block against all validators
-    val validationResults = if (!isGenesis(block)) {
-      validators.map(_.validate(block)).map {
-        case Failure(e) =>
-          log.warn(s"Block validation failed", e)
-          false
+    val validationResults =
+      if (!isGenesis(block)) {
+        validators.map(_.validate(block)).map {
+          case Failure(e) =>
+            log.warn(s"Block validation failed", e)
+            false
 
-        case _ => true
-      }
-    } else Seq(true) // skipping validation for genesis block
+          case _ => true
+        }
+      } else Seq(true) // skipping validation for genesis block
 
     // check if all block validation passed
     if (validationResults.forall(_ == true)) {
       val res: (History, ProgressInfo[Block]) = {
 
         if (isGenesis(block)) {
-          storage.update(block, consensus.difficulty, isBest = true)
+          storage.update(block, block.difficulty, isBest = true)
           val progInfo = ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
 
           // construct result and return

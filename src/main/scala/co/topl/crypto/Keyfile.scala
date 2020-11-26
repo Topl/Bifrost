@@ -66,10 +66,6 @@ trait KeyfileCompanion[S <: Secret, KF <: Keyfile[S]] {
 }
 
 object Keyfile {
-  def apply[S <: Secret]: KeyfileCompanion[S, S#KF] = {
-    case PrivateKeyCurve25519 => KeyfileCurve25519
-  }
-
   implicit def jsonEncoder[KF <: Keyfile[_]]: Encoder[KF] = {
     case kf: KeyfileCurve25519 => KeyfileCurve25519.jsonEncoder(kf)
   }

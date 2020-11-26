@@ -39,7 +39,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
   // holder of private keys that are used to forge
   private val keyFileDir = settings.application.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
-  private val keyRing = KeyRing[PrivateKeyCurve25519, KeyfileCurve25519](keyFileDir)
+  private val keyRing = KeyRing[PrivateKeyCurve25519, KeyfileCurve25519](keyFileDir, KeyfileCurve25519)
 
   // designate a rewards address
   private var rewardAddress: Option[Address] = None

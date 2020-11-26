@@ -2,6 +2,7 @@ package co.topl.modifier.block
 
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
+import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import scorex.util.encode.Base58
@@ -12,14 +13,14 @@ import scala.util.Try
 
 /**
  * This implementation of Bloom filter is inspired from the Ethereum Yellow Paper
- * for more information, visit: http://gavwood.com/paper.pdf (as of 2020.11.20 there is an error in footnote 3 - 2^11 == 2048)
+ * for more information, visit: http://gavwood.com/paper.pdf (as of 2020.11.20 there is an error in footnote 3 - 2^11^ = 2048)
  * Another explanation can be found here (but he messes denoting the byte pairs, this stuff is tricky)
  * https://ethereum.stackexchange.com/questions/59203/what-exactly-does-the-m-function-in-the-formal-bloom-filter-specifications-do
  * A calculator to look at the false positivity rate can be found here
  * https://hur.st/bloomfilter/?n=100&p=&m=2048&k=4
  * The bloom filter is constructed by taking the low-order 11 bits (mod 2048) of each of the first four pairs of bytes from a Blake2b-256 hash
  * In english, the algorithm is to hash the input topic, take the first 8 bytes from the hash output, pair them up (1,2) (3,4) (5,6) (7,8),
- * then take the first 11 bits from each pair (each pair is 16 bits and we take 11 bits because 2^11 = 2048). These bits can be
+ * then take the first 11 bits from each pair (each pair is 16 bits and we take 11 bits because 2^11^ = 2048). These bits can be
  * retrieved using a bit-wise AND operation. For each of the 11-bit numbers we construct a positive definite integer between (0 & 2047).
  * This integer is the index of the bit to flip in the bloom filter. Finally, the bloom filter is represented as a Array[Long] so
  * we must apply two additional bit-wise AND operations on each index to find which Long should be changed in the bloom filter and
@@ -41,7 +42,7 @@ class BloomFilter private (private val value: Array[Long]) extends BytesSerializ
     }
   }
 
-  override def toString: String = Base58.encode(bytes)
+  override def toString: String = Base58.encode(value.flatMap(Longs.toByteArray))
 
 }
 
@@ -153,11 +154,11 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
   implicit val jsonKeyDecoder: KeyDecoder[BloomFilter] = (str: String) => fromString(str).toOption
 
   override def serialize(obj: BloomFilter, w: Writer): Unit = {
-    obj.value.foreach(l => w.putLong(l))
+    obj.value.foreach(l => w.putULong(l))
   }
 
   override def parse(r: Reader): BloomFilter = {
-    val value: Array[Long] = (for (_ <- 0 until numLongs) yield r.getLong()).toArray
+    val value: Array[Long] = (for (_ <- 0 until numLongs) yield r.getULong()).toArray
     new BloomFilter(value)
   }
 }

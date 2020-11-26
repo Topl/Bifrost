@@ -49,7 +49,7 @@ case class Block(parentId    : BlockId,
 
   def toComponents: (BlockHeader, BlockBody) = Block.toComponents(this)
 
-  override def toString: String = Block.jsonEncoder(this).noSpaces
+  override def toString: String = Block.jsonEncoder(this).spaces2
 }
 
 object Block {

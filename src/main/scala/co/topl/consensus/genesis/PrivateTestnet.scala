@@ -62,7 +62,18 @@ case class PrivateTestnet ( keyGen  : (Int, Option[String]) => Set[PublicKeyProp
 
     val signature = SignatureCurve25519.genesis
 
-    val block = Block(History.GenesisParentId, 0L, generatorBox, genesisAcct.publicImage, signature, txs, blockVersion.blockByte)
+    val block =
+      Block(
+        History.GenesisParentId,
+        0L,
+        generatorBox,
+        genesisAcct.publicImage,
+        signature,
+        0L,
+        initialDifficulty,
+        txs,
+        blockVersion.blockByte
+      )
 
     log.debug(s"Initialize state with block $block")
 
