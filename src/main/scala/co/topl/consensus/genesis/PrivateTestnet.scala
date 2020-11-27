@@ -69,7 +69,7 @@ case class PrivateTestnet ( keyGen  : (Int, Option[String]) => Set[PublicKeyProp
         generatorBox,
         genesisAcct.publicImage,
         signature,
-        0L,
+        1L,
         initialDifficulty,
         txs,
         blockVersion.blockByte

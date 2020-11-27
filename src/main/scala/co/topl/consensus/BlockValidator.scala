@@ -31,10 +31,6 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
     val target = calcAdjustedTarget(parent, parentHeight, parentDifficulty, timestamp)
     val valueTarget = (target * BigDecimal(block.generatorBox.value)).toBigInt
 
-    // check that the data adjusted difficulty calculated from storage matches the one from the block
-    val blockTarget = calcAdjustedTarget(parent, parentHeight, parentDifficulty, timestamp)
-    val blockValueTarget = (target * BigDecimal(block.generatorBox.value)).toBigInt
-
     // did the forger create a block with a valid forger box and adjusted difficulty?
     require(BigInt(hit) < valueTarget, s"Block difficulty failed since $hit > $valueTarget")
   }

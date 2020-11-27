@@ -185,7 +185,9 @@ class Forger (settings: AppSettings, appContext: AppContext )
     log.debug(s"${Console.MAGENTA}Attempting to forge with settings ${protocolMngr.current(history.height)}" +
       s"and from addresses: ${keyRing.addresses}${Console.RESET}")
     log.info(s"${Console.CYAN}Trying to generate a new block on top of ${history.bestBlock.id}. Parent has " +
-      s"height ${history.height } and difficulty ${history.difficulty} ${Console.RESET}")
+      s"height ${history.height} and difficulty ${history.difficulty} ${Console.RESET}")
+
+    println(s"\n>>>>>>>>>>>>> best block: ${history.bestBlock}")
 
     try {
       val rewardAddr = rewardAddress.getOrElse(throw new Error("No rewards address specified"))

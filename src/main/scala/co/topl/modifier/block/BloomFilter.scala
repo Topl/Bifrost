@@ -137,7 +137,7 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
   private def generateLongs(indices: Set[Int]): Map[Int, Long] =
     indices.map { i =>
       (
-        1L << (bitElemMask - (i & bitElemMask)), // value of the bit array as a Long
+        Long.MinValue >>> (i & bitElemMask), // value of the bit array as a Long
         (i & longElemMask) >>> 6 // index of the Long that must be manipulated
       )
     }.groupBy(_._2) // group the tuples by the index of the long so we can accumulate the bits into a single Long
@@ -154,11 +154,11 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
   implicit val jsonKeyDecoder: KeyDecoder[BloomFilter] = (str: String) => fromString(str).toOption
 
   override def serialize(obj: BloomFilter, w: Writer): Unit = {
-    obj.value.foreach(l => w.putULong(l))
+    obj.value.foreach(l => w.putLong(l))
   }
 
   override def parse(r: Reader): BloomFilter = {
-    val value: Array[Long] = (for (_ <- 0 until numLongs) yield r.getULong()).toArray
+    val value: Array[Long] = (for (_ <- 0 until numLongs) yield r.getLong()).toArray
     new BloomFilter(value)
   }
 }

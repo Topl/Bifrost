@@ -33,10 +33,10 @@ object BlockSerializer extends BifrostSerializer[Block] {
     SignatureCurve25519Serializer.serialize(block.signature, w)
 
     /* height: Long */
-    w.putLong(block.height)
+    w.putULong(block.height)
 
     /* difficulty: Long */
-    w.putLong(block.difficulty)
+    w.putULong(block.difficulty)
 
     /* txsLength: Int */
     w.putUInt(block.transactions.length)
@@ -59,9 +59,9 @@ object BlockSerializer extends BifrostSerializer[Block] {
 
     val signature: SignatureCurve25519 = SignatureCurve25519Serializer.parse(r)
 
-    val height: Long = r.getLong()
+    val height: Long = r.getULong()
 
-    val difficulty: Long = r.getLong()
+    val difficulty: Long = r.getULong()
 
     val txsLength: Int = r.getUInt().toIntExact
     val txs: Seq[Transaction.TX] = (0 until txsLength).map(_ => TransactionSerializer.parse(r))
