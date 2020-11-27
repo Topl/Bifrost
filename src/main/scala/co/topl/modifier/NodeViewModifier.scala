@@ -20,7 +20,7 @@ trait NodeViewModifier extends BytesSerializable {
   * have identifiers of the some length fixed with the ModifierIdSize constant
   */
 object NodeViewModifier {
-  val ModifierIdSize = 32 // bytes
+  val modifierIdSize: Int = ModifierId.size // bytes (1 byte modifierTypeId + 32 modiifierId)
 
   object ModifierTypeId extends TaggedType[Byte]
   type ModifierTypeId = ModifierTypeId.Type

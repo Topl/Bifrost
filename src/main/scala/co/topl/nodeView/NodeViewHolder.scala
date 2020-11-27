@@ -73,7 +73,7 @@ class NodeViewHolder ( settings: AppSettings )
     context.system.eventStream.subscribe(self, classOf[LocallyGeneratedModifier[PMOD]])
 
     log.info(s"${Console.YELLOW}NodeViewHolder publishing ready signal${Console.RESET}")
-    context.system.eventStream.publish(NodeViewReady)
+    context.system.eventStream.publish(NodeViewReady(this.self))
   }
 
   override def preRestart (reason: Throwable, message: Option[Any]): Unit = {

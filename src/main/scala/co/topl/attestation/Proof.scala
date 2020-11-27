@@ -66,14 +66,14 @@ case class SignatureCurve25519(private[attestation] val sigBytes: Signature)
 }
 
 object SignatureCurve25519 {
-  lazy val SignatureSize: Int = Curve25519.SignatureLength
+  lazy val signatureSize: Int = Curve25519.SignatureLength
 
   /** Helper function to create empty signatures */
   lazy val empty: SignatureCurve25519 = SignatureCurve25519(Signature @@ Array.emptyByteArray)
 
   /** Returns a signature filled with 1's for use in genesis signatures */
   lazy val genesis: SignatureCurve25519 =
-    SignatureCurve25519(Signature @@ Array.fill(SignatureCurve25519.SignatureSize)(1: Byte))
+    SignatureCurve25519(Signature @@ Array.fill(SignatureCurve25519.signatureSize)(1: Byte))
 
   def apply(str: String): SignatureCurve25519 =
     Proof.fromString(str) match {
@@ -96,7 +96,7 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
   extends ProofOfKnowledge[PrivateKeyCurve25519, ThresholdPropositionCurve25519] {
 
   signatures.foreach(sig => {
-    require(sig.sigBytes.length == SignatureCurve25519.SignatureSize)
+    require(sig.sigBytes.length == SignatureCurve25519.signatureSize)
   })
 
   override def isValid(proposition: ThresholdPropositionCurve25519, message: Array[Byte]): Boolean = Try {

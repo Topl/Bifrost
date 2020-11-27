@@ -80,7 +80,7 @@ class NodeViewSynchronizer[
     networkControllerRef ! RegisterMessageSpecs(appContext.nodeViewSyncRemoteMessages.toSeq, self)
 
     //register for application initialization message
-    context.system.eventStream.subscribe(self, NodeViewReady.getClass)
+    context.system.eventStream.subscribe(self, classOf[NodeViewReady])
 
     //register as a listener for peers got connected (handshaked) or disconnected
     context.system.eventStream.subscribe(self, classOf[HandshakedPeer])
@@ -117,7 +117,7 @@ class NodeViewSynchronizer[
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   private def initialization(): Receive = {
-    case NodeViewReady =>
+    case NodeViewReady(_) =>
       log.info(s"${Console.YELLOW}NodeViewSynchronizer transitioning to the operational state${Console.RESET}")
       context become operational
   }
@@ -558,7 +558,7 @@ class NodeViewSynchronizer[
   private def sendByParts(peer: ConnectedPeer, modType: ModifierTypeId, mods: Seq[(ModifierId, Array[Byte])]): Unit = {
     var size = 5 //message type id + message size
     val batch = mods.takeWhile { case (_, modBytes) =>
-      size += NodeViewModifier.ModifierIdSize + 4 + modBytes.length
+      size += NodeViewModifier.modifierIdSize + 4 + modBytes.length
       size < settings.network.maxPacketSize
     }
 

@@ -87,10 +87,10 @@ class Storage( private[history] val storage: LSMStore,
    */
   def update(b: Block, diff: Long, isBest: Boolean) {
     log.debug(s"Write new best=$isBest block ${b.id}")
-    val typeByte = Block.modifierTypeId
+    //val typeByte = Block.modifierTypeId
 
     val blockK: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
-      Seq(ByteArrayWrapper(b.id.hashBytes) -> ByteArrayWrapper(typeByte +: b.bytes))
+      Seq(ByteArrayWrapper(b.id.hashBytes) -> ByteArrayWrapper(b.bytes))
 
     val blockH: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
       Seq(blockHeightKey(b.id) -> ByteArrayWrapper(Longs.toByteArray(parentHeight(b) + 1)))
@@ -126,11 +126,11 @@ class Storage( private[history] val storage: LSMStore,
     storage.update(
       ByteArrayWrapper(b.id.hashBytes),
       Seq(),
-      blockK ++ blockDiff ++ blockH ++ idHeight ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds  ++ blockBloom ++ parentBlock
+      blockK ++ blockDiff ++ blockH ++ idHeight ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ blockBloom ++ parentBlock
     )
 
     /* update the cache the in the same way */
-    (blockK ++ blockDiff ++ blockH ++ idHeight ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds  ++ blockBloom ++ parentBlock)
+    (blockK ++ blockDiff ++ blockH ++ idHeight ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ blockBloom ++ parentBlock)
       .foreach(key => blockCache.put(key._1, Some(key._2)))
   }
 

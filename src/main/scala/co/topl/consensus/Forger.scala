@@ -20,6 +20,8 @@ import co.topl.settings.NetworkType._
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.Logging
 import co.topl.utils.TimeProvider.Time
+import co.topl.utils.encode.encodeBase16
+import scorex.util.encode.Base58
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
@@ -41,6 +43,9 @@ class Forger (settings: AppSettings, appContext: AppContext )
   private val keyFileDir = settings.application.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
   private val keyRing = KeyRing[PrivateKeyCurve25519, KeyfileCurve25519](keyFileDir, KeyfileCurve25519)
 
+  // the nodeViewHolder actor ref for retrieving the current state
+  private var nodeViewHolderRef: Option[ActorRef] = None
+
   // designate a rewards address
   private var rewardAddress: Option[Address] = None
 
@@ -52,7 +57,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
     protocolMngr = ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
 
     //register for application initialization message
-    context.system.eventStream.subscribe(self, NodeViewReady.getClass)
+    context.system.eventStream.subscribe(self, classOf[NodeViewReady])
     context.system.eventStream.subscribe(self, GenerateGenesis.getClass)
   }
 
@@ -77,8 +82,9 @@ class Forger (settings: AppSettings, appContext: AppContext )
   // ----------- MESSAGE PROCESSING FUNCTIONS
   private def initialization: Receive = {
     case GenerateGenesis => sender() ! initializeGenesis
-    case NodeViewReady   =>
+    case NodeViewReady(nvhRef: ActorRef)   =>
       log.info(s"${Console.YELLOW}Forger transitioning to the operational state${Console.RESET}")
+      nodeViewHolderRef = Some(nvhRef)
       context become readyToForge
       checkPrivateForging()
   }
@@ -132,10 +138,8 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
   /** Schedule a forging attempt */
   private def scheduleForgingAttempt (): Unit = {
-    implicit val timeout: Timeout = Timeout(settings.forging.blockGenerationDelay)
-    // going to go with actorSelection for now but the block creation needs to be moved to the ledger layer
-    context.actorSelection("../" + NodeViewHolder.actorName).resolveOne().onComplete {
-      case Success(nvh: ActorRef) =>
+    nodeViewHolderRef match {
+      case Some(nvh: ActorRef) =>
         context.system.scheduler.scheduleOnce(settings.forging.blockGenerationDelay)(nvh ! GetDataFromCurrentView)
 
       case _ =>
@@ -187,8 +191,6 @@ class Forger (settings: AppSettings, appContext: AppContext )
     log.info(s"${Console.CYAN}Trying to generate a new block on top of ${history.bestBlock.id}. Parent has " +
       s"height ${history.height} and difficulty ${history.difficulty} ${Console.RESET}")
 
-    println(s"\n>>>>>>>>>>>>> best block: ${history.bestBlock}")
-
     try {
       val rewardAddr = rewardAddress.getOrElse(throw new Error("No rewards address specified"))
 
@@ -202,7 +204,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
       require(boxes.map(_.value).sum > 0, "No Arbits could be found to stake with, exiting attempt")
 
       // create the coinbase reward transaction
-      val arbitReward = createArbitReward(history.bestBlock.id, rewardAddr) match {
+      val arbitReward = createArbitReward(rewardAddr) match {
         case Success(cb) => cb
         case Failure(ex) => throw ex
       }
@@ -260,12 +262,9 @@ class Forger (settings: AppSettings, appContext: AppContext )
    * Attempt to create an unsigned coinbase transaction that will distribute the block reward
    * if forging is successful
    *
-   * @param parentId block id of the current head of the chain
    * @return an unsigned coinbase transaction
    */
-  private def createArbitReward(parentId: Block.BlockId,
-                                rewardAdr: Address
-                               ): Try[ArbitTransfer[PublicKeyPropositionCurve25519]] =
+  private def createArbitReward(rewardAdr: Address): Try[ArbitTransfer[PublicKeyPropositionCurve25519]] =
     Try {
       ArbitTransfer(
         IndexedSeq(),

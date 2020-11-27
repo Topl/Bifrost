@@ -1,8 +1,7 @@
 package co.topl.modifier.block.serialization
 
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.Block.BlockId
-import co.topl.modifier.block.{Block, BlockBody}
+import co.topl.modifier.block.BlockBody
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.utils.Extensions.LongOps
@@ -26,9 +25,9 @@ object BlockBodySerializer extends BifrostSerializer[BlockBody] {
   override def parse(r: Reader): BlockBody = {
     val version: Byte = r.getByte()
 
-    val id: BlockId = ModifierId(r.getBytes(Block.blockIdLength))
+    val id: ModifierId = ModifierId(r.getBytes(ModifierId.size))
 
-    val parentId: ModifierId = ModifierId(r.getBytes(Block.blockIdLength))
+    val parentId: ModifierId = ModifierId(r.getBytes(ModifierId.size))
 
     val txsLength: Int = r.getUInt().toIntExact
     val txs: Seq[Transaction.TX] = (0 until txsLength).map(_ => TransactionSerializer.parse(r))

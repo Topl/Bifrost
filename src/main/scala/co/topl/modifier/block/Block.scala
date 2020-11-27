@@ -30,7 +30,7 @@ import scala.util.Try
  *
  * - additional data: block structure version no, timestamp etc
  */
-case class Block(parentId    : BlockId,
+case class Block(parentId    : ModifierId,
                  timestamp   : Timestamp,
                  generatorBox: ArbitBox,
                  publicKey   : PublicKeyPropositionCurve25519,
@@ -43,23 +43,20 @@ case class Block(parentId    : BlockId,
 
   lazy val modifierTypeId: ModifierTypeId = Block.modifierTypeId
 
-  lazy val id: BlockId = ModifierId(Blake2b256(messageToSign))
+  lazy val id: ModifierId = ModifierId(Blake2b256(messageToSign))
 
   lazy val messageToSign: Array[Byte] = this.copy(signature = SignatureCurve25519.empty).bytes
 
   def toComponents: (BlockHeader, BlockBody) = Block.toComponents(this)
 
-  override def toString: String = Block.jsonEncoder(this).spaces2
+  override def toString: String = Block.jsonEncoder(this).noSpaces
 }
 
 object Block {
 
-  type BlockId = ModifierId
   type Timestamp = Long
 
-  val blockIdLength: Int = NodeViewModifier.ModifierIdSize
   val modifierTypeId: Byte @@ NodeViewModifier.ModifierTypeId.Tag = ModifierTypeId @@ (3: Byte)
-  val signatureLength: Int = SignatureCurve25519.SignatureSize
 
   /**
     * Deconstruct a block to its compoennts
@@ -119,7 +116,7 @@ object Block {
     * @param version a byte used to signal the serializer version to use for this block
     * @return a block to be sent to the network
     */
-  def createAndSign(parentId: BlockId,
+  def createAndSign(parentId: ModifierId,
                     timestamp: Timestamp,
                     txs: Seq[Transaction.TX],
                     generatorBox: ArbitBox,
@@ -155,7 +152,7 @@ object Block {
     Map(
       "header" -> header.asJson,
       "body" -> body.asJson,
-      "blockSize" -> b.serializer.toBytes(b).length.asJson
+      "blockSize" -> b.bytes.length.asJson
     ).asJson
   }
 

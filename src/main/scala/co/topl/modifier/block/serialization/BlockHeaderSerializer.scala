@@ -3,8 +3,7 @@ package co.topl.modifier.block.serialization
 import co.topl.attestation.serialization.{PublicKeyPropositionCurve25519Serializer, SignatureCurve25519Serializer}
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.Block.BlockId
-import co.topl.modifier.block.{Block, BlockHeader, BloomFilter}
+import co.topl.modifier.block.{BlockHeader, BloomFilter}
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.serialization.ArbitBoxSerializer
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
@@ -49,9 +48,9 @@ object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
   override def parse(r: Reader): BlockHeader = {
     val version: Byte = r.getByte()
 
-    val id: BlockId = ModifierId(r.getBytes(Block.blockIdLength))
+    val id: ModifierId = ModifierId(r.getBytes(ModifierId.size))
 
-    val parentId: BlockId = ModifierId(r.getBytes(Block.blockIdLength))
+    val parentId: ModifierId = ModifierId(r.getBytes(ModifierId.size))
 
     val timestamp: Long = r.getULong()
 

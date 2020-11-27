@@ -23,13 +23,13 @@ case class ModifierId(hashBytes: Array[Byte]) {
 }
 
 object ModifierId {
-  val size: Int = Blake2b256.DigestSize // boxId is a 32 byte identifier
+  val size: Int = Blake2b256.DigestSize // ModifierId's are derived from Blake2b-256
 
   implicit val ord: Ordering[ModifierId] = Ordering.by(_.toString)
 
-  def apply(encodedSig: String): ModifierId =
-    Base58.decode(encodedSig) match {
-      case Success(sig) => new ModifierId(sig)
+  def apply(str: String): ModifierId =
+    Base58.decode(str) match {
+      case Success(id) => new ModifierId(id)
       case Failure(ex)  => throw ex
     }
 

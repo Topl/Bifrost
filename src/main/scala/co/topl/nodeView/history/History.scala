@@ -34,7 +34,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
 
   override type NVCT = History
 
-  require(NodeViewModifier.ModifierIdSize == 32, "32 bytes ids assumed")
+  require(NodeViewModifier.modifierIdSize == 32, "32 bytes ids assumed")
 
   lazy val height: Long = storage.chainHeight
   lazy val score: BigInt = storage.bestChainScore
@@ -578,7 +578,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
 
 object History extends Logging {
 
-  val GenesisParentId: Block.BlockId = ModifierId(Array.fill(32)(1: Byte))
+  val GenesisParentId: ModifierId = ModifierId(Array.fill(32)(1: Byte))
 
   def readOrGenerate(settings: AppSettings): History = {
     /** Setup persistent on-disk storage */

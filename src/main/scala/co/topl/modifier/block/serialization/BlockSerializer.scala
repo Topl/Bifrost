@@ -49,7 +49,7 @@ object BlockSerializer extends BifrostSerializer[Block] {
     /* The order of the getByte, getLong... calls should not be changed */
     val version: Byte = r.getByte()
 
-    val parentId: ModifierId = ModifierId(r.getBytes(Block.blockIdLength))
+    val parentId: ModifierId = ModifierId(r.getBytes(ModifierId.size))
 
     val timestamp: Long = r.getULong()
 
