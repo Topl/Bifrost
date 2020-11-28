@@ -10,8 +10,6 @@ import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.settings.{AppSettings, RuntimeOpts, Version}
-import co.topl.utils.encode.encodeBase16
-import scorex.util.encode.Base58
 
 import scala.util.Try
 
@@ -20,7 +18,7 @@ case class PrivateTestnet ( keyGen  : (Int, Option[String]) => Set[PublicKeyProp
                             opts    : RuntimeOpts
                           )(implicit val networkPrefix: NetworkPrefix) extends GenesisProvider {
 
-  override protected val blockChecksum: ModifierId = ModifierId(Array.fill(32)(0: Byte))
+  override protected val blockChecksum: ModifierId = ModifierId(Array.fill(ModifierId.size)(0: Byte))
 
   override protected val blockVersion: Version = settings.application.version
 

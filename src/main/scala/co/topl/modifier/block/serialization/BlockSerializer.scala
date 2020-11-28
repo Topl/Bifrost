@@ -18,7 +18,7 @@ object BlockSerializer extends BifrostSerializer[Block] {
     w.put(block.version)
 
     /* parentId: ModifierId */
-    w.putBytes(block.parentId.hashBytes)
+    ModifierId.serialize(block.parentId, w)
 
     /* timestamp: Long */
     w.putULong(block.timestamp)
@@ -49,7 +49,7 @@ object BlockSerializer extends BifrostSerializer[Block] {
     /* The order of the getByte, getLong... calls should not be changed */
     val version: Byte = r.getByte()
 
-    val parentId: ModifierId = ModifierId(r.getBytes(ModifierId.size))
+    val parentId: ModifierId = ModifierId.parse(r)
 
     val timestamp: Long = r.getULong()
 
@@ -64,7 +64,7 @@ object BlockSerializer extends BifrostSerializer[Block] {
     val difficulty: Long = r.getULong()
 
     val txsLength: Int = r.getUInt().toIntExact
-    val txs: Seq[Transaction.TX] = (0 until txsLength).map(_ => TransactionSerializer.parse(r))
+    val txs: Seq[Transaction.TX] = for (_ <- 0 until txsLength) yield TransactionSerializer.parse(r)
 
     Block(parentId, timestamp, generatorBox, publicKey, signature, height, difficulty, txs, version)
   }

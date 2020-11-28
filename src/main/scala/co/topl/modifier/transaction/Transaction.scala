@@ -18,12 +18,7 @@ import scala.util.Try
 
 abstract class Transaction[T <: Any, P <: Proposition] extends NodeViewModifier {
 
-  override type M = Transaction[_ <: Any, _ <: Proposition]
-
   override lazy val id: ModifierId = ModifierId(Blake2b256(messageToSign))
-
-  override lazy val serializer: BifrostSerializer[Transaction[_ <: Any, _ <: Proposition]] =
-    TransactionSerializer
 
   val modifierTypeId: ModifierTypeId = Transaction.modifierTypeId
 

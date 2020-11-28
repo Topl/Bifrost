@@ -60,7 +60,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
   override def contains(id: ModifierId): Boolean =
     (id == History.GenesisParentId) || modifierById(id).isDefined || fullBlockProcessor.contains(id)
 
-  private def isGenesis(b: Block): Boolean = storage.isGenesis(b)
+  private def isGenesis(b: Block): Boolean = b.parentId == History.GenesisParentId
 
   def blockForger(m: Block): PublicKeyPropositionCurve25519 = m.publicKey
 
@@ -310,75 +310,75 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
       case None => Older
     }
   }
-
-  /**
-    * Calculates the distribution of blocks to forgers
-    *
-    * @return a map from public keys of forgers to the number of blocks they have forged
-    */
-  def forgerDistribution(): Map[PublicKeyPropositionCurve25519, Int] = {
-    val map = collection.mutable.Map[PublicKeyPropositionCurve25519, Int]().withDefaultValue(0)
-
-    /**
-      * Finds the forger for this block, increments their block number entry in `map`, and continues down the chain
-      *
-      * @param m the current block for which to increment the forger entry
-      */
-    @tailrec
-    def loopBackAndIncrementForger(m: Block): Unit = {
-      val forger = blockForger(m)
-      map.update(forger, map(forger) + 1)
-      parentBlock(m) match {
-        case Some(parent) => loopBackAndIncrementForger(parent)
-        case None =>
-      }
-    }
-
-    loopBackAndIncrementForger(bestBlock)
-    map.toMap
-  }
-
-  /**
-    *
-    * @param f : predicate that tests whether a queryBloom is compatible with a block's bloom
-    * @return Seq of blockId that satisfies f
-    */
-  def getBlockIdsByBloom(f: BloomFilter => Boolean): Seq[ModifierId] = {
-    @tailrec
-    def loop(current: Array[Byte], acc: Seq[Array[Byte]]): Seq[ModifierId] =
-      storage.serializedParentIdOf(current) match {
-        case Some(value) =>
-          if (f(storage.bloomOf(current).get)) loop(value, current +: acc) else loop(value, acc)
-
-        case None =>
-          if (f(storage.bloomOf(current).get)) (current +: acc).map(ModifierId(_)) else acc.map(ModifierId(_))
-      }
-
-    loop(storage.bestBlockId.hashBytes, Seq())
-  }
-
-  /**
-   * Returns a set of transactions matching the specified topics
-   *
-   * @param queryBloomTopics topics to search the the block bloom filter for
-   * @return
-   */
-  def bloomFilter(queryBloomTopics: IndexedSeq[BloomTopic]): Seq[Transaction.TX] = {
-    val f: BloomFilter => Boolean = {
-      blockBloom => queryBloomTopics.forall(blockBloom.contains)
-    }
-
-    // Go through all pertinent txs to filter out false positives
-    getBlockIdsByBloom(f).flatMap { b =>
-      modifierById(b).get.transactions.filter { tx =>
-        tx.bloomTopics.exists { txTopic =>
-          val txBloomsWrapper = ByteArrayWrapper(txTopic)
-          val queryBloomsWrapper = queryBloomTopics.map(ByteArrayWrapper(_))
-          queryBloomsWrapper.contains(txBloomsWrapper)
-        }
-      }
-    }
-  }
+//
+//  /**
+//    * Calculates the distribution of blocks to forgers
+//    *
+//    * @return a map from public keys of forgers to the number of blocks they have forged
+//    */
+//  def forgerDistribution(): Map[PublicKeyPropositionCurve25519, Int] = {
+//    val map = collection.mutable.Map[PublicKeyPropositionCurve25519, Int]().withDefaultValue(0)
+//
+//    /**
+//      * Finds the forger for this block, increments their block number entry in `map`, and continues down the chain
+//      *
+//      * @param m the current block for which to increment the forger entry
+//      */
+//    @tailrec
+//    def loopBackAndIncrementForger(m: Block): Unit = {
+//      val forger = blockForger(m)
+//      map.update(forger, map(forger) + 1)
+//      parentBlock(m) match {
+//        case Some(parent) => loopBackAndIncrementForger(parent)
+//        case None =>
+//      }
+//    }
+//
+//    loopBackAndIncrementForger(bestBlock)
+//    map.toMap
+//  }
+//
+//  /**
+//    *
+//    * @param f : predicate that tests whether a queryBloom is compatible with a block's bloom
+//    * @return Seq of blockId that satisfies f
+//    */
+//  def getBlockIdsByBloom(f: BloomFilter => Boolean): Seq[ModifierId] = {
+//    @tailrec
+//    def loop(current: Array[Byte], acc: Seq[Array[Byte]]): Seq[ModifierId] =
+//      storage.serializedParentIdOf(current) match {
+//        case Some(value) =>
+//          if (f(storage.bloomOf(current).get)) loop(value, current +: acc) else loop(value, acc)
+//
+//        case None =>
+//          if (f(storage.bloomOf(current).get)) (current +: acc).map(ModifierId(_)) else acc.map(ModifierId(_))
+//      }
+//
+//    loop(storage.bestBlockId.getIdBytes, Seq())
+//  }
+//
+//  /**
+//   * Returns a set of transactions matching the specified topics
+//   *
+//   * @param queryBloomTopics topics to search the the block bloom filter for
+//   * @return
+//   */
+//  def bloomFilter(queryBloomTopics: IndexedSeq[BloomTopic]): Seq[Transaction.TX] = {
+//    val f: BloomFilter => Boolean = {
+//      blockBloom => queryBloomTopics.forall(blockBloom.contains)
+//    }
+//
+//    // Go through all pertinent txs to filter out false positives
+//    getBlockIdsByBloom(f).flatMap { b =>
+//      modifierById(b).get.transactions.filter { tx =>
+//        tx.bloomTopics.exists { txTopic =>
+//          val txBloomsWrapper = ByteArrayWrapper(txTopic)
+//          val queryBloomsWrapper = queryBloomTopics.map(ByteArrayWrapper(_))
+//          queryBloomsWrapper.contains(txBloomsWrapper)
+//        }
+//      }
+//    }
+//  }
 
 
   /**
@@ -578,14 +578,14 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
 
 object History extends Logging {
 
-  val GenesisParentId: ModifierId = ModifierId(Array.fill(32)(1: Byte))
+  val GenesisParentId: ModifierId = ModifierId.genesisParentId
 
   def readOrGenerate(settings: AppSettings): History = {
     /** Setup persistent on-disk storage */
     val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
     val file = new File(s"$dataDir/blocks")
     file.mkdirs()
-    val blockStorageDB = new LSMStore(file)
+    val blockStorageDB = new LSMStore(file, keySize = ModifierId.size)
     val storage = new Storage(blockStorageDB, settings.application.cacheExpire, settings.application.cacheSize)
 
     /** This in-memory cache helps us to keep track of tines sprouting off the canonical chain */

@@ -15,10 +15,10 @@ object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
     w.put(header.version)
 
     /* blockId: ModifiedId */
-    w.putBytes(header.id.hashBytes)
+    ModifierId.serialize(header.id, w)
 
     /* parentId: ModifierId */
-    w.putBytes(header.parentId.hashBytes)
+    ModifierId.serialize(header.parentId, w)
 
     /* timestamp: Long */
     w.putULong(header.timestamp)
@@ -48,9 +48,9 @@ object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
   override def parse(r: Reader): BlockHeader = {
     val version: Byte = r.getByte()
 
-    val id: ModifierId = ModifierId(r.getBytes(ModifierId.size))
+    val id: ModifierId = ModifierId.parse(r)
 
-    val parentId: ModifierId = ModifierId(r.getBytes(ModifierId.size))
+    val parentId: ModifierId = ModifierId.parse(r)
 
     val timestamp: Long = r.getULong()
 

@@ -53,7 +53,7 @@ trait GenericHistory[
     * @param modifier - modifier to apply
     * @return
     */
-  def applicable(modifier: PM): Boolean = openSurfaceIds().exists(_.hashBytes sameElements modifier.parentId.hashBytes)
+  def applicable(modifier: PM): Boolean = openSurfaceIds().exists(_.getIdBytes sameElements modifier.parentId.getIdBytes)
 
   def modifierById(modifierId: ModifierId): Option[PM]
 

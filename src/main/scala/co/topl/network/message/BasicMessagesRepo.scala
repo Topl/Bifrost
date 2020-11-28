@@ -32,7 +32,7 @@ class SyncInfoSpec extends MessageSpecV1[BifrostSyncInfo] {
 
   override def serialize(data: BifrostSyncInfo, w: Writer): Unit = {
     w.putUShort(data.lastBlockIds.size)
-    data.lastBlockIds.foreach(id ⇒ w.putBytes(id.hashBytes))
+    data.lastBlockIds.foreach(id ⇒ w.putBytes(id.getIdBytes))
   }
 
   override def parse(r: Reader): BifrostSyncInfo = {
@@ -68,7 +68,7 @@ class InvSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
     w.put(typeId)
     w.putUInt(elems.size)
     elems.foreach { id =>
-      val bytes = id.hashBytes
+      val bytes = id.getIdBytes
       assert(bytes.length == NodeViewModifier.modifierIdSize)
       w.putBytes(bytes)
     }
@@ -154,7 +154,7 @@ class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] wi
     w.putUInt(msgCount)
 
     modifiers.take(msgCount).foreach { case (id, modifier) =>
-      w.putBytes(id.hashBytes)
+      w.putBytes(id.getIdBytes)
       w.putUInt(modifier.length)
       w.putBytes(modifier)
     }

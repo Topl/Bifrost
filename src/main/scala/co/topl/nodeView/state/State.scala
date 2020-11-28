@@ -129,11 +129,11 @@ case class State ( override val version     : VersionTag,
       None
     }
 
-    if ( storage.lastVersionID.exists(_.data sameElements version.hashBytes) ) {
+    if ( storage.lastVersionID.exists(_.data sameElements version.getIdBytes) ) {
       this
     } else {
       log.debug(s"Rollback State to $version from version ${this.version.toString}")
-      storage.rollback(ByteArrayWrapper(version.hashBytes))
+      storage.rollback(ByteArrayWrapper(version.getIdBytes))
 
       State(version, storage, updatedTBR, updatedPBR, nodeKeys)
     }
@@ -228,7 +228,7 @@ case class State ( override val version     : VersionTag,
         case _ => None
       }
 
-      storage.update(ByteArrayWrapper(newVersion.hashBytes), boxIdsToRemove, boxesToAdd)
+      storage.update(ByteArrayWrapper(newVersion.getIdBytes), boxIdsToRemove, boxesToAdd)
 
       // create updated instance of state
       val newState = State(newVersion, storage, updatedTBR, updatedPBR, nodeKeys)

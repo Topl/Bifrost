@@ -13,10 +13,10 @@ object BlockBodySerializer extends BifrostSerializer[BlockBody] {
     w.put(body.version)
 
     /* blockId: ModifiedId */
-    w.putBytes(body.id.hashBytes)
+    ModifierId.serialize(body.id, w)
 
     /* parentId: ModifierId */
-    w.putBytes(body.parentId.hashBytes)
+    ModifierId.serialize(body.parentId, w)
 
     /* txs: Seq[Transaction] */
     body.transactions.foreach(tx => TransactionSerializer.serialize(tx, w))
@@ -25,12 +25,12 @@ object BlockBodySerializer extends BifrostSerializer[BlockBody] {
   override def parse(r: Reader): BlockBody = {
     val version: Byte = r.getByte()
 
-    val id: ModifierId = ModifierId(r.getBytes(ModifierId.size))
+    val id: ModifierId = ModifierId.parse(r)
 
-    val parentId: ModifierId = ModifierId(r.getBytes(ModifierId.size))
+    val parentId: ModifierId = ModifierId.parse(r)
 
     val txsLength: Int = r.getUInt().toIntExact
-    val txs: Seq[Transaction.TX] = (0 until txsLength).map(_ => TransactionSerializer.parse(r))
+    val txs: Seq[Transaction.TX] = for (_ <- 0 until txsLength) yield TransactionSerializer.parse(r)
 
     BlockBody(id, parentId, txs, version)
   }
