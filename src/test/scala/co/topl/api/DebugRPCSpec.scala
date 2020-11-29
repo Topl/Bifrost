@@ -54,24 +54,6 @@ class DebugRPCSpec extends AnyWordSpec
       }
     }
 
-    "Find number of blocks forged by publicKeys held in current node" in {
-      val requestBody = ByteString(
-        s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "1",
-           |   "method": "myBlocks",
-           |   "params": [{}]
-           |}
-        """.stripMargin)
-
-      httpPOST("/debug/", requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").head.asObject.isDefined shouldBe true
-      }
-    }
-
     "Return a map of public keys to the number of blocks they have forged in the chain's history" in {
       val requestBody = ByteString(
         s"""
@@ -89,25 +71,5 @@ class DebugRPCSpec extends AnyWordSpec
         (res \\ "result").head.asObject.isDefined shouldBe true
       }
     }
-
-    //Currently not implemented
-//    "Check if node is synced to canonical chain" in {
-//      val requestBody = ByteString(
-//        s"""
-//           |{
-//           |   "jsonrpc": "2.0",
-//           |   "id": "1",
-//           |   "method": "sync",
-//           |   "params": [{}]
-//           |}
-//        """.stripMargin)
-//
-//      httpPOST(requestBody) ~> route ~> check {
-//        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
-//        (res \\ "error").isEmpty shouldBe true
-//        (res \\ "result").head.asObject.isDefined shouldBe true
-//      }
-//    }
-
   }
 }
