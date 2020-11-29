@@ -222,7 +222,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
       }
 
       // retrieve the latest TWO block times for updating the difficulty if we forge a new blow
-      val prevTimes = history.lastBlocks(nxtBlockNum, history.bestBlock).map(_.timestamp).toVector
+      val prevTimes = history.getLastBlocks(nxtBlockNum, history.bestBlock).map(_.timestamp).toVector
 
       // check forging eligibility
       leaderElection(history.bestBlock, prevTimes, boxes, Seq(arbitReward, polyReward), transactions) match {

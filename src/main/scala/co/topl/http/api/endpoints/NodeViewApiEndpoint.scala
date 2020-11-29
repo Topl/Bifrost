@@ -5,6 +5,7 @@ import akka.http.scaladsl.server.Route
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.http.api.ApiEndpointWithView
 import co.topl.modifier.ModifierId
+import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
@@ -102,8 +103,8 @@ case class NodeViewApiEndpoint (override val settings: RPCApiSettings, appContex
 
       val blockId = view.history.blockContainingTx(transactionId).get
       val blockNumber = view.history.storage.heightOf(blockId)
-      val tx = view.history.storage
-        .modifierById(blockId)
+      val tx = view.history
+        .modifierById[Transaction.TX](transactionId)
         .get
         .transactions
         .filter(_.id == transactionId)

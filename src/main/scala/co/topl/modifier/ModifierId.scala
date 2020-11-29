@@ -1,8 +1,9 @@
 package co.topl.modifier
 
+import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
-import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Writer, Reader}
+import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
@@ -19,7 +20,7 @@ class ModifierId private (private val value: Array[Byte]) extends BytesSerializa
   lazy val serializer: BifrostSerializer[ModifierId] = ModifierId
 
   def getIdBytes: Array[Byte] = value.tail
-  def getModType: Byte = value.head
+  def getModType: ModifierTypeId = ModifierTypeId @@ value.head
 
   override def hashCode: Int = Ints.fromByteArray(value)
 
@@ -33,6 +34,7 @@ class ModifierId private (private val value: Array[Byte]) extends BytesSerializa
 
 object ModifierId extends BifrostSerializer[ModifierId] {
   val size: Int = 1 + Blake2b256.DigestSize // ModifierId's are derived from Blake2b-256
+  val empty: ModifierId = new ModifierId(Block.modifierTypeId +: Array.fill(size)(0: Byte))
   val genesisParentId: ModifierId = new ModifierId(Block.modifierTypeId +: Array.fill(size)(1: Byte))
 
   implicit val ord: Ordering[ModifierId] = Ordering.by(_.toString)

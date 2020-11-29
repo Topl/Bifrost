@@ -53,7 +53,9 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
 
   override def applicable(block: Block): Boolean = modifierById(block.parentId).isDefined
 
-  override def modifierById(id: ModifierId): Option[Block] = storage.modifierById(id)
+  override def modifierById[M <: NodeViewModifier](id: ModifierId): Option[M] = storage.modifierById(id).map {
+    case mod: M => mod
+  }
 
   def blockContainingTx(id: ModifierId): Option[ModifierId] = storage.blockIdOf(id)
 
@@ -69,7 +71,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
   def parentBlock(m: Block): Option[Block] = modifierById(m.parentId)
 
   //todo: try to paginate this response (should take in an offset and a limit number)
-  override def toString: String = chainBack(bestBlock, isGenesis).get.map(_._2).mkString(",")
+  override def toString: String = getLastIds(bestBlock, isGenesis).get.mkString(",")
 
   /**
     * Adds block to chain and updates storage (difficulty, score, etc.) relating to that
@@ -112,7 +114,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
 
               // calculate the new base difficulty
               val parentDifficulty = storage.difficultyOf(block.parentId).get
-              val prevTimes = lastBlocks(consensus.nxtBlockNum + 1, block).map(_.timestamp)
+              val prevTimes = getLastBlocks(consensus.nxtBlockNum + 1, block).map(_.timestamp)
               val newHeight = storage.heightOf(block.parentId).get + 1
               val newBaseDifficulty = consensus.calcNewBaseDifficulty(newHeight, parentDifficulty, prevTimes)
 
@@ -161,7 +163,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     */
   override def drop(modifierId: ModifierId): History = {
 
-    val block = storage.modifierById(modifierId).get
+    val block = storage.modifierById(modifierId).map{ case b: Block => b }.get
     val parentBlock = storage.modifierById(block.parentId).get
 
     log.debug(s"Failed to apply block. Rollback BifrostState to ${parentBlock.id} from version ${block.id}")
@@ -213,7 +215,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     * @param count - how many blocks to return
     * @return blocks, in reverse order (starting from the most recent one)
     */
-  def lastBlocks(count: Long, startBlock: Block): Seq[Block] = {
+  def getLastBlocks(count: Long, startBlock: Block): Seq[Block] = {
     @tailrec
     def loop(b: Block, acc: Seq[Block] = Seq()): Seq[Block] = {
       if (acc.length >= count) acc
@@ -252,13 +254,13 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
    * @return the sequence of block information (TypeId, Id) that were collected until `until` was satisfied
    *         (None only if the parent for a block was not found) starting from the original `m`
    */
-  final def chainBack(m: Block,
-                      until: Block => Boolean,
-                      limit: Int = Int.MaxValue): Option[Seq[(ModifierTypeId, ModifierId)]] = {
+  final def getLastIds(m: Block,
+                       until: Block => Boolean,
+                       limit: Int = Int.MaxValue): Option[Seq[ModifierId]] = {
 
     @tailrec
     def loop(block: Block, acc: Seq[Block]): Seq[Block] = {
-      if(acc.lengthCompare(limit) == 0 || until(block)) {
+      if (acc.lengthCompare(limit) == 0 || until(block)) {
         acc
       } else {
         parentBlock(block) match {
@@ -270,7 +272,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     }
 
     if (limit == 0) None
-    else Option(loop(m, Seq(m)).map(b ⇒ (b.modifierTypeId, b.id)).reverse)
+    else Option(loop(m, Seq(m)).map(_.id).reverse)
   }
 
   /**
@@ -392,13 +394,13 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
                                     limit: Int = Int.MaxValue): (Seq[ModifierId], Seq[ModifierId]) = {
 
     /* The entire chain that was "best" */
-    val loserChain = chainBack(bestBlock, isGenesis, limit).get.map(_._2)
+    val loserChain = getLastIds(bestBlock, isGenesis, limit).get.map(_._2)
 
     /* `in` specifies whether `loserChain` has this block */
     def in(m: Block): Boolean = loserChain.contains(m.id)
 
     /* Finds the chain of blocks back from `forkBlock` until a common block to `loserChain` is found */
-    val winnerChain = chainBack(forkBlock, in, limit).get.map(_._2)
+    val winnerChain = getLastIds(forkBlock, in, limit).get.map(_._2)
 
     val i = loserChain.indexWhere(id => id == winnerChain.head)
 
@@ -413,7 +415,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     */
   def averageDelay(id: ModifierId, blockNum: Int): Try[Long] = Try {
     val block = modifierById(id).get
-    val c = chainBack(block, isGenesis, blockNum).get.map(_._2)
+    val c = getLastIds(block, isGenesis, blockNum).get.map(_._2)
     (block.timestamp - modifierById(c.head).get.timestamp) / c.length
   }
 
@@ -441,7 +443,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     val progInfo: ProgressInfo[Block] = ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
     (new History(storage, fullBlockProcessor, validators), progInfo)
   }
-  
+
   /**
     * Whether a modifier could be applied to the history
     *
@@ -482,7 +484,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     def idInList(id: ModifierId): Boolean = from.exists(f => f._2 == id)
 
     /* Extend chain back until end of `from` is found, then return <size> blocks continuing from that point */
-    chainBack(bestBlock, inList) match {
+    getLastIds(bestBlock, inList) match {
       case Some(chain) if chain.exists(id => idInList(id._2)) => Some(chain.take(size))
       case Some(_) =>
         log.warn("Found chain without ids from remote")
@@ -500,10 +502,13 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
       info.startingPoints
 
     // case where the remote is at genesis
-    } else if(info.lastBlockIds.isEmpty) {
+    } else if (info.lastBlockIds.isEmpty) {
       val heightFrom = Math.min(height, size)
-      val block = storage.modifierById(storage.idAtHeight(heightFrom)).get
-      chainBack(block, _ ⇒ false, size).get
+      storage
+        .idAtHeightOf(heightFrom)
+        .flatMap(storage.modifierById)
+        .flatMap(getLastIds(_, _ => false, size))
+        .get
 
     // case where the remote node is younger or on a recent fork (branchPoint less than size blocks back)
     } else {
@@ -514,8 +519,11 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
       branchPointOpt.toSeq.flatMap { branchPoint ⇒
         val remoteHeight = storage.heightOf(branchPoint).get
         val heightFrom = Math.min(height, remoteHeight + size)
-        val startBlock = storage.modifierById(storage.idAtHeight(heightFrom)).get
-        chainBack(startBlock, _.id == branchPoint, size).get
+        storage
+          .idAtHeightOf(heightFrom)
+          .flatMap(storage.modifierById)
+          .flatMap(getLastIds(_, _ => false, size))
+          .get
       }
     }
   }
@@ -543,7 +551,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
 
   /**Return last count headers from best headers chain if exist or chain up to genesis otherwise */
   def lastHeaders(count: Int, offset: Int = 0): IndexedSeq[ModifierId] =
-    lastBlocks(count, bestBlock).map(block => block.id).toIndexedSeq
+    getLastBlocks(count, bestBlock).map(block => block.id).toIndexedSeq
 
 //  /**
 //    * @param height - block height
@@ -557,22 +565,6 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     storage.getIndex(heightIdsKey(height: Int))
       .getOrElse(Array()).grouped(32).map(ModifierId).toSeq
    */
-
-  /**
-    * If a transaction exists in a block found in history, get it
-    * by its modifier ID
-    * @param txId the modifier ID associated with the transaction
-    * @return an optional transaction from a block
-    */
-  override def transactionById(txId: ModifierId): Option[Transaction.TX] = {
-    storage.blockIdOf(txId).flatMap { id =>
-      storage
-        .modifierById(id)
-        .get
-        .transactions
-        .find(_.id == txId)
-    }
-  }
 }
 
 
@@ -585,7 +577,7 @@ object History extends Logging {
     val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
     val file = new File(s"$dataDir/blocks")
     file.mkdirs()
-    val blockStorageDB = new LSMStore(file, keySize = ModifierId.size)
+    val blockStorageDB = new LSMStore(file)
     val storage = new Storage(blockStorageDB, settings.application.cacheExpire, settings.application.cacheSize)
 
     /** This in-memory cache helps us to keep track of tines sprouting off the canonical chain */

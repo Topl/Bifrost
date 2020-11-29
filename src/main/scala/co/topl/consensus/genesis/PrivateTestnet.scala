@@ -18,7 +18,7 @@ case class PrivateTestnet ( keyGen  : (Int, Option[String]) => Set[PublicKeyProp
                             opts    : RuntimeOpts
                           )(implicit val networkPrefix: NetworkPrefix) extends GenesisProvider {
 
-  override protected val blockChecksum: ModifierId = ModifierId(Array.fill(ModifierId.size)(0: Byte))
+  override protected val blockChecksum: ModifierId = ModifierId.empty
 
   override protected val blockVersion: Version = settings.application.version
 
@@ -64,7 +64,7 @@ case class PrivateTestnet ( keyGen  : (Int, Option[String]) => Set[PublicKeyProp
 
     val block =
       Block(
-        History.GenesisParentId,
+        ModifierId.genesisParentId,
         0L,
         generatorBox,
         genesisAcct.publicImage,
