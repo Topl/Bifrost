@@ -6,7 +6,7 @@ import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaType
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
-import co.topl.consensus.{Forger, ForgerRef}
+import co.topl.consensus.{Forger, ForgerRef, KeyRing}
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
 import co.topl.nodeView.history.History
@@ -36,6 +36,7 @@ trait RPCMockState extends AnyWordSpec
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 
+  val keyRing: KeyRing = KeyRing(settings.application.keyFileDir.get)
 
   def httpPOST(uri: String, jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
