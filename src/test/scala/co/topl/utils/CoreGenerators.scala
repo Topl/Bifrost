@@ -432,14 +432,15 @@ trait CoreGenerators extends Logging {
 
   lazy val assetCreationGen: Gen[AssetCreation] = for {
     to <- toSeqGen
-    signatures <- sigSeqGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
-    hub <- propositionGen
+    issuer <- key25519Gen
     assetCode <- stringGen
     data <- stringGen
   } yield {
-    AssetCreation(to, Map(hub -> signatures.head), assetCode, hub, fee, timestamp, data)
+    val rawTx = AssetCreation.createRaw(to, fee, issuer._2, assetCode, data).get
+    val sig = issuer._1.sign(rawTx.messageToSign)
+    AssetCreation(to, Map(issuer._2 -> sig), assetCode, issuer._2, fee, timestamp, data)
   }
 
   lazy val oneOfNPropositionGen: Gen[(Set[PrivateKey25519], MofNProposition)] = for {

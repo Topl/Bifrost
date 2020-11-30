@@ -7,7 +7,6 @@ import co.topl.http.api.routes.NodeViewApiRoute
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{AssetCreation, Transaction}
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import io.circe.Json
@@ -26,19 +25,13 @@ class NodeViewRPCSpec extends AnyWordSpec
   // setup route for testing
   val route: Route = NodeViewApiRoute(settings.restApi, nodeViewHolderRef).route
 
-  val publicKeys = Map(
-    "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
-    "producer" -> "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb",
-    "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
-  )
-
   val tx: AssetCreation = assetCreationGen.sample.get
   var txHash: String = ""
   var assetTxHash: String = tx.id.toString
   var assetTxInstance: Transaction = _
   var blockId: Block.BlockId = _
 
-  nodeViewHolderRef ! LocallyGeneratedTransaction[Transaction](tx)
+  view().pool.put(tx)
 
   "NodeView RPC" should {
     "Get first 100 transactions in mempool" in {
@@ -52,7 +45,7 @@ class NodeViewRPCSpec extends AnyWordSpec
            |}
           """.stripMargin)
 
-      httpPOST("/nodeview/", requestBody) ~> route ~> check {
+      httpPOST("/nodeView/", requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
@@ -75,7 +68,7 @@ class NodeViewRPCSpec extends AnyWordSpec
           Seq(assetTxInstance),
           settings.application.version.blockByte
         )
-        history.append(tempBlock)
+        history.storage.update(tempBlock, 0, isBest = false)
         blockId = tempBlock.id
       }
     }
@@ -94,7 +87,7 @@ class NodeViewRPCSpec extends AnyWordSpec
            |
           """.stripMargin)
 
-      httpPOST("/nodeview/", requestBody) ~> route ~> check {
+      httpPOST("/nodeView/", requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
@@ -119,7 +112,7 @@ class NodeViewRPCSpec extends AnyWordSpec
            |
           """.stripMargin)
 
-      httpPOST("/nodeview/", requestBody) ~> route ~> check {
+      httpPOST("/nodeView/", requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
@@ -142,7 +135,7 @@ class NodeViewRPCSpec extends AnyWordSpec
            |
           """.stripMargin)
 
-      httpPOST("/nodeview/", requestBody) ~> route ~> check {
+      httpPOST("/nodeView/", requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
