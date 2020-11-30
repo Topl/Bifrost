@@ -4,7 +4,7 @@ import co.topl.consensus
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
-import co.topl.nodeView.history.{BlockProcessor, Storage}
+import co.topl.nodeView.history.{BlockProcessor, History, Storage}
 
 import scala.annotation.tailrec
 import scala.util.{Failure, Try}
@@ -66,25 +66,8 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
       case None =>
         //we have already checked if the parent exists so can get
         val parent = storage.modifierById(block.parentId).get
-        (parent, getTimestamps(consensus.nxtBlockNum + 1, parent) :+ block.timestamp)
+        (parent, History.getTimestamps(storage, consensus.nxtBlockNum, parent) :+ block.timestamp)
     }
-
-  /** Gets the timestamps for 'count' number of blocks prior to (and including) the startBlock */
-  def getTimestamps(count: Long, startBlock: Block): Seq[Block.Timestamp] = {
-    @tailrec
-    def loop(id: ModifierId, acc: Seq[Block.Timestamp] = Seq()): Seq[Block.Timestamp] = {
-      if (acc.length >= count) acc
-      else storage.parentIdOf(id) match {
-        case Some(parentId: ModifierId) =>
-          val parentTimestamp = storage.timestampOf(parentId).get
-          loop(parentId, parentTimestamp +: acc)
-
-        case _ => acc
-      }
-    }
-
-    loop(startBlock.id, Seq(startBlock.timestamp))
-  }
 }
 
 /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */

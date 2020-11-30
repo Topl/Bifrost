@@ -66,6 +66,10 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
 
   def parentBlock(m: Block): Option[Block] = modifierById(m.parentId)
 
+  /**Return last count headers from best headers chain if exist or chain up to genesis otherwise */
+  def lastHeaders(count: Int, offset: Int = 0): IndexedSeq[ModifierId] =
+    getBlocksFrom(bestBlock, count).map(block => block.id).toIndexedSeq
+
   /**
     * Adds block to chain and updates storage (difficulty, score, etc.) relating to that
     *
@@ -118,10 +122,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
               if (forkProgInfo.branchPoint.nonEmpty) {
                 storage.rollback(forkProgInfo.branchPoint.get)
 
-                forkProgInfo.toApply.foreach { b ⇒
-                  val baseDifficulty = fullBlockProcessor.getCacheBlock(b.id).get.baseDifficulty
-                  storage.update(b, isBest = true)
-                }
+                forkProgInfo.toApply.foreach { b ⇒storage.update(b, isBest = true) }
               }
 
               forkProgInfo
@@ -202,7 +203,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     * @param count - how many blocks to return
     * @return blocks, in reverse order (starting from the most recent one)
     */
-  def getLastBlocks(count: Long, startBlock: Block): Seq[Block] = {
+  def getBlocksFrom(startBlock: Block, count: Long): Seq[Block] = {
     @tailrec
     def loop(b: Block, acc: Seq[Block] = Seq()): Seq[Block] = {
       if (acc.length >= count) acc
@@ -219,13 +220,13 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
   /**
    * Go back through chain and get block ids until condition `until` is satisfied
    *
-   * @param m     the modifier to start at
+   * @param startBlock     the modifier to start at
    * @param until the condition that indicates (when true) that recursion should stop
    * @param limit the maximum number of blocks to recurse back
    * @return the sequence of block information (TypeId, Id) that were collected until `until` was satisfied
    *         (None only if the parent for a block was not found) starting from the original `m`
    */
-  final def getLastIds(m: Block,
+  final def getIdsFrom(startBlock: Block,
                        until: Block => Boolean,
                        limit: Int = Int.MaxValue): Option[Seq[ModifierId]] = {
 
@@ -243,8 +244,11 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     }
 
     if (limit == 0) None
-    else Option(loop(m, Seq(m)).map(_.id).reverse)
+    else Option(loop(startBlock, Seq(startBlock)).map(_.id).reverse)
   }
+
+  def getTimestampsFrom(startBlock: Block, count: Long): Vector[Block.Timestamp] =
+    History.getTimestamps(storage, count, startBlock)
 
   /**
     * Retrieve a sequence of blocks until the given filter is satisifed
@@ -313,13 +317,13 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
                                     limit: Int = Int.MaxValue): (Seq[ModifierId], Seq[ModifierId]) = {
 
     /* The entire chain that was "best" */
-    val loserChain = getLastIds(bestBlock, isGenesis, limit).get
+    val loserChain = getIdsFrom(bestBlock, isGenesis, limit).get
 
     /* `in` specifies whether `loserChain` has this block */
     def in(m: Block): Boolean = loserChain.contains(m.id)
 
     /* Finds the chain of blocks back from `forkBlock` until a common block to `loserChain` is found */
-    val winnerChain = getLastIds(forkBlock, in, limit).get
+    val winnerChain = getIdsFrom(forkBlock, in, limit).get
 
     val i = loserChain.indexWhere(id => id == winnerChain.head)
 
@@ -393,7 +397,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     def idInList(id: ModifierId): Boolean = from.exists(f => f._2 == id)
 
     /* Extend chain back until end of `from` is found, then return <size> blocks continuing from that point */
-    getLastIds(bestBlock, inList) match {
+    getIdsFrom(bestBlock, inList) match {
       case Some(chain) if chain.exists(id => idInList(id)) => Some(chain.take(size).map(id => id.getModType -> id))
       case Some(_) =>
         log.warn("Found chain without ids from remote")
@@ -430,7 +434,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
       storage
         .idAtHeightOf(heightFrom)
         .flatMap(modifierById)
-        .flatMap(getLastIds(_, _ => false, size))
+        .flatMap(getIdsFrom(_, _ => false, size))
         .map(_.map(mod => mod.getModType -> mod))
         .get
 
@@ -476,10 +480,6 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
         BifrostSyncInfo(startingPoints)
       }
     }
-
-  /**Return last count headers from best headers chain if exist or chain up to genesis otherwise */
-  def lastHeaders(count: Int, offset: Int = 0): IndexedSeq[ModifierId] =
-    getLastBlocks(count, bestBlock).map(block => block.id).toIndexedSeq
 
 //  /**
 //    * @param height - block height
@@ -597,5 +597,22 @@ object History extends Logging {
     )
 
     new History(storage, blockProcessor, validators)
+  }
+
+  /** Gets the timestamps for 'count' number of blocks prior to (and including) the startBlock */
+  def getTimestamps(storage: Storage, count: Long, startBlock: Block): Vector[Block.Timestamp] = {
+    @tailrec
+    def loop(id: ModifierId, acc: Vector[Block.Timestamp] = Vector()): Vector[Block.Timestamp] = {
+      if (acc.length >= count) acc
+      else storage.parentIdOf(id) match {
+        case Some(parentId: ModifierId) =>
+          val parentTimestamp = storage.timestampOf(parentId).get
+          loop(parentId, parentTimestamp +: acc)
+
+        case _ => acc
+      }
+    }
+
+    loop(startBlock.id, Vector(startBlock.timestamp))
   }
 }

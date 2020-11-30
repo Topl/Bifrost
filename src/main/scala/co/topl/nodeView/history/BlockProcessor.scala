@@ -50,12 +50,9 @@ class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends Logging 
   def process(history: History, block: Block): ProgressInfo[Block] = {
     // check if the current block is starting a new branch off the main chain
     val pi: ProgressInfo[Block] = if (history.applicable(block)) {
-      val parentDifficulty = history.storage.difficultyOf(block.parentId).get
-      val prevTimes = history.getLastBlocks(consensus.nxtBlockNum + 1, block).map(prev => prev.timestamp)
-      val newHeight = history.storage.heightOf(block.parentId).get + 1
-      val newBaseDifficulty = consensus.calcNewBaseDifficulty(newHeight, parentDifficulty, prevTimes)
+      val prevTimes = history.getTimestampsFrom(block, consensus.nxtBlockNum)
 
-      chainCache = chainCache.add( block, newHeight, newBaseDifficulty, prevTimes )
+      chainCache = chainCache.add(block, prevTimes)
 
       ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
 
@@ -63,22 +60,15 @@ class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends Logging 
     } else if (applicableInCache(block)) {
       val cacheParent = chainCache.getCacheBlock(block.parentId).get
 
-      val parentDifficulty = cacheParent.baseDifficulty
       val prevTimes = (cacheParent.prevBlockTimes :+ block.timestamp).takeRight(4)
-      val newHeight = cacheParent.height + 1
-      val newBaseDifficulty = consensus.calcNewBaseDifficulty(newHeight, parentDifficulty, prevTimes)
 
-      chainCache = chainCache.add( block, newHeight, newBaseDifficulty, prevTimes )
+      chainCache = chainCache.add(block, prevTimes)
 
         // if new chain is longer, calculate and return the ProgressInfo needed to switch tines
-        if (newHeight > history.height) {
+        if (block.height > history.height) {
           val newChain = possibleChain(chainCache.getCacheBlock(block.id).get)
           val commonAncestor = history.modifierById(newChain.head.parentId).get
-          val oldChain =
-            history.getLastBlocks(
-              history.height - history.storage.heightOf(commonAncestor.id).get,
-              history.bestBlock
-            )
+          val oldChain = history.getBlocksFrom(history.bestBlock, history.height - commonAncestor.height)
 
           ProgressInfo(Some(commonAncestor.id), oldChain, newChain, Seq.empty)
 
@@ -113,7 +103,7 @@ class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends Logging 
       }
     }
 
-    loop(Some(from), from.height, Seq.empty)
+    loop(Some(from), from.block.height, Seq.empty)
   }
 }
 
@@ -123,14 +113,14 @@ class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends Logging 
 object BlockProcessor extends Logging {
 
   private implicit val ord: Ordering[CacheBlock] =
-    Ordering[(Long, ModifierId)].on(x => (x.height, x.block.id))
+    Ordering[(Long, ModifierId)].on(x => (x.block.height, x.block.id))
 
   def apply(maxDepth: Int): BlockProcessor = new BlockProcessor(emptyCache, maxDepth)
 
   def emptyCache: ChainCache = ChainCache(TreeMap.empty)
 
   /** Wrapper for storing a block and its height in the chain cache */
-  case class CacheBlock(block: Block, height: Long, baseDifficulty: Long, prevBlockTimes: Seq[Block.Timestamp])
+  case class CacheBlock(block: Block, prevBlockTimes: Seq[Block.Timestamp])
 
   /** Stores links mapping ((id, height) -> parentId) of blocks that could possibly be applied. */
   case class ChainCache(cache: TreeMap[CacheBlock, ModifierId]) {
@@ -147,17 +137,17 @@ object BlockProcessor extends Logging {
       cache.keys.find(k ⇒ k.block.id == id)
 
     def getHeight(id: ModifierId): Option[Long] =
-      cache.keys.find(k ⇒ k.block.id == id).map(_.height)
+      cache.keys.find(k ⇒ k.block.id == id).map(_.block.height)
 
-    def add(block: Block, height: Long, parentDifficulty: Long, prevTimes: Seq[Block.Timestamp]): ChainCache = {
-      val cacheBlock = CacheBlock(block, height, parentDifficulty, prevTimes)
+    def add(block: Block, prevTimes: Seq[Block.Timestamp]): ChainCache = {
+      val cacheBlock = CacheBlock(block, prevTimes)
 
       log.debug(s"Added new block to chain cache: $cacheBlock")
       ChainCache(cache.insert(cacheBlock, block.parentId))
     }
 
     def dropUntil(height: Long): ChainCache =
-      ChainCache(cache.dropWhile(_._1.height < height))
+      ChainCache(cache.dropWhile(_._1.block.height < height))
 
   }
 }

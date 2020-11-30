@@ -4,6 +4,7 @@ import akka.actor._
 import akka.util.Timeout
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.{Address, PrivateKeyCurve25519, PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.consensus
 import co.topl.consensus.Forger.ChainParams
 import co.topl.consensus.genesis.{PrivateTestnet, Toplnet}
 import co.topl.crypto.KeyfileCurve25519
@@ -222,7 +223,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
       }
 
       // retrieve the latest TWO block times for updating the difficulty if we forge a new blow
-      val prevTimes = history.getLastBlocks(nxtBlockNum, history.bestBlock).map(_.timestamp).toVector
+      val prevTimes = history.getTimestampsFrom(history.bestBlock, nxtBlockNum)
 
       // check forging eligibility
       leaderElection(history.bestBlock, prevTimes, boxes, Seq(arbitReward, polyReward), transactions) match {
