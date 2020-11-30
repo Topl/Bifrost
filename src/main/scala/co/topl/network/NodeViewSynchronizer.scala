@@ -418,10 +418,12 @@ class NodeViewSynchronizer[
           case Transaction.modifierTypeId => mempool.getAll(invData.ids)
           case _: ModifierTypeId          => invData.ids.flatMap(id => history.modifierById(id))
         }
+
         log.debug(
           s"Requested ${invData.ids.length} modifiers ${idsToString(invData)}, " +
           s"sending ${objs.length} modifiers ${idsToString(invData.typeId, objs.map(_.id))} "
         )
+
         self ! ResponseFromLocal(remote, invData.typeId, objs)
 
       case _ =>
@@ -502,10 +504,12 @@ class NodeViewSynchronizer[
             deliveryTracker.setInvalid(pmod.id)
             penalizeMisbehavingPeer(remote)
             false
+
           case _ =>
             deliveryTracker.setReceived(pmod.id, remote)
             true
         }
+
       case None =>
         log.error("Got modifiers from remote while history reader is not ready")
         false

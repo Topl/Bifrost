@@ -27,8 +27,9 @@ case class DebugApiEndpoint (settings: RPCApiSettings, appContext: AppContext, n
 
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
-    case ("delay", params, id)      => delay(params.head, id)
-    case ("generators", params, id) => generators(params.head, id)
+    case ("test", p, i) => Future("test".asJson)
+//    case ("delay", params, id)      => delay(params.head, id)
+//    case ("generators", params, id) => generators(params.head, id)
   }
 
 
@@ -49,18 +50,18 @@ case class DebugApiEndpoint (settings: RPCApiSettings, appContext: AppContext, n
     * @param id request identifier
     * @return
     */
-  private def delay(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
-      val encodedSignature: ModifierId = ModifierId((params \\ "blockId").head.asString.get)
-      val count: Int = (params \\ "numBlocks").head.asNumber.get.toInt.get
-      Map(
-        "delay" -> view.history.averageDelay(encodedSignature, count)
-          .map(_.toString)
-          .getOrElse("Undefined")
-          .asJson
-      ).asJson
-    }
-  }
+//  private def delay(params: Json, id: String): Future[Json] = {
+//    viewAsync().map { view =>
+//      val encodedSignature: ModifierId = ModifierId((params \\ "blockId").head.asString.get)
+//      val count: Int = (params \\ "numBlocks").head.asNumber.get.toInt.get
+//      Map(
+//        "delay" -> view.history.averageDelay(encodedSignature, count)
+//          .map(_.toString)
+//          .getOrElse("Undefined")
+//          .asJson
+//      ).asJson
+//    }
+//  }
 
   /**  #### Summary
     *    Find distribution of block generators from all public keys in the chain's history
@@ -75,12 +76,12 @@ case class DebugApiEndpoint (settings: RPCApiSettings, appContext: AppContext, n
     * @param id request identifier
     * @return
     */
-  private def generators(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
-      val map: Map[Address, Int] = view.history
-        .forgerDistribution()
-        .map(d => d._1.address -> d._2)
-      map.asJson
-    }
-  }
+//  private def generators(params: Json, id: String): Future[Json] = {
+//    viewAsync().map { view =>
+//      val map: Map[Address, Int] = view.history
+//        .forgerDistribution()
+//        .map(d => d._1.address -> d._2)
+//      map.asJson
+//    }
+//  }
 }

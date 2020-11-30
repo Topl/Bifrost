@@ -299,10 +299,10 @@ object State extends Logging {
     sFile.mkdirs()
     val storage = new LSMStore(sFile, keySize = BoxId.size)
 
-    val version: VersionTag = ModifierId(
+    val version: VersionTag = ModifierId.parseBytes(
       storage.lastVersionID
         .fold(Array.fill(ModifierId.size)(0:Byte))(_.data)
-      )
+      ).getOrElse(throw new Error("Unable to define state version during initialization"))
 
     // node keys are a set of keys that this node will restrict its state to update
     val nodeKeys: Option[Set[Address]] = settings.application.nodeKeys match {

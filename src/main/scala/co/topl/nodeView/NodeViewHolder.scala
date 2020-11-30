@@ -153,7 +153,7 @@ class NodeViewHolder ( settings: AppSettings )
     * (e.g. if it is a first launch of a node) None is to be returned
     */
   def restoreState (): Option[NodeView] = {
-    if ( State.exists(settings) ) {
+    if (State.exists(settings)) {
       Some((
         History.readOrGenerate(settings),
         State.readOrGenerate(settings),

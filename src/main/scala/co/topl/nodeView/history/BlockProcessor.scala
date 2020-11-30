@@ -74,9 +74,11 @@ class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends Logging 
         if (newHeight > history.height) {
           val newChain = possibleChain(chainCache.getCacheBlock(block.id).get)
           val commonAncestor = history.modifierById(newChain.head.parentId).get
-          val oldChain = history.getLastBlocks(
-            history.height - history.storage.heightOf(commonAncestor.id).get,
-            history.bestBlock )
+          val oldChain =
+            history.getLastBlocks(
+              history.height - history.storage.heightOf(commonAncestor.id).get,
+              history.bestBlock
+            )
 
           ProgressInfo(Some(commonAncestor.id), oldChain, newChain, Seq.empty)
 

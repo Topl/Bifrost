@@ -16,6 +16,9 @@ trait ApiEndpoint {
   implicit val networkPrefix: NetworkPrefix
   implicit val timeout: Timeout = Timeout(settings.timeout)
 
+  // the namespace occupied by the endpoints defined in handlers
+  //val namespace: String
+
   // these are the case statements for identifying the api services
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]]
 

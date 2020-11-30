@@ -10,6 +10,7 @@ import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.settings.{AppSettings, RuntimeOpts, Version}
+import co.topl.utils.encode.encodeBase16
 
 import scala.util.Try
 

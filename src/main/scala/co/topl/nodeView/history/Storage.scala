@@ -1,8 +1,7 @@
 package co.topl.nodeView.history
 
 import co.topl.consensus
-import co.topl.modifier.{ModifierId, NodeViewModifier}
-import co.topl.modifier.block.TransactionsCarryingPersistentNodeViewModifier
+import co.topl.modifier.ModifierId
 import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.transaction.Transaction
@@ -10,10 +9,10 @@ import co.topl.utils.Logging
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import scorex.crypto.hash.{Blake2b256, Digest32, Sha256}
+import scorex.crypto.hash.{Blake2b256, Digest32}
 
 import scala.concurrent.duration.MILLISECONDS
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 class Storage( private[history] val storage: LSMStore,
                private val cacheExpire: Int,
@@ -40,55 +39,48 @@ class Storage( private[history] val storage: LSMStore,
 
   private val bestBlockIdKey = Array.fill(storage.keySize)(-1: Byte)
 
-  def parentChainScore(b: Block): Long = scoreOf(b.parentId).getOrElse(0L)
+  def scoreAt(b: ModifierId): Long = scoreOf(b).getOrElse(0L)
 
-  def parentHeight(b: Block): Long = heightOf(b.parentId).getOrElse(0L)
+  def heightAt(b: ModifierId): Long = heightOf(b).getOrElse(0L)
 
-  def parentDifficulty(b: Block): Long = difficultyOf(b.parentId).getOrElse(0L)
+  def difficultyAt(b: ModifierId): Long = difficultyOf(b).getOrElse(0L)
 
-  def chainHeight: Long = heightOf(bestBlockId).getOrElse(0L)
-
-  def bestBlockId: ModifierId = blockCache
-    .get(ByteArrayWrapper(bestBlockIdKey))
-    .map(d => ModifierId.parseBytes(d.data).get)
-    .getOrElse(History.GenesisParentId)
-
-  def bestChainScore: Long = scoreOf(bestBlockId).get
-
-  def bestBlock: Block = {
-    require(chainHeight > 0, "History is empty")
-    modifierById(bestBlockId) match {
-      case Some(block: Block) => block
-    }
-  }
-
-  def modifierById(id: ModifierId): Option[NodeViewModifier] = {
+  def bestBlockId: ModifierId =
     blockCache
-      .get(ByteArrayWrapper(id.getIdBytes))
-      .flatMap { bw =>
-        id.getModType match {
-          case Block.modifierTypeId =>
-            BlockSerializer.parseBytes(bw.data) match {
-              case Failure(e) =>
-                log.warn(s"Failed to parse modifier bytes from storage", e)
-                None
-              case Success(block) => Some(block)
-            }
+      .get(ByteArrayWrapper(bestBlockIdKey))
+      .flatMap(d => ModifierId.parseBytes(d.data).toOption)
+      .getOrElse(History.GenesisParentId)
 
-          case Transaction.modifierTypeId =>
-            blockCache
-              .get(bw)
-              .flatMap { bwBlock =>
-                BlockSerializer.parseBytes(bwBlock.data)
-                  .get
-                  .transactions
-                  .find(_.id == id)
-              }
+  def bestBlock: Block =
+    modifierById(bestBlockId).getOrElse(throw new Error("Unable to retrieve best block from storage"))
 
-          case _ => None
-        }
-      }
-  }
+  /** Check for the existence of a modifier in storage without parsing the bytes */
+  def containsModifier(id: ModifierId): Boolean =
+    blockCache.get(ByteArrayWrapper(id.getIdBytes)).isDefined
+
+  /** Retrieve a transaction and its block details from storage */
+  def lookupConfirmedTransaction(id: ModifierId): Option[(Transaction.TX, ModifierId, Long)] =
+    id.getModType match {
+      case Transaction.modifierTypeId =>
+        blockCache
+          .get(ByteArrayWrapper(id.getIdBytes))
+          .flatMap(blockCache.get)
+          .flatMap(bwBlock => BlockSerializer.parseBytes(bwBlock.data.tail).toOption)
+          .map(block => (block.transactions.find(_.id == id).get, block.id, block.height))
+
+      case _ => None
+    }
+
+  /** Retrieve a block from storage */
+  def modifierById(id: ModifierId): Option[Block] =
+    id.getModType match {
+      case Block.modifierTypeId =>
+        blockCache
+          .get(ByteArrayWrapper(id.getIdBytes))
+          .flatMap(bwBlock => BlockSerializer.parseBytes(bwBlock.data.tail).toOption)
+
+      case _ => None
+    }
 
   /** These methods allow us to lookup top-level information from blocks using the special keys defined below */
   def scoreOf(blockId: ModifierId): Option[Long] =
@@ -101,6 +93,11 @@ class Storage( private[history] val storage: LSMStore,
       .get(ByteArrayWrapper(blockHeightKey(blockId)))
       .map(b => Longs.fromByteArray(b.data))
 
+  def timestampOf(blockId: ModifierId): Option[Long] =
+    blockCache
+      .get(ByteArrayWrapper(blockTimestampKey(blockId)))
+      .map(b => Longs.fromByteArray(b.data))
+
   def idAtHeightOf(height: Long): Option[ModifierId] = {
     blockCache
       .get(ByteArrayWrapper(idHeightKey(height)))
@@ -108,13 +105,9 @@ class Storage( private[history] val storage: LSMStore,
   }
 
   def difficultyOf(blockId: ModifierId): Option[Long] =
-    if (blockId == History.GenesisParentId) {
-      Some(consensus.difficulty) //todo: this should be changed to initial difficulty (ignoring until ledger split)
-    } else {
       blockCache
         .get(ByteArrayWrapper(blockDiffKey(blockId)))
         .map(b => Longs.fromByteArray(b.data))
-    }
 
   def bloomOf(blockId: ModifierId): Option[BloomFilter] =
     blockCache
@@ -137,6 +130,9 @@ class Storage( private[history] val storage: LSMStore,
   private def blockDiffKey(blockId: ModifierId): Digest32 =
     Blake2b256("difficulty".getBytes ++ blockId.getIdBytes)
 
+  private def blockTimestampKey(blockId: ModifierId): Digest32 =
+    Blake2b256("timestamp".getBytes ++ blockId.getIdBytes)
+
   private def blockBloomKey(blockId: ModifierId): Digest32 =
     Blake2b256("bloom".getBytes ++ blockId.getIdBytes)
 
@@ -158,7 +154,7 @@ class Storage( private[history] val storage: LSMStore,
         "bestBlock": b00123123
       }
    */
-  def update(b: Block, diff: Long, isBest: Boolean) {
+  def update(b: Block, isBest: Boolean) {
     log.debug(s"Write new best=$isBest block ${b.id}")
 
     val blockK = Seq(b.id.getIdBytes -> b.bytes)
@@ -167,14 +163,16 @@ class Storage( private[history] val storage: LSMStore,
 
     val newTransactionsToBlockIds = b.transactions.map(tx => (tx.id.getIdBytes, b.id.getIdBytes))
 
-    val blockH = Seq(blockHeightKey(b.id) -> Longs.toByteArray(parentHeight(b) + 1))
+    val blockH = Seq(blockHeightKey(b.id) -> Longs.toByteArray(heightAt(b.parentId) + 1))
 
-    val idHeight = Seq(idHeightKey(parentHeight(b) + 1) → b.id.bytes)
+    val idHeight = Seq(idHeightKey(heightAt(b.parentId) + 1) → b.id.bytes)
 
-    val blockDiff = Seq(blockDiffKey(b.id) -> Longs.toByteArray(diff))
+    val blockDiff = Seq(blockDiffKey(b.id) -> Longs.toByteArray(b.difficulty))
+
+    val blockTimestamp = Seq(blockTimestampKey(b.id) → Longs.toByteArray(b.timestamp))
 
     // reference Bifrost #519 & #527 for discussion on this division of the score
-    val blockScore = Seq(blockScoreKey(b.id) -> Longs.toByteArray(parentChainScore(b) + diff / 10000000000L))
+    val blockScore = Seq(blockScoreKey(b.id) -> Longs.toByteArray(scoreAt(b.parentId) + b.difficulty / 10000000000L))
 
     val parentBlock =
       if (b.parentId == History.GenesisParentId) Seq()
@@ -185,6 +183,7 @@ class Storage( private[history] val storage: LSMStore,
     val wrappedUpdate =
       (blockK ++
         blockDiff ++
+        blockTimestamp ++
         blockH ++
         idHeight ++
         blockScore ++
