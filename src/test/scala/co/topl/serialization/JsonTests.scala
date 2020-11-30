@@ -51,16 +51,13 @@ class JsonTests extends AnyPropSpec
     }
   }
 
+/*
   property("PolyTransfer json") {
     forAll(polyTransferGen) { tx =>
-
-      println(s"${Right(tx)}")
-
-      println(s"newJson: ${tx.json.as[PolyTransfer].value}")
-
       tx.json.as[PolyTransfer].value shouldEqual Right(tx)
     }
   }
+
   property("ArbitTransfer json") {
     forAll(arbitTransferGen) { tx =>
       tx.json.as[ArbitTransfer].value shouldEqual Right(tx)
@@ -79,27 +76,22 @@ class JsonTests extends AnyPropSpec
     }
   }
 
-  /*
   property("ProgramCreation json") {
     forAll(programCreationGen) { tx =>
       tx.json.as[ProgramCreation].value shouldEqual Right(tx)
     }
   }
-  */
 
-  /*
   property("ProgramMethodExecution json") {
     forAll(programMethodExecutionGen) { tx =>
       tx.json.as[ProgramMethodExecution].value shouldEqual Right(tx)
     }
   }
-  */
 
-  /*
   property("CodeCreation json") {
     forAll(programCreationGen) { tx =>
       tx.json.as[ProgramCreation].value shouldEqual Right(tx)
     }
   }
-  */
+*/
 }

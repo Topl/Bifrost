@@ -81,13 +81,7 @@ class SerializationTests extends AnyPropSpec
         val parsed = BoxSerializer
           .parseBytes(BoxSerializer.toBytes(b))
           .get
-
-        println(s"${b.proposition}")
-        println(s"prop size: ${b.proposition.pubKeyBytes.length}")
         val prop: String = (json \\ "proposition").head.as[String].right.get
-        println(s"$prop")
-        println(s"prop json size: ${Base58.decode(prop).length}")
-        println(s"${PublicKey25519Proposition(prop)}")
 
         val serialized = BoxSerializer.toBytes(parsed)
         val resBox: StateBox = json.as[StateBox] match {case Right(re) => re; case Left(ex) => throw ex}
