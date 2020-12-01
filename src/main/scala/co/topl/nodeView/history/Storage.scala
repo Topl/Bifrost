@@ -195,7 +195,7 @@ class Storage( private[history] val storage: LSMStore,
       }
 
     /* update storage */
-    storage.update(ByteArrayWrapper(b.id.getIdBytes), Seq(), wrappedUpdate)
+    storage.update(ByteArrayWrapper(b.id.bytes), Seq(), wrappedUpdate)
 
     /* update the cache the in the same way */
     wrappedUpdate.foreach(key => blockCache.put(key._1, Some(key._2)))

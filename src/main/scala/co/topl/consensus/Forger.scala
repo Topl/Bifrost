@@ -304,18 +304,19 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
     memPool.take(numTxInBlock(chainHeight))
       .foldLeft(Seq[TX]()) { case (txAcc, tx) =>
+        // ensure that each transaction opens a unique box
         val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.flatMap(_.boxIdsToOpen).contains(id))
-        // if any newly created box matches a box already in the UTXO set, remove the transaction
-        val idExists = tx.newBoxes.exists(b => state.getBox(b.id).isDefined)
 
-        if (idExists) memPool.remove(tx)
+        // if any newly created box matches a box already in the UTXO set, remove the transaction
+        if (tx.newBoxes.exists(b => state.getBox(b.id).isDefined)) memPool.remove(tx)
 
         state.semanticValidate(tx) match {
           case Success(_) if txNotIncluded => txAcc :+ tx
           case Success(_)                  => txAcc
           case Failure(ex)                 =>
-            log.debug(s"${Console.RED}Invalid Unconfirmed transaction $tx. " +
+            log.debug(s"${Console.RED}Transaction ${tx.id} failed semantic validation. " +
               s"Removing transaction${Console.RESET}. Failure: $ex")
+            memPool.remove(tx)
             txAcc
         }
       }

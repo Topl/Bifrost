@@ -11,6 +11,7 @@ import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.{Curve25519, PublicKey}
 import scorex.util.encode.Base58
 
+import scala.collection.SortedSet
 import scala.util.{Failure, Success, Try}
 
 // Propositions are challenges that must be satisfied by the prover.
@@ -75,6 +76,8 @@ object PublicKeyPropositionCurve25519 {
       case Failure(ex)                                 => throw ex
     }
 
+  implicit val ord: Ordering[PublicKeyPropositionCurve25519] = Ordering.by(_.toString)
+
   implicit val evProducer: EvidenceProducer[PublicKeyPropositionCurve25519] =
     EvidenceProducer.instance[PublicKeyPropositionCurve25519] {
       prop: PublicKeyPropositionCurve25519 => Evidence(typePrefix, EvidenceContent @@ Blake2b256(prop.bytes))
@@ -90,13 +93,13 @@ object PublicKeyPropositionCurve25519 {
 
 /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
-case class ThresholdPropositionCurve25519 (threshold: Int, pubKeyProps: Set[PublicKeyPropositionCurve25519])
+case class ThresholdPropositionCurve25519(threshold: Int, pubKeyProps: SortedSet[PublicKeyPropositionCurve25519])
   extends KnowledgeProposition[PrivateKeyCurve25519] {
 
-  pubKeyProps.foreach(prop => {
-    require(prop.pubKeyBytes.length == Curve25519.KeyLength,
-      s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${prop.pubKeyBytes.length} found")
-  })
+//  pubKeyProps.foreach(prop => {
+//    require(prop.pubKeyBytes.length == Curve25519.KeyLength,
+//      s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${prop.pubKeyBytes.length} found")
+//  })
 
   val propTypeString: String = ThresholdPropositionCurve25519.typeString
   val propTypePrefix: EvidenceTypePrefix = ThresholdPropositionCurve25519.typePrefix
