@@ -303,6 +303,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
   private def pickTransactions (memPool: MemPool, state: State, chainHeight: Long): Try[Seq[TX]] = Try {
 
     memPool.take(numTxInBlock(chainHeight))
+      .filter(_.fee > 0) // default strategy ignores zero fee transactions in mempool
       .foldLeft(Seq[TX]()) { case (txAcc, tx) =>
         // ensure that each transaction opens a unique box
         val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.flatMap(_.boxIdsToOpen).contains(id))
