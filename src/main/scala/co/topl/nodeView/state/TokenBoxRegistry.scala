@@ -85,7 +85,7 @@ class TokenBoxRegistry (protected val storage: LSMStore, nodeKeys: Option[Set[Ad
     }.foldLeft((Seq[K](), Seq[(K, Set[V])]()))((acc, acct) => (acc._1 ++ acct._1, acc._2 ++ acct._2))
 
     storage.update(
-      ByteArrayWrapper(newVersion.getIdBytes),
+      ByteArrayWrapper(newVersion.bytes),
       deleted.map(k => ByteArrayWrapper(registryInput(k))),
       updated.map {
         case (key, value) => ByteArrayWrapper(registryInput(key)) -> ByteArrayWrapper(value.toSeq.flatMap(Longs.toByteArray).toArray)

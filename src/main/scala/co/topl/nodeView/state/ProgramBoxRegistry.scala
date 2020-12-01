@@ -65,7 +65,7 @@ class ProgramBoxRegistry ( protected val storage: LSMStore ) extends Registry[Pr
       }.foldLeft((Seq[K](), Seq[(K, V)]()))(( acc, progId ) => (acc._1 ++ progId._1, acc._2 ++ progId._2))
 
       storage.update(
-        ByteArrayWrapper(newVersion.getIdBytes),
+        ByteArrayWrapper(newVersion.bytes),
         deleted.map(k => ByteArrayWrapper(registryInput(k))),
         updated.map {
           case (key, value) => ByteArrayWrapper(registryInput(key)) -> ByteArrayWrapper(value.hashBytes)

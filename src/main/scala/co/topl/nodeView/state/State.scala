@@ -228,7 +228,7 @@ case class State ( override val version     : VersionTag,
         case _ => None
       }
 
-      storage.update(ByteArrayWrapper(newVersion.getIdBytes), boxIdsToRemove, boxesToAdd)
+      storage.update(ByteArrayWrapper(newVersion.bytes), boxIdsToRemove, boxesToAdd)
 
       // create updated instance of state
       val newState = State(newVersion, storage, updatedTBR, updatedPBR, nodeKeys)
@@ -299,10 +299,11 @@ object State extends Logging {
     sFile.mkdirs()
     val storage = new LSMStore(sFile, keySize = BoxId.size)
 
-    val version: VersionTag = ModifierId.parseBytes(
-      storage.lastVersionID
-        .fold(Array.fill(ModifierId.size)(0:Byte))(_.data)
-      ).getOrElse(throw new Error("Unable to define state version during initialization"))
+    val version: VersionTag =
+      storage
+        .lastVersionID
+        .fold(Option(ModifierId.empty))(bw => ModifierId.parseBytes(bw.data).toOption)
+        .getOrElse(throw new Error("Unable to define state version during initialization"))
 
     // node keys are a set of keys that this node will restrict its state to update
     val nodeKeys: Option[Set[Address]] = settings.application.nodeKeys match {
