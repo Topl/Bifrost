@@ -19,12 +19,11 @@ class KeyManager(keyDir: String) extends Actor {
   //Overload messaging, stateful necessary
   // is the idea here to have another keys actor??? So that the keyManager requests using ask (?), then key tells (!) sender?
   override def receive: Receive = {
-    case GenerateKeyFile(password) =>
-      sender ! keyManager.generateKeyFile(password)
+    case GenerateKeyFile(password) => sender ! keyManager.generateKeyFile(password)
 
-    case UnlockKeyFile(pubKeyString, password) => keyManager.unlockKeyFile(pubKeyString, password)
+    case UnlockKeyFile(pubKeyString, password) => sender ! keyManager.unlockKeyFile(pubKeyString, password)
 
-    case LockKeyFile(pubKeyString, password) => keyManager.lockKeyFile(pubKeyString, password)
+    case LockKeyFile(pubKeyString, password) => sender ! keyManager.lockKeyFile(pubKeyString, password)
 
     case GetOpenKeyfiles =>
       sender ! keyManager.listOpenKeyFiles

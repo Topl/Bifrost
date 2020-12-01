@@ -6,7 +6,7 @@ import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaType
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.{Http, HttpExt}
 import akka.util.{ByteString, Timeout}
-import crypto.PrivateKey25519
+import crypto.{PrivateKey25519, PublicKey25519Proposition}
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import http.GjallarhornApiRoute
@@ -16,9 +16,11 @@ import io.circe.parser.parse
 import keymanager.{KeyManagerRef, Keys}
 import requests.{Requests, RequestsManager}
 import scorex.crypto.hash.{Blake2b256, Digest32}
+import scorex.util.encode.Base58
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.util.{Failure, Success}
 
 class GjallarhornRPCSpec extends AsyncFlatSpec
   with Matchers
@@ -42,7 +44,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 
   val keyManagerRef: ActorRef = KeyManagerRef("keyManager", "keyfiles")
   val keyFileDir = "keyfiles/keyManagerTest"
-  val keyManager = Keys(keyFileDir)
+  val keyManager: Keys = Keys(keyFileDir)
 
   val bifrostActor: ActorRef = Await.result(system.actorSelection(
     s"akka.tcp://${settings.chainProvider}/user/walletConnectionHandler").resolveOne(), 10.seconds)
@@ -59,8 +61,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
 
-  def test(requests: Requests, route: Route): Unit = {
-    it should "get a successful JSON response" in {
+    it should "get a successful JSON response from createTx request" in {
       val createAssetRequest = ByteString(
         s"""
            |{
@@ -91,6 +92,84 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
         }
       }
     }
-  }
+
+    var pubKeyAddr: String = pk1.address
+
+    it should "successfully generate a keyfile" in {
+      val generateKeyfileRequest = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "2",
+           |   "method": "generateKeyfile",
+           |   "params": [{
+           |      "password": "foo"
+           |   }]
+           |}
+           """.stripMargin)
+
+      httpPOST(generateKeyfileRequest) ~> route ~> check {
+        parse(responseAs[String]) match {
+          case Left(f) => throw f
+          case Right(res: Json) =>
+            val result: Json = (res \\ "result").head
+            pubKeyAddr = (result \\ "address").head.asString.get
+            (res \\ "error").isEmpty shouldBe true
+            result.asObject.isDefined shouldBe true
+        }
+      }
+    }
+
+    it should "get a successful JSON response from an unlockKeyfile request" in {
+      val unlockKeyRequest = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "2",
+           |   "method": "unlockKeyfile",
+           |   "params": [{
+           |      "publicKey": "$pubKeyAddr",
+           |      "password": "foo"
+           |   }]
+           |}
+           """.stripMargin)
+
+      httpPOST(unlockKeyRequest) ~> route ~> check {
+        val responseString = responseAs[String].replace("\\", "")
+        parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+          case Left(f) => throw f
+          case Right(res: Json) =>
+            (res \\ "error").isEmpty shouldBe true
+            (res \\ "result").head.asObject.isDefined shouldBe true
+        }
+      }
+    }
+
+    it should "get a successful JSON response from balance request" in {
+        val requestBody = ByteString(
+          s"""
+             |{
+             |   "jsonrpc": "2.0",
+             |   "id": "1",
+             |   "method": "balances",
+             |   "params": [{
+             |      "method": "balances",
+             |      "params": [{
+             |            "publicKeys": ["$pubKeyAddr"]
+             |       }]
+             |   }]
+             |}
+          """.stripMargin)
+
+        httpPOST(requestBody) ~> route ~> check {
+          val responseString = responseAs[String].replace("\\", "")
+          parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+            case Left(f) => throw f
+            case Right(res: Json) =>
+              (res \\ "error").isEmpty shouldBe true
+              (res \\ "result").head.asObject.isDefined shouldBe true
+          }
+        }
+      }
 
 }

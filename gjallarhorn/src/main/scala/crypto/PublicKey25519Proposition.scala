@@ -54,8 +54,6 @@ object PublicKey25519Proposition {
   def validAddress(address: String): Try[PublicKey25519Proposition] ={
     Base58.decode(address).flatMap { addressBytes =>
       if (addressBytes.length != AddressLength) {
-        println("address: " + address)
-        println("length: " + addressBytes.length)
         Failure(new Exception("Wrong address length"))
       }
 
@@ -64,9 +62,9 @@ object PublicKey25519Proposition {
 
         val checkSumGenerated = calcCheckSum(addressBytes.dropRight(ChecksumLength))
 
-        if (checkSum.sameElements(checkSumGenerated))
+        if (checkSum.sameElements(checkSumGenerated)) {
           Success(PublicKey25519Proposition(PublicKey @@ addressBytes.dropRight(ChecksumLength).tail))
-        else Failure(new Exception("Wrong checksum"))
+        } else Failure(new Exception("Wrong checksum"))
       }
     }}
 
