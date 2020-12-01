@@ -2,7 +2,7 @@ package co.topl.http.api.endpoints
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.http.api.ApiEndpointWithView
+import co.topl.http.api.{ApiEndpointWithView, Namespace, ToplNamespace}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
@@ -10,7 +10,7 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppContext, RPCApiSettings}
-import io.circe.Json
+import io.circe.{DecodingFailure, Json}
 import io.circe.syntax._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -29,15 +29,15 @@ case class NodeViewApiEndpoint(
   implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
   // the namespace for the endpoints defined in handlers
-  val namespace: String = "topl"
+  val namespace: Namespace = ToplNamespace
 
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
-    case (method, params, id) if method == s"${namespace}_head" => getBestBlock(params.head, id)
-    case ("topl_mempool", params, id)                => mempool(params.head, id)
-    case ("topl_transactionById", params, id)        => transactionById(params.head, id)
-    case ("topl_blockById", params, id)              => blockById(params.head, id)
-    case ("topl_transactionFromMempool", params, id) => transactionFromMempool(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_head"                   => getBestBlock(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_mempool"                => mempool(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_transactionById"        => transactionById(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_blockById"              => blockById(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_transactionFromMempool" => transactionFromMempool(params.head, id)
   }
 
   /**  #### Summary
@@ -111,7 +111,7 @@ case class NodeViewApiEndpoint(
             ).asJson
           }
 
-        case Right(None) => throw new Error(s"Unable to find confirmed transaction")
+        case Right(None) => throw new Exception(s"Unable to find confirmed transaction")
         case Left(ex)    => throw ex
       }
     }

@@ -3,7 +3,7 @@ package co.topl.http.api.endpoints
 import akka.actor.{ActorRef, ActorRefFactory}
 import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.http.api.ApiEndpointWithView
+import co.topl.http.api.{ApiEndpointWithView, DebugNamespace, Namespace}
 import co.topl.modifier.ModifierId
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
@@ -25,11 +25,14 @@ case class DebugApiEndpoint (settings: RPCApiSettings, appContext: AppContext, n
   // Establish the expected network prefix for addresses
   implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
+  // the namespace for the endpoints defined in handlers
+  val namespace: Namespace = DebugNamespace
+
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
     case ("test", p, i) => Future("test".asJson)
-//    case ("delay", params, id)      => delay(params.head, id)
-//    case ("generators", params, id) => generators(params.head, id)
+//    case ("delay"      => delay(params.head, id)
+//    case ("generators" => generators(params.head, id)
   }
 
 

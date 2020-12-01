@@ -17,13 +17,14 @@ import scala.util.{Failure, Success, Try}
 final case class HttpService (apiServices: Seq[ApiEndpoint], settings: RPCApiSettings)(implicit val system: ActorSystem)
   extends CorsSupport {
 
-  val timeout: Timeout = Timeout(settings.timeout)
+  private val timeout: Timeout = Timeout(settings.timeout)
 
-  lazy val corsAllowed: Boolean = settings.corsAllowed
   private lazy val apiKeyHash: Option[Array[Byte]] = Base58.decode(settings.apiKeyHash).toOption
 
   private lazy val apiServiceHandlers: PartialFunction[(String, Vector[Json], String), Future[Json]] =
-    apiServices.map(_.handlers).reduce(_ orElse _)
+    apiServices.map {
+      case endpoint if settings.namespaceSelector.namespaceStates(endpoint.namespace) => endpoint.handlers
+    }.reduce(_ orElse _)
 
   /** the primary route that the HTTP service is bound to in BifrostApp */
   val compositeRoute: Route =

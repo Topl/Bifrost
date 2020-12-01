@@ -3,7 +3,7 @@ package co.topl.http.api.endpoints
 import akka.actor.{ActorRef, ActorRefFactory}
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.{Address, Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
-import co.topl.http.api.ApiEndpointWithView
+import co.topl.http.api.{ApiEndpointWithView, Namespace, ToplNamespace}
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
 import co.topl.nodeView.history.History
@@ -34,12 +34,15 @@ case class TransactionApiEndpoint (settings: RPCApiSettings, appContext: AppCont
   // Establish the expected network prefix for addresses
   implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
+  // the namespace for the endpoints defined in handlers
+  val namespace: Namespace = ToplNamespace
+
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
-    case ("topl_rawAssetTransfer", params, id) => rawAssetTransfer(params.head, id)
-    case ("topl_rawArbitTransfer", params, id) => rawArbitTransfer(params.head, id)
-    case ("topl_rawPolyTransfer", params, id)  => rawPolyTransfer(params.head, id)
-    case ("topl_broadcastTx", params, id)      => broadcastTx(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_rawAssetTransfer" => rawAssetTransfer(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_rawArbitTransfer" => rawArbitTransfer(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_rawPolyTransfer"  => rawPolyTransfer(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_broadcastTx"      => broadcastTx(params.head, id)
   }
 
   /** Helper function to ensure this node has the appropriate state to create a request raw transaction */

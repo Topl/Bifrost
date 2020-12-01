@@ -1,7 +1,5 @@
 package co.topl.http.api
 
-import akka.actor.ActorRefFactory
-import akka.http.scaladsl.server.Directives
 import akka.util.Timeout
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.settings.{AppContext, RPCApiSettings}
@@ -17,7 +15,7 @@ trait ApiEndpoint {
   implicit val timeout: Timeout = Timeout(settings.timeout)
 
   // the namespace occupied by the endpoints defined in handlers
-  //val namespace: String
+  val namespace: Namespace
 
   // these are the case statements for identifying the api services
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]]
