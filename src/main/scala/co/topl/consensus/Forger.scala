@@ -5,13 +5,13 @@ import akka.util.Timeout
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.{Address, PrivateKeyCurve25519, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus
-import co.topl.consensus.Forger.ChainParams
+import co.topl.consensus.Forger.{ChainParams, PickTransactionsResult}
 import co.topl.consensus.genesis.{PrivateTestnet, Toplnet}
 import co.topl.crypto.KeyfileCurve25519
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.Block.Timestamp
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{EliminateTransactions, GetDataFromCurrentView, LocallyGeneratedModifier}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
@@ -212,7 +212,10 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
       // pick the transactions from the mempool for inclusion in the block (if successful)
       val transactions = pickTransactions(memPool, state, history.height) match {
-        case Success(txs) => txs
+        case Success(res) =>
+          if (res.toEliminate.nonEmpty) nodeViewHolderRef.foreach(_ ! EliminateTransactions(res.toEliminate.map(_.id)))
+          res.toApply
+
         case Failure(ex)  => throw ex
       }
 
@@ -300,25 +303,25 @@ class Forger (settings: AppSettings, appContext: AppContext )
    * @param state   state to use for semantic validity checking
    * @return a sequence of valid transactions
    */
-  private def pickTransactions (memPool: MemPool, state: State, chainHeight: Long): Try[Seq[TX]] = Try {
+  private def pickTransactions (memPool: MemPool, state: State, chainHeight: Long): Try[PickTransactionsResult] = Try {
 
     memPool.take(numTxInBlock(chainHeight))
       .filter(_.fee > 0) // default strategy ignores zero fee transactions in mempool
-      .foldLeft(Seq[TX]()) { case (txAcc, tx) =>
-        // ensure that each transaction opens a unique box
-        val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.flatMap(_.boxIdsToOpen).contains(id))
+      .foldLeft(PickTransactionsResult(Seq(), Seq())) { case (txAcc, tx) =>
+        // ensure that each transaction opens a unique box by checking that this transaction
+        // doesn't open a box already being opened by a previously included transaction
+        val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.toApply.flatMap(_.boxIdsToOpen).contains(id))
 
         // if any newly created box matches a box already in the UTXO set, remove the transaction
-        if (tx.newBoxes.exists(b => state.getBox(b.id).isDefined)) memPool.remove(tx)
+        val outputBoxExists = tx.newBoxes.exists(b => state.getBox(b.id).isDefined)
 
         state.semanticValidate(tx) match {
-          case Success(_) if txNotIncluded => txAcc :+ tx
-          case Success(_)                  => txAcc
-          case Failure(ex)                 =>
+          case Success(_) if txNotIncluded   => PickTransactionsResult(txAcc.toApply :+ tx, txAcc.toEliminate)
+          case Success(_) if outputBoxExists => PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ tx)
+          case Failure(ex)                   =>
             log.debug(s"${Console.RED}Transaction ${tx.id} failed semantic validation. " +
-              s"Removing transaction${Console.RESET}. Failure: $ex")
-            memPool.remove(tx)
-            txAcc
+              s"Transaction will be removed.${Console.RESET} Failure: $ex")
+            PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ tx)
         }
       }
   }
@@ -412,6 +415,8 @@ object Forger {
   val actorName = "forger"
 
   case class ChainParams ( totalStake: Long, difficulty: Long)
+
+  case class PickTransactionsResult(toApply: Seq[Transaction.TX], toEliminate: Seq[Transaction.TX])
 
   object ReceivableMessages {
 

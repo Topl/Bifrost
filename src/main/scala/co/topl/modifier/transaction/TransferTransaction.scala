@@ -216,18 +216,19 @@ object TransferTransaction {
     val unlockers = BoxUnlocker.generate(tx.from, tx.attestation)
 
     // iterate through the unlockers and sum up the value of the box for each valid unlocker
-    unlockers.foldLeft[Try[Long]](Success(0L))(( trySum, unlocker ) => {
-      trySum.flatMap { partialSum =>
-        state.getBox(unlocker.closedBoxId) match {
-          case Some(box: TokenBox) if unlocker.boxKey.isValid(unlocker.proposition, tx.messageToSign) =>
-            Success(partialSum + box.value)
+    unlockers
+      .foldLeft[Try[Long]](Success(0L))((trySum, unlocker) => {
+        trySum.flatMap { partialSum =>
+          state.getBox(unlocker.closedBoxId) match {
+            case Some(box: TokenBox) if unlocker.boxKey.isValid(unlocker.proposition, tx.messageToSign) =>
+              Success(partialSum + box.value)
 
-          case Some(_) => Failure(new Exception("Invalid unlocker"))
-          case None    => Failure(new Exception(s"Box for unlocker $unlocker cannot be found in state"))
-          case _       => Failure(new Exception("Invalid Box type for this transaction"))
+            case Some(_) => Failure(new Exception("Invalid unlocker"))
+            case None    => Failure(new Exception(s"Box for unlocker $unlocker cannot be found in state"))
+            case _       => Failure(new Exception("Invalid Box type for this transaction"))
+          }
         }
-      }
-    }) match {
+      }) match {
       // a normal transfer will fall in this case
       case Success(sum: Long) if txOutput == sum - tx.fee =>
         Success(Unit)

@@ -431,11 +431,13 @@ class NodeViewHolder ( settings: AppSettings )
 
     val appliedTxs = blocksApplied.flatMap(extractTransactions)
 
-    memPool.putWithoutCheck(rolledBackTxs).filter { tx =>
-      !appliedTxs.exists(t => t.id == tx.id) && {
-        state.semanticValidate(tx).isSuccess
+    memPool
+      .putWithoutCheck(rolledBackTxs)
+      .filter { tx =>
+        !appliedTxs.exists(t => t.id == tx.id) && {
+          state.semanticValidate(tx).isSuccess
+        }
       }
-    }
   }
 
   /**

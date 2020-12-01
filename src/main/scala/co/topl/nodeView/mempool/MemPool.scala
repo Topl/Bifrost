@@ -96,6 +96,7 @@ case class MemPool(unconfirmed: TrieMap[ModifierId, Transaction.TX])
         false
       }
     }
+
     this
   }
 }
