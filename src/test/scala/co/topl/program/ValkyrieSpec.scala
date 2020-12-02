@@ -2,7 +2,6 @@ package co.topl.program
 
 import java.time.Instant
 import java.util
-
 import InstrumentClasses.ProgramController
 import InstrumentClasses.TokenClasses._
 import co.topl.crypto.FastCryptographicHash
@@ -13,10 +12,12 @@ import co.topl.nodeView.state.box.{ArbitBox, AssetBox}
 import co.topl.utils.{CoreGenerators, ValidGenerators}
 import com.google.common.primitives.{Ints, Longs}
 import org.graalvm.polyglot.Context
+import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import scorex.util.encode.Base58
 
+@DoNotDiscover
 class ValkyrieSpec extends AnyPropSpec
   with Matchers
   with CoreGenerators
