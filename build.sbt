@@ -82,7 +82,6 @@ val miscDependencies = Seq(
   "io.netty" % "netty" % "3.10.6.Final"
 ) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
 
-
 libraryDependencies ++= akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies ++ cryptoDependencies ++ miscDependencies
 
 // monitoring dependencies

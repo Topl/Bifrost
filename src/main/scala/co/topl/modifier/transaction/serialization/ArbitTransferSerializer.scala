@@ -67,16 +67,8 @@ object ArbitTransferSerializer extends BifrostSerializer[ArbitTransfer[_ <: Prop
 
     val signaturesLength: Int = r.getUInt().toIntExact
     val signatures = Map((0 until signaturesLength).map { _ =>
-      val prop = PropositionSerializer.parse(r) match {
-        case prop: PublicKeyPropositionCurve25519 if prop.propTypePrefix == propTypePrefix => prop
-        case prop: ThresholdPropositionCurve25519 if prop.propTypePrefix == propTypePrefix => prop
-      }
-
-      val sig = ProofSerializer.parse(r) match {
-        case prop: PublicKeyPropositionCurve25519 if prop.propTypePrefix == propTypePrefix => prop
-        case prop: ThresholdPropositionCurve25519 if prop.propTypePrefix == propTypePrefix => prop
-      }
-
+      val prop = PropositionSerializer.parse(r)
+      val sig = ProofSerializer.parse(r)
       prop -> sig
     }: _*)
 
