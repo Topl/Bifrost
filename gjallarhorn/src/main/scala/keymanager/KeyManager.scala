@@ -16,17 +16,16 @@ class KeyManager(keyDir: String) extends Actor {
 
   val keyManager: Keys = Keys(keyDir)
 
-  //Overload messaging, stateful necessary
-  // is the idea here to have another keys actor??? So that the keyManager requests using ask (?), then key tells (!) sender?
   override def receive: Receive = {
     case GenerateKeyFile(password) => sender ! keyManager.generateKeyFile(password)
+
+    case ImportKeyfile(password: String, mnemonic: String, lang: String) => sender ! keyManager.importPhrase(password, mnemonic, lang)
 
     case UnlockKeyFile(pubKeyString, password) => sender ! keyManager.unlockKeyFile(pubKeyString, password)
 
     case LockKeyFile(pubKeyString, password) => sender ! keyManager.lockKeyFile(pubKeyString, password)
 
-    case GetOpenKeyfiles =>
-      sender ! keyManager.listOpenKeyFiles
+    case GetOpenKeyfiles => sender ! keyManager.listOpenKeyFiles
 
     case SignTx(tx, keys, msg) =>
       val sigs: List[(String, String)] = keys.map { pk =>
@@ -50,6 +49,7 @@ class KeyManager(keyDir: String) extends Actor {
 
 object KeyManager {
   case class GenerateKeyFile(password: String)
+  case class ImportKeyfile(password: String, mnemonic: String, lang: String)
   case class UnlockKeyFile(publicKeyString: String, password: String)
   case class LockKeyFile(publicKeyString: String, password: String)
   case object GetOpenKeyfiles

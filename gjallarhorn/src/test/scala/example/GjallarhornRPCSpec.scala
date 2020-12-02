@@ -13,6 +13,7 @@ import http.GjallarhornApiRoute
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import io.circe.Json
 import io.circe.parser.parse
+import io.circe.syntax.EncoderOps
 import keymanager.{KeyManagerRef, Keys}
 import requests.{Requests, RequestsManager}
 import scorex.crypto.hash.{Blake2b256, Digest32}
@@ -61,28 +62,221 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
 
-    it should "get a successful JSON response from createTx request" in {
-      val createAssetRequest = ByteString(
-        s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "2",
-           |   "method": "createTransaction",
-           |   "params": [{
-           |     "method": "createAssetsPrototype",
-           |     "params": [{
-           |        "issuer": "${pk1.toString}",
-           |        "recipient": "${pk2.toString}",
-           |        "amount": $amount,
-           |        "assetCode": "etherAssets",
-           |        "fee": 0,
-           |        "data": ""
-           |     }]
-           |   }]
-           |}
+  var prototypeTx: Json = Map("txType" -> "AssetCreation").asJson
+  var msgToSign = ""
+
+  it should "get a successful JSON response from createTx request" in {
+    val createAssetRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "createTransaction",
+         |   "params": [{
+         |     "method": "createAssetsPrototype",
+         |     "params": [{
+         |        "issuer": "${pk1.toString}",
+         |        "recipient": "${pk2.toString}",
+         |        "amount": $amount,
+         |        "assetCode": "etherAssets",
+         |        "fee": 0,
+         |        "data": ""
+         |     }]
+         |   }]
+         |}
+       """.stripMargin)
+
+    httpPOST(createAssetRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          prototypeTx = (res \\ "formattedTx").head
+          msgToSign = (res \\ "messageToSign").head.asString.get
+          (res \\ "error").isEmpty shouldBe true
+          (res \\ "result").head.asObject.isDefined shouldBe true
+      }
+    }
+  }
+
+  //TODO: make sure it works after changing keys format.
+/*  it should "successfully sign a transaction" in {
+    println(prototypeTx)
+    println(msgToSign)
+    val signTxRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "signTx",
+         |   "params": [{
+         |      "signingKeys": ["${pk1.toString}"],
+         |      "protoTx": $prototypeTx,
+         |      "messageToSign": "$msgToSign"
+         |   }]
+         |}
          """.stripMargin)
 
-      httpPOST(createAssetRequest) ~> route ~> check {
+    httpPOST(signTxRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          println(res)
+          (res \\ "error").isEmpty shouldBe true
+          (res \\ "result").head.asObject.isDefined shouldBe true
+      }
+    }
+  }*/
+
+  var pubKeyAddr: String = pk1.address
+
+  it should "successfully generate a keyfile" in {
+    val generateKeyfileRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "generateKeyfile",
+         |   "params": [{
+         |      "password": "foo"
+         |   }]
+         |}
+         """.stripMargin)
+
+    httpPOST(generateKeyfileRequest) ~> route ~> check {
+      parse(responseAs[String]) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          val result: Json = (res \\ "result").head
+          pubKeyAddr = (result \\ "address").head.asString.get
+          (res \\ "error").isEmpty shouldBe true
+          result.asObject.isDefined shouldBe true
+      }
+    }
+  }
+
+  val seedPhrase = "stand earth guess employ goose aisle great next embark weapon wonder aisle monitor surface omit guilt model rule"
+
+  it should "successfully import a keyfile through mnemonic phrase" in {
+    val importKeyfileRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "importKeyfile",
+         |   "params": [{
+         |      "password": "password",
+         |      "seedPhrase": "$seedPhrase",
+         |      "seedPhraseLang": "en"
+         |   }]
+         |}
+         """.stripMargin)
+
+    httpPOST(importKeyfileRequest) ~> route ~> check {
+      parse(responseAs[String]) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          val result: Json = (res \\ "result").head
+          (res \\ "error").isEmpty shouldBe true
+          result.asObject.isDefined shouldBe true
+      }
+    }
+  }
+
+  it should "successfully lock a Keyfile" in {
+    val lockKeyRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "lockKeyfile",
+         |   "params": [{
+         |      "publicKey": "$pubKeyAddr",
+         |      "password": "foo"
+         |   }]
+         |}
+           """.stripMargin)
+
+    httpPOST(lockKeyRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          (res \\ "result").head.asObject.isDefined shouldBe true
+      }
+    }
+  }
+
+  it should "successfully unlock a Keyfile" in {
+    val unlockKeyRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "unlockKeyfile",
+         |   "params": [{
+         |      "publicKey": "$pubKeyAddr",
+         |      "password": "foo"
+         |   }]
+         |}
+         """.stripMargin)
+
+    httpPOST(unlockKeyRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          (res \\ "result").head.asObject.isDefined shouldBe true
+      }
+    }
+  }
+
+  //ToDo: listOpenKeyFiles isn't returning correct form of the keyfiles.
+  /*it should "successfully get open keyfiles" in {
+    val openKeyfilesRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "listOpenKeyfiles",
+         |   "params": [{}]
+         |}
+         """.stripMargin)
+
+    httpPOST(openKeyfilesRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          val openKeys: Set[String] = (res \\ "result").head.asArray.get.map(k => k.asString.get).toSet
+          println(openKeys)
+          println(pubKeyAddr)
+          openKeys.contains(s"$pubKeyAddr") shouldBe true
+      }
+    }
+  }*/
+
+  it should "get a successful JSON response from balance request" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "1",
+           |   "method": "balances",
+           |   "params": [{
+           |      "method": "balances",
+           |      "params": [{
+           |            "publicKeys": ["$pubKeyAddr"]
+           |       }]
+           |   }]
+           |}
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
         val responseString = responseAs[String].replace("\\", "")
         parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
           case Left(f) => throw f
@@ -92,84 +286,5 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
         }
       }
     }
-
-    var pubKeyAddr: String = pk1.address
-
-    it should "successfully generate a keyfile" in {
-      val generateKeyfileRequest = ByteString(
-        s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "2",
-           |   "method": "generateKeyfile",
-           |   "params": [{
-           |      "password": "foo"
-           |   }]
-           |}
-           """.stripMargin)
-
-      httpPOST(generateKeyfileRequest) ~> route ~> check {
-        parse(responseAs[String]) match {
-          case Left(f) => throw f
-          case Right(res: Json) =>
-            val result: Json = (res \\ "result").head
-            pubKeyAddr = (result \\ "address").head.asString.get
-            (res \\ "error").isEmpty shouldBe true
-            result.asObject.isDefined shouldBe true
-        }
-      }
-    }
-
-    it should "get a successful JSON response from an unlockKeyfile request" in {
-      val unlockKeyRequest = ByteString(
-        s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "2",
-           |   "method": "unlockKeyfile",
-           |   "params": [{
-           |      "publicKey": "$pubKeyAddr",
-           |      "password": "foo"
-           |   }]
-           |}
-           """.stripMargin)
-
-      httpPOST(unlockKeyRequest) ~> route ~> check {
-        val responseString = responseAs[String].replace("\\", "")
-        parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
-          case Left(f) => throw f
-          case Right(res: Json) =>
-            (res \\ "error").isEmpty shouldBe true
-            (res \\ "result").head.asObject.isDefined shouldBe true
-        }
-      }
-    }
-
-    it should "get a successful JSON response from balance request" in {
-        val requestBody = ByteString(
-          s"""
-             |{
-             |   "jsonrpc": "2.0",
-             |   "id": "1",
-             |   "method": "balances",
-             |   "params": [{
-             |      "method": "balances",
-             |      "params": [{
-             |            "publicKeys": ["$pubKeyAddr"]
-             |       }]
-             |   }]
-             |}
-          """.stripMargin)
-
-        httpPOST(requestBody) ~> route ~> check {
-          val responseString = responseAs[String].replace("\\", "")
-          parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
-            case Left(f) => throw f
-            case Right(res: Json) =>
-              (res \\ "error").isEmpty shouldBe true
-              (res \\ "result").head.asObject.isDefined shouldBe true
-          }
-        }
-      }
 
 }

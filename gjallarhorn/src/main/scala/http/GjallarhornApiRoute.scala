@@ -38,6 +38,7 @@ case class GjallarhornApiRoute(settings: AppSettings,
         case "broadcastTx" => broadcastTx(params.head, id)
         case "listOpenKeyfiles" => listOpenKeyfiles(params.head, id)
         case "generateKeyfile" => generateKeyfile(params.head, id)
+        case "importKeyfile" => importKeyfile(params.head, id)
         case "unlockKeyfile" => unlockKeyfile(params.head, id)
         case "lockKeyfile" => lockKeyfile(params.head, id)
         case "balances" => balances(params.head, id)
@@ -76,7 +77,7 @@ case class GjallarhornApiRoute(settings: AppSettings,
 
   /**
     * Broadcasts a transaction
-    * @param params
+    * @param params - tx: a full formatted transaction JSON object - prototype tx + signatures
     * @param id
     * @return
     */
@@ -90,7 +91,7 @@ case class GjallarhornApiRoute(settings: AppSettings,
 
   /**
     * Returns a list of the open key files.
-    * @param params
+    * @param params - no params needed.
     * @param id
     * @return - a list of the open key files once they are retrieved.
     */
@@ -109,6 +110,23 @@ case class GjallarhornApiRoute(settings: AppSettings,
     (keyManager ? GenerateKeyFile(password)).mapTo[Try[PublicKey25519Proposition]].map {
       case Success(pk: PublicKey25519Proposition) => Map("address" -> pk.asJson).asJson
       case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
+    }
+  }
+
+  /**
+    * Import a key file using a seed phrase.
+    * @param params - should contain password, seedPhrase, seedPhraseLang
+    * @param id
+    * @return
+    */
+  private def importKeyfile(implicit params: Json, id: String): Future[Json] = {
+    val password: String = (params \\ "password").head.asString.get
+    val seedPhrase: String = (params \\ "seedPhrase").head.asString.get
+    val seedPhraseLang: String = parseOptional("seedPhraseLang", "en")
+
+    (keyManager ? ImportKeyfile(password, seedPhrase, seedPhraseLang)).mapTo[Try[PublicKey25519Proposition]].map {
+      case Success(pk: PublicKey25519Proposition) => Map( "publicKey" -> pk.asJson).asJson
+      case Failure(ex) => throw new Error(s"An error occurred while importing the seed phrase. $ex")
     }
   }
 
