@@ -86,7 +86,7 @@ class ProgramBoxRegistry ( protected val storage: LSMStore ) extends Registry[Pr
       this
     } else {
       log.debug(s"Rolling back ProgramBoxRegistry to: ${version.toString}")
-      storage.rollback(ByteArrayWrapper(version.getIdBytes))
+      storage.rollback(ByteArrayWrapper(version.bytes))
       new ProgramBoxRegistry(storage)
     }
   }
