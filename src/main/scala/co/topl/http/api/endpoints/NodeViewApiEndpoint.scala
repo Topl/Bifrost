@@ -1,26 +1,27 @@
 package co.topl.http.api.endpoints
 
 import akka.actor.{ActorRef, ActorRefFactory}
+import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.http.api.{ApiEndpointWithView, Namespace, ToplNamespace}
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
+import co.topl.nodeView.state.box.{ArbitBox, PolyBox, TokenBox}
 import co.topl.settings.{AppContext, RPCApiSettings}
-import io.circe.{DecodingFailure, Json}
+import io.circe.Json
 import io.circe.syntax._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 case class NodeViewApiEndpoint(
- override val settings: RPCApiSettings,
- appContext:            AppContext,
- nodeViewHolderRef:     ActorRef
-)(implicit val context: ActorRefFactory) extends ApiEndpointWithView {
+  override val settings: RPCApiSettings,
+  appContext:            AppContext,
+  nodeViewHolderRef:     ActorRef
+)(implicit val context:  ActorRefFactory)
+    extends ApiEndpointWithView {
   type HIS = History
   type MS = State
   type MP = MemPool
@@ -33,11 +34,13 @@ case class NodeViewApiEndpoint(
 
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
-    case (method, params, id) if method == s"${namespace.name}_head"                   => getBestBlock(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_mempool"                => mempool(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_transactionById"        => transactionById(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_blockById"              => blockById(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_transactionFromMempool" => transactionFromMempool(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_head"            => getBestBlock(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_balances"        => balances(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_transactionById" => transactionById(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_blockById"       => blockById(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_mempool"         => mempool(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_transactionFromMempool" =>
+      transactionFromMempool(params.head, id)
   }
 
   /**  #### Summary
@@ -56,8 +59,8 @@ case class NodeViewApiEndpoint(
     * @param id request identifier
     * @return
     */
-  private def getBestBlock(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
+  private def getBestBlock(params: Json, id: String): Future[Json] =
+    viewAsync { view =>
       Map(
         "height"      -> view.history.height.toString.asJson,
         "score"       -> view.history.score.asJson,
@@ -65,7 +68,69 @@ case class NodeViewApiEndpoint(
         "bestBlock"   -> view.history.bestBlock.asJson
       ).asJson
     }
-  }
+
+  /** #### Summary
+    * Lookup balances
+    *
+    * #### Type
+    * Remote -- Transaction must be used in conjunction with an external key manager service.
+    *
+    * #### Description
+    * Check balances of specified keys.
+    *
+    * #### Notes
+    *    - Requires the Token Box Registry to be active
+    *      ---
+    *      #### Params
+    *      | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
+    *      |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
+    *      | publicKey               	| String[]   	| Required            	| Public key whose balances are to be retrieved                            	|
+    *
+    * @param params input parameters as specified above
+    * @param id     request identifier
+    * @return
+    */
+  private def balances(params: Json, id: String): Future[Json] =
+    viewAsync { view =>
+      // parse arguments from the request
+      (for {
+        addresses <- (params \\ "addresses").head.as[Seq[Address]]
+      } yield {
+        // ensure we have the state being asked about
+        checkAddress(addresses, view)
+
+        val boxes: Map[Address, Map[Byte, Seq[TokenBox]]] =
+          addresses
+            .map(k => {
+              val orderedBoxes = view.state.getTokenBoxes(k) match {
+                case Some(boxes) => boxes.groupBy[Byte](b => b.boxTypePrefix)
+                case _           => Map[Byte, Seq[TokenBox]]()
+              }
+              k -> orderedBoxes
+            })
+            .toMap
+
+        val balances: Map[Address, Map[Byte, Long]] =
+          boxes.map { case (addr, assets) =>
+            addr -> assets.map { case (boxType, boxes) =>
+              (boxType, boxes.map(_.value).sum)
+            }
+          }
+
+        boxes.map { case (addr, boxes) =>
+          addr -> Map(
+            "Balances" -> Map(
+              "Polys"  -> balances(addr).getOrElse(PolyBox.boxTypePrefix, 0L),
+              "Arbits" -> balances(addr).getOrElse(ArbitBox.boxTypePrefix, 0L)
+            ).asJson,
+            "Boxes" -> boxes.map(b => b._1 -> b._2.asJson).asJson
+          )
+        }.asJson
+      }) match {
+        case Right(json) => json
+        case Left(ex)    => throw ex
+      }
+    }
 
   /**  #### Summary
     *    Get the first 100 transactions in the mempool (sorted by fee amount)
@@ -81,8 +146,7 @@ case class NodeViewApiEndpoint(
     * @param id request identifier
     * @return
     */
-  private def mempool(params: Json, id: String): Future[Json] = viewAsync().map(_.pool.take(100).asJson)
-
+  private def mempool(params: Json, id: String): Future[Json] = viewAsync(_.pool.take(100).asJson)
 
   /**  #### Summary
     *    Lookup a transaction by its id
@@ -98,8 +162,8 @@ case class NodeViewApiEndpoint(
     * @param id request identifier
     * @return
     */
-  private def transactionById(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
+  private def transactionById(params: Json, id: String): Future[Json] =
+    viewAsync { view =>
       (for {
         transactionId <- (params \\ "transactionId").head.as[ModifierId]
       } yield view.history.transactionById(transactionId)) match {
@@ -115,7 +179,6 @@ case class NodeViewApiEndpoint(
         case Left(ex)    => throw ex
       }
     }
-  }
 
   /**  #### Summary
     *    Lookup a transaction in the mempool by its id
@@ -131,8 +194,8 @@ case class NodeViewApiEndpoint(
     * @param id request identifier
     * @return
     */
-  private def transactionFromMempool(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
+  private def transactionFromMempool(params: Json, id: String): Future[Json] =
+    viewAsync { view =>
       (for {
         transactionId <- (params \\ "transactionId").head.as[ModifierId]
       } yield view.pool.modifierById(transactionId)) match {
@@ -141,7 +204,6 @@ case class NodeViewApiEndpoint(
         case Left(ex)        => throw ex
       }
     }
-  }
 
   /**  #### Summary
     *   Lookup a block by its id
@@ -157,8 +219,8 @@ case class NodeViewApiEndpoint(
     * @param id request identifier
     * @return
     */
-  private def blockById(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
+  private def blockById(params: Json, id: String): Future[Json] =
+    viewAsync { view =>
       (for {
         blockId <- (params \\ "blockId").head.as[ModifierId]
       } yield view.history.modifierById(blockId)) match {
@@ -167,5 +229,4 @@ case class NodeViewApiEndpoint(
         case Left(ex)           => throw ex
       }
     }
-  }
 }

@@ -1,11 +1,14 @@
 package co.topl.http.api.endpoints
 
 import akka.actor.{ActorRef, ActorRefFactory}
+import akka.pattern.ask
 import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
+import co.topl.consensus.Forger.ReceivableMessages.ListKeys
 import co.topl.http.api.{ApiEndpointWithView, DebugNamespace, Namespace}
 import co.topl.modifier.ModifierId
-import co.topl.nodeView.history.History
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
+import co.topl.nodeView.history.{History, HistoryDebug}
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppContext, RPCApiSettings}
@@ -14,8 +17,9 @@ import io.circe.syntax._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.util.{Failure, Success}
 
-case class DebugApiEndpoint (settings: RPCApiSettings, appContext: AppContext, nodeViewHolderRef: ActorRef)
+case class DebugApiEndpoint (settings: RPCApiSettings, appContext: AppContext, nodeViewHolderRef: ActorRef, forgerRef: ActorRef)
                             (implicit val context: ActorRefFactory) extends ApiEndpointWithView {
 
   type HIS = History
@@ -30,9 +34,9 @@ case class DebugApiEndpoint (settings: RPCApiSettings, appContext: AppContext, n
 
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
-    case ("test", p, i) => Future("test".asJson)
-//    case ("delay"      => delay(params.head, id)
-//    case ("generators" => generators(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_delay"      => delay(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_myBlocks"   => myBlocks(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_generators" => generators(params.head, id)
   }
 
 
@@ -53,18 +57,47 @@ case class DebugApiEndpoint (settings: RPCApiSettings, appContext: AppContext, n
     * @param id request identifier
     * @return
     */
-//  private def delay(params: Json, id: String): Future[Json] = {
-//    viewAsync().map { view =>
-//      val encodedSignature: ModifierId = ModifierId((params \\ "blockId").head.asString.get)
-//      val count: Int = (params \\ "numBlocks").head.asNumber.get.toInt.get
-//      Map(
-//        "delay" -> view.history.averageDelay(encodedSignature, count)
-//          .map(_.toString)
-//          .getOrElse("Undefined")
-//          .asJson
-//      ).asJson
-//    }
-//  }
+  private def delay(params: Json, id: String): Future[Json] =
+    viewAsync { view =>
+      (for {
+        blockId <- (params \\ "blockId").head.as[ModifierId]
+        count <- (params \\ "numBlocks").head.as[Int]
+      } yield new HistoryDebug(view.history).averageDelay(blockId, count)) match {
+        case Right(Success(delay)) => Map("delay" -> s"$delay milliseconds").asJson
+        case Right(Failure(ex)) => throw ex
+        case Left(ex)           => throw ex
+      }
+    }
+
+  /**  #### Summary
+    *    Find the number of blocks forged by public keys held by the node
+    *
+    *  #### Type
+    *    Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
+    *
+    * ---
+    *  #### Params
+    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	|
+    *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	|
+    *  | --None specified--       |           	|                     	|                                                                         |
+    *
+    * @param params input parameters as specified above
+    * @param id request identifier
+    * @return
+    */
+  private def myBlocks(params: Json, id: String): Future[Json] =
+    (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CV].flatMap { view =>
+      (forgerRef ? ListKeys).mapTo[Set[Address]].map { myKeys =>
+        val blockNum = new HistoryDebug(view.history).count { b =>
+          myKeys.map(_.evidence).contains(b.generatorBox.evidence)
+        }
+
+        Map(
+          "pubkeys" -> myKeys.asJson,
+          "count" -> blockNum.asJson
+        ).asJson
+      }
+    }
 
   /**  #### Summary
     *    Find distribution of block generators from all public keys in the chain's history
@@ -79,12 +112,11 @@ case class DebugApiEndpoint (settings: RPCApiSettings, appContext: AppContext, n
     * @param id request identifier
     * @return
     */
-//  private def generators(params: Json, id: String): Future[Json] = {
-//    viewAsync().map { view =>
-//      val map: Map[Address, Int] = view.history
-//        .forgerDistribution()
-//        .map(d => d._1.address -> d._2)
-//      map.asJson
-//    }
-//  }
+  private def generators(params: Json, id: String): Future[Json] =
+    viewAsync { view =>
+      new HistoryDebug(view.history)
+        .forgerDistribution()
+        .map(d => d._1.address -> d._2)
+        .asJson
+    }
 }

@@ -1,58 +1,60 @@
-//package co.topl.nodeView.history
-//
-///** A class for collecting methods that help debug history */
-//class HistoryDebug(history: History) {
-//  /**
-//    * @param height - block height
-//    * @return ids of headers on chosen height.
-//    *         Seq.empty we don't have any headers on this height (e.g. it is too big or we bootstrap in PoPoW regime)
-//    *         single id if no forks on this height
-//    *         multiple ids if there are forks at chosen height.
-//    *         First id is always from the best headers chain.
-//    */
-//def idsAtHeight(height: Int): Seq[ModifierId] =
-//  storage.getIndex(heightIdsKey(height: Int))
-//    .getOrElse(Array()).grouped(32).map(ModifierId).toSeq
-//
-//
-//  /**
-//    * Average delay in milliseconds between last $blockNum blocks starting from $block
-//    * Debug only
-//    */
-//  def averageDelay(id: ModifierId, blockNum: Int): Try[Long] = Try {
-//    val block = modifierById(id).get
-//    val c = getLastIds(block, isGenesis, blockNum).get.map(_._2)
-//    (block.timestamp - modifierById(c.head).get.timestamp) / c.length
-//  }
-//
-//
-//  /**
-//    * Calculates the distribution of blocks to forgers
-//    *
-//    * @return a map from public keys of forgers to the number of blocks they have forged
-//    */
-//  def forgerDistribution(): Map[PublicKeyPropositionCurve25519, Int] = {
-//    val map = collection.mutable.Map[PublicKeyPropositionCurve25519, Int]().withDefaultValue(0)
-//
-//    /**
-//      * Finds the forger for this block, increments their block number entry in `map`, and continues down the chain
-//      *
-//      * @param m the current block for which to increment the forger entry
-//      */
-//    @tailrec
-//    def loopBackAndIncrementForger(m: Block): Unit = {
-//      val forger = blockForger(m)
-//      map.update(forger, map(forger) + 1)
-//      parentBlock(m) match {
-//        case Some(parent) => loopBackAndIncrementForger(parent)
-//        case None =>
-//      }
-//    }
-//
-//    loopBackAndIncrementForger(bestBlock)
-//    map.toMap
-//  }
-//
+package co.topl.nodeView.history
+
+import co.topl.attestation.PublicKeyPropositionCurve25519
+import co.topl.modifier.ModifierId
+import co.topl.modifier.block.Block
+
+import scala.annotation.tailrec
+import scala.util.Try
+
+/** A class for collecting methods that help debug history */
+class HistoryDebug(history: History) {
+
+  def count(f: Block => Boolean): Int = history.filter(f).length
+
+  /** @param height - block height
+    * @return ids of headers on chosen height.
+    *         Seq.empty we don't have any headers on this height (e.g. it is too big or we bootstrap in PoPoW regime)
+    *         single id if no forks on this height
+    *         multiple ids if there are forks at chosen height.
+    *         First id is always from the best headers chain.
+    */
+  def idsAtHeight(height: Int): Seq[ModifierId] = history.storage.idAtHeightOf(height: Int).toSeq
+
+  /** Average delay in milliseconds between last $blockNum blocks starting from $block
+    * Debug only
+    */
+  def averageDelay(id: ModifierId, blockNum: Int): Try[Long] = Try {
+    val block = history.modifierById(id).get
+    val prevTimes = history.getTimestampsFrom(block, blockNum)
+    (prevTimes drop 1, prevTimes).zipped.map(_ - _).sum / (prevTimes.length - 1)
+  }
+
+  /** Calculates the distribution of blocks to forgers
+    *
+    * @return a map from public keys of forgers to the number of blocks they have forged
+    */
+  def forgerDistribution(): Map[PublicKeyPropositionCurve25519, Int] = {
+    val map = collection.mutable.Map[PublicKeyPropositionCurve25519, Int]().withDefaultValue(0)
+
+    /** Finds the forger for this block, increments their block number entry in `map`, and continues down the chain
+      *
+      * @param m the current block for which to increment the forger entry
+      */
+    @tailrec
+    def loopBackAndIncrementForger(m: Block): Unit = {
+      val forger = m.publicKey
+      map.update(forger, map(forger) + 1)
+      history.parentBlock(m) match {
+        case Some(parent) => loopBackAndIncrementForger(parent)
+        case None         =>
+      }
+    }
+
+    loopBackAndIncrementForger(history.bestBlock)
+    map.toMap
+  }
+
 //  /**
 //    *
 //    * @param f : predicate that tests whether a queryBloom is compatible with a block's bloom
@@ -94,4 +96,4 @@
 //      }
 //    }
 //  }
-//}
+}

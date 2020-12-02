@@ -59,10 +59,6 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
 
   private def isGenesis(b: Block): Boolean = b.parentId == History.GenesisParentId
 
-  def blockForger(m: Block): PublicKeyPropositionCurve25519 = m.publicKey
-
-  def count(f: Block => Boolean): Int = filter(f).length
-
   def parentBlock(m: Block): Option[Block] = modifierById(m.parentId)
 
   /**Return last count headers from best headers chain if exist or chain up to genesis otherwise */
