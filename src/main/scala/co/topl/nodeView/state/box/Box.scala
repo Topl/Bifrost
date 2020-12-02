@@ -1,7 +1,6 @@
 package co.topl.nodeView.state.box
 
 import co.topl.attestation.Evidence
-import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.box.Box.{BoxType, Nonce}
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.utils.serialization.BifrostSerializer
@@ -9,14 +8,10 @@ import com.google.common.primitives.Ints
 import io.circe._
 import io.circe.syntax.EncoderOps
 
-/**
- * Created by Matthew on 4/11/2017.
- */
-sealed abstract class Box[T] ( val evidence     : Evidence,
-                               val value        : T,
-                               val nonce        : Nonce,
-                               val boxTypePrefix: BoxType
-                             ) extends GenericBox[T] {
+/** Created by Matthew on 4/11/2017.
+  */
+sealed abstract class Box[T](val evidence: Evidence, val value: T, val nonce: Nonce, val boxTypePrefix: BoxType)
+    extends GenericBox[T] {
 
   type M = Box[_]
 
@@ -26,53 +21,52 @@ sealed abstract class Box[T] ( val evidence     : Evidence,
 
   override def toString: String =
     Box.prefixToTypeString(boxTypePrefix) +
-      Box.jsonEncoder(this).noSpaces
+    Box.jsonEncoder(this).noSpaces
 
   override def hashCode(): Int = Ints.fromByteArray(bytes)
 }
 
-abstract class TokenBox ( override val evidence     : Evidence,
-                          override val nonce        : Nonce,
-                          override val value        : TokenBox.Value,
-                          override val boxTypePrefix: BoxType
-                        ) extends Box[TokenBox.Value](evidence, nonce, value, boxTypePrefix)
+abstract class TokenBox[
+  T <: TokenValueHolder
+](override val evidence:      Evidence,
+  override val nonce:         Nonce,
+  override val value:         T,
+  override val boxTypePrefix: BoxType
+) extends Box[T](evidence, value, nonce, boxTypePrefix)
 
-abstract class ProgramBox (override val evidence     : Evidence,
-                           override val nonce        : Nonce,
-                           override val value        : ProgramId,
-                           override val boxTypePrefix: BoxType
-                          ) extends Box[ProgramId](evidence, value, nonce, boxTypePrefix)
-
+abstract class ProgramBox(
+  override val evidence:      Evidence,
+  override val nonce:         Nonce,
+  override val value:         ProgramId,
+  override val boxTypePrefix: BoxType
+) extends Box[ProgramId](evidence, value, nonce, boxTypePrefix)
 
 object TokenBox {
-  type Value = Long
-
-  implicit def jsonEncoder: Encoder[TokenBox] = (bx: TokenBox) => Box.jsonEncoder(bx)
+  implicit def jsonEncoder: Encoder[TokenBox[_]] = (bx: TokenBox[_]) => Box.jsonEncoder(bx)
 }
 
 object ProgramBox {
   implicit def jsonEncoder: Encoder[ProgramBox] = (bx: ProgramBox) => Box.jsonEncoder(bx)
 }
 
-
 object Box {
   type Nonce = Long
   type BoxType = Byte
 
-  def jsonEncode[T](box: Box[T]): Map[String, Json] =
+  def jsonEncode[T](box: Box[T])(implicit valueEncoder: Encoder[T]): Map[String, Json] =
     Map(
-      "id" -> box.id.toString.asJson,
-      "type" -> prefixToTypeString(box.boxTypePrefix).asJson,
+      "id"       -> box.id.toString.asJson,
+      "type"     -> prefixToTypeString(box.boxTypePrefix).asJson,
       "evidence" -> box.evidence.toString.asJson,
-      "value" -> box.value.toString.asJson,
-      "nonce" -> box.nonce.toString.asJson
-      )
+      "value"    -> box.value.asJson,
+      "nonce"    -> box.nonce.toString.asJson
+    )
 
-  def jsonDecode[T](c: HCursor)(implicit valueDecoder: Decoder[T]): Either[DecodingFailure, (Evidence, Long, T)] =
+  def jsonDecode[T](c: HCursor)(implicit valueDecoder: Decoder[T]): Either[DecodingFailure, (Evidence, Nonce, T)] =
     for {
       evidence <- c.downField("evidence").as[Evidence]
-      value <- c.downField("value").as[T]
-      nonce <- c.downField("issuer").as[Long]
+      value    <- c.downField("value").as[T]
+      nonce    <- c.downField("issuer").as[Nonce]
     } yield {
       (evidence, nonce, value)
     }
