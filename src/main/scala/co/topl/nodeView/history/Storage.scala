@@ -207,6 +207,6 @@ class Storage( private[history] val storage: LSMStore,
     */
   def rollback(parentId: ModifierId): Try[Unit] = Try {
     blockCache.invalidateAll()
-    storage.rollback(ByteArrayWrapper(parentId.getIdBytes))
+    storage.rollback(ByteArrayWrapper(parentId.bytes))
   }
 }
