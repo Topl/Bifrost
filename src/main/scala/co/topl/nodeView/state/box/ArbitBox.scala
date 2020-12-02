@@ -1,21 +1,22 @@
 package co.topl.nodeView.state.box
 
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.attestation.Evidence
+import co.topl.nodeView.state.box.Box.BoxType
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 
-case class ArbitBox(override val proposition: PublicKey25519Proposition,
-                    override val nonce: Long,
-                    override val value: Long) extends TokenBox(proposition, nonce, value) {
-
-  override lazy val typeOfBox: String = "Arbit"
-}
+case class ArbitBox( override val evidence: Evidence,
+                     override val nonce: Box.Nonce,
+                     override val value: TokenBox.Value
+                   ) extends TokenBox(evidence, nonce, value, ArbitBox.boxTypePrefix)
 
 object ArbitBox {
-  implicit val jsonEncoder: Encoder[ArbitBox] =  (box: ArbitBox) => TokenBox.jsonEncode(box).asJson
+  val boxTypePrefix: BoxType = 1: Byte
+
+  implicit val jsonEncoder: Encoder[ArbitBox] =  (box: ArbitBox) => Box.jsonEncode(box).asJson
 
   implicit val jsonDecoder: Decoder[ArbitBox] = ( c: HCursor ) =>
-    TokenBox.jsonDecode(c).map {
-      case (proposition, nonce, value) => ArbitBox(proposition, nonce, value)
+    Box.jsonDecode[TokenBox.Value](c).map {
+      case (evidence, nonce, value) => ArbitBox(evidence, nonce, value)
     }
 }

@@ -1,13 +1,13 @@
 package co.topl.nodeView.state
 
-import co.topl.crypto.FastCryptographicHash
 import co.topl.modifier.ModifierId
-import co.topl.{BifrostGenerators, ValidGenerators}
+import co.topl.{ BifrostGenerators, ValidGenerators }
 import com.google.common.primitives.Ints
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import scorex.crypto.hash.Blake2b256
 
 class TokenBoxRegistrySpec extends StateSpec
   with ScalaCheckPropertyChecks
@@ -33,7 +33,7 @@ class TokenBoxRegistrySpec extends StateSpec
   property("Rolling back should remove tokens from registry") {
     forAll(tokenBoxesGen) { tokens =>
       val tbr = state.tbrOpt.get
-      val version = ModifierId(FastCryptographicHash(Ints.toByteArray(scala.util.Random.nextInt)))
+      val version = ModifierId(Blake2b256(Ints.toByteArray(scala.util.Random.nextInt)))
       val keys = tokens.groupBy(_.proposition)
       val update = keys.map(k => k._1 -> k._2.map(_.nonce))
 

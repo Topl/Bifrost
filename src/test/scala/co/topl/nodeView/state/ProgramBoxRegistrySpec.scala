@@ -1,25 +1,25 @@
 package co.topl.nodeView.state
 
+import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.consensus.KeyRing
 import co.topl.consensus.genesis.PrivateTestnet
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.state.StateSpec.testSettings
 import co.topl.nodeView.state.box.StateBox
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.{BifrostGenerators, ValidGenerators}
 import co.topl.settings.RuntimeOpts
-import co.topl.{ BifrostGenerators, ValidGenerators }
 import com.google.common.primitives.Ints
 import io.circe.Json
 import io.circe.syntax._
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.{ BeforeAndAfterAll, DoNotDiscover }
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatest.{BeforeAndAfterAll, DoNotDiscover}
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scorex.crypto.signatures.PublicKey
 import scorex.util.encode.Base58
 
 import scala.reflect.io.Path
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 @DoNotDiscover
 class ProgramBoxRegistrySpec extends StateSpec
@@ -42,8 +42,8 @@ class ProgramBoxRegistrySpec extends StateSpec
 
   val state: State = createState(StateSpec.settingsFilename)
 
-  val pubKey: PublicKey25519Proposition =
-    PublicKey25519Proposition(PublicKey @@ Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
+  val pubKey: PublicKeyPropositionCurve25519 =
+    PublicKeyPropositionCurve25519(PublicKey @@ Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
 
   val stateOne: Json =
     s"""

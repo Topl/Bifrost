@@ -8,8 +8,9 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import co.topl.BifrostGenerators
-import co.topl.crypto.Signature25519
-import co.topl.http.api.routes.{AssetApiRoute, NodeViewApiRoute}
+import co.topl.attestation.PublicKeyPropositionCurve25519
+import co.topl.attestation.proof.SignatureCurve25519
+import co.topl.http.api.endpoints.NodeViewApiEndpoint
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
@@ -18,7 +19,6 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
 import co.topl.settings.{AppContext, StartupOpts}
 import io.circe.Json
@@ -51,9 +51,9 @@ class NodeViewRPCSpec extends AnyWordSpec
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
   // setup route for testing
-  val route: Route = NodeViewApiRoute(settings.restApi, nodeViewHolderRef).route
+  val route: Route = NodeViewApiRoute(settings.rpcApi, nodeViewHolderRef).route
 
-  val routeAsset: Route = AssetApiRoute(settings.restApi, nodeViewHolderRef).route
+  val routeAsset: Route = AssetApiRoute(settings.rpcApi, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
@@ -141,12 +141,12 @@ class NodeViewRPCSpec extends AnyWordSpec
         val history = view().history
         //Create a block with the above created createAssets transaction
         val tempBlock = Block(history.bestBlockId,
-          System.currentTimeMillis(),
-          ArbitBox(PublicKey25519Proposition(PublicKey @@ history.bestBlockId.hashBytes), 0L, 10000L),
-          Signature25519(Signature @@ Array.fill(Curve25519.SignatureLength)(1: Byte)),
-          Seq(assetTxInstance),
-          settings.application.version.blockByte
-        )
+                              System.currentTimeMillis(),
+                              ArbitBox(PublicKeyPropositionCurve25519(PublicKey @@ history.bestBlockId.getIdBytes), 0L, 10000L),
+                              SignatureCurve25519(Signature @@ Array.fill(Curve25519.SignatureLength)(1: Byte)),
+                              Seq(assetTxInstance),
+                              settings.application.version.blockByte
+                              )
         history.append(tempBlock)
         blockId = tempBlock.id
       }

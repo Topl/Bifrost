@@ -3,28 +3,28 @@ package co.topl
 import java.io.File
 import java.time.Instant
 
-import akka.actor.ActorSystem.Version
-import co.topl.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
+import co.topl.attestation.{PrivateKeyCurve25519, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
+import co.topl.attestation.proposition.ThresholdPropositionCurve25519
+import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
+import co.topl.modifier.transaction.Transaction.{Nonce, Value}
 import co.topl.modifier.transaction._
 import co.topl.network.message.BifrostSyncInfo
-import co.topl.nodeView.history.{ BlockProcessor, History, Storage }
-import co.topl.nodeView.state.ProgramId
-import co.topl.nodeView.state.box._
-import co.topl.nodeView.state.box.proposition.{ MofNProposition, PublicKey25519Proposition }
-import co.topl.program.{ Program, ProgramPreprocessor, _ }
-import co.topl.settings.{ AppSettings, StartupOpts, Version }
+import co.topl.nodeView.history.{BlockProcessor, History, Storage}
+import co.topl.nodeView.state.box.{ProgramId, _}
+import co.topl.program.{Program, ProgramPreprocessor, _}
+import co.topl.settings.{AppSettings, StartupOpts, Version}
 import co.topl.utils.Logging
 import io.circe.syntax._
-import io.circe.{ Json, JsonObject }
+import io.circe.{Json, JsonObject}
 import io.iohk.iodb.LSMStore
-import org.scalacheck.{ Arbitrary, Gen }
-import scorex.crypto.signatures.{ PublicKey, Signature }
+import org.scalacheck.{Arbitrary, Gen}
+import scorex.crypto.hash.Blake2b256
+import scorex.crypto.signatures.Signature
 import scorex.util.encode.Base58
 
-import scala.util.{ Random, Try }
+import scala.util.{Random, Try}
 
 /**
   * Created by cykoz on 4/12/17.
@@ -257,7 +257,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
   }
 
   // TODO refactor out partiesGen and replace with proposition
-  lazy val partiesGen: Gen[PublicKey25519Proposition] = for {
+  lazy val partiesGen: Gen[PublicKeyPropositionCurve25519] = for {
     a <- propositionGen
   } yield {
     a
@@ -340,7 +340,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     ExecutionBuilder(terms, assetCode, ProgramPreprocessor(name, initjs)(JsonObject.empty))
   }
 
-  lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(bytes => Signature25519(Signature @@ bytes))
+  lazy val signatureGen: Gen[SignatureCurve25519] = genBytesList(SignatureCurve25519.SignatureSize).map(bytes => SignatureCurve25519(Signature @@ bytes))
 
   lazy val programIdGen: Gen[ProgramId] = for {
     seed <- specificLengthBytesGen(ProgramId.size)
@@ -356,7 +356,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     storage <- jsonGen()
     status <- jsonGen()
     executionBuilder <- validExecutionBuilderGen().map(_.json)
-    id <- genBytesList(FastCryptographicHash.DigestSize)
+    id <- genBytesList(Blake2b256.DigestSize)
   } yield {
     Program(Map(
       "parties" -> Map(
@@ -482,54 +482,54 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     ProgramTransfer(from, to, signature, executionBox, fee, timestamp, data)
   }
 
-  lazy val assetHubGen: Gen[(String, PublicKey25519Proposition)] = for {
+  lazy val assetHubGen: Gen[(String, PublicKeyPropositionCurve25519)] = for {
     asset <- stringGen
     hub <- propositionGen
   } yield {
     (asset, hub)
   }
 
-  lazy val ctFromGen: Gen[(PublicKey25519Proposition, Nonce)] = for {
+  lazy val ctFromGen: Gen[(PublicKeyPropositionCurve25519, Nonce)] = for {
     proposition <- propositionGen
     nonce <- positiveLongGen
   } yield {
     (proposition, nonce)
   }
 
-  lazy val ctToGen: Gen[(PublicKey25519Proposition, Long)] = for {
+  lazy val ctToGen: Gen[(PublicKeyPropositionCurve25519, Long)] = for {
     proposition <- propositionGen
     amount <- positiveLongGen
   } yield {
     (proposition, amount)
   }
 
-  lazy val fromGen: Gen[(PublicKey25519Proposition, Nonce)] = for {
+  lazy val fromGen: Gen[(PublicKeyPropositionCurve25519, Nonce)] = for {
     proposition <- propositionGen
     nonce <- positiveLongGen
   } yield {
     (proposition, nonce)
   }
 
-  lazy val fromSeqGen: Gen[IndexedSeq[(PublicKey25519Proposition, Nonce)]] = for {
+  lazy val fromSeqGen: Gen[IndexedSeq[(PublicKeyPropositionCurve25519, Nonce)]] = for {
     seqLen <- positiveTinyIntGen
   } yield {
     (0 until seqLen) map { _ => sampleUntilNonEmpty(fromGen) }
   }
 
-  lazy val toGen: Gen[(PublicKey25519Proposition, Long)] = for {
+  lazy val toGen: Gen[(PublicKeyPropositionCurve25519, Long)] = for {
     proposition <- propositionGen
     value <- positiveLongGen
   } yield {
     (proposition, value)
   }
 
-  lazy val toSeqGen: Gen[IndexedSeq[(PublicKey25519Proposition, Value)]] = for {
+  lazy val toSeqGen: Gen[IndexedSeq[(PublicKeyPropositionCurve25519, Value)]] = for {
     seqLen <- positiveTinyIntGen
   } yield {
     (0 until seqLen) map { _ => sampleUntilNonEmpty(toGen) }
   }
 
-  lazy val sigSeqGen: Gen[IndexedSeq[Signature25519]] = for {
+  lazy val sigSeqGen: Gen[IndexedSeq[SignatureCurve25519]] = for {
     seqLen <- positiveTinyIntGen
   } yield {
     (0 until seqLen) map { _ => sampleUntilNonEmpty(signatureGen) }
@@ -582,7 +582,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     AssetCreation(to, Map(hub -> signatures.head), assetCode, hub, fee, timestamp, data)
   }
 
-  lazy val oneOfNPropositionGen: Gen[(Set[PrivateKey25519], MofNProposition)] = for {
+  lazy val oneOfNPropositionGen: Gen[(Set[PrivateKeyCurve25519], ThresholdPropositionCurve25519)] = for {
     n <- positiveTinyIntGen
   } yield {
     val setOfKeys = (0 until n)
@@ -590,16 +590,16 @@ trait BifrostGenerators extends CoreGenerators with Logging {
         val key = sampleUntilNonEmpty(key25519Gen)
         (key._1, key._2)
       })
-      .foldLeft((Set[PrivateKey25519](), Set[PublicKey25519Proposition]())) { (set, cur) =>
+      .foldLeft((Set[PrivateKeyCurve25519](), Set[PublicKeyPropositionCurve25519]())) { ( set, cur) =>
           (set._1 + cur._1, set._2 + cur._2)
       }
 
-    val prop = MofNProposition(1, setOfKeys._2.map(img => img.pubKeyBytes))
+    val prop = ThresholdCurve25519Proposition(1, setOfKeys._2.map(img => img.pubKeyBytes))
 
     (setOfKeys._1, prop)
   }
 
-  lazy val keyPairSetGen: Gen[Set[(PrivateKey25519, PublicKey25519Proposition)]] = for {
+  lazy val keyPairSetGen: Gen[Set[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)]] = for {
     seqLen <- positiveTinyIntGen
   } yield {
     ((0 until seqLen) map { _ => sampleUntilNonEmpty(key25519Gen) }).toSet
@@ -659,7 +659,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
   lazy val genesisBlockGen: Gen[Block] = for {
     keyPair ← key25519Gen
   } yield {
-    Block.create(
+    Block.createAndSign(
       History.GenesisParentId,
       Instant.now().toEpochMilli,
       Seq(),

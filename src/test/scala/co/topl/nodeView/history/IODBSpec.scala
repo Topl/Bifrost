@@ -5,14 +5,11 @@ import java.io.File
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
-import co.topl.{BifrostGenerators, ValidGenerators}
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
+import co.topl.{ BifrostGenerators, ValidGenerators }
+import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
-
-import scala.util.Random
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 import scala.util.Random
 
@@ -43,7 +40,7 @@ class IODBSpec extends AnyPropSpec
           .map(b => (ByteArrayWrapper(b.id.hashBytes), ByteArrayWrapper(b.bytes)))
           .toList
 
-      blocksStorage.update(ByteArrayWrapper(tx.id.hashBytes), boxIdsToRemove, boxesToAdd)
+      blocksStorage.update(ByteArrayWrapper(tx.id.getIdBytes), boxIdsToRemove, boxesToAdd)
     }
 
     /**
@@ -69,7 +66,7 @@ class IODBSpec extends AnyPropSpec
         val head = txs.head
 
         /* Rollback to head shouldn't affect the head tx */
-        blocksStorage.rollback(ByteArrayWrapper(head.id.hashBytes))
+        blocksStorage.rollback(ByteArrayWrapper(head.id.getIdBytes))
         checkTx(head)
       }
     }
@@ -85,9 +82,9 @@ class IODBSpec extends AnyPropSpec
 
     def writeBlock(b: Block): Unit = {
       blocksStorage.update(
-        ByteArrayWrapper(b.id.hashBytes),
+        ByteArrayWrapper(b.id.getIdBytes),
         Seq(),
-        Seq(ByteArrayWrapper(b.id.hashBytes) -> ByteArrayWrapper(Block.modifierTypeId +: b.bytes))
+        Seq(ByteArrayWrapper(b.id.getIdBytes) -> ByteArrayWrapper(Block.modifierTypeId +: b.bytes))
       )
     }
 
@@ -96,12 +93,12 @@ class IODBSpec extends AnyPropSpec
     forAll(BlockGen) { block =>
       ids = block.id +: ids
       writeBlock(block)
-      blocksStorage.get(ByteArrayWrapper(block.id.hashBytes)).isDefined shouldBe true
+      blocksStorage.get(ByteArrayWrapper(block.id.getIdBytes)).isDefined shouldBe true
     }
 
     ids.foreach {
       id => {
-        val idInStorage = blocksStorage.get(ByteArrayWrapper(id.hashBytes)) match {
+        val idInStorage = blocksStorage.get(ByteArrayWrapper(id.getIdBytes)) match {
           case None => println(s"${Console.RED} Id ${id.toString} not found"); false
           case Some(_) => true
         }

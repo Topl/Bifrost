@@ -1,7 +1,7 @@
 package co.topl.nodeView.state.box.serialization
 
+import co.topl.attestation.Address
 import co.topl.nodeView.state.box.AssetBox
-import co.topl.nodeView.state.box.proposition.{PublicKey25519Proposition, PublicKey25519PropositionSerializer}
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object AssetBoxSerializer extends BifrostSerializer[AssetBox] {
@@ -14,7 +14,7 @@ object AssetBoxSerializer extends BifrostSerializer[AssetBox] {
     w.putIntString(obj.assetCode)
 
     /* issuer: PublicKey25519Proposition */
-    PublicKey25519PropositionSerializer.serialize(obj.issuer, w)
+    Address.serialize(obj.issuer, w)
 
     /* data: String */
     w.putIntString(obj.data)
@@ -26,7 +26,7 @@ object AssetBoxSerializer extends BifrostSerializer[AssetBox] {
     /* putIntString encode String that is shorter than 2147483647 bytes */
     val asset: String = r.getIntString()
 
-    val issuer: PublicKey25519Proposition = PublicKey25519PropositionSerializer.parse(r)
+    val issuer: Address = Address.parse(r)
     val data: String = r.getIntString()
 
     AssetBox(proposition, nonce, value, asset, issuer, data)

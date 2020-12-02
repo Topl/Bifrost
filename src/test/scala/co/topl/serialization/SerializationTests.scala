@@ -1,10 +1,12 @@
 package co.topl.serialization
 
-import co.topl.modifier.block.{Block, BlockSerializer}
-import co.topl.modifier.transaction.serialization._
+import co.topl.attestation.ThresholdPropositionCurve25519
+import co.topl.attestation.serialization.ThresholdPropositionCurve25519Serializer
+import co.topl.modifier.block.Block
+import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.transaction._
+import co.topl.modifier.transaction.serialization._
 import co.topl.nodeView.state.box._
-import co.topl.nodeView.state.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.program.{ExecutionBuilder, ExecutionBuilderSerializer}
 import co.topl.{BifrostGenerators, ValidGenerators}
@@ -12,7 +14,6 @@ import org.scalatest.Ignore
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-import serializer.BloomTopics
 
 import scala.collection.BitSet
 import scala.util.{Failure, Success}
@@ -30,12 +31,12 @@ class SerializationTests extends AnyPropSpec
 
   property("oneOfNProposition Serialization") {
     forAll(oneOfNPropositionGen) {
-      case (_, mn: MofNProposition) =>
-        val parsed = MofNPropositionSerializer
-          .parseBytes(MofNPropositionSerializer.toBytes(mn))
+      case (_, mn: ThresholdPropositionCurve25519) =>
+        val parsed = ThresholdPropositionCurve25519Serializer
+          .parseBytes(ThresholdPropositionCurve25519Serializer.toBytes(mn))
           .get
 
-        parsed.m shouldBe mn.m
+        parsed.threshold shouldBe mn.threshold
         parsed.setOfPubKeyBytes should contain theSameElementsAs mn.setOfPubKeyBytes
     }
   }
@@ -262,12 +263,13 @@ class SerializationTests extends AnyPropSpec
   property("Bloom Serialization") {
     forAll(intSeqGen) {
       intSeq: Seq[Int] =>
-        val parsed = BitSet() ++ BloomTopics
-          .parseFrom(BloomTopics(intSeq).toByteArray)
-          .topics
+        val bloom = BloomFilter(BitSet(intSeq: _*))
+        val parsed: BloomFilter = BloomFilterSerializer
+          .parseBytes(BloomFilterSerializer.toBytes(bloom))
+          .get
 
-        BloomTopics(parsed.toSeq).toByteArray sameElements
-          BloomTopics((BitSet() ++ intSeq).toSeq).toByteArray shouldBe true
+        BloomFilterSerializer.toBytes(parsed) sameElements
+          BloomFilterSerializer.toBytes(bloom) shouldBe true
     }
   }
 }

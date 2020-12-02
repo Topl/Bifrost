@@ -8,13 +8,13 @@ lazy val commonSettings = Seq(
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   organization := "co.topl",
-  version := "1.1.0",
+  version := "1.3.0",
 //  wartremoverErrors := Warts.unsafe // settings for wartremover
 )
 
 scalaVersion := "2.12.12"
 organization := "co.topl"
-version := "1.1.0"
+version := "1.3.0"
 
 mainClass in assembly := Some("co.topl.BifrostApp")
 test in assembly := {}
@@ -25,6 +25,7 @@ resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releas
 val akkaVersion = "2.6.10"
 val akkaHttpVersion = "10.2.1"
 val circeVersion = "0.13.0"
+val kamonVersion = "2.1.9"
 
 val akkaDependencies = Seq(
   "com.typesafe.akka" %% "akka-actor" % akkaVersion,
@@ -57,16 +58,16 @@ val loggingDependencies = Seq(
 )
 
 val testingDependencies = Seq(
-  "org.scalactic" %% "scalactic" % "3.2.2" % Test,
-  "org.scalatest" %% "scalatest" % "3.2.2" % Test,
-  "org.scalacheck" %% "scalacheck" % "1.15.0" % Test,
+  "org.scalactic" %% "scalactic" % "3.2.3" % Test,
+  "org.scalatest" %% "scalatest" % "3.2.3" % Test,
+  "org.scalacheck" %% "scalacheck" % "1.15.1" % Test,
   "org.scalatestplus" %% "scalacheck-1-14" % "3.2.2.0" % Test,
   "com.spotify" % "docker-client" % "8.16.0" % Test,
   "org.asynchttpclient" % "async-http-client" % "2.12.1" % Test
 )
 
 val cryptoDependencies = Seq(
-  "org.scorexfoundation" %% "scrypto" % "2.1.9",
+  "org.scorexfoundation" %% "scrypto" % "2.1.10",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.67",
   "org.whispersystems" % "curve25519-java" % "0.5.0"
 )
@@ -81,31 +82,27 @@ val miscDependencies = Seq(
   "io.netty" % "netty" % "3.10.6.Final"
 ) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
 
-
 libraryDependencies ++= akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies ++ cryptoDependencies ++ miscDependencies
 
 // monitoring dependencies
 libraryDependencies ++= Seq(
-  "io.kamon" %% "kamon-bundle" % "2.1.8",
-  "io.kamon" %% "kamon-core" % "2.1.8",
-  "io.kamon" %% "kamon-influxdb" % "2.1.8",
-  "io.kamon" %% "kamon-zipkin" % "2.1.8"
+  "io.kamon" %% "kamon-bundle" % kamonVersion,
+  "io.kamon" %% "kamon-core" % kamonVersion,
+  "io.kamon" %% "kamon-influxdb" % kamonVersion,
+  "io.kamon" %% "kamon-zipkin" % kamonVersion
 )
 
 // https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
-libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "19.3.3"
+libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "19.3.4"
 
 // https://mvnrepository.com/artifact/org.graalvm.js/js
-libraryDependencies += "org.graalvm.js" % "js" % "19.3.3"
+libraryDependencies += "org.graalvm.js" % "js" % "19.3.4"
 
 // https://mvnrepository.com/artifact/org.graalvm.truffle/truffle-api
-libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.3.3"
-
+libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.3.4"
 
 libraryDependencies  ++= Seq(
   "org.scalanlp" %% "breeze" % "1.1",
-  "com.google.protobuf" % "protobuf-java" % "3.13.0",
-  "com.thesamet.scalapb" %% "lenses" % "0.10.8",
   "com.typesafe" % "config" % "1.4.1"
 )
 
@@ -183,12 +180,6 @@ assemblyExcludedJars in assembly := {
 
 connectInput in run := true
 outputStrategy := Some(StdoutOutput)
-
-PB.targets in Compile := Seq(
-  scalapb.gen() -> (sourceManaged in Compile).value
-)
-
-PB.pythonExe := "C:\\Python27\\python.exe"
 
 connectInput in run := true
 outputStrategy := Some(StdoutOutput)

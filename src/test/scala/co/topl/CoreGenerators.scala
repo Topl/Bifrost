@@ -2,11 +2,10 @@ package co.topl
 
 import java.net.{InetAddress, InetSocketAddress}
 
-import co.topl.crypto.PrivateKey25519
-import co.topl.modifier.{ModifierId, NodeViewModifier}
+import co.topl.attestation.{PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
+import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.network.message._
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.settings.Version
 import org.scalacheck.{Arbitrary, Gen}
 import scorex.crypto.signatures.Curve25519
@@ -21,7 +20,7 @@ trait CoreGenerators {
   lazy val positiveLongGen: Gen[Long] = Gen.choose(1, Long.MaxValue)
   lazy val positiveByteGen: Gen[Byte] = Gen.choose(1, Byte.MaxValue)
   lazy val modifierIdGen: Gen[ModifierId] =
-    Gen.listOfN(NodeViewModifier.ModifierIdSize, Arbitrary.arbitrary[Byte]).map(li => ModifierId(li.toArray))
+    Gen.listOfN(NodeViewModifier.modifierIdSize, Arbitrary.arbitrary[Byte]).map(li => ModifierId(li.toArray))
   lazy val invDataGen: Gen[InvData] = for {
     modifierTypeIdByte: Byte <- Arbitrary.arbitrary[Byte]
     modifierTypeId: ModifierTypeId = ModifierTypeId @@ modifierTypeIdByte
@@ -48,9 +47,9 @@ trait CoreGenerators {
     ip4 <- Gen.choose(0, MaxIp)
     port <- Gen.choose(0, MaxPort)
   } yield new InetSocketAddress(InetAddress.getByName(s"$ip1.$ip2.$ip3.$ip4"), port)
-  lazy val key25519Gen: Gen[(PrivateKey25519, PublicKey25519Proposition)] = genBytesList(Curve25519.KeyLength)
-    .map(s => PrivateKey25519.generateKeys(s))
-  lazy val propositionGen: Gen[PublicKey25519Proposition] = key25519Gen.map(_._2)
+  lazy val key25519Gen: Gen[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] = genBytesList(Curve25519.KeyLength)
+    .map(s => PrivateKeyCurve25519.generateKeys(s))
+  lazy val propositionGen: Gen[PublicKeyPropositionCurve25519] = key25519Gen.map(_._2)
   val MaxVersion: Byte = 999.toByte
   val MaxIp = 255
   val MaxPort = 65535

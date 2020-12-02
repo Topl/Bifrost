@@ -1,31 +1,22 @@
 package co.topl.consensus.genesis
 
+import co.topl.attestation.AddressEncoder.NetworkPrefix
+import co.topl.attestation.PrivateKeyCurve25519
 import co.topl.consensus.Forger.ChainParams
-import co.topl.crypto.{PrivateKey25519, Signature25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.settings.Version
 import co.topl.utils.Logging
 import scorex.crypto.signatures.{PrivateKey, PublicKey}
 
-import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
 trait GenesisProvider extends Logging {
 
-  type POLY = (
-    IndexedSeq[(PublicKey25519Proposition, Long)],
-      IndexedSeq[(PublicKey25519Proposition, Long)],
-      Map[PublicKey25519Proposition, Signature25519], Long, Long, String) => PolyTransfer
+  implicit val networkPrefix: NetworkPrefix
 
-  type ARB = (
-    IndexedSeq[(PublicKey25519Proposition, Long)],
-      IndexedSeq[(PublicKey25519Proposition, Long)],
-      Map[PublicKey25519Proposition, Signature25519], Long, Long, String) => ArbitTransfer
-
-  protected lazy val genesisAcct: PrivateKey25519 = PrivateKey25519(PrivateKey @@ Array.fill(32)(2: Byte), PublicKey @@ Array.fill(32)(2: Byte))
+  protected lazy val genesisAcct: PrivateKeyCurve25519 =
+    PrivateKeyCurve25519(PrivateKey @@ Array.fill(32)(2: Byte), PublicKey @@ Array.fill(32)(2: Byte))
 
   protected lazy val totalStake: Long = members.values.sum
 

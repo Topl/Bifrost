@@ -2,7 +2,7 @@ package co.topl.transaction
 
 import co.topl.modifier.transaction.PolyTransfer
 import co.topl.nodeView.state.State
-import co.topl.{BifrostGenerators, ValidGenerators}
+import co.topl.{ BifrostGenerators, ValidGenerators }
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }

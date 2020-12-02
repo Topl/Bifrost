@@ -1,14 +1,15 @@
 package co.topl
 
-import co.topl.crypto.{FastCryptographicHash, Signature25519}
+import co.topl.attestation.PublicKeyPropositionCurve25519
+import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.modifier.transaction.Transaction.{Nonce, Value}
 import co.topl.modifier.transaction._
-import co.topl.nodeView.state.box.{ PublicKeyNoncedBox, _ }
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.{PublicKeyNoncedBox, _}
 import co.topl.program._
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
+import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.Signature
 import scorex.util.encode.Base58
 
@@ -35,7 +36,7 @@ trait ValidGenerators extends BifrostGenerators {
     investor <- propositionGen
     hub <- propositionGen
     executionBuilder <- validExecutionBuilderGen().map(_.json)
-    id <- genBytesList(FastCryptographicHash.DigestSize)
+    id <- genBytesList(Blake2b256.DigestSize)
   } yield {
     Program(Map(
       "parties" -> Map(
@@ -79,14 +80,14 @@ trait ValidGenerators extends BifrostGenerators {
 
       val readOnlyIds = Seq(stateBoxTwo.value, stateBoxThree.value)
 
-      val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] =
+      val feePreBoxes: Map[PublicKeyPropositionCurve25519, IndexedSeq[(Nonce, Long)]] =
         Map(sender -> IndexedSeq(preFeeBoxGen(0L, maxFee).sample.get))
 
       val fees = feePreBoxes.map { case (prop, preBoxes) =>
         prop -> preBoxes.map(_._2).sum
       }
 
-      val falseSig = Map(sender -> Signature25519(Signature @@ Array.emptyByteArray))
+      val falseSig = Map(sender -> SignatureCurve25519(Signature @@ Array.emptyByteArray))
       val pc = ProgramCreation(executionBuilder, readOnlyIds, preInvestmentBoxes, sender, falseSig, feePreBoxes, fees, timestamp, data)
       val signature = Map(sender -> senderKeyPair._1.sign(pc.messageToSign))
 
@@ -148,10 +149,10 @@ trait ValidGenerators extends BifrostGenerators {
     val feeBoxes: Seq[(Nonce, Long)] = boxAmounts
       .map { boxAmount => sampleUntilNonEmpty(preFeeBoxGen(boxAmount, boxAmount)) }
 
-    val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Nonce)]] =
+    val feePreBoxes: Map[PublicKeyPropositionCurve25519, IndexedSeq[(Nonce, Nonce)]] =
       Map(sender -> feeBoxes.toIndexedSeq)
 
-    val feeBoxIdKeyPairs: IndexedSeq[(BoxId, PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq
+    val feeBoxIdKeyPairs: IndexedSeq[(BoxId, PublicKeyPropositionCurve25519)] = feePreBoxes.toIndexedSeq
       .flatMap {
         case (prop, v) =>
           v.map {
@@ -173,7 +174,7 @@ trait ValidGenerators extends BifrostGenerators {
 
     val parameters = {}.asJson
 
-    val hashNoNonces = FastCryptographicHash(
+    val hashNoNonces = Blake2b256(
       executionBox.id.hashBytes ++
         methodName.getBytes ++
         sender.pubKeyBytes ++
@@ -183,7 +184,7 @@ trait ValidGenerators extends BifrostGenerators {
         fees.flatMap { case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
     )
 
-    val messageToSign = Bytes.concat(FastCryptographicHash(executionBox.bytes ++ hashNoNonces), data.getBytes)
+    val messageToSign = Bytes.concat(Blake2b256(executionBox.bytes ++ hashNoNonces), data.getBytes)
     val signature = Map(sender -> senderKeyPair._1.sign(messageToSign))
 
     ProgramMethodExecution(
@@ -207,7 +208,7 @@ trait ValidGenerators extends BifrostGenerators {
     data <- stringGen
   } yield {
     val fromKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
-    val from = IndexedSeq((fromKeyPairs._1, Longs.fromByteArray(FastCryptographicHash("Testing").take(8))))
+    val from = IndexedSeq((fromKeyPairs._1, Longs.fromByteArray(Blake2b256("Testing").take(8))))
     val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val to = IndexedSeq((toKeyPairs._2, 4L))
 
@@ -215,7 +216,7 @@ trait ValidGenerators extends BifrostGenerators {
   }
 
   private val testingValue: Value = Longs
-    .fromByteArray(FastCryptographicHash("Testing")
+    .fromByteArray(Blake2b256("Testing")
       .take(Longs.BYTES))
 
   lazy val validArbitTransferGen: Gen[ArbitTransfer] = for {

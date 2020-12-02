@@ -1,8 +1,10 @@
 package co.topl.nodeView.state
 
+import co.topl.attestation.Address
+import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{AssetCreation, Coinbase, TransferTransaction}
-import co.topl.nodeView.state.box.TokenBox
+import co.topl.modifier.transaction.TransferTransaction
+import co.topl.nodeView.state.box.{Box, TokenBox}
 
 import scala.util.Try
 
@@ -14,17 +16,15 @@ object TokenRegistryChanges {
   type K = TokenBoxRegistry.K
   type V = TokenBoxRegistry.V
 
-  def apply ( mod: Block ): Try[TokenRegistryChanges] =
+  def apply (mod: Block)(implicit networkPrefix: NetworkPrefix): Try[TokenRegistryChanges] =
     Try {
 
       // extract the needed box data from all transactions within a block
-      val (fromSeq: Seq[(K, Long)], toSeq: Seq[TokenBox]) =
+      val (fromSeq, toSeq) =
         mod.transactions.map{
-              case tx: TransferTransaction => (tx.from, tx.newBoxes.toSeq)
-              case tx: AssetCreation       => (Seq(), tx.newBoxes.toSeq)
-              case tx: Coinbase            => (Seq(), tx.newBoxes.toSeq)
-              case _                       => (Seq(), Seq()) // JAA - not sure if this is needed but added to be exhaustive
-            }.foldLeft((Seq[(K, Long)](), Seq[TokenBox]()))(( acc, txData ) => {
+              case tx: TransferTransaction[_] => (tx.from, tx.newBoxes)
+              case _  => (Seq(), Seq()) // JAA - not sure if this is needed but added to be exhaustive
+            }.foldLeft((Seq[(K, Box.Nonce)](), Seq[Box[TokenBox.Value]]()))(( acc, txData ) => {
               (acc._1 ++ txData._1, acc._2 ++ txData._2)
             })
 
@@ -32,7 +32,7 @@ object TokenRegistryChanges {
         fromSeq.groupBy(_._1).map { case (k, v) => (k, v.map { case(_, nonce) => nonce })}
 
       val toAppend: Map[K, Seq[V]] =
-        toSeq.groupBy(_.proposition).map { case (k, v) => (k, v.map(_.nonce)) }
+        toSeq.groupBy(bx => Address(bx.evidence)).map { case (k, v) => (k, v.map(_.nonce)) }
 
       // return the state changes that can be applied
       new TokenRegistryChanges(toRemove, toAppend)

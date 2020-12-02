@@ -1,21 +1,20 @@
 package co.topl.api
 
-import akka.actor.{ActorRef, PoisonPill}
+import akka.actor.{ ActorRef, PoisonPill }
 import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
+import akka.http.scaladsl.model.{ HttpEntity, HttpMethods, HttpRequest, MediaTypes }
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
-import akka.util.{ByteString, Timeout}
+import akka.util.{ ByteString, Timeout }
 import co.topl.BifrostGenerators
-import co.topl.http.api.routes.{AssetApiRoute, WalletApiRoute}
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.AssetBox
-import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
-import co.topl.settings.{AppContext, StartupOpts}
+import co.topl.nodeView.{ CurrentView, NodeViewHolderRef }
+import co.topl.settings.{ AppContext, StartupOpts }
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
@@ -50,8 +49,8 @@ class AssetRPCSpec extends AnyWordSpec
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
   // setup route for testing
-  val route: Route = AssetApiRoute(settings.restApi, nodeViewHolderRef).route
-  val walletRoute: Route = WalletApiRoute(settings.restApi, nodeViewHolderRef).route
+  val route: Route = AssetApiRoute(settings.rpcApi, nodeViewHolderRef).route
+  val walletRoute: Route = WalletApiRoute(settings.rpcApi, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
@@ -213,7 +212,7 @@ class AssetRPCSpec extends AnyWordSpec
            |   "id": "1",
            |   "method": "transferTargetAssetsPrototype",
            |   "params": [{
-           |     "sender": ["${Base58.encode(asset.get.proposition.pubKeyBytes)}"],
+           |     "sender": ["${asset.get.proposition.address}"],
            |     "recipient": "${publicKeys("producer")}",
            |     "assetId": "${asset.get.id}",
            |     "amount": 1,

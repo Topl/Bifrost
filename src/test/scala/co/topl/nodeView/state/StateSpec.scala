@@ -10,10 +10,10 @@ import co.topl.{ BifrostGenerators, ValidGenerators }
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import utils.FileUtils
 
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
 class StateSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks

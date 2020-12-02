@@ -3,16 +3,13 @@ package co.topl.transaction
 /**
   * Created by cykoz on 5/11/2017.
   */
-import co.topl.crypto.Signature25519
+import co.topl.attestation.PublicKeyPropositionCurve25519
+import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.modifier.transaction.ProgramCreation
 import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.{BifrostGenerators, ValidGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
-
-import scala.util.Success
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scorex.crypto.signatures.Signature
 
@@ -40,9 +37,9 @@ class ProgramCreationSpec extends AnyPropSpec
           (programCreation.signatures.head._2.bytes.head + 1).toByte +:
             programCreation.signatures.head._2.bytes.tail
 
-        val wrongSigs: Map[PublicKey25519Proposition, Signature25519] =
+        val wrongSigs: Map[PublicKeyPropositionCurve25519, SignatureCurve25519] =
           programCreation.signatures +
-            (programCreation.signatures.head._1 -> Signature25519(Signature @@ wrongSig))
+            (programCreation.signatures.head._1 -> SignatureCurve25519(Signature @@ wrongSig))
 
         State.syntacticValidity(programCreation.copy(signatures = wrongSigs)).isSuccess shouldBe false
     }

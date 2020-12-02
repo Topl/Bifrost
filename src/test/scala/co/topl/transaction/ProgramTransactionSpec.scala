@@ -4,11 +4,10 @@ package co.topl.transaction
   * Created by cykoz on 5/11/2017.
   */
 
-import co.topl.crypto.{FastCryptographicHash, PrivateKey25519}
+import co.topl.attestation.{PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.modifier.transaction.{ProgramCreation, ProgramMethodExecution, ProgramTransaction}
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{BoxId, CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox }
+import co.topl.nodeView.state.box.{BoxId, CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox}
 import co.topl.program.ExecutionBuilderSerializer
 import co.topl.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.{Bytes, Longs}
@@ -17,15 +16,16 @@ import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import scorex.crypto.hash.Blake2b256
 
 import scala.collection.immutable.Seq
 
 class ProgramTransactionSpec extends AnyPropSpec
-  with ScalaCheckPropertyChecks
-  with ScalaCheckDrivenPropertyChecks
-  with Matchers
-  with BifrostGenerators
-  with ValidGenerators {
+                                     with ScalaCheckPropertyChecks
+                                     with ScalaCheckDrivenPropertyChecks
+                                     with Matchers
+                                     with BifrostGenerators
+                                     with ValidGenerators {
 
   //noinspection ScalaStyle
   def potentiallyInvalidProgramCreationGen(minFee: Long,
@@ -55,11 +55,11 @@ class ProgramTransactionSpec extends AnyPropSpec
     val investmentBoxIds: IndexedSeq[BoxId] = preInvestmentBoxes
       .map(n => PublicKeyNoncedBox.idFromBox(sender, n._1))
 
-    val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = {
+    val feePreBoxes: Map[PublicKeyPropositionCurve25519, IndexedSeq[(Nonce, Long)]] = {
       Map(sender -> IndexedSeq(preFeeBoxGen(minFee, maxFee).sample.get))
     }
 
-    val feeBoxIdKeyPairs: IndexedSeq[(BoxId, PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq
+    val feeBoxIdKeyPairs: IndexedSeq[(BoxId, PublicKeyPropositionCurve25519)] = feePreBoxes.toIndexedSeq
       .flatMap {
         case (prop, v) =>
           v.map {
@@ -130,7 +130,7 @@ class ProgramTransactionSpec extends AnyPropSpec
       throw new Exception("Fee bounds are irreconciliable")
     }
 
-    val (priv: PrivateKey25519, sender: PublicKey25519Proposition) = keyPairSetGen.sample.get.head
+    val (priv: PrivateKeyCurve25519, sender: PublicKeyPropositionCurve25519) = keyPairSetGen.sample.get.head
 
     val state =
       s"""
@@ -145,10 +145,10 @@ class ProgramTransactionSpec extends AnyPropSpec
 
     val executionBox = ExecutionBox(proposition, 2L, programIdGen.sample.get, Seq(stateBox.value), Seq(codeBox.value))
 
-    val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] =
+    val feePreBoxes: Map[PublicKeyPropositionCurve25519, IndexedSeq[(Nonce, Long)]] =
       Map(sender -> IndexedSeq(preFeeBoxGen(minFee, maxFee).sample.get))
 
-    val feeBoxIdKeyPairs: IndexedSeq[(BoxId, PublicKey25519Proposition)] = feePreBoxes
+    val feeBoxIdKeyPairs: IndexedSeq[(BoxId, PublicKeyPropositionCurve25519)] = feePreBoxes
       .toIndexedSeq
       .flatMap { case (prop, v) =>
         v.map {
@@ -162,7 +162,7 @@ class ProgramTransactionSpec extends AnyPropSpec
         prop -> available
     }
 
-    val hashNoNonces = FastCryptographicHash(
+    val hashNoNonces = Blake2b256(
       executionBox.id.hashBytes
         ++ methodName.getBytes
         ++ sender.pubKeyBytes
@@ -172,7 +172,7 @@ class ProgramTransactionSpec extends AnyPropSpec
         ++ fees.flatMap { case (prop, feeValue) => prop.pubKeyBytes ++ Longs.toByteArray(feeValue) })
 
     val messageToSign = Bytes.concat(
-      FastCryptographicHash(executionBox.bytes ++ hashNoNonces),
+      Blake2b256(executionBox.bytes ++ hashNoNonces),
         data.getBytes)
     val signature = priv.sign(messageToSign)
 

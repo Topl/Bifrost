@@ -1,5 +1,9 @@
 package co.topl.modifier
 
+import co.topl.modifier.NodeViewModifier.ModifierTypeId
+import co.topl.modifier.block.Block
+import co.topl.modifier.transaction.Transaction
+import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
@@ -8,40 +12,58 @@ import scorex.util.encode.Base58
 
 import scala.util.{Failure, Success, Try}
 
-case class ModifierId(hashBytes: Array[Byte]) {
+class ModifierId private (private val value: Array[Byte]) extends BytesSerializable {
 
-  require(hashBytes.length == ModifierId.size, s"Invalid size for ModifierId")
+  require(value.length == ModifierId.size, s"Invalid size for ModifierId")
 
-  override def hashCode: Int = Ints.fromByteArray(hashBytes)
+  type M = ModifierId
+  lazy val serializer: BifrostSerializer[ModifierId] = ModifierId
 
-  override def equals(o: Any): Boolean = {
-    o.isInstanceOf[ModifierId] &&
-      java.util.Arrays.equals(hashBytes, o.asInstanceOf[ModifierId].hashBytes)
+  def getIdBytes: Array[Byte] = value.tail
+  def getModType: ModifierTypeId = ModifierTypeId @@ value.head
+
+  override def hashCode: Int = Ints.fromByteArray(value)
+
+  override def equals(obj: Any): Boolean = obj match {
+    case mId: ModifierId => mId.value sameElements value
+    case _ => false
   }
 
-  override def toString: String = Base58.encode(hashBytes)
+  override def toString: String = Base58.encode(value)
 }
 
-object ModifierId {
-  val size: Int = Blake2b256.DigestSize // boxId is a 32 byte identifier
+object ModifierId extends BifrostSerializer[ModifierId] {
+  val size: Int = 1 + Blake2b256.DigestSize // ModifierId's are derived from Blake2b-256
+  val empty: ModifierId = new ModifierId(0: Byte +: Array.fill(Blake2b256.DigestSize)(0: Byte))
+  val genesisParentId: ModifierId = new ModifierId(Block.modifierTypeId +: Array.fill(Blake2b256.DigestSize)(1: Byte))
 
   implicit val ord: Ordering[ModifierId] = Ordering.by(_.toString)
 
-  def apply(encodedSig: String): ModifierId =
-    Base58.decode(encodedSig) match {
-      case Success(sig) => new ModifierId(sig)
+  implicit val jsonEncoder: Encoder[ModifierId] = (id: ModifierId) => id.toString.asJson
+  implicit val jsonKeyEncoder: KeyEncoder[ModifierId] = (id: ModifierId) => id.toString
+  implicit val jsonDecoder: Decoder[ModifierId] = Decoder.decodeString.emapTry { id => Try(ModifierId(id)) }
+  implicit val jsonKeyDecoder: KeyDecoder[ModifierId] = (id: String) => Some(ModifierId(id))
+
+  def apply(nodeViewModifier: NodeViewModifier): ModifierId = nodeViewModifier match {
+    case mod: Block          => new ModifierId(Block.modifierTypeId +: Blake2b256(mod.messageToSign))
+    case mod: Transaction.TX => new ModifierId(Transaction.modifierTypeId +: Blake2b256(mod.messageToSign))
+    case _ => throw new Error("Only blocks and transactions generate a modifierId")
+  }
+
+  def apply(str: String): ModifierId =
+    Base58.decode(str) match {
+      case Success(id) => new ModifierId(id)
       case Failure(ex)  => throw ex
     }
 
-  implicit val jsonEncoder: Encoder[ModifierId] =
-    (id: ModifierId) => id.toString.asJson
+  def serialize(obj: ModifierId, w: Writer): Unit = {
+    /* value: Array[Byte] */
+    w.putBytes(obj.value)
+  }
 
-  implicit val jsonDecoder: Decoder[ModifierId] =
-    Decoder.decodeString.emapTry { id => Try(ModifierId(id)) }
+  def parse(r: Reader): ModifierId = {
+    val value: Array[Byte] = r.getBytes(size)
+    new ModifierId(value)
+  }
 
-  implicit val jsonKeyEncoder: KeyEncoder[ModifierId] =
-    ( id: ModifierId ) => id.toString
-
-  implicit val jsonKeyDecoder: KeyDecoder[ModifierId] =
-    ( id: String ) => Some(ModifierId(id))
 }

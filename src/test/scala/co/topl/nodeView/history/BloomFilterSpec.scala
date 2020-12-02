@@ -4,15 +4,12 @@ package co.topl.nodeView.history
   * Created by cykoz on 7/11/2017.
   */
 
-import co.topl.modifier.block.Bloom
-import co.topl.{BifrostGenerators, ValidGenerators}
+import co.topl.modifier.block.BloomFilter
+import co.topl.{ BifrostGenerators, ValidGenerators }
 import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-
-import scala.collection.BitSet
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
 
 import scala.collection.BitSet
 
@@ -27,7 +24,7 @@ class BloomFilterSpec extends AnyPropSpec
   var history: History = generateHistory
 
   property("Verify Bloom Calculation is correct") {
-    val set = Bloom.calcBloom(Array.fill(32)(1), IndexedSeq(Array.fill(32)(1)))
+    val set = BloomFilter.apply(Array.fill(32)(1), IndexedSeq(Array.fill(32)(1)))
     set shouldEqual BitSet(10, 138, 201)
   }
 

@@ -14,13 +14,13 @@ object StateBoxSerializer extends BifrostSerializer[StateBox] {
   }
 
   override def parse(r: Reader): StateBox = {
-    val (proposition, nonce, programId) = ProgramBoxSerializer.parse(r)
+    val (evidence, nonce, programId) = ProgramBoxSerializer.parse(r)
 
     val state: Json = parser.parse(r.getIntString()) match {
       case Left(f) => throw f
       case Right(j: Json) => j
     }
 
-    StateBox(proposition, nonce, programId, state)
+    StateBox(evidence, nonce, programId, state)
   }
 }

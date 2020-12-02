@@ -8,7 +8,8 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import co.topl.BifrostGenerators
-import co.topl.http.api.routes.ProgramApiRoute
+import co.topl.attestation.PublicKeyPropositionCurve25519
+import co.topl.http.api.endpoints.ProgramApiRoute
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
@@ -16,7 +17,6 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box._
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.{CurrentView, NodeViewHolderRef, state}
 import co.topl.settings.{AppContext, StartupOpts}
 import io.circe._
@@ -25,7 +25,6 @@ import io.circe.syntax._
 import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import scorex.util.encode.Base58
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -53,7 +52,7 @@ class ProgramRPCSpec extends AnyWordSpec
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
   // setup route for testing
-  val route: Route = ProgramApiRoute(settings.restApi, nodeViewHolderRef).route
+  val route: Route = ProgramApiRoute(settings.rpcApi, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
@@ -77,7 +76,7 @@ class ProgramRPCSpec extends AnyWordSpec
     "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
     )
 
-  val prop: PublicKey25519Proposition = PublicKey25519Proposition(publicKeys("investor"))
+  val prop: PublicKeyPropositionCurve25519 = PublicKey25519Proposition(publicKeys("investor"))
 
   val polyBoxes: Seq[TokenBox] = view().state.getTokenBoxes(prop).getOrElse(Seq())
 

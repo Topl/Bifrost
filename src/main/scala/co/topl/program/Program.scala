@@ -1,13 +1,13 @@
 package co.topl.program
 
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.nodeView.state.box.{CodeBox, StateBox}
 import co.topl.utils.exceptions.{ChainProgramException, JsonParsingException}
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.{Context, Value}
-import scorex.util.encode.Base58
 import scorex.crypto.signatures.PublicKey
+import scorex.util.encode.Base58
 
 import scala.util.Try
 
@@ -18,7 +18,7 @@ import scala.util.Try
  * @param id               Unique identifier
  * @param executionBuilder Context for the state and code to execute methods on the program
  */
-case class Program ( parties         : Map[PublicKey25519Proposition, String],
+case class Program ( parties         : Map[PublicKeyPropositionCurve25519, String],
                      lastUpdated     : Long,
                      id              : Array[Byte],
                      executionBuilder: Json
@@ -47,11 +47,11 @@ case class Program ( parties         : Map[PublicKey25519Proposition, String],
 
   lazy val json: Json = Map(
     "executionBuilder" -> executionBuilder,
-    "parties" -> parties
-      .map(p => {
-        Base58.encode(p._1.pubKeyBytes) -> p._2.asJson
-      })
-      .asJson,
+//    "parties" -> parties
+//      .map(p => {
+//        p._1.address -> p._2.asJson
+//      })
+//      .asJson,
     "lastUpdated" -> lastUpdated.asJson,
     "id" -> Base58.encode(id).asJson
     ).asJson
@@ -66,7 +66,7 @@ object Program {
       .map(_.toMap)
       .get
 
-    val parties: Map[PublicKey25519Proposition, String] = jsonMap("parties").asObject match {
+    val parties: Map[PublicKeyPropositionCurve25519, String] = jsonMap("parties").asObject match {
       case Some(partiesObject) =>
         partiesObject
           .toMap
@@ -74,7 +74,7 @@ object Program {
             party =>
               val publicKey = PublicKey @@ Base58.decode(party._1).get
               val role = party._2.asString.get
-              new PublicKey25519Proposition(publicKey) -> role
+              new PublicKeyPropositionCurve25519(publicKey) -> role
           }
       case None                => throw new JsonParsingException(s"Error: ${jsonMap("parties")}")
     }
@@ -99,7 +99,7 @@ object Program {
    */
   //noinspection ScalaStyle
   def execute ( stateBoxes: Seq[StateBox], codeBoxes: Seq[CodeBox], methodName: String )
-              ( party: PublicKey25519Proposition )
+              ( party: PublicKeyPropositionCurve25519 )
               ( args: JsonObject ): Try[Json] = {
 
     Try {

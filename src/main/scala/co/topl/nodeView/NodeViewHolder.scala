@@ -3,21 +3,21 @@ package co.topl.nodeView
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
+import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.consensus.Forger
-import co.topl.consensus.Forger.ChainParams
 import co.topl.consensus.Forger.ReceivableMessages.GenerateGenesis
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
-import co.topl.modifier.block.{Block, BlockSerializer, PersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier}
+import co.topl.modifier.block.serialization.BlockSerializer
+import co.topl.modifier.block.{Block, PersistentNodeViewModifier, TransactionCarryingPersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier}
+import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.serialization.TransactionSerializer
-import co.topl.modifier.transaction.{GenericTransaction, Transaction}
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
 import co.topl.nodeView.NodeViewHolder.UpdateInformation
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
-import co.topl.nodeView.state.box.Box
-import co.topl.nodeView.state.{State, TransactionValidation}
+import co.topl.nodeView.state.State
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.Logging
 import co.topl.utils.serialization.BifrostSerializer
@@ -34,15 +34,13 @@ import scala.util.{Failure, Success, Try}
   * The instances are read-only for external world.
   * Updates of the composite view(the instances are to be performed atomically.
   */
-class NodeViewHolder ( settings: AppSettings,
-                       appContext: AppContext )
-                     ( implicit ec: ExecutionContext ) extends Actor with Logging {
+class NodeViewHolder ( settings: AppSettings )
+                     ( implicit ec: ExecutionContext, np: NetworkPrefix ) extends Actor with Logging {
 
   // Import the types of messages this actor can RECEIVE
   import NodeViewHolder.ReceivableMessages._
 
-  type BX = Box
-  type TX = Transaction
+  type TX = Transaction.TX
   type PMOD = Block
   type HIS = History
   type MS = State
@@ -65,7 +63,9 @@ class NodeViewHolder ( settings: AppSettings,
 
   lazy val modifierCompanions: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
     Map(Block.modifierTypeId -> BlockSerializer,
-      GenericTransaction.modifierTypeId -> TransactionSerializer)
+        Transaction.modifierTypeId -> TransactionSerializer)
+
+
 
   /** Define actor control behavior */
   override def preStart(): Unit = {
@@ -73,7 +73,7 @@ class NodeViewHolder ( settings: AppSettings,
     context.system.eventStream.subscribe(self, classOf[LocallyGeneratedModifier[PMOD]])
 
     log.info(s"${Console.YELLOW}NodeViewHolder publishing ready signal${Console.RESET}")
-    context.system.eventStream.publish(NodeViewReady)
+    context.system.eventStream.publish(NodeViewReady(this.self))
   }
 
   override def preRestart (reason: Throwable, message: Option[Any]): Unit = {
@@ -110,8 +110,7 @@ class NodeViewHolder ( settings: AppSettings,
   }
 
   protected def transactionsProcessing: Receive = {
-    case newTxs: NewTransactions[Transaction] @unchecked =>
-      newTxs.txs.foreach(txModify)
+    case newTxs: NewTransactions => newTxs.txs.foreach(txModify)
 
     case EliminateTransactions(ids) =>
       val updatedPool = memoryPool().filter(tx => !ids.contains(tx.id))
@@ -154,7 +153,7 @@ class NodeViewHolder ( settings: AppSettings,
     * (e.g. if it is a first launch of a node) None is to be returned
     */
   def restoreState (): Option[NodeView] = {
-    if ( State.exists(settings) ) {
+    if (State.exists(settings)) {
       Some((
         History.readOrGenerate(settings),
         State.readOrGenerate(settings),
@@ -238,20 +237,10 @@ class NodeViewHolder ( settings: AppSettings,
     * @param tx
     */
   protected def txModify(tx: TX): Unit = {
-    //todo: async validation?
-    val errorOpt: Option[Throwable] = minimalState() match {
-      case txValidator: TransactionValidation[TX] =>
-        txValidator.validate(tx) match {
-          case Success(_) => None
-          case Failure(e) => Some(e)
-        }
-      case _ => None
-    }
-
-    errorOpt match {
-      case None =>
+    tx.syntacticValidate match {
+      case Success(_) =>
         memoryPool().put(tx) match {
-          case Success(newPool) =>
+          case Success(_) =>
             log.debug(s"Unconfirmed transaction $tx added to the memory pool")
             context.system.eventStream.publish(SuccessfulTransaction[TX](tx))
 
@@ -259,7 +248,7 @@ class NodeViewHolder ( settings: AppSettings,
             context.system.eventStream.publish(FailedTransaction(tx.id, e, immediateFailure = true))
         }
 
-      case Some(e) =>
+      case Failure(e) =>
         context.system.eventStream.publish(FailedTransaction(tx.id, e, immediateFailure = true))
     }
   }
@@ -316,7 +305,7 @@ class NodeViewHolder ( settings: AppSettings,
     * @return
     */
   protected def extractTransactions(mod: PMOD): Seq[TX] = mod match {
-    case tcm: TransactionsCarryingPersistentNodeViewModifier[TX] => tcm.transactions
+    case tcm: TransactionCarryingPersistentNodeViewModifier[_] => tcm.transactions
     case _ => Seq()
   }
 
@@ -442,14 +431,13 @@ class NodeViewHolder ( settings: AppSettings,
 
     val appliedTxs = blocksApplied.flatMap(extractTransactions)
 
-    memPool.putWithoutCheck(rolledBackTxs).filter { tx =>
-      !appliedTxs.exists(t => t.id == tx.id) && {
-        state match {
-          case v: TransactionValidation[TX] => v.validate(tx).isSuccess
-          case _ => true
+    memPool
+      .putWithoutCheck(rolledBackTxs)
+      .filter { tx =>
+        !appliedTxs.exists(t => t.id == tx.id) && {
+          state.semanticValidate(tx).isSuccess
         }
       }
-    }
   }
 
   /**
@@ -490,7 +478,6 @@ class NodeViewHolder ( settings: AppSettings,
 /////////////////////////////// COMPANION SINGLETON ////////////////////////////////
 
 object NodeViewHolder {
-
   val actorName = "nodeViewHolder"
 
   case class UpdateInformation[HIS, MS, PMOD <: PersistentNodeViewModifier](history: HIS,
@@ -501,10 +488,11 @@ object NodeViewHolder {
 
   object ReceivableMessages {
 
+
     // Explicit request of NodeViewChange events of certain types.
     case class GetNodeViewChanges(history: Boolean, state: Boolean, mempool: Boolean)
 
-    // Retrieve data from current view with an optional callback function to modify the view
+    // Retrieve data from current view
     case object GetDataFromCurrentView
 
     // Modifiers received from the remote peer with new elements in it
@@ -512,13 +500,13 @@ object NodeViewHolder {
 
     case class LocallyGeneratedModifier[PMOD <: PersistentNodeViewModifier](pmod: PMOD)
 
-    sealed trait NewTransactions[TX <: Transaction]{val txs: Iterable[TX]}
+    sealed trait NewTransactions{val txs: Iterable[Transaction.TX]}
 
-    case class LocallyGeneratedTransaction[TX <: Transaction](tx: TX) extends NewTransactions[TX] {
-      override val txs: Iterable[TX] = Iterable(tx)
+    case class LocallyGeneratedTransaction(tx: Transaction.TX) extends NewTransactions {
+      override val txs: Iterable[Transaction.TX] = Iterable(tx)
     }
 
-    case class TransactionsFromRemote[TX <: Transaction](txs: Iterable[TX]) extends NewTransactions[TX]
+    case class TransactionsFromRemote(txs: Iterable[Transaction.TX]) extends NewTransactions
 
     case class EliminateTransactions(ids: Seq[ModifierId])
 
@@ -541,5 +529,5 @@ object NodeViewHolderRef {
 
   def props ( settings: AppSettings, appContext: AppContext )
             ( implicit ec: ExecutionContext ): Props =
-    Props(new NodeViewHolder(settings, appContext))
+    Props(new NodeViewHolder(settings)(ec, appContext.networkType.netPrefix))
 }

@@ -6,17 +6,15 @@ import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaType
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import co.topl.BifrostGenerators
+import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box._
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.{CurrentView, NodeViewHolderRef, state}
 import co.topl.settings.{AppContext, StartupOpts}
 import io.circe.syntax._
-import scorex.util.encode.Base58
-import scorex.crypto.signatures.PublicKey
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
@@ -68,7 +66,7 @@ trait ProgramMockState extends BifrostGenerators {
     )
 
   val publicKey = "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"
-  val prop: PublicKey25519Proposition = PublicKey25519Proposition(publicKeys("investor"))
+  val prop: PublicKeyPropositionCurve25519 = PublicKey25519Proposition(publicKeys("investor"))
 
   val polyBoxes: Seq[TokenBox] = view().state.getTokenBoxes(prop).getOrElse(Seq())
 

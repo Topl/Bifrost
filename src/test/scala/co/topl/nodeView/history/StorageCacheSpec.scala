@@ -63,8 +63,8 @@ class StorageCacheSpec extends AnyPropSpec
       val block:Block = blockTemp.copy(parentId = history.bestBlockId)
 
       history = history.append(block).get._1
-      history.storage.blockCache.getIfPresent(ByteArrayWrapper(block.id.hashBytes)) shouldEqual
-        history.storage.storage.get(ByteArrayWrapper(block.id.hashBytes))
+      history.storage.blockCache.getIfPresent(ByteArrayWrapper(block.id.getIdBytes)) shouldEqual
+        history.storage.storage.get(ByteArrayWrapper(block.id.getIdBytes))
     }
   }
 
