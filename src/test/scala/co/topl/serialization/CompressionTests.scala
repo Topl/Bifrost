@@ -1,4 +1,4 @@
-package bifrost.serialization
+package co.topl.serialization
 
 import co.topl.utils.Gzip
 import org.scalatest.matchers.should.Matchers

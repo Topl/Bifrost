@@ -1,21 +1,21 @@
 package co.topl.program
 
 import co.topl.nodeView.state.box.{CodeBox, StateBox}
-import co.topl.{BifrostGenerators, ValidGenerators}
+import co.topl.utils.{CoreGenerators, ValidGenerators}
 import io.circe.JsonObject
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
-import org.scalatest.Ignore
+import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
-@Ignore
+@DoNotDiscover
 class ProgramMethodSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
-  with BifrostGenerators
+  with CoreGenerators
   with ValidGenerators {
 
   property("Can call a function from a program") {
@@ -40,8 +40,9 @@ class ProgramMethodSpec extends AnyPropSpec
         val stateBoxes = Seq(stateBox, stateBoxTwo, stateBoxThree)
 
         val result = Program.execute(stateBoxes, Seq(codeBox), "inc")(party)(params).get
+                            .hcursor.get[Int]("a") match {case Right(re) => re; case Left(ex) => throw ex}
 
-        result.hcursor.get[Int]("a").right.get shouldEqual 1
+        result shouldEqual 1
       }
     }
   }

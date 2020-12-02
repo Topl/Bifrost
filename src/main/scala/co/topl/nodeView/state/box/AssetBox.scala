@@ -20,16 +20,16 @@ object AssetBox {
   implicit val jsonEncoder: Encoder[AssetBox] = { box: AssetBox =>
     (TokenBox.jsonEncode(box) ++ Map(
       "issuer" -> box.issuer.asJson,
-      "data" -> box.data.asJson,
-      "nonce" -> box.nonce.toString.asJson)
+      "assetCode" -> box.assetCode.asJson,
+      "data" -> box.data.asJson)
       ).asJson
   }
 
   implicit val jsonDecoder: Decoder[AssetBox] = ( c: HCursor ) =>
     for {
       b <- TokenBox.jsonDecode(c)
-      assetCode <- c.downField("assetCode").as[String]
       issuer <- c.downField("issuer").as[PublicKey25519Proposition]
+      assetCode <- c.downField("assetCode").as[String]
       data <- c.downField("data").as[String]
     } yield {
       val (proposition, nonce, value) = b

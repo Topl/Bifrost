@@ -9,14 +9,14 @@ import co.topl.crypto.PrivateKey25519
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import io.circe.parser.parse
 import io.circe.syntax._
-import io.circe.{Decoder, Encoder, HCursor}
+import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.bouncycastle.crypto.BufferedBlockCipher
 import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
-import org.bouncycastle.crypto.params.{ KeyParameter, ParametersWithIV }
+import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
 import scorex.crypto.hash.Blake2b256
-import scorex.crypto.signatures.{ Curve25519, PrivateKey, PublicKey }
+import scorex.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
 import scorex.util.Random.randomBytes
 import scorex.util.encode.Base58
 
@@ -126,7 +126,8 @@ object KeyFile {
     */
   def readFile (filename: String): KeyFile = {
     val jsonString = scala.io.Source.fromFile(filename)
-    val key = parse(jsonString.mkString).right.get.as[KeyFile] match {
+    val res: Json = parse(jsonString.mkString) match {case Right(re) => re; case Left(ex) => throw ex}
+    val key = res.as[KeyFile] match {
       case Right(f: KeyFile) => f
       case Left(e)           => throw new Exception(s"Could not parse KeyFile: $e")
     }

@@ -29,7 +29,7 @@ class KeysSpec extends AsyncFlatSpec with Matchers {
   val seed1: Digest32 = Blake2b256(seedString)
 
 
-  val keyManager = Keys(keyFileDir)
+  val keyManager: Keys = Keys(keyFileDir)
   var pubKeys: Set[PublicKey25519Proposition] = Set()
   var privKeys: Set[PrivateKey25519] = Set()
   var keyFiles: Set[KeyFile] = Set()

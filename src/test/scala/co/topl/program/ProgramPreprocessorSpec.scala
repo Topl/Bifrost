@@ -1,6 +1,6 @@
 package co.topl.program
 
-import co.topl.{BifrostGenerators, ValidGenerators}
+import co.topl.utils.{CoreGenerators, ValidGenerators}
 import io.circe.JsonObject
 import io.circe.syntax._
 import org.scalatest.matchers.should.Matchers
@@ -12,7 +12,7 @@ class ProgramPreprocessorSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
-  with BifrostGenerators
+  with CoreGenerators
   with ValidGenerators {
 
   val args: JsonObject = Map(
@@ -103,7 +103,8 @@ class ProgramPreprocessorSpec extends AnyPropSpec
   /*property("Json encoding and decoding should work") {
     //val wrapper = ProgramPreprocessor(osAppropriatePath)(args)
     val wrapper = ProgramPreprocessor(name, program)(JsonObject.empty)
-    wrapper.json.as[ProgramPreprocessor].right.get shouldEqual wrapper
+                    .json.as[ProgramPreprocessor] match {case Right(re) => re; case Left(ex) => throw ex}
+    wrapper shouldEqual wrapper
   }*/
 
   property("ProgramPreprocessor should split a single script into separate state and code objects") {

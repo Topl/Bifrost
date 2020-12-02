@@ -25,6 +25,7 @@ resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releas
 val akkaVersion = "2.6.10"
 val akkaHttpVersion = "10.2.1"
 val circeVersion = "0.13.0"
+val graalVersion = "19.3.1"
 
 val akkaDependencies = Seq(
   "com.typesafe.akka" %% "akka-actor" % akkaVersion,
@@ -92,13 +93,13 @@ libraryDependencies ++= Seq(
 )
 
 // https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
-libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "19.3.4"
+libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % graalVersion
 
 // https://mvnrepository.com/artifact/org.graalvm.js/js
-libraryDependencies += "org.graalvm.js" % "js" % "19.3.4"
+libraryDependencies += "org.graalvm.js" % "js" % graalVersion
 
 // https://mvnrepository.com/artifact/org.graalvm.truffle/truffle-api
-libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.3.4"
+libraryDependencies += "org.graalvm.truffle" % "truffle-api" % graalVersion
 
 libraryDependencies  ++= Seq(
   "org.scalanlp" %% "breeze" % "1.1",

@@ -5,25 +5,23 @@ import java.time.Instant
 import co.topl.crypto.Signature25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{AssetCreation, AssetTransfer}
+import co.topl.modifier.transaction.{ AssetCreation, AssetTransfer }
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import io.circe.syntax.EncoderOps
-import org.scalatest.Ignore
 import scorex.crypto.signatures.Curve25519
 import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
 
 import scala.util.Failure
 
 
-@Ignore
 class AssetCreationValidationSpec extends StateSpec {
 
   property("A block with valid AssetCreation should result in more tokens for receiver") {
     forAll(validAssetCreationGen) {
       assetCreation: AssetCreation =>
         val block = Block(
-          ModifierId(Array.fill(Block.signatureLength)(-1: Byte)),
+          ModifierId(Array.fill(Block.blockIdLength)(-1: Byte)),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(PublicKey @@ Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L), /////Check Arbit box
           Signature25519(Signature @@ Array.fill(Block.signatureLength)(0: Byte)),
@@ -31,8 +29,7 @@ class AssetCreationValidationSpec extends StateSpec {
           settings.application.version.blockByte
         )
 
-        val newState = StateSpec
-          .genesisState()
+        val newState = createState()
           .applyModifier(block)
           .get
 
@@ -68,7 +65,7 @@ class AssetCreationValidationSpec extends StateSpec {
 //        val newState = preparedState.validate(invalidAC)
 //
 //        val firstCCAddBlock = Block(
-//          ModifierId(Array.fill(Block.signatureLength)(1: Byte)),
+//          ModifierId(Array.fill(Block.blockIdLength)(1: Byte)),
 //          Instant.now.toEpochMilli,
 //          ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), scala.util.Random.nextLong(), 0L),
 //          Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
@@ -81,8 +78,7 @@ class AssetCreationValidationSpec extends StateSpec {
 //          .applyModifier(firstCCAddBlock)
 //          .get
 
-        val newState = StateSpec
-          .genesisState()
+        val newState = createState()
           .validate(invalidAC)
 
         newState shouldBe a[Failure[_]]

@@ -3,7 +3,7 @@ package co.topl.program
 import java.time.Instant
 
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.{BifrostGenerators, ValidGenerators}
+import co.topl.utils.{CoreGenerators, ValidGenerators}
 import io.circe.{Json, JsonObject}
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
@@ -17,7 +17,7 @@ class ProgramSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
-  with BifrostGenerators
+  with CoreGenerators
   with ValidGenerators {
 
     //TODO Replace with
@@ -41,7 +41,8 @@ class ProgramSpec extends AnyPropSpec
   property("Json works properly for ExecutionBuilderTerms") {
     forAll(validExecutionBuilderTermsGen) {
       t: ExecutionBuilderTerms => {
-        t.json.as[ExecutionBuilderTerms].right.get shouldBe t
+        val res = t.json.as[ExecutionBuilderTerms] match {case Right(re) => re; case Left(ex) => throw ex}
+        res shouldBe t
       }
     }
   }
@@ -62,10 +63,7 @@ class ProgramSpec extends AnyPropSpec
       "myAssetCode",
       ProgramPreprocessor(
         "test",
-        validInitJsGen(
-          "test",
-          "testCode",
-        ).sample.get
+        validInitJsGen.sample.get
       )(JsonObject.empty)
     ).json
 

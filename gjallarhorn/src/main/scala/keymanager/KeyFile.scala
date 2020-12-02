@@ -14,10 +14,10 @@ import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
 import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
-import scorex.util.encode.Base58
-import scorex.crypto.hash.{Blake2b256, Keccak256}
+import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
 import scorex.util.Random.randomBytes
+import scorex.util.encode.Base58
 
 import scala.util.Try
 

@@ -30,7 +30,6 @@ case class ProgramApiRoute(override val settings: RESTApiSettings, nodeViewHolde
 
   def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
     method match {
-//      case "getProgramSignature" => getProgramSignature(params.head, id)
 //      case "createCode" => createCode(params.head, id)
       case "createProgram" => createProgram(params.head, id)
 //      case "transferProgram" => transferProgram(params.head, id)
@@ -38,19 +37,6 @@ case class ProgramApiRoute(override val settings: RESTApiSettings, nodeViewHolde
       case "programCall" => programCall(params.head, id)
       case "filter" => bloomFilter(params, id)
     }
-
-//  def getProgramSignature(params: Json, id: String): Future[Json] = {
-//    viewAsync().map { view =>
-//      val wallet = view.vault
-//      val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
-//      val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(PublicKey @@ Base58.decode(signingPublicKey).get)).get
-//      val state = view.state
-//      val tx = createProgramInstance(params, state)
-//      val signature = selectedSecret.sign(tx.messageToSign)
-//      Map("signature" -> Base58.encode(signature.signature).asJson,
-//        "tx" -> tx.json.asJson).asJson
-//    }
-//  }
 
 //  def createCode(params: Json, id: String): Future[Json] = {
 //    viewAsync().map { view =>

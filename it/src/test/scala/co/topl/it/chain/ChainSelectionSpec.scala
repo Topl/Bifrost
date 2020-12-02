@@ -1,16 +1,15 @@
 package co.topl.it.chain
 
-import co.topl.BifrostGenerators
 import co.topl.it.IntegrationSuite
 import co.topl.it.util.Node
-import co.topl.BifrostGenerators
+import co.topl.utils.CoreGenerators
 import com.typesafe.config.Config
 import org.scalatest.freespec.AnyFreeSpec
 
 
 class ChainSelectionSpec extends AnyFreeSpec
   with IntegrationSuite
-  with BifrostGenerators {
+  with CoreGenerators {
 
   val numNodes: Int = 2
 

@@ -5,26 +5,21 @@ package co.topl.nodeView.history
   */
 
 import co.topl.modifier.block.BloomFilter
-import co.topl.{BifrostGenerators, ValidGenerators}
-import org.scalatest.DoNotDiscover
+import co.topl.utils.{CoreGenerators, ValidGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 import scala.collection.BitSet
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
-import scala.collection.BitSet
-
-@DoNotDiscover
 class BloomFilterSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
-  with BifrostGenerators
+  with CoreGenerators
   with ValidGenerators {
 
-  var history: History = generateHistory
+  var history: History = generateHistory(0: Byte)
 
   property("Verify Bloom Calculation is correct") {
     val set = BloomFilter.calcBloom(Array.fill(32)(1), IndexedSeq(Array.fill(32)(1)))
