@@ -3,7 +3,7 @@ package http
 import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
-import crypto.PublicKey25519Proposition
+import crypto.Address
 import requests.{ApiRoute, Requests}
 import io.circe.Json
 import io.circe.syntax._
@@ -107,8 +107,8 @@ case class GjallarhornApiRoute(settings: AppSettings,
     */
   private def generateKeyfile(params: Json, id: String): Future[Json] = {
     val password = (params \\ "password").head.asString.get
-    (keyManager ? GenerateKeyFile(password)).mapTo[Try[PublicKey25519Proposition]].map {
-      case Success(pk: PublicKey25519Proposition) => Map("address" -> pk.asJson).asJson
+    (keyManager ? GenerateKeyFile(password)).mapTo[Try[Address]].map {
+      case Success(pk: Address) => Map("address" -> pk.asJson).asJson
       case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
     }
   }
@@ -124,8 +124,8 @@ case class GjallarhornApiRoute(settings: AppSettings,
     val seedPhrase: String = (params \\ "seedPhrase").head.asString.get
     val seedPhraseLang: String = parseOptional("seedPhraseLang", "en")
 
-    (keyManager ? ImportKeyfile(password, seedPhrase, seedPhraseLang)).mapTo[Try[PublicKey25519Proposition]].map {
-      case Success(pk: PublicKey25519Proposition) => Map( "publicKey" -> pk.asJson).asJson
+    (keyManager ? ImportKeyfile(password, seedPhrase, seedPhraseLang)).mapTo[Try[Address]].map {
+      case Success(pk: Address) => Map( "publicKey" -> pk.asJson).asJson
       case Failure(ex) => throw new Error(s"An error occurred while importing the seed phrase. $ex")
     }
   }
@@ -174,8 +174,5 @@ case class GjallarhornApiRoute(settings: AppSettings,
       case "useAkka" => (requestsManager ? WalletRequest(requestBody)).mapTo[String].map(_.asJson)
     }
   }
-
-
-
 }
 

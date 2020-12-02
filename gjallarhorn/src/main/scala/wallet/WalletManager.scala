@@ -3,7 +3,7 @@ package wallet
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.ask
 import akka.util.Timeout
-import crypto.Transaction
+import crypto.{Address, Transaction}
 import io.circe.{Json, ParsingFailure, parser}
 import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
@@ -19,7 +19,7 @@ import scala.concurrent.duration._
   * Mainly, the WalletManager receives new blocks from Bifrost in order to updates its wallet boxes.
   * @param publicKeys: the set of publicKeys that the WalletManager should keep track of.
   */
-class WalletManager(publicKeys: Set[String], bifrostActorRef: ActorRef) extends Actor with Logging {
+class WalletManager(publicKeys: Set[Address], bifrostActorRef: ActorRef) extends Actor with Logging {
 
   import WalletManager._
 
@@ -150,7 +150,7 @@ class WalletManager(publicKeys: Set[String], bifrostActorRef: ActorRef) extends 
         var idsToRemove: List[String] = List.empty
         transactions.foreach(tx => {
           tx.newBoxes.foreach(newBox => {
-            val publicKey: String = newBox.proposition.toString
+            val publicKey: String = newBox.evidence.toString
             var idToBox: MMap[String, Json] = MMap.empty
             add.get(publicKey) match {
               case Some(boxesMap) => idToBox = boxesMap

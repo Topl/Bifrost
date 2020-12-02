@@ -4,13 +4,13 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import _root_.requests.{Requests, RequestsManager}
 import akka.util.{ByteString, Timeout}
-import crypto.{PrivateKey25519, PublicKey25519Proposition}
+import crypto.AddressEncoder.NetworkPrefix
+import crypto.{Address, KeyfileCurve25519, PrivateKeyCurve25519}
 import io.circe.{Json, parser}
 import io.circe.parser._
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
-import scorex.crypto.hash.Blake2b256
-import keymanager.{KeyFile, Keys}
+import keymanager.Keys
 import wallet.WalletManager
 import wallet.WalletManager._
 
@@ -30,21 +30,13 @@ class RequestSpec extends AsyncFlatSpec
   implicit val actorSystem: ActorSystem = ActorSystem("requestTest", requestConfig)
   implicit val context: ExecutionContextExecutor = actorSystem.dispatcher
   implicit val timeout: Timeout = 30.seconds
+  implicit val networkPrefix: NetworkPrefix = 1.toByte
 
   val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
     s"akka.tcp://${settings.chainProvider}/user/walletConnectionHandler").resolveOne(), 10.seconds)
 
   val requestsManagerRef: ActorRef = actorSystem.actorOf(Props(new RequestsManager(bifrostActor)), name = "RequestsManager")
   val requests = new Requests(requestSettings, requestsManagerRef)
-
-  val seed1: Array[Byte] = Blake2b256(java.util.UUID.randomUUID.toString)
-  val seed2: Array[Byte] = Blake2b256(java.util.UUID.randomUUID.toString)
-  val seed3: Array[Byte] = Blake2b256(java.util.UUID.randomUUID.toString)
-  //val (sk1, pk1): (PrivateKey25519, PublicKey25519Proposition) = PrivateKey25519.generateKeys(seed1)
-
-  val (sk2, pk2): (PrivateKey25519, PublicKey25519Proposition) = PrivateKey25519.generateKeys(seed2)
-  val (sk3, pk3): (PrivateKey25519, PublicKey25519Proposition) = PrivateKey25519.generateKeys(seed3)
-  var pk1: PublicKey25519Proposition = pk2
 
   val keyFileDir = "keyfiles/requestTestKeys"
   val path: Path = Path(keyFileDir)
@@ -53,15 +45,25 @@ class RequestSpec extends AsyncFlatSpec
   val password = "pass"
   val genesisPubKey = "3mBVXE3fuVfu1MBmMsBiRd6y9XokiVV591N65tBfA3FEvmqWB8"
 
-  val keyFile = KeyFile(password, KeyFile.generateKeyPair(seed1)._1)
-  val keyManager = Keys(keyFileDir)
+  val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] = Keys(keyFileDir, KeyfileCurve25519)
   //keyManager.unlockKeyFile(Base58.encode(sk1.publicKeyBytes), password)
-  keyManager.generateKeyFile(password) match {
-    case Success(pk) => pk1 = pk
+
+  val pk1: Address = keyManager.generateKeyFile(password) match {
+    case Success(pk) => pk
     case Failure (ex) => throw new Error (s"An error occured: $ex")
   }
 
-  val publicKeys: Set[String] = Set(pk1.toString, pk2.toString, pk3.toString, genesisPubKey)
+  val pk2: Address = keyManager.generateKeyFile("password2") match {
+    case Success(address) => address
+    case Failure(ex) => throw ex
+  }
+
+  val pk3: Address = keyManager.generateKeyFile("password3") match {
+    case Success(address) => address
+    case Failure(ex) => throw ex
+  }
+
+  val publicKeys: Set[Address] = Set(pk1, pk2, pk3, genesisPubKey)
   val walletManagerRef: ActorRef = actorSystem.actorOf(Props(new WalletManager(publicKeys, bifrostActor)), name = "WalletManager")
 
   val amount = 10
@@ -110,7 +112,7 @@ class RequestSpec extends AsyncFlatSpec
   }
 
   it should "receive successful JSON response from sign transaction" in {
-    val issuer: List[String] = List(publicKeys.head)
+    val issuer: List[String] = List(publicKeys.head.toString)
     signedTransaction = requests.signTx(transaction, keyManager, issuer)
     val sigs = (signedTransaction \\ "signatures").head.asObject.get
     issuer.foreach(key => assert(sigs.contains(key)))
@@ -130,7 +132,7 @@ class RequestSpec extends AsyncFlatSpec
 
   it should "receive a successful and correct response from Bifrost upon requesting balances" in {
     Thread.sleep(10000)
-    balanceResponse = requests.getBalances(publicKeys)
+    balanceResponse = requests.getBalances(publicKeys.map(addr => addr.toString))
     assert(balanceResponse.isInstanceOf[Json])
     (balanceResponse \\ "error").isEmpty shouldBe true
     val result: Json = (balanceResponse \\ "result").head

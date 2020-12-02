@@ -2,6 +2,8 @@ import akka.actor.{ActorRef, ActorSystem, DeadLetter, PoisonPill, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
+import crypto.AddressEncoder.NetworkPrefix
+import crypto.{KeyfileCurve25519, PrivateKeyCurve25519}
 import http.GjallarhornApiRoute
 import keymanager.{KeyManagerRef, Keys}
 import requests.{Requests, RequestsManager}
@@ -19,11 +21,13 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   private val settings: AppSettings = AppSettings.read(startupOpts)
   implicit val system: ActorSystem = ActorSystem("Gjallarhorn")
   implicit val context: ExecutionContextExecutor = system.dispatcher
+  //TODO: how to get network prefix?
+  implicit val networkPrefix: NetworkPrefix = 1.toByte
   implicit val timeout: Timeout = 10.seconds
 
   private val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", "keyfiles")
   val keyFileDir: String = settings.keyFileDir
-  val keyManager: Keys = Keys(keyFileDir)
+  val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] = Keys(keyFileDir, KeyfileCurve25519)
 
   val listener: ActorRef = system.actorOf(Props[DeadLetterListener]())
   system.eventStream.subscribe(listener, classOf[DeadLetter])
@@ -49,7 +53,7 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   sys.addShutdownHook(GjallarhornApp.shutdown(system, actorsToStop))
 
   def setUpOnlineMode(bifrost: ActorRef): Unit = {
-    val walletManagerRef: ActorRef = system.actorOf(Props(new WalletManager(keyManager.listOpenKeyFiles, bifrost)), name = "WalletManager")
+    val walletManagerRef: ActorRef = system.actorOf(Props(new WalletManager(keyManager.addresses, bifrost)), name = "WalletManager")
     val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager(bifrost)), name = "RequestsManager")
     actorsToStop ++ Seq(walletManagerRef, requestsManagerRef)
     walletManagerRef ! GjallarhornStarted

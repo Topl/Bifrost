@@ -19,7 +19,7 @@ import scala.concurrent.duration._
 import scorex.util.encode.Base58
 import settings.AppSettings
 
-
+import scala.util.{Failure, Success}
 
 class Requests (settings: AppSettings, requestsManager: ActorRef)
                (implicit val actorSystem: ActorSystem) {
@@ -96,27 +96,29 @@ class Requests (settings: AppSettings, requestsManager: ActorRef)
   }
 
 
-  def signTx(transaction: Json, keyManager: Keys, signingKeys: List[String]): Json = {
+  def signTx(transaction: Json, keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519], signingKeys: List[String]): Json = {
     val result = (transaction \\ "result").head
     val tx = (result \\ "formattedTx").head
     val messageToSign = (result \\ "messageToSign").head
-    assert(signingKeys.contains((tx \\ "issuer").head.asString.get))
-
-    val sigs: List[(String, String)] = signingKeys.map { pk =>
-      val pubKey = PublicKey25519Proposition(pk)
-
-      val privKey = keyManager.secrets.find(sk => sk.publicKeyBytes sameElements pubKey.pubKeyBytes)
-
-      privKey match {
-        case Some(sk) =>
-            val signature = Base58.encode(sk.sign(Base58.decode(messageToSign.asString.get).get).signature)
-            (pk, signature)
-        case None => throw new NoSuchElementException
+    val signatures = signingKeys.map(keyString => {
+      Base58.decode(messageToSign.asString.get) match {
+        case Success(msgToSign) =>
+          keyManager.signWithAddress(Address(keyString), msgToSign) match {
+            case Success(signedTx) => {
+              val sig = signedTx.asJson
+              keyManager.lookupPublicKey(Address(keyString)) match {
+                case Success(pubKey) => pubKey -> sig
+                case Failure(exception) => throw exception
+              }
+            }
+            case Failure(exception) => throw exception
+          }
+        case Failure(exception) => throw exception
       }
-    }
+    }).toMap.asJson
 
     val newTx = tx.deepMerge(Map(
-      "signatures" -> sigs.toMap.asJson
+      "signatures" -> signatures
     ).asJson)
     val newResult = Map("formattedTx"-> newTx).asJson
     createJsonResponse(transaction, newResult)

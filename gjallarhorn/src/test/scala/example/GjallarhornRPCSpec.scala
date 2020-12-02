@@ -6,18 +6,17 @@ import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaType
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.{Http, HttpExt}
 import akka.util.{ByteString, Timeout}
-import crypto.{PrivateKey25519, PublicKey25519Proposition}
+import crypto.{Address, KeyfileCurve25519, PrivateKeyCurve25519}
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import http.GjallarhornApiRoute
 import akka.http.scaladsl.testkit.ScalatestRouteTest
+import crypto.AddressEncoder.NetworkPrefix
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
 import keymanager.{KeyManagerRef, Keys}
 import requests.{Requests, RequestsManager}
-import scorex.crypto.hash.{Blake2b256, Digest32}
-import scorex.util.encode.Base58
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -31,21 +30,25 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 //  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   implicit val timeout: Timeout = Timeout(10.seconds)
+  implicit val networkPrefix: NetworkPrefix = 1.toByte
 
   override def createActorSystem(): ActorSystem = ActorSystem("gjallarhornTest", config)
 
   val http: HttpExt = Http(system)
-
-  val seed1: Digest32 = Blake2b256(java.util.UUID.randomUUID.toString)
-  val seed2: Digest32 = Blake2b256(java.util.UUID.randomUUID.toString)
-  val (sk1, pk1) = PrivateKey25519.generateKeys(seed1)
-  val (sk2, pk2) = PrivateKey25519.generateKeys(seed2)
-
   val amount = 10
 
   val keyManagerRef: ActorRef = KeyManagerRef("keyManager", "keyfiles")
   val keyFileDir = "keyfiles/keyManagerTest"
-  val keyManager: Keys = Keys(keyFileDir)
+  val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] = Keys(keyFileDir, KeyfileCurve25519)
+
+  val pk1: Address = keyManager.generateKeyFile("password1") match {
+    case Success(address) => address
+    case Failure(ex) => throw ex
+  }
+  val pk2: Address = keyManager.generateKeyFile("password2") match {
+    case Success(address) => address
+    case Failure(ex) => throw ex
+  }
 
   val bifrostActor: ActorRef = Await.result(system.actorSelection(
     s"akka.tcp://${settings.chainProvider}/user/walletConnectionHandler").resolveOne(), 10.seconds)
@@ -129,7 +132,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     }
   }*/
 
-  var pubKeyAddr: String = pk1.address
+  var pubKeyAddr: String = pk1.toString
 
   it should "successfully generate a keyfile" in {
     val generateKeyfileRequest = ByteString(

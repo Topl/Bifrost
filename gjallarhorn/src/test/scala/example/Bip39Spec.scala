@@ -1,10 +1,8 @@
 package example
 
-import crypto.PrivateKey25519
-import keymanager.{Bip39, KeyFile}
+import keymanager.Bip39
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import scorex.crypto.hash.Blake2b256
 
 import scala.reflect.io.Path
 import scala.util.Try
@@ -63,6 +61,7 @@ class Bip39Spec extends AnyFlatSpec with Matchers {
     assert(pt.phraseToHex(phrase) == seedHex)
   }
   //------------------------------------------------------------------------------------
+/*
   "A key file" should "be generated" in {
     Try(path.deleteRecursively())
     Try(path.createDirectory())
@@ -72,9 +71,9 @@ class Bip39Spec extends AnyFlatSpec with Matchers {
     val seed2: String = pt.hexToUuid(pt.phraseToHex(phrase))
     val seed1Hash: Array[Byte] = Blake2b256.hash(seed1)
     val seed2Hash: Array[Byte] = Blake2b256.hash(seed2)
-    val key1 = PrivateKey25519.generateKeys(seed1Hash)
-    val key2 = PrivateKey25519.generateKeys(seed2Hash)
-    val key3 = PrivateKey25519.generateKeys(Blake2b256.hash(uuidString))
+    val key1 = PrivateKeyCurve25519.generateKeys(seed1Hash)
+    val key2 = PrivateKeyCurve25519.generateKeys(seed2Hash)
+    val key3 = PrivateKeyCurve25519.generateKeys(Blake2b256.hash(uuidString))
 
     KeyFile.generateKeyPair(seed1Hash)
 
@@ -82,6 +81,7 @@ class Bip39Spec extends AnyFlatSpec with Matchers {
     key2 shouldEqual key3
     key1 shouldEqual key3
   }
+*/
 
   Try(path.deleteRecursively())
 }

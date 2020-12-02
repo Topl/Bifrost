@@ -1,20 +1,21 @@
 package keymanager
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import crypto.PublicKey25519Proposition
+import crypto.AddressEncoder.NetworkPrefix
+import crypto.{Address, KeyfileCurve25519, PrivateKeyCurve25519}
 import io.circe.Json
 import io.circe.syntax._
-import scorex.crypto.signatures.PublicKey
 import scorex.util.encode.Base58
 
 import scala.concurrent.ExecutionContext
+import scala.util.{Failure, Success}
 
 
-class KeyManager(keyDir: String) extends Actor {
+class KeyManager(keyDir: String)(implicit np: NetworkPrefix) extends Actor {
 
   import KeyManager._
 
-  val keyManager: Keys = Keys(keyDir)
+  val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] = Keys[PrivateKeyCurve25519, KeyfileCurve25519](keyDir, KeyfileCurve25519)
 
   override def receive: Receive = {
     case GenerateKeyFile(password) => sender ! keyManager.generateKeyFile(password)
@@ -25,23 +26,27 @@ class KeyManager(keyDir: String) extends Actor {
 
     case LockKeyFile(pubKeyString, password) => sender ! keyManager.lockKeyFile(pubKeyString, password)
 
-    case GetOpenKeyfiles => sender ! keyManager.listOpenKeyFiles
+    case GetOpenKeyfiles => sender ! keyManager.addresses
 
-    case SignTx(tx, keys, msg) =>
-      val sigs: List[(String, String)] = keys.map { pk =>
-        val pubKey = PublicKey25519Proposition(PublicKey @@ Base58.decode(pk).get )
-        val privKey = keyManager.secrets.find(sk => sk.publicKeyBytes sameElements pubKey.pubKeyBytes)
-
-        privKey match {
-          case Some(sk) =>
-            val signature: String = sk.sign(Base58.decode(msg.asString.get).get).toString
-            (pk, signature)
-          case None => throw new NoSuchElementException
+    case SignTx(tx: Json, keys: List[String], msg: Json) =>
+      val signaturesMap = keys.map(keyString => {
+        Base58.decode(msg.asString.get) match {
+          case Success(msgToSign) =>
+            keyManager.signWithAddress(Address(keyString), msgToSign) match {
+              case Success(signedTx) => {
+                val sig = signedTx.asJson
+                keyManager.lookupPublicKey(Address(keyString)) match {
+                  case Success(pubKey) => pubKey -> sig
+                  case Failure(exception) => throw exception
+                }
+              }
+              case Failure(exception) => throw exception
+            }
+          case Failure(exception) => throw exception
         }
-      }
-      // not sure this is necessary, but seems like it? Updating the signatures field
+      }).toMap.asJson
       val newTx = tx.deepMerge(Map(
-        "signatures" -> sigs.toMap.asJson
+        "signatures" -> signaturesMap
       ).asJson)
       sender ! Map("formattedTx"-> newTx).asJson
   }
@@ -58,11 +63,11 @@ object KeyManager {
 
 object KeyManagerRef {
 
-  def props(keyDir: String)(implicit ec: ExecutionContext): Props = {
+  def props(keyDir: String)(implicit ec: ExecutionContext, np: NetworkPrefix): Props = {
     Props(new KeyManager(keyDir))
   }
 
-  def apply(name: String, keyDir: String)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef = {
+  def apply(name: String, keyDir: String)(implicit system: ActorSystem, ec: ExecutionContext, np: NetworkPrefix): ActorRef = {
     system.actorOf(Props(new KeyManager(keyDir)))
   }
 }

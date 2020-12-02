@@ -15,20 +15,20 @@ object Transaction {
 }
 
 
-case class NewBox(nonce: String,
-                    id: String,
-                    typeOfBox: String,
-                    proposition: PublicKey25519Proposition,
-                    value: Long)
+case class NewBox(evidence: Evidence,
+                  nonce: String,
+                  id: String,
+                  typeOfBox: String,
+                  value: Long)
 
 object NewBox {
   implicit val newBoxEncoder: Encoder[NewBox] = (box: NewBox) =>
   Map(
-      "id" -> box.id.toString.asJson,
+      "id" -> box.id.asJson,
       "type" -> box.typeOfBox.asJson,
-      "proposition" -> box.proposition.toString.asJson,
+      "evidence" -> box.evidence.toString.asJson,
       "value" -> box.value.toString.asJson,
-      "nonce" -> box.nonce.toString.asJson
+      "nonce" -> box.nonce.asJson
     ).asJson
 
   implicit val newBoxDecoder: Decoder[NewBox] = (hCursor: HCursor) => {
@@ -36,8 +36,8 @@ object NewBox {
       nonce <- hCursor.downField("nonce").as[String]
       id <- hCursor.downField("id").as[String]
       typeOfBox <- hCursor.downField("type").as[String]
-      proposition <- hCursor.downField("proposition").as[PublicKey25519Proposition]
+      evidence <- hCursor.downField("evidence").as[Evidence]
       value <- hCursor.downField("value").as[Long]
-    } yield NewBox(nonce, id, typeOfBox, proposition, value)
+    } yield NewBox(evidence, nonce, id, typeOfBox, value)
   }
 }
