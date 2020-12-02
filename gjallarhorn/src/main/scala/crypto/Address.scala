@@ -4,6 +4,7 @@ import com.google.common.primitives.Ints
 import crypto.AddressEncoder.NetworkPrefix
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
+import EvidenceProducer.Syntax._
 import utils.serialization.BytesSerializable
 import utils.serialization.{GjalSerializer, Reader, Writer}
 

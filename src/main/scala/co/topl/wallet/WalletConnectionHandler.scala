@@ -112,6 +112,7 @@ class WalletConnectionHandler (settings: AppSettings, nodeViewHolderRef: ActorRe
 
   def msgHandler(msg: String): Unit = {
     if (msg.contains("Remote wallet actor initialized")) {
+      println(msg)
       parseKeys(msg.substring("Remote wallet actor initialized. My public keys are: ".length))
       remoteWalletActor = Some(sender())
       remoteWalletActor match {

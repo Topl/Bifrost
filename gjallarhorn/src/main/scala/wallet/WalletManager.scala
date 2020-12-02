@@ -192,7 +192,10 @@ class WalletManager(publicKeys: Set[Address], bifrostActorRef: ActorRef) extends
   }
 
   override def receive: Receive = {
-    case GjallarhornStarted => bifrostActorRef ! s"Remote wallet actor initialized. My public keys are: ${walletBoxes.keySet}"
+    case GjallarhornStarted => {
+      println("In gjallarhorn started!")
+      bifrostActorRef ! s"Remote wallet actor initialized. My public keys are: ${walletBoxes.keySet}"
+    }
 
     case msg: String => msgHandling(msg)
 

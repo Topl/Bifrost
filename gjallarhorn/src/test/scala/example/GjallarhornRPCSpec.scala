@@ -94,6 +94,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
+          println(res)
           prototypeTx = (res \\ "formattedTx").head
           msgToSign = (res \\ "messageToSign").head.asString.get
           (res \\ "error").isEmpty shouldBe true

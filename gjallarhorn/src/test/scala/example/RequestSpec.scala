@@ -22,6 +22,7 @@ import scala.concurrent.duration._
 
 /**
   * Must be running bifrost with --local and --seed genesis
+  * ex: "run --local --seed genesis -f"
   */
 class RequestSpec extends AsyncFlatSpec
   with Matchers
@@ -43,7 +44,7 @@ class RequestSpec extends AsyncFlatSpec
   Try(path.deleteRecursively())
   Try(path.createDirectory())
   val password = "pass"
-  val genesisPubKey = "3mBVXE3fuVfu1MBmMsBiRd6y9XokiVV591N65tBfA3FEvmqWB8"
+  val genesisPubKey: Address = Address("86t22E7WNUUrLK48ywSg9iWNBd3TXoJokp4jvJWFvDjQhTaSzywZ")
 
   val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] = Keys(keyFileDir, KeyfileCurve25519)
   //keyManager.unlockKeyFile(Base58.encode(sk1.publicKeyBytes), password)
