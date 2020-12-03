@@ -85,7 +85,7 @@ class TokenBoxRegistry (protected val storage: LSMStore, nodeKeys: Option[Set[Ad
     }.foldLeft((Seq[K](), Seq[(K, Set[V])]()))((acc, acct) => (acc._1 ++ acct._1, acc._2 ++ acct._2))
 
     storage.update(
-      ByteArrayWrapper(newVersion.hashBytes),
+      ByteArrayWrapper(newVersion.bytes),
       deleted.map(k => ByteArrayWrapper(registryInput(k))),
       updated.map {
         case (key, value) => ByteArrayWrapper(registryInput(key)) -> ByteArrayWrapper(value.toSeq.flatMap(Longs.toByteArray).toArray)
@@ -100,11 +100,11 @@ class TokenBoxRegistry (protected val storage: LSMStore, nodeKeys: Option[Set[Ad
   }
 
   override def rollbackTo (version: VersionTag): Try[TokenBoxRegistry] = Try {
-    if ( storage.lastVersionID.exists(_.data sameElements version.hashBytes) ) {
+    if ( storage.lastVersionID.exists(_.data sameElements version.bytes) ) {
       this
     } else {
       log.debug(s"Rolling back TokenBoxRegistry to: ${version.toString}")
-      storage.rollback(ByteArrayWrapper(version.hashBytes))
+      storage.rollback(ByteArrayWrapper(version.bytes))
       new TokenBoxRegistry(storage, nodeKeys)
     }
   }

@@ -1,19 +1,19 @@
 package co.topl.modifier.block
 
 import co.topl.attestation.EvidenceProducer.Syntax._
-import co.topl.attestation.{PrivateKeyCurve25519, Proposition, PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block._
+import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.nodeView.state.box.ArbitBox
-import co.topl.utils.serialization.BifrostSerializer
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
 import scorex.crypto.hash.Blake2b256
 import supertagged.@@
 
-import scala.collection.BitSet
+import scala.util.Try
 
 /**
  * A block is an atomic piece of data network participates are agreed on.
@@ -30,108 +30,137 @@ import scala.collection.BitSet
  *
  * - additional data: block structure version no, timestamp etc
  */
-case class Block( parentId    : BlockId,
-                  timestamp   : Timestamp,
-                  forgerBox   : ArbitBox,
-                  publicKey   : PublicKeyPropositionCurve25519,
-                  signature   : SignatureCurve25519,
-                  transactions: Seq[Transaction.TX],
-                  version     : Version
-                ) extends TransactionsCarryingPersistentNodeViewModifier[Transaction.TX] {
-
-  type M = Block
-
-  lazy val id: BlockId = ModifierId(Blake2b256(messageToSign))
+case class Block(parentId    : ModifierId,
+                 timestamp   : Timestamp,
+                 generatorBox: ArbitBox,
+                 publicKey   : PublicKeyPropositionCurve25519,
+                 signature   : SignatureCurve25519,
+                 height      : Long,
+                 difficulty  : Long,
+                 transactions: Seq[Transaction.TX],
+                 version     : PNVMVersion
+                ) extends TransactionCarryingPersistentNodeViewModifier[Transaction.TX] {
 
   lazy val modifierTypeId: ModifierTypeId = Block.modifierTypeId
 
-  lazy val serializer: BifrostSerializer[Block] = BlockSerializer
+  lazy val id: ModifierId = ModifierId(this)
 
-  lazy val messageToSign: Array[Byte] = {
-    this.copy(signature = SignatureCurve25519.empty).bytes
-  }
+  lazy val messageToSign: Array[Byte] = this.copy(signature = SignatureCurve25519.empty).bytes
+
+  def toComponents: (BlockHeader, BlockBody) = Block.toComponents(this)
 
   override def toString: String = Block.jsonEncoder(this).noSpaces
 }
 
-
-
 object Block {
 
-  type BlockId = ModifierId
   type Timestamp = Long
-  type Version = Byte
 
-  val blockIdLength: Int = NodeViewModifier.ModifierIdSize
   val modifierTypeId: Byte @@ NodeViewModifier.ModifierTypeId.Tag = ModifierTypeId @@ (3: Byte)
-  val signatureLength: Int = SignatureCurve25519.SignatureSize
 
   /**
-   *
-   * @param parentId
-   * @param timestamp
-   * @param txs
-   * @param box
-   * @param privateKey
-   * @param version
-   * @return
-   */
-  def create ( parentId  : BlockId,
-               timestamp : Timestamp,
-               txs       : Seq[Transaction.TX],
-               box       : ArbitBox,
-               privateKey: PrivateKeyCurve25519,
-               version   : Version
-             ): Block = {
+    * Deconstruct a block to its compoennts
+    * @param block the block to decompose
+    * @return a block header and block body
+    */
+  def toComponents(block: Block): (BlockHeader, BlockBody) = {
+    val header: BlockHeader =
+      BlockHeader(
+        block.id,
+        block.parentId,
+        block.timestamp,
+        block.generatorBox,
+        block.publicKey,
+        block.signature,
+        block.height,
+        block.difficulty,
+        block.merkleTree.rootHash,
+        block.bloomFilter,
+        block.version
+      )
 
-    // the owner of the generator box must be the key used to sign the block
-    assert(box.evidence == privateKey.publicImage.generateEvidence)
+    val body: BlockBody =
+      BlockBody(
+        block.id,
+        block.parentId,
+        block.transactions,
+        block.version
+      )
 
-    // generate block message (block with empty signature) to be signed
-    val block = Block(parentId, timestamp, box, privateKey.publicImage, SignatureCurve25519.empty, txs, version)
-
-    // generate signature from the block message and private key
-    val signature = privateKey.sign(block.messageToSign)
-
-    // return a valid block with the signature attached
-    block.copy(signature = signature)
+    (header, body)
   }
 
-  def createBloom (txs: Seq[Transaction.TX]): Array[Byte] = {
-    val bloomBitSet: BitSet = txs.foldLeft(BitSet.empty)(
-      ( total, b ) =>
-        b.bloomTopics match {
-          case Some(e) => total ++ BloomFilter.calcBloom(e.head, e.tail)
-          case None    => total
-        }
+  /**
+   * Creates a full block from the individual components
+   * @param header the header information needed by the consensus layer
+   * @param body the block body containing transactions
+   * @return a full block
+   */
+  def fromComponents(header: BlockHeader, body: BlockBody): Block = {
+    val (_, parentId, timestamp, forgerBox, publicKey, signature, height, difficulty, _, _, version) =
+      BlockHeader.unapply(header).get
+
+    val transactions = body.transactions
+
+    Block(parentId, timestamp, forgerBox, publicKey, signature, height, difficulty, transactions, version)
+  }
+
+  /**
+    * Creates a new block
+    * @param parentId the id of the previous block
+    * @param timestamp time this block was forged
+    * @param txs a seqence of state modifiers
+    * @param generatorBox the Arbit box that resulted in the successful hit
+    * @param height the new height of the chain with this block
+    * @param difficulty the new difficulty of the chain with this block
+    * @param version a byte used to signal the serializer version to use for this block
+    * @return a block to be sent to the network
+    */
+  def createAndSign(parentId: ModifierId,
+                    timestamp: Timestamp,
+                    txs: Seq[Transaction.TX],
+                    generatorBox: ArbitBox,
+                    publicKey: PublicKeyPropositionCurve25519,
+                    height: Long,
+                    difficulty: Long,
+                    version: PNVMVersion
+                   )(signFunction: Array[Byte] => Try[SignatureCurve25519]): Try[Block] = {
+
+    // the owner of the generator box must be the key used to sign the block
+    require(generatorBox.evidence == publicKey.generateEvidence, "Attempted invalid block generation")
+
+    // generate an unsigned block (block with empty signature) to be signed
+    val block =
+      Block(
+        parentId,
+        timestamp,
+        generatorBox,
+        publicKey,
+        SignatureCurve25519.empty,
+        height,
+        difficulty,
+        txs,
+        version
       )
-    BloomFilter(bloomBitSet).topics.foldLeft[Array[Byte]](Array.empty)((a,b) => a :+ b.toByte)
+
+    // use the provided signing function to sign the block and return it
+    signFunction(block.messageToSign).map(s => block.copy(signature = s))
   }
 
   implicit val jsonEncoder: Encoder[Block] = { b: Block ⇒
+    val (header, body) = b.toComponents
     Map(
-      "id" -> b.id.toString.asJson,
-      "parentId" -> b.parentId.toString.asJson,
-      "timestamp" -> b.timestamp.asJson,
-      "generatorBox" -> b.forgerBox.asJson,
-      "publicKey" -> b.publicKey.asJson,
-      "signature" -> b.signature.asJson,
-      "txs" -> b.transactions.asJson,
-      "version" -> b.version.asJson,
-      "blockSize" -> b.serializer.toBytes(b).length.asJson
+      "header" -> header.asJson,
+      "body" -> body.asJson,
+      "blockSize" -> b.bytes.length.asJson
     ).asJson
   }
 
   implicit val jsonDecoder: Decoder[Block] = (c: HCursor) =>
     for {
-      parentId <- c.downField("parentId").as[ModifierId]
-      timestamp <- c.downField("timestamp").as[Timestamp]
-      generatorBox <- c.downField("generatorBox").as[ArbitBox]
-      publicKey <- c.downField("publicKey").as[PublicKeyPropositionCurve25519]
-      signature <- c.downField("signature").as[SignatureCurve25519]
-      txsSeq <- c.downField("txs").as[Seq[Transaction.TX]]
-      version <- c.downField("version").as[Byte]
+      header <- c.downField("header").as[BlockHeader]
+      body <- c.downField("body").as[BlockBody]
     } yield {
-      Block(parentId, timestamp, generatorBox, publicKey, signature, txsSeq, version)
+      Block.fromComponents(header, body)
     }
 }

@@ -101,7 +101,18 @@ case object Toplnet extends GenesisProvider {
 
     val signature = SignatureCurve25519.genesis
 
-    val block = Block(History.GenesisParentId, 0L, generatorBox, genesisAcct.publicImage, signature, txs, blockVersion.blockByte)
+    val block =
+      Block(
+        ModifierId.genesisParentId,
+        0L,
+        generatorBox,
+        genesisAcct.publicImage,
+        signature,
+        0L,
+        initialDifficulty,
+        txs,
+        blockVersion.blockByte
+      )
 
     require(block.id == blockChecksum, s"${Console.RED}MALFORMED GENESIS BLOCK! The calculated genesis block " +
       s"with id ${block.id} does not match the required block for the chosen network mode.${Console.RESET}")

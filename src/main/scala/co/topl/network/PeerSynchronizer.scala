@@ -41,7 +41,7 @@ class PeerSynchronizer ( networkControllerRef: ActorRef,
     networkControllerRef ! RegisterMessageSpecs(appContext.peerSyncRemoteMessages.toSeq, self)
 
     //register for application initialization message
-    context.system.eventStream.subscribe(self, NodeViewReady.getClass)
+    context.system.eventStream.subscribe(self, classOf[NodeViewReady])
   }
 
   ////////////////////////////////////////////////////////////////////////////////////******
@@ -58,7 +58,7 @@ class PeerSynchronizer ( networkControllerRef: ActorRef,
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   private def initialization(): Receive = {
-    case NodeViewReady =>
+    case NodeViewReady(_) =>
       log.info(s"${Console.YELLOW}PeerSynchronizer transitioning to the operational state${Console.RESET}")
       context become operational
       scheduleGetPeers()

@@ -2,7 +2,8 @@ package co.topl.serialization
 
 import co.topl.attestation.ThresholdPropositionCurve25519
 import co.topl.attestation.serialization.ThresholdPropositionCurve25519Serializer
-import co.topl.modifier.block.{Block, BlockSerializer}
+import co.topl.modifier.block.Block
+import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.serialization._
 import co.topl.nodeView.state.box._

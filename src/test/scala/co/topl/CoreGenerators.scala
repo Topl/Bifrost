@@ -20,7 +20,7 @@ trait CoreGenerators {
   lazy val positiveLongGen: Gen[Long] = Gen.choose(1, Long.MaxValue)
   lazy val positiveByteGen: Gen[Byte] = Gen.choose(1, Byte.MaxValue)
   lazy val modifierIdGen: Gen[ModifierId] =
-    Gen.listOfN(NodeViewModifier.ModifierIdSize, Arbitrary.arbitrary[Byte]).map(li => ModifierId(li.toArray))
+    Gen.listOfN(NodeViewModifier.modifierIdSize, Arbitrary.arbitrary[Byte]).map(li => ModifierId(li.toArray))
   lazy val invDataGen: Gen[InvData] = for {
     modifierTypeIdByte: Byte <- Arbitrary.arbitrary[Byte]
     modifierTypeId: ModifierTypeId = ModifierTypeId @@ modifierTypeIdByte

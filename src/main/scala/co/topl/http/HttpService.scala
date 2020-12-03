@@ -17,18 +17,20 @@ import scala.util.{Failure, Success, Try}
 final case class HttpService (apiServices: Seq[ApiEndpoint], settings: RPCApiSettings)(implicit val system: ActorSystem)
   extends CorsSupport {
 
-  val timeout: Timeout = Timeout(settings.timeout)
+  private val timeout: Timeout = Timeout(settings.timeout)
 
-  lazy val corsAllowed: Boolean = settings.corsAllowed
   private lazy val apiKeyHash: Option[Array[Byte]] = Base58.decode(settings.apiKeyHash).toOption
 
-  private lazy val apiServiceHandlers: PartialFunction[(String, Vector[Json], String), Future[Json]] =
-    apiServices.map(_.handlers).reduce(_ orElse _)
+  private val apiServiceHandlers: PartialFunction[(String, Vector[Json], String), Future[Json]] =
+    apiServices
+      .filter(endpoint => settings.namespaceSelector.namespaceStates(endpoint.namespace))
+      .map(_.handlers)
+      .reduce(_ orElse _)
 
   /** the primary route that the HTTP service is bound to in BifrostApp */
   val compositeRoute: Route =
     corsHandler {
-      basicRoute ~ status
+      status ~ basicRoute
     }
 
   /** a static route for exposing an HTML webpage with the node status */
@@ -56,8 +58,10 @@ final case class HttpService (apiServices: Seq[ApiEndpoint], settings: RPCApiSet
 
                 val method = (request \\ "method").head.asString.get
 
+                println(s"\n>>>>>>>>>>>>>>> services: $apiServiceHandlers")
+
                 if (apiServiceHandlers.isDefinedAt(method, params, id)) apiServiceHandlers.apply(method, params, id)
-                else throw new Error("Service handler not found for method: " + method)
+                else throw new Exception("Service handler not found for method: " + method)
               }
 
               // await result of future from handler

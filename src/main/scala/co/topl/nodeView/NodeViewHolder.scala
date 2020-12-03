@@ -7,7 +7,8 @@ import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.consensus.Forger
 import co.topl.consensus.Forger.ReceivableMessages.GenerateGenesis
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
-import co.topl.modifier.block.{Block, BlockSerializer, PersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier}
+import co.topl.modifier.block.serialization.BlockSerializer
+import co.topl.modifier.block.{Block, PersistentNodeViewModifier, TransactionCarryingPersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier}
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.modifier.{ModifierId, NodeViewModifier}
@@ -72,7 +73,7 @@ class NodeViewHolder ( settings: AppSettings )
     context.system.eventStream.subscribe(self, classOf[LocallyGeneratedModifier[PMOD]])
 
     log.info(s"${Console.YELLOW}NodeViewHolder publishing ready signal${Console.RESET}")
-    context.system.eventStream.publish(NodeViewReady)
+    context.system.eventStream.publish(NodeViewReady(this.self))
   }
 
   override def preRestart (reason: Throwable, message: Option[Any]): Unit = {
@@ -152,7 +153,7 @@ class NodeViewHolder ( settings: AppSettings )
     * (e.g. if it is a first launch of a node) None is to be returned
     */
   def restoreState (): Option[NodeView] = {
-    if ( State.exists(settings) ) {
+    if (State.exists(settings)) {
       Some((
         History.readOrGenerate(settings),
         State.readOrGenerate(settings),
@@ -236,18 +237,10 @@ class NodeViewHolder ( settings: AppSettings )
     * @param tx
     */
   protected def txModify(tx: TX): Unit = {
-    //todo: async validation?
-    val errorOpt: Option[Throwable] = {
-      minimalState().semanticValidate(tx) match {
-          case Success(_) => None
-          case Failure(e) => Some(e)
-        }
-    }
-
-    errorOpt match {
-      case None =>
+    tx.syntacticValidate match {
+      case Success(_) =>
         memoryPool().put(tx) match {
-          case Success(newPool) =>
+          case Success(_) =>
             log.debug(s"Unconfirmed transaction $tx added to the memory pool")
             context.system.eventStream.publish(SuccessfulTransaction[TX](tx))
 
@@ -255,7 +248,7 @@ class NodeViewHolder ( settings: AppSettings )
             context.system.eventStream.publish(FailedTransaction(tx.id, e, immediateFailure = true))
         }
 
-      case Some(e) =>
+      case Failure(e) =>
         context.system.eventStream.publish(FailedTransaction(tx.id, e, immediateFailure = true))
     }
   }
@@ -312,7 +305,7 @@ class NodeViewHolder ( settings: AppSettings )
     * @return
     */
   protected def extractTransactions(mod: PMOD): Seq[TX] = mod match {
-    case tcm: TransactionsCarryingPersistentNodeViewModifier[_] => tcm.transactions
+    case tcm: TransactionCarryingPersistentNodeViewModifier[_] => tcm.transactions
     case _ => Seq()
   }
 
@@ -438,11 +431,13 @@ class NodeViewHolder ( settings: AppSettings )
 
     val appliedTxs = blocksApplied.flatMap(extractTransactions)
 
-    memPool.putWithoutCheck(rolledBackTxs).filter { tx =>
-      !appliedTxs.exists(t => t.id == tx.id) && {
-        state.semanticValidate(tx).isSuccess
+    memPool
+      .putWithoutCheck(rolledBackTxs)
+      .filter { tx =>
+        !appliedTxs.exists(t => t.id == tx.id) && {
+          state.semanticValidate(tx).isSuccess
+        }
       }
-    }
   }
 
   /**
