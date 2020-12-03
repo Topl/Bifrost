@@ -7,6 +7,7 @@ import crypto.AddressEncoder.NetworkPrefix
 import crypto.{Address, Secret, SecretGenerator}
 import scorex.util.Random.randomBytes
 import scorex.crypto.hash.Blake2b256
+import scorex.util.encode.Base58
 import utils.Logging
 
 import scala.util.{Failure, Success, Try}

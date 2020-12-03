@@ -11,7 +11,7 @@ import crypto._
 import io.circe.parser.parse
 import io.circe.{Json, parser}
 import io.circe.syntax._
-import requests.RequestsManager.{AssetRequest, WalletRequest}
+import requests.RequestsManager.{TransferRequest, NodeViewRequest}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
@@ -156,26 +156,27 @@ class Requests (settings: AppSettings, requestsManager: ActorRef)
       case "useAkka" =>
         val req: Json = byteStringToJSON(request)
         path match {
-          case "asset" =>
-            val result = Await.result((requestsManager ? AssetRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
+          case "transfer" =>
+            val result = Await.result((requestsManager ? TransferRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
             createJsonResponse(req, result)
-          case "wallet" =>
+          case "nodeview" =>
             val result = Await.result(
-              (requestsManager ? WalletRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
+              (requestsManager ? NodeViewRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
             createJsonResponse(req, result)
         }
     }
   }
 
   def broadcastTx(signedTransaction: Json): Json = {
-    sendRequest(jsonToByteString(signedTransaction), "wallet")
+    sendRequest(jsonToByteString(signedTransaction), "transfer")
   }
 
+  //TODO replace "topl_" with namespace.name?
   def getBalances (publicKeys: Set[String]): Json = {
     val keysJson: Set[Json] = publicKeys.map(_.asJson)
     val params: Json = Map("publicKeys" -> keysJson.toList).asJson
-    val requestBody = transaction("balances", params)
-    sendRequest(requestBody, "wallet")
+    val requestBody = transaction("topl_balances", params)
+    sendRequest(requestBody, "nodeview")
   }
 }
 

@@ -44,7 +44,7 @@ object AddressEncoder {
 
   def fromString(addrStr: String): Try[Address] = {
     Base58.decode(addrStr).flatMap { bytes =>
-      require(bytes.length == encodedAddressLength, s"Invalid address: Not the required length")
+      require(bytes.length == encodedAddressLength, s"Invalid address: the length is ${bytes.length}, not the required length of $encodedAddressLength")
 
       val addrBytes = bytes.dropRight(checksumLength)
       val checksum = bytes.takeRight(checksumLength)

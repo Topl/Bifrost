@@ -8,7 +8,8 @@ import requests.{ApiRoute, Requests}
 import io.circe.Json
 import io.circe.syntax._
 import keymanager.KeyManager._
-import requests.RequestsManager.WalletRequest
+import requests.RequestsManager.NodeViewRequest
+import scorex.util.encode.Base58
 import settings.AppSettings
 
 import scala.concurrent.Future
@@ -56,7 +57,7 @@ case class GjallarhornApiRoute(settings: AppSettings,
       val tx = requests.transaction(method, innerParams)
 
       Future {
-        requests.sendRequest(tx, "asset")
+        requests.sendRequest(tx, "transfer")
       }
   }
 
@@ -84,7 +85,7 @@ case class GjallarhornApiRoute(settings: AppSettings,
   private def broadcastTx(params: Json, id: String): Future[Json] = {
     settings.communicationMode match {
       case "useTcp" => Future{requests.broadcastTx(params)}
-      case "useAkka" => (requestsManager ? WalletRequest(params)).mapTo[String].map(_.asJson)
+      case "useAkka" => (requestsManager ? NodeViewRequest(params)).mapTo[String].map(_.asJson)
     }
   }
 
@@ -154,6 +155,7 @@ case class GjallarhornApiRoute(settings: AppSettings,
     */
   private def lockKeyfile(params: Json, id: String): Future[Json] = {
     val publicKey: String = (params \\ "publicKey").head.asString.get
+
     val password: String = (params \\ "password").head.asString.get
     (keyManager ? LockKeyFile(publicKey, password)).mapTo[Try[Unit]].map {
       case Success(_) => Map(publicKey -> "locked".asJson).asJson
@@ -171,7 +173,7 @@ case class GjallarhornApiRoute(settings: AppSettings,
     ).asJson
     settings.communicationMode match {
       case "useTcp" => Future{requests.getBalances(publicKeys)}
-      case "useAkka" => (requestsManager ? WalletRequest(requestBody)).mapTo[String].map(_.asJson)
+      case "useAkka" => (requestsManager ? NodeViewRequest(requestBody)).mapTo[String].map(_.asJson)
     }
   }
 }

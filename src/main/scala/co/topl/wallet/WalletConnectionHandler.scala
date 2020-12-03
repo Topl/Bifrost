@@ -7,7 +7,7 @@ import akka.util.Timeout
 import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.http.api.ApiEndpoint
-import co.topl.http.api.endpoints.TransactionApiEndpoint
+import co.topl.http.api.endpoints.{NodeViewApiEndpoint, TransactionApiEndpoint}
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.block.{Block, BloomFilter, PersistentNodeViewModifier}
 import co.topl.modifier.transaction._
@@ -94,18 +94,18 @@ class WalletConnectionHandler[
       sender ! s"The remote wallet ${sender()} has been removed from the WalletConnectionHandler in Bifrost"
     }
 
-    if (msg.contains("asset transaction:")) {
-      val txString: String = msg.substring("asset transaction: ".length)
+    if (msg.contains("transaction:")) {
+      val txString: String = msg.substring("transaction: ".length)
       println("Wallet Connection handler received asset transaction: " + txString)
       val walletActorRef: ActorRef = sender()
-      sendRequestApi(txString, walletActorRef, "asset")
+      sendRequestApi(txString, walletActorRef, "transfer")
     }
 
-    if (msg.contains("wallet request:")) {
-      val params: String = msg.substring("wallet request: ".length)
+    if (msg.contains("node view request:")) {
+      val params: String = msg.substring("node view request: ".length)
       println("Wallet connection handler received wallet request: " + params)
       val walletActorRef: ActorRef = sender()
-      sendRequestApi(params, walletActorRef, "wallet")
+      sendRequestApi(params, walletActorRef, "nodeview")
     }
   }
 
@@ -158,16 +158,19 @@ class WalletConnectionHandler[
         require(params.size <= 1, s"size of params is ${params.size}")
         val method = (tx \\ "method").head.asString.get
         requestType match {
-          case "asset" =>
-        }
-
-        requestType match {
           case "transfer" =>
             processRequest(
               TransactionApiEndpoint(settings, appContext, nodeViewHolderRef),
               (method, params, id),
               walletRef
             )
+          case "nodeview" =>
+            processRequest(
+              NodeViewApiEndpoint(settings, appContext, nodeViewHolderRef),
+              (method, params, id),
+              walletRef
+            )
+          case _ => println("wrong request type!")
         }
 
       case Left(error) => throw new Exception(s"error: $error")

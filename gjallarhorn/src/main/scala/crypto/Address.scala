@@ -42,11 +42,12 @@ object Address extends GjalSerializer[Address] {
   // the byte length of an address (network prefix + Evidence type + evidence content)
   val addressSize: Int = 1 + Evidence.size
 
-  def apply(addrStr: String): Address =
+  def apply(addrStr: String): Address = {
     AddressEncoder.fromString(addrStr) match {
       case Success(addr) => addr
       case Failure(ex)   => throw ex
     }
+  }
 
   /**
     * Generates an Address from a proppsition. This method enables propositions to have an accessor method

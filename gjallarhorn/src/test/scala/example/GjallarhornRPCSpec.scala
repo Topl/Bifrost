@@ -17,6 +17,7 @@ import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
 import keymanager.{KeyManagerRef, Keys}
 import requests.{Requests, RequestsManager}
+import scorex.util.encode.Base58
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -45,6 +46,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     case Success(address) => address
     case Failure(ex) => throw ex
   }
+
   val pk2: Address = keyManager.generateKeyFile("password2") match {
     case Success(address) => address
     case Failure(ex) => throw ex
@@ -68,7 +70,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   var prototypeTx: Json = Map("txType" -> "AssetCreation").asJson
   var msgToSign = ""
 
-  it should "get a successful JSON response from createTx request" in {
+/*  it should "get a successful JSON response from createTx request" in {
     val createAssetRequest = ByteString(
       s"""
          |{
@@ -101,7 +103,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
           (res \\ "result").head.asObject.isDefined shouldBe true
       }
     }
-  }
+  }*/
 
   //TODO: make sure it works after changing keys format.
 /*  it should "successfully sign a transaction" in {
@@ -272,7 +274,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
            |   "id": "1",
            |   "method": "balances",
            |   "params": [{
-           |      "method": "balances",
+           |      "method": "topl_balances",
            |      "params": [{
            |            "publicKeys": ["$pubKeyAddr"]
            |       }]

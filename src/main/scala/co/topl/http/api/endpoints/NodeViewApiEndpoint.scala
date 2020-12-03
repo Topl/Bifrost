@@ -84,7 +84,7 @@ case class NodeViewApiEndpoint(
     *      #### Params
     *      | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
     *      |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
-    *      | publicKey               	| String[]   	| Required            	| Public key whose balances are to be retrieved                            	|
+    *      | publicKeys               | String[]   	| Required            	| Public keys whose balances are to be retrieved                            	|
     *
     * @param params input parameters as specified above
     * @param id     request identifier
@@ -94,7 +94,7 @@ case class NodeViewApiEndpoint(
     viewAsync { view =>
       // parse arguments from the request
       (for {
-        addresses <- (params \\ "addresses").head.as[Seq[Address]]
+        addresses <- (params \\ "publicKeys").head.as[Seq[Address]]
       } yield {
         // ensure we have the state being asked about
         checkAddress(addresses, view)
