@@ -1,4 +1,4 @@
-package utils
+package co.topl.utils
 
 import java.io.File
 import java.nio.file.Files.createTempDirectory
@@ -8,8 +8,12 @@ import scala.util.Random
 
 trait FileUtils {
 
-  private val basePath: Path = java.nio.file.Files.createTempDirectory(s"bifrost-${System.nanoTime()}")
+  private val basePath: Path = Files.createTempDirectory(s"bifrost-${System.nanoTime()}")
   private val prefixLength = 10
+
+  sys.addShutdownHook {
+    removeDir(basePath)
+  }
 
   def createTempFile: File = {
     val dir = createTempDir
@@ -25,5 +29,17 @@ trait FileUtils {
     val file = createTempDirectory(basePath, prefix).toFile
     file.deleteOnExit()
     file
+  }
+
+  def removeDir(path: Path): Unit = {
+    def deleteRecursive(dir: File): Unit = {
+      for (file <- dir.listFiles) {
+        if (file.isDirectory) {
+          deleteRecursive(file)
+        }
+        file.delete()
+      }
+    }
+    deleteRecursive(path.toFile)
   }
 }

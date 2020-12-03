@@ -51,8 +51,8 @@ class RequestSpec extends AsyncFlatSpec
   val password = "pass"
   val genesisPubKey = "3mBVXE3fuVfu1MBmMsBiRd6y9XokiVV591N65tBfA3FEvmqWB8"
 
-  val keyFile = KeyFile(password, KeyFile.generateKeyPair(seed1)._1)
-  val keyManager = Keys(keyFileDir)
+  val keyFile: KeyFile = KeyFile(password, KeyFile.generateKeyPair(seed1)._1)
+  val keyManager: Keys = Keys(keyFileDir)
   //keyManager.unlockKeyFile(Base58.encode(sk1.publicKeyBytes), password)
   keyManager.generateKeyFile(password) match {
     case Success(pk) => pk1 = pk

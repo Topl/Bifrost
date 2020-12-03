@@ -127,7 +127,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
           (new History(storage, fullBlockProcessor, validators), progInfo)
         }
       }
-      log.info(s"block ${block.id} appended to parent ${block.parentId} with score ${storage.scoreOf(block.id).get}.")
+      log.info(s"block ${block.id} appended to parent ${block.parentId} with score ${storage.scoreOf(block.id)}.")
       // return result
       res
 

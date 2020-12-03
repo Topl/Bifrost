@@ -9,7 +9,7 @@ class AssetTransferValidationSpec extends StateSpec {
     forAll(validAssetTransferGen) {
       assetTransfer: AssetTransfer =>
         val block = Block(
-          Array.fill(Block.signatureLength)(-1: Byte),
+          Modifier(Array.fill(Block.blockIdLength)(-1: Byte)),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(Block.signatureLength)(0: Byte)),

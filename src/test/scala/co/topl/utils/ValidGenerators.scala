@@ -1,4 +1,4 @@
-package co.topl
+package co.topl.utils
 
 import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.attestation.proof.SignatureCurve25519
@@ -15,10 +15,7 @@ import scorex.util.encode.Base58
 
 import scala.util.{Failure, Success, Try}
 
-/**
-  * Created by cykoz on 5/11/2017.
-  */
-trait ValidGenerators extends BifrostGenerators {
+trait ValidGenerators extends CoreGenerators {
 
   lazy val validBifrostTransactionSeqGen: Gen[Seq[Transaction]] = for {
     seqLen <- positiveMediumIntGen
@@ -100,20 +97,6 @@ trait ValidGenerators extends BifrostGenerators {
 
   lazy val validProgramMethods: List[String] = List("add")
 
-  /*def createProgramBox(executionBuilder: ExecutionBuilder, parties: Map[PublicKey25519Proposition, Role.Role]): ProgramBox = {
-
-    val programJson = Map(
-      "parties" -> parties.map(kv => Base58.encode(kv._1.pubKeyBytes) -> kv._2.toString).asJson,
-      "executionBuilder" -> executionBuilder.json,
-      "lastUpdated" -> System.currentTimeMillis().asJson
-    ).asJson
-
-    val program = Program(programJson, sampleUntilNonEmpty(genBytesList(FastCryptographicHash.DigestSize)))
-
-    val proposition = MofNProposition(1, parties.map(_._1.pubKeyBytes).toSet)
-    ProgramBox(proposition, sampleUntilNonEmpty(positiveLongGen), program.json)
-  }*/
-
   lazy val semanticallyValidProgramMethodExecutionGen: Gen[ProgramMethodExecution] = for {
     timestamp <- positiveLongGen.map(_ / 3)
     data <- stringGen
@@ -163,15 +146,6 @@ trait ValidGenerators extends BifrostGenerators {
     val senderFeePreBoxes = feePreBoxes(sender)
     val fees = Map(sender -> senderFeePreBoxes.map(_._2).sum)
 
-    /*val parameters = executionBuilder
-      .core
-      .registry
-      .keys
-      .map(k => k -> "".asJson)
-      .toMap
-      .asJson
-     */
-
     val parameters = {}.asJson
 
     val hashNoNonces = Blake2b256(
@@ -208,7 +182,7 @@ trait ValidGenerators extends BifrostGenerators {
     data <- stringGen
   } yield {
     val fromKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
-    val from = IndexedSeq((fromKeyPairs._1, Longs.fromByteArray(Blake2b256("Testing").take(8))))
+    val from = IndexedSeq((fromKeyPairs._1, testingValue))
     val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val to = IndexedSeq((toKeyPairs._2, 4L))
 

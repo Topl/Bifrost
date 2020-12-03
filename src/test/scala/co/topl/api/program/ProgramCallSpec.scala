@@ -1,28 +1,25 @@
 package co.topl.api.program
 
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import co.topl.http.api.endpoints.ProgramApiRoute
 import io.circe.parser.parse
 import io.circe.syntax._
 import org.scalatest.DoNotDiscover
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
+
+import scala.util.Random
 
 @DoNotDiscover
-class ProgramCallSpec extends AnyWordSpec
-  with Matchers
-  with ScalatestRouteTest
-  with ProgramMockState {
+class ProgramCallSpec extends ProgramRPCMockState {
 
   val route: Route = ProgramApiRoute(settings.rpcApi, nodeViewHolderRef).route
 
   "programCall" should {
 
     val boxState = Seq(stateBox, codeBox, executionBox)
+    val version = Random.nextInt
 
-    directlyAddPBRStorage(1, boxState)
+    directlyAddPBRStorage(version, boxState)
 
     view().history.bestBlock.transactions.foreach{ tx =>
       println(s"${tx.toString}")
@@ -48,7 +45,7 @@ class ProgramCallSpec extends AnyWordSpec
 
       val requestBody = ByteString(programCallTemplate.stripMargin)
       httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
 
         (res \\ "result").head.asNumber.isDefined shouldEqual true
         (res \\ "error").isEmpty shouldEqual true

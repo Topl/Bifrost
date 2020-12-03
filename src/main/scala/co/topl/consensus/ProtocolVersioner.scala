@@ -12,7 +12,7 @@ import scala.collection.SortedSet
 class ProtocolVersioner(appVersion: Version, protocolVersions: SortedSet[ProtocolSettings]) {
 
   /** this is the set of protocol settings a particular version of the software can utilize */
-  lazy val applicable: SortedSet[ProtocolSettings] = protocolVersions.takeWhile(appVersion >= _.version)
+  lazy val applicable: SortedSet[ProtocolSettings] = protocolVersions.filter(appVersion >= _.version)
 
   /**
    * Finds the consensus rules that should be used based on block height
