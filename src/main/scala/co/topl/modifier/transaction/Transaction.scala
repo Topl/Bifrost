@@ -18,7 +18,7 @@ import scala.util.Try
 
 abstract class Transaction[T <: Any, P <: Proposition] extends NodeViewModifier {
 
-  override lazy val id: ModifierId = ModifierId(Blake2b256(messageToSign))
+  override lazy val id: ModifierId = ModifierId(this)
 
   val modifierTypeId: ModifierTypeId = Transaction.modifierTypeId
 

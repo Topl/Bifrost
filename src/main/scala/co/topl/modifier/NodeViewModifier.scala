@@ -60,6 +60,10 @@ object NodeViewModifier extends BifrostSerializer[NodeViewModifier] {
       case obj: BlockBody =>
         w.put(BlockBody.modifierTypeId)
         BlockBodySerializer.serialize(obj, w)
+
+      case obj: Transaction.TX =>
+        w.put(Transaction.modifierTypeId)
+        TransactionSerializer.serialize(obj, w)
     }
   }
 
@@ -75,9 +79,9 @@ object NodeViewModifier extends BifrostSerializer[NodeViewModifier] {
   }
 
   implicit val jsonEncoder: Encoder[NodeViewModifier] = {
-    case mod: Block       => Block.jsonEncoder(mod)
-    case mod: BlockHeader => BlockHeader.jsonEncoder(mod)
-    case mod: BlockBody   => BlockBody.jsonEncoder(mod)
+    case mod: Block          => Block.jsonEncoder(mod)
+    case mod: BlockHeader    => BlockHeader.jsonEncoder(mod)
+    case mod: BlockBody      => BlockBody.jsonEncoder(mod)
     case mod: Transaction.TX => Transaction.jsonEncoder(mod)
     case other => throw new Exception(s"Unknown modifier type: $other")
   }

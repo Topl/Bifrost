@@ -65,7 +65,7 @@ class ProgramBoxRegistry ( protected val storage: LSMStore ) extends Registry[Pr
       }.foldLeft((Seq[K](), Seq[(K, V)]()))(( acc, progId ) => (acc._1 ++ progId._1, acc._2 ++ progId._2))
 
       storage.update(
-        ByteArrayWrapper(newVersion.hashBytes),
+        ByteArrayWrapper(newVersion.bytes),
         deleted.map(k => ByteArrayWrapper(registryInput(k))),
         updated.map {
           case (key, value) => ByteArrayWrapper(registryInput(key)) -> ByteArrayWrapper(value.hashBytes)
@@ -82,11 +82,11 @@ class ProgramBoxRegistry ( protected val storage: LSMStore ) extends Registry[Pr
 
 
   override def rollbackTo ( version: VersionTag ): Try[ProgramBoxRegistry] = Try {
-    if ( storage.lastVersionID.exists(_.data sameElements version.hashBytes) ) {
+    if ( storage.lastVersionID.exists(_.data sameElements version.bytes) ) {
       this
     } else {
       log.debug(s"Rolling back ProgramBoxRegistry to: ${version.toString}")
-      storage.rollback(ByteArrayWrapper(version.hashBytes))
+      storage.rollback(ByteArrayWrapper(version.bytes))
       new ProgramBoxRegistry(storage)
     }
   }

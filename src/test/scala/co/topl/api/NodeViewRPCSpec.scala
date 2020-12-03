@@ -142,7 +142,7 @@ class NodeViewRPCSpec extends AnyWordSpec
         //Create a block with the above created createAssets transaction
         val tempBlock = Block(history.bestBlockId,
                               System.currentTimeMillis(),
-                              ArbitBox(PublicKeyPropositionCurve25519(PublicKey @@ history.bestBlockId.hashBytes), 0L, 10000L),
+                              ArbitBox(PublicKeyPropositionCurve25519(PublicKey @@ history.bestBlockId.getIdBytes), 0L, 10000L),
                               SignatureCurve25519(Signature @@ Array.fill(Curve25519.SignatureLength)(1: Byte)),
                               Seq(assetTxInstance),
                               settings.application.version.blockByte

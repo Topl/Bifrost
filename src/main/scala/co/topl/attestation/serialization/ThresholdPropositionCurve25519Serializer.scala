@@ -4,6 +4,8 @@ import co.topl.attestation.{PublicKeyPropositionCurve25519, ThresholdProposition
 import co.topl.utils.Extensions._
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
+import scala.collection.SortedSet
+
 object ThresholdPropositionCurve25519Serializer extends BifrostSerializer[ThresholdPropositionCurve25519] {
 
   override def serialize( obj: ThresholdPropositionCurve25519, w: Writer): Unit = {
@@ -19,8 +21,8 @@ object ThresholdPropositionCurve25519Serializer extends BifrostSerializer[Thresh
     val threshold: Int = r.getUInt().toIntExact
 
     val numSigs: Int = r.getUInt().toIntExact
-    val signatures: Set[PublicKeyPropositionCurve25519] =
-      (0 until numSigs).map(_ => PublicKeyPropositionCurve25519Serializer.parse(r)).toSet
+    val signatures: SortedSet[PublicKeyPropositionCurve25519] = SortedSet[PublicKeyPropositionCurve25519](
+      (0 until numSigs).map(_ => PublicKeyPropositionCurve25519Serializer.parse(r)): _*)
 
     ThresholdPropositionCurve25519(threshold, signatures)
   }

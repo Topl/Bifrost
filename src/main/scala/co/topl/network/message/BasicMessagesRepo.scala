@@ -32,12 +32,12 @@ class SyncInfoSpec extends MessageSpecV1[BifrostSyncInfo] {
 
   override def serialize(data: BifrostSyncInfo, w: Writer): Unit = {
     w.putUShort(data.lastBlockIds.size)
-    data.lastBlockIds.foreach(id ⇒ w.putBytes(id.hashBytes))
+    data.lastBlockIds.foreach(id ⇒ w.putBytes(id.bytes))
   }
 
   override def parse(r: Reader): BifrostSyncInfo = {
     val length = r.getUShort()
-    val ids = (1 to length).map(_ ⇒ ModifierId(r.getBytes(NodeViewModifier.modifierIdSize)))
+    val ids = (1 to length).map(_ => ModifierId.parse(r))
     BifrostSyncInfo(ids)
   }
 }
@@ -68,7 +68,7 @@ class InvSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
     w.put(typeId)
     w.putUInt(elems.size)
     elems.foreach { id =>
-      val bytes = id.hashBytes
+      val bytes = id.bytes
       assert(bytes.length == NodeViewModifier.modifierIdSize)
       w.putBytes(bytes)
     }
@@ -79,9 +79,7 @@ class InvSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
     val count = r.getUInt().toIntExact
     require(count > 0, "empty inv list")
     require(count <= maxInvObjects, s"$count elements in a message while limit is $maxInvObjects")
-    val elems = (0 until count).map { _ =>
-      ModifierId(r.getBytes(NodeViewModifier.modifierIdSize))
-    }
+    val elems = (0 until count).map(_ => ModifierId.parse(r))
 
     InvData(typeId, elems)
   }
@@ -154,7 +152,7 @@ class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] wi
     w.putUInt(msgCount)
 
     modifiers.take(msgCount).foreach { case (id, modifier) =>
-      w.putBytes(id.hashBytes)
+      w.putBytes(id.bytes)
       w.putUInt(modifier.length)
       w.putBytes(modifier)
     }
@@ -169,7 +167,7 @@ class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] wi
     val typeId = ModifierTypeId @@ r.getByte()
     val count = r.getUInt().toIntExact
     val seq = (0 until count).map { _ =>
-      val id = ModifierId(r.getBytes(NodeViewModifier.modifierIdSize))
+      val id = ModifierId.parse(r)
       val objBytesCnt = r.getUInt().toIntExact
       val obj = r.getBytes(objBytesCnt)
       id -> obj

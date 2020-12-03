@@ -3,7 +3,7 @@ package co.topl.http.api.endpoints
 import java.security.SecureRandom
 
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.http.api.ApiEndpoint
+import co.topl.http.api.{ApiEndpoint, Namespace, UtilNamespace}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
@@ -24,11 +24,14 @@ case class UtilsApiEndpoint (override val settings: RPCApiSettings, appContext: 
   // Establish the expected network prefix for addresses
   implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
+  // the namespace for the endpoints defined in handlers
+  val namespace: Namespace = UtilNamespace
+
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
-    case ("util_seed", params, id)            => seedRoute(params.head, id)
-    case ("util_seedOfLength", params, id)    => seedOfLength(params.head, id)
-    case ("util_hashBlake2b256", params, id)  => hashBlake2b256(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_seed"            => seedRoute(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_seedOfLength"    => seedOfLength(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_hashBlake2b256"  => hashBlake2b256(params.head, id)
   }
 
   private def generateSeed (length: Int): String = {

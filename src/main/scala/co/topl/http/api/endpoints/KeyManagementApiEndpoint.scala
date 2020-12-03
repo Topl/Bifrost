@@ -6,7 +6,7 @@ import akka.pattern.ask
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.consensus.Forger.ReceivableMessages._
-import co.topl.http.api.ApiEndpoint
+import co.topl.http.api.{AdminNamespace, ApiEndpoint, Namespace}
 import co.topl.settings.{AppContext, RPCApiSettings}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -22,13 +22,16 @@ case class KeyManagementApiEndpoint (override val settings: RPCApiSettings, appC
   // Establish the expected network prefix for addresses
   implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
+  // the namespace for the endpoints defined in handlers
+  val namespace: Namespace = AdminNamespace
+
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
-    case ("admin_unlockKeyfile", params, id)    => unlockKeyfile(params.head, id)
-    case ("admin_lockKeyfile", params, id)      => lockKeyfile(params.head, id)
-    case ("admin_generateKeyfile", params, id)  => generateKeyfile(params.head, id)
-    case ("admin_importSeedPhrase", params, id) => importKeyfile(params.head, id)
-    case ("admin_listOpenKeyfiles", params, id) => listOpenKeyfiles(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_unlockKeyfile"    => unlockKeyfile(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_lockKeyfile"      => lockKeyfile(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_generateKeyfile"  => generateKeyfile(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_importSeedPhrase" => importKeyfile(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_listOpenKeyfiles" => listOpenKeyfiles(params.head, id)
   }
 
   /** #### Summary

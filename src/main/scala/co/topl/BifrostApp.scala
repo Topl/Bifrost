@@ -1,7 +1,6 @@
 package co.topl
 
 import java.lang.management.ManagementFactory
-
 import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.http.scaladsl.Http
 import akka.io.Tcp
@@ -10,7 +9,7 @@ import akka.util.Timeout
 import co.topl.consensus.{Forger, ForgerRef}
 import co.topl.http.HttpService
 import co.topl.http.api.{ApiEndpoint, endpoints}
-import co.topl.http.api.endpoints._
+import co.topl.http.api.endpoints.{DebugApiEndpoint, _}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.NetworkController.ReceivableMessages.BindP2P
@@ -97,7 +96,8 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     UtilsApiEndpoint(settings.rpcApi, appContext),
     KeyManagementApiEndpoint(settings.rpcApi, appContext, forgerRef),
     NodeViewApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef),
-    TransactionApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef)
+    TransactionApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef),
+    DebugApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef, forgerRef)
   )
 
   private val httpService = HttpService(apiRoutes, settings.rpcApi)

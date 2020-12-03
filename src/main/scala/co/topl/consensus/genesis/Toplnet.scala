@@ -103,7 +103,7 @@ case object Toplnet extends GenesisProvider {
 
     val block =
       Block(
-        History.GenesisParentId,
+        ModifierId.genesisParentId,
         0L,
         generatorBox,
         genesisAcct.publicImage,
