@@ -26,7 +26,7 @@ class PeerManager (settings: AppSettings,
 
   override def preStart: Unit = {
     //register for application initialization message
-    context.system.eventStream.subscribe(self, NodeViewReady.getClass)
+    context.system.eventStream.subscribe(self, classOf[NodeViewReady])
   }
 
   // fill database with peers from config file if empty
@@ -49,7 +49,7 @@ class PeerManager (settings: AppSettings,
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   private def initialization(): Receive = {
-    case NodeViewReady =>
+    case NodeViewReady(_) =>
       log.info(s"${Console.YELLOW}PeerManager transitioning to the operational state${Console.RESET}")
       context become operational
   }

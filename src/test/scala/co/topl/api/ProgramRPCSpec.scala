@@ -9,7 +9,7 @@ import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import co.topl.BifrostGenerators
 import co.topl.attestation.PublicKeyPropositionCurve25519
-import co.topl.http.api.services.ProgramApiRoute
+import co.topl.http.api.endpoints.ProgramApiRoute
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView

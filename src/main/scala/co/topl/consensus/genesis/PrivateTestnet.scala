@@ -10,6 +10,7 @@ import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.settings.{AppSettings, RuntimeOpts, Version}
+import co.topl.utils.encode.encodeBase16
 
 import scala.util.Try
 
@@ -18,7 +19,7 @@ case class PrivateTestnet ( keyGen  : (Int, Option[String]) => Set[PublicKeyProp
                             opts    : RuntimeOpts
                           )(implicit val networkPrefix: NetworkPrefix) extends GenesisProvider {
 
-  override protected val blockChecksum: ModifierId = ModifierId(Array.fill(32)(0: Byte))
+  override protected val blockChecksum: ModifierId = ModifierId.empty
 
   override protected val blockVersion: Version = settings.application.version
 
@@ -62,7 +63,18 @@ case class PrivateTestnet ( keyGen  : (Int, Option[String]) => Set[PublicKeyProp
 
     val signature = SignatureCurve25519.genesis
 
-    val block = Block(History.GenesisParentId, 0L, generatorBox, genesisAcct.publicImage, signature, txs, blockVersion.blockByte)
+    val block =
+      Block(
+        ModifierId.genesisParentId,
+        0L,
+        generatorBox,
+        genesisAcct.publicImage,
+        signature,
+        1L,
+        initialDifficulty,
+        txs,
+        blockVersion.blockByte
+      )
 
     log.debug(s"Initialize state with block $block")
 

@@ -10,7 +10,7 @@ object SignatureCurve25519Serializer extends BifrostSerializer[SignatureCurve255
     w.putBytes(obj.sigBytes)
 
   override def parse(r: Reader): SignatureCurve25519 = {
-    val sigBytes = r.getBytes(SignatureCurve25519.SignatureSize)
+    val sigBytes = r.getBytes(SignatureCurve25519.signatureSize)
     SignatureCurve25519(Signature @@ sigBytes)
   }
 }

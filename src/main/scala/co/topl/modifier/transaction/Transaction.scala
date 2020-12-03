@@ -3,6 +3,7 @@ package co.topl.modifier.transaction
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.{Proof, Proposition}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
+import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.modifier.{ModifierId, NodeViewModifier}
@@ -17,16 +18,11 @@ import scala.util.Try
 
 abstract class Transaction[T <: Any, P <: Proposition] extends NodeViewModifier {
 
-  override type M = Transaction[_ <: Any, _ <: Proposition]
-
-  override lazy val id: ModifierId = ModifierId(Blake2b256(messageToSign))
-
-  override lazy val serializer: BifrostSerializer[Transaction[_ <: Any, _ <: Proposition]] =
-    TransactionSerializer
-
-  lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = None
+  override lazy val id: ModifierId = ModifierId(this)
 
   val modifierTypeId: ModifierTypeId = Transaction.modifierTypeId
+
+  val bloomTopics: IndexedSeq[BloomTopic]
 
   val txTypePrefix: TxType
 

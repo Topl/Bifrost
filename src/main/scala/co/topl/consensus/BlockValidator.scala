@@ -1,10 +1,13 @@
 package co.topl.consensus
 
+import co.topl.consensus
+import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
-import co.topl.nodeView.history.{BlockProcessor, Storage}
+import co.topl.nodeView.history.{BlockProcessor, History, Storage}
 
-import scala.util.Try
+import scala.annotation.tailrec
+import scala.util.{Failure, Try}
 
 //PoS consensus rules checks, throws exception if anything wrong
 sealed trait BlockValidator[PM <: Block] {
@@ -13,33 +16,68 @@ sealed trait BlockValidator[PM <: Block] {
 
 class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor) extends BlockValidator[Block] {
   def validate(block: Block): Try[Unit] = Try {
-    // find the source of the parent block (either storage or chain cache)
-    val (parent, parentDifficulty, parentHeight) = blockProcessor.getCacheBlock(block.parentId) match {
-      case Some(cacheParent) =>
-        (cacheParent.block, cacheParent.baseDifficulty, cacheParent.height)
-      case None =>
-        (storage.modifierById(block.parentId).get,
-          storage.difficultyOf(block.parentId).get,
-          storage.heightOf(block.parentId).get)
+    // lookup our local data about the parent
+    val (parent, prevBlockTimes) = getParentDetailsOf(block)
+
+    // first ensure that we can calculate the same block data as is stamped on the block
+    ensureHeightAndDifficulty(block, parent, prevBlockTimes) match {
+      case Failure(ex) => throw ex
+      case _ => // continue on
     }
 
+    // next, ensure the hit was valid
+    ensureValidHit(block, parent) match {
+      case Failure(ex) => throw ex
+      case _ => // continue on
+    }
+  }
+
+  private def ensureHeightAndDifficulty(block: Block, parent: Block, prevTimes: Seq[Block.Timestamp]): Try[Unit] = Try {
+    // calculate the new base difficulty
+    val newHeight = parent.height + 1
+    val newBaseDifficulty = consensus.calcNewBaseDifficulty(newHeight, parent.difficulty, prevTimes)
+
+    // does the difficulty stamped on the block match what we would calculate locally?
+    require(block.difficulty == newBaseDifficulty,
+      s"Local calculation of block difficulty failed since ${block.difficulty} != $newBaseDifficulty")
+
+    // does the height stamped on the block match what we would calculate locally?
+    require(block.height == newHeight,
+      s"Local calculation of block height failed since ${block.height} != $newHeight")
+  }
+
+  private def ensureValidHit(block: Block, parent: Block): Try[Unit] = Try {
     // calculate the hit value from the forger box included in the new block
-    val hit = calcHit(parent)(block.forgerBox)
+    val hit = calcHit(parent)(block.generatorBox)
 
     // calculate the adjusted difficulty the forger would have used to determine eligibility
     val timestamp = block.timestamp
-    val target = calcAdjustedTarget(parent, parentHeight, parentDifficulty, timestamp)
-    val valueTarget = (target * BigDecimal(block.forgerBox.value)).toBigInt
+    val target = calcAdjustedTarget(parent, parent.height, parent.difficulty, timestamp)
+    val valueTarget = (target * BigDecimal(block.generatorBox.value)).toBigInt
 
     // did the forger create a block with a valid forger box and adjusted difficulty?
-    require( BigInt(hit) < valueTarget, s"$hit < $valueTarget failed, $parentDifficulty ")
+    require(BigInt(hit) < valueTarget, s"Block difficulty failed since $hit > $valueTarget")
   }
+
+  /** Helper function to find the source of the parent block (either storage or chain cache) */
+  private def getParentDetailsOf(block: Block): (Block, Seq[Block.Timestamp]) =
+    blockProcessor.getCacheBlock(block.parentId) match {
+      case Some(cacheParent) => (cacheParent.block, cacheParent.prevBlockTimes)
+      case None =>
+        //we have already checked if the parent exists so can get
+        val parent = storage.modifierById(block.parentId).get
+        (parent, History.getTimestamps(storage, consensus.nxtBlockNum, parent) :+ block.timestamp)
+    }
 }
 
+/* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+
 class SyntaxBlockValidator extends BlockValidator[Block] {
+  //todo: decide on a maximum size for blocks and enforce here
+
   // the signature on the block should match the signature used in the Arbit and Poly minting transactions
-  val forgerEntitlementCheck: (Transaction[_,_], Block) => Unit =
-    (tx: Transaction[_,_], b: Block) =>
+  val forgerEntitlementCheck: (Transaction.TX, Block) => Unit =
+    (tx: Transaction.TX, b: Block) =>
       require(tx.attestation.keys.toSeq.contains(b.publicKey),
         "The forger entitled transactions must match the block details")
 

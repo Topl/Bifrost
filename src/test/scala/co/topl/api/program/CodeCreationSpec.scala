@@ -3,7 +3,7 @@ package co.topl.api.program
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
-import co.topl.http.api.services.ProgramApiRoute
+import co.topl.http.api.endpoints.ProgramApiRoute
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
@@ -52,7 +52,7 @@ class CodeCreationSpec extends AnyWordSpec
         val txInstance: Transaction = view().pool.modifierById(txHashId).get
 
         val history = view().history
-        val tempBlock = Block.create(
+        val tempBlock = Block.createAndSign(
           history.bestBlockId,
           System.currentTimeMillis(),
           Seq(txInstance),

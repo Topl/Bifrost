@@ -1,7 +1,6 @@
 package co.topl
 
 import java.lang.management.ManagementFactory
-
 import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.http.scaladsl.Http
 import akka.io.Tcp
@@ -9,8 +8,8 @@ import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.consensus.{Forger, ForgerRef}
 import co.topl.http.HttpService
-import co.topl.http.api.ApiService
-import co.topl.http.api.services._
+import co.topl.http.api.{ApiEndpoint, endpoints}
+import co.topl.http.api.endpoints.{DebugApiEndpoint, _}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.NetworkController.ReceivableMessages.BindP2P
@@ -70,7 +69,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef(NodeViewHolder.actorName, settings, appContext)
 
-  private val walletConnectionHandlerRef: ActorRef = WalletConnectionHandlerRef(WalletConnectionHandler.actorName, settings, appContext, nodeViewHolderRef)
+  private val walletConnectionHandlerRef: ActorRef = WalletConnectionHandlerRef[PMOD](WalletConnectionHandler.actorName, settings, appContext, nodeViewHolderRef)
 
   private val peerSynchronizer: ActorRef = PeerSynchronizerRef(PeerSynchronizer.actorName, networkControllerRef, peerManagerRef, settings, appContext)
 
@@ -93,13 +92,12 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // Create and register controllers for API routes
-  private val apiRoutes: Seq[ApiService] = Seq(
-    UtilsApiService(settings.rpcApi, appContext),
-    KeyManagementApiService(settings.rpcApi, appContext, forgerRef),
-    AssetApiService(settings.rpcApi, appContext, nodeViewHolderRef),
-    DebugApiService(settings.rpcApi, appContext, nodeViewHolderRef),
-    WalletApiService(settings.rpcApi, appContext, nodeViewHolderRef),
-    NodeViewApiService(settings.rpcApi, appContext, nodeViewHolderRef)
+  private val apiRoutes: Seq[ApiEndpoint] = Seq(
+    UtilsApiEndpoint(settings.rpcApi, appContext),
+    KeyManagementApiEndpoint(settings.rpcApi, appContext, forgerRef),
+    NodeViewApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef),
+    TransactionApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef),
+    DebugApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef, forgerRef)
   )
 
   private val httpService = HttpService(apiRoutes, settings.rpcApi)

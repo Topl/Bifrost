@@ -1,7 +1,9 @@
 package co.topl
 
+import akka.actor.ActorRef
+
 package object settings {
 
-  case object NodeViewReady
+  case class NodeViewReady(nodeViewHolderRef: ActorRef)
 
 }

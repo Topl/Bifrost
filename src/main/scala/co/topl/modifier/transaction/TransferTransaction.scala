@@ -3,6 +3,7 @@ package co.topl.modifier.transaction
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.attestation.{Evidence, _}
+import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.Box.Nonce
 import co.topl.nodeView.state.box.TokenBox.Value
@@ -24,6 +25,8 @@ abstract class TransferTransaction[
     val data: String,
     val minting: Boolean
   ) extends Transaction[TokenBox.Value, P] {
+
+  lazy val bloomTopics: IndexedSeq[BloomTopic] = to.map(BloomTopic @@ _._1.bytes)
 
   lazy val boxIdsToOpen: IndexedSeq[BoxId] = from.map { case (addr, nonce) =>
     BoxId.idFromEviNonce(addr.evidence, nonce)
@@ -213,18 +216,19 @@ object TransferTransaction {
     val unlockers = BoxUnlocker.generate(tx.from, tx.attestation)
 
     // iterate through the unlockers and sum up the value of the box for each valid unlocker
-    unlockers.foldLeft[Try[Long]](Success(0L))(( trySum, unlocker ) => {
-      trySum.flatMap { partialSum =>
-        state.getBox(unlocker.closedBoxId) match {
-          case Some(box: TokenBox) if unlocker.boxKey.isValid(unlocker.proposition, tx.messageToSign) =>
-            Success(partialSum + box.value)
+    unlockers
+      .foldLeft[Try[Long]](Success(0L))((trySum, unlocker) => {
+        trySum.flatMap { partialSum =>
+          state.getBox(unlocker.closedBoxId) match {
+            case Some(box: TokenBox) if unlocker.boxKey.isValid(unlocker.proposition, tx.messageToSign) =>
+              Success(partialSum + box.value)
 
-          case Some(_) => Failure(new Exception("Invalid unlocker"))
-          case None    => Failure(new Exception(s"Box for unlocker $unlocker cannot be found in state"))
-          case _       => Failure(new Exception("Invalid Box type for this transaction"))
+            case Some(_) => Failure(new Exception("Invalid unlocker"))
+            case None    => Failure(new Exception(s"Box for unlocker $unlocker cannot be found in state"))
+            case _       => Failure(new Exception("Invalid Box type for this transaction"))
+          }
         }
-      }
-    }) match {
+      }) match {
       // a normal transfer will fall in this case
       case Success(sum: Long) if txOutput == sum - tx.fee =>
         Success(Unit)
