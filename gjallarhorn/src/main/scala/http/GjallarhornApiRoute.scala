@@ -1,15 +1,13 @@
 package http
 
 import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
-import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import crypto.Address
 import requests.{ApiRoute, Requests}
 import io.circe.Json
 import io.circe.syntax._
 import keymanager.KeyManager._
-import requests.RequestsManager.NodeViewRequest
-import scorex.util.encode.Base58
+import requests.RequestsManager.BifrostRequest
 import settings.AppSettings
 
 import scala.concurrent.Future
@@ -23,9 +21,23 @@ case class GjallarhornApiRoute(settings: AppSettings,
                               (implicit val context: ActorRefFactory,
                                implicit val actorSystem: ActorSystem) extends ApiRoute {
 
-  override val route: Route = pathPrefix("gjallarhorn") {basicRoute(handlers) }
+  //override val route: Route = pathPrefix("gjallarhorn") {basicRoute(handlers) }
 
-  /**
+  val namespace: Namespace = WalletNamespace
+
+  // partial function for identifying local method handlers exposed by the api
+  val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
+    case (method, params, id) if method == s"${namespace.name}_createTransaction" => createTransaction(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_signTx" => signTx(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_listOpenKeyfiles"  => listOpenKeyfiles(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_broadcastTx"      => broadcastTx(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_generateKeyfile" => generateKeyfile(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_importKeyfile" => importKeyfile(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_unlockKeyfile" => unlockKeyfile(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_lockKeyfile" => lockKeyfile(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_balances" => balances(params.head, id)
+  }
+  /*/**
     * Handles the different methods that are called.
     * @param method - can be: createAssetsProtoType, signTX, broadcastTx, listOpenKeyfiles, generateKeyfile
     * @param params - parameters for the given method.
@@ -43,7 +55,7 @@ case class GjallarhornApiRoute(settings: AppSettings,
         case "unlockKeyfile" => unlockKeyfile(params.head, id)
         case "lockKeyfile" => lockKeyfile(params.head, id)
         case "balances" => balances(params.head, id)
-    }
+    }*/
 
   /**
     * Creates a transaction.
@@ -52,12 +64,13 @@ case class GjallarhornApiRoute(settings: AppSettings,
     * @return - a response after creating transaction.
     */
   private def createTransaction(params: Json, id: String): Future[Json] = {
+      println("in create transaction")
       val method: String = (params \\ "method").head.asString.get
       val innerParams: Json = (params \\ "params").head.asArray.get.head
       val tx = requests.transaction(method, innerParams)
 
       Future {
-        requests.sendRequest(tx, "transfer")
+        requests.sendRequest(tx)
       }
   }
 
@@ -83,9 +96,9 @@ case class GjallarhornApiRoute(settings: AppSettings,
     * @return
     */
   private def broadcastTx(params: Json, id: String): Future[Json] = {
-    settings.communicationMode match {
+    settings.application.communicationMode match {
       case "useTcp" => Future{requests.broadcastTx(params)}
-      case "useAkka" => (requestsManager ? NodeViewRequest(params)).mapTo[String].map(_.asJson)
+      case "useAkka" => (requestsManager ? BifrostRequest(params)).mapTo[String].map(_.asJson)
     }
   }
 
@@ -164,17 +177,18 @@ case class GjallarhornApiRoute(settings: AppSettings,
   }
 
   private def balances(params: Json, id: String): Future[Json] = {
-    val publicKeys: Set[String] = (params \\ "publicKeys").head.asArray.get.map(k => k.asString.get).toSet
+    val publicKeys: Set[String] = (params \\ "addresses").head.asArray.get.map(k => k.asString.get).toSet
     val requestBody = Map(
       "jsonrpc" -> "2.0".asJson,
       "id" -> "2".asJson,
       "method"-> (params \\ "method").head.asJson,
       "params" -> (params \\ "params").head.asJson
     ).asJson
-    settings.communicationMode match {
+    settings.application.communicationMode match {
       case "useTcp" => Future{requests.getBalances(publicKeys)}
-      case "useAkka" => (requestsManager ? NodeViewRequest(requestBody)).mapTo[String].map(_.asJson)
+      case "useAkka" => (requestsManager ? BifrostRequest(requestBody)).mapTo[String].map(_.asJson)
     }
   }
+
 }
 

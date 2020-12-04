@@ -102,6 +102,10 @@ object TransferTransaction {
     // Lookup boxes for the given senders
     val senderBoxes =
       sender.flatMap { s =>
+        println("in create raw transfer: ")
+        println("address: " + s)
+        println("token boxes: " + state.getTokenBoxes(s))
+        println("tx type: " + txType)
         state.getTokenBoxes(s)
           .getOrElse(throw new Exception("No boxes found to fund transaction")) // isn't this just an empty sequence instead of None?
           .map {
@@ -112,6 +116,8 @@ object TransferTransaction {
               bx.issuer == assetArgs.getOrElse(throw new Error("Undefined asset issuer parameter"))._1) => ("Asset", s, bx)
           }
       }.groupBy(_._1)
+
+    println("sender boxes! " + senderBoxes)
 
     // ensure there are enough polys to pay the fee
     require(senderBoxes("Poly").map(_._3.value).sum >= fee, s"Insufficient funds available to pay transaction fee.")

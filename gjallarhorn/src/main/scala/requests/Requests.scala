@@ -11,17 +11,17 @@ import crypto._
 import io.circe.parser.parse
 import io.circe.{Json, parser}
 import io.circe.syntax._
-import requests.RequestsManager.{TransferRequest, NodeViewRequest}
+import requests.RequestsManager.BifrostRequest
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scorex.util.encode.Base58
-import settings.AppSettings
+import settings.ApplicationSettings
 
 import scala.util.{Failure, Success}
 
-class Requests (settings: AppSettings, requestsManager: ActorRef)
+class Requests (settings: ApplicationSettings, requestsManager: ActorRef)
                (implicit val actorSystem: ActorSystem) {
 
   val http: HttpExt = Http(actorSystem)
@@ -30,8 +30,9 @@ class Requests (settings: AppSettings, requestsManager: ActorRef)
 
   val declaredAddress: String = settings.declaredAddress
 
+  //TODO: does the http require a path anymore on Bifrost side?
   //Generic Method for HTTP POST request
-  def httpPOST(jsonRequest: ByteString, path: String): HttpRequest = {
+  def httpPOST(jsonRequest: ByteString, path: String = ""): HttpRequest = {
     HttpRequest(
       HttpMethods.POST,
       uri = s"$declaredAddress/$path/",
@@ -143,40 +144,32 @@ class Requests (settings: AppSettings, requestsManager: ActorRef)
   /**
     *
     * @param request - the request to send as a byteString
-    * @param path - asset or wallet request
     * @return
     */
-  def sendRequest(request: ByteString, path: String): Json  = {
+  def sendRequest(request: ByteString): Json  = {
     settings.communicationMode match {
       case "useTcp" =>
-        val sendTx = httpPOST(request, path)
+        val sendTx = httpPOST(request)
         val data = requestResponseByteString(sendTx)
         byteStringToJSON(data)
 
       case "useAkka" =>
         val req: Json = byteStringToJSON(request)
-        path match {
-          case "transfer" =>
-            val result = Await.result((requestsManager ? TransferRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
-            createJsonResponse(req, result)
-          case "nodeview" =>
-            val result = Await.result(
-              (requestsManager ? NodeViewRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
-            createJsonResponse(req, result)
-        }
+        val result = Await.result((requestsManager ? BifrostRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
+        createJsonResponse(req, result)
     }
   }
 
   def broadcastTx(signedTransaction: Json): Json = {
-    sendRequest(jsonToByteString(signedTransaction), "transfer")
+    sendRequest(jsonToByteString(signedTransaction))
   }
 
   //TODO replace "topl_" with namespace.name?
   def getBalances (publicKeys: Set[String]): Json = {
     val keysJson: Set[Json] = publicKeys.map(_.asJson)
-    val params: Json = Map("publicKeys" -> keysJson.toList).asJson
+    val params: Json = Map("addresses" -> keysJson.toList).asJson
     val requestBody = transaction("topl_balances", params)
-    sendRequest(requestBody, "nodeview")
+    sendRequest(requestBody)
   }
 }
 

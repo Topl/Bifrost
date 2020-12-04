@@ -32,18 +32,13 @@ class RequestsManager (val bifrostActorRef: ActorRef)( implicit ec: ExecutionCon
 
   override def receive: Receive = {
 
-    case TransferRequest(tx: Json) =>
+    case BifrostRequest(tx: Json) =>
       val from: ActorRef = sender()
-      sendToBifrost(s"transaction: $tx", from)
-
-    case NodeViewRequest(params: Json) =>
-      val from: ActorRef = sender()
-      sendToBifrost(s"node view request: $params", from)
+      sendToBifrost(s"request from gjallarhorn: $tx", from)
 
   }
 }
 
 object RequestsManager {
-  case class TransferRequest(tx: Json)
-  case class NodeViewRequest(params: Json)
+  case class BifrostRequest(tx: Json)
 }

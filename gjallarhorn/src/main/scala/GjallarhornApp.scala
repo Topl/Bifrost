@@ -4,9 +4,9 @@ import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import crypto.AddressEncoder.NetworkPrefix
 import crypto.{KeyfileCurve25519, PrivateKeyCurve25519}
-import http.GjallarhornApiRoute
+import http.{GjallarhornApiRoute, HttpService}
 import keymanager.{KeyManagerRef, Keys}
-import requests.{Requests, RequestsManager}
+import requests.{ApiRoute, Requests, RequestsManager}
 import settings.{AppSettings, StartupOpts}
 import utils.Logging
 import wallet.{DeadLetterListener, WalletManager}
@@ -26,22 +26,22 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   implicit val timeout: Timeout = 10.seconds
 
   private val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", "keyfiles")
-  val keyFileDir: String = settings.keyFileDir
+  val keyFileDir: String = settings.application.keyFileDir
   val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] = Keys(keyFileDir, KeyfileCurve25519)
 
   val listener: ActorRef = system.actorOf(Props[DeadLetterListener]())
   system.eventStream.subscribe(listener, classOf[DeadLetter])
 
-  if (settings.chainProvider == "") {
+  if (settings.application.chainProvider == "") {
     log.info("gjallarhorn running in offline mode.")
   }else{
     log.info("gjallarhorn running in online mode. Trying to connect to Bifrost...")
-    system.actorSelection(s"akka.tcp://${settings.chainProvider}/user/walletConnectionHandler").resolveOne().onComplete {
+    system.actorSelection(s"akka.tcp://${settings.application.chainProvider}/user/walletConnectionHandler").resolveOne().onComplete {
       case Success(actor) =>
         log.info(s"bifrst actor ref was found: $actor")
         setUpOnlineMode(actor)
       case Failure(ex) =>
-        log.error(s"bifrost actor ref not found at: akka.tcp://${settings.chainProvider}. Terminating application!${Console.RESET}")
+        log.error(s"bifrost actor ref not found at: akka.tcp://${settings.application.chainProvider}. Terminating application!${Console.RESET}")
         GjallarhornApp.shutdown(system, Seq(keyManagerRef))
     }
   }
@@ -57,12 +57,14 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
     val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager(bifrost)), name = "RequestsManager")
     actorsToStop ++ Seq(walletManagerRef, requestsManagerRef)
     walletManagerRef ! GjallarhornStarted
-    val requests: Requests = new Requests(settings, requestsManagerRef)
-    val apiRoute: Route = GjallarhornApiRoute(settings, keyManagerRef, requestsManagerRef, requests).route
+    val requests: Requests = new Requests(settings.application, requestsManagerRef)
+    val apiRoute: ApiRoute = GjallarhornApiRoute(settings, keyManagerRef, requestsManagerRef, requests)
 
-    val httpPort: Int = settings.rpcPort
+    val httpService = HttpService(Seq(apiRoute), settings.rpcApi)
+    val httpHost = settings.rpcApi.bindAddress.getHostName
+    val httpPort: Int = settings.rpcApi.bindAddress.getPort
 
-    Http().newServerAt("localhost", httpPort).bind(apiRoute).onComplete {
+    Http().newServerAt(httpHost, httpPort).bind(httpService.compositeRoute).onComplete {
       case Success(serverBinding) =>
         log.info(s"${Console.YELLOW}HTTP server bound to ${serverBinding.localAddress}${Console.RESET}")
 

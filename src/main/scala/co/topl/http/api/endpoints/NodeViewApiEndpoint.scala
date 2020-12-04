@@ -94,7 +94,7 @@ case class NodeViewApiEndpoint(
     viewAsync { view =>
       // parse arguments from the request
       (for {
-        addresses <- (params \\ "publicKeys").head.as[Seq[Address]]
+        addresses <- (params \\ "addresses").head.as[Seq[Address]]
       } yield {
         // ensure we have the state being asked about
         checkAddress(addresses, view)

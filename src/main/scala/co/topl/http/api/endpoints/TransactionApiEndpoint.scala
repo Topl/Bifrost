@@ -21,7 +21,7 @@ import scala.util.{Failure, Success}
   *
   * @param nodeViewHolderRef actor reference to inform of new transactions
   * @param settings the settings for HTTP REST API
-  * @param context reference to the actor system used to create new actors for handling requests
+  * @param appContext reference to the actor system used to create new actors for handling requests
   */
 case class TransactionApiEndpoint(
   settings:          RPCApiSettings,
@@ -76,6 +76,15 @@ case class TransactionApiEndpoint(
     */
   private def rawAssetTransfer(implicit params: Json, id: String): Future[Json] = {
     viewAsync { view =>
+      println("in raw asset transfer: " + params)
+      println((params \\ "propositionType").head.as[String])
+      println((params \\ "recipient").head.as[IndexedSeq[(Address, Long)]])
+      println((params \\ "sender").head.as[IndexedSeq[Address]])
+      println((params \\ "changeAddress").head.as[Address])
+      println((params \\ "fee").head.as[Long])
+      println((params \\ "issuer").head.as[Address])
+      println((params \\ "assetCode").head.as[String])
+      println((params \\ "minting").head.as[Boolean])
       // parse arguments from the request
       (for {
         propType   <- (params \\ "propositionType").head.as[String]
@@ -194,6 +203,7 @@ case class TransactionApiEndpoint(
       }) match {
         case Right(Success(tx)) =>
           // validate and update nodeView with new TX
+          println("hello successful: "+ tx)
           tx.rawValidate match {
             case Success(_) =>
               Map(

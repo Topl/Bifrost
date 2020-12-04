@@ -47,6 +47,10 @@ class WalletConnectionHandler[
     context.system.eventStream.subscribe(self, classOf[SemanticallySuccessfulModifier[PMOD]])
   }
 
+  private val apiServiceHandlers =
+    NodeViewApiEndpoint(settings, appContext, nodeViewHolderRef).handlers orElse
+      TransactionApiEndpoint(settings, appContext, nodeViewHolderRef).handlers
+
   ////////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
@@ -94,18 +98,11 @@ class WalletConnectionHandler[
       sender ! s"The remote wallet ${sender()} has been removed from the WalletConnectionHandler in Bifrost"
     }
 
-    if (msg.contains("transaction:")) {
-      val txString: String = msg.substring("transaction: ".length)
-      println("Wallet Connection handler received asset transaction: " + txString)
+    if (msg.contains("request from gjallarhorn:")) {
+      val txString: String = msg.substring("request from gjallarhorn: ".length)
+      println("Wallet Connection handler received a request from gjallarhorn: " + txString)
       val walletActorRef: ActorRef = sender()
-      sendRequestApi(txString, walletActorRef, "transfer")
-    }
-
-    if (msg.contains("node view request:")) {
-      val params: String = msg.substring("node view request: ".length)
-      println("Wallet connection handler received wallet request: " + params)
-      val walletActorRef: ActorRef = sender()
-      sendRequestApi(params, walletActorRef, "nodeview")
+      sendRequestApi(txString, walletActorRef)
     }
   }
 
@@ -131,51 +128,39 @@ class WalletConnectionHandler[
   }
 
   /** Handles requests sent from a remote Gjallarhorn instance and sends them to the appropriate API methods
-    * @param apiService the service to target for processing of the request
     * @param req parameters to fulfill the request
     * @param actorRef the actor to respond to
     */
-  private def processRequest(apiService: ApiEndpoint, req: (String, Vector[Json], String), actorRef: ActorRef): Unit = {
-    apiService
-      .handlers(req._1, req._2, req._3)
-      .transformWith {
-        case Success(resp) => Future(resp.noSpaces)
-        case _             => Future("Failed to process request")
-      }
-      .pipeTo(actorRef)
+  private def processRequest(req: (String, Vector[Json], String), actorRef: ActorRef): Unit = {
+    if (apiServiceHandlers.isDefinedAt(req)) {
+      apiServiceHandlers
+        .apply(req)
+        .transformWith {
+          case Success(resp) => Future(resp.noSpaces)
+          case _             => Future("Failed to process request")
+        }
+        .pipeTo(actorRef)
+
+    } else throw new Exception("Service handler not found for method: " + req._1)
   }
 
   /** Parse incoming request parameters and target the service with the appropriate handler function
     * @param params function parameters needed to process the requested message type
     * @param walletRef the actor reference of the Gjallarhorn instance
-    * @param requestType type of request being sent
     */
-  private def sendRequestApi(params: String, walletRef: ActorRef, requestType: String): Unit = {
-    parse(params) match {
-      case Right(tx) =>
-        val id = (tx \\ "id").head.asString.get
-        val params = (tx \\ "params").head.asArray.get
-        require(params.size <= 1, s"size of params is ${params.size}")
-        val method = (tx \\ "method").head.asString.get
-        requestType match {
-          case "transfer" =>
-            processRequest(
-              TransactionApiEndpoint(settings, appContext, nodeViewHolderRef),
-              (method, params, id),
-              walletRef
-            )
-          case "nodeview" =>
-            processRequest(
-              NodeViewApiEndpoint(settings, appContext, nodeViewHolderRef),
-              (method, params, id),
-              walletRef
-            )
-          case _ => println("wrong request type!")
-        }
-
+  private def sendRequestApi(params: String, walletRef: ActorRef): Unit =
+    (for {
+      tx <- parse(params)
+      id <- (tx \\ "id").head.as[String]
+      params <- (tx \\ "params").head.as[Vector[Json]]
+      method <- (tx \\ "method").head.as[String]
+    } yield {
+      require(params.size <= 1, s"size of params is ${params.size}")
+      processRequest((method, params, id), walletRef)
+    }) match {
+      case Right(tx)   => //
       case Left(error) => throw new Exception(s"error: $error")
     }
-  }
 
   /** Parse the set of keys registered by the Gjallarhorn actor
     * @param keys a stringified set of PublicKeyPropositions to monitor for changes

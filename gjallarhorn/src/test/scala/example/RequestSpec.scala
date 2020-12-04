@@ -5,12 +5,13 @@ import akka.pattern.ask
 import _root_.requests.{Requests, RequestsManager}
 import akka.util.{ByteString, Timeout}
 import crypto.AddressEncoder.NetworkPrefix
-import crypto.{Address, KeyfileCurve25519, PrivateKeyCurve25519}
+import crypto.{Address, KeyfileCurve25519, PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
 import io.circe.{Json, parser}
 import io.circe.parser._
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import keymanager.Keys
+import scorex.util.encode.Base58
 import wallet.WalletManager
 import wallet.WalletManager._
 
@@ -21,8 +22,8 @@ import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.duration._
 
 /**
-  * Must be running bifrost with --local and --seed genesis
-  * ex: "run --local --seed genesis -f"
+  * Must be running bifrost with --local and --seed test
+  * ex: "run --local --seed test -f"
   */
 class RequestSpec extends AsyncFlatSpec
   with Matchers
@@ -31,13 +32,14 @@ class RequestSpec extends AsyncFlatSpec
   implicit val actorSystem: ActorSystem = ActorSystem("requestTest", requestConfig)
   implicit val context: ExecutionContextExecutor = actorSystem.dispatcher
   implicit val timeout: Timeout = 30.seconds
-  implicit val networkPrefix: NetworkPrefix = 1.toByte
+  implicit val networkPrefix: NetworkPrefix = 48.toByte
 
   val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
-    s"akka.tcp://${settings.chainProvider}/user/walletConnectionHandler").resolveOne(), 10.seconds)
+    s"akka.tcp://${settings.application.chainProvider}/user/walletConnectionHandler").resolveOne(), 10.seconds)
 
-  val requestsManagerRef: ActorRef = actorSystem.actorOf(Props(new RequestsManager(bifrostActor)), name = "RequestsManager")
-  val requests = new Requests(requestSettings, requestsManagerRef)
+  val requestsManagerRef: ActorRef = actorSystem.actorOf(
+    Props(new RequestsManager(bifrostActor)), name = "RequestsManager")
+  val requests = new Requests(requestSettings.application, requestsManagerRef)
 
   val keyFileDir = "keyfiles/requestTestKeys"
   val path: Path = Path(keyFileDir)
@@ -49,25 +51,25 @@ class RequestSpec extends AsyncFlatSpec
   val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] = Keys(keyFileDir, KeyfileCurve25519)
   //keyManager.unlockKeyFile(Base58.encode(sk1.publicKeyBytes), password)
 
-  val pk1: Address = keyManager.generateKeyFile(password) match {
-    case Success(pk) => pk
-    case Failure (ex) => throw new Error (s"An error occured: $ex")
+  val privateKeys: Set[PrivateKeyCurve25519] = keyManager.generateNewKeyPairs(2, Some("test")) match {
+    case Success(secrets) => secrets
+    case Failure(ex) => throw new Error (s"Unable to generate new keys: $ex")
   }
 
-  val pk2: Address = keyManager.generateKeyFile("password2") match {
-    case Success(address) => address
-    case Failure(ex) => throw ex
-  }
+  val addresses: Set[Address] = privateKeys.map(sk => sk.publicImage.address)
+
+  val (pk1, sk1) = (addresses.head, privateKeys.head)
+  val (pk2, sk2) = (addresses.tail.head, privateKeys.tail.head)
 
   val pk3: Address = keyManager.generateKeyFile("password3") match {
     case Success(address) => address
     case Failure(ex) => throw ex
   }
 
-  println("addresses: "  + keyManager.addresses)
 
   val publicKeys: Set[Address] = Set(pk1, pk2, pk3, genesisPubKey)
-  val walletManagerRef: ActorRef = actorSystem.actorOf(Props(new WalletManager(publicKeys, bifrostActor)), name = "WalletManager")
+  val walletManagerRef: ActorRef = actorSystem.actorOf(
+    Props(new WalletManager(publicKeys, bifrostActor)), name = "WalletManager")
 
   val amount = 10
   var transaction: Json = Json.Null
@@ -90,31 +92,39 @@ class RequestSpec extends AsyncFlatSpec
     assert(connected)
   }
 
-  /*it should "receive a successful response from Bifrost upon creating asset" in {
+
+  it should "receive a successful response from Bifrost upon creating asset" in {
     val createAssetRequest: ByteString = ByteString(
       s"""
          |{
          |   "jsonrpc": "2.0",
-         |   "id": "2",
-         |   "method": "createAssetsPrototype",
+         |   "id": "1",
+         |   "method": "topl_rawAssetTransfer",
          |   "params": [{
-         |     "issuer": "${pk1.toString}",
-         |     "recipient": "${pk1.toString}",
-         |     "amount": $amount,
-         |     "assetCode": "etherAssets",
+         |     "propositionType": "PublicKeyCurve25519",
+         |     "sender": ["${PublicKeyPropositionCurve25519("ZqKV9knFFLhuaEozi3ARM9EPG9aAvo5xkHCXaEM9P56u").address}"],
+         |     "recipient": [["$pk1", $amount]],
+         |     "changeAddress": "$pk1",
+         |     "issuer": "${PublicKeyPropositionCurve25519("ZqKV9knFFLhuaEozi3ARM9EPG9aAvo5xkHCXaEM9P56u").address}",
+         |     "assetCode": "test",
+         |     "minting": true,
          |     "fee": 0,
          |     "data": ""
          |   }]
          |}
        """.stripMargin)
-    transaction = requests.sendRequest(createAssetRequest, "transfer")
+    transaction = requests.sendRequest(createAssetRequest)
+    println("evidence1: " + pk1.evidence)
+    println("address1 from pk1: " + PublicKeyPropositionCurve25519("ZqKV9knFFLhuaEozi3ARM9EPG9aAvo5xkHCXaEM9P56u").address)
+    println("address2 from pk2: " + PublicKeyPropositionCurve25519("Ur1jnMvtnYdP6yucy2Mdwki1wVxbrzTT9XnNVZYby7mq").address)
+    println(transaction)
     assert(transaction.isInstanceOf[Json])
     newBoxId = parseForBoxId(transaction)
     (transaction \\ "error").isEmpty shouldBe true
     (transaction \\ "result").head.asObject.isDefined shouldBe true
   }
 
-  it should "receive successful JSON response from sign transaction" in {
+  /*it should "receive successful JSON response from sign transaction" in {
     val issuer: List[String] = List(publicKeys.head.toString)
     signedTransaction = requests.signTx(transaction, keyManager, issuer)
     val sigs = (signedTransaction \\ "signatures").head.asObject.get
@@ -175,7 +185,7 @@ class RequestSpec extends AsyncFlatSpec
     }
   }*/
 
-/*
+
   it should "receive a successful response from Bifrost upon transfering a poly" in {
     val transferPolysRequest: ByteString = ByteString(
       s"""
@@ -185,21 +195,20 @@ class RequestSpec extends AsyncFlatSpec
          |   "method": "topl_rawPolyTransfer",
          |   "params": [{
          |     "propositionType": "PublicKeyCurve25519",
-         |     "recipient": [["${pk3.toString}", $amount]],
-         |     "sender": ["$genesisPubKey"],
-         |     "changeAddress": "$genesisPubKey",
+         |     "recipient": [["$pk2", $amount]],
+         |     "sender": ["$pk1"],
+         |     "changeAddress": "$pk1",
          |     "fee": 0,
          |     "data": ""
          |   }]
          |}
        """.stripMargin)
-    val tx = requests.sendRequest(transferPolysRequest, "transfer")
+    val tx = requests.sendRequest(transferPolysRequest)
+    println(tx)
     assert(tx.isInstanceOf[Json])
-    println("transfer poly" + tx)
     (transaction \\ "error").isEmpty shouldBe true
     (transaction \\ "result").head.asObject.isDefined shouldBe true
   }
-*/
 
 
   it should "send msg to bifrost actor when the gjallarhorn app stops" in {
