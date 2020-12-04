@@ -42,6 +42,7 @@ abstract class ProgramBox(
 ) extends Box[ProgramId](evidence, value, nonce, boxTypePrefix)
 
 object TokenBox {
+  type Value = Long
   implicit def jsonEncoder: Encoder[TokenBox[_]] = (bx: TokenBox[_]) => Box.jsonEncoder(bx)
 }
 
