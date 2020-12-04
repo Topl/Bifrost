@@ -17,7 +17,7 @@ import scorex.crypto.hash.{Blake2b256, Digest32}
 
 import scala.util.Try
 
-abstract class Transaction[T <: Any, P <: Proposition: HasName] extends NodeViewModifier {
+abstract class Transaction[T, P <: Proposition: HasName] extends NodeViewModifier {
 
   override lazy val id: ModifierId = ModifierId(this)
 
@@ -60,7 +60,7 @@ abstract class Transaction[T <: Any, P <: Proposition: HasName] extends NodeView
 
 
 object Transaction {
-  type TX = Transaction[_ <: Any, _ <: Proposition]
+  type TX = Transaction[_, _ <: Proposition]
   type TxType = Byte
   type TransactionId = ModifierId
   val modifierTypeId: ModifierTypeId = ModifierTypeId @@ (2: Byte)

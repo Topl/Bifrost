@@ -10,4 +10,10 @@ object HasName {
   def instance[A](f: () => String): HasName[A] = new HasName[A] {
     override def name: String = f()
   }
+
+  object Syntax {
+    implicit final class Ops[A: HasName] (private val value: A) {
+      def name: String = HasName[A].name
+    }
+  }
 }

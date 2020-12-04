@@ -6,7 +6,6 @@ import co.topl.attestation.{Evidence, _}
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.Box.Nonce
-import co.topl.nodeView.state.box.TokenBox.Value
 import co.topl.nodeView.state.box.{Box, _}
 import co.topl.utils.HasName
 import com.google.common.base.Utf8
@@ -18,14 +17,14 @@ import scala.util.{Failure, Success, Try}
 
 abstract class TransferTransaction[
   P <: Proposition: EvidenceProducer: HasName
-] ( val from: IndexedSeq[(Address, Box.Nonce)],
-    val to: IndexedSeq[(Address, TokenBox.Value)],
+]( val from: IndexedSeq[(Address, Box.Nonce)],
+    val to: IndexedSeq[(Address, TokenValueHolder)],
     val attestation: Map[P, Proof[P]],
     val fee: Long,
     val timestamp: Long,
     val data: String,
     val minting: Boolean
-  ) extends Transaction[TokenBox.Value, P] {
+  ) extends Transaction[P] {
 
   lazy val bloomTopics: IndexedSeq[BloomTopic] = to.map(BloomTopic @@ _._1.bytes)
 
@@ -51,7 +50,7 @@ abstract class TransferTransaction[
 
 object TransferTransaction {
 
-  case class BoxParams(evidence: Evidence, nonce: Box.Nonce, value: TokenBox.Value)
+  case class BoxParams(evidence: Evidence, nonce: Box.Nonce, value: TokenValueHolder)
 
   /** Computes a unique nonce value based on the transaction type and
    * inputs and returns the details needed to create the output boxes for the transaction */
@@ -91,14 +90,14 @@ object TransferTransaction {
    * @param assetArgs a tuple of asset specific details for finding the right asset boxes to be sent in a transfer
    * @return the input box information and output data needed to create the transaction case class
    */
-  def createRawTransferParams(state: StateReader,
-                              toReceive: IndexedSeq[(Address, TokenBox.Value)],
+  def createRawTransferParams[T <: TokenValueHolder](state: StateReader,
+                              toReceive: IndexedSeq[(Address, T)],
                               sender: IndexedSeq[Address],
                               changeAddress: Address,
-                              fee: TokenBox.Value,
+                              fee: Long,
                               txType: String,
                               assetArgs: Option[(Address, String)] = None // (issuer, assetCode)
-                          ): Try[(IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, TokenBox.Value)])] = Try {
+                          ): Try[(IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, T)])] = Try {
 
     // Lookup boxes for the given senders
     val senderBoxes =

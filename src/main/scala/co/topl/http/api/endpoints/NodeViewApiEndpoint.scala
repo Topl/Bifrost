@@ -8,7 +8,7 @@ import co.topl.modifier.ModifierId
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.{ArbitBox, PolyBox, TokenBox}
+import co.topl.nodeView.state.box.{ArbitBox, Box, PolyBox, TokenBox, TokenValueHolder}
 import co.topl.settings.{AppContext, RPCApiSettings}
 import io.circe.Json
 import io.circe.syntax._
@@ -99,29 +99,29 @@ case class NodeViewApiEndpoint(
         // ensure we have the state being asked about
         checkAddress(addresses, view)
 
-        val boxes: Map[Address, Map[Byte, Seq[TokenBox]]] =
+        val boxes: Map[Address, Map[String, Seq[TokenBox[_ <: TokenValueHolder]]]] =
           addresses
             .map(k => {
               val orderedBoxes = view.state.getTokenBoxes(k) match {
-                case Some(boxes) => boxes.groupBy[Byte](b => b.boxTypePrefix)
-                case _           => Map[Byte, Seq[TokenBox]]()
+                case Some(boxes) => boxes.groupBy[String](b => Box.prefixToTypeString(b.boxTypePrefix))
+                case _           => Map[String, Seq[TokenBox[_ <: TokenValueHolder]]]()
               }
               k -> orderedBoxes
             })
             .toMap
 
-        val balances: Map[Address, Map[Byte, Long]] =
+        val balances: Map[Address, Map[String, Long]] =
           boxes.map { case (addr, assets) =>
             addr -> assets.map { case (boxType, boxes) =>
-              (boxType, boxes.map(_.value).sum)
+              (boxType, boxes.map(_.value.quantity).sum)
             }
           }
 
         boxes.map { case (addr, boxes) =>
           addr -> Map(
             "Balances" -> Map(
-              "Polys"  -> balances(addr).getOrElse(PolyBox.boxTypePrefix, 0L),
-              "Arbits" -> balances(addr).getOrElse(ArbitBox.boxTypePrefix, 0L)
+              "Polys"  -> balances(addr).getOrElse(PolyBox.boxTypeString, 0L),
+              "Arbits" -> balances(addr).getOrElse(ArbitBox.boxTypeString, 0L)
             ).asJson,
             "Boxes" -> boxes.map(b => b._1 -> b._2.asJson).asJson
           )
