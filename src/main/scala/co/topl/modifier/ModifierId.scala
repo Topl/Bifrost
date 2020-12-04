@@ -34,7 +34,7 @@ class ModifierId private (private val value: Array[Byte]) extends BytesSerializa
 
 object ModifierId extends BifrostSerializer[ModifierId] {
   val size: Int = 1 + Blake2b256.DigestSize // ModifierId's are derived from Blake2b-256
-  val empty: ModifierId = new ModifierId(Block.modifierTypeId +: Array.fill(Blake2b256.DigestSize)(0: Byte))
+  val empty: ModifierId = new ModifierId(Array.fill(size)(0: Byte))
   val genesisParentId: ModifierId = new ModifierId(Block.modifierTypeId +: Array.fill(Blake2b256.DigestSize)(1: Byte))
 
   implicit val ord: Ordering[ModifierId] = Ordering.by(_.toString)

@@ -8,7 +8,6 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.ProgramCreation
 import co.topl.nodeView.state.box._
-import org.scalatest.Ignore
 import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
 
 import scala.util.Failure
@@ -16,8 +15,7 @@ import scala.util.Failure
 /**
   * Created by Matt Kindy on 6/7/2017.
   */
-@Ignore
-class ProgramCreationValidationSpec extends ProgramSpec {
+class ProgramCreationValidationSpec extends StateSpec {
 
 //  //noinspection ScalaStyle
 //  def arbitraryPartyProgramCreationGen(num: Int): Gen[ProgramCreation] = for {
@@ -90,7 +88,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     forAll(validProgramCreationGen) {
       programCreation: ProgramCreation =>
         val block = Block(
-          ModifierId(Array.fill(Block.signatureLength)(-1: Byte)),
+          ModifierId(Array.fill(Block.blockIdLength)(-1: Byte)),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(PublicKey @@ Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Signature @@ Array.fill(Block.signatureLength)(0: Byte)),
@@ -275,7 +273,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
 
         val firstCCAddBlock = Block(
-          ModifierId(Array.fill(Block.signatureLength)(1: Byte)),
+          ModifierId(Array.fill(Block.blockIdLength)(1: Byte)),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKeyPropositionCurve25519(PublicKey @@ Array.fill(Curve25519.KeyLength)(0: Byte)), scala.util.Random.nextLong(), 0L),
           SignatureCurve25519(Signature @@ Array.fill(Block.signatureLength)(0: Byte)),
@@ -283,8 +281,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           settings.application.version.blockByte
           )
 
-        val necessaryState = StateSpec
-          .genesisState()
+        val necessaryState = createState()
           .applyModifier(firstCCAddBlock)
           .get
 

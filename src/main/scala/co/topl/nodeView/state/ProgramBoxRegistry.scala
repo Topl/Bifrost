@@ -82,11 +82,11 @@ class ProgramBoxRegistry ( protected val storage: LSMStore ) extends Registry[Pr
 
 
   override def rollbackTo ( version: VersionTag ): Try[ProgramBoxRegistry] = Try {
-    if ( storage.lastVersionID.exists(_.data sameElements version.getIdBytes) ) {
+    if ( storage.lastVersionID.exists(_.data sameElements version.bytes) ) {
       this
     } else {
       log.debug(s"Rolling back ProgramBoxRegistry to: ${version.toString}")
-      storage.rollback(ByteArrayWrapper(version.getIdBytes))
+      storage.rollback(ByteArrayWrapper(version.bytes))
       new ProgramBoxRegistry(storage)
     }
   }

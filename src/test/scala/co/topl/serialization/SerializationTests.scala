@@ -4,13 +4,14 @@ import co.topl.attestation.ThresholdPropositionCurve25519
 import co.topl.attestation.serialization.ThresholdPropositionCurve25519Serializer
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.serialization.BlockSerializer
+import InstrumentClasses.Base58
+import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.serialization._
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.program.{ExecutionBuilder, ExecutionBuilderSerializer}
-import co.topl.{BifrostGenerators, ValidGenerators}
-import org.scalatest.Ignore
+import co.topl.utils.{CoreGenerators, ValidGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
@@ -21,12 +22,11 @@ import scala.util.{Failure, Success}
 /**
   * Created by cykoz on 4/12/17.
   */
-@Ignore
 class SerializationTests extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
-  with BifrostGenerators
+  with CoreGenerators
   with ValidGenerators {
 
   property("oneOfNProposition Serialization") {
@@ -86,7 +86,8 @@ class SerializationTests extends AnyPropSpec
           .get
 
         val serialized = BoxSerializer.toBytes(parsed)
-        json.as[StateBox].right.get.bytes sameElements BoxSerializer.toBytes(b) shouldBe true
+        val resBox: StateBox = json.as[StateBox] match {case Right(re) => re; case Left(ex) => throw ex}
+        resBox.bytes sameElements BoxSerializer.toBytes(b) shouldBe true
         serialized sameElements BoxSerializer.toBytes(b) shouldBe true
     }
   }
@@ -100,7 +101,8 @@ class SerializationTests extends AnyPropSpec
           .get
 
         val serialized = BoxSerializer.toBytes(parsed)
-        json.as[CodeBox].right.get.bytes sameElements BoxSerializer.toBytes(b) shouldBe true
+        val resBox: CodeBox = json.as[CodeBox] match {case Right(re) => re; case Left(ex) => throw ex}
+        resBox.bytes sameElements BoxSerializer.toBytes(b) shouldBe true
         serialized sameElements BoxSerializer.toBytes(b) shouldBe true
     }
   }
@@ -114,7 +116,8 @@ class SerializationTests extends AnyPropSpec
           .get
 
         val serialized = BoxSerializer.toBytes(parsed)
-        json.as[ExecutionBox].right.get.bytes sameElements BoxSerializer.toBytes(b) shouldBe true
+        val resBox: ExecutionBox = json.as[ExecutionBox] match {case Right(re) => re; case Left(ex) => throw ex}
+        resBox.bytes sameElements BoxSerializer.toBytes(b) shouldBe true
         serialized sameElements BoxSerializer.toBytes(b) shouldBe true
     }
   }
@@ -183,6 +186,7 @@ class SerializationTests extends AnyPropSpec
     }
   }
 
+  /*
   property("ProgramMethodExecution Serialization") {
     forAll(programMethodExecutionGen) {
       c: ProgramMethodExecution =>
@@ -194,6 +198,7 @@ class SerializationTests extends AnyPropSpec
           ProgramMethodExecutionSerializer.toBytes(c) shouldBe true
     }
   }
+   */
 
   property("AssetCreation Serialization") {
     forAll(assetCreationGen) {
@@ -207,6 +212,7 @@ class SerializationTests extends AnyPropSpec
     }
   }
 
+  /*
   property("CodeCreation Serialization") {
     forAll(codeBoxCreationGen) {
       ccc: CodeCreation =>
@@ -218,7 +224,9 @@ class SerializationTests extends AnyPropSpec
           CodeBoxCreationSerializer.toBytes(ccc) shouldBe true
     }
   }
+   */
 
+  /*
   property("ProgramTransfer Serialization") {
     forAll(programTransferGen) {
       pt: ProgramTransfer =>
@@ -230,8 +238,8 @@ class SerializationTests extends AnyPropSpec
           ProgramTransferSerializer.toBytes(pt) shouldBe true
     }
   }
+   */
 
-  //TODO Test after all txs and state tests work
   property("Block Serialization") {
     forAll(BlockGen) {
       bb: Block =>

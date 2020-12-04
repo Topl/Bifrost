@@ -1,17 +1,16 @@
 package co.topl.transaction.proposition
 
-import co.topl.BifrostGenerators
 import co.topl.attestation.{PrivateKeyCurve25519, ThresholdPropositionCurve25519}
+import co.topl.utils.{CoreGenerators, NoShrink}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-import utils.NoShrink
 
-class ThresholdPropositionCurve25519Spec extends AnyPropSpec
-                                                 with ScalaCheckPropertyChecks
-                                                 with ScalaCheckDrivenPropertyChecks
-                                                 with Matchers
-                                                 with BifrostGenerators
+class MofNPropositionSpec extends AnyPropSpec
+  with ScalaCheckPropertyChecks
+  with ScalaCheckDrivenPropertyChecks
+  with Matchers
+  with CoreGenerators
   with NoShrink {
 
   property("Any signature from set validates") {
