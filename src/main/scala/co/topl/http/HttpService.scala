@@ -58,8 +58,6 @@ final case class HttpService (apiServices: Seq[ApiEndpoint], settings: RPCApiSet
 
                 val method = (request \\ "method").head.asString.get
 
-                println(s"\n>>>>>>>>>>>>>>> services: $apiServiceHandlers")
-
                 if (apiServiceHandlers.isDefinedAt(method, params, id)) apiServiceHandlers.apply(method, params, id)
                 else throw new Exception("Service handler not found for method: " + method)
               }
