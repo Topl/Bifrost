@@ -6,12 +6,15 @@ import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaType
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
-import co.topl.consensus.{Forger, ForgerRef, KeyRing}
+import co.topl.attestation.AddressEncoder.NetworkPrefix
+import co.topl.attestation.PrivateKeyCurve25519
+import co.topl.consensus.KeyRing
+import co.topl.crypto.KeyfileCurve25519
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
+import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
 import co.topl.settings.{AppContext, StartupOpts}
 import co.topl.utils.CoreGenerators
 import org.scalatest.wordspec.AnyWordSpec
@@ -25,18 +28,19 @@ trait RPCMockState extends AnyWordSpec
 
   override def createActorSystem(): ActorSystem = ActorSystem(settings.network.agentName)
 
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // save environment into a variable for reference throughout the application
   protected val appContext = new AppContext(settings, StartupOpts.empty, None)
 
   // Create Bifrost singleton actors
-  protected val forgerRef: ActorRef = ForgerRef(Forger.actorName, settings, appContext)
   protected val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
   implicit val timeout: Timeout = Timeout(10.seconds)
+  implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
-  val keyRing: KeyRing = KeyRing(settings.application.keyFileDir.get)
+  val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
+    KeyRing(settings.application.keyFileDir.get, KeyfileCurve25519)
 
   def httpPOST(uri: String, jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
@@ -46,7 +50,7 @@ trait RPCMockState extends AnyWordSpec
     ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
 
-  protected def view() = Await.result(
+  protected def view(): CurrentView[History, State, MemPool] = Await.result(
     (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]],
     10.seconds)
 }
