@@ -14,7 +14,11 @@ import scala.util.{Failure, Success, Try}
 
 @Ignore
 class KeysSpec extends AsyncFlatSpec with Matchers {
-  implicit val networkPrefix: NetworkPrefix = 1.toByte
+
+  /**
+    * Make sure running bifrost in local network!
+    */
+  implicit val networkPrefix: NetworkPrefix = 48.toByte
 
   val randomBytes1: Digest32 = Blake2b256(java.util.UUID.randomUUID.toString)
   val randomBytes2: Digest32 = Blake2b256(java.util.UUID.randomUUID.toString)

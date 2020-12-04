@@ -12,6 +12,7 @@ import io.circe.syntax._
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import keymanager.Keys
+import settings.NetworkType
 import wallet.WalletManager
 import wallet.WalletManager._
 
@@ -32,7 +33,7 @@ class RequestSpec extends AsyncFlatSpec
   implicit val actorSystem: ActorSystem = ActorSystem("requestTest", requestConfig)
   implicit val context: ExecutionContextExecutor = actorSystem.dispatcher
   implicit val timeout: Timeout = 30.seconds
-  implicit val networkPrefix: NetworkPrefix = 48.toByte
+  implicit val networkPrefix: NetworkPrefix = 48.toByte //local network
 
   val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
     s"akka.tcp://${settings.application.chainProvider}/user/walletConnectionHandler").resolveOne(), 10.seconds)
@@ -85,14 +86,21 @@ class RequestSpec extends AsyncFlatSpec
   }
 
   it should "connect to bifrost actor when the gjallarhorn app starts" in {
+    val bifrostResponse = Await.result((walletManagerRef ? GjallarhornStarted).mapTo[String], 10.seconds)
+    val networkName = bifrostResponse.split(".").tail.head.substring(" Bifrost is running on ".length)
+    val networkPre: NetworkPrefix = NetworkType.fromString(networkName) match {
+      case Some(network) => network.netPrefix
+      case None => throw new Error(s"The network name: $networkName was not a valid network type!")
+    }
     walletManagerRef ! GjallarhornStarted
     Thread.sleep(100)
     val connected = Await.result((walletManagerRef ? IsConnected).mapTo[Boolean], 10.seconds)
+    assert(networkPre == networkPrefix)
     assert(connected)
   }
 
 
-  /*it should "receive a successful response from Bifrost upon creating asset" in {
+  it should "receive a successful response from Bifrost upon creating asset" in {
     val createAssetRequest: ByteString = ByteString(
       s"""
          |{
@@ -101,10 +109,10 @@ class RequestSpec extends AsyncFlatSpec
          |   "method": "topl_rawAssetTransfer",
          |   "params": [{
          |     "propositionType": "PublicKeyCurve25519",
-         |     "sender": ["${PublicKeyPropositionCurve25519("ZqKV9knFFLhuaEozi3ARM9EPG9aAvo5xkHCXaEM9P56u").address}"],
+         |     "sender": ["$pk1"],
          |     "recipient": [["$pk1", $amount]],
          |     "changeAddress": "$pk1",
-         |     "issuer": "${PublicKeyPropositionCurve25519("ZqKV9knFFLhuaEozi3ARM9EPG9aAvo5xkHCXaEM9P56u").address}",
+         |     "issuer": "$pk1",
          |     "assetCode": "test",
          |     "minting": true,
          |     "fee": 0,
@@ -113,14 +121,13 @@ class RequestSpec extends AsyncFlatSpec
          |}
        """.stripMargin)
     val tx = requests.sendRequest(createAssetRequest)
-    println(tx)
     assert(tx.isInstanceOf[Json])
     (tx \\ "error").isEmpty shouldBe true
     (tx \\ "result").head.asObject.isDefined shouldBe true
-  }*/
+  }
 
-  it should "receive a successful response from Bifrost upon transfering a poly" in {
-    val transferPolysRequest: ByteString = ByteString(
+  it should "receive a successful response from Bifrost upon transfering arbit" in {
+    val transferArbitsRequest: ByteString = ByteString(
       s"""
          |{
          |   "jsonrpc": "2.0",
@@ -136,8 +143,11 @@ class RequestSpec extends AsyncFlatSpec
          |   }]
          |}
        """.stripMargin)
-    transaction = requests.sendRequest(transferPolysRequest)
+    transaction = requests.sendRequest(transferArbitsRequest)
     newBoxId = parseForBoxId(transaction)
+
+    println("new box id: " + newBoxId)
+    println("transaction: " + transaction)
     assert(transaction.isInstanceOf[Json])
     (transaction \\ "error").isEmpty shouldBe true
     (transaction \\ "result").head.asObject.isDefined shouldBe true
@@ -164,6 +174,7 @@ class RequestSpec extends AsyncFlatSpec
   it should "receive successful JSON response from broadcast transaction" in {
     val response = requests.broadcastTx(signedTransaction)
     assert(response.isInstanceOf[Json])
+    println("broadcast: " + response)
     (response \\ "error").isEmpty shouldBe true
     (response \\ "result").head.asObject.isDefined shouldBe true
   }
@@ -174,11 +185,12 @@ class RequestSpec extends AsyncFlatSpec
     Thread.sleep(10000)
     balanceResponse = requests.getBalances(publicKeys.map(addr => addr.toString))
     assert(balanceResponse.isInstanceOf[Json])
+    println("balances: " + balanceResponse)
     (balanceResponse \\ "error").isEmpty shouldBe true
     val result: Json = (balanceResponse \\ "result").head
     result.asObject.isDefined shouldBe true
     (result \\ pk1.toString).nonEmpty shouldBe true
-    /*(((result \\ pk1.toString).head \\ "Boxes").head \\ "Asset").
+/*    (((result \\ pk1.toString).head \\ "Boxes").head \\ "Arbit").
       head.toString().contains(newBoxId) shouldBe true*/
   }
 
@@ -204,13 +216,14 @@ class RequestSpec extends AsyncFlatSpec
     }
   }*/
 
-/*  it should "receive a block from bifrost after creating a transaction" in {
+  it should "receive a block from bifrost after creating a transaction" in {
     val newBlock: Option[String] = Await.result((walletManagerRef ? GetNewBlock).mapTo[Option[String]], 10.seconds)
     newBlock match {
-      case Some(block) => assert(block.contains("timestamp") && block.contains("signature") && block.contains("id") && block.contains("newBoxes"))
+      case Some(block) => assert(block.contains("timestamp") && block.contains("signature") && block.contains("txId")
+        && block.contains("newBoxes"))
       case None => sys.error("no new blocks")
     }
-  }*/
+  }
 
 
   it should "send msg to bifrost actor when the gjallarhorn app stops" in {

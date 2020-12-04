@@ -34,6 +34,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 //  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   implicit val timeout: Timeout = Timeout(10.seconds)
+  /**
+    * Make sure running bifrost in local network!
+    */
   implicit val networkPrefix: NetworkPrefix = 48.toByte
 
   override def createActorSystem(): ActorSystem = ActorSystem("gjallarhornTest", config)
@@ -55,9 +58,6 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 
   val (pk1, sk1) = (addresses.head, privateKeys.head)
   val (pk2, sk2) = (addresses.tail.head, privateKeys.tail.head)
-
-  keyManager.exportKeyfile(pk1, "password1")
-  keyManager.exportKeyfile(pk2, "password2")
 
   val bifrostActor: ActorRef = Await.result(system.actorSelection(
     s"akka.tcp://${settings.application.chainProvider}/user/walletConnectionHandler").resolveOne(), 10.seconds)
@@ -86,7 +86,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |   "id": "2",
          |   "method": "wallet_createTransaction",
          |   "params": [{
-         |     "method": "topl_rawArbitTransfer",
+         |     "method": "topl_rawAssetTransfer",
          |     "params": [{
          |        "propositionType": "PublicKeyCurve25519",
          |        "sender": ["$pk2"],
@@ -115,7 +115,38 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     }
   }
 
-  //ToDo: listOpenKeyFiles isn't returning correct form of the keyfiles.
+  it should "successfully transfer poly" in {
+    val createPolyRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_createTransaction",
+         |   "params": [{
+         |     "method": "topl_rawPolyTransfer",
+         |     "params": [{
+         |        "propositionType": "PublicKeyCurve25519",
+         |        "sender": ["$pk2"],
+         |        "recipient": [["$pk1", $amount]],
+         |        "changeAddress": "$pk2",
+         |        "fee": 0,
+         |        "data": ""
+         |     }]
+         |   }]
+         |}
+       """.stripMargin)
+
+    httpPOST(createPolyRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          (res \\ "result").head.asObject.isDefined shouldBe true
+      }
+    }
+  }
+
   it should "successfully get open keyfiles" in {
     val openKeyfilesRequest = ByteString(
       s"""
@@ -134,7 +165,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
         case Right(res: Json) =>
           (res \\ "error").isEmpty shouldBe true
           val openKeys: Set[String] = (res \\ "result").head.asArray.get.map(k => k.asString.get).toSet
-          openKeys.contains(s"$pubKeyAddr") shouldBe true
+          openKeys.contains(pk1.toString) shouldBe true
       }
     }
   }
@@ -273,23 +304,25 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 
 
   it should "get a successful JSON response from balance request" in {
-      val requestBody = ByteString(
-        s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "1",
-           |   "method": "wallet_balances",
-           |   "params": [{
-           |      "method": "topl_balances",
-           |      "params": [{
-           |            "addresses": ["$pk1", "$pk2"]
-           |       }]
-           |   }]
-           |}
-        """.stripMargin)
+    Thread.sleep(10000)
+    val requestBody = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "1",
+         |   "method": "wallet_balances",
+         |   "params": [{
+         |      "method": "topl_balances",
+         |      "params": [{
+         |            "addresses": ["$pk1", "$pk2"]
+         |       }]
+         |   }]
+         |}
+      """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
         val responseString = responseAs[String].replace("\\", "")
+        println("gjal balances: " + responseString)
         parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
           case Left(f) => throw f
           case Right(res: Json) =>

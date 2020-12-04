@@ -84,11 +84,10 @@ class WalletConnectionHandler[
     if (msg.contains("Remote wallet actor initialized")) {
       parseKeys(msg.substring("Remote wallet actor initialized. My public keys are: ".length))
       remoteWalletActor = Some(sender())
-      remoteWalletActor match {
-        case Some(actor) => actor ! s"received new wallet from: ${sender()}"
-        case None        => println("no wallets!")
-      }
+      sender() ! s"received new wallet from: ${sender()}. " +
+        s"Bifrost is running on ${appContext.networkType.verboseName}"
     }
+
     if (msg == "Remote wallet actor stopped") {
       remoteWalletActor = None
       remoteWalletAddresses = None

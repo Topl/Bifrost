@@ -1,7 +1,7 @@
 package wallet
 
 import akka.actor.{Actor, ActorRef}
-import akka.pattern.ask
+import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import crypto.{Address, Transaction}
 import io.circe.{Json, ParsingFailure, parser}
@@ -11,7 +11,7 @@ import utils.Logging
 import cats.syntax.show._
 
 import scala.collection.mutable.{Map => MMap}
-import scala.concurrent.Await
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
 
 /**
@@ -19,7 +19,8 @@ import scala.concurrent.duration._
   * Mainly, the WalletManager receives new blocks from Bifrost in order to updates its wallet boxes.
   * @param publicKeys: the set of publicKeys that the WalletManager should keep track of.
   */
-class WalletManager(publicKeys: Set[Address], bifrostActorRef: ActorRef) extends Actor with Logging {
+class WalletManager(publicKeys: Set[Address], bifrostActorRef: ActorRef)
+                   ( implicit ec: ExecutionContext ) extends Actor with Logging {
 
   import WalletManager._
 
@@ -40,6 +41,7 @@ class WalletManager(publicKeys: Set[Address], bifrostActorRef: ActorRef) extends
   var newestTransactions: Option[String] = None
 
   var connectedToBifrost: Boolean = false
+  var networkName: Option[String] = None
 
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
     log.debug(s"WalletManagerActor: preRestart ${reason.getMessage}")
@@ -54,12 +56,12 @@ class WalletManager(publicKeys: Set[Address], bifrostActorRef: ActorRef) extends
   def msgHandling(msg: String): Unit = {
     if (msg.contains("received new wallet from:")) {
       connectedToBifrost = true
-      log.info(s"${Console.YELLOW} Bifrost $msg")
     }
     if (msg.contains("new block added")) {
       newBlock(msg)
     }
   }
+
 
   //------------------------------------------------------------------------------------
   //Methods for parsing balance response - UpdateWallet
@@ -192,7 +194,10 @@ class WalletManager(publicKeys: Set[Address], bifrostActorRef: ActorRef) extends
   }
 
   override def receive: Receive = {
-    case GjallarhornStarted => bifrostActorRef ! s"Remote wallet actor initialized. My public keys are: ${walletBoxes.keySet}"
+    case GjallarhornStarted =>
+      val bifrostResp: Future[Any] =
+        bifrostActorRef ? s"Remote wallet actor initialized. My public keys are: ${walletBoxes.keySet}"
+      bifrostResp.pipeTo(sender())
 
     case msg: String => msgHandling(msg)
 

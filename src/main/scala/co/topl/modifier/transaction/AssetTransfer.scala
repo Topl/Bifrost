@@ -69,12 +69,10 @@ object AssetTransfer {
      fee          : Long,
      data         : String,
      minting      : Boolean
-    ): Try[AssetTransfer[P]] = {
-    println("in create raw")
-    TransferTransaction.createRawTransferParams(stateReader, toReceive, sender, changeAddress, fee, "AssetTransfer", Some((issuer, assetCode))).map {
+    ): Try[AssetTransfer[P]] =
+    TransferTransaction.createRawTransferParams(stateReader, toReceive, sender, changeAddress, fee, "AssetTransfer", Some((issuer, assetCode, minting))).map {
       case (inputs, outputs) => AssetTransfer[P](inputs, outputs, Map(), issuer, assetCode, fee, Instant.now.toEpochMilli, data, minting)
     }
-  }
 
   implicit def jsonEncoder[P <: Proposition]: Encoder[AssetTransfer[P]] = {
     tx: AssetTransfer[P] =>

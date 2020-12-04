@@ -461,6 +461,7 @@ class NodeViewHolder ( settings: AppSettings )
         updateInfo.state.applyModifier(modToApply) match {
           case Success(stateAfterApply) =>
             val newHis = history.reportModifierIsValid(modToApply)
+            println("new block sent! " + modToApply)
             context.system.eventStream.publish(SemanticallySuccessfulModifier(modToApply))
             UpdateInformation(newHis, stateAfterApply, None, None, updateInfo.suffix :+ modToApply)
 

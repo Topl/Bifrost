@@ -76,15 +76,6 @@ case class TransactionApiEndpoint(
     */
   private def rawAssetTransfer(implicit params: Json, id: String): Future[Json] = {
     viewAsync { view =>
-      println("in raw asset transfer: " + params)
-      println((params \\ "propositionType").head.as[String])
-      println((params \\ "recipient").head.as[IndexedSeq[(Address, Long)]])
-      println((params \\ "sender").head.as[IndexedSeq[Address]])
-      println((params \\ "changeAddress").head.as[Address])
-      println((params \\ "fee").head.as[Long])
-      println((params \\ "issuer").head.as[Address])
-      println((params \\ "assetCode").head.as[String])
-      println((params \\ "minting").head.as[Boolean])
       // parse arguments from the request
       (for {
         propType   <- (params \\ "propositionType").head.as[String]
@@ -203,7 +194,6 @@ case class TransactionApiEndpoint(
       }) match {
         case Right(Success(tx)) =>
           // validate and update nodeView with new TX
-          println("hello successful: "+ tx)
           tx.rawValidate match {
             case Success(_) =>
               Map(
@@ -265,10 +255,8 @@ case class TransactionApiEndpoint(
         // construct the transaction
         propType match {
           case PublicKeyPropositionCurve25519.typeString =>
-            val arbitTx = ArbitTransfer
+            ArbitTransfer
               .createRaw[PublicKeyPropositionCurve25519](view.state, recipients, sender, changeAddr, fee, data)
-            println("raw arbit tx: " + arbitTx)
-            arbitTx
 
           case ThresholdPropositionCurve25519.typeString =>
             ArbitTransfer
@@ -276,7 +264,6 @@ case class TransactionApiEndpoint(
         }
       }) match {
         case Right(Success(tx)) =>
-          println("hello successful: "+ tx)
           // validate and update nodeView with new TX
           tx.rawValidate match {
             case Success(_) =>
@@ -289,14 +276,8 @@ case class TransactionApiEndpoint(
               throw new Exception(s"Could not validate transaction: $e")
           }
 
-        case Right(Failure(ex)) => {
-          println(" in right fail! ")
-          throw new Exception(s"Failed to create raw ArbitTransfer with error: $ex")
-        }
-        case Left(ex)           => {
-          println ("in left fail!")
-          throw ex
-        }
+        case Right(Failure(ex)) => throw new Exception(s"Failed to create raw ArbitTransfer with error: $ex")
+        case Left(ex)           => throw ex
       }
     }
   }

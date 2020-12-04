@@ -20,21 +20,11 @@ class RequestsManager (val bifrostActorRef: ActorRef)( implicit ec: ExecutionCon
   implicit val timeout: Timeout = 30.seconds
 
 
-  /**
-    * Sends requests to bifrost.
-    * @param msg - the type of transaction and the transaction parameters in Json
-    * @param sendResponseTo - the actor ref to send response to.
-    */
-  def sendToBifrost(msg: String, sendResponseTo: ActorRef): Unit = {
-    val futureResponse = bifrostActorRef ? msg
-    futureResponse.pipeTo(sendResponseTo)
-  }
-
   override def receive: Receive = {
 
     case BifrostRequest(tx: Json) =>
-      val from: ActorRef = sender()
-      sendToBifrost(s"request from gjallarhorn: $tx", from)
+      val futureResponse = bifrostActorRef ? s"request from gjallarhorn: $tx"
+      futureResponse.pipeTo(sender())
 
   }
 }
