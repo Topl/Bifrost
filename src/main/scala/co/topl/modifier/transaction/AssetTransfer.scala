@@ -1,19 +1,19 @@
 package co.topl.modifier.transaction
 
 import java.time.Instant
-
 import co.topl.attestation._
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.TransferTransaction.BoxParams
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{AssetBox, Box, PolyBox, TokenBox}
+import co.topl.utils.HasName
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
 
 import scala.util.Try
 
 case class AssetTransfer[
-  P <: Proposition: EvidenceProducer
+  P <: Proposition: EvidenceProducer: HasName
 ] (override val from       : IndexedSeq[(Address, Box.Nonce)],
    override val to         : IndexedSeq[(Address, TokenBox.Value)],
    override val attestation: Map[P, Proof[P]],
@@ -59,7 +59,7 @@ object AssetTransfer {
     * @return
     */
   def createRaw[
-    P <: Proposition: EvidenceProducer
+    P <: Proposition: EvidenceProducer: HasName
   ] (stateReader  : StateReader,
      toReceive    : IndexedSeq[(Address, TokenBox.Value)],
      sender       : IndexedSeq[Address],
@@ -70,7 +70,7 @@ object AssetTransfer {
      data         : String,
      minting      : Boolean
     ): Try[AssetTransfer[P]] =
-    TransferTransaction.createRawTransferParams(stateReader, toReceive, sender, changeAddress, fee, "AssetTransfer", Some((issuer, assetCode))).map {
+    TransferTransaction.createRawTransferParams(stateReader, toReceive, sender, changeAddress, fee, "AssetTransfer", Some((issuer, assetCode, minting))).map {
       case (inputs, outputs) => AssetTransfer[P](inputs, outputs, Map(), issuer, assetCode, fee, Instant.now.toEpochMilli, data, minting)
     }
 
