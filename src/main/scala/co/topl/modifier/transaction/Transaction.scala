@@ -9,6 +9,7 @@ import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{Box, BoxId}
+import co.topl.utils.HasName
 import co.topl.utils.serialization.BifrostSerializer
 import com.google.common.primitives.Longs
 import io.circe.{Decoder, Encoder, HCursor}
@@ -16,7 +17,7 @@ import scorex.crypto.hash.{Blake2b256, Digest32}
 
 import scala.util.Try
 
-abstract class Transaction[T <: Any, P <: Proposition] extends NodeViewModifier {
+abstract class Transaction[T <: Any, P <: Proposition: HasName] extends NodeViewModifier {
 
   override lazy val id: ModifierId = ModifierId(this)
 
@@ -47,7 +48,7 @@ abstract class Transaction[T <: Any, P <: Proposition] extends NodeViewModifier 
       Longs.toByteArray(timestamp) ++
       Longs.toByteArray(fee)
 
-  def getPropTypeString: String = attestation.head._1.propTypeString
+  def getPropTypeString: String = HasName[P].name
 
   def semanticValidate (stateReader: StateReader)(implicit networkPrefix: NetworkPrefix): Try[Unit]
 

@@ -8,6 +8,7 @@ import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.Box.Nonce
 import co.topl.nodeView.state.box.TokenBox.Value
 import co.topl.nodeView.state.box.{Box, _}
+import co.topl.utils.HasName
 import com.google.common.base.Utf8
 import com.google.common.primitives.{Ints, Longs}
 import scorex.crypto.hash.Blake2b256
@@ -16,7 +17,7 @@ import scorex.util.encode.Base58
 import scala.util.{Failure, Success, Try}
 
 abstract class TransferTransaction[
-  P <: Proposition: EvidenceProducer
+  P <: Proposition: EvidenceProducer: HasName
 ] ( val from: IndexedSeq[(Address, Box.Nonce)],
     val to: IndexedSeq[(Address, TokenBox.Value)],
     val attestation: Map[P, Proof[P]],
@@ -90,13 +91,13 @@ object TransferTransaction {
    * @param assetArgs a tuple of asset specific details for finding the right asset boxes to be sent in a transfer
    * @return the input box information and output data needed to create the transaction case class
    */
-  def createRawTransferParams ( state: StateReader,
-                                toReceive: IndexedSeq[(Address, TokenBox.Value)],
-                                sender: IndexedSeq[Address],
-                                changeAddress: Address,
-                                fee: TokenBox.Value,
-                                txType: String,
-                                assetArgs: Option[(Address, String)] = None // (issuer, assetCode)
+  def createRawTransferParams(state: StateReader,
+                              toReceive: IndexedSeq[(Address, TokenBox.Value)],
+                              sender: IndexedSeq[Address],
+                              changeAddress: Address,
+                              fee: TokenBox.Value,
+                              txType: String,
+                              assetArgs: Option[(Address, String)] = None // (issuer, assetCode)
                           ): Try[(IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, TokenBox.Value)])] = Try {
 
     // Lookup boxes for the given senders
