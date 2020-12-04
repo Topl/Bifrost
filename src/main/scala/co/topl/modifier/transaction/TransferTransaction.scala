@@ -27,7 +27,7 @@ abstract class TransferTransaction[
     val minting: Boolean
   ) extends Transaction[TokenBox.Value, P] {
 
-  lazy val bloomTopics: IndexedSeq[BloomTopic] = to.map(BloomTopic @@ _._1.bytes)
+  lazy val bloomTopics: IndexedSeq[BloomTopic] = to.map(x => BloomTopic.apply(x._1.bytes))
 
   lazy val boxIdsToOpen: IndexedSeq[BoxId] = from.map { case (addr, nonce) =>
     BoxId.idFromEviNonce(addr.evidence, nonce)
@@ -97,7 +97,7 @@ object TransferTransaction {
                               changeAddress: Address,
                               fee: TokenBox.Value,
                               txType: String,
-                              assetArgs: Option[(Address, String)] = None // (issuer, assetCode)
+                              assetArgs: Option[(Address, String, Boolean)] = None // (issuer, assetCode)
                           ): Try[(IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, TokenBox.Value)])] = Try {
 
     // Lookup boxes for the given senders
@@ -105,12 +105,19 @@ object TransferTransaction {
       sender.flatMap { s =>
         state.getTokenBoxes(s)
           .getOrElse(throw new Exception("No boxes found to fund transaction")) // isn't this just an empty sequence instead of None?
-          .map {
-            case bx: PolyBox  => ("Poly", s, bx) // always get polys because this is how fees are paid
-            case bx: ArbitBox if txType == "ArbitTransfer" => ("Arbit", s, bx)
-            case bx: AssetBox if (txType == "AssetTransfer" &&
-              bx.assetCode == assetArgs.getOrElse(throw new Error("Undefined assetCode parameter"))._2 &&
-              bx.issuer == assetArgs.getOrElse(throw new Error("Undefined asset issuer parameter"))._1) => ("Asset", s, bx)
+          .filter {
+            case _: PolyBox => true // always get polys because this is how fees are paid
+
+            case _: ArbitBox if txType == "ArbitTransfer" => true
+
+            case bx: AssetBox if txType == "AssetTransfer" &&
+              assetArgs.forall(p => p._1 == bx.issuer && p._2 == bx.assetCode) => true
+
+            case _ => false
+          }.map {
+            case bx: PolyBox  => ("Poly", s, bx)
+            case bx: ArbitBox => ("Arbit", s, bx)
+            case bx: AssetBox => ("Asset", s, bx)
           }
       }.groupBy(_._1)
 
@@ -126,23 +133,31 @@ object TransferTransaction {
           (changeAddress, senderBoxes("Poly").map(_._3.value).sum - fee - toReceive.map(_._2).sum) +: toReceive
         )
 
-      case "ArbitTransfer" => senderBoxes("Arbit").map(_._3.value).sum
+      case "ArbitTransfer" =>
         (
           senderBoxes("Arbit").map(_._3.value).sum,
-          senderBoxes("Arbit").map(bxs => (bxs._2, bxs._3.nonce)),
+          senderBoxes("Arbit").map(bxs => (bxs._2, bxs._3.nonce)) ++ senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
+          (changeAddress, senderBoxes("Poly").map(_._3.value).sum - fee) +: toReceive
+        )
+
+        // case for minting asset transfers
+      case "AssetTransfer" if assetArgs.forall(_._3) =>
+        (
+          Long.MaxValue,
+          senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
           (changeAddress, senderBoxes("Poly").map(_._3.value).sum - fee) +: toReceive
         )
 
       case "AssetTransfer" =>
         (
           senderBoxes("Asset").map(_._3.value).sum,
-          senderBoxes("Asset").map(bxs => (bxs._2, bxs._3.nonce)),
+          senderBoxes("Asset").map(bxs => (bxs._2, bxs._3.nonce)) ++ senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
           (changeAddress, senderBoxes("Poly").map(_._3.value).sum - fee) +: toReceive
         )
     }
 
     // ensure there are sufficient funds from the sender boxes to create all outputs
-    require(availableToSpend >= (toReceive.map(_._2).sum), "Insufficient funds available to create transaction.")
+    require(availableToSpend >= toReceive.map(_._2).sum, "Insufficient funds available to create transaction.")
 
     (inputs, outputs)
   }
