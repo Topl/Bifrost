@@ -8,6 +8,7 @@ import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.Box.Nonce
 import co.topl.nodeView.state.box.TokenBox.Value
 import co.topl.nodeView.state.box.{Box, _}
+import co.topl.utils.HasName
 import com.google.common.base.Utf8
 import com.google.common.primitives.{Ints, Longs}
 import scorex.crypto.hash.Blake2b256
@@ -16,7 +17,7 @@ import scorex.util.encode.Base58
 import scala.util.{Failure, Success, Try}
 
 abstract class TransferTransaction[
-  P <: Proposition: EvidenceProducer
+  P <: Proposition: EvidenceProducer: HasName
 ] ( val from: IndexedSeq[(Address, Box.Nonce)],
     val to: IndexedSeq[(Address, TokenBox.Value)],
     val attestation: Map[P, Proof[P]],
@@ -90,26 +91,33 @@ object TransferTransaction {
    * @param assetArgs a tuple of asset specific details for finding the right asset boxes to be sent in a transfer
    * @return the input box information and output data needed to create the transaction case class
    */
-  def createRawTransferParams ( state: StateReader,
-                                toReceive: IndexedSeq[(Address, TokenBox.Value)],
-                                sender: IndexedSeq[Address],
-                                changeAddress: Address,
-                                fee: TokenBox.Value,
-                                txType: String,
-                                assetArgs: Option[(Address, String)] = None // (issuer, assetCode)
-                          ): Try[(IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, TokenBox.Value)])] = Try {
+  def createRawTransferParams(state: StateReader,
+                              toReceive: IndexedSeq[(Address, TokenBox.Value)],
+                              sender: IndexedSeq[Address],
+                              changeAddress: Address,
+                              fee: TokenBox.Value,
+                              txType: String,
+                              assetArgs: Option[(Address, String)] = None // (issuer, assetCode)
+                             ): Try[(IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, TokenBox.Value)])] = Try {
 
     // Lookup boxes for the given senders
     val senderBoxes =
       sender.flatMap { s =>
         println("in create raw transfer: ")
         println("address: " + s)
-        println("token boxes: " + state.getTokenBoxes(s))
+        println("token boxes: " + state.getTokenBoxes(s).toSeq)
+        println(state.getTokenBoxes(s).get.map {
+          case bx: PolyBox => println("poly box: "+ bx)
+          case bx: ArbitBox => println("arbit box: " + bx)
+        })
         println("tx type: " + txType)
         state.getTokenBoxes(s)
           .getOrElse(throw new Exception("No boxes found to fund transaction")) // isn't this just an empty sequence instead of None?
           .map {
-            case bx: PolyBox  => ("Poly", s, bx) // always get polys because this is how fees are paid
+            case bx: PolyBox  => {
+              println("found a poly box!")
+              ("Poly", s, bx)
+            } // always get polys because this is how fees are paid
             case bx: ArbitBox if txType == "ArbitTransfer" => ("Arbit", s, bx)
             case bx: AssetBox if (txType == "AssetTransfer" &&
               bx.assetCode == assetArgs.getOrElse(throw new Error("Undefined assetCode parameter"))._2 &&
@@ -145,10 +153,11 @@ object TransferTransaction {
           (changeAddress, senderBoxes("Poly").map(_._3.value).sum - fee) +: toReceive
         )
     }
+    println("available to spend: " + availableToSpend)
 
     // ensure there are sufficient funds from the sender boxes to create all outputs
     require(availableToSpend >= (toReceive.map(_._2).sum), "Insufficient funds available to create transaction.")
-
+    println("input: " +  inputs + " outputs: " + outputs)
     (inputs, outputs)
   }
 

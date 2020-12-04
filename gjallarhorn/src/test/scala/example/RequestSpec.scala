@@ -192,7 +192,7 @@ class RequestSpec extends AsyncFlatSpec
          |{
          |   "jsonrpc": "2.0",
          |   "id": "1",
-         |   "method": "topl_rawPolyTransfer",
+         |   "method": "topl_rawArbitTransfer",
          |   "params": [{
          |     "propositionType": "PublicKeyCurve25519",
          |     "recipient": [["$pk2", $amount]],

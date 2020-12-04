@@ -3,6 +3,7 @@ package co.topl.attestation
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
 import co.topl.attestation.serialization.PropositionSerializer
+import co.topl.utils.HasName
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
@@ -83,6 +84,8 @@ object PublicKeyPropositionCurve25519 {
       prop: PublicKeyPropositionCurve25519 => Evidence(typePrefix, EvidenceContent @@ Blake2b256(prop.bytes))
     }
 
+  implicit val name: HasName[PublicKeyPropositionCurve25519] = HasName.instance(() => typeString)
+
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html
   implicit val jsonEncoder: Encoder[PublicKeyPropositionCurve25519] = (prop: PublicKeyPropositionCurve25519) => prop.toString.asJson
@@ -124,6 +127,8 @@ object ThresholdPropositionCurve25519 {
     EvidenceProducer.instance[ThresholdPropositionCurve25519] {
       prop: ThresholdPropositionCurve25519 => Evidence(typePrefix, EvidenceContent @@ Blake2b256(prop.bytes))
     }
+
+  implicit val name: HasName[PublicKeyPropositionCurve25519] = HasName.instance(() => typeString)
 
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html

@@ -1,19 +1,19 @@
 package co.topl.modifier.transaction
 
 import java.time.Instant
-
 import co.topl.attestation._
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.TransferTransaction.BoxParams
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{ArbitBox, Box, PolyBox, TokenBox}
+import co.topl.utils.HasName
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 
 import scala.util.Try
 
 case class ArbitTransfer[
-  P <: Proposition: EvidenceProducer
+  P <: Proposition: EvidenceProducer: HasName
 ] (override val from       : IndexedSeq[(Address, Box.Nonce)],
    override val to         : IndexedSeq[(Address, TokenBox.Value)],
    override val attestation: Map[P, Proof[P]],
@@ -49,7 +49,7 @@ object ArbitTransfer {
    * @return
    */
   def createRaw[
-    P <: Proposition: EvidenceProducer
+    P <: Proposition: EvidenceProducer: HasName
   ] (stateReader  : StateReader,
      toReceive    : IndexedSeq[(Address, TokenBox.Value)],
      sender       : IndexedSeq[Address],

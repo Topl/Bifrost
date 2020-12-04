@@ -265,8 +265,10 @@ case class TransactionApiEndpoint(
         // construct the transaction
         propType match {
           case PublicKeyPropositionCurve25519.typeString =>
-            ArbitTransfer
+            val arbitTx = ArbitTransfer
               .createRaw[PublicKeyPropositionCurve25519](view.state, recipients, sender, changeAddr, fee, data)
+            println("raw arbit tx: " + arbitTx)
+            arbitTx
 
           case ThresholdPropositionCurve25519.typeString =>
             ArbitTransfer
@@ -274,6 +276,7 @@ case class TransactionApiEndpoint(
         }
       }) match {
         case Right(Success(tx)) =>
+          println("hello successful: "+ tx)
           // validate and update nodeView with new TX
           tx.rawValidate match {
             case Success(_) =>
@@ -286,8 +289,14 @@ case class TransactionApiEndpoint(
               throw new Exception(s"Could not validate transaction: $e")
           }
 
-        case Right(Failure(ex)) => throw new Exception(s"Failed to create raw ArbitTransfer with error: $ex")
-        case Left(ex)           => throw ex
+        case Right(Failure(ex)) => {
+          println(" in right fail! ")
+          throw new Exception(s"Failed to create raw ArbitTransfer with error: $ex")
+        }
+        case Left(ex)           => {
+          println ("in left fail!")
+          throw ex
+        }
       }
     }
   }
