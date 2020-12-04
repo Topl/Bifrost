@@ -128,7 +128,7 @@ object ThresholdPropositionCurve25519 {
       prop: ThresholdPropositionCurve25519 => Evidence(typePrefix, EvidenceContent @@ Blake2b256(prop.bytes))
     }
 
-  implicit val name: HasName[PublicKeyPropositionCurve25519] = HasName.instance(() => typeString)
+  implicit val name: HasName[ThresholdPropositionCurve25519] = HasName.instance(() => typeString)
 
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html

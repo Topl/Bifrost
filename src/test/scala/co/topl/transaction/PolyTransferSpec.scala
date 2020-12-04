@@ -2,16 +2,16 @@ package co.topl.transaction
 
 import co.topl.modifier.transaction.PolyTransfer
 import co.topl.nodeView.state.State
-import co.topl.{ BifrostGenerators, ValidGenerators }
+import co.topl.utils.{CoreGenerators, ValidGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 class PolyTransferSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
-  with BifrostGenerators
+  with CoreGenerators
   with ValidGenerators {
 
   property("Generated PolyTransfer Tx should be valid") {

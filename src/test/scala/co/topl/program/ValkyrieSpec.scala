@@ -9,19 +9,19 @@ import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.box.{ArbitBox, AssetBox}
 import co.topl.nodeView.state.{State, StateSpec}
-import co.topl.{BifrostGenerators, ValidGenerators}
+import co.topl.utils.{CoreGenerators, ValidGenerators}
 import com.google.common.primitives.{Ints, Longs}
 import org.graalvm.polyglot.Context
-import org.scalatest.Ignore
+import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
-@Ignore
+@DoNotDiscover
 class ValkyrieSpec extends AnyPropSpec
   with Matchers
-  with BifrostGenerators
+  with CoreGenerators
   with ValidGenerators {
 
   val publicKeys = Map(
@@ -176,7 +176,7 @@ class ValkyrieSpec extends AnyPropSpec
 
     assert(valkyrieController != null)
 
-    val state: State = State.readOrGenerate(StateSpec.testSettings)
+    val state: State = State.readOrGenerate(settings)
 
     assert(state.getTokenBoxes(PublicKey25519Proposition(publicKeys("investor"))).nonEmpty)
 

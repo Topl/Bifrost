@@ -1,27 +1,24 @@
 package co.topl.api.program
 
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import co.topl.http.api.endpoints.ProgramApiRoute
 import io.circe.parser.parse
 import org.scalatest.DoNotDiscover
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
+
+import scala.util.Random
 
 @DoNotDiscover
-class ProgramMethodExecutionSpec extends AnyWordSpec
-  with Matchers
-  with ScalatestRouteTest
-  with ProgramMockState {
+class ProgramMethodExecutionSpec extends ProgramRPCMockState {
 
   val route: Route = ProgramApiRoute(settings.rpcApi, nodeViewHolderRef).route
 
   "executeProgramMethod" should {
 
     val boxState = Seq(stateBox, codeBox, executionBox)
+    val version = Random.nextInt
 
-    directlyAddPBRStorage(1, boxState)
+    directlyAddPBRStorage(version, boxState)
 
     "Update mutable state in a Program and return the updated state" in {
 
@@ -54,9 +51,7 @@ class ProgramMethodExecutionSpec extends AnyWordSpec
            |""".stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
-
-        println(res)
+        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
 
         (res \\ "result").head.isObject shouldEqual true
         (res \\ "error").isEmpty shouldEqual true

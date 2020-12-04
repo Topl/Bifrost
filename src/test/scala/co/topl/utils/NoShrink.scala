@@ -1,4 +1,4 @@
-package utils
+package co.topl.utils
 
 import org.scalacheck.Shrink
 

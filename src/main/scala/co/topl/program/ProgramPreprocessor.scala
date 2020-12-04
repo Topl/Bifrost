@@ -102,11 +102,14 @@ object ProgramPreprocessor {
     }
 
     val announcedRegistry: Option[Map[String, Seq[String]]] =
-      (json \\ "interface").headOption.map(_.as[Map[String, Seq[String]]].right.get)
+      (json \\ "interface")
+        .headOption.map(_.as[Map[String, Seq[String]]] match {
+          case Right(re) => re
+          case Left(ex) => throw ex})
 
     val signed: Option[(PublicKeyPropositionCurve25519, SignatureCurve25519)] = (json \\ "signed")
       .headOption
-      .map(_.as[(String, String)].right.get)
+      .map(_.as[(String, String)] match {case Right(re) => re; case Left(ex) => throw ex})
       .map{pair =>
         val pub = PublicKeyPropositionCurve25519(pair._1)
         val sig = SignatureCurve25519(pair._2)
@@ -337,7 +340,7 @@ object ProgramPreprocessor {
       name,
       decodeGzip(initjs),
       interface,
-      //parse(new String(decodedState.toArray[Byte])).right.get,
+      //parse(new String(decodedState.toArray[Byte])) match {case Right(re) => re; case Left(ex) => throw ex},
       variables,
       code,
       signed.map{pair =>

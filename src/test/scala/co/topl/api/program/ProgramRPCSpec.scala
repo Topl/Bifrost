@@ -1,22 +1,14 @@
-package co.topl.api
+package co.topl.api.program
 
-import akka.actor.ActorRef
-import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.{HttpEntity, HttpRequest, _}
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.testkit.ScalatestRouteTest
-import akka.pattern.ask
-import akka.util.{ByteString, Timeout}
-import co.topl.BifrostGenerators
-import co.topl.attestation.PublicKeyPropositionCurve25519
+import akka.util.ByteString
+import co.topl.api.RPCMockState
 import co.topl.http.api.endpoints.ProgramApiRoute
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import co.topl.nodeView.history.History
-import co.topl.nodeView.mempool.MemPool
-import co.topl.nodeView.state.State
+import co.topl.nodeView.state
 import co.topl.nodeView.state.box._
+import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.nodeView.{CurrentView, NodeViewHolderRef, state}
 import co.topl.settings.{AppContext, StartupOpts}
 import io.circe._
@@ -26,47 +18,13 @@ import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-import scala.concurrent.Await
-import scala.concurrent.duration._
-import scala.reflect.io.Path
-import scala.util.Try
-
-/**
-  * Created by cykoz on 6/13/2017.
-  */
 @DoNotDiscover
 class ProgramRPCSpec extends AnyWordSpec
   with Matchers
-  with ScalatestRouteTest
-  with BifrostGenerators {
-
-  val path: Path = Path("/tmp/bifrost/test-data")
-  Try(path.deleteRecursively())
-
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
-  // save environment into a variable for reference throughout the application
-  protected val appContext = new AppContext(settings, StartupOpts.empty, None)
-
-  // Create Bifrost singleton actors
-  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  with RPCMockState {
 
   // setup route for testing
   val route: Route = ProgramApiRoute(settings.rpcApi, nodeViewHolderRef).route
-
-  def httpPOST(jsonRequest: ByteString): HttpRequest = {
-    HttpRequest(
-      HttpMethods.POST,
-      uri = "/program/",
-      entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    ).withHeaders(RawHeader("x-api-key", "test_key"))
-  }
-
-  implicit val timeout: Timeout = Timeout(10.seconds)
-
-  private def view() = Await.result(
-    (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]],
-    10.seconds)
 
   lazy val (signSk, signPk) = sampleUntilNonEmpty(keyPairSetGen).head
 
@@ -88,8 +46,6 @@ class ProgramRPCSpec extends AnyWordSpec
       publicKeys("hub") -> 0,
       publicKeys("producer") -> 0
     )
-
-    var executionBox: Option[ExecutionBox] = None
 
     def manuallyApplyChanges(res: Json, version: Int): Unit = {
       // Manually manipulate state
@@ -121,7 +77,7 @@ class ProgramRPCSpec extends AnyWordSpec
       {
         "jsonrpc": "2.0",
         "id": "16",
-        "method": "getProgramSignature",
+        "method": "createProgram",
         "params": [{
          "signingPublicKey": "${publicKeys("investor")}",
           "program": $program,
@@ -130,7 +86,7 @@ class ProgramRPCSpec extends AnyWordSpec
           "owner": "${publicKeys("investor")}",
           "signatures": ${Map(publicKeys("investor") -> "".asJson).asJson},
           "preFeeBoxes": {
-            "${publicKeys("investor")}": [[${polyBoxes.head.nonce}, ${polyBoxes.head.value}]]
+            "${publicKeys("investor")}": [[]]
           },
           "fees": ${fees.asJson},
           "timestamp": ${System.currentTimeMillis},
@@ -139,18 +95,7 @@ class ProgramRPCSpec extends AnyWordSpec
       }
       """
 
-    var sig = ""
-
-    "Get programCreation signature" in {
-      val requestBody = ByteString(programBodyTemplate.stripMargin)
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
-        (res \\ "result").head.asObject.isDefined shouldEqual true
-        sig = ((res \\ "result").head.asJson \\ "signature").head.asString.get
-        sig.nonEmpty shouldEqual true
-        (res \\ "error").isEmpty shouldEqual true
-      }
-    }
+    val sig = ""
 
     "Create the Program" in {
 
@@ -163,14 +108,13 @@ class ProgramRPCSpec extends AnyWordSpec
       val requestBodyJson = parse(programBodyTemplate).getOrElse(Json.Null)
 
       val cursor: HCursor = requestBodyJson.hcursor
-      val requestJson = cursor.downField("method")
-        .withFocus(_.mapString(_ => "createProgram")).up
+      val requestJson = cursor
         .downField("params").downArray.downField("signatures").downField(publicKeys("investor"))
         .withFocus(_.mapString(_ => sig)).top.get
 
 
-      httpPOST(ByteString(requestJson.toString)) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+      httpPOST("/program/", ByteString(requestJson.toString)) ~> route ~> check {
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "result").head.asObject.isDefined shouldEqual true
         //a new transaction in the mempool
         view().pool.take(1).toList.size shouldEqual 1
@@ -215,7 +159,7 @@ class ProgramRPCSpec extends AnyWordSpec
         """.stripMargin
 
       httpPOST(ByteString(requestBody)) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "result").head.asObject.isDefined shouldEqual true
         // Manually modify state
         manuallyApplyChanges(res, 9)
@@ -228,7 +172,7 @@ class ProgramRPCSpec extends AnyWordSpec
 
         val state = root.value.executionBuilder.core.json.getOption(boxContent).get.as[BaseModuleWrapper].right.get.state
           .asString.get
-        (parse(state).right.get \\ "status").head.asString.get shouldBe "in progress"
+        (parse(state) match {case Right(re) => re; case Left(ex) => throw ex} \\ "status").head.asString.get shouldBe "in progress"
       }
     }*/
 
@@ -244,52 +188,10 @@ class ProgramRPCSpec extends AnyWordSpec
         """.stripMargin
 
       httpPOST(ByteString(requestBody)) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "result").head.asArray.get.nonEmpty shouldEqual true
         ((res \\ "result").head \\ "transactionHash").head.asString.get shouldEqual Base58.encode(completionTx.get.id)
       }
     }*/
-
-//    "Post a Proposal" in {
-//      val tempProposal = ProducerProposal(
-//        com.google.protobuf.ByteString.copyFrom("testProducer".getBytes),
-//        ProposalDetails(assetCode = "assetCode", fundingNeeds = Some(ProposalDetails.Range(0, 1000)))
-//      )
-//      val requestBody =
-//        s"""
-//           |{
-//           |  "jsonrpc" : "2.0",
-//           |  "id" : "24",
-//           |  "method": "postProposals",
-//           |  "params" : [${JsonFormat.toJsonString(tempProposal)}]
-//           |}
-//        """.stripMargin
-//      httpPOST(ByteString(requestBody)) ~> route ~> check {
-//        val res = parse(responseAs[String]).right.get
-//        (res \\ "result").head.asObject.isDefined shouldEqual true
-//        val msgManager = Await.result((nodeViewHolderRef ? GetMessageManager).mapTo[MessageManager], 5.seconds)
-//        msgManager.m.take(1).head.messageBytes.toByteArray sameElements tempProposal.toByteArray shouldBe true
-//      }
-//    }
-//
-//    "Retrieve Proposals" in {
-//      val requestBody =
-//        s"""
-//           |{
-//           |  "jsonrpc" : "2.0",
-//           |  "id" : "24",
-//           |  "method": "retrieveProposals",
-//           |  "params" : [{
-//           |    "limit": 10
-//           |  }]
-//           |}
-//        """.stripMargin
-//
-//      httpPOST(ByteString(requestBody)) ~> route ~> check {
-//        val res = parse(responseAs[String]).right.get
-//        (res \\ "result").head.asObject.isDefined shouldEqual true
-//        ((res \\ "result").head \\ "totalProposals").head.asNumber.get.toInt.get shouldEqual 1
-//      }
-//    }
   }
 }

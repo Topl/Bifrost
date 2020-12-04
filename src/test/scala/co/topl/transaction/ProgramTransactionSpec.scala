@@ -9,7 +9,7 @@ import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.modifier.transaction.{ProgramCreation, ProgramMethodExecution, ProgramTransaction}
 import co.topl.nodeView.state.box.{BoxId, CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox}
 import co.topl.program.ExecutionBuilderSerializer
-import co.topl.{BifrostGenerators, ValidGenerators}
+import co.topl.utils.{CoreGenerators, ValidGenerators}
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
@@ -21,11 +21,11 @@ import scorex.crypto.hash.Blake2b256
 import scala.collection.immutable.Seq
 
 class ProgramTransactionSpec extends AnyPropSpec
-                                     with ScalaCheckPropertyChecks
-                                     with ScalaCheckDrivenPropertyChecks
-                                     with Matchers
-                                     with BifrostGenerators
-                                     with ValidGenerators {
+  with ScalaCheckPropertyChecks
+  with ScalaCheckDrivenPropertyChecks
+  with Matchers
+  with CoreGenerators
+  with ValidGenerators {
 
   //noinspection ScalaStyle
   def potentiallyInvalidProgramCreationGen(minFee: Long,
