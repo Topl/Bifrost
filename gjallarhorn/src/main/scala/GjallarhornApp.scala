@@ -25,9 +25,9 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   implicit val networkPrefix: NetworkPrefix = 1.toByte
   implicit val timeout: Timeout = 10.seconds
 
-  private val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", "keyfiles")
   val keyFileDir: String = settings.application.keyFileDir
   val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] = Keys(keyFileDir, KeyfileCurve25519)
+  private val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", keyManager)
 
   val listener: ActorRef = system.actorOf(Props[DeadLetterListener]())
   system.eventStream.subscribe(listener, classOf[DeadLetter])

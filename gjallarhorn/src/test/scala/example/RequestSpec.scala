@@ -6,12 +6,12 @@ import _root_.requests.{Requests, RequestsManager}
 import akka.util.{ByteString, Timeout}
 import crypto.AddressEncoder.NetworkPrefix
 import crypto.{Address, KeyfileCurve25519, PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
-import io.circe.{Json, parser}
+import io.circe.Json
 import io.circe.parser._
+import io.circe.syntax._
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import keymanager.Keys
-import scorex.util.encode.Base58
 import wallet.WalletManager
 import wallet.WalletManager._
 
@@ -66,7 +66,6 @@ class RequestSpec extends AsyncFlatSpec
     case Failure(ex) => throw ex
   }
 
-
   val publicKeys: Set[Address] = Set(pk1, pk2, pk3, genesisPubKey)
   val walletManagerRef: ActorRef = actorSystem.actorOf(
     Props(new WalletManager(publicKeys, bifrostActor)), name = "WalletManager")
@@ -93,7 +92,7 @@ class RequestSpec extends AsyncFlatSpec
   }
 
 
-  it should "receive a successful response from Bifrost upon creating asset" in {
+  /*it should "receive a successful response from Bifrost upon creating asset" in {
     val createAssetRequest: ByteString = ByteString(
       s"""
          |{
@@ -113,25 +112,53 @@ class RequestSpec extends AsyncFlatSpec
          |   }]
          |}
        """.stripMargin)
-    transaction = requests.sendRequest(createAssetRequest)
-    println("evidence1: " + pk1.evidence)
-    println("address1 from pk1: " + PublicKeyPropositionCurve25519("ZqKV9knFFLhuaEozi3ARM9EPG9aAvo5xkHCXaEM9P56u").address)
-    println("address2 from pk2: " + PublicKeyPropositionCurve25519("Ur1jnMvtnYdP6yucy2Mdwki1wVxbrzTT9XnNVZYby7mq").address)
-    println(transaction)
-    assert(transaction.isInstanceOf[Json])
+    val tx = requests.sendRequest(createAssetRequest)
+    println(tx)
+    assert(tx.isInstanceOf[Json])
+    (tx \\ "error").isEmpty shouldBe true
+    (tx \\ "result").head.asObject.isDefined shouldBe true
+  }*/
+
+  it should "receive a successful response from Bifrost upon transfering a poly" in {
+    val transferPolysRequest: ByteString = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "1",
+         |   "method": "topl_rawArbitTransfer",
+         |   "params": [{
+         |     "propositionType": "PublicKeyCurve25519",
+         |     "recipient": [["$pk2", $amount]],
+         |     "sender": ["$pk1"],
+         |     "changeAddress": "$pk1",
+         |     "fee": 0,
+         |     "data": ""
+         |   }]
+         |}
+       """.stripMargin)
+    transaction = requests.sendRequest(transferPolysRequest)
     newBoxId = parseForBoxId(transaction)
+    assert(transaction.isInstanceOf[Json])
     (transaction \\ "error").isEmpty shouldBe true
     (transaction \\ "result").head.asObject.isDefined shouldBe true
   }
 
-  /*it should "receive successful JSON response from sign transaction" in {
+
+  it should "receive successful JSON response from sign transaction" in {
     val issuer: List[String] = List(publicKeys.head.toString)
-    signedTransaction = requests.signTx(transaction, keyManager, issuer)
-    val sigs = (signedTransaction \\ "signatures").head.asObject.get
-    issuer.foreach(key => assert(sigs.contains(key)))
+    val response = requests.signTx(transaction, keyManager, issuer)
+    (response \\ "error").isEmpty shouldBe true
+    (response \\ "result").head.asObject.isDefined shouldBe true
+    signedTransaction = (response \\ "result").head
     assert((signedTransaction \\ "signatures").head.asObject.isDefined)
-    (signedTransaction \\ "error").isEmpty shouldBe true
-    (signedTransaction \\ "result").head.asObject.isDefined shouldBe true
+    val sigs: Map[PublicKeyPropositionCurve25519, Json] =
+      (signedTransaction \\ "signatures").head.as[Map[PublicKeyPropositionCurve25519, Json]] match {
+      case Left(error) => throw (error)
+      case Right(value) => value
+    }
+    val pubKeys = sigs.keySet.map(pubKey => pubKey.address)
+    issuer.foreach(key => assert(pubKeys.contains(Address(key))))
+    (signedTransaction \\ "tx").nonEmpty shouldBe true
   }
 
   it should "receive successful JSON response from broadcast transaction" in {
@@ -139,7 +166,7 @@ class RequestSpec extends AsyncFlatSpec
     assert(response.isInstanceOf[Json])
     (response \\ "error").isEmpty shouldBe true
     (response \\ "result").head.asObject.isDefined shouldBe true
-  }*/
+  }
 
   var balanceResponse: Json = Json.Null
 
@@ -184,31 +211,6 @@ class RequestSpec extends AsyncFlatSpec
       case None => sys.error("no new blocks")
     }
   }*/
-
-
-  it should "receive a successful response from Bifrost upon transfering a poly" in {
-    val transferPolysRequest: ByteString = ByteString(
-      s"""
-         |{
-         |   "jsonrpc": "2.0",
-         |   "id": "1",
-         |   "method": "topl_rawArbitTransfer",
-         |   "params": [{
-         |     "propositionType": "PublicKeyCurve25519",
-         |     "recipient": [["$pk2", $amount]],
-         |     "sender": ["$pk1"],
-         |     "changeAddress": "$pk1",
-         |     "fee": 0,
-         |     "data": ""
-         |   }]
-         |}
-       """.stripMargin)
-    val tx = requests.sendRequest(transferPolysRequest)
-    println(tx)
-    assert(tx.isInstanceOf[Json])
-    (transaction \\ "error").isEmpty shouldBe true
-    (transaction \\ "result").head.asObject.isDefined shouldBe true
-  }
 
 
   it should "send msg to bifrost actor when the gjallarhorn app stops" in {

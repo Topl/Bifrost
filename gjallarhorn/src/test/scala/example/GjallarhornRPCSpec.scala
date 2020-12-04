@@ -17,7 +17,6 @@ import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
 import keymanager.{KeyManagerRef, Keys}
 import requests.{ApiRoute, Requests, RequestsManager}
-import scorex.util.encode.Base58
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -42,9 +41,10 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   val http: HttpExt = Http(system)
   val amount = 10
 
-  val keyManagerRef: ActorRef = KeyManagerRef("keyManager", "keyfiles")
   val keyFileDir = "keyfiles/keyManagerTest"
-  val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] = Keys(keyFileDir, KeyfileCurve25519)
+  val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] =
+    Keys[PrivateKeyCurve25519, KeyfileCurve25519](keyFileDir, KeyfileCurve25519)
+  val keyManagerRef: ActorRef = KeyManagerRef("keyManager", keyManager)
 
   val privateKeys: Set[PrivateKeyCurve25519] = keyManager.generateNewKeyPairs(2, Some("test")) match {
     case Success(secrets) => secrets
@@ -55,6 +55,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 
   val (pk1, sk1) = (addresses.head, privateKeys.head)
   val (pk2, sk2) = (addresses.tail.head, privateKeys.tail.head)
+
+  keyManager.exportKeyfile(pk1, "password1")
+  keyManager.exportKeyfile(pk2, "password2")
 
   val bifrostActor: ActorRef = Await.result(system.actorSelection(
     s"akka.tcp://${settings.application.chainProvider}/user/walletConnectionHandler").resolveOne(), 10.seconds)
@@ -83,7 +86,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |   "id": "2",
          |   "method": "wallet_createTransaction",
          |   "params": [{
-         |     "method": "topl_rawAssetTransfer",
+         |     "method": "topl_rawArbitTransfer",
          |     "params": [{
          |        "propositionType": "PublicKeyCurve25519",
          |        "sender": ["$pk2"],
@@ -101,12 +104,10 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 
     httpPOST(createAssetRequest) ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
-      println(responseString)
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          println(res)
-          prototypeTx = (res \\ "formattedTx").head
+          prototypeTx = (res \\ "rawTx").head
           msgToSign = (res \\ "messageToSign").head.asString.get
           (res \\ "error").isEmpty shouldBe true
           (res \\ "result").head.asObject.isDefined shouldBe true
@@ -114,10 +115,31 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     }
   }
 
-  //TODO: make sure it works after changing keys format.
-/*  it should "successfully sign a transaction" in {
-    println(prototypeTx)
-    println(msgToSign)
+  //ToDo: listOpenKeyFiles isn't returning correct form of the keyfiles.
+  it should "successfully get open keyfiles" in {
+    val openKeyfilesRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_listOpenKeyfiles",
+         |   "params": [{}]
+         |}
+         """.stripMargin)
+
+    httpPOST(openKeyfilesRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          val openKeys: Set[String] = (res \\ "result").head.asArray.get.map(k => k.asString.get).toSet
+          openKeys.contains(s"$pubKeyAddr") shouldBe true
+      }
+    }
+  }
+
+  it should "successfully sign a transaction" in {
     val signTxRequest = ByteString(
       s"""
          |{
@@ -126,7 +148,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |   "method": "wallet_signTx",
          |   "params": [{
          |      "signingKeys": ["${pk1.toString}"],
-         |      "protoTx": $prototypeTx,
+         |      "rawTx": $prototypeTx,
          |      "messageToSign": "$msgToSign"
          |   }]
          |}
@@ -137,12 +159,11 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          println(res)
           (res \\ "error").isEmpty shouldBe true
           (res \\ "result").head.asObject.isDefined shouldBe true
       }
     }
-  }*/
+  }
 
   var pubKeyAddr: String = pk1.toString
 
@@ -249,31 +270,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     }
   }
 
-  //ToDo: listOpenKeyFiles isn't returning correct form of the keyfiles.
-  /*it should "successfully get open keyfiles" in {
-    val openKeyfilesRequest = ByteString(
-      s"""
-         |{
-         |   "jsonrpc": "2.0",
-         |   "id": "2",
-         |   "method": "wallet_listOpenKeyfiles",
-         |   "params": [{}]
-         |}
-         """.stripMargin)
 
-    httpPOST(openKeyfilesRequest) ~> route ~> check {
-      val responseString = responseAs[String].replace("\\", "")
-      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
-        case Left(f) => throw f
-        case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          val openKeys: Set[String] = (res \\ "result").head.asArray.get.map(k => k.asString.get).toSet
-          println(openKeys)
-          println(pubKeyAddr)
-          openKeys.contains(s"$pubKeyAddr") shouldBe true
-      }
-    }
-  }*/
 
   it should "get a successful JSON response from balance request" in {
       val requestBody = ByteString(
@@ -293,7 +290,6 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 
       httpPOST(requestBody) ~> route ~> check {
         val responseString = responseAs[String].replace("\\", "")
-        println("balances: " + responseString)
         parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
           case Left(f) => throw f
           case Right(res: Json) =>

@@ -1,12 +1,10 @@
 package co.topl.wallet
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import akka.http.scaladsl.{Http, HttpExt}
+import akka.actor.{Actor, ActorRef, ActorSystem, ExtendedActorSystem, Props}
 import akka.pattern.pipe
 import akka.util.Timeout
 import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.http.api.ApiEndpoint
 import co.topl.http.api.endpoints.{NodeViewApiEndpoint, TransactionApiEndpoint}
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.block.{Block, BloomFilter, PersistentNodeViewModifier}
@@ -41,7 +39,6 @@ class WalletConnectionHandler[
   var remoteWalletActor: Option[ActorRef] = None
   var remoteWalletAddresses: Option[Set[Address]] = None
 
-  val http: HttpExt = Http(context.system)
 
   override def preStart(): Unit = {
     context.system.eventStream.subscribe(self, classOf[SemanticallySuccessfulModifier[PMOD]])

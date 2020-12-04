@@ -106,10 +106,6 @@ object TransferTransaction {
         println("in create raw transfer: ")
         println("address: " + s)
         println("token boxes: " + state.getTokenBoxes(s).toSeq)
-        println(state.getTokenBoxes(s).get.map {
-          case bx: PolyBox => println("poly box: "+ bx)
-          case bx: ArbitBox => println("arbit box: " + bx)
-        })
         println("tx type: " + txType)
         state.getTokenBoxes(s)
           .getOrElse(throw new Exception("No boxes found to fund transaction")) // isn't this just an empty sequence instead of None?

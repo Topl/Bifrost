@@ -66,21 +66,6 @@ class Requests (settings: ApplicationSettings, requestsManager: ActorRef)
       }
   }
 
-  def jsonToByteString(data: Json): ByteString = {
-    val result = (data \\ "result").head
-    val tx = (result \\ "formattedTx").head
-    val params = Map(
-      "tx" -> tx
-    ).asJson
-    val newJSON = Map(
-      "jsonrpc" -> (data \\ "jsonrpc").head,
-      "id" -> (data \\ "id").head,
-      "method" -> "broadcastTx".asJson,
-      "params" -> List(params).asJson
-    ).asJson
-    ByteString(newJSON.toString.getBytes())
-  }
-
   def createJsonResponse (transaction: Json, result: Json): Json = {
     val resultString = result.toString().replace("\\", "").replace("\"{", "{")
       .replace("}\"", "}")
@@ -97,9 +82,11 @@ class Requests (settings: ApplicationSettings, requestsManager: ActorRef)
   }
 
 
-  def signTx(transaction: Json, keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519], signingKeys: List[String]): Json = {
+  def signTx(transaction: Json,
+             keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519],
+             signingKeys: List[String]): Json = {
     val result = (transaction \\ "result").head
-    val tx = (result \\ "formattedTx").head
+    val tx = (result \\ "rawTx").head
     val messageToSign = (result \\ "messageToSign").head
     val signatures = signingKeys.map(keyString => {
       Base58.decode(messageToSign.asString.get) match {
@@ -121,7 +108,7 @@ class Requests (settings: ApplicationSettings, requestsManager: ActorRef)
     val newTx = tx.deepMerge(Map(
       "signatures" -> signatures
     ).asJson)
-    val newResult = Map("formattedTx"-> newTx).asJson
+    val newResult = Map("tx"-> newTx).asJson
     createJsonResponse(transaction, newResult)
   }
 
@@ -161,10 +148,9 @@ class Requests (settings: ApplicationSettings, requestsManager: ActorRef)
   }
 
   def broadcastTx(signedTransaction: Json): Json = {
-    sendRequest(jsonToByteString(signedTransaction))
+    sendRequest(transaction("topl_broadcastTx", signedTransaction))
   }
 
-  //TODO replace "topl_" with namespace.name?
   def getBalances (publicKeys: Set[String]): Json = {
     val keysJson: Set[Json] = publicKeys.map(_.asJson)
     val params: Json = Map("addresses" -> keysJson.toList).asJson

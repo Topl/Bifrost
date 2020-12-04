@@ -21,7 +21,6 @@ case class GjallarhornApiRoute(settings: AppSettings,
                               (implicit val context: ActorRefFactory,
                                implicit val actorSystem: ActorSystem) extends ApiRoute {
 
-  //override val route: Route = pathPrefix("gjallarhorn") {basicRoute(handlers) }
 
   val namespace: Namespace = WalletNamespace
 
@@ -37,25 +36,6 @@ case class GjallarhornApiRoute(settings: AppSettings,
     case (method, params, id) if method == s"${namespace.name}_lockKeyfile" => lockKeyfile(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_balances" => balances(params.head, id)
   }
-  /*/**
-    * Handles the different methods that are called.
-    * @param method - can be: createAssetsProtoType, signTX, broadcastTx, listOpenKeyfiles, generateKeyfile
-    * @param params - parameters for the given method.
-    * @param id - id for the transaction.
-    * @return - returns a future response.
-    */
-  def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
-    method match {
-        case "createTransaction" => createTransaction(params.head, id)
-        case "signTx" => signTx(params.head, id)
-        case "broadcastTx" => broadcastTx(params.head, id)
-        case "listOpenKeyfiles" => listOpenKeyfiles(params.head, id)
-        case "generateKeyfile" => generateKeyfile(params.head, id)
-        case "importKeyfile" => importKeyfile(params.head, id)
-        case "unlockKeyfile" => unlockKeyfile(params.head, id)
-        case "lockKeyfile" => lockKeyfile(params.head, id)
-        case "balances" => balances(params.head, id)
-    }*/
 
   /**
     * Creates a transaction.
@@ -64,7 +44,6 @@ case class GjallarhornApiRoute(settings: AppSettings,
     * @return - a response after creating transaction.
     */
   private def createTransaction(params: Json, id: String): Future[Json] = {
-      println("in create transaction")
       val method: String = (params \\ "method").head.asString.get
       val innerParams: Json = (params \\ "params").head.asArray.get.head
       val tx = requests.transaction(method, innerParams)
@@ -81,12 +60,16 @@ case class GjallarhornApiRoute(settings: AppSettings,
     * @return
     */
   private def signTx(params: Json, id: String): Future[Json] = {
-    val props = (params \\ "signingKeys").head.asArray.get.map(k =>
-     k.asString.get
-    ).toList
-    val tx = (params \\ "protoTx").head
+    val tx = (params \\ "rawTx").head
     val messageToSign = (params \\ "messageToSign").head
-    (keyManager ? SignTx(tx, props, messageToSign)).mapTo[String].map(_.asJson)
+    (for {
+      signingKeys <- (params \\ "signingKeys").head.as[List[String]]
+    } yield {
+      (keyManager ? SignTx(tx, signingKeys, messageToSign)).mapTo[Json]
+    }) match {
+      case Right(value) => value
+      case Left(error) => throw new Exception(s"error parsing signing keys: $error")
+    }
   }
 
   /**
@@ -110,7 +93,7 @@ case class GjallarhornApiRoute(settings: AppSettings,
     * @return - a list of the open key files once they are retrieved.
     */
   private def listOpenKeyfiles(params: Json, id: String): Future[Json] = {
-    (keyManager ? GetOpenKeyfiles).mapTo[Set[String]].map(_.asJson)
+    (keyManager ? GetOpenKeyfiles).mapTo[Set[Address]].map(_.asJson)
   }
 
   /**

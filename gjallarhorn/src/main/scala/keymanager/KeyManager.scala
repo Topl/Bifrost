@@ -11,11 +11,11 @@ import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
 
-class KeyManager(keyDir: String)(implicit np: NetworkPrefix) extends Actor {
+class KeyManager(keys: Keys[PrivateKeyCurve25519, KeyfileCurve25519])(implicit np: NetworkPrefix) extends Actor {
 
   import KeyManager._
 
-  val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] = Keys[PrivateKeyCurve25519, KeyfileCurve25519](keyDir, KeyfileCurve25519)
+  val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] = keys
 
   override def receive: Receive = {
     case GenerateKeyFile(password) => sender ! keyManager.generateKeyFile(password)
@@ -48,7 +48,7 @@ class KeyManager(keyDir: String)(implicit np: NetworkPrefix) extends Actor {
       val newTx = tx.deepMerge(Map(
         "signatures" -> signaturesMap
       ).asJson)
-      sender ! Map("formattedTx"-> newTx).asJson
+      sender ! Map("tx"-> newTx).asJson
   }
 }
 
@@ -63,11 +63,13 @@ object KeyManager {
 
 object KeyManagerRef {
 
-  def props(keyDir: String)(implicit ec: ExecutionContext, np: NetworkPrefix): Props = {
-    Props(new KeyManager(keyDir))
+  def props(keys: Keys[PrivateKeyCurve25519, KeyfileCurve25519])
+           (implicit ec: ExecutionContext, np: NetworkPrefix): Props = {
+    Props(new KeyManager(keys))
   }
 
-  def apply(name: String, keyDir: String)(implicit system: ActorSystem, ec: ExecutionContext, np: NetworkPrefix): ActorRef = {
-    system.actorOf(Props(new KeyManager(keyDir)))
+  def apply(name: String, keys: Keys[PrivateKeyCurve25519, KeyfileCurve25519])
+           (implicit system: ActorSystem, ec: ExecutionContext, np: NetworkPrefix): ActorRef = {
+    system.actorOf(Props(new KeyManager(keys)), name = name)
   }
 }
