@@ -34,14 +34,11 @@ class ProgramMethodExecutionSpec extends ProgramRPCMockState {
            |      "y": 2
            |    },
            |    "programId": "${executionBox.value}",
-           |    "preFeeBoxes": {
-           |      "$publicKey": [[${polyBoxes.head.nonce}, ${polyBoxes.head.value}]]
-           |     },
-           |     "fees": {
+           |    "fees": {
            |      "$publicKey": 0
-           |     },
-           |     "timestamp": ${System.currentTimeMillis},
-           |     "data": ""
+           |    },
+           |    "timestamp": ${System.currentTimeMillis},
+           |    "data": ""
            |  }]
            |}
            |""".stripMargin)
