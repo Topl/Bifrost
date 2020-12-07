@@ -241,7 +241,7 @@ class SerializationTests extends AnyPropSpec
    */
 
   property("Block Serialization") {
-    forAll(BlockGen) {
+    forAll(blockGen) {
       bb: Block =>
         val parsed = BlockSerializer.parseBytes(BlockSerializer.toBytes(bb))
 

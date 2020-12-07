@@ -20,7 +20,7 @@ class BlockVersionTests extends StateSpec {
   val blocksCount: Int = blocksToAppend + 1 // counting the genesis block
 
   for (_ <- 1 to blocksToAppend) {
-    val oneBlock: Block = BlockGen.sample.get.copy(parentId = history.bestBlockId, transactions = Seq(), version = blockVersion(history.height + 1))
+    val oneBlock: Block = blockGen.sample.get.copy(parentId = history.bestBlockId, transactions = Seq(), version = blockVersion(history.height + 1))
 //    val oneBlock: Block = BlockGen.sample.get.copy(parentId = history.bestBlockId, version = blockVersion(history.height + 1))
     history = history.append(oneBlock).get._1
     state = state.applyModifier(oneBlock).get

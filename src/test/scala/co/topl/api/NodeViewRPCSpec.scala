@@ -1,38 +1,23 @@
 package co.topl.api
 
-import akka.http.scaladsl.server.Route
-import akka.util.{ByteString, Timeout}
-import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
-import co.topl.attestation.proof.SignatureCurve25519
-import co.topl.http.api.endpoints.NodeViewApiEndpoint
-import co.topl.modifier.ModifierId
+import akka.util.ByteString
 import co.topl.modifier.block.Block
-import co.topl.nodeView.state.box.ArbitBox
-import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
-import co.topl.settings.{AppContext, StartupOpts}
+import co.topl.modifier.transaction.Transaction.TX
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
-
-import scala.reflect.io.Path
-import scala.util.Try
 
 class NodeViewRPCSpec extends AnyWordSpec
   with Matchers
   with RPCMockState {
 
-  // setup route for testing
-  val route: Route = NodeViewApiRoute(settings.rpcApi, nodeViewHolderRef).route
+  val txs: Seq[TX] = bifrostTransactionSeqGen.sample.get
+  val txId: String = txs.head.id.toString
+  val block: Block = blockGen.sample.get.copy(transactions = txs)
 
-  val tx: AssetCreation = assetCreationGen.sample.get
-  var txHash: String = ""
-  var assetTxHash: String = tx.id.toString
-  var assetTxInstance: Transaction = _
-  var blockId: Block.BlockId = _
-
-  view().pool.put(tx)
+  view().history.storage.update(block, isBest = false)
+  view().pool.putWithoutCheck(txs)
 
   "NodeView RPC" should {
     "Get first 100 transactions in mempool" in {
@@ -41,36 +26,15 @@ class NodeViewRPCSpec extends AnyWordSpec
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
-           |   "method": "mempool",
+           |   "method": "topl_mempool",
            |   "params": [{}]
            |}
           """.stripMargin)
 
       httpPOST("/nodeView/", requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").isInstanceOf[List[Json]] shouldBe true
-        val txHashesArray = (res \\ "result").head \\ "txHash"
-        txHashesArray.find(tx => tx.asString.get == assetTxHash) match {
-          case Some (tx) =>
-            txHash = tx.asString.get
-          case None =>
-        }
-        txHash shouldEqual assetTxHash
-        assert(txHashesArray.size <= 100)
-        val txHashId = ModifierId(txHash)
-        assetTxInstance = view().pool.modifierById(txHashId).get
-        val history = view().history
-        //Create a block with the above created createAssets transaction
-        val tempBlock = Block(history.bestBlockId,
-          System.currentTimeMillis(),
-          ArbitBox(PublicKeyPropositionCurve25519(PublicKey @@ history.bestBlockId.getIdBytes), 0L, 10000L),
-          SignatureCurve25519(Signature @@ Array.fill(Curve25519.SignatureLength)(1: Byte)),
-          Seq(assetTxInstance),
-          settings.application.version.blockByte
-        )
-        history.storage.update(tempBlock, 0, isBest = false)
-        blockId = tempBlock.id
+        val txIds = (res \\ "result").head.asArray.get.flatMap(txJson => (txJson \\ "txId").head.asString)
+        txs.foreach(tx => txIds.contains(tx.id.toString))
       }
     }
 
@@ -80,9 +44,9 @@ class NodeViewRPCSpec extends AnyWordSpec
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
-           |   "method": "transactionFromMempool",
+           |   "method": "topl_transactionFromMempool",
            |   "params": [{
-           |      "transactionId": "$txHash"
+           |      "transactionId": "$txId"
            |   }]
            |}
            |
@@ -90,24 +54,20 @@ class NodeViewRPCSpec extends AnyWordSpec
 
       httpPOST("/nodeView/", requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").isInstanceOf[List[Json]] shouldBe true
-        ((res \\ "result").head \\ "txHash").head.asString.get shouldEqual txHash
-
-        //Removing the createAssets transaction from the mempool
-        view().pool.remove(assetTxInstance)
+        ((res \\ "result").head \\ "txId").head.asString.get shouldEqual txId
       }
     }
 
     "Get a confirmed transaction by id" in {
+
       val requestBody = ByteString(
         s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
-           |   "method": "transactionById",
+           |   "method": "topl_transactionById",
            |   "params": [{
-           |      "transactionId": "$txHash"
+           |      "transactionId": "$txId"
            |   }]
            |}
            |
@@ -117,7 +77,7 @@ class NodeViewRPCSpec extends AnyWordSpec
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
-        ((res \\ "result").head \\ "txHash").head.asString.get shouldEqual txHash
+        ((res \\ "result").head \\ "txId").head.asString.get shouldEqual txId
       }
     }
 
@@ -128,9 +88,9 @@ class NodeViewRPCSpec extends AnyWordSpec
            |   "jsonrpc": "2.0",
            |
            |   "id": "1",
-           |   "method": "blockById",
+           |   "method": "topl_blockById",
            |   "params": [{
-           |      "blockId": "$blockId"
+           |      "blockId": "${block.id}"
            |   }]
            |}
            |
@@ -141,17 +101,11 @@ class NodeViewRPCSpec extends AnyWordSpec
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
         val txsArray = ((res \\ "result").head \\ "txs").head.asArray.get
-        txsArray.filter(tx => {(tx \\"txHash").head.asString.get == txHash})
+        txsArray.filter(tx => {(tx \\"txId").head.asString.get == txId})
         //Checking that the block found contains the above createAssets transaction
         //since that block's id was used as the search parameter
         txsArray.size shouldEqual 1
       }
     }
   }
-}
-
-
-object NodeViewRPCSpec {
-  val path: Path = Path("/tmp/bifrost/test-data")
-  Try(path.deleteRecursively())
 }

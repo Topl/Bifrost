@@ -2,13 +2,12 @@ package co.topl.utils
 
 import java.io.File
 import java.time.Instant
-
-import co.topl.attestation.{PrivateKeyCurve25519, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
+import co.topl.attestation.{Address, PrivateKeyCurve25519, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
 import co.topl.attestation.proposition.ThresholdPropositionCurve25519
 import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.Transaction.{Nonce, Value}
+import co.topl.modifier.transaction.Transaction.{Nonce, TX, Value}
 import co.topl.modifier.transaction._
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
 import co.topl.nodeView.state.box.{ProgramId, _}
@@ -431,17 +430,18 @@ trait CoreGenerators extends Logging {
     AssetTransfer(from, to, from.map(a => a._1).zip(signatures).toMap, hub, assetCode, fee, timestamp, data)
   }
 
-  lazy val assetCreationGen: Gen[AssetCreation] = for {
+  lazy val assetCreationGen: Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = for {
     to <- toSeqGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
-    issuer <- key25519Gen
+    sender <- key25519Gen
+    issuer <- propositionGen
     assetCode <- stringGen
     data <- stringGen
   } yield {
-    val rawTx = AssetCreation.createRaw(to, fee, issuer._2, assetCode, data).get
-    val sig = issuer._1.sign(rawTx.messageToSign)
-    AssetCreation(to, Map(issuer._2 -> sig), assetCode, issuer._2, fee, timestamp, data)
+    val rawTx = AssetTransfer.createRaw(stateReader = ???, to, Seq(sender._2), sender._2, issuer, assetCode, fee, data, true).get
+    val sig = sender._1.sign(rawTx.messageToSign)
+    AssetCreation(to, Map(sender._2 -> sig), assetCode, sender._2, fee, timestamp, data)
   }
 
   lazy val oneOfNPropositionGen: Gen[(Set[PrivateKeyCurve25519], ThresholdPropositionCurve25519)] = for {
@@ -471,7 +471,7 @@ trait CoreGenerators extends Logging {
     Seq(polyTransferGen, arbitTransferGen, assetTransferGen, assetCreationGen,
         programMethodExecutionGen, programCreationGen, programTransferGen)
 
-  lazy val bifrostTransactionSeqGen: Gen[Seq[Transaction]] = for {
+  lazy val bifrostTransactionSeqGen: Gen[Seq[TX]] = for {
     seqLen <- positiveMediumIntGen
   } yield {
     0 until seqLen map {
@@ -501,9 +501,10 @@ trait CoreGenerators extends Logging {
   lazy val positiveLongGen: Gen[Long] = Gen.choose(1, Long.MaxValue)
   lazy val modifierIdGen: Gen[ModifierId] =
     Gen.listOfN(NodeViewModifier.ModifierIdSize, Arbitrary.arbitrary[Byte]).map(li => ModifierId(li.toArray))
-  lazy val key25519Gen: Gen[(PrivateKey25519, PublicKey25519Proposition)] = genBytesList(Curve25519.KeyLength)
-    .map(s => PrivateKey25519.generateKeys(s))
-  lazy val propositionGen: Gen[PublicKey25519Proposition] = key25519Gen.map(_._2)
+  lazy val key25519Gen: Gen[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] = genBytesList(Curve25519.KeyLength)
+    .map(s => PrivateKeyCurve25519.secretGenerator.generateSecret(s))
+  lazy val propositionGen: Gen[PublicKeyPropositionCurve25519] = key25519Gen.map(_._2)
+  lazy val addressGen: Gen[Address] = for { key <- stringGen } yield { Address(key) }
 
   def genBytesList(size: Int): Gen[Array[Byte]] = genBoundedBytes(size, size)
 
@@ -515,7 +516,7 @@ trait CoreGenerators extends Logging {
     .listOfN(length, Arbitrary.arbitrary[Byte])
     .map(_.toArray)
 
-  lazy val BlockGen: Gen[Block] = for {
+  lazy val blockGen: Gen[Block] = for {
     parentId <- specificLengthBytesGen(Block.blockIdLength)
     timestamp <- positiveLongGen
     generatorBox <- arbitBoxGen

@@ -90,7 +90,7 @@ class IODBSpec extends AnyPropSpec
 
     var ids: Seq[ModifierId] = Seq()
 
-    forAll(BlockGen) { block =>
+    forAll(blockGen) { block =>
       ids = block.id +: ids
       writeBlock(block)
       blocksStorage.get(ByteArrayWrapper(block.id.getIdBytes)).isDefined shouldBe true

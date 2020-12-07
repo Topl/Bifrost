@@ -21,7 +21,7 @@ class BlockValidatorSpec extends AnyPropSpec
   val history: History = generateHistory(0: Byte)
 
   property("A block with a timestamp older than its parent should never result in a hit") {
-    forAll(BlockGen) { blockTemp ⇒
+    forAll(blockGen) { blockTemp ⇒
       val block = blockTemp.copy(parentId = history.bestBlockId)
       val nextBlock = block.copy(timestamp = block.timestamp - 1, parentId = block.id)
       val newHistory = history.append(block).get._1

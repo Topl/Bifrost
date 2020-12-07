@@ -1,8 +1,6 @@
 package co.topl.api
 
-import akka.http.scaladsl.server.Route
 import akka.util.ByteString
-import co.topl.http.api.endpoints.DebugApiEndpoint
 import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -10,9 +8,6 @@ import org.scalatest.wordspec.AnyWordSpec
 class DebugRPCSpec extends AnyWordSpec
   with Matchers
   with RPCMockState {
-
-  // setup route for testing
-  val route: Route = DebugApiRoute(settings.rpcApi, nodeViewHolderRef).route
 
   "Debug RPC" should {
     "Get chain information" in {
