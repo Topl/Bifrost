@@ -322,7 +322,6 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 
       httpPOST(requestBody) ~> route ~> check {
         val responseString = responseAs[String].replace("\\", "")
-        println("gjal balances: " + responseString)
         parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
           case Left(f) => throw f
           case Right(res: Json) =>

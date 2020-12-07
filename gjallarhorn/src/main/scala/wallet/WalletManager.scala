@@ -55,7 +55,7 @@ class WalletManager(publicKeys: Set[Address], bifrostActorRef: ActorRef)
     */
   def msgHandling(msg: String): Unit = {
     if (msg.contains("received new wallet from:")) {
-      connectedToBifrost = true
+      log.info("Bifrost " + msg)
     }
     if (msg.contains("new block added")) {
       newBlock(msg)
@@ -195,8 +195,11 @@ class WalletManager(publicKeys: Set[Address], bifrostActorRef: ActorRef)
 
   override def receive: Receive = {
     case GjallarhornStarted =>
+      bifrostActorRef ! s"Remote wallet actor initialized. My public keys are: ${walletBoxes.keySet}"
+
+    case GetNetwork =>
       val bifrostResp: Future[Any] =
-        bifrostActorRef ? s"Remote wallet actor initialized. My public keys are: ${walletBoxes.keySet}"
+        bifrostActorRef ? "Which network is bifrost running?"
       bifrostResp.pipeTo(sender())
 
     case msg: String => msgHandling(msg)
@@ -211,8 +214,6 @@ class WalletManager(publicKeys: Set[Address], bifrostActorRef: ActorRef)
 
     case GetWallet => sender ! walletBoxes
 
-    case IsConnected => sender ! connectedToBifrost
-
   }
 }
 
@@ -226,6 +227,8 @@ object WalletManager {
 
   case object GjallarhornStarted
 
+  case object GetNetwork
+
   case object GjallarhornStopped
 
   case object GetNewBlock
@@ -233,7 +236,5 @@ object WalletManager {
   case class NewBlock(block: String)
 
   case object GetWallet
-
-  case object IsConnected
 
 }

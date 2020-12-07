@@ -10,7 +10,7 @@ import requests.{ApiRoute, Requests, RequestsManager}
 import settings.{AppSettings, NetworkType, StartupOpts}
 import utils.Logging
 import wallet.{DeadLetterListener, WalletManager}
-import wallet.WalletManager.{GjallarhornStarted, GjallarhornStopped}
+import wallet.WalletManager.{GetNetwork, GjallarhornStarted, GjallarhornStopped}
 
 import scala.concurrent.{Await, ExecutionContextExecutor}
 import scala.util.{Failure, Success}
@@ -57,10 +57,9 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
     val walletManagerRef: ActorRef = system.actorOf(
       Props(new WalletManager(addresses, bifrost)), name = "WalletManager")
     val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager(bifrost)), name = "RequestsManager")
-
-    val bifrostResponse = Await.result((walletManagerRef ? GjallarhornStarted).mapTo[String], 10.seconds)
-    log.info(Console.YELLOW + bifrostResponse)
-    val networkName = bifrostResponse.split(".").tail.head.substring(" Bifrost is running on ".length)
+    walletManagerRef ! GjallarhornStarted
+    val bifrostResponse = Await.result((walletManagerRef ? GetNetwork).mapTo[String], 10.seconds)
+    val networkName = bifrostResponse.split("Bifrost is running on").tail.head.replaceAll("\\s", "")
     implicit val networkPrefix: NetworkPrefix = NetworkType.fromString(networkName) match {
       case Some(network) => network.netPrefix
       case None => throw new Error(s"The network name: $networkName was not a valid network type!")

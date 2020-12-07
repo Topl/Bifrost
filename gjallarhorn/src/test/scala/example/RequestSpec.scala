@@ -86,17 +86,14 @@ class RequestSpec extends AsyncFlatSpec
   }
 
   it should "connect to bifrost actor when the gjallarhorn app starts" in {
-    val bifrostResponse = Await.result((walletManagerRef ? GjallarhornStarted).mapTo[String], 10.seconds)
-    val networkName = bifrostResponse.split(".").tail.head.substring(" Bifrost is running on ".length)
+    walletManagerRef ! GjallarhornStarted
+    val bifrostResponse = Await.result((walletManagerRef ? GetNetwork).mapTo[String], 10.seconds)
+    val networkName = bifrostResponse.split("Bifrost is running on").tail.head.replaceAll("\\s", "")
     val networkPre: NetworkPrefix = NetworkType.fromString(networkName) match {
       case Some(network) => network.netPrefix
       case None => throw new Error(s"The network name: $networkName was not a valid network type!")
     }
-    walletManagerRef ! GjallarhornStarted
-    Thread.sleep(100)
-    val connected = Await.result((walletManagerRef ? IsConnected).mapTo[Boolean], 10.seconds)
     assert(networkPre == networkPrefix)
-    assert(connected)
   }
 
 
@@ -145,9 +142,7 @@ class RequestSpec extends AsyncFlatSpec
        """.stripMargin)
     transaction = requests.sendRequest(transferArbitsRequest)
     newBoxId = parseForBoxId(transaction)
-
-    println("new box id: " + newBoxId)
-    println("transaction: " + transaction)
+    println(newBoxId)
     assert(transaction.isInstanceOf[Json])
     (transaction \\ "error").isEmpty shouldBe true
     (transaction \\ "result").head.asObject.isDefined shouldBe true
@@ -174,7 +169,6 @@ class RequestSpec extends AsyncFlatSpec
   it should "receive successful JSON response from broadcast transaction" in {
     val response = requests.broadcastTx(signedTransaction)
     assert(response.isInstanceOf[Json])
-    println("broadcast: " + response)
     (response \\ "error").isEmpty shouldBe true
     (response \\ "result").head.asObject.isDefined shouldBe true
   }
@@ -185,7 +179,6 @@ class RequestSpec extends AsyncFlatSpec
     Thread.sleep(10000)
     balanceResponse = requests.getBalances(publicKeys.map(addr => addr.toString))
     assert(balanceResponse.isInstanceOf[Json])
-    println("balances: " + balanceResponse)
     (balanceResponse \\ "error").isEmpty shouldBe true
     val result: Json = (balanceResponse \\ "result").head
     result.asObject.isDefined shouldBe true
