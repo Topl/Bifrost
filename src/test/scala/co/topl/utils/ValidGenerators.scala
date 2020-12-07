@@ -1,10 +1,10 @@
 package co.topl.utils
 
 import co.topl.attestation.PublicKeyPropositionCurve25519
-import co.topl.attestation.proof.SignatureCurve25519
-import co.topl.modifier.transaction.Transaction.{Nonce, TX, Value}
+import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction._
-import co.topl.nodeView.state.box.{PublicKeyNoncedBox, _}
+import co.topl.nodeView.state.box.Box.Nonce
+import co.topl.nodeView.state.box.TokenBox.Value
 import co.topl.program._
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
@@ -37,9 +37,9 @@ trait ValidGenerators extends CoreGenerators {
   } yield {
     Program(Map(
       "parties" -> Map(
-        Base58.encode(producer.pubKeyBytes) -> "producer",
-        Base58.encode(investor.pubKeyBytes) -> "investor",
-        Base58.encode(hub.pubKeyBytes) -> "hub"
+        producer.toString -> "producer",
+        investor.toString -> "investor",
+        hub.toString -> "hub"
       ).asJson,
       "executionBuilder" -> executionBuilder,
       "lastUpdated" -> System.currentTimeMillis().asJson
