@@ -5,9 +5,8 @@ import akka.pattern.ask
 import _root_.requests.{Requests, RequestsManager}
 import akka.util.{ByteString, Timeout}
 import crypto.AddressEncoder.NetworkPrefix
-import crypto.{Address, KeyfileCurve25519, PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
-import io.circe.Json
-import io.circe.parser._
+import crypto.{Address, KeyfileCurve25519, NewBox, PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
+import io.circe.{Json, parser}
 import io.circe.syntax._
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -74,14 +73,18 @@ class RequestSpec extends AsyncFlatSpec
   val amount = 10
   var transaction: Json = Json.Null
   var signedTransaction: Json = Json.Null
-  var newBoxId: String = ""
+  var newBoxIds: Set[String] = Set()
 
-  def parseForBoxId(json: Json): String = {
+  def parseForBoxId(json: Json): Set[String] = {
     val result = (json \\ "result").head
-    val newBoxes = (result \\ "newBoxes").head.toString().trim.stripPrefix("[").stripSuffix("]").trim
-    parse(newBoxes) match {
-      case Right(json) => (json \\ "id").head.toString()
-      case Left(e) => sys.error(s"could not parse: $newBoxes")
+    val newBxs = (result \\ "newBoxes").head.toString()
+    parser.decode[List[NewBox]](newBxs) match {
+      case Right(newBoxes) =>
+        newBoxes.foreach(newBox => {
+          newBoxIds += newBox.id
+        })
+        newBoxIds
+      case Left(e) => sys.error(s"could not parse: $newBxs")
     }
   }
 
@@ -112,7 +115,7 @@ class RequestSpec extends AsyncFlatSpec
          |     "issuer": "$pk1",
          |     "assetCode": "test",
          |     "minting": true,
-         |     "fee": 0,
+         |     "fee": 1,
          |     "data": ""
          |   }]
          |}
@@ -135,14 +138,14 @@ class RequestSpec extends AsyncFlatSpec
          |     "recipient": [["$pk2", $amount]],
          |     "sender": ["$pk1"],
          |     "changeAddress": "$pk1",
-         |     "fee": 0,
+         |     "fee": 1,
          |     "data": ""
          |   }]
          |}
        """.stripMargin)
     transaction = requests.sendRequest(transferArbitsRequest)
-    newBoxId = parseForBoxId(transaction)
-    println(newBoxId)
+    newBoxIds = parseForBoxId(transaction)
+    println(newBoxIds)
     assert(transaction.isInstanceOf[Json])
     (transaction \\ "error").isEmpty shouldBe true
     (transaction \\ "result").head.asObject.isDefined shouldBe true

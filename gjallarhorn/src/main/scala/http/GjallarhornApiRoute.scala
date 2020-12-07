@@ -3,6 +3,7 @@ package http
 import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
 import akka.pattern.ask
 import crypto.Address
+import crypto.AddressEncoder.NetworkPrefix
 import requests.{ApiRoute, Requests}
 import io.circe.Json
 import io.circe.syntax._
@@ -18,8 +19,8 @@ case class GjallarhornApiRoute(settings: AppSettings,
                                keyManager: ActorRef,
                                requestsManager: ActorRef,
                                requests: Requests)
-                              (implicit val context: ActorRefFactory,
-                               implicit val actorSystem: ActorSystem) extends ApiRoute {
+                              (implicit val context: ActorRefFactory, actorSystem: ActorSystem, np: NetworkPrefix)
+  extends ApiRoute {
 
 
   val namespace: Namespace = WalletNamespace
@@ -35,6 +36,7 @@ case class GjallarhornApiRoute(settings: AppSettings,
     case (method, params, id) if method == s"${namespace.name}_unlockKeyfile" => unlockKeyfile(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_lockKeyfile" => lockKeyfile(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_balances" => balances(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_networkType" => Future{Map("networkPrefix" -> np).asJson}
   }
 
   /**

@@ -78,6 +78,29 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   var prototypeTx: Json = Map("txType" -> "AssetCreation").asJson
   var msgToSign = ""
 
+  it should "successfully get network prefix" in {
+    val networkTypeRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_networkType",
+         |   "params": [{}]
+         |}
+         """.stripMargin)
+
+    httpPOST(networkTypeRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          val network = ((res \\ "result").head \\ "networkPrefix").head
+          assert(network.toString() === networkPrefix.toString)
+      }
+    }
+  }
+
   it should "get a successful JSON response from createTx request" in {
     val createAssetRequest = ByteString(
       s"""
