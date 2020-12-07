@@ -11,6 +11,7 @@ import co.topl.utils.HasName
 import com.google.common.primitives.{Ints, Longs}
 import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
+import supertagged.TaggedType
 
 import scala.util.{Failure, Success, Try}
 
@@ -23,9 +24,12 @@ abstract class TransferTransaction[
     val timestamp: Long,
     val data: String,
     val minting: Boolean
-  ) extends Transaction[P] {
+  ) extends Transaction[TokenValueHolder, P] {
 
-  lazy val bloomTopics: IndexedSeq[BloomTopic] = to.map(x => BloomTopic.apply(x._1.bytes))
+//  lazy val bloomTopics = to.map(x => {
+//    val bytes = x._1.bytes
+//    BloomTopic @@ bytes
+//  })
 
   lazy val boxIdsToOpen: IndexedSeq[BoxId] = from.map { case (addr, nonce) =>
     BoxId.idFromEviNonce(addr.evidence, nonce)
@@ -69,7 +73,7 @@ object TransferTransaction {
     val feeParams = BoxParams(tx.to.head._1.evidence, calcNonce(0), tx.to.head._2)
 
     val outputParams = tx.to.tail
-      .filter(_._2 > 0L)
+      .filter(_._2.quantity > 0L)
       .zipWithIndex
       .map { case ((addr, value), idx) =>
         BoxParams(addr.evidence, calcNonce(idx + 1), value)
@@ -79,12 +83,12 @@ object TransferTransaction {
   }
 
   /** Retrieves the boxes from state for the specified sequence of senders and filters them based on the type of transaction */
-  private def getSenderBoxesForTx(
+  private def getSenderBoxesForTx[T <: TokenValueHolder](
     state:     StateReader,
     sender:    IndexedSeq[Address],
     txType:    String,
-    assetArgs: Option[(Address, String, Boolean)] = None
-  ): Map[String, IndexedSeq[(String, Address, TokenBox)]] = {
+    assetArgs: Option[(Address, Boolean)] = None
+  ): Map[String, IndexedSeq[(String, Address, TokenBox[T])]] = {
     sender
       .flatMap { s =>
         state
@@ -130,53 +134,58 @@ object TransferTransaction {
                                                      changeAddress: Address,
                                                      fee: Long,
                                                      txType: String,
-                                                     assetArgs: Option[(Address, String)] = None // (issuer, assetCode)
+                                                     assetArgs: Option[(Address, Boolean)] = None // (issuer, assetCode)
                                                     ): Try[(IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, T)])] = Try {
 
     // Lookup boxes for the given senders
-    val senderBoxes = getSenderBoxesForTx(state, sender, txType, assetArgs)
+    val senderBoxes = getSenderBoxesForTx[T](state, sender, txType, assetArgs)
+
+    // compute the Poly balance since it is used often
+    val polyBalance = senderBoxes("Poly").map(_._3.value.quantity).sum
+
+    // compute the amount of tokens that will be sent to the recipients
+    val amtToSpend = toReceive.map(_._2.quantity).sum
 
     // ensure there are enough polys to pay the fee
-    require(senderBoxes("Poly").map(_._3.value).sum >= fee, s"Insufficient funds available to pay transaction fee.")
+    require(polyBalance >= fee, s"Insufficient funds available to pay transaction fee.")
 
     // create the list of inputs and outputs (senderChangeOut & recipientOut)
     val (availableToSpend, inputs, outputs) = txType match {
       case "PolyTransfer" =>
         (
-          senderBoxes("Poly").map(_._3.value).sum - fee,
+          polyBalance - fee,
           senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
-          (changeAddress, senderBoxes("Poly").map(_._3.value).sum - fee - toReceive.map(_._2).sum) +: toReceive
+          (changeAddress, polyBalance - fee - amtToSpend) +: toReceive
         )
 
       case "ArbitTransfer" =>
+        val arbitBalance = senderBoxes("Arbit").map(_._3.value.quantity).sum
+
         (
-          senderBoxes("Arbit").map(_._3.value).sum,
-          senderBoxes("Arbit").map(bxs => (bxs._2, bxs._3.nonce)) ++ senderBoxes("Poly").map(bxs =>
-            (bxs._2, bxs._3.nonce)
-          ),
-          (changeAddress, senderBoxes("Poly").map(_._3.value).sum - fee) +: toReceive
+          arbitBalance,
+          senderBoxes("Arbit").map(bxs => (bxs._2, bxs._3.nonce)) ++ senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
+          IndexedSeq((changeAddress, polyBalance - fee), (changeAddress, arbitBalance - amtToSpend)) ++ toReceive
         )
 
       // case for minting asset transfers
-      case "AssetTransfer" if assetArgs.forall(_._3) =>
+      case "AssetTransfer" if assetArgs.forall(_._2) =>
         (
           Long.MaxValue,
           senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
-          (changeAddress, senderBoxes("Poly").map(_._3.value).sum - fee) +: toReceive
+          (changeAddress, polyBalance - fee) +: toReceive
         )
 
       case "AssetTransfer" =>
+        val assetBalance = senderBoxes("Asset").map(_._3.value.quantity).sum
         (
-          senderBoxes("Asset").map(_._3.value).sum,
-          senderBoxes("Asset").map(bxs => (bxs._2, bxs._3.nonce)) ++ senderBoxes("Poly").map(bxs =>
-            (bxs._2, bxs._3.nonce)
-          ),
-          (changeAddress, senderBoxes("Poly").map(_._3.value).sum - fee) +: toReceive
+          assetBalance,
+          senderBoxes("Asset").map(bxs => (bxs._2, bxs._3.nonce)) ++ senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
+          IndexedSeq((changeAddress, polyBalance - fee), (changeAddress, assetBalance - amtToSpend)) ++ toReceive
         )
     }
 
     // ensure there are sufficient funds from the sender boxes to create all outputs
-    require(availableToSpend >= toReceive.map(_._2).sum, "Insufficient funds available to create transaction.")
+    require(availableToSpend >= amtToSpend, "Insufficient funds available to create transaction.")
 
     (inputs, outputs)
   }
@@ -252,7 +261,7 @@ object TransferTransaction {
     }
 
     // compute transaction values used for validation
-    val txOutput = tx.newBoxes.map(b => b.value).sum
+    val txOutput = tx.newBoxes.map(b => b.value.quantity).sum
     val unlockers = BoxUnlocker.generate(tx.from, tx.attestation)
 
     // iterate through the unlockers and sum up the value of the box for each valid unlocker
@@ -260,8 +269,8 @@ object TransferTransaction {
       .foldLeft[Try[Long]](Success(0L))((trySum, unlocker) => {
         trySum.flatMap { partialSum =>
           state.getBox(unlocker.closedBoxId) match {
-            case Some(box: TokenBox) if unlocker.boxKey.isValid(unlocker.proposition, tx.messageToSign) =>
-              Success(partialSum + box.value)
+            case Some(box: TokenBox[_]) if unlocker.boxKey.isValid(unlocker.proposition, tx.messageToSign) =>
+              Success(partialSum + box.value.quantity)
 
             case Some(_) => Failure(new Exception("Invalid unlocker"))
             case None    => Failure(new Exception(s"Box for unlocker $unlocker cannot be found in state"))
