@@ -3,7 +3,7 @@ package co.topl.utils
 import java.io.File
 import java.time.Instant
 import co.topl.attestation.{Address, PrivateKeyCurve25519, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
-import co.topl.modifier.ModifierId
+import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction._
@@ -499,7 +499,7 @@ trait CoreGenerators extends Logging {
     .map(_.toArray).suchThat(_.length > 0)
   lazy val positiveLongGen: Gen[Long] = Gen.choose(1, Long.MaxValue)
   lazy val modifierIdGen: Gen[ModifierId] =
-    Gen.listOfN(NodeViewModifier.ModifierIdSize, Arbitrary.arbitrary[Byte]).map(li => ModifierId(li.toArray))
+    Gen.listOfN(ModifierId.size, Arbitrary.arbitrary[Byte]).map(li => ModifierId.parseBytes(li.toArray).get)
   lazy val key25519Gen: Gen[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] = genBytesList(Curve25519.KeyLength)
     .map(s => PrivateKeyCurve25519.secretGenerator.generateSecret(s))
   lazy val propositionGen: Gen[PublicKeyPropositionCurve25519] = key25519Gen.map(_._2)
