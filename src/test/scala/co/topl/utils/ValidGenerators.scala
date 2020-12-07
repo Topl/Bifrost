@@ -2,7 +2,7 @@ package co.topl.utils
 
 import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.attestation.proof.SignatureCurve25519
-import co.topl.modifier.transaction.Transaction.{Nonce, Value}
+import co.topl.modifier.transaction.Transaction.{Nonce, TX, Value}
 import co.topl.modifier.transaction._
 import co.topl.nodeView.state.box.{PublicKeyNoncedBox, _}
 import co.topl.program._
@@ -17,12 +17,12 @@ import scala.util.{Failure, Success, Try}
 
 trait ValidGenerators extends CoreGenerators {
 
-  lazy val validBifrostTransactionSeqGen: Gen[Seq[Transaction]] = for {
+  lazy val validBifrostTransactionSeqGen: Gen[Seq[TX]] = for {
     seqLen <- positiveMediumIntGen
   } yield {
     0 until seqLen map {
       _ => {
-        val g: Gen[Transaction] = sampleUntilNonEmpty(Gen.oneOf(transactionTypes))
+        val g: Gen[TX] = sampleUntilNonEmpty(Gen.oneOf(transactionTypes))
         sampleUntilNonEmpty(g)
       }
     }

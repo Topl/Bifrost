@@ -466,7 +466,7 @@ trait CoreGenerators extends Logging {
     ((0 until seqLen) map { _ => sampleUntilNonEmpty(key25519Gen) }).toSet
   }
 
-  val transactionTypes: Seq[Gen[Transaction]] =
+  val transactionTypes: Seq[Gen[TX]] =
     Seq(polyTransferGen, arbitTransferGen, assetTransferGen, assetCreationGen,
         programMethodExecutionGen, programCreationGen, programTransferGen)
 
