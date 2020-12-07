@@ -17,7 +17,7 @@ import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckP
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
-class StateSpec extends AnyPropSpec
+trait MockState extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers

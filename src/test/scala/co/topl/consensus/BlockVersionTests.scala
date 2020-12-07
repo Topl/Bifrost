@@ -4,9 +4,9 @@ import co.topl.consensus.consensusHelper.setProtocolMngr
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.history.History
-import co.topl.nodeView.state.{State, StateSpec}
+import co.topl.nodeView.state.{State, MockState}
 
-class BlockVersionTests extends StateSpec {
+class BlockVersionTests extends MockState {
 
 /* Initialize protocolMngr */
   setProtocolMngr(settings)

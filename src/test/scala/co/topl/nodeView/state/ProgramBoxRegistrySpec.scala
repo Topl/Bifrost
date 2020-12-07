@@ -5,7 +5,7 @@ import co.topl.nodeView.state.box.StateBox
 import io.circe.Json
 import io.circe.syntax._
 
-class ProgramBoxRegistrySpec extends StateSpec {
+class ProgramBoxRegistrySpec extends MockState {
 
   val state: State = createState()
 

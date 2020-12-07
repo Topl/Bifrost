@@ -9,7 +9,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
 import scorex.crypto.hash.Blake2b256
 
-class TokenBoxRegistrySpec extends StateSpec
+class TokenBoxRegistrySpec extends MockState
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
