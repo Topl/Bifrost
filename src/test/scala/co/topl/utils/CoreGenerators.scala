@@ -3,13 +3,12 @@ package co.topl.utils
 import java.io.File
 import java.time.Instant
 import co.topl.attestation.{Address, PrivateKeyCurve25519, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
-import co.topl.attestation.proposition.ThresholdPropositionCurve25519
-import co.topl.attestation.proof.SignatureCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.Transaction.{Nonce, TX, Value}
+import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction._
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
+import co.topl.nodeView.state.box.Box.Nonce
 import co.topl.nodeView.state.box.{ProgramId, _}
 import co.topl.program.{Program, ProgramPreprocessor, _}
 import co.topl.settings.{AppSettings, StartupOpts}

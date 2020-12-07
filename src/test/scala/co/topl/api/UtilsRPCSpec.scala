@@ -1,8 +1,6 @@
 package co.topl.api
 
-import akka.http.scaladsl.server.Route
 import akka.util.ByteString
-import co.topl.http.api.endpoints.UtilsApiEndpoint
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
@@ -16,9 +14,6 @@ class UtilsRPCSpec extends AnyWordSpec
   with Matchers
   with RPCMockState {
 
-  val route = UtilsApiRoute(settings.rpcApi).route
-
-
   val seedLength: Int = 10
 
   "Utils RPC" should {
@@ -28,7 +23,7 @@ class UtilsRPCSpec extends AnyWordSpec
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
-           |   "method": "seed",
+           |   "method": "util_seed",
            |   "params": [{}]
            |}
         """.stripMargin)
@@ -50,7 +45,7 @@ class UtilsRPCSpec extends AnyWordSpec
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
-           |   "method": "seedOfLength",
+           |   "method": "util_seedOfLength",
            |   "params": [{
            |      "length": $seedLength
            |   }]
@@ -74,7 +69,7 @@ class UtilsRPCSpec extends AnyWordSpec
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
-           |   "method": "hashBlake2b",
+           |   "method": "util_hashBlake2b",
            |   "params": [{
            |      "message": "Hello World"
            |   }]
