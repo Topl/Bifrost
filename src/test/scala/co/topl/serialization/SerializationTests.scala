@@ -135,11 +135,11 @@ class SerializationTests extends AnyPropSpec
     forAll(polyTransferGen) {
       sc: PolyTransfer[_] =>
         val parsed = PolyTransferSerializer
-          .parseBytes(PolyTransferSerializer.toBytes(sc))
+          .parseBytes(sc.bytes)
           .get
 
         PolyTransferSerializer.toBytes(parsed) sameElements
-          PolyTransferSerializer.toBytes(sc) shouldBe true
+          sc.bytes shouldBe true
     }
   }
 
@@ -147,11 +147,11 @@ class SerializationTests extends AnyPropSpec
     forAll(arbitTransferGen) {
       ac: ArbitTransfer[_] =>
         val parsed = ArbitTransferSerializer
-          .parseBytes(ArbitTransferSerializer.toBytes(ac))
+          .parseBytes(ac.bytes)
           .get
 
         ArbitTransferSerializer.toBytes(parsed) sameElements
-          ArbitTransferSerializer.toBytes(ac) shouldBe true
+          ac.bytes shouldBe true
     }
   }
 
@@ -159,11 +159,11 @@ class SerializationTests extends AnyPropSpec
     forAll(assetTransferGen) {
       at: AssetTransfer[_] =>
         val parsed = AssetTransferSerializer
-          .parseBytes(AssetTransferSerializer.toBytes(at))
+          .parseBytes(at.bytes)
           .get
 
         AssetTransferSerializer.toBytes(parsed) sameElements
-          AssetTransferSerializer.toBytes(at) shouldBe true
+          at.bytes shouldBe true
     }
   }
 
