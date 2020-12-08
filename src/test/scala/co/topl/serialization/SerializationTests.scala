@@ -167,6 +167,7 @@ class SerializationTests extends AnyPropSpec
     }
   }
 
+  /*
   property("ProgramCreation Serialization") {
     forAll(programCreationGen) {
       c: ProgramCreation =>
@@ -183,6 +184,7 @@ class SerializationTests extends AnyPropSpec
         parsedBytes sameElements directParsedBytes shouldBe true
     }
   }
+  */
 
   /*
   property("ProgramMethodExecution Serialization") {
@@ -198,6 +200,7 @@ class SerializationTests extends AnyPropSpec
   }
    */
 
+  /*
   property("AssetCreation Serialization") {
     forAll(assetCreationGen) {
       ac: AssetCreation =>
@@ -209,6 +212,7 @@ class SerializationTests extends AnyPropSpec
           AssetCreationSerializer.toBytes(ac) shouldBe true
     }
   }
+   */
 
   /*
   property("CodeCreation Serialization") {
