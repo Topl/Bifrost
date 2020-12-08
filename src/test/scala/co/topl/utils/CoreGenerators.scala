@@ -9,6 +9,7 @@ import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction._
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
 import co.topl.nodeView.state.box.Box.Nonce
+import co.topl.nodeView.state.box.TokenBox.Value
 import co.topl.nodeView.state.box.{ProgramId, _}
 import co.topl.program.{Program, ProgramPreprocessor, _}
 import co.topl.settings.{AppSettings, StartupOpts}
@@ -394,7 +395,7 @@ trait CoreGenerators extends Logging {
     (0 until seqLen) map { _ => sampleUntilNonEmpty(signatureGen) }
   }
 
-  lazy val polyTransferGen: Gen[PolyTransfer] = for {
+  lazy val polyTransferGen: Gen[PolyTransfer[_]] = for {
     from <- fromSeqGen
     to <- toSeqGen
     signatures <- sigSeqGen
@@ -405,7 +406,7 @@ trait CoreGenerators extends Logging {
     PolyTransfer(from, to, from.map(a => a._1).zip(signatures).toMap, fee, timestamp, data)
   }
 
-  lazy val arbitTransferGen: Gen[ArbitTransfer] = for {
+  lazy val arbitTransferGen: Gen[ArbitTransfer[_]] = for {
     from <- fromSeqGen
     to <- toSeqGen
     signatures <- sigSeqGen
@@ -416,7 +417,7 @@ trait CoreGenerators extends Logging {
     ArbitTransfer(from, to, from.map(a => a._1).zip(signatures).toMap, fee, timestamp, data)
   }
 
-  lazy val assetTransferGen: Gen[AssetTransfer] = for {
+  lazy val assetTransferGen: Gen[AssetTransfer[_]] = for {
     from <- fromSeqGen
     to <- toSeqGen
     signatures <- sigSeqGen
