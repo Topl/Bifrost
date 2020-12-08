@@ -456,7 +456,7 @@ trait CoreGenerators extends Logging {
           (set._1 + cur._1, set._2 + cur._2)
       }
 
-    val prop = ThresholdCurve25519Proposition(1, setOfKeys._2.map(img => img.pubKeyBytes))
+    val prop = ThresholdPropositionCurve25519(1, setOfKeys._2.map(img => img.pubKeyBytes))
 
     (setOfKeys._1, prop)
   }
