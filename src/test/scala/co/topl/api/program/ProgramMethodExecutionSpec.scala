@@ -12,7 +12,7 @@ class ProgramMethodExecutionSpec extends ProgramRPCMockState {
   "executeProgramMethod" should {
 
     val boxState = Seq(stateBox, codeBox, executionBox)
-    val version = Random.nextInt
+    val version = modifierIdGen.sample.get
 
     directlyAddPBRStorage(version, boxState)
 

@@ -20,7 +20,7 @@ class TokenBoxRegistrySpec extends MockState
   property("Token boxes should be inserted into the registry") {
     forAll(tokenBoxesGen) { tokens =>
       val keys = tokens.groupBy(_.evidence)
-      directlyAddTBRStorage(scala.util.Random.nextInt, tokens, state)
+      directlyAddTBRStorage(modifierIdGen.sample.get, tokens, state)
       keys.foreach { key =>
         val ids = key._2.map(_.id)
         state.registryLookup(key._1).value shouldEqual ids
