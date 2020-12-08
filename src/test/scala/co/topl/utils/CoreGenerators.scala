@@ -363,27 +363,27 @@ trait CoreGenerators extends Logging {
     ProgramTransfer(from, to, signature, executionBox, fee, timestamp, data)
   }
 
-  lazy val fromGen: Gen[(PublicKey25519Proposition, Nonce)] = for {
-    proposition <- propositionGen
+  lazy val fromGen: Gen[(Address, Nonce)] = for {
+    address <- addressGen
     nonce <- positiveLongGen
   } yield {
-    (proposition, nonce)
+    (address, nonce)
   }
 
-  lazy val fromSeqGen: Gen[IndexedSeq[(PublicKeyPropositionCurve25519, Nonce)]] = for {
+  lazy val fromSeqGen: Gen[IndexedSeq[(Address, Nonce)]] = for {
     seqLen <- positiveTinyIntGen
   } yield {
     (0 until seqLen) map { _ => sampleUntilNonEmpty(fromGen) }
   }
 
-  lazy val toGen: Gen[(PublicKeyPropositionCurve25519, Long)] = for {
-    proposition <- propositionGen
+  lazy val toGen: Gen[(Address, Value)] = for {
+    address <- addressGen
     value <- positiveLongGen
   } yield {
-    (proposition, value)
+    (address, value)
   }
 
-  lazy val toSeqGen: Gen[IndexedSeq[(PublicKeyPropositionCurve25519, Value)]] = for {
+  lazy val toSeqGen: Gen[IndexedSeq[(Address, Value)]] = for {
     seqLen <- positiveTinyIntGen
   } yield {
     (0 until seqLen) map { _ => sampleUntilNonEmpty(toGen) }
