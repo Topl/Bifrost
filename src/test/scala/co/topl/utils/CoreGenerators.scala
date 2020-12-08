@@ -18,7 +18,7 @@ import io.circe.{Json, JsonObject}
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
 import scorex.crypto.hash.Blake2b256
-import scorex.crypto.signatures.Signature
+import scorex.crypto.signatures.{Curve25519, Signature}
 import scorex.util.encode.Base58
 
 import scala.util.{Random, Try}
