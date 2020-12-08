@@ -7,6 +7,7 @@ import crypto.AddressEncoder.NetworkPrefix
 import requests.{ApiRoute, Requests}
 import io.circe.Json
 import io.circe.syntax._
+import keymanager.Bip39
 import keymanager.KeyManager._
 import requests.RequestsManager.BifrostRequest
 import settings.AppSettings
@@ -38,6 +39,7 @@ case class GjallarhornApiRoute(settings: AppSettings,
     case (method, params, id) if method == s"${namespace.name}_lockKeyfile" => lockKeyfile(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_balances" => balances(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_networkType" => Future{Map("networkPrefix" -> np).asJson}
+    case (method, params, id) if method == s"${namespace.name}_generateMnemonic" => generateMnemonic(params.head)
   }
 
   /**
@@ -187,6 +189,13 @@ case class GjallarhornApiRoute(settings: AppSettings,
       case "useTcp" => Future{requests.getBalances(publicKeys)}
       case "useAkka" => (requestsManager ? BifrostRequest(requestBody)).mapTo[String].map(_.asJson)
     }
+  }
+
+  private def generateMnemonic(params: Json): Future[Json] = {
+    val lang = (params \\ "language").head.asString.get
+    val phraseTranslator = Bip39.apply(lang)
+    val phrase = phraseTranslator.uuidSeedPhrase(java.util.UUID.randomUUID.toString)._2
+    Future{Map("mnemonicPhrase" -> phrase).asJson}
   }
 
 }

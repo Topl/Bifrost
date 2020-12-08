@@ -389,4 +389,29 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       }
     }
 
+  it should "successfully get mnemonic phrase" in {
+    val mnemonicPhraseRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_generateMnemonic",
+         |   "params": [{
+         |      "language": "en"
+         |   }]
+         |}
+         """.stripMargin)
+
+    httpPOST(mnemonicPhraseRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          val phrase = ((res \\ "result").head \\ "mnemonicPhrase").head
+          assert(phrase != null)
+      }
+    }
+  }
+
 }
