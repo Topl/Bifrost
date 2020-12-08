@@ -2,9 +2,7 @@ package co.topl.serialization
 
 import co.topl.attestation.ThresholdPropositionCurve25519
 import co.topl.attestation.serialization.ThresholdPropositionCurve25519Serializer
-import co.topl.modifier.block.Block
 import co.topl.modifier.block.serialization.BlockSerializer
-import InstrumentClasses.Base58
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.serialization._
@@ -80,7 +78,7 @@ class SerializationTests extends AnyPropSpec
   property("StateBox Serialization") {
     forAll(stateBoxGen) {
       b: StateBox =>
-        val json = b.json
+        val json = StateBox.jsonEncoder(b)
         val parsed = BoxSerializer
           .parseBytes(BoxSerializer.toBytes(b))
           .get
@@ -95,7 +93,7 @@ class SerializationTests extends AnyPropSpec
   property("CodeBox Serialization") {
     forAll(codeBoxGen) {
       b: CodeBox =>
-        val json = b.json
+        val json = CodeBox.jsonEncoder(b)
         val parsed = BoxSerializer
           .parseBytes(BoxSerializer.toBytes(b))
           .get
@@ -110,7 +108,7 @@ class SerializationTests extends AnyPropSpec
   property("ExecutionBox Serialization") {
     forAll(executionBoxGen) {
       b: ExecutionBox =>
-        val json = b.json
+        val json = ExecutionBox.jsonEncoder(b)
         val parsed = BoxSerializer
           .parseBytes(BoxSerializer.toBytes(b))
           .get
