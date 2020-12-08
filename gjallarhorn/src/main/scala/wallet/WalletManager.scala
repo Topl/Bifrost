@@ -98,9 +98,9 @@ class WalletManager(publicKeys: Set[Address], bifrostActorRef: ActorRef)
       var boxesMap: MMap[String, Json] = MMap.empty
       val boxes = info \\ "Boxes"
       if (boxes.nonEmpty) {
-        val assets: List[Json] = boxes.head \\ "Asset"
-        val poly: List[Json] = boxes.head \\ "Poly"
-        val arbit: List[Json] = boxes.head \\ "Arbit"
+        val assets: List[Json] = boxes.head \\ "3"
+        val poly: List[Json] = boxes.head \\ "2"
+        val arbit: List[Json] = boxes.head \\ "1"
         if (assets.nonEmpty) {
           boxesMap = parseBoxType(assets.head)
         }

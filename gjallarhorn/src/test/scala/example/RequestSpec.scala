@@ -7,7 +7,6 @@ import akka.util.{ByteString, Timeout}
 import crypto.AddressEncoder.NetworkPrefix
 import crypto.{Address, KeyfileCurve25519, NewBox, PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
 import io.circe.{Json, parser}
-import io.circe.syntax._
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import keymanager.Keys
@@ -145,7 +144,6 @@ class RequestSpec extends AsyncFlatSpec
        """.stripMargin)
     transaction = requests.sendRequest(transferArbitsRequest)
     newBoxIds = parseForBoxId(transaction)
-    println(newBoxIds)
     assert(transaction.isInstanceOf[Json])
     (transaction \\ "error").isEmpty shouldBe true
     (transaction \\ "result").head.asObject.isDefined shouldBe true
@@ -186,31 +184,33 @@ class RequestSpec extends AsyncFlatSpec
     val result: Json = (balanceResponse \\ "result").head
     result.asObject.isDefined shouldBe true
     (result \\ pk1.toString).nonEmpty shouldBe true
-/*    (((result \\ pk1.toString).head \\ "Boxes").head \\ "Arbit").
-      head.toString().contains(newBoxId) shouldBe true*/
+    val contains = newBoxIds.map(boxId => result.toString().contains(boxId))
+    contains.contains(false) shouldBe false
   }
 
- /* it should "update boxes correctly with balance response" in {
-    val walletBoxes: MMap[String, MMap[String, Json]] = Await.result((walletManagerRef ? UpdateWallet((balanceResponse \\ "result").head))
+  //Make sure you re-run bifrost for this to pass.
+  it should "update boxes correctly with balance response" in {
+    val walletBoxes: MMap[String, MMap[String, Json]] =
+      Await.result((walletManagerRef ? UpdateWallet((balanceResponse \\ "result").head))
       .mapTo[MMap[String, MMap[String, Json]]], 10.seconds)
 
-    val pubKeyEmptyBoxes: Option[MMap[String, Json]] = walletBoxes.get(pk2.toString)
+    val pubKeyEmptyBoxes: Option[MMap[String, Json]] = walletBoxes.get(pk3.toString)
     pubKeyEmptyBoxes match {
       case Some(map) => assert(map.keySet.isEmpty)
-      case None => sys.error(s"no mapping for given public key: ${pk1.toString}}")
+      case None => sys.error(s"no mapping for given public key: ${pk3.toString}}")
     }
 
-    val pubKeyWithBoxes: Option[MMap[String, Json]] = walletBoxes.get(pk1.toString)
-    pubKeyWithBoxes match {
-      case Some(map) =>
-        val firstBox: Option[Json] = map.get(newBoxId)
-        firstBox match {
-          case Some(json) => assert((json \\ "value").head.toString() == "\"10\"")
-          case None => sys.error("no keys in mapping")
-        }
+    val pk1Boxes: Option[MMap[String, Json]] = walletBoxes.get(pk1.toString)
+    pk1Boxes match {
+      case Some(map) => assert (map.size === 2)
       case None => sys.error(s"no mapping for given public key: ${pk1.toString}")
     }
-  }*/
+    val pk2Boxes: Option[MMap[String, Json]] = walletBoxes.get(pk2.toString)
+    pk2Boxes match {
+      case Some(map) => assert (map.size === 3)
+      case None => sys.error(s"no mapping for given public key: ${pk2.toString}")
+    }
+  }
 
   it should "receive a block from bifrost after creating a transaction" in {
     val newBlock: Option[String] = Await.result((walletManagerRef ? GetNewBlock).mapTo[Option[String]], 10.seconds)
