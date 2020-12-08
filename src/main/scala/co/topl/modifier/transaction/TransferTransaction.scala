@@ -87,7 +87,7 @@ object TransferTransaction {
     state:     StateReader,
     sender:    IndexedSeq[Address],
     txType:    String,
-    assetArgs: Option[(Address, Boolean)] = None
+    assetArgs: Option[(AssetCode, Boolean)] = None
   ): Map[String, IndexedSeq[(String, Address, TokenBox[T])]] = {
     sender
       .flatMap { s =>
@@ -101,10 +101,7 @@ object TransferTransaction {
 
             case _: ArbitBox if txType == "ArbitTransfer" => true
 
-            case bx: AssetBox
-                if txType == "AssetTransfer" &&
-                  assetArgs.forall(p => p._1 == bx.issuer && p._2 == bx.assetCode) =>
-              true
+            case bx: AssetBox if txType == "AssetTransfer" && assetArgs.forall(_._1 == bx.value.assetCode) => true
 
             case _ => false
           }
@@ -134,14 +131,18 @@ object TransferTransaction {
                                                      changeAddress: Address,
                                                      fee: Long,
                                                      txType: String,
-                                                     assetArgs: Option[(Address, Boolean)] = None // (issuer, assetCode)
+                                                     assetArgs: Option[(AssetCode, Boolean)] = None // (assetCode, minting)
                                                     ): Try[(IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, T)])] = Try {
 
     // Lookup boxes for the given senders
     val senderBoxes = getSenderBoxesForTx[T](state, sender, txType, assetArgs)
 
     // compute the Poly balance since it is used often
-    val polyBalance = senderBoxes("Poly").map(_._3.value.quantity).sum
+    val polyBalance =
+      senderBoxes
+        .getOrElse("Poly", throw new Exception(s"No Poly funds available for the transaction fee payment"))
+        .map(_._3.value.quantity)
+        .sum
 
     // compute the amount of tokens that will be sent to the recipients
     val amtToSpend = toReceive.map(_._2.quantity).sum
@@ -159,7 +160,11 @@ object TransferTransaction {
         )
 
       case "ArbitTransfer" =>
-        val arbitBalance = senderBoxes("Arbit").map(_._3.value.quantity).sum
+        val arbitBalance =
+          senderBoxes
+            .getOrElse("Arbit", throw new Exception(s"No Arbit funds available for the transaction"))
+            .map(_._3.value.quantity)
+            .sum
 
         (
           arbitBalance,
@@ -176,7 +181,12 @@ object TransferTransaction {
         )
 
       case "AssetTransfer" =>
-        val assetBalance = senderBoxes("Asset").map(_._3.value.quantity).sum
+        val assetBalance =
+          senderBoxes
+            .getOrElse("Asset", throw new Exception(s"No Assets found with assetCode ${assetArgs.get._1}"))
+            .map(_._3.value.quantity)
+            .sum
+
         (
           assetBalance,
           senderBoxes("Asset").map(bxs => (bxs._2, bxs._3.nonce)) ++ senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
@@ -207,7 +217,7 @@ object TransferTransaction {
       case t @ _                            => require(t.from.nonEmpty, "Non-block reward transactions must specify at least one input box")
     }
 
-    require(tx.to.forall(_._2 > 0L), "Amount sent must be greater than 0")
+    require(tx.to.forall(_._2.quantity > 0L), "Amount sent must be greater than 0")
     require(tx.fee >= 0L, "Fee must be a positive value")
     require(tx.timestamp >= 0L, "Invalid timestamp")
     require(tx.data.getBytes("UTF-8").length <= 128, "Data field must be less than 128 bytes")
