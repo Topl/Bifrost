@@ -3,33 +3,29 @@ package co.topl.modifier.transaction
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.attestation.{Evidence, _}
+import co.topl.modifier.block.BloomFilter
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.state.box.Box.Nonce
 import co.topl.nodeView.state.box.{Box, _}
 import co.topl.utils.HasName
 import com.google.common.primitives.{Ints, Longs}
 import scorex.crypto.hash.Blake2b256
-import scorex.util.encode.Base58
-import supertagged.TaggedType
+import supertagged.PostfixSugar
 
 import scala.util.{Failure, Success, Try}
 
 abstract class TransferTransaction[
   P <: Proposition: EvidenceProducer: HasName
-]( val from: IndexedSeq[(Address, Box.Nonce)],
-    val to: IndexedSeq[(Address, TokenValueHolder)],
-    val attestation: Map[P, Proof[P]],
-    val fee: Long,
-    val timestamp: Long,
-    val data: String,
-    val minting: Boolean
-  ) extends Transaction[TokenValueHolder, P] {
+](val from:        IndexedSeq[(Address, Box.Nonce)],
+  val to:          IndexedSeq[(Address, TokenValueHolder)],
+  val attestation: Map[P, Proof[P]],
+  val fee:         Long,
+  val timestamp:   Long,
+  val data:        String,
+  val minting:     Boolean
+) extends Transaction[TokenValueHolder, P] {
 
-//  lazy val bloomTopics = to.map(x => {
-//    val bytes = x._1.bytes
-//    BloomTopic @@ bytes
-//  })
+  //lazy val bloomTopics: IndexedSeq[BloomTopic] = to.map(b => BloomTopic @@ b._1.bytes)
 
   lazy val boxIdsToOpen: IndexedSeq[BoxId] = from.map { case (addr, nonce) =>
     BoxId.idFromEviNonce(addr.evidence, nonce)
@@ -83,12 +79,12 @@ object TransferTransaction {
   }
 
   /** Retrieves the boxes from state for the specified sequence of senders and filters them based on the type of transaction */
-  private def getSenderBoxesForTx[T <: TokenValueHolder](
+  private def getSenderBoxesForTx(
     state:     StateReader,
     sender:    IndexedSeq[Address],
     txType:    String,
     assetArgs: Option[(AssetCode, Boolean)] = None
-  ): Map[String, IndexedSeq[(String, Address, TokenBox[T])]] = {
+  ): Map[String, IndexedSeq[(String, Address, TokenBox[TokenValueHolder])]] = {
     sender
       .flatMap { s =>
         state
@@ -114,8 +110,7 @@ object TransferTransaction {
       .groupBy(_._1)
   }
 
-  /**
-    * Determines the input boxes needed to create a transfer transaction
+  /** Determines the input boxes needed to create a transfer transaction
     *
     * @param state a read-only version of the nodes current state
     * @param toReceive the recipients of boxes
@@ -125,17 +120,19 @@ object TransferTransaction {
     * @param assetArgs a tuple of asset specific details for finding the right asset boxes to be sent in a transfer
     * @return the input box information and output data needed to create the transaction case class
     */
-  def createRawTransferParams[T <: TokenValueHolder](state: StateReader,
-                                                     toReceive: IndexedSeq[(Address, T)],
-                                                     sender: IndexedSeq[Address],
-                                                     changeAddress: Address,
-                                                     fee: Long,
-                                                     txType: String,
-                                                     assetArgs: Option[(AssetCode, Boolean)] = None // (assetCode, minting)
-                                                    ): Try[(IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, T)])] = Try {
+  def createRawTransferParams[
+    T <: TokenValueHolder
+  ](state:         StateReader,
+    toReceive:     IndexedSeq[(Address, T)],
+    sender:        IndexedSeq[Address],
+    changeAddress: Address,
+    fee:           Long,
+    txType:        String,
+    assetArgs:     Option[(AssetCode, Boolean)] = None // (assetCode, minting)
+  ): Try[(IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, TokenValueHolder)])] = Try {
 
     // Lookup boxes for the given senders
-    val senderBoxes = getSenderBoxesForTx[T](state, sender, txType, assetArgs)
+    val senderBoxes = getSenderBoxesForTx(state, sender, txType, assetArgs)
 
     // compute the Poly balance since it is used often
     val polyBalance =
@@ -156,7 +153,7 @@ object TransferTransaction {
         (
           polyBalance - fee,
           senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
-          (changeAddress, polyBalance - fee - amtToSpend) +: toReceive
+          (changeAddress, SimpleValue(polyBalance - fee - amtToSpend)) +: toReceive
         )
 
       case "ArbitTransfer" =>
@@ -168,8 +165,11 @@ object TransferTransaction {
 
         (
           arbitBalance,
-          senderBoxes("Arbit").map(bxs => (bxs._2, bxs._3.nonce)) ++ senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
-          IndexedSeq((changeAddress, polyBalance - fee), (changeAddress, arbitBalance - amtToSpend)) ++ toReceive
+          senderBoxes("Arbit").map(bxs => (bxs._2, bxs._3.nonce)) ++
+            senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
+          IndexedSeq((changeAddress, SimpleValue(polyBalance - fee)),
+            (changeAddress, SimpleValue(arbitBalance - amtToSpend))) ++
+            toReceive
         )
 
       // case for minting asset transfers
@@ -177,7 +177,7 @@ object TransferTransaction {
         (
           Long.MaxValue,
           senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
-          (changeAddress, polyBalance - fee) +: toReceive
+          (changeAddress, SimpleValue(polyBalance - fee)) +: toReceive
         )
 
       case "AssetTransfer" =>
@@ -189,8 +189,11 @@ object TransferTransaction {
 
         (
           assetBalance,
-          senderBoxes("Asset").map(bxs => (bxs._2, bxs._3.nonce)) ++ senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
-          IndexedSeq((changeAddress, polyBalance - fee), (changeAddress, assetBalance - amtToSpend)) ++ toReceive
+          senderBoxes("Asset").map(bxs => (bxs._2, bxs._3.nonce)) ++
+            senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
+          IndexedSeq((changeAddress, SimpleValue(polyBalance - fee)),
+            (changeAddress, SimpleValue(assetBalance - amtToSpend))) ++
+            toReceive
         )
     }
 
@@ -207,8 +210,9 @@ object TransferTransaction {
     * @return success or failure indicating the validity of the transaction
     */
   def syntacticValidate[
-    P <: Proposition: EvidenceProducer
-  ](tx: TransferTransaction[P], hasAttMap: Boolean = true)(implicit networkPrefix: NetworkPrefix): Try[Unit] = Try {
+    P <: Proposition: EvidenceProducer,
+    TX <: TransferTransaction[P]
+  ](tx: TX, hasAttMap: Boolean = true)(implicit networkPrefix: NetworkPrefix): Try[Unit] = Try {
 
     // enforce transaction specific requirements
     tx match {

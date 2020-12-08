@@ -1,13 +1,15 @@
 package co.topl.nodeView.state.box
 
 import co.topl.attestation.Address
-import co.topl.nodeView.state.box.AssetValue.{AssetCode, SecurityRoot}
+import co.topl.nodeView.state.box.AssetValue.SecurityRoot
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 import supertagged.TaggedType
+
+import java.nio.charset.StandardCharsets
 
 sealed abstract class TokenValueHolder(val quantity: Long) extends BytesSerializable
 
@@ -36,12 +38,11 @@ case class AssetValue(
   override val quantity: Long,
   assetCode: AssetCode,
   securityRoot: SecurityRoot,
-  metadata: String
+  metadata: Option[String]
 ) extends TokenValueHolder(quantity) {
 
-  require(assetCode.length == AssetValue.assetCodeSize, "Invalid assetCode")
   require(securityRoot.length == AssetValue.securityRootSize, "Invalid securityRoot")
-  require(metadata.getBytes("utf8").length <= AssetValue.metadataLimit,
+  require(metadata.forall(_.getBytes(StandardCharsets.UTF_8).length <= AssetValue.metadataLimit),
     "Metadata string must be less than 128 UTF-8 characters")
 
   override type M = AssetValue
@@ -51,9 +52,6 @@ case class AssetValue(
 
 object AssetValue extends BifrostSerializer[AssetValue] {
 
-  object AssetCode extends TaggedType[Array[Byte]]
-  type AssetCode = AssetCode.Type
-
   object SecurityRoot extends TaggedType[Array[Byte]]
   type SecurityRoot = SecurityRoot.Type
 
@@ -61,22 +59,21 @@ object AssetValue extends BifrostSerializer[AssetValue] {
     (value: AssetValue) =>
       Map (
         "quantity" -> value.quantity.asJson,
-        "assetCode" -> Base58.encode(value.assetCode).asJson,
+        "assetCode" -> value.assetCode.asJson,
         "securityRoot" -> Base58.encode(value.securityRoot).asJson,
-        "metadata" -> value.metadata.asJson
+        "metadata" -> value.metadata.getOrElse("").asJson
       ).asJson
   }
 
   implicit val jsonDecoder: Decoder[AssetValue] = (c: HCursor) =>
     for {
       quantity <- c.downField("quantity").as[Long]
-      assetCode <- c.downField("assetCode").as[String].map(Base58.decode)
+      assetCode <- c.downField("assetCode").as[AssetCode]
       securityRoot <- c.downField("securityRoot").as[String].map(Base58.decode)
-      metadata <- c.downField("metadata").as[String]
+      metadata <- c.downField("metadata").as[Option[String]]
     } yield {
-      val ac = AssetCode @@ assetCode.getOrElse(throw new Exception("Unable to decode assetCode"))
       val sr = SecurityRoot @@ securityRoot.getOrElse(throw new Exception("Unable to decode securityRoot"))
-      AssetValue(quantity, ac, sr, metadata)
+      AssetValue(quantity, assetCode, sr, metadata)
     }
 
   // bytes (34 bytes for issuer Address + 8 bytes for asset nonce + 8 bytes for asset short name)
@@ -86,16 +83,20 @@ object AssetValue extends BifrostSerializer[AssetValue] {
 
   override def serialize(obj: AssetValue, w: Writer): Unit = {
     w.putULong(obj.quantity)
-    w.putBytes(obj.assetCode)
+    AssetCode.serialize(obj.assetCode, w)
     w.putBytes(obj.securityRoot)
-    w.putByteString(obj.metadata)
+    w.putOption(obj.metadata){ (writer, metadata) =>
+      writer.putByteString(metadata)
+    }
   }
 
   override def parse(r: Reader): AssetValue = {
     val quantity = r.getULong()
-    val assetCode = AssetCode @@ r.getBytes(assetCodeSize)
+    val assetCode = AssetCode.parse(r)
     val securityRoot = SecurityRoot @@ r.getBytes(securityRootSize)
-    val metadata = r.getByteString()
+    val metadata: Option[String] = r.getOption {
+      r.getByteString()
+    }
 
     AssetValue(quantity, assetCode, securityRoot, metadata)
   }
