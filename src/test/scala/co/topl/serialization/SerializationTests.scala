@@ -35,7 +35,7 @@ class SerializationTests extends AnyPropSpec
           .get
 
         parsed.threshold shouldBe mn.threshold
-        parsed.setOfPubKeyBytes should contain theSameElementsAs mn.setOfPubKeyBytes
+        parsed.pubKeyProps should contain theSameElementsAs mn.pubKeyProps
     }
   }
 
