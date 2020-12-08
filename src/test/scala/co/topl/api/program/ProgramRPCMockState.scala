@@ -5,6 +5,7 @@ import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaType
 import akka.util.ByteString
 import co.topl.api.RPCMockState
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
+import co.topl.modifier.ModifierId
 import co.topl.nodeView.state
 import co.topl.nodeView.state.box._
 import io.circe.syntax._
@@ -23,7 +24,7 @@ trait ProgramRPCMockState extends RPCMockState
     ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
 
-  def directlyAddPBRStorage(version: Int, boxes: Seq[ProgramBox]): Unit = {
+  def directlyAddPBRStorage(version: ModifierId, boxes: Seq[ProgramBox]): Unit = {
     // Manually manipulate state
     state.directlyAddPBRStorage(version, boxes, view().state)
   }
