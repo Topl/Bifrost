@@ -80,18 +80,6 @@ trait ValidGenerators extends CoreGenerators {
     ArbitTransfer(from, to, fee, timestamp, data)
   }
 
-  lazy val validCoinbaseTransactionGen: Gen[Coinbase] = for {
-    _ <- toSeqGen
-    amount <- positiveLongGen
-    timestamp <- positiveLongGen
-    id <- modifierIdGen
-  } yield {
-    val toKeyPair = sampleUntilNonEmpty(keyPairSetGen).head
-    val rawTx = Coinbase.createRaw(toKeyPair._2, amount, timestamp, id)
-    val sig = Map(toKeyPair._2 -> toKeyPair._1.sign(rawTx.messageToSign))
-    rawTx.copy(signatures = sig)
-  }
-
   lazy val validAssetTransferGen: Gen[AssetTransfer] = for {
     _ <- fromSeqGen
     _ <- toSeqGen

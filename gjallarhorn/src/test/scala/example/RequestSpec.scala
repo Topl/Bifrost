@@ -205,38 +205,6 @@ class RequestSpec extends AsyncFlatSpec
       s"""
          |    [
          |      {
-         |        "txType" : "Coinbase",
-         |        "txHash" : "HK5CxRpT1xXBbLeQRnxzBfMZkTr2czwbEcCchRofsx9z",
-         |        "timestamp" : 1603750438238,
-         |        "signatures" : {
-         |          "4YCxsBZujUFEfEaRWhhURgzvWEzN8BWbbho1qEovmhunN7c9fQ" : "Signature25519(5h4GoyqCYC8qhvzDHoheD442JSu7YaE5bNFFemfVhfwGLZtvUYGgXyZ35jYyhG2YtUAW6pnwpkDVdgq2GpAux3xS)"
-         |        },
-         |        "newBoxes" : [
-         |          {
-         |            "nonce": "-9110370178208068175",
-         |            "id": "GGDsEQdd5cnbgjKkac9HLpp2joGo6bWgmS2KvhJgd8b8",
-         |            "type": "Arbit",
-         |            "proposition": "${pk2.toString}",
-         |            "value": "1000000"
-         |          },
-         |          {
-         |            "nonce": "-8269943573030898832",
-         |            "id": "97gkUUwPQWGKU1LMf7cZE4PGdbUezWYLcbcuiRRryGeE",
-         |            "type": "Arbit",
-         |            "proposition": "4EoSC4YmTm7zoPt5HDJU4aa73Vn2LPrmUszvggAPM5Ff3R1DVt",
-         |            "value": "1000000"
-         |          }
-         |        ],
-         |        "to" : [
-         |          [
-         |            "4Nb1ewkxoT8GJAZkCLaetQAWgVdfcu58v5Uka8iag3nsXakiVj",
-         |            0
-         |          ]
-         |        ],
-         |        "parentId" : "HVa5fBayzLEDStb9Hwthe9HDJWAtakGW3o11s9z2cRo4",
-         |        "fee" : 0
-         |      },
-         |      {
          |        "txType": "PolyTransfer",
          |        "txHash": "G1KX8RPVBBmHWuuZ7ihNkQLXVJa8AMr4DxafAJHUUCuy",
          |        "timestamp": 0,
