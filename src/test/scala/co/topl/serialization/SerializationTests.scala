@@ -14,7 +14,6 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
-import scala.collection.BitSet
 import scala.util.{Failure, Success}
 
 /**
@@ -255,31 +254,13 @@ class SerializationTests extends AnyPropSpec
     }
   }
 
-
-  // todo: JAA - 2020.08.02 - this was removed as SyncInfo uses the standard message parsing pattern now.
-  // todo:       We should be sure to move this test to where ever message serialization is tested
-//  property("BifrostSyncInfo Serialization") {
-//    forAll(bifrostSyncInfoGen) {
-//      syncInfo: BifrostSyncInfo =>
-//        val parsed = BifrostSyncInfoSerializer
-//          .parseBytes(BifrostSyncInfoSerializer.toBytes(syncInfo))
-//          .get
-//
-//        BifrostSyncInfoSerializer.toBytes(parsed) sameElements
-//          BifrostSyncInfoSerializer.toBytes(syncInfo) shouldBe true
-//    }
-//  }
-
   property("Bloom Serialization") {
-    forAll(intSeqGen) {
-      intSeq: Seq[Int] =>
-        val bloom = BloomFilter(BitSet(intSeq: _*))
-        val parsed: BloomFilter = BloomFilterSerializer
-          .parseBytes(BloomFilterSerializer.toBytes(bloom))
-          .get
+    forAll(blockGen) {
+      block =>
+        val parsed: BloomFilter = BloomFilter.parseBytes(BloomFilter.toBytes(block.bloomFilter)).get
 
-        BloomFilterSerializer.toBytes(parsed) sameElements
-          BloomFilterSerializer.toBytes(bloom) shouldBe true
+        BloomFilter.toBytes(parsed) sameElements
+          BloomFilter.toBytes(block.bloomFilter) shouldBe true
     }
   }
 }
