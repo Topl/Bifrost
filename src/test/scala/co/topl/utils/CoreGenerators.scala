@@ -517,7 +517,7 @@ trait CoreGenerators extends Logging {
     .map(_.toArray)
 
   lazy val blockGen: Gen[Block] = for {
-    parentId <- specificLengthBytesGen(Block.blockIdLength)
+    parentId <- specificLengthBytesGen(ModifierId.size)
     timestamp <- positiveLongGen
     generatorBox <- arbitBoxGen
     signature <- signatureGen
