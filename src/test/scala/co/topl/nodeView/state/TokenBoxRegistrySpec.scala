@@ -1,6 +1,7 @@
 package co.topl.nodeView.state
 
 import co.topl.attestation.Address
+import co.topl.modifier.ModifierId
 import co.topl.utils.{CoreGenerators, ValidGenerators}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.OptionValues.convertOptionToValuable
