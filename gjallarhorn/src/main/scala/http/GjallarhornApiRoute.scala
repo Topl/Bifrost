@@ -11,8 +11,9 @@ import keymanager.KeyManager._
 import requests.RequestsManager.BifrostRequest
 import settings.AppSettings
 
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Success, Try}
 
 case class GjallarhornApiRoute(settings: AppSettings,
@@ -46,13 +47,26 @@ case class GjallarhornApiRoute(settings: AppSettings,
     * @return - a response after creating transaction.
     */
   private def createTransaction(params: Json, id: String): Future[Json] = {
-      val method: String = (params \\ "method").head.asString.get
-      val innerParams: Json = (params \\ "params").head.asArray.get.head
+    var response = Future{"tx".asJson}
+    for {
+      method <- (params \\ "method").head.as[String]
+      innerParams <- (params \\ "params").head.asArray.get.head.as[Json]
+      online <- (innerParams \\ "online").head.as[Boolean]
+      sender <- (innerParams \\ "sender").head.as[IndexedSeq[Address]]
+    } yield {
       val tx = requests.transaction(method, innerParams)
-
-      Future {
-        requests.sendRequest(tx)
+      if (online) {
+        val txResponse = requests.sendRequest(tx)
+        val rawTx = (txResponse \\ "rawTx").head
+        val msgToSign = (txResponse \\ "messageToSign").head
+        val signedTx = Await.result((keyManager ? SignTx(rawTx, List(sender.head.toString), msgToSign))
+          .mapTo[Json], 10.seconds)
+        response = Future{requests.broadcastTx(signedTx)}
+      } else {
+        response = Future {requests.sendRequest(tx)}
       }
+    }
+    response
   }
 
   /**

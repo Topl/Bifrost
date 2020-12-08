@@ -118,8 +118,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |        "issuer": "$pk2",
          |        "assetCode": "test",
          |        "minting": true,
-         |        "fee": 0,
-         |        "data": ""
+         |        "fee": 1,
+         |        "data": "",
+         |        "online": false
          |     }]
          |   }]
          |}
@@ -138,7 +139,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     }
   }
 
-  it should "successfully transfer poly" in {
+  it should "successfully create raw poly tx" in {
     val createPolyRequest = ByteString(
       s"""
          |{
@@ -152,8 +153,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |        "sender": ["$pk2"],
          |        "recipient": [["$pk1", $amount]],
          |        "changeAddress": "$pk2",
-         |        "fee": 0,
-         |        "data": ""
+         |        "fee": 1,
+         |        "data": "",
+         |        "online": false
          |     }]
          |   }]
          |}
@@ -189,6 +191,39 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
           (res \\ "error").isEmpty shouldBe true
           val openKeys: Set[String] = (res \\ "result").head.asArray.get.map(k => k.asString.get).toSet
           openKeys.contains(pk1.toString) shouldBe true
+      }
+    }
+  }
+
+  it should "successfully send online arbit tx" in {
+    val createPolyRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_createTransaction",
+         |   "params": [{
+         |     "method": "topl_rawPolyTransfer",
+         |     "params": [{
+         |        "propositionType": "PublicKeyCurve25519",
+         |        "sender": ["$pk2"],
+         |        "recipient": [["$pk1", $amount]],
+         |        "changeAddress": "$pk2",
+         |        "fee": 1,
+         |        "data": "",
+         |        "online": true
+         |     }]
+         |   }]
+         |}
+       """.stripMargin)
+
+    httpPOST(createPolyRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          (res \\ "result").head.asObject.isDefined shouldBe true
       }
     }
   }
