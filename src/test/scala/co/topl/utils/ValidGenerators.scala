@@ -97,6 +97,7 @@ trait ValidGenerators extends CoreGenerators {
     AssetTransfer(from, to, hub, assetCode, fee, timestamp, data)
   }
 
+  /*
   lazy val validAssetCreationGen: Gen[AssetCreation] = for {
     _ <- toSeqGen
     fee <- positiveLongGen
@@ -116,5 +117,6 @@ trait ValidGenerators extends CoreGenerators {
 
     AssetCreation(to, signatures, assetCode, oneHub._2, fee, timestamp, data)
   }
+   */
 }
 

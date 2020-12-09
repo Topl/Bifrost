@@ -2,9 +2,11 @@ package co.topl.utils
 
 import java.io.File
 import java.time.Instant
-import co.topl.attestation.{Address, PrivateKeyCurve25519, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
+import co.topl.attestation.{Address, Evidence, PrivateKeyCurve25519, PublicKeyPropositionCurve25519, SignatureCurve25519, ThresholdPropositionCurve25519}
+import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.modifier.block.Block
+import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction._
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
@@ -274,6 +276,7 @@ trait CoreGenerators extends Logging {
     (nonce, amount)
   }
 
+  /*
   lazy val programCreationGen: Gen[ProgramCreation] = for {
     executionBuilder <- validExecutionBuilderGen()
     readOnlyStateBoxes <- stateBoxGen
@@ -362,6 +365,8 @@ trait CoreGenerators extends Logging {
 
     ProgramTransfer(from, to, signature, executionBox, fee, timestamp, data)
   }
+   */
+
 
   lazy val fromGen: Gen[(Address, Nonce)] = for {
     address <- addressGen
@@ -430,6 +435,7 @@ trait CoreGenerators extends Logging {
     AssetTransfer(from, to, from.map(a => a._1).zip(signatures).toMap, hub, assetCode, fee, timestamp, data)
   }
 
+  /*
   lazy val assetCreationGen: Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = for {
     to <- toSeqGen
     fee <- positiveLongGen
@@ -443,6 +449,7 @@ trait CoreGenerators extends Logging {
     val sig = sender._1.sign(rawTx.messageToSign)
     AssetCreation(to, Map(sender._2 -> sig), assetCode, sender._2, fee, timestamp, data)
   }
+   */
 
   lazy val oneOfNPropositionGen: Gen[(Set[PrivateKeyCurve25519], ThresholdPropositionCurve25519)] = for {
     n <- positiveTinyIntGen
@@ -468,8 +475,8 @@ trait CoreGenerators extends Logging {
   }
 
   val transactionTypes: Seq[Gen[TX]] =
-    Seq(polyTransferGen, arbitTransferGen, assetTransferGen, assetCreationGen,
-        programMethodExecutionGen, programCreationGen, programTransferGen)
+    Seq(polyTransferGen, arbitTransferGen, assetTransferGen/*, assetCreationGen,
+        programMethodExecutionGen, programCreationGen, programTransferGen*/)
 
   lazy val bifrostTransactionSeqGen: Gen[Seq[TX]] = for {
     seqLen <- positiveMediumIntGen
