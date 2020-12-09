@@ -214,20 +214,6 @@ class SerializationTests extends AnyPropSpec
    */
 
   /*
-  property("CodeCreation Serialization") {
-    forAll(codeBoxCreationGen) {
-      ccc: CodeCreation =>
-        val parsed = CodeBoxCreationSerializer
-          .parseBytes(CodeBoxCreationSerializer.toBytes(ccc))
-          .get
-
-        CodeBoxCreationSerializer.toBytes(parsed) sameElements
-          CodeBoxCreationSerializer.toBytes(ccc) shouldBe true
-    }
-  }
-   */
-
-  /*
   property("ProgramTransfer Serialization") {
     forAll(programTransferGen) {
       pt: ProgramTransfer =>

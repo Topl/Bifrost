@@ -46,8 +46,6 @@ trait ValidGenerators extends CoreGenerators {
     ).asJson, id)
   }
 
-  lazy val validProgramMethods: List[String] = List("add")
-
   lazy val validPolyTransferGen: Gen[PolyTransfer[_]] = for {
     fee <- positiveLongGen
     timestamp <- positiveLongGen

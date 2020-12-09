@@ -333,28 +333,6 @@ trait CoreGenerators extends Logging {
       data)
   }
 
-  lazy val codeBoxCreationGen: Gen[CodeCreation] = for {
-    to <- propositionGen
-    signature <- signatureGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    data <- stringGen
-  } yield {
-
-    val code: String =
-      """
-        |/**
-        |* @param {Number}
-        |* @param {Number}
-        |**/
-        |add = function(a,b) {
-        | return a + b
-        |}
-      """.stripMargin
-
-    CodeCreation(to, signature, code, fee, timestamp, data)
-  }
-
   lazy val programTransferGen: Gen[ProgramTransfer] = for {
     from <- propositionGen
     to <- propositionGen
