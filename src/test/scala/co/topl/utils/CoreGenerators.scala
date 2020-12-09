@@ -240,7 +240,7 @@ trait CoreGenerators extends Logging {
   }
 
   lazy val signatureGen: Gen[SignatureCurve25519] =
-    genBytesList(SignatureCurve25519.SignatureSize).map(bytes => SignatureCurve25519(Signature @@ bytes))
+    genBytesList(SignatureCurve25519.signatureSize).map(bytes => SignatureCurve25519(Signature @@ bytes))
 
   lazy val programIdGen: Gen[ProgramId] = for {
     seed <- specificLengthBytesGen(ProgramId.size)
