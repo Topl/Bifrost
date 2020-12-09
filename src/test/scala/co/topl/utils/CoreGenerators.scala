@@ -17,6 +17,7 @@ import co.topl.nodeView.state.box.Box.Nonce
 import co.topl.nodeView.state.box.TokenBox.Value
 import co.topl.nodeView.state.box.{ProgramId, _}
 import co.topl.program.{Program, ProgramPreprocessor, _}
+import co.topl.settings.NetworkType.PrivateNet
 import co.topl.settings.{AppSettings, StartupOpts}
 import io.circe.syntax._
 import io.circe.{Json, JsonObject}
@@ -33,6 +34,8 @@ import scala.util.{Random, Try}
   * Created by cykoz on 4/12/17.
   */
 trait CoreGenerators extends Logging {
+
+  implicit val networkPrefix: NetworkPrefix = PrivateNet().netPrefix
 
   private val settingsFilename = "src/test/resources/test.conf"
   val settings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))

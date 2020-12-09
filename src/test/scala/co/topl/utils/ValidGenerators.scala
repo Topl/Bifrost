@@ -1,19 +1,13 @@
 package co.topl.utils
 
-import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction._
-import co.topl.nodeView.state.box.Box.Nonce
 import co.topl.nodeView.state.box.TokenBox.Value
 import co.topl.program._
-import com.google.common.primitives.{Bytes, Longs}
+import com.google.common.primitives.Longs
 import io.circe.syntax._
 import org.scalacheck.Gen
 import scorex.crypto.hash.Blake2b256
-import scorex.crypto.signatures.Signature
-import scorex.util.encode.Base58
-
-import scala.util.{Failure, Success, Try}
 
 trait ValidGenerators extends CoreGenerators {
 
