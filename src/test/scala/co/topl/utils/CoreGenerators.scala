@@ -525,13 +525,18 @@ trait CoreGenerators extends Logging {
     .map(_.toArray)
 
   lazy val blockGen: Gen[Block] = for {
-    parentId <- specificLengthBytesGen(ModifierId.size)
+    parentIdBytes <- specificLengthBytesGen(ModifierId.size)
     timestamp <- positiveLongGen
     generatorBox <- arbitBoxGen
+    publicKey <- propositionGen
     signature <- signatureGen
     txs <- bifrostTransactionSeqGen
   } yield {
-    Block(ModifierId(parentId), timestamp, generatorBox, signature, txs, settings.application.version.firstDigit)
+    val parentId = ModifierId(Base58.encode(parentIdBytes))
+    val height: Long = 1L
+    val difficulty = settings.forging.privateTestnet.map(_.initialDifficulty).get
+    val version: PNVMVersion = settings.application.version.firstDigit
+    Block(parentId, timestamp, generatorBox, publicKey, signature, height, difficulty, txs, version)
   }
 
   lazy val genesisBlockGen: Gen[Block] = for {
