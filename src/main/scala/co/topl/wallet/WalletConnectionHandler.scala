@@ -2,7 +2,7 @@ package co.topl.wallet
 
 import akka.actor.{Actor, ActorRef, ActorSystem, ExtendedActorSystem, Props}
 import akka.pattern.pipe
-import akka.util.Timeout
+import akka.util.{ByteString, Timeout}
 import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.http.api.endpoints.{NodeViewApiEndpoint, TransactionApiEndpoint}
@@ -82,13 +82,23 @@ class WalletConnectionHandler[
     */
   private def handleMsgFromRemote(msg: String): Unit = {
     if (msg.contains("Remote wallet actor initialized")) {
-      parseKeys(msg.substring("Remote wallet actor initialized. My public keys are: ".length))
       remoteWalletActor = Some(sender())
       sender() ! s"received new wallet from: ${sender()}. "
     }
 
     if (msg == "Which network is bifrost running?") {
       sender() ! s"Bifrost is running on ${appContext.networkType.verboseName}"
+    }
+
+    if (msg.contains("My public keys are")) {
+      val keys = parseKeys(msg.substring("My public keys are: ".length))
+      keys match {
+        case Some(addrs) =>
+          remoteWalletAddresses = keys
+          println("WCH keys: " + addrs)
+          sendRequestApi(balanceRequest(addrs), sender())
+        case None => null
+      }
     }
 
     if (msg == "Remote wallet actor stopped") {
@@ -164,9 +174,10 @@ class WalletConnectionHandler[
   /** Parse the set of keys registered by the Gjallarhorn actor
     * @param keys a stringified set of PublicKeyPropositions to monitor for changes
     */
-  private def parseKeys(keys: String): Unit = {
+  private def parseKeys(keys: String): Option[Set[Address]] = {
     if (keys == "Set()") {
       println("Remote wallet has no keys!")
+      None
     } else {
       val keysArr: Array[String] = keys.split(",")
       val keystrings = keysArr
@@ -179,8 +190,20 @@ class WalletConnectionHandler[
         )
         .toSet
 
-      remoteWalletAddresses = Some(keystrings.map(key => Address(key)))
+      Some(keystrings.map(key => Address(key)))
     }
+  }
+
+  private def balanceRequest(addresses: Set[Address]): String = {
+    val params: Json = Map("addresses" -> addresses.map(_.asJson).toList).asJson
+    s"""
+       |{
+       |   "jsonrpc": "2.0",
+       |   "id": "2",
+       |   "method": "topl_balances",
+       |   "params": [$params]
+       |}
+     """.stripMargin
   }
 }
 

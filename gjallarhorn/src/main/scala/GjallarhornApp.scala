@@ -10,7 +10,7 @@ import requests.{ApiRoute, Requests, RequestsManager}
 import settings.{AppSettings, NetworkType, StartupOpts}
 import utils.Logging
 import wallet.{DeadLetterListener, WalletManager}
-import wallet.WalletManager.{GetNetwork, GjallarhornStarted, GjallarhornStopped}
+import wallet.WalletManager.{GetNetwork, GjallarhornStarted, GjallarhornStopped, YourKeys}
 
 import scala.concurrent.{Await, ExecutionContextExecutor}
 import scala.util.{Failure, Success}
@@ -24,9 +24,6 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   implicit val timeout: Timeout = 10.seconds
 
   val keyFileDir: String = settings.application.keyFileDir
-  //TODO: grab these from database
-  val addresses: Set[Address] = Set(Address("86tS2ExvjGEpS3Ntq5vZgHirUMuee7pJELGD8GmBoUyjXpAaAXTz"),
-    Address("86sdac1yU3HNtgpWoUkFxjPBdmK6kSqUcxaar9hmEXXRTUP12tHP"))
 
   val listener: ActorRef = system.actorOf(Props[DeadLetterListener]())
   system.eventStream.subscribe(listener, classOf[DeadLetter])
@@ -54,8 +51,10 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   sys.addShutdownHook(GjallarhornApp.shutdown(system, actorsToStop))
 
   def setUpOnlineMode(bifrost: ActorRef): Unit = {
+
+    //Set up wallet manager - handshake w Bifrost and get NetworkPrefix
     val walletManagerRef: ActorRef = system.actorOf(
-      Props(new WalletManager(addresses, bifrost)), name = "WalletManager")
+      Props(new WalletManager(bifrost)), name = "WalletManager")
     val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager(bifrost)), name = "RequestsManager")
     walletManagerRef ! GjallarhornStarted
     val bifrostResponse = Await.result((walletManagerRef ? GetNetwork).mapTo[String], 10.seconds)
@@ -65,8 +64,17 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
       case None => throw new Error(s"The network name: $networkName was not a valid network type!")
     }
 
+    //Set up keyManager and tell walletManager about keys
     val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] = Keys(keyFileDir, KeyfileCurve25519)
     val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", keyManager)
+    //TODO: grabs keys from database
+    val privateKeys: Set[PrivateKeyCurve25519] = keyManager.generateNewKeyPairs(2, Some("test")) match {
+      case Success(secrets) => secrets
+      case Failure(ex) => throw new Error (s"Unable to generate new keys: $ex")
+    }
+    val addresses: Set[Address] = privateKeys.map(sk => sk.publicImage.address)
+    keyManagerRef ! YourKeys(addresses)
+
     actorsToStop = Seq(walletManagerRef, requestsManagerRef, keyManagerRef)
 
     val requests: Requests = new Requests(settings.application, requestsManagerRef)

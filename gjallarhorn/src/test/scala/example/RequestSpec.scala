@@ -46,7 +46,7 @@ class RequestSpec extends AsyncFlatSpec
   Try(path.createDirectory())
   val password = "pass"
   val genesisPubKey: Address = Address("86th32F6fUxGZi8KLShhQkYxHs3hyDFVh64HSWufQieJSVYXtWAN")
-
+  println(genesisPubKey)
   val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] = Keys(keyFileDir, KeyfileCurve25519)
   //keyManager.unlockKeyFile(Base58.encode(sk1.publicKeyBytes), password)
 
@@ -67,7 +67,7 @@ class RequestSpec extends AsyncFlatSpec
 
   val publicKeys: Set[Address] = Set(pk1, pk2, pk3, genesisPubKey)
   val walletManagerRef: ActorRef = actorSystem.actorOf(
-    Props(new WalletManager(publicKeys, bifrostActor)), name = "WalletManager")
+    Props(new WalletManager(bifrostActor)), name = "WalletManager")
 
   val amount = 10
   var transaction: Json = Json.Null
@@ -95,6 +95,7 @@ class RequestSpec extends AsyncFlatSpec
       case Some(network) => network.netPrefix
       case None => throw new Error(s"The network name: $networkName was not a valid network type!")
     }
+    walletManagerRef ! YourKeys(publicKeys)
     assert(networkPre == networkPrefix)
   }
 
@@ -193,7 +194,7 @@ class RequestSpec extends AsyncFlatSpec
     val walletBoxes: MMap[String, MMap[String, Json]] =
       Await.result((walletManagerRef ? UpdateWallet((balanceResponse \\ "result").head))
       .mapTo[MMap[String, MMap[String, Json]]], 10.seconds)
-
+    println("walletBoxes: " + walletBoxes)
     val pubKeyEmptyBoxes: Option[MMap[String, Json]] = walletBoxes.get(pk3.toString)
     pubKeyEmptyBoxes match {
       case Some(map) => assert(map.keySet.isEmpty)

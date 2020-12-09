@@ -17,26 +17,21 @@ import scala.concurrent.duration._
 /**
   * The WalletManager manages the communication between Bifrost and Gjallarhorn
   * Mainly, the WalletManager receives new blocks from Bifrost in order to updates its wallet boxes.
-  * @param publicKeys: the set of publicKeys that the WalletManager should keep track of.
+  * @param bifrostActorRef: the actor ref for Bifrost's WalletConnectionHandler.
   */
-class WalletManager(publicKeys: Set[Address], bifrostActorRef: ActorRef)
+class WalletManager(bifrostActorRef: ActorRef)
                    ( implicit ec: ExecutionContext ) extends Actor with Logging {
 
   import WalletManager._
 
   implicit val timeout: Timeout = 10.seconds
+  var publicKeys: Set[Address] = Set()
 
   /**
     * Represents the wallet boxes: as a mapping of publicKeys to a map of its id's mapped to walletBox.
     * Ex: publicKey1 -> {id1 -> walletBox1, id2 -> walletBox2, ...}, publicKey2 -> {},...
     */
-  var walletBoxes: MMap[String, MMap[String, Json]] = {
-    val returnVal: MMap[String, MMap[String, Json]] = MMap.empty
-    publicKeys.map(key =>
-      returnVal.put(key.toString, MMap.empty)
-    )
-    returnVal
-  }
+  var walletBoxes: MMap[String, MMap[String, Json]] = MMap.empty
 
   var newestTransactions: Option[String] = None
 
@@ -47,6 +42,14 @@ class WalletManager(publicKeys: Set[Address], bifrostActorRef: ActorRef)
     log.debug(s"WalletManagerActor: preRestart ${reason.getMessage}")
     log.debug(s"WalletManagerActor message: ${message.getOrElse("")}")
     super.preRestart(reason, message)
+  }
+
+  def initializeWalletBoxes(addresses: Set[Address]): Unit = {
+    val returnVal: MMap[String, MMap[String, Json]] = MMap.empty
+    addresses.map(key =>
+      returnVal.put(key.toString, MMap.empty)
+    )
+    walletBoxes = returnVal
   }
 
   /**
@@ -65,6 +68,15 @@ class WalletManager(publicKeys: Set[Address], bifrostActorRef: ActorRef)
 
   //------------------------------------------------------------------------------------
   //Methods for parsing balance response - UpdateWallet
+
+  def parseResponse(result: Json): Json = {
+    val resultString = result.toString().replace("\\", "").replace("\"{", "{")
+      .replace("}\"", "}")
+    parse(resultString) match {
+      case Left(f) => throw f
+      case Right(res: Json) => res
+    }
+  }
 
   /**
     * Parses the list of boxes for a specific type (asset, poly, or arbit)
@@ -195,12 +207,19 @@ class WalletManager(publicKeys: Set[Address], bifrostActorRef: ActorRef)
 
   override def receive: Receive = {
     case GjallarhornStarted =>
-      bifrostActorRef ! s"Remote wallet actor initialized. My public keys are: ${walletBoxes.keySet}"
+      bifrostActorRef ! s"Remote wallet actor initialized."
 
     case GetNetwork =>
       val bifrostResp: Future[Any] =
         bifrostActorRef ? "Which network is bifrost running?"
       bifrostResp.pipeTo(sender())
+
+    case YourKeys(pubAddrs) =>
+      publicKeys = pubAddrs
+      initializeWalletBoxes(pubAddrs)
+      val balances: Json = Await.result((bifrostActorRef ? s"My public keys are: $pubAddrs")
+        .mapTo[String].map(_.asJson), 10.seconds)
+      parseAndUpdate(parseResponse(balances))
 
     case msg: String => msgHandling(msg)
 
@@ -236,5 +255,7 @@ object WalletManager {
   case class NewBlock(block: String)
 
   case object GetWallet
+
+  case class YourKeys(pubAddrs: Set[Address])
 
 }
