@@ -48,7 +48,7 @@ trait ValidGenerators extends CoreGenerators {
 
   lazy val validProgramMethods: List[String] = List("add")
 
-  lazy val validPolyTransferGen: Gen[PolyTransfer] = for {
+  lazy val validPolyTransferGen: Gen[PolyTransfer[_]] = for {
     fee <- positiveLongGen
     timestamp <- positiveLongGen
     data <- stringGen
@@ -65,7 +65,7 @@ trait ValidGenerators extends CoreGenerators {
     .fromByteArray(Blake2b256("Testing")
       .take(Longs.BYTES))
 
-  lazy val validArbitTransferGen: Gen[ArbitTransfer] = for {
+  lazy val validArbitTransferGen: Gen[ArbitTransfer[_]] = for {
     _ <- fromSeqGen
     _ <- toSeqGen
     fee <- positiveLongGen
@@ -80,7 +80,7 @@ trait ValidGenerators extends CoreGenerators {
     ArbitTransfer(from, to, fee, timestamp, data)
   }
 
-  lazy val validAssetTransferGen: Gen[AssetTransfer] = for {
+  lazy val validAssetTransferGen: Gen[AssetTransfer[_]] = for {
     _ <- fromSeqGen
     _ <- toSeqGen
     fee <- positiveLongGen

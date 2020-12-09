@@ -16,7 +16,7 @@ class PolyTransferSpec extends AnyPropSpec
 
   property("Generated PolyTransfer Tx should be valid") {
     forAll(validPolyTransferGen) {
-      polyTransfer: PolyTransfer =>
+      polyTransfer: PolyTransfer[_] =>
         State.syntacticValidity(polyTransfer).isSuccess shouldBe true
     }
   }
