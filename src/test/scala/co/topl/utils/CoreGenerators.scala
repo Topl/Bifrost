@@ -5,6 +5,8 @@ import java.time.Instant
 import co.topl.attestation.{Address, Evidence, PrivateKeyCurve25519, PublicKeyPropositionCurve25519, SignatureCurve25519, ThresholdPropositionCurve25519}
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.EvidenceProducer.Syntax._
+import co.topl.consensus.KeyRing
+import co.topl.crypto.KeyfileCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
@@ -34,6 +36,8 @@ trait CoreGenerators extends Logging {
 
   private val settingsFilename = "src/test/resources/test.conf"
   val settings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))
+  private val keyFileDir = settings.application.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
+  private val keyRing = KeyRing[PrivateKeyCurve25519, KeyfileCurve25519](keyFileDir, KeyfileCurve25519)
 
   def sampleUntilNonEmpty[T](generator: Gen[T]): T = {
     var sampled = generator.sample
@@ -491,7 +495,7 @@ trait CoreGenerators extends Logging {
   lazy val key25519Gen: Gen[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] = genBytesList(Curve25519.KeyLength)
     .map(s => PrivateKeyCurve25519.secretGenerator.generateSecret(s))
   lazy val propositionGen: Gen[PublicKeyPropositionCurve25519] = key25519Gen.map(_._2)
-  lazy val evidenceGen: Gen[Evidence] = for { prop <- propositionGen } yield { prop.generateEvidence }
+  lazy val evidenceGen: Gen[Evidence] = for { address <- addressGen } yield { address.evidence }
   lazy val addressGen: Gen[Address] = for { key <- stringGen } yield { Address(key) }
 
   def genBytesList(size: Int): Gen[Array[Byte]] = genBoundedBytes(size, size)
@@ -526,6 +530,9 @@ trait CoreGenerators extends Logging {
     val height: Long = 1L
     val difficulty = settings.forging.privateTestnet.map(_.initialDifficulty).get
     val version: PNVMVersion = settings.application.version.firstDigit
+    val matchingAddr = Address(keyPair._2.generateEvidence)
+    val signingFunction: Array[Byte] => Try[SignatureCurve25519] =
+      (messageToSign: Array[Byte]) => keyRing.signWithAddress(matchingAddr, messageToSign)
 
     Block.createAndSign(
       History.GenesisParentId,
@@ -535,7 +542,8 @@ trait CoreGenerators extends Logging {
       keyPair._2,
       height,
       difficulty,
-      version)
+      version
+    )(signingFunction)
   }
 
   def generateHistory(genesisBlockVersion: Byte): History = {

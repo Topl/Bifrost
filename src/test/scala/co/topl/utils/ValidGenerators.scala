@@ -92,7 +92,7 @@ trait ValidGenerators extends CoreGenerators {
     val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val to = IndexedSeq((toKeyPairs._2, 4L))
 
-    AssetTransfer(from, to, hub, assetCode, fee, timestamp, data)
+    AssetTransfer.createRaw(from, to, hub, assetCode, fee, timestamp, data)
   }
 
   /*

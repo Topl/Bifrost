@@ -1,7 +1,5 @@
 package co.topl.http.api.endpoints
 
-import java.security.SecureRandom
-
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.http.api.{ApiEndpoint, Namespace, UtilNamespace}
 import co.topl.nodeView.history.History
@@ -13,6 +11,7 @@ import io.circe.syntax._
 import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
+import java.security.SecureRandom
 import scala.concurrent.{ExecutionContext, Future}
 
 case class UtilsApiEndpoint (override val settings: RPCApiSettings, appContext: AppContext)
