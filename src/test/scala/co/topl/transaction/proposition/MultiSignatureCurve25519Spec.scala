@@ -1,18 +1,19 @@
 package co.topl.transaction.proposition
 
-import co.topl.BifrostGenerators
-import co.topl.attestation.{PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
-import co.topl.attestation.proposition.ThresholdPropositionCurve25519
-import co.topl.attestation.proof.ThresholdSignatureCurve25519
+import co.topl.attestation.{PrivateKeyCurve25519, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519, ThresholdSignatureCurve25519}
+import co.topl.settings.ProtocolSettings
+import co.topl.utils.CoreGenerators
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+
+import scala.collection.SortedSet
 
 class MultiSignatureCurve25519Spec extends AnyPropSpec
                                    with ScalaCheckPropertyChecks
                                    with ScalaCheckDrivenPropertyChecks
                                    with Matchers
-                                   with BifrostGenerators {
+                                   with CoreGenerators {
 
 
   property("A MultiSignature25519 created from single Signature25519 " +
@@ -22,9 +23,12 @@ class MultiSignatureCurve25519Spec extends AnyPropSpec
       s: Set[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] =>
         val message = nonEmptyBytesGen.sample.get
         val signatures = s.map(_._1.sign(message))
-        val oneOfNProposition = ThresholdCurve25519Proposition(1, s.map(keyPair => keyPair._2.pubKeyBytes))
+        val pubKeyProps = SortedSet[PublicKeyPropositionCurve25519]() ++ s.map(_._2)
+        val oneOfNProposition = ThresholdPropositionCurve25519(1, pubKeyProps)
 
-        require(signatures.map(s => ThresholdSignatureCurve25519(Set(s))).forall(ms => ms.isValid(oneOfNProposition, message)))
+        signatures
+          .map(s => ThresholdSignatureCurve25519(Set(s)))
+          .forall(_.isValid(oneOfNProposition, message)) shouldBe true
     }
   }
 
@@ -35,10 +39,12 @@ class MultiSignatureCurve25519Spec extends AnyPropSpec
       s: Set[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] =>
         val message = nonEmptyBytesGen.sample.get
         val signatures = s.map(_._1.sign(message))
+        val pubKeyProps = SortedSet[PublicKeyPropositionCurve25519]() ++ s.map(_._2)
+        val oneOfNProposition = ThresholdPropositionCurve25519(2, pubKeyProps)
 
-        val oneOfNProposition = ThresholdCurve25519Proposition(2, s.map(keyPair => keyPair._2.pubKeyBytes))
-
-        require(!signatures.map(s => ThresholdSignatureCurve25519(Set(s))).forall(ms => ms.isValid(oneOfNProposition, message)))
+        signatures
+          .map(s => ThresholdSignatureCurve25519(Set(s)))
+          .forall(_.isValid(oneOfNProposition, message)) shouldBe false
     }
   }
 }
