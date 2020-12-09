@@ -1,7 +1,6 @@
 package co.topl.transaction.proposition
 
 import co.topl.attestation.{PrivateKeyCurve25519, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519, ThresholdSignatureCurve25519}
-import co.topl.settings.ProtocolSettings
 import co.topl.utils.CoreGenerators
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec

@@ -3,8 +3,9 @@ package co.topl.utils
 import java.io.File
 import java.time.Instant
 import co.topl.attestation.{Address, Evidence, PrivateKeyCurve25519, PublicKeyPropositionCurve25519, SignatureCurve25519, ThresholdPropositionCurve25519}
+import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.EvidenceProducer.Syntax._
-import co.topl.modifier.{ModifierId, NodeViewModifier}
+import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.transaction.Transaction.TX
@@ -148,43 +149,43 @@ trait CoreGenerators extends Logging {
   }
 
   lazy val polyBoxGen: Gen[PolyBox] = for {
-    proposition <- propositionGen
+    evidence <- evidenceGen
     nonce <- positiveLongGen
     value <- positiveLongGen
   } yield {
-    PolyBox(proposition, nonce, value)
+    PolyBox(evidence, nonce, value)
   }
 
   lazy val arbitBoxGen: Gen[ArbitBox] = for {
-    proposition <- propositionGen
+    evidence <- evidenceGen
     nonce <- positiveLongGen
     value <- positiveLongGen
   } yield {
-    ArbitBox(proposition, nonce, value)
+    ArbitBox(evidence, nonce, value)
   }
 
   lazy val assetBoxGen: Gen[AssetBox] = for {
-    proposition <- propositionGen
+    evidence <- evidenceGen
     nonce <- positiveLongGen
     value <- positiveLongGen
     asset <- stringGen
-    hub <- propositionGen
+    hub <- addressGen
     data <- stringGen
   } yield {
-    AssetBox(proposition, nonce, value, asset, hub, data)
+    AssetBox(evidence, nonce, value, asset, hub, data)
   }
 
   lazy val stateBoxGen: Gen[StateBox] = for {
-    proposition <- propositionGen
+    evidence <- evidenceGen
     state <- stringGen
     nonce <- positiveLongGen
     programId <- programIdGen
   } yield {
-    StateBox(proposition, nonce, programId, state.asJson)
+    StateBox(evidence, nonce, programId, state.asJson)
   }
 
   lazy val codeBoxGen: Gen[CodeBox] = for {
-    proposition <- propositionGen
+    evidence <- evidenceGen
     nonce <- positiveLongGen
     methodLen <- positiveTinyIntGen
     methods <- Gen.containerOfN[Seq, String](methodLen, stringGen)
@@ -196,11 +197,11 @@ trait CoreGenerators extends Logging {
       _ -> Gen.containerOfN[Seq, String](paramLen, Gen.oneOf(jsonTypes)).sample.get
     }.toMap
 
-    CodeBox(proposition, nonce, programId, methods, interface)
+    CodeBox(evidence, nonce, programId, methods, interface)
   }
 
   lazy val executionBoxGen: Gen[ExecutionBox] = for {
-    proposition <- propositionGen
+    evidence <- evidenceGen
     codeBox_1 <- codeBoxGen
     codeBox_2 <- codeBoxGen
     nonce <- positiveLongGen
@@ -209,7 +210,7 @@ trait CoreGenerators extends Logging {
     programId <- programIdGen
   } yield {
 
-    ExecutionBox(proposition, nonce, programId, Seq(stateBox_1.value, stateBox_2.value), Seq(codeBox_1.value, codeBox_2.value))
+    ExecutionBox(evidence, nonce, programId, Seq(stateBox_1.value, stateBox_2.value), Seq(codeBox_1.value, codeBox_2.value))
   }
 
   lazy val validExecutionBuilderTermsGen: Gen[ExecutionBuilderTerms] = for {
@@ -512,6 +513,7 @@ trait CoreGenerators extends Logging {
   lazy val key25519Gen: Gen[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] = genBytesList(Curve25519.KeyLength)
     .map(s => PrivateKeyCurve25519.secretGenerator.generateSecret(s))
   lazy val propositionGen: Gen[PublicKeyPropositionCurve25519] = key25519Gen.map(_._2)
+  lazy val evidenceGen: Gen[Evidence] = for { prop <- propositionGen } yield { prop.generateEvidence }
   lazy val addressGen: Gen[Address] = for { key <- stringGen } yield { Address(key) }
 
   def genBytesList(size: Int): Gen[Array[Byte]] = genBoundedBytes(size, size)
@@ -536,19 +538,26 @@ trait CoreGenerators extends Logging {
     val height: Long = 1L
     val difficulty = settings.forging.privateTestnet.map(_.initialDifficulty).get
     val version: PNVMVersion = settings.application.version.firstDigit
+
     Block(parentId, timestamp, generatorBox, publicKey, signature, height, difficulty, txs, version)
   }
 
   lazy val genesisBlockGen: Gen[Block] = for {
     keyPair ← key25519Gen
   } yield {
+    val height: Long = 1L
+    val difficulty = settings.forging.privateTestnet.map(_.initialDifficulty).get
+    val version: PNVMVersion = settings.application.version.firstDigit
+
     Block.createAndSign(
       History.GenesisParentId,
       Instant.now().toEpochMilli,
       Seq(),
-      ArbitBox(keyPair._2, 0L, 0L),
-      keyPair._1,
-      settings.application.version.firstDigit)
+      ArbitBox(keyPair._2.generateEvidence, 0L, 0L),
+      keyPair._2,
+      height,
+      difficulty,
+      version)
   }
 
   def generateHistory(genesisBlockVersion: Byte): History = {
