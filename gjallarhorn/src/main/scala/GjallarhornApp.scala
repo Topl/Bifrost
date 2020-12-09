@@ -73,12 +73,12 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
       case Failure(ex) => throw new Error (s"Unable to generate new keys: $ex")
     }
     val addresses: Set[Address] = privateKeys.map(sk => sk.publicImage.address)
-    keyManagerRef ! YourKeys(addresses)
+    walletManagerRef ! YourKeys(addresses)
 
     actorsToStop = Seq(walletManagerRef, requestsManagerRef, keyManagerRef)
 
     val requests: Requests = new Requests(settings.application, requestsManagerRef)
-    val apiRoute: ApiRoute = GjallarhornApiRoute(settings, keyManagerRef, requestsManagerRef, requests)
+    val apiRoute: ApiRoute = GjallarhornApiRoute(settings, keyManagerRef, requestsManagerRef, walletManagerRef, requests)
 
     val httpService = HttpService(Seq(apiRoute), settings.rpcApi)
     val httpHost = settings.rpcApi.bindAddress.getHostName

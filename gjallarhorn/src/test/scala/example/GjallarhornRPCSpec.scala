@@ -17,6 +17,8 @@ import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
 import keymanager.{KeyManagerRef, Keys}
 import requests.{ApiRoute, Requests, RequestsManager}
+import wallet.WalletManager
+import wallet.WalletManager.{GjallarhornStarted, YourKeys}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -61,9 +63,13 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 
   val bifrostActor: ActorRef = Await.result(system.actorSelection(
     s"akka.tcp://${settings.application.chainProvider}/user/walletConnectionHandler").resolveOne(), 10.seconds)
+  val walletManagerRef: ActorRef = system.actorOf(
+    Props(new WalletManager(bifrostActor)), name = "WalletManager")
+  walletManagerRef ! GjallarhornStarted
+  walletManagerRef ! YourKeys(addresses)
   val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager(bifrostActor)), name = "RequestsManager")
   val requests: Requests = new Requests(settings.application, requestsManagerRef)
-  val apiRoute: ApiRoute = GjallarhornApiRoute(settings, keyManagerRef, requestsManagerRef, requests)
+  val apiRoute: ApiRoute = GjallarhornApiRoute(settings, keyManagerRef, requestsManagerRef, walletManagerRef, requests)
   val route: Route = HttpService(Seq(apiRoute), settings.rpcApi).compositeRoute
 
 
@@ -410,6 +416,31 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
           (res \\ "error").isEmpty shouldBe true
           val phrase = ((res \\ "result").head \\ "mnemonicPhrase").head
           assert(phrase != null)
+      }
+    }
+  }
+
+  it should "successfully get wallet boxes" in {
+    val mnemonicPhraseRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_getWalletBoxes",
+         |   "params": [{}]
+         |}
+         """.stripMargin)
+
+    httpPOST(mnemonicPhraseRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"\"", "\"")) match {
+        case Left(f) => throw f
+        case Right(res: Json) => {
+          (res \\ "error").isEmpty shouldBe true
+          val phrase = (res \\ "result").head
+          println (res)
+          assert (phrase != null)
+        }
       }
     }
   }

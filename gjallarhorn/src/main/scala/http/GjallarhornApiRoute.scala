@@ -11,7 +11,9 @@ import keymanager.Bip39
 import keymanager.KeyManager._
 import requests.RequestsManager.BifrostRequest
 import settings.AppSettings
+import wallet.WalletManager.GetWallet
 
+import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
@@ -20,6 +22,7 @@ import scala.util.{Failure, Success, Try}
 case class GjallarhornApiRoute(settings: AppSettings,
                                keyManager: ActorRef,
                                requestsManager: ActorRef,
+                               walletManager: ActorRef,
                                requests: Requests)
                               (implicit val context: ActorRefFactory, actorSystem: ActorSystem, np: NetworkPrefix)
   extends ApiRoute {
@@ -37,6 +40,7 @@ case class GjallarhornApiRoute(settings: AppSettings,
     case (method, params, id) if method == s"${namespace.name}_importKeyfile" => importKeyfile(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_unlockKeyfile" => unlockKeyfile(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_lockKeyfile" => lockKeyfile(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_getWalletBoxes" => getWalletBoxes()
     case (method, params, id) if method == s"${namespace.name}_balances" => balances(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_networkType" => Future{Map("networkPrefix" -> np).asJson}
     case (method, params, id) if method == s"${namespace.name}_generateMnemonic" => generateMnemonic(params.head)
@@ -196,6 +200,11 @@ case class GjallarhornApiRoute(settings: AppSettings,
     val phraseTranslator = Bip39.apply(lang)
     val phrase = phraseTranslator.uuidSeedPhrase(java.util.UUID.randomUUID.toString)._2
     Future{Map("mnemonicPhrase" -> phrase).asJson}
+  }
+
+  private def getWalletBoxes(): Future[Json] = {
+    val walletResponse = Await.result((walletManager ? GetWallet).mapTo[MMap[String, MMap[String, Json]]], 10.seconds)
+    Future{walletResponse.asJson}
   }
 
 }

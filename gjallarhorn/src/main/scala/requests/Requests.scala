@@ -157,6 +157,7 @@ class Requests (settings: ApplicationSettings, requestsManager: ActorRef)
     val requestBody = transaction("topl_balances", params)
     sendRequest(requestBody)
   }
+
 }
 
 
