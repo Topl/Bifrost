@@ -23,6 +23,7 @@ import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.{Curve25519, Signature}
 import scorex.util.encode.Base58
 
+import scala.collection.SortedSet
 import scala.util.{Random, Try}
 
 /**
@@ -462,8 +463,8 @@ trait CoreGenerators extends Logging {
       .foldLeft((Set[PrivateKeyCurve25519](), Set[PublicKeyPropositionCurve25519]())) { ( set, cur) =>
           (set._1 + cur._1, set._2 + cur._2)
       }
-
-    val prop = ThresholdPropositionCurve25519(1, setOfKeys._2.map(img => img.pubKeyBytes))
+    val pubKeyProps = SortedSet[PublicKeyPropositionCurve25519]() ++ setOfKeys._2
+    val prop = ThresholdPropositionCurve25519(1, pubKeyProps)
 
     (setOfKeys._1, prop)
   }
