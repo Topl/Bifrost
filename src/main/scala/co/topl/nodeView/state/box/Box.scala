@@ -1,7 +1,7 @@
 package co.topl.nodeView.state.box
 
 import co.topl.attestation.Evidence
-import co.topl.nodeView.state.box.Box.{BoxType, Nonce}
+import co.topl.nodeView.state.box.Box.Nonce
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.utils.HasName
 import co.topl.utils.HasName.Syntax._
@@ -12,7 +12,7 @@ import io.circe.syntax.EncoderOps
 
 /** Created by Matthew on 4/11/2017.
   */
-sealed abstract class Box[+T](val evidence: Evidence, val value: T, val nonce: Nonce, val boxTypePrefix: BoxType)
+sealed abstract class Box[+T](val evidence: Evidence, val value: T, val nonce: Nonce)
     extends GenericBox[T] {
 
   type M = Box[_]
@@ -22,8 +22,7 @@ sealed abstract class Box[+T](val evidence: Evidence, val value: T, val nonce: N
   def serializer: BifrostSerializer[Box[_]] = BoxSerializer
 
   override def toString: String =
-    Box.prefixToTypeString(boxTypePrefix) +
-    Box.jsonEncoder(this).noSpaces
+    Box.boxName(this) + Box.jsonEncoder(this).noSpaces
 
   override def hashCode(): Int = Ints.fromByteArray(bytes)
 }
@@ -50,33 +49,24 @@ object Box {
       (evidence, nonce, value)
     }
 
-  def prefixToTypeString(prefix: BoxType): String = prefix match {
-    case ArbitBox.boxTypePrefix     => ArbitBox.boxTypeString
-    case PolyBox.boxTypePrefix      => PolyBox.boxTypeString
-    case AssetBox.boxTypePrefix     => AssetBox.boxTypeString
-    case ExecutionBox.boxTypePrefix => "ExecutionBox"
-    case StateBox.boxTypePrefix     => "StateBox"
-    case CodeBox.boxTypePrefix      => "CodeBox"
+  implicit val name: HasName[Box[_]] = (b: Box[_]) => {
+    case bx: ArbitBox     => bx.name
+    case bx: PolyBox      => bx.name
+    case bx: AssetBox     => bx.name
   }
 
-  implicit def jsonEncoder: Encoder[Box[_]] = {
+  implicit val jsonEncoder: Encoder[Box[_]] = {
     case box: ArbitBox     => ArbitBox.jsonEncoder(box)
     case box: PolyBox      => PolyBox.jsonEncoder(box)
     case box: AssetBox     => AssetBox.jsonEncoder(box)
-    case box: ExecutionBox => ExecutionBox.jsonEncoder(box)
-    case box: StateBox     => StateBox.jsonEncoder(box)
-    case box: CodeBox      => CodeBox.jsonEncoder(box)
-    case _                 => throw new java.lang.Error(s"No matching encoder found")
+    case _                 => throw new Exception("No matching encoder found")
   }
 
   implicit val jsonDecoder: Decoder[Box[_]] = { c: HCursor =>
-    c.downField("typeOfBox").as[String].map {
-      case "ArbitBox"     => ArbitBox.jsonDecoder(c)
-      case "PolyBox"      => PolyBox.jsonDecoder(c)
-      case "AssetBox"     => AssetBox.jsonDecoder(c)
-      case "ExecutionBox" => ExecutionBox.jsonDecoder(c)
-      case "StateBox"     => StateBox.jsonDecoder(c)
-      case "CodeBox"      => CodeBox.jsonDecoder(c)
+    c.downField("type").as[String].map {
+      case ArbitBox.boxTypeString     => ArbitBox.jsonDecoder(c)
+      case PolyBox.boxTypeString      => PolyBox.jsonDecoder(c)
+      case AssetBox.boxTypeString     => AssetBox.jsonDecoder(c)
     } match {
       case Right(box) => box
       case Left(ex)   => throw ex
@@ -90,12 +80,11 @@ abstract class TokenBox[
   +T <: TokenValueHolder
 ](override val evidence:      Evidence,
   override val nonce:         Nonce,
-  override val value:         T,
-  override val boxTypePrefix: BoxType
-) extends Box[T](evidence, value, nonce, boxTypePrefix)
+  override val value:         T
+) extends Box[T](evidence, value, nonce)
 
 object TokenBox {
-  implicit def jsonEncoder: Encoder[TokenBox[_ <: TokenValueHolder]] = (bx: TokenBox[_]) => Box.jsonEncoder(bx)
+  implicit def jsonEncoder[T <: TokenValueHolder]: Encoder[TokenBox[T]] = (bx: TokenBox[_]) => Box.jsonEncoder(bx)
 }
 
 /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
@@ -103,9 +92,8 @@ object TokenBox {
 abstract class ProgramBox(
   override val evidence:      Evidence,
   override val nonce:         Nonce,
-  override val value:         ProgramId,
-  override val boxTypePrefix: BoxType
-) extends Box[ProgramId](evidence, value, nonce, boxTypePrefix)
+  override val value:         ProgramId
+) extends Box[ProgramId](evidence, value, nonce)
 
 object ProgramBox {
   implicit def jsonEncoder: Encoder[ProgramBox] = (bx: ProgramBox) => Box.jsonEncoder(bx)

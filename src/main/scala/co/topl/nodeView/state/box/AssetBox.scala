@@ -10,7 +10,7 @@ case class AssetBox(
   override val evidence: Evidence,
   override val nonce:    Box.Nonce,
   override val value:    AssetValue
-) extends TokenBox(evidence, nonce, value, AssetBox.boxTypePrefix)
+) extends TokenBox(evidence, nonce, value)
 
 object AssetBox {
   val boxTypePrefix: BoxType = 3: Byte

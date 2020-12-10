@@ -10,7 +10,7 @@ case class PolyBox(
   override val evidence: Evidence,
   override val nonce:    Box.Nonce,
   override val value:    SimpleValue
-) extends TokenBox(evidence, nonce, value, PolyBox.boxTypePrefix)
+) extends TokenBox(evidence, nonce, value)
 
 object PolyBox {
   val boxTypePrefix: BoxType = 2: Byte

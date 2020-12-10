@@ -13,6 +13,24 @@ import java.nio.charset.StandardCharsets
 
 sealed abstract class TokenValueHolder(val quantity: Long) extends BytesSerializable
 
+object TokenValueHolder {
+  implicit val jsonEncoder: Encoder[TokenValueHolder] = {
+    case v: SimpleValue     => SimpleValue.jsonEncoder(v)
+    case v: AssetValue      => AssetValue.jsonEncoder(v)
+    case _                  => throw new Error(s"No matching encoder found")
+  }
+
+  implicit val jsonDecoder: Decoder[TokenValueHolder] = { c: HCursor =>
+    c.downField("type").as[String].map {
+      case SimpleValue.valueTypeString  => SimpleValue.jsonDecoder(c)
+      case AssetValue.valueTypeString   => AssetValue.jsonDecoder(c)
+    } match {
+      case Right(v) => v
+      case Left(ex) => throw ex
+    }
+  }
+}
+
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
 case class SimpleValue(override val quantity: Long) extends TokenValueHolder(quantity) {
@@ -23,8 +41,22 @@ case class SimpleValue(override val quantity: Long) extends TokenValueHolder(qua
 }
 
 object SimpleValue extends BifrostSerializer[SimpleValue] {
-  implicit val jsonEncoder: Encoder[SimpleValue] = (value: SimpleValue) => value.quantity.asJson
-  implicit val jsonDecoder: Decoder[SimpleValue] = Decoder.decodeString.map(str => SimpleValue(str.toLong))
+  val valueTypeString: String = "simple"
+
+  implicit val jsonEncoder: Encoder[SimpleValue] = {
+    (value: SimpleValue) =>
+      Map (
+        "type"     -> valueTypeString.asJson,
+        "quantity" -> value.quantity.asJson,
+      ).asJson
+  }
+
+  implicit val jsonDecoder: Decoder[SimpleValue] = (c: HCursor) =>
+    for {
+      quantity <- c.downField("quantity").as[Long]
+    } yield {
+      SimpleValue(quantity)
+    }
 
   override def serialize(obj: SimpleValue, w: Writer): Unit =
     w.putULong(obj.quantity)
@@ -37,8 +69,8 @@ object SimpleValue extends BifrostSerializer[SimpleValue] {
 case class AssetValue(
   override val quantity: Long,
   assetCode: AssetCode,
-  securityRoot: SecurityRoot,
-  metadata: Option[String]
+  securityRoot: SecurityRoot = AssetValue.emptySecurityRoot,
+  metadata: Option[String] = None
 ) extends TokenValueHolder(quantity) {
 
   require(securityRoot.length == AssetValue.securityRootSize, "Invalid securityRoot")
@@ -58,6 +90,7 @@ object AssetValue extends BifrostSerializer[AssetValue] {
   implicit val jsonEncoder: Encoder[AssetValue] = {
     (value: AssetValue) =>
       Map (
+        "type"     -> valueTypeString.asJson,
         "quantity" -> value.quantity.asJson,
         "assetCode" -> value.assetCode.asJson,
         "securityRoot" -> Base58.encode(value.securityRoot).asJson,
@@ -80,6 +113,8 @@ object AssetValue extends BifrostSerializer[AssetValue] {
   val assetCodeSize: Int = Address.addressSize + 8 + 8
   val securityRootSize: Int = Blake2b256.DigestSize // 32 bytes
   val metadataLimit: Int = 128 // bytes of UTF-8 encoded string
+  val valueTypeString: String = "asset"
+  val emptySecurityRoot: SecurityRoot = SecurityRoot @@ Array.fill(securityRootSize)(0: Byte)
 
   override def serialize(obj: AssetValue, w: Writer): Unit = {
     w.putULong(obj.quantity)

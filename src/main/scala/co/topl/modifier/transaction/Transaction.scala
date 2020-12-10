@@ -5,15 +5,13 @@ import co.topl.attestation.{Proof, Proposition}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.transaction.Transaction.TxType
-import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{Box, BoxId}
 import co.topl.utils.HasName
-import co.topl.utils.serialization.BifrostSerializer
 import com.google.common.primitives.Longs
 import io.circe.{Decoder, Encoder, HCursor}
-import scorex.crypto.hash.{Blake2b256, Digest32}
+import scorex.crypto.hash.Digest32
 
 import scala.util.Try
 
@@ -38,8 +36,7 @@ abstract class Transaction[T, P <: Proposition: HasName] extends NodeViewModifie
   val timestamp: Long
 
   override def toString: String =
-    Transaction.prefixToTypeString(txTypePrefix) +
-    Transaction.jsonEncoder(this).noSpaces
+    Transaction.txName(this) + Transaction.jsonEncoder(this).noSpaces
 
   def messageToSign: Array[Byte] =
     Array(txTypePrefix) ++
@@ -63,14 +60,15 @@ object Transaction {
   type TX = Transaction[_, _ <: Proposition]
   type TxType = Byte
   type TransactionId = ModifierId
+
   val modifierTypeId: ModifierTypeId = ModifierTypeId @@ (2: Byte)
 
   def nonceFromDigest (digest: Digest32): Box.Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
-  def prefixToTypeString(prefix: TxType): String = prefix match {
-    case ArbitTransfer.txTypePrefix     => "ArbitTransfer"
-    case PolyTransfer.txTypePrefix      => "PolyTransfer"
-    case AssetTransfer.txTypePrefix     => "AssetTransfer"
+  def txName[T <: TX](transaction: T): String = transaction match {
+    case _: ArbitTransfer[_]     => ArbitTransfer.txTypeString
+    case _: PolyTransfer[_]      => PolyTransfer.txTypeString
+    case _: AssetTransfer[_]     => AssetTransfer.txTypeString
   }
 
   implicit def jsonTypedEncoder[T, P <: Proposition]: Encoder[Transaction[T, P]] = {
@@ -93,9 +91,9 @@ object Transaction {
 //      case "ProgramCreation"        => ProgramCreation.jsonDecoder(c)
 //      case "ProgramMethodExecution" => ProgramMethodExecution.jsonDecoder(c)
 //      case "ProgramTransfer"        => ProgramTransfer.jsonDecoder(c)
-      case "PolyTransfer"           => PolyTransfer.jsonDecoder(c)
-      case "ArbitTransfer"          => ArbitTransfer.jsonDecoder(c)
-      case "AssetTransfer"          => AssetTransfer.jsonDecoder(c)
+      case PolyTransfer.txTypeString           => PolyTransfer.jsonDecoder(c)
+      case ArbitTransfer.txTypeString          => ArbitTransfer.jsonDecoder(c)
+      case AssetTransfer.txTypeString          => AssetTransfer.jsonDecoder(c)
     } match {
       case Right(tx) => tx
       case Left(ex)  => throw ex

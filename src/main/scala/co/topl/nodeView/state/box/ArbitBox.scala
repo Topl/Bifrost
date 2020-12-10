@@ -10,7 +10,7 @@ case class ArbitBox(
   override val evidence: Evidence,
   override val nonce:    Box.Nonce,
   override val value:    SimpleValue
-) extends TokenBox(evidence, nonce, value, ArbitBox.boxTypePrefix)
+) extends TokenBox(evidence, nonce, value)
 
 object ArbitBox {
   val boxTypePrefix: BoxType = 1: Byte

@@ -1,7 +1,6 @@
 package co.topl.modifier.transaction
 
 import co.topl.attestation._
-import co.topl.modifier.transaction.ArbitBoxOutput
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.TransferTransaction.BoxParams
 import co.topl.nodeView.state.StateReader
@@ -16,13 +15,13 @@ import scala.util.Try
 case class ArbitTransfer[
   P <: Proposition: EvidenceProducer: HasName
 ] (override val from       : IndexedSeq[(Address, Box.Nonce)],
-   override val to         : IndexedSeq[(Address, SimpleValue)],
+   override val to         : IndexedSeq[(Address, TokenValueHolder)],
    override val attestation: Map[P, Proof[P]],
    override val fee        : Long,
    override val timestamp  : Long,
    override val data       : String,
    override val minting    : Boolean = false
-  ) extends TransferTransaction[P, SimpleValue](from, to, attestation, fee, timestamp, data, minting) {
+  ) extends TransferTransaction[TokenValueHolder, P](from, to, attestation, fee, timestamp, data, minting) {
 
   override val txTypePrefix: TxType = ArbitTransfer.txTypePrefix
 
@@ -39,6 +38,9 @@ case class ArbitTransfer[
 
 object ArbitTransfer {
   val txTypePrefix: TxType = 1: Byte
+  val txTypeString: String = "ArbitTransfer"
+
+  implicit val name: HasName[ArbitTransfer[_]] = HasName.instance { () => txTypeString }
 
   /**
    *
