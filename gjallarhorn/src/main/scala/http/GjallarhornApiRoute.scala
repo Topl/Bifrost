@@ -126,7 +126,12 @@ case class GjallarhornApiRoute(settings: AppSettings,
     */
   private def generateKeyfile(params: Json, id: String): Future[Json] = {
     val password = (params \\ "password").head.asString.get
-    (keyManager ? GenerateKeyFile(password)).mapTo[Try[Address]].map {
+    val seedJson = params \\ "seed"
+    var seed: Option[String] = None
+    if (!seed.isEmpty) {
+      seed = Some(seedJson.head.asString.get)
+    }
+    (keyManager ? GenerateKeyFile(password, seed)).mapTo[Try[Address]].map {
       case Success(pk: Address) => Map("address" -> pk.asJson).asJson
       case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
     }
@@ -198,8 +203,8 @@ case class GjallarhornApiRoute(settings: AppSettings,
   private def generateMnemonic(params: Json): Future[Json] = {
     val lang = (params \\ "language").head.asString.get
     val phraseTranslator = Bip39.apply(lang)
-    val phrase = phraseTranslator.uuidSeedPhrase(java.util.UUID.randomUUID.toString)._2
-    Future{Map("mnemonicPhrase" -> phrase).asJson}
+    val (seed, phrase) = phraseTranslator.uuidSeedPhrase(java.util.UUID.randomUUID.toString)
+    Future{Map("seed" -> seed, "mnemonicPhrase" -> phrase).asJson}
   }
 
   private def getWalletBoxes(): Future[Json] = {

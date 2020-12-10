@@ -18,7 +18,7 @@ class KeyManager(keys: Keys[PrivateKeyCurve25519, KeyfileCurve25519])(implicit n
   val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] = keys
 
   override def receive: Receive = {
-    case GenerateKeyFile(password) => sender ! keyManager.generateKeyFile(password)
+    case GenerateKeyFile(password, seedOpt) => sender ! keyManager.generateKeyFile(password, seedOpt)
 
     case ImportKeyfile(password: String, mnemonic: String, lang: String) => sender ! keyManager.importPhrase(password, mnemonic, lang)
 
@@ -53,7 +53,7 @@ class KeyManager(keys: Keys[PrivateKeyCurve25519, KeyfileCurve25519])(implicit n
 }
 
 object KeyManager {
-  case class GenerateKeyFile(password: String)
+  case class GenerateKeyFile(password: String, seedOpt: Option[String])
   case class ImportKeyfile(password: String, mnemonic: String, lang: String)
   case class UnlockKeyFile(publicKeyString: String, password: String)
   case class LockKeyFile(publicKeyString: String, password: String)

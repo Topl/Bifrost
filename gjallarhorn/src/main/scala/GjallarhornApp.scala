@@ -67,12 +67,14 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
     //Set up keyManager and tell walletManager about keys
     val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] = Keys(keyFileDir, KeyfileCurve25519)
     val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", keyManager)
-    //TODO: grabs keys from database
+
+    //TODO: this is just for testing purposes - should grabs keys from database
     val privateKeys: Set[PrivateKeyCurve25519] = keyManager.generateNewKeyPairs(2, Some("test")) match {
       case Success(secrets) => secrets
       case Failure(ex) => throw new Error (s"Unable to generate new keys: $ex")
     }
     val addresses: Set[Address] = privateKeys.map(sk => sk.publicImage.address)
+    privateKeys.foreach(sk => keyManager.exportKeyfile(sk.publicImage.address,"password"))
     walletManagerRef ! YourKeys(addresses)
 
     actorsToStop = Seq(walletManagerRef, requestsManagerRef, keyManagerRef)

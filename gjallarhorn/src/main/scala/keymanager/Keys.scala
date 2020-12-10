@@ -70,9 +70,9 @@ class Keys[
 
   /** @param password
     */
-  def generateKeyFile(password: String): Try[Address] = {
+  def generateKeyFile(password: String, seedOpt: Option[String] = None): Try[Address] = {
     // generate a new random key pair and save to disk
-    generateNewKeyPairs().map { sk =>
+    generateNewKeyPairs(1, seedOpt).map { sk =>
       exportKeyfile(sk.head.publicImage.address, password)
       sk.head.publicImage.address
     }
@@ -150,11 +150,11 @@ class Keys[
       _.address == Address(address)
     }
 
-    assert(keyfile.size == 1, s"Cannot find a unique matching keyfile in $defaultKeyDir")
+    require(keyfile.size == 1, s"Cannot find a unique matching keyfile in $defaultKeyDir")
 
     keyfileOps.decryptSecret(keyfile.head, password) match {
       case Success(sk) => sk
-      case Failure(e)  => throw e
+      case Failure(e)  => throw new Exception(s"Wrong password: $e")
     }
   }
 }
