@@ -9,6 +9,7 @@ import co.topl.nodeView.NodeViewHolder.ReceivableMessages.LocallyGeneratedTransa
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
+import co.topl.nodeView.state.box.{AssetValue, SimpleValue}
 import co.topl.settings.{AppContext, RPCApiSettings}
 import io.circe.Json
 import io.circe.syntax._
@@ -79,7 +80,7 @@ case class TransactionApiEndpoint(
       // parse arguments from the request
       (for {
         propType   <- (params \\ "propositionType").head.as[String]
-        recipients <- (params \\ "recipient").head.as[IndexedSeq[(Address, Long)]]
+        recipients <- (params \\ "recipient").head.as[IndexedSeq[(Address, AssetValue)]]
         sender     <- (params \\ "sender").head.as[IndexedSeq[Address]]
         changeAddr <- (params \\ "changeAddress").head.as[Address]
         fee        <- (params \\ "fee").head.as[Long]
@@ -100,8 +101,6 @@ case class TransactionApiEndpoint(
                 recipients,
                 sender,
                 changeAddr,
-                issuer,
-                assetCode,
                 fee,
                 data,
                 minting
@@ -114,8 +113,6 @@ case class TransactionApiEndpoint(
                 recipients,
                 sender,
                 changeAddr,
-                issuer,
-                assetCode,
                 fee,
                 data,
                 minting
@@ -172,7 +169,7 @@ case class TransactionApiEndpoint(
       // parse arguments from the request
       (for {
         propType   <- (params \\ "propositionType").head.as[String]
-        recipients <- (params \\ "recipient").head.as[IndexedSeq[(Address, Long)]]
+        recipients <- (params \\ "recipient").head.as[IndexedSeq[(Address, SimpleValue)]]
         sender     <- (params \\ "sender").head.as[IndexedSeq[Address]]
         changeAddr <- (params \\ "changeAddress").head.as[Address]
         fee        <- (params \\ "fee").head.as[Long]
@@ -242,7 +239,7 @@ case class TransactionApiEndpoint(
       // parse arguments from the request
       (for {
         propType   <- (params \\ "propositionType").head.as[String]
-        recipients <- (params \\ "recipient").head.as[IndexedSeq[(Address, Long)]]
+        recipients <- (params \\ "recipient").head.as[IndexedSeq[(Address, SimpleValue)]]
         sender     <- (params \\ "sender").head.as[IndexedSeq[Address]]
         changeAddr <- (params \\ "changeAddress").head.as[Address]
         fee        <- (params \\ "fee").head.as[Long]

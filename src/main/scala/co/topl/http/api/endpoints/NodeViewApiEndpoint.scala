@@ -99,12 +99,12 @@ case class NodeViewApiEndpoint(
         // ensure we have the state being asked about
         checkAddress(addresses, view)
 
-        val boxes: Map[Address, Map[String, Seq[TokenBox[_ <: TokenValueHolder]]]] =
+        val boxes: Map[Address, Map[String, Seq[TokenBox[TokenValueHolder]]]] =
           addresses
             .map(k => {
               val orderedBoxes = view.state.getTokenBoxes(k) match {
-                case Some(boxes) => boxes.groupBy[String](b => Box.prefixToTypeString(b.boxTypePrefix))
-                case _           => Map[String, Seq[TokenBox[_ <: TokenValueHolder]]]()
+                case Some(boxes) => boxes.groupBy[String](Box.getTypeString)
+                case _           => Map[String, Seq[TokenBox[TokenValueHolder]]]()
               }
               k -> orderedBoxes
             })

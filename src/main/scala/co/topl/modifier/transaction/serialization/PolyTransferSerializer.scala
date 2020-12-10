@@ -3,6 +3,7 @@ package co.topl.modifier.transaction.serialization
 import co.topl.attestation.serialization.{ProofSerializer, PropositionSerializer}
 import co.topl.attestation._
 import co.topl.modifier.transaction.PolyTransfer
+import co.topl.nodeView.state.box.{SimpleValue, TokenValueHolder}
 import co.topl.utils.Extensions._
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
@@ -25,7 +26,7 @@ object PolyTransferSerializer extends BifrostSerializer[PolyTransfer[_ <: Propos
     w.putUInt(obj.to.length)
     obj.to.foreach { case (addr, value) =>
       Address.serialize(addr, w)
-      w.putULong(value)
+      TokenValueHolder.serialize(value, w)
     }
 
     /* signatures: Map[Proposition, Proof] */
@@ -61,7 +62,7 @@ object PolyTransferSerializer extends BifrostSerializer[PolyTransfer[_ <: Propos
     val toLength: Int = r.getUInt().toIntExact
     val to = (0 until toLength).map { _ =>
       val addr = Address.parse(r)
-      val value = r.getULong()
+      val value = TokenValueHolder.parse(r)
       addr -> value
     }
 

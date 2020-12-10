@@ -26,13 +26,18 @@ case class PolyTransfer[
   override val txTypePrefix: TxType = PolyTransfer.txTypePrefix
 
   override lazy val newBoxes: Traversable[TokenBox[SimpleValue]] = {
-    val params = TransferTransaction.boxParams[SimpleValue, P, PolyTransfer[P]](this)
+    val params = TransferTransaction.boxParams(this)
 
     val feeBox =
       if (fee > 0L) Traversable((PolyBox.apply _).tupled(BoxParams.unapply(params._1).get))
       else Traversable()
 
-    feeBox ++ params._2.map(p => (PolyBox.apply _).tupled(BoxParams.unapply(p).get))
+    val polyBoxes = params._2.map {
+      case BoxParams(ev, n, v: SimpleValue) => PolyBox(ev, n, v)
+      case _ => throw new Error("Attempted application of invalid value holder")
+    }
+
+    feeBox ++ polyBoxes
   }
 }
 

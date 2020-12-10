@@ -15,7 +15,7 @@ import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{EliminateTransactions
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.{ArbitBox, TokenBox}
+import co.topl.nodeView.state.box.{ArbitBox, SimpleValue, TokenBox}
 import co.topl.nodeView.{CurrentView, NodeViewHolder}
 import co.topl.settings.NetworkType._
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
@@ -201,8 +201,8 @@ class Forger (settings: AppSettings, appContext: AppContext )
         case Failure(ex) => throw ex
       }
 
-      log.debug(s"Trying to generate block from total stake ${boxes.map(_.value).sum}")
-      require(boxes.map(_.value).sum > 0, "No Arbits could be found to stake with, exiting attempt")
+      log.debug(s"Trying to generate block from total stake ${boxes.map(_.value.quantity).sum}")
+      require(boxes.map(_.value.quantity).sum > 0, "No Arbits could be found to stake with, exiting attempt")
 
       // create the coinbase reward transaction
       val arbitReward = createArbitReward(rewardAddr) match {
@@ -272,7 +272,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
     Try {
       ArbitTransfer(
         IndexedSeq(),
-        IndexedSeq((rewardAdr, inflation)),
+        IndexedSeq((rewardAdr, SimpleValue(inflation))),
         Map[PublicKeyPropositionCurve25519, SignatureCurve25519](),
         0,
         forgeTime,
@@ -281,13 +281,13 @@ class Forger (settings: AppSettings, appContext: AppContext )
       )
     }
 
-  private def createPolyReward(amount: TokenBox.Value,
+  private def createPolyReward(amount: Long,
                                rewardAdr: Address
                               ): Try[PolyTransfer[PublicKeyPropositionCurve25519]] =
     Try {
       PolyTransfer(
         IndexedSeq(),
-        IndexedSeq((rewardAdr, amount)),
+        IndexedSeq((rewardAdr, SimpleValue(amount))),
         Map[PublicKeyPropositionCurve25519, SignatureCurve25519](),
         0,
         forgeTime,
@@ -347,7 +347,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
     val successfulHits = boxes.map { box =>
       (box, calcHit(parent)(box))
     }.filter { test =>
-      BigInt(test._2) < (test._1.value * target).toBigInt
+      BigInt(test._2) < (test._1.value.quantity * target).toBigInt
     }
 
     log.debug(s"Successful hits: ${successfulHits.size}")

@@ -13,7 +13,7 @@ import scorex.crypto.hash.Blake2b256
 import scala.util.{Failure, Success, Try}
 
 abstract class TransferTransaction[
-  T <: TokenValueHolder,
+  +T <: TokenValueHolder,
   P <: Proposition: EvidenceProducer: HasName
 ](val from:        IndexedSeq[(Address, Box.Nonce)],
   val to:          IndexedSeq[(Address, T)],
@@ -24,7 +24,7 @@ abstract class TransferTransaction[
   val minting:     Boolean
 ) extends Transaction[T, P] {
 
-//  lazy val bloomTopics: IndexedSeq[BloomTopic] = to.map(b => BloomTopic @@ b._1.bytes)
+  lazy val bloomTopics: IndexedSeq[BloomTopic] = to.map(b => BloomTopic @@ b._1.bytes)
 
   lazy val boxIdsToOpen: IndexedSeq[BoxId] = from.map { case (addr, nonce) =>
     BoxId.idFromEviNonce(addr.evidence, nonce)
@@ -54,9 +54,8 @@ object TransferTransaction {
     */
   def boxParams[
     T <: TokenValueHolder,
-    P <: Proposition: EvidenceProducer,
-    TX <: TransferTransaction[T, P]
-  ](tx: TX): (BoxParams[SimpleValue], Traversable[BoxParams[T]]) = {
+    P <: Proposition
+  ](tx: TransferTransaction[T, P]): (BoxParams[SimpleValue], Traversable[BoxParams[T]]) = {
     // known input data (similar to messageToSign but without newBoxes since they aren't known yet)
     val inputBytes =
       Array(tx.txTypePrefix) ++
@@ -95,19 +94,16 @@ object TransferTransaction {
           .getOrElse(
             throw new Exception("No boxes found to fund transaction")
           ) // isn't this just an empty sequence instead of None?
-          .filter {
-            case _: PolyBox => true // always get polys because this is how fees are paid
+          .collect {
+            // always get polys because this is how fees are paid
+            case bx: PolyBox =>
+              ("Poly", s, bx)
 
-            case _: ArbitBox if txType == "ArbitTransfer" => true
+            case bx: ArbitBox if txType == "ArbitTransfer" =>
+              ("Arbit", s, bx)
 
-            case bx: AssetBox if txType == "AssetTransfer" && assetArgs.forall(_._1 == bx.value.assetCode) => true
-
-            case _ => false
-          }
-          .map {
-            case bx: PolyBox  => ("Poly", s, bx)
-            case bx: ArbitBox => ("Arbit", s, bx)
-            case bx: AssetBox => ("Asset", s, bx)
+            case bx: AssetBox if txType == "AssetTransfer" && assetArgs.forall(_._1 == bx.value.assetCode) =>
+              ("Asset", s, bx)
           }
       }
       .groupBy(_._1)
@@ -132,7 +128,7 @@ object TransferTransaction {
     fee:           Long,
     txType:        String,
     assetArgs:     Option[(AssetCode, Boolean)] = None // (assetCode, minting)
-  ): Try[(IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, _ <: TokenValueHolder)])] = Try {
+  ): Try[(IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, TokenValueHolder)])] = Try {
 
     // Lookup boxes for the given senders
     val senderBoxes = getSenderBoxesForTx(state, sender, txType, assetArgs)
@@ -256,10 +252,12 @@ object TransferTransaction {
       tx match {
         // ensure that the asset issuer is signing a minting transaction
         case t: AssetTransfer[_] if tx.minting =>
-          t.to.foreach { case (_, asset: AssetValue) =>
-            require(t.attestation.keys.map(_.address).toSeq.contains(asset.assetCode.issuer),
-                    "Asset minting must include the issuers signature"
-            )
+          t.to.foreach {
+            case (_, asset: AssetValue) =>
+              require(t.attestation.keys.map(_.address).toSeq.contains(asset.assetCode.issuer),
+                    "Asset minting must include the issuers signature")
+
+            case _ => throw new Error("AssetTransfer contains invalid value holder")
           }
       }
     }

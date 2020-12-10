@@ -1,6 +1,6 @@
 package co.topl.modifier.transaction
 
-import co.topl.utils.HasName.Syntax._
+
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.{Proof, Proposition}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
@@ -16,7 +16,7 @@ import scorex.crypto.hash.Digest32
 
 import scala.util.Try
 
-abstract class Transaction[T, P <: Proposition: HasName] extends NodeViewModifier {
+abstract class Transaction[+T, P <: Proposition: HasName] extends NodeViewModifier {
 
   override lazy val id: ModifierId = ModifierId(this)
 
@@ -67,9 +67,9 @@ object Transaction {
   def nonceFromDigest (digest: Digest32): Box.Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
   def getTypeString[T <: TX](transaction: T): String = transaction match {
-    case tx: ArbitTransfer[_]     => tx.name
-    case tx: PolyTransfer[_]      => tx.name
-    case tx: AssetTransfer[_]     => tx.name
+    case _: ArbitTransfer[_]     => ArbitTransfer.txTypeString
+    case _: PolyTransfer[_]      => PolyTransfer.txTypeString
+    case _: AssetTransfer[_]     => AssetTransfer.txTypeString
   }
 
   implicit def jsonTypedEncoder[T, P <: Proposition]: Encoder[Transaction[T, P]] = {

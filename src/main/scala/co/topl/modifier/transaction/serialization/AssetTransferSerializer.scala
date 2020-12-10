@@ -3,6 +3,7 @@ package co.topl.modifier.transaction.serialization
 import co.topl.attestation.serialization.{ProofSerializer, PropositionSerializer}
 import co.topl.attestation._
 import co.topl.modifier.transaction.AssetTransfer
+import co.topl.nodeView.state.box.TokenValueHolder
 import co.topl.utils.Extensions._
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
@@ -25,7 +26,7 @@ object AssetTransferSerializer extends BifrostSerializer[AssetTransfer[_ <: Prop
     w.putUInt(obj.to.length)
     obj.to.foreach { case (prop, value) =>
       Address.serialize(prop, w)
-      w.putULong(value)
+      TokenValueHolder.serialize(value, w)
     }
 
     /* signatures: Map[Proposition, Proof] */
@@ -44,12 +45,6 @@ object AssetTransferSerializer extends BifrostSerializer[AssetTransfer[_ <: Prop
     /* data: String */
     w.putIntString(obj.data)
 
-    /* issuer: PublicKey25519Proposition */
-    Address.serialize(obj.issuer, w)
-
-    /* assetCode: String */
-    w.putIntString(obj.assetCode)
-
     /* minting: Boolean */
     w.putBoolean(obj.minting)
   }
@@ -67,7 +62,7 @@ object AssetTransferSerializer extends BifrostSerializer[AssetTransfer[_ <: Prop
     val toLength: Int = r.getUInt().toIntExact
     val to = (0 until toLength).map { _ =>
       val addr = Address.parse(r)
-      val value = r.getULong()
+      val value = TokenValueHolder.parse(r)
       addr -> value
     }
 
@@ -89,12 +84,12 @@ object AssetTransferSerializer extends BifrostSerializer[AssetTransfer[_ <: Prop
       case PublicKeyPropositionCurve25519.typePrefix =>
         require(signatures.forall(_._1.propTypeString == PublicKeyPropositionCurve25519.typeString))
         val sigs = signatures.asInstanceOf[Map[PublicKeyPropositionCurve25519, SignatureCurve25519]]
-        AssetTransfer(from, to, sigs, issuer, assetCode, fee, timestamp, data, minting)
+        AssetTransfer(from, to, sigs, fee, timestamp, data, minting)
 
       case ThresholdPropositionCurve25519.typePrefix =>
         require(signatures.forall(_._1.propTypeString == ThresholdPropositionCurve25519.typeString))
         val sigs = signatures.asInstanceOf[Map[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]]
-        AssetTransfer(from, to, sigs, issuer, assetCode, fee, timestamp, data, minting)
+        AssetTransfer(from, to, sigs, fee, timestamp, data, minting)
     }
   }
 }

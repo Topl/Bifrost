@@ -32,7 +32,12 @@ case class ArbitTransfer[
       if (fee > 0L) Traversable((PolyBox.apply _).tupled(BoxParams.unapply(params._1).get))
       else Traversable()
 
-    feeBox ++ params._2.map(p => (ArbitBox.apply _).tupled(BoxParams.unapply(p).get))
+    val arbitBoxes = params._2.map {
+      case BoxParams(ev, n, v: SimpleValue) => ArbitBox(ev, n, v)
+      case _ => throw new Error("Attempted application of invalid value holder")
+    }
+
+    feeBox ++ arbitBoxes
   }
 }
 

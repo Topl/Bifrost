@@ -18,6 +18,6 @@ trait StateReader extends NodeViewComponent {
 
   def getProgramBox[PBX <: ProgramBox : ClassTag] (key: KP): Option[PBX]
 
-  def getTokenBoxes(key: KT): Option[Seq[TokenBox]]
+  def getTokenBoxes(key: KT): Option[Seq[TokenBox[TokenValueHolder]]]
 
 }

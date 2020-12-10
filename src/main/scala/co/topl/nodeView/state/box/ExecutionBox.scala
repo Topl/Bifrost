@@ -2,6 +2,7 @@ package co.topl.nodeView.state.box
 
 import co.topl.attestation.Evidence
 import co.topl.nodeView.state.box.Box.BoxType
+import co.topl.utils.HasName
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
 
@@ -10,13 +11,16 @@ case class ExecutionBox(override val evidence   : Evidence,
                         override val value      : ProgramId,
                         stateBoxIds             : Seq[ProgramId],
                         codeBoxIds              : Seq[ProgramId]
-                        ) extends ProgramBox(evidence, nonce, value, ExecutionBox.boxTypePrefix)
+                        ) extends ProgramBox(evidence, nonce, value)
 
 object ExecutionBox {
   val boxTypePrefix: BoxType = 11: Byte
+  val boxTypeString: String = "ExecutionBox"
+
+  implicit val name: HasName[ExecutionBox] = HasName.instance(() => boxTypeString)
 
   implicit val jsonEncoder: Encoder[ExecutionBox] = { box: ExecutionBox =>
-    (Box.jsonEncode(box) ++ Map(
+    (Box.jsonEncode[ProgramId, ExecutionBox](box) ++ Map(
       "stateBoxIds" -> box.stateBoxIds.asJson,
       "codeBoxIds" -> box.codeBoxIds.asJson
     )).asJson
