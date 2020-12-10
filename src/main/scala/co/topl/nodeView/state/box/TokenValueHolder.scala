@@ -130,10 +130,14 @@ object AssetValue extends BifrostSerializer[AssetValue] {
     for {
       quantity     <- c.downField("quantity").as[Long]
       assetCode    <- c.downField("assetCode").as[AssetCode]
-      securityRoot <- c.downField("securityRoot").as[String].map(Base58.decode)
+      securityRoot <- c.downField("securityRoot").as[Option[String]]
       metadata     <- c.downField("metadata").as[Option[String]]
     } yield {
-      val sr = SecurityRoot @@ securityRoot.getOrElse(throw new Exception("Unable to decode securityRoot"))
+      val sr = SecurityRoot @@ (securityRoot match {
+        case Some(str) => Base58.decode(str).getOrElse(throw new Exception("Unable to decode securityRoot"))
+        case None      => AssetValue.emptySecurityRoot
+      })
+
       AssetValue(quantity, assetCode, sr, metadata)
     }
 

@@ -22,7 +22,6 @@ import scala.util.{Failure, Success}
   *
   * @param nodeViewHolderRef actor reference to inform of new transactions
   * @param settings the settings for HTTP REST API
-  * @param context reference to the actor system used to create new actors for handling requests
   */
 case class TransactionApiEndpoint(
   settings:          RPCApiSettings,
@@ -84,12 +83,11 @@ case class TransactionApiEndpoint(
         sender     <- (params \\ "sender").head.as[IndexedSeq[Address]]
         changeAddr <- (params \\ "changeAddress").head.as[Address]
         fee        <- (params \\ "fee").head.as[Long]
-        issuer     <- (params \\ "issuer").head.as[Address]
-        assetCode  <- (params \\ "assetCode").head.as[String]
         minting    <- (params \\ "minting").head.as[Boolean]
       } yield {
         val data: String = parseOptional("data", "")
 
+        // check that the state is available
         checkAddress(sender, view)
 
         // construct the transaction
@@ -169,24 +167,28 @@ case class TransactionApiEndpoint(
       // parse arguments from the request
       (for {
         propType   <- (params \\ "propositionType").head.as[String]
-        recipients <- (params \\ "recipient").head.as[IndexedSeq[(Address, SimpleValue)]]
+        recipients <- (params \\ "recipient").head.as[IndexedSeq[(Address, Long)]]
         sender     <- (params \\ "sender").head.as[IndexedSeq[Address]]
         changeAddr <- (params \\ "changeAddress").head.as[Address]
         fee        <- (params \\ "fee").head.as[Long]
       } yield {
         val data: String = parseOptional("data", "")
 
+        // check that the state is available
         checkAddress(sender, view)
+
+        // convert to simple value type
+        val to = recipients.map(r => r._1 -> SimpleValue(r._2))
 
         // construct the transaction
         propType match {
           case PublicKeyPropositionCurve25519.typeString =>
             PolyTransfer
-              .createRaw[PublicKeyPropositionCurve25519](view.state, recipients, sender, changeAddr, fee, data)
+              .createRaw[PublicKeyPropositionCurve25519](view.state, to, sender, changeAddr, fee, data)
 
           case ThresholdPropositionCurve25519.typeString =>
             PolyTransfer
-              .createRaw[ThresholdPropositionCurve25519](view.state, recipients, sender, changeAddr, fee, data)
+              .createRaw[ThresholdPropositionCurve25519](view.state, to, sender, changeAddr, fee, data)
         }
       }) match {
         case Right(Success(tx)) =>
@@ -239,7 +241,7 @@ case class TransactionApiEndpoint(
       // parse arguments from the request
       (for {
         propType   <- (params \\ "propositionType").head.as[String]
-        recipients <- (params \\ "recipient").head.as[IndexedSeq[(Address, SimpleValue)]]
+        recipients <- (params \\ "recipient").head.as[IndexedSeq[(Address, Long)]]
         sender     <- (params \\ "sender").head.as[IndexedSeq[Address]]
         changeAddr <- (params \\ "changeAddress").head.as[Address]
         fee        <- (params \\ "fee").head.as[Long]
@@ -249,15 +251,18 @@ case class TransactionApiEndpoint(
         // check that the state is available
         checkAddress(sender, view)
 
+        // convert to simple value type
+        val to = recipients.map(r => r._1 -> SimpleValue(r._2))
+
         // construct the transaction
         propType match {
           case PublicKeyPropositionCurve25519.typeString =>
             ArbitTransfer
-              .createRaw[PublicKeyPropositionCurve25519](view.state, recipients, sender, changeAddr, fee, data)
+              .createRaw[PublicKeyPropositionCurve25519](view.state, to, sender, changeAddr, fee, data)
 
           case ThresholdPropositionCurve25519.typeString =>
             ArbitTransfer
-              .createRaw[ThresholdPropositionCurve25519](view.state, recipients, sender, changeAddr, fee, data)
+              .createRaw[ThresholdPropositionCurve25519](view.state, to, sender, changeAddr, fee, data)
         }
       }) match {
         case Right(Success(tx)) =>

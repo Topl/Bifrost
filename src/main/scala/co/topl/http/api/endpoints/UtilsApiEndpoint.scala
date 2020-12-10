@@ -2,11 +2,13 @@ package co.topl.http.api.endpoints
 
 import java.security.SecureRandom
 
+import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.http.api.{ApiEndpoint, Namespace, UtilNamespace}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
+import co.topl.nodeView.state.box.AssetCode
 import co.topl.settings.{AppContext, RPCApiSettings}
 import io.circe.Json
 import io.circe.syntax._
@@ -14,6 +16,7 @@ import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success, Try}
 
 case class UtilsApiEndpoint (override val settings: RPCApiSettings, appContext: AppContext)
                             (implicit val  ec: ExecutionContext) extends ApiEndpoint {
@@ -29,9 +32,10 @@ case class UtilsApiEndpoint (override val settings: RPCApiSettings, appContext: 
 
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
-    case (method, params, id) if method == s"${namespace.name}_seed"            => seedRoute(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_seedOfLength"    => seedOfLength(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_hashBlake2b256"  => hashBlake2b256(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_seed"              => seedRoute(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_seedOfLength"      => seedOfLength(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_hashBlake2b256"    => hashBlake2b256(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_generateAssetCode" => generateAssetCode(params.head, id)
   }
 
   private def generateSeed (length: Int): String = {
@@ -97,5 +101,19 @@ case class UtilsApiEndpoint (override val settings: RPCApiSettings, appContext: 
       "message" -> message,
       "hash" -> Base58.encode(Blake2b256(message))
     ).asJson)
+  }
+
+  private def generateAssetCode(params: Json, id: String): Future[Json] = Future {
+    (for {
+      issuer <- (params \\ "issuer").head.as[Address]
+      shortName <- (params \\ "shortName").head.as[String]
+    } yield Try(AssetCode(issuer, shortName))) match {
+      case Right(Success(assetCode)) =>
+        Map(
+          "assetCode" -> assetCode.asJson
+        ).asJson
+      case Right(Failure(ex)) => throw new Exception(s"Unable to generate assetCode: $ex")
+      case Left(ex) => throw ex
+    }
   }
 }
