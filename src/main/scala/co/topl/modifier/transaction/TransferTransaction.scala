@@ -53,9 +53,10 @@ object TransferTransaction {
     * inputs and returns the details needed to create the output boxes for the transaction
     */
   def boxParams[
+    T <: TokenValueHolder,
     P <: Proposition: EvidenceProducer,
-    T <: TokenValueHolder
-  ](tx: TransferTransaction[T, P]): (BoxParams[SimpleValue], Traversable[BoxParams[T]]) = {
+    TX <: TransferTransaction[T, P]
+  ](tx: TX): (BoxParams[SimpleValue], Traversable[BoxParams[T]]) = {
     // known input data (similar to messageToSign but without newBoxes since they aren't known yet)
     val inputBytes =
       Array(tx.txTypePrefix) ++

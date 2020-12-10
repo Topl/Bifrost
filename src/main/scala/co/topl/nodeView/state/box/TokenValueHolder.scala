@@ -87,6 +87,13 @@ object AssetValue extends BifrostSerializer[AssetValue] {
   object SecurityRoot extends TaggedType[Array[Byte]]
   type SecurityRoot = SecurityRoot.Type
 
+  // bytes (34 bytes for issuer Address + 8 bytes for asset nonce + 8 bytes for asset short name)
+  val assetCodeSize: Int = Address.addressSize + 8 + 8
+  val securityRootSize: Int = Blake2b256.DigestSize // 32 bytes
+  val metadataLimit: Int = 128 // bytes of UTF-8 encoded string
+  val valueTypeString: String = "asset"
+  val emptySecurityRoot: SecurityRoot = SecurityRoot @@ Array.fill(securityRootSize)(0: Byte)
+
   implicit val jsonEncoder: Encoder[AssetValue] = {
     (value: AssetValue) =>
       Map (
@@ -108,13 +115,6 @@ object AssetValue extends BifrostSerializer[AssetValue] {
       val sr = SecurityRoot @@ securityRoot.getOrElse(throw new Exception("Unable to decode securityRoot"))
       AssetValue(quantity, assetCode, sr, metadata)
     }
-
-  // bytes (34 bytes for issuer Address + 8 bytes for asset nonce + 8 bytes for asset short name)
-  val assetCodeSize: Int = Address.addressSize + 8 + 8
-  val securityRootSize: Int = Blake2b256.DigestSize // 32 bytes
-  val metadataLimit: Int = 128 // bytes of UTF-8 encoded string
-  val valueTypeString: String = "asset"
-  val emptySecurityRoot: SecurityRoot = SecurityRoot @@ Array.fill(securityRootSize)(0: Byte)
 
   override def serialize(obj: AssetValue, w: Writer): Unit = {
     w.putULong(obj.quantity)

@@ -26,7 +26,7 @@ case class PolyTransfer[
   override val txTypePrefix: TxType = PolyTransfer.txTypePrefix
 
   override lazy val newBoxes: Traversable[TokenBox[SimpleValue]] = {
-    val params = TransferTransaction.boxParams(this)
+    val params = TransferTransaction.boxParams[SimpleValue, P, PolyTransfer[P]](this)
 
     val feeBox =
       if (fee > 0L) Traversable((PolyBox.apply _).tupled(BoxParams.unapply(params._1).get))
@@ -39,6 +39,8 @@ case class PolyTransfer[
 object PolyTransfer {
   val txTypePrefix: TxType = 2: Byte
   val txTypeString: String = "PolyTransfer"
+
+  implicit val name: HasName[PolyTransfer[_]] = HasName.instance { () => txTypeString }
 
   /**
     *

@@ -40,6 +40,8 @@ object AssetTransfer {
   val txTypePrefix: TxType = 3: Byte
   val txTypeString: String = "AssetTransfer"
 
+  implicit val name: HasName[AssetTransfer[_]] = HasName.instance { () => txTypeString }
+
   /**
     *
     * @param stateReader

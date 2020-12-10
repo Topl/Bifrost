@@ -22,7 +22,7 @@ sealed abstract class Box[+T](val evidence: Evidence, val value: T, val nonce: N
   def serializer: BifrostSerializer[Box[_]] = BoxSerializer
 
   override def toString: String =
-    Box.boxName(this) + Box.jsonEncoder(this).noSpaces
+    Box.getTypeString(this) + Box.jsonEncoder(this).noSpaces
 
   override def hashCode(): Int = Ints.fromByteArray(bytes)
 }
@@ -49,7 +49,7 @@ object Box {
       (evidence, nonce, value)
     }
 
-  implicit val name: HasName[Box[_]] = (b: Box[_]) => {
+  def getTypeString(box: Box[_]): String = box match {
     case bx: ArbitBox     => bx.name
     case bx: PolyBox      => bx.name
     case bx: AssetBox     => bx.name
