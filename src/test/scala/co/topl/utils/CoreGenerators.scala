@@ -16,14 +16,13 @@ import co.topl.nodeView.history.{BlockProcessor, History, Storage}
 import co.topl.nodeView.state.box.Box.Nonce
 import co.topl.nodeView.state.box.TokenBox.Value
 import co.topl.nodeView.state.box.{ProgramId, _}
-import co.topl.program.{Program, ProgramPreprocessor, _}
+import co.topl.program.{ProgramPreprocessor, _}
 import co.topl.settings.NetworkType.PrivateNet
 import co.topl.settings.{AppSettings, StartupOpts}
 import io.circe.syntax._
 import io.circe.{Json, JsonObject}
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
-import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.{Curve25519, Signature}
 import scorex.util.encode.Base58
 
@@ -257,6 +256,7 @@ trait CoreGenerators extends Logging {
     ProgramId.create(seed)
   }
 
+  /*
   lazy val programGen: Gen[Program] = for {
     producer <- propositionGen
     investor <- propositionGen
@@ -277,6 +277,7 @@ trait CoreGenerators extends Logging {
       "lastUpdated" -> System.currentTimeMillis().asJson
     ).asJson, id)
   }
+   */
 
   def preFeeBoxGen(minFee: Long = 0, maxFee: Long = Long.MaxValue): Gen[(Nonce, Long)] = for {
     nonce <- Gen.choose(Long.MinValue, Long.MaxValue)
@@ -546,7 +547,7 @@ trait CoreGenerators extends Logging {
       height,
       difficulty,
       version
-    )(signingFunction)
+    )(signingFunction).get
   }
 
   def generateHistory(genesisBlockVersion: Byte): History = {
