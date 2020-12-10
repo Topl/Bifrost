@@ -9,6 +9,7 @@ import co.topl.nodeView.state.box.{Box, _}
 import co.topl.utils.HasName
 import com.google.common.primitives.{Ints, Longs}
 import scorex.crypto.hash.Blake2b256
+import supertagged.TaggedType
 
 import scala.util.{Failure, Success, Try}
 
@@ -23,7 +24,10 @@ abstract class TransferTransaction[
   val minting:     Boolean
 ) extends Transaction[TokenBox.Value, P] {
 
-  lazy val bloomTopics: IndexedSeq[BloomTopic] = to.map(x => BloomTopic.apply(x._1.bytes))
+  lazy val bloomTopics = to.map(x => {
+    val bytes = x._1.bytes
+    BloomTopic @@ bytes
+  })
 
   lazy val boxIdsToOpen: IndexedSeq[BoxId] = from.map { case (addr, nonce) =>
     BoxId.idFromEviNonce(addr.evidence, nonce)
@@ -134,25 +138,31 @@ object TransferTransaction {
     // Lookup boxes for the given senders
     val senderBoxes = getSenderBoxesForTx(state, sender, txType, assetArgs)
 
+    // compute the Poly balance since it is used often
+    val polyBalance = senderBoxes("Poly").map(_._3.value).sum
+
+    // compute the amount of tokens that will be sent to the recipients
+    val amtToSpend = toReceive.map(_._2).sum
+
     // ensure there are enough polys to pay the fee
-    require(senderBoxes("Poly").map(_._3.value).sum >= fee, s"Insufficient funds available to pay transaction fee.")
+    require(polyBalance >= fee, s"Insufficient funds available to pay transaction fee.")
 
     // create the list of inputs and outputs (senderChangeOut & recipientOut)
     val (availableToSpend, inputs, outputs) = txType match {
       case "PolyTransfer" =>
         (
-          senderBoxes("Poly").map(_._3.value).sum - fee,
+          polyBalance - fee,
           senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
-          (changeAddress, senderBoxes("Poly").map(_._3.value).sum - fee - toReceive.map(_._2).sum) +: toReceive
+          (changeAddress, polyBalance - fee - amtToSpend) +: toReceive
         )
 
       case "ArbitTransfer" =>
+        val arbitBalance = senderBoxes("Arbit").map(_._3.value).sum
+
         (
-          senderBoxes("Arbit").map(_._3.value).sum,
-          senderBoxes("Arbit").map(bxs => (bxs._2, bxs._3.nonce)) ++ senderBoxes("Poly").map(bxs =>
-            (bxs._2, bxs._3.nonce)
-          ),
-          (changeAddress, senderBoxes("Poly").map(_._3.value).sum - fee) +: toReceive
+          arbitBalance,
+          senderBoxes("Arbit").map(bxs => (bxs._2, bxs._3.nonce)) ++ senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
+          IndexedSeq((changeAddress, polyBalance - fee), (changeAddress, arbitBalance - amtToSpend)) ++ toReceive
         )
 
       // case for minting asset transfers
@@ -160,21 +170,20 @@ object TransferTransaction {
         (
           Long.MaxValue,
           senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
-          (changeAddress, senderBoxes("Poly").map(_._3.value).sum - fee) +: toReceive
+          (changeAddress, polyBalance - fee) +: toReceive
         )
 
       case "AssetTransfer" =>
+        val assetBalance = senderBoxes("Asset").map(_._3.value).sum
         (
-          senderBoxes("Asset").map(_._3.value).sum,
-          senderBoxes("Asset").map(bxs => (bxs._2, bxs._3.nonce)) ++ senderBoxes("Poly").map(bxs =>
-            (bxs._2, bxs._3.nonce)
-          ),
-          (changeAddress, senderBoxes("Poly").map(_._3.value).sum - fee) +: toReceive
+          assetBalance,
+          senderBoxes("Asset").map(bxs => (bxs._2, bxs._3.nonce)) ++ senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
+          IndexedSeq((changeAddress, polyBalance - fee), (changeAddress, assetBalance - amtToSpend)) ++ toReceive
         )
     }
 
     // ensure there are sufficient funds from the sender boxes to create all outputs
-    require(availableToSpend >= toReceive.map(_._2).sum, "Insufficient funds available to create transaction.")
+    require(availableToSpend >= amtToSpend, "Insufficient funds available to create transaction.")
 
     (inputs, outputs)
   }
