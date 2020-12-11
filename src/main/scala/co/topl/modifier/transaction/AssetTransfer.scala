@@ -14,14 +14,14 @@ import scala.util.Try
 
 case class AssetTransfer[
   P <: Proposition: EvidenceProducer: HasName
-] (override val from       : IndexedSeq[(Address, Box.Nonce)],
-   override val to         : IndexedSeq[(Address, TokenValueHolder)],
-   override val attestation: Map[P, Proof[P]],
-   override val fee        : Long,
-   override val timestamp  : Long,
-   override val data       : String,
-   override val minting    : Boolean
-  ) extends TransferTransaction[TokenValueHolder, P](from, to, attestation, fee, timestamp, data, minting) {
+](override val from:        IndexedSeq[(Address, Box.Nonce)],
+  override val to:          IndexedSeq[(Address, TokenValueHolder)],
+  override val attestation: Map[P, Proof[P]],
+  override val fee:         Long,
+  override val timestamp:   Long,
+  override val data:        Option[String] = None,
+  override val minting:     Boolean = false
+) extends TransferTransaction[TokenValueHolder, P](from, to, attestation, fee, timestamp, data, minting) {
 
   override val txTypePrefix: TxType = AssetTransfer.txTypePrefix
 
@@ -34,7 +34,7 @@ case class AssetTransfer[
 
     val assetBoxes = params._2.map {
       case BoxParams(ev, n, v: AssetValue) => AssetBox(ev, n, v)
-      case _ => throw new Error("Attempted application of invalid value holder")
+      case _                               => throw new Error("Attempted application of invalid value holder")
     }
 
     feeBox ++ assetBoxes
@@ -47,9 +47,7 @@ object AssetTransfer {
 
   implicit val name: HasName[AssetTransfer[_]] = HasName.instance { () => txTypeString }
 
-  /**
-    *
-    * @param stateReader
+  /** @param stateReader
     * @param toReceive
     * @param sender
     * @param fee
@@ -58,14 +56,15 @@ object AssetTransfer {
     */
   def createRaw[
     P <: Proposition: EvidenceProducer: HasName
-  ] (stateReader  : StateReader,
-     toReceive    : IndexedSeq[(Address, AssetValue)],
-     sender       : IndexedSeq[Address],
-     changeAddress: Address,
-     fee          : Long,
-     data         : String,
-     minting      : Boolean
-    ): Try[AssetTransfer[P]] = {
+  ](stateReader:          StateReader,
+    toReceive:            IndexedSeq[(Address, AssetValue)],
+    sender:               IndexedSeq[Address],
+    changeAddress:        Address,
+    consolidationAddress: Option[Address],
+    fee:                  Long,
+    data:                 Option[String],
+    minting:              Boolean
+  ): Try[AssetTransfer[P]] = {
 
     val assetCode =
       toReceive
@@ -80,43 +79,42 @@ object AssetTransfer {
         toReceive,
         sender,
         changeAddress,
+        consolidationAddress,
         fee,
         "AssetTransfer",
         Some((assetCode, minting))
-      ).map { case (inputs, outputs) =>
+      )
+      .map { case (inputs, outputs) =>
         AssetTransfer[P](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data, minting)
-    }
+      }
   }
 
-  implicit def jsonEncoder[P <: Proposition]: Encoder[AssetTransfer[P]] = {
-    tx: AssetTransfer[P] =>
-      Map(
-        "txId" -> tx.id.asJson,
-        "txType" -> "AssetTransfer".asJson,
-        "propositionType" -> tx.getPropTypeString.asJson,
-        "newBoxes" -> tx.newBoxes.toSeq.asJson,
-        "boxesToRemove" -> tx.boxIdsToOpen.asJson,
-        "from" -> tx.from.asJson,
-        "to" -> tx.to.asJson,
-        "signatures" -> tx.attestation.asJson,
-        "fee" -> tx.fee.asJson,
-        "timestamp" -> tx.timestamp.asJson,
-        "data" -> tx.data.asJson,
-      ).asJson
+  implicit def jsonEncoder[P <: Proposition]: Encoder[AssetTransfer[P]] = { tx: AssetTransfer[P] =>
+    Map(
+      "txId"            -> tx.id.asJson,
+      "txType"          -> "AssetTransfer".asJson,
+      "propositionType" -> tx.getPropTypeString.asJson,
+      "newBoxes"        -> tx.newBoxes.toSeq.asJson,
+      "boxesToRemove"   -> tx.boxIdsToOpen.asJson,
+      "from"            -> tx.from.asJson,
+      "to"              -> tx.to.asJson,
+      "signatures"      -> tx.attestation.asJson,
+      "fee"             -> tx.fee.asJson,
+      "timestamp"       -> tx.timestamp.asJson,
+      "data"            -> tx.data.asJson
+    ).asJson
   }
 
   implicit def jsonDecoder: Decoder[AssetTransfer[_ <: Proposition]] =
     (c: HCursor) =>
       for {
-        from <- c.downField("from").as[IndexedSeq[(Address, Long)]]
-        to <- c.downField("to").as[IndexedSeq[(Address, TokenValueHolder)]]
-        fee <- c.downField("fee").as[Long]
+        from      <- c.downField("from").as[IndexedSeq[(Address, Long)]]
+        to        <- c.downField("to").as[IndexedSeq[(Address, TokenValueHolder)]]
+        fee       <- c.downField("fee").as[Long]
         timestamp <- c.downField("timestamp").as[Long]
-        data <- c.downField("data").as[String]
-        issuer <- c.downField("issuer").as[Address]
-        assetCode <- c.downField("assetCode").as[String]
-        minting <- c.downField("minting").as[Boolean]
-        propType <- c.downField("propositionType").as[String]
+        data      <- c.downField("data").as[Option[String]]
+        minting   <- c.downField("minting").as[Boolean]
+        propType  <- c.downField("propositionType").as[String]
       } yield {
         (propType match {
           case PublicKeyPropositionCurve25519.typeString =>

@@ -87,7 +87,7 @@ case object Toplnet extends GenesisProvider {
       Map(genesisAcct.publicImage -> SignatureCurve25519.genesis),
       0L,
       0L,
-      "",
+      None,
       false)
 
     val txs = Seq(

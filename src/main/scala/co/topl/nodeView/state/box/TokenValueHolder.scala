@@ -122,7 +122,7 @@ object AssetValue extends BifrostSerializer[AssetValue] {
       "quantity"     -> value.quantity.asJson,
       "assetCode"    -> value.assetCode.asJson,
       "securityRoot" -> Base58.encode(value.securityRoot).asJson,
-      "metadata"     -> value.metadata.getOrElse("").asJson
+      "metadata"     -> value.metadata.asJson
     ).asJson
   }
 

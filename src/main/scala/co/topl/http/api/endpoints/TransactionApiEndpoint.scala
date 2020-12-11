@@ -28,6 +28,7 @@ case class TransactionApiEndpoint(
   appContext:        AppContext,
   nodeViewHolderRef: ActorRef
 )(implicit val ec:   ExecutionContext) extends ApiEndpointWithView {
+
   type HIS = History
   type MS = State
   type MP = MemPool
@@ -76,16 +77,19 @@ case class TransactionApiEndpoint(
     */
   private def rawAssetTransfer(implicit params: Json, id: String): Future[Json] = {
     viewAsync { view =>
+      val p = params.hcursor
+
       // parse arguments from the request
       (for {
-        propType   <- (params \\ "propositionType").head.as[String]
-        recipients <- (params \\ "recipient").head.as[IndexedSeq[(Address, AssetValue)]]
-        sender     <- (params \\ "sender").head.as[IndexedSeq[Address]]
-        changeAddr <- (params \\ "changeAddress").head.as[Address]
-        fee        <- (params \\ "fee").head.as[Long]
-        minting    <- (params \\ "minting").head.as[Boolean]
+        propType          <- p.get[String]("propositionType")
+        recipients        <- p.get[IndexedSeq[(Address, AssetValue)]]("recipients")
+        sender            <- p.get[IndexedSeq[Address]]("sender")
+        changeAddr        <- p.get[Address]("changeAddress")
+        consolidationAddr <- p.get[Option[Address]]("consolidationAddress")
+        fee               <- p.get[Long]("fee")
+        minting           <- p.get[Boolean]("minting")
+        data              <- p.get[Option[String]]("data")
       } yield {
-        val data: String = parseOptional("data", "")
 
         // check that the state is available
         checkAddress(sender, view)
@@ -99,6 +103,7 @@ case class TransactionApiEndpoint(
                 recipients,
                 sender,
                 changeAddr,
+                consolidationAddr,
                 fee,
                 data,
                 minting
@@ -111,6 +116,7 @@ case class TransactionApiEndpoint(
                 recipients,
                 sender,
                 changeAddr,
+                consolidationAddr,
                 fee,
                 data,
                 minting
@@ -164,15 +170,17 @@ case class TransactionApiEndpoint(
     */
   private def rawPolyTransfer(implicit params: Json, id: String): Future[Json] = {
     viewAsync { view =>
+      val p = params.hcursor
+
       // parse arguments from the request
       (for {
-        propType   <- (params \\ "propositionType").head.as[String]
-        recipients <- (params \\ "recipient").head.as[IndexedSeq[(Address, Long)]]
-        sender     <- (params \\ "sender").head.as[IndexedSeq[Address]]
-        changeAddr <- (params \\ "changeAddress").head.as[Address]
-        fee        <- (params \\ "fee").head.as[Long]
+        propType   <- p.get[String]("propositionType")
+        recipients <- p.get[IndexedSeq[(Address, Long)]]("recipients")
+        sender     <- p.get[IndexedSeq[Address]]("sender")
+        changeAddr <- p.get[Address]("changeAddress")
+        fee        <- p.get[Long]("fee")
+        data       <- p.get[Option[String]]("data")
       } yield {
-        val data: String = parseOptional("data", "")
 
         // check that the state is available
         checkAddress(sender, view)
@@ -184,11 +192,11 @@ case class TransactionApiEndpoint(
         propType match {
           case PublicKeyPropositionCurve25519.typeString =>
             PolyTransfer
-              .createRaw[PublicKeyPropositionCurve25519](view.state, to, sender, changeAddr, fee, data)
+              .createRaw[PublicKeyPropositionCurve25519](view.state, to, sender, changeAddr, None, fee, data)
 
           case ThresholdPropositionCurve25519.typeString =>
             PolyTransfer
-              .createRaw[ThresholdPropositionCurve25519](view.state, to, sender, changeAddr, fee, data)
+              .createRaw[ThresholdPropositionCurve25519](view.state, to, sender, changeAddr, None, fee, data)
         }
       }) match {
         case Right(Success(tx)) =>
@@ -238,15 +246,18 @@ case class TransactionApiEndpoint(
     */
   private def rawArbitTransfer(implicit params: Json, id: String): Future[Json] = {
     viewAsync { view =>
+      val p = params.hcursor
+
       // parse arguments from the request
       (for {
-        propType   <- (params \\ "propositionType").head.as[String]
-        recipients <- (params \\ "recipient").head.as[IndexedSeq[(Address, Long)]]
-        sender     <- (params \\ "sender").head.as[IndexedSeq[Address]]
-        changeAddr <- (params \\ "changeAddress").head.as[Address]
-        fee        <- (params \\ "fee").head.as[Long]
+        propType          <- p.get[String]("propositionType")
+        recipients        <- p.get[IndexedSeq[(Address, Long)]]("recipients")
+        sender            <- p.get[IndexedSeq[Address]]("sender")
+        changeAddr        <- p.get[Address]("changeAddress")
+        consolidationAddr <- p.get[Option[Address]]("consolidationAddress")
+        fee               <- p.get[Long]("fee")
+        data              <- p.get[Option[String]]("data")
       } yield {
-        val data: String = parseOptional("data", "")
 
         // check that the state is available
         checkAddress(sender, view)
@@ -258,11 +269,27 @@ case class TransactionApiEndpoint(
         propType match {
           case PublicKeyPropositionCurve25519.typeString =>
             ArbitTransfer
-              .createRaw[PublicKeyPropositionCurve25519](view.state, to, sender, changeAddr, fee, data)
+              .createRaw[PublicKeyPropositionCurve25519](
+                view.state,
+                to,
+                sender,
+                changeAddr,
+                consolidationAddr,
+                fee,
+                data
+              )
 
           case ThresholdPropositionCurve25519.typeString =>
             ArbitTransfer
-              .createRaw[ThresholdPropositionCurve25519](view.state, to, sender, changeAddr, fee, data)
+              .createRaw[ThresholdPropositionCurve25519](
+                view.state,
+                to,
+                sender,
+                changeAddr,
+                consolidationAddr,
+                fee,
+                data
+              )
         }
       }) match {
         case Right(Success(tx)) =>

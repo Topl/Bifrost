@@ -20,7 +20,7 @@ abstract class TransferTransaction[
   val attestation: Map[P, Proof[P]],
   val fee:         Long,
   val timestamp:   Long,
-  val data:        String,
+  val data:        Option[String],
   val minting:     Boolean
 ) extends Transaction[T, P] {
 
@@ -32,7 +32,7 @@ abstract class TransferTransaction[
 
   override def messageToSign: Array[Byte] =
     super.messageToSign ++
-    data.getBytes :+ (if (minting) 1: Byte else 0: Byte)
+      data.fold(Array(0: Byte))(_.getBytes) :+ (if (minting) 1: Byte else 0: Byte)
 
   def semanticValidate(stateReader: StateReader)(implicit networkPrefix: NetworkPrefix): Try[Unit] =
     TransferTransaction.semanticValidate(this, stateReader)
@@ -121,13 +121,14 @@ object TransferTransaction {
     */
   def createRawTransferParams[
     T <: TokenValueHolder
-  ](state:         StateReader,
-    toReceive:     IndexedSeq[(Address, T)],
-    sender:        IndexedSeq[Address],
-    changeAddress: Address,
-    fee:           Long,
-    txType:        String,
-    assetArgs:     Option[(AssetCode, Boolean)] = None // (assetCode, minting)
+  ](state:                StateReader,
+    toReceive:            IndexedSeq[(Address, T)],
+    sender:               IndexedSeq[Address],
+    changeAddress:        Address,
+    consolidationAddress: Option[Address],
+    fee:                  Long,
+    txType:               String,
+    assetArgs:            Option[(AssetCode, Boolean)] = None // (assetCode, minting)
   ): Try[(IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, TokenValueHolder)])] = Try {
 
     // Lookup boxes for the given senders
@@ -165,16 +166,17 @@ object TransferTransaction {
         (
           arbitBalance,
           senderBoxes("Arbit").map(bxs => (bxs._2, bxs._3.nonce)) ++
-            senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
+          senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
           IndexedSeq((changeAddress, SimpleValue(polyBalance - fee)),
-                     (changeAddress, SimpleValue(arbitBalance - amtToSpend))) ++
-            toReceive
+                     (consolidationAddress.getOrElse(changeAddress), SimpleValue(arbitBalance - amtToSpend))
+          ) ++
+          toReceive
         )
 
       // case for minting asset transfers
-        // todo - JAA - what happens here when I specify a zero fee and use the same timestamp?
-        // need to check that unique outputs are generated but I am not sure they will be because the tx
-        // bytes will be the same so the nonce will end up being the same?
+      // todo - JAA - what happens here when I specify a zero fee and use the same timestamp?
+      // need to check that unique outputs are generated but I am not sure they will be because the tx
+      // bytes will be the same so the nonce will end up being the same?
       case "AssetTransfer" if assetArgs.forall(_._2) =>
         (
           Long.MaxValue,
@@ -182,8 +184,8 @@ object TransferTransaction {
           (changeAddress, SimpleValue(polyBalance - fee)) +: toReceive
         )
 
-        // todo: JAA - we need to handle the case where the change output is zero. I think this
-        // means we should move these functions to their singleton objects and define the handling there
+      // todo: JAA - we need to handle the case where the change output is zero. I think this
+      // means we should move these functions to their singleton objects and define the handling there
       case "AssetTransfer" =>
         val assetBalance =
           senderBoxes
@@ -194,10 +196,11 @@ object TransferTransaction {
         (
           assetBalance,
           senderBoxes("Asset").map(bxs => (bxs._2, bxs._3.nonce)) ++
-            senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
+          senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
           IndexedSeq((changeAddress, SimpleValue(polyBalance - fee)),
-                     (changeAddress, AssetValue(assetBalance - amtToSpend, assetArgs.get._1))) ++
-            toReceive
+                     (consolidationAddress.getOrElse(changeAddress), AssetValue(assetBalance - amtToSpend, assetArgs.get._1))
+          ) ++
+          toReceive
         )
     }
 
@@ -222,14 +225,14 @@ object TransferTransaction {
     tx match {
       case t: ArbitTransfer[_] if t.minting => // Arbit block rewards
       case t: PolyTransfer[_] if t.minting  => // Poly block rewards
-      case t @ _                            =>
+      case t @ _ =>
         require(t.from.nonEmpty, "Non-block reward transactions must specify at least one input box")
+        require(t.fee > 0L, "Fee must be a non-zero positive value")
+        require(t.to.forall(_._2.quantity > 0L), "Amount sent must be greater than 0")
     }
 
-    require(tx.to.forall(_._2.quantity > 0L), "Amount sent must be greater than 0")
-    require(tx.fee >= 0L, "Fee must be a positive value")
     require(tx.timestamp >= 0L, "Invalid timestamp")
-    require(tx.data.getBytes("UTF-8").length <= 128, "Data field must be less than 128 bytes")
+    require(tx.data.forall(_.getBytes("UTF-8").length <= 128), "Data field must be less than 128 bytes")
 
     // prototype transactions do not contain signatures at creation
     if (hasAttMap) {
@@ -255,10 +258,13 @@ object TransferTransaction {
           t.to.foreach {
             case (_, asset: AssetValue) =>
               require(t.attestation.keys.map(_.address).toSeq.contains(asset.assetCode.issuer),
-                    "Asset minting must include the issuers signature")
+                      "Asset minting must include the issuers signature"
+              )
 
             case _ => throw new Error("AssetTransfer contains invalid value holder")
           }
+
+        case _ => // put additional checks on attestations here
       }
     }
 

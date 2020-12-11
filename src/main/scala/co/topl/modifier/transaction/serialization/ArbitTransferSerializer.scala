@@ -42,8 +42,10 @@ object ArbitTransferSerializer extends BifrostSerializer[ArbitTransfer[_ <: Prop
     /* timestamp: Long */
     w.putULong(obj.timestamp)
 
-    /* data: String */
-    w.putIntString(obj.data)
+    /* data: Option[String] */
+    w.putOption(obj.data) { (writer, d) =>
+      writer.putByteString(d)
+    }
 
     /* minting: Boolean */
     w.putBoolean(obj.minting)
@@ -75,7 +77,11 @@ object ArbitTransferSerializer extends BifrostSerializer[ArbitTransfer[_ <: Prop
 
     val fee: Long = r.getULong()
     val timestamp: Long = r.getULong()
-    val data: String = r.getIntString()
+
+    val data: Option[String] = r.getOption {
+      r.getByteString()
+    }
+
     val minting: Boolean = r.getBoolean()
 
     propTypePrefix match {

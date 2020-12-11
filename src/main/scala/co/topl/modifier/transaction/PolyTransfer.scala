@@ -14,14 +14,14 @@ import scala.util.Try
 
 case class PolyTransfer[
   P <: Proposition: EvidenceProducer: HasName
-] (override val from       : IndexedSeq[(Address, Box.Nonce)],
-   override val to         : IndexedSeq[(Address, TokenValueHolder)],
-   override val attestation: Map[P, Proof[P]],
-   override val fee        : Long,
-   override val timestamp  : Long,
-   override val data       : String,
-   override val minting    : Boolean = false
-  ) extends TransferTransaction[TokenValueHolder, P](from, to, attestation, fee, timestamp, data, minting) {
+](override val from:        IndexedSeq[(Address, Box.Nonce)],
+  override val to:          IndexedSeq[(Address, TokenValueHolder)],
+  override val attestation: Map[P, Proof[P]],
+  override val fee:         Long,
+  override val timestamp:   Long,
+  override val data:        Option[String] = None,
+  override val minting:     Boolean = false
+) extends TransferTransaction[TokenValueHolder, P](from, to, attestation, fee, timestamp, data, minting) {
 
   override val txTypePrefix: TxType = PolyTransfer.txTypePrefix
 
@@ -34,7 +34,7 @@ case class PolyTransfer[
 
     val polyBoxes = params._2.map {
       case BoxParams(ev, n, v: SimpleValue) => PolyBox(ev, n, v)
-      case _ => throw new Error("Attempted application of invalid value holder")
+      case _                                => throw new Error("Attempted application of invalid value holder")
     }
 
     feeBox ++ polyBoxes
@@ -47,9 +47,7 @@ object PolyTransfer {
 
   implicit val name: HasName[PolyTransfer[_]] = HasName.instance { () => txTypeString }
 
-  /**
-    *
-    * @param stateReader
+  /** @param stateReader
     * @param toReceive
     * @param sender
     * @param fee
@@ -58,43 +56,45 @@ object PolyTransfer {
     */
   def createRaw[
     P <: Proposition: EvidenceProducer: HasName
-  ] (stateReader  : StateReader,
-     toReceive    : IndexedSeq[(Address, SimpleValue)],
-     sender       : IndexedSeq[Address],
-     changeAddress: Address,
-     fee          : Long,
-     data         : String
-    ): Try[PolyTransfer[P]] =
-    TransferTransaction.createRawTransferParams(stateReader, toReceive, sender, changeAddress, fee, "PolyTransfer").map {
-      case (inputs, outputs) => PolyTransfer[P](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data)
-    }
+  ](stateReader:          StateReader,
+    toReceive:            IndexedSeq[(Address, SimpleValue)],
+    sender:               IndexedSeq[Address],
+    changeAddress:        Address,
+    consolidationAddress: Option[Address],
+    fee:                  Long,
+    data:                 Option[String]
+  ): Try[PolyTransfer[P]] =
+    TransferTransaction
+      .createRawTransferParams(stateReader, toReceive, sender, changeAddress, consolidationAddress, fee, "PolyTransfer")
+      .map { case (inputs, outputs) =>
+        PolyTransfer[P](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data)
+      }
 
-  implicit def jsonEncoder[P <: Proposition]: Encoder[PolyTransfer[P]] = {
-    tx: PolyTransfer[P] =>
-      Map(
-        "txId" -> tx.id.asJson,
-        "txType" -> "PolyTransfer".asJson,
-        "propositionType" -> tx.getPropTypeString.asJson,
-        "newBoxes" -> tx.newBoxes.toSeq.asJson,
-        "boxesToRemove" -> tx.boxIdsToOpen.asJson,
-        "from" -> tx.from.asJson,
-        "to" -> tx.to.asJson,
-        "signatures" -> tx.attestation.asJson,
-        "fee" -> tx.fee.asJson,
-        "timestamp" -> tx.timestamp.asJson,
-        "minting" -> tx.minting.asJson,
-        "data" -> tx.data.asJson
-      ).asJson
+  implicit def jsonEncoder[P <: Proposition]: Encoder[PolyTransfer[P]] = { tx: PolyTransfer[P] =>
+    Map(
+      "txId"            -> tx.id.asJson,
+      "txType"          -> "PolyTransfer".asJson,
+      "propositionType" -> tx.getPropTypeString.asJson,
+      "newBoxes"        -> tx.newBoxes.toSeq.asJson,
+      "boxesToRemove"   -> tx.boxIdsToOpen.asJson,
+      "from"            -> tx.from.asJson,
+      "to"              -> tx.to.asJson,
+      "signatures"      -> tx.attestation.asJson,
+      "fee"             -> tx.fee.asJson,
+      "timestamp"       -> tx.timestamp.asJson,
+      "minting"         -> tx.minting.asJson,
+      "data"            -> tx.data.asJson
+    ).asJson
   }
 
   implicit def jsonDecoder: Decoder[PolyTransfer[_ <: Proposition]] = (c: HCursor) =>
     for {
-      from <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
-      to <- c.downField("to").as[IndexedSeq[(Address, SimpleValue)]]
-      fee <- c.downField("fee").as[Long]
+      from      <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
+      to        <- c.downField("to").as[IndexedSeq[(Address, SimpleValue)]]
+      fee       <- c.downField("fee").as[Long]
       timestamp <- c.downField("timestamp").as[Long]
-      data <- c.downField("data").as[String]
-      propType <- c.downField("propositionType").as[String]
+      data      <- c.downField("data").as[Option[String]]
+      propType  <- c.downField("propositionType").as[String]
     } yield {
       (propType match {
         case PublicKeyPropositionCurve25519.typeString =>

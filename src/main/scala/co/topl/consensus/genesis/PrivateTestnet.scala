@@ -50,7 +50,7 @@ case class PrivateTestnet ( keyGen  : (Int, Option[String]) => Set[PublicKeyProp
       Map(genesisAcct.publicImage -> SignatureCurve25519.genesis),
       0L,
       0L,
-      "",
+      None,
       true)
 
     val txs = Seq(

@@ -1,12 +1,10 @@
 package co.topl.consensus
 
 import co.topl.consensus
-import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
 
-import scala.annotation.tailrec
 import scala.util.{Failure, Try}
 
 //PoS consensus rules checks, throws exception if anything wrong
@@ -105,8 +103,10 @@ class SyntaxBlockValidator extends BlockValidator[Block] {
       case (tx, 0) => tx match {
         case tx: ArbitTransfer[_] if tx.minting =>
           forgerEntitlementCheck(tx, block)
-          require(tx.to.map(_._2.quantity).sum == inflation,
-                  "The inflation amount in the block must match the output of the Arbit rewards transaction")
+          require(tx.to.map(_._2.quantity).sum == inflation, //JAA -this needs to be done more carefully
+            "The inflation amount in the block must match the output of the Arbit rewards transaction")
+          require(tx.data.fold(false)(_.split("_").head == block.parentId.toString),
+            "Arbit reward transactions must contain the parent id of their minting block")
 
         case _ => throw new Error("The first transaction in a block must be a minting ArbitTransfer")
       }
@@ -116,6 +116,8 @@ class SyntaxBlockValidator extends BlockValidator[Block] {
           forgerEntitlementCheck(tx, block)
           require(block.transactions.map(_.fee).sum == tx.to.map(_._2.quantity).sum,
                   "The sum of the fees in the block must match the output of the Poly rewards transaction")
+          require(tx.data.fold(false)(_.split("_").head == block.parentId.toString),
+            "Poly reward transactions must contain the parent id of their minting block")
 
         case _ => throw new Error("The second transaction in a block must be a minting PolyTransfer")
       }
