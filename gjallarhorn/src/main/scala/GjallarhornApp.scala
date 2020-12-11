@@ -4,7 +4,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import crypto.AddressEncoder.NetworkPrefix
 import crypto.{Address, KeyfileCurve25519, PrivateKeyCurve25519}
-import http.{GjallarhornApiRoute, HttpService}
+import http.{GjallarhornApiRoute, HttpService, KeyManagementApi}
 import keymanager.{KeyManagerRef, Keys}
 import requests.{ApiRoute, Requests, RequestsManager}
 import settings.{AppSettings, NetworkType, StartupOpts}
@@ -80,9 +80,12 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
     actorsToStop = Seq(walletManagerRef, requestsManagerRef, keyManagerRef)
 
     val requests: Requests = new Requests(settings.application, requestsManagerRef)
-    val apiRoute: ApiRoute = GjallarhornApiRoute(settings, keyManagerRef, requestsManagerRef, walletManagerRef, requests)
+    val apiRoutes: Seq[ApiRoute] = Seq(
+      GjallarhornApiRoute(settings, keyManagerRef, requestsManagerRef, walletManagerRef, requests),
+      KeyManagementApi(settings, keyManagerRef)
+    )
 
-    val httpService = HttpService(Seq(apiRoute), settings.rpcApi)
+    val httpService = HttpService(apiRoutes, settings.rpcApi)
     val httpHost = settings.rpcApi.bindAddress.getHostName
     val httpPort: Int = settings.rpcApi.bindAddress.getPort
 
@@ -109,6 +112,8 @@ object GjallarhornApp extends Logging {
   def main(args: Array[String]): Unit = {
     new GjallarhornApp(StartupOpts.empty).run()
   }
+
+  def forceStopApplication(code: Int = 1): Nothing = sys.exit(code)
 
   def shutdown(system: ActorSystem, actors: Seq[ActorRef]): Unit = {
     val wallet: Seq[ActorRef] = actors.filter(actor => actor.path.name == "WalletManager")

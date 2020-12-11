@@ -30,8 +30,8 @@ import scala.util.{Failure, Success}
   */
 class GjallarhornRPCSpec extends AsyncFlatSpec
   with Matchers
-  with ScalatestRouteTest
-  with GjallarhornGenerators {
+  with GjallarhornGenerators
+  with ScalatestRouteTest {
 
 //  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
@@ -42,9 +42,6 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   implicit val networkPrefix: NetworkPrefix = 48.toByte
 
   override def createActorSystem(): ActorSystem = ActorSystem("gjallarhornTest", config)
-
-  val http: HttpExt = Http(system)
-  val amount = 10
 
   val keyFileDir = "keyfiles/keyManagerTest"
   val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] =
@@ -57,7 +54,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   }
 
   val addresses: Set[Address] = privateKeys.map(sk => sk.publicImage.address)
-
+  val amount = 10
   val (pk1, sk1) = (addresses.head, privateKeys.head)
   val (pk2, sk2) = (addresses.tail.head, privateKeys.tail.head)
 
@@ -178,29 +175,6 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     }
   }
 
-  it should "successfully get open keyfiles" in {
-    val openKeyfilesRequest = ByteString(
-      s"""
-         |{
-         |   "jsonrpc": "2.0",
-         |   "id": "2",
-         |   "method": "wallet_listOpenKeyfiles",
-         |   "params": [{}]
-         |}
-         """.stripMargin)
-
-    httpPOST(openKeyfilesRequest) ~> route ~> check {
-      val responseString = responseAs[String].replace("\\", "")
-      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
-        case Left(f) => throw f
-        case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          val openKeys: Set[String] = (res \\ "result").head.asArray.get.map(k => k.asString.get).toSet
-          openKeys.contains(pk1.toString) shouldBe true
-      }
-    }
-  }
-
   it should "successfully send online arbit tx" in {
     val createPolyRequest = ByteString(
       s"""
@@ -260,113 +234,6 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     }
   }
 
-  var pubKeyAddr: String = pk1.toString
-
-  it should "successfully generate a keyfile" in {
-    val generateKeyfileRequest = ByteString(
-      s"""
-         |{
-         |   "jsonrpc": "2.0",
-         |   "id": "2",
-         |   "method": "wallet_generateKeyfile",
-         |   "params": [{
-         |      "password": "foo"
-         |   }]
-         |}
-         """.stripMargin)
-
-    httpPOST(generateKeyfileRequest) ~> route ~> check {
-      parse(responseAs[String]) match {
-        case Left(f) => throw f
-        case Right(res: Json) =>
-          val result: Json = (res \\ "result").head
-          pubKeyAddr = (result \\ "address").head.asString.get
-          (res \\ "error").isEmpty shouldBe true
-          result.asObject.isDefined shouldBe true
-      }
-    }
-  }
-
-  val seedPhrase = "stand earth guess employ goose aisle great next embark weapon wonder aisle monitor surface omit guilt model rule"
-
-  it should "successfully import a keyfile through mnemonic phrase" in {
-    val importKeyfileRequest = ByteString(
-      s"""
-         |{
-         |   "jsonrpc": "2.0",
-         |   "id": "2",
-         |   "method": "wallet_importKeyfile",
-         |   "params": [{
-         |      "password": "password",
-         |      "seedPhrase": "$seedPhrase",
-         |      "seedPhraseLang": "en"
-         |   }]
-         |}
-         """.stripMargin)
-
-    httpPOST(importKeyfileRequest) ~> route ~> check {
-      parse(responseAs[String]) match {
-        case Left(f) => throw f
-        case Right(res: Json) =>
-          val result: Json = (res \\ "result").head
-          (res \\ "error").isEmpty shouldBe true
-          result.asObject.isDefined shouldBe true
-      }
-    }
-  }
-
-  it should "successfully lock a Keyfile" in {
-    val lockKeyRequest = ByteString(
-      s"""
-         |{
-         |   "jsonrpc": "2.0",
-         |   "id": "2",
-         |   "method": "wallet_lockKeyfile",
-         |   "params": [{
-         |      "publicKey": "$pubKeyAddr",
-         |      "password": "foo"
-         |   }]
-         |}
-           """.stripMargin)
-
-    httpPOST(lockKeyRequest) ~> route ~> check {
-      val responseString = responseAs[String].replace("\\", "")
-      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
-        case Left(f) => throw f
-        case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          (res \\ "result").head.asObject.isDefined shouldBe true
-      }
-    }
-  }
-
-  it should "successfully unlock a Keyfile" in {
-    val unlockKeyRequest = ByteString(
-      s"""
-         |{
-         |   "jsonrpc": "2.0",
-         |   "id": "2",
-         |   "method": "wallet_unlockKeyfile",
-         |   "params": [{
-         |      "publicKey": "$pubKeyAddr",
-         |      "password": "foo"
-         |   }]
-         |}
-         """.stripMargin)
-
-    httpPOST(unlockKeyRequest) ~> route ~> check {
-      val responseString = responseAs[String].replace("\\", "")
-      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
-        case Left(f) => throw f
-        case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          (res \\ "result").head.asObject.isDefined shouldBe true
-      }
-    }
-  }
-
-
-
   it should "get a successful JSON response from balance request" in {
     Thread.sleep(10000)
     val requestBody = ByteString(
@@ -394,31 +261,6 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
         }
       }
     }
-
-  it should "successfully get mnemonic phrase" in {
-    val mnemonicPhraseRequest = ByteString(
-      s"""
-         |{
-         |   "jsonrpc": "2.0",
-         |   "id": "2",
-         |   "method": "wallet_generateMnemonic",
-         |   "params": [{
-         |      "language": "en"
-         |   }]
-         |}
-         """.stripMargin)
-
-    httpPOST(mnemonicPhraseRequest) ~> route ~> check {
-      val responseString = responseAs[String].replace("\\", "")
-      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
-        case Left(f) => throw f
-        case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          val phrase = ((res \\ "result").head \\ "mnemonicPhrase").head
-          assert(phrase != null)
-      }
-    }
-  }
 
   it should "successfully get wallet boxes" in {
     val mnemonicPhraseRequest = ByteString(
