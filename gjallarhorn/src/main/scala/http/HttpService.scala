@@ -36,9 +36,8 @@ final case class HttpService (apiServices: Seq[ApiRoute], settings: RPCApiSettin
 
   /** a static route for exposing an HTML webpage with the node status */
   private def status: Route =
-    (get & path("status")) {
-      getFromResource("index.html")
-    }
+    path("status")(getFromResource("ui/build/index.html")) ~
+      getFromResourceDirectory("ui/build")
 
 
   /** the api controller, this will parse the JSON body and target the appropriate service for handling the request */
