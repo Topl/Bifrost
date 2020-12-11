@@ -438,7 +438,6 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
         case Right(res: Json) => {
           (res \\ "error").isEmpty shouldBe true
           val phrase = (res \\ "result").head
-          println (res)
           assert (phrase != null)
         }
       }

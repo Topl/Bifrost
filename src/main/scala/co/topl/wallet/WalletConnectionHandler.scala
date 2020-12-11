@@ -95,7 +95,6 @@ class WalletConnectionHandler[
       keys match {
         case Some(addrs) =>
           remoteWalletAddresses = keys
-          println("WCH keys: " + addrs)
           sendRequestApi(balanceRequest(addrs), sender())
         case None => null
       }

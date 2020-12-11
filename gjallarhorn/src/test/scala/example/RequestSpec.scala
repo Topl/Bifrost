@@ -46,7 +46,6 @@ class RequestSpec extends AsyncFlatSpec
   Try(path.createDirectory())
   val password = "pass"
   val genesisPubKey: Address = Address("86th32F6fUxGZi8KLShhQkYxHs3hyDFVh64HSWufQieJSVYXtWAN")
-  println(genesisPubKey)
   val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] = Keys(keyFileDir, KeyfileCurve25519)
   //keyManager.unlockKeyFile(Base58.encode(sk1.publicKeyBytes), password)
 
@@ -194,7 +193,6 @@ class RequestSpec extends AsyncFlatSpec
     val walletBoxes: MMap[String, MMap[String, Json]] =
       Await.result((walletManagerRef ? UpdateWallet((balanceResponse \\ "result").head))
       .mapTo[MMap[String, MMap[String, Json]]], 10.seconds)
-    println("walletBoxes: " + walletBoxes)
     val pubKeyEmptyBoxes: Option[MMap[String, Json]] = walletBoxes.get(pk3.toString)
     pubKeyEmptyBoxes match {
       case Some(map) => assert(map.keySet.isEmpty)

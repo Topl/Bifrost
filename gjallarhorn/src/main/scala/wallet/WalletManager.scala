@@ -25,18 +25,16 @@ class WalletManager(bifrostActorRef: ActorRef)
   import WalletManager._
 
   implicit val timeout: Timeout = 10.seconds
-  var publicKeys: Set[Address] = Set()
-
-  /**
-    * Represents the wallet boxes: as a mapping of publicKeys to a map of its id's mapped to walletBox.
-    * Ex: publicKey1 -> {id1 -> walletBox1, id2 -> walletBox2, ...}, publicKey2 -> {},...
-    */
-  var walletBoxes: MMap[String, MMap[String, Json]] = MMap.empty
-
-  var newestTransactions: Option[String] = None
 
   var connectedToBifrost: Boolean = false
   var networkName: Option[String] = None
+  var publicKeys: Set[Address] = Set()
+
+  //Represents the wallet boxes: as a mapping of publicKeys to a map of its id's mapped to walletBox.
+  //Ex: publicKey1 -> {id1 -> walletBox1, id2 -> walletBox2, ...}, publicKey2 -> {},...
+  var walletBoxes: MMap[String, MMap[String, Json]] = MMap.empty
+
+  var newestTransactions: Option[String] = None
 
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
     log.debug(s"WalletManagerActor: preRestart ${reason.getMessage}")
@@ -52,6 +50,56 @@ class WalletManager(bifrostActorRef: ActorRef)
     walletBoxes = returnVal
   }
 
+  ////////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
+
+  // ----------- CONTEXT
+  override def receive: Receive =
+    initialization orElse
+      nonsense
+
+  private def active: Receive =
+    operational orElse
+      walletManagement orElse
+      nonsense
+
+  private def initialization: Receive = {
+    case GjallarhornStarted =>
+      bifrostActorRef ! s"Remote wallet actor initialized."
+
+    case GetNetwork =>
+      val bifrostResp: Future[Any] =
+        bifrostActorRef ? "Which network is bifrost running?"
+      bifrostResp.pipeTo(sender())
+
+    case YourKeys(pubAddrs) =>
+      publicKeys = pubAddrs
+      initializeWalletBoxes(pubAddrs)
+      val balances: Json = Await.result((bifrostActorRef ? s"My public keys are: $pubAddrs")
+        .mapTo[String].map(_.asJson), 10.seconds)
+      context become active
+      parseAndUpdate(parseResponse(balances))
+  }
+
+  private def operational: Receive = {
+    case msg: String => msgHandling(msg)
+    case GetNewBlock => sender ! newestTransactions
+    case GjallarhornStopped =>
+      val response: String = Await.result((bifrostActorRef ? "Remote wallet actor stopped").mapTo[String], 10.seconds)
+      sender ! response
+  }
+
+  private def walletManagement: Receive = {
+    case UpdateWallet(updatedBoxes) => sender ! parseAndUpdate(updatedBoxes)
+    case GetWallet => sender ! walletBoxes
+  }
+
+
+  private def nonsense: Receive = {
+    case nonsense: Any =>
+      log.warn(s"Got unexpected input $nonsense from ${sender()}")
+  }
+
   /**
     * Handles messages received from Bifrost
     * @param msg - handles "received new wallet" or "new block added" messages.
@@ -65,6 +113,8 @@ class WalletManager(bifrostActorRef: ActorRef)
     }
   }
 
+  ////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
 
   //------------------------------------------------------------------------------------
   //Methods for parsing balance response - UpdateWallet
@@ -205,36 +255,10 @@ class WalletManager(bifrostActorRef: ActorRef)
     }
   }
 
-  override def receive: Receive = {
-    case GjallarhornStarted =>
-      bifrostActorRef ! s"Remote wallet actor initialized."
-
-    case GetNetwork =>
-      val bifrostResp: Future[Any] =
-        bifrostActorRef ? "Which network is bifrost running?"
-      bifrostResp.pipeTo(sender())
-
-    case YourKeys(pubAddrs) =>
-      publicKeys = pubAddrs
-      initializeWalletBoxes(pubAddrs)
-      val balances: Json = Await.result((bifrostActorRef ? s"My public keys are: $pubAddrs")
-        .mapTo[String].map(_.asJson), 10.seconds)
-      parseAndUpdate(parseResponse(balances))
-
-    case msg: String => msgHandling(msg)
-
-    case GetNewBlock => sender ! newestTransactions
-
-    case UpdateWallet(updatedBoxes) => sender ! parseAndUpdate(updatedBoxes)
-
-    case GjallarhornStopped =>
-      val response: String = Await.result((bifrostActorRef ? "Remote wallet actor stopped").mapTo[String], 10.seconds)
-      sender ! response
-
-    case GetWallet => sender ! walletBoxes
-
-  }
 }
+
+////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////// COMPANION SINGLETON ////////////////////////////////
 
 object WalletManager {
 
