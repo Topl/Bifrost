@@ -226,8 +226,11 @@ object TransferTransaction {
       case t: ArbitTransfer[_] if t.minting => // Arbit block rewards
       case t: PolyTransfer[_] if t.minting  => // Poly block rewards
       case t @ _ =>
+        // must provide input state to consume in order to generate new state
+        if (t.minting) require(t.fee > 0L, "Asset minting transactions must have a non-zero positive fee")
+        else require(t.fee >= 0L, "Transfer transactions must have a non-negative fee")
+
         require(t.from.nonEmpty, "Non-block reward transactions must specify at least one input box")
-        require(t.fee > 0L, "Fee must be a non-zero positive value")
         require(t.to.forall(_._2.quantity > 0L), "Amount sent must be greater than 0")
     }
 
