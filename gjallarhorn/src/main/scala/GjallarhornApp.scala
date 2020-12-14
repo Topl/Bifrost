@@ -4,7 +4,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import crypto.AddressEncoder.NetworkPrefix
 import crypto.{Address, KeyfileCurve25519, PrivateKeyCurve25519}
-import http.{GjallarhornApiRoute, HttpService, KeyManagementApi}
+import http.{GjallarhornBifrostApiRoute, GjallarhornOnlyApiRoute, HttpService, KeyManagementApi}
 import keymanager.{KeyManagerRef, Keys}
 import requests.{ApiRoute, Requests, RequestsManager}
 import settings.{AppSettings, NetworkType, StartupOpts}
@@ -25,13 +25,20 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   val keyFileDir: String = settings.application.keyFileDir
 
-  val listener: ActorRef = system.actorOf(Props[DeadLetterListener]())
-  system.eventStream.subscribe(listener, classOf[DeadLetter])
+  //sequence of actors for cleanly shutting down the application
+  private var actorsToStop: Seq[ActorRef] = Seq()
+
+  //hook for initiating the shutdown procedure
+  sys.addShutdownHook(GjallarhornApp.shutdown(system, actorsToStop))
 
   if (settings.application.chainProvider == "") {
     log.info("gjallarhorn running in offline mode.")
+    setupOfflineMode()
   }else{
     log.info("gjallarhorn running in online mode. Trying to connect to Bifrost...")
+    val listener: ActorRef = system.actorOf(Props[DeadLetterListener]())
+    actorsToStop :+ listener
+    system.eventStream.subscribe(listener, classOf[DeadLetter])
     system.actorSelection(s"akka.tcp://${settings.application.chainProvider}/user/walletConnectionHandler")
       .resolveOne().onComplete {
       case Success(actor) =>
@@ -44,14 +51,29 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
     }
   }
 
-  //sequence of actors for cleanly shutting down the application
-   private var actorsToStop: Seq[ActorRef] = Seq()
+  def setupOfflineMode(): Unit = {
+    //TODO: this is the default network - but user can change this.
+    implicit val networkPrefix: NetworkPrefix = 48.toByte
 
-  //hook for initiating the shutdown procedure
-  sys.addShutdownHook(GjallarhornApp.shutdown(system, actorsToStop))
+    //Set up keyManager
+    val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] = Keys(keyFileDir, KeyfileCurve25519)
+    val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", keyManager)
+    //TODO: this is just for testing purposes - should grabs keys from database
+    val privateKeys: Set[PrivateKeyCurve25519] = keyManager.generateNewKeyPairs(2, Some("test")) match {
+      case Success(secrets) => secrets
+      case Failure(ex) => throw new Error (s"Unable to generate new keys: $ex")
+    }
+    privateKeys.foreach(sk => keyManager.exportKeyfile(sk.publicImage.address,"password"))
 
-  def setUpOnlineMode(bifrost: ActorRef): Unit = {
+    val apiRoutes: Seq[ApiRoute] = Seq(
+      GjallarhornOnlyApiRoute(settings, keyManagerRef),
+      KeyManagementApi(settings, keyManagerRef)
+    )
 
+    setupHttpServer(apiRoutes)
+  }
+
+  def setUpOnlineMode(bifrost: ActorRef) (implicit context: ExecutionContextExecutor, system: ActorSystem): Unit = {
     //Set up wallet manager - handshake w Bifrost and get NetworkPrefix
     val walletManagerRef: ActorRef = system.actorOf(
       Props(new WalletManager(bifrost)), name = "WalletManager")
@@ -77,14 +99,19 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
     privateKeys.foreach(sk => keyManager.exportKeyfile(sk.publicImage.address,"password"))
     walletManagerRef ! YourKeys(addresses)
 
-    actorsToStop = Seq(walletManagerRef, requestsManagerRef, keyManagerRef)
+    actorsToStop ++ Seq(walletManagerRef, requestsManagerRef, keyManagerRef)
 
     val requests: Requests = new Requests(settings.application, requestsManagerRef)
     val apiRoutes: Seq[ApiRoute] = Seq(
-      GjallarhornApiRoute(settings, keyManagerRef, requestsManagerRef, walletManagerRef, requests),
+      GjallarhornBifrostApiRoute(settings, keyManagerRef, requestsManagerRef, walletManagerRef, requests),
+      GjallarhornOnlyApiRoute(settings, keyManagerRef),
       KeyManagementApi(settings, keyManagerRef)
     )
 
+    setupHttpServer(apiRoutes)
+  }
+
+  def setupHttpServer(apiRoutes: Seq[ApiRoute]): Unit = {
     val httpService = HttpService(apiRoutes, settings.rpcApi)
     val httpHost = settings.rpcApi.bindAddress.getHostName
     val httpPort: Int = settings.rpcApi.bindAddress.getPort
@@ -128,6 +155,5 @@ object GjallarhornApp extends Logging {
     val termination = system.terminate()
     Await.result(termination, 60.seconds)
     log.warn("Application has been terminated.")
-
   }
 }

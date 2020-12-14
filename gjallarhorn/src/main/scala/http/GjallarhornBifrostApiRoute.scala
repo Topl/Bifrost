@@ -1,6 +1,6 @@
 package http
 
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
+import akka.actor.{ActorRef, ActorRefFactory}
 import akka.pattern.ask
 import crypto.Address
 import crypto.AddressEncoder.NetworkPrefix
@@ -17,12 +17,12 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
 
-case class GjallarhornApiRoute(settings: AppSettings,
-                               keyManager: ActorRef,
-                               requestsManager: ActorRef,
-                               walletManager: ActorRef,
-                               requests: Requests)
-                              (implicit val context: ActorRefFactory, np: NetworkPrefix)
+case class GjallarhornBifrostApiRoute(settings: AppSettings,
+                                      keyManager: ActorRef,
+                                      requestsManager: ActorRef,
+                                      walletManager: ActorRef,
+                                      requests: Requests)
+                                     (implicit val context: ActorRefFactory, np: NetworkPrefix)
   extends ApiRoute {
 
 
@@ -31,12 +31,10 @@ case class GjallarhornApiRoute(settings: AppSettings,
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
     case (method, params, id) if method == s"${namespace.name}_createTransaction" => createTransaction(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_signTx" => signTx(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_broadcastTx"      => broadcastTx(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_networkType" => Future{Map("networkPrefix" -> np).asJson}
 
+    case (method, params, id) if method == s"${namespace.name}_balances" => balances(params.head)
     case (method, params, id) if method == s"${namespace.name}_getWalletBoxes" => getWalletBoxes
-    case (method, params, id) if method == s"${namespace.name}_balances" => balances(params.head, id)
   }
 
   /**
@@ -68,24 +66,6 @@ case class GjallarhornApiRoute(settings: AppSettings,
     response
   }
 
-  /**
-    * Signs a transaction.
-    * @param params - includes the singing keys, prototype, and message.
-    * @param id
-    * @return
-    */
-  private def signTx(params: Json, id: String): Future[Json] = {
-    val tx = (params \\ "rawTx").head
-    val messageToSign = (params \\ "messageToSign").head
-    (for {
-      signingKeys <- (params \\ "signingKeys").head.as[List[String]]
-    } yield {
-      (keyManager ? SignTx(tx, signingKeys, messageToSign)).mapTo[Json]
-    }) match {
-      case Right(value) => value
-      case Left(error) => throw new Exception(s"error parsing signing keys: $error")
-    }
-  }
 
   /**
     * Broadcasts a transaction
@@ -100,8 +80,15 @@ case class GjallarhornApiRoute(settings: AppSettings,
     }
   }
 
-  private def balances(params: Json, id: String): Future[Json] = {
-    val walletResponse: MMap[String, MMap[String, Json]] = Await.result((walletManager ? GetWallet).mapTo[MMap[String, MMap[String, Json]]], 10.seconds)
+  private def getWalletBoxes: Future[Json] = {
+    val walletResponse = Await.result((walletManager ? GetWallet).mapTo[MMap[String, MMap[String, Json]]], 10.seconds)
+    Future{walletResponse.asJson}
+  }
+
+
+  private def balances(params: Json): Future[Json] = {
+    val walletResponse: MMap[String, MMap[String, Json]] = Await.result((walletManager ? GetWallet)
+      .mapTo[MMap[String, MMap[String, Json]]], 10.seconds)
     var publicKeys: Set[String] = walletResponse.keySet.toSet
     if ((params \\ "addresses").nonEmpty) {
       publicKeys = (params \\ "addresses").head.asArray.get.map(k => k.asString.get).toSet
@@ -111,7 +98,7 @@ case class GjallarhornApiRoute(settings: AppSettings,
       val getBoxes: Option[MMap[String, Json]] = walletResponse.get(addr)
       var assets: MMap[String, Long] = MMap.empty
       getBoxes match {
-        case Some(boxes) => {
+        case Some(boxes) =>
           var polyBalance: Long = 0
           var arbitBalance: Long = 0
           boxes.foreach(box => {
@@ -130,7 +117,6 @@ case class GjallarhornApiRoute(settings: AppSettings,
             "ArbitBox" -> arbitBalance,
             "PolyBox" -> polyBalance
           )
-        }
         case None => null
       }
       balances.put(Address(addr), assets)
@@ -138,10 +124,6 @@ case class GjallarhornApiRoute(settings: AppSettings,
     Future{balances.asJson}
   }
 
-  private def getWalletBoxes: Future[Json] = {
-    val walletResponse = Await.result((walletManager ? GetWallet).mapTo[MMap[String, MMap[String, Json]]], 10.seconds)
-    Future{walletResponse.asJson}
-  }
 
 }
 
