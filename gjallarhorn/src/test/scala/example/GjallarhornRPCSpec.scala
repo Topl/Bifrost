@@ -242,12 +242,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |   "jsonrpc": "2.0",
          |   "id": "1",
          |   "method": "wallet_balances",
-         |   "params": [{
-         |      "method": "topl_balances",
-         |      "params": [{
-         |            "addresses": ["$pk1", "$pk2"]
-         |       }]
-         |   }]
+         |   "params": [{}]
          |}
       """.stripMargin)
 

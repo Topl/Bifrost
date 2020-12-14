@@ -101,17 +101,41 @@ case class GjallarhornApiRoute(settings: AppSettings,
   }
 
   private def balances(params: Json, id: String): Future[Json] = {
-    val publicKeys: Set[String] = (params \\ "addresses").head.asArray.get.map(k => k.asString.get).toSet
-    val requestBody = Map(
-      "jsonrpc" -> "2.0".asJson,
-      "id" -> "2".asJson,
-      "method"-> (params \\ "method").head.asJson,
-      "params" -> (params \\ "params").head.asJson
-    ).asJson
-    settings.application.communicationMode match {
-      case "useTcp" => Future{requests.getBalances(publicKeys)}
-      case "useAkka" => (requestsManager ? BifrostRequest(requestBody)).mapTo[String].map(_.asJson)
+    val walletResponse: MMap[String, MMap[String, Json]] = Await.result((walletManager ? GetWallet).mapTo[MMap[String, MMap[String, Json]]], 10.seconds)
+    var publicKeys: Set[String] = walletResponse.keySet.toSet
+    if ((params \\ "addresses").nonEmpty) {
+      publicKeys = (params \\ "addresses").head.asArray.get.map(k => k.asString.get).toSet
     }
+    val balances: MMap[Address, MMap[String, Long]] = MMap.empty
+    publicKeys.foreach(addr => {
+      val getBoxes: Option[MMap[String, Json]] = walletResponse.get(addr)
+      var assets: MMap[String, Long] = MMap.empty
+      getBoxes match {
+        case Some(boxes) => {
+          var polyBalance: Long = 0
+          var arbitBalance: Long = 0
+          boxes.foreach(box => {
+            for {
+              boxType <- (box._2 \\ "type").head.as[String]
+              value <- (box._2 \\ "value").head.as[Long]
+            } yield {
+              if (boxType == "ArbitBox") {
+                arbitBalance = arbitBalance + value
+              } else if (boxType == "PolyBox") {
+                polyBalance = polyBalance + value
+              }
+            }
+          })
+          assets = MMap(
+            "ArbitBox" -> arbitBalance,
+            "PolyBox" -> polyBalance
+          )
+        }
+        case None => null
+      }
+      balances.put(Address(addr), assets)
+    })
+    Future{balances.asJson}
   }
 
   private def getWalletBoxes: Future[Json] = {
