@@ -9,7 +9,7 @@ import akka.util.{ByteString, Timeout}
 import crypto.{Address, KeyfileCurve25519, PrivateKeyCurve25519}
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
-import http.{GjallarhornBifrostApiRoute, HttpService}
+import http.{GjallarhornBifrostApiRoute, GjallarhornOnlyApiRoute, HttpService}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import crypto.AddressEncoder.NetworkPrefix
 import io.circe.Json
@@ -66,8 +66,10 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   walletManagerRef ! YourKeys(addresses)
   val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager(bifrostActor)), name = "RequestsManager")
   val requests: Requests = new Requests(settings.application, requestsManagerRef)
-  val apiRoute: ApiRoute = GjallarhornBifrostApiRoute(settings, keyManagerRef, requestsManagerRef, walletManagerRef, requests)
-  val route: Route = HttpService(Seq(apiRoute), settings.rpcApi).compositeRoute
+  val bifrostApiRoute: ApiRoute = GjallarhornBifrostApiRoute(settings, keyManagerRef, requestsManagerRef,
+    walletManagerRef, requests)
+  val gjalOnlyApiRoute: ApiRoute = GjallarhornOnlyApiRoute(settings, keyManagerRef)
+  val route: Route = HttpService(Seq(bifrostApiRoute, gjalOnlyApiRoute), settings.rpcApi).compositeRoute
 
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
