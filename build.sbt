@@ -67,7 +67,7 @@ val testingDependencies = Seq(
 libraryDependencies ++= Seq(
   "com.chuusai" %% "shapeless" % "2.3.3",
   "org.scorexfoundation" %% "scrypto" % "1.3.3",
-  "com.google.guava" % "guava" % "29.0-jre",
+  "com.google.guava" % "guava" % "30.1-jre",
   "com.iheart" %% "ficus" % "1.4.7",
   "org.rudogma" %% "supertagged" % "1.4",
   "com.joefkelley" %% "argyle" % "1.0.0",
