@@ -2,9 +2,10 @@ package co.topl.utils
 
 import java.io.File
 import java.time.Instant
-import co.topl.attestation.{Address, Evidence, PrivateKeyCurve25519, PublicKeyPropositionCurve25519, SignatureCurve25519, ThresholdPropositionCurve25519}
+import co.topl.attestation.{Address, Evidence, EvidenceProducer, KnowledgeProposition, PrivateKeyCurve25519, Proof, ProofOfKnowledge, Proposition, PublicKeyPropositionCurve25519, Secret, SignatureCurve25519, ThresholdPropositionCurve25519}
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.EvidenceProducer.Syntax._
+import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.consensus.KeyRing
 import co.topl.crypto.KeyfileCurve25519
 import co.topl.modifier.ModifierId
@@ -33,6 +34,9 @@ import scala.util.{Random, Try}
   * Created by cykoz on 4/12/17.
   */
 trait CoreGenerators extends Logging {
+
+  type P = Proposition
+  type S = Secret
 
   implicit val networkPrefix: NetworkPrefix = PrivateNet().netPrefix
 
@@ -256,105 +260,12 @@ trait CoreGenerators extends Logging {
     ProgramId.create(seed)
   }
 
-  /*
-  lazy val programGen: Gen[Program] = for {
-    producer <- propositionGen
-    investor <- propositionGen
-    hub <- propositionGen
-    storage <- jsonGen()
-    status <- jsonGen()
-    executionBuilder <- validExecutionBuilderGen().map(_.json)
-    id <- genBytesList(Blake2b256.DigestSize)
-  } yield {
-    Program(Map(
-      "parties" -> Map(
-        Base58.encode(producer.pubKeyBytes) -> "producer",
-        Base58.encode(investor.pubKeyBytes) -> "investor",
-        Base58.encode(hub.pubKeyBytes) -> "hub"
-      ).asJson,
-      "storage" -> Map("status" -> status, "other" -> storage).asJson,
-      "executionBuilder" -> executionBuilder,
-      "lastUpdated" -> System.currentTimeMillis().asJson
-    ).asJson, id)
-  }
-   */
-
   def preFeeBoxGen(minFee: Long = 0, maxFee: Long = Long.MaxValue): Gen[(Nonce, Long)] = for {
     nonce <- Gen.choose(Long.MinValue, Long.MaxValue)
     amount <- Gen.choose(minFee, maxFee)
   } yield {
     (nonce, amount)
   }
-
-  /*
-  lazy val programCreationGen: Gen[ProgramCreation] = for {
-    executionBuilder <- validExecutionBuilderGen()
-    readOnlyStateBoxes <- stateBoxGen
-    numInvestmentBoxes <- positiveTinyIntGen
-    owner <- propositionGen
-    numFeeBoxes <- positiveTinyIntGen
-    timestamp <- positiveLongGen
-    data <- stringGen
-  } yield {
-    ProgramCreation(
-      executionBuilder,
-      Seq(readOnlyStateBoxes.value),
-      (0 until numInvestmentBoxes)
-        .map { _ => sampleUntilNonEmpty(positiveLongGen) -> sampleUntilNonEmpty(positiveLongGen) },
-      owner,
-      Map(owner -> signatureGen.sample.get),
-      Map(owner -> (0 until numFeeBoxes).map { _ => sampleUntilNonEmpty(preFeeBoxGen()) }),
-      Map(owner -> sampleUntilNonEmpty(positiveTinyIntGen).toLong),
-      timestamp,
-      data)
-  }
-
-  lazy val programMethodExecutionGen: Gen[ProgramMethodExecution] = for {
-    executionBox <- executionBoxGen
-    sig <- signatureGen
-    numFeeBoxes <- positiveTinyIntGen
-    stateNonce <- positiveLongGen
-    codeNonce <- positiveLongGen
-    timestamp <- positiveLongGen
-    party <- propositionGen
-    data <- stringGen
-    sbProgramId <- programIdGen
-    cbProgramId <- programIdGen
-  } yield {
-    val methodName = "inc"
-    val parameters = JsonObject.empty.asJson
-    val state = StateBox(party, stateNonce, sbProgramId, Map("a" -> 0).asJson)
-    val code = CodeBox(party, codeNonce, cbProgramId,
-      Seq("inc = function() { a += 1; }"), Map("inc" -> Seq()))
-
-    ProgramMethodExecution(
-      executionBox,
-      Seq(state),
-      Seq(code),
-      methodName,
-      parameters,
-      party,
-      Map(party -> sig),
-      Map(party -> (0 until numFeeBoxes).map { _ => sampleUntilNonEmpty(preFeeBoxGen()) }),
-      Map(party -> sampleUntilNonEmpty(positiveTinyIntGen).toLong),
-      timestamp,
-      data)
-  }
-
-  lazy val programTransferGen: Gen[ProgramTransfer] = for {
-    from <- propositionGen
-    to <- propositionGen
-    signature <- signatureGen
-    executionBox <- executionBoxGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    data <- stringGen
-  } yield {
-
-    ProgramTransfer(from, to, signature, executionBox, fee, timestamp, data)
-  }
-   */
-
 
   lazy val fromGen: Gen[(Address, Nonce)] = for {
     address <- addressGen
@@ -391,36 +302,42 @@ trait CoreGenerators extends Logging {
   lazy val polyTransferGen: Gen[PolyTransfer[_]] = for {
     from <- fromSeqGen
     to <- toSeqGen
-    signatures <- sigSeqGen
+    //generate type of proposition
+    propType <- propTypes
     fee <- positiveLongGen
     timestamp <- positiveLongGen
     data <- stringGen
   } yield {
-    PolyTransfer(from, to, from.map(a => a._1).zip(signatures).toMap, fee, timestamp, data)
+
+    //generate set of keys with proposition
+    val sigs = attestationGen(propType)
+    //use generated keys to create signature(s)
+
+    PolyTransfer(from, to, sigs, fee, timestamp, data)
   }
 
   lazy val arbitTransferGen: Gen[ArbitTransfer[_]] = for {
     from <- fromSeqGen
     to <- toSeqGen
-    signatures <- sigSeqGen
+    attestation <- attestationGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
     data <- stringGen
   } yield {
-    ArbitTransfer(from, to, from.map(a => a._1).zip(signatures).toMap, fee, timestamp, data)
+    ArbitTransfer(from, to, attestation, fee, timestamp, data)
   }
 
   lazy val assetTransferGen: Gen[AssetTransfer[_]] = for {
     from <- fromSeqGen
     to <- toSeqGen
-    signatures <- sigSeqGen
+    attestation <- attestationGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
-    hub <- propositionGen
+    issuer <- addressGen
     assetCode <- stringGen
     data <- stringGen
   } yield {
-    AssetTransfer(from, to, from.map(a => a._1).zip(signatures).toMap, hub, assetCode, fee, timestamp, data)
+    AssetTransfer(from, to, attestation, issuer, assetCode, fee, timestamp, data, minting = true)
   }
 
   /*
@@ -438,6 +355,40 @@ trait CoreGenerators extends Logging {
     AssetCreation(to, Map(sender._2 -> sig), assetCode, sender._2, fee, timestamp, data)
   }
    */
+
+  lazy val publicKeyPropositionCurve25519Gen: Gen[(Set[PrivateKeyCurve25519], PublicKeyPropositionCurve25519)] =
+    key25519Gen.map(key => Set(key._1) -> key._2)
+
+  lazy val thresholdPropositionCurve25519Gen: Gen[(Set[PrivateKeyCurve25519], ThresholdPropositionCurve25519)] = for {
+    numKeys <- positiveMediumIntGen
+    threshold <- positiveTinyIntGen
+  } yield {
+    val setOfKeys = (0 until numKeys)
+      .map { _ =>
+        val key = sampleUntilNonEmpty(key25519Gen)
+        (key._1, key._2)
+      }
+      .foldLeft((Set[PrivateKeyCurve25519](), Set[PublicKeyPropositionCurve25519]())) { ( set, cur) =>
+        (set._1 + cur._1, set._2 + cur._2)
+      }
+    val props = SortedSet[PublicKeyPropositionCurve25519]() ++ setOfKeys._2
+    val thresholdProp = ThresholdPropositionCurve25519(threshold, props)
+
+    (setOfKeys._1, thresholdProp)
+  }
+
+  lazy val propTypes: Gen[String] = sampleUntilNonEmpty(Gen.oneOf(
+    PublicKeyPropositionCurve25519.typeString,
+    ThresholdPropositionCurve25519.typeString))
+
+  lazy val keyPairGen: Gen[Set[_ <: Secret]] = for {
+    propType <- propTypes
+  } yield {
+    propType match {
+      case PublicKeyPropositionCurve25519.typeString => publicKeyPropositionCurve25519Gen.sample.get._1
+      case ThresholdPropositionCurve25519.typeString => thresholdPropositionCurve25519Gen.sample.get._1
+    }
+  }
 
   lazy val oneOfNPropositionGen: Gen[(Set[PrivateKeyCurve25519], ThresholdPropositionCurve25519)] = for {
     n <- positiveTinyIntGen
@@ -463,8 +414,7 @@ trait CoreGenerators extends Logging {
   }
 
   val transactionTypes: Seq[Gen[TX]] =
-    Seq(polyTransferGen, arbitTransferGen, assetTransferGen/*, assetCreationGen,
-        programMethodExecutionGen, programCreationGen, programTransferGen*/)
+    Seq(polyTransferGen, arbitTransferGen, assetTransferGen)
 
   lazy val bifrostTransactionSeqGen: Gen[Seq[TX]] = for {
     seqLen <- positiveMediumIntGen

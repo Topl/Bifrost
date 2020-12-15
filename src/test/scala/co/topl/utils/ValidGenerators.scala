@@ -1,5 +1,6 @@
 package co.topl.utils
 
+import co.topl.attestation.{KnowledgeProposition, PrivateKeyCurve25519, Proof, Proposition, PublicKeyPropositionCurve25519, Secret, ThresholdPropositionCurve25519}
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction._
 import co.topl.nodeView.state.box.TokenBox.Value
@@ -8,6 +9,8 @@ import com.google.common.primitives.Longs
 import io.circe.syntax._
 import org.scalacheck.Gen
 import scorex.crypto.hash.Blake2b256
+
+import scala.collection.SortedSet
 
 trait ValidGenerators extends CoreGenerators {
 
@@ -44,13 +47,14 @@ trait ValidGenerators extends CoreGenerators {
     fee <- positiveLongGen
     timestamp <- positiveLongGen
     data <- stringGen
+    attestation <- attestationGen
   } yield {
     val fromKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val from = IndexedSeq((fromKeyPairs._1, testingValue))
     val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val to = IndexedSeq((toKeyPairs._2, 4L))
 
-    PolyTransfer(from, to, fee, timestamp, data)
+    PolyTransfer(from, to, attestation, fee, timestamp, data)
   }
 
   private val testingValue: Value = Longs
@@ -60,6 +64,7 @@ trait ValidGenerators extends CoreGenerators {
   lazy val validArbitTransferGen: Gen[ArbitTransfer[_]] = for {
     _ <- fromSeqGen
     _ <- toSeqGen
+    attestation <- attestationGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
     data <- stringGen
@@ -69,12 +74,13 @@ trait ValidGenerators extends CoreGenerators {
     val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val to = IndexedSeq((toKeyPairs._2, 4L))
 
-    ArbitTransfer(from, to, fee, timestamp, data)
+    ArbitTransfer(from, to, attestation, fee, timestamp, data)
   }
 
   lazy val validAssetTransferGen: Gen[AssetTransfer[_]] = for {
     _ <- fromSeqGen
     _ <- toSeqGen
+    attestation <- attestationGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
     hub <- propositionGen
@@ -86,7 +92,7 @@ trait ValidGenerators extends CoreGenerators {
     val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val to = IndexedSeq((toKeyPairs._2, 4L))
 
-    AssetTransfer.createRaw(from, to, hub, assetCode, fee, timestamp, data)
+    AssetTransfer(from, to, attestation, hub, assetCode, fee, timestamp, data)
   }
 
   /*
