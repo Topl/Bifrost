@@ -1,6 +1,7 @@
 package co.topl.utils
 
-import co.topl.attestation.{KnowledgeProposition, PrivateKeyCurve25519, Proof, Proposition, PublicKeyPropositionCurve25519, Secret, ThresholdPropositionCurve25519}
+import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
+import co.topl.attestation.{EvidenceProducer, KnowledgeProposition, PrivateKeyCurve25519, Proof, ProofOfKnowledge, Proposition, PublicKeyPropositionCurve25519, Secret, SignatureCurve25519, ThresholdPropositionCurve25519}
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction._
 import co.topl.nodeView.state.box.TokenBox.Value
@@ -44,17 +45,18 @@ trait ValidGenerators extends CoreGenerators {
   }
 
   lazy val validPolyTransferGen: Gen[PolyTransfer[_]] = for {
+    from <- fromSeqGen
+    to <- toSeqGen
+    attestation <- attestationGen
+    key <- publicKeyPropositionCurve25519Gen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
     data <- stringGen
-    attestation <- attestationGen
   } yield {
-    val fromKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
-    val from = IndexedSeq((fromKeyPairs._1, testingValue))
-    val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
-    val to = IndexedSeq((toKeyPairs._2, 4L))
 
-    PolyTransfer(from, to, attestation, fee, timestamp, data)
+    val tx = PolyTransfer(from, to, attestation, fee, timestamp, data)
+    val sig = key._1.sign(tx.messageToSign)
+    tx.copy(attestation = Map(key._2 -> sig))
   }
 
   private val testingValue: Value = Longs
@@ -62,37 +64,29 @@ trait ValidGenerators extends CoreGenerators {
       .take(Longs.BYTES))
 
   lazy val validArbitTransferGen: Gen[ArbitTransfer[_]] = for {
-    _ <- fromSeqGen
-    _ <- toSeqGen
+    from <- fromSeqGen
+    to <- toSeqGen
     attestation <- attestationGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
     data <- stringGen
   } yield {
-    val fromKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
-    val from = IndexedSeq((fromKeyPairs._1, testingValue))
-    val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
-    val to = IndexedSeq((toKeyPairs._2, 4L))
 
     ArbitTransfer(from, to, attestation, fee, timestamp, data)
   }
 
   lazy val validAssetTransferGen: Gen[AssetTransfer[_]] = for {
-    _ <- fromSeqGen
-    _ <- toSeqGen
+    from <- fromSeqGen
+    to <- toSeqGen
     attestation <- attestationGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
-    hub <- propositionGen
+    issuer <- addressGen
     assetCode <- stringGen
     data <- stringGen
   } yield {
-    val fromKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
-    val from = IndexedSeq((fromKeyPairs._1, testingValue))
-    val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
-    val to = IndexedSeq((toKeyPairs._2, 4L))
 
-    AssetTransfer(from, to, attestation, hub, assetCode, fee, timestamp, data)
+    AssetTransfer(from, to, attestation, issuer, assetCode, fee, timestamp, data, minting = true)
   }
 
   /*

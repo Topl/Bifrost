@@ -1,17 +1,14 @@
 package co.topl.utils
 
-import java.io.File
-import java.time.Instant
-import co.topl.attestation.{Address, Evidence, EvidenceProducer, KnowledgeProposition, PrivateKeyCurve25519, Proof, ProofOfKnowledge, Proposition, PublicKeyPropositionCurve25519, Secret, SignatureCurve25519, ThresholdPropositionCurve25519}
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
+import co.topl.attestation._
 import co.topl.consensus.KeyRing
 import co.topl.crypto.KeyfileCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
-import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction._
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
 import co.topl.nodeView.state.box.Box.Nonce
@@ -27,6 +24,8 @@ import org.scalacheck.{Arbitrary, Gen}
 import scorex.crypto.signatures.{Curve25519, Signature}
 import scorex.util.encode.Base58
 
+import java.io.File
+import java.time.Instant
 import scala.collection.SortedSet
 import scala.util.{Random, Try}
 
@@ -102,7 +101,7 @@ trait CoreGenerators extends Logging {
     }
   }
 
-  lazy val stringGen: Gen[String] = Gen.alphaNumStr.suchThat(!_.isEmpty)
+  lazy val stringGen: Gen[String] = Gen.alphaNumStr.suchThat(_.nonEmpty)
 
   val jsonTypes: Seq[String] = Seq("Object", "Array", "Boolean", "String", "Number")
 
@@ -299,24 +298,22 @@ trait CoreGenerators extends Logging {
     (0 until seqLen) map { _ => sampleUntilNonEmpty(signatureGen) }
   }
 
-  lazy val polyTransferGen: Gen[PolyTransfer[_]] = for {
+  lazy val polyTransferGen: Gen[PolyTransfer[_ <: Proposition]] = for {
     from <- fromSeqGen
     to <- toSeqGen
-    //generate type of proposition
-    propType <- propTypes
+    attestation <- attestationGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
     data <- stringGen
   } yield {
 
     //generate set of keys with proposition
-    val sigs = attestationGen(propType)
     //use generated keys to create signature(s)
 
-    PolyTransfer(from, to, sigs, fee, timestamp, data)
+    PolyTransfer(from, to, attestation, fee, timestamp, data)
   }
 
-  lazy val arbitTransferGen: Gen[ArbitTransfer[_]] = for {
+  lazy val arbitTransferGen: Gen[ArbitTransfer[_ <: Proposition]] = for {
     from <- fromSeqGen
     to <- toSeqGen
     attestation <- attestationGen
@@ -327,7 +324,7 @@ trait CoreGenerators extends Logging {
     ArbitTransfer(from, to, attestation, fee, timestamp, data)
   }
 
-  lazy val assetTransferGen: Gen[AssetTransfer[_]] = for {
+  lazy val assetTransferGen: Gen[AssetTransfer[_ <: Proposition]] = for {
     from <- fromSeqGen
     to <- toSeqGen
     attestation <- attestationGen
@@ -356,8 +353,8 @@ trait CoreGenerators extends Logging {
   }
    */
 
-  lazy val publicKeyPropositionCurve25519Gen: Gen[(Set[PrivateKeyCurve25519], PublicKeyPropositionCurve25519)] =
-    key25519Gen.map(key => Set(key._1) -> key._2)
+  lazy val publicKeyPropositionCurve25519Gen: Gen[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] =
+    key25519Gen.map(key => key._1 -> key._2)
 
   lazy val thresholdPropositionCurve25519Gen: Gen[(Set[PrivateKeyCurve25519], ThresholdPropositionCurve25519)] = for {
     numKeys <- positiveMediumIntGen
@@ -381,13 +378,22 @@ trait CoreGenerators extends Logging {
     PublicKeyPropositionCurve25519.typeString,
     ThresholdPropositionCurve25519.typeString))
 
-  lazy val keyPairGen: Gen[Set[_ <: Secret]] = for {
+  lazy val keyPairGen: Gen[(Set[_ <: Secret], _ <: KnowledgeProposition[_ <: Secret])] = for {
     propType <- propTypes
   } yield {
     propType match {
-      case PublicKeyPropositionCurve25519.typeString => publicKeyPropositionCurve25519Gen.sample.get._1
-      case ThresholdPropositionCurve25519.typeString => thresholdPropositionCurve25519Gen.sample.get._1
+      case PublicKeyPropositionCurve25519.typeString =>
+        val key = publicKeyPropositionCurve25519Gen.sample.get
+        Set(key._1) -> key._2
+      case ThresholdPropositionCurve25519.typeString =>
+        thresholdPropositionCurve25519Gen.sample.get
     }
+  }
+
+  lazy val attestationGen: Gen[Map[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]] = for {
+    prop <- propositionGen
+  } yield {
+    Map(prop -> SignatureCurve25519.empty)
   }
 
   lazy val oneOfNPropositionGen: Gen[(Set[PrivateKeyCurve25519], ThresholdPropositionCurve25519)] = for {
@@ -413,10 +419,10 @@ trait CoreGenerators extends Logging {
     ((0 until seqLen) map { _ => sampleUntilNonEmpty(key25519Gen) }).toSet
   }
 
-  val transactionTypes: Seq[Gen[TX]] =
+  val transactionTypes: Seq[Gen[Transaction.TX]] =
     Seq(polyTransferGen, arbitTransferGen, assetTransferGen)
 
-  lazy val bifrostTransactionSeqGen: Gen[Seq[TX]] = for {
+  lazy val bifrostTransactionSeqGen: Gen[Seq[Transaction.TX]] = for {
     seqLen <- positiveMediumIntGen
   } yield {
     0 until seqLen map {
