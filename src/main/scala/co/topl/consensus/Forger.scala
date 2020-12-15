@@ -127,6 +127,7 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
     case ImportKey(password, mnemonic, lang) => sender() ! keyRing.importPhrase(password, mnemonic, lang)
     case ListKeys                            => sender() ! keyRing.addresses
     //TODO: JAA - add route to update rewards address
+    // TODO: JAA - add route to start forging
   }
 
   private def nonsense: Receive = { case nonsense: Any =>
@@ -141,6 +142,8 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
   /** Helper function to enable private forging if we can expects keys in the key ring */
   private def checkPrivateForging(): Unit =
     if (appContext.networkType.startWithForging && keyRing.addresses.nonEmpty) self ! StartForging
+    else if (appContext.networkType.startWithForging)
+      log.warn("Forging process not started since the key ring is empty")
 
   /** Schedule a forging attempt */
   private def scheduleForgingAttempt(): Unit = {
