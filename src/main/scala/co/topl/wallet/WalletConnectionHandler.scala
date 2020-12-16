@@ -3,7 +3,7 @@ package co.topl.wallet
 import akka.actor.{Actor, ActorRef, ActorSystem, ExtendedActorSystem, Props}
 import akka.pattern.pipe
 import akka.util.{ByteString, Timeout}
-import co.topl.attestation.Address
+import co.topl.attestation.{Address, AddressEncoder}
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.http.api.endpoints.{NodeViewApiEndpoint, TransactionApiEndpoint}
 import co.topl.modifier.block.BloomFilter.BloomTopic
@@ -18,7 +18,7 @@ import io.circe.syntax._
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Success
+import scala.util.{Failure, Success}
 
 /** Manages the communication between Bifrost and a running wallet.
   * @param settings - the current AppSettings from Bifrost.
@@ -96,7 +96,7 @@ class WalletConnectionHandler[
         case Some(addrs) =>
           remoteWalletAddresses = keys
           sendRequestApi(balanceRequest(addrs), sender())
-        case None => null
+        case None => throw new Error ("No keys found!")
       }
     }
 
@@ -178,18 +178,14 @@ class WalletConnectionHandler[
       println("Remote wallet has no keys!")
       None
     } else {
-      val keysArr: Array[String] = keys.split(",")
-      val keystrings = keysArr
-        .map(key =>
-          if (keysArr.indexOf(key) == 0)
-            key.substring("Set(".length)
-          else if (keysArr.indexOf(key) == keysArr.length - 1)
-            key.substring(1, key.length - 1)
-          else key.substring(1)
-        )
-        .toSet
+      val keysArr: Array[String] = keys.substring("Set(".length, keys.length-1).split(",")
+      val keystrings = keysArr.map(key => key.trim).toSet
 
-      Some(keystrings.map(key => Address(key)))
+      Some(keystrings.map(key =>
+        AddressEncoder.fromString(key) match {
+          case Success(addr) => addr
+          case Failure(ex)   => throw new Error (s"The key: $key cannot be converted into an address: $ex")
+        }))
     }
   }
 

@@ -23,13 +23,13 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   implicit val context: ExecutionContextExecutor = system.dispatcher
   implicit val timeout: Timeout = 10.seconds
 
-  log.info("gjallarhorn running in offline mode.")
+  log.info(s"${Console.MAGENTA} Gjallarhorn running in offline mode.")
 
   //TODO: this is the default network - but user can change this.
   //implicit val networkPrefix: NetworkPrefix = 48.toByte
 
   //sequence of actors for cleanly shutting down the application
-  private val actorsToStop: Seq[ActorRef] = Seq()
+  private var actorsToStop: Seq[ActorRef] = Seq()
 
   //Set up keyManager
   private val keyFileDir: String = settings.application.keyFileDir
@@ -50,16 +50,17 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   if (settings.application.chainProvider != "") {
     log.info("gjallarhorn attempting to run in online mode. Trying to connect to Bifrost...")
     val listener: ActorRef = system.actorOf(Props[DeadLetterListener]())
-    actorsToStop :+ listener
+    actorsToStop = actorsToStop :+ listener
     system.eventStream.subscribe(listener, classOf[DeadLetter])
     system.actorSelection(s"akka.tcp://${settings.application.chainProvider}/user/walletConnectionHandler")
       .resolveOne().onComplete {
       case Success(actor) =>
-        log.info(s"bifrst actor ref was found: $actor")
+        log.info(s"${Console.MAGENTA} Bifrst actor ref was found: $actor")
         setUpOnlineMode(actor)
       case Failure(ex) =>
         log.error(s"bifrost actor ref not found at: akka.tcp://${settings.application.chainProvider}. " +
           s"Continuing to run in offline mode.")
+        setUpHttp()
     }
   }
 
@@ -70,36 +71,39 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
     walletManagerRef ! GjallarhornStarted
 
     val bifrostResponse = Await.result((walletManagerRef ? GetNetwork).mapTo[String], 10.seconds)
+    log.info(bifrostResponse)
     val networkName = bifrostResponse.split("Bifrost is running on").tail.head.replaceAll("\\s", "")
     keyManagerRef ! ChangeNetwork(networkName)
     walletManagerRef ! KeyManagerReady(keyManagerRef)
     val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager(bifrost)), name = "RequestsManager")
     val requests: Requests = new Requests(settings.application, requestsManagerRef, keyManagerRef)
 
-    actorsToStop ++ Seq(walletManagerRef, requestsManagerRef, keyManagerRef)
-    apiRoutes :+ GjallarhornBifrostApiRoute(settings, keyManagerRef, requestsManagerRef, walletManagerRef, requests)
+    actorsToStop = actorsToStop ++ Seq(walletManagerRef, requestsManagerRef, keyManagerRef)
+    apiRoutes = apiRoutes :+
+      GjallarhornBifrostApiRoute(settings, keyManagerRef, requestsManagerRef, walletManagerRef, requests)
+    setUpHttp()
   }
 
-  //hook for initiating the shutdown procedure
-  sys.addShutdownHook(GjallarhornApp.shutdown(system, actorsToStop))
+  def setUpHttp (): Unit = {
+    //hook for initiating the shutdown procedure
+    sys.addShutdownHook(GjallarhornApp.shutdown(system, actorsToStop))
 
+    val httpService: HttpService = HttpService(apiRoutes, settings.rpcApi)
+    val httpHost: String = settings.rpcApi.bindAddress.getHostName
+    val httpPort: Int = settings.rpcApi.bindAddress.getPort
 
-  val httpService: HttpService = HttpService(apiRoutes, settings.rpcApi)
-  val httpHost: String = settings.rpcApi.bindAddress.getHostName
-  val httpPort: Int = settings.rpcApi.bindAddress.getPort
+    Http().newServerAt(httpHost, httpPort).bind(httpService.compositeRoute).onComplete {
+      case Success(serverBinding) =>
+        log.info(s"${Console.YELLOW}HTTP server bound to ${serverBinding.localAddress}${Console.RESET}")
 
-  Http().newServerAt(httpHost, httpPort).bind(httpService.compositeRoute).onComplete {
-    case Success(serverBinding) =>
-      log.info(s"${Console.YELLOW}HTTP server bound to ${serverBinding.localAddress}${Console.RESET}")
-
-    case Failure(ex) =>
-      log.error(s"${Console.YELLOW}Failed to bind to localhost:$httpPort. " +
-        s"Terminating application!${Console.RESET}", ex)
-      GjallarhornApp.shutdown(system, actorsToStop)
+      case Failure(ex) =>
+        log.error(s"${Console.YELLOW}Failed to bind to localhost:$httpPort. " +
+          s"Terminating application!${Console.RESET}", ex)
+        GjallarhornApp.shutdown(system, actorsToStop)
+    }
   }
 
   def run(): Unit = {
-
   }
 }
 
