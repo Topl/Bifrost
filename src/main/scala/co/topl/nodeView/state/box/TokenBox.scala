@@ -39,7 +39,7 @@ object TokenBox {
     for {
       proposition <- c.downField("proposition").as[PublicKey25519Proposition]
       value <- c.downField("value").as[Long]
-      nonce <- c.downField("issuer").as[Long]
+      nonce <- c.downField("nonce").as[Long]
     } yield {
       (proposition, nonce, value)
     }

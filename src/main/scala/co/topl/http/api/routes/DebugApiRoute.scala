@@ -10,7 +10,6 @@ import co.topl.nodeView.state.State
 import co.topl.settings.RESTApiSettings
 import io.circe.Json
 import io.circe.syntax._
-import scorex.util.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -27,7 +26,6 @@ case class DebugApiRoute(override val settings: RESTApiSettings, nodeViewHolderR
     method match {
       case "info" => infoRoute(params.head, id)
       case "delay" => delay(params.head, id)
-//      case "myBlocks" => myBlocks(params.head, id)
       case "generators" => generators(params.head, id)
     }
 
@@ -88,38 +86,6 @@ case class DebugApiRoute(override val settings: RESTApiSettings, nodeViewHolderR
       ).asJson
     }
   }
-
-  /**  #### Summary
-    *    Find the number of blocks forged by public keys held by the node
-    * 
-    *  #### Type
-    *    Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
-    *
-    * ---
-    *  #### Params
-    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	|
-    *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	|
-    *  | --None specified--       |           	|                     	|                                                                         |
-    *
-//    * @param params input parameters as specified above
-//    * @param id request identifier
-//    * @return
-//    */
-//  private def myBlocks(params: Json, id: String): Future[Json] = {
-//    viewAsync().map { view =>
-//      val pubkeys: Set[PublicKey25519Proposition] =
-//        view.vault.publicKeys.flatMap {
-//          case pkp: PublicKey25519Proposition => Some(pkp)
-//          case _                              => None
-//        }
-//      val count =
-//        view.history.count(b => pubkeys.contains(b.forgerBox.proposition))
-//      Map(
-//        "pubkeys" -> pubkeys.map(pk => Base58.encode(pk.pubKeyBytes)).asJson,
-//        "count" -> count.asJson
-//      ).asJson
-//    }
-//  }
 
   /**  #### Summary
     *    Find distribution of block generators from all public keys in the chain's history

@@ -1,35 +1,23 @@
 package co.topl.api
 
-import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
-import akka.http.scaladsl.testkit.ScalatestRouteTest
+import akka.http.scaladsl.server.Route
 import akka.util.ByteString
-import co.topl.BifrostGenerators
 import co.topl.crypto.FastCryptographicHash
 import co.topl.http.api.routes.UtilsApiRoute
+import io.circe.Json
 import io.circe.parser.parse
-import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import scorex.util.encode.Base58
 
 import scala.util.{Failure, Success}
 
-@DoNotDiscover
 class UtilsRPCSpec extends AnyWordSpec
   with Matchers
-  with ScalatestRouteTest
-  with BifrostGenerators {
+  with RPCMockState {
 
-  val route = UtilsApiRoute(settings.restApi).route
+  val route: Route = UtilsApiRoute(settings.restApi).route
 
-  def httpPOST(jsonRequest: ByteString): HttpRequest = {
-    HttpRequest(
-      HttpMethods.POST,
-      uri = "/utils/",
-      entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    ).withHeaders(RawHeader("x-api-key", "test_key"))
-  }
 
   val seedLength: Int = 10
 
@@ -45,8 +33,8 @@ class UtilsRPCSpec extends AnyWordSpec
            |}
         """.stripMargin)
 
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+      httpPOST("/utils/", requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
         Base58.decode(((res \\ "result").head \\ "seed").head.asString.get) match {
@@ -64,13 +52,13 @@ class UtilsRPCSpec extends AnyWordSpec
            |   "id": "1",
            |   "method": "seedOfLength",
            |   "params": [{
-           |      "length": ${seedLength}
+           |      "length": $seedLength
            |   }]
            |}
       """.stripMargin)
 
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+      httpPOST("/utils/", requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
         Base58.decode(((res \\ "result").head \\ "seed").head.asString.get) match {
@@ -93,8 +81,8 @@ class UtilsRPCSpec extends AnyWordSpec
            |}
       """.stripMargin)
 
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+      httpPOST("/utils/", requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
         ((res \\ "result").head \\ "hash").head.asString.get shouldEqual Base58.encode(FastCryptographicHash("Hello World"))

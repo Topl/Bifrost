@@ -24,7 +24,7 @@ case class Signature25519 (signature: Signature) extends ProofOfKnowledge[Privat
   override def isValid (proposition: Proposition, message: Array[Byte]): Boolean =
     Curve25519.verify(signature, message, PublicKey @@ proposition.bytes)
 
-  override def toString: String = s"Signature25519(${Base58.encode(signature)})"
+  override def toString: String = s"${Base58.encode(signature)}"
 }
 
 object Signature25519 {

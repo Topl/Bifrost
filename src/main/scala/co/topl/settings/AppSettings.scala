@@ -11,77 +11,78 @@ import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 import scala.concurrent.duration._
 
 case class ApplicationSettings(
-  dataDir: Option[String],
-  keyFileDir: Option[String],
-  enablePBR: Boolean,
-  enableTBR: Boolean,
-  nodeKeys: Option[Set[String]],
-  version: Version,
+  dataDir:     Option[String],
+  keyFileDir:  Option[String],
+  enablePBR:   Boolean,
+  enableTBR:   Boolean,
+  nodeKeys:    Option[Set[String]],
+  version:     Version,
   cacheExpire: Int,
-  cacheSize: Int)
+  cacheSize:   Int
+)
 
 case class RESTApiSettings(
   bindAddress: InetSocketAddress,
-  apiKeyHash : String,
+  apiKeyHash:  String,
   corsAllowed: Boolean,
-  timeout    : FiniteDuration,
-  verboseAPI : Boolean)
+  timeout:     FiniteDuration,
+  verboseAPI:  Boolean
+)
 
 case class NetworkSettings(
-  addedMaxDelay: Option[FiniteDuration],
-  agentName: String,
-  applicationNameLimit: Int,
-  bindAddress             : InetSocketAddress,
-  connectionTimeout       : FiniteDuration,
-  controllerTimeout       : Option[FiniteDuration],
-  deadConnectionTimeout   : FiniteDuration,
-  declaredAddress         : Option[InetSocketAddress],
-  deliveryTimeout: FiniteDuration,
-  desiredInvObjects: Int,
-  getPeersInterval        : FiniteDuration,
-  handshakeTimeout        : FiniteDuration,
-  knownPeers              : Seq[InetSocketAddress],
-  magicBytes: Array[Byte],
-  maxConnections          : Int,
-  maxDeliveryChecks       : Int,
-  maxHandshakeSize        : Int,
-  maxInvObjects           : Int,
-  maxModifiersCacheSize   : Int,
-  maxChainCacheDepth      : Int,
-  maxPacketSize           : Int,
-  maxPeerSpecObjects: Int,
-  nodeName: String,
-  penaltySafeInterval: FiniteDuration,
-  penaltyScoreThreshold: Int,
-  syncInterval            : FiniteDuration,
-  syncIntervalStable      : FiniteDuration,
-  syncStatusRefresh       : FiniteDuration,
-  syncStatusRefreshStable : FiniteDuration,
-  syncTimeout             : Option[FiniteDuration],
-  temporalBanDuration     : FiniteDuration,
-  upnpDiscoverTimeout     : Option[FiniteDuration],
-  upnpEnabled             : Boolean,
-  upnpUseRandom           : Option[Boolean],
-  upnpGatewayTimeout      : Option[FiniteDuration])
+  addedMaxDelay:           Option[FiniteDuration],
+  agentName:               String,
+  applicationNameLimit:    Int,
+  bindAddress:             InetSocketAddress,
+  connectionTimeout:       FiniteDuration,
+  controllerTimeout:       Option[FiniteDuration],
+  deadConnectionTimeout:   FiniteDuration,
+  declaredAddress:         Option[InetSocketAddress],
+  deliveryTimeout:         FiniteDuration,
+  desiredInvObjects:       Int,
+  getPeersInterval:        FiniteDuration,
+  handshakeTimeout:        FiniteDuration,
+  knownPeers:              Seq[InetSocketAddress],
+  magicBytes:              Array[Byte],
+  maxConnections:          Int,
+  maxDeliveryChecks:       Int,
+  maxHandshakeSize:        Int,
+  maxInvObjects:           Int,
+  maxModifiersCacheSize:   Int,
+  maxChainCacheDepth:      Int,
+  maxPacketSize:           Int,
+  maxPeerSpecObjects:      Int,
+  nodeName:                String,
+  penaltySafeInterval:     FiniteDuration,
+  penaltyScoreThreshold:   Int,
+  syncInterval:            FiniteDuration,
+  syncIntervalStable:      FiniteDuration,
+  syncStatusRefresh:       FiniteDuration,
+  syncStatusRefreshStable: FiniteDuration,
+  syncTimeout:             Option[FiniteDuration],
+  temporalBanDuration:     FiniteDuration,
+  upnpDiscoverTimeout:     Option[FiniteDuration],
+  upnpEnabled:             Boolean,
+  upnpUseRandom:           Option[Boolean],
+  upnpGatewayTimeout:      Option[FiniteDuration]
+)
 
 case class ForgingSettings(
   blockGenerationDelay: FiniteDuration,
-  protocolVersions    : List[ProtocolSettings],
-  privateTestnet      : Option[PrivateTestnetSettings])
+  protocolVersions:     List[ProtocolSettings],
+  privateTestnet:       Option[PrivateTestnetSettings]
+)
 
-case class PrivateTestnetSettings(
-  numTestnetAccts  : Int,
-  testnetBalance   : Long,
-  initialDifficulty: Long)
+case class PrivateTestnetSettings(numTestnetAccts: Int, testnetBalance: Long, initialDifficulty: Long)
 
 case class AppSettings(
   application: ApplicationSettings,
-  network    : NetworkSettings,
-  forging    : ForgingSettings,
-  restApi    : RESTApiSettings,
-  ntp        : NetworkTimeProviderSettings)
+  network:     NetworkSettings,
+  forging:     ForgingSettings,
+  restApi:     RESTApiSettings,
+  ntp:         NetworkTimeProviderSettings
+)
 
-/** Application settings for Bifrost */
 object AppSettings extends Logging with SettingsReaders {
 
   protected val configPath: String = "bifrost"
@@ -109,10 +110,9 @@ object AppSettings extends Logging with SettingsReaders {
     */
   def readConfig(args: StartupOpts): Config = {
 
-    val networkPath = args.networkTypeOpt.flatMap {
-      networkType =>
-        // todo: JAA - check if this works with a fat-jar since resources are no longer in this location
-        Option(s"src/main/resources/${networkType.verboseName}.conf")
+    val networkPath = args.networkTypeOpt.flatMap { networkType =>
+      // todo: JAA - check if this works with a fat-jar since resources are no longer in this location
+      Option(s"src/main/resources/${networkType.verboseName}.conf")
     }
 
     val networkName: String = args.networkTypeOpt.flatMap(networkType => Option(networkType.verboseName)).getOrElse{

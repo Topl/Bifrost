@@ -1,23 +1,17 @@
 package co.topl.api.program
 
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.testkit.ScalatestRouteTest
-import akka.util.ByteString
 import co.topl.http.api.routes.ProgramApiRoute
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.box.ArbitBox
+import co.topl.utils.RPCHelpers
 import io.circe.parser.parse
 import org.scalatest.DoNotDiscover
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 
 @DoNotDiscover
-class CodeCreationSpec extends AnyWordSpec
-  with Matchers
-  with ScalatestRouteTest
-  with ProgramMockState {
+class CodeCreationSpec extends ProgramRPCMockState with RPCHelpers {
 
   val route: Route = ProgramApiRoute(settings.restApi, nodeViewHolderRef).route
 
@@ -25,24 +19,18 @@ class CodeCreationSpec extends AnyWordSpec
 
     "Create new CodeBox in state" in {
 
-      val requestBody = ByteString(
-        s"""{
-           |  "jsonrpc": "2.0",
-           |  "id": "1",
-           |  "method": "createCode",
-           |  "params": [{
-           |    "publicKey": "${publicKeys("investor")}",
-           |    "code": "add = function(a,b) { return a + b }",
-           |    "fee": 0,
-           |    "data": ""
-           |  }]
-           |}
-           |""".stripMargin)
+      val params =
+        s"""
+           |"publicKey": "$publicKey",
+           |"code": "add = function(a,b) { return a + b }",
+           |"fee": 0,
+           |"data": ""
+           |""".stripMargin
 
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+      val request = formRequest("createCode", params)
 
-        println(s"$res")
+      httpPOST(request) ~> route ~> check {
+        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
 
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
@@ -56,7 +44,7 @@ class CodeCreationSpec extends AnyWordSpec
           history.bestBlockId,
           System.currentTimeMillis(),
           Seq(txInstance),
-          ArbitBox(prop, 0L, 10000L),
+          ArbitBox(publicKey, 0L, 10000L),
           signSk,
           settings.application.version.blockByte
         )

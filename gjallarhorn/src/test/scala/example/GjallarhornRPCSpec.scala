@@ -40,7 +40,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 
   val keyManagerRef: ActorRef = KeyManagerRef("keyManager", "keyfiles")
   val keyFileDir = "keyfiles/keyManagerTest"
-  val keyManager = Keys(keyFileDir)
+  val keyManager: Keys = Keys(keyFileDir)
   val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager), name = "RequestsManager")
   val requests: Requests = new Requests(settings, requestsManagerRef)
 

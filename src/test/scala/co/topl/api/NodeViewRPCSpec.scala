@@ -1,116 +1,37 @@
 package co.topl.api
 
-import akka.actor.ActorRef
-import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.testkit.ScalatestRouteTest
-import akka.pattern.ask
-import akka.util.{ByteString, Timeout}
-import co.topl.BifrostGenerators
+import akka.util.ByteString
 import co.topl.crypto.Signature25519
-import co.topl.http.api.routes.{AssetApiRoute, NodeViewApiRoute}
+import co.topl.http.api.routes.NodeViewApiRoute
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.Transaction
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import co.topl.nodeView.history.History
-import co.topl.nodeView.mempool.MemPool
-import co.topl.nodeView.state.State
+import co.topl.modifier.transaction.{AssetCreation, Transaction}
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
-import co.topl.settings.{AppContext, StartupOpts}
 import io.circe.Json
 import io.circe.parser.parse
-import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
 
-import scala.concurrent.Await
-import scala.concurrent.duration._
 import scala.reflect.io.Path
 import scala.util.Try
 
-@DoNotDiscover
 class NodeViewRPCSpec extends AnyWordSpec
   with Matchers
-  with ScalatestRouteTest
-  with BifrostGenerators {
-
-  val path: Path = Path("/tmp/bifrost/test-data")
-  Try(path.deleteRecursively())
-
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
-  // save environment into a variable for reference throughout the application
-  protected val appContext = new AppContext(settings, StartupOpts.empty, None)
-
-  // Create Bifrost singleton actors
-  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  with RPCMockState {
 
   // setup route for testing
   val route: Route = NodeViewApiRoute(settings.restApi, nodeViewHolderRef).route
 
-  val routeAsset: Route = AssetApiRoute(settings.restApi, nodeViewHolderRef).route
-
-  def httpPOST(jsonRequest: ByteString): HttpRequest = {
-    HttpRequest(
-      HttpMethods.POST,
-      uri = "/nodeView/",
-      entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    ).withHeaders(RawHeader("x-api-key", "test_key"))
-  }
-
-  def httpPOSTAsset(jsonRequest: ByteString): HttpRequest = {
-    HttpRequest(
-      HttpMethods.POST,
-      uri = "/asset/",
-      entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    ).withHeaders(RawHeader("x-api-key", "test_key"))
-  }
-
-  implicit val timeout: Timeout = Timeout(10.seconds)
-
-  private def view() = Await.result(
-    (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]],
-    10.seconds)
-
-  val publicKeys = Map(
-    "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
-    "producer" -> "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb",
-    "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
-  )
-
+  val tx: AssetCreation = assetCreationGen.sample.get
   var txHash: String = ""
-  var assetTxHash: String = ""
+  var assetTxHash: String = tx.id.toString
   var assetTxInstance: Transaction = _
-  var blockId: Block.BlockId = ModifierId(Array[Byte]())
+  var blockId: Block.BlockId = _
 
-  val requestBody: ByteString = ByteString(
-    s"""
-       |{
-       |   "jsonrpc": "2.0",
-       |   "id": "1",
-       |   "method": "createAssets",
-       |   "params": [{
-       |     "issuer": "${publicKeys("hub")}",
-       |     "recipient": "${publicKeys("investor")}",
-       |     "amount": 10,
-       |     "assetCode": "x",
-       |     "fee": 0,
-       |     "data": ""
-       |   }]
-       |}
-        """.stripMargin)
-
-  httpPOSTAsset(requestBody) ~> routeAsset ~> check {
-    val res = parse(responseAs[String]).right.get
-    (res \\ "error").isEmpty shouldBe true
-    (res \\ "result").head.asObject.isDefined shouldBe true
-    assetTxHash = ((res \\ "result").head \\ "txHash").head.asString.get
-  }
+  view().pool.put(tx)
 
   "NodeView RPC" should {
     "Get first 100 transactions in mempool" in {
@@ -124,8 +45,8 @@ class NodeViewRPCSpec extends AnyWordSpec
            |}
           """.stripMargin)
 
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+      httpPOST("/nodeView/", requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
         val txHashesArray = (res \\ "result").head \\ "txHash"
@@ -147,7 +68,7 @@ class NodeViewRPCSpec extends AnyWordSpec
           Seq(assetTxInstance),
           settings.application.version.blockByte
         )
-        history.append(tempBlock)
+        history.storage.update(tempBlock, 0, isBest = false)
         blockId = tempBlock.id
       }
     }
@@ -166,8 +87,8 @@ class NodeViewRPCSpec extends AnyWordSpec
            |
           """.stripMargin)
 
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+      httpPOST("/nodeView/", requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
         ((res \\ "result").head \\ "txHash").head.asString.get shouldEqual txHash
@@ -191,8 +112,8 @@ class NodeViewRPCSpec extends AnyWordSpec
            |
           """.stripMargin)
 
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+      httpPOST("/nodeView/", requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
         ((res \\ "result").head \\ "txHash").head.asString.get shouldEqual txHash
@@ -214,8 +135,8 @@ class NodeViewRPCSpec extends AnyWordSpec
            |
           """.stripMargin)
 
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+      httpPOST("/nodeView/", requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
         val txsArray = ((res \\ "result").head \\ "txs").head.asArray.get

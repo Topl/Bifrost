@@ -1,21 +1,19 @@
 package co.topl.nodeView.history
 
-import co.topl.BifrostGenerators
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
+import co.topl.utils.CoreGenerators
 import org.scalacheck.Gen
-import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-@DoNotDiscover
 class BifrostHistorySpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with Matchers
-  with BifrostGenerators {
+  with CoreGenerators {
 
-  var history: History = generateHistory
+  var history: History = generateHistory(0: Byte)
 
   property("Block application should result in storage and BifrostHistory.continuationIds") {
     var ids: Seq[ModifierId] = Seq()

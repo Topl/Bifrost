@@ -1,19 +1,16 @@
 package co.topl.api.program
 
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import co.topl.http.api.routes.ProgramApiRoute
+import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.DoNotDiscover
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
+
+import scala.util.Random
 
 @DoNotDiscover
-class ProgramTransferSpec extends AnyWordSpec
-  with Matchers
-  with ScalatestRouteTest
-  with ProgramMockState {
+class ProgramTransferSpec extends ProgramRPCMockState {
 
   val route: Route = ProgramApiRoute(settings.restApi, nodeViewHolderRef).route
 
@@ -21,7 +18,9 @@ class ProgramTransferSpec extends AnyWordSpec
 
     val boxState = Seq(stateBox, codeBox, executionBox)
 
-    directlyAddPBRStorage(1, boxState)
+    val version = Random.nextInt
+
+    directlyAddPBRStorage(version, boxState)
 
     "Transfer a program and create a new ExecutionBox with the updated owner" in {
 
@@ -41,7 +40,7 @@ class ProgramTransferSpec extends AnyWordSpec
            |""".stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
 
         (res \\ "result").head.asObject.isDefined shouldEqual true
         (res \\ "error").isEmpty shouldEqual true

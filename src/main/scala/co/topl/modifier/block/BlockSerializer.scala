@@ -46,12 +46,11 @@ object BlockSerializer extends BifrostSerializer[Block] {
     val parentId: ModifierId = ModifierId(r.getBytes(Block.blockIdLength))
     val timestamp: Long = r.getULong()
 
-    // TODO: Jing - scorex uses toIntExact to make sure the Long does not exceed the length of an Int
-
     val generatorBox: ArbitBox = BoxSerializer.parse(r).asInstanceOf[ArbitBox]
 
     val signature: Signature25519 = Signature25519Serializer.parse(r)
 
+    /*  scorex uses toIntExact to make sure that UInt does not exceed the length of an Int */
     val txsLength: Int = r.getUInt().toIntExact
     val txs: Seq[Transaction] = (0 until txsLength).map(_ => TransactionSerializer.parse(r))
 
