@@ -110,8 +110,8 @@ object AssetValue extends BifrostSerializer[AssetValue] {
   val valueTypePrefix: Byte = 2: Byte
   val valueTypeString: String = "Asset"
 
-  // bytes (34 bytes for issuer Address + 8 bytes for asset nonce + 8 bytes for asset short name)
-  val assetCodeSize: Int = Address.addressSize + 8 + 8
+  // bytes (34 bytes for issuer Address + 8 bytes for asset short name)
+  val assetCodeSize: Int = Address.addressSize + 8
   val securityRootSize: Int = Blake2b256.DigestSize // 32 bytes
   val metadataLimit: Int = 128 // bytes of UTF-8 encoded string
   val emptySecurityRoot: SecurityRoot = SecurityRoot @@ Array.fill(securityRootSize)(0: Byte)
