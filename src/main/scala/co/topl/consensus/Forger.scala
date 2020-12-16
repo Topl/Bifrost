@@ -287,7 +287,7 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
         Map[PublicKeyPropositionCurve25519, SignatureCurve25519](),
         0,
         forgeTime,
-        Some(parentId.toString + "_"), // the underscore is for letting miners add their n message in the future
+        Some(parentId.toString + "_"), // the underscore is for letting miners add their own message in the future
         minting = true
       )
     }
@@ -304,7 +304,7 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
         Map[PublicKeyPropositionCurve25519, SignatureCurve25519](),
         0,
         forgeTime,
-        Some(parentId.toString + "_"), // the underscore is for letting miners add their n message in the future
+        Some(parentId.toString + "_"), // the underscore is for letting miners add their own message in the future
         minting = true
       )
     }
