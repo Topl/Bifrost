@@ -6,7 +6,7 @@ import crypto.Address
 import keymanager.KeyManager._
 import io.circe.Json
 import io.circe.syntax._
-import keymanager.Bip39
+import keymanager.{Bip39, networkPrefix}
 import keymanager.KeyManager.{GenerateKeyFile, ImportKeyfile, LockKeyFile, UnlockKeyFile}
 import requests.ApiRoute
 import settings.AppSettings
@@ -29,6 +29,8 @@ case class KeyManagementApi(settings: AppSettings, keyManager: ActorRef)
     case (method, params, id) if method == s"${namespace.name}_unlockKeyfile" => unlockKeyfile(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_lockKeyfile" => lockKeyfile(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_listOpenKeyfiles" => listOpenKeyfiles(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_networkType" =>
+      Future{Map("networkPrefix" -> networkPrefix).asJson}
   }
 
   /**
@@ -53,7 +55,7 @@ case class KeyManagementApi(settings: AppSettings, keyManager: ActorRef)
     val password = (params \\ "password").head.asString.get
     val seedJson = params \\ "seed"
     var seed: Option[String] = None
-    if (!seed.isEmpty) {
+    if (seedJson.nonEmpty) {
       seed = Some(seedJson.head.asString.get)
     }
     (keyManager ? GenerateKeyFile(password, seed)).mapTo[Try[Address]].map {

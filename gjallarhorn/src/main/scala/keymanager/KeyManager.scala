@@ -1,45 +1,46 @@
 package keymanager
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import crypto.AddressEncoder.NetworkPrefix
 import crypto.{Address, KeyfileCurve25519, PrivateKeyCurve25519}
 import io.circe.Json
 import io.circe.syntax._
 import scorex.util.encode.Base58
+import settings.NetworkType
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
 
-class KeyManager(keys: Keys[PrivateKeyCurve25519, KeyfileCurve25519])(implicit np: NetworkPrefix) extends Actor {
+class KeyManager(keyFileDir: String) extends Actor {
 
   import KeyManager._
 
-  val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] = keys
+  private val keyRing: Keys[PrivateKeyCurve25519, KeyfileCurve25519] =
+    Keys(keyFileDir, KeyfileCurve25519)(PrivateKeyCurve25519.secretGenerator, networkPrefix = networkPrefix)
 
   override def receive: Receive = {
-    case GenerateKeyFile(password, seedOpt) => sender ! keyManager.generateKeyFile(password, seedOpt)
+    case GenerateKeyFile(password, seedOpt) => sender ! keyRing.generateKeyFile(password, seedOpt)
 
-    case ImportKeyfile(password: String, mnemonic: String, lang: String) => sender ! keyManager.importPhrase(password, mnemonic, lang)
+    case ImportKeyfile(password: String, mnemonic: String, lang: String) =>
+      sender ! keyRing.importPhrase(password, mnemonic, lang)
 
-    case UnlockKeyFile(pubKeyString, password) => sender ! keyManager.unlockKeyFile(pubKeyString, password)
+    case UnlockKeyFile(pubKeyString, password) => sender ! keyRing.unlockKeyFile(pubKeyString, password)
 
-    case LockKeyFile(pubKeyString, password) => sender ! keyManager.lockKeyFile(pubKeyString, password)
+    case LockKeyFile(pubKeyString, password) => sender ! keyRing.lockKeyFile(pubKeyString, password)
 
-    case GetOpenKeyfiles => sender ! keyManager.addresses
+    case GetOpenKeyfiles => sender ! keyRing.addresses
 
     case SignTx(tx: Json, keys: List[String], msg: Json) =>
       val signaturesMap = keys.map(keyString => {
         Base58.decode(msg.asString.get) match {
           case Success(msgToSign) =>
-            keyManager.signWithAddress(Address(keyString), msgToSign) match {
-              case Success(signedTx) => {
+            keyRing.signWithAddress(Address(keyString), msgToSign) match {
+              case Success(signedTx) =>
                 val sig = signedTx.asJson
-                keyManager.lookupPublicKey(Address(keyString)) match {
+                keyRing.lookupPublicKey(Address(keyString)) match {
                   case Success(pubKey) => pubKey -> sig
                   case Failure(exception) => throw exception
                 }
-              }
               case Failure(exception) => throw exception
             }
           case Failure(exception) => throw exception
@@ -49,6 +50,12 @@ class KeyManager(keys: Keys[PrivateKeyCurve25519, KeyfileCurve25519])(implicit n
         "signatures" -> signaturesMap
       ).asJson)
       sender ! Map("tx"-> newTx).asJson
+
+    case ChangeNetwork(networkName: String) =>
+      NetworkType.fromString(networkName) match {
+        case Some(network) => networkPrefix = network.netPrefix
+        case None => throw new Error(s"The network name: $networkName was not a valid network type!")
+      }
   }
 }
 
@@ -59,17 +66,18 @@ object KeyManager {
   case class LockKeyFile(publicKeyString: String, password: String)
   case object GetOpenKeyfiles
   case class SignTx(transaction: Json, signingKeys: List[String], messageToSign: Json)
+  case class ChangeNetwork(networkName: String)
 }
 
 object KeyManagerRef {
 
-  def props(keys: Keys[PrivateKeyCurve25519, KeyfileCurve25519])
-           (implicit ec: ExecutionContext, np: NetworkPrefix): Props = {
-    Props(new KeyManager(keys))
+  def props(keyFileDir: String)
+           (implicit ec: ExecutionContext): Props = {
+    Props(new KeyManager(keyFileDir))
   }
 
-  def apply(name: String, keys: Keys[PrivateKeyCurve25519, KeyfileCurve25519])
-           (implicit system: ActorSystem, ec: ExecutionContext, np: NetworkPrefix): ActorRef = {
-    system.actorOf(Props(new KeyManager(keys)), name = name)
+  def apply(name: String, keyFileDir: String)
+           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = {
+    system.actorOf(Props(new KeyManager(keyFileDir)), name = name)
   }
 }

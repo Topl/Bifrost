@@ -9,6 +9,7 @@ import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
 import utils.Logging
 import cats.syntax.show._
+import keymanager.KeyManager.GetOpenKeyfiles
 
 import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -27,8 +28,8 @@ class WalletManager(bifrostActorRef: ActorRef)
   implicit val timeout: Timeout = 10.seconds
 
   var connectedToBifrost: Boolean = false
-  var networkName: Option[String] = None
-  var publicKeys: Set[Address] = Set()
+  private var keyManagerRef: Option[ActorRef] = None
+
 
   //Represents the wallet boxes: as a mapping of publicKeys to a map of its id's mapped to walletBox.
   //Ex: publicKey1 -> {id1 -> walletBox1, id2 -> walletBox2, ...}, publicKey2 -> {},...
@@ -72,13 +73,17 @@ class WalletManager(bifrostActorRef: ActorRef)
         bifrostActorRef ? "Which network is bifrost running?"
       bifrostResp.pipeTo(sender())
 
-    case YourKeys(pubAddrs) =>
-      publicKeys = pubAddrs
-      initializeWalletBoxes(pubAddrs)
-      val balances: Json = Await.result((bifrostActorRef ? s"My public keys are: $pubAddrs")
+    case KeyManagerReady(keyMngrRef) =>
+      val publicKeys = Await.result((keyMngrRef ? GetOpenKeyfiles)
+        .mapTo[Set[Address]], 10.seconds)
+      keyManagerRef = Some(keyMngrRef)
+      initializeWalletBoxes(publicKeys)
+      val balances: Json = Await.result((bifrostActorRef ? s"My public keys are: $publicKeys")
         .mapTo[String].map(_.asJson), 10.seconds)
       context become active
       parseAndUpdate(parseResponse(balances))
+
+    case msg: String => msgHandling(msg)
   }
 
   private def operational: Receive = {
@@ -280,6 +285,6 @@ object WalletManager {
 
   case object GetWallet
 
-  case class YourKeys(pubAddrs: Set[Address])
+  case class KeyManagerReady(keyManagerRef: ActorRef)
 
 }

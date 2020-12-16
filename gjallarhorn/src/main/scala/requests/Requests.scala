@@ -11,6 +11,7 @@ import crypto._
 import io.circe.parser.parse
 import io.circe.{Json, parser}
 import io.circe.syntax._
+import keymanager.KeyManager.SignTx
 import requests.RequestsManager.BifrostRequest
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -21,7 +22,7 @@ import settings.ApplicationSettings
 
 import scala.util.{Failure, Success}
 
-class Requests (settings: ApplicationSettings, requestsManager: ActorRef)
+class Requests (settings: ApplicationSettings, requestsManager: ActorRef, keyManagerRef: ActorRef)
                (implicit val actorSystem: ActorSystem) {
 
   val http: HttpExt = Http(actorSystem)
@@ -82,33 +83,11 @@ class Requests (settings: ApplicationSettings, requestsManager: ActorRef)
   }
 
 
-  def signTx(transaction: Json,
-             keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519],
-             signingKeys: List[String]): Json = {
+  def signTx(transaction: Json, signingKeys: List[String]): Json = {
     val result = (transaction \\ "result").head
     val tx = (result \\ "rawTx").head
     val messageToSign = (result \\ "messageToSign").head
-    val signatures = signingKeys.map(keyString => {
-      Base58.decode(messageToSign.asString.get) match {
-        case Success(msgToSign) =>
-          keyManager.signWithAddress(Address(keyString), msgToSign) match {
-            case Success(signedTx) => {
-              val sig = signedTx.asJson
-              keyManager.lookupPublicKey(Address(keyString)) match {
-                case Success(pubKey) => pubKey -> sig
-                case Failure(exception) => throw exception
-              }
-            }
-            case Failure(exception) => throw exception
-          }
-        case Failure(exception) => throw exception
-      }
-    }).toMap.asJson
-
-    val newTx = tx.deepMerge(Map(
-      "signatures" -> signatures
-    ).asJson)
-    val newResult = Map("tx"-> newTx).asJson
+    val newResult = Await.result((keyManagerRef ? SignTx(tx, signingKeys, messageToSign)).mapTo[Json], 10.seconds)
     createJsonResponse(transaction, newResult)
   }
 

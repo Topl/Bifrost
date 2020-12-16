@@ -3,7 +3,6 @@ package http
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.pattern.ask
 import crypto.Address
-import crypto.AddressEncoder.NetworkPrefix
 import requests.{ApiRoute, Requests}
 import io.circe.Json
 import io.circe.syntax._
@@ -22,7 +21,7 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
                                       requestsManager: ActorRef,
                                       walletManager: ActorRef,
                                       requests: Requests)
-                                     (implicit val context: ActorRefFactory, np: NetworkPrefix)
+                                     (implicit val context: ActorRefFactory)
   extends ApiRoute {
 
 

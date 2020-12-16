@@ -14,7 +14,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 case class GjallarhornOnlyApiRoute (settings: AppSettings,
                                     keyManager: ActorRef)
-                                   (implicit val context: ActorRefFactory, np: NetworkPrefix)
+                                   (implicit val context: ActorRefFactory)
   extends ApiRoute {
 
   val namespace: Namespace = WalletNamespace
@@ -26,8 +26,7 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
     // => createRawTransaction(params.head, id)
 
     case (method, params, id) if method == s"${namespace.name}_signTx" => signTx(params.head, id)
-
-    case (method, params, id) if method == s"${namespace.name}_networkType" => Future{Map("networkPrefix" -> np).asJson}
+    //case (method, params, id) if method == s"${namespace.name}_changeNetwork" => changeNetwork(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_connectedToBifrost" => getConnection
   }
 
@@ -49,6 +48,14 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
       case Left(error) => throw new Exception(s"error parsing signing keys: $error")
     }
   }
+
+/*  private def changeNetwork(params: Json, id: String): Future[Json] = {
+    (for {
+      newNetwork <- (params \\ "newNetwork").head.as[String]
+    } yield {
+
+    })
+  }*/
 
   private def getConnection: Future[Json] = {
     var connection: Boolean = true

@@ -1,22 +1,26 @@
 package example
 
 import akka.actor.{ActorRef, ActorSystem}
+import akka.pattern.ask
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import akka.util.ByteString
+import akka.util.{ByteString, Timeout}
 import crypto.AddressEncoder.NetworkPrefix
-import crypto.{Address, KeyfileCurve25519, PrivateKeyCurve25519}
+import crypto.Address
 import http.{HttpService, KeyManagementApi}
 import io.circe.Json
 import io.circe.parser.parse
-import keymanager.{KeyManagerRef, Keys}
+import keymanager.KeyManager.GenerateKeyFile
+import keymanager.KeyManagerRef
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import requests.ApiRoute
 
-import scala.util.{Failure, Success}
+import scala.concurrent.Await
+import scala.util.{Failure, Success, Try}
+import scala.concurrent.duration._
 
 class KeyManagementRPCSpec extends AsyncFlatSpec
   with Matchers
@@ -25,25 +29,27 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
 
   //Make sure running bifrost in local network!
   implicit val networkPrefix: NetworkPrefix = 48.toByte
+  implicit val timeout: Timeout = 10.seconds
 
   override def createActorSystem(): ActorSystem = ActorSystem("keyManagementTest", keysConfig)
 
   val keyFileDir = "keyfiles/keyManagerTest"
-  val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] =
-    Keys[PrivateKeyCurve25519, KeyfileCurve25519](keyFileDir, KeyfileCurve25519)
-  val keyManagerRef: ActorRef = KeyManagerRef("keyManager", keyManager)
+  val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", keyFileDir)
 
   val apiRoute: ApiRoute = KeyManagementApi(keyManagementSettings, keyManagerRef)
   val route: Route = HttpService(Seq(apiRoute), keyManagementSettings.rpcApi).compositeRoute
 
-  val privateKeys: Set[PrivateKeyCurve25519] = keyManager.generateNewKeyPairs(2, Some("test")) match {
-    case Success(secrets) => secrets
-    case Failure(ex) => throw new Error (s"Unable to generate new keys: $ex")
+  val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))
+    .mapTo[Try[Address]], 10.seconds) match {
+    case Success(pubKey) => pubKey
+    case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
 
-  val addresses: Set[Address] = privateKeys.map(sk => sk.publicImage.address)
-  val (pk1, sk1) = (addresses.head, privateKeys.head)
-  val (pk2, sk2) = (addresses.tail.head, privateKeys.tail.head)
+  val pk2: Address = Await.result((keyManagerRef ? GenerateKeyFile("password2", None))
+    .mapTo[Try[Address]], 10.seconds) match {
+    case Success(pubKey) => pubKey
+    case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
+  }
 
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
@@ -204,6 +210,29 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
           (res \\ "error").isEmpty shouldBe true
           val phrase = ((res \\ "result").head \\ "mnemonicPhrase").head
           assert(phrase != null)
+      }
+    }
+  }
+
+  it should "successfully get network prefix" in {
+    val networkTypeRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_networkType",
+         |   "params": [{}]
+         |}
+         """.stripMargin)
+
+    httpPOST(networkTypeRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          val network = ((res \\ "result").head \\ "networkPrefix").head
+          assert(network.toString() === networkPrefix.toString)
       }
     }
   }

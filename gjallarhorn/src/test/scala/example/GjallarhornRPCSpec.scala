@@ -1,12 +1,12 @@
 package example
 
 import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.pattern.ask
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.{Http, HttpExt}
 import akka.util.{ByteString, Timeout}
-import crypto.{Address, KeyfileCurve25519, PrivateKeyCurve25519}
+import crypto.Address
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import http.{GjallarhornBifrostApiRoute, GjallarhornOnlyApiRoute, HttpService}
@@ -15,14 +15,15 @@ import crypto.AddressEncoder.NetworkPrefix
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
-import keymanager.{KeyManagerRef, Keys}
+import keymanager.KeyManager.GenerateKeyFile
+import keymanager.KeyManagerRef
 import requests.{ApiRoute, Requests, RequestsManager}
 import wallet.WalletManager
-import wallet.WalletManager.{GjallarhornStarted, YourKeys}
+import wallet.WalletManager.{GjallarhornStarted, KeyManagerReady}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 /**
   * Must be running bifrost with --local and --seed test
@@ -44,28 +45,30 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   override def createActorSystem(): ActorSystem = ActorSystem("gjallarhornTest", config)
 
   val keyFileDir = "keyfiles/keyManagerTest"
-  val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] =
-    Keys[PrivateKeyCurve25519, KeyfileCurve25519](keyFileDir, KeyfileCurve25519)
-  val keyManagerRef: ActorRef = KeyManagerRef("keyManager", keyManager)
+  val keyManagerRef: ActorRef = KeyManagerRef("keyManager", keyFileDir)
 
-  val privateKeys: Set[PrivateKeyCurve25519] = keyManager.generateNewKeyPairs(2, Some("test")) match {
-    case Success(secrets) => secrets
-    case Failure(ex) => throw new Error (s"Unable to generate new keys: $ex")
+  val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))
+    .mapTo[Try[Address]], 10.seconds) match {
+    case Success(pubKey) => pubKey
+    case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
 
-  val addresses: Set[Address] = privateKeys.map(sk => sk.publicImage.address)
+  val pk2: Address = Await.result((keyManagerRef ? GenerateKeyFile("password2", None))
+    .mapTo[Try[Address]], 10.seconds) match {
+    case Success(pubKey) => pubKey
+    case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
+  }
+
   val amount = 10
-  val (pk1, sk1) = (addresses.head, privateKeys.head)
-  val (pk2, sk2) = (addresses.tail.head, privateKeys.tail.head)
 
   val bifrostActor: ActorRef = Await.result(system.actorSelection(
     s"akka.tcp://${settings.application.chainProvider}/user/walletConnectionHandler").resolveOne(), 10.seconds)
   val walletManagerRef: ActorRef = system.actorOf(
     Props(new WalletManager(bifrostActor)), name = "WalletManager")
   walletManagerRef ! GjallarhornStarted
-  walletManagerRef ! YourKeys(addresses)
+  walletManagerRef ! KeyManagerReady(keyManagerRef)
   val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager(bifrostActor)), name = "RequestsManager")
-  val requests: Requests = new Requests(settings.application, requestsManagerRef)
+  val requests: Requests = new Requests(settings.application, requestsManagerRef, keyManagerRef)
   val bifrostApiRoute: ApiRoute = GjallarhornBifrostApiRoute(settings, keyManagerRef, requestsManagerRef,
     walletManagerRef, requests)
   val gjalOnlyApiRoute: ApiRoute = GjallarhornOnlyApiRoute(settings, keyManagerRef)
@@ -83,29 +86,6 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   var prototypeTx: Json = Map("txType" -> "AssetCreation").asJson
   var msgToSign = ""
 
-  it should "successfully get network prefix" in {
-    val networkTypeRequest = ByteString(
-      s"""
-         |{
-         |   "jsonrpc": "2.0",
-         |   "id": "2",
-         |   "method": "wallet_networkType",
-         |   "params": [{}]
-         |}
-         """.stripMargin)
-
-    httpPOST(networkTypeRequest) ~> route ~> check {
-      val responseString = responseAs[String].replace("\\", "")
-      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
-        case Left(f) => throw f
-        case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          val network = ((res \\ "result").head \\ "networkPrefix").head
-          assert(network.toString() === networkPrefix.toString)
-      }
-    }
-  }
-
   it should "get a successful JSON response from createTx request" in {
     val createAssetRequest = ByteString(
       s"""
@@ -117,10 +97,10 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |     "method": "topl_rawAssetTransfer",
          |     "params": [{
          |        "propositionType": "PublicKeyCurve25519",
-         |        "sender": ["$pk2"],
-         |        "recipient": [["$pk2", $amount]],
-         |        "changeAddress": "$pk2",
-         |        "issuer": "$pk2",
+         |        "sender": ["$pk1"],
+         |        "recipient": [["$pk1", $amount]],
+         |        "changeAddress": "$pk1",
+         |        "issuer": "$pk1",
          |        "assetCode": "test",
          |        "minting": true,
          |        "fee": 1,
@@ -188,9 +168,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |     "method": "topl_rawPolyTransfer",
          |     "params": [{
          |        "propositionType": "PublicKeyCurve25519",
-         |        "sender": ["$pk2"],
-         |        "recipient": [["$pk1", $amount]],
-         |        "changeAddress": "$pk2",
+         |        "sender": ["$pk1"],
+         |        "recipient": [["$pk2", $amount]],
+         |        "changeAddress": "$pk1",
          |        "fee": 1,
          |        "data": "",
          |        "online": true
@@ -274,11 +254,10 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"\"", "\"")) match {
         case Left(f) => throw f
-        case Right(res: Json) => {
+        case Right(res: Json) =>
           (res \\ "error").isEmpty shouldBe true
           val phrase = (res \\ "result").head
           assert (phrase != null)
-        }
       }
     }
   }
@@ -298,10 +277,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"\"", "\"")) match {
         case Left(f) => throw f
-        case Right(res: Json) => {
+        case Right(res: Json) =>
           (res \\ "error").isEmpty shouldBe true
           (res \\ "result").head.asObject.isDefined shouldBe true
-        }
       }
     }
   }

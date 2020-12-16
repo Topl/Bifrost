@@ -5,11 +5,12 @@ import akka.pattern.ask
 import _root_.requests.{Requests, RequestsManager}
 import akka.util.{ByteString, Timeout}
 import crypto.AddressEncoder.NetworkPrefix
-import crypto.{Address, KeyfileCurve25519, NewBox, PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
+import crypto.{Address, NewBox, PublicKeyPropositionCurve25519}
 import io.circe.{Json, parser}
+import keymanager.KeyManager.GenerateKeyFile
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
-import keymanager.Keys
+import keymanager.KeyManagerRef
 import settings.NetworkType
 import wallet.WalletManager
 import wallet.WalletManager._
@@ -33,38 +34,35 @@ class RequestSpec extends AsyncFlatSpec
   implicit val timeout: Timeout = 30.seconds
   implicit val networkPrefix: NetworkPrefix = 48.toByte //local network
 
+  val keyFileDir = "keyfiles/requestTestKeys"
+  val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", keyFileDir)
+
   val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
     s"akka.tcp://${settings.application.chainProvider}/user/walletConnectionHandler").resolveOne(), 10.seconds)
 
   val requestsManagerRef: ActorRef = actorSystem.actorOf(
     Props(new RequestsManager(bifrostActor)), name = "RequestsManager")
-  val requests = new Requests(requestSettings.application, requestsManagerRef)
+  val requests = new Requests(requestSettings.application, requestsManagerRef, keyManagerRef)
 
-  val keyFileDir = "keyfiles/requestTestKeys"
   val path: Path = Path(keyFileDir)
   Try(path.deleteRecursively())
   Try(path.createDirectory())
   val password = "pass"
-  val genesisPubKey: Address = Address("86th32F6fUxGZi8KLShhQkYxHs3hyDFVh64HSWufQieJSVYXtWAN")
-  val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] = Keys(keyFileDir, KeyfileCurve25519)
-  //keyManager.unlockKeyFile(Base58.encode(sk1.publicKeyBytes), password)
 
-  val privateKeys: Set[PrivateKeyCurve25519] = keyManager.generateNewKeyPairs(2, Some("test")) match {
-    case Success(secrets) => secrets
-    case Failure(ex) => throw new Error (s"Unable to generate new keys: $ex")
+  val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))
+    .mapTo[Try[Address]], 10.seconds) match {
+    case Success(pubKey) => pubKey
+    case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
 
-  val addresses: Set[Address] = privateKeys.map(sk => sk.publicImage.address)
-
-  val (pk1, sk1) = (addresses.head, privateKeys.head)
-  val (pk2, sk2) = (addresses.tail.head, privateKeys.tail.head)
-
-  val pk3: Address = keyManager.generateKeyFile("password3") match {
-    case Success(address) => address
-    case Failure(ex) => throw ex
+  val pk2: Address = Await.result((keyManagerRef ? GenerateKeyFile("password2", None))
+    .mapTo[Try[Address]], 10.seconds) match {
+    case Success(pubKey) => pubKey
+    case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
 
-  val publicKeys: Set[Address] = Set(pk1, pk2, pk3, genesisPubKey)
+
+  val publicKeys: Set[Address] = Set(pk1, pk2)
   val walletManagerRef: ActorRef = actorSystem.actorOf(
     Props(new WalletManager(bifrostActor)), name = "WalletManager")
 
@@ -94,7 +92,7 @@ class RequestSpec extends AsyncFlatSpec
       case Some(network) => network.netPrefix
       case None => throw new Error(s"The network name: $networkName was not a valid network type!")
     }
-    walletManagerRef ! YourKeys(publicKeys)
+    walletManagerRef ! KeyManagerReady(keyManagerRef)
     assert(networkPre == networkPrefix)
   }
 
@@ -152,14 +150,14 @@ class RequestSpec extends AsyncFlatSpec
 
   it should "receive successful JSON response from sign transaction" in {
     val issuer: List[String] = List(publicKeys.head.toString)
-    val response = requests.signTx(transaction, keyManager, issuer)
+    val response = requests.signTx(transaction, issuer)
     (response \\ "error").isEmpty shouldBe true
     (response \\ "result").head.asObject.isDefined shouldBe true
     signedTransaction = (response \\ "result").head
     assert((signedTransaction \\ "signatures").head.asObject.isDefined)
     val sigs: Map[PublicKeyPropositionCurve25519, Json] =
       (signedTransaction \\ "signatures").head.as[Map[PublicKeyPropositionCurve25519, Json]] match {
-      case Left(error) => throw (error)
+      case Left(error) => throw error
       case Right(value) => value
     }
     val pubKeys = sigs.keySet.map(pubKey => pubKey.address)
@@ -193,11 +191,6 @@ class RequestSpec extends AsyncFlatSpec
     val walletBoxes: MMap[String, MMap[String, Json]] =
       Await.result((walletManagerRef ? UpdateWallet((balanceResponse \\ "result").head))
       .mapTo[MMap[String, MMap[String, Json]]], 10.seconds)
-    val pubKeyEmptyBoxes: Option[MMap[String, Json]] = walletBoxes.get(pk3.toString)
-    pubKeyEmptyBoxes match {
-      case Some(map) => assert(map.keySet.isEmpty)
-      case None => sys.error(s"no mapping for given public key: ${pk3.toString}}")
-    }
 
     val pk1Boxes: Option[MMap[String, Json]] = walletBoxes.get(pk1.toString)
     pk1Boxes match {
@@ -206,7 +199,7 @@ class RequestSpec extends AsyncFlatSpec
     }
     val pk2Boxes: Option[MMap[String, Json]] = walletBoxes.get(pk2.toString)
     pk2Boxes match {
-      case Some(map) => assert (map.size === 3)
+      case Some(map) => assert (map.size === 1)
       case None => sys.error(s"no mapping for given public key: ${pk2.toString}")
     }
   }
