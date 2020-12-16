@@ -68,7 +68,7 @@ object TransferTransaction {
       Transaction.nonceFromDigest(digest)
     }
 
-    val feeParams = BoxParams(tx.to.head._1.evidence, calcNonce(0), SimpleValue(tx.to.head._2.quantity))
+    val feeChangeParams = BoxParams(tx.to.head._1.evidence, calcNonce(0), SimpleValue(tx.to.head._2.quantity))
 
     val outputParams = tx.to.tail
       .filter(_._2.quantity > 0L)
@@ -77,7 +77,7 @@ object TransferTransaction {
         BoxParams(addr.evidence, calcNonce(idx + 1), value)
       }
 
-    (feeParams, outputParams)
+    (feeChangeParams, outputParams)
   }
 
   /** Retrieves the boxes from state for the specified sequence of senders and filters them based on the type of transaction */

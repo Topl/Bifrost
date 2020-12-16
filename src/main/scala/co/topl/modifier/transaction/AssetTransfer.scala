@@ -28,7 +28,7 @@ case class AssetTransfer[
   override lazy val newBoxes: Traversable[TokenBox[TokenValueHolder]] = {
     val params = TransferTransaction.boxParams(this)
 
-    val feeBox =
+    val feeChangeBox =
       if (fee > 0L) Traversable(PolyBox(params._1.evidence, params._1.nonce, params._1.value))
       else Traversable()
 
@@ -37,7 +37,7 @@ case class AssetTransfer[
       case _                               => throw new Error("Attempted application of invalid value holder")
     }
 
-    feeBox ++ assetBoxes
+    feeChangeBox ++ assetBoxes
   }
 }
 
