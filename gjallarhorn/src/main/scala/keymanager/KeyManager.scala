@@ -6,12 +6,13 @@ import io.circe.Json
 import io.circe.syntax._
 import scorex.util.encode.Base58
 import settings.NetworkType
+import utils.Logging
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
 
-class KeyManager(keyFileDir: String) extends Actor {
+class KeyManager(keyFileDir: String) extends Actor with Logging {
 
   import KeyManager._
 
@@ -53,8 +54,11 @@ class KeyManager(keyFileDir: String) extends Actor {
 
     case ChangeNetwork(networkName: String) =>
       NetworkType.fromString(networkName) match {
-        case Some(network) => networkPrefix = network.netPrefix
-        case None => throw new Error(s"The network name: $networkName was not a valid network type!")
+        case Some(network) =>
+          networkPrefix = network.netPrefix
+          log.info(s"${Console.MAGENTA}Network changed to: $network ${Console.RESET}")
+          sender ! Map("newNetworkPrefix" -> networkPrefix).asJson
+        case None => Map("error" -> s"The network name: $networkName was not a valid network type!").asJson
       }
   }
 }

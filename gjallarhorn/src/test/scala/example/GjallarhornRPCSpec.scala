@@ -284,4 +284,53 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     }
   }
 
+  it should "successfully get network prefix" in {
+    val networkTypeRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_networkType",
+         |   "params": [{}]
+         |}
+         """.stripMargin)
+
+    httpPOST(networkTypeRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          val network = ((res \\ "result").head \\ "networkPrefix").head
+          assert(network.toString() === networkPrefix.toString)
+      }
+    }
+  }
+
+  it should "successfully change the network" in {
+    val networkTypeRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_changeNetwork",
+         |   "params": [{
+         |      "newNetwork": "toplnet"
+         |   }]
+         |}
+         """.stripMargin)
+
+    httpPOST(networkTypeRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          println(res)
+          (res \\ "error").isEmpty shouldBe true
+          val network = ((res \\ "result").head \\ "newNetworkPrefix").head
+          assert(network.toString() === "1")
+      }
+    }
+  }
+
 }

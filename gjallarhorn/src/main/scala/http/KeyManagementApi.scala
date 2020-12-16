@@ -29,8 +29,6 @@ case class KeyManagementApi(settings: AppSettings, keyManager: ActorRef)
     case (method, params, id) if method == s"${namespace.name}_unlockKeyfile" => unlockKeyfile(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_lockKeyfile" => lockKeyfile(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_listOpenKeyfiles" => listOpenKeyfiles(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_networkType" =>
-      Future{Map("networkPrefix" -> networkPrefix).asJson}
   }
 
   /**

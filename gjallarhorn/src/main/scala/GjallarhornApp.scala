@@ -23,7 +23,7 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   implicit val context: ExecutionContextExecutor = system.dispatcher
   implicit val timeout: Timeout = 10.seconds
 
-  log.info(s"${Console.MAGENTA} Gjallarhorn running in offline mode.")
+  log.info(s"${Console.MAGENTA} Gjallarhorn running in offline mode.${Console.RESET}")
 
   //TODO: this is the default network - but user can change this.
   //implicit val networkPrefix: NetworkPrefix = 48.toByte
@@ -47,21 +47,19 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
     KeyManagementApi(settings, keyManagerRef)
   )
 
-  if (settings.application.chainProvider != "") {
-    log.info("gjallarhorn attempting to run in online mode. Trying to connect to Bifrost...")
-    val listener: ActorRef = system.actorOf(Props[DeadLetterListener]())
-    actorsToStop = actorsToStop :+ listener
-    system.eventStream.subscribe(listener, classOf[DeadLetter])
-    system.actorSelection(s"akka.tcp://${settings.application.chainProvider}/user/walletConnectionHandler")
-      .resolveOne().onComplete {
-      case Success(actor) =>
-        log.info(s"${Console.MAGENTA} Bifrst actor ref was found: $actor")
-        setUpOnlineMode(actor)
-      case Failure(ex) =>
-        log.error(s"bifrost actor ref not found at: akka.tcp://${settings.application.chainProvider}. " +
-          s"Continuing to run in offline mode.")
-        setUpHttp()
-    }
+  log.info("gjallarhorn attempting to run in online mode. Trying to connect to Bifrost...")
+  val listener: ActorRef = system.actorOf(Props[DeadLetterListener]())
+  actorsToStop = actorsToStop :+ listener
+  system.eventStream.subscribe(listener, classOf[DeadLetter])
+  system.actorSelection(s"akka.tcp://${settings.application.chainProvider}/user/walletConnectionHandler")
+    .resolveOne().onComplete {
+    case Success(actor) =>
+      log.info(s"${Console.MAGENTA} Bifrst actor ref was found: $actor ${Console.RESET}")
+      setUpOnlineMode(actor)
+    case Failure(ex) =>
+      log.error(s"bifrost actor ref not found at: akka.tcp://${settings.application.chainProvider}. " +
+        s"Continuing to run in offline mode.")
+      setUpHttp()
   }
 
   def setUpOnlineMode(bifrost: ActorRef) (implicit context: ExecutionContextExecutor, system: ActorSystem): Unit = {
