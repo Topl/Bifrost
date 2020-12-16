@@ -34,15 +34,12 @@ import scala.util.{Failure, Try}
   * This class is not thread-save so it should be used only as a local field of an actor
   * and its methods should not be called from lambdas, Future, Future.map, etc.
   */
-class DeliveryTracker(
-  nvsRef: ActorRef,
-  context: ActorContext,
-  networkSettings: NetworkSettings) extends Logging {
+class DeliveryTracker(nvsRef: ActorRef, context: ActorContext, networkSettings: NetworkSettings) extends Logging {
 
   protected case class RequestedInfo(peer: Option[ConnectedPeer], cancellable: Cancellable, checks: Int)
 
   protected class StopExpectingError(mid: ModifierId, checks: Int)
-    extends Error(s"Stop expecting $mid} due to exceeded number of retries $checks")
+      extends Error(s"Stop expecting $mid} due to exceeded number of retries $checks")
 
   private val deliveryTimeout: FiniteDuration = networkSettings.deliveryTimeout
   private val maxDeliveryChecks: Int = networkSettings.maxDeliveryChecks
@@ -78,8 +75,11 @@ class DeliveryTracker(
     *
     * @return `true` if number of checks was not exceed, `false` otherwise
     */
-  def onStillWaiting(peerOpt: Option[ConnectedPeer], typeId: ModifierTypeId, id: ModifierId)
-                    (implicit ec: ExecutionContext): Try[Boolean] = tryWithLogging[Boolean] {
+  def onStillWaiting(
+    peerOpt:     Option[ConnectedPeer],
+    typeId:      ModifierTypeId,
+    id:          ModifierId
+  )(implicit ec: ExecutionContext): Try[Boolean] = tryWithLogging[Boolean] {
 
     val checks = requested(id).checks + 1
 
@@ -91,13 +91,13 @@ class DeliveryTracker(
       */
     peerOpt match {
       /** case for waiting on anyone to provide a modifier */
-      case _ if checks < maxDeliveryChecks  =>
+      case _ if checks < maxDeliveryChecks =>
         setRequested(id, typeId, peerOpt, checks)
         true
 
       /** case for transitioning to ask anyone for the modifier */
       case Some(_) if checks >= maxDeliveryChecks =>
-        setRequested(id, typeId,  None)
+        setRequested(id, typeId, None)
         false
 
       /** case where we've exhausted attempts to get the modifier so stop checking for it */
@@ -105,30 +105,32 @@ class DeliveryTracker(
         throw new StopExpectingError(id, checks)
     }
 
-    }
+  }
 
   /** Set status of modifier with id `id` to `Requested` */
-  def setRequested(id: ModifierId, typeId: ModifierTypeId, supplierOpt: Option[ConnectedPeer], checksDone: Int = 0)
-                  (implicit ec: ExecutionContext): Unit =
+  def setRequested(id: ModifierId, typeId: ModifierTypeId, supplierOpt: Option[ConnectedPeer], checksDone: Int = 0)(
+    implicit ec:       ExecutionContext
+  ): Unit =
     tryWithLogging {
       require(isCorrectTransition(status(id), Requested), s"Illegal status transition: ${status(id)} -> Requested")
-      val cancellable = context.system.scheduler.scheduleOnce(deliveryTimeout, nvsRef, CheckDelivery(supplierOpt, typeId, id))
+      val cancellable =
+        context.system.scheduler.scheduleOnce(deliveryTimeout, nvsRef, CheckDelivery(supplierOpt, typeId, id))
       requested.put(id, RequestedInfo(supplierOpt, cancellable, checksDone))
     }
 
-  def setRequested(ids: Seq[ModifierId], typeId: ModifierTypeId, cp: Option[ConnectedPeer])
-                  (implicit ec: ExecutionContext): Unit = ids.foreach(setRequested(_, typeId, cp))
+  def setRequested(ids: Seq[ModifierId], typeId: ModifierTypeId, cp: Option[ConnectedPeer])(implicit
+    ec:                 ExecutionContext
+  ): Unit = ids.foreach(setRequested(_, typeId, cp))
 
   /** Modified with id `id` is permanently invalid - set its status to `Invalid`
-    * and return [[ConnectedPeer]] which sent bad modifier.
+    * and return [[peer.ConnectedPeer]] which sent bad modifier.
     */
   def setInvalid(id: ModifierId): Option[ConnectedPeer] = {
     val oldStatus: ModifiersStatus = status(id)
     val transitionCheck = tryWithLogging {
       require(isCorrectTransition(oldStatus, Invalid), s"Illegal status transition: $oldStatus -> Invalid")
     }
-    transitionCheck
-      .toOption
+    transitionCheck.toOption
       .flatMap { _ =>
         val senderOpt = oldStatus match {
           case Requested =>
@@ -189,12 +191,12 @@ class DeliveryTracker(
     */
   private def isCorrectTransition(oldStatus: ModifiersStatus, newStatus: ModifiersStatus): Boolean =
     oldStatus match {
-      case old if old == newStatus => true
+      case old if old == newStatus                        => true
       case _ if newStatus == Invalid || newStatus == Held => true
-      case Unknown => newStatus == Requested
-      case Requested => newStatus == Unknown || newStatus == Received
-      case Received => newStatus == Unknown
-      case _ => false
+      case Unknown                                        => newStatus == Requested
+      case Requested                                      => newStatus == Unknown || newStatus == Received
+      case Received                                       => newStatus == Unknown
+      case _                                              => false
     }
 
   private def tryWithLogging[T](fn: => T): Try[T] =

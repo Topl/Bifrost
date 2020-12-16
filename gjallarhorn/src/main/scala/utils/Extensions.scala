@@ -8,14 +8,14 @@ object Extensions {
   implicit class ByteOps(val b: Byte) extends AnyVal {
 
     /**
-      * Converts the `Byte` to a [[scala.Int]] by an unsigned conversion.
+      * Converts the `Byte` to a `Int` by an unsigned conversion.
       */
     @inline def toUByte: Int = b & 0xFF
   }
 
   implicit class ShortOps(val x: Short) extends AnyVal {
 
-    /** Converts the `Short` value to a [[scala.Byte]], checking for lost information.
+    /** Converts the `Short` value to a `Byte`, checking for lost information.
       * If `Short` value is out of the possible range for a [[scala.Byte]] result,
       * then a `java.lang.ArithmeticException` is thrown.
       */
@@ -28,7 +28,7 @@ object Extensions {
 
   implicit class IntOps(val x: Int) extends AnyVal {
 
-    /** Converts the `Int` value to a [[scala.Byte]], checking for lost information.
+    /** Converts the `Int` value to a `Byte`, checking for lost information.
       * If `Int` value is out of the possible range for a [[scala.Byte]] result,
       * then a `java.lang.ArithmeticException` is thrown.
       */
@@ -38,7 +38,7 @@ object Extensions {
       x.toByte
     }
 
-    /** Converts the `Int` value to a [[scala.Short]], checking for lost information.
+    /** Converts the `Int` value to a `Short`, checking for lost information.
       * If `Int` value is out of the possible range for a [[scala.Short]] result,
       * then a `java.lang.ArithmeticException` is thrown.
       */
@@ -51,7 +51,7 @@ object Extensions {
 
   implicit class LongOps(val x: Long) extends AnyVal {
 
-    /** Converts the `Long` value to a [[scala.Byte]], checking for lost information.
+    /** Converts the `Long` value to a `Byte`, checking for lost information.
       * If `Long` value is out of the possible range for a [[scala.Byte]] result,
       * then a `java.lang.ArithmeticException` is thrown.
       */
@@ -61,7 +61,7 @@ object Extensions {
       x.toByte
     }
 
-    /** Converts the `Long` value to a [[scala.Short]], checking for lost information.
+    /** Converts the `Long` value to a `Short`, checking for lost information.
       * If `Long` value is out of the possible range for a [[scala.Short]] result,
       * then a `java.lang.ArithmeticException` is thrown.
       */
@@ -71,8 +71,8 @@ object Extensions {
       x.toShort
     }
 
-    /** Converts the `Long` value to a [[scala.Int]], checking for lost information.
-      * If `Long` value is out of the possible range for a [[scala.Int]] result,
+    /** Converts the `Long` value to a `Int`, checking for lost information.
+      * If `Long` value is out of the possible range for a `scala.Int` result,
       * then a `java.lang.ArithmeticException` is thrown.
       */
     def toIntExact: Int = {

@@ -13,7 +13,8 @@ import scala.concurrent.duration._
   * @param timeProvider NetworkTimeProvider that provides the current timestamp in milliseconds with ntp offset checked
   */
 final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimeProvider)
-  extends PeerDatabase with Logging {
+    extends PeerDatabase
+    with Logging {
 
   private var peers = Map.empty[InetSocketAddress, PeerInfo]
 
@@ -62,12 +63,10 @@ final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimePr
   override def knownPeers: Map[InetSocketAddress, PeerInfo] = peers
 
   /** @return a sequence of blacklisted peers */
-  override def blacklistedPeers: Seq[InetAddress] = blacklist
-    .map { case (address, bannedTill) =>
-      checkBanned(address, bannedTill)
-      address
-    }
-    .toSeq
+  override def blacklistedPeers: Seq[InetAddress] = blacklist.map { case (address, bannedTill) =>
+    checkBanned(address, bannedTill)
+    address
+  }.toSeq
 
   override def isEmpty: Boolean = peers.isEmpty
 
@@ -116,13 +115,6 @@ final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimePr
   def penaltyScore(socketAddress: InetSocketAddress): Int =
     Option(socketAddress.getAddress).map(penaltyScore).getOrElse(0)
 
-  /** @return `true` if a peer should still be on blacklist */
-  private def checkBanned(address: InetAddress, bannedTill: Long): Boolean = {
-    val stillBanned = timeProvider.time() < bannedTill
-    if (!stillBanned) removeFromBlacklist(address)
-    stillBanned
-  }
-
   /** @return the penalty score for the given penalty type */
   private def penaltyScore(penaltyType: PenaltyType): Int =
     penaltyType match {
@@ -136,6 +128,13 @@ final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimePr
         PenaltyType.PermanentPenalty.penaltyScore
     }
 
+  /** @return `true` if a peer should still be on blacklist */
+  private def checkBanned(address: InetAddress, bannedTill: Long): Boolean = {
+    val stillBanned = timeProvider.time() < bannedTill
+    if (!stillBanned) removeFromBlacklist(address)
+    stillBanned
+  }
+
   /** @return the penalty duration for the peer that is going on the blacklist */
   private def penaltyDuration(penalty: PenaltyType): Long =
     penalty match {
@@ -144,5 +143,4 @@ final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimePr
       case PenaltyType.PermanentPenalty =>
         (360 * 10).days.toMillis
     }
-
 }

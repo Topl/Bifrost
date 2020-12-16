@@ -15,18 +15,22 @@ import scala.concurrent.duration.FiniteDuration
   * @param blockVersion applicable block serializer version
   */
 case class ProtocolSettings(
-  version        : Version,
-  startBlock     : Long,
+  version:         Version,
+  startBlock:      Long,
   targetBlockTime: Option[FiniteDuration] = None,
-  numTxPerBlock  : Option[Int] = None,
-  blockVersion   : Option[Byte] = None) extends Ordered[ProtocolSettings] {
+  numTxPerBlock:   Option[Int] = None,
+  blockVersion:    Option[Byte] = None
+) extends Ordered[ProtocolSettings] {
 
   /** Want reverse ordering such that the highest start block is first in the list so that traversing the sortedSet
     * will find the first applicable settings
     */
-  def compare(that: ProtocolSettings): Int =
-    -1 * (this.startBlock compare that.startBlock)
+  def compare(that: ProtocolSettings): Int = -1 * (this.startBlock compare that.startBlock)
 
-  def equals(that: ProtocolSettings): Boolean =
-    this.startBlock == that.startBlock
+  override def equals(obj: Any): Boolean = obj match {
+    case ps: ProtocolSettings => this.startBlock == ps.startBlock
+    case _                    => false
+  }
+
+  override def hashCode(): Int = (this.startBlock % Int.MaxValue).toInt
 }
