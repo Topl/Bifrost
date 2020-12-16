@@ -6,14 +6,14 @@ import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.TransferTransaction.BoxParams
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{Box, PolyBox, SimpleValue, TokenBox, TokenValueHolder}
-import co.topl.utils.HasName
+import co.topl.utils.Identifiable
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 
 import scala.util.Try
 
 case class PolyTransfer[
-  P <: Proposition: EvidenceProducer: HasName
+  P <: Proposition: EvidenceProducer: Identifiable
 ](override val from:        IndexedSeq[(Address, Box.Nonce)],
   override val to:          IndexedSeq[(Address, TokenValueHolder)],
   override val attestation: Map[P, Proof[P]],
@@ -29,7 +29,7 @@ case class PolyTransfer[
     val params = TransferTransaction.boxParams(this)
 
     val feeBox =
-      if (fee > 0L) Traversable((PolyBox.apply _).tupled(BoxParams.unapply(params._1).get))
+      if (fee > 0L) Traversable(PolyBox(params._1.evidence, params._1.nonce, params._1.value))
       else Traversable()
 
     val polyBoxes = params._2.map {
@@ -45,7 +45,10 @@ object PolyTransfer {
   val txTypePrefix: TxType = 2: Byte
   val txTypeString: String = "PolyTransfer"
 
-  implicit val name: HasName[PolyTransfer[_]] = HasName.instance { () => txTypeString }
+  implicit val identifier: Identifiable[PolyTransfer[_]] = new Identifiable[PolyTransfer[_]] {
+    override def typePrefix: Byte = txTypePrefix
+    override def typeString: String = txTypeString
+  }
 
   /** @param stateReader
     * @param toReceive
@@ -55,7 +58,7 @@ object PolyTransfer {
     * @return
     */
   def createRaw[
-    P <: Proposition: EvidenceProducer: HasName
+    P <: Proposition: EvidenceProducer: Identifiable
   ](stateReader:          StateReader,
     toReceive:            IndexedSeq[(Address, SimpleValue)],
     sender:               IndexedSeq[Address],

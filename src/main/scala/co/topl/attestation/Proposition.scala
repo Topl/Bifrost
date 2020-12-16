@@ -3,7 +3,7 @@ package co.topl.attestation
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
 import co.topl.attestation.serialization.PropositionSerializer
-import co.topl.utils.HasName
+import co.topl.utils.Identifiable
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
@@ -84,7 +84,10 @@ object PublicKeyPropositionCurve25519 {
       prop: PublicKeyPropositionCurve25519 => Evidence(typePrefix, EvidenceContent @@ Blake2b256(prop.bytes))
     }
 
-  implicit val name: HasName[PublicKeyPropositionCurve25519] = HasName.instance(() => typeString)
+  implicit val identifier: Identifiable[PublicKeyPropositionCurve25519] = new Identifiable[PublicKeyPropositionCurve25519] {
+    override def typePrefix: Byte = typePrefix
+    override def typeString: String = typeString
+  }
 
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html
@@ -128,7 +131,10 @@ object ThresholdPropositionCurve25519 {
       prop: ThresholdPropositionCurve25519 => Evidence(typePrefix, EvidenceContent @@ Blake2b256(prop.bytes))
     }
 
-  implicit val name: HasName[ThresholdPropositionCurve25519] = HasName.instance(() => typeString)
+  implicit val identifier: Identifiable[ThresholdPropositionCurve25519] = new Identifiable[ThresholdPropositionCurve25519] {
+    override def typePrefix: Byte = typePrefix
+    override def typeString: String = typeString
+  }
 
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html

@@ -6,7 +6,7 @@ import co.topl.attestation.{Evidence, _}
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{Box, _}
-import co.topl.utils.HasName
+import co.topl.utils.Identifiable
 import com.google.common.primitives.{Ints, Longs}
 import scorex.crypto.hash.Blake2b256
 
@@ -14,7 +14,7 @@ import scala.util.{Failure, Success, Try}
 
 abstract class TransferTransaction[
   +T <: TokenValueHolder,
-  P <: Proposition: EvidenceProducer: HasName
+  P <: Proposition: EvidenceProducer: Identifiable
 ](val from:        IndexedSeq[(Address, Box.Nonce)],
   val to:          IndexedSeq[(Address, T)],
   val attestation: Map[P, Proof[P]],

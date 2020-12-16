@@ -3,8 +3,8 @@ package co.topl.nodeView.state.box
 import co.topl.attestation.Evidence
 import co.topl.nodeView.state.box.Box.Nonce
 import co.topl.nodeView.state.box.serialization.BoxSerializer
-import co.topl.utils.HasName
-import co.topl.utils.HasName.Syntax._
+import co.topl.utils.Identifiable
+import co.topl.utils.Identifiable.Syntax._
 import co.topl.utils.serialization.BifrostSerializer
 import com.google.common.primitives.Ints
 import io.circe._
@@ -30,10 +30,10 @@ object Box {
   type Nonce = Long
   type BoxType = Byte
 
-  def jsonEncode[T: Encoder, BX <: Box[T]: HasName](box: BX): Map[String, Json] =
+  def jsonEncode[T: Encoder, BX <: Box[T]: Identifiable](box: BX): Map[String, Json] =
     Map(
       "id"       -> box.id.toString.asJson,
-      "type"     -> box.name.asJson,
+      "type"     -> box.typeString.asJson,
       "evidence" -> box.evidence.toString.asJson,
       "value"    -> box.value.asJson,
       "nonce"    -> box.nonce.toString.asJson

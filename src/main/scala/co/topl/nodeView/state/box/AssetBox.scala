@@ -2,7 +2,7 @@ package co.topl.nodeView.state.box
 
 import co.topl.attestation.Evidence
 import co.topl.nodeView.state.box.Box.BoxType
-import co.topl.utils.HasName
+import co.topl.utils.Identifiable
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
 
@@ -16,7 +16,10 @@ object AssetBox {
   val boxTypePrefix: BoxType = 3: Byte
   val boxTypeString: String = "AssetBox"
 
-  implicit val name: HasName[AssetBox] = HasName.instance(() => boxTypeString)
+  implicit val identifier: Identifiable[AssetBox] = new Identifiable[AssetBox] {
+    override def typePrefix: Byte = boxTypePrefix
+    override def typeString: String = boxTypeString
+  }
 
   implicit val jsonEncoder: Encoder[AssetBox] = (box: AssetBox) => Box.jsonEncode[AssetValue, AssetBox](box).asJson
 

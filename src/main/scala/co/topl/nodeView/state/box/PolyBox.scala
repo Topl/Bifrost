@@ -2,7 +2,7 @@ package co.topl.nodeView.state.box
 
 import co.topl.attestation.Evidence
 import co.topl.nodeView.state.box.Box.BoxType
-import co.topl.utils.HasName
+import co.topl.utils.Identifiable
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 
@@ -16,7 +16,10 @@ object PolyBox {
   val boxTypePrefix: BoxType = 2: Byte
   val boxTypeString: String = "PolyBox"
 
-  implicit val name: HasName[PolyBox] = HasName.instance(() => boxTypeString)
+  implicit val identifier: Identifiable[PolyBox] = new Identifiable[PolyBox] {
+    override def typePrefix: Byte = boxTypePrefix
+    override def typeString: String = boxTypeString
+  }
 
   implicit val jsonEncoder: Encoder[PolyBox] = (box: PolyBox) => Box.jsonEncode[SimpleValue, PolyBox](box).asJson
 
