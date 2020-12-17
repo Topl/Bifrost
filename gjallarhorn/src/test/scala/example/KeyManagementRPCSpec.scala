@@ -9,7 +9,7 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.{ByteString, Timeout}
 import crypto.AddressEncoder.NetworkPrefix
 import crypto.Address
-import http.{HttpService, KeyManagementApi}
+import http.{GjallarhornOnlyApiRoute, HttpService, KeyManagementApi}
 import io.circe.Json
 import io.circe.parser.parse
 import keymanager.KeyManager.GenerateKeyFile
@@ -37,7 +37,8 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
   val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", keyFileDir)
 
   val apiRoute: ApiRoute = KeyManagementApi(keyManagementSettings, keyManagerRef)
-  val route: Route = HttpService(Seq(apiRoute), keyManagementSettings.rpcApi).compositeRoute
+  val gjalOnlyApiRoute: ApiRoute = GjallarhornOnlyApiRoute(settings, keyManagerRef)
+  val route: Route = HttpService(Seq(apiRoute, gjalOnlyApiRoute), keyManagementSettings.rpcApi).compositeRoute
 
   val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))
     .mapTo[Try[Address]], 10.seconds) match {
@@ -147,11 +148,10 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
          |   "id": "2",
          |   "method": "wallet_lockKeyfile",
          |   "params": [{
-         |      "publicKey": "$pubKeyAddr",
-         |      "password": "foo"
+         |      "publicKey": "$pubKeyAddr"
          |   }]
          |}
-           """.stripMargin)
+         """.stripMargin)
 
     httpPOST(lockKeyRequest) ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
@@ -210,6 +210,79 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
           (res \\ "error").isEmpty shouldBe true
           val phrase = ((res \\ "result").head \\ "mnemonicPhrase").head
           assert(phrase != null)
+      }
+    }
+  }
+
+  it should "successfully change the network" in {
+    val networkTypeRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_changeNetwork",
+         |   "params": [{
+         |      "newNetwork": "toplnet"
+         |   }]
+         |}
+         """.stripMargin)
+
+    httpPOST(networkTypeRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          val network = ((res \\ "result").head \\ "newNetworkPrefix").head
+          assert(network.toString() === "1")
+      }
+    }
+  }
+
+  it should "successfully generate key file with new network prefix" in {
+    val generateKeyfileRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_generateKeyfile",
+         |   "params": [{
+         |      "password": "foo"
+         |   }]
+         |}
+         """.stripMargin)
+
+    httpPOST(generateKeyfileRequest) ~> route ~> check {
+      parse(responseAs[String]) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          val result: Json = (res \\ "result").head
+          (result \\ "address").head.asString.get.charAt(0) == '9' shouldBe true
+          (res \\ "error").isEmpty shouldBe true
+          result.asObject.isDefined shouldBe true
+      }
+    }
+  }
+
+  it should "successfully get open keyfiles after network change" in {
+    val openKeyfilesRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_listOpenKeyfiles",
+         |   "params": [{}]
+         |}
+         """.stripMargin)
+
+    httpPOST(openKeyfilesRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          val openKeys: Set[String] = (res \\ "result").head.asArray.get.map(k => k.asString.get).toSet
+          openKeys.size == 1 shouldBe true
       }
     }
   }

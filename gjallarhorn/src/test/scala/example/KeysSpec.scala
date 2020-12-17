@@ -1,15 +1,11 @@
 package example
 
-import java.io.File
-
 import crypto.AddressEncoder.NetworkPrefix
 import crypto.{Address, KeyfileCurve25519, PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
-import keymanager.{Keyfile, Keys}
+import keymanager.Keys
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import scorex.crypto.hash.{Blake2b256, Digest32}
-import io.circe.syntax._
-import org.scalatest.Ignore
 
 import scala.reflect.io.Path
 import scala.util.{Failure, Success, Try}
@@ -134,7 +130,7 @@ class KeysSpec extends AsyncFlatSpec with Matchers {
   }
 
   it should "Be locked" in {
-    keyManager.lockKeyFile(pubKey.toString, password2).get
+    keyManager.lockKeyFile(pubKey.toString).get
     assert(keyManager.addresses.size == 2)
   }
 

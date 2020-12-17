@@ -16,7 +16,7 @@ class KeyManager(keyFileDir: String) extends Actor with Logging {
 
   import KeyManager._
 
-  private val keyRing: Keys[PrivateKeyCurve25519, KeyfileCurve25519] =
+  private var keyRing: Keys[PrivateKeyCurve25519, KeyfileCurve25519] =
     Keys(keyFileDir, KeyfileCurve25519)(PrivateKeyCurve25519.secretGenerator, networkPrefix = networkPrefix)
 
   override def receive: Receive = {
@@ -27,7 +27,7 @@ class KeyManager(keyFileDir: String) extends Actor with Logging {
 
     case UnlockKeyFile(pubKeyString, password) => sender ! keyRing.unlockKeyFile(pubKeyString, password)
 
-    case LockKeyFile(pubKeyString, password) => sender ! keyRing.lockKeyFile(pubKeyString, password)
+    case LockKeyFile(pubKeyString) => sender ! keyRing.lockKeyFile(pubKeyString)
 
     case GetOpenKeyfiles => sender ! keyRing.addresses
 
@@ -55,8 +55,16 @@ class KeyManager(keyFileDir: String) extends Actor with Logging {
     case ChangeNetwork(networkName: String) =>
       NetworkType.fromString(networkName) match {
         case Some(network) =>
+          //lock all keyfiles on current network
+          keyRing.addresses.foreach(addr =>
+            keyRing.lockKeyFile(addr.toString))
+
+          //change network and initialize keyRing with new network
           networkPrefix = network.netPrefix
-          log.info(s"${Console.MAGENTA}Network changed to: $network ${Console.RESET}")
+          keyRing = Keys(keyFileDir, KeyfileCurve25519)(PrivateKeyCurve25519.secretGenerator,
+            networkPrefix = networkPrefix)
+
+          log.info(s"${Console.MAGENTA}Network changed to: ${network.verboseName} ${Console.RESET}")
           sender ! Map("newNetworkPrefix" -> networkPrefix).asJson
         case None => Map("error" -> s"The network name: $networkName was not a valid network type!").asJson
       }
@@ -67,7 +75,7 @@ object KeyManager {
   case class GenerateKeyFile(password: String, seedOpt: Option[String])
   case class ImportKeyfile(password: String, mnemonic: String, lang: String)
   case class UnlockKeyFile(publicKeyString: String, password: String)
-  case class LockKeyFile(publicKeyString: String, password: String)
+  case class LockKeyFile(publicKeyString: String)
   case object GetOpenKeyfiles
   case class SignTx(transaction: Json, signingKeys: List[String], messageToSign: Json)
   case class ChangeNetwork(networkName: String)

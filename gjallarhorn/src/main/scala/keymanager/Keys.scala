@@ -7,7 +7,6 @@ import crypto.AddressEncoder.NetworkPrefix
 import crypto.{Address, Secret, SecretGenerator}
 import scorex.util.Random.randomBytes
 import scorex.crypto.hash.Blake2b256
-import scorex.util.encode.Base58
 import utils.Logging
 
 import scala.util.{Failure, Success, Try}
@@ -48,7 +47,12 @@ class Keys[
     * @param password        - password for the given public key.
     */
   def unlockKeyFile(publicKeyString: String, password: String): Try[Unit] = Try {
-    val privKey = checkValid(publicKeyString: String, password: String)
+    val keyfile = checkValid(publicKeyString: String)
+
+    val privKey = keyfileOps.decryptSecret(keyfile, password) match {
+      case Success(sk) => sk
+      case Failure(e) => throw new Exception(s"Wrong password: $e")
+    }
 
     // ensure no duplicate by comparing privKey strings
     if (!secrets.contains(privKey)) secrets += privKey
@@ -58,17 +62,17 @@ class Keys[
   /** Given a public key and password, locks a key file.
     *
     * @param publicKeyString Base58 encoded public key to lock
-    * @param password        - password associated with public key.
     */
-  def lockKeyFile(publicKeyString: String, password: String): Try[Unit] = Try {
-    val privKey = checkValid(publicKeyString: String, password: String)
+  def lockKeyFile(publicKeyString: String): Try[Unit] = Try {
+    val keyfile = checkValid(publicKeyString: String)
 
     // ensure no duplicate by comparing privKey strings
-    if (!secrets.contains(privKey)) log.warn(s"$publicKeyString is already locked")
-    else secrets -= (secrets find (p => p == privKey)).get
+    val addresses: Set[Address] = secrets.map(sk => sk.publicImage.address)
+    if (!addresses.contains(keyfile.address)) log.warn(s"$publicKeyString is already locked")
+    else secrets -= (secrets find (p => p.publicImage.address == keyfile.address)).get
   }
 
-  /** @param password
+  /** @param password - password to use to encrypt generated key.
     */
   def generateKeyFile(password: String, seedOpt: Option[String] = None): Try[Address] = {
     // generate a new random key pair and save to disk
@@ -78,8 +82,8 @@ class Keys[
     }
   }
 
-  /** @param num
-    * @param seedOpt
+  /** @param num - number of keys to be generated.
+    * @param seedOpt - optional seed to create keys.
     * @return
     */
   def generateNewKeyPairs(num: Int = 1, seedOpt: Option[String] = None): Try[Set[S]] =
@@ -95,9 +99,9 @@ class Keys[
       } else throw new Error("Number of requested keys must be greater than or equal to 1")
     }
 
-  /** @param password
-    * @param mnemonic
-    * @param lang
+  /** @param password - password to encrypt imported key.
+    * @param mnemonic - mnemonic phrase used to generate key.
+    * @param lang - language used to create BIP object to generate key.
     * @return
     */
   def importPhrase(password: String, mnemonic: String, lang: String)(implicit sg: SecretGenerator[S]): Try[Address] =
@@ -119,8 +123,8 @@ class Keys[
       sk._2.address
     }
 
-  /** @param address
-    * @param password
+  /** @param address - address for keyfile to export
+    * @param password - password for keyfile to export
     * @return
     */
   def exportKeyfile(address: Address, password: String): Try[Unit] = Try {
@@ -142,20 +146,20 @@ class Keys[
   /** Check if given publicKey string is valid and contained in the key file directory
     *
     * @param address Base58 encoded public key to query
-    * @param password        password used to decrypt the keyfile
+    * //@param password        password used to decrypt the keyfile
     * @return the relevant PrivateKey25519 to be processed
     */
-  private def checkValid(address: String, password: String): S = {
+  private def checkValid(address: String): KF = {
     val keyfile = listKeyFiles.filter {
       _.address == Address(address)
     }
 
     require(keyfile.size == 1, s"Cannot find a unique matching keyfile in $defaultKeyDir")
-
-    keyfileOps.decryptSecret(keyfile.head, password) match {
+    keyfile.head
+/*    keyfileOps.decryptSecret(keyfile.head, password) match {
       case Success(sk) => sk
       case Failure(e)  => throw new Exception(s"Wrong password: $e")
-    }
+    }*/
   }
 }
 

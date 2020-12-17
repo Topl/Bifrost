@@ -6,7 +6,7 @@ import crypto.Address
 import keymanager.KeyManager._
 import io.circe.Json
 import io.circe.syntax._
-import keymanager.{Bip39, networkPrefix}
+import keymanager.Bip39
 import keymanager.KeyManager.{GenerateKeyFile, ImportKeyfile, LockKeyFile, UnlockKeyFile}
 import requests.ApiRoute
 import settings.AppSettings
@@ -107,10 +107,9 @@ case class KeyManagementApi(settings: AppSettings, keyManager: ActorRef)
   private def lockKeyfile(params: Json, id: String): Future[Json] = {
     val publicKey: String = (params \\ "publicKey").head.asString.get
 
-    val password: String = (params \\ "password").head.asString.get
-    (keyManager ? LockKeyFile(publicKey, password)).mapTo[Try[Unit]].map {
+    (keyManager ? LockKeyFile(publicKey)).mapTo[Try[Unit]].map {
       case Success(_) => Map(publicKey -> "locked".asJson).asJson
-      case Failure(ex) => throw new Error(s"An error occurred while trying to unlock the keyfile. $ex")
+      case Failure(ex) => throw new Error(s"An error occurred while trying to lock the keyfile. $ex")
     }
   }
 
