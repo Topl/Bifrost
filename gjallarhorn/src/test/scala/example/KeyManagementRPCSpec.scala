@@ -38,7 +38,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
 
   val apiRoute: ApiRoute = KeyManagementApi(keyManagementSettings, keyManagerRef)
   val gjalOnlyApiRoute: ApiRoute = GjallarhornOnlyApiRoute(settings, keyManagerRef)
-  val route: Route = HttpService(Seq(apiRoute, gjalOnlyApiRoute), keyManagementSettings.rpcApi).compositeRoute
+  val route: Route = HttpService(Seq(apiRoute, gjalOnlyApiRoute), keyManagementSettings.rpcApi, onlineStatus = false).compositeRoute
 
   val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))
     .mapTo[Try[Address]], 10.seconds) match {

@@ -22,10 +22,11 @@ import settings.ApplicationSettings
 
 import scala.util.{Failure, Success}
 
-class Requests (settings: ApplicationSettings, requestsManager: ActorRef, keyManagerRef: ActorRef)
+class Requests (settings: ApplicationSettings, keyManagerRef: ActorRef)
                (implicit val actorSystem: ActorSystem) {
 
   val http: HttpExt = Http(actorSystem)
+  private var requestsManager: Option[ActorRef] = None
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 
@@ -113,17 +114,26 @@ class Requests (settings: ApplicationSettings, requestsManager: ActorRef, keyMan
     * @return
     */
   def sendRequest(request: ByteString): Json  = {
-    settings.communicationMode match {
-      case "useTcp" =>
-        val sendTx = httpPOST(request)
-        val data = requestResponseByteString(sendTx)
-        byteStringToJSON(data)
+    requestsManager match {
+      case Some(actor) => {
+        settings.communicationMode match {
+          case "useTcp" =>
+            val sendTx = httpPOST(request)
+            val data = requestResponseByteString(sendTx)
+            byteStringToJSON(data)
 
-      case "useAkka" =>
-        val req: Json = byteStringToJSON(request)
-        val result = Await.result((requestsManager ? BifrostRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
-        createJsonResponse(req, result)
+          case "useAkka" =>
+            val req: Json = byteStringToJSON(request)
+            val result = Await.result((actor ? BifrostRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
+            createJsonResponse(req, result)
+        }
+      }
+      case None =>
+        val msg = "cannot send request because you are offline mode " +
+          "or the chain provider provided was incorrect."
+        Map("error" -> msg).asJson
     }
+
   }
 
   def broadcastTx(signedTransaction: Json): Json = {
@@ -135,6 +145,10 @@ class Requests (settings: ApplicationSettings, requestsManager: ActorRef, keyMan
     val params: Json = Map("addresses" -> keysJson.toList).asJson
     val requestBody = transaction("topl_balances", params)
     sendRequest(requestBody)
+  }
+
+  def switchOnlineStatus(requestsManagerRef: Option[ActorRef]): Unit = {
+    requestsManager = requestsManagerRef
   }
 
 }

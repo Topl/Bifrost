@@ -1,6 +1,5 @@
 package http
 
-import akka.actor.ActorSystem
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
@@ -14,7 +13,7 @@ import settings.RPCApiSettings
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
-final case class HttpService (apiServices: Seq[ApiRoute], settings: RPCApiSettings)(implicit val system: ActorSystem)
+final case class HttpService (apiServices: Seq[ApiRoute], settings: RPCApiSettings)
   extends CorsSupport {
 
   private val timeout: Timeout = Timeout(settings.timeout)

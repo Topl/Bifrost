@@ -1,6 +1,6 @@
 package example
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern.ask
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
@@ -17,9 +17,7 @@ import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
 import keymanager.KeyManager.GenerateKeyFile
 import keymanager.KeyManagerRef
-import requests.{ApiRoute, Requests, RequestsManager}
-import wallet.WalletManager
-import wallet.WalletManager.{GjallarhornStarted, KeyManagerReady}
+import requests.{ApiRoute, Requests}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -61,18 +59,11 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 
   val amount = 10
 
-  val bifrostActor: ActorRef = Await.result(system.actorSelection(
-    s"akka.tcp://${settings.application.chainProvider}/user/walletConnectionHandler").resolveOne(), 10.seconds)
-  val walletManagerRef: ActorRef = system.actorOf(
-    Props(new WalletManager(bifrostActor)), name = "WalletManager")
-  walletManagerRef ! GjallarhornStarted
-  walletManagerRef ! KeyManagerReady(keyManagerRef)
-  val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager(bifrostActor)), name = "RequestsManager")
-  val requests: Requests = new Requests(settings.application, requestsManagerRef, keyManagerRef)
-  val bifrostApiRoute: ApiRoute = GjallarhornBifrostApiRoute(settings, keyManagerRef, requestsManagerRef,
-    walletManagerRef, requests)
+  val requests: Requests = new Requests(settings.application, keyManagerRef)
+  val bifrostApiRoute: ApiRoute = GjallarhornBifrostApiRoute(settings, keyManagerRef, requests)
   val gjalOnlyApiRoute: ApiRoute = GjallarhornOnlyApiRoute(settings, keyManagerRef)
-  val route: Route = HttpService(Seq(bifrostApiRoute, gjalOnlyApiRoute), settings.rpcApi).compositeRoute
+  val route: Route = HttpService(
+    Seq(bifrostApiRoute, gjalOnlyApiRoute), settings.rpcApi).compositeRoute
 
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
@@ -92,7 +83,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
-         |   "method": "wallet_createTransaction",
+         |   "method": "onlineWallet_createTransaction",
          |   "params": [{
          |     "method": "topl_rawAssetTransfer",
          |     "params": [{
@@ -130,7 +121,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
-         |   "method": "wallet_createTransaction",
+         |   "method": "onlineWallet_createTransaction",
          |   "params": [{
          |     "method": "topl_rawPolyTransfer",
          |     "params": [{
@@ -163,7 +154,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
-         |   "method": "wallet_createTransaction",
+         |   "method": "onlineWallet_createTransaction",
          |   "params": [{
          |     "method": "topl_rawPolyTransfer",
          |     "params": [{
@@ -223,7 +214,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |{
          |   "jsonrpc": "2.0",
          |   "id": "1",
-         |   "method": "wallet_balances",
+         |   "method": "onlineWallet_balances",
          |   "params": [{}]
          |}
       """.stripMargin)
@@ -245,7 +236,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
-         |   "method": "wallet_getWalletBoxes",
+         |   "method": "onlineWallet_getWalletBoxes",
          |   "params": [{}]
          |}
          """.stripMargin)
@@ -325,10 +316,34 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          println(res)
           (res \\ "error").isEmpty shouldBe true
           val network = ((res \\ "result").head \\ "newNetworkPrefix").head
           assert(network.toString() === "1")
+      }
+    }
+  }
+
+  it should "successfully change mode to offline" in {
+    val offlineRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "state_onlineStatus",
+         |   "params": [{
+         |      "online": false
+         |   }]
+         |}
+         """.stripMargin)
+
+    httpPOST(offlineRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          val onlineStatus = ((res \\ "result").head \\ "newOnline").head
+          assert(onlineStatus.toString() === "false")
       }
     }
   }

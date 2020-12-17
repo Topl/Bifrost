@@ -1,8 +1,8 @@
 package co.topl.wallet
 
-import akka.actor.{Actor, ActorRef, ActorSystem, ExtendedActorSystem, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.pipe
-import akka.util.{ByteString, Timeout}
+import akka.util.Timeout
 import co.topl.attestation.{Address, AddressEncoder}
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.http.api.endpoints.{NodeViewApiEndpoint, TransactionApiEndpoint}
@@ -68,7 +68,7 @@ class WalletConnectionHandler[
   private def handleNewBlock(block: Block): Unit = {
     remoteWalletAddresses match {
       case Some(addresses) =>
-        log.debug(s"Received new block ${block.id}, parsing for transactions for addresses: ${addresses}")
+        log.debug(s"Received new block ${block.id}, parsing for transactions for addresses: $addresses")
         remoteWalletActor.map {
           case actorRef: ActorRef if anyRemoteAddressInBloom(block.bloomFilter) =>
             parseBlockForKeys(block).map(txJson => actorRef ! s"new block added: $txJson")
@@ -96,7 +96,7 @@ class WalletConnectionHandler[
         case Some(addrs) =>
           remoteWalletAddresses = keys
           sendRequestApi(balanceRequest(addrs), sender())
-        case None => throw new Error ("No keys found!")
+        case None => log.error(s"${Console.RED}No keys found!${Console.RESET}")
       }
     }
 
@@ -111,6 +111,16 @@ class WalletConnectionHandler[
       println("Wallet Connection handler received a request from gjallarhorn: " + txString)
       val walletActorRef: ActorRef = sender()
       sendRequestApi(txString, walletActorRef)
+    }
+
+    if (msg.contains("New key:")) {
+      val addr: String = msg.substring("New key: ".length)
+      remoteWalletAddresses match {
+        case Some(addresses) =>
+          val newAddresses: Set[Address] = addresses + Address(addr)
+          remoteWalletAddresses = Some(newAddresses)
+        case None => remoteWalletAddresses = Some(Set(Address(addr)))
+      }
     }
   }
 
@@ -174,6 +184,7 @@ class WalletConnectionHandler[
     * @param keys a stringified set of PublicKeyPropositions to monitor for changes
     */
   private def parseKeys(keys: String): Option[Set[Address]] = {
+    println("in parse keys: " + keys)
     if (keys == "Set()") {
       println("Remote wallet has no keys!")
       None

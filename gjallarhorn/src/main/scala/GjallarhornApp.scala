@@ -3,14 +3,15 @@ import akka.http.scaladsl.Http
 import akka.pattern.ask
 import akka.util.Timeout
 import crypto.Address
+import io.circe.syntax._
 import http.{GjallarhornBifrostApiRoute, GjallarhornOnlyApiRoute, HttpService, KeyManagementApi}
-import keymanager.KeyManager.{ChangeNetwork, GenerateKeyFile}
+import io.circe.Json
+import keymanager.KeyManager.GenerateKeyFile
 import keymanager.KeyManagerRef
-import requests.{ApiRoute, Requests, RequestsManager}
+import requests.{ApiRoute, Requests}
 import settings.{AppSettings, StartupOpts}
 import utils.Logging
-import wallet.{DeadLetterListener, WalletManager}
-import wallet.WalletManager.{GetNetwork, GjallarhornStarted, GjallarhornStopped, KeyManagerReady}
+import wallet.DeadLetterListener
 
 import scala.concurrent.{Await, ExecutionContextExecutor}
 import scala.util.{Failure, Success, Try}
@@ -34,6 +35,7 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   //Set up keyManager
   private val keyFileDir: String = settings.application.keyFileDir
   val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", keyFileDir)
+  val requests: Requests = new Requests(settings.application, keyManagerRef)
 
   //TODO: this is just for testing purposes - should grabs keys from database
   val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))
@@ -42,63 +44,37 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
     case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
 
+  val gjalBifrostRoute: ApiRoute = GjallarhornBifrostApiRoute(settings, keyManagerRef, requests)
+
   var apiRoutes: Seq[ApiRoute] = Seq(
     GjallarhornOnlyApiRoute(settings, keyManagerRef),
-    KeyManagementApi(settings, keyManagerRef)
+    KeyManagementApi(settings, keyManagerRef),
+    gjalBifrostRoute
   )
 
-  log.info("gjallarhorn attempting to run in online mode. Trying to connect to Bifrost...")
+  val connectRequest: Vector[Json] = Vector(Map("params" ->
+    Vector(Map("chainProvider" -> settings.application.chainProvider).asJson)).asJson)
+
+  gjalBifrostRoute.handlers("onlineWallet_connectToBifrost", connectRequest, "2")
+
   val listener: ActorRef = system.actorOf(Props[DeadLetterListener]())
-  actorsToStop = actorsToStop :+ listener
+  actorsToStop = actorsToStop ++ Seq(listener, keyManagerRef)
   system.eventStream.subscribe(listener, classOf[DeadLetter])
-  system.actorSelection(s"akka.tcp://${settings.application.chainProvider}/user/walletConnectionHandler")
-    .resolveOne().onComplete {
-    case Success(actor) =>
-      log.info(s"${Console.MAGENTA} Bifrst actor ref was found: $actor ${Console.RESET}")
-      setUpOnlineMode(actor)
+
+  //hook for initiating the shutdown procedure
+  sys.addShutdownHook(GjallarhornApp.shutdown(system, actorsToStop))
+
+  val httpService: HttpService = HttpService(apiRoutes, settings.rpcApi)
+  val httpHost: String = settings.rpcApi.bindAddress.getHostName
+  val httpPort: Int = settings.rpcApi.bindAddress.getPort
+
+  Http().newServerAt(httpHost, httpPort).bind(httpService.compositeRoute).onComplete {
+    case Success(serverBinding) =>
+      log.info(s"${Console.YELLOW}HTTP server bound to ${serverBinding.localAddress}${Console.RESET}")
     case Failure(ex) =>
-      log.error(s"bifrost actor ref not found at: akka.tcp://${settings.application.chainProvider}. " +
-        s"Continuing to run in offline mode.")
-      setUpHttp()
-  }
-
-  def setUpOnlineMode(bifrost: ActorRef) (implicit context: ExecutionContextExecutor, system: ActorSystem): Unit = {
-    //Set up wallet manager - handshake w Bifrost and get NetworkPrefix
-    val walletManagerRef: ActorRef = system.actorOf(
-      Props(new WalletManager(bifrost)), name = "WalletManager")
-    walletManagerRef ! GjallarhornStarted
-
-    val bifrostResponse = Await.result((walletManagerRef ? GetNetwork).mapTo[String], 10.seconds)
-    log.info(bifrostResponse)
-    val networkName = bifrostResponse.split("Bifrost is running on").tail.head.replaceAll("\\s", "")
-    keyManagerRef ! ChangeNetwork(networkName)
-    walletManagerRef ! KeyManagerReady(keyManagerRef)
-    val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager(bifrost)), name = "RequestsManager")
-    val requests: Requests = new Requests(settings.application, requestsManagerRef, keyManagerRef)
-
-    actorsToStop = actorsToStop ++ Seq(walletManagerRef, requestsManagerRef, keyManagerRef)
-    apiRoutes = apiRoutes :+
-      GjallarhornBifrostApiRoute(settings, keyManagerRef, requestsManagerRef, walletManagerRef, requests)
-    setUpHttp()
-  }
-
-  def setUpHttp (): Unit = {
-    //hook for initiating the shutdown procedure
-    sys.addShutdownHook(GjallarhornApp.shutdown(system, actorsToStop))
-
-    val httpService: HttpService = HttpService(apiRoutes, settings.rpcApi)
-    val httpHost: String = settings.rpcApi.bindAddress.getHostName
-    val httpPort: Int = settings.rpcApi.bindAddress.getPort
-
-    Http().newServerAt(httpHost, httpPort).bind(httpService.compositeRoute).onComplete {
-      case Success(serverBinding) =>
-        log.info(s"${Console.YELLOW}HTTP server bound to ${serverBinding.localAddress}${Console.RESET}")
-
-      case Failure(ex) =>
-        log.error(s"${Console.YELLOW}Failed to bind to localhost:$httpPort. " +
-          s"Terminating application!${Console.RESET}", ex)
-        GjallarhornApp.shutdown(system, actorsToStop)
-    }
+      log.error(s"${Console.YELLOW}Failed to bind to localhost:$httpPort. " +
+        s"Terminating application!${Console.RESET}", ex)
+      GjallarhornApp.shutdown(system, actorsToStop)
   }
 
   def run(): Unit = {
@@ -116,12 +92,6 @@ object GjallarhornApp extends Logging {
   def forceStopApplication(code: Int = 1): Nothing = sys.exit(code)
 
   def shutdown(system: ActorSystem, actors: Seq[ActorRef]): Unit = {
-    val wallet: Seq[ActorRef] = actors.filter(actor => actor.path.name == "WalletManager")
-    if (wallet.nonEmpty) {
-      log.info ("Telling Bifrost that this wallet is shutting down.")
-      val walletManager: ActorRef = wallet.head
-      walletManager ! GjallarhornStopped
-    }
     log.warn("Terminating Actors")
     actors.foreach { a => a ! PoisonPill }
     log.warn("Terminating ActorSystem")

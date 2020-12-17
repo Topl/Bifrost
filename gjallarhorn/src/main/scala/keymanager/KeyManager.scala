@@ -1,15 +1,20 @@
 package keymanager
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.util.Timeout
 import crypto.{Address, KeyfileCurve25519, PrivateKeyCurve25519}
 import io.circe.Json
 import io.circe.syntax._
 import scorex.util.encode.Base58
 import settings.NetworkType
 import utils.Logging
+import wallet.WalletManager
+import wallet.WalletManager.NewKey
 
 import scala.concurrent.ExecutionContext
-import scala.util.{Failure, Success}
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.{Failure, Success, Try}
+import scala.concurrent.duration._
 
 
 class KeyManager(keyFileDir: String) extends Actor with Logging {
@@ -19,11 +24,14 @@ class KeyManager(keyFileDir: String) extends Actor with Logging {
   private var keyRing: Keys[PrivateKeyCurve25519, KeyfileCurve25519] =
     Keys(keyFileDir, KeyfileCurve25519)(PrivateKeyCurve25519.secretGenerator, networkPrefix = networkPrefix)
 
+  implicit val timeout: Timeout = 10.seconds
+
   override def receive: Receive = {
-    case GenerateKeyFile(password, seedOpt) => sender ! keyRing.generateKeyFile(password, seedOpt)
+    case GenerateKeyFile(password, seedOpt) =>
+      shareNewKey(keyRing.generateKeyFile(password, seedOpt), sender())
 
     case ImportKeyfile(password: String, mnemonic: String, lang: String) =>
-      sender ! keyRing.importPhrase(password, mnemonic, lang)
+      shareNewKey(keyRing.importPhrase(password, mnemonic, lang), sender())
 
     case UnlockKeyFile(pubKeyString, password) => sender ! keyRing.unlockKeyFile(pubKeyString, password)
 
@@ -68,6 +76,18 @@ class KeyManager(keyFileDir: String) extends Actor with Logging {
           sender ! Map("newNetworkPrefix" -> networkPrefix).asJson
         case None => Map("error" -> s"The network name: $networkName was not a valid network type!").asJson
       }
+  }
+
+  private def shareNewKey(newAddress: Try[Address], sender: ActorRef) {
+    newAddress match {
+      case Success(addr) =>
+        context.actorSelection("../" + WalletManager.actorName).resolveOne().onComplete {
+          case Success(walletActor) => walletActor ! NewKey(addr)
+          case Failure(ex) => log.info("offline mode")
+        }
+      case Failure(ex) => log.error("unable to generate key file!")
+    }
+    sender ! newAddress
   }
 }
 

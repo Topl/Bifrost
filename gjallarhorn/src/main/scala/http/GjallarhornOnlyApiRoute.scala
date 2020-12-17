@@ -27,7 +27,6 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
     case (method, params, id) if method == s"${namespace.name}_signTx" => signTx(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_networkType" => Future{Map("networkPrefix" -> networkPrefix).asJson}
     case (method, params, id) if method == s"${namespace.name}_changeNetwork" => changeNetwork(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_connectedToBifrost" => getConnection
   }
 
   /**
@@ -58,14 +57,6 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
       case Right(value) => value
       case Left(error) => throw new Exception (s"error parsing new network: $error")
     }
-  }
-
-  private def getConnection: Future[Json] = {
-    var connection: Boolean = true
-    if (settings.application.chainProvider == "") {
-      connection = false
-    }
-    Future{Map("connectedToBifrost" -> connection).asJson}
   }
 
 }

@@ -78,17 +78,23 @@ class WalletManager(bifrostActorRef: ActorRef)
         .mapTo[Set[Address]], 10.seconds)
       keyManagerRef = Some(keyMngrRef)
       initializeWalletBoxes(publicKeys)
-      val balances: Json = Await.result((bifrostActorRef ? s"My public keys are: $publicKeys")
-        .mapTo[String].map(_.asJson), 10.seconds)
+      if (publicKeys.nonEmpty) {
+        val balances: Json = Await.result((bifrostActorRef ? s"My public keys are: $publicKeys")
+          .mapTo[String].map(_.asJson), 10.seconds)
+        parseAndUpdate(parseResponse(balances))
+      }else{
+        log.debug(s"${Console.RED}You do not have any keys in your wallet! ${Console.RESET}")
+      }
       context become active
-      parseAndUpdate(parseResponse(balances))
 
     case msg: String => msgHandling(msg)
   }
 
   private def operational: Receive = {
     case msg: String => msgHandling(msg)
+
     case GetNewBlock => sender ! newestTransactions
+
     case GjallarhornStopped =>
       val response: String = Await.result((bifrostActorRef ? "Remote wallet actor stopped").mapTo[String], 10.seconds)
       sender ! response
@@ -97,6 +103,9 @@ class WalletManager(bifrostActorRef: ActorRef)
   private def walletManagement: Receive = {
     case UpdateWallet(updatedBoxes) => sender ! parseAndUpdate(updatedBoxes)
     case GetWallet => sender ! walletBoxes
+    case NewKey(address) =>
+      walletBoxes.put(address.toString, MMap.empty)
+      bifrostActorRef ! s"New key: $address"
   }
 
 
@@ -267,6 +276,8 @@ class WalletManager(bifrostActorRef: ActorRef)
 
 object WalletManager {
 
+  val actorName = "WalletManager"
+
   /**
     * Given the updated boxes, updates the walletboxes and returns the updated walletboxes
     * @param updatedBoxes - the current balances from Bifrost
@@ -286,5 +297,7 @@ object WalletManager {
   case object GetWallet
 
   case class KeyManagerReady(keyManagerRef: ActorRef)
+
+  case class NewKey(address: Address)
 
 }
