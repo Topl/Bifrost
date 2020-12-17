@@ -1,17 +1,12 @@
 package co.topl.utils
 
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
-import co.topl.attestation.{EvidenceProducer, KnowledgeProposition, PrivateKeyCurve25519, Proof, ProofOfKnowledge, Proposition, PublicKeyPropositionCurve25519, Secret, SignatureCurve25519, ThresholdPropositionCurve25519}
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction._
-import co.topl.nodeView.state.box.TokenBox.Value
 import co.topl.program._
-import com.google.common.primitives.Longs
 import io.circe.syntax._
 import org.scalacheck.Gen
 import scorex.crypto.hash.Blake2b256
-
-import scala.collection.SortedSet
 
 trait ValidGenerators extends CoreGenerators {
 
@@ -54,14 +49,10 @@ trait ValidGenerators extends CoreGenerators {
     data <- stringGen
   } yield {
 
-    val tx = PolyTransfer(from, to, attestation, fee, timestamp, data)
+    val tx = PolyTransfer(from, to, attestation, fee, timestamp, Some(data))
     val sig = key._1.sign(tx.messageToSign)
     tx.copy(attestation = Map(key._2 -> sig))
   }
-
-  private val testingValue: Value = Longs
-    .fromByteArray(Blake2b256("Testing")
-      .take(Longs.BYTES))
 
   lazy val validArbitTransferGen: Gen[ArbitTransfer[_]] = for {
     from <- fromSeqGen
@@ -72,7 +63,7 @@ trait ValidGenerators extends CoreGenerators {
     data <- stringGen
   } yield {
 
-    ArbitTransfer(from, to, attestation, fee, timestamp, data)
+    ArbitTransfer(from, to, attestation, fee, timestamp, Some(data))
   }
 
   lazy val validAssetTransferGen: Gen[AssetTransfer[_]] = for {
@@ -81,12 +72,10 @@ trait ValidGenerators extends CoreGenerators {
     attestation <- attestationGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
-    issuer <- addressGen
-    assetCode <- stringGen
     data <- stringGen
   } yield {
 
-    AssetTransfer(from, to, attestation, issuer, assetCode, fee, timestamp, data, minting = true)
+    AssetTransfer(from, to, attestation, fee, timestamp, Some(data), minting = true)
   }
 
   /*

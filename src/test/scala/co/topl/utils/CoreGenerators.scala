@@ -12,7 +12,6 @@ import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.transaction._
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
 import co.topl.nodeView.state.box.Box.Nonce
-import co.topl.nodeView.state.box.TokenBox.Value
 import co.topl.nodeView.state.box.{ProgramId, _}
 import co.topl.program.{ProgramPreprocessor, _}
 import co.topl.settings.NetworkType.PrivateNet
@@ -151,7 +150,7 @@ trait CoreGenerators extends Logging {
 
   def samplePositiveDouble: Double = Random.nextFloat()
 
-  lazy val tokenBoxesGen: Gen[Seq[TokenBox]] = for {
+  lazy val tokenBoxesGen: Gen[Seq[TokenBox[TokenValueHolder]]] = for {
     tx <- Gen.someOf(polyBoxGen, arbitBoxGen, assetBoxGen)
   } yield {
     tx
@@ -162,7 +161,7 @@ trait CoreGenerators extends Logging {
     nonce <- positiveLongGen
     value <- positiveLongGen
   } yield {
-    PolyBox(evidence, nonce, value)
+    PolyBox(evidence, nonce, SimpleValue(value))
   }
 
   lazy val arbitBoxGen: Gen[ArbitBox] = for {
@@ -170,18 +169,20 @@ trait CoreGenerators extends Logging {
     nonce <- positiveLongGen
     value <- positiveLongGen
   } yield {
-    ArbitBox(evidence, nonce, value)
+    ArbitBox(evidence, nonce, SimpleValue(value))
   }
 
   lazy val assetBoxGen: Gen[AssetBox] = for {
     evidence <- evidenceGen
     nonce <- positiveLongGen
-    value <- positiveLongGen
+    quantity <- positiveLongGen
     asset <- stringGen
-    hub <- addressGen
+    issuer <- addressGen
     data <- stringGen
   } yield {
-    AssetBox(evidence, nonce, value, asset, hub, data)
+    val assetCode = AssetCode(issuer, asset)
+    val value = AssetValue(quantity, assetCode, metadata = Some(data))
+    AssetBox(evidence, nonce, value)
   }
 
   lazy val stateBoxGen: Gen[StateBox] = for {
@@ -279,17 +280,35 @@ trait CoreGenerators extends Logging {
     (0 until seqLen) map { _ => sampleUntilNonEmpty(fromGen) }
   }
 
-  lazy val toGen: Gen[(Address, Value)] = for {
+  lazy val toGen: Gen[(Address, TokenValueHolder)] = for {
     address <- addressGen
     value <- positiveLongGen
   } yield {
-    (address, value)
+    (address, SimpleValue(value))
   }
 
-  lazy val toSeqGen: Gen[IndexedSeq[(Address, Value)]] = for {
+  //TODO create optional data to test cases for None or Some
+  lazy val assetToGen: Gen[(Address, TokenValueHolder)] = for {
+    issuer <- addressGen
+    shortName <- stringGen
+    quantity <- positiveLongGen
+    data <- stringGen
+  } yield {
+    val assetCode = AssetCode(issuer, shortName)
+    val assetValue = AssetValue(quantity, assetCode, metadata = Some(data))
+    (issuer, assetValue)
+  }
+
+  lazy val toSeqGen: Gen[IndexedSeq[(Address, TokenValueHolder)]] = for {
     seqLen <- positiveTinyIntGen
   } yield {
     (0 until seqLen) map { _ => sampleUntilNonEmpty(toGen) }
+  }
+
+  lazy val assetToSeqGen: Gen[IndexedSeq[(Address, TokenValueHolder)]] = for {
+    seqLen <- positiveTinyIntGen
+  } yield {
+    (0 until seqLen) map { _ => sampleUntilNonEmpty(assetToGen) }
   }
 
   lazy val sigSeqGen: Gen[IndexedSeq[SignatureCurve25519]] = for {
@@ -310,7 +329,7 @@ trait CoreGenerators extends Logging {
     //generate set of keys with proposition
     //use generated keys to create signature(s)
 
-    PolyTransfer(from, to, attestation, fee, timestamp, data)
+    PolyTransfer(from, to, attestation, fee, timestamp, Some(data))
   }
 
   lazy val arbitTransferGen: Gen[ArbitTransfer[_ <: Proposition]] = for {
@@ -321,20 +340,18 @@ trait CoreGenerators extends Logging {
     timestamp <- positiveLongGen
     data <- stringGen
   } yield {
-    ArbitTransfer(from, to, attestation, fee, timestamp, data)
+    ArbitTransfer(from, to, attestation, fee, timestamp, Some(data))
   }
 
   lazy val assetTransferGen: Gen[AssetTransfer[_ <: Proposition]] = for {
     from <- fromSeqGen
-    to <- toSeqGen
+    to <- assetToSeqGen
     attestation <- attestationGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
-    issuer <- addressGen
-    assetCode <- stringGen
     data <- stringGen
   } yield {
-    AssetTransfer(from, to, attestation, issuer, assetCode, fee, timestamp, data, minting = true)
+    AssetTransfer(from, to, attestation, fee, timestamp, Some(data), minting = true)
   }
 
   /*
@@ -498,7 +515,7 @@ trait CoreGenerators extends Logging {
       History.GenesisParentId,
       Instant.now().toEpochMilli,
       Seq(),
-      ArbitBox(keyPair._2.generateEvidence, 0L, 0L),
+      ArbitBox(keyPair._2.generateEvidence, 0L, SimpleValue(0)),
       keyPair._2,
       height,
       difficulty,

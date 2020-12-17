@@ -3,7 +3,7 @@ package co.topl.nodeView
 import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.modifier.ModifierId
-import co.topl.nodeView.state.box.{Box, ProgramBox, TokenBox}
+import co.topl.nodeView.state.box.{Box, ProgramBox, TokenBox, TokenValueHolder}
 
 import scala.util.{Failure, Success}
 
@@ -42,7 +42,7 @@ package object state {
   /** This function will modify the PBR storage directly without returning a new instance of the registry
     * USE WITH EXTREME CAUTION!!
     */
-  def directlyAddTBRStorage(version: ModifierId, boxes: Seq[TokenBox], state: State)
+  def directlyAddTBRStorage(version: ModifierId, boxes: Seq[TokenBox[TokenValueHolder]], state: State)
                            (implicit networkPrefix: NetworkPrefix): Unit = {
     /** Manually manipulate state */
     val updates = boxes.map(bx => Address(bx.evidence) -> Seq(bx.nonce)).toMap
