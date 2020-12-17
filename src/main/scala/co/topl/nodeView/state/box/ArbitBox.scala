@@ -2,7 +2,7 @@ package co.topl.nodeView.state.box
 
 import co.topl.attestation.Evidence
 import co.topl.nodeView.state.box.Box.BoxType
-import co.topl.utils.Identifiable
+import co.topl.utils.{Identifiable, Identifier}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 
@@ -13,12 +13,11 @@ case class ArbitBox(
 ) extends TokenBox(evidence, nonce, value)
 
 object ArbitBox {
-  val boxTypePrefix: BoxType = 1: Byte
-  val boxTypeString: String = "ArbitBox"
+  val typePrefix: BoxType = 1: Byte
+  val typeString: String = "ArbitBox"
 
-  implicit val identifier: Identifiable[ArbitBox] = new Identifiable[ArbitBox] {
-    override def typePrefix: Byte = boxTypePrefix
-    override def typeString: String = boxTypeString
+  implicit val identifier: Identifiable[ArbitBox] = Identifiable.instance { () =>
+    Identifier(typeString, typePrefix)
   }
 
   implicit val jsonEncoder: Encoder[ArbitBox] = (box: ArbitBox) => Box.jsonEncode[SimpleValue, ArbitBox](box).asJson

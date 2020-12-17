@@ -18,8 +18,8 @@ object ProofSerializer extends BifrostSerializer[Proof[_]] {
 
   def parse(r: Reader): Proof[_ <: Proposition] = {
     r.getByte() match {
-      case PublicKeyPropositionCurve25519.typePrefix => SignatureCurve25519Serializer.parse(r)
-      case ThresholdPropositionCurve25519.typePrefix => ThresholdSignatureCurve25519Serializer.parse(r)
+      case PublicKeyPropositionCurve25519.`typePrefix` => SignatureCurve25519Serializer.parse(r)
+      case ThresholdPropositionCurve25519.`typePrefix` => ThresholdSignatureCurve25519Serializer.parse(r)
     }
   }
 }

@@ -7,6 +7,7 @@ import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{Box, _}
 import co.topl.utils.Identifiable
+import co.topl.utils.Identifiable.Syntax._
 import com.google.common.primitives.{Ints, Longs}
 import scorex.crypto.hash.Blake2b256
 
@@ -58,7 +59,7 @@ object TransferTransaction {
   ](tx: TransferTransaction[T, P]): (BoxParams[SimpleValue], Traversable[BoxParams[T]]) = {
     // known input data (similar to messageToSign but without newBoxes since they aren't known yet)
     val inputBytes =
-      Array(tx.txTypePrefix) ++
+      Array(Transaction.identifier(tx).typePrefix) ++
       tx.boxIdsToOpen.foldLeft(Array[Byte]())((acc, x) => acc ++ x.hashBytes) ++
       Longs.toByteArray(tx.timestamp) ++
       Longs.toByteArray(tx.fee)

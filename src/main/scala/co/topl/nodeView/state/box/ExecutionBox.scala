@@ -2,7 +2,7 @@ package co.topl.nodeView.state.box
 
 import co.topl.attestation.Evidence
 import co.topl.nodeView.state.box.Box.BoxType
-import co.topl.utils.Identifiable
+import co.topl.utils.{Identifiable, Identifier}
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
 
@@ -14,12 +14,11 @@ case class ExecutionBox(override val evidence   : Evidence,
                         ) extends ProgramBox(evidence, nonce, value)
 
 object ExecutionBox {
-  val boxTypePrefix: BoxType = 11: Byte
-  val boxTypeString: String = "ExecutionBox"
+  val typePrefix: BoxType = 11: Byte
+  val typeString: String = "ExecutionBox"
 
-  implicit val identifier: Identifiable[ExecutionBox] = new Identifiable[ExecutionBox] {
-    override def typePrefix: Byte = boxTypePrefix
-    override def typeString: String = boxTypeString
+  implicit val identifier: Identifiable[ExecutionBox] = Identifiable.instance { () =>
+    Identifier(typeString, typePrefix)
   }
 
   implicit val jsonEncoder: Encoder[ExecutionBox] = { box: ExecutionBox =>

@@ -96,7 +96,7 @@ case class TransactionApiEndpoint(
 
         // construct the transaction
         propType match {
-          case PublicKeyPropositionCurve25519.typeString =>
+          case PublicKeyPropositionCurve25519.`typeString` =>
             AssetTransfer
               .createRaw[PublicKeyPropositionCurve25519](
                 view.state,
@@ -109,7 +109,7 @@ case class TransactionApiEndpoint(
                 minting
               )
 
-          case ThresholdPropositionCurve25519.typeString =>
+          case ThresholdPropositionCurve25519.`typeString` =>
             AssetTransfer
               .createRaw[ThresholdPropositionCurve25519](
                 view.state,
@@ -190,11 +190,11 @@ case class TransactionApiEndpoint(
 
         // construct the transaction
         propType match {
-          case PublicKeyPropositionCurve25519.typeString =>
+          case PublicKeyPropositionCurve25519.`typeString` =>
             PolyTransfer
               .createRaw[PublicKeyPropositionCurve25519](view.state, to, sender, changeAddr, None, fee, data)
 
-          case ThresholdPropositionCurve25519.typeString =>
+          case ThresholdPropositionCurve25519.`typeString` =>
             PolyTransfer
               .createRaw[ThresholdPropositionCurve25519](view.state, to, sender, changeAddr, None, fee, data)
         }
@@ -267,7 +267,7 @@ case class TransactionApiEndpoint(
 
         // construct the transaction
         propType match {
-          case PublicKeyPropositionCurve25519.typeString =>
+          case PublicKeyPropositionCurve25519.`typeString` =>
             ArbitTransfer
               .createRaw[PublicKeyPropositionCurve25519](
                 view.state,
@@ -279,7 +279,7 @@ case class TransactionApiEndpoint(
                 data
               )
 
-          case ThresholdPropositionCurve25519.typeString =>
+          case ThresholdPropositionCurve25519.`typeString` =>
             ArbitTransfer
               .createRaw[ThresholdPropositionCurve25519](
                 view.state,

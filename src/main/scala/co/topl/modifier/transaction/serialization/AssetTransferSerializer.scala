@@ -13,7 +13,7 @@ object AssetTransferSerializer extends BifrostSerializer[AssetTransfer[_ <: Prop
 
   override def serialize(obj: AssetTransfer[_ <: Proposition], w: Writer): Unit = {
     /* Byte */ //this is used to signal the types of propositions in the transactions
-    w.put(obj.attestation.head._1.propTypePrefix)
+    w.put(obj.getPropIdentifier.typePrefix)
 
     /* from: IndexedSeq[(Address, Nonce)] */
     w.putUInt(obj.from.length)
@@ -85,13 +85,11 @@ object AssetTransferSerializer extends BifrostSerializer[AssetTransfer[_ <: Prop
     val minting: Boolean = r.getBoolean()
 
     propTypePrefix match {
-      case PublicKeyPropositionCurve25519.typePrefix =>
-        require(signatures.forall(_._1.propTypeString == PublicKeyPropositionCurve25519.typeString))
+      case PublicKeyPropositionCurve25519.`typePrefix` =>
         val sigs = signatures.asInstanceOf[Map[PublicKeyPropositionCurve25519, SignatureCurve25519]]
         AssetTransfer(from, to, sigs, fee, timestamp, data, minting)
 
-      case ThresholdPropositionCurve25519.typePrefix =>
-        require(signatures.forall(_._1.propTypeString == ThresholdPropositionCurve25519.typeString))
+      case ThresholdPropositionCurve25519.`typePrefix` =>
         val sigs = signatures.asInstanceOf[Map[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]]
         AssetTransfer(from, to, sigs, fee, timestamp, data, minting)
     }

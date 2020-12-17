@@ -3,7 +3,7 @@ package co.topl.nodeView.state.box
 import co.topl.attestation.Evidence
 import co.topl.nodeView.state.box.Box.Nonce
 import co.topl.nodeView.state.box.serialization.BoxSerializer
-import co.topl.utils.Identifiable
+import co.topl.utils.{Identifiable, Identifier}
 import co.topl.utils.Identifiable.Syntax._
 import co.topl.utils.serialization.BifrostSerializer
 import com.google.common.primitives.Ints
@@ -21,7 +21,7 @@ sealed abstract class Box[+T](val evidence: Evidence, val value: T, val nonce: N
   def serializer: BifrostSerializer[Box[_]] = BoxSerializer
 
   override def toString: String =
-    Box.getTypeString(this) + Box.jsonEncoder(this).noSpaces
+    Box.identifier(this).typeString + Box.jsonEncoder(this).noSpaces
 
   override def hashCode(): Int = Ints.fromByteArray(bytes)
 }
@@ -33,7 +33,7 @@ object Box {
   def jsonEncode[T: Encoder, BX <: Box[T]: Identifiable](box: BX): Map[String, Json] =
     Map(
       "id"       -> box.id.toString.asJson,
-      "type"     -> box.typeString.asJson,
+      "type"     -> box.getId.typeString.asJson,
       "evidence" -> box.evidence.toString.asJson,
       "value"    -> box.value.asJson,
       "nonce"    -> box.nonce.toString.asJson
@@ -48,14 +48,14 @@ object Box {
       (evidence, nonce, value)
     }
 
-  def getTypeString(box: Box[_]): String = box match {
-    case _: ArbitBox     => ArbitBox.boxTypeString
-    case _: PolyBox      => PolyBox.boxTypeString
-    case _: AssetBox     => AssetBox.boxTypeString
-    case _: ExecutionBox => ExecutionBox.boxTypeString
-    case _: StateBox     => StateBox.boxTypeString
-    case _: CodeBox      => CodeBox.boxTypeString
-    case _               => throw new Exception("No matching name found")
+  def identifier(box: Box[_]): Identifier = box match {
+    case _: ArbitBox     => ArbitBox.identifier.getId
+    case _: PolyBox      => PolyBox.identifier.getId
+    case _: AssetBox     => AssetBox.identifier.getId
+    case _: ExecutionBox => ExecutionBox.identifier.getId
+    case _: StateBox     => StateBox.identifier.getId
+    case _: CodeBox      => CodeBox.identifier.getId
+    case _               => throw new Exception("No matching identifier found")
   }
 
   implicit val jsonEncoder: Encoder[Box[_]] = {
@@ -70,12 +70,12 @@ object Box {
 
   implicit val jsonDecoder: Decoder[Box[_]] = { c: HCursor =>
     c.downField("type").as[String].map {
-      case ArbitBox.boxTypeString     => ArbitBox.jsonDecoder(c)
-      case PolyBox.boxTypeString      => PolyBox.jsonDecoder(c)
-      case AssetBox.boxTypeString     => AssetBox.jsonDecoder(c)
-      case ExecutionBox.boxTypeString => ExecutionBox.jsonDecoder(c)
-      case StateBox.boxTypeString     => StateBox.jsonDecoder(c)
-      case CodeBox.boxTypeString      => CodeBox.jsonDecoder(c)
+      case ArbitBox.typeString     => ArbitBox.jsonDecoder(c)
+      case PolyBox.typeString      => PolyBox.jsonDecoder(c)
+      case AssetBox.typeString     => AssetBox.jsonDecoder(c)
+      case ExecutionBox.typeString => ExecutionBox.jsonDecoder(c)
+      case StateBox.typeString     => StateBox.jsonDecoder(c)
+      case CodeBox.typeString      => CodeBox.jsonDecoder(c)
     } match {
       case Right(box) => box
       case Left(ex)   => throw ex

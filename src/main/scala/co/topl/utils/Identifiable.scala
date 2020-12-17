@@ -1,22 +1,22 @@
 package co.topl.utils
 
+case class Identifier(typeString: String, typePrefix: Byte)
+
 /** Helper type class to define named methods in abstract classes */
-trait Identifiable[A] {
-  def typeString: String
-  def typePrefix: Byte
+trait Identifiable[A] { self =>
+  //def apply(a: A): Identifier = getId
+  def getId: Identifier
 }
 
 object Identifiable {
   def apply[A](implicit ev: Identifiable[A]): Identifiable[A] = ev
-  def instance[A](f: () => String, y: () => Byte): Identifiable[A] = new Identifiable[A] {
-    override def typeString: String = f()
-    override def typePrefix: Byte = y()
+  def instance[A](f: () => Identifier): Identifiable[A] = new Identifiable[A] {
+    override def getId: Identifier = f()
   }
 
   object Syntax {
-    implicit final class Ops[A: Identifiable](private val value: A) {
-      def typeString: String = Identifiable[A].typeString
-      def typePrefix: Byte = Identifiable[A].typePrefix
+    implicit final class Ops[A: Identifiable](private val obj: A) {
+      def getId: Identifier = Identifiable[A].getId
     }
   }
 }

@@ -1,15 +1,13 @@
 package co.topl.modifier.transaction
 
-
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.{Proof, Proposition}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.BloomFilter.BloomTopic
-import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{Box, BoxId}
-import co.topl.utils.Identifiable
+import co.topl.utils.{Identifiable, Identifier}
 import com.google.common.primitives.Longs
 import io.circe.{Decoder, Encoder, HCursor}
 import scorex.crypto.hash.Digest32
@@ -24,8 +22,6 @@ abstract class Transaction[+T, P <: Proposition: Identifiable] extends NodeViewM
 
   val bloomTopics: IndexedSeq[BloomTopic]
 
-  val txTypePrefix: TxType
-
   val boxIdsToOpen: IndexedSeq[BoxId]
 
   val newBoxes: Traversable[Box[T]]
@@ -37,16 +33,16 @@ abstract class Transaction[+T, P <: Proposition: Identifiable] extends NodeViewM
   val timestamp: Long
 
   override def toString: String =
-    Transaction.getTypeString(this) + Transaction.jsonEncoder(this).noSpaces
+    Transaction.identifier(this).typeString + Transaction.jsonEncoder(this).noSpaces
 
   def messageToSign: Array[Byte] =
-    Array(txTypePrefix) ++
+    Array(Transaction.identifier(this).typePrefix) ++
       newBoxes.foldLeft(Array[Byte]())((acc, x) => acc ++ x.bytes) ++
       boxIdsToOpen.foldLeft(Array[Byte]())((acc, x) => acc ++ x.hashBytes) ++
       Longs.toByteArray(timestamp) ++
       Longs.toByteArray(fee)
 
-  def getPropTypeString: String = Identifiable[P].typeString
+  def getPropIdentifier: Identifier = Identifiable[P].getId
 
   def semanticValidate (stateReader: StateReader)(implicit networkPrefix: NetworkPrefix): Try[Unit]
 
@@ -66,10 +62,10 @@ object Transaction {
 
   def nonceFromDigest (digest: Digest32): Box.Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
-  def getTypeString[T <: TX](transaction: T): String = transaction match {
-    case _: ArbitTransfer[_]     => ArbitTransfer.txTypeString
-    case _: PolyTransfer[_]      => PolyTransfer.txTypeString
-    case _: AssetTransfer[_]     => AssetTransfer.txTypeString
+  def identifier(tx: TX): Identifier = tx match {
+    case _: PolyTransfer[_]    => PolyTransfer.identifier.getId
+    case _: ArbitTransfer[_]   => ArbitTransfer.identifier.getId
+    case _: AssetTransfer[_]   => AssetTransfer.identifier.getId
   }
 
   implicit def jsonTypedEncoder[T, P <: Proposition]: Encoder[Transaction[T, P]] = {
@@ -92,9 +88,9 @@ object Transaction {
 //      case "ProgramCreation"        => ProgramCreation.jsonDecoder(c)
 //      case "ProgramMethodExecution" => ProgramMethodExecution.jsonDecoder(c)
 //      case "ProgramTransfer"        => ProgramTransfer.jsonDecoder(c)
-      case PolyTransfer.txTypeString           => PolyTransfer.jsonDecoder(c)
-      case ArbitTransfer.txTypeString          => ArbitTransfer.jsonDecoder(c)
-      case AssetTransfer.txTypeString          => AssetTransfer.jsonDecoder(c)
+      case PolyTransfer.typeString           => PolyTransfer.jsonDecoder(c)
+      case ArbitTransfer.typeString          => ArbitTransfer.jsonDecoder(c)
+      case AssetTransfer.typeString          => AssetTransfer.jsonDecoder(c)
     } match {
       case Right(tx) => tx
       case Left(ex)  => throw ex

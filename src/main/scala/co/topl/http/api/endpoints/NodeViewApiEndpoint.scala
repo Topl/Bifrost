@@ -103,7 +103,7 @@ case class NodeViewApiEndpoint(
           addresses
             .map(k => {
               val orderedBoxes = view.state.getTokenBoxes(k) match {
-                case Some(boxes) => boxes.groupBy[String](Box.getTypeString)
+                case Some(boxes) => boxes.groupBy[String](Box.identifier(_).typeString)
                 case _           => Map[String, Seq[TokenBox[TokenValueHolder]]]()
               }
               k -> orderedBoxes
@@ -120,8 +120,8 @@ case class NodeViewApiEndpoint(
         boxes.map { case (addr, boxes) =>
           addr -> Map(
             "Balances" -> Map(
-              "Polys"  -> balances(addr).getOrElse(PolyBox.boxTypeString, 0L),
-              "Arbits" -> balances(addr).getOrElse(ArbitBox.boxTypeString, 0L)
+              "Polys"  -> balances(addr).getOrElse(PolyBox.typeString, 0L),
+              "Arbits" -> balances(addr).getOrElse(ArbitBox.typeString, 0L)
             ).asJson,
             "Boxes" -> boxes.map(b => b._1 -> b._2.asJson).asJson
           )

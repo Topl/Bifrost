@@ -5,11 +5,11 @@ import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.TransferTransaction.BoxParams
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box._
-import co.topl.utils.Identifiable
+import co.topl.utils.{Identifiable, Identifier}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
-
 import java.time.Instant
+
 import scala.util.Try
 
 case class ArbitTransfer[
@@ -22,8 +22,6 @@ case class ArbitTransfer[
   override val data:        Option[String] = None,
   override val minting:     Boolean = false
 ) extends TransferTransaction[TokenValueHolder, P](from, to, attestation, fee, timestamp, data, minting) {
-
-  override val txTypePrefix: TxType = ArbitTransfer.txTypePrefix
 
   override lazy val newBoxes: Traversable[TokenBox[SimpleValue]] = {
     val params = TransferTransaction.boxParams(this)
@@ -42,12 +40,11 @@ case class ArbitTransfer[
 }
 
 object ArbitTransfer {
-  val txTypePrefix: TxType = 1: Byte
-  val txTypeString: String = "ArbitTransfer"
+  val typePrefix: TxType = 1: Byte
+  val typeString: String = "ArbitTransfer"
 
-  implicit val identifier: Identifiable[ArbitTransfer[_]] = new Identifiable[ArbitTransfer[_]] {
-    override def typePrefix: Byte = txTypePrefix
-    override def typeString: String = txTypeString
+  implicit def identifier[P <: Proposition]: Identifiable[ArbitTransfer[P]] = Identifiable.instance { () =>
+    Identifier(typeString, typePrefix)
   }
 
   /** @param stateReader
@@ -85,7 +82,7 @@ object ArbitTransfer {
     Map(
       "txId"            -> tx.id.asJson,
       "txType"          -> "ArbitTransfer".asJson,
-      "propositionType" -> tx.getPropTypeString.asJson,
+      "propositionType" -> tx.getPropIdentifier.typeString.asJson,
       "newBoxes"        -> tx.newBoxes.toSeq.asJson,
       "boxesToRemove"   -> tx.boxIdsToOpen.asJson,
       "from"            -> tx.from.asJson,
@@ -109,12 +106,12 @@ object ArbitTransfer {
         propType  <- c.downField("propositionType").as[String]
       } yield {
         (propType match {
-          case PublicKeyPropositionCurve25519.typeString =>
+          case PublicKeyPropositionCurve25519.`typeString` =>
             c.downField("signatures").as[Map[PublicKeyPropositionCurve25519, SignatureCurve25519]].map {
               new ArbitTransfer[PublicKeyPropositionCurve25519](from, to, _, fee, timestamp, data)
             }
 
-          case ThresholdPropositionCurve25519.typeString =>
+          case ThresholdPropositionCurve25519.`typeString` =>
             c.downField("signatures").as[Map[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]].map {
               new ArbitTransfer[ThresholdPropositionCurve25519](from, to, _, fee, timestamp, data)
             }

@@ -1,12 +1,13 @@
 package co.topl.modifier.transaction
 
 import java.time.Instant
+
 import co.topl.attestation._
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.TransferTransaction.BoxParams
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{AssetBox, AssetCode, AssetValue, Box, PolyBox, TokenBox, TokenValueHolder}
-import co.topl.utils.Identifiable
+import co.topl.utils.{Identifiable, Identifier}
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
 
@@ -22,8 +23,6 @@ case class AssetTransfer[
   override val data:        Option[String] = None,
   override val minting:     Boolean = false
 ) extends TransferTransaction[TokenValueHolder, P](from, to, attestation, fee, timestamp, data, minting) {
-
-  override val txTypePrefix: TxType = AssetTransfer.txTypePrefix
 
   override lazy val newBoxes: Traversable[TokenBox[TokenValueHolder]] = {
     val params = TransferTransaction.boxParams(this)
@@ -42,12 +41,11 @@ case class AssetTransfer[
 }
 
 object AssetTransfer {
-  val txTypePrefix: TxType = 3: Byte
-  val txTypeString: String = "AssetTransfer"
+  val typePrefix: TxType = 3: Byte
+  val typeString: String = "AssetTransfer"
 
-  implicit val identifier: Identifiable[AssetTransfer[_]] = new Identifiable[AssetTransfer[_]] {
-    override def typePrefix: Byte = txTypePrefix
-    override def typeString: String = txTypeString
+  implicit def identifier[P <: Proposition]: Identifiable[AssetTransfer[P]] = Identifiable.instance { () =>
+    Identifier(typeString, typePrefix)
   }
 
   /** @param stateReader
@@ -96,7 +94,7 @@ object AssetTransfer {
     Map(
       "txId"            -> tx.id.asJson,
       "txType"          -> "AssetTransfer".asJson,
-      "propositionType" -> tx.getPropTypeString.asJson,
+      "propositionType" -> tx.getPropIdentifier.typeString.asJson,
       "newBoxes"        -> tx.newBoxes.toSeq.asJson,
       "boxesToRemove"   -> tx.boxIdsToOpen.asJson,
       "from"            -> tx.from.asJson,
@@ -120,12 +118,12 @@ object AssetTransfer {
         propType  <- c.downField("propositionType").as[String]
       } yield {
         (propType match {
-          case PublicKeyPropositionCurve25519.typeString =>
+          case PublicKeyPropositionCurve25519.`typeString` =>
             c.downField("signatures").as[Map[PublicKeyPropositionCurve25519, SignatureCurve25519]].map {
               new AssetTransfer[PublicKeyPropositionCurve25519](from, to, _, fee, timestamp, data, minting)
             }
 
-          case ThresholdPropositionCurve25519.typeString =>
+          case ThresholdPropositionCurve25519.`typeString` =>
             c.downField("signatures").as[Map[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]].map {
               new AssetTransfer[ThresholdPropositionCurve25519](from, to, _, fee, timestamp, data, minting)
             }

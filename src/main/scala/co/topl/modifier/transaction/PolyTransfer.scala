@@ -1,12 +1,13 @@
 package co.topl.modifier.transaction
 
 import java.time.Instant
+
 import co.topl.attestation._
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.TransferTransaction.BoxParams
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{Box, PolyBox, SimpleValue, TokenBox, TokenValueHolder}
-import co.topl.utils.Identifiable
+import co.topl.utils.{Identifiable, Identifier}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 
@@ -22,8 +23,6 @@ case class PolyTransfer[
   override val data:        Option[String] = None,
   override val minting:     Boolean = false
 ) extends TransferTransaction[TokenValueHolder, P](from, to, attestation, fee, timestamp, data, minting) {
-
-  override val txTypePrefix: TxType = PolyTransfer.txTypePrefix
 
   override lazy val newBoxes: Traversable[TokenBox[SimpleValue]] = {
     val params = TransferTransaction.boxParams(this)
@@ -42,12 +41,11 @@ case class PolyTransfer[
 }
 
 object PolyTransfer {
-  val txTypePrefix: TxType = 2: Byte
-  val txTypeString: String = "PolyTransfer"
+  val typePrefix: TxType = 2: Byte
+  val typeString: String = "PolyTransfer"
 
-  implicit val identifier: Identifiable[PolyTransfer[_]] = new Identifiable[PolyTransfer[_]] {
-    override def typePrefix: Byte = txTypePrefix
-    override def typeString: String = txTypeString
+  implicit def identifier[P <: Proposition]: Identifiable[PolyTransfer[P]] = Identifiable.instance { () =>
+    Identifier(typeString, typePrefix)
   }
 
   /** @param stateReader
@@ -77,7 +75,7 @@ object PolyTransfer {
     Map(
       "txId"            -> tx.id.asJson,
       "txType"          -> "PolyTransfer".asJson,
-      "propositionType" -> tx.getPropTypeString.asJson,
+      "propositionType" -> tx.getPropIdentifier.typeString.asJson,
       "newBoxes"        -> tx.newBoxes.toSeq.asJson,
       "boxesToRemove"   -> tx.boxIdsToOpen.asJson,
       "from"            -> tx.from.asJson,
@@ -100,12 +98,12 @@ object PolyTransfer {
       propType  <- c.downField("propositionType").as[String]
     } yield {
       (propType match {
-        case PublicKeyPropositionCurve25519.typeString =>
+        case PublicKeyPropositionCurve25519.`typeString` =>
           c.downField("signatures").as[Map[PublicKeyPropositionCurve25519, SignatureCurve25519]].map {
             new PolyTransfer[PublicKeyPropositionCurve25519](from, to, _, fee, timestamp, data)
           }
 
-        case ThresholdPropositionCurve25519.typeString =>
+        case ThresholdPropositionCurve25519.`typeString` =>
           c.downField("signatures").as[Map[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]].map {
             new PolyTransfer[ThresholdPropositionCurve25519](from, to, _, fee, timestamp, data)
           }
