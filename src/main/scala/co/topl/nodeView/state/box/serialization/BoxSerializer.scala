@@ -8,27 +8,27 @@ object BoxSerializer extends BifrostSerializer[Box[_]] {
   override def serialize ( obj: Box[_], w: Writer ): Unit = {
     obj match {
       case obj: PolyBox =>
-        w.put(PolyBox.boxTypePrefix)
+        w.put(PolyBox.typePrefix)
         PolyBoxSerializer.serialize(obj, w)
 
       case obj: ArbitBox =>
-        w.put(ArbitBox.boxTypePrefix)
+        w.put(ArbitBox.typePrefix)
         ArbitBoxSerializer.serialize(obj, w)
 
       case obj: AssetBox =>
-        w.put(AssetBox.boxTypePrefix)
+        w.put(AssetBox.typePrefix)
         AssetBoxSerializer.serialize(obj, w)
 
       case obj: StateBox =>
-        w.put(StateBox.boxTypePrefix)
+        w.put(StateBox.typePrefix)
         StateBoxSerializer.serialize(obj, w)
 
       case obj: CodeBox =>
-        w.put(CodeBox.boxTypePrefix)
+        w.put(CodeBox.typePrefix)
         CodeBoxSerializer.serialize(obj, w)
 
       case obj: ExecutionBox =>
-        w.put(ExecutionBox.boxTypePrefix)
+        w.put(ExecutionBox.typePrefix)
         ExecutionBoxSerializer.serialize(obj, w)
 
       case _                 => throw new Exception("Unanticipated Box type")
@@ -37,12 +37,12 @@ object BoxSerializer extends BifrostSerializer[Box[_]] {
 
   override def parse ( r: Reader ): Box[_] = {
     r.getByte() match {
-      case ArbitBox.boxTypePrefix     => ArbitBoxSerializer.parse(r)
-      case AssetBox.boxTypePrefix     => AssetBoxSerializer.parse(r)
-      case PolyBox.boxTypePrefix      => PolyBoxSerializer.parse(r)
-      case StateBox.boxTypePrefix     => StateBoxSerializer.parse(r)
-      case CodeBox.boxTypePrefix      => CodeBoxSerializer.parse(r)
-      case ExecutionBox.boxTypePrefix => ExecutionBoxSerializer.parse(r)
+      case ArbitBox.typePrefix     => ArbitBoxSerializer.parse(r)
+      case AssetBox.typePrefix     => AssetBoxSerializer.parse(r)
+      case PolyBox.typePrefix      => PolyBoxSerializer.parse(r)
+      case StateBox.typePrefix     => StateBoxSerializer.parse(r)
+      case CodeBox.typePrefix      => CodeBoxSerializer.parse(r)
+      case ExecutionBox.typePrefix => ExecutionBoxSerializer.parse(r)
       case _              => throw new Exception("Unanticipated Box Type")
     }
   }

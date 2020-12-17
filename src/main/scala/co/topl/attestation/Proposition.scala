@@ -2,7 +2,9 @@ package co.topl.attestation
 
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
+import co.topl.attestation.PublicKeyPropositionCurve25519.{typePrefix, typeString}
 import co.topl.attestation.serialization.PropositionSerializer
+import co.topl.utils.{Identifiable, Identifier}
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
@@ -18,9 +20,6 @@ import scala.util.{Failure, Success, Try}
 // In most cases, propositions are used by transactions issuers (spenders) to prove the right
 // to use a UTXO in a transaction.
 sealed trait Proposition extends BytesSerializable {
-
-  val propTypeString: String
-  val propTypePrefix: EvidenceTypePrefix
 
   override type M = Proposition
   override def serializer: BifrostSerializer[Proposition] = PropositionSerializer
@@ -57,9 +56,6 @@ case class PublicKeyPropositionCurve25519 (private[attestation] val pubKeyBytes:
   require(pubKeyBytes.length == Curve25519.KeyLength,
     s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.length} found")
 
-  val propTypeString: String = PublicKeyPropositionCurve25519.typeString
-  val propTypePrefix: EvidenceTypePrefix = PublicKeyPropositionCurve25519.typePrefix
-
   def address (implicit networkPrefix: NetworkPrefix): Address = Address.from(this)
 
 }
@@ -83,6 +79,10 @@ object PublicKeyPropositionCurve25519 {
       prop: PublicKeyPropositionCurve25519 => Evidence(typePrefix, EvidenceContent @@ Blake2b256(prop.bytes))
     }
 
+  implicit val identifier: Identifiable[PublicKeyPropositionCurve25519] = Identifiable.instance { () =>
+    Identifier(typeString, typePrefix)
+  }
+
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html
   implicit val jsonEncoder: Encoder[PublicKeyPropositionCurve25519] = (prop: PublicKeyPropositionCurve25519) => prop.toString.asJson
@@ -101,8 +101,8 @@ case class ThresholdPropositionCurve25519(threshold: Int, pubKeyProps: SortedSet
       s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${prop.pubKeyBytes.length} found")
   })
 
-  val propTypeString: String = ThresholdPropositionCurve25519.typeString
-  val propTypePrefix: EvidenceTypePrefix = ThresholdPropositionCurve25519.typePrefix
+//  val propTypeString: String = ThresholdPropositionCurve25519.typeString
+//  val propTypePrefix: EvidenceTypePrefix = ThresholdPropositionCurve25519.typePrefix
 
   def address(implicit networkPrefix: NetworkPrefix): Address = Address.from(this)
 
@@ -124,6 +124,10 @@ object ThresholdPropositionCurve25519 {
     EvidenceProducer.instance[ThresholdPropositionCurve25519] {
       prop: ThresholdPropositionCurve25519 => Evidence(typePrefix, EvidenceContent @@ Blake2b256(prop.bytes))
     }
+
+  implicit val identifier: Identifiable[ThresholdPropositionCurve25519] = Identifiable.instance { () =>
+    Identifier(typeString, typePrefix)
+  }
 
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html

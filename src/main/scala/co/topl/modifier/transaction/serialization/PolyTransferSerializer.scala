@@ -1,8 +1,9 @@
 package co.topl.modifier.transaction.serialization
 
-import co.topl.attestation.serialization.{ProofSerializer, PropositionSerializer}
 import co.topl.attestation._
+import co.topl.attestation.serialization.{ProofSerializer, PropositionSerializer}
 import co.topl.modifier.transaction.PolyTransfer
+import co.topl.nodeView.state.box.TokenValueHolder
 import co.topl.utils.Extensions._
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
@@ -12,7 +13,7 @@ object PolyTransferSerializer extends BifrostSerializer[PolyTransfer[_ <: Propos
 
   override def serialize(obj: PolyTransfer[_ <: Proposition], w: Writer): Unit = {
     /* Byte */ //this is used to signal the types of propositions in the transactions
-    w.put(obj.attestation.head._1.propTypePrefix)
+    w.put(obj.getPropIdentifier.typePrefix)
 
     /* from: IndexedSeq[(Address, Nonce)] */
     w.putUInt(obj.from.length)
@@ -25,7 +26,7 @@ object PolyTransferSerializer extends BifrostSerializer[PolyTransfer[_ <: Propos
     w.putUInt(obj.to.length)
     obj.to.foreach { case (addr, value) =>
       Address.serialize(addr, w)
-      w.putULong(value)
+      TokenValueHolder.serialize(value, w)
     }
 
     /* signatures: Map[Proposition, Proof] */
@@ -41,8 +42,10 @@ object PolyTransferSerializer extends BifrostSerializer[PolyTransfer[_ <: Propos
     /* timestamp: Long */
     w.putULong(obj.timestamp)
 
-    /* data: String */
-    w.putIntString(obj.data)
+    /* data: Option[String] */
+    w.putOption(obj.data) { (writer, d) =>
+      writer.putByteString(d)
+    }
 
     /* minting: Boolean */
     w.putBoolean(obj.minting)
@@ -61,7 +64,7 @@ object PolyTransferSerializer extends BifrostSerializer[PolyTransfer[_ <: Propos
     val toLength: Int = r.getUInt().toIntExact
     val to = (0 until toLength).map { _ =>
       val addr = Address.parse(r)
-      val value = r.getULong()
+      val value = TokenValueHolder.parse(r)
       addr -> value
     }
 
@@ -74,17 +77,19 @@ object PolyTransferSerializer extends BifrostSerializer[PolyTransfer[_ <: Propos
 
     val fee: Long = r.getULong()
     val timestamp: Long = r.getULong()
-    val data: String = r.getIntString()
+
+    val data: Option[String] = r.getOption {
+      r.getByteString()
+    }
+
     val minting: Boolean = r.getBoolean()
 
     propTypePrefix match {
-      case PublicKeyPropositionCurve25519.typePrefix =>
-        require(signatures.forall(_._1.propTypeString == PublicKeyPropositionCurve25519.typeString))
+      case PublicKeyPropositionCurve25519.`typePrefix` =>
         val sigs = signatures.asInstanceOf[Map[PublicKeyPropositionCurve25519, SignatureCurve25519]]
         PolyTransfer(from, to, sigs, fee, timestamp, data, minting)
 
-      case ThresholdPropositionCurve25519.typePrefix =>
-        require(signatures.forall(_._1.propTypeString == ThresholdPropositionCurve25519.typeString))
+      case ThresholdPropositionCurve25519.`typePrefix` =>
         val sigs = signatures.asInstanceOf[Map[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]]
         PolyTransfer(from, to, sigs, fee, timestamp, data, minting)
     }

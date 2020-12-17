@@ -8,7 +8,7 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
 import co.topl.nodeView.history.History
-import co.topl.nodeView.state.box.ArbitBox
+import co.topl.nodeView.state.box.{ArbitBox, SimpleValue}
 import co.topl.settings.{NetworkType, Version}
 
 import scala.util.Try
@@ -83,11 +83,11 @@ case object Toplnet extends GenesisProvider {
 
     val txInput = (
       IndexedSeq(genesisAcct.publicImage.address -> 0L),
-      memberKeys.zip(members.values).toIndexedSeq,
+      memberKeys.zip(members.values.map(SimpleValue(_))).toIndexedSeq,
       Map(genesisAcct.publicImage -> SignatureCurve25519.genesis),
       0L,
       0L,
-      "",
+      None,
       false)
 
     val txs = Seq(
@@ -97,7 +97,7 @@ case object Toplnet extends GenesisProvider {
         (txInput._1,txInput._2,txInput._3,txInput._4,txInput._5,txInput._6,txInput._7)
     )
 
-    val generatorBox = ArbitBox(genesisAcct.publicImage.generateEvidence, 0, totalStake)
+    val generatorBox = ArbitBox(genesisAcct.publicImage.generateEvidence, 0, SimpleValue(totalStake))
 
     val signature = SignatureCurve25519.genesis
 

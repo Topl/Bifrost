@@ -1,37 +1,30 @@
 package co.topl.nodeView.state.box
 
-import co.topl.attestation.{Address, Evidence}
+import co.topl.attestation.Evidence
 import co.topl.nodeView.state.box.Box.BoxType
+import co.topl.utils.{Identifiable, Identifier}
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
 
-case class AssetBox (override val evidence: Evidence,
-                     override val nonce   : Box.Nonce,
-                     override val value   : TokenBox.Value,
-                     assetCode            : String,
-                     issuer               : Address,
-                     data                 : String
-                    ) extends TokenBox(evidence, nonce, value, AssetBox.boxTypePrefix)
+case class AssetBox(
+  override val evidence: Evidence,
+  override val nonce:    Box.Nonce,
+  override val value:    AssetValue
+) extends TokenBox(evidence, nonce, value)
 
 object AssetBox {
-  val boxTypePrefix: BoxType = 3: Byte
+  val typePrefix: BoxType = 3: Byte
+  val typeString: String = "AssetBox"
 
-  implicit val jsonEncoder: Encoder[AssetBox] = { box: AssetBox =>
-    (Box.jsonEncode(box) ++ Map(
-      "issuer" -> box.issuer.asJson,
-      "assetCode" -> box.assetCode.asJson,
-      "data" -> box.data.asJson)
-      ).asJson
+  implicit val identifier: Identifiable[AssetBox] = Identifiable.instance { () =>
+    Identifier(typeString, typePrefix)
   }
 
-  implicit val jsonDecoder: Decoder[AssetBox] = ( c: HCursor ) =>
-    for {
-      b <- Box.jsonDecode[TokenBox.Value](c)
-      issuer <- c.downField("issuer").as[Address]
-      assetCode <- c.downField("assetCode").as[String]
-      data <- c.downField("data").as[String]
-    } yield {
-      val (evidence, nonce, value) = b
-      AssetBox(evidence, nonce, value, assetCode, issuer, data)
+
+  implicit val jsonEncoder: Encoder[AssetBox] = (box: AssetBox) => Box.jsonEncode[AssetValue, AssetBox](box).asJson
+
+  implicit val jsonDecoder: Decoder[AssetBox] = (c: HCursor) =>
+    Box.jsonDecode[AssetValue](c).map { case (evidence, nonce, value) =>
+      AssetBox(evidence, nonce, value)
     }
 }

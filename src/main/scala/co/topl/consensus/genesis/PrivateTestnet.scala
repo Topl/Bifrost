@@ -8,7 +8,7 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
 import co.topl.nodeView.history.History
-import co.topl.nodeView.state.box.ArbitBox
+import co.topl.nodeView.state.box.{ArbitBox, SimpleValue}
 import co.topl.settings.{AppSettings, RuntimeOpts, Version}
 import co.topl.utils.encode.encodeBase16
 
@@ -45,11 +45,12 @@ case class PrivateTestnet ( keyGen  : (Int, Option[String]) => Set[PublicKeyProp
 
     val txInput = (
       IndexedSeq(),
-      (genesisAcct.publicImage.address -> 0L) +: accts.map(_.address -> balance).toIndexedSeq,
+      (genesisAcct.publicImage.address -> SimpleValue(0L)) +:
+        accts.map(_.address -> SimpleValue(balance)).toIndexedSeq,
       Map(genesisAcct.publicImage -> SignatureCurve25519.genesis),
       0L,
       0L,
-      "",
+      None,
       true)
 
     val txs = Seq(
@@ -59,7 +60,7 @@ case class PrivateTestnet ( keyGen  : (Int, Option[String]) => Set[PublicKeyProp
         (txInput._1,txInput._2,txInput._3,txInput._4,txInput._5,txInput._6,txInput._7)
     )
 
-    val generatorBox = ArbitBox(genesisAcct.publicImage.generateEvidence, 0, privateTotalStake)
+    val generatorBox = ArbitBox(genesisAcct.publicImage.generateEvidence, 0, SimpleValue(privateTotalStake))
 
     val signature = SignatureCurve25519.genesis
 

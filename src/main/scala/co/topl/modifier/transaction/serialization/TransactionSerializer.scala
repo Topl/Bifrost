@@ -10,15 +10,15 @@ object TransactionSerializer extends BifrostSerializer[Transaction.TX] {
   override def serialize(obj: Transaction.TX, w: Writer): Unit = {
     obj match {
       case obj: ArbitTransfer[_] =>
-        w.put(ArbitTransfer.txTypePrefix)
+        w.put(ArbitTransfer.typePrefix)
         ArbitTransferSerializer.serialize(obj, w)
 
       case obj: PolyTransfer[_] =>
-        w.put(PolyTransfer.txTypePrefix)
+        w.put(PolyTransfer.typePrefix)
         PolyTransferSerializer.serialize(obj, w)
 
       case obj: AssetTransfer[_] =>
-        w.put(AssetTransfer.txTypePrefix)
+        w.put(AssetTransfer.typePrefix)
         AssetTransferSerializer.serialize(obj, w)
 
 //      case obj: CodeCreation =>
@@ -41,9 +41,9 @@ object TransactionSerializer extends BifrostSerializer[Transaction.TX] {
 
   override def parse(r: Reader): Transaction.TX = {
     (r.getByte() match {
-      case ArbitTransfer.txTypePrefix => ArbitTransferSerializer.parseTry(r)
-      case PolyTransfer.txTypePrefix  => PolyTransferSerializer.parseTry(r)
-      case AssetTransfer.txTypePrefix  => AssetTransferSerializer.parseTry(r)
+      case ArbitTransfer.typePrefix => ArbitTransferSerializer.parseTry(r)
+      case PolyTransfer.typePrefix  => PolyTransferSerializer.parseTry(r)
+      case AssetTransfer.typePrefix  => AssetTransferSerializer.parseTry(r)
 //      case CodeCreation.txTypePrefix  => CodeCreationTransferSerializer.parse(r)
 //      case ProgramCreation.txTypePrefix  => ProgramCreationTransferSerializer.parse(r)
 //      case ProgramMethodExecution.txTypePrefix  => ProgramMethodExecutionTransferSerializer.parse(r)

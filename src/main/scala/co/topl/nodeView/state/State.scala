@@ -85,7 +85,8 @@ case class State ( override val version     : VersionTag,
    * @param key the public key to find boxes for
    * @return a sequence of token boxes held by the public key
    */
-  override def getTokenBoxes(key: KT): Option[Seq[TokenBox]] = tbrOpt.flatMap(_.getBox(key, getReader))
+  override def getTokenBoxes(key: KT): Option[Seq[TokenBox[TokenValueHolder]]] =
+    tbrOpt.flatMap(_.getBox(key, getReader))
 
   /**
    * Lookup a sequence of boxIds from the appropriate registry.

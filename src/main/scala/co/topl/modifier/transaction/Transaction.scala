@@ -4,27 +4,23 @@ import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.{Proof, Proposition}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.BloomFilter.BloomTopic
-import co.topl.modifier.transaction.Transaction.TxType
-import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{Box, BoxId}
-import co.topl.utils.serialization.BifrostSerializer
+import co.topl.utils.{Identifiable, Identifier}
 import com.google.common.primitives.Longs
 import io.circe.{Decoder, Encoder, HCursor}
-import scorex.crypto.hash.{Blake2b256, Digest32}
+import scorex.crypto.hash.Digest32
 
 import scala.util.Try
 
-abstract class Transaction[T <: Any, P <: Proposition] extends NodeViewModifier {
+abstract class Transaction[+T, P <: Proposition: Identifiable] extends NodeViewModifier {
 
   override lazy val id: ModifierId = ModifierId(this)
 
   val modifierTypeId: ModifierTypeId = Transaction.modifierTypeId
 
   val bloomTopics: IndexedSeq[BloomTopic]
-
-  val txTypePrefix: TxType
 
   val boxIdsToOpen: IndexedSeq[BoxId]
 
@@ -37,17 +33,16 @@ abstract class Transaction[T <: Any, P <: Proposition] extends NodeViewModifier 
   val timestamp: Long
 
   override def toString: String =
-    Transaction.prefixToTypeString(txTypePrefix) +
-    Transaction.jsonEncoder(this).noSpaces
+    Transaction.identifier(this).typeString + Transaction.jsonEncoder(this).noSpaces
 
   def messageToSign: Array[Byte] =
-    Array(txTypePrefix) ++
+    Array(Transaction.identifier(this).typePrefix) ++
       newBoxes.foldLeft(Array[Byte]())((acc, x) => acc ++ x.bytes) ++
       boxIdsToOpen.foldLeft(Array[Byte]())((acc, x) => acc ++ x.hashBytes) ++
       Longs.toByteArray(timestamp) ++
       Longs.toByteArray(fee)
 
-  def getPropTypeString: String = attestation.head._1.propTypeString
+  def getPropIdentifier: Identifier = Identifiable[P].getId
 
   def semanticValidate (stateReader: StateReader)(implicit networkPrefix: NetworkPrefix): Try[Unit]
 
@@ -59,17 +54,18 @@ abstract class Transaction[T <: Any, P <: Proposition] extends NodeViewModifier 
 
 
 object Transaction {
-  type TX = Transaction[_ <: Any, _ <: Proposition]
+  type TX = Transaction[_, _ <: Proposition]
   type TxType = Byte
   type TransactionId = ModifierId
+
   val modifierTypeId: ModifierTypeId = ModifierTypeId @@ (2: Byte)
 
   def nonceFromDigest (digest: Digest32): Box.Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
-  def prefixToTypeString(prefix: TxType): String = prefix match {
-    case ArbitTransfer.txTypePrefix     => "ArbitTransfer"
-    case PolyTransfer.txTypePrefix      => "PolyTransfer"
-    case AssetTransfer.txTypePrefix     => "AssetTransfer"
+  def identifier(tx: TX): Identifier = tx match {
+    case _: PolyTransfer[_]    => PolyTransfer.identifier.getId
+    case _: ArbitTransfer[_]   => ArbitTransfer.identifier.getId
+    case _: AssetTransfer[_]   => AssetTransfer.identifier.getId
   }
 
   implicit def jsonTypedEncoder[T, P <: Proposition]: Encoder[Transaction[T, P]] = {
@@ -92,9 +88,9 @@ object Transaction {
 //      case "ProgramCreation"        => ProgramCreation.jsonDecoder(c)
 //      case "ProgramMethodExecution" => ProgramMethodExecution.jsonDecoder(c)
 //      case "ProgramTransfer"        => ProgramTransfer.jsonDecoder(c)
-      case "PolyTransfer"           => PolyTransfer.jsonDecoder(c)
-      case "ArbitTransfer"          => ArbitTransfer.jsonDecoder(c)
-      case "AssetTransfer"          => AssetTransfer.jsonDecoder(c)
+      case PolyTransfer.typeString           => PolyTransfer.jsonDecoder(c)
+      case ArbitTransfer.typeString          => ArbitTransfer.jsonDecoder(c)
+      case AssetTransfer.typeString          => AssetTransfer.jsonDecoder(c)
     } match {
       case Right(tx) => tx
       case Left(ex)  => throw ex
