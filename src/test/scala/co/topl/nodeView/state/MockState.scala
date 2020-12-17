@@ -1,7 +1,6 @@
 package co.topl.nodeView.state
 
 import akka.actor.ActorSystem
-import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.PrivateKeyCurve25519
 import co.topl.consensus.KeyRing
 import co.topl.consensus.genesis.PrivateTestnet
@@ -29,7 +28,6 @@ trait MockState extends AnyPropSpec
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
   protected val appContext = new AppContext(settings, StartupOpts.empty, None)
-  implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
   val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
     KeyRing(settings.application.keyFileDir.get, KeyfileCurve25519)

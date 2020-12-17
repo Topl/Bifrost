@@ -7,7 +7,6 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
-import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.PrivateKeyCurve25519
 import co.topl.consensus.{Forger, ForgerRef, KeyRing}
 import co.topl.crypto.KeyfileCurve25519
@@ -42,7 +41,6 @@ trait RPCMockState extends AnyWordSpec
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
   implicit val timeout: Timeout = Timeout(10.seconds)
-  implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
   private val apiRoutes: Seq[ApiEndpoint] = Seq(
     UtilsApiEndpoint(settings.rpcApi, appContext),

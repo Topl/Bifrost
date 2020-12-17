@@ -317,7 +317,7 @@ trait CoreGenerators extends Logging {
     (0 until seqLen) map { _ => sampleUntilNonEmpty(signatureGen) }
   }
 
-  lazy val polyTransferGen: Gen[PolyTransfer[_ <: Proposition]] = for {
+  lazy val polyTransferGen: Gen[PolyTransfer[PublicKeyPropositionCurve25519]] = for {
     from <- fromSeqGen
     to <- toSeqGen
     attestation <- attestationGen
@@ -332,7 +332,7 @@ trait CoreGenerators extends Logging {
     PolyTransfer(from, to, attestation, fee, timestamp, Some(data))
   }
 
-  lazy val arbitTransferGen: Gen[ArbitTransfer[_ <: Proposition]] = for {
+  lazy val arbitTransferGen: Gen[ArbitTransfer[PublicKeyPropositionCurve25519]] = for {
     from <- fromSeqGen
     to <- toSeqGen
     attestation <- attestationGen
@@ -343,7 +343,7 @@ trait CoreGenerators extends Logging {
     ArbitTransfer(from, to, attestation, fee, timestamp, Some(data))
   }
 
-  lazy val assetTransferGen: Gen[AssetTransfer[_ <: Proposition]] = for {
+  lazy val assetTransferGen: Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = for {
     from <- fromSeqGen
     to <- assetToSeqGen
     attestation <- attestationGen
