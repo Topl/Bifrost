@@ -2,10 +2,10 @@ package co.topl.http.api
 
 /** A case class used in AppSettings to note the state of the differnet API endpoints*/
 case class NamespaceSelector(
-  private val topl:  Boolean,
-  private val util:  Boolean,
-  private val admin: Boolean,
-  private val debug: Boolean
+  private val topl:  Boolean = false,
+  private val util:  Boolean = false,
+  private val admin: Boolean = false,
+  private val debug: Boolean = false
 ) {
 
   lazy val namespaceStates: Map[Namespace, Boolean] =

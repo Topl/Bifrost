@@ -1,16 +1,27 @@
 package co.topl.nodeView.state.box.serialization
 
-import co.topl.nodeView.state.box.ArbitBox
+import co.topl.attestation.Evidence
+import co.topl.nodeView.state.box.{ArbitBox, SimpleValue, TokenBox}
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object ArbitBoxSerializer extends BifrostSerializer[ArbitBox] {
 
   override def serialize(obj: ArbitBox, w: Writer): Unit = {
-    TokenBoxSerializer.serialize(obj, w)
+    /* proposition: PublicKey25519Proposition */
+    Evidence.serialize(obj.evidence, w)
+
+    /* nonce: Long */
+    w.putLong(obj.nonce)
+
+    /* value: Long */
+    SimpleValue.serialize(obj.value, w)
   }
 
   override def parse(r: Reader): ArbitBox = {
-    val (evidence, nonce, value) = TokenBoxSerializer.parse(r)
+    val evidence = Evidence.parse(r)
+    val nonce = r.getLong()
+    val value = SimpleValue.parse(r)
+
     ArbitBox(evidence, nonce, value)
   }
 }

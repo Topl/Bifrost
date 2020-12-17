@@ -9,6 +9,7 @@ import co.topl.nodeView.NodeViewHolder.ReceivableMessages.LocallyGeneratedTransa
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
+import co.topl.nodeView.state.box.{AssetValue, SimpleValue}
 import co.topl.settings.{AppContext, RPCApiSettings}
 import io.circe.Json
 import io.circe.syntax._
@@ -21,13 +22,13 @@ import scala.util.{Failure, Success}
   *
   * @param nodeViewHolderRef actor reference to inform of new transactions
   * @param settings the settings for HTTP REST API
-  * @param context reference to the actor system used to create new actors for handling requests
   */
 case class TransactionApiEndpoint(
   settings:          RPCApiSettings,
   appContext:        AppContext,
   nodeViewHolderRef: ActorRef
 )(implicit val ec:   ExecutionContext) extends ApiEndpointWithView {
+
   type HIS = History
   type MS = State
   type MP = MemPool
@@ -76,46 +77,46 @@ case class TransactionApiEndpoint(
     */
   private def rawAssetTransfer(implicit params: Json, id: String): Future[Json] = {
     viewAsync { view =>
+      val p = params.hcursor
+
       // parse arguments from the request
       (for {
-        propType   <- (params \\ "propositionType").head.as[String]
-        recipients <- (params \\ "recipient").head.as[IndexedSeq[(Address, Long)]]
-        sender     <- (params \\ "sender").head.as[IndexedSeq[Address]]
-        changeAddr <- (params \\ "changeAddress").head.as[Address]
-        fee        <- (params \\ "fee").head.as[Long]
-        issuer     <- (params \\ "issuer").head.as[Address]
-        assetCode  <- (params \\ "assetCode").head.as[String]
-        minting    <- (params \\ "minting").head.as[Boolean]
+        propType          <- p.get[String]("propositionType")
+        recipients        <- p.get[IndexedSeq[(Address, AssetValue)]]("recipients")
+        sender            <- p.get[IndexedSeq[Address]]("sender")
+        changeAddr        <- p.get[Address]("changeAddress")
+        consolidationAddr <- p.get[Option[Address]]("consolidationAddress")
+        fee               <- p.get[Long]("fee")
+        minting           <- p.get[Boolean]("minting")
+        data              <- p.get[Option[String]]("data")
       } yield {
-        val data: String = parseOptional("data", "")
 
+        // check that the state is available
         checkAddress(sender, view)
 
         // construct the transaction
         propType match {
-          case PublicKeyPropositionCurve25519.typeString =>
+          case PublicKeyPropositionCurve25519.`typeString` =>
             AssetTransfer
               .createRaw[PublicKeyPropositionCurve25519](
                 view.state,
                 recipients,
                 sender,
                 changeAddr,
-                issuer,
-                assetCode,
+                consolidationAddr,
                 fee,
                 data,
                 minting
               )
 
-          case ThresholdPropositionCurve25519.typeString =>
+          case ThresholdPropositionCurve25519.`typeString` =>
             AssetTransfer
               .createRaw[ThresholdPropositionCurve25519](
                 view.state,
                 recipients,
                 sender,
                 changeAddr,
-                issuer,
-                assetCode,
+                consolidationAddr,
                 fee,
                 data,
                 minting
@@ -169,27 +170,33 @@ case class TransactionApiEndpoint(
     */
   private def rawPolyTransfer(implicit params: Json, id: String): Future[Json] = {
     viewAsync { view =>
+      val p = params.hcursor
+
       // parse arguments from the request
       (for {
-        propType   <- (params \\ "propositionType").head.as[String]
-        recipients <- (params \\ "recipient").head.as[IndexedSeq[(Address, Long)]]
-        sender     <- (params \\ "sender").head.as[IndexedSeq[Address]]
-        changeAddr <- (params \\ "changeAddress").head.as[Address]
-        fee        <- (params \\ "fee").head.as[Long]
+        propType   <- p.get[String]("propositionType")
+        recipients <- p.get[IndexedSeq[(Address, Long)]]("recipients")
+        sender     <- p.get[IndexedSeq[Address]]("sender")
+        changeAddr <- p.get[Address]("changeAddress")
+        fee        <- p.get[Long]("fee")
+        data       <- p.get[Option[String]]("data")
       } yield {
-        val data: String = parseOptional("data", "")
 
+        // check that the state is available
         checkAddress(sender, view)
+
+        // convert to simple value type
+        val to = recipients.map(r => r._1 -> SimpleValue(r._2))
 
         // construct the transaction
         propType match {
-          case PublicKeyPropositionCurve25519.typeString =>
+          case PublicKeyPropositionCurve25519.`typeString` =>
             PolyTransfer
-              .createRaw[PublicKeyPropositionCurve25519](view.state, recipients, sender, changeAddr, fee, data)
+              .createRaw[PublicKeyPropositionCurve25519](view.state, to, sender, changeAddr, None, fee, data)
 
-          case ThresholdPropositionCurve25519.typeString =>
+          case ThresholdPropositionCurve25519.`typeString` =>
             PolyTransfer
-              .createRaw[ThresholdPropositionCurve25519](view.state, recipients, sender, changeAddr, fee, data)
+              .createRaw[ThresholdPropositionCurve25519](view.state, to, sender, changeAddr, None, fee, data)
         }
       }) match {
         case Right(Success(tx)) =>
@@ -239,28 +246,50 @@ case class TransactionApiEndpoint(
     */
   private def rawArbitTransfer(implicit params: Json, id: String): Future[Json] = {
     viewAsync { view =>
+      val p = params.hcursor
+
       // parse arguments from the request
       (for {
-        propType   <- (params \\ "propositionType").head.as[String]
-        recipients <- (params \\ "recipient").head.as[IndexedSeq[(Address, Long)]]
-        sender     <- (params \\ "sender").head.as[IndexedSeq[Address]]
-        changeAddr <- (params \\ "changeAddress").head.as[Address]
-        fee        <- (params \\ "fee").head.as[Long]
+        propType          <- p.get[String]("propositionType")
+        recipients        <- p.get[IndexedSeq[(Address, Long)]]("recipients")
+        sender            <- p.get[IndexedSeq[Address]]("sender")
+        changeAddr        <- p.get[Address]("changeAddress")
+        consolidationAddr <- p.get[Option[Address]]("consolidationAddress")
+        fee               <- p.get[Long]("fee")
+        data              <- p.get[Option[String]]("data")
       } yield {
-        val data: String = parseOptional("data", "")
 
         // check that the state is available
         checkAddress(sender, view)
 
+        // convert to simple value type
+        val to = recipients.map(r => r._1 -> SimpleValue(r._2))
+
         // construct the transaction
         propType match {
-          case PublicKeyPropositionCurve25519.typeString =>
+          case PublicKeyPropositionCurve25519.`typeString` =>
             ArbitTransfer
-              .createRaw[PublicKeyPropositionCurve25519](view.state, recipients, sender, changeAddr, fee, data)
+              .createRaw[PublicKeyPropositionCurve25519](
+                view.state,
+                to,
+                sender,
+                changeAddr,
+                consolidationAddr,
+                fee,
+                data
+              )
 
-          case ThresholdPropositionCurve25519.typeString =>
+          case ThresholdPropositionCurve25519.`typeString` =>
             ArbitTransfer
-              .createRaw[ThresholdPropositionCurve25519](view.state, recipients, sender, changeAddr, fee, data)
+              .createRaw[ThresholdPropositionCurve25519](
+                view.state,
+                to,
+                sender,
+                changeAddr,
+                consolidationAddr,
+                fee,
+                data
+              )
         }
       }) match {
         case Right(Success(tx)) =>
