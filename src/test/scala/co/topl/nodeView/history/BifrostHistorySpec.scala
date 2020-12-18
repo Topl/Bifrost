@@ -13,7 +13,7 @@ class BifrostHistorySpec extends AnyPropSpec
   with Matchers
   with CoreGenerators {
 
-  var history: History = generateHistory(0: Byte)
+  var history: History = generateHistory()
 
   property("Block application should result in storage and BifrostHistory.continuationIds") {
     var ids: Seq[ModifierId] = Seq()

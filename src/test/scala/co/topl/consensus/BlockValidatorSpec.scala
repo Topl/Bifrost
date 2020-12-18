@@ -18,7 +18,7 @@ class BlockValidatorSpec extends AnyPropSpec
   /* Initialize protocolMngr */
   setProtocolMngr(settings)
 
-  val history: History = generateHistory(0: Byte)
+  val history: History = generateHistory()
 
   property("A block with a timestamp older than its parent should never result in a hit") {
     forAll(blockGen) { blockTemp ⇒

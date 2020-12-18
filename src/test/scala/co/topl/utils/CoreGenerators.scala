@@ -482,7 +482,7 @@ trait CoreGenerators extends Logging {
     )(signingFunction).get
   }
 
-  def generateHistory(genesisBlockVersion: Byte): History = {
+  def generateHistory(genesisVersion: Byte = settings.application.version.firstDigit): History = {
     val dataDir = s"/tmp/bifrost/test-data/test-${Random.nextInt(10000000)}"
 
     val iFile = new File(s"$dataDir/blocks")
@@ -495,7 +495,7 @@ trait CoreGenerators extends Logging {
 
     var history = new History(storage, BlockProcessor(1024), validators)
 
-    val genesisBlock = genesisBlockGen.sample.get.copy(version = genesisBlockVersion)
+    val genesisBlock = genesisBlockGen.sample.get.copy(version = genesisVersion)
 
     history = history.append(genesisBlock).get._1
     assert(history.modifierById(genesisBlock.id).isDefined)
