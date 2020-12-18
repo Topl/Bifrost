@@ -31,7 +31,7 @@ class NodeViewRPCSpec extends AnyWordSpec
            |}
           """.stripMargin)
 
-      httpPOST("/nodeView/", requestBody) ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         val txIds = (res \\ "result").head.asArray.get.flatMap(txJson => (txJson \\ "txId").head.asString)
         txs.foreach(tx => txIds.contains(tx.id.toString))
@@ -52,7 +52,7 @@ class NodeViewRPCSpec extends AnyWordSpec
            |
           """.stripMargin)
 
-      httpPOST("/nodeView/", requestBody) ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         ((res \\ "result").head \\ "txId").head.asString.get shouldEqual txId
       }
@@ -73,7 +73,7 @@ class NodeViewRPCSpec extends AnyWordSpec
            |
           """.stripMargin)
 
-      httpPOST("/nodeView/", requestBody) ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
@@ -96,7 +96,7 @@ class NodeViewRPCSpec extends AnyWordSpec
            |
           """.stripMargin)
 
-      httpPOST("/nodeView/", requestBody) ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true

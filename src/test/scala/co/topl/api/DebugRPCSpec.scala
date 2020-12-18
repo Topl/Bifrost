@@ -21,7 +21,7 @@ class DebugRPCSpec extends AnyWordSpec
            |}
         """.stripMargin)
 
-      httpPOST("/debug/", requestBody) ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
@@ -42,7 +42,7 @@ class DebugRPCSpec extends AnyWordSpec
            |}
         """.stripMargin)
 
-      httpPOST("/debug/", requestBody) ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
@@ -60,7 +60,7 @@ class DebugRPCSpec extends AnyWordSpec
            |}
         """.stripMargin)
 
-      httpPOST("/debug/", requestBody) ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true

@@ -43,7 +43,7 @@ class AssetRPCSpec extends AnyWordSpec
            |}
         """.stripMargin)
 
-      httpPOST("", requestBody) ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         tx = ((res \\ "result").head \\ "formattedTx").head
         (res \\ "error").isEmpty shouldBe true

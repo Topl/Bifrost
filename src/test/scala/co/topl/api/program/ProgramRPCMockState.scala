@@ -15,15 +15,6 @@ trait ProgramRPCMockState extends RPCMockState
   with should.Matchers {
 
 
-
-  def httpPOST(jsonRequest: ByteString): HttpRequest = {
-    HttpRequest(
-      HttpMethods.POST,
-      uri = "/program/",
-      entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    ).withHeaders(RawHeader("x-api-key", "test_key"))
-  }
-
   def directlyAddPBRStorage(version: ModifierId, boxes: Seq[ProgramBox]): Unit = {
     // Manually manipulate state
     state.directlyAddPBRStorage(version, boxes, view().state)

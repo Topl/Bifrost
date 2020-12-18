@@ -28,7 +28,8 @@ class UtilsRPCSpec extends AnyWordSpec
            |}
         """.stripMargin)
 
-      httpPOST("/utils/", requestBody) ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
+        println(response.toString())
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
@@ -52,7 +53,7 @@ class UtilsRPCSpec extends AnyWordSpec
            |}
       """.stripMargin)
 
-      httpPOST("/utils/", requestBody) ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
@@ -76,7 +77,7 @@ class UtilsRPCSpec extends AnyWordSpec
            |}
       """.stripMargin)
 
-      httpPOST("/utils/", requestBody) ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true

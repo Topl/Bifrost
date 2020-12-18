@@ -57,10 +57,9 @@ trait RPCMockState extends AnyWordSpec
     KeyRing(settings.application.keyFileDir.get, KeyfileCurve25519)
 
 
-  def httpPOST(uri: String, jsonRequest: ByteString): HttpRequest = {
+  def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
       HttpMethods.POST,
-      uri = uri,
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
     ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
