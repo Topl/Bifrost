@@ -473,7 +473,7 @@ trait CoreGenerators extends Logging {
     .map(s => PrivateKeyCurve25519.secretGenerator.generateSecret(s))
   lazy val propositionGen: Gen[PublicKeyPropositionCurve25519] = key25519Gen.map(_._2)
   lazy val evidenceGen: Gen[Evidence] = for { address <- addressGen } yield { address.evidence }
-  lazy val addressGen: Gen[Address] = for { key <- stringGen } yield { Address(key) }
+  lazy val addressGen: Gen[Address] = for { key <- propositionGen } yield { key.address }
 
   def genBytesList(size: Int): Gen[Array[Byte]] = genBoundedBytes(size, size)
 
