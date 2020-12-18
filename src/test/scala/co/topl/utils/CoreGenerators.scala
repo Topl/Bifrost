@@ -53,54 +53,13 @@ trait CoreGenerators extends Logging {
     sampled.get
   }
 
-  def unfoldLeft[A, B](seed: B)(f: B => Option[(A, B)]): Seq[A] = {
-    f(seed) match {
-      case Some((a, b)) => a +: unfoldLeft(b)(f)
-      case None => Nil
-    }
-  }
-
-  def splitAmongN(toSplit: Long,
-                  n: Int,
-                  minShareSize: Long = Long.MinValue,
-                  maxShareSize: Long = Long.MaxValue): Try[Seq[Long]] = Try {
-    unfoldLeft((toSplit, n)) { case (amountLeft: Long, shares: Int) =>
-      if (shares > 0) {
-
-        val longRange = BigInt(Long.MaxValue) - BigInt(Long.MinValue)
-        val canOverflowOrUnderflowFully = BigInt(shares - 1) * (BigInt(maxShareSize) - BigInt(minShareSize)) >= longRange
-
-        var noMoreThan: Long = ((BigInt(amountLeft) - BigInt(shares - 1) * BigInt(minShareSize)) % longRange).toLong
-        var noLessThan: Long = ((BigInt(amountLeft) - BigInt(shares - 1) * BigInt(maxShareSize)) % longRange).toLong
-
-        if (canOverflowOrUnderflowFully) {
-          noMoreThan = maxShareSize
-          noLessThan = minShareSize
-        }
-
-        var thisPortion: Long = 0L
-
-        if (noLessThan <= maxShareSize && noMoreThan >= minShareSize && noLessThan <= noMoreThan) {
-          val boundedSample = sampleUntilNonEmpty(Gen.choose(noLessThan, noMoreThan))
-          thisPortion = Math.min(Math.max(boundedSample, minShareSize), maxShareSize)
-        } else if (noLessThan <= maxShareSize) {
-          val boundedSample = sampleUntilNonEmpty(Gen.choose(noLessThan, maxShareSize))
-          thisPortion = Math.max(boundedSample, minShareSize)
-        } else if (noMoreThan >= minShareSize) {
-          val boundedSample = sampleUntilNonEmpty(Gen.choose(minShareSize, noMoreThan))
-          thisPortion = Math.min(boundedSample, maxShareSize)
-        } else {
-          throw new Exception("Cannot split")
-        }
-
-        Some((thisPortion, (amountLeft - thisPortion, shares - 1)))
-      } else {
-        None
-      }
-    }
-  }
-
   lazy val stringGen: Gen[String] = Gen.alphaNumStr.suchThat(_.nonEmpty)
+  lazy val shortNameGen: Gen[String] = for {
+    n <- Gen.choose(0, AssetCode.shortNameLimit)
+    str <- Gen.listOfN(n, Gen.alphaNumChar).map(_.mkString)
+  } yield {
+    str
+  }
 
   val jsonTypes: Seq[String] = Seq("Object", "Array", "Boolean", "String", "Number")
 
@@ -176,11 +135,11 @@ trait CoreGenerators extends Logging {
     evidence <- evidenceGen
     nonce <- positiveLongGen
     quantity <- positiveLongGen
-    asset <- stringGen
+    shortName <- shortNameGen
     issuer <- addressGen
     data <- stringGen
   } yield {
-    val assetCode = AssetCode(issuer, asset)
+    val assetCode = AssetCode(issuer, shortName)
     val value = AssetValue(quantity, assetCode, metadata = Some(data))
     AssetBox(evidence, nonce, value)
   }
@@ -290,7 +249,7 @@ trait CoreGenerators extends Logging {
   //TODO create optional data to test cases for None or Some
   lazy val assetToGen: Gen[(Address, TokenValueHolder)] = for {
     issuer <- addressGen
-    shortName <- stringGen
+    shortName <- shortNameGen
     quantity <- positiveLongGen
     data <- stringGen
   } yield {
