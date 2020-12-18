@@ -239,7 +239,7 @@ trait CoreGenerators extends Logging {
     (0 until seqLen) map { _ => sampleUntilNonEmpty(fromGen) }
   }
 
-  lazy val toGen: Gen[(Address, TokenValueHolder)] = for {
+  lazy val toGen: Gen[(Address, SimpleValue)] = for {
     address <- addressGen
     value <- positiveLongGen
   } yield {
@@ -247,7 +247,7 @@ trait CoreGenerators extends Logging {
   }
 
   //TODO create optional data to test cases for None or Some
-  lazy val assetToGen: Gen[(Address, TokenValueHolder)] = for {
+  lazy val assetToGen: Gen[(Address, AssetValue)] = for {
     issuer <- addressGen
     shortName <- shortNameGen
     quantity <- positiveLongGen
@@ -258,7 +258,7 @@ trait CoreGenerators extends Logging {
     (issuer, assetValue)
   }
 
-  lazy val toSeqGen: Gen[IndexedSeq[(Address, TokenValueHolder)]] = for {
+  lazy val toSeqGen: Gen[IndexedSeq[(Address, SimpleValue)]] = for {
     seqLen <- positiveTinyIntGen
   } yield {
     (0 until seqLen) map { _ => sampleUntilNonEmpty(toGen) }

@@ -77,14 +77,11 @@ class SerializationTests extends AnyPropSpec
   property("StateBox Serialization") {
     forAll(stateBoxGen) {
       b: StateBox =>
-        val json = StateBox.jsonEncoder(b)
         val parsed = BoxSerializer
           .parseBytes(BoxSerializer.toBytes(b))
           .get
 
         val serialized = BoxSerializer.toBytes(parsed)
-        val resBox: StateBox = json.as[StateBox] match {case Right(re) => re; case Left(ex) => throw ex}
-        resBox.bytes sameElements BoxSerializer.toBytes(b) shouldBe true
         serialized sameElements BoxSerializer.toBytes(b) shouldBe true
     }
   }
@@ -92,14 +89,11 @@ class SerializationTests extends AnyPropSpec
   property("CodeBox Serialization") {
     forAll(codeBoxGen) {
       b: CodeBox =>
-        val json = CodeBox.jsonEncoder(b)
         val parsed = BoxSerializer
           .parseBytes(BoxSerializer.toBytes(b))
           .get
 
         val serialized = BoxSerializer.toBytes(parsed)
-        val resBox: CodeBox = json.as[CodeBox] match {case Right(re) => re; case Left(ex) => throw ex}
-        resBox.bytes sameElements BoxSerializer.toBytes(b) shouldBe true
         serialized sameElements BoxSerializer.toBytes(b) shouldBe true
     }
   }
@@ -107,14 +101,11 @@ class SerializationTests extends AnyPropSpec
   property("ExecutionBox Serialization") {
     forAll(executionBoxGen) {
       b: ExecutionBox =>
-        val json = ExecutionBox.jsonEncoder(b)
         val parsed = BoxSerializer
           .parseBytes(BoxSerializer.toBytes(b))
           .get
 
         val serialized = BoxSerializer.toBytes(parsed)
-        val resBox: ExecutionBox = json.as[ExecutionBox] match {case Right(re) => re; case Left(ex) => throw ex}
-        resBox.bytes sameElements BoxSerializer.toBytes(b) shouldBe true
         serialized sameElements BoxSerializer.toBytes(b) shouldBe true
     }
   }
@@ -195,20 +186,6 @@ class SerializationTests extends AnyPropSpec
 
         ProgramMethodExecutionSerializer.toBytes(parsed) sameElements
           ProgramMethodExecutionSerializer.toBytes(c) shouldBe true
-    }
-  }
-   */
-
-  /*
-  property("AssetCreation Serialization") {
-    forAll(assetCreationGen) {
-      ac: AssetCreation =>
-        val parsed: AssetCreation = AssetCreationSerializer
-          .parseBytes(AssetCreationSerializer.toBytes(ac))
-          .get
-
-        AssetCreationSerializer.toBytes(parsed) sameElements
-          AssetCreationSerializer.toBytes(ac) shouldBe true
     }
   }
    */
