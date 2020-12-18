@@ -1,7 +1,6 @@
 package co.topl.utils
 
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
 import co.topl.consensus.KeyRing
@@ -40,6 +39,7 @@ trait CoreGenerators extends Logging {
 
   private val settingsFilename = "src/test/resources/test.conf"
   val settings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))
+
   private val keyFileDir = settings.application.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
   private val keyRing = KeyRing[PrivateKeyCurve25519, KeyfileCurve25519](keyFileDir, KeyfileCurve25519)
 
@@ -501,13 +501,12 @@ trait CoreGenerators extends Logging {
     Block(parentId, timestamp, generatorBox, publicKey, signature, height, difficulty, txs, version)
   }
 
-  lazy val genesisBlockGen: Gen[Block] = for {
-    keyPair ← key25519Gen
-  } yield {
+  lazy val genesisBlockGen: Gen[Block] = {
+    val keyPair = keyRing.generateNewKeyPairs().get.head
+    val matchingAddr = keyPair.publicImage.address
     val height: Long = 1L
     val difficulty = settings.forging.privateTestnet.map(_.initialDifficulty).get
     val version: PNVMVersion = settings.application.version.firstDigit
-    val matchingAddr = Address(keyPair._2.generateEvidence)
     val signingFunction: Array[Byte] => Try[SignatureCurve25519] =
       (messageToSign: Array[Byte]) => keyRing.signWithAddress(matchingAddr, messageToSign)
 
@@ -515,8 +514,8 @@ trait CoreGenerators extends Logging {
       History.GenesisParentId,
       Instant.now().toEpochMilli,
       Seq(),
-      ArbitBox(keyPair._2.generateEvidence, 0L, SimpleValue(0)),
-      keyPair._2,
+      ArbitBox(matchingAddr.evidence, 0L, SimpleValue(0)),
+      keyPair.publicImage,
       height,
       difficulty,
       version
