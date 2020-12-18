@@ -19,7 +19,7 @@ class IODBSpec extends AnyPropSpec
   with ValidGenerators
   with FileUtils {
 
-  val iFile: File = createTempFile
+  val iFile: File = createTempDir
 
   val blocksStorage = new LSMStore(iFile)
   blocksStorage.update(ByteArrayWrapper(Array[Byte](1)), Seq(), Seq())
