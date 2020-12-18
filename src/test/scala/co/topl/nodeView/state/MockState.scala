@@ -43,13 +43,13 @@ trait MockState extends AnyPropSpec
 
   val genesisBlockId: ModifierId = genesisBlock.id
 
-  def createState(genesisVersion: Byte = settings.application.version.firstDigit): State = {
+  def createState(genesisBlockWithVersion: Block = genesisBlock): State = {
     val file = createTempFile
     val tempSettings = settings.copy(
       application = settings.application.copy(
         dataDir = Some(file.getPath + "data")
       ))
 
-    State.genesisState(tempSettings, Seq(genesisBlock.copy(version = genesisVersion)))
+    State.genesisState(tempSettings, Seq(genesisBlockWithVersion))
   }
 }

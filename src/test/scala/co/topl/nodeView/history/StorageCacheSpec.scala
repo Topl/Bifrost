@@ -17,8 +17,7 @@ class StorageCacheSpec extends AnyPropSpec
   /* Initialize protocolMngr */
   setProtocolMngr(settings)
 
-  val fstVersion: Byte = protocolMngr.applicable.map(_.blockVersion).min.get
-  var history: History = generateHistory(fstVersion)
+  var history: History = generateHistory()
 
   property("The genesis block is stored in cache") {
     val genesisBlockId = ByteArrayWrapper(Array.fill(history.storage.storage.keySize)(-1: Byte))
