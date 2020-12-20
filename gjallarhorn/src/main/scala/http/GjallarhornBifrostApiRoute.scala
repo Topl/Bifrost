@@ -53,16 +53,19 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
 
   private def connectToBifrost(params: Json): Future[Json] = {
     val chainProvider = (params \\ "chainProvider").head.asString.get
-    log.info("gjallarhorn attempting to run in online mode. Trying to connect to Bifrost...")
-    val bifrostActor = Await.result(system.actorSelection(s"akka.tcp://$chainProvider/user/walletConnectionHandler")
-      .resolveOne(), 10.seconds)
-
-    log.info(s"${Console.MAGENTA} Bifrst actor ref was found: $bifrostActor ${Console.RESET}. Now running in online mode.")
-    setUpOnlineMode(bifrostActor)
-
-        /*log.error(s"${Console.MAGENTA} bifrost actor ref not found at: akka.tcp://$chainProvider. " +
+    try {
+      log.info("gjallarhorn attempting to run in online mode. Trying to connect to Bifrost...")
+      val bifrost = Await.result(system.actorSelection(s"akka.tcp://$chainProvider/user/walletConnectionHandler")
+        .resolveOne(), 10.seconds)
+      log.info(s"${Console.MAGENTA} Bifrst actor ref was found: $bifrost ${Console.RESET}. " +
+        s"Now running in online mode.")
+      setUpOnlineMode(bifrost)
+    } catch {
+      case e: ActorNotFound =>
+        log.error(s"${Console.MAGENTA} bifrost actor ref not found at: akka.tcp://$chainProvider." +
           s"Continuing to run in offline mode. ${Console.RESET}")
-        Map("error" -> s"could not connect to chain provider: $chainProvider").asJson*/
+        Future{Map("error" -> s"could not connect to chain provider: $chainProvider. $e").asJson}
+    }
   }
 
   def setUpOnlineMode(bifrost: ActorRef): Future[Json] = {

@@ -26,9 +26,6 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   log.info(s"${Console.MAGENTA} Gjallarhorn running in offline mode.${Console.RESET}")
 
-  //TODO: this is the default network - but user can change this.
-  //implicit val networkPrefix: NetworkPrefix = 48.toByte
-
   //sequence of actors for cleanly shutting down the application
   private var actorsToStop: Seq[ActorRef] = Seq()
 
