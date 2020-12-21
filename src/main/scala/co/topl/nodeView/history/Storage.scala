@@ -198,7 +198,7 @@ class Storage( private[history] val storage: LSMStore,
     storage.update(ByteArrayWrapper(b.id.bytes), Seq(), wrappedUpdate)
 
     /* update the cache the in the same way */
-    wrappedUpdate.foreach(key => blockCache.put(key._1, Some(key._2)))
+    wrappedUpdate.foreach(pair => blockCache.put(pair._1, Some(pair._2)))
   }
 
   /** rollback storage to have the parent block as the last block
