@@ -70,7 +70,7 @@ class UtilsRPCSpec extends AnyWordSpec
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
-           |   "method": "util_hashBlake2b",
+           |   "method": "util_hashBlake2b256",
            |   "params": [{
            |      "message": "Hello World"
            |   }]
