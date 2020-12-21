@@ -87,6 +87,7 @@ object AssetTransfer {
         "signatures" -> tx.attestation.asJson,
         "fee" -> tx.fee.asJson,
         "timestamp" -> tx.timestamp.asJson,
+        "minting" -> tx.minting.asJson,
         "data" -> tx.data.asJson,
         "issuer" -> tx.issuer.toString.asJson,
         "assetCode" -> tx.assetCode.asJson,

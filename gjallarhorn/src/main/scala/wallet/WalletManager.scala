@@ -76,6 +76,7 @@ class WalletManager(bifrostActorRef: ActorRef)
     case KeyManagerReady(keyMngrRef) =>
       val publicKeys = Await.result((keyMngrRef ? GetOpenKeyfiles)
         .mapTo[Set[Address]], 10.seconds)
+      println("public keys: " + publicKeys)
       keyManagerRef = Some(keyMngrRef)
       initializeWalletBoxes(publicKeys)
       if (publicKeys.nonEmpty) {

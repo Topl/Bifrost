@@ -63,16 +63,18 @@ class KeyManager(keyFileDir: String) extends Actor with Logging {
     case ChangeNetwork(networkName: String) =>
       NetworkType.fromString(networkName) match {
         case Some(network) =>
-          //lock all keyfiles on current network
-          keyRing.addresses.foreach(addr =>
-            keyRing.lockKeyFile(addr.toString))
+          if (network.netPrefix != networkPrefix) {
+            //lock all keyfiles on current network
+            keyRing.addresses.foreach(addr =>
+              keyRing.lockKeyFile(addr.toString))
 
-          //change network and initialize keyRing with new network
-          networkPrefix = network.netPrefix
-          keyRing = Keys(keyFileDir, KeyfileCurve25519)(PrivateKeyCurve25519.secretGenerator,
-            networkPrefix = networkPrefix)
+            //change network and initialize keyRing with new network
+            networkPrefix = network.netPrefix
+            keyRing = Keys(keyFileDir, KeyfileCurve25519)(PrivateKeyCurve25519.secretGenerator,
+              networkPrefix = networkPrefix)
 
-          log.info(s"${Console.MAGENTA}Network changed to: ${network.verboseName} ${Console.RESET}")
+            log.info(s"${Console.MAGENTA}Network changed to: ${network.verboseName} ${Console.RESET}")
+          }
           sender ! Map("newNetworkPrefix" -> networkPrefix).asJson
         case None => Map("error" -> s"The network name: $networkName was not a valid network type!").asJson
       }

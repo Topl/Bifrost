@@ -78,7 +78,7 @@ class WalletConnectionHandler[
     }
   }
 
-  /** @param msg
+  /** @param msg - the message received from Gjallarhorn
     */
   private def handleMsgFromRemote(msg: String): Unit = {
     if (msg.contains("Remote wallet actor initialized")) {
@@ -233,7 +233,8 @@ object WalletConnectionHandlerRef {
     ec:               ExecutionContext
   ): Props =
     Props(
-      new WalletConnectionHandler[PMOD](settings.rpcApi, appContext, nodeViewHolderRef)(ec, appContext.networkType.netPrefix)
+      new WalletConnectionHandler[PMOD](settings.rpcApi, appContext, nodeViewHolderRef)
+      (ec, appContext.networkType.netPrefix)
     )
 
   def apply[

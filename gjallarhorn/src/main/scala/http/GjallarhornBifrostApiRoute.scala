@@ -139,13 +139,14 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
         val msgToSign = (txResponse \\ "messageToSign").head
         val signedTx = Await.result((keyManager ? SignTx(rawTx, List(sender.head.toString), msgToSign))
           .mapTo[Json], 10.seconds)
-        response = Future{requests.broadcastTx(signedTx)}
+        response = Future{(requests.broadcastTx(signedTx) \\ "result").head}
       } else {
-        response = Future {requests.sendRequest(tx)}
+        response = Future {(requests.sendRequest(tx) \\ "result").head}
       }
     }
     response
   }
+
 
 
   /**
@@ -158,7 +159,7 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
     requestsManager match {
       case Some(actor) =>
         settings.application.communicationMode match {
-          case "useTcp" => Future{requests.broadcastTx(params)}
+          case "useTcp" => Future{(requests.broadcastTx(params) \\ "result").head}
           case "useAkka" => (actor ? BifrostRequest(params)).mapTo[String].map(_.asJson)
         }
       case None => offlineMessage()

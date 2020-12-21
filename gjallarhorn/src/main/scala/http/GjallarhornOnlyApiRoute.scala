@@ -22,11 +22,12 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
     //TODO: enable gjallarhorn to create raw transaction.
-    //case (method, params, id) if method == s"${namespace.name}_createRawTransaction" => createRawTransaction(params.head, id)
+    //case (method, params, id) if method == s"${namespace.name}_createRawTransaction" =>
+    // createRawTransaction(params.head, id)
 
     case (method, params, id) if method == s"${namespace.name}_signTx" => signTx(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_networkType" => Future{Map("networkPrefix" -> networkPrefix).asJson}
-    case (method, params, id) if method == s"${namespace.name}_changeNetwork" => changeNetwork(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_changeNetwork" => changeNetwork(params.head)
   }
 
   /**
@@ -48,7 +49,7 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
     }
   }
 
-  private def changeNetwork(params: Json, id: String): Future[Json] = {
+  private def changeNetwork(params: Json): Future[Json] = {
     (for {
       newNetwork <- (params \\ "newNetwork").head.as[String]
     } yield {

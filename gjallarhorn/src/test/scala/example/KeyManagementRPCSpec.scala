@@ -14,6 +14,7 @@ import io.circe.Json
 import io.circe.parser.parse
 import keymanager.KeyManager.GenerateKeyFile
 import keymanager.KeyManagerRef
+import org.scalatest.Ignore
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import requests.ApiRoute
@@ -38,7 +39,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
 
   val apiRoute: ApiRoute = KeyManagementApi(keyManagementSettings, keyManagerRef)
   val gjalOnlyApiRoute: ApiRoute = GjallarhornOnlyApiRoute(settings, keyManagerRef)
-  val route: Route = HttpService(Seq(apiRoute, gjalOnlyApiRoute), keyManagementSettings.rpcApi, onlineStatus = false).compositeRoute
+  val route: Route = HttpService(Seq(apiRoute, gjalOnlyApiRoute), keyManagementSettings.rpcApi).compositeRoute
 
   val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))
     .mapTo[Try[Address]], 10.seconds) match {

@@ -77,7 +77,32 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   var prototypeTx: Json = Map("txType" -> "AssetCreation").asJson
   var msgToSign = ""
 
-  it should "get a successful JSON response from createTx request" in {
+  it should "successfully connect to Bifrost" in {
+    val connectRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "onlineWallet_connectToBifrost",
+         |   "params": [{
+         |      "chainProvider": "${settings.application.chainProvider}"
+         |   }]
+         |}
+         """.stripMargin)
+
+    httpPOST(connectRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          (res \\ "result").head.asObject.isDefined shouldBe true
+          ((res \\ "result").head \\ "connectedToBifrost").head.asBoolean.get shouldBe true
+      }
+    }
+  }
+
+  it should "succesfully create an asset" in {
     val createAssetRequest = ByteString(
       s"""
          |{
@@ -107,10 +132,10 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
           prototypeTx = (res \\ "rawTx").head
           msgToSign = (res \\ "messageToSign").head.asString.get
-          (res \\ "error").isEmpty shouldBe true
-          (res \\ "result").head.asObject.isDefined shouldBe true
+          ((res \\ "result").head \\ "rawTx").head.asObject.isDefined shouldBe true
       }
     }
   }
@@ -126,9 +151,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |     "method": "topl_rawPolyTransfer",
          |     "params": [{
          |        "propositionType": "PublicKeyCurve25519",
-         |        "sender": ["$pk2"],
-         |        "recipient": [["$pk1", $amount]],
-         |        "changeAddress": "$pk2",
+         |        "sender": ["$pk1"],
+         |        "recipient": [["$pk2", $amount]],
+         |        "changeAddress": "$pk1",
          |        "fee": 1,
          |        "data": "",
          |        "online": false
@@ -148,7 +173,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     }
   }
 
-  it should "successfully send online arbit tx" in {
+  it should "successfully send online poly tx" in {
     val createPolyRequest = ByteString(
       s"""
          |{
@@ -181,6 +206,8 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     }
   }
 
+  var signedTx: Json = Json.Null
+
   it should "successfully sign a transaction" in {
     val signTxRequest = ByteString(
       s"""
@@ -197,6 +224,35 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          """.stripMargin)
 
     httpPOST(signTxRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          signedTx = ((res \\ "result").head \\ "tx").head
+          (res \\ "result").head.asObject.isDefined shouldBe true
+      }
+    }
+  }
+
+
+  it should "successfully broadcast a tx" in {
+    val rqstString =
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "onlineWallet_broadcastTx",
+         |   "params": [{
+         |      "method": "topl_broadcastTx",
+         |      "params": [{
+         |        "tx": $signedTx
+         |      }]
+         |   }]
+         |}
+         """.stripMargin
+    val rqst = ByteString(rqstString)
+    httpPOST(rqst) ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -253,13 +309,36 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     }
   }
 
+  it should "successfully disconnect from Bifrost" in {
+    val disconnectRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "onlineWallet_disconnectFromBifrost",
+         |   "params": [{}]
+         |}
+         """.stripMargin)
+
+    httpPOST(disconnectRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          (res \\ "result").head.asObject.isDefined shouldBe true
+          ((res \\ "result").head \\ "status").head.asString.get === "Disconnected!" shouldBe true
+      }
+    }
+  }
+
   it should "successfully get connection status" in {
     val mnemonicPhraseRequest = ByteString(
       s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
-         |   "method": "wallet_connectedToBifrost",
+         |   "method": "onlineWallet_getConnection",
          |   "params": [{}]
          |}
          """.stripMargin)
@@ -271,6 +350,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
         case Right(res: Json) =>
           (res \\ "error").isEmpty shouldBe true
           (res \\ "result").head.asObject.isDefined shouldBe true
+          ((res \\ "result").head \\ "connectedToBifrost").head.asBoolean.get shouldBe false
       }
     }
   }
@@ -319,31 +399,6 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
           (res \\ "error").isEmpty shouldBe true
           val network = ((res \\ "result").head \\ "newNetworkPrefix").head
           assert(network.toString() === "1")
-      }
-    }
-  }
-
-  it should "successfully change mode to offline" in {
-    val offlineRequest = ByteString(
-      s"""
-         |{
-         |   "jsonrpc": "2.0",
-         |   "id": "2",
-         |   "method": "state_onlineStatus",
-         |   "params": [{
-         |      "online": false
-         |   }]
-         |}
-         """.stripMargin)
-
-    httpPOST(offlineRequest) ~> route ~> check {
-      val responseString = responseAs[String].replace("\\", "")
-      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
-        case Left(f) => throw f
-        case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          val onlineStatus = ((res \\ "result").head \\ "newOnline").head
-          assert(onlineStatus.toString() === "false")
       }
     }
   }

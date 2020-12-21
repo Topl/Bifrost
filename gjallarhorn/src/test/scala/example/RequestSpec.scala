@@ -40,9 +40,12 @@ class RequestSpec extends AsyncFlatSpec
   val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
     s"akka.tcp://${settings.application.chainProvider}/user/walletConnectionHandler").resolveOne(), 10.seconds)
 
+  val walletManagerRef: ActorRef = actorSystem.actorOf(
+    Props(new WalletManager(bifrostActor)), name = WalletManager.actorName)
+
   val requestsManagerRef: ActorRef = actorSystem.actorOf(
     Props(new RequestsManager(bifrostActor)), name = "RequestsManager")
-  val requests = new Requests(requestSettings.application, requestsManagerRef, keyManagerRef)
+  val requests = new Requests(requestSettings.application, keyManagerRef)
 
   val path: Path = Path(keyFileDir)
   Try(path.deleteRecursively())
@@ -61,10 +64,7 @@ class RequestSpec extends AsyncFlatSpec
     case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
 
-
   val publicKeys: Set[Address] = Set(pk1, pk2)
-  val walletManagerRef: ActorRef = actorSystem.actorOf(
-    Props(new WalletManager(bifrostActor)), name = "WalletManager")
 
   val amount = 10
   var transaction: Json = Json.Null
@@ -93,6 +93,7 @@ class RequestSpec extends AsyncFlatSpec
       case None => throw new Error(s"The network name: $networkName was not a valid network type!")
     }
     walletManagerRef ! KeyManagerReady(keyManagerRef)
+    requests.switchOnlineStatus(Some(requestsManagerRef))
     assert(networkPre == networkPrefix)
   }
 
@@ -179,9 +180,12 @@ class RequestSpec extends AsyncFlatSpec
     balanceResponse = requests.getBalances(publicKeys.map(addr => addr.toString))
     assert(balanceResponse.isInstanceOf[Json])
     (balanceResponse \\ "error").isEmpty shouldBe true
+
     val result: Json = (balanceResponse \\ "result").head
     result.asObject.isDefined shouldBe true
     (result \\ pk1.toString).nonEmpty shouldBe true
+    println("balance: " + result)
+    println("new boxes: " + newBoxIds)
     val contains = newBoxIds.map(boxId => result.toString().contains(boxId))
     contains.contains(false) shouldBe false
   }
