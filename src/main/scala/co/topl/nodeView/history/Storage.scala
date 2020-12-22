@@ -65,7 +65,7 @@ class Storage( private[history] val storage: LSMStore,
         blockCache
           .get(ByteArrayWrapper(id.getIdBytes))
           .flatMap(blockCache.get)
-          .flatMap(bwBlock => BlockSerializer.parseBytes(bwBlock.data.tail).toOption)
+          .flatMap(bwBlock => BlockSerializer.parseBytes(bwBlock.data).toOption)
           .map(block => (block.transactions.find(_.id == id).get, block.id, block.height))
 
       case _ => None
@@ -77,7 +77,7 @@ class Storage( private[history] val storage: LSMStore,
       case Block.modifierTypeId =>
         blockCache
           .get(ByteArrayWrapper(id.getIdBytes))
-          .flatMap(bwBlock => BlockSerializer.parseBytes(bwBlock.data.tail).toOption)
+          .flatMap(bwBlock => BlockSerializer.parseBytes(bwBlock.data).toOption)
 
       case _ => None
     }
