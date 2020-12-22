@@ -2,6 +2,7 @@ package co.topl.api
 
 import akka.util.ByteString
 import io.circe.parser.parse
+import io.circe.syntax.EncoderOps
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -16,7 +17,7 @@ class DebugRPCSpec extends AnyWordSpec
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
-           |   "method": "info",
+           |   "method": "debug_myBlocks",
            |   "params": [{}]
            |}
         """.stripMargin)
@@ -34,7 +35,7 @@ class DebugRPCSpec extends AnyWordSpec
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
-           |   "method": "delay",
+           |   "method": "debug_delay",
            |   "params": [{
            |      "blockId": "${view().history.bestBlockId}",
            |      "numBlocks": 1
@@ -55,7 +56,7 @@ class DebugRPCSpec extends AnyWordSpec
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
-           |   "method": "generators",
+           |   "method": "debug_generators",
            |   "params": [{}]
            |}
         """.stripMargin)
