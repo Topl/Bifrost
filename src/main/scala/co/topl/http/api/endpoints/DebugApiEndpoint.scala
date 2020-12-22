@@ -19,8 +19,13 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
-case class DebugApiEndpoint (settings: RPCApiSettings, appContext: AppContext, nodeViewHolderRef: ActorRef, forgerRef: ActorRef)
-                            (implicit val context: ActorRefFactory) extends ApiEndpointWithView {
+case class DebugApiEndpoint(
+  settings:             RPCApiSettings,
+  appContext:           AppContext,
+  nodeViewHolderRef:    ActorRef,
+  forgerRef:            ActorRef
+)(implicit val context: ActorRefFactory)
+    extends ApiEndpointWithView {
 
   type HIS = History
   type MS = State
@@ -39,19 +44,19 @@ case class DebugApiEndpoint (settings: RPCApiSettings, appContext: AppContext, n
     case (method, params, id) if method == s"${namespace.name}_generators" => generators(params.head, id)
   }
 
-
   /**  #### Summary
     *    Calculate the average delay over a number of blocks
-    *  
+    *
     *  #### Description
-    *    Find the average delay between blocks starting from a specified blockId and till a certain number of blocks forged on top of it
+    *    Find the average delay between blocks starting from a specified blockId and till a certain number of blocks
+    *    forged on top of it
     *
     * ---
     *  #### Params
-    *  | Fields                 	| Data type 	| Required / Optional 	| Description                                                            	|
-    *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	|
-    *  | blockId                  | String    	| Required            	| Id of block from which to start average delay computation               |
-    *  | numBlocks               	| Int       	| Required            	| Number of blocks back to consider when computing average delay          |
+    *  | Fields   | Data type | Required / Optional   | Description                                                    |
+    * |-----------|-----------|-----------------------|----------------------------------------------------------------|
+    * | blockId   | String    | Required              | Id of block from which to start average delay computation      |
+    * | numBlocks | Int       | Required              | Number of blocks back to consider when computing average delay |
     *
     * @param params input parameters as specified above
     * @param id request identifier
@@ -61,11 +66,11 @@ case class DebugApiEndpoint (settings: RPCApiSettings, appContext: AppContext, n
     viewAsync { view =>
       (for {
         blockId <- (params \\ "blockId").head.as[ModifierId]
-        count <- (params \\ "numBlocks").head.as[Int]
+        count   <- (params \\ "numBlocks").head.as[Int]
       } yield new HistoryDebug(view.history).averageDelay(blockId, count)) match {
         case Right(Success(delay)) => Map("delay" -> s"$delay milliseconds").asJson
-        case Right(Failure(ex)) => throw ex
-        case Left(ex)           => throw ex
+        case Right(Failure(ex))    => throw ex
+        case Left(ex)              => throw ex
       }
     }
 
@@ -76,10 +81,10 @@ case class DebugApiEndpoint (settings: RPCApiSettings, appContext: AppContext, n
     *    Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
     *
     * ---
-    *  #### Params
-    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	|
-    *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	|
-    *  | --None specified--       |           	|                     	|                                                                         |
+    * #### Params
+    * | Fields                   | Data type   | Required / Optional   | Description                                   |
+    * |--------------------------|-------------|-----------------------|-----------------------------------------------|
+    * |---None specified---------|             |                       |                                               |
     *
     * @param params input parameters as specified above
     * @param id request identifier
@@ -94,7 +99,7 @@ case class DebugApiEndpoint (settings: RPCApiSettings, appContext: AppContext, n
 
         Map(
           "pubkeys" -> myKeys.asJson,
-          "count" -> blockNum.asJson
+          "count"   -> blockNum.asJson
         ).asJson
       }
     }
@@ -104,9 +109,9 @@ case class DebugApiEndpoint (settings: RPCApiSettings, appContext: AppContext, n
     *
     * ---
     *  #### Params
-    *  | Fields                    	| Data type 	| Required / Optional 	| Description                                                            	|
-    *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	|
-    *  | --None specified--        |           	|                     	|                                                                         |
+    * | Fields                    | Data type   | Required / Optional   | Description                                  |
+    * |---------------------------|-------------|-----------------------|----------------------------------------------|
+    * |---None specified----------|             |                       |                                              |
     *
     * @param params input parameters as specified above
     * @param id request identifier
