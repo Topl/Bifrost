@@ -1,5 +1,8 @@
 package co.topl.serialization
 
+import co.topl.attestation.Proposition
+import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer}
+import co.topl.nodeView.state.box._
 import co.topl.utils.{CoreGenerators, ValidGenerators}
 import io.circe.syntax.EncoderOps
 import org.scalatest.matchers.must.Matchers
@@ -15,81 +18,55 @@ class JsonTests extends AnyPropSpec
 
   property("PolyBox json") {
     forAll(polyBoxGen) { box =>
-      box.asJson shouldEqual Right(box)
+      box.asJson.as[PolyBox] shouldEqual Right(box)
     }
   }
 
   property("ArbitBox json") {
     forAll(arbitBoxGen) { box =>
-      box.asJson shouldEqual Right(box)
+      box.asJson.as[ArbitBox] shouldEqual Right(box)
     }
   }
 
   property("AssetBox json") {
     forAll(assetBoxGen) { box =>
-      box.asJson shouldEqual Right(box)
+      box.asJson.as[AssetBox] shouldEqual Right(box)
     }
   }
 
   property("StateBox json") {
     forAll(stateBoxGen) { box =>
-      box.asJson shouldEqual Right(box)
+      box.asJson.as[StateBox] shouldEqual Right(box)
     }
   }
 
   property("CodeBox json") {
     forAll(codeBoxGen) { box =>
-      box.asJson shouldEqual Right(box)
+      box.asJson.as[CodeBox] shouldEqual Right(box)
     }
   }
 
   property("ExecutionBox json") {
     forAll(executionBoxGen) { box =>
-      box.asJson shouldEqual Right(box)
+      box.asJson.as[ExecutionBox] shouldEqual Right(box)
     }
   }
 
-/*
   property("PolyTransfer json") {
     forAll(polyTransferGen) { tx =>
-      tx.asJson shouldEqual Right(tx)
+      tx.asJson.as[PolyTransfer[_ <: Proposition]] shouldEqual Right(tx)
     }
   }
 
   property("ArbitTransfer json") {
     forAll(arbitTransferGen) { tx =>
-      tx.asJson shouldEqual Right(tx)
+      tx.asJson.as[ArbitTransfer[_ <: Proposition]] shouldEqual Right(tx)
     }
   }
 
   property("AssetTransfer json") {
     forAll(assetTransferGen) { tx =>
-      tx.asJson shouldEqual Right(tx)
+      tx.asJson.as[AssetTransfer[_ <: Proposition]] shouldEqual Right(tx)
     }
   }
-
-  property("AssetCreation json") {
-    forAll(assetCreationGen) { tx =>
-      tx.asJson shouldEqual Right(tx)
-    }
-  }
-
-  property("ProgramCreation json") {
-    forAll(programCreationGen) { tx =>
-      tx.asJson shouldEqual Right(tx)
-    }
-  }
-
-  property("ProgramMethodExecution json") {
-    forAll(programMethodExecutionGen) { tx =>
-      tx.asJson shouldEqual Right(tx)
-    }
-  }
-
-  property("CodeCreation json") {
-    forAll(programCreationGen) { tx =>
-      tx.asJson shouldEqual Right(tx)
-    }
-  }
-*/
 }
