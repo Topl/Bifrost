@@ -27,7 +27,7 @@ class HistoryDebug(history: History) {
   def averageDelay(id: ModifierId, blockNum: Int): Try[Long] = Try {
     val block = history.modifierById(id).get
     val prevTimes = history.getTimestampsFrom(block, blockNum)
-    (prevTimes drop 1, prevTimes).zipped.map(_ - _).sum / (prevTimes.length - 1)
+    (prevTimes drop 1, prevTimes).zipped.map(_ - _).sum / (prevTimes.length)
   }
 
   /** Calculates the distribution of blocks to forgers

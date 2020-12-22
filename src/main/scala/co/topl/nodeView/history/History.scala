@@ -505,7 +505,7 @@ object History extends Logging {
   def getTimestamps(storage: Storage, count: Long, startBlock: Block): Vector[Block.Timestamp] = {
     @tailrec
     def loop(id: ModifierId, acc: Vector[Block.Timestamp] = Vector()): Vector[Block.Timestamp] = {
-      if (acc.length >= count) acc
+      if (acc.length > count) acc
       else storage.parentIdOf(id) match {
         case Some(parentId: ModifierId) =>
           val parentTimestamp = storage.timestampOf(parentId).get
