@@ -368,8 +368,9 @@ trait CoreGenerators extends Logging {
 
   lazy val attestationGen: Gen[Map[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]] = for {
     prop <- propositionGen
+    sig <- signatureGen
   } yield {
-    Map(prop -> SignatureCurve25519.empty)
+    Map(prop -> sig)
   }
 
   lazy val oneOfNPropositionGen: Gen[(Set[PrivateKeyCurve25519], ThresholdPropositionCurve25519)] = for {

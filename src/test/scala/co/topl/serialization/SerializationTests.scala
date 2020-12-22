@@ -1,7 +1,7 @@
 package co.topl.serialization
 
-import co.topl.attestation.ThresholdPropositionCurve25519
 import co.topl.attestation.serialization.ThresholdPropositionCurve25519Serializer
+import co.topl.attestation.{Proposition, ThresholdPropositionCurve25519}
 import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.transaction._
@@ -123,37 +123,40 @@ class SerializationTests extends AnyPropSpec
 
   property("PolyTransfer Serialization") {
     forAll(polyTransferGen) {
-      sc: PolyTransfer[_] =>
-        val parsed = PolyTransferSerializer
-          .parseBytes(sc.bytes)
+      tx: PolyTransfer[_ <: Proposition] =>
+        val serializer = TransactionSerializer
+        val parsed = serializer
+          .parseBytes(serializer.toBytes(tx))
           .get
 
-        PolyTransferSerializer.toBytes(parsed) sameElements
-          sc.bytes shouldBe true
+        serializer.toBytes(parsed) sameElements
+          serializer.toBytes(tx) shouldBe true
     }
   }
 
   property("ArbitTransfer Serialization") {
     forAll(arbitTransferGen) {
-      ac: ArbitTransfer[_] =>
-        val parsed = ArbitTransferSerializer
-          .parseBytes(ac.bytes)
+      tx: ArbitTransfer[_ <: Proposition] =>
+        val serializer = TransactionSerializer
+        val parsed = serializer
+          .parseBytes(serializer.toBytes(tx))
           .get
 
-        ArbitTransferSerializer.toBytes(parsed) sameElements
-          ac.bytes shouldBe true
+        serializer.toBytes(parsed) sameElements
+          serializer.toBytes(tx) shouldBe true
     }
   }
 
   property("AssetTransfer Serialization") {
     forAll(assetTransferGen) {
-      at: AssetTransfer[_] =>
-        val parsed = AssetTransferSerializer
-          .parseBytes(at.bytes)
+      tx: AssetTransfer[_ <: Proposition] =>
+        val serializer = TransactionSerializer
+        val parsed = serializer
+          .parseBytes(serializer.toBytes(tx))
           .get
 
-        AssetTransferSerializer.toBytes(parsed) sameElements
-          at.bytes shouldBe true
+        serializer.toBytes(parsed) sameElements
+          serializer.toBytes(tx) shouldBe true
     }
   }
 
