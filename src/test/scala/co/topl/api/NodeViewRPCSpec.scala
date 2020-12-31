@@ -100,11 +100,6 @@ class NodeViewRPCSpec extends AnyWordSpec
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
-        val txsArray = ((res \\ "result").head \\ "txs").head.asArray.get
-        txsArray.filter(tx => {(tx \\"txId").head.asString.get == txId})
-        //Checking that the block found contains the above createAssets transaction
-        //since that block's id was used as the search parameter
-        txsArray.size shouldEqual 1
       }
     }
   }
