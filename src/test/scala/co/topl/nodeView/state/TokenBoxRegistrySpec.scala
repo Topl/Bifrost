@@ -23,7 +23,7 @@ class TokenBoxRegistrySpec extends MockState
       directlyAddTBRStorage(modifierIdGen.sample.get, tokens, state)
       keys.foreach { key =>
         val ids = key._2.map(_.id)
-        state.registryLookup(key._1).value shouldEqual ids
+        state.registryLookup(Address(key._1)).value shouldEqual ids
       }
     }
   }
@@ -32,8 +32,8 @@ class TokenBoxRegistrySpec extends MockState
     forAll(tokenBoxesGen) { tokens =>
       val tbr = state.tbrOpt.get
       val version = modifierIdGen.sample.get
-      val keys = tokens.groupBy(_.evidence)
-      val update = keys.map(k => Address(k._1) -> k._2.map(_.nonce))
+      val keys = tokens.groupBy(_.evidence).map(k => Address(k._1) -> k._2)
+      val update = keys.map(k => k._1 -> k._2.map(_.nonce))
 
       val newTbr = tbr.update(version, Map(), update).get
       newTbr.rollbackTo(state.version)
