@@ -61,15 +61,15 @@ case class TransactionApiEndpoint(
     *    - Change is returned to the first sender in the array of senders
     * ---
     *  #### Params
-    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
-    *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
-    *  | issuer                  	| String    	| Required            	| Asset issuer used to identify asset                                    	  |
-    *  | assetCode               	| String    	| Required            	| Name of asset                                                          	  |
-    *  | recipient               	| String    	| Required            	| Public key of the transfer recipient                                   	  |
-    *  | sender                  	| String[]   	| Required            	| Array of public keys from which assets should be sent                   	|
-    *  | amount                  	| Number     	| Required            	| Amount of asset to send                                                	  |
-    *  | fee                     	| Number     	| Optional            	| **Currently unused**                                                   	  |
-    *  | data                    	| String    	| Optional            	| Data string which can be associated with this transaction (may be empty) 	|
+    *  | Fields    | Data type | Required / Optional | Description                                                            |
+    *  |-----------|-----------|---------------------|------------------------------------------------------------------------|
+    *  | issuer    | String    | Required            | Asset issuer used to identify asset                                    |
+    *  | assetCode | String    | Required            | Name of asset                                                          |
+    *  | recipient | String    | Required            | Public key of the transfer recipient                                   |
+    *  | sender    | String[]  | Required            | Array of public keys from which assets should be sent                  |
+    *  | amount    | Number    | Required            | Amount of asset to send                                                |
+    *  | fee       | Number    | Optional            | **Currently unused**                                                   |
+    *  | data      | String    | Optional            | Data string which can be associated with this transaction(may be empty)|
     *
     * @param params input parameter as specified above
     * @param id request identifier

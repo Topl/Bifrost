@@ -2,7 +2,6 @@ package co.topl.api
 
 import akka.util.ByteString
 import io.circe.parser.parse
-import io.circe.syntax.EncoderOps
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
