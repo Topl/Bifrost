@@ -33,8 +33,6 @@ class BlockVersionTests extends MockState {
         transactions = Seq(),
         version = blockVersion(history.height + 1)
       )
-      //val oneBlock: Block =
-      //  BlockGen.sample.get.copy(parentId = history.bestBlockId, version = blockVersion(history.height + 1))
       history = history.append(oneBlock).get._1
       state = state.applyModifier(oneBlock).get
     }
