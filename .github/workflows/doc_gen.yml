@@ -33,4 +33,4 @@ jobs:
       with:
         deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
         publish_dir: ./target/scala-2.12/api
-#         cname: brambljs.docs.topl.co
+        cname: bifrost.docs.topl.co
