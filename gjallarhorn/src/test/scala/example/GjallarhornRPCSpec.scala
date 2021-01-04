@@ -13,10 +13,11 @@ import http.{GjallarhornBifrostApiRoute, GjallarhornOnlyApiRoute, HttpService}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import crypto.AddressEncoder.NetworkPrefix
 import io.circe.Json
+import io.circe.syntax._
 import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
 import keymanager.KeyManager.GenerateKeyFile
-import keymanager.KeyManagerRef
+import keymanager.{Bip39, KeyManagerRef}
 import requests.{ApiRoute, Requests}
 
 import scala.concurrent.Await
@@ -236,7 +237,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   }
 
 
-  it should "successfully broadcast a tx" in {
+  /*it should "successfully broadcast a tx" in {
     val rqstString =
       s"""
          |{
@@ -261,7 +262,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
           (res \\ "result").head.asObject.isDefined shouldBe true
       }
     }
-  }
+  }*/
 
   it should "get a successful JSON response from balance request" in {
     Thread.sleep(10000)
@@ -281,6 +282,16 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
           case Left(f) => throw f
           case Right(res: Json) =>
             (res \\ "error").isEmpty shouldBe true
+
+            (((res \\ "result").head \\ pk1.toString).head \\ "PolyBox").head.asNumber.get.toLong match {
+              case Some(number) => number < 1000000 shouldBe true
+              case None => println("balance is not a long")
+            }
+
+            (((res \\ "result").head \\ pk2.toString).head \\ "PolyBox").head.asNumber.get.toLong match {
+              case Some(number) => number == amount shouldBe true
+              case None => println("balance is not a long")
+            }
             (res \\ "result").head.asObject.isDefined shouldBe true
         }
       }
@@ -309,7 +320,73 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     }
   }
 
-  it should "successfully disconnect from Bifrost" in {
+  var newAddr: Address = pk2
+
+  it should "successfuly generate a new key and send poly" in {
+    val phraseTranslator = Bip39.apply("en")
+    val (seed, phrase) = phraseTranslator.uuidSeedPhrase(java.util.UUID.randomUUID.toString)
+    newAddr = Await.result((keyManagerRef ? GenerateKeyFile("password3", Some(seed)))
+      .mapTo[Try[Address]], 10.seconds) match {
+        case Success(pubKey) => pubKey
+        case Failure(exception) => throw new Error("error creating key file: " + exception)
+      }
+    val createPolyRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "onlineWallet_createTransaction",
+         |   "params": [{
+         |     "method": "topl_rawPolyTransfer",
+         |     "params": [{
+         |        "propositionType": "PublicKeyCurve25519",
+         |        "sender": ["$pk1"],
+         |        "recipient": [["$newAddr", 15]],
+         |        "changeAddress": "$pk1",
+         |        "fee": 1,
+         |        "data": "",
+         |        "online": true
+         |     }]
+         |   }]
+         |}
+       """.stripMargin)
+
+    httpPOST(createPolyRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          (res \\ "result").head.asObject.isDefined shouldBe true
+      }
+    }
+  }
+
+  it should "successfully update balance for new key" in {
+    Thread.sleep(10000)
+    val requestBody = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "1",
+         |   "method": "onlineWallet_balances",
+         |   "params": [{}]
+         |}
+      """.stripMargin)
+
+    httpPOST(requestBody) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          (res \\ "result").head.asObject.isDefined shouldBe true
+          (((res \\ "result").head \\ newAddr.toString).head \\ "PolyBox").head shouldBe 15.asJson
+      }
+    }
+  }
+
+ it should "successfully disconnect from Bifrost" in {
     val disconnectRequest = ByteString(
       s"""
          |{

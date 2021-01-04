@@ -3,13 +3,14 @@ package wallet
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
-import crypto.{Address, Transaction}
+import crypto.{Address, Evidence, Transaction}
 import io.circe.{Json, ParsingFailure, parser}
 import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
 import utils.Logging
 import cats.syntax.show._
 import keymanager.KeyManager.GetOpenKeyfiles
+import keymanager.networkPrefix
 
 import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -155,7 +156,7 @@ class WalletManager(bifrostActorRef: ActorRef)
       val assetJson: Either[ParsingFailure, Json] = parse(asset)
       assetJson match {
         case Right(json) =>
-          val id = (json \\ "id").head.toString()
+          val id = (json \\ "id").head.asString.get
           boxesMap.put(id, json)
         case Left(e) => sys.error(s"Could not parse json: $e")
       }
@@ -217,7 +218,7 @@ class WalletManager(bifrostActorRef: ActorRef)
     */
   def newBlock(blockMsg: String): Unit = {
     val blockTxs : String = blockMsg.substring("new block added: ".length)
-    //log.info(s"Wallet Manager received new block with transactions: $blockTxs")
+    log.info(s"Wallet Manager received new block with transactions: $blockTxs")
     parseTxsFromBlock(blockTxs)
     newestTransactions = Some(blockTxs)
   }
@@ -229,7 +230,7 @@ class WalletManager(bifrostActorRef: ActorRef)
         var idsToRemove: List[String] = List.empty
         transactions.foreach(tx => {
           tx.newBoxes.foreach(newBox => {
-            val publicKey: String = newBox.evidence.toString
+            val publicKey: String = Address(newBox.evidence)(networkPrefix).toString
             var idToBox: MMap[String, Json] = MMap.empty
             add.get(publicKey) match {
               case Some(boxesMap) => idToBox = boxesMap
@@ -260,9 +261,11 @@ class WalletManager(bifrostActorRef: ActorRef)
     remove.foreach {id =>
       idsToBoxes.get(id) match {
         case Some(box) =>
-          val pubKey = (box \\ "proposition").head.toString()
+          val evidence: Evidence = (box \\ "evidence").head.as[Evidence]
+            .getOrElse(throw new Error ("not a valid evidence within box"))
+          val pubKey = Address(evidence)(networkPrefix).toString
           walletBoxes.get(pubKey).map(boxes => boxes.remove(id))
-        case None =>
+        case None => throw new Error(s"no box found with id: $id in $idsToBoxes")
       }
     }
     add.foreach { case (publicKey, newBoxes) =>
