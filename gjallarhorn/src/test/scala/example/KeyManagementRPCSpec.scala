@@ -142,7 +142,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
         case Right(res: Json) =>
           val result: Json = (res \\ "result").head
           (res \\ "error").isEmpty shouldBe true
-          importedKeyAddr = (result \\ "publicKey").head.asString.get
+          importedKeyAddr = (result \\ "address").head.asString.get
           result.asObject.isDefined shouldBe true
 
       }
@@ -191,10 +191,9 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
         case Left(f) => throw f
         case Right(res: Json) =>
           (res \\ "error").isEmpty shouldBe true
-          val allKeys: Set[String] = (res \\ "result").head.asArray.get.map(k => k.asString.get).toSet
-          allKeys.contains(generatedKeyAddr) shouldBe true
-          allKeys.contains(importedKeyAddr) shouldBe true
-          allKeys.size shouldBe 4
+          val result = (res \\ "result").head
+          (result \\ generatedKeyAddr).head.asString.get == "locked" shouldBe true
+          (result \\ importedKeyAddr).head.asString.get == "unlocked" shouldBe true
       }
     }
   }

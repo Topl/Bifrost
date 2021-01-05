@@ -16,22 +16,30 @@ import wallet.DeadLetterListener
 import scala.concurrent.{Await, ExecutionContextExecutor}
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
+import scala.reflect.io.Path
 
 class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
+  // Setup settings file to be passed into the application
   private val settings: AppSettings = AppSettings.read(startupOpts)
+
+  //Setup the execution environment for running the application
   implicit val system: ActorSystem = ActorSystem("Gjallarhorn")
   implicit val context: ExecutionContextExecutor = system.dispatcher
   implicit val timeout: Timeout = 10.seconds
 
+  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  //Initially set-up offline mode
   log.info(s"${Console.MAGENTA} Gjallarhorn running in offline mode.${Console.RESET}")
-
-  //sequence of actors for cleanly shutting down the application
-  private var actorsToStop: Seq[ActorRef] = Seq()
 
   //Set up keyManager
   private val keyFileDir: String = settings.application.keyFileDir
+  //TODO: delete old keys for testing purposes:
+  val path: Path = Path(keyFileDir)
+  Try(path.deleteRecursively())
+  Try(path.createDirectory())
   val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", keyFileDir)
+
   val requests: Requests = new Requests(settings.application, keyManagerRef)
 
   //TODO: this is just for testing purposes - should grabs keys from database
@@ -41,30 +49,36 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
     case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
 
+  //Set up API routes
   val gjalBifrostRoute: ApiRoute = GjallarhornBifrostApiRoute(settings, keyManagerRef, requests)
-
   var apiRoutes: Seq[ApiRoute] = Seq(
     GjallarhornOnlyApiRoute(settings, keyManagerRef),
     KeyManagementApiRoute(settings, keyManagerRef),
     gjalBifrostRoute
   )
 
+  //Attempt to connect to Bifrost and start online mode.
   val connectRequest: Vector[Json] = Vector(Map("params" ->
     Vector(Map("chainProvider" -> settings.application.chainProvider).asJson)).asJson)
-
   gjalBifrostRoute.handlers("onlineWallet_connectToBifrost", connectRequest, "2")
 
+  //DeadLetter listener set up for debugging purposes
   val listener: ActorRef = system.actorOf(Props[DeadLetterListener]())
-  actorsToStop = actorsToStop ++ Seq(listener, keyManagerRef)
   system.eventStream.subscribe(listener, classOf[DeadLetter])
+
+  //sequence of actors for cleanly shutting down the application
+  private val actorsToStop: Seq[ActorRef] = Seq(listener, keyManagerRef)
 
   //hook for initiating the shutdown procedure
   sys.addShutdownHook(GjallarhornApp.shutdown(system, actorsToStop))
 
+  //Set-up http server info:
   val httpService: HttpService = HttpService(apiRoutes, settings.rpcApi)
   val httpHost: String = settings.rpcApi.bindAddress.getHostName
   val httpPort: Int = settings.rpcApi.bindAddress.getPort
 
+  // trigger the HTTP server bind and check that bind was successful.
+  // terminates application on failure
   Http().newServerAt(httpHost, httpPort).bind(httpService.compositeRoute).onComplete {
     case Success(serverBinding) =>
       log.info(s"${Console.YELLOW}HTTP server bound to ${serverBinding.localAddress}${Console.RESET}")

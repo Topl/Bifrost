@@ -39,7 +39,7 @@ class KeyManager(keyFileDir: String) extends Actor with Logging {
 
     case GetOpenKeyfiles => sender ! keyRing.addresses
 
-    case GetAllKeyfiles => sender ! keyRing.listKeyFiles.map(_.address)
+    case GetAllKeyfiles => sender ! keyRing.listKeyFilesAndStatus
 
     case SignTx(tx: Json, keys: List[String], msg: Json) =>
       val signaturesMap = keys.map(keyString => {

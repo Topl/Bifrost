@@ -32,9 +32,9 @@ class WalletManager(bifrostActorRef: ActorRef)
   private var keyManagerRef: Option[ActorRef] = None
 
   //TODO: the keys should be address instead of string.
-  //Represents the wallet boxes: as a mapping of publicKeys to a map of its id's mapped to walletBox.
-  //Ex: publicKey1 -> {id1 -> walletBox1, id2 -> walletBox2, ...}, publicKey2 -> {},...
-  var walletBoxes: MMap[String, MMap[String, Json]] = MMap.empty
+  //Represents the wallet boxes: as a mapping of addresses to a map of its id's mapped to walletBox.
+  //Ex: address1 -> {id1 -> walletBox1, id2 -> walletBox2, ...}, address2 -> {},...
+  var walletBoxes: MMap[Address, MMap[String, Json]] = MMap.empty
 
   var newestTransactions: Option[String] = None
 
@@ -45,9 +45,9 @@ class WalletManager(bifrostActorRef: ActorRef)
   }
 
   def initializeWalletBoxes(addresses: Set[Address]): Unit = {
-    val returnVal: MMap[String, MMap[String, Json]] = MMap.empty
+    val returnVal: MMap[Address, MMap[String, Json]] = MMap.empty
     addresses.map(key =>
-      returnVal.put(key.toString, MMap.empty)
+      returnVal.put(key, MMap.empty)
     )
     walletBoxes = returnVal
   }
@@ -80,13 +80,13 @@ class WalletManager(bifrostActorRef: ActorRef)
       * tells Bifrost (WCH) which keys to watch and Bifrost responds with the current balances of the keys.
       */
     case KeyManagerReady(keyMngrRef) =>
-      val publicKeys = Await.result((keyMngrRef ? GetOpenKeyfiles)
+      val addresses = Await.result((keyMngrRef ? GetOpenKeyfiles)
         .mapTo[Set[Address]], 10.seconds)
-      println("public keys: " + publicKeys)
+      println("Addresses: " + addresses)
       keyManagerRef = Some(keyMngrRef)
-      initializeWalletBoxes(publicKeys)
-      if (publicKeys.nonEmpty) {
-        val balances: Json = Await.result((bifrostActorRef ? s"My public keys are: $publicKeys")
+      initializeWalletBoxes(addresses)
+      if (addresses.nonEmpty) {
+        val balances: Json = Await.result((bifrostActorRef ? s"My addresses are: $addresses")
           .mapTo[String].map(_.asJson), 10.seconds)
         parseAndUpdate(parseResponse(balances))
       }else{
@@ -109,7 +109,7 @@ class WalletManager(bifrostActorRef: ActorRef)
     case UpdateWallet(updatedBoxes) => sender ! parseAndUpdate(updatedBoxes)
     case GetWallet => sender ! walletBoxes
     case NewKey(address) =>
-      walletBoxes.put(address.toString, MMap.empty)
+      walletBoxes.put(address, MMap.empty)
       bifrostActorRef ! s"New key: $address"
   }
 
@@ -171,10 +171,10 @@ class WalletManager(bifrostActorRef: ActorRef)
     * @param json - the balance response from Bifrost
     * @return - the updated walletBoxes
     */
-  def parseAndUpdate(json: Json): MMap[String, MMap[String, Json]] = {
-    val pubKeys: scala.collection.Set[String] = walletBoxes.keySet
-    pubKeys.foreach(key => {
-      val info: Json = (json \\ key).head
+  def parseAndUpdate(json: Json): MMap[Address, MMap[String, Json]] = {
+    val addresses: scala.collection.Set[Address] = walletBoxes.keySet
+    addresses.foreach(addr => {
+      val info: Json = (json \\ addr.toString).head
       var boxesMap: MMap[String, Json] = MMap.empty
       val boxes = info \\ "Boxes"
       if (boxes.nonEmpty) {
@@ -190,7 +190,7 @@ class WalletManager(bifrostActorRef: ActorRef)
         if (arbit.nonEmpty) {
           boxesMap = boxesMap ++ parseBoxType(arbit.head)
         }
-        walletBoxes(key) = boxesMap}
+        walletBoxes(addr) = boxesMap}
     })
     walletBoxes
   }
@@ -228,19 +228,19 @@ class WalletManager(bifrostActorRef: ActorRef)
   def parseTxsFromBlock(txs: String): Unit = {
     parser.decode[List[Transaction]](txs) match {
       case Right(transactions) =>
-        val add: MMap[String, MMap[String, Json]] = MMap.empty
+        val add: MMap[Address, MMap[String, Json]] = MMap.empty
         var idsToRemove: List[String] = List.empty
         transactions.foreach(tx => {
           tx.newBoxes.foreach(newBox => {
-            val publicKey: String = Address(newBox.evidence)(networkPrefix).toString
+            val address: Address = Address(newBox.evidence)(networkPrefix)
             var idToBox: MMap[String, Json] = MMap.empty
-            add.get(publicKey) match {
+            add.get(address) match {
               case Some(boxesMap) => idToBox = boxesMap
               case None => idToBox = MMap.empty
             }
             val id: String = newBox.id
             idToBox.put(id, newBox.asJson)
-            add.put(publicKey, idToBox)
+            add.put(address, idToBox)
           })
           idsToRemove = tx.boxesToRemove match {
             case Some(seq) => seq.toList
@@ -254,23 +254,23 @@ class WalletManager(bifrostActorRef: ActorRef)
 
   /**
     * Given the boxes to add and remove, updates the "walletBoxes" accordingly.
-    * @param add - boxes to add in the form: public key -> {id1 -> box}, {id2 -> box2}
-    * @param remove - boxes to remove in the form: {(public key, {id1, id2}), (publicKey2, {id3, id4})}
+    * @param add - boxes to add in the form: address -> {id1 -> box}, {id2 -> box2}
+    * @param remove - list of ids for boxes to remove
     */
-  def addAndRemoveBoxes (add: MMap[String, MMap[String, Json]], remove: List[String]): Unit = {
+  def addAndRemoveBoxes (add: MMap[Address, MMap[String, Json]], remove: List[String]): Unit = {
     val idsToBoxes: MMap[String, Json] = walletBoxes.flatMap(box => box._2)
     remove.foreach {id =>
       idsToBoxes.get(id) match {
         case Some(box) =>
           val evidence: Evidence = (box \\ "evidence").head.as[Evidence]
             .getOrElse(throw new Error ("not a valid evidence within box"))
-          val pubKey = Address(evidence)(networkPrefix).toString
-          walletBoxes.get(pubKey).map(boxes => boxes.remove(id))
+          val address: Address = Address(evidence)(networkPrefix)
+          walletBoxes.get(address).map(boxes => boxes.remove(id))
         case None => throw new Error(s"no box found with id: $id in $idsToBoxes")
       }
     }
-    add.foreach { case (publicKey, newBoxes) =>
-      walletBoxes.get(publicKey).map(boxes => newBoxes.foreach(box => boxes.put(box._1, box._2)))
+    add.foreach { case (address, newBoxes) =>
+      walletBoxes.get(address).map(boxes => newBoxes.foreach(box => boxes.put(box._1, box._2)))
     }
   }
 

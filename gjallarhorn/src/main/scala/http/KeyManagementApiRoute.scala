@@ -70,10 +70,10 @@ case class KeyManagementApiRoute(settings: AppSettings, keyManager: ActorRef)
     *
     * @param params input parameters as specified above
     * @param id     request identifier
-    * @return - list of addresses for all of the key files
+    * @return - mapping of address to "locked" or "unlocked"
     */
   private def listAllKeyfiles(params: Json, id: String): Future[Json] = {
-    (keyManager ? GetAllKeyfiles).mapTo[List[Address]].map(_.asJson)
+    (keyManager ? GetAllKeyfiles).mapTo[Map[Address, String]].map(_.asJson)
   }
 
   /**
@@ -119,7 +119,7 @@ case class KeyManagementApiRoute(settings: AppSettings, keyManager: ActorRef)
     val seedPhraseLang: String = parseOptional("seedPhraseLang", "en")
 
     (keyManager ? ImportKeyfile(password, seedPhrase, seedPhraseLang)).mapTo[Try[Address]].map {
-      case Success(pk: Address) => Map("publicKey" -> pk.asJson).asJson
+      case Success(pk: Address) => Map("address" -> pk.asJson).asJson
       case Failure(ex) => throw new Error(s"An error occurred while importing the seed phrase. $ex")
     }
   }

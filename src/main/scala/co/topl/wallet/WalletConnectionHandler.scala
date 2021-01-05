@@ -90,8 +90,8 @@ class WalletConnectionHandler[
       sender() ! s"Bifrost is running on ${appContext.networkType.verboseName}"
     }
 
-    if (msg.contains("My public keys are")) {
-      val keys = parseKeys(msg.substring("My public keys are: ".length))
+    if (msg.contains("My addresses are")) {
+      val keys = parseKeys(msg.substring("My addresses are: ".length))
       keys match {
         case Some(addrs) =>
           remoteWalletAddresses = keys
@@ -131,9 +131,9 @@ class WalletConnectionHandler[
     }
   }
 
-  /** Parses a block, looking for the public keys from the remote wallet.
+  /** Parses a block, looking for the addresses from the remote wallet.
     * @param block - a new block that was just added.
-    * @return - returns json of the transactions from the new block if it contains public keys from the remote wallet.
+    * @return - returns json of the transactions from the new block if it contains addresses from the remote wallet.
     *         Otherwise, returns None.
     */
   private def parseBlockForKeys(block: Block): Option[Json] = remoteWalletAddresses map { keys =>

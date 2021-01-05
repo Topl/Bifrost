@@ -5,10 +5,12 @@ import java.io.File
 import com.google.common.primitives.Ints
 import crypto.AddressEncoder.NetworkPrefix
 import crypto.{Address, Secret, SecretGenerator}
+import io.circe.Json
 import scorex.util.Random.randomBytes
 import scorex.crypto.hash.Blake2b256
 import utils.Logging
 
+import scala.collection.mutable.{Map => MMap}
 import scala.util.{Failure, Success, Try}
 
 class Keys[
@@ -41,18 +43,22 @@ class Keys[
       case _        => throw new Error("Unable to find secret for the given address")
     }
 
+  private def getPrivateKey(publicKeyString: String, password: String): S = {
+    val keyfile = checkValid(publicKeyString: String)
+
+    keyfileOps.decryptSecret(keyfile, password) match {
+      case Success(sk) => sk
+      case Failure(e) => throw new Exception(s"Wrong password: $e")
+    }
+  }
+
   /** Given a public key and password, unlock the associated key file.
     *
     * @param publicKeyString Base58 encoded public key to unlock
     * @param password        - password for the given public key.
     */
   def unlockKeyFile(publicKeyString: String, password: String): Try[Unit] = Try {
-    val keyfile = checkValid(publicKeyString: String)
-
-    val privKey = keyfileOps.decryptSecret(keyfile, password) match {
-      case Success(sk) => sk
-      case Failure(e) => throw new Exception(s"Wrong password: $e")
-    }
+    val privKey = getPrivateKey(publicKeyString, password)
 
     // ensure no duplicate by comparing privKey strings
     if (!secrets.contains(privKey)) secrets += privKey
@@ -141,8 +147,18 @@ class Keys[
     secrets.find(_.publicImage.address == addr)
   }
 
+  def listKeyFilesAndStatus: Map[Address, String] = {
+    val unlocked: Set[Address] = secrets.map(_.publicImage.address)
+    val map: MMap[Address, String] = MMap.empty
+    listKeyFiles.map(_.address).filter(_.networkPrefix == networkPrefix).foreach(addr =>
+      if (unlocked.contains(addr)) map.put(addr, "unlocked")
+      else map.put(addr, "locked")
+    )
+    map.toMap
+  }
+
   /** Return a list of KeyFile instances for all keys in the key file directory */
-  def listKeyFiles: List[KF] =
+  private def listKeyFiles: List[KF] =
     Keys.getListOfFiles(defaultKeyDir).map(file => keyfileOps.readFile(file.getPath))
 
   /** Check if given publicKey string is valid and contained in the key file directory
