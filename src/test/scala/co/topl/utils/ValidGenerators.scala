@@ -68,7 +68,7 @@ trait ValidGenerators extends CoreGenerators {
 
   lazy val validAssetTransferGen: Gen[AssetTransfer[_]] = for {
     from <- fromSeqGen
-    to <- toSeqGen
+    to <- assetToSeqGen
     attestation <- attestationGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
