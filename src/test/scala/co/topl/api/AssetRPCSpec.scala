@@ -2,10 +2,6 @@ package co.topl.api
 
 import akka.util.ByteString
 import co.topl.attestation.Address
-import co.topl.http.api.ApiEndpoint
-import co.topl.http.api.endpoints.TransactionApiEndpoint
-import co.topl.nodeView.state.box.AssetBox
-import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
 import org.scalatest.matchers.should.Matchers
@@ -15,17 +11,12 @@ class AssetRPCSpec extends AnyWordSpec
   with Matchers
   with RPCMockState {
 
-  // setup route for testing
-  val endpoint: ApiEndpoint = TransactionApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef)
-
-  val address: Address = keyRing.generateKeyFile("test").get
-
-  var asset: Option[AssetBox] = None
-  var tx: Json = "".asJson
+  val address: Address = keyRing.addresses.last
+  val recipients: String = assetToSeqGen.sample.get.asJson.toString()
 
   "Asset RPC" should {
 
-    "Create assets prototype" in {
+    "Create new assets raw transaction" in {
       val requestBody = ByteString(
         s"""
            |{
@@ -33,11 +24,23 @@ class AssetRPCSpec extends AnyWordSpec
            |   "id": "2",
            |   "method": "topl_rawAssetTransfer",
            |   "params": [{
-           |     "issuer": "$address",
-           |     "recipient": "$address",
-           |     "amount": 10,
-           |     "assetCode": "etherAssets",
-           |     "fee": 0,
+           |     "propositionType": "PublicKeyCurve25519",
+           |     "recipients":
+           |    [
+           |  [
+           |    "AUBDNmMJkmHtuyGXkWAB7Bg9X8T4CRDNVXmPvVcQWPMk4RdwR883",
+           |      {
+           |        "quantity" : 5858200457744262097,
+           |        "assetCode" : "24xcezSDAe5naZ9bFAQ9ZQFdNPrf23ARSLGy15GCqJBXS8zkoMcmqpeMBB",
+           |        "metadata" : "ApdGzs6uwKAhuKJQswBWoVAFjNA5B8enBKfxVbzlcQ8EnpxicpRcE9B9Bgn2LGv02kYUSA1h1181ZYeECvr",
+           |        "type" : "Asset",
+           |        "securityRoot" : "11111111111111111111111111111111"
+           |      }]],
+           |     "sender": ["$address"],
+           |     "changeAddress": "$address",
+           |     "consolidationAddress": "$address",
+           |     "fee": 1,
+           |     "minting": true,
            |     "data": ""
            |   }]
            |}
@@ -45,7 +48,6 @@ class AssetRPCSpec extends AnyWordSpec
 
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
-        tx = ((res \\ "result").head \\ "formattedTx").head
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
       }
