@@ -26,9 +26,12 @@ case class KeyManagementApiRoute(settings: AppSettings, keyManager: ActorRef)
     case (method, params, id) if method == s"${namespace.name}_generateKeyfile" => generateKeyfile(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_generateMnemonic" => generateMnemonic(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_importKeyfile" => importKeyfile(params.head, id)
+
     case (method, params, id) if method == s"${namespace.name}_unlockKeyfile" => unlockKeyfile(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_lockKeyfile" => lockKeyfile(params.head, id)
+
     case (method, params, id) if method == s"${namespace.name}_listOpenKeyfiles" => listOpenKeyfiles(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_listAllKeyfiles" => listAllKeyfiles(params.head, id)
   }
 
 
@@ -48,10 +51,29 @@ case class KeyManagementApiRoute(settings: AppSettings, keyManager: ActorRef)
     *
     * @param params input parameters as specified above
     * @param id     request identifier
-    * @return - list of the open key files
+    * @return - list of the addresses for the open key files
     */
   private def listOpenKeyfiles(params: Json, id: String): Future[Json] = {
     (keyManager ? GetOpenKeyfiles).mapTo[Set[Address]].map(_.asJson)
+  }
+
+  /** #### Summary
+    * Return list of all keyfiles
+    *
+    * #### Description
+    * Grabs all of the keyfiles in a given directory
+    * ---
+    * #### Params
+    * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
+    * | ------------------------	| ----------	| --------------------	| -----------------------------------------------------------------------	  |
+    * | --None specified--       |           	|                     	|                                                                         |
+    *
+    * @param params input parameters as specified above
+    * @param id     request identifier
+    * @return - list of addresses for all of the key files
+    */
+  private def listAllKeyfiles(params: Json, id: String): Future[Json] = {
+    (keyManager ? GetAllKeyfiles).mapTo[List[Address]].map(_.asJson)
   }
 
   /**

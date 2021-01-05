@@ -17,6 +17,7 @@ import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
+import scala.util.{Failure, Success}
 
 case class GjallarhornBifrostApiRoute(settings: AppSettings,
                                       keyManager: ActorRef,
@@ -89,18 +90,24 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
     walletManager = Some(walletManagerRef)
     walletManagerRef ! GjallarhornStarted
 
-    val bifrostResponse = Await.result((walletManagerRef ? GetNetwork).mapTo[String], 10.seconds)
-    log.info(bifrostResponse)
-    val networkName = bifrostResponse.split("Bifrost is running on").tail.head.replaceAll("\\s", "")
-    val networkResponse = Await.result((keyManager ? ChangeNetwork(networkName)).mapTo[Json], 10.seconds)
-    assert(NetworkType.fromString(networkName).get.netPrefix.toString ==
-      (networkResponse \\ "newNetworkPrefix").head.asNumber.get.toString)
-    walletManagerRef ! KeyManagerReady(keyManager)
+    (walletManagerRef ? GetNetwork).mapTo[String].map( bifrostResponse => {
+      log.info(bifrostResponse)
+      val networkName = bifrostResponse.split("Bifrost is running on").tail.head.replaceAll("\\s", "")
 
-    val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager(bifrost)), name = "RequestsManager")
-    requestsManager = Some(requestsManagerRef)
-    requests.switchOnlineStatus(requestsManager)
-    Future{Map("connectedToBifrost" -> true).asJson}
+      (keyManager ? ChangeNetwork(networkName)).onComplete {
+        case Success(networkResponse: Json) => assert(NetworkType.fromString(networkName).get.netPrefix.toString ==
+          (networkResponse \\ "newNetworkPrefix").head.asNumber.get.toString)
+        case Success(_) | Failure(_) => throw new Error ("was not able to change network")
+      }
+
+      walletManagerRef ! KeyManagerReady(keyManager)
+
+      val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager(bifrost)), name = "RequestsManager")
+      requestsManager = Some(requestsManagerRef)
+      requests.switchOnlineStatus(requestsManager)
+      Map("connectedToBifrost" -> true).asJson
+    })
+
   }
 
   /** #### Summary

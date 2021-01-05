@@ -119,6 +119,8 @@ class Keys[
       // add secret to the keyring
       secrets += sk._1
 
+      exportKeyfile(sk._2.address, password)
+
       // return the public image of the key that was added
       sk._2.address
     }
@@ -139,8 +141,8 @@ class Keys[
     secrets.find(_.publicImage.address == addr)
   }
 
-  /** Return a list of KeuFile instances for all keys in the key file directory */
-  private def listKeyFiles: List[KF] =
+  /** Return a list of KeyFile instances for all keys in the key file directory */
+  def listKeyFiles: List[KF] =
     Keys.getListOfFiles(defaultKeyDir).map(file => keyfileOps.readFile(file.getPath))
 
   /** Check if given publicKey string is valid and contained in the key file directory

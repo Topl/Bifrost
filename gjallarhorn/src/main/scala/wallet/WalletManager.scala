@@ -31,7 +31,7 @@ class WalletManager(bifrostActorRef: ActorRef)
   var connectedToBifrost: Boolean = false
   private var keyManagerRef: Option[ActorRef] = None
 
-
+  //TODO: the keys should be address instead of string.
   //Represents the wallet boxes: as a mapping of publicKeys to a map of its id's mapped to walletBox.
   //Ex: publicKey1 -> {id1 -> walletBox1, id2 -> walletBox2, ...}, publicKey2 -> {},...
   var walletBoxes: MMap[String, MMap[String, Json]] = MMap.empty

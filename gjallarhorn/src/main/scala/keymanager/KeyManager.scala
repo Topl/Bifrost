@@ -39,6 +39,8 @@ class KeyManager(keyFileDir: String) extends Actor with Logging {
 
     case GetOpenKeyfiles => sender ! keyRing.addresses
 
+    case GetAllKeyfiles => sender ! keyRing.listKeyFiles.map(_.address)
+
     case SignTx(tx: Json, keys: List[String], msg: Json) =>
       val signaturesMap = keys.map(keyString => {
         Base58.decode(msg.asString.get) match {
@@ -73,6 +75,8 @@ class KeyManager(keyFileDir: String) extends Actor with Logging {
             keyRing = Keys(keyFileDir, KeyfileCurve25519)(PrivateKeyCurve25519.secretGenerator,
               networkPrefix = networkPrefix)
 
+            //TODO: unlock all keyfiles on new network
+
             log.info(s"${Console.MAGENTA}Network changed to: ${network.verboseName} ${Console.RESET}")
           }
           sender ! Map("newNetworkPrefix" -> networkPrefix).asJson
@@ -99,6 +103,7 @@ object KeyManager {
   case class UnlockKeyFile(publicKeyString: String, password: String)
   case class LockKeyFile(publicKeyString: String)
   case object GetOpenKeyfiles
+  case object GetAllKeyfiles
   case class SignTx(transaction: Json, signingKeys: List[String], messageToSign: Json)
   case class ChangeNetwork(networkName: String)
 }

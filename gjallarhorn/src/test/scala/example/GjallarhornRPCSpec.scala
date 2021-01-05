@@ -16,11 +16,11 @@ import io.circe.Json
 import io.circe.syntax._
 import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
-import keymanager.KeyManager.GenerateKeyFile
+import keymanager.KeyManager.{GenerateKeyFile, GetOpenKeyfiles}
 import keymanager.{Bip39, KeyManagerRef}
 import requests.{ApiRoute, Requests}
 
-import scala.concurrent.Await
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
@@ -478,6 +478,32 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
           assert(network.toString() === "1")
       }
     }
+  }
+
+  it should "still have keys after disconnecting from bifrost and changing network back to local" in {
+    val networkTypeRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_changeNetwork",
+         |   "params": [{
+         |      "newNetwork": "local"
+         |   }]
+         |}
+         """.stripMargin)
+
+    httpPOST(networkTypeRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          val network = ((res \\ "result").head \\ "newNetworkPrefix").head
+          assert(network.toString() === "48")
+      }
+    }
+    (keyManagerRef ? GetOpenKeyfiles).mapTo[Set[Address]].map(_.size) shouldBe Future(3)
   }
 
 }

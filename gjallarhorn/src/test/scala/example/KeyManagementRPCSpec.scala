@@ -14,7 +14,6 @@ import io.circe.Json
 import io.circe.parser.parse
 import keymanager.KeyManager.GenerateKeyFile
 import keymanager.KeyManagerRef
-import org.scalatest.Ignore
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import requests.ApiRoute
@@ -22,6 +21,7 @@ import requests.ApiRoute
 import scala.concurrent.Await
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
+import scala.reflect.io.Path
 
 class KeyManagementRPCSpec extends AsyncFlatSpec
   with Matchers
@@ -35,6 +35,9 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
   override def createActorSystem(): ActorSystem = ActorSystem("keyManagementTest", keysConfig)
 
   val keyFileDir = "keyfiles/keyManagerTest"
+  val path: Path = Path(keyFileDir)
+  Try(path.deleteRecursively())
+  Try(path.createDirectory())
   val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", keyFileDir)
 
   val apiRoute: ApiRoute = KeyManagementApiRoute(keyManagementSettings, keyManagerRef)
@@ -80,12 +83,13 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
         case Right(res: Json) =>
           (res \\ "error").isEmpty shouldBe true
           val openKeys: Set[String] = (res \\ "result").head.asArray.get.map(k => k.asString.get).toSet
+          openKeys.size shouldBe 2
           openKeys.contains(pk1.toString) shouldBe true
       }
     }
   }
 
-  var pubKeyAddr: String = pk1.toString
+  var generatedKeyAddr: String = ""
 
   it should "successfully generate a keyfile" in {
     val generateKeyfileRequest = ByteString(
@@ -105,7 +109,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
         case Left(f) => throw f
         case Right(res: Json) =>
           val result: Json = (res \\ "result").head
-          pubKeyAddr = (result \\ "address").head.asString.get
+          generatedKeyAddr = (result \\ "address").head.asString.get
           (res \\ "error").isEmpty shouldBe true
           result.asObject.isDefined shouldBe true
       }
@@ -114,6 +118,8 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
 
   val seedPhrase: String = "stand earth guess employ goose aisle great next embark weapon wonder aisle " +
     "monitor surface omit guilt model rule"
+
+  var importedKeyAddr: String = ""
 
   it should "successfully import a keyfile through mnemonic phrase" in {
     val importKeyfileRequest = ByteString(
@@ -136,7 +142,9 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
         case Right(res: Json) =>
           val result: Json = (res \\ "result").head
           (res \\ "error").isEmpty shouldBe true
+          importedKeyAddr = (result \\ "publicKey").head.asString.get
           result.asObject.isDefined shouldBe true
+
       }
     }
   }
@@ -149,7 +157,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
          |   "id": "2",
          |   "method": "wallet_lockKeyfile",
          |   "params": [{
-         |      "publicKey": "$pubKeyAddr"
+         |      "publicKey": "$generatedKeyAddr"
          |   }]
          |}
          """.stripMargin)
@@ -165,6 +173,32 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
     }
   }
 
+  it should "successfully get all keyfiles" in {
+    Thread.sleep(10000)
+    val allKeyfilesRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_listAllKeyfiles",
+         |   "params": [{}]
+         |}
+         """.stripMargin)
+
+    httpPOST(allKeyfilesRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          val allKeys: Set[String] = (res \\ "result").head.asArray.get.map(k => k.asString.get).toSet
+          allKeys.contains(generatedKeyAddr) shouldBe true
+          allKeys.contains(importedKeyAddr) shouldBe true
+          allKeys.size shouldBe 4
+      }
+    }
+  }
+
   it should "successfully unlock a Keyfile" in {
     val unlockKeyRequest = ByteString(
       s"""
@@ -173,7 +207,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
          |   "id": "2",
          |   "method": "wallet_unlockKeyfile",
          |   "params": [{
-         |      "publicKey": "$pubKeyAddr",
+         |      "publicKey": "$generatedKeyAddr",
          |      "password": "foo"
          |   }]
          |}
