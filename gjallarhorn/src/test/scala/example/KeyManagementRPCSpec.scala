@@ -9,7 +9,7 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.{ByteString, Timeout}
 import crypto.AddressEncoder.NetworkPrefix
 import crypto.Address
-import http.{GjallarhornOnlyApiRoute, HttpService, KeyManagementApi}
+import http.{GjallarhornOnlyApiRoute, HttpService, KeyManagementApiRoute}
 import io.circe.Json
 import io.circe.parser.parse
 import keymanager.KeyManager.GenerateKeyFile
@@ -37,7 +37,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
   val keyFileDir = "keyfiles/keyManagerTest"
   val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", keyFileDir)
 
-  val apiRoute: ApiRoute = KeyManagementApi(keyManagementSettings, keyManagerRef)
+  val apiRoute: ApiRoute = KeyManagementApiRoute(keyManagementSettings, keyManagerRef)
   val gjalOnlyApiRoute: ApiRoute = GjallarhornOnlyApiRoute(settings, keyManagerRef)
   val route: Route = HttpService(Seq(apiRoute, gjalOnlyApiRoute), keyManagementSettings.rpcApi).compositeRoute
 

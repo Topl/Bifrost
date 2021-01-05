@@ -65,6 +65,7 @@ class WalletManager(bifrostActorRef: ActorRef)
       walletManagement orElse
       nonsense
 
+  // ----------- MESSAGE PROCESSING FUNCTIONS
   private def initialization: Receive = {
     case GjallarhornStarted =>
       bifrostActorRef ! s"Remote wallet actor initialized."
@@ -74,6 +75,10 @@ class WalletManager(bifrostActorRef: ActorRef)
         bifrostActorRef ? "Which network is bifrost running?"
       bifrostResp.pipeTo(sender())
 
+    /**
+      * After setting up keyManager with correct network, grabs the open key files ->
+      * tells Bifrost (WCH) which keys to watch and Bifrost responds with the current balances of the keys.
+      */
     case KeyManagerReady(keyMngrRef) =>
       val publicKeys = Await.result((keyMngrRef ? GetOpenKeyfiles)
         .mapTo[Set[Address]], 10.seconds)
@@ -94,9 +99,7 @@ class WalletManager(bifrostActorRef: ActorRef)
 
   private def operational: Receive = {
     case msg: String => msgHandling(msg)
-
     case GetNewBlock => sender ! newestTransactions
-
     case GjallarhornStopped =>
       val response: String = Await.result((bifrostActorRef ? "Remote wallet actor stopped").mapTo[String], 10.seconds)
       sender ! response
@@ -109,7 +112,6 @@ class WalletManager(bifrostActorRef: ActorRef)
       walletBoxes.put(address.toString, MMap.empty)
       bifrostActorRef ! s"New key: $address"
   }
-
 
   private def nonsense: Receive = {
     case nonsense: Any =>
@@ -248,7 +250,6 @@ class WalletManager(bifrostActorRef: ActorRef)
         addAndRemoveBoxes(add, idsToRemove)
       case Left(ex) => println(s"Not able to parse transactions: ${ex.show}")
     }
-
   }
 
   /**

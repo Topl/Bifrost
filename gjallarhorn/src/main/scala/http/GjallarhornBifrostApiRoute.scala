@@ -17,14 +17,12 @@ import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
-import scala.util.{Failure, Success}
 
 case class GjallarhornBifrostApiRoute(settings: AppSettings,
                                       keyManager: ActorRef,
                                       requests: Requests)
                                      (implicit val context: ActorRefFactory, system: ActorSystem)
   extends ApiRoute with Logging {
-
 
   val namespace: Namespace = OnlineWalletNamespace
 
@@ -34,24 +32,34 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
 
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
-    case (method, params, id) if method == s"${namespace.name}_connectToBifrost" => connectToBifrost(params.head)
-    case (method, params, id) if method == s"${namespace.name}_disconnectFromBifrost" => disconnectFromBifrost
-    case (method, params, id) if method == s"${namespace.name}_getConnection" => getConnection
+    case (method, params, id) if method == s"${namespace.name}_connectToBifrost" => connectToBifrost(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_disconnectFromBifrost" => disconnectFromBifrost(id)
+    case (method, params, id) if method == s"${namespace.name}_getConnection" => getConnection(id)
 
     case (method, params, id) if method == s"${namespace.name}_createTransaction" => createTransaction(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_broadcastTx"      => broadcastTx(params.head, id)
 
-    case (method, params, id) if method == s"${namespace.name}_balances" => balances(params.head)
-    case (method, params, id) if method == s"${namespace.name}_getWalletBoxes" => getWalletBoxes
+    case (method, params, id) if method == s"${namespace.name}_balances" => balances(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_getWalletBoxes" => getWalletBoxes(id)
   }
 
-  private def offlineMessage(): Future[Json] = {
-    val msg = "cannot send request because you are offline mode " +
-      "or the chain provider provided was incorrect."
-    Future{Map("error" -> msg).asJson}
-  }
-
-  private def connectToBifrost(params: Json): Future[Json] = {
+  /** #### Summary
+    * Connect To Bifrost
+    *
+    * #### Description
+    * Attempts to connect to Bifrost with the given chain provider.
+    * ---
+    * #### Params
+    *
+    * | Fields | Data type | Required / Optional | Description |
+    * | ---| ---	| --- | --- |
+    * | chainProvider | String	| Required | Chain provider corresponding to the akka remote port and hostname that bifrost is running on.|
+    *
+    * @param params input parameters as specified above
+    * @param id     request identifier
+    * @return - either connectedToBifrost -> true or error message if unable to connect to the given chain provider.
+    */
+  private def connectToBifrost(params: Json, id: String): Future[Json] = {
     val chainProvider = (params \\ "chainProvider").head.asString.get
     try {
       log.info("gjallarhorn attempting to run in online mode. Trying to connect to Bifrost...")
@@ -68,6 +76,12 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
     }
   }
 
+  /**
+    * Helper function when connecting to Bifrost
+    * Sets up the walletManager, requestManager, and keyManager
+    * @param bifrost - the actor ref for Bifrost
+    * @return - Json(connectedToBifrost -> true)
+    */
   def setUpOnlineMode(bifrost: ActorRef): Future[Json] = {
     //Set up wallet manager - handshake w Bifrost and get NetworkPrefix
     val walletManagerRef: ActorRef = system.actorOf(
@@ -89,7 +103,21 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
     Future{Map("connectedToBifrost" -> true).asJson}
   }
 
-  private def disconnectFromBifrost: Future[Json] = {
+  /** #### Summary
+    * Disconnect From Bifrost
+    *
+    * #### Description
+    * Disconnects from Bifrost and kills the walletManager and requestsManager actors.
+    * ---
+    * #### Params
+    * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
+    * | ------------------------	| ----------	| --------------------	| -----------------------------------------------------------------------	  |
+    * | --None specified--       |           	|                     	|                                                                         |
+    *
+    * @param id     request identifier
+    * @return - status message
+    */
+  private def disconnectFromBifrost(id: String): Future[Json] = {
     var responseMsg = "Disconnected!"
     walletManager match {
       case Some(walletManagerRef) =>
@@ -110,17 +138,45 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
     Future{Map("status" -> responseMsg).asJson}
   }
 
-  private def getConnection: Future[Json] = {
+  /** #### Summary
+    * Get Connection
+    *
+    * #### Description
+    * Tells whether Gjallarhorn is currently connected to bifrost or not.
+    * ---
+    * #### Params
+    * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
+    * | ------------------------	| ----------	| --------------------	| -----------------------------------------------------------------------	  |
+    * | --None specified--       |           	|                     	|                                                                         |
+    *
+    * @param id     request identifier
+    * @return - "connectedToBifrost" -> true or false
+    */
+  private def getConnection(id: String): Future[Json] = {
     walletManager match {
       case Some(actor) =>  Future{Map("connectedToBifrost" -> true).asJson}
       case None =>  Future{Map("connectedToBifrost" -> false).asJson}
     }
   }
 
-  /**
-    * Creates a transaction.
-    * @param params - contains the data for the transaction.
-    * @param id
+  /** #### Summary
+    * Create Transaction
+    *
+    * #### Description
+    * Either creates a raw transaction if offline (online = false) or creates, signs, and broadcasts a transaction if online = true
+    * ---
+    * #### Params
+    *
+    * | Fields | Data type | Required / Optional | Description |
+    * | ---| ---	| --- | --- |
+    * | method | String	| Required | The method to send request to Bifrost ("topl_raw[Asset, Arbit, or Poly]Transfer")|
+    * | params | Json	| Required | The params for the method to send to Bifrost|
+    * In the inner params:
+    * | online | Boolean	| Required | Defines whether to send online transaction or create raw transaction offline.|
+    * | sender | IndexedSeq[Address]	| Required | Array of addresses from which assets should be sent |
+    *
+    * @param params input parameters as specified above
+    * @param id     request identifier
     * @return - a response after creating transaction.
     */
   private def createTransaction(params: Json, id: String): Future[Json] = {
@@ -148,11 +204,22 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
   }
 
 
-
-  /**
-    * Broadcasts a transaction
-    * @param params - tx: a full formatted transaction JSON object - prototype tx + signatures
-    * @param id
+  /** #### Summary
+    * Broadcast transaction
+    *
+    * #### Description
+    * Sends broadcast request to Bifrost to broadcast signed transaction.
+    *
+    * #### Notes
+    *    - Currently only enabled for `AssetCreation` and `AssetTransfer` transactions
+    *      ---
+    *      #### Params
+    *      | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	      |
+    *      |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	      |
+    *      | tx                  	    | object     	| Required            	| A full formatted transaction JSON object (prototype transaction + signatures) |
+    *
+    * @param params input parameters as specified above
+    * @param id     request identifier
     * @return
     */
   private def broadcastTx(params: Json, id: String): Future[Json] = {
@@ -166,18 +233,46 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
     }
   }
 
-  private def getWalletBoxes: Future[Json] = {
+
+  /** #### Summary
+    * Get Wallet Boxes
+    *
+    * #### Description
+    * Returns the current wallet boxes for the running wallet.
+    * ---
+    * #### Params
+    * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
+    * | ------------------------	| ----------	| --------------------	| -----------------------------------------------------------------------	  |
+    * | --None specified--       |           	|                     	|                                                                         |
+    *
+    * @param id     request identifier
+    * @return - wallet boxes
+    */
+  private def getWalletBoxes(id: String): Future[Json] = {
     walletManager match {
       case Some(actor) =>
         val walletResponse = Await.result((actor ? GetWallet).mapTo[MMap[String, MMap[String, Json]]], 10.seconds)
         Future{walletResponse.asJson}
       case None => offlineMessage()
     }
-
   }
 
-
-  private def balances(params: Json): Future[Json] = {
+  /** #### Summary
+    * Lookup balances
+    *
+    * #### Description
+    * Returns balances for specified keys (or all of the keys in the wallet) based on the wallet boxes in the WalletManager.
+    *
+    * #### Params
+    * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
+    * |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
+    * | publicKeys               | String[]   	| Optional            	| Public keys whose balances are to be retrieved                            	|
+    *
+    * @param params input parameters as specified above
+    * @param id     request identifier
+    * @return - mapping of balances (ArbitBox -> #, PolyBox -> #,...)
+    */
+  private def balances(params: Json, id: String): Future[Json] = {
     walletManager match {
       case Some(actor) =>
         val walletResponse: MMap[String, MMap[String, Json]] = Await.result((actor ? GetWallet)
@@ -217,9 +312,17 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
         Future{balances.asJson}
       case None => offlineMessage()
     }
-
   }
 
+  /**
+    * API response for error handling - when request comes in that requires Bifrost but Gjallarhorn is offline.
+    * @return - error msg
+    */
+  private def offlineMessage(): Future[Json] = {
+    val msg = "cannot send request because you are offline mode " +
+      "or the chain provider provided was incorrect."
+    Future{Map("error" -> msg).asJson}
+  }
 
 }
 

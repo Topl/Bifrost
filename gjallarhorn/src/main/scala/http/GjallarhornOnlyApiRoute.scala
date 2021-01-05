@@ -27,14 +27,26 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
 
     case (method, params, id) if method == s"${namespace.name}_signTx" => signTx(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_networkType" => Future{Map("networkPrefix" -> networkPrefix).asJson}
-    case (method, params, id) if method == s"${namespace.name}_changeNetwork" => changeNetwork(params.head)
+    case (method, params, id) if method == s"${namespace.name}_changeNetwork" => changeNetwork(params.head, id)
   }
 
-  /**
-    * Signs a transaction.
-    * @param params - includes the singing keys, prototype, and message.
-    * @param id
-    * @return
+  /** #### Summary
+    * Sign transaction
+    *
+    * #### Description
+    * Signs a transaction - adds a signature to a raw transaction.
+    * ---
+    * #### Params
+    *
+    * | Fields | Data type | Required / Optional | Description |
+    * | ---| ---	| --- | --- |
+    * | rawTx | Json	| Required | The transaction to be signed. |
+    * | signingKeys | List[String]	| Required | Keys used to create signatures to sign tx.|
+    * | messageToSign | String | Required | The message to sign - in the form of an array of bytes.|
+    *
+    * @param params input parameters as specified above
+    * @param id     request identifier
+    * @return - transaction with signatures filled in.
     */
   private def signTx(params: Json, id: String): Future[Json] = {
     val tx = (params \\ "rawTx").head
@@ -49,7 +61,23 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
     }
   }
 
-  private def changeNetwork(params: Json): Future[Json] = {
+  /** #### Summary
+    * Change network
+    *
+    * #### Description
+    * Changes the current network to the given network.
+    * ---
+    * #### Params
+    *
+    * | Fields | Data type | Required / Optional | Description |
+    * | ---| ---	| --- | --- |
+    * | newNetwork | String	| Required | the new network to switch to |
+    *
+    * @param params input parameters as specified above
+    * @param id     request identifier
+    * @return - "newNetworkPrefix" -> networkPrefix or an error message if the network name is not valid.
+    */
+  private def changeNetwork(params: Json, id: String): Future[Json] = {
     (for {
       newNetwork <- (params \\ "newNetwork").head.as[String]
     } yield {
