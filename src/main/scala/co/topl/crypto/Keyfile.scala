@@ -1,14 +1,13 @@
 package co.topl.crypto
 
-import java.io.{BufferedWriter, FileWriter}
-import java.time.Instant
-import java.time.temporal.ChronoUnit
-
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.{Address, PrivateKeyCurve25519, Secret}
+import co.topl.attestation.{Address, Secret}
 import io.circe.Encoder
 import io.circe.syntax.EncoderOps
 
+import java.io.{BufferedWriter, FileWriter}
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import scala.util.Try
 
 trait Keyfile[S <: Secret] {

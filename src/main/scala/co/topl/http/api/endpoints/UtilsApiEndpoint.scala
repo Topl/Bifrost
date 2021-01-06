@@ -1,6 +1,5 @@
 package co.topl.http.api.endpoints
 
-import java.security.SecureRandom
 
 import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
@@ -15,6 +14,7 @@ import io.circe.syntax._
 import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
+import java.security.SecureRandom
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 

@@ -43,7 +43,7 @@ object Box {
     for {
       evidence <- c.downField("evidence").as[Evidence]
       value    <- c.downField("value").as[T]
-      nonce    <- c.downField("issuer").as[Nonce]
+      nonce    <- c.downField("nonce").as[Nonce]
     } yield {
       (evidence, nonce, value)
     }

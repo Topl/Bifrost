@@ -1,8 +1,6 @@
 package co.topl.api
 
-import akka.http.scaladsl.server.Route
 import akka.util.ByteString
-import co.topl.http.api.endpoints.UtilsApiEndpoint
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
@@ -16,9 +14,6 @@ class UtilsRPCSpec extends AnyWordSpec
   with Matchers
   with RPCMockState {
 
-  val route = UtilsApiRoute(settings.rpcApi).route
-
-
   val seedLength: Int = 10
 
   "Utils RPC" should {
@@ -28,12 +23,13 @@ class UtilsRPCSpec extends AnyWordSpec
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
-           |   "method": "seed",
+           |   "method": "util_seed",
            |   "params": [{}]
            |}
         """.stripMargin)
 
-      httpPOST("/utils/", requestBody) ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
+        println(response.toString())
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
@@ -50,14 +46,14 @@ class UtilsRPCSpec extends AnyWordSpec
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
-           |   "method": "seedOfLength",
+           |   "method": "util_seedOfLength",
            |   "params": [{
            |      "length": $seedLength
            |   }]
            |}
       """.stripMargin)
 
-      httpPOST("/utils/", requestBody) ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
@@ -74,14 +70,14 @@ class UtilsRPCSpec extends AnyWordSpec
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
-           |   "method": "hashBlake2b",
+           |   "method": "util_hashBlake2b256",
            |   "params": [{
            |      "message": "Hello World"
            |   }]
            |}
       """.stripMargin)
 
-      httpPOST("/utils/", requestBody) ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true

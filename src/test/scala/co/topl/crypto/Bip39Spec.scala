@@ -81,15 +81,12 @@ class Bip39Spec extends AnyFlatSpec
     val seed2 = pt.hexToUuid(pt.phraseToHex(phrase))
     val seed1Hash: Array[Byte] = Blake2b256(seed1)
     val seed2Hash: Array[Byte] = Blake2b256(seed2)
-    val key1 = PrivateKeyCurve25519.generateKeys(seed1Hash)
-    val key2 = PrivateKeyCurve25519.generateKeys(seed2Hash)
-    val key3 = PrivateKeyCurve25519.generateKeys(Blake2b256(uuidString))
-
-    KeyfileCurve25519.generateKeyPair(seed1Hash)
+    val key1 = PrivateKeyCurve25519.secretGenerator.generateSecret(seed1Hash)
+    val key2 = PrivateKeyCurve25519.secretGenerator.generateSecret(seed2Hash)
+    val key3 = PrivateKeyCurve25519.secretGenerator.generateSecret(Blake2b256(uuidString))
 
     key1 shouldEqual key2
     key2 shouldEqual key3
     key1 shouldEqual key3
-
   }
 }

@@ -24,7 +24,7 @@ trait FileUtils {
     file
   }
 
-  private def createTempDir: File = {
+  def createTempDir: File = {
     val prefix = Random.alphanumeric.take(prefixLength).mkString
     val file = createTempDirectory(basePath, prefix).toFile
     file.deleteOnExit()
