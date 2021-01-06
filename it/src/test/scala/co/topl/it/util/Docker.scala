@@ -77,7 +77,7 @@ class Docker()(implicit ec: ExecutionContext) extends AutoCloseable with Logging
     ContainerConfig
       .builder()
       .image(Docker.bifrostImage)
-      .exposedPorts(settings.network.bindAddress.getPort.toString, settings.restApi.bindAddress.getPort.toString)
+      .exposedPorts(settings.network.bindAddress.getPort.toString, settings.rpcApi.bindAddress.getPort.toString)
       .entrypoint("sh", "-c", shellCmd)
       .build()
   }

@@ -48,9 +48,9 @@ class Bip39 (wordList: List[String]) extends Logging {
   val byteLen = 8
   val indexLen = 11
 
-  def toBinaryIndex(i: Int): String = String.format("%11s", BigInt(i).toString(2) ).replace(' ', '0')
+  private def toBinaryIndex(i: Int): String = String.format("%11s", BigInt(i).toString(2) ).replace(' ', '0')
 
-  def toBinaryByte(b: Byte): String = String.format("%8s", BigInt(b & 0xff).toString(2) ).replace(' ', '0')
+  private def toBinaryByte(b: Byte): String = String.format("%8s", BigInt(b & 0xff).toString(2) ).replace(' ', '0')
 
   def hexToUuid(s: String) : String = {
     s.slice(0, 8) + "-" + s.slice(8, 12) + "-" + s.slice(12, 16) + "-" + s.slice(16, 20) + "-" + s.substring(20)

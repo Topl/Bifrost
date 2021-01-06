@@ -1,12 +1,12 @@
 package co.topl.network
 
-import java.net.{ InetAddress, InetSocketAddress }
+import java.net.{InetAddress, InetSocketAddress}
 
-import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import co.topl.network.NetworkController.ReceivableMessages._
-import co.topl.network.peer.{ InMemoryPeerDatabase, PeerInfo, PeerSpec, PenaltyType }
-import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
-import co.topl.utils.{ Logging, NetworkUtils }
+import co.topl.network.peer.{InMemoryPeerDatabase, PeerInfo, PeerSpec, PenaltyType}
+import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
+import co.topl.utils.{Logging, NetworkUtils}
 
 import scala.concurrent.ExecutionContext
 import scala.util.Random
@@ -26,7 +26,7 @@ class PeerManager (settings: AppSettings,
 
   override def preStart: Unit = {
     //register for application initialization message
-    context.system.eventStream.subscribe(self, NodeViewReady.getClass)
+    context.system.eventStream.subscribe(self, classOf[NodeViewReady])
   }
 
   // fill database with peers from config file if empty
@@ -49,7 +49,7 @@ class PeerManager (settings: AppSettings,
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   private def initialization(): Receive = {
-    case NodeViewReady =>
+    case NodeViewReady(_) =>
       log.info(s"${Console.YELLOW}PeerManager transitioning to the operational state${Console.RESET}")
       context become operational
   }

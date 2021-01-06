@@ -12,7 +12,7 @@ import co.topl.network.PeerConnectionHandler.ReceivableMessages.CloseConnection
 import co.topl.network.PeerManager.ReceivableMessages._
 import co.topl.network.message.Message
 import co.topl.network.peer.{ConnectedPeer, PeerInfo, PenaltyType, _}
-import co.topl.settings.{AppContext, AppSettings, NetworkSettings, NodeViewReady, Version}
+import co.topl.settings.{AppContext, AppSettings, NodeViewReady, Version}
 import co.topl.utils.TimeProvider.Time
 import co.topl.utils.{Logging, NetworkUtils, TimeProvider}
 
@@ -62,7 +62,7 @@ class NetworkController ( settings      : AppSettings,
     log.info(s"Declared address: ${appContext.externalNodeAddress}")
 
     //register for application initialization message
-    context.system.eventStream.subscribe(self, NodeViewReady.getClass)
+    context.system.eventStream.subscribe(self, classOf[NodeViewReady])
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
@@ -98,7 +98,7 @@ class NetworkController ( settings      : AppSettings,
         )
       messageHandlers ++= specs.map(_.messageCode -> handler)
 
-    case NodeViewReady =>
+    case NodeViewReady(_) =>
       log.info(s"${Console.YELLOW}Network Controller transitioning to the operational state${Console.RESET}")
       scheduleConnectionToPeer()
       scheduleDroppingDeadConnections()

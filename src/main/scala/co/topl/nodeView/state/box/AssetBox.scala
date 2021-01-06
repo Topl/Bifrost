@@ -1,38 +1,30 @@
 package co.topl.nodeView.state.box
 
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.attestation.Evidence
+import co.topl.nodeView.state.box.Box.BoxType
+import co.topl.utils.{Identifiable, Identifier}
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
 
-case class AssetBox ( override val proposition: PublicKey25519Proposition,
-                      override val nonce      : Long,
-                      override val value      : Long,
-                      assetCode               : String,
-                      issuer                  : PublicKey25519Proposition,
-                      data                    : String
-                    ) extends TokenBox(proposition, nonce, value) {
-
-  override lazy val typeOfBox: String = "Asset"
-
-}
+case class AssetBox(
+  override val evidence: Evidence,
+  override val nonce:    Box.Nonce,
+  override val value:    AssetValue
+) extends TokenBox(evidence, nonce, value)
 
 object AssetBox {
-  implicit val jsonEncoder: Encoder[AssetBox] = { box: AssetBox =>
-    (TokenBox.jsonEncode(box) ++ Map(
-      "issuer" -> box.issuer.asJson,
-      "assetCode" -> box.assetCode.asJson,
-      "data" -> box.data.asJson)
-      ).asJson
+  val typePrefix: BoxType = 3: Byte
+  val typeString: String = "AssetBox"
+
+  implicit val identifier: Identifiable[AssetBox] = Identifiable.instance { () =>
+    Identifier(typeString, typePrefix)
   }
 
-  implicit val jsonDecoder: Decoder[AssetBox] = ( c: HCursor ) =>
-    for {
-      b <- TokenBox.jsonDecode(c)
-      issuer <- c.downField("issuer").as[PublicKey25519Proposition]
-      assetCode <- c.downField("assetCode").as[String]
-      data <- c.downField("data").as[String]
-    } yield {
-      val (proposition, nonce, value) = b
-      AssetBox(proposition, nonce, value, assetCode, issuer, data)
+
+  implicit val jsonEncoder: Encoder[AssetBox] = (box: AssetBox) => Box.jsonEncode[AssetValue, AssetBox](box).asJson
+
+  implicit val jsonDecoder: Decoder[AssetBox] = (c: HCursor) =>
+    Box.jsonDecode[AssetValue](c).map { case (evidence, nonce, value) =>
+      AssetBox(evidence, nonce, value)
     }
 }

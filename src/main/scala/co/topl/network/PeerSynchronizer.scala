@@ -1,13 +1,13 @@
 package co.topl.network
 
-import akka.actor.{ ActorRef, ActorSystem, Props }
+import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
-import co.topl.network.NetworkController.ReceivableMessages.{ PenalizePeer, RegisterMessageSpecs, SendToNetwork }
-import co.topl.network.PeerManager.ReceivableMessages.{ AddPeerIfEmpty, RecentlySeenPeers }
+import co.topl.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
+import co.topl.network.PeerManager.ReceivableMessages.{AddPeerIfEmpty, RecentlySeenPeers}
 import co.topl.network.message._
-import co.topl.network.peer.{ ConnectedPeer, PeerInfo, PeerSpec, PenaltyType }
-import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
+import co.topl.network.peer.{ConnectedPeer, PeerInfo, PeerSpec, PenaltyType}
+import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.Logging
 import shapeless.syntax.typeable._
 
@@ -41,7 +41,7 @@ class PeerSynchronizer ( networkControllerRef: ActorRef,
     networkControllerRef ! RegisterMessageSpecs(appContext.peerSyncRemoteMessages.toSeq, self)
 
     //register for application initialization message
-    context.system.eventStream.subscribe(self, NodeViewReady.getClass)
+    context.system.eventStream.subscribe(self, classOf[NodeViewReady])
   }
 
   ////////////////////////////////////////////////////////////////////////////////////******
@@ -58,7 +58,7 @@ class PeerSynchronizer ( networkControllerRef: ActorRef,
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   private def initialization(): Receive = {
-    case NodeViewReady =>
+    case NodeViewReady(_) =>
       log.info(s"${Console.YELLOW}PeerSynchronizer transitioning to the operational state${Console.RESET}")
       context become operational
       scheduleGetPeers()
