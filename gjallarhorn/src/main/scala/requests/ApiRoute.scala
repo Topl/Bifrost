@@ -3,7 +3,7 @@ package requests
 import akka.actor.ActorRefFactory
 import akka.http.scaladsl.server.Directives
 import akka.util.Timeout
-import crypto.AddressEncoder.NetworkPrefix
+import attestation.AddressEncoder.NetworkPrefix
 import http.Namespace
 import io.circe.{Decoder, Json}
 import settings.AppSettings

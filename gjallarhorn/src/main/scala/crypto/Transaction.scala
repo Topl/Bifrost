@@ -1,5 +1,6 @@
 package crypto
 
+import attestation.Evidence
 import io.circe.{Decoder, Encoder, HCursor}
 import io.circe.syntax.EncoderOps
 
@@ -14,12 +15,29 @@ object Transaction {
   }
 }
 
+case class SimpleValue(valueType: String, quantity: Long)
+
+object SimpleValue {
+  implicit val simpleValueEncoder: Encoder[SimpleValue] = (value: SimpleValue) =>
+    Map(
+      "type" -> "Simple".asJson,
+      "quantity" -> value.quantity.asJson
+    ).asJson
+
+  implicit val simpleValueDecoder: Decoder[SimpleValue] = (hCursor: HCursor)  =>
+    for {
+      quantity <- hCursor.downField("quantity").as[Long]
+    } yield {
+      SimpleValue("Simple", quantity)
+    }
+
+}
 
 case class NewBox(evidence: Evidence,
                   nonce: String,
                   id: String,
                   typeOfBox: String,
-                  value: Long)
+                  value: SimpleValue)
 
 object NewBox {
   implicit val newBoxEncoder: Encoder[NewBox] = (box: NewBox) =>
@@ -27,7 +45,7 @@ object NewBox {
       "id" -> box.id.asJson,
       "type" -> box.typeOfBox.asJson,
       "evidence" -> box.evidence.toString.asJson,
-      "value" -> box.value.toString.asJson,
+      "value" -> box.value.asJson,
       "nonce" -> box.nonce.asJson
     ).asJson
 
@@ -37,7 +55,7 @@ object NewBox {
       id <- hCursor.downField("id").as[String]
       typeOfBox <- hCursor.downField("type").as[String]
       evidence <- hCursor.downField("evidence").as[Evidence]
-      value <- hCursor.downField("value").as[Long]
+      value <- hCursor.downField("value").as[SimpleValue]
     } yield NewBox(evidence, nonce, id, typeOfBox, value)
   }
 }

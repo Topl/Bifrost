@@ -4,8 +4,9 @@ import java.io.{BufferedWriter, FileWriter}
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
-import crypto.AddressEncoder.NetworkPrefix
-import crypto.{Address, KeyfileCurve25519, Secret}
+import attestation.{Address, Secret}
+import attestation.AddressEncoder.NetworkPrefix
+import crypto.KeyfileCurve25519
 import io.circe.syntax.EncoderOps
 import io.circe.Encoder
 

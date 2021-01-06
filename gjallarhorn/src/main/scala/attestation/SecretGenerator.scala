@@ -1,4 +1,4 @@
-package crypto
+package attestation
 
 sealed trait SecretGenerator[S <: Secret] {
   def generateSecret (seed: Array[Byte]): (S, S#PK)

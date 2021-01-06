@@ -2,7 +2,8 @@ package keymanager
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.util.Timeout
-import crypto.{Address, KeyfileCurve25519, PrivateKeyCurve25519}
+import attestation.{Address, PrivateKeyCurve25519}
+import crypto.KeyfileCurve25519
 import io.circe.Json
 import io.circe.syntax._
 import scorex.util.encode.Base58

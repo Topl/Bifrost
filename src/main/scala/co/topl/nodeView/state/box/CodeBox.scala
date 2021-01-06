@@ -2,6 +2,7 @@ package co.topl.nodeView.state.box
 
 import co.topl.attestation.Evidence
 import co.topl.nodeView.state.box.Box.BoxType
+import co.topl.utils.{Identifiable, Identifier}
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
 
@@ -10,13 +11,18 @@ case class CodeBox (override val evidence   : Evidence,
                     override val value      : ProgramId,
                     code                    : Seq[String], // List of strings of JS functions
                     interface               : Map[String, Seq[String]]
-                   ) extends ProgramBox(evidence, nonce, value, CodeBox.boxTypePrefix)
+                   ) extends ProgramBox(evidence, nonce, value)
 
 object CodeBox {
-  val boxTypePrefix: BoxType = 13: Byte
+  val typePrefix: BoxType = 13: Byte
+  val typeString: String = "CodeBox"
+
+  implicit val identifier: Identifiable[CodeBox] = Identifiable.instance { () =>
+    Identifier(typeString, typePrefix)
+  }
 
   implicit val jsonEncoder: Encoder[CodeBox] = { box: CodeBox =>
-    (Box.jsonEncode(box) ++ Map(
+    (Box.jsonEncode[ProgramId, CodeBox](box) ++ Map(
       "code" -> box.code.asJson,
       "interface" -> box.interface.map(ci => ci._1 -> ci._2.asJson).asJson
       )).asJson

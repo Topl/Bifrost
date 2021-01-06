@@ -7,8 +7,8 @@ import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.{ByteString, Timeout}
-import crypto.AddressEncoder.NetworkPrefix
-import crypto.Address
+import attestation.Address
+import attestation.AddressEncoder.NetworkPrefix
 import http.{GjallarhornOnlyApiRoute, HttpService, KeyManagementApiRoute}
 import io.circe.Json
 import io.circe.parser.parse

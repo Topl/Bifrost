@@ -1,12 +1,12 @@
-package crypto
+package attestation
 
-import serialization.ProofSerializer
+import attestation.serialization.ProofSerializer
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
 import scorex.util.encode.Base58
-import utils.serialization.{GjalSerializer, BytesSerializable}
+import utils.serialization.{BytesSerializable, GjalSerializer}
 
 import scala.util.{Failure, Success, Try}
 
@@ -54,7 +54,7 @@ sealed trait ProofOfKnowledge[S <: Secret, P <: KnowledgeProposition[S]] extends
   *
   * @param sigBytes 25519 signature
   */
-case class SignatureCurve25519(private[crypto] val sigBytes: Signature)
+case class SignatureCurve25519(private[attestation] val sigBytes: Signature)
   extends ProofOfKnowledge[PrivateKeyCurve25519, PublicKeyPropositionCurve25519] {
 
   require(sigBytes.isEmpty || sigBytes.length == Curve25519.SignatureLength,
@@ -92,7 +92,7 @@ object SignatureCurve25519 {
 
 /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
-case class ThresholdSignatureCurve25519(private[crypto] val signatures: Set[SignatureCurve25519])
+case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set[SignatureCurve25519])
   extends ProofOfKnowledge[PrivateKeyCurve25519, ThresholdPropositionCurve25519] {
 
   signatures.foreach(sig => {

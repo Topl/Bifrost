@@ -1,7 +1,8 @@
 package example
 
-import crypto.AddressEncoder.NetworkPrefix
-import crypto.{Address, KeyfileCurve25519, PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
+import attestation.{Address, PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
+import attestation.AddressEncoder.NetworkPrefix
+import crypto.KeyfileCurve25519
 import keymanager.Keys
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers

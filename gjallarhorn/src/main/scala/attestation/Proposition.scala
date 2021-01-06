@@ -1,9 +1,9 @@
-package crypto
+package attestation
 
-import serialization.PropositionSerializer
+import attestation.AddressEncoder.NetworkPrefix
+import attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
+import attestation.serialization.PropositionSerializer
 import com.google.common.primitives.Ints
-import crypto.AddressEncoder.NetworkPrefix
-import crypto.Evidence.{EvidenceContent, EvidenceTypePrefix}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import scorex.crypto.hash.Blake2b256
@@ -50,7 +50,7 @@ sealed trait KnowledgeProposition[S <: Secret] extends Proposition
 
 /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
-case class PublicKeyPropositionCurve25519 (private[crypto] val pubKeyBytes: PublicKey)
+case class PublicKeyPropositionCurve25519 (private[attestation] val pubKeyBytes: PublicKey)
   extends KnowledgeProposition[PrivateKeyCurve25519] {
 
   require(pubKeyBytes.length == Curve25519.KeyLength,

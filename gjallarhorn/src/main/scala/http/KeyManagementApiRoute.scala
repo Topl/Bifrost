@@ -2,7 +2,7 @@ package http
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.pattern.ask
-import crypto.Address
+import attestation.Address
 import keymanager.KeyManager._
 import io.circe.Json
 import io.circe.syntax._

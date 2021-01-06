@@ -1,8 +1,8 @@
-package crypto.serialization
+package attestation.serialization
 
-import crypto.{SignatureCurve25519, ThresholdSignatureCurve25519}
-import utils.serialization.{GjalSerializer, Reader, Writer}
+import attestation.{SignatureCurve25519, ThresholdSignatureCurve25519}
 import utils.Extensions._
+import utils.serialization.{GjalSerializer, Reader, Writer}
 
 object ThresholdSignatureCurve25519Serializer extends GjalSerializer[ThresholdSignatureCurve25519] {
 

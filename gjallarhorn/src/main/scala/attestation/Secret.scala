@@ -1,4 +1,4 @@
-package crypto
+package attestation
 
 import keymanager.Keyfile
 import utils.serialization.BytesSerializable

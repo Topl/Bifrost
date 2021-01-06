@@ -3,7 +3,8 @@ package wallet
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
-import crypto.{Address, Evidence, Transaction}
+import attestation.{Address, Evidence}
+import crypto.Transaction
 import io.circe.{Json, ParsingFailure, parser}
 import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
@@ -178,9 +179,9 @@ class WalletManager(bifrostActorRef: ActorRef)
       var boxesMap: MMap[String, Json] = MMap.empty
       val boxes = info \\ "Boxes"
       if (boxes.nonEmpty) {
-        val assets: List[Json] = boxes.head \\ "3"
-        val poly: List[Json] = boxes.head \\ "2"
-        val arbit: List[Json] = boxes.head \\ "1"
+        val assets: List[Json] = boxes.head \\ "AssetBox"
+        val poly: List[Json] = boxes.head \\ "PolyBox"
+        val arbit: List[Json] = boxes.head \\ "ArbitBox"
         if (assets.nonEmpty) {
           boxesMap = parseBoxType(assets.head)
         }

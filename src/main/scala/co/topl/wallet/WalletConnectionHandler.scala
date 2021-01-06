@@ -138,7 +138,7 @@ class WalletConnectionHandler[
     */
   private def parseBlockForKeys(block: Block): Option[Json] = remoteWalletAddresses map { keys =>
     val txs: Seq[Transaction.TX] = block.transactions.filter {
-      case tx: TransferTransaction[_] if keys.toSeq.intersect(tx.to.map(_._1)).nonEmpty => true
+      case tx: TransferTransaction[_,_] if keys.toSeq.intersect(tx.to.map(_._1)).nonEmpty => true
       case _                                                                            => false
     }
 

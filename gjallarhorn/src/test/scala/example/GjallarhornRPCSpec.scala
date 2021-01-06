@@ -6,17 +6,18 @@ import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.server.Route
 import akka.util.{ByteString, Timeout}
-import crypto.Address
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import http.{GjallarhornBifrostApiRoute, GjallarhornOnlyApiRoute, HttpService}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import crypto.AddressEncoder.NetworkPrefix
+import attestation.Address
+import attestation.AddressEncoder.NetworkPrefix
+import crypto.AssetCode
 import io.circe.Json
 import io.circe.syntax._
 import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
-import keymanager.KeyManager.{GenerateKeyFile, GetOpenKeyfiles}
+import keymanager.KeyManager.{GenerateKeyFile, GetAllKeyfiles, GetOpenKeyfiles}
 import keymanager.{Bip39, KeyManagerRef}
 import requests.{ApiRoute, Requests}
 
@@ -114,14 +115,18 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |     "method": "topl_rawAssetTransfer",
          |     "params": [{
          |        "propositionType": "PublicKeyCurve25519",
+         |        "recipients": [
+         |              ["$pk1", {
+         |                  "type": "Asset",
+         |                  "quantity": $amount,
+         |                  "assetCode": "${AssetCode(pk1, "test").toString}"
+         |                }
+         |              ]
+         |        ],
          |        "sender": ["$pk1"],
-         |        "recipient": [["$pk1", $amount]],
          |        "changeAddress": "$pk1",
-         |        "issuer": "$pk1",
-         |        "assetCode": "test",
          |        "minting": true,
          |        "fee": 1,
-         |        "data": "",
          |        "online": false
          |     }]
          |   }]
@@ -153,7 +158,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |     "params": [{
          |        "propositionType": "PublicKeyCurve25519",
          |        "sender": ["$pk1"],
-         |        "recipient": [["$pk2", $amount]],
+         |        "recipients": [["$pk2", $amount]],
          |        "changeAddress": "$pk1",
          |        "fee": 1,
          |        "data": "",
@@ -186,7 +191,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |     "params": [{
          |        "propositionType": "PublicKeyCurve25519",
          |        "sender": ["$pk1"],
-         |        "recipient": [["$pk2", $amount]],
+         |        "recipients": [["$pk2", $amount]],
          |        "changeAddress": "$pk1",
          |        "fee": 1,
          |        "data": "",
@@ -237,7 +242,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   }
 
 
-  /*it should "successfully broadcast a tx" in {
+  it should "successfully broadcast a tx" in {
     val rqstString =
       s"""
          |{
@@ -258,11 +263,12 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
+          println(res)
           (res \\ "error").isEmpty shouldBe true
           (res \\ "result").head.asObject.isDefined shouldBe true
       }
     }
-  }*/
+  }
 
   it should "get a successful JSON response from balance request" in {
     Thread.sleep(10000)
@@ -341,7 +347,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |     "params": [{
          |        "propositionType": "PublicKeyCurve25519",
          |        "sender": ["$pk1"],
-         |        "recipient": [["$newAddr", 15]],
+         |        "recipients": [["$newAddr", 15]],
          |        "changeAddress": "$pk1",
          |        "fee": 1,
          |        "data": "",
@@ -503,7 +509,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
           assert(network.toString() === "48")
       }
     }
-    (keyManagerRef ? GetOpenKeyfiles).mapTo[Set[Address]].map(_.size) shouldBe Future(3)
+    (keyManagerRef ? GetAllKeyfiles).mapTo[Map[Address,String]].map(_.keySet.size) shouldBe Future(3)
   }
 
 }

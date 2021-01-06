@@ -6,6 +6,7 @@ import co.topl.modifier.block.Block
 import co.topl.nodeView.history.BlockProcessor.ChainCache
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.utils.Logging
+import scorex.util.encode.Base16
 
 import scala.annotation.tailrec
 import scala.collection.immutable.TreeMap
@@ -142,7 +143,7 @@ object BlockProcessor extends Logging {
     def add(block: Block, prevTimes: Seq[Block.Timestamp]): ChainCache = {
       val cacheBlock = CacheBlock(block, prevTimes)
 
-      log.debug(s"Added new block to chain cache: $cacheBlock")
+      log.debug(s"Added new block to chain cache: ${cacheBlock.block.id.toString}")
       ChainCache(cache.insert(cacheBlock, block.parentId))
     }
 

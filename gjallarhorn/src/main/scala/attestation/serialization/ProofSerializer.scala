@@ -1,6 +1,6 @@
-package crypto.serialization
+package attestation.serialization
 
-import crypto._
+import attestation._
 import utils.serialization.{GjalSerializer, Reader, Writer}
 
 object ProofSerializer extends GjalSerializer[Proof[_]] {

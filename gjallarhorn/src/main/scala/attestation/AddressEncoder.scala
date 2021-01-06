@@ -1,9 +1,9 @@
-package crypto
+package attestation
 
 import scorex.crypto.hash.Blake2b256
+import scorex.util.encode.Base58
 
 import scala.util.Try
-import scorex.util.encode.Base58
 
 /**
   * The Address encoder dictates how addresses are cast To and From strings. Since this is the primary
@@ -21,6 +21,7 @@ object AddressEncoder {
 
   /**
     * Helper method to query the network prefix in an encoded address string
+    *
     * @param addrStr a Base58 encoded address
     * @return the network prefix of the address
     */

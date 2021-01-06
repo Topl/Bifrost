@@ -1,9 +1,9 @@
 package co.topl.utils.serialization
 
-import java.util
-
 import co.topl.utils.Extensions._
 import co.topl.utils.encode.ZigZagEncoder._
+
+import java.util
 
 trait VLQReader extends Reader {
 

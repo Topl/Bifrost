@@ -2,10 +2,9 @@ package keymanager
 
 import java.io.File
 
+import attestation.{Address, Secret, SecretGenerator}
 import com.google.common.primitives.Ints
-import crypto.AddressEncoder.NetworkPrefix
-import crypto.{Address, Secret, SecretGenerator}
-import io.circe.Json
+import attestation.AddressEncoder.NetworkPrefix
 import scorex.util.Random.randomBytes
 import scorex.crypto.hash.Blake2b256
 import utils.Logging

@@ -2,7 +2,8 @@ package crypto
 
 import java.nio.charset.StandardCharsets
 
-import crypto.AddressEncoder.NetworkPrefix
+import attestation.{Address, PrivateKeyCurve25519}
+import attestation.AddressEncoder.NetworkPrefix
 import keymanager.{Keyfile, KeyfileCompanion}
 import io.circe.parser.parse
 import io.circe.syntax._

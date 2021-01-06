@@ -72,6 +72,7 @@ object NodeViewModifier extends BifrostSerializer[NodeViewModifier] {
       case Block.modifierTypeId       => BlockSerializer.parseTry(r)
       case BlockHeader.modifierTypeId => BlockHeaderSerializer.parseTry(r)
       case BlockBody.modifierTypeId   => BlockBodySerializer.parseTry(r)
+      case Transaction.modifierTypeId => TransactionSerializer.parseTry(r)
     }) match {
       case Success(tx) => tx
       case Failure(ex) => throw ex

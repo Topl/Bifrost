@@ -1,12 +1,11 @@
-package crypto
+package attestation
 
+import attestation.AddressEncoder.NetworkPrefix
+import attestation.EvidenceProducer.Syntax._
 import com.google.common.primitives.Ints
-import crypto.AddressEncoder.NetworkPrefix
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import EvidenceProducer.Syntax._
-import utils.serialization.BytesSerializable
-import utils.serialization.{GjalSerializer, Reader, Writer}
+import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 
 import scala.util.{Failure, Success}
 

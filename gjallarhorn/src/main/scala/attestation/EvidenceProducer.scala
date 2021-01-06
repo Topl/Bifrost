@@ -1,5 +1,4 @@
-package crypto
-
+package attestation
 
 /**
   * EvidenceProducer is a type-class that must be implemented by a proposition in order to generate the evidence

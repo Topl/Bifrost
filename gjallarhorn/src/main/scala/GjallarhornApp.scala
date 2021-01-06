@@ -2,7 +2,7 @@ import akka.actor.{ActorRef, ActorSystem, DeadLetter, PoisonPill, Props}
 import akka.http.scaladsl.Http
 import akka.pattern.ask
 import akka.util.Timeout
-import crypto.Address
+import attestation.Address
 import io.circe.syntax._
 import http.{GjallarhornBifrostApiRoute, GjallarhornOnlyApiRoute, HttpService, KeyManagementApiRoute}
 import io.circe.Json

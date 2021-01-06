@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import co.topl.http.api.{ApiResponse, ApiEndpoint, ErrorResponse, SuccessResponse}
+import co.topl.http.api.{ApiEndpoint, ApiResponse, ErrorResponse, SuccessResponse}
 import co.topl.settings.RPCApiSettings
 import io.circe.Json
 import io.circe.parser.parse

@@ -43,22 +43,17 @@ object Evidence extends BifrostSerializer[Evidence] {
   val size: Int = 1 + contentLength  //length of typePrefix + contentLength
 
   def apply(typePrefix: EvidenceTypePrefix, content: EvidenceContent): Evidence = {
-    fromBytes(typePrefix +: content) match {
+    parseBytes(typePrefix +: content) match {
       case Success(ec) => ec
       case Failure(ex) => throw ex
     }
   }
 
   private def apply(str: String): Evidence =
-    Base58.decode(str).flatMap(fromBytes) match {
+    Base58.decode(str).flatMap(parseBytes) match {
       case Success(ec) => ec
       case Failure(ex) => throw ex
     }
-
-  private def fromBytes (byteArray: Array[Byte]): Try[Evidence] = Try {
-    require(byteArray.length == size, s"Incorrect length of input byte array when constructing evidence")
-    new Evidence(byteArray)
-  }
 
   override def serialize ( obj: Evidence, w: Writer ): Unit =
     w.putBytes(obj.evBytes)

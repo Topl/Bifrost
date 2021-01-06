@@ -1,10 +1,9 @@
 package co.topl.utils.serialization
 
-import java.nio.ByteBuffer
-
 import akka.util.ByteString
 import co.topl.utils.ByteArrayBuilder
 
+import java.nio.ByteBuffer
 import scala.util.Try
 
 trait BifrostSerializer[Content] extends Serializer[Content, Content, Reader, Writer] {

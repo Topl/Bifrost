@@ -1,6 +1,6 @@
-package crypto.serialization
+package attestation.serialization
 
-import crypto.{Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
+import attestation.{Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
 import utils.serialization.{GjalSerializer, Reader, Writer}
 
 object PropositionSerializer extends GjalSerializer[Proposition] {

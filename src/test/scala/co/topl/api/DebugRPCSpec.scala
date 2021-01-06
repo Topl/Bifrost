@@ -1,8 +1,6 @@
 package co.topl.api
 
-import akka.http.scaladsl.server.Route
 import akka.util.ByteString
-import co.topl.http.api.endpoints.DebugApiEndpoint
 import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -11,9 +9,6 @@ class DebugRPCSpec extends AnyWordSpec
   with Matchers
   with RPCMockState {
 
-  // setup route for testing
-  val route: Route = DebugApiRoute(settings.rpcApi, nodeViewHolderRef).route
-
   "Debug RPC" should {
     "Get chain information" in {
       val requestBody = ByteString(
@@ -21,12 +16,12 @@ class DebugRPCSpec extends AnyWordSpec
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
-           |   "method": "info",
+           |   "method": "debug_myBlocks",
            |   "params": [{}]
            |}
         """.stripMargin)
 
-      httpPOST("/debug/", requestBody) ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
@@ -39,7 +34,7 @@ class DebugRPCSpec extends AnyWordSpec
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
-           |   "method": "delay",
+           |   "method": "debug_delay",
            |   "params": [{
            |      "blockId": "${view().history.bestBlockId}",
            |      "numBlocks": 1
@@ -47,7 +42,7 @@ class DebugRPCSpec extends AnyWordSpec
            |}
         """.stripMargin)
 
-      httpPOST("/debug/", requestBody) ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
@@ -60,12 +55,12 @@ class DebugRPCSpec extends AnyWordSpec
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
-           |   "method": "generators",
+           |   "method": "debug_generators",
            |   "params": [{}]
            |}
         """.stripMargin)
 
-      httpPOST("/debug/", requestBody) ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true

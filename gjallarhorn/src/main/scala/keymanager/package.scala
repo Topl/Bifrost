@@ -1,4 +1,4 @@
-import crypto.AddressEncoder.NetworkPrefix
+import attestation.AddressEncoder.NetworkPrefix
 
 package object keymanager {
   //default value:

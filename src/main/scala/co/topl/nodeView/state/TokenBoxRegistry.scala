@@ -4,7 +4,7 @@ import java.io.File
 
 import co.topl.attestation.{Address, AddressEncoder}
 import co.topl.nodeView.state.MinimalState.VersionTag
-import co.topl.nodeView.state.box.{Box, BoxId, TokenBox}
+import co.topl.nodeView.state.box.{Box, BoxId, TokenBox, TokenValueHolder}
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
 import com.google.common.primitives.Longs
@@ -31,7 +31,8 @@ class TokenBoxRegistry (protected val storage: LSMStore, nodeKeys: Option[Set[Ad
 
   override protected val registryOut2StateIn: (K, V) => BoxId = (key: K, value: V) => BoxId.idFromEviNonce(key.evidence, value)
 
-  protected[state] def getBox(key: K, state: SR): Option[Seq[TokenBox]] = super.getBox[TokenBox](key, state)
+  protected[state] def getBox(key: K, state: SR): Option[Seq[TokenBox[TokenValueHolder]]] =
+    super.getBox[TokenBox[TokenValueHolder]](key, state)
 
   /** Helper function to filter updates by node keys if they are present */
   private def filterByNodeKeys(updates: Map[K, Seq[V]]): Map[K, Seq[V]] = nodeKeys match {

@@ -1,34 +1,26 @@
 package co.topl.nodeView.state.box.serialization
 
-import co.topl.attestation.Address
-import co.topl.nodeView.state.box.AssetBox
+import co.topl.attestation.Evidence
+import co.topl.nodeView.state.box.{AssetBox, AssetValue}
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object AssetBoxSerializer extends BifrostSerializer[AssetBox] {
-
   override def serialize(obj: AssetBox, w: Writer): Unit = {
+    /* proposition: PublicKey25519Proposition */
+    Evidence.serialize(obj.evidence, w)
 
-    TokenBoxSerializer.serialize(obj, w)
+    /* nonce: Long */
+    w.putLong(obj.nonce)
 
-    /* assetCode: String */
-    w.putIntString(obj.assetCode)
-
-    /* issuer: PublicKey25519Proposition */
-    Address.serialize(obj.issuer, w)
-
-    /* data: String */
-    w.putIntString(obj.data)
+    /* value: Long */
+    AssetValue.serialize(obj.value, w)
   }
 
   override def parse(r: Reader): AssetBox = {
-    val (proposition, nonce, value) = TokenBoxSerializer.parse(r)
+    val evidence = Evidence.parse(r)
+    val nonce = r.getLong()
+    val value = AssetValue.parse(r)
 
-    /* putIntString encode String that is shorter than 2147483647 bytes */
-    val asset: String = r.getIntString()
-
-    val issuer: Address = Address.parse(r)
-    val data: String = r.getIntString()
-
-    AssetBox(proposition, nonce, value, asset, issuer, data)
+    AssetBox(evidence, nonce, value)
   }
 }

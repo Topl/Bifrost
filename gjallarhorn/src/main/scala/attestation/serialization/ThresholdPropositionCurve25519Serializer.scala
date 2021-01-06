@@ -1,8 +1,8 @@
-package crypto.serialization
+package attestation.serialization
 
-import crypto.{PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
-import utils.serialization.{GjalSerializer, Reader, Writer}
+import attestation.{PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
 import utils.Extensions._
+import utils.serialization.{GjalSerializer, Reader, Writer}
 
 object ThresholdPropositionCurve25519Serializer extends GjalSerializer[ThresholdPropositionCurve25519] {
 

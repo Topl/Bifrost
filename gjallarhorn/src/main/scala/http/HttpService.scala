@@ -46,7 +46,7 @@ final case class HttpService (apiServices: Seq[ApiRoute], settings: RPCApiSettin
         postJsonRoute {
           var reqId = ""
           parse(body) match {
-            case Left(failure) => ErrorResponse(failure.getCause, 400, reqId)
+            case Left(failure) => throw new Error(s"failed to parse JSON request: $body. Due to ${failure.getCause}")
             case Right(request) =>
               val futureResponse: Try[Future[Json]] = Try {
                 val id = (request \\ "id").head.asString.get

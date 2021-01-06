@@ -18,8 +18,8 @@ object PropositionSerializer extends BifrostSerializer[Proposition] {
 
   override def parse(r: Reader): Proposition = {
     r.getByte() match {
-      case PublicKeyPropositionCurve25519.typePrefix => PublicKeyPropositionCurve25519Serializer.parse(r)
-      case ThresholdPropositionCurve25519.typePrefix => ThresholdPropositionCurve25519Serializer.parse(r)
+      case PublicKeyPropositionCurve25519.`typePrefix` => PublicKeyPropositionCurve25519Serializer.parse(r)
+      case ThresholdPropositionCurve25519.`typePrefix` => ThresholdPropositionCurve25519Serializer.parse(r)
     }
   }
 }

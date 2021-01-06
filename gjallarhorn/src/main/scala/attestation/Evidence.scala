@@ -1,11 +1,11 @@
-package crypto
+package attestation
 
-import utils.serialization.{GjalSerializer, Reader, Writer, BytesSerializable}
-import scorex.util.encode.Base58
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
+import scorex.util.encode.Base58
 import supertagged.TaggedType
+import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 
 import scala.util.{Failure, Success, Try}
 
