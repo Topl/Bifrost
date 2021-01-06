@@ -1,6 +1,9 @@
 package co.topl.settings
 
-sealed abstract class NetworkType(val verboseName    : String,
+import co.topl.attestation.AddressEncoder.NetworkPrefix
+
+sealed abstract class NetworkType(val verboseName     : String,
+                                  val netPrefix       : NetworkPrefix,
                                   val startWithForging: Boolean = false
                                   )
 
@@ -25,10 +28,18 @@ object NetworkType {
     case PrivateNet(_) => PrivateNet(opts)
   }
 
-  case class MainNet(opts: RuntimeOpts = RuntimeOpts.empty) extends NetworkType("toplnet", startWithForging = opts.startWithForging)
-  case class TestNet(opts: RuntimeOpts = RuntimeOpts.empty) extends NetworkType("valhalla", startWithForging = opts.startWithForging)
-  case class DevNet(opts: RuntimeOpts = RuntimeOpts.empty) extends NetworkType("hel", startWithForging = opts.startWithForging)
-  case class LocalNet(opts: RuntimeOpts = RuntimeOpts.empty) extends NetworkType("local", startWithForging = opts.startWithForging)
-  case class PrivateNet(opts: RuntimeOpts = RuntimeOpts.empty) extends NetworkType("private", startWithForging = true)
+  case class MainNet(opts: RuntimeOpts = RuntimeOpts.empty)
+    extends NetworkType("toplnet", 1.toByte, startWithForging = opts.startWithForging)
 
+  case class TestNet(opts: RuntimeOpts = RuntimeOpts.empty)
+    extends NetworkType("valhalla", 16.toByte, startWithForging = opts.startWithForging)
+
+  case class DevNet(opts: RuntimeOpts = RuntimeOpts.empty)
+    extends NetworkType("hel", 32.toByte, startWithForging = opts.startWithForging)
+
+  case class LocalNet(opts: RuntimeOpts = RuntimeOpts.empty)
+    extends NetworkType("local", 48.toByte, startWithForging = opts.startWithForging)
+
+  case class PrivateNet(opts: RuntimeOpts = RuntimeOpts.empty)
+    extends NetworkType("private", 64.toByte, startWithForging = true)
 }

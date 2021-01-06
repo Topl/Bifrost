@@ -1,184 +1,123 @@
 package co.topl.modifier.transaction
 
-import java.time.Instant
-
-import co.topl.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
-import co.topl.modifier.transaction.Transaction.{Nonce, Value}
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ArbitBox, TokenBox}
-import com.google.common.primitives.Ints
+import co.topl.attestation._
+import co.topl.modifier.transaction.Transaction.TxType
+import co.topl.modifier.transaction.TransferTransaction.BoxParams
+import co.topl.nodeView.state.StateReader
+import co.topl.nodeView.state.box._
+import co.topl.utils.{Identifiable, Identifier}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
+import java.time.Instant
 
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
-case class ArbitTransfer ( override val from      : IndexedSeq[(PublicKey25519Proposition, Nonce)],
-                           override val to        : IndexedSeq[(PublicKey25519Proposition, Long)],
-                           override val signatures: Map[PublicKey25519Proposition, Signature25519],
-                           override val fee       : Long,
-                           override val timestamp : Long,
-                           override val data      : String
-                         ) extends TransferTransaction(from, to, signatures, fee, timestamp, data) {
+case class ArbitTransfer[
+  P <: Proposition: EvidenceProducer: Identifiable
+](override val from:        IndexedSeq[(Address, Box.Nonce)],
+  override val to:          IndexedSeq[(Address, TokenValueHolder)],
+  override val attestation: Map[P, Proof[P]],
+  override val fee:         Long,
+  override val timestamp:   Long,
+  override val data:        Option[String] = None,
+  override val minting:     Boolean = false
+) extends TransferTransaction[TokenValueHolder, P](from, to, attestation, fee, timestamp, data, minting) {
 
-  override lazy val messageToSign: Array[Byte] = "ArbitTransfer".getBytes ++ super.commonMessageToSign
+  override lazy val newBoxes: Traversable[TokenBox[SimpleValue]] = {
+    val params = TransferTransaction.boxParams(this)
 
-  override lazy val newBoxes: Traversable[ArbitBox] =
-    to.filter(toInstance => toInstance._2 > 0L)
-      .zipWithIndex
-      .map { case ((prop, value), idx) =>
-        val nonce = Transaction
-          .nonceFromDigest(
-            FastCryptographicHash(
-              "ArbitTransfer".getBytes
-                ++ prop.pubKeyBytes
-                ++ hashNoNonces
-                ++ Ints.toByteArray(idx)))
+    val feeChangeBox =
+      if (fee > 0L) Traversable(PolyBox(params._1.evidence, params._1.nonce, params._1.value))
+      else Traversable()
 
-        ArbitBox(prop, nonce, value)
-      }
+    val arbitBoxes = params._2.map {
+      case BoxParams(ev, n, v: SimpleValue) => ArbitBox(ev, n, v)
+      case _                                => throw new Error("Attempted application of invalid value holder")
+    }
 
-  override def toString: String = s"ArbitTransfer(${json.noSpaces})"
+    feeChangeBox ++ arbitBoxes
+  }
 }
 
-//noinspection ScalaStyle
-object ArbitTransfer extends TransferCompanion {
+object ArbitTransfer {
+  val typePrefix: TxType = 1: Byte
+  val typeString: String = "ArbitTransfer"
 
-  implicit val jsonEncoder: Encoder[ArbitTransfer] = { tx: ArbitTransfer =>
+  implicit def identifier[P <: Proposition]: Identifiable[ArbitTransfer[P]] = Identifiable.instance { () =>
+    Identifier(typeString, typePrefix)
+  }
+
+  /** @param stateReader
+    * @param toReceive
+    * @param sender
+    * @param fee
+    * @param data
+    * @return
+    */
+  def createRaw[
+    P <: Proposition: EvidenceProducer: Identifiable
+  ](stateReader:          StateReader,
+    toReceive:            IndexedSeq[(Address, SimpleValue)],
+    sender:               IndexedSeq[Address],
+    changeAddress:        Address,
+    consolidationAddress: Option[Address],
+    fee:                  Long,
+    data:                 Option[String]
+  ): Try[ArbitTransfer[P]] =
+    TransferTransaction
+      .createRawTransferParams(
+        stateReader,
+        toReceive,
+        sender,
+        changeAddress,
+        consolidationAddress,
+        fee,
+        "ArbitTransfer"
+      )
+      .map { case (inputs, outputs) =>
+        ArbitTransfer[P](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data)
+      }
+
+  implicit def jsonEncoder[P <: Proposition]: Encoder[ArbitTransfer[P]] = { tx: ArbitTransfer[P] =>
     Map(
-      "txHash" -> tx.id.asJson,
-      "txType" -> "ArbitTransfer".asJson,
-      "newBoxes" -> tx.newBoxes.map(_.json).toSeq.asJson,
-      "boxesToRemove" -> tx.boxIdsToOpen.asJson,
-      "from" -> tx.from.asJson,
-      "to" -> tx.to.asJson,
-      "signatures" -> tx.signatures.asJson,
-      "fee" -> tx.fee.asJson,
-      "timestamp" -> tx.timestamp.asJson,
-      "data" -> tx.data.asJson
-      ).asJson
+      "txId"            -> tx.id.asJson,
+      "txType"          -> "ArbitTransfer".asJson,
+      "propositionType" -> tx.getPropIdentifier.typeString.asJson,
+      "newBoxes"        -> tx.newBoxes.toSeq.asJson,
+      "boxesToRemove"   -> tx.boxIdsToOpen.asJson,
+      "from"            -> tx.from.asJson,
+      "to"              -> tx.to.asJson,
+      "signatures"      -> tx.attestation.asJson,
+      "fee"             -> tx.fee.asJson,
+      "timestamp"       -> tx.timestamp.asJson,
+      "minting"         -> tx.minting.asJson,
+      "data"            -> tx.data.asJson
+    ).asJson
   }
 
-  implicit val jsonDecoder: Decoder[ArbitTransfer] = ( c: HCursor ) =>
-    for {
-      from <- c.downField("from").as[IndexedSeq[(PublicKey25519Proposition, Long)]]
-      to <- c.downField("to").as[IndexedSeq[(PublicKey25519Proposition, Long)]]
-      signatures <- c.downField("signatures").as[Map[PublicKey25519Proposition, Signature25519]]
-      fee <- c.downField("fee").as[Long]
-      timestamp <- c.downField("timestamp").as[Long]
-      data <- c.downField("data").as[String]
-    } yield {
-      ArbitTransfer(from, to, signatures, fee, timestamp, data)
-    }
+  implicit def jsonDecoder: Decoder[ArbitTransfer[_ <: Proposition]] =
+    (c: HCursor) =>
+      for {
+        from      <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
+        to        <- c.downField("to").as[IndexedSeq[(Address, SimpleValue)]]
+        fee       <- c.downField("fee").as[Long]
+        timestamp <- c.downField("timestamp").as[Long]
+        data      <- c.downField("data").as[Option[String]]
+        propType  <- c.downField("propositionType").as[String]
+      } yield {
+        (propType match {
+          case PublicKeyPropositionCurve25519.`typeString` =>
+            c.downField("signatures").as[Map[PublicKeyPropositionCurve25519, SignatureCurve25519]].map {
+              new ArbitTransfer[PublicKeyPropositionCurve25519](from, to, _, fee, timestamp, data)
+            }
 
-  /**
-   *
-   * @param from
-   * @param to
-   * @param fee
-   * @param timestamp
-   * @param data
-   * @return
-   */
-  def apply ( from     : IndexedSeq[(PrivateKey25519, Nonce)],
-              to       : IndexedSeq[(PublicKey25519Proposition, Value)],
-              fee      : Long,
-              timestamp: Long,
-              data     : String
-            ): ArbitTransfer = {
-    val params = parametersForApply(from, to, fee, timestamp, "ArbitTransfer", data).get
-    new ArbitTransfer(params._1, to, params._2, fee, timestamp, data)
-  }
-
-  /**
-   *
-   * @param stateReader
-   * @param toReceive
-   * @param sender
-   * @param fee
-   * @param data
-   * @return
-   */
-  def createPrototype ( stateReader: SR,
-                        toReceive  : IndexedSeq[(PublicKey25519Proposition, Long)],
-                        sender     : IndexedSeq[PublicKey25519Proposition], fee: Long, data: String
-                      ): Try[ArbitTransfer] = Try {
-    val params = parametersForCreate(stateReader, toReceive, sender, fee, "ArbitTransfer")
-    val timestamp = Instant.now.toEpochMilli
-    ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), fee, timestamp, data)
-  }
-
-  /**
-   *
-   * @param tx
-   * @return
-   */
-  def validatePrototype ( tx: ArbitTransfer ): Try[Unit] = validateTransfer(tx, withSigs = false)
-
-  /**
-   *
-   * @param tx
-   * @param state
-   * @return
-   */
-  def semanticValidate ( tx: ArbitTransfer, state: SR ): Try[Unit] = {
-
-    // check that the transaction is correctly formed before checking state
-    syntacticValidate(tx) match {
-      case Failure(e) => throw e
-      case _          => // continue processing
-    }
-
-    // compute transaction values used for validation
-    val txOutput = tx.newBoxes.map(b => b.value).sum
-    val unlockers = TokenBox.generateUnlockers(tx.from, tx.signatures)
-
-    // iterate through the unlockers and sum up the value of the box for each valid unlocker
-    unlockers.foldLeft[Try[Long]](Success(0L))(( trySum, unlocker ) => {
-      trySum.flatMap { partialSum =>
-        state.getBox(unlocker.closedBoxId) match {
-          case Some(box: ArbitBox) if unlocker.boxKey
-            .isValid(box.proposition, tx.messageToSign) => Success(partialSum + box.value)
-          case Some(_)                                  => Failure(new Exception("Invalid unlocker"))
-          case None                                     => Failure(new Exception(s"Box for unlocker $unlocker cannot be found in state"))
-          case _                                        => Failure(new Exception("Invalid Box type for this transaction"))
+          case ThresholdPropositionCurve25519.`typeString` =>
+            c.downField("signatures").as[Map[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]].map {
+              new ArbitTransfer[ThresholdPropositionCurve25519](from, to, _, fee, timestamp, data)
+            }
+        }) match {
+          case Right(tx) => tx
+          case Left(ex)  => throw ex
         }
       }
-    }) match {
-      case Success(sum: Long) if txOutput == sum - tx.fee => Success(Unit)
-      case Success(sum: Long)                             => Failure(new Exception(s"Tx output value not equal to input value. $txOutput != ${
-        sum - tx.fee
-      }"))
-      case Failure(e)                                     => throw e
-    }
-  }
-
-  /**
-   *
-   * @param tx
-   * @return
-   */
-  def syntacticValidate ( tx: ArbitTransfer ): Try[Unit] = validateTransfer(tx)
 }
-
-//  /**
-//    *
-//    * @param tbr
-//    * @param stateReader
-//    * @param w
-//    * @param toReceive
-//    * @param sender
-//    * @param fee
-//    * @param data
-//    * @return
-//    */
-//  def create ( tbr: TokenBoxRegistry,
-//               stateReader: SR,
-//               w: Wallet,
-//               toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
-//               sender: IndexedSeq[PublicKey25519Proposition], fee: Long, data: String
-//             ): Try[ArbitTransfer] = Try {
-//
-//    val params = parametersForCreate(tbr, stateReader, w, toReceive, sender, fee, "ArbitTransfer")
-//    val timestamp = Instant.now.toEpochMilli
-//    ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
-//  }

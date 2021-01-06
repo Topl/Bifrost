@@ -90,6 +90,7 @@ package object consensus {
     * @return the modified difficulty
     */
   def calcNewBaseDifficulty(newHeight: Long, prevDifficulty: Long, prevTimes: Seq[Block.Timestamp]): Long = {
+
     val averageDelay = (prevTimes drop 1, prevTimes).zipped.map(_-_).sum / (prevTimes.length - 1)
     val targetTimeMilli = targetBlockTime(newHeight).toUnit(MILLISECONDS)
 

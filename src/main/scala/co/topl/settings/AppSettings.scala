@@ -3,6 +3,7 @@ package co.topl.settings
 import java.io.File
 import java.net.InetSocketAddress
 
+import co.topl.http.api.NamespaceSelector
 import co.topl.utils.{Logging, NetworkTimeProviderSettings}
 import com.typesafe.config.{Config, ConfigFactory}
 import net.ceedubs.ficus.Ficus._
@@ -21,12 +22,12 @@ case class ApplicationSettings(
   cacheSize:   Int
 )
 
-case class RESTApiSettings(
-  bindAddress: InetSocketAddress,
-  apiKeyHash:  String,
-  corsAllowed: Boolean,
-  timeout:     FiniteDuration,
-  verboseAPI:  Boolean
+case class RPCApiSettings(
+  bindAddress:       InetSocketAddress,
+  apiKeyHash:        String,
+  timeout:           FiniteDuration,
+  verboseAPI:        Boolean,
+  namespaceSelector: NamespaceSelector
 )
 
 case class NetworkSettings(
@@ -79,7 +80,7 @@ case class AppSettings(
   application: ApplicationSettings,
   network:     NetworkSettings,
   forging:     ForgingSettings,
-  restApi:     RESTApiSettings,
+  rpcApi:      RPCApiSettings,
   ntp:         NetworkTimeProviderSettings
 )
 

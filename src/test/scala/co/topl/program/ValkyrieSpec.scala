@@ -1,21 +1,9 @@
 package co.topl.program
 
-import java.time.Instant
-import java.util
-import InstrumentClasses.ProgramController
-import InstrumentClasses.TokenClasses._
-import co.topl.crypto.FastCryptographicHash
-import co.topl.modifier.transaction.Transaction
-import co.topl.nodeView.state.{State, StateSpec}
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ArbitBox, AssetBox}
 import co.topl.utils.{CoreGenerators, ValidGenerators}
-import com.google.common.primitives.{Ints, Longs}
-import org.graalvm.polyglot.Context
 import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import scorex.util.encode.Base58
 
 @DoNotDiscover
 class ValkyrieSpec extends AnyPropSpec
@@ -23,12 +11,7 @@ class ValkyrieSpec extends AnyPropSpec
   with CoreGenerators
   with ValidGenerators {
 
-  val publicKeys = Map(
-    "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
-    "producer" -> "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb",
-    "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
-  )
-
+/*
   val testValkyrie: String =
     s"""
        |  issuer = 'b';
@@ -80,20 +63,20 @@ class ValkyrieSpec extends AnyPropSpec
 
     val assetInstance: AssetInstance = valkyrieController.getNewAssetInstances.get(0)
 
-    val proposition: PublicKey25519Proposition = PublicKey25519Proposition(assetInstance.publicKey)
+    val proposition: PublicKeyPropositionCurve25519 = PublicKey25519Proposition(assetInstance.publicKey)
     val amount: Long = assetInstance.amount
     val assetCode: String = assetInstance.assetCode
-    val issuer: PublicKey25519Proposition = PublicKey25519Proposition(assetInstance.issuer)
+    val issuer: PublicKeyPropositionCurve25519 = PublicKey25519Proposition(assetInstance.issuer)
     val data: String = assetInstance.data
 
     val timestamp = Instant.now.toEpochMilli
-    lazy val hashNoNonces = FastCryptographicHash(
+    lazy val hashNoNonces = Blake2b256(
       proposition.pubKeyBytes ++
         Longs.toByteArray(timestamp)
       //Longs.toByteArray(fee)
     )
 
-    val nonce = Transaction.nonceFromDigest(FastCryptographicHash(
+    val nonce = Transaction.nonceFromDigest(Blake2b256(
       "AssetCreation".getBytes ++
         proposition.pubKeyBytes ++
         issuer.pubKeyBytes ++
@@ -134,20 +117,20 @@ class ValkyrieSpec extends AnyPropSpec
 
     val assetInstance: AssetInstance = valkyrieController.getNewAssetInstances.get(0)
 
-    val proposition: PublicKey25519Proposition = PublicKey25519Proposition(assetInstance.publicKey)
+    val proposition: PublicKeyPropositionCurve25519 = PublicKey25519Proposition(assetInstance.publicKey)
     val amount: Long = assetInstance.amount
     val assetCode: String = assetInstance.assetCode
-    val issuer: PublicKey25519Proposition = PublicKey25519Proposition(assetInstance.issuer)
+    val issuer: PublicKeyPropositionCurve25519 = PublicKey25519Proposition(assetInstance.issuer)
     val data: String = assetInstance.data
 
     val timestamp = Instant.now.toEpochMilli
-    lazy val hashNoNonces = FastCryptographicHash(
+    lazy val hashNoNonces = Blake2b256(
       proposition.pubKeyBytes ++
         Longs.toByteArray(timestamp)
       //Longs.toByteArray(fee)
     )
 
-    val nonce = Transaction.nonceFromDigest(FastCryptographicHash(
+    val nonce = Transaction.nonceFromDigest(Blake2b256(
       "AssetCreation".getBytes ++
         proposition.pubKeyBytes ++
         issuer.pubKeyBytes ++
@@ -205,19 +188,19 @@ class ValkyrieSpec extends AnyPropSpec
     //Parsing the new arbit instance as an arbit box
     val newArbitInstance1: ArbitInstance = valkyrieController.getNewArbitInstances.get(0)
 
-    val proposition: PublicKey25519Proposition = PublicKey25519Proposition(newArbitInstance1.publicKey)
+    val proposition: PublicKeyPropositionCurve25519 = PublicKey25519Proposition(newArbitInstance1.publicKey)
     val amount: Long = newArbitInstance1.amount
 
     val timestamp = Instant.now.toEpochMilli
 
-    lazy val hashNoNonces = FastCryptographicHash(
+    lazy val hashNoNonces = Blake2b256(
       proposition.pubKeyBytes) ++
       //unlockers.map(_.closedBoxId).reduce(_ ++ _) ++
       Longs.toByteArray(timestamp)
     //Longs.toByteArray(fee)
 
     val nonce = Transaction
-      .nonceFromDigest(FastCryptographicHash("ArbitTransfer".getBytes
+      .nonceFromDigest(Blake2b256("ArbitTransfer".getBytes
         ++ proposition.pubKeyBytes
         ++ hashNoNonces
         ++ Ints.toByteArray(0)))
@@ -229,4 +212,5 @@ class ValkyrieSpec extends AnyPropSpec
     assert(newArbitBox1.value == 10)
 
   }
+*/
 }

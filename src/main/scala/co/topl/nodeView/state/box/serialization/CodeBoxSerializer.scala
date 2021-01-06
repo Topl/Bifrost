@@ -23,7 +23,7 @@ object CodeBoxSerializer extends BifrostSerializer[CodeBox] {
   }
 
   override def parse(r: Reader): CodeBox = {
-    val (proposition, nonce, programId) = ProgramBoxSerializer.parse(r)
+    val (evidence, nonce, programId) = ProgramBoxSerializer.parse(r)
 
     /* code: Seq[String], List of strings of JS functions */
     val codeLength: Int = r.getUInt().toIntExact
@@ -39,6 +39,6 @@ object CodeBoxSerializer extends BifrostSerializer[CodeBox] {
       methodName -> params
     }.toMap
 
-    CodeBox(proposition, nonce, programId, code, interface)
+    CodeBox(evidence, nonce, programId, code, interface)
   }
 }

@@ -13,13 +13,13 @@ class BifrostHistorySpec extends AnyPropSpec
   with Matchers
   with CoreGenerators {
 
-  var history: History = generateHistory(0: Byte)
+  var history: History = generateHistory()
 
   property("Block application should result in storage and BifrostHistory.continuationIds") {
     var ids: Seq[ModifierId] = Seq()
 
     /* Apply blocks and ensure that they are stored */
-    forAll(BlockGen) { blockTemp =>
+    forAll(blockGen) { blockTemp =>
 
       val block = blockTemp.copy(parentId = history.bestBlockId)
 

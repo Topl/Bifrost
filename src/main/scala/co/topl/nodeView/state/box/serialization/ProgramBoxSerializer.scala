@@ -1,14 +1,13 @@
 package co.topl.nodeView.state.box.serialization
 
-import co.topl.nodeView.state.ProgramId
-import co.topl.nodeView.state.box.ProgramBox
-import co.topl.nodeView.state.box.proposition.{PublicKey25519Proposition, PublicKey25519PropositionSerializer}
+import co.topl.attestation.Evidence
+import co.topl.nodeView.state.box.{ProgramBox, ProgramId}
 import co.topl.utils.serialization.{Reader, Writer}
 
 object ProgramBoxSerializer {
 
   def serialize(obj: ProgramBox, w: Writer): Unit = {
-    PublicKey25519PropositionSerializer.serialize(obj.proposition, w)
+    Evidence.serialize(obj.evidence, w)
 
     w.putLong(obj.nonce)
 
@@ -16,7 +15,7 @@ object ProgramBoxSerializer {
     ProgramId.serialize(obj.value, w)
   }
 
-  def parse(r: Reader): (PublicKey25519Proposition, Long, ProgramId) = {
-    (PublicKey25519PropositionSerializer.parse(r), r.getLong(), ProgramId.parse(r))
+  def parse(r: Reader): (Evidence, Long, ProgramId) = {
+    (Evidence.parse(r), r.getLong(), ProgramId.parse(r))
   }
 }

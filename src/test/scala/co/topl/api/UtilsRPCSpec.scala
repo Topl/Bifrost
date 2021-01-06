@@ -1,13 +1,11 @@
 package co.topl.api
 
-import akka.http.scaladsl.server.Route
 import akka.util.ByteString
-import co.topl.crypto.FastCryptographicHash
-import co.topl.http.api.routes.UtilsApiRoute
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
 import scala.util.{Failure, Success}
@@ -15,9 +13,6 @@ import scala.util.{Failure, Success}
 class UtilsRPCSpec extends AnyWordSpec
   with Matchers
   with RPCMockState {
-
-  val route: Route = UtilsApiRoute(settings.restApi).route
-
 
   val seedLength: Int = 10
 
@@ -28,12 +23,13 @@ class UtilsRPCSpec extends AnyWordSpec
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
-           |   "method": "seed",
+           |   "method": "util_seed",
            |   "params": [{}]
            |}
         """.stripMargin)
 
-      httpPOST("/utils/", requestBody) ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
+        println(response.toString())
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
@@ -50,14 +46,14 @@ class UtilsRPCSpec extends AnyWordSpec
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
-           |   "method": "seedOfLength",
+           |   "method": "util_seedOfLength",
            |   "params": [{
            |      "length": $seedLength
            |   }]
            |}
       """.stripMargin)
 
-      httpPOST("/utils/", requestBody) ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
@@ -74,18 +70,18 @@ class UtilsRPCSpec extends AnyWordSpec
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
-           |   "method": "hashBlake2b",
+           |   "method": "util_hashBlake2b256",
            |   "params": [{
            |      "message": "Hello World"
            |   }]
            |}
       """.stripMargin)
 
-      httpPOST("/utils/", requestBody) ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
-        ((res \\ "result").head \\ "hash").head.asString.get shouldEqual Base58.encode(FastCryptographicHash("Hello World"))
+        ((res \\ "result").head \\ "hash").head.asString.get shouldEqual Base58.encode(Blake2b256("Hello World"))
       }
     }
   }

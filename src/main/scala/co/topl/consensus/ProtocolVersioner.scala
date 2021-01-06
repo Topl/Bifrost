@@ -1,6 +1,6 @@
 package co.topl.consensus
 
-import co.topl.settings.{ ProtocolSettings, Version }
+import co.topl.settings.{ProtocolSettings, Version}
 
 import scala.collection.SortedSet
 

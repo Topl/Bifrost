@@ -1,8 +1,6 @@
 package co.topl.api.program
 
-import akka.http.scaladsl.server.Route
 import akka.util.ByteString
-import co.topl.http.api.routes.ProgramApiRoute
 import io.circe.parser.parse
 import org.scalatest.DoNotDiscover
 
@@ -11,12 +9,10 @@ import scala.util.Random
 @DoNotDiscover
 class ProgramMethodExecutionSpec extends ProgramRPCMockState {
 
-  val route: Route = ProgramApiRoute(settings.restApi, nodeViewHolderRef).route
-
   "executeProgramMethod" should {
 
     val boxState = Seq(stateBox, codeBox, executionBox)
-    val version = Random.nextInt
+    val version = modifierIdGen.sample.get
 
     directlyAddPBRStorage(version, boxState)
 
@@ -38,14 +34,11 @@ class ProgramMethodExecutionSpec extends ProgramRPCMockState {
            |      "y": 2
            |    },
            |    "programId": "${executionBox.value}",
-           |    "preFeeBoxes": {
-           |      "$publicKey": [[${polyBoxes.head.nonce}, ${polyBoxes.head.value}]]
-           |     },
-           |     "fees": {
+           |    "fees": {
            |      "$publicKey": 0
-           |     },
-           |     "timestamp": ${System.currentTimeMillis},
-           |     "data": ""
+           |    },
+           |    "timestamp": ${System.currentTimeMillis},
+           |    "data": ""
            |  }]
            |}
            |""".stripMargin)

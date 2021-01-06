@@ -1,15 +1,13 @@
 package co.topl.nodeView.state
 
-import co.topl.crypto.FastCryptographicHash
-import co.topl.modifier.ModifierId
+import co.topl.attestation.Address
 import co.topl.utils.{CoreGenerators, ValidGenerators}
-import com.google.common.primitives.Ints
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
-class TokenBoxRegistrySpec extends StateSpec
+class TokenBoxRegistrySpec extends MockState
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
@@ -21,11 +19,11 @@ class TokenBoxRegistrySpec extends StateSpec
 
   property("Token boxes should be inserted into the registry") {
     forAll(tokenBoxesGen) { tokens =>
-      val keys = tokens.groupBy(_.proposition)
-      directlyAddTBRStorage(scala.util.Random.nextInt, tokens, state)
+      val keys = tokens.groupBy(_.evidence)
+      directlyAddTBRStorage(modifierIdGen.sample.get, tokens, state)
       keys.foreach { key =>
         val ids = key._2.map(_.id)
-        state.registryLookup(key._1).value shouldEqual ids
+        state.registryLookup(Address(key._1)).value shouldEqual ids
       }
     }
   }
@@ -33,15 +31,14 @@ class TokenBoxRegistrySpec extends StateSpec
   property("Rolling back should remove tokens from registry") {
     forAll(tokenBoxesGen) { tokens =>
       val tbr = state.tbrOpt.get
-      val version = ModifierId(FastCryptographicHash(Ints.toByteArray(scala.util.Random.nextInt)))
-      val keys = tokens.groupBy(_.proposition)
+      val version = modifierIdGen.sample.get
+      val keys = tokens.groupBy(_.evidence).map(k => Address(k._1) -> k._2)
       val update = keys.map(k => k._1 -> k._2.map(_.nonce))
 
       val newTbr = tbr.update(version, Map(), update).get
-      val rollback = newTbr.rollbackTo(state.version).get
+      newTbr.rollbackTo(state.version)
 
       keys.foreach { key =>
-        val ids = key._2.map(_.id)
         state.registryLookup(key._1) shouldBe None
       }
     }

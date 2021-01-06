@@ -2,7 +2,7 @@ package co.topl.utils
 
 import java.io.File
 import java.nio.file.Files.createTempDirectory
-import java.nio.file.{Files, Path}
+import java.nio.file.{ Files, Path }
 
 import scala.util.Random
 
@@ -24,7 +24,7 @@ trait FileUtils {
     file
   }
 
-  private def createTempDir: File = {
+  def createTempDir: File = {
     val prefix = Random.alphanumeric.take(prefixLength).mkString
     val file = createTempDirectory(basePath, prefix).toFile
     file.deleteOnExit()
