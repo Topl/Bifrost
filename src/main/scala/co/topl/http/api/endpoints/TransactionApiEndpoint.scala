@@ -78,16 +78,6 @@ case class TransactionApiEndpoint(
   private def rawAssetTransfer(implicit params: Json, id: String): Future[Json] = {
     viewAsync { view =>
       val p = params.hcursor
-      println("raw asset transfer: " + params)
-      println(p.get[String]("propositionType"))
-      println(p.get[IndexedSeq[(Address, AssetValue)]]("recipients"))
-      println(p.get[IndexedSeq[Address]]("sender"))
-      println(p.get[Address]("changeAddress"))
-      println(p.get[Option[Address]]("consolidationAddress"))
-      println(p.get[Long]("fee"))
-      println(p.get[Boolean]("minting"))
-      println(p.get[Option[String]]("data"))
-
       // parse arguments from the request
       (for {
         propType          <- p.get[String]("propositionType")
@@ -345,21 +335,14 @@ case class TransactionApiEndpoint(
     (for {
       tx <- (params \\ "tx").head.as[Transaction[_, _ <: Proposition]]
     } yield {
-      println("in broadcast yield: " + json)
       tx.syntacticValidate.map { _ =>
         nodeViewHolderRef ! LocallyGeneratedTransaction(tx)
         tx.asJson
       }
     }) match {
-      case Right(Success(json)) =>
-        println("success")
-        json
-      case Right(Failure(ex))   =>
-        println("right failure")
-        throw ex
-      case Left(ex)             =>
-        println("left failure")
-        throw ex
+      case Right(Success(json)) => json
+      case Right(Failure(ex))   => throw ex
+      case Left(ex)             => throw ex
     }
   }
 }

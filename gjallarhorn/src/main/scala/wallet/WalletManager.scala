@@ -83,7 +83,6 @@ class WalletManager(bifrostActorRef: ActorRef)
     case KeyManagerReady(keyMngrRef) =>
       val addresses = Await.result((keyMngrRef ? GetOpenKeyfiles)
         .mapTo[Set[Address]], 10.seconds)
-      println("Addresses: " + addresses)
       keyManagerRef = Some(keyMngrRef)
       initializeWalletBoxes(addresses)
       if (addresses.nonEmpty) {

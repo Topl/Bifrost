@@ -112,15 +112,14 @@ class RequestSpec extends AsyncFlatSpec
          |            ["$pk1", {
          |                "type": "Asset",
          |                "quantity": $amount,
-         |                "assetCode": ${AssetCode(pk1, "test").toString}
+         |                "assetCode": "${AssetCode(pk1, "test").toString}"
          |              }
          |            ]
          |     ],
          |     "sender": ["$pk1"],
          |     "changeAddress": "$pk1",
-         |     "assetCode": "test",
          |     "minting": true,
-         |     "fee": 1,
+         |     "fee": 1
          |   }]
          |}
        """.stripMargin)
@@ -139,7 +138,7 @@ class RequestSpec extends AsyncFlatSpec
          |   "method": "topl_rawArbitTransfer",
          |   "params": [{
          |     "propositionType": "PublicKeyCurve25519",
-         |     "recipient": [["$pk2", $amount]],
+         |     "recipients": [["$pk2", $amount]],
          |     "sender": ["$pk1"],
          |     "changeAddress": "$pk1",
          |     "fee": 1,
@@ -190,24 +189,22 @@ class RequestSpec extends AsyncFlatSpec
     val result: Json = (balanceResponse \\ "result").head
     result.asObject.isDefined shouldBe true
     (result \\ pk1.toString).nonEmpty shouldBe true
-    println("balance: " + result)
-    println("new boxes: " + newBoxIds)
     val contains = newBoxIds.map(boxId => result.toString().contains(boxId))
     contains.contains(false) shouldBe false
   }
 
   //Make sure you re-run bifrost for this to pass.
   it should "update boxes correctly with balance response" in {
-    val walletBoxes: MMap[String, MMap[String, Json]] =
+    val walletBoxes: MMap[Address, MMap[String, Json]] =
       Await.result((walletManagerRef ? UpdateWallet((balanceResponse \\ "result").head))
-      .mapTo[MMap[String, MMap[String, Json]]], 10.seconds)
+      .mapTo[MMap[Address, MMap[String, Json]]], 10.seconds)
 
-    val pk1Boxes: Option[MMap[String, Json]] = walletBoxes.get(pk1.toString)
+    val pk1Boxes: Option[MMap[String, Json]] = walletBoxes.get(pk1)
     pk1Boxes match {
       case Some(map) => assert (map.size === 2)
       case None => sys.error(s"no mapping for given public key: ${pk1.toString}")
     }
-    val pk2Boxes: Option[MMap[String, Json]] = walletBoxes.get(pk2.toString)
+    val pk2Boxes: Option[MMap[String, Json]] = walletBoxes.get(pk2)
     pk2Boxes match {
       case Some(map) => assert (map.size === 1)
       case None => sys.error(s"no mapping for given public key: ${pk2.toString}")

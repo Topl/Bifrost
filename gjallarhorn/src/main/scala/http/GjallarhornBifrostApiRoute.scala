@@ -3,12 +3,11 @@ package http
 import akka.actor.{ActorNotFound, ActorRef, ActorRefFactory, ActorSystem, PoisonPill, Props}
 import akka.pattern.ask
 import attestation.Address
-import crypto.SimpleValue
+import crypto.TokenValueHolder
 import requests.{ApiRoute, Requests, RequestsManager}
 import io.circe.Json
 import io.circe.syntax._
 import keymanager.KeyManager._
-import requests.RequestsManager.BifrostRequest
 import settings.{AppSettings, NetworkType}
 import utils.Logging
 import wallet.WalletManager
@@ -232,7 +231,6 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
   private def broadcastTx(params: Json, id: String): Future[Json] = {
     requestsManager match {
       case Some(actor) =>
-        println((params \\ "params").head)
         val signedTx = (params \\ "params").head.asArray.get.head
         Future{(requests.broadcastTx(signedTx) \\ "result").head}
       case None => offlineMessage()
@@ -298,7 +296,7 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
               boxes.foreach(box => {
                 for {
                   boxType <- (box._2 \\ "type").head.as[String]
-                  value <- (box._2 \\ "value").head.as[SimpleValue]
+                  value <- (box._2 \\ "value").head.as[TokenValueHolder]
                 } yield {
                   if (boxType == "ArbitBox") {
                     arbitBalance = arbitBalance + value.quantity
