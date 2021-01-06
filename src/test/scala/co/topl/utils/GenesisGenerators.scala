@@ -6,6 +6,7 @@ import co.topl.consensus.genesis.PrivateTestnet
 import co.topl.crypto.KeyfileCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
+import co.topl.nodeView.history.History
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppSettings, RuntimeOpts}
 
@@ -26,6 +27,7 @@ trait GenesisGenerators extends CoreGenerators
   val genesisBlockId: ModifierId = genesisBlock.id
 
   def genesisState(settings: AppSettings, genesisBlockWithVersion: Block = genesisBlock): State = {
+    History.readOrGenerate(settings).append(genesisBlock)
     State.genesisState(settings, Seq(genesisBlockWithVersion))
   }
 }
