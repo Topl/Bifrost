@@ -425,7 +425,7 @@ trait CoreGenerators extends Logging {
 
 
   lazy val nonEmptyBytesGen: Gen[Array[Byte]] = Gen.nonEmptyListOf(Arbitrary.arbitrary[Byte])
-    .map(_.toArray).suchThat(_.length > 0)
+    .map(_.toArray).retryUntil(_.length > 0)
   lazy val positiveLongGen: Gen[Long] = Gen.choose(1, Long.MaxValue)
   lazy val modifierIdGen: Gen[ModifierId] =
     Gen.listOfN(ModifierId.size, Arbitrary.arbitrary[Byte]).map(li => ModifierId.parseBytes(li.toArray).get)
