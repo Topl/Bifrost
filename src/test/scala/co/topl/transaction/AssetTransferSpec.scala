@@ -23,8 +23,8 @@ class AssetTransferSpec extends AnyPropSpec
   property("Minting AssetTransfer should fail unless fee is greater than 0") {
     forAll(assetTransferGen) { assetTransfer: AssetTransfer[PublicKeyPropositionCurve25519] =>
       //TODO: Jing - change this back to using syntacticValidate once attestation in validAssetTransferGen works
-      assetTransfer.rawValidate.isSuccess shouldBe true
-      assetTransfer.copy(fee = 0).rawValidate.isSuccess shouldBe false
+      assetTransfer.copy(fee = 0, minting = false).rawValidate.isSuccess shouldBe true
+      assetTransfer.copy(fee = 0, minting = true).rawValidate.isSuccess shouldBe false
     }
   }
 
