@@ -70,7 +70,7 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   private val actorsToStop: Seq[ActorRef] = Seq(listener, keyManagerRef)
 
   //hook for initiating the shutdown procedure
-  sys.addShutdownHook(GjallarhornApp.shutdown(system, actorsToStop))
+  sys.addShutdownHook(GjallarhornApp.shutdown(system, actorsToStop, gjalBifrostRoute))
 
   //Set-up http server info:
   val httpService: HttpService = HttpService(apiRoutes, settings.rpcApi)
@@ -85,7 +85,7 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
     case Failure(ex) =>
       log.error(s"${Console.YELLOW}Failed to bind to localhost:$httpPort. " +
         s"Terminating application!${Console.RESET}", ex)
-      GjallarhornApp.shutdown(system, actorsToStop)
+      GjallarhornApp.shutdown(system, actorsToStop, gjalBifrostRoute)
   }
 
   def run(): Unit = {
@@ -102,7 +102,8 @@ object GjallarhornApp extends Logging {
 
   def forceStopApplication(code: Int = 1): Nothing = sys.exit(code)
 
-  def shutdown(system: ActorSystem, actors: Seq[ActorRef]): Unit = {
+  def shutdown(system: ActorSystem, actors: Seq[ActorRef], apiRoute: ApiRoute): Unit = {
+    apiRoute.handlers("onlineWallet_disconnectFromBifrost", Vector("".asJson), "2")
     log.warn("Terminating Actors")
     actors.foreach { a => a ! PoisonPill }
     log.warn("Terminating ActorSystem")

@@ -24,7 +24,7 @@ class Keys[
 
   /** Retrieves a list of public images for the secrets currently held in the keyring
     *
-    * @return - the public keys as ProofOfKnowledgePropositions
+    * @return - list of addresses corresponding to unlocked key files.
     */
   def addresses: Set[Address] = secrets.map(_.publicImage.address)
 
@@ -42,8 +42,8 @@ class Keys[
       case _        => throw new Error("Unable to find secret for the given address")
     }
 
-  private def getPrivateKey(publicKeyString: String, password: String): S = {
-    val keyfile = checkValid(publicKeyString: String)
+  private def getPrivateKey(addressString: String, password: String): S = {
+    val keyfile = checkValid(addressString: String)
 
     keyfileOps.decryptSecret(keyfile, password) match {
       case Success(sk) => sk
@@ -51,29 +51,29 @@ class Keys[
     }
   }
 
-  /** Given a public key and password, unlock the associated key file.
+  /** Given an address and password, unlock the associated key file.
     *
-    * @param publicKeyString Base58 encoded public key to unlock
-    * @param password        - password for the given public key.
+    * @param addressString Base58 encoded address to unlock
+    * @param password        - password for the public key associated with the given address.
     */
-  def unlockKeyFile(publicKeyString: String, password: String): Try[Unit] = Try {
-    val privKey = getPrivateKey(publicKeyString, password)
+  def unlockKeyFile(addressString: String, password: String): Try[Unit] = Try {
+    val privKey = getPrivateKey(addressString, password)
 
     // ensure no duplicate by comparing privKey strings
     if (!secrets.contains(privKey)) secrets += privKey
-    else log.warn(s"$publicKeyString is already unlocked")
+    else log.warn(s"$addressString is already unlocked")
   }
 
-  /** Given a public key and password, locks a key file.
+  /** Given an address and password, locks a key file.
     *
-    * @param publicKeyString Base58 encoded public key to lock
+    * @param addressString Base58 encoded address that corresponds to the key to lock
     */
-  def lockKeyFile(publicKeyString: String): Try[Unit] = Try {
-    val keyfile = checkValid(publicKeyString: String)
+  def lockKeyFile(addressString: String): Try[Unit] = Try {
+    val keyfile = checkValid(addressString: String)
 
     // ensure no duplicate by comparing privKey strings
     val addresses: Set[Address] = secrets.map(sk => sk.publicImage.address)
-    if (!addresses.contains(keyfile.address)) log.warn(s"$publicKeyString is already locked")
+    if (!addresses.contains(keyfile.address)) log.warn(s"$addressString is already locked")
     else secrets -= (secrets find (p => p.publicImage.address == keyfile.address)).get
   }
 
@@ -160,9 +160,9 @@ class Keys[
   private def listKeyFiles: List[KF] =
     Keys.getListOfFiles(defaultKeyDir).map(file => keyfileOps.readFile(file.getPath))
 
-  /** Check if given publicKey string is valid and contained in the key file directory
+  /** Check if given address string is valid and contained in the key file directory
     *
-    * @param address Base58 encoded public key to query
+    * @param address Base58 encoded address to query
     * //@param password        password used to decrypt the keyfile
     * @return the relevant PrivateKey25519 to be processed
     */

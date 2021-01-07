@@ -134,19 +134,19 @@ case class KeyManagementApiRoute(settings: AppSettings, keyManager: ActorRef)
     *
     * | Fields | Data type | Required / Optional | Description |
     * | ---| ---	| --- | --- |
-    * | publicKey | String	| Required | Public key corresponding to an encrypted keyfile in your wallet directory |
+    * | address   | String	| Required | Address corresponding to an encrypted keyfile in your wallet directory |
     * | password  | String	| Required | String used to encrypt the private keyfile that is stored locally |
     *
     * @param params input parameters as specified above
     * @param id     request identifier
-    * @return - Json(publicKey -> unlocked) or an error msg.
+    * @return - Json(address -> unlocked) or an error msg.
     */
   private def unlockKeyfile(params: Json, id: String): Future[Json] = {
-    val publicKey: String = (params \\ "publicKey").head.asString.get
+    val address: String = (params \\ "address").head.asString.get
     val password: String = (params \\ "password").head.asString.get
 
-    (keyManager ? UnlockKeyFile(publicKey, password)).mapTo[Try[Unit]].map {
-      case Success(_) => Map(publicKey -> "unlocked".asJson).asJson
+    (keyManager ? UnlockKeyFile(address, password)).mapTo[Try[Unit]].map {
+      case Success(_) => Map(address -> "unlocked".asJson).asJson
       case Failure(ex) => throw new Error(s"An error occurred while trying to unlock the keyfile. $ex")
     }
   }
@@ -160,18 +160,18 @@ case class KeyManagementApiRoute(settings: AppSettings, keyManager: ActorRef)
     * #### Params
     * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
     * |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
-    * | publicKey               	| String    	| Required            	| Public key corresponding to an encrypted keyfile in your wallet directory |
+    * | address              	    | String    	| Required            	| Address corresponding to an encrypted keyfile in your wallet directory |
     * | password                	| String    	| Required            	| String used to encrypt the private keyfile that is stored locally         |
     *
     * @param params input parameters as specified above
     * @param id     request identifier
-    * @return - Json(publicKey -> locked) or an error msg.
+    * @return - Json(address -> locked) or an error msg.
     */
   private def lockKeyfile(params: Json, id: String): Future[Json] = {
-    val publicKey: String = (params \\ "publicKey").head.asString.get
+    val address: String = (params \\ "address").head.asString.get
 
-    (keyManager ? LockKeyFile(publicKey)).mapTo[Try[Unit]].map {
-      case Success(_) => Map(publicKey -> "locked".asJson).asJson
+    (keyManager ? LockKeyFile(address)).mapTo[Try[Unit]].map {
+      case Success(_) => Map(address -> "locked".asJson).asJson
       case Failure(ex) => throw new Error(s"An error occurred while trying to lock the keyfile. $ex")
     }
   }

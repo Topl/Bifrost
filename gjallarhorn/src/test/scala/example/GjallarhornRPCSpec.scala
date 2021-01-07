@@ -179,6 +179,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
         case Right(res: Json) =>
           (res \\ "error").isEmpty shouldBe true
           prototypeTx = (res \\ "rawTx").head
+          print("arbit tx: " + prototypeTx)
           msgToSign = (res \\ "messageToSign").head.asString.get
           ((res \\ "result").head \\ "rawTx").head.asObject.isDefined shouldBe true
       }
@@ -213,8 +214,8 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       }
     }
   }
-/*
-  //TODO: broadcasting assetTx does not work.
+
+  /*//TODO: broadcasting assetTx does not work.
   it should "successfully broadcast a tx" in {
     val rqstString =
       s"""

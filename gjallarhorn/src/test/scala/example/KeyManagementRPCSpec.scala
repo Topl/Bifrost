@@ -46,13 +46,13 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
 
   val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))
     .mapTo[Try[Address]], 10.seconds) match {
-    case Success(pubKey) => pubKey
+    case Success(addr) => addr
     case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
 
   val pk2: Address = Await.result((keyManagerRef ? GenerateKeyFile("password2", None))
     .mapTo[Try[Address]], 10.seconds) match {
-    case Success(pubKey) => pubKey
+    case Success(addr) => addr
     case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
 
@@ -157,7 +157,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
          |   "id": "2",
          |   "method": "wallet_lockKeyfile",
          |   "params": [{
-         |      "publicKey": "$generatedKeyAddr"
+         |      "address": "$generatedKeyAddr"
          |   }]
          |}
          """.stripMargin)
@@ -206,7 +206,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
          |   "id": "2",
          |   "method": "wallet_unlockKeyfile",
          |   "params": [{
-         |      "publicKey": "$generatedKeyAddr",
+         |      "address": "$generatedKeyAddr",
          |      "password": "foo"
          |   }]
          |}

@@ -34,9 +34,9 @@ class KeyManager(keyFileDir: String) extends Actor with Logging {
     case ImportKeyfile(password: String, mnemonic: String, lang: String) =>
       shareNewKey(keyRing.importPhrase(password, mnemonic, lang), sender())
 
-    case UnlockKeyFile(pubKeyString, password) => sender ! keyRing.unlockKeyFile(pubKeyString, password)
+    case UnlockKeyFile(addressString, password) => sender ! keyRing.unlockKeyFile(addressString, password)
 
-    case LockKeyFile(pubKeyString) => sender ! keyRing.lockKeyFile(pubKeyString)
+    case LockKeyFile(addressString) => sender ! keyRing.lockKeyFile(addressString)
 
     case GetOpenKeyfiles => sender ! keyRing.addresses
 
@@ -101,8 +101,8 @@ class KeyManager(keyFileDir: String) extends Actor with Logging {
 object KeyManager {
   case class GenerateKeyFile(password: String, seedOpt: Option[String])
   case class ImportKeyfile(password: String, mnemonic: String, lang: String)
-  case class UnlockKeyFile(publicKeyString: String, password: String)
-  case class LockKeyFile(publicKeyString: String)
+  case class UnlockKeyFile(addressString: String, password: String)
+  case class LockKeyFile(addressString: String)
   case object GetOpenKeyfiles
   case object GetAllKeyfiles
   case class SignTx(transaction: Json, signingKeys: List[String], messageToSign: Json)
