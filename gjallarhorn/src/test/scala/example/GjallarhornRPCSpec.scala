@@ -119,14 +119,10 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |     "method": "topl_rawAssetTransfer",
          |     "params": [{
          |        "propositionType": "PublicKeyCurve25519",
-         |        "recipients": [
-         |              ["$pk1", {
-         |                  "type": "Asset",
-         |                  "quantity": $amount,
-         |                  "assetCode": "${AssetCode(pk1, "test").toString}"
-         |                }
-         |              ]
-         |        ],
+         |        "recipients": ["$pk1"],
+         |        "amount": $amount,
+         |        "issuer": "$pk1",
+         |        "shortName": "test",
          |        "sender": ["$pk1"],
          |        "changeAddress": "$pk1",
          |        "minting": true,

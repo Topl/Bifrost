@@ -3,7 +3,7 @@ package http
 import akka.actor.{ActorNotFound, ActorRef, ActorRefFactory, ActorSystem, PoisonPill, Props}
 import akka.pattern.ask
 import attestation.Address
-import crypto.TokenValueHolder
+import crypto.{AssetCode, AssetValue, TokenValueHolder}
 import requests.{ApiRoute, Requests, RequestsManager}
 import io.circe.Json
 import io.circe.syntax._
@@ -13,11 +13,12 @@ import utils.Logging
 import wallet.WalletManager
 import wallet.WalletManager.{GetNetwork, GetWallet, GjallarhornStarted, GjallarhornStopped, KeyManagerReady}
 
+import scala.collection.mutable
 import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 case class GjallarhornBifrostApiRoute(settings: AppSettings,
                                       keyManager: ActorRef,
@@ -166,6 +167,28 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
     }
   }
 
+  private def createAssetCode(params: Json): Json = {
+    (for {
+      rcpts <- (params \\ "recipients").head.as[IndexedSeq[Address]]
+      quantity <- (params \\ "amount").head.as[Long]
+      issuer <- (params \\ "issuer").head.as[Address]
+      shortName <- (params \\ "shortName").head.as[String]
+    } yield {
+      Try(AssetCode(issuer, shortName)) match {
+        case Success(assetCode) =>
+          val recipients: IndexedSeq[(Address, AssetValue)] = rcpts.map(addr =>
+            (addr, AssetValue(quantity, assetCode))
+          ).toIndexedSeq
+          params.deepMerge(Map("recipients" -> recipients).asJson)
+        case Failure(exception) =>
+          throw new Exception(s"Unable to generate asset code: $exception")
+      }
+    }) match {
+      case Right(value) => value
+      case Left(ex) => throw new Exception(s"error parsing signing keys: $ex")
+    }
+  }
+
   /** #### Summary
     * Create Transaction
     *
@@ -194,7 +217,12 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
       online <- (innerParams \\ "online").head.as[Boolean]
       sender <- (innerParams \\ "sender").head.as[IndexedSeq[Address]]
     } yield {
-      val tx = requests.transaction(method, innerParams)
+      var params = innerParams
+      if (method == "topl_rawAssetTransfer") {
+        params = createAssetCode(innerParams)
+        println("create asset: " + params)
+      }
+      val tx = requests.transaction(method, params)
       if (online) {
         val txResponse = requests.sendRequest(tx)
         val rawTx = (txResponse \\ "rawTx").head
