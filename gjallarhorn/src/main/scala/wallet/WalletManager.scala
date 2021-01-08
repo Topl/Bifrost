@@ -10,7 +10,7 @@ import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
 import utils.Logging
 import cats.syntax.show._
-import keymanager.KeyManager.GetOpenKeyfiles
+import keymanager.KeyManager.{GetAllKeyfiles}
 import keymanager.networkPrefix
 
 import scala.collection.mutable.{Map => MMap}
@@ -32,7 +32,6 @@ class WalletManager(bifrostActorRef: ActorRef)
   var connectedToBifrost: Boolean = false
   private var keyManagerRef: Option[ActorRef] = None
 
-  //TODO: the keys should be address instead of string.
   //Represents the wallet boxes: as a mapping of addresses to a map of its id's mapped to walletBox.
   //Ex: address1 -> {id1 -> walletBox1, id2 -> walletBox2, ...}, address2 -> {},...
   var walletBoxes: MMap[Address, MMap[String, Json]] = MMap.empty
@@ -81,8 +80,8 @@ class WalletManager(bifrostActorRef: ActorRef)
       * tells Bifrost (WCH) which keys to watch and Bifrost responds with the current balances of the keys.
       */
     case KeyManagerReady(keyMngrRef) =>
-      val addresses = Await.result((keyMngrRef ? GetOpenKeyfiles)
-        .mapTo[Set[Address]], 10.seconds)
+      val addresses: Set[Address] = Await.result((keyMngrRef ? GetAllKeyfiles)
+        .mapTo[Map[Address,String]].map(_.keySet), 10.seconds)
       keyManagerRef = Some(keyMngrRef)
       initializeWalletBoxes(addresses)
       if (addresses.nonEmpty) {
