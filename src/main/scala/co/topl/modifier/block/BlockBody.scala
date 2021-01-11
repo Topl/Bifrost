@@ -1,5 +1,6 @@
 package co.topl.modifier.block
 
+import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.transaction.Transaction
@@ -31,7 +32,7 @@ object BlockBody {
     ).asJson
   }
 
-  implicit val jsonDecoder: Decoder[BlockBody] = (c: HCursor) =>
+  implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[BlockBody] = (c: HCursor) =>
     for {
       id <- c.downField("id").as[ModifierId]
       parentId <- c.downField("parentId").as[ModifierId]

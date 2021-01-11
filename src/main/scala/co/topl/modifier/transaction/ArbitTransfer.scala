@@ -10,6 +10,8 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 import java.time.Instant
 
+import co.topl.attestation.AddressEncoder.NetworkPrefix
+
 import scala.util.Try
 
 case class ArbitTransfer[
@@ -95,7 +97,7 @@ object ArbitTransfer {
     ).asJson
   }
 
-  implicit def jsonDecoder: Decoder[ArbitTransfer[_ <: Proposition]] =
+  implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[ArbitTransfer[_ <: Proposition]] =
     (c: HCursor) =>
       for {
         from      <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
