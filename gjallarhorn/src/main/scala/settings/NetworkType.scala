@@ -13,6 +13,8 @@ object NetworkType {
 
   def fromString(name: String): Option[NetworkType] = all.find(_.verboseName == name)
 
+  def fromPrefix(prefix: NetworkPrefix): Option[NetworkType] = all.find(_.netPrefix == prefix)
+
   /**
     * Creates a usable instance of the network type during application initialization
     *

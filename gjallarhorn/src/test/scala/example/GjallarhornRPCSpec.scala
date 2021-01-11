@@ -12,7 +12,6 @@ import http.{GjallarhornBifrostApiRoute, GjallarhornOnlyApiRoute, HttpService}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import attestation.Address
 import attestation.AddressEncoder.NetworkPrefix
-import crypto.AssetCode
 import io.circe.Json
 import io.circe.syntax._
 import io.circe.parser.parse
@@ -45,7 +44,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 
   override def createActorSystem(): ActorSystem = ActorSystem("gjallarhornTest", config)
 
-  val keyFileDir = "keyfiles/keyManagerTest"
+  val keyFileDir = "keyfiles/gjallarhornRPCTest"
   val path: Path = Path(keyFileDir)
   Try(path.deleteRecursively())
   Try(path.createDirectory())

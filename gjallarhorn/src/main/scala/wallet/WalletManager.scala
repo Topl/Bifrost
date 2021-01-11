@@ -10,7 +10,7 @@ import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
 import utils.Logging
 import cats.syntax.show._
-import keymanager.KeyManager.{GetAllKeyfiles}
+import keymanager.KeyManager.GetAllKeyfiles
 import keymanager.networkPrefix
 
 import scala.collection.mutable.{Map => MMap}

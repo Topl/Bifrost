@@ -7,6 +7,7 @@ import com.google.common.primitives.Ints
 import attestation.AddressEncoder.NetworkPrefix
 import scorex.util.Random.randomBytes
 import scorex.crypto.hash.Blake2b256
+import settings.NetworkType
 import utils.Logging
 
 import scala.collection.mutable.{Map => MMap}
@@ -130,13 +131,30 @@ class Keys[
       sk._2.address
     }
 
+  /**
+    * Returns the directory for the current network
+    * @return
+    */
+  private def getNetworkDir: File = {
+    val networkName: String = NetworkType.fromPrefix(networkPrefix) match {
+      case Some(network) => network.verboseName
+      case None => throw new Error("The network prefix does not match any of the network types!")
+    }
+    new File(s"${defaultKeyDir.getAbsolutePath}/$networkName")
+  }
+
   /** @param address - address for keyfile to export
     * @param password - password for keyfile to export
     * @return
     */
   def exportKeyfile(address: Address, password: String): Try[Unit] = Try {
     secretByAddress(address) match {
-      case Some(sk) => keyfileOps.saveToDisk(defaultKeyDir.getAbsolutePath, password, sk)
+      case Some(sk) =>
+        val networkDir = getNetworkDir
+        if (!networkDir.exists()) {
+          networkDir.mkdirs()
+        }
+        keyfileOps.saveToDisk(networkDir.getAbsolutePath, password, sk)
       case _        => Failure(new Error("Unable to find a matching secret in the key ring"))
     }
   }
@@ -146,19 +164,24 @@ class Keys[
     secrets.find(_.publicImage.address == addr)
   }
 
+  /**
+    * Returns a map of address to "locked" or "unlocked"
+    * @return
+    */
   def listKeyFilesAndStatus: Map[Address, String] = {
     val unlocked: Set[Address] = secrets.map(_.publicImage.address)
     val map: MMap[Address, String] = MMap.empty
-    listKeyFiles.map(_.address).filter(_.networkPrefix == networkPrefix).foreach(addr =>
+    listKeyFiles.map(_.address).foreach(addr =>
       if (unlocked.contains(addr)) map.put(addr, "unlocked")
       else map.put(addr, "locked")
     )
     map.toMap
   }
 
-  /** Return a list of KeyFile instances for all keys in the key file directory */
-  private def listKeyFiles: List[KF] =
-    Keys.getListOfFiles(defaultKeyDir).map(file => keyfileOps.readFile(file.getPath))
+  /** Return a list of KeyFile instances for all keys in the key file directory for the current network*/
+  private def listKeyFiles: List[KF] = {
+    Keys.getListOfFiles(getNetworkDir).map(file => keyfileOps.readFile(file.getPath))
+  }
 
   /** Check if given address string is valid and contained in the key file directory
     *
@@ -173,10 +196,6 @@ class Keys[
 
     require(keyfile.size == 1, s"Cannot find a unique matching keyfile in $defaultKeyDir")
     keyfile.head
-/*    keyfileOps.decryptSecret(keyfile.head, password) match {
-      case Success(sk) => sk
-      case Failure(e)  => throw new Exception(s"Wrong password: $e")
-    }*/
   }
 }
 
