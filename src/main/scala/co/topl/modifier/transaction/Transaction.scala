@@ -82,15 +82,15 @@ object Transaction {
     case tx: AssetTransfer[_]   => AssetTransfer.jsonEncoder(tx)
   }
 
-  implicit def jsonDecoder: Decoder[TX] = { c: HCursor =>
+  implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[TX] = { c: HCursor =>
     c.downField("txType").as[String].map {
 //      case "CodeCreation"           => CodeCreation.jsonDecoder(c)
 //      case "ProgramCreation"        => ProgramCreation.jsonDecoder(c)
 //      case "ProgramMethodExecution" => ProgramMethodExecution.jsonDecoder(c)
 //      case "ProgramTransfer"        => ProgramTransfer.jsonDecoder(c)
-      case PolyTransfer.typeString           => PolyTransfer.jsonDecoder(c)
-      case ArbitTransfer.typeString          => ArbitTransfer.jsonDecoder(c)
-      case AssetTransfer.typeString          => AssetTransfer.jsonDecoder(c)
+      case PolyTransfer.typeString           => PolyTransfer.jsonDecoder(networkPrefix)(c)
+      case ArbitTransfer.typeString          => ArbitTransfer.jsonDecoder(networkPrefix)(c)
+      case AssetTransfer.typeString          => AssetTransfer.jsonDecoder(networkPrefix)(c)
     } match {
       case Right(tx) => tx
       case Left(ex)  => throw ex

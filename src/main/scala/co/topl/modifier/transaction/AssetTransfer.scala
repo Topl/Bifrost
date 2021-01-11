@@ -2,6 +2,7 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
+import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation._
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.TransferTransaction.BoxParams
@@ -107,7 +108,7 @@ object AssetTransfer {
     ).asJson
   }
 
-  implicit def jsonDecoder: Decoder[AssetTransfer[_ <: Proposition]] =
+  implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[AssetTransfer[_ <: Proposition]] =
     (c: HCursor) =>
       for {
         from      <- c.downField("from").as[IndexedSeq[(Address, Long)]]
