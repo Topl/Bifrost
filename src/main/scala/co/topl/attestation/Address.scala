@@ -50,12 +50,6 @@ object Address extends BifrostSerializer[Address] {
   implicit def jsonKeyDecoder(implicit networkPrefix: NetworkPrefix): KeyDecoder[Address] =
     (str: String) => Some(apply(networkPrefix)(str))
 
-  def apply(addrStr: String): Address =
-    AddressEncoder.fromStringUnsafe(addrStr) match {
-      case Success(addr) => addr
-      case Failure(ex)   => throw ex
-    }
-
   def apply(networkPrefix: NetworkPrefix)(addrStr: String): Address =
     AddressEncoder.fromStringWithCheck(addrStr, networkPrefix) match {
       case Success(addr) => addr
