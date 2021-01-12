@@ -94,7 +94,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   // Create and register controllers for API routes
   private val apiRoutes: Seq[ApiEndpoint] = Seq(
     UtilsApiEndpoint(settings.rpcApi, appContext),
-    KeyManagementApiEndpoint(settings.rpcApi, appContext, forgerRef),
+    AdminApiEndpoint(settings.rpcApi, appContext, forgerRef),
     NodeViewApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef),
     TransactionApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef),
     DebugApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef, forgerRef)
