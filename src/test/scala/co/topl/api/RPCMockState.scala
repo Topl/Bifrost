@@ -53,7 +53,7 @@ trait RPCMockState extends AnyWordSpec
 
   private val apiRoutes: Seq[ApiEndpoint] = Seq(
     UtilsApiEndpoint(rpcSettings.rpcApi, appContext),
-    KeyManagementApiEndpoint(rpcSettings.rpcApi, appContext, forgerRef),
+    AdminApiEndpoint(rpcSettings.rpcApi, appContext, forgerRef),
     NodeViewApiEndpoint(rpcSettings.rpcApi, appContext, nodeViewHolderRef),
     TransactionApiEndpoint(rpcSettings.rpcApi, appContext, nodeViewHolderRef),
     DebugApiEndpoint(rpcSettings.rpcApi, appContext, nodeViewHolderRef, forgerRef)
