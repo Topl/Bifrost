@@ -60,6 +60,7 @@ object AssetCode extends BifrostSerializer[AssetCode] {
     val version = r.getByte()
     val issuer = Address.parse(r)
     val shortName = r.getByteString()
+    require(version == 1: Byte, "AssetCode version required to be 1")
     new AssetCode(version, issuer, shortName)
   }
 }
