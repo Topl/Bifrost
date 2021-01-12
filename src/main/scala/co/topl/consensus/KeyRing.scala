@@ -147,7 +147,7 @@ class KeyRing[
     */
   private def checkValid(address: String, password: String): S = {
     val keyfile = listKeyFiles.filter {
-      _.address == Address(address)
+      _.address == Address(networkPrefix)(address)
     }
 
     assert(keyfile.size == 1, s"Cannot find a unique matching keyfile in $defaultKeyDir")
