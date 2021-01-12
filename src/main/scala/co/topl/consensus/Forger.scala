@@ -334,14 +334,17 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
             case Failure(ex) =>
               log.debug(
                 s"${Console.RED}Transaction ${tx.id} failed semantic validation. " +
-                  s"Transaction will be removed.${Console.RESET} Failure: $ex"
-              )
+                  s"Transaction will be removed.${Console.RESET} Failure: $ex")
               PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ tx)
           }
+        } else if (!boxNotAlreadyUsed) {
+          log.debug(s"${Console.RED}Transaction ${tx.id} was rejected from forger transaction queue" +
+            s" because a box was used already in a previous transaction. The transaction will be removed.")
+          PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ tx)
         } else {
           log.debug(s"${Console.RED}Transaction ${tx.id} was rejected from the forger transaction queue" +
-            s"and will be removed."
-          )
+            s" because a box was used already in a previous transaction, and a newly created" +
+            s" box already exists. The transaction will be removed.")
           PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ tx)
         }
       }
