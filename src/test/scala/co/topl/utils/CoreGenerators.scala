@@ -135,11 +135,14 @@ trait CoreGenerators extends Logging {
     evidence <- evidenceGen
     nonce <- positiveLongGen
     quantity <- positiveLongGen
-    assetVersion <- Arbitrary.arbitrary[Byte]
+    // TODO: Hard coded as 1, but change this to arbitrary in the future
+    //assetVersion <- Arbitrary.arbitrary[Byte]
     shortName <- shortNameGen
     issuer <- addressGen
     data <- stringGen
   } yield {
+    // TODO: Hard coded as 1, but change this to arbitrary in the future
+    assetVersion = 1: Byte
     val assetCode = AssetCode(assetVersion, issuer, shortName)
     val value = AssetValue(quantity, assetCode, metadata = Some(data))
     AssetBox(evidence, nonce, value)
