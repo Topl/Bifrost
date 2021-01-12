@@ -135,11 +135,12 @@ trait CoreGenerators extends Logging {
     evidence <- evidenceGen
     nonce <- positiveLongGen
     quantity <- positiveLongGen
+    assetVersion <- Arbitrary.arbitrary[Byte]
     shortName <- shortNameGen
     issuer <- addressGen
     data <- stringGen
   } yield {
-    val assetCode = AssetCode(issuer, shortName)
+    val assetCode = AssetCode(assetVersion, issuer, shortName)
     val value = AssetValue(quantity, assetCode, metadata = Some(data))
     AssetBox(evidence, nonce, value)
   }
@@ -248,12 +249,13 @@ trait CoreGenerators extends Logging {
 
   //TODO create optional data to test cases for None or Some
   lazy val assetToGen: Gen[(Address, AssetValue)] = for {
+    assetVersion <- Arbitrary.arbitrary[Byte]
     issuer <- addressGen
     shortName <- shortNameGen
     quantity <- positiveLongGen
     data <- stringGen
   } yield {
-    val assetCode = AssetCode(issuer, shortName)
+    val assetCode = AssetCode(assetVersion, issuer, shortName)
     val assetValue = AssetValue(quantity, assetCode, metadata = Some(data))
     (issuer, assetValue)
   }

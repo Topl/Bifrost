@@ -14,7 +14,7 @@ import scala.util.{Failure, Success}
 
 /** AssetCode serves as a unique identifier for user issued assets
   */
-case class AssetCode private (version: AssetCodeVersion, issuer: Address, shortName: String) extends BytesSerializable {
+case class AssetCode (version: AssetCodeVersion, issuer: Address, shortName: String) extends BytesSerializable {
 
   require(
     shortName.getBytes(StandardCharsets.UTF_8).length <= AssetCode.shortNameLimit,
