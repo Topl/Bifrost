@@ -220,7 +220,6 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
       var params = innerParams
       if (method == "topl_rawAssetTransfer") {
         params = createAssetCode(innerParams)
-        println("create asset: " + params)
       }
       val tx = requests.transaction(method, params)
       if (online) {

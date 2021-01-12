@@ -16,7 +16,7 @@ import io.circe.Json
 import io.circe.syntax._
 import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
-import keymanager.KeyManager.{GenerateKeyFile, GetAllKeyfiles, GetOpenKeyfiles}
+import keymanager.KeyManager.{GenerateKeyFile, GetAllKeyfiles}
 import keymanager.{Bip39, KeyManagerRef}
 import requests.{ApiRoute, Requests}
 
@@ -267,6 +267,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
         case Left(f) => throw f
         case Right(res: Json) =>
           (res \\ "error").isEmpty shouldBe true
+          println("raw poly tx: " + (res \\ "result").head)
           (res \\ "result").head.asObject.isDefined shouldBe true
       }
     }
