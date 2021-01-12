@@ -1,14 +1,40 @@
 package co.topl.utils
 
+import co.topl.attestation.{PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
+import co.topl.consensus.KeyRing
+import co.topl.consensus.genesis.PrivateTestnet
+import co.topl.crypto.KeyfileCurve25519
+import co.topl.modifier.ModifierId
+import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction._
+import co.topl.nodeView.history.History
+import co.topl.nodeView.state.State
+import co.topl.nodeView.state.box.{AssetCode, AssetValue, SecurityRoot}
 import co.topl.program._
+import co.topl.settings.{AppSettings, RuntimeOpts}
 import io.circe.syntax._
 import org.scalacheck.Gen
 import scorex.crypto.hash.Blake2b256
 
+import scala.util.{Failure, Success}
+
 trait ValidGenerators extends CoreGenerators {
+
+
+  val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
+    KeyRing(settings.application.keyFileDir.get, KeyfileCurve25519)
+
+  val genesisBlock: Block = PrivateTestnet((_: Int, _: Option[String]) => {
+    keyRing.generateNewKeyPairs(num = 3) match {
+      case Success(keys) => keys.map(_.publicImage)
+      case Failure(ex)   => throw ex
+    } }, settings, RuntimeOpts.empty).getGenesisBlock.get._1
+
+  val genesisBlockId: ModifierId = genesisBlock.id
+
+  val state: State = genesisState(settings)
 
   lazy val validBifrostTransactionSeqGen: Gen[Seq[TX]] = for {
     seqLen <- positiveMediumIntGen
@@ -78,26 +104,33 @@ trait ValidGenerators extends CoreGenerators {
     AssetTransfer(from, to, attestation, fee, timestamp, Some(data), minting = true)
   }
 
-  /*
-  lazy val validAssetCreationGen: Gen[AssetCreation] = for {
-    _ <- toSeqGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    issuer <- keyPairSetGen
-    assetCode <- stringGen
-    data <- stringGen
-  } yield {
-    val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
-    val to = IndexedSeq((toKeyPairs._2, 4L))
-
-    val oneHub = issuer.head
-
-    val messageToSign = AssetCreation(to, Map(), assetCode, oneHub._2, fee, timestamp, data).messageToSign
-
-    val signatures = Map(oneHub._2 -> oneHub._1.sign(messageToSign))
-
-    AssetCreation(to, signatures, assetCode, oneHub._2, fee, timestamp, data)
+  def genesisState(settings: AppSettings, genesisBlockWithVersion: Block = genesisBlock): State = {
+    History.readOrGenerate(settings).append(genesisBlock)
+    State.genesisState(settings, Seq(genesisBlockWithVersion))
   }
-   */
+
+  def validAssetTransfer(keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+                         state: State
+                        ): Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = {
+    val sender = keyRing.addresses.head
+    val prop = keyRing.lookupPublicKey(sender).get
+    val asset = AssetValue(1, AssetCode(sender, "test"), SecurityRoot.empty)
+    val recipients = IndexedSeq((sender, asset))
+    val fee = 1
+    val rawTx = AssetTransfer.createRaw(
+      state,
+      recipients,
+      IndexedSeq(sender),
+      changeAddress = sender,
+      None,
+      fee,
+      data = None,
+      minting = true
+    ).get
+
+    val sig = keyRing.signWithAddress(sender, rawTx.messageToSign).get
+    val tx = rawTx.copy(attestation = Map(prop -> sig))
+    tx
+  }
 }
 

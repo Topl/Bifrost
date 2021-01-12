@@ -12,15 +12,15 @@ import http.{GjallarhornBifrostApiRoute, GjallarhornOnlyApiRoute, HttpService}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import attestation.Address
 import attestation.AddressEncoder.NetworkPrefix
+import crypto.AssetCode
 import io.circe.Json
-import io.circe.syntax._
 import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
 import keymanager.KeyManager.{GenerateKeyFile, GetAllKeyfiles}
 import keymanager.{Bip39, KeyManagerRef}
 import requests.{ApiRoute, Requests}
 
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.reflect.io.Path
 import scala.util.{Failure, Success, Try}
@@ -107,6 +107,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     }
   }
 
+  val assetCode: AssetCode = AssetCode(pk1, "test")
   it should "succesfully create an asset" in {
     val createAssetRequest = ByteString(
       s"""
@@ -145,42 +146,6 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     }
   }
 
-  it should "succesfully create a raw arbit tx" in {
-    val createAssetRequest = ByteString(
-      s"""
-         |{
-         |   "jsonrpc": "2.0",
-         |   "id": "2",
-         |   "method": "onlineWallet_createTransaction",
-         |   "params": [{
-         |     "method": "topl_rawArbitTransfer",
-         |     "params": [{
-         |        "propositionType": "PublicKeyCurve25519",
-         |        "recipients": [["$pk1", $amount]],
-         |        "sender": ["$pk1"],
-         |        "changeAddress": "$pk1",
-         |        "fee": 1,
-         |        "data": "",
-         |        "online": false
-         |     }]
-         |   }]
-         |}
-       """.stripMargin)
-
-    httpPOST(createAssetRequest) ~> route ~> check {
-      val responseString = responseAs[String].replace("\\", "")
-      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
-        case Left(f) => throw f
-        case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          prototypeTx = (res \\ "rawTx").head
-          print("arbit tx: " + prototypeTx)
-          msgToSign = (res \\ "messageToSign").head.asString.get
-          ((res \\ "result").head \\ "rawTx").head.asObject.isDefined shouldBe true
-      }
-    }
-  }
-
   var signedTx: Json = Json.Null
 
   it should "successfully sign a transaction" in {
@@ -210,7 +175,6 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     }
   }
 
-  /*//TODO: broadcasting assetTx does not work.
   it should "successfully broadcast a tx" in {
     val rqstString =
       s"""
@@ -232,12 +196,45 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          println("broadcast response: " + res)
           (res \\ "error").isEmpty shouldBe true
           (res \\ "result").head.asObject.isDefined shouldBe true
       }
     }
-  }*/
+  }
+
+  it should "succesfully create online arbit tx" in {
+    Thread.sleep(10000)
+    val createAssetRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "onlineWallet_createTransaction",
+         |   "params": [{
+         |     "method": "topl_rawArbitTransfer",
+         |     "params": [{
+         |        "propositionType": "PublicKeyCurve25519",
+         |        "recipients": [["$pk2", $amount]],
+         |        "sender": ["$pk1"],
+         |        "changeAddress": "$pk1",
+         |        "fee": 1,
+         |        "data": "",
+         |        "online": true
+         |     }]
+         |   }]
+         |}
+       """.stripMargin)
+
+    httpPOST(createAssetRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          (res \\ "result").head.asObject.isDefined shouldBe true
+      }
+    }
+  }
 
   it should "successfully create raw poly tx" in {
     val createPolyRequest = ByteString(
@@ -267,13 +264,13 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
         case Left(f) => throw f
         case Right(res: Json) =>
           (res \\ "error").isEmpty shouldBe true
-          println("raw poly tx: " + (res \\ "result").head)
           (res \\ "result").head.asObject.isDefined shouldBe true
       }
     }
   }
 
   it should "successfully send online poly tx" in {
+    Thread.sleep(10000)
     val createPolyRequest = ByteString(
       s"""
          |{
@@ -324,16 +321,28 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
           case Left(f) => throw f
           case Right(res: Json) =>
             (res \\ "error").isEmpty shouldBe true
-            println("balance response: " + (res \\ "result"))
+
+            //pk1 should have fewer polys now
             (((res \\ "result").head \\ pk1.toString).head \\ "PolyBox").head.asNumber.get.toLong match {
               case Some(number) => number < 1000000 shouldBe true
-              case None => println("balance is not a long")
+              case None => throw new Error ("balance is not a long")
+            }
+
+            (((res \\ "result").head \\ pk1.toString).head \\ assetCode.toString).head.asNumber.get.toLong match {
+              case Some(number) => number == amount shouldBe true
+              case None => throw new Error ("balance is not a long")
             }
 
             (((res \\ "result").head \\ pk2.toString).head \\ "PolyBox").head.asNumber.get.toLong match {
               case Some(number) => number == amount shouldBe true
-              case None => println("balance is not a long")
+              case None => throw new Error ("balance is not a long")
             }
+
+            (((res \\ "result").head \\ pk2.toString).head \\ "ArbitBox").head.asNumber.get.toLong match {
+              case Some(number) => number == amount shouldBe true
+              case None => throw new Error ("balance is not a long")
+            }
+
             (res \\ "result").head.asObject.isDefined shouldBe true
         }
       }
@@ -366,7 +375,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 
   it should "successfuly generate a new key and send poly" in {
     val phraseTranslator = Bip39.apply("en")
-    val (seed, phrase) = phraseTranslator.uuidSeedPhrase(java.util.UUID.randomUUID.toString)
+    val seed = phraseTranslator.uuidSeedPhrase(java.util.UUID.randomUUID.toString)._1
     newAddr = Await.result((keyManagerRef ? GenerateKeyFile("password3", Some(seed)))
       .mapTo[Try[Address]], 10.seconds) match {
         case Success(pubKey) => pubKey

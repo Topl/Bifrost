@@ -12,7 +12,11 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.Block.Timestamp
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{EliminateTransactions, GetDataFromCurrentView, LocallyGeneratedModifier}
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{
+  EliminateTransactions,
+  GetDataFromCurrentView,
+  LocallyGeneratedModifier
+}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
@@ -199,7 +203,6 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
     )
 
     try {
-      println("reward addr: " + rewardAddress.get)
       val rewardAddr = rewardAddress.getOrElse(throw new Error("No rewards address specified"))
 
       // get the set of boxes to use for testing
@@ -218,16 +221,12 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
       }
 
       // pick the transactions from the mempool for inclusion in the block (if successful)
-      val txs = pickTransactions(memPool, state, history.height)
-      println("transactions: " + txs)
-      val transactions  = txs match {
+      val transactions = pickTransactions(memPool, state, history.height) match {
         case Success(res) =>
           if (res.toEliminate.nonEmpty) nodeViewHolderRef.foreach(_ ! EliminateTransactions(res.toEliminate.map(_.id)))
           res.toApply
 
-        case Failure(ex) =>
-          println("pick transaction unsuccessful")
-          throw ex
+        case Failure(ex) => throw ex
       }
 
       // create the unsigned fee reward transaction
@@ -317,34 +316,33 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
     * @return a sequence of valid transactions
     */
   private def pickTransactions(memPool: MemPool, state: State, chainHeight: Long): Try[PickTransactionsResult] = Try {
-    println("in pick transaction")
+
     memPool
       .take(numTxInBlock(chainHeight))
       .filter(_.fee > 0) // default strategy ignores zero fee transactions in mempool
       .foldLeft(PickTransactionsResult(Seq(), Seq())) { case (txAcc, tx) =>
         // ensure that each transaction opens a unique box by checking that this transaction
         // doesn't open a box already being opened by a previously included transaction
-        val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.toApply.flatMap(_.boxIdsToOpen).contains(id))
+        val boxNotAlreadyUsed = tx.boxIdsToOpen.forall(id => !txAcc.toApply.flatMap(_.boxIdsToOpen).contains(id))
 
         // if any newly created box matches a box already in the UTXO set, remove the transaction
-        val outputBoxExists = tx.newBoxes.exists(b => state.getBox(b.id).isDefined)
-        println("in case")
-        state.semanticValidate(tx) match {
-          case Success(_) if txNotIncluded =>
-            println("in first success")
-            val result = PickTransactionsResult(txAcc.toApply :+ tx, txAcc.toEliminate)
-            println("pick tx result: " + result)
-            result
-          case Success(_) if outputBoxExists => PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ tx)
-          case Success(_) =>
-            println("third success")
-            PickTransactionsResult(Seq(), Seq())
-          case Failure(ex) =>
-            log.debug(
-              s"${Console.RED}Transaction ${tx.id} failed semantic validation. " +
-                s"Transaction will be removed.${Console.RESET} Failure: $ex"
-            )
-            PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ tx)
+        val boxAlreadyExists = tx.newBoxes.exists(b => state.getBox(b.id).isDefined)
+
+        if (boxNotAlreadyUsed && !boxAlreadyExists) {
+          state.semanticValidate(tx) match {
+            case Success(_) => PickTransactionsResult(txAcc.toApply :+ tx, txAcc.toEliminate)
+            case Failure(ex) =>
+              log.debug(
+                s"${Console.RED}Transaction ${tx.id} failed semantic validation. " +
+                  s"Transaction will be removed.${Console.RESET} Failure: $ex"
+              )
+              PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ tx)
+          }
+        } else {
+          log.debug(s"${Console.RED}Transaction ${tx.id} was rejected from the forger transaction queue" +
+            s" and will be removed.${Console.RESET}"
+          )
+          PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ tx)
         }
       }
   }

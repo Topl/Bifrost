@@ -219,7 +219,7 @@ class WalletManager(bifrostActorRef: ActorRef)
     */
   def newBlock(blockMsg: String): Unit = {
     val blockTxs : String = blockMsg.substring("new block added: ".length)
-    log.info(s"Wallet Manager received new block with transactions: $blockTxs")
+    //log.info(s"Wallet Manager received new block with transactions: $blockTxs")
     parseTxsFromBlock(blockTxs)
     newestTransactions = Some(blockTxs)
   }

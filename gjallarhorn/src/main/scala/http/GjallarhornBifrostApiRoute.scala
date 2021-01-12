@@ -301,7 +301,7 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
     *
     * @param params input parameters as specified above
     * @param id     request identifier
-    * @return - mapping of balances (ArbitBox -> #, PolyBox -> #,...)
+    * @return - mapping of balances (ArbitBox -> #, PolyBox -> #, assetcode -> #)
     */
   private def balances(params: Json, id: String): Future[Json] = {
     walletManager match {
@@ -320,6 +320,7 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
             case Some(boxes) =>
               var polyBalance: Long = 0
               var arbitBalance: Long = 0
+              val assetBalance: MMap[String, Long] = MMap.empty
               boxes.foreach(box => {
                 for {
                   boxType <- (box._2 \\ "type").head.as[String]
@@ -329,13 +330,22 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
                     arbitBalance = arbitBalance + value.quantity
                   } else if (boxType == "PolyBox") {
                     polyBalance = polyBalance + value.quantity
+                  } else if (boxType == "AssetBox") {
+                    val assetValue = value.asInstanceOf[AssetValue]
+                    val assetName = assetValue.assetCode.toString
+                    assetBalance.get(assetName) match {
+                      case Some(currBalance) =>
+                        assetBalance.put(assetName, currBalance + assetValue.quantity)
+                      case None =>
+                        assetBalance.put(assetName, assetValue.quantity)
+                    }
                   }
                 }
               })
               assets = MMap(
                 "ArbitBox" -> arbitBalance,
                 "PolyBox" -> polyBalance
-              )
+              ) ++ assetBalance
             case None => null
           }
           balances.put(addr, assets)
