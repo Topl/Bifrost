@@ -142,7 +142,7 @@ trait CoreGenerators extends Logging {
     data <- stringGen
   } yield {
     // TODO: Hard coded as 1, but change this to arbitrary in the future
-    assetVersion = 1: Byte
+    val assetVersion = 1: Byte
     val assetCode = AssetCode(assetVersion, issuer, shortName)
     val value = AssetValue(quantity, assetCode, metadata = Some(data))
     AssetBox(evidence, nonce, value)
@@ -260,7 +260,7 @@ trait CoreGenerators extends Logging {
     data <- stringGen
   } yield {
     // TODO: Hard coded as 1, but change this to arbitrary in the future
-    assetVersion = 1: Byte
+    val assetVersion = 1: Byte
     val assetCode = AssetCode(assetVersion, issuer, shortName)
     val assetValue = AssetValue(quantity, assetCode, metadata = Some(data))
     (issuer, assetValue)
