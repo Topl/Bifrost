@@ -35,7 +35,7 @@ trait CoreGenerators extends Logging {
   type P = Proposition
   type S = Secret
 
-  implicit val networkPrefix: NetworkPrefix = PrivateNet().netPrefix
+  implicit val networkPrefix: NetworkPrefix = PrivateNet.netPrefix
 
   private val settingsFilename = "src/test/resources/test.conf"
   val settings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))

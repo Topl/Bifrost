@@ -152,12 +152,12 @@ case class UtilsApiEndpoint (override val settings: RPCApiSettings, appContext: 
     (params.hcursor.get[Option[String]]("network") match {
         // case if no network specified for query
         case Right(None)     =>
-          val nt = NetworkType.all.find(_.netPrefix == networkPrefix).get
+          val nt = NetworkType.pickNetworkType(networkPrefix).get
           (nt.verboseName, params.hcursor.get[Address]("address"))
 
         // case if a specific network type is being queried
         case Right(Some(networkName)) =>
-          NetworkType.all.find(_.verboseName == networkName) match {
+          NetworkType.pickNetworkType(networkName) match {
             case None => throw new Exception("Invalid network specified")
             case Some(nt) => {
               implicit val networkPrefix = nt.netPrefix
