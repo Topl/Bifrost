@@ -35,7 +35,7 @@ trait CoreGenerators extends Logging {
   type P = Proposition
   type S = Secret
 
-  implicit val networkPrefix: NetworkPrefix = PrivateNet().netPrefix
+  implicit val networkPrefix: NetworkPrefix = PrivateNet.netPrefix
 
   private val settingsFilename = "src/test/resources/test.conf"
   val settings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))
@@ -135,11 +135,15 @@ trait CoreGenerators extends Logging {
     evidence <- evidenceGen
     nonce <- positiveLongGen
     quantity <- positiveLongGen
+    // TODO: Hard coded as 1, but change this to arbitrary in the future
+    //assetVersion <- Arbitrary.arbitrary[Byte]
     shortName <- shortNameGen
     issuer <- addressGen
     data <- stringGen
   } yield {
-    val assetCode = AssetCode(issuer, shortName)
+    // TODO: Hard coded as 1, but change this to arbitrary in the future
+    val assetVersion = 1: Byte
+    val assetCode = AssetCode(assetVersion, issuer, shortName)
     val value = AssetValue(quantity, assetCode, metadata = Some(data))
     AssetBox(evidence, nonce, value)
   }
@@ -248,12 +252,16 @@ trait CoreGenerators extends Logging {
 
   //TODO create optional data to test cases for None or Some
   lazy val assetToGen: Gen[(Address, AssetValue)] = for {
+    // TODO: Hard coded as 1, but change this to arbitrary in the future
+    // assetVersion <- Arbitrary.arbitrary[Byte]
     issuer <- addressGen
     shortName <- shortNameGen
     quantity <- positiveLongGen
     data <- stringGen
   } yield {
-    val assetCode = AssetCode(issuer, shortName)
+    // TODO: Hard coded as 1, but change this to arbitrary in the future
+    val assetVersion = 1: Byte
+    val assetCode = AssetCode(assetVersion, issuer, shortName)
     val assetValue = AssetValue(quantity, assetCode, metadata = Some(data))
     (issuer, assetValue)
   }

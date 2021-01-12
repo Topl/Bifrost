@@ -22,7 +22,7 @@ trait GenesisGenerators extends CoreGenerators
     keyRing.generateNewKeyPairs(num = 3) match {
       case Success(keys) => keys.map(_.publicImage)
       case Failure(ex)   => throw ex
-    } }, settings, RuntimeOpts.empty).getGenesisBlock.get._1
+    } }, settings).getGenesisBlock.get._1
 
   val genesisBlockId: ModifierId = genesisBlock.id
 

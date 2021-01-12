@@ -192,7 +192,7 @@ class WalletConnectionHandler[
         )
         .toSet
 
-      remoteWalletAddresses = Some(keystrings.map(key => Address(key)))
+      remoteWalletAddresses = Some(keystrings.map(key => Address(networkPrefix)(key)))
     }
   }
 }

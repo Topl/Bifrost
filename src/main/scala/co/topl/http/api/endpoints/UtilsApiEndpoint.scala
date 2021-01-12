@@ -15,6 +15,8 @@ import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 import java.security.SecureRandom
 
+import co.topl.nodeView.state.box.AssetCode.AssetCodeVersion
+
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
@@ -121,9 +123,10 @@ case class UtilsApiEndpoint (override val settings: RPCApiSettings, appContext: 
    */
   private def generateAssetCode(params: Json, id: String): Future[Json] = Future {
     (for {
-      issuer <- (params \\ "issuer").head.as[Address]
-      shortName <- (params \\ "shortName").head.as[String]
-    } yield Try(AssetCode(issuer, shortName))) match {
+      version <- params.hcursor.get[AssetCodeVersion]("version")
+      issuer <- params.hcursor.get[Address]("issuer")
+      shortName <- params.hcursor.get[String]("shortName")
+    } yield Try(AssetCode(version, issuer, shortName))) match {
       case Right(Success(assetCode)) =>
         Map(
           "assetCode" -> assetCode.asJson
@@ -152,17 +155,17 @@ case class UtilsApiEndpoint (override val settings: RPCApiSettings, appContext: 
     (params.hcursor.get[Option[String]]("network") match {
         // case if no network specified for query
         case Right(None)     =>
-          val nt = NetworkType.all.find(_.netPrefix == networkPrefix).get
+          val nt = NetworkType.pickNetworkType(networkPrefix).get
           (nt.verboseName, params.hcursor.get[Address]("address"))
 
         // case if a specific network type is being queried
         case Right(Some(networkName)) =>
-          NetworkType.all.find(_.verboseName == networkName) match {
+          NetworkType.pickNetworkType(networkName) match {
             case None => throw new Exception("Invalid network specified")
-            case Some(nt) => {
-              implicit val networkPrefix = nt.netPrefix
+            case Some(nt) =>
+              implicit val networkPrefix: NetworkPrefix = nt.netPrefix
               (nt.verboseName, params.hcursor.get[Address]("address"))
-            }
+
           }
 
         case Left(ex) => throw ex
