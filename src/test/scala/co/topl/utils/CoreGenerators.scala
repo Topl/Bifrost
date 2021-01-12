@@ -252,12 +252,15 @@ trait CoreGenerators extends Logging {
 
   //TODO create optional data to test cases for None or Some
   lazy val assetToGen: Gen[(Address, AssetValue)] = for {
-    assetVersion <- Arbitrary.arbitrary[Byte]
+    // TODO: Hard coded as 1, but change this to arbitrary in the future
+    // assetVersion <- Arbitrary.arbitrary[Byte]
     issuer <- addressGen
     shortName <- shortNameGen
     quantity <- positiveLongGen
     data <- stringGen
   } yield {
+    // TODO: Hard coded as 1, but change this to arbitrary in the future
+    assetVersion = 1: Byte
     val assetCode = AssetCode(assetVersion, issuer, shortName)
     val assetValue = AssetValue(quantity, assetCode, metadata = Some(data))
     (issuer, assetValue)
