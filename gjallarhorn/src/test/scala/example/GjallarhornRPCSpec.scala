@@ -328,7 +328,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
               case None => throw new Error ("balance is not a long")
             }
 
-            (((res \\ "result").head \\ pk1.toString).head \\ assetCode.toString).head.asNumber.get.toLong match {
+            ((((res \\ "result").head \\ pk1.toString).head \\ assetCode.toString).head \\ "balance").head.asNumber.get.toLong match {
               case Some(number) => number == amount shouldBe true
               case None => throw new Error ("balance is not a long")
             }

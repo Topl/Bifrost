@@ -13,7 +13,6 @@ import utils.Logging
 import wallet.WalletManager
 import wallet.WalletManager.{GetNetwork, GetWallet, GjallarhornStarted, GjallarhornStopped, KeyManagerReady}
 
-import scala.collection.mutable
 import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -312,15 +311,15 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
         if ((params \\ "addresses").nonEmpty) {
           publicKeys = (params \\ "addresses").head.asArray.get.map(k => Address(k.asString.get)).toSet
         }
-        val balances: MMap[Address, MMap[String, Long]] = MMap.empty
+        val balances: MMap[Address, MMap[String, Json]] = MMap.empty
         publicKeys.foreach(addr => {
           val getBoxes: Option[MMap[String, Json]] = walletResponse.get(addr)
-          var assets: MMap[String, Long] = MMap.empty
+          var assets: MMap[String, Json] = MMap.empty
           getBoxes match {
             case Some(boxes) =>
               var polyBalance: Long = 0
               var arbitBalance: Long = 0
-              val assetBalance: MMap[String, Long] = MMap.empty
+              val assetBalance: MMap[String, Json] = MMap.empty
               boxes.foreach(box => {
                 for {
                   boxType <- (box._2 \\ "type").head.as[String]
@@ -332,19 +331,31 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
                     polyBalance = polyBalance + value.quantity
                   } else if (boxType == "AssetBox") {
                     val assetValue = value.asInstanceOf[AssetValue]
-                    val assetName = assetValue.assetCode.toString
-                    assetBalance.get(assetName) match {
-                      case Some(currBalance) =>
-                        assetBalance.put(assetName, currBalance + assetValue.quantity)
+                    val assetCode = assetValue.assetCode
+                    assetBalance.get(assetCode.toString) match {
+                      case Some(currInfo) =>
+                        for {
+                          oldBalance <- (currInfo \\ "balance").head.as[Long]
+                        } yield {
+                          val newBalance = oldBalance + assetValue.quantity
+                          val newInfo = currInfo.deepMerge(Map("balance" -> newBalance).asJson)
+                          assetBalance.put(assetCode.toString, newInfo)
+                        }
                       case None =>
-                        assetBalance.put(assetName, assetValue.quantity)
+                        val assetInfo: Json = Map (
+                          "name" -> assetCode.shortName.asJson,
+                          "issuer" -> assetCode.issuer.asJson,
+                          "balance" -> assetValue.quantity.asJson,
+                          "code" -> assetCode.asJson
+                        ).asJson
+                        assetBalance.put(assetCode.toString, assetInfo)
                     }
                   }
                 }
               })
               assets = MMap(
-                "ArbitBox" -> arbitBalance,
-                "PolyBox" -> polyBalance
+                "ArbitBox" -> arbitBalance.asJson,
+                "PolyBox" -> polyBalance.asJson
               ) ++ assetBalance
             case None => null
           }
