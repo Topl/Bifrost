@@ -14,9 +14,8 @@ class AssetTransferSpec extends AnyPropSpec
   with CoreGenerators
   with ValidGenerators {
   property("Randomly generated AssetTransfer Tx should be valid") {
-    forAll(validAssetTransferGen) { assetTransfer: AssetTransfer[_] =>
-      //TODO: Jing - change this back to using syntacticValidate once attestation in validAssetTransferGen works
-      assetTransfer.rawValidate.isSuccess shouldBe true
+    forAll(validAssetTransfer(keyRing, state)) { assetTransfer: AssetTransfer[_] =>
+      assetTransfer.syntacticValidate.isSuccess shouldBe true
     }
   }
 
@@ -29,7 +28,7 @@ class AssetTransferSpec extends AnyPropSpec
   }
 
   property("Attempting to validate a AssetTransfer without valid signature should error") {
-    // Create invalid PolyTransfer
+    // Create invalid AssetTransfer
     // send tx to state
     forAll(assetTransferGen) { assetTransfer: AssetTransfer[_] =>
       assetTransfer.syntacticValidate.isSuccess shouldBe false

@@ -264,7 +264,8 @@ object TransferTransaction {
               require(t.attestation.keys.map(_.address).toSeq.contains(asset.assetCode.issuer),
                       "Asset minting must include the issuers signature"
               )
-
+            // do nothing with other token types
+            case (_, value: SimpleValue) =>
             case _ => throw new Error("AssetTransfer contains invalid value holder")
           }
 

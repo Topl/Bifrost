@@ -21,7 +21,6 @@ trait MockState extends AnyPropSpec
   with ScalaCheckDrivenPropertyChecks
   with Matchers
   with CoreGenerators
-  with ValidGenerators
   with FileUtils {
 
   protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)

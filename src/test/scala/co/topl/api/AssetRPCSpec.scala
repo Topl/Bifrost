@@ -11,7 +11,7 @@ class AssetRPCSpec extends AnyWordSpec
   with Matchers
   with RPCMockState {
 
-  val address: Address = keyRing.addresses.last
+  val address: Address = keyRing.addresses.head
   val recipients: String = assetToSeqGen.sample.get.asJson.toString()
 
   "Asset RPC" should {
