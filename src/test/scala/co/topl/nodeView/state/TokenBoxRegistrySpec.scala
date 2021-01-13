@@ -1,7 +1,7 @@
 package co.topl.nodeView.state
 
 import co.topl.attestation.Address
-import co.topl.utils.CoreGenerators
+import co.topl.utils.{CoreGenerators, ValidGenerators}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.matchers.should.Matchers
@@ -12,7 +12,8 @@ class TokenBoxRegistrySpec extends MockState
   with ScalaCheckDrivenPropertyChecks
   with Matchers
   with BeforeAndAfterAll
-  with CoreGenerators {
+  with CoreGenerators
+  with ValidGenerators {
 
   val state: State = createState()
 

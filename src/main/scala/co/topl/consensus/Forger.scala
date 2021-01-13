@@ -323,29 +323,20 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
       .foldLeft(PickTransactionsResult(Seq(), Seq())) { case (txAcc, tx) =>
         // ensure that each transaction opens a unique box by checking that this transaction
         // doesn't open a box already being opened by a previously included transaction
-        val boxNotAlreadyUsed = tx.boxIdsToOpen.forall(id => !txAcc.toApply.flatMap(_.boxIdsToOpen).contains(id))
+        val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.toApply.flatMap(_.boxIdsToOpen).contains(id))
 
         // if any newly created box matches a box already in the UTXO set, remove the transaction
-        val boxAlreadyExists = tx.newBoxes.exists(b => state.getBox(b.id).isDefined)
+        val outputBoxExists = tx.newBoxes.exists(b => state.getBox(b.id).isDefined)
 
-        if (boxNotAlreadyUsed && !boxAlreadyExists) {
-          state.semanticValidate(tx) match {
-            case Success(_) => PickTransactionsResult(txAcc.toApply :+ tx, txAcc.toEliminate)
-            case Failure(ex) =>
-              log.debug(
-                s"${Console.RED}Transaction ${tx.id} failed semantic validation. " +
-                  s"Transaction will be removed.${Console.RESET} Failure: $ex")
-              PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ tx)
-          }
-        } else if (!boxNotAlreadyUsed) {
-          log.debug(s"${Console.RED}Transaction ${tx.id} was rejected from forger transaction queue" +
-            s" because a box was used already in a previous transaction. The transaction will be removed.")
-          PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ tx)
-        } else {
-          log.debug(s"${Console.RED}Transaction ${tx.id} was rejected from the forger transaction queue" +
-            s" because a box was used already in a previous transaction, and a newly created" +
-            s" box already exists. The transaction will be removed.")
-          PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ tx)
+        state.semanticValidate(tx) match {
+          case Success(_) if txNotIncluded   => PickTransactionsResult(txAcc.toApply :+ tx, txAcc.toEliminate)
+          case Success(_) if outputBoxExists => PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ tx)
+          case Failure(ex) =>
+            log.debug(
+              s"${Console.RED}Transaction ${tx.id} failed semantic validation. " +
+              s"Transaction will be removed.${Console.RESET} Failure: $ex"
+            )
+            PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ tx)
         }
       }
   }
