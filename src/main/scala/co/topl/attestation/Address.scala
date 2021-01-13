@@ -41,10 +41,20 @@ object Address extends BifrostSerializer[Address] {
   // the byte length of an address (network prefix + Evidence type + evidence content)
   val addressSize: Int = 1 + Evidence.size
 
-  def apply(addrStr: String): Address =
-    AddressEncoder.fromString(addrStr) match {
+  implicit val jsonEncoder: Encoder[Address] = (addr: Address) => addr.toString.asJson
+  implicit val jsonKeyEncoder: KeyEncoder[Address] = (addr: Address) => addr.toString
+
+  implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[Address] =
+    Decoder.decodeString.map(str => apply(networkPrefix)(str))
+
+  implicit def jsonKeyDecoder(implicit networkPrefix: NetworkPrefix): KeyDecoder[Address] =
+    (str: String) => Some(apply(networkPrefix)(str))
+
+  def apply(networkPrefix: NetworkPrefix)(addrStr: String): Address =
+    AddressEncoder.fromStringWithCheck(addrStr, networkPrefix) match {
       case Success(addr) => addr
-      case Failure(ex)   => throw ex
+      case Failure(_: java.lang.AssertionError) => throw new Exception("Invalid Base58 string")
+      case Failure(ex) => throw ex
     }
 
   /**
@@ -53,11 +63,6 @@ object Address extends BifrostSerializer[Address] {
    */
   def from[P <: Proposition: EvidenceProducer](proposition: P)(implicit networkPrefix: NetworkPrefix): Address =
     Address(proposition.generateEvidence)
-
-  implicit val jsonEncoder: Encoder[Address] = (addr: Address) => addr.toString.asJson
-  implicit val jsonKeyEncoder: KeyEncoder[Address] = (addr: Address) => addr.toString
-  implicit val jsonDecoder: Decoder[Address] = Decoder.decodeString.map(apply)
-  implicit val jsonKeyDecoder: KeyDecoder[Address] = (str: String) => Some(apply(str))
 
   def serialize(obj: Address, w: Writer): Unit = {
     /* networkType: Byte */

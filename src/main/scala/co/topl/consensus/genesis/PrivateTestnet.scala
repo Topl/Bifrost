@@ -15,8 +15,7 @@ import co.topl.utils.encode.encodeBase16
 import scala.util.Try
 
 case class PrivateTestnet ( keyGen  : (Int, Option[String]) => Set[PublicKeyPropositionCurve25519],
-                            settings: AppSettings,
-                            opts    : RuntimeOpts
+                            settings: AppSettings
                           )(implicit val networkPrefix: NetworkPrefix) extends GenesisProvider {
 
   override protected val blockChecksum: ModifierId = ModifierId.empty
@@ -41,7 +40,7 @@ case class PrivateTestnet ( keyGen  : (Int, Option[String]) => Set[PublicKeyProp
     // map the members to their balances then continue as normal
     val privateTotalStake = numberOfKeys * balance
 
-    val accts = keyGen(numberOfKeys, opts.seed)
+    val accts = keyGen(numberOfKeys, settings.forging.privateTestnet.flatMap(_.genesisSeed))
 
     val txInput = (
       IndexedSeq(),

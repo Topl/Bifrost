@@ -141,8 +141,8 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
 
   /** Helper function to enable private forging if we can expects keys in the key ring */
   private def checkPrivateForging(): Unit =
-    if (appContext.networkType.startWithForging && keyRing.addresses.nonEmpty) self ! StartForging
-    else if (appContext.networkType.startWithForging)
+    if (settings.forging.forgeOnStartup && keyRing.addresses.nonEmpty) self ! StartForging
+    else if (settings.forging.forgeOnStartup)
       log.warn("Forging process not started since the key ring is empty")
 
   /** Schedule a forging attempt */
@@ -170,12 +170,12 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
     */
   private def initializeGenesis: Try[Block] = {
     (appContext.networkType match {
-      case MainNet(_)       => Toplnet.getGenesisBlock
-      case TestNet(_)       => ???
-      case DevNet(_)        => ???
-      case LocalNet(opts)   => PrivateTestnet(generateKeys, settings, opts).getGenesisBlock
-      case PrivateNet(opts) => PrivateTestnet(generateKeys, settings, opts).getGenesisBlock
-      case _                => throw new Error("Undefined network type.")
+      case MainNet       => Toplnet.getGenesisBlock
+      case TestNet       => ???
+      case DevNet        => ???
+      case LocalNet      => PrivateTestnet(generateKeys, settings).getGenesisBlock
+      case PrivateNet    => PrivateTestnet(generateKeys, settings).getGenesisBlock
+      case _             => throw new Error("Undefined network type.")
     }).map { case (block: Block, ChainParams(totalStake, initDifficulty)) =>
       rewardAddress = keyRing.addresses.headOption
       maxStake = totalStake

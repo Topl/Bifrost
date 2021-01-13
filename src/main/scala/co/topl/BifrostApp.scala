@@ -56,7 +56,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   log.debug(s"${Console.MAGENTA}Runtime network parameters:" +
     s"type - ${appContext.networkType.verboseName}, " +
     s"prefix - ${appContext.networkType.netPrefix}, " +
-    s"forging status: ${appContext.networkType.startWithForging}" +
+    s"forging status: ${settings.forging.forgeOnStartup}" +
     s"${Console.RESET}")
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
@@ -94,7 +94,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   // Create and register controllers for API routes
   private val apiRoutes: Seq[ApiEndpoint] = Seq(
     UtilsApiEndpoint(settings.rpcApi, appContext),
-    KeyManagementApiEndpoint(settings.rpcApi, appContext, forgerRef),
+    AdminApiEndpoint(settings.rpcApi, appContext, forgerRef),
     NodeViewApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef),
     TransactionApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef),
     DebugApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef, forgerRef)
@@ -176,7 +176,8 @@ object BifrostApp extends Logging {
     (optional[String]("--config", "-c") and
       optionalOneOf[NetworkType](NetworkType.all.map(x => s"--${x.verboseName}" -> x) : _*) and
       ( optional[String]("--seed", "-s") and
-        flag("--forge", "-f")
+        flag("--forge", "-f") and
+        optional[String]("--apiKeyHash")
         ).to[RuntimeOpts]
       ).to[StartupOpts]
 

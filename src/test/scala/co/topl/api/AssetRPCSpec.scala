@@ -31,7 +31,7 @@ class AssetRPCSpec extends AnyWordSpec
            |    "AUBDNmMJkmHtuyGXkWAB7Bg9X8T4CRDNVXmPvVcQWPMk4RdwR883",
            |      {
            |        "quantity" : 5858200457744262097,
-           |        "assetCode" : "24xcezSDAe5naZ9bFAQ9ZQFdNPrf23ARSLGy15GCqJBXS8zkoMcmqpeMBB",
+           |        "assetCode" : "PPsSca8fTkx4jDLUvxCoaVw3r3ZabTssC2SKFGbCdRYDNJSRm2q6tQCXYkP",
            |        "metadata" : "ApdGzs6uwKAhuKJQswBWoVAFjNA5B8enBKfxVbzlcQ8EnpxicpRcE9B9Bgn2LGv02kYUSA1h1181ZYeECvr",
            |        "type" : "Asset",
            |        "securityRoot" : "11111111111111111111111111111111"
