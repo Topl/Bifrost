@@ -14,8 +14,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
-case class KeyManagementApiEndpoint (override val settings: RPCApiSettings, appContext: AppContext, keyHolderRef: ActorRef )
-                                    ( implicit val context: ActorRefFactory ) extends ApiEndpoint {
+case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: AppContext, keyHolderRef: ActorRef )
+                           ( implicit val context: ActorRefFactory ) extends ApiEndpoint {
 
 
   // Establish the expected network prefix for addresses
@@ -31,6 +31,8 @@ case class KeyManagementApiEndpoint (override val settings: RPCApiSettings, appC
     case (method, params, id) if method == s"${namespace.name}_generateKeyfile"  => generateKeyfile(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_importSeedPhrase" => importKeyfile(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_listOpenKeyfiles" => listOpenKeyfiles(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_startForging"     => startForging(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_stopForging"      => stopForging(params.head, id)
   }
 
   /** #### Summary
@@ -172,5 +174,53 @@ case class KeyManagementApiEndpoint (override val settings: RPCApiSettings, appC
     (keyHolderRef ? ListKeys).mapTo[Set[Address]].map { b =>
       Map("unlocked" -> b.map(_.toString).asJson).asJson
     }
+  }
+
+
+  /** #### Summary
+   * Send the start forging signal
+   *
+   * #### Type
+   * Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
+   *
+   * #### Description
+   * Attempt to forge blocks using any unlocked keyfiles available on the node
+   * ---
+   * #### Params
+   * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
+   * | ------------------------	| ----------	| --------------------	| -----------------------------------------------------------------------	  |
+   * | --None specified--       |           	|                     	|                                                                         |
+   *
+   * @param params input parameters as specified above
+   * @param id     request identifier
+   * @return
+   */
+  private def startForging ( params: Json, id: String ): Future[Json] = Future {
+    keyHolderRef ! StartForging
+    Map("msg" -> "START forging signal sent".asJson).asJson
+  }
+
+
+  /** #### Summary
+   * Send the stop forging signal
+   *
+   * #### Type
+   * Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
+   *
+   * #### Description
+   * Attempt to stop forging blocks
+   * ---
+   * #### Params
+   * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
+   * | ------------------------	| ----------	| --------------------	| -----------------------------------------------------------------------	  |
+   * | --None specified--       |           	|                     	|                                                                         |
+   *
+   * @param params input parameters as specified above
+   * @param id     request identifier
+   * @return
+   */
+  private def stopForging ( params: Json, id: String ): Future[Json] = Future {
+    keyHolderRef ! StopForging
+    Map("msg" -> "STOP forging signal sent".asJson).asJson
   }
 }

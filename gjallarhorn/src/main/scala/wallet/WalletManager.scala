@@ -230,6 +230,9 @@ class WalletManager(bifrostActorRef: ActorRef)
         val add: MMap[Address, MMap[String, Json]] = MMap.empty
         var idsToRemove: List[String] = List.empty
         transactions.foreach(tx => {
+          if (tx.newBoxes.nonEmpty) {
+            log.info("Received transaction with boxes: " + tx.asJson)
+          }
           tx.newBoxes.foreach(newBox => {
             val address: Address = Address(newBox.evidence)(networkPrefix)
             var idToBox: MMap[String, Json] = MMap.empty

@@ -46,10 +46,10 @@ class KeyManager(keyFileDir: String) extends Actor with Logging {
       val signaturesMap = keys.map(keyString => {
         Base58.decode(msg.asString.get) match {
           case Success(msgToSign) =>
-            keyRing.signWithAddress(Address(keyString), msgToSign) match {
+            keyRing.signWithAddress(Address(networkPrefix)(keyString), msgToSign) match {
               case Success(signedTx) =>
                 val sig = signedTx.asJson
-                keyRing.lookupPublicKey(Address(keyString)) match {
+                keyRing.lookupPublicKey(Address(networkPrefix)(keyString)) match {
                   case Success(pubKey) => pubKey -> sig
                   case Failure(exception) => throw exception
                 }

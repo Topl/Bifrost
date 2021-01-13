@@ -3,11 +3,13 @@ package http
 import akka.actor.{ActorNotFound, ActorRef, ActorRefFactory, ActorSystem, PoisonPill, Props}
 import akka.pattern.ask
 import attestation.Address
+import attestation.AddressEncoder.NetworkPrefix
 import crypto.{AssetCode, AssetValue, TokenValueHolder}
 import requests.{ApiRoute, Requests, RequestsManager}
 import io.circe.Json
 import io.circe.syntax._
 import keymanager.KeyManager._
+import keymanager.networkPrefix
 import settings.{AppSettings, NetworkType}
 import utils.Logging
 import wallet.WalletManager
@@ -26,6 +28,7 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
   extends ApiRoute with Logging {
 
   val namespace: Namespace = OnlineWalletNamespace
+  implicit val networkPrefix: NetworkPrefix = _root_.keymanager.networkPrefix
 
   private var requestsManager: Option[ActorRef] = None
   private var walletManager: Option[ActorRef] = None
@@ -166,6 +169,7 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
     }
   }
 
+  //TODO: what should assetCode version be?
   private def createAssetCode(params: Json): Json = {
     (for {
       rcpts <- (params \\ "recipients").head.as[IndexedSeq[Address]]
@@ -173,7 +177,7 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
       issuer <- (params \\ "issuer").head.as[Address]
       shortName <- (params \\ "shortName").head.as[String]
     } yield {
-      Try(AssetCode(issuer, shortName)) match {
+      Try(AssetCode(1.toByte, issuer, shortName)) match {
         case Success(assetCode) =>
           val recipients: IndexedSeq[(Address, AssetValue)] = rcpts.map(addr =>
             (addr, AssetValue(quantity, assetCode))
@@ -307,9 +311,10 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
       case Some(actor) =>
         val walletResponse: MMap[Address, MMap[String, Json]] = Await.result((actor ? GetWallet)
           .mapTo[MMap[Address, MMap[String, Json]]], 10.seconds)
+       log.info("wallet boxes: " + walletResponse)
         var publicKeys: Set[Address] = walletResponse.keySet.toSet
         if ((params \\ "addresses").nonEmpty) {
-          publicKeys = (params \\ "addresses").head.asArray.get.map(k => Address(k.asString.get)).toSet
+          publicKeys = (params \\ "addresses").head.asArray.get.map(k => Address(networkPrefix)(k.asString.get)).toSet
         }
         val balances: MMap[Address, MMap[String, Json]] = MMap.empty
         publicKeys.foreach(addr => {

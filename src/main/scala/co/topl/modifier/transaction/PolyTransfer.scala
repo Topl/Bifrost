@@ -2,6 +2,7 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
+import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation._
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.TransferTransaction.BoxParams
@@ -88,28 +89,29 @@ object PolyTransfer {
     ).asJson
   }
 
-  implicit def jsonDecoder: Decoder[PolyTransfer[_ <: Proposition]] = (c: HCursor) =>
-    for {
-      from      <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
-      to        <- c.downField("to").as[IndexedSeq[(Address, SimpleValue)]]
-      fee       <- c.downField("fee").as[Long]
-      timestamp <- c.downField("timestamp").as[Long]
-      data      <- c.downField("data").as[Option[String]]
-      propType  <- c.downField("propositionType").as[String]
-    } yield {
-      (propType match {
-        case PublicKeyPropositionCurve25519.`typeString` =>
-          c.downField("signatures").as[Map[PublicKeyPropositionCurve25519, SignatureCurve25519]].map {
-            new PolyTransfer[PublicKeyPropositionCurve25519](from, to, _, fee, timestamp, data)
-          }
+  implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[PolyTransfer[_ <: Proposition]] =
+    (c: HCursor) =>
+      for {
+        from      <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
+        to        <- c.downField("to").as[IndexedSeq[(Address, SimpleValue)]]
+        fee       <- c.downField("fee").as[Long]
+        timestamp <- c.downField("timestamp").as[Long]
+        data      <- c.downField("data").as[Option[String]]
+        propType  <- c.downField("propositionType").as[String]
+      } yield {
+        (propType match {
+          case PublicKeyPropositionCurve25519.`typeString` =>
+            c.downField("signatures").as[Map[PublicKeyPropositionCurve25519, SignatureCurve25519]].map {
+              new PolyTransfer[PublicKeyPropositionCurve25519](from, to, _, fee, timestamp, data)
+            }
 
-        case ThresholdPropositionCurve25519.`typeString` =>
-          c.downField("signatures").as[Map[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]].map {
-            new PolyTransfer[ThresholdPropositionCurve25519](from, to, _, fee, timestamp, data)
-          }
-      }) match {
-        case Right(tx) => tx
-        case Left(ex)  => throw ex
+          case ThresholdPropositionCurve25519.`typeString` =>
+            c.downField("signatures").as[Map[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]].map {
+              new PolyTransfer[ThresholdPropositionCurve25519](from, to, _, fee, timestamp, data)
+            }
+        }) match {
+          case Right(tx) => tx
+          case Left(ex)  => throw ex
+        }
       }
-    }
 }

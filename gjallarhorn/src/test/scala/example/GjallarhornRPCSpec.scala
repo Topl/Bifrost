@@ -107,7 +107,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     }
   }
 
-  val assetCode: AssetCode = AssetCode(pk1, "test")
+  val assetCode: AssetCode = AssetCode(1.toByte, pk1, "test")
   it should "succesfully create an asset" in {
     val createAssetRequest = ByteString(
       s"""
@@ -377,7 +377,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     val phraseTranslator = Bip39.apply("en")
     val seed = phraseTranslator.uuidSeedPhrase(java.util.UUID.randomUUID.toString)._1
     newAddr = Await.result((keyManagerRef ? GenerateKeyFile("password3", Some(seed)))
-      .mapTo[Try[Address]], 10.seconds) match {
+      .mapTo[Try[Address]], 12.seconds) match {
         case Success(pubKey) => pubKey
         case Failure(exception) => throw new Error("error creating key file: " + exception)
       }

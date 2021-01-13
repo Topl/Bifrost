@@ -7,16 +7,19 @@ import scorex.util.encode.Base58
 import java.nio.charset.StandardCharsets
 
 import attestation.Address
+import crypto.AssetCode.AssetCodeVersion
 import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 
 import scala.util.{Failure, Success}
 
 /** AssetCode serves as a unique identifier for user issued assets
   */
-case class AssetCode private (issuer: Address, shortName: String) extends BytesSerializable {
+case class AssetCode private (version: AssetCodeVersion, issuer: Address, shortName: String) extends BytesSerializable {
 
-  require(shortName.getBytes(StandardCharsets.UTF_8).length <= AssetCode.shortNameLimit,
-    "Asset short names must be less than 8 UTF-8 encoded characters")
+  require(
+    shortName.getBytes(StandardCharsets.UTF_8).length <= AssetCode.shortNameLimit,
+    "Asset short names must be less than 8 UTF-8 encoded characters"
+  )
 
   override type M = AssetCode
   override def serializer: GjalSerializer[AssetCode] = AssetCode
@@ -32,6 +35,8 @@ case class AssetCode private (issuer: Address, shortName: String) extends BytesS
 }
 
 object AssetCode extends GjalSerializer[AssetCode] {
+  type AssetCodeVersion = Byte
+
   val shortNameLimit = 8 // limit to the asset shortName is 8 UTF-8 encoded characters
 
   implicit val jsonEncoder: Encoder[AssetCode] = (ac: AssetCode) => ac.toString.asJson
@@ -46,13 +51,16 @@ object AssetCode extends GjalSerializer[AssetCode] {
     }
 
   override def serialize (obj: AssetCode, w: Writer): Unit = {
+    w.put(obj.version)
     Address.serialize(obj.issuer, w)
     w.putByteString(obj.shortName)
   }
 
   override def parse(r: Reader): AssetCode = {
+    val version = r.getByte()
     val issuer = Address.parse(r)
     val shortName = r.getByteString()
-    new AssetCode(issuer, shortName)
+    require(version == 1.toByte, "AssetCode version required to be 1")
+    new AssetCode(version, issuer, shortName)
   }
 }

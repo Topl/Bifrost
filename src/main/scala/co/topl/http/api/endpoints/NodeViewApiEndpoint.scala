@@ -38,6 +38,7 @@ case class NodeViewApiEndpoint(
     case (method, params, id) if method == s"${namespace.name}_balances"        => balances(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_transactionById" => transactionById(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_blockById"       => blockById(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_blockByHeight"   => blockByHeight(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_mempool"         => mempool(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_transactionFromMempool" =>
       transactionFromMempool(params.head, id)
@@ -100,15 +101,13 @@ case class NodeViewApiEndpoint(
         checkAddress(addresses, view)
 
         val boxes: Map[Address, Map[String, Seq[TokenBox[TokenValueHolder]]]] =
-          addresses
-            .map(k => {
-              val orderedBoxes = view.state.getTokenBoxes(k) match {
-                case Some(boxes) => boxes.groupBy[String](Box.identifier(_).typeString)
-                case _           => Map[String, Seq[TokenBox[TokenValueHolder]]]()
-              }
-              k -> orderedBoxes
-            })
-            .toMap
+          addresses.map { k =>
+            val orderedBoxes = view.state.getTokenBoxes(k) match {
+              case Some(boxes) => boxes.groupBy[String](Box.identifier(_).typeString)
+              case _           => Map[String, Seq[TokenBox[TokenValueHolder]]]()
+            }
+            k -> orderedBoxes
+          }.toMap
 
         val balances: Map[Address, Map[String, Long]] =
           boxes.map { case (addr, assets) =>
@@ -224,6 +223,31 @@ case class NodeViewApiEndpoint(
       (for {
         blockId <- (params \\ "blockId").head.as[ModifierId]
       } yield view.history.modifierById(blockId)) match {
+        case Right(Some(block)) => block.asJson
+        case Right(None)        => throw new Exception("The requested block could not be found")
+        case Left(ex)           => throw ex
+      }
+    }
+
+  /**  #### Summary
+    *   Lookup a block by its height
+    *
+    * ---
+    *  #### Params
+    *
+    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                	|
+    *  |-------------------------	|-----------	|---------------------	|--------------------------------------------	|
+    *  | height                    | Number    	| Required            	| Height to retrieve on the canonical chain   |
+    *
+    * @param params input parameters as specified above
+    * @param id request identifier
+    * @return
+    */
+  private def blockByHeight(params: Json, id: String): Future[Json] =
+    viewAsync { view =>
+      (for {
+        height <- params.hcursor.get[Long]("height")
+      } yield view.history.modifierByHeight(height)) match {
         case Right(Some(block)) => block.asJson
         case Right(None)        => throw new Exception("The requested block could not be found")
         case Left(ex)           => throw ex

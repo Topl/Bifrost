@@ -68,10 +68,11 @@ class WalletConnectionHandler[
   private def handleNewBlock(block: Block): Unit = {
     remoteWalletAddresses match {
       case Some(addresses) =>
-        log.debug(s"Received new block ${block.id}, parsing for transactions for addresses: $addresses")
+        log.info(s"Received new block ${block.id}, parsing for transactions for addresses: $addresses")
         remoteWalletActor.map {
           case actorRef: ActorRef if anyRemoteAddressInBloom(block.bloomFilter) =>
             parseBlockForKeys(block).map(txJson => actorRef ! s"new block added: $txJson")
+          case actor: ActorRef => // no wallet addresses in new block
         }
 
       case _ => // Do nothing since there are no addresses registered
@@ -83,6 +84,7 @@ class WalletConnectionHandler[
   private def handleMsgFromRemote(msg: String): Unit = {
     if (msg.contains("Remote wallet actor initialized")) {
       remoteWalletActor = Some(sender())
+      log.info(s"A remote wallet actor has started up: ${sender()}")
       sender() ! s"received new wallet from: ${sender()}. "
     }
 
@@ -103,6 +105,7 @@ class WalletConnectionHandler[
     if (msg == "Remote wallet actor stopped") {
       remoteWalletActor = None
       remoteWalletAddresses = None
+      log.info(s"The remote wallet ${sender()} has been removed from the WalletConnectionHandler in Bifrost")
       sender ! s"The remote wallet ${sender()} has been removed from the WalletConnectionHandler in Bifrost"
     }
 
@@ -117,9 +120,9 @@ class WalletConnectionHandler[
       val addr: String = msg.substring("New key: ".length)
       remoteWalletAddresses match {
         case Some(addresses) =>
-          val newAddresses: Set[Address] = addresses + Address(addr)
+          val newAddresses: Set[Address] = addresses + Address(networkPrefix)(addr)
           remoteWalletAddresses = Some(newAddresses)
-        case None => remoteWalletAddresses = Some(Set(Address(addr)))
+        case None => remoteWalletAddresses = Some(Set(Address(networkPrefix)(addr)))
       }
     }
   }
@@ -127,7 +130,7 @@ class WalletConnectionHandler[
   private def anyRemoteAddressInBloom(bf: BloomFilter): Boolean = {
     remoteWalletAddresses match {
       case Some(addresses) => addresses.map(addr => bf.contains(BloomTopic @@ addr.bytes)).reduce(_ || _)
-      case _               => false
+      case _ => false
     }
   }
 
@@ -184,7 +187,6 @@ class WalletConnectionHandler[
     * @param keys a stringified set of PublicKeyPropositions to monitor for changes
     */
   private def parseKeys(keys: String): Option[Set[Address]] = {
-    println("in parse keys: " + keys)
     if (keys == "Set()") {
       println("Remote wallet has no keys!")
       None
@@ -193,7 +195,7 @@ class WalletConnectionHandler[
       val keystrings = keysArr.map(key => key.trim).toSet
 
       Some(keystrings.map(key =>
-        AddressEncoder.fromString(key) match {
+        AddressEncoder.fromStringWithCheck(key, networkPrefix) match {
           case Success(addr) => addr
           case Failure(ex)   => throw new Error (s"The key: $key cannot be converted into an address: $ex")
         }))

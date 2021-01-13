@@ -191,7 +191,7 @@ class Keys[
     */
   private def checkValid(address: String): KF = {
     val keyfile = listKeyFiles.filter {
-      _.address == Address(address)
+      _.address == Address(networkPrefix)(address)
     }
 
     require(keyfile.size == 1, s"Cannot find a unique matching keyfile in $defaultKeyDir")

@@ -1,5 +1,6 @@
 package co.topl.modifier.block
 
+import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
@@ -156,7 +157,7 @@ object Block {
     ).asJson
   }
 
-  implicit val jsonDecoder: Decoder[Block] = (c: HCursor) =>
+  implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[Block] = (c: HCursor) =>
     for {
       header <- c.downField("header").as[BlockHeader]
       body <- c.downField("body").as[BlockBody]

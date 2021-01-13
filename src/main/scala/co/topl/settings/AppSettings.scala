@@ -71,10 +71,16 @@ case class NetworkSettings(
 case class ForgingSettings(
   blockGenerationDelay: FiniteDuration,
   protocolVersions:     List[ProtocolSettings],
+  forgeOnStartup:       Boolean,
   privateTestnet:       Option[PrivateTestnetSettings]
 )
 
-case class PrivateTestnetSettings(numTestnetAccts: Int, testnetBalance: Long, initialDifficulty: Long)
+case class PrivateTestnetSettings(
+  numTestnetAccts:   Int,
+  testnetBalance:    Long,
+  initialDifficulty: Long,
+  genesisSeed:       Option[String]
+)
 
 case class AppSettings(
   application: ApplicationSettings,
@@ -92,7 +98,8 @@ object AppSettings extends Logging with SettingsReaders {
     * @return
     */
   def read(startupOpts: StartupOpts = StartupOpts.empty): AppSettings = {
-    fromConfig(readConfig(startupOpts))
+    val settingFromConfig = fromConfig(readConfig(startupOpts))
+    startupOpts.runtimeParams.overrideWithCmdArgs(settingFromConfig)
   }
 
   /** Produces an application settings class by reading the specified HOCON configuration file

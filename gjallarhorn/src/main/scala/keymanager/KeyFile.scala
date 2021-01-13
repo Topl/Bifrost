@@ -67,7 +67,7 @@ trait KeyfileCompanion[S <: Secret, KF <: Keyfile[S]] {
     * @param filename file to be read from disk
     * @return
     */
-  def readFile(filename: String): KF
+  def readFile(filename: String)(implicit networkPrefix: NetworkPrefix): KF
 }
 
 object Keyfile {

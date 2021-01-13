@@ -112,7 +112,7 @@ class RequestSpec extends AsyncFlatSpec
          |            ["$pk1", {
          |                "type": "Asset",
          |                "quantity": $amount,
-         |                "assetCode": "${AssetCode(pk1, "test").toString}"
+         |                "assetCode": "${AssetCode(1.toByte, pk1, "test").toString}"
          |              }
          |            ]
          |     ],
@@ -167,7 +167,7 @@ class RequestSpec extends AsyncFlatSpec
       case Right(value) => value
     }
     val pubKeys = sigs.keySet.map(pubKey => pubKey.address)
-    issuer.foreach(key => assert(pubKeys.contains(Address(key))))
+    issuer.foreach(key => assert(pubKeys.contains(Address(networkPrefix)(key))))
     (signedTransaction \\ "tx").nonEmpty shouldBe true
   }
 

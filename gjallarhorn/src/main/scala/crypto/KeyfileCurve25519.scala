@@ -81,7 +81,7 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
     * @param filename
     * @return
     */
-  def readFile (filename: String): KeyfileCurve25519 = {
+  def readFile (filename: String)(implicit networkPrefix: NetworkPrefix): KeyfileCurve25519 = {
     // read data from disk
     val src = scala.io.Source.fromFile(filename)
 
@@ -153,7 +153,7 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
     ).asJson
   }
 
-  implicit val jsonDecoder: Decoder[KeyfileCurve25519] = (c: HCursor) =>
+  implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[KeyfileCurve25519] = (c: HCursor) =>
     for {
       address <- c.downField("address").as[Address]
       cipherTextString <- c.downField("crypto").downField("cipherText").as[String]

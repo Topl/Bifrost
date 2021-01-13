@@ -15,7 +15,7 @@ import scala.util.Try
 
 case object Toplnet extends GenesisProvider {
 
-  implicit val networkPrefix: NetworkPrefix = NetworkType.MainNet().netPrefix
+  implicit val networkPrefix: NetworkPrefix = NetworkType.MainNet.netPrefix
 
   override protected val blockChecksum: ModifierId = ModifierId("9VX9smBd7Jz56HzTcmY6EZiLfrn7WdxECbsSgNRrPXmu")
 

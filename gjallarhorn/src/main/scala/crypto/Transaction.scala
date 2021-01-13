@@ -7,12 +7,20 @@ import io.circe.syntax.EncoderOps
 case class Transaction(newBoxes: Seq[NewBox], boxesToRemove: Option[Seq[String]])
 
 object Transaction {
+
   implicit val txDecoder: Decoder[Transaction] = (hCursor: HCursor) => {
     for {
       newBoxes <- hCursor.downField("newBoxes").as[Seq[NewBox]]
       boxesToRemove <- hCursor.downField("boxesToRemove").as[Option[Seq[String]]]
     } yield Transaction(newBoxes, boxesToRemove)
   }
+
+  implicit val txEncoder: Encoder[Transaction] = (tx: Transaction) =>
+    Map(
+      "newBoxes" -> tx.newBoxes.asJson,
+      "boxesToRemove" -> tx.boxesToRemove.asJson
+    ).asJson
+
 }
 
 case class NewBox(evidence: Evidence,
@@ -23,7 +31,7 @@ case class NewBox(evidence: Evidence,
 
 object NewBox {
   implicit val newBoxEncoder: Encoder[NewBox] = (box: NewBox) =>
-  Map(
+    Map(
       "id" -> box.id.asJson,
       "type" -> box.typeOfBox.asJson,
       "evidence" -> box.evidence.toString.asJson,
