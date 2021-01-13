@@ -30,7 +30,7 @@ trait ValidGenerators extends CoreGenerators {
     keyRing.generateNewKeyPairs(num = 3) match {
       case Success(keys) => keys.map(_.publicImage)
       case Failure(ex)   => throw ex
-    } }, settings, RuntimeOpts.empty).getGenesisBlock.get._1
+    } }, settings).getGenesisBlock.get._1
 
   val genesisBlockId: ModifierId = genesisBlock.id
 
@@ -114,7 +114,7 @@ trait ValidGenerators extends CoreGenerators {
                         ): Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = {
     val sender = keyRing.addresses.head
     val prop = keyRing.lookupPublicKey(sender).get
-    val asset = AssetValue(1, AssetCode(sender, "test"), SecurityRoot.empty)
+    val asset = AssetValue(1, AssetCode(1, sender, "test"), SecurityRoot.empty)
     val recipients = IndexedSeq((sender, asset))
     val fee = 1
     val rawTx = AssetTransfer.createRaw(
