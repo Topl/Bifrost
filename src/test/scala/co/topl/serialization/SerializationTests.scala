@@ -2,7 +2,7 @@ package co.topl.serialization
 
 import co.topl.attestation.serialization.{PublicKeyPropositionCurve25519Serializer, SignatureCurve25519Serializer, ThresholdPropositionCurve25519Serializer, ThresholdSignatureCurve25519Serializer}
 import co.topl.attestation._
-import co.topl.modifier.block.serialization.BlockSerializer
+import co.topl.modifier.block.serialization.{BlockBodySerializer, BlockHeaderSerializer, BlockSerializer}
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.serialization._
@@ -202,7 +202,31 @@ class SerializationTests extends AnyPropSpec
     }
   }
 
-  property("Block serialization") {
+  property("BlockHeader serialization") {
+    forAll(blockGen) {
+      b: Block =>
+        val blockHeader = b.toComponents._1
+        val parsed = BlockHeaderSerializer
+          .parseBytes(BlockHeaderSerializer.toBytes(blockHeader))
+          .get
+
+        parsed.bytes sameElements blockHeader.bytes shouldBe true
+    }
+  }
+
+  property("BlockBody serialization") {
+    forAll(blockGen) {
+      b: Block =>
+        val blockBody = b.toComponents._2
+        val parsed = BlockBodySerializer
+          .parseBytes(BlockBodySerializer.toBytes(blockBody))
+          .get
+
+        parsed.bytes sameElements blockBody.bytes shouldBe true
+    }
+  }
+
+  property("FullBlock serialization") {
     forAll(blockGen) {
       bb: Block =>
         val parsed = BlockSerializer.parseBytes(BlockSerializer.toBytes(bb))

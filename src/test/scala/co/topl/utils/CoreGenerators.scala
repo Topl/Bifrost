@@ -6,7 +6,7 @@ import co.topl.attestation._
 import co.topl.consensus.KeyRing
 import co.topl.crypto.KeyfileCurve25519
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.Block
+import co.topl.modifier.block.{Block, BlockHeader}
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.transaction._
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
