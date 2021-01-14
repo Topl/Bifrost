@@ -33,14 +33,37 @@ class AddressSpec extends AnyPropSpec
     }
   }
 
-  property("Applying address with a pair of incorrect content and checksum will result in error") {
+  property("Applying address with incorrect content that doesn't match the checksum will result in error") {
     forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
       implicit val networkPrefix: NetworkPrefix = NetworkType.MainNet.netPrefix
       val address: Address = pubkey.address
       val addrStr: String = address.toString
       val addrByte: Array[Byte] = Base58.decode(addrStr).get
+
+      /** Alter the third byte in the address, which should be the first byte of the content */
       val corruptByte: Byte = (addrByte(2).toInt + 1).toByte
       val modedAddrByte: Array[Byte] = addrByte.slice(0,2) ++ Array(corruptByte) ++ addrByte.slice(3,addrByte.length)
+      val modedAddrStr: String = Base58.encode(modedAddrByte)
+
+      assert(!(addrByte sameElements modedAddrByte))
+
+      val thrown = intercept[Exception] {
+        Address(networkPrefix)(modedAddrStr)
+      }
+      thrown.getMessage shouldEqual s"requirement failed: Invalid address: Checksum fails for $modedAddrStr"
+    }
+  }
+
+  property("Applying address with incorrect checksum will result in error") {
+    forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
+      implicit val networkPrefix: NetworkPrefix = NetworkType.MainNet.netPrefix
+      val address: Address = pubkey.address
+      val addrStr: String = address.toString
+      val addrByte: Array[Byte] = Base58.decode(addrStr).get
+
+      /** Alter the last byte in the address, which is part of the checksum */
+      val corruptByte: Byte = (addrByte(addrByte.length-1).toInt + 1).toByte
+      val modedAddrByte: Array[Byte] = addrByte.slice(0, addrByte.length-1) ++ Array(corruptByte)
       val modedAddrStr: String = Base58.encode(modedAddrByte)
 
       assert(!(addrByte sameElements modedAddrByte))
