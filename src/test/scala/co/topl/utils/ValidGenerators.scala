@@ -113,7 +113,7 @@ trait ValidGenerators extends CoreGenerators {
     keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
     state: State,
     fee: Long = 1L,
-    minting: Boolean = true
+    minting: Boolean = false
   ): Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = {
     val sender = keyRing.addresses.head
     val prop = keyRing.lookupPublicKey(sender).get

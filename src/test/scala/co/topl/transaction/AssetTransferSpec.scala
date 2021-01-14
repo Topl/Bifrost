@@ -33,7 +33,7 @@ class AssetTransferSpec extends AnyPropSpec
 //  }
 
   property("Minting AssetTransfer should fail unless fee is greater than 0") {
-    forAll(validAssetTransfer(keyRing, state, fee = 0)) {
+    forAll(validAssetTransfer(keyRing, state, fee = 0, minting = true)) {
       assetTransfer: AssetTransfer[PublicKeyPropositionCurve25519] =>
         assetTransfer.syntacticValidate.failure.exception.getMessage shouldEqual
           "requirement failed: Asset minting transactions must have a non-zero positive fee"
