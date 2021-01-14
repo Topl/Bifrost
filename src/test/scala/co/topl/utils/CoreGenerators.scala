@@ -6,7 +6,7 @@ import co.topl.attestation._
 import co.topl.consensus.KeyRing
 import co.topl.crypto.KeyfileCurve25519
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.{Block, BlockHeader}
+import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.transaction._
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
@@ -19,6 +19,7 @@ import io.circe.syntax._
 import io.circe.{Json, JsonObject}
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
+import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.{Curve25519, Signature}
 import scorex.util.encode.Base58
 
@@ -264,6 +265,12 @@ trait CoreGenerators extends Logging {
     val assetCode = AssetCode(assetVersion, issuer, shortName)
     val assetValue = AssetValue(quantity, assetCode, metadata = Some(data))
     (issuer, assetValue)
+  }
+
+  lazy val securityRootGen: Gen[SecurityRoot] = for {
+    root <- specificLengthBytesGen(Blake2b256.DigestSize)
+  } yield {
+    SecurityRoot(Base58.encode(root))
   }
 
   lazy val toSeqGen: Gen[IndexedSeq[(Address, SimpleValue)]] = for {

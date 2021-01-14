@@ -80,6 +80,15 @@ class SerializationTests extends AnyPropSpec
     }
   }
 
+  property("SecurityRoot serialization") {
+    forAll(securityRootGen) {
+      root: SecurityRoot =>
+        val parsed = SecurityRoot.parseBytes(SecurityRoot.toBytes(root)).get
+
+        parsed shouldEqual root
+    }
+  }
+
   property("PolyBox serialization") {
     forAll(polyBoxGen) {
       b: PolyBox =>
