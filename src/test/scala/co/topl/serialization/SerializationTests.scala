@@ -1,7 +1,7 @@
 package co.topl.serialization
 
 import co.topl.attestation.serialization.{ThresholdPropositionCurve25519Serializer, ThresholdSignatureCurve25519Serializer}
-import co.topl.attestation.{Address, Proposition, ThresholdPropositionCurve25519, ThresholdSignatureCurve25519}
+import co.topl.attestation.{Address, Evidence, Proposition, ThresholdPropositionCurve25519, ThresholdSignatureCurve25519}
 import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.transaction._
@@ -45,7 +45,7 @@ class SerializationTests extends AnyPropSpec
           .parseBytes(ThresholdSignatureCurve25519Serializer.toBytes(sig))
           .get
 
-        parsed.bytes sameElements sig.bytes
+        parsed.bytes sameElements sig.bytes shouldBe true
     }
   }
 
@@ -184,7 +184,7 @@ class SerializationTests extends AnyPropSpec
     }
   }
 
-  property("Bloom serialization") {
+  property("Bloom filter serialization") {
     forAll(blockGen) {
       block =>
         val parsed: BloomFilter = BloomFilter.parseBytes(BloomFilter.toBytes(block.bloomFilter)).get
@@ -194,7 +194,16 @@ class SerializationTests extends AnyPropSpec
     }
   }
 
-  property("Address and Evidence serialization") {
+  property("Evidence serialization") {
+    forAll(evidenceGen) {
+      evidence =>
+        val parsed = Evidence.parseBytes(Evidence.toBytes(evidence)).get
+
+        Evidence.toBytes(parsed) sameElements Evidence.toBytes(evidence) shouldBe true
+    }
+  }
+
+  property("Address serialization") {
     forAll(addressGen) {
       address =>
         val parsed: Address = Address.parseBytes(Address.toBytes(address)).get
