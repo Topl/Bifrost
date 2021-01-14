@@ -18,10 +18,12 @@ class AssetTransferSpec extends AnyPropSpec
   with CoreGenerators
   with ValidGenerators {
   property("Randomly generated AssetTransfer Tx should be valid") {
-    forAll(validAssetTransfer(keyRing, state)) { assetTransfer: AssetTransfer[_] =>
+    forAll(validAssetTransfer(keyRing, state, minting = true)) { assetTransfer: AssetTransfer[_] =>
       assetTransfer.syntacticValidate.isSuccess shouldBe true
     }
   }
+
+  //TODO: Test non minting AssetTransfer too
 
   //TODO: This can't be tested yet because we don't have the assetBox needed in state yet to make the transfer
 //  property("Non minting AssetTransfer should be successful even if fee is 0") {
