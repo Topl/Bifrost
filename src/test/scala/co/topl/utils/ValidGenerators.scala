@@ -13,7 +13,7 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.{AssetCode, AssetValue, SecurityRoot}
 import co.topl.program._
-import co.topl.settings.{AppSettings, RuntimeOpts}
+import co.topl.settings.AppSettings
 import io.circe.syntax._
 import org.scalacheck.Gen
 import scorex.crypto.hash.Blake2b256
@@ -109,14 +109,16 @@ trait ValidGenerators extends CoreGenerators {
     State.genesisState(settings, Seq(genesisBlockWithVersion))
   }
 
-  def validAssetTransfer(keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-                         state: State
-                        ): Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = {
+  def validAssetTransfer(
+    keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+    state: State,
+    fee: Long = 1L,
+    minting: Boolean = true
+  ): Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = {
     val sender = keyRing.addresses.head
     val prop = keyRing.lookupPublicKey(sender).get
-    val asset = AssetValue(1, AssetCode(1, sender, "test"), SecurityRoot.empty)
+    val asset = AssetValue(1, AssetCode(1: Byte, sender, "test"), SecurityRoot.empty)
     val recipients = IndexedSeq((sender, asset))
-    val fee = 1
     val rawTx = AssetTransfer.createRaw(
       state,
       recipients,
@@ -125,7 +127,7 @@ trait ValidGenerators extends CoreGenerators {
       None,
       fee,
       data = None,
-      minting = true
+      minting
     ).get
 
     val sig = keyRing.signWithAddress(sender, rawTx.messageToSign).get
