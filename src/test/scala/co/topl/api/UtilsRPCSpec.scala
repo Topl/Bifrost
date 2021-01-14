@@ -1,5 +1,6 @@
 package co.topl.api
 
+import akka.http.scaladsl.model.StatusCodes.InternalServerError
 import akka.util.ByteString
 import co.topl.attestation.Address
 import co.topl.nodeView.state.box.AssetCode
@@ -91,14 +92,10 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
-
-        val hash: String = res.hcursor.downField("result").get[String]("hash") match {
-          case Right(re) => re;
-          case Left(ex) => throw ex
-        }
+        val hash = res.hcursor.downField("result").get[String]("hash")
 
         res.hcursor.downField("error").values.isEmpty shouldBe true
-        hash shouldEqual Base58.encode(Blake2b256("Hello World"))
+        hash shouldEqual Right(Base58.encode(Blake2b256("Hello World")))
       }
     }
 
@@ -148,19 +145,13 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
 
-        val resAddress: Address = res.hcursor.downField("result").get[Address]("address") match {
-          case Right(re) => re;
-          case Left(ex) => throw ex
-        }
+        val resAddress = res.hcursor.downField("result").get[Address]("address")
 
-        val network: String = res.hcursor.downField("result").get[String]("network") match {
-          case Right(re) => re;
-          case Left(ex) => throw ex
-        }
+        val network = res.hcursor.downField("result").get[String]("network")
 
         res.hcursor.downField("error").values.isEmpty shouldBe true
-        network shouldEqual "private"
-        resAddress shouldEqual address
+        network shouldEqual Right("private")
+        resAddress shouldEqual Right(address)
       }
     }
 
@@ -179,20 +170,12 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
-
-        val resAddress: Address = res.hcursor.downField("result").get[Address]("address") match {
-          case Right(re) => re;
-          case Left(ex) => throw ex
-        }
-
-        val network: String = res.hcursor.downField("result").get[String]("network") match {
-          case Right(re) => re;
-          case Left(ex) => throw ex
-        }
+        val network = res.hcursor.downField("result").get[String]("network")
+        val resAddress = res.hcursor.downField("result").get[Address]("address")
 
         res.hcursor.downField("error").values.isEmpty shouldBe true
-        network shouldEqual "private"
-        resAddress shouldEqual address
+        network shouldEqual Right("private")
+        resAddress shouldEqual Right(address)
       }
     }
 
@@ -212,19 +195,11 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val code = res.hcursor.downField("error").get[Int]("code")
+        val message = res.hcursor.downField("error").get[String]("message")
 
-        val code: Int = res.hcursor.downField("error").get[Int]("code") match {
-          case Right(re) => re;
-          case Left(ex) => throw ex
-        }
-
-        val message: String = res.hcursor.downField("error").get[String]("message") match {
-          case Right(re) => re;
-          case Left(ex) => throw ex
-        }
-
-        code shouldEqual 500
-        message shouldEqual "Invalid address: Network type does not match"
+        code shouldEqual Right(InternalServerError.intValue)
+        message shouldEqual Right("Invalid address: Network type does not match")
       }
     }
   }
