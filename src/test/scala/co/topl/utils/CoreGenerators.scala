@@ -244,6 +244,12 @@ trait CoreGenerators extends Logging {
     (0 until seqLen) map { _ => sampleUntilNonEmpty(fromGen) }
   }
 
+  lazy val simpleValueGen: Gen[SimpleValue] = for {
+    value <- positiveLongGen
+  } yield {
+    SimpleValue(value)
+  }
+
   lazy val toGen: Gen[(Address, SimpleValue)] = for {
     address <- addressGen
     value <- positiveLongGen
@@ -251,20 +257,27 @@ trait CoreGenerators extends Logging {
     (address, SimpleValue(value))
   }
 
-  //TODO create optional data to test cases for None or Some
-  lazy val assetToGen: Gen[(Address, AssetValue)] = for {
+  lazy val assetCodeGen: Gen[AssetCode] = for {
     // TODO: Hard coded as 1, but change this to arbitrary in the future
     // assetVersion <- Arbitrary.arbitrary[Byte]
     issuer <- addressGen
     shortName <- shortNameGen
+  } yield {
+    AssetCode(1: Byte, issuer, shortName)
+  }
+
+  lazy val assetValueGen: Gen[AssetValue] = for {
     quantity <- positiveLongGen
+    assetCode <- assetCodeGen
     data <- stringGen
   } yield {
-    // TODO: Hard coded as 1, but change this to arbitrary in the future
-    val assetVersion = 1: Byte
-    val assetCode = AssetCode(assetVersion, issuer, shortName)
-    val assetValue = AssetValue(quantity, assetCode, metadata = Some(data))
-    (issuer, assetValue)
+    AssetValue(quantity, assetCode, metadata = Some(data))
+  }
+
+  lazy val assetToGen: Gen[(Address, AssetValue)] = for {
+    assetValue <- assetValueGen
+  } yield {
+    (assetValue.assetCode.issuer, assetValue)
   }
 
   lazy val securityRootGen: Gen[SecurityRoot] = for {

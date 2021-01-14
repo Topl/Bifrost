@@ -10,6 +10,7 @@ import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.program.{ExecutionBuilder, ExecutionBuilderSerializer}
 import co.topl.utils.{CoreGenerators, ValidGenerators}
+import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
@@ -86,6 +87,15 @@ class SerializationTests extends AnyPropSpec
         val parsed = SecurityRoot.parseBytes(SecurityRoot.toBytes(root)).get
 
         parsed shouldEqual root
+    }
+  }
+
+  property("TokenValueHolder serialization") {
+    forAll(Gen.oneOf(simpleValueGen, assetValueGen)) {
+      value =>
+        val parsed = TokenValueHolder.parseBytes(TokenValueHolder.toBytes(value)).get
+
+        parsed shouldEqual value
     }
   }
 
