@@ -43,19 +43,24 @@ object Evidence extends BifrostSerializer[Evidence] {
   val size: Int = 1 + contentLength  //length of typePrefix + contentLength
 
   def apply(typePrefix: EvidenceTypePrefix, content: EvidenceContent): Evidence = {
+    assert(content.length == contentLength, "Invalid evidence: incorrect EvidenceContent length")
+
     parseBytes(typePrefix +: content) match {
       case Success(ec) => ec
       case Failure(ex) => throw ex
     }
   }
 
-  private def apply(str: String): Evidence =
+  private def apply(str: String): Evidence = {
+    assert(Base58.decode(str).get.length == size, "Invalid evidence: incorrect evidence length")
+
     Base58.decode(str).flatMap(parseBytes) match {
       case Success(ec) => ec
       case Failure(ex) => throw ex
     }
+  }
 
-  override def serialize ( obj: Evidence, w: Writer ): Unit =
+  override def serialize (obj: Evidence, w: Writer): Unit =
     w.putBytes(obj.evBytes)
 
   override def parse(r:  Reader): Evidence = {
