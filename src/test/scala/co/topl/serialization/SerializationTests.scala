@@ -9,6 +9,7 @@ import co.topl.modifier.transaction.serialization._
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.program.{ExecutionBuilder, ExecutionBuilderSerializer}
+import co.topl.settings.VersionSerializer
 import co.topl.utils.{CoreGenerators, ValidGenerators}
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
@@ -283,6 +284,15 @@ class SerializationTests extends AnyPropSpec
         val parsed: Address = Address.parseBytes(Address.toBytes(address)).get
 
         Address.toBytes(parsed) sameElements Address.toBytes(address) shouldBe true
+    }
+  }
+
+  property("Version serialization") {
+    forAll(versionGen) {
+      version =>
+        val parsed = VersionSerializer.parseBytes(VersionSerializer.toBytes(version)).get
+
+        parsed.bytes sameElements version.bytes
     }
   }
 }

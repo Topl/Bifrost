@@ -14,7 +14,7 @@ import co.topl.nodeView.state.box.Box.Nonce
 import co.topl.nodeView.state.box.{ProgramId, _}
 import co.topl.program.{ProgramPreprocessor, _}
 import co.topl.settings.NetworkType.PrivateNet
-import co.topl.settings.{AppSettings, StartupOpts}
+import co.topl.settings.{AppSettings, StartupOpts, Version}
 import io.circe.syntax._
 import io.circe.{Json, JsonObject}
 import io.iohk.iodb.LSMStore
@@ -458,6 +458,13 @@ trait CoreGenerators extends Logging {
   lazy val propositionGen: Gen[PublicKeyPropositionCurve25519] = key25519Gen.map(_._2)
   lazy val evidenceGen: Gen[Evidence] = for { address <- addressGen } yield { address.evidence }
   lazy val addressGen: Gen[Address] = for { key <- propositionGen } yield { key.address }
+  lazy val versionGen: Gen[Version] = for {
+    first <- Gen.choose(0: Byte, Byte.MaxValue)
+    second <- Gen.choose(0: Byte, Byte.MaxValue)
+    third <- Gen.choose(0: Byte, Byte.MaxValue)
+  } yield {
+    new Version(first, second, third)
+  }
 
   def genBytesList(size: Int): Gen[Array[Byte]] = genBoundedBytes(size, size)
 
