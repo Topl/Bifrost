@@ -321,22 +321,6 @@ trait CoreGenerators extends Logging {
     AssetTransfer(from, to, attestation, fee, timestamp, Some(data), minting = true)
   }
 
-  /*
-  lazy val assetCreationGen: Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = for {
-    to <- toSeqGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    sender <- key25519Gen
-    issuer <- propositionGen
-    assetCode <- stringGen
-    data <- stringGen
-  } yield {
-    val rawTx = AssetTransfer.createRaw(stateReader = ???, to, Seq(sender._2), sender._2, issuer, assetCode, fee, data, true).get
-    val sig = sender._1.sign(rawTx.messageToSign)
-    AssetCreation(to, Map(sender._2 -> sig), assetCode, sender._2, fee, timestamp, data)
-  }
-   */
-
   lazy val publicKeyPropositionCurve25519Gen: Gen[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] =
     key25519Gen.map(key => key._1 -> key._2)
 
@@ -356,6 +340,18 @@ trait CoreGenerators extends Logging {
     val thresholdProp = ThresholdPropositionCurve25519(threshold, props)
 
     (setOfKeys._1, thresholdProp)
+  }
+
+  lazy val thresholdSignatureCurve25519Gen: Gen[ThresholdSignatureCurve25519] = for {
+    numKeys <- positiveMediumIntGen
+    message <- nonEmptyBytesGen
+  } yield {
+    val sigs = (0 until numKeys)
+      .map { _ =>
+        val key = sampleUntilNonEmpty(key25519Gen)
+        key._1.sign(message)
+      }.toSet
+    ThresholdSignatureCurve25519(sigs)
   }
 
   lazy val propTypes: Gen[String] = sampleUntilNonEmpty(Gen.oneOf(
