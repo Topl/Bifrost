@@ -1,7 +1,7 @@
 package co.topl.serialization
 
-import co.topl.attestation.serialization.{ThresholdPropositionCurve25519Serializer, ThresholdSignatureCurve25519Serializer}
-import co.topl.attestation.{Address, Evidence, Proposition, ThresholdPropositionCurve25519, ThresholdSignatureCurve25519}
+import co.topl.attestation.serialization.{PublicKeyPropositionCurve25519Serializer, SignatureCurve25519Serializer, ThresholdPropositionCurve25519Serializer, ThresholdSignatureCurve25519Serializer}
+import co.topl.attestation._
 import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.transaction._
@@ -25,6 +25,37 @@ class SerializationTests extends AnyPropSpec
   with Matchers
   with CoreGenerators
   with ValidGenerators {
+
+  property("PublicKeyPropositionCurve25519 serialization") {
+    forAll(publicKeyPropositionCurve25519Gen) {
+      case (_, prop: PublicKeyPropositionCurve25519) =>
+        val parsed = PublicKeyPropositionCurve25519Serializer
+          .parseBytes(PublicKeyPropositionCurve25519Serializer.toBytes(prop))
+          .get
+
+        parsed.bytes sameElements prop.bytes shouldBe true
+    }
+  }
+
+  property("PrivateKeyCurve25519 serialization") {
+    forAll(key25519Gen) {
+      case (key: PrivateKeyCurve25519, _) =>
+        val parsed = PrivateKeyCurve25519.parseBytes(PrivateKeyCurve25519.toBytes(key)).get
+
+        parsed.bytes sameElements key.bytes shouldBe true
+    }
+  }
+
+  property("") {
+    forAll(signatureGen) {
+      sig: SignatureCurve25519 =>
+        val parsed = SignatureCurve25519Serializer
+          .parseBytes(SignatureCurve25519Serializer.toBytes(sig))
+          .get
+
+        parsed.bytes sameElements sig.bytes shouldBe true
+    }
+  }
 
   property("ThresholdPropositionCurve25519 serialization") {
     forAll(thresholdPropositionCurve25519Gen) {
