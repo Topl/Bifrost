@@ -114,7 +114,7 @@ trait ValidGenerators extends CoreGenerators {
                         ): Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = {
     val sender = keyRing.addresses.head
     val prop = keyRing.lookupPublicKey(sender).get
-    val asset = AssetValue(1, AssetCode(1, sender, "test"), SecurityRoot.empty)
+    val asset = AssetValue(1, AssetCode(1: Byte, sender, "test"), SecurityRoot.empty)
     val recipients = IndexedSeq((sender, asset))
     val fee = 1
     val rawTx = AssetTransfer.createRaw(
