@@ -341,8 +341,12 @@ case class TransactionApiEndpoint(
       }
     }) match {
       case Right(Success(json)) => json
-      case Right(Failure(ex))   => throw ex
-      case Left(ex)             => throw ex
+      case Right(Failure(ex))   =>
+        println("in right fail: "  + ex)
+        throw new Exception (ex)
+      case Left(ex)             =>
+        println("in left fail: " + ex)
+        throw ex
     }
   }
 }

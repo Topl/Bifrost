@@ -16,7 +16,7 @@ import crypto.AssetCode
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
-import keymanager.KeyManager.{GenerateKeyFile, GetAllKeyfiles}
+import keymanager.KeyManager.{GenerateKeyFile, GetAllKeyfiles, UnlockKeyFile}
 import keymanager.{Bip39, KeyManagerRef}
 import requests.{ApiRoute, Requests}
 
@@ -236,6 +236,8 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     }
   }
 
+  var rawPolyTx: Json = Map("txType" -> "AssetCreation").asJson
+  var polyMsgToSign = ""
   it should "successfully create raw poly tx" in {
     val createPolyRequest = ByteString(
       s"""
@@ -263,6 +265,8 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
+          rawPolyTx = (res \\ "rawTx").head
+          polyMsgToSign = (res \\ "messageToSign").head.asString.get
           (res \\ "error").isEmpty shouldBe true
           (res \\ "result").head.asObject.isDefined shouldBe true
       }
@@ -555,6 +559,72 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
             .mapTo[Map[Address,String]], 10.seconds)
           keyfiles.keySet.size shouldBe 3
           assert(network.toString() === "48")
+      }
+    }
+  }
+
+  var polySignedTx: Json = Json.Null
+
+  it should "successfully sign a poly transaction" in {
+    Await.result((keyManagerRef ? UnlockKeyFile(pk1.toString, "password"))
+      .mapTo[Try[Unit]], 10.seconds) match {
+      case Success(value) =>
+      case Failure(ex) => throw new Error(s"An error occurred while unlocking keyfile. $ex")
+    }
+    val signPolyTxRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_signTx",
+         |   "params": [{
+         |      "signingKeys": ["${pk1.toString}"],
+         |      "rawTx": $rawPolyTx,
+         |      "messageToSign": "$polyMsgToSign"
+         |   }]
+         |}
+         """.stripMargin)
+
+    httpPOST(signPolyTxRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          polySignedTx = ((res \\ "result").head \\ "tx").head
+          (res \\ "result").head.asObject.isDefined shouldBe true
+      }
+    }
+  }
+
+  val connectRequest: Vector[Json] = Vector(Map("params" ->
+    Vector(Map("chainProvider" -> settings.application.chainProvider).asJson)).asJson)
+
+  it should "successfully broadcast a poly tx" in {
+    bifrostApiRoute.handlers("onlineWallet_connectToBifrost", connectRequest, "2")
+    Thread.sleep(10000)
+    val rqstString =
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "onlineWallet_broadcastTx",
+         |   "params": [{
+         |      "method": "topl_broadcastTx",
+         |      "params": [{
+         |        "tx": $polySignedTx
+         |      }]
+         |   }]
+         |}
+         """.stripMargin
+    val rqst = ByteString(rqstString)
+    httpPOST(rqst) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          (res \\ "result").head.asObject.isDefined shouldBe true
       }
     }
   }

@@ -241,6 +241,8 @@ object TransferTransaction {
     // prototype transactions do not contain signatures at creation
     if (hasAttMap) {
       // ensure that the signatures are valid signatures with the body of the transaction
+      println("in if statement: " + tx)
+      println(tx.attestation)
       require(
         tx.attestation.forall { case (prop, proof) =>
           proof.isValid(prop, tx.messageToSign)

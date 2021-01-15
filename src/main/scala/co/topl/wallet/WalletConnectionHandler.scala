@@ -158,7 +158,9 @@ class WalletConnectionHandler[
         .apply(req)
         .transformWith {
           case Success(resp) => Future(resp.noSpaces)
-          case _             => Future("Failed to process request")
+          case Failure(exception) =>
+            println("failure: " + exception)
+            Future("Error: " + exception)
         }
         .pipeTo(actorRef)
 
