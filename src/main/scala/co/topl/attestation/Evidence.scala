@@ -54,7 +54,7 @@ object Evidence extends BifrostSerializer[Evidence] {
   private def apply(str: String): Evidence = {
     require(Base58.decode(str).get.length == size, "Invalid evidence: incorrect evidence length")
 
-    Base58.decode(str)..flatMap(parseBytes) match {
+    Base58.decode(str).flatMap(parseBytes) match {
       case Success(ec) => ec
       case Failure(ex) => throw ex
     }
