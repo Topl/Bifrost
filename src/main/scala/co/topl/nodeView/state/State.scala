@@ -310,7 +310,7 @@ object State extends Logging {
     val nodeKeys: Option[Set[Address]] = settings.application.nodeKeys match {
       case None => None
       case Some(keys) if keys.isEmpty => None
-      case Some(keys) => Some(keys.map(Address(_)))
+      case Some(keys) => Some(keys.map(Address(networkPrefix)(_)))
     }
 
     if ( nodeKeys.isDefined ) log.info(s"Initializing state to watch for public keys: $nodeKeys")

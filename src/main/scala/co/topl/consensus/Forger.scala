@@ -141,8 +141,8 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
 
   /** Helper function to enable private forging if we can expects keys in the key ring */
   private def checkPrivateForging(): Unit =
-    if (appContext.networkType.startWithForging && keyRing.addresses.nonEmpty) self ! StartForging
-    else if (appContext.networkType.startWithForging)
+    if (settings.forging.forgeOnStartup && keyRing.addresses.nonEmpty) self ! StartForging
+    else if (settings.forging.forgeOnStartup)
       log.warn("Forging process not started since the key ring is empty")
 
   /** Schedule a forging attempt */
@@ -170,12 +170,12 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
     */
   private def initializeGenesis: Try[Block] = {
     (appContext.networkType match {
-      case MainNet(_)       => Toplnet.getGenesisBlock
-      case TestNet(_)       => ???
-      case DevNet(_)        => ???
-      case LocalNet(opts)   => PrivateTestnet(generateKeys, settings, opts).getGenesisBlock
-      case PrivateNet(opts) => PrivateTestnet(generateKeys, settings, opts).getGenesisBlock
-      case _                => throw new Error("Undefined network type.")
+      case MainNet       => Toplnet.getGenesisBlock
+      case TestNet       => ???
+      case DevNet        => ???
+      case LocalNet      => PrivateTestnet(generateKeys, settings).getGenesisBlock
+      case PrivateNet    => PrivateTestnet(generateKeys, settings).getGenesisBlock
+      case _             => throw new Error("Undefined network type.")
     }).map { case (block: Block, ChainParams(totalStake, initDifficulty)) =>
       rewardAddress = keyRing.addresses.headOption
       maxStake = totalStake
@@ -323,20 +323,29 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
       .foldLeft(PickTransactionsResult(Seq(), Seq())) { case (txAcc, tx) =>
         // ensure that each transaction opens a unique box by checking that this transaction
         // doesn't open a box already being opened by a previously included transaction
-        val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.toApply.flatMap(_.boxIdsToOpen).contains(id))
+        val boxNotAlreadyUsed = tx.boxIdsToOpen.forall(id => !txAcc.toApply.flatMap(_.boxIdsToOpen).contains(id))
 
         // if any newly created box matches a box already in the UTXO set, remove the transaction
-        val outputBoxExists = tx.newBoxes.exists(b => state.getBox(b.id).isDefined)
+        val boxAlreadyExists = tx.newBoxes.exists(b => state.getBox(b.id).isDefined)
 
-        state.semanticValidate(tx) match {
-          case Success(_) if txNotIncluded   => PickTransactionsResult(txAcc.toApply :+ tx, txAcc.toEliminate)
-          case Success(_) if outputBoxExists => PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ tx)
-          case Failure(ex) =>
-            log.debug(
-              s"${Console.RED}Transaction ${tx.id} failed semantic validation. " +
-              s"Transaction will be removed.${Console.RESET} Failure: $ex"
-            )
-            PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ tx)
+        if (boxNotAlreadyUsed && !boxAlreadyExists) {
+          state.semanticValidate(tx) match {
+            case Success(_) => PickTransactionsResult(txAcc.toApply :+ tx, txAcc.toEliminate)
+            case Failure(ex) =>
+              log.debug(
+                s"${Console.RED}Transaction ${tx.id} failed semantic validation. " +
+                  s"Transaction will be removed.${Console.RESET} Failure: $ex")
+              PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ tx)
+          }
+        } else if (!boxNotAlreadyUsed) {
+          log.debug(s"${Console.RED}Transaction ${tx.id} was rejected from forger transaction queue" +
+            s" because a box was used already in a previous transaction. The transaction will be removed.")
+          PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ tx)
+        } else {
+          log.debug(s"${Console.RED}Transaction ${tx.id} was rejected from the forger transaction queue" +
+            s" because a box was used already in a previous transaction, and a newly created" +
+            s" box already exists. The transaction will be removed.")
+          PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ tx)
         }
       }
   }

@@ -21,7 +21,6 @@ trait MockState extends AnyPropSpec
   with ScalaCheckDrivenPropertyChecks
   with Matchers
   with CoreGenerators
-  with ValidGenerators
   with FileUtils {
 
   protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
@@ -36,7 +35,7 @@ trait MockState extends AnyPropSpec
     keyRing.generateNewKeyPairs(num = 3) match {
       case Success(keys) => keys.map(_.publicImage)
       case Failure(ex)   => throw ex
-    } }, settings, RuntimeOpts.empty).getGenesisBlock.get._1
+    } }, settings).getGenesisBlock.get._1
 
   val genesisBlockId: ModifierId = genesisBlock.id
 

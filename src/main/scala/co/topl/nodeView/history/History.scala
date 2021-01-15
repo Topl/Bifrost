@@ -51,6 +51,9 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
 
   override def modifierById(id: ModifierId): Option[Block] = storage.modifierById(id)
 
+  override def modifierByHeight(height: Long): Option[Block] =
+    storage.idAtHeightOf(height).flatMap(storage.modifierById)
+
   def transactionById(id: ModifierId): Option[(Transaction.TX, ModifierId, Long)] =
     storage.lookupConfirmedTransaction(id)
 
