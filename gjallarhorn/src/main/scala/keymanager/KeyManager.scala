@@ -43,6 +43,7 @@ class KeyManager(keyFileDir: String) extends Actor with Logging {
     case GetAllKeyfiles => sender ! keyRing.listKeyFilesAndStatus
 
     case SignTx(tx: Json, keys: List[String], msg: Json) =>
+      println(msg.asString.get)
       val signaturesMap = keys.map(keyString => {
         Base58.decode(msg.asString.get) match {
           case Success(msgToSign) =>

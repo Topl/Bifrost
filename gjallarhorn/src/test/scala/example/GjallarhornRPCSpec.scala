@@ -107,7 +107,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     }
   }
 
-  val assetCode: AssetCode = AssetCode(1.toByte, pk1, "test")
+/*  val assetCode: AssetCode = AssetCode(1.toByte, pk1, "test")
   it should "succesfully create an asset" in {
     val createAssetRequest = ByteString(
       s"""
@@ -234,7 +234,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
           (res \\ "result").head.asObject.isDefined shouldBe true
       }
     }
-  }
+  }*/
 
   var rawPolyTx: Json = Map("txType" -> "AssetCreation").asJson
   var polyMsgToSign = ""
@@ -265,6 +265,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
+          println("raw tx: " + res)
           rawPolyTx = (res \\ "rawTx").head
           polyMsgToSign = (res \\ "messageToSign").head.asString.get
           (res \\ "error").isEmpty shouldBe true
@@ -273,7 +274,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     }
   }
 
-  it should "successfully send online poly tx" in {
+ /* it should "successfully send online poly tx" in {
     Thread.sleep(10000)
     val createPolyRequest = ByteString(
       s"""
@@ -332,16 +333,20 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
               case None => throw new Error ("balance is not a long")
             }
 
-            ((((res \\ "result").head \\ pk1.toString).head \\ assetCode.toString).head \\ "balance").head.asNumber.get.toLong match {
+            //pk1 should have $amount of new asset
+            ((((res \\ "result").head \\ pk1.toString).head \\ assetCode.toString).head \\ "balance")
+              .head.asNumber.get.toLong match {
               case Some(number) => number == amount shouldBe true
               case None => throw new Error ("balance is not a long")
             }
 
+            //pk2 should have $amount poly
             (((res \\ "result").head \\ pk2.toString).head \\ "PolyBox").head.asNumber.get.toLong match {
               case Some(number) => number == amount shouldBe true
               case None => throw new Error ("balance is not a long")
             }
 
+            //pk2 should have $amount arbit
             (((res \\ "result").head \\ pk2.toString).head \\ "ArbitBox").head.asNumber.get.toLong match {
               case Some(number) => number == amount shouldBe true
               case None => throw new Error ("balance is not a long")
@@ -440,7 +445,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       }
     }
   }
-
+*/
  it should "successfully disconnect from Bifrost" in {
     val disconnectRequest = ByteString(
       s"""

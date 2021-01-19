@@ -233,7 +233,9 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
           .mapTo[Json], 10.seconds)
         response = Future{(requests.broadcastTx(signedTx) \\ "result").head}
       } else {
-        response = Future {(requests.sendRequest(tx) \\ "result").head}
+        val iResponse = (requests.sendRequest(tx) \\ "result").head
+        println("create raw tx: " + iResponse)
+        response = Future {iResponse}
       }
     }
     response

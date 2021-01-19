@@ -1,5 +1,6 @@
 package co.topl.modifier.transaction
 
+import scorex.util.encode.Base58
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.attestation.{Evidence, _}
@@ -7,7 +8,6 @@ import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{Box, _}
 import co.topl.utils.Identifiable
-import co.topl.utils.Identifiable.Syntax._
 import com.google.common.primitives.{Ints, Longs}
 import scorex.crypto.hash.Blake2b256
 
@@ -241,8 +241,6 @@ object TransferTransaction {
     // prototype transactions do not contain signatures at creation
     if (hasAttMap) {
       // ensure that the signatures are valid signatures with the body of the transaction
-      println("in if statement: " + tx)
-      println(tx.attestation)
       require(
         tx.attestation.forall { case (prop, proof) =>
           proof.isValid(prop, tx.messageToSign)
