@@ -1,6 +1,6 @@
 package co.topl.serialization
 
-import co.topl.attestation.Proposition
+import co.topl.attestation.{Address, Evidence, Proposition}
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer}
 import co.topl.nodeView.state.box._
 import co.topl.utils.{CoreGenerators, ValidGenerators}
@@ -15,6 +15,18 @@ class JsonTests extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with CoreGenerators
   with ValidGenerators {
+
+  property("Address json") {
+    forAll(addressGen) { address =>
+      address.asJson.as[Address] shouldEqual Right(address)
+    }
+  }
+
+  property("Evidence json") {
+    forAll(evidenceGen) { evidence =>
+      evidence.asJson.as[Evidence] shouldEqual Right(evidence)
+    }
+  }
 
   property("PolyBox json") {
     forAll(polyBoxGen) { box =>
