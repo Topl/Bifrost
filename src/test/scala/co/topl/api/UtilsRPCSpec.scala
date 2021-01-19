@@ -128,7 +128,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
       }
     }
 
-    "Returns the address and network if valid address and network are given" in {
+    "Return the same address and network if the given address and network type are valid and matching" in {
       val requestBody = ByteString(
         s"""
            |{
@@ -144,9 +144,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
-
         val resAddress = res.hcursor.downField("result").get[Address]("address")
-
         val network = res.hcursor.downField("result").get[String]("network")
 
         res.hcursor.downField("error").values.isEmpty shouldBe true
@@ -155,7 +153,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
       }
     }
 
-    "Returns the address and network if only the valid address is given" in {
+    "Returns the address and corresponding network if we received a valid address and no network type is given" in {
       val requestBody = ByteString(
         s"""
            |{
@@ -179,7 +177,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
       }
     }
 
-    "Return error if the given address and network type don't match" in {
+    "Complain that the network type doesn't match if the received address and network type are not matching" in {
       val requestBody = ByteString(
         s"""
            |{

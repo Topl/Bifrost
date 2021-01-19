@@ -139,7 +139,7 @@ case class UtilsApiEndpoint (override val settings: RPCApiSettings, appContext: 
 
   /**
    *  #### Summary
-   *    Check if the provided address is valid, returns the address and
+   *    Check if the provided address is valid, returns the address and network type
    *
    * ---
    *  #### Params
@@ -166,7 +166,6 @@ case class UtilsApiEndpoint (override val settings: RPCApiSettings, appContext: 
             case Some(nt) =>
               implicit val networkPrefix: NetworkPrefix = nt.netPrefix
               (nt.verboseName, params.hcursor.get[Address]("address"))
-
           }
 
         case Left(ex) => throw ex
