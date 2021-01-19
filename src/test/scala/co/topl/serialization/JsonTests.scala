@@ -1,6 +1,6 @@
 package co.topl.serialization
 
-import co.topl.attestation.{Address, Evidence, Proposition, PublicKeyPropositionCurve25519}
+import co.topl.attestation.{Address, Evidence, Proposition, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader}
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer}
@@ -21,6 +21,12 @@ class JsonTests extends AnyPropSpec
   property("PublicKey25519Proposition json") {
     forAll(propositionGen) { prop =>
       prop.asJson.as[PublicKeyPropositionCurve25519] shouldEqual Right(prop)
+    }
+  }
+
+  property("SignatureCurve25519 json") {
+    forAll(signatureGen) { sig =>
+      sig.asJson.as[SignatureCurve25519] shouldEqual Right(sig)
     }
   }
 
@@ -45,6 +51,12 @@ class JsonTests extends AnyPropSpec
   property("AssetCode json") {
     forAll(assetCodeGen) { code =>
       code.asJson.as[AssetCode] shouldEqual Right(code)
+    }
+  }
+
+  property("SecurityRoot json") {
+    forAll(securityRootGen) { root =>
+      root.asJson.as[SecurityRoot] shouldEqual Right(root)
     }
   }
 
