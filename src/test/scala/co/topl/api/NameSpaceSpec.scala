@@ -5,55 +5,44 @@ import akka.http.scaladsl.server.Route
 import akka.util.ByteString
 import co.topl.http.HttpService
 import co.topl.http.api.ApiEndpoint
-import co.topl.http.api.endpoints.{
-  DebugApiEndpoint,
-  KeyManagementApiEndpoint,
-  NodeViewApiEndpoint,
-  TransactionApiEndpoint,
-  UtilsApiEndpoint
-}
+import co.topl.http.api.endpoints.{DebugApiEndpoint, KeyManagementApiEndpoint, NodeViewApiEndpoint, TransactionApiEndpoint, UtilsApiEndpoint}
 import co.topl.settings.AppSettings
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import io.circe.parser.parse
+import org.scalacheck.Prop.forAll
 
 class NameSpaceSpec extends AnyWordSpec with Matchers with RPCMockState {
 
-  val rpcSettingsFalse: AppSettings = rpcSettings.copy(
-    rpcApi = rpcSettings.rpcApi.copy(
-      namespaceSelector = rpcSettings.rpcApi.namespaceSelector.copy(
-        topl = false,
-        util = false,
-        admin = false,
-        debug = false
+  def createRoute(args: Boolean*): Route = {
+    val newRpcSettings: AppSettings = rpcSettings.copy(
+      rpcApi = rpcSettings.rpcApi.copy(
+        namespaceSelector = rpcSettings.rpcApi.namespaceSelector.copy(
+          topl = args(0),
+          util = args(1),
+          admin = args(2),
+          debug = args(3)
+        )
       )
     )
-  )
 
-  val rpcSettingsTrue: AppSettings = rpcSettings.copy(
-    rpcApi = rpcSettings.rpcApi.copy(
-      namespaceSelector = rpcSettings.rpcApi.namespaceSelector.copy(
-        topl = true,
-        util = true,
-        admin = true,
-        debug = true
-      )
+    val newApiRoutes: Seq[ApiEndpoint] = Seq(
+      UtilsApiEndpoint(newRpcSettings.rpcApi, appContext),
+      KeyManagementApiEndpoint(newRpcSettings.rpcApi, appContext, forgerRef),
+      NodeViewApiEndpoint(newRpcSettings.rpcApi, appContext, nodeViewHolderRef),
+      TransactionApiEndpoint(newRpcSettings.rpcApi, appContext, nodeViewHolderRef),
+      DebugApiEndpoint(newRpcSettings.rpcApi, appContext, nodeViewHolderRef, forgerRef)
     )
-  )
 
-  val apiRoutes: Seq[ApiEndpoint] = Seq(
-    UtilsApiEndpoint(rpcSettings.rpcApi, appContext),
-    KeyManagementApiEndpoint(rpcSettings.rpcApi, appContext, forgerRef),
-    NodeViewApiEndpoint(rpcSettings.rpcApi, appContext, nodeViewHolderRef),
-    TransactionApiEndpoint(rpcSettings.rpcApi, appContext, nodeViewHolderRef),
-    DebugApiEndpoint(rpcSettings.rpcApi, appContext, nodeViewHolderRef, forgerRef)
-  )
+    val newHttpService = HttpService(newApiRoutes, newRpcSettings.rpcApi)
+    newHttpService.compositeRoute
+  }
 
-  val httpServiceFalse = HttpService(apiRoutes, rpcSettingsFalse.rpcApi)
-  val routeFalse: Route = httpServiceFalse.compositeRoute
-
-  val httpServiceTrue = HttpService(apiRoutes, rpcSettingsTrue.rpcApi)
-  val routeTrue: Route = httpServiceTrue.compositeRoute
+  val routeTrue: Route = createRoute(true, true, true, true)
+  val routeFalse: Route = createRoute(false, false, false, false)
+  val routeDefault: Route = createRoute(true, true, true, false)
+  val randBools: Seq[Boolean] = (for (i <- 1 to 4) yield scala.util.Random.nextBoolean())
+  val routeRandom: Route = createRoute(randBools: _*)
 
   "debug RPC with namespaces turned on" should {
     "Refuse debug requests with undefined method and return the correct errors" in {
@@ -96,6 +85,15 @@ class NameSpaceSpec extends AnyWordSpec with Matchers with RPCMockState {
         code shouldEqual Right(InternalServerError.intValue)
         message shouldEqual Right("Service handler not found for method: debug_myBlocks")
       }
+
+      httpPOST(requestBody) ~> routeDefault ~> check {
+        val res = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
+        val code = res.hcursor.downField("error").get[Int]("code")
+        val message = res.hcursor.downField("error").get[String]("message")
+
+        code shouldEqual Right(InternalServerError.intValue)
+        message shouldEqual Right("Service handler not found for method: debug_myBlocks")
+      }
     }
   }
 
@@ -103,16 +101,7 @@ class NameSpaceSpec extends AnyWordSpec with Matchers with RPCMockState {
     "Refuse any request with incomplete Json body and return the correct errors" in {
       val requestBody = ByteString("")
 
-      httpPOST(requestBody) ~> routeTrue ~> check {
-        val res = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
-        val code = res.hcursor.downField("error").get[Int]("code")
-        val message = res.hcursor.downField("error").get[String]("message")
-
-        code shouldEqual Right(BadRequest.intValue)
-        message shouldEqual Right("Unable to parse Json body")
-      }
-
-      httpPOST(requestBody) ~> routeFalse ~> check {
+      httpPOST(requestBody) ~> routeRandom ~> check {
         val res = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
         val code = res.hcursor.downField("error").get[Int]("code")
         val message = res.hcursor.downField("error").get[String]("message")
