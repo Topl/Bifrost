@@ -80,8 +80,6 @@ class KeyManager(keyFileDir: String) extends Actor with Logging {
             keyRing = Keys(keyFileDir, KeyfileCurve25519)(PrivateKeyCurve25519.secretGenerator,
               networkPrefix = networkPrefix)
 
-            //TODO: unlock all keyfiles on new network
-
             log.info(s"${Console.MAGENTA}Network changed to: ${network.verboseName} ${Console.RESET}")
           }
           sender ! Map("newNetworkPrefix" -> networkPrefix).asJson
