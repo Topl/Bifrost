@@ -43,26 +43,29 @@ class KeyManager(keyFileDir: String) extends Actor with Logging {
     case GetAllKeyfiles => sender ! keyRing.listKeyFilesAndStatus
 
     case SignTx(tx: Json, keys: List[String], msg: Json) =>
-      println(msg.asString.get)
-      val signaturesMap = keys.map(keyString => {
-        Base58.decode(msg.asString.get) match {
-          case Success(msgToSign) =>
-            keyRing.signWithAddress(Address(networkPrefix)(keyString), msgToSign) match {
-              case Success(signedTx) =>
-                val sig = signedTx.asJson
-                keyRing.lookupPublicKey(Address(networkPrefix)(keyString)) match {
-                  case Success(pubKey) => pubKey -> sig
-                  case Failure(exception) => throw exception
-                }
-              case Failure(exception) => throw exception
-            }
-          case Failure(exception) => throw exception
-        }
-      }).toMap.asJson
-      val newTx = tx.deepMerge(Map(
-        "signatures" -> signaturesMap
-      ).asJson)
-      sender ! Map("tx"-> newTx).asJson
+      for {
+        currentSignatures <- (tx \\ "signatures").head.as[Map[PrivateKeyCurve25519#PK, Json]]
+      } yield {
+        val newSignatures: Map[PrivateKeyCurve25519#PK, Json] = keys.map(keyString => {
+          Base58.decode(msg.asString.get) match {
+            case Success(msgToSign) =>
+              keyRing.signWithAddress(Address(networkPrefix)(keyString), msgToSign) match {
+                case Success(signedTx) =>
+                  val sig = signedTx.asJson
+                  keyRing.lookupPublicKey(Address(networkPrefix)(keyString)) match {
+                    case Success(pubKey) => pubKey -> sig
+                    case Failure(exception) => throw exception
+                  }
+                case Failure(exception) => throw exception
+              }
+            case Failure(exception) => throw exception
+          }
+        }).toMap
+        val newTx = tx.deepMerge(Map(
+          "signatures" -> (currentSignatures ++ newSignatures).asJson
+        ).asJson)
+        sender ! Map("tx" -> newTx).asJson
+      }
 
     case ChangeNetwork(networkName: String) =>
       NetworkType.fromString(networkName) match {
