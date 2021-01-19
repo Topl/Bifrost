@@ -1,6 +1,7 @@
 package co.topl.serialization
 
 import co.topl.attestation.{Address, Evidence, Proposition}
+import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader}
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer}
 import co.topl.nodeView.state.box._
@@ -26,6 +27,18 @@ class JsonTests extends AnyPropSpec
   property("Evidence json") {
     forAll(evidenceGen) { evidence =>
       evidence.asJson.as[Evidence] shouldEqual Right(evidence)
+    }
+  }
+
+  property("ModifierId json") {
+    forAll(modifierIdGen) { id =>
+      id.asJson.as[ModifierId] shouldEqual Right(id)
+    }
+  }
+
+  property("AssetCode json") {
+    forAll(assetCodeGen) { code =>
+      code.asJson.as[AssetCode] shouldEqual Right(code)
     }
   }
 
