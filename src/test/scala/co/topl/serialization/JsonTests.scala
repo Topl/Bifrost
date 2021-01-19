@@ -1,6 +1,6 @@
 package co.topl.serialization
 
-import co.topl.attestation.{Address, Evidence, Proposition}
+import co.topl.attestation.{Address, Evidence, Proposition, PublicKeyPropositionCurve25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader}
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer}
@@ -17,6 +17,12 @@ class JsonTests extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with CoreGenerators
   with ValidGenerators {
+
+  property("PublicKey25519Proposition json") {
+    forAll(propositionGen) { prop =>
+      prop.asJson.as[PublicKeyPropositionCurve25519] shouldEqual Right(prop)
+    }
+  }
 
   property("Address json") {
     forAll(addressGen) { address =>
@@ -57,6 +63,12 @@ class JsonTests extends AnyPropSpec
   property("AssetBox json") {
     forAll(assetBoxGen) { box =>
       box.asJson.as[AssetBox] shouldEqual Right(box)
+    }
+  }
+
+  property("ProgramId json") {
+    forAll(programIdGen) { id =>
+      id.asJson.as[ProgramId] shouldEqual Right(id)
     }
   }
 
