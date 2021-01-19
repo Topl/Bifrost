@@ -200,5 +200,29 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
         message shouldEqual Right("Invalid address: Network type does not match")
       }
     }
+
+    "Reject request if the network type doesn't exist" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "1",
+           |   "method": "util_checkValidAddress",
+           |   "params": [{
+           |      "network": "nonexistentnetwork",
+           |      "address": "$address"
+           |   }]
+           |}
+      """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val code = res.hcursor.downField("error").get[Int]("code")
+        val message = res.hcursor.downField("error").get[String]("message")
+
+        code shouldEqual Right(InternalServerError.intValue)
+        message shouldEqual Right("Invalid network specified")
+      }
+    }
   }
 }
