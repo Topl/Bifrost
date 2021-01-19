@@ -116,15 +116,15 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val oldAssetCode: AssetCode = AssetCode(1: Byte, address, "testcode")
 
-        val assetCode: AssetCode = res.hcursor.downField("result").get[AssetCode]("assetCode") match {
+        val genAssetCode: AssetCode = res.hcursor.downField("result").get[AssetCode]("assetCode") match {
           case Right(re) => re;
           case Left(ex) => throw ex
         }
 
         res.hcursor.downField("error").values.isEmpty shouldBe true
-        assetCode.shortName shouldEqual "testcode"
-        assetCode.issuer shouldEqual address
+        oldAssetCode.toString shouldEqual genAssetCode.toString
       }
     }
 
