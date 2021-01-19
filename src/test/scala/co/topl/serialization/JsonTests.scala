@@ -7,6 +7,7 @@ import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer}
 import co.topl.nodeView.state.box._
 import co.topl.utils.{CoreGenerators, ValidGenerators}
 import io.circe.syntax.EncoderOps
+import org.scalacheck.Gen
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
@@ -57,6 +58,14 @@ class JsonTests extends AnyPropSpec
   property("SecurityRoot json") {
     forAll(securityRootGen) { root =>
       root.asJson.as[SecurityRoot] shouldEqual Right(root)
+    }
+  }
+
+  property("TokenValueHolder json") {
+    forAll(Gen.oneOf(simpleValueGen, assetValueGen)) {
+      case value@(s: SimpleValue) => s.asJson.as[TokenValueHolder] shouldEqual Right(value)
+      case value@(a: AssetValue) => a.asJson.as[TokenValueHolder] shouldEqual Right(value)
+      case _ => fail("TokenValueHolder json failed")
     }
   }
 
