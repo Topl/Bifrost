@@ -153,7 +153,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
       }
     }
 
-    "Returns the address and corresponding network if we received a valid address and no network type is given" in {
+    "Returns the address and the current network type, which should be private for tests, if only address is given" in {
       val requestBody = ByteString(
         s"""
            |{
