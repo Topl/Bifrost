@@ -73,6 +73,27 @@ class AddressSpec extends AnyPropSpec
     }
   }
 
+  property("Applying address with incorrect length will result in error") {
+    forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
+      implicit val networkPrefix: NetworkPrefix = NetworkType.MainNet.netPrefix
+      val address: Address = pubkey.address
+      val addrStr: String = address.toString
+      val addrByte: Array[Byte] = Base58.decode(addrStr).get
+
+      /** Alter the last byte in the address, which is part of the checksum */
+      val corruptByte: Byte = (addrByte(addrByte.length - 1).toInt + 1).toByte
+      val modedAddrByte: Array[Byte] = addrByte.slice(0, addrByte.length) ++ Array(corruptByte)
+      val modedAddrStr: String = Base58.encode(modedAddrByte)
+
+      assert(!(addrByte sameElements modedAddrByte))
+
+      val thrown = intercept[Exception] {
+        Address(networkPrefix)(modedAddrStr)
+      }
+      thrown.getMessage shouldEqual s"requirement failed: Invalid address: Not the required length"
+    }
+  }
+
   property("Applying address with incorrect NetworkPrefix will result in error") {
     forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
       implicit val networkPrefix: NetworkPrefix = -42: Byte
