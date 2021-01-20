@@ -34,14 +34,14 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
 
   override def createActorSystem(): ActorSystem = ActorSystem("keyManagementTest", keysConfig)
 
-  val keyFileDir = "keyfiles/keyManagerTest"
+  val keyFileDir: String = keyManagementSettings.application.keyFileDir
   val path: Path = Path(keyFileDir)
   Try(path.deleteRecursively())
   Try(path.createDirectory())
-  val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", settings.application)
+  val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", keyManagementSettings.application)
 
   val apiRoute: ApiRoute = KeyManagementApiRoute(keyManagementSettings, keyManagerRef)
-  val gjalOnlyApiRoute: ApiRoute = GjallarhornOnlyApiRoute(settings, keyManagerRef)
+  val gjalOnlyApiRoute: ApiRoute = GjallarhornOnlyApiRoute(keyManagementSettings, keyManagerRef)
   val route: Route = HttpService(Seq(apiRoute, gjalOnlyApiRoute), keyManagementSettings.rpcApi).compositeRoute
 
   val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))

@@ -311,7 +311,6 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
       case Some(actor) =>
         val walletResponse: MMap[Address, MMap[String, Json]] = Await.result((actor ? GetWallet)
           .mapTo[MMap[Address, MMap[String, Json]]], 10.seconds)
-       log.info("wallet boxes: " + walletResponse)
         var publicKeys: Set[Address] = walletResponse.keySet.toSet
         if ((params \\ "addresses").nonEmpty) {
           publicKeys = (params \\ "addresses").head.asArray.get.map(k => Address(networkPrefix)(k.asString.get)).toSet

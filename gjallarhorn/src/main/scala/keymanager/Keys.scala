@@ -135,7 +135,7 @@ class Keys[
     * Returns the directory for the current network
     * @return
     */
-  private def getNetworkDir: File = {
+  def getNetworkDir: File = {
     val networkName: String = NetworkType.fromPrefix(networkPrefix) match {
       case Some(network) => network.verboseName
       case None => throw new Error("The network prefix does not match any of the network types!")
@@ -208,6 +208,7 @@ object Keys {
    (implicit networkPrefix: NetworkPrefix): Keys[S, KF] = {
     val dir = new File(path)
     dir.mkdirs()
+    println(dir.getAbsolutePath)
     new Keys(dir, Set(), keyfileCompanion)
   }
 

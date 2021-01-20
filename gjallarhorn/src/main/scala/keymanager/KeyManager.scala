@@ -1,6 +1,6 @@
 package keymanager
 
-import java.io.{BufferedReader, BufferedWriter, File, FileReader, FileWriter, PrintWriter}
+import java.io.{BufferedReader, BufferedWriter, File, FileReader, FileWriter}
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.util.Timeout
@@ -18,7 +18,6 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
-import scala.io.Source
 
 
 class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
@@ -31,8 +30,7 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
   implicit val timeout: Timeout = 10.seconds
 
   override def receive: Receive = {
-    case GenerateKeyFile(password, seedOpt) =>
-      shareNewKey(keyRing.generateKeyFile(password, seedOpt), sender())
+    case GenerateKeyFile(password, seedOpt) => shareNewKey(keyRing.generateKeyFile(password, seedOpt), sender())
 
     case ImportKeyfile(password: String, mnemonic: String, lang: String) =>
       shareNewKey(keyRing.importPhrase(password, mnemonic, lang), sender())
@@ -46,29 +44,8 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
     case GetAllKeyfiles => sender ! keyRing.listKeyFilesAndStatus
 
     case SignTx(tx: Json, keys: List[String], msg: Json) =>
-      for {
-        currentSignatures <- (tx \\ "signatures").head.as[Map[PrivateKeyCurve25519#PK, Json]]
-      } yield {
-        val newSignatures: Map[PrivateKeyCurve25519#PK, Json] = keys.map(keyString => {
-          Base58.decode(msg.asString.get) match {
-            case Success(msgToSign) =>
-              keyRing.signWithAddress(Address(networkPrefix)(keyString), msgToSign) match {
-                case Success(signedTx) =>
-                  val sig = signedTx.asJson
-                  keyRing.lookupPublicKey(Address(networkPrefix)(keyString)) match {
-                    case Success(pubKey) => pubKey -> sig
-                    case Failure(exception) => throw exception
-                  }
-                case Failure(exception) => throw exception
-              }
-            case Failure(exception) => throw exception
-          }
-        }).toMap
-        val newTx = tx.deepMerge(Map(
-          "signatures" -> (currentSignatures ++ newSignatures).asJson
-        ).asJson)
+      val newTx = signTx(tx, keys, msg)
         sender ! Map("tx" -> newTx).asJson
-      }
 
     case ChangeNetwork(networkName: String) =>
       NetworkType.fromString(networkName) match {
@@ -77,17 +54,19 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
             //lock all keyfiles on current network
             keyRing.addresses.foreach(addr =>
               keyRing.lockKeyFile(addr.toString))
-
             //change network and initialize keyRing with new network
             networkPrefix = network.netPrefix
             keyRing = Keys(settings.keyFileDir, KeyfileCurve25519)(PrivateKeyCurve25519.secretGenerator,
               networkPrefix = networkPrefix)
-
             log.info(s"${Console.MAGENTA}Network changed to: ${network.verboseName} ${Console.RESET}")
           }
           sender ! Map("newNetworkPrefix" -> networkPrefix).asJson
         case None => Map("error" -> s"The network name: $networkName was not a valid network type!").asJson
       }
+
+    case GetKeyfileDir =>
+      println(keyRing.getNetworkDir)
+      sender ! Map("keyfileDirectory" -> keyRing.getNetworkDir.getAbsolutePath).asJson
 
     case ChangeKeyfileDir(dir: String) =>
       updateKeyfileDir(settings.keyFileDir, dir)
@@ -102,13 +81,14 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
       case Success(addr) =>
         context.actorSelection("../" + WalletManager.actorName).resolveOne().onComplete {
           case Success(walletActor) => walletActor ! NewKey(addr)
-          case Failure(ex) => log.info("offline mode")
+          case Failure(exception) => log.info("offline mode")
         }
       case Failure(ex) => log.error("unable to generate key file!")
     }
     sender ! newAddress
   }
 
+  //TODO: path should not be hardcoded
   private def updateKeyfileDir(oldDir: String, newDir: String): Unit = {
     val path = "gjallarhorn/src/main/resources/application.conf"
     val configFile: File = new File(path)
@@ -118,7 +98,7 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
 
     var lines: Array[String] = Array.empty
     val reader = new BufferedReader(new FileReader(configFile))
-    var line: String = null
+    var line: String = ""
     while ({line = reader.readLine; line != null}) {
       if (line.contains("keyFileDir")) {
         val newLine = line.replace(oldDir, newDir)
@@ -136,6 +116,34 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
     })
     writer.close()
   }
+
+  private def signTx(tx: Json, keys: List[String], msg: Json): Json = {
+    (for {
+      currentSignatures <- (tx \\ "signatures").head.as[Map[PrivateKeyCurve25519#PK, Json]]
+    } yield {
+      val newSignatures: Map[PrivateKeyCurve25519#PK, Json] = keys.map(keyString => {
+        Base58.decode(msg.asString.get) match {
+          case Success(msgToSign) =>
+            keyRing.signWithAddress(Address(networkPrefix)(keyString), msgToSign) match {
+              case Success(signedTx) =>
+                val sig = signedTx.asJson
+                keyRing.lookupPublicKey(Address(networkPrefix)(keyString)) match {
+                  case Success(pubKey) => pubKey -> sig
+                  case Failure(exception) => throw exception
+                }
+              case Failure(exception) => throw exception
+            }
+          case Failure(exception) => throw exception
+        }
+      }).toMap
+      tx.deepMerge(Map(
+        "signatures" -> (currentSignatures ++ newSignatures).asJson
+      ).asJson)
+    }) match {
+      case Right(value) => value
+      case Left(ex) => throw new Exception(s"error parsing json: $ex")
+    }
+  }
 }
 
 object KeyManager {
@@ -147,6 +155,7 @@ object KeyManager {
   case object GetAllKeyfiles
   case class SignTx(transaction: Json, signingKeys: List[String], messageToSign: Json)
   case class ChangeNetwork(networkName: String)
+  case object GetKeyfileDir
   case class ChangeKeyfileDir(dir: String)
 }
 

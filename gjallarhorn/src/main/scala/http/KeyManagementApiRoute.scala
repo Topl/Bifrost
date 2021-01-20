@@ -6,7 +6,7 @@ import attestation.Address
 import keymanager.KeyManager._
 import io.circe.Json
 import io.circe.syntax._
-import keymanager.Bip39
+import keymanager.{Bip39, Keys}
 import keymanager.KeyManager.{GenerateKeyFile, ImportKeyfile, LockKeyFile, UnlockKeyFile}
 import requests.ApiRoute
 import settings.AppSettings
@@ -215,7 +215,7 @@ case class KeyManagementApiRoute(settings: AppSettings, keyManager: ActorRef)
     * @return - keyfile directory path
     */
   private def getKeyfileDir(params: Json, id: String): Future[Json] = {
-    Future{Map("keyfileDirectory" -> settings.application.keyFileDir).asJson}
+    (keyManager ? GetKeyfileDir).mapTo[Json]
   }
 
 

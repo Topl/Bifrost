@@ -44,7 +44,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 
   override def createActorSystem(): ActorSystem = ActorSystem("gjallarhornTest", config)
 
-  val keyFileDir = "keyfiles/gjallarhornRPCTest"
+  val keyFileDir = settings.application.keyFileDir
   val path: Path = Path(keyFileDir)
   Try(path.deleteRecursively())
   Try(path.createDirectory())
