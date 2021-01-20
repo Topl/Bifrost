@@ -4,7 +4,7 @@ import akka.actor.{ActorRef, ActorRefFactory}
 import akka.pattern.ask
 import io.circe.Json
 import io.circe.syntax._
-import keymanager.KeyManager.{ChangeNetwork, SignTx}
+import keymanager.KeyManager.{ChangeKeyfileDir, ChangeNetwork, SignTx}
 import keymanager.networkPrefix
 import requests.ApiRoute
 import settings.AppSettings
@@ -29,8 +29,6 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
     case (method, params, id) if method == s"${namespace.name}_networkType" =>
       Future{Map("networkPrefix" -> networkPrefix).asJson}
     case (method, params, id) if method == s"${namespace.name}_changeNetwork" => changeNetwork(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_getKeyfileDir" => getKeyfileDir(params.head, id)
-    //case (method, params, id) if method == s"${namespace.name}_changeKeyfileDir" => changeKeyfileDir(params.head, id)
   }
 
   /** #### Summary
@@ -90,51 +88,5 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
       case Left(error) => throw new Exception (s"error parsing new network: $error")
     }
   }
-
-  /** #### Summary
-    * Get current keyfile directory file path
-    *
-    * ---
-    * #### Params
-    *
-    * | Fields | Data type | Required / Optional | Description |
-    * | ---| ---	| --- | --- |
-    * | --None specified--    |
-    *
-    * @param params input parameters as specified above
-    * @param id     request identifier
-    * @return - keyfile directory path
-    */
-  private def getKeyfileDir(params: Json, id: String): Future[Json] = {
-    Future{Map("keyfileDirectory" -> settings.application.keyFileDir).asJson}
-  }
-
-
-/*  /** #### Summary
-    * Change keyfile directory
-    *
-    * #### Description
-    * Changes the current keyfile directory to the given keyfile directory.
-    * ---
-    * #### Params
-    *
-    * | Fields | Data type | Required / Optional | Description |
-    * | ---| ---	| --- | --- |
-    * | directory | String	| Required | the new directory to switch to |
-    *
-    * @param params input parameters as specified above
-    * @param id     request identifier
-    * @return -
-    */
-  private def changeKeyfileDir(params: Json, id: String): Future[Json] = {
-    (for {
-      directory <- (params \\ "directory").head.as[String]
-    } yield {
-      (keyManagerRef ? ChangeNetwork(directory)).mapTo[Json]
-    }) match {
-      case Right(value) => value
-      case Left(error) => throw new Exception (s"error parsing new network: $error")
-    }
-  }*/
 
 }

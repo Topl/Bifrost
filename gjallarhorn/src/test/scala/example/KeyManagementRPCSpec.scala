@@ -12,7 +12,7 @@ import attestation.AddressEncoder.NetworkPrefix
 import http.{GjallarhornOnlyApiRoute, HttpService, KeyManagementApiRoute}
 import io.circe.Json
 import io.circe.parser.parse
-import keymanager.KeyManager.GenerateKeyFile
+import keymanager.KeyManager.{GenerateKeyFile, GetAllKeyfiles}
 import keymanager.KeyManagerRef
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -38,7 +38,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
   val path: Path = Path(keyFileDir)
   Try(path.deleteRecursively())
   Try(path.createDirectory())
-  val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", keyFileDir)
+  val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", settings.application)
 
   val apiRoute: ApiRoute = KeyManagementApiRoute(keyManagementSettings, keyManagerRef)
   val gjalOnlyApiRoute: ApiRoute = GjallarhornOnlyApiRoute(settings, keyManagerRef)
@@ -317,6 +317,34 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
           (res \\ "error").isEmpty shouldBe true
           val openKeys: Set[String] = (res \\ "result").head.asArray.get.map(k => k.asString.get).toSet
           openKeys.size == 1 shouldBe true
+      }
+    }
+  }
+
+  it should "successfully modify the keyfile directory" in {
+    val networkTypeRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_changeKeyfileDir",
+         |   "params": [{
+         |      "directory": "keyfiles/newFolder"
+         |   }]
+         |}
+         """.stripMargin)
+
+    httpPOST(networkTypeRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          val dir = ((res \\ "result").head \\ "newDirectory").head
+          val keyfiles: Map[Address, String] = Await.result((keyManagerRef ? GetAllKeyfiles)
+            .mapTo[Map[Address,String]], 10.seconds)
+          keyfiles.keySet.size shouldBe 0
+          assert(dir.asString.get == "keyfiles/newFolder")
       }
     }
   }

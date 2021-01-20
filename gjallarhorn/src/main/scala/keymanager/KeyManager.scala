@@ -1,5 +1,7 @@
 package keymanager
 
+import java.io.{BufferedReader, BufferedWriter, File, FileReader, FileWriter, PrintWriter}
+
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.util.Timeout
 import attestation.{Address, PrivateKeyCurve25519}
@@ -7,7 +9,7 @@ import crypto.KeyfileCurve25519
 import io.circe.Json
 import io.circe.syntax._
 import scorex.util.encode.Base58
-import settings.NetworkType
+import settings.{ApplicationSettings, NetworkType}
 import utils.Logging
 import wallet.WalletManager
 import wallet.WalletManager.NewKey
@@ -16,14 +18,15 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
+import scala.io.Source
 
 
-class KeyManager(keyFileDir: String) extends Actor with Logging {
+class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
 
   import KeyManager._
 
   private var keyRing: Keys[PrivateKeyCurve25519, KeyfileCurve25519] =
-    Keys(keyFileDir, KeyfileCurve25519)(PrivateKeyCurve25519.secretGenerator, networkPrefix = networkPrefix)
+    Keys(settings.keyFileDir, KeyfileCurve25519)(PrivateKeyCurve25519.secretGenerator, networkPrefix = networkPrefix)
 
   implicit val timeout: Timeout = 10.seconds
 
@@ -77,7 +80,7 @@ class KeyManager(keyFileDir: String) extends Actor with Logging {
 
             //change network and initialize keyRing with new network
             networkPrefix = network.netPrefix
-            keyRing = Keys(keyFileDir, KeyfileCurve25519)(PrivateKeyCurve25519.secretGenerator,
+            keyRing = Keys(settings.keyFileDir, KeyfileCurve25519)(PrivateKeyCurve25519.secretGenerator,
               networkPrefix = networkPrefix)
 
             log.info(s"${Console.MAGENTA}Network changed to: ${network.verboseName} ${Console.RESET}")
@@ -85,6 +88,13 @@ class KeyManager(keyFileDir: String) extends Actor with Logging {
           sender ! Map("newNetworkPrefix" -> networkPrefix).asJson
         case None => Map("error" -> s"The network name: $networkName was not a valid network type!").asJson
       }
+
+    case ChangeKeyfileDir(dir: String) =>
+      updateKeyfileDir(settings.keyFileDir, dir)
+      settings.keyFileDir = dir
+      keyRing = Keys(settings.keyFileDir, KeyfileCurve25519)(PrivateKeyCurve25519.secretGenerator,
+        networkPrefix = networkPrefix)
+      sender ! Map("newDirectory" -> settings.keyFileDir).asJson
   }
 
   private def shareNewKey(newAddress: Try[Address], sender: ActorRef) {
@@ -98,6 +108,34 @@ class KeyManager(keyFileDir: String) extends Actor with Logging {
     }
     sender ! newAddress
   }
+
+  private def updateKeyfileDir(oldDir: String, newDir: String): Unit = {
+    val path = "gjallarhorn/src/main/resources/application.conf"
+    val configFile: File = new File(path)
+    if (!configFile.exists()) {
+      throw new Error (s"The config file: $path does not exist!")
+    }
+
+    var lines: Array[String] = Array.empty
+    val reader = new BufferedReader(new FileReader(configFile))
+    var line: String = null
+    while ({line = reader.readLine; line != null}) {
+      if (line.contains("keyFileDir")) {
+        val newLine = line.replace(oldDir, newDir)
+        lines = lines :+ newLine
+      }else{
+        lines = lines :+ line
+      }
+    }
+    reader.close()
+
+    val writer = new BufferedWriter(new FileWriter(configFile))
+    lines.foreach(line => {
+      writer.write(line)
+      writer.newLine()
+    })
+    writer.close()
+  }
 }
 
 object KeyManager {
@@ -109,17 +147,18 @@ object KeyManager {
   case object GetAllKeyfiles
   case class SignTx(transaction: Json, signingKeys: List[String], messageToSign: Json)
   case class ChangeNetwork(networkName: String)
+  case class ChangeKeyfileDir(dir: String)
 }
 
 object KeyManagerRef {
 
-  def props(keyFileDir: String)
+  def props(settings: ApplicationSettings)
            (implicit ec: ExecutionContext): Props = {
-    Props(new KeyManager(keyFileDir))
+    Props(new KeyManager(settings))
   }
 
-  def apply(name: String, keyFileDir: String)
+  def apply(name: String, settings: ApplicationSettings)
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = {
-    system.actorOf(Props(new KeyManager(keyFileDir)), name = name)
+    system.actorOf(Props(new KeyManager(settings)), name = name)
   }
 }

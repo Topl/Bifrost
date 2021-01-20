@@ -33,12 +33,11 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   log.info(s"${Console.MAGENTA} Gjallarhorn running in offline mode.${Console.RESET}")
 
   //Set up keyManager
-  private val keyFileDir: String = settings.application.keyFileDir
   //TODO: delete old keys for testing purposes:
-  val path: Path = Path(keyFileDir)
+  val path: Path = Path(settings.application.keyFileDir)
   Try(path.deleteRecursively())
   Try(path.createDirectory())
-  val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", keyFileDir)
+  val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", settings.application)
 
   val requests: Requests = new Requests(settings.application, keyManagerRef)
 

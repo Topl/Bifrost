@@ -16,7 +16,7 @@ import crypto.AssetCode
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
-import keymanager.KeyManager.{GenerateKeyFile, GetAllKeyfiles, UnlockKeyFile}
+import keymanager.KeyManager.{GenerateKeyFile, GetAllKeyfiles}
 import keymanager.{Bip39, KeyManagerRef}
 import requests.{ApiRoute, Requests}
 
@@ -48,7 +48,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   val path: Path = Path(keyFileDir)
   Try(path.deleteRecursively())
   Try(path.createDirectory())
-  val keyManagerRef: ActorRef = KeyManagerRef("keyManager", keyFileDir)
+  val keyManagerRef: ActorRef = KeyManagerRef("keyManager", settings.application)
 
   val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))
     .mapTo[Try[Address]], 10.seconds) match {
@@ -107,7 +107,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     }
   }
 
-/*  val assetCode: AssetCode = AssetCode(1.toByte, pk1, "test")
+  val assetCode: AssetCode = AssetCode(1.toByte, pk1, "test")
   it should "succesfully create an asset" in {
     val createAssetRequest = ByteString(
       s"""
@@ -234,10 +234,8 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
           (res \\ "result").head.asObject.isDefined shouldBe true
       }
     }
-  }*/
+  }
 
-  var rawPolyTx: Json = Map("txType" -> "AssetCreation").asJson
-  var polyMsgToSign = ""
   it should "successfully create raw poly tx" in {
     val createPolyRequest = ByteString(
       s"""
@@ -265,16 +263,13 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          println("raw tx: " + res)
-          rawPolyTx = (res \\ "rawTx").head
-          polyMsgToSign = (res \\ "messageToSign").head.asString.get
           (res \\ "error").isEmpty shouldBe true
           (res \\ "result").head.asObject.isDefined shouldBe true
       }
     }
   }
 
- /* it should "successfully send online poly tx" in {
+  it should "successfully send online poly tx" in {
     Thread.sleep(10000)
     val createPolyRequest = ByteString(
       s"""
@@ -327,28 +322,29 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
           case Right(res: Json) =>
             (res \\ "error").isEmpty shouldBe true
 
+            println("balance: " + (res \\ "result").head)
+
             //pk1 should have fewer polys now
             (((res \\ "result").head \\ pk1.toString).head \\ "PolyBox").head.asNumber.get.toLong match {
-              case Some(number) => number < 1000000 shouldBe true
+              case Some(number) => assert(number < 1000000)
               case None => throw new Error ("balance is not a long")
             }
 
             //pk1 should have $amount of new asset
-            ((((res \\ "result").head \\ pk1.toString).head \\ assetCode.toString).head \\ "balance")
-              .head.asNumber.get.toLong match {
-              case Some(number) => number == amount shouldBe true
+            (((res \\ "result").head \\ pk1.toString).head \\ assetCode.toString).head.asNumber.get.toLong match {
+              case Some(number) => assert(number == amount)
               case None => throw new Error ("balance is not a long")
             }
 
             //pk2 should have $amount poly
             (((res \\ "result").head \\ pk2.toString).head \\ "PolyBox").head.asNumber.get.toLong match {
-              case Some(number) => number == amount shouldBe true
+              case Some(number) => assert(number == amount)
               case None => throw new Error ("balance is not a long")
             }
 
             //pk2 should have $amount arbit
             (((res \\ "result").head \\ pk2.toString).head \\ "ArbitBox").head.asNumber.get.toLong match {
-              case Some(number) => number == amount shouldBe true
+              case Some(number) => assert(number == amount)
               case None => throw new Error ("balance is not a long")
             }
 
@@ -445,7 +441,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       }
     }
   }
-*/
+
  it should "successfully disconnect from Bifrost" in {
     val disconnectRequest = ByteString(
       s"""
@@ -564,72 +560,6 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
             .mapTo[Map[Address,String]], 10.seconds)
           keyfiles.keySet.size shouldBe 3
           assert(network.toString() === "48")
-      }
-    }
-  }
-
-  var polySignedTx: Json = Json.Null
-
-  it should "successfully sign a poly transaction" in {
-    Await.result((keyManagerRef ? UnlockKeyFile(pk1.toString, "password"))
-      .mapTo[Try[Unit]], 10.seconds) match {
-      case Success(value) =>
-      case Failure(ex) => throw new Error(s"An error occurred while unlocking keyfile. $ex")
-    }
-    val signPolyTxRequest = ByteString(
-      s"""
-         |{
-         |   "jsonrpc": "2.0",
-         |   "id": "2",
-         |   "method": "wallet_signTx",
-         |   "params": [{
-         |      "signingKeys": ["${pk1.toString}"],
-         |      "rawTx": $rawPolyTx,
-         |      "messageToSign": "$polyMsgToSign"
-         |   }]
-         |}
-         """.stripMargin)
-
-    httpPOST(signPolyTxRequest) ~> route ~> check {
-      val responseString = responseAs[String].replace("\\", "")
-      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
-        case Left(f) => throw f
-        case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          polySignedTx = ((res \\ "result").head \\ "tx").head
-          (res \\ "result").head.asObject.isDefined shouldBe true
-      }
-    }
-  }
-
-  val connectRequest: Vector[Json] = Vector(Map("params" ->
-    Vector(Map("chainProvider" -> settings.application.chainProvider).asJson)).asJson)
-
-  it should "successfully broadcast a poly tx" in {
-    bifrostApiRoute.handlers("onlineWallet_connectToBifrost", connectRequest, "2")
-    Thread.sleep(10000)
-    val rqstString =
-      s"""
-         |{
-         |   "jsonrpc": "2.0",
-         |   "id": "2",
-         |   "method": "onlineWallet_broadcastTx",
-         |   "params": [{
-         |      "method": "topl_broadcastTx",
-         |      "params": [{
-         |        "tx": $polySignedTx
-         |      }]
-         |   }]
-         |}
-         """.stripMargin
-    val rqst = ByteString(rqstString)
-    httpPOST(rqst) ~> route ~> check {
-      val responseString = responseAs[String].replace("\\", "")
-      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
-        case Left(f) => throw f
-        case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          (res \\ "result").head.asObject.isDefined shouldBe true
       }
     }
   }

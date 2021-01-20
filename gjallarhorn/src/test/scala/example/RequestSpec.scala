@@ -36,7 +36,7 @@ class RequestSpec extends AsyncFlatSpec
   implicit val networkPrefix: NetworkPrefix = 48.toByte //local network
 
   val keyFileDir = "keyfiles/requestTestKeys"
-  val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", keyFileDir)
+  val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", settings.application)
 
   val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
     s"akka.tcp://${settings.application.chainProvider}/user/walletConnectionHandler").resolveOne(), 10.seconds)

@@ -12,7 +12,7 @@ import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 import scala.concurrent.duration.FiniteDuration
 
 case class ApplicationSettings(declaredAddress: String,
-                       keyFileDir: String,
+                               var keyFileDir: String,
                        chainProvider: String,
                        communicationMode: String)
 
