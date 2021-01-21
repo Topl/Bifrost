@@ -37,6 +37,47 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
   }
 
   /** #### Summary
+    *    Create raw transaction.
+    *
+    *  #### Description
+    *    Default behavior of the wallet is to find the first unlocked address which hold the targetted asset.
+    *    The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
+    *
+    * ---
+    *  #### Params
+    *  | Fields    | Data type | Required / Optional | Description                                                            |
+    *  |-----------|-----------|---------------------|------------------------------------------------------------------------|
+    *  | transferType          | String                            | Required            | either Poly, Asset, or Arbit
+    *  | propositionType       | String                            | Required            | either PublicKeyCurve25519 or ThresholdPropositionCurve25519
+    *  | assetCode             | String                            | Required            | Name of asset                                                  |
+    *  | recipients            | IndexedSeq[(Address, AssetValue)] | Required            | Recipients and asset values to be sent                         |
+    *  | sender                | Address[]                         | Required            | Array of public keys from which assets should be sent          |
+    *  | changeAddress         | Address                           | Required            | Address to return change to
+    *  | consolidationAddress  | Address                           | Optional            | Address to return leftover arbits or assets to         |
+    *  | fee                   | Number                            | Required            | **Currently unused**                                       |
+    *  | minting               | Boolean                           | Required            | If new asset creation                               |
+    *  | data                  | String                            | Optional            | Data string which can be associated with this transaction(may be empty)|
+    *
+    * //@param params input parameter as specified above
+    * //@param id request identifier
+    * @return
+    */
+/*  private def createRawTransaction (params: Json, id: String): Future[Json] = {
+    (for {
+      transferType <- (params \\ "transferType").head.as[String]
+    } yield {
+      transferType match {
+        case "poly" =>
+        case "arbit" =>
+        case "asset" =>
+      }
+    }) match {
+        case Right(value) => value
+        case Left(error) => throw new Exception(s"error parsing raw tx: $error")
+      }
+  }*/
+
+  /** #### Summary
     * Sign transaction
     *
     * #### Description

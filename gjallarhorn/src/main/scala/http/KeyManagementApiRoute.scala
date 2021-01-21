@@ -98,7 +98,7 @@ case class KeyManagementApiRoute(settings: AppSettings, keyManager: ActorRef)
     }
     (keyManager ? GenerateKeyFile(password, seed)).mapTo[Try[Address]].map {
       case Success(pk: Address) => Map("address" -> pk.asJson).asJson
-      case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
+      case Failure(ex) => throw new Exception(s"An error occurred while creating a new keyfile. $ex")
     }
   }
 
@@ -126,7 +126,7 @@ case class KeyManagementApiRoute(settings: AppSettings, keyManager: ActorRef)
 
     (keyManager ? ImportKeyfile(password, seedPhrase, seedPhraseLang)).mapTo[Try[Address]].map {
       case Success(pk: Address) => Map("address" -> pk.asJson).asJson
-      case Failure(ex) => throw new Error(s"An error occurred while importing the seed phrase. $ex")
+      case Failure(ex) => throw new Exception(s"An error occurred while importing the seed phrase. $ex")
     }
   }
 
@@ -154,7 +154,7 @@ case class KeyManagementApiRoute(settings: AppSettings, keyManager: ActorRef)
 
     (keyManager ? UnlockKeyFile(address, password)).mapTo[Try[Unit]].map {
       case Success(_) => Map(address -> "unlocked".asJson).asJson
-      case Failure(ex) => throw new Error(s"An error occurred while trying to unlock the keyfile. $ex")
+      case Failure(ex) => throw new Exception(s"An error occurred while trying to unlock the keyfile. $ex")
     }
   }
 
@@ -179,7 +179,7 @@ case class KeyManagementApiRoute(settings: AppSettings, keyManager: ActorRef)
 
     (keyManager ? LockKeyFile(address)).mapTo[Try[Unit]].map {
       case Success(_) => Map(address -> "locked".asJson).asJson
-      case Failure(ex) => throw new Error(s"An error occurred while trying to lock the keyfile. $ex")
+      case Failure(ex) => throw new Exception(s"An error occurred while trying to lock the keyfile. $ex")
     }
   }
 

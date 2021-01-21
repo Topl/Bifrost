@@ -73,9 +73,8 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
       setUpOnlineMode(bifrost)
     } catch {
       case e: ActorNotFound =>
-        log.error(s"${Console.MAGENTA} bifrost actor ref not found at: akka.tcp://$chainProvider." +
-          s"Continuing to run in offline mode. ${Console.RESET}")
-        Future{Map("error" -> s"could not connect to chain provider: $chainProvider. $e").asJson}
+        log.error(s"${Console.MAGENTA} bifrost actor ref not found at: akka.tcp://$chainProvider.${Console.RESET}")
+        throw new Exception (s"could not connect to chain provider: $chainProvider. $e")
     }
   }
 
@@ -99,7 +98,7 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
       (keyManager ? ChangeNetwork(networkName)).onComplete {
         case Success(networkResponse: Json) => assert(NetworkType.fromString(networkName).get.netPrefix.toString ==
           (networkResponse \\ "newNetworkPrefix").head.asNumber.get.toString)
-        case Success(_) | Failure(_) => throw new Error ("was not able to change network")
+        case Success(_) | Failure(_) => throw new Exception ("was not able to change network")
       }
 
       walletManagerRef ! KeyManagerReady(keyManager)
@@ -365,7 +364,7 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
   private def offlineMessage(): Future[Json] = {
     val msg = "cannot send request because you are offline mode " +
       "or the chain provider provided was incorrect."
-    Future{Map("error" -> msg).asJson}
+    throw new Exception(msg)
   }
 
 }

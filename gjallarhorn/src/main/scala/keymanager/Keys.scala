@@ -208,7 +208,6 @@ object Keys {
    (implicit networkPrefix: NetworkPrefix): Keys[S, KF] = {
     val dir = new File(path)
     dir.mkdirs()
-    println(dir.getAbsolutePath)
     new Keys(dir, Set(), keyfileCompanion)
   }
 

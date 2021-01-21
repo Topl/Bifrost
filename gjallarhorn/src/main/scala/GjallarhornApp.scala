@@ -59,7 +59,12 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   //Attempt to connect to Bifrost and start online mode.
   val connectRequest: Vector[Json] = Vector(Map("params" ->
     Vector(Map("chainProvider" -> settings.application.chainProvider).asJson)).asJson)
-  gjalBifrostRoute.handlers("onlineWallet_connectToBifrost", connectRequest, "2")
+
+  try {
+    gjalBifrostRoute.handlers("onlineWallet_connectToBifrost", connectRequest, "2")
+  } catch {
+    case e: Exception => log.warn(s"${Console.RED} Continuing to run in offline mode. ${Console.RESET}")
+  }
 
   //DeadLetter listener set up for debugging purposes
   val listener: ActorRef = system.actorOf(Props[DeadLetterListener]())

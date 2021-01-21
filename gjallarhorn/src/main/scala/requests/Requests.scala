@@ -122,7 +122,7 @@ class Requests (settings: ApplicationSettings, keyManagerRef: ActorRef)
       case None =>
         val msg = "cannot send request because you are offline mode " +
           "or the chain provider provided was incorrect."
-        Map("error" -> msg).asJson
+        throw new Exception(msg)
     }
 
   }

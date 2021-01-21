@@ -35,7 +35,12 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
     case ImportKeyfile(password: String, mnemonic: String, lang: String) =>
       shareNewKey(keyRing.importPhrase(password, mnemonic, lang), sender())
 
-    case UnlockKeyFile(addressString, password) => sender ! keyRing.unlockKeyFile(addressString, password)
+    case UnlockKeyFile(addressString, password) =>
+      if (keyRing.addresses.contains(Address(networkPrefix)(addressString))) {
+        throw new Exception("This key is already unlocked!")
+      }else {
+        sender ! keyRing.unlockKeyFile(addressString, password)
+      }
 
     case LockKeyFile(addressString) => sender ! keyRing.lockKeyFile(addressString)
 
@@ -64,7 +69,7 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
             log.info(s"${Console.MAGENTA}Network changed to: ${network.verboseName} ${Console.RESET}")
           }
           sender ! Map("newNetworkPrefix" -> networkPrefix).asJson
-        case None => Map("error" -> s"The network name: $networkName was not a valid network type!").asJson
+        case None => throw new Exception(s"The network name: $networkName was not a valid network type!")
       }
 
     case GetKeyfileDir => sender ! Map("keyfileDirectory" -> keyRing.getNetworkDir.getAbsolutePath).asJson
