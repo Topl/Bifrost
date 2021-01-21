@@ -35,7 +35,7 @@ class RequestSpec extends AsyncFlatSpec
   implicit val timeout: Timeout = 30.seconds
   implicit val networkPrefix: NetworkPrefix = 48.toByte //local network
 
-  val keyFileDir = requestSettings.application.keyFileDir
+  val keyFileDir: String = requestSettings.application.keyFileDir
   val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", requestSettings.application)
 
   val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
@@ -155,7 +155,7 @@ class RequestSpec extends AsyncFlatSpec
 
 
   it should "receive successful JSON response from sign transaction" in {
-    val issuer: List[String] = List(publicKeys.head.toString)
+    val issuer: IndexedSeq[Address] = IndexedSeq(publicKeys.head)
     val response = requests.signTx(transaction, issuer)
     (response \\ "error").isEmpty shouldBe true
     (response \\ "result").head.asObject.isDefined shouldBe true
@@ -167,7 +167,7 @@ class RequestSpec extends AsyncFlatSpec
       case Right(value) => value
     }
     val pubKeys = sigs.keySet.map(pubKey => pubKey.address)
-    issuer.foreach(key => assert(pubKeys.contains(Address(networkPrefix)(key))))
+    issuer.foreach(key => assert(pubKeys.contains(key)))
     (signedTransaction \\ "tx").nonEmpty shouldBe true
   }
 

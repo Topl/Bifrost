@@ -3,10 +3,11 @@ package http
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.pattern.ask
 import attestation.Address
+import attestation.AddressEncoder.NetworkPrefix
 import keymanager.KeyManager._
 import io.circe.Json
 import io.circe.syntax._
-import keymanager.{Bip39, Keys}
+import keymanager.{Bip39, networkPrefix}
 import keymanager.KeyManager.{GenerateKeyFile, ImportKeyfile, LockKeyFile, UnlockKeyFile}
 import requests.ApiRoute
 import settings.AppSettings
@@ -20,6 +21,9 @@ case class KeyManagementApiRoute(settings: AppSettings, keyManager: ActorRef)
     extends ApiRoute {
 
   val namespace: Namespace = WalletNamespace
+
+  // Establish the expected network prefix for addresses
+  implicit val netPrefix: NetworkPrefix = networkPrefix
 
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
@@ -82,7 +86,7 @@ case class KeyManagementApiRoute(settings: AppSettings, keyManager: ActorRef)
     * Generates a key file.
     *
     * @param params - contains the password for the key file.
-    * @param id
+    * @param id - request identifier
     * @return - address for generated keyfile.
     */
   private def generateKeyfile(params: Json, id: String): Future[Json] = {
@@ -125,6 +129,7 @@ case class KeyManagementApiRoute(settings: AppSettings, keyManager: ActorRef)
       case Failure(ex) => throw new Error(s"An error occurred while importing the seed phrase. $ex")
     }
   }
+
 
   /** #### Summary
     * Unlock keyfile

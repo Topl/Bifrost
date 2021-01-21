@@ -44,7 +44,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 
   override def createActorSystem(): ActorSystem = ActorSystem("gjallarhornTest", config)
 
-  val keyFileDir = settings.application.keyFileDir
+  val keyFileDir: String = settings.application.keyFileDir
   val path: Path = Path(keyFileDir)
   Try(path.deleteRecursively())
   Try(path.createDirectory())
@@ -156,7 +156,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |   "id": "2",
          |   "method": "wallet_signTx",
          |   "params": [{
-         |      "signingKeys": ["${pk1.toString}"],
+         |      "signingKeys": ["$pk1"],
          |      "rawTx": $prototypeTx,
          |      "messageToSign": "$msgToSign"
          |   }]
@@ -171,6 +171,35 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
           (res \\ "error").isEmpty shouldBe true
           signedTx = ((res \\ "result").head \\ "tx").head
           (res \\ "result").head.asObject.isDefined shouldBe true
+      }
+    }
+  }
+
+  val emptyTx: Null = null
+
+  it should "successfully generate a signature" in {
+    val signRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_signTx",
+         |   "params": [{
+         |      "signingKeys": ["$pk2"],
+         |      "rawTx": $emptyTx,
+         |      "messageToSign": "$msgToSign"
+         |   }]
+         |}
+         """.stripMargin)
+
+    httpPOST(signRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
+          assert((res \\ "result").head.asObject.isDefined)
+          assert(((res \\ "result").head \\ "signatures").head.asObject.isDefined)
       }
     }
   }

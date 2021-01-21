@@ -43,9 +43,12 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
 
     case GetAllKeyfiles => sender ! keyRing.listKeyFilesAndStatus
 
-    case SignTx(tx: Json, keys: List[String], msg: Json) =>
+    case SignTx(tx: Json, keys: IndexedSeq[Address], msg: String) =>
       val newTx = signTx(tx, keys, msg)
         sender ! Map("tx" -> newTx).asJson
+
+    case GenerateSignatures(keys: IndexedSeq[Address], msg: String) =>
+      sender ! Map("signatures" -> createSignatures(keys, msg)).asJson
 
     case ChangeNetwork(networkName: String) =>
       NetworkType.fromString(networkName) match {
@@ -64,9 +67,7 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
         case None => Map("error" -> s"The network name: $networkName was not a valid network type!").asJson
       }
 
-    case GetKeyfileDir =>
-      println(keyRing.getNetworkDir)
-      sender ! Map("keyfileDirectory" -> keyRing.getNetworkDir.getAbsolutePath).asJson
+    case GetKeyfileDir => sender ! Map("keyfileDirectory" -> keyRing.getNetworkDir.getAbsolutePath).asJson
 
     case ChangeKeyfileDir(dir: String) =>
       updateKeyfileDir(settings.keyFileDir, dir)
@@ -117,25 +118,29 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
     writer.close()
   }
 
-  private def signTx(tx: Json, keys: List[String], msg: Json): Json = {
+  private def createSignatures (keys: IndexedSeq[Address], msg: String): Map[PrivateKeyCurve25519#PK, Json] = {
+    keys.map(address => {
+      Base58.decode(msg) match {
+        case Success(msgToSign) =>
+          keyRing.signWithAddress(address, msgToSign) match {
+            case Success(signedTx) =>
+              val sig = signedTx.asJson
+              keyRing.lookupPublicKey(address) match {
+                case Success(pubKey) => pubKey -> sig
+                case Failure(exception) => throw exception
+              }
+            case Failure(exception) => throw exception
+          }
+        case Failure(exception) => throw exception
+      }
+    }).toMap
+  }
+
+  private def signTx(tx: Json, keys: IndexedSeq[Address], msg: String): Json = {
     (for {
       currentSignatures <- (tx \\ "signatures").head.as[Map[PrivateKeyCurve25519#PK, Json]]
     } yield {
-      val newSignatures: Map[PrivateKeyCurve25519#PK, Json] = keys.map(keyString => {
-        Base58.decode(msg.asString.get) match {
-          case Success(msgToSign) =>
-            keyRing.signWithAddress(Address(networkPrefix)(keyString), msgToSign) match {
-              case Success(signedTx) =>
-                val sig = signedTx.asJson
-                keyRing.lookupPublicKey(Address(networkPrefix)(keyString)) match {
-                  case Success(pubKey) => pubKey -> sig
-                  case Failure(exception) => throw exception
-                }
-              case Failure(exception) => throw exception
-            }
-          case Failure(exception) => throw exception
-        }
-      }).toMap
+      val newSignatures: Map[PrivateKeyCurve25519#PK, Json] = createSignatures(keys, msg)
       tx.deepMerge(Map(
         "signatures" -> (currentSignatures ++ newSignatures).asJson
       ).asJson)
@@ -153,7 +158,8 @@ object KeyManager {
   case class LockKeyFile(addressString: String)
   case object GetOpenKeyfiles
   case object GetAllKeyfiles
-  case class SignTx(transaction: Json, signingKeys: List[String], messageToSign: Json)
+  case class SignTx(transaction: Json, signingKeys: IndexedSeq[Address], messageToSign: String)
+  case class GenerateSignatures(signingKeys: IndexedSeq[Address], messageToSign: String)
   case class ChangeNetwork(networkName: String)
   case object GetKeyfileDir
   case class ChangeKeyfileDir(dir: String)

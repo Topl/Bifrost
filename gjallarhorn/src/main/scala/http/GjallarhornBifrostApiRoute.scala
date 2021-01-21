@@ -9,7 +9,6 @@ import requests.{ApiRoute, Requests, RequestsManager}
 import io.circe.Json
 import io.circe.syntax._
 import keymanager.KeyManager._
-import keymanager.networkPrefix
 import settings.{AppSettings, NetworkType}
 import utils.Logging
 import wallet.WalletManager
@@ -228,8 +227,8 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
       if (online) {
         val txResponse = requests.sendRequest(tx)
         val rawTx = (txResponse \\ "rawTx").head
-        val msgToSign = (txResponse \\ "messageToSign").head
-        val signedTx = Await.result((keyManager ? SignTx(rawTx, List(sender.head.toString), msgToSign))
+        val msgToSign = (txResponse \\ "messageToSign").head.asString.get
+        val signedTx = Await.result((keyManager ? SignTx(rawTx, sender, msgToSign))
           .mapTo[Json], 10.seconds)
         response = Future{(requests.broadcastTx(signedTx) \\ "result").head}
       } else {

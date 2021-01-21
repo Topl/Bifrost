@@ -6,8 +6,7 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
-import keymanager.Keys
-import crypto._
+import attestation.Address
 import io.circe.parser.parse
 import io.circe.{Json, parser}
 import io.circe.syntax._
@@ -17,10 +16,8 @@ import requests.RequestsManager.BifrostRequest
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
-import scorex.util.encode.Base58
 import settings.ApplicationSettings
 
-import scala.util.{Failure, Success}
 
 class Requests (settings: ApplicationSettings, keyManagerRef: ActorRef)
                (implicit val actorSystem: ActorSystem) {
@@ -51,13 +48,8 @@ class Requests (settings: ApplicationSettings, keyManagerRef: ActorRef)
     }
   }
 
-  def byteStringToJSON(data: Future[ByteString]): Json = {
-    val parsedData: Future[Json] = data.map { x =>
-      parser.parse(x.utf8String) match {
-        case Right(parsed) => parsed
-        case Left(e) => throw e.getCause
-      }
-    }
+  def futureByteStringToJSON(data: Future[ByteString]): Json = {
+    val parsedData: Future[Json] = data.map { x => byteStringToJSON(x)}
     Await.result(parsedData, 20 seconds)
   }
 
@@ -84,10 +76,10 @@ class Requests (settings: ApplicationSettings, keyManagerRef: ActorRef)
   }
 
 
-  def signTx(transaction: Json, signingKeys: List[String]): Json = {
+  def signTx(transaction: Json, signingKeys: IndexedSeq[Address]): Json = {
     val result = (transaction \\ "result").head
     val tx = (result \\ "rawTx").head
-    val messageToSign = (result \\ "messageToSign").head
+    val messageToSign = (result \\ "messageToSign").head.asString.get
     val newResult = Await.result((keyManagerRef ? SignTx(tx, signingKeys, messageToSign)).mapTo[Json], 10.seconds)
     createJsonResponse(transaction, newResult)
   }
@@ -115,19 +107,18 @@ class Requests (settings: ApplicationSettings, keyManagerRef: ActorRef)
     */
   def sendRequest(request: ByteString): Json  = {
     requestsManager match {
-      case Some(actor) => {
+      case Some(actor) =>
         settings.communicationMode match {
           case "useTcp" =>
             val sendTx = httpPOST(request)
             val data = requestResponseByteString(sendTx)
-            byteStringToJSON(data)
+            futureByteStringToJSON(data)
 
           case "useAkka" =>
             val req: Json = byteStringToJSON(request)
             val result = Await.result((actor ? BifrostRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
             createJsonResponse(req, result)
         }
-      }
       case None =>
         val msg = "cannot send request because you are offline mode " +
           "or the chain provider provided was incorrect."

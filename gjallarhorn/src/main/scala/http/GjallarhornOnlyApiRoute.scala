@@ -2,9 +2,11 @@ package http
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.pattern.ask
+import attestation.Address
+import attestation.AddressEncoder.NetworkPrefix
 import io.circe.Json
 import io.circe.syntax._
-import keymanager.KeyManager.{ChangeKeyfileDir, ChangeNetwork, SignTx}
+import keymanager.KeyManager.{ChangeNetwork, GenerateSignatures, SignTx}
 import keymanager.networkPrefix
 import requests.ApiRoute
 import settings.AppSettings
@@ -18,6 +20,9 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
   extends ApiRoute {
 
   val namespace: Namespace = WalletNamespace
+
+  // Establish the expected network prefix for addresses
+  implicit val netPrefix: NetworkPrefix = networkPrefix
 
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
@@ -42,7 +47,7 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
     * | Fields | Data type | Required / Optional | Description |
     * | ---| ---	| --- | --- |
     * | rawTx | Json	| Required | The transaction to be signed. |
-    * | signingKeys | List[String]	| Required | Keys used to create signatures to sign tx.|
+    * | signingKeys | IndexedSeq[Address]	| Required | Keys used to create signatures to sign tx.|
     * | messageToSign | String | Required | The message to sign - in the form of an array of bytes.|
     *
     * @param params input parameters as specified above
@@ -51,11 +56,15 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
     */
   private def signTx(params: Json, id: String): Future[Json] = {
     val tx = (params \\ "rawTx").head
-    val messageToSign = (params \\ "messageToSign").head
     (for {
-      signingKeys <- (params \\ "signingKeys").head.as[List[String]]
+      signingKeys <- (params \\ "signingKeys").head.as[IndexedSeq[Address]]
+      messageToSign <- (params \\ "messageToSign").head.as[String]
     } yield {
-      (keyManagerRef ? SignTx(tx, signingKeys, messageToSign)).mapTo[Json]
+      if (tx.asObject.isDefined) {
+        (keyManagerRef ? SignTx(tx, signingKeys, messageToSign)).mapTo[Json]
+      } else {
+        (keyManagerRef ? GenerateSignatures(signingKeys, messageToSign)).mapTo[Json]
+      }
     }) match {
       case Right(value) => value
       case Left(error) => throw new Exception(s"error parsing signing keys: $error")
