@@ -1,10 +1,9 @@
 package co.topl.serialization
 
-import co.topl.attestation.{Address, Evidence, Proposition, PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.attestation.{Address, Evidence, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.{Block, BlockBody, BlockHeader}
-import co.topl.modifier.transaction.Transaction.TX
-import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
+import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
+import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.box._
 import co.topl.utils.{CoreGenerators, ValidGenerators}
 import io.circe.syntax.EncoderOps
@@ -110,24 +109,6 @@ class JsonTests extends AnyPropSpec
     }
   }
 
-  property("PolyTransfer json") {
-    forAll(polyTransferGen) { tx =>
-      tx.asJson.as[PolyTransfer[_ <: Proposition]] shouldEqual Right(tx)
-    }
-  }
-
-  property("ArbitTransfer json") {
-    forAll(arbitTransferGen) { tx =>
-      tx.asJson.as[ArbitTransfer[_ <: Proposition]] shouldEqual Right(tx)
-    }
-  }
-
-  property("AssetTransfer json") {
-    forAll(assetTransferGen) { tx =>
-      tx.asJson.as[AssetTransfer[_ <: Proposition]] shouldEqual Right(tx)
-    }
-  }
-
   property("Transaction json") {
     forAll(Gen.oneOf(polyTransferGen, arbitTransferGen, assetTransferGen)) {
       tx: Transaction.TX =>
@@ -150,6 +131,12 @@ class JsonTests extends AnyPropSpec
   property("BlockBody json") {
     forAll(blockGen) { block =>
       block.toComponents._2.asJson.as[BlockBody] shouldEqual Right(block.toComponents._2)
+    }
+  }
+
+  property("BloomFilter json") {
+    forAll(blockGen) { block =>
+      block.bloomFilter.asJson.as[BloomFilter] shouldEqual Right(block.bloomFilter)
     }
   }
 }
