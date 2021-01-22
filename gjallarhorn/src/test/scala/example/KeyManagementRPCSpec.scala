@@ -1,6 +1,6 @@
 package example
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.model.headers.RawHeader
@@ -17,6 +17,7 @@ import keymanager.KeyManagerRef
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import requests.ApiRoute
+import wallet.WalletManager
 
 import scala.concurrent.Await
 import scala.util.{Failure, Success, Try}
@@ -40,8 +41,11 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
   Try(path.createDirectory())
   val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", keyManagementSettings.application)
 
+  val walletManagerRef: ActorRef = system.actorOf(
+    Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
+
   val apiRoute: ApiRoute = KeyManagementApiRoute(keyManagementSettings, keyManagerRef)
-  val gjalOnlyApiRoute: ApiRoute = GjallarhornOnlyApiRoute(keyManagementSettings, keyManagerRef)
+  val gjalOnlyApiRoute: ApiRoute = GjallarhornOnlyApiRoute(keyManagementSettings, keyManagerRef, walletManagerRef)
   val route: Route = HttpService(Seq(apiRoute, gjalOnlyApiRoute), keyManagementSettings.rpcApi).compositeRoute
 
   val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))

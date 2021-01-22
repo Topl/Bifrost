@@ -1,6 +1,6 @@
 package example
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
@@ -19,6 +19,7 @@ import io.circe.syntax.EncoderOps
 import keymanager.KeyManager.{GenerateKeyFile, GetAllKeyfiles}
 import keymanager.{Bip39, KeyManagerRef}
 import requests.{ApiRoute, Requests}
+import wallet.WalletManager
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -62,11 +63,14 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
 
+  val walletManagerRef: ActorRef = system.actorOf(
+    Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
+
   val amount = 10
 
   val requests: Requests = new Requests(settings.application, keyManagerRef)
-  val bifrostApiRoute: ApiRoute = GjallarhornBifrostApiRoute(settings, keyManagerRef, requests)
-  val gjalOnlyApiRoute: ApiRoute = GjallarhornOnlyApiRoute(settings, keyManagerRef)
+  val bifrostApiRoute: ApiRoute = GjallarhornBifrostApiRoute(settings, keyManagerRef, walletManagerRef, requests)
+  val gjalOnlyApiRoute: ApiRoute = GjallarhornOnlyApiRoute(settings, keyManagerRef, walletManagerRef)
   val route: Route = HttpService(
     Seq(bifrostApiRoute, gjalOnlyApiRoute), settings.rpcApi).compositeRoute
 

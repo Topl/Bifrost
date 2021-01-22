@@ -11,7 +11,7 @@ import keymanager.KeyManagerRef
 import requests.{ApiRoute, Requests}
 import settings.{AppSettings, StartupOpts}
 import utils.Logging
-import wallet.DeadLetterListener
+import wallet.{DeadLetterListener, WalletManager}
 
 import scala.concurrent.{Await, ExecutionContextExecutor}
 import scala.util.{Failure, Success, Try}
@@ -38,6 +38,8 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   Try(path.deleteRecursively())
   Try(path.createDirectory())
   val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", settings.application)
+  val walletManagerRef: ActorRef = system.actorOf(
+    Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
 
   val requests: Requests = new Requests(settings.application, keyManagerRef)
 
@@ -49,9 +51,9 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   }
 
   //Set up API routes
-  val gjalBifrostRoute: ApiRoute = GjallarhornBifrostApiRoute(settings, keyManagerRef, requests)
-  var apiRoutes: Seq[ApiRoute] = Seq(
-    GjallarhornOnlyApiRoute(settings, keyManagerRef),
+  val gjalBifrostRoute: ApiRoute = GjallarhornBifrostApiRoute(settings, keyManagerRef, walletManagerRef, requests)
+  val apiRoutes: Seq[ApiRoute] = Seq(
+    GjallarhornOnlyApiRoute(settings, keyManagerRef, walletManagerRef),
     KeyManagementApiRoute(settings, keyManagerRef),
     gjalBifrostRoute
   )
@@ -71,7 +73,7 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   system.eventStream.subscribe(listener, classOf[DeadLetter])
 
   //sequence of actors for cleanly shutting down the application
-  private val actorsToStop: Seq[ActorRef] = Seq(listener, keyManagerRef)
+  private val actorsToStop: Seq[ActorRef] = Seq(listener, keyManagerRef, walletManagerRef)
 
   //hook for initiating the shutdown procedure
   sys.addShutdownHook(GjallarhornApp.shutdown(system, actorsToStop, gjalBifrostRoute))

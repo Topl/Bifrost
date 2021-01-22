@@ -9,6 +9,7 @@ import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.{Curve25519, PublicKey}
 import scorex.util.encode.Base58
+import utils.{Identifiable, Identifier}
 import utils.serialization.{BytesSerializable, GjalSerializer}
 
 import scala.util.{Failure, Success, Try}
@@ -80,6 +81,10 @@ object PublicKeyPropositionCurve25519 {
       prop: PublicKeyPropositionCurve25519 => Evidence(typePrefix, EvidenceContent @@ Blake2b256(prop.bytes))
     }
 
+  implicit val identifier: Identifiable[PublicKeyPropositionCurve25519] = Identifiable.instance { () =>
+    Identifier(typeString, typePrefix)
+  }
+
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html
   implicit val jsonEncoder: Encoder[PublicKeyPropositionCurve25519] = (prop: PublicKeyPropositionCurve25519) => prop.toString.asJson
@@ -121,6 +126,10 @@ object ThresholdPropositionCurve25519 {
     EvidenceProducer.instance[ThresholdPropositionCurve25519] {
       prop: ThresholdPropositionCurve25519 => Evidence(typePrefix, EvidenceContent @@ Blake2b256(prop.bytes))
     }
+
+  implicit val identifier: Identifiable[ThresholdPropositionCurve25519] = Identifiable.instance { () =>
+    Identifier(typeString, typePrefix)
+  }
 
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html

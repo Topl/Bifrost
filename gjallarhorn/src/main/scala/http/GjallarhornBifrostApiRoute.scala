@@ -4,15 +4,15 @@ import akka.actor.{ActorNotFound, ActorRef, ActorRefFactory, ActorSystem, Poison
 import akka.pattern.ask
 import attestation.Address
 import attestation.AddressEncoder.NetworkPrefix
-import crypto.{AssetCode, AssetValue, TokenValueHolder}
+import crypto.{AssetCode, AssetValue, Box}
 import requests.{ApiRoute, Requests, RequestsManager}
 import io.circe.Json
 import io.circe.syntax._
 import keymanager.KeyManager._
-import settings.{AppSettings, NetworkType}
+import modifier.BoxId
+import settings.AppSettings
 import utils.Logging
-import wallet.WalletManager
-import wallet.WalletManager.{GetNetwork, GetWallet, GjallarhornStarted, GjallarhornStopped, KeyManagerReady}
+import wallet.WalletManager.{ConnectToBifrost, GetConnection, GetWallet, GjallarhornStopped}
 
 import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.{Await, Future}
@@ -22,6 +22,7 @@ import scala.util.{Failure, Success, Try}
 
 case class GjallarhornBifrostApiRoute(settings: AppSettings,
                                       keyManager: ActorRef,
+                                      walletManager: ActorRef,
                                       requests: Requests)
                                      (implicit val context: ActorRefFactory, system: ActorSystem)
   extends ApiRoute with Logging {
@@ -30,8 +31,6 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
   implicit val networkPrefix: NetworkPrefix = _root_.keymanager.networkPrefix
 
   private var requestsManager: Option[ActorRef] = None
-  private var walletManager: Option[ActorRef] = None
-
 
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
@@ -86,7 +85,7 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
     */
   def setUpOnlineMode(bifrost: ActorRef): Future[Json] = {
     //Set up wallet manager - handshake w Bifrost and get NetworkPrefix
-    val walletManagerRef: ActorRef = system.actorOf(
+    /*val walletManagerRef: ActorRef = system.actorOf(
       Props(new WalletManager(bifrost)), name = WalletManager.actorName)
     walletManager = Some(walletManagerRef)
     walletManagerRef ! GjallarhornStarted
@@ -94,21 +93,19 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
     (walletManagerRef ? GetNetwork).mapTo[String].map( bifrostResponse => {
       log.info(bifrostResponse)
       val networkName = bifrostResponse.split("Bifrost is running on").tail.head.replaceAll("\\s", "")
-
       (keyManager ? ChangeNetwork(networkName)).onComplete {
         case Success(networkResponse: Json) => assert(NetworkType.fromString(networkName).get.netPrefix.toString ==
           (networkResponse \\ "newNetworkPrefix").head.asNumber.get.toString)
         case Success(_) | Failure(_) => throw new Exception ("was not able to change network")
       }
 
-      walletManagerRef ! KeyManagerReady(keyManager)
+      walletManagerRef ! KeyManagerReady(keyManager)*/
+    walletManager ! ConnectToBifrost(bifrost)
 
       val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager(bifrost)), name = "RequestsManager")
       requestsManager = Some(requestsManagerRef)
       requests.switchOnlineStatus(requestsManager)
-      Map("connectedToBifrost" -> true).asJson
-    })
-
+      Future{Map("connectedToBifrost" -> true).asJson}
   }
 
   /** #### Summary
@@ -127,13 +124,8 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
     */
   private def disconnectFromBifrost(id: String): Future[Json] = {
     var responseMsg = "Disconnected!"
-    walletManager match {
-      case Some(walletManagerRef) =>
-        walletManagerRef ! GjallarhornStopped
-        walletManager = None
-        walletManagerRef ! PoisonPill
-      case None => responseMsg = "Already disconnected from Bifrost"
-    }
+    walletManager ! GjallarhornStopped
+
     requestsManager match {
       case Some(actor) =>
         requestsManager = None
@@ -161,9 +153,9 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
     * @return - "connectedToBifrost" -> true or false
     */
   private def getConnection(id: String): Future[Json] = {
-    walletManager match {
-      case Some(actor) =>  Future{Map("connectedToBifrost" -> true).asJson}
-      case None =>  Future{Map("connectedToBifrost" -> false).asJson}
+    (walletManager ? GetConnection).mapTo[Option[ActorRef]].map {
+      case Some(actor) => Map("connectedToBifrost" -> true).asJson
+      case None => Map("connectedToBifrost" -> false).asJson
     }
   }
 
@@ -281,12 +273,7 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
     * @return - wallet boxes
     */
   private def getWalletBoxes(id: String): Future[Json] = {
-    walletManager match {
-      case Some(actor) =>
-        val walletResponse = Await.result((actor ? GetWallet).mapTo[MMap[Address, MMap[String, Json]]], 10.seconds)
-        Future{walletResponse.asJson}
-      case None => offlineMessage()
-    }
+    (walletManager ? GetWallet).mapTo[MMap[Address, MMap[BoxId, Box]]].map(_.asJson)
   }
 
   /** #### Summary
@@ -305,17 +292,14 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
     * @return - mapping of balances (ArbitBox -> #, PolyBox -> #, assetcode -> #)
     */
   private def balances(params: Json, id: String): Future[Json] = {
-    walletManager match {
-      case Some(actor) =>
-        val walletResponse: MMap[Address, MMap[String, Json]] = Await.result((actor ? GetWallet)
-          .mapTo[MMap[Address, MMap[String, Json]]], 10.seconds)
+    (walletManager ? GetWallet).mapTo[MMap[Address, MMap[BoxId, Box]]].map(walletResponse => {
         var publicKeys: Set[Address] = walletResponse.keySet.toSet
         if ((params \\ "addresses").nonEmpty) {
           publicKeys = (params \\ "addresses").head.asArray.get.map(k => Address(networkPrefix)(k.asString.get)).toSet
         }
         val balances: MMap[Address, MMap[String, Long]] = MMap.empty
         publicKeys.foreach(addr => {
-          val getBoxes: Option[MMap[String, Json]] = walletResponse.get(addr)
+          val getBoxes: Option[MMap[BoxId, Box]] = walletResponse.get(addr)
           var assets: MMap[String, Long] = MMap.empty
           getBoxes match {
             case Some(boxes) =>
@@ -323,16 +307,11 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
               var arbitBalance: Long = 0
               val assetBalance: MMap[String, Long] = MMap.empty
               boxes.foreach(box => {
-                for {
-                  boxType <- (box._2 \\ "type").head.as[String]
-                  value <- (box._2 \\ "value").head.as[TokenValueHolder]
-                } yield {
-                  if (boxType == "ArbitBox") {
-                    arbitBalance = arbitBalance + value.quantity
-                  } else if (boxType == "PolyBox") {
-                    polyBalance = polyBalance + value.quantity
-                  } else if (boxType == "AssetBox") {
-                    val assetValue = value.asInstanceOf[AssetValue]
+                box._2.typeOfBox match {
+                  case "ArbitBox" => arbitBalance = arbitBalance + box._2.value.quantity
+                  case "PolyBox" => polyBalance = polyBalance + box._2.value.quantity
+                  case "AssetBox" =>
+                    val assetValue = box._2.value.asInstanceOf[AssetValue]
                     val assetCode = assetValue.assetCode
                     assetBalance.get(assetCode.toString) match {
                       case Some(oldBalance) =>
@@ -341,7 +320,6 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
                       case None =>
                         assetBalance.put(assetCode.toString, assetValue.quantity)
                     }
-                  }
                 }
               })
               assets = MMap(
@@ -352,9 +330,8 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
           }
           balances.put(addr, assets)
         })
-        Future{balances.asJson}
-      case None => offlineMessage()
-    }
+      balances.asJson
+    })
   }
 
   /**

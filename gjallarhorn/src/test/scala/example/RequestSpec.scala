@@ -6,12 +6,13 @@ import _root_.requests.{Requests, RequestsManager}
 import akka.util.{ByteString, Timeout}
 import attestation.{Address, PublicKeyPropositionCurve25519}
 import attestation.AddressEncoder.NetworkPrefix
-import crypto.{AssetCode, NewBox}
+import crypto.{AssetCode, Box}
 import io.circe.{Json, parser}
 import keymanager.KeyManager.GenerateKeyFile
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import keymanager.KeyManagerRef
+import modifier.BoxId
 import settings.NetworkType
 import wallet.WalletManager
 import wallet.WalletManager._
@@ -42,7 +43,7 @@ class RequestSpec extends AsyncFlatSpec
     s"akka.tcp://${requestSettings.application.chainProvider}/user/walletConnectionHandler").resolveOne(), 10.seconds)
 
   val walletManagerRef: ActorRef = actorSystem.actorOf(
-    Props(new WalletManager(bifrostActor)), name = WalletManager.actorName)
+    Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
 
   val requestsManagerRef: ActorRef = actorSystem.actorOf(
     Props(new RequestsManager(bifrostActor)), name = "RequestsManager")
@@ -70,12 +71,16 @@ class RequestSpec extends AsyncFlatSpec
   val amount = 10
   var transaction: Json = Json.Null
   var signedTransaction: Json = Json.Null
-  var newBoxIds: Set[String] = Set()
+  var newBoxIds: Set[BoxId] = Set()
 
-  def parseForBoxId(json: Json): Set[String] = {
+  walletManagerRef ! ConnectToBifrost(bifrostActor)
+  requests.switchOnlineStatus(Some(requestsManagerRef))
+
+
+  def parseForBoxId(json: Json): Set[BoxId] = {
     val result = (json \\ "result").head
     val newBxs = (result \\ "newBoxes").head.toString()
-    parser.decode[List[NewBox]](newBxs) match {
+    parser.decode[List[Box]](newBxs) match {
       case Right(newBoxes) =>
         newBoxes.foreach(newBox => {
           newBoxIds += newBox.id
@@ -83,19 +88,6 @@ class RequestSpec extends AsyncFlatSpec
         newBoxIds
       case Left(e) => sys.error(s"could not parse: $newBxs")
     }
-  }
-
-  it should "connect to bifrost actor when the gjallarhorn app starts" in {
-    walletManagerRef ! GjallarhornStarted
-    val bifrostResponse = Await.result((walletManagerRef ? GetNetwork).mapTo[String], 10.seconds)
-    val networkName = bifrostResponse.split("Bifrost is running on").tail.head.replaceAll("\\s", "")
-    val networkPre: NetworkPrefix = NetworkType.fromString(networkName) match {
-      case Some(network) => network.netPrefix
-      case None => throw new Error(s"The network name: $networkName was not a valid network type!")
-    }
-    walletManagerRef ! KeyManagerReady(keyManagerRef)
-    requests.switchOnlineStatus(Some(requestsManagerRef))
-    assert(networkPre == networkPrefix)
   }
 
 
@@ -195,16 +187,16 @@ class RequestSpec extends AsyncFlatSpec
 
   //Make sure you re-run bifrost for this to pass.
   it should "update boxes correctly with balance response" in {
-    val walletBoxes: MMap[Address, MMap[String, Json]] =
+    val walletBoxes: MMap[Address, MMap[BoxId, Box]] =
       Await.result((walletManagerRef ? UpdateWallet((balanceResponse \\ "result").head))
-      .mapTo[MMap[Address, MMap[String, Json]]], 10.seconds)
+      .mapTo[MMap[Address, MMap[BoxId, Box]]], 10.seconds)
 
-    val pk1Boxes: Option[MMap[String, Json]] = walletBoxes.get(pk1)
+    val pk1Boxes: Option[MMap[BoxId, Box]] = walletBoxes.get(pk1)
     pk1Boxes match {
       case Some(map) => assert (map.size === 2)
       case None => sys.error(s"no mapping for given public key: ${pk1.toString}")
     }
-    val pk2Boxes: Option[MMap[String, Json]] = walletBoxes.get(pk2)
+    val pk2Boxes: Option[MMap[BoxId, Box]] = walletBoxes.get(pk2)
     pk2Boxes match {
       case Some(map) => assert (map.size === 1)
       case None => sys.error(s"no mapping for given public key: ${pk2.toString}")
@@ -278,9 +270,9 @@ class RequestSpec extends AsyncFlatSpec
       case Right(blockJson) =>
         walletManagerRef ! s"new block added: $blockJson"
         Thread.sleep(1000)
-        val walletBoxes: MMap[String, MMap[String, Json]] = Await.result((walletManagerRef ? GetWallet)
-          .mapTo[MMap[Address, MMap[String, Json]]], 10.seconds)
-        val pk1Boxes: Option[MMap[String, Json]] = walletBoxes.get(pk2.toString)
+        val walletBoxes: MMap[String, MMap[BoxId, Box]] = Await.result((walletManagerRef ? GetWallet)
+          .mapTo[MMap[Address, MMap[BoxId, Box]]], 10.seconds)
+        val pk1Boxes: Option[MMap[BoxId, Box]] = walletBoxes.get(pk2.toString)
         pk1Boxes match {
           case Some(map) =>
             assert(map.size == 2)
