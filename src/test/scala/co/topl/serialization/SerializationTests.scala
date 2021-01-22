@@ -259,7 +259,7 @@ class SerializationTests extends AnyPropSpec
     }
   }
 
-  property("Bloom filter serialization") {
+  property("BloomFilter serialization") {
     forAll(blockGen) {
       block =>
         val parsed: BloomFilter = BloomFilter.parseBytes(BloomFilter.toBytes(block.bloomFilter)).get

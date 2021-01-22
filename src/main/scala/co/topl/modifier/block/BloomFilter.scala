@@ -2,11 +2,10 @@ package co.topl.modifier.block
 
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
-import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import scorex.util.encode.Base58
 import scorex.crypto.hash.Blake2b256
+import scorex.util.encode.Base58
 import supertagged.TaggedType
 
 import scala.util.Try
@@ -42,8 +41,14 @@ class BloomFilter private (private val value: Array[Long]) extends BytesSerializ
     }
   }
 
-  override def toString: String = Base58.encode(value.flatMap(Longs.toByteArray))
+  override def toString: String = Base58.encode(BloomFilter.toBytes(this))
 
+  override def equals(obj: Any): Boolean = obj match {
+    case b: BloomFilter => b.value sameElements value
+    case _ => false
+  }
+
+  override def hashCode(): Int = super.hashCode()
 }
 
 object BloomFilter extends BifrostSerializer[BloomFilter] {
