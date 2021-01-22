@@ -37,7 +37,15 @@ class JsonTests extends AnyPropSpec
   property("KeyfileCurve25519 json") {
     forAll(key25519Gen) { key =>
       val keyfile = KeyfileCurve25519.encryptSecret(key._1, "test")
-      keyfile.asJson.as[KeyfileCurve25519] shouldEqual keyfile
+      keyfile.asJson.as[KeyfileCurve25519] match {
+        case Right(kf) =>
+          kf.address shouldEqual keyfile.address
+          kf.cipherText sameElements keyfile.cipherText
+          kf.mac sameElements keyfile.mac
+          kf.salt sameElements keyfile.salt
+          kf.iv sameElements keyfile.iv
+        case Left(e) => e
+      }
     }
   }
 
