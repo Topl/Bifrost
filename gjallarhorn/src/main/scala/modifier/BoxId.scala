@@ -1,7 +1,6 @@
 package modifier
 
 import com.google.common.primitives.{Ints, Longs}
-import crypto.Box
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import scorex.crypto.hash.Blake2b256

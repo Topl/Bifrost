@@ -1,15 +1,14 @@
-package crypto
+package modifier
 
 import attestation.AddressEncoder.NetworkPrefix
-import attestation.{Address, Evidence, EvidenceProducer, Proof, Proposition,
-  PublicKeyPropositionCurve25519, SignatureCurve25519, ThresholdPropositionCurve25519, ThresholdSignatureCurve25519}
-import crypto.ModifierId.ModifierTypeId
-import crypto.TransferTransaction.BoxParams
+import attestation._
+import com.google.common.primitives.{Ints, Longs}
+import crypto.AssetCode
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor, Json}
-import com.google.common.primitives.{Ints, Longs}
+import modifier.ModifierId.ModifierTypeId
+import modifier.TransferTransaction.BoxParams
 import scorex.crypto.hash.Blake2b256
-import modifier.BoxId
 import utils.{Identifiable, Identifier}
 
 import scala.collection.mutable.{Map => MMap}
@@ -202,7 +201,7 @@ object TransferTransaction {
           senderBoxes("Asset").map(bxs => (bxs._2, bxs._3.nonce)) ++
             senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
           IndexedSeq((changeAddress, SimpleValue(polyBalance - fee)),
-            (consolidationAddress.getOrElse(changeAddress), AssetValue(assetBalance - amtToSpend, assetArgs.get._1))
+            (consolidationAddress.getOrElse(changeAddress), modifier.AssetValue(assetBalance - amtToSpend, assetArgs.get._1))
           ) ++
             toReceive
         )

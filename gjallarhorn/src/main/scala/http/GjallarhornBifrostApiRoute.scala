@@ -4,12 +4,12 @@ import akka.actor.{ActorNotFound, ActorRef, ActorRefFactory, ActorSystem, Poison
 import akka.pattern.ask
 import attestation.Address
 import attestation.AddressEncoder.NetworkPrefix
-import crypto.{AssetCode, AssetValue, Box}
+import crypto.AssetCode
 import requests.{ApiRoute, Requests, RequestsManager}
 import io.circe.Json
 import io.circe.syntax._
 import keymanager.KeyManager._
-import modifier.BoxId
+import modifier.{AssetValue, Box, BoxId}
 import settings.AppSettings
 import utils.Logging
 import wallet.WalletManager.{ConnectToBifrost, GetConnection, GetWallet, GjallarhornStopped}
@@ -170,7 +170,7 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
       Try(AssetCode(1.toByte, issuer, shortName)) match {
         case Success(assetCode) =>
           val recipients: IndexedSeq[(Address, AssetValue)] = rcpts.map(addr =>
-            (addr, AssetValue(quantity, assetCode))
+            (addr, modifier.AssetValue(quantity, assetCode))
           ).toIndexedSeq
           params.deepMerge(Map("recipients" -> recipients).asJson)
         case Failure(exception) =>

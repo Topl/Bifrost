@@ -1,10 +1,10 @@
-package crypto
+package modifier
 
 import attestation.Proposition
 import com.google.common.primitives.Ints
-import crypto.ModifierId.ModifierTypeId
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
+import modifier.ModifierId.ModifierTypeId
 import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 import supertagged.TaggedType

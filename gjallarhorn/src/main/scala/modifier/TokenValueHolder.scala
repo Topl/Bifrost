@@ -1,7 +1,8 @@
-package crypto
+package modifier
 
-import io.circe.{Decoder, Encoder, HCursor}
+import crypto.{AssetCode, SecurityRoot}
 import io.circe.syntax.EncoderOps
+import io.circe.{Decoder, Encoder, HCursor}
 import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 
 sealed abstract class TokenValueHolder(val quantity: Long) extends BytesSerializable {
@@ -111,7 +112,7 @@ object AssetValue extends GjalSerializer[AssetValue] {
         case None      => SecurityRoot.empty
       }
 
-      AssetValue(quantity, assetCode, sr, metadata)
+      modifier.AssetValue(quantity, assetCode, sr, metadata)
     }
 
   override def serialize(obj: AssetValue, w: Writer): Unit = {

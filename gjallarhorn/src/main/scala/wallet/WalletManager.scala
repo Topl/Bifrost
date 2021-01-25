@@ -4,7 +4,6 @@ import akka.actor.{Actor, ActorRef}
 import akka.pattern.ask
 import akka.util.Timeout
 import attestation.Address
-import crypto.{Box, Transaction}
 import io.circe.{Json, parser}
 import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
@@ -12,7 +11,7 @@ import utils.Logging
 import cats.syntax.show._
 import keymanager.KeyManager.{ChangeNetwork, GetAllKeyfiles}
 import keymanager.networkPrefix
-import modifier.BoxId
+import modifier.{Box, BoxId, Transaction}
 import settings.NetworkType
 
 import scala.collection.mutable.{Map => MMap}

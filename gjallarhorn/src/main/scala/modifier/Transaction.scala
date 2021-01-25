@@ -1,9 +1,8 @@
-package crypto
+package modifier
 
 import attestation.Evidence
-import io.circe.{Decoder, Encoder, HCursor}
 import io.circe.syntax.EncoderOps
-import modifier.{BoxId, BoxSerializer}
+import io.circe.{Decoder, Encoder, HCursor}
 import utils.serialization.{BytesSerializable, GjalSerializer}
 
 case class Transaction(newBoxes: Seq[Box], boxesToRemove: Option[Seq[BoxId]])

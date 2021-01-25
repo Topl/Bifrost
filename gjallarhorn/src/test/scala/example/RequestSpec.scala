@@ -6,14 +6,13 @@ import _root_.requests.{Requests, RequestsManager}
 import akka.util.{ByteString, Timeout}
 import attestation.{Address, PublicKeyPropositionCurve25519}
 import attestation.AddressEncoder.NetworkPrefix
-import crypto.{AssetCode, Box}
+import crypto.AssetCode
 import io.circe.{Json, parser}
 import keymanager.KeyManager.GenerateKeyFile
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import keymanager.KeyManagerRef
-import modifier.BoxId
-import settings.NetworkType
+import modifier.{Box, BoxId}
 import wallet.WalletManager
 import wallet.WalletManager._
 

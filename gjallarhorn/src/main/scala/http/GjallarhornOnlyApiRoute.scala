@@ -6,12 +6,12 @@ import akka.actor.{ActorRef, ActorRefFactory}
 import akka.pattern.ask
 import attestation.{Address, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
 import attestation.AddressEncoder.NetworkPrefix
-import crypto.{AssetCode, AssetValue, Box, SimpleValue, TransferTransaction}
+import crypto.AssetCode
 import io.circe.{HCursor, Json}
 import io.circe.syntax._
 import keymanager.KeyManager.{ChangeNetwork, GenerateSignatures, SignTx}
 import keymanager.networkPrefix
-import modifier.BoxId
+import modifier.{AssetValue, Box, BoxId, SimpleValue, TransferTransaction}
 import requests.{ApiRoute, Requests}
 import scorex.util.encode.Base58
 import settings.AppSettings
