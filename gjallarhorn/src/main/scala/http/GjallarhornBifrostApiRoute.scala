@@ -9,12 +9,11 @@ import requests.{ApiRoute, Requests, RequestsManager}
 import io.circe.Json
 import io.circe.syntax._
 import keymanager.KeyManager._
-import modifier.{AssetValue, Box, BoxId}
+import modifier.AssetValue
 import settings.AppSettings
 import utils.Logging
-import wallet.WalletManager.{ConnectToBifrost, GetConnection, GetWallet, GjallarhornStopped}
+import wallet.WalletManager.{ConnectToBifrost, GetConnection, GjallarhornStopped}
 
-import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
@@ -81,22 +80,6 @@ case class GjallarhornBifrostApiRoute(settings: AppSettings,
     * @return - Json(connectedToBifrost -> true)
     */
   def setUpOnlineMode(bifrost: ActorRef): Future[Json] = {
-    //Set up wallet manager - handshake w Bifrost and get NetworkPrefix
-    /*val walletManagerRef: ActorRef = system.actorOf(
-      Props(new WalletManager(bifrost)), name = WalletManager.actorName)
-    walletManager = Some(walletManagerRef)
-    walletManagerRef ! GjallarhornStarted
-
-    (walletManagerRef ? GetNetwork).mapTo[String].map( bifrostResponse => {
-      log.info(bifrostResponse)
-      val networkName = bifrostResponse.split("Bifrost is running on").tail.head.replaceAll("\\s", "")
-      (keyManager ? ChangeNetwork(networkName)).onComplete {
-        case Success(networkResponse: Json) => assert(NetworkType.fromString(networkName).get.netPrefix.toString ==
-          (networkResponse \\ "newNetworkPrefix").head.asNumber.get.toString)
-        case Success(_) | Failure(_) => throw new Exception ("was not able to change network")
-      }
-
-      walletManagerRef ! KeyManagerReady(keyManager)*/
     walletManager ! ConnectToBifrost(bifrost)
 
       val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager(bifrost)), name = "RequestsManager")

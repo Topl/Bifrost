@@ -177,19 +177,6 @@ class WalletManager(keyManagerRef: ActorRef)
       case Right(boxes) => MMap(boxes.map(b => b.id -> b).toMap.toSeq: _*)
       case Left(ex) => throw new Exception(s"Unable to parse boxes from balance response: $ex")
     }
-    /*
-    val boxesMap: MMap[BoxId, Box] = MMap.empty
-    val boxesArray: Array[String] = parseJsonList(sameTypeBoxes)
-    boxesArray.foreach(asset => {
-      val assetJson: Either[ParsingFailure, Json] = parse(asset)
-      assetJson match {
-        case Right(json) =>
-          val id = (json \\ "id").head.asString.get
-          boxesMap.put(id, json)
-        case Left(e) => sys.error(s"Could not parse json: $e")
-      }
-    })
-    boxesMap*/
   }
 
   /**
@@ -317,8 +304,6 @@ object WalletManager {
 
   case object GjallarhornStarted
 
-  //case object GetNetwork
-
   case object GjallarhornStopped
 
   case object GetNewBlock
@@ -326,8 +311,6 @@ object WalletManager {
   case class NewBlock(block: String)
 
   case object GetWallet
-
-  //case class KeyManagerReady(keyManagerRef: ActorRef)
 
   case class ConnectToBifrost(bifrostActor: ActorRef)
 
