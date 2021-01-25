@@ -45,6 +45,9 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
     case (method, params, id) if method == s"${namespace.name}_networkType" =>
       Future{Map("networkPrefix" -> networkPrefix).asJson}
     case (method, params, id) if method == s"${namespace.name}_changeNetwork" => changeNetwork(params.head, id)
+
+    case (method, params, id) if method == s"${namespace.name}_balances" => balances(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_getWalletBoxes" => getWalletBoxes(id)
   }
 
   /** #### Summary
@@ -329,6 +332,82 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
       case Right(value) => value
       case Left(error) => throw new Exception (s"error parsing new network: $error")
     }
+  }
+
+  /** #### Summary
+    * Get Wallet Boxes
+    *
+    * #### Description
+    * Returns the current wallet boxes for the running wallet.
+    * ---
+    * #### Params
+    * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
+    * | ------------------------	| ----------	| --------------------	| -----------------------------------------------------------------------	  |
+    * | --None specified--       |           	|                     	|                                                                         |
+    *
+    * @param id     request identifier
+    * @return - wallet boxes
+    */
+  private def getWalletBoxes(id: String): Future[Json] = {
+    (walletManagerRef ? GetWallet).mapTo[MMap[Address, MMap[BoxId, Box]]].map(_.asJson)
+  }
+
+  /** #### Summary
+    * Lookup balances
+    *
+    * #### Description
+    * Returns balances for specified keys (or all of the keys in the wallet) based on the wallet boxes in the WalletManager.
+    *
+    * #### Params
+    * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
+    * |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
+    * | publicKeys               | String[]   	| Optional            	| Public keys whose balances are to be retrieved                            	|
+    *
+    * @param params input parameters as specified above
+    * @param id     request identifier
+    * @return - mapping of balances (ArbitBox -> #, PolyBox -> #, assetcode -> #)
+    */
+  private def balances(params: Json, id: String): Future[Json] = {
+    (walletManagerRef ? GetWallet).mapTo[MMap[Address, MMap[BoxId, Box]]].map(walletResponse => {
+      var publicKeys: Set[Address] = walletResponse.keySet.toSet
+      if ((params \\ "addresses").nonEmpty) {
+        publicKeys = (params \\ "addresses").head.asArray.get.map(k => Address(networkPrefix)(k.asString.get)).toSet
+      }
+      val balances: MMap[Address, MMap[String, Long]] = MMap.empty
+      publicKeys.foreach(addr => {
+        val getBoxes: Option[MMap[BoxId, Box]] = walletResponse.get(addr)
+        var assets: MMap[String, Long] = MMap.empty
+        getBoxes match {
+          case Some(boxes) =>
+            var polyBalance: Long = 0
+            var arbitBalance: Long = 0
+            val assetBalance: MMap[String, Long] = MMap.empty
+            boxes.foreach(box => {
+              box._2.typeOfBox match {
+                case "ArbitBox" => arbitBalance = arbitBalance + box._2.value.quantity
+                case "PolyBox" => polyBalance = polyBalance + box._2.value.quantity
+                case "AssetBox" =>
+                  val assetValue = box._2.value.asInstanceOf[AssetValue]
+                  val assetCode = assetValue.assetCode
+                  assetBalance.get(assetCode.toString) match {
+                    case Some(oldBalance) =>
+                      val newBalance = oldBalance + assetValue.quantity
+                      assetBalance.put(assetCode.toString, newBalance)
+                    case None =>
+                      assetBalance.put(assetCode.toString, assetValue.quantity)
+                  }
+              }
+            })
+            assets = MMap(
+              "ArbitBox" -> arbitBalance,
+              "PolyBox" -> polyBalance
+            ) ++ assetBalance
+          case None => null
+        }
+        balances.put(addr, assets)
+      })
+      balances.asJson
+    })
   }
 
 }

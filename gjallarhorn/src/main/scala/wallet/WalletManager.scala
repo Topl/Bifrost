@@ -61,36 +61,21 @@ class WalletManager(keyManagerRef: ActorRef)
   // ----------- CONTEXT
   override def receive: Receive =
     initialization orElse
-      nonsense
-
-  private def active: Receive =
-    operational orElse
+      operational orElse
       walletManagement orElse
       nonsense
+
+  /*private def active: Receive =
+    operational orElse
+      walletManagement orElse
+      nonsense*/
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   private def initialization: Receive = {
     case ConnectToBifrost(bifrostActor) =>
       setUpConnection(bifrostActor)
-      context become active
 
     case GetWallet => sender ! walletBoxes
-
-/*    case GetNetwork =>
-      val bifrostResp: Future[Any] =
-        bifrostActorRef ? "Which network is bifrost running?"
-      bifrostResp.pipeTo(sender())*/
-
-/*    /**
-      * After setting up keyManager with correct network, grabs the open key files
-      *
-      * */
-    case KeyManagerReady(keyMngrRef) =>
-      val addresses: Set[Address] = Await.result((keyMngrRef ? GetAllKeyfiles)
-        .mapTo[Map[Address,String]].map(_.keySet), 10.seconds)
-      keyManagerRef = Some(keyMngrRef)
-      initializeWalletBoxes(addresses)
-      context become active*/
 
     case msg: String => msgHandling(msg)
   }

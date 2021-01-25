@@ -335,7 +335,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |{
          |   "jsonrpc": "2.0",
          |   "id": "1",
-         |   "method": "onlineWallet_balances",
+         |   "method": "wallet_balances",
          |   "params": [{}]
          |}
       """.stripMargin)
@@ -384,7 +384,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
-         |   "method": "onlineWallet_getWalletBoxes",
+         |   "method": "wallet_getWalletBoxes",
          |   "params": [{}]
          |}
          """.stripMargin)
@@ -448,7 +448,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |{
          |   "jsonrpc": "2.0",
          |   "id": "1",
-         |   "method": "onlineWallet_balances",
+         |   "method": "wallet_balances",
          |   "params": [{}]
          |}
       """.stripMargin)
