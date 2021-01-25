@@ -6,25 +6,27 @@ import akka.actor.{ActorRef, ActorRefFactory}
 import akka.pattern.ask
 import attestation.{Address, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
 import attestation.AddressEncoder.NetworkPrefix
-import crypto.{AssetValue, Box, SimpleValue, TokenValueHolder, TransferTransaction}
-import io.circe.Json
+import crypto.{AssetCode, AssetValue, Box, SimpleValue, TransferTransaction}
+import io.circe.{HCursor, Json}
 import io.circe.syntax._
 import keymanager.KeyManager.{ChangeNetwork, GenerateSignatures, SignTx}
 import keymanager.networkPrefix
 import modifier.BoxId
-import requests.ApiRoute
+import requests.{ApiRoute, Requests}
 import scorex.util.encode.Base58
 import settings.AppSettings
 import wallet.WalletManager.GetWallet
 
 import scala.collection.mutable.{Map => MMap}
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.{Failure, Success}
+import scala.concurrent.duration.DurationInt
+import scala.util.{Failure, Success, Try}
 
 case class GjallarhornOnlyApiRoute (settings: AppSettings,
                                     keyManagerRef: ActorRef,
-                                    walletManagerRef: ActorRef)
+                                    walletManagerRef: ActorRef,
+                                    requests: Requests)
                                    (implicit val context: ActorRefFactory)
   extends ApiRoute {
 
@@ -56,9 +58,9 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
     *  #### Params
     *  | Fields    | Data type | Required / Optional | Description                                                |
     *  |-----------|-----------|---------------------|------------------------------------------------------------|
-    *  | txType          | String                            | Required       | either Poly, Asset, or Arbit
+    *  | txType                | String                            | Required | either PolyTransfer, AssetTransfer, or ArbitTransfer
     *  | propositionType       | String                            | Required | PublicKey/ThresholdPropositionCurve25519
-    *  | assetCode             | String                            | Required | Name of asset                |
+    *  | assetCode [if asset transfer]  | String                   | Required | Name of asset                |
     *  | recipients            | IndexedSeq[(Address, AssetValue)] | Required | Recipients and asset values to be sent
     *  | sender                | Address[]                         | Required | Array of public keys from which assets should be sent
     *  | changeAddress         | Address                           | Required  | Address to return change to
@@ -74,37 +76,53 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
   private def createRawTransaction (params: Json, id: String): Future[Json] = {
     val p = params.hcursor
     (for {
-      txType            <- p.get[String]("txType")
+      txType <- p.get[String]("txType")
+      online <- p.get[Boolean]("online")
+      sender <- p.get[IndexedSeq[Address]]("sender")
+    } yield {
+      val futureTx = txType match {
+        case "PolyTransfer" => rawPolyTransfer(p)
+        case "ArbitTransfer" => rawArbitTransfer(p)
+        case "AssetTransfer" => rawAssetTransfer(p)
+        case _ => throw new Exception(s"Transaction type $txType is not valid")
+      }
+
+      if (online) {
+        val tx = Await.result(futureTx.mapTo[Json], 10.seconds)
+        val rawTx = (tx \\ "rawTx").head
+        val msgToSign = (tx \\ "messageToSign").head.asString.get
+        val signedTx = Await.result((keyManagerRef ? SignTx(rawTx, sender, msgToSign))
+          .mapTo[Json], 10.seconds)
+        Future{(requests.broadcastTx(signedTx) \\ "result").head}
+      }else{
+        futureTx
+      }
+    }) match {
+      case Right(value) => value
+      case Left(error) => throw new Exception(s"error parsing raw tx: $error")
+    }
+  }
+
+  def rawPolyTransfer(p: HCursor): Future[Json] = {
+    (for {
       propType          <- p.get[String]("propositionType")
-      recipients        <- p.get[IndexedSeq[(Address, TokenValueHolder)]]("recipients")
+      recipients        <- p.get[IndexedSeq[(Address, Long)]]("recipients")
       sender            <- p.get[IndexedSeq[Address]]("sender")
       changeAddr        <- p.get[Address]("changeAddress")
-      consolidationAddr <- p.get[Option[Address]]("consolidationAddress")
-      mint              <- p.get[Option[Boolean]]("minting")
       fee               <- p.get[Long]("fee")
       data              <- p.get[Option[String]]("data")
     } yield {
 
-      val toReceive = recipients.map( r => {
-        r._2 match {
-          case token: SimpleValue => r._1 -> token
-          case assetValue: AssetValue => r._1 -> assetValue
-        }
-      })
-
-      val minting = mint match {
-        case Some(bool) => bool
-        case None => false
-      }
+      val toReceive = recipients.map( r => r._1 -> SimpleValue(r._2))
 
       (walletManagerRef ? GetWallet).mapTo[MMap[Address,MMap[BoxId, Box]]].map { walletBoxes =>
         propType match {
           case PublicKeyPropositionCurve25519.`typeString` =>
             TransferTransaction
-              .createRawTransferParams(walletBoxes, toReceive, sender, changeAddr, consolidationAddr, fee, txType)
+              .createRawTransferParams(walletBoxes, toReceive, sender, changeAddr, None, fee, "PolyTransfer")
               .map { case (inputs, outputs) =>
                 TransferTransaction[PublicKeyPropositionCurve25519](inputs, outputs, Map(), fee,
-                  Instant.now.toEpochMilli, data, minting, txType)
+                  Instant.now.toEpochMilli, data, minting = false, "PolyTransfer")
               } match {
               case Success(tx) =>
                 Map(
@@ -116,10 +134,10 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
 
           case ThresholdPropositionCurve25519.`typeString` =>
             TransferTransaction
-              .createRawTransferParams(walletBoxes, toReceive, sender, changeAddr, consolidationAddr, fee, txType)
+              .createRawTransferParams(walletBoxes, toReceive, sender, changeAddr, None, fee, "PolyTransfer")
               .map { case (inputs, outputs) =>
                 TransferTransaction[ThresholdPropositionCurve25519](inputs, outputs, Map(), fee,
-                  Instant.now.toEpochMilli, data, minting, txType)
+                  Instant.now.toEpochMilli, data, minting = false, "PolyTransfer")
               } match {
               case Success(tx) =>
                 Map(
@@ -133,8 +151,122 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
 
     }) match {
       case Right(value) => value
-        case Left(error) => throw new Exception(s"error parsing raw tx: $error")
+      case Left(error) => throw new Exception(s"error parsing raw tx: $error")
+    }
+  }
+
+  private[http] def rawArbitTransfer(p: HCursor): Future[Json] = {
+    (for {
+      propType          <- p.get[String]("propositionType")
+      recipients        <- p.get[IndexedSeq[(Address, Long)]]("recipients")
+      sender            <- p.get[IndexedSeq[Address]]("sender")
+      changeAddr        <- p.get[Address]("changeAddress")
+      consolidationAddr <- p.get[Option[Address]]("consolidationAddress")
+      fee               <- p.get[Long]("fee")
+      data              <- p.get[Option[String]]("data")
+    } yield {
+
+      val toReceive = recipients.map( r => r._1 -> SimpleValue(r._2))
+
+      (walletManagerRef ? GetWallet).mapTo[MMap[Address,MMap[BoxId, Box]]].map { walletBoxes =>
+        propType match {
+          case PublicKeyPropositionCurve25519.`typeString` =>
+            TransferTransaction
+              .createRawTransferParams(walletBoxes, toReceive, sender, changeAddr, consolidationAddr, fee, "ArbitTransfer")
+              .map { case (inputs, outputs) =>
+                TransferTransaction[PublicKeyPropositionCurve25519](inputs, outputs, Map(), fee,
+                  Instant.now.toEpochMilli, data, minting = false, "ArbitTransfer")
+              } match {
+              case Success(tx) =>
+                Map(
+                  "rawTx" -> tx.asJson,
+                  "messageToSign" -> Base58.encode(tx.messageToSign).asJson
+                ).asJson
+              case Failure(ex) => throw new Exception(s"Failed to create raw transaction with error: $ex")
+            }
+
+          case ThresholdPropositionCurve25519.`typeString` =>
+            TransferTransaction
+              .createRawTransferParams(walletBoxes, toReceive, sender, changeAddr, consolidationAddr, fee, "ArbitTransfer")
+              .map { case (inputs, outputs) =>
+                TransferTransaction[ThresholdPropositionCurve25519](inputs, outputs, Map(), fee,
+                  Instant.now.toEpochMilli, data, minting = false, "ArbitTransfer")
+              } match {
+              case Success(tx) =>
+                Map(
+                  "rawTx" -> tx.asJson,
+                  "messageToSign" -> Base58.encode(tx.messageToSign).asJson
+                ).asJson
+              case Failure(ex) => throw new Exception(s"Failed to create raw transaction with error: $ex")
+            }
+        }
       }
+
+    }) match {
+      case Right(value) => value
+      case Left(error) => throw new Exception(s"error parsing raw tx: $error")
+    }
+  }
+
+  private[http] def rawAssetTransfer(p: HCursor): Future[Json] = {
+    (for {
+      propType          <- p.get[String]("propositionType")
+      recipients        <- p.get[IndexedSeq[(Address, Long)]]("recipients")
+      issuer            <- p.get[Address] ("issuer")
+      shortName         <- p.get[String]("shortName")
+      sender            <- p.get[IndexedSeq[Address]]("sender")
+      changeAddr        <- p.get[Address]("changeAddress")
+      consolidationAddr <- p.get[Option[Address]]("consolidationAddress")
+      minting           <- p.get[Boolean]("minting")
+      fee               <- p.get[Long]("fee")
+      data              <- p.get[Option[String]]("data")
+    } yield {
+
+      val assetCode = Try(AssetCode(1.toByte, issuer, shortName)) match {
+        case Success(code) => code
+        case Failure(ex) => throw new Exception (s"Unable to generate asset code: $ex")
+      }
+
+      val toReceive = recipients.map( r => r._1 -> AssetValue(r._2, assetCode))
+
+      (walletManagerRef ? GetWallet).mapTo[MMap[Address,MMap[BoxId, Box]]].map { walletBoxes =>
+        propType match {
+          case PublicKeyPropositionCurve25519.`typeString` =>
+            TransferTransaction
+              .createRawTransferParams(walletBoxes, toReceive, sender, changeAddr, consolidationAddr, fee, "AssetTransfer")
+              .map { case (inputs, outputs) =>
+                TransferTransaction[PublicKeyPropositionCurve25519](inputs, outputs, Map(), fee,
+                  Instant.now.toEpochMilli, data, minting, "AssetTransfer")
+              } match {
+              case Success(tx) =>
+                Map(
+                  "rawTx" -> tx.asJson,
+                  "messageToSign" -> Base58.encode(tx.messageToSign).asJson
+                ).asJson
+              case Failure(ex) => throw new Exception(s"Failed to create raw transaction with error: $ex")
+            }
+
+          case ThresholdPropositionCurve25519.`typeString` =>
+            TransferTransaction
+              .createRawTransferParams(walletBoxes, toReceive, sender, changeAddr, consolidationAddr, fee, "AssetTransfer")
+              .map { case (inputs, outputs) =>
+                TransferTransaction[ThresholdPropositionCurve25519](inputs, outputs, Map(), fee,
+                  Instant.now.toEpochMilli, data, minting, "AssetTransfer")
+              } match {
+              case Success(tx) =>
+                Map(
+                  "rawTx" -> tx.asJson,
+                  "messageToSign" -> Base58.encode(tx.messageToSign).asJson
+                ).asJson
+              case Failure(ex) => throw new Exception(s"Failed to create raw transaction with error: $ex")
+            }
+        }
+      }
+
+    }) match {
+      case Right(value) => value
+      case Left(error) => throw new Exception(s"error parsing raw tx: $error")
+    }
   }
 
   /** #### Summary

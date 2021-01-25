@@ -2,10 +2,15 @@ package crypto
 
 import io.circe.{Decoder, Encoder, HCursor}
 import io.circe.syntax.EncoderOps
+import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 
-sealed abstract class TokenValueHolder(val quantity: Long)
+sealed abstract class TokenValueHolder(val quantity: Long) extends BytesSerializable {
+  override type M = TokenValueHolder
 
-object TokenValueHolder {
+  override def serializer: GjalSerializer[TokenValueHolder] = TokenValueHolder
+}
+
+object TokenValueHolder extends GjalSerializer[TokenValueHolder] {
 
   implicit val jsonEncoder: Encoder[TokenValueHolder] = {
     case v: SimpleValue => SimpleValue.jsonEncoder(v)
@@ -22,12 +27,37 @@ object TokenValueHolder {
       case Left(ex) => throw ex
     }
   }
+
+  override def serialize(obj: TokenValueHolder, w: Writer): Unit = {
+    obj match {
+      case obj: SimpleValue =>
+        w.put(SimpleValue.valueTypePrefix)
+        SimpleValue.serialize(obj, w)
+
+      case obj: AssetValue =>
+        w.put(AssetValue.valueTypePrefix)
+        AssetValue.serialize(obj, w)
+
+      case _ => throw new Exception("Unanticipated TokenValueType type")
+    }
+  }
+
+  override def parse(r: Reader): TokenValueHolder = {
+    r.getByte() match {
+      case SimpleValue.valueTypePrefix => SimpleValue.parse(r)
+      case AssetValue.valueTypePrefix  => AssetValue.parse(r)
+      case _                           => throw new Exception("Unanticipated Box Type")
+    }
+  }
+
+
 }
 
 case class SimpleValue(override val quantity: Long) extends TokenValueHolder(quantity)
 
-object SimpleValue {
+object SimpleValue extends GjalSerializer[SimpleValue] {
   val valueTypeString: String = "Simple"
+  val valueTypePrefix: Byte = 1: Byte
 
   implicit val jsonEncoder: Encoder[SimpleValue] = (value: SimpleValue) =>
     Map(
@@ -42,6 +72,12 @@ object SimpleValue {
       SimpleValue(quantity)
     }
 
+  override def serialize(obj: SimpleValue, w: Writer): Unit =
+    w.putULong(obj.quantity)
+
+  override def parse(r: Reader): SimpleValue =
+    SimpleValue(r.getULong())
+
 }
 
 case class AssetValue(override val quantity: Long,
@@ -49,8 +85,9 @@ case class AssetValue(override val quantity: Long,
                       securityRoot: SecurityRoot = SecurityRoot.empty,
                       metadata: Option[String] = None) extends TokenValueHolder(quantity)
 
-object AssetValue {
+object AssetValue extends GjalSerializer[AssetValue] {
   val valueTypeString: String = "Asset"
+  val valueTypePrefix: Byte = 2: Byte
 
   implicit val jsonEncoder: Encoder[AssetValue] = { (value: AssetValue) =>
     Map(
@@ -76,4 +113,24 @@ object AssetValue {
 
       AssetValue(quantity, assetCode, sr, metadata)
     }
+
+  override def serialize(obj: AssetValue, w: Writer): Unit = {
+    w.putULong(obj.quantity)
+    AssetCode.serialize(obj.assetCode, w)
+    SecurityRoot.serialize(obj.securityRoot, w)
+    w.putOption(obj.metadata) { (writer, metadata) =>
+      writer.putByteString(metadata)
+    }
+  }
+
+  override def parse(r: Reader): AssetValue = {
+    val quantity = r.getULong()
+    val assetCode = AssetCode.parse(r)
+    val securityRoot = SecurityRoot.parse(r)
+    val metadata: Option[String] = r.getOption {
+      r.getByteString()
+    }
+
+    AssetValue(quantity, assetCode, securityRoot, metadata)
+  }
 }

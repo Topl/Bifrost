@@ -3,7 +3,8 @@ package crypto
 import attestation.Evidence
 import io.circe.{Decoder, Encoder, HCursor}
 import io.circe.syntax.EncoderOps
-import modifier.BoxId
+import modifier.{BoxId, BoxSerializer}
+import utils.serialization.{BytesSerializable, GjalSerializer}
 
 case class Transaction(newBoxes: Seq[Box], boxesToRemove: Option[Seq[BoxId]])
 
@@ -27,12 +28,21 @@ object Transaction {
 case class Box(evidence: Evidence,
                nonce: Long,
                typeOfBox: String,
-               value: TokenValueHolder) {
+               value: TokenValueHolder) extends BytesSerializable {
 
   lazy val id: BoxId = BoxId(this)
+  override type M = Box
+
+  override def serializer: GjalSerializer[Box] = BoxSerializer
 }
 
 object Box {
+  def typePrefix(box: Box): Byte = box.typeOfBox match {
+    case "ArbitBox" => 1: Byte
+    case "PolyBox" => 2: Byte
+    case "AssetBox" => 3: Byte
+  }
+
   implicit val newBoxEncoder: Encoder[Box] = (box: Box) =>
     Map(
       "id" -> box.id.asJson,

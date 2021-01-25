@@ -70,7 +70,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 
   val requests: Requests = new Requests(settings.application, keyManagerRef)
   val bifrostApiRoute: ApiRoute = GjallarhornBifrostApiRoute(settings, keyManagerRef, walletManagerRef, requests)
-  val gjalOnlyApiRoute: ApiRoute = GjallarhornOnlyApiRoute(settings, keyManagerRef, walletManagerRef)
+  val gjalOnlyApiRoute: ApiRoute = GjallarhornOnlyApiRoute(settings, keyManagerRef, walletManagerRef, requests)
   val route: Route = HttpService(
     Seq(bifrostApiRoute, gjalOnlyApiRoute), settings.rpcApi).compositeRoute
 
@@ -118,13 +118,11 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
-         |   "method": "onlineWallet_createTransaction",
+         |   "method": "wallet_createRawTransaction",
          |   "params": [{
-         |     "method": "topl_rawAssetTransfer",
-         |     "params": [{
+         |        "txType": "AssetTransfer",
          |        "propositionType": "PublicKeyCurve25519",
-         |        "recipients": ["$pk1"],
-         |        "amount": $amount,
+         |        "recipients": [["$pk1", $amount]],
          |        "issuer": "$pk1",
          |        "shortName": "test",
          |        "sender": ["$pk1"],
@@ -133,7 +131,6 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |        "fee": 1,
          |        "online": false
          |     }]
-         |   }]
          |}
        """.stripMargin)
 
@@ -242,10 +239,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
-         |   "method": "onlineWallet_createTransaction",
-         |   "params": [{
-         |     "method": "topl_rawArbitTransfer",
+         |   "method": "wallet_createRawTransaction",
          |     "params": [{
+         |        "txType": "ArbitTransfer",
          |        "propositionType": "PublicKeyCurve25519",
          |        "recipients": [["$pk2", $amount]],
          |        "sender": ["$pk1"],
@@ -254,7 +250,6 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |        "data": "",
          |        "online": true
          |     }]
-         |   }]
          |}
        """.stripMargin)
 
@@ -275,10 +270,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
-         |   "method": "onlineWallet_createTransaction",
+         |   "method": "wallet_createRawTransaction",
          |   "params": [{
-         |     "method": "topl_rawPolyTransfer",
-         |     "params": [{
+         |        "txType": "PolyTransfer",
          |        "propositionType": "PublicKeyCurve25519",
          |        "sender": ["$pk1"],
          |        "recipients": [["$pk2", $amount]],
@@ -287,7 +281,6 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |        "data": "",
          |        "online": false
          |     }]
-         |   }]
          |}
        """.stripMargin)
 
@@ -297,6 +290,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
         case Left(f) => throw f
         case Right(res: Json) =>
           (res \\ "error").isEmpty shouldBe true
+          println("with bifrost: " + (res \\ "result").head)
           (res \\ "result").head.asObject.isDefined shouldBe true
       }
     }
@@ -309,10 +303,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
-         |   "method": "onlineWallet_createTransaction",
+         |   "method": "wallet_createRawTransaction",
          |   "params": [{
-         |     "method": "topl_rawPolyTransfer",
-         |     "params": [{
+         |        "txType": "PolyTransfer",
          |        "propositionType": "PublicKeyCurve25519",
          |        "sender": ["$pk1"],
          |        "recipients": [["$pk2", $amount]],
@@ -321,7 +314,6 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |        "data": "",
          |        "online": true
          |     }]
-         |   }]
          |}
        """.stripMargin)
 
@@ -424,10 +416,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
-         |   "method": "onlineWallet_createTransaction",
-         |   "params": [{
-         |     "method": "topl_rawPolyTransfer",
+         |   "method": "wallet_createRawTransaction",
          |     "params": [{
+         |        "txType": "PolyTransfer",
          |        "propositionType": "PublicKeyCurve25519",
          |        "sender": ["$pk1"],
          |        "recipients": [["$newAddr", 15]],
@@ -436,7 +427,6 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |        "data": "",
          |        "online": true
          |     }]
-         |   }]
          |}
        """.stripMargin)
 
@@ -471,6 +461,97 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
           (res \\ "error").isEmpty shouldBe true
           (res \\ "result").head.asObject.isDefined shouldBe true
           (((res \\ "result").head \\ newAddr.toString).head \\ "PolyBox").head shouldBe 15.asJson
+      }
+    }
+  }
+
+  var rawPolyTx: Json = Json.Null
+  var msgToSignPoly: String = ""
+  it should "succesfully create a raw poly tx without bifrost" in {
+    val createAssetRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_createRawTransaction",
+         |   "params": [{
+         |        "txType": "PolyTransfer",
+         |        "propositionType": "PublicKeyCurve25519",
+         |        "sender": ["$pk1"],
+         |        "recipients": [["$pk1", $amount]],
+         |        "changeAddress": "$pk1",
+         |        "fee": 1,
+         |        "online": false
+         |   }]
+         |}
+       """.stripMargin)
+
+    httpPOST(createAssetRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
+          rawPolyTx = ((res \\ "result").head \\ "rawTx").head
+          msgToSignPoly = ((res \\ "result").head \\ "messageToSign").head.asString.get
+          println("without bifrost: " + (res \\ "result").head)
+          assert(((res \\ "result").head \\ "rawTx").head.asObject.isDefined)
+      }
+    }
+  }
+
+  var signedPolyTx: Json = Json.Null
+
+  it should "successfully sign a transaction created by gjal" in {
+    val signTxRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_signTx",
+         |   "params": [{
+         |      "signingKeys": ["$pk1"],
+         |      "rawTx": $rawPolyTx,
+         |      "messageToSign": "$msgToSignPoly"
+         |   }]
+         |}
+         """.stripMargin)
+
+    httpPOST(signTxRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          signedPolyTx = ((res \\ "result").head \\ "tx").head
+          (res \\ "result").head.asObject.isDefined shouldBe true
+      }
+    }
+  }
+
+  it should "successfully broadcast a tx generated by gjal" in {
+    val rqstString =
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "onlineWallet_broadcastTx",
+         |   "params": [{
+         |      "method": "topl_broadcastTx",
+         |      "params": [{
+         |        "tx": $signedPolyTx
+         |      }]
+         |   }]
+         |}
+         """.stripMargin
+    val rqst = ByteString(rqstString)
+    httpPOST(rqst) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          (res \\ "error").isEmpty shouldBe true
+          (res \\ "result").head.asObject.isDefined shouldBe true
       }
     }
   }

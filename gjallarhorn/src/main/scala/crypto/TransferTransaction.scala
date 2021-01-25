@@ -37,7 +37,11 @@ case class TransferTransaction[P <: Proposition: EvidenceProducer: Identifiable]
       else Traversable()
 
     val boxes = params._2.map {
-      case BoxParams(ev, n, v) => Box(ev, n, txType, v)
+      case BoxParams(ev, n, v) => txType match {
+        case "PolyTransfer" => Box(ev, n, "PolyBox", v)
+        case "ArbitTransfer" => Box(ev, n, "ArbitBox", v)
+        case "AssetTransfer" => Box(ev, n, "AssetBox", v)
+      }
       case _                   => throw new Error("Attempted application of invalid value holder")
     }
 
@@ -51,6 +55,11 @@ case class TransferTransaction[P <: Proposition: EvidenceProducer: Identifiable]
   def getPropIdentifier: Identifier = Identifiable[P].getId
 
   def messageToSign: Array[Byte] =
+    Array(TransferTransaction.identifier(this).typePrefix) ++
+      newBoxes.foldLeft(Array[Byte]())((acc, x) => acc ++ x.bytes) ++
+      boxIdsToOpen.foldLeft(Array[Byte]())((acc, x) => acc ++ x.hashBytes) ++
+      Longs.toByteArray(timestamp) ++
+      Longs.toByteArray(fee) ++
       data.fold(Array(0: Byte))(_.getBytes) :+ (if (minting) 1: Byte else 0: Byte)
 
 }
@@ -61,6 +70,16 @@ object TransferTransaction {
 
   val modifierTypeId: ModifierTypeId = ModifierTypeId @@ (2: Byte)
 
+  def identifier[P <: Proposition] (tx: TransferTransaction[P]): Identifier = {
+    Identifiable.instance{() => Identifier(tx.txType, typePrefix(tx))}.getId
+  }
+
+  def typePrefix[P <: Proposition](tx: TransferTransaction[P]): Byte = tx.txType match {
+    case "ArbitTransfer" => 1: Byte
+    case "PolyTransfer" => 2: Byte
+    case "AssetTransfer" => 3: Byte
+  }
+
   /** Computes a unique nonce value based on the transaction type and
     * inputs and returns the details needed to create the output boxes for the transaction
     */
@@ -70,14 +89,8 @@ object TransferTransaction {
   ](tx: TransferTransaction[P]): (BoxParams[SimpleValue], Traversable[BoxParams[TokenValueHolder]]) = {
     // known input data (similar to messageToSign but without newBoxes since they aren't known yet)
 
-    val typePrefix = tx.txType match {
-      case "ArbitTransfer" => 1: Byte
-      case "PolyTransfer" => 2: Byte
-      case "AssetTransfer" => 3: Byte
-    }
-
     val inputBytes =
-      Array(typePrefix) ++
+      Array(typePrefix(tx)) ++
         tx.boxIdsToOpen.foldLeft(Array[Byte]())((acc, x) => acc ++ x.hashBytes) ++
         Longs.toByteArray(tx.timestamp) ++
         Longs.toByteArray(tx.fee)
@@ -107,20 +120,20 @@ object TransferTransaction {
                                    assetArgs: Option[(AssetCode, Boolean)] = None
                                  ): Map[String, IndexedSeq[(String, Address, Box)]] = {
     sender.flatMap(s => {
-      val bxs = walletBoxes.getOrElse(s, throw new Exception("No boxes found to fund transaction"))
+      val bxs = walletBoxes.getOrElse(s, throw new Exception("No boxes found to fund transaction")).values.toIndexedSeq
 
-      bxs.map(bx => bx._2.typeOfBox match {
-        // always get polys because this is how fees are paid
-        case "PolyBox" => ("Poly", s, bx._2)
+      bxs.collect {
+        case box if box.typeOfBox == "PolyBox" => ("Poly", s, box)
 
-        case "ArbitBox" => ("Arbit", s, bx._2)
+        case box if box.typeOfBox == "ArbitBox" && txType == "ArbitTransfer" => ("Arbit", s, box)
 
-        case "AssetBox" =>
-          bx._2.value match {
-            case token: AssetValue if txType == "AssetTransfer" && assetArgs.forall(_._1 == token.assetCode) =>
-              ("Asset", s, bx._2)
+        case box if box.typeOfBox == "AssetBox" && txType == "AssetTransfer" =>
+          box.value match {
+            case token: AssetValue if assetArgs.forall(_._1 == token.assetCode) =>
+              ("Asset", s, box)
+            case _ => null
           }
-      }).toIndexedSeq
+      }
     }).groupBy(_._1)
   }
 
