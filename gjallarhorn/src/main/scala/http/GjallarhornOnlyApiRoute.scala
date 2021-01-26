@@ -37,7 +37,6 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
 
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
-    //TODO: enable gjallarhorn to create raw transaction.
     case (method, params, id) if method == s"${namespace.name}_createRawTransaction" =>
       createRawTransaction(params.head, id)
 
@@ -225,6 +224,7 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
       data              <- p.get[Option[String]]("data")
     } yield {
 
+      //TODO: what should assetCode version be?
       val assetCode = Try(AssetCode(1.toByte, issuer, shortName)) match {
         case Success(code) => code
         case Failure(ex) => throw new Exception (s"Unable to generate asset code: $ex")
@@ -327,7 +327,10 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
     (for {
       newNetwork <- (params \\ "newNetwork").head.as[String]
     } yield {
-      (keyManagerRef ? ChangeNetwork(newNetwork)).mapTo[Json]
+      (keyManagerRef ? ChangeNetwork(newNetwork)).mapTo[Try[Json]].map {
+        case Success(value) => value
+        case Failure(ex) => throw ex
+      }
     }) match {
       case Right(value) => value
       case Left(error) => throw new Exception (s"error parsing new network: $error")

@@ -53,7 +53,7 @@ object Address extends GjalSerializer[Address] {
   def apply(networkPrefix: NetworkPrefix)(addrStr: String): Address = {
     AddressEncoder.fromStringWithCheck(addrStr, networkPrefix) match {
       case Success(addr) => addr
-      case Failure(_: java.lang.AssertionError) => throw new Exception("Invalid Base58 string")
+      case Failure(_: java.lang.AssertionError) => throw new Exception(s"""The address: "$addrStr" is an invalid Base58 string""")
       case Failure(ex)   => throw ex
     }
   }

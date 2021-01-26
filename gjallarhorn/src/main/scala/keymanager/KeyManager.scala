@@ -2,7 +2,7 @@ package keymanager
 
 import java.io.{BufferedReader, BufferedWriter, File, FileReader, FileWriter}
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props, Status}
 import akka.util.Timeout
 import attestation.{Address, PrivateKeyCurve25519}
 import crypto.KeyfileCurve25519
@@ -35,12 +35,7 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
     case ImportKeyfile(password: String, mnemonic: String, lang: String) =>
       shareNewKey(keyRing.importPhrase(password, mnemonic, lang), sender())
 
-    case UnlockKeyFile(addressString, password) =>
-      if (keyRing.addresses.contains(Address(networkPrefix)(addressString))) {
-        throw new Exception("This key is already unlocked!")
-      }else {
-        sender ! keyRing.unlockKeyFile(addressString, password)
-      }
+    case UnlockKeyFile(addressString, password) => sender ! keyRing.unlockKeyFile(addressString, password)
 
     case LockKeyFile(addressString) => sender ! keyRing.lockKeyFile(addressString)
 
@@ -55,22 +50,7 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
     case GenerateSignatures(keys: IndexedSeq[Address], msg: String) =>
       sender ! Map("signatures" -> createSignatures(keys, msg)).asJson
 
-    case ChangeNetwork(networkName: String) =>
-      NetworkType.fromString(networkName) match {
-        case Some(network) =>
-          if (network.netPrefix != networkPrefix) {
-            //lock all keyfiles on current network
-            keyRing.addresses.foreach(addr =>
-              keyRing.lockKeyFile(addr.toString))
-            //change network and initialize keyRing with new network
-            networkPrefix = network.netPrefix
-            keyRing = Keys(settings.keyFileDir, KeyfileCurve25519)(PrivateKeyCurve25519.secretGenerator,
-              networkPrefix = networkPrefix)
-            log.info(s"${Console.MAGENTA}Network changed to: ${network.verboseName} ${Console.RESET}")
-          }
-          sender ! Map("newNetworkPrefix" -> networkPrefix).asJson
-        case None => throw new Exception(s"The network name: $networkName was not a valid network type!")
-      }
+    case ChangeNetwork(networkName: String) => sender ! switchNetwork(networkName)
 
     case GetKeyfileDir => sender ! Map("keyfileDirectory" -> keyRing.getNetworkDir.getAbsolutePath).asJson
 
@@ -154,6 +134,23 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
       case Left(ex) => throw new Exception(s"error parsing json: $ex")
     }
   }
+
+  private def switchNetwork(networkName: String): Try[Json] = Try{
+    NetworkType.fromString(networkName) match {
+      case Some(network) =>
+        if (network.netPrefix != networkPrefix) {
+          //lock all keyfiles on current network
+          keyRing.addresses.foreach(addr =>
+            keyRing.lockKeyFile(addr.toString))
+          //change network and initialize keyRing with new network
+          networkPrefix = network.netPrefix
+          keyRing = Keys(settings.keyFileDir, KeyfileCurve25519)(PrivateKeyCurve25519.secretGenerator,
+            networkPrefix = networkPrefix)
+          log.info(s"${Console.MAGENTA}Network changed to: ${network.verboseName} ${Console.RESET}")
+        }
+        Map("newNetworkPrefix" -> networkPrefix).asJson
+      case None => throw new Exception(s"The network name: $networkName was not a valid network type!")
+    }}
 }
 
 object KeyManager {

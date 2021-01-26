@@ -90,15 +90,18 @@ case class KeyManagementApiRoute(settings: AppSettings, keyManager: ActorRef)
     * @return - address for generated keyfile.
     */
   private def generateKeyfile(params: Json, id: String): Future[Json] = {
-    val password = (params \\ "password").head.asString.get
-    val seedJson = params \\ "seed"
-    var seed: Option[String] = None
-    if (seedJson.nonEmpty) {
-      seed = Some(seedJson.head.asString.get)
-    }
-    (keyManager ? GenerateKeyFile(password, seed)).mapTo[Try[Address]].map {
-      case Success(pk: Address) => Map("address" -> pk.asJson).asJson
-      case Failure(ex) => throw new Exception(s"An error occurred while creating a new keyfile. $ex")
+    val p = params.hcursor
+    (for {
+      password <- p.get[String]("password")
+      seed <-  p.get[Option[String]]("seed")
+    } yield {
+      (keyManager ? GenerateKeyFile(password, seed)).mapTo[Try[Address]].map {
+        case Success(pk: Address) => Map("address" -> pk.asJson).asJson
+        case Failure(ex) => throw new Exception(s"An error occurred while creating a new keyfile. $ex")
+      }
+    }) match {
+      case Right(value) => value
+      case Left(ex) => throw new Exception(s"parsing error when generating keyfile: $ex")
     }
   }
 
@@ -120,13 +123,18 @@ case class KeyManagementApiRoute(settings: AppSettings, keyManager: ActorRef)
     * @return - returns the address for the imported key.
     */
   private def importKeyfile(implicit params: Json, id: String): Future[Json] = {
-    val password: String = (params \\ "password").head.asString.get
-    val seedPhrase: String = (params \\ "seedPhrase").head.asString.get
-    val seedPhraseLang: String = parseOptional("seedPhraseLang", "en")
-
-    (keyManager ? ImportKeyfile(password, seedPhrase, seedPhraseLang)).mapTo[Try[Address]].map {
-      case Success(pk: Address) => Map("address" -> pk.asJson).asJson
-      case Failure(ex) => throw new Exception(s"An error occurred while importing the seed phrase. $ex")
+    (for {
+      password <- (params \\ "password").head.as[String]
+      seedPhrase <- (params \\ "seedPhrase").head.as[String]
+    } yield {
+      (keyManager ? ImportKeyfile(password, seedPhrase, parseOptional("seedPhraseLang", "en")))
+        .mapTo[Try[Address]].map {
+        case Success(pk: Address) => Map("address" -> pk.asJson).asJson
+        case Failure(ex) => throw new Exception(s"Error importing key file: $ex")
+      }
+    }) match {
+      case Right(value) => value
+      case Left(ex) => throw new Exception(s"parsing error when importing keyfile: $ex")
     }
   }
 
@@ -149,12 +157,17 @@ case class KeyManagementApiRoute(settings: AppSettings, keyManager: ActorRef)
     * @return - Json(address -> unlocked) or an error msg.
     */
   private def unlockKeyfile(params: Json, id: String): Future[Json] = {
-    val address: String = (params \\ "address").head.asString.get
-    val password: String = (params \\ "password").head.asString.get
-
-    (keyManager ? UnlockKeyFile(address, password)).mapTo[Try[Unit]].map {
-      case Success(_) => Map(address -> "unlocked".asJson).asJson
-      case Failure(ex) => throw new Exception(s"An error occurred while trying to unlock the keyfile. $ex")
+    (for {
+      address <- (params \\ "address").head.as[String]
+      password <- (params \\ "password").head.as[String]
+    } yield {
+      (keyManager ? UnlockKeyFile(address, password)).mapTo[Try[Unit]].map {
+        case Success(_) => Map(address -> "unlocked".asJson).asJson
+        case Failure(ex) => throw new Exception(s"An error occurred while trying to unlock the keyfile. $ex")
+      }
+    }) match {
+      case Right(value) => value
+      case Left(ex) => throw new Exception(s"parsing error when unlocking keyfile: $ex")
     }
   }
 

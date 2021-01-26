@@ -51,7 +51,7 @@ object AddressEncoder {
   def fromStringWithCheck(addrStr: String, networkPrefix: NetworkPrefix): Try[Address] =
     Base58.decode(addrStr).flatMap { b =>
       if (b.head == networkPrefix) fromBytes(b)
-      else Failure(new Exception("Invalid address: Network type does not match"))
+      else Failure(new Exception(s"""Invalid address: "$addrStr". Network type does not match"""))
     }
 
   private def fromBytes(bytes: Array[Byte]): Try[Address] = {

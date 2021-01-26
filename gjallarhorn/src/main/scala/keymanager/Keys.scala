@@ -116,7 +116,7 @@ class Keys[
       val bip = Bip39(lang)
 
       // ensure the phrase is valid
-      if (!bip.phraseCheckSum(mnemonic)) throw new Error("Not a valid input phrase!")
+      if (!bip.phraseCheckSum(mnemonic)) throw new Error(s""" "$mnemonic" is not a valid mnemonic phrase!""")
 
       // calculate the new keyfile and return
       val seed = bip.hexToUuid(bip.phraseToHex(mnemonic))

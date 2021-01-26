@@ -17,7 +17,7 @@ import settings.NetworkType
 import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 /**
   * The WalletManager manages the communication between Bifrost and Gjallarhorn
@@ -133,8 +133,12 @@ class WalletManager(keyManagerRef: ActorRef)
     val networkResp: String = Await.result((bifrost ? "Which network is bifrost running?").mapTo[String], 10.seconds)
     val networkName = networkResp.split("Bifrost is running on").tail.head.replaceAll("\\s", "")
     (keyManagerRef ? ChangeNetwork(networkName)).onComplete {
-      case Success(networkResponse: Json) => assert(NetworkType.fromString(networkName).get.netPrefix.toString ==
-        (networkResponse \\ "newNetworkPrefix").head.asNumber.get.toString)
+      case Success(networkResponse: Try[Json]) => networkResponse match {
+        case Success(networkJson) =>
+          assert(NetworkType.fromString(networkName).get.netPrefix.toString ==
+          (networkJson \\ "newNetworkPrefix").head.asNumber.get.toString)
+        case Failure(exception) => throw exception
+      }
       case Success(_) | Failure(_) => throw new Exception ("was not able to change network")
     }
 
