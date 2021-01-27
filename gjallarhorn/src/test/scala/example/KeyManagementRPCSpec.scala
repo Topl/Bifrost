@@ -16,7 +16,7 @@ import keymanager.KeyManager.{GenerateKeyFile, GetAllKeyfiles}
 import keymanager.KeyManagerRef
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
-import requests.{ApiRoute, Requests}
+import requests.ApiRoute
 import wallet.WalletManager
 
 import scala.concurrent.Await
@@ -44,10 +44,9 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
   val walletManagerRef: ActorRef = system.actorOf(
     Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
 
-  val requests: Requests = new Requests(keyManagementSettings.application, keyManagerRef)
   val apiRoute: ApiRoute = KeyManagementApiRoute(keyManagementSettings, keyManagerRef)
   val gjalOnlyApiRoute: ApiRoute =
-    GjallarhornOnlyApiRoute(keyManagementSettings, keyManagerRef, walletManagerRef, requests)
+    GjallarhornOnlyApiRoute(keyManagementSettings, keyManagerRef, walletManagerRef)
   val route: Route = HttpService(Seq(apiRoute, gjalOnlyApiRoute), keyManagementSettings.rpcApi).compositeRoute
 
   val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))

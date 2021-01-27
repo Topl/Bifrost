@@ -12,21 +12,19 @@ import io.circe.syntax._
 import keymanager.KeyManager.{ChangeNetwork, GenerateSignatures, SignTx}
 import keymanager.networkPrefix
 import modifier.{AssetValue, Box, BoxId, SimpleValue, TransferTransaction}
-import requests.{ApiRoute, Requests}
+import requests.ApiRoute
 import scorex.util.encode.Base58
 import settings.AppSettings
 import wallet.WalletManager.GetWallet
 
 import scala.collection.mutable.{Map => MMap}
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Success, Try}
 
 case class GjallarhornOnlyApiRoute (settings: AppSettings,
                                     keyManagerRef: ActorRef,
-                                    walletManagerRef: ActorRef,
-                                    requests: Requests)
+                                    walletManagerRef: ActorRef)
                                    (implicit val context: ActorRefFactory)
   extends ApiRoute {
 
@@ -79,25 +77,12 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
     val p = params.hcursor
     (for {
       txType <- p.get[String]("txType")
-      online <- p.get[Boolean]("online")
-      sender <- p.get[IndexedSeq[Address]]("sender")
     } yield {
-      val futureTx = txType match {
+      txType match {
         case "PolyTransfer" => rawPolyTransfer(p)
         case "ArbitTransfer" => rawArbitTransfer(p)
         case "AssetTransfer" => rawAssetTransfer(p)
         case _ => throw new Exception(s"Transaction type $txType is not valid")
-      }
-
-      if (online) {
-        val tx = Await.result(futureTx.mapTo[Json], 10.seconds)
-        val rawTx = (tx \\ "rawTx").head
-        val msgToSign = (tx \\ "messageToSign").head.asString.get
-        val signedTx = Await.result((keyManagerRef ? SignTx(rawTx, sender, msgToSign))
-          .mapTo[Json], 10.seconds)
-        Future{(requests.broadcastTx(signedTx) \\ "result").head}
-      }else{
-        futureTx
       }
     }) match {
       case Right(value) => value
