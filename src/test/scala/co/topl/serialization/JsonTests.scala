@@ -19,8 +19,7 @@ import scorex.util.encode.Base58
 class JsonTests extends AnyPropSpec
   with Matchers
   with ScalaCheckPropertyChecks
-  with CoreGenerators
-  with ValidGenerators {
+  with CoreGenerators {
 
   property("PublicKey25519Proposition json") {
     forAll(propositionGen) { prop =>
@@ -142,13 +141,30 @@ class JsonTests extends AnyPropSpec
 
   property("BlockHeader json") {
     forAll(blockGen) { block =>
-      block.toComponents._1.asJson.as[BlockHeader] shouldEqual Right(block.toComponents._1)
+      val header = block.toComponents._1
+      header.asJson.as[BlockHeader] match {
+        case Right(value) =>
+          value.id shouldEqual header.id
+          value.parentId shouldEqual header.parentId
+          value.timestamp shouldEqual header.timestamp
+          value.generatorBox shouldEqual header.generatorBox
+          value.publicKey shouldEqual header.publicKey
+          value.signature shouldEqual header.signature
+          value.height shouldEqual header.height
+          value.difficulty shouldEqual header.difficulty
+          value.txRoot shouldEqual header.txRoot
+          value.bloomFilter shouldEqual header.bloomFilter
+          value.version shouldEqual header.version
+        case Left(e) => e
+      }
+
     }
   }
 
   property("BlockBody json") {
     forAll(blockGen) { block =>
-      block.toComponents._2.asJson.as[BlockBody] shouldEqual Right(block.toComponents._2)
+      val body = block.toComponents._2
+      body.asJson.as[BlockBody] shouldEqual Right(body)
     }
   }
 
