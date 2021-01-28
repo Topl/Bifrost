@@ -22,7 +22,7 @@ import scala.util.{Failure, Success, Try}
 /**
   * The WalletManager manages the communication between Bifrost and Gjallarhorn
   * Mainly, the WalletManager receives new blocks from Bifrost in order to updates its wallet boxes.
-  * //@param bifrostActorRef: the actor ref for Bifrost's WalletConnectionHandler.
+  * @param keyManagerRef: the actor ref to communicate with the KeyManager.
   */
 class WalletManager(keyManagerRef: ActorRef)
                    ( implicit ec: ExecutionContext ) extends Actor with Logging {
@@ -32,13 +32,20 @@ class WalletManager(keyManagerRef: ActorRef)
   implicit val timeout: Timeout = 10.seconds
 
   var connectedToBifrost: Boolean = false
+
+  /** The remote actor ref for Bifrost's WalletConnectionHandler */
   private var bifrostActorRef: Option[ActorRef] = None
 
-  //Represents the wallet boxes: as a mapping of addresses to a map of its id's mapped to walletBox.
-  //Ex: address1 -> {id1 -> walletBox1, id2 -> walletBox2, ...}, address2 -> {},...
+  /**
+    * Represents the wallet boxes: as a mapping of addresses to a map of its id's mapped to walletBox.
+    * Ex: address1 -> {id1 -> walletBox1, id2 -> walletBox2, ...}, address2 -> {},...
+  */
   var walletBoxes: MMap[Address, MMap[BoxId, Box]] = initializeWalletBoxes()
 
-  var newestTransactions: Option[String] = None
+  /**
+    * Holds the most recently received transactions from Bifrost
+    */
+  var newestTransactions: Option[List[Transaction]] = None
 
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
     log.debug(s"WalletManagerActor: preRestart ${reason.getMessage}")
@@ -72,8 +79,7 @@ class WalletManager(keyManagerRef: ActorRef)
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   private def initialization: Receive = {
-    case ConnectToBifrost(bifrostActor) =>
-      setUpConnection(bifrostActor)
+    case ConnectToBifrost(bifrostActor) => setUpConnection(bifrostActor)
 
     case GetWallet => sender ! walletBoxes
 
@@ -112,17 +118,22 @@ class WalletManager(keyManagerRef: ActorRef)
 
   /**
     * Handles messages received from Bifrost
-    * @param msg - handles "received new wallet" or "new block added" messages.
+    * @param msg - expected to be either: "received new wallet" or "new block added" messages.
     */
   def msgHandling(msg: String): Unit = {
     if (msg.contains("received new wallet from:")) {
       log.info("Bifrost " + msg)
     }
     if (msg.contains("new block added")) {
-      newBlock(msg)
+      parseNewBlock(msg.substring("new block added: ".length))
     }
   }
 
+  /**
+    * Function to set up connection between Gjallarhorn and Bifrost
+    * Includes updating or initializing the wallet boxes
+    * @param bifrost - the actor ref for bifrost's WalletConnectionHandler
+    */
   def setUpConnection(bifrost: ActorRef): Unit = {
     bifrostActorRef = Some(bifrost)
 
@@ -150,7 +161,7 @@ class WalletManager(keyManagerRef: ActorRef)
     if (addresses.nonEmpty) {
       val balances: Json = Await.result((bifrost ? s"My addresses are: $addresses")
         .mapTo[String].map(_.asJson), 10.seconds)
-      parseAndUpdate(parseResponse(balances))
+      parseAndUpdate(removeBackslashes(balances))
     }else{
       log.debug(s"${Console.RED}You do not have any keys in your wallet! ${Console.RESET}")
     }
@@ -160,31 +171,24 @@ class WalletManager(keyManagerRef: ActorRef)
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
 
   //------------------------------------------------------------------------------------
-  //Methods for parsing balance response - UpdateWallet
+  //Methods for parsing balance response
 
-  def parseResponse(result: Json): Json = {
-    val resultString = result.toString().replace("\\", "").replace("\"{", "{")
+  /**
+    * Removes all of the back-slashes from the json string
+    * @param response - response from balances request
+    * @return - a correctly formed json
+    */
+  def removeBackslashes(response: Json): Json = {
+    val responseString = response.toString().replace("\\", "").replace("\"{", "{")
       .replace("}\"", "}")
-    parse(resultString) match {
+    parse(responseString) match {
       case Left(f) => throw f
       case Right(res: Json) => res
     }
   }
 
   /**
-    * Parses the list of boxes for a specific type (asset, poly, or arbit)
-    * @param sameTypeBoxes - list of boxes all of the same box type
-    * @return a map of the box id mapped to the box info (as json)
-    */
-  def parseBoxType (sameTypeBoxes: Json): MMap[BoxId, Box] = {
-    parser.decode[List[Box]](sameTypeBoxes.toString()) match {
-      case Right(boxes) => MMap(boxes.map(b => b.id -> b).toMap.toSeq: _*)
-      case Left(ex) => throw new Exception(s"Unable to parse boxes from balance response: $ex")
-    }
-  }
-
-  /**
-    * Given the balance response from Bifrost, parse the json and update wallet box
+    * Given the balance response from Bifrost, parse the json and update wallet boxes
     * @param json - the balance response from Bifrost
     * @return - the updated walletBoxes
     */
@@ -195,18 +199,14 @@ class WalletManager(keyManagerRef: ActorRef)
       var boxesMap: MMap[BoxId, Box] = MMap.empty
       val boxes = info \\ "Boxes"
       if (boxes.nonEmpty) {
-        val assets: List[Json] = boxes.head \\ "AssetBox"
-        val poly: List[Json] = boxes.head \\ "PolyBox"
-        val arbit: List[Json] = boxes.head \\ "ArbitBox"
-        if (assets.nonEmpty) {
-          boxesMap = parseBoxType(assets.head)
-        }
-        if (poly.nonEmpty) {
-          boxesMap = boxesMap ++ parseBoxType(poly.head)
-        }
-        if (arbit.nonEmpty) {
-          boxesMap = boxesMap ++ parseBoxType(arbit.head)
-        }
+        val allBoxes: List[Json] = boxes.head \\ "AssetBox" ++ boxes.head \\ "PolyBox" ++ boxes.head \\ "ArbitBox"
+        allBoxes.foreach(bx => {
+          val boxMap = parser.decode[List[Box]](bx.toString()) match {
+            case Right(boxes) => MMap(boxes.map(b => b.id -> b).toMap.toSeq: _*)
+            case Left(ex) => throw new Exception(s"Unable to parse boxes from balance response: $ex")
+          }
+          boxesMap = boxesMap ++ boxMap
+        })
         walletBoxes(addr) = boxesMap}
     })
     walletBoxes
@@ -216,48 +216,24 @@ class WalletManager(keyManagerRef: ActorRef)
   //Methods for parsing new block from Bifrost:
 
   /**
-    * Given a json of a list of newBoxes, parses the json into an array of strings.
-    * @param list - the list of newBoxes in json
-    * @return - returns an array of strings that represent the list of boxes.
+    * Parses the transaction from the new block received from Bifrost and updates the walletBoxes accordingly
+    * @param blockString - the json of the new block in string form.
     */
-  def parseJsonList(list: Json): Array[String] = {
-    var listArray: Array[String] = list.toString().trim.stripPrefix("[").stripSuffix("]").
-      split("},")
-    listArray = listArray.map(asset => {
-      if (listArray.indexOf(asset) != listArray.length-1) {
-        asset.concat("}")
-      } else asset
-    })
-    listArray
-  }
-
-  /**
-    * Parses a new block received from Bifrost and saves it to the "newestBlock" value.
-    * @param blockMsg - the json of the new block in string form.
-    */
-  def newBlock(blockMsg: String): Unit = {
-    val blockTxs : String = blockMsg.substring("new block added: ".length)
+  def parseNewBlock(blockString: String): Unit = {
     //log.info(s"Wallet Manager received new block with transactions: $blockTxs")
-    parseTxsFromBlock(blockTxs)
-    newestTransactions = Some(blockTxs)
-  }
-
-  def parseTxsFromBlock(txs: String): Unit = {
-    parser.decode[List[Transaction]](txs) match {
+    parser.decode[List[Transaction]](blockString) match {
       case Right(transactions) =>
+        newestTransactions = Some(transactions)
         val add: MMap[Address, MMap[BoxId, Box]] = MMap.empty
         var idsToRemove: List[BoxId] = List.empty
         transactions.foreach(tx => {
-          if (tx.newBoxes.nonEmpty) {
-            log.info("Received transaction with boxes: " + tx.asJson)
-          }
           tx.newBoxes.foreach(newBox => {
             val address: Address = Address(newBox.evidence)(networkPrefix)
-            var idToBox: MMap[BoxId, Box] = MMap.empty
-            add.get(address) match {
-              case Some(boxesMap) => idToBox = boxesMap
-              case None => idToBox = MMap.empty
-            }
+            var idToBox: MMap[BoxId, Box] =
+              add.get(address) match {
+                case Some(boxesMap) => boxesMap
+                case None => MMap.empty
+              }
             idToBox.put(newBox.id, newBox)
             add.put(address, idToBox)
           })
@@ -300,10 +276,6 @@ object WalletManager {
 
   val actorName = "WalletManager"
 
-  /**
-    * Given the updated boxes, updates the walletboxes and returns the updated walletboxes
-    * @param updatedBoxes - the current balances from Bifrost
-    */
   case class UpdateWallet(updatedBoxes: Json)
 
   case object GjallarhornStarted

@@ -74,7 +74,7 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
     sender ! newAddress
   }
 
-  //TODO: path should not be hardcoded
+  //TODO: should this path be hardcoded?
   private def updateKeyfileDir(oldDir: String, newDir: String): Unit = {
     val path = "gjallarhorn/src/main/resources/application.conf"
     val configFile: File = new File(path)

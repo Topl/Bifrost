@@ -33,7 +33,7 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   log.info(s"${Console.MAGENTA} Gjallarhorn running in offline mode.${Console.RESET}")
 
   //Set up keyManager
-  //TODO: delete old keys for testing purposes:
+  //TODO: won't actually want to delete old keys - this is for testing purposes:
   val path: Path = Path(settings.application.keyFileDir)
   Try(path.deleteRecursively())
   Try(path.createDirectory())
@@ -43,7 +43,7 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   val requests: Requests = new Requests(settings.application, keyManagerRef)
 
-  //TODO: this is just for testing purposes - should grabs keys from database
+  //TODO: this is just for testing purposes - shouldn't create keys on start-up
   val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))
     .mapTo[Try[Address]], 10.seconds) match {
     case Success(pubKey) => pubKey
