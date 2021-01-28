@@ -1,12 +1,12 @@
 package co.topl.modifier.transaction
 
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.{Proof, Proposition}
+import co.topl.attestation.{Address, Proof, Proposition}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.state.box.{Box, BoxId}
+import co.topl.nodeView.state.box.{Box, BoxId, ProgramId}
 import co.topl.utils.{Identifiable, Identifier}
 import com.google.common.primitives.Longs
 import io.circe.{Decoder, Encoder, HCursor}
@@ -44,7 +44,7 @@ abstract class Transaction[+T, P <: Proposition: Identifiable] extends NodeViewM
 
   def getPropIdentifier: Identifier = Identifiable[P].getId
 
-  def semanticValidate (stateReader: StateReader)(implicit networkPrefix: NetworkPrefix): Try[Unit]
+  def semanticValidate (stateReader: StateReader[ProgramId, Address])(implicit networkPrefix: NetworkPrefix): Try[Unit]
 
   def syntacticValidate (implicit networkPrefix: NetworkPrefix): Try[Unit]
 

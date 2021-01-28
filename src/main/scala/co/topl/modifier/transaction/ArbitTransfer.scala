@@ -58,7 +58,7 @@ object ArbitTransfer {
     */
   def createRaw[
     P <: Proposition: EvidenceProducer: Identifiable
-  ](stateReader:          StateReader,
+  ](stateReader:          StateReader[ProgramId, Address],
     toReceive:            IndexedSeq[(Address, SimpleValue)],
     sender:               IndexedSeq[Address],
     changeAddress:        Address,

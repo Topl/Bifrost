@@ -641,7 +641,7 @@ object NodeViewSynchronizer {
 
     case class ChangedMempool[MR <: MemPoolReader[_ <: Transaction.TX]](reader: MR) extends NodeViewChange[MR]
 
-    case class ChangedState[SR <: StateReader](reader: SR) extends NodeViewChange[SR]
+    case class ChangedState[SR <: StateReader[_, _]](reader: SR) extends NodeViewChange[SR]
 
     case class NewOpenSurface(newSurface: Seq[ModifierId]) extends NodeViewHolderEvent
 

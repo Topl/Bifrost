@@ -7,7 +7,6 @@ import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{Box, _}
 import co.topl.utils.Identifiable
-import co.topl.utils.Identifiable.Syntax._
 import com.google.common.primitives.{Ints, Longs}
 import scorex.crypto.hash.Blake2b256
 
@@ -33,9 +32,9 @@ abstract class TransferTransaction[
 
   override def messageToSign: Array[Byte] =
     super.messageToSign ++
-      data.fold(Array(0: Byte))(_.getBytes) :+ (if (minting) 1: Byte else 0: Byte)
+    data.fold(Array(0: Byte))(_.getBytes) :+ (if (minting) 1: Byte else 0: Byte)
 
-  def semanticValidate(stateReader: StateReader)(implicit networkPrefix: NetworkPrefix): Try[Unit] =
+  def semanticValidate(stateReader: StateReader[ProgramId, Address])(implicit networkPrefix: NetworkPrefix): Try[Unit] =
     TransferTransaction.semanticValidate(this, stateReader)
 
   def syntacticValidate(implicit networkPrefix: NetworkPrefix): Try[Unit] =
@@ -83,11 +82,11 @@ object TransferTransaction {
 
   /** Retrieves the boxes from state for the specified sequence of senders and filters them based on the type of transaction */
   private def getSenderBoxesForTx(
-    state:     StateReader,
+    state:     StateReader[ProgramId, Address],
     sender:    IndexedSeq[Address],
     txType:    String,
     assetArgs: Option[(AssetCode, Boolean)] = None
-  ): Map[String, IndexedSeq[(String, Address, TokenBox[TokenValueHolder])]] = {
+  ): Map[String, IndexedSeq[(String, Address, TokenBox[TokenValueHolder])]] =
     sender
       .flatMap { s =>
         state
@@ -108,7 +107,6 @@ object TransferTransaction {
           }
       }
       .groupBy(_._1)
-  }
 
   /** Determines the input boxes needed to create a transfer transaction
     *
@@ -122,7 +120,8 @@ object TransferTransaction {
     */
   def createRawTransferParams[
     T <: TokenValueHolder
-  ](state:                StateReader,
+  ](
+    state:                StateReader[ProgramId, Address],
     toReceive:            IndexedSeq[(Address, T)],
     sender:               IndexedSeq[Address],
     changeAddress:        Address,
@@ -168,8 +167,9 @@ object TransferTransaction {
           arbitBalance,
           senderBoxes("Arbit").map(bxs => (bxs._2, bxs._3.nonce)) ++
           senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
-          IndexedSeq((changeAddress, SimpleValue(polyBalance - fee)),
-                     (consolidationAddress.getOrElse(changeAddress), SimpleValue(arbitBalance - amtToSpend))
+          IndexedSeq(
+            (changeAddress, SimpleValue(polyBalance - fee)),
+            (consolidationAddress.getOrElse(changeAddress), SimpleValue(arbitBalance - amtToSpend))
           ) ++
           toReceive
         )
@@ -198,8 +198,9 @@ object TransferTransaction {
           assetBalance,
           senderBoxes("Asset").map(bxs => (bxs._2, bxs._3.nonce)) ++
           senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
-          IndexedSeq((changeAddress, SimpleValue(polyBalance - fee)),
-                     (consolidationAddress.getOrElse(changeAddress), AssetValue(assetBalance - amtToSpend, assetArgs.get._1))
+          IndexedSeq(
+            (changeAddress, SimpleValue(polyBalance - fee)),
+            (consolidationAddress.getOrElse(changeAddress), AssetValue(assetBalance - amtToSpend, assetArgs.get._1))
           ) ++
           toReceive
         )
@@ -226,7 +227,7 @@ object TransferTransaction {
     tx match {
       case t: ArbitTransfer[_] if t.minting => // Arbit block rewards
       case t: PolyTransfer[_] if t.minting  => // Poly block rewards
-      case t @ _ =>
+      case t @ _                            =>
         // must provide input state to consume in order to generate new state
         if (t.minting) require(t.fee > 0L, "Asset minting transactions must have a non-zero positive fee")
         else require(t.fee >= 0L, "Transfer transactions must have a non-negative fee")
@@ -261,12 +262,13 @@ object TransferTransaction {
         case t: AssetTransfer[_] if tx.minting =>
           t.to.foreach {
             case (_, asset: AssetValue) =>
-              require(t.attestation.keys.map(_.address).toSeq.contains(asset.assetCode.issuer),
-                      "Asset minting must include the issuers signature"
+              require(
+                t.attestation.keys.map(_.address).toSeq.contains(asset.assetCode.issuer),
+                "Asset minting must include the issuers signature"
               )
             // do nothing with other token types
             case (_, value: SimpleValue) =>
-            case _ => throw new Error("AssetTransfer contains invalid value holder")
+            case _                       => throw new Error("AssetTransfer contains invalid value holder")
           }
 
         case _ => // put additional checks on attestations here
@@ -274,8 +276,9 @@ object TransferTransaction {
     }
 
     // ensure that the input and output lists of box ids are unique
-    require(tx.newBoxes.forall(b ⇒ !tx.boxIdsToOpen.contains(b.id)),
-            "The set of input box ids contains one or more of the output ids"
+    require(
+      tx.newBoxes.forall(b ⇒ !tx.boxIdsToOpen.contains(b.id)),
+      "The set of input box ids contains one or more of the output ids"
     )
   }
 
@@ -288,7 +291,8 @@ object TransferTransaction {
   def semanticValidate[
     T <: TokenValueHolder,
     P <: Proposition: EvidenceProducer
-  ](tx: TransferTransaction[T, P], state: StateReader)(implicit networkPrefix: NetworkPrefix): Try[Unit] = {
+  ](tx: TransferTransaction[T, P], state: StateReader[ProgramId, Address])
+   (implicit networkPrefix: NetworkPrefix): Try[Unit] = {
 
     // check that the transaction is correctly formed before checking state
     syntacticValidate(tx) match {
@@ -302,7 +306,7 @@ object TransferTransaction {
 
     // iterate through the unlockers and sum up the value of the box for each valid unlocker
     unlockers
-      .foldLeft[Try[Long]](Success(0L))((trySum, unlocker) => {
+      .foldLeft[Try[Long]](Success(0L)) { (trySum, unlocker) =>
         trySum.flatMap { partialSum =>
           state.getBox(unlocker.closedBoxId) match {
             case Some(box: TokenBox[_]) if unlocker.boxKey.isValid(unlocker.proposition, tx.messageToSign) =>
@@ -313,7 +317,7 @@ object TransferTransaction {
             case _       => Failure(new Exception("Invalid Box type for this transaction"))
           }
         }
-      }) match {
+      } match {
       // a normal transfer will fall in this case
       case Success(sum: Long) if txOutput == sum - tx.fee =>
         Success(Unit)
