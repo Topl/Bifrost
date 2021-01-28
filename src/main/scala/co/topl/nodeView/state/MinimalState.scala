@@ -9,7 +9,7 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.PersistentNodeViewModifier
 import co.topl.nodeView.NodeViewComponent
 import co.topl.nodeView.state.MinimalState.VersionTag
-import co.topl.nodeView.state.box.ProgramId
+import co.topl.modifier.box.ProgramId
 
 import scala.util.Try
 

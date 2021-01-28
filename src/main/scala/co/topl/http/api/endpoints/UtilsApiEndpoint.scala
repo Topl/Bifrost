@@ -9,8 +9,8 @@ import co.topl.http.api.{ApiEndpoint, Namespace, UtilNamespace}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.AssetCode
-import co.topl.nodeView.state.box.AssetCode.AssetCodeVersion
+import co.topl.modifier.box.AssetCode
+import co.topl.modifier.box.AssetCode.AssetCodeVersion
 import co.topl.settings.{AppContext, NetworkType, RPCApiSettings}
 import io.circe.Json
 import io.circe.syntax._

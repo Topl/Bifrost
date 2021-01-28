@@ -2,7 +2,7 @@ package co.topl.serialization
 
 import co.topl.attestation.Proposition
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer}
-import co.topl.nodeView.state.box._
+import co.topl.modifier.box._
 import co.topl.utils.{CoreGenerators, ValidGenerators}
 import io.circe.syntax.EncoderOps
 import org.scalatest.matchers.must.Matchers

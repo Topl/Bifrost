@@ -4,8 +4,8 @@
 //import co.topl.attestation.proof.{SignatureCurve25519, SignatureCurve25519Serializer}
 //import co.topl.modifier.transaction.ProgramMethodExecution
 //import co.topl.modifier.transaction.Transaction.Nonce
-//import co.topl.nodeView.state.box._
-//import co.topl.nodeView.state.box.serialization.{CodeBoxSerializer, ExecutionBoxSerializer, StateBoxSerializer}
+//import co.topl.modifier.box._
+//import co.topl.modifier.box.serialization.{CodeBoxSerializer, ExecutionBoxSerializer, StateBoxSerializer}
 //import co.topl.utils.Extensions._
 //import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 //import io.circe.{Json, parser}

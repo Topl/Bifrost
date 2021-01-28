@@ -1,7 +1,7 @@
-package co.topl.nodeView.state.box.serialization
+package co.topl.modifier.box.serialization
 
 import co.topl.attestation.Evidence
-import co.topl.nodeView.state.box.{PolyBox, SimpleValue}
+import co.topl.modifier.box.{PolyBox, SimpleValue}
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object PolyBoxSerializer extends BifrostSerializer[PolyBox] {

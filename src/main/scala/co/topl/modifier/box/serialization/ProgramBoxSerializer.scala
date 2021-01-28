@@ -1,7 +1,7 @@
-package co.topl.nodeView.state.box.serialization
+package co.topl.modifier.box.serialization
 
 import co.topl.attestation.Evidence
-import co.topl.nodeView.state.box.{ProgramBox, ProgramId}
+import co.topl.modifier.box.{ProgramBox, ProgramId}
 import co.topl.utils.serialization.{Reader, Writer}
 
 object ProgramBoxSerializer {

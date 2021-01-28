@@ -15,7 +15,7 @@ import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{EliminateTransactions
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.{ArbitBox, SimpleValue}
+import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.settings.NetworkType._
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.Logging

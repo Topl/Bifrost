@@ -6,7 +6,7 @@ import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.state.box.{Box, BoxId, ProgramId}
+import co.topl.modifier.box.{Box, BoxId, ProgramId}
 import co.topl.utils.{Identifiable, Identifier}
 import com.google.common.primitives.Longs
 import io.circe.{Decoder, Encoder, HCursor}

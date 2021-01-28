@@ -6,8 +6,8 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.serialization.TransactionSerializer
-import co.topl.nodeView.state.box.ArbitBox
-import co.topl.nodeView.state.box.serialization.ArbitBoxSerializer
+import co.topl.modifier.box.ArbitBox
+import co.topl.modifier.box.serialization.ArbitBoxSerializer
 import co.topl.utils.serialization.Extensions.LongOps
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 

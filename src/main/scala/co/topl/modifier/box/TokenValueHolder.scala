@@ -1,4 +1,4 @@
-package co.topl.nodeView.state.box
+package co.topl.modifier.box
 
 import java.nio.charset.StandardCharsets
 

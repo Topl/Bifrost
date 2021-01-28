@@ -10,8 +10,8 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.transaction._
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
-import co.topl.nodeView.state.box.Box.Nonce
-import co.topl.nodeView.state.box.{ProgramId, _}
+import co.topl.modifier.box.Box.Nonce
+import co.topl.modifier.box.{ProgramId, _}
 import co.topl.program.{ProgramPreprocessor, _}
 import co.topl.settings.NetworkType.PrivateNet
 import co.topl.settings.{AppSettings, StartupOpts, Version}

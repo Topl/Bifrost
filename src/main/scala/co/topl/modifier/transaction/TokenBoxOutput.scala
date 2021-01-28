@@ -1,8 +1,8 @@
 package co.topl.modifier.transaction
 
 import co.topl.attestation.Evidence
-import co.topl.nodeView.state.box.Box.Nonce
-import co.topl.nodeView.state.box._
+import co.topl.modifier.box.Box.Nonce
+import co.topl.modifier.box._
 
 sealed abstract class TokenBoxOutput[T <: TokenValueHolder, BX <: TokenBox[T]] {
   def generateBox: (Evidence, Box.Nonce, T) => BX

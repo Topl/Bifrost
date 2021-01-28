@@ -3,8 +3,8 @@
 //import co.topl.attestation.proposition.{PublicKeyPropositionCurve25519, PublicKeyPropositionCurve25519Serializer}
 //import co.topl.attestation.proof.{SignatureCurve25519, SignatureCurve25519Serializer}
 //import co.topl.modifier.transaction.ProgramTransfer
-//import co.topl.nodeView.state.box.ExecutionBox
-//import co.topl.nodeView.state.box.serialization.ExecutionBoxSerializer
+//import co.topl.modifier.box.ExecutionBox
+//import co.topl.modifier.box.serialization.ExecutionBoxSerializer
 //import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 //
 //object ProgramTransferSerializer extends BifrostSerializer[ProgramTransfer]{

@@ -1,9 +1,9 @@
-package co.topl.nodeView.state.box
+package co.topl.modifier.box
 
 import java.nio.charset.StandardCharsets
 
 import co.topl.attestation.Address
-import co.topl.nodeView.state.box.AssetCode.AssetCodeVersion
+import co.topl.modifier.box.AssetCode.AssetCodeVersion
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps

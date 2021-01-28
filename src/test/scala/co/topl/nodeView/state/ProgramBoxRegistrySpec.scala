@@ -1,7 +1,7 @@
 package co.topl.nodeView.state
 
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
-import co.topl.nodeView.state.box.StateBox
+import co.topl.modifier.box.StateBox
 import io.circe.Json
 import io.circe.syntax._
 

@@ -1,7 +1,7 @@
-package co.topl.nodeView.state.box.serialization
+package co.topl.modifier.box.serialization
 
 import co.topl.attestation.Evidence
-import co.topl.nodeView.state.box.{AssetBox, AssetValue}
+import co.topl.modifier.box.{AssetBox, AssetValue}
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object AssetBoxSerializer extends BifrostSerializer[AssetBox] {

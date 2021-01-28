@@ -7,8 +7,8 @@ import co.topl.modifier.block.serialization.{BlockBodySerializer, BlockHeaderSer
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.serialization._
-import co.topl.nodeView.state.box._
-import co.topl.nodeView.state.box.serialization.BoxSerializer
+import co.topl.modifier.box._
+import co.topl.modifier.box.serialization.BoxSerializer
 import co.topl.program.{ExecutionBuilder, ExecutionBuilderSerializer}
 import co.topl.settings.VersionSerializer
 import co.topl.utils.{CoreGenerators, ValidGenerators}

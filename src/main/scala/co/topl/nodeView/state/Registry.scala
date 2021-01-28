@@ -2,7 +2,7 @@ package co.topl.nodeView.state
 
 import co.topl.attestation.Address
 import co.topl.nodeView.state.MinimalState.VersionTag
-import co.topl.nodeView.state.box.{BoxId, ProgramId}
+import co.topl.modifier.box.{BoxId, ProgramId}
 import co.topl.utils.Logging
 
 import scala.reflect.ClassTag

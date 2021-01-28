@@ -5,7 +5,7 @@ import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.attestation.{Evidence, _}
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.state.box.{Box, _}
+import co.topl.modifier.box.{Box, _}
 import co.topl.utils.Identifiable
 import com.google.common.primitives.{Ints, Longs}
 import scorex.crypto.hash.Blake2b256
