@@ -1,33 +1,25 @@
 package co.topl.consensus
 
 import akka.actor._
-import akka.util.Timeout
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.{Address, PrivateKeyCurve25519, PublicKeyPropositionCurve25519, SignatureCurve25519}
-import co.topl.consensus
+import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.Forger.{ChainParams, PickTransactionsResult}
 import co.topl.consensus.genesis.{PrivateTestnet, Toplnet}
-import co.topl.crypto.KeyfileCurve25519
+import co.topl.crypto.{KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.Block.Timestamp
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{
-  EliminateTransactions,
-  GetDataFromCurrentView,
-  LocallyGeneratedModifier
-}
+import co.topl.nodeView.CurrentView
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{EliminateTransactions, GetDataFromCurrentView, LocallyGeneratedModifier}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.{ArbitBox, SimpleValue, TokenBox}
-import co.topl.nodeView.{CurrentView, NodeViewHolder}
+import co.topl.nodeView.state.box.{ArbitBox, SimpleValue}
 import co.topl.settings.NetworkType._
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.Logging
 import co.topl.utils.TimeProvider.Time
-import co.topl.utils.encode.encodeBase16
-import scorex.util.encode.Base58
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}

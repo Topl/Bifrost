@@ -8,7 +8,7 @@ import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.serialization.ArbitBoxSerializer
-import co.topl.utils.Extensions.LongOps
+import co.topl.utils.serialization.Extensions.LongOps
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object BlockSerializer extends BifrostSerializer[Block] {

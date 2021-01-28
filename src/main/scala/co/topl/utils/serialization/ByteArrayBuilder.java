@@ -1,4 +1,4 @@
-package co.topl.utils;
+package co.topl.utils.serialization;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;

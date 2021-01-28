@@ -1,7 +1,7 @@
 package co.topl.utils.serialization
 
-import co.topl.utils.Extensions._
-import co.topl.utils.encode.ZigZagEncoder._
+import Extensions._
+import ZigZagEncoder._
 
 import java.util
 

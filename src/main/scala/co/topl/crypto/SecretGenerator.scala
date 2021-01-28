@@ -1,4 +1,4 @@
-package co.topl.attestation
+package co.topl.crypto
 
 /**
  * SecretGenerator is a type-class that describes a class ability to generate a secret

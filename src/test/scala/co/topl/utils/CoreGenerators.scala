@@ -4,7 +4,7 @@ import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
 import co.topl.consensus.KeyRing
-import co.topl.crypto.KeyfileCurve25519
+import co.topl.crypto.{KeyfileCurve25519, PrivateKeyCurve25519, Secret}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
@@ -22,9 +22,9 @@ import org.scalacheck.{Arbitrary, Gen}
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.{Curve25519, Signature}
 import scorex.util.encode.Base58
-
 import java.io.File
 import java.time.Instant
+
 import scala.collection.SortedSet
 import scala.util.{Random, Try}
 

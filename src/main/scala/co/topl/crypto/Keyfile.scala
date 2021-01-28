@@ -1,7 +1,7 @@
 package co.topl.crypto
 
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.{Address, Secret}
+import co.topl.attestation.Address
 import io.circe.Encoder
 import io.circe.syntax.EncoderOps
 

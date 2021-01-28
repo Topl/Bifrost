@@ -3,8 +3,8 @@ package co.topl.consensus
 import java.io.File
 
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.{Address, PrivateKeyCurve25519, Secret, SecretGenerator}
-import co.topl.crypto.{Bip39, Keyfile, KeyfileCompanion}
+import co.topl.attestation.Address
+import co.topl.crypto.{Bip39, Keyfile, KeyfileCompanion, Secret, SecretGenerator}
 import co.topl.utils.Logging
 import com.google.common.primitives.Ints
 import scorex.crypto.hash.Blake2b256

@@ -3,7 +3,7 @@ package co.topl.crypto
 import java.nio.charset.StandardCharsets
 
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.{Address, PrivateKeyCurve25519}
+import co.topl.attestation.Address
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
