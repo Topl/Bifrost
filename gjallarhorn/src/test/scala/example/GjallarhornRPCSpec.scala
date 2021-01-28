@@ -8,7 +8,7 @@ import akka.http.scaladsl.server.Route
 import akka.util.{ByteString, Timeout}
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
-import http.{GjallarhornBifrostApiRoute, GjallarhornOnlyApiRoute, HttpService}
+import http.{GjallarhornOnlineApiRoute, GjallarhornOfflineApiRoute, HttpService}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import attestation.Address
 import attestation.AddressEncoder.NetworkPrefix
@@ -69,8 +69,8 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   val amount = 10
 
   val requests: Requests = new Requests(settings.application, keyManagerRef)
-  val bifrostApiRoute: ApiRoute = GjallarhornBifrostApiRoute(settings, keyManagerRef, walletManagerRef, requests)
-  val gjalOnlyApiRoute: ApiRoute = GjallarhornOnlyApiRoute(settings, keyManagerRef, walletManagerRef)
+  val bifrostApiRoute: ApiRoute = GjallarhornOnlineApiRoute(settings, keyManagerRef, walletManagerRef, requests)
+  val gjalOnlyApiRoute: ApiRoute = GjallarhornOfflineApiRoute(settings, keyManagerRef, walletManagerRef)
   val route: Route = HttpService(
     Seq(bifrostApiRoute, gjalOnlyApiRoute), settings.rpcApi).compositeRoute
 
@@ -104,15 +104,15 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          (res \\ "result").head.asObject.isDefined shouldBe true
-          ((res \\ "result").head \\ "connectedToBifrost").head.asBoolean.get shouldBe true
+          assert((res \\ "error").isEmpty)
+          assert((res \\ "result").head.asObject.isDefined)
+          assert(((res \\ "result").head \\ "connectedToBifrost").head.asBoolean.get)
       }
     }
   }
 
   val assetCode: AssetCode = AssetCode(1.toByte, pk1, "test")
-  it should "succesfully create an asset" in {
+  it should "succesfully create an asset offline" in {
     val createAssetRequest = ByteString(
       s"""
          |{
@@ -139,10 +139,10 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
+          assert((res \\ "error").isEmpty)
           prototypeTx = (res \\ "rawTx").head
           msgToSign = (res \\ "messageToSign").head.asString.get
-          ((res \\ "result").head \\ "rawTx").head.asObject.isDefined shouldBe true
+          assert(((res \\ "result").head \\ "rawTx").head.asObject.isDefined)
       }
     }
   }
@@ -169,9 +169,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
+          assert((res \\ "error").isEmpty)
           signedTx = ((res \\ "result").head \\ "tx").head
-          (res \\ "result").head.asObject.isDefined shouldBe true
+          assert((res \\ "result").head.asObject.isDefined)
       }
     }
   }
@@ -226,8 +226,8 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          (res \\ "result").head.asObject.isDefined shouldBe true
+          assert((res \\ "error").isEmpty)
+          assert((res \\ "result").head.asObject.isDefined)
       }
     }
   }
@@ -239,9 +239,10 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
-         |   "method": "wallet_createRawTransaction",
+         |   "method": "onlineWallet_createTransaction",
+         |   "params": [{
+         |     "method": "topl_rawArbitTransfer",
          |     "params": [{
-         |        "txType": "ArbitTransfer",
          |        "propositionType": "PublicKeyCurve25519",
          |        "recipients": [["$pk2", $amount]],
          |        "sender": ["$pk1"],
@@ -250,6 +251,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |        "data": "",
          |        "online": true
          |     }]
+         |   }]
          |}
        """.stripMargin)
 
@@ -258,8 +260,8 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          (res \\ "result").head.asObject.isDefined shouldBe true
+          assert((res \\ "error").isEmpty)
+          assert((res \\ "result").head.asObject.isDefined)
       }
     }
   }
@@ -289,9 +291,8 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          println("with bifrost: " + (res \\ "result").head)
-          (res \\ "result").head.asObject.isDefined shouldBe true
+          assert((res \\ "error").isEmpty)
+          assert((res \\ "result").head.asObject.isDefined)
       }
     }
   }
@@ -303,9 +304,10 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
-         |   "method": "wallet_createRawTransaction",
+         |   "method": "onlineWallet_createTransaction",
          |   "params": [{
-         |        "txType": "PolyTransfer",
+         |     "method": "topl_rawPolyTransfer",
+         |     "params": [{
          |        "propositionType": "PublicKeyCurve25519",
          |        "sender": ["$pk1"],
          |        "recipients": [["$pk2", $amount]],
@@ -314,6 +316,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |        "data": "",
          |        "online": true
          |     }]
+         |   }]
          |}
        """.stripMargin)
 
@@ -322,8 +325,8 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          (res \\ "result").head.asObject.isDefined shouldBe true
+          assert((res \\ "error").isEmpty)
+          assert((res \\ "result").head.asObject.isDefined)
       }
     }
   }
@@ -345,9 +348,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
         parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
           case Left(f) => throw f
           case Right(res: Json) =>
-            (res \\ "error").isEmpty shouldBe true
+            assert((res \\ "error").isEmpty)
 
-            println("balance: " + (res \\ "result").head)
+            println(res \\ "result")
 
             //pk1 should have fewer polys now
             (((res \\ "result").head \\ pk1.toString).head \\ "PolyBox").head.asNumber.get.toLong match {
@@ -355,25 +358,28 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
               case None => throw new Error ("balance is not a long")
             }
 
+            //Accounting for tests being run multiple times
+            // so tests for amounts being greater than $amount and a multiple of $amount
+
             //pk1 should have $amount of new asset
             (((res \\ "result").head \\ pk1.toString).head \\ assetCode.toString).head.asNumber.get.toLong match {
-              case Some(number) => assert(number == amount)
+              case Some(number) => assert(number >= amount && number % amount == 0)
               case None => throw new Error ("balance is not a long")
             }
 
             //pk2 should have $amount poly
             (((res \\ "result").head \\ pk2.toString).head \\ "PolyBox").head.asNumber.get.toLong match {
-              case Some(number) => assert(number == amount)
+              case Some(number) => assert(number >= amount && number % amount == 0)
               case None => throw new Error ("balance is not a long")
             }
 
             //pk2 should have $amount arbit
             (((res \\ "result").head \\ pk2.toString).head \\ "ArbitBox").head.asNumber.get.toLong match {
-              case Some(number) => assert(number == amount)
+              case Some(number) => assert(number >= amount && number % amount == 0)
               case None => throw new Error ("balance is not a long")
             }
 
-            (res \\ "result").head.asObject.isDefined shouldBe true
+            assert((res \\ "result").head.asObject.isDefined)
         }
       }
     }
@@ -394,9 +400,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"\"", "\"")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          val phrase = (res \\ "result").head
-          assert (phrase != null)
+          assert((res \\ "error").isEmpty)
+          val result = (res \\ "result").head
+          assert (result != null)
       }
     }
   }
@@ -416,17 +422,19 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
-         |   "method": "wallet_createRawTransaction",
-         |     "params": [{
-         |        "txType": "PolyTransfer",
-         |        "propositionType": "PublicKeyCurve25519",
-         |        "sender": ["$pk1"],
-         |        "recipients": [["$newAddr", 15]],
-         |        "changeAddress": "$pk1",
-         |        "fee": 1,
-         |        "data": "",
-         |        "online": true
-         |     }]
+         |   "method": "onlineWallet_createTransaction",
+         |   "params": [{
+         |      "method": "topl_rawPolyTransfer",
+         |      "params": [{
+         |         "propositionType": "PublicKeyCurve25519",
+         |         "sender": ["$pk1"],
+         |         "recipients": [["$newAddr", 15]],
+         |         "changeAddress": "$pk1",
+         |         "fee": 1,
+         |         "data": "",
+         |         "online": true
+         |      }]
+         |   }]
          |}
        """.stripMargin)
 
@@ -435,8 +443,8 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          (res \\ "result").head.asObject.isDefined shouldBe true
+          assert((res \\ "error").isEmpty)
+          assert((res \\ "result").head.asObject.isDefined)
       }
     }
   }
@@ -458,8 +466,8 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          (res \\ "result").head.asObject.isDefined shouldBe true
+          assert((res \\ "error").isEmpty)
+          assert((res \\ "result").head.asObject.isDefined)
           (((res \\ "result").head \\ newAddr.toString).head \\ "PolyBox").head shouldBe 15.asJson
       }
     }
@@ -494,7 +502,6 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
           assert((res \\ "error").isEmpty)
           rawPolyTx = ((res \\ "result").head \\ "rawTx").head
           msgToSignPoly = ((res \\ "result").head \\ "messageToSign").head.asString.get
-          println("without bifrost: " + (res \\ "result").head)
           assert(((res \\ "result").head \\ "rawTx").head.asObject.isDefined)
       }
     }
@@ -522,9 +529,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
+          assert((res \\ "error").isEmpty)
           signedPolyTx = ((res \\ "result").head \\ "tx").head
-          (res \\ "result").head.asObject.isDefined shouldBe true
+          assert((res \\ "result").head.asObject.isDefined)
       }
     }
   }
@@ -550,8 +557,8 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          (res \\ "result").head.asObject.isDefined shouldBe true
+          assert((res \\ "error").isEmpty)
+          assert((res \\ "result").head.asObject.isDefined)
       }
     }
   }
@@ -572,9 +579,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          (res \\ "result").head.asObject.isDefined shouldBe true
-          ((res \\ "result").head \\ "status").head.asString.get === "Disconnected!" shouldBe true
+          assert((res \\ "error").isEmpty)
+          assert((res \\ "result").head.asObject.isDefined)
+          assert(((res \\ "result").head \\ "status").head.asString.get === "Disconnected!")
       }
     }
   }
@@ -595,9 +602,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"\"", "\"")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          (res \\ "result").head.asObject.isDefined shouldBe true
-          ((res \\ "result").head \\ "connectedToBifrost").head.asBoolean.get shouldBe false
+          assert((res \\ "error").isEmpty)
+          assert((res \\ "result").head.asObject.isDefined)
+          assert(!((res \\ "result").head \\ "connectedToBifrost").head.asBoolean.get)
       }
     }
   }
@@ -618,7 +625,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
+          assert((res \\ "error").isEmpty)
           val network = ((res \\ "result").head \\ "networkPrefix").head
           assert(network.toString() === networkPrefix.toString)
       }
@@ -643,7 +650,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
+          assert((res \\ "error").isEmpty)
           val network = ((res \\ "result").head \\ "newNetworkPrefix").head
           assert(network.toString() === "1")
       }
@@ -668,7 +675,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
+          assert((res \\ "error").isEmpty)
           val network = ((res \\ "result").head \\ "newNetworkPrefix").head
           val keyfiles: Map[Address, String] = Await.result((keyManagerRef ? GetAllKeyfiles)
             .mapTo[Map[Address,String]], 10.seconds)

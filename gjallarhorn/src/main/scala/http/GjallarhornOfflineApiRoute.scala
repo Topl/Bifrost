@@ -4,7 +4,7 @@ import java.time.Instant
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.pattern.ask
-import attestation.{Address, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
+import attestation.{Address, Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
 import attestation.AddressEncoder.NetworkPrefix
 import crypto.AssetCode
 import io.circe.{HCursor, Json}
@@ -22,10 +22,10 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
 
-case class GjallarhornOnlyApiRoute (settings: AppSettings,
-                                    keyManagerRef: ActorRef,
-                                    walletManagerRef: ActorRef)
-                                   (implicit val context: ActorRefFactory)
+case class GjallarhornOfflineApiRoute(settings: AppSettings,
+                                      keyManagerRef: ActorRef,
+                                      walletManagerRef: ActorRef)
+                                     (implicit val context: ActorRefFactory)
   extends ApiRoute {
 
   val namespace: Namespace = WalletNamespace
@@ -111,11 +111,7 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
                 TransferTransaction[PublicKeyPropositionCurve25519](inputs, outputs, Map(), fee,
                   Instant.now.toEpochMilli, data, minting = false, "PolyTransfer")
               } match {
-              case Success(tx) =>
-                Map(
-                  "rawTx" -> tx.asJson,
-                  "messageToSign" -> Base58.encode(tx.messageToSign).asJson
-                ).asJson
+              case Success(tx) => rawTransferResponse(tx)
               case Failure(ex) => throw new Exception(s"Failed to create raw transaction with error: $ex")
             }
 
@@ -126,11 +122,7 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
                 TransferTransaction[ThresholdPropositionCurve25519](inputs, outputs, Map(), fee,
                   Instant.now.toEpochMilli, data, minting = false, "PolyTransfer")
               } match {
-              case Success(tx) =>
-                Map(
-                "rawTx" -> tx.asJson,
-                "messageToSign" -> Base58.encode(tx.messageToSign).asJson
-              ).asJson
+              case Success(tx) => rawTransferResponse(tx)
               case Failure(ex) => throw new Exception(s"Failed to create raw transaction with error: $ex")
             }
         }
@@ -164,11 +156,7 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
                 TransferTransaction[PublicKeyPropositionCurve25519](inputs, outputs, Map(), fee,
                   Instant.now.toEpochMilli, data, minting = false, "ArbitTransfer")
               } match {
-              case Success(tx) =>
-                Map(
-                  "rawTx" -> tx.asJson,
-                  "messageToSign" -> Base58.encode(tx.messageToSign).asJson
-                ).asJson
+              case Success(tx) => rawTransferResponse(tx)
               case Failure(ex) => throw new Exception(s"Failed to create raw transaction with error: $ex")
             }
 
@@ -179,11 +167,7 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
                 TransferTransaction[ThresholdPropositionCurve25519](inputs, outputs, Map(), fee,
                   Instant.now.toEpochMilli, data, minting = false, "ArbitTransfer")
               } match {
-              case Success(tx) =>
-                Map(
-                  "rawTx" -> tx.asJson,
-                  "messageToSign" -> Base58.encode(tx.messageToSign).asJson
-                ).asJson
+              case Success(tx) => rawTransferResponse(tx)
               case Failure(ex) => throw new Exception(s"Failed to create raw transaction with error: $ex")
             }
         }
@@ -226,11 +210,7 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
                 TransferTransaction[PublicKeyPropositionCurve25519](inputs, outputs, Map(), fee,
                   Instant.now.toEpochMilli, data, minting, "AssetTransfer")
               } match {
-              case Success(tx) =>
-                Map(
-                  "rawTx" -> tx.asJson,
-                  "messageToSign" -> Base58.encode(tx.messageToSign).asJson
-                ).asJson
+              case Success(tx) => rawTransferResponse(tx)
               case Failure(ex) => throw new Exception(s"Failed to create raw transaction with error: $ex")
             }
 
@@ -241,11 +221,7 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
                 TransferTransaction[ThresholdPropositionCurve25519](inputs, outputs, Map(), fee,
                   Instant.now.toEpochMilli, data, minting, "AssetTransfer")
               } match {
-              case Success(tx) =>
-                Map(
-                  "rawTx" -> tx.asJson,
-                  "messageToSign" -> Base58.encode(tx.messageToSign).asJson
-                ).asJson
+              case Success(tx) => rawTransferResponse(tx)
               case Failure(ex) => throw new Exception(s"Failed to create raw transaction with error: $ex")
             }
         }
@@ -254,6 +230,18 @@ case class GjallarhornOnlyApiRoute (settings: AppSettings,
     }) match {
       case Right(value) => value
       case Left(error) => throw new Exception(s"error parsing raw tx: $error")
+    }
+  }
+
+  def rawTransferResponse(tx: TransferTransaction[_ <: Proposition]): Json = {
+    tx.rawValidate match {
+      case Success(_) =>
+        Map(
+          "rawTx" -> tx.asJson,
+          "messageToSign" -> Base58.encode(tx.messageToSign).asJson
+        ).asJson
+
+      case Failure(exception) => throw new Exception(s"Could not validate transaction: $exception")
     }
   }
 

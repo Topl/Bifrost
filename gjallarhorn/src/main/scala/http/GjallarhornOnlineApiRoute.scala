@@ -19,11 +19,11 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Success, Try}
 
-case class GjallarhornBifrostApiRoute(settings: AppSettings,
-                                      keyManager: ActorRef,
-                                      walletManager: ActorRef,
-                                      requests: Requests)
-                                     (implicit val context: ActorRefFactory, system: ActorSystem)
+case class GjallarhornOnlineApiRoute(settings: AppSettings,
+                                     keyManager: ActorRef,
+                                     walletManager: ActorRef,
+                                     requests: Requests)
+                                    (implicit val context: ActorRefFactory, system: ActorSystem)
   extends ApiRoute with Logging {
 
   val namespace: Namespace = OnlineWalletNamespace

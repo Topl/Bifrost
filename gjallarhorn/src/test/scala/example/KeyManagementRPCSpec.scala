@@ -9,7 +9,7 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.{ByteString, Timeout}
 import attestation.Address
 import attestation.AddressEncoder.NetworkPrefix
-import http.{GjallarhornOnlyApiRoute, HttpService, KeyManagementApiRoute}
+import http.{GjallarhornOfflineApiRoute, HttpService, KeyManagementApiRoute}
 import io.circe.Json
 import io.circe.parser.parse
 import keymanager.KeyManager.{GenerateKeyFile, GetAllKeyfiles}
@@ -46,7 +46,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
 
   val apiRoute: ApiRoute = KeyManagementApiRoute(keyManagementSettings, keyManagerRef)
   val gjalOnlyApiRoute: ApiRoute =
-    GjallarhornOnlyApiRoute(keyManagementSettings, keyManagerRef, walletManagerRef)
+    GjallarhornOfflineApiRoute(keyManagementSettings, keyManagerRef, walletManagerRef)
   val route: Route = HttpService(Seq(apiRoute, gjalOnlyApiRoute), keyManagementSettings.rpcApi).compositeRoute
 
   val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))
@@ -86,10 +86,10 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
+          assert((res \\ "error").isEmpty)
           val openKeys: Set[String] = (res \\ "result").head.asArray.get.map(k => k.asString.get).toSet
           openKeys.size shouldBe 2
-          openKeys.contains(pk1.toString) shouldBe true
+          assert(openKeys.contains(pk1.toString))
       }
     }
   }
@@ -115,8 +115,8 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
         case Right(res: Json) =>
           val result: Json = (res \\ "result").head
           generatedKeyAddr = (result \\ "address").head.asString.get
-          (res \\ "error").isEmpty shouldBe true
-          result.asObject.isDefined shouldBe true
+          assert((res \\ "error").isEmpty)
+          assert(result.asObject.isDefined)
       }
     }
   }
@@ -146,10 +146,9 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
         case Left(f) => throw f
         case Right(res: Json) =>
           val result: Json = (res \\ "result").head
-          (res \\ "error").isEmpty shouldBe true
+          assert((res \\ "error").isEmpty)
           importedKeyAddr = (result \\ "address").head.asString.get
-          result.asObject.isDefined shouldBe true
-
+          assert(result.asObject.isDefined)
       }
     }
   }
@@ -172,8 +171,8 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          (res \\ "result").head.asObject.isDefined shouldBe true
+          assert((res \\ "error").isEmpty)
+          assert((res \\ "result").head.asObject.isDefined)
       }
     }
   }
@@ -195,10 +194,10 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
+          assert((res \\ "error").isEmpty)
           val result = (res \\ "result").head
-          (result \\ generatedKeyAddr).head.asString.get == "locked" shouldBe true
-          (result \\ importedKeyAddr).head.asString.get == "unlocked" shouldBe true
+          assert((result \\ generatedKeyAddr).head.asString.get == "locked")
+          assert((result \\ importedKeyAddr).head.asString.get == "unlocked")
       }
     }
   }
@@ -222,8 +221,8 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          (res \\ "result").head.asObject.isDefined shouldBe true
+          assert((res \\ "error").isEmpty)
+          assert((res \\ "result").head.asObject.isDefined)
       }
     }
   }
@@ -246,7 +245,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
+          assert((res \\ "error").isEmpty)
           val phrase = ((res \\ "result").head \\ "mnemonicPhrase").head
           assert(phrase != null)
       }
@@ -271,7 +270,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
+          assert((res \\ "error").isEmpty)
           val network = ((res \\ "result").head \\ "newNetworkPrefix").head
           assert(network.toString() === "1")
       }
@@ -295,10 +294,10 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
       parse(responseAs[String]) match {
         case Left(f) => throw f
         case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
           val result: Json = (res \\ "result").head
-          (result \\ "address").head.asString.get.charAt(0) == '9' shouldBe true
-          (res \\ "error").isEmpty shouldBe true
-          result.asObject.isDefined shouldBe true
+          assert(result.asObject.isDefined)
+          assert((result \\ "address").head.asString.get.charAt(0) == '9')
       }
     }
   }
@@ -319,9 +318,9 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
+          assert((res \\ "error").isEmpty)
           val openKeys: Set[String] = (res \\ "result").head.asArray.get.map(k => k.asString.get).toSet
-          openKeys.size == 1 shouldBe true
+          assert(openKeys.size == 1)
       }
     }
   }
@@ -344,7 +343,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
+          assert((res \\ "error").isEmpty)
           val dir = ((res \\ "result").head \\ "newDirectory").head
           val keyfiles: Map[Address, String] = Await.result((keyManagerRef ? GetAllKeyfiles)
             .mapTo[Map[Address,String]], 10.seconds)

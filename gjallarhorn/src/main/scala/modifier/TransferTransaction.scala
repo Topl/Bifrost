@@ -1,7 +1,8 @@
 package modifier
 
 import attestation.AddressEncoder.NetworkPrefix
-import attestation._
+import attestation.EvidenceProducer.Syntax._
+import attestation.{Evidence, _}
 import com.google.common.primitives.{Ints, Longs}
 import crypto.AssetCode
 import io.circe.syntax.EncoderOps
@@ -60,6 +61,9 @@ case class TransferTransaction[P <: Proposition: EvidenceProducer: Identifiable]
       Longs.toByteArray(timestamp) ++
       Longs.toByteArray(fee) ++
       data.fold(Array(0: Byte))(_.getBytes) :+ (if (minting) 1: Byte else 0: Byte)
+
+  def rawValidate(implicit networkPrefix: NetworkPrefix): Try[Unit] =
+    TransferTransaction.syntacticValidate(this, hasAttMap = false)
 
 }
 
@@ -249,6 +253,66 @@ object TransferTransaction {
     require(availableToSpend >= amtToSpend, "Insufficient funds available to create transaction.")
 
     (inputs, outputs)
+  }
+
+  def syntacticValidate[P <: Proposition: EvidenceProducer]
+  (tx: TransferTransaction [P], hasAttMap: Boolean = true) (implicit networkPrefix: NetworkPrefix): Try[Unit] = Try {
+    //enforce transaction specific requirements
+    tx.txType match {
+      case "ArbitTransfer" if tx.minting => // Arbit block rewards
+      case "PolyTransfer" if tx.minting  => // Poly block rewards
+      case _ =>
+        // must provide input state to consume in order to generate new state
+        if (tx.minting) require(tx.fee > 0L, "Asset minting transactions must have a non-zero positive fee")
+        else require(tx.fee >= 0L, "Transfer transactions must have a non-negative fee")
+
+        require(tx.from.nonEmpty, "Non-block reward transactions must specify at least one input box")
+        require(tx.to.forall(_._2.quantity > 0L), "Amount sent must be greater than 0")
+    }
+
+    require(tx.timestamp >= 0L, "Invalid timestamp")
+    require(tx.data.forall(_.getBytes("UTF-8").length <= 128), "Data field must be less than 128 bytes")
+
+    // prototype transactions do not contain signatures at creation
+    if (hasAttMap) {
+      // ensure that the signatures are valid signatures with the body of the transaction
+      require(
+        tx.attestation.forall { case (prop, proof) =>
+          proof.isValid(prop, tx.messageToSign)
+        },
+        "The provided proposition is not satisfied by the given proof"
+      )
+
+      // ensure that the propositions match the from addresses
+      require(
+        tx.from.forall { case (addr, _) =>
+          tx.attestation.keys.map(_.generateEvidence).toSeq.contains(addr.evidence)
+        },
+        "The proposition(s) given do not match the evidence contained in the input boxes"
+      )
+
+      tx.txType match {
+        // ensure that the asset issuer is signing a minting transaction
+        case "AssetTransfer" if tx.minting =>
+          tx.to.foreach {
+            case (_, asset: AssetValue) =>
+              require(tx.attestation.keys.map(_.address).toSeq.contains(asset.assetCode.issuer),
+                "Asset minting must include the issuers signature"
+              )
+            // do nothing with other token types
+            case (_, value: SimpleValue) =>
+            case _ => throw new Error("AssetTransfer contains invalid value holder")
+          }
+
+        case _ => // put additional checks on attestations here
+      }
+    }
+
+    // ensure that the input and output lists of box ids are unique
+    require(tx.newBoxes.forall(b ⇒ !tx.boxIdsToOpen.contains(b.id)),
+      "The set of input box ids contains one or more of the output ids"
+    )
+
   }
 
   //For passing Longs to front-end/Javascript

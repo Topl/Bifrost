@@ -4,7 +4,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import attestation.Address
 import io.circe.syntax._
-import http.{GjallarhornBifrostApiRoute, GjallarhornOnlyApiRoute, HttpService, KeyManagementApiRoute}
+import http.{GjallarhornOnlineApiRoute, GjallarhornOfflineApiRoute, HttpService, KeyManagementApiRoute}
 import io.circe.Json
 import keymanager.KeyManager.GenerateKeyFile
 import keymanager.KeyManagerRef
@@ -51,9 +51,9 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   }
 
   //Set up API routes
-  val gjalBifrostRoute: ApiRoute = GjallarhornBifrostApiRoute(settings, keyManagerRef, walletManagerRef, requests)
+  val gjalBifrostRoute: ApiRoute = GjallarhornOnlineApiRoute(settings, keyManagerRef, walletManagerRef, requests)
   val apiRoutes: Seq[ApiRoute] = Seq(
-    GjallarhornOnlyApiRoute(settings, keyManagerRef, walletManagerRef),
+    GjallarhornOfflineApiRoute(settings, keyManagerRef, walletManagerRef),
     KeyManagementApiRoute(settings, keyManagerRef),
     gjalBifrostRoute
   )
