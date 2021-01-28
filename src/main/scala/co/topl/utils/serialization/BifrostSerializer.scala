@@ -1,7 +1,8 @@
 package co.topl.utils.serialization
 
-import akka.util.ByteString
 import java.nio.ByteBuffer
+
+import akka.util.ByteString
 
 import scala.util.Try
 

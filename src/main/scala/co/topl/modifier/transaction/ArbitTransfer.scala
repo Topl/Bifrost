@@ -1,5 +1,8 @@
 package co.topl.modifier.transaction
 
+import java.time.Instant
+
+import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation._
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.TransferTransaction.BoxParams
@@ -8,9 +11,6 @@ import co.topl.nodeView.state.box._
 import co.topl.utils.{Identifiable, Identifier}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
-import java.time.Instant
-
-import co.topl.attestation.AddressEncoder.NetworkPrefix
 
 import scala.util.Try
 

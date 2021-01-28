@@ -5,8 +5,8 @@ import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader
 import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import scorex.util.encode.Base58
 import scorex.crypto.hash.Blake2b256
+import scorex.util.encode.Base58
 import supertagged.TaggedType
 
 import scala.util.Try

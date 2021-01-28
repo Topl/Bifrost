@@ -7,7 +7,7 @@ import co.topl.attestation._
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.TransferTransaction.BoxParams
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.state.box.{AssetBox, AssetCode, AssetValue, Box, PolyBox, ProgramId, TokenBox, TokenValueHolder}
+import co.topl.nodeView.state.box._
 import co.topl.utils.{Identifiable, Identifier}
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}

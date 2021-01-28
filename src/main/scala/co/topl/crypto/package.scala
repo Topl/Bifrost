@@ -1,9 +1,9 @@
 package co.topl
 
-import io.circe.{Decoder, Encoder}
 import io.circe.syntax.EncoderOps
-import scorex.util.encode.Base58
+import io.circe.{Decoder, Encoder}
 import scorex.crypto.hash.Digest32
+import scorex.util.encode.Base58
 
 package object crypto {
   object Digest32Ops {

@@ -1,6 +1,8 @@
 package co.topl.http.api.endpoints
 
 
+import java.security.SecureRandom
+
 import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.http.api.{ApiEndpoint, Namespace, UtilNamespace}
@@ -8,14 +10,12 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.AssetCode
+import co.topl.nodeView.state.box.AssetCode.AssetCodeVersion
 import co.topl.settings.{AppContext, NetworkType, RPCApiSettings}
 import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
-import java.security.SecureRandom
-
-import co.topl.nodeView.state.box.AssetCode.AssetCodeVersion
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}

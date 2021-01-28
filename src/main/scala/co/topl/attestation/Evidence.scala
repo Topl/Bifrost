@@ -7,7 +7,7 @@ import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import scorex.util.encode.Base58
 import supertagged.TaggedType
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 /**
  * Evidence content serves as a fingerprint (or commitment) of a particular proposition that is used to lock a box. Boxes

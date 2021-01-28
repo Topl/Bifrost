@@ -1,7 +1,7 @@
 package co.topl.modifier.transaction.serialization
 
-import co.topl.attestation.serialization.{ProofSerializer, PropositionSerializer}
 import co.topl.attestation._
+import co.topl.attestation.serialization.{ProofSerializer, PropositionSerializer}
 import co.topl.modifier.transaction.AssetTransfer
 import co.topl.nodeView.state.box.TokenValueHolder
 import co.topl.utils.serialization.Extensions._

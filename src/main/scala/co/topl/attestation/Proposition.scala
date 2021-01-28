@@ -2,11 +2,10 @@ package co.topl.attestation
 
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
-import co.topl.attestation.PublicKeyPropositionCurve25519.{typePrefix, typeString}
 import co.topl.attestation.serialization.PropositionSerializer
 import co.topl.crypto.{PrivateKeyCurve25519, Secret}
-import co.topl.utils.{Identifiable, Identifier}
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
+import co.topl.utils.{Identifiable, Identifier}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}

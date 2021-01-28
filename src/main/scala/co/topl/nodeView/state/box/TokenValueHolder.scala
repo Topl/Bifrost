@@ -1,11 +1,11 @@
 package co.topl.nodeView.state.box
 
+import java.nio.charset.StandardCharsets
+
 import co.topl.attestation.Address
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
-
-import java.nio.charset.StandardCharsets
 
 sealed abstract class TokenValueHolder(val quantity: Long) extends BytesSerializable {
   override type M = TokenValueHolder

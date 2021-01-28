@@ -2,7 +2,7 @@ package co.topl.nodeView.state
 
 import java.io.File
 
-import co.topl.attestation.{Address, AddressEncoder}
+import co.topl.attestation.Address
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.nodeView.state.box.{Box, BoxId, TokenBox, TokenValueHolder}
 import co.topl.settings.AppSettings

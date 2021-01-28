@@ -7,7 +7,6 @@ import co.topl.consensus.Forger.ChainParams
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
-import co.topl.nodeView.history.History
 import co.topl.nodeView.state.box.{ArbitBox, SimpleValue}
 import co.topl.settings.{NetworkType, Version}
 
