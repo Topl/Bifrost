@@ -211,77 +211,9 @@ class RequestSpec extends AsyncFlatSpec
 
 
   it should "send msg to bifrost actor when the gjallarhorn app stops" in {
-    val bifrostResponse: String = Await.result((walletManagerRef ? GjallarhornStopped).mapTo[String], 100.seconds)
+    val bifrostResponse: String = Await.result((walletManagerRef ? DisconnectFromBifrost).mapTo[String], 100.seconds)
     assert(bifrostResponse.contains("The remote wallet Actor[akka.tcp://requestTest@127.0.0.1") &&
       bifrostResponse.contains("has been removed from the WalletConnectionHandler in Bifrost"))
   }
-
-  /*it should "update wallet correctly after receiving new block" in {
-    val block: ByteString = ByteString(
-      s"""
-         |    [
-         |      {
-         |        "txType": "PolyTransfer",
-         |        "txHash": "G1KX8RPVBBmHWuuZ7ihNkQLXVJa8AMr4DxafAJHUUCuy",
-         |        "timestamp": 0,
-         |        "signatures": {
-         |          "2xdTv8awN1BjgYEw8W1BVXVtiEwG2b29U8KoZQqJrDuEqSQ9e4": "Signature25519(2AXDGYSE4f2sz7tvMMzyHvUfcoJmxudvdhBcmiUSo6ijwfYmfZYsKRxboQMPh3R4kUhXRVdtSXFXMheka4Rc4P2)"
-         |        },
-         |        "newBoxes": [
-         |          {
-         |             "nonce": "-5988475187915922381",
-         |             "id": "GgNqzkSywewv99vCrb99UakEw1Myn4mqYXo3N4a6PWVW",
-         |             "type": "Poly",
-         |             "proposition": "3X4AW3Swr1iM1syu2g4Xi4L4eTSJFKxGsZPgVctUYg4ga8MZpD",
-         |             "value": "1000000"
-         |          },
-         |          {
-         |             "nonce": "965750754031143229",
-         |             "id": "5UGTHuvG7kJVqp9Sw55A1C6wVEtgeQKn12njLG1bbUTK",
-         |             "type": "Poly",
-         |             "proposition": "4EoSC4YmTm7zoPt5HDJU4aa73Vn2LPrmUszvggAPM5Ff3R1DVt",
-         |             "value": "1000000"
-         |          },
-         |          {
-         |             "nonce": "-59884751870915922381",
-         |             "id": "GgNqzkSywewv10vCrb99UakEw1Myn5mqYXo3N4a6PWVW",
-         |             "type": "Poly",
-         |             "proposition": "${pk2.toString}",
-         |             "value": "1000000"
-         |          }
-         |        ],
-         |        "to" : [
-         |          {
-         |            "proposition" : "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
-         |            "value" : 0
-         |          }
-         |        ],
-         |        "boxesToRemove": [
-         |                        "2fvgQ6xAJbMxtsGv73veyN3sHnwKUh2Lda3b9CyNxriv"
-         |        ],
-         |        "fee" : 0
-         |      }
-         |    ]
-       """.stripMargin)
-    parser.parse(block.utf8String) match {
-      case Right(blockJson) =>
-        walletManagerRef ! s"new block added: $blockJson"
-        Thread.sleep(1000)
-        val walletBoxes: MMap[String, MMap[BoxId, Box]] = Await.result((walletManagerRef ? GetWallet)
-          .mapTo[MMap[Address, MMap[BoxId, Box]]], 10.seconds)
-        val pk1Boxes: Option[MMap[BoxId, Box]] = walletBoxes.get(pk2.toString)
-        pk1Boxes match {
-          case Some(map) =>
-            assert(map.size == 2)
-            assert(map.contains("GGDsEQdd5cnbgjKkac9HLpp2joGo6bWgmS2KvhJgd8b8"))
-            map.get("GgNqzkSywewv10vCrb99UakEw1Myn5mqYXo3N4a6PWVW") match {
-              case Some(json) => assert((json \\ "type").head.toString() == "\"Poly\"")
-              case None => sys.error("poly box was not found!")
-            }
-          case None => sys.error(s"no mapping for given public key: ${pk2.toString}")
-        }
-      case Left(e) => sys.error(s"Could not parse json $e")
-    }
-  }*/
 
 }

@@ -72,16 +72,10 @@ class WalletManager(keyManagerRef: ActorRef)
       walletManagement orElse
       nonsense
 
-  /*private def active: Receive =
-    operational orElse
-      walletManagement orElse
-      nonsense*/
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   private def initialization: Receive = {
     case ConnectToBifrost(bifrostActor) => setUpConnection(bifrostActor)
-
-    case GetWallet => sender ! walletBoxes
 
     case msg: String => msgHandling(msg)
   }
@@ -89,7 +83,7 @@ class WalletManager(keyManagerRef: ActorRef)
   private def operational: Receive = {
     case msg: String => msgHandling(msg)
     case GetNewBlock => sender ! newestTransactions
-    case GjallarhornStopped =>
+    case DisconnectFromBifrost =>
       bifrostActorRef match {
         case Some(actor) =>
           val response: String = Await.result((actor ? "Remote wallet actor stopped").mapTo[String], 10.seconds)
@@ -116,6 +110,8 @@ class WalletManager(keyManagerRef: ActorRef)
       log.warn(s"Got unexpected input $nonsense from ${sender()}")
   }
 
+  ////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
   /**
     * Handles messages received from Bifrost
     * @param msg - expected to be either: "received new wallet" or "new block added" messages.
@@ -153,7 +149,7 @@ class WalletManager(keyManagerRef: ActorRef)
       case Success(_) | Failure(_) => throw new Exception ("was not able to change network")
     }
 
-    //re-initialize walletboxes
+    //re-initialize walletboxes and grab keys with correct network
     walletBoxes = initializeWalletBoxes()
     val addresses = walletBoxes.keySet
 
@@ -166,9 +162,6 @@ class WalletManager(keyManagerRef: ActorRef)
       log.debug(s"${Console.RED}You do not have any keys in your wallet! ${Console.RESET}")
     }
   }
-
-  ////////////////////////////////////////////////////////////////////////////////////
-  //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
 
   //------------------------------------------------------------------------------------
   //Methods for parsing balance response
@@ -276,19 +269,15 @@ object WalletManager {
 
   val actorName = "WalletManager"
 
+  case class ConnectToBifrost(bifrostActor: ActorRef)
+
+  case object DisconnectFromBifrost
+
   case class UpdateWallet(updatedBoxes: Json)
-
-  case object GjallarhornStarted
-
-  case object GjallarhornStopped
 
   case object GetNewBlock
 
-  case class NewBlock(block: String)
-
   case object GetWallet
-
-  case class ConnectToBifrost(bifrostActor: ActorRef)
 
   case class NewKey(address: Address)
 

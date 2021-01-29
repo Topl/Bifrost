@@ -12,7 +12,7 @@ import keymanager.KeyManager._
 import modifier.AssetValue
 import settings.AppSettings
 import utils.Logging
-import wallet.WalletManager.{ConnectToBifrost, GetConnection, GjallarhornStopped}
+import wallet.WalletManager.{ConnectToBifrost, DisconnectFromBifrost, GetConnection}
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -104,7 +104,7 @@ case class GjallarhornOnlineApiRoute(settings: AppSettings,
     */
   private def disconnectFromBifrost(id: String): Future[Json] = {
     var responseMsg = "Disconnected!"
-    walletManager ! GjallarhornStopped
+    walletManager ! DisconnectFromBifrost
 
     requestsManager match {
       case Some(actor) =>
