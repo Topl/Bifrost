@@ -5,9 +5,9 @@ import co.topl.utils.serialization.{BytesSerializable, _}
 /**
   * Version of blockchain protocol
   */
-class Version ( val firstDigit: Byte,
-                val secondDigit: Byte,
-                val thirdDigit: Byte
+class Version (val firstDigit: Byte,
+               val secondDigit: Byte,
+               val thirdDigit: Byte
               ) extends BytesSerializable with Ordered[Version] {
 
   override type M = Version

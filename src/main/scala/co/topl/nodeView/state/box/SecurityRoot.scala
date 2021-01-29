@@ -38,7 +38,7 @@ object SecurityRoot extends BifrostSerializer[SecurityRoot] {
 
   def apply(str: String): SecurityRoot = Base58.decode(str) match {
     case Success(value) => new SecurityRoot(value)
-    case Failure(exception) => throw new Exception("Unable to decode SecurityRoot")
+    case Failure(exception) => throw new Exception(s"Unable to decode SecurityRoot, $exception")
   }
 
   override def serialize(obj: SecurityRoot, w: Writer): Unit = {
