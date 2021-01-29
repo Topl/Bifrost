@@ -7,7 +7,7 @@ jobs:
   unit_tests:
     docker:
       # specify the version you desire here
-      - image: oracle/graalvm-ce:20.3.0-java8
+      - image: toplprotocol/graalvm-test-21.0.0
       
       # Specify service dependencies here if necessary
       # CircleCI maintains a library of pre-built images
@@ -24,13 +24,6 @@ jobs:
       TERM: dumb
     
     steps:
-
-      - run:
-          name: Get sbt binary
-          command: |
-            yum update -y
-            curl https://bintray.com/sbt/rpm/rpm | tee /etc/yum.repos.d/bintray-sbt-rpm.repo
-            yum install -y sbt git
 
       - checkout
 
