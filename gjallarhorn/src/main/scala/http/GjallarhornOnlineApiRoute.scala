@@ -10,7 +10,7 @@ import io.circe.Json
 import io.circe.syntax._
 import keymanager.KeyManager._
 import modifier.AssetValue
-import settings.AppSettings
+import settings.RPCApiSettings
 import utils.Logging
 import wallet.WalletManager.{ConnectToBifrost, DisconnectFromBifrost, GetConnection}
 
@@ -19,7 +19,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Success, Try}
 
-case class GjallarhornOnlineApiRoute(settings: AppSettings,
+case class GjallarhornOnlineApiRoute(settings: RPCApiSettings,
                                      keyManager: ActorRef,
                                      walletManager: ActorRef,
                                      requests: Requests)

@@ -4,6 +4,9 @@ import attestation.{SignatureCurve25519, ThresholdSignatureCurve25519}
 import utils.Extensions._
 import utils.serialization.{GjalSerializer, Reader, Writer}
 
+/**
+  * For serializing a ThresholdSignature
+  */
 object ThresholdSignatureCurve25519Serializer extends GjalSerializer[ThresholdSignatureCurve25519] {
 
   override def serialize(obj: ThresholdSignatureCurve25519, w: Writer): Unit = {

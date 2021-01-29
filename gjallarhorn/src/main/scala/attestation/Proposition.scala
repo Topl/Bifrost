@@ -14,9 +14,11 @@ import utils.serialization.{BytesSerializable, GjalSerializer}
 
 import scala.util.{Failure, Success, Try}
 
-// Propositions are challenges that must be satisfied by the prover.
-// In most cases, propositions are used by transactions issuers (spenders) to prove the right
-// to use a UTXO in a transaction.
+/**
+  * Propositions are challenges that must be satisfied by the prover.
+  * In most cases, propositions are used by transactions issuers (spenders) to prove the right
+  * to use a UTXO in a transaction.
+  */
 sealed trait Proposition extends BytesSerializable {
 
   val propTypeString: String
@@ -45,8 +47,10 @@ object Proposition {
   implicit val jsonKeyDecoder: KeyDecoder[Proposition] = (str: String) => fromString(str).toOption
 }
 
-// Knowledge propositions require the prover to supply a proof attesting to their knowledge
-// of secret information.
+/**
+  * Knowledge propositions require the prover to supply a proof attesting to their knowledge of secret information.
+  * @tparam S secret type
+  */
 sealed trait KnowledgeProposition[S <: Secret] extends Proposition
 
 /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */

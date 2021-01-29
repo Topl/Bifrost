@@ -10,13 +10,13 @@ import io.circe.syntax._
 import keymanager.{Bip39, networkPrefix}
 import keymanager.KeyManager.{GenerateKeyFile, ImportKeyfile, LockKeyFile, UnlockKeyFile}
 import requests.ApiRoute
-import settings.AppSettings
+import settings.RPCApiSettings
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
 
-case class KeyManagementApiRoute(settings: AppSettings, keyManager: ActorRef)
+case class KeyManagementApiRoute(settings: RPCApiSettings, keyManager: ActorRef)
                                 (implicit val context: ActorRefFactory)
     extends ApiRoute {
 

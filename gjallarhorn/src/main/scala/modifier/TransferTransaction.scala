@@ -1,7 +1,6 @@
 package modifier
 
 import attestation.AddressEncoder.NetworkPrefix
-import attestation.EvidenceProducer.Syntax._
 import attestation.{Evidence, _}
 import com.google.common.primitives.{Ints, Longs}
 import crypto.AssetCode

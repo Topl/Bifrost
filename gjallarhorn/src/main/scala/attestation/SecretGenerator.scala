@@ -1,5 +1,10 @@
 package attestation
 
+/**
+  * SecretGenerator is a type-class that describes a class ability to generate a secret
+  *
+  * @tparam S a keyfile class that can be used to generate new secrets
+  */
 sealed trait SecretGenerator[S <: Secret] {
   def generateSecret (seed: Array[Byte]): (S, S#PK)
 }

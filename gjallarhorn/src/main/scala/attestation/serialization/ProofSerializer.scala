@@ -3,6 +3,9 @@ package attestation.serialization
 import attestation._
 import utils.serialization.{GjalSerializer, Reader, Writer}
 
+/**
+  * For serializing a signature
+  */
 object ProofSerializer extends GjalSerializer[Proof[_]] {
   def serialize(obj: Proof[_], w: Writer): Unit = {
     obj match {

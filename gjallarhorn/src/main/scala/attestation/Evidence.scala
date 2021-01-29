@@ -10,10 +10,10 @@ import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 import scala.util.{Failure, Success, Try}
 
 /**
-  * Evidence content serves as a fingerprint (or commitment) of a particular proposition that is used to lock a box. Boxes
-  * are locked with 'Evidence' which is the concatentation of a typePrefix ++ content. The type prefix denotes what type
-  * of proposition the content references and the content serves as the commitment that a proposition will be checked
-  * against when a box is being unlocked during a transaction.
+  * Evidence content serves as a fingerprint (or commitment) of a particular proposition that is used to lock a box.
+  * Boxes are locked with 'Evidence' which is the concatenation of a typePrefix ++ content.
+  * The type prefix denotes what type of proposition the content references and the content serves as the commitment
+  * that a proposition will be checked against when a box is being unlocked during a transaction.
   *
   * @param evBytes an array of bytes of length 'contentLength' (currently 32 bytes) generated from a proposition
   */

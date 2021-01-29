@@ -3,20 +3,17 @@ package requests
 import akka.actor.ActorRefFactory
 import akka.http.scaladsl.server.Directives
 import akka.util.Timeout
-import attestation.AddressEncoder.NetworkPrefix
 import http.Namespace
 import io.circe.{Decoder, Json}
-import settings.AppSettings
+import settings.RPCApiSettings
 
 import scala.concurrent.Future
 
 trait ApiRoute extends Directives {
   val context: ActorRefFactory
-  //val route: Route
-  val settings: AppSettings
+  val settings: RPCApiSettings
 
-  implicit val timeout: Timeout = Timeout(settings.rpcApi.timeout)
-  //implicit val networkPrefix: NetworkPrefix
+  implicit val timeout: Timeout = Timeout(settings.timeout)
 
   val namespace: Namespace
   // these are the case statements for identifying the api services

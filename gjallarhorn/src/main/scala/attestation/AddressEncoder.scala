@@ -37,8 +37,8 @@ object AddressEncoder {
 
   /**
     * Parse an Address from a string (without checking that the network matches)
-    * @param addrStr
-    * @return
+    * @param addrStr a Base58 encoded address
+    * @return the address that was encoded in the string
     */
   def fromStringUnsafe(addrStr: String): Try[Address] = Base58.decode(addrStr).flatMap(fromBytes)
 
@@ -46,7 +46,7 @@ object AddressEncoder {
     * Parse an Address from a string ensuring that the networkPrefix is correct
     * @param addrStr a Base58 encoded address
     * @param networkPrefix a single byte used to identify a network
-    * @return the network prefix of the address
+    * @return the address encoded in the string
     */
   def fromStringWithCheck(addrStr: String, networkPrefix: NetworkPrefix): Try[Address] =
     Base58.decode(addrStr).flatMap { b =>
@@ -54,6 +54,11 @@ object AddressEncoder {
       else Failure(new Exception(s"""Invalid address: "$addrStr". Network type does not match"""))
     }
 
+  /**
+    * Parses an address from an array of bytes
+    * @param bytes bytes with the encoded address
+    * @return the address corresponding to given array of bytes
+    */
   private def fromBytes(bytes: Array[Byte]): Try[Address] = {
     require(bytes.length == encodedAddressLength, s"Invalid address: Not the required length")
 

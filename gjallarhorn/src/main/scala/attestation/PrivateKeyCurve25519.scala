@@ -4,7 +4,11 @@ import crypto.KeyfileCurve25519
 import scorex.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
 import utils.serialization.{GjalSerializer, Reader, Writer}
 
-
+/**
+  * A Secret corresponding to a PublicKeyCurve25519 proposition.
+  * @param privKeyBytes - array of bytes that form the private key
+  * @param publicKeyBytes - array of bytes that form the public key
+  */
 case class PrivateKeyCurve25519 (private val privKeyBytes  : PrivateKey,
                                  private val publicKeyBytes: PublicKey
                                 ) extends Secret {

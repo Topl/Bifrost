@@ -9,6 +9,11 @@ import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 
 import scala.util.{Failure, Success, Try}
 
+/**
+  * SecurityRoot is currently used for AssetValues
+  * A cryptographic commitment to an accumulator that is used for membership proofs
+  * @param root - bytes used to create a security root
+  */
 class SecurityRoot private (private val root: Array[Byte]) extends BytesSerializable {
 
   require(root.length == SecurityRoot.size, "Invalid securityRoot")

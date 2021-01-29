@@ -4,6 +4,9 @@ import attestation.{PublicKeyPropositionCurve25519, ThresholdPropositionCurve255
 import utils.Extensions._
 import utils.serialization.{GjalSerializer, Reader, Writer}
 
+/**
+  * For serializing a ThresholdProposition
+  */
 object ThresholdPropositionCurve25519Serializer extends GjalSerializer[ThresholdPropositionCurve25519] {
 
   override def serialize(obj: ThresholdPropositionCurve25519, w: Writer): Unit = {

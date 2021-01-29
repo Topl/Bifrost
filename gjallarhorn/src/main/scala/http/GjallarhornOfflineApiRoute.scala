@@ -14,7 +14,7 @@ import keymanager.networkPrefix
 import modifier.{AssetValue, Box, BoxId, SimpleValue, TransferTransaction}
 import requests.ApiRoute
 import scorex.util.encode.Base58
-import settings.AppSettings
+import settings.RPCApiSettings
 import wallet.WalletManager.GetWallet
 
 import scala.collection.mutable.{Map => MMap}
@@ -22,10 +22,18 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
 
-case class GjallarhornOfflineApiRoute(settings: AppSettings,
+/**
+  * Class route for managing offline requests (bifrost does not need to be running)
+  * @param settings - API settings for APIRoute
+  * @param keyManagerRef - actor reference for the KeyManager
+  * @param walletManagerRef - actor reference for the WalletManager
+  * @param context - ActorRef context
+  */
+case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
                                       keyManagerRef: ActorRef,
                                       walletManagerRef: ActorRef)
                                      (implicit val context: ActorRefFactory)
+
   extends ApiRoute {
 
   val namespace: Namespace = WalletNamespace
@@ -69,8 +77,8 @@ case class GjallarhornOfflineApiRoute(settings: AppSettings,
     *  | minting               | Boolean                           | Required  | If new asset creation
     *  | data                  | String                            | Optional  | Data string which can be associated with this transaction(may be empty)|
     *
-    * //@param params input parameter as specified above
-    * //@param id request identifier
+    * @param params input parameter as specified above
+    * @param id request identifier
     * @return
     */
   private def createRawTransaction (params: Json, id: String): Future[Json] = {
@@ -90,6 +98,11 @@ case class GjallarhornOfflineApiRoute(settings: AppSettings,
     }
   }
 
+  /**
+    * Creates a raw poly transfer
+    * @param p - hcursor for transfer params
+    * @return raw poly transfer as JSON
+    */
   def rawPolyTransfer(p: HCursor): Future[Json] = {
     (for {
       propType          <- p.get[String]("propositionType")
@@ -134,6 +147,12 @@ case class GjallarhornOfflineApiRoute(settings: AppSettings,
     }
   }
 
+  /**
+    * Creates a raw arbit transfer
+    * @param p - hcursor for transfer params
+    * @return raw arbit transfer as JSON
+    *
+    */
   private[http] def rawArbitTransfer(p: HCursor): Future[Json] = {
     (for {
       propType          <- p.get[String]("propositionType")
@@ -179,6 +198,11 @@ case class GjallarhornOfflineApiRoute(settings: AppSettings,
     }
   }
 
+  /**
+    * Creates a raw asset transfer
+    * @param p - hcursor for transfer params
+    * @return raw asset transfer as JSON
+    */
   private[http] def rawAssetTransfer(p: HCursor): Future[Json] = {
     (for {
       propType          <- p.get[String]("propositionType")
@@ -233,6 +257,11 @@ case class GjallarhornOfflineApiRoute(settings: AppSettings,
     }
   }
 
+  /**
+    * Helper function for creating API response to a raw transfer request
+    * @param tx - the raw transaction to be sent back
+    * @return JSON mapping of rawTx and messageToSign
+    */
   def rawTransferResponse(tx: TransferTransaction[_ <: Proposition]): Json = {
     tx.rawValidate match {
       case Success(_) =>

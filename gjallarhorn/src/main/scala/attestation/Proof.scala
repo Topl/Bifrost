@@ -91,7 +91,12 @@ object SignatureCurve25519 {
 }
 
 /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
-
+/**
+  * A proof corresponding to a ThresholdPropositionCurve25519 proposition. This is a zero-knowledge proof that argues
+  * knowledge of the underlying private key associated with a public key
+  *
+  * @param signatures set of 25519 signatures
+  */
 case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set[SignatureCurve25519])
   extends ProofOfKnowledge[PrivateKeyCurve25519, ThresholdPropositionCurve25519] {
 
@@ -108,7 +113,8 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
     // only need to check until the threshold is exceeded
     val numValidSigs = signatures.foldLeft(0) { (acc, sig) =>
       if (acc < proposition.threshold) {
-        if (proposition.pubKeyProps.exists(prop => Curve25519.verify(sig.sigBytes, message, PublicKey @@ prop.pubKeyBytes))) {
+        if (proposition.pubKeyProps
+          .exists(prop => Curve25519.verify(sig.sigBytes, message, PublicKey @@ prop.pubKeyBytes))) {
           1
         } else {
           0

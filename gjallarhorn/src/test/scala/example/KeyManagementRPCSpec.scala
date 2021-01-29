@@ -44,9 +44,9 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
   val walletManagerRef: ActorRef = system.actorOf(
     Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
 
-  val apiRoute: ApiRoute = KeyManagementApiRoute(keyManagementSettings, keyManagerRef)
+  val apiRoute: ApiRoute = KeyManagementApiRoute(keyManagementSettings.rpcApi, keyManagerRef)
   val gjalOnlyApiRoute: ApiRoute =
-    GjallarhornOfflineApiRoute(keyManagementSettings, keyManagerRef, walletManagerRef)
+    GjallarhornOfflineApiRoute(keyManagementSettings.rpcApi, keyManagerRef, walletManagerRef)
   val route: Route = HttpService(Seq(apiRoute, gjalOnlyApiRoute), keyManagementSettings.rpcApi).compositeRoute
 
   val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))

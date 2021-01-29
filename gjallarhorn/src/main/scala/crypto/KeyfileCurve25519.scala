@@ -23,7 +23,14 @@ import scala.util.Try
 /**
   * Created by cykoz on 6/22/2017.
   */
-
+/**
+  * Encrypted key file
+  * @param address address associated with keyfile
+  * @param cipherText encrypted information
+  * @param mac message authentication code
+  * @param salt random data used to encrypt key
+  * @param iv initialization vector (like nonce)
+  */
 case class KeyfileCurve25519(address   : Address,
                              cipherText: Array[Byte],
                              mac       : Array[Byte],
@@ -34,9 +41,10 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
 
   /**
     * Create a keyfile from the provided seed and save it to disk
-    *
+    * @param secretKey private key for the keyfile
     * @param password string used to encrypt the private key when saved to disk
-    * @return
+    * @param networkPrefix a single byte used to identify a network
+    *  @return
     */
   def encryptSecret (secretKey: PrivateKeyCurve25519, password: String)
                     (implicit networkPrefix: NetworkPrefix): KeyfileCurve25519 = {
@@ -57,29 +65,37 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
     new KeyfileCurve25519(address, cipherText, mac, salt, ivData)
   }
 
+  /**
+    * Attemps to decrypt file - given keyfile and password returns PrivateKey
+    * @param encryptedKeyFile - the key file to decrypt
+    * @param password - password for the given key file
+    * @param networkPrefix - a single byte used to identify a network
+    *  @return
+    */
   def decryptSecret(encryptedKeyFile: KeyfileCurve25519, password: String)
                    (implicit networkPrefix: NetworkPrefix): Try[PrivateKeyCurve25519] = Try {
     val derivedKey = KeyfileCurve25519.getDerivedKey(password, encryptedKeyFile.salt)
     val calcMAC = KeyfileCurve25519.getMAC(derivedKey, encryptedKeyFile.cipherText)
     require(calcMAC sameElements encryptedKeyFile.mac, "MAC does not match. Try again")
 
-    KeyfileCurve25519.getAESResult(derivedKey, encryptedKeyFile.iv, encryptedKeyFile.cipherText, encrypt = false) match {
-      case (cipherBytes, _) => cipherBytes.grouped(Curve25519.KeyLength).toSeq match {
-        case Seq(skBytes, pkBytes) =>
-          // recreate the private key
-          val privateKey = new PrivateKeyCurve25519(PrivateKey @@ skBytes, PublicKey @@ pkBytes)
-          val derivedAddress = Address.from(privateKey.publicImage)
-          // check that the address given in the keyfile matches the public key
-          require(encryptedKeyFile.address == derivedAddress, "PublicKey in file is invalid")
-          privateKey
+    KeyfileCurve25519.getAESResult(derivedKey, encryptedKeyFile.iv, encryptedKeyFile.cipherText, encrypt = false)
+      match {
+        case (cipherBytes, _) => cipherBytes.grouped(Curve25519.KeyLength).toSeq match {
+          case Seq(skBytes, pkBytes) =>
+            // recreate the private key
+            val privateKey = new PrivateKeyCurve25519(PrivateKey @@ skBytes, PublicKey @@ pkBytes)
+            val derivedAddress = Address.from(privateKey.publicImage)
+            // check that the address given in the keyfile matches the public key
+            require(encryptedKeyFile.address == derivedAddress, "PublicKey in file is invalid")
+            privateKey
+        }
       }
-    }
   }
 
   /**
-    *
-    * @param filename
-    * @return
+    * Reads given file and returns the KeyFile
+    * @param filename - the file name to be read
+    * @return KeyFile associated with the file
     */
   def readFile (filename: String)(implicit networkPrefix: NetworkPrefix): KeyfileCurve25519 = {
     // read data from disk
@@ -97,9 +113,9 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
   }
 
   /**
-    *
-    * @param password
-    * @param salt
+    * Grabs deterministic key given a password and salt
+    * @param password password to calculate deterministic key
+    * @param salt salt used to calculate determinstic key
     * @return
     */
   private def getDerivedKey (password: String, salt: Array[Byte]): Array[Byte] = {
@@ -109,23 +125,27 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
 
 
   /**
-    *
-    * @param derivedKey
-    * @param cipherText
+    * Calculate mac for a given key
+    * @param derivedKey the key as array of bytes
+    * @param cipherText cipherText for the key to calculate mac
     * @return
     */
   private def getMAC (derivedKey: Array[Byte], cipherText: Array[Byte]): Array[Byte] =
     Blake2b256(derivedKey.slice(16, 32) ++ cipherText)
 
   /**
-    *
-    * @param derivedKey
-    * @param ivData
-    * @param inputText
-    * @param encrypt
+    * Generates cipherText and MAC from AES (block cipher)
+    * @param derivedKey - determinstic key to encrypt
+    * @param ivData - data used to encrypt key
+    * @param inputText - bytes used to encrypt key
+    * @param encrypt - if set to true, cipher is initialised for encryption, if false for decryption
     * @return
     */
-  private def getAESResult(derivedKey: Array[Byte], ivData: Array[Byte], inputText: Array[Byte], encrypt: Boolean): (Array[Byte], Array[Byte]) = {
+  private def getAESResult(derivedKey: Array[Byte],
+                           ivData: Array[Byte],
+                           inputText: Array[Byte],
+                           encrypt: Boolean
+                          ): (Array[Byte], Array[Byte]) = {
     val cipherParams = new ParametersWithIV(new KeyParameter(derivedKey), ivData)
     val aesCtr = new BufferedBlockCipher(new SICBlockCipher(new AESEngine))
     aesCtr.init(encrypt, cipherParams)
