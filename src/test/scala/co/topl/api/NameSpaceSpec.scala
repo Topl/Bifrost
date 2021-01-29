@@ -5,12 +5,11 @@ import akka.http.scaladsl.server.Route
 import akka.util.ByteString
 import co.topl.http.HttpService
 import co.topl.http.api.ApiEndpoint
-import co.topl.http.api.endpoints.{DebugApiEndpoint, KeyManagementApiEndpoint, NodeViewApiEndpoint, TransactionApiEndpoint, UtilsApiEndpoint}
+import co.topl.http.api.endpoints.{AdminApiEndpoint, DebugApiEndpoint, NodeViewApiEndpoint, TransactionApiEndpoint, UtilsApiEndpoint}
 import co.topl.settings.AppSettings
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import io.circe.parser.parse
-import org.scalacheck.Prop.forAll
 
 class NameSpaceSpec extends AnyWordSpec with Matchers with RPCMockState {
 
@@ -28,7 +27,7 @@ class NameSpaceSpec extends AnyWordSpec with Matchers with RPCMockState {
 
     val newApiRoutes: Seq[ApiEndpoint] = Seq(
       UtilsApiEndpoint(newRpcSettings.rpcApi, appContext),
-      KeyManagementApiEndpoint(newRpcSettings.rpcApi, appContext, forgerRef),
+      AdminApiEndpoint(newRpcSettings.rpcApi, appContext, forgerRef),
       NodeViewApiEndpoint(newRpcSettings.rpcApi, appContext, nodeViewHolderRef),
       TransactionApiEndpoint(newRpcSettings.rpcApi, appContext, nodeViewHolderRef),
       DebugApiEndpoint(newRpcSettings.rpcApi, appContext, nodeViewHolderRef, forgerRef)
