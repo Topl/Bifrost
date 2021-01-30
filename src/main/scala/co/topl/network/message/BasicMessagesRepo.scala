@@ -11,7 +11,9 @@ import co.topl.utils.serialization.{Reader, Writer}
 
 case class ModifiersData(typeId: ModifierTypeId, modifiers: Map[ModifierId, Array[Byte]])
 
-case class InvData(typeId: ModifierTypeId, ids: Seq[ModifierId])
+case class InvData(typeId: ModifierTypeId, ids: Seq[ModifierId]) {
+  override def toString: String = NodeViewModifier.idsToString(typeId, ids)
+}
 
 case class PeersData(peers: Seq[PeerSpec])
 

@@ -45,8 +45,6 @@ object NodeViewModifier extends BifrostSerializer[NodeViewModifier] {
     idsToString(ids.map(id => (modifierType, id)))
   }
 
-  def idsToString(invData: InvData): String = idsToString(invData.typeId, invData.ids)
-
   override def serialize(obj: NodeViewModifier, w: Writer): Unit = {
     obj match {
       case obj: Block =>

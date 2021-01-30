@@ -415,7 +415,7 @@ class NodeViewSynchronizer[
         }
 
         log.debug(
-          s"Requested ${invData.ids.length} modifiers ${idsToString(invData)}, " +
+          s"Requested ${invData.ids.length} modifiers ${invData.toString}, " +
           s"sending ${objs.length} modifiers ${idsToString(invData.typeId, objs.map(_.id))} "
         )
 
