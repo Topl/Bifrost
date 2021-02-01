@@ -1,9 +1,8 @@
 package co.topl.http
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.model.{ContentTypes, HttpEntity, StatusCodes}
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.server.ExceptionHandler
 import akka.util.Timeout
 import co.topl.http.api.{ApiEndpoint, ApiResponse, ErrorResponse, SuccessResponse}
 import co.topl.settings.RPCApiSettings
