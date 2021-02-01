@@ -24,6 +24,9 @@ import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
 import scala.reflect.io.Path
 
+/**
+  * Must be running bifrost on the local network: use "--local"
+  */
 class KeyManagementRPCSpec extends AsyncFlatSpec
   with Matchers
   with ScalatestRouteTest
@@ -35,33 +38,40 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
 
   override def createActorSystem(): ActorSystem = ActorSystem("keyManagementTest", keysConfig)
 
+  //set up key file directory and key manager actor
   val keyFileDir: String = keyManagementSettings.application.keyFileDir
   val path: Path = Path(keyFileDir)
   Try(path.deleteRecursively())
   Try(path.createDirectory())
   val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", keyManagementSettings.application)
 
+  //set up WalletManager actor
   val walletManagerRef: ActorRef = system.actorOf(
     Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
 
+  // set up API routes
   val apiRoute: ApiRoute = KeyManagementApiRoute(keyManagementSettings.rpcApi, keyManagerRef)
   val gjalOnlyApiRoute: ApiRoute =
     GjallarhornOfflineApiRoute(keyManagementSettings.rpcApi, keyManagerRef, walletManagerRef)
   val route: Route = HttpService(Seq(apiRoute, gjalOnlyApiRoute), keyManagementSettings.rpcApi).compositeRoute
 
+  //Generate two keys for testing
   val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))
     .mapTo[Try[Address]], 10.seconds) match {
     case Success(addr) => addr
     case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
-
   val pk2: Address = Await.result((keyManagerRef ? GenerateKeyFile("password2", None))
     .mapTo[Try[Address]], 10.seconds) match {
     case Success(addr) => addr
     case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
 
-
+  /**
+    * Method used to create http post request
+    * @param jsonRequest the request to send as a ByteString
+    * @return the HTTP request
+    */
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
       HttpMethods.POST,

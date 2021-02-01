@@ -27,7 +27,7 @@ import scala.reflect.io.Path
 import scala.util.{Failure, Success, Try}
 
 /**
-  * Must be running bifrost with --local and --seed test
+  * Must be running bifrost with "--local" and "--seed test"
   * ex: "run --local --seed test -f"
   */
 class GjallarhornRPCSpec extends AsyncFlatSpec
@@ -35,46 +35,50 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   with GjallarhornGenerators
   with ScalatestRouteTest {
 
-//  implicit val materializer: ActorMaterializer = ActorMaterializer()
-
   implicit val timeout: Timeout = Timeout(10.seconds)
-  /**
-    * Make sure running bifrost in local network!
-    */
+
+  /** Make sure running bifrost in local network! */
   implicit val networkPrefix: NetworkPrefix = 48.toByte
 
   override def createActorSystem(): ActorSystem = ActorSystem("gjallarhornTest", config)
 
+  //set up key file director and key manager actor
   val keyFileDir: String = settings.application.keyFileDir
   val path: Path = Path(keyFileDir)
   Try(path.deleteRecursively())
   Try(path.createDirectory())
   val keyManagerRef: ActorRef = KeyManagerRef("keyManager", settings.application)
 
+  //generate two keys for testing
   val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))
     .mapTo[Try[Address]], 10.seconds) match {
     case Success(pubKey) => pubKey
     case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
-
   val pk2: Address = Await.result((keyManagerRef ? GenerateKeyFile("password2", None))
     .mapTo[Try[Address]], 10.seconds) match {
     case Success(pubKey) => pubKey
     case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
 
+  //set up WalletManager actor
   val walletManagerRef: ActorRef = system.actorOf(
     Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
 
   val amount = 10
 
+  //Set up api routes
   val requests: Requests = new Requests(settings, keyManagerRef)
   val bifrostApiRoute: ApiRoute = GjallarhornOnlineApiRoute(settings.rpcApi, keyManagerRef, walletManagerRef, requests)
   val gjalOnlyApiRoute: ApiRoute = GjallarhornOfflineApiRoute(settings.rpcApi, keyManagerRef, walletManagerRef)
   val route: Route = HttpService(
     Seq(bifrostApiRoute, gjalOnlyApiRoute), settings.rpcApi).compositeRoute
 
-
+  /**
+    * Method used to create http post request
+    * @param jsonRequest the request to send as a ByteString
+    * @return the HTTP request
+    */
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
       HttpMethods.POST,
@@ -82,9 +86,6 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
     ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
-
-  var prototypeTx: Json = Map("txType" -> "AssetCreation").asJson
-  var msgToSign = ""
 
   it should "successfully connect to Bifrost" in {
     val connectRequest = ByteString(
@@ -112,6 +113,8 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   }
 
   val assetCode: AssetCode = AssetCode(1.toByte, pk1, "test")
+  var prototypeTx: Json = Map("txType" -> "AssetCreation").asJson
+  var msgToSign = ""
   it should "succesfully create an asset offline" in {
     val createAssetRequest = ByteString(
       s"""
@@ -148,7 +151,6 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   }
 
   var signedTx: Json = Json.Null
-
   it should "successfully sign a transaction" in {
     val signTxRequest = ByteString(
       s"""
@@ -177,7 +179,6 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   }
 
   val emptyTx: Null = null
-
   it should "successfully generate a signature" in {
     val signRequest = ByteString(
       s"""

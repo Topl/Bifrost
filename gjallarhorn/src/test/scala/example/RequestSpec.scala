@@ -30,41 +30,43 @@ class RequestSpec extends AsyncFlatSpec
   with Matchers
   with GjallarhornGenerators {
 
+  //define implicit vals
   implicit val actorSystem: ActorSystem = ActorSystem("requestTest", requestConfig)
   implicit val context: ExecutionContextExecutor = actorSystem.dispatcher
   implicit val timeout: Timeout = 30.seconds
-  implicit val networkPrefix: NetworkPrefix = 48.toByte //local network
+  /** Make sure running bifrost in local network! */
+  implicit val networkPrefix: NetworkPrefix = 48.toByte
 
+  // set up key manager
   val keyFileDir: String = requestSettings.application.keyFileDir
   val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", requestSettings.application)
 
+  //set up actors
   val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
     s"akka.tcp://${requestSettings.application.chainProvider}/user/walletConnectionHandler").resolveOne(), 10.seconds)
-
   val walletManagerRef: ActorRef = actorSystem.actorOf(
     Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
-
   val requestsManagerRef: ActorRef = actorSystem.actorOf(
     Props(new RequestsManager(bifrostActor)), name = "RequestsManager")
+
   val requests = new Requests(requestSettings, keyManagerRef)
 
+  // delete current keys in key file directory
   val path: Path = Path(keyFileDir)
   Try(path.deleteRecursively())
   Try(path.createDirectory())
-  val password = "pass"
 
+  //create new keys for testing
   val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))
     .mapTo[Try[Address]], 10.seconds) match {
     case Success(pubKey) => pubKey
     case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
-
   val pk2: Address = Await.result((keyManagerRef ? GenerateKeyFile("password2", None))
     .mapTo[Try[Address]], 10.seconds) match {
     case Success(pubKey) => pubKey
     case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
-
   val publicKeys: Set[Address] = Set(pk1, pk2)
 
   val amount = 10
@@ -72,10 +74,16 @@ class RequestSpec extends AsyncFlatSpec
   var signedTransaction: Json = Json.Null
   var newBoxIds: Set[BoxId] = Set()
 
+  //set up online mode
   walletManagerRef ! ConnectToBifrost(bifrostActor)
   requests.switchOnlineStatus(Some(requestsManagerRef))
 
 
+  /**
+    * Helper function for grabbing new box ids
+    * @param json json to parse for box ids
+    * @return a set of BoxIds
+    */
   def parseForBoxId(json: Json): Set[BoxId] = {
     val result = (json \\ "result").head
     val newBxs = (result \\ "newBoxes").head.toString()
