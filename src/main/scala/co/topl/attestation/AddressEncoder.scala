@@ -1,5 +1,6 @@
 package co.topl.attestation
 
+import co.topl.settings.NetworkType
 import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
@@ -50,8 +51,12 @@ object AddressEncoder {
    */
   def fromStringWithCheck(addrStr: String, networkPrefix: NetworkPrefix): Try[Address] =
     Base58.decode(addrStr).flatMap { b =>
-      if (b.head == networkPrefix) fromBytes(b)
-      else Failure(new Exception("Invalid address: Network type does not match"))
+      NetworkType.pickNetworkType(networkPrefix) match {
+        case None => throw new Exception("Invalid networkPrefix specified")
+        case Some(nt) if nt.netPrefix == b.head => fromBytes(b)
+        case Some(nt) if nt.netPrefix != b.head =>
+          Failure(new Exception("Invalid address: Network type does not match"))
+      }
     }
 
   private def fromBytes(bytes: Array[Byte]): Try[Address] = {

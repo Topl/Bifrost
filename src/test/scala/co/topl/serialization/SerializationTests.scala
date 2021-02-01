@@ -48,7 +48,7 @@ class SerializationTests extends AnyPropSpec
     }
   }
 
-  property("") {
+  property("SignatureCurve25519 serialization") {
     forAll(signatureGen) {
       sig: SignatureCurve25519 =>
         val parsed = SignatureCurve25519Serializer
@@ -259,7 +259,7 @@ class SerializationTests extends AnyPropSpec
     }
   }
 
-  property("Bloom filter serialization") {
+  property("BloomFilter serialization") {
     forAll(blockGen) {
       block =>
         val parsed: BloomFilter = BloomFilter.parseBytes(BloomFilter.toBytes(block.bloomFilter)).get
