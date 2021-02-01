@@ -5,11 +5,11 @@ import akka.http.scaladsl.server.Route
 import akka.util.ByteString
 import co.topl.http.HttpService
 import co.topl.http.api.ApiEndpoint
-import co.topl.http.api.endpoints.{AdminApiEndpoint, DebugApiEndpoint, NodeViewApiEndpoint, TransactionApiEndpoint, UtilsApiEndpoint}
+import co.topl.http.api.endpoints._
 import co.topl.settings.AppSettings
+import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import io.circe.parser.parse
 
 class NameSpaceSpec extends AnyWordSpec with Matchers with RPCMockState {
 

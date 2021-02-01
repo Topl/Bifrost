@@ -6,15 +6,13 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.box._
-import co.topl.utils.{CoreGenerators, ValidGenerators}
-import com.google.common.primitives.Longs
+import co.topl.utils.CoreGenerators
 import io.circe.syntax.EncoderOps
 import org.scalacheck.Gen
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scorex.util.encode.Base58
 
 class JsonTests extends AnyPropSpec
   with Matchers
