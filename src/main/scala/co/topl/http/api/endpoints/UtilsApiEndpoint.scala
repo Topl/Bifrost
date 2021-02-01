@@ -112,10 +112,11 @@ case class UtilsApiEndpoint (override val settings: RPCApiSettings, appContext: 
    *
    * ---
    *  #### Params
-   *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	|
-   *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	|
-   *  | issuer                    | Address   	| Required             	| The Address of the asset issuer                                         |
-   *  | shortName                 | String    	| Required             	| A UTF-8 encoded string of up to 8 characters                            |
+   *  | Fields         | Data type        | Required / Optional | Description                                          |
+   *  |----------------|------------------|---------------------|------------------------------------------------------|
+   *  | version        | AssetCodeVersion | Required            | The Address of the asset issuer                      |
+   *  | issuer         | Address          | Required            | The Address of the asset issuer                      |
+   *  | shortName      | String           | Required            | A UTF-8 encoded string of up to 8 characters         |
    *
    * @param params input parameters as specified above
    * @param id request identifier
@@ -138,14 +139,14 @@ case class UtilsApiEndpoint (override val settings: RPCApiSettings, appContext: 
 
   /**
    *  #### Summary
-   *    Returns an encoded assetCode from the provided parameters
+   *    Check if the provided address is valid, returns the address and network type
    *
    * ---
    *  #### Params
-   *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	|
-   *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	|
-   *  | issuer                    | Address   	| Required             	| The Address of the asset issuer                                         |
-   *  | shortName                 | String    	| Required             	| A UTF-8 encoded string of up to 8 characters                            |
+   *  | Fields                  | Data type   | Required / Optional   | Description                                    |
+   *  |-------------------------|-------------|-----------------------|------------------------------------------------|
+   *  | network                 | String      | Required              | A UTF-8 encoded string of up to 8 characters   |
+   *  | address                 | Address     | Required              | The Address of the asset issuer                |
    *
    * @param params input parameters as specified above
    * @param id request identifier
@@ -165,7 +166,6 @@ case class UtilsApiEndpoint (override val settings: RPCApiSettings, appContext: 
             case Some(nt) =>
               implicit val networkPrefix: NetworkPrefix = nt.netPrefix
               (nt.verboseName, params.hcursor.get[Address]("address"))
-
           }
 
         case Left(ex) => throw ex
