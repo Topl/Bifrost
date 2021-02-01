@@ -1,7 +1,7 @@
 package co.topl.utils
 
-import co.topl.attestation.{PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
+import co.topl.attestation.{PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
 import co.topl.consensus.KeyRing
 import co.topl.consensus.genesis.PrivateTestnet
 import co.topl.crypto.KeyfileCurve25519
