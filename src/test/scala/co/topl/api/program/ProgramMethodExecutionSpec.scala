@@ -4,8 +4,6 @@ import akka.util.ByteString
 import io.circe.parser.parse
 import org.scalatest.DoNotDiscover
 
-import scala.util.Random
-
 @DoNotDiscover
 class ProgramMethodExecutionSpec extends ProgramRPCMockState {
 

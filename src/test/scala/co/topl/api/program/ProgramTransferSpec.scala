@@ -5,8 +5,6 @@ import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.DoNotDiscover
 
-import scala.util.Random
-
 @DoNotDiscover
 class ProgramTransferSpec extends ProgramRPCMockState {
 
