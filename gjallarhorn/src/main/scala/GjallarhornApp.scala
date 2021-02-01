@@ -18,6 +18,10 @@ import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
 import scala.reflect.io.Path
 
+/**
+  * Gjallarhorn is the wallet application for Bifrost, the Topl blockchain.
+  * @param startupOpts optional parameters for the application start up
+  */
 class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   // Setup settings file to be passed into the application

@@ -22,6 +22,10 @@ case class NamespaceSelector(
   */
 sealed abstract class Namespace(val name: String)
 
+/** The namespace for "offline" wallet requests.
+  * Currently includes [[GjallarhornOfflineApiRoute]] and [[KeyManagementApiRoute]] */
 case object WalletNamespace extends Namespace("wallet")
+
+/** The namespace for "online" wallet requests. Currently includes [[GjallarhornOnlineApiRoute]] */
 case object OnlineWalletNamespace extends Namespace("onlineWallet")
 
