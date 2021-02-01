@@ -16,14 +16,21 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
 
+/**
+  * Class route for managing key management requests
+  * @param settings - settings for ApiRoute
+  * @param keyManager - actor reference for the KeyManager
+  * @param context - ActorRef context
+  */
 case class KeyManagementApiRoute(settings: RPCApiSettings, keyManager: ActorRef)
                                 (implicit val context: ActorRefFactory)
     extends ApiRoute {
 
-  val namespace: Namespace = WalletNamespace
-
   // Establish the expected network prefix for addresses
   implicit val netPrefix: NetworkPrefix = networkPrefix
+
+  //The namespace for the endpoints defined in handlers
+  val namespace: Namespace = WalletNamespace
 
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
@@ -82,12 +89,22 @@ case class KeyManagementApiRoute(settings: RPCApiSettings, keyManager: ActorRef)
     (keyManager ? GetAllKeyfiles).mapTo[Map[Address, String]].map(_.asJson)
   }
 
-  /**
-    * Generates a key file.
+
+  /** #### Summary
+    * Generates a key file
     *
-    * @param params - contains the password for the key file.
+    * #### Description
+    * Grabs all of the keyfiles in a given directory
+    * ---
+    * #### Params
+    * | Fields       | Data type 	| Required / Optional 	| Description                              	  |
+    * | -------------| ----------	| --------------------	| ----------------------------------------	  |
+    * | password     |  String   	|   Required           	|  password for the generated key file        |
+    * | seed         |  String   	|   Optional           	|  optional seed used to generate key file    |
+    *
+    * @param params - input parameters as specified above
     * @param id - request identifier
-    * @return - address for generated keyfile.
+    * @return - the address for generated keyfile.
     */
   private def generateKeyfile(params: Json, id: String): Future[Json] = {
     val p = params.hcursor
@@ -106,17 +123,17 @@ case class KeyManagementApiRoute(settings: RPCApiSettings, keyManager: ActorRef)
   }
 
   /** #### Summary
-    * Import key from mnemonic
+    * Imports key file from mnemonic phrase
     *
     * #### Description
     * Allows a user to import a 12, 15, 18, 21, or 24 word mnemonic (seed phrase) and generate an encrypted Keyfile
     * ---
     * #### Params
-    * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
-    * |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
-    * | password                	| String    	| Required            	| String used to encrypt the private keyfile that is stored locally         |
-    * | seedPhrase              	| String    	| Required            	| 12, 15, 18, 21, or 24 word mnemonic							         	                |
-    * | seddPhraseLang         	| String    	| Optional            	| Defaults to 'en'. Valid options are ["zh-hans", "zh-hant", "en", "fr", "it", "ja", "ko", "es"] |
+    * | Fields         | Data type 	| Required / Optional | Description                                              |
+    * |----------------|-----------	|-------------------- |----------------------------------------------------------|
+    * | password       | String    	| Required   | String used to encrypt the private keyfile that is stored locally |
+    * | seedPhrase     | String    	| Required   | 12, 15, 18, 21, or 24 word mnemonic							     |
+    * | seedPhraseLang | String    	| Optional   | Defaults to 'en'. Valid options are ["zh-hans", "zh-hant", "en", "fr", "it", "ja", "ko", "es"] |
     *
     * @param params input parameters as specified above
     * @param id     request identifier
@@ -143,7 +160,8 @@ case class KeyManagementApiRoute(settings: RPCApiSettings, keyManager: ActorRef)
     * Unlock keyfile
     *
     * #### Description
-    * Unlock an encrypted keyfile which exists in your keyfile directory. This will add the secret key to wallet and allow signing of transactions on behalf of that key
+    * Unlock an encrypted keyfile which exists in your keyfile directory.
+    * This will add the secret key to the wallet and allow signing of transactions on behalf of that key
     * ---
     * #### Params
     *
@@ -178,10 +196,9 @@ case class KeyManagementApiRoute(settings: RPCApiSettings, keyManager: ActorRef)
     * Lock a previously unlocked keyfile in your wallet.
     * ---
     * #### Params
-    * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
-    * |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
-    * | address              	    | String    	| Required            	| Address corresponding to an encrypted keyfile in your wallet directory |
-    * | password                	| String    	| Required            	| String used to encrypt the private keyfile that is stored locally         |
+    * | Fields    | Data type 	| Required / Optional | Description                                                   |
+    * |-----------|-----------	|------------|------------------------------------------------------------------------|
+    * | address   | String    	| Required   | Address corresponding to an encrypted keyfile in your wallet directory |
     *
     * @param params input parameters as specified above
     * @param id     request identifier
@@ -230,7 +247,7 @@ case class KeyManagementApiRoute(settings: RPCApiSettings, keyManager: ActorRef)
     *
     * @param params input parameters as specified above
     * @param id     request identifier
-    * @return - keyfile directory path
+    * @return - keyfile directory path (the absolute path)
     */
   private def getKeyfileDir(params: Json, id: String): Future[Json] = {
     (keyManager ? GetKeyfileDir).mapTo[Json]
@@ -251,7 +268,7 @@ case class KeyManagementApiRoute(settings: RPCApiSettings, keyManager: ActorRef)
     *
     * @param params input parameters as specified above
     * @param id     request identifier
-    * @return -
+    * @return - json mapping: "newDirectory" -> settings.keyFileDir
     */
   private def changeKeyfileDir(params: Json, id: String): Future[Json] = {
     (for {

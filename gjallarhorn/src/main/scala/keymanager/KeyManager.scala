@@ -2,7 +2,7 @@ package keymanager
 
 import java.io.{BufferedReader, BufferedWriter, File, FileReader, FileWriter}
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props, Status}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.util.Timeout
 import attestation.{Address, PrivateKeyCurve25519}
 import crypto.KeyfileCurve25519
@@ -20,10 +20,17 @@ import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
 
 
+/**
+  * Manages the keys and handles requests related to the keys.
+  * @param settings - application settings
+  */
 class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
 
   import KeyManager._
 
+  /**
+    * The current sets of keys to manage
+    */
   private var keyRing: Keys[PrivateKeyCurve25519, KeyfileCurve25519] =
     Keys(settings.keyFileDir, KeyfileCurve25519)(PrivateKeyCurve25519.secretGenerator, networkPrefix = networkPrefix)
 
@@ -57,11 +64,18 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
     case ChangeKeyfileDir(dir: String) =>
       updateKeyfileDir(settings.keyFileDir, dir)
       settings.keyFileDir = dir
+
+      //initialize keyRing with updated key file directory
       keyRing = Keys(settings.keyFileDir, KeyfileCurve25519)(PrivateKeyCurve25519.secretGenerator,
         networkPrefix = networkPrefix)
       sender ! Map("newDirectory" -> settings.keyFileDir).asJson
   }
 
+  /**
+    * Tells the WalletManager about a new key
+    * @param newAddress - the address of the new key (if successfully created)
+    * @param sender the actor ref that that requested to generate a new key and to send new address back to
+    */
   private def shareNewKey(newAddress: Try[Address], sender: ActorRef) {
     newAddress match {
       case Success(addr) =>
@@ -74,14 +88,22 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
     sender ! newAddress
   }
 
-  //TODO: should this path be hardcoded?
+
+  /**
+    * Changes current key file directory to the given new directory
+    * @param oldDir - the current key file directory path
+    * @param newDir - the new key file directory path
+    */
   private def updateKeyfileDir(oldDir: String, newDir: String): Unit = {
+    //grab config file to write to
+    //TODO: should this path be hardcoded?
     val path = "gjallarhorn/src/main/resources/application.conf"
     val configFile: File = new File(path)
     if (!configFile.exists()) {
       throw new Error (s"The config file: $path does not exist!")
     }
 
+    //find line that defines 'keyFileDir' and edit it so that it is set to the new directory path
     var lines: Array[String] = Array.empty
     val reader = new BufferedReader(new FileReader(configFile))
     var line: String = ""
@@ -103,6 +125,12 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
     writer.close()
   }
 
+  /**
+    * Creates signatures for given keys using the given message to sign (msg)
+    * @param keys the keys to generate signatures for
+    * @param msg the message to sign
+    * @return mapping of PublicKeyProposition to Signature
+    */
   private def createSignatures (keys: IndexedSeq[Address], msg: String): Map[PrivateKeyCurve25519#PK, Json] = {
     keys.map(address => {
       Base58.decode(msg) match {
@@ -121,6 +149,13 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
     }).toMap
   }
 
+  /**
+    * Signs transaction
+    * @param tx raw transaction to be signed
+    * @param keys keys to sign tx with
+    * @param msg message to sign
+    * @return Json of fully signed transaction
+    */
   private def signTx(tx: Json, keys: IndexedSeq[Address], msg: String): Json = {
     (for {
       currentSignatures <- (tx \\ "signatures").head.as[Map[PrivateKeyCurve25519#PK, Json]]
@@ -135,6 +170,11 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
     }
   }
 
+  /**
+    * Switches the current network to new network
+    * @param networkName name of new network to switch to
+    * @return if the given name is a valid network name, returns mapping of "newNetworkPrefix" to the network prefix
+    */
   private def switchNetwork(networkName: String): Try[Json] = Try{
     NetworkType.fromString(networkName) match {
       case Some(network) =>

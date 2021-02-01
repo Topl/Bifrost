@@ -24,7 +24,7 @@ import scala.util.{Failure, Success, Try}
 
 /**
   * Class route for managing offline requests (bifrost does not need to be running)
-  * @param settings - API settings for APIRoute
+  * @param settings - API settings for ApiRoute
   * @param keyManagerRef - actor reference for the KeyManager
   * @param walletManagerRef - actor reference for the WalletManager
   * @param context - ActorRef context
@@ -36,10 +36,11 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
 
   extends ApiRoute {
 
-  val namespace: Namespace = WalletNamespace
-
   // Establish the expected network prefix for addresses
   implicit val netPrefix: NetworkPrefix = networkPrefix
+
+  //The namespace for the endpoints defined in handlers
+  val namespace: Namespace = WalletNamespace
 
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {

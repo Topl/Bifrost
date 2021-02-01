@@ -58,7 +58,6 @@ final case class HttpService (apiServices: Seq[ApiRoute], settings: RPCApiSettin
 
                 val method = (request \\ "method").head.asString.get
 
-
                 if (apiServiceHandlers.isDefinedAt(method, params, id)) apiServiceHandlers.apply(method, params, id)
                 else throw new Exception("Service handler not found for method: " + method)
               }
@@ -78,8 +77,8 @@ final case class HttpService (apiServices: Seq[ApiRoute], settings: RPCApiSettin
 
   /**
     * Formats the JSON-RPC post request (this is the primary method of communication)
-    * @param fn outgoing respsonse
-    * @return
+    * @param fn outgoing response
+    * @return route for post request
     */
   private def postJsonRoute(fn: ApiResponse): Route = post {
     complete(
@@ -98,7 +97,7 @@ final case class HttpService (apiServices: Seq[ApiRoute], settings: RPCApiSettin
   /**
     * Performs the check of an incoming api key
     * @param keyOpt api key specified in header
-    * @return
+    * @return true if api key is valid, false otherwise
     */
   private def isValid(keyOpt: Option[String]): Boolean = {
     lazy val keyHash: Option[Digest32] = keyOpt.map(Blake2b256(_))

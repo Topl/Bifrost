@@ -38,10 +38,6 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   Try(path.deleteRecursively())
   Try(path.createDirectory())
   val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", settings.application)
-  val walletManagerRef: ActorRef = system.actorOf(
-    Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
-
-  val requests: Requests = new Requests(settings.application, keyManagerRef)
 
   //TODO: this is just for testing purposes - shouldn't create keys on start-up
   val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))
@@ -49,6 +45,13 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
     case Success(pubKey) => pubKey
     case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
+
+  //Create WalletManager actor
+  val walletManagerRef: ActorRef = system.actorOf(
+    Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
+
+  //Create requests object
+  val requests: Requests = new Requests(settings, keyManagerRef)
 
   //Set up API routes
   val gjalBifrostRoute: ApiRoute = GjallarhornOnlineApiRoute(settings.rpcApi, keyManagerRef, walletManagerRef, requests)
@@ -61,11 +64,10 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   //Attempt to connect to Bifrost and start online mode.
   val connectRequest: Vector[Json] = Vector(Map("params" ->
     Vector(Map("chainProvider" -> settings.application.chainProvider).asJson)).asJson)
-
   try {
     gjalBifrostRoute.handlers("onlineWallet_connectToBifrost", connectRequest, "2")
   } catch {
-    case e: Exception => log.warn(s"${Console.RED} Continuing to run in offline mode. ${Console.RESET}")
+    case _: Exception => log.warn(s"${Console.RED} Continuing to run in offline mode. ${Console.RESET}")
   }
 
   //DeadLetter listener set up for debugging purposes

@@ -37,14 +37,12 @@ class WalletManager(keyManagerRef: ActorRef)
   private var bifrostActorRef: Option[ActorRef] = None
 
   /**
-    * Represents the wallet boxes: as a mapping of addresses to a map of its id's mapped to walletBox.
+    * Represents the wallet boxes: as a mapping of addresses to boxes (a map of boxId to box)
     * Ex: address1 -> {id1 -> walletBox1, id2 -> walletBox2, ...}, address2 -> {},...
   */
   var walletBoxes: MMap[Address, MMap[BoxId, Box]] = initializeWalletBoxes()
 
-  /**
-    * Holds the most recently received transactions from Bifrost
-    */
+  /** Holds the most recently received transactions from Bifrost */
   var newestTransactions: Option[List[Transaction]] = None
 
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
@@ -53,6 +51,10 @@ class WalletManager(keyManagerRef: ActorRef)
     super.preRestart(reason, message)
   }
 
+  /**
+    * Initializes the wallet boxes to empty maps using the keys from the KeyManager
+    * @return mapping of current addresses to empty maps
+    */
   def initializeWalletBoxes(): MMap[Address, MMap[BoxId, Box]] = {
     val addresses = Await.result((keyManagerRef ? GetAllKeyfiles)
       .mapTo[Map[Address,String]].map(_.keySet), 10.seconds)
@@ -86,8 +88,11 @@ class WalletManager(keyManagerRef: ActorRef)
     case DisconnectFromBifrost =>
       bifrostActorRef match {
         case Some(actor) =>
+          //tell bifrost that this wallet is disconnecting (going offline)
           val response: String = Await.result((actor ? "Remote wallet actor stopped").mapTo[String], 10.seconds)
           sender ! response
+
+          //set the bifrost actor ref to None to put gjallarhorn in offline mode
           bifrostActorRef = None
         case None => log.warn("Already disconnected from Bifrost")
       }
@@ -98,7 +103,10 @@ class WalletManager(keyManagerRef: ActorRef)
     case GetWallet => sender ! walletBoxes
     case GetConnection => sender ! bifrostActorRef
     case NewKey(address) =>
+      //add new key to walletBoxes
       walletBoxes.put(address, MMap.empty)
+
+      //tell bifrost about new key in order to watch new transactions for this key
       bifrostActorRef match {
         case Some(actor) => actor ! s"New key: $address"
         case None =>
@@ -200,7 +208,8 @@ class WalletManager(keyManagerRef: ActorRef)
           }
           boxesMap = boxesMap ++ boxMap
         })
-        walletBoxes(addr) = boxesMap}
+        walletBoxes(addr) = boxesMap
+      }
     })
     walletBoxes
   }
@@ -222,7 +231,7 @@ class WalletManager(keyManagerRef: ActorRef)
         transactions.foreach(tx => {
           tx.newBoxes.foreach(newBox => {
             val address: Address = Address(newBox.evidence)(networkPrefix)
-            var idToBox: MMap[BoxId, Box] =
+            val idToBox: MMap[BoxId, Box] =
               add.get(address) match {
                 case Some(boxesMap) => boxesMap
                 case None => MMap.empty

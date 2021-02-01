@@ -39,6 +39,9 @@ case class TransferTransaction[P <: Proposition: EvidenceProducer: Identifiable]
 
   lazy val id: ModifierId = ModifierId(this)
 
+  /**
+    * New boxes created from this transaction
+    */
   val newBoxes: Traversable[Box] = {
     val params = TransferTransaction.boxParams(this)
 
@@ -182,7 +185,7 @@ object TransferTransaction {
     * @param consolidationAddress address to send leftover over arbits/assets to (only applicable for Asset/Arbit transfer)
     * @param assetArgs a tuple of asset specific details (assetCode, minting) for finding the right asset boxes to be sent in a transfer
     * @tparam T type of TokenValueHolder (SimpleValue or AssetValue)
-    * @return
+    * @return amount available to spend, list of sender inputs, and list of recipient outputs
     */
   def getInputsOutputs[
     T <: TokenValueHolder

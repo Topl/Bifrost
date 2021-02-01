@@ -19,6 +19,15 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Success, Try}
 
+/**
+  * Class route for managing online requests (bifrost must be running)
+  * @param settings - API settings for ApiRoute
+  * @param keyManager - actor reference for the KeyManager
+  * @param walletManager - actor reference for the walletManager
+  * @param requests - instance of requests class
+  * @param context - ActorRef context
+  * @param system - ActorSystem used to select and create actors
+  */
 case class GjallarhornOnlineApiRoute(settings: RPCApiSettings,
                                      keyManager: ActorRef,
                                      walletManager: ActorRef,
@@ -26,10 +35,14 @@ case class GjallarhornOnlineApiRoute(settings: RPCApiSettings,
                                     (implicit val context: ActorRefFactory, system: ActorSystem)
   extends ApiRoute with Logging {
 
-  val namespace: Namespace = OnlineWalletNamespace
+  //Requests manager used to send requests to Bifrost
+  private var requestsManager: Option[ActorRef] = None
+
+  // Establish the expected network prefix for addresses
   implicit val networkPrefix: NetworkPrefix = _root_.keymanager.networkPrefix
 
-  private var requestsManager: Option[ActorRef] = None
+  //The namespace for the endpoints defined in handlers
+  val namespace: Namespace = OnlineWalletNamespace
 
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
@@ -75,24 +88,24 @@ case class GjallarhornOnlineApiRoute(settings: RPCApiSettings,
 
   /**
     * Helper function when connecting to Bifrost
-    * Sets up the walletManager, requestManager, and keyManager
+    * Sends the bifrost actor ref to the walletManager and sets up the RequestsManager actor ref
     * @param bifrost - the actor ref for Bifrost
     * @return - Json(connectedToBifrost -> true)
     */
   def setUpOnlineMode(bifrost: ActorRef): Future[Json] = {
     walletManager ! ConnectToBifrost(bifrost)
 
-      val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager(bifrost)), name = "RequestsManager")
-      requestsManager = Some(requestsManagerRef)
-      requests.switchOnlineStatus(requestsManager)
-      Future{Map("connectedToBifrost" -> true).asJson}
+    val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager(bifrost)), name = "RequestsManager")
+    requestsManager = Some(requestsManagerRef)
+    requests.switchOnlineStatus(requestsManager)
+    Future{Map("connectedToBifrost" -> true).asJson}
   }
 
   /** #### Summary
     * Disconnect From Bifrost
     *
     * #### Description
-    * Disconnects from Bifrost and kills the walletManager and requestsManager actors.
+    * Disconnects from Bifrost and kills the requestsManager actor.
     * ---
     * #### Params
     * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
@@ -104,8 +117,11 @@ case class GjallarhornOnlineApiRoute(settings: RPCApiSettings,
     */
   private def disconnectFromBifrost(id: String): Future[Json] = {
     var responseMsg = "Disconnected!"
+
+    //tell walletManager to disconnect from bifrost
     walletManager ! DisconnectFromBifrost
 
+    //Set requestsManager to None
     requestsManager match {
       case Some(actor) =>
         requestsManager = None
@@ -113,7 +129,9 @@ case class GjallarhornOnlineApiRoute(settings: RPCApiSettings,
       case None => responseMsg = "Already disconnected from Bifrost"
     }
 
+    //tell requests that it's in offline mode
     requests.switchOnlineStatus(requestsManager)
+
     log.info(s"${Console.MAGENTA}Gjallarhorn has been disconnected from Bifrost.${Console.RESET}")
     Future{Map("status" -> responseMsg).asJson}
   }
@@ -122,7 +140,7 @@ case class GjallarhornOnlineApiRoute(settings: RPCApiSettings,
     * Get Connection
     *
     * #### Description
-    * Tells whether Gjallarhorn is currently connected to bifrost or not.
+    * Returns Gjallarhorn's current connectivity status (if currently connected to bifrost or not).
     * ---
     * #### Params
     * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
@@ -139,6 +157,13 @@ case class GjallarhornOnlineApiRoute(settings: RPCApiSettings,
     }
   }
 
+  /**
+    * Function used to create expected json mapping for recipients: IndexedSeq[(Address, AssetValue)]
+    * Specifically, given params with recipients, amount, issuer, and shortname, generates an AssetCode and
+    * creates tuples for each recipient of the address and generated AssetValue
+    * @param params - Json mapping that should include recipients, amount, issuer, shortname
+    * @return json mapping of "recipients" to IndexedSeq[(Address, AssetValue)]
+    */
   private def createAssetCode(params: Json): Json = {
     (for {
       rcpts <- (params \\ "recipients").head.as[IndexedSeq[Address]]

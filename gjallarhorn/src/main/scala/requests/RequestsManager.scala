@@ -10,8 +10,9 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 /**
-  * Manages requests from Gjallarhorn to Bifrost
-  * @param ec - the execution context used for Futures.
+  * Manages request from Gjallarhorn to Bifrost (WalletConnectionHandler)
+  * @param bifrostActorRef the actor ref for Bifrost's WalletConnectionHandler
+  * @param ec the execution context used for Futures.
   */
 class RequestsManager (val bifrostActorRef: ActorRef)( implicit ec: ExecutionContext ) extends Actor with Logging {
 
@@ -22,6 +23,7 @@ class RequestsManager (val bifrostActorRef: ActorRef)( implicit ec: ExecutionCon
 
   override def receive: Receive = {
 
+    /** Sends given request to bifrost and sends future response back to sender on complete */
     case BifrostRequest(tx: Json) =>
       val futureResponse = bifrostActorRef ? s"request from gjallarhorn: $tx"
       futureResponse.pipeTo(sender())

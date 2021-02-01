@@ -46,7 +46,7 @@ class RequestSpec extends AsyncFlatSpec
 
   val requestsManagerRef: ActorRef = actorSystem.actorOf(
     Props(new RequestsManager(bifrostActor)), name = "RequestsManager")
-  val requests = new Requests(requestSettings.application, keyManagerRef)
+  val requests = new Requests(requestSettings, keyManagerRef)
 
   val path: Path = Path(keyFileDir)
   Try(path.deleteRecursively())

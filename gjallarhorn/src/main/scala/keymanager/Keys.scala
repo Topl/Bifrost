@@ -29,20 +29,35 @@ class Keys[
     */
   def addresses: Set[Address] = secrets.map(_.publicImage.address)
 
-  /** Generate a signature using the secret key associated with an Address */
+  /**
+    * Generates a signature using the secret key associated with an Address
+    * @param addr the address to sign with
+    * @param messageToSign the message to sign
+    * @return if the given keyfile is currently unlocked, returns signature associated with its secret key else fails.
+    */
   def signWithAddress(addr: Address, messageToSign: Array[Byte]): Try[PR] =
     secrets.find(_.publicImage.address == addr) match {
       case Some(sk) => Try(sk.sign(messageToSign))
       case _        => throw new Error("Unable to find secret for the given address")
     }
 
-  /** Lookup the public key associated with an address */
+  /**
+    * Looks up the public key associated with an address
+    * @param addr address for key file to lookup
+    * @return if the keyfile is unlocked, returns its PublicKeyProposition. Else fails.
+    */
   def lookupPublicKey(addr: Address): Try[S#PK] =
     secrets.find(_.publicImage.address == addr) match {
       case Some(sk) => Success(sk.publicImage)
       case _        => throw new Error("Unable to find secret for the given address")
     }
 
+  /**
+    * Returns the private key for the given address
+    * @param addressString the address as a string
+    * @param password the password used to grab the secret key
+    * @return the secret key
+    */
   private def getPrivateKey(addressString: String, password: String): S = {
     val keyfile = checkValid(addressString: String)
 
@@ -52,10 +67,10 @@ class Keys[
     }
   }
 
-  /** Given an address and password, unlock the associated key file.
-    *
+  /**
+    * Given an address and password, unlocks the associated key file.
     * @param addressString Base58 encoded address to unlock
-    * @param password        - password for the public key associated with the given address.
+    * @param password      password for the public key associated with the given address.
     */
   def unlockKeyFile(addressString: String, password: String): Try[Unit] = Try {
     val privKey = getPrivateKey(addressString, password)
@@ -65,9 +80,10 @@ class Keys[
     else log.warn(s"$addressString is already unlocked")
   }
 
-  /** Given an address and password, locks a key file.
-    *
+  /**
+    * Given an address, locks a key file.
     * @param addressString Base58 encoded address that corresponds to the key to lock
+    * @return Successful if given a valid address, else returns a Failure
     */
   def lockKeyFile(addressString: String): Try[Unit] = Try {
     val keyfile = checkValid(addressString: String)
@@ -78,7 +94,11 @@ class Keys[
     else secrets -= (secrets find (p => p.publicImage.address == keyfile.address)).get
   }
 
-  /** @param password - password to use to encrypt generated key.
+  /**
+    * Generates a key file
+    * @param password - password to use to encrypt generated key.
+    * @param seedOpt - optional seed used to generate key file, default set to None
+    * @return if successful, returns an address. Else fails.
     */
   def generateKeyFile(password: String, seedOpt: Option[String] = None): Try[Address] = {
     // generate a new random key pair and save to disk
@@ -88,9 +108,11 @@ class Keys[
     }
   }
 
-  /** @param num - number of keys to be generated.
+  /**
+    * Generates new secrets
+    * @param num - number of keys to be generated.
     * @param seedOpt - optional seed to create keys.
-    * @return
+    * @return if successful, returns set of secret keys. Else fails.
     */
   def generateNewKeyPairs(num: Int = 1, seedOpt: Option[String] = None): Try[Set[S]] =
     Try {
@@ -105,10 +127,12 @@ class Keys[
       } else throw new Error("Number of requested keys must be greater than or equal to 1")
     }
 
-  /** @param password - password to encrypt imported key.
+  /**
+    * Generates key file given a mnemonic phrase
+    * @param password - password to encrypt imported key.
     * @param mnemonic - mnemonic phrase used to generate key.
     * @param lang - language used to create BIP object to generate key.
-    * @return
+    * @return - if successful, returns address of generated key file. Else fails
     */
   def importPhrase(password: String, mnemonic: String, lang: String)(implicit sg: SecretGenerator[S]): Try[Address] =
     Try {
@@ -133,7 +157,7 @@ class Keys[
 
   /**
     * Returns the directory for the current network
-    * @return
+    * @return the file for the current key directory and current network
     */
   def getNetworkDir: File = {
     val networkName: String = NetworkType.fromPrefix(networkPrefix) match {
@@ -143,9 +167,11 @@ class Keys[
     new File(s"${defaultKeyDir.getAbsolutePath}/$networkName")
   }
 
-  /** @param address - address for keyfile to export
+  /**
+    * Exports a key file (saves key file to disk)
+    * @param address - address for keyfile to export
     * @param password - password for keyfile to export
-    * @return
+    * @return Success if address is unlocked and secret is found, else fails.
     */
   def exportKeyfile(address: Address, password: String): Try[Unit] = Try {
     secretByAddress(address) match {
@@ -159,14 +185,18 @@ class Keys[
     }
   }
 
-  /** Find a secret given it's public image */
+  /**
+    * Finds a secret given its address
+    * @param addr the address to grab secret for
+    * @return if the key file is unlocked, returns the secret key. Else returns None
+    */
   private def secretByAddress(addr: Address): Option[S] = {
     secrets.find(_.publicImage.address == addr)
   }
 
   /**
-    * Returns a map of address to "locked" or "unlocked"
-    * @return
+    * Returns a map of addresses to "locked" or "unlocked"
+    * @return map of address to "locked" or "unlocked"
     */
   def listKeyFilesAndStatus: Map[Address, String] = {
     val unlocked: Set[Address] = secrets.map(_.publicImage.address)
@@ -178,16 +208,18 @@ class Keys[
     map.toMap
   }
 
-  /** Return a list of KeyFile instances for all keys in the key file directory for the current network*/
+  /**
+    * Return a list of KeyFile instances for all keys in the key file directory for the current network
+    * @return List[KF]
+    */
   private def listKeyFiles: List[KF] = {
     Keys.getListOfFiles(getNetworkDir).map(file => keyfileOps.readFile(file.getPath))
   }
 
-  /** Check if given address string is valid and contained in the key file directory
-    *
+  /**
+    * Checks if given address string is valid and contained in the key file directory
     * @param address Base58 encoded address to query
-    * //@param password        password used to decrypt the keyfile
-    * @return the relevant PrivateKey25519 to be processed
+    * @return the keyfile for the given address
     */
   private def checkValid(address: String): KF = {
     val keyfile = listKeyFiles.filter {

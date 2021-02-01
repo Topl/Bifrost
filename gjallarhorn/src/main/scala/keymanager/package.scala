@@ -1,7 +1,8 @@
 import attestation.AddressEncoder.NetworkPrefix
 
 package object keymanager {
-  //default value:
+
+  /** This variable keeps track of the current network */
   private var _networkPrefix: NetworkPrefix = 48.toByte
 
   //setters
