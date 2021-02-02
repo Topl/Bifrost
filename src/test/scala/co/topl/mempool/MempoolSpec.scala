@@ -1,10 +1,8 @@
 package co.topl.mempool
 
-import akka.actor.ActorRef
-import akka.http.scaladsl.testkit.ScalatestRouteTest
+import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern.ask
 import akka.util.Timeout
-import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedTransaction}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
@@ -18,15 +16,17 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
+import scala.concurrent.{Await, ExecutionContext}
 
 @DoNotDiscover
 class MempoolSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with Matchers
-  with ScalatestRouteTest
   with CoreGenerators {
+
+  private implicit val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
+  private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
   protected val appContext = new AppContext(settings, StartupOpts.empty, None)
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
@@ -40,7 +40,7 @@ class MempoolSpec extends AnyPropSpec
   property("Repeated transactions already in history should be discarded " +
     "when received by the node view") {
     val txs = view().history.bestBlock.transactions
-    txs.foreach(tx ⇒ nodeViewHolderRef ! LocallyGeneratedTransaction[Transaction](tx))
+    txs.foreach(tx ⇒ nodeViewHolderRef ! LocallyGeneratedTransaction(tx))
     txs.foreach(tx ⇒ view().pool.contains(tx) shouldBe false)
   }
 }

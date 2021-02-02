@@ -1,7 +1,7 @@
 package co.topl.nodeView.mempool
 
 import co.topl.modifier.ModifierId
-import co.topl.modifier.transaction.GenericTransaction
+import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.NodeViewComponent
 
 import scala.util.Try
@@ -9,9 +9,10 @@ import scala.util.Try
 /**
   * Unconfirmed transactions pool
   *
-  * @tparam TX -type of transaction the pool contains
+  * @tparam M -type of this memory pool
   */
-trait MemoryPool[TX <: GenericTransaction[_], M <: MemoryPool[TX, M]] extends NodeViewComponent with MemPoolReader[TX] {
+trait MemoryPool[TX <: Transaction[_,_], M <: MemoryPool[TX, M]]
+  extends NodeViewComponent with MemPoolReader[TX] {
 
   //getters
   def modifierById(id: ModifierId): Option[TX]

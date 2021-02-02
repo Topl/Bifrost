@@ -1,19 +1,21 @@
 package co.topl.serialization
 
-import InstrumentClasses.Base58
-import co.topl.modifier.block.{Block, BlockSerializer, BloomFilter, BloomFilterSerializer}
+import co.topl.attestation._
+import co.topl.attestation.serialization.{PublicKeyPropositionCurve25519Serializer, SignatureCurve25519Serializer, ThresholdPropositionCurve25519Serializer, ThresholdSignatureCurve25519Serializer}
+import co.topl.modifier.block.serialization.{BlockBodySerializer, BlockHeaderSerializer, BlockSerializer}
+import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.serialization._
 import co.topl.nodeView.state.box._
-import co.topl.nodeView.state.box.proposition.{MofNProposition, MofNPropositionSerializer, PublicKey25519Proposition}
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.program.{ExecutionBuilder, ExecutionBuilderSerializer}
+import co.topl.settings.VersionSerializer
 import co.topl.utils.{CoreGenerators, ValidGenerators}
+import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
-import scala.collection.BitSet
 import scala.util.{Failure, Success}
 
 /**
@@ -26,19 +28,79 @@ class SerializationTests extends AnyPropSpec
   with CoreGenerators
   with ValidGenerators {
 
-  property("oneOfNProposition Serialization") {
-    forAll(oneOfNPropositionGen) {
-      case (_, mn: MofNProposition) =>
-        val parsed = MofNPropositionSerializer
-          .parseBytes(MofNPropositionSerializer.toBytes(mn))
+  property("PublicKeyPropositionCurve25519 serialization") {
+    forAll(publicKeyPropositionCurve25519Gen) {
+      case (_, prop: PublicKeyPropositionCurve25519) =>
+        val parsed = PublicKeyPropositionCurve25519Serializer
+          .parseBytes(PublicKeyPropositionCurve25519Serializer.toBytes(prop))
           .get
 
-        parsed.m shouldBe mn.m
-        parsed.setOfPubKeyBytes should contain theSameElementsAs mn.setOfPubKeyBytes
+        parsed.bytes sameElements prop.bytes shouldBe true
     }
   }
 
-  property("PolyBox Serialization") {
+  property("PrivateKeyCurve25519 serialization") {
+    forAll(key25519Gen) {
+      case (key: PrivateKeyCurve25519, _) =>
+        val parsed = PrivateKeyCurve25519.parseBytes(PrivateKeyCurve25519.toBytes(key)).get
+
+        parsed.bytes sameElements key.bytes shouldBe true
+    }
+  }
+
+  property("SignatureCurve25519 serialization") {
+    forAll(signatureGen) {
+      sig: SignatureCurve25519 =>
+        val parsed = SignatureCurve25519Serializer
+          .parseBytes(SignatureCurve25519Serializer.toBytes(sig))
+          .get
+
+        parsed.bytes sameElements sig.bytes shouldBe true
+    }
+  }
+
+  property("ThresholdPropositionCurve25519 serialization") {
+    forAll(thresholdPropositionCurve25519Gen) {
+      case (_, prop: ThresholdPropositionCurve25519) =>
+        val parsed = ThresholdPropositionCurve25519Serializer
+          .parseBytes(ThresholdPropositionCurve25519Serializer.toBytes(prop))
+          .get
+
+        parsed.threshold shouldBe prop.threshold
+        parsed.pubKeyProps should contain theSameElementsAs prop.pubKeyProps
+    }
+  }
+
+  property("ThresholdSignatureCurve25519 serialization") {
+    forAll(thresholdSignatureCurve25519Gen) {
+      sig: ThresholdSignatureCurve25519 =>
+        val parsed = ThresholdSignatureCurve25519Serializer
+          .parseBytes(ThresholdSignatureCurve25519Serializer.toBytes(sig))
+          .get
+
+        parsed.bytes sameElements sig.bytes shouldBe true
+    }
+  }
+
+  property("SecurityRoot serialization") {
+    forAll(securityRootGen) {
+      root: SecurityRoot =>
+        val parsed = SecurityRoot.parseBytes(SecurityRoot.toBytes(root)).get
+
+        parsed shouldEqual root
+    }
+  }
+
+  property("TokenValueHolder serialization") {
+    forAll(Gen.oneOf(simpleValueGen, assetValueGen)) {
+      value =>
+        val parsed = TokenValueHolder.parseBytes(TokenValueHolder.toBytes(value)).get
+
+        parsed shouldEqual value
+    }
+  }
+
+  property("PolyBox serialization") {
     forAll(polyBoxGen) {
       b: PolyBox =>
         val parsed = BoxSerializer
@@ -50,7 +112,7 @@ class SerializationTests extends AnyPropSpec
     }
   }
 
-  property("ArbitBox Serialization") {
+  property("ArbitBox serialization") {
     forAll(arbitBoxGen) {
       b: ArbitBox =>
         val parsed = BoxSerializer
@@ -62,7 +124,7 @@ class SerializationTests extends AnyPropSpec
     }
   }
 
-  property("AssetBox Serialization") {
+  property("AssetBox serialization") {
     forAll(assetBoxGen) {
       b: AssetBox =>
         val parsed = BoxSerializer
@@ -74,53 +136,43 @@ class SerializationTests extends AnyPropSpec
     }
   }
 
-  property("StateBox Serialization") {
+  property("StateBox serialization") {
     forAll(stateBoxGen) {
       b: StateBox =>
-        val json = b.json
         val parsed = BoxSerializer
           .parseBytes(BoxSerializer.toBytes(b))
           .get
-        val prop: String = (json \\ "proposition").head.as[String].right.get
 
         val serialized = BoxSerializer.toBytes(parsed)
-        val resBox: StateBox = json.as[StateBox] match {case Right(re) => re; case Left(ex) => throw ex}
-        resBox.bytes sameElements BoxSerializer.toBytes(b) shouldBe true
         serialized sameElements BoxSerializer.toBytes(b) shouldBe true
     }
   }
 
-  property("CodeBox Serialization") {
+  property("CodeBox serialization") {
     forAll(codeBoxGen) {
       b: CodeBox =>
-        val json = b.json
         val parsed = BoxSerializer
           .parseBytes(BoxSerializer.toBytes(b))
           .get
 
         val serialized = BoxSerializer.toBytes(parsed)
-        val resBox: CodeBox = json.as[CodeBox] match {case Right(re) => re; case Left(ex) => throw ex}
-        resBox.bytes sameElements BoxSerializer.toBytes(b) shouldBe true
         serialized sameElements BoxSerializer.toBytes(b) shouldBe true
     }
   }
 
-  property("ExecutionBox Serialization") {
+  property("ExecutionBox serialization") {
     forAll(executionBoxGen) {
       b: ExecutionBox =>
-        val json = b.json
         val parsed = BoxSerializer
           .parseBytes(BoxSerializer.toBytes(b))
           .get
 
         val serialized = BoxSerializer.toBytes(parsed)
-        val resBox: ExecutionBox = json.as[ExecutionBox] match {case Right(re) => re; case Left(ex) => throw ex}
-        resBox.bytes sameElements BoxSerializer.toBytes(b) shouldBe true
         serialized sameElements BoxSerializer.toBytes(b) shouldBe true
     }
   }
 
-  property("ExecutionBuilder Serialization") {
+  property("ExecutionBuilder serialization") {
     forAll(validExecutionBuilderGen()) {
       a: ExecutionBuilder =>
         val parsed = ExecutionBuilderSerializer
@@ -131,115 +183,71 @@ class SerializationTests extends AnyPropSpec
     }
   }
 
-  property("PolyTransfer Serialization") {
+  property("PolyTransfer serialization") {
     forAll(polyTransferGen) {
-      sc: PolyTransfer =>
-        val parsed = PolyTransferSerializer
-          .parseBytes(PolyTransferSerializer.toBytes(sc))
+      tx: PolyTransfer[_ <: Proposition] =>
+        val serializer = TransactionSerializer
+        val parsed = serializer
+          .parseBytes(serializer.toBytes(tx))
           .get
 
-        PolyTransferSerializer.toBytes(parsed) sameElements
-          PolyTransferSerializer.toBytes(sc) shouldBe true
+        serializer.toBytes(parsed) sameElements
+          serializer.toBytes(tx) shouldBe true
     }
   }
 
-  property("ArbitTransfer Serialization") {
+  property("ArbitTransfer serialization") {
     forAll(arbitTransferGen) {
-      ac: ArbitTransfer =>
-        val parsed = ArbitTransferSerializer
-          .parseBytes(ArbitTransferSerializer.toBytes(ac))
+      tx: ArbitTransfer[_ <: Proposition] =>
+        val serializer = TransactionSerializer
+        val parsed = serializer
+          .parseBytes(serializer.toBytes(tx))
           .get
 
-        ArbitTransferSerializer.toBytes(parsed) sameElements
-          ArbitTransferSerializer.toBytes(ac) shouldBe true
+        serializer.toBytes(parsed) sameElements
+          serializer.toBytes(tx) shouldBe true
     }
   }
 
-  property("AssetTransfer Serialization") {
+  property("AssetTransfer serialization") {
     forAll(assetTransferGen) {
-      at: AssetTransfer =>
-        val parsed = AssetTransferSerializer
-          .parseBytes(AssetTransferSerializer.toBytes(at))
+      tx: AssetTransfer[_ <: Proposition] =>
+        val serializer = TransactionSerializer
+        val parsed = serializer
+          .parseBytes(serializer.toBytes(tx))
           .get
 
-        AssetTransferSerializer.toBytes(parsed) sameElements
-          AssetTransferSerializer.toBytes(at) shouldBe true
+        serializer.toBytes(parsed) sameElements
+          serializer.toBytes(tx) shouldBe true
     }
   }
 
-  property("ProgramCreation Serialization") {
-    forAll(programCreationGen) {
-      c: ProgramCreation =>
-        val parsed = ProgramCreationSerializer
-          .parseBytes(ProgramCreationSerializer.toBytes(c))
+  property("BlockHeader serialization") {
+    forAll(blockGen) {
+      b: Block =>
+        val blockHeader = b.toComponents._1
+        val parsed = BlockHeaderSerializer
+          .parseBytes(BlockHeaderSerializer.toBytes(blockHeader))
           .get
 
-        val parsedBytes = ProgramCreationSerializer.toBytes(parsed)
-        val directParsedBytes = ProgramCreationSerializer.toBytes(c)
-
-        c.executionBuilder shouldEqual parsed.asInstanceOf[ProgramCreation].executionBuilder
-        c.json shouldEqual parsed.asInstanceOf[ProgramCreation].json
-
-        parsedBytes sameElements directParsedBytes shouldBe true
+        parsed.bytes sameElements blockHeader.bytes shouldBe true
     }
   }
 
-  /*
-  property("ProgramMethodExecution Serialization") {
-    forAll(programMethodExecutionGen) {
-      c: ProgramMethodExecution =>
-        val parsed = ProgramMethodExecutionSerializer
-          .parseBytes(ProgramMethodExecutionSerializer.toBytes(c))
+  property("BlockBody serialization") {
+    forAll(blockGen) {
+      b: Block =>
+        val blockBody = b.toComponents._2
+        val parsed = BlockBodySerializer
+          .parseBytes(BlockBodySerializer.toBytes(blockBody))
           .get
 
-        ProgramMethodExecutionSerializer.toBytes(parsed) sameElements
-          ProgramMethodExecutionSerializer.toBytes(c) shouldBe true
-    }
-  }
-   */
-
-  property("AssetCreation Serialization") {
-    forAll(assetCreationGen) {
-      ac: AssetCreation =>
-        val parsed: AssetCreation = AssetCreationSerializer
-          .parseBytes(AssetCreationSerializer.toBytes(ac))
-          .get
-
-        AssetCreationSerializer.toBytes(parsed) sameElements
-          AssetCreationSerializer.toBytes(ac) shouldBe true
+        parsed.bytes sameElements blockBody.bytes shouldBe true
     }
   }
 
-  /*
-  property("CodeCreation Serialization") {
-    forAll(codeBoxCreationGen) {
-      ccc: CodeCreation =>
-        val parsed = CodeBoxCreationSerializer
-          .parseBytes(CodeBoxCreationSerializer.toBytes(ccc))
-          .get
-
-        CodeBoxCreationSerializer.toBytes(parsed) sameElements
-          CodeBoxCreationSerializer.toBytes(ccc) shouldBe true
-    }
-  }
-   */
-
-  /*
-  property("ProgramTransfer Serialization") {
-    forAll(programTransferGen) {
-      pt: ProgramTransfer =>
-        val parsed = ProgramTransferSerializer
-          .parseBytes(ProgramTransferSerializer.toBytes(pt))
-          .get
-
-        ProgramTransferSerializer.toBytes(parsed) sameElements
-          ProgramTransferSerializer.toBytes(pt) shouldBe true
-    }
-  }
-   */
-
-  property("Block Serialization") {
-    forAll(BlockGen) {
+  property("FullBlock serialization") {
+    forAll(blockGen) {
       bb: Block =>
         val parsed = BlockSerializer.parseBytes(BlockSerializer.toBytes(bb))
 
@@ -251,31 +259,40 @@ class SerializationTests extends AnyPropSpec
     }
   }
 
+  property("BloomFilter serialization") {
+    forAll(blockGen) {
+      block =>
+        val parsed: BloomFilter = BloomFilter.parseBytes(BloomFilter.toBytes(block.bloomFilter)).get
 
-  // todo: JAA - 2020.08.02 - this was removed as SyncInfo uses the standard message parsing pattern now.
-  // todo:       We should be sure to move this test to where ever message serialization is tested
-//  property("BifrostSyncInfo Serialization") {
-//    forAll(bifrostSyncInfoGen) {
-//      syncInfo: BifrostSyncInfo =>
-//        val parsed = BifrostSyncInfoSerializer
-//          .parseBytes(BifrostSyncInfoSerializer.toBytes(syncInfo))
-//          .get
-//
-//        BifrostSyncInfoSerializer.toBytes(parsed) sameElements
-//          BifrostSyncInfoSerializer.toBytes(syncInfo) shouldBe true
-//    }
-//  }
+        BloomFilter.toBytes(parsed) sameElements
+          BloomFilter.toBytes(block.bloomFilter) shouldBe true
+    }
+  }
 
-  property("Bloom Serialization") {
-    forAll(intSeqGen) {
-      intSeq: Seq[Int] =>
-        val bloom = BloomFilter(BitSet(intSeq: _*))
-        val parsed: BloomFilter = BloomFilterSerializer
-          .parseBytes(BloomFilterSerializer.toBytes(bloom))
-          .get
+  property("Evidence serialization") {
+    forAll(evidenceGen) {
+      evidence =>
+        val parsed = Evidence.parseBytes(Evidence.toBytes(evidence)).get
 
-        BloomFilterSerializer.toBytes(parsed) sameElements
-          BloomFilterSerializer.toBytes(bloom) shouldBe true
+        Evidence.toBytes(parsed) sameElements Evidence.toBytes(evidence) shouldBe true
+    }
+  }
+
+  property("Address serialization") {
+    forAll(addressGen) {
+      address =>
+        val parsed: Address = Address.parseBytes(Address.toBytes(address)).get
+
+        Address.toBytes(parsed) sameElements Address.toBytes(address) shouldBe true
+    }
+  }
+
+  property("Version serialization") {
+    forAll(versionGen) {
+      version =>
+        val parsed = VersionSerializer.parseBytes(VersionSerializer.toBytes(version)).get
+
+        parsed.bytes sameElements version.bytes
     }
   }
 }

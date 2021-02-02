@@ -2,18 +2,18 @@ package co.topl.nodeView.state
 
 import java.io.File
 
+import co.topl.attestation.Address
+import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction._
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.nodeView.state.box._
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.util.encode.Base58
-import scorex.crypto.signatures.PublicKey
 
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
@@ -31,11 +31,10 @@ case class State ( override val version     : VersionTag,
                    protected val storage    : LSMStore,
                    private[state] val tbrOpt: Option[TokenBoxRegistry] = None,
                    private[state] val pbrOpt: Option[ProgramBoxRegistry] = None,
-                   nodeKeys                 : Option[Set[PublicKey25519Proposition]] = None
-                 ) extends MinimalState[Box, Block, State]
-                           with StoreInterface
-                           with TransactionValidation[Transaction]
-                           with Logging {
+                   nodeKeys                 : Option[Set[Address]] = None
+                 ) (implicit networkPrefix: NetworkPrefix) extends MinimalState[Block, State]
+                                                                   with StoreInterface
+                                                                   with Logging {
 
   override type NVCT = State
 
@@ -59,7 +58,7 @@ case class State ( override val version     : VersionTag,
    * @param id unique identifier where the box data is stored
    * @return
    */
-  override def getBox( id: BoxId ): Option[Box] =
+  override def getBox( id: BoxId ): Option[Box[_]] =
     getFromStorage(id.hashBytes)
       .map(BoxSerializer.parseBytes)
       .flatMap(_.toOption)
@@ -86,7 +85,8 @@ case class State ( override val version     : VersionTag,
    * @param key the public key to find boxes for
    * @return a sequence of token boxes held by the public key
    */
-  override def getTokenBoxes(key: KT): Option[Seq[TokenBox]] = tbrOpt.flatMap(_.getBox(key, getReader))
+  override def getTokenBoxes(key: KT): Option[Seq[TokenBox[TokenValueHolder]]] =
+    tbrOpt.flatMap(_.getBox(key, getReader))
 
   /**
    * Lookup a sequence of boxIds from the appropriate registry.
@@ -95,7 +95,7 @@ case class State ( override val version     : VersionTag,
    * @param key storage key used to identify value(s) in registry
    * @return a sequence of boxes stored beneath the specified key
    */
-  def registryLookup[K] ( key: K ): Option[Seq[BoxId]] = {
+  def registryLookup[K] (key: K): Option[Seq[BoxId]] = {
     key match {
       case k: TokenBoxRegistry.K if tbrOpt.isDefined   => tbrOpt.get.lookup(k)
       case k: ProgramBoxRegistry.K if pbrOpt.isDefined => pbrOpt.get.lookup(k)
@@ -130,11 +130,11 @@ case class State ( override val version     : VersionTag,
       None
     }
 
-    if ( storage.lastVersionID.exists(_.data sameElements version.hashBytes) ) {
+    if ( storage.lastVersionID.exists(_.data sameElements version.bytes) ) {
       this
     } else {
       log.debug(s"Rollback State to $version from version ${this.version.toString}")
-      storage.rollback(ByteArrayWrapper(version.hashBytes))
+      storage.rollback(ByteArrayWrapper(version.bytes))
 
       State(version, storage, updatedTBR, updatedPBR, nodeKeys)
     }
@@ -178,7 +178,7 @@ case class State ( override val version     : VersionTag,
 
       //Filtering boxes pertaining to public keys specified in settings file
       val boxesToAdd = (nodeKeys match {
-        case Some(keys) => stateChanges.toAppend.filter(b => keys.contains(PublicKey25519Proposition(PublicKey @@ b.proposition.bytes)))
+        case Some(keys) => stateChanges.toAppend.filter(b => keys.contains(Address(b.evidence)))
         case None       => stateChanges.toAppend
       }).map(b => ByteArrayWrapper(b.id.hashBytes) -> ByteArrayWrapper(b.bytes))
 
@@ -186,7 +186,7 @@ case class State ( override val version     : VersionTag,
         case Some(keys) => stateChanges
           .boxIdsToRemove
           .flatMap(getBox)
-          .filter(b => keys.contains(PublicKey25519Proposition(PublicKey @@ b.proposition.bytes)))
+          .filter(b => keys.contains(Address(b.evidence)))
           .map(b => b.id)
 
         case None => stateChanges.boxIdsToRemove
@@ -229,7 +229,7 @@ case class State ( override val version     : VersionTag,
         case _ => None
       }
 
-      storage.update(ByteArrayWrapper(newVersion.hashBytes), boxIdsToRemove, boxesToAdd)
+      storage.update(ByteArrayWrapper(newVersion.bytes), boxIdsToRemove, boxesToAdd)
 
       // create updated instance of state
       val newState = State(newVersion, storage, updatedTBR, updatedPBR, nodeKeys)
@@ -249,79 +249,68 @@ case class State ( override val version     : VersionTag,
     }
   }
 
-  override def validate ( transaction: Transaction ): Try[Unit] = {
-    transaction match {
-      case tx: Coinbase               => Coinbase.semanticValidate(tx, getReader)
-      case tx: ArbitTransfer          => ArbitTransfer.semanticValidate(tx, getReader)
-      case tx: PolyTransfer           => PolyTransfer.semanticValidate(tx, getReader)
-      case tx: AssetTransfer          => AssetTransfer.semanticValidate(tx, getReader)
-      case tx: ProgramTransfer        => ProgramTransfer.semanticValidate(tx, getReader)
-      case tx: AssetCreation          => AssetCreation.semanticValidate(tx, getReader)
-      case tx: CodeCreation           => CodeCreation.semanticValidate(tx, getReader)
-      case tx: ProgramCreation        => ProgramCreation.semanticValidate(tx, getReader)
-      case tx: ProgramMethodExecution => ProgramMethodExecution.semanticValidate(tx, getReader)
-      case _                          => throw new Exception("State validity not implemented for " + transaction.getClass.toGenericString)
-    }
+  /**
+    *
+    * @param transaction
+    * @return
+    */
+  def semanticValidate(transaction: Transaction.TX)(implicit networkPrefix: NetworkPrefix): Try[Unit] = {
+    transaction.semanticValidate(getReader)
   }
 }
 
-
-
-
 object State extends Logging {
 
-  def genesisState ( settings: AppSettings, initialBlocks: Seq[Block] ): State = {
+  /**
+    *
+    * @param settings
+    * @param initialBlocks
+    * @param networkPrefix
+    * @return
+    */
+  def genesisState (settings: AppSettings, initialBlocks: Seq[Block])
+                   (implicit networkPrefix: NetworkPrefix): State = {
     initialBlocks
       .foldLeft(readOrGenerate(settings)) {
         (state, mod) => state.applyModifier(mod).get
       }
   }
 
-  /**
-   * Provides a single interface for syntactically validating transactions
-   *
-   * @param tx transaction to evaluate
-   */
-  def syntacticValidity[TX] ( tx: TX ): Try[Unit] = {
-    tx match {
-      case tx: PolyTransfer           => PolyTransfer.syntacticValidate(tx)
-      case tx: ArbitTransfer          => ArbitTransfer.syntacticValidate(tx)
-      case tx: AssetTransfer          => AssetTransfer.syntacticValidate(tx)
-      case tx: ProgramTransfer        => ProgramTransfer.syntacticValidate(tx)
-      case tx: AssetCreation          => AssetCreation.syntacticValidate(tx)
-      case tx: CodeCreation           => CodeCreation.syntacticValidate(tx)
-      case tx: ProgramCreation        => ProgramCreation.syntacticValidate(tx)
-      case tx: ProgramMethodExecution => ProgramMethodExecution.syntacticValidate(tx)
-      case tx: Coinbase               => Coinbase.syntacticValidate(tx)
-      case _                          =>
-        throw new UnsupportedOperationException(
-          "Semantic validity not implemented for " + tx.getClass.toGenericString
-          )
-    }
-  }
-
   def exists(settings: AppSettings): Boolean = stateFile(settings).exists()
 
+  /**
+    * Construct and returns the directory where state data will be stored
+    * @param settings the configuration file for the node
+    * @return a file where data is stored
+    */
   def stateFile(settings: AppSettings): File = {
     val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
     new File(s"$dataDir/state")
   }
 
-  def readOrGenerate (settings: AppSettings): State = {
+  /**
+    *
+    * @param settings
+    * @param networkPrefix
+    * @return
+    */
+  def readOrGenerate (settings: AppSettings)
+                     (implicit networkPrefix: NetworkPrefix): State = {
     val sFile = stateFile(settings)
     sFile.mkdirs()
-    val storage = new LSMStore(sFile)
+    val storage = new LSMStore(sFile, keySize = BoxId.size)
 
-    val version: VersionTag = ModifierId(
-      storage.lastVersionID
-        .fold(Array.fill(ModifierId.size)(0:Byte))(_.data)
-      )
+    val version: VersionTag =
+      storage
+        .lastVersionID
+        .fold(Option(ModifierId.empty))(bw => ModifierId.parseBytes(bw.data).toOption)
+        .getOrElse(throw new Error("Unable to define state version during initialization"))
 
     // node keys are a set of keys that this node will restrict its state to update
-    val nodeKeys: Option[Set[PublicKey25519Proposition]] = settings.application.nodeKeys match {
+    val nodeKeys: Option[Set[Address]] = settings.application.nodeKeys match {
       case None => None
       case Some(keys) if keys.isEmpty => None
-      case Some(keys) => Some(keys.map(PublicKey25519Proposition(_)))
+      case Some(keys) => Some(keys.map(Address(networkPrefix)(_)))
     }
 
     if ( nodeKeys.isDefined ) log.info(s"Initializing state to watch for public keys: $nodeKeys")

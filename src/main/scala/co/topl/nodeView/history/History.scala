@@ -2,26 +2,23 @@ package co.topl.nodeView.history
 
 import java.io.File
 
-import co.topl.consensus
+import co.topl.attestation.PublicKeyPropositionCurve25519
+import co.topl.consensus.{BlockValidator, DifficultyBlockValidator, SyntaxBlockValidator}
+import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
-import co.topl.modifier.block.{ Block, BlockValidator, BloomFilter }
+import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
-import co.topl.modifier.{ ModifierId, NodeViewModifier }
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.History.GenesisParentId
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
-import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
+import io.iohk.iodb.LSMStore
 
 import scala.annotation.tailrec
-import scala.collection.BitSet
+import scala.util.{Failure, Success, Try}
 
-import scala.util.{ Failure, Success, Try }
-
-/**
-  * A representation of the entire blockchain (whether it's a blocktree, blockchain, etc.)
+/** A representation of the entire blockchain (whether it's a blocktree, blockchain, etc.)
   *
   * @param storage    a wrapper primarily for the LSMStore and for storage of the minimal state
   * @param validators rule sets that dictate validity of blocks in the history
@@ -34,13 +31,11 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
 
   override type NVCT = History
 
-  require(NodeViewModifier.ModifierIdSize == 32, "32 bytes ids assumed")
-
-  lazy val height: Long = storage.chainHeight
-  lazy val score: BigInt = storage.bestChainScore
   lazy val bestBlockId: ModifierId = storage.bestBlockId
-  lazy val difficulty: Long = storage.difficultyOf(bestBlockId).get
   lazy val bestBlock: Block = storage.bestBlock
+  lazy val height: Long = storage.heightAt(bestBlockId)
+  lazy val score: Long = storage.scoreAt(bestBlockId)
+  lazy val difficulty: Long = storage.difficultyAt(bestBlockId)
 
   /** Public method to close storage */
   def closeStorage(): Unit = {
@@ -51,28 +46,28 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
   /** If there's no history, even genesis block */
   override def isEmpty: Boolean = height <= 0
 
-  override def applicable(block: Block): Boolean = modifierById(block.parentId).isDefined
+  override def applicable(block: Block): Boolean = storage.containsModifier(block.parentId)
 
   override def modifierById(id: ModifierId): Option[Block] = storage.modifierById(id)
 
-  def blockContainingTx(id: ModifierId): Option[ModifierId] = storage.blockIdOf(id)
+  override def modifierByHeight(height: Long): Option[Block] =
+    storage.idAtHeightOf(height).flatMap(storage.modifierById)
+
+  def transactionById(id: ModifierId): Option[(Transaction.TX, ModifierId, Long)] =
+    storage.lookupConfirmedTransaction(id)
 
   override def contains(id: ModifierId): Boolean =
-    (id == History.GenesisParentId) || modifierById(id).isDefined || fullBlockProcessor.contains(id)
+    (id == History.GenesisParentId) || storage.containsModifier(id) || fullBlockProcessor.contains(id)
 
-  private def isGenesis(b: Block): Boolean = storage.isGenesis(b)
-
-  def blockForger(m: Block): PublicKey25519Proposition = m.forgerBox.proposition
-
-  def count(f: Block => Boolean): Int = filter(f).length
+  private def isGenesis(b: Block): Boolean = b.parentId == History.GenesisParentId
 
   def parentBlock(m: Block): Option[Block] = modifierById(m.parentId)
 
-  //todo: try to paginate this response (should take in an offset and a limit number)
-  override def toString: String = chainBack(bestBlock, isGenesis).get.map(_._2).mkString(",")
+  /** Return last count headers from best headers chain if exist or chain up to genesis otherwise */
+  def lastHeaders(count: Int, offset: Int = 0): IndexedSeq[ModifierId] =
+    getBlocksFrom(bestBlock, count).map(block => block.id).toIndexedSeq
 
-  /**
-    * Adds block to chain and updates storage (difficulty, score, etc.) relating to that
+  /** Adds block to chain and updates storage (difficulty, score, etc.) relating to that
     *
     * @param block block to append
     * @return the update history including `block` as the most recent block
@@ -82,20 +77,23 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     log.debug(s"Trying to append block ${block.id} to history")
 
     // test new block against all validators
-    val validationResults = validators.map(_.validate(block)).map {
-      case Failure(e) =>
-        log.warn(s"Block validation failed", e)
-        false
+    val validationResults =
+      if (!isGenesis(block)) {
+        validators.map(_.validate(block)).map {
+          case Failure(e) =>
+            log.warn(s"Block validation failed", e)
+            false
 
-      case _ => true
-    }
+          case _ => true
+        }
+      } else Seq(true) // skipping validation for genesis block
 
     // check if all block validation passed
     if (validationResults.forall(_ == true)) {
       val res: (History, ProgressInfo[Block]) = {
 
         if (isGenesis(block)) {
-          storage.update(block, consensus.difficulty, isBest = true)
+          storage.update(block, isBest = true)
           val progInfo = ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
 
           // construct result and return
@@ -107,14 +105,8 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
             if (block.parentId.equals(storage.bestBlockId)) {
               log.debug(s"New best block ${block.id.toString}")
 
-              // calculate the new base difficulty
-              val parentDifficulty = storage.difficultyOf(block.parentId).get
-              val prevTimes = lastBlocks(consensus.nxtBlockNum + 1, block).map(_.timestamp)
-              val newHeight = storage.heightOf(block.parentId).get + 1
-              val newBaseDifficulty = consensus.calcNewBaseDifficulty(newHeight, parentDifficulty, prevTimes)
-
               // update storage
-              storage.update(block, newBaseDifficulty, isBest = true)
+              storage.update(block, isBest = true)
               ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
 
               // if not, we'll check for a fork
@@ -126,10 +118,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
               if (forkProgInfo.branchPoint.nonEmpty) {
                 storage.rollback(forkProgInfo.branchPoint.get)
 
-                forkProgInfo.toApply.foreach { b ⇒
-                  val baseDifficulty = fullBlockProcessor.getCacheBlock(b.id).get.baseDifficulty
-                  storage.update(b, baseDifficulty, isBest = true)
-                }
+                forkProgInfo.toApply.foreach { b ⇒storage.update(b, isBest = true) }
               }
 
               forkProgInfo
@@ -148,8 +137,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     }
   }
 
-  /**
-    * Removes this block (and its children) from the history and rolls back to the state after the parent block
+  /** Removes this block (and its children) from the history and rolls back to the state after the parent block
     *
     * Maybe we should check drop the id passed in is the best block's id? or just get rid of the arg
     *
@@ -158,7 +146,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     */
   override def drop(modifierId: ModifierId): History = {
 
-    val block = storage.modifierById(modifierId).get
+    val block = storage.modifierById(modifierId).map{ case b: Block => b }.get
     val parentBlock = storage.modifierById(block.parentId).get
 
     log.debug(s"Failed to apply block. Rollback BifrostState to ${parentBlock.id} from version ${block.id}")
@@ -166,8 +154,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     new History(storage, fullBlockProcessor, validators)
   }
 
-  /**
-    * Calculates the changes necessary for a swap to a fork
+  /** Calculates the changes necessary for a swap to a fork
     *
     * @param block the block that has a parent on the canonical chain but is not on the chain
     * @return ProgressInfo that specifies the blocks to delete (worse fork) and blocks to add (better fork)
@@ -194,8 +181,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     ProgressInfo[Block](rollbackPoint, throwBlocks, applyBlocks, Seq.empty)
   }
 
-  /**
-    * Forms a list of available blocks to build upon
+  /** Forms a list of available blocks to build upon
     *
     * @return the blocks that are "exposed" for use
     */
@@ -204,13 +190,12 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     else Seq(bestBlockId)
     // TODO return sequence of exposed endpoints?
 
-  /**
-    * Return specified number of Bifrost blocks, ordered back from last one
+  /** Return specified number of Bifrost blocks, ordered back from last one
     *
     * @param count - how many blocks to return
     * @return blocks, in reverse order (starting from the most recent one)
     */
-  def lastBlocks(count: Long, startBlock: Block): Seq[Block] = {
+  def getBlocksFrom(startBlock: Block, count: Long): Seq[Block] = {
     @tailrec
     def loop(b: Block, acc: Seq[Block] = Seq()): Seq[Block] = {
       if (acc.length >= count) acc
@@ -224,38 +209,21 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     else loop(startBlock)
   }
 
-  /**
-   * Retrieve a sequence of blocks until the given filter is satisifed
-   *
-   * @param f filter function to be applied for retrieving blocks
-   * @return a sequence of blocks starting from the tip of the chain
-   */
-  def filter(f: Block => Boolean): Seq[Block] = {
-    @tailrec
-    def loop(m: Block, acc: Seq[Block]): Seq[Block] = parentBlock(m) match {
-      case Some(parent) => if (f(m)) loop(parent, m +: acc) else loop(parent, acc)
-      case None         => if (f(m)) m +: acc else acc
-    }
-
-    loop(bestBlock, Seq())
-  }
-
-  /**
-   * Go back through chain and get block ids until condition `until` is satisfied
-   *
-   * @param m     the modifier to start at
-   * @param until the condition that indicates (when true) that recursion should stop
-   * @param limit the maximum number of blocks to recurse back
-   * @return the sequence of block information (TypeId, Id) that were collected until `until` was satisfied
-   *         (None only if the parent for a block was not found) starting from the original `m`
-   */
-  final def chainBack(m: Block,
-                      until: Block => Boolean,
-                      limit: Int = Int.MaxValue): Option[Seq[(ModifierTypeId, ModifierId)]] = {
+  /** Go back through chain and get block ids until condition `until` is satisfied
+    *
+    * @param startBlock     the modifier to start at
+    * @param until the condition that indicates (when true) that recursion should stop
+    * @param limit the maximum number of blocks to recurse back
+    * @return the sequence of block information (TypeId, Id) that were collected until `until` was satisfied
+    *         (None only if the parent for a block was not found) starting from the original `m`
+    */
+  final def getIdsFrom(startBlock: Block,
+                       until: Block => Boolean,
+                       limit: Int = Int.MaxValue): Option[Seq[ModifierId]] = {
 
     @tailrec
     def loop(block: Block, acc: Seq[Block]): Seq[Block] = {
-      if(acc.lengthCompare(limit) == 0 || until(block)) {
+      if (acc.lengthCompare(limit) == 0 || until(block)) {
         acc
       } else {
         parentBlock(block) match {
@@ -267,11 +235,28 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     }
 
     if (limit == 0) None
-    else Option(loop(m, Seq(m)).map(b ⇒ (b.modifierTypeId, b.id)).reverse)
+    else Option(loop(startBlock, Seq(startBlock)).map(_.id).reverse)
   }
 
-  /**
-    * Whether another node's syncinfo shows that another node is ahead or behind ours
+  def getTimestampsFrom(startBlock: Block, count: Long): Vector[Block.Timestamp] =
+    History.getTimestamps(storage, count, startBlock)
+
+  /** Retrieve a sequence of blocks until the given filter is satisifed
+    *
+    * @param f filter function to be applied for retrieving blocks
+    * @return a sequence of blocks starting from the tip of the chain
+    */
+  def filter(f: Block => Boolean): Seq[Block] = {
+    @tailrec
+    def loop(m: Block, acc: Seq[Block]): Seq[Block] = parentBlock(m) match {
+      case Some(parent) => if (f(m)) loop(parent, m +: acc) else loop(parent, acc)
+      case None         => if (f(m)) m +: acc else acc
+    }
+
+    loop(bestBlock, Seq())
+  }
+
+  /** Whether another node's syncinfo shows that another node is ahead or behind ours
     *
     * @param info other's node sync info
     * @return Equal if nodes have the same history, Younger if another node is behind, Older if a new node is ahead
@@ -308,74 +293,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     }
   }
 
-  /** Calculates the distribution of blocks to forgers
-    *
-    * @return a map from public keys of forgers to the number of blocks they have forged
-    */
-  def forgerDistribution(): Map[PublicKey25519Proposition, Int] = {
-    val map = collection.mutable.Map[PublicKey25519Proposition, Int]().withDefaultValue(0)
-
-    /** Finds the forger for this block, increments their block number entry in `map`, and continues down the chain */
-    /** m is the current block for which to increment the forger entry */
-    @tailrec
-    def loopBackAndIncrementForger(m: Block): Unit = {
-      val forger = blockForger(m)
-      map.update(forger, map(forger) + 1)
-      parentBlock(m) match {
-        case Some(parent) => loopBackAndIncrementForger(parent)
-        case None =>
-      }
-    }
-
-    loopBackAndIncrementForger(bestBlock)
-    map.toMap
-  }
-
-  /** @param f : predicate that tests whether a queryBloom is compatible with a block's bloom
-    * @return Seq of blockId that satisfies f
-    */
-  def getBlockIdsByBloom(f: BitSet => Boolean): Seq[ModifierId] = {
-    @tailrec
-    def loop(current: Array[Byte], acc: Seq[Array[Byte]]): Seq[ModifierId] = storage.serializedParentIdOf(current) match {
-      case Some(value) =>
-        if (f(storage.bloomOf(current).get)) loop(value, current +: acc) else loop(value, acc)
-      case None =>
-        if (f(storage.bloomOf(current).get)) (current +: acc).map(ModifierId(_)) else acc.map(ModifierId(_))
-    }
-
-    loop(storage.bestBlockId.hashBytes, Seq())
-  }
-
-  /**
-   * Returns a set of transactions matching the specified topics
-   *
-   * @param queryBloomTopics topics to search the the block bloom filter for
-   * @return
-   */
-  def bloomFilter(queryBloomTopics: IndexedSeq[Array[Byte]]): Seq[Transaction] = {
-    val queryBloom: BitSet = BloomFilter.calcBloom(queryBloomTopics.head, queryBloomTopics.tail)
-    val f: BitSet => Boolean = {
-      blockBloom =>
-        val andRes = blockBloom & queryBloom
-        queryBloom equals andRes
-    }
-    // Go through all pertinent txs to filter out false positives
-    getBlockIdsByBloom(f).flatMap(b =>
-      modifierById(b).get.transactions.filter(tx =>
-        tx.bloomTopics match {
-          case Some(txBlooms) =>
-            var res = false
-            val txBloomsWrapper = txBlooms.map(ByteArrayWrapper(_))
-            val queryBloomsWrapper = queryBloomTopics.map(ByteArrayWrapper(_))
-            res = txBloomsWrapper.intersect(queryBloomsWrapper).length == queryBloomsWrapper.length
-            res
-          case None => false
-        }
-                                              ))
-  }
-
-  /**
-    * Find common suffixes for two chains starting from forkBlock
+  /** Find common suffixes for two chains starting from forkBlock
     *
     * @param forkBlock the common source of a potential fork (normally just the parent of bestBlock)
     * @param limit     how far back to check for a common block
@@ -385,13 +303,13 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
                                     limit: Int = Int.MaxValue): (Seq[ModifierId], Seq[ModifierId]) = {
 
     /* The entire chain that was "best" */
-    val loserChain = chainBack(bestBlock, isGenesis, limit).get.map(_._2)
+    val loserChain = getIdsFrom(bestBlock, isGenesis, limit).get
 
     /* `in` specifies whether `loserChain` has this block */
     def in(m: Block): Boolean = loserChain.contains(m.id)
 
     /* Finds the chain of blocks back from `forkBlock` until a common block to `loserChain` is found */
-    val winnerChain = chainBack(forkBlock, in, limit).get.map(_._2)
+    val winnerChain = getIdsFrom(forkBlock, in, limit).get
 
     val i = loserChain.indexWhere(id => id == winnerChain.head)
 
@@ -400,21 +318,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
 
   }.ensuring(r => r._1.head == r._2.head)
 
-  /**
-    * Average delay in milliseconds between last \$blockNum blocks starting from \$block
-    * Debug only
-    *
-    * @param id modifier to start at
-    * @param blockNum number of blocks to traverse back
-    */
-  def averageDelay(id: ModifierId, blockNum: Int): Try[Long] = Try {
-    val block = modifierById(id).get
-    val c = chainBack(block, isGenesis, blockNum).get.map(_._2)
-    (block.timestamp - modifierById(c.head).get.timestamp) / c.length
-  }
-
-  /**
-    * Report that modifier is valid from point of view of the state component
+  /** Report that modifier is valid from point of view of the state component
     *
     * @param modifier - valid modifier
     * @return modified history
@@ -424,8 +328,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     this
   }
 
-  /**
-    * Report that modifier is invalid from other nodeViewHolder components point of view
+  /** Report that modifier is invalid from other nodeViewHolder components point of view
     *
     * @param modifier     - invalid modifier
     * @param progressInfo - what suffix failed to be applied because of an invalid modifier
@@ -437,7 +340,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     val progInfo: ProgressInfo[Block] = ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
     (new History(storage, fullBlockProcessor, validators), progInfo)
   }
-  
+
   /** Whether a modifier could be applied to the history
     *
     * @param modifier - modifier to apply
@@ -477,8 +380,8 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     def idInList(id: ModifierId): Boolean = from.exists(f => f._2 == id)
 
     /* Extend chain back until end of `from` is found, then return <size> blocks continuing from that point */
-    chainBack(bestBlock, inList) match {
-      case Some(chain) if chain.exists(id => idInList(id._2)) => Some(chain.take(size))
+    getIdsFrom(bestBlock, inList) match {
+      case Some(chain) if chain.exists(id => idInList(id)) => Some(chain.take(size).map(id => id.getModType -> id))
       case Some(_) =>
         log.warn("Found chain without ids from remote")
         None
@@ -486,29 +389,55 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     }
   }
 
-  /** Ids of modifiers, that node with info should download and apply to synchronize */
+  /** Retrieve a segment of our chain to send to a remote node. This method works by identifying
+    * a common ancestor by comparing the SyncInfo sent from the remote peer to our chain. If a
+    * common ancestor can be found in the local history, an extension from that ancestor is
+    * returned as a set of continuationIds for the remote node to request their missing modifiers.
+    * NOTE: SyncInfo is computed from the remote node's tip down their chain, while continuationId's
+    *       are computer from a common ancestor up towards the tip of the local node's chain. The
+    *       local node is only able to identify a common ancestor if the remote SyncInfo contains
+    *       a block that the local node knows about. For bootstrapping this works well because there
+    *       is no limit to how deep the common ancestor can be. However, in the case where the remote node
+    *       is on a fork with an ancestor more than SyncInfo.lastBlockIds.length back, the local node
+    *       will be unable to identify a common ancestor and therefore will be unable to send a list
+    *       of continuationId's
+    *
+    *       //TODO: JAA - we should use the height that is now included in a block to our advantage as
+    *                     this will allow us to overcome the limitation of finding a common ancestor.
+    *                     Proabbly want to add a field to SyncInfo of `lastBlockHeight` so we can
+    *                     immediately identify the common ancestor instead of having to scan our chain.
+    * @param info a message from a remote node containing the last block id's they are aware of
+    * @param size limit of the number of block id's to send to the remote node
+    * @return a seq of modifier ids to help the remote node sync up their chain
+    */
   override def continuationIds(info: BifrostSyncInfo, size: Int): ModifierIds = {
+    /** Helper function to avoid repetition */
+    def getChainIds(heightFrom: Long): ModifierIds =
+      storage
+        .idAtHeightOf(heightFrom)
+        .flatMap(modifierById)
+        .flatMap(getIdsFrom(_, _ => false, size))
+        .map(_.map(mod => mod.getModType -> mod))
+        .get
+
     // case where we are at genesis
     if (isEmpty) {
       info.startingPoints
 
     // case where the remote is at genesis
-    } else if(info.lastBlockIds.isEmpty) {
+    } else if (info.lastBlockIds.isEmpty) {
       val heightFrom = Math.min(height, size)
-      val block = storage.modifierById(storage.idAtHeight(heightFrom)).get
-      chainBack(block, _ ⇒ false, size).get
+      getChainIds(heightFrom)
 
     // case where the remote node is younger or on a recent fork (branchPoint less than size blocks back)
     } else {
-      val ids = info.lastBlockIds
-      val branchPointOpt: Option[ModifierId] = ids.view.reverse
-        .find(m ⇒ storage.modifierById(m).isDefined).orElse(None)
+      val commonAncestor: Option[ModifierId] =
+        info.lastBlockIds.view.reverse.find(storage.containsModifier).orElse(None)
 
-      branchPointOpt.toSeq.flatMap { branchPoint ⇒
+      commonAncestor.toSeq.flatMap { branchPoint ⇒
         val remoteHeight = storage.heightOf(branchPoint).get
         val heightFrom = Math.min(height, remoteHeight + size)
-        val startBlock = storage.modifierById(storage.idAtHeight(heightFrom)).get
-        chainBack(startBlock, _.id == branchPoint, size).get
+        getChainIds(heightFrom)
       }
     }
   }
@@ -527,45 +456,12 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
       else
         BifrostSyncInfo(startingPoints)
     }
-
-  /**Return last count headers from best headers chain if exist or chain up to genesis otherwise */
-  def lastHeaders(count: Int, offset: Int = 0): IndexedSeq[ModifierId] =
-    lastBlocks(count, bestBlock).map(block => block.id).toIndexedSeq
-
-//  /**
-//    * @param height - block height
-//    * @return ids of headers on chosen height.
-//    *         Seq.empty we don't have any headers on this height (e.g. it is too big or we bootstrap in PoPoW regime)
-//    *         single id if no forks on this height
-//    *         multiple ids if there are forks at chosen height.
-//    *         First id is always from the best headers chain.
-//    */
-  /*def idsAtHeight(height: Int): Seq[ModifierId] =
-    storage.getIndex(heightIdsKey(height: Int))
-      .getOrElse(Array()).grouped(32).map(ModifierId).toSeq
-   */
-
-  /**
-    * If a transaction exists in a block found in history, get it
-    * by its modifier ID
-    * @param txId the modifier ID associated with the transaction
-    * @return an optional transaction from a block
-    */
-  override def transactionById(txId: ModifierId): Option[Transaction] = {
-    storage.blockIdOf(txId).flatMap { id =>
-      storage
-        .modifierById(id)
-        .get
-        .transactions
-        .find(_.id == txId)
-    }
-  }
 }
 
 
 object History extends Logging {
 
-  val GenesisParentId: Block.BlockId = ModifierId(Array.fill(32)(1: Byte))
+  val GenesisParentId: ModifierId = ModifierId.genesisParentId
 
   def readOrGenerate(settings: AppSettings): History = {
     /** Setup persistent on-disk storage */
@@ -579,12 +475,27 @@ object History extends Logging {
     val blockProcessor = BlockProcessor(settings.network.maxChainCacheDepth)
 
     val validators = Seq(
-      new consensus.DifficultyBlockValidator(storage, blockProcessor)
-      // fixme: JAA - 2020.07.19 - why are these commented out?
-      //new ParentBlockValidator(storage),
-      //new SemanticBlockValidator(FastCryptographicHash)
+      new DifficultyBlockValidator(storage, blockProcessor),
+      new SyntaxBlockValidator
     )
 
     new History(storage, blockProcessor, validators)
+  }
+
+  /** Gets the timestamps for 'count' number of blocks prior to (and including) the startBlock */
+  def getTimestamps(storage: Storage, count: Long, startBlock: Block): Vector[Block.Timestamp] = {
+    @tailrec
+    def loop(id: ModifierId, acc: Vector[Block.Timestamp] = Vector()): Vector[Block.Timestamp] = {
+      if (acc.length > count) acc
+      else storage.parentIdOf(id) match {
+        case Some(parentId: ModifierId) =>
+          val parentTimestamp = storage.timestampOf(parentId).get
+          loop(parentId, parentTimestamp +: acc)
+
+        case _ => acc
+      }
+    }
+
+    loop(startBlock.id, Vector(startBlock.timestamp))
   }
 }

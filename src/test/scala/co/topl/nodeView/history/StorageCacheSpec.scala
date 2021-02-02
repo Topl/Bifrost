@@ -1,7 +1,6 @@
 package co.topl.nodeView.history
 
 import co.topl.consensus.consensusHelper.setProtocolMngr
-import co.topl.consensus.protocolMngr
 import co.topl.modifier.block.Block
 import co.topl.utils.CoreGenerators
 import io.iohk.iodb.ByteArrayWrapper
@@ -17,8 +16,7 @@ class StorageCacheSpec extends AnyPropSpec
   /* Initialize protocolMngr */
   setProtocolMngr(settings)
 
-  val fstVersion: Byte = protocolMngr.applicable.map(_.blockVersion).min.get
-  var history: History = generateHistory(fstVersion)
+  var history: History = generateHistory()
 
   property("The genesis block is stored in cache") {
     val genesisBlockId = ByteArrayWrapper(Array.fill(history.storage.storage.keySize)(-1: Byte))
@@ -30,7 +28,7 @@ class StorageCacheSpec extends AnyPropSpec
     val bestBlockIdKey = ByteArrayWrapper(Array.fill(history.storage.storage.keySize)(-1: Byte))
 
     /* Append a new block, make sure it is updated in cache, then drop it */
-    val fstBlock:Block = BlockGen.sample.get.copy(parentId = history.bestBlockId)
+    val fstBlock:Block = blockGen.sample.get.copy(parentId = history.bestBlockId)
     history = history.append(fstBlock).get._1
 
     history.storage.blockCache.getIfPresent(bestBlockIdKey) should not be null
@@ -42,7 +40,7 @@ class StorageCacheSpec extends AnyPropSpec
     history.storage.blockCache.getIfPresent(bestBlockIdKey) shouldBe null
 
     /* Append multiple times */
-    forAll(BlockGen) { blockTemp =>
+    forAll(blockGen) { blockTemp =>
       val block:Block = blockTemp.copy(parentId = history.bestBlockId)
 
       history = history.append(block).get._1
@@ -61,12 +59,12 @@ class StorageCacheSpec extends AnyPropSpec
 
   property("The new block updated is stored in cache") {
 
-    forAll(BlockGen) { blockTemp =>
+    forAll(blockGen) { blockTemp =>
       val block:Block = blockTemp.copy(parentId = history.bestBlockId)
 
       history = history.append(block).get._1
-      history.storage.blockCache.getIfPresent(ByteArrayWrapper(block.id.hashBytes)) shouldEqual
-        history.storage.storage.get(ByteArrayWrapper(block.id.hashBytes))
+      history.storage.blockCache.getIfPresent(ByteArrayWrapper(block.id.getIdBytes)) shouldEqual
+        history.storage.storage.get(ByteArrayWrapper(block.id.getIdBytes))
     }
   }
 
@@ -96,7 +94,7 @@ class StorageCacheSpec extends AnyPropSpec
   */
 
   property("blockLoader should correctly return a block from storage not found in cache") {
-    val block: Block = BlockGen.sample.get.copy(parentId = history.bestBlockId)
+    val block: Block = blockGen.sample.get.copy(parentId = history.bestBlockId)
     val tempHistory = history.append(block).get._1
 
     tempHistory.storage.blockCache.invalidateAll()

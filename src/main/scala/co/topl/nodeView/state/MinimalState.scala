@@ -8,8 +8,6 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.PersistentNodeViewModifier
 import co.topl.nodeView.NodeViewComponent
 import co.topl.nodeView.state.MinimalState.VersionTag
-import co.topl.nodeView.state.box.GenericBox
-import co.topl.nodeView.state.box.proposition.Proposition
 
 import scala.util.Try
 
@@ -17,8 +15,8 @@ import scala.util.Try
   * Abstract functional interface of state which is a result of a sequential blocks applying
   */
 
-trait MinimalState[BX <: GenericBox[_ <: Proposition, _], M <: PersistentNodeViewModifier, MS <: MinimalState[BX, M, MS]]
-    extends NodeViewComponent with StateReader[BX]{
+trait MinimalState[M <: PersistentNodeViewModifier, MS <: MinimalState[M, MS]]
+    extends NodeViewComponent with StateReader{
 
   self: MS =>
 
@@ -28,7 +26,7 @@ trait MinimalState[BX <: GenericBox[_ <: Proposition, _], M <: PersistentNodeVie
 
   def rollbackTo(version: VersionTag): Try[MS]
 
-  def getReader: StateReader[BX] = this
+  def getReader: StateReader = this
 }
 
 object MinimalState {

@@ -1,33 +1,37 @@
 package co.topl.nodeView.state.box
 
-import co.topl.nodeView.state.ProgramId
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.attestation.Evidence
+import co.topl.nodeView.state.box.Box.BoxType
+import co.topl.utils.{Identifiable, Identifier}
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor, Json}
 
-case class StateBox(override val proposition: PublicKey25519Proposition,
-                    override val nonce: Long,
-                    override val value: ProgramId,
+case class StateBox(override val evidence   : Evidence,
+                    override val nonce      : Box.Nonce,
+                    override val value      : ProgramId,
                     state: Json //  JSON representation of JS Variable Declarations
-                    ) extends ProgramBox(proposition, nonce, value) {
-
-  override lazy val typeOfBox: String = "StateBox"
-}
+                    ) extends ProgramBox(evidence, nonce, value)
 
 object StateBox {
+  val typePrefix: BoxType = 12: Byte
+  val typeString: String = "StateBox"
+
+  implicit val identifier: Identifiable[StateBox] = Identifiable.instance { () =>
+    Identifier(typeString, typePrefix)
+  }
 
   implicit val jsonEncoder: Encoder[StateBox] = { box: StateBox =>
-    (ProgramBox.jsonEncode(box) ++ Map(
+    (Box.jsonEncode[ProgramId, StateBox](box) ++ Map(
       "state" -> box.state.asJson,
     )).asJson
   }
 
   implicit val jsonDecoder: Decoder[StateBox] = ( c: HCursor ) =>
     for {
-      b <- ProgramBox.jsonDecode(c)
+      b <- Box.jsonDecode[ProgramId](c)
       state <- c.downField("state").as[Json]
     } yield {
-      val (proposition, nonce, programId) = b
-      StateBox(proposition, nonce, programId, state)
+      val (evidence, nonce, programId) = b
+      StateBox(evidence, nonce, programId, state)
     }
 }

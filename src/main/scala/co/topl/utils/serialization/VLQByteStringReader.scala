@@ -1,8 +1,8 @@
 package co.topl.utils.serialization
 
-import java.nio.ByteOrder
-
 import akka.util.ByteString
+
+import java.nio.ByteOrder
 
 class VLQByteStringReader(byteString: ByteString) extends VLQReader {
 
@@ -25,6 +25,12 @@ class VLQByteStringReader(byteString: ByteString) extends VLQReader {
     */
   @inline
   override def peekByte(): Byte = byteString(position)
+
+  @inline
+  override def getBoolean(): Boolean = {
+    if (getByte() == 0x01) true
+    else false
+  }
 
   @inline
   override def getByte(): Byte = {

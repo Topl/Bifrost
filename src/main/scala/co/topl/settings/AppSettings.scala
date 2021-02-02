@@ -3,6 +3,7 @@ package co.topl.settings
 import java.io.File
 import java.net.InetSocketAddress
 
+import co.topl.http.api.NamespaceSelector
 import co.topl.utils.{Logging, NetworkTimeProviderSettings}
 import com.typesafe.config.{Config, ConfigFactory}
 import net.ceedubs.ficus.Ficus._
@@ -21,12 +22,12 @@ case class ApplicationSettings(
   cacheSize:   Int
 )
 
-case class RESTApiSettings(
-  bindAddress: InetSocketAddress,
-  apiKeyHash:  String,
-  corsAllowed: Boolean,
-  timeout:     FiniteDuration,
-  verboseAPI:  Boolean
+case class RPCApiSettings(
+  bindAddress:       InetSocketAddress,
+  apiKeyHash:        String,
+  timeout:           FiniteDuration,
+  verboseAPI:        Boolean,
+  namespaceSelector: NamespaceSelector
 )
 
 case class NetworkSettings(
@@ -70,16 +71,22 @@ case class NetworkSettings(
 case class ForgingSettings(
   blockGenerationDelay: FiniteDuration,
   protocolVersions:     List[ProtocolSettings],
+  forgeOnStartup:       Boolean,
   privateTestnet:       Option[PrivateTestnetSettings]
 )
 
-case class PrivateTestnetSettings(numTestnetAccts: Int, testnetBalance: Long, initialDifficulty: Long)
+case class PrivateTestnetSettings(
+  numTestnetAccts:   Int,
+  testnetBalance:    Long,
+  initialDifficulty: Long,
+  genesisSeed:       Option[String]
+)
 
 case class AppSettings(
   application: ApplicationSettings,
   network:     NetworkSettings,
   forging:     ForgingSettings,
-  restApi:     RESTApiSettings,
+  rpcApi:      RPCApiSettings,
   ntp:         NetworkTimeProviderSettings
 )
 
@@ -93,7 +100,8 @@ object AppSettings extends Logging with SettingsReaders {
     * @return application settings
     */
   def read(startupOpts: StartupOpts = StartupOpts.empty): AppSettings = {
-    fromConfig(readConfig(startupOpts))
+    val settingFromConfig = fromConfig(readConfig(startupOpts))
+    startupOpts.runtimeParams.overrideWithCmdArgs(settingFromConfig)
   }
 
   /** Produces an application settings class by reading the specified HOCON configuration file

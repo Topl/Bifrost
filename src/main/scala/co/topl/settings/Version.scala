@@ -9,11 +9,8 @@ import co.topl.utils.serialization.{BytesSerializable, _}
   *                    interface should work the same
   * @param thirdDigit Minor changes
   */
-class Version(
-  val firstDigit:  Byte,
-  val secondDigit: Byte,
-  val thirdDigit:  Byte
-) extends BytesSerializable
+class Version(val firstDigit: Byte, val secondDigit: Byte, val thirdDigit: Byte)
+    extends BytesSerializable
     with Ordered[Version] {
 
   override type M = Version

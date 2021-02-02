@@ -3,21 +3,24 @@ package co.topl.network
 import java.net.InetSocketAddress
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import co.topl.modifier.NodeViewModifier.{ModifierTypeId, idsToString}
-import co.topl.modifier.block.PersistentNodeViewModifier
+import co.topl.attestation.Proposition
+import co.topl.modifier.NodeViewModifier.{idsToString, ModifierTypeId}
+import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.network.ModifiersStatus.Requested
 import co.topl.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
 import co.topl.network.message.{InvSpec, MessageSpec, ModifiersSpec, RequestModifierSpec, SyncInfo, SyncInfoSpec, _}
 import co.topl.network.peer.{ConnectedPeer, PenaltyType}
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{
+  GetNodeViewChanges,
+  ModifiersFromRemote,
+  TransactionsFromRemote
+}
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.state.box.GenericBox
-import co.topl.nodeView.state.box.proposition.Proposition
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.serialization.BifrostSerializer
 import co.topl.utils.{Logging, MalformedModifierError}
@@ -34,18 +37,14 @@ import scala.util.{Failure, Success}
   * @tparam TX transaction
   */
 class NodeViewSynchronizer[
-  TX <: Transaction,
+  TX <: Transaction.TX,
   SI <: SyncInfo,
   PMOD <: PersistentNodeViewModifier,
   HR <: HistoryReader[PMOD, SI]: ClassTag,
   MR <: MemPoolReader[TX]: ClassTag
-](
-  networkControllerRef: ActorRef,
-  viewHolderRef:        ActorRef,
-  settings:             AppSettings,
-  appContext:           AppContext
-)(implicit ec:          ExecutionContext)
-    extends Synchronizer
+](networkControllerRef: ActorRef, viewHolderRef: ActorRef, settings: AppSettings, appContext: AppContext)(implicit
+  ec:                   ExecutionContext
+) extends Synchronizer
     with Logging {
 
   /** Import the types of messages this actor may SEND */
@@ -84,7 +83,7 @@ class NodeViewSynchronizer[
     networkControllerRef ! RegisterMessageSpecs(appContext.nodeViewSyncRemoteMessages.toSeq, self)
 
     /** register for application initialization message */
-    context.system.eventStream.subscribe(self, NodeViewReady.getClass)
+    context.system.eventStream.subscribe(self, classOf[NodeViewReady])
 
     /** register as a listener for peers got connected (handshaked) or disconnected */
     context.system.eventStream.subscribe(self, classOf[HandshakedPeer])
@@ -120,7 +119,7 @@ class NodeViewSynchronizer[
     nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS ----------- //
-  private def initialization(): Receive = { case NodeViewReady =>
+  private def initialization(): Receive = { case NodeViewReady(_) =>
     log.info(s"${Console.YELLOW}NodeViewSynchronizer transitioning to the operational state${Console.RESET}")
     context become operational
   }
@@ -358,7 +357,7 @@ class NodeViewSynchronizer[
     status: HistoryComparisonResult,
     ext:    Seq[(ModifierTypeId, ModifierId)]
   ): Unit =
-    ext.groupBy(_._1).mapValues(_.map(_._2)).foreach { case (mid, mods) =>
+    ext.groupBy(_._2.getModType).mapValues(_.map(_._2)).foreach { case (mid, mods) =>
       val msg = Message(invSpec, Right(InvData(mid, mods)), None)
       networkControllerRef ! SendToNetwork(msg, SendToPeer(remote))
     }
@@ -426,10 +425,12 @@ class NodeViewSynchronizer[
           case Transaction.modifierTypeId => mempool.getAll(invData.ids)
           case _: ModifierTypeId          => invData.ids.flatMap(id => history.modifierById(id))
         }
+
         log.debug(
           s"Requested ${invData.ids.length} modifiers ${idsToString(invData)}, " +
           s"sending ${objs.length} modifiers ${idsToString(invData.typeId, objs.map(_.id))} "
         )
+
         self ! ResponseFromLocal(remote, invData.typeId, objs)
 
       case _ =>
@@ -453,15 +454,15 @@ class NodeViewSynchronizer[
     val requestedModifiers = processSpam(remote, typeId, modifiers)
 
     modifierSerializers.get(typeId) match {
-      case Some(serializer: BifrostSerializer[TX] @unchecked) if typeId == Transaction.modifierTypeId =>
+      case Some(serializer: BifrostSerializer[TX @unchecked]) if typeId == Transaction.modifierTypeId =>
         /** parse all transactions and send them to node view holder */
-        val parsed: Iterable[TX] = parseModifiers(requestedModifiers, serializer, remote)
+        val parsed = parseModifiers(requestedModifiers, serializer, remote)
         viewHolderRef ! TransactionsFromRemote(parsed)
 
-      case Some(serializer: BifrostSerializer[PMOD] @unchecked) =>
+      case Some(serializer: BifrostSerializer[PMOD @unchecked]) if typeId == Block.modifierTypeId =>
         /** parse all modifiers and put them to modifiers cache */
-        val parsed: Iterable[PMOD] = parseModifiers(requestedModifiers, serializer, remote)
-        val valid: Iterable[PMOD] = parsed.filter(validateAndSetStatus(remote, _))
+        val parsed = parseModifiers(requestedModifiers, serializer, remote)
+        val valid = parsed.filter(validateAndSetStatus(remote, _))
         if (valid.nonEmpty) viewHolderRef ! ModifiersFromRemote[PMOD](valid)
 
       case _ =>
@@ -504,15 +505,17 @@ class NodeViewSynchronizer[
     historyReaderOpt match {
       case Some(hr) =>
         hr.applicableTry(pmod) match {
-          case Failure(e) if e.isInstanceOf[MalformedModifierError] =>
+          case Failure(e: Throwable) if e.isInstanceOf[MalformedModifierError] =>
             log.warn(s"Modifier ${pmod.id} is permanently invalid", e)
             deliveryTracker.setInvalid(pmod.id)
             penalizeMisbehavingPeer(remote)
             false
+
           case _ =>
             deliveryTracker.setReceived(pmod.id, remote)
             true
         }
+
       case None =>
         log.error("Got modifiers from remote while history reader is not ready")
         false
@@ -563,7 +566,7 @@ class NodeViewSynchronizer[
 
     /** message type id + message size */
     val batch = mods.takeWhile { case (_, modBytes) =>
-      size += NodeViewModifier.ModifierIdSize + 4 + modBytes.length
+      size += NodeViewModifier.modifierIdSize + 4 + modBytes.length
       size < settings.network.maxPacketSize
     }
 
@@ -611,7 +614,9 @@ object NodeViewSynchronizer {
 
     trait NodeViewHolderEvent
 
-    trait NodeViewChange extends NodeViewHolderEvent
+    trait NodeViewChange[R] extends NodeViewHolderEvent {
+      val reader: R
+    }
 
     /** hierarchy of events regarding modifiers application outcome */
     trait ModificationOutcome extends NodeViewHolderEvent
@@ -639,11 +644,11 @@ object NodeViewSynchronizer {
     case class DisconnectedPeer(remote: InetSocketAddress) extends PeerManagerEvent
 
     case class ChangedHistory[HR <: HistoryReader[_ <: PersistentNodeViewModifier, _ <: SyncInfo]](reader: HR)
-        extends NodeViewChange
+        extends NodeViewChange[HR]
 
-    case class ChangedMempool[MR <: MemPoolReader[_ <: Transaction]](mempool: MR) extends NodeViewChange
+    case class ChangedMempool[MR <: MemPoolReader[_ <: Transaction.TX]](reader: MR) extends NodeViewChange[MR]
 
-    case class ChangedState[SR <: StateReader[_ <: GenericBox[_ <: Proposition, _]]](reader: SR) extends NodeViewChange
+    case class ChangedState[SR <: StateReader](reader: SR) extends NodeViewChange[SR]
 
     case class NewOpenSurface(newSurface: Seq[ModifierId]) extends NodeViewHolderEvent
 
@@ -661,7 +666,7 @@ object NodeViewSynchronizer {
     case class FailedTransaction(transactionId: ModifierId, error: Throwable, immediateFailure: Boolean)
         extends ModificationOutcome
 
-    case class SuccessfulTransaction[TX <: Transaction](transaction: TX) extends ModificationOutcome
+    case class SuccessfulTransaction[TX <: Transaction.TX](transaction: TX) extends ModificationOutcome
 
     case class SyntacticallyFailedModification[PMOD <: PersistentNodeViewModifier](modifier: PMOD, error: Throwable)
         extends ModificationOutcome
@@ -689,7 +694,7 @@ object NodeViewSynchronizer {
 object NodeViewSynchronizerRef {
 
   def props[
-    TX <: Transaction,
+    TX <: Transaction.TX,
     SI <: SyncInfo,
     PMOD <: PersistentNodeViewModifier,
     HR <: HistoryReader[PMOD, SI]: ClassTag,
@@ -703,7 +708,7 @@ object NodeViewSynchronizerRef {
     Props(new NodeViewSynchronizer[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, settings, appContext))
 
   def apply[
-    TX <: Transaction,
+    TX <: Transaction.TX,
     SI <: SyncInfo,
     PMOD <: PersistentNodeViewModifier,
     HR <: HistoryReader[PMOD, SI]: ClassTag,

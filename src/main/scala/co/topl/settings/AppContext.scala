@@ -22,23 +22,20 @@ class AppContext(
 )(implicit ec:     ExecutionContext) {
 
   /** Save your address for sending to others peers */
-  val externalNodeAddress: Option[InetSocketAddress] = {
+  val externalNodeAddress: Option[InetSocketAddress] =
     settings.network.declaredAddress orElse {
       upnpGateway.map(u => new InetSocketAddress(u.externalAddress, u.mappedPort))
     }
-  }
 
   /** Save a common time provider to be used */
   val timeProvider = new NetworkTimeProvider(settings.ntp)
 
   /** Save chosen network for loading genesis config */
-  val networkType: NetworkType = {
-    val opts = startupOpts.runtimeParams
+  val networkType: NetworkType =
     startupOpts.networkTypeOpt match {
-      case Some(network) => NetworkType.fillNetworkType(network, opts)
-      case None          => NetworkType.PrivateNet(opts)
+      case Some(network) => network
+      case None          => NetworkType.PrivateNet
     }
-  }
 
   /** Enumerate features and message specs present for communicating between peers */
   val features: Seq[peer.PeerFeature] = Seq()

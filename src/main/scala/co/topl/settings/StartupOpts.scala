@@ -28,9 +28,36 @@ object StartupOpts {
   * useful to define them as command line parameters instead.
   *
   * @param seed a string used to deterministically generate key files (only applicable for local and private networks)
-  * @param startWithForging a boolean controlling whether the node should attempt forging immediately on start
+  * @param forgeOnStartup a boolean controlling whether the node should attempt forging immediately on start
+  * @param apiKeyHash hash of API key
   */
-final case class RuntimeOpts(seed: Option[String] = None, startWithForging: Boolean = false)
+final case class RuntimeOpts(
+  seed:           Option[String] = None,
+  forgeOnStartup: Boolean = false,
+  apiKeyHash:     Option[String] = None
+) {
+
+  /** Helper method to replace settings values with parameters passed from command line arguments
+    * @param appSettings application settings read from the configuration file
+    * @return an updated appSettings instance
+    */
+  def overrideWithCmdArgs(appSettings: AppSettings): AppSettings = {
+    val rpcApiSettings = appSettings.rpcApi.copy(
+      apiKeyHash = apiKeyHash.fold[String](appSettings.rpcApi.apiKeyHash)(a => a)
+    )
+    val privateTestnetSettings = appSettings.forging.privateTestnet.map(_.copy(genesisSeed = seed))
+    val forgingSettings =
+      appSettings.forging.copy(
+        forgeOnStartup = appSettings.forging.forgeOnStartup || forgeOnStartup,
+        privateTestnet = privateTestnetSettings
+      )
+
+    appSettings.copy(
+      rpcApi = rpcApiSettings,
+      forging = forgingSettings
+    )
+  }
+}
 
 object RuntimeOpts {
   def empty: RuntimeOpts = RuntimeOpts()

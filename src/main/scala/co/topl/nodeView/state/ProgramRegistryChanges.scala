@@ -1,7 +1,6 @@
 package co.topl.nodeView.state
 
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ProgramCreation, ProgramMethodExecution, ProgramTransfer}
 import co.topl.nodeView.state.box.ProgramBox
 
 import scala.util.Try
@@ -24,9 +23,9 @@ object ProgramRegistryChanges {
       // extract the needed box data from all transactions within a block
       val (removeSeq: Seq[ProgramBox], updateSeq: Seq[ProgramBox])  =
         mod.transactions.map {
-              case tx: ProgramMethodExecution => (Seq(), tx.newBoxes.toSeq)
-              case tx: ProgramCreation        => (Seq(), tx.newBoxes.toSeq)
-              case tx: ProgramTransfer        => (Seq(), tx.newBoxes.toSeq)
+//              case tx: ProgramMethodExecution => (Seq(), tx.newBoxes.toSeq)
+//              case tx: ProgramCreation        => (Seq(), tx.newBoxes.toSeq)
+//              case tx: ProgramTransfer        => (Seq(), tx.newBoxes.toSeq)
               // case tx: ProgramDeletion     => (Some(???),None) // <-- this is the only case that should result in removing a program id
               case _                          => (Seq(), Seq()) // JAA - not sure if this is needed but added to be exhaustive
             }.foldLeft((Seq[ProgramBox](), Seq[ProgramBox]()))((acc, txData) => {

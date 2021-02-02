@@ -1,27 +1,47 @@
 package co.topl.utils
 
-import co.topl.crypto.{FastCryptographicHash, Signature25519}
-import co.topl.modifier.transaction.Transaction.{Nonce, Value}
+import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
+import co.topl.attestation.{PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
+import co.topl.consensus.KeyRing
+import co.topl.consensus.genesis.PrivateTestnet
+import co.topl.crypto.KeyfileCurve25519
+import co.topl.modifier.ModifierId
+import co.topl.modifier.block.Block
+import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction._
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{PublicKeyNoncedBox, _}
+import co.topl.nodeView.history.History
+import co.topl.nodeView.state.State
+import co.topl.nodeView.state.box.{AssetCode, AssetValue, SecurityRoot}
 import co.topl.program._
-import com.google.common.primitives.{Bytes, Longs}
+import co.topl.settings.AppSettings
 import io.circe.syntax._
 import org.scalacheck.Gen
-import scorex.crypto.signatures.Signature
-import scorex.util.encode.Base58
+import scorex.crypto.hash.Blake2b256
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 trait ValidGenerators extends CoreGenerators {
 
-  lazy val validBifrostTransactionSeqGen: Gen[Seq[Transaction]] = for {
+
+  val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
+    KeyRing(settings.application.keyFileDir.get, KeyfileCurve25519)
+
+  val genesisBlock: Block = PrivateTestnet((_: Int, _: Option[String]) => {
+    keyRing.generateNewKeyPairs(num = 3) match {
+      case Success(keys) => keys.map(_.publicImage)
+      case Failure(ex)   => throw ex
+    } }, settings).getGenesisBlock.get._1
+
+  val genesisBlockId: ModifierId = genesisBlock.id
+
+  val state: State = genesisState(settings)
+
+  lazy val validBifrostTransactionSeqGen: Gen[Seq[TX]] = for {
     seqLen <- positiveMediumIntGen
   } yield {
     0 until seqLen map {
       _ => {
-        val g: Gen[Transaction] = sampleUntilNonEmpty(Gen.oneOf(transactionTypes))
+        val g: Gen[TX] = sampleUntilNonEmpty(Gen.oneOf(transactionTypes))
         sampleUntilNonEmpty(g)
       }
     }
@@ -32,228 +52,87 @@ trait ValidGenerators extends CoreGenerators {
     investor <- propositionGen
     hub <- propositionGen
     executionBuilder <- validExecutionBuilderGen().map(_.json)
-    id <- genBytesList(FastCryptographicHash.DigestSize)
+    id <- genBytesList(Blake2b256.DigestSize)
   } yield {
     Program(Map(
       "parties" -> Map(
-        Base58.encode(producer.pubKeyBytes) -> "producer",
-        Base58.encode(investor.pubKeyBytes) -> "investor",
-        Base58.encode(hub.pubKeyBytes) -> "hub"
+        producer.toString -> "producer",
+        investor.toString -> "investor",
+        hub.toString -> "hub"
       ).asJson,
       "executionBuilder" -> executionBuilder,
       "lastUpdated" -> System.currentTimeMillis().asJson
     ).asJson, id)
   }
 
-  lazy val validProgramCreationGen: Gen[ProgramCreation] = for {
-    executionBuilder <- validExecutionBuilderGen()
-    timestamp <- positiveLongGen
-    numInvestmentBoxes <- positiveTinyIntGen
-    data <- stringGen
-    maxFee <- positiveTinyIntGen
-  } yield {
-    Try {
-      val senderKeyPair = keyPairSetGen.sample.get.head
-      val sender = senderKeyPair._2
-
-      val preInvestmentBoxes: IndexedSeq[(Nonce, Long)] = (0 until numInvestmentBoxes)
-        .map { _ =>
-          sampleUntilNonEmpty(positiveLongGen) -> (sampleUntilNonEmpty(positiveLongGen) / 1e5.toLong + 1L)
-        }
-
-      val stateTwo =
-        s"""
-           |{ "b": 0 }
-         """.stripMargin.asJson
-
-      val stateThree =
-        s"""
-           |{ "c": 0 }
-         """.stripMargin.asJson
-
-      val stateBoxTwo = StateBox(sender, 1L, programIdGen.sample.get, stateTwo)
-      val stateBoxThree = StateBox(sender, 2L, programIdGen.sample.get, stateThree)
-
-      val readOnlyIds = Seq(stateBoxTwo.value, stateBoxThree.value)
-
-      val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] =
-        Map(sender -> IndexedSeq(preFeeBoxGen(0L, maxFee).sample.get))
-
-      val fees = feePreBoxes.map { case (prop, preBoxes) =>
-        prop -> preBoxes.map(_._2).sum
-      }
-
-      val falseSig = Map(sender -> Signature25519(Signature @@ Array.emptyByteArray))
-      val pc = ProgramCreation(executionBuilder, readOnlyIds, preInvestmentBoxes, sender, falseSig, feePreBoxes, fees, timestamp, data)
-      val signature = Map(sender -> senderKeyPair._1.sign(pc.messageToSign))
-
-      pc.copy(signatures = signature)
-    } match {
-      case Success(s) => s
-      case Failure(e) => throw e.getCause
-    }
-  }
-
-  lazy val validProgramMethods: List[String] = List("add")
-
-  lazy val semanticallyValidProgramMethodExecutionGen: Gen[ProgramMethodExecution] = for {
-    timestamp <- positiveLongGen.map(_ / 3)
-    data <- stringGen
-    sbProgramId <- programIdGen
-    cbProgramId <- programIdGen
-    exProgramId <- programIdGen
-  } yield {
-    val senderKeyPair = keyPairSetGen.sample.get.head
-    val sender = senderKeyPair._2
-
-    /* TODO: Don't know why this re-sampling is necessary here -- but should figure that out */
-    var executionBuilderOpt = validExecutionBuilderGen().sample
-    while (executionBuilderOpt.isEmpty) executionBuilderOpt = validExecutionBuilderGen().sample
-
-    val methodName = "add" //sampleUntilNonEmpty(Gen.oneOf(executionBuilder.core.registry.keys.toSeq))
-
-    val state = Map("a" -> "0").asJson
-
-    val stateBox = StateBox(sender, 0L, sbProgramId, state)
-    val codeBox = CodeBox(sender, 1L, cbProgramId, Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number", "Number")))
-
-    //    val proposition = MofNProposition(1, parties.map(_.pubKeyBytes).toSet)
-    val executionBox = ExecutionBox(sender, 2L, exProgramId, Seq(stateBox.value), Seq(codeBox.value))
-
-
-    val boxAmounts: Seq[Long] = splitAmongN(sampleUntilNonEmpty(positiveLongGen),
-      sampleUntilNonEmpty(positiveTinyIntGen),
-      minShareSize = 0) match {
-      case Success(amounts) => amounts
-      case f: Failure[_] => throw f.exception
-    }
-
-    val feeBoxes: Seq[(Nonce, Long)] = boxAmounts
-      .map { boxAmount => sampleUntilNonEmpty(preFeeBoxGen(boxAmount, boxAmount)) }
-
-    val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Nonce)]] =
-      Map(sender -> feeBoxes.toIndexedSeq)
-
-    val feeBoxIdKeyPairs: IndexedSeq[(BoxId, PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq
-      .flatMap {
-        case (prop, v) =>
-          v.map {
-            case (nonce, _) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
-          }
-      }
-
-    val senderFeePreBoxes = feePreBoxes(sender)
-    val fees = Map(sender -> senderFeePreBoxes.map(_._2).sum)
-
-    val parameters = {}.asJson
-
-    val hashNoNonces = FastCryptographicHash(
-      executionBox.id.hashBytes ++
-        methodName.getBytes ++
-        sender.pubKeyBytes ++
-        parameters.noSpaces.getBytes ++
-        (executionBox.id.hashBytes ++ feeBoxIdKeyPairs.flatMap(_._1.hashBytes)) ++
-        Longs.toByteArray(timestamp) ++
-        fees.flatMap { case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
-    )
-
-    val messageToSign = Bytes.concat(FastCryptographicHash(executionBox.bytes ++ hashNoNonces), data.getBytes)
-    val signature = Map(sender -> senderKeyPair._1.sign(messageToSign))
-
-    ProgramMethodExecution(
-      executionBox,
-      Seq(stateBox),
-      Seq(codeBox),
-      methodName,
-      parameters,
-      sender,
-      signature,
-      feePreBoxes,
-      fees,
-      timestamp,
-      data)
-  }
-
-
-  lazy val validPolyTransferGen: Gen[PolyTransfer] = for {
+  lazy val validPolyTransferGen: Gen[PolyTransfer[_]] = for {
+    from <- fromSeqGen
+    to <- toSeqGen
+    attestation <- attestationGen
+    key <- publicKeyPropositionCurve25519Gen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
     data <- stringGen
   } yield {
-    val fromKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
-    val from = IndexedSeq((fromKeyPairs._1, testingValue))
-    val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
-    val to = IndexedSeq((toKeyPairs._2, 4L))
 
-    PolyTransfer(from, to, fee, timestamp, data)
+    val tx = PolyTransfer(from, to, attestation, fee, timestamp, Some(data))
+    val sig = key._1.sign(tx.messageToSign)
+    tx.copy(attestation = Map(key._2 -> sig))
   }
 
-  private val testingValue: Value = Longs
-    .fromByteArray(FastCryptographicHash("Testing")
-      .take(Longs.BYTES))
-
-  lazy val validArbitTransferGen: Gen[ArbitTransfer] = for {
-    _ <- fromSeqGen
-    _ <- toSeqGen
+  lazy val validArbitTransferGen: Gen[ArbitTransfer[_]] = for {
+    from <- fromSeqGen
+    to <- toSeqGen
+    attestation <- attestationGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
     data <- stringGen
   } yield {
-    val fromKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
-    val from = IndexedSeq((fromKeyPairs._1, testingValue))
-    val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
-    val to = IndexedSeq((toKeyPairs._2, 4L))
 
-    ArbitTransfer(from, to, fee, timestamp, data)
+    ArbitTransfer(from, to, attestation, fee, timestamp, Some(data))
   }
 
-  lazy val validCoinbaseTransactionGen: Gen[Coinbase] = for {
-    _ <- toSeqGen
-    amount <- positiveLongGen
-    timestamp <- positiveLongGen
-    id <- modifierIdGen
-  } yield {
-    val toKeyPair = sampleUntilNonEmpty(keyPairSetGen).head
-    val rawTx = Coinbase.createRaw(toKeyPair._2, amount, timestamp, id)
-    val sig = Map(toKeyPair._2 -> toKeyPair._1.sign(rawTx.messageToSign))
-    rawTx.copy(signatures = sig)
-  }
-
-  lazy val validAssetTransferGen: Gen[AssetTransfer] = for {
-    _ <- fromSeqGen
-    _ <- toSeqGen
+  lazy val validAssetTransferGen: Gen[AssetTransfer[_]] = for {
+    from <- fromSeqGen
+    to <- assetToSeqGen
+    attestation <- attestationGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
-    hub <- propositionGen
-    assetCode <- stringGen
     data <- stringGen
   } yield {
-    val fromKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
-    val from = IndexedSeq((fromKeyPairs._1, testingValue))
-    val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
-    val to = IndexedSeq((toKeyPairs._2, 4L))
 
-    AssetTransfer(from, to, hub, assetCode, fee, timestamp, data)
+    AssetTransfer(from, to, attestation, fee, timestamp, Some(data), minting = true)
   }
 
-  lazy val validAssetCreationGen: Gen[AssetCreation] = for {
-    _ <- toSeqGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    issuer <- keyPairSetGen
-    assetCode <- stringGen
-    data <- stringGen
-  } yield {
-    val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
-    val to = IndexedSeq((toKeyPairs._2, 4L))
+  def genesisState(settings: AppSettings, genesisBlockWithVersion: Block = genesisBlock): State = {
+    History.readOrGenerate(settings).append(genesisBlock)
+    State.genesisState(settings, Seq(genesisBlockWithVersion))
+  }
 
-    val oneHub = issuer.head
+  def validAssetTransfer(
+    keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+    state: State,
+    fee: Long = 1L,
+    minting: Boolean = false
+  ): Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = {
+    val sender = keyRing.addresses.head
+    val prop = keyRing.lookupPublicKey(sender).get
+    val asset = AssetValue(1, AssetCode(1: Byte, sender, "test"), SecurityRoot.empty)
+    val recipients = IndexedSeq((sender, asset))
+    val rawTx = AssetTransfer.createRaw(
+      state,
+      recipients,
+      IndexedSeq(sender),
+      changeAddress = sender,
+      None,
+      fee,
+      data = None,
+      minting
+    ).get
 
-    val messageToSign = AssetCreation(to, Map(), assetCode, oneHub._2, fee, timestamp, data).messageToSign
-
-    val signatures = Map(oneHub._2 -> oneHub._1.sign(messageToSign))
-
-    AssetCreation(to, signatures, assetCode, oneHub._2, fee, timestamp, data)
+    val sig = keyRing.signWithAddress(sender, rawTx.messageToSign).get
+    val tx = rawTx.copy(attestation = Map(prop -> sig))
+    tx
   }
 }
 

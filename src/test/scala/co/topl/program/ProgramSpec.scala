@@ -1,17 +1,15 @@
 package co.topl.program
 
-import java.time.Instant
-
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.utils.{CoreGenerators, ValidGenerators}
 import io.circe.{Json, JsonObject}
-import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scorex.crypto.signatures.{Curve25519, PublicKey}
 
-import scala.util.{Failure, Random, Success, Try}
+import java.time.Instant
+import scala.util.{Failure, Success, Try}
 
 class ProgramSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
@@ -19,24 +17,6 @@ class ProgramSpec extends AnyPropSpec
   with Matchers
   with CoreGenerators
   with ValidGenerators {
-
-    //TODO Replace with
-    /*property("Calling a method not in the program will throw an error") {
-      forAll(programGen) {
-        c: Program => {
-          forAll(stringGen.suchThat(!validProgramMethods.contains(_))) {
-            m: String => {
-              val possibleArgs = JsonObject.empty
-
-              val party = propositionGen.sample.get
-
-              val result = Program.execute(c, m)(party)(possibleArgs)
-              assert(result.isFailure && result.failed.get.isInstanceOf[MatchError])
-            }
-          }
-        }
-      }
-    }*/
 
   property("Json works properly for ExecutionBuilderTerms") {
     forAll(validExecutionBuilderTermsGen) {
@@ -47,28 +27,18 @@ class ProgramSpec extends AnyPropSpec
     }
   }
 
-  property("Cannot create ExecutionBuilderTerms with too long of a string") {
-    forAll(Gen.choose(16 * 1024 + 1, 100000)) {
-      size: Int => {
-        Try {
-          ExecutionBuilderTerms(Random.alphanumeric.take(size).mkString)
-        } shouldBe a[Failure[_]]
-      }
-    }
-  }
-
   def mockExecutionBuilder: Json =
     ExecutionBuilder(
       ExecutionBuilderTerms("testing"),
       "myAssetCode",
       ProgramPreprocessor(
         "test",
-        validInitJsGen.sample.get
+        validInitJsGen().sample.get
       )(JsonObject.empty)
     ).json
 
-  def getMockPublicKeyProposition(fillByte: Byte): PublicKey25519Proposition = {
-    PublicKey25519Proposition(PublicKey @@ Array.fill(Curve25519.KeyLength)(fillByte))
+  def getMockPublicKeyProposition(fillByte: Byte): PublicKeyPropositionCurve25519 = {
+    PublicKeyPropositionCurve25519(PublicKey @@ Array.fill(Curve25519.KeyLength)(fillByte))
   }
 
   property("Can create program") {

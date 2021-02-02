@@ -1,9 +1,8 @@
 package co.topl.nodeView.history
 
-import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.PersistentNodeViewModifier
-import co.topl.modifier.transaction.Transaction
+import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.network.message.SyncInfo
 import co.topl.nodeView.NodeViewComponent
 
@@ -20,7 +19,8 @@ import scala.util.Try
   * To say "longest chain" is the canonical one is simplification, usually some kind of "cumulative difficulty"
   * function has been used instead, even in PoW systems.
   */
-trait GenericHistory[PM <: PersistentNodeViewModifier,
+trait GenericHistory[
+  PM <: PersistentNodeViewModifier,
   SI <: SyncInfo,
   HT <: GenericHistory[PM, SI, HT]
 ] extends NodeViewComponent with HistoryReader[PM, SI] {
@@ -52,13 +52,13 @@ trait GenericHistory[PM <: PersistentNodeViewModifier,
     * @param modifier - modifier to apply
     * @return
     */
-  def applicable(modifier: PM): Boolean = openSurfaceIds().exists(_.hashBytes sameElements modifier.parentId.hashBytes)
+  def applicable(modifier: PM): Boolean = openSurfaceIds().exists(_.getIdBytes sameElements modifier.parentId.getIdBytes)
 
   def modifierById(modifierId: ModifierId): Option[PM]
 
   def modifierById(modifierId: String): Option[PM] = Try(ModifierId(modifierId)).toOption.flatMap(modifierById)
 
-  def transactionById(txId: ModifierId): Option[Transaction]
+  def modifierByHeight(height: Long): Option[PM]
 
   def append(modifier: PM): Try[(HT, ProgressInfo[PM])]
 

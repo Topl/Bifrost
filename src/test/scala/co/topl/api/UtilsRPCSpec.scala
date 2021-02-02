@@ -1,25 +1,22 @@
 package co.topl.api
 
-import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.model.StatusCodes.InternalServerError
 import akka.util.ByteString
-import co.topl.crypto.FastCryptographicHash
-import co.topl.http.api.routes.UtilsApiRoute
+import co.topl.attestation.Address
+import co.topl.nodeView.state.box.AssetCode
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
 import scala.util.{Failure, Success}
 
-class UtilsRPCSpec extends AnyWordSpec
-  with Matchers
-  with RPCMockState {
-
-  val route: Route = UtilsApiRoute(settings.restApi).route
-
+class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
 
   val seedLength: Int = 10
+  val address: Address = keyRing.addresses.head
 
   "Utils RPC" should {
     "Generate random seed" in {
@@ -28,16 +25,22 @@ class UtilsRPCSpec extends AnyWordSpec
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
-           |   "method": "seed",
+           |   "method": "util_seed",
            |   "params": [{}]
            |}
         """.stripMargin)
 
-      httpPOST("/utils/", requestBody) ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").head.asObject.isDefined shouldBe true
-        Base58.decode(((res \\ "result").head \\ "seed").head.asString.get) match {
+
+        val seedString: String = res.hcursor.downField("result").get[String]("seed") match {
+          case Right(re) => re;
+          case Left(ex) => throw ex
+        }
+
+        res.hcursor.downField("error").values.isEmpty shouldBe true
+
+        Base58.decode(seedString) match {
           case Success(seed) => seed.length shouldEqual 32
           case Failure(_) => fail("Could not Base 58 decode seed output")
         }
@@ -50,18 +53,24 @@ class UtilsRPCSpec extends AnyWordSpec
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
-           |   "method": "seedOfLength",
+           |   "method": "util_seedOfLength",
            |   "params": [{
            |      "length": $seedLength
            |   }]
            |}
       """.stripMargin)
 
-      httpPOST("/utils/", requestBody) ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").head.asObject.isDefined shouldBe true
-        Base58.decode(((res \\ "result").head \\ "seed").head.asString.get) match {
+
+        val seedString: String = res.hcursor.downField("result").get[String]("seed") match {
+          case Right(re) => re;
+          case Left(ex) => throw ex
+        }
+
+        res.hcursor.downField("error").values.isEmpty shouldBe true
+
+        Base58.decode(seedString) match {
           case Success(seed) => seed.length shouldEqual seedLength
           case Failure(_) => fail("Could not Base 58 decode seed output")
         }
@@ -74,20 +83,146 @@ class UtilsRPCSpec extends AnyWordSpec
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
-           |   "method": "hashBlake2b",
+           |   "method": "util_hashBlake2b256",
            |   "params": [{
            |      "message": "Hello World"
            |   }]
            |}
       """.stripMargin)
 
-      httpPOST("/utils/", requestBody) ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").head.asObject.isDefined shouldBe true
-        ((res \\ "result").head \\ "hash").head.asString.get shouldEqual Base58.encode(FastCryptographicHash("Hello World"))
+        val hash = res.hcursor.downField("result").get[String]("hash")
+
+        res.hcursor.downField("error").values.isEmpty shouldBe true
+        hash shouldEqual Right(Base58.encode(Blake2b256("Hello World")))
+      }
+    }
+
+    "Generate AssetCode with given issuer and shortName" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "1",
+           |   "method": "util_generateAssetCode",
+           |   "params": [{
+           |      "version": 1,
+           |      "issuer": "$address",
+           |      "shortName": "testcode"
+           |   }]
+           |}
+      """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val oldAssetCode: AssetCode = AssetCode(1: Byte, address, "testcode")
+
+        val genAssetCode: AssetCode = res.hcursor.downField("result").get[AssetCode]("assetCode") match {
+          case Right(re) => re;
+          case Left(ex) => throw ex
+        }
+
+        res.hcursor.downField("error").values.isEmpty shouldBe true
+        oldAssetCode.toString shouldEqual genAssetCode.toString
+      }
+    }
+
+    "Return the same address and network if the given address and network type are valid and matching" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "1",
+           |   "method": "util_checkValidAddress",
+           |   "params": [{
+           |      "network": "private",
+           |      "address": "$address"
+           |   }]
+           |}
+      """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val resAddress = res.hcursor.downField("result").get[Address]("address")
+        val network = res.hcursor.downField("result").get[String]("network")
+
+        res.hcursor.downField("error").values.isEmpty shouldBe true
+        network shouldEqual Right("private")
+        resAddress shouldEqual Right(address)
+      }
+    }
+
+    "Returns the address and the current network type, which should be private for tests, if only address is given" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "1",
+           |   "method": "util_checkValidAddress",
+           |   "params": [{
+           |      "address": "$address"
+           |   }]
+           |}
+      """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val network = res.hcursor.downField("result").get[String]("network")
+        val resAddress = res.hcursor.downField("result").get[Address]("address")
+
+        res.hcursor.downField("error").values.isEmpty shouldBe true
+        network shouldEqual Right("private")
+        resAddress shouldEqual Right(address)
+      }
+    }
+
+    "Complain that the network type doesn't match if the received address and network type are not matching" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "1",
+           |   "method": "util_checkValidAddress",
+           |   "params": [{
+           |      "network": "toplnet",
+           |      "address": "$address"
+           |   }]
+           |}
+      """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val code = res.hcursor.downField("error").get[Int]("code")
+        val message = res.hcursor.downField("error").get[String]("message")
+
+        code shouldEqual Right(InternalServerError.intValue)
+        message shouldEqual Right("Invalid address: Network type does not match")
+      }
+    }
+
+    "Reject request if the network type doesn't exist" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "1",
+           |   "method": "util_checkValidAddress",
+           |   "params": [{
+           |      "network": "nonexistentnetwork",
+           |      "address": "$address"
+           |   }]
+           |}
+      """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val code = res.hcursor.downField("error").get[Int]("code")
+        val message = res.hcursor.downField("error").get[String]("message")
+
+        code shouldEqual Right(InternalServerError.intValue)
+        message shouldEqual Right("Invalid network specified")
       }
     }
   }
 }
-
