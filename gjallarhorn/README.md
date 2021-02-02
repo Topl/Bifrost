@@ -34,6 +34,7 @@ Install and Build
     - network can be: "local", "toplnet", "valhalla", or "private"
     - optional seed argument if you want to run bifrost with specific keys
     - `-f` flag: ensures to start forging when running
+    Example: `sbt run --local --seed test -f`
      
      ii. Now that bifrost is running, you can start up the wallet application, Gjallarhorn:
      - Open up a second terminal window and navigate to the correct project directory: `cd Bifrost`
