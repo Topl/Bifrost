@@ -40,6 +40,10 @@ Install and Build
         1. Start up sbt: type `sbt`
         2. Navigate to the gjallarhorn project: type `project gjallarhorn`
         3. Now the terminal line should say: "sbt:gjallarhorn>". Finally, type `run`
+        
+ *Note about shut-down:
+ 
+ In order to successfully shutdown gjallarhorn, you must press [ctrl]+[c]. Once the execution has stopped (you should see "sbt:gjallarhorn>"), you must type `exit` in order to terminate the akka actors and fully shut down the application. (There's a ticket for this #876)
               
 Important settings for running
 -------------------
@@ -81,5 +85,18 @@ or you can go to: http://localhost:63342/bifrost/gjallarhorn/target/scala-2.12/a
 The documentation can also be found through GitHub Pages: 
  - There exists a github action (which can be found in `Bifrost/.github/workflows/gjallarhorn_doc_gen.yml`) that should update the documentation page every time there is a new `git push` to the specified branch defined in the .yml file.
  - Your GitHub pages must be set-up within the settings file of the repository 
+ 
+ Frontend
+ ---------------
+ 
+ The code for Gjallarhorn's user interface can be found in this repository: https://github.com/Topl/Gjallarhorn-UI
+ 
+ The build files can be found in: `Bifrost/gjallarhorn/src/main/resources/ui/build`
+ 
+ To load the local site, you can either
+ - In your code editor (i.e. Intellij), open the `index.html` file within the `ui/build` folder and there should be a pop-up with web browser to choose from to load the site
+ - You should also be able to find the site at: http://localhost:63342/bifrost/gjallarhorn/ui/build/index.html?_ijt=6uub2l0hi5tnn5qtr3ikg2ma9v
+ 
+ Make sure project gjallarhorn is running in order to interact with the site (and if you want to be in online mode, make sure bifrost is running too!)
 
 
