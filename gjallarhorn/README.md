@@ -10,7 +10,7 @@ Its purpose is mainly to:
 
 Install and Build
 -------------------
-###Dependencies
+### Dependencies
 - Java GraalVM (to install: https://github.com/Topl/Bifrost/wiki/Install-and-Build#2-install-graalvm)
 - SBT (to install: https://github.com/Topl/Bifrost/wiki/Install-and-Build#3-install-sbt)
 
@@ -23,20 +23,19 @@ Install and Build
 
     `cd Bifrost`
 
-Now you must open two terminal windows in order to run bifrost and gjallarhorn at the same time.
-
-First get bifrost running with optional arguments:
-
-   `sbt run --[network] --seed [seed-string] -f`
-- network can be: "local", "toplnet", "valhalla", or "private"
-- optional seed argument if you want to run bifrost with specific keys
-- `-f` flag makes sure to start forging when running
-
-Now that bifrost is running, you can start up the wallet application Gjallarhorn:
-
-In the second window terminal, make sure you're in the correct project directory: `cd Bifrost`
-
-1. start up sbt: simply type: `sbt`
-2. navigate to the gjallarhorn project: type `project gjallarhorn`
-3. Now the terminal line should say: "sbt:gjallarhorn>". Finally, type `run`
+3. Run Gjallarhorn in online mode: 
+    
+    i. First start running Bifrost with optional arguments:
+    
+    `sbt run --[network] --seed [seed-string] -f`
+        
+    - network can be: "local", "toplnet", "valhalla", or "private"
+    - optional seed argument if you want to run bifrost with specific keys
+    - `-f` flag makes sure to start forging when running
+     
+     ii. Now that bifrost is running, you can start up the wallet application, Gjallarhorn:
+     - Open up a second terminal window and navigate to the correct project directory: `cd Bifrost`
+        - start up sbt: simply type: `sbt`
+        - navigate to the gjallarhorn project: type `project gjallarhorn`
+        - Now the terminal line should say: "sbt:gjallarhorn>". Finally, type `run`
 
