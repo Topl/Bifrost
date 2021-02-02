@@ -527,7 +527,7 @@ object NodeViewHolderRef {
 
   def props ( settings: AppSettings, appContext: AppContext )
             ( implicit ec: ExecutionContext ): Props =
-    Props(new NodeViewHolder(settings, appContext))
+    Props(new NodeViewHolder(settings)(ec, appContext.networkType.netPrefix))
 
   def apply ( name: String, settings: AppSettings, appContext: AppContext )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
