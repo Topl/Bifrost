@@ -12,10 +12,11 @@ import keymanager.KeyManager.GenerateKeyFile
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import keymanager.KeyManagerRef
-import modifier.{Box, BoxId}
+import modifier.{Box, BoxId, Transaction}
 import wallet.WalletManager
 import wallet.WalletManager._
 
+import scala.None.isDefined
 import scala.reflect.io.Path
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.{Await, ExecutionContextExecutor}
@@ -209,12 +210,9 @@ class RequestSpec extends AsyncFlatSpec
   }
 
   it should "receive a block from bifrost after creating a transaction" in {
-    val newBlock: Option[String] = Await.result((walletManagerRef ? GetNewBlock).mapTo[Option[String]], 10.seconds)
-    newBlock match {
-      case Some(block) => assert(block.contains("timestamp") && block.contains("signature") && block.contains("txId")
-        && block.contains("newBoxes"))
-      case None => sys.error("no new blocks")
-    }
+    val newBlock: Option[List[Transaction]] = Await.result((walletManagerRef ? GetNewBlock)
+      .mapTo[Option[List[Transaction]]], 10.seconds)
+    assert(newBlock.isDefined)
   }
 
 

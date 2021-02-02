@@ -1,7 +1,7 @@
 package co.topl.utils
 
-import co.topl.attestation.{PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
+import co.topl.attestation.{PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
 import co.topl.consensus.KeyRing
 import co.topl.consensus.genesis.PrivateTestnet
 import co.topl.crypto.KeyfileCurve25519
@@ -13,7 +13,7 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.{AssetCode, AssetValue, SecurityRoot}
 import co.topl.program._
-import co.topl.settings.{AppSettings, RuntimeOpts}
+import co.topl.settings.AppSettings
 import io.circe.syntax._
 import org.scalacheck.Gen
 import scorex.crypto.hash.Blake2b256
@@ -30,7 +30,7 @@ trait ValidGenerators extends CoreGenerators {
     keyRing.generateNewKeyPairs(num = 3) match {
       case Success(keys) => keys.map(_.publicImage)
       case Failure(ex)   => throw ex
-    } }, settings, RuntimeOpts.empty).getGenesisBlock.get._1
+    } }, settings).getGenesisBlock.get._1
 
   val genesisBlockId: ModifierId = genesisBlock.id
 
@@ -109,14 +109,16 @@ trait ValidGenerators extends CoreGenerators {
     State.genesisState(settings, Seq(genesisBlockWithVersion))
   }
 
-  def validAssetTransfer(keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-                         state: State
-                        ): Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = {
+  def validAssetTransfer(
+    keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+    state: State,
+    fee: Long = 1L,
+    minting: Boolean = false
+  ): Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = {
     val sender = keyRing.addresses.head
     val prop = keyRing.lookupPublicKey(sender).get
-    val asset = AssetValue(1, AssetCode(sender, "test"), SecurityRoot.empty)
+    val asset = AssetValue(1, AssetCode(1: Byte, sender, "test"), SecurityRoot.empty)
     val recipients = IndexedSeq((sender, asset))
-    val fee = 1
     val rawTx = AssetTransfer.createRaw(
       state,
       recipients,
@@ -125,7 +127,7 @@ trait ValidGenerators extends CoreGenerators {
       None,
       fee,
       data = None,
-      minting = true
+      minting
     ).get
 
     val sig = keyRing.signWithAddress(sender, rawTx.messageToSign).get

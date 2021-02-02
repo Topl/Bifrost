@@ -8,15 +8,14 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.AssetCode
+import co.topl.nodeView.state.box.AssetCode.AssetCodeVersion
 import co.topl.settings.{AppContext, NetworkType, RPCApiSettings}
 import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
+
 import java.security.SecureRandom
-
-import co.topl.nodeView.state.box.AssetCode.AssetCodeVersion
-
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
@@ -112,10 +111,11 @@ case class UtilsApiEndpoint (override val settings: RPCApiSettings, appContext: 
    *
    * ---
    *  #### Params
-   *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	|
-   *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	|
-   *  | issuer                    | Address   	| Required             	| The Address of the asset issuer                                         |
-   *  | shortName                 | String    	| Required             	| A UTF-8 encoded string of up to 8 characters                            |
+   *  | Fields         | Data type        | Required / Optional | Description                                          |
+   *  |----------------|------------------|---------------------|------------------------------------------------------|
+   *  | version        | AssetCodeVersion | Required            | The Address of the asset issuer                      |
+   *  | issuer         | Address          | Required            | The Address of the asset issuer                      |
+   *  | shortName      | String           | Required            | A UTF-8 encoded string of up to 8 characters         |
    *
    * @param params input parameters as specified above
    * @param id request identifier
@@ -138,14 +138,14 @@ case class UtilsApiEndpoint (override val settings: RPCApiSettings, appContext: 
 
   /**
    *  #### Summary
-   *    Returns an encoded assetCode from the provided parameters
+   *    Check if the provided address is valid, returns the address and network type
    *
    * ---
    *  #### Params
-   *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	|
-   *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	|
-   *  | issuer                    | Address   	| Required             	| The Address of the asset issuer                                         |
-   *  | shortName                 | String    	| Required             	| A UTF-8 encoded string of up to 8 characters                            |
+   *  | Fields                  | Data type   | Required / Optional   | Description                                    |
+   *  |-------------------------|-------------|-----------------------|------------------------------------------------|
+   *  | network                 | String      | Required              | A UTF-8 encoded string of up to 8 characters   |
+   *  | address                 | Address     | Required              | The Address of the asset issuer                |
    *
    * @param params input parameters as specified above
    * @param id request identifier
@@ -165,7 +165,6 @@ case class UtilsApiEndpoint (override val settings: RPCApiSettings, appContext: 
             case Some(nt) =>
               implicit val networkPrefix: NetworkPrefix = nt.netPrefix
               (nt.verboseName, params.hcursor.get[Address]("address"))
-
           }
 
         case Left(ex) => throw ex

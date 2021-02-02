@@ -8,7 +8,7 @@ import co.topl.modifier.ModifierId
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.{ArbitBox, Box, PolyBox, TokenBox, TokenValueHolder}
+import co.topl.nodeView.state.box._
 import co.topl.settings.{AppContext, RPCApiSettings}
 import io.circe.Json
 import io.circe.syntax._
