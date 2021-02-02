@@ -1,20 +1,19 @@
 {
   "files": {
-    "main.css": "./static/css/main.bc61b168.chunk.css",
-    "main.js": "./static/js/main.ae176eb6.chunk.js",
-    "main.js.map": "./static/js/main.ae176eb6.chunk.js.map",
-    "runtime-main.js": "./static/js/runtime-main.c5de0374.js",
-    "runtime-main.js.map": "./static/js/runtime-main.c5de0374.js.map",
-    "static/js/2.8372ec6b.chunk.js": "./static/js/2.8372ec6b.chunk.js",
-    "static/js/2.8372ec6b.chunk.js.map": "./static/js/2.8372ec6b.chunk.js.map",
-    "static/js/3.a5821749.chunk.js": "./static/js/3.a5821749.chunk.js",
-    "static/js/3.a5821749.chunk.js.map": "./static/js/3.a5821749.chunk.js.map",
+    "main.css": "./static/css/main.3d5b7052.chunk.css",
+    "main.js": "./static/js/main.33b5c361.chunk.js",
+    "main.js.map": "./static/js/main.33b5c361.chunk.js.map",
+    "runtime-main.js": "./static/js/runtime-main.2c7aadac.js",
+    "runtime-main.js.map": "./static/js/runtime-main.2c7aadac.js.map",
+    "static/js/2.a3c157b3.chunk.js": "./static/js/2.a3c157b3.chunk.js",
+    "static/js/2.a3c157b3.chunk.js.map": "./static/js/2.a3c157b3.chunk.js.map",
+    "static/js/3.81dd4ade.chunk.js": "./static/js/3.81dd4ade.chunk.js",
+    "static/js/3.81dd4ade.chunk.js.map": "./static/js/3.81dd4ade.chunk.js.map",
     "index.html": "./index.html",
-    "static/css/main.bc61b168.chunk.css.map": "./static/css/main.bc61b168.chunk.css.map",
-    "static/js/2.8372ec6b.chunk.js.LICENSE.txt": "./static/js/2.8372ec6b.chunk.js.LICENSE.txt",
+    "static/css/main.3d5b7052.chunk.css.map": "./static/css/main.3d5b7052.chunk.css.map",
+    "static/js/2.a3c157b3.chunk.js.LICENSE.txt": "./static/js/2.a3c157b3.chunk.js.LICENSE.txt",
     "static/media/index.css": "./static/media/Quicksand-Regular.cffc2790.ttf",
     "static/media/arbitcoin.c880724b.png": "./static/media/arbitcoin.c880724b.png",
-    "static/media/selected-disabled.f3f2c3a9.svg": "./static/media/selected-disabled.f3f2c3a9.svg",
     "static/media/selected.389e357f.svg": "./static/media/selected.389e357f.svg",
     "static/media/switch-selected.96635eca.svg": "./static/media/switch-selected.96635eca.svg",
     "static/media/switch-unselected.4a56971e.svg": "./static/media/switch-unselected.4a56971e.svg",
@@ -22,9 +21,9 @@
     "static/media/unselected.ab643432.svg": "./static/media/unselected.ab643432.svg"
   },
   "entrypoints": [
-    "static/js/runtime-main.c5de0374.js",
-    "static/js/2.8372ec6b.chunk.js",
-    "static/css/main.bc61b168.chunk.css",
-    "static/js/main.ae176eb6.chunk.js"
+    "static/js/runtime-main.2c7aadac.js",
+    "static/js/2.a3c157b3.chunk.js",
+    "static/css/main.3d5b7052.chunk.css",
+    "static/js/main.33b5c361.chunk.js"
   ]
 }
