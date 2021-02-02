@@ -41,8 +41,8 @@ Install and Build
         2. Navigate to the gjallarhorn project: type `project gjallarhorn`
         3. Now the terminal line should say: "sbt:gjallarhorn>". Finally, type `run`
               
-### Important settings for running
-
+Important settings for running
+-------------------
 The settings for gjallarhorn can be found in `src/main/resources/application.conf`
     
    1. chainProvider:
@@ -56,13 +56,14 @@ The settings for gjallarhorn can be found in `src/main/resources/application.con
         - "useTcp": communication will go through api route
         - "useAkka": communication will go through akka actors
         
-### Testing
+Testing
+-------------------
 In order to run many of the tests you must have bifrost running.
 
 If bifrost's running, you can run the tests by typing: `sbt "project gjallarhorn" test`
 
-### Documentation
-
+Documentation
+-------------------
 The documentation for gjallarhorn was created using ScalaDocs (information about ScalaDocs can be found at: https://docs.scala-lang.org/style/scaladoc.html)
 
 In order to load the documentation into your local server, you can follow these steps:
