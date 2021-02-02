@@ -12,11 +12,20 @@ import io.circe.Encoder
 
 import scala.util.Try
 
+/**
+  * A keyfile is the form in which keys are encrypted and saved to disk
+  * @tparam S the type of secret for the keyfile
+  */
 trait Keyfile[S <: Secret] {
   val address: Address
   val cipherText: Array[Byte]
 }
 
+/**
+  * KeyfileCompanion defines methods used to create and save a keyfile or decrypt a keyfile
+  * @tparam S the type of Secret
+  * @tparam KF the type of keyfile
+  */
 trait KeyfileCompanion[S <: Secret, KF <: Keyfile[S]] {
   /**
     * Returns an encrypted version of the secret key

@@ -13,6 +13,18 @@ import utils.Logging
 import scala.collection.mutable.{Map => MMap}
 import scala.util.{Failure, Success, Try}
 
+/**
+  * The keys class is equivalent to the KeyRing in Bifrost.
+  * It holds the current keys in the wallet application and handles functions on the keys such as:
+  * locking/unlocking, generating a new key, etc.
+  * @param defaultKeyDir the key directory to save the keyfiles to
+  * @param secrets the set of secrets for the keys
+  * @param keyfileOps the type of KeyfileCompanion (as of now there is only one: [[crypto.KeyfileCurve25519]])
+  * @param networkPrefix the current network prefix
+  * @param sg the SecretGenerator for the secrets
+  * @tparam S the type of Secret for these keys
+  * @tparam KF the type of Keyfile ([[crypto.KeyfileCurve25519]])
+  */
 class Keys[
   S <: Secret,
   KF <: Keyfile[S]
@@ -231,6 +243,7 @@ class Keys[
   }
 }
 
+/** Factory for [[Keys]] instances. */
 object Keys {
 
   def apply[

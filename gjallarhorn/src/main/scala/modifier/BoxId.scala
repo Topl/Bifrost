@@ -9,6 +9,10 @@ import attestation.Evidence
 
 import scala.util.{Failure, Success}
 
+/**
+  * The ID for a [[Box]]. It is a 32 byte identifier
+  * @param hashBytes the bytes used to create the id
+  */
 case class BoxId (hashBytes: Array[Byte]) {
 
   override def hashCode: Int = Ints.fromByteArray(hashBytes)

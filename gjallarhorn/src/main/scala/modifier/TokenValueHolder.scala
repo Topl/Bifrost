@@ -5,6 +5,10 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 
+/**
+  * An abstract class for the type of values (or tokens) held in boxes
+  * @param quantity the quantity of the value held in the box
+  */
 sealed abstract class TokenValueHolder(val quantity: Long) extends BytesSerializable {
   override type M = TokenValueHolder
 
@@ -50,10 +54,13 @@ object TokenValueHolder extends GjalSerializer[TokenValueHolder] {
       case _                           => throw new Exception("Unanticipated Box Type")
     }
   }
-
-
 }
 
+/**
+  * The [[TokenValueHolder]] for an "ArbitBox" or "PolyBox".
+  * This token only contains a type and quantity
+  * @param quantity the quantity of arbits or polys held in the box
+  */
 case class SimpleValue(override val quantity: Long) extends TokenValueHolder(quantity)
 
 object SimpleValue extends GjalSerializer[SimpleValue] {
@@ -81,6 +88,13 @@ object SimpleValue extends GjalSerializer[SimpleValue] {
 
 }
 
+/**
+  * The [[TokenValueHolder]] for an "AssetBox"
+  * @param quantity the quantity of the asset held in the box
+  * @param assetCode an id that identifies the asset
+  * @param securityRoot used to prove membership
+  * @param metadata additional data for the given asset
+  */
 case class AssetValue(override val quantity: Long,
                       assetCode: AssetCode,
                       securityRoot: SecurityRoot = SecurityRoot.empty,

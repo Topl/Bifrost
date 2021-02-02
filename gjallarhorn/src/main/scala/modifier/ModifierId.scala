@@ -12,6 +12,10 @@ import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 
 import scala.util.{Failure, Success, Try}
 
+/**
+  * Helps to create the Id for a transaction.
+  * @param value the value (as an array of bytes) to create id for.
+  */
 class ModifierId (private val value: Array[Byte]) extends BytesSerializable {
 
   require(value.length == ModifierId.size, s"Invalid size for ModifierId")

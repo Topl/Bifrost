@@ -13,6 +13,11 @@ import settings.RPCApiSettings
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
+/**
+  * Handles api requests
+  * @param apiServices the set of ApiRoutes to send requests to
+  * @param settings the app Api settings
+  */
 final case class HttpService (apiServices: Seq[ApiRoute], settings: RPCApiSettings)
   extends CorsSupport {
 

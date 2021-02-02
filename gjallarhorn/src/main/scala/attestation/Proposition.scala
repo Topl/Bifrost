@@ -55,6 +55,10 @@ sealed trait KnowledgeProposition[S <: Secret] extends Proposition
 
 /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
+/**
+  * A public key with a single signature
+  * @param pubKeyBytes the public key bytes
+  */
 case class PublicKeyPropositionCurve25519 (private[attestation] val pubKeyBytes: PublicKey)
   extends KnowledgeProposition[PrivateKeyCurve25519] {
 
@@ -99,6 +103,11 @@ object PublicKeyPropositionCurve25519 {
 
 /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
+/**
+  * A multi-signature proposition
+  * @param threshold the number of signatures required
+  * @param pubKeyProps the set of public keys
+  */
 case class ThresholdPropositionCurve25519 (threshold: Int, pubKeyProps: Set[PublicKeyPropositionCurve25519])
   extends KnowledgeProposition[PrivateKeyCurve25519] {
 

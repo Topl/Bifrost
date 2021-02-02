@@ -20,7 +20,7 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 /**
-  * The WalletManager manages the communication between Bifrost and Gjallarhorn
+  * The WalletManager manages the communication between Bifrost and Gjallarhorn.
   * Mainly, the WalletManager receives new blocks from Bifrost in order to updates its wallet boxes.
   * @param keyManagerRef: the actor ref to communicate with the KeyManager.
   */
@@ -274,6 +274,7 @@ class WalletManager(keyManagerRef: ActorRef)
 ////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////// COMPANION SINGLETON ////////////////////////////////
 
+/** An instance of the [[WalletManager]] actor. */
 object WalletManager {
 
   val actorName = "WalletManager"

@@ -5,6 +5,11 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 import utils.serialization.{BytesSerializable, GjalSerializer}
 
+/**
+  * This class is used to encode and decode transactions received from Bifrost
+  * @param newBoxes the set of new boxes found in the received transaction
+  * @param boxesToRemove the set of boxes to remove found in the received transaction
+  */
 case class Transaction(newBoxes: Seq[Box], boxesToRemove: Option[Seq[BoxId]])
 
 object Transaction {
@@ -24,6 +29,13 @@ object Transaction {
 
 }
 
+/**
+  * A box for a given asset used to fund transactions or newly created to send assets
+  * @param evidence the evidence is used to lock a box [[Evidence]]
+  * @param nonce random number to ensure uniqueness
+  * @param typeOfBox this defines the type of asset held in the box. Either "ArbitBox, "PolyBox", or "AssetBox"
+  * @param value the value of the box
+  */
 case class Box(evidence: Evidence,
                nonce: Long,
                typeOfBox: String,

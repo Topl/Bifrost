@@ -10,7 +10,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 /**
-  * Manages request from Gjallarhorn to Bifrost (WalletConnectionHandler)
+  * Akka actor that manages request from Gjallarhorn to Bifrost (WalletConnectionHandler)
   * @param bifrostActorRef the actor ref for Bifrost's WalletConnectionHandler
   * @param ec the execution context used for Futures.
   */
