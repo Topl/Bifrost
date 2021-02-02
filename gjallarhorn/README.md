@@ -58,9 +58,13 @@ The settings for gjallarhorn can be found in `src/main/resources/application.con
         
 Testing
 -------------------
-In order to run many of the tests you must have bifrost running.
+In order to run many of the tests, you must have bifrost running.
 
 If bifrost's running, you can run the tests by typing: `sbt "project gjallarhorn" test`
+
+You can also run individual test files by typing: `sbt "test-only <test-name>"`
+
+**Note: right now you must run the tests individually or else you will get an error about the akka routing port being bound multiple times. There are already tickets for this issue (#892 and #895). 
 
 Documentation
 -------------------
@@ -71,5 +75,9 @@ In order to load the documentation into your local server, you can follow these 
 2. run: `sbt "project gjallarhorn" doc`
 3. Now you should find an index.html file in `gjallarhorn/target/scala-2.12/api/` which you can usually just open up in your code editor and click on the web browser icon you prefer, 
 or you can go to: http://localhost:63342/bifrost/gjallarhorn/target/scala-2.12/api/index.html
+
+The documentation can also be found through GitHub Pages: 
+ - There exists a github action (which can be found in `Bifrost/.github/workflows/gjallarhorn_doc_gen.yml`) that should update the documentation page every time there is a new `git push` to the branch define in the .yml file
+ - Your GitHub pages must be set-up within the settings file of the repository 
 
 
