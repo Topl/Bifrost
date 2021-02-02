@@ -75,11 +75,8 @@ class DeliveryTracker(nvsRef: ActorRef, context: ActorContext, networkSettings: 
     *
     * @return `true` if number of checks was not exceed, `false` otherwise
     */
-  def onStillWaiting(
-    peerOpt:     Option[ConnectedPeer],
-    typeId:      ModifierTypeId,
-    id:          ModifierId
-  )(implicit ec: ExecutionContext): Try[Boolean] = tryWithLogging[Boolean] {
+  def onStillWaiting(peerOpt: Option[ConnectedPeer], typeId: ModifierTypeId, id: ModifierId)
+                    (implicit ec: ExecutionContext): Try[Boolean] = tryWithLogging[Boolean] {
 
     val checks = requested(id).checks + 1
 
