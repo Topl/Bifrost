@@ -20,7 +20,7 @@ trait Writer {
   def newWriter(): Writer.Aux[CH]
 
   /**
-    * Append result of $writer to this Writer
+    * Append result of `writer` to this Writer
     * @param writer is used as source of bytes
     * @return
     */
@@ -127,7 +127,7 @@ trait Writer {
   /**
     * Encode optional value
     * @param x optional value to encode
-    * @param putValue procedure to encode value, if $x is nonempty
+    * @param putValue procedure to encode value, if `x` is nonempty
     */
   def putOption[T](x: Option[T])(putValue: (this.type, T) => Unit): this.type
 

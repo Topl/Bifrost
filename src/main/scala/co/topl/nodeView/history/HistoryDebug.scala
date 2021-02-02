@@ -21,7 +21,7 @@ class HistoryDebug(history: History) {
     */
   def idsAtHeight(height: Int): Seq[ModifierId] = history.storage.idAtHeightOf(height: Int).toSeq
 
-  /** Average delay in milliseconds between last $blockNum blocks starting from $block
+  /** Average delay in milliseconds between last `blockNum` blocks starting from `block`
     * Debug only
     *
     * @param id modifier to start at

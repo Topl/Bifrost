@@ -16,7 +16,7 @@ object Extensions {
   implicit class ShortOps(val x: Short) extends AnyVal {
 
     /** Converts the `Short` value to a `Byte`, checking for lost information.
-      * If `Short` value is out of the possible range for a [[scala.Byte]] result,
+      * If `Short` value is out of the possible range for a `Byte` result,
       * then a `java.lang.ArithmeticException` is thrown.
       */
     def toByteExact: Byte = {
@@ -29,7 +29,7 @@ object Extensions {
   implicit class IntOps(val x: Int) extends AnyVal {
 
     /** Converts the `Int` value to a `Byte`, checking for lost information.
-      * If `Int` value is out of the possible range for a [[scala.Byte]] result,
+      * If `Int` value is out of the possible range for a `Byte` result,
       * then a `java.lang.ArithmeticException` is thrown.
       */
     def toByteExact: Byte = {
@@ -39,7 +39,7 @@ object Extensions {
     }
 
     /** Converts the `Int` value to a `Short`, checking for lost information.
-      * If `Int` value is out of the possible range for a [[scala.Short]] result,
+      * If `Int` value is out of the possible range for a `Byte` result,
       * then a `java.lang.ArithmeticException` is thrown.
       */
     def toShortExact: Short = {
@@ -52,7 +52,7 @@ object Extensions {
   implicit class LongOps(val x: Long) extends AnyVal {
 
     /** Converts the `Long` value to a `Byte`, checking for lost information.
-      * If `Long` value is out of the possible range for a [[scala.Byte]] result,
+      * If `Long` value is out of the possible range for a `Byte` result,
       * then a `java.lang.ArithmeticException` is thrown.
       */
     def toByteExact: Byte = {
@@ -62,7 +62,7 @@ object Extensions {
     }
 
     /** Converts the `Long` value to a `Short`, checking for lost information.
-      * If `Long` value is out of the possible range for a [[scala.Short]] result,
+      * If `Long` value is out of the possible range for a `Byte` result,
       * then a `java.lang.ArithmeticException` is thrown.
       */
     def toShortExact: Short = {
