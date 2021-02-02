@@ -40,6 +40,9 @@ Install and Build
         1. Start up sbt: type `sbt`
         2. Navigate to the gjallarhorn project: type `project gjallarhorn`
         3. Now the terminal line should say: "sbt:gjallarhorn>". Finally, type `run`
+        
+ *Note about shut-down:
+ In order to successfully shutdown gjallarhorn, you must press [ctrl]+[c] and then when you see "sbt:gjallarhorn>", you must type `exit` in order to terminate the akka actors and full shut down the application. (There's a ticket for this #876)
               
 Important settings for running
 -------------------
