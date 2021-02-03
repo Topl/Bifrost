@@ -1,16 +1,14 @@
 package co.topl.modifier
 
-import co.topl.attestation.{Address, PrivateKeyCurve25519}
+import co.topl.attestation.Address
+import co.topl.crypto.PrivateKeyCurve25519
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.block.{BloomFilter, TransactionsCarryingPersistentNodeViewModifier}
-import co.topl.modifier.transaction.Transaction
 import co.topl.utils.ValidGenerators
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.Curve25519
-import scorex.util.encode.Base58
 
 class BloomFilterSpec
     extends AnyPropSpec
