@@ -25,7 +25,7 @@ final case class HttpService (apiServices: Seq[ApiEndpoint], settings: RPCApiSet
     apiServices
       .filter(endpoint => settings.namespaceSelector.namespaceStates(endpoint.namespace))
       .map(_.handlers)
-      .reduce(_ orElse _)
+      .fold(PartialFunction.empty[(String, Vector[Json], String), Future[Json]])(_ orElse _)
 
   /** the primary route that the HTTP service is bound to in BifrostApp */
   val compositeRoute: Route =
@@ -46,7 +46,8 @@ final case class HttpService (apiServices: Seq[ApiEndpoint], settings: RPCApiSet
         postJsonRoute {
           var reqId = ""
           parse(body) match {
-            case Left(failure) => ErrorResponse(failure.getCause, 400, reqId)
+            case Left(failure) =>
+              ErrorResponse(new Exception("Unable to parse Json body"), 400, reqId, verbose = settings.verboseAPI)
             case Right(request) =>
               val futureResponse: Try[Future[Json]] = Try {
                 val id = (request \\ "id").head.asString.get
@@ -59,7 +60,7 @@ final case class HttpService (apiServices: Seq[ApiEndpoint], settings: RPCApiSet
                 val method = (request \\ "method").head.asString.get
 
                 if (apiServiceHandlers.isDefinedAt(method, params, id)) apiServiceHandlers.apply(method, params, id)
-                else throw new Exception("Service handler not found for method: " + method)
+                else throw new NoSuchElementException("Service handler not found for method: " + method)
               }
 
               // await result of future from handler

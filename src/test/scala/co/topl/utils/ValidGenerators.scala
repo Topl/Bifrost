@@ -7,11 +7,11 @@ import co.topl.consensus.genesis.PrivateTestnet
 import co.topl.crypto.{KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
+import co.topl.modifier.box.{AssetCode, AssetValue, SecurityRoot}
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction._
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.State
-import co.topl.modifier.box.{AssetCode, AssetValue, SecurityRoot}
 import co.topl.program._
 import co.topl.settings.AppSettings
 import io.circe.syntax._

@@ -7,7 +7,7 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.State
-import co.topl.settings.{AppSettings, RuntimeOpts}
+import co.topl.settings.AppSettings
 
 import scala.util.{Failure, Success}
 

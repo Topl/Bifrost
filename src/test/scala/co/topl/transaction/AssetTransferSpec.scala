@@ -2,14 +2,11 @@ package co.topl.transaction
 
 import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.modifier.transaction.AssetTransfer
-import co.topl.nodeView.state.State
 import co.topl.utils.{CoreGenerators, ValidGenerators}
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-
-import scala.util.Failure
 
 class AssetTransferSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks

@@ -135,7 +135,7 @@ class KeyRing[
     secrets.find(_.publicImage.address == addr)
   }
 
-  /** Return a list of KeuFile instances for all keys in the key file directory */
+  /** Return a list of KeyFile instances for all keys in the key file directory */
   private def listKeyFiles: List[KF] =
     KeyRing.getListOfFiles(defaultKeyDir).map(file => keyfileOps.readFile(file.getPath))
 

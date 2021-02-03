@@ -6,8 +6,8 @@ import co.topl.consensus.genesis.PrivateTestnet
 import co.topl.crypto.{KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.settings.{AppContext, RuntimeOpts, StartupOpts}
-import co.topl.utils.{CoreGenerators, FileUtils, ValidGenerators}
+import co.topl.settings.{AppContext, StartupOpts}
+import co.topl.utils.{CoreGenerators, FileUtils}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}

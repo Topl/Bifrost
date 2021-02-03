@@ -1,7 +1,6 @@
 package co.topl.transaction
 
 import co.topl.modifier.transaction.ArbitTransfer
-import co.topl.nodeView.state.State
 import co.topl.utils.{CoreGenerators, ValidGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec

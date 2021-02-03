@@ -7,7 +7,7 @@ jobs:
   unit_tests:
     docker:
       # specify the version you desire here
-      - image: oracle/graalvm-ce:19.2.0
+      - image: toplprotocol/graalvm-test-21.0.0
       
       # Specify service dependencies here if necessary
       # CircleCI maintains a library of pre-built images
@@ -17,42 +17,26 @@ jobs:
     working_directory: ~/repo
 
     environment:
-      SBT_VERSION: 0.13.17
+      SBT_VERSION: 1.4.6
       # Customize the JVM maximum heap limit
-      JVM_OPTS: -Xmx3600m, -Xbootclasspath/a:lib/ValkyrieInstrument-1.0-jar-with-dependencies.jar
+      JVM_OPTS: -Xmx3600m
       #SBT_OPTS: -XX:MaxMetaspaceSize=512M -Xmx6G # <- Graal is saying this is was deprecated
       TERM: dumb
     
     steps:
 
-      - run:
-          name: Get sbt binary
-          command: |
-            yum update -y
-            curl https://bintray.com/sbt/rpm/rpm | tee /etc/yum.repos.d/bintray-sbt-rpm.repo
-            yum install -y sbt git
-
       - checkout
-
-      - run:
-          name: Add Valkyrie instrument to boot classpath
-          command: |
-            cp lib/ValkyrieInstrument-1.0.jar /opt/graalvm-ce-19.2.0/jre/lib/boot/
-            ls /opt/graalvm-ce-19.2.0/jre/lib/boot
-            java -version
 
       # Download and cache dependencies
       - restore_cache:
-          keys:
-          - v1-dependencies-{{ checksum "build.sbt" }}
-          # fallback to using the latest cache if no exact match is found
-          - v1-dependencies-
-
+          key: sbt-cache
       - run: cat /dev/null | sbt test:compile
 
       - save_cache:
           paths:
             - ~/.m2
+            - ~/.ivy2
+            - ~/.sbt
           key: v1-dependencies--{{ checksum "build.sbt" }}
         
       # run tests!
