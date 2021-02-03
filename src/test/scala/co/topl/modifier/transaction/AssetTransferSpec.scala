@@ -1,7 +1,6 @@
-package co.topl.transaction
+package co.topl.modifier.transaction
 
 import co.topl.attestation.PublicKeyPropositionCurve25519
-import co.topl.modifier.transaction.AssetTransfer
 import co.topl.utils.{CoreGenerators, ValidGenerators}
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
