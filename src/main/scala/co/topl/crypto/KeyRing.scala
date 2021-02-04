@@ -1,11 +1,9 @@
-package co.topl.consensus
+package co.topl.crypto
 
 import java.io.File
 
 import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.crypto._
-import co.topl.utils.Logging
 import com.google.common.primitives.Ints
 import scorex.crypto.hash.Blake2b256
 import scorex.util.Random.randomBytes
@@ -15,11 +13,12 @@ import scala.util.{Failure, Success, Try}
 class KeyRing[
   S <: Secret,
   KF <: Keyfile[S]
-](defaultKeyDir:          File,
-  private var secrets:    Set[S],
-  private val keyfileOps: KeyfileCompanion[S, KF]
-)(implicit networkPrefix: NetworkPrefix, sg: SecretGenerator[S]) extends Logging {
+](defaultKeyDir: File, private var secrets: Set[S], private val keyfileOps: KeyfileCompanion[S, KF])(implicit
+  networkPrefix: NetworkPrefix,
+  sg:            SecretGenerator[S]
+) {
 
+  type PK = S#PK
   type PR = S#PR
 
   /** Retrieves a list of public images for the secrets currently held in the keyring
@@ -29,17 +28,29 @@ class KeyRing[
   def addresses: Set[Address] = secrets.map(_.publicImage.address)
 
   /** Generate a signature using the secret key associated with an Address */
-  def signWithAddress(addr: Address, messageToSign: Array[Byte]): Try[PR] =
+  def signWithAddress(addr: Address)(messageToSign: Array[Byte]): Try[PR] =
     secrets.find(_.publicImage.address == addr) match {
       case Some(sk) => Try(sk.sign(messageToSign))
-      case _        => throw new Error("Unable to find secret for the given address")
+      case _        => throw new Exception("Unable to find secret for the given address")
     }
 
   /** Lookup the public key associated with an address */
-  def lookupPublicKey(addr: Address): Try[S#PK] =
+  def lookupPublicKey(addr: Address): Try[PK] =
     secrets.find(_.publicImage.address == addr) match {
       case Some(sk) => Success(sk.publicImage)
-      case _        => throw new Error("Unable to find secret for the given address")
+      case _        => throw new Exception("Unable to find secret for the given address")
+    }
+
+  /** Generate an attestation map using the given address and message to sign
+    * @param addr address to lookup the proposition associated with the proof that is needed
+    * @param messageToSign the message that should be committed to
+    * @return a map that can be inserted into a transaction
+    */
+  def generateAttestation(addr: Address)(messageToSign: Array[Byte]): Map[PK, PR] =
+    (lookupPublicKey(addr), signWithAddress(addr)(messageToSign)) match {
+      case (Success(pk), Success(sig)) => Map(pk -> sig)
+      case (_, Failure(e))             => throw e
+      case (Failure(e), _)             => throw e // this assumes the failure is due to not finding the address
     }
 
   /** Given a public key and password, unlock the associated key file.
@@ -52,7 +63,6 @@ class KeyRing[
 
     // ensure no duplicate by comparing privKey strings
     if (!secrets.contains(privKey)) secrets += privKey
-    else log.warn(s"$publicKeyString is already unlocked")
   }
 
   /** Given a public key and password, locks a key file.
@@ -64,19 +74,19 @@ class KeyRing[
     val privKey = checkValid(publicKeyString: String, password: String)
 
     // ensure no duplicate by comparing privKey strings
-    if (!secrets.contains(privKey)) log.warn(s"$publicKeyString is already locked")
-    else secrets -= (secrets find (p => p == privKey)).get
+    if (secrets.contains(privKey)) {
+      secrets -= (secrets find (p => p == privKey)).get
+    }
   }
 
   /** @param password
     */
-  def generateKeyFile(password: String): Try[Address] = {
+  def generateKeyFile(password: String): Try[Address] =
     // generate a new random key pair and save to disk
     generateNewKeyPairs().map { sk =>
-      exportKeyfile(sk.head.publicImage.address, password)
+      exportKeyfileToDisk(sk.head.publicImage.address, password)
       sk.head.publicImage.address
     }
-  }
 
   /** @param num
     * @param seedOpt
@@ -123,7 +133,7 @@ class KeyRing[
     * @param password
     * @return
     */
-  def exportKeyfile(address: Address, password: String): Try[Unit] = Try {
+  private def exportKeyfileToDisk(address: Address, password: String): Try[Unit] = Try {
     secretByAddress(address) match {
       case Some(sk) => keyfileOps.saveToDisk(defaultKeyDir.getAbsolutePath, password, sk)
       case _        => Failure(new Error("Unable to find a matching secret in the key ring"))
@@ -131,11 +141,10 @@ class KeyRing[
   }
 
   /** Find a secret given it's public image */
-  private def secretByAddress(addr: Address): Option[S] = {
+  private def secretByAddress(addr: Address): Option[S] =
     secrets.find(_.publicImage.address == addr)
-  }
 
-  /** Return a list of KeyFile instances for all keys in the key file directory */
+  /** Return a list of KeuFile instances for all keys in the key file directory */
   private def listKeyFiles: List[KF] =
     KeyRing.getListOfFiles(defaultKeyDir).map(file => keyfileOps.readFile(file.getPath))
 
@@ -164,15 +173,13 @@ object KeyRing {
   def apply[
     S <: Secret: SecretGenerator,
     KF <: Keyfile[S]
-  ](path: String, keyfileCompanion: KeyfileCompanion[S, KF])
-   (implicit networkPrefix: NetworkPrefix): KeyRing[S, KF] = {
+  ](path: String, keyfileCompanion: KeyfileCompanion[S, KF])(implicit networkPrefix: NetworkPrefix): KeyRing[S, KF] = {
     val dir = new File(path)
     dir.mkdirs()
     new KeyRing(dir, Set(), keyfileCompanion)
   }
 
-  def getListOfFiles(dir: File): List[File] = {
+  def getListOfFiles(dir: File): List[File] =
     if (dir.exists && dir.isDirectory) dir.listFiles.filter(_.isFile).toList
     else List[File]()
-  }
 }

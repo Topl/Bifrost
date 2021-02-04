@@ -5,7 +5,7 @@ import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.Forger.{ChainParams, PickTransactionsResult}
 import co.topl.consensus.genesis.{PrivateTestnet, Toplnet}
-import co.topl.crypto.{KeyfileCurve25519, PrivateKeyCurve25519}
+import co.topl.crypto.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.Block.Timestamp
@@ -376,7 +376,7 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
 
         // use the private key that owns the generator box to create a function that will sign the new block
         val signingFunction: Array[Byte] => Try[SignatureCurve25519] =
-          (messageToSign: Array[Byte]) => keyRing.signWithAddress(matchingAddr, messageToSign)
+          (messageToSign: Array[Byte]) => keyRing.signWithAddress(matchingAddr)(messageToSign)
 
         // lookup the public associated with the box,
         // (this is separate from the signing function so that the private key never leaves the KeyRing)
