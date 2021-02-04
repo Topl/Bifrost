@@ -141,7 +141,7 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
   implicit val jsonEncoder: Encoder[KeyfileCurve25519] = { kf: KeyfileCurve25519 ⇒
     Map(
       "crypto" -> Map(
-        "cipher" -> "aes-128-ctr".asJson,
+        "cipher" -> "aes-256-ctr".asJson,
         "cipherParams" -> Map("iv" -> Base58.encode(kf.iv).asJson ).asJson,
         "cipherText" -> Base58.encode(kf.cipherText).asJson,
         "kdf" -> "scrypt".asJson,
