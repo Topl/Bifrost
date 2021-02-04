@@ -18,7 +18,7 @@ class KeySpec
   val password: String = stringGen.sample.get
   val messageByte: Array[Byte] = nonEmptyBytesGen.sample.get
 
-  val address: Address = keyRing.generateKeyFile(password) match {
+  val address: Address = keyRing.DiskOps.generateKeyFile(password) match {
     case Success(addr) => addr
     case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
@@ -28,17 +28,17 @@ class KeySpec
   }
 
   property("Once we lock the generated address, it will be removed from the secrets set in the keyRing") {
-    keyRing.lockKeyFile(address.toString, password)
+    keyRing.removeFromKeyring(address)
     /** There will be a warning for locking again if a key is already locked */
-    keyRing.lockKeyFile(address.toString, password)
+    keyRing.removeFromKeyring(address)
 
     keyRing.addresses.contains(address) shouldBe false
   }
 
   property("Once unlocked, the address will be accessible from the keyRing again") {
-    keyRing.unlockKeyFile(address.toString, password)
+    keyRing.DiskOps.unlockKeyFile(address.toString, password)
     /** There will be a warning for unlocking again if a key is already unlocked */
-    keyRing.unlockKeyFile(address.toString, password)
+    keyRing.DiskOps.unlockKeyFile(address.toString, password)
 
     keyRing.addresses.contains(address) shouldBe true
   }
@@ -63,7 +63,7 @@ class KeySpec
   property("The proof from signing with an address should only be valid for the corresponding proposition") {
     val prop = keyRing.lookupPublicKey(address).get
 
-    val newAddr: Address = keyRing.generateKeyFile(stringGen.sample.get).get
+    val newAddr: Address = keyRing.DiskOps.generateKeyFile(stringGen.sample.get).get
     val newProp = keyRing.lookupPublicKey(newAddr).get
     val newProof = keyRing.signWithAddress(newAddr)(messageByte).get
 
