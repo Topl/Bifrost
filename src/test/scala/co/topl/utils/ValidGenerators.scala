@@ -1,7 +1,7 @@
 package co.topl.utils
 
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
-import co.topl.attestation.{PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
+import co.topl.attestation.{Address, PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
 import co.topl.consensus.KeyRing
 import co.topl.consensus.genesis.PrivateTestnet
 import co.topl.crypto.KeyfileCurve25519
@@ -11,14 +11,15 @@ import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction._
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.{AssetCode, AssetValue, SecurityRoot, SimpleValue}
+import co.topl.nodeView.state.box.Box.identifier
+import co.topl.nodeView.state.box._
 import co.topl.program._
 import co.topl.settings.AppSettings
 import io.circe.syntax._
 import org.scalacheck.Gen
 import scorex.crypto.hash.Blake2b256
 
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Random, Success}
 
 trait ValidGenerators extends CoreGenerators {
 
@@ -163,10 +164,21 @@ trait ValidGenerators extends CoreGenerators {
                           fee: Long = 1L,
                           minting: Boolean = false
                         ): Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = {
-    val sender = keyRing.addresses.head
+
+    val (sender, asset) = if(!minting) {
+      val boxAmounts = sumBoxes(collectBoxes(keyRing.addresses, state))
+      val sender = boxAmounts(Random.nextInt(boxAmounts.length))
+      val assetAmount = Gen.chooseNum(0L, sender._2("AssetBox")).sample.get
+      val asset = AssetValue(assetAmount, AssetCode(1: Byte, sender._1, "test"), SecurityRoot.empty)
+      (sender._1, asset)
+    } else {
+      val sender = keyRing.addresses.head
+      val asset = AssetValue(1, AssetCode(1: Byte, sender, "test"), SecurityRoot.empty)
+      (sender, asset)
+    }
+
     val prop = keyRing.lookupPublicKey(sender).get
-    val asset = AssetValue(1, AssetCode(1: Byte, sender, "test"), SecurityRoot.empty)
-    val recipients = IndexedSeq((sender, asset))
+    val recipients = IndexedSeq((keyRing.addresses.toSeq(Random.nextInt(keyRing.addresses.size)), asset))
     val rawTx = AssetTransfer.createRaw(
       state,
       recipients,
@@ -181,6 +193,24 @@ trait ValidGenerators extends CoreGenerators {
     val sig = keyRing.signWithAddress(sender, rawTx.messageToSign).get
     val tx = rawTx.copy(attestation = Map(prop -> sig))
     tx
+  }
+
+  def collectBoxes(addresses: Set[Address], state: State): Seq[TokenBox[TokenValueHolder]] = {
+    addresses.flatMap(address => state.getTokenBoxes(address)).flatten.toSeq
+  }
+
+  def sumBoxes(boxes: Seq[TokenBox[TokenValueHolder]]): Seq[(Address, Map[String, Long])] = {
+    val boxesByOwner = boxes.groupBy(_.evidence)
+    val ownerQuantities = boxesByOwner.map {
+      case (evidence, boxes) =>
+        Address(evidence) -> boxes
+          .groupBy(identifier(_).typeString)
+          .map {
+            case (boxType, b) =>
+              boxType -> b.map(_.value.quantity).sum
+          }
+    }.toSeq
+    ownerQuantities
   }
 }
 
