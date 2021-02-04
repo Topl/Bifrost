@@ -11,7 +11,7 @@ import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction._
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.{AssetCode, AssetValue, SecurityRoot}
+import co.topl.nodeView.state.box.{AssetCode, AssetValue, SecurityRoot, SimpleValue}
 import co.topl.program._
 import co.topl.settings.AppSettings
 import io.circe.syntax._
@@ -109,12 +109,60 @@ trait ValidGenerators extends CoreGenerators {
     State.genesisState(settings, Seq(genesisBlockWithVersion))
   }
 
+  def validPolyTransfer(
+                         keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+                         state: State,
+                         fee: Long = 1L
+                       ): Gen[PolyTransfer[PublicKeyPropositionCurve25519]] = {
+    val sender = keyRing.addresses.head
+    val prop = keyRing.lookupPublicKey(sender).get
+    val value = SimpleValue(1)
+    val recipients = IndexedSeq((sender, value))
+    val rawTx = PolyTransfer.createRaw(
+      state,
+      recipients,
+      IndexedSeq(sender),
+      changeAddress = sender,
+      None,
+      fee,
+      data = None
+    ).get
+
+    val sig = keyRing.signWithAddress(sender, rawTx.messageToSign).get
+    val tx = rawTx.copy(attestation = Map(prop -> sig))
+    tx
+  }
+
+  def validArbitTransfer(
+                          keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+                          state: State,
+                          fee: Long = 1L
+                        ): Gen[ArbitTransfer[PublicKeyPropositionCurve25519]] = {
+    val sender = keyRing.addresses.head
+    val prop = keyRing.lookupPublicKey(sender).get
+    val value = SimpleValue(1)
+    val recipients = IndexedSeq((sender, value))
+    val rawTx = ArbitTransfer.createRaw(
+      state,
+      recipients,
+      IndexedSeq(sender),
+      changeAddress = sender,
+      None,
+      fee,
+      data = None
+    ).get
+
+    val sig = keyRing.signWithAddress(sender, rawTx.messageToSign).get
+    val tx = rawTx.copy(attestation = Map(prop -> sig))
+    tx
+  }
+
   def validAssetTransfer(
-    keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-    state: State,
-    fee: Long = 1L,
-    minting: Boolean = false
-  ): Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = {
+                          keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+                          state: State,
+                          fee: Long = 1L,
+                          minting: Boolean = false
+                        ): Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = {
     val sender = keyRing.addresses.head
     val prop = keyRing.lookupPublicKey(sender).get
     val asset = AssetValue(1, AssetCode(1: Byte, sender, "test"), SecurityRoot.empty)
