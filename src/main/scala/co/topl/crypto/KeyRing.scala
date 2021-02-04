@@ -53,42 +53,8 @@ class KeyRing[
       case (Failure(e), _)             => throw e // this assumes the failure is due to not finding the address
     }
 
-  /** Given a public key and password, unlock the associated key file.
-    *
-    * @param publicKeyString Base58 encoded public key to unlock
-    * @param password        - password for the given public key.
-    */
-  def unlockKeyFile(publicKeyString: String, password: String): Try[Unit] = Try {
-    val privKey = checkValid(publicKeyString: String, password: String)
-
-    // ensure no duplicate by comparing privKey strings
-    if (!secrets.contains(privKey)) secrets += privKey
-  }
-
-  /** Given a public key and password, locks a key file.
-    *
-    * @param publicKeyString Base58 encoded public key to lock
-    * @param password        - password associated with public key.
-    */
-  def lockKeyFile(publicKeyString: String, password: String): Try[Unit] = Try {
-    val privKey = checkValid(publicKeyString: String, password: String)
-
-    // ensure no duplicate by comparing privKey strings
-    if (secrets.contains(privKey)) {
-      secrets -= (secrets find (p => p == privKey)).get
-    }
-  }
-
-  /** @param password
-    */
-  def generateKeyFile(password: String): Try[Address] =
-    // generate a new random key pair and save to disk
-    generateNewKeyPairs().map { sk =>
-      exportKeyfileToDisk(sk.head.publicImage.address, password)
-      sk.head.publicImage.address
-    }
-
-  /** @param num
+  /** Generates a new keypair and updates the key ring with the new secret
+    * @param num
     * @param seedOpt
     * @return
     */
@@ -104,6 +70,35 @@ class KeyRing[
         newSecrets
       } else throw new Error("Number of requested keys must be greater than or equal to 1")
     }
+
+  /** Attempts to import a keyfile into the key ring
+    * @param keyfile encrypted keyfile that will be added
+    * @param password password for decrypting the keyfile
+    * @return the address of the key pair for this network
+    */
+  def importKeyPair(keyfile: KF, password: String): Try[Address] = {
+    require(
+      keyfile.address.networkPrefix == networkPrefix,
+      s"Invalid key file for chosen network. " +
+      s"Provided key has network prefix ${keyfile.address.networkPrefix} but required prefix is $networkPrefix"
+    )
+    keyfileOps.decryptSecret(keyfile, password).map { s =>
+      secrets ++= Set(s)
+      s.publicImage.address
+    }
+  }
+
+  /**
+   * Removes an address from the keyring so that it is not available for signing any longer
+   * @param address network specific address to be removed
+   * @return a try indicating whether the key ring was successfully mutated or not
+   */
+  def removeFromKeyring(address: Address): Try[Unit] = Try {
+    secretByAddress(address) match {
+      case Some(sk) => secrets -= (secrets find (p => p == sk)).get
+      case None     => throw new Exception("Unable to find address in keyring")
+    }
+  }
 
   /** @param password
     * @param mnemonic
@@ -129,41 +124,64 @@ class KeyRing[
       sk._2.address
     }
 
-  /** @param address
-    * @param password
-    * @return
-    */
-  private def exportKeyfileToDisk(address: Address, password: String): Try[Unit] = Try {
-    secretByAddress(address) match {
-      case Some(sk) => keyfileOps.saveToDisk(defaultKeyDir.getAbsolutePath, password, sk)
-      case _        => Failure(new Error("Unable to find a matching secret in the key ring"))
-    }
-  }
-
   /** Find a secret given it's public image */
   private def secretByAddress(addr: Address): Option[S] =
     secrets.find(_.publicImage.address == addr)
 
-  /** Return a list of KeuFile instances for all keys in the key file directory */
-  private def listKeyFiles: List[KF] =
-    KeyRing.getListOfFiles(defaultKeyDir).map(file => keyfileOps.readFile(file.getPath))
+  object DiskOps {
 
-  /** Check if given publicKey string is valid and contained in the key file directory
-    *
-    * @param address Base58 encoded public key to query
-    * @param password        password used to decrypt the keyfile
-    * @return the relevant PrivateKey25519 to be processed
-    */
-  private def checkValid(address: String, password: String): S = {
-    val keyfile = listKeyFiles.filter {
-      _.address == Address(networkPrefix)(address)
+    /** generate a new random key pair and save to disk
+      * @param password
+      */
+    def generateKeyFile(password: String): Try[Address] =
+      generateNewKeyPairs().map { sk =>
+        exportKeyfileToDisk(sk.head.publicImage.address, password)
+        sk.head.publicImage.address
+      }
+
+    /** Given am address and password, unlock the associated key file.
+      *
+      * @param address Base58 encoded address of the key to unlock
+      * @param password        - password for the given public key.
+      */
+    def unlockKeyFile(address: String, password: String): Try[Unit] = Try {
+      val keyfile = checkValid(address: String, password: String)
+      importKeyPair(keyfile, password)
     }
 
-    assert(keyfile.size == 1, s"Cannot find a unique matching keyfile in $defaultKeyDir")
+    /** @param address
+      * @param password
+      * @return
+      */
+    private def exportKeyfileToDisk(address: Address, password: String): Try[Unit] = Try {
+      secretByAddress(address) match {
+        case Some(sk) => keyfileOps.saveToDisk(defaultKeyDir.getAbsolutePath, password, sk)
+        case _        => Failure(new Error("Unable to find a matching secret in the key ring"))
+      }
+    }
 
-    keyfileOps.decryptSecret(keyfile.head, password) match {
-      case Success(sk) => sk
-      case Failure(e)  => throw e
+    /** Return a list of KeuFile instances for all keys in the key file directory */
+    private def listKeyFiles: List[KF] =
+      KeyRing.getListOfFiles(defaultKeyDir).map(file => keyfileOps.readFile(file.getPath))
+
+    /** Check if given publicKey string is valid and contained in the key file directory
+      *
+      * @param address Base58 encoded public key to query
+      * @param password        password used to decrypt the keyfile
+      * @return the relevant PrivateKey25519 to be processed
+      */
+    private def checkValid(address: String, password: String): KF = {
+      val keyfile = listKeyFiles.filter {
+        _.address == Address(networkPrefix)(address)
+      }
+
+      require(keyfile.size == 1, s"Cannot find a unique matching keyfile in $defaultKeyDir")
+      keyfile.head
+
+//      keyfileOps.decryptSecret(keyfile.head, password) match {
+//        case Success(sk) => sk
+//        case Failure(e)  => throw e
+//      }
     }
   }
 }

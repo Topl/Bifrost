@@ -7,7 +7,7 @@ import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.consensus.Forger.ReceivableMessages._
 import co.topl.http.api.{AdminNamespace, ApiEndpoint, Namespace}
 import co.topl.settings.{AppContext, RPCApiSettings}
-import io.circe.Json
+import io.circe.{DecodingFailure, Json}
 import io.circe.syntax.EncoderOps
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -56,7 +56,7 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
    * @return
    */
   private def unlockKeyfile ( params: Json, id: String ): Future[Json] = {
-    val publicKey: String = (params \\ "publicKey").head.asString.get
+    val publicKey: String = (params \\ "address").head.asString.get
     val password: String = (params \\ "password").head.asString.get
 
     (keyHolderRef ? UnlockKey(publicKey, password)).mapTo[Try[Unit]].map {
@@ -84,15 +84,16 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
    * @param id     request identifier
    * @return
    */
-  private def lockKeyfile ( params: Json, id: String ): Future[Json] = {
-    val publicKey: String = (params \\ "publicKey").head.asString.get
-    val password: String = (params \\ "password").head.asString.get
-
-    (keyHolderRef ? LockKey(publicKey, password)).mapTo[Try[Unit]].map {
-      case Success(_)  => Map(publicKey -> "locked".asJson).asJson
-      case Failure(ex) => throw new Error(s"An error occurred while trying to lock the keyfile. $ex")
+  private def lockKeyfile ( params: Json, id: String ): Future[Json] =
+    (for {
+      addr <- params.hcursor.get[Address]("address")
+    } yield (keyHolderRef ? LockKey(addr)).mapTo[Try[Unit]].map {
+      case Success(_) => Map(addr -> "locked".asJson).asJson
+      case Failure(ex) => throw new Exception(s"An error occurred while trying to lock the keyfile. $ex")
+    }) match {
+      case Right(json) => json
+      case Left(ex)    => throw ex
     }
-  }
 
   /** #### Summary
    * Generate a new keyfile in local storage

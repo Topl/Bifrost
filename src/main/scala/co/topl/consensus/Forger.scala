@@ -113,13 +113,12 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
   }
 
   private def keyManagement: Receive = {
-    case UnlockKey(addr, password)           => sender() ! keyRing.unlockKeyFile(addr, password)
-    case LockKey(addr, password)             => sender() ! keyRing.lockKeyFile(addr, password)
-    case CreateKey(password)                 => sender() ! keyRing.generateKeyFile(password)
+    case CreateKey(password)                 => sender() ! keyRing.DiskOps.generateKeyFile(password)
+    case UnlockKey(addr, password)           => sender() ! keyRing.DiskOps.unlockKeyFile(addr, password)
+    case LockKey(addr)                       => sender() ! keyRing.removeFromKeyring(addr)
     case ImportKey(password, mnemonic, lang) => sender() ! keyRing.importPhrase(password, mnemonic, lang)
     case ListKeys                            => sender() ! keyRing.addresses
     //TODO: JAA - add route to update rewards address
-    // TODO: JAA - add route to start forging
   }
 
   private def nonsense: Receive = { case nonsense: Any =>
@@ -445,7 +444,7 @@ object Forger {
 
     case class UnlockKey(addr: String, password: String)
 
-    case class LockKey(addr: String, password: String)
+    case class LockKey(addr: Address)
 
     case object ListKeys
 
