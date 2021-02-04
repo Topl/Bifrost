@@ -114,10 +114,20 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   val vm_version: String = System.getProperty("java.vm.version")
   System.out.printf("java.vm.version = %s%n", vm_version)
 
-  /** Is JVMCI enabled? */
   val bean: HotSpotDiagnosticMXBean = ManagementFactory.getPlatformMXBean(classOf[HotSpotDiagnosticMXBean])
-  val enableJVMCI: VMOption = bean.getVMOption("EnableJVMCI")
-  log.debug(s"$enableJVMCI")
+
+  // Is JVMCI enabled?
+  try {
+    val enableJVMCI: VMOption = bean.getVMOption("EnableJVMCI")
+    log.debug(s"$enableJVMCI")
+  } catch {
+    case e: IllegalArgumentException =>
+      log.error(s"${Console.RED}Unexpected error when checking for JVMCI: $e")
+      BifrostApp.shutdown(actorSystem, actorsToStop)
+    case e: Throwable =>
+      log.error(s"${Console.RED}Unexpected error when checking for JVMCI: $e")
+      BifrostApp.shutdown(actorSystem, actorsToStop)
+  }
 
   /** Is the system using the JVMCI compiler for normal compilations? */
   val useJVMCICompiler: VMOption = bean.getVMOption("UseJVMCICompiler")
