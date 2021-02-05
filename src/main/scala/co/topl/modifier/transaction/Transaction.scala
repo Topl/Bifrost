@@ -42,11 +42,6 @@ abstract class Transaction[+T, P <: Proposition: Identifiable] extends NodeViewM
     Longs.toByteArray(timestamp) ++
     Longs.toByteArray(fee)
 
-  def genAttestation(f: Array[Byte] => (P, Proof[P])): Map[P, Proof[P]] = {
-    val newProof = f(messageToSign)
-    attestation ++ Map(newProof._1 -> newProof._2)
-  }
-
   def getPropIdentifier: Identifier = Identifiable[P].getId
 
   def semanticValidate(stateReader: StateReader[ProgramId, Address])(implicit networkPrefix: NetworkPrefix): Try[Unit]
