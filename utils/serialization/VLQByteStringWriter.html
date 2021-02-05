@@ -333,7 +333,7 @@
         <span class="name">append</span><span class="params">(<span name="writer">writer: <a href="Writer$.html#Aux[CCH]=utils.serialization.Writer{typeCH=CCH}" class="extmbr" name="utils.serialization.Writer.Aux">Aux</a>[<a href="#CH=akka.util.ByteString" class="extmbr" name="utils.serialization.VLQByteStringWriter.CH">CH</a>]</span>)</span><span class="result">: <a href="" class="extype" name="utils.serialization.VLQByteStringWriter">VLQByteStringWriter</a>.this.type</span>
       </span>
       
-      <p class="shortcomment cmt">Append result of $writer to this Writer</p><div class="fullcomment"><div class="comment cmt"><p>Append result of $writer to this Writer</p></div><dl class="paramcmts block"><dt class="param">writer</dt><dd class="cmt"><p>is used as source of bytes</p></dd></dl><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="Writer.html" class="extype" name="utils.serialization.Writer">Writer</a></dd></dl></div>
+      <p class="shortcomment cmt">Append result of <code>writer</code> to this Writer</p><div class="fullcomment"><div class="comment cmt"><p>Append result of <code>writer</code> to this Writer</p></div><dl class="paramcmts block"><dt class="param">writer</dt><dd class="cmt"><p>is used as source of bytes</p></dd></dl><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="Writer.html" class="extype" name="utils.serialization.Writer">Writer</a></dd></dl></div>
     </li><li name="scala.Any#asInstanceOf" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="asInstanceOf[T0]:T0"></a>
       <span class="permalink">
@@ -772,7 +772,7 @@ Use <a href="VLQWriter.html#putULong(x:Long):VLQWriter.this.type" class="extmbr"
         <span class="name">putOption</span><span class="tparams">[<span name="T">T</span>]</span><span class="params">(<span name="x">x: <span class="extype" name="scala.Option">Option</span>[<span class="extype" name="utils.serialization.VLQWriter.putOption.T">T</span>]</span>)</span><span class="params">(<span name="putValue">putValue: (<a href="" class="extype" name="utils.serialization.VLQByteStringWriter">VLQByteStringWriter</a>.this.type, <span class="extype" name="utils.serialization.VLQWriter.putOption.T">T</span>) ⇒ <span class="extype" name="scala.Unit">Unit</span></span>)</span><span class="result">: <a href="" class="extype" name="utils.serialization.VLQByteStringWriter">VLQByteStringWriter</a>.this.type</span>
       </span>
       
-      <p class="shortcomment cmt">Encode optional value</p><div class="fullcomment"><div class="comment cmt"><p>Encode optional value</p></div><dl class="paramcmts block"><dt class="param">x</dt><dd class="cmt"><p>optional value to encode</p></dd><dt class="param">putValue</dt><dd class="cmt"><p>procedure to encode value, if $x is nonempty</p></dd></dl><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="VLQWriter.html" class="extype" name="utils.serialization.VLQWriter">VLQWriter</a> → <a href="Writer.html" class="extype" name="utils.serialization.Writer">Writer</a></dd><dt>Annotations</dt><dd>
+      <p class="shortcomment cmt">Encode optional value</p><div class="fullcomment"><div class="comment cmt"><p>Encode optional value</p></div><dl class="paramcmts block"><dt class="param">x</dt><dd class="cmt"><p>optional value to encode</p></dd><dt class="param">putValue</dt><dd class="cmt"><p>procedure to encode value, if <code>x</code> is nonempty</p></dd></dl><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="VLQWriter.html" class="extype" name="utils.serialization.VLQWriter">VLQWriter</a> → <a href="Writer.html" class="extype" name="utils.serialization.Writer">Writer</a></dd><dt>Annotations</dt><dd>
                 <span class="name">@inline</span><span class="args">()</span>
               
         </dd></dl></div>
@@ -816,7 +816,8 @@ Use <a href="VLQWriter.html#putUShort(x:Int):VLQWriter.this.type" class="extmbr"
         <span class="name">putUByte</span><span class="params">(<span name="x">x: <span class="extype" name="scala.Int">Int</span></span>)</span><span class="result">: <a href="" class="extype" name="utils.serialization.VLQByteStringWriter">VLQByteStringWriter</a>.this.type</span>
       </span>
       
-      <p class="shortcomment cmt">Encode integer as an unsigned byte asserting the range check</p><div class="fullcomment"><div class="comment cmt"><p>Encode integer as an unsigned byte asserting the range check</p></div><dl class="paramcmts block"><dt class="param">x</dt><dd class="cmt"><p>integer value to encode</p></dd></dl><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="Writer.html" class="extype" name="utils.serialization.Writer">Writer</a></dd><dt>Exceptions thrown</dt><dd><span class="cmt"><p><span class="extype" name="AssertionError"><code>AssertionError</code></span> if x is outside of the unsigned byte range</p></span></dd></dl></div>
+      <p class="shortcomment cmt">Encode integer as an unsigned byte asserting the range check</p><div class="fullcomment"><div class="comment cmt"><p>Encode integer as an unsigned byte asserting the range check</p></div><dl class="paramcmts block"><dt class="param">x</dt><dd class="cmt"><p>integer value to encode</p></dd><dt>returns</dt><dd class="cmt"><p>
+throws <code>AssertionError</code> if x is outside of the unsigned byte range</p></dd></dl><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="Writer.html" class="extype" name="utils.serialization.Writer">Writer</a></dd></dl></div>
     </li><li name="utils.serialization.VLQWriter#putUInt" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="putUInt(x:Long):VLQWriter.this.type"></a><a id="putUInt(Long):VLQByteStringWriter.this.type"></a>
       <span class="permalink">
@@ -835,10 +836,11 @@ Use <a href="VLQWriter.html#putUShort(x:Int):VLQWriter.this.type" class="extmbr"
       <p class="shortcomment cmt">Encode unsigned Int value using VLQ.</p><div class="fullcomment"><div class="comment cmt"><p>Encode unsigned Int value using VLQ.
 Only positive values are supported. Use <a href="VLQWriter.html#putInt(x:Int):VLQWriter.this.type" class="extmbr" name="utils.serialization.VLQWriter#putInt">putInt</a>
 to encode negative and positive values.
-</p></div><dl class="paramcmts block"><dt class="param">x</dt><dd class="cmt"><p>unsigned Int</p></dd></dl><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="VLQWriter.html" class="extype" name="utils.serialization.VLQWriter">VLQWriter</a> → <a href="Writer.html" class="extype" name="utils.serialization.Writer">Writer</a></dd><dt>Annotations</dt><dd>
+</p></div><dl class="paramcmts block"><dt class="param">x</dt><dd class="cmt"><p>unsigned Int
+throws <code>AssertionError</code> for values not in unsigned Int range</p></dd></dl><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="VLQWriter.html" class="extype" name="utils.serialization.VLQWriter">VLQWriter</a> → <a href="Writer.html" class="extype" name="utils.serialization.Writer">Writer</a></dd><dt>Annotations</dt><dd>
                 <span class="name">@inline</span><span class="args">()</span>
               
-        </dd><dt>Exceptions thrown</dt><dd><span class="cmt"><p><span class="extype" name="AssertionError"><code>AssertionError</code></span> for values not in unsigned Int range</p></span></dd><dt>See also</dt><dd><span class="cmt"><p><a href="https://en.wikipedia.org/wiki/Variable-length_quantity" target="_blank">https://en.wikipedia.org/wiki/Variable-length_quantity</a></p></span></dd></dl></div>
+        </dd><dt>See also</dt><dd><span class="cmt"><p><a href="https://en.wikipedia.org/wiki/Variable-length_quantity" target="_blank">https://en.wikipedia.org/wiki/Variable-length_quantity</a></p></span></dd></dl></div>
     </li><li name="utils.serialization.VLQWriter#putULong" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="putULong(x:Long):VLQWriter.this.type"></a><a id="putULong(Long):VLQByteStringWriter.this.type"></a>
       <span class="permalink">
@@ -884,10 +886,11 @@ to encode negative and positive values.
       <p class="shortcomment cmt">Encode unsigned Short value using VLQ.</p><div class="fullcomment"><div class="comment cmt"><p>Encode unsigned Short value using VLQ.
 Only positive values are supported, Use <a href="VLQWriter.html#putShort(x:Short):VLQWriter.this.type" class="extmbr" name="utils.serialization.VLQWriter#putShort">putShort</a>
 to encode negative and positive values.
-</p></div><dl class="paramcmts block"><dt class="param">x</dt><dd class="cmt"><p>unsigned Short in a range 0 &lt;= x &lt;= 0xFFFF represented as Int</p></dd></dl><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="VLQWriter.html" class="extype" name="utils.serialization.VLQWriter">VLQWriter</a> → <a href="Writer.html" class="extype" name="utils.serialization.Writer">Writer</a></dd><dt>Annotations</dt><dd>
+</p></div><dl class="paramcmts block"><dt class="param">x</dt><dd class="cmt"><p>unsigned Short in a range 0 &lt;= x &lt;= 0xFFFF represented as Int
+throws <code>AssertionError</code> for values not in unsigned Short range</p></dd></dl><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="VLQWriter.html" class="extype" name="utils.serialization.VLQWriter">VLQWriter</a> → <a href="Writer.html" class="extype" name="utils.serialization.Writer">Writer</a></dd><dt>Annotations</dt><dd>
                 <span class="name">@inline</span><span class="args">()</span>
               
-        </dd><dt>Exceptions thrown</dt><dd><span class="cmt"><p><span class="extype" name="AssertionError"><code>AssertionError</code></span> for values not in unsigned Short range</p></span></dd><dt>See also</dt><dd><span class="cmt"><p><a href="https://en.wikipedia.org/wiki/Variable-length_quantity" target="_blank">https://en.wikipedia.org/wiki/Variable-length_quantity</a></p></span></dd></dl></div>
+        </dd><dt>See also</dt><dd><span class="cmt"><p><a href="https://en.wikipedia.org/wiki/Variable-length_quantity" target="_blank">https://en.wikipedia.org/wiki/Variable-length_quantity</a></p></span></dd></dl></div>
     </li><li name="utils.serialization.VLQByteStringWriter#result" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="result():akka.util.ByteString"></a><a id="result():ByteString"></a>
       <span class="permalink">

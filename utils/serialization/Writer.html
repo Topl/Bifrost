@@ -451,7 +451,7 @@ Use <a href="#putULong(x:Long):Writer.this.type" class="extmbr" name="utils.seri
         <span class="name">putOption</span><span class="tparams">[<span name="T">T</span>]</span><span class="params">(<span name="x">x: <span class="extype" name="scala.Option">Option</span>[<span class="extype" name="utils.serialization.Writer.putOption.T">T</span>]</span>)</span><span class="params">(<span name="putValue">putValue: (<a href="" class="extype" name="utils.serialization.Writer">Writer</a>.this.type, <span class="extype" name="utils.serialization.Writer.putOption.T">T</span>) ⇒ <span class="extype" name="scala.Unit">Unit</span></span>)</span><span class="result">: <a href="" class="extype" name="utils.serialization.Writer">Writer</a>.this.type</span>
       </span>
       
-      <p class="shortcomment cmt">Encode optional value</p><div class="fullcomment"><div class="comment cmt"><p>Encode optional value</p></div><dl class="paramcmts block"><dt class="param">x</dt><dd class="cmt"><p>optional value to encode</p></dd><dt class="param">putValue</dt><dd class="cmt"><p>procedure to encode value, if $x is nonempty</p></dd></dl></div>
+      <p class="shortcomment cmt">Encode optional value</p><div class="fullcomment"><div class="comment cmt"><p>Encode optional value</p></div><dl class="paramcmts block"><dt class="param">x</dt><dd class="cmt"><p>optional value to encode</p></dd><dt class="param">putValue</dt><dd class="cmt"><p>procedure to encode value, if <code>x</code> is nonempty</p></dd></dl></div>
     </li><li name="utils.serialization.Writer#putShort" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
       <a id="putShort(x:Short):Writer.this.type"></a><a id="putShort(Short):Writer.this.type"></a>
       <span class="permalink">
@@ -605,7 +605,7 @@ Use <a href="#putLong(x:Long):Writer.this.type" class="extmbr" name="utils.seria
         <span class="name">append</span><span class="params">(<span name="writer">writer: <a href="Writer$.html#Aux[CCH]=utils.serialization.Writer{typeCH=CCH}" class="extmbr" name="utils.serialization.Writer.Aux">Aux</a>[<a href="#CH" class="extmbr" name="utils.serialization.Writer.CH">CH</a>]</span>)</span><span class="result">: <a href="" class="extype" name="utils.serialization.Writer">Writer</a>.this.type</span>
       </span>
       
-      <p class="shortcomment cmt">Append result of $writer to this Writer</p><div class="fullcomment"><div class="comment cmt"><p>Append result of $writer to this Writer</p></div><dl class="paramcmts block"><dt class="param">writer</dt><dd class="cmt"><p>is used as source of bytes</p></dd></dl></div>
+      <p class="shortcomment cmt">Append result of <code>writer</code> to this Writer</p><div class="fullcomment"><div class="comment cmt"><p>Append result of <code>writer</code> to this Writer</p></div><dl class="paramcmts block"><dt class="param">writer</dt><dd class="cmt"><p>is used as source of bytes</p></dd></dl></div>
     </li><li name="scala.Any#asInstanceOf" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="asInstanceOf[T0]:T0"></a>
       <span class="permalink">
@@ -823,7 +823,8 @@ Use <a href="#putLong(x:Long):Writer.this.type" class="extmbr" name="utils.seria
         <span class="name">putUByte</span><span class="params">(<span name="x">x: <span class="extype" name="scala.Int">Int</span></span>)</span><span class="result">: <a href="" class="extype" name="utils.serialization.Writer">Writer</a>.this.type</span>
       </span>
       
-      <p class="shortcomment cmt">Encode integer as an unsigned byte asserting the range check</p><div class="fullcomment"><div class="comment cmt"><p>Encode integer as an unsigned byte asserting the range check</p></div><dl class="paramcmts block"><dt class="param">x</dt><dd class="cmt"><p>integer value to encode</p></dd></dl><dl class="attributes block"> <dt>Exceptions thrown</dt><dd><span class="cmt"><p><span class="extype" name="AssertionError"><code>AssertionError</code></span> if x is outside of the unsigned byte range</p></span></dd></dl></div>
+      <p class="shortcomment cmt">Encode integer as an unsigned byte asserting the range check</p><div class="fullcomment"><div class="comment cmt"><p>Encode integer as an unsigned byte asserting the range check</p></div><dl class="paramcmts block"><dt class="param">x</dt><dd class="cmt"><p>integer value to encode</p></dd><dt>returns</dt><dd class="cmt"><p>
+throws <code>AssertionError</code> if x is outside of the unsigned byte range</p></dd></dl></div>
     </li><li name="scala.AnyRef#synchronized" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="synchronized[T0](x$1:=&gt;T0):T0"></a><a id="synchronized[T0](⇒T0):T0"></a>
       <span class="permalink">
