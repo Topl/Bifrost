@@ -18,8 +18,7 @@ import io.iohk.iodb.LSMStore
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
-/**
-  * A representation of the entire blockchain (whether it's a blocktree, blockchain, etc.)
+/** A representation of the entire blockchain (whether it's a blocktree, blockchain, etc.)
   *
   * @param storage    a wrapper primarily for the LSMStore and for storage of the minimal state
   * @param validators rule sets that dictate validity of blocks in the history
@@ -64,12 +63,11 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
 
   def parentBlock(m: Block): Option[Block] = modifierById(m.parentId)
 
-  /**Return last count headers from best headers chain if exist or chain up to genesis otherwise */
+  /** Return last count headers from best headers chain if exist or chain up to genesis otherwise */
   def lastHeaders(count: Int, offset: Int = 0): IndexedSeq[ModifierId] =
     getBlocksFrom(bestBlock, count).map(block => block.id).toIndexedSeq
 
-  /**
-    * Adds block to chain and updates storage (difficulty, score, etc.) relating to that
+  /** Adds block to chain and updates storage (difficulty, score, etc.) relating to that
     *
     * @param block block to append
     * @return the update history including `block` as the most recent block
@@ -139,8 +137,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     }
   }
 
-  /**
-    * Removes this block (and its children) from the history and rolls back to the state after the parent block
+  /** Removes this block (and its children) from the history and rolls back to the state after the parent block
     *
     * Maybe we should check drop the id passed in is the best block's id? or just get rid of the arg
     *
@@ -157,8 +154,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     new History(storage, fullBlockProcessor, validators)
   }
 
-  /**
-    * Calculates the changes necessary for a swap to a fork
+  /** Calculates the changes necessary for a swap to a fork
     *
     * @param block the block that has a parent on the canonical chain but is not on the chain
     * @return ProgressInfo that specifies the blocks to delete (worse fork) and blocks to add (better fork)
@@ -185,8 +181,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     ProgressInfo[Block](rollbackPoint, throwBlocks, applyBlocks, Seq.empty)
   }
 
-  /**
-    * Forms a list of available blocks to build upon
+  /** Forms a list of available blocks to build upon
     *
     * @return the blocks that are "exposed" for use
     */
@@ -195,8 +190,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     else Seq(bestBlockId)
     // TODO return sequence of exposed endpoints?
 
-  /**
-    * Return specified number of Bifrost blocks, ordered back from last one
+  /** Return specified number of Bifrost blocks, ordered back from last one
     *
     * @param count - how many blocks to return
     * @return blocks, in reverse order (starting from the most recent one)
@@ -215,15 +209,14 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     else loop(startBlock)
   }
 
-  /**
-   * Go back through chain and get block ids until condition `until` is satisfied
-   *
-   * @param startBlock     the modifier to start at
-   * @param until the condition that indicates (when true) that recursion should stop
-   * @param limit the maximum number of blocks to recurse back
-   * @return the sequence of block information (TypeId, Id) that were collected until `until` was satisfied
-   *         (None only if the parent for a block was not found) starting from the original `m`
-   */
+  /** Go back through chain and get block ids until condition `until` is satisfied
+    *
+    * @param startBlock     the modifier to start at
+    * @param until the condition that indicates (when true) that recursion should stop
+    * @param limit the maximum number of blocks to recurse back
+    * @return the sequence of block information (TypeId, Id) that were collected until `until` was satisfied
+    *         (None only if the parent for a block was not found) starting from the original `m`
+    */
   final def getIdsFrom(startBlock: Block,
                        until: Block => Boolean,
                        limit: Int = Int.MaxValue): Option[Seq[ModifierId]] = {
@@ -248,8 +241,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
   def getTimestampsFrom(startBlock: Block, count: Long): Vector[Block.Timestamp] =
     History.getTimestamps(storage, count, startBlock)
 
-  /**
-    * Retrieve a sequence of blocks until the given filter is satisifed
+  /** Retrieve a sequence of blocks until the given filter is satisifed
     *
     * @param f filter function to be applied for retrieving blocks
     * @return a sequence of blocks starting from the tip of the chain
@@ -264,8 +256,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     loop(bestBlock, Seq())
   }
 
-  /**
-    * Whether another node's syncinfo shows that another node is ahead or behind ours
+  /** Whether another node's syncinfo shows that another node is ahead or behind ours
     *
     * @param info other's node sync info
     * @return Equal if nodes have the same history, Younger if another node is behind, Older if a new node is ahead
@@ -302,10 +293,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     }
   }
 
-
-
-  /**
-    * Find common suffixes for two chains starting from forkBlock
+  /** Find common suffixes for two chains starting from forkBlock
     *
     * @param forkBlock the common source of a potential fork (normally just the parent of bestBlock)
     * @param limit     how far back to check for a common block
@@ -330,8 +318,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
 
   }.ensuring(r => r._1.head == r._2.head)
 
-  /**
-    * Report that modifier is valid from point of view of the state component
+  /** Report that modifier is valid from point of view of the state component
     *
     * @param modifier - valid modifier
     * @return modified history
@@ -341,8 +328,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     this
   }
 
-  /**
-    * Report that modifier is invalid from other nodeViewHolder components point of view
+  /** Report that modifier is invalid from other nodeViewHolder components point of view
     *
     * @param modifier     - invalid modifier
     * @param progressInfo - what suffix failed to be applied because of an invalid modifier
@@ -355,8 +341,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     (new History(storage, fullBlockProcessor, validators), progInfo)
   }
 
-  /**
-    * Whether a modifier could be applied to the history
+  /** Whether a modifier could be applied to the history
     *
     * @param modifier - modifier to apply
     * @return `Success` if modifier can be applied, `Failure(ModifierError)` if can not
@@ -404,8 +389,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     }
   }
 
-  /**
-    * Retrieve a segment of our chain to send to a remote node. This method works by identifying
+  /** Retrieve a segment of our chain to send to a remote node. This method works by identifying
     * a common ancestor by comparing the SyncInfo sent from the remote peer to our chain. If a
     * common ancestor can be found in the local history, an extension from that ancestor is
     * returned as a set of continuationIds for the remote node to request their missing modifiers.
@@ -458,25 +442,19 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     }
   }
 
-  /**
-    * Information about our node synchronization status. Other node should be able to compare it's view with ours by
+  /** Information about our node synchronization status. Other node should be able to compare it's view with ours by
     * this syncInfo message and calculate modifiers missed by our node.
-    *
-    * @return
     */
   override def syncInfo: BifrostSyncInfo =
-    if (isEmpty) {
+    if (isEmpty)
       BifrostSyncInfo(Seq.empty)
-
-    } else {
+    else {
       val startingPoints = lastHeaders(BifrostSyncInfo.MaxLastBlocks)
 
-      if (startingPoints.headOption.contains(GenesisParentId)) {
+      if (startingPoints.headOption.contains(GenesisParentId))
         BifrostSyncInfo(GenesisParentId +: startingPoints)
-
-      } else {
+      else
         BifrostSyncInfo(startingPoints)
-      }
     }
 }
 

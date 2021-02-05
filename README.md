@@ -23,7 +23,7 @@ Documentation
 
 Installation
 -------------------
-Check out our [Installation Instructions](https://github.com/Topl/Project-Bifrost/wiki/Installation-Instructions-For-Linux)
+Check out our [Installation Instructions](https://github.com/Topl/Bifrost/wiki/Install-and-Build)
 
 
 Testing
