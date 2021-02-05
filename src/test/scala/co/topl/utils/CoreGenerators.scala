@@ -3,8 +3,7 @@ package co.topl.utils
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
-import co.topl.consensus.KeyRing
-import co.topl.crypto.{KeyfileCurve25519, PrivateKeyCurve25519, Secret}
+import co.topl.crypto.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519, Secret}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
@@ -499,7 +498,7 @@ trait CoreGenerators extends Logging {
     val difficulty = settings.forging.privateTestnet.map(_.initialDifficulty).get
     val version: PNVMVersion = settings.application.version.firstDigit
     val signingFunction: Array[Byte] => Try[SignatureCurve25519] =
-      (messageToSign: Array[Byte]) => keyRing.signWithAddress(matchingAddr, messageToSign)
+      (messageToSign: Array[Byte]) => keyRing.signWithAddress(matchingAddr)(messageToSign)
 
     Block.createAndSign(
       History.GenesisParentId,
