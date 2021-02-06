@@ -1,14 +1,15 @@
 package co.topl
 
 import java.lang.management.ManagementFactory
-import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
+
+import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.http.scaladsl.Http
 import akka.io.Tcp
 import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.consensus.{Forger, ForgerRef}
 import co.topl.http.HttpService
-import co.topl.http.api.{ApiEndpoint, endpoints}
+import co.topl.http.api.ApiEndpoint
 import co.topl.http.api.endpoints.{DebugApiEndpoint, _}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction

@@ -1,9 +1,9 @@
-package co.topl.nodeView.state.box
+package co.topl.modifier.box
 
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
-import io.circe.{Decoder, Encoder}
 import io.circe.syntax.EncoderOps
+import io.circe.{Decoder, Encoder}
 import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 

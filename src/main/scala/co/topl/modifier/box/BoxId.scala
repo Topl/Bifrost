@@ -1,4 +1,4 @@
-package co.topl.nodeView.state.box
+package co.topl.modifier.box
 
 import co.topl.attestation.Evidence
 import com.google.common.primitives.{Ints, Longs}

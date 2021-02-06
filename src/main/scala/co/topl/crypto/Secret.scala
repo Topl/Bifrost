@@ -1,6 +1,6 @@
-package co.topl.attestation
+package co.topl.crypto
 
-import co.topl.crypto.Keyfile
+import co.topl.attestation.{KnowledgeProposition, ProofOfKnowledge}
 import co.topl.utils.serialization.BytesSerializable
 
 trait Secret extends BytesSerializable {

@@ -1,4 +1,4 @@
-package co.topl.utils.encode
+package co.topl.utils.serialization
 
 object ZigZagEncoder {
 

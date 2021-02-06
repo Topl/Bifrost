@@ -1,7 +1,7 @@
-package co.topl.nodeView.state.box.serialization
+package co.topl.modifier.box.serialization
 
 import co.topl.attestation.Evidence
-import co.topl.nodeView.state.box.{ArbitBox, SimpleValue, TokenBox}
+import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object ArbitBoxSerializer extends BifrostSerializer[ArbitBox] {

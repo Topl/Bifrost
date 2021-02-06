@@ -3,7 +3,7 @@ package co.topl.api
 import akka.http.scaladsl.model.StatusCodes.InternalServerError
 import akka.util.ByteString
 import co.topl.attestation.Address
-import co.topl.nodeView.state.box.AssetCode
+import co.topl.modifier.box.AssetCode
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers

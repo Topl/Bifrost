@@ -1,6 +1,5 @@
 package co.topl.utils.serialization
 
-import co.topl.utils.ByteArrayBuilder
 import co.topl.utils.serialization.Writer.Aux
 
 /**

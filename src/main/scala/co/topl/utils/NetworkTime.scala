@@ -1,9 +1,10 @@
 package co.topl.utils
 
-import org.apache.commons.net.ntp.NTPUDPClient
-
 import java.net.InetAddress
 import java.util.concurrent.atomic.AtomicLong
+
+import org.apache.commons.net.ntp.NTPUDPClient
+
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}

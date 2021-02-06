@@ -9,7 +9,7 @@ import co.topl.nodeView.NodeViewHolder.ReceivableMessages.LocallyGeneratedTransa
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.{AssetValue, SimpleValue}
+import co.topl.modifier.box.{AssetValue, SimpleValue}
 import co.topl.settings.{AppContext, RPCApiSettings}
 import io.circe.Json
 import io.circe.syntax._

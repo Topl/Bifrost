@@ -6,7 +6,7 @@ import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block.Timestamp
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.{ModifierId, NodeViewModifier}
-import co.topl.nodeView.state.box.ArbitBox
+import co.topl.modifier.box.ArbitBox
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 import scorex.crypto.hash.Digest32

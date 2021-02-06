@@ -2,7 +2,6 @@ package co.topl.nodeView.history
 
 import java.io.File
 
-import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.consensus.{BlockValidator, DifficultyBlockValidator, SyntaxBlockValidator}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId

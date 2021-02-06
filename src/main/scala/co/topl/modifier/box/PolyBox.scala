@@ -1,7 +1,7 @@
-package co.topl.nodeView.state.box
+package co.topl.modifier.box
 
 import co.topl.attestation.Evidence
-import co.topl.nodeView.state.box.Box.BoxType
+import co.topl.modifier.box.Box.BoxType
 import co.topl.utils.{Identifiable, Identifier}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}

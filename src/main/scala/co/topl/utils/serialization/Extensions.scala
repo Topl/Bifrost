@@ -1,4 +1,4 @@
-package co.topl.utils
+package co.topl.utils.serialization
 
 import scala.collection.generic.CanBuildFrom
 import scala.reflect.ClassTag

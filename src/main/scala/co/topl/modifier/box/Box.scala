@@ -1,11 +1,11 @@
-package co.topl.nodeView.state.box
+package co.topl.modifier.box
 
 import co.topl.attestation.Evidence
-import co.topl.nodeView.state.box.Box.Nonce
-import co.topl.nodeView.state.box.serialization.BoxSerializer
-import co.topl.utils.{Identifiable, Identifier}
+import co.topl.modifier.box.Box.Nonce
+import co.topl.modifier.box.serialization.BoxSerializer
 import co.topl.utils.Identifiable.Syntax._
 import co.topl.utils.serialization.BifrostSerializer
+import co.topl.utils.{Identifiable, Identifier}
 import com.google.common.primitives.Ints
 import io.circe._
 import io.circe.syntax.EncoderOps
