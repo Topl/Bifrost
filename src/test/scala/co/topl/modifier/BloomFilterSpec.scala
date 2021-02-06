@@ -55,22 +55,25 @@ class BloomFilterSpec
   property("The probability of false positives in bloomfilter with 500 addresses should be lower than 0.15") {
     /** The generated addresses are made deterministic, so that the variation won't break the test */
     val rand = new scala.util.Random(1)
+    /** 500 addresses in bloomfilter and 100 addresses for the test */
+    val numAddr = 600
+    val numBloom = 500
 
     val randAddr: Seq[Address] =
-      (0 until 600)
+      (0 until numAddr)
         .map(_ => Array.fill(Curve25519.KeyLength)((rand.nextInt(256) - 128).toByte))
         .map(s => PrivateKeyCurve25519.secretGenerator.generateSecret(s)._2)
         .map(k => k.address)
 
-    val bloomTopics: Set[BloomTopic] = randAddr.take(500).map(addr => BloomTopic @@ addr.bytes).toSet
+    val bloomTopics: Set[BloomTopic] = randAddr.take(numBloom).map(addr => BloomTopic @@ addr.bytes).toSet
     val bloomfilter: BloomFilter = BloomFilter(bloomTopics)
-    val testTopics: Seq[BloomTopic] = randAddr.drop(500).map(addr => BloomTopic @@ addr.bytes)
+    val testTopics: Seq[BloomTopic] = randAddr.drop(numBloom).map(addr => BloomTopic @@ addr.bytes)
 
     val falsePositives = testTopics.foldLeft(0) { (count, bt) =>
       if (bloomfilter.contains(bt)) count + 1
       else count
     }
 
-    (falsePositives <= testTopics.size * 0.15) shouldBe true
+    falsePositives shouldEqual 12
   }
 }

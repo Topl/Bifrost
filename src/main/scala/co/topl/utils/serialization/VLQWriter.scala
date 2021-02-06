@@ -31,7 +31,7 @@ trait VLQWriter extends Writer {
     *
     * @see [[https://en.wikipedia.org/wiki/Variable-length_quantity]]
     * @param x unsigned Short in a range 0 <= x <= 0xFFFF represented as Int
-    * @throws AssertionError for values not in unsigned Short range
+    * throws `AssertionError` for values not in unsigned Short range
     */
   @inline override def putUShort(x: Int): this.type = {
     require(x >= 0 && x <= 0xFFFF, s"Value $x is out of unsigned short range")
@@ -59,7 +59,7 @@ trait VLQWriter extends Writer {
     *
     * @see [[https://en.wikipedia.org/wiki/Variable-length_quantity]]
     * @param x unsigned Int
-    * @throws AssertionError for values not in unsigned Int range
+    * throws `AssertionError` for values not in unsigned Int range
     */
   @inline override def putUInt(x: Long): this.type = {
     require(x >= 0 && x <= 0xFFFFFFFFL, s"$x is out of unsigned int range")
