@@ -638,7 +638,7 @@
         <span class="name">sendRequest</span><span class="params">(<span name="request">request: <span class="extype" name="akka.util.ByteString">ByteString</span></span>)</span><span class="result">: <span class="extype" name="io.circe.Json">Json</span></span>
       </span>
       
-      <p class="shortcomment cmt">Sends a request to bifrost (either through TCP or Akka actor to WalletConnectionHandler)</p><div class="fullcomment"><div class="comment cmt"><p>Sends a request to bifrost (either through TCP or Akka actor to WalletConnectionHandler)</p></div><dl class="paramcmts block"><dt class="param">request</dt><dd class="cmt"><p>- the request to send as a byteString</p></dd><dt>returns</dt><dd class="cmt"><p>the request response as json</p></dd></dl></div>
+      <p class="shortcomment cmt">Sends a request to bifrost (either through HTTP or Akka actor to WalletConnectionHandler)</p><div class="fullcomment"><div class="comment cmt"><p>Sends a request to bifrost (either through HTTP or Akka actor to WalletConnectionHandler)</p></div><dl class="paramcmts block"><dt class="param">request</dt><dd class="cmt"><p>- the request to send as a byteString</p></dd><dt>returns</dt><dd class="cmt"><p>the request response as json</p></dd></dl></div>
     </li><li name="requests.Requests#signTx" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="signTx(transaction:io.circe.Json,signingKeys:IndexedSeq[attestation.Address]):io.circe.Json"></a><a id="signTx(Json,IndexedSeq[Address]):Json"></a>
       <span class="permalink">
