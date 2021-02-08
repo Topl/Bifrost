@@ -21,6 +21,6 @@ trait MemPoolReader[TX <: NodeViewModifier]
 
   def size: Int
 
-  def take(limit: Int): Iterable[TX]
+  def take(limit: Int): Iterable[UnconfirmedTx[TX]]
 
 }

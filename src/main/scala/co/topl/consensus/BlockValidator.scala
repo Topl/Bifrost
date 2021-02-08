@@ -4,6 +4,7 @@ import co.topl.consensus
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
+import co.topl.utils.TimeProvider
 
 import scala.util.{Failure, Try}
 
@@ -30,7 +31,7 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
     }
   }
 
-  private def ensureHeightAndDifficulty(block: Block, parent: Block, prevTimes: Seq[Block.Timestamp]): Try[Unit] = Try {
+  private def ensureHeightAndDifficulty(block: Block, parent: Block, prevTimes: Seq[TimeProvider.Time]): Try[Unit] = Try {
     // calculate the new base difficulty
     val newHeight = parent.height + 1
     val newBaseDifficulty = consensus.calcNewBaseDifficulty(newHeight, parent.difficulty, prevTimes)
@@ -58,7 +59,7 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
   }
 
   /** Helper function to find the source of the parent block (either storage or chain cache) */
-  private def getParentDetailsOf(block: Block): (Block, Seq[Block.Timestamp]) =
+  private def getParentDetailsOf(block: Block): (Block, Seq[TimeProvider.Time]) =
     blockProcessor.getCacheBlock(block.parentId) match {
       case Some(cacheParent) => (cacheParent.block, cacheParent.prevBlockTimes)
       case None =>

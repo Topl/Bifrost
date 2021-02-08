@@ -9,6 +9,7 @@ import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.modifier.box.ArbitBox
+import co.topl.utils.TimeProvider
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
 import supertagged.@@
@@ -31,7 +32,7 @@ import scala.util.Try
  * - additional data: block structure version no, timestamp etc
  */
 case class Block(parentId    : ModifierId,
-                 timestamp   : Timestamp,
+                 timestamp   : TimeProvider.Time,
                  generatorBox: ArbitBox,
                  publicKey   : PublicKeyPropositionCurve25519,
                  signature   : SignatureCurve25519,
@@ -53,8 +54,6 @@ case class Block(parentId    : ModifierId,
 }
 
 object Block {
-
-  type Timestamp = Long
 
   val modifierTypeId: Byte @@ NodeViewModifier.ModifierTypeId.Tag = ModifierTypeId @@ (3: Byte)
 
@@ -117,7 +116,7 @@ object Block {
     * @return a block to be sent to the network
     */
   def createAndSign(parentId: ModifierId,
-                    timestamp: Timestamp,
+                    timestamp: TimeProvider.Time,
                     txs: Seq[Transaction.TX],
                     generatorBox: ArbitBox,
                     publicKey: PublicKeyPropositionCurve25519,

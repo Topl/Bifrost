@@ -8,18 +8,17 @@ import co.topl.consensus.genesis.{PrivateTestnet, Toplnet}
 import co.topl.crypto.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.block.Block.Timestamp
+import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.CurrentView
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{EliminateTransactions, GetDataFromCurrentView, LocallyGeneratedModifier}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.settings.NetworkType._
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
-import co.topl.utils.Logging
 import co.topl.utils.TimeProvider.Time
+import co.topl.utils.{Logging, TimeProvider}
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
@@ -310,33 +309,41 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
 
     memPool
       .take(numTxInBlock(chainHeight))
-      .filter(_.fee > 0) // default strategy ignores zero fee transactions in mempool
-      .foldLeft(PickTransactionsResult(Seq(), Seq())) { case (txAcc, tx) =>
+      .filter(_.tx.fee > 0) // default strategy ignores zero fee transactions in mempool
+      .foldLeft(PickTransactionsResult(Seq(), Seq())) { case (txAcc, utx) =>
         // ensure that each transaction opens a unique box by checking that this transaction
         // doesn't open a box already being opened by a previously included transaction
-        val boxNotAlreadyUsed = tx.boxIdsToOpen.forall(id => !txAcc.toApply.flatMap(_.boxIdsToOpen).contains(id))
+        val boxNotAlreadyUsed = utx.tx.boxIdsToOpen.forall(id => !txAcc.toApply.flatMap(_.boxIdsToOpen).contains(id))
 
         // if any newly created box matches a box already in the UTXO set, remove the transaction
-        val boxAlreadyExists = tx.newBoxes.exists(b => state.getBox(b.id).isDefined)
+        val boxAlreadyExists = utx.tx.newBoxes.exists(b => state.getBox(b.id).isDefined)
 
-        if (boxNotAlreadyUsed && !boxAlreadyExists) {
-          state.semanticValidate(tx) match {
-            case Success(_) => PickTransactionsResult(txAcc.toApply :+ tx, txAcc.toEliminate)
-            case Failure(ex) =>
-              log.debug(
-                s"${Console.RED}Transaction ${tx.id} failed semantic validation. " +
-                  s"Transaction will be removed.${Console.RESET} Failure: $ex")
-              PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ tx)
-          }
-        } else if (!boxNotAlreadyUsed) {
-          log.debug(s"${Console.RED}Transaction ${tx.id} was rejected from forger transaction queue" +
-            s" because a box was used already in a previous transaction. The transaction will be removed.")
-          PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ tx)
-        } else {
-          log.debug(s"${Console.RED}Transaction ${tx.id} was rejected from the forger transaction queue" +
-            s" because a box was used already in a previous transaction, and a newly created" +
-            s" box already exists. The transaction will be removed.")
-          PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ tx)
+        (boxNotAlreadyUsed, boxAlreadyExists) match {
+          case (true, false) =>
+            state.semanticValidate(utx.tx) match {
+              case Success(_) => PickTransactionsResult(txAcc.toApply :+ utx.tx, txAcc.toEliminate)
+              case Failure(ex) =>
+                log.debug(
+                  s"${Console.RED}Transaction ${utx.tx.id} failed semantic validation. " +
+                    s"Transaction will be removed.${Console.RESET} Failure: $ex")
+                PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ utx.tx)
+            }
+
+          case (false, true) =>
+            log.debug(s"${Console.RED}Transaction ${utx.tx.id} was rejected from the forger transaction queue" +
+              s" because a box was used already in a previous transaction, and a newly created" +
+              s" box already exists. The transaction will be removed.")
+            PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ utx.tx)
+
+          case (true, true) =>
+            log.debug(s"${Console.RED}Transaction ${utx.tx.id} was rejected from the forger transaction queue" +
+              s" because a newly created box already exists. The transaction will be removed.")
+            PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ utx.tx)
+
+          case (false, false) =>
+            log.debug(s"${Console.RED}Transaction ${utx.tx.id} was rejected from forger transaction queue" +
+              s" because a box was used already in a previous transaction. The transaction will be removed.")
+            PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ utx.tx)
         }
       }
   }
@@ -349,7 +356,7 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
     * @return a block if the leader election is successful (none if test failed)
     */
   private def leaderElection(parent:       Block,
-                             prevTimes:    Vector[Timestamp],
+                             prevTimes:    Vector[TimeProvider.Time],
                              boxes:        Seq[ArbitBox],
                              rawRewards:   Seq[TX],
                              txsToInclude: Seq[TX]

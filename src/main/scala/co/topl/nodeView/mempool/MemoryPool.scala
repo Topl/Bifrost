@@ -3,8 +3,11 @@ package co.topl.nodeView.mempool
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.NodeViewComponent
+import co.topl.utils.TimeProvider
 
 import scala.util.Try
+
+case class UnconfirmedTx[TX <: Transaction[_,_]](tx: TX, dateAdded: TimeProvider.Time)
 
 /**
   * Unconfirmed transactions pool
@@ -24,16 +27,16 @@ trait MemoryPool[TX <: Transaction[_,_], M <: MemoryPool[TX, M]]
 
   def getAll(ids: Seq[ModifierId]): Seq[TX]
 
+  def take(limit: Int): Iterable[UnconfirmedTx[TX]]
+
   //modifiers
-  def put(tx: TX): Try[M]
+  def put(tx: TX, time: TimeProvider.Time): Try[M]
 
-  def put(txs: Iterable[TX]): Try[M]
+  def put(txs: Iterable[TX], time: TimeProvider.Time): Try[M]
 
-  def putWithoutCheck(txs: Iterable[TX]): M
+  def putWithoutCheck(txs: Iterable[TX], time: TimeProvider.Time): M
 
   def remove(tx: TX): M
-
-  def take(limit: Int): Iterable[TX]
 
   def filter(txs: Seq[TX]): M = filter(t => !txs.exists(_.id == t.id))
 
@@ -46,3 +49,4 @@ trait MemoryPool[TX <: Transaction[_,_], M <: MemoryPool[TX, M]]
     */
   def getReader: MemPoolReader[TX] = this
 }
+
