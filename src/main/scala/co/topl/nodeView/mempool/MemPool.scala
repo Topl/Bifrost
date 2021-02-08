@@ -8,7 +8,7 @@ import co.topl.utils.Logging
 import scala.collection.concurrent.TrieMap
 import scala.util.Try
 
-case class MemPool(unconfirmed: TrieMap[ModifierId, Transaction.TX])
+case class MemPool(private val unconfirmed: TrieMap[ModifierId, Transaction.TX])
   extends MemoryPool[Transaction.TX, MemPool] with Logging {
 
   override type NVCT = MemPool
