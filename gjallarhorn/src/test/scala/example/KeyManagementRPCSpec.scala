@@ -52,7 +52,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
   // set up API routes
   val apiRoute: ApiRoute = KeyManagementApiRoute(keyManagementSettings.rpcApi, keyManagerRef)
   val gjalOnlyApiRoute: ApiRoute =
-    GjallarhornOfflineApiRoute(keyManagementSettings.rpcApi, keyManagerRef, walletManagerRef)
+    GjallarhornOfflineApiRoute(keyManagementSettings.rpcApi, keyManagementSettings.application, keyManagerRef, walletManagerRef)
   val route: Route = HttpService(Seq(apiRoute, gjalOnlyApiRoute), keyManagementSettings.rpcApi).compositeRoute
 
   //Generate two keys for testing

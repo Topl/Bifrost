@@ -70,7 +70,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   //Set up api routes
   val requests: Requests = new Requests(settings, keyManagerRef)
   val bifrostApiRoute: ApiRoute = GjallarhornOnlineApiRoute(settings.rpcApi, keyManagerRef, walletManagerRef, requests)
-  val gjalOnlyApiRoute: ApiRoute = GjallarhornOfflineApiRoute(settings.rpcApi, keyManagerRef, walletManagerRef)
+  val gjalOnlyApiRoute: ApiRoute = GjallarhornOfflineApiRoute(settings.rpcApi, settings.application, keyManagerRef, walletManagerRef)
   val route: Route = HttpService(
     Seq(bifrostApiRoute, gjalOnlyApiRoute), settings.rpcApi).compositeRoute
 
@@ -685,5 +685,56 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       }
     }
   }
+
+/*  it should "successfully change the communication mode" in {
+    val communicationModeRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_changeCommunicationMode",
+         |   "params": [{
+         |      "mode": "useHttp"
+         |   }]
+         |}
+         """.stripMargin)
+
+    httpPOST(communicationModeRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
+          val mode = ((res \\ "result").head \\ "newMode").head
+          assert(mode.asString.get === "useHttp")
+      }
+    }
+  }
+
+  it should "successfully change the api key" in {
+    val communicationModeRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_changeApiKey",
+         |   "params": [{
+         |      "apiKey": "test_key"
+         |   }]
+         |}
+         """.stripMargin)
+
+    httpPOST(communicationModeRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
+          val apiKey = ((res \\ "result").head \\ "newApiKey").head
+          assert(apiKey.asString.get === "test_key")
+      }
+    }
+  }*/
+
 
 }

@@ -1,7 +1,5 @@
 package keymanager
 
-import java.io.{BufferedReader, BufferedWriter, File, FileReader, FileWriter}
-
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.util.Timeout
 import attestation.{Address, PrivateKeyCurve25519}
@@ -10,6 +8,7 @@ import io.circe.Json
 import io.circe.syntax._
 import scorex.util.encode.Base58
 import settings.{ApplicationSettings, NetworkType}
+import http.GjallarhornOfflineApiRoute.updateConfigFile
 import utils.Logging
 import wallet.WalletManager
 import wallet.WalletManager.NewKey
@@ -62,7 +61,7 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
     case GetKeyfileDir => sender ! Map("keyfileDirectory" -> keyRing.getNetworkDir.getAbsolutePath).asJson
 
     case ChangeKeyfileDir(dir: String) =>
-      updateKeyfileDir(settings.keyFileDir, dir)
+      updateConfigFile("keyFileDir",settings.keyFileDir, dir)
       settings.keyFileDir = dir
 
       //initialize keyRing with updated key file directory
@@ -86,43 +85,6 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
       case Failure(ex) => log.error("unable to generate key file!")
     }
     sender ! newAddress
-  }
-
-
-  /**
-    * Changes current key file directory to the given new directory
-    * @param oldDir - the current key file directory path
-    * @param newDir - the new key file directory path
-    */
-  private def updateKeyfileDir(oldDir: String, newDir: String): Unit = {
-    //grab config file to write to
-    //TODO: should this path be hardcoded?
-    val path = "gjallarhorn/src/main/resources/application.conf"
-    val configFile: File = new File(path)
-    if (!configFile.exists()) {
-      throw new Error (s"The config file: $path does not exist!")
-    }
-
-    //find line that defines 'keyFileDir' and edit it so that it is set to the new directory path
-    var lines: Array[String] = Array.empty
-    val reader = new BufferedReader(new FileReader(configFile))
-    var line: String = ""
-    while ({line = reader.readLine; line != null}) {
-      if (line.contains("keyFileDir")) {
-        val newLine = line.replace(oldDir, newDir)
-        lines = lines :+ newLine
-      }else{
-        lines = lines :+ line
-      }
-    }
-    reader.close()
-
-    val writer = new BufferedWriter(new FileWriter(configFile))
-    lines.foreach(line => {
-      writer.write(line)
-      writer.newLine()
-    })
-    writer.close()
   }
 
   /**

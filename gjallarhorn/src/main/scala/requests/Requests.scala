@@ -144,7 +144,7 @@ class Requests (settings: AppSettings, keyManagerRef: ActorRef)
   }
 
   /**
-    * Sends a request to bifrost (either through TCP or Akka actor to WalletConnectionHandler)
+    * Sends a request to bifrost (either through HTTP or Akka actor to WalletConnectionHandler)
     * @param request - the request to send as a byteString
     * @return the request response as json
     */
@@ -152,7 +152,7 @@ class Requests (settings: AppSettings, keyManagerRef: ActorRef)
     requestsManager match {
       case Some(actor) =>
         settings.application.communicationMode match {
-          case "useTcp" =>
+          case "useHttp" =>
             val sendTx = httpPOST(request)
             val data = requestResponseByteString(sendTx)
             futureByteStringToJSON(data)

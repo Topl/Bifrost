@@ -56,8 +56,8 @@ The settings for gjallarhorn can be found in `src/main/resources/application.con
         - the default should be set to `bifrost-client@127.0.0.1:9087`
    2. communicationMode:
         - this refers to how gjallarhorn communicates with Bifrost.
-        - this can be set to "useTcp" or "useAkka"
-        - "useTcp": communication will go through api route
+        - this can be set to "useHttp" or "useAkka"
+        - "useHttp": communication will go through api route
         - "useAkka": communication will go through akka actors
         
 Testing

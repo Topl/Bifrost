@@ -1,5 +1,6 @@
 package http
 
+import java.io.{BufferedReader, BufferedWriter, File, FileReader, FileWriter}
 import java.time.Instant
 
 import akka.actor.{ActorRef, ActorRefFactory}
@@ -14,7 +15,7 @@ import keymanager.networkPrefix
 import modifier.{AssetValue, Box, BoxId, SimpleValue, TransferTransaction}
 import requests.ApiRoute
 import scorex.util.encode.Base58
-import settings.RPCApiSettings
+import settings.{ApplicationSettings, RPCApiSettings}
 import wallet.WalletManager.GetWallet
 
 import scala.collection.mutable.{Map => MMap}
@@ -24,12 +25,14 @@ import scala.util.{Failure, Success, Try}
 
 /**
   * Class route for managing offline requests (bifrost does not need to be running)
-  * @param settings - API settings for ApiRoute
+  * @param settings - setting for [[ApiRoute]]
+  * @param applicationSettings - [[ApplicationSettings]] for communication mode
   * @param keyManagerRef - actor reference for the KeyManager
   * @param walletManagerRef - actor reference for the WalletManager
   * @param context - ActorRef context
   */
 case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
+                                      applicationSettings: ApplicationSettings,
                                       keyManagerRef: ActorRef,
                                       walletManagerRef: ActorRef)
                                      (implicit val context: ActorRefFactory)
@@ -51,6 +54,9 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
     case (method, params, id) if method == s"${namespace.name}_networkType" =>
       Future{Map("networkPrefix" -> networkPrefix).asJson}
     case (method, params, id) if method == s"${namespace.name}_changeNetwork" => changeNetwork(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_changeCommunicationMode" =>
+      changeCommunicationMode(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_changeApiKey" => changeApiKey(params.head, id)
 
     case (method, params, id) if method == s"${namespace.name}_balances" => balances(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_getWalletBoxes" => getWalletBoxes(id)
@@ -414,6 +420,112 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
       })
       balances.asJson
     })
+  }
+
+  /** #### Summary
+    * Change the communication mode
+    *
+    * #### Description
+    * Changes the communication mode between Bifrost to the given communication mode.
+    * The current options should be "useAkka" or "useHttp"
+    * ---
+    * #### Params
+    *
+    * | Fields | Data type | Required / Optional | Description |
+    * | ---| ---	| --- | --- |
+    * | mode | String	| Required | the new mode to switch to: "useAkka" or "useHttp"|
+    *
+    * @param params input parameters as specified above
+    * @param id     request identifier
+    * @return - json mapping: "newMode" -> appSettings.application.communicationMode
+    */
+  private def changeCommunicationMode(params: Json, id: String): Future[Json] = {
+    (for {
+      mode <- (params \\ "mode").head.as[String]
+    } yield {
+      GjallarhornOfflineApiRoute.updateConfigFile("communicationMode", applicationSettings.communicationMode, mode)
+      applicationSettings.communicationMode = mode
+      Map("newMode" -> applicationSettings.communicationMode).asJson
+    }) match {
+      case Right(value) => Future{value}
+      case Left(error) => throw new Exception (s"error parsing for mode: $error")
+    }
+  }
+
+  /** #### Summary
+    * Change the api key hash
+    *
+    * #### Description
+    * Changes the api key hash to the given api key hash.
+    * ---
+    * #### Params
+    *
+    * | Fields | Data type | Required / Optional | Description |
+    * | ---| ---	| --- | --- |
+    * | apiKey | String	| Required | the new api key hash |
+    *
+    * @param params input parameters as specified above
+    * @param id     request identifier
+    * @return - json mapping: "newApiKey" -> appSettings.rpcApi.apiKeyHash
+    */
+  private def changeApiKey(params: Json, id: String): Future[Json] = {
+    (for {
+      apiKey <- (params \\ "apiKey").head.as[String]
+    } yield {
+      GjallarhornOfflineApiRoute.updateConfigFile("apiKeyHash", settings.apiKeyHash, apiKey)
+      settings.apiKeyHash = apiKey
+      Map("newApiKey" -> settings.apiKeyHash).asJson
+    }) match {
+      case Right(value) => Future{value}
+      case Left(error) => throw new Exception (s"error parsing for api key: $error")
+    }
+  }
+
+}
+
+
+object GjallarhornOfflineApiRoute {
+
+  /**
+    * Changes a setting value within the "application.conf" file given the old value and the new value.
+    * @param settingName the setting to change
+    * @param oldValue the old value of the given setting
+    * @param newValue the new value for the given setting
+    */
+  def updateConfigFile(settingName: String, oldValue: String, newValue: String): Unit = {
+    //grab config file to write to
+    //TODO: should this path be hardcoded?
+    val path = "gjallarhorn/src/main/resources/application.conf"
+    val configFile: File = new File(path)
+    if (!configFile.exists()) {
+      throw new Error (s"The config file: $path does not exist!")
+    }
+
+    //find line that defines settingName and edit it so that it is set to the new value
+    var lines: Array[String] = Array.empty
+    val reader = new BufferedReader(new FileReader(configFile))
+    var line: String = ""
+    while ({line = reader.readLine; line != null}) {
+      if (line.contains(settingName)) {
+        var newLine = line
+        if (oldValue == "") {
+          newLine = line.substring(0, line.indexOf("=") + 1) + s""" "$newValue""""
+        }else {
+          newLine = line.replace(oldValue, newValue)
+        }
+        lines = lines :+ newLine
+      }else{
+        lines = lines :+ line
+      }
+    }
+    reader.close()
+
+    val writer = new BufferedWriter(new FileWriter(configFile))
+    lines.foreach(line => {
+      writer.write(line)
+      writer.newLine()
+    })
+    writer.close()
   }
 
 }

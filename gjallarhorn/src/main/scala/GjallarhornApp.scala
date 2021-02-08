@@ -60,7 +60,7 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   //Set up API routes
   val gjalBifrostRoute: ApiRoute = GjallarhornOnlineApiRoute(settings.rpcApi, keyManagerRef, walletManagerRef, requests)
   val apiRoutes: Seq[ApiRoute] = Seq(
-    GjallarhornOfflineApiRoute(settings.rpcApi, keyManagerRef, walletManagerRef),
+    GjallarhornOfflineApiRoute(settings.rpcApi, settings.application, keyManagerRef, walletManagerRef),
     KeyManagementApiRoute(settings.rpcApi, keyManagerRef),
     gjalBifrostRoute
   )
