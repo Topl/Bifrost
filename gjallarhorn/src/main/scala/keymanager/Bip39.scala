@@ -60,7 +60,7 @@ class Bip39 (wordList: List[String]) extends Logging {
   /**
     * Checks if user input seedphrase is valid
     * @param phrase user input seedphrase
-    * @return true if seedphrase is valid, false if seedphrase invalid
+    * @return `true` if seedphrase is valid, false if seedphrase invalid
     */
   def phraseCheckSum(phrase: String): Boolean = {
     val phraseWords: List[String] = phrase.split(" ").toList
@@ -141,7 +141,7 @@ object Bip39 {
 
   /**
     * Verifies the wordlist for the given language by calculating the SHA2 hash
-    * @return true if hash matches precalculated hash
+    * @return `true` if hash matches precalculated hash
     */
   def verifyPhraseList(wordList: List[String], phraseLanguage: String): Boolean = {
     val phraseLanguagesHash = Map(

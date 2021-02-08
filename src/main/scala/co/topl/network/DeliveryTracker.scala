@@ -14,8 +14,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Try}
 
-/**
-  * This class tracks modifier statuses.
+/** This class tracks modifier statuses.
   * Modifier can be in one of the following states: Unknown, Requested, Received, Held, Invalid.
   * See ModifiersStatus for states description.
   * Modifiers in `Requested` state are kept in `requested` map containing info about peer and number of retries.
@@ -35,32 +34,28 @@ import scala.util.{Failure, Try}
   * This class is not thread-save so it should be used only as a local field of an actor
   * and its methods should not be called from lambdas, Future, Future.map, etc.
   */
-class DeliveryTracker( nvsRef: ActorRef,
-                       context: ActorContext,
-                       networkSettings: NetworkSettings,
-                       ) extends Logging {
+class DeliveryTracker(nvsRef: ActorRef, context: ActorContext, networkSettings: NetworkSettings) extends Logging {
 
   protected case class RequestedInfo(peer: Option[ConnectedPeer], cancellable: Cancellable, checks: Int)
 
   protected class StopExpectingError(mid: ModifierId, checks: Int)
-    extends Error(s"Stop expecting $mid} due to exceeded number of retries $checks")
+      extends Error(s"Stop expecting $mid} due to exceeded number of retries $checks")
 
   private val deliveryTimeout: FiniteDuration = networkSettings.deliveryTimeout
   private val maxDeliveryChecks: Int = networkSettings.maxDeliveryChecks
 
-  // when a remote peer is asked a modifier we add the requested data to `requested`
+  /** when a remote peer is asked a modifier we add the requested data to `requested` */
   protected val requested: mutable.Map[ModifierId, RequestedInfo] = mutable.Map()
 
-  // when our node received invalid modifier we put it to `invalid`
+  /** when our node received invalid modifier we put it to `invalid` */
   protected val invalid: mutable.HashSet[ModifierId] = mutable.HashSet()
 
-  // when our node received a modifier we put it to `received`
+  /** when our node received a modifier we put it to `received` */
   protected val received: mutable.Map[ModifierId, ConnectedPeer] = mutable.Map()
 
   def requestedSize: Int = requested.size
 
-  /**
-    * @return status of modifier `id`.
+  /** @return status of modifier `id`.
     *         Since this class do not keep statuses for modifiers that are already in NodeViewHolder,
     *         `modifierKeepers` are required here to check that modifier is in `Held` status
     */
@@ -75,64 +70,64 @@ class DeliveryTracker( nvsRef: ActorRef,
 
   def status(id: ModifierId): ModifiersStatus = status(id, Seq())
 
-  /**
-    *
-    * Our node have requested a modifier, but did not received it yet.
+  /** Our node have requested a modifier, but did not received it yet.
     * Stops processing and if the number of checks did not exceed the maximum continue to waiting.
     *
     * @return `true` if number of checks was not exceed, `false` otherwise
     */
   def onStillWaiting(peerOpt: Option[ConnectedPeer], typeId: ModifierTypeId, id: ModifierId)
-                    (implicit ec: ExecutionContext): Try[Boolean] =
-    tryWithLogging[Boolean] {
-      val checks = requested(id).checks + 1
-      setUnknown(id) // clear status of modifiers so we can update below
+                    (implicit ec: ExecutionContext): Try[Boolean] = tryWithLogging[Boolean] {
 
-      // Determine if we should continue to wait on a particular peer or if we should start asking other random peers
-      // but only ask up to the number of maxDeliveryChecks
-      peerOpt match {
-        // case for waiting on anyone to provide a modifier
-        case _ if checks < maxDeliveryChecks  =>
-          setRequested(id, typeId, peerOpt, checks)
-          true
+    val checks = requested(id).checks + 1
 
-        // case for transitioning to ask anyone for the modifier
-        case Some(_) if checks >= maxDeliveryChecks =>
-          setRequested(id, typeId,  None)
-          false
+    /** clear status of modifiers so we can update below */
+    setUnknown(id)
 
-        // case where we've exhausted attempts to get the modifier so stop checking for it
-        case None if checks >= maxDeliveryChecks =>
-          throw new StopExpectingError(id, checks)
-      }
+    /** Determine if we should continue to wait on a particular peer or if we should start asking other random peers
+      * but only ask up to the number of maxDeliveryChecks
+      */
+    peerOpt match {
+      /** case for waiting on anyone to provide a modifier */
+      case _ if checks < maxDeliveryChecks =>
+        setRequested(id, typeId, peerOpt, checks)
+        true
 
+      /** case for transitioning to ask anyone for the modifier */
+      case Some(_) if checks >= maxDeliveryChecks =>
+        setRequested(id, typeId, None)
+        false
+
+      /** case where we've exhausted attempts to get the modifier so stop checking for it */
+      case None if checks >= maxDeliveryChecks =>
+        throw new StopExpectingError(id, checks)
     }
 
-  /**
-    * Set status of modifier with id `id` to `Requested`
-    */
-  def setRequested(id: ModifierId, typeId: ModifierTypeId, supplierOpt: Option[ConnectedPeer], checksDone: Int = 0)
-                  (implicit ec: ExecutionContext): Unit =
+  }
+
+  /** Set status of modifier with id `id` to `Requested` */
+  def setRequested(id: ModifierId, typeId: ModifierTypeId, supplierOpt: Option[ConnectedPeer], checksDone: Int = 0)(
+    implicit ec:       ExecutionContext
+  ): Unit =
     tryWithLogging {
       require(isCorrectTransition(status(id), Requested), s"Illegal status transition: ${status(id)} -> Requested")
-      val cancellable = context.system.scheduler.scheduleOnce(deliveryTimeout, nvsRef, CheckDelivery(supplierOpt, typeId, id))
+      val cancellable =
+        context.system.scheduler.scheduleOnce(deliveryTimeout, nvsRef, CheckDelivery(supplierOpt, typeId, id))
       requested.put(id, RequestedInfo(supplierOpt, cancellable, checksDone))
     }
 
-  def setRequested(ids: Seq[ModifierId], typeId: ModifierTypeId, cp: Option[ConnectedPeer])
-                  (implicit ec: ExecutionContext): Unit = ids.foreach(setRequested(_, typeId, cp))
+  def setRequested(ids: Seq[ModifierId], typeId: ModifierTypeId, cp: Option[ConnectedPeer])(implicit
+    ec:                 ExecutionContext
+  ): Unit = ids.foreach(setRequested(_, typeId, cp))
 
-  /**
-    * Modified with id `id` is permanently invalid - set its status to `Invalid`
-    * and return [[ConnectedPeer]] which sent bad modifier.
+  /** Modified with id `id` is permanently invalid - set its status to `Invalid`
+    * and return [[peer.ConnectedPeer]] which sent bad modifier.
     */
   def setInvalid(id: ModifierId): Option[ConnectedPeer] = {
     val oldStatus: ModifiersStatus = status(id)
     val transitionCheck = tryWithLogging {
       require(isCorrectTransition(oldStatus, Invalid), s"Illegal status transition: $oldStatus -> Invalid")
     }
-    transitionCheck
-      .toOption
+    transitionCheck.toOption
       .flatMap { _ =>
         val senderOpt = oldStatus match {
           case Requested =>
@@ -148,8 +143,7 @@ class DeliveryTracker( nvsRef: ActorRef,
       }
   }
 
-  /**
-    * Modifier with id `id` was successfully applied to history - set its status to `Held`.
+  /** Modifier with id `id` was successfully applied to history - set its status to `Held`.
     */
   def setHeld(id: ModifierId): Unit =
     tryWithLogging {
@@ -158,8 +152,7 @@ class DeliveryTracker( nvsRef: ActorRef,
       clearStatusForModifier(id, oldStatus) // we need only to clear old status in this case
     }
 
-  /**
-    * Set status of modifier with id `id` to `Unknown`.
+  /** Set status of modifier with id `id` to `Unknown`.
     *
     * We're not trying to process modifier anymore in this case.
     * This may happen when received modifier bytes does not correspond to declared modifier id,
@@ -173,9 +166,7 @@ class DeliveryTracker( nvsRef: ActorRef,
       clearStatusForModifier(id, oldStatus) // we need only to clear old status in this case
     }
 
-  /**
-    * Modifier with id `id`  was received from remote peer - set its status to `Received`.
-    */
+  /** Modifier with id `id`  was received from remote peer - set its status to `Received` */
   def setReceived(id: ModifierId, sender: ConnectedPeer): Unit =
     tryWithLogging {
       val oldStatus: ModifiersStatus = status(id)
@@ -187,8 +178,7 @@ class DeliveryTracker( nvsRef: ActorRef,
       }
     }
 
-  /**
-    * Self-check that transition between states is correct.
+  /** Self-check that transition between states is correct.
     *
     * Modifier may stay in current state,
     * go to Requested state form Unknown
@@ -198,12 +188,12 @@ class DeliveryTracker( nvsRef: ActorRef,
     */
   private def isCorrectTransition(oldStatus: ModifiersStatus, newStatus: ModifiersStatus): Boolean =
     oldStatus match {
-      case old if old == newStatus => true
+      case old if old == newStatus                        => true
       case _ if newStatus == Invalid || newStatus == Held => true
-      case Unknown => newStatus == Requested
-      case Requested => newStatus == Unknown || newStatus == Received
-      case Received => newStatus == Unknown
-      case _ => false
+      case Unknown                                        => newStatus == Requested
+      case Requested                                      => newStatus == Unknown || newStatus == Received
+      case Received                                       => newStatus == Unknown
+      case _                                              => false
     }
 
   private def tryWithLogging[T](fn: => T): Try[T] =
@@ -226,5 +216,4 @@ class DeliveryTracker( nvsRef: ActorRef,
       case _ =>
         ()
     }
-
 }

@@ -17,18 +17,28 @@ import scala.collection.immutable.TreeMap
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
-class PeerConnectionHandler( networkControllerRef: ActorRef,
-                             settings: AppSettings,
-                             appContext: AppContext,
-                             connectionDescription: ConnectionDescription
-                           )(implicit ec: ExecutionContext) extends Actor with Logging {
+class PeerConnectionHandler(
+  networkControllerRef:  ActorRef,
+  settings:              AppSettings,
+  appContext:            AppContext,
+  connectionDescription: ConnectionDescription
+)(implicit ec:           ExecutionContext)
+    extends Actor
+    with Logging {
 
   private val connection = connectionDescription.connection
   private val connectionId = connectionDescription.connectionId
   private val direction = connectionDescription.connectionId.direction
   private val ownSocketAddress = connectionDescription.ownSocketAddress
   private val localFeatures = connectionDescription.localFeatures
-  private val localPeerSpec = PeerSpec(settings.network.agentName, settings.application.version, settings.network.nodeName, ownSocketAddress, localFeatures)
+
+  private val localPeerSpec = PeerSpec(
+    settings.network.agentName,
+    settings.application.version,
+    settings.network.nodeName,
+    ownSocketAddress,
+    localFeatures
+  )
 
   private val featureSerializers: PeerFeature.Serializers =
     localFeatures.map(f => f.featureId -> (f.serializer: BifrostSerializer[_ <: PeerFeature])).toMap
@@ -36,7 +46,7 @@ class PeerConnectionHandler( networkControllerRef: ActorRef,
   private val handshakeSerializer = new HandshakeSpec(featureSerializers, settings.network.maxHandshakeSize)
   private val messageSerializer = new MessageSerializer(appContext.messageSpecs, settings.network.magicBytes)
 
-  // there is no recovery for broken connections
+  /** there is no recovery for broken connections */
   override val supervisorStrategy: SupervisorStrategy = SupervisorStrategy.stoppingStrategy
 
   private var selfPeer: Option[ConnectedPeer] = None
@@ -50,16 +60,18 @@ class PeerConnectionHandler( networkControllerRef: ActorRef,
   private var outMessagesCounter: Long = 0
 
   override def preStart: Unit = {
-    context watch connection // per Akka docs this "signs the death pact: this actor terminates when connection breaks"
+
+    /** per Akka docs this "signs the death pact: this actor terminates when connection breaks" */
+    context watch connection
     connection ! Tcp.Register(self, keepOpenOnPeerClosed = false, useResumeWriting = true)
 
-    // On instantiation of a PeerConnectionHandler, send ResumeReading to the TCP system since the
-    // connection was created with pullMode = true (this is done in the NetworkController)
-    // https://doc.akka.io/docs/akka/current/io-tcp.html#read-back-pressure-with-pull-mode
-    // JAA - 20200810 - I think this is done to give the PCH time to spin up before the TCP system forwards it messages
+    /** On instantiation of a PeerConnectionHandler, send ResumeReading to the TCP system since the
+      * connection was created with pullMode = true (this is done in the NetworkController)
+      * https://doc.akka.io/docs/akka/current/io-tcp.html#read-back-pressure-with-pull-mode
+      */
     connection ! Tcp.ResumeReading
 
-    // transition to create and listen for a handshake from the remote peer
+    /** transition to create and listen for a handshake from the remote peer */
     context become handshaking
   }
 
@@ -68,19 +80,20 @@ class PeerConnectionHandler( networkControllerRef: ActorRef,
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
-  // ----------- CONTEXTS
-  // The following functions are the contexts that a peerConnectionHandler can occupy
-  // depending on the state of the connection.
+  // ----------- CONTEXTS ----------- //
+  /** The following functions are the contexts that a peerConnectionHandler can occupy */
+  /** depending on the state of the connection. */
 
-  // we don't expect the default receive to be used due to prestart context change
+  /** we don't expect the default receive to be used due to prestart context change */
   override def receive: Receive = nonsense
 
   private def handshaking: Receive = {
-    // When the PCH context becomes handshaking, this will create a handshake that is sent to the remote peer
-    // NOTE: This process is only executed once and subsequent messages are handled by the partial functions below
+
+    /** When the PCH context becomes handshaking, this will create a handshake that is sent to the remote peer */
+    /** NOTE: This process is only executed once and subsequent messages are handled by the partial functions below */
     createHandshakeMessage() // create handshake with timeout and then continue to process messages
 
-    // receive and processes message from remote peer (prior to sending data)
+    /** receive and processes message from remote peer (prior to sending data) */
     receiveAndHandleHandshake orElse
     handshakeTimeout orElse
     fatalCommands orElse
@@ -103,28 +116,27 @@ class PeerConnectionHandler( networkControllerRef: ActorRef,
     closeNonEmptyBuffer orElse
     nonsense
 
-  // ----------- MESSAGE PROCESSING FUNCTIONS
-  // The following functions are used to process the incoming messages based on the current context.
-  // Some functions are only accessible in certain contexts so be sure to consult the lists above
+  // ----------- MESSAGE PROCESSING FUNCTIONS ----------- //
+  /** The following functions are used to process the incoming messages based on the current context */
+  /** Some functions are only accessible in certain contexts so be sure to consult the lists above */
 
-  private def receiveAndHandleHandshake: Receive = {
-    case Tcp.Received(data) =>
-      handshakeSerializer.parseBytes(data.toArray) match {
-        case Success(handshake) =>
-          processHandshake(handshake)
+  private def receiveAndHandleHandshake: Receive = { case Tcp.Received(data) =>
+    handshakeSerializer.parseBytes(data.toArray) match {
+      case Success(handshake) =>
+        processHandshake(handshake)
 
-        case Failure(t) =>
-          log.info(s"Error during parsing a handshake", t)
-          //ban the peer for the wrong handshake message
-          //peer will be added to the blacklist and the network controller will send CloseConnection
-          selfPeer.foreach(c => networkControllerRef ! PenalizePeer(c.connectionId.remoteAddress, PermanentPenalty))
-      }
+      case Failure(t) =>
+        log.info(s"Error during parsing a handshake", t)
+
+        /** ban the peer for the wrong handshake message */
+        /** peer will be added to the blacklist and the network controller will send CloseConnection */
+        selfPeer.foreach(c => networkControllerRef ! PenalizePeer(c.connectionId.remoteAddress, PermanentPenalty))
+    }
   }
 
-  private def handshakeTimeout: Receive = {
-    case HandshakeTimeout =>
-      log.info(s"Handshake timeout with $connectionId, going to drop the connection")
-      connection ! Tcp.Close
+  private def handshakeTimeout: Receive = { case HandshakeTimeout =>
+    log.info(s"Handshake timeout with $connectionId, going to drop the connection")
+    connection ! Tcp.Close
   }
 
   private def localInterfaceWriting: Receive = {
@@ -139,16 +151,18 @@ class PeerConnectionHandler( networkControllerRef: ActorRef,
       buffer(id, msg)
       context become workingCycleBuffering
 
-    case Tcp.WritingResumed => // ignore in stable mode
+    /** ignore in stable mode */
+    case Tcp.WritingResumed =>
 
-    case Ack(_) => // ignore ACKs in stable mode
+    /** ignore ACKs in stable mode */
+    case Ack(_) =>
 
     case CloseConnection =>
       log.info(s"Enforced to abort communication with: " + connectionId + ", switching to closing mode")
       if (outMessagesBuffer.isEmpty) connection ! Tcp.Close else context become closingWithNonEmptyBuffer
   }
 
-  // operate in ACK mode until all buffered messages are transmitted
+  /** operate in ACK mode until all buffered messages are transmitted */
   private def localInterfaceBuffering: Receive = {
     case msg: Message[_] =>
       outMessagesCounter += 1
@@ -158,7 +172,8 @@ class PeerConnectionHandler( networkControllerRef: ActorRef,
       connection ! Tcp.ResumeWriting
       buffer(id, msg)
 
-    case Tcp.CommandFailed(Tcp.ResumeWriting) => // ignore in ACK mode
+    /** ignore in ACK mode */
+    case Tcp.CommandFailed(Tcp.ResumeWriting) =>
 
     case Tcp.WritingResumed =>
       writeFirst()
@@ -181,34 +196,33 @@ class PeerConnectionHandler( networkControllerRef: ActorRef,
     case Tcp.CommandFailed(_: Tcp.Write) =>
       connection ! Tcp.ResumeWriting
       context.become({
-        case Tcp.WritingResumed =>
-          writeAll()
-          context.unbecome()
-        case Ack(id) =>
-          outMessagesBuffer -= id
-      }, discardOld = false)
+                       case Tcp.WritingResumed =>
+                         writeAll()
+                         context.unbecome()
+                       case Ack(id) =>
+                         outMessagesBuffer -= id
+                     },
+                     discardOld = false
+      )
 
     case Ack(id) =>
       outMessagesBuffer -= id
       if (outMessagesBuffer.isEmpty) connection ! Tcp.Close
   }
 
-  private def remoteInterface: Receive = {
-    case Tcp.Received(data) =>
-      chunksBuffer ++= data
-      processRemoteData()
-      connection ! Tcp.ResumeReading
+  private def remoteInterface: Receive = { case Tcp.Received(data) =>
+    chunksBuffer ++= data
+    processRemoteData()
+    connection ! Tcp.ResumeReading
   }
 
-  private def fatalCommands: Receive = {
-    case _: Tcp.ConnectionClosed =>
-      log.info(s"Connection closed to $connectionId")
-      context stop self
+  private def fatalCommands: Receive = { case _: Tcp.ConnectionClosed =>
+    log.info(s"Connection closed to $connectionId")
+    context stop self
   }
 
-  private def nonsense: Receive = {
-    case nonsense: Any =>
-      log.warn(s"PeerConnectionHandler (in context ${context.toString}): got unexpected input $nonsense from ${sender()}")
+  private def nonsense: Receive = { case nonsense: Any =>
+    log.warn(s"PeerConnectionHandler (in context ${context.toString}): got unexpected input $nonsense from ${sender()}")
   }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -233,10 +247,14 @@ class PeerConnectionHandler( networkControllerRef: ActorRef,
   private def createHandshakeMessage(): Unit = {
     val nodeInfo = message.Handshake(localPeerSpec, appContext.timeProvider.time())
 
-    // create, save, and schedule a timeout option. The variable lets us cancel the timeout message if a handshake is received
-    handshakeTimeoutCancellableOpt = Some(context.system.scheduler.scheduleOnce(settings.network.handshakeTimeout)(self ! HandshakeTimeout))
+    /** create, save, and schedule a timeout option. The variable lets us cancel the timeout message
+      * if a handshake is received
+      */
+    handshakeTimeoutCancellableOpt = Some(
+      context.system.scheduler.scheduleOnce(settings.network.handshakeTimeout)(self ! HandshakeTimeout)
+    )
 
-    // send a handshake message with our node information to the remote peer
+    /** send a handshake message with our node information to the remote peer */
     connection ! Tcp.Write(ByteString(handshakeSerializer.toBytes(nodeInfo)), Tcp.NoAck)
     log.info(s"Handshake sent to $connectionId")
   }
@@ -259,7 +277,7 @@ class PeerConnectionHandler( networkControllerRef: ActorRef,
   }
 
   @tailrec
-   private def processRemoteData(): Unit = {
+  private def processRemoteData(): Unit = {
     messageSerializer.deserialize(chunksBuffer, selfPeer) match {
       case Success(Some(message)) =>
         log.info("Received message " + message.spec + " from " + connectionId)
@@ -269,12 +287,14 @@ class PeerConnectionHandler( networkControllerRef: ActorRef,
       case Success(None) =>
       case Failure(e) =>
         e match {
-          //peer is doing bad things, ban it
+          /** peer is doing bad things, ban it */
           case MaliciousBehaviorException(msg) =>
             log.warn(s"Banning peer for malicious behaviour($msg): ${connectionId.toString}")
-            //peer will be added to the blacklist and the network controller will send CloseConnection
+
+            /** peer will be added to the blacklist and the network controller will send CloseConnection */
             networkControllerRef ! PenalizePeer(connectionId.remoteAddress, PenaltyType.PermanentPenalty)
-          //non-malicious corruptions
+
+          /** non-malicious corruptions */
           case _ =>
             log.info(s"Corrupted data from ${connectionId.toString}: ${e.getMessage}")
         }
@@ -299,34 +319,27 @@ object PeerConnectionHandler {
     case object CloseConnection
 
     final case class Ack(id: Long) extends Tcp.Event
-
   }
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// ACTOR REF HELPER //////////////////////////////////
 
 object PeerConnectionHandlerRef {
-  def props( networkControllerRef: ActorRef,
-             settings: AppSettings,
-             appContext: AppContext,
-             connectionDescription: ConnectionDescription
-           )(implicit ec: ExecutionContext): Props =
+
+  def props(
+    networkControllerRef:  ActorRef,
+    settings:              AppSettings,
+    appContext:            AppContext,
+    connectionDescription: ConnectionDescription
+  )(implicit ec:           ExecutionContext): Props =
     Props(new PeerConnectionHandler(networkControllerRef, settings, appContext, connectionDescription))
 
-  def apply( networkControllerRef: ActorRef,
-             settings: AppSettings,
-             appContext: AppContext,
-             connectionDescription: ConnectionDescription
-           )(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+  def apply(
+    networkControllerRef:  ActorRef,
+    settings:              AppSettings,
+    appContext:            AppContext,
+    connectionDescription: ConnectionDescription
+  )(implicit system:       ActorSystem, ec: ExecutionContext): ActorRef =
     system.actorOf(props(networkControllerRef, settings, appContext, connectionDescription))
-
-  def apply( name: String,
-             networkControllerRef: ActorRef,
-             settings: AppSettings,
-             appContext: AppContext,
-             connectionDescription: ConnectionDescription)
-           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(networkControllerRef, settings, appContext, connectionDescription), name)
 }
