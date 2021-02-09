@@ -26,15 +26,16 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
 
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
-    case (method, params, id) if method == s"${namespace.name}_unlockKeyfile"        => unlockKeyfile(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_lockKeyfile"          => lockKeyfile(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_generateKeyfile"      => generateKeyfile(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_importSeedPhrase"     => importKeyfile(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_listOpenKeyfiles"     => listOpenKeyfiles(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_startForging"         => startForging(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_stopForging"          => stopForging(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_updateRewardsAddress" => updateRewardsAddress(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_getRewardsAddress"    => getRewardsAddress(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_unlockKeyfile"    => unlockKeyfile(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_lockKeyfile"      => lockKeyfile(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_generateKeyfile"  => generateKeyfile(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_importSeedPhrase" => importKeyfile(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_listOpenKeyfiles" => listOpenKeyfiles(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_startForging"     => startForging(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_stopForging"      => stopForging(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_updateRewardsAddress" =>
+      updateRewardsAddress(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_getRewardsAddress" => getRewardsAddress(params.head, id)
   }
 
   /** #### Summary
@@ -57,15 +58,17 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     * @param id     request identifier
     * @return
     */
-  private def unlockKeyfile(params: Json, id: String): Future[Json] = {
-    val publicKey: String = (params \\ "address").head.asString.get
-    val password: String = (params \\ "password").head.asString.get
-
-    (keyHolderRef ? UnlockKey(publicKey, password)).mapTo[Try[Unit]].map {
-      case Success(_)  => Map(publicKey -> "unlocked".asJson).asJson
-      case Failure(ex) => throw new Error(s"An error occurred while trying to unlock the keyfile. $ex")
+  private def unlockKeyfile(params: Json, id: String): Future[Json] =
+    (for {
+      addr     <- params.hcursor.get[String]("address")
+      password <- params.hcursor.get[String]("password")
+    } yield (keyHolderRef ? UnlockKey(addr, password)).mapTo[Try[Unit]].map {
+      case Success(_)  => Map(addr -> "unlocked".asJson).asJson
+      case Failure(ex) => throw new Exception(s"An error occurred while trying to unlock the keyfile. $ex")
+    }) match {
+      case Right(json) => json
+      case Left(ex)    => throw ex
     }
-  }
 
   /** #### Summary
     * Lock keyfile
@@ -115,14 +118,16 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     * @param id     request identifier
     * @return
     */
-  private def generateKeyfile(params: Json, id: String): Future[Json] = {
-    val password: String = (params \\ "password").head.asString.get
-
-    (keyHolderRef ? CreateKey(password)).mapTo[Try[Address]].map {
-      case Success(addr: Address) => Map("address" -> addr.asJson).asJson
-      case Failure(ex)            => throw new Error(s"An error occurred while creating a new keyfile. $ex")
+  private def generateKeyfile(params: Json, id: String): Future[Json] =
+    (for {
+      password <- params.hcursor.get[String]("password")
+    } yield (keyHolderRef ? CreateKey(password)).mapTo[Try[Address]].map {
+      case Success(a: Address) => Map("address" -> a.asJson).asJson
+      case Failure(ex)         => throw new Exception(s"An error occurred while creating a new keyfile. $ex")
+    }) match {
+      case Right(json) => json
+      case Left(ex)    => throw ex
     }
-  }
 
   /** #### Summary
     * Import key from mnemonic
@@ -144,24 +149,26 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     * @param id     request identifier
     * @return
     */
-  private def importKeyfile(implicit params: Json, id: String): Future[Json] = {
-    val password: String = (params \\ "password").head.asString.get
-    val seedPhrase: String = (params \\ "seedPhrase").head.asString.get
-    val seedPhraseLang: String = parseOptional("seedPhraseLang", "en")
-
-    (keyHolderRef ? ImportKey(password, seedPhrase, seedPhraseLang)).mapTo[Try[Address]].map {
+  private def importKeyfile(implicit params: Json, id: String): Future[Json] =
+    (for {
+      password   <- params.hcursor.get[String]("password")
+      seedPhrase <- params.hcursor.get[String]("seedPhrase")
+      seedPhraseLang <- parseOptional("seedPhraseLand", "en")
+    } yield (keyHolderRef ? ImportKey(password, seedPhrase, seedPhraseLang)).mapTo[Try[Address]].map {
       case Success(addr: Address) => Map("publicKey" -> addr.asJson).asJson
       case Failure(ex)            => throw new Error(s"An error occurred while importing the seed phrase. $ex")
+    }) match {
+      case Right(json) => json
+      case Left(ex)    => throw ex
     }
-  }
 
   /** Allows the user to retrieve the PublicKey address to receive block rewards
-   * @return
-   */
+    * @return
+    */
   private def getRewardsAddress(params: Json, id: String): Future[Json] =
     (keyHolderRef ? GetRewardsAddress).mapTo[String].map { a =>
-        Map("rewardsAddress" -> a).asJson
-      }
+      Map("rewardsAddress" -> a).asJson
+    }
 
   /** Allows the user to specify a new PublicKey address to receive block rewards
     * @return
