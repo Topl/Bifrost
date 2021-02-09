@@ -117,8 +117,10 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
     case LockKey(addr)                       => sender() ! keyRing.removeFromKeyring(addr)
     case ImportKey(password, mnemonic, lang) => sender() ! keyRing.importPhrase(password, mnemonic, lang)
     case ListKeys                            => sender() ! keyRing.addresses
-    //TODO: JAA - add route to update rewards address
+    case UpdateRewardsAddress(address)       => sender() ! updateRewardsAddress(address)
+    case GetRewardsAddress                   => sender() ! rewardAddress.fold("none")(_.toString)
   }
+
 
   private def nonsense: Receive = { case nonsense: Any =>
     log.warn(s"Got unexpected input $nonsense from ${sender()}")
@@ -128,6 +130,12 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
   /** Updates the forging actors timestamp */
   private def updateForgeTime(): Unit = forgeTime = appContext.timeProvider.time()
+
+  /** Updates the rewards address from the API */
+  private def updateRewardsAddress(address: Address): String = {
+    rewardAddress = Some(address)
+    rewardAddress.fold("none")(_.toString)
+  }
 
   /** Helper function to enable private forging if we can expects keys in the key ring */
   private def checkPrivateForging(): Unit =
@@ -458,6 +466,10 @@ object Forger {
     case class CreateKey(password: String)
 
     case class ImportKey(password: String, mnemonic: String, lang: String)
+
+    case object GetRewardsAddress
+
+    case class UpdateRewardsAddress(address: Address)
 
   }
 
