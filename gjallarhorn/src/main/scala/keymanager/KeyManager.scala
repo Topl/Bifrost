@@ -75,7 +75,7 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
     * @param newAddress - the address of the new key (if successfully created)
     * @param sender the actor ref that that requested to generate a new key and to send new address back to
     */
-  private def shareNewKey(newAddress: Try[Address], sender: ActorRef) {
+  private def shareNewKey(newAddress: Try[Address], sender: ActorRef): Unit = {
     newAddress match {
       case Success(addr) =>
         context.actorSelection("../" + WalletManager.actorName).resolveOne().onComplete {

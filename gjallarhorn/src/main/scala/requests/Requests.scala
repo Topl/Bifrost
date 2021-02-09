@@ -47,7 +47,7 @@ class Requests (settings: AppSettings, keyManagerRef: ActorRef)
       HttpMethods.POST,
       uri = s"$declaredAddress/$path/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    ).withHeaders(RawHeader("x-api-key", "test_key"))
+    ).withHeaders(RawHeader("x-api-key", settings.application.bifrostApiKey))
   }
 
   /**

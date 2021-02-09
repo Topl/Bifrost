@@ -14,10 +14,11 @@ import scala.concurrent.duration.FiniteDuration
 case class ApplicationSettings(declaredAddress: String,
                                var keyFileDir: String,
                                chainProvider: String,
-                               var communicationMode: String)
+                               var communicationMode: String,
+                               var bifrostApiKey: String)
 
 case class RPCApiSettings(bindAddress:       InetSocketAddress,
-                          var apiKeyHash:        String,
+                          apiKeyHash:        String,
                           timeout:           FiniteDuration,
                           verboseAPI:        Boolean,
                           namespaceSelector: NamespaceSelector)

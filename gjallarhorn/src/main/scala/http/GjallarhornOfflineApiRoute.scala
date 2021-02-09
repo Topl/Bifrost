@@ -10,7 +10,7 @@ import attestation.AddressEncoder.NetworkPrefix
 import crypto.AssetCode
 import io.circe.{HCursor, Json}
 import io.circe.syntax._
-import keymanager.KeyManager.{ChangeNetwork, GenerateSignatures, SignTx}
+import keymanager.KeyManager.{ChangeNetwork, GenerateSignatures, GetAllKeyfiles, GetKeyfileDir, SignTx}
 import keymanager.networkPrefix
 import modifier.{AssetValue, Box, BoxId, SimpleValue, TransferTransaction}
 import requests.ApiRoute
@@ -19,7 +19,8 @@ import settings.{ApplicationSettings, RPCApiSettings}
 import wallet.WalletManager.GetWallet
 
 import scala.collection.mutable.{Map => MMap}
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
 
@@ -59,13 +60,15 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
       Future{Map("mode" -> applicationSettings.communicationMode).asJson}
     case (method, params, id) if method == s"${namespace.name}_changeCommunicationMode" =>
       changeCommunicationMode(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_getApiKeyHash" =>
-      Future{Map("apiKeyHash" -> settings.apiKeyHash).asJson}
+    case (method, params, id) if method == s"${namespace.name}_getCurrentApiKey" =>
+      Future{Map("apiKey" -> applicationSettings.bifrostApiKey).asJson}
     case (method, params, id) if method == s"${namespace.name}_changeApiKey" => changeApiKey(params.head, id)
 
 
     case (method, params, id) if method == s"${namespace.name}_balances" => balances(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_getWalletBoxes" => getWalletBoxes(id)
+    case (method, params, id) if method == s"${namespace.name}_getCurrentState" => getCurrentState(params.head, id)
+
   }
 
   /** #### Summary
@@ -459,32 +462,64 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
   }
 
   /** #### Summary
-    * Change the api key hash
+    * Change the api key
     *
     * #### Description
-    * Changes the api key hash to the given api key hash.
+    * Changes the api key to the given api key to communicate with Bifrost through Http
     * ---
     * #### Params
     *
     * | Fields | Data type | Required / Optional | Description |
     * | ---| ---	| --- | --- |
-    * | apiKey | String	| Required | the new api key hash |
+    * | apiKey | String	| Required | the new api key |
     *
     * @param params input parameters as specified above
     * @param id     request identifier
-    * @return - json mapping: "newApiKey" -> appSettings.rpcApi.apiKeyHash
+    * @return - json mapping: "newApiKey" -> applicationSettings.bifrostApiKey
     */
   private def changeApiKey(params: Json, id: String): Future[Json] = {
     (for {
       apiKey <- (params \\ "apiKey").head.as[String]
     } yield {
-      GjallarhornOfflineApiRoute.updateConfigFile("apiKeyHash", settings.apiKeyHash, apiKey)
-      settings.apiKeyHash = apiKey
-      Map("newApiKey" -> settings.apiKeyHash).asJson
+      GjallarhornOfflineApiRoute.updateConfigFile("bifrostApiKey", applicationSettings.bifrostApiKey, apiKey)
+      applicationSettings.bifrostApiKey = apiKey
+      Map("newApiKey" -> applicationSettings.bifrostApiKey).asJson
     }) match {
       case Right(value) => Future{value}
       case Left(error) => throw new Exception (s"error parsing for api key: $error")
     }
+  }
+
+
+  /** #### Summary
+    * Returns information about the current state.
+    *
+    * #### Description
+    * Returns current state information: networkPrefix, communicationMode, apiKey, keyfileDirectory, and keys.
+    * ---
+    * #### Params
+    *
+    * | Fields | Data type | Required / Optional | Description |
+    * | ---| ---	| --- | --- |
+    * | --None specified-- |         	|                     	|
+    *
+    * @param params input parameters as specified above
+    * @param id     request identifier
+    * @return - json mapping: "newApiKey" -> applicationSettings.bifrostApiKey
+    */
+  private def getCurrentState(params: Json, id: String): Future[Json] = {
+    Await.result((keyManagerRef ? GetKeyfileDir).mapTo[Json].map(value => {
+      val directory = (value \\ "keyfileDirectory").head
+      Await.result( (keyManagerRef ? GetAllKeyfiles).mapTo[Map[Address, String]].map(keys => {
+        Future{Map(
+          "networkPrefix" -> networkPrefix.asJson,
+          "communicationMode" -> applicationSettings.communicationMode.asJson,
+          "apiKey" -> applicationSettings.bifrostApiKey.asJson,
+          "keyfileDirectory" -> directory,
+          "keys" -> keys.asJson
+        ).asJson}
+      }),10.seconds)
+    }), 10.seconds)
   }
 
 }

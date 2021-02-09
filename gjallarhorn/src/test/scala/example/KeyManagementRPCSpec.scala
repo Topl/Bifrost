@@ -77,7 +77,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
       HttpMethods.POST,
       uri = "/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    ).withHeaders(RawHeader("x-api-key", "test_key"))
+    ).withHeaders(RawHeader("x-api-key", settings.application.bifrostApiKey))
   }
 
   it should "successfully get open keyfiles" in {

@@ -16,7 +16,6 @@ import modifier.{Box, BoxId, Transaction}
 import wallet.WalletManager
 import wallet.WalletManager._
 
-import scala.None.isDefined
 import scala.reflect.io.Path
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.{Await, ExecutionContextExecutor}
