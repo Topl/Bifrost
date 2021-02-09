@@ -45,22 +45,22 @@ class Requests (settings: AppSettings, keyManagerRef: ActorRef)
   def httpPOST(jsonRequest: ByteString, path: String = ""): HttpRequest = {
     HttpRequest(
       HttpMethods.POST,
-      uri = s"$declaredAddress/$path/",
+      uri = s"$declaredAddress/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
     ).withHeaders(RawHeader("x-api-key", settings.application.bifrostApiKey))
   }
 
   /**
-    * Converts http request to byte string
+    * Gets the HTTP response from the http request and converts the response to a byte string
     * @param request the http request convert
-    * @return the request as a future byte string
+    * @return the HTTP response as a future byte string
     */
   def requestResponseByteString(request: HttpRequest): Future[ByteString] = {
     val response = http.singleRequest(request)
     response.flatMap {
       case _@HttpResponse(StatusCodes.OK, _, entity, _) =>
         entity.dataBytes.runFold(ByteString.empty) { case (acc, b) => acc ++ b }
-      case _ => sys.error("something wrong")
+      case error => sys.error(s"Error with the HTTP response: $error")
     }
   }
 
@@ -80,9 +80,12 @@ class Requests (settings: AppSettings, keyManagerRef: ActorRef)
     * @return the byte string in json form
     */
   def byteStringToJSON(data: ByteString): Json = {
+    if (data.utf8String == "Provided API key is not correct") {
+      throw new Exception (s"The api key: ${settings.application.bifrostApiKey} is not correct")
+    }
     parser.parse(data.utf8String) match {
         case Right(parsed) => parsed
-        case Left(e) => throw e.getCause
+        case Left(e) => throw new Exception (s"Error parsing: ${data.utf8String}. $e")
       }
   }
 

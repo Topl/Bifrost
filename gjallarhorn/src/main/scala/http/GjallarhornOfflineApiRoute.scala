@@ -64,7 +64,6 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
       Future{Map("apiKey" -> applicationSettings.bifrostApiKey).asJson}
     case (method, params, id) if method == s"${namespace.name}_changeApiKey" => changeApiKey(params.head, id)
 
-
     case (method, params, id) if method == s"${namespace.name}_balances" => balances(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_getWalletBoxes" => getWalletBoxes(id)
     case (method, params, id) if method == s"${namespace.name}_getCurrentState" => getCurrentState(params.head, id)

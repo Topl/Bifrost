@@ -235,7 +235,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 
   it should "succesfully create online arbit tx" in {
     Thread.sleep(10000)
-    val createAssetRequest = ByteString(
+    val transferArbitRequest = ByteString(
       s"""
          |{
          |   "jsonrpc": "2.0",
@@ -256,7 +256,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
        """.stripMargin)
 
-    httpPOST(createAssetRequest) ~> route ~> check {
+    httpPOST(transferArbitRequest) ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -268,7 +268,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   }
 
   it should "successfully create raw poly tx" in {
-    val createPolyRequest = ByteString(
+    val transferPolyRequest = ByteString(
       s"""
          |{
          |   "jsonrpc": "2.0",
@@ -287,7 +287,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
        """.stripMargin)
 
-    httpPOST(createPolyRequest) ~> route ~> check {
+    httpPOST(transferPolyRequest) ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -300,7 +300,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 
   it should "successfully send online poly tx" in {
     Thread.sleep(10000)
-    val createPolyRequest = ByteString(
+    val transferPolyRequest = ByteString(
       s"""
          |{
          |   "jsonrpc": "2.0",
@@ -321,7 +321,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
        """.stripMargin)
 
-    httpPOST(createPolyRequest) ~> route ~> check {
+    httpPOST(transferPolyRequest) ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -418,7 +418,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
         case Success(pubKey) => pubKey
         case Failure(exception) => throw new Error("error creating key file: " + exception)
       }
-    val createPolyRequest = ByteString(
+    val transferPolyRequest = ByteString(
       s"""
          |{
          |   "jsonrpc": "2.0",
@@ -439,7 +439,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
        """.stripMargin)
 
-    httpPOST(createPolyRequest) ~> route ~> check {
+    httpPOST(transferPolyRequest) ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -477,7 +477,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   var rawPolyTx: Json = Json.Null
   var msgToSignPoly: String = ""
   it should "succesfully create a raw poly tx without bifrost" in {
-    val createAssetRequest = ByteString(
+    val transferPolyRequest = ByteString(
       s"""
          |{
          |   "jsonrpc": "2.0",
@@ -495,7 +495,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
        """.stripMargin)
 
-    httpPOST(createAssetRequest) ~> route ~> check {
+    httpPOST(transferPolyRequest) ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
