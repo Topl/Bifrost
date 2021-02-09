@@ -54,9 +54,15 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
     case (method, params, id) if method == s"${namespace.name}_networkType" =>
       Future{Map("networkPrefix" -> networkPrefix).asJson}
     case (method, params, id) if method == s"${namespace.name}_changeNetwork" => changeNetwork(params.head, id)
+
+    case (method, params, id) if method == s"${namespace.name}_getCommunicationMode" =>
+      Future{Map("mode" -> applicationSettings.communicationMode).asJson}
     case (method, params, id) if method == s"${namespace.name}_changeCommunicationMode" =>
       changeCommunicationMode(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_getApiKeyHash" =>
+      Future{Map("apiKeyHash" -> settings.apiKeyHash).asJson}
     case (method, params, id) if method == s"${namespace.name}_changeApiKey" => changeApiKey(params.head, id)
+
 
     case (method, params, id) if method == s"${namespace.name}_balances" => balances(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_getWalletBoxes" => getWalletBoxes(id)
