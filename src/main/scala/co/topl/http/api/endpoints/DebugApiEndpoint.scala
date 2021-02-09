@@ -55,7 +55,7 @@ case class DebugApiEndpoint(
     * | Fields    | Data type | Required / Optional | Description                                                    |
     * |-----------|-----------|---------------------|----------------------------------------------------------------|
     * | blockId   | String    | Required            | Id of block from which to start average delay computation      |
-    * | numBlocks | Int       | Required            | Number of blocks back to consider when computing average delay |
+    * | numBlocks | Number    | Required            | Number of blocks back to consider when computing average delay |
     *
     * @param params input parameters as specified above
     * @param id request identifier
