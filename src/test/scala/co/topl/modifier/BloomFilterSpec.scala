@@ -74,6 +74,6 @@ class BloomFilterSpec
       else count
     }
 
-    falsePositives shouldEqual 12
+    falsePositives shouldEqual 15
   }
 }
