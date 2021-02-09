@@ -54,18 +54,17 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     * @param id request identifier
     * @return
     */
-  private def unlockKeyfile(params: Json, id: String): Future[Json] = {
+  private def unlockKeyfile(params: Json, id: String): Future[Json] =
     (for {
-      address <- params.hcursor.get[String]("address")
+      address  <- params.hcursor.get[String]("address")
       password <- params.hcursor.get[String]("password")
     } yield (keyHolderRef ? UnlockKey(address, password)).mapTo[Try[Unit]].map {
-      case Success(_) => Map(address -> "unlocked".asJson).asJson
+      case Success(_)  => Map(address -> "unlocked".asJson).asJson
       case Failure(ex) => throw new Error(s"An error occurred while trying to unlock the keyfile. $ex")
     }) match {
       case Right(json) => json
-      case Left(ex) => throw ex
+      case Left(ex)    => throw ex
     }
-  }
 
   /** #### Summary
     * Lock keyfile
@@ -115,7 +114,7 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     * @param id     request identifier
     * @return
     */
-  private def generateKeyfile(params: Json, id: String): Future[Json] = {
+  private def generateKeyfile(params: Json, id: String): Future[Json] =
     (for {
       password <- params.hcursor.get[String]("password")
     } yield (keyHolderRef ? CreateKey(password)).mapTo[Try[Address]].map {
@@ -125,7 +124,6 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
       case Right(json) => json
       case Left(ex)    => throw ex
     }
-  }
 
   /** #### Summary
     * Import key from mnemonic
@@ -147,10 +145,10 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     * @param id     request identifier
     * @return
     */
-  private def importKeyfile(implicit params: Json, id: String): Future[Json] = {
+  private def importKeyfile(implicit params: Json, id: String): Future[Json] =
     (for {
-      password <- params.hcursor.get[String]("password")
-      seedPhrase <- params.hcursor.get[String]("seedPhrase")
+      password       <- params.hcursor.get[String]("password")
+      seedPhrase     <- params.hcursor.get[String]("seedPhrase")
       seedPhraseLang <- params.hcursor.get[Option[String]]("seedPhrase")
     } yield (keyHolderRef ? ImportKey(password, seedPhrase, seedPhraseLang)).mapTo[Try[Address]].map {
       case Success(addr: Address) => Map("publicKey" -> addr.asJson).asJson
@@ -159,7 +157,6 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
       case Right(json) => json
       case Left(ex)    => throw ex
     }
-  }
 
   /** #### Summary
     * Return list of open keyfiles
