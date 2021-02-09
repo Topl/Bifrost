@@ -44,19 +44,18 @@ case class DebugApiEndpoint(
     case (method, params, id) if method == s"${namespace.name}_generators" => generators(params.head, id)
   }
 
-  /**  #### Summary
-    *    Calculate the average delay over a number of blocks
+  /** #### Summary
+    * Calculate the average delay over a number of blocks
     *
-    *  #### Description
-    *    Find the average delay between blocks starting from a specified blockId and till a certain number of blocks
-    *    forged on top of it
+    * #### Description
+    * Find the average delay between blocks starting from a specified blockId and till a certain number of blocks
+    * forged on top of it
     *
-    * ---
-    *  #### Params
-    *  | Fields   | Data type | Required / Optional   | Description                                                    |
-    * |-----------|-----------|-----------------------|----------------------------------------------------------------|
-    * | blockId   | String    | Required              | Id of block from which to start average delay computation      |
-    * | numBlocks | Int       | Required              | Number of blocks back to consider when computing average delay |
+    * #### Params
+    * | Fields    | Data type | Required / Optional | Description                                                    |
+    * |-----------|-----------|---------------------|----------------------------------------------------------------|
+    * | blockId   | String    | Required            | Id of block from which to start average delay computation      |
+    * | numBlocks | Int       | Required            | Number of blocks back to consider when computing average delay |
     *
     * @param params input parameters as specified above
     * @param id request identifier
@@ -65,8 +64,8 @@ case class DebugApiEndpoint(
   private def delay(params: Json, id: String): Future[Json] =
     viewAsync { view =>
       (for {
-        blockId <- (params \\ "blockId").head.as[ModifierId]
-        count   <- (params \\ "numBlocks").head.as[Int]
+        blockId <- params.hcursor.get[ModifierId]("blockId")
+        count   <- params.hcursor.get[Int]("numBlocks")
       } yield new HistoryDebug(view.history).averageDelay(blockId, count)) match {
         case Right(Success(delay)) => Map("delay" -> s"$delay milliseconds").asJson
         case Right(Failure(ex))    => throw ex
@@ -74,17 +73,16 @@ case class DebugApiEndpoint(
       }
     }
 
-  /**  #### Summary
-    *    Find the number of blocks forged by public keys held by the node
+  /** #### Summary
+    * Find the number of blocks forged by public keys held by the node
     *
-    *  #### Type
-    *    Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
+    * #### Type
+    * Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
     *
-    * ---
     * #### Params
-    * | Fields                   | Data type   | Required / Optional   | Description                                   |
-    * |--------------------------|-------------|-----------------------|-----------------------------------------------|
-    * |---None specified---------|             |                       |                                               |
+    * | Fields             | Data type | Required / Optional | Description |
+    * |--------------------|-----------|---------------------|-------------|
+    * | --None specified-- |           |                     |             |
     *
     * @param params input parameters as specified above
     * @param id request identifier
@@ -104,14 +102,13 @@ case class DebugApiEndpoint(
       }
     }
 
-  /**  #### Summary
-    *    Find distribution of block generators from all public keys in the chain's history
+  /** #### Summary
+    * Find distribution of block generators from all public keys in the chain's history
     *
-    * ---
-    *  #### Params
-    * | Fields                    | Data type   | Required / Optional   | Description                                  |
-    * |---------------------------|-------------|-----------------------|----------------------------------------------|
-    * |---None specified----------|             |                       |                                              |
+    * #### Params
+    * | Fields             | Data type | Required / Optional | Description |
+    * |--------------------|-----------|---------------------|-------------|
+    * | --None specified-- |           |                     |             |
     *
     * @param params input parameters as specified above
     * @param id request identifier

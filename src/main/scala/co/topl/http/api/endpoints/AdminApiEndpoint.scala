@@ -45,10 +45,10 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     * allow signing of transactions on behalf of that key
     *
     * #### Params
-    * | Fields | Data type | Required / Optional | Description |
-    * | --- | --- | --- | --- |
-    * | address | String | Required | Address corresponding to an encrypted keyfile in your wallet directory |
-    * | password | String | Required | String used to encrypt the private keyfile that is stored locally |
+    * | Fields   | Data type | Required / Optional | Description                                                            |
+    * |----------|-----------|---------------------|------------------------------------------------------------------------|
+    * | address  | String    | Required            | Address corresponding to an encrypted keyfile in your wallet directory |
+    * | password | String    | Required            | String used to encrypt the private keyfile that is stored locally      |
     *
     * @param params input parameters as specified above
     * @param id request identifier
@@ -76,10 +76,10 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     * Lock a previously unlocked keyfile in your wallet.
     *
     * #### Params
-    * | Fields | Data type | Required / Optional | Description |
-    * | --- | --- | --- | --- |
-    * | address | String | Required | Address corresponding to an encrypted keyfile in your wallet directory |
-    * | password | String | Required | String used to encrypt the private keyfile that is stored locally |
+    * | Fields   | Data type | Required / Optional | Description                                                            |
+    * |----------|-----------|---------------------|------------------------------------------------------------------------|
+    * | address  | String    | Required            | Address corresponding to an encrypted keyfile in your wallet directory |
+    * | password | String    | Required            | String used to encrypt the private keyfile that is stored locally      |
     *
     * @param params input parameters as specified above
     * @param id request identifier
@@ -106,9 +106,9 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     * Generate and save a new encrypted private keyfile using Curve25519 key pairs.
     *
     * #### Params
-    * | Fields | Data type | Required / Optional | Description |
-    * | --- | --- | --- | --- |
-    * | password | String | Required | String used to encrypt the private keyfile that is stored locally |
+    * | Fields   | Data type | Required / Optional | Description                                                       |
+    * |----------|-----------|---------------------|-------------------------------------------------------------------|
+    * | password | String    | Required            | String used to encrypt the private keyfile that is stored locally |
     *
     * @param params input parameters as specified above
     * @param id     request identifier
@@ -135,11 +135,11 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     * Allows a user to import a 12, 15, 18, 21, or 24 word mnemonic (seed phrase) and generate an encrypted Keyfile
     *
     * #### Params
-    * | Fields | Data type | Required / Optional | Description |
-    * | --- | --- | --- | --- |
-    * | password | String | Required | String used to encrypt the private keyfile that is stored locally |
-    * | seedPhrase | String | Required | 12, 15, 18, 21, or 24 word mnemonic |
-    * | seddPhraseLang | String | Optional | Defaults to 'en'. Valid options are ["zh-hans", "zh-hant", "en", "fr", "it", "ja", "ko", "es"] |
+    * | Fields         | Data type | Required / Optional | Description                                                                                    |
+    * |----------------|-----------|---------------------|------------------------------------------------------------------------------------------------|
+    * | password       | String    | Required            | String used to encrypt the private keyfile that is stored locally                              |
+    * | seedPhrase     | String    | Required            | 12, 15, 18, 21, or 24 word mnemonic                                                            |
+    * | seddPhraseLang | String    | Optional            | Defaults to 'en'. Valid options are ["zh-hans", "zh-hant", "en", "fr", "it", "ja", "ko", "es"] |
     *
     * @param params input parameters as specified above
     * @param id     request identifier
@@ -168,9 +168,9 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     * Check which keyfiles are currently unlocked in your wallet. This method takes no input arguments.
     *
     * #### Params
-    * | Fields | Data type | Required / Optional | Description |
-    * | --- | --- | --- | --- |
-    * | --None specified-- |  |  |  |
+    * | Fields             | Data type | Required / Optional | Description |
+    * |--------------------|-----------|---------------------|-------------|
+    * | --None specified-- |           |                     |             |
     *
     * @param params input parameters as specified above
     * @param id     request identifier
@@ -191,9 +191,9 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     * Attempt to forge blocks using any unlocked keyfiles available on the node
     *
     * #### Params
-    * | Fields | Data type | Required / Optional | Description |
-    * | --- | --- | --- | --- |
-    * | --None specified-- |  |  |  |
+    * | Fields             | Data type | Required / Optional | Description |
+    * |--------------------|-----------|---------------------|-------------|
+    * | --None specified-- |           |                     |             |
     *
     * @param params input parameters as specified above
     * @param id     request identifier
@@ -214,9 +214,9 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     * Attempt to stop forging blocks
     *
     * #### Params
-    * | Fields | Data type | Required / Optional | Description |
-    * | --- | --- | --- | --- |
-    * | --None specified-- |  |  |  |
+    * | Fields             | Data type | Required / Optional | Description |
+    * |--------------------|-----------|---------------------|-------------|
+    * | --None specified-- |           |                     |             |
     *
     * @param params input parameters as specified above
     * @param id     request identifier
