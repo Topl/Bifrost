@@ -93,7 +93,7 @@ The documentation can also be found through GitHub Pages:
  
  The code for Gjallarhorn's user interface can be found in this repository: https://github.com/Topl/Gjallarhorn-UI
  
- The build files can be found in: `Bifrost/gjallarhorn/src/main/resources/ui/build`
+ The build files can be found at: `Bifrost/gjallarhorn/src/main/resources/ui/build`
  
  To load the local site (*the local site must be running on localhost:3000 in order to send requests to the backend)
  - find the index.html files within the folder specified above and right click on it to open with a web browser.
