@@ -95,9 +95,12 @@ The documentation can also be found through GitHub Pages:
  
  The build files can be found in: `Bifrost/gjallarhorn/src/main/resources/ui/build`
  
- To load the local site, you can either
- - In your code editor (i.e. Intellij), open the `index.html` file within the `ui/build` folder and there should be a pop-up with web browser to choose from to load the site
- - You should also be able to find the site at: http://localhost:63342/bifrost/gjallarhorn/ui/build/index.html?_ijt=6uub2l0hi5tnn5qtr3ikg2ma9v
+ To load the local site (*the local site must be running on localhost:3000 in order to send requests to the backend)
+ - find the index.html files within the folder specified above and right click on it to open with a web browser.
+ - If you use intellij, open the `index.html` file within the `ui/build` folder and there should be a pop-up with web browser to choose from to load the site
+      - make sure that you set the built-in server port to "3000"
+      - this can be done by opening up Settings/Preferences -> Build,Execution,Deployment -> Debugger : then scroll down to "Built-in server" to input the correct port.
+
  
  Make sure project gjallarhorn is running in order to interact with the site (and if you want to be in online mode, make sure bifrost is running too!)
 
