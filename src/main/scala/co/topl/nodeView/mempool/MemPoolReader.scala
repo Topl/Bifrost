@@ -1,12 +1,18 @@
 package co.topl.nodeView.mempool
 
+import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ContainsModifiers, ModifierId, NodeViewModifier}
 import co.topl.nodeView.NodeViewComponent
+import co.topl.utils.TimeProvider
+
+import scala.math.Ordering
+
+case class UnconfirmedTx[TX <: Transaction.TX](tx: TX, dateAdded: TimeProvider.Time)
 
 /**
   * Unconfirmed transactions pool
   */
-trait MemPoolReader[TX <: NodeViewModifier]
+trait MemPoolReader[TX <: Transaction.TX]
   extends NodeViewComponent with ContainsModifiers[TX] {
 
   //getters
@@ -21,6 +27,6 @@ trait MemPoolReader[TX <: NodeViewModifier]
 
   def size: Int
 
-  def take(limit: Int): Iterable[UnconfirmedTx[TX]]
+  def take[A](limit: Int)(f: UnconfirmedTx[TX] => A)(implicit ord: Ordering[A]): Iterable[UnconfirmedTx[TX]]
 
 }

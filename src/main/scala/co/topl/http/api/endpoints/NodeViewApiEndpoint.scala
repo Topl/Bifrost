@@ -145,7 +145,8 @@ case class NodeViewApiEndpoint(
     * @param id request identifier
     * @return
     */
-  private def mempool(params: Json, id: String): Future[Json] = viewAsync(_.pool.take(100).asJson)
+  private def mempool(params: Json, id: String): Future[Json] =
+    viewAsync { _.pool.take(100)(-_.dateAdded).map(_.tx).asJson }
 
   /**  #### Summary
     *    Lookup a transaction by its id

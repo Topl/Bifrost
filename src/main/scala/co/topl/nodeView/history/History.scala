@@ -484,7 +484,7 @@ object History extends Logging {
   /** Gets the timestamps for 'count' number of blocks prior to (and including) the startBlock */
   def getTimestamps(storage: Storage, count: Long, startBlock: Block): Vector[TimeProvider.Time] = {
     @tailrec
-    def loop(id: ModifierId, acc: Vector[Block.Timestamp] = Vector()): Vector[TimeProvider.Time] = {
+    def loop(id: ModifierId, acc: Vector[TimeProvider.Time] = Vector()): Vector[TimeProvider.Time] = {
       if (acc.length > count) acc
       else storage.parentIdOf(id) match {
         case Some(parentId: ModifierId) =>

@@ -308,7 +308,7 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
   private def pickTransactions(memPool: MemPool, state: State, chainHeight: Long): Try[PickTransactionsResult] = Try {
 
     memPool
-      .take(numTxInBlock(chainHeight))
+      .take(numTxInBlock(chainHeight))(-_.tx.fee) // returns a sequence of transactions ordered by their fee
       .filter(_.tx.fee > 0) // default strategy ignores zero fee transactions in mempool
       .foldLeft(PickTransactionsResult(Seq(), Seq())) { case (txAcc, utx) =>
         // ensure that each transaction opens a unique box by checking that this transaction

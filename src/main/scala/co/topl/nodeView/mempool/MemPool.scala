@@ -6,6 +6,7 @@ import co.topl.modifier.transaction.Transaction
 import co.topl.utils.{Logging, TimeProvider}
 
 import scala.collection.concurrent.TrieMap
+import scala.math.Ordering
 import scala.util.Try
 
 case class MemPool(private val unconfirmed: TrieMap[ModifierId, UnconfirmedTx[Transaction.TX]])
@@ -77,8 +78,8 @@ case class MemPool(private val unconfirmed: TrieMap[ModifierId, UnconfirmedTx[Tr
    * @param limit
    * @return
    */
-  override def take(limit: Int): Iterable[UnconfirmedTx[TX]] =
-    unconfirmed.values.toSeq.sortBy(-_.tx.fee).take(limit)
+  override def take[A](limit: Int)(f: UnconfirmedTx[TX] => A)(implicit ord: Ordering[A]): Iterable[UnconfirmedTx[TX]] =
+    unconfirmed.values.toSeq.sortBy(f).take(limit)
 
   /**
    *

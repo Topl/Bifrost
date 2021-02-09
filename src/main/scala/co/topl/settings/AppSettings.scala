@@ -20,7 +20,7 @@ case class ApplicationSettings(
   version:     Version,
   cacheExpire: Int,
   cacheSize:   Int,
-  mempoolCleanupDuration: FiniteDuration,
+  mempoolTimeout: FiniteDuration,
   rebroadcastCount: Int
 )
 
