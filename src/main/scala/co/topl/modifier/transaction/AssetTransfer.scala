@@ -64,7 +64,7 @@ object AssetTransfer {
     sender:               IndexedSeq[Address],
     changeAddress:        Address,
     consolidationAddress: Option[Address],
-    fee:                  Long,
+    fee:                  Int128,
     data:                 Option[String],
     minting:              Boolean
   ): Try[AssetTransfer[P]] = {

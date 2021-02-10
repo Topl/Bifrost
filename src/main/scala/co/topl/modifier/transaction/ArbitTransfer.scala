@@ -64,7 +64,7 @@ object ArbitTransfer {
     sender:               IndexedSeq[Address],
     changeAddress:        Address,
     consolidationAddress: Option[Address],
-    fee:                  Long,
+    fee:                  Int128,
     data:                 Option[String]
   ): Try[ArbitTransfer[P]] =
     TransferTransaction

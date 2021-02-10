@@ -111,7 +111,7 @@ object AssetValue extends BifrostSerializer[AssetValue] {
   implicit val jsonEncoder: Encoder[AssetValue] = { (value: AssetValue) =>
     Map(
       "type"         -> valueTypeString.asJson,
-      "quantity"     -> Int128Codec.jsonEncoder(value.quantity),
+      "quantity"     -> value.quantity.asJson(Int128Codec.jsonEncoder),
       "assetCode"    -> value.assetCode.asJson,
       "securityRoot" -> value.securityRoot.asJson,
       "metadata"     -> value.metadata.asJson
@@ -120,7 +120,7 @@ object AssetValue extends BifrostSerializer[AssetValue] {
 
   implicit val jsonDecoder: Decoder[AssetValue] = (c: HCursor) =>
     for {
-      quantity     <- c.downField("quantity").as[Long]
+      quantity     <- c.get[Int128]("quantity")(Int128Codec.jsonDecoder)
       assetCode    <- c.downField("assetCode").as[AssetCode]
       securityRoot <- c.downField("securityRoot").as[Option[String]]
       metadata     <- c.downField("metadata").as[Option[String]]
