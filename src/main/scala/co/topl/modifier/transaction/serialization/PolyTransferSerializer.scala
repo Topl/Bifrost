@@ -76,7 +76,7 @@ object PolyTransferSerializer extends BifrostSerializer[PolyTransfer[_ <: Propos
       prop -> sig
     }: _*)
 
-    val fee: Int128 = Int128(r.getBytes(Int128.size))
+    val fee: Int128 = Int128(r.getBytes(Int128.numBytes))
     val timestamp: Long = r.getULong()
 
     val data: Option[String] = r.getOption {

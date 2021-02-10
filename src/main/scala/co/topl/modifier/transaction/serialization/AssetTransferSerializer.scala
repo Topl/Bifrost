@@ -76,7 +76,7 @@ object AssetTransferSerializer extends BifrostSerializer[AssetTransfer[_ <: Prop
       prop -> sig
     }: _*)
 
-    val fee: Int128 = Int128(r.getBytes(Int128.size))
+    val fee: Int128 = Int128(r.getBytes(Int128.numBytes))
     val timestamp: Long = r.getULong()
 
     val data: Option[String] = r.getOption {

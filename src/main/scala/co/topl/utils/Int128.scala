@@ -32,7 +32,7 @@ import scala.util.{Failure, Success, Try}
   */
 object Int128 {
   val size = 128
-  val bytes: Int = size / java.lang.Byte.SIZE
+  val numBytes: Int = size / java.lang.Byte.SIZE
   val MinValue: Int128 = Int128(Long.MinValue, 0L)
   val MaxValue: Int128 = Int128(Long.MaxValue, -1L)
 
@@ -105,14 +105,14 @@ object Int128 {
     */
   def apply(value: BigInt): Int128 = {
     val bigIntBytes = value.toByteArray
-    val res = if (bigIntBytes.length >= Int128.bytes) {
+    val res = if (bigIntBytes.length >= Int128.numBytes) {
       bigIntBytes.takeRight(16)
     } else {
       val pad: Byte = if (bigIntBytes.head < 0) -1 else 0
       Array.fill(16 - bigIntBytes.length)(pad) ++ bigIntBytes
     }
 
-    val buf = ByteBuffer.allocate(bytes).order(ByteOrder.BIG_ENDIAN)
+    val buf = ByteBuffer.allocate(numBytes).order(ByteOrder.BIG_ENDIAN)
     buf.put(res)
     buf.flip()
     new Int128(buf.getLong(), buf.getLong())
@@ -158,13 +158,13 @@ object Int128 {
     * @param value Byte array in big-endian format.
     */
   def apply(value: Array[Byte]): Int128 = {
-    val res = if (value.length >= Int128.bytes) {
+    val res = if (value.length >= Int128.numBytes) {
       value.takeRight(16)
     } else {
       Array.fill(16 - value.length)(0: Byte) ++ value
     }
 
-    val buf = ByteBuffer.allocate(bytes).order(ByteOrder.BIG_ENDIAN)
+    val buf = ByteBuffer.allocate(numBytes).order(ByteOrder.BIG_ENDIAN)
     buf.put(res)
     buf.flip()
     new Int128(buf.getLong(), buf.getLong())
@@ -208,7 +208,7 @@ final class Int128(val upperLong: Long, val lowerLong: Long)
     * @return Byte array containing this number in big-endian format.
     */
   def toByteArray: Array[Byte] = {
-    val buf = ByteBuffer.allocate(Int128.bytes).order(ByteOrder.BIG_ENDIAN)
+    val buf = ByteBuffer.allocate(Int128.numBytes).order(ByteOrder.BIG_ENDIAN)
     buf.putLong(upperLong)
     buf.putLong(lowerLong)
     buf.array
