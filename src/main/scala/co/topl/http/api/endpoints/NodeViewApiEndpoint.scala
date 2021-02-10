@@ -82,9 +82,9 @@ case class NodeViewApiEndpoint(
     * - Requires the Token Box Registry to be active
     *
     * #### Params
-    * | Fields    | Data type     | Required / Optional | Description                                  |
-    * |-----------|---------------|---------------------|----------------------------------------------|
-    * | addresses | Array[String] | Required            | Addresses whose balances are to be retrieved |
+    * | Fields    | Data type | Required / Optional | Description                                  |
+    * |-----------|-----------|---------------------|----------------------------------------------|
+    * | addresses | [String]  | Required            | Addresses whose balances are to be retrieved |
     *
     * @param params input parameters as specified above
     * @param id     request identifier
