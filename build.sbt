@@ -30,6 +30,7 @@ val graalVersion = "21.0.0"
 
 val akkaDependencies = Seq(
   "com.typesafe.akka" %% "akka-actor"          % akkaVersion,
+  "com.typesafe.akka" %% "akka-cluster"        % akkaVersion,
   "com.typesafe.akka" %% "akka-stream"         % akkaVersion,
   "com.typesafe.akka" %% "akka-http"           % akkaHttpVersion,
   "com.typesafe.akka" %% "akka-http-core"      % akkaHttpVersion,
