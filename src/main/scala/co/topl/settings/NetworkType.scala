@@ -2,9 +2,11 @@ package co.topl.settings
 
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 
-sealed abstract class NetworkType(val verboseName     : String,
-                                  val netPrefix       : NetworkPrefix,
-                                  )
+/** Attributes of a network type such as its name and whether to start forging once it's ready
+  * @param verboseName name of the network type
+  * @param netPrefix byte that represents the network type
+  */
+sealed abstract class NetworkType(val verboseName: String, val netPrefix: NetworkPrefix)
 
 object NetworkType {
 

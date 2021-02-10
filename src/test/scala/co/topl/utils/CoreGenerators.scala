@@ -14,11 +14,12 @@ import co.topl.nodeView.state.box.Box.Nonce
 import co.topl.nodeView.state.box.{ProgramId, _}
 import co.topl.program.{ProgramPreprocessor, _}
 import co.topl.settings.NetworkType.PrivateNet
-import co.topl.settings.{AppSettings, StartupOpts}
+import co.topl.settings.{AppSettings, StartupOpts, Version}
 import io.circe.syntax._
 import io.circe.{Json, JsonObject}
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
+import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.{Curve25519, Signature}
 import scorex.util.encode.Base58
 
@@ -243,6 +244,12 @@ trait CoreGenerators extends Logging {
     (0 until seqLen) map { _ => sampleUntilNonEmpty(fromGen) }
   }
 
+  lazy val simpleValueGen: Gen[SimpleValue] = for {
+    value <- positiveLongGen
+  } yield {
+    SimpleValue(value)
+  }
+
   lazy val toGen: Gen[(Address, SimpleValue)] = for {
     address <- addressGen
     value <- positiveLongGen
@@ -250,20 +257,33 @@ trait CoreGenerators extends Logging {
     (address, SimpleValue(value))
   }
 
-  //TODO create optional data to test cases for None or Some
-  lazy val assetToGen: Gen[(Address, AssetValue)] = for {
+  lazy val assetCodeGen: Gen[AssetCode] = for {
     // TODO: Hard coded as 1, but change this to arbitrary in the future
     // assetVersion <- Arbitrary.arbitrary[Byte]
     issuer <- addressGen
     shortName <- shortNameGen
+  } yield {
+    AssetCode(1: Byte, issuer, shortName)
+  }
+
+  lazy val assetValueGen: Gen[AssetValue] = for {
     quantity <- positiveLongGen
+    assetCode <- assetCodeGen
     data <- stringGen
   } yield {
-    // TODO: Hard coded as 1, but change this to arbitrary in the future
-    val assetVersion = 1: Byte
-    val assetCode = AssetCode(assetVersion, issuer, shortName)
-    val assetValue = AssetValue(quantity, assetCode, metadata = Some(data))
-    (issuer, assetValue)
+    AssetValue(quantity, assetCode, metadata = Some(data))
+  }
+
+  lazy val assetToGen: Gen[(Address, AssetValue)] = for {
+    assetValue <- assetValueGen
+  } yield {
+    (assetValue.assetCode.issuer, assetValue)
+  }
+
+  lazy val securityRootGen: Gen[SecurityRoot] = for {
+    root <- specificLengthBytesGen(Blake2b256.DigestSize)
+  } yield {
+    SecurityRoot(Base58.encode(root))
   }
 
   lazy val toSeqGen: Gen[IndexedSeq[(Address, SimpleValue)]] = for {
@@ -321,22 +341,6 @@ trait CoreGenerators extends Logging {
     AssetTransfer(from, to, attestation, fee, timestamp, Some(data), minting = true)
   }
 
-  /*
-  lazy val assetCreationGen: Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = for {
-    to <- toSeqGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    sender <- key25519Gen
-    issuer <- propositionGen
-    assetCode <- stringGen
-    data <- stringGen
-  } yield {
-    val rawTx = AssetTransfer.createRaw(stateReader = ???, to, Seq(sender._2), sender._2, issuer, assetCode, fee, data, true).get
-    val sig = sender._1.sign(rawTx.messageToSign)
-    AssetCreation(to, Map(sender._2 -> sig), assetCode, sender._2, fee, timestamp, data)
-  }
-   */
-
   lazy val publicKeyPropositionCurve25519Gen: Gen[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] =
     key25519Gen.map(key => key._1 -> key._2)
 
@@ -356,6 +360,18 @@ trait CoreGenerators extends Logging {
     val thresholdProp = ThresholdPropositionCurve25519(threshold, props)
 
     (setOfKeys._1, thresholdProp)
+  }
+
+  lazy val thresholdSignatureCurve25519Gen: Gen[ThresholdSignatureCurve25519] = for {
+    numKeys <- positiveMediumIntGen
+    message <- nonEmptyBytesGen
+  } yield {
+    val sigs = (0 until numKeys)
+      .map { _ =>
+        val key = sampleUntilNonEmpty(key25519Gen)
+        key._1.sign(message)
+      }.toSet
+    ThresholdSignatureCurve25519(sigs)
   }
 
   lazy val propTypes: Gen[String] = sampleUntilNonEmpty(Gen.oneOf(
@@ -442,6 +458,13 @@ trait CoreGenerators extends Logging {
   lazy val propositionGen: Gen[PublicKeyPropositionCurve25519] = key25519Gen.map(_._2)
   lazy val evidenceGen: Gen[Evidence] = for { address <- addressGen } yield { address.evidence }
   lazy val addressGen: Gen[Address] = for { key <- propositionGen } yield { key.address }
+  lazy val versionGen: Gen[Version] = for {
+    first <- Gen.choose(0: Byte, Byte.MaxValue)
+    second <- Gen.choose(0: Byte, Byte.MaxValue)
+    third <- Gen.choose(0: Byte, Byte.MaxValue)
+  } yield {
+    new Version(first, second, third)
+  }
 
   def genBytesList(size: Int): Gen[Array[Byte]] = genBoundedBytes(size, size)
 

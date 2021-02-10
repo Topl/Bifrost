@@ -4,18 +4,27 @@ import java.io.File
 import java.net.InetSocketAddress
 
 import com.typesafe.config.{Config, ConfigFactory}
+import http.NamespaceSelector
 import utils.Logging
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 
-case class AppSettings(declaredAddress: String,
-                        rpcPort: Int,
-                       requestPort: Int,
-                       requestAddress: String,
-                       keyFileDir: String,
-                       chainProvider: String,
-                       apiKeyHash: String,
-                       useApiRoute: Boolean)
+import scala.concurrent.duration.FiniteDuration
+
+case class ApplicationSettings(declaredAddress: String,
+                               var keyFileDir: String,
+                               chainProvider: String,
+                               var communicationMode: String,
+                               var bifrostApiKey: String)
+
+case class RPCApiSettings(bindAddress:       InetSocketAddress,
+                          apiKeyHash:        String,
+                          timeout:           FiniteDuration,
+                          verboseAPI:        Boolean,
+                          namespaceSelector: NamespaceSelector)
+
+case class AppSettings(application:  ApplicationSettings,
+                       rpcApi:       RPCApiSettings)
 
 
 object AppSettings extends Logging with SettingsReaders {

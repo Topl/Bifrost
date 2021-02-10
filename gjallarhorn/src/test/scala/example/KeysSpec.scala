@@ -1,7 +1,11 @@
 package example
 
-import crypto.{PrivateKey25519, PublicKey25519Proposition}
-import keymanager.{KeyFile, Keys}
+import java.io.File
+
+import attestation.{Address, PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
+import attestation.AddressEncoder.NetworkPrefix
+import crypto.KeyfileCurve25519
+import keymanager.Keys
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import scorex.crypto.hash.{Blake2b256, Digest32}
@@ -9,38 +13,46 @@ import scorex.crypto.hash.{Blake2b256, Digest32}
 import scala.reflect.io.Path
 import scala.util.{Failure, Success, Try}
 
+/**
+  * Must be running bifrost on local network
+  */
 class KeysSpec extends AsyncFlatSpec with Matchers {
+
+  /** Make sure running bifrost in local network! */
+  implicit val networkPrefix: NetworkPrefix = 48.toByte
+
+  //set up Keys
+  val keyFileDir = "keyfiles/keyManagerTest"
+  val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] = Keys(keyFileDir, KeyfileCurve25519)
+
   val randomBytes1: Digest32 = Blake2b256(java.util.UUID.randomUUID.toString)
   val randomBytes2: Digest32 = Blake2b256(java.util.UUID.randomUUID.toString)
 
-  // Three keypairs for full test range, use library keygen method
-  val (sk1, pk1) = PrivateKey25519.generateKeys(randomBytes1)
-  val (sk2, pk2) =  PrivateKey25519.generateKeys(Blake2b256("sameEntropic")) //Hash of this string was taken as input instead of entropy
-  val (sk3, pk3) =  PrivateKey25519.generateKeys(randomBytes1)
+  //Create keys for testing
+  var privateKeys: Set[PrivateKeyCurve25519] = keyManager.generateNewKeyPairs(2, Some("keystest")) match {
+    case Success(secrets) => secrets
+    case Failure(ex) => throw new Error (s"Unable to generate new keys: $ex")
+  }
+  val sk1: PrivateKeyCurve25519 = privateKeys.head
+  val addr1: Address = sk1.publicImage.address
+  val sk2: PrivateKeyCurve25519 = privateKeys.tail.head
+  val addr2: Address = sk2.publicImage.address
+  var addresses: Set[Address] = Set(addr1, addr2)
+
+  val sk3: PrivateKeyCurve25519 = keyManager.generateNewKeyPairs(1, Some("keystest")) match {
+    case Success(secrets) => secrets.head
+    case Failure(ex) => throw new Error (s"Unable to generate new keys: $ex")
+  }
 
   //Filepath to write keypairs
-  val keyFileDir = "keyfiles/keyManagerTest"
   val path: Path = Path(keyFileDir)
   Try(path.deleteRecursively())
   Try(path.createDirectory())
   val password = "password"
 
+  //generate seed
   val seedString: String = java.util.UUID.randomUUID.toString
   val seed1: Digest32 = Blake2b256(seedString)
-
-
-  val keyManager: Keys = Keys(keyFileDir)
-  var pubKeys: Set[PublicKey25519Proposition] = Set()
-  var privKeys: Set[PrivateKey25519] = Set()
-  var keyFiles: Set[KeyFile] = Set()
-
-  //Hashmap where seeds map to public/private keypair
-  val (priv, pub) = PrivateKey25519.generateKeys(seed1)
-  if (!keyManager.publicKeys.contains(pub)) {
-    keyFiles += KeyFile(password, priv)
-  }
-  pubKeys += pub
-  privKeys += priv
 
   //------------------------------------------------------------------------------------
   //Signed messages
@@ -50,104 +62,95 @@ class KeysSpec extends AsyncFlatSpec with Matchers {
   it should "Match its signature to the expected sender private key" in {
       //Entropic input to input for pub/priv keypair
       val proof = sk1.sign(messageToSign)
-      assert(PrivateKey25519.verify(messageToSign, pk1, proof))
+      assert(proof.isValid(sk1.publicImage, messageToSign))
   }
 
   it should "Yield an invalid signature if signed with incorrect foreign key" in {
       val proof = sk1.sign(messageToSign)
-      assert(!PrivateKey25519.verify(messageToSign, pk2, proof))
+      assert(!proof.isValid(sk2.publicImage, messageToSign))
   }
 
   it should "Sign and verify as expected when msg is deterministic" in {
       val proof = sk2.sign(messageBytes)
       //Utilize same input. Proving hashing function AND keygen methods are deterministic
-      assert(PrivateKey25519.verify(messageBytes, pk2, proof))
+      assert(proof.isValid(sk2.publicImage, messageBytes))
   }
   //------------------------------------------------------------------------------------
   //Key Generation
 
+  //Entropic input used to make pub/priv keypair
    it should "Come as a private key and public key pair" in {
-      //Entropic input used to make pub/priv keypair
-      assert(sk1 != null)
-      assert(pk1 != null)
-      assert(sk1.isInstanceOf[PrivateKey25519])
-      assert(pk1.isInstanceOf[PublicKey25519Proposition])
+     assert(sk1 != null)
+     assert(addr1 != null)
+     assert(sk1.isInstanceOf[PrivateKeyCurve25519])
+     assert(sk1.publicImage.isInstanceOf[PublicKeyPropositionCurve25519])
+     assert(addr1.isInstanceOf[Address])
    }
   it should "Be deterministic" in {
       //Used the same entropic input
-      assert(sk1.privKeyBytes === sk3.privKeyBytes)
-      assert(pk1.equals(pk3))
+      assert(addr1.equals(sk3.publicImage.address))
   }
 
   it should "Have sufficient randomness in entropic keypair gen" in {
     //Valid pretest to ensure sufficiently random input so no shared keys
     assert(randomBytes1 != randomBytes2)
-    assert(sk1 != null && pk1 != null && sk1.isInstanceOf[PrivateKey25519] && pk1.isInstanceOf[PublicKey25519Proposition])
+    assert(sk1 != null && addr1 != null && sk1.isInstanceOf[PrivateKeyCurve25519] && addr1.isInstanceOf[Address])
   }
 
   //------------------------------------------------------------------------------------
   //KeyManager
 
-  var pubKey: PublicKey25519Proposition = pk1
+  var newAddress: Address = sk1.publicImage.address
+  val password2: String = "password2"
 
-  it should "Have 1 keyfile" in {
-    keyManager.generateKeyFile(password) match {
-      case Success(pk) => pubKey = pk
+  it should "Have 2 keyfiles before key generation and 3 after" in {
+    assert(keyManager.addresses.size === 2)
+    keyManager.generateKeyFile(password2) match {
+      case Success(addr) =>
+        newAddress = addr
+        addresses += newAddress
       case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
     }
-    keyFiles += KeyFile.readFile(Keys.getListOfFiles(keyManager.defaultKeyDir).head.getPath)
-    assert(keyFiles.size == 2)
-    assert(keyManager.publicKeys.size == 1)
-    assert(Keys.getListOfFiles(keyManager.defaultKeyDir).size == 1)
+    assert(keyManager.addresses.count(addr => addr == newAddress) == 1)
+    assert(keyManager.addresses.size === 3)
   }
 
-  it should "Be locked yes path" in {
-    keyManager.lockKeyFile(pubKey.address, password).get
-    assert(keyManager.secrets.isEmpty)
+  it should "successfully lock a key file" in {
+    keyManager.lockKeyFile(newAddress.toString).get
+    assert(keyManager.addresses.size == 2)
   }
 
-  it should "Be unlocked yes path" in {
-    keyManager.unlockKeyFile(pubKey.toString, password)
-    assert(keyManager.secrets.size == 1)
+  it should "successfully unlock a key file" in {
+    keyManager.unlockKeyFile(newAddress.toString, password2)
+    assert(keyManager.addresses.size == 3)
   }
 
 
   //------------------------------------------------------------------------------------
   //KeyFile
 
-   //Export is formatted JSON to keystore file
-  //TODO: How do you add a keyFile to Keys (KeyRing)?
-  /*it should "grab list of files and convert to KeyFile" in {
-    keyManager.generateNewKeyPairs(1,Some(seedString)) match {
-      case Success(privKeys) => {
-        keyManager.exportKeyfile(KeyFile(password, privKeys.head).publicKeyFromAddress, password)
-      }
-      case Failure(e) => throw new Error (s"$e")
-    }
+  it should "successfully export keyfiles" in {
+    privateKeys.foreach(sk => keyManager.exportKeyfile(sk.publicImage.address, "password"))
+    val exportedKeys: Set[Address] = keyManager.listKeyFilesAndStatus.keySet
+    assert (exportedKeys.size == 3)
+  }
 
-    println("pub: " + pub)
-    val exportedKeys: List[KeyFile] = Keys.getListOfFiles(keyManager.defaultKeyDir)
+  it should "grab list of files and convert to KeyFile" in {
+    val exportedKeys: List[KeyfileCurve25519] = Keys.getListOfFiles(new File(s"$keyFileDir/local"))
       .map(file => {
-        KeyFile.readFile(file.getPath)
+        KeyfileCurve25519.readFile(file.getPath)
       })
 
-    keyFiles.foreach { key =>
-      assert(exportedKeys.contains(key))
-    }
-    assert (keyFiles.size == exportedKeys.size)
-  }*/
-
-  it should "Have keys stored in the proper format" in {
-    val privKey = keyFiles.head.getPrivateKey(password).get
-    assert(privKey.isInstanceOf[PrivateKey25519])
-    val pubKey = privKey.publicKeyBytes
-    assert(pubKey.isInstanceOf[Array[Byte]])
+    addresses.foreach { address => assert(exportedKeys.map(_.address).contains(address)) }
+    assert (exportedKeys.size == 3)
   }
-  it should "Be used to import keys" in {
-    val privKey = keyFiles.head.getPrivateKey(password).get
-    assert(privKey.privKeyBytes === privKeys.head.privKeyBytes)
-    val pubKey = privKey.publicKeyBytes
-    assert(pubKey === pubKeys.head.pubKeyBytes)
+
+  val seedPhrase: String = "stand earth guess employ goose aisle great next embark weapon wonder aisle monitor " +
+    "surface omit guilt model rule"
+
+  it should "import keys correctly" in {
+    keyManager.importPhrase("foo", seedPhrase, "en")
+    assert(keyManager.addresses.size == 4)
   }
 
   //------------------------------------------------------------------------------------

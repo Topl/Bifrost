@@ -94,8 +94,10 @@ object AppSettings extends Logging with SettingsReaders {
 
   protected val configPath: String = "bifrost"
 
-  /** @param startupOpts
-    * @return
+  /** Produces an application settings class, and modify the default settings if user options are provided
+    *
+    * @param startupOpts startup options such as the path of the user defined config and network type
+    * @return application settings
     */
   def read(startupOpts: StartupOpts = StartupOpts.empty): AppSettings = {
     val settingFromConfig = fromConfig(readConfig(startupOpts))
@@ -103,13 +105,16 @@ object AppSettings extends Logging with SettingsReaders {
   }
 
   /** Produces an application settings class by reading the specified HOCON configuration file
+    *
     * @param config config factory compatible configuration
-    * @return
+    * @return application settings
     */
   def fromConfig(config: Config): AppSettings = config.as[AppSettings](configPath)
 
-  /** @param args
-    * @return
+  /** Based on the startup arguments given by the user, modify and return the default application config
+    *
+    * @param args startup options such as the path of the user defined config and network type
+    * @return config factory compatible configuration
     */
   def readConfig(args: StartupOpts): Config = {
 
@@ -118,9 +123,10 @@ object AppSettings extends Logging with SettingsReaders {
       Option(s"src/main/resources/${networkType.verboseName}.conf")
     }
 
-    args.networkTypeOpt.fold(log.warn("No network specified, running as local testnet."))(networkType =>
-      log.info(s"Running in ${networkType.verboseName} network mode")
-    )
+    val networkName: String = args.networkTypeOpt.flatMap(networkType => Option(networkType.verboseName)).getOrElse {
+      log.warn(s"${Console.YELLOW}No network specified, running as local testnet.${Console.RESET}")
+      "No Network Specified"
+    }
 
     val networkConfigFileOpt = for {
       filePathOpt <- networkPath
@@ -135,9 +141,12 @@ object AppSettings extends Logging with SettingsReaders {
     } yield file
 
     (userConfigFileOpt, networkConfigFileOpt) match {
-      /* If both are provided, user provided settings should override the default setting */
+      /** If there are user provided settings or network type, overwrite default settings with user specified ones */
       case (Some(file), None) ⇒
-        log.warn("Found custom settings. Using default settings for ones not specified in custom Settings")
+        log.warn(
+          s"${Console.YELLOW}Found custom settings. " +
+          s"Using default settings for ones not specified in custom Settings${Console.RESET}"
+        )
         val config = ConfigFactory.parseFile(file)
         ConfigFactory
           .defaultOverrides()
@@ -146,15 +155,19 @@ object AppSettings extends Logging with SettingsReaders {
           .resolve()
 
       case (None, Some(networkConfigFile)) ⇒
-        val config = ConfigFactory.parseFile(networkConfigFile)
+        log.warn(s"${Console.YELLOW}Using $networkName settings${Console.RESET}")
+        val networkConfig = ConfigFactory.parseFile(networkConfigFile)
         ConfigFactory
           .defaultOverrides()
-          .withFallback(config)
+          .withFallback(networkConfig)
           .withFallback(ConfigFactory.defaultApplication())
           .resolve()
 
       case (Some(file), Some(networkConfigFile)) =>
-        log.warn(s"Found custom settings. Using network settings for ones not specified in custom Settings")
+        log.warn(
+          s"${Console.YELLOW}Found custom settings. " +
+          s"Using $networkName settings for ones not specified in custom Settings${Console.RESET}"
+        )
         val config = ConfigFactory.parseFile(file)
         val networkConfig = ConfigFactory.parseFile(networkConfigFile)
         ConfigFactory
@@ -164,8 +177,9 @@ object AppSettings extends Logging with SettingsReaders {
           .withFallback(ConfigFactory.defaultApplication())
           .resolve()
 
+      /** Use default settings if no startup options is found */
       case _ ⇒
-        log.warn("No custom setting specified, using default configuration")
+        log.warn(s"${Console.YELLOW}No custom setting specified, using default configuration${Console.RESET}")
         ConfigFactory.load()
     }
   }

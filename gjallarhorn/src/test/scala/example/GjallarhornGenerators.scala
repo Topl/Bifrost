@@ -11,4 +11,10 @@ trait GjallarhornGenerators {
   private val requestSettingsFile = "gjallarhorn/src/test/resources/requestTest.conf"
   val requestConfig: Config = AppSettings.readConfig(StartupOpts(Some(requestSettingsFile), None))
   val requestSettings: AppSettings = AppSettings.fromConfig(requestConfig)
+
+  private val keyManagementSettingsFile = "gjallarhorn/src/test/resources/keyManagementTest.conf"
+  val keysConfig: Config = AppSettings.readConfig(StartupOpts(Some(keyManagementSettingsFile), None))
+  val keyManagementSettings: AppSettings = AppSettings.fromConfig(keysConfig)
+
+
 }

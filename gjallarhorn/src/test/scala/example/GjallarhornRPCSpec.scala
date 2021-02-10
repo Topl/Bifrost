@@ -1,90 +1,740 @@
 package example
 
 import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.pattern.ask
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.{Http, HttpExt}
 import akka.util.{ByteString, Timeout}
-import crypto.PrivateKey25519
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
-import http.GjallarhornApiRoute
+import http.{GjallarhornOnlineApiRoute, GjallarhornOfflineApiRoute, HttpService}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
+import attestation.Address
+import attestation.AddressEncoder.NetworkPrefix
+import crypto.AssetCode
 import io.circe.Json
 import io.circe.parser.parse
-import keymanager.{KeyManagerRef, Keys}
-import requests.{Requests, RequestsManager}
-import scorex.crypto.hash.{Blake2b256, Digest32}
+import io.circe.syntax.EncoderOps
+import keymanager.KeyManager.{GenerateKeyFile, GetAllKeyfiles}
+import keymanager.{Bip39, KeyManagerRef}
+import requests.{ApiRoute, Requests}
+import wallet.WalletManager
 
+import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.reflect.io.Path
+import scala.util.{Failure, Success, Try}
 
+/**
+  * Must be running bifrost with "--local" and "--seed test"
+  * ex: "run --local --seed test -f"
+  */
 class GjallarhornRPCSpec extends AsyncFlatSpec
   with Matchers
-  with ScalatestRouteTest
-  with GjallarhornGenerators {
-
-//  implicit val materializer: ActorMaterializer = ActorMaterializer()
+  with GjallarhornGenerators
+  with ScalatestRouteTest {
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 
-  override def createActorSystem(): ActorSystem = ActorSystem("gjallarhornTest", config)
-  val http: HttpExt = Http(system)
+  /** Make sure running bifrost in local network! */
+  implicit val networkPrefix: NetworkPrefix = 48.toByte
 
-  val seed1: Digest32 = Blake2b256(java.util.UUID.randomUUID.toString)
-  val seed2: Digest32 = Blake2b256(java.util.UUID.randomUUID.toString)
-  val (sk1, pk1) = PrivateKey25519.generateKeys(seed1)
-  val (sk2, pk2) = PrivateKey25519.generateKeys(seed2)
+  override def createActorSystem(): ActorSystem = ActorSystem("gjallarhornTest", config)
+
+  //set up key file director and key manager actor
+  val keyFileDir: String = settings.application.keyFileDir
+  val path: Path = Path(keyFileDir)
+  Try(path.deleteRecursively())
+  Try(path.createDirectory())
+  val keyManagerRef: ActorRef = KeyManagerRef("keyManager", settings.application)
+
+  //generate two keys for testing
+  val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))
+    .mapTo[Try[Address]], 10.seconds) match {
+    case Success(pubKey) => pubKey
+    case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
+  }
+  val pk2: Address = Await.result((keyManagerRef ? GenerateKeyFile("password2", None))
+    .mapTo[Try[Address]], 10.seconds) match {
+    case Success(pubKey) => pubKey
+    case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
+  }
+
+  //set up WalletManager actor
+  val walletManagerRef: ActorRef = system.actorOf(
+    Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
 
   val amount = 10
 
-  val keyManagerRef: ActorRef = KeyManagerRef("keyManager", "keyfiles")
-  val keyFileDir = "keyfiles/keyManagerTest"
-  val keyManager: Keys = Keys(keyFileDir)
-  val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager), name = "RequestsManager")
-  val requests: Requests = new Requests(settings, requestsManagerRef)
+  //Set up api routes
+  val requests: Requests = new Requests(settings, keyManagerRef)
+  val bifrostApiRoute: ApiRoute = GjallarhornOnlineApiRoute(settings.rpcApi, keyManagerRef, walletManagerRef, requests)
+  val gjalOnlyApiRoute: ApiRoute = GjallarhornOfflineApiRoute(settings.rpcApi, settings.application, keyManagerRef, walletManagerRef)
+  val route: Route = HttpService(
+    Seq(bifrostApiRoute, gjalOnlyApiRoute), settings.rpcApi).compositeRoute
 
-  val route: Route = GjallarhornApiRoute(settings, keyManagerRef, requestsManagerRef, requests).route
-
+  /**
+    * Method used to create http post request
+    * @param jsonRequest the request to send as a ByteString
+    * @return the HTTP request
+    */
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
       HttpMethods.POST,
-      uri = "/gjallarhorn/",
+      uri = "/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    ).withHeaders(RawHeader("x-api-key", "test_key"))
+    ).withHeaders(RawHeader("x-api-key", settings.application.bifrostApiKey))
   }
 
-  it should "get a successful JSON response" in {
+  it should "successfully connect to Bifrost" in {
+    val connectRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "onlineWallet_connectToBifrost",
+         |   "params": [{
+         |      "chainProvider": "${settings.application.chainProvider}"
+         |   }]
+         |}
+         """.stripMargin)
+
+    httpPOST(connectRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
+          assert((res \\ "result").head.asObject.isDefined)
+          assert(((res \\ "result").head \\ "connectedToBifrost").head.asBoolean.get)
+      }
+    }
+  }
+
+  val assetCode: AssetCode = AssetCode(1.toByte, pk1, "test")
+  var prototypeTx: Json = Map("txType" -> "AssetCreation").asJson
+  var msgToSign = ""
+  it should "succesfully create an asset offline" in {
     val createAssetRequest = ByteString(
       s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
-         |   "method": "createTransaction",
+         |   "method": "wallet_createRawTransaction",
          |   "params": [{
-         |     "method": "createAssetsPrototype",
-         |     "params": [{
-         |        "issuer": "${pk1.toString}",
-         |        "recipient": "${pk2.toString}",
-         |        "amount": $amount,
-         |        "assetCode": "etherAssets",
-         |        "fee": 0,
-         |        "data": ""
+         |        "txType": "AssetTransfer",
+         |        "propositionType": "PublicKeyCurve25519",
+         |        "recipients": [["$pk1", $amount]],
+         |        "issuer": "$pk1",
+         |        "shortName": "test",
+         |        "sender": ["$pk1"],
+         |        "changeAddress": "$pk1",
+         |        "minting": true,
+         |        "fee": 1,
+         |        "online": false
          |     }]
-         |   }]
          |}
-         """.stripMargin)
+       """.stripMargin)
 
     httpPOST(createAssetRequest) ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
-          (res \\ "error").isEmpty shouldBe true
-          (res \\ "result").head.asObject.isDefined shouldBe true
+          assert((res \\ "error").isEmpty)
+          prototypeTx = (res \\ "rawTx").head
+          msgToSign = (res \\ "messageToSign").head.asString.get
+          assert(((res \\ "result").head \\ "rawTx").head.asObject.isDefined)
       }
     }
   }
+
+  var signedTx: Json = Json.Null
+  it should "successfully sign a transaction" in {
+    val signTxRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_signTx",
+         |   "params": [{
+         |      "signingKeys": ["$pk1"],
+         |      "rawTx": $prototypeTx,
+         |      "messageToSign": "$msgToSign"
+         |   }]
+         |}
+         """.stripMargin)
+
+    httpPOST(signTxRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
+          signedTx = ((res \\ "result").head \\ "tx").head
+          assert((res \\ "result").head.asObject.isDefined)
+      }
+    }
+  }
+
+  val emptyTx: Null = null
+  it should "successfully generate a signature" in {
+    val signRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_signTx",
+         |   "params": [{
+         |      "signingKeys": ["$pk2"],
+         |      "rawTx": $emptyTx,
+         |      "messageToSign": "$msgToSign"
+         |   }]
+         |}
+         """.stripMargin)
+
+    httpPOST(signRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
+          assert((res \\ "result").head.asObject.isDefined)
+          assert(((res \\ "result").head \\ "signatures").head.asObject.isDefined)
+      }
+    }
+  }
+
+  it should "successfully broadcast a tx" in {
+    val rqstString =
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "onlineWallet_broadcastTx",
+         |   "params": [{
+         |      "method": "topl_broadcastTx",
+         |      "params": [{
+         |        "tx": $signedTx
+         |      }]
+         |   }]
+         |}
+         """.stripMargin
+    val rqst = ByteString(rqstString)
+    httpPOST(rqst) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
+          assert((res \\ "result").head.asObject.isDefined)
+      }
+    }
+  }
+
+  it should "succesfully create online arbit tx" in {
+    Thread.sleep(10000)
+    val transferArbitRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "onlineWallet_createTransaction",
+         |   "params": [{
+         |     "method": "topl_rawArbitTransfer",
+         |     "params": [{
+         |        "propositionType": "PublicKeyCurve25519",
+         |        "recipients": [["$pk2", $amount]],
+         |        "sender": ["$pk1"],
+         |        "changeAddress": "$pk1",
+         |        "fee": 1,
+         |        "data": "",
+         |        "online": true
+         |     }]
+         |   }]
+         |}
+       """.stripMargin)
+
+    httpPOST(transferArbitRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
+          assert((res \\ "result").head.asObject.isDefined)
+      }
+    }
+  }
+
+  it should "successfully create raw poly tx" in {
+    val transferPolyRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_createRawTransaction",
+         |   "params": [{
+         |        "txType": "PolyTransfer",
+         |        "propositionType": "PublicKeyCurve25519",
+         |        "sender": ["$pk1"],
+         |        "recipients": [["$pk2", $amount]],
+         |        "changeAddress": "$pk1",
+         |        "fee": 1,
+         |        "data": "",
+         |        "online": false
+         |     }]
+         |}
+       """.stripMargin)
+
+    httpPOST(transferPolyRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
+          assert((res \\ "result").head.asObject.isDefined)
+      }
+    }
+  }
+
+  it should "successfully send online poly tx" in {
+    Thread.sleep(10000)
+    val transferPolyRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "onlineWallet_createTransaction",
+         |   "params": [{
+         |     "method": "topl_rawPolyTransfer",
+         |     "params": [{
+         |        "propositionType": "PublicKeyCurve25519",
+         |        "sender": ["$pk1"],
+         |        "recipients": [["$pk2", $amount]],
+         |        "changeAddress": "$pk1",
+         |        "fee": 1,
+         |        "data": "",
+         |        "online": true
+         |     }]
+         |   }]
+         |}
+       """.stripMargin)
+
+    httpPOST(transferPolyRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
+          assert((res \\ "result").head.asObject.isDefined)
+      }
+    }
+  }
+
+  it should "get a successful JSON response from balance request" in {
+    Thread.sleep(10000)
+    val requestBody = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "1",
+         |   "method": "wallet_balances",
+         |   "params": [{}]
+         |}
+      """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val responseString = responseAs[String].replace("\\", "")
+        parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+          case Left(f) => throw f
+          case Right(res: Json) =>
+            assert((res \\ "error").isEmpty)
+
+            println(res \\ "result")
+
+            //pk1 should have fewer polys now
+            (((res \\ "result").head \\ pk1.toString).head \\ "PolyBox").head.asNumber.get.toLong match {
+              case Some(number) => assert(number < 1000000)
+              case None => throw new Error ("balance is not a long")
+            }
+
+            //Accounting for tests being run multiple times
+            // so tests for amounts being greater than $amount and a multiple of $amount
+
+            //pk1 should have $amount of new asset
+            (((res \\ "result").head \\ pk1.toString).head \\ assetCode.toString).head.asNumber.get.toLong match {
+              case Some(number) => assert(number >= amount && number % amount == 0)
+              case None => throw new Error ("balance is not a long")
+            }
+
+            //pk2 should have $amount poly
+            (((res \\ "result").head \\ pk2.toString).head \\ "PolyBox").head.asNumber.get.toLong match {
+              case Some(number) => assert(number >= amount && number % amount == 0)
+              case None => throw new Error ("balance is not a long")
+            }
+
+            //pk2 should have $amount arbit
+            (((res \\ "result").head \\ pk2.toString).head \\ "ArbitBox").head.asNumber.get.toLong match {
+              case Some(number) => assert(number >= amount && number % amount == 0)
+              case None => throw new Error ("balance is not a long")
+            }
+
+            assert((res \\ "result").head.asObject.isDefined)
+        }
+      }
+    }
+
+  it should "successfully get wallet boxes" in {
+    val mnemonicPhraseRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_getWalletBoxes",
+         |   "params": [{}]
+         |}
+         """.stripMargin)
+
+    httpPOST(mnemonicPhraseRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"\"", "\"")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
+          val result = (res \\ "result").head
+          assert (result != null)
+      }
+    }
+  }
+
+  var newAddr: Address = pk2
+
+  it should "successfuly generate a new key and send poly" in {
+    val phraseTranslator = Bip39.apply("en")
+    val seed = phraseTranslator.uuidSeedPhrase(java.util.UUID.randomUUID.toString)._1
+    newAddr = Await.result((keyManagerRef ? GenerateKeyFile("password3", Some(seed)))
+      .mapTo[Try[Address]], 12.seconds) match {
+        case Success(pubKey) => pubKey
+        case Failure(exception) => throw new Error("error creating key file: " + exception)
+      }
+    val transferPolyRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "onlineWallet_createTransaction",
+         |   "params": [{
+         |      "method": "topl_rawPolyTransfer",
+         |      "params": [{
+         |         "propositionType": "PublicKeyCurve25519",
+         |         "sender": ["$pk1"],
+         |         "recipients": [["$newAddr", 15]],
+         |         "changeAddress": "$pk1",
+         |         "fee": 1,
+         |         "data": "",
+         |         "online": true
+         |      }]
+         |   }]
+         |}
+       """.stripMargin)
+
+    httpPOST(transferPolyRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
+          assert((res \\ "result").head.asObject.isDefined)
+      }
+    }
+  }
+
+  it should "successfully update balance for new key" in {
+    Thread.sleep(10000)
+    val requestBody = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "1",
+         |   "method": "wallet_balances",
+         |   "params": [{}]
+         |}
+      """.stripMargin)
+
+    httpPOST(requestBody) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
+          assert((res \\ "result").head.asObject.isDefined)
+          (((res \\ "result").head \\ newAddr.toString).head \\ "PolyBox").head shouldBe 15.asJson
+      }
+    }
+  }
+
+  var rawPolyTx: Json = Json.Null
+  var msgToSignPoly: String = ""
+  it should "succesfully create a raw poly tx without bifrost" in {
+    val transferPolyRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_createRawTransaction",
+         |   "params": [{
+         |        "txType": "PolyTransfer",
+         |        "propositionType": "PublicKeyCurve25519",
+         |        "sender": ["$pk1"],
+         |        "recipients": [["$pk1", $amount]],
+         |        "changeAddress": "$pk1",
+         |        "fee": 1,
+         |        "online": false
+         |   }]
+         |}
+       """.stripMargin)
+
+    httpPOST(transferPolyRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
+          rawPolyTx = ((res \\ "result").head \\ "rawTx").head
+          msgToSignPoly = ((res \\ "result").head \\ "messageToSign").head.asString.get
+          assert(((res \\ "result").head \\ "rawTx").head.asObject.isDefined)
+      }
+    }
+  }
+
+  var signedPolyTx: Json = Json.Null
+
+  it should "successfully sign a transaction created by gjal" in {
+    val signTxRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_signTx",
+         |   "params": [{
+         |      "signingKeys": ["$pk1"],
+         |      "rawTx": $rawPolyTx,
+         |      "messageToSign": "$msgToSignPoly"
+         |   }]
+         |}
+         """.stripMargin)
+
+    httpPOST(signTxRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
+          signedPolyTx = ((res \\ "result").head \\ "tx").head
+          assert((res \\ "result").head.asObject.isDefined)
+      }
+    }
+  }
+
+  it should "successfully broadcast a tx generated by gjal" in {
+    val rqstString =
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "onlineWallet_broadcastTx",
+         |   "params": [{
+         |      "method": "topl_broadcastTx",
+         |      "params": [{
+         |        "tx": $signedPolyTx
+         |      }]
+         |   }]
+         |}
+         """.stripMargin
+    val rqst = ByteString(rqstString)
+    httpPOST(rqst) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
+          assert((res \\ "result").head.asObject.isDefined)
+      }
+    }
+  }
+
+ it should "successfully disconnect from Bifrost" in {
+    val disconnectRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "onlineWallet_disconnectFromBifrost",
+         |   "params": [{}]
+         |}
+         """.stripMargin)
+
+    httpPOST(disconnectRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
+          assert((res \\ "result").head.asObject.isDefined)
+          assert(((res \\ "result").head \\ "status").head.asString.get === "Disconnected!")
+      }
+    }
+  }
+
+  it should "successfully get connection status" in {
+    val mnemonicPhraseRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "onlineWallet_getConnection",
+         |   "params": [{}]
+         |}
+         """.stripMargin)
+
+    httpPOST(mnemonicPhraseRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"\"", "\"")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
+          assert((res \\ "result").head.asObject.isDefined)
+          assert(!((res \\ "result").head \\ "connectedToBifrost").head.asBoolean.get)
+      }
+    }
+  }
+
+  it should "successfully get network prefix" in {
+    val networkTypeRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_networkType",
+         |   "params": [{}]
+         |}
+         """.stripMargin)
+
+    httpPOST(networkTypeRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
+          val network = ((res \\ "result").head \\ "networkPrefix").head
+          assert(network.toString() === networkPrefix.toString)
+      }
+    }
+  }
+
+  it should "successfully change the network" in {
+    val networkTypeRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_changeNetwork",
+         |   "params": [{
+         |      "newNetwork": "toplnet"
+         |   }]
+         |}
+         """.stripMargin)
+
+    httpPOST(networkTypeRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
+          val network = ((res \\ "result").head \\ "newNetworkPrefix").head
+          assert(network.toString() === "1")
+      }
+    }
+  }
+
+  it should "still have keys after disconnecting from bifrost and changing network back to local" in {
+    val networkTypeRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_changeNetwork",
+         |   "params": [{
+         |      "newNetwork": "local"
+         |   }]
+         |}
+         """.stripMargin)
+
+    httpPOST(networkTypeRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
+          val network = ((res \\ "result").head \\ "newNetworkPrefix").head
+          val keyfiles: Map[Address, String] = Await.result((keyManagerRef ? GetAllKeyfiles)
+            .mapTo[Map[Address,String]], 10.seconds)
+          keyfiles.keySet.size shouldBe 3
+          assert(network.toString() === "48")
+      }
+    }
+  }
+
+/*  it should "successfully change the communication mode" in {
+    val communicationModeRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_changeCommunicationMode",
+         |   "params": [{
+         |      "mode": "useHttp"
+         |   }]
+         |}
+         """.stripMargin)
+
+    httpPOST(communicationModeRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
+          val mode = ((res \\ "result").head \\ "newMode").head
+          assert(mode.asString.get === "useHttp")
+      }
+    }
+  }
+
+  it should "successfully change the api key" in {
+    val communicationModeRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "wallet_changeApiKey",
+         |   "params": [{
+         |      "apiKey": "test_key"
+         |   }]
+         |}
+         """.stripMargin)
+
+    httpPOST(communicationModeRequest) ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
+          val apiKey = ((res \\ "result").head \\ "newApiKey").head
+          assert(apiKey.asString.get === "test_key")
+      }
+    }
+  }*/
 
 
 }

@@ -19,6 +19,7 @@ object BlockBodySerializer extends BifrostSerializer[BlockBody] {
     ModifierId.serialize(body.parentId, w)
 
     /* txs: Seq[Transaction] */
+    w.putUInt(body.transactions.size)
     body.transactions.foreach(tx => TransactionSerializer.serialize(tx, w))
   }
 

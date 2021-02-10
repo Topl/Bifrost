@@ -4,11 +4,13 @@ import co.topl.network.peer.ConnectedPeer
 
 import scala.util.Random
 
+/** Sending strategies used by NodeViewSynchronizer and PeerSynchronizer to send messages to peers */
 trait SendingStrategy {
   def choose(peers: Seq[ConnectedPeer]): Seq[ConnectedPeer]
 }
 
 object SendToRandom extends SendingStrategy {
+
   override def choose(peers: Seq[ConnectedPeer]): Seq[ConnectedPeer] = {
     if (peers.nonEmpty) {
       Seq(peers(Random.nextInt(peers.length)))
@@ -23,6 +25,7 @@ case object Broadcast extends SendingStrategy {
 }
 
 case class BroadcastExceptOf(exceptOf: Seq[ConnectedPeer]) extends SendingStrategy {
+
   override def choose(peers: Seq[ConnectedPeer]): Seq[ConnectedPeer] =
     peers.filterNot(exceptOf.contains)
 }
@@ -36,6 +39,7 @@ case class SendToPeers(chosenPeers: Seq[ConnectedPeer]) extends SendingStrategy 
 }
 
 case class SendToRandomFromChosen(chosenPeers: Seq[ConnectedPeer]) extends SendingStrategy {
+
   override def choose(peers: Seq[ConnectedPeer]): Seq[ConnectedPeer] =
     Seq(chosenPeers(Random.nextInt(chosenPeers.length)))
 }

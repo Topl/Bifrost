@@ -1,7 +1,6 @@
 package co.topl.nodeView.history
 
 import co.topl.consensus.consensusHelper.setProtocolMngr
-import co.topl.consensus.protocolMngr
 import co.topl.modifier.block.Block
 import co.topl.utils.CoreGenerators
 import io.iohk.iodb.ByteArrayWrapper

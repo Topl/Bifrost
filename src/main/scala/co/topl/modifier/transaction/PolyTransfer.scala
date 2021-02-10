@@ -10,7 +10,7 @@ import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{Box, PolyBox, SimpleValue, TokenBox, TokenValueHolder}
 import co.topl.utils.{Identifiable, Identifier}
 import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, HCursor}
+import io.circe.{Decoder, Encoder, HCursor, Json}
 
 import scala.util.Try
 
@@ -72,6 +72,10 @@ object PolyTransfer {
         PolyTransfer[P](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data)
       }
 
+  def encodeFrom(from: IndexedSeq[(Address, Box.Nonce)]): Json = {
+    from.map(x => (x._1.asJson, x._2.toString.asJson)).asJson
+  }
+
   implicit def jsonEncoder[P <: Proposition]: Encoder[PolyTransfer[P]] = { tx: PolyTransfer[P] =>
     Map(
       "txId"            -> tx.id.asJson,
@@ -79,7 +83,7 @@ object PolyTransfer {
       "propositionType" -> tx.getPropIdentifier.typeString.asJson,
       "newBoxes"        -> tx.newBoxes.toSeq.asJson,
       "boxesToRemove"   -> tx.boxIdsToOpen.asJson,
-      "from"            -> tx.from.asJson,
+      "from"            -> encodeFrom(tx.from),
       "to"              -> tx.to.asJson,
       "signatures"      -> tx.attestation.asJson,
       "fee"             -> tx.fee.asJson,

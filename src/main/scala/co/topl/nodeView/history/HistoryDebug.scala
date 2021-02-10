@@ -21,8 +21,11 @@ class HistoryDebug(history: History) {
     */
   def idsAtHeight(height: Int): Seq[ModifierId] = history.storage.idAtHeightOf(height: Int).toSeq
 
-  /** Average delay in milliseconds between last $blockNum blocks starting from $block
+  /** Average delay in milliseconds between last `blockNum` blocks starting from `block`
     * Debug only
+    *
+    * @param id modifier to start at
+    * @param blockNum number of blocks to traverse back
     */
   def averageDelay(id: ModifierId, blockNum: Int): Try[Long] = Try {
     val block = history.modifierById(id).get
@@ -37,9 +40,8 @@ class HistoryDebug(history: History) {
   def forgerDistribution(): Map[PublicKeyPropositionCurve25519, Int] = {
     val map = collection.mutable.Map[PublicKeyPropositionCurve25519, Int]().withDefaultValue(0)
 
-    /** Finds the forger for this block, increments their block number entry in `map`, and continues down the chain
-      *
-      * @param m the current block for which to increment the forger entry
+    /** Finds the forger for this block, increments their block number entry in map, and continues down the chain
+      * m is the current block for which to increment the forger entry
       */
     @tailrec
     def loopBackAndIncrementForger(m: Block): Unit = {
@@ -55,9 +57,7 @@ class HistoryDebug(history: History) {
     map.toMap
   }
 
-//  /**
-//    *
-//    * @param f : predicate that tests whether a queryBloom is compatible with a block's bloom
+//  /** @param f : predicate that tests whether a queryBloom is compatible with a block's bloom
 //    * @return Seq of blockId that satisfies f
 //    */
 //  def getBlockIdsByBloom(f: BloomFilter => Boolean): Seq[ModifierId] = {

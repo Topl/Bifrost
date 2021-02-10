@@ -8,7 +8,7 @@ import co.topl.modifier.ModifierId
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.{ArbitBox, Box, PolyBox, TokenBox, TokenValueHolder}
+import co.topl.nodeView.state.box._
 import co.topl.settings.{AppContext, RPCApiSettings}
 import io.circe.Json
 import io.circe.syntax._
@@ -85,7 +85,7 @@ case class NodeViewApiEndpoint(
     *      #### Params
     *      | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
     *      |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
-    *      | publicKey               	| String[]   	| Required            	| Public key whose balances are to be retrieved                            	|
+    *      | publicKeys               | String[]   	| Required            	| Public keys whose balances are to be retrieved                            	|
     *
     * @param params input parameters as specified above
     * @param id     request identifier

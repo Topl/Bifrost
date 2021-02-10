@@ -4,13 +4,15 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import _root_.requests.{Requests, RequestsManager}
 import akka.util.{ByteString, Timeout}
-import crypto.{PrivateKey25519, PublicKey25519Proposition}
+import attestation.{Address, PublicKeyPropositionCurve25519}
+import attestation.AddressEncoder.NetworkPrefix
+import crypto.AssetCode
 import io.circe.{Json, parser}
-import io.circe.parser._
+import keymanager.KeyManager.GenerateKeyFile
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
-import scorex.crypto.hash.Blake2b256
-import keymanager.{KeyFile, Keys}
+import keymanager.KeyManagerRef
+import modifier.{Box, BoxId, Transaction}
 import wallet.WalletManager
 import wallet.WalletManager._
 
@@ -21,104 +23,151 @@ import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.duration._
 
 /**
-  * Must be running bifrost with --local and --seed genesis
+  * Must be running bifrost with --local and --seed test
+  * ex: "run --local --seed test -f"
   */
 class RequestSpec extends AsyncFlatSpec
   with Matchers
   with GjallarhornGenerators {
 
+  //define implicit vals
   implicit val actorSystem: ActorSystem = ActorSystem("requestTest", requestConfig)
   implicit val context: ExecutionContextExecutor = actorSystem.dispatcher
   implicit val timeout: Timeout = 30.seconds
+  /** Make sure running bifrost in local network! */
+  implicit val networkPrefix: NetworkPrefix = 48.toByte
 
-  val requestsManagerRef: ActorRef = actorSystem.actorOf(Props(new RequestsManager), name = "RequestsManager")
+  // set up key manager
+  val keyFileDir: String = requestSettings.application.keyFileDir
+  val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", requestSettings.application)
 
-  val requests = new Requests(requestSettings, requestsManagerRef)
+  //set up actors
+  val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
+    s"akka.tcp://${requestSettings.application.chainProvider}/user/walletConnectionHandler").resolveOne(), 10.seconds)
+  val walletManagerRef: ActorRef = actorSystem.actorOf(
+    Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
+  val requestsManagerRef: ActorRef = actorSystem.actorOf(
+    Props(new RequestsManager(bifrostActor)), name = "RequestsManager")
 
-  val seed1: Array[Byte] = Blake2b256(java.util.UUID.randomUUID.toString)
-  val seed2: Array[Byte] = Blake2b256(java.util.UUID.randomUUID.toString)
-  val seed3: Array[Byte] = Blake2b256(java.util.UUID.randomUUID.toString)
-  //val (sk1, pk1): (PrivateKey25519, PublicKey25519Proposition) = PrivateKey25519.generateKeys(seed1)
+  val requests = new Requests(requestSettings, keyManagerRef)
 
-  val (sk2, pk2): (PrivateKey25519, PublicKey25519Proposition) = PrivateKey25519.generateKeys(seed2)
-  val (sk3, pk3): (PrivateKey25519, PublicKey25519Proposition) = PrivateKey25519.generateKeys(seed3)
-  var pk1: PublicKey25519Proposition = pk2
-
-  val keyFileDir = "keyfiles/keyManagerTest"
+  // delete current keys in key file directory
   val path: Path = Path(keyFileDir)
   Try(path.deleteRecursively())
   Try(path.createDirectory())
-  val password = "pass"
-  val genesisPubKey = "3mBVXE3fuVfu1MBmMsBiRd6y9XokiVV591N65tBfA3FEvmqWB8"
 
-  val keyFile: KeyFile = KeyFile(password, KeyFile.generateKeyPair(seed1)._1)
-  val keyManager: Keys = Keys(keyFileDir)
-  //keyManager.unlockKeyFile(Base58.encode(sk1.publicKeyBytes), password)
-  keyManager.generateKeyFile(password) match {
-    case Success(pk) => pk1 = pk
-    case Failure (ex) => throw new Error (s"An error occured: $ex")
+  //create new keys for testing
+  val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))
+    .mapTo[Try[Address]], 10.seconds) match {
+    case Success(pubKey) => pubKey
+    case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
-
-  val publicKeys: Set[String] = Set(pk1.toString, pk2.toString, pk3.toString, genesisPubKey)
-  val walletManagerRef: ActorRef = actorSystem.actorOf(Props(new WalletManager(publicKeys)), name = "WalletManager")
+  val pk2: Address = Await.result((keyManagerRef ? GenerateKeyFile("password2", None))
+    .mapTo[Try[Address]], 10.seconds) match {
+    case Success(pubKey) => pubKey
+    case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
+  }
+  val publicKeys: Set[Address] = Set(pk1, pk2)
 
   val amount = 10
-
   var transaction: Json = Json.Null
   var signedTransaction: Json = Json.Null
+  var newBoxIds: Set[BoxId] = Set()
 
-  var newBoxId: String = ""
+  //set up online mode
+  walletManagerRef ! ConnectToBifrost(bifrostActor)
+  requests.switchOnlineStatus(Some(requestsManagerRef))
 
-  def parseForBoxId(json: Json): String = {
+
+  /**
+    * Helper function for grabbing new box ids
+    * @param json json to parse for box ids
+    * @return a set of BoxIds
+    */
+  def parseForBoxId(json: Json): Set[BoxId] = {
     val result = (json \\ "result").head
-    val newBoxes = (result \\ "newBoxes").head.toString().trim.stripPrefix("[").stripSuffix("]").trim
-    parse(newBoxes) match {
-      case Right(json) => (json \\ "id").head.toString()
-      case Left(e) => sys.error(s"could not parse: $newBoxes")
+    val newBxs = (result \\ "newBoxes").head.toString()
+    parser.decode[List[Box]](newBxs) match {
+      case Right(newBoxes) =>
+        newBoxes.foreach(newBox => {
+          newBoxIds += newBox.id
+        })
+        newBoxIds
+      case Left(e) => sys.error(s"could not parse: $newBxs")
     }
   }
 
-  it should "connect to bifrost actor when the gjallarhorn app starts" in {
-    val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
-      "akka.tcp://bifrost-client@127.0.0.1:9087/user/walletConnectionHandler").resolveOne(), 10.seconds)
-    walletManagerRef ! GjallarhornStarted(bifrostActor)
-    Thread.sleep(100)
-    val connected = Await.result((walletManagerRef ? IsConnected).mapTo[Boolean], 10.seconds)
-    assert(connected)
-  }
 
- it should "receive a successful response from Bifrost upon creating asset" in {
-   val createAssetRequest: ByteString = ByteString(
+  it should "receive a successful response from Bifrost upon creating asset" in {
+    val createAssetRequest: ByteString = ByteString(
       s"""
          |{
          |   "jsonrpc": "2.0",
-         |   "id": "2",
-         |   "method": "createAssetsPrototype",
+         |   "id": "1",
+         |   "method": "topl_rawAssetTransfer",
          |   "params": [{
-         |     "issuer": "${pk1.toString}",
-         |     "recipient": "${pk1.toString}",
-         |     "amount": $amount,
-         |     "assetCode": "etherAssets",
-         |     "fee": 0,
+         |     "propositionType": "PublicKeyCurve25519",
+         |     "recipients": [
+         |            ["$pk1", {
+         |                "type": "Asset",
+         |                "quantity": $amount,
+         |                "assetCode": "${AssetCode(1.toByte, pk1, "test").toString}"
+         |              }
+         |            ]
+         |     ],
+         |     "sender": ["$pk1"],
+         |     "changeAddress": "$pk1",
+         |     "minting": true,
+         |     "fee": 1
+         |   }]
+         |}
+       """.stripMargin)
+    val tx = requests.sendRequest(createAssetRequest)
+    assert(tx.isInstanceOf[Json])
+    (tx \\ "error").isEmpty shouldBe true
+    (tx \\ "result").head.asObject.isDefined shouldBe true
+  }
+
+  it should "receive a successful response from Bifrost upon transfering arbit" in {
+    val transferArbitsRequest: ByteString = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "1",
+         |   "method": "topl_rawArbitTransfer",
+         |   "params": [{
+         |     "propositionType": "PublicKeyCurve25519",
+         |     "recipients": [["$pk2", $amount]],
+         |     "sender": ["$pk1"],
+         |     "changeAddress": "$pk1",
+         |     "fee": 1,
          |     "data": ""
          |   }]
          |}
-         """.stripMargin)
-    transaction = requests.sendRequest(createAssetRequest, "asset")
+       """.stripMargin)
+    transaction = requests.sendRequest(transferArbitsRequest)
+    newBoxIds = parseForBoxId(transaction)
     assert(transaction.isInstanceOf[Json])
-    newBoxId = parseForBoxId(transaction)
     (transaction \\ "error").isEmpty shouldBe true
     (transaction \\ "result").head.asObject.isDefined shouldBe true
   }
 
+
   it should "receive successful JSON response from sign transaction" in {
-    val issuer: List[String] = List(publicKeys.head)
-    signedTransaction = requests.signTx(transaction, keyManager, issuer)
-    val sigs = (signedTransaction \\ "signatures").head.asObject.get
-    issuer.foreach(key => assert(sigs.contains(key)))
+    val issuer: IndexedSeq[Address] = IndexedSeq(publicKeys.head)
+    val response = requests.signTx(transaction, issuer)
+    (response \\ "error").isEmpty shouldBe true
+    (response \\ "result").head.asObject.isDefined shouldBe true
+    signedTransaction = (response \\ "result").head
     assert((signedTransaction \\ "signatures").head.asObject.isDefined)
-    (signedTransaction \\ "error").isEmpty shouldBe true
-    (signedTransaction \\ "result").head.asObject.isDefined shouldBe true
+    val sigs: Map[PublicKeyPropositionCurve25519, Json] =
+      (signedTransaction \\ "signatures").head.as[Map[PublicKeyPropositionCurve25519, Json]] match {
+      case Left(error) => throw error
+      case Right(value) => value
+    }
+    val pubKeys = sigs.keySet.map(pubKey => pubKey.address)
+    issuer.foreach(key => assert(pubKeys.contains(key)))
+    (signedTransaction \\ "tx").nonEmpty shouldBe true
   }
 
   it should "receive successful JSON response from broadcast transaction" in {
@@ -132,140 +181,44 @@ class RequestSpec extends AsyncFlatSpec
 
   it should "receive a successful and correct response from Bifrost upon requesting balances" in {
     Thread.sleep(10000)
-    balanceResponse = requests.getBalances(publicKeys)
+    balanceResponse = requests.getBalances(publicKeys.map(addr => addr.toString))
     assert(balanceResponse.isInstanceOf[Json])
     (balanceResponse \\ "error").isEmpty shouldBe true
+
     val result: Json = (balanceResponse \\ "result").head
     result.asObject.isDefined shouldBe true
-    (((result \\ pk1.toString).head \\ "Boxes").head \\ "Asset").
-      head.toString().contains(newBoxId) shouldBe true
+    (result \\ pk1.toString).nonEmpty shouldBe true
+    assert(newBoxIds.forall(boxId => result.toString().contains(boxId.toString)))
   }
 
   it should "update boxes correctly with balance response" in {
-    val walletBoxes: MMap[String, MMap[String, Json]] = Await.result((walletManagerRef ? UpdateWallet((balanceResponse \\ "result").head))
-      .mapTo[MMap[String, MMap[String, Json]]], 10.seconds)
+    val walletBoxes: MMap[Address, MMap[BoxId, Box]] =
+      Await.result((walletManagerRef ? UpdateWallet((balanceResponse \\ "result").head))
+      .mapTo[MMap[Address, MMap[BoxId, Box]]], 10.seconds)
 
-    val pubKeyEmptyBoxes: Option[MMap[String, Json]] = walletBoxes.get(pk2.toString)
-    pubKeyEmptyBoxes match {
-      case Some(map) => assert(map.keySet.isEmpty)
-      case None => sys.error(s"no mapping for given public key: ${pk1.toString}}")
-    }
-
-    val pubKeyWithBoxes: Option[MMap[String, Json]] = walletBoxes.get(pk1.toString)
-    pubKeyWithBoxes match {
-      case Some(map) =>
-        val firstBox: Option[Json] = map.get(newBoxId)
-        firstBox match {
-          case Some(json) => assert ((json \\ "value").head.toString() == "\"10\"")
-          case None => sys.error("no keys in mapping")
-        }
+    val pk1Boxes: Option[MMap[BoxId, Box]] = walletBoxes.get(pk1)
+    pk1Boxes match {
+      case Some(map) => assert (map.size >= 2)
       case None => sys.error(s"no mapping for given public key: ${pk1.toString}")
+    }
+    val pk2Boxes: Option[MMap[BoxId, Box]] = walletBoxes.get(pk2)
+    pk2Boxes match {
+      case Some(map) => assert (map.nonEmpty)
+      case None => sys.error(s"no mapping for given public key: ${pk2.toString}")
     }
   }
 
   it should "receive a block from bifrost after creating a transaction" in {
-    val newBlock: Option[String] = Await.result((walletManagerRef ? GetNewBlock).mapTo[Option[String]], 100.seconds)
-    newBlock match {
-      case Some(block) => assert(block.contains("timestamp") && block.contains("signature") && block.contains("id") && block.contains("newBoxes"))
-      case None => sys.error("no new blocks")
-    }
-  }
-
-  it should "receive a successful response from Bifrost upon transfering a poly" in {
-    val transferPolysRequest: ByteString = ByteString(
-      s"""
-         |{
-         |   "jsonrpc": "2.0",
-         |   "id": "1",
-         |   "method": "transferPolysPrototype",
-         |   "params": [{
-         |     "recipient": "${pk3.toString}",
-         |     "sender": ["$genesisPubKey"],
-         |     "amount": $amount,
-         |     "fee": 0,
-         |     "data": ""
-         |   }]
-         |}
-         """.stripMargin)
-    val tx = requests.sendRequest(transferPolysRequest, "wallet")
-    assert(tx.isInstanceOf[Json])
-    (transaction \\ "error").isEmpty shouldBe true
-    (transaction \\ "result").head.asObject.isDefined shouldBe true
+    val newBlock: Option[List[Transaction]] = Await.result((walletManagerRef ? GetNewBlock)
+      .mapTo[Option[List[Transaction]]], 10.seconds)
+    assert(newBlock.isDefined)
   }
 
 
- it should "send msg to bifrost actor when the gjallarhorn app stops" in {
-    val bifrostResponse: String = Await.result((walletManagerRef ? GjallarhornStopped).mapTo[String], 100.seconds)
+  it should "send msg to bifrost actor when the gjallarhorn app stops" in {
+    val bifrostResponse: String = Await.result((walletManagerRef ? DisconnectFromBifrost).mapTo[String], 100.seconds)
     assert(bifrostResponse.contains("The remote wallet Actor[akka.tcp://requestTest@127.0.0.1") &&
       bifrostResponse.contains("has been removed from the WalletConnectionHandler in Bifrost"))
-  }
-
-  it should "update wallet correctly after receiving new block" in {
-    val block: ByteString = ByteString(
-      s"""
-         |    [
-         |      {
-         |        "txType": "PolyTransfer",
-         |        "txHash": "G1KX8RPVBBmHWuuZ7ihNkQLXVJa8AMr4DxafAJHUUCuy",
-         |        "timestamp": 0,
-         |        "signatures": {
-         |          "2xdTv8awN1BjgYEw8W1BVXVtiEwG2b29U8KoZQqJrDuEqSQ9e4": "Signature25519(2AXDGYSE4f2sz7tvMMzyHvUfcoJmxudvdhBcmiUSo6ijwfYmfZYsKRxboQMPh3R4kUhXRVdtSXFXMheka4Rc4P2)"
-         |        },
-         |        "newBoxes": [
-         |          {
-         |             "nonce": "-5988475187915922381",
-         |             "id": "GgNqzkSywewv99vCrb99UakEw1Myn4mqYXo3N4a6PWVW",
-         |             "type": "Poly",
-         |             "proposition": "3X4AW3Swr1iM1syu2g4Xi4L4eTSJFKxGsZPgVctUYg4ga8MZpD",
-         |             "value": "1000000"
-         |          },
-         |          {
-         |             "nonce": "965750754031143229",
-         |             "id": "5UGTHuvG7kJVqp9Sw55A1C6wVEtgeQKn12njLG1bbUTK",
-         |             "type": "Poly",
-         |             "proposition": "4EoSC4YmTm7zoPt5HDJU4aa73Vn2LPrmUszvggAPM5Ff3R1DVt",
-         |             "value": "1000000"
-         |          },
-         |          {
-         |             "nonce": "-59884751870915922381",
-         |             "id": "GgNqzkSywewv10vCrb99UakEw1Myn5mqYXo3N4a6PWVW",
-         |             "type": "Poly",
-         |             "proposition": "${pk2.toString}",
-         |             "value": "1000000"
-         |          }
-         |        ],
-         |        "to" : [
-         |          {
-         |            "proposition" : "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
-         |            "value" : 0
-         |          }
-         |        ],
-         |        "boxesToRemove": [
-         |                        "2fvgQ6xAJbMxtsGv73veyN3sHnwKUh2Lda3b9CyNxriv"
-         |        ],
-         |        "fee" : 0
-         |      }
-         |    ]
-         """.stripMargin)
-    parser.parse(block.utf8String) match {
-      case Right(blockJson) =>
-        walletManagerRef ! s"new block added: $blockJson"
-        Thread.sleep(1000)
-        val walletBoxes: MMap[String, MMap[String, Json]] = Await.result((walletManagerRef ? GetWallet)
-          .mapTo[MMap[String, MMap[String, Json]]], 10.seconds)
-        val pk1Boxes: Option[MMap[String, Json]] = walletBoxes.get(pk2.toString)
-        pk1Boxes match {
-          case Some(map) =>
-            assert(map.size == 2)
-            assert(map.contains("GGDsEQdd5cnbgjKkac9HLpp2joGo6bWgmS2KvhJgd8b8"))
-            map.get("GgNqzkSywewv10vCrb99UakEw1Myn5mqYXo3N4a6PWVW") match {
-              case Some(json) => assert((json \\ "type").head.toString() == "\"Poly\"")
-              case None => sys.error ("poly box was not found!")
-            }
-          case None => sys.error(s"no mapping for given public key: ${pk2.toString}")
-        }
-      case Left(e) => sys.error(s"Could not parse json $e")
-    }
   }
 
 }

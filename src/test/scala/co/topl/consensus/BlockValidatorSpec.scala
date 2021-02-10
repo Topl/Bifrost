@@ -8,8 +8,6 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-import scala.util.{Failure, Success}
-
 class BlockValidatorSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with Matchers
