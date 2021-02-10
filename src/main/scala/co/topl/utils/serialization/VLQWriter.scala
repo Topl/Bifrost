@@ -2,6 +2,7 @@ package co.topl.utils.serialization
 
 import java.util
 
+import co.topl.utils.Int128
 import co.topl.utils.serialization.ZigZagEncoder._
 
 trait VLQWriter extends Writer {

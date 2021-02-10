@@ -7,7 +7,7 @@ import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.box.{Box, BoxId, ProgramId}
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.nodeView.state.StateReader
-import co.topl.utils.{Identifiable, Identifier}
+import co.topl.utils.{Identifiable, Identifier, Int128}
 import com.google.common.primitives.Longs
 import io.circe.{Decoder, Encoder, HCursor}
 import scorex.crypto.hash.Digest32
@@ -28,7 +28,7 @@ abstract class Transaction[+T, P <: Proposition: Identifiable] extends NodeViewM
 
   val attestation: Map[P, Proof[P]]
 
-  val fee: Long
+  val fee: Int128
 
   val timestamp: Long
 
@@ -40,7 +40,7 @@ abstract class Transaction[+T, P <: Proposition: Identifiable] extends NodeViewM
     newBoxes.foldLeft(Array[Byte]())((acc, x) => acc ++ x.bytes) ++
     boxIdsToOpen.foldLeft(Array[Byte]())((acc, x) => acc ++ x.hashBytes) ++
     Longs.toByteArray(timestamp) ++
-    Longs.toByteArray(fee)
+    fee.toByteArray
 
   def getPropIdentifier: Identifier = Identifiable[P].getId
 

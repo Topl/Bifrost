@@ -278,4 +278,11 @@ final class Int128(val upperLong: Long, val lowerLong: Long)
 
   /** Remainder of UInt128 */
   def %  (that: Int128): Int128 = Int128(this.bigInt % that.bigInt)
+
+  /** Returns a BigInt whose value is the negation of this BigInt */
+  def unary_- : Int128   = Int128(this.bigInt.bigInteger.negate())
+
+  /** Returns the bitwise complement of this BigInt */
+  def unary_~ : Int128 = Int128(this.bigInt.bigInteger.not())
+
 }

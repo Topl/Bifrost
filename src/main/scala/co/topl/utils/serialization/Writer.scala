@@ -1,5 +1,7 @@
 package co.topl.utils.serialization
 
+import co.topl.utils.Int128
+
 trait Writer {
 
   /**
@@ -108,7 +110,6 @@ trait Writer {
     * @param x Long
     */
   def putULong(x: Long): this.type
-
 
   /**
     * Encode an array of bytes

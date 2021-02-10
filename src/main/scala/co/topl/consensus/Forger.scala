@@ -18,7 +18,7 @@ import co.topl.nodeView.state.State
 import co.topl.settings.NetworkType._
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.TimeProvider.Time
-import co.topl.utils.{Logging, TimeProvider}
+import co.topl.utils.{Int128, Logging, TimeProvider}
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
@@ -209,8 +209,8 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
         case Failure(ex) => throw ex
       }
 
-      log.debug(s"Trying to generate block from total stake ${boxes.map(_.value.quantity).sum}")
-      require(boxes.map(_.value.quantity).sum > 0, "No Arbits could be found to stake with, exiting attempt")
+      log.debug(s"Trying to generate block from total stake ${boxes.map(_.value.quantity).reduce(_ + _)}")
+      require(boxes.map(_.value.quantity).reduce(_ + _) > 0, "No Arbits could be found to stake with, exiting attempt")
 
       // create the coinbase reward transaction
       val arbitReward = createArbitReward(rewardAddr, history.bestBlock.id) match {
@@ -228,7 +228,7 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
       }
 
       // create the unsigned fee reward transaction
-      val polyReward = createPolyReward(transactions.map(_.fee).sum, rewardAddr, history.bestBlock.id) match {
+      val polyReward = createPolyReward(transactions.map(_.fee).reduce(_ + _), rewardAddr, history.bestBlock.id) match {
         case Success(tx) => tx
         case Failure(ex) => throw ex
       }
@@ -291,7 +291,7 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
     }
 
   private def createPolyReward(
-    amount:    Long,
+    amount:    Int128,
     rewardAdr: Address,
     parentId:  ModifierId
   ): Try[PolyTransfer[PublicKeyPropositionCurve25519]] =
@@ -316,7 +316,7 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
   private def pickTransactions(memPool: MemPool, state: State, chainHeight: Long): Try[PickTransactionsResult] = Try {
 
     memPool
-      .take(numTxInBlock(chainHeight))(-_.tx.fee) // returns a sequence of transactions ordered by their fee
+      .take[Int128](numTxInBlock(chainHeight))(-_.tx.fee) // returns a sequence of transactions ordered by their fee
       .filter(_.tx.fee > 0) // default strategy ignores zero fee transactions in mempool
       .foldLeft(PickTransactionsResult(Seq(), Seq())) { case (txAcc, utx) =>
         // ensure that each transaction opens a unique box by checking that this transaction
@@ -378,7 +378,7 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
         (box, calcHit(parent)(box))
       }
       .filter { test =>
-        BigInt(test._2) < (test._1.value.quantity * target).toBigInt
+        BigInt(test._2) < (test._1.value.quantity.doubleValue() * target).toBigInt
       }
 
     log.debug(s"Successful hits: ${successfulHits.size}")

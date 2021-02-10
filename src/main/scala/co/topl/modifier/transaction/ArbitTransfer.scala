@@ -8,7 +8,8 @@ import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.TransferTransaction.BoxParams
 import co.topl.nodeView.state.StateReader
 import co.topl.modifier.box._
-import co.topl.utils.{Identifiable, Identifier}
+import co.topl.utils.codecs.Int128Codec
+import co.topl.utils.{Identifiable, Identifier, Int128}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 
@@ -19,7 +20,7 @@ case class ArbitTransfer[
 ](override val from:        IndexedSeq[(Address, Box.Nonce)],
   override val to:          IndexedSeq[(Address, TokenValueHolder)],
   override val attestation: Map[P, Proof[P]],
-  override val fee:         Long,
+  override val fee:         Int128,
   override val timestamp:   Long,
   override val data:        Option[String] = None,
   override val minting:     Boolean = false
@@ -90,7 +91,7 @@ object ArbitTransfer {
       "from"            -> tx.from.asJson,
       "to"              -> tx.to.asJson,
       "signatures"      -> tx.attestation.asJson,
-      "fee"             -> tx.fee.asJson,
+      "fee"             -> tx.fee.asJson(Int128Codec.jsonEncoder),
       "timestamp"       -> tx.timestamp.asJson,
       "minting"         -> tx.minting.asJson,
       "data"            -> tx.data.asJson
@@ -102,7 +103,7 @@ object ArbitTransfer {
       for {
         from      <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
         to        <- c.downField("to").as[IndexedSeq[(Address, SimpleValue)]]
-        fee       <- c.downField("fee").as[Long]
+        fee       <- c.get[Int128]("fee")(Int128Codec.jsonDecoder)
         timestamp <- c.downField("timestamp").as[Long]
         data      <- c.downField("data").as[Option[String]]
         propType  <- c.downField("propositionType").as[String]

@@ -4,6 +4,7 @@ import co.topl.attestation._
 import co.topl.attestation.serialization.{ProofSerializer, PropositionSerializer}
 import co.topl.modifier.transaction.ArbitTransfer
 import co.topl.modifier.box.TokenValueHolder
+import co.topl.utils.Int128
 import co.topl.utils.serialization.Extensions._
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
@@ -36,8 +37,8 @@ object ArbitTransferSerializer extends BifrostSerializer[ArbitTransfer[_ <: Prop
       ProofSerializer.serialize(sig, w)
     }
 
-    /* fee: Long */
-    w.putULong(obj.fee)
+    /* fee: Int128 */
+    w.putBytes(obj.fee.toByteArray)
 
     /* timestamp: Long */
     w.putULong(obj.timestamp)
@@ -75,7 +76,7 @@ object ArbitTransferSerializer extends BifrostSerializer[ArbitTransfer[_ <: Prop
       prop -> sig
     }: _*)
 
-    val fee: Long = r.getULong()
+    val fee: Int128 = Int128(r.getBytes(Int128.size))
     val timestamp: Long = r.getULong()
 
     val data: Option[String] = r.getOption {

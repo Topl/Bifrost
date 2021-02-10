@@ -1,7 +1,7 @@
 package co.topl.nodeView.mempool
 
 import co.topl.modifier.transaction.Transaction
-import co.topl.modifier.{ContainsModifiers, ModifierId, NodeViewModifier}
+import co.topl.modifier.{ContainsModifiers, ModifierId}
 import co.topl.nodeView.NodeViewComponent
 import co.topl.utils.TimeProvider
 
