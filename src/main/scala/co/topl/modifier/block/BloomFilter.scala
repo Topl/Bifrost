@@ -57,9 +57,9 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
   object BloomTopic extends TaggedType[Array[Byte]]
   type BloomTopic = BloomTopic.Type
 
-  val bloomSize: Int = 256 //bytes (2048 bits)
-  private val bloomSizeBit: Int = bloomSize * 8
-  private val numLongs: Int = bloomSizeBit / 64 // filter is composed of an array of longs (64 bit elements)
+  val numBytes: Int = 256 //bytes (2048 bits)
+  private val size: Int = numBytes * 8
+  private val numLongs: Int = size / 64 // filter is composed of an array of longs (64 bit elements)
 
   val empty: BloomFilter = new BloomFilter(Array.fill(numLongs)(0L)) // 2048 element bit array of zeros
 
@@ -68,9 +68,9 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
   // In the notes below only the first two bytes are shown since the other bytes are always zero.
   // NOTE - these values are highly dependent on the length of the bloom filter, manipulate carefully
   private val idxMask: Int =
-    bloomSizeBit - 1 /* 2047 -> 0000 0111 1111 1111 - mask for taking the low-order 11 bits of the byte pairs */
+    size - 1 /* 2047 -> 0000 0111 1111 1111 - mask for taking the low-order 11 bits of the byte pairs */
   private val longElemMask: Int =
-    bloomSizeBit - 64 /* 1984 -> 0000 0111 1100 0000 - mask for finding the long to modify */
+    size - 64 /* 1984 -> 0000 0111 1100 0000 - mask for finding the long to modify */
   private val bitElemMask: Int = 63 /*   63 -> 0000 0000 0011 1111 - mask for finding the bit to modify */
 
   /** Create a new Bloom filter given a sequence of topics to be hashed */
