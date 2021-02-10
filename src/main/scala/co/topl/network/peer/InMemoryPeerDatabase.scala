@@ -43,7 +43,7 @@ final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimePr
     Option(socketAddress.getAddress).foreach { address =>
       penaltyBook -= address
       if (!blacklist.keySet.contains(address))
-        blacklist += address -> (timeProvider.time() + penaltyDuration(penaltyType))
+        blacklist += address -> (timeProvider.time + penaltyDuration(penaltyType))
       else log.warn(s"${address.toString} is already blacklisted")
     }
   }
@@ -86,7 +86,7 @@ final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimePr
     */
   def penalize(socketAddress: InetSocketAddress, penaltyType: PenaltyType): Boolean =
     Option(socketAddress.getAddress).exists { address =>
-      val currentTime = timeProvider.time()
+      val currentTime = timeProvider.time
       val safeInterval = settings.penaltySafeInterval.toMillis
       val (penaltyScoreAcc, lastPenaltyTs) = penaltyBook.getOrElse(address, (0, 0L))
       val applyPenalty = currentTime - lastPenaltyTs - safeInterval > 0 || penaltyType.isPermanent
@@ -95,13 +95,13 @@ final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimePr
         else penaltyScoreAcc
       if (newPenaltyScore > settings.penaltyScoreThreshold) true
       else {
-        penaltyBook += address -> (newPenaltyScore -> timeProvider.time())
+        penaltyBook += address -> (newPenaltyScore -> timeProvider.time)
         false
       }
     }
 
   override def peerSeen(peerInfo: PeerInfo): Unit = {
-    val pi = peerInfo.copy(lastSeen = timeProvider.time())
+    val pi = peerInfo.copy(lastSeen = timeProvider.time)
     addOrUpdateKnownPeer(pi)
   }
 
@@ -130,7 +130,7 @@ final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimePr
 
   /** @return `true` if a peer should still be on blacklist */
   private def checkBanned(address: InetAddress, bannedTill: Long): Boolean = {
-    val stillBanned = timeProvider.time() < bannedTill
+    val stillBanned = timeProvider.time < bannedTill
     if (!stillBanned) removeFromBlacklist(address)
     stillBanned
   }

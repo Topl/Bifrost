@@ -239,7 +239,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
   protected def txModify(tx: TX): Unit =
     tx.syntacticValidate match {
       case Success(_) =>
-        memoryPool().put(tx, appContext.timeProvider.time()) match {
+        memoryPool().put(tx, appContext.timeProvider.time) match {
           case Success(_) =>
             log.debug(s"Unconfirmed transaction $tx added to the memory pool")
             context.system.eventStream.publish(SuccessfulTransaction[TX](tx))
@@ -437,7 +437,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
     val appliedTxs = blocksApplied.flatMap(extractTransactions)
 
     memPool
-      .putWithoutCheck(rolledBackTxs, appContext.timeProvider.time())
+      .putWithoutCheck(rolledBackTxs, appContext.timeProvider.time)
       .filter { tx =>
         !appliedTxs.exists(t => t.id == tx.id) && {
           state.semanticValidate(tx).isSuccess

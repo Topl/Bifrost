@@ -48,7 +48,7 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
   private var rewardAddress: Option[Address] = None
 
   // a timestamp updated on each forging attempt
-  private var forgeTime: Time = appContext.timeProvider.time()
+  private var forgeTime: Time = appContext.timeProvider.time
 
   override def preStart(): Unit = {
     // determine the set of applicable protocol rules for this software version
@@ -129,7 +129,7 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
   /** Updates the forging actors timestamp */
-  private def updateForgeTime(): Unit = forgeTime = appContext.timeProvider.time()
+  private def updateForgeTime(): Unit = forgeTime = appContext.timeProvider.time
 
   /** Updates the rewards address from the API */
   private def updateRewardsAddress(address: Address): String = {

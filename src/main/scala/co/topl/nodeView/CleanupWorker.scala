@@ -70,7 +70,7 @@ class CleanupWorker(nodeViewHolderRef: ActorRef, settings: AppSettings, appConte
           // if any newly created box matches a box already in the UTXO set, remove the transaction
           val boxAlreadyExists = utx.tx.newBoxes.exists(b => stateReader.getBox(b.id).isDefined)
           val txTimeout =
-            (appContext.timeProvider.time() - utx.dateAdded) > settings.application.mempoolTimeout.toMillis
+            (appContext.timeProvider.time - utx.dateAdded) > settings.application.mempoolTimeout.toMillis
 
           if (boxAlreadyExists | txTimeout) (validAcc, utx.tx.id +: invalidAcc)
           else (utx.tx.id +: validAcc, invalidAcc)
