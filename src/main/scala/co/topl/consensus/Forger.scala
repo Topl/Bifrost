@@ -450,7 +450,7 @@ object Forger {
 
     case class CreateKey(password: String)
 
-    case class ImportKey(password: String, mnemonic: String, lang: Option[String] = None)
+    case class ImportKey(password: String, mnemonic: String, lang: String)
 
   }
 

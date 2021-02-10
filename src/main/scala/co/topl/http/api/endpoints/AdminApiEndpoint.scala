@@ -150,7 +150,7 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
       password       <- params.hcursor.get[String]("password")
       seedPhrase     <- params.hcursor.get[String]("seedPhrase")
       seedPhraseLang <- params.hcursor.get[Option[String]]("seedPhrase")
-    } yield (keyHolderRef ? ImportKey(password, seedPhrase, seedPhraseLang)).mapTo[Try[Address]].map {
+    } yield (keyHolderRef ? ImportKey(password, seedPhrase, seedPhraseLang.getOrElse("en"))).mapTo[Try[Address]].map {
       case Success(addr: Address) => Map("publicKey" -> addr.asJson).asJson
       case Failure(ex)            => throw new Error(s"An error occurred while importing the seed phrase. $ex")
     }) match {
