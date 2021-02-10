@@ -74,7 +74,7 @@ case class DebugApiEndpoint(
     }
 
   /** #### Summary
-    * Find the number of blocks forged by public keys held by the node
+    * Find the number of blocks forged by addresses held by the node
     *
     * #### Type
     * Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
@@ -103,7 +103,7 @@ case class DebugApiEndpoint(
     }
 
   /** #### Summary
-    * Find distribution of block generators from all public keys in the chain's history
+    * Find distribution of block generators from all addresses in the chain's history
     *
     * #### Params
     * | Fields             | Data type | Required / Optional | Description |
