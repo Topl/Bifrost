@@ -79,7 +79,6 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     * | Fields   | Data type | Required / Optional | Description                                                            |
     * |----------|-----------|---------------------|------------------------------------------------------------------------|
     * | address  | String    | Required            | Address corresponding to an encrypted keyfile in your wallet directory |
-    * | password | String    | Required            | String used to encrypt the private keyfile that is stored locally      |
     *
     * @param params input parameters as specified above
     * @param id request identifier
