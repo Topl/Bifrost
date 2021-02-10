@@ -27,7 +27,8 @@ case class TransactionApiEndpoint(
   settings:          RPCApiSettings,
   appContext:        AppContext,
   nodeViewHolderRef: ActorRef
-)(implicit val ec:   ExecutionContext) extends ApiEndpointWithView {
+)(implicit val ec:   ExecutionContext)
+    extends ApiEndpointWithView {
 
   type HIS = History
   type MS = State
@@ -82,7 +83,7 @@ case class TransactionApiEndpoint(
     * @param id request identifier
     * @return
     */
-  private def rawAssetTransfer(implicit params: Json, id: String): Future[Json] = {
+  private def rawAssetTransfer(implicit params: Json, id: String): Future[Json] =
     viewAsync { view =>
       val p = params.hcursor
 
@@ -147,7 +148,6 @@ case class TransactionApiEndpoint(
         case Left(ex)           => throw ex
       }
     }
-  }
 
   /** #### Summary
     * Transfer Polys from an account to a specified recipient.
@@ -173,7 +173,7 @@ case class TransactionApiEndpoint(
     * @param id     request identifier
     * @return
     */
-  private def rawPolyTransfer(implicit params: Json, id: String): Future[Json] = {
+  private def rawPolyTransfer(implicit params: Json, id: String): Future[Json] =
     viewAsync { view =>
       val p = params.hcursor
 
@@ -221,7 +221,6 @@ case class TransactionApiEndpoint(
         case Left(ex)           => throw ex
       }
     }
-  }
 
   /** #### Summary
     * Transfer Arbits from an account to a specified recipient.
@@ -248,7 +247,7 @@ case class TransactionApiEndpoint(
     * @param id     request identifier
     * @return
     */
-  private def rawArbitTransfer(implicit params: Json, id: String): Future[Json] = {
+  private def rawArbitTransfer(implicit params: Json, id: String): Future[Json] =
     viewAsync { view =>
       val p = params.hcursor
 
@@ -313,7 +312,6 @@ case class TransactionApiEndpoint(
         case Left(ex)           => throw ex
       }
     }
-  }
 
   /** #### Summary
     * Broadcast transaction
@@ -339,11 +337,9 @@ case class TransactionApiEndpoint(
   private def broadcastTx(params: Json, id: String): Future[Json] = Future {
     (for {
       tx <- params.hcursor.get[Transaction[_, _ <: Proposition]]("tx")
-    } yield {
-      tx.syntacticValidate.map { _ =>
-        nodeViewHolderRef ! LocallyGeneratedTransaction(tx)
-        tx.asJson
-      }
+    } yield tx.syntacticValidate.map { _ =>
+      nodeViewHolderRef ! LocallyGeneratedTransaction(tx)
+      tx.asJson
     }) match {
       case Right(Success(json)) => json
       case Right(Failure(ex))   => throw ex
