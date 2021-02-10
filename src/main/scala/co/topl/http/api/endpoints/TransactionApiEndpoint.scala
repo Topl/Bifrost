@@ -49,13 +49,13 @@ case class TransactionApiEndpoint(
   }
 
   /** #### Summary
-    * Transfer assets from an account to a specified recipient.
+    * Transfer Assets from an account to a specified recipient.
     *
     * #### Type
     * Remote -- Transaction must be used in conjunction with an external key manager service.
     *
     * #### Description
-    * Default behavior of the wallet is to find the first unlocked address which hold the targetted asset.
+    * Default behavior of the wallet is to find the first unlocked address which hold the targetted Asset.
     * The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
     *
     * #### Notes
@@ -66,9 +66,9 @@ case class TransactionApiEndpoint(
     * |----------------------|------------------------|---------------------|-----------------------------------------------------------------------------------|
     * | propositionType      | String                 | Required            | Type of proposition, eg., PublicKeyCurve25519, ThresholdCurve25519                |
     * | recipients           | [[String, AssetValue]] | Required            | Array of addresses and assetValues for the transfer recipients(check table below) |
-    * | sender               | [String]               | Required            | Array of addresses from which assets should be sent                               |
-    * | changeAddress        | String                 | Required            | Address for recipient of changes                                                  |
-    * | consolidationAddress | String                 | Optional            | **Currently unused**                                                              |
+    * | sender               | [String]               | Required            | Array of addresses from which Assets should be sent                               |
+    * | changeAddress        | String                 | Required            | Address for recipient of unspent Polys                                            |
+    * | consolidationAddress | String                 | Optional            | Address for recipient of unspent Assets                                           |
     * | fee                  | Number                 | Required            | Fee for the transfer. Minting AssetTransfer requires fee to be greater than 0     |
     * | minting              | Boolean                | Required            | If this is a minting AssetTransfer or not                                         |
     * | data                 | String                 | Optional            | Data string which can be associated with this transaction(may be empty)           |
@@ -78,7 +78,7 @@ case class TransactionApiEndpoint(
     * |--------------|-----------|---------------------|-------------------------------------------------------------------------------------------------|
     * | type         | String    | Required            | Type of transfer, should be "Asset" for AssetTransfer                                           |
     * | quantity     | Number    | Required            | Number of tokens                                                                                |
-    * | assetCode    | String    | Required            | Unique identifier for user issued assets, generated from version, issuer address, and shortName |
+    * | assetCode    | String    | Required            | Unique identifier for user issued Assets, generated from version, issuer address, and shortName |
     * | securityRoot | String    | Optional            | **Currently unused**                                                                            |
     * | metadata     | String    | Optional            | String must be less than 128 UTF-8 characters                                                   |
     *
@@ -166,9 +166,9 @@ case class TransactionApiEndpoint(
     * | Fields          | Data type          | Required / Optional | Description                                                              |
     * |-----------------|--------------------|---------------------|--------------------------------------------------------------------------|
     * | propositionType | String             | Required            | Type of proposition, eg., PublicKeyCurve25519, ThresholdCurve25519       |
-    * | recipients      | [[String, Number]] | Required            | Array of addresses and poly amounts for the corresponding recipients     |
-    * | sender          | [String]           | Required            | Array of addresses from which polys should be sent                       |
-    * | changeAddress   | String             | Required            | Address for recipient of changes                                         |
+    * | recipients      | [[String, Number]] | Required            | Array of addresses and Poly amounts for the corresponding recipients     |
+    * | sender          | [String]           | Required            | Array of addresses from which Polys should be sent                       |
+    * | changeAddress   | String             | Required            | Address for recipient of unspent Polys                                   |
     * | fee             | Number             | Required            | Fee for the transfer                                                     |
     * | data            | String             | Optional            | Data string which can be associated with this transaction (may be empty) |
     *
@@ -239,10 +239,10 @@ case class TransactionApiEndpoint(
     * | Fields               | Data type          | Required / Optional | Description                                                              |
     * |----------------------|--------------------|---------------------|--------------------------------------------------------------------------|
     * | propositionType      | String             | Required            | Type of proposition, eg., PublicKeyCurve25519, ThresholdCurve25519       |
-    * | recipients           | [[String, Number]] | Required            | Array of addresses and arbit amounts for the corresponding recipients    |
-    * | sender               | [String]           | Required            | Array of addresses from which arbits should be sent                      |
+    * | recipients           | [[String, Number]] | Required            | Array of addresses and Arbit amounts for the corresponding recipients    |
+    * | sender               | [String]           | Required            | Array of addresses from which Arbits should be sent                      |
     * | changeAddress        | String             | Required            | Address for recipient of changes                                         |
-    * | consolidationAddress | String             | Optional            | **Currently unused**                                                     |
+    * | consolidationAddress | String             | Optional            | Address for recipient of unspent Arbits                                  |
     * | fee                  | Number             | Required            | Fee for the transfer                                                     |
     * | data                 | String             | Optional            | Data string which can be associated with this transaction (may be empty) |
     *
