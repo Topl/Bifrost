@@ -58,6 +58,9 @@ case class TransactionApiEndpoint(
     * Default behavior of the wallet is to find the first unlocked address which hold the targetted asset.
     * The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
     *
+    * #### Notes
+    * - `AssetCode` in `AssetValue` can be generated using `util_generateAssetCode`
+    *
     * #### Params
     * | Fields               | Data type              | Required / Optional | Description                                                                       |
     * |----------------------|------------------------|---------------------|-----------------------------------------------------------------------------------|
