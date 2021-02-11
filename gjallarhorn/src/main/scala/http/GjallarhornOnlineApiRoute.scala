@@ -71,6 +71,13 @@ case class GjallarhornOnlineApiRoute(settings: RPCApiSettings,
     * @return - either connectedToBifrost -> true or error message if unable to connect to the given chain provider.
     */
   private def connectToBifrost(params: Json, id: String): Future[Json] = {
+    (walletManager ? GetConnection).mapTo[Option[ActorRef]].map {
+      case Some(actor) => throw new Exception ("Already connected!")
+      case None => tryToConnect(params)
+    }
+  }
+
+  def tryToConnect(params: Json): Json = {
     val chainProvider = (params \\ "chainProvider").head.asString.get
     try {
       log.info("gjallarhorn attempting to run in online mode. Trying to connect to Bifrost...")
@@ -92,13 +99,13 @@ case class GjallarhornOnlineApiRoute(settings: RPCApiSettings,
     * @param bifrost - the actor ref for Bifrost
     * @return - Json(connectedToBifrost -> true)
     */
-  def setUpOnlineMode(bifrost: ActorRef): Future[Json] = {
+  def setUpOnlineMode(bifrost: ActorRef): Json = {
     walletManager ! ConnectToBifrost(bifrost)
 
     val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager(bifrost)), name = "RequestsManager")
     requestsManager = Some(requestsManagerRef)
     requests.switchOnlineStatus(requestsManager)
-    Future{Map("connectedToBifrost" -> true).asJson}
+    Map("connectedToBifrost" -> true).asJson
   }
 
   /** #### Summary

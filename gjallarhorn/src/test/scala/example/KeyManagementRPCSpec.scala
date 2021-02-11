@@ -3,7 +3,7 @@ package example
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
-import akka.http.scaladsl.model.headers.RawHeader
+import akka.http.scaladsl.model.headers.{HttpOrigin, Origin, RawHeader}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.{ByteString, Timeout}
@@ -55,6 +55,9 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
     GjallarhornOfflineApiRoute(keyManagementSettings.rpcApi, keyManagementSettings.application, keyManagerRef, walletManagerRef)
   val route: Route = HttpService(Seq(apiRoute, gjalOnlyApiRoute), keyManagementSettings.rpcApi).compositeRoute
 
+  val httpOrigin: HttpOrigin = HttpOrigin("http://localhost:3000")
+  val httpOriginHeader: Origin = Origin(httpOrigin)
+
   //Generate two keys for testing
   val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))
     .mapTo[Try[Address]], 10.seconds) match {
@@ -91,7 +94,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
          |}
          """.stripMargin)
 
-    httpPOST(openKeyfilesRequest) ~> route ~> check {
+    httpPOST(openKeyfilesRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -119,7 +122,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
          |}
          """.stripMargin)
 
-    httpPOST(generateKeyfileRequest) ~> route ~> check {
+    httpPOST(generateKeyfileRequest) ~> httpOriginHeader ~> route ~> check {
       parse(responseAs[String]) match {
         case Left(f) => throw f
         case Right(res: Json) =>
@@ -151,7 +154,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
          |}
          """.stripMargin)
 
-    httpPOST(importKeyfileRequest) ~> route ~> check {
+    httpPOST(importKeyfileRequest) ~> httpOriginHeader ~> route ~> check {
       parse(responseAs[String]) match {
         case Left(f) => throw f
         case Right(res: Json) =>
@@ -176,7 +179,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
          |}
          """.stripMargin)
 
-    httpPOST(lockKeyRequest) ~> route ~> check {
+    httpPOST(lockKeyRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -199,7 +202,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
          |}
          """.stripMargin)
 
-    httpPOST(allKeyfilesRequest) ~> route ~> check {
+    httpPOST(allKeyfilesRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -226,7 +229,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
          |}
          """.stripMargin)
 
-    httpPOST(unlockKeyRequest) ~> route ~> check {
+    httpPOST(unlockKeyRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -250,7 +253,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
          |}
          """.stripMargin)
 
-    httpPOST(mnemonicPhraseRequest) ~> route ~> check {
+    httpPOST(mnemonicPhraseRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -275,7 +278,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
          |}
          """.stripMargin)
 
-    httpPOST(networkTypeRequest) ~> route ~> check {
+    httpPOST(networkTypeRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -300,7 +303,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
          |}
          """.stripMargin)
 
-    httpPOST(generateKeyfileRequest) ~> route ~> check {
+    httpPOST(generateKeyfileRequest) ~> httpOriginHeader ~> route ~> check {
       parse(responseAs[String]) match {
         case Left(f) => throw f
         case Right(res: Json) =>
@@ -323,7 +326,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
          |}
          """.stripMargin)
 
-    httpPOST(openKeyfilesRequest) ~> route ~> check {
+    httpPOST(openKeyfilesRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -348,7 +351,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
          |}
          """.stripMargin)
 
-    httpPOST(networkTypeRequest) ~> route ~> check {
+    httpPOST(networkTypeRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f

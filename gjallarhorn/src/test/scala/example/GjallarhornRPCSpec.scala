@@ -2,13 +2,13 @@ package example
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
-import akka.http.scaladsl.model.headers.RawHeader
+import akka.http.scaladsl.model.headers.{HttpOrigin, Origin, RawHeader}
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.server.Route
 import akka.util.{ByteString, Timeout}
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
-import http.{GjallarhornOnlineApiRoute, GjallarhornOfflineApiRoute, HttpService}
+import http.{GjallarhornOfflineApiRoute, GjallarhornOnlineApiRoute, HttpService}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import attestation.Address
 import attestation.AddressEncoder.NetworkPrefix
@@ -50,6 +50,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   val keyManagerRef: ActorRef = KeyManagerRef("keyManager", settings.application)
 
   //generate two keys for testing
+  //pk1 should be: 86tS2ExvjGEpS3Ntq5vZgHirUMuee7pJELGD8GmBoUyjXpAaAXTz
   val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))
     .mapTo[Try[Address]], 10.seconds) match {
     case Success(pubKey) => pubKey
@@ -73,6 +74,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   val gjalOnlyApiRoute: ApiRoute = GjallarhornOfflineApiRoute(settings.rpcApi, settings.application, keyManagerRef, walletManagerRef)
   val route: Route = HttpService(
     Seq(bifrostApiRoute, gjalOnlyApiRoute), settings.rpcApi).compositeRoute
+
+  val httpOrigin: HttpOrigin = HttpOrigin("http://localhost:3000")
+  val httpOriginHeader: Origin = Origin(httpOrigin)
 
   /**
     * Method used to create http post request
@@ -100,7 +104,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
          """.stripMargin)
 
-    httpPOST(connectRequest) ~> route ~> check {
+    httpPOST(connectRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -137,7 +141,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
        """.stripMargin)
 
-    httpPOST(createAssetRequest) ~> route ~> check {
+    httpPOST(createAssetRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -166,7 +170,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
          """.stripMargin)
 
-    httpPOST(signTxRequest) ~> route ~> check {
+    httpPOST(signTxRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -194,7 +198,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
          """.stripMargin)
 
-    httpPOST(signRequest) ~> route ~> check {
+    httpPOST(signRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -222,7 +226,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
          """.stripMargin
     val rqst = ByteString(rqstString)
-    httpPOST(rqst) ~> route ~> check {
+    httpPOST(rqst) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -256,7 +260,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
        """.stripMargin)
 
-    httpPOST(transferArbitRequest) ~> route ~> check {
+    httpPOST(transferArbitRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -287,7 +291,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
        """.stripMargin)
 
-    httpPOST(transferPolyRequest) ~> route ~> check {
+    httpPOST(transferPolyRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -321,7 +325,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
        """.stripMargin)
 
-    httpPOST(transferPolyRequest) ~> route ~> check {
+    httpPOST(transferPolyRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -344,7 +348,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
       """.stripMargin)
 
-      httpPOST(requestBody) ~> route ~> check {
+      httpPOST(requestBody) ~> httpOriginHeader ~> route ~> check {
         val responseString = responseAs[String].replace("\\", "")
         parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
           case Left(f) => throw f
@@ -396,7 +400,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
          """.stripMargin)
 
-    httpPOST(mnemonicPhraseRequest) ~> route ~> check {
+    httpPOST(mnemonicPhraseRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"\"", "\"")) match {
         case Left(f) => throw f
@@ -439,7 +443,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
        """.stripMargin)
 
-    httpPOST(transferPolyRequest) ~> route ~> check {
+    httpPOST(transferPolyRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -462,7 +466,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
       """.stripMargin)
 
-    httpPOST(requestBody) ~> route ~> check {
+    httpPOST(requestBody) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -495,7 +499,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
        """.stripMargin)
 
-    httpPOST(transferPolyRequest) ~> route ~> check {
+    httpPOST(transferPolyRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -525,7 +529,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
          """.stripMargin)
 
-    httpPOST(signTxRequest) ~> route ~> check {
+    httpPOST(signTxRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -553,7 +557,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
          """.stripMargin
     val rqst = ByteString(rqstString)
-    httpPOST(rqst) ~> route ~> check {
+    httpPOST(rqst) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -575,7 +579,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
          """.stripMargin)
 
-    httpPOST(disconnectRequest) ~> route ~> check {
+    httpPOST(disconnectRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -598,7 +602,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
          """.stripMargin)
 
-    httpPOST(mnemonicPhraseRequest) ~> route ~> check {
+    httpPOST(mnemonicPhraseRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"\"", "\"")) match {
         case Left(f) => throw f
@@ -621,7 +625,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
          """.stripMargin)
 
-    httpPOST(networkTypeRequest) ~> route ~> check {
+    httpPOST(networkTypeRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -646,7 +650,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
          """.stripMargin)
 
-    httpPOST(networkTypeRequest) ~> route ~> check {
+    httpPOST(networkTypeRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
@@ -671,7 +675,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
          """.stripMargin)
 
-    httpPOST(networkTypeRequest) ~> route ~> check {
+    httpPOST(networkTypeRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
