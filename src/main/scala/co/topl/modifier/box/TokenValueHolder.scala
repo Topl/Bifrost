@@ -3,11 +3,13 @@ package co.topl.modifier.box
 import java.nio.charset.StandardCharsets
 
 import co.topl.attestation.Address
+import co.topl.utils.Int128
+import co.topl.utils.codecs.Int128Codec
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 
-sealed abstract class TokenValueHolder(val quantity: Long) extends BytesSerializable {
+sealed abstract class TokenValueHolder(val quantity: Int128) extends BytesSerializable {
   override type M = TokenValueHolder
 
   override def serializer: BifrostSerializer[TokenValueHolder] = TokenValueHolder
@@ -56,7 +58,7 @@ object TokenValueHolder extends BifrostSerializer[TokenValueHolder] {
 
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
-case class SimpleValue(override val quantity: Long) extends TokenValueHolder(quantity)
+case class SimpleValue(override val quantity: Int128) extends TokenValueHolder(quantity)
 
 object SimpleValue extends BifrostSerializer[SimpleValue] {
   val valueTypePrefix: Byte = 1: Byte
@@ -65,7 +67,7 @@ object SimpleValue extends BifrostSerializer[SimpleValue] {
   implicit val jsonEncoder: Encoder[SimpleValue] = { (value: SimpleValue) =>
     Map(
       "type"     -> valueTypeString.asJson,
-      "quantity" -> value.quantity.asJson
+      "quantity" -> Int128Codec.jsonEncoder(value.quantity)
     ).asJson
   }
 
@@ -77,15 +79,15 @@ object SimpleValue extends BifrostSerializer[SimpleValue] {
     }
 
   override def serialize(obj: SimpleValue, w: Writer): Unit =
-    w.putULong(obj.quantity)
+    w.putInt128(obj.quantity)
 
   override def parse(r: Reader): SimpleValue =
-    SimpleValue(r.getULong())
+    SimpleValue(r.getInt128())
 }
 
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 case class AssetValue(
-  override val quantity: Long,
+  override val quantity: Int128,
   assetCode:             AssetCode,
   securityRoot:          SecurityRoot = SecurityRoot.empty,
   metadata:              Option[String] = None
@@ -109,7 +111,7 @@ object AssetValue extends BifrostSerializer[AssetValue] {
   implicit val jsonEncoder: Encoder[AssetValue] = { (value: AssetValue) =>
     Map(
       "type"         -> valueTypeString.asJson,
-      "quantity"     -> value.quantity.asJson,
+      "quantity"     -> value.quantity.asJson(Int128Codec.jsonEncoder),
       "assetCode"    -> value.assetCode.asJson,
       "securityRoot" -> value.securityRoot.asJson,
       "metadata"     -> value.metadata.asJson
@@ -118,7 +120,7 @@ object AssetValue extends BifrostSerializer[AssetValue] {
 
   implicit val jsonDecoder: Decoder[AssetValue] = (c: HCursor) =>
     for {
-      quantity     <- c.downField("quantity").as[Long]
+      quantity     <- c.get[Int128]("quantity")(Int128Codec.jsonDecoder)
       assetCode    <- c.downField("assetCode").as[AssetCode]
       securityRoot <- c.downField("securityRoot").as[Option[String]]
       metadata     <- c.downField("metadata").as[Option[String]]
@@ -132,7 +134,7 @@ object AssetValue extends BifrostSerializer[AssetValue] {
     }
 
   override def serialize(obj: AssetValue, w: Writer): Unit = {
-    w.putULong(obj.quantity)
+    w.putInt128(obj.quantity)
     AssetCode.serialize(obj.assetCode, w)
     SecurityRoot.serialize(obj.securityRoot, w)
     w.putOption(obj.metadata) { (writer, metadata) =>
@@ -141,7 +143,7 @@ object AssetValue extends BifrostSerializer[AssetValue] {
   }
 
   override def parse(r: Reader): AssetValue = {
-    val quantity = r.getULong()
+    val quantity = r.getInt128()
     val assetCode = AssetCode.parse(r)
     val securityRoot = SecurityRoot.parse(r)
     val metadata: Option[String] = r.getOption {

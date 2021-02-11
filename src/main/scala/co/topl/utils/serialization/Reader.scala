@@ -1,5 +1,7 @@
 package co.topl.utils.serialization
 
+import co.topl.utils.Int128
+
 trait Reader {
 
   /**
@@ -92,6 +94,12 @@ trait Reader {
     * @return signed Long
     */
   def getULong(): Long
+
+  /**
+   * Decode sign Int128
+   * @return signed Int128
+   */
+  def getInt128(): Int128
 
   /**
     * Decode array of byte values

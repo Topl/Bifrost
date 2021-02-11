@@ -44,9 +44,7 @@ object Box {
       evidence <- c.downField("evidence").as[Evidence]
       value    <- c.downField("value").as[T]
       nonce    <- c.downField("nonce").as[Nonce]
-    } yield {
-      (evidence, nonce, value)
-    }
+    } yield (evidence, nonce, value)
 
   def identifier(box: Box[_]): Identifier = box match {
     case _: ArbitBox     => ArbitBox.identifier.getId
