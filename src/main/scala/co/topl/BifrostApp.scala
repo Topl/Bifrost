@@ -1,14 +1,13 @@
 package co.topl
 
-import java.lang.management.ManagementFactory
-import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
+import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.http.scaladsl.Http
 import akka.io.Tcp
 import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.consensus.{Forger, ForgerRef}
 import co.topl.http.HttpService
-import co.topl.http.api.{ApiEndpoint, endpoints}
+import co.topl.http.api.ApiEndpoint
 import co.topl.http.api.endpoints.{DebugApiEndpoint, _}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
@@ -26,6 +25,7 @@ import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
 import com.typesafe.config.{Config, ConfigFactory}
 import kamon.Kamon
 
+import java.lang.management.ManagementFactory
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -47,7 +47,13 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
   /** Setup the execution environment for running the application */
-  protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
+
+  // Override the configuration of the port
+  private val akkaConfig = ConfigFactory.parseString(s"""
+      akka.remote.artery.canonical.port=9087
+      """).withFallback(ConfigFactory.load())
+
+  protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName, akkaConfig)
   private implicit val timeout: Timeout = Timeout(settings.network.controllerTimeout.getOrElse(5 seconds))
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
@@ -70,7 +76,9 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef(NodeViewHolder.actorName, settings, appContext)
 
-  private val walletConnectionHandlerRef: ActorRef = WalletConnectionHandlerRef[PMOD](WalletConnectionHandler.actorName, settings, appContext, nodeViewHolderRef)
+  private val walletConnectionHandlerRef: ActorRef = WalletConnectionHandlerRef[PMOD](
+    WalletConnectionHandler.actorName, settings, appContext, nodeViewHolderRef
+  )
 
   private val peerSynchronizer: ActorRef =
     PeerSynchronizerRef(PeerSynchronizer.actorName, networkControllerRef, peerManagerRef, settings, appContext)
@@ -97,7 +105,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   /** hook for initiating the shutdown procedure */
   sys.addShutdownHook(BifrostApp.shutdown(actorSystem, actorsToStop))
 
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
   /** Create and register controllers for API routes */
   private val apiRoutes: Seq[ApiEndpoint] = Seq(
     UtilsApiEndpoint(settings.rpcApi, appContext),
