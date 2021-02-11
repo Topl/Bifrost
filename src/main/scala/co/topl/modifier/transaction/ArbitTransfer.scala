@@ -4,10 +4,10 @@ import java.time.Instant
 
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation._
+import co.topl.modifier.BoxReader
+import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.TransferTransaction.BoxParams
-import co.topl.nodeView.state.StateReader
-import co.topl.modifier.box._
 import co.topl.utils.codecs.Int128Codec
 import co.topl.utils.{Identifiable, Identifier, Int128}
 import io.circe.syntax.EncoderOps
@@ -17,7 +17,8 @@ import scala.util.Try
 
 case class ArbitTransfer[
   P <: Proposition: EvidenceProducer: Identifiable
-](override val from:        IndexedSeq[(Address, Box.Nonce)],
+](
+  override val from:        IndexedSeq[(Address, Box.Nonce)],
   override val to:          IndexedSeq[(Address, TokenValueHolder)],
   override val attestation: Map[P, Proof[P]],
   override val fee:         Int128,
@@ -50,7 +51,7 @@ object ArbitTransfer {
     Identifier(typeString, typePrefix)
   }
 
-  /** @param stateReader
+  /** @param boxReader
     * @param toReceive
     * @param sender
     * @param fee
@@ -59,7 +60,8 @@ object ArbitTransfer {
     */
   def createRaw[
     P <: Proposition: EvidenceProducer: Identifiable
-  ](stateReader:          StateReader[ProgramId, Address],
+  ](
+    boxReader:            BoxReader[ProgramId, Address],
     toReceive:            IndexedSeq[(Address, SimpleValue)],
     sender:               IndexedSeq[Address],
     changeAddress:        Address,
@@ -69,7 +71,7 @@ object ArbitTransfer {
   ): Try[ArbitTransfer[P]] =
     TransferTransaction
       .createRawTransferParams(
-        stateReader,
+        boxReader,
         toReceive,
         sender,
         changeAddress,
@@ -107,20 +109,18 @@ object ArbitTransfer {
         timestamp <- c.downField("timestamp").as[Long]
         data      <- c.downField("data").as[Option[String]]
         propType  <- c.downField("propositionType").as[String]
-      } yield {
-        (propType match {
-          case PublicKeyPropositionCurve25519.`typeString` =>
-            c.downField("signatures").as[Map[PublicKeyPropositionCurve25519, SignatureCurve25519]].map {
-              new ArbitTransfer[PublicKeyPropositionCurve25519](from, to, _, fee, timestamp, data)
-            }
+      } yield (propType match {
+        case PublicKeyPropositionCurve25519.`typeString` =>
+          c.downField("signatures").as[Map[PublicKeyPropositionCurve25519, SignatureCurve25519]].map {
+            new ArbitTransfer[PublicKeyPropositionCurve25519](from, to, _, fee, timestamp, data)
+          }
 
-          case ThresholdPropositionCurve25519.`typeString` =>
-            c.downField("signatures").as[Map[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]].map {
-              new ArbitTransfer[ThresholdPropositionCurve25519](from, to, _, fee, timestamp, data)
-            }
-        }) match {
-          case Right(tx) => tx
-          case Left(ex)  => throw ex
-        }
+        case ThresholdPropositionCurve25519.`typeString` =>
+          c.downField("signatures").as[Map[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]].map {
+            new ArbitTransfer[ThresholdPropositionCurve25519](from, to, _, fee, timestamp, data)
+          }
+      }) match {
+        case Right(tx) => tx
+        case Left(ex)  => throw ex
       }
 }

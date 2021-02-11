@@ -3,9 +3,9 @@ package co.topl.modifier.transaction
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.attestation.{Evidence, _}
+import co.topl.modifier.BoxReader
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.box.{Box, _}
-import co.topl.nodeView.state.StateReader
 import co.topl.utils.{Identifiable, Int128}
 import com.google.common.primitives.{Ints, Longs}
 import scorex.crypto.hash.Blake2b256
@@ -35,8 +35,8 @@ abstract class TransferTransaction[
     super.messageToSign ++
     data.fold(Array(0: Byte))(_.getBytes) :+ (if (minting) 1: Byte else 0: Byte)
 
-  def semanticValidate(stateReader: StateReader[ProgramId, Address])(implicit networkPrefix: NetworkPrefix): Try[Unit] =
-    TransferTransaction.semanticValidate(this, stateReader)
+  def semanticValidate(boxReader: BoxReader[ProgramId, Address])(implicit networkPrefix: NetworkPrefix): Try[Unit] =
+    TransferTransaction.semanticValidate(this, boxReader)
 
   def syntacticValidate(implicit networkPrefix: NetworkPrefix): Try[Unit] =
     TransferTransaction.syntacticValidate(this)
@@ -83,14 +83,14 @@ object TransferTransaction {
 
   /** Retrieves the boxes from state for the specified sequence of senders and filters them based on the type of transaction */
   private def getSenderBoxesForTx(
-    state:     StateReader[ProgramId, Address],
+    boxReader: BoxReader[ProgramId, Address],
     sender:    IndexedSeq[Address],
     txType:    String,
     assetArgs: Option[(AssetCode, Boolean)] = None
   ): Map[String, IndexedSeq[(String, Address, TokenBox[TokenValueHolder])]] =
     sender
       .flatMap { s =>
-        state
+        boxReader
           .getTokenBoxes(s)
           .getOrElse(
             throw new Exception("No boxes found to fund transaction")
@@ -111,7 +111,7 @@ object TransferTransaction {
 
   /** Determines the input boxes needed to create a transfer transaction
     *
-    * @param state a read-only version of the nodes current state
+    * @param boxReader a read-only version of the nodes current state
     * @param toReceive the recipients of boxes
     * @param sender the set of addresses that will contribute boxes to this transaction
     * @param fee the fee to be paid for the transaction
@@ -122,7 +122,7 @@ object TransferTransaction {
   def createRawTransferParams[
     T <: TokenValueHolder
   ](
-    state:                StateReader[ProgramId, Address],
+    boxReader:            BoxReader[ProgramId, Address],
     toReceive:            IndexedSeq[(Address, T)],
     sender:               IndexedSeq[Address],
     changeAddress:        Address,
@@ -133,7 +133,7 @@ object TransferTransaction {
   ): Try[(IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, TokenValueHolder)])] = Try {
 
     // Lookup boxes for the given senders
-    val senderBoxes = getSenderBoxesForTx(state, sender, txType, assetArgs)
+    val senderBoxes = getSenderBoxesForTx(boxReader, sender, txType, assetArgs)
 
     // compute the Poly balance since it is used often
     val polyBalance =
@@ -286,14 +286,14 @@ object TransferTransaction {
   /** Checks the stateful validity of a transaction
     *
     * @param tx the transaction to check
-    * @param state the state to check the validity against
+    * @param boxReader the state to check the validity against
     * @return a success or failure denoting the result of this check
     */
   def semanticValidate[
     T <: TokenValueHolder,
     P <: Proposition: EvidenceProducer
-  ](tx:            TransferTransaction[T, P], state: StateReader[ProgramId, Address])(implicit
-    networkPrefix: NetworkPrefix
+  ](tx:            TransferTransaction[T, P], boxReader: BoxReader[ProgramId, Address])(implicit
+                                                                                        networkPrefix: NetworkPrefix
   ): Try[Unit] = {
 
     // check that the transaction is correctly formed before checking state
@@ -310,7 +310,7 @@ object TransferTransaction {
     unlockers
       .foldLeft[Try[Int128]](Success[Int128](0)) { (trySum, unlocker) =>
         trySum.flatMap { partialSum =>
-          state.getBox(unlocker.closedBoxId) match {
+          boxReader.getBox(unlocker.closedBoxId) match {
             case Some(box: TokenBox[_]) if unlocker.boxKey.isValid(unlocker.proposition, tx.messageToSign) =>
               Success(partialSum + box.value.quantity)
 
