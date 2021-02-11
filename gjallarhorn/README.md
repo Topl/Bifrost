@@ -95,11 +95,11 @@ The documentation can also be found through GitHub Pages:
  
  The build files can be found at: `Bifrost/gjallarhorn/src/main/resources/ui/build`
  
- To load the local site (*the local site must be running on localhost:3000 in order to send requests to the backend as defined in `Bifrost/gjallarhorn/src/main/scala/http/CorsSupport.scala`)
+ To load the local site 
+ - Note: gjallarhorn only accepts requests from a set list of domains which can be found in: `Bifrost/gjallarhorn/src/main/scala/http/HttpService.scala`
  - find the index.html files within the folder specified above and right click on it to open with a web browser.
  - If you use intellij, open the `index.html` file within the `ui/build` folder and there should be a pop-up with web browsers to choose from to load the site
-      - make sure that you set the built-in server port to "3000"
-      - this can be done by opening up Settings/Preferences -> Build,Execution,Deployment -> Debugger : then scroll down to "Built-in server" to input the correct port.
+      - You can modify the port by opening up Settings/Preferences -> Build,Execution,Deployment -> Debugger : then scroll down to "Built-in server" to input the correct port.
 
  
  Make sure project gjallarhorn is running in order to interact with the site (and if you want to be in online mode, make sure bifrost is running too!)
