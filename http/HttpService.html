@@ -634,6 +634,22 @@
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ImplicitPathMatcherConstruction</dd></dl></div>
+    </li><li name="http.HttpService#acceptableDomains" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="acceptableDomains:List[akka.http.scaladsl.model.headers.HttpOrigin]"></a><a id="acceptableDomains:List[HttpOrigin]"></a>
+      <span class="permalink">
+      <a href="../http/HttpService.html#acceptableDomains:List[akka.http.scaladsl.model.headers.HttpOrigin]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">val</span>
+      </span>
+      <span class="symbol">
+        <span class="name">acceptableDomains</span><span class="result">: <span class="extype" name="scala.List">List</span>[<span class="extype" name="akka.http.scaladsl.model.headers.HttpOrigin">HttpOrigin</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">List of acceptable domains for API route</p>
     </li><li name="http.HttpService#apiServices" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="apiServices:Seq[requests.ApiRoute]"></a><a id="apiServices:Seq[ApiRoute]"></a>
       <span class="permalink">
@@ -5309,7 +5325,7 @@
         <span class="name">withAuth</span><span class="params">(<span name="route">route: ⇒ <span class="extype" name="akka.http.scaladsl.server.Route">Route</span></span>)</span><span class="result">: <span class="extype" name="akka.http.scaladsl.server.Route">Route</span></span>
       </span>
       
-      <p class="shortcomment cmt">Helper route to wrap the handling of API key authentication</p>
+      <p class="shortcomment cmt">Helper route to wrap the handling of origin and API key authentication</p>
     </li><li name="akka.http.scaladsl.server.directives.BasicDirectives#withExecutionContext" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="withExecutionContext(ec:scala.concurrent.ExecutionContextExecutor):akka.http.scaladsl.server.Directive0"></a><a id="withExecutionContext(ExecutionContextExecutor):Directive0"></a>
       <span class="permalink">
