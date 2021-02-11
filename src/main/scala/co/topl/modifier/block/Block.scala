@@ -8,10 +8,9 @@ import co.topl.modifier.block.Block._
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ModifierId, NodeViewModifier}
-import co.topl.nodeView.state.box.ArbitBox
+import co.topl.modifier.box.ArbitBox
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
-import scorex.crypto.hash.Blake2b256
 import supertagged.@@
 
 import scala.util.Try

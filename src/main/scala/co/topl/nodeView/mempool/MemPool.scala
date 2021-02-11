@@ -2,7 +2,7 @@ package co.topl.nodeView.mempool
 
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
-import co.topl.nodeView.state.box.BoxId
+import co.topl.modifier.box.BoxId
 import co.topl.utils.Logging
 
 import scala.collection.concurrent.TrieMap

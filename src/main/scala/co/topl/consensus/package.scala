@@ -1,7 +1,7 @@
 package co.topl
 
 import co.topl.modifier.block.Block
-import co.topl.nodeView.state.box.ArbitBox
+import co.topl.modifier.box.ArbitBox
 import co.topl.settings.ProtocolSettings
 import com.google.common.primitives.Longs
 import scorex.crypto.hash.Blake2b256

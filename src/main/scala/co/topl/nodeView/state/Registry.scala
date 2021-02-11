@@ -1,7 +1,8 @@
 package co.topl.nodeView.state
 
+import co.topl.attestation.Address
 import co.topl.nodeView.state.MinimalState.VersionTag
-import co.topl.nodeView.state.box.BoxId
+import co.topl.modifier.box.{BoxId, ProgramId}
 import co.topl.utils.Logging
 
 import scala.reflect.ClassTag
@@ -9,7 +10,7 @@ import scala.util.Try
 
 trait Registry[K, V] extends StoreInterface with Logging {
 
-  type SR = StateReader
+  type SR = StateReader[ProgramId, Address]
 
   protected def update (newVersion: VersionTag, toRemove: Map[K, Seq[V]], toAppend: Map[K, Seq[V]]): Try[Registry[K, V]]
 

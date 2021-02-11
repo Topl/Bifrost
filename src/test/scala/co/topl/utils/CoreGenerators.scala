@@ -3,15 +3,14 @@ package co.topl.utils
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
-import co.topl.consensus.KeyRing
-import co.topl.crypto.KeyfileCurve25519
+import co.topl.crypto.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519, Secret}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.transaction._
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
-import co.topl.nodeView.state.box.Box.Nonce
-import co.topl.nodeView.state.box.{ProgramId, _}
+import co.topl.modifier.box.Box.Nonce
+import co.topl.modifier.box.{ProgramId, _}
 import co.topl.program.{ProgramPreprocessor, _}
 import co.topl.settings.NetworkType.PrivateNet
 import co.topl.settings.{AppSettings, StartupOpts, Version}
@@ -22,9 +21,9 @@ import org.scalacheck.{Arbitrary, Gen}
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.{Curve25519, Signature}
 import scorex.util.encode.Base58
-
 import java.io.File
 import java.time.Instant
+
 import scala.collection.SortedSet
 import scala.util.{Random, Try}
 
@@ -499,7 +498,7 @@ trait CoreGenerators extends Logging {
     val difficulty = settings.forging.privateTestnet.map(_.initialDifficulty).get
     val version: PNVMVersion = settings.application.version.firstDigit
     val signingFunction: Array[Byte] => Try[SignatureCurve25519] =
-      (messageToSign: Array[Byte]) => keyRing.signWithAddress(matchingAddr, messageToSign)
+      (messageToSign: Array[Byte]) => keyRing.signWithAddress(matchingAddr)(messageToSign)
 
     Block.createAndSign(
       History.GenesisParentId,

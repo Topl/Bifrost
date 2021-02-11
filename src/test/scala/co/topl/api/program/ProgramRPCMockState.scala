@@ -1,13 +1,10 @@
 package co.topl.api.program
 
-import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
-import akka.util.ByteString
 import co.topl.api.RPCMockState
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.modifier.ModifierId
 import co.topl.nodeView.state
-import co.topl.nodeView.state.box._
+import co.topl.modifier.box._
 import io.circe.syntax._
 import org.scalatest.matchers.should
 

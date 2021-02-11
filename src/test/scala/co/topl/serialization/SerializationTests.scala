@@ -1,13 +1,14 @@
 package co.topl.serialization
 
-import co.topl.attestation.serialization.{PublicKeyPropositionCurve25519Serializer, SignatureCurve25519Serializer, ThresholdPropositionCurve25519Serializer, ThresholdSignatureCurve25519Serializer}
 import co.topl.attestation._
+import co.topl.attestation.serialization.{PublicKeyPropositionCurve25519Serializer, SignatureCurve25519Serializer, ThresholdPropositionCurve25519Serializer, ThresholdSignatureCurve25519Serializer}
+import co.topl.crypto.PrivateKeyCurve25519
 import co.topl.modifier.block.serialization.{BlockBodySerializer, BlockHeaderSerializer, BlockSerializer}
 import co.topl.modifier.block.{Block, BloomFilter}
+import co.topl.modifier.box._
+import co.topl.modifier.box.serialization.BoxSerializer
 import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.serialization._
-import co.topl.nodeView.state.box._
-import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.program.{ExecutionBuilder, ExecutionBuilderSerializer}
 import co.topl.settings.VersionSerializer
 import co.topl.utils.{CoreGenerators, ValidGenerators}
@@ -48,7 +49,7 @@ class SerializationTests extends AnyPropSpec
     }
   }
 
-  property("") {
+  property("SignatureCurve25519 serialization") {
     forAll(signatureGen) {
       sig: SignatureCurve25519 =>
         val parsed = SignatureCurve25519Serializer
@@ -259,7 +260,7 @@ class SerializationTests extends AnyPropSpec
     }
   }
 
-  property("Bloom filter serialization") {
+  property("BloomFilter serialization") {
     forAll(blockGen) {
       block =>
         val parsed: BloomFilter = BloomFilter.parseBytes(BloomFilter.toBytes(block.bloomFilter)).get

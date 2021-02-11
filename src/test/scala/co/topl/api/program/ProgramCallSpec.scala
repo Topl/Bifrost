@@ -5,8 +5,6 @@ import io.circe.parser.parse
 import io.circe.syntax._
 import org.scalatest.DoNotDiscover
 
-import scala.util.Random
-
 @DoNotDiscover
 class ProgramCallSpec extends ProgramRPCMockState {
 

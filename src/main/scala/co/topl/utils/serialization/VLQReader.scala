@@ -1,9 +1,9 @@
 package co.topl.utils.serialization
 
-import co.topl.utils.Extensions._
-import co.topl.utils.encode.ZigZagEncoder._
-
 import java.util
+
+import co.topl.utils.serialization.Extensions._
+import co.topl.utils.serialization.ZigZagEncoder._
 
 trait VLQReader extends Reader {
 
@@ -26,7 +26,7 @@ trait VLQReader extends Reader {
     * Decode Short previously encoded with [[VLQWriter.putUShort]] using VLQ.
     * @see [[https://en.wikipedia.org/wiki/Variable-length_quantity]]
     * @return Int
-    * @throws AssertionError for deserialized values not in unsigned Short range
+    * throws `AssertionError` for deserialized values not in unsigned Short range
     */
   @inline override def getUShort(): Int = {
     val x = getULong().toInt

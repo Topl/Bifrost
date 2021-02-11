@@ -1,14 +1,12 @@
 package co.topl.utils
 
-import co.topl.attestation.PrivateKeyCurve25519
-import co.topl.consensus.KeyRing
 import co.topl.consensus.genesis.PrivateTestnet
-import co.topl.crypto.KeyfileCurve25519
+import co.topl.crypto.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.State
-import co.topl.settings.{AppSettings, RuntimeOpts}
+import co.topl.settings.AppSettings
 
 import scala.util.{Failure, Success}
 

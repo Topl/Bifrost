@@ -7,7 +7,7 @@ import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import scorex.util.encode.Base58
 import supertagged.TaggedType
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 /**
  * Evidence content serves as a fingerprint (or commitment) of a particular proposition that is used to lock a box. Boxes
@@ -43,19 +43,27 @@ object Evidence extends BifrostSerializer[Evidence] {
   val size: Int = 1 + contentLength  //length of typePrefix + contentLength
 
   def apply(typePrefix: EvidenceTypePrefix, content: EvidenceContent): Evidence = {
+    require(content.length == contentLength, "Invalid evidence: incorrect EvidenceContent length")
+
     parseBytes(typePrefix +: content) match {
       case Success(ec) => ec
       case Failure(ex) => throw ex
     }
   }
 
-  private def apply(str: String): Evidence =
-    Base58.decode(str).flatMap(parseBytes) match {
-      case Success(ec) => ec
-      case Failure(ex) => throw ex
+  private def apply(str: String): Evidence = {
+    Base58.decode(str) match {
+      case Success(bytes) =>
+        require(bytes.length == size, "Invalid evidence: incorrect evidence length")
+        parseBytes(bytes) match {
+          case Success(ec) => ec
+          case Failure(ex) => throw ex
+        }
+      case Failure(e) => throw e
     }
+  }
 
-  override def serialize ( obj: Evidence, w: Writer ): Unit =
+  override def serialize (obj: Evidence, w: Writer): Unit =
     w.putBytes(obj.evBytes)
 
   override def parse(r:  Reader): Evidence = {

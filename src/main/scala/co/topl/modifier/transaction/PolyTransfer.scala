@@ -7,7 +7,7 @@ import co.topl.attestation._
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.TransferTransaction.BoxParams
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.state.box.{Box, PolyBox, SimpleValue, TokenBox, TokenValueHolder}
+import co.topl.modifier.box._
 import co.topl.utils.{Identifiable, Identifier}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
@@ -58,7 +58,7 @@ object PolyTransfer {
     */
   def createRaw[
     P <: Proposition: EvidenceProducer: Identifiable
-  ](stateReader:          StateReader,
+  ](stateReader:          StateReader[ProgramId, Address],
     toReceive:            IndexedSeq[(Address, SimpleValue)],
     sender:               IndexedSeq[Address],
     changeAddress:        Address,

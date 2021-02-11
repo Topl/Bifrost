@@ -1,33 +1,25 @@
 package co.topl.consensus
 
 import akka.actor._
-import akka.util.Timeout
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.{Address, PrivateKeyCurve25519, PublicKeyPropositionCurve25519, SignatureCurve25519}
-import co.topl.consensus
+import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.Forger.{ChainParams, PickTransactionsResult}
 import co.topl.consensus.genesis.{PrivateTestnet, Toplnet}
-import co.topl.crypto.KeyfileCurve25519
+import co.topl.crypto.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.Block.Timestamp
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{
-  EliminateTransactions,
-  GetDataFromCurrentView,
-  LocallyGeneratedModifier
-}
+import co.topl.nodeView.CurrentView
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{EliminateTransactions, GetDataFromCurrentView, LocallyGeneratedModifier}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.{ArbitBox, SimpleValue, TokenBox}
-import co.topl.nodeView.{CurrentView, NodeViewHolder}
+import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.settings.NetworkType._
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.Logging
 import co.topl.utils.TimeProvider.Time
-import co.topl.utils.encode.encodeBase16
-import scorex.util.encode.Base58
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
@@ -121,13 +113,12 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
   }
 
   private def keyManagement: Receive = {
-    case UnlockKey(addr, password)           => sender() ! keyRing.unlockKeyFile(addr, password)
-    case LockKey(addr, password)             => sender() ! keyRing.lockKeyFile(addr, password)
-    case CreateKey(password)                 => sender() ! keyRing.generateKeyFile(password)
+    case CreateKey(password)                 => sender() ! keyRing.DiskOps.generateKeyFile(password)
+    case UnlockKey(addr, password)           => sender() ! keyRing.DiskOps.unlockKeyFile(addr, password)
+    case LockKey(addr)                       => sender() ! keyRing.removeFromKeyring(addr)
     case ImportKey(password, mnemonic, lang) => sender() ! keyRing.importPhrase(password, mnemonic, lang)
     case ListKeys                            => sender() ! keyRing.addresses
     //TODO: JAA - add route to update rewards address
-    // TODO: JAA - add route to start forging
   }
 
   private def nonsense: Receive = { case nonsense: Any =>
@@ -384,7 +375,7 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
 
         // use the private key that owns the generator box to create a function that will sign the new block
         val signingFunction: Array[Byte] => Try[SignatureCurve25519] =
-          (messageToSign: Array[Byte]) => keyRing.signWithAddress(matchingAddr, messageToSign)
+          (messageToSign: Array[Byte]) => keyRing.signWithAddress(matchingAddr)(messageToSign)
 
         // lookup the public associated with the box,
         // (this is separate from the signing function so that the private key never leaves the KeyRing)
@@ -453,7 +444,7 @@ object Forger {
 
     case class UnlockKey(addr: String, password: String)
 
-    case class LockKey(addr: String, password: String)
+    case class LockKey(addr: Address)
 
     case object ListKeys
 
@@ -473,15 +464,7 @@ object ForgerRef {
   def props(settings: AppSettings, appContext: AppContext)(implicit ec: ExecutionContext): Props =
     Props(new Forger(settings, appContext)(ec, appContext.networkType.netPrefix))
 
-  def apply(settings: AppSettings, appContext: AppContext)(implicit
-    system:           ActorSystem,
-    ec:               ExecutionContext
-  ): ActorRef =
-    system.actorOf(props(settings, appContext))
-
-  def apply(name: String, settings: AppSettings, appContext: AppContext)(implicit
-    system:       ActorSystem,
-    ec:           ExecutionContext
-  ): ActorRef =
+  def apply(name: String, settings: AppSettings, appContext: AppContext)
+           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
     system.actorOf(props(settings, appContext), name)
 }

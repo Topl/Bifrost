@@ -1,6 +1,5 @@
 package co.topl.nodeView.history
 
-import co.topl.consensus
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.block.{Block, BloomFilter}

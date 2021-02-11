@@ -8,7 +8,7 @@ import co.topl.consensus.Forger
 import co.topl.consensus.Forger.ReceivableMessages.GenerateGenesis
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.serialization.BlockSerializer
-import co.topl.modifier.block.{Block, PersistentNodeViewModifier, TransactionCarryingPersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier}
+import co.topl.modifier.block.{Block, PersistentNodeViewModifier, TransactionCarryingPersistentNodeViewModifier}
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.modifier.{ModifierId, NodeViewModifier}
@@ -525,15 +525,11 @@ object NodeViewHolder {
 
 object NodeViewHolderRef {
 
-  def apply ( settings: AppSettings, appContext: AppContext )
-            ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
-    system.actorOf(props(settings, appContext))
+  def props ( settings: AppSettings, appContext: AppContext )
+            ( implicit ec: ExecutionContext ): Props =
+    Props(new NodeViewHolder(settings)(ec, appContext.networkType.netPrefix))
 
   def apply ( name: String, settings: AppSettings, appContext: AppContext )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
     system.actorOf(props(settings, appContext), name)
-
-  def props ( settings: AppSettings, appContext: AppContext )
-            ( implicit ec: ExecutionContext ): Props =
-    Props(new NodeViewHolder(settings)(ec, appContext.networkType.netPrefix))
 }
