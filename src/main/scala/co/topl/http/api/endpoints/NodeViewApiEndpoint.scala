@@ -5,11 +5,12 @@ import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.http.api.{ApiEndpointWithView, Namespace, ToplNamespace}
 import co.topl.modifier.ModifierId
+import co.topl.modifier.box._
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.modifier.box._
 import co.topl.settings.{AppContext, RPCApiSettings}
+import co.topl.utils.Int128
 import io.circe.Json
 import io.circe.syntax._
 
@@ -22,6 +23,9 @@ case class NodeViewApiEndpoint(
   nodeViewHolderRef:     ActorRef
 )(implicit val context:  ActorRefFactory)
     extends ApiEndpointWithView {
+
+  import co.topl.utils.codecs.Int128Codec._
+
   type HIS = History
   type MS = State
   type MP = MemPool
@@ -108,18 +112,18 @@ case class NodeViewApiEndpoint(
             k -> orderedBoxes
           }.toMap
 
-        val balances: Map[Address, Map[String, Long]] =
+        val balances: Map[Address, Map[String, Int128]] =
           boxes.map { case (addr, assets) =>
             addr -> assets.map { case (boxType, boxes) =>
-              (boxType, boxes.map(_.value.quantity).sum)
+              (boxType, boxes.map(_.value.quantity).foldLeft[Int128](0)(_ + _))
             }
           }
 
         boxes.map { case (addr, boxes) =>
           addr -> Map(
             "Balances" -> Map(
-              "Polys"  -> balances(addr).getOrElse(PolyBox.typeString, 0L),
-              "Arbits" -> balances(addr).getOrElse(ArbitBox.typeString, 0L)
+              "Polys"  -> balances(addr).getOrElse(PolyBox.typeString, Int128(0)),
+              "Arbits" -> balances(addr).getOrElse(ArbitBox.typeString, Int128(0))
             ).asJson,
             "Boxes" -> boxes.map(b => b._1 -> b._2.asJson).asJson
           )
@@ -142,7 +146,8 @@ case class NodeViewApiEndpoint(
     * @param id request identifier
     * @return
     */
-  private def mempool(params: Json, id: String): Future[Json] = viewAsync(_.pool.take(100).asJson)
+  private def mempool(params: Json, id: String): Future[Json] =
+    viewAsync { _.pool.take(100)(-_.dateAdded).map(_.tx).asJson }
 
   /** #### Summary
     * Lookup a transaction by its id

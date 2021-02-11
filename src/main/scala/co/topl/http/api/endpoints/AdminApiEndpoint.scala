@@ -2,12 +2,12 @@ package co.topl.http.api.endpoints
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.pattern.ask
-import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
+import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.consensus.Forger.ReceivableMessages._
 import co.topl.http.api.{AdminNamespace, ApiEndpoint, Namespace}
 import co.topl.settings.{AppContext, RPCApiSettings}
-import io.circe.{DecodingFailure, Json}
+import io.circe.Json
 import io.circe.syntax.EncoderOps
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -32,6 +32,9 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     case (method, params, id) if method == s"${namespace.name}_listOpenKeyfiles" => listOpenKeyfiles(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_startForging"     => startForging(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_stopForging"      => stopForging(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_updateRewardsAddress" =>
+      updateRewardsAddress(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_getRewardsAddress" => getRewardsAddress(params.head, id)
   }
 
   /** #### Summary
@@ -146,12 +149,41 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     */
   private def importKeyfile(implicit params: Json, id: String): Future[Json] =
     (for {
-      password       <- params.hcursor.get[String]("password")
-      seedPhrase     <- params.hcursor.get[String]("seedPhrase")
-      seedPhraseLang <- params.hcursor.get[Option[String]]("seedPhrase")
-    } yield (keyHolderRef ? ImportKey(password, seedPhrase, seedPhraseLang.getOrElse("en"))).mapTo[Try[Address]].map {
+      password   <- params.hcursor.get[String]("password")
+      seedPhrase <- params.hcursor.get[String]("seedPhrase")
+      seedPhraseLang <- parseOptional("seedPhraseLand", "en")
+    } yield (keyHolderRef ? ImportKey(password, seedPhrase, seedPhraseLang)).mapTo[Try[Address]].map {
       case Success(addr: Address) => Map("publicKey" -> addr.asJson).asJson
       case Failure(ex)            => throw new Error(s"An error occurred while importing the seed phrase. $ex")
+    }) match {
+      case Right(json) => json
+      case Left(ex)    => throw ex
+    }
+
+  /** Allows the user to retrieve the PublicKey address to receive block rewards
+    * @return
+    */
+  private def getRewardsAddress(params: Json, id: String): Future[Json] =
+    (keyHolderRef ? GetRewardsAddress).mapTo[String].map { a =>
+      Map("rewardsAddress" -> a).asJson
+    }
+
+  /** Allows the user to specify a new PublicKey address to receive block rewards
+    * @return
+    */
+  private def updateRewardsAddress(params: Json, id: String): Future[Json] =
+    (for {
+      addr <- params.hcursor.get[Address]("address")
+    } yield {
+      require(
+        addr.evidence.bytes.head == PublicKeyPropositionCurve25519.typePrefix,
+        s"Invalid rewards address. Only" +
+        s"PublicKeyCurve25519 addresses are supported at this time"
+      )
+
+      (keyHolderRef ? UpdateRewardsAddress(addr)).mapTo[String].map { a =>
+        Map("rewardsAddress" -> a).asJson
+      }
     }) match {
       case Right(json) => json
       case Left(ex)    => throw ex

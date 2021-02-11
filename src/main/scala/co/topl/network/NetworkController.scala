@@ -230,7 +230,7 @@ class NetworkController(
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
 
-  def networkTime(): Time = appContext.timeProvider.time()
+  def networkTime(): Time = appContext.timeProvider.time
 
   /** Schedule a periodic connection to a random known peer */
   private def scheduleConnectionToPeer(): Unit = {

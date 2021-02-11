@@ -17,7 +17,7 @@ class NodeViewRPCSpec extends AnyWordSpec
   val block: Block = blockGen.sample.get.copy(transactions = txs)
 
   view().history.storage.update(block, isBest = false)
-  view().pool.putWithoutCheck(txs)
+  view().pool.putWithoutCheck(txs, block.timestamp)
 
   "NodeView RPC" should {
     "Get first 100 transactions in mempool" in {

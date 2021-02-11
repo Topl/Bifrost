@@ -11,6 +11,8 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.modifier.box.{AssetValue, SimpleValue}
 import co.topl.settings.{AppContext, RPCApiSettings}
+import co.topl.utils.Int128
+import co.topl.utils.codecs.Int128Codec
 import io.circe.Json
 import io.circe.syntax._
 import scorex.util.encode.Base58
@@ -29,6 +31,8 @@ case class TransactionApiEndpoint(
   nodeViewHolderRef: ActorRef
 )(implicit val ec:   ExecutionContext)
     extends ApiEndpointWithView {
+
+  import Int128Codec._
 
   type HIS = History
   type MS = State
@@ -97,7 +101,7 @@ case class TransactionApiEndpoint(
         sender            <- p.get[IndexedSeq[Address]]("sender")
         changeAddr        <- p.get[Address]("changeAddress")
         consolidationAddr <- p.get[Option[Address]]("consolidationAddress")
-        fee               <- p.get[Long]("fee")
+        fee               <- p.get[Int128]("fee")(Int128Codec.jsonDecoder)
         minting           <- p.get[Boolean]("minting")
         data              <- p.get[Option[String]]("data")
       } yield {
@@ -183,10 +187,10 @@ case class TransactionApiEndpoint(
       // parse arguments from the request
       (for {
         propType   <- p.get[String]("propositionType")
-        recipients <- p.get[IndexedSeq[(Address, Long)]]("recipients")
+        recipients <- p.get[IndexedSeq[(Address, Int128)]]("recipients")
         sender     <- p.get[IndexedSeq[Address]]("sender")
         changeAddr <- p.get[Address]("changeAddress")
-        fee        <- p.get[Long]("fee")
+        fee        <- p.get[Int128]("fee")(Int128Codec.jsonDecoder)
         data       <- p.get[Option[String]]("data")
       } yield {
 
@@ -257,11 +261,11 @@ case class TransactionApiEndpoint(
       // parse arguments from the request
       (for {
         propType          <- p.get[String]("propositionType")
-        recipients        <- p.get[IndexedSeq[(Address, Long)]]("recipients")
+        recipients        <- p.get[IndexedSeq[(Address, Int128)]]("recipients")
         sender            <- p.get[IndexedSeq[Address]]("sender")
         changeAddr        <- p.get[Address]("changeAddress")
         consolidationAddr <- p.get[Option[Address]]("consolidationAddress")
-        fee               <- p.get[Long]("fee")
+        fee               <- p.get[Int128]("fee")(Int128Codec.jsonDecoder)
         data              <- p.get[Option[String]]("data")
       } yield {
 

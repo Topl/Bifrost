@@ -19,7 +19,9 @@ case class ApplicationSettings(
   nodeKeys:    Option[Set[String]],
   version:     Version,
   cacheExpire: Int,
-  cacheSize:   Int
+  cacheSize:   Int,
+  mempoolTimeout: FiniteDuration,
+  rebroadcastCount: Int
 )
 
 case class RPCApiSettings(

@@ -29,7 +29,7 @@ class NetworkTimeProvider(ntpSettings: NetworkTimeProviderSettings)(implicit ec:
     *
     * @return the current timestamp in milliseconds
     */
-  override def time(): TimeProvider.Time = {
+  override def time: TimeProvider.Time = {
     checkUpdateRequired()
     NetworkTime.localWithOffset(offset.get())
   }
