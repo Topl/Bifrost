@@ -4,7 +4,7 @@ import co.topl.consensus
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
-import co.topl.utils.TimeProvider
+import co.topl.utils.{Int128, TimeProvider}
 
 import scala.util.{Failure, Try}
 
@@ -104,7 +104,7 @@ class SyntaxBlockValidator extends BlockValidator[Block] {
       case (tx, 0) => tx match {
         case tx: ArbitTransfer[_] if tx.minting =>
           forgerEntitlementCheck(tx, block)
-          require(tx.to.map(_._2.quantity).reduce(_ + _) == inflation, //JAA -this needs to be done more carefully
+          require(tx.to.map(_._2.quantity).foldLeft[Int128](0)(_ + _) == inflation, //JAA -this needs to be done more carefully
             "The inflation amount in the block must match the output of the Arbit rewards transaction")
           require(tx.data.fold(false)(_.split("_").head == block.parentId.toString),
             "Arbit reward transactions must contain the parent id of their minting block")
@@ -115,7 +115,7 @@ class SyntaxBlockValidator extends BlockValidator[Block] {
       case (tx, 1) => tx match {
         case tx: PolyTransfer[_] if tx.minting =>
           forgerEntitlementCheck(tx, block)
-          require(block.transactions.map(_.fee).reduce(_ + _) == tx.to.map(_._2.quantity).reduce(_ + _),
+          require(block.transactions.map(_.fee).foldLeft[Int128](0)(_ + _) == tx.to.map(_._2.quantity).foldLeft[Int128](0)(_ + _),
                   "The sum of the fees in the block must match the output of the Poly rewards transaction")
           require(tx.data.fold(false)(_.split("_").head == block.parentId.toString),
             "Poly reward transactions must contain the parent id of their minting block")

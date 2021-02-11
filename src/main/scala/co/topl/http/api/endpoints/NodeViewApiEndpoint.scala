@@ -5,10 +5,10 @@ import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.http.api.{ApiEndpointWithView, Namespace, ToplNamespace}
 import co.topl.modifier.ModifierId
+import co.topl.modifier.box._
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.modifier.box._
 import co.topl.settings.{AppContext, RPCApiSettings}
 import co.topl.utils.Int128
 import io.circe.Json
@@ -116,7 +116,7 @@ case class NodeViewApiEndpoint(
         val balances: Map[Address, Map[String, Int128]] =
           boxes.map { case (addr, assets) =>
             addr -> assets.map { case (boxType, boxes) =>
-              (boxType, boxes.map(_.value.quantity).reduce(_ + _))
+              (boxType, boxes.map(_.value.quantity).foldLeft[Int128](0)(_ + _))
             }
           }
 

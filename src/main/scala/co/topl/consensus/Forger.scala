@@ -138,10 +138,25 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
   }
 
   /** Helper function to enable private forging if we can expects keys in the key ring */
-  private def checkPrivateForging(): Unit =
-    if (settings.forging.forgeOnStartup && keyRing.addresses.nonEmpty) self ! StartForging
-    else if (settings.forging.forgeOnStartup)
-      log.warn("Forging process not started since the key ring is empty")
+  private def checkPrivateForging(): Unit = {
+    val sf =  settings.forging
+    if (sf.forgeOnStartup) {
+      // if forging on startup is enabled, check if a seed was provided and the keyring is not already populated
+      // this is usually the case when you have started up a private network and are attempting to resume it using
+      // the same seed you used previously to continue forging
+       if (sf.privateTestnet.flatMap(_.genesisSeed).nonEmpty && keyRing.addresses.isEmpty) {
+         val sfp = sf.privateTestnet.get //above conditional ensures this exists
+         generateKeys(sfp.numTestnetAccts, sfp.genesisSeed) // JAA - hacky way to reproduce keys (not fully tested)
+         rewardAddress = keyRing.addresses.headOption
+         maxStake = sfp.numTestnetAccts * sfp.testnetBalance // JAA - we need to save these values to disk
+       }
+
+      // if forging has been enabled and the keyring is nonEmpty (either from the call above or genesis block formation)
+      // then we should send the StartForging signal
+      if (keyRing.addresses.nonEmpty) self ! StartForging
+      else log.warn("Forging process not started since the key ring is empty")
+    }
+  }
 
   /** Schedule a forging attempt */
   private def scheduleForgingAttempt(): Unit = {
@@ -209,8 +224,8 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
         case Failure(ex) => throw ex
       }
 
-      log.debug(s"Trying to generate block from total stake ${boxes.map(_.value.quantity).reduce(_ + _)}")
-      require(boxes.map(_.value.quantity).reduce(_ + _) > 0, "No Arbits could be found to stake with, exiting attempt")
+      log.debug(s"Trying to generate block from total stake ${boxes.map(_.value.quantity).foldLeft[Int128](0)(_ + _)}")
+      require(boxes.map(_.value.quantity).foldLeft[Int128](0)(_ + _) > 0, "No Arbits could be found to stake with, exiting attempt")
 
       // create the coinbase reward transaction
       val arbitReward = createArbitReward(rewardAddr, history.bestBlock.id) match {
@@ -228,7 +243,7 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
       }
 
       // create the unsigned fee reward transaction
-      val polyReward = createPolyReward(transactions.map(_.fee).reduce(_ + _), rewardAddr, history.bestBlock.id) match {
+      val polyReward = createPolyReward(transactions.map(_.fee).foldLeft[Int128](0)(_ + _), rewardAddr, history.bestBlock.id) match {
         case Success(tx) => tx
         case Failure(ex) => throw ex
       }
