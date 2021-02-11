@@ -2,6 +2,7 @@ package co.topl.utils.serialization
 
 import java.util
 
+import co.topl.utils.Int128
 import co.topl.utils.serialization.Extensions._
 import co.topl.utils.serialization.ZigZagEncoder._
 
@@ -88,6 +89,9 @@ trait VLQReader extends Reader {
     sys.error(s"Cannot deserialize Long value. Unexpected reader $this with bytes remaining $remaining")
     // see https://rosettacode.org/wiki/Variable-length_quantity for implementations in other languages
   }
+
+  /** Retrieve the custom Int128 type that is 16 bytes (128 bits) */
+  @inline def getInt128(): Int128 = Int128(getBytes(Int128.numBytes))
 
   @inline override def getBits(size: Int): Array[Boolean] = {
     if (size == 0) return Array[Boolean]()

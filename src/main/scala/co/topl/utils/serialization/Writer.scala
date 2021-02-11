@@ -112,6 +112,12 @@ trait Writer {
   def putULong(x: Long): this.type
 
   /**
+   * Encode an Int128 value
+   * @param x - Int128
+   */
+  def putInt128(x: Int128): this.type
+
+  /**
     * Encode an array of bytes
     * @param xs value to encode
     * @return

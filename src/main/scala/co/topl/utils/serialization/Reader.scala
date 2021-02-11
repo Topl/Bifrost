@@ -96,6 +96,12 @@ trait Reader {
   def getULong(): Long
 
   /**
+   * Decode sign Int128
+   * @return signed Int128
+   */
+  def getInt128(): Int128
+
+  /**
     * Decode array of byte values
     * @param size expected size of decoded array
     * @return

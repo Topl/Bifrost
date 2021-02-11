@@ -79,10 +79,10 @@ object SimpleValue extends BifrostSerializer[SimpleValue] {
     }
 
   override def serialize(obj: SimpleValue, w: Writer): Unit =
-    w.putBytes(obj.quantity.toByteArray)
+    w.putInt128(obj.quantity)
 
   override def parse(r: Reader): SimpleValue =
-    SimpleValue(Int128(r.getBytes(Int128.numBytes)))
+    SimpleValue(r.getInt128())
 }
 
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
@@ -134,7 +134,7 @@ object AssetValue extends BifrostSerializer[AssetValue] {
     }
 
   override def serialize(obj: AssetValue, w: Writer): Unit = {
-    w.putBytes(obj.quantity.toByteArray)
+    w.putInt128(obj.quantity)
     AssetCode.serialize(obj.assetCode, w)
     SecurityRoot.serialize(obj.securityRoot, w)
     w.putOption(obj.metadata) { (writer, metadata) =>
@@ -143,7 +143,7 @@ object AssetValue extends BifrostSerializer[AssetValue] {
   }
 
   override def parse(r: Reader): AssetValue = {
-    val quantity = Int128(r.getBytes(Int128.numBytes))
+    val quantity = r.getInt128()
     val assetCode = AssetCode.parse(r)
     val securityRoot = SecurityRoot.parse(r)
     val metadata: Option[String] = r.getOption {

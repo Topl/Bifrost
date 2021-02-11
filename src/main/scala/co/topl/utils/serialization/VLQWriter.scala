@@ -117,6 +117,9 @@ trait VLQWriter extends Writer {
     // see https://rosettacode.org/wiki/Variable-length_quantity for implementations in other languages
   }
 
+  /** Insert the custom Int128 type that is 16 bytes (128 bits) */
+  @inline def putInt128(x: Int128): this.type = putBytes(x.toByteArray)
+
   @inline override def putBits(xs: Array[Boolean]): this.type = {
     if (xs.isEmpty) return this
     val bitSet = new util.BitSet(xs.length)

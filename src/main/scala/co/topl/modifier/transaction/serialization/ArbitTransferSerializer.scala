@@ -38,7 +38,7 @@ object ArbitTransferSerializer extends BifrostSerializer[ArbitTransfer[_ <: Prop
     }
 
     /* fee: Int128 */
-    w.putBytes(obj.fee.toByteArray)
+    w.putInt128(obj.fee)
 
     /* timestamp: Long */
     w.putULong(obj.timestamp)
@@ -76,7 +76,7 @@ object ArbitTransferSerializer extends BifrostSerializer[ArbitTransfer[_ <: Prop
       prop -> sig
     }: _*)
 
-    val fee: Int128 = Int128(r.getBytes(Int128.numBytes))
+    val fee: Int128 = r.getInt128()
     val timestamp: Long = r.getULong()
 
     val data: Option[String] = r.getOption {
