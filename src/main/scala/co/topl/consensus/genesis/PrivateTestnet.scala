@@ -9,6 +9,7 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
 import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.settings.{AppSettings, Version}
+import co.topl.utils.Int128
 
 import scala.util.Try
 
@@ -38,14 +39,15 @@ case class PrivateTestnet ( keyGen  : (Int, Option[String]) => Set[PublicKeyProp
     // map the members to their balances then continue as normal
     val privateTotalStake = numberOfKeys * balance
 
-    val accts = keyGen(numberOfKeys, settings.forging.privateTestnet.flatMap(_.genesisSeed))
+    val accts: Set[PublicKeyPropositionCurve25519] =
+      keyGen(numberOfKeys, settings.forging.privateTestnet.flatMap(_.genesisSeed))
 
     val txInput = (
       IndexedSeq(),
       (genesisAcct.publicImage.address -> SimpleValue(0L)) +:
         accts.map(_.address -> SimpleValue(balance)).toIndexedSeq,
       Map(genesisAcct.publicImage -> SignatureCurve25519.genesis),
-      0L,
+      Int128(0),
       0L,
       None,
       true)

@@ -1,5 +1,7 @@
 package co.topl.utils.serialization
 
+import co.topl.utils.Int128
+
 object ZigZagEncoder {
 
   /**
@@ -58,4 +60,5 @@ object ZigZagEncoder {
     // source: http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java/core/src/main/java/com/google/protobuf/CodedInputStream.java#L566
     (n >>> 1) ^ -(n & 1)
   }
+
 }

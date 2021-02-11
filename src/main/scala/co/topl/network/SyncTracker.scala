@@ -86,17 +86,17 @@ class SyncTracker(
   }
 
   def updateLastSyncSentTime(peer: ConnectedPeer): Unit = {
-    val currentTime = timeProvider.time()
+    val currentTime = timeProvider.time
     lastSyncSentTime(peer) = currentTime
     lastSyncInfoSentTime = currentTime
   }
 
   /** Time elapsed since last synchronization */
-  def elapsedTimeSinceLastSync(): Long = timeProvider.time() - lastSyncInfoSentTime
+  def elapsedTimeSinceLastSync(): Long = timeProvider.time - lastSyncInfoSentTime
 
   /** A peer with a lastSyncSentTime greater than the maxInterval is outdated */
   private def outdatedPeers(): Seq[ConnectedPeer] =
-    lastSyncSentTime.filter(t => (timeProvider.time() - t._2).millis > maxInterval()).keys.toSeq
+    lastSyncSentTime.filter(t => (timeProvider.time - t._2).millis > maxInterval()).keys.toSeq
 
   /** Number of peers that are older */
   private def numOfSeniors(): Int = statuses.count(_._2 == Older)
@@ -116,7 +116,7 @@ class SyncTracker(
         val elders = statuses.filter(_._2 == Older).keys.toIndexedSeq
         val nonOutdated =
           (if (elders.nonEmpty) elders(scala.util.Random.nextInt(elders.size)) +: unknowns else unknowns) ++ forks
-        nonOutdated.filter(p => (timeProvider.time() - lastSyncSentTime.getOrElse(p, 0L)).millis >= minInterval)
+        nonOutdated.filter(p => (timeProvider.time - lastSyncSentTime.getOrElse(p, 0L)).millis >= minInterval)
       }
 
     peers.foreach(updateLastSyncSentTime)

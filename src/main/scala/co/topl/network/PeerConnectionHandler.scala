@@ -245,7 +245,7 @@ class PeerConnectionHandler(
   }
 
   private def createHandshakeMessage(): Unit = {
-    val nodeInfo = message.Handshake(localPeerSpec, appContext.timeProvider.time())
+    val nodeInfo = message.Handshake(localPeerSpec, appContext.timeProvider.time)
 
     /** create, save, and schedule a timeout option. The variable lets us cancel the timeout message
       * if a handshake is received
@@ -264,7 +264,7 @@ class PeerConnectionHandler(
 
     val peerInfo = PeerInfo(
       receivedHandshake.peerSpec,
-      appContext.timeProvider.time(),
+      appContext.timeProvider.time,
       Some(direction)
     )
     val peer = ConnectedPeer(connectionDescription.connectionId, self, Some(peerInfo))

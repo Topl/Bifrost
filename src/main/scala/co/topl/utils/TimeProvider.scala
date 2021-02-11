@@ -5,5 +5,5 @@ object TimeProvider {
 }
 
 trait TimeProvider {
-  def time(): TimeProvider.Time
+  def time: TimeProvider.Time
 }
