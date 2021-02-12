@@ -88,7 +88,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       HttpMethods.POST,
       uri = "/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    ).withHeaders(RawHeader("x-api-key", settings.application.bifrostApiKey))
+    ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
 
   it should "successfully connect to Bifrost" in {
@@ -99,7 +99,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |   "id": "2",
          |   "method": "onlineWallet_connectToBifrost",
          |   "params": [{
-         |      "chainProvider": "${settings.application.chainProvider}"
+         |      "chainProvider": "${settings.application.chainProvider.chainProvider}"
          |   }]
          |}
          """.stripMargin)

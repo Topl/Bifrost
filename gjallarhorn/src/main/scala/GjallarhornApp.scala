@@ -67,7 +67,7 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   //Attempt to connect to Bifrost and start online mode.
   val connectRequest: Vector[Json] = Vector(Map("params" ->
-    Vector(Map("chainProvider" -> settings.application.chainProvider).asJson)).asJson)
+    Vector(Map("chainProvider" -> settings.application.chainProvider.chainProvider).asJson)).asJson)
   try {
     gjalBifrostRoute.handlers("onlineWallet_connectToBifrost", connectRequest, "2")
   } catch {
@@ -86,8 +86,8 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   //Set-up http server info:
   val httpService: HttpService = HttpService(apiRoutes, settings.rpcApi)
-  val httpHost: String = settings.rpcApi.bindAddress.getHostName
-  val httpPort: Int = settings.rpcApi.bindAddress.getPort
+  val httpHost: String = settings.rpcApi.bindHostname
+  val httpPort: Int = settings.rpcApi.bindPort
 
   // trigger the HTTP server bind and check that bind was successful.
   // terminates application on failure

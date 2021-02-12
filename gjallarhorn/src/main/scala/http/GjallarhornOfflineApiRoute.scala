@@ -58,16 +58,16 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
     case (method, params, id) if method == s"${namespace.name}_getCurrentState" => getCurrentState(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_networkType" =>
       Future{Map("networkPrefix" -> networkPrefix).asJson}
-    case (method, params, id) if method == s"${namespace.name}_getCommunicationMode" =>
+/*    case (method, params, id) if method == s"${namespace.name}_getCommunicationMode" =>
       Future{Map("mode" -> applicationSettings.communicationMode).asJson}
     case (method, params, id) if method == s"${namespace.name}_getCurrentApiKey" =>
-      Future{Map("apiKey" -> applicationSettings.bifrostApiKey).asJson}
+      Future{Map("apiKey" -> applicationSettings.bifrostApiKey).asJson}*/
 
     // Change settings:
     case (method, params, id) if method == s"${namespace.name}_changeNetwork" => changeNetwork(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_changeCommunicationMode" =>
-      changeCommunicationMode(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_changeApiKey" => changeApiKey(params.head, id)
+ /*   case (method, params, id) if method == s"${namespace.name}_changeCommunicationMode" =>
+      changeCommunicationMode(params.head, id)*/
+    //case (method, params, id) if method == s"${namespace.name}_changeApiKey" => changeApiKey(params.head, id)
 
   }
 
@@ -431,7 +431,7 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
     })
   }
 
-  /** #### Summary
+  /*/** #### Summary
     * Change the communication mode
     *
     * #### Description
@@ -448,7 +448,7 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
     * @param id     request identifier
     * @return - json mapping: "newMode" -> appSettings.application.communicationMode
     */
-  private def changeCommunicationMode(params: Json, id: String): Future[Json] = {
+ private def changeCommunicationMode(params: Json, id: String): Future[Json] = {
     (for {
       mode <- (params \\ "mode").head.as[String]
     } yield {
@@ -459,9 +459,9 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
       case Right(value) => Future{value}
       case Left(error) => throw new Exception (s"error parsing for mode: $error")
     }
-  }
+  }*/
 
-  /** #### Summary
+/*  /** #### Summary
     * Change the api key
     *
     * #### Description
@@ -488,7 +488,7 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
       case Right(value) => Future{value}
       case Left(error) => throw new Exception (s"error parsing for api key: $error")
     }
-  }
+  }*/
 
 
   /** #### Summary
@@ -513,8 +513,8 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
       Await.result( (keyManagerRef ? GetAllKeyfiles).mapTo[Map[Address, String]].map(keys => {
         Future{Map(
           "networkPrefix" -> networkPrefix.asJson,
-          "communicationMode" -> applicationSettings.communicationMode.asJson,
-          "apiKey" -> applicationSettings.bifrostApiKey.asJson,
+/*          "communicationMode" -> applicationSettings.communicationMode.asJson,
+          "apiKey" -> applicationSettings.bifrostApiKey.asJson,*/
           "keyfileDirectory" -> directory,
           "keys" -> keys.asJson
         ).asJson}
