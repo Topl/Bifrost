@@ -86,7 +86,7 @@ case class TransactionApiEndpoint(
     * | quantity     | String    | Required            | Number of tokens in String                                                                      |
     * | assetCode    | String    | Required            | Unique identifier for user issued Assets, generated from version, issuer address, and shortName |
     * | securityRoot | String    | Optional            | Optional 32 byte commitment to instance of the AssetBox                                         |
-    * | metadata     | String    | Optional            | String must be less than 128 UTF-8 characters                                                   |
+    * | metadata     | String    | Optional            | String must be less than 128 Latin-1 encoded characters                                                   |
     *
     * @param params input parameter as specified above
     * @param id request identifier
