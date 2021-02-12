@@ -12,16 +12,16 @@ import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 import scala.concurrent.duration._
 
 case class ApplicationSettings(
-  dataDir:     Option[String],
-  keyFileDir:  Option[String],
-  enablePBR:   Boolean,
-  enableTBR:   Boolean,
-  nodeKeys:    Option[Set[String]],
-  version:     Version,
-  cacheExpire: Int,
-  cacheSize:   Int,
-  mempoolTimeout: FiniteDuration,
-  rebroadcastCount: Int
+  cacheExpire:      Int,
+  cacheSize:        Int,
+  dataDir:          Option[String],
+  keyFileDir:       Option[String],
+  enablePBR:        Boolean,
+  enableTBR:        Boolean,
+  mempoolTimeout:   FiniteDuration,
+  nodeKeys:         Option[Set[String]],
+  rebroadcastCount: Int,
+  version:          Version
 )
 
 case class RPCApiSettings(
@@ -33,7 +33,6 @@ case class RPCApiSettings(
 )
 
 case class NetworkSettings(
-  addedMaxDelay:           Option[FiniteDuration],
   agentName:               String,
   applicationNameLimit:    Int,
   bindAddress:             InetSocketAddress,
@@ -47,12 +46,12 @@ case class NetworkSettings(
   handshakeTimeout:        FiniteDuration,
   knownPeers:              Seq[InetSocketAddress],
   magicBytes:              Array[Byte],
+  maxChainCacheDepth:      Int,
   maxConnections:          Int,
   maxDeliveryChecks:       Int,
   maxHandshakeSize:        Int,
   maxInvObjects:           Int,
   maxModifiersCacheSize:   Int,
-  maxChainCacheDepth:      Int,
   maxPacketSize:           Int,
   maxPeerSpecObjects:      Int,
   nodeName:                String,
