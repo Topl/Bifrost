@@ -118,7 +118,7 @@ trait VLQWriter extends Writer {
   }
 
   /** Insert the custom Int128 type that is 16 bytes (128 bits) */
-  @inline def putInt128(x: Int128): this.type = putBytes(x.toByteArray)
+  @inline def putInt128(x: Int128): this.type = this.putBytes(x.toByteArray)
 
   @inline override def putBits(xs: Array[Boolean]): this.type = {
     if (xs.isEmpty) return this

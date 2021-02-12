@@ -14,10 +14,10 @@ package object consensus {
   private var _protocolMngr: ProtocolVersioner = ProtocolVersioner.empty
 
   // these variables are left as vars since they are local state of the consensus protocol determined from the chain
-  private var _maxStake: Int128 = _
-  private var _inflation: Int128 = _  // not currently used
-  private var _difficulty: Long = _ // not currently used
-  private var _height: Long = _     // not currently used
+  private var _maxStake: Int128 = 0
+  private var _inflation: Int128 = 0  // not currently used
+  private var _difficulty: Long = 0 // not currently used
+  private var _height: Long = 0     // not currently used
 
   // setters
   private[consensus] def protocolMngr_= (value: ProtocolVersioner): Unit = _protocolMngr = value

@@ -2,22 +2,22 @@ package co.topl.consensus.genesis
 
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.EvidenceProducer.Syntax._
-import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.Forger.ChainParams
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
 import co.topl.modifier.box.{ArbitBox, SimpleValue}
+import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
 import co.topl.settings.{NetworkType, Version}
 import co.topl.utils.Int128
 
 import scala.util.Try
 
-case object Toplnet extends GenesisProvider {
+case object ToplnetGenesis extends GenesisProvider {
 
-  implicit val networkPrefix: NetworkPrefix = NetworkType.MainNet.netPrefix
+  implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
 
-  override protected val blockChecksum: ModifierId = ModifierId("2AfWrydy1sXuGU776f9MVEEPnyC18o12hcEsEC4LV6Xw5")
+  override protected val blockChecksum: ModifierId = ModifierId("29tx4mTsQPkynrt2KaHdtruKypx2zgWkUJr5a1knL2wGf")
 
   override protected val blockVersion: Version = new Version(1, 0, 0)
 
@@ -43,27 +43,42 @@ case object Toplnet extends GenesisProvider {
     "9d47mCaSjpK3TMrQBtSRhqYVrtzJapu8i6m8rDSFkkmhHg6LrLx" -> 10000000000000000L,
     "9eRz4kZupqZLRFkKzAa6NTAwqkg5LinM61o8PkvmqAhAQKbsLh4" -> 10000000000000000L,
     "9dCM1pmgpAVrQgtRemMNt12w2dmMEfnhGD55VCSixqhVoQgkg9s" -> 10000000000000000L,
-    "9eTEruqCg9nESFYmaTjmdFAVckVoGoZqKmTwyeapVAtETLkiUhy" -> 10000000000000000L,
-    )
+    "9eTEruqCg9nESFYmaTjmdFAVckVoGoZqKmTwyeapVAtETLkiUhy" -> 10000000000000000L
+  )
 
   def getGenesisBlock: Try[(Block, ChainParams)] = Try {
 
-    val memberKeys = members.keys.map(str => PublicKeyPropositionCurve25519.apply(str).address)
+    val memberKeys = members.keys.map(Address(networkPrefix)(_))
 
     val txInput = (
-      IndexedSeq(genesisAcct.publicImage.address -> 0L),
+      IndexedSeq(),
       memberKeys.zip(members.values.map(SimpleValue(_))).toIndexedSeq,
       Map(genesisAcct.publicImage -> SignatureCurve25519.genesis),
-      0L,
+      Int128(0),
       0L,
       None,
-      true)
+      true
+    )
 
     val txs = Seq(
-      ArbitTransfer[PublicKeyPropositionCurve25519]
-        (txInput._1,txInput._2,txInput._3,txInput._4,txInput._5,txInput._6,txInput._7),
-      PolyTransfer[PublicKeyPropositionCurve25519]
-        (txInput._1,txInput._2,txInput._3,txInput._4,txInput._5,txInput._6,txInput._7)
+      ArbitTransfer[PublicKeyPropositionCurve25519](
+        txInput._1,
+        txInput._2,
+        txInput._3,
+        txInput._4,
+        txInput._5,
+        txInput._6,
+        txInput._7
+      ),
+      PolyTransfer[PublicKeyPropositionCurve25519](
+        txInput._1,
+        txInput._2,
+        txInput._3,
+        txInput._4,
+        txInput._5,
+        txInput._6,
+        txInput._7
+      )
     )
 
     val generatorBox = ArbitBox(genesisAcct.publicImage.generateEvidence, 0, SimpleValue(totalStake))
@@ -77,14 +92,17 @@ case object Toplnet extends GenesisProvider {
         generatorBox,
         genesisAcct.publicImage,
         signature,
-        0L,
+        1L,
         initialDifficulty,
         txs,
         blockVersion.blockByte
       )
 
-    require(block.id == blockChecksum, s"${Console.RED}MALFORMED GENESIS BLOCK! The calculated genesis block " +
-      s"with id ${block.id} does not match the required block for the chosen network mode.${Console.RESET}")
+    require(
+      block.id == blockChecksum,
+      s"${Console.RED}MALFORMED GENESIS BLOCK! The calculated genesis block " +
+      s"with id ${block.id} does not match the required block for the chosen network mode.${Console.RESET}"
+    )
 
     log.debug(s"Initialize state with transaction ${txs.head} with boxes ${txs.head.newBoxes}")
 

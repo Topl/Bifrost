@@ -1,7 +1,7 @@
 package co.topl.nodeView.state
 
 import akka.actor.ActorSystem
-import co.topl.consensus.genesis.PrivateTestnet
+import co.topl.consensus.genesis.PrivateGenesis
 import co.topl.crypto.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -29,7 +29,7 @@ trait MockState extends AnyPropSpec
   val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
     KeyRing(settings.application.keyFileDir.get, KeyfileCurve25519)
 
-  val genesisBlock: Block = PrivateTestnet((_: Int, _: Option[String]) => {
+  val genesisBlock: Block = PrivateGenesis((_: Int, _: Option[String]) => {
     keyRing.generateNewKeyPairs(num = 3) match {
       case Success(keys) => keys.map(_.publicImage)
       case Failure(ex)   => throw ex

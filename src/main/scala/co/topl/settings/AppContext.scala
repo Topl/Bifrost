@@ -34,7 +34,7 @@ class AppContext(
   val networkType: NetworkType =
     startupOpts.networkTypeOpt match {
       case Some(network) => network
-      case None          => NetworkType.PrivateNet
+      case None          => NetworkType.PrivateTestnet
     }
 
   /** Enumerate features and message specs present for communicating between peers */

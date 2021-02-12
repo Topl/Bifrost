@@ -12,7 +12,7 @@ import co.topl.nodeView.history.{BlockProcessor, History, Storage}
 import co.topl.modifier.box.Box.Nonce
 import co.topl.modifier.box.{ProgramId, _}
 import co.topl.program.{ProgramPreprocessor, _}
-import co.topl.settings.NetworkType.PrivateNet
+import co.topl.settings.NetworkType.PrivateTestnet
 import co.topl.settings.{AppSettings, StartupOpts, Version}
 import io.circe.syntax._
 import io.circe.{Json, JsonObject}
@@ -35,7 +35,7 @@ trait CoreGenerators extends Logging {
   type P = Proposition
   type S = Secret
 
-  implicit val networkPrefix: NetworkPrefix = PrivateNet.netPrefix
+  implicit val networkPrefix: NetworkPrefix = PrivateTestnet.netPrefix
 
   private val settingsFilename = "src/test/resources/test.conf"
   val settings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))._1

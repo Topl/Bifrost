@@ -4,7 +4,7 @@ import akka.actor._
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.Forger.{ChainParams, PickTransactionsResult}
-import co.topl.consensus.genesis.{PrivateTestnet, Toplnet}
+import co.topl.consensus.genesis.{HelGenesis, PrivateGenesis, ToplnetGenesis, ValhallaGenesis}
 import co.topl.crypto.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -121,7 +121,6 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
     case GetRewardsAddress                   => sender() ! rewardAddress.fold("none")(_.toString)
   }
 
-
   private def nonsense: Receive = { case nonsense: Any =>
     log.warn(s"Got unexpected input $nonsense from ${sender()}")
   }
@@ -139,17 +138,17 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
 
   /** Helper function to enable private forging if we can expects keys in the key ring */
   private def checkPrivateForging(): Unit = {
-    val sf =  settings.forging
+    val sf = settings.forging
     if (sf.forgeOnStartup) {
       // if forging on startup is enabled, check if a seed was provided and the keyring is not already populated
       // this is usually the case when you have started up a private network and are attempting to resume it using
       // the same seed you used previously to continue forging
-       if (sf.privateTestnet.flatMap(_.genesisSeed).nonEmpty && keyRing.addresses.isEmpty) {
-         val sfp = sf.privateTestnet.get //above conditional ensures this exists
-         generateKeys(sfp.numTestnetAccts, sfp.genesisSeed) // JAA - hacky way to reproduce keys (not fully tested)
-         rewardAddress = keyRing.addresses.headOption
-         maxStake = sfp.numTestnetAccts * sfp.testnetBalance // JAA - we need to save these values to disk
-       }
+      if (sf.privateTestnet.flatMap(_.genesisSeed).nonEmpty && keyRing.addresses.isEmpty) {
+        val sfp = sf.privateTestnet.get //above conditional ensures this exists
+        generateKeys(sfp.numTestnetAccts, sfp.genesisSeed) // JAA - hacky way to reproduce keys (not fully tested)
+        rewardAddress = keyRing.addresses.headOption
+        maxStake = sfp.numTestnetAccts * sfp.testnetBalance // JAA - we need to save these values to disk
+      }
 
       // if forging has been enabled and the keyring is nonEmpty (either from the call above or genesis block formation)
       // then we should send the StartForging signal
@@ -159,7 +158,7 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
   }
 
   /** Schedule a forging attempt */
-  private def scheduleForgingAttempt(): Unit = {
+  private def scheduleForgingAttempt(): Unit =
     nodeViewHolderRef match {
       case Some(nvh: ActorRef) =>
         context.system.scheduler.scheduleOnce(settings.forging.blockGenerationDelay)(nvh ! GetDataFromCurrentView)
@@ -168,27 +167,25 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
         log.warn("No ledger actor found. Stopping forging attempts")
         self ! StopForging
     }
-  }
 
   /** Helper function to generate a set of keys used for the genesis block (for private test networks) */
-  private def generateKeys(num: Int, seed: Option[String] = None): Set[PublicKeyPropositionCurve25519] = {
+  private def generateKeys(num: Int, seed: Option[String] = None): Set[PublicKeyPropositionCurve25519] =
     keyRing.generateNewKeyPairs(num, seed) match {
       case Success(keys) => keys.map(_.publicImage)
       case Failure(ex)   => throw ex
     }
-  }
 
   /** Return the correct genesis parameters for the chosen network.
     * NOTE: the default private network is set in AppContext so the fall-through should result in an error.
     */
-  private def initializeGenesis: Try[Block] = {
+  private def initializeGenesis: Try[Block] =
     (appContext.networkType match {
-      case MainNet       => Toplnet.getGenesisBlock
-      case TestNet       => ???
-      case DevNet        => ???
-      case LocalNet      => PrivateTestnet(generateKeys, settings).getGenesisBlock
-      case PrivateNet    => PrivateTestnet(generateKeys, settings).getGenesisBlock
-      case _             => throw new Error("Undefined network type.")
+      case Mainnet         => ToplnetGenesis.getGenesisBlock
+      case ValhallaTestnet => ValhallaGenesis.getGenesisBlock
+      case HelTestnet      => HelGenesis.getGenesisBlock
+      case LocalTestnet    => PrivateGenesis(generateKeys, settings).getGenesisBlock
+      case PrivateTestnet  => PrivateGenesis(generateKeys, settings).getGenesisBlock
+      case _               => throw new Error("Undefined network type.")
     }).map { case (block: Block, ChainParams(totalStake, initDifficulty)) =>
       rewardAddress = keyRing.addresses.headOption
       maxStake = totalStake
@@ -197,7 +194,6 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
 
       block
     }
-  }
 
   /** Primary method for attempting to forge a new block and publish it to the network
     *
@@ -225,7 +221,10 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
       }
 
       log.debug(s"Trying to generate block from total stake ${boxes.map(_.value.quantity).foldLeft[Int128](0)(_ + _)}")
-      require(boxes.map(_.value.quantity).foldLeft[Int128](0)(_ + _) > 0, "No Arbits could be found to stake with, exiting attempt")
+      require(
+        boxes.map(_.value.quantity).foldLeft[Int128](0)(_ + _) > 0,
+        "No Arbits could be found to stake with, exiting attempt"
+      )
 
       // create the coinbase reward transaction
       val arbitReward = createArbitReward(rewardAddr, history.bestBlock.id) match {
@@ -243,10 +242,11 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
       }
 
       // create the unsigned fee reward transaction
-      val polyReward = createPolyReward(transactions.map(_.fee).foldLeft[Int128](0)(_ + _), rewardAddr, history.bestBlock.id) match {
-        case Success(tx) => tx
-        case Failure(ex) => throw ex
-      }
+      val polyReward =
+        createPolyReward(transactions.map(_.fee).foldLeft[Int128](0)(_ + _), rewardAddr, history.bestBlock.id) match {
+          case Success(tx) => tx
+          case Failure(ex) => throw ex
+        }
 
       // retrieve the latest TWO block times for updating the difficulty if we forge a new blow
       val prevTimes = history.getTimestampsFrom(history.bestBlock, nxtBlockNum)
@@ -298,7 +298,7 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
         IndexedSeq(),
         IndexedSeq((rewardAdr, SimpleValue(inflation))),
         Map[PublicKeyPropositionCurve25519, SignatureCurve25519](),
-        0,
+        Int128(0),
         forgeTime,
         Some(parentId.toString + "_"), // the underscore is for letting miners add their own message in the future
         minting = true
@@ -348,18 +348,23 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
               case Failure(ex) =>
                 log.debug(
                   s"${Console.RED}Transaction ${utx.tx.id} failed semantic validation. " +
-                    s"Transaction will be removed.${Console.RESET} Failure: $ex")
+                  s"Transaction will be removed.${Console.RESET} Failure: $ex"
+                )
                 PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ utx.tx)
             }
 
           case (_, true) =>
-            log.debug(s"${Console.RED}Transaction ${utx.tx.id} was rejected from the forger transaction queue" +
-              s" because a newly created box already exists in state. The transaction will be removed.")
+            log.debug(
+              s"${Console.RED}Transaction ${utx.tx.id} was rejected from the forger transaction queue" +
+              s" because a newly created box already exists in state. The transaction will be removed."
+            )
             PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ utx.tx)
 
           case (true, _) =>
-            log.debug(s"${Console.RED}Transaction ${utx.tx.id} was rejected from forger transaction queue" +
-              s" because a box was used already in a previous transaction. The transaction will be removed.")
+            log.debug(
+              s"${Console.RED}Transaction ${utx.tx.id} was rejected from forger transaction queue" +
+              s" because a box was used already in a previous transaction. The transaction will be removed."
+            )
             PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ utx.tx)
         }
       }
@@ -372,11 +377,12 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
     * @param txsToInclude sequence of transactions for inclusion in the block body
     * @return a block if the leader election is successful (none if test failed)
     */
-  private def leaderElection(parent:       Block,
-                             prevTimes:    Vector[TimeProvider.Time],
-                             boxes:        Seq[ArbitBox],
-                             rawRewards:   Seq[TX],
-                             txsToInclude: Seq[TX]
+  private def leaderElection(
+    parent:       Block,
+    prevTimes:    Vector[TimeProvider.Time],
+    boxes:        Seq[ArbitBox],
+    rawRewards:   Seq[TX],
+    txsToInclude: Seq[TX]
   ): Option[Block] = {
 
     val target = calcAdjustedTarget(parent, parent.height, parent.difficulty, forgeTime)
@@ -397,10 +403,6 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
         // generate the address the owns the generator box
         val matchingAddr = Address(box.evidence)
 
-        // use the private key that owns the generator box to create a function that will sign the new block
-        val signingFunction: Array[Byte] => Try[SignatureCurve25519] =
-          (messageToSign: Array[Byte]) => keyRing.signWithAddress(matchingAddr)(messageToSign)
-
         // lookup the public associated with the box,
         // (this is separate from the signing function so that the private key never leaves the KeyRing)
         val publicKey: PublicKeyPropositionCurve25519 = keyRing.lookupPublicKey(matchingAddr) match {
@@ -408,8 +410,12 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
           case Failure(ex) => throw ex
         }
 
+        // use the private key that owns the generator box to create a function that will sign the new block
+        val signingFunction: Array[Byte] => Try[SignatureCurve25519] =
+          (messageToSign: Array[Byte]) => keyRing.signWithAddress(matchingAddr)(messageToSign)
+
         // use the secret key that owns the successful box to sign the rewards transactions
-        def getAttMap(tx: TX): Map[PublicKeyPropositionCurve25519, SignatureCurve25519] = {
+        val getAttMap: TX => Map[PublicKeyPropositionCurve25519, SignatureCurve25519] = (tx: TX) => {
           val sig = signingFunction(tx.messageToSign) match {
             case Success(sig) => sig
             case Failure(ex)  => throw ex
@@ -492,7 +498,9 @@ object ForgerRef {
   def props(settings: AppSettings, appContext: AppContext)(implicit ec: ExecutionContext): Props =
     Props(new Forger(settings, appContext)(ec, appContext.networkType.netPrefix))
 
-  def apply(name: String, settings: AppSettings, appContext: AppContext)
-           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+  def apply(name: String, settings: AppSettings, appContext: AppContext)(implicit
+    system:       ActorSystem,
+    ec:           ExecutionContext
+  ): ActorRef =
     system.actorOf(props(settings, appContext), name)
 }

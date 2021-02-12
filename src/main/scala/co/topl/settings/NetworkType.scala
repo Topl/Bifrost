@@ -10,23 +10,23 @@ sealed abstract class NetworkType(val verboseName: String, val netPrefix: Networ
 
 object NetworkType {
 
-  lazy val all: Seq[NetworkType] = Seq(MainNet, TestNet, DevNet, LocalNet, PrivateNet)
+  lazy val all: Seq[NetworkType] = Seq(Mainnet, ValhallaTestnet, HelTestnet, LocalTestnet, PrivateTestnet)
 
   def pickNetworkType(name: String): Option[NetworkType] = all.find(_.verboseName == name)
   def pickNetworkType(networkPrefix: NetworkPrefix): Option[NetworkType] = all.find(_.netPrefix == networkPrefix)
 
-  case object MainNet
+  case object Mainnet
     extends NetworkType("toplnet", 1.toByte)
 
-  case object TestNet
+  case object ValhallaTestnet
     extends NetworkType("valhalla", 16.toByte)
 
-  case object DevNet
+  case object HelTestnet
     extends NetworkType("hel", 32.toByte)
 
-  case object LocalNet
+  case object LocalTestnet
     extends NetworkType("local", 48.toByte)
 
-  case object PrivateNet
+  case object PrivateTestnet
     extends NetworkType("private", 64.toByte)
 }

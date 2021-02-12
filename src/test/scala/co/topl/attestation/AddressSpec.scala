@@ -34,7 +34,7 @@ class AddressSpec extends AnyPropSpec
 
   property("Applying address with incorrect content that doesn't match the checksum will result in error") {
     forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
-      implicit val networkPrefix: NetworkPrefix = NetworkType.MainNet.netPrefix
+      implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
       val address: Address = pubkey.address
       val addrStr: String = address.toString
       val addrByte: Array[Byte] = Base58.decode(addrStr).get
@@ -54,7 +54,7 @@ class AddressSpec extends AnyPropSpec
 
   property("Applying address with incorrect checksum will result in error") {
     forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
-      implicit val networkPrefix: NetworkPrefix = NetworkType.MainNet.netPrefix
+      implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
       val address: Address = pubkey.address
       val addrStr: String = address.toString
       val addrByte: Array[Byte] = Base58.decode(addrStr).get
@@ -75,7 +75,7 @@ class AddressSpec extends AnyPropSpec
 
   property("Applying address with incorrect length will result in error") {
     forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
-      implicit val networkPrefix: NetworkPrefix = NetworkType.MainNet.netPrefix
+      implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
       val address: Address = pubkey.address
       val addrStr: String = address.toString
       val addrByte: Array[Byte] = Base58.decode(addrStr).get

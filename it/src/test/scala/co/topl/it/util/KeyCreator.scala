@@ -30,10 +30,10 @@ object KeyCreator {
   }
 
   def main(args: Array[String]): Unit = {
-    lazy val privateKeys = generateKeys(50, Some("test"), "test", "./private-test-keys")(PrivateNet.netPrefix)
-    lazy val localKeys = generateKeys(50, Some("test"), "test", "./local-test-keys")(LocalNet.netPrefix)
-    lazy val helKeys = generateKeys(50, None, randomString(12), "./hel-keys")(DevNet.netPrefix)
-    lazy val valhallaKeys = generateKeys(50, None, randomString(12), "./valhalla-keys")(TestNet.netPrefix)
+    lazy val privateKeys = generateKeys(50, Some("test"), "test", "./private-test-keys")(PrivateTestnet.netPrefix)
+    lazy val localKeys = generateKeys(50, Some("test"), "test", "./local-test-keys")(LocalTestnet.netPrefix)
+    lazy val helKeys = generateKeys(50, None, randomString(12), "./hel-keys")(HelTestnet.netPrefix)
+    lazy val valhallaKeys = generateKeys(50, None, randomString(12), "./valhalla-keys")(ValhallaTestnet.netPrefix)
 
     println("WORKING... (this takes awhile)")
     privateKeys.map(printRes("PRIVATE", _))
