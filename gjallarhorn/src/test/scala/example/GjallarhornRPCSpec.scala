@@ -71,7 +71,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 
   //Set up api routes
   val requests: Requests = new Requests(settings, keyManagerRef)
-  val bifrostApiRoute: ApiRoute = GjallarhornOnlineApiRoute(settings.rpcApi, keyManagerRef, walletManagerRef, requests)
+  val bifrostApiRoute: ApiRoute = GjallarhornOnlineApiRoute(settings.rpcApi, settings.application, keyManagerRef, walletManagerRef, requests)
   val gjalOnlyApiRoute: ApiRoute = GjallarhornOfflineApiRoute(settings.rpcApi, settings.application, keyManagerRef, walletManagerRef)
   val route: Route = HttpService(
     Seq(bifrostApiRoute, gjalOnlyApiRoute), settings.rpcApi).compositeRoute

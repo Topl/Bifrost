@@ -7,13 +7,13 @@ import pureconfig._
 import pureconfig.generic.semiauto._
 import http.NamespaceSelector
 import utils.Logging
-
+import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.duration.FiniteDuration
 
 case class ApplicationSettings(declaredAddress: String,
                                var keyFileDir: String,
-                               var currentChainProvider: ChainProvider,
-                               var defaultChainProviders: List[ChainProvider])
+                               var currentChainProvider: String,
+                               var defaultChainProviders: Map[String,ChainProvider])
 
 object ApplicationSettings {
   implicit val applicationSettingsReader: ConfigReader[ApplicationSettings] = deriveReader[ApplicationSettings]

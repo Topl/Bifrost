@@ -8,6 +8,7 @@ import akka.pattern.ask
 import attestation.{Address, Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
 import attestation.AddressEncoder.NetworkPrefix
 import crypto.AssetCode
+import http.GjallarhornOfflineApiRoute.updateConfigFile
 import io.circe.{HCursor, Json}
 import io.circe.syntax._
 import keymanager.KeyManager.{ChangeNetwork, GenerateSignatures, GetAllKeyfiles, GetKeyfileDir, SignTx}
@@ -15,7 +16,7 @@ import keymanager.networkPrefix
 import modifier.{AssetValue, Box, BoxId, SimpleValue, TransferTransaction}
 import requests.ApiRoute
 import scorex.util.encode.Base58
-import settings.{AkkaChainProvider, ApplicationSettings, ChainProvider, HttpChainProvider, RPCApiSettings}
+import settings.{ApplicationSettings, ChainProvider, RPCApiSettings}
 import wallet.WalletManager.GetWallet
 
 import scala.collection.mutable.{Map => MMap}
@@ -58,16 +59,17 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
     case (method, params, id) if method == s"${namespace.name}_getCurrentState" => getCurrentState(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_networkType" =>
       Future{Map("networkPrefix" -> networkPrefix).asJson}
-    case (method, params, id) if method == s"${namespace.name}_getCurrentChainProvider" =>
-      Future{Map("mode" -> applicationSettings.currentChainProvider).asJson}
+    case (method, params, id) if method == s"${namespace.name}_getCurrentChainProvider" => getCurrentChainProvider
     case (method, params, id) if method == s"${namespace.name}_getListOfChainProviders" =>
-      Future{Map("apiKey" -> applicationSettings.defaultChainProviders).asJson}
+      Future{Map("listOfChainProviders" -> applicationSettings.defaultChainProviders).asJson}
 
     // Change settings:
     case (method, params, id) if method == s"${namespace.name}_changeNetwork" => changeNetwork(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_changeCurrentChainProvider" =>
       changeCurrentChainProvider(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_changeApiKey" => changeApiKey(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_addChainProvider" => addChainProvider(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_editChainProvider" => editChainProvider(params.head, id)
+    //case (method, params, id) if method == s"${namespace.name}_changeApiKey" => changeApiKey(params.head, id)
 
   }
 
@@ -452,16 +454,78 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
     (for {
       chainProvider <- (params \\ "chainProvider").head.as[ChainProvider]
     } yield {
-      updateCurrentChainProvider(chainProvider, applicationSettings.currentChainProvider)
-      applicationSettings.currentChainProvider = chainProvider
-      Map("newChainProvider" -> applicationSettings.currentChainProvider).asJson
+      val newName = chainProvider.name
+      applicationSettings.defaultChainProviders.get(newName) match {
+        case Some(_) =>
+          updateConfigFile("current-chain-provider", applicationSettings.currentChainProvider, newName)
+          applicationSettings.currentChainProvider = newName
+          Map("currentChainProvider" -> applicationSettings.currentChainProvider).asJson
+        case None => throw new Exception (s"The new chain provider: $newName does not map to a chain provider in " +
+          s"the list of chain providers.")
+      }
+
     }) match {
       case Right(value) => Future{value}
       case Left(error) => throw new Exception (s"error parsing for mode: $error")
     }
   }
 
-  def updateCurrentChainProvider(newChainProvider: ChainProvider, oldChainProvider: ChainProvider): Unit = {
+  /** #### Summary
+    * Add a chain provider to the list of chain providers
+    *
+    * #### Description
+    * Adds a chain provider to the current list of chain providers.
+    * *But does not write to application.conf file -> does not add to default list.
+    * ---
+    * #### Params
+    *
+    * | Fields | Data type | Required / Optional | Description |
+    * | ---| ---	| --- | --- |
+    * | chainProvider | ChainProvider	| Required | the new chainProvider to switch to |
+    *
+    * @param params input parameters as specified above
+    * @param id request identifier
+    * @return
+    */
+  private def addChainProvider(params: Json, id: String): Future[Json] = {
+    (for {
+      chainProvider <- (params \\ "chainProvider").head.as[ChainProvider]
+    } yield {
+      val currentList = collection.mutable.Map(applicationSettings.defaultChainProviders.toSeq: _*)
+      currentList.get(chainProvider.name) match {
+        case Some(_) => throw new Exception(s"A chain provider with this name: ${chainProvider.name} already exists!")
+        case None =>
+          currentList.put(chainProvider.name, chainProvider)
+          applicationSettings.defaultChainProviders = currentList.toMap
+          Future {
+            Map(chainProvider.name -> "Added").asJson
+          }
+      }
+    }) match {
+      case Right(value) => value
+      case Left(error) => throw new Exception (s"error parsing for mode: $error")
+    }
+  }
+
+  private def editChainProvider(params: Json, id: String): Future[Json] = {
+    (for {
+      chainProvider <- (params \\ "chainProvider").head.as[ChainProvider]
+    } yield {
+      val currentList = collection.mutable.Map(applicationSettings.defaultChainProviders.toSeq: _*)
+      currentList.get(chainProvider.name) match {
+        case Some(_) =>
+          currentList.put(chainProvider.name, chainProvider)
+          applicationSettings.defaultChainProviders = currentList.toMap
+          Future { Map(chainProvider.name -> "Edited").asJson }
+        case None => throw new Exception(s"A chain provider with this name: ${chainProvider.name} does not exist!")
+      }
+    }) match {
+      case Right(value) => value
+      case Left(error) => throw new Exception (s"error parsing for chainProvider: $error")
+    }
+  }
+
+  /*def updateCurrentChainProvider(newChainProvider: ChainProvider, oldChainProvider: ChainProvider): Unit = {
     //grab config file to write to
     //TODO: should this path be hardcoded?
     val path = "gjallarhorn/src/main/resources/application.conf"
@@ -523,8 +587,8 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
     })
     writer.close()
   }
-
-   /** #### Summary
+*/
+/*   /** #### Summary
     * Change the api key
     *
     * #### Description
@@ -560,7 +624,7 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
       case Right(value) => Future{value}
       case Left(error) => throw new Exception (s"error parsing for api key: $error")
     }
-  }
+  }*/
 
   private def updateCurrentApiKey(oldKey: String, newKey: String): Unit = {
     //grab config file to write to
@@ -629,6 +693,15 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
         ).asJson}
       }),10.seconds)
     }), 10.seconds)
+  }
+
+  private def getCurrentChainProvider: Future[Json] = {
+    val current = applicationSettings.currentChainProvider
+    applicationSettings.defaultChainProviders.get(current) match {
+      case Some(cp) =>  Future{Map("currentChainProvider" -> cp).asJson}
+      case None => throw new Exception (s"The current chain provider: $current does not map to a chain provider in " +
+        s"the list of chain providers.")
+    }
   }
 
 }

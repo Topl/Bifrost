@@ -10,7 +10,7 @@ import io.circe.Json
 import io.circe.syntax._
 import keymanager.KeyManager._
 import modifier.AssetValue
-import settings.RPCApiSettings
+import settings.{ApplicationSettings, RPCApiSettings}
 import utils.Logging
 import wallet.WalletManager.{ConnectToBifrost, DisconnectFromBifrost, GetConnection}
 
@@ -29,6 +29,7 @@ import scala.util.{Failure, Success, Try}
   * @param system - ActorSystem used to select and create actors
   */
 case class GjallarhornOnlineApiRoute(settings: RPCApiSettings,
+                                     applicationSettings: ApplicationSettings,
                                      keyManager: ActorRef,
                                      walletManager: ActorRef,
                                      requests: Requests)
@@ -58,13 +59,13 @@ case class GjallarhornOnlineApiRoute(settings: RPCApiSettings,
     * Connect To Bifrost
     *
     * #### Description
-    * Attempts to connect to Bifrost with the given chain provider.
+    * Attempts to connect to Bifrost using the currentChainProvider from settings.
     * ---
     * #### Params
     *
-    * | Fields | Data type | Required / Optional | Description |
-    * | ---| ---	| --- | --- |
-    * | chainProvider | String	| Required | Chain provider corresponding to the akka remote port and hostname that bifrost is running on.|
+    * | Fields             | Data type | Required / Optional | Description |
+    * | ------------------ | --------- | ------------------- | ----------- |
+    * | --None specified-- |           |                     |             |
     *
     * @param params input parameters as specified above
     * @param id     request identifier
@@ -78,7 +79,11 @@ case class GjallarhornOnlineApiRoute(settings: RPCApiSettings,
   }
 
   def tryToConnect(params: Json): Json = {
-    val chainProvider = (params \\ "chainProvider").head.asString.get
+    val chainProvider = applicationSettings.defaultChainProviders.get(applicationSettings.currentChainProvider) match {
+      case Some(cp) => cp.chainProvider
+      case None => throw new Exception (s"The current chain provider: ${applicationSettings.currentChainProvider} " +
+        s"does not map to a chain provider in the list of chain providers.")
+    }
     try {
       log.info("gjallarhorn attempting to run in online mode. Trying to connect to Bifrost...")
       val bifrost = Await.result(system.actorSelection(s"akka.tcp://$chainProvider/user/walletConnectionHandler")
@@ -115,9 +120,9 @@ case class GjallarhornOnlineApiRoute(settings: RPCApiSettings,
     * Disconnects from Bifrost and kills the requestsManager actor.
     * ---
     * #### Params
-    * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
-    * | ------------------------	| ----------	| --------------------	| -----------------------------------------------------------------------	  |
-    * | --None specified--       |           	|                     	|                                                                         |
+    * | Fields                  	| Data type 	| Required / Optional 	| Description                    	  |
+    * | ------------------------	| ----------	| --------------------	| ----------------------------------|
+    * | --None specified--        |           	|                     	|                                   |
     *
     * @param id     request identifier
     * @return - status message

@@ -58,7 +58,7 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   val requests: Requests = new Requests(settings, keyManagerRef)
 
   //Set up API routes
-  val gjalBifrostRoute: ApiRoute = GjallarhornOnlineApiRoute(settings.rpcApi, keyManagerRef, walletManagerRef, requests)
+  val gjalBifrostRoute: ApiRoute = GjallarhornOnlineApiRoute(settings.rpcApi, settings.application, keyManagerRef, walletManagerRef, requests)
   val apiRoutes: Seq[ApiRoute] = Seq(
     GjallarhornOfflineApiRoute(settings.rpcApi, settings.application, keyManagerRef, walletManagerRef),
     KeyManagementApiRoute(settings.rpcApi, keyManagerRef),
@@ -67,7 +67,8 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   //Attempt to connect to Bifrost and start online mode.
   val connectRequest: Vector[Json] = Vector(Map("params" ->
-    Vector(Map("chainProvider" -> settings.application.currentChainProvider.chainProvider).asJson)).asJson)
+    Vector(Map("chainProvider" -> settings.application.defaultChainProviders
+      .get(settings.application.currentChainProvider)).asJson)).asJson)
   try {
     gjalBifrostRoute.handlers("onlineWallet_connectToBifrost", connectRequest, "2")
   } catch {
