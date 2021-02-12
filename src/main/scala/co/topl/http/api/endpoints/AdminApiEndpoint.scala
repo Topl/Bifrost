@@ -160,7 +160,22 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
       case Left(ex)    => throw ex
     }
 
-  /** Allows the user to retrieve the PublicKey address to receive block rewards
+  /** #### Summary
+    * Allows the user to retrieve the PublicKey address to receive block rewards
+    *
+    * #### Type
+    * Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
+    *
+    * #### Description
+    * Get the address used to receive block rewards. This method takes no input arguments.
+    *
+    * #### Params
+    * | Fields             | Data type | Required / Optional | Description |
+    * |--------------------|-----------|---------------------|-------------|
+    * | --None specified-- |           |                     |             |
+    *
+    * @param params input parameters as specified above
+    * @param id     request identifier
     * @return
     */
   private def getRewardsAddress(params: Json, id: String): Future[Json] =
@@ -168,7 +183,22 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
       Map("rewardsAddress" -> a).asJson
     }
 
-  /** Allows the user to specify a new PublicKey address to receive block rewards
+  /** #### Summary
+    * Allows the user to specify a new PublicKey address to receive block rewards
+    *
+    * #### Type
+    * Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
+    *
+    * #### Description
+    * Change the address used to receive block rewards. This method requires the new address as a string
+    *
+    * #### Params
+    * | Fields  | Data type | Required / Optional | Description                          |
+    * |---------|-----------|---------------------|--------------------------------------|
+    * | address | String    | Required            | New address to receive block rewards |
+    *
+    * @param params input parameters as specified above
+    * @param id     request identifier
     * @return
     */
   private def updateRewardsAddress(params: Json, id: String): Future[Json] =
