@@ -85,7 +85,7 @@ object SimpleValue extends BifrostSerializer[SimpleValue] {
     SimpleValue(r.getInt128())
 }
 
-/* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
+/* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 case class AssetValue(
   override val quantity: Int128,
   assetCode:             AssetCode,

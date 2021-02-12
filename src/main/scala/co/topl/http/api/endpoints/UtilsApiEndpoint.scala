@@ -51,7 +51,6 @@ case class UtilsApiEndpoint(override val settings: RPCApiSettings, appContext: A
     * Generates random seed of 32 bytes
     *
     * #### Params
-    *
     * | Fields           | Data type | Required / Optional | Description |
     * |------------------|-----------|---------------------|-------------|
     * | -None specified- |           |                     |             |
@@ -111,7 +110,7 @@ case class UtilsApiEndpoint(override val settings: RPCApiSettings, appContext: A
     }
 
   /** #### Summary
-    * Returns an encoded assetCode from the provided parameters
+    * Returns an encoded assetCode generated from provided parameters
     *
     * #### Params
     * | Fields    | Data type | Required / Optional | Description                                      |
