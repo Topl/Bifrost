@@ -19,6 +19,7 @@ import io.circe.syntax.EncoderOps
 import keymanager.KeyManager.{GenerateKeyFile, GetAllKeyfiles}
 import keymanager.{Bip39, KeyManagerRef}
 import requests.{ApiRoute, Requests}
+import settings.HttpChainProvider
 import wallet.WalletManager
 
 import scala.concurrent.Await
@@ -99,7 +100,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |   "id": "2",
          |   "method": "onlineWallet_connectToBifrost",
          |   "params": [{
-         |      "chainProvider": "${settings.application.chainProvider.chainProvider}"
+         |      "chainProvider": "${settings.application.currentChainProvider.chainProvider}"
          |   }]
          |}
          """.stripMargin)
@@ -690,27 +691,33 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     }
   }
 
-/*  it should "successfully change the communication mode" in {
+  it should "successfully change the chain provider" in {
     val communicationModeRequest = ByteString(
       s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
-         |   "method": "wallet_changeCommunicationMode",
+         |   "method": "wallet_changeCurrentChainProvider",
          |   "params": [{
-         |      "mode": "useHttp"
+         |      "chainProvider": {
+         |          "type": "Http",
+         |          "chainProvider": "bifrost-client@127.0.0.1:9085",
+         |          "name": "newChainProvider",
+         |          "network": "private",
+         |          "apiKey": "test_key"
+         |      }
          |   }]
          |}
          """.stripMargin)
 
-    httpPOST(communicationModeRequest) ~> route ~> check {
+    httpPOST(communicationModeRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
           assert((res \\ "error").isEmpty)
-          val mode = ((res \\ "result").head \\ "newMode").head
-          assert(mode.asString.get === "useHttp")
+          val cp = ((res \\ "result").head \\ "newChainProvider").head
+          assert(cp.as[HttpChainProvider].isRight)
       }
     }
   }
@@ -723,22 +730,22 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |   "id": "2",
          |   "method": "wallet_changeApiKey",
          |   "params": [{
-         |      "apiKey": "test_key"
+         |      "apiKey": "test_key_2"
          |   }]
          |}
          """.stripMargin)
 
-    httpPOST(communicationModeRequest) ~> route ~> check {
+    httpPOST(communicationModeRequest) ~> httpOriginHeader ~> route ~> check {
       val responseString = responseAs[String].replace("\\", "")
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) =>
           assert((res \\ "error").isEmpty)
           val apiKey = ((res \\ "result").head \\ "newApiKey").head
-          assert(apiKey.asString.get === "test_key")
+          assert(apiKey.asString.get === "test_key_2")
       }
     }
-  }*/
+  }
 
 
 }

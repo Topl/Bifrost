@@ -15,7 +15,7 @@ import keymanager.networkPrefix
 import modifier.{AssetValue, Box, BoxId, SimpleValue, TransferTransaction}
 import requests.ApiRoute
 import scorex.util.encode.Base58
-import settings.{ApplicationSettings, RPCApiSettings}
+import settings.{AkkaChainProvider, ApplicationSettings, ChainProvider, HttpChainProvider, RPCApiSettings}
 import wallet.WalletManager.GetWallet
 
 import scala.collection.mutable.{Map => MMap}
@@ -58,16 +58,16 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
     case (method, params, id) if method == s"${namespace.name}_getCurrentState" => getCurrentState(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_networkType" =>
       Future{Map("networkPrefix" -> networkPrefix).asJson}
-/*    case (method, params, id) if method == s"${namespace.name}_getCommunicationMode" =>
-      Future{Map("mode" -> applicationSettings.communicationMode).asJson}
-    case (method, params, id) if method == s"${namespace.name}_getCurrentApiKey" =>
-      Future{Map("apiKey" -> applicationSettings.bifrostApiKey).asJson}*/
+    case (method, params, id) if method == s"${namespace.name}_getCurrentChainProvider" =>
+      Future{Map("mode" -> applicationSettings.currentChainProvider).asJson}
+    case (method, params, id) if method == s"${namespace.name}_getListOfChainProviders" =>
+      Future{Map("apiKey" -> applicationSettings.defaultChainProviders).asJson}
 
     // Change settings:
     case (method, params, id) if method == s"${namespace.name}_changeNetwork" => changeNetwork(params.head, id)
- /*   case (method, params, id) if method == s"${namespace.name}_changeCommunicationMode" =>
-      changeCommunicationMode(params.head, id)*/
-    //case (method, params, id) if method == s"${namespace.name}_changeApiKey" => changeApiKey(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_changeCurrentChainProvider" =>
+      changeCurrentChainProvider(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_changeApiKey" => changeApiKey(params.head, id)
 
   }
 
@@ -431,37 +431,100 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
     })
   }
 
-  /*/** #### Summary
-    * Change the communication mode
+  /** #### Summary
+    * Change the current chain provider
     *
     * #### Description
-    * Changes the communication mode between Bifrost to the given communication mode.
-    * The current options should be "useAkka" or "useHttp"
+    * Changes the current chain provider to the given chain provider.
+    * Either an AkkaChainProvider or an HttpChainProvider
     * ---
     * #### Params
     *
     * | Fields | Data type | Required / Optional | Description |
     * | ---| ---	| --- | --- |
-    * | mode | String	| Required | the new mode to switch to: "useAkka" or "useHttp"|
+    * | chainProvider | ChainProvider	| Required | the new chainProvider to switch to |
     *
     * @param params input parameters as specified above
     * @param id     request identifier
-    * @return - json mapping: "newMode" -> appSettings.application.communicationMode
+    * @return - json mapping: "newChainProvider" -> appSettings.application.chainProvider
     */
- private def changeCommunicationMode(params: Json, id: String): Future[Json] = {
+ private def changeCurrentChainProvider(params: Json, id: String): Future[Json] = {
     (for {
-      mode <- (params \\ "mode").head.as[String]
+      chainProvider <- (params \\ "chainProvider").head.as[ChainProvider]
     } yield {
-      GjallarhornOfflineApiRoute.updateConfigFile("communicationMode", applicationSettings.communicationMode, mode)
-      applicationSettings.communicationMode = mode
-      Map("newMode" -> applicationSettings.communicationMode).asJson
+      updateCurrentChainProvider(chainProvider, applicationSettings.currentChainProvider)
+      applicationSettings.currentChainProvider = chainProvider
+      Map("newChainProvider" -> applicationSettings.currentChainProvider).asJson
     }) match {
       case Right(value) => Future{value}
       case Left(error) => throw new Exception (s"error parsing for mode: $error")
     }
-  }*/
+  }
 
-/*  /** #### Summary
+  def updateCurrentChainProvider(newChainProvider: ChainProvider, oldChainProvider: ChainProvider): Unit = {
+    //grab config file to write to
+    //TODO: should this path be hardcoded?
+    val path = "gjallarhorn/src/main/resources/application.conf"
+    val configFile: File = new File(path)
+    if (!configFile.exists()) {
+      throw new Error (s"The config file: $path does not exist!")
+    }
+
+    //find line that defines settingName and edit it so that it is set to the new value
+    var lines: Array[String] = Array.empty
+    val reader = new BufferedReader(new FileReader(configFile))
+    var line: String = ""
+    while ({line = reader.readLine; line != null}) {
+      if (line.contains("current-chain-provider")) {
+        var newLines: Array[String] = Array(line)
+        (oldChainProvider, newChainProvider) match {
+          case (old: AkkaChainProvider, newCp: AkkaChainProvider) =>
+            val typeLine = reader.readLine()
+            val cpLine = reader.readLine().replace(old.chainProvider, newCp.chainProvider)
+            val nameLine = reader.readLine().replace(old.name, newCp.name)
+            val networkLine = reader.readLine().replace(old.networkName, newCp.networkName)
+            newLines = newLines ++ Array(typeLine, cpLine, nameLine, networkLine)
+
+          case (old: AkkaChainProvider, newCp: HttpChainProvider) =>
+            val typeLine = reader.readLine().replace("akka-chain-provider", "http-chain-provider")
+            val cpLine = reader.readLine().replace(old.chainProvider, newCp.chainProvider)
+            val nameLine = reader.readLine().replace(old.name, newCp.name)
+            val networkLine = reader.readLine().replace(s""""${old.networkName}"""", s""""${newCp.networkName}",""")
+            val apiKey = s"""                api-key = "${newCp.apiKey}""""
+            newLines = newLines ++ Array(typeLine, cpLine, nameLine, networkLine, apiKey)
+
+          case (old:HttpChainProvider, newCp: AkkaChainProvider) =>
+            val typeLine = reader.readLine().replace("http-chain-provider", "akka-chain-provider")
+            val cpLine = reader.readLine().replace(old.chainProvider, newCp.chainProvider)
+            val nameLine = reader.readLine().replace(old.name, newCp.name)
+            val networkLine = reader.readLine().replace(s""""${old.networkName}",""",s""""${newCp.networkName}"""")
+            reader.readLine() //skip over api-key line
+            newLines = newLines ++ Array(typeLine, cpLine, nameLine, networkLine)
+
+          case (old:HttpChainProvider, newCp: HttpChainProvider) =>
+            val typeLine = reader.readLine()
+            val cpLine = reader.readLine().replace(old.chainProvider, newCp.chainProvider)
+            val nameLine = reader.readLine().replace(old.name, newCp.name)
+            val networkLine = reader.readLine().replace(old.networkName, newCp.networkName)
+            val apiKey = reader.readLine().replace(old.apiKey, newCp.apiKey)
+            newLines = newLines ++ Array(typeLine, cpLine, nameLine, networkLine)
+        }
+        lines = lines ++ newLines
+      }else{
+        lines = lines :+ line
+      }
+    }
+    reader.close()
+
+    val writer = new BufferedWriter(new FileWriter(configFile))
+    lines.foreach(line => {
+      writer.write(line)
+      writer.newLine()
+    })
+    writer.close()
+  }
+
+   /** #### Summary
     * Change the api key
     *
     * #### Description
@@ -481,14 +544,60 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
     (for {
       apiKey <- (params \\ "apiKey").head.as[String]
     } yield {
-      GjallarhornOfflineApiRoute.updateConfigFile("bifrostApiKey", applicationSettings.bifrostApiKey, apiKey)
-      applicationSettings.bifrostApiKey = apiKey
-      Map("newApiKey" -> applicationSettings.bifrostApiKey).asJson
+      applicationSettings.currentChainProvider match {
+        case cp: HttpChainProvider =>
+          updateCurrentApiKey(cp.apiKey, apiKey)
+          val newCp = cp
+          newCp.apiKey = apiKey
+          applicationSettings.currentChainProvider = newCp
+          Map("newApiKey" -> applicationSettings.currentChainProvider.asInstanceOf[HttpChainProvider].apiKey).asJson
+
+        case _ => throw new Exception("The current chain provider is not an HttpChainProvider, " +
+          "so there's no api key.")
+      }
+
     }) match {
       case Right(value) => Future{value}
       case Left(error) => throw new Exception (s"error parsing for api key: $error")
     }
-  }*/
+  }
+
+  private def updateCurrentApiKey(oldKey: String, newKey: String): Unit = {
+    //grab config file to write to
+    //TODO: should this path be hardcoded?
+    val path = "gjallarhorn/src/main/resources/application.conf"
+    val configFile: File = new File(path)
+    if (!configFile.exists()) {
+      throw new Error (s"The config file: $path does not exist!")
+    }
+
+    //find line that defines settingName and edit it so that it is set to the new value
+    var lines: Array[String] = Array.empty
+    val reader = new BufferedReader(new FileReader(configFile))
+    var line: String = ""
+    while ({line = reader.readLine; line != null}) {
+      if (line.contains("current-chain-provider")) {
+        var newLines: Array[String] = Array(line)
+        val typeLine = reader.readLine()
+        val cpLine = reader.readLine()
+        val nameLine = reader.readLine()
+        val networkLine = reader.readLine()
+        val apiKeyLine = reader.readLine().replace(oldKey, newKey)
+        newLines = newLines ++ Array(typeLine, cpLine, nameLine, networkLine, apiKeyLine)
+        lines = lines ++ newLines
+      }else{
+        lines = lines :+ line
+      }
+    }
+    reader.close()
+
+    val writer = new BufferedWriter(new FileWriter(configFile))
+    lines.foreach(line => {
+      writer.write(line)
+      writer.newLine()
+    })
+    writer.close()
+  }
 
 
   /** #### Summary
@@ -513,8 +622,8 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
       Await.result( (keyManagerRef ? GetAllKeyfiles).mapTo[Map[Address, String]].map(keys => {
         Future{Map(
           "networkPrefix" -> networkPrefix.asJson,
-/*          "communicationMode" -> applicationSettings.communicationMode.asJson,
-          "apiKey" -> applicationSettings.bifrostApiKey.asJson,*/
+          "currentChainProvider" -> applicationSettings.currentChainProvider.asJson,
+          "listOfChainProviders" -> applicationSettings.defaultChainProviders.asJson,
           "keyfileDirectory" -> directory,
           "keys" -> keys.asJson
         ).asJson}

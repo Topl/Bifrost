@@ -63,7 +63,7 @@ object AkkaChainProvider {
 case class HttpChainProvider(override val chainProvider: String,
                              override val name: String,
                              override val networkName: String,
-                             apiKey: String
+                             var apiKey: String
                             ) extends ChainProvider(chainProvider, name, networkName)
 
 object HttpChainProvider {

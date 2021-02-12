@@ -1,24 +1,18 @@
 package settings
 
 import java.io.File
-import java.net.InetSocketAddress
 
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
 import pureconfig._
 import pureconfig.generic.semiauto._
 import http.NamespaceSelector
 import utils.Logging
-import net.ceedubs.ficus.Ficus._
-import net.ceedubs.ficus.readers.ArbitraryTypeReader._
-import pureconfig.ConfigReader.Result
 
 import scala.concurrent.duration.FiniteDuration
 
 case class ApplicationSettings(declaredAddress: String,
                                var keyFileDir: String,
-                               var chainProvider: ChainProvider,
-                         /*      var communicationMode: String,
-                               var bifrostApiKey: String,*/
+                               var currentChainProvider: ChainProvider,
                                var defaultChainProviders: List[ChainProvider])
 
 object ApplicationSettings {
@@ -55,8 +49,10 @@ object AppSettings extends Logging with SettingsReaders {
         Option(s"src/main/resources/${networkType.verboseName}.conf")
     }
 
-    args.networkTypeOpt.fold(log.warn("Running without network config"))(
-      networkType => log.info(s"Running in ${networkType.verboseName} network mode"))
+    val networkName: String = args.networkTypeOpt.flatMap(networkType => Option(networkType.verboseName)).getOrElse {
+      log.warn(s"${Console.YELLOW}No network specified, running as local testnet.${Console.RESET}")
+      "No Network Specified"
+    }
 
     val networkConfigFileOpt = for {
       filePathOpt <- networkPath
@@ -84,6 +80,7 @@ object AppSettings extends Logging with SettingsReaders {
           .withFallback(ConfigFactory.defaultReference())
           .resolve()*/
       case _ ⇒
+        log.info(userConfigFileOpt + " " + networkConfigFileOpt)
         log.warn("No custom setting specified, using default configuration")
         None
       //ConfigFactory.load()
@@ -94,9 +91,9 @@ object AppSettings extends Logging with SettingsReaders {
     readFile(startupOpts) match {
       case Some (file) =>
         ConfigSource.file(file).at(configPath).load[AppSettings] match {
-          case Right(config) => config
+          case Right(config) =>
+            config
           case Left(_) =>
-            log.info(s"Config: ${ConfigSource.default.toString}")
             ConfigSource.default.at(configPath).load[AppSettings] match {
               case Right(conf) => conf
               case Left(error) => throw new Exception (s"Error load config file: $error")

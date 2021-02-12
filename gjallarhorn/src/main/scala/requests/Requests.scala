@@ -43,7 +43,7 @@ class Requests (settings: AppSettings, keyManagerRef: ActorRef)
     * @return an HttpRequest for the given json request
     */
   def httpPOST(jsonRequest: ByteString, path: String = ""): HttpRequest = {
-    settings.application.chainProvider match {
+    settings.application.currentChainProvider match {
       case cp: HttpChainProvider =>
         HttpRequest(
           HttpMethods.POST,
@@ -52,7 +52,7 @@ class Requests (settings: AppSettings, keyManagerRef: ActorRef)
         ).withHeaders(RawHeader("x-api-key", cp.apiKey))
 
       case _ => throw new Exception ("The current chain provider is not an HttpChainProvider: " +
-        s"${settings.application.chainProvider}")
+        s"${settings.application.currentChainProvider}")
     }
 
   }
@@ -88,10 +88,10 @@ class Requests (settings: AppSettings, keyManagerRef: ActorRef)
     */
   def byteStringToJSON(data: ByteString): Json = {
     if (data.utf8String == "Provided API key is not correct") {
-      settings.application.chainProvider match {
+      settings.application.currentChainProvider match {
         case cp: HttpChainProvider => throw new Exception (s"The api key: ${cp.apiKey} is not correct")
         case _ => throw new Exception ("The provided API key is not correct and the current chain provider is not " +
-          s"an HttpChainProvider: ${settings.application.chainProvider}")
+          s"an HttpChainProvider: ${settings.application.currentChainProvider}")
       }
 
     }
@@ -166,7 +166,7 @@ class Requests (settings: AppSettings, keyManagerRef: ActorRef)
   def sendRequest(request: ByteString): Json  = {
     requestsManager match {
       case Some(actor) =>
-        settings.application.chainProvider match {
+        settings.application.currentChainProvider match {
           case _: HttpChainProvider =>
             val sendTx = httpPOST(request)
             val data = requestResponseByteString(sendTx)
@@ -177,7 +177,7 @@ class Requests (settings: AppSettings, keyManagerRef: ActorRef)
             val result = Await.result((actor ? BifrostRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
             createJsonResponse(req, result)
 
-          case _ => throw new Exception(s"No matching chain provider type for ${settings.application.chainProvider}")
+          case _ => throw new Exception(s"No matching chain provider type for ${settings.application.currentChainProvider}")
         }
       case None =>
         val msg = "cannot send request because you are offline mode " +

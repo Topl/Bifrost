@@ -67,7 +67,7 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   //Attempt to connect to Bifrost and start online mode.
   val connectRequest: Vector[Json] = Vector(Map("params" ->
-    Vector(Map("chainProvider" -> settings.application.chainProvider.chainProvider).asJson)).asJson)
+    Vector(Map("chainProvider" -> settings.application.currentChainProvider.chainProvider).asJson)).asJson)
   try {
     gjalBifrostRoute.handlers("onlineWallet_connectToBifrost", connectRequest, "2")
   } catch {
