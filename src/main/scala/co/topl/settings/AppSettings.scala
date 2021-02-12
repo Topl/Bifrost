@@ -4,7 +4,7 @@ import java.io.File
 import java.net.InetSocketAddress
 
 import co.topl.http.api.NamespaceSelector
-import co.topl.utils.{Logging, NetworkTimeProviderSettings}
+import co.topl.utils.{Int128, Logging, NetworkTimeProviderSettings}
 import com.typesafe.config.{Config, ConfigFactory}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
@@ -71,6 +71,7 @@ case class NetworkSettings(
 
 case class ForgingSettings(
   blockGenerationDelay: FiniteDuration,
+  minTransactionFee:    Int128,
   protocolVersions:     List[ProtocolSettings],
   forgeOnStartup:       Boolean,
   privateTestnet:       Option[PrivateTestnetSettings]
