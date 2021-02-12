@@ -454,7 +454,7 @@ object Forger {
 
   val actorName = "forger"
 
-  case class ChainParams(totalStake: Long, difficulty: Long)
+  case class ChainParams(totalStake: Int128, difficulty: Long)
 
   case class PickTransactionsResult(toApply: Seq[Transaction.TX], toEliminate: Seq[Transaction.TX])
 

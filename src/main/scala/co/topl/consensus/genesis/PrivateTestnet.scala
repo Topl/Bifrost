@@ -21,7 +21,7 @@ case class PrivateTestnet ( keyGen  : (Int, Option[String]) => Set[PublicKeyProp
 
   override protected val blockVersion: Version = settings.application.version
 
-  override protected val members: Map[String, Long] = Map("Not implemented here" -> 0L)
+  override protected val members: Map[String, Int128] = Map("Not implemented here" -> 0L)
 
   override def getGenesisBlock: Try[(Block, ChainParams)] = Try(formNewBlock)
 
