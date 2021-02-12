@@ -1,5 +1,7 @@
 package co.topl.modifier.transaction
 
+import java.nio.charset.StandardCharsets
+
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.attestation.{Evidence, _}
@@ -238,7 +240,7 @@ object TransferTransaction {
     }
 
     require(tx.timestamp >= 0L, "Invalid timestamp")
-    require(tx.data.forall(_.getBytes("UTF-8").length <= 128), "Data field must be less than 128 bytes")
+    require(tx.data.forall(_.getBytes(StandardCharsets.ISO_8859_1).length <= 128), "Data field must be less than 128 bytes")
 
     // prototype transactions do not contain signatures at creation
     if (hasAttMap) {

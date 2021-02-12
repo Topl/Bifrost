@@ -102,7 +102,7 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
     * @return
     */
   private def getDerivedKey (password: String, salt: Array[Byte]): Array[Byte] = {
-    val passwordBytes = password.getBytes(StandardCharsets.UTF_8)
+    val passwordBytes = password.getBytes(StandardCharsets.ISO_8859_1)
     SCrypt.generate(passwordBytes, salt, scala.math.pow(2, 18).toInt, 8, 1, 32)
   }
 
