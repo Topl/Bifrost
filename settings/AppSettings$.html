@@ -86,19 +86,31 @@
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="../index.html" class="extype" name="_root_">root</a></dd></dl></div>
     </li><li class="current-entities indented1">
+                        <a class="object" href="AkkaChainProvider$.html" title=""></a>
+                        <a class="class" href="AkkaChainProvider.html" title=""></a>
+                        <a href="AkkaChainProvider.html" title="">AkkaChainProvider</a>
+                      </li><li class="current-entities indented1">
                         <a class="object" href="" title=""></a>
                         <a class="class" href="AppSettings.html" title=""></a>
                         <a href="AppSettings.html" title="">AppSettings</a>
                       </li><li class="current-entities indented1">
-                        <span class="separator"></span>
+                        <a class="object" href="ApplicationSettings$.html" title=""></a>
                         <a class="class" href="ApplicationSettings.html" title=""></a>
                         <a href="ApplicationSettings.html" title="">ApplicationSettings</a>
+                      </li><li class="current-entities indented1">
+                        <a class="object" href="ChainProvider$.html" title=""></a>
+                        <a class="class" href="ChainProvider.html" title=""></a>
+                        <a href="ChainProvider.html" title="">ChainProvider</a>
+                      </li><li class="current-entities indented1">
+                        <a class="object" href="HttpChainProvider$.html" title=""></a>
+                        <a class="class" href="HttpChainProvider.html" title=""></a>
+                        <a href="HttpChainProvider.html" title="">HttpChainProvider</a>
                       </li><li class="current-entities indented1">
                         <a class="object" href="NetworkType$.html" title=""></a>
                         <a class="class" href="NetworkType.html" title=""></a>
                         <a href="NetworkType.html" title="">NetworkType</a>
                       </li><li class="current-entities indented1">
-                        <span class="separator"></span>
+                        <a class="object" href="RPCApiSettings$.html" title=""></a>
                         <a class="class" href="RPCApiSettings.html" title=""></a>
                         <a href="RPCApiSettings.html" title="">RPCApiSettings</a>
                       </li><li class="current-entities indented1">
@@ -248,6 +260,22 @@
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li name="settings.AppSettings#appSettingsReader" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="appSettingsReader:pureconfig.ConfigReader[settings.AppSettings]"></a><a id="appSettingsReader:ConfigReader[AppSettings]"></a>
+      <span class="permalink">
+      <a href="../settings/AppSettings$.html#appSettingsReader:pureconfig.ConfigReader[settings.AppSettings]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">implicit </span>
+        <span class="kind">val</span>
+      </span>
+      <span class="symbol">
+        <span class="name">appSettingsReader</span><span class="result">: <span class="extype" name="pureconfig.ConfigReader">ConfigReader</span>[<a href="AppSettings.html" class="extype" name="settings.AppSettings">AppSettings</a>]</span>
+      </span>
+      
+      
     </li><li name="scala.Any#asInstanceOf" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="asInstanceOf[T0]:T0"></a>
       <span class="permalink">
@@ -374,22 +402,6 @@
     </span>)</span>
               
         </dd></dl></div>
-    </li><li name="settings.AppSettings#fromConfig" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="fromConfig(config:com.typesafe.config.Config):settings.AppSettings"></a><a id="fromConfig(Config):AppSettings"></a>
-      <span class="permalink">
-      <a href="../settings/AppSettings$.html#fromConfig(config:com.typesafe.config.Config):settings.AppSettings" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier"></span>
-        <span class="kind">def</span>
-      </span>
-      <span class="symbol">
-        <span class="name">fromConfig</span><span class="params">(<span name="config">config: <span class="extype" name="com.typesafe.config.Config">Config</span></span>)</span><span class="result">: <a href="AppSettings.html" class="extype" name="settings.AppSettings">AppSettings</a></span>
-      </span>
-      
-      
     </li><li name="scala.AnyRef#getClass" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="getClass():Class[_]"></a>
       <span class="permalink">
@@ -547,9 +559,9 @@
       
       
     </li><li name="settings.AppSettings#readConfig" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="readConfig(args:settings.StartupOpts):com.typesafe.config.Config"></a><a id="readConfig(StartupOpts):Config"></a>
+      <a id="readConfig(file:Option[java.io.File]):com.typesafe.config.Config"></a><a id="readConfig(Option[File]):Config"></a>
       <span class="permalink">
-      <a href="../settings/AppSettings$.html#readConfig(args:settings.StartupOpts):com.typesafe.config.Config" title="Permalink">
+      <a href="../settings/AppSettings$.html#readConfig(file:Option[java.io.File]):com.typesafe.config.Config" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -558,7 +570,23 @@
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">readConfig</span><span class="params">(<span name="args">args: <a href="StartupOpts.html" class="extype" name="settings.StartupOpts">StartupOpts</a></span>)</span><span class="result">: <span class="extype" name="com.typesafe.config.Config">Config</span></span>
+        <span class="name">readConfig</span><span class="params">(<span name="file">file: <span class="extype" name="scala.Option">Option</span>[<span class="extype" name="java.io.File">File</span>]</span>)</span><span class="result">: <span class="extype" name="com.typesafe.config.Config">Config</span></span>
+      </span>
+      
+      
+    </li><li name="settings.AppSettings#readFile" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="readFile(args:settings.StartupOpts):Option[java.io.File]"></a><a id="readFile(StartupOpts):Option[File]"></a>
+      <span class="permalink">
+      <a href="../settings/AppSettings$.html#readFile(args:settings.StartupOpts):Option[java.io.File]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">readFile</span><span class="params">(<span name="args">args: <a href="StartupOpts.html" class="extype" name="settings.StartupOpts">StartupOpts</a></span>)</span><span class="result">: <span class="extype" name="scala.Option">Option</span>[<span class="extype" name="java.io.File">File</span>]</span>
       </span>
       
       

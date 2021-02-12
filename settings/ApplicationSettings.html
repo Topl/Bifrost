@@ -86,19 +86,31 @@
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="../index.html" class="extype" name="_root_">root</a></dd></dl></div>
     </li><li class="current-entities indented1">
+                        <a class="object" href="AkkaChainProvider$.html" title=""></a>
+                        <a class="class" href="AkkaChainProvider.html" title=""></a>
+                        <a href="AkkaChainProvider.html" title="">AkkaChainProvider</a>
+                      </li><li class="current-entities indented1">
                         <a class="object" href="AppSettings$.html" title=""></a>
                         <a class="class" href="AppSettings.html" title=""></a>
                         <a href="AppSettings.html" title="">AppSettings</a>
                       </li><li class="current-entities indented1">
-                        <span class="separator"></span>
+                        <a class="object" href="ApplicationSettings$.html" title=""></a>
                         <a class="class" href="" title=""></a>
                         <a href="" title="">ApplicationSettings</a>
+                      </li><li class="current-entities indented1">
+                        <a class="object" href="ChainProvider$.html" title=""></a>
+                        <a class="class" href="ChainProvider.html" title=""></a>
+                        <a href="ChainProvider.html" title="">ChainProvider</a>
+                      </li><li class="current-entities indented1">
+                        <a class="object" href="HttpChainProvider$.html" title=""></a>
+                        <a class="class" href="HttpChainProvider.html" title=""></a>
+                        <a href="HttpChainProvider.html" title="">HttpChainProvider</a>
                       </li><li class="current-entities indented1">
                         <a class="object" href="NetworkType$.html" title=""></a>
                         <a class="class" href="NetworkType.html" title=""></a>
                         <a href="NetworkType.html" title="">NetworkType</a>
                       </li><li class="current-entities indented1">
-                        <span class="separator"></span>
+                        <a class="object" href="RPCApiSettings$.html" title=""></a>
                         <a class="class" href="RPCApiSettings.html" title=""></a>
                         <a href="RPCApiSettings.html" title="">RPCApiSettings</a>
                       </li><li class="current-entities indented1">
@@ -120,14 +132,16 @@
           <div id="content">
             <body class="class type">
       <div id="definition">
-        <div class="big-circle class">c</div>
+        <a href="ApplicationSettings$.html" title="See companion object"><div class="big-circle class-companion-object">c</div></a>
         <p id="owner"><a href="index.html" class="extype" name="settings">settings</a></p>
-        <h1>ApplicationSettings<span class="permalink">
+        <h1><a href="ApplicationSettings$.html" title="See companion object">ApplicationSettings</a><span class="permalink">
       <a href="../settings/ApplicationSettings.html" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span></h1>
-        <h3><span class="morelinks"></span></h3>
+        <h3><span class="morelinks"><div>
+            Companion <a href="ApplicationSettings$.html" title="See companion object">object ApplicationSettings</a>
+          </div></span></h3>
       </div>
 
       <h4 id="signature" class="signature">
@@ -136,7 +150,7 @@
         <span class="kind">case class</span>
       </span>
       <span class="symbol">
-        <span class="name">ApplicationSettings</span><span class="params">(<span name="declaredAddress">declaredAddress: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="keyFileDir">keyFileDir: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="chainProvider">chainProvider: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="communicationMode">communicationMode: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="bifrostApiKey">bifrostApiKey: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result"> extends <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+        <span class="name">ApplicationSettings</span><span class="params">(<span name="declaredAddress">declaredAddress: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="keyFileDir">keyFileDir: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="chainProvider">chainProvider: <a href="ChainProvider.html" class="extype" name="settings.ChainProvider">ChainProvider</a></span>, <span name="defaultChainProviders">defaultChainProviders: <span class="extype" name="scala.List">List</span>[<a href="ChainProvider.html" class="extype" name="settings.ChainProvider">ChainProvider</a>]</span>)</span><span class="result"> extends <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
       </span>
       </h4>
 
@@ -192,9 +206,9 @@
         <div id="constructors" class="members">
               <h3>Instance Constructors</h3>
               <ol><li name="settings.ApplicationSettings#&lt;init&gt;" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="&lt;init&gt;(declaredAddress:String,keyFileDir:String,chainProvider:String,communicationMode:String,bifrostApiKey:String):settings.ApplicationSettings"></a><a id="&lt;init&gt;:ApplicationSettings"></a>
+      <a id="&lt;init&gt;(declaredAddress:String,keyFileDir:String,chainProvider:settings.ChainProvider,defaultChainProviders:List[settings.ChainProvider]):settings.ApplicationSettings"></a><a id="&lt;init&gt;:ApplicationSettings"></a>
       <span class="permalink">
-      <a href="../settings/ApplicationSettings.html#&lt;init&gt;(declaredAddress:String,keyFileDir:String,chainProvider:String,communicationMode:String,bifrostApiKey:String):settings.ApplicationSettings" title="Permalink">
+      <a href="../settings/ApplicationSettings.html#&lt;init&gt;(declaredAddress:String,keyFileDir:String,chainProvider:settings.ChainProvider,defaultChainProviders:List[settings.ChainProvider]):settings.ApplicationSettings" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -203,7 +217,7 @@
         <span class="kind">new</span>
       </span>
       <span class="symbol">
-        <span class="name">ApplicationSettings</span><span class="params">(<span name="declaredAddress">declaredAddress: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="keyFileDir">keyFileDir: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="chainProvider">chainProvider: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="communicationMode">communicationMode: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="bifrostApiKey">bifrostApiKey: <span class="extype" name="scala.Predef.String">String</span></span>)</span>
+        <span class="name">ApplicationSettings</span><span class="params">(<span name="declaredAddress">declaredAddress: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="keyFileDir">keyFileDir: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="chainProvider">chainProvider: <a href="ChainProvider.html" class="extype" name="settings.ChainProvider">ChainProvider</a></span>, <span name="defaultChainProviders">defaultChainProviders: <span class="extype" name="scala.List">List</span>[<a href="ChainProvider.html" class="extype" name="settings.ChainProvider">ChainProvider</a>]</span>)</span>
       </span>
       
       
@@ -281,10 +295,10 @@
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Any</dd></dl></div>
-    </li><li name="settings.ApplicationSettings#bifrostApiKey" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="bifrostApiKey:String"></a>
+    </li><li name="settings.ApplicationSettings#chainProvider" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="chainProvider:settings.ChainProvider"></a><a id="chainProvider:ChainProvider"></a>
       <span class="permalink">
-      <a href="../settings/ApplicationSettings.html#bifrostApiKey:String" title="Permalink">
+      <a href="../settings/ApplicationSettings.html#chainProvider:settings.ChainProvider" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -293,23 +307,7 @@
         <span class="kind">var</span>
       </span>
       <span class="symbol">
-        <span class="name">bifrostApiKey</span><span class="result">: <span class="extype" name="scala.Predef.String">String</span></span>
-      </span>
-      
-      
-    </li><li name="settings.ApplicationSettings#chainProvider" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="chainProvider:String"></a>
-      <span class="permalink">
-      <a href="../settings/ApplicationSettings.html#chainProvider:String" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier"></span>
-        <span class="kind">val</span>
-      </span>
-      <span class="symbol">
-        <span class="name">chainProvider</span><span class="result">: <span class="extype" name="scala.Predef.String">String</span></span>
+        <span class="name">chainProvider</span><span class="result">: <a href="ChainProvider.html" class="extype" name="settings.ChainProvider">ChainProvider</a></span>
       </span>
       
       
@@ -337,22 +335,6 @@
                 <span class="name">@native</span><span class="args">()</span>
               
         </dd></dl></div>
-    </li><li name="settings.ApplicationSettings#communicationMode" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="communicationMode:String"></a>
-      <span class="permalink">
-      <a href="../settings/ApplicationSettings.html#communicationMode:String" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier"></span>
-        <span class="kind">var</span>
-      </span>
-      <span class="symbol">
-        <span class="name">communicationMode</span><span class="result">: <span class="extype" name="scala.Predef.String">String</span></span>
-      </span>
-      
-      
     </li><li name="settings.ApplicationSettings#declaredAddress" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="declaredAddress:String"></a>
       <span class="permalink">
@@ -366,6 +348,22 @@
       </span>
       <span class="symbol">
         <span class="name">declaredAddress</span><span class="result">: <span class="extype" name="scala.Predef.String">String</span></span>
+      </span>
+      
+      
+    </li><li name="settings.ApplicationSettings#defaultChainProviders" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="defaultChainProviders:List[settings.ChainProvider]"></a><a id="defaultChainProviders:List[ChainProvider]"></a>
+      <span class="permalink">
+      <a href="../settings/ApplicationSettings.html#defaultChainProviders:List[settings.ChainProvider]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">var</span>
+      </span>
+      <span class="symbol">
+        <span class="name">defaultChainProviders</span><span class="result">: <span class="extype" name="scala.List">List</span>[<a href="ChainProvider.html" class="extype" name="settings.ChainProvider">ChainProvider</a>]</span>
       </span>
       
       

@@ -86,19 +86,31 @@
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="../index.html" class="extype" name="_root_">root</a></dd></dl></div>
     </li><li class="current-entities indented1">
+                        <a class="object" href="AkkaChainProvider$.html" title=""></a>
+                        <a class="class" href="AkkaChainProvider.html" title=""></a>
+                        <a href="AkkaChainProvider.html" title="">AkkaChainProvider</a>
+                      </li><li class="current-entities indented1">
                         <a class="object" href="AppSettings$.html" title=""></a>
                         <a class="class" href="AppSettings.html" title=""></a>
                         <a href="AppSettings.html" title="">AppSettings</a>
                       </li><li class="current-entities indented1">
-                        <span class="separator"></span>
+                        <a class="object" href="ApplicationSettings$.html" title=""></a>
                         <a class="class" href="ApplicationSettings.html" title=""></a>
                         <a href="ApplicationSettings.html" title="">ApplicationSettings</a>
+                      </li><li class="current-entities indented1">
+                        <a class="object" href="ChainProvider$.html" title=""></a>
+                        <a class="class" href="ChainProvider.html" title=""></a>
+                        <a href="ChainProvider.html" title="">ChainProvider</a>
+                      </li><li class="current-entities indented1">
+                        <a class="object" href="HttpChainProvider$.html" title=""></a>
+                        <a class="class" href="HttpChainProvider.html" title=""></a>
+                        <a href="HttpChainProvider.html" title="">HttpChainProvider</a>
                       </li><li class="current-entities indented1">
                         <a class="object" href="NetworkType$.html" title=""></a>
                         <a class="class" href="NetworkType.html" title=""></a>
                         <a href="NetworkType.html" title="">NetworkType</a>
                       </li><li class="current-entities indented1">
-                        <span class="separator"></span>
+                        <a class="object" href="RPCApiSettings$.html" title=""></a>
                         <a class="class" href="RPCApiSettings.html" title=""></a>
                         <a href="RPCApiSettings.html" title="">RPCApiSettings</a>
                       </li><li class="current-entities indented1">
@@ -176,7 +188,23 @@
 
         <div id="types" class="types members">
               <h3>Type Members</h3>
-              <ol><li name="settings.AppSettings" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+              <ol><li name="settings.AkkaChainProvider" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="AkkaChainProviderextendsChainProviderwithProductwithSerializable"></a><a id="AkkaChainProvider:AkkaChainProvider"></a>
+      <span class="permalink">
+      <a href="../settings/AkkaChainProvider.html" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="AkkaChainProvider.html"><span class="name">AkkaChainProvider</span></a><span class="params">(<span name="chainProvider">chainProvider: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="name">name: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="networkName">networkName: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result"> extends <a href="ChainProvider.html" class="extype" name="settings.ChainProvider">ChainProvider</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      
+      
+    </li><li name="settings.AppSettings" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="AppSettingsextendsProductwithSerializable"></a><a id="AppSettings:AppSettings"></a>
       <span class="permalink">
       <a href="../settings/AppSettings.html" title="Permalink">
@@ -204,7 +232,39 @@
         <span class="kind">case class</span>
       </span>
       <span class="symbol">
-        <a title="" href="ApplicationSettings.html"><span class="name">ApplicationSettings</span></a><span class="params">(<span name="declaredAddress">declaredAddress: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="keyFileDir">keyFileDir: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="chainProvider">chainProvider: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="communicationMode">communicationMode: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="bifrostApiKey">bifrostApiKey: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result"> extends <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+        <a title="" href="ApplicationSettings.html"><span class="name">ApplicationSettings</span></a><span class="params">(<span name="declaredAddress">declaredAddress: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="keyFileDir">keyFileDir: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="chainProvider">chainProvider: <a href="ChainProvider.html" class="extype" name="settings.ChainProvider">ChainProvider</a></span>, <span name="defaultChainProviders">defaultChainProviders: <span class="extype" name="scala.List">List</span>[<a href="ChainProvider.html" class="extype" name="settings.ChainProvider">ChainProvider</a>]</span>)</span><span class="result"> extends <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      
+      
+    </li><li name="settings.ChainProvider" visbl="pub" class="indented0 " data-isabs="true" fullComment="no" group="Ungrouped">
+      <a id="ChainProviderextendsAnyRef"></a><a id="ChainProvider:ChainProvider"></a>
+      <span class="permalink">
+      <a href="../settings/ChainProvider.html" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">sealed abstract </span>
+        <span class="kind">class</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="ChainProvider.html"><span class="name">ChainProvider</span></a><span class="result"> extends <span class="extype" name="scala.AnyRef">AnyRef</span></span>
+      </span>
+      
+      
+    </li><li name="settings.HttpChainProvider" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="HttpChainProviderextendsChainProviderwithProductwithSerializable"></a><a id="HttpChainProvider:HttpChainProvider"></a>
+      <span class="permalink">
+      <a href="../settings/HttpChainProvider.html" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="HttpChainProvider.html"><span class="name">HttpChainProvider</span></a><span class="params">(<span name="chainProvider">chainProvider: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="name">name: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="networkName">networkName: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="apiKey">apiKey: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result"> extends <a href="ChainProvider.html" class="extype" name="settings.ChainProvider">ChainProvider</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
       </span>
       
       
@@ -236,7 +296,7 @@
         <span class="kind">case class</span>
       </span>
       <span class="symbol">
-        <a title="" href="RPCApiSettings.html"><span class="name">RPCApiSettings</span></a><span class="params">(<span name="bindAddress">bindAddress: <span class="extype" name="java.net.InetSocketAddress">InetSocketAddress</span></span>, <span name="apiKeyHash">apiKeyHash: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="timeout">timeout: <span class="extype" name="scala.concurrent.duration.FiniteDuration">FiniteDuration</span></span>, <span name="verboseAPI">verboseAPI: <span class="extype" name="scala.Boolean">Boolean</span></span>, <span name="namespaceSelector">namespaceSelector: <a href="../http/NamespaceSelector.html" class="extype" name="http.NamespaceSelector">NamespaceSelector</a></span>)</span><span class="result"> extends <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+        <a title="" href="RPCApiSettings.html"><span class="name">RPCApiSettings</span></a><span class="params">(<span name="bindHostname">bindHostname: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="bindPort">bindPort: <span class="extype" name="scala.Int">Int</span></span>, <span name="apiKeyHash">apiKeyHash: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="timeout">timeout: <span class="extype" name="scala.concurrent.duration.FiniteDuration">FiniteDuration</span></span>, <span name="verboseAPI">verboseAPI: <span class="extype" name="scala.Boolean">Boolean</span></span>, <span name="namespaceSelector">namespaceSelector: <a href="../http/NamespaceSelector.html" class="extype" name="http.NamespaceSelector">NamespaceSelector</a></span>)</span><span class="result"> extends <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
       </span>
       
       
@@ -303,7 +363,23 @@ are delegated to the runtime options
         <div class="values members">
               <h3>Value Members</h3>
               <ol>
-                <li name="settings.AppSettings" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+                <li name="settings.AkkaChainProvider" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="AkkaChainProvider"></a><a id="AkkaChainProvider:AkkaChainProvider"></a>
+      <span class="permalink">
+      <a href="../settings/AkkaChainProvider$.html" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="AkkaChainProvider$.html"><span class="name">AkkaChainProvider</span></a><span class="result"> extends <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      
+      
+    </li><li name="settings.AppSettings" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="AppSettings"></a><a id="AppSettings:AppSettings"></a>
       <span class="permalink">
       <a href="../settings/AppSettings$.html" title="Permalink">
@@ -316,6 +392,54 @@ are delegated to the runtime options
       </span>
       <span class="symbol">
         <a title="" href="AppSettings$.html"><span class="name">AppSettings</span></a><span class="result"> extends <a href="../utils/Logging.html" class="extype" name="utils.Logging">Logging</a> with <a href="SettingsReaders.html" class="extype" name="settings.SettingsReaders">SettingsReaders</a> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      
+      
+    </li><li name="settings.ApplicationSettings" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="ApplicationSettings"></a><a id="ApplicationSettings:ApplicationSettings"></a>
+      <span class="permalink">
+      <a href="../settings/ApplicationSettings$.html" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="ApplicationSettings$.html"><span class="name">ApplicationSettings</span></a><span class="result"> extends <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      
+      
+    </li><li name="settings.ChainProvider" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="ChainProvider"></a><a id="ChainProvider:ChainProvider"></a>
+      <span class="permalink">
+      <a href="../settings/ChainProvider$.html" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="ChainProvider$.html"><span class="name">ChainProvider</span></a>
+      </span>
+      
+      
+    </li><li name="settings.HttpChainProvider" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="HttpChainProvider"></a><a id="HttpChainProvider:HttpChainProvider"></a>
+      <span class="permalink">
+      <a href="../settings/HttpChainProvider$.html" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="HttpChainProvider$.html"><span class="name">HttpChainProvider</span></a><span class="result"> extends <span class="extype" name="scala.Serializable">Serializable</span></span>
       </span>
       
       
@@ -332,6 +456,22 @@ are delegated to the runtime options
       </span>
       <span class="symbol">
         <a title="" href="NetworkType$.html"><span class="name">NetworkType</span></a>
+      </span>
+      
+      
+    </li><li name="settings.RPCApiSettings" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="RPCApiSettings"></a><a id="RPCApiSettings:RPCApiSettings"></a>
+      <span class="permalink">
+      <a href="../settings/RPCApiSettings$.html" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="RPCApiSettings$.html"><span class="name">RPCApiSettings</span></a><span class="result"> extends <span class="extype" name="scala.Serializable">Serializable</span></span>
       </span>
       
       
