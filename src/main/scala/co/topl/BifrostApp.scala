@@ -107,7 +107,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   /** hook for initiating the shutdown procedure */
   sys.addShutdownHook(BifrostApp.shutdown(actorSystem, actorsToStop))
 
-  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
+  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
   /** Create and register controllers for API routes */
   private val apiRoutes: Seq[ApiEndpoint] = Seq(
     UtilsApiEndpoint(settings.rpcApi, appContext),

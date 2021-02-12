@@ -14,9 +14,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
-case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: AppContext, keyHolderRef: ActorRef)(
-  implicit val context:                            ActorRefFactory
-) extends ApiEndpoint {
+case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: AppContext, keyHolderRef: ActorRef)
+                           (implicit val context:  ActorRefFactory) extends ApiEndpoint {
 
   // Establish the expected network prefix for addresses
   implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
@@ -45,26 +44,26 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     * Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
     *
     * #### Description
-    * Unlock an encrypted keyfile which exists in your keyfile directory. This will add the secret key to wallet and allow signing of transactions on behalf of that key
-    * ---
-    * #### Params
+    * Unlock an encrypted keyfile which exists in your keyfile directory. This will add the secret key to wallet and
+    * allow signing of transactions on behalf of that key
     *
-    * | Fields | Data type | Required / Optional | Description |
-    * | ---| ---	| --- | --- |
-    * | publicKey | String	| Required | Public key corresponding to an encrypted keyfile in your wallet directory |
-    * | password  | String	| Required | String used to encrypt the private keyfile that is stored locally |
+    * #### Params
+    * | Fields   | Data type | Required / Optional | Description                                                            |
+    * |----------|-----------|---------------------|------------------------------------------------------------------------|
+    * | address  | String    | Required            | Address corresponding to an encrypted keyfile in your wallet directory |
+    * | password | String    | Required            | String used to encrypt the private keyfile that is stored locally      |
     *
     * @param params input parameters as specified above
-    * @param id     request identifier
+    * @param id request identifier
     * @return
     */
   private def unlockKeyfile(params: Json, id: String): Future[Json] =
     (for {
-      addr     <- params.hcursor.get[String]("address")
+      address  <- params.hcursor.get[String]("address")
       password <- params.hcursor.get[String]("password")
-    } yield (keyHolderRef ? UnlockKey(addr, password)).mapTo[Try[Unit]].map {
-      case Success(_)  => Map(addr -> "unlocked".asJson).asJson
-      case Failure(ex) => throw new Exception(s"An error occurred while trying to unlock the keyfile. $ex")
+    } yield (keyHolderRef ? UnlockKey(address, password)).mapTo[Try[Unit]].map {
+      case Success(_)  => Map(address -> "unlocked".asJson).asJson
+      case Failure(ex) => throw new Error(s"An error occurred while trying to unlock the keyfile. $ex")
     }) match {
       case Right(json) => json
       case Left(ex)    => throw ex
@@ -78,15 +77,14 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     *
     * #### Description
     * Lock a previously unlocked keyfile in your wallet.
-    * ---
+    *
     * #### Params
-    * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
-    * |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
-    * | publicKey               	| String    	| Required            	| Public key corresponding to an encrypted keyfile in your wallet directory |
-    * | password                	| String    	| Required            	| String used to encrypt the private keyfile that is stored locally         |
+    * | Fields   | Data type | Required / Optional | Description                                                            |
+    * |----------|-----------|---------------------|------------------------------------------------------------------------|
+    * | address  | String    | Required            | Address corresponding to an encrypted keyfile in your wallet directory |
     *
     * @param params input parameters as specified above
-    * @param id     request identifier
+    * @param id request identifier
     * @return
     */
   private def lockKeyfile(params: Json, id: String): Future[Json] =
@@ -108,11 +106,11 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     *
     * #### Description
     * Generate and save a new encrypted private keyfile using Curve25519 key pairs.
-    * ---
+    *
     * #### Params
-    * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
-    * |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
-    * | password                	| String    	| Required            	| String used to encrypt the private keyfile that is stored locally        	|
+    * | Fields   | Data type | Required / Optional | Description                                                       |
+    * |----------|-----------|---------------------|-------------------------------------------------------------------|
+    * | password | String    | Required            | String used to encrypt the private keyfile that is stored locally |
     *
     * @param params input parameters as specified above
     * @param id     request identifier
@@ -122,8 +120,8 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     (for {
       password <- params.hcursor.get[String]("password")
     } yield (keyHolderRef ? CreateKey(password)).mapTo[Try[Address]].map {
-      case Success(a: Address) => Map("address" -> a.asJson).asJson
-      case Failure(ex)         => throw new Exception(s"An error occurred while creating a new keyfile. $ex")
+      case Success(addr: Address) => Map("address" -> addr.asJson).asJson
+      case Failure(ex)            => throw new Error(s"An error occurred while creating a new keyfile. $ex")
     }) match {
       case Right(json) => json
       case Left(ex)    => throw ex
@@ -137,13 +135,13 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     *
     * #### Description
     * Allows a user to import a 12, 15, 18, 21, or 24 word mnemonic (seed phrase) and generate an encrypted Keyfile
-    * ---
+    *
     * #### Params
-    * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
-    * |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
-    * | password                	| String    	| Required            	| String used to encrypt the private keyfile that is stored locally         |
-    * | seedPhrase              	| String    	| Required            	| 12, 15, 18, 21, or 24 word mnemonic							         	                |
-    * | seddPhraseLang         	| String    	| Optional            	| Defaults to 'en'. Valid options are ["zh-hans", "zh-hant", "en", "fr", "it", "ja", "ko", "es"] |
+    * | Fields         | Data type | Required / Optional | Description                                                                                    |
+    * |----------------|-----------|---------------------|------------------------------------------------------------------------------------------------|
+    * | password       | String    | Required            | String used to encrypt the private keyfile that is stored locally                              |
+    * | seedPhrase     | String    | Required            | 12, 15, 18, 21, or 24 word mnemonic                                                            |
+    * | seddPhraseLang | String    | Optional            | Defaults to 'en'. Valid options are ["zh-hans", "zh-hant", "en", "fr", "it", "ja", "ko", "es"] |
     *
     * @param params input parameters as specified above
     * @param id     request identifier
@@ -162,7 +160,22 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
       case Left(ex)    => throw ex
     }
 
-  /** Allows the user to retrieve the PublicKey address to receive block rewards
+  /** #### Summary
+    * Allows the user to retrieve the PublicKey address to receive block rewards
+    *
+    * #### Type
+    * Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
+    *
+    * #### Description
+    * Get the address used to receive block rewards. This method takes no input arguments.
+    *
+    * #### Params
+    * | Fields             | Data type | Required / Optional | Description |
+    * |--------------------|-----------|---------------------|-------------|
+    * | --None specified-- |           |                     |             |
+    *
+    * @param params input parameters as specified above
+    * @param id     request identifier
     * @return
     */
   private def getRewardsAddress(params: Json, id: String): Future[Json] =
@@ -170,7 +183,22 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
       Map("rewardsAddress" -> a).asJson
     }
 
-  /** Allows the user to specify a new PublicKey address to receive block rewards
+  /** #### Summary
+    * Allows the user to specify a new PublicKey address to receive block rewards
+    *
+    * #### Type
+    * Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
+    *
+    * #### Description
+    * Change the address used to receive block rewards. This method requires the new address as a string
+    *
+    * #### Params
+    * | Fields  | Data type | Required / Optional | Description                          |
+    * |---------|-----------|---------------------|--------------------------------------|
+    * | address | String    | Required            | New address to receive block rewards |
+    *
+    * @param params input parameters as specified above
+    * @param id     request identifier
     * @return
     */
   private def updateRewardsAddress(params: Json, id: String): Future[Json] =
@@ -199,11 +227,11 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     *
     * #### Description
     * Check which keyfiles are currently unlocked in your wallet. This method takes no input arguments.
-    * ---
+    *
     * #### Params
-    * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
-    * | ------------------------	| ----------	| --------------------	| -----------------------------------------------------------------------	  |
-    * | --None specified--       |           	|                     	|                                                                         |
+    * | Fields             | Data type | Required / Optional | Description |
+    * |--------------------|-----------|---------------------|-------------|
+    * | --None specified-- |           |                     |             |
     *
     * @param params input parameters as specified above
     * @param id     request identifier
@@ -222,11 +250,11 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     *
     * #### Description
     * Attempt to forge blocks using any unlocked keyfiles available on the node
-    * ---
+    *
     * #### Params
-    * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
-    * | ------------------------	| ----------	| --------------------	| -----------------------------------------------------------------------	  |
-    * | --None specified--       |           	|                     	|                                                                         |
+    * | Fields             | Data type | Required / Optional | Description |
+    * |--------------------|-----------|---------------------|-------------|
+    * | --None specified-- |           |                     |             |
     *
     * @param params input parameters as specified above
     * @param id     request identifier
@@ -245,11 +273,11 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     *
     * #### Description
     * Attempt to stop forging blocks
-    * ---
+    *
     * #### Params
-    * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
-    * | ------------------------	| ----------	| --------------------	| -----------------------------------------------------------------------	  |
-    * | --None specified--       |           	|                     	|                                                                         |
+    * | Fields             | Data type | Required / Optional | Description |
+    * |--------------------|-----------|---------------------|-------------|
+    * | --None specified-- |           |                     |             |
     *
     * @param params input parameters as specified above
     * @param id     request identifier
