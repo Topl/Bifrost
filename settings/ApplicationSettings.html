@@ -150,7 +150,7 @@
         <span class="kind">case class</span>
       </span>
       <span class="symbol">
-        <span class="name">ApplicationSettings</span><span class="params">(<span name="declaredAddress">declaredAddress: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="keyFileDir">keyFileDir: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="currentChainProvider">currentChainProvider: <a href="ChainProvider.html" class="extype" name="settings.ChainProvider">ChainProvider</a></span>, <span name="defaultChainProviders">defaultChainProviders: <span class="extype" name="scala.List">List</span>[<a href="ChainProvider.html" class="extype" name="settings.ChainProvider">ChainProvider</a>]</span>)</span><span class="result"> extends <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+        <span class="name">ApplicationSettings</span><span class="params">(<span name="declaredAddress">declaredAddress: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="keyFileDir">keyFileDir: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="currentChainProvider">currentChainProvider: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="defaultChainProviders">defaultChainProviders: <span class="extype" name="scala.Predef.Map">Map</span>[<span class="extype" name="scala.Predef.String">String</span>, <a href="ChainProvider.html" class="extype" name="settings.ChainProvider">ChainProvider</a>]</span>)</span><span class="result"> extends <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
       </span>
       </h4>
 
@@ -206,9 +206,9 @@
         <div id="constructors" class="members">
               <h3>Instance Constructors</h3>
               <ol><li name="settings.ApplicationSettings#&lt;init&gt;" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="&lt;init&gt;(declaredAddress:String,keyFileDir:String,currentChainProvider:settings.ChainProvider,defaultChainProviders:List[settings.ChainProvider]):settings.ApplicationSettings"></a><a id="&lt;init&gt;:ApplicationSettings"></a>
+      <a id="&lt;init&gt;(declaredAddress:String,keyFileDir:String,currentChainProvider:String,defaultChainProviders:Map[String,settings.ChainProvider]):settings.ApplicationSettings"></a><a id="&lt;init&gt;:ApplicationSettings"></a>
       <span class="permalink">
-      <a href="../settings/ApplicationSettings.html#&lt;init&gt;(declaredAddress:String,keyFileDir:String,currentChainProvider:settings.ChainProvider,defaultChainProviders:List[settings.ChainProvider]):settings.ApplicationSettings" title="Permalink">
+      <a href="../settings/ApplicationSettings.html#&lt;init&gt;(declaredAddress:String,keyFileDir:String,currentChainProvider:String,defaultChainProviders:Map[String,settings.ChainProvider]):settings.ApplicationSettings" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -217,7 +217,7 @@
         <span class="kind">new</span>
       </span>
       <span class="symbol">
-        <span class="name">ApplicationSettings</span><span class="params">(<span name="declaredAddress">declaredAddress: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="keyFileDir">keyFileDir: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="currentChainProvider">currentChainProvider: <a href="ChainProvider.html" class="extype" name="settings.ChainProvider">ChainProvider</a></span>, <span name="defaultChainProviders">defaultChainProviders: <span class="extype" name="scala.List">List</span>[<a href="ChainProvider.html" class="extype" name="settings.ChainProvider">ChainProvider</a>]</span>)</span>
+        <span class="name">ApplicationSettings</span><span class="params">(<span name="declaredAddress">declaredAddress: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="keyFileDir">keyFileDir: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="currentChainProvider">currentChainProvider: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="defaultChainProviders">defaultChainProviders: <span class="extype" name="scala.Predef.Map">Map</span>[<span class="extype" name="scala.Predef.String">String</span>, <a href="ChainProvider.html" class="extype" name="settings.ChainProvider">ChainProvider</a>]</span>)</span>
       </span>
       
       
@@ -320,9 +320,9 @@
               
         </dd></dl></div>
     </li><li name="settings.ApplicationSettings#currentChainProvider" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="currentChainProvider:settings.ChainProvider"></a><a id="currentChainProvider:ChainProvider"></a>
+      <a id="currentChainProvider:String"></a>
       <span class="permalink">
-      <a href="../settings/ApplicationSettings.html#currentChainProvider:settings.ChainProvider" title="Permalink">
+      <a href="../settings/ApplicationSettings.html#currentChainProvider:String" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -331,7 +331,7 @@
         <span class="kind">var</span>
       </span>
       <span class="symbol">
-        <span class="name">currentChainProvider</span><span class="result">: <a href="ChainProvider.html" class="extype" name="settings.ChainProvider">ChainProvider</a></span>
+        <span class="name">currentChainProvider</span><span class="result">: <span class="extype" name="scala.Predef.String">String</span></span>
       </span>
       
       
@@ -352,9 +352,9 @@
       
       
     </li><li name="settings.ApplicationSettings#defaultChainProviders" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="defaultChainProviders:List[settings.ChainProvider]"></a><a id="defaultChainProviders:List[ChainProvider]"></a>
+      <a id="defaultChainProviders:Map[String,settings.ChainProvider]"></a><a id="defaultChainProviders:Map[String,ChainProvider]"></a>
       <span class="permalink">
-      <a href="../settings/ApplicationSettings.html#defaultChainProviders:List[settings.ChainProvider]" title="Permalink">
+      <a href="../settings/ApplicationSettings.html#defaultChainProviders:Map[String,settings.ChainProvider]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -363,7 +363,7 @@
         <span class="kind">var</span>
       </span>
       <span class="symbol">
-        <span class="name">defaultChainProviders</span><span class="result">: <span class="extype" name="scala.List">List</span>[<a href="ChainProvider.html" class="extype" name="settings.ChainProvider">ChainProvider</a>]</span>
+        <span class="name">defaultChainProviders</span><span class="result">: <span class="extype" name="scala.Predef.Map">Map</span>[<span class="extype" name="scala.Predef.String">String</span>, <a href="ChainProvider.html" class="extype" name="settings.ChainProvider">ChainProvider</a>]</span>
       </span>
       
       
