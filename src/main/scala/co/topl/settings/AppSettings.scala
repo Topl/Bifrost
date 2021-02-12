@@ -71,7 +71,7 @@ case class NetworkSettings(
 
 case class ForgingSettings(
   blockGenerationDelay: FiniteDuration,
-  minTransactionFee:    Int128,
+  minTransactionFee:    Long,
   protocolVersions:     List[ProtocolSettings],
   forgeOnStartup:       Boolean,
   privateTestnet:       Option[PrivateTestnetSettings]
