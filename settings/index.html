@@ -87,8 +87,8 @@
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="../index.html" class="extype" name="_root_">root</a></dd></dl></div>
     </li><li class="current-entities indented1">
                         <a class="object" href="AkkaChainProvider$.html" title=""></a>
-                        <a class="class" href="AkkaChainProvider.html" title=""></a>
-                        <a href="AkkaChainProvider.html" title="">AkkaChainProvider</a>
+                        <a class="class" href="AkkaChainProvider.html" title="A chain provider used to connect to Bifrost through the akka actor system."></a>
+                        <a href="AkkaChainProvider.html" title="A chain provider used to connect to Bifrost through the akka actor system.">AkkaChainProvider</a>
                       </li><li class="current-entities indented1">
                         <a class="object" href="AppSettings$.html" title=""></a>
                         <a class="class" href="AppSettings.html" title=""></a>
@@ -99,12 +99,12 @@
                         <a href="ApplicationSettings.html" title="">ApplicationSettings</a>
                       </li><li class="current-entities indented1">
                         <a class="object" href="ChainProvider$.html" title=""></a>
-                        <a class="class" href="ChainProvider.html" title=""></a>
-                        <a href="ChainProvider.html" title="">ChainProvider</a>
+                        <a class="class" href="ChainProvider.html" title="Abstract class for HttpChainProvider and AkkaChainProvider."></a>
+                        <a href="ChainProvider.html" title="Abstract class for HttpChainProvider and AkkaChainProvider.">ChainProvider</a>
                       </li><li class="current-entities indented1">
                         <a class="object" href="HttpChainProvider$.html" title=""></a>
-                        <a class="class" href="HttpChainProvider.html" title=""></a>
-                        <a href="HttpChainProvider.html" title="">HttpChainProvider</a>
+                        <a class="class" href="HttpChainProvider.html" title="Chain provider used to communicate with Bifrost through Http"></a>
+                        <a href="HttpChainProvider.html" title="Chain provider used to communicate with Bifrost through Http">HttpChainProvider</a>
                       </li><li class="current-entities indented1">
                         <a class="object" href="NetworkType$.html" title=""></a>
                         <a class="class" href="NetworkType.html" title=""></a>
@@ -188,7 +188,7 @@
 
         <div id="types" class="types members">
               <h3>Type Members</h3>
-              <ol><li name="settings.AkkaChainProvider" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+              <ol><li name="settings.AkkaChainProvider" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="AkkaChainProviderextendsChainProviderwithProductwithSerializable"></a><a id="AkkaChainProvider:AkkaChainProvider"></a>
       <span class="permalink">
       <a href="../settings/AkkaChainProvider.html" title="Permalink">
@@ -200,10 +200,10 @@
         <span class="kind">case class</span>
       </span>
       <span class="symbol">
-        <a title="" href="AkkaChainProvider.html"><span class="name">AkkaChainProvider</span></a><span class="params">(<span name="chainProvider">chainProvider: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="name">name: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="networkName">networkName: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result"> extends <a href="ChainProvider.html" class="extype" name="settings.ChainProvider">ChainProvider</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+        <a title="A chain provider used to connect to Bifrost through the akka actor system." href="AkkaChainProvider.html"><span class="name">AkkaChainProvider</span></a><span class="params">(<span name="chainProvider">chainProvider: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="name">name: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="networkName">networkName: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result"> extends <a href="ChainProvider.html" class="extype" name="settings.ChainProvider">ChainProvider</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
       </span>
       
-      
+      <p class="shortcomment cmt">A chain provider used to connect to Bifrost through the akka actor system.</p><div class="fullcomment"><div class="comment cmt"><p>A chain provider used to connect to Bifrost through the akka actor system.</p></div><dl class="paramcmts block"><dt class="param">chainProvider</dt><dd class="cmt"><p>- Bifrost's akka remote address</p></dd><dt class="param">name</dt><dd class="cmt"><p>- the name of the chain provider</p></dd><dt class="param">networkName</dt><dd class="cmt"><p>- the network name for the connection.</p></dd></dl></div>
     </li><li name="settings.AppSettings" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="AppSettingsextendsProductwithSerializable"></a><a id="AppSettings:AppSettings"></a>
       <span class="permalink">
@@ -236,7 +236,7 @@
       </span>
       
       
-    </li><li name="settings.ChainProvider" visbl="pub" class="indented0 " data-isabs="true" fullComment="no" group="Ungrouped">
+    </li><li name="settings.ChainProvider" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
       <a id="ChainProviderextendsAnyRef"></a><a id="ChainProvider:ChainProvider"></a>
       <span class="permalink">
       <a href="../settings/ChainProvider.html" title="Permalink">
@@ -248,11 +248,12 @@
         <span class="kind">class</span>
       </span>
       <span class="symbol">
-        <a title="" href="ChainProvider.html"><span class="name">ChainProvider</span></a><span class="result"> extends <span class="extype" name="scala.AnyRef">AnyRef</span></span>
+        <a title="Abstract class for HttpChainProvider and AkkaChainProvider." href="ChainProvider.html"><span class="name">ChainProvider</span></a><span class="result"> extends <span class="extype" name="scala.AnyRef">AnyRef</span></span>
       </span>
       
-      
-    </li><li name="settings.HttpChainProvider" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <p class="shortcomment cmt">Abstract class for <a href="HttpChainProvider.html" class="extype" name="settings.HttpChainProvider">HttpChainProvider</a> and <a href="AkkaChainProvider.html" class="extype" name="settings.AkkaChainProvider">AkkaChainProvider</a>.</p><div class="fullcomment"><div class="comment cmt"><p>Abstract class for <a href="HttpChainProvider.html" class="extype" name="settings.HttpChainProvider">HttpChainProvider</a> and <a href="AkkaChainProvider.html" class="extype" name="settings.AkkaChainProvider">AkkaChainProvider</a>.
+Represents information for a chain provider, which is the information needed to connect/communicate with Bifrost.</p></div></div>
+    </li><li name="settings.HttpChainProvider" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="HttpChainProviderextendsChainProviderwithProductwithSerializable"></a><a id="HttpChainProvider:HttpChainProvider"></a>
       <span class="permalink">
       <a href="../settings/HttpChainProvider.html" title="Permalink">
@@ -264,10 +265,10 @@
         <span class="kind">case class</span>
       </span>
       <span class="symbol">
-        <a title="" href="HttpChainProvider.html"><span class="name">HttpChainProvider</span></a><span class="params">(<span name="chainProvider">chainProvider: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="name">name: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="networkName">networkName: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="apiKey">apiKey: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result"> extends <a href="ChainProvider.html" class="extype" name="settings.ChainProvider">ChainProvider</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+        <a title="Chain provider used to communicate with Bifrost through Http" href="HttpChainProvider.html"><span class="name">HttpChainProvider</span></a><span class="params">(<span name="chainProvider">chainProvider: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="name">name: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="networkName">networkName: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="apiKey">apiKey: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result"> extends <a href="ChainProvider.html" class="extype" name="settings.ChainProvider">ChainProvider</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
       </span>
       
-      
+      <p class="shortcomment cmt">Chain provider used to communicate with Bifrost through Http</p><div class="fullcomment"><div class="comment cmt"><p>Chain provider used to communicate with Bifrost through Http</p></div><dl class="paramcmts block"><dt class="param">chainProvider</dt><dd class="cmt"><p>- the address for Bifrost's API</p></dd><dt class="param">name</dt><dd class="cmt"><p>- the name of the chain provider</p></dd><dt class="param">networkName</dt><dd class="cmt"><p>- the network name for the connection.</p></dd><dt class="param">apiKey</dt><dd class="cmt"><p>- Bifrost's api key</p></dd></dl></div>
     </li><li name="settings.NetworkType" visbl="pub" class="indented0 " data-isabs="true" fullComment="no" group="Ungrouped">
       <a id="NetworkTypeextendsAnyRef"></a><a id="NetworkType:NetworkType"></a>
       <span class="permalink">
