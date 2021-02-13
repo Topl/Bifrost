@@ -69,8 +69,6 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
       changeCurrentChainProvider(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_addChainProvider" => addChainProvider(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_editChainProvider" => editChainProvider(params.head, id)
-    //case (method, params, id) if method == s"${namespace.name}_changeApiKey" => changeApiKey(params.head, id)
-
   }
 
   /** #### Summary
@@ -448,7 +446,7 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
     *
     * @param params input parameters as specified above
     * @param id     request identifier
-    * @return - json mapping: "newChainProvider" -> appSettings.application.chainProvider
+    * @return - json mapping: "currentChainProvider" -> applicationSettings.currentChainProvider
     */
  private def changeCurrentChainProvider(params: Json, id: String): Future[Json] = {
     (for {
@@ -481,11 +479,11 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
     *
     * | Fields | Data type | Required / Optional | Description |
     * | ---| ---	| --- | --- |
-    * | chainProvider | ChainProvider	| Required | the new chainProvider to switch to |
+    * | chainProvider | ChainProvider	| Required | the new chainProvider to add|
     *
     * @param params input parameters as specified above
     * @param id request identifier
-    * @return
+    * @return a map of the chain provider's name to "Added"
     */
   private def addChainProvider(params: Json, id: String): Future[Json] = {
     (for {
@@ -497,9 +495,7 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
         case None =>
           currentList.put(chainProvider.name, chainProvider)
           applicationSettings.defaultChainProviders = currentList.toMap
-          Future {
-            Map(chainProvider.name -> "Added").asJson
-          }
+          Future {Map(chainProvider.name -> "Added").asJson}
       }
     }) match {
       case Right(value) => value
@@ -507,6 +503,23 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
     }
   }
 
+  /** #### Summary
+    * Edits a chain provider in the list of chain providers
+    *
+    * #### Description
+    * Replaces an editted chain provider in the list of chain providers
+    * * These changes are not writting to application.conf so are not saved after terminating the app.
+    * ---
+    * #### Params
+    *
+    * | Fields | Data type | Required / Optional | Description |
+    * | ---| ---	| --- | --- |
+    * | chainProvider | ChainProvider	| Required | the edited chainProvider |
+    *
+    * @param params input parameters as specified above
+    * @param id request identifier
+    * @return a map of the chain provider's name to "Edited"
+    */
   private def editChainProvider(params: Json, id: String): Future[Json] = {
     (for {
       chainProvider <- (params \\ "chainProvider").head.as[ChainProvider]
@@ -525,150 +538,12 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
     }
   }
 
-  /*def updateCurrentChainProvider(newChainProvider: ChainProvider, oldChainProvider: ChainProvider): Unit = {
-    //grab config file to write to
-    //TODO: should this path be hardcoded?
-    val path = "gjallarhorn/src/main/resources/application.conf"
-    val configFile: File = new File(path)
-    if (!configFile.exists()) {
-      throw new Error (s"The config file: $path does not exist!")
-    }
-
-    //find line that defines settingName and edit it so that it is set to the new value
-    var lines: Array[String] = Array.empty
-    val reader = new BufferedReader(new FileReader(configFile))
-    var line: String = ""
-    while ({line = reader.readLine; line != null}) {
-      if (line.contains("current-chain-provider")) {
-        var newLines: Array[String] = Array(line)
-        (oldChainProvider, newChainProvider) match {
-          case (old: AkkaChainProvider, newCp: AkkaChainProvider) =>
-            val typeLine = reader.readLine()
-            val cpLine = reader.readLine().replace(old.chainProvider, newCp.chainProvider)
-            val nameLine = reader.readLine().replace(old.name, newCp.name)
-            val networkLine = reader.readLine().replace(old.networkName, newCp.networkName)
-            newLines = newLines ++ Array(typeLine, cpLine, nameLine, networkLine)
-
-          case (old: AkkaChainProvider, newCp: HttpChainProvider) =>
-            val typeLine = reader.readLine().replace("akka-chain-provider", "http-chain-provider")
-            val cpLine = reader.readLine().replace(old.chainProvider, newCp.chainProvider)
-            val nameLine = reader.readLine().replace(old.name, newCp.name)
-            val networkLine = reader.readLine().replace(s""""${old.networkName}"""", s""""${newCp.networkName}",""")
-            val apiKey = s"""                api-key = "${newCp.apiKey}""""
-            newLines = newLines ++ Array(typeLine, cpLine, nameLine, networkLine, apiKey)
-
-          case (old:HttpChainProvider, newCp: AkkaChainProvider) =>
-            val typeLine = reader.readLine().replace("http-chain-provider", "akka-chain-provider")
-            val cpLine = reader.readLine().replace(old.chainProvider, newCp.chainProvider)
-            val nameLine = reader.readLine().replace(old.name, newCp.name)
-            val networkLine = reader.readLine().replace(s""""${old.networkName}",""",s""""${newCp.networkName}"""")
-            reader.readLine() //skip over api-key line
-            newLines = newLines ++ Array(typeLine, cpLine, nameLine, networkLine)
-
-          case (old:HttpChainProvider, newCp: HttpChainProvider) =>
-            val typeLine = reader.readLine()
-            val cpLine = reader.readLine().replace(old.chainProvider, newCp.chainProvider)
-            val nameLine = reader.readLine().replace(old.name, newCp.name)
-            val networkLine = reader.readLine().replace(old.networkName, newCp.networkName)
-            val apiKey = reader.readLine().replace(old.apiKey, newCp.apiKey)
-            newLines = newLines ++ Array(typeLine, cpLine, nameLine, networkLine)
-        }
-        lines = lines ++ newLines
-      }else{
-        lines = lines :+ line
-      }
-    }
-    reader.close()
-
-    val writer = new BufferedWriter(new FileWriter(configFile))
-    lines.foreach(line => {
-      writer.write(line)
-      writer.newLine()
-    })
-    writer.close()
-  }
-*/
-/*   /** #### Summary
-    * Change the api key
-    *
-    * #### Description
-    * Changes the api key to the given api key to communicate with Bifrost through Http
-    * ---
-    * #### Params
-    *
-    * | Fields | Data type | Required / Optional | Description |
-    * | ---| ---	| --- | --- |
-    * | apiKey | String	| Required | the new api key |
-    *
-    * @param params input parameters as specified above
-    * @param id     request identifier
-    * @return - json mapping: "newApiKey" -> applicationSettings.bifrostApiKey
-    */
-  private def changeApiKey(params: Json, id: String): Future[Json] = {
-    (for {
-      apiKey <- (params \\ "apiKey").head.as[String]
-    } yield {
-      applicationSettings.currentChainProvider match {
-        case cp: HttpChainProvider =>
-          updateCurrentApiKey(cp.apiKey, apiKey)
-          val newCp = cp
-          newCp.apiKey = apiKey
-          applicationSettings.currentChainProvider = newCp
-          Map("newApiKey" -> applicationSettings.currentChainProvider.asInstanceOf[HttpChainProvider].apiKey).asJson
-
-        case _ => throw new Exception("The current chain provider is not an HttpChainProvider, " +
-          "so there's no api key.")
-      }
-
-    }) match {
-      case Right(value) => Future{value}
-      case Left(error) => throw new Exception (s"error parsing for api key: $error")
-    }
-  }*/
-
-  private def updateCurrentApiKey(oldKey: String, newKey: String): Unit = {
-    //grab config file to write to
-    //TODO: should this path be hardcoded?
-    val path = "gjallarhorn/src/main/resources/application.conf"
-    val configFile: File = new File(path)
-    if (!configFile.exists()) {
-      throw new Error (s"The config file: $path does not exist!")
-    }
-
-    //find line that defines settingName and edit it so that it is set to the new value
-    var lines: Array[String] = Array.empty
-    val reader = new BufferedReader(new FileReader(configFile))
-    var line: String = ""
-    while ({line = reader.readLine; line != null}) {
-      if (line.contains("current-chain-provider")) {
-        var newLines: Array[String] = Array(line)
-        val typeLine = reader.readLine()
-        val cpLine = reader.readLine()
-        val nameLine = reader.readLine()
-        val networkLine = reader.readLine()
-        val apiKeyLine = reader.readLine().replace(oldKey, newKey)
-        newLines = newLines ++ Array(typeLine, cpLine, nameLine, networkLine, apiKeyLine)
-        lines = lines ++ newLines
-      }else{
-        lines = lines :+ line
-      }
-    }
-    reader.close()
-
-    val writer = new BufferedWriter(new FileWriter(configFile))
-    lines.foreach(line => {
-      writer.write(line)
-      writer.newLine()
-    })
-    writer.close()
-  }
-
 
   /** #### Summary
     * Returns information about the current state.
     *
     * #### Description
-    * Returns current state information: networkPrefix, communicationMode, apiKey, keyfileDirectory, and keys.
+    * Returns current state information: networkPrefix, currentChainProvider, listOfChainProviders, keyfileDirectory, and keys.
     * ---
     * #### Params
     *
@@ -678,7 +553,7 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
     *
     * @param params input parameters as specified above
     * @param id     request identifier
-    * @return - json mapping: "newApiKey" -> applicationSettings.bifrostApiKey
+    * @return - json mapping of state information
     */
   private def getCurrentState(params: Json, id: String): Future[Json] = {
     Await.result((keyManagerRef ? GetKeyfileDir).mapTo[Json].map(value => {

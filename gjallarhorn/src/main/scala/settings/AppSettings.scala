@@ -7,7 +7,6 @@ import pureconfig._
 import pureconfig.generic.semiauto._
 import http.NamespaceSelector
 import utils.Logging
-import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.duration.FiniteDuration
 
 case class ApplicationSettings(declaredAddress: String,

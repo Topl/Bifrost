@@ -42,8 +42,13 @@ class RequestSpec extends AsyncFlatSpec
   val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", requestSettings.application)
 
   //set up actors
+  val chainProvider: String = requestSettings.application.defaultChainProviders
+    .get(settings.application.currentChainProvider) match {
+    case Some(cp) => cp.chainProvider
+    case None => "bifrost-client@127.0.0.1:9087"
+  }
   val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
-    s"akka.tcp://${requestSettings.application.currentChainProvider.chainProvider}/user/walletConnectionHandler")
+    s"akka.tcp://$chainProvider/user/walletConnectionHandler")
     .resolveOne(), 10.seconds)
   val walletManagerRef: ActorRef = actorSystem.actorOf(
     Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)

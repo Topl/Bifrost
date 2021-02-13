@@ -5,6 +5,13 @@ import io.circe.{Decoder, Encoder, HCursor}
 import pureconfig._
 import pureconfig.generic.semiauto._
 
+/**
+  * Abstract class for [[HttpChainProvider]] and [[AkkaChainProvider]].
+  * Represents information for a chain provider, which is the information needed to connect/communicate with Bifrost.
+  * @param chainProvider - the address for Bifrost
+  * @param name - the name of the chain provider
+  * @param networkName - the network name for the connection.
+  */
 sealed abstract class ChainProvider(val chainProvider: String,
                                     val name: String,
                                     val networkName: String)
@@ -29,6 +36,12 @@ object ChainProvider {
   }
 }
 
+/**
+  * A chain provider used to connect to Bifrost through the akka actor system.
+  * @param chainProvider - Bifrost's akka remote address
+  * @param name - the name of the chain provider
+  * @param networkName - the network name for the connection.
+  */
 case class AkkaChainProvider(override val chainProvider: String,
                              override val name: String,
                              override val networkName: String
@@ -60,6 +73,13 @@ object AkkaChainProvider {
     }
 }
 
+/**
+  * Chain provider used to communicate with Bifrost through Http
+  * @param chainProvider - the address for Bifrost's API
+  * @param name - the name of the chain provider
+  * @param networkName - the network name for the connection.
+  * @param apiKey - Bifrost's api key
+  */
 case class HttpChainProvider(override val chainProvider: String,
                              override val name: String,
                              override val networkName: String,
