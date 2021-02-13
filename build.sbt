@@ -11,9 +11,13 @@ lazy val commonSettings = Seq(
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   organization := "co.topl",
-  version := "1.3.0"
+  version := "1.3.2"
   // wartremoverErrors := Warts.unsafe // settings for wartremover
 )
+
+scalaVersion := "2.12.12"
+organization := "co.topl"
+version := "1.3.2"
 
 mainClass in assembly := Some("co.topl.BifrostApp")
 test in assembly := {}
@@ -156,6 +160,8 @@ homepage := Some(url("https://github.com/Topl/Bifrost"))
 
 assemblyJarName := s"bifrost-${version.value}.jar"
 
+assemblyOption in assembly := (assemblyOption in assembly).value.copy(appendContentHash = true)
+
 assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) =>
   {
     case ps if ps.endsWith(".SF")  => MergeStrategy.discard
@@ -163,11 +169,11 @@ assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) =>
     case ps if ps.endsWith(".RSA") => MergeStrategy.discard
     case ps if ps.endsWith(".xml") => MergeStrategy.first
     // https://github.com/sbt/sbt-assembly/issues/370
-    case PathList("module-info.class") => MergeStrategy.discard
-    case PathList("module-info.java")  => MergeStrategy.discard
-    case "META-INF/truffle/instrument" => MergeStrategy.concat
-    case "META-INF/truffle/language"   => MergeStrategy.rename
-    case x                             => old(x)
+    case PathList(ps @ _*) if ps.last endsWith "module-info.class" => MergeStrategy.discard
+    case PathList("module-info.java")                              => MergeStrategy.discard
+    case "META-INF/truffle/instrument"                             => MergeStrategy.concat
+    case "META-INF/truffle/language"                               => MergeStrategy.rename
+    case x                                                         => old(x)
   }
 }
 

@@ -4,7 +4,7 @@ import java.io.File
 import java.net.InetSocketAddress
 
 import co.topl.http.api.NamespaceSelector
-import co.topl.utils.{Int128, Logging, NetworkTimeProviderSettings}
+import co.topl.utils.{Logging, NetworkTimeProviderSettings}
 import com.typesafe.config.{Config, ConfigFactory}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
@@ -130,70 +130,29 @@ object AppSettings extends Logging with SettingsReaders {
     */
   def readConfig(args: StartupOpts): Config = {
 
-    val networkPath = args.networkTypeOpt.flatMap { networkType =>
-      // todo: JAA - check if this works with a fat-jar since resources are no longer in this location
-      Option(s"src/main/resources/${networkType.verboseName}.conf")
+    val userConfig = args.userConfigPathOpt.fold(ConfigFactory.empty()) { uc =>
+      val userFile = new File(uc)
+      log.info(s"${Console.YELLOW}Attempting to load custom configuration from " +
+        s"${userFile.getAbsolutePath}${Console.RESET}")
+
+      ConfigFactory.parseFile(userFile)
     }
 
-    val networkName: String = args.networkTypeOpt.flatMap(networkType => Option(networkType.verboseName)).getOrElse {
-      log.warn(s"${Console.YELLOW}No network specified, running as local testnet.${Console.RESET}")
-      "No Network Specified"
+    val networkConfigFile = args.networkTypeOpt.map(n => s"${n.verboseName}.conf").getOrElse("")
+    val networkConfig = ConfigFactory.load(this.getClass.getClassLoader, networkConfigFile)
+    networkConfigFile match {
+      case "" => log.info(s"${Console.YELLOW}No network specified, running as private testnet.${Console.RESET}")
+      case _  => log.info(s"${Console.YELLOW}Loading ${args.networkTypeOpt.get.verboseName} settings${Console.RESET}")
     }
 
-    val networkConfigFileOpt = for {
-      filePathOpt <- networkPath
-      file = new File(filePathOpt)
-      if file.exists
-    } yield file
+    // load config files from disk, if the above strings are empty then ConFigFactory will skip loading them
+    ConfigFactory
+      .defaultOverrides()
+      .withFallback(userConfig)
+      .withFallback(networkConfig)
+      .withFallback(ConfigFactory.defaultApplication())
+      .resolve()
 
-    val userConfigFileOpt = for {
-      filePathOpt <- args.userConfigPathOpt
-      file = new File(filePathOpt)
-      if file.exists
-    } yield file
-
-    (userConfigFileOpt, networkConfigFileOpt) match {
-      /** If there are user provided settings or network type, overwrite default settings with user specified ones */
-      case (Some(file), None) ⇒
-        log.warn(
-          s"${Console.YELLOW}Found custom settings. " +
-          s"Using default settings for ones not specified in custom Settings${Console.RESET}"
-        )
-        val config = ConfigFactory.parseFile(file)
-        ConfigFactory
-          .defaultOverrides()
-          .withFallback(config)
-          .withFallback(ConfigFactory.defaultApplication())
-          .resolve()
-
-      case (None, Some(networkConfigFile)) ⇒
-        log.warn(s"${Console.YELLOW}Using $networkName settings${Console.RESET}")
-        val networkConfig = ConfigFactory.parseFile(networkConfigFile)
-        ConfigFactory
-          .defaultOverrides()
-          .withFallback(networkConfig)
-          .withFallback(ConfigFactory.defaultApplication())
-          .resolve()
-
-      case (Some(file), Some(networkConfigFile)) =>
-        log.warn(
-          s"${Console.YELLOW}Found custom settings. " +
-          s"Using $networkName settings for ones not specified in custom Settings${Console.RESET}"
-        )
-        val config = ConfigFactory.parseFile(file)
-        val networkConfig = ConfigFactory.parseFile(networkConfigFile)
-        ConfigFactory
-          .defaultOverrides()
-          .withFallback(config)
-          .withFallback(networkConfig)
-          .withFallback(ConfigFactory.defaultApplication())
-          .resolve()
-
-      /** Use default settings if no startup options is found */
-      case _ ⇒
-        log.warn(s"${Console.YELLOW}No custom setting specified, using default configuration${Console.RESET}")
-        ConfigFactory.load()
-    }
   }
 
   def clusterConfig(settings: AppSettings, config: Config): Config = {
