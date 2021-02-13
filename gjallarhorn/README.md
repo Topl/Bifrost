@@ -51,16 +51,14 @@ Important settings for running
 -------------------
 The settings for gjallarhorn can be found in `src/main/resources/application.conf`
     
-   1. chainProvider:
+   1. chainProvider address:
         - the chain provider must match the hostname and port for Bifrost's akka.remote.classic.netty.tcp config (this can be found in the main Bifrost repo under src/main/resources/application.conf)
         - more specifically, the chain provider should follow this format:
         `[bifrost.network.agentName]@[akka.remote.classic.netty.tcp.hostname]:[akka.remote.classic.netty.tcp.port]`
         - the default should be set to `bifrost-client@127.0.0.1:9087`
-   2. communicationMode:
-        - this refers to how gjallarhorn communicates with Bifrost.
-        - this can be set to "useHttp" or "useAkka"
-        - "useHttp": communication will go through api route
-        - "useAkka": communication will go through akka actors
+   2. two types of chain providers: this refers to how gjallarhorn communicates with Bifrost.
+        - "HttpChainProvider": communication will go through api route
+        - "AkkaChainProvider": communication will go through akka actors
         
 Testing
 -------------------
