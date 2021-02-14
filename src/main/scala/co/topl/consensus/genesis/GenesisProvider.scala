@@ -5,7 +5,7 @@ import co.topl.consensus.Forger.ChainParams
 import co.topl.crypto.PrivateKeyCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.settings.Version
+import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.utils.{Int128, Logging}
 import scorex.crypto.signatures.{PrivateKey, PublicKey}
 
@@ -22,7 +22,7 @@ trait GenesisProvider extends Logging {
 
   protected val blockChecksum: ModifierId
 
-  protected val blockVersion: Version
+  protected val blockVersion: PNVMVersion
 
   protected val initialDifficulty: Long
 

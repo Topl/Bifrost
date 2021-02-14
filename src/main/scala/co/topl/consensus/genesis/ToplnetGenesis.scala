@@ -6,9 +6,10 @@ import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCu
 import co.topl.consensus.Forger.ChainParams
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
+import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
-import co.topl.settings.{NetworkType, Version}
+import co.topl.settings.NetworkType
 import co.topl.utils.Int128
 
 import scala.util.Try
@@ -19,7 +20,7 @@ case object ToplnetGenesis extends GenesisProvider {
 
   override protected val blockChecksum: ModifierId = ModifierId("29tx4mTsQPkynrt2KaHdtruKypx2zgWkUJr5a1knL2wGf")
 
-  override protected val blockVersion: Version = new Version(1, 0, 0)
+  override protected val blockVersion: PNVMVersion = 0: Byte
 
   override protected val initialDifficulty: Long = 1000000000000000000L
 
@@ -95,7 +96,7 @@ case object ToplnetGenesis extends GenesisProvider {
         1L,
         initialDifficulty,
         txs,
-        blockVersion.blockByte
+        blockVersion
       )
 
     require(

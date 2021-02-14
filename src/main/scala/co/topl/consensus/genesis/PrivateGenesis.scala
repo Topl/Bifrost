@@ -6,9 +6,10 @@ import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.Forger.ChainParams
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
+import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
-import co.topl.settings.{AppSettings, Version}
+import co.topl.settings.AppSettings
 import co.topl.utils.Int128
 
 import scala.util.Try
@@ -19,7 +20,7 @@ case class PrivateGenesis(keyGen: (Int, Option[String]) => Set[PublicKeyProposit
 
   override protected val blockChecksum: ModifierId = ModifierId.empty
 
-  override protected val blockVersion: Version = settings.application.version
+  override protected val blockVersion: PNVMVersion = settings.application.version.blockByte
 
   override protected val members: Map[String, Int128] = Map("Not implemented here" -> 0L)
 
@@ -89,7 +90,7 @@ case class PrivateGenesis(keyGen: (Int, Option[String]) => Set[PublicKeyProposit
         1L,
         initialDifficulty,
         txs,
-        blockVersion.blockByte
+        blockVersion
       )
 
     log.debug(s"Initialize state with block $block")

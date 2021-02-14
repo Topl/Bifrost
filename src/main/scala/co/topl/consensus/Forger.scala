@@ -2,7 +2,7 @@ package co.topl.consensus
 
 import akka.actor._
 import co.topl.attestation.AddressEncoder.NetworkPrefix
-import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.attestation.{Address, AddressEncoder, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.Forger.{ChainParams, PickTransactionsResult}
 import co.topl.consensus.genesis.{HelGenesis, PrivateGenesis, ToplnetGenesis, ValhallaGenesis}
 import co.topl.crypto.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
@@ -11,7 +11,11 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.CurrentView
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{EliminateTransactions, GetDataFromCurrentView, LocallyGeneratedModifier}
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{
+  EliminateTransactions,
+  GetDataFromCurrentView,
+  LocallyGeneratedModifier
+}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
@@ -45,7 +49,16 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
   private var nodeViewHolderRef: Option[ActorRef] = None
 
   // designate a rewards address
-  private var rewardAddress: Option[Address] = None
+  private var rewardAddress: Option[Address] =
+    settings.forging.rewardsAddress.flatMap {
+      AddressEncoder.fromStringWithCheck(_, appContext.networkType.netPrefix) match {
+        case Failure(ex) =>
+          log.warn(s"${Console.YELLOW}Unable to set rewards address due to $ex ${Console.RESET}")
+          None
+
+        case Success(addr) => Some(addr)
+      }
+    }
 
   // a timestamp updated on each forging attempt
   private var forgeTime: Time = appContext.timeProvider.time
@@ -146,7 +159,7 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
       if (sf.privateTestnet.flatMap(_.genesisSeed).nonEmpty && keyRing.addresses.isEmpty) {
         val sfp = sf.privateTestnet.get //above conditional ensures this exists
         generateKeys(sfp.numTestnetAccts, sfp.genesisSeed) // JAA - hacky way to reproduce keys (not fully tested)
-        rewardAddress = keyRing.addresses.headOption
+        if (rewardAddress.isEmpty) rewardAddress = keyRing.addresses.headOption
         maxStake = sfp.numTestnetAccts * sfp.testnetBalance // JAA - we need to save these values to disk
       }
 
@@ -187,7 +200,7 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
       case PrivateTestnet  => PrivateGenesis(generateKeys, settings).getGenesisBlock
       case _               => throw new Error("Undefined network type.")
     }).map { case (block: Block, ChainParams(totalStake, initDifficulty)) =>
-      rewardAddress = keyRing.addresses.headOption
+      if (rewardAddress.isEmpty) rewardAddress = keyRing.addresses.headOption
       maxStake = totalStake
       difficulty = initDifficulty
       height = 0
@@ -332,7 +345,9 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
 
     memPool
       .take[Int128](numTxInBlock(chainHeight))(-_.tx.fee) // returns a sequence of transactions ordered by their fee
-      .filter(_.tx.fee > settings.forging.minTransactionFee) // default strategy ignores zero fee transactions in mempool
+      .filter(
+        _.tx.fee > settings.forging.minTransactionFee
+      ) // default strategy ignores zero fee transactions in mempool
       .foldLeft(PickTransactionsResult(Seq(), Seq())) { case (txAcc, utx) =>
         // ensure that each transaction opens a unique box by checking that this transaction
         // doesn't open a box already being opened by a previously included transaction
