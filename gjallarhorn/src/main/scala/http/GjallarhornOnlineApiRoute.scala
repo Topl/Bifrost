@@ -74,14 +74,14 @@ case class GjallarhornOnlineApiRoute(settings: RPCApiSettings,
     val chainProvider = (params \\ "chainProvider").head.asString.get
     try {
       log.info("gjallarhorn attempting to run in online mode. Trying to connect to Bifrost...")
-      val bifrost = Await.result(system.actorSelection(s"akka.tcp://$chainProvider/user/walletConnectionHandler")
+      val bifrost = Await.result(system.actorSelection(s"akka://$chainProvider/user/walletConnectionHandler")
         .resolveOne(), 10.seconds)
       log.info(s"${Console.MAGENTA} Bifrst actor ref was found: $bifrost ${Console.RESET}. " +
         s"Now running in online mode.")
       setUpOnlineMode(bifrost)
     } catch {
       case e: ActorNotFound =>
-        log.error(s"${Console.MAGENTA} bifrost actor ref not found at: akka.tcp://$chainProvider.${Console.RESET}")
+        log.error(s"${Console.MAGENTA} bifrost actor ref not found at: akka://$chainProvider.${Console.RESET}")
         throw new Exception (s"could not connect to chain provider: $chainProvider. $e")
     }
   }

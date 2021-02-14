@@ -43,7 +43,7 @@ class RequestSpec extends AsyncFlatSpec
 
   //set up actors
   val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
-    s"akka.tcp://${requestSettings.application.chainProvider}/user/walletConnectionHandler").resolveOne(), 10.seconds)
+    s"akka://${requestSettings.application.chainProvider}/user/walletConnectionHandler").resolveOne(), 10.seconds)
   val walletManagerRef: ActorRef = actorSystem.actorOf(
     Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
   val requestsManagerRef: ActorRef = actorSystem.actorOf(
@@ -217,7 +217,7 @@ class RequestSpec extends AsyncFlatSpec
 
   it should "send msg to bifrost actor when the gjallarhorn app stops" in {
     val bifrostResponse: String = Await.result((walletManagerRef ? DisconnectFromBifrost).mapTo[String], 100.seconds)
-    assert(bifrostResponse.contains("The remote wallet Actor[akka.tcp://requestTest@127.0.0.1") &&
+    assert(bifrostResponse.contains("The remote wallet Actor[akka://requestTest@127.0.0.1") &&
       bifrostResponse.contains("has been removed from the WalletConnectionHandler in Bifrost"))
   }
 
