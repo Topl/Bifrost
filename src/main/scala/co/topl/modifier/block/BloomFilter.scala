@@ -2,6 +2,7 @@ package co.topl.modifier.block
 
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
+import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import scorex.crypto.hash.Blake2b256
@@ -42,7 +43,8 @@ class BloomFilter private (private val value: Array[Long]) extends BytesSerializ
     }
   }
 
-  override def toString: String = Base58.encode(BloomFilter.toBytes(this))
+  /** JAA - DO NOT USE THE `.bytes` or `toBytes` methods from the BifrostSerailizer, this must be fixed length */
+  override def toString: String = Base58.encode(value.flatMap(Longs.toByteArray))
 
   override def equals(obj: Any): Boolean = obj match {
     case b: BloomFilter => b.value sameElements value
@@ -155,7 +157,11 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
       }
 
   /** Recreate a bloom filter from a string encoding */
-  private def fromString(str: String): Try[BloomFilter] = Base58.decode(str).flatMap(parseBytes)
+  /** JAA - DO NOT USE THE `parseBytes` method from BifrostSerializer, this must be fixed length */
+  private def fromString(str: String): Try[BloomFilter] =
+    Base58.decode(str)
+      .map(_.grouped(Longs.BYTES).map(Longs.fromByteArray).toArray) //Array[Byte] -> Array[Long]
+      .map(new BloomFilter(_))
 
   implicit val jsonEncoder: Encoder[BloomFilter] = (bf: BloomFilter) => bf.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[BloomFilter] = (bf: BloomFilter) => bf.toString
