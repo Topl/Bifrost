@@ -18,7 +18,7 @@ case object HelGenesis extends GenesisProvider {
 
   implicit val networkPrefix: NetworkPrefix = NetworkType.HelTestnet.netPrefix
 
-  override protected val blockChecksum: ModifierId = ModifierId("2B6WtokYmedgQ7XXZk7b6udjXagxVTgE4QHSiqXFsmxET")
+  override protected val blockChecksum: ModifierId = ModifierId("vgQa3k4DtE3C4Drfom6v7LtDpRf66vtd6Jyr2vnbVnNt")
 
   override protected val blockVersion: PNVMVersion = 0: Byte
 
