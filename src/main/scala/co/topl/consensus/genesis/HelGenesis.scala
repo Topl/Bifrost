@@ -18,33 +18,33 @@ case object HelGenesis extends GenesisProvider {
 
   implicit val networkPrefix: NetworkPrefix = NetworkType.HelTestnet.netPrefix
 
-  override protected val blockChecksum: ModifierId = ModifierId("vgQa3k4DtE3C4Drfom6v7LtDpRf66vtd6Jyr2vnbVnNt")
+  override protected val blockChecksum: ModifierId = ModifierId("2964oVZ9VKdEYiiwQg54Ng6TZm5rCJVmQoQe6fM7JM4k7")
 
   override protected val blockVersion: PNVMVersion = 0: Byte
 
   override protected val initialDifficulty: Long = 1000000000000000000L
 
   override protected val members: Map[String, Int128] = Map(
-    "5jcG6p4iF9Ay5JxdN2P8s6mpaF31ACLz2JKYjYBg1TPovLCPxhNw" -> 10000000000000000L,
-    "5jcSSAL5pUkpkRJH9Gmm2bEs3nJ1PRdQfptS83MjSnuDo8W8MckU" -> 10000000000000000L,
-    "5jbVMF3ocUTFKFy6Aqn83qxYzgsbVdKjRyMxLY8MAWb5s99Hto9W" -> 10000000000000000L,
-    "5jbdxgmbNwjLYi16ViF47rdiyiDhcFsn4rW4UezXNk4Ke7uFUmVn" -> 10000000000000000L,
-    "5jc3whAuLf4xkRfaz2o32VTaTWPSo2auUEVy2pGt71tPpzQaTgEj" -> 10000000000000000L,
-    "5jcrZMwt8PGtBhEXkCzAhVkLMby8rpk4yTcnwWK9TSJWskJYtqDv" -> 10000000000000000L,
-    "5jcTnzxmzzbV1PDjkjx2mmnPhDtnztLMvkq97VVBUgXbp5PzsYd9" -> 10000000000000000L,
-    "5jbG91cSqm7K1W2oyTZcMc7trmmWGbBf2mm74sWQ8LFEwrNDr8we" -> 10000000000000000L,
-    "5jcrZQxJHvV51gP8Zj1wbdFwqBNCmUXcroTuDsZZYHkkzqaxpM8v" -> 10000000000000000L,
-    "5jcW1G2QqzFtewHfqCvGD5642WZ6wHjAfCknZQ5tiwmGqGbw49qZ" -> 10000000000000000L,
-    "5jcETvKB3eP7tnpEDzjD6NR1aqsc8N9txgR4hJxNpJ9TH4LtZoD4" -> 10000000000000000L,
-    "5jbHtWxsKQ6wuyAdRoQgYSjAsdtghJi7UxZM6DHpQ4T1WRApGUZj" -> 10000000000000000L,
-    "5jcKbtnWgtcLUkAZuvR56WNgTazX3x22hahrNnyfYaquoUocNJJW" -> 10000000000000000L,
-    "5jbocLtG3SE5e8X2nJgQzbLKgWbUg37uagYXdHmHRnCawNjAvwwk" -> 10000000000000000L,
-    "5jc992DHYZ63xbjymqCgd2taLqF4taZAPSPgKKkVHEUDtENM4YVH" -> 10000000000000000L,
-    "5jbtB4R1phRkfQw9bnWX8Ww46zhmaEP2tKsi4koZMmgP3ghJTthR" -> 10000000000000000L,
-    "5jc6S49eNircjfjwfjn537a3gy5yXpQfzQtx3us7xTf3Myw1c5Hk" -> 10000000000000000L,
-    "5jbZmmZHgh5E7iR8j4RbENbn7cqhrBrN56w6gpxx7NCtCAgq4CyF" -> 10000000000000000L,
-    "5jd3edzAiXCBC3NJsDEBiN67bX3RbJRta6FhwwrEt4gRSZjuEKYU" -> 10000000000000000L,
-    "5jcDW9GQvcEkVJfcX12fbqDw5fYSNxbRFSCb1cWjYXiEcM2HDmXx" -> 10000000000000000L,
+    "5jb9W76VgpZkGbaowByDHPVnPdtd3UKrDhC1XxNmuBn9z6oxMbpj" -> 10000000000000000L,
+    "5jbMNP6o2gUtmfW5j7bxuiMqTeTq1XUujNnSLf72DgKQoepCP97t" -> 10000000000000000L,
+    "5jc1FLTr4m3kZAKndrfQtDRBLAMhdZAPFRDbp7RxaLH5fUhM5Jun" -> 10000000000000000L,
+    "5jcUuZXCEeHvt8uVV9LbZkUjjhSjZrQx8A5CVvKh5SBTXy4H6HyP" -> 10000000000000000L,
+    "5jcXmcP7PP3iUer2fYJ28XuQZqhtMFTZCbeC2hgnxwdyVN1iFZWq" -> 10000000000000000L,
+    "5jbuiYteK387qmnMQg2UDKPZQocuhFUEX7zvmvauLhoGSrQfx1xG" -> 10000000000000000L,
+    "5jcBCssN9KnzyW1x4qRRrFMM3WWXkbWLmjVAG9n4CUVNEbGemioJ" -> 10000000000000000L,
+    "5jc7fA6sutFy3XZUvzEUvbxXaAFvbN2zhahSrAcDhx9sxhuDG6ve" -> 10000000000000000L,
+    "5jbChzGx54eNSPvYgtcpTMjqExeRR6SvbvEWMrsLNpTmhkQ8Ssvf" -> 10000000000000000L,
+    "5jbNEm3Js83e7kNpbpsTVv7rbFnT8P6mszgcrZqYWrmQKqSQtiZh" -> 10000000000000000L,
+    "5jbmpLZid5i6GydGYmm98eULWNJJBvstmk8qZVoKoidzrv4dMXUD" -> 10000000000000000L,
+    "5jbRnft1M6NHtAGE5aHJwXKw33fY6FQw6YpaXLNrS12B6B7JnzjZ" -> 10000000000000000L,
+    "5jc35RaEcd6ivCAxrQswh2tyi4CB47VgAdpX4GBS4HPduuXUXdgh" -> 10000000000000000L,
+    "5jcco1SfWKimKbR1U6Ag7VsgraWM36i2PwnCimSdwqc6XxkumdQX" -> 10000000000000000L,
+    "5jcDCMqoNEzFGdg2rmaa5fxDd1SwksSrFYQGEhB5XF1acofm2hru" -> 10000000000000000L,
+    "5jc3p41NUqJbjdmfG3EQX9iXKyrR3fUSpfahwbF4y1TuPap1ZnBB" -> 10000000000000000L,
+    "5jcoHDP4L6Q2kpFrL3xTC1Psd7MkFav7TaHi2HbwCAoC6B6DcLN7" -> 10000000000000000L,
+    "5jcKxM4HxgJUmxJRERP2BXjYivRCNo2bjPtj5iYwbLXH9odhrw9u" -> 10000000000000000L,
+    "5jcuxJSuUWnhg9xQsMGFnPGWdD3tDsZKGAvCBZSn6GnSx2bHug8J" -> 10000000000000000L,
+    "5jcoA2BAZ27HxANAPKuCkT45TpLz4GizNfmd9HXYm5eC3zno1dKU" -> 10000000000000000L,
   )
 
   def getGenesisBlock: Try[(Block, ChainParams)] = Try {

@@ -31,20 +31,18 @@ object KeyCreator {
   }
 
   def main(args: Array[String]): Unit = {
-    val basePath = "/mnt/c/Users/JamesAman/Desktop/keys/"
+    val basePath = "~/"
 
     lazy val privateKeys = generateKeys(50, Some("test"), "test", basePath + "private-testnet")(PrivateTestnet.netPrefix)
     lazy val localKeys = generateKeys(50, Some("test"), "test", basePath + "local-testnet")(LocalTestnet.netPrefix)
     lazy val helKeys = generateKeys(50, None, randomString(12), basePath + "hel-testnet")(HelTestnet.netPrefix)
     lazy val valhallaKeys = generateKeys(50, None, randomString(12), basePath + "valhalla-testnet")(ValhallaTestnet.netPrefix)
-    lazy val toplnetKeys = generateKeys(50, None, randomString(25), basePath + "toplnet")(ValhallaTestnet.netPrefix)
 
     println("WORKING... (this takes awhile)")
-    privateKeys.map(printRes("PRIVATE", _))
-    localKeys.map(printRes("LOCAL", _))
-    helKeys.map(printRes("HEL", _))
-    valhallaKeys.map(printRes("VALHALLA", _))
-    toplnetKeys.map(printRes("TOPLNET", _))
+//    privateKeys.map(printRes("PRIVATE", _))
+//    localKeys.map(printRes("LOCAL", _))
+//    helKeys.map(printRes("HEL", _))
+//    valhallaKeys.map(printRes("VALHALLA", _))
   }
 
 }
