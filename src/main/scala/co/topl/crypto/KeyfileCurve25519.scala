@@ -85,9 +85,12 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
       val src = scala.io.Source.fromFile(filename)
 
       // attempt to retrieve the required keyfile type from the data that was just read
-      val keyfile = parse(src.mkString).right.get.as[KeyfileCurve25519] match {
-        case Right(kf: KeyfileCurve25519) => kf
-        case Left(e) => throw new Exception(s"Could not parse KeyFile: $e")
+      val keyfile = parse(src.mkString) match {
+        case Left(ex) => throw ex
+        case Right(json) => json.as[KeyfileCurve25519] match {
+          case Left(ex) => throw new Exception(s"Could not parse KeyFile: $ex")
+          case Right(kf) => kf
+        }
       }
 
       // close the stream and return the keyfile

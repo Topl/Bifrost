@@ -144,7 +144,7 @@ class KeyRing[
       * @param address Base58 encoded address of the key to unlock
       * @param password        - password for the given public key.
       */
-    def unlockKeyFile(address: String, password: String): Try[Unit] = Try {
+    def unlockKeyFile(address: String, password: String): Try[Address] = {
       val keyfile = checkValid(address: String, password: String)
       importKeyPair(keyfile, password)
     }

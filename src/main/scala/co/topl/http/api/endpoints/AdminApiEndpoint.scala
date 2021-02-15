@@ -61,9 +61,10 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     (for {
       address  <- params.hcursor.get[String]("address")
       password <- params.hcursor.get[String]("password")
-    } yield (keyHolderRef ? UnlockKey(address, password)).mapTo[Try[Unit]].map {
-      case Success(_)  => Map(address -> "unlocked".asJson).asJson
-      case Failure(ex) => throw new Error(s"An error occurred while trying to unlock the keyfile. $ex")
+    } yield (keyHolderRef ? UnlockKey(address, password)).mapTo[Try[Address]].map {
+      case Success(addr) if address == addr.toString => Map(address -> "unlocked".asJson).asJson
+      case Success(addr) => throw new Exception(s"Decrypted address $addr does not match requested address")
+      case Failure(ex) => throw new Exception(s"An error occurred while trying to unlock the keyfile. $ex")
     }) match {
       case Right(json) => json
       case Left(ex)    => throw ex

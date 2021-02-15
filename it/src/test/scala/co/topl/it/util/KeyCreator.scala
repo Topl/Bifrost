@@ -18,28 +18,33 @@ object KeyCreator {
     KeyRing[PrivateKeyCurve25519, KeyfileCurve25519](dir, KeyfileCurve25519)
       .generateNewKeyPairs(num, seed).map {
       _.map { sk =>
-        KeyfileCurve25519.saveToDisk(dir, pass, sk)
-        sk.publicImage.address -> pass
+        val ps = pass
+        KeyfileCurve25519.saveToDisk(dir, ps, sk)
+        sk.publicImage.address -> ps
       }
     }
   }
 
   def printRes(label: String, data: Set[(Address, String)]): Unit = {
     println(s"\n${label}")
-    data.foreach { case(addr, pass) => println(s"$addr\t\t$pass") }
+    data.foreach { case(addr, pass) => println(s"${addr.toString}\t\t$pass") }
   }
 
   def main(args: Array[String]): Unit = {
-    lazy val privateKeys = generateKeys(50, Some("test"), "test", "./private-test-keys")(PrivateTestnet.netPrefix)
-    lazy val localKeys = generateKeys(50, Some("test"), "test", "./local-test-keys")(LocalTestnet.netPrefix)
-    lazy val helKeys = generateKeys(50, None, randomString(12), "./hel-keys")(HelTestnet.netPrefix)
-    lazy val valhallaKeys = generateKeys(50, None, randomString(12), "./valhalla-keys")(ValhallaTestnet.netPrefix)
+    val basePath = "/mnt/c/Users/JamesAman/Desktop/keys/"
+
+    lazy val privateKeys = generateKeys(50, Some("test"), "test", basePath + "private-testnet")(PrivateTestnet.netPrefix)
+    lazy val localKeys = generateKeys(50, Some("test"), "test", basePath + "local-testnet")(LocalTestnet.netPrefix)
+    lazy val helKeys = generateKeys(50, None, randomString(12), basePath + "hel-testnet")(HelTestnet.netPrefix)
+    lazy val valhallaKeys = generateKeys(50, None, randomString(12), basePath + "valhalla-testnet")(ValhallaTestnet.netPrefix)
+    lazy val toplnetKeys = generateKeys(50, None, randomString(25), basePath + "toplnet")(ValhallaTestnet.netPrefix)
 
     println("WORKING... (this takes awhile)")
     privateKeys.map(printRes("PRIVATE", _))
     localKeys.map(printRes("LOCAL", _))
     helKeys.map(printRes("HEL", _))
     valhallaKeys.map(printRes("VALHALLA", _))
+    toplnetKeys.map(printRes("TOPLNET", _))
   }
 
 }
