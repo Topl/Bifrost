@@ -105,7 +105,12 @@ case class GjallarhornOnlineApiRoute(settings: RPCApiSettings,
     * @return - Json(connectedToBifrost -> true)
     */
   def setUpOnlineMode(bifrost: ActorRef): Json = {
-    walletManager ! ConnectToBifrost(bifrost)
+    val networkName = applicationSettings.defaultChainProviders.get(applicationSettings.currentChainProvider) match {
+      case Some(cp) => cp.networkName
+      case None => throw new Exception ("The current chain provider name " +
+        "does not match any of the keys in the default chain providers map.")
+    }
+    walletManager ! ConnectToBifrost(bifrost, networkName)
 
     val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager(bifrost)), name = "RequestsManager")
     requestsManager = Some(requestsManagerRef)

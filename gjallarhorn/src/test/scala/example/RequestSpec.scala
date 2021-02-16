@@ -13,6 +13,7 @@ import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import keymanager.KeyManagerRef
 import modifier.{Box, BoxId, Transaction}
+import settings.ChainProvider
 import wallet.WalletManager
 import wallet.WalletManager._
 
@@ -42,13 +43,13 @@ class RequestSpec extends AsyncFlatSpec
   val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", requestSettings.application)
 
   //set up actors
-  val chainProvider: String = requestSettings.application.defaultChainProviders
+  val chainProvider: ChainProvider = requestSettings.application.defaultChainProviders
     .get(settings.application.currentChainProvider) match {
-    case Some(cp) => cp.chainProvider
-    case None => "bifrost-client@127.0.0.1:9087"
+    case Some(cp) => cp
+    case None => throw new Exception ("The current chain provider is not in the list of chain providers!")
   }
   val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
-    s"akka.tcp://$chainProvider/user/walletConnectionHandler")
+    s"akka.tcp://${chainProvider.chainProvider}/user/walletConnectionHandler")
     .resolveOne(), 10.seconds)
   val walletManagerRef: ActorRef = actorSystem.actorOf(
     Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
@@ -81,7 +82,7 @@ class RequestSpec extends AsyncFlatSpec
   var newBoxIds: Set[BoxId] = Set()
 
   //set up online mode
-  walletManagerRef ! ConnectToBifrost(bifrostActor)
+  walletManagerRef ! ConnectToBifrost(bifrostActor, chainProvider.networkName)
   requests.switchOnlineStatus(Some(requestsManagerRef))
 
 
