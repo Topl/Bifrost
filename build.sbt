@@ -81,7 +81,8 @@ val miscDependencies = Seq(
   "com.iheart"           %% "ficus"       % "1.5.0",
   "org.rudogma"          %% "supertagged" % "1.5",
   "com.joefkelley"       %% "argyle"      % "1.0.0",
-  "io.netty"              % "netty"       % "3.10.6.Final"
+  "io.netty"              % "netty"       % "3.10.6.Final",
+  "com.github.pureconfig" %% "pureconfig" % "0.14.0"
 ) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
 
 libraryDependencies ++= akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies ++ cryptoDependencies ++ miscDependencies
@@ -204,7 +205,8 @@ lazy val benchmarking = Project(id = "benchmark", base = file("benchmark"))
 lazy val gjallarhorn = Project(id = "gjallarhorn", base = file("gjallarhorn"))
   .settings(
     commonSettings,
-    libraryDependencies ++= akkaDependencies ++ testingDependencies ++ cryptoDependencies ++ apiDependencies ++ loggingDependencies ++ miscDependencies
+    libraryDependencies ++= akkaDependencies ++ testingDependencies ++ cryptoDependencies ++ apiDependencies ++
+      loggingDependencies ++ miscDependencies
   )
   .disablePlugins(sbtassembly.AssemblyPlugin)
 

@@ -1,5 +1,6 @@
 package http
 
+import akka.http.scaladsl.model.headers.{HttpOrigin, Origin}
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
@@ -91,12 +92,24 @@ final case class HttpService (apiServices: Seq[ApiRoute], settings: RPCApiSettin
     )
   }
 
-  /** Helper route to wrap the handling of API key authentication */
+  /** List of acceptable domains for API route */
+  val acceptableDomains: List[HttpOrigin] = List[HttpOrigin] (
+    HttpOrigin("http://localhost:9085"),
+    HttpOrigin("http://localhost:9585"),
+    HttpOrigin("http://localhost:3000"),
+    HttpOrigin("http://localhost:63342")
+  )
+
+  /** Helper route to wrap the handling of origin and API key authentication */
   def withAuth(route: => Route): Route = {
-    optionalHeaderValueByName("x-api-key") { keyOpt =>
-      if (isValid(keyOpt)) route
-      else complete(HttpEntity(ContentTypes.`application/json`, "Provided API key is not correct"))
-    }
+   headerValueByType(Origin) { origin => {
+      if (acceptableDomains.contains(origin.origins.head)) {
+        optionalHeaderValueByName("x-api-key") { keyOpt =>
+          if (isValid(keyOpt)) route
+          else complete(HttpEntity(ContentTypes.`application/json`, "Provided API key is not correct"))
+        }
+      } else complete(HttpEntity(ContentTypes.`application/json`, "The request came from an unapproved host."))
+    }}
   }
 
   /**

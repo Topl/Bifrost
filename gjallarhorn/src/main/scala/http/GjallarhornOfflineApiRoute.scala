@@ -8,6 +8,7 @@ import akka.pattern.ask
 import attestation.{Address, Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
 import attestation.AddressEncoder.NetworkPrefix
 import crypto.AssetCode
+import http.GjallarhornOfflineApiRoute.updateConfigFile
 import io.circe.{HCursor, Json}
 import io.circe.syntax._
 import keymanager.KeyManager.{ChangeNetwork, GenerateSignatures, GetAllKeyfiles, GetKeyfileDir, SignTx}
@@ -15,7 +16,7 @@ import keymanager.networkPrefix
 import modifier.{AssetValue, Box, BoxId, SimpleValue, TransferTransaction}
 import requests.ApiRoute
 import scorex.util.encode.Base58
-import settings.{ApplicationSettings, RPCApiSettings}
+import settings.{ApplicationSettings, ChainProvider, RPCApiSettings}
 import wallet.WalletManager.GetWallet
 
 import scala.collection.mutable.{Map => MMap}
@@ -50,24 +51,24 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
     case (method, params, id) if method == s"${namespace.name}_createRawTransaction" =>
       createRawTransaction(params.head, id)
-
     case (method, params, id) if method == s"${namespace.name}_signTx" => signTx(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_networkType" =>
-      Future{Map("networkPrefix" -> networkPrefix).asJson}
-    case (method, params, id) if method == s"${namespace.name}_changeNetwork" => changeNetwork(params.head, id)
 
-    case (method, params, id) if method == s"${namespace.name}_getCommunicationMode" =>
-      Future{Map("mode" -> applicationSettings.communicationMode).asJson}
-    case (method, params, id) if method == s"${namespace.name}_changeCommunicationMode" =>
-      changeCommunicationMode(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_getCurrentApiKey" =>
-      Future{Map("apiKey" -> applicationSettings.bifrostApiKey).asJson}
-    case (method, params, id) if method == s"${namespace.name}_changeApiKey" => changeApiKey(params.head, id)
-
+    //Get information about state
     case (method, params, id) if method == s"${namespace.name}_balances" => balances(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_getWalletBoxes" => getWalletBoxes(id)
     case (method, params, id) if method == s"${namespace.name}_getCurrentState" => getCurrentState(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_networkType" =>
+      Future{Map("networkPrefix" -> networkPrefix).asJson}
+    case (method, params, id) if method == s"${namespace.name}_getCurrentChainProvider" => getCurrentChainProvider
+    case (method, params, id) if method == s"${namespace.name}_getListOfChainProviders" =>
+      Future{Map("listOfChainProviders" -> applicationSettings.defaultChainProviders).asJson}
 
+    // Change settings:
+    case (method, params, id) if method == s"${namespace.name}_changeNetwork" => changeNetwork(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_changeCurrentChainProvider" =>
+      changeCurrentChainProvider(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_addChainProvider" => addChainProvider(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_editChainProvider" => editChainProvider(params.head, id)
   }
 
   /** #### Summary
@@ -431,29 +432,36 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
   }
 
   /** #### Summary
-    * Change the communication mode
+    * Change the current chain provider
     *
     * #### Description
-    * Changes the communication mode between Bifrost to the given communication mode.
-    * The current options should be "useAkka" or "useHttp"
+    * Changes the current chain provider to the given chain provider.
+    * Either an AkkaChainProvider or an HttpChainProvider
     * ---
     * #### Params
     *
     * | Fields | Data type | Required / Optional | Description |
     * | ---| ---	| --- | --- |
-    * | mode | String	| Required | the new mode to switch to: "useAkka" or "useHttp"|
+    * | chainProvider | ChainProvider	| Required | the new chainProvider to switch to |
     *
     * @param params input parameters as specified above
     * @param id     request identifier
-    * @return - json mapping: "newMode" -> appSettings.application.communicationMode
+    * @return - json mapping: "currentChainProvider" -> applicationSettings.currentChainProvider
     */
-  private def changeCommunicationMode(params: Json, id: String): Future[Json] = {
+ private def changeCurrentChainProvider(params: Json, id: String): Future[Json] = {
     (for {
-      mode <- (params \\ "mode").head.as[String]
+      chainProvider <- (params \\ "chainProvider").head.as[ChainProvider]
     } yield {
-      GjallarhornOfflineApiRoute.updateConfigFile("communicationMode", applicationSettings.communicationMode, mode)
-      applicationSettings.communicationMode = mode
-      Map("newMode" -> applicationSettings.communicationMode).asJson
+      val newName = chainProvider.name
+      applicationSettings.defaultChainProviders.get(newName) match {
+        case Some(_) =>
+          updateConfigFile("current-chain-provider", applicationSettings.currentChainProvider, newName)
+          applicationSettings.currentChainProvider = newName
+          Map("currentChainProvider" -> applicationSettings.currentChainProvider).asJson
+        case None => throw new Exception (s"The new chain provider: $newName does not map to a chain provider in " +
+          s"the list of chain providers.")
+      }
+
     }) match {
       case Right(value) => Future{value}
       case Left(error) => throw new Exception (s"error parsing for mode: $error")
@@ -461,31 +469,72 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
   }
 
   /** #### Summary
-    * Change the api key
+    * Add a chain provider to the list of chain providers
     *
     * #### Description
-    * Changes the api key to the given api key to communicate with Bifrost through Http
+    * Adds a chain provider to the current list of chain providers.
+    * *But does not write to application.conf file -> does not add to default list.
     * ---
     * #### Params
     *
     * | Fields | Data type | Required / Optional | Description |
     * | ---| ---	| --- | --- |
-    * | apiKey | String	| Required | the new api key |
+    * | chainProvider | ChainProvider	| Required | the new chainProvider to add|
     *
     * @param params input parameters as specified above
-    * @param id     request identifier
-    * @return - json mapping: "newApiKey" -> applicationSettings.bifrostApiKey
+    * @param id request identifier
+    * @return a map of the chain provider's name to "Added"
     */
-  private def changeApiKey(params: Json, id: String): Future[Json] = {
+  private def addChainProvider(params: Json, id: String): Future[Json] = {
     (for {
-      apiKey <- (params \\ "apiKey").head.as[String]
+      chainProvider <- (params \\ "chainProvider").head.as[ChainProvider]
     } yield {
-      GjallarhornOfflineApiRoute.updateConfigFile("bifrostApiKey", applicationSettings.bifrostApiKey, apiKey)
-      applicationSettings.bifrostApiKey = apiKey
-      Map("newApiKey" -> applicationSettings.bifrostApiKey).asJson
+      val currentList = collection.mutable.Map(applicationSettings.defaultChainProviders.toSeq: _*)
+      currentList.get(chainProvider.name) match {
+        case Some(_) => throw new Exception(s"A chain provider with this name: ${chainProvider.name} already exists!")
+        case None =>
+          currentList.put(chainProvider.name, chainProvider)
+          applicationSettings.defaultChainProviders = currentList.toMap
+          Future {Map(chainProvider.name -> "Added").asJson}
+      }
     }) match {
-      case Right(value) => Future{value}
-      case Left(error) => throw new Exception (s"error parsing for api key: $error")
+      case Right(value) => value
+      case Left(error) => throw new Exception (s"error parsing for mode: $error")
+    }
+  }
+
+  /** #### Summary
+    * Edits a chain provider in the list of chain providers
+    *
+    * #### Description
+    * Replaces an editted chain provider in the list of chain providers
+    * * These changes are not writting to application.conf so are not saved after terminating the app.
+    * ---
+    * #### Params
+    *
+    * | Fields | Data type | Required / Optional | Description |
+    * | ---| ---	| --- | --- |
+    * | chainProvider | ChainProvider	| Required | the edited chainProvider |
+    *
+    * @param params input parameters as specified above
+    * @param id request identifier
+    * @return a map of the chain provider's name to "Edited"
+    */
+  private def editChainProvider(params: Json, id: String): Future[Json] = {
+    (for {
+      chainProvider <- (params \\ "chainProvider").head.as[ChainProvider]
+    } yield {
+      val currentList = collection.mutable.Map(applicationSettings.defaultChainProviders.toSeq: _*)
+      currentList.get(chainProvider.name) match {
+        case Some(_) =>
+          currentList.put(chainProvider.name, chainProvider)
+          applicationSettings.defaultChainProviders = currentList.toMap
+          Future { Map(chainProvider.name -> "Edited").asJson }
+        case None => throw new Exception(s"A chain provider with this name: ${chainProvider.name} does not exist!")
+      }
+    }) match {
+      case Right(value) => value
+      case Left(error) => throw new Exception (s"error parsing for chainProvider: $error")
     }
   }
 
@@ -494,7 +543,7 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
     * Returns information about the current state.
     *
     * #### Description
-    * Returns current state information: networkPrefix, communicationMode, apiKey, keyfileDirectory, and keys.
+    * Returns current state information: networkPrefix, currentChainProvider, listOfChainProviders, keyfileDirectory, and keys.
     * ---
     * #### Params
     *
@@ -504,7 +553,7 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
     *
     * @param params input parameters as specified above
     * @param id     request identifier
-    * @return - json mapping: "newApiKey" -> applicationSettings.bifrostApiKey
+    * @return - json mapping of state information
     */
   private def getCurrentState(params: Json, id: String): Future[Json] = {
     Await.result((keyManagerRef ? GetKeyfileDir).mapTo[Json].map(value => {
@@ -512,13 +561,22 @@ case class GjallarhornOfflineApiRoute(settings: RPCApiSettings,
       Await.result( (keyManagerRef ? GetAllKeyfiles).mapTo[Map[Address, String]].map(keys => {
         Future{Map(
           "networkPrefix" -> networkPrefix.asJson,
-          "communicationMode" -> applicationSettings.communicationMode.asJson,
-          "apiKey" -> applicationSettings.bifrostApiKey.asJson,
+          "currentChainProvider" -> applicationSettings.currentChainProvider.asJson,
+          "listOfChainProviders" -> applicationSettings.defaultChainProviders.asJson,
           "keyfileDirectory" -> directory,
           "keys" -> keys.asJson
         ).asJson}
       }),10.seconds)
     }), 10.seconds)
+  }
+
+  private def getCurrentChainProvider: Future[Json] = {
+    val current = applicationSettings.currentChainProvider
+    applicationSettings.defaultChainProviders.get(current) match {
+      case Some(cp) =>  Future{Map("currentChainProvider" -> cp).asJson}
+      case None => throw new Exception (s"The current chain provider: $current does not map to a chain provider in " +
+        s"the list of chain providers.")
+    }
   }
 
 }

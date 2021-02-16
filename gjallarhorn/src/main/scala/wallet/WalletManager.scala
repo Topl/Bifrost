@@ -77,7 +77,7 @@ class WalletManager(keyManagerRef: ActorRef)
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   private def initialization: Receive = {
-    case ConnectToBifrost(bifrostActor) => setUpConnection(bifrostActor)
+    case ConnectToBifrost(bifrostActor, networkName) => setUpConnection(bifrostActor, networkName)
 
     case msg: String => msgHandling(msg)
   }
@@ -138,7 +138,7 @@ class WalletManager(keyManagerRef: ActorRef)
     * Includes updating or initializing the wallet boxes
     * @param bifrost - the actor ref for bifrost's WalletConnectionHandler
     */
-  def setUpConnection(bifrost: ActorRef): Unit = {
+  def setUpConnection(bifrost: ActorRef, networkName: String): Unit = {
     bifrostActorRef = Some(bifrost)
 
     //tell bifrost about this wallet
@@ -146,11 +146,15 @@ class WalletManager(keyManagerRef: ActorRef)
 
     //get network from bifrost and tell keyManager
     val networkResp: String = Await.result((bifrost ? "Which network is bifrost running?").mapTo[String], 10.seconds)
-    val networkName = networkResp.split("Bifrost is running on").tail.head.replaceAll("\\s", "")
-    (keyManagerRef ? ChangeNetwork(networkName)).onComplete {
+    val bifrostNetwork = networkResp.split("Bifrost is running on").tail.head.replaceAll("\\s", "")
+    if (networkName != bifrostNetwork) {
+      throw new Exception(s"The network ($networkName) that you're trying to connect to is not " +
+        s"running on the given chain provider! Bifrost is currently running with the network: $bifrostNetwork")
+    }
+    (keyManagerRef ? ChangeNetwork(bifrostNetwork)).onComplete {
       case Success(networkResponse: Try[Json]) => networkResponse match {
         case Success(networkJson) =>
-          assert(NetworkType.fromString(networkName).get.netPrefix.toString ==
+          assert(NetworkType.fromString(bifrostNetwork).get.netPrefix.toString ==
           (networkJson \\ "newNetworkPrefix").head.asNumber.get.toString)
         case Failure(exception) => throw exception
       }
@@ -279,7 +283,7 @@ object WalletManager {
 
   val actorName = "WalletManager"
 
-  case class ConnectToBifrost(bifrostActor: ActorRef)
+  case class ConnectToBifrost(bifrostActor: ActorRef, networkName: String)
 
   case object DisconnectFromBifrost
 

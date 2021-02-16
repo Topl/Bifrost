@@ -16,7 +16,7 @@ import requests.RequestsManager.BifrostRequest
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
-import settings.AppSettings
+import settings.{AkkaChainProvider, AppSettings, HttpChainProvider}
 
 /**
   * Class that handles requests for bifrost
@@ -43,11 +43,19 @@ class Requests (settings: AppSettings, keyManagerRef: ActorRef)
     * @return an HttpRequest for the given json request
     */
   def httpPOST(jsonRequest: ByteString, path: String = ""): HttpRequest = {
-    HttpRequest(
-      HttpMethods.POST,
-      uri = s"$declaredAddress/",
-      entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    ).withHeaders(RawHeader("x-api-key", settings.application.bifrostApiKey))
+    val current = settings.application.currentChainProvider
+    settings.application.defaultChainProviders.get(current) match {
+      case Some(cp: HttpChainProvider) =>
+        HttpRequest(
+          HttpMethods.POST,
+          uri = s"$declaredAddress/",
+          entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
+        ).withHeaders(RawHeader("x-api-key", cp.apiKey))
+      case Some(_) => throw new Exception ("The current chain provider is not an HttpChainProvider: " +
+        s"${settings.application.currentChainProvider}")
+      case None => throw new Exception (s"The current chain provider name: $current" +
+        s"does not map to a chain provider in the list of chain providers.")
+    }
   }
 
   /**
@@ -81,7 +89,12 @@ class Requests (settings: AppSettings, keyManagerRef: ActorRef)
     */
   def byteStringToJSON(data: ByteString): Json = {
     if (data.utf8String == "Provided API key is not correct") {
-      throw new Exception (s"The api key: ${settings.application.bifrostApiKey} is not correct")
+      val current = settings.application.currentChainProvider
+      settings.application.defaultChainProviders.get(current) match {
+        case Some(cp: HttpChainProvider) => throw new Exception (s"The api key: ${cp.apiKey} is not correct")
+        case _ => throw new Exception ("The provided API key is not correct and the current chain provider is not " +
+          s"an HttpChainProvider: ${settings.application.currentChainProvider}")
+      }
     }
     parser.parse(data.utf8String) match {
         case Right(parsed) => parsed
@@ -154,16 +167,20 @@ class Requests (settings: AppSettings, keyManagerRef: ActorRef)
   def sendRequest(request: ByteString): Json  = {
     requestsManager match {
       case Some(actor) =>
-        settings.application.communicationMode match {
-          case "useHttp" =>
+        val current = settings.application.currentChainProvider
+        settings.application.defaultChainProviders.get(current) match {
+          case Some(_: HttpChainProvider) =>
             val sendTx = httpPOST(request)
             val data = requestResponseByteString(sendTx)
             futureByteStringToJSON(data)
 
-          case "useAkka" =>
+          case Some(_: AkkaChainProvider) =>
             val req: Json = byteStringToJSON(request)
             val result = Await.result((actor ? BifrostRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
             createJsonResponse(req, result)
+
+          case None => throw new Exception(s"No matching chain provider with name: " +
+            s"${settings.application.currentChainProvider}")
         }
       case None =>
         val msg = "cannot send request because you are offline mode " +

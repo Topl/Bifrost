@@ -1,5 +1,9 @@
 package http
 
+import pureconfig._
+import pureconfig.generic.auto._
+import pureconfig.generic.semiauto.deriveReader
+
 /** A case class used in AppSettings to note the state of the different API endpoints*/
 case class NamespaceSelector(
   private val wallet:  Boolean,
@@ -13,6 +17,11 @@ case class NamespaceSelector(
     )
 }
 
+object NamespaceSelector {
+  implicit val namespaceSelectorReader: ConfigReader[NamespaceSelector] = ConfigReader.forProduct2("wallet",
+    "onlineWallet")(NamespaceSelector(_,_))
+}
+
 
 /**
   * A generic class to be shared by all namespaces that provides a common name value used for pattern matching
@@ -21,6 +30,8 @@ case class NamespaceSelector(
   * @param name - the name to be used for particular end-point handler
   */
 sealed abstract class Namespace(val name: String)
+
+
 
 /** The namespace for "offline" wallet requests.
   * Currently includes [[GjallarhornOfflineApiRoute]] and [[KeyManagementApiRoute]] */
