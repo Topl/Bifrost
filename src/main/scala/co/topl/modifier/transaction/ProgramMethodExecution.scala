@@ -2,7 +2,7 @@
 //
 //import co.topl.attestation.proof.{ SignatureCurve25519, ThresholdSignatureCurve25519 }
 //import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
-//import co.topl.nodeView.state.box._
+//import co.topl.modifier.box._
 //import co.topl.nodeView.state.{ State, StateReader }
 //import co.topl.program.Program
 //import co.topl.utils.exceptions.TransactionValidationException

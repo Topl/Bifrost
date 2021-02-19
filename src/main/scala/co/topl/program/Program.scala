@@ -1,7 +1,7 @@
 package co.topl.program
 
 import co.topl.attestation.PublicKeyPropositionCurve25519
-import co.topl.nodeView.state.box.{CodeBox, StateBox}
+import co.topl.modifier.box.{CodeBox, StateBox}
 import co.topl.utils.exceptions.{ChainProgramException, JsonParsingException}
 import io.circe._
 import io.circe.syntax._

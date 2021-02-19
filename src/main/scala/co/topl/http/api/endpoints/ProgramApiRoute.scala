@@ -8,7 +8,7 @@
 //import co.topl.nodeView.NodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
 //import co.topl.nodeView.history.History
 //import co.topl.nodeView.mempool.MemPool
-//import co.topl.nodeView.state.box.{ExecutionBox, StateBox}
+//import co.topl.modifier.box.{ExecutionBox, StateBox}
 //import co.topl.nodeView.state.State
 //import co.topl.program.{ExecutionBuilder, ExecutionBuilderTerms, ProgramPreprocessor}
 //import co.topl.settings.{AppContext, RPCApiSettings}

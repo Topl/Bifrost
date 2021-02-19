@@ -5,8 +5,7 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.history.BlockProcessor.ChainCache
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
-import co.topl.utils.Logging
-import scorex.util.encode.Base16
+import co.topl.utils.{Logging, TimeProvider}
 
 import scala.annotation.tailrec
 import scala.collection.immutable.TreeMap
@@ -121,7 +120,7 @@ object BlockProcessor extends Logging {
   def emptyCache: ChainCache = ChainCache(TreeMap.empty)
 
   /** Wrapper for storing a block and its height in the chain cache */
-  case class CacheBlock(block: Block, prevBlockTimes: Seq[Block.Timestamp])
+  case class CacheBlock(block: Block, prevBlockTimes: Seq[TimeProvider.Time])
 
   /** Stores links mapping ((id, height) -> parentId) of blocks that could possibly be applied. */
   case class ChainCache(cache: TreeMap[CacheBlock, ModifierId]) {
@@ -140,7 +139,7 @@ object BlockProcessor extends Logging {
     def getHeight(id: ModifierId): Option[Long] =
       cache.keys.find(k ⇒ k.block.id == id).map(_.block.height)
 
-    def add(block: Block, prevTimes: Seq[Block.Timestamp]): ChainCache = {
+    def add(block: Block, prevTimes: Seq[TimeProvider.Time]): ChainCache = {
       val cacheBlock = CacheBlock(block, prevTimes)
 
       log.debug(s"Added new block to chain cache: ${cacheBlock.block.id.toString}")

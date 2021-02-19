@@ -4,8 +4,8 @@ import co.topl.attestation.serialization.{PublicKeyPropositionCurve25519Serializ
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{BlockHeader, BloomFilter}
-import co.topl.nodeView.state.box.ArbitBox
-import co.topl.nodeView.state.box.serialization.ArbitBoxSerializer
+import co.topl.modifier.box.ArbitBox
+import co.topl.modifier.box.serialization.ArbitBoxSerializer
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 import scorex.crypto.hash.{Blake2b256, Digest32}
 

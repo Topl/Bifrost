@@ -1,26 +1,27 @@
 package co.topl.http.api.endpoints
 
+import java.security.SecureRandom
 
 import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.http.api.{ApiEndpoint, Namespace, UtilNamespace}
+import co.topl.modifier.box.AssetCode
+import co.topl.modifier.box.AssetCode.AssetCodeVersion
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.AssetCode
-import co.topl.nodeView.state.box.AssetCode.AssetCodeVersion
 import co.topl.settings.{AppContext, NetworkType, RPCApiSettings}
 import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
-import java.security.SecureRandom
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
-case class UtilsApiEndpoint (override val settings: RPCApiSettings, appContext: AppContext)
-                            (implicit val  ec: ExecutionContext) extends ApiEndpoint {
+case class UtilsApiEndpoint(override val settings: RPCApiSettings, appContext: AppContext)
+                           (implicit val ec: ExecutionContext) extends ApiEndpoint {
+
   type HIS = History
   type MS = State
   type MP = MemPool
@@ -40,21 +41,19 @@ case class UtilsApiEndpoint (override val settings: RPCApiSettings, appContext: 
     case (method, params, id) if method == s"${namespace.name}_checkValidAddress" => checkValidAddress(params.head, id)
   }
 
-  private def generateSeed (length: Int): String = {
+  private def generateSeed(length: Int): String = {
     val seed = new Array[Byte](length)
     new SecureRandom().nextBytes(seed) //seed mutated here!
     Base58.encode(seed)
   }
 
-  /**  #### Summary
-    *    Generates random seed of 32 bytes
-    * 
-    * ---
-    *  #### Params
-    * 
-    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	|
-    *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	|
-    *  | --None specified--       |           	|                     	|                                                                         |
+  /** #### Summary
+    * Generates random seed of 32 bytes
+    *
+    * #### Params
+    * | Fields           | Data type | Required / Optional | Description |
+    * |------------------|-----------|---------------------|-------------|
+    * | -None specified- |           |                     |             |
     *
     * @param params input parameters as specified above
     * @param id request identifier
@@ -65,66 +64,69 @@ case class UtilsApiEndpoint (override val settings: RPCApiSettings, appContext: 
     Future(Map("seed" -> generateSeed(seedSize)).asJson)
   }
 
-  /**  #### Summary
-    *    Generates random seed of specified length
-    * 
-    * ---
-    *  #### Params
-    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	|
-    *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	|
-    *  | length                   | Int        	| Required             	| The number of characters to return                                      |
+  /** #### Summary
+    * Generates random seed of specified length
+    *
+    * #### Params
+    * | Fields | Data type | Required / Optional | Description                        |
+    * |--------|-----------|---------------------|------------------------------------|
+    * | length | Number    | Required            | The number of characters to return |
     *
     * @param params input parameters as specified above
     * @param id request identifier
     * @return
     */
-  private def seedOfLength(params: Json, id: String): Future[Json] = {
-    val length: Int = (params \\ "length").head.asNumber.get.toInt.get
-    Future(Map("seed" -> generateSeed(length)).asJson)
-  }
+  private def seedOfLength(params: Json, id: String): Future[Json] =
+    (for {
+      length <- params.hcursor.get[Int]("length")
+    } yield Future(Map("seed" -> generateSeed(length)).asJson)) match {
+      case Right(json) => json
+      case Left(ex)    => throw ex
+    }
 
-  /** 
-    *  #### Summary
-    *    Returns Blake2b hash of specified message
-    * 
-    * ---
-    *  #### Params
-    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	|
-    *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	|
-    *  | message                  | String     	| Required             	| The message that will be hashed                                         |
+  /** #### Summary
+    * Returns Blake2b hash of specified message
+    *
+    * #### Params
+    * | Fields  | Data type | Required / Optional | Description                     |
+    * |---------|-----------|---------------------|---------------------------------|
+    * | message | String    | Required            | The message that will be hashed |
     *
     * @param params input parameters as specified above
     * @param id request identifier
     * @return
     */
-  private def hashBlake2b256(params: Json, id: String): Future[Json] = {
-    val message: String = (params \\ "message").head.asString.get
-    Future(Map(
-      "message" -> message,
-      "hash" -> Base58.encode(Blake2b256(message))
-    ).asJson)
-  }
+  private def hashBlake2b256(params: Json, id: String): Future[Json] =
+    (for {
+      message <- params.hcursor.get[String]("message")
+    } yield Future(
+      Map(
+        "message" -> message,
+        "hash"    -> Base58.encode(Blake2b256(message))
+      ).asJson
+    )) match {
+      case Right(json) => json
+      case Left(ex)    => throw ex
+    }
 
-  /**
-   *  #### Summary
-   *    Returns an encoded assetCode from the provided parameters
-   *
-   * ---
-   *  #### Params
-   *  | Fields         | Data type        | Required / Optional | Description                                          |
-   *  |----------------|------------------|---------------------|------------------------------------------------------|
-   *  | version        | AssetCodeVersion | Required            | The Address of the asset issuer                      |
-   *  | issuer         | Address          | Required            | The Address of the asset issuer                      |
-   *  | shortName      | String           | Required            | A UTF-8 encoded string of up to 8 characters         |
-   *
-   * @param params input parameters as specified above
-   * @param id request identifier
-   * @return
-   */
+  /** #### Summary
+    * Returns an encoded assetCode generated from provided parameters
+    *
+    * #### Params
+    * | Fields    | Data type | Required / Optional | Description                                      |
+    * |-----------|-----------|---------------------|--------------------------------------------------|
+    * | version   | String    | Required            | AssetCode version(version 1 would be string "1") |
+    * | issuer    | String    | Required            | The Address of the asset issuer                  |
+    * | shortName | String    | Required            | A UTF-8 encoded string of up to 8 characters     |
+    *
+    * @param params input parameters as specified above
+    * @param id     request identifier
+    * @return
+    */
   private def generateAssetCode(params: Json, id: String): Future[Json] = Future {
     (for {
-      version <- params.hcursor.get[AssetCodeVersion]("version")
-      issuer <- params.hcursor.get[Address]("issuer")
+      version   <- params.hcursor.get[AssetCodeVersion]("version")
+      issuer    <- params.hcursor.get[Address]("issuer")
       shortName <- params.hcursor.get[String]("shortName")
     } yield Try(AssetCode(version, issuer, shortName))) match {
       case Right(Success(assetCode)) =>
@@ -132,52 +134,51 @@ case class UtilsApiEndpoint (override val settings: RPCApiSettings, appContext: 
           "assetCode" -> assetCode.asJson
         ).asJson
       case Right(Failure(ex)) => throw new Exception(s"Unable to generate assetCode: $ex")
-      case Left(ex) => throw ex
+      case Left(ex)           => throw ex
     }
   }
 
-  /**
-   *  #### Summary
-   *    Check if the provided address is valid, returns the address and network type
-   *
-   * ---
-   *  #### Params
-   *  | Fields                  | Data type   | Required / Optional   | Description                                    |
-   *  |-------------------------|-------------|-----------------------|------------------------------------------------|
-   *  | network                 | String      | Required              | A UTF-8 encoded string of up to 8 characters   |
-   *  | address                 | Address     | Required              | The Address of the asset issuer                |
-   *
-   * @param params input parameters as specified above
-   * @param id request identifier
-   * @return
-   */
+  /** #### Summary
+    * Check if the provided address is valid, returns the address and network type
+    *
+    * #### Params
+    * | Fields  | Data type | Required / Optional | Description                                  |
+    * |---------|-----------|---------------------|----------------------------------------------|
+    * | network | String    | Required            | A UTF-8 encoded string of up to 8 characters |
+    * | address | String    | Required            | The Address of the asset issuer              |
+    *
+    * @param params input parameters as specified above
+    * @param id request identifier
+    * @return
+    */
   private def checkValidAddress(params: Json, id: String): Future[Json] = Future {
     (params.hcursor.get[Option[String]]("network") match {
-        // case if no network specified for query
-        case Right(None)     =>
-          val nt = NetworkType.pickNetworkType(networkPrefix).get
-          (nt.verboseName, params.hcursor.get[Address]("address"))
+      // case if no network specified for query
+      case Right(None) =>
+        val nt = NetworkType.pickNetworkType(networkPrefix).get
+        (nt.verboseName, params.hcursor.get[Address]("address"))
 
-        // case if a specific network type is being queried
-        case Right(Some(networkName)) =>
-          NetworkType.pickNetworkType(networkName) match {
-            case None => throw new Exception("Invalid network specified")
-            case Some(nt) =>
-              implicit val networkPrefix: NetworkPrefix = nt.netPrefix
-              (nt.verboseName, params.hcursor.get[Address]("address"))
-          }
+      // case if a specific network type is being queried
+      case Right(Some(networkName)) =>
+        NetworkType.pickNetworkType(networkName) match {
+          case None => throw new Exception("Invalid network specified")
+          case Some(nt) =>
+            implicit val networkPrefix: NetworkPrefix = nt.netPrefix
+            (nt.verboseName, params.hcursor.get[Address]("address"))
+        }
 
-        case Left(ex) => throw ex
+      case Left(ex) => throw ex
 
-        }) match {
-        // successfully API response
-      case (networkName: String, Right(address)) => Map(
-        "address" -> address.asJson,
-        "network" -> networkName.asJson
-      ).asJson
+    }) match {
+      // successfully API response
+      case (networkName: String, Right(address)) =>
+        Map(
+          "address" -> address.asJson,
+          "network" -> networkName.asJson
+        ).asJson
 
-        // error passing
-      case (_, Left(ex))   => throw ex
+      // error passing
+      case (_, Left(ex)) => throw ex
     }
   }
 }

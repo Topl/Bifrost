@@ -17,7 +17,8 @@ import co.topl.network.message.BifrostSyncInfo
 import co.topl.network.upnp.Gateway
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
-import co.topl.nodeView.{NodeViewHolder, NodeViewHolderRef}
+import co.topl.nodeView.state.State
+import co.topl.nodeView.{MempoolAuditor, MempoolAuditorRef, NodeViewHolder, NodeViewHolderRef}
 import co.topl.settings._
 import co.topl.utils.Logging
 import co.topl.wallet.{WalletConnectionHandler, WalletConnectionHandlerRef}
@@ -37,6 +38,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   type PMOD = Block
   type HIS = History
   type MP = MemPool
+  type ST = State
 
   /** Setup settings file to be passed into the application */
   private val (settings: AppSettings, config: Config) = AppSettings.read(startupOpts)
@@ -54,11 +56,13 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   /** save runtime environment into a variable for reference throughout the application */
   protected val appContext = new AppContext(settings, startupOpts, upnpGateway)
-  log.debug(s"${Console.MAGENTA}Runtime network parameters:" +
+  log.debug(
+    s"${Console.MAGENTA}Runtime network parameters:" +
     s"type - ${appContext.networkType.verboseName}, " +
     s"prefix - ${appContext.networkType.netPrefix}, " +
     s"forging status: ${settings.forging.forgeOnStartup}" +
-    s"${Console.RESET}")
+    s"${Console.RESET}"
+  )
 
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
   /** Create Bifrost singleton actors */
@@ -71,7 +75,11 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef(NodeViewHolder.actorName, settings, appContext)
 
-  private val walletConnectionHandlerRef: Option[ActorRef] = if (settings.gjallarhorn.enableWallet) {
+  private val mempoolAuditor: ActorRef =
+    MempoolAuditorRef[ST, MP](MempoolAuditor.actorName, settings, appContext, nodeViewHolderRef, networkControllerRef)
+
+  private val walletConnectionHandlerRef: Option[ActorRef] =
+    if (settings.gjallarhorn.enableWallet) {
     Some(WalletConnectionHandlerRef[PMOD]
       (WalletConnectionHandler.actorName, settings, appContext, nodeViewHolderRef))
   } else {
@@ -97,6 +105,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     nodeViewSynchronizer,
     forgerRef,
     nodeViewHolderRef,
+    mempoolAuditor
   ) ++ walletConnectionHandlerRef
 
   /** hook for initiating the shutdown procedure */
@@ -203,12 +212,10 @@ object BifrostApp extends Logging {
   /** parse command line arguments */
   val argParser: Arg[StartupOpts] =
     (optional[String]("--config", "-c") and
-      optionalOneOf[NetworkType](NetworkType.all.map(x => s"--${x.verboseName}" -> x) : _*) and
-      ( optional[String]("--seed", "-s") and
-        flag("--forge", "-f") and
-        optional[String]("--apiKeyHash")
-        ).to[RuntimeOpts]
-      ).to[StartupOpts]
+      optionalOneOf[NetworkType](NetworkType.all.map(x => s"--${x.verboseName}" -> x): _*) and
+      (optional[String]("--seed", "-s") and
+      flag("--forge", "-f") and
+      optional[String]("--apiKeyHash")).to[RuntimeOpts]).to[StartupOpts]
 
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
@@ -222,7 +229,7 @@ object BifrostApp extends Logging {
 
   def shutdown(system: ActorSystem, actors: Seq[ActorRef]): Unit = {
     log.warn("Terminating Actors")
-    actors.foreach { _ ! PoisonPill }
+    actors.foreach(_ ! PoisonPill)
     log.warn("Terminating ActorSystem")
     val termination = system.terminate()
     Await.result(termination, 60.seconds)

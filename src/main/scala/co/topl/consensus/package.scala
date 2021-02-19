@@ -1,8 +1,9 @@
 package co.topl
 
 import co.topl.modifier.block.Block
-import co.topl.nodeView.state.box.ArbitBox
+import co.topl.modifier.box.ArbitBox
 import co.topl.settings.ProtocolSettings
+import co.topl.utils.TimeProvider
 import com.google.common.primitives.Longs
 import scorex.crypto.hash.Blake2b256
 
@@ -89,7 +90,7 @@ package object consensus {
     * @param prevTimes      sequence of block times to calculate the average and compare to target
     * @return the modified difficulty
     */
-  def calcNewBaseDifficulty(newHeight: Long, prevDifficulty: Long, prevTimes: Seq[Block.Timestamp]): Long = {
+  def calcNewBaseDifficulty(newHeight: Long, prevDifficulty: Long, prevTimes: Seq[TimeProvider.Time]): Long = {
 
     val averageDelay = (prevTimes drop 1, prevTimes).zipped.map(_-_).sum / (prevTimes.length - 1)
     val targetTimeMilli = targetBlockTime(newHeight).toUnit(MILLISECONDS)

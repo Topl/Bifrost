@@ -2,7 +2,6 @@ package co.topl.nodeView.history
 
 import java.io.File
 
-import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.consensus.{BlockValidator, DifficultyBlockValidator, SyntaxBlockValidator}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
@@ -12,7 +11,7 @@ import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.History.GenesisParentId
 import co.topl.settings.AppSettings
-import co.topl.utils.Logging
+import co.topl.utils.{Logging, TimeProvider}
 import io.iohk.iodb.LSMStore
 
 import scala.annotation.tailrec
@@ -238,7 +237,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     else Option(loop(startBlock, Seq(startBlock)).map(_.id).reverse)
   }
 
-  def getTimestampsFrom(startBlock: Block, count: Long): Vector[Block.Timestamp] =
+  def getTimestampsFrom(startBlock: Block, count: Long): Vector[TimeProvider.Time] =
     History.getTimestamps(storage, count, startBlock)
 
   /** Retrieve a sequence of blocks until the given filter is satisifed
@@ -483,9 +482,9 @@ object History extends Logging {
   }
 
   /** Gets the timestamps for 'count' number of blocks prior to (and including) the startBlock */
-  def getTimestamps(storage: Storage, count: Long, startBlock: Block): Vector[Block.Timestamp] = {
+  def getTimestamps(storage: Storage, count: Long, startBlock: Block): Vector[TimeProvider.Time] = {
     @tailrec
-    def loop(id: ModifierId, acc: Vector[Block.Timestamp] = Vector()): Vector[Block.Timestamp] = {
+    def loop(id: ModifierId, acc: Vector[TimeProvider.Time] = Vector()): Vector[TimeProvider.Time] = {
       if (acc.length > count) acc
       else storage.parentIdOf(id) match {
         case Some(parentId: ModifierId) =>

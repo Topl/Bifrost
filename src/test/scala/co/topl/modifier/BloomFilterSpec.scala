@@ -1,16 +1,14 @@
 package co.topl.modifier
 
-import co.topl.attestation.{Address, PrivateKeyCurve25519}
+import co.topl.attestation.Address
+import co.topl.crypto.PrivateKeyCurve25519
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.block.{BloomFilter, TransactionsCarryingPersistentNodeViewModifier}
-import co.topl.modifier.transaction.Transaction
 import co.topl.utils.ValidGenerators
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.Curve25519
-import scorex.util.encode.Base58
 
 class BloomFilterSpec
     extends AnyPropSpec
@@ -34,7 +32,6 @@ class BloomFilterSpec
   property("Bloomfilter should be able to tell if an address is likely not in the block(false positives)") {
     forAll(validBifrostTransactionSeqGen) { txs =>
       val bloomfilter: BloomFilter = TransactionsCarryingPersistentNodeViewModifier.createBloom(txs.dropRight(1))
-      val addressCount = txs.foldLeft(0)(_ + _.bloomTopics.size)
       val addressInBloom: Int = txs.dropRight(1).foldLeft(0)(_ + _.bloomTopics.size)
       val numAddressLastTx: Int = txs.last.bloomTopics.size
 
@@ -44,9 +41,9 @@ class BloomFilterSpec
       }
 
       /** Sometimes there's very few addresses in the last transaction, we only test here to make sure we don't get too
-        * many false positives. There's a very slight chance that this will break
+        * many false positives. There's a very slight chance that this will break (if it does this is probably an issue)
         */
-      (falsePositives <= numAddressLastTx / 2) shouldBe true
+      (falsePositives <= addressInBloom / 3) shouldBe true
     }
   }
 
@@ -76,6 +73,6 @@ class BloomFilterSpec
       else count
     }
 
-    falsePositives shouldEqual 12
+    falsePositives shouldEqual 15
   }
 }
