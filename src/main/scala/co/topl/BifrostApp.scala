@@ -39,7 +39,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   type MP = MemPool
 
   /** Setup settings file to be passed into the application */
-  private val settings: AppSettings = AppSettings.read(startupOpts)
+  private val (settings: AppSettings, config: Config) = AppSettings.read(startupOpts)
   log.debug(s"Starting application with settings \n$settings")
 
   /** check for gateway device and setup port forwarding */
@@ -48,12 +48,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
   /** Setup the execution environment for running the application */
 
-  // Override the configuration of the port
-  private val akkaConfig = ConfigFactory.parseString(s"""
-      akka.remote.artery.canonical.port=9087
-      """).withFallback(ConfigFactory.load())
-
-  protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName, akkaConfig)
+  protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName, config)
   private implicit val timeout: Timeout = Timeout(settings.network.controllerTimeout.getOrElse(5 seconds))
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
@@ -130,10 +125,10 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     log.debug(s"$enableJVMCI")
   } catch {
     case e: IllegalArgumentException =>
-      log.error(s"${Console.RED}Unexpected error when checking for JVMCI: $e")
+      log.error(s"${Console.RED}Unexpected error when checking for JVMCI: $e ${Console.RESET}")
       BifrostApp.shutdown(actorSystem, actorsToStop)
     case e: Throwable =>
-      log.error(s"${Console.RED}Unexpected error when checking for JVMCI: $e")
+      log.error(s"${Console.RED}Unexpected error when checking for JVMCI: $e ${Console.RESET}")
       BifrostApp.shutdown(actorSystem, actorsToStop)
   }
 

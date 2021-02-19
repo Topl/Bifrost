@@ -65,7 +65,10 @@ case class NetworkSettings(
   upnpDiscoverTimeout:     Option[FiniteDuration],
   upnpEnabled:             Boolean,
   upnpUseRandom:           Option[Boolean],
-  upnpGatewayTimeout:      Option[FiniteDuration]
+  upnpGatewayTimeout:      Option[FiniteDuration],
+  clusterEnabled:          Boolean,
+  clusterHost:             Option[String],
+  clusterPort:             Option[Int]
 )
 
 case class ForgingSettings(
@@ -99,9 +102,11 @@ object AppSettings extends Logging with SettingsReaders {
     * @param startupOpts startup options such as the path of the user defined config and network type
     * @return application settings
     */
-  def read(startupOpts: StartupOpts = StartupOpts.empty): AppSettings = {
-    val settingFromConfig = fromConfig(readConfig(startupOpts))
-    startupOpts.runtimeParams.overrideWithCmdArgs(settingFromConfig)
+  def read(startupOpts: StartupOpts = StartupOpts.empty): (AppSettings, Config) = {
+    val config = readConfig(startupOpts)
+    val settingFromConfig = fromConfig(config)
+    val completeConfig = clusterConfig(settingFromConfig, config)
+    (startupOpts.runtimeParams.overrideWithCmdArgs(settingFromConfig), completeConfig)
   }
 
   /** Produces an application settings class by reading the specified HOCON configuration file
@@ -181,6 +186,26 @@ object AppSettings extends Logging with SettingsReaders {
       case _ ⇒
         log.warn(s"${Console.YELLOW}No custom setting specified, using default configuration${Console.RESET}")
         ConfigFactory.load()
+    }
+  }
+
+  def clusterConfig(settings: AppSettings, config: Config): Config = {
+    if (settings.network.clusterEnabled) {
+      ConfigFactory.parseString(
+        s"""
+      akka {
+        actor.provider = cluster
+        remote = {
+          artery = {
+            canonical.hostname = ${settings.network.clusterHost.getOrElse("0.0.0.0")}
+            canonical.port = ${settings.network.clusterPort.getOrElse(0)}
+          }
+        }
+      }
+      """)
+        .withFallback(config)
+    } else {
+      config
     }
   }
 }
