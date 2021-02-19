@@ -65,10 +65,7 @@ case class NetworkSettings(
   upnpDiscoverTimeout:     Option[FiniteDuration],
   upnpEnabled:             Boolean,
   upnpUseRandom:           Option[Boolean],
-  upnpGatewayTimeout:      Option[FiniteDuration],
-  clusterEnabled:          Boolean,
-  clusterHost:             Option[String],
-  clusterPort:             Option[Int]
+  upnpGatewayTimeout:      Option[FiniteDuration]
 )
 
 case class ForgingSettings(
@@ -85,9 +82,17 @@ case class PrivateTestnetSettings(
   genesisSeed:       Option[String]
 )
 
+case class GjallarhornSettings(
+  enableWallet:     Boolean,
+  clusterEnabled:   Boolean,
+  clusterHost:      Option[String],
+  clusterPort:      Option[Int]
+)
+
 case class AppSettings(
   application: ApplicationSettings,
   network:     NetworkSettings,
+  gjallarhorn: GjallarhornSettings,
   forging:     ForgingSettings,
   rpcApi:      RPCApiSettings,
   ntp:         NetworkTimeProviderSettings
@@ -190,15 +195,15 @@ object AppSettings extends Logging with SettingsReaders {
   }
 
   def clusterConfig(settings: AppSettings, config: Config): Config = {
-    if (settings.network.clusterEnabled) {
+    if (settings.gjallarhorn.clusterEnabled) {
       ConfigFactory.parseString(
         s"""
       akka {
         actor.provider = cluster
         remote = {
           artery = {
-            canonical.hostname = ${settings.network.clusterHost.getOrElse("0.0.0.0")}
-            canonical.port = ${settings.network.clusterPort.getOrElse(0)}
+            canonical.hostname = ${settings.gjallarhorn.clusterHost.getOrElse("0.0.0.0")}
+            canonical.port = ${settings.gjallarhorn.clusterPort.getOrElse(0)}
           }
         }
       }

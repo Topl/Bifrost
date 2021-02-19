@@ -71,9 +71,12 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef(NodeViewHolder.actorName, settings, appContext)
 
-  private val walletConnectionHandlerRef: ActorRef = WalletConnectionHandlerRef[PMOD](
-    WalletConnectionHandler.actorName, settings, appContext, nodeViewHolderRef
-  )
+  private val walletConnectionHandlerRef: Option[ActorRef] = if (settings.gjallarhorn.enableWallet) {
+    Some(WalletConnectionHandlerRef[PMOD]
+      (WalletConnectionHandler.actorName, settings, appContext, nodeViewHolderRef))
+  } else {
+    None
+  }
 
   private val peerSynchronizer: ActorRef =
     PeerSynchronizerRef(PeerSynchronizer.actorName, networkControllerRef, peerManagerRef, settings, appContext)
@@ -94,8 +97,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     nodeViewSynchronizer,
     forgerRef,
     nodeViewHolderRef,
-    walletConnectionHandlerRef
-  )
+  ) ++ walletConnectionHandlerRef
 
   /** hook for initiating the shutdown procedure */
   sys.addShutdownHook(BifrostApp.shutdown(actorSystem, actorsToStop))
