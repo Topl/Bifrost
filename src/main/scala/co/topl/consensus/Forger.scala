@@ -336,13 +336,13 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
       .foldLeft(PickTransactionsResult(Seq(), Seq())) { case (txAcc, utx) =>
         // ensure that each transaction opens a unique box by checking that this transaction
         // doesn't open a box already being opened by a previously included transaction
-        val boxNotAlreadyUsed = utx.tx.boxIdsToOpen.forall(id => !txAcc.toApply.flatMap(_.boxIdsToOpen).contains(id))
+        val boxAlreadyUsed = utx.tx.boxIdsToOpen.exists(id => txAcc.toApply.flatMap(_.boxIdsToOpen).contains(id))
 
-        // if any newly created box matches a box already in the UTXO set, remove the transaction
+        // if any newly created box matches a box already in the UTXO set in state, remove the transaction
         val boxAlreadyExists = utx.tx.newBoxes.exists(b => state.getBox(b.id).isDefined)
 
-        (boxNotAlreadyUsed, boxAlreadyExists) match {
-          case (true, false) =>
+        (boxAlreadyUsed, boxAlreadyExists) match {
+          case (false, false) =>
             state.semanticValidate(utx.tx) match {
               case Success(_) => PickTransactionsResult(txAcc.toApply :+ utx.tx, txAcc.toEliminate)
               case Failure(ex) =>
@@ -352,18 +352,12 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
                 PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ utx.tx)
             }
 
-          case (false, true) =>
+          case (_, true) =>
             log.debug(s"${Console.RED}Transaction ${utx.tx.id} was rejected from the forger transaction queue" +
-              s" because a box was used already in a previous transaction, and a newly created" +
-              s" box already exists. The transaction will be removed.")
+              s" because a newly created box already exists in state. The transaction will be removed.")
             PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ utx.tx)
 
-          case (true, true) =>
-            log.debug(s"${Console.RED}Transaction ${utx.tx.id} was rejected from the forger transaction queue" +
-              s" because a newly created box already exists. The transaction will be removed.")
-            PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ utx.tx)
-
-          case (false, false) =>
+          case (true, _) =>
             log.debug(s"${Console.RED}Transaction ${utx.tx.id} was rejected from forger transaction queue" +
               s" because a box was used already in a previous transaction. The transaction will be removed.")
             PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ utx.tx)
