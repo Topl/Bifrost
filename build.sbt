@@ -29,6 +29,7 @@ val graalVersion = "21.0.0"
 
 val akkaDependencies = Seq(
   "com.typesafe.akka" %% "akka-actor"          % akkaVersion,
+  "com.typesafe.akka" %% "akka-cluster"        % akkaVersion,
   "com.typesafe.akka" %% "akka-stream"         % akkaVersion,
   "com.typesafe.akka" %% "akka-http"           % akkaHttpVersion,
   "com.typesafe.akka" %% "akka-http-core"      % akkaHttpVersion,
@@ -81,7 +82,8 @@ val miscDependencies = Seq(
   "org.scalanlp"         %% "breeze"      % "1.1",
   "io.netty"              % "netty"       % "3.10.6.Final",
   "com.google.guava"      % "guava"       % "30.1-jre",
-  "com.typesafe"          % "config"      % "1.4.1"
+  "com.typesafe"          % "config"      % "1.4.1",
+  "com.github.pureconfig" %% "pureconfig" % "0.14.0"
 )
 
 val monitoringDependencies = Seq(

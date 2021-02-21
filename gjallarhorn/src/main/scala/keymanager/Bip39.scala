@@ -23,8 +23,9 @@ import scala.util.{ Failure, Success, Try }
   *
   * Phrase list directory given by:
   * https://github.com/bitcoin/bips/tree/master/bip-0039
+  *
+  * @param wordList word list used for seed phrase
   */
-
 class Bip39 (wordList: List[String]) extends Logging {
 
   /*

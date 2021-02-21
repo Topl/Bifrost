@@ -27,6 +27,12 @@ class VLQByteStringReader(byteString: ByteString) extends VLQReader {
   override def peekByte(): Byte = byteString(position)
 
   @inline
+  override def getBoolean(): Boolean = {
+    if (getByte() == 0x01) true
+    else false
+  }
+
+  @inline
   override def getByte(): Byte = {
     incPosition()
     it.getByte

@@ -40,6 +40,12 @@ trait Reader {
   def peekByte(): Byte
 
   /**
+    * Decode a boolean
+    * @return boolean
+    */
+  def getBoolean(): Boolean
+
+  /**
     * Decode signed byte
     * @return Byte
     */

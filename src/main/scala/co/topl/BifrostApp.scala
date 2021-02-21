@@ -1,7 +1,5 @@
 package co.topl
 
-import java.lang.management.ManagementFactory
-
 import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.http.scaladsl.Http
 import akka.io.Tcp
@@ -28,6 +26,7 @@ import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
 import com.typesafe.config.{Config, ConfigFactory}
 import kamon.Kamon
 
+import java.lang.management.ManagementFactory
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -42,7 +41,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   type ST = State
 
   /** Setup settings file to be passed into the application */
-  private val settings: AppSettings = AppSettings.read(startupOpts)
+  private val (settings: AppSettings, config: Config) = AppSettings.read(startupOpts)
   log.debug(s"Starting application with settings \n$settings")
 
   /** check for gateway device and setup port forwarding */
@@ -50,7 +49,8 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
   /** Setup the execution environment for running the application */
-  protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
+
+  protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName, config)
   private implicit val timeout: Timeout = Timeout(settings.network.controllerTimeout.getOrElse(5 seconds))
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
@@ -78,8 +78,13 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   private val mempoolAuditor: ActorRef =
     MempoolAuditorRef[ST, MP](MempoolAuditor.actorName, settings, appContext, nodeViewHolderRef, networkControllerRef)
 
-  private val walletConnectionHandlerRef: ActorRef =
-    WalletConnectionHandlerRef[PMOD](WalletConnectionHandler.actorName, settings, appContext, nodeViewHolderRef)
+  private val walletConnectionHandlerRef: Option[ActorRef] =
+    if (settings.gjallarhorn.enableWallet) {
+    Some(WalletConnectionHandlerRef[PMOD]
+      (WalletConnectionHandler.actorName, settings, appContext, nodeViewHolderRef))
+  } else {
+    None
+  }
 
   private val peerSynchronizer: ActorRef =
     PeerSynchronizerRef(PeerSynchronizer.actorName, networkControllerRef, peerManagerRef, settings, appContext)
@@ -100,9 +105,8 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     nodeViewSynchronizer,
     forgerRef,
     nodeViewHolderRef,
-    walletConnectionHandlerRef,
     mempoolAuditor
-  )
+  ) ++ walletConnectionHandlerRef
 
   /** hook for initiating the shutdown procedure */
   sys.addShutdownHook(BifrostApp.shutdown(actorSystem, actorsToStop))
@@ -132,10 +136,10 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     log.debug(s"$enableJVMCI")
   } catch {
     case e: IllegalArgumentException =>
-      log.error(s"${Console.RED}Unexpected error when checking for JVMCI: $e")
+      log.error(s"${Console.RED}Unexpected error when checking for JVMCI: $e ${Console.RESET}")
       BifrostApp.shutdown(actorSystem, actorsToStop)
     case e: Throwable =>
-      log.error(s"${Console.RED}Unexpected error when checking for JVMCI: $e")
+      log.error(s"${Console.RED}Unexpected error when checking for JVMCI: $e ${Console.RESET}")
       BifrostApp.shutdown(actorSystem, actorsToStop)
   }
 

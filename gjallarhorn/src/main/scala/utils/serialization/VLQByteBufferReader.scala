@@ -19,6 +19,12 @@ class VLQByteBufferReader(buf: ByteBuffer) extends VLQReader {
 
   @inline override def peekByte(): Byte = buf.array()(buf.position())
 
+  @inline
+  override def getBoolean(): Boolean = {
+    if (getByte() == 0x01) true
+    else false
+  }
+
   @inline override def getByte(): Byte = buf.get
 
   @inline override def getBytes(size: Int): Array[Byte] = {
