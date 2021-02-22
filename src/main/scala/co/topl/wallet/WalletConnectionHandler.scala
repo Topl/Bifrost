@@ -111,7 +111,7 @@ class WalletConnectionHandler[
 
     if (msg.contains("request from gjallarhorn:")) {
       val txString: String = msg.substring("request from gjallarhorn: ".length)
-      println("Wallet Connection handler received a request from gjallarhorn: " + txString)
+      log.info("Wallet Connection handler received a request from gjallarhorn: " + txString)
       val walletActorRef: ActorRef = sender()
       sendRequestApi(txString, walletActorRef)
     }
@@ -188,7 +188,7 @@ class WalletConnectionHandler[
     */
   private def parseKeys(keys: String): Option[Set[Address]] = {
     if (keys == "Set()") {
-      println("Remote wallet has no keys!")
+      log.info("Remote wallet has no keys!")
       None
     } else {
       val keysArr: Array[String] = keys.substring("Set(".length, keys.length-1).split(",")
