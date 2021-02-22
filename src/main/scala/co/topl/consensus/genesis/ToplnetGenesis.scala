@@ -17,7 +17,7 @@ case object ToplnetGenesis extends GenesisProvider {
 
   implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
 
-  override protected val blockChecksum: ModifierId = ModifierId("u9hUHLY6eSgGXiugqU2Q1jK5r2UXSdkPEeeWWTDsotwF")
+  override protected val blockChecksum: ModifierId = ModifierId("y2srCtQZiV2XkYfhjgmyxZQE8SZcETQrxZjKGHGuFjv7")
 
   override protected val blockVersion: PNVMVersion = 1: Byte
 
