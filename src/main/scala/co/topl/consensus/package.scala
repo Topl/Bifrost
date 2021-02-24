@@ -79,8 +79,6 @@ package object consensus {
     val target: Double = baseDifficulty.toDouble / maxStake.toDouble
     val timeDelta = timestamp - parent.timestamp
 
-    println(s">>>>>>>>>>>>>>>>>>> target: $target\ntimestamp: $timestamp\ntimeDelta: $timeDelta\nbaseDifficulty: $baseDifficulty\nmaxStake: ${maxStake}")
-
     BigDecimal(target * timeDelta.toDouble / targetBlockTime(parentHeight).toUnit(MILLISECONDS))
   }
 
