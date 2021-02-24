@@ -1,4 +1,4 @@
-package co.topl.settings
+package co.topl.utils
 
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 

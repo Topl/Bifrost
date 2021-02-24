@@ -9,8 +9,7 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
-import co.topl.settings.NetworkType
-import co.topl.utils.Int128
+import co.topl.utils.{Int128, NetworkType}
 
 import scala.util.Try
 

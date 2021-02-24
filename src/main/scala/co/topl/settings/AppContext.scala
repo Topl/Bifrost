@@ -4,8 +4,8 @@ import java.net.InetSocketAddress
 
 import co.topl.network.message._
 import co.topl.network.upnp.Gateway
-import co.topl.network.{peer, NodeViewSynchronizer, PeerSynchronizer}
-import co.topl.utils.NetworkTimeProvider
+import co.topl.network.{NodeViewSynchronizer, PeerSynchronizer, peer}
+import co.topl.utils.{NetworkTimeProvider, NetworkType}
 
 import scala.concurrent.ExecutionContext
 

@@ -1,5 +1,7 @@
 package co.topl.settings
 
+import co.topl.utils.NetworkType
+
 /** Parameters that are given at application startup. Only parameters that are
   * required for initialization should be includaed at the top level while all other
   * settings that control the application runtime (similar in nature to config settings)

@@ -20,7 +20,7 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.{MempoolAuditor, MempoolAuditorRef, NodeViewHolder, NodeViewHolderRef}
 import co.topl.settings._
-import co.topl.utils.Logging
+import co.topl.utils.{Logging, NetworkType}
 import co.topl.wallet.{WalletConnectionHandler, WalletConnectionHandlerRef}
 import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
 import com.typesafe.config.{Config, ConfigFactory}

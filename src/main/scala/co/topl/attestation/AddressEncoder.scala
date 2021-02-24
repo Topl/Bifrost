@@ -1,6 +1,6 @@
 package co.topl.attestation
 
-import co.topl.settings.NetworkType
+import co.topl.utils.NetworkType
 import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
