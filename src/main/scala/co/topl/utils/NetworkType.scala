@@ -1,6 +1,6 @@
 package co.topl.utils
 
-import co.topl.attestation.AddressEncoder.NetworkPrefix
+import co.topl.utils.NetworkType.NetworkPrefix
 
 /** Attributes of a network type such as its name and whether to start forging once it's ready
   * @param verboseName name of the network type
@@ -9,6 +9,8 @@ import co.topl.attestation.AddressEncoder.NetworkPrefix
 sealed abstract class NetworkType(val verboseName: String, val netPrefix: NetworkPrefix)
 
 object NetworkType {
+
+  type NetworkPrefix = Byte
 
   lazy val all: Seq[NetworkType] = Seq(Mainnet, ValhallaTestnet, HelTestnet, LocalTestnet, PrivateTestnet)
 
@@ -29,4 +31,5 @@ object NetworkType {
 
   case object PrivateTestnet
     extends NetworkType("private", 64.toByte)
+
 }

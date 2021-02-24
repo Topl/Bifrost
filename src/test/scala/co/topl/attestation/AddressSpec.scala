@@ -1,6 +1,6 @@
 package co.topl.attestation
 
-import co.topl.attestation.AddressEncoder.NetworkPrefix
+import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{CoreGenerators, NetworkType, ValidGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec

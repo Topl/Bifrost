@@ -3,7 +3,6 @@ package co.topl.nodeView
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
-import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.consensus.Forger
 import co.topl.consensus.Forger.ReceivableMessages.GenerateGenesis
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
@@ -20,6 +19,7 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.Logging
+import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.serialization.BifrostSerializer
 
 import scala.annotation.tailrec

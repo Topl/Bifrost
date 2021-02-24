@@ -3,7 +3,6 @@ package co.topl.http.api.endpoints
 import java.security.SecureRandom
 
 import co.topl.attestation.Address
-import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.http.api.{ApiEndpoint, Namespace, UtilNamespace}
 import co.topl.modifier.box.AssetCode
 import co.topl.modifier.box.AssetCode.AssetCodeVersion
@@ -12,6 +11,7 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppContext, RPCApiSettings}
 import co.topl.utils.NetworkType
+import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.hash.Blake2b256

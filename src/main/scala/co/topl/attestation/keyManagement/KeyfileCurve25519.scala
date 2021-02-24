@@ -3,7 +3,7 @@ package co.topl.attestation.keyManagement
 import java.nio.charset.StandardCharsets
 
 import co.topl.attestation.Address
-import co.topl.attestation.AddressEncoder.NetworkPrefix
+import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}

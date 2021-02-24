@@ -4,7 +4,6 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.pipe
 import akka.util.Timeout
 import co.topl.attestation.{Address, AddressEncoder}
-import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.http.api.endpoints.{NodeViewApiEndpoint, TransactionApiEndpoint}
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.block.{Block, BloomFilter, PersistentNodeViewModifier}
@@ -12,6 +11,7 @@ import co.topl.modifier.transaction._
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.SemanticallySuccessfulModifier
 import co.topl.settings.{AppContext, AppSettings, RPCApiSettings}
 import co.topl.utils.Logging
+import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._

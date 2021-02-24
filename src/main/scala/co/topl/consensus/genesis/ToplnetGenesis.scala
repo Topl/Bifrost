@@ -1,6 +1,5 @@
 package co.topl.consensus.genesis
 
-import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.Forger.ChainParams
@@ -9,6 +8,7 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
+import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Int128, NetworkType}
 
 import scala.util.Try

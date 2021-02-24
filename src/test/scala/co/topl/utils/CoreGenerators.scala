@@ -3,7 +3,7 @@ package co.topl.utils
 import java.io.File
 import java.time.Instant
 
-import co.topl.attestation.AddressEncoder.NetworkPrefix
+import NetworkType.NetworkPrefix
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519, Secret}

@@ -1,10 +1,10 @@
 package co.topl.it.util
 
 import co.topl.attestation.Address
-import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.keyManagement.{KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.crypto.KeyfileCurve25519
 import co.topl.settings.NetworkType._
+import co.topl.utils.NetworkType
 
 import scala.util.Try
 

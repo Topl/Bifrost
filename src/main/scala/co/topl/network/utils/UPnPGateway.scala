@@ -1,4 +1,4 @@
-package co.topl.network.upnp
+package co.topl.network.utils
 
 import java.net.{InetAddress, InetSocketAddress}
 
@@ -8,7 +8,7 @@ import org.bitlet.weupnp.{GatewayDevice, GatewayDiscover, PortMappingEntry}
 
 import scala.collection.JavaConverters._
 
-class Gateway(gateway: GatewayDevice, port: Int) extends Logging {
+class UPnPGateway(gateway: GatewayDevice, port: Int) extends Logging {
 
   val localAddress: InetAddress = gateway.getLocalAddress
   val externalAddress: InetAddress = InetAddress.getByName(gateway.getExternalIPAddress)
@@ -58,7 +58,7 @@ class Gateway(gateway: GatewayDevice, port: Int) extends Logging {
   }
 }
 
-object Gateway extends Logging {
+object UPnPGateway extends Logging {
 
   def getPort(settings: NetworkSettings): Int = {
     settings.upnpUseRandom match {
@@ -67,7 +67,7 @@ object Gateway extends Logging {
     }
   }
 
-  def apply(settings: NetworkSettings): Option[Gateway] = {
+  def apply(settings: NetworkSettings): Option[UPnPGateway] = {
     try {
       log.info("Looking for UPnP gateway device...")
       val defaultHttpReadTimeout =
@@ -92,7 +92,7 @@ object Gateway extends Logging {
 
         val port = getPort(settings)
         // Return UPnP Gateway with mapped port
-        val upnpGateway = gateway.map(new Gateway(_, port))
+        val upnpGateway = gateway.map(new UPnPGateway(_, port))
 
         // add shutdown hook for deleting the port mapping
         sys.addShutdownHook(upnpGateway.get.deletePort(port))

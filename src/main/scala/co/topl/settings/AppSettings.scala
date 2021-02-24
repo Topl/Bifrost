@@ -4,7 +4,8 @@ import java.io.File
 import java.net.InetSocketAddress
 
 import co.topl.http.api.NamespaceSelector
-import co.topl.utils.{Logging, NetworkTimeProviderSettings}
+import co.topl.network.utils.NetworkTimeProviderSettings
+import co.topl.utils.Logging
 import com.typesafe.config.{Config, ConfigFactory}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._

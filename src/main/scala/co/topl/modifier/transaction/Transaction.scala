@@ -1,11 +1,11 @@
 package co.topl.modifier.transaction
 
-import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.{Address, Proof, Proposition}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.box.{Box, BoxId, ProgramId}
 import co.topl.modifier.{BoxReader, ModifierId, NodeViewModifier}
+import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Identifiable, Identifier, Int128}
 import com.google.common.primitives.Longs
 import io.circe.{Decoder, Encoder, HCursor}

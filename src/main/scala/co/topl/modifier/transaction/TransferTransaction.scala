@@ -2,12 +2,12 @@ package co.topl.modifier.transaction
 
 import java.nio.charset.StandardCharsets
 
-import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.attestation.{Evidence, _}
 import co.topl.modifier.BoxReader
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.box.{Box, _}
+import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Identifiable, Int128}
 import com.google.common.primitives.{Ints, Longs}
 import scorex.crypto.hash.Blake2b256

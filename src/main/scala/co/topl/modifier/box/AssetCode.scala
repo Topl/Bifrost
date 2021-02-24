@@ -16,6 +16,8 @@ import scala.util.{Failure, Success}
   */
 case class AssetCode(version: AssetCodeVersion, issuer: Address, shortName: String) extends BytesSerializable {
 
+  require(version == 1.toByte, "AssetCode version required to be 1")
+
   require(
     shortName.getBytes(StandardCharsets.ISO_8859_1).length <= AssetCode.shortNameLimit,
     "Asset short names must be less than 8 Latin-1 encoded characters"
@@ -51,16 +53,19 @@ object AssetCode extends BifrostSerializer[AssetCode] {
     }
 
   override def serialize(obj: AssetCode, w: Writer): Unit = {
+    val paddedShortName = obj.shortName.getBytes(StandardCharsets.ISO_8859_1).padTo(shortNameLimit, 0: Byte)
+
     w.put(obj.version)
     Address.serialize(obj.issuer, w)
-    w.putByteString(obj.shortName)
+    w.putBytes(paddedShortName)
   }
 
   override def parse(r: Reader): AssetCode = {
     val version = r.getByte()
     val issuer = Address.parse(r)
-    val shortName = r.getByteString()
-    require(version == 1.toByte, "AssetCode version required to be 1")
+    val shortNameBytes = r.getBytes(shortNameLimit).filter(_ != 0)
+    val shortName = new String(shortNameBytes, StandardCharsets.ISO_8859_1)
+
     new AssetCode(version, issuer, shortName)
   }
 }

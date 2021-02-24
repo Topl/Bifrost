@@ -14,7 +14,7 @@ import co.topl.modifier.transaction.Transaction
 import co.topl.network.NetworkController.ReceivableMessages.BindP2P
 import co.topl.network._
 import co.topl.network.message.BifrostSyncInfo
-import co.topl.network.upnp.Gateway
+import co.topl.network.utils.UPnPGateway
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
@@ -45,7 +45,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   log.debug(s"Starting application with settings \n$settings")
 
   /** check for gateway device and setup port forwarding */
-  private val upnpGateway: Option[Gateway] = if (settings.network.upnpEnabled) upnp.Gateway(settings.network) else None
+  private val upnpGateway: Option[UPnPGateway] = if (settings.network.upnpEnabled) UPnPGateway(settings.network) else None
 
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
   /** Setup the execution environment for running the application */
