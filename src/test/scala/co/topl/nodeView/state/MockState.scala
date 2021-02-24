@@ -1,8 +1,9 @@
 package co.topl.nodeView.state
 
 import akka.actor.ActorSystem
+import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.consensus.genesis.PrivateGenesis
-import co.topl.crypto.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
+import co.topl.crypto.KeyfileCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.settings.{AppContext, StartupOpts}

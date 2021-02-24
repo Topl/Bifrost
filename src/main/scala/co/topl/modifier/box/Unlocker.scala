@@ -1,7 +1,7 @@
-package co.topl.attestation
+package co.topl.modifier.box
 
-import co.topl.attestation.EvidenceProducer.Syntax._
-import co.topl.modifier.box.{Box, BoxId}
+import co.topl.attestation.{Address, EvidenceProducer, Proof, Proposition}
+import co.topl.attestation.EvidenceProducer.Syntax.ProducerOps
 
 sealed abstract class Unlocker[P <: Proposition]
 

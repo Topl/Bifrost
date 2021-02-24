@@ -1,4 +1,4 @@
-package co.topl.crypto
+package co.topl.attestation.keyManagement
 
 import java.nio.charset.StandardCharsets
 

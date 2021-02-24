@@ -11,6 +11,7 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppContext, RPCApiSettings}
+import co.topl.utils.NetworkType
 import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.hash.Blake2b256

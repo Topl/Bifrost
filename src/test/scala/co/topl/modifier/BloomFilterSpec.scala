@@ -1,7 +1,7 @@
 package co.topl.modifier
 
 import co.topl.attestation.Address
-import co.topl.crypto.PrivateKeyCurve25519
+import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.block.{BloomFilter, TransactionsCarryingPersistentNodeViewModifier}
 import co.topl.utils.ValidGenerators

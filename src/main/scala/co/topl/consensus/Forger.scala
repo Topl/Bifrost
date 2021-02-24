@@ -2,10 +2,10 @@ package co.topl.consensus
 
 import akka.actor._
 import co.topl.attestation.AddressEncoder.NetworkPrefix
+import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, AddressEncoder, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.Forger.{ChainParams, PickTransactionsResult}
 import co.topl.consensus.genesis.{HelGenesis, PrivateGenesis, ToplnetGenesis, ValhallaGenesis}
-import co.topl.crypto.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, SimpleValue}
@@ -15,8 +15,8 @@ import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{EliminateTransactions
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.settings.NetworkType._
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
+import co.topl.utils.NetworkType.{HelTestnet, LocalTestnet, Mainnet, PrivateTestnet, ValhallaTestnet}
 import co.topl.utils.TimeProvider.Time
 import co.topl.utils.{Int128, Logging, TimeProvider}
 

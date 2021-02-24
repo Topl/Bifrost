@@ -1,9 +1,10 @@
-package co.topl.crypto
+package co.topl.attestation.keyManagement
 
 import java.io.File
 
 import co.topl.attestation.Address
 import co.topl.attestation.AddressEncoder.NetworkPrefix
+import co.topl.crypto.Bip39
 import com.google.common.primitives.Ints
 import scorex.crypto.hash.Blake2b256
 import scorex.util.Random.randomBytes
