@@ -4,7 +4,6 @@ import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.consensus.genesis.PrivateGenesis
-import co.topl.crypto.KeyfileCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.{AssetCode, AssetValue, SecurityRoot}

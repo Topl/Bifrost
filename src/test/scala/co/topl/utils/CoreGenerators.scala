@@ -1,19 +1,22 @@
 package co.topl.utils
 
+import java.io.File
+import java.time.Instant
+
 import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
-import co.topl.crypto.KeyfileCurve25519
+import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519, Secret}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
-import co.topl.modifier.transaction._
-import co.topl.nodeView.history.{BlockProcessor, History, Storage}
 import co.topl.modifier.box.Box.Nonce
 import co.topl.modifier.box.{ProgramId, _}
+import co.topl.modifier.transaction._
+import co.topl.nodeView.history.{BlockProcessor, History, Storage}
 import co.topl.program.{ProgramPreprocessor, _}
-import co.topl.settings.NetworkType.PrivateTestnet
 import co.topl.settings.{AppSettings, StartupOpts, Version}
+import co.topl.utils.NetworkType.PrivateTestnet
 import io.circe.syntax._
 import io.circe.{Json, JsonObject}
 import io.iohk.iodb.LSMStore
@@ -21,10 +24,6 @@ import org.scalacheck.{Arbitrary, Gen}
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.{Curve25519, Signature}
 import scorex.util.encode.Base58
-import java.io.File
-import java.time.Instant
-
-import co.topl.attestation.keyManagement.{KeyfileCurve25519, PrivateKeyCurve25519, Secret}
 
 import scala.collection.SortedSet
 import scala.util.{Random, Try}

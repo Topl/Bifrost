@@ -1,6 +1,5 @@
 package co.topl.crypto
 
-import co.topl.utils.Logging
 import scorex.crypto.hash.Sha256
 
 import scala.io.Source
@@ -25,7 +24,7 @@ import scala.util.{Failure, Success, Try}
  * https://github.com/bitcoin/bips/tree/master/bip-0039
  */
 
-class Bip39 (wordList: List[String]) extends Logging {
+class Bip39 (wordList: List[String]) {
 
   /*
    *  CS = ENT / 32
