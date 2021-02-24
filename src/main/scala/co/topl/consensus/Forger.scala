@@ -11,11 +11,7 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.CurrentView
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{
-  EliminateTransactions,
-  GetDataFromCurrentView,
-  LocallyGeneratedModifier
-}
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{EliminateTransactions, GetDataFromCurrentView, LocallyGeneratedModifier}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
@@ -216,7 +212,7 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
     */
   private def tryForging(history: History, state: State, memPool: MemPool): Unit = {
     log.debug(
-      s"${Console.MAGENTA}Attempting to forge with settings ${protocolMngr.current(history.height)}" +
+      s"${Console.MAGENTA}Attempting to forge with settings ${protocolMngr.current(history.height)} " +
       s"and from addresses: ${keyRing.addresses}${Console.RESET}"
     )
     log.info(
@@ -345,9 +341,7 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
 
     memPool
       .take[Int128](numTxInBlock(chainHeight))(-_.tx.fee) // returns a sequence of transactions ordered by their fee
-      .filter(
-        _.tx.fee > settings.forging.minTransactionFee
-      ) // default strategy ignores zero fee transactions in mempool
+      .filter(_.tx.fee > settings.forging.minTransactionFee) // default strategy ignores zero fee transactions in mempool
       .foldLeft(PickTransactionsResult(Seq(), Seq())) { case (txAcc, utx) =>
         // ensure that each transaction opens a unique box by checking that this transaction
         // doesn't open a box already being opened by a previously included transaction
