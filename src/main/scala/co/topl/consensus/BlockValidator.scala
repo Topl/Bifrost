@@ -61,7 +61,7 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
   /** Helper function to find the source of the parent block (either storage or chain cache) */
   private def getParentDetailsOf(block: Block): (Block, Seq[TimeProvider.Time]) =
     blockProcessor.getCacheBlock(block.parentId) match {
-      case Some(cacheParent) => (cacheParent.block, cacheParent.prevBlockTimes)
+      case Some(cacheParent) => (cacheParent.block, cacheParent.prevBlockTimes :+ block.timestamp)
       case None =>
         //we have already checked if the parent exists so can get
         val parent = storage.modifierById(block.parentId).get

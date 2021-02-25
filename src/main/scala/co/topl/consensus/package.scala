@@ -95,9 +95,6 @@ package object consensus {
     val averageDelay = (prevTimes drop 1, prevTimes).zipped.map(_-_).sum / (prevTimes.length - 1)
     val targetTimeMilli = targetBlockTime(newHeight).toUnit(MILLISECONDS)
 
-    println(s">>>>>>>>>>>>>>>>>>> calcNewBaseDifficulty\nprevTimes: $prevTimes\nprevDifficulty: $prevDifficulty" +
-      s"\ntargetTime: $targetTimeMilli\navgDelay: $averageDelay")
-
     // magic numbers here (1.1, 0.9, and 0.64) are straight from NXT
     if (averageDelay > targetTimeMilli) {
       (prevDifficulty * min(averageDelay, targetTimeMilli * 1.1) / targetTimeMilli).toLong
