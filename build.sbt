@@ -4,7 +4,7 @@ import sbtassembly.MergeStrategy
 name := "bifrost"
 
 lazy val commonSettings = Seq(
-  scalaVersion := "2.12.11",
+  scalaVersion := "2.12.13",
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   organization := "co.topl",
@@ -12,7 +12,7 @@ lazy val commonSettings = Seq(
 //  wartremoverErrors := Warts.unsafe // settings for wartremover
 )
 
-scalaVersion := "2.12.11"
+scalaVersion := "2.12.13"
 organization := "co.topl"
 version := "1.1.0"
 
