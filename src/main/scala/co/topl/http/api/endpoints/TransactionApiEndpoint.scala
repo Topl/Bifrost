@@ -95,7 +95,6 @@ case class TransactionApiEndpoint(
   private def rawAssetTransfer(implicit params: Json, id: String): Future[Json] =
     viewAsync { view =>
       val p = params.hcursor
-
       // parse arguments from the request
       (for {
         propType          <- p.get[String]("propositionType")
@@ -359,7 +358,7 @@ case class TransactionApiEndpoint(
       tx.asJson
     }) match {
       case Right(Success(json)) => json
-      case Right(Failure(ex))   => throw ex
+      case Right(Failure(ex))   => throw new Exception (ex)
       case Left(ex)             => throw ex
     }
   }

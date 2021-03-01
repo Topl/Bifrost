@@ -38,9 +38,10 @@ trait CoreGenerators extends Logging {
   implicit val networkPrefix: NetworkPrefix = PrivateNet.netPrefix
 
   private val settingsFilename = "src/test/resources/test.conf"
-  val settings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))
+  val settings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))._1
 
-  private val keyFileDir = settings.application.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
+  private val keyFileDir = settings.application.keyFileDir.ensuring(
+    _.isDefined, "A keyfile directory must be specified").get
   private val keyRing = KeyRing[PrivateKeyCurve25519, KeyfileCurve25519](keyFileDir, KeyfileCurve25519)
 
   def sampleUntilNonEmpty[T](generator: Gen[T]): T = {

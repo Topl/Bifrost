@@ -226,7 +226,6 @@ object ProgramPreprocessor {
     val scriptEnv: ScriptEnvironment = ScriptEnvironment.builder
       .ecmaScriptVersion(8)
       .constAsVar(false)
-      .earlyLvalueError(true)
       .emptyStatements(false)
       .syntaxExtensions(true)
       .scripting(false)
@@ -278,7 +277,6 @@ object ProgramPreprocessor {
     val scriptEnv: ScriptEnvironment = ScriptEnvironment.builder
       .ecmaScriptVersion(8)
       .constAsVar(false)
-      .earlyLvalueError(true)
       .emptyStatements(false)
       .syntaxExtensions(true)
       .scripting(false)
