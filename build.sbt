@@ -2,6 +2,9 @@ import sbt.Keys.organization
 import sbtassembly.MergeStrategy
 
 name := "bifrost"
+scalaVersion := "2.12.12"
+organization := "co.topl"
+version := "1.3.0"
 
 lazy val commonSettings = Seq(
   scalaVersion := "2.12.12",
@@ -9,12 +12,8 @@ lazy val commonSettings = Seq(
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   organization := "co.topl",
   version := "1.3.0"
-//  wartremoverErrors := Warts.unsafe // settings for wartremover
+  // wartremoverErrors := Warts.unsafe // settings for wartremover
 )
-
-scalaVersion := "2.12.12"
-organization := "co.topl"
-version := "1.3.0"
 
 mainClass in assembly := Some("co.topl.BifrostApp")
 test in assembly := {}
@@ -76,36 +75,33 @@ val cryptoDependencies = Seq(
 val miscDependencies = Seq(
   "org.scorexfoundation" %% "iodb"        % "0.3.2",
   "com.chuusai"          %% "shapeless"   % "2.3.3",
-  "com.google.guava"      % "guava"       % "30.1-jre",
   "com.iheart"           %% "ficus"       % "1.5.0",
   "org.rudogma"          %% "supertagged" % "1.5",
   "com.joefkelley"       %% "argyle"      % "1.0.0",
-  "io.netty"              % "netty"       % "3.10.6.Final"
-) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
+  "org.scalanlp"         %% "breeze"      % "1.1",
+  "io.netty"              % "netty"       % "3.10.6.Final",
+  "com.google.guava"      % "guava"       % "30.1-jre",
+  "com.typesafe"          % "config"      % "1.4.1"
+)
 
-libraryDependencies ++= akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies ++ cryptoDependencies ++ miscDependencies
-
-// monitoring dependencies
-libraryDependencies ++= Seq(
+val monitoringDependencies = Seq(
   "io.kamon" %% "kamon-bundle"   % kamonVersion,
   "io.kamon" %% "kamon-core"     % kamonVersion,
   "io.kamon" %% "kamon-influxdb" % kamonVersion,
   "io.kamon" %% "kamon-zipkin"   % kamonVersion
 )
 
-// https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
-libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % graalVersion
-
-// https://mvnrepository.com/artifact/org.graalvm.js/js
-libraryDependencies += "org.graalvm.js" % "js" % graalVersion
-
-// https://mvnrepository.com/artifact/org.graalvm.truffle/truffle-api
-libraryDependencies += "org.graalvm.truffle" % "truffle-api" % graalVersion
-
-libraryDependencies ++= Seq(
-  "org.scalanlp" %% "breeze" % "1.1",
-  "com.typesafe"  % "config" % "1.4.1"
+val graalDependencies = Seq(
+  // https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
+  // https://mvnrepository.com/artifact/org.graalvm.js/js
+  // https://mvnrepository.com/artifact/org.graalvm.truffle/truffle-api
+  "org.graalvm.sdk"     % "graal-sdk"   % graalVersion,
+  "org.graalvm.js"      % "js"          % graalVersion,
+  "org.graalvm.truffle" % "truffle-api" % graalVersion
 )
+
+libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies
+++ testingDependencies ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
 
 scalacOptions ++= Seq(
   "-deprecation",
@@ -144,12 +140,7 @@ parallelExecution in Test := false
 
 logBuffered in Test := false
 
-testOptions in Test += Tests.Argument(
-  TestFrameworks.ScalaTest,
-  "-f",
-  "sbttest.log",
-  "-oDG"
-)
+testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-oDG")
 
 classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
 
@@ -180,9 +171,7 @@ assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) =>
 
 assemblyExcludedJars in assembly := {
   val cp = (fullClasspath in assembly).value
-  cp filter { el ⇒
-    (el.data.getName == "ValkyrieInstrument-1.0.jar")
-  }
+  cp filter { el => el.data.getName == "ValkyrieInstrument-1.0.jar"}
 }
 
 connectInput in run := true
@@ -203,7 +192,8 @@ lazy val benchmarking = Project(id = "benchmark", base = file("benchmark"))
 lazy val gjallarhorn = Project(id = "gjallarhorn", base = file("gjallarhorn"))
   .settings(
     commonSettings,
-    libraryDependencies ++= akkaDependencies ++ testingDependencies ++ cryptoDependencies ++ apiDependencies ++ loggingDependencies ++ miscDependencies
+    libraryDependencies ++= akkaDependencies ++ testingDependencies ++ cryptoDependencies ++ apiDependencies
+    ++ loggingDependencies ++ miscDependencies
   )
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
