@@ -140,12 +140,7 @@ parallelExecution in Test := false
 
 logBuffered in Test := false
 
-testOptions in Test += Tests.Argument(
-  TestFrameworks.ScalaTest,
-  "-f",
-  "sbttest.log",
-  "-oDG"
-)
+testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-oDG")
 
 classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
 
@@ -176,9 +171,7 @@ assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) =>
 
 assemblyExcludedJars in assembly := {
   val cp = (fullClasspath in assembly).value
-  cp filter { el ⇒
-    (el.data.getName == "ValkyrieInstrument-1.0.jar")
-  }
+  cp filter { el => el.data.getName == "ValkyrieInstrument-1.0.jar"}
 }
 
 connectInput in run := true
