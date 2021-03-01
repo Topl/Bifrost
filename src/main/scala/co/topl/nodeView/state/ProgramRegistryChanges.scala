@@ -1,7 +1,7 @@
 package co.topl.nodeView.state
 
 import co.topl.modifier.block.Block
-import co.topl.nodeView.state.box.ProgramBox
+import co.topl.modifier.box.ProgramBox
 
 import scala.util.Try
 

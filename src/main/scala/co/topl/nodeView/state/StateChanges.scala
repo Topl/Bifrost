@@ -1,7 +1,7 @@
 package co.topl.nodeView.state
 
 import co.topl.modifier.block.Block
-import co.topl.nodeView.state.box.{Box, BoxId}
+import co.topl.modifier.box.{Box, BoxId}
 
 import scala.util.Try
 

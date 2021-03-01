@@ -3,7 +3,7 @@
 //import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 //import co.topl.attestation.proof.SignatureCurve25519
 //import co.topl.nodeView.state.StateReader
-//import co.topl.nodeView.state.box.{ Box, BoxId, ExecutionBox, ProgramBox }
+//import co.topl.modifier.box.{ Box, BoxId, ExecutionBox, ProgramBox }
 //import com.google.common.primitives.{ Bytes, Longs }
 //import io.circe.syntax._
 //import io.circe.{ Decoder, Encoder, HCursor }

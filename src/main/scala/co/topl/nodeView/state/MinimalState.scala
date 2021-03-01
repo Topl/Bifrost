@@ -4,10 +4,12 @@ package co.topl.nodeView.state
   * Created by cykoz on 4/13/17.
   */
 
+import co.topl.attestation.Address
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.PersistentNodeViewModifier
 import co.topl.nodeView.NodeViewComponent
 import co.topl.nodeView.state.MinimalState.VersionTag
+import co.topl.modifier.box.ProgramId
 
 import scala.util.Try
 
@@ -16,7 +18,7 @@ import scala.util.Try
   */
 
 trait MinimalState[M <: PersistentNodeViewModifier, MS <: MinimalState[M, MS]]
-    extends NodeViewComponent with StateReader{
+    extends NodeViewComponent with StateReader[ProgramId, Address] {
 
   self: MS =>
 
@@ -26,7 +28,7 @@ trait MinimalState[M <: PersistentNodeViewModifier, MS <: MinimalState[M, MS]]
 
   def rollbackTo(version: VersionTag): Try[MS]
 
-  def getReader: StateReader = this
+  def getReader: StateReader[ProgramId, Address] = this
 }
 
 object MinimalState {
