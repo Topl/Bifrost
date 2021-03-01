@@ -1,4 +1,4 @@
-FROM oracle/graalvm-ce:19.2.1
+FROM ghcr.io/graalvm/graalvm-ce:java8-21.0.0
 
 RUN mkdir -p /usr/src/bifrost
 
