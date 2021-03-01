@@ -2,12 +2,12 @@ import sbt.Keys.organization
 import sbtassembly.MergeStrategy
 
 name := "bifrost"
-scalaVersion := "2.12.12"
+scalaVersion := "2.12.13"
 organization := "co.topl"
 version := "1.3.0"
 
 lazy val commonSettings = Seq(
-  scalaVersion := "2.12.12",
+  scalaVersion := "2.12.13",
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   organization := "co.topl",
