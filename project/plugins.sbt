@@ -20,6 +20,6 @@ addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.3.7")
 
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.4.0")
 
-addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.9.21")
+addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.9.26")
 
 addSbtPlugin("org.wartremover" % "sbt-wartremover" % "2.4.13")
