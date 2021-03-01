@@ -2,19 +2,18 @@ import sbt.Keys.organization
 import sbtassembly.MergeStrategy
 
 name := "bifrost"
+scalaVersion := "2.12.13"
+organization := "co.topl"
+version := "1.3.0"
 
 lazy val commonSettings = Seq(
   scalaVersion := "2.12.13",
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   organization := "co.topl",
-  version := "1.3.0",
-//  wartremoverErrors := Warts.unsafe // settings for wartremover
+  version := "1.3.0"
+  // wartremoverErrors := Warts.unsafe // settings for wartremover
 )
-
-scalaVersion := "2.12.13"
-organization := "co.topl"
-version := "1.3.0"
 
 mainClass in assembly := Some("co.topl.BifrostApp")
 test in assembly := {}
@@ -29,83 +28,80 @@ val kamonVersion = "2.1.12"
 val graalVersion = "21.0.0"
 
 val akkaDependencies = Seq(
-  "com.typesafe.akka" %% "akka-actor" % akkaVersion,
-  "com.typesafe.akka" %% "akka-stream" % akkaVersion,
-  "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
-  "com.typesafe.akka" %% "akka-http-core" % akkaHttpVersion,
-  "com.typesafe.akka" %% "akka-remote" % akkaVersion,
-  "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
-  "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion % Test,
-  "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % Test,
+  "com.typesafe.akka" %% "akka-actor"          % akkaVersion,
+  "com.typesafe.akka" %% "akka-stream"         % akkaVersion,
+  "com.typesafe.akka" %% "akka-http"           % akkaHttpVersion,
+  "com.typesafe.akka" %% "akka-http-core"      % akkaHttpVersion,
+  "com.typesafe.akka" %% "akka-remote"         % akkaVersion,
+  "com.typesafe.akka" %% "akka-slf4j"          % akkaVersion,
+  "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion     % Test,
+  "com.typesafe.akka" %% "akka-http-testkit"   % akkaHttpVersion % Test
 )
 
 val networkDependencies = Seq(
-  "org.bitlet" % "weupnp" % "0.1.4",
+  "org.bitlet"  % "weupnp"      % "0.1.4",
   "commons-net" % "commons-net" % "3.8.0"
 )
 
 val apiDependencies = Seq(
-  "io.circe" %% "circe-core" % circeVersion,
+  "io.circe" %% "circe-core"    % circeVersion,
   "io.circe" %% "circe-generic" % circeVersion,
-  "io.circe" %% "circe-parser" % circeVersion,
+  "io.circe" %% "circe-parser"  % circeVersion,
   "io.circe" %% "circe-literal" % circeVersion
 )
 
 val loggingDependencies = Seq(
-  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
-  "ch.qos.logback" % "logback-classic" % "1.2.3",
-  "ch.qos.logback" % "logback-core" % "1.2.3",
-  "org.slf4j" % "slf4j-api" % "1.7.30"
+  "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.2",
+  "ch.qos.logback"              % "logback-classic" % "1.2.3",
+  "ch.qos.logback"              % "logback-core"    % "1.2.3",
+  "org.slf4j"                   % "slf4j-api"       % "1.7.30"
 )
 
 val testingDependencies = Seq(
-  "org.scalactic" %% "scalactic" % "3.2.5" % Test,
-  "org.scalatest" %% "scalatest" % "3.2.5" % Test,
-  "org.scalacheck" %% "scalacheck" % "1.15.3" % Test,
-  "org.scalatestplus" %% "scalacheck-1-14" % "3.2.2.0" % Test,
-  "com.spotify" % "docker-client" % "8.16.0" % Test,
-  "org.asynchttpclient" % "async-http-client" % "2.12.2" % Test
+  "org.scalactic"      %% "scalactic"         % "3.2.5"   % Test,
+  "org.scalatest"      %% "scalatest"         % "3.2.5"   % Test,
+  "org.scalacheck"     %% "scalacheck"        % "1.15.3"  % Test,
+  "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % Test,
+  "com.spotify"         % "docker-client"     % "8.16.0"  % Test,
+  "org.asynchttpclient" % "async-http-client" % "2.12.2"  % Test
 )
 
 val cryptoDependencies = Seq(
-  "org.scorexfoundation" %% "scrypto" % "2.1.10",
-  "org.bouncycastle" % "bcprov-jdk15on" % "1.68",
-  "org.whispersystems" % "curve25519-java" % "0.5.0"
+  "org.scorexfoundation" %% "scrypto"         % "2.1.10",
+  "org.bouncycastle"      % "bcprov-jdk15on"  % "1.68",
+  "org.whispersystems"    % "curve25519-java" % "0.5.0"
 )
 
 val miscDependencies = Seq(
-  "org.scorexfoundation" %% "iodb" % "0.3.2",
-  "com.chuusai" %% "shapeless" % "2.3.3",
-  "com.google.guava" % "guava" % "30.1-jre",
-  "com.iheart" %% "ficus" % "1.5.0",
-  "org.rudogma" %% "supertagged" % "1.5",
-  "com.joefkelley" %% "argyle" % "1.0.0",
-  "io.netty" % "netty" % "3.10.6.Final"
-) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
+  "org.scorexfoundation" %% "iodb"        % "0.3.2",
+  "com.chuusai"          %% "shapeless"   % "2.3.3",
+  "com.iheart"           %% "ficus"       % "1.5.0",
+  "org.rudogma"          %% "supertagged" % "1.5",
+  "com.joefkelley"       %% "argyle"      % "1.0.0",
+  "org.scalanlp"         %% "breeze"      % "1.1",
+  "io.netty"              % "netty"       % "3.10.6.Final",
+  "com.google.guava"      % "guava"       % "30.1-jre",
+  "com.typesafe"          % "config"      % "1.4.1"
+)
 
-libraryDependencies ++= akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies ++ cryptoDependencies ++ miscDependencies
-
-// monitoring dependencies
-libraryDependencies ++= Seq(
-  "io.kamon" %% "kamon-bundle" % kamonVersion,
-  "io.kamon" %% "kamon-core" % kamonVersion,
+val monitoringDependencies = Seq(
+  "io.kamon" %% "kamon-bundle"   % kamonVersion,
+  "io.kamon" %% "kamon-core"     % kamonVersion,
   "io.kamon" %% "kamon-influxdb" % kamonVersion,
-  "io.kamon" %% "kamon-zipkin" % kamonVersion
+  "io.kamon" %% "kamon-zipkin"   % kamonVersion
 )
 
-// https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
-libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % graalVersion
-
-// https://mvnrepository.com/artifact/org.graalvm.js/js
-libraryDependencies += "org.graalvm.js" % "js" % graalVersion
-
-// https://mvnrepository.com/artifact/org.graalvm.truffle/truffle-api
-libraryDependencies += "org.graalvm.truffle" % "truffle-api" % graalVersion
-
-libraryDependencies  ++= Seq(
-  "org.scalanlp" %% "breeze" % "1.1",
-  "com.typesafe" % "config" % "1.4.1"
+val graalDependencies = Seq(
+  // https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
+  // https://mvnrepository.com/artifact/org.graalvm.js/js
+  // https://mvnrepository.com/artifact/org.graalvm.truffle/truffle-api
+  "org.graalvm.sdk"     % "graal-sdk"   % graalVersion,
+  "org.graalvm.js"      % "js"          % graalVersion,
+  "org.graalvm.truffle" % "truffle-api" % graalVersion
 )
+
+libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies
+++ testingDependencies ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
 
 scalacOptions ++= Seq(
   "-deprecation",
@@ -158,25 +154,24 @@ homepage := Some(url("https://github.com/Topl/Bifrost"))
 
 assemblyJarName := s"bifrost-${version.value}.jar"
 
-assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) => {
-    case ps if ps.endsWith(".SF")      => MergeStrategy.discard
-    case ps if ps.endsWith(".DSA")     => MergeStrategy.discard
-    case ps if ps.endsWith(".RSA")     => MergeStrategy.discard
-    case ps if ps.endsWith(".xml")     => MergeStrategy.first
+assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) =>
+  {
+    case ps if ps.endsWith(".SF")  => MergeStrategy.discard
+    case ps if ps.endsWith(".DSA") => MergeStrategy.discard
+    case ps if ps.endsWith(".RSA") => MergeStrategy.discard
+    case ps if ps.endsWith(".xml") => MergeStrategy.first
     // https://github.com/sbt/sbt-assembly/issues/370
     case PathList("module-info.class") => MergeStrategy.discard
     case PathList("module-info.java")  => MergeStrategy.discard
     case "META-INF/truffle/instrument" => MergeStrategy.concat
     case "META-INF/truffle/language"   => MergeStrategy.rename
-    case x => old(x)
+    case x                             => old(x)
   }
 }
 
 assemblyExcludedJars in assembly := {
   val cp = (fullClasspath in assembly).value
-  cp filter { el ⇒
-    (el.data.getName == "ValkyrieInstrument-1.0.jar")
-  }
+  cp filter { el => el.data.getName == "ValkyrieInstrument-1.0.jar"}
 }
 
 connectInput in run := true
@@ -197,7 +192,8 @@ lazy val benchmarking = Project(id = "benchmark", base = file("benchmark"))
 lazy val gjallarhorn = Project(id = "gjallarhorn", base = file("gjallarhorn"))
   .settings(
     commonSettings,
-    libraryDependencies ++=akkaDependencies ++ testingDependencies ++ cryptoDependencies ++ apiDependencies ++ loggingDependencies ++ miscDependencies
+    libraryDependencies ++= akkaDependencies ++ testingDependencies ++ cryptoDependencies ++ apiDependencies
+    ++ loggingDependencies ++ miscDependencies
   )
   .disablePlugins(sbtassembly.AssemblyPlugin)
 

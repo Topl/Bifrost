@@ -1,9 +1,10 @@
 package co.topl.utils
 
-import org.apache.commons.net.ntp.NTPUDPClient
-
 import java.net.InetAddress
 import java.util.concurrent.atomic.AtomicLong
+
+import org.apache.commons.net.ntp.NTPUDPClient
+
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -24,11 +25,11 @@ class NetworkTimeProvider(ntpSettings: NetworkTimeProviderSettings)(implicit ec:
   client.setDefaultTimeout(ntpSettings.timeout.toMillis.toInt)
   client.open()
 
-  /**
-   * Check if the NTP offset should be updated and returns current time (milliseconds)
-   * @return the current timestamp in milliseconds
-   */
-  override def time(): TimeProvider.Time = {
+  /** Check if the NTP offset should be updated and returns current time (milliseconds)
+    *
+    * @return the current timestamp in milliseconds
+    */
+  override def time: TimeProvider.Time = {
     checkUpdateRequired()
     NetworkTime.localWithOffset(offset.get())
   }

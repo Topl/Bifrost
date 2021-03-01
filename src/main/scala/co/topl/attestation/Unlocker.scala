@@ -1,7 +1,7 @@
 package co.topl.attestation
 
 import co.topl.attestation.EvidenceProducer.Syntax._
-import co.topl.nodeView.state.box.{Box, BoxId}
+import co.topl.modifier.box.{Box, BoxId}
 
 sealed abstract class Unlocker[P <: Proposition]
 

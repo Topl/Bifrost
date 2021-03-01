@@ -25,7 +25,7 @@ trait VLQReader extends Reader {
     * Decode Short previously encoded with [[VLQWriter.putUShort]] using VLQ.
     * @see [[https://en.wikipedia.org/wiki/Variable-length_quantity]]
     * @return Int
-    * @throws AssertionError for deserialized values not in unsigned Short range
+    * throws `AssertionError` for deserialized values not in unsigned Short range
     */
   @inline override def getUShort(): Int = {
     val x = getULong().toInt

@@ -8,7 +8,7 @@ import co.topl.consensus.Forger
 import co.topl.consensus.Forger.ReceivableMessages.GenerateGenesis
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.serialization.BlockSerializer
-import co.topl.modifier.block.{Block, PersistentNodeViewModifier, TransactionCarryingPersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier}
+import co.topl.modifier.block.{Block, PersistentNodeViewModifier, TransactionCarryingPersistentNodeViewModifier}
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.modifier.{ModifierId, NodeViewModifier}
@@ -34,7 +34,7 @@ import scala.util.{Failure, Success, Try}
   * The instances are read-only for external world.
   * Updates of the composite view(the instances are to be performed atomically.
   */
-class NodeViewHolder ( settings: AppSettings )
+class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
                      ( implicit ec: ExecutionContext, np: NetworkPrefix ) extends Actor with Logging {
 
   // Import the types of messages this actor can RECEIVE
@@ -236,10 +236,10 @@ class NodeViewHolder ( settings: AppSettings )
     *
     * @param tx
     */
-  protected def txModify(tx: TX): Unit = {
+  protected def txModify(tx: TX): Unit =
     tx.syntacticValidate match {
       case Success(_) =>
-        memoryPool().put(tx) match {
+        memoryPool().put(tx, appContext.timeProvider.time) match {
           case Success(_) =>
             log.debug(s"Unconfirmed transaction $tx added to the memory pool")
             context.system.eventStream.publish(SuccessfulTransaction[TX](tx))
@@ -251,7 +251,6 @@ class NodeViewHolder ( settings: AppSettings )
       case Failure(e) =>
         context.system.eventStream.publish(FailedTransaction(tx.id, e, immediateFailure = true))
     }
-  }
 
   //todo: update state in async way?
   /**
@@ -438,7 +437,7 @@ class NodeViewHolder ( settings: AppSettings )
     val appliedTxs = blocksApplied.flatMap(extractTransactions)
 
     memPool
-      .putWithoutCheck(rolledBackTxs)
+      .putWithoutCheck(rolledBackTxs, appContext.timeProvider.time)
       .filter { tx =>
         !appliedTxs.exists(t => t.id == tx.id) && {
           state.semanticValidate(tx).isSuccess
@@ -525,15 +524,11 @@ object NodeViewHolder {
 
 object NodeViewHolderRef {
 
-  def apply ( settings: AppSettings, appContext: AppContext )
-            ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
-    system.actorOf(props(settings, appContext))
+  def props ( settings: AppSettings, appContext: AppContext )
+            ( implicit ec: ExecutionContext ): Props =
+    Props(new NodeViewHolder(settings, appContext)(ec, appContext.networkType.netPrefix))
 
   def apply ( name: String, settings: AppSettings, appContext: AppContext )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
     system.actorOf(props(settings, appContext), name)
-
-  def props ( settings: AppSettings, appContext: AppContext )
-            ( implicit ec: ExecutionContext ): Props =
-    Props(new NodeViewHolder(settings)(ec, appContext.networkType.netPrefix))
 }

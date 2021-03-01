@@ -3,10 +3,11 @@ package co.topl.network.peer
 import java.net.{InetAddress, InetSocketAddress}
 
 import co.topl.settings.{Version, VersionSerializer}
-import co.topl.utils.Extensions._
+import co.topl.utils.serialization.Extensions._
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 class PeerSpecSerializer(featureSerializers: PeerFeature.Serializers) extends BifrostSerializer[PeerSpec] {
+
   override def serialize(obj: PeerSpec, w: Writer): Unit = {
     /* agentName: String */
     w.putByteString(obj.agentName)
