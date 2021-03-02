@@ -78,16 +78,16 @@ val cryptoDependencies = Seq(
 )
 
 val miscDependencies = Seq(
-  "org.scorexfoundation" %% "iodb"        % "0.3.2",
-  "com.chuusai"          %% "shapeless"   % "2.3.3",
-  "com.iheart"           %% "ficus"       % "1.5.0",
-  "org.rudogma"          %% "supertagged" % "1.5",
-  "com.joefkelley"       %% "argyle"      % "1.0.0",
-  "org.scalanlp"         %% "breeze"      % "1.1",
-  "io.netty"              % "netty"       % "3.10.6.Final",
-  "com.google.guava"      % "guava"       % "30.1-jre",
-  "com.typesafe"          % "config"      % "1.4.1",
-  "com.github.pureconfig" %% "pureconfig" % "0.14.0"
+  "org.scorexfoundation"  %% "iodb"        % "0.3.2",
+  "com.chuusai"           %% "shapeless"   % "2.3.3",
+  "com.iheart"            %% "ficus"       % "1.5.0",
+  "org.rudogma"           %% "supertagged" % "1.5",
+  "com.joefkelley"        %% "argyle"      % "1.0.0",
+  "org.scalanlp"          %% "breeze"      % "1.1",
+  "io.netty"               % "netty"       % "3.10.6.Final",
+  "com.google.guava"       % "guava"       % "30.1-jre",
+  "com.typesafe"           % "config"      % "1.4.1",
+  "com.github.pureconfig" %% "pureconfig"  % "0.14.0"
 )
 
 val monitoringDependencies = Seq(
@@ -161,24 +161,24 @@ homepage := Some(url("https://github.com/Topl/Bifrost"))
 assemblyJarName := s"bifrost-${version.value}.jar"
 
 assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) =>
-{
-  case ps if ps.endsWith(".SF")  => MergeStrategy.discard
-  case ps if ps.endsWith(".DSA") => MergeStrategy.discard
-  case ps if ps.endsWith(".RSA") => MergeStrategy.discard
-  case ps if ps.endsWith(".xml") => MergeStrategy.first
-  case PathList(ps @ _*) if ps.last endsWith "module-info.class" =>
-    MergeStrategy.discard // https://github.com/sbt/sbt-assembly/issues/370
-  case PathList("module-info.java")  => MergeStrategy.discard
-  case PathList("local.conf")    => MergeStrategy.discard
-  case "META-INF/truffle/instrument" => MergeStrategy.concat
-  case "META-INF/truffle/language"   => MergeStrategy.rename
-  case x                             => old(x)
-}
+  {
+    case ps if ps.endsWith(".SF")  => MergeStrategy.discard
+    case ps if ps.endsWith(".DSA") => MergeStrategy.discard
+    case ps if ps.endsWith(".RSA") => MergeStrategy.discard
+    case ps if ps.endsWith(".xml") => MergeStrategy.first
+    case PathList(ps @ _*) if ps.last endsWith "module-info.class" =>
+      MergeStrategy.discard // https://github.com/sbt/sbt-assembly/issues/370
+    case PathList("module-info.java")  => MergeStrategy.discard
+    case PathList("local.conf")        => MergeStrategy.discard
+    case "META-INF/truffle/instrument" => MergeStrategy.concat
+    case "META-INF/truffle/language"   => MergeStrategy.rename
+    case x                             => old(x)
+  }
 }
 
 assemblyExcludedJars in assembly := {
   val cp = (fullClasspath in assembly).value
-  cp filter { el => el.data.getName == "ValkyrieInstrument-1.0.jar"}
+  cp filter { el => el.data.getName == "ValkyrieInstrument-1.0.jar" }
 }
 
 connectInput in run := true
