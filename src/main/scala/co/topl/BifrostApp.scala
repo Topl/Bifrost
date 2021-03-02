@@ -135,9 +135,6 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     val enableJVMCI: VMOption = bean.getVMOption("EnableJVMCI")
     log.debug(s"$enableJVMCI")
   } catch {
-    case e: IllegalArgumentException =>
-      log.error(s"${Console.RED}Unexpected error when checking for JVMCI: $e ${Console.RESET}")
-      BifrostApp.shutdown(actorSystem, actorsToStop)
     case e: Throwable =>
       log.error(s"${Console.RED}Unexpected error when checking for JVMCI: $e ${Console.RESET}")
       BifrostApp.shutdown(actorSystem, actorsToStop)

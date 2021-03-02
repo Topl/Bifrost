@@ -160,8 +160,6 @@ homepage := Some(url("https://github.com/Topl/Bifrost"))
 
 assemblyJarName := s"bifrost-${version.value}.jar"
 
-assemblyOption in assembly := (assemblyOption in assembly).value.copy(appendContentHash = true)
-
 assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) =>
   {
     case ps if ps.endsWith(".SF")  => MergeStrategy.discard
