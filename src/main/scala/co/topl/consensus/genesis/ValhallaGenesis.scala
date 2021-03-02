@@ -19,7 +19,7 @@ case object ValhallaGenesis extends GenesisProvider {
 
   override protected val blockChecksum: ModifierId = ModifierId("ynNAgvNpqCemQuPsfYuDrKYYbksHfi1oCuyo6A9uxGzU")
 
-  override protected val blockVersion: PNVMVersion = 0: Byte
+  override protected val blockVersion: PNVMVersion = 1: Byte
 
   override protected val initialDifficulty: Long = 1000000000000000000L
 

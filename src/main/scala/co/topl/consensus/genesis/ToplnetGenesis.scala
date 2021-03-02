@@ -19,7 +19,7 @@ case object ToplnetGenesis extends GenesisProvider {
 
   override protected val blockChecksum: ModifierId = ModifierId("u9hUHLY6eSgGXiugqU2Q1jK5r2UXSdkPEeeWWTDsotwF")
 
-  override protected val blockVersion: PNVMVersion = 0: Byte
+  override protected val blockVersion: PNVMVersion = 1: Byte
 
   override protected val initialDifficulty: Long = 1000000000000000000L
 

@@ -161,18 +161,19 @@ homepage := Some(url("https://github.com/Topl/Bifrost"))
 assemblyJarName := s"bifrost-${version.value}.jar"
 
 assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) =>
-  {
-    case ps if ps.endsWith(".SF")  => MergeStrategy.discard
-    case ps if ps.endsWith(".DSA") => MergeStrategy.discard
-    case ps if ps.endsWith(".RSA") => MergeStrategy.discard
-    case ps if ps.endsWith(".xml") => MergeStrategy.first
-    // https://github.com/sbt/sbt-assembly/issues/370
-    case PathList(ps @ _*) if ps.last endsWith "module-info.class" => MergeStrategy.discard
-    case PathList("module-info.java")                              => MergeStrategy.discard
-    case "META-INF/truffle/instrument"                             => MergeStrategy.concat
-    case "META-INF/truffle/language"                               => MergeStrategy.rename
-    case x                                                         => old(x)
-  }
+{
+  case ps if ps.endsWith(".SF")  => MergeStrategy.discard
+  case ps if ps.endsWith(".DSA") => MergeStrategy.discard
+  case ps if ps.endsWith(".RSA") => MergeStrategy.discard
+  case ps if ps.endsWith(".xml") => MergeStrategy.first
+  case PathList(ps @ _*) if ps.last endsWith "module-info.class" =>
+    MergeStrategy.discard // https://github.com/sbt/sbt-assembly/issues/370
+  case PathList("module-info.java")  => MergeStrategy.discard
+  case PathList("local.conf")    => MergeStrategy.discard
+  case "META-INF/truffle/instrument" => MergeStrategy.concat
+  case "META-INF/truffle/language"   => MergeStrategy.rename
+  case x                             => old(x)
+}
 }
 
 assemblyExcludedJars in assembly := {
