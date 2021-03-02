@@ -3,10 +3,8 @@ package co.topl.attestation.keyManagement
 import java.io.File
 
 import co.topl.attestation.Address
-import co.topl.crypto.Bip39
 import co.topl.utils.NetworkType.NetworkPrefix
 import com.google.common.primitives.Ints
-import scorex.crypto.hash.Blake2b256
 import scorex.util.Random.randomBytes
 
 import scala.util.{Failure, Success, Try}
@@ -107,23 +105,26 @@ class KeyRing[
     * @return
     */
   def importPhrase(password: String, mnemonic: String, lang: String)(implicit sg: SecretGenerator[S]): Try[Address] =
-    Try {
-      // create the BIP object used to verify the chosen language
-      val bip = Bip39(lang)
+    Failure(new Exception("Not yet implemented"))
 
-      // ensure the phrase is valid
-      if (!bip.phraseCheckSum(mnemonic)) throw new Error("Not a valid input phrase!")
-
-      // calculate the new keyfile and return
-      val seed = bip.hexToUuid(bip.phraseToHex(mnemonic))
-      val sk = sg.generateSecret(Blake2b256(seed))
-
-      // add secret to the keyring
-      secrets += sk._1
-
-      // return the public image of the key that was added
-      sk._2.address
-    }
+//  // JAA - 20210301 - Disabling for now so I can decouple the crypto package from Bifrost
+//    Try {
+//      // create the BIP object used to verify the chosen language
+//      val bip = Bip39(lang)
+//
+//      // ensure the phrase is valid
+//      if (!bip.phraseCheckSum(mnemonic)) throw new Error("Not a valid input phrase!")
+//
+//      // calculate the new keyfile and return
+//      val seed = bip.hexToUuid(bip.phraseToHex(mnemonic))
+//      val sk = sg.generateSecret(Blake2b256(seed))
+//
+//      // add secret to the keyring
+//      secrets += sk._1
+//
+//      // return the public image of the key that was added
+//      sk._2.address
+//    }
 
   /** Find a secret given it's public image */
   private def secretByAddress(addr: Address): Option[S] =

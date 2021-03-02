@@ -1,6 +1,5 @@
-package co.topl.crypto
+package co.topl.attestation
 
-import co.topl.attestation.Address
 import co.topl.utils.ValidGenerators
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
