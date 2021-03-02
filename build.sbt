@@ -4,20 +4,16 @@ import sbtassembly.MergeStrategy
 name := "bifrost"
 scalaVersion := "2.12.13"
 organization := "co.topl"
-version := "1.3.0"
+version := "1.3.3"
 
 lazy val commonSettings = Seq(
   scalaVersion := "2.12.13",
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   organization := "co.topl",
-  version := "1.3.2"
+  version := "1.3.3"
   // wartremoverErrors := Warts.unsafe // settings for wartremover
 )
-
-scalaVersion := "2.12.12"
-organization := "co.topl"
-version := "1.3.2"
 
 mainClass in assembly := Some("co.topl.BifrostApp")
 test in assembly := {}
