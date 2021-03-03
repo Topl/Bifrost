@@ -1,6 +1,6 @@
 package co.topl.attestation
 
-import co.topl.settings.NetworkType
+import co.topl.utils.NetworkType
 import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
@@ -12,8 +12,6 @@ import scala.util.{Failure, Try}
  * as a quick check that may be used with external systems.
  */
 object AddressEncoder {
-  type NetworkPrefix = Byte
-
   val checksumLength = 4
 
   //encoded addresses are 38 bytes (1 for network prefix, 1 for type prefix, 32 for content, 4 for checksum)
@@ -49,7 +47,7 @@ object AddressEncoder {
    * @param networkPrefix a single byte used to identify a network
    * @return the network prefix of the address
    */
-  def fromStringWithCheck(addrStr: String, networkPrefix: NetworkPrefix): Try[Address] =
+  def fromStringWithCheck(addrStr: String, networkPrefix: NetworkType.NetworkPrefix): Try[Address] =
     Base58.decode(addrStr).flatMap { b =>
       NetworkType.pickNetworkType(networkPrefix) match {
         case None => throw new Exception("Invalid networkPrefix specified")

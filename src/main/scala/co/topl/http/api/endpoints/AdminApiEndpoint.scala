@@ -2,11 +2,11 @@ package co.topl.http.api.endpoints
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.pattern.ask
-import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.consensus.Forger.ReceivableMessages._
 import co.topl.http.api.{AdminNamespace, ApiEndpoint, Namespace}
 import co.topl.settings.{AppContext, RPCApiSettings}
+import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
@@ -61,9 +61,10 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     (for {
       address  <- params.hcursor.get[String]("address")
       password <- params.hcursor.get[String]("password")
-    } yield (keyHolderRef ? UnlockKey(address, password)).mapTo[Try[Unit]].map {
-      case Success(_)  => Map(address -> "unlocked".asJson).asJson
-      case Failure(ex) => throw new Error(s"An error occurred while trying to unlock the keyfile. $ex")
+    } yield (keyHolderRef ? UnlockKey(address, password)).mapTo[Try[Address]].map {
+      case Success(addr) if address == addr.toString => Map(address -> "unlocked".asJson).asJson
+      case Success(addr) => throw new Exception(s"Decrypted address $addr does not match requested address")
+      case Failure(ex) => throw new Exception(s"An error occurred while trying to unlock the keyfile. $ex")
     }) match {
       case Right(json) => json
       case Left(ex)    => throw ex

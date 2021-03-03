@@ -1,10 +1,10 @@
 package co.topl.modifier.block
 
-import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ModifierId, NodeViewModifier}
+import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 import supertagged.@@

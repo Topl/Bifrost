@@ -1,7 +1,5 @@
 package co.topl.utils.serialization
 
-import co.topl.utils.Int128
-
 object ZigZagEncoder {
 
   /**

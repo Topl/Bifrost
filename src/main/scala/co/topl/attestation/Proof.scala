@@ -1,7 +1,7 @@
 package co.topl.attestation
 
+import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, Secret}
 import co.topl.attestation.serialization.ProofSerializer
-import co.topl.crypto.{PrivateKeyCurve25519, Secret}
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps

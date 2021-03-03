@@ -1,7 +1,6 @@
 package co.topl.http.api.endpoints
 
 import akka.actor.ActorRef
-import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.{Address, Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
 import co.topl.http.api.{ApiEndpointWithView, Namespace, ToplNamespace}
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
@@ -11,7 +10,8 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.modifier.box.{AssetValue, SimpleValue}
 import co.topl.settings.{AppContext, RPCApiSettings}
-import co.topl.utils.Int128
+import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.{Int128, NetworkType}
 import co.topl.utils.codecs.Int128Codec
 import io.circe.Json
 import io.circe.syntax._
@@ -86,7 +86,7 @@ case class TransactionApiEndpoint(
     * | quantity     | String    | Required            | Number of tokens in String                                                                      |
     * | assetCode    | String    | Required            | Unique identifier for user issued Assets, generated from version, issuer address, and shortName |
     * | securityRoot | String    | Optional            | Optional 32 byte commitment to instance of the AssetBox                                         |
-    * | metadata     | String    | Optional            | String must be less than 128 UTF-8 characters                                                   |
+    * | metadata     | String    | Optional            | String must be less than 128 Latin-1 encoded characters                                                   |
     *
     * @param params input parameter as specified above
     * @param id request identifier

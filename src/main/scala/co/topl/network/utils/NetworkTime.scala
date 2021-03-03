@@ -1,8 +1,9 @@
-package co.topl.utils
+package co.topl.network.utils
 
 import java.net.InetAddress
 import java.util.concurrent.atomic.AtomicLong
 
+import co.topl.utils.{Logging, TimeProvider}
 import org.apache.commons.net.ntp.NTPUDPClient
 
 import scala.concurrent.duration._

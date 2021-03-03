@@ -1,11 +1,12 @@
 package co.topl.serialization
 
-import co.topl.utils.Gzip
+import co.topl.utils.{Gzip, Logging}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 
 class CompressionTests extends AnyPropSpec
-  with Matchers {
+  with Matchers
+  with Logging {
 
   property("A byte array (size<1024) after being compressed and decompressed should be the same as before") {
     /* Byte range is from -128 to 127 */
@@ -16,7 +17,7 @@ class CompressionTests extends AnyPropSpec
     randArray sameElements Gzip.decompress(compressedArray) shouldBe true
 
     val duration = (System.nanoTime() - start) / 1e9d
-    println(s"Compressed and decompressed byte array(length: 15*1024) in $duration seconds")
+    log.debug(s"Compressed and decompressed byte array(length: 15*1024) in $duration seconds")
   }
 
   property("A byte array (1024<size<16*1024) after being compressed and decompressed should be the same as before") {

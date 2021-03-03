@@ -2,7 +2,6 @@ package co.topl.http.api.endpoints
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import co.topl.attestation.Address
-import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.http.api.{ApiEndpointWithView, Namespace, ToplNamespace}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.box._
@@ -10,7 +9,8 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppContext, RPCApiSettings}
-import co.topl.utils.Int128
+import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.{Int128, NetworkType}
 import io.circe.Json
 import io.circe.syntax._
 

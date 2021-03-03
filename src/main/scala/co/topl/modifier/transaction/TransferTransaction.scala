@@ -1,11 +1,13 @@
 package co.topl.modifier.transaction
 
-import co.topl.attestation.AddressEncoder.NetworkPrefix
+import java.nio.charset.StandardCharsets
+
 import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.attestation.{Evidence, _}
 import co.topl.modifier.BoxReader
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.box.{Box, _}
+import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Identifiable, Int128}
 import com.google.common.primitives.{Ints, Longs}
 import scorex.crypto.hash.Blake2b256
@@ -238,7 +240,7 @@ object TransferTransaction {
     }
 
     require(tx.timestamp >= 0L, "Invalid timestamp")
-    require(tx.data.forall(_.getBytes("UTF-8").length <= 128), "Data field must be less than 128 bytes")
+    require(tx.data.forall(_.getBytes(StandardCharsets.ISO_8859_1).length <= 128), "Data field must be less than 128 bytes")
 
     // prototype transactions do not contain signatures at creation
     if (hasAttMap) {

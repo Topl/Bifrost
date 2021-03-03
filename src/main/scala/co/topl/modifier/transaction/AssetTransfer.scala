@@ -2,14 +2,14 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation._
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.TransferTransaction.BoxParams
+import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.codecs.Int128Codec
-import co.topl.utils.{Identifiable, Identifier, Int128}
+import co.topl.utils.{Identifiable, Identifier, Int128, NetworkType}
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
 
@@ -114,7 +114,7 @@ object AssetTransfer {
   implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[AssetTransfer[_ <: Proposition]] =
     (c: HCursor) =>
       for {
-        from      <- c.downField("from").as[IndexedSeq[(Address, Long)]]
+        from      <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
         to        <- c.downField("to").as[IndexedSeq[(Address, TokenValueHolder)]]
         fee       <- c.get[Int128]("fee")(Int128Codec.jsonDecoder)
         timestamp <- c.downField("timestamp").as[Long]

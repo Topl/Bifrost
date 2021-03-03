@@ -2,7 +2,6 @@ package co.topl.nodeView
 
 import akka.actor.{Actor, ActorRef}
 import co.topl.attestation.Address
-import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.modifier.ModifierId
 import co.topl.modifier.box.ProgramId
 import co.topl.modifier.transaction.Transaction
@@ -13,6 +12,7 @@ import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.state.StateReader
 import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.Logging
+import co.topl.utils.NetworkType.NetworkPrefix
 
 import scala.collection.immutable.TreeSet
 
@@ -56,7 +56,7 @@ class CleanupWorker(nodeViewHolderRef: ActorRef, settings: AppSettings, appConte
   }
 
   /** Checks if the outputs of unconfirmed transactions exists in state or if the transaction has become
-   *  stale (by exceeding the mempoolTimeout). If either are true, the transaction is removed from the mempool
+    *  stale (by exceeding the mempoolTimeout). If either are true, the transaction is removed from the mempool
     * @return - a sequence of recently validated transactions id's to be rebroadcast and a sequence of ids to remove
     */
   private def validatePool(stateReader: SR, mempool: MR): (Seq[ModifierId], Seq[ModifierId]) = {

@@ -3,14 +3,15 @@ package co.topl.http.api.endpoints
 import java.security.SecureRandom
 
 import co.topl.attestation.Address
-import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.http.api.{ApiEndpoint, Namespace, UtilNamespace}
 import co.topl.modifier.box.AssetCode
 import co.topl.modifier.box.AssetCode.AssetCodeVersion
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.settings.{AppContext, NetworkType, RPCApiSettings}
+import co.topl.settings.{AppContext, RPCApiSettings}
+import co.topl.utils.NetworkType
+import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.hash.Blake2b256
@@ -117,7 +118,7 @@ case class UtilsApiEndpoint(override val settings: RPCApiSettings, appContext: A
     * |-----------|-----------|---------------------|--------------------------------------------------|
     * | version   | String    | Required            | AssetCode version(version 1 would be string "1") |
     * | issuer    | String    | Required            | The Address of the asset issuer                  |
-    * | shortName | String    | Required            | A UTF-8 encoded string of up to 8 characters     |
+    * | shortName | String    | Required            | A Latin-1 encoded string of up to 8 characters     |
     *
     * @param params input parameters as specified above
     * @param id     request identifier
@@ -142,10 +143,10 @@ case class UtilsApiEndpoint(override val settings: RPCApiSettings, appContext: A
     * Check if the provided address is valid, returns the address and network type
     *
     * #### Params
-    * | Fields  | Data type | Required / Optional | Description                                  |
-    * |---------|-----------|---------------------|----------------------------------------------|
-    * | network | String    | Required            | A UTF-8 encoded string of up to 8 characters |
-    * | address | String    | Required            | The Address of the asset issuer              |
+    * | Fields  | Data type | Required / Optional | Description                                    |
+    * |---------|-----------|---------------------|------------------------------------------------|
+    * | network | String    | Required            | A Latin-1 encoded string of up to 8 characters |
+    * | address | String    | Required            | The Address of the asset issuer                |
     *
     * @param params input parameters as specified above
     * @param id request identifier

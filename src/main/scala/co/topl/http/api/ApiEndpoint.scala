@@ -1,8 +1,8 @@
 package co.topl.http.api
 
 import akka.util.Timeout
-import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.settings.{AppContext, RPCApiSettings}
+import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.{Decoder, DecodingFailure, Json}
 
 import scala.concurrent.Future

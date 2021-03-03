@@ -5,7 +5,6 @@ import co.topl.modifier.block.serialization.{BlockBodySerializer, BlockHeaderSer
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader}
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.serialization.TransactionSerializer
-import co.topl.network.message.InvData
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import io.circe.Encoder
 import supertagged.TaggedType

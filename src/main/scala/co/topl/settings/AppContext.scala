@@ -3,9 +3,9 @@ package co.topl.settings
 import java.net.InetSocketAddress
 
 import co.topl.network.message._
-import co.topl.network.upnp.Gateway
-import co.topl.network.{peer, NodeViewSynchronizer, PeerSynchronizer}
-import co.topl.utils.NetworkTimeProvider
+import co.topl.network.utils.{NetworkTimeProvider, UPnPGateway}
+import co.topl.network.{NodeViewSynchronizer, PeerSynchronizer, peer}
+import co.topl.utils.NetworkType
 
 import scala.concurrent.ExecutionContext
 
@@ -18,7 +18,7 @@ import scala.concurrent.ExecutionContext
 class AppContext(
   settings:        AppSettings,
   startupOpts:     StartupOpts,
-  val upnpGateway: Option[Gateway]
+  val upnpGateway: Option[UPnPGateway]
 )(implicit ec:     ExecutionContext) {
 
   /** Save your address for sending to others peers */
@@ -34,7 +34,7 @@ class AppContext(
   val networkType: NetworkType =
     startupOpts.networkTypeOpt match {
       case Some(network) => network
-      case None          => NetworkType.PrivateNet
+      case None          => NetworkType.PrivateTestnet
     }
 
   /** Enumerate features and message specs present for communicating between peers */

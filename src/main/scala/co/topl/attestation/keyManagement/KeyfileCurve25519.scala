@@ -1,9 +1,9 @@
-package co.topl.crypto
+package co.topl.attestation.keyManagement
 
 import java.nio.charset.StandardCharsets
 
 import co.topl.attestation.Address
-import co.topl.attestation.AddressEncoder.NetworkPrefix
+import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
@@ -85,9 +85,12 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
       val src = scala.io.Source.fromFile(filename)
 
       // attempt to retrieve the required keyfile type from the data that was just read
-      val keyfile = parse(src.mkString).right.get.as[KeyfileCurve25519] match {
-        case Right(kf: KeyfileCurve25519) => kf
-        case Left(e) => throw new Exception(s"Could not parse KeyFile: $e")
+      val keyfile = parse(src.mkString) match {
+        case Left(ex) => throw ex
+        case Right(json) => json.as[KeyfileCurve25519] match {
+          case Left(ex) => throw new Exception(s"Could not parse KeyFile: $ex")
+          case Right(kf) => kf
+        }
       }
 
       // close the stream and return the keyfile
@@ -102,7 +105,7 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
     * @return
     */
   private def getDerivedKey (password: String, salt: Array[Byte]): Array[Byte] = {
-    val passwordBytes = password.getBytes(StandardCharsets.UTF_8)
+    val passwordBytes = password.getBytes(StandardCharsets.ISO_8859_1)
     SCrypt.generate(passwordBytes, salt, scala.math.pow(2, 18).toInt, 8, 1, 32)
   }
 

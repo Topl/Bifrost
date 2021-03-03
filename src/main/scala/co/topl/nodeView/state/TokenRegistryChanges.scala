@@ -1,10 +1,10 @@
 package co.topl.nodeView.state
 
 import co.topl.attestation.Address
-import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.TransferTransaction
 import co.topl.modifier.box.{Box, TokenValueHolder}
+import co.topl.modifier.transaction.TransferTransaction
+import co.topl.utils.NetworkType.NetworkPrefix
 
 import scala.util.Try
 

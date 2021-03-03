@@ -14,13 +14,13 @@ import co.topl.modifier.transaction.Transaction
 import co.topl.network.NetworkController.ReceivableMessages.BindP2P
 import co.topl.network._
 import co.topl.network.message.BifrostSyncInfo
-import co.topl.network.upnp.Gateway
+import co.topl.network.utils.UPnPGateway
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.{MempoolAuditor, MempoolAuditorRef, NodeViewHolder, NodeViewHolderRef}
 import co.topl.settings._
-import co.topl.utils.Logging
+import co.topl.utils.{Logging, NetworkType}
 import co.topl.wallet.{WalletConnectionHandler, WalletConnectionHandlerRef}
 import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -45,7 +45,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   log.debug(s"Starting application with settings \n$settings")
 
   /** check for gateway device and setup port forwarding */
-  private val upnpGateway: Option[Gateway] = if (settings.network.upnpEnabled) upnp.Gateway(settings.network) else None
+  private val upnpGateway: Option[UPnPGateway] = if (settings.network.upnpEnabled) UPnPGateway(settings.network) else None
 
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
   /** Setup the execution environment for running the application */
@@ -135,9 +135,6 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     val enableJVMCI: VMOption = bean.getVMOption("EnableJVMCI")
     log.debug(s"$enableJVMCI")
   } catch {
-    case e: IllegalArgumentException =>
-      log.error(s"${Console.RED}Unexpected error when checking for JVMCI: $e ${Console.RESET}")
-      BifrostApp.shutdown(actorSystem, actorsToStop)
     case e: Throwable =>
       log.error(s"${Console.RED}Unexpected error when checking for JVMCI: $e ${Console.RESET}")
       BifrostApp.shutdown(actorSystem, actorsToStop)

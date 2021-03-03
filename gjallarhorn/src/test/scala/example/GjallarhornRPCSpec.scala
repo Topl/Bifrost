@@ -363,8 +363,6 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
           case Right(res: Json) =>
             assert((res \\ "error").isEmpty)
 
-            println(res \\ "result")
-
             //pk1 should have fewer polys now
             (((res \\ "result").head \\ pk1.toString).head \\ "PolyBox").head.asNumber.get.toLong match {
               case Some(number) => assert(number < 1000000)

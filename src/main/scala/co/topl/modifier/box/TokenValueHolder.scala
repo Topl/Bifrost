@@ -93,8 +93,8 @@ case class AssetValue(
   metadata:              Option[String] = None
 ) extends TokenValueHolder(quantity) {
 
-  require(metadata.forall(_.getBytes(StandardCharsets.UTF_8).length <= AssetValue.metadataLimit),
-          "Metadata string must be less than 128 UTF-8 characters"
+  require(metadata.forall(_.getBytes(StandardCharsets.ISO_8859_1).length <= AssetValue.metadataLimit),
+          "Metadata string must be less than 128 Latin-1 characters"
   )
 
 }
@@ -106,7 +106,7 @@ object AssetValue extends BifrostSerializer[AssetValue] {
 
   // bytes (34 bytes for issuer Address + 8 bytes for asset short name)
   val assetCodeSize: Int = Address.addressSize + 8
-  val metadataLimit: Int = 128 // bytes of UTF-8 encoded string
+  val metadataLimit: Int = 128 // bytes of Latin-1 encoded string
 
   implicit val jsonEncoder: Encoder[AssetValue] = { (value: AssetValue) =>
     Map(
