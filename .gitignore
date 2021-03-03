@@ -2,11 +2,13 @@
 .idea
 .ensime
 .ensime_cache/
-scorex.yaml
 .DS_Store
 .project
 .metals/
 .bloop/
+.bsp/
+.vscode/
+out/
 *.iml
 
 # scala build folders
