@@ -21,7 +21,7 @@ test in assembly := {}
 // The Typesafe repository
 resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/"
 
-val akkaVersion = "2.6.10"
+val akkaVersion = "2.6.13"
 val akkaHttpVersion = "10.2.4"
 val circeVersion = "0.13.0"
 val kamonVersion = "2.1.12"
@@ -83,7 +83,7 @@ val miscDependencies = Seq(
   "io.netty"               % "netty"       % "3.10.6.Final",
   "com.google.guava"       % "guava"       % "30.1-jre",
   "com.typesafe"           % "config"      % "1.4.1",
-  "com.github.pureconfig" %% "pureconfig"  % "0.14.0"
+  "com.github.pureconfig" %% "pureconfig"  % "0.14.1"
 )
 
 val monitoringDependencies = Seq(
