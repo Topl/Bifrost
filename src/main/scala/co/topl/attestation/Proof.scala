@@ -1,5 +1,6 @@
 package co.topl.attestation
 
+import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, Secret}
 import co.topl.attestation.serialization.ProofSerializer
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import com.google.common.primitives.Ints
@@ -44,6 +45,7 @@ object Proof {
   implicit def jsonDecoder: Decoder[Proof[_]] = Decoder.decodeString.map((str: String) => fromString(str).get)
 }
 
+/** The proof for a given type of [[Secret]] and [[KnowledgeProposition]] */
 sealed trait ProofOfKnowledge[S <: Secret, P <: KnowledgeProposition[S]] extends Proof[P]
 
 /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
@@ -79,7 +81,7 @@ object SignatureCurve25519 {
     Proof.fromString(str) match {
       case Success(sig: SignatureCurve25519) => sig
       case Success(_) => throw new Error("Invalid proof generation")
-      case Failure(ex) => throw ex
+      case Failure(ex) => throw new Exception(s"Invalid signature: $ex")
     }
 
   // see circe documentation for custom encoder / decoders
@@ -129,7 +131,7 @@ object ThresholdSignatureCurve25519 {
     Proof.fromString(str) match {
       case Success(sig: ThresholdSignatureCurve25519) => sig
       case Success(_) => throw new Error("Invalid proof generation")
-      case Failure(ex) => throw ex
+      case Failure(ex) => throw new Exception(s"Invalid signature: $ex")
     }
 
   /** Helper function to create empty signatures */

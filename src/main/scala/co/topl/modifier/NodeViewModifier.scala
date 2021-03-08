@@ -5,7 +5,6 @@ import co.topl.modifier.block.serialization.{BlockBodySerializer, BlockHeaderSer
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader}
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.serialization.TransactionSerializer
-import co.topl.network.message.InvData
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import io.circe.Encoder
 import supertagged.TaggedType
@@ -44,8 +43,6 @@ object NodeViewModifier extends BifrostSerializer[NodeViewModifier] {
   def idsToString(modifierType: ModifierTypeId, ids: Seq[ModifierId]): String = {
     idsToString(ids.map(id => (modifierType, id)))
   }
-
-  def idsToString(invData: InvData): String = idsToString(invData.typeId, invData.ids)
 
   override def serialize(obj: NodeViewModifier, w: Writer): Unit = {
     obj match {

@@ -3,7 +3,7 @@
 //import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 //import co.topl.attestation.proof.SignatureCurve25519
 //import co.topl.modifier.transaction.Transaction.Nonce
-//import co.topl.nodeView.state.box.{ Box, _ }
+//import co.topl.modifier.box.{ Box, _ }
 //import co.topl.nodeView.state.StateReader
 //import co.topl.program.{ ExecutionBuilder, ExecutionBuilderSerializer }
 //import co.topl.utils.exceptions.TransactionValidationException

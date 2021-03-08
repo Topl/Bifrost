@@ -1,18 +1,17 @@
 package co.topl.utils
 
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
-import co.topl.attestation.{Address, PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
-import co.topl.consensus.KeyRing
-import co.topl.consensus.genesis.PrivateTestnet
-import co.topl.crypto.KeyfileCurve25519
+import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
+import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
+import co.topl.consensus.genesis.PrivateGenesis
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
+import co.topl.modifier.box.Box.identifier
+import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction._
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.Box.identifier
-import co.topl.nodeView.state.box._
 import co.topl.program._
 import co.topl.settings.AppSettings
 import io.circe.syntax._
@@ -27,7 +26,7 @@ trait ValidGenerators extends CoreGenerators {
   val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
     KeyRing(settings.application.keyFileDir.get, KeyfileCurve25519)
 
-  val genesisBlock: Block = PrivateTestnet((_: Int, _: Option[String]) => {
+  val genesisBlock: Block = PrivateGenesis((_: Int, _: Option[String]) => {
     keyRing.generateNewKeyPairs(num = 3) match {
       case Success(keys) => keys.map(_.publicImage)
       case Failure(ex)   => throw ex
@@ -129,7 +128,7 @@ trait ValidGenerators extends CoreGenerators {
       data = None
     ).get
 
-    val sig = keyRing.signWithAddress(sender, rawTx.messageToSign).get
+    val sig = keyRing.signWithAddress(sender)(rawTx.messageToSign).get
     val tx = rawTx.copy(attestation = Map(prop -> sig))
     tx
   }
@@ -153,7 +152,7 @@ trait ValidGenerators extends CoreGenerators {
       data = None
     ).get
 
-    val sig = keyRing.signWithAddress(sender, rawTx.messageToSign).get
+    val sig = keyRing.signWithAddress(sender)(rawTx.messageToSign).get
     val tx = rawTx.copy(attestation = Map(prop -> sig))
     tx
   }
@@ -168,7 +167,7 @@ trait ValidGenerators extends CoreGenerators {
     val (sender, asset) = if(!minting) {
       val boxAmounts = sumBoxes(collectBoxes(keyRing.addresses, state))
       val sender = boxAmounts(Random.nextInt(boxAmounts.length))
-      val assetAmount = Gen.chooseNum(0L, sender._2("AssetBox")).sample.get
+      val assetAmount = Gen.chooseNum(0L, sender._2("AssetBox").longValue()).sample.get
       val asset = AssetValue(assetAmount, AssetCode(1: Byte, sender._1, "test"), SecurityRoot.empty)
       (sender._1, asset)
     } else {
@@ -190,7 +189,7 @@ trait ValidGenerators extends CoreGenerators {
       minting
     ).get
 
-    val sig = keyRing.signWithAddress(sender, rawTx.messageToSign).get
+    val sig = keyRing.signWithAddress(sender)(rawTx.messageToSign).get
     val tx = rawTx.copy(attestation = Map(prop -> sig))
     tx
   }
@@ -199,7 +198,7 @@ trait ValidGenerators extends CoreGenerators {
     addresses.flatMap(address => state.getTokenBoxes(address)).flatten.toSeq
   }
 
-  def sumBoxes(boxes: Seq[TokenBox[TokenValueHolder]]): Seq[(Address, Map[String, Long])] = {
+  def sumBoxes(boxes: Seq[TokenBox[TokenValueHolder]]): Seq[(Address, Map[String, Int128])] = {
     val boxesByOwner = boxes.groupBy(_.evidence)
     val ownerQuantities = boxesByOwner.map {
       case (evidence, boxes) =>
@@ -207,7 +206,7 @@ trait ValidGenerators extends CoreGenerators {
           .groupBy(identifier(_).typeString)
           .map {
             case (boxType, b) =>
-              boxType -> b.map(_.value.quantity).sum
+              boxType -> b.map(_.value.quantity).foldLeft[Int128](0)(_ + _)
           }
     }.toSeq
     ownerQuantities

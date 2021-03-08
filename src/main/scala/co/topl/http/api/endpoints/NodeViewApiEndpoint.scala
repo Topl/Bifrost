@@ -2,14 +2,15 @@ package co.topl.http.api.endpoints
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import co.topl.attestation.Address
-import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.http.api.{ApiEndpointWithView, Namespace, ToplNamespace}
 import co.topl.modifier.ModifierId
+import co.topl.modifier.box._
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box._
 import co.topl.settings.{AppContext, RPCApiSettings}
+import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.{Int128, NetworkType}
 import io.circe.Json
 import io.circe.syntax._
 
@@ -22,6 +23,9 @@ case class NodeViewApiEndpoint(
   nodeViewHolderRef:     ActorRef
 )(implicit val context:  ActorRefFactory)
     extends ApiEndpointWithView {
+
+  import co.topl.utils.codecs.Int128Codec._
+
   type HIS = History
   type MS = State
   type MP = MemPool
@@ -44,17 +48,16 @@ case class NodeViewApiEndpoint(
       transactionFromMempool(params.head, id)
   }
 
-  /**  #### Summary
-    *    Retrieve the best block
+  /** #### Summary
+    * Retrieve the best block
     *
-    *  #### Description
-    *    Find information about the current state of the chain including height, score, bestBlockId, etc
+    * #### Description
+    * Find information about the current state of the chain including height, score, bestBlockId, etc
     *
-    * ---
-    *  #### Params
-    *  | Fields                 	| Data type 	| Required / Optional 	| Description                                                            	|
-    *  |--------------------------|-------------|-----------------------|-------------------------------------------------------------------------|
-    *  | --None specified--       |           	|                     	|                                                                         |
+    * #### Params
+    * | Fields             | Data type | Required / Optional | Description |
+    * |--------------------|-----------|---------------------|-------------|
+    * | --None specified-- |           |                     |             |
     *
     * @param params input parameters as specified above
     * @param id request identifier
@@ -80,12 +83,12 @@ case class NodeViewApiEndpoint(
     * Check balances of specified keys.
     *
     * #### Notes
-    *    - Requires the Token Box Registry to be active
-    *      ---
-    *      #### Params
-    *      | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
-    *      |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
-    *      | publicKey               	| String[]   	| Required            	| Public key whose balances are to be retrieved                            	|
+    * - Requires the Token Box Registry to be active
+    *
+    * #### Params
+    * | Fields    | Data type | Required / Optional | Description                                  |
+    * |-----------|-----------|---------------------|----------------------------------------------|
+    * | addresses | [String]  | Required            | Addresses whose balances are to be retrieved |
     *
     * @param params input parameters as specified above
     * @param id     request identifier
@@ -95,7 +98,7 @@ case class NodeViewApiEndpoint(
     viewAsync { view =>
       // parse arguments from the request
       (for {
-        addresses <- (params \\ "addresses").head.as[Seq[Address]]
+        addresses <- params.hcursor.get[Seq[Address]]("addresses")
       } yield {
         // ensure we have the state being asked about
         checkAddress(addresses, view)
@@ -109,18 +112,18 @@ case class NodeViewApiEndpoint(
             k -> orderedBoxes
           }.toMap
 
-        val balances: Map[Address, Map[String, Long]] =
+        val balances: Map[Address, Map[String, Int128]] =
           boxes.map { case (addr, assets) =>
             addr -> assets.map { case (boxType, boxes) =>
-              (boxType, boxes.map(_.value.quantity).sum)
+              (boxType, boxes.map(_.value.quantity).foldLeft[Int128](0)(_ + _))
             }
           }
 
         boxes.map { case (addr, boxes) =>
           addr -> Map(
             "Balances" -> Map(
-              "Polys"  -> balances(addr).getOrElse(PolyBox.typeString, 0L),
-              "Arbits" -> balances(addr).getOrElse(ArbitBox.typeString, 0L)
+              "Polys"  -> balances(addr).getOrElse(PolyBox.typeString, Int128(0)),
+              "Arbits" -> balances(addr).getOrElse(ArbitBox.typeString, Int128(0))
             ).asJson,
             "Boxes" -> boxes.map(b => b._1 -> b._2.asJson).asJson
           )
@@ -131,31 +134,28 @@ case class NodeViewApiEndpoint(
       }
     }
 
-  /**  #### Summary
-    *    Get the first 100 transactions in the mempool (sorted by fee amount)
+  /** #### Summary
+    * Get the first 100 transactions in the mempool (sorted by fee amount)
     *
-    * ---
-    *  #### Params
-    *
-    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                 |
-    *  |-------------------------	|-----------	|---------------------	|--------------------------------------------	|
-    *  | --None specified--       |           	|                     	|                                             |
+    * #### Params
+    * | Fields             | Data type | Required / Optional | Description |
+    * |--------------------|-----------|---------------------|-------------|
+    * | --None specified-- |           |                     |             |
     *
     * @param params input parameters as specified above
     * @param id request identifier
     * @return
     */
-  private def mempool(params: Json, id: String): Future[Json] = viewAsync(_.pool.take(100).asJson)
+  private def mempool(params: Json, id: String): Future[Json] =
+    viewAsync { _.pool.take(100)(-_.dateAdded).map(_.tx).asJson }
 
-  /**  #### Summary
-    *    Lookup a transaction by its id
+  /** #### Summary
+    * Lookup a transaction by its id
     *
-    * ---
-    *  #### Params
-    *
-    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                	|
-    *  |-------------------------	|-----------	|---------------------	|-------------------------------------------	|
-    *  | transactionId            | String    	| Required            	| Base58 encoded transaction hash             |
+    * #### Params
+    * | Fields        | Data type | Required / Optional | Description                     |
+    * |---------------|-----------|---------------------|---------------------------------|
+    * | transactionId | String    | Required            | Base58 encoded transaction hash |
     *
     * @param params input parameters as specified above
     * @param id request identifier
@@ -164,7 +164,7 @@ case class NodeViewApiEndpoint(
   private def transactionById(params: Json, id: String): Future[Json] =
     viewAsync { view =>
       (for {
-        transactionId <- (params \\ "transactionId").head.as[ModifierId]
+        transactionId <- params.hcursor.get[ModifierId]("transactionId")
       } yield view.history.transactionById(transactionId)) match {
         case Right(Some((tx, blockId, height))) =>
           tx.asJson.deepMerge {
@@ -179,15 +179,13 @@ case class NodeViewApiEndpoint(
       }
     }
 
-  /**  #### Summary
-    *    Lookup a transaction in the mempool by its id
+  /** #### Summary
+    * Lookup a transaction in the mempool by its id
     *
-    * ---
     *  #### Params
-    *
-    *  | Fields                  	| Data type 	| Required / Optional 	| Description                               	|
-    *  |-------------------------	|-----------	|---------------------	|--------------------------------------------	|
-    *  | transactionId            | String    	| Required            	| Base58 encoded transaction hash             |
+    * | Fields        | Data type | Required / Optional | Description                     |
+    * |---------------|-----------|---------------------|---------------------------------|
+    * | transactionId | String    | Required            | Base58 encoded transaction hash |
     *
     * @param params input parameters as specified above
     * @param id request identifier
@@ -196,7 +194,7 @@ case class NodeViewApiEndpoint(
   private def transactionFromMempool(params: Json, id: String): Future[Json] =
     viewAsync { view =>
       (for {
-        transactionId <- (params \\ "transactionId").head.as[ModifierId]
+        transactionId <- params.hcursor.get[ModifierId]("transactionId")
       } yield view.pool.modifierById(transactionId)) match {
         case Right(Some(tx)) => tx.asJson
         case Right(None)     => throw new Exception("Unable to retrieve transaction")
@@ -204,15 +202,13 @@ case class NodeViewApiEndpoint(
       }
     }
 
-  /**  #### Summary
-    *   Lookup a block by its id
+  /** #### Summary
+    * Lookup a block by its id
     *
-    * ---
-    *  #### Params
-    *
-    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                	|
-    *  |-------------------------	|-----------	|---------------------	|--------------------------------------------	|
-    *  | blockId                  | String    	| Required            	| Base58 encoded transaction hash             |
+    * #### Params
+    * | Fields  | Data type | Required / Optional | Description                     |
+    * |---------|-----------|---------------------|---------------------------------|
+    * | blockId | String    | Required            | Base58 encoded transaction hash |
     *
     * @param params input parameters as specified above
     * @param id request identifier
@@ -221,7 +217,7 @@ case class NodeViewApiEndpoint(
   private def blockById(params: Json, id: String): Future[Json] =
     viewAsync { view =>
       (for {
-        blockId <- (params \\ "blockId").head.as[ModifierId]
+        blockId <- params.hcursor.get[ModifierId]("blockId")
       } yield view.history.modifierById(blockId)) match {
         case Right(Some(block)) => block.asJson
         case Right(None)        => throw new Exception("The requested block could not be found")
@@ -229,15 +225,13 @@ case class NodeViewApiEndpoint(
       }
     }
 
-  /**  #### Summary
-    *   Lookup a block by its height
+  /** #### Summary
+    * Lookup a block by its height
     *
-    * ---
-    *  #### Params
-    *
-    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                	|
-    *  |-------------------------	|-----------	|---------------------	|--------------------------------------------	|
-    *  | height                    | Number    	| Required            	| Height to retrieve on the canonical chain   |
+    * #### Params
+    * | Fields | Data type | Required / Optional | Description                               |
+    * |--------|-----------|---------------------|-------------------------------------------|
+    * | height | Number    | Required            | Height to retrieve on the canonical chain |
     *
     * @param params input parameters as specified above
     * @param id request identifier

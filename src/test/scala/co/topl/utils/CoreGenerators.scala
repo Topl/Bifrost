@@ -1,20 +1,22 @@
 package co.topl.utils
 
-import co.topl.attestation.AddressEncoder.NetworkPrefix
+import java.io.File
+import java.time.Instant
+
+import NetworkType.NetworkPrefix
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
-import co.topl.consensus.KeyRing
-import co.topl.crypto.KeyfileCurve25519
+import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519, Secret}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
+import co.topl.modifier.box.Box.Nonce
+import co.topl.modifier.box.{ProgramId, _}
 import co.topl.modifier.transaction._
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
-import co.topl.nodeView.state.box.Box.Nonce
-import co.topl.nodeView.state.box.{ProgramId, _}
 import co.topl.program.{ProgramPreprocessor, _}
-import co.topl.settings.NetworkType.PrivateNet
 import co.topl.settings.{AppSettings, StartupOpts, Version}
+import co.topl.utils.NetworkType.PrivateTestnet
 import io.circe.syntax._
 import io.circe.{Json, JsonObject}
 import io.iohk.iodb.LSMStore
@@ -23,8 +25,6 @@ import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.{Curve25519, Signature}
 import scorex.util.encode.Base58
 
-import java.io.File
-import java.time.Instant
 import scala.collection.SortedSet
 import scala.util.{Random, Try}
 
@@ -36,12 +36,13 @@ trait CoreGenerators extends Logging {
   type P = Proposition
   type S = Secret
 
-  implicit val networkPrefix: NetworkPrefix = PrivateNet.netPrefix
+  implicit val networkPrefix: NetworkPrefix = PrivateTestnet.netPrefix
 
   private val settingsFilename = "src/test/resources/test.conf"
-  val settings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))
+  val settings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))._1
 
-  private val keyFileDir = settings.application.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
+  private val keyFileDir = settings.application.keyFileDir.ensuring(
+    _.isDefined, "A keyfile directory must be specified").get
   private val keyRing = KeyRing[PrivateKeyCurve25519, KeyfileCurve25519](keyFileDir, KeyfileCurve25519)
 
   def sampleUntilNonEmpty[T](generator: Gen[T]): T = {
@@ -499,7 +500,7 @@ trait CoreGenerators extends Logging {
     val difficulty = settings.forging.privateTestnet.map(_.initialDifficulty).get
     val version: PNVMVersion = settings.application.version.firstDigit
     val signingFunction: Array[Byte] => Try[SignatureCurve25519] =
-      (messageToSign: Array[Byte]) => keyRing.signWithAddress(matchingAddr, messageToSign)
+      (messageToSign: Array[Byte]) => keyRing.signWithAddress(matchingAddr)(messageToSign)
 
     Block.createAndSign(
       History.GenesisParentId,

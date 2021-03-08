@@ -5,8 +5,7 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.history.BlockProcessor.ChainCache
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
-import co.topl.utils.Logging
-import scorex.util.encode.Base16
+import co.topl.utils.{Logging, TimeProvider}
 
 import scala.annotation.tailrec
 import scala.collection.immutable.TreeMap
@@ -51,7 +50,8 @@ class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends Logging 
   def process(history: History, block: Block): ProgressInfo[Block] = {
     // check if the current block is starting a new branch off the main chain
     val pi: ProgressInfo[Block] = if (history.applicable(block)) {
-      val prevTimes = history.getTimestampsFrom(block, consensus.nxtBlockNum)
+      val parentBlock = history.parentBlock(block).get //safe to .get since otherwise wouldn't be applicable
+      val prevTimes = history.getTimestampsFrom(parentBlock, consensus.nxtBlockNum - 1) :+ block.timestamp
 
       chainCache = chainCache.add(block, prevTimes)
 
@@ -121,7 +121,7 @@ object BlockProcessor extends Logging {
   def emptyCache: ChainCache = ChainCache(TreeMap.empty)
 
   /** Wrapper for storing a block and its height in the chain cache */
-  case class CacheBlock(block: Block, prevBlockTimes: Seq[Block.Timestamp])
+  case class CacheBlock(block: Block, prevBlockTimes: Seq[TimeProvider.Time])
 
   /** Stores links mapping ((id, height) -> parentId) of blocks that could possibly be applied. */
   case class ChainCache(cache: TreeMap[CacheBlock, ModifierId]) {
@@ -140,7 +140,7 @@ object BlockProcessor extends Logging {
     def getHeight(id: ModifierId): Option[Long] =
       cache.keys.find(k ⇒ k.block.id == id).map(_.block.height)
 
-    def add(block: Block, prevTimes: Seq[Block.Timestamp]): ChainCache = {
+    def add(block: Block, prevTimes: Seq[TimeProvider.Time]): ChainCache = {
       val cacheBlock = CacheBlock(block, prevTimes)
 
       log.debug(s"Added new block to chain cache: ${cacheBlock.block.id.toString}")

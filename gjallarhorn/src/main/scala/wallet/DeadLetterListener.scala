@@ -1,10 +1,14 @@
 package wallet
 
-import akka.actor.{ Actor, DeadLetter, Props }
+import akka.actor.{Actor, DeadLetter}
+import utils.Logging
 
-class DeadLetterListener extends Actor {
+/**
+  * Actor used for debugging when dead letters are received.
+  */
+class DeadLetterListener extends Actor with Logging {
   override def receive: Receive = {
-    case d: DeadLetter => println(d)
+    case d: DeadLetter => log.debug(d.toString)
   }
 }
 

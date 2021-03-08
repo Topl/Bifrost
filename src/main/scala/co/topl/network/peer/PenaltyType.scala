@@ -1,7 +1,6 @@
 package co.topl.network.peer
 
-/**
-  * A trait describing all possible types of the network participant misbehavior.
+/** A trait describing all possible types of the network participant misbehavior.
   * `penaltyScore` - a number defining how bad concrete kind of misbehavior is,
   * `isPermanent`  - a flag defining whether a penalty is permanent.
   */
@@ -28,5 +27,4 @@ object PenaltyType {
     override val penaltyScore: Int = 1000000000
     override val isPermanent: Boolean = true
   }
-
 }

@@ -1,8 +1,9 @@
 package co.topl.utils.serialization
 
-import co.topl.utils.encode.ZigZagEncoder._
-
 import java.util
+
+import co.topl.utils.Int128
+import co.topl.utils.serialization.ZigZagEncoder._
 
 trait VLQWriter extends Writer {
 
@@ -31,7 +32,7 @@ trait VLQWriter extends Writer {
     *
     * @see [[https://en.wikipedia.org/wiki/Variable-length_quantity]]
     * @param x unsigned Short in a range 0 <= x <= 0xFFFF represented as Int
-    * @throws AssertionError for values not in unsigned Short range
+    * throws `AssertionError` for values not in unsigned Short range
     */
   @inline override def putUShort(x: Int): this.type = {
     require(x >= 0 && x <= 0xFFFF, s"Value $x is out of unsigned short range")
@@ -59,7 +60,7 @@ trait VLQWriter extends Writer {
     *
     * @see [[https://en.wikipedia.org/wiki/Variable-length_quantity]]
     * @param x unsigned Int
-    * @throws AssertionError for values not in unsigned Int range
+    * throws `AssertionError` for values not in unsigned Int range
     */
   @inline override def putUInt(x: Long): this.type = {
     require(x >= 0 && x <= 0xFFFFFFFFL, s"$x is out of unsigned int range")
@@ -115,6 +116,9 @@ trait VLQWriter extends Writer {
     this
     // see https://rosettacode.org/wiki/Variable-length_quantity for implementations in other languages
   }
+
+  /** Insert the custom Int128 type that is 16 bytes (128 bits) */
+  @inline def putInt128(x: Int128): this.type = this.putBytes(x.toByteArray)
 
   @inline override def putBits(xs: Array[Boolean]): this.type = {
     if (xs.isEmpty) return this

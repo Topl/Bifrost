@@ -1,8 +1,9 @@
 package co.topl
 
 import co.topl.modifier.block.Block
-import co.topl.nodeView.state.box.ArbitBox
+import co.topl.modifier.box.ArbitBox
 import co.topl.settings.ProtocolSettings
+import co.topl.utils.{Int128, TimeProvider}
 import com.google.common.primitives.Longs
 import scorex.crypto.hash.Blake2b256
 
@@ -13,22 +14,22 @@ package object consensus {
   private var _protocolMngr: ProtocolVersioner = ProtocolVersioner.empty
 
   // these variables are left as vars since they are local state of the consensus protocol determined from the chain
-  private var _maxStake: Long = _
-  private var _inflation: Long = _  // not currently used
-  private var _difficulty: Long = _ // not currently used
-  private var _height: Long = _     // not currently used
+  private var _maxStake: Int128 = 200000000000000000L // this needs to be replaced by a store for consensus
+  private var _inflation: Int128 = 0  // not currently used
+  private var _difficulty: Long = 0 // not currently used
+  private var _height: Long = 0     // not currently used
 
   // setters
   private[consensus] def protocolMngr_= (value: ProtocolVersioner): Unit = _protocolMngr = value
-  private[consensus] def maxStake_= (value: Long): Unit = _maxStake = value
-  private[consensus] def inflation_= (value: Long): Unit = _inflation = value
+  private[consensus] def maxStake_= (value: Int128): Unit = _maxStake = value
+  private[consensus] def inflation_= (value: Int128): Unit = _inflation = value
   private[consensus] def height_= (value: Long): Unit = _height = value
   private[consensus] def difficulty_= (value: Long): Unit = _difficulty = value
 
   // getters
   def protocolMngr: ProtocolVersioner = _protocolMngr
-  def maxStake: Long = _maxStake
-  def inflation: Long = _inflation
+  def maxStake: Int128 = _maxStake
+  def inflation: Int128 = _inflation
   def difficulty: Long = _difficulty
   def height: Long = _height
 
@@ -89,7 +90,7 @@ package object consensus {
     * @param prevTimes      sequence of block times to calculate the average and compare to target
     * @return the modified difficulty
     */
-  def calcNewBaseDifficulty(newHeight: Long, prevDifficulty: Long, prevTimes: Seq[Block.Timestamp]): Long = {
+  def calcNewBaseDifficulty(newHeight: Long, prevDifficulty: Long, prevTimes: Seq[TimeProvider.Time]): Long = {
 
     val averageDelay = (prevTimes drop 1, prevTimes).zipped.map(_-_).sum / (prevTimes.length - 1)
     val targetTimeMilli = targetBlockTime(newHeight).toUnit(MILLISECONDS)

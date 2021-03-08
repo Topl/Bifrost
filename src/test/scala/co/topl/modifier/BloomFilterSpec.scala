@@ -1,16 +1,14 @@
 package co.topl.modifier
 
-import co.topl.attestation.{Address, PrivateKeyCurve25519}
+import co.topl.attestation.Address
+import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.block.{BloomFilter, TransactionsCarryingPersistentNodeViewModifier}
-import co.topl.modifier.transaction.Transaction
 import co.topl.utils.ValidGenerators
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.Curve25519
-import scorex.util.encode.Base58
 
 class BloomFilterSpec
     extends AnyPropSpec
@@ -34,7 +32,6 @@ class BloomFilterSpec
   property("Bloomfilter should be able to tell if an address is likely not in the block(false positives)") {
     forAll(validBifrostTransactionSeqGen) { txs =>
       val bloomfilter: BloomFilter = TransactionsCarryingPersistentNodeViewModifier.createBloom(txs.dropRight(1))
-      val addressCount = txs.foldLeft(0)(_ + _.bloomTopics.size)
       val addressInBloom: Int = txs.dropRight(1).foldLeft(0)(_ + _.bloomTopics.size)
       val numAddressLastTx: Int = txs.last.bloomTopics.size
 
@@ -44,9 +41,9 @@ class BloomFilterSpec
       }
 
       /** Sometimes there's very few addresses in the last transaction, we only test here to make sure we don't get too
-        * many false positives. There's a very slight chance that this will break
+        * many false positives. There's a very slight chance that this will break (if it does this is probably an issue)
         */
-      (falsePositives <= numAddressLastTx / 2) shouldBe true
+      (falsePositives <= addressInBloom / 3) shouldBe true
     }
   }
 
@@ -57,22 +54,25 @@ class BloomFilterSpec
   property("The probability of false positives in bloomfilter with 500 addresses should be lower than 0.15") {
     /** The generated addresses are made deterministic, so that the variation won't break the test */
     val rand = new scala.util.Random(1)
+    /** 500 addresses in bloomfilter and 100 addresses for the test */
+    val numAddr = 600
+    val numBloom = 500
 
     val randAddr: Seq[Address] =
-      (0 until 600)
+      (0 until numAddr)
         .map(_ => Array.fill(Curve25519.KeyLength)((rand.nextInt(256) - 128).toByte))
         .map(s => PrivateKeyCurve25519.secretGenerator.generateSecret(s)._2)
         .map(k => k.address)
 
-    val bloomTopics: Set[BloomTopic] = randAddr.take(500).map(addr => BloomTopic @@ addr.bytes).toSet
+    val bloomTopics: Set[BloomTopic] = randAddr.take(numBloom).map(addr => BloomTopic @@ addr.bytes).toSet
     val bloomfilter: BloomFilter = BloomFilter(bloomTopics)
-    val testTopics: Seq[BloomTopic] = randAddr.drop(500).map(addr => BloomTopic @@ addr.bytes)
+    val testTopics: Seq[BloomTopic] = randAddr.drop(numBloom).map(addr => BloomTopic @@ addr.bytes)
 
     val falsePositives = testTopics.foldLeft(0) { (count, bt) =>
       if (bloomfilter.contains(bt)) count + 1
       else count
     }
 
-    (falsePositives <= testTopics.size * 0.15) shouldBe true
+    falsePositives shouldEqual 15
   }
 }

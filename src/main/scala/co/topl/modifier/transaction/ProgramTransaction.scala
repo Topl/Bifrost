@@ -2,7 +2,7 @@
 //
 //import co.topl.attestation.proof.SignatureCurve25519
 //import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
-//import co.topl.nodeView.state.box.{ BoxId, PolyBox }
+//import co.topl.modifier.box.{ BoxId, PolyBox }
 //import com.google.common.primitives.Ints
 //import scorex.crypto.hash.Blake2b256
 //

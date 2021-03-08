@@ -1,7 +1,7 @@
 package co.topl.attestation
 
-import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation.EvidenceProducer.Syntax._
+import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
@@ -53,7 +53,7 @@ object Address extends BifrostSerializer[Address] {
   def apply(networkPrefix: NetworkPrefix)(addrStr: String): Address =
     AddressEncoder.fromStringWithCheck(addrStr, networkPrefix) match {
       case Success(addr) => addr
-      case Failure(_: java.lang.AssertionError) => throw new Exception("Invalid Base58 string")
+      case Failure(_: java.lang.AssertionError) => throw new Exception(s"The address: $addrStr is an invalid Base58 string")
       case Failure(ex) => throw ex
     }
 

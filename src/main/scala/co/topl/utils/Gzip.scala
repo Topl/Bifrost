@@ -2,6 +2,7 @@ package co.topl.utils
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.util.zip.{GZIPInputStream, GZIPOutputStream}
+
 import scala.collection.mutable.ArrayBuffer
 
 object Gzip {

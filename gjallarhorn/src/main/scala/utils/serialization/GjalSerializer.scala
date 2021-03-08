@@ -3,7 +3,6 @@ package utils.serialization
 import java.nio.ByteBuffer
 
 import akka.util.ByteString
-import serialization.Serializer
 import utils.ByteArrayBuilder
 
 import scala.util.Try

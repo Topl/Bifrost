@@ -1,9 +1,9 @@
 package co.topl.nodeView
 
 import co.topl.attestation.Address
-import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.modifier.ModifierId
-import co.topl.nodeView.state.box.{Box, ProgramBox, TokenBox, TokenValueHolder}
+import co.topl.modifier.box.{Box, ProgramBox, TokenBox, TokenValueHolder}
+import co.topl.utils.NetworkType.NetworkPrefix
 
 import scala.util.{Failure, Success}
 

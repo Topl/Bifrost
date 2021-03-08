@@ -1,5 +1,7 @@
 package co.topl.utils.serialization
 
+import co.topl.utils.Int128
+
 trait Writer {
 
   /**
@@ -20,7 +22,7 @@ trait Writer {
   def newWriter(): Writer.Aux[CH]
 
   /**
-    * Append result of $writer to this Writer
+    * Append result of `writer` to this Writer
     * @param writer is used as source of bytes
     * @return
     */
@@ -46,7 +48,7 @@ trait Writer {
     * Encode integer as an unsigned byte asserting the range check
     * @param x integer value to encode
     * @return
-    * @throws AssertionError if x is outside of the unsigned byte range
+    * throws `AssertionError` if x is outside of the unsigned byte range
     */
   def putUByte(x: Int): this.type = {
     require(x >= 0 && x <= 0xFF, s"$x is out of unsigned byte range")
@@ -109,6 +111,11 @@ trait Writer {
     */
   def putULong(x: Long): this.type
 
+  /**
+   * Encode an Int128 value
+   * @param x - Int128
+   */
+  def putInt128(x: Int128): this.type
 
   /**
     * Encode an array of bytes
@@ -127,7 +134,7 @@ trait Writer {
   /**
     * Encode optional value
     * @param x optional value to encode
-    * @param putValue procedure to encode value, if $x is nonempty
+    * @param putValue procedure to encode value, if `x` is nonempty
     */
   def putOption[T](x: Option[T])(putValue: (this.type, T) => Unit): this.type
 

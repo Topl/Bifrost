@@ -2,13 +2,14 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.attestation.AddressEncoder.NetworkPrefix
 import co.topl.attestation._
+import co.topl.modifier.BoxReader
+import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.TransferTransaction.BoxParams
-import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.state.box.{AssetBox, AssetCode, AssetValue, Box, PolyBox, TokenBox, TokenValueHolder}
-import co.topl.utils.{Identifiable, Identifier}
+import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.codecs.Int128Codec
+import co.topl.utils.{Identifiable, Identifier, Int128, NetworkType}
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
 
@@ -16,10 +17,11 @@ import scala.util.Try
 
 case class AssetTransfer[
   P <: Proposition: EvidenceProducer: Identifiable
-](override val from:        IndexedSeq[(Address, Box.Nonce)],
+](
+  override val from:        IndexedSeq[(Address, Box.Nonce)],
   override val to:          IndexedSeq[(Address, TokenValueHolder)],
   override val attestation: Map[P, Proof[P]],
-  override val fee:         Long,
+  override val fee:         Int128,
   override val timestamp:   Long,
   override val data:        Option[String] = None,
   override val minting:     Boolean = false
@@ -49,7 +51,7 @@ object AssetTransfer {
     Identifier(typeString, typePrefix)
   }
 
-  /** @param stateReader
+  /** @param boxReader
     * @param toReceive
     * @param sender
     * @param fee
@@ -58,12 +60,13 @@ object AssetTransfer {
     */
   def createRaw[
     P <: Proposition: EvidenceProducer: Identifiable
-  ](stateReader:          StateReader,
+  ](
+    boxReader:            BoxReader[ProgramId, Address],
     toReceive:            IndexedSeq[(Address, AssetValue)],
     sender:               IndexedSeq[Address],
     changeAddress:        Address,
     consolidationAddress: Option[Address],
-    fee:                  Long,
+    fee:                  Int128,
     data:                 Option[String],
     minting:              Boolean
   ): Try[AssetTransfer[P]] = {
@@ -77,7 +80,7 @@ object AssetTransfer {
 
     TransferTransaction
       .createRawTransferParams(
-        stateReader,
+        boxReader,
         toReceive,
         sender,
         changeAddress,
@@ -101,7 +104,7 @@ object AssetTransfer {
       "from"            -> tx.from.asJson,
       "to"              -> tx.to.asJson,
       "signatures"      -> tx.attestation.asJson,
-      "fee"             -> tx.fee.asJson,
+      "fee"             -> tx.fee.asJson(Int128Codec.jsonEncoder),
       "timestamp"       -> tx.timestamp.asJson,
       "data"            -> tx.data.asJson,
       "minting"         -> tx.minting.asJson
@@ -111,27 +114,25 @@ object AssetTransfer {
   implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[AssetTransfer[_ <: Proposition]] =
     (c: HCursor) =>
       for {
-        from      <- c.downField("from").as[IndexedSeq[(Address, Long)]]
+        from      <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
         to        <- c.downField("to").as[IndexedSeq[(Address, TokenValueHolder)]]
-        fee       <- c.downField("fee").as[Long]
+        fee       <- c.get[Int128]("fee")(Int128Codec.jsonDecoder)
         timestamp <- c.downField("timestamp").as[Long]
         data      <- c.downField("data").as[Option[String]]
         minting   <- c.downField("minting").as[Boolean]
         propType  <- c.downField("propositionType").as[String]
-      } yield {
-        (propType match {
-          case PublicKeyPropositionCurve25519.`typeString` =>
-            c.downField("signatures").as[Map[PublicKeyPropositionCurve25519, SignatureCurve25519]].map {
-              new AssetTransfer[PublicKeyPropositionCurve25519](from, to, _, fee, timestamp, data, minting)
-            }
+      } yield (propType match {
+        case PublicKeyPropositionCurve25519.`typeString` =>
+          c.downField("signatures").as[Map[PublicKeyPropositionCurve25519, SignatureCurve25519]].map {
+            new AssetTransfer[PublicKeyPropositionCurve25519](from, to, _, fee, timestamp, data, minting)
+          }
 
-          case ThresholdPropositionCurve25519.`typeString` =>
-            c.downField("signatures").as[Map[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]].map {
-              new AssetTransfer[ThresholdPropositionCurve25519](from, to, _, fee, timestamp, data, minting)
-            }
-        }) match {
-          case Right(tx) => tx
-          case Left(ex)  => throw ex
-        }
+        case ThresholdPropositionCurve25519.`typeString` =>
+          c.downField("signatures").as[Map[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]].map {
+            new AssetTransfer[ThresholdPropositionCurve25519](from, to, _, fee, timestamp, data, minting)
+          }
+      }) match {
+        case Right(tx) => tx
+        case Left(ex)  => throw ex
       }
 }

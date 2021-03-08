@@ -1,5 +1,7 @@
 package co.topl.settings
 
+import co.topl.utils.NetworkType
+
 /** Parameters that are given at application startup. Only parameters that are
   * required for initialization should be includaed at the top level while all other
   * settings that control the application runtime (similar in nature to config settings)
@@ -16,11 +18,12 @@ final case class StartupOpts(
 )
 
 object StartupOpts {
-  // used defaults above to simplify the empty
+
+  /** used defaults above to simplify the empty */
   def empty: StartupOpts = new StartupOpts()
 }
 
-/* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
+/* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
 /** Parameters that control the application behavior that are specified at runtime.
   * These settings could just as well be defined in the config file but may be
@@ -28,6 +31,7 @@ object StartupOpts {
   *
   * @param seed a string used to deterministically generate key files (only applicable for local and private networks)
   * @param forgeOnStartup a boolean controlling whether the node should attempt forging immediately on start
+  * @param apiKeyHash hash of API key
   */
 final case class RuntimeOpts(
   seed:           Option[String] = None,
