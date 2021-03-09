@@ -6,7 +6,7 @@ import co.topl.network.message
 import co.topl.network.message.Message.MessageCode
 import co.topl.network.peer.{PeerFeature, PeerSpec, PeerSpecSerializer}
 import co.topl.utils.Logging
-import co.topl.utils.serialization.Extensions._
+import co.topl.utils.Extensions._
 import co.topl.utils.serialization.{Reader, Writer}
 
 /** Sequence of modifiers to send to the remote peer */
