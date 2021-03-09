@@ -306,8 +306,8 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
 
   /**
     *
-    * @param mod
-    * @return
+    * @param mod - the block to retrieve transactions from
+    * @return the sequence of transactions from a block
     */
   protected def extractTransactions(mod: PMOD): Seq[TX] = mod match {
     case tcm: TransactionCarryingPersistentNodeViewModifier[_] => tcm.transactions
@@ -336,7 +336,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
 
 
   /** Below is a description of how state updates are managed */
-  /** --------------------------------------------------------------------------------------------------------------------- /
+  /** --------------------------------------------------------------------------------------------------------------- /
   Assume that history knows the following blocktree:
 
            G
@@ -345,10 +345,10 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
         /     \
        *       G
 
-    where path with G-s is about canonical chain (G means semantically valid modifier), path with * is sidechain (* means
-    that semantic validity is unknown). New modifier is coming to the sidechain, it sends rollback to the root +
-    application of the sidechain to the state. Assume that state is finding that some modifier in the sidechain is
-    incorrect:
+    where path with G-s is about canonical chain (G means semantically valid modifier), path with * is sidechain
+    (* means that semantic validity is unknown). New modifier is coming to the sidechain, it sends rollback to
+    the root + application of the sidechain to the state. Assume that state is finding that some modifier in the
+    sidechain is incorrect:
 
            G
           / \
@@ -365,7 +365,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
     We assume that we apply modifiers sequentially (on a single modifier coming from the network or generated locally),
     and in case of failed application of some modifier in a progressInfo, rollback point in an alternative should be not
     earlier than a rollback point of an initial progressInfo.
-  / ---------------------------------------------------------------------------------------------------------------------- **/
+  / --------------------------------------------------------------------------------------------------------------- **/
 
   @tailrec
   private def updateState(history: HIS,
@@ -432,7 +432,8 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
   //todo: this method causes delays in a block processing as it removes transactions from mempool and checks
   //todo: validity of remaining transactions in a synchronous way. Do this job async!
   protected def updateMemPool(blocksRemoved: Seq[PMOD], blocksApplied: Seq[PMOD], memPool: MP, state: MS): MP = {
-    val rolledBackTxs = blocksRemoved.flatMap(extractTransactions)
+    // drop the first two transactions, since these are the reward transactions and invalid
+    val rolledBackTxs = blocksRemoved.flatMap(b => extractTransactions(b).drop(2))
 
     val appliedTxs = blocksApplied.flatMap(extractTransactions)
 
