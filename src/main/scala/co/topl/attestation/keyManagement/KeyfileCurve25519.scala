@@ -3,6 +3,7 @@ package co.topl.attestation.keyManagement
 import java.nio.charset.StandardCharsets
 
 import co.topl.attestation.Address
+import co.topl.utils.Extensions.StringOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.parser.parse
 import io.circe.syntax._
@@ -105,7 +106,7 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
     * @return
     */
   private def getDerivedKey (password: String, salt: Array[Byte]): Array[Byte] = {
-    val passwordBytes = password.getBytes(StandardCharsets.ISO_8859_1)
+    val passwordBytes = password.getValidLatin1Bytes.getOrElse(throw new Exception("String is not valid Latin-1"))
     SCrypt.generate(passwordBytes, salt, scala.math.pow(2, 18).toInt, 8, 1, 32)
   }
 
