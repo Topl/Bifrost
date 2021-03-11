@@ -9,6 +9,8 @@ import co.topl.utils.Extensions.StringOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Identifiable, Int128}
 import com.google.common.primitives.{Ints, Longs}
+import io.circe.Json
+import io.circe.syntax.EncoderOps
 import scorex.crypto.hash.Blake2b256
 
 import scala.util.{Failure, Success, Try}
@@ -80,6 +82,10 @@ object TransferTransaction {
       }
 
     (feeChangeParams, outputParams)
+  }
+
+  def encodeFrom(from: IndexedSeq[(Address, Box.Nonce)]): Json = {
+    from.map(x => (x._1.asJson, x._2.toString.asJson)).asJson
   }
 
   /** Retrieves the boxes from state for the specified sequence of senders and filters them based on the type of transaction */
