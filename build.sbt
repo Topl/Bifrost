@@ -21,11 +21,11 @@ test in assembly := {}
 // The Typesafe repository
 resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/"
 
-val akkaVersion = "2.6.10"
-val akkaHttpVersion = "10.2.1"
+val akkaVersion = "2.6.13"
+val akkaHttpVersion = "10.2.4"
 val circeVersion = "0.13.0"
 val kamonVersion = "2.1.12"
-val graalVersion = "21.0.0"
+val graalVersion = "21.0.0.2"
 
 val akkaDependencies = Seq(
   "com.typesafe.akka" %% "akka-actor"          % akkaVersion,
@@ -59,8 +59,8 @@ val loggingDependencies = Seq(
 )
 
 val testingDependencies = Seq(
-  "org.scalactic"      %% "scalactic"         % "3.2.5"   % Test,
-  "org.scalatest"      %% "scalatest"         % "3.2.5"   % Test,
+  "org.scalactic"      %% "scalactic"         % "3.2.6"   % Test,
+  "org.scalatest"      %% "scalatest"         % "3.2.6"   % Test,
   "org.scalacheck"     %% "scalacheck"        % "1.15.3"  % Test,
   "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % Test,
   "com.spotify"         % "docker-client"     % "8.16.0"  % Test,
@@ -83,7 +83,7 @@ val miscDependencies = Seq(
   "io.netty"               % "netty"       % "3.10.6.Final",
   "com.google.guava"       % "guava"       % "30.1-jre",
   "com.typesafe"           % "config"      % "1.4.1",
-  "com.github.pureconfig" %% "pureconfig"  % "0.14.0"
+  "com.github.pureconfig" %% "pureconfig"  % "0.14.1"
 )
 
 val monitoringDependencies = Seq(
