@@ -42,6 +42,9 @@ jobs:
       # run tests!
       - run: cat /dev/null | sbt -mem 2048 test:test
 
+      # And verify that a JAR can be assembled and packaged into a Docker image
+      - run: cat /dev/null | sbt bifrost/docker:publishLocal
+
 workflows:
   version: 2
   tests:
