@@ -1,6 +1,7 @@
-package co.topl.api
+package co.topl.api.transaction
 
 import akka.util.ByteString
+import co.topl.api.RPCMockState
 import co.topl.attestation.Address
 import co.topl.modifier.box.AssetCode
 import io.circe.Json
@@ -19,8 +20,7 @@ class AssetRPCSpec extends AnyWordSpec
   val assetCode: AssetCode = AssetCode(1: Byte, address, "test")
   var tx = ""
 
-  "Asset RPC" should {
-
+  "AssetTransfer RPC" should {
     "Create new assets raw transaction" in {
       val requestBody = ByteString(
         s"""
@@ -72,8 +72,7 @@ class AssetRPCSpec extends AnyWordSpec
       }
     }
 
-    "broadcast signed AssetTransfer transaction" in {
-
+    "Broadcast signed AssetTransfer transaction" in {
       val requestBody = ByteString(
         s"""
           |{
