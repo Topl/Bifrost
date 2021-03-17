@@ -2,10 +2,13 @@ package co.topl.api
 
 import akka.util.ByteString
 import co.topl.attestation.Address
+import co.topl.modifier.box.AssetCode
+import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import scorex.util.encode.Base58
 
 class AssetRPCSpec extends AnyWordSpec
   with Matchers
@@ -13,6 +16,8 @@ class AssetRPCSpec extends AnyWordSpec
 
   val address: Address = keyRing.addresses.head
   val recipients: String = assetToSeqGen.sample.get.asJson.toString()
+  val assetCode: AssetCode = AssetCode(1: Byte, address, "test")
+  var tx = ""
 
   "Asset RPC" should {
 
@@ -28,10 +33,10 @@ class AssetRPCSpec extends AnyWordSpec
            |     "recipients":
            |    [
            |  [
-           |    "AUBDNmMJkmHtuyGXkWAB7Bg9X8T4CRDNVXmPvVcQWPMk4RdwR883",
+           |    "$address",
            |      {
-           |        "quantity" : "5858200457744262097",
-           |        "assetCode" : "PPsSca8fTkx4jDLUvxCoaVw3r3ZabTssC2SKFGbCdRYDNJSRm2q6tQCXYkP",
+           |        "quantity" : "1",
+           |        "assetCode" : "${assetCode.toString}",
            |        "metadata" : "ApdGzs6uwKAhuKJQswBWoVAFjNA5B8enBKfxVbzlcQ8EnpxicpRcE9B9Bgn2LGv02kYUSA1h1181ZYeECvr",
            |        "type" : "Asset",
            |        "securityRoot" : "11111111111111111111111111111111"
@@ -47,7 +52,42 @@ class AssetRPCSpec extends AnyWordSpec
         """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val res = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
+
+        val sigTx = for {
+          rawTx <- res.hcursor.downField("result").get[Json]("rawTx")
+          message <- res.hcursor.downField("result").get[String]("messageToSign")
+        } yield {
+          val sig = keyRing.generateAttestation(address)(Base58.decode(message).get)
+          val signatures: Json = Map(
+            "signatures" -> sig.asJson
+          ).asJson
+          rawTx.deepMerge(signatures)
+        }
+
+        tx = sigTx.right.get.toString
+
+        (res \\ "error").isEmpty shouldBe true
+        (res \\ "result").head.asObject.isDefined shouldBe true
+      }
+    }
+
+    "broadcast signed AssetTransfer transaction" in {
+
+      val requestBody = ByteString(
+        s"""
+          |{
+          |   "jsonrpc": "2.0",
+          |   "id": "2",
+          |   "method": "topl_broadcastTx",
+          |   "params": [{
+          |     "tx": $tx
+          |   }]
+          |}
+          |""".stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
       }
