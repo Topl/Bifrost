@@ -3,7 +3,7 @@ package co.topl.http.api.endpoints
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.pattern.ask
 import co.topl.attestation.Address
-import co.topl.consensus.Forger.ReceivableMessages.ListKeys
+import co.topl.attestation.keyManagement.KeyManager.ReceivableMessages._
 import co.topl.http.api.{ApiEndpointWithView, DebugNamespace, Namespace}
 import co.topl.modifier.ModifierId
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
@@ -23,7 +23,7 @@ case class DebugApiEndpoint(
   settings:             RPCApiSettings,
   appContext:           AppContext,
   nodeViewHolderRef:    ActorRef,
-  forgerRef:            ActorRef
+  keyManagerRef:        ActorRef
 )(implicit val context: ActorRefFactory)
     extends ApiEndpointWithView {
 
@@ -90,7 +90,7 @@ case class DebugApiEndpoint(
     */
   private def myBlocks(params: Json, id: String): Future[Json] =
     (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CV].flatMap { view =>
-      (forgerRef ? ListKeys).mapTo[Set[Address]].map { myKeys =>
+      (keyManagerRef ? ListKeys).mapTo[Set[Address]].map { myKeys =>
         val blockNum = new HistoryDebug(view.history).count { b =>
           myKeys.map(_.evidence).contains(b.generatorBox.evidence)
         }
