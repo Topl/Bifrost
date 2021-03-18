@@ -3,7 +3,6 @@ package co.topl.utils
 import java.math.BigInteger
 import java.nio.{ByteBuffer, ByteOrder}
 import java.util.UUID
-
 import scala.language.implicitConversions
 import scala.math.{BigInt, ScalaNumber, ScalaNumericConversions}
 import scala.util.{Failure, Success, Try}
@@ -74,7 +73,6 @@ object Int128 {
     if (value < 0) new Int128(-1, value.toLong)
     else new Int128(0, value.toLong)
 
-
   /** Constructs a Int128 from a Short value.
     *
     * @param value Short
@@ -88,7 +86,7 @@ object Int128 {
     * @param value Int
     */
   def apply(value: Int): Int128 =
-    if (value< 0) new Int128(-1, value.toLong)
+    if (value < 0) new Int128(-1, value.toLong)
     else new Int128(0, value.toLong)
 
   /** Constructs a Int128 from a Long value.
@@ -96,7 +94,7 @@ object Int128 {
     * @param value Long
     */
   def apply(value: Long): Int128 =
-    if (value< 0) new Int128(-1, value.toLong)
+    if (value < 0) new Int128(-1, value.toLong)
     else new Int128(0, value.toLong)
 
   /** Constructs a Int128 from a BigInteger value. The value used to construct
@@ -128,7 +126,7 @@ object Int128 {
     * representation of the value requires more than 128 bits to represent, only
     * the lower 128 bits are used to construct this Int128.
     *
-    * @param value   String, treated as a 128 bit signed value.
+    * @param value String, treated as a 128 bit signed value.
     * @param radix The base of the number represented by the string.
     */
   def apply(value: String, radix: Int): Int128 = apply(new BigInteger(value, radix))
@@ -194,40 +192,15 @@ object Int128 {
   /** Implicit conversion from `Long` to `BigInt`. */
   implicit def long2Int128(l: Long): Int128 = apply(l)
 
-  /** Implicit conversion from `java.math.BigInteger` to `scala.BigInt`. */
+  /** Implicit conversion from `java.math.BigInteger` to `Int128`. */
   implicit def javaBigInteger2Int128(x: BigInteger): Int128 = apply(x)
 
-  /** Implicit conversion from `scala.math.BigInt` to `scala.BigInt`. */
+  /** Implicit conversion from `scala.math.BigInt` to `Int128`. */
   implicit def scalaBigInt2Int128(x: BigInt): Int128 = apply(x)
 
-  implicit val int128Ordering: Ordering[Int128] = _ compare _
-
-  implicit val int128Integral: Integral[Int128] =
-    new Integral[Int128] {
-      override def plus(x: Int128, y: Int128): Int128 = x + y
-
-      override def minus(x: Int128, y: Int128): Int128 = x - y
-
-      override def times(x: Int128, y: Int128): Int128 = x * y
-
-      override def negate(x: Int128): Int128 = -x
-
-      override def fromInt(x: Int): Int128 = Int128(x)
-
-      override def toInt(x: Int128): Int = x.intValue()
-
-      override def toLong(x: Int128): Long = x.longValue()
-
-      override def toFloat(x: Int128): Float = x.floatValue()
-
-      override def toDouble(x: Int128): Double = x.doubleValue()
-
-      override def compare(x: Int128, y: Int128): Int = x.compare(y)
-
-      override def quot(x: Int128, y: Int128): Int128 = x / y
-
-      override def rem(x: Int128, y: Int128): Int128 = x % y
-    }
+  /** An implicit providing both Integral and Ordering characteristics to Int128
+    */
+  implicit object Int128Integral extends Int128IsIntegral with Int128Ordering
 
 }
 
@@ -323,4 +296,38 @@ final class Int128(val upperLong: Long, val lowerLong: Long)
   /** Returns the bitwise complement of this BigInt */
   def unary_~ : Int128 = Int128(this.bigInt.bigInteger.not())
 
+}
+
+/** A trait demonstrating that Int128 can be seen as both Numeric and "whole"
+  */
+trait Int128IsIntegral extends Integral[Int128] {
+  override def plus(x: Int128, y: Int128): Int128 = x + y
+
+  override def minus(x: Int128, y: Int128): Int128 = x - y
+
+  override def times(x: Int128, y: Int128): Int128 = x * y
+
+  override def negate(x: Int128): Int128 = -x
+
+  override def fromInt(x: Int): Int128 = Int128(x)
+
+  override def toInt(x: Int128): Int = x.intValue()
+
+  override def toLong(x: Int128): Long = x.longValue()
+
+  override def toFloat(x: Int128): Float = x.floatValue()
+
+  override def toDouble(x: Int128): Double = x.doubleValue()
+
+  override def compare(x: Int128, y: Int128): Int = x.compare(y)
+
+  override def quot(x: Int128, y: Int128): Int128 = x / y
+
+  override def rem(x: Int128, y: Int128): Int128 = x % y
+}
+
+/** A trait demonstrating that Int128 can be seen as Ordering
+  */
+trait Int128Ordering extends Ordering[Int128] {
+  override def compare(x: Int128, y: Int128): Int = x.compare(y)
 }
