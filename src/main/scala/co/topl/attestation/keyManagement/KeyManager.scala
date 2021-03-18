@@ -54,73 +54,6 @@ class KeyManager(
 
 object KeyManager extends Logging {
 
-  def apply(name: String, settings: AppSettings, appContext: AppContext)(implicit
-    system:       ActorSystem,
-    ec:           ExecutionContext
-  ): ActorRef =
-    system.actorOf(props(settings, appContext)(ec, appContext.networkType.netPrefix), name)
-
-  def props(settings: AppSettings, appContext: AppContext)(implicit
-    ec:               ExecutionContext,
-    np:               NetworkPrefix
-  ): Props = {
-    val keyRing = getKeyRing(settings)
-
-    val forgingSettings = settings.forging
-
-    generateInitialKeys(keyRing, forgingSettings.privateTestnet)
-
-    val rewardAddress =
-      tryGetRewardsAddressFromSettings(forgingSettings, appContext) orElse keyRing.addresses.headOption
-
-    Props(new KeyManager(keyRing, rewardAddress))
-  }
-
-  /** Generates the key ring's initial keys if they do not already exist.
-    * Only generates if private testnet enabled.
-    * @param keyRing The key ring to save keys to.
-    * @param privateTestnetSettings The private testnet settings.
-    * @return Unit
-    */
-  private def generateInitialKeys(
-    keyRing:                KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-    privateTestnetSettings: Option[PrivateTestnetSettings]
-  ): Unit =
-    privateTestnetSettings foreach { sfp =>
-      if (sfp.genesisSeed.nonEmpty && keyRing.addresses.isEmpty) {
-        keyRing
-          .generateNewKeyPairs(sfp.numTestnetAccts, sfp.genesisSeed)
-          .map(keys => keys.map(_.publicImage)) match {
-          case Success(_)     => ()
-          case Failure(error) => throw error
-        }
-      }
-    }
-
-  private def tryGetRewardsAddressFromSettings(
-    forgingSettings: ForgingSettings,
-    appContext:      AppContext
-  ): Option[Address] =
-    forgingSettings.rewardsAddress.flatMap {
-      AddressEncoder.fromStringWithCheck(_, appContext.networkType.netPrefix) match {
-        case Failure(ex) =>
-          log.warn(s"${Console.YELLOW}Unable to set rewards address due to $ex ${Console.RESET}")
-          None
-
-        case Success(addr) => Some(addr)
-      }
-    }
-
-  private def getKeyRing(
-    settings:    AppSettings
-  )(implicit np: NetworkPrefix): KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] = {
-    val keyFileDir = settings.application.keyFileDir
-      .ensuring(_.isDefined, "A keyfile directory must be specified")
-      .get
-
-    KeyRing[PrivateKeyCurve25519, KeyfileCurve25519](keyFileDir, KeyfileCurve25519)
-  }
-
   val actorName = "keyManager"
 
   case class ForgerView(addresses: Set[Address], rewardAddr: Option[Address])
@@ -147,4 +80,69 @@ object KeyManager extends Logging {
     case class GetPublicKeyFromAddress(address: Address)
   }
 
+}
+
+object KeyManagerRef extends Logging {
+  def apply(name: String, settings: AppSettings, appContext: AppContext)
+           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+    system.actorOf(props(settings, appContext)(ec, appContext.networkType.netPrefix), name)
+
+  def props(settings: AppSettings, appContext: AppContext)
+           (implicit ec: ExecutionContext, np: NetworkPrefix): Props = {
+    val keyRing = getKeyRing(settings)
+
+    val forgingSettings = settings.forging
+
+    generateInitialKeys(keyRing, forgingSettings.privateTestnet)
+
+    val rewardAddress =
+      tryGetRewardsAddressFromSettings(forgingSettings, appContext) orElse keyRing.addresses.headOption
+
+    Props(new KeyManager(keyRing, rewardAddress))
+  }
+
+  /** Generates the key ring's initial keys if they do not already exist.
+    * Only generates if private testnet enabled.
+    * @param keyRing The key ring to save keys to.
+    * @param privateTestnetSettings The private testnet settings.
+    * @return Unit
+    */
+  private def generateInitialKeys(
+                                   keyRing:                KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+                                   privateTestnetSettings: Option[PrivateTestnetSettings]
+                                 ): Unit =
+    privateTestnetSettings foreach { sfp =>
+      if (sfp.genesisSeed.nonEmpty && keyRing.addresses.isEmpty) {
+        keyRing
+          .generateNewKeyPairs(sfp.numTestnetAccts, sfp.genesisSeed)
+          .map(keys => keys.map(_.publicImage)) match {
+          case Success(_)     => ()
+          case Failure(error) => throw error
+        }
+      }
+    }
+
+  private def tryGetRewardsAddressFromSettings(
+                                                forgingSettings: ForgingSettings,
+                                                appContext:      AppContext
+                                              ): Option[Address] =
+    forgingSettings.rewardsAddress.flatMap {
+      AddressEncoder.fromStringWithCheck(_, appContext.networkType.netPrefix) match {
+        case Failure(ex) =>
+          log.warn(s"${Console.YELLOW}Unable to set rewards address due to $ex ${Console.RESET}")
+          None
+
+        case Success(addr) => Some(addr)
+      }
+    }
+
+  private def getKeyRing(
+                          settings:    AppSettings
+                        )(implicit np: NetworkPrefix): KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] = {
+    val keyFileDir = settings.application.keyFileDir
+      .ensuring(_.isDefined, "A keyfile directory must be specified")
+      .get
+
+    KeyRing[PrivateKeyCurve25519, KeyfileCurve25519](keyFileDir, KeyfileCurve25519)
+  }
 }

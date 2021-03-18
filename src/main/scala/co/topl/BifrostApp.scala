@@ -5,7 +5,7 @@ import akka.http.scaladsl.Http
 import akka.io.Tcp
 import akka.pattern.ask
 import akka.util.Timeout
-import co.topl.attestation.keyManagement.KeyManager
+import co.topl.attestation.keyManagement.{KeyManager, KeyManagerRef}
 import co.topl.consensus.{Forger, ForgerRef}
 import co.topl.http.HttpService
 import co.topl.http.api.ApiEndpoint
@@ -72,7 +72,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   private val networkControllerRef: ActorRef =
     NetworkControllerRef(NetworkController.actorName, settings, peerManagerRef, appContext)
 
-  private val keyManagerRef = KeyManager(KeyManager.actorName, settings, appContext)
+  private val keyManagerRef = KeyManagerRef(KeyManager.actorName, settings, appContext)
 
   private val forgerRef: ActorRef = ForgerRef(Forger.actorName, settings, appContext, keyManagerRef)
 

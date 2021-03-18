@@ -136,8 +136,8 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
   /** Return the correct genesis parameters for the chosen network.
     * NOTE: the default private network is set in AppContext so the fall-through should result in an error.
     */
-  private def generateGenesis(implicit timeout: Timeout = settings.forging.blockGenerationDelay): Unit =
-    (keyManager ? GetForgerView)
+  private def generateGenesis(implicit timeout: Timeout = 10 seconds): Unit = {
+    var blockResult = (keyManager ? GetForgerView)
       .mapTo[ForgerView]
       .map { forgerView =>
         (appContext.networkType match {
@@ -155,10 +155,9 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
           block
         }
       }
-      .onComplete {
-        case Success(value) => sender() ! value
-        case Failure(error) => throw error
-      }
+
+    sender() ! Await.result(blockResult, timeout.duration)
+  }
 
   /** Primary method for attempting to forge a new block and publish it to the network
     *

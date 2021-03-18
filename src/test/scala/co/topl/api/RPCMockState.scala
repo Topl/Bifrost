@@ -7,7 +7,7 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
-import co.topl.attestation.keyManagement.KeyManager
+import co.topl.attestation.keyManagement.{KeyManager, KeyManagerRef}
 import co.topl.consensus.{Forger, ForgerRef}
 import co.topl.http.HttpService
 import co.topl.http.api.ApiEndpoint
@@ -46,7 +46,7 @@ trait RPCMockState extends AnyWordSpec
   protected val appContext = new AppContext(rpcSettings, StartupOpts.empty, None)
 
   // Create Bifrost singleton actors
-  protected val keyManagerRef: ActorRef = KeyManager(KeyManager.actorName, rpcSettings, appContext)
+  protected val keyManagerRef: ActorRef = KeyManagerRef(KeyManager.actorName, rpcSettings, appContext)
   protected val forgerRef: ActorRef = ForgerRef(Forger.actorName, rpcSettings, appContext, keyManagerRef)
   protected val nodeViewHolderRef: ActorRef = NodeViewHolderRef(NodeViewHolder.actorName, rpcSettings, appContext)
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
