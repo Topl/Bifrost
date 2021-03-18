@@ -196,6 +196,39 @@ object Int128 {
 
   /** Implicit conversion from `java.math.BigInteger` to `scala.BigInt`. */
   implicit def javaBigInteger2Int128(x: BigInteger): Int128 = apply(x)
+
+  /** Implicit conversion from `scala.math.BigInt` to `scala.BigInt`. */
+  implicit def scalaBigInt2Int128(x: BigInt): Int128 = apply(x)
+
+  implicit val int128Ordering: Ordering[Int128] = _ compare _
+
+  implicit val int128Integral: Integral[Int128] =
+    new Integral[Int128] {
+      override def plus(x: Int128, y: Int128): Int128 = x + y
+
+      override def minus(x: Int128, y: Int128): Int128 = x - y
+
+      override def times(x: Int128, y: Int128): Int128 = x * y
+
+      override def negate(x: Int128): Int128 = -x
+
+      override def fromInt(x: Int): Int128 = Int128(x)
+
+      override def toInt(x: Int128): Int = x.intValue()
+
+      override def toLong(x: Int128): Long = x.longValue()
+
+      override def toFloat(x: Int128): Float = x.floatValue()
+
+      override def toDouble(x: Int128): Double = x.doubleValue()
+
+      override def compare(x: Int128, y: Int128): Int = x.compare(y)
+
+      override def quot(x: Int128, y: Int128): Int128 = x / y
+
+      override def rem(x: Int128, y: Int128): Int128 = x % y
+    }
+
 }
 
 final class Int128(val upperLong: Long, val lowerLong: Long)
@@ -204,7 +237,7 @@ final class Int128(val upperLong: Long, val lowerLong: Long)
     with Serializable
     with Ordered[Int128] {
 
-  private val bigInt = BigInt(this.toByteArray)
+  private[utils] val bigInt = BigInt(this.toByteArray)
 
   /** Returns a byte array containing this 128 bit unsigned integer in
     * big-endian format.

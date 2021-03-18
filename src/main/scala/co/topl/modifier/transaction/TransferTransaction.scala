@@ -146,11 +146,10 @@ object TransferTransaction {
     val polyBalance =
       senderBoxes
         .getOrElse("Poly", throw new Exception(s"No Poly funds available for the transaction fee payment"))
-        .map(_._3.value.quantity)
-        .foldLeft[Int128](0)(_ + _)
+        .map(_._3.value.quantity).sum
 
     // compute the amount of tokens that will be sent to the recipients
-    val amtToSpend = toReceive.map(_._2.quantity).foldLeft[Int128](0)(_ + _)
+    val amtToSpend = toReceive.map(_._2.quantity).sum
 
     // ensure there are enough polys to pay the fee
     require(polyBalance >= fee, s"Insufficient funds available to pay transaction fee.")
@@ -168,8 +167,7 @@ object TransferTransaction {
         val arbitBalance =
           senderBoxes
             .getOrElse("Arbit", throw new Exception(s"No Arbit funds available for the transaction"))
-            .map(_._3.value.quantity)
-            .foldLeft[Int128](0)(_ + _)
+            .map(_._3.value.quantity).sum
 
         (
           arbitBalance,
@@ -199,8 +197,7 @@ object TransferTransaction {
         val assetBalance =
           senderBoxes
             .getOrElse("Asset", throw new Exception(s"No Assets found with assetCode ${assetArgs.get._1}"))
-            .map(_._3.value.quantity)
-            .foldLeft[Int128](0)(_ + _)
+            .map(_._3.value.quantity).sum
 
         (
           assetBalance,
@@ -313,7 +310,7 @@ object TransferTransaction {
     }
 
     // compute transaction values used for validation
-    val txOutput = tx.newBoxes.map(b => b.value.quantity).foldLeft[Int128](0)(_ + _)
+    val txOutput = tx.newBoxes.map(b => b.value.quantity).sum
     val unlockers = BoxUnlocker.generate(tx.from, tx.attestation)
 
     // iterate through the unlockers and sum up the value of the box for each valid unlocker
