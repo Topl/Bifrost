@@ -1,6 +1,7 @@
 package co.topl.it.util
 
 import akka.actor.ActorSystem
+import co.topl.buildinfo.bifrost.BuildInfo
 import co.topl.utils.Logging
 import com.spotify.docker.client.DockerClient
 import com.spotify.docker.client.messages.ContainerConfig
@@ -48,6 +49,6 @@ class DockerSupport(dockerClient: DockerClient)(implicit system: ActorSystem) ex
 
 object DockerSupport {
 
-  val bifrostImage: String = "bifrost:1.3.4"
+  val bifrostImage: String = s"bifrost:${BuildInfo.version}"
   val networkNamePrefix: String = "bifrost-it"
 }
