@@ -4,11 +4,7 @@ import akka.actor._
 import akka.util.Timeout
 import akka.pattern.ask
 import co.topl.attestation.keyManagement.KeyManager.ForgerView
-import co.topl.attestation.keyManagement.KeyManager.ReceivableMessages.{
-  GetForgerView,
-  GetPublicKeyFromAddress,
-  SignMessageWithAddress
-}
+import co.topl.attestation.keyManagement.KeyManager.ReceivableMessages.{GenerateInititalAddresses, GetForgerView, GetPublicKeyFromAddress, SignMessageWithAddress}
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.Forger.{ChainParams, PickTransactionsResult}
 import co.topl.consensus.genesis.{HelGenesis, PrivateGenesis, ToplnetGenesis, ValhallaGenesis}
@@ -17,11 +13,7 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.CurrentView
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{
-  EliminateTransactions,
-  GetDataFromCurrentView,
-  LocallyGeneratedModifier
-}
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{EliminateTransactions, GetDataFromCurrentView, LocallyGeneratedModifier}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
@@ -88,13 +80,13 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
       nodeViewHolderRef = Some(nvhRef)
       context become readyToForge
 
-      (keyManager ? GetForgerView).mapTo[ForgerView].onComplete {
-        case Success(keyRing) =>
-          if (settings.forging.forgeOnStartup) {
-            if (keyRing.addresses.nonEmpty) self ! StartForging
-            else log.warn("Forging not started: no addresses in Key Ring!")
-          }
-        case Failure(ex) => log.warn("Forging not started: unable to get addresses from Key Ring.", ex)
+      (keyManager ? GenerateInititalAddresses).mapTo[Either[Throwable, ForgerView]].onComplete {
+        case Success(result) => result match {
+          case Right(ForgerView(_, Some(_))) => self ! StartForging
+          case Right(ForgerView(_, _)) => log.warn("Forging not started: no reward address set.")
+          case _ => log.warn("Forging not started: failed to generate initial addresses in Key Ring.")
+        }
+        case Failure(ex) => log.warn("Forging not started: failed to generate initial addresses in Key Ring: ", ex)
       }
   }
 
@@ -146,26 +138,27 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
     * NOTE: the default private network is set in AppContext so the fall-through should result in an error.
     */
   private def generateGenesis(implicit timeout: Timeout = 10 seconds): Unit = {
-    var blockResult = (keyManager ? GetForgerView)
-      .mapTo[ForgerView]
-      .map { forgerView =>
-        (appContext.networkType match {
-          case Mainnet         => ToplnetGenesis.getGenesisBlock
-          case ValhallaTestnet => ValhallaGenesis.getGenesisBlock
-          case HelTestnet      => HelGenesis.getGenesisBlock
-          case LocalTestnet    => PrivateGenesis(forgerView.addresses, settings).getGenesisBlock
-          case PrivateTestnet  => PrivateGenesis(forgerView.addresses, settings).getGenesisBlock
-          case _               => throw new Error("Undefined network type.")
-        }).map { case (block: Block, ChainParams(totalStake, initDifficulty)) =>
-          maxStake = totalStake
-          difficulty = initDifficulty
-          height = 0
-
-          block
-        }
+    def generatePrivateGenesis() =
+      (keyManager ? GenerateInititalAddresses).mapTo[Either[Throwable, ForgerView]].map {
+        case Right(view) => PrivateGenesis(view.addresses, settings).getGenesisBlock
+        case Left(ex) => throw new Error("Unable to generate genesis block, no addresses generated.", ex)
       }
 
-    sender() ! Await.result(blockResult, timeout.duration)
+    var blockResult = (appContext.networkType match {
+      case Mainnet         => ToplnetGenesis.getGenesisBlock
+      case ValhallaTestnet => ValhallaGenesis.getGenesisBlock
+      case HelTestnet      => HelGenesis.getGenesisBlock
+      case LocalTestnet | PrivateTestnet => Await.result(generatePrivateGenesis(), timeout.duration)
+      case _ => throw new Error("Undefined network type.")
+    }).map { case (block: Block, ChainParams(totalStake, initDifficulty)) =>
+      maxStake = totalStake
+      difficulty = initDifficulty
+      height = 0
+
+      block
+    }
+
+    sender() ! blockResult
   }
 
   /** Primary method for attempting to forge a new block and publish it to the network

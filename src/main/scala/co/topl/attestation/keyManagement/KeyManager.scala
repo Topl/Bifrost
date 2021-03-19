@@ -13,7 +13,7 @@ import scala.util.{Failure, Success}
 class KeyManager(
   private val initialKeyRing:       KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
   private val initialRewardAddress: Option[Address]
-)(implicit network: NetworkPrefix) extends Actor {
+)(implicit network: NetworkPrefix, settings: AppSettings, appContext: AppContext) extends Actor with Logging {
 
   import KeyManager.ReceivableMessages._
 
@@ -28,10 +28,11 @@ class KeyManager(
     case UpdateRewardsAddress(address)       => sender() ! updateRewardsAddress(keyRing, address)
     case GetRewardsAddress                   => sender() ! rewardAddress.fold("none")(_.toString)
     case GetForgerView                       => sender() ! ForgerView(keyRing.addresses, rewardAddress)
-    case SignMessageWithAddress(address: Address, message: Array[Byte]) 
+    case SignMessageWithAddress(address: Address, message: Array[Byte])
                                              => sender() ! signMessageWithAddress(address, message, keyRing)
-    case GetPublicKeyFromAddress(address: Address) 
+    case GetPublicKeyFromAddress(address: Address)
                                              => sender() ! getPublicKeyFromAddress(address, keyRing)
+    case GenerateInititalAddresses => sender() ! generateInitialAddresses(keyRing, rewardAddress)
   }
 
   /** Updates the rewards address from the API */
@@ -52,6 +53,34 @@ class KeyManager(
 
   private def getPublicKeyFromAddress(address: Address, keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519]) =
     keyRing.lookupPublicKey(address)
+
+  private def generateInitialAddresses(keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519], rewardAddress: Option[Address]): Either[Throwable, ForgerView] = {
+    if (keyRing.addresses.isEmpty && (appContext.networkType == LocalTestnet || appContext.networkType == PrivateTestnet)) {
+      settings.forging.privateTestnet match {
+        case Some(sfp) => {
+          val (num, seed) = (sfp.numTestnetAccts, sfp.genesisSeed)
+
+          keyRing
+            .generateNewKeyPairs(num, seed)
+            .map(keys => keys.map(_.publicImage.address)) match {
+            case Success(addresses)  => {
+              val newRewardAddress = if (rewardAddress.isEmpty) Some(addresses.head) else rewardAddress
+
+              context.become(receive(keyRing, newRewardAddress))
+
+              Right(ForgerView(addresses, newRewardAddress))
+            }
+            case Failure(error) => Left(error)
+          }
+        }
+        case _ =>
+          log.warn("No private testnet settings found!")
+          Right(ForgerView(keyRing.addresses, rewardAddress))
+      }
+    } else {
+      Right(ForgerView(keyRing.addresses, rewardAddress))
+    }
+  }
 }
 
 object KeyManager extends Logging {
@@ -80,61 +109,21 @@ object KeyManager extends Logging {
     case class SignMessageWithAddress(address: Address, message: Array[Byte])
 
     case class GetPublicKeyFromAddress(address: Address)
+
+    case object GenerateInititalAddresses
   }
 
 }
 
 object KeyManagerRef extends Logging {
+  def props(settings: AppSettings, appContext: AppContext)
+           (implicit ec: ExecutionContext, np: NetworkPrefix): Props = {
+    Props(new KeyManager(getKeyRing(settings), tryGetRewardsAddressFromSettings(settings.forging, appContext))(np, settings, appContext))
+  }
+
   def apply(name: String, settings: AppSettings, appContext: AppContext)
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
     system.actorOf(props(settings, appContext)(ec, appContext.networkType.netPrefix), name)
-
-  def props(settings: AppSettings, appContext: AppContext)
-           (implicit ec: ExecutionContext, np: NetworkPrefix): Props = {
-    val (keyRing, rewardAddress) = initializeKeyRingAndRewardAddress(settings, appContext)
-
-    Props(new KeyManager(keyRing, rewardAddress))
-  }
-
-  private def initializeKeyRingAndRewardAddress(appSettings: AppSettings, appContext: AppContext)
-    (implicit np: NetworkPrefix): (KeyRing[PrivateKeyCurve25519, KeyfileCurve25519], Option[Address]) = {
-    // if using private net
-    //  generate configured number of addresses with seed
-    //  set rewards as configured or head of generated
-    //  return keyring
-    // else return empty key ring
-
-    val keyRing = getKeyRing(appSettings)
-    val forgingSettings = appSettings.forging
-    val rewardAddress: Option[Address] = tryGetRewardsAddressFromSettings(forgingSettings, appContext)
-    
-    if(appContext.networkType == LocalTestnet || appContext.networkType == PrivateTestnet) {
-      forgingSettings.privateTestnet match {
-        case Some(sfp) => {
-          val (num, seed) = (sfp.numTestnetAccts, sfp.genesisSeed)
-
-          keyRing
-            .generateNewKeyPairs(num, seed)
-            .map(keys => keys.map(_.publicImage.address)) match {
-              case Success(addresses)  => {
-                val newRewardAddress = if (rewardAddress.isEmpty) Some(addresses.head) else rewardAddress
-
-                (keyRing, newRewardAddress)
-              }
-              case Failure(error) => 
-                log.warn("Failed to generate new keys!")
-                (keyRing, rewardAddress)
-            }
-        }
-        
-        case _ => 
-          log.warn("No private testnet settings found!")
-          (keyRing, rewardAddress)
-      }
-    } else {
-      (keyRing, rewardAddress)
-    }
-  }
 
   private def tryGetRewardsAddressFromSettings(
     forgingSettings: ForgingSettings,
