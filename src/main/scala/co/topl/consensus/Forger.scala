@@ -81,12 +81,21 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
     nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
-  private def initialization: Receive = {
+  private def initialization(implicit timeout: Timeout = 10 seconds): Receive = {
     case GenerateGenesis => generateGenesis
     case NodeViewReady(nvhRef: ActorRef) =>
       log.info(s"${Console.YELLOW}Forger transitioning to the operational state${Console.RESET}")
       nodeViewHolderRef = Some(nvhRef)
       context become readyToForge
+
+      (keyManager ? GetForgerView).mapTo[ForgerView].onComplete {
+        case Success(keyRing) =>
+          if (settings.forging.forgeOnStartup) {
+            if (keyRing.addresses.nonEmpty) self ! StartForging
+            else log.warn("Forging not started: no addresses in Key Ring!")
+          }
+        case Failure(ex) => log.warn("Forging not started: unable to get addresses from Key Ring.", ex)
+      }
   }
 
   private def readyHandlers: Receive = {
