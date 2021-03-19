@@ -1,22 +1,20 @@
 package co.topl.it.api
 
-import java.io.IOException
-import java.util.concurrent.TimeoutException
-
-import co.topl.it.util.TimerExt
-import io.netty.util.{HashedWheelTimer, Timer}
+import akka.actor.{ActorSystem, Scheduler}
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.{ContentTypes, HttpMethods, HttpRequest, StatusCode}
 import org.asynchttpclient._
-import org.asynchttpclient.Dsl.{post ⇒ _post}
-import org.asynchttpclient.util.HttpConstants
 import org.slf4j.{Logger, LoggerFactory}
 
-import scala.compat.java8.FutureConverters.CompletionStageOps
+import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.util.Success
 
 trait NodeApi {
 
   implicit def ec: ExecutionContext
+
+  implicit def system: ActorSystem
 
   def restAddress: String
 
@@ -24,16 +22,37 @@ trait NodeApi {
 
   protected val log: Logger = LoggerFactory.getLogger(s"${getClass.getName} $restAddress")
 
-  protected val client: AsyncHttpClient = new DefaultAsyncHttpClient
+  implicit def scheduler: Scheduler = system.scheduler
 
-  protected val timer: Timer = new HashedWheelTimer()
-
-  def post(path: String, data: String ,f: RequestBuilder ⇒ RequestBuilder = identity): Future[Response] =
-    retrying(
-      f(_post(s"http://$restAddress:$nodeRpcPort$path")
-        .setHeader("Content-Type", "application/json")
-        .setBody(data)
-      ).build())
+  def post(path: String, data: String, f: HttpRequest ⇒ HttpRequest = identity): Future[StrictHttpResponse] = {
+    val request =
+      f(
+        HttpRequest()
+          .withMethod(HttpMethods.POST)
+          .withUri(s"http://$restAddress:$nodeRpcPort$path")
+          .withEntity(ContentTypes.`application/json`, data)
+      )
+    akka.pattern
+      .retry(
+        () => Http().singleRequest(request),
+        attempts = 100,
+        1.seconds
+      )
+      .flatMap(response =>
+        response.entity
+          .toStrict(1.second)
+          .map(entity =>
+            StrictHttpResponse(
+              response.status,
+              response.headers.map(header => header.name() -> header.value()).toMap,
+              entity.data.utf8String
+            )
+          )
+      )
+      .andThen { case Success(strict) =>
+        log.info(s"Request: ${request.uri} \n Response: ${strict.body}")
+      }
+  }
 
   def rpcFormat(method: String, params: String = "[{}]"): String =
     s"""
@@ -42,45 +61,23 @@ trait NodeApi {
        |  "id": "1",
        |  "method": "$method",
        |  "params": $params
+       |}
        """.stripMargin
 
   def waitForStartup: Future[this.type] = {
-    val data = rpcFormat("info")
-    post("/debug", data).map(_ ⇒ this)
-  }
-
-
-  def retrying(request: Request,
-               interval: FiniteDuration = 1.second,
-               statusCode: Int = HttpConstants.ResponseStatusCodes.OK_200): Future[Response] = {
-    def executeRequest: Future[Response] = {
-      log.trace(s"Executing request '$request'")
-      client.executeRequest(request, new AsyncCompletionHandler[Response] {
-        override def onCompleted(response: Response): Response = {
-          if (response.getStatusCode == statusCode) {
-            log.debug(s"Request: ${request.getUrl} \n Response: ${response.getResponseBody}")
-            response
-          } else {
-            log.debug(s"Request:  ${request.getUrl} \n Unexpected status code(${response.getStatusCode}): " +
-              s"${response.getResponseBody}")
-            throw NodeApi.UnexpectedStatusCodeException(request, response)
-          }
-        }
-      }).toCompletableFuture.toScala
-        .recoverWith {
-          case e@(_: IOException | _: TimeoutException) =>
-            log.debug(s"Failed to execute request '$request' with error: ${e.getMessage}")
-            timer.schedule(executeRequest, interval)
-        }
-    }
-
-    executeRequest
+    val data = rpcFormat("debug_myBlocks")
+    post("/", data).map(_ ⇒ this)
   }
 }
 
 object NodeApi {
 
   case class UnexpectedStatusCodeException(request: Request, response: Response)
-    extends Exception(s"Request: ${request.getUrl}\n Unexpected status code (${response.getStatusCode}): " +
-      s"${response.getResponseBody}")
+      extends Exception(
+        s"Request: ${request.getUrl}\n Unexpected status code (${response.getStatusCode}): " +
+        s"${response.getResponseBody}"
+      )
+
 }
+
+case class StrictHttpResponse(statusCode: StatusCode, headers: Map[String, String], body: String)
