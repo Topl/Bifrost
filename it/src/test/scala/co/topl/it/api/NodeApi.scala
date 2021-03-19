@@ -1,43 +1,31 @@
 package co.topl.it.api
 
+import akka.Done
 import akka.actor.{ActorSystem, Scheduler}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{ContentTypes, HttpMethods, HttpRequest, StatusCode}
-import org.asynchttpclient._
+import co.topl.it.util.BifrostDockerNode
+import com.spotify.docker.client.DockerClient
 import org.slf4j.{Logger, LoggerFactory}
 
+import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Success
 
-trait NodeApi {
+class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem) {
 
-  implicit def ec: ExecutionContext
+  import system.dispatcher
 
-  implicit def system: ActorSystem
-
-  def restAddress: String
-
-  def nodeRpcPort: Int
-
-  protected val log: Logger = LoggerFactory.getLogger(s"${getClass.getName} $restAddress")
+  protected val log: Logger = LoggerFactory.getLogger(s"${getClass.getName} host=$host rpcPort=$rpcPort")
 
   implicit def scheduler: Scheduler = system.scheduler
 
-  def post(path: String, data: String, f: HttpRequest ⇒ HttpRequest = identity): Future[StrictHttpResponse] = {
-    val request =
-      f(
-        HttpRequest()
-          .withMethod(HttpMethods.POST)
-          .withUri(s"http://$restAddress:$nodeRpcPort$path")
-          .withEntity(ContentTypes.`application/json`, data)
-      )
-    akka.pattern
-      .retry(
-        () => Http().singleRequest(request),
-        attempts = 100,
-        1.seconds
-      )
+  def call(request: HttpRequest): Future[StrictHttpResponse] =
+    akka.pattern.retry(
+      () => Http().singleRequest(request),
+      attempts = 100,
+      1.seconds
+    )
       .flatMap(response =>
         response.entity
           .toStrict(1.second)
@@ -49,10 +37,20 @@ trait NodeApi {
             )
           )
       )
-      .andThen { case Success(strict) =>
-        log.info(s"Request: ${request.uri} \n Response: ${strict.body}")
+      .andThen {
+        case Success(strict) =>
+          log.debug(s"Request: ${request.uri} \n Response: ${strict.body}")
       }
-  }
+
+  def post(path: String, data: String, f: HttpRequest ⇒ HttpRequest = identity): Future[StrictHttpResponse] =
+    call(
+      f(
+        HttpRequest()
+          .withMethod(HttpMethods.POST)
+          .withUri(s"http://$host:$rpcPort$path")
+          .withEntity(ContentTypes.`application/json`, data)
+      )
+    )
 
   def rpcFormat(method: String, params: String = "[{}]"): String =
     s"""
@@ -64,20 +62,18 @@ trait NodeApi {
        |}
        """.stripMargin
 
-  def waitForStartup: Future[this.type] = {
+  def waitForStartup(): Future[Done] = {
     val data = rpcFormat("debug_myBlocks")
-    post("/", data).map(_ ⇒ this)
+    post("/", data).map(_ => Done)
   }
 }
 
-object NodeApi {
+object NodeRpcApi {
 
-  case class UnexpectedStatusCodeException(request: Request, response: Response)
-      extends Exception(
-        s"Request: ${request.getUrl}\n Unexpected status code (${response.getStatusCode}): " +
-        s"${response.getResponseBody}"
-      )
-
+  def apply(node: BifrostDockerNode)(implicit system: ActorSystem, dockerClient: DockerClient): NodeRpcApi = {
+    val host = dockerClient.inspectContainer(node.containerId).networkSettings().ipAddress()
+    new NodeRpcApi(host, BifrostDockerNode.RpcPort)
+  }
 }
 
 case class StrictHttpResponse(statusCode: StatusCode, headers: Map[String, String], body: String)

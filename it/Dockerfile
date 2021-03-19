@@ -49,6 +49,6 @@ WORKDIR /bifrost
 
 COPY . /bifrost
 
-RUN sbt clean compile
+RUN sbt compile
 
 ENTRYPOINT sbt bifrost/docker:publishLocal it/test
