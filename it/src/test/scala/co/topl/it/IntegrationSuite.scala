@@ -12,11 +12,9 @@ trait IntegrationSuite extends IntegrationConstants with BeforeAndAfterAll with 
 
   implicit val system: ActorSystem = ActorSystem("TestSuite")
 
-  protected val localDataDir: String = s"/tmp/bifrost/it-${Random.nextInt(Int.MaxValue)}"
-
   implicit val dockerClient: DefaultDockerClient = DefaultDockerClient.fromEnv().build()
 
-  protected implicit val dockerSupport: DockerSupport = new DockerSupport(dockerClient)
+  implicit val dockerSupport: DockerSupport = new DockerSupport(dockerClient)
 
   override def beforeAll(): Unit =
     log.debug("Starting integration tests")

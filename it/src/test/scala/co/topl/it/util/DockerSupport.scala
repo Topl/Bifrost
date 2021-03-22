@@ -2,6 +2,7 @@ package co.topl.it.util
 
 import akka.actor.ActorSystem
 import co.topl.buildinfo.bifrost.BuildInfo
+import co.topl.it.api.NodeRpcApi
 import co.topl.utils.Logging
 import com.spotify.docker.client.DockerClient
 import com.spotify.docker.client.messages.ContainerConfig
@@ -16,29 +17,32 @@ class DockerSupport(dockerClient: DockerClient)(implicit system: ActorSystem) ex
 
   private var nodeCache: Set[BifrostDockerNode] = Set.empty
 
-  def createNode(name: String, peers: List[String]): BifrostDockerNode = {
+  def createNode(name: String): BifrostDockerNode = {
     val containerName = networkName + "-" + name
-    val containerConfig =
-      buildContainerConfig(
-        peers.zipWithIndex.map { case (peerAddress, index) =>
-          s"BIFROST_KNOWN_PEERS.$index" -> peerAddress
-        }.toMap
-      )
+    val containerConfig = buildContainerConfig(Map.empty, containerName)
     val containerCreation = dockerClient.createContainer(containerConfig, containerName)
+
     val node = BifrostDockerNode(containerCreation.id())
     nodeCache += node
     node
   }
 
-  private def buildContainerConfig(environment: Map[String, String]): ContainerConfig =
+  private def buildContainerConfig(environment: Map[String, String], seed: String): ContainerConfig = {
+    val env =
+      environment.toList.map { case (key, value) => s"$key=$value" }
+
+    val cmd =
+      List("--apiKeyHash", NodeRpcApi.ApiKeyHashBase58, "-c", "/opt/docker/config/testConfig.conf", "-s", seed)
+
     ContainerConfig
       .builder()
       .image(DockerSupport.bifrostImage)
-      .exposedPorts(BifrostDockerNode.NetworkPort.toString, BifrostDockerNode.RpcPort.toString)
-      .env(
-        environment.toList.map { case (key, value) => s"$key=$value" }: _*
-      )
+      .env(env: _*)
+      .volumes("/opt/docker/config")
+      .cmd(cmd: _*)
       .build()
+
+  }
 
   def close(): Unit =
     nodeCache
