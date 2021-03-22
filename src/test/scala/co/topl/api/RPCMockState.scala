@@ -58,7 +58,7 @@ trait RPCMockState extends AnyWordSpec
     AdminApiEndpoint(settings.rpcApi, appContext, forgerRef, keyManagerRef),
     NodeViewApiEndpoint(rpcSettings.rpcApi, appContext, nodeViewHolderRef),
     TransactionApiEndpoint(rpcSettings.rpcApi, appContext, nodeViewHolderRef),
-    DebugApiEndpoint(rpcSettings.rpcApi, appContext, nodeViewHolderRef, forgerRef)
+    DebugApiEndpoint(rpcSettings.rpcApi, appContext, nodeViewHolderRef, keyManagerRef)
   )
 
   private val httpService = HttpService(apiRoutes, rpcSettings.rpcApi)

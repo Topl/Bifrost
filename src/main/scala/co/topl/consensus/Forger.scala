@@ -23,17 +23,14 @@ import co.topl.utils.TimeProvider.Time
 import co.topl.utils.{Int128, Logging, TimeProvider}
 
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future, TimeoutException}
 import scala.util.{Failure, Success, Try}
 
 /** Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
   * Must be singleton
   */
-class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef)(implicit
-  ec:                  ExecutionContext,
-  np:                  NetworkPrefix
-) extends Actor
-    with Logging {
+class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef)
+            (implicit ec: ExecutionContext, np: NetworkPrefix) extends Actor with Logging {
 
   //type HR = HistoryReader[Block, BifrostSyncInfo]
   type TX = Transaction.TX
@@ -79,15 +76,7 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
       log.info(s"${Console.YELLOW}Forger transitioning to the operational state${Console.RESET}")
       nodeViewHolderRef = Some(nvhRef)
       context become readyToForge
-
-      (keyManager ? GenerateInititalAddresses).mapTo[Either[Throwable, ForgerView]].onComplete {
-        case Success(result) => result match {
-          case Right(ForgerView(_, Some(_))) => self ! StartForging
-          case Right(ForgerView(_, _)) => log.warn("Forging not started: no reward address set.")
-          case _ => log.warn("Forging not started: failed to generate initial addresses in Key Ring.")
-        }
-        case Failure(ex) => log.warn("Forging not started: failed to generate initial addresses in Key Ring: ", ex)
-      }
+      checkPrivateForging()
   }
 
   private def readyHandlers: Receive = {
@@ -123,6 +112,31 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
   /** Updates the forging actors timestamp */
   private def updateForgeTime(): Unit = forgeTime = appContext.timeProvider.time
 
+  /** Initializes addresses, updates max stake, and begins forging if using private network.
+    * @param timeout time to wait for responses from key manager
+    */
+  private def checkPrivateForging()(implicit timeout: Timeout): Unit =
+    if (appContext.networkType == PrivateTestnet || appContext.networkType == LocalTestnet) {
+      (keyManager ? GenerateInititalAddresses)
+        .mapTo[Try[ForgerView]] map {
+        case Success(ForgerView(_, Some(_))) =>
+          settings.forging.privateTestnet.foreach { sfp =>
+            maxStake = sfp.numTestnetAccts * sfp.numTestnetAccts
+          }
+
+          if (settings.forging.forgeOnStartup) self ! StartForging
+
+        case Success(ForgerView(_, None)) =>
+          log.warn("Forging not started: no reward address set.")
+        case _ =>
+          log.warn("Forging not started: failed to generate initial addresses in Key Ring.")
+      } onComplete {
+        case Success(_) => ()
+        case Failure(ex) =>
+          log.warn("Forging not started: failed to generate initial addresses in Key Ring: ", ex)
+      }
+    }
+
   /** Schedule a forging attempt */
   private def scheduleForgingAttempt(): Unit =
     nodeViewHolderRef match {
@@ -141,15 +155,15 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
     def generatePrivateGenesis() =
       (keyManager ? GenerateInititalAddresses).mapTo[Either[Throwable, ForgerView]].map {
         case Right(view) => PrivateGenesis(view.addresses, settings).getGenesisBlock
-        case Left(ex) => throw new Error("Unable to generate genesis block, no addresses generated.", ex)
+        case Left(ex)    => throw new Error("Unable to generate genesis block, no addresses generated.", ex)
       }
 
     var blockResult = (appContext.networkType match {
-      case Mainnet         => ToplnetGenesis.getGenesisBlock
-      case ValhallaTestnet => ValhallaGenesis.getGenesisBlock
-      case HelTestnet      => HelGenesis.getGenesisBlock
+      case Mainnet                       => ToplnetGenesis.getGenesisBlock
+      case ValhallaTestnet               => ValhallaGenesis.getGenesisBlock
+      case HelTestnet                    => HelGenesis.getGenesisBlock
       case LocalTestnet | PrivateTestnet => Await.result(generatePrivateGenesis(), timeout.duration)
-      case _ => throw new Error("Undefined network type.")
+      case _                             => throw new Error("Undefined network type.")
     }).map { case (block: Block, ChainParams(totalStake, initDifficulty)) =>
       maxStake = totalStake
       difficulty = initDifficulty
@@ -183,25 +197,33 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
         self ! StopForging
     }
 
-  private def publicKeyFromAddress(
-    address:          Address
-  )(implicit timeout: Timeout = settings.forging.blockGenerationDelay): Try[PublicKeyPropositionCurve25519] = {
+  private def publicKeyFromAddress(address:Address)
+                                  (implicit timeout: Timeout = settings.forging.blockGenerationDelay):
+    Try[PublicKeyPropositionCurve25519] = {
+
     val getPublicKey = (keyManager ? GetPublicKeyFromAddress(address)).mapTo[Try[PublicKeyPropositionCurve25519]]
-    Await.result(getPublicKey, settings.forging.blockGenerationDelay)
+
+    Try(Await.result(getPublicKey, timeout.duration)) match {
+      case Success(value) => value
+      case Failure(exception) => Failure(exception)
+    }
   }
 
-  private def signWithAddress(address: Address)(
-    message:                           Array[Byte]
-  )(implicit timeout:                  Timeout = settings.forging.blockGenerationDelay): Try[SignatureCurve25519] = {
+  private def signWithAddress(address: Address)(message: Array[Byte])
+                             (implicit timeout: Timeout = settings.forging.blockGenerationDelay): Try[SignatureCurve25519] = {
     val signFunction = (keyManager ? SignMessageWithAddress(address, message)).mapTo[Try[SignatureCurve25519]]
-    Await.result(signFunction, settings.forging.blockGenerationDelay)
+
+    Try(Await.result(signFunction, timeout.duration)) match {
+      case Success(value) => value
+      case Failure(exception) => Failure(exception)
+    }
   }
 
   private def forge(
-    history:              History,
-    state:                State,
-    memPool:              MemPool,
-    forgerView:           ForgerView
+    history:    History,
+    state:      State,
+    memPool:    MemPool,
+    forgerView: ForgerView
   ): Unit = {
     log.debug(
       s"${Console.MAGENTA}Attempting to forge with settings ${protocolMngr.current(history.height)} " +
@@ -410,8 +432,10 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
         // lookup the public associated with the box,
         // (this is separate from the signing function so that the private key never leaves the KeyRing)
         val publicKey = publicKeyFromAddress(matchingAddr) match {
-          case Success(pk) => pk
-          case Failure(error) => throw error
+          case Success(pk)    => pk
+          case Failure(error) =>
+            log.warn("Error occurred while getting public key for address.")
+            throw error
         }
 
         // use the private key that owns the generator box to create a function that will sign the new block

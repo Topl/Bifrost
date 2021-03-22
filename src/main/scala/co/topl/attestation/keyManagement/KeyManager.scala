@@ -8,12 +8,14 @@ import co.topl.utils.NetworkType._
 import co.topl.utils.Logging
 
 import scala.concurrent.ExecutionContext
-import scala.util.{Failure, Success}
+import scala.util.{Try, Failure, Success}
 
 class KeyManager(
   private val initialKeyRing:       KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
   private val initialRewardAddress: Option[Address]
-)(implicit network: NetworkPrefix, settings: AppSettings, appContext: AppContext) extends Actor with Logging {
+)(implicit network:NetworkPrefix, settings: AppSettings, appContext: AppContext)
+    extends Actor
+    with Logging {
 
   import KeyManager.ReceivableMessages._
 
@@ -28,11 +30,10 @@ class KeyManager(
     case UpdateRewardsAddress(address)       => sender() ! updateRewardsAddress(keyRing, address)
     case GetRewardsAddress                   => sender() ! rewardAddress.fold("none")(_.toString)
     case GetForgerView                       => sender() ! ForgerView(keyRing.addresses, rewardAddress)
-    case SignMessageWithAddress(address: Address, message: Array[Byte])
-                                             => sender() ! signMessageWithAddress(address, message, keyRing)
-    case GetPublicKeyFromAddress(address: Address)
-                                             => sender() ! getPublicKeyFromAddress(address, keyRing)
-    case GenerateInititalAddresses => sender() ! generateInitialAddresses(keyRing, rewardAddress)
+    case SignMessageWithAddress(address: Address, message: Array[Byte]) =>
+      sender() ! signMessageWithAddress(address, message, keyRing)
+    case GetPublicKeyFromAddress(address: Address) => sender() ! getPublicKeyFromAddress(address, keyRing)
+    case GenerateInititalAddresses                 => sender() ! generateInitialAddresses(keyRing, rewardAddress)
   }
 
   /** Updates the rewards address from the API */
@@ -46,41 +47,42 @@ class KeyManager(
   }
 
   private def signMessageWithAddress(
-      address: Address,
-      message: Array[Byte],
-      keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519]) =
+    address: Address,
+    message: Array[Byte],
+    keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519]
+  ) =
     keyRing.signWithAddress(address)(message)
 
   private def getPublicKeyFromAddress(address: Address, keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519]) =
     keyRing.lookupPublicKey(address)
 
-  private def generateInitialAddresses(keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519], rewardAddress: Option[Address]): Either[Throwable, ForgerView] = {
-    if (keyRing.addresses.isEmpty && (appContext.networkType == LocalTestnet || appContext.networkType == PrivateTestnet)) {
+  private def generateInitialAddresses(
+    keyRing:       KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+    rewardAddress: Option[Address]
+  ): Try[ForgerView] =
+    if (keyRing.addresses.isEmpty &&
+        (appContext.networkType == LocalTestnet || appContext.networkType == PrivateTestnet)) {
       settings.forging.privateTestnet match {
-        case Some(sfp) => {
-          val (num, seed) = (sfp.numTestnetAccts, sfp.genesisSeed)
+        case Some(sfp) =>
+          val (numAccts, seed) = (sfp.numTestnetAccts, sfp.genesisSeed)
 
           keyRing
-            .generateNewKeyPairs(num, seed)
-            .map(keys => keys.map(_.publicImage.address)) match {
-            case Success(addresses)  => {
+            .generateNewKeyPairs(numAccts, seed)
+            .map(keys => keys.map(_.publicImage.address))
+            .map { addresses =>
               val newRewardAddress = if (rewardAddress.isEmpty) Some(addresses.head) else rewardAddress
 
               context.become(receive(keyRing, newRewardAddress))
 
-              Right(ForgerView(addresses, newRewardAddress))
+              ForgerView(addresses, newRewardAddress)
             }
-            case Failure(error) => Left(error)
-          }
-        }
         case _ =>
           log.warn("No private testnet settings found!")
-          Right(ForgerView(keyRing.addresses, rewardAddress))
+          Success(ForgerView(keyRing.addresses, rewardAddress))
       }
     } else {
-      Right(ForgerView(keyRing.addresses, rewardAddress))
+      Success(ForgerView(keyRing.addresses, rewardAddress))
     }
-  }
 }
 
 object KeyManager extends Logging {
@@ -116,13 +118,20 @@ object KeyManager extends Logging {
 }
 
 object KeyManagerRef extends Logging {
-  def props(settings: AppSettings, appContext: AppContext)
-           (implicit ec: ExecutionContext, np: NetworkPrefix): Props = {
-    Props(new KeyManager(getKeyRing(settings), tryGetRewardsAddressFromSettings(settings.forging, appContext))(np, settings, appContext))
-  }
 
-  def apply(name: String, settings: AppSettings, appContext: AppContext)
-           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+  def props(settings: AppSettings, appContext: AppContext)(implicit ec: ExecutionContext, np: NetworkPrefix): Props =
+    Props(
+      new KeyManager(getKeyRing(settings), tryGetRewardsAddressFromSettings(settings.forging, appContext))(
+        np,
+        settings,
+        appContext
+      )
+    )
+
+  def apply(name: String, settings: AppSettings, appContext: AppContext)(implicit
+    system:       ActorSystem,
+    ec:           ExecutionContext
+  ): ActorRef =
     system.actorOf(props(settings, appContext)(ec, appContext.networkType.netPrefix), name)
 
   private def tryGetRewardsAddressFromSettings(
@@ -139,8 +148,9 @@ object KeyManagerRef extends Logging {
       }
     }
 
-  private def getKeyRing(settings: AppSettings)
-    (implicit np: NetworkPrefix): KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] = {
+  private def getKeyRing(
+    settings:    AppSettings
+  )(implicit np: NetworkPrefix): KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] = {
     val keyFileDir = settings.application.keyFileDir
       .ensuring(_.isDefined, "A keyfile directory must be specified")
       .get
