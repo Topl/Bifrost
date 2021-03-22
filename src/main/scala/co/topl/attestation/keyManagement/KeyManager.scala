@@ -60,6 +60,9 @@ class KeyManager(
     keyRing:       KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
     rewardAddress: Option[Address]
   ): Try[ForgerView] =
+    // If the keyring is not already populated and this is a private/local testnet, generate the keys
+    // this is for when you have started up a private network and are attempting to resume it using
+    // the same seed you used previously to continue forging
     if (keyRing.addresses.isEmpty && Seq(PrivateTestnet, LocalTestnet).contains(appContext.networkType)) {
       settings.forging.privateTestnet match {
         case Some(sfp) =>

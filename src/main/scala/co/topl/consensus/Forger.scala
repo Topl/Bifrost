@@ -75,8 +75,8 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
     case NodeViewReady(nvhRef: ActorRef) =>
       log.info(s"${Console.YELLOW}Forger transitioning to the operational state${Console.RESET}")
       nodeViewHolderRef = Some(nvhRef)
+      checkPrivateForging() // Generate keys again for private forging
       context become readyToForge
-      checkPrivateForging()
   }
 
   private def readyHandlers: Receive = {
@@ -120,9 +120,12 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
       (keyManager ? GenerateInititalAddresses)
         .mapTo[Try[ForgerView]].map {
         case Success(ForgerView(_, Some(_))) =>
+          // Update the maxStake by calculating the total amount of balance from all accounts
+          // TODO: JAA - we need to save these values to disk
           settings.forging.privateTestnet.foreach(sfp => maxStake = sfp.numTestnetAccts * sfp.testnetBalance)
-          if (settings.forging.forgeOnStartup) self ! StartForging
 
+          // if forging has been enabled, then we should send the StartForging signal
+          if (settings.forging.forgeOnStartup) self ! StartForging
         case Success(ForgerView(_, None)) =>
           log.warn("Forging not started: no reward address set.")
         case _ =>
@@ -139,7 +142,6 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
     nodeViewHolderRef match {
       case Some(nvh: ActorRef) =>
         context.system.scheduler.scheduleOnce(settings.forging.blockGenerationDelay)(nvh ! GetDataFromCurrentView)
-
       case _ =>
         log.warn("No ledger actor found. Stopping forging attempts")
         self ! StopForging
