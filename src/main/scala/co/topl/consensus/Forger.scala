@@ -116,14 +116,11 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
     * @param timeout time to wait for responses from key manager
     */
   private def checkPrivateForging()(implicit timeout: Timeout): Unit =
-    if (appContext.networkType == PrivateTestnet || appContext.networkType == LocalTestnet) {
+    if (Seq(PrivateTestnet, LocalTestnet).contains(appContext.networkType)) {
       (keyManager ? GenerateInititalAddresses)
-        .mapTo[Try[ForgerView]] map {
+        .mapTo[Try[ForgerView]].map {
         case Success(ForgerView(_, Some(_))) =>
-          settings.forging.privateTestnet.foreach { sfp =>
-            maxStake = sfp.numTestnetAccts * sfp.numTestnetAccts
-          }
-
+          settings.forging.privateTestnet.foreach(sfp => maxStake = sfp.numTestnetAccts * sfp.testnetBalance)
           if (settings.forging.forgeOnStartup) self ! StartForging
 
         case Success(ForgerView(_, None)) =>
@@ -153,12 +150,13 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
     */
   private def generateGenesis(implicit timeout: Timeout = 10 seconds): Unit = {
     def generatePrivateGenesis() =
-      (keyManager ? GenerateInititalAddresses).mapTo[Either[Throwable, ForgerView]].map {
-        case Right(view) => PrivateGenesis(view.addresses, settings).getGenesisBlock
-        case Left(ex)    => throw new Error("Unable to generate genesis block, no addresses generated.", ex)
+      (keyManager ? GenerateInititalAddresses).mapTo[Try[ForgerView]].map {
+        case Success(view) => PrivateGenesis(view.addresses, settings).getGenesisBlock
+        case Failure(ex)   =>
+          throw new Error("Unable to generate genesis block, no addresses generated.", ex)
       }
 
-    var blockResult = (appContext.networkType match {
+    val blockResult = (appContext.networkType match {
       case Mainnet                       => ToplnetGenesis.getGenesisBlock
       case ValhallaTestnet               => ValhallaGenesis.getGenesisBlock
       case HelTestnet                    => HelGenesis.getGenesisBlock
@@ -209,8 +207,8 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
     }
   }
 
-  private def signWithAddress(address: Address)(message: Array[Byte])
-                             (implicit timeout: Timeout = settings.forging.blockGenerationDelay): Try[SignatureCurve25519] = {
+  private def signWithAddress(address: Address)(message: Array[Byte])(
+    implicit timeout: Timeout = settings.forging.blockGenerationDelay): Try[SignatureCurve25519] = {
     val signFunction = (keyManager ? SignMessageWithAddress(address, message)).mapTo[Try[SignatureCurve25519]]
 
     Try(Await.result(signFunction, timeout.duration)) match {

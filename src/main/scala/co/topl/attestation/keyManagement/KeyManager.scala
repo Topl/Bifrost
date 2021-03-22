@@ -60,8 +60,7 @@ class KeyManager(
     keyRing:       KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
     rewardAddress: Option[Address]
   ): Try[ForgerView] =
-    if (keyRing.addresses.isEmpty &&
-        (appContext.networkType == LocalTestnet || appContext.networkType == PrivateTestnet)) {
+    if (keyRing.addresses.isEmpty && Seq(PrivateTestnet, LocalTestnet).contains(appContext.networkType)) {
       settings.forging.privateTestnet match {
         case Some(sfp) =>
           val (numAccts, seed) = (sfp.numTestnetAccts, sfp.genesisSeed)
