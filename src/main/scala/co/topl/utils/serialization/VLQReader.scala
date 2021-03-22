@@ -3,7 +3,7 @@ package co.topl.utils.serialization
 import java.util
 
 import co.topl.utils.Int128
-import co.topl.utils.serialization.Extensions._
+import co.topl.utils.Extensions._
 import co.topl.utils.serialization.ZigZagEncoder._
 
 trait VLQReader extends Reader {
