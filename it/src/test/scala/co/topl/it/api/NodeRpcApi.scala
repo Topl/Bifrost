@@ -17,6 +17,7 @@ import org.slf4j.{Logger, LoggerFactory}
 import scorex.crypto.hash.{Blake2b256, Digest32}
 import scorex.util.encode.Base58
 
+import java.util.UUID
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.util.Success
@@ -67,7 +68,7 @@ class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem) {
     params: NonEmptyList[Json] = NonEmptyList.of(Json.obj())
   ): Future[Either[NodeApiError, Json]] =
     EitherT
-      .right(post("/", rpcFormat(method, params)))
+      .right(post("/", encodeRpcBody(method, params)))
       .subflatMap(response =>
         response.statusCode match {
           case StatusCodes.OK => Right(response)
@@ -77,21 +78,21 @@ class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem) {
       .subflatMap(response => parse(response.body).left.map(JsonParsingError))
       .value
 
-  def rpcFormat(method: String, params: NonEmptyList[Json]): String =
+  def encodeRpcBody(method: String, params: NonEmptyList[Json]): String =
     RpcIn(
-      id = "1",
       method = method,
       params = params
     ).asJson.toString()
 
   def waitForStartup(): Future[Done] =
-    debug
-      .myBlocks()
-      .collect {
-        case Right(blocks) if blocks >= 0 => Done
-      }
+    call(
+      HttpRequest()
+        .withUri(s"http://$host:$rpcPort/status")
+    )
+      .filter(_.statusCode.isSuccess())
+      .map(_ => Done)
 
-  object debug {
+  object Debug {
 
     def myBlocks(): Future[Either[NodeApiError, Long]] =
       EitherT(rpc("debug_myBlocks"))
@@ -114,7 +115,12 @@ object NodeRpcApi {
 
 case class StrictHttpResponse(statusCode: StatusCode, headers: Map[String, String], body: String)
 
-case class RpcIn(jsonrpc: String = "2.0", id: String, method: String, params: NonEmptyList[Json])
+case class RpcIn(
+  jsonrpc: String = "2.0",
+  id:      String = UUID.randomUUID().toString,
+  method:  String,
+  params:  NonEmptyList[Json]
+)
 
 sealed trait NodeApiError
 case class JsonParsingError(parsingFailure: ParsingFailure) extends NodeApiError
