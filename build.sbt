@@ -24,7 +24,7 @@ resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releas
 val akkaVersion = "2.6.10"
 val akkaHttpVersion = "10.2.1"
 val circeVersion = "0.13.0"
-val kamonVersion = "2.1.12"
+val kamonVersion = "2.1.13"
 val graalVersion = "21.0.0"
 
 val akkaDependencies = Seq(
