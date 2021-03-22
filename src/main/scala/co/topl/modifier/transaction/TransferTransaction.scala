@@ -1,15 +1,16 @@
 package co.topl.modifier.transaction
 
-import java.nio.charset.StandardCharsets
-
 import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.attestation.{Evidence, _}
 import co.topl.modifier.BoxReader
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.box.{Box, _}
+import co.topl.utils.Extensions.StringOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Identifiable, Int128}
 import com.google.common.primitives.{Ints, Longs}
+import io.circe.Json
+import io.circe.syntax.EncoderOps
 import scorex.crypto.hash.Blake2b256
 
 import scala.util.{Failure, Success, Try}
@@ -81,6 +82,10 @@ object TransferTransaction {
       }
 
     (feeChangeParams, outputParams)
+  }
+
+  def encodeFrom(from: IndexedSeq[(Address, Box.Nonce)]): Json = {
+    from.map(x => (x._1.asJson, x._2.toString.asJson)).asJson
   }
 
   /** Retrieves the boxes from state for the specified sequence of senders and filters them based on the type of transaction */
@@ -240,7 +245,10 @@ object TransferTransaction {
     }
 
     require(tx.timestamp >= 0L, "Invalid timestamp")
-    require(tx.data.forall(_.getBytes(StandardCharsets.ISO_8859_1).length <= 128), "Data field must be less than 128 bytes")
+    require(
+      tx.data.forall(_.getValidLatin1Bytes.getOrElse(throw new Exception("String is not valid Latin-1")).length <= 128),
+      "Data field must be less than 128 bytes"
+    )
 
     // prototype transactions do not contain signatures at creation
     if (hasAttMap) {
@@ -295,7 +303,7 @@ object TransferTransaction {
     T <: TokenValueHolder,
     P <: Proposition: EvidenceProducer
   ](tx:            TransferTransaction[T, P], boxReader: BoxReader[ProgramId, Address])(implicit
-                                                                                        networkPrefix: NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): Try[Unit] = {
 
     // check that the transaction is correctly formed before checking state
