@@ -1,10 +1,10 @@
 package co.topl.consensus
 
 import akka.actor._
-import akka.util.Timeout
 import akka.pattern.ask
+import akka.util.Timeout
 import co.topl.attestation.keyManagement.KeyManager.ForgerView
-import co.topl.attestation.keyManagement.KeyManager.ReceivableMessages.{GenerateInititalAddresses, GetForgerView, GetPublicKeyFromAddress, SignMessageWithAddress}
+import co.topl.attestation.keyManagement.KeyManager.ReceivableMessages._
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.Forger.{ChainParams, PickTransactionsResult}
 import co.topl.consensus.genesis.{HelGenesis, PrivateGenesis, ToplnetGenesis, ValhallaGenesis}
@@ -13,7 +13,7 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.CurrentView
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{EliminateTransactions, GetDataFromCurrentView, LocallyGeneratedModifier}
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages._
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
@@ -23,7 +23,7 @@ import co.topl.utils.TimeProvider.Time
 import co.topl.utils.{Int128, Logging, TimeProvider}
 
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{Await, ExecutionContext, Future, TimeoutException}
+import scala.concurrent.{Await, ExecutionContext}
 import scala.util.{Failure, Success, Try}
 
 /** Forger takes care of attempting to create new blocks using the wallet provided in the NodeView

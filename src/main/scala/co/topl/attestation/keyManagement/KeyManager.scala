@@ -3,12 +3,12 @@ package co.topl.attestation.keyManagement
 import akka.actor._
 import co.topl.attestation.keyManagement.KeyManager.ForgerView
 import co.topl.attestation.{Address, AddressEncoder}
-import co.topl.settings.{AppContext, AppSettings, ForgingSettings, PrivateTestnetSettings}
-import co.topl.utils.NetworkType._
+import co.topl.settings.{AppContext, AppSettings, ForgingSettings}
 import co.topl.utils.Logging
+import co.topl.utils.NetworkType._
 
 import scala.concurrent.ExecutionContext
-import scala.util.{Try, Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 class KeyManager(
   private val initialKeyRing:       KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
