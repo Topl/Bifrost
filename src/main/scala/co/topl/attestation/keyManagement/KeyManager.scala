@@ -22,18 +22,18 @@ class KeyManager(
   override def receive: Receive = receive(initialKeyRing, initialRewardAddress)
 
   def receive(keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519], rewardAddress: Option[Address]): Receive = {
-    case CreateKey(password)                 => sender() ! keyRing.DiskOps.generateKeyFile(password)
-    case UnlockKey(addr, password)           => sender() ! keyRing.DiskOps.unlockKeyFile(addr, password)
-    case LockKey(addr)                       => sender() ! keyRing.removeFromKeyring(addr)
-    case ImportKey(password, mnemonic, lang) => sender() ! keyRing.importPhrase(password, mnemonic, lang)
-    case ListKeys                            => sender() ! keyRing.addresses
-    case UpdateRewardsAddress(address)       => sender() ! updateRewardsAddress(keyRing, address)
-    case GetRewardsAddress                   => sender() ! rewardAddress.fold("none")(_.toString)
-    case GetForgerView                       => sender() ! ForgerView(keyRing.addresses, rewardAddress)
+    case CreateKey(password)                        => sender() ! keyRing.DiskOps.generateKeyFile(password)
+    case UnlockKey(addr, password)                  => sender() ! keyRing.DiskOps.unlockKeyFile(addr, password)
+    case LockKey(addr)                              => sender() ! keyRing.removeFromKeyring(addr)
+    case ImportKey(password, mnemonic, lang)        => sender() ! keyRing.importPhrase(password, mnemonic, lang)
+    case ListKeys                                   => sender() ! keyRing.addresses
+    case UpdateRewardsAddress(address)              => sender() ! updateRewardsAddress(keyRing, address)
+    case GetRewardsAddress                          => sender() ! rewardAddress.fold("none")(_.toString)
+    case GetForgerView                              => sender() ! ForgerView(keyRing.addresses, rewardAddress)
     case SignMessageWithAddress(address: Address, message: Array[Byte]) =>
       sender() ! signMessageWithAddress(address, message, keyRing)
-    case GetPublicKeyFromAddress(address: Address) => sender() ! getPublicKeyFromAddress(address, keyRing)
-    case GenerateInititalAddresses                 => sender() ! generateInitialAddresses(keyRing, rewardAddress)
+    case GetPublicKeyFromAddress(address: Address)  => sender() ! getPublicKeyFromAddress(address, keyRing)
+    case GenerateInititalAddresses                  => sender() ! generateInitialAddresses(keyRing, rewardAddress)
   }
 
   /** Updates the rewards address from the API */
@@ -46,6 +46,13 @@ class KeyManager(
     newRewardAddress.fold("none")(_.toString)
   }
 
+  /**
+    * Signs a message using an address in the given key ring.
+    * @param address the address to sign with
+    * @param message the message to sign
+    * @param keyRing contains the address secret to sign with
+    * @return a try which results in a proof if successful
+    */
   private def signMessageWithAddress(
     address: Address,
     message: Array[Byte],
@@ -53,9 +60,16 @@ class KeyManager(
   ) =
     keyRing.signWithAddress(address)(message)
 
+  /** Gets a public key from a given address */
   private def getPublicKeyFromAddress(address: Address, keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519]) =
     keyRing.lookupPublicKey(address)
 
+  /**
+    * Generates the initial addresses in the node for a private or local test network.
+    * @param keyRing the key ring to generate addresses in
+    * @param rewardAddress the current reward address
+    * @return a try which results in a ForgerView of the current addresses and rewards address
+    */
   private def generateInitialAddresses(
     keyRing:       KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
     rewardAddress: Option[Address]
@@ -123,7 +137,7 @@ object KeyManagerRef extends Logging {
 
   def props(settings: AppSettings, appContext: AppContext)(implicit ec: ExecutionContext, np: NetworkPrefix): Props =
     Props(
-      new KeyManager(getKeyRing(settings), tryGetRewardsAddressFromSettings(settings.forging, appContext))(
+      new KeyManager(createKeyRing(settings), tryGetRewardsAddressFromSettings(settings.forging, appContext))(
         np,
         settings,
         appContext
@@ -136,6 +150,7 @@ object KeyManagerRef extends Logging {
   ): ActorRef =
     system.actorOf(props(settings, appContext)(ec, appContext.networkType.netPrefix), name)
 
+  /** Tries to get a configured rewards address from the forging settings. */
   private def tryGetRewardsAddressFromSettings(
     forgingSettings: ForgingSettings,
     appContext:      AppContext
@@ -150,7 +165,8 @@ object KeyManagerRef extends Logging {
       }
     }
 
-  private def getKeyRing(
+  /** Creates a new key ring. */
+  private def createKeyRing(
     settings:    AppSettings
   )(implicit np: NetworkPrefix): KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] = {
     val keyFileDir = settings.application.keyFileDir
