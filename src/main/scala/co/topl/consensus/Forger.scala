@@ -32,14 +32,15 @@ import scala.util.{Failure, Success, Try}
   * Must be singleton
   */
 class Forger[
-  TX <: Transaction.TX,
   SI <: SyncInfo,
-  PMOD <: PersistentNodeViewModifier,
-  HR <: HistoryReader[PMOD, SI] : ClassTag,
-  SR <: StateReader[ProgramId, Address] : ClassTag,
-  MR <: MemPoolReader[TX] : ClassTag
+  PMOD <: PersistentNodeViewModifier
 ](settings: AppSettings, appContext: AppContext, keyManager: ActorRef)
  (implicit ec: ExecutionContext, np: NetworkPrefix) extends Actor with Logging {
+
+  type TX = Transaction.TX
+  type HR = HistoryReader[PMOD, SI]
+  type SR = StateReader[ProgramId, Address]
+  type MR = MemPoolReader[TX]
 
   // Import the types of messages this actor RECEIVES
   import Forger.ReceivableMessages._
@@ -103,7 +104,7 @@ class Forger[
       log.info(s"Forger: Received a stop signal. Forging will terminate after this trial")
       context become readyToForge
 
-    case CurrentView(historyReader: HR, stateReader: SR, mempoolReader: MR) =>
+    case CurrentView(historyReader: HR, stateReader: SR @unchecked, mempoolReader: MR @unchecked) =>
       updateForgeTime() // update the forge timestamp
       tryForging(historyReader, stateReader, mempoolReader) // initiate forging attempt
       scheduleForgingAttempt() // schedule the next forging attempt
