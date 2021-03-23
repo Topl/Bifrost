@@ -9,14 +9,15 @@ import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCu
 import co.topl.consensus.Forger.{ChainParams, PickTransactionsResult}
 import co.topl.consensus.genesis.{HelGenesis, PrivateGenesis, ToplnetGenesis, ValhallaGenesis}
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.Block
-import co.topl.modifier.box.{ArbitBox, SimpleValue}
+import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
+import co.topl.modifier.box.{ArbitBox, ProgramId, SimpleValue}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
+import co.topl.network.message.SyncInfo
 import co.topl.nodeView.CurrentView
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages._
-import co.topl.nodeView.history.History
-import co.topl.nodeView.mempool.MemPool
-import co.topl.nodeView.state.State
+import co.topl.nodeView.history.{History, HistoryReader}
+import co.topl.nodeView.mempool.{MemPool, MemPoolReader}
+import co.topl.nodeView.state.{State, StateReader}
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.NetworkType._
 import co.topl.utils.TimeProvider.Time
@@ -24,6 +25,7 @@ import co.topl.utils.{Int128, Logging, TimeProvider}
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContext}
+import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
 
 /** Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
@@ -34,6 +36,15 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
 
   //type HR = HistoryReader[Block, BifrostSyncInfo]
   type TX = Transaction.TX
+class Forger[
+  TX <: Transaction.TX,
+  SI <: SyncInfo,
+  PMOD <: PersistentNodeViewModifier,
+  HR <: HistoryReader[PMOD, SI] : ClassTag,
+  SR <: StateReader[ProgramId, Address] : ClassTag,
+  MR <: MemPoolReader[TX] : ClassTag
+](settings: AppSettings, appContext: AppContext, keyManager: ActorRef)
+ (implicit ec: ExecutionContext, np: NetworkPrefix) extends Actor with Logging {
 
   // Import the types of messages this actor RECEIVES
   import Forger.ReceivableMessages._
@@ -97,9 +108,9 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
       log.info(s"Forger: Received a stop signal. Forging will terminate after this trial")
       context become readyToForge
 
-    case CurrentView(history: History, state: State, mempool: MemPool) =>
+    case CurrentView(historyReader: HR, stateReader: SR, mempoolReader: MR) =>
       updateForgeTime() // update the forge timestamp
-      tryForging(history, state, mempool) // initiate forging attempt
+      tryForging(historyReader, stateReader, mempoolReader) // initiate forging attempt
       scheduleForgingAttempt() // schedule the next forging attempt
   }
 
@@ -181,9 +192,8 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
     * @param state   state instance for semantic validity tests of transactions
     * @param memPool mempool instance for picking transactions to include in the block if created
     */
-  private def tryForging(history: History, state: State, memPool: MemPool)(implicit
-    timeout:                      Timeout = settings.forging.blockGenerationDelay
-  ): Unit =
+  private def tryForging(history: HR, state: SR, memPool: MR)
+                        (implicit timeout: Timeout = settings.forging.blockGenerationDelay): Unit =
     try {
       (keyManager ? GetForgerView)
         .mapTo[ForgerView]
@@ -220,9 +230,9 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
   }
 
   private def forge(
-    history:    History,
-    state:      State,
-    memPool:    MemPool,
+    history: HR,
+    state:   SR,
+    memPool: MR,
     forgerView: ForgerView
   ): Unit = {
     log.debug(
@@ -285,13 +295,13 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
 
   /** Get the set of Arbit boxes owned by all unlocked keys in the key ring
     *
-    * @param state state instance used to lookup the balance for all unlocked keys
+    * @param stateReader read-only state instance used to lookup the balance for all unlocked keys
     * @return a set of arbit boxes to use for testing leadership eligibility
     */
-  private def getArbitBoxes(state: State, addresses: Set[Address]): Try[Seq[ArbitBox]] = Try {
+  private def getArbitBoxes(stateReader: SR, addresses: Set[Address]): Try[Seq[ArbitBox]] = Try {
     if (addresses.nonEmpty) {
       addresses.flatMap {
-        state
+        stateReader
           .getTokenBoxes(_)
           .getOrElse(Seq())
           .collect { case box: ArbitBox => box }
@@ -303,28 +313,27 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
 
   /** Pick a set of transactions from the mempool that result in a valid state when applied to the current state
     *
-    * @param memPool the set of pending transactions
-    * @param state   state to use for semantic validity checking
+    * @param memPoolReader the set of pending transactions
+    * @param stateReader   state to use for semantic validity checking
     * @return a sequence of valid transactions
     */
-  private def pickTransactions(memPool: MemPool, state: State, chainHeight: Long): Try[PickTransactionsResult] = Try {
+  private def pickTransactions(
+    memPoolReader: MR, stateReader: SR, chainHeight: Long): Try[PickTransactionsResult] = Try {
 
-    memPool
+    memPoolReader
       .take[Int128](numTxInBlock(chainHeight))(-_.tx.fee) // returns a sequence of transactions ordered by their fee
-      .filter(
-        _.tx.fee > settings.forging.minTransactionFee
-      ) // default strategy ignores zero fee transactions in mempool
+      .filter(_.tx.fee > settings.forging.minTransactionFee) // default strategy ignores zero fee transactions in mempool
       .foldLeft(PickTransactionsResult(Seq(), Seq())) { case (txAcc, utx) =>
         // ensure that each transaction opens a unique box by checking that this transaction
         // doesn't open a box already being opened by a previously included transaction
         val boxAlreadyUsed = utx.tx.boxIdsToOpen.exists(id => txAcc.toApply.flatMap(_.boxIdsToOpen).contains(id))
 
         // if any newly created box matches a box already in the UTXO set in state, remove the transaction
-        val boxAlreadyExists = utx.tx.newBoxes.exists(b => state.getBox(b.id).isDefined)
+        val boxAlreadyExists = utx.tx.newBoxes.exists(b => stateReader.getBox(b.id).isDefined)
 
         (boxAlreadyUsed, boxAlreadyExists) match {
           case (false, false) =>
-            state.semanticValidate(utx.tx) match {
+            utx.tx.semanticValidate(stateReader) match {
               case Success(_) => PickTransactionsResult(txAcc.toApply :+ utx.tx, txAcc.toEliminate)
               case Failure(ex) =>
                 log.debug(
