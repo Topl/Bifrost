@@ -1,4 +1,4 @@
-package co.topl.it.api
+package co.topl.it.util
 
 import akka.Done
 import akka.actor.{ActorSystem, Scheduler}
@@ -7,7 +7,6 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
 import cats.data.{EitherT, NonEmptyList}
 import cats.implicits._
-import co.topl.it.util.BifrostDockerNode
 import com.spotify.docker.client.DockerClient
 import io.circe._
 import io.circe.generic.auto._

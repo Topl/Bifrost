@@ -1,6 +1,5 @@
-package co.topl.it.api
+package co.topl.it.util
 
-import co.topl.it.util.BifrostDockerNode
 import com.spotify.docker.client.DockerClient
 import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions}
 import io.circe.syntax._

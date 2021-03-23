@@ -1,6 +1,6 @@
 package co.topl.it
 
-import co.topl.it.api.{NodeDockerApi, NodeRpcApi}
+import co.topl.it.util.{NodeDockerApi, NodeRpcApi}
 import com.typesafe.config.ConfigFactory
 import org.scalatest.EitherValues
 import org.scalatest.concurrent.PatienceConfiguration.Timeout

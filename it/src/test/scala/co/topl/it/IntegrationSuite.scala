@@ -6,7 +6,7 @@ import co.topl.utils.Logging
 import com.spotify.docker.client.DefaultDockerClient
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
-trait IntegrationSuite extends IntegrationConstants with BeforeAndAfterAll with Logging { this: Suite =>
+trait IntegrationSuite extends BeforeAndAfterAll with Logging { this: Suite =>
 
   implicit val system: ActorSystem = ActorSystem("TestSuite")
 
