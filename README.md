@@ -28,15 +28,12 @@ Check out our [Installation Instructions](https://github.com/Topl/Bifrost/wiki/I
 
 Testing
 -------
-Go to the project directory
-
-`cd Bifrost`
-
-Type
-
-`sbt test`
-
-NOTE: Using sbt to run tests using the Windows command line may error. Either use Intellij IDEA's test runner or run sbt in a Unix environment. Alternatively, if you have the Linux Subsystem for Windows enabled, you can just use bash.
+1. Go to the project directory: `cd Bifrost`
+1. Type: `sbt test`
+   - NOTE: Using sbt to run tests using the Windows command line may error. Either use Intellij IDEA's test runner or run sbt in a Unix environment. Alternatively, if you have the Linux Subsystem for Windows enabled, you can just use bash.
+1. To publish a Docker image for local testing, type: `sbt bifrost/docker:publishLocal`
+   - To run the published container, type: `docker run bifrost:x.x.x` (where `x.x.x` is the version that was published).
+   - To pass command line arguments, type `docker run bifrost:x.x.x -s mySpecialSeed`
 
 
 Contributions
