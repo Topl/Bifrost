@@ -31,11 +31,6 @@ import scala.util.{Failure, Success, Try}
 /** Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
   * Must be singleton
   */
-class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef)
-            (implicit ec: ExecutionContext, np: NetworkPrefix) extends Actor with Logging {
-
-  //type HR = HistoryReader[Block, BifrostSyncInfo]
-  type TX = Transaction.TX
 class Forger[
   TX <: Transaction.TX,
   SI <: SyncInfo,
