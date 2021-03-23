@@ -50,7 +50,6 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
 
     //register for application initialization message
     context.system.eventStream.subscribe(self, classOf[NodeViewReady])
-    context.system.eventStream.subscribe(self, GenerateGenesis.getClass)
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
