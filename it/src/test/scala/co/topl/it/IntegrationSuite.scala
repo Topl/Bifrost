@@ -6,6 +6,9 @@ import co.topl.utils.Logging
 import com.spotify.docker.client.DefaultDockerClient
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
+import scala.concurrent.Await
+import scala.concurrent.duration._
+
 trait IntegrationSuite extends BeforeAndAfterAll with Logging { this: Suite =>
 
   implicit val system: ActorSystem = ActorSystem("TestSuite")
@@ -20,5 +23,6 @@ trait IntegrationSuite extends BeforeAndAfterAll with Logging { this: Suite =>
   override def afterAll(): Unit = {
     dockerSupport.close()
     dockerClient.close()
+    Await.result(system.terminate(), 10.seconds)
   }
 }
