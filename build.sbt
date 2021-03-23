@@ -81,7 +81,7 @@ val miscDependencies = Seq(
   "com.joefkelley"        %% "argyle"      % "1.0.0",
   "org.scalanlp"          %% "breeze"      % "1.1",
   "io.netty"               % "netty"       % "3.10.6.Final",
-  "com.google.guava"       % "guava"       % "30.1-jre",
+  "com.google.guava"       % "guava"       % "30.1.1-jre",
   "com.typesafe"           % "config"      % "1.4.1",
   "com.github.pureconfig" %% "pureconfig"  % "0.14.1"
 )
