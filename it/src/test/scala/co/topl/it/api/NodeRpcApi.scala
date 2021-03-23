@@ -22,7 +22,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.util.Success
 
-class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem) {
+case class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem) {
 
   import system.dispatcher
 

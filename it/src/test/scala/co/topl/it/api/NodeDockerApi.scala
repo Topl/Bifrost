@@ -4,23 +4,31 @@ import co.topl.it.util.BifrostDockerNode
 import com.spotify.docker.client.DockerClient
 import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions}
 import io.circe.syntax._
+import org.slf4j.{Logger, LoggerFactory}
 
 import java.nio.file.{Files, Path, Paths}
 import java.util.Comparator
 import scala.collection.JavaConverters._
 
-class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClient) {
+case class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClient) {
 
-  def start(): Unit =
+  val logger: Logger = LoggerFactory.getLogger(this.toString)
+
+  def start(): Unit = {
+    logger.info(s"Starting")
     dockerClient.startContainer(containerId)
+  }
 
-  def stop(): Unit =
+  def stop(): Unit = {
+    logger.info(s"Stopping")
     dockerClient.stopContainer(containerId, 10)
+  }
 
   def ipAddress(): String =
     dockerClient.inspectContainer(containerId).networkSettings().ipAddress()
 
   def reconfigure(config: Config): Unit = {
+    logger.info(s"Reconfiguring to: ${config.root().render(ConfigRenderOptions.concise())}")
     val wasRunning = dockerClient.inspectContainer(containerId).state().running()
     if (wasRunning) {
       stop()

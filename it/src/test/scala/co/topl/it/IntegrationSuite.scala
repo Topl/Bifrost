@@ -6,8 +6,6 @@ import co.topl.utils.Logging
 import com.spotify.docker.client.DefaultDockerClient
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
-import scala.util.Random
-
 trait IntegrationSuite extends IntegrationConstants with BeforeAndAfterAll with Logging { this: Suite =>
 
   implicit val system: ActorSystem = ActorSystem("TestSuite")

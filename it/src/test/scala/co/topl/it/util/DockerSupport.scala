@@ -7,27 +7,20 @@ import co.topl.utils.Logging
 import com.spotify.docker.client.DockerClient
 import com.spotify.docker.client.messages.ContainerConfig
 
-import java.util.UUID
-
 class DockerSupport(dockerClient: DockerClient)(implicit system: ActorSystem) extends Logging {
-
-  private def uuidShort: String = UUID.randomUUID().hashCode().toHexString
-
-  private val networkName = DockerSupport.networkNamePrefix + uuidShort
 
   private var nodeCache: Set[BifrostDockerNode] = Set.empty
 
   def createNode(name: String): BifrostDockerNode = {
-    val containerName = networkName + "-" + name
-    val containerConfig = buildContainerConfig(Map.empty, containerName)
-    val containerCreation = dockerClient.createContainer(containerConfig, containerName)
+    val containerConfig = buildContainerConfig(name, Map.empty, name)
+    val containerCreation = dockerClient.createContainer(containerConfig, name)
 
     val node = BifrostDockerNode(containerCreation.id())
     nodeCache += node
     node
   }
 
-  private def buildContainerConfig(environment: Map[String, String], seed: String): ContainerConfig = {
+  private def buildContainerConfig(name: String, environment: Map[String, String], seed: String): ContainerConfig = {
     val env =
       environment.toList.map { case (key, value) => s"$key=$value" }
 
@@ -40,6 +33,7 @@ class DockerSupport(dockerClient: DockerClient)(implicit system: ActorSystem) ex
       .env(env: _*)
       .volumes("/opt/docker/config")
       .cmd(cmd: _*)
+      .hostname(name)
       .build()
 
   }

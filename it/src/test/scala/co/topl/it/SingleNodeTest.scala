@@ -27,13 +27,23 @@ class SingleNodeTest extends AnyFreeSpec with Matchers with IntegrationSuite wit
 
     NodeRpcApi(node).waitForStartup().futureValue(Timeout(30.seconds))
 
+    logger.info("Wait 2 seconds for forging")
+    Thread.sleep(2.seconds.toMillis)
+
     val forgeCount1 =
       NodeRpcApi(node).Debug.myBlocks().futureValue.value
 
-    Thread.sleep(20.seconds.toMillis)
+    logger.info(s"Forge count=$forgeCount1")
+
+    forgeCount1 should be > 0L
+
+    logger.info("Wait 5 seconds for more forging")
+    Thread.sleep(5.seconds.toMillis)
 
     val forgeCount2 =
       NodeRpcApi(node).Debug.myBlocks().futureValue.value
+
+    logger.info(s"Forge count=$forgeCount2")
 
     forgeCount2 should be > forgeCount1
   }
