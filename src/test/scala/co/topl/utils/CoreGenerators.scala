@@ -104,10 +104,20 @@ trait CoreGenerators extends Logging {
   private lazy val tinyIntMax = 10
   private lazy val medIntMax = 100
 
+  private lazy val int128Min: Int128 = Int128.MaxValue
+  private lazy val int128Max: Int128 = Int128.MaxValue
+
+  implicit lazy val int128Chooser: Gen.Choose[Int128] =
+    (min, max) => Gen.Choose.chooseBigInt.choose(min.bigInt, max.bigInt).map(Int128(_))
+
   lazy val positiveTinyIntGen: Gen[Int] = Gen.choose(intMin, tinyIntMax)
   lazy val positiveMediumIntGen: Gen[Int] = Gen.choose(intMin, medIntMax)
 
   lazy val positiveDoubleGen: Gen[Double] = Gen.choose(0, Double.MaxValue)
+
+  lazy val positiveInt128Gen: Gen[Int128] = Gen.choose[Int128](0, int128Max)
+  lazy val smallInt128Gen: Gen[Int128] = Gen.choose[Int128](0, Int.MaxValue)
+  lazy val largeInt128Gen: Gen[Int128] = Gen.choose[Int128](Long.MaxValue, int128Max)
 
   def samplePositiveDouble: Double = Random.nextFloat()
 

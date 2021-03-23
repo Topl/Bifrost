@@ -115,7 +115,7 @@ case class NodeViewApiEndpoint(
         val balances: Map[Address, Map[String, Int128]] =
           boxes.map { case (addr, assets) =>
             addr -> assets.map { case (boxType, boxes) =>
-              (boxType, boxes.map(_.value.quantity).foldLeft[Int128](0)(_ + _))
+              (boxType, boxes.map(_.value.quantity).sum)
             }
           }
 
