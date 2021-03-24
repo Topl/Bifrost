@@ -3,10 +3,10 @@ package co.topl.consensus
 import akka.actor._
 import akka.pattern.ask
 import akka.util.Timeout
-import KeyManager.{AttemptForgingKeyView, ForgerStartupKeyView}
-import KeyManager.ReceivableMessages._
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.Forger.{ChainParams, PickTransactionsResult}
+import co.topl.consensus.KeyManager.ReceivableMessages._
+import co.topl.consensus.KeyManager.{AttemptForgingKeyView, ForgerStartupKeyView}
 import co.topl.consensus.genesis.{HelGenesis, PrivateGenesis, ToplnetGenesis, ValhallaGenesis}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block

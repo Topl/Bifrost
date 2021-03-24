@@ -4,7 +4,7 @@ import akka.actor._
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, AddressEncoder, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.KeyManager.{AttemptForgingKeyView, ForgerStartupKeyView}
-import co.topl.settings.{AppContext, AppSettings, ForgingSettings}
+import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType._
 
