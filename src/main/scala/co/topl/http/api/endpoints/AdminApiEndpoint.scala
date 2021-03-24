@@ -2,7 +2,7 @@ package co.topl.http.api.endpoints
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.pattern.ask
-import co.topl.attestation.keyManagement.KeyManager.ReceivableMessages._
+import co.topl.consensus.KeyManager.ReceivableMessages._
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.consensus.Forger.ReceivableMessages._
 import co.topl.http.api.{AdminNamespace, ApiEndpoint, Namespace}
