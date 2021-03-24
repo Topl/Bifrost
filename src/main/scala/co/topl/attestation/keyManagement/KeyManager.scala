@@ -2,6 +2,7 @@ package co.topl.attestation.keyManagement
 
 import akka.actor._
 import co.topl.attestation.keyManagement.KeyManager.ForgerView
+import co.topl.attestation.keyManagement.KeyManagerRef.log
 import co.topl.attestation.{Address, AddressEncoder}
 import co.topl.settings.{AppContext, AppSettings, ForgingSettings}
 import co.topl.utils.Logging
@@ -10,16 +11,17 @@ import co.topl.utils.NetworkType._
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
 
-class KeyManager(
-  private val initialKeyRing:       KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-  private val initialRewardAddress: Option[Address]
-)(implicit network:NetworkPrefix, settings: AppSettings, appContext: AppContext)
-    extends Actor
-    with Logging {
+class KeyManager(implicit network: NetworkPrefix, settings: AppSettings, appContext: AppContext)
+  extends Actor with Logging {
 
   import KeyManager.ReceivableMessages._
 
-  override def receive: Receive = receive(initialKeyRing, initialRewardAddress)
+  override def receive: Receive = {
+    val keyRing = KeyManager.createKeyRing()
+    val rewardsAddress = KeyManager.tryGetRewardsAddressFromSettings(settings.forging, appContext)
+
+    receive(keyRing, rewardsAddress)
+  }
 
   def receive(keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519], rewardAddress: Option[Address]): Receive = {
     case CreateKey(password)                        => sender() ! keyRing.DiskOps.generateKeyFile(password)
@@ -103,6 +105,27 @@ class KeyManager(
 
 object KeyManager extends Logging {
 
+  /** Creates a new key ring. */
+  def createKeyRing()(implicit np: NetworkPrefix, settings: AppSettings): KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] = {
+    val keyFileDir = settings.application.keyFileDir
+      .ensuring(_.isDefined, "A keyfile directory must be specified")
+      .get
+
+    KeyRing[PrivateKeyCurve25519, KeyfileCurve25519](keyFileDir, KeyfileCurve25519)
+  }
+
+  /** Tries to get a configured rewards address from the forging settings. */
+  def tryGetRewardsAddressFromSettings(forgingSettings: ForgingSettings, appContext: AppContext): Option[Address] =
+    forgingSettings.rewardsAddress.flatMap {
+      AddressEncoder.fromStringWithCheck(_, appContext.networkType.netPrefix) match {
+        case Failure(ex) =>
+          log.warn(s"${Console.YELLOW}Unable to set rewards address due to $ex ${Console.RESET}")
+          None
+
+        case Success(addr) => Some(addr)
+      }
+    }
+
   val actorName = "keyManager"
 
   case class ForgerView(addresses: Set[Address], rewardAddr: Option[Address])
@@ -137,11 +160,7 @@ object KeyManagerRef extends Logging {
 
   def props(settings: AppSettings, appContext: AppContext)(implicit ec: ExecutionContext, np: NetworkPrefix): Props =
     Props(
-      new KeyManager(createKeyRing(settings), tryGetRewardsAddressFromSettings(settings.forging, appContext))(
-        np,
-        settings,
-        appContext
-      )
+      new KeyManager()(np, settings, appContext)
     )
 
   def apply(name: String, settings: AppSettings, appContext: AppContext)(implicit
@@ -150,29 +169,4 @@ object KeyManagerRef extends Logging {
   ): ActorRef =
     system.actorOf(props(settings, appContext)(ec, appContext.networkType.netPrefix), name)
 
-  /** Tries to get a configured rewards address from the forging settings. */
-  private def tryGetRewardsAddressFromSettings(
-    forgingSettings: ForgingSettings,
-    appContext:      AppContext
-  ): Option[Address] =
-    forgingSettings.rewardsAddress.flatMap {
-      AddressEncoder.fromStringWithCheck(_, appContext.networkType.netPrefix) match {
-        case Failure(ex) =>
-          log.warn(s"${Console.YELLOW}Unable to set rewards address due to $ex ${Console.RESET}")
-          None
-
-        case Success(addr) => Some(addr)
-      }
-    }
-
-  /** Creates a new key ring. */
-  private def createKeyRing(
-    settings:    AppSettings
-  )(implicit np: NetworkPrefix): KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] = {
-    val keyFileDir = settings.application.keyFileDir
-      .ensuring(_.isDefined, "A keyfile directory must be specified")
-      .get
-
-    KeyRing[PrivateKeyCurve25519, KeyfileCurve25519](keyFileDir, KeyfileCurve25519)
-  }
 }
