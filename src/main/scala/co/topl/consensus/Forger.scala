@@ -216,7 +216,7 @@ class Forger[
       s"height ${historyReader.height} and difficulty ${historyReader.difficulty} ${Console.RESET}"
     )
 
-    val rewardAddr = attemptForgingView.rewardAddr.getOrElse(throw new Error("No rewards address specified"))
+    val rewardAddress = attemptForgingView.rewardAddr.getOrElse(throw new Error("No rewards address specified"))
 
     // get the set of boxes to use for testing
     val boxes = getArbitBoxes(stateReader, attemptForgingView.addresses) match {
@@ -240,7 +240,7 @@ class Forger[
     }
 
     // create the coinbase and unsigned fee reward transactions
-    val rewards = Rewards(transactions, rewardAddr, historyReader.bestBlock.id, forgeTime) match {
+    val rewards = Rewards(transactions, rewardAddress, historyReader.bestBlock.id, forgeTime) match {
       case Success(r) => r
       case Failure(ex) => throw ex
     }
