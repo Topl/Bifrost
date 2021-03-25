@@ -24,6 +24,7 @@ import co.topl.utils.{Int128, Logging, TimeProvider}
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContext}
+import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
 
 /** Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
@@ -31,14 +32,14 @@ import scala.util.{Failure, Success, Try}
   */
 class Forger[
   SI <: SyncInfo,
-  PMOD <: PersistentNodeViewModifier
+  PMOD <: PersistentNodeViewModifier,
+  HR <: HistoryReader[PMOD, SI] : ClassTag,
+  SR <: StateReader[ProgramId, Address] : ClassTag,
+  MR <: MemPoolReader[Transaction.TX] : ClassTag
 ](settings: AppSettings, appContext: AppContext, keyManager: ActorRef)
  (implicit ec: ExecutionContext, np: NetworkPrefix) extends Actor with Logging {
 
   type TX = Transaction.TX
-  type HR = HistoryReader[PMOD, SI]
-  type SR = StateReader[ProgramId, Address]
-  type MR = MemPoolReader[TX]
 
   // Import the types of messages this actor RECEIVES
   import Forger.ReceivableMessages._
@@ -101,7 +102,7 @@ class Forger[
       log.info(s"Forger: Received a stop signal. Forging will terminate after this trial")
       context become readyToForge
 
-    case CurrentView(historyReader: HR, stateReader: SR @unchecked, mempoolReader: MR @unchecked) =>
+    case CurrentView(historyReader: HR, stateReader: SR, mempoolReader: MR) =>
       updateForgeTime() // update the forge timestamp
       tryForging(historyReader, stateReader, mempoolReader) // initiate forging attempt
       scheduleForgingAttempt() // schedule the next forging attempt
@@ -444,12 +445,28 @@ object Forger {
 
 object ForgerRef {
 
-  def props(settings: AppSettings, appContext: AppContext, keyManager: ActorRef)(implicit ec: ExecutionContext): Props =
-    Props(new Forger(settings, appContext, keyManager)(ec, appContext.networkType.netPrefix))
+  def props[
+    SI <: SyncInfo,
+    PMOD <: PersistentNodeViewModifier,
+    HR <: HistoryReader[PMOD, SI] : ClassTag,
+    SR <: StateReader[ProgramId, Address] : ClassTag,
+    MR <: MemPoolReader[Transaction.TX] : ClassTag
+  ](settings: AppSettings,
+    appContext: AppContext,
+    keyManager: ActorRef)
+   (implicit ec: ExecutionContext, np: NetworkPrefix): Props =
+    Props(new Forger[SI, PMOD, HR, SR, MR](settings, appContext, keyManager))
 
-  def apply(name: String, settings: AppSettings, appContext: AppContext, keyManager: ActorRef)(implicit
-    system:       ActorSystem,
-    ec:           ExecutionContext
-  ): ActorRef =
-    system.actorOf(props(settings, appContext, keyManager), name)
+  def apply[
+    SI <: SyncInfo,
+    PMOD <: PersistentNodeViewModifier,
+    HR <: HistoryReader[PMOD, SI] : ClassTag,
+    SR <: StateReader[ProgramId, Address] : ClassTag,
+    MR <: MemPoolReader[Transaction.TX]: ClassTag
+  ](name: String, settings: AppSettings, appContext: AppContext, keyManager: ActorRef)
+   (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = {
+    implicit val np: NetworkPrefix = appContext.networkType.netPrefix
+    system.actorOf(props[SI, PMOD, HR, SR, MR](settings, appContext, keyManager), name)
+  }
+
 }

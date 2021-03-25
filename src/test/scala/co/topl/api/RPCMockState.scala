@@ -11,6 +11,8 @@ import co.topl.consensus.{Forger, ForgerRef, KeyManager, KeyManagerRef}
 import co.topl.http.HttpService
 import co.topl.http.api.ApiEndpoint
 import co.topl.http.api.endpoints._
+import co.topl.modifier.block.Block
+import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
@@ -27,6 +29,12 @@ import scala.concurrent.duration.DurationInt
 trait RPCMockState extends AnyWordSpec
   with GenesisGenerators
   with ScalatestRouteTest {
+
+  type BSI = BifrostSyncInfo
+  type PMOD = Block
+  type HIS = History
+  type MP = MemPool
+  type ST = State
 
   val tempFile: File = createTempFile
 
@@ -46,7 +54,7 @@ trait RPCMockState extends AnyWordSpec
 
   // Create Bifrost singleton actors
   protected val keyManagerRef: ActorRef = KeyManagerRef(KeyManager.actorName, rpcSettings, appContext)
-  protected val forgerRef: ActorRef = ForgerRef(Forger.actorName, rpcSettings, appContext, keyManagerRef)
+  protected val forgerRef: ActorRef = ForgerRef[BSI, PMOD, HIS, ST, MP](Forger.actorName, rpcSettings, appContext, keyManagerRef)
   protected val nodeViewHolderRef: ActorRef = NodeViewHolderRef(NodeViewHolder.actorName, rpcSettings, appContext)
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
