@@ -219,17 +219,11 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
       case Failure(ex) => throw ex
     }
 
-      log.debug(s"Trying to generate block from total stake ${boxes.map(_.value.quantity).sum}")
-      require(
-        boxes.map(_.value.quantity).sum > 0,
-        "No Arbits could be found to stake with, exiting attempt"
-      )
-
-    // create the coinbase reward transaction
-    val arbitReward = createArbitReward(rewardAddr, history.bestBlock.id) match {
-      case Success(cb) => cb
-      case Failure(ex) => throw ex
-    }
+    log.debug(s"Trying to generate block from total stake ${boxes.map(_.value.quantity).sum}")
+    require(
+      boxes.map(_.value.quantity).sum > 0,
+      "No Arbits could be found to stake with, exiting attempt"
+    )
 
     // pick the transactions from the mempool for inclusion in the block (if successful)
     val transactions = pickTransactions(memPool, state, history.height) match {
@@ -240,12 +234,11 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
       case Failure(ex) => throw ex
     }
 
-    // create the unsigned fee reward transaction
-    val polyReward =
-      createPolyReward(transactions.map(_.fee).sum, rewardAddr, history.bestBlock.id) match {
-        case Success(tx) => tx
-        case Failure(ex) => throw ex
-      }
+    // create the coinbase and unsigned fee reward transactions
+    val rewards = Rewards(transactions, rewardAddress, history.bestBlock.id, forgeTime) match {
+      case Success(r) => r
+      case Failure(ex) => throw ex
+    }
 
     // retrieve the latest TWO block times for updating the difficulty if we forge a new blow
     val prevTimes = history.getTimestampsFrom(history.bestBlock, nxtBlockNum)
@@ -255,8 +248,8 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
       history.bestBlock,
       prevTimes,
       boxes,
-      Seq(arbitReward, polyReward),
-      transactions,
+      rewards,
+      transactions
       attemptForgingView.sign,
       attemptForgingView.getPublicKey
     ) match {
@@ -285,44 +278,6 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
       throw new Error("No boxes available for forging!")
     }
   }
-
-  /** Attempt to create an unsigned coinbase transaction that will distribute the block reward
-    * if forging is successful
-    *
-    * @return an unsigned coinbase transaction
-    */
-  private def createArbitReward(
-    rewardAdr: Address,
-    parentId:  ModifierId
-  ): Try[ArbitTransfer[PublicKeyPropositionCurve25519]] =
-    Try {
-      ArbitTransfer(
-        IndexedSeq(),
-        IndexedSeq((rewardAdr, SimpleValue(inflation))),
-        Map[PublicKeyPropositionCurve25519, SignatureCurve25519](),
-        Int128(0),
-        forgeTime,
-        Some(parentId.toString + "_"), // the underscore is for letting miners add their own message in the future
-        minting = true
-      )
-    }
-
-  private def createPolyReward(
-    amount:    Int128,
-    rewardAdr: Address,
-    parentId:  ModifierId
-  ): Try[PolyTransfer[PublicKeyPropositionCurve25519]] =
-    Try {
-      PolyTransfer(
-        IndexedSeq(),
-        IndexedSeq((rewardAdr, SimpleValue(amount))),
-        Map[PublicKeyPropositionCurve25519, SignatureCurve25519](),
-        0,
-        forgeTime,
-        Some(parentId.toString + "_"), // the underscore is for letting miners add their own message in the future
-        minting = true
-      )
-    }
 
   /** Pick a set of transactions from the mempool that result in a valid state when applied to the current state
     *
