@@ -8,9 +8,8 @@ import co.topl.consensus.Forger.{ChainParams, PickTransactionsResult}
 import co.topl.consensus.KeyManager.ReceivableMessages._
 import co.topl.consensus.KeyManager.{AttemptForgingKeyView, ForgerStartupKeyView}
 import co.topl.consensus.genesis.{HelGenesis, PrivateGenesis, ToplnetGenesis, ValhallaGenesis}
-import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.box.{ArbitBox, SimpleValue}
+import co.topl.modifier.box.{ArbitBox}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.CurrentView
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages._
@@ -117,23 +116,23 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
   private def checkPrivateForging()(implicit timeout: Timeout): Unit =
     if (Seq(PrivateTestnet, LocalTestnet).contains(appContext.networkType)) {
       (keyManager ? GenerateInititalAddresses)
-        .mapTo[Try[ForgerStartupKeyView]].map {
-        case Success(ForgerStartupKeyView(_, Some(_))) =>
-          // Update the maxStake by calculating the total amount of balance from all accounts
-          // TODO: JAA - we need to save these values to disk
-          settings.forging.privateTestnet.foreach(sfp => maxStake = sfp.numTestnetAccts * sfp.testnetBalance)
+        .mapTo[Try[ForgerStartupKeyView]]
+        .map {
+          case Success(ForgerStartupKeyView(_, Some(_))) =>
+            // Update the maxStake by calculating the total amount of balance from all accounts
+            // TODO: JAA - we need to save these values to disk
+            settings.forging.privateTestnet.foreach(sfp => maxStake = sfp.numTestnetAccts * sfp.testnetBalance)
 
-          // if forging has been enabled, then we should send the StartForging signal
-          if (settings.forging.forgeOnStartup) self ! StartForging
-        case Success(ForgerStartupKeyView(_, None)) =>
-          log.warn("Forging not started: no reward address set.")
-        case _ =>
-          log.warn("Forging not started: failed to generate initial addresses in Key Ring.")
-      } onComplete {
-        case Success(_) => ()
-        case Failure(ex) =>
-          log.warn("Forging not started: failed to generate initial addresses in Key Ring: ", ex)
-      }
+            // if forging has been enabled, then we should send the StartForging signal
+            if (settings.forging.forgeOnStartup) self ! StartForging
+          case Success(ForgerStartupKeyView(_, None)) =>
+            log.warn("Forging not started: no reward address set.")
+          case _ =>
+            log.warn("Forging not started: failed to generate initial addresses in Key Ring.")
+        }
+        .recover {
+          case ex => log.warn("Forging not started: failed to generate initial addresses in Key Ring: ", ex)
+        }
     }
 
   /** Schedule a forging attempt */
@@ -185,10 +184,7 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
     try {
       (keyManager ? GetAttemptForgingKeyView)
         .mapTo[AttemptForgingKeyView]
-        .onComplete({
-          case Success(view)  => attemptForging(history, state, memPool, view)
-          case Failure(error) => throw error
-        })
+        .foreach(view => attemptForging(history, state, memPool, view))
     } catch {
       case ex: Throwable =>
         log.warn(s"Disabling forging due to exception: $ex. Resolve forging error and try forging again.")
