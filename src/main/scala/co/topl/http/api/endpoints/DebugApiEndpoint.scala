@@ -3,7 +3,7 @@ package co.topl.http.api.endpoints
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.pattern.ask
 import co.topl.attestation.Address
-import co.topl.attestation.keyManagement.KeyManager.ReceivableMessages._
+import co.topl.consensus.KeyManager.ReceivableMessages._
 import co.topl.http.api.{ApiEndpointWithView, DebugNamespace, Namespace}
 import co.topl.modifier.ModifierId
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView

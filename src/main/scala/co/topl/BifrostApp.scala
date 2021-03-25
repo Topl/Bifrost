@@ -5,8 +5,7 @@ import akka.http.scaladsl.Http
 import akka.io.Tcp
 import akka.pattern.ask
 import akka.util.Timeout
-import co.topl.attestation.keyManagement.{KeyManager, KeyManagerRef}
-import co.topl.consensus.{Forger, ForgerRef}
+import co.topl.consensus.{Forger, ForgerRef, KeyManager, KeyManagerRef}
 import co.topl.http.HttpService
 import co.topl.http.api.ApiEndpoint
 import co.topl.http.api.endpoints.{DebugApiEndpoint, _}

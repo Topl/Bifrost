@@ -3,21 +3,20 @@ package co.topl.consensus
 import akka.actor._
 import akka.pattern.ask
 import akka.util.Timeout
-import co.topl.attestation.keyManagement.KeyManager.ForgerView
-import co.topl.attestation.keyManagement.KeyManager.ReceivableMessages._
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.Forger.{ChainParams, PickTransactionsResult}
+import co.topl.consensus.KeyManager.ReceivableMessages._
+import co.topl.consensus.KeyManager.{AttemptForgingKeyView, ForgerStartupKeyView}
 import co.topl.consensus.genesis.{HelGenesis, PrivateGenesis, ToplnetGenesis, ValhallaGenesis}
-import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
-import co.topl.modifier.box.{ArbitBox, ProgramId, SimpleValue}
+import co.topl.modifier.box.{ArbitBox, ProgramId}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.network.message.SyncInfo
 import co.topl.nodeView.CurrentView
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages._
-import co.topl.nodeView.history.{History, HistoryReader}
-import co.topl.nodeView.mempool.{MemPool, MemPoolReader}
-import co.topl.nodeView.state.{State, StateReader}
+import co.topl.nodeView.history.HistoryReader
+import co.topl.nodeView.mempool.MemPoolReader
+import co.topl.nodeView.state.StateReader
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.NetworkType._
 import co.topl.utils.TimeProvider.Time
@@ -25,7 +24,6 @@ import co.topl.utils.{Int128, Logging, TimeProvider}
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContext}
-import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
 
 /** Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
@@ -57,7 +55,6 @@ class Forger[
 
     //register for application initialization message
     context.system.eventStream.subscribe(self, classOf[NodeViewReady])
-    context.system.eventStream.subscribe(self, GenerateGenesis.getClass)
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
@@ -125,15 +122,15 @@ class Forger[
   private def checkPrivateForging()(implicit timeout: Timeout): Unit =
     if (Seq(PrivateTestnet, LocalTestnet).contains(appContext.networkType)) {
       (keyManager ? GenerateInititalAddresses)
-        .mapTo[Try[ForgerView]].map {
-        case Success(ForgerView(_, Some(_))) =>
+        .mapTo[Try[ForgerStartupKeyView]].map {
+        case Success(ForgerStartupKeyView(_, Some(_))) =>
           // Update the maxStake by calculating the total amount of balance from all accounts
           // TODO: JAA - we need to save these values to disk
           settings.forging.privateTestnet.foreach(sfp => maxStake = sfp.numTestnetAccts * sfp.testnetBalance)
 
           // if forging has been enabled, then we should send the StartForging signal
           if (settings.forging.forgeOnStartup) self ! StartForging
-        case Success(ForgerView(_, None)) =>
+        case Success(ForgerStartupKeyView(_, None)) =>
           log.warn("Forging not started: no reward address set.")
         case _ =>
           log.warn("Forging not started: failed to generate initial addresses in Key Ring.")
@@ -159,7 +156,7 @@ class Forger[
     */
   private def generateGenesis(implicit timeout: Timeout = 10 seconds): Unit = {
     def generatePrivateGenesis() =
-      (keyManager ? GenerateInititalAddresses).mapTo[Try[ForgerView]].map {
+      (keyManager ? GenerateInititalAddresses).mapTo[Try[ForgerStartupKeyView]].map {
         case Success(view) => PrivateGenesis(view.addresses, settings).getGenesisBlock
         case Failure(ex)   =>
           throw new Error("Unable to generate genesis block, no addresses generated.", ex)
@@ -184,17 +181,17 @@ class Forger[
 
   /** Primary method for attempting to forge a new block and publish it to the network
     *
-    * @param history history instance for gathering chain parameters
-    * @param state   state instance for semantic validity tests of transactions
-    * @param memPool mempool instance for picking transactions to include in the block if created
+    * @param historyReader read-only history instance for gathering chain parameters
+    * @param stateReader   read-only state instance for semantic validity tests of transactions
+    * @param memPoolReader read-only mempool instance for picking transactions to include in the block if created
     */
-  private def tryForging(history: HR, state: SR, memPool: MR)
+  private def tryForging(historyReader: HR, stateReader: SR, memPoolReader: MR)
                         (implicit timeout: Timeout = settings.forging.blockGenerationDelay): Unit =
     try {
-      (keyManager ? GetForgerView)
-        .mapTo[ForgerView]
+      (keyManager ? GetAttemptForgingKeyView)
+        .mapTo[AttemptForgingKeyView]
         .onComplete({
-          case Success(view)  => forge(history, state, memPool, view)
+          case Success(view)  => attemptForging(historyReader, stateReader, memPoolReader, view)
           case Failure(error) => throw error
         })
     } catch {
@@ -203,48 +200,26 @@ class Forger[
         self ! StopForging
     }
 
-  private def publicKeyFromAddress(address:Address)
-                                  (implicit timeout: Timeout = settings.forging.blockGenerationDelay):
-    Try[PublicKeyPropositionCurve25519] = {
-
-    val getPublicKey = (keyManager ? GetPublicKeyFromAddress(address)).mapTo[Try[PublicKeyPropositionCurve25519]]
-
-    Try(Await.result(getPublicKey, timeout.duration)) match {
-      case Success(value) => value
-      case Failure(exception) => Failure(exception)
-    }
-  }
-
-  private def signWithAddress(address: Address)(message: Array[Byte])(
-    implicit timeout: Timeout = settings.forging.blockGenerationDelay): Try[SignatureCurve25519] = {
-    val signFunction = (keyManager ? SignMessageWithAddress(address, message)).mapTo[Try[SignatureCurve25519]]
-
-    Try(Await.result(signFunction, timeout.duration)) match {
-      case Success(value) => value
-      case Failure(exception) => Failure(exception)
-    }
-  }
-
-  private def forge(
-    history: HR,
-    state:   SR,
-    memPool: MR,
-    forgerView: ForgerView
+  private def attemptForging(
+    historyReader: HR,
+    stateReader: SR,
+    memPoolReader: MR,
+    attemptForgingView: AttemptForgingKeyView
   ): Unit = {
     log.debug(
-      s"${Console.MAGENTA}Attempting to forge with settings ${protocolMngr.current(history.height)} " +
-      s"and from addresses: ${forgerView.addresses}${Console.RESET}"
+      s"${Console.MAGENTA}Attempting to forge with settings ${protocolMngr.current(historyReader.height)} " +
+      s"and from addresses: ${attemptForgingView.addresses}${Console.RESET}"
     )
 
     log.info(
-      s"${Console.CYAN}Trying to generate a new block on top of ${history.bestBlock.id}. Parent has " +
-      s"height ${history.height} and difficulty ${history.difficulty} ${Console.RESET}"
+      s"${Console.CYAN}Trying to generate a new block on top of ${historyReader.bestBlock.id}. Parent has " +
+      s"height ${historyReader.height} and difficulty ${historyReader.difficulty} ${Console.RESET}"
     )
 
-    val rewardAddress = forgerView.rewardAddr.getOrElse(throw new Error("No rewards address specified"))
+    val rewardAddr = attemptForgingView.rewardAddr.getOrElse(throw new Error("No rewards address specified"))
 
     // get the set of boxes to use for testing
-    val boxes = getArbitBoxes(state, forgerView.addresses) match {
+    val boxes = getArbitBoxes(stateReader, attemptForgingView.addresses) match {
       case Success(bx) => bx
       case Failure(ex) => throw ex
     }
@@ -256,7 +231,7 @@ class Forger[
     )
 
     // pick the transactions from the mempool for inclusion in the block (if successful)
-    val transactions = pickTransactions(memPool, state, history.height) match {
+    val transactions = pickTransactions(memPoolReader, stateReader, historyReader.height) match {
       case Success(res) =>
         if (res.toEliminate.nonEmpty) nodeViewHolderRef.foreach(_ ! EliminateTransactions(res.toEliminate.map(_.id)))
         res.toApply
@@ -265,21 +240,23 @@ class Forger[
     }
 
     // create the coinbase and unsigned fee reward transactions
-    val rewards = Rewards(transactions, rewardAddress, history.bestBlock.id, forgeTime) match {
+    val rewards = Rewards(transactions, rewardAddr, historyReader.bestBlock.id, forgeTime) match {
       case Success(r) => r
       case Failure(ex) => throw ex
     }
 
     // retrieve the latest TWO block times for updating the difficulty if we forge a new blow
-    val prevTimes = history.getTimestampsFrom(history.bestBlock, nxtBlockNum)
+    val prevTimes = historyReader.getTimestampsFrom(historyReader.bestBlock, nxtBlockNum)
 
     // check forging eligibility
     leaderElection(
-      history.bestBlock,
+      historyReader.bestBlock,
       prevTimes,
       boxes,
       rewards,
-      transactions
+      transactions,
+      attemptForgingView.sign,
+      attemptForgingView.getPublicKey
     ) match {
       case Some(block) =>
         log.debug(s"Locally generated block: $block")
@@ -310,7 +287,7 @@ class Forger[
   /** Pick a set of transactions from the mempool that result in a valid state when applied to the current state
     *
     * @param memPoolReader the set of pending transactions
-    * @param stateReader   state to use for semantic validity checking
+    * @param stateReader state to use for semantic validity checking
     * @return a sequence of valid transactions
     */
   private def pickTransactions(
@@ -368,7 +345,9 @@ class Forger[
     prevTimes:    Vector[TimeProvider.Time],
     boxes:        Seq[ArbitBox],
     rawRewards:   Seq[TX],
-    txsToInclude: Seq[TX]
+    txsToInclude: Seq[TX],
+    sign: Address => Array[Byte] => Try[SignatureCurve25519],
+    getPublicKey: Address => Try[PublicKeyPropositionCurve25519]
   ): Option[Block] = {
 
     val target = calcAdjustedTarget(parent, parent.height, parent.difficulty, forgeTime)
@@ -391,7 +370,7 @@ class Forger[
 
         // lookup the public associated with the box,
         // (this is separate from the signing function so that the private key never leaves the KeyRing)
-        val publicKey = publicKeyFromAddress(matchingAddr) match {
+        val publicKey = getPublicKey(matchingAddr) match {
           case Success(pk)    => pk
           case Failure(error) =>
             log.warn("Error occurred while getting public key for address.")
@@ -399,7 +378,7 @@ class Forger[
         }
 
         // use the private key that owns the generator box to create a function that will sign the new block
-        val signingFunction = signWithAddress(matchingAddr) _
+        val signingFunction = sign(matchingAddr)
 
         // use the secret key that owns the successful box to sign the rewards transactions
         val getAttMap: TX => Map[PublicKeyPropositionCurve25519, SignatureCurve25519] = (tx: TX) => {
