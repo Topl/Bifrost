@@ -1,29 +1,28 @@
 package co.topl.it
 
-import java.util.concurrent.Executors
-
-import co.topl.it.util.Docker
+import akka.actor.ActorSystem
+import co.topl.it.util.DockerSupport
 import co.topl.utils.Logging
+import com.spotify.docker.client.DefaultDockerClient
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
-import scala.concurrent.ExecutionContext
-import scala.util.Random
+import scala.concurrent.Await
+import scala.concurrent.duration._
 
-trait IntegrationSuite
-  extends IntegrationConstants
-    with BeforeAndAfterAll
-    with Logging { this: Suite =>
+trait IntegrationSuite extends BeforeAndAfterAll with Logging { this: Suite =>
 
-  implicit val defaultExecutionContext: ExecutionContext =
-    ExecutionContext.fromExecutor(Executors.newFixedThreadPool(10))
+  implicit val system: ActorSystem = ActorSystem("TestSuite")
 
-  protected val localDataDir: String = s"/tmp/bifrost/it-${Random.nextInt(Int.MaxValue)}"
+  implicit val dockerClient: DefaultDockerClient = DefaultDockerClient.fromEnv().build()
 
-  protected val docker: Docker = new Docker()
+  implicit val dockerSupport: DockerSupport = new DockerSupport(dockerClient)
 
-  override def beforeAll(): Unit = {
+  override def beforeAll(): Unit =
     log.debug("Starting integration tests")
-  }
 
-  override def afterAll(): Unit = docker.close()
+  override def afterAll(): Unit = {
+    dockerSupport.close()
+    dockerClient.close()
+    Await.result(system.terminate(), 10.seconds)
+  }
 }

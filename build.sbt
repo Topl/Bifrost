@@ -185,9 +185,10 @@ outputStrategy := Some(StdoutOutput)
 
 lazy val bifrost = Project(id = "bifrost", base = file("."))
   .settings(commonSettings: _*)
-  .enablePlugins(JavaAppPackaging)
-  .enablePlugins(DockerPlugin)
+  .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .settings(
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.bifrost",
     dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java8-21.0.0",
     dockerExposedPorts := Seq(9084, 9085),
     dockerExposedVolumes += "/opt/docker/.bifrost",
