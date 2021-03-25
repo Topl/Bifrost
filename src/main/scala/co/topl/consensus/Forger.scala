@@ -1,7 +1,7 @@
 package co.topl.consensus
 
 import akka.actor._
-import akka.pattern.ask
+import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.Forger.{ChainParams, PickTransactionsResult}
@@ -9,7 +9,7 @@ import co.topl.consensus.KeyManager.ReceivableMessages._
 import co.topl.consensus.KeyManager.{AttemptForgingKeyView, ForgerStartupKeyView}
 import co.topl.consensus.genesis.{HelGenesis, PrivateGenesis, ToplnetGenesis, ValhallaGenesis}
 import co.topl.modifier.block.Block
-import co.topl.modifier.box.{ArbitBox}
+import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.CurrentView
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages._
@@ -22,7 +22,7 @@ import co.topl.utils.TimeProvider.Time
 import co.topl.utils.{Int128, Logging, TimeProvider}
 
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 /** Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
@@ -149,28 +149,35 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
     * NOTE: the default private network is set in AppContext so the fall-through should result in an error.
     */
   private def generateGenesis(implicit timeout: Timeout = 10 seconds): Unit = {
-    def generatePrivateGenesis() =
-      (keyManager ? GenerateInititalAddresses).mapTo[Try[ForgerStartupKeyView]].map {
-        case Success(view) => PrivateGenesis(view.addresses, settings).getGenesisBlock
-        case Failure(ex)   =>
-          throw new Error("Unable to generate genesis block, no addresses generated.", ex)
+    def generatePrivateGenesis(): Future[Try[(Block, ChainParams)]] =
+      (keyManager ? GenerateInititalAddresses)
+        .mapTo[Try[ForgerStartupKeyView]]
+        .map {
+          case Success(view) => PrivateGenesis(view.addresses, settings).getGenesisBlock
+          case Failure(ex) =>
+            throw new Error("Unable to generate genesis block, no addresses generated.", ex)
+        }
+
+    def initializeFromChainParamsAndGetBlock(block: Try[(Block, ChainParams)]): Try[Block] =
+      block.map {
+        case (block: Block, ChainParams(totalStake, initDifficulty)) =>
+          maxStake = totalStake
+          difficulty = initDifficulty
+          height = 0
+
+          block
       }
 
-    val blockResult = (appContext.networkType match {
-      case Mainnet                       => ToplnetGenesis.getGenesisBlock
-      case ValhallaTestnet               => ValhallaGenesis.getGenesisBlock
-      case HelTestnet                    => HelGenesis.getGenesisBlock
-      case LocalTestnet | PrivateTestnet => Await.result(generatePrivateGenesis(), timeout.duration)
-      case _                             => throw new Error("Undefined network type.")
-    }).map { case (block: Block, ChainParams(totalStake, initDifficulty)) =>
-      maxStake = totalStake
-      difficulty = initDifficulty
-      height = 0
-
-      block
+    appContext.networkType match {
+      case Mainnet => sender() ! initializeFromChainParamsAndGetBlock(ToplnetGenesis.getGenesisBlock)
+      case ValhallaTestnet => sender() ! initializeFromChainParamsAndGetBlock(ValhallaGenesis.getGenesisBlock)
+      case HelTestnet => sender() ! initializeFromChainParamsAndGetBlock(HelGenesis.getGenesisBlock)
+      case LocalTestnet | PrivateTestnet =>
+        generatePrivateGenesis()
+          .map(initializeFromChainParamsAndGetBlock)
+          .pipeTo(sender())
+      case _ => throw new Error("Undefined network type.")
     }
-
-    sender() ! blockResult
   }
 
   /** Primary method for attempting to forge a new block and publish it to the network
