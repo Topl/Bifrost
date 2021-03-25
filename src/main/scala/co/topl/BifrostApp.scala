@@ -73,7 +73,8 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   private val keyManagerRef = KeyManagerRef(KeyManager.actorName, settings, appContext)
 
-  private val forgerRef: ActorRef = ForgerRef(Forger.actorName, settings, appContext, keyManagerRef)
+  private val forgerRef: ActorRef =
+    ForgerRef[BSI, PMOD, HIS, ST, MP](Forger.actorName, settings, appContext, keyManagerRef)
 
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef(NodeViewHolder.actorName, settings, appContext)
 

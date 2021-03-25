@@ -1,10 +1,11 @@
 package co.topl.nodeView.history
 
-import co.topl.modifier.block.PersistentNodeViewModifier
+import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
 import co.topl.modifier.{ContainsModifiers, ModifierId}
 import co.topl.network.message.SyncInfo
 import co.topl.nodeView.NodeViewComponent
 import co.topl.nodeView.history.GenericHistory.{HistoryComparisonResult, ModifierIds}
+import co.topl.utils.TimeProvider
 
 import scala.util.Try
 
@@ -12,10 +13,22 @@ import scala.util.Try
 trait HistoryReader[PM <: PersistentNodeViewModifier, SI <: SyncInfo] extends NodeViewComponent
   with ContainsModifiers[PM] {
 
+  val height: Long
+  val bestBlock: Block
+  val difficulty: Long
+
   /**
     * Is there's no history, even genesis block
     */
   def isEmpty: Boolean
+
+  /** Gets the timestamps for 'count' number of blocks prior to (and including) the startBlock
+    *
+    * @param startBlock the starting block
+    * @param count number of blocks to go back
+    * @return timestamps of number of blocks including the given starting block
+    */
+  def getTimestampsFrom(startBlock: Block, count: Long): Vector[TimeProvider.Time]
 
   /**
     * Whether a modifier could be applied to the history
@@ -50,11 +63,11 @@ trait HistoryReader[PM <: PersistentNodeViewModifier, SI <: SyncInfo] extends No
   def compare(other: SI): HistoryComparisonResult
 
   /**
-   * Checks whether the modifier can be appended to the canonical chain or a tine
-   * in the chain cache
-   *
-   * @param modifier new block to be tracked in history
-   * @return 'true' if the block extends a known block, false otherwise
-   */
+    * Checks whether the modifier can be appended to the canonical chain or a tine
+    * in the chain cache
+    *
+    * @param modifier new block to be tracked in history
+    * @return 'true' if the block extends a known block, false otherwise
+    */
   def extendsKnownTine(modifier: PM): Boolean
 }

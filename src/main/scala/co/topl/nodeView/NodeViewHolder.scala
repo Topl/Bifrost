@@ -123,7 +123,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
 
   protected def getCurrentInfo: Receive = {
     case GetDataFromCurrentView =>
-      sender() ! CurrentView(history(), minimalState(), memoryPool())
+      sender() ! CurrentView(history().getReader, minimalState().getReader, memoryPool().getReader)
   }
 
   protected def getNodeViewChanges: Receive = {
