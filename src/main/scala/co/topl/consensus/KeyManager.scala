@@ -95,9 +95,9 @@ class KeyManager(implicit network: NetworkPrefix, settings: AppSettings, appCont
   }
 
   private def getAttemptForgingKeyView(
-                                        keyRing:KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-                                        rewardAddress: Option[Address]
-                                      ) = {
+    keyRing:KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+    rewardAddress: Option[Address]
+  ): Unit = {
     sender() ! AttemptForgingKeyView(
       keyRing.addresses,
       rewardAddress,
@@ -105,24 +105,6 @@ class KeyManager(implicit network: NetworkPrefix, settings: AppSettings, appCont
       (address: Address) => keyRing.lookupPublicKey(address)
     )
   }
-
-  /**
-    * Signs a message using an address in the given key ring.
-    * @param address the address to sign with
-    * @param message the message to sign
-    * @param keyRing contains the address secret to sign with
-    * @return a try which results in a proof if successful
-    */
-  private def signMessageWithAddress(
-    address: Address,
-    message: Array[Byte],
-    keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519]
-  ) =
-    keyRing.signWithAddress(address)(message)
-
-  /** Gets a public key from a given address */
-  private def getPublicKeyFromAddress(address: Address, keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519]) =
-    keyRing.lookupPublicKey(address)
 
   /** Tries to get a configured rewards address from the forging settings. */
   private def tryGetRewardsAddressFromSettings(): Option[Address] =
