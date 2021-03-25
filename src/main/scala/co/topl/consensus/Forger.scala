@@ -211,7 +211,7 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
       s"height ${history.height} and difficulty ${history.difficulty} ${Console.RESET}"
     )
 
-    val rewardAddr = attemptForgingView.rewardAddr.getOrElse(throw new Error("No rewards address specified"))
+    val rewardAddress = attemptForgingView.rewardAddr.getOrElse(throw new Error("No rewards address specified"))
 
     // get the set of boxes to use for testing
     val boxes = getArbitBoxes(state, attemptForgingView.addresses) match {
@@ -249,7 +249,7 @@ class Forger(settings: AppSettings, appContext: AppContext, keyManager: ActorRef
       prevTimes,
       boxes,
       rewards,
-      transactions
+      transactions,
       attemptForgingView.sign,
       attemptForgingView.getPublicKey
     ) match {
