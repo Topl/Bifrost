@@ -184,7 +184,7 @@ connectInput in run := true
 outputStrategy := Some(StdoutOutput)
 
 lazy val bifrost = Project(id = "bifrost", base = file("."))
-  .settings(commonSettings: _*)
+  .settings(commonSettings)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .settings(
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
@@ -196,9 +196,16 @@ lazy val bifrost = Project(id = "bifrost", base = file("."))
       "bifrost.version" -> version.value
     )
   )
+  .dependsOn(utils)
+
+lazy val utils = Project(id = "utils", base = file("utils"))
+  .settings(
+    commonSettings,
+    libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ apiDependencies ++ cryptoDependencies
+  )
 
 lazy val benchmarking = Project(id = "benchmark", base = file("benchmark"))
-  .settings(commonSettings: _*)
+  .settings(commonSettings)
   .dependsOn(bifrost % "compile->compile;test->test")
   .enablePlugins(JmhPlugin)
   .disablePlugins(sbtassembly.AssemblyPlugin)
@@ -212,6 +219,6 @@ lazy val gjallarhorn = Project(id = "gjallarhorn", base = file("gjallarhorn"))
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
 lazy val it = Project(id = "it", base = file("it"))
-  .settings(commonSettings: _*)
+  .settings(commonSettings)
   .dependsOn(bifrost % "compile->compile;test->test")
   .disablePlugins(sbtassembly.AssemblyPlugin)
