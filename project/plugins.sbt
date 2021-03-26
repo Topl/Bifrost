@@ -27,3 +27,7 @@ addSbtPlugin("org.wartremover" % "sbt-wartremover" % "2.4.13")
 addSbtPlugin("com.typesafe.sbt" % "sbt-native-packager" % "1.7.6")
 
 addSbtPlugin("com.eed3si9n" % "sbt-buildinfo" % "0.10.0")
+
+addSbtPlugin("org.xerial.sbt" % "sbt-sonatype" % "3.9.7")
+
+addSbtPlugin("com.github.sbt" % "sbt-pgp" % "2.1.2")

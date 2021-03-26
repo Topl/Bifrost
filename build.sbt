@@ -1,25 +1,21 @@
-import sbt.Keys.organization
+import sbt.Keys.{homepage, organization}
 import sbtassembly.MergeStrategy
 
-name := "bifrost"
-scalaVersion := "2.12.13"
-organization := "co.topl"
-version := "1.3.4"
-
 lazy val commonSettings = Seq(
+  name := "bifrost",
   scalaVersion := "2.12.13",
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   organization := "co.topl",
-  version := "1.3.4"
+  version := "1.3.4",
+  homepage := Some(url("https://github.com/Topl/Bifrost"))
   // wartremoverErrors := Warts.unsafe // settings for wartremover
 )
 
 mainClass in assembly := Some("co.topl.BifrostApp")
 test in assembly := {}
 
-// The Typesafe repository
-resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/"
+resolvers ++= Seq("Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/")
 
 val akkaVersion = "2.6.10"
 val akkaHttpVersion = "10.2.1"
@@ -152,7 +148,6 @@ Compile / run / fork := true
 
 pomIncludeRepository := { _ => false }
 
-homepage := Some(url("https://github.com/Topl/Bifrost"))
 
 assemblyJarName := s"bifrost-${version.value}.jar"
 
