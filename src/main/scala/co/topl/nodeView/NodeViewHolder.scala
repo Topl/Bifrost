@@ -127,7 +127,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
   }
 
   protected def getNodeViewChanges: Receive = {
-    case GetNodeViewChanges(history, state, mempool) =>
+    case t @ GetNodeViewChanges(history, state, mempool) =>
       if (history) sender() ! ChangedHistory(nodeView._1.getReader)
       if (state) sender() ! ChangedState(nodeView._2.getReader)
       if (mempool) sender() ! ChangedMempool(nodeView._3.getReader)

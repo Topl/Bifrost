@@ -19,7 +19,6 @@ import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.state.StateReader
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.NetworkType._
-import co.topl.utils.TimeProvider.Time
 import co.topl.utils.{Int128, Logging, TimeProvider}
 
 import scala.concurrent.duration.DurationInt
@@ -47,9 +46,6 @@ class Forger[
 
   // the nodeViewHolder actor ref for retrieving the current state
   private var nodeViewHolderRef: Option[ActorRef] = None
-
-  // a timestamp updated on each forging attempt
-  private var forgeTime: Time = appContext.timeProvider.time
 
   override def preStart(): Unit = {
     // determine the set of applicable protocol rules for this software version
@@ -89,8 +85,8 @@ class Forger[
   private def readyHandlers: Receive = {
     case StartForging =>
       log.info("Received a START signal, forging will commence shortly.")
-      scheduleForgingAttempt() // schedule the next forging attempt
       context become activeForging(None, None, None)
+      scheduleForgingAttempt() // schedule the next forging attempt
 
     case StopForging =>
       log.warn(s"Received a STOP signal while not forging. Signal ignored")
@@ -106,9 +102,9 @@ class Forger[
   }
 
   private def getReaders(hrOpt: Option[HR], srOpt: Option[SR], mrOpt: Option[MR]): Receive = {
-    case ChangedHistory(hr: HR) => forgeWhenReady(hrOpt, srOpt, mrOpt)(activeForging(Some(hr), srOpt, mrOpt))
-    case ChangedState(sr: SR)   => forgeWhenReady(hrOpt, srOpt, mrOpt)(activeForging(hrOpt, Some(sr), mrOpt))
-    case ChangedMempool(mr: MR) => forgeWhenReady(hrOpt, srOpt, mrOpt)(activeForging(hrOpt, srOpt, Some(mr)))
+    case ChangedHistory(hr: HR) => forgeWhenReady(Some(hr), srOpt, mrOpt)
+    case ChangedState(sr: SR)   => forgeWhenReady(hrOpt, Some(sr), mrOpt)
+    case ChangedMempool(mr: MR) => forgeWhenReady(hrOpt, srOpt, Some(mr))
   }
 
   private def nonsense: Receive = { case nonsense: Any =>
@@ -118,7 +114,7 @@ class Forger[
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
   /** Updates the forging actors timestamp */
-  private def updateForgeTime(): Unit = forgeTime = appContext.timeProvider.time
+  private def getForgeTime: TimeProvider.Time = appContext.timeProvider.time
 
   /** Initializes addresses, updates max stake, and begins forging if using private network.
     * @param timeout time to wait for responses from key manager
@@ -134,10 +130,7 @@ class Forger[
             settings.forging.privateTestnet.foreach(sfp => maxStake = sfp.numTestnetAccts * sfp.testnetBalance)
 
             // if forging has been enabled, then we should send the StartForging signal
-            if (settings.forging.forgeOnStartup) {
-              println(s">>>>>>>>>>>>>>>> checkPrivateForging sending start")
-              self ! StartForging
-            }
+            if (settings.forging.forgeOnStartup) self ! StartForging
 
           case Success(ForgerStartupKeyView(_, None)) =>
             log.warn("Forging not started: no reward address set.")
@@ -185,30 +178,29 @@ class Forger[
   }
 
   /** Schedule a forging attempt */
-  private def scheduleForgingAttempt(): Unit = {
-    println(s">>>>>>>>>>>>>>>>> first part of schedule attempt")
+  private def scheduleForgingAttempt(): Unit =
     nodeViewHolderRef match {
       case Some(nvh: ActorRef) =>
-        context.system.scheduler.scheduleOnce(settings.forging.blockGenerationDelay) { () =>
-          println(s">>>>>>>>>> schedule attempt")
+        context.system.scheduler.scheduleOnce(settings.forging.blockGenerationDelay)(
           nvh ! GetNodeViewChanges(history = true, state = true, mempool = true)
-        }
+        )
 
       case _ =>
         log.warn("No ledger actor found. Stopping forging attempts")
         self ! StopForging
     }
-  }
 
   /** Helper function to attempt to forge if all readers are available, otherwise update the context */
-  private def forgeWhenReady(hrOpt: Option[HR], srOpt: Option[SR], mrOpt: Option[MR])(ctx: Receive): Unit =
+  private def forgeWhenReady(hrOpt: Option[HR], srOpt: Option[SR], mrOpt: Option[MR]): Unit =
     checkNeededReaders(hrOpt, srOpt, mrOpt) match {
-      case Some(_) => scheduleForgingAttempt() // this happens when there is a succesful attempt
-      case None    => context.become(ctx)
+      case Some(_) => scheduleForgingAttempt() // this happens when there is a successful attempt
+      case None =>
+        context.become(activeForging(hrOpt, srOpt, mrOpt)) // still waiting for components from NodeViewHolder
     }
 
   /** This function checks if the needed readers have been provided to the context in order to attempt forging.
-    * If they have not, a None will be returned
+    * If they have not, a None will be returned and forging will be attempted once all node view components
+    * have been supplied
     */
   private def checkNeededReaders(hrOpt: Option[HR], srOpt: Option[SR], mrOpt: Option[MR]): Option[Unit] =
     for {
@@ -216,8 +208,7 @@ class Forger[
       mr <- mrOpt
       sr <- srOpt
     } yield {
-      updateForgeTime() // update the forge timestamp
-      tryForging(hr, sr, mr) // initiate forging attempt
+      tryForging(hr, sr, mr, getForgeTime) // initiate forging attempt
       context.become(activeForging(None, None, None)) // reset forging attempt (get new node view)
     }
 
@@ -227,13 +218,13 @@ class Forger[
     * @param stateReader   read-only state instance for semantic validity tests of transactions
     * @param memPoolReader read-only mempool instance for picking transactions to include in the block if created
     */
-  private def tryForging(historyReader: HR, stateReader: SR, memPoolReader: MR)(implicit
+  private def tryForging(historyReader: HR, stateReader: SR, memPoolReader: MR, forgeTime: TimeProvider.Time)(implicit
     timeout:                            Timeout = settings.forging.blockGenerationDelay
   ): Unit =
     try {
       (keyManager ? GetAttemptForgingKeyView)
         .mapTo[AttemptForgingKeyView]
-        .foreach(view => attemptForging(historyReader, stateReader, memPoolReader, view))
+        .foreach(view => attemptForging(historyReader, stateReader, memPoolReader, forgeTime, view))
     } catch {
       case ex: Throwable =>
         log.warn(s"Disabling forging due to exception: $ex. Resolve forging error and try forging again.")
@@ -244,6 +235,7 @@ class Forger[
     historyReader:      HR,
     stateReader:        SR,
     memPoolReader:      MR,
+    forgeTime:          TimeProvider.Time,
     attemptForgingView: AttemptForgingKeyView
   ): Unit = {
     log.debug(
@@ -295,6 +287,7 @@ class Forger[
       boxes,
       rewards,
       transactions,
+      forgeTime,
       attemptForgingView.sign,
       attemptForgingView.getPublicKey
     ) match {
@@ -388,6 +381,7 @@ class Forger[
     boxes:        Seq[ArbitBox],
     rawRewards:   Seq[TX],
     txsToInclude: Seq[TX],
+    forgeTime:    TimeProvider.Time,
     sign:         Address => Array[Byte] => Try[SignatureCurve25519],
     getPublicKey: Address => Try[PublicKeyPropositionCurve25519]
   ): Option[Block] = {
