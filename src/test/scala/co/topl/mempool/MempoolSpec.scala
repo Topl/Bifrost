@@ -10,7 +10,7 @@ import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentVie
 import co.topl.nodeView.history.{History, HistoryReader}
 import co.topl.nodeView.mempool.{MemPool, MemPoolReader}
 import co.topl.nodeView.state.State
-import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
+import co.topl.nodeView.NodeViewHolderRef
 import co.topl.settings.{AppContext, StartupOpts}
 import co.topl.utils.CoreGenerators
 import org.scalatest.DoNotDiscover

@@ -7,7 +7,6 @@ import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
 import co.topl.modifier.box.ProgramId
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.message.{BifrostSyncInfo, SyncInfo}
-import co.topl.nodeView.CurrentView
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, GetNodeViewChanges}
 import co.topl.nodeView.history.{History, HistoryReader}
 import co.topl.nodeView.mempool.{MemPool, MemPoolReader}
