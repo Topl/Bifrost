@@ -12,7 +12,7 @@ import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
 import co.topl.modifier.box.{ArbitBox, ProgramId}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.{ChangedHistory, ChangedMempool, ChangedState}
-import co.topl.network.message.SyncInfo
+import co.topl.network.message.{BifrostSyncInfo, SyncInfo}
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages._
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.mempool.MemPoolReader
@@ -30,9 +30,7 @@ import scala.util.{Failure, Success, Try}
   * Must be singleton
   */
 class Forger[
-  SI <: SyncInfo,
-  PMOD <: PersistentNodeViewModifier,
-  HR <: HistoryReader[PMOD, SI]: ClassTag,
+  HR <: HistoryReader[Block, BifrostSyncInfo]: ClassTag,
   SR <: StateReader[ProgramId, Address]: ClassTag,
   MR <: MemPoolReader[Transaction.TX]: ClassTag
 ](settings: AppSettings, appContext: AppContext, keyManager: ActorRef)(implicit ec: ExecutionContext, np: NetworkPrefix)
@@ -484,21 +482,17 @@ object Forger {
 object ForgerRef {
 
   def props[
-    SI <: SyncInfo,
-    PMOD <: PersistentNodeViewModifier,
-    HR <: HistoryReader[PMOD, SI]: ClassTag,
+    HR <: HistoryReader[Block, BifrostSyncInfo]: ClassTag,
     SR <: StateReader[ProgramId, Address]: ClassTag,
     MR <: MemPoolReader[Transaction.TX]: ClassTag
   ](settings: AppSettings, appContext: AppContext, keyManager: ActorRef)(implicit
     ec:       ExecutionContext,
     np:       NetworkPrefix
   ): Props =
-    Props(new Forger[SI, PMOD, HR, SR, MR](settings, appContext, keyManager))
+    Props(new Forger[HR, SR, MR](settings, appContext, keyManager))
 
   def apply[
-    SI <: SyncInfo,
-    PMOD <: PersistentNodeViewModifier,
-    HR <: HistoryReader[PMOD, SI]: ClassTag,
+    HR <: HistoryReader[Block, BifrostSyncInfo]: ClassTag,
     SR <: StateReader[ProgramId, Address]: ClassTag,
     MR <: MemPoolReader[Transaction.TX]: ClassTag
   ](name:   String, settings: AppSettings, appContext: AppContext, keyManager: ActorRef)(implicit
@@ -506,7 +500,7 @@ object ForgerRef {
     ec:     ExecutionContext
   ): ActorRef = {
     implicit val np: NetworkPrefix = appContext.networkType.netPrefix
-    system.actorOf(props[SI, PMOD, HR, SR, MR](settings, appContext, keyManager), name)
+    system.actorOf(props[HR, SR, MR](settings, appContext, keyManager), name)
   }
 
 }

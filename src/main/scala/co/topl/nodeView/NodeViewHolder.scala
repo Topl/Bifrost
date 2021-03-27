@@ -95,7 +95,6 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
   override def receive: Receive =
     processModifiers orElse
       transactionsProcessing orElse
-      getCurrentInfo orElse
       getNodeViewChanges orElse
       nonsense
 
@@ -121,13 +120,8 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
       }
   }
 
-  protected def getCurrentInfo: Receive = {
-    case GetDataFromCurrentView =>
-      sender() ! CurrentView(history().getReader, minimalState().getReader, memoryPool().getReader)
-  }
-
   protected def getNodeViewChanges: Receive = {
-    case t @ GetNodeViewChanges(history, state, mempool) =>
+    case GetNodeViewChanges(history, state, mempool) =>
       if (history) sender() ! ChangedHistory(nodeView._1.getReader)
       if (state) sender() ! ChangedState(nodeView._2.getReader)
       if (mempool) sender() ! ChangedMempool(nodeView._3.getReader)
@@ -483,7 +477,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
 ////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////// COMPANION SINGLETON ////////////////////////////////
 
-object NodeViewHolder {
+object     NodeViewHolder {
   val actorName = "nodeViewHolder"
 
   case class UpdateInformation[HIS, MS, PMOD <: PersistentNodeViewModifier](history: HIS,
