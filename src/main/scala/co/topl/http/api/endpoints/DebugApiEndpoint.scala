@@ -7,7 +7,8 @@ import co.topl.consensus.KeyManager.ReceivableMessages._
 import co.topl.http.api.{ApiEndpointWithView, DebugNamespace, Namespace}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.network.message.SyncInfo
+import co.topl.network.NodeViewSynchronizer.ReceivableMessages.ChangedHistory
+import co.topl.network.message.{BifrostSyncInfo, SyncInfo}
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, GetNodeViewChanges}
 import co.topl.nodeView.history.{History, HistoryDebug, HistoryReader}
 import co.topl.nodeView.mempool.MemPool
@@ -92,10 +93,10 @@ case class DebugApiEndpoint(
     */
   private def myBlocks(params: Json, id: String): Future[Json] =
     (nodeViewHolderRef ? GetNodeViewChanges(history = true, state = false, mempool = false))
-      .mapTo[HistoryReader[Block, _ <: SyncInfo]]
+      .mapTo[ChangedHistory[HistoryReader[Block, BifrostSyncInfo]]]
       .flatMap { hr =>
       (keyManagerRef ? ListKeys).mapTo[Set[Address]].map { myKeys =>
-        val blockNum = new HistoryDebug(hr).count { b =>
+        val blockNum = new HistoryDebug(hr.reader).count { b =>
           myKeys.map(_.evidence).contains(b.generatorBox.evidence)
         }
 

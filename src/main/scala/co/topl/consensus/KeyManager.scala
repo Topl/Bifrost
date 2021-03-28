@@ -11,7 +11,10 @@ import co.topl.utils.NetworkType._
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
 
-class KeyManager(implicit network: NetworkPrefix, settings: AppSettings, appContext: AppContext)
+class KeyManager(
+  settings:    AppSettings,
+  appContext:  AppContext
+)(implicit ec: ExecutionContext, np: NetworkPrefix)
     extends Actor
     with Logging {
 
@@ -129,7 +132,7 @@ class KeyManager(implicit network: NetworkPrefix, settings: AppSettings, appCont
 ////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////// COMPANION SINGLETON ////////////////////////////////
 
-object KeyManager extends Logging {
+object KeyManager {
 
   val actorName = "keyManager"
 
@@ -173,7 +176,7 @@ object KeyManagerRef {
 
   def props(settings: AppSettings, appContext: AppContext)(implicit ec: ExecutionContext, np: NetworkPrefix): Props =
     Props(
-      new KeyManager()(np, settings, appContext)
+      new KeyManager(settings, appContext)
     )
 
   def apply(name: String, settings: AppSettings, appContext: AppContext)(implicit

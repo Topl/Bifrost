@@ -6,11 +6,13 @@ import co.topl.attestation.Address
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
 import co.topl.modifier.box.ProgramId
 import co.topl.modifier.transaction.Transaction
+import co.topl.network.NodeViewSynchronizer.ReceivableMessages.{ChangedHistory, ChangedMempool, ChangedState}
 import co.topl.network.message.{BifrostSyncInfo, SyncInfo}
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, GetNodeViewChanges}
 import co.topl.nodeView.history.{History, HistoryReader}
 import co.topl.nodeView.mempool.{MemPool, MemPoolReader}
 import co.topl.nodeView.state.{State, StateReader}
+import co.topl.utils.Logging
 import io.circe.Json
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -24,13 +26,19 @@ trait ApiEndpointWithView extends ApiEndpoint {
   type MR = MemPoolReader[Transaction.TX]
 
   protected def asyncHistory(f: HR => Json)(implicit ec: ExecutionContext): Future[Json] =
-    (nodeViewHolderRef ? GetNodeViewChanges(history = true, state = false, mempool = false)).mapTo[HR].map(f)
+    (nodeViewHolderRef ? GetNodeViewChanges(history = true, state = false, mempool = false))
+      .mapTo[ChangedHistory[HR]]
+      .map(ch => f(ch.reader))
 
   protected def asyncState(f: SR => Json)(implicit ec: ExecutionContext): Future[Json] =
-    (nodeViewHolderRef ? GetNodeViewChanges(history = false, state = true, mempool = false)).mapTo[SR].map(f)
+    (nodeViewHolderRef ? GetNodeViewChanges(history = false, state = true, mempool = false))
+      .mapTo[ChangedState[SR]]
+      .map(cs => f(cs.reader))
 
   protected def asyncMempool(f: MR => Json)(implicit ec: ExecutionContext): Future[Json] =
-    (nodeViewHolderRef ? GetNodeViewChanges(history = false, state = false, mempool = true)).mapTo[MR].map(f)
+    (nodeViewHolderRef ? GetNodeViewChanges(history = false, state = false, mempool = true))
+      .mapTo[ChangedMempool[MR]]
+      .map(cm => f(cm.reader))
 
   /** Helper function to ensure this node has the appropriate state to create a request raw transaction */
   protected def checkAddress(keys: Seq[Address], sr: SR): Unit = {
