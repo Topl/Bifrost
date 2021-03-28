@@ -9,7 +9,7 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.testkit.TestActorRef
 import akka.util.{ByteString, Timeout}
-import co.topl.consensus.{Forger, ForgerRef, KeyManager, KeyManagerRef}
+import co.topl.consensus.{Forger, ForgerRef, KeyManager}
 import co.topl.http.HttpService
 import co.topl.http.api.ApiEndpoint
 import co.topl.http.api.endpoints._
@@ -21,7 +21,6 @@ import co.topl.nodeView.nodeViewHolder.TestableNodeViewHolder
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppContext, AppSettings, StartupOpts}
 import co.topl.utils.GenesisGenerators
-import co.topl.utils.NetworkType.NetworkPrefix
 import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.duration.DurationInt
@@ -46,24 +45,31 @@ trait RPCMockState extends AnyWordSpec with GenesisGenerators with ScalatestRout
 
   //TODO Fails when using rpcSettings
   override def createActorSystem(): ActorSystem = ActorSystem(settings.network.agentName)
+  //override implicit val system: ActorSystem = createActorSystem()
 
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
   // save environment into a variable for reference throughout the application
   protected val appContext = new AppContext(rpcSettings, StartupOpts.empty, None)
 
-  // place network prefix into implicit scope
-  override implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
-
   // Create Bifrost singleton actors
-  protected val keyManagerRef: ActorRef = KeyManagerRef(KeyManager.actorName, rpcSettings, appContext)
+  // NOTE: Some of these actors are TestActors in order to access the underlying instance so that we can manipulate
+  //       the state of the underlying instance while testing. Use with caution
+  protected val keyManagerRef: TestActorRef[KeyManager] = TestActorRef(
+    new KeyManager(rpcSettings, appContext)(system.getDispatcher, appContext.networkType.netPrefix)
+  )
   protected val forgerRef: ActorRef = ForgerRef[HIS, ST, MP](Forger.actorName, rpcSettings, appContext, keyManagerRef)
 
-  // create actor manually so that we have access to the underlying instance of the class in order
-  // to directly manipulate the nodeview
   protected val nodeViewHolderRef: TestActorRef[TestableNodeViewHolder] = TestActorRef(
-    new TestableNodeViewHolder(settings, appContext)
+    new TestableNodeViewHolder(settings, appContext)(system.getDispatcher, appContext.networkType.netPrefix)
   )
+
+  // Get underlying references
   private val nvh = nodeViewHolderRef.underlyingActor
+  private val km = keyManagerRef.underlyingActor
+
+  // manipulate the underlying actor state
+  nvh.updateNodeViewPublicAccessor(updatedState = Some(genesisState))
+  km.context.become(km.receive(keyRing, Some(keyRing.addresses.head)))
 
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 

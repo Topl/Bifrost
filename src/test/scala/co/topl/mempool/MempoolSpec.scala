@@ -5,6 +5,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
+import co.topl.network.NodeViewSynchronizer.ReceivableMessages.{ChangedHistory, ChangedMempool}
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, GetNodeViewChanges, LocallyGeneratedTransaction}
 import co.topl.nodeView.history.{History, HistoryReader}
@@ -35,13 +36,13 @@ class MempoolSpec extends AnyPropSpec with ScalaCheckPropertyChecks with Matcher
 
   private def getHistory: HistoryReader[Block, BifrostSyncInfo] = Await.result(
     (nodeViewHolderRef ? GetNodeViewChanges(history = true, state = false, mempool = false))
-      .mapTo[HistoryReader[Block, BifrostSyncInfo]],
+      .mapTo[ChangedHistory[HistoryReader[Block, BifrostSyncInfo]]].map(_.reader),
     10.seconds
   )
 
   private def getMempool: MemPoolReader[Transaction.TX] = Await.result(
     (nodeViewHolderRef ? GetNodeViewChanges(history = false, state = false, mempool = true))
-      .mapTo[MemPoolReader[Transaction.TX]],
+      .mapTo[ChangedMempool[MemPoolReader[Transaction.TX]]].map(_.reader),
     10.seconds
   )
 
