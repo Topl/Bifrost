@@ -43,7 +43,6 @@ class KeyManager(
     case ListKeys                            => sender() ! keyRing.addresses
     case UpdateRewardsAddress(address)       => sender() ! updateRewardsAddress(keyRing, address)
     case GetRewardsAddress                   => sender() ! rewardAddress.fold("none")(_.toString)
-    case GetForgerStartupKeyView             => sender() ! ForgerStartupKeyView(keyRing.addresses, rewardAddress)
     case GetAttemptForgingKeyView            => sender() ! getAttemptForgingKeyView(keyRing, rewardAddress)
     case GenerateInititalAddresses           => sender() ! generateInitialAddresses(keyRing, rewardAddress)
   }
@@ -98,8 +97,8 @@ class KeyManager(
   private def getAttemptForgingKeyView(
     keyRing:       KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
     rewardAddress: Option[Address]
-  ): Unit =
-    sender() ! AttemptForgingKeyView(
+  ): AttemptForgingKeyView =
+    AttemptForgingKeyView(
       keyRing.addresses,
       rewardAddress,
       (address: Address) => (message: Array[Byte]) => keyRing.signWithAddress(address)(message),
