@@ -8,7 +8,8 @@ lazy val commonSettings = Seq(
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   organization := "co.topl",
   version := "1.3.4",
-  homepage := Some(url("https://github.com/Topl/Bifrost"))
+  homepage := Some(url("https://github.com/Topl/Bifrost")),
+  publishTo := Some("Sonatype Nexus" at "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2")
   // wartremoverErrors := Warts.unsafe // settings for wartremover
 )
 
