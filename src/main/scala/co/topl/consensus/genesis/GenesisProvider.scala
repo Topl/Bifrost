@@ -18,7 +18,7 @@ trait GenesisProvider extends Logging {
   protected lazy val genesisAcct: PrivateKeyCurve25519 =
     PrivateKeyCurve25519(PrivateKey @@ Array.fill(32)(2: Byte), PublicKey @@ Array.fill(32)(2: Byte))
 
-  protected lazy val totalStake: Int128 = members.values.foldLeft[Int128](0)(_ + _)
+  protected lazy val totalStake: Int128 = members.values.sum
 
   protected val blockChecksum: ModifierId
 
