@@ -64,12 +64,12 @@ case class NodeViewApiEndpoint(
     * @return
     */
   private def getBestBlock(params: Json, id: String): Future[Json] =
-    viewAsync { view =>
+    asyncHistory { hr =>
       Map(
-        "height"      -> view.history.height.toString.asJson,
-        "score"       -> view.history.score.asJson,
-        "bestBlockId" -> view.history.bestBlockId.toString.asJson,
-        "bestBlock"   -> view.history.bestBlock.asJson
+        "height"      -> hr.height.toString.asJson,
+        "score"       -> hr.score.asJson,
+        "bestBlockId" -> hr.bestBlockId.toString.asJson,
+        "bestBlock"   -> hr.bestBlock.asJson
       ).asJson
     }
 
@@ -95,17 +95,17 @@ case class NodeViewApiEndpoint(
     * @return
     */
   private def balances(params: Json, id: String): Future[Json] =
-    viewAsync { view =>
+    asyncState { hr =>
       // parse arguments from the request
       (for {
         addresses <- params.hcursor.get[Seq[Address]]("addresses")
       } yield {
         // ensure we have the state being asked about
-        checkAddress(addresses, view)
+        checkAddress(addresses, hr)
 
         val boxes: Map[Address, Map[String, Seq[TokenBox[TokenValueHolder]]]] =
           addresses.map { k =>
-            val orderedBoxes = view.state.getTokenBoxes(k) match {
+            val orderedBoxes = hr.getTokenBoxes(k) match {
               case Some(boxes) => boxes.groupBy[String](Box.identifier(_).typeString)
               case _           => Map[String, Seq[TokenBox[TokenValueHolder]]]()
             }
@@ -147,7 +147,7 @@ case class NodeViewApiEndpoint(
     * @return
     */
   private def mempool(params: Json, id: String): Future[Json] =
-    viewAsync { _.pool.take(100)(-_.dateAdded).map(_.tx).asJson }
+    asyncMempool { _.take(100)(-_.dateAdded).map(_.tx).asJson }
 
   /** #### Summary
     * Lookup a transaction by its id
@@ -162,10 +162,10 @@ case class NodeViewApiEndpoint(
     * @return
     */
   private def transactionById(params: Json, id: String): Future[Json] =
-    viewAsync { view =>
+    asyncHistory { hr =>
       (for {
         transactionId <- params.hcursor.get[ModifierId]("transactionId")
-      } yield view.history.transactionById(transactionId)) match {
+      } yield hr.transactionById(transactionId)) match {
         case Right(Some((tx, blockId, height))) =>
           tx.asJson.deepMerge {
             Map(
@@ -192,10 +192,10 @@ case class NodeViewApiEndpoint(
     * @return
     */
   private def transactionFromMempool(params: Json, id: String): Future[Json] =
-    viewAsync { view =>
+    asyncMempool { mr =>
       (for {
         transactionId <- params.hcursor.get[ModifierId]("transactionId")
-      } yield view.pool.modifierById(transactionId)) match {
+      } yield mr.modifierById(transactionId)) match {
         case Right(Some(tx)) => tx.asJson
         case Right(None)     => throw new Exception("Unable to retrieve transaction")
         case Left(ex)        => throw ex
@@ -215,10 +215,10 @@ case class NodeViewApiEndpoint(
     * @return
     */
   private def blockById(params: Json, id: String): Future[Json] =
-    viewAsync { view =>
+    asyncHistory { hr =>
       (for {
         blockId <- params.hcursor.get[ModifierId]("blockId")
-      } yield view.history.modifierById(blockId)) match {
+      } yield hr.modifierById(blockId)) match {
         case Right(Some(block)) => block.asJson
         case Right(None)        => throw new Exception("The requested block could not be found")
         case Left(ex)           => throw ex
@@ -238,10 +238,10 @@ case class NodeViewApiEndpoint(
     * @return
     */
   private def blockByHeight(params: Json, id: String): Future[Json] =
-    viewAsync { view =>
+    asyncHistory { hr =>
       (for {
         height <- params.hcursor.get[Long]("height")
-      } yield view.history.modifierByHeight(height)) match {
+      } yield hr.modifierByHeight(height)) match {
         case Right(Some(block)) => block.asJson
         case Right(None)        => throw new Exception("The requested block could not be found")
         case Left(ex)           => throw ex

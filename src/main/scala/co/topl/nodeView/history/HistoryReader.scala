@@ -1,6 +1,7 @@
 package co.topl.nodeView.history
 
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
+import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ContainsModifiers, ModifierId}
 import co.topl.network.message.SyncInfo
 import co.topl.nodeView.NodeViewComponent
@@ -14,13 +15,24 @@ trait HistoryReader[PM <: PersistentNodeViewModifier, SI <: SyncInfo] extends No
   with ContainsModifiers[PM] {
 
   val height: Long
-  val bestBlock: Block
+  val bestBlock: PM
   val difficulty: Long
+  val bestBlockId: ModifierId
+  val score: Long
 
   /**
     * Is there's no history, even genesis block
     */
   def isEmpty: Boolean
+
+  /** Retrieve a series of PersistentNodeViewModifiers until the filter is satisfied */
+  def filter(f: PM => Boolean): Seq[PM]
+
+  /** get block id at a certain height */
+  def modifierByHeight(height: Long): Option[PM]
+
+  /** get parent block of a given block */
+  def parentBlock(m: PM): Option[PM]
 
   /** Gets the timestamps for 'count' number of blocks prior to (and including) the startBlock
     *
@@ -28,7 +40,10 @@ trait HistoryReader[PM <: PersistentNodeViewModifier, SI <: SyncInfo] extends No
     * @param count number of blocks to go back
     * @return timestamps of number of blocks including the given starting block
     */
-  def getTimestampsFrom(startBlock: Block, count: Long): Vector[TimeProvider.Time]
+  def getTimestampsFrom(startBlock: PM, count: Long): Vector[TimeProvider.Time]
+
+
+  def transactionById(id: ModifierId): Option[(Transaction.TX, ModifierId, Long)]
 
   /**
     * Whether a modifier could be applied to the history
