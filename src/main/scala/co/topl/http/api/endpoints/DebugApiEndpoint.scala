@@ -11,9 +11,7 @@ import co.topl.nodeView.history.{History, HistoryDebug}
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppContext, RPCApiSettings}
-import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.codecs.Int128Codec.jsonDecoder
 import io.circe.Json
 import io.circe.syntax._
 
@@ -140,20 +138,18 @@ case class DebugApiEndpoint(
   private def idsFromHeight(params: Json, id: String): Future[Json] =
     viewAsync { view =>
       (for {
-        height <- params.hcursor.get[Int128]("height")
-        limit <- params.hcursor.get[Int128]("limit")
-      } yield {
-        val history = new HistoryDebug(view.history)
-        val endHeight = height - limit
-
-        def chainBack(height: Int128, end: Int128, acc: Seq[ModifierId]): Seq[ModifierId] = {
-
+        height <- params.hcursor.get[Long]("height")
+        limit <- params.hcursor.get[Int]("limit")
+      } yield new HistoryDebug(view.history).getIdsFrom(height, limit)) match {
+        case Right(ids) => ids match {
+          case Some(ids) => ids.asJson
+          case None => ErrorResponse(
+            new Exception("No block ids found from that block height"),
+            500,
+            id
+          ).toJson
         }
-
-        "".asJson
-      }) match {
-        case Right(json) => json
-        case Left(e)     => ErrorResponse(e, 500, id).toJson
+        case Left(e) => throw e
       }
     }
 }
