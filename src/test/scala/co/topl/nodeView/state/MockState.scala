@@ -1,11 +1,12 @@
 package co.topl.nodeView.state
 
 import akka.actor.ActorSystem
+import co.topl.attestation.Address
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.consensus.genesis.PrivateGenesis
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.settings.{AppContext, StartupOpts}
+import co.topl.settings.{AppContext, AppSettings, StartupOpts}
 import co.topl.utils.{CoreGenerators, FileUtils}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
@@ -29,11 +30,12 @@ trait MockState extends AnyPropSpec
   val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
     KeyRing(settings.application.keyFileDir.get, KeyfileCurve25519)
 
-  val genesisBlock: Block = PrivateGenesis((_: Int, _: Option[String]) => {
-    keyRing.generateNewKeyPairs(num = 3) match {
-      case Success(keys) => keys.map(_.publicImage)
-      case Failure(ex)   => throw ex
-    } }, settings).getGenesisBlock.get._1
+  keyRing.generateNewKeyPairs(num = 3) match {
+    case Success(_) => ()
+    case Failure(error) => throw error
+  }
+
+  val genesisBlock: Block = PrivateGenesis(keyRing.addresses, settings).getGenesisBlock.get._1
 
   val genesisBlockId: ModifierId = genesisBlock.id
 
