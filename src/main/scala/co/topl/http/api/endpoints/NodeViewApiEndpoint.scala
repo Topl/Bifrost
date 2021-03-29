@@ -9,8 +9,8 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppContext, RPCApiSettings}
+import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.{Int128, NetworkType}
 import io.circe.Json
 import io.circe.syntax._
 
@@ -253,8 +253,12 @@ case class NodeViewApiEndpoint(
     viewAsync { view =>
       Map(
         "network" -> appContext.networkType.toString,
-        ""
-        "version" -> appContext
+        "nodeAddress" -> {
+          appContext.externalNodeAddress match {
+            case Some(address) => address.toString
+          }
+        },
+        "version" -> appContext.settings.application.version.toString
       ).asJson
     }
 }
