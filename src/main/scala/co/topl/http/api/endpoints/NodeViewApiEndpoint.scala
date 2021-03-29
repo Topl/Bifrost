@@ -256,6 +256,7 @@ case class NodeViewApiEndpoint(
         "nodeAddress" -> {
           appContext.externalNodeAddress match {
             case Some(address) => address.toString
+            case None => "N/A"
           }
         },
         "version" -> appContext.settings.application.version.toString

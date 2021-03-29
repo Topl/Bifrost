@@ -24,6 +24,7 @@ class HistoryDebug(history: History) {
   def getIdsFrom(startHeight: Long, limit: Int): Option[Seq[ModifierId]] = {
     history.modifierByHeight(startHeight) match {
       case Some(block) => history.getIdsFrom(block, _ => false, limit)
+      case None => None
     }
   }
 
