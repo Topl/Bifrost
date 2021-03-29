@@ -9,8 +9,8 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppContext, RPCApiSettings}
+import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.{Int128, NetworkType}
 import io.circe.Json
 import io.circe.syntax._
 
@@ -46,6 +46,7 @@ case class NodeViewApiEndpoint(
     case (method, params, id) if method == s"${namespace.name}_mempool"         => mempool(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_transactionFromMempool" =>
       transactionFromMempool(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_info"            => info(params.head, id)
   }
 
   /** #### Summary
@@ -246,5 +247,19 @@ case class NodeViewApiEndpoint(
         case Right(None)        => throw new Exception("The requested block could not be found")
         case Left(ex)           => throw ex
       }
+    }
+
+  private def info(params: Json, id: String): Future[Json] =
+    viewAsync { view =>
+      Map(
+        "network" -> appContext.networkType.toString,
+        "nodeAddress" -> {
+          appContext.externalNodeAddress match {
+            case Some(address) => address.toString
+            case None => "N/A"
+          }
+        },
+        "version" -> appContext.settings.application.version.toString
+      ).asJson
     }
 }
