@@ -4,6 +4,7 @@ import java.io.File
 import co.topl.modifier.ModifierId
 import co.topl.settings.AppSettings
 import co.topl.utils.Int128
+import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import scala.util.Try
@@ -21,7 +22,6 @@ class ConsensusStorage(val storage: LSMStore) {
     * @param params the current state of the parameters
     */
   def updateConsensusStorage(blockId: ModifierId, params: ConsensusParams): Unit = {
-    // TODO: Branden - determine if this should be blockId.bytes or blockId.getIdBytes
     val versionId = toVersionId(blockId)
 
     val totalStakePair = Seq(totalStakeKey -> params.totalStake.toByteArray)
@@ -39,8 +39,8 @@ class ConsensusStorage(val storage: LSMStore) {
   def totalStake: Option[Int128] =
     storage.get(totalStakeKey).map(v => Int128(v.data))
 
-  def difficulty: Option[Int128] =
-    storage.get(difficultyKey).map(v => Int128(v.data))
+  def difficulty: Option[Long] =
+    storage.get(difficultyKey).map(v => Longs.fromByteArray(v.data))
 
   def inflation: Option[Int128] =
     storage.get(inflationKey).map(v => Int128(v.data))
@@ -77,7 +77,7 @@ object ConsensusStorage {
   def initialize(
     blockId: ModifierId,
     totalStake: Int128,
-    difficulty: Int128,
+    difficulty: Long,
     settings: AppSettings
   ): ConsensusStorage = {
     val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
