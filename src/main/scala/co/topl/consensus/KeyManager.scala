@@ -11,8 +11,12 @@ import co.topl.utils.NetworkType._
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
 
-class KeyManager(implicit network: NetworkPrefix, settings: AppSettings, appContext: AppContext)
-  extends Actor with Logging {
+class KeyManager(
+  settings:    AppSettings,
+  appContext:  AppContext
+)(implicit ec: ExecutionContext, np: NetworkPrefix)
+    extends Actor
+    with Logging {
 
   import KeyManager.ReceivableMessages._
 
@@ -26,22 +30,21 @@ class KeyManager(implicit network: NetworkPrefix, settings: AppSettings, appCont
     receive(keyRing, rewardsAddress)
   }
 
-  /**
-    * Receives messages with the given key ring and reward address set as context data.
+  /** Receives messages with the given key ring and reward address set as context data.
     * @param keyRing the current key ring state
     * @param rewardAddress the address to give forging rewards to
     * @return a Receive partial function
     */
   def receive(keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519], rewardAddress: Option[Address]): Receive = {
-    case CreateKey(password) => sender() ! keyRing.DiskOps.generateKeyFile(password)
-    case UnlockKey(addr, password) => sender() ! keyRing.DiskOps.unlockKeyFile(addr, password)
-    case LockKey(addr) => sender() ! keyRing.removeFromKeyring(addr)
+    case CreateKey(password)                 => sender() ! keyRing.DiskOps.generateKeyFile(password)
+    case UnlockKey(addr, password)           => sender() ! keyRing.DiskOps.unlockKeyFile(addr, password)
+    case LockKey(addr)                       => sender() ! keyRing.removeFromKeyring(addr)
     case ImportKey(password, mnemonic, lang) => sender() ! keyRing.importPhrase(password, mnemonic, lang)
-    case ListKeys => sender() ! keyRing.addresses
-    case UpdateRewardsAddress(address) => sender() ! updateRewardsAddress(keyRing, address)
-    case GetRewardsAddress => sender() ! rewardAddress.fold("none")(_.toString)
-    case GetAttemptForgingKeyView => sender() ! getAttemptForgingKeyView(keyRing, rewardAddress)
-    case GenerateInititalAddresses => sender() ! generateInitialAddresses(keyRing, rewardAddress)
+    case ListKeys                            => sender() ! keyRing.addresses
+    case UpdateRewardsAddress(address)       => sender() ! updateRewardsAddress(keyRing, address)
+    case GetRewardsAddress                   => sender() ! rewardAddress.fold("none")(_.toString)
+    case GetAttemptForgingKeyView            => sender() ! getAttemptForgingKeyView(keyRing, rewardAddress)
+    case GenerateInititalAddresses           => sender() ! generateInitialAddresses(keyRing, rewardAddress)
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
@@ -56,8 +59,7 @@ class KeyManager(implicit network: NetworkPrefix, settings: AppSettings, appCont
     KeyRing[PrivateKeyCurve25519, KeyfileCurve25519](keyFileDir, KeyfileCurve25519)
   }
 
-  /**
-    * Generates the initial addresses in the node for a private or local test network.
+  /** Generates the initial addresses in the node for a private or local test network.
     * @param keyRing the key ring to generate addresses in
     * @param rewardAddress the current reward address
     * @return a try which results in a ForgerView of the current addresses and rewards address
@@ -65,7 +67,7 @@ class KeyManager(implicit network: NetworkPrefix, settings: AppSettings, appCont
   private def generateInitialAddresses(
     keyRing:       KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
     rewardAddress: Option[Address]
-  ): Try[ForgerStartupKeyView] = {
+  ): Try[ForgerStartupKeyView] =
     // If the keyring is not already populated and this is a private/local testnet, generate the keys
     // this is for when you have started up a private network and are attempting to resume it using
     // the same seed you used previously to continue forging
@@ -91,10 +93,9 @@ class KeyManager(implicit network: NetworkPrefix, settings: AppSettings, appCont
     } else {
       Success(ForgerStartupKeyView(keyRing.addresses, rewardAddress))
     }
-  }
 
   private def getAttemptForgingKeyView(
-    keyRing:KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+    keyRing:       KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
     rewardAddress: Option[Address]
   ): AttemptForgingKeyView =
     AttemptForgingKeyView(
@@ -130,16 +131,16 @@ class KeyManager(implicit network: NetworkPrefix, settings: AppSettings, appCont
 ////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////// COMPANION SINGLETON ////////////////////////////////
 
-object KeyManager extends Logging {
+object KeyManager {
 
   val actorName = "keyManager"
 
   case class ForgerStartupKeyView(addresses: Set[Address], rewardAddr: Option[Address])
 
   case class AttemptForgingKeyView(
-    addresses: Set[Address],
-    rewardAddr: Option[Address],
-    sign: Address => Array[Byte] => Try[SignatureCurve25519],
+    addresses:    Set[Address],
+    rewardAddr:   Option[Address],
+    sign:         Address => Array[Byte] => Try[SignatureCurve25519],
     getPublicKey: Address => Try[PublicKeyPropositionCurve25519]
   )
 
@@ -174,7 +175,7 @@ object KeyManagerRef {
 
   def props(settings: AppSettings, appContext: AppContext)(implicit ec: ExecutionContext, np: NetworkPrefix): Props =
     Props(
-      new KeyManager()(np, settings, appContext)
+      new KeyManager(settings, appContext)
     )
 
   def apply(name: String, settings: AppSettings, appContext: AppContext)(implicit
