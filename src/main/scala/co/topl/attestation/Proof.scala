@@ -45,7 +45,7 @@ object Proof {
   implicit def jsonDecoder: Decoder[Proof[_]] = Decoder.decodeString.map((str: String) => fromString(str).get)
 }
 
-/** The proof for a given type of [[Secret]] and [[KnowledgeProposition]] */
+/** The proof for a given type of `Secret` and `KnowledgeProposition` */
 sealed trait ProofOfKnowledge[S <: Secret, P <: KnowledgeProposition[S]] extends Proof[P]
 
 /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */

@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets
 
 import co.topl.attestation.Address
 import co.topl.modifier.box.AssetCode.AssetCodeVersion
+import co.topl.utils.Extensions.StringOps
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
@@ -19,7 +20,10 @@ case class AssetCode(version: AssetCodeVersion, issuer: Address, shortName: Stri
   require(version == 1.toByte, "AssetCode version required to be 1")
 
   require(
-    shortName.getBytes(StandardCharsets.ISO_8859_1).length <= AssetCode.shortNameLimit,
+    shortName
+      .getValidLatin1Bytes
+      .getOrElse(throw new Exception("String is not valid Latin-1"))
+      .length <= AssetCode.shortNameLimit,
     "Asset short names must be less than 8 Latin-1 encoded characters"
   )
 
@@ -53,6 +57,7 @@ object AssetCode extends BifrostSerializer[AssetCode] {
     }
 
   override def serialize(obj: AssetCode, w: Writer): Unit = {
+    // should be safe to assume Latin-1 encoding since AssetCode already checks this once instantiation
     val paddedShortName = obj.shortName.getBytes(StandardCharsets.ISO_8859_1).padTo(shortNameLimit, 0: Byte)
 
     w.put(obj.version)
