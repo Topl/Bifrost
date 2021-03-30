@@ -51,6 +51,10 @@ val apiDependencies = Seq(
   "io.circe" %% "circe-literal" % circeVersion
 )
 
+val akkaCirceDependencies = Seq(
+  "de.heikoseeberger" %% "akka-http-circe" % "1.36.0"
+)
+
 val loggingDependencies = Seq(
   "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.3",
   "ch.qos.logback"              % "logback-classic" % "1.2.3",
@@ -183,7 +187,22 @@ outputStrategy := Some(StdoutOutput)
 connectInput in run := true
 outputStrategy := Some(StdoutOutput)
 
+lazy val akkaHttpRpc = Project(id = "akka-http-rpc", base = file("akka-http-rpc"))
+  .settings(commonSettings: _*)
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.akkahttprpc",
+    libraryDependencies ++=
+      apiDependencies ++
+        akkaDependencies ++
+        akkaCirceDependencies ++
+        testingDependencies,
+  )
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+
 lazy val bifrost = Project(id = "bifrost", base = file("."))
+  .dependsOn(akkaHttpRpc)
   .settings(commonSettings: _*)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .settings(
