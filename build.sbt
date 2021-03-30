@@ -3,7 +3,7 @@ import sbtassembly.MergeStrategy
 
 lazy val commonSettings = Seq(
   name := "bifrost",
-  scalaVersion := "2.12.13",
+  scalaVersion := scala212,
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   organization := "co.topl",
@@ -13,10 +13,14 @@ lazy val commonSettings = Seq(
   // wartremoverErrors := Warts.unsafe // settings for wartremover
 )
 
+val scala212 = "2.12.13"
+val scala213 = "2.13.4"
+
 mainClass in assembly := Some("co.topl.BifrostApp")
 test in assembly := {}
 
-resolvers ++= Seq("Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/")
+resolvers ++= Seq("Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/",
+  "Sonatype OSS Staging" at "https://s01.oss.sonatype.org/content/repositories/staging")
 
 val akkaVersion = "2.6.10"
 val akkaHttpVersion = "10.2.1"
@@ -133,6 +137,8 @@ testOptions in Test += Tests.Argument(TestFrameworks.ScalaCheck, "-verbosity", "
 
 publishMavenStyle := true
 
+usePgpKeyHex("CEE1DC9E7C8E9AF4441D5EB9E35E84257DCF8DCB")
+
 publishArtifact in Test := false
 
 parallelExecution in Test := false
@@ -197,6 +203,7 @@ lazy val bifrost = Project(id = "bifrost", base = file("."))
 lazy val utils = Project(id = "utils", base = file("utils"))
   .settings(
     commonSettings,
+    crossScalaVersions := Seq(scala212, scala213),
     libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ apiDependencies ++ cryptoDependencies
   )
 
