@@ -7,6 +7,7 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
 import cats.data.{EitherT, NonEmptyList}
 import cats.implicits._
+import co.topl.utils.Int128
 import com.spotify.docker.client.DockerClient
 import io.circe._
 import io.circe.generic.auto._
@@ -19,11 +20,13 @@ import scorex.util.encode.Base58
 import java.util.UUID
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
-import scala.util.Success
+import scala.util.{Success, Try}
 
 case class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem) {
 
   import system.dispatcher
+
+  import NodeRpcApi._
 
   protected val log: Logger = LoggerFactory.getLogger(s"${getClass.getName} host=$host rpcPort=$rpcPort")
 
@@ -116,6 +119,19 @@ case class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem) 
         .map(_ => Done)
         .value
   }
+
+  object Topl {
+
+    def head(): Future[Either[NodeApiError, Responses.HeadResponse]] =
+      EitherT(rpc("topl_head"))
+        .subflatMap(_.hcursor.downField("result").as[Responses.HeadResponse].leftMap(JsonDecodingError))
+        .value
+
+    object Responses {
+      case class HeadResponse(height: Int128, score: Long, bestBlockId: String)
+
+    }
+  }
 }
 
 object NodeRpcApi {
@@ -128,6 +144,10 @@ object NodeRpcApi {
     val host = dockerClient.inspectContainer(node.containerId).networkSettings().ipAddress()
     new NodeRpcApi(host, BifrostDockerNode.RpcPort)
   }
+
+  implicit val int128Decoder: Decoder[Int128] =
+    Decoder.decodeString.emapTry(v => Try(Int128(v)))
+      .or(Decoder.decodeBigInt.emapTry(v => Try(Int128(v))))
 }
 
 case class StrictHttpResponse(statusCode: StatusCode, headers: Map[String, String], body: String)
