@@ -104,7 +104,7 @@ class SyntaxBlockValidator extends BlockValidator[Block] {
       case (tx, 0) => tx match {
         case tx: ArbitTransfer[_] if tx.minting =>
           forgerEntitlementCheck(tx, block)
-          require(tx.to.map(_._2.quantity).sum == inflation, //JAA -this needs to be done more carefully
+          require(tx.to.map(_._2.quantity).sum == consensusStorage.inflation, //JAA -this needs to be done more carefully
             "The inflation amount in the block must match the output of the Arbit rewards transaction")
           require(tx.data.fold(false)(_.split("_").head == block.parentId.toString),
             "Arbit reward transactions must contain the parent id of their minting block")

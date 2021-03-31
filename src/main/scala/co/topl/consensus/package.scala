@@ -14,7 +14,7 @@ package object consensus {
   private var _protocolMngr: ProtocolVersioner = ProtocolVersioner.empty
 
   // Initialize or restore a consensus storage that keeps track of the maxStake, difficulty, height, and inflation
-  private[consensus] var consensusStorage: Option[ConsensusStorage] = None
+  private[consensus] var consensusStorage: ConsensusStorage = ConsensusStorage.emptyStorage()
 
   //TODO: Jing - remove after ConsensusStorage is done
   //  // these variables are left as vars since they are local state of the consensus protocol determined from the chain
@@ -45,17 +45,17 @@ package object consensus {
   def nxtBlockNum: Int = 3
 
   /** Find the rule set for the given app version and block height */
-  def getProtocolRules(blockHeight: Long): ProtocolSettings =
+  def getProtocolRules(blockHeight: Int128): ProtocolSettings =
     protocolMngr.current(blockHeight)
     .getOrElse(throw new Error("Unable to find applicable protocol rules"))
 
-  def targetBlockTime(blockHeight: Long): FiniteDuration =
+  def targetBlockTime(blockHeight: Int128): FiniteDuration =
     getProtocolRules(blockHeight).targetBlockTime.get
 
-  def numTxInBlock(blockHeight: Long): Int =
+  def numTxInBlock(blockHeight: Int128): Int =
     getProtocolRules(blockHeight).numTxPerBlock.get
 
-  def blockVersion(blockHeight: Long): Byte =
+  def blockVersion(blockHeight: Int128): Byte =
     getProtocolRules(blockHeight).blockVersion.get
 
   /**
@@ -79,12 +79,9 @@ package object consensus {
    * @param timestamp      the current timestamp
    * @return the adjusted difficulty
    */
-  def calcAdjustedTarget(parent: Block,
-                         parentHeight: Int128,
-                         baseDifficulty: Int128,
-                         timestamp: Long): BigDecimal = {
+  def calcAdjustedTarget(parent: Block, parentHeight: Int128, baseDifficulty: Int128, timestamp: Long): BigDecimal = {
 
-    val target = baseDifficulty / consensusStorage.totalStake
+    val target: Double = baseDifficulty.toDouble / consensusStorage.totalStake.toDouble
     val timeDelta = timestamp - parent.timestamp
 
     BigDecimal(target * timeDelta.toDouble / targetBlockTime(parentHeight).toUnit(MILLISECONDS))

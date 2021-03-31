@@ -1,6 +1,7 @@
 package co.topl.consensus
 
 import co.topl.settings.{ProtocolSettings, Version}
+import co.topl.utils.Int128
 
 import scala.collection.SortedSet
 
@@ -19,7 +20,7 @@ class ProtocolVersioner(appVersion: Version, protocolVersions: SortedSet[Protoco
    * @param blockHeight height of the block being considered
    * @return
    */
-  def current(blockHeight: Long): Option[ProtocolSettings] = applicable.find(blockHeight >= _.startBlock)
+  def current(blockHeight: Int128): Option[ProtocolSettings] = applicable.find(blockHeight >= _.startBlock)
 }
 
 object ProtocolVersioner {

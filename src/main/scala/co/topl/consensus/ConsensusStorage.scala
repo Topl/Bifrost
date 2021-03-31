@@ -3,13 +3,11 @@ package co.topl.consensus
 import java.io.File
 import co.topl.modifier.ModifierId
 import co.topl.settings.AppSettings
-import co.topl.utils.Int128
+import co.topl.utils.{Int128, Logging}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
-import scala.util.Try
-
-class ConsensusStorage(storage: Option[LSMStore]) {
+class ConsensusStorage(storage: Option[LSMStore]) extends Logging {
 
   // constant keys for each piece of consensus state
   private val totalStakeKey = ByteArrayWrapper("totalStake".getBytes)
@@ -42,7 +40,7 @@ class ConsensusStorage(storage: Option[LSMStore]) {
     case None => defaultHeight
   }
 
-  def maxStake: Int128 = _totalStake
+  def totalStake: Int128 = _totalStake
   def difficulty: Long = _difficulty
   def inflation: Int128 = _inflation
   def height: Int128 = _height
@@ -69,7 +67,10 @@ class ConsensusStorage(storage: Option[LSMStore]) {
     }
 
     // update cached values here
-    storage.foreach(store => store.update(versionId, Seq(), toUpdate))
+    storage match {
+      case Some(store) => store.update(versionId, Seq(), toUpdate)
+      case _ => log.warn("Failed saving consensus params in storage")
+    }
   }
 
   /** Rolls back the current state of storage to the data within the given version.
@@ -104,6 +105,8 @@ object ConsensusStorage {
 
     consensusStorage
   }
+
+  def emptyStorage(): ConsensusStorage = new ConsensusStorage(None)
 
 }
 
