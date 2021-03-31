@@ -28,7 +28,8 @@ class NodeViewHolderSpec extends AnyPropSpec
 
       val updateMemPool = PrivateMethod[MP]('updateMemPool)
       val memPool = nodeView invokePrivate updateMemPool(Seq(rewardBlock), Seq(), MemPool.emptyPool, state)
-      memPool.size shouldBe 0
+      memPool.contains(polyReward) shouldBe false
+      memPool.contains(arbitReward) shouldBe false
     }
   }
 }
