@@ -2,15 +2,23 @@ import sbt.Keys.{homepage, organization}
 import sbtassembly.MergeStrategy
 
 lazy val commonSettings = Seq(
-  name := "bifrost",
   scalaVersion := scala212,
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   organization := "co.topl",
   version := "1.3.4",
   homepage := Some(url("https://github.com/Topl/Bifrost")),
-  publishTo := Some("Sonatype Nexus" at "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2")
+  publishMavenStyle := true,
+  publishTo := Some("Sonatype Nexus" at "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2"),
   // wartremoverErrors := Warts.unsafe // settings for wartremover
+
+  Compile / unmanagedSourceDirectories += {
+    val sourceDir = (sourceDirectory in Compile).value
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, n)) if n >= 13 => sourceDir / "scala-2.13+"
+      case _ => sourceDir / "scala-2.12-"
+    }
+  }
 )
 
 val scala212 = "2.12.13"
@@ -133,10 +141,6 @@ javaOptions ++= Seq(
 testOptions in Test += Tests.Argument("-oD", "-u", "target/test-reports")
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaCheck, "-verbosity", "2")
 
-//publishing settings
-
-publishMavenStyle := true
-
 usePgpKeyHex("CEE1DC9E7C8E9AF4441D5EB9E35E84257DCF8DCB")
 
 publishArtifact in Test := false
@@ -154,7 +158,6 @@ Test / fork := false
 Compile / run / fork := true
 
 pomIncludeRepository := { _ => false }
-
 
 assemblyJarName := s"bifrost-${version.value}.jar"
 
@@ -186,9 +189,10 @@ connectInput in run := true
 outputStrategy := Some(StdoutOutput)
 
 lazy val bifrost = Project(id = "bifrost", base = file("."))
-  .settings(commonSettings)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .settings(
+    commonSettings,
+    name := "bifrost",
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
     dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java8-21.0.0",
@@ -203,6 +207,7 @@ lazy val bifrost = Project(id = "bifrost", base = file("."))
 lazy val utils = Project(id = "utils", base = file("utils"))
   .settings(
     commonSettings,
+    name := "utils",
     crossScalaVersions := Seq(scala212, scala213),
     libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ apiDependencies ++ cryptoDependencies
   )
