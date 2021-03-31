@@ -231,10 +231,6 @@ final class Int128(val upperLong: Long, val lowerLong: Long)
 
   def toString(radix: Int): String = this.bigInt.toString(radix)
 
-  def parseString(str: String): Option[Int128] =
-    try Some(Int128(str))
-    catch { case _: NumberFormatException => None }
-
   override def compare(that: Int128): Int = this.bigInt.compare(that.bigInt)
 
   /** If the supplied argument is another Int128, tests for bit-wise equality,
