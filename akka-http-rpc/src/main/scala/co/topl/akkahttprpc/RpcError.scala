@@ -85,13 +85,13 @@ object InternalJsonRpcError {
     Encoder.forProduct2("reason", "throwable")(data => (data.reason, data.throwable))
 }
 
-case class ServerError[Data: Encoder](code: Int, message: String, data: Option[Data]) extends RpcError[Data]
+case class CustomError[Data: Encoder](code: Int, message: String, data: Option[Data]) extends RpcError[Data]
 
-object ServerError {
+object CustomError {
   import JsonFailureSupport.throwableEncoder
 
-  def fromThrowable(code: Int, message: String, throwable: Throwable): ServerError[Throwable] =
-    ServerError[Throwable](code, message, Some(throwable))
+  def fromThrowable(code: Int, message: String, throwable: Throwable): CustomError[Throwable] =
+    CustomError[Throwable](code, message, Some(throwable))
 }
 
 object JsonFailureSupport {

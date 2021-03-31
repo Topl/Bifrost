@@ -30,6 +30,16 @@ abstract class RpcHandler[Params: Decoder, ErrorResult: RpcErrorEncoder, Success
       .map(success => SuccessRpcResponse(rawRpcRequest.id, rawRpcRequest.jsonrpc, success.asJson))
 }
 
+object RpcHandler {
+
+  def apply[Params: Decoder, ErrorResult: RpcErrorEncoder, SuccessResult: Encoder](
+    f: Params => EitherT[Future, ErrorResult, SuccessResult]
+  ): RpcHandler[Params, ErrorResult, SuccessResult] =
+    new RpcHandler[Params, ErrorResult, SuccessResult] {
+      def apply(params: Params): EitherT[Future, ErrorResult, SuccessResult] = f(params)
+    }
+}
+
 trait RpcErrorEncoder[ErrorResult] {
   def toRpcError(outError: ErrorResult): RpcError[_]
 }
