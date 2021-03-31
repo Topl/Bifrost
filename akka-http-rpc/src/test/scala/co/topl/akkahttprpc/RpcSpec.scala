@@ -19,25 +19,12 @@ class RpcSpec extends AnyFlatSpecLike with ScalatestRouteTest with EitherValues 
 
   behavior of "Rpc"
 
-  implicit val decodeParams: Decoder[TestMethod1Params] =
-    deriveDecoder[TestMethod1Params]
-
-  implicit val encodeParams: Encoder[TestMethod1Params] =
-    deriveEncoder[TestMethod1Params]
-
-  implicit val encodeTestMethod1Error: Encoder[TestMethod1Error] =
-    Encoder.forProduct1[TestMethod1Error, Throwable]("throwable")(e => e.throwable)
-
-  implicit val encodeTestMethod1Success: Encoder[TestMethod1Success] =
-    deriveEncoder[TestMethod1Success]
-
-  implicit val errorToRpcError: RpcErrorEncoder[TestMethod1Error] =
-    e => CustomError.fromThrowable(32034, "Test Exception", e.throwable)
+  import RpcSpec._
 
   it should "create akka-http Routes using RPC handlers" in {
     val method1Handler: RpcHandler[_, _, _] =
-      RpcHandler[TestMethod1Params, TestMethod1Error, TestMethod1Success](params =>
-        EitherT.pure[Future, TestMethod1Error](TestMethod1Success(params.userId.length))
+      RpcHandler[TestMethodParams, TestMethodError, TestMethodSuccess](params =>
+        EitherT.pure[Future, TestMethodError](TestMethodSuccess(params.userId.length))
       )
 
     val underTest = Rpc.route(
@@ -52,7 +39,7 @@ class RpcSpec extends AnyFlatSpecLike with ScalatestRouteTest with EitherValues 
         "id"      -> "1".asJson,
         "jsonrpc" -> "2.0".asJson,
         "method"  -> "test_method1".asJson,
-        "params"  -> TestMethod1Params("abcdef").asJson
+        "params"  -> TestMethodParams("abcdef").asJson
       ).asJson
     ) ~> underTest ~> check {
       val json = responseAs[Json]
@@ -64,8 +51,8 @@ class RpcSpec extends AnyFlatSpecLike with ScalatestRouteTest with EitherValues 
 
   it should "return a ParseError when non-JSON is provided" in {
     val method1Handler: RpcHandler[_, _, _] =
-      RpcHandler[TestMethod1Params, TestMethod1Error, TestMethod1Success](params =>
-        EitherT.pure[Future, TestMethod1Error](TestMethod1Success(params.userId.length))
+      RpcHandler[TestMethodParams, TestMethodError, TestMethodSuccess](params =>
+        EitherT.pure[Future, TestMethodError](TestMethodSuccess(params.userId.length))
       )
 
     val underTest = Rpc.route(
@@ -88,8 +75,8 @@ class RpcSpec extends AnyFlatSpecLike with ScalatestRouteTest with EitherValues 
 
   it should "return an InvalidRequestError when JSON is provided but is not valid RPC format" in {
     val method1Handler: RpcHandler[_, _, _] =
-      RpcHandler[TestMethod1Params, TestMethod1Error, TestMethod1Success](params =>
-        EitherT.pure[Future, TestMethod1Error](TestMethod1Success(params.userId.length))
+      RpcHandler[TestMethodParams, TestMethodError, TestMethodSuccess](params =>
+        EitherT.pure[Future, TestMethodError](TestMethodSuccess(params.userId.length))
       )
 
     val underTest = Rpc.route(
@@ -100,7 +87,7 @@ class RpcSpec extends AnyFlatSpecLike with ScalatestRouteTest with EitherValues 
 
     Post(
       "/",
-      """{"foo": "bar"}"""
+      Map("foo" -> "bar").asJson
     ) ~> underTest ~> check {
       val json = responseAs[Json]
       val c = json.hcursor
@@ -110,9 +97,95 @@ class RpcSpec extends AnyFlatSpecLike with ScalatestRouteTest with EitherValues 
     }
   }
 
-  case class TestMethod1Params(userId: String)
-  case class TestMethod1Error(throwable: Throwable)
+  it should "return a MethodNotFoundError when valid RPC format is provided but the method is not known" in {
+    val method1Handler: RpcHandler[_, _, _] =
+      RpcHandler[TestMethodParams, TestMethodError, TestMethodSuccess](params =>
+        EitherT.pure[Future, TestMethodError](TestMethodSuccess(params.userId.length))
+      )
 
-  case class TestMethod1Success(value: Int)
+    val underTest = Rpc.route(
+      NonEmptyMap.of(
+        "test_method1" -> method1Handler
+      )
+    )
+
+    Post(
+      "/",
+      Map(
+        "id"      -> "1".asJson,
+        "jsonrpc" -> "2.0".asJson,
+        "method"  -> "unknown_method".asJson,
+        "params"  -> Json.obj()
+      ).asJson
+    ) ~> underTest ~> check {
+      val json = responseAs[Json]
+      val c = json.hcursor
+      c.downField("id").as[String].value
+      c.downField("error").downField("code").as[Int].value shouldBe -32601
+      c.downField("error").downField("message").as[String].value shouldBe "RPC Method Not Found"
+    }
+  }
+
+  it should "return a InvalidParametersError when valid RPC format is provided but the method is not known" in {
+    val method1Handler: RpcHandler[_, _, _] =
+      RpcHandler[TestMethodParams, TestMethodError, TestMethodSuccess](params =>
+        EitherT.pure[Future, TestMethodError](TestMethodSuccess(params.userId.length))
+      )
+
+    val underTest = Rpc.route(
+      NonEmptyMap.of(
+        "test_method1" -> method1Handler
+      )
+    )
+
+    Post(
+      "/",
+      Map(
+        "id"      -> "1".asJson,
+        "jsonrpc" -> "2.0".asJson,
+        "method"  -> "test_method1".asJson,
+        "params"  -> Map("foo" -> "bar").asJson
+      ).asJson
+    ) ~> underTest ~> check {
+      val json = responseAs[Json]
+      val c = json.hcursor
+      c.downField("id").as[String].value
+      c.downField("error").downField("code").as[Int].value shouldBe -32602
+      c.downField("error").downField("message").as[String].value shouldBe "Invalid method parameter(s)"
+      c.downField("error")
+        .downField("data")
+        .downField("errors")
+        .downArray
+        .downField("path")
+        .as[List[String]]
+        .value shouldBe List(
+        "--\\(userId)"
+      )
+    }
+  }
 
 }
+
+object RpcSpec {
+
+  implicit val decodeParams: Decoder[TestMethodParams] =
+    deriveDecoder[TestMethodParams]
+
+  implicit val encodeParams: Encoder[TestMethodParams] =
+    deriveEncoder[TestMethodParams]
+
+  implicit val encodeTestMethod1Error: Encoder[TestMethodError] =
+    Encoder.forProduct1[TestMethodError, Throwable]("throwable")(e => e.throwable)
+
+  implicit val encodeTestMethod1Success: Encoder[TestMethodSuccess] =
+    deriveEncoder[TestMethodSuccess]
+
+  implicit val errorToRpcError: RpcErrorEncoder[TestMethodError] =
+    e => CustomError.fromThrowable(32034, "Test Exception", e.throwable)
+
+}
+
+case class TestMethodParams(userId: String)
+case class TestMethodError(throwable: Throwable)
+
+case class TestMethodSuccess(value: Int)

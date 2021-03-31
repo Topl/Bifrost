@@ -17,7 +17,7 @@ abstract class RpcHandler[Params: Decoder, ErrorResult: RpcErrorEncoder, Success
       .fromEither[Future](
         implicitly[Decoder[Params]]
           .decodeJson(rawRpcRequest.params)
-          .leftMap(InvalidRequestError)
+          .leftMap(InvalidParametersError.apply)
       )
       .flatMap(apply(_).leftMap(implicitly[RpcErrorEncoder[ErrorResult]].toRpcError(_)))
       .leftMap(e =>

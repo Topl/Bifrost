@@ -59,7 +59,13 @@ case class InvalidParametersError(parameterErrors: NonEmptyChain[InvalidParamete
 }
 
 object InvalidParametersError {
-  case class Error(path: String, message: String, data: Option[Json])
+
+  def apply(decodingFailure: DecodingFailure): InvalidParametersError =
+    InvalidParametersError(
+      NonEmptyChain.one(Error(decodingFailure.history.map(_.show), decodingFailure.message, None))
+    )
+
+  case class Error(path: List[String], message: String, data: Option[Json])
   case class Data(errors: NonEmptyChain[Error])
 
   import io.circe.generic.semiauto._
