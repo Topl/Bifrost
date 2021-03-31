@@ -6,14 +6,15 @@ import co.topl.settings.AppSettings
 import co.topl.utils.{Int128, Logging}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
+import scorex.crypto.hash.Blake2b256
 
 class ConsensusStorage(storage: Option[LSMStore]) extends Logging {
 
   // constant keys for each piece of consensus state
-  private val totalStakeKey = ByteArrayWrapper("totalStake".getBytes)
-  private val difficultyKey = ByteArrayWrapper("difficulty".getBytes)
-  private val inflationKey = ByteArrayWrapper("inflation".getBytes)
-  private val heightKey = ByteArrayWrapper("height".getBytes)
+  private val totalStakeKey = ByteArrayWrapper(Blake2b256("totalStake".getBytes))
+  private val difficultyKey = ByteArrayWrapper(Blake2b256("difficulty".getBytes))
+  private val inflationKey = ByteArrayWrapper(Blake2b256("inflation".getBytes))
+  private val heightKey = ByteArrayWrapper(Blake2b256("height".getBytes))
 
   private val defaultTotalStake = 200000000000000000L
   private val defaultDifficulty = 0
@@ -91,7 +92,7 @@ class ConsensusStorage(storage: Option[LSMStore]) extends Logging {
     * @return the version ID
     */
   private def toVersionId(blockId: ModifierId): ByteArrayWrapper =
-    ByteArrayWrapper(blockId.getIdBytes)
+    ByteArrayWrapper(blockId.bytes)
 
 }
 
