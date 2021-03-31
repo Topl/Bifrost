@@ -13,6 +13,22 @@ class HistoryDebug(hr: HistoryReader[Block, _ <: SyncInfo]) {
 
   def count(f: Block => Boolean): Int = hr.filter(f).length
 
+  /** @param height - block height
+    * @return ids of headers on chosen height.
+    *         Seq.empty we don't have any headers on this height (e.g. it is too big or we bootstrap in PoPoW regime)
+    *         single id if no forks on this height
+    *         multiple ids if there are forks at chosen height.
+    *         First id is always from the best headers chain.
+    */
+  def idsAtHeight(height: Long): Seq[ModifierId] = history.storage.idAtHeightOf(height).toSeq
+
+  def getIdsFrom(startHeight: Long, limit: Int): Option[Seq[ModifierId]] = {
+    history.modifierByHeight(startHeight) match {
+      case Some(block) => history.getIdsFrom(block, _ => false, limit)
+      case None => None
+    }
+  }
+
   /** Average delay in milliseconds between last `blockNum` blocks starting from `block`
     * Debug only
     *

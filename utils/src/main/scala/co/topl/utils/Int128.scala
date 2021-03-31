@@ -1,5 +1,7 @@
 package co.topl.utils
 
+import co.topl.utils.Int128.scalaBigInt2Int128
+
 import java.math.BigInteger
 import java.nio.{ByteBuffer, ByteOrder}
 import java.util.UUID
@@ -29,7 +31,7 @@ import scala.util.{Failure, Success, Try}
   *
   * @author James Aman (j.aman@topl.me)
   */
-object Int128 {
+object Int128 extends VersionSpecificInt128Integral {
   val size = 128
   val numBytes: Int = size / java.lang.Byte.SIZE
   val MinValue: Int128 = Int128(Long.MinValue, 0L)
@@ -198,10 +200,6 @@ object Int128 {
   /** Implicit conversion from `scala.math.BigInt` to `Int128`. */
   implicit def scalaBigInt2Int128(x: BigInt): Int128 = apply(x)
 
-  /** An implicit providing both Integral and Ordering characteristics to Int128
-    */
-  implicit object Int128Integral extends Int128IsIntegral with Int128Ordering
-
 }
 
 final class Int128(val upperLong: Long, val lowerLong: Long)
@@ -267,13 +265,13 @@ final class Int128(val upperLong: Long, val lowerLong: Long)
   def isValidFloat: Boolean = this.bigInt.isValidFloat
   def isValidDouble: Boolean = this.bigInt.isValidDouble
 
-  override def intValue(): Int = this.bigInt.intValue()
+  override def intValue(): Int = this.bigInt.intValue
 
-  override def longValue(): Long = this.bigInt.longValue()
+  override def longValue(): Long = this.bigInt.longValue
 
-  override def floatValue(): Float = this.bigInt.floatValue()
+  override def floatValue(): Float = this.bigInt.floatValue
 
-  override def doubleValue(): Double = this.bigInt.doubleValue()
+  override def doubleValue(): Double = this.bigInt.doubleValue
 
   /** Subtraction of Int128 */
   def +(that: Int128): Int128 = Int128(this.bigInt + that.bigInt)
@@ -327,7 +325,7 @@ trait Int128IsIntegral extends Integral[Int128] {
 }
 
 /** A trait demonstrating that Int128 can be seen as Ordering
-  */
+ */
 trait Int128Ordering extends Ordering[Int128] {
   override def compare(x: Int128, y: Int128): Int = x.compare(y)
 }
