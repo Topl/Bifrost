@@ -48,6 +48,7 @@ class Forger[
   override def preStart(): Unit = {
     // determine the set of applicable protocol rules for this software version
     protocolMngr = ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
+    consensusStorage = Some(ConsensusStorage(settings))
 
     //register for application initialization message
     context.system.eventStream.subscribe(self, classOf[NodeViewReady])
@@ -156,9 +157,8 @@ class Forger[
 
     def initializeFromChainParamsAndGetBlock(block: Try[(Block, ChainParams)]): Try[Block] =
       block.map { case (block: Block, ChainParams(totalStake, initDifficulty)) =>
-        maxStake = totalStake
-        difficulty = initDifficulty
-        height = 0
+        consensusStorage.foreach(c =>
+          c.updateConsensusStorage(block.id, ConsensusParams(totalStake, initDifficulty, 0, 0)))
 
         block
       }

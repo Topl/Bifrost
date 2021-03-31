@@ -9,7 +9,7 @@ import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import scala.util.Try
 
-class ConsensusStorage(val storage: LSMStore) {
+class ConsensusStorage(storage: Option[LSMStore]) {
 
   // constant keys for each piece of consensus state
   private val totalStakeKey = ByteArrayWrapper("totalStake".getBytes)
@@ -17,15 +17,50 @@ class ConsensusStorage(val storage: LSMStore) {
   private val inflationKey = ByteArrayWrapper("inflation".getBytes)
   private val heightKey = ByteArrayWrapper("height".getBytes)
 
+  private val defaultTotalStake = 200000000000000000L
+  private val defaultDifficulty = 0
+  private val defaultInflation = 0
+  private val defaultHeight = 0
+
+  private var _totalStake: Int128 = storage match {
+    case Some(store) => store.get(totalStakeKey).map(v => Int128(v.data)).getOrElse(defaultTotalStake)
+    case None => defaultTotalStake
+  }
+
+  private var _difficulty: Long = storage match {
+    case Some(store) => store.get(difficultyKey).map(v => Longs.fromByteArray(v.data)).getOrElse(defaultDifficulty)
+    case None => defaultDifficulty
+  }
+
+  private var _inflation: Int128 = storage match {
+    case Some(store) => store.get(inflationKey).map(v => Int128(v.data)).getOrElse(defaultInflation)
+    case None => defaultInflation
+  }
+
+  private var _height: Int128 = storage match {
+    case Some(store) => store.get(heightKey).map(v => Int128(v.data)).getOrElse(defaultHeight)
+    case None => defaultHeight
+  }
+
+  def maxStake: Int128 = _totalStake
+  def difficulty: Long = _difficulty
+  def inflation: Int128 = _inflation
+  def height: Int128 = _height
+
   /** Updates the consensus storage with the given values at a given block as the version.
     * @param blockId the block ID associated with the consensus parameters
     * @param params the current state of the parameters
     */
   def updateConsensusStorage(blockId: ModifierId, params: ConsensusParams): Unit = {
+    _totalStake = params.totalStake
+    _difficulty = params.difficulty
+    _inflation = params.inflation
+    _height = params.height
+
     val versionId = toVersionId(blockId)
 
     val totalStakePair = Seq(totalStakeKey -> params.totalStake.toByteArray)
-    val difficultyPair = Seq(difficultyKey -> params.difficulty.toByteArray)
+    val difficultyPair = Seq(difficultyKey -> Longs.toByteArray(params.difficulty))
     val inflationPair = Seq(inflationKey -> params.inflation.toByteArray)
     val heightPair = Seq(heightKey -> params.height.toByteArray)
 
@@ -33,26 +68,22 @@ class ConsensusStorage(val storage: LSMStore) {
       case (k, v) => k -> ByteArrayWrapper(v)
     }
 
-    storage.update(versionId, Seq(), toUpdate)
+    // update cached values here
+    storage.foreach(store => store.update(versionId, Seq(), toUpdate))
   }
-
-  def totalStake: Option[Int128] =
-    storage.get(totalStakeKey).map(v => Int128(v.data))
-
-  def difficulty: Option[Long] =
-    storage.get(difficultyKey).map(v => Longs.fromByteArray(v.data))
-
-  def inflation: Option[Int128] =
-    storage.get(inflationKey).map(v => Int128(v.data))
-
-  def height: Option[Int128] =
-    storage.get(heightKey).map(v => Int128(v.data))
 
   /** Rolls back the current state of storage to the data within the given version.
     * @param blockId the ID of the block to rollback to
     * @return a Try with a Success result if no errors occurred in the rollback
     */
-  def rollbackTo(blockId: ModifierId): Try[Unit] = Try(storage.rollback(toVersionId(blockId)))
+  def rollbackTo(blockId: ModifierId): Either[NoStorageFailure, Unit] = {
+    storage match {
+      case Some(store) =>
+        Right(store.rollback(toVersionId(blockId)))
+      case None =>
+        Left(NoStorageFailure())
+    }
+  }
 
   /** Converts the given block ID to a version ID to use with LSM Store.
     * @param blockId the ID of the block
@@ -63,33 +94,19 @@ class ConsensusStorage(val storage: LSMStore) {
 
 }
 
-case class ConsensusParams(totalStake: Int128, difficulty: Int128, inflation: Int128, height: Int128)
-
 object ConsensusStorage {
 
-  /** Initializes a new instance of consensus storage defaulted with the given values at the given block ID.
-    * @param blockId the ID of the version
-    * @param totalStake the total amount of stake
-    * @param difficulty the starting difficulty
-    * @param settings the configured app settings
-    * @return an initialized ConsensusStorage with default values at the genesis block version
-    */
-  def initialize(
-    blockId: ModifierId,
-    totalStake: Int128,
-    difficulty: Long,
-    settings: AppSettings
-  ): ConsensusStorage = {
+  def apply(settings: AppSettings): ConsensusStorage = {
     val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
     val file = new File(s"$dataDir/consensusStorage")
     val storage = new LSMStore(file)
-
-    val consensusStorage = new ConsensusStorage(storage)
-
-    val params = ConsensusParams(totalStake, difficulty, 0, 0)
-    consensusStorage.updateConsensusStorage(blockId, params)
+    val consensusStorage = new ConsensusStorage(Some(storage))
 
     consensusStorage
   }
 
 }
+
+case class ConsensusParams(totalStake: Int128, difficulty: Long, inflation: Int128, height: Int128)
+
+case class NoStorageFailure()
