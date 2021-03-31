@@ -324,10 +324,12 @@ trait Int128IsIntegral extends Integral[Int128] {
   override def compare(x: Int128, y: Int128): Int = x.compare(y)
 
   override def quot(x: Int128, y: Int128): Int128 = x / y
+
+  override def rem(x: Int128, y: Int128): Int128 = x % y
 }
 
 /** A trait demonstrating that Int128 can be seen as Ordering
-  */
+ */
 trait Int128Ordering extends Ordering[Int128] {
   override def compare(x: Int128, y: Int128): Int = x.compare(y)
 }
