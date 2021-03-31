@@ -100,6 +100,7 @@ object ConsensusStorage {
   def apply(settings: AppSettings): ConsensusStorage = {
     val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
     val file = new File(s"$dataDir/consensusStorage")
+    file.mkdirs()
     val storage = new LSMStore(file)
     val consensusStorage = new ConsensusStorage(Some(storage))
 
