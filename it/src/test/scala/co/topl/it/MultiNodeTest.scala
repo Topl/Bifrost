@@ -20,15 +20,11 @@ class MultiNodeTest
     with EitherValues
     with Inspectors {
 
-  import system.dispatcher
-
   val nodeCount: Int = 3
   // Values close to 0.0 indicate a strict/tight fairness threshold
   val blockDistributionTolerance: Double = 0.99d
   val forgeDuration: FiniteDuration = 5.minutes
   val seed: String = "MultiNodeTest" + System.currentTimeMillis()
-
-  override implicit val patienceConfig: PatienceConfig = PatienceConfig(2.seconds)
 
   "Multiple nodes can forge blocks with roughly equal distribution" in {
 
@@ -109,30 +105,6 @@ class MultiNodeTest
     val generatorCountMean = headGeneratorCounts.values.sum / headGeneratorCounts.size
 
     forAll(headGeneratorCounts.values)(_ should be(mean +- (generatorCountMean * blockDistributionTolerance).toLong))
-  }
-
-  /** The genesis block contains pre-loaded addresses, one for each of our test nodes.  Assign
-    * each test node to a single address by locking each node out of all-but-one address, where the assigned
-    * address is determined by the node's index in the given list.
-    */
-  def assignForgingAddress(nodes: List[BifrostDockerNode]): Unit = {
-    val allAddresses: Map[String, List[String]] =
-      Future
-        .traverse(nodes)(node => node.Admin.listOpenKeyfiles().map(node.containerId -> _.value))
-        .futureValue(Timeout(10.seconds))
-        .toMap
-
-    forAll(allAddresses.values)(addresses => forAll(allAddresses.values)(addresses should contain theSameElementsAs _))
-
-    val addressList = allAddresses.head._2
-
-    nodes.zipWithIndex.foreach { case (node, index) =>
-      addressList.zipWithIndex.foreach {
-        case (address, addressIndex) if addressIndex != index =>
-          node.Admin.lockKeyfile(address).futureValue.value
-        case _ =>
-      }
-    }
   }
 
   /** Launches a group of nodes, all on the same Docker network and sharing the same seed.  Forging

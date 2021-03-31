@@ -21,15 +21,11 @@ class BootstrapFromGenesisTest
     with EitherValues
     with Inspectors {
 
-  implicit val scheduler: Scheduler = system.scheduler
-
   val initialForgeTarget: Int128 = 1024 + 50
   val newNodeForgeDuration: FiniteDuration = 10.seconds
   val targetBlockTime: FiniteDuration = 50.milli
   val syncWindow: FiniteDuration = 30.seconds
   val seed: String = "BootstrapFromGenesisTest" + System.currentTimeMillis()
-
-  override implicit val patienceConfig: PatienceConfig = PatienceConfig(2.seconds)
 
   "A new node can sync its genesis block with an old node" in {
 
