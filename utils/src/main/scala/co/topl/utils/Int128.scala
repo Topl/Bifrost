@@ -231,10 +231,6 @@ final class Int128(val upperLong: Long, val lowerLong: Long)
 
   def toString(radix: Int): String = this.bigInt.toString(radix)
 
-  def parseString(str: String): Option[Int128] =
-    try Some(Int128(str))
-    catch { case _: NumberFormatException => None }
-
   override def compare(that: Int128): Int = this.bigInt.compare(that.bigInt)
 
   /** If the supplied argument is another Int128, tests for bit-wise equality,
@@ -324,10 +320,12 @@ trait Int128IsIntegral extends Integral[Int128] {
   override def compare(x: Int128, y: Int128): Int = x.compare(y)
 
   override def quot(x: Int128, y: Int128): Int128 = x / y
+
+  override def rem(x: Int128, y: Int128): Int128 = x % y
 }
 
 /** A trait demonstrating that Int128 can be seen as Ordering
-  */
+ */
 trait Int128Ordering extends Ordering[Int128] {
   override def compare(x: Int128, y: Int128): Int = x.compare(y)
 }
