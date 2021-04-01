@@ -4,7 +4,7 @@ import akka.actor.{ActorRef, ActorRefFactory}
 import akka.pattern.ask
 import co.topl.attestation.Address
 import co.topl.consensus.KeyManager.ReceivableMessages._
-import co.topl.http.api.{ApiEndpointWithView, DebugNamespace, Namespace}
+import co.topl.http.api.{ApiEndpointWithView, DebugNamespace, ErrorResponse, Namespace}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.ChangedHistory
@@ -45,6 +45,7 @@ case class DebugApiEndpoint(
     case (method, params, id) if method == s"${namespace.name}_delay"      => delay(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_myBlocks"   => myBlocks(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_generators" => generators(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_idsFromHeight" => idsFromHeight(params.head, id)
   }
 
   /** #### Summary
@@ -126,4 +127,35 @@ case class DebugApiEndpoint(
         .map(d => d._1.address -> d._2)
         .asJson
     }
+
+  /** #### Summary
+    * Return all block ids from a given height and down to a given limit
+    *
+    * #### Params
+    * | Fields             | Data type | Required / Optional | Description |
+    * |--------------------|-----------|---------------------|-------------|
+    * | --None specified-- |           |                     |             |
+    *
+    * @param params input parameters as specified above
+    * @param id request identifier
+    * @return
+    */
+  private def idsFromHeight(params: Json, id: String): Future[Json] =
+    asyncHistory { hr =>
+      (for {
+        height <- params.hcursor.get[Long]("height")
+        limit <- params.hcursor.get[Int]("limit")
+      } yield new HistoryDebug(hr).getIdsFrom(height, limit)) match {
+        case Right(ids) => ids match {
+          case Some(ids) => ids.asJson
+          case None => ErrorResponse(
+            new Exception("No block ids found from that block height"),
+            500,
+            id
+          ).toJson
+        }
+        case Left(e) => throw e
+      }
+    }
 }
+

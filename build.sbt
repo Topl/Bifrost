@@ -1,31 +1,40 @@
-import sbt.Keys.organization
+import sbt.Keys.{homepage, organization}
 import sbtassembly.MergeStrategy
 
-name := "bifrost"
-scalaVersion := "2.12.13"
-organization := "co.topl"
-version := "1.3.4"
-
 lazy val commonSettings = Seq(
-  scalaVersion := "2.12.13",
+  scalaVersion := scala212,
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   organization := "co.topl",
-  version := "1.3.4"
+  version := "1.3.4",
+  homepage := Some(url("https://github.com/Topl/Bifrost")),
+  publishMavenStyle := true,
+  publishTo := Some("Sonatype Nexus" at "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2"),
   // wartremoverErrors := Warts.unsafe // settings for wartremover
+
+  Compile / unmanagedSourceDirectories += {
+    val sourceDir = (sourceDirectory in Compile).value
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, n)) if n >= 13 => sourceDir / "scala-2.13+"
+      case _ => sourceDir / "scala-2.12-"
+    }
+  }
 )
+
+val scala212 = "2.12.13"
+val scala213 = "2.13.4"
 
 mainClass in assembly := Some("co.topl.BifrostApp")
 test in assembly := {}
 
-// The Typesafe repository
-resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/"
+resolvers ++= Seq("Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/",
+  "Sonatype OSS Staging" at "https://s01.oss.sonatype.org/content/repositories/staging")
 
-val akkaVersion = "2.6.10"
-val akkaHttpVersion = "10.2.1"
+val akkaVersion = "2.6.13"
+val akkaHttpVersion = "10.2.4"
 val circeVersion = "0.13.0"
-val kamonVersion = "2.1.12"
-val graalVersion = "21.0.0"
+val kamonVersion = "2.1.13"
+val graalVersion = "21.0.0.2"
 
 val akkaDependencies = Seq(
   "com.typesafe.akka" %% "akka-actor"          % akkaVersion,
@@ -52,19 +61,19 @@ val apiDependencies = Seq(
 )
 
 val loggingDependencies = Seq(
-  "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.2",
+  "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.3",
   "ch.qos.logback"              % "logback-classic" % "1.2.3",
   "ch.qos.logback"              % "logback-core"    % "1.2.3",
   "org.slf4j"                   % "slf4j-api"       % "1.7.30"
 )
 
 val testingDependencies = Seq(
-  "org.scalactic"      %% "scalactic"         % "3.2.5"   % Test,
-  "org.scalatest"      %% "scalatest"         % "3.2.5"   % Test,
+  "org.scalactic"      %% "scalactic"         % "3.2.6"   % Test,
+  "org.scalatest"      %% "scalatest"         % "3.2.6"   % Test,
   "org.scalacheck"     %% "scalacheck"        % "1.15.3"  % Test,
   "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % Test,
   "com.spotify"         % "docker-client"     % "8.16.0"  % Test,
-  "org.asynchttpclient" % "async-http-client" % "2.12.2"  % Test
+  "org.asynchttpclient" % "async-http-client" % "2.12.3"  % Test
 )
 
 val cryptoDependencies = Seq(
@@ -81,9 +90,9 @@ val miscDependencies = Seq(
   "com.joefkelley"        %% "argyle"      % "1.0.0",
   "org.scalanlp"          %% "breeze"      % "1.1",
   "io.netty"               % "netty"       % "3.10.6.Final",
-  "com.google.guava"       % "guava"       % "30.1-jre",
+  "com.google.guava"       % "guava"       % "30.1.1-jre",
   "com.typesafe"           % "config"      % "1.4.1",
-  "com.github.pureconfig" %% "pureconfig"  % "0.14.0"
+  "com.github.pureconfig" %% "pureconfig"  % "0.14.1"
 )
 
 val monitoringDependencies = Seq(
@@ -132,9 +141,7 @@ javaOptions ++= Seq(
 testOptions in Test += Tests.Argument("-oD", "-u", "target/test-reports")
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaCheck, "-verbosity", "2")
 
-//publishing settings
-
-publishMavenStyle := true
+usePgpKeyHex("CEE1DC9E7C8E9AF4441D5EB9E35E84257DCF8DCB")
 
 publishArtifact in Test := false
 
@@ -151,8 +158,6 @@ Test / fork := false
 Compile / run / fork := true
 
 pomIncludeRepository := { _ => false }
-
-homepage := Some(url("https://github.com/Topl/Bifrost"))
 
 assemblyJarName := s"bifrost-${version.value}.jar"
 
@@ -184,9 +189,10 @@ connectInput in run := true
 outputStrategy := Some(StdoutOutput)
 
 lazy val bifrost = Project(id = "bifrost", base = file("."))
-  .settings(commonSettings: _*)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .settings(
+    commonSettings,
+    name := "bifrost",
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
     dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java8-21.0.0",
@@ -196,9 +202,18 @@ lazy val bifrost = Project(id = "bifrost", base = file("."))
       "bifrost.version" -> version.value
     )
   )
+  .dependsOn(utils)
+
+lazy val utils = Project(id = "utils", base = file("utils"))
+  .settings(
+    commonSettings,
+    name := "utils",
+    crossScalaVersions := Seq(scala212, scala213),
+    libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ apiDependencies ++ cryptoDependencies
+  )
 
 lazy val benchmarking = Project(id = "benchmark", base = file("benchmark"))
-  .settings(commonSettings: _*)
+  .settings(commonSettings)
   .dependsOn(bifrost % "compile->compile;test->test")
   .enablePlugins(JmhPlugin)
   .disablePlugins(sbtassembly.AssemblyPlugin)
@@ -212,6 +227,6 @@ lazy val gjallarhorn = Project(id = "gjallarhorn", base = file("gjallarhorn"))
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
 lazy val it = Project(id = "it", base = file("it"))
-  .settings(commonSettings: _*)
+  .settings(commonSettings)
   .dependsOn(bifrost % "compile->compile;test->test")
   .disablePlugins(sbtassembly.AssemblyPlugin)
