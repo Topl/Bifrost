@@ -1,4 +1,6 @@
-package co.topl.utils.serialization
+package co.topl.utils
+
+import java.nio.charset.{Charset, StandardCharsets}
 
 import scala.collection.generic.CanBuildFrom
 import scala.reflect.ClassTag
@@ -7,10 +9,9 @@ object Extensions {
 
   implicit class ByteOps(val b: Byte) extends AnyVal {
 
-    /**
-      * Converts the `Byte` to a `Int` by an unsigned conversion.
+    /** Converts the `Byte` to a `Int` by an unsigned conversion.
       */
-    @inline def toUByte: Int = b & 0xFF
+    @inline def toUByte: Int = b & 0xff
   }
 
   implicit class ShortOps(val x: Short) extends AnyVal {
@@ -84,16 +85,36 @@ object Extensions {
 
   implicit class TraversableOps[A, Source[X] <: Traversable[X]](val xs: Source[A]) extends AnyVal {
 
-    /**
-      * Safely casting each element of collection to be type of `B`.
+    /** Safely casting each element of collection to be type of `B`.
       * If element can not to be cast to `B` then `AssertionError` is thrown
       */
-    def cast[B:ClassTag](implicit cbf: CanBuildFrom[Source[A], B, Source[B]]): Source[B] = {
+    def cast[B: ClassTag](implicit cbf: CanBuildFrom[Source[A], B, Source[B]]): Source[B] = {
 
-      for (x <- xs) {
-        require(x match { case _: B => true case _ => false}, s"Value $x doesn't conform to type ${reflect.classTag[B]}")
-      }
+      for (x <- xs)
+        require(
+          x match {
+            case _: B => true
+            case _    => false
+          },
+          s"Value $x doesn't conform to type ${reflect.classTag[B]}"
+        )
       xs.asInstanceOf[Source[B]]
     }
+  }
+
+  implicit class StringOps(val s: String) {
+    // return the byte array of a string after ensuring valid encoding
+    private def getValidBytes(inString: String, charset: Charset): Option[Array[Byte]] = {
+      val inBytes = inString.getBytes(charset)
+      if (new String(inBytes, charset) == inString) Some(inBytes)
+      else None
+    }
+
+    // returns the byte array of a string after ensuring latin-1 encoding
+    def getValidLatin1Bytes: Option[Array[Byte]] = getValidBytes(s, StandardCharsets.ISO_8859_1)
+
+    // returns the byte array of a string after ensuring utf-8 encoding
+    def getValidUTF8Bytes: Option[Array[Byte]] = getValidBytes(s, StandardCharsets.UTF_8)
+
   }
 }

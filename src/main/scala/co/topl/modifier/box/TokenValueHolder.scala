@@ -1,8 +1,7 @@
 package co.topl.modifier.box
 
-import java.nio.charset.StandardCharsets
-
 import co.topl.attestation.Address
+import co.topl.utils.Extensions.StringOps
 import co.topl.utils.Int128
 import co.topl.utils.codecs.Int128Codec
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
@@ -33,7 +32,7 @@ object TokenValueHolder extends BifrostSerializer[TokenValueHolder] {
     }
   }
 
-  override def serialize(obj: TokenValueHolder, w: Writer): Unit = {
+  override def serialize(obj: TokenValueHolder, w: Writer): Unit =
     obj match {
       case obj: SimpleValue =>
         w.put(SimpleValue.valueTypePrefix)
@@ -45,15 +44,13 @@ object TokenValueHolder extends BifrostSerializer[TokenValueHolder] {
 
       case _ => throw new Exception("Unanticipated TokenValueType type")
     }
-  }
 
-  override def parse(r: Reader): TokenValueHolder = {
+  override def parse(r: Reader): TokenValueHolder =
     r.getByte() match {
       case SimpleValue.valueTypePrefix => SimpleValue.parse(r)
       case AssetValue.valueTypePrefix  => AssetValue.parse(r)
       case _                           => throw new Exception("Unanticipated Box Type")
     }
-  }
 }
 
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
@@ -74,9 +71,7 @@ object SimpleValue extends BifrostSerializer[SimpleValue] {
   implicit val jsonDecoder: Decoder[SimpleValue] = (c: HCursor) =>
     for {
       quantity <- c.downField("quantity").as[Long]
-    } yield {
-      SimpleValue(quantity)
-    }
+    } yield SimpleValue(quantity)
 
   override def serialize(obj: SimpleValue, w: Writer): Unit =
     w.putInt128(obj.quantity)
@@ -93,10 +88,15 @@ case class AssetValue(
   metadata:              Option[String] = None
 ) extends TokenValueHolder(quantity) {
 
-  require(metadata.forall(_.getBytes(StandardCharsets.ISO_8859_1).length <= AssetValue.metadataLimit),
-          "Metadata string must be less than 128 Latin-1 characters"
+  require(
+    metadata
+      .forall(
+        _.getValidLatin1Bytes
+          .getOrElse(throw new Exception("String is not valid Latin-1"))
+          .length <= AssetValue.metadataLimit
+      ),
+    "Metadata string must be less than 128 Latin-1 characters"
   )
-
 }
 
 object AssetValue extends BifrostSerializer[AssetValue] {
