@@ -1,6 +1,5 @@
 package co.topl.akkahttprpc
 
-import akka.http.scaladsl.server.Rejection
 import cats.data.NonEmptyChain
 import cats.implicits._
 import co.topl.akkahttprpc.JsonFailureSupport.decodingFailureEncoder
