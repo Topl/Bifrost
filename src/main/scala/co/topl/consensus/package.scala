@@ -16,30 +16,11 @@ package object consensus {
   // Initialize or restore a consensus storage that keeps track of the maxStake, difficulty, height, and inflation
   private[consensus] var consensusStorage: ConsensusStorage = ConsensusStorage.emptyStorage()
 
-  //TODO: Jing - remove after ConsensusStorage is done
-  //  // these variables are left as vars since they are local state of the consensus protocol determined from the chain
-  //  private var _maxStake: Int128 = 200000000000000000L // this needs to be replaced by a store for consensus
-  //  private var _inflation: Int128 = 0  // not currently used
-  //  private var _difficulty: Long = 0 // not currently used
-  //  private var _height: Long = 0     // not currently used
-
   // setter
   private[consensus] def protocolMngr_= (value: ProtocolVersioner): Unit = _protocolMngr = value
 
-  //TODO: Jing - remove after ConsensusStorage is done
-  //  private[consensus] def maxStake_= (value: Int128): Unit = _maxStake = value
-  //  private[consensus] def inflation_= (value: Int128): Unit = _inflation = value
-  //  private[consensus] def height_= (value: Long): Unit = _height = value
-  //  private[consensus] def difficulty_= (value: Long): Unit = _difficulty = value
-
   // getters
   def protocolMngr: ProtocolVersioner = _protocolMngr
-
-  //TODO: Jing - remove after ConsensusStorage is done
-  //  def maxStake: Int128 = _maxStake
-  //  def inflation: Int128 = _inflation
-  //  def difficulty: Long = _difficulty
-  //  def height: Long = _height
 
   // number of blocks to use for determining the avg block delay
   def nxtBlockNum: Int = 3
