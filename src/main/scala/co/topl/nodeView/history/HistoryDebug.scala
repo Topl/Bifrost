@@ -20,11 +20,11 @@ class HistoryDebug(hr: HistoryReader[Block, _ <: SyncInfo]) {
     *         multiple ids if there are forks at chosen height.
     *         First id is always from the best headers chain.
     */
-  def idsAtHeight(height: Long): Seq[ModifierId] = history.storage.idAtHeightOf(height).toSeq
+  def idsAtHeight(height: Long): Seq[ModifierId] = hr.idAtHeightOf(height).toSeq
 
   def getIdsFrom(startHeight: Long, limit: Int): Option[Seq[ModifierId]] = {
-    history.modifierByHeight(startHeight) match {
-      case Some(block) => history.getIdsFrom(block, _ => false, limit)
+    hr.modifierByHeight(startHeight) match {
+      case Some(block) => hr.getIdsFrom(block, _ => false, limit)
       case None => None
     }
   }

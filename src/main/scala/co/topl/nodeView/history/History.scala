@@ -455,6 +455,8 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
       else
         BifrostSyncInfo(startingPoints)
     }
+
+  override def idAtHeightOf(height: Long): Option[ModifierId] = storage.idAtHeightOf(height)
 }
 
 

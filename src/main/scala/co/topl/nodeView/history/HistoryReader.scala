@@ -85,4 +85,20 @@ trait HistoryReader[PM <: PersistentNodeViewModifier, SI <: SyncInfo] extends No
     * @return 'true' if the block extends a known block, false otherwise
     */
   def extendsKnownTine(modifier: PM): Boolean
+
+  /** Gets the modifier ID at the given height.
+    * @param height the height of the block
+    * @return the modifier ID if it exists
+    */
+  def idAtHeightOf(height: Long): Option[ModifierId]
+
+  /** Go back through chain and get block ids until condition `until` is satisfied
+    *
+    * @param startBlock     the modifier to start at
+    * @param until the condition that indicates (when true) that recursion should stop
+    * @param limit the maximum number of blocks to recurse back
+    * @return the sequence of block information (TypeId, Id) that were collected until `until` was satisfied
+    *         (None only if the parent for a block was not found) starting from the original `m`
+    */
+  def getIdsFrom(startBlock: Block, until: Block => Boolean, limit: Int): Option[Seq[ModifierId]]
 }
