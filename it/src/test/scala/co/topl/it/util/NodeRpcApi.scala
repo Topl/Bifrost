@@ -149,6 +149,11 @@ case class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem) 
       EitherT(rpc("admin_stopForging"))
         .map(_ => Done)
         .value
+
+    def updateRewardsAddress(address: String): Future[Either[NodeApiError, String]] =
+      EitherT(rpc("admin_updateRewardsAddress", NonEmptyList.of(Map("address" -> address).asJson)))
+        .subflatMap(_.hcursor.downField("result").downField("rewardsAddress").as[String].leftMap(JsonDecodingError))
+        .value
   }
 
   object Topl {

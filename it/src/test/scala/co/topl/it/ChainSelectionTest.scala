@@ -1,5 +1,6 @@
 package co.topl.it
 
+import co.topl.consensus.maxStake
 import co.topl.it.util._
 import co.topl.utils.Int128
 import com.typesafe.config.{Config, ConfigFactory}
@@ -8,14 +9,13 @@ import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.{EitherValues, Ignore, Inspectors}
+import org.scalatest.{EitherValues, Inspectors}
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
 // NOTE: This test currently fails because block difficulties diverge between nodes.  When nodes re-join, the blocks
 // can't be properly appended.
-@Ignore
 class ChainSelectionTest
     extends AnyFreeSpec
     with Matchers
@@ -24,8 +24,8 @@ class ChainSelectionTest
     with EitherValues
     with Inspectors {
 
-  val nodeCount: Int = 3
-  val initialForgeCountTarget: Int128 = 10
+  val nodeCount: Int = 4
+  val initialForgeCountTarget: Int128 = 5
   val syncedForgeDuration: FiniteDuration = 10.seconds
   val seed: String = "ChainSelectionTest" + System.currentTimeMillis()
 
@@ -36,6 +36,7 @@ class ChainSelectionTest
       raw"""bifrost.network.knownPeers = []
            |bifrost.rpcApi.namespaceSelector.debug = true
            |bifrost.forging.privateTestnet.numTestnetAccts = $nodeCount
+           |bifrost.forging.privateTestnet.testnetBalance = ${maxStake / nodeCount}
            |bifrost.forging.privateTestnet.genesisSeed = "$seed"
            |bifrost.forging.forgeOnStartup = false
            |""".stripMargin
@@ -83,6 +84,9 @@ class ChainSelectionTest
 
     logger.info("Comparing node heads")
     val bestBlocks = nodes.map(_.Topl.head().futureValue.value)
+
+    logger.info(s"Best blocks: $bestBlocks")
+
     bestBlocks.map(_.height).toSet should have size 1
     bestBlocks.map(_.bestBlockId).toSet should have size 1
   }

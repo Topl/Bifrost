@@ -54,7 +54,8 @@ trait IntegrationSuite extends BeforeAndAfterAll with Logging with ScalaFutures 
       addressList.zipWithIndex.foreach {
         case (address, addressIndex) if addressIndex != index =>
           node.Admin.lockKeyfile(address).futureValue.value
-        case _ =>
+        case (address, _) =>
+          node.Admin.updateRewardsAddress(address).futureValue.value
       }
     }
   }
