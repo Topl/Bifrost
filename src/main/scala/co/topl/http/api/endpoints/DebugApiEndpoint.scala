@@ -4,7 +4,7 @@ import akka.actor.{ActorRef, ActorRefFactory}
 import akka.pattern.ask
 import co.topl.attestation.Address
 import co.topl.consensus.Forger.ReceivableMessages.ListKeys
-import co.topl.http.api.{ApiEndpointWithView, DebugNamespace, Namespace}
+import co.topl.http.api.{ApiEndpointWithView, DebugNamespace, ErrorResponse, Namespace}
 import co.topl.modifier.ModifierId
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.history.{History, HistoryDebug}
@@ -42,6 +42,7 @@ case class DebugApiEndpoint(
     case (method, params, id) if method == s"${namespace.name}_delay"      => delay(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_myBlocks"   => myBlocks(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_generators" => generators(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_idsFromHeight" => idsFromHeight(params.head, id)
   }
 
   /** #### Summary
@@ -121,4 +122,35 @@ case class DebugApiEndpoint(
         .map(d => d._1.address -> d._2)
         .asJson
     }
+
+  /** #### Summary
+    * Return all block ids from a given height and down to a given limit
+    *
+    * #### Params
+    * | Fields             | Data type | Required / Optional | Description |
+    * |--------------------|-----------|---------------------|-------------|
+    * | --None specified-- |           |                     |             |
+    *
+    * @param params input parameters as specified above
+    * @param id request identifier
+    * @return
+    */
+  private def idsFromHeight(params: Json, id: String): Future[Json] =
+    viewAsync { view =>
+      (for {
+        height <- params.hcursor.get[Long]("height")
+        limit <- params.hcursor.get[Int]("limit")
+      } yield new HistoryDebug(view.history).getIdsFrom(height, limit)) match {
+        case Right(ids) => ids match {
+          case Some(ids) => ids.asJson
+          case None => ErrorResponse(
+            new Exception("No block ids found from that block height"),
+            500,
+            id
+          ).toJson
+        }
+        case Left(e) => throw e
+      }
+    }
 }
+

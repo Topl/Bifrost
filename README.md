@@ -28,15 +28,19 @@ Check out our [Installation Instructions](https://github.com/Topl/Bifrost/wiki/I
 
 Testing
 -------
-Go to the project directory
-
-`cd Bifrost`
-
-Type
-
-`sbt test`
-
-NOTE: Using sbt to run tests using the Windows command line may error. Either use Intellij IDEA's test runner or run sbt in a Unix environment. Alternatively, if you have the Linux Subsystem for Windows enabled, you can just use bash.
+1. Go to the project directory: `cd Bifrost`
+1. Type: `sbt test`
+   - NOTE: Using sbt to run tests using the Windows command line may error. Either use Intellij IDEA's test runner or run sbt in a Unix environment. Alternatively, if you have the Linux Subsystem for Windows enabled, you can just use bash.
+1. To publish a Docker image for local testing, type: `sbt bifrost/docker:publishLocal`
+   - To run the published container, type: `docker run bifrost:x.x.x` (where `x.x.x` is the version that was published).
+   - To pass command line arguments, type `docker run bifrost:x.x.x -s mySpecialSeed`
+1. To run integration tests:
+   1. Install Docker
+   1. Build, Run, and Cleanup the Integration Test via Docker:
+      - On Unix systems, run: `IMAGE_ID=$(docker build -q -f it/Dockerfile .) && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock $IMAGE_ID && docker image rm -f $IMAGE_ID`
+      - On Windows systems, run: ``for /f "tokens=* USEBACKQ" %i in (`docker build -q -f it/Dockerfile .`) do (set IMAGE_ID=%i) && docker run --rm -v //var/run/docker.sock:/var/run/docker.sock %IMAGE_ID% && docker image rm -f %IMAGE_ID%``
+      - NOTE: You may not see any output for quite a while.  The Docker image takes a long time to build, and its output is mostly silent.  You will only see output for the run of the integration test.
+      - NOTE: To speed up repeated runs, remove the cleanup step (` && docker image rm -f $IMAGE_ID`) from the end of the command.
 
 
 Contributions

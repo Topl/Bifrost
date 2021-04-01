@@ -228,9 +228,9 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
         case Failure(ex) => throw ex
       }
 
-      log.debug(s"Trying to generate block from total stake ${boxes.map(_.value.quantity).foldLeft[Int128](0)(_ + _)}")
+      log.debug(s"Trying to generate block from total stake ${boxes.map(_.value.quantity).sum}")
       require(
-        boxes.map(_.value.quantity).foldLeft[Int128](0)(_ + _) > 0,
+        boxes.map(_.value.quantity).sum > 0,
         "No Arbits could be found to stake with, exiting attempt"
       )
 
@@ -251,7 +251,7 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
 
       // create the unsigned fee reward transaction
       val polyReward =
-        createPolyReward(transactions.map(_.fee).foldLeft[Int128](0)(_ + _), rewardAddr, history.bestBlock.id) match {
+        createPolyReward(transactions.map(_.fee).sum, rewardAddr, history.bestBlock.id) match {
           case Success(tx) => tx
           case Failure(ex) => throw ex
         }
