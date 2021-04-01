@@ -48,7 +48,7 @@ class Forger[
   override def preStart(): Unit = {
     // determine the set of applicable protocol rules for this software version
     protocolMngr = ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
-    consensusStorage = ConsensusStorage(settings)
+    consensusStorage = ConsensusStorage(settings, appContext.networkType)
 
     //register for application initialization message
     context.system.eventStream.subscribe(self, classOf[NodeViewReady])

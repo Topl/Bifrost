@@ -3,12 +3,13 @@ package co.topl.consensus
 import java.io.File
 import co.topl.modifier.ModifierId
 import co.topl.settings.AppSettings
-import co.topl.utils.{Int128, Logging}
+import co.topl.utils.NetworkType.{NetworkPrefix, PrivateTestnet}
+import co.topl.utils.{Int128, Logging, NetworkType}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.hash.Blake2b256
 
-class ConsensusStorage(storage: Option[LSMStore]) extends Logging {
+class ConsensusStorage(storage: Option[LSMStore], private val defaultTotalStake: BigInt) extends Logging {
 
   // constant keys for each piece of consensus state
   private val totalStakeKey = ByteArrayWrapper(Blake2b256("totalStake".getBytes))
@@ -16,10 +17,9 @@ class ConsensusStorage(storage: Option[LSMStore]) extends Logging {
   private val inflationKey = ByteArrayWrapper(Blake2b256("inflation".getBytes))
   private val heightKey = ByteArrayWrapper(Blake2b256("height".getBytes))
 
-  private val defaultTotalStake = 200000000000000000L
-  private val defaultDifficulty = 0
-  private val defaultInflation = 0
-  private val defaultHeight = 0
+  private val defaultDifficulty: Long = 0
+  private val defaultInflation: BigInt = 0
+  private val defaultHeight: BigInt = 0
 
   private var _totalStake: Int128 = storage match {
     case Some(store) => store.get(totalStakeKey).map(v => Int128(v.data)).getOrElse(defaultTotalStake)
@@ -98,17 +98,23 @@ class ConsensusStorage(storage: Option[LSMStore]) extends Logging {
 
 object ConsensusStorage {
 
-  def apply(settings: AppSettings): ConsensusStorage = {
+  def apply(settings: AppSettings, networkType: NetworkType): ConsensusStorage = {
     val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
+    val defaultTotalStake = networkType match {
+      case PrivateTestnet =>
+        settings.forging.privateTestnet.map (sfp => sfp.numTestnetAccts * sfp.testnetBalance).getOrElse(10000000L)
+      case _ => 200000000000000000L
+
+    }
     val file = new File(s"$dataDir/consensusStorage")
     file.mkdirs()
     val storage = new LSMStore(file)
-    val consensusStorage = new ConsensusStorage(Some(storage))
+    val consensusStorage = new ConsensusStorage(Some(storage), defaultTotalStake)
 
     consensusStorage
   }
 
-  def emptyStorage(): ConsensusStorage = new ConsensusStorage(None)
+  def emptyStorage(): ConsensusStorage = new ConsensusStorage(None, 0)
 
 }
 
