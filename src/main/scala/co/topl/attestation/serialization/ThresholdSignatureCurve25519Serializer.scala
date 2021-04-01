@@ -1,7 +1,7 @@
 package co.topl.attestation.serialization
 
 import co.topl.attestation.{SignatureCurve25519, ThresholdSignatureCurve25519}
-import co.topl.utils.serialization.Extensions._
+import co.topl.utils.Extensions._
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 

@@ -24,6 +24,11 @@ sealed abstract class Box[+T](val evidence: Evidence, val value: T, val nonce: N
     Box.identifier(this).typeString + Box.jsonEncoder(this).noSpaces
 
   override def hashCode(): Int = Ints.fromByteArray(bytes)
+
+  override def equals(obj: Any): Boolean = obj match {
+    case box: Box[_] => bytes sameElements box.bytes
+    case _ => false
+  }
 }
 
 object Box {
@@ -81,7 +86,7 @@ object Box {
   }
 }
 
-/* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
+/* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
 abstract class TokenBox[
   +T <: TokenValueHolder
@@ -92,7 +97,7 @@ object TokenBox {
   implicit def jsonEncoder[T <: TokenValueHolder]: Encoder[TokenBox[T]] = (bx: TokenBox[_]) => Box.jsonEncoder(bx)
 }
 
-/* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
+/* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
 abstract class ProgramBox(
   override val evidence: Evidence,

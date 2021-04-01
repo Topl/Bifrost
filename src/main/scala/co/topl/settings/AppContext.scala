@@ -16,7 +16,7 @@ import scala.concurrent.ExecutionContext
   * @param upnpGateway Option of Gateway class handling gateway device and port forwarding
   */
 class AppContext(
-  settings:        AppSettings,
+  val settings:    AppSettings,
   startupOpts:     StartupOpts,
   val upnpGateway: Option[UPnPGateway]
 )(implicit ec:     ExecutionContext) {

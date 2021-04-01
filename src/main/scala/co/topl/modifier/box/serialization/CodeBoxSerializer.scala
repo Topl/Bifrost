@@ -1,7 +1,7 @@
 package co.topl.modifier.box.serialization
 
 import co.topl.modifier.box.CodeBox
-import co.topl.utils.serialization.Extensions._
+import co.topl.utils.Extensions._
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object CodeBoxSerializer extends BifrostSerializer[CodeBox] {
