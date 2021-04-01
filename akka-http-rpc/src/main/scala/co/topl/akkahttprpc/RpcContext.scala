@@ -2,9 +2,9 @@ package co.topl.akkahttprpc
 
 import io.circe.Json
 
-case class RawRpcRequest(id: String, jsonrpc: String, method: String, params: Json)
+case class RpcContext(id: String, jsonrpc: String, method: String, params: Json)
 
-sealed abstract class RawRpcResponse {
+sealed trait RawRpcResponse {
   def id: String
   def jsonrpc: String
 }

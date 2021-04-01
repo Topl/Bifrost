@@ -11,7 +11,7 @@ abstract class RpcHandler[Params: Decoder, ErrorResult: RpcErrorEncoder, Success
     extends (Params => EitherT[Future, ErrorResult, SuccessResult]) {
 
   def apply(
-    rawRpcRequest: RawRpcRequest
+    rawRpcRequest: RpcContext
   )(implicit ec:   ExecutionContext): EitherT[Future, FailureRpcResponse, SuccessRpcResponse] =
     EitherT
       .fromEither[Future](

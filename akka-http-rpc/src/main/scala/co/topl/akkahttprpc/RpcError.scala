@@ -7,7 +7,7 @@ import co.topl.akkahttprpc.JsonFailureSupport.decodingFailureEncoder
 import io.circe.syntax._
 import io.circe.{DecodingFailure, Encoder, Json}
 
-sealed abstract class RpcError[Data: Encoder] extends Rejection {
+sealed abstract class RpcError[Data: Encoder] {
   def code: Int
   def message: String
   def data: Option[Data]
@@ -113,6 +113,6 @@ object JsonFailureSupport {
       Map(
         "message" -> Option(throwable.getMessage).asJson,
         // TODO: Verbose API Settings only?
-        "stackTrace" -> throwable.getStackTrace.mkString.asJson
+        "stackTrace" -> throwable.getStackTrace.map(_.toString).asJson
       ).asJson
 }

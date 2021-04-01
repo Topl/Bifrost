@@ -11,7 +11,7 @@ package object akkahttprpc {
       FailureRpcResponse.Error(error.code, error.message, error.encodedData)
     )
 
-  def rpcErrorToFailureResponse(request: RawRpcRequest, error: RpcError[_]): FailureRpcResponse =
+  def rpcErrorToFailureResponse(request: RpcContext, error: RpcError[_]): FailureRpcResponse =
     FailureRpcResponse(
       request.id,
       request.jsonrpc,
