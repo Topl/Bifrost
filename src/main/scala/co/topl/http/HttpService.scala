@@ -85,13 +85,13 @@ final case class HttpService(apiServices: Seq[ApiEndpoint], settings: RPCApiSett
     Future.firstCompletedOf(
       List(
         futureResponse,
-        akka.pattern.after(settings.timeout)(
-          Future.successful(
-            ErrorResponse(new TimeoutException, 500, requestId, verbose = settings.verboseAPI)
-          )
-        )
+        akka.pattern.after(settings.timeout)(Future.failed(new TimeoutException))
       )
     )
+      .recover {
+        case e: TimeoutException =>
+          ErrorResponse(e, 500, requestId, verbose = settings.verboseAPI)
+      }
 
   /** Helper route to wrap the handling of API key authentication */
   def withAuth(route: => Route): Route =
