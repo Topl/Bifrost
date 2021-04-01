@@ -3,7 +3,7 @@ package co.topl.consensus
 import java.io.File
 import co.topl.modifier.ModifierId
 import co.topl.settings.AppSettings
-import co.topl.utils.NetworkType.{NetworkPrefix, PrivateTestnet}
+import co.topl.utils.NetworkType.PrivateTestnet
 import co.topl.utils.{Int128, Logging, NetworkType}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
@@ -76,14 +76,14 @@ class ConsensusStorage(storage: Option[LSMStore], private val defaultTotalStake:
 
   /** Rolls back the current state of storage to the data within the given version.
     * @param blockId the ID of the block to rollback to
-    * @return a Try with a Success result if no errors occurred in the rollback
+    * @return a NoStorageError if no storage exists or a Unit if successful
     */
-  def rollbackTo(blockId: ModifierId): Either[NoStorageFailure, Unit] = {
+  def rollbackTo(blockId: ModifierId): Either[NoStorageError, Unit] = {
     storage match {
       case Some(store) =>
         Right(store.rollback(toVersionId(blockId)))
       case None =>
-        Left(NoStorageFailure())
+        Left(NoStorageError())
     }
   }
 
@@ -120,4 +120,4 @@ object ConsensusStorage {
 
 case class ConsensusParams(totalStake: Int128, difficulty: Long, inflation: Int128, height: Int128)
 
-case class NoStorageFailure()
+case class NoStorageError()
