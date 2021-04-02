@@ -2,6 +2,7 @@ package co.topl.attestation
 
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
+import co.topl.attestation.EvidenceProducer.Syntax._
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}

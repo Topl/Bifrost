@@ -202,7 +202,7 @@ lazy val bifrost = Project(id = "bifrost", base = file("."))
       "bifrost.version" -> version.value
     )
   )
-  .dependsOn(utils, attestation)
+  .dependsOn(utils, attestation, modifier)
 
 lazy val utils = Project(id = "utils", base = file("utils"))
   .settings(
@@ -220,6 +220,15 @@ lazy val attestation = Project(id = "attestation", base = file("attestation"))
     libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ apiDependencies ++ cryptoDependencies
   )
   .dependsOn(utils)
+
+lazy val modifier = Project(id = "modifier", base = file("modifier"))
+  .settings(
+    commonSettings,
+    name := "modifier",
+    crossScalaVersions := Seq(scala212, scala213),
+    libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ apiDependencies ++ cryptoDependencies
+  )
+  .dependsOn(utils, attestation)
 
 lazy val benchmarking = Project(id = "benchmark", base = file("benchmark"))
   .settings(commonSettings)
