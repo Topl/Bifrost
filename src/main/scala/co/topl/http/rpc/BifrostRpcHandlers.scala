@@ -8,15 +8,21 @@ import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
 import co.topl.attestation.Address
 import co.topl.modifier.ModifierId
+import co.topl.modifier.box.AssetCode
 import co.topl.nodeView.CurrentView
 import co.topl.nodeView.history.{History, HistoryDebug}
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.settings.AppContext
+import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Encoder
+import scorex.crypto.hash.Blake2b256
+import scorex.util.encode.Base58
 
+import java.security.SecureRandom
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
 
 case class BifrostRpcHandlers(
   debug: BifrostRpcHandlers.Debug
@@ -29,6 +35,14 @@ object BifrostRpcHandlers {
     def myBlocks: BifrostRpc.Debug.MyBlocks.rpc.Handler
     def generators: BifrostRpc.Debug.Generators.rpc.Handler
     def idsFromHeight: BifrostRpc.Debug.IdsFromHeight.rpc.Handler
+  }
+
+  trait Utils {
+    def seed: BifrostRpc.Utils.Seed.rpc.Handler
+    def seedOfLength: BifrostRpc.Utils.SeedOfLength.rpc.Handler
+    def hashBlake2b256: BifrostRpc.Utils.HashBlake2b256.rpc.Handler
+    def generateAssetCode: BifrostRpc.Utils.GenerateAssetCode.rpc.Handler
+    def checkValidAddress: BifrostRpc.Utils.CheckValidAddress.rpc.Handler
   }
 }
 
@@ -84,15 +98,69 @@ object BifrostRpcHandlerImpls {
           key.address -> count
         }
 
-    override def idsFromHeight: BifrostRpc.Debug.IdsFromHeight.rpc.Handler =
+    override val idsFromHeight: BifrostRpc.Debug.IdsFromHeight.rpc.Handler =
       params =>
         for {
           view <- currentView()
           historyDebug = new HistoryDebug(view.history)
-          ids <- EitherT.fromOption[Future].apply[RpcError[_], Seq[ModifierId]](
-            historyDebug.getIdsFrom(params.height, params.limit),
-            CustomError(-32005, "No block ids found from that block height", None): RpcError[_]
-          )
+          ids <- EitherT
+            .fromOption[Future]
+            .apply[RpcError[_], Seq[ModifierId]](
+              historyDebug.getIdsFrom(params.height, params.limit),
+              BifrostRpcErrors.NoBlockIdsAtHeight: RpcError[_]
+            )
         } yield ids
+  }
+
+  class Utils(appContext: AppContext)(implicit throwableEncoder: Encoder[ThrowableData], ec: ExecutionContext)
+      extends BifrostRpcHandlers.Utils {
+    import Utils._
+    val defaultSeedSize = 32 // todo: JAA - read this from a more appropriate place. Bip39 spec or something?
+
+    override val seed: BifrostRpc.Utils.Seed.rpc.Handler =
+      _ => EitherT.pure[Future, RpcError[_]](BifrostRpc.Utils.Seed.Response(generateSeed(defaultSeedSize)))
+
+    override val seedOfLength: BifrostRpc.Utils.SeedOfLength.rpc.Handler =
+      params => EitherT.pure[Future, RpcError[_]](BifrostRpc.Utils.Seed.Response(generateSeed(params.length)))
+
+    override val hashBlake2b256: BifrostRpc.Utils.HashBlake2b256.rpc.Handler =
+      params =>
+        EitherT.pure[Future, RpcError[_]](
+          BifrostRpc.Utils.HashBlake2b256.Response(params.message, Base58.encode(Blake2b256(params.message)))
+        )
+
+    override val generateAssetCode: BifrostRpc.Utils.GenerateAssetCode.rpc.Handler =
+      params =>
+        EitherT.fromEither[Future](
+          Try(AssetCode(params.version, params.issuer, params.shortName)).toEither
+            .leftMap(BifrostRpcErrors.FailedToGenerateAssetCode)
+        )
+
+    override val checkValidAddress: BifrostRpc.Utils.CheckValidAddress.rpc.Handler =
+      params =>
+        EitherT.fromEither[Future](
+          params.network match {
+            case None =>
+              NetworkType
+                .pickNetworkType(appContext.networkType.netPrefix)
+                .toRight(BifrostRpcErrors.InvalidNetworkSpecified)
+                .map(nt => BifrostRpc.Utils.CheckValidAddress.Response(params.address, nt.verboseName))
+            case Some(networkName) =>
+              NetworkType
+                .pickNetworkType(networkName)
+                .toRight(BifrostRpcErrors.InvalidNetworkSpecified)
+                // TODO: Re-extract the `address` field using the new network type
+                .map(nt => BifrostRpc.Utils.CheckValidAddress.Response(params.address, nt.verboseName))
+          }
+        )
+  }
+
+  object Utils {
+
+    private def generateSeed(length: Int): String = {
+      val seed = new Array[Byte](length)
+      new SecureRandom().nextBytes(seed) //seed mutated here!
+      Base58.encode(seed)
+    }
   }
 }

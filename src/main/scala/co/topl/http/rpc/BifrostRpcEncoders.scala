@@ -21,4 +21,20 @@ trait BifrostRpcEncoders {
 
   implicit val debugIdsFromHeightResponseEncoder: Encoder[BifrostRpc.Debug.IdsFromHeight.Response] =
     _.asJson
+
+  implicit val utilsSeedResponseEncoder: Encoder[BifrostRpc.Utils.Seed.Response] =
+    deriveEncoder
+
+  implicit val utilsSeedOfLengthResponseEncoder: Encoder[BifrostRpc.Utils.SeedOfLength.Response] =
+    deriveEncoder
+
+  implicit val utilsHashBlake2b256ResponseEncoder: Encoder[BifrostRpc.Utils.HashBlake2b256.Response] =
+    deriveEncoder
+
+  implicit val utilsGenerateAssetCodeResponseEncoder: Encoder[BifrostRpc.Utils.GenerateAssetCode.Response] =
+    Encoder.forProduct1("assetCode")(_.assetCode)
+
+  implicit val utilsCheckValidAddressResponseEncoder: Encoder[BifrostRpc.Utils.CheckValidAddress.Response] =
+    Encoder.forProduct2("address", "network")(r => (r.address, r.network))
+    
 }
