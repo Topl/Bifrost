@@ -1,9 +1,10 @@
 package co.topl.http
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
+import akka.http.scaladsl.marshalling.Marshaller
+import akka.http.scaladsl.marshalling.Marshaller._
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse}
 import akka.http.scaladsl.server.Route
-import akka.util.Timeout
 import co.topl.http.api.{ApiEndpoint, ApiResponse, ErrorResponse, SuccessResponse}
 import co.topl.settings.RPCApiSettings
 import io.circe.Json
@@ -11,13 +12,14 @@ import io.circe.parser.parse
 import scorex.crypto.hash.{Blake2b256, Digest32}
 import scorex.util.encode.Base58
 
-import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.{Future, TimeoutException}
+import scala.util.Try
 
-final case class HttpService (apiServices: Seq[ApiEndpoint], settings: RPCApiSettings)(implicit val system: ActorSystem)
-  extends CorsSupport {
+final case class HttpService(apiServices: Seq[ApiEndpoint], settings: RPCApiSettings)(implicit val system: ActorSystem)
+    extends CorsSupport {
 
-  private val timeout: Timeout = Timeout(settings.timeout)
+  import HttpService._
+  import system.dispatcher
 
   private lazy val apiKeyHash: Option[Array[Byte]] = Base58.decode(settings.apiKeyHash).toOption
 
@@ -43,69 +45,80 @@ final case class HttpService (apiServices: Seq[ApiEndpoint], settings: RPCApiSet
   private def basicRoute: Route = path("") {
     entity(as[String]) { body =>
       withAuth {
-        postJsonRoute {
+        complete {
           var reqId = ""
           parse(body) match {
             case Left(failure) =>
-              ErrorResponse(new Exception("Unable to parse Json body"), 400, reqId, verbose = settings.verboseAPI)
+              Future.successful(
+                ErrorResponse(new Exception("Unable to parse Json body"), 400, reqId, verbose = settings.verboseAPI)
+              )
             case Right(request) =>
-              val futureResponse: Try[Future[Json]] = Try {
-                val id = (request \\ "id").head.asString.get
-                reqId = id
-                require((request \\ "jsonrpc").head.asString.get == "2.0")
+              val futureResponse: Future[ApiResponse] =
+                Future
+                  .fromTry(
+                    Try {
+                      val id = (request \\ "id").head.asString.get
+                      reqId = id
+                      require((request \\ "jsonrpc").head.asString.get == "2.0")
 
-                val params = (request \\ "params").head.asArray.get
-                require(params.size <= 1, s"size of params is ${params.size}")
+                      val params = (request \\ "params").head.asArray.get
+                      require(params.size <= 1, s"size of params is ${params.size}")
 
-                val method = (request \\ "method").head.asString.get
+                      val method = (request \\ "method").head.asString.get
 
-                if (apiServiceHandlers.isDefinedAt(method, params, id)) apiServiceHandlers.apply(method, params, id)
-                else throw new NoSuchElementException("Service handler not found for method: " + method)
-              }
-
-              // await result of future from handler
-              futureResponse map { response =>
-                Await.result(response, timeout.duration)
-              } match {
-                case Success(resp) => SuccessResponse(resp, reqId)
-                case Failure(e) => ErrorResponse(e, 500, reqId, verbose = settings.verboseAPI)
-              }
+                      if (apiServiceHandlers.isDefinedAt(method, params, id))
+                        apiServiceHandlers.apply(method, params, id)
+                      else throw new NoSuchElementException("Service handler not found for method: " + method)
+                    }
+                  )
+                  .flatten
+                  .map(SuccessResponse(_, reqId))
+                  .recover { case e => ErrorResponse(e, 500, reqId, verbose = settings.verboseAPI) }
+              timeoutFuture(reqId, futureResponse)
           }
         }
       }
     }
   }
 
-  /**
-   * Formats the JSON-RPC post request (this is the primary method of communication)
-   * @param fn outgoing respsonse
-   * @return
-   */
-  private def postJsonRoute(fn: ApiResponse): Route = post {
-    complete(
-      HttpEntity(ContentTypes.`application/json`, fn.toJson.spaces2)
+  private def timeoutFuture(requestId: String, futureResponse: => Future[ApiResponse]): Future[ApiResponse] =
+    Future.firstCompletedOf(
+      List(
+        futureResponse,
+        akka.pattern.after(settings.timeout)(Future.failed(new TimeoutException))
+      )
     )
-  }
+      .recover {
+        case e: TimeoutException =>
+          ErrorResponse(e, 500, requestId, verbose = settings.verboseAPI)
+      }
 
   /** Helper route to wrap the handling of API key authentication */
-  def withAuth(route: => Route): Route = {
+  def withAuth(route: => Route): Route =
     optionalHeaderValueByName("x-api-key") { keyOpt =>
       if (isValid(keyOpt)) route
       else complete(HttpEntity(ContentTypes.`application/json`, "Provided API key is not correct"))
     }
-  }
 
-  /**
-   * Performs the check of an incoming api key
-   * @param keyOpt api key specified in header
-   * @return
-   */
+  /** Performs the check of an incoming api key
+    * @param keyOpt api key specified in header
+    * @return
+    */
   private def isValid(keyOpt: Option[String]): Boolean = {
     lazy val keyHash: Option[Digest32] = keyOpt.map(Blake2b256(_))
     (apiKeyHash, keyHash) match {
-      case (None, _) => true
+      case (None, _)                      => true
       case (Some(expected), Some(passed)) => expected sameElements passed
-      case _ => false
+      case _                              => false
     }
   }
+}
+
+object HttpService {
+
+  implicit val apiResponseMarshaller: Marshaller[ApiResponse, HttpResponse] =
+    Marshaller.withFixedContentType[ApiResponse, HttpResponse](ContentTypes.`application/json`)(response =>
+      HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, response.toJson.spaces2))
+    )
+
 }
