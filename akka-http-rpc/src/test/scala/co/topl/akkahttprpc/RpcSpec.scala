@@ -4,7 +4,7 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import cats.data.EitherT
 import cats.implicits._
-import co.topl.akkahttprpc.JsonFailureSupport.throwableEncoder
+import co.topl.akkahttprpc.JsonFailureSupport.ThrowableSupport.Verbose._
 import co.topl.akkahttprpc.RpcDirectives._
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
 import io.circe._

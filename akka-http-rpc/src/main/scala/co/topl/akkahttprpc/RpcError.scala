@@ -2,16 +2,13 @@ package co.topl.akkahttprpc
 
 import cats.data.NonEmptyChain
 import cats.implicits._
-import co.topl.akkahttprpc.JsonFailureSupport.decodingFailureEncoder
 import io.circe.syntax._
 import io.circe.{DecodingFailure, Encoder, Json}
 
-sealed abstract class RpcError[Data: Encoder] {
+sealed abstract class RpcError[Data] {
   def code: Int
   def message: String
   def data: Option[Data]
-
-  def encodedData: Option[Json] = data.map(_.asJson)
 }
 
 case object ParseError extends RpcError[None.type] {
@@ -24,34 +21,42 @@ case object ParseError extends RpcError[None.type] {
 
 case class InvalidRequestError(decodingFailure: DecodingFailure) extends RpcError[DecodingFailure] {
 
-  override val code: Int = -32600
+  override def code: Int = InvalidRequestError.Code
 
-  override val message: String = "Invalid RPC Request Format"
+  override def message: String = InvalidRequestError.Message
 
   override def data: Option[DecodingFailure] = Some(decodingFailure)
 }
 
+object InvalidRequestError {
+  val Code: Int = -32600
+
+  val Message: String = "Invalid RPC Request Format"
+}
+
 case class MethodNotFoundError(method: String) extends RpcError[MethodNotFoundError.Data] {
 
-  override val code: Int = -32601
+  override def code: Int = MethodNotFoundError.Code
 
-  override val message: String = "RPC Method Not Found"
+  override def message: String = MethodNotFoundError.Message
 
   override def data: Option[MethodNotFoundError.Data] = Some(MethodNotFoundError.Data(method))
 }
 
 object MethodNotFoundError {
   case class Data(method: String)
-  import io.circe.generic.semiauto._
-  implicit val dataEncoder: Encoder[Data] = deriveEncoder[Data]
+
+  val Code: Int = -32601
+
+  val Message: String = "RPC Method Not Found"
 }
 
 case class InvalidParametersError(parameterErrors: NonEmptyChain[InvalidParametersError.Error])
     extends RpcError[InvalidParametersError.Data] {
 
-  override val code: Int = -32602
+  override def code: Int = InvalidParametersError.Code
 
-  override val message: String = "Invalid method parameter(s)"
+  override def message: String = InvalidParametersError.Message
 
   override def data: Option[InvalidParametersError.Data] =
     Some(InvalidParametersError.Data(parameterErrors))
@@ -67,51 +72,57 @@ object InvalidParametersError {
   case class Error(path: List[String], message: String, data: Option[Json])
   case class Data(errors: NonEmptyChain[Error])
 
-  import io.circe.generic.semiauto._
-  implicit val errorEncoder: Encoder[Error] = deriveEncoder[Error]
-  implicit val dataEncoder: Encoder[Data] = deriveEncoder[Data]
+  val Code: Int = -32602
+
+  val Message: String = "Invalid method parameter(s)"
 }
 
-case class InternalJsonRpcError(reason: String, throwable: Option[Throwable])
+case class InternalJsonRpcError(reason: String, throwable: Option[ThrowableData])
     extends RpcError[InternalJsonRpcError.Data] {
-  override val code: Int = -32603
+  override def code: Int = InternalJsonRpcError.Code
 
-  override val message: String = "Internal JSON-RPC Error"
+  override def message: String = InternalJsonRpcError.Message
 
   override def data: Option[InternalJsonRpcError.Data] =
     Some(InternalJsonRpcError.Data(reason, throwable))
 }
 
 object InternalJsonRpcError {
-  case class Data(reason: String, throwable: Option[Throwable])
-  import JsonFailureSupport.throwableEncoder
+  case class Data(reason: String, throwable: Option[ThrowableData])
 
-  implicit val encoder: Encoder[Data] =
-    Encoder.forProduct2("reason", "throwable")(data => (data.reason, data.throwable))
+  val Code: Int = -32603
+
+  val Message: String = "Internal JSON-RPC Error"
 }
 
-case class CustomError[Data: Encoder](code: Int, message: String, data: Option[Data]) extends RpcError[Data]
+case class CustomError(code: Int, message: String, data: Option[Json]) extends RpcError[Json]
 
 object CustomError {
-  import JsonFailureSupport.throwableEncoder
 
-  def fromThrowable(code: Int, message: String, throwable: Throwable): CustomError[Throwable] =
-    CustomError[Throwable](code, message, Some(throwable))
+  def fromThrowable(code: Int, message: String, throwable: Throwable)(implicit
+    throwableEncoder:     Encoder[ThrowableData]
+  ): CustomError =
+    CustomError(code, message, Some(ThrowableData(throwable).asJson))
 }
 
-object JsonFailureSupport {
+trait ThrowableData {
+  def message: Option[String]
+  def stackTrace: Option[NonEmptyChain[String]]
+}
 
-  implicit val decodingFailureEncoder: Encoder[DecodingFailure] =
-    decodingFailure =>
-      Map(
-        "path" -> decodingFailure.history.map(_.show).asJson
-      ).asJson
+object ThrowableData {
 
-  implicit val throwableEncoder: Encoder[Throwable] =
-    throwable =>
-      Map(
-        "message" -> Option(throwable.getMessage).asJson,
-        // TODO: Verbose API Settings only?
-        "stackTrace" -> throwable.getStackTrace.map(_.toString).asJson
-      ).asJson
+  def apply(throwable: Throwable): ThrowableData =
+    new ThrowableData {
+      override def message: Option[String] = Option(throwable.getMessage)
+
+      override def stackTrace: Option[NonEmptyChain[String]] = NonEmptyChain.fromSeq(throwable.getStackTrace)
+    }
+
+  def apply(m: Option[String], s: Option[NonEmptyChain[String]]): ThrowableData =
+    new ThrowableData {
+      override def message: Option[String] = m
+
+      override def stackTrace: Option[NonEmptyChain[String]] = s
+    }
 }
