@@ -1,4 +1,4 @@
-import sbt.Keys.{homepage, organization}
+import sbt.Keys.{homepage, organization, scmInfo}
 import sbtassembly.MergeStrategy
 
 lazy val commonSettings = Seq(
@@ -8,17 +8,35 @@ lazy val commonSettings = Seq(
   organization := "co.topl",
   version := "1.3.4",
   homepage := Some(url("https://github.com/Topl/Bifrost")),
+  licenses := Seq("MPL2.0" -> url("https://www.mozilla.org/en-US/MPL/2.0/")),
   publishMavenStyle := true,
   publishTo := Some("Sonatype Nexus" at "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2"),
   // wartremoverErrors := Warts.unsafe // settings for wartremover
-
   Compile / unmanagedSourceDirectories += {
     val sourceDir = (sourceDirectory in Compile).value
     CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2, n)) if n >= 13 => sourceDir / "scala-2.13+"
       case _ => sourceDir / "scala-2.12-"
     }
-  }
+  },
+  scmInfo := Some(
+    ScmInfo(
+      url("https://github.com/Topl/Bifrost"),
+      "scm:git:git@github.com:Topl/Bifrost.git"
+    )
+  ),
+  pomExtra :=
+    <developers>
+      <developer>
+        <id>scasplte2</id>
+        <name>James Aman</name>
+      </developer>
+      <developer>
+        <id>tuxman</id>
+        <name>Nicholas Edmonds</name>
+      </developer>
+    </developers>
+
 )
 
 val scala212 = "2.12.13"
