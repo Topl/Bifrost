@@ -1,5 +1,6 @@
 package co.topl.attestation
 
+import EvidenceProducer.Syntax._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
