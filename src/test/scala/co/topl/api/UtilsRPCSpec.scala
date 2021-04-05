@@ -216,7 +216,8 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
       """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val resStr = responseAs[String]
+        val res: Json = parse(resStr) match {case Right(re) => re; case Left(ex) => throw ex}
         val code = res.hcursor.downField("error").get[Int]("code")
         val message = res.hcursor.downField("error").get[String]("message")
 

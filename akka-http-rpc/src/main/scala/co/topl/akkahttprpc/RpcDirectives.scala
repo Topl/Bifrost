@@ -18,11 +18,11 @@ trait RpcDirectives {
 
   import RpcEncoders._
 
-  implicit def rejectionHandler(implicit throwableEncoder: Encoder[ThrowableData]): RejectionHandler =
+  def rejectionHandler(implicit throwableEncoder: Encoder[ThrowableData]): RejectionHandler =
     RejectionHandler
       .newBuilder()
       .handle { case RpcErrorRejection(e: RpcError[_]) =>
-        complete(rpcErrorToFailureResponse(e).asJson)
+        complete(rpcErrorToFailureResponseUnknownContext(e).asJson)
       }
       .result()
 
@@ -87,23 +87,27 @@ trait RpcDirectives {
           )
       )
 
-  private def rpcErrorToFailureResponse(
+  private def rpcErrorToFailureResponseUnknownContext(
     error:                     RpcError[_]
-  )(implicit throwableEncoder: Encoder[ThrowableData]): FailureRpcResponse =
+  )(implicit throwableEncoder: Encoder[ThrowableData]): FailureRpcResponse = {
+    val json = rpcErrorDataEncoder(throwableEncoder).apply(error)
     FailureRpcResponse(
       UUID.randomUUID().toString,
       "2.0",
-      FailureRpcResponse.Error(error.code, error.message, Some(error.asJson))
+      FailureRpcResponse.Error(error.code, error.message, Some(json))
     )
+  }
 
   private def rpcErrorToFailureResponse(request: RpcContext, error: RpcError[_])(implicit
     throwableEncoder:                            Encoder[ThrowableData]
-  ): FailureRpcResponse =
+  ): FailureRpcResponse = {
+    val json = rpcErrorDataEncoder(throwableEncoder).apply(error)
     FailureRpcResponse(
       request.id,
       request.jsonrpc,
-      FailureRpcResponse.Error(error.code, error.message, (Some(error.asJson)))
+      FailureRpcResponse.Error(error.code, error.message, Some(json))
     )
+  }
 }
 
 object RpcDirectives extends RpcDirectives
@@ -135,7 +139,3 @@ object RpcEncoders {
 }
 
 case class RpcErrorRejection(rpcError: RpcError[_]) extends Rejection
-
-trait ToRpcError[T] {
-  def toRpcError(t: T): RpcError[_]
-}

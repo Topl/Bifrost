@@ -4,8 +4,7 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import cats.data.EitherT
 import cats.implicits._
-import co.topl.akkahttprpc.JsonFailureSupport.ThrowableSupport.Verbose._
-import co.topl.akkahttprpc.RpcDirectives._
+import co.topl.akkahttprpc.ThrowableSupport.Verbose.verboseThrowableCodec
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
 import io.circe._
 import io.circe.generic.semiauto._
@@ -33,9 +32,8 @@ class RpcSpec
 
   it should "successfully handle an RPC call" in {
     val underTest =
-      rpcRoute(
-        "test_method1",
-        (params: TestMethodParams) => EitherT.pure[Future, TestMethodError](TestMethodSuccess(params.userId.length))
+      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(params =>
+        EitherT.pure[Future, RpcError[_]](TestMethodSuccess(params.userId.length))
       )
 
     Post(
@@ -56,9 +54,8 @@ class RpcSpec
 
   it should "successfully handle an RPC call with array-based parameters" in {
     val underTest =
-      rpcRoute(
-        "test_method1",
-        (params: TestMethodParams) => EitherT.pure[Future, TestMethodError](TestMethodSuccess(params.userId.length))
+      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(params =>
+        EitherT.pure[Future, RpcError[_]](TestMethodSuccess(params.userId.length))
       )
 
     Post(
@@ -79,9 +76,8 @@ class RpcSpec
 
   it should "return a ParseError when non-JSON is provided" in {
     val underTest =
-      rpcRoute(
-        "test_method1",
-        (params: TestMethodParams) => EitherT.pure[Future, TestMethodError](TestMethodSuccess(params.userId.length))
+      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(params =>
+        EitherT.pure[Future, RpcError[_]](TestMethodSuccess(params.userId.length))
       )
 
     Post(
@@ -94,9 +90,8 @@ class RpcSpec
 
   it should "return an InvalidRequestError when JSON is provided but is not valid RPC format" in {
     val underTest =
-      rpcRoute(
-        "test_method1",
-        (params: TestMethodParams) => EitherT.pure[Future, TestMethodError](TestMethodSuccess(params.userId.length))
+      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(params =>
+        EitherT.pure[Future, RpcError[_]](TestMethodSuccess(params.userId.length))
       )
 
     Post(
@@ -111,9 +106,8 @@ class RpcSpec
 
   it should "return a MethodNotFoundError when valid RPC format is provided but the method is not known" in {
     val underTest =
-      rpcRoute(
-        "test_method1",
-        (params: TestMethodParams) => EitherT.pure[Future, TestMethodError](TestMethodSuccess(params.userId.length))
+      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(params =>
+        EitherT.pure[Future, RpcError[_]](TestMethodSuccess(params.userId.length))
       )
 
     Post(
@@ -134,12 +128,10 @@ class RpcSpec
   it should "choose the correct handler" in {
 
     val underTest =
-      rpcRoute(
-        "test_method2",
-        (_: TestMethodParams) => EitherT.pure[Future, TestMethodError](TestMethodSuccess(10))
-      ) ~ rpcRoute(
-        "test_method1",
-        (params: TestMethodParams) => EitherT.pure[Future, TestMethodError](TestMethodSuccess(params.userId.length))
+      Rpc[TestMethodParams, TestMethodSuccess]("test_method2").serve(params =>
+        EitherT.pure[Future, RpcError[_]](TestMethodSuccess(params.userId.length))
+      ) ~ Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(params =>
+        EitherT.pure[Future, RpcError[_]](TestMethodSuccess(params.userId.length))
       )
 
     Post(
@@ -158,11 +150,10 @@ class RpcSpec
     }
   }
 
-  it should "return a InvalidParametersError when valid RPC format is provided but the method is not known" in {
+  it should "return a InvalidParametersError when valid RPC format is provided but the parameters do not match the method" in {
     val underTest =
-      rpcRoute(
-        "test_method1",
-        (params: TestMethodParams) => EitherT.pure[Future, TestMethodError](TestMethodSuccess(params.userId.length))
+      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(params =>
+        EitherT.pure[Future, RpcError[_]](TestMethodSuccess(params.userId.length))
       )
 
     Post(
@@ -182,10 +173,8 @@ class RpcSpec
 
   it should "return a custom error when an RPC results in an unhandled exception" in {
     val underTest =
-      rpcRoute(
-        "test_method1",
-        (_: TestMethodParams) =>
-          EitherT[Future, TestMethodError, TestMethodSuccess](Future.failed(new Exception("Heck")))
+      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(_ =>
+        EitherT[Future, RpcError[_], TestMethodSuccess](Future.failed(new Exception("Heck")))
       )
 
     Post(
@@ -198,7 +187,7 @@ class RpcSpec
       ).asJson
     ) ~> underTest ~> check {
       inside(rejection) { case RpcErrorRejection(e) =>
-        e shouldBe a[CustomError[_]]
+        e shouldBe a[CustomError]
       }
     }
   }
@@ -206,10 +195,8 @@ class RpcSpec
   it should "return a custom error when an RPC results in a known error" in {
 
     val underTest =
-      rpcRoute(
-        "test_method1",
-        (_: TestMethodParams) =>
-          EitherT.fromEither[Future](TestMethodError(new Exception("Heck")).asLeft[TestMethodSuccess])
+      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(params =>
+        EitherT.leftT[Future, TestMethodSuccess](CustomError(-32005, "Heck", None))
       )
 
     Post(
@@ -222,7 +209,7 @@ class RpcSpec
       ).asJson
     ) ~> underTest ~> check {
       inside(rejection) { case RpcErrorRejection(e) =>
-        e shouldBe a[CustomError[_]]
+        e shouldBe a[CustomError]
       }
     }
   }
@@ -237,18 +224,11 @@ object RpcSpec {
   implicit val encodeParams: Encoder[TestMethodParams] =
     deriveEncoder[TestMethodParams]
 
-  implicit val encodeTestMethod1Error: Encoder[TestMethodError] =
-    Encoder.forProduct1[TestMethodError, Throwable]("throwable")(e => e.throwable)
-
   implicit val encodeTestMethod1Success: Encoder[TestMethodSuccess] =
     deriveEncoder[TestMethodSuccess]
-
-  implicit val errorToRpcError: ToRpcError[TestMethodError] =
-    e => CustomError.fromThrowable(-32034, "Test Exception", e.throwable)
 
 }
 
 case class TestMethodParams(userId: String)
-case class TestMethodError(throwable: Throwable)
 
 case class TestMethodSuccess(value: Int)

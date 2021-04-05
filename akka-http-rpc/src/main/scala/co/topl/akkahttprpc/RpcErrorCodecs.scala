@@ -2,9 +2,9 @@ package co.topl.akkahttprpc
 
 import cats.data.NonEmptyChain
 import cats.implicits._
-import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.syntax._
+import io.circe.{Decoder, Encoder, _}
 
 trait RpcErrorCodecs {
 
@@ -20,7 +20,7 @@ trait RpcErrorCodecs {
   implicit val parseErrorCodec: Codec[ParseError.type] =
     Codec.from(
       _ => ParseError.asRight,
-      encodeNoData
+      encodeNoData.apply
     )
 
   implicit val decodingFailureCodec: Codec[DecodingFailure] =
@@ -32,40 +32,6 @@ trait RpcErrorCodecs {
           "path"    -> CursorOp.opsToPath(a.history).asJson
         ).asJson
     )
-
-  implicit val decodeThrowableData: Decoder[ThrowableData] =
-    Decoder.forProduct2("message", "stackTrace")(ThrowableData.apply)
-
-  object ThrowableSupport {
-
-    def verbose(verbose: Boolean): Codec[ThrowableData] =
-      if(verbose) Verbose.verboseThrowableCodec else Standard.throwableCodec
-
-    object Standard {
-
-      implicit val throwableCodec: Codec[ThrowableData] =
-        Codec.from(
-          decodeThrowableData,
-          throwable =>
-            Map(
-              "message" -> throwable.message.asJson
-            ).asJson
-        )
-    }
-
-    object Verbose {
-
-      implicit val verboseThrowableCodec: Codec[ThrowableData] =
-        Codec.from(
-          decodeThrowableData,
-          throwable =>
-            Map(
-              "message"    -> throwable.message.asJson,
-              "stackTrace" -> throwable.stackTrace.asJson
-            ).asJson
-        )
-    }
-  }
 
   implicit val methodNotFoundErrorDataEncoder: Codec[MethodNotFoundError.Data] = deriveCodec[MethodNotFoundError.Data]
 
@@ -84,6 +50,8 @@ trait RpcErrorCodecs {
     throwableEncoder: Encoder[ThrowableData]
   ): Encoder[InternalJsonRpcError] =
     encodeWithData[InternalJsonRpcError.Data, InternalJsonRpcError]
+
+  import ThrowableSupport._
 
   implicit val internalJsonRpcErrorDecoder: Decoder[InternalJsonRpcError] =
     Decoder.forProduct2("reason", "throwable")(InternalJsonRpcError.apply)
@@ -125,15 +93,49 @@ trait RpcErrorCodecs {
           case _                           => customErrorCodec(c)
         }
 
-  implicit def rpcErrorEncoder(implicit throwableEncoder: Encoder[ThrowableData]): Encoder[RpcError[_]] =
+  def rpcErrorDataEncoder(implicit throwableEncoder: Encoder[ThrowableData]): Encoder[RpcError[_]] =
     Encoder.instance {
-      case ParseError                => parseErrorCodec.apply(ParseError)
-      case i: InvalidRequestError    => invalidRequestErrorCodec(i)
-      case i: MethodNotFoundError    => methodNotFoundErrorCodec(i)
-      case i: InvalidParametersError => invalidParametersErrorCodec(i)
-      case i: InternalJsonRpcError   => internalJsonRpcErrorEncoder.apply(i)
-      case i: CustomError            => customErrorCodec(i)
+      case ParseError                => Json.Null
+      case i: InvalidRequestError    => i.data.asJson
+      case i: MethodNotFoundError    => i.data.asJson
+      case i: InvalidParametersError => i.data.asJson
+      case i: InternalJsonRpcError   => i.data.asJson
+      case i: CustomError            => i.data.asJson
     }
 }
 
 object RpcErrorCodecs extends RpcErrorCodecs
+
+object ThrowableSupport {
+
+  implicit val decodeThrowableData: Decoder[ThrowableData] =
+    Decoder.forProduct2("message", "stackTrace")(ThrowableData.apply)
+
+  def verbose(verbose: Boolean): Codec[ThrowableData] =
+    if (verbose) Verbose.verboseThrowableCodec else Standard.throwableCodec
+
+  object Standard {
+
+    implicit val throwableCodec: Codec[ThrowableData] =
+      Codec.from(
+        decodeThrowableData,
+        throwable =>
+          Map(
+            "message" -> throwable.message.asJson
+          ).asJson
+      )
+  }
+
+  object Verbose {
+
+    implicit val verboseThrowableCodec: Codec[ThrowableData] =
+      Codec.from(
+        decodeThrowableData,
+        throwable =>
+          Map(
+            "message"    -> throwable.message.asJson,
+            "stackTrace" -> throwable.stackTrace.asJson
+          ).asJson
+      )
+  }
+}

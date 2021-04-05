@@ -7,6 +7,7 @@ import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
 import co.topl.attestation.Address
+import co.topl.modifier.ModifierId
 import co.topl.nodeView.CurrentView
 import co.topl.nodeView.history.{History, HistoryDebug}
 import co.topl.nodeView.mempool.MemPool
@@ -88,7 +89,7 @@ object BifrostRpcHandlerImpls {
         for {
           view <- currentView()
           historyDebug = new HistoryDebug(view.history)
-          ids <- EitherT.fromOption[Future](
+          ids <- EitherT.fromOption[Future].apply[RpcError[_], Seq[ModifierId]](
             historyDebug.getIdsFrom(params.height, params.limit),
             CustomError(-32005, "No block ids found from that block height", None): RpcError[_]
           )

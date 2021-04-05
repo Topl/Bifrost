@@ -5,10 +5,12 @@ import akka.http.scaladsl.Http
 import akka.io.Tcp
 import akka.pattern.ask
 import akka.util.Timeout
+import co.topl.akkahttprpc.{ThrowableData, ThrowableSupport}
 import co.topl.consensus.{Forger, ForgerRef}
 import co.topl.http.HttpService
 import co.topl.http.api.ApiEndpoint
-import co.topl.http.api.endpoints.{DebugApiEndpoint, _}
+import co.topl.http.api.endpoints._
+import co.topl.http.rpc.{BifrostRpcHandlerImpls, BifrostRpcHandlers, BifrostRpcServer}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.NetworkController.ReceivableMessages.BindP2P
@@ -24,6 +26,7 @@ import co.topl.utils.{Logging, NetworkType}
 import co.topl.wallet.{WalletConnectionHandler, WalletConnectionHandlerRef}
 import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
 import com.typesafe.config.{Config, ConfigFactory}
+import io.circe.Encoder
 import kamon.Kamon
 
 import java.lang.management.ManagementFactory
@@ -45,7 +48,8 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   log.debug(s"Starting application with settings \n$settings")
 
   /** check for gateway device and setup port forwarding */
-  private val upnpGateway: Option[UPnPGateway] = if (settings.network.upnpEnabled) UPnPGateway(settings.network) else None
+  private val upnpGateway: Option[UPnPGateway] =
+    if (settings.network.upnpEnabled) UPnPGateway(settings.network) else None
 
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
   /** Setup the execution environment for running the application */
@@ -80,11 +84,10 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   private val walletConnectionHandlerRef: Option[ActorRef] =
     if (settings.gjallarhorn.enableWallet) {
-    Some(WalletConnectionHandlerRef[PMOD]
-      (WalletConnectionHandler.actorName, settings, appContext, nodeViewHolderRef))
-  } else {
-    None
-  }
+      Some(WalletConnectionHandlerRef[PMOD](WalletConnectionHandler.actorName, settings, appContext, nodeViewHolderRef))
+    } else {
+      None
+    }
 
   private val peerSynchronizer: ActorRef =
     PeerSynchronizerRef(PeerSynchronizer.actorName, networkControllerRef, peerManagerRef, settings, appContext)
@@ -117,11 +120,21 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     UtilsApiEndpoint(settings.rpcApi, appContext),
     AdminApiEndpoint(settings.rpcApi, appContext, forgerRef),
     NodeViewApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef),
-    TransactionApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef),
-    DebugApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef, forgerRef)
+    TransactionApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef)
   )
 
-  private val httpService = HttpService(apiRoutes, settings.rpcApi)
+  implicit val throwableEncoder: Encoder[ThrowableData] =
+    ThrowableSupport.verbose(settings.rpcApi.verboseAPI)
+
+  private val bifrostRpcServer: BifrostRpcServer =
+    new BifrostRpcServer(
+      BifrostRpcHandlers(
+        new BifrostRpcHandlerImpls.Debug(appContext, nodeViewHolderRef, forgerRef)
+      ),
+      appContext
+    )
+
+  private val httpService = HttpService(apiRoutes, settings.rpcApi, bifrostRpcServer)
 
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
   /** Am I running on a JDK that supports JVMCI? */

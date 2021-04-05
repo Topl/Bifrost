@@ -1,12 +1,14 @@
 package co.topl.api
 
-import akka.http.scaladsl.model.StatusCodes.{BadRequest, InternalServerError}
 import akka.http.scaladsl.server.Route
 import akka.util.ByteString
+import co.topl.akkahttprpc.MethodNotFoundError
+import co.topl.akkahttprpc.ThrowableSupport.Standard._
 import co.topl.http.HttpService
 import co.topl.http.api.ApiEndpoint
 import co.topl.http.api.endpoints._
-import co.topl.settings.AppSettings
+import co.topl.http.rpc.{BifrostRpcHandlerImpls, BifrostRpcHandlers, BifrostRpcServer}
+import co.topl.settings.{AppContext, AppSettings, StartupOpts}
 import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -25,15 +27,23 @@ class NameSpaceSpec extends AnyWordSpec with Matchers with RPCMockState {
       )
     )
 
+    val newAppContext = new AppContext(newRpcSettings, StartupOpts.empty, None)
+
     val newApiRoutes: Seq[ApiEndpoint] = Seq(
-      UtilsApiEndpoint(newRpcSettings.rpcApi, appContext),
-      AdminApiEndpoint(newRpcSettings.rpcApi, appContext, forgerRef),
-      NodeViewApiEndpoint(newRpcSettings.rpcApi, appContext, nodeViewHolderRef),
-      TransactionApiEndpoint(newRpcSettings.rpcApi, appContext, nodeViewHolderRef),
-      DebugApiEndpoint(newRpcSettings.rpcApi, appContext, nodeViewHolderRef, forgerRef)
+      UtilsApiEndpoint(newRpcSettings.rpcApi, newAppContext),
+      AdminApiEndpoint(newRpcSettings.rpcApi, newAppContext, forgerRef),
+      NodeViewApiEndpoint(newRpcSettings.rpcApi, newAppContext, nodeViewHolderRef),
+      TransactionApiEndpoint(newRpcSettings.rpcApi, newAppContext, nodeViewHolderRef),
+      DebugApiEndpoint(newRpcSettings.rpcApi, newAppContext, nodeViewHolderRef, forgerRef)
     )
 
-    val newHttpService = HttpService(newApiRoutes, newRpcSettings.rpcApi)
+    val rpcServer =
+      new BifrostRpcServer(
+        BifrostRpcHandlers(new BifrostRpcHandlerImpls.Debug(newAppContext, nodeViewHolderRef, forgerRef)),
+        newAppContext
+      )
+
+    val newHttpService = HttpService(newApiRoutes, newRpcSettings.rpcApi, rpcServer)
     newHttpService.compositeRoute
   }
 
@@ -59,8 +69,8 @@ class NameSpaceSpec extends AnyWordSpec with Matchers with RPCMockState {
         val code = res.hcursor.downField("error").get[Int]("code")
         val message = res.hcursor.downField("error").get[String]("message")
 
-        code shouldEqual Right(InternalServerError.intValue)
-        message shouldEqual Right("Service handler not found for method: debug_empty")
+        code shouldEqual Right(MethodNotFoundError.Code)
+        message shouldEqual Right("RPC Method Not Found")
       }
     }
   }
@@ -80,33 +90,22 @@ class NameSpaceSpec extends AnyWordSpec with Matchers with RPCMockState {
         val res = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
         val code = res.hcursor.downField("error").get[Int]("code")
         val message = res.hcursor.downField("error").get[String]("message")
+        val method = res.hcursor.downField("error").downField("data").get[String]("method")
 
-        code shouldEqual Right(InternalServerError.intValue)
-        message shouldEqual Right("Service handler not found for method: debug_myBlocks")
+        code shouldEqual Right(MethodNotFoundError.Code)
+        message shouldEqual Right(MethodNotFoundError.Message)
+        method shouldEqual Right("debug_myBlocks")
       }
 
       httpPOST(requestBody) ~> routeDefault ~> check {
         val res = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
         val code = res.hcursor.downField("error").get[Int]("code")
         val message = res.hcursor.downField("error").get[String]("message")
+        val method = res.hcursor.downField("error").downField("data").get[String]("method")
 
-        code shouldEqual Right(InternalServerError.intValue)
-        message shouldEqual Right("Service handler not found for method: debug_myBlocks")
-      }
-    }
-  }
-
-  "debug RPC with namespaces turned off or on" should {
-    "Refuse any request with incomplete Json body and return the correct errors" in {
-      val requestBody = ByteString("")
-
-      httpPOST(requestBody) ~> routeRandom ~> check {
-        val res = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
-        val code = res.hcursor.downField("error").get[Int]("code")
-        val message = res.hcursor.downField("error").get[String]("message")
-
-        code shouldEqual Right(BadRequest.intValue)
-        message shouldEqual Right("Unable to parse Json body")
+        code shouldEqual Right(MethodNotFoundError.Code)
+        message shouldEqual Right(MethodNotFoundError.Message)
+        method shouldEqual Right("debug_myBlocks")
       }
     }
   }

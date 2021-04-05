@@ -7,10 +7,12 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
+import co.topl.akkahttprpc.ThrowableSupport.Standard._
 import co.topl.consensus.{Forger, ForgerRef}
 import co.topl.http.HttpService
 import co.topl.http.api.ApiEndpoint
 import co.topl.http.api.endpoints._
+import co.topl.http.rpc.{BifrostRpcHandlerImpls, BifrostRpcHandlers, BifrostRpcServer}
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
@@ -24,30 +26,29 @@ import java.io.File
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 
-trait RPCMockState extends AnyWordSpec
-  with GenesisGenerators
-  with ScalatestRouteTest {
+trait RPCMockState extends AnyWordSpec with GenesisGenerators with ScalatestRouteTest {
 
   val tempFile: File = createTempFile
 
   val rpcSettings: AppSettings = settings.copy(
     application = settings.application.copy(
-    dataDir = Some(tempFile.getPath + "data")
-  ))
+      dataDir = Some(tempFile.getPath + "data")
+    )
+  )
 
   val genesisState: State = genesisState(rpcSettings)
 
   //TODO Fails when using rpcSettings
   override def createActorSystem(): ActorSystem = ActorSystem(settings.network.agentName)
 
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
   // save environment into a variable for reference throughout the application
   protected val appContext = new AppContext(rpcSettings, StartupOpts.empty, None)
 
   // Create Bifrost singleton actors
   protected val forgerRef: ActorRef = ForgerRef(Forger.actorName, rpcSettings, appContext)
   protected val nodeViewHolderRef: ActorRef = NodeViewHolderRef(NodeViewHolder.actorName, rpcSettings, appContext)
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 
@@ -59,17 +60,21 @@ trait RPCMockState extends AnyWordSpec
     DebugApiEndpoint(rpcSettings.rpcApi, appContext, nodeViewHolderRef, forgerRef)
   )
 
-  private val httpService = HttpService(apiRoutes, rpcSettings.rpcApi)
+  val rpcServer =
+    new BifrostRpcServer(
+      BifrostRpcHandlers(new BifrostRpcHandlerImpls.Debug(appContext, nodeViewHolderRef, forgerRef)),
+      appContext
+    )
+
+  private val httpService = HttpService(apiRoutes, rpcSettings.rpcApi, rpcServer)
   val route: Route = httpService.compositeRoute
 
-  def httpPOST(jsonRequest: ByteString): HttpRequest = {
+  def httpPOST(jsonRequest: ByteString): HttpRequest =
     HttpRequest(
       HttpMethods.POST,
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
     ).withHeaders(RawHeader("x-api-key", "test_key"))
-  }
 
-  protected def view(): CurrentView[History, State, MemPool] = Await.result(
-    (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]],
-    10.seconds)
+  protected def view(): CurrentView[History, State, MemPool] =
+    Await.result((nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]], 10.seconds)
 }

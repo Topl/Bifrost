@@ -5,17 +5,21 @@ import akka.http.scaladsl.marshalling.Marshaller
 import akka.http.scaladsl.marshalling.Marshaller._
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse}
 import akka.http.scaladsl.server.Route
+import co.topl.akkahttprpc.RpcDirectives._
 import co.topl.http.api.{ApiEndpoint, ApiResponse, ErrorResponse, SuccessResponse}
+import co.topl.http.rpc.BifrostRpcServer
 import co.topl.settings.RPCApiSettings
 import io.circe.Json
-import io.circe.parser.parse
 import scorex.crypto.hash.{Blake2b256, Digest32}
 import scorex.util.encode.Base58
 
 import scala.concurrent.{Future, TimeoutException}
-import scala.util.Try
 
-final case class HttpService(apiServices: Seq[ApiEndpoint], settings: RPCApiSettings)(implicit val system: ActorSystem)
+final case class HttpService(
+  apiServices:         Seq[ApiEndpoint],
+  settings:            RPCApiSettings,
+  bifrostRpcServer:    BifrostRpcServer
+)(implicit val system: ActorSystem)
     extends CorsSupport {
 
   import HttpService._
@@ -42,55 +46,39 @@ final case class HttpService(apiServices: Seq[ApiEndpoint], settings: RPCApiSett
     }
 
   /** the api controller, this will parse the JSON body and target the appropriate service for handling the request */
-  private def basicRoute: Route = path("") {
-    entity(as[String]) { body =>
+  private def basicRoute: Route =
+    path("") {
       withAuth {
-        complete {
-          var reqId = ""
-          parse(body) match {
-            case Left(failure) =>
-              Future.successful(
-                ErrorResponse(new Exception("Unable to parse Json body"), 400, reqId, verbose = settings.verboseAPI)
-              )
-            case Right(request) =>
-              val futureResponse: Future[ApiResponse] =
-                Future
-                  .fromTry(
-                    Try {
-                      val id = (request \\ "id").head.asString.get
-                      reqId = id
-                      require((request \\ "jsonrpc").head.asString.get == "2.0")
-
-                      val params = (request \\ "params").head.asArray.get
-                      require(params.size <= 1, s"size of params is ${params.size}")
-
-                      val method = (request \\ "method").head.asString.get
-
-                      if (apiServiceHandlers.isDefinedAt(method, params, id))
-                        apiServiceHandlers.apply(method, params, id)
-                      else throw new NoSuchElementException("Service handler not found for method: " + method)
-                    }
-                  )
-                  .flatten
-                  .map(SuccessResponse(_, reqId))
-                  .recover { case e => ErrorResponse(e, 500, reqId, verbose = settings.verboseAPI) }
-              timeoutFuture(reqId, futureResponse)
-          }
+        rpcContext { rpcContext =>
+          apiServiceHandlers
+            .andThen(h =>
+              complete(
+                timeoutFuture(
+                  rpcContext.id,
+                  h.map(SuccessResponse(_, rpcContext.id)).recover { case e =>
+                    ErrorResponse(e, 500, rpcContext.id, verbose = settings.verboseAPI)
+                  }
+                )
+              ): Route
+            )
+            .applyOrElse(
+              (rpcContext.method, Vector(rpcContext.params), rpcContext.id),
+              (_: (String, Vector[Json], String)) => bifrostRpcServer.route
+            )
         }
       }
     }
-  }
 
   private def timeoutFuture(requestId: String, futureResponse: => Future[ApiResponse]): Future[ApiResponse] =
-    Future.firstCompletedOf(
-      List(
-        futureResponse,
-        akka.pattern.after(settings.timeout)(Future.failed(new TimeoutException))
+    Future
+      .firstCompletedOf(
+        List(
+          futureResponse,
+          akka.pattern.after(settings.timeout)(Future.failed(new TimeoutException))
+        )
       )
-    )
-      .recover {
-        case e: TimeoutException =>
-          ErrorResponse(e, 500, requestId, verbose = settings.verboseAPI)
+      .recover { case e: TimeoutException =>
+        ErrorResponse(e, 500, requestId, verbose = settings.verboseAPI)
       }
 
   /** Helper route to wrap the handling of API key authentication */
