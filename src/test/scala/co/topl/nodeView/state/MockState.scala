@@ -21,10 +21,10 @@ trait MockState extends AnyPropSpec
   with CoreGenerators
   with FileUtils {
 
-  protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
-  implicit val executionContext: ExecutionContext = actorSystem.dispatcher
+//  protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
+//  implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
-  protected val appContext = new AppContext(settings, StartupOpts.empty, None)
+//  protected val appContext = new AppContext(settings, StartupOpts.empty, None)
 
   val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
     KeyRing(settings.application.keyFileDir.get, KeyfileCurve25519)
