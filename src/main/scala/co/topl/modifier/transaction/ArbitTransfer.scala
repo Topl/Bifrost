@@ -1,6 +1,5 @@
 package co.topl.modifier.transaction
 
-import java.time.Instant
 import co.topl.attestation._
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
@@ -12,6 +11,7 @@ import co.topl.utils.{Identifiable, Identifier, Int128}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 
+import java.time.Instant
 import scala.util.Try
 
 case class ArbitTransfer[

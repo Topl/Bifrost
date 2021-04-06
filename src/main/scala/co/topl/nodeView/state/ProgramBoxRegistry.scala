@@ -1,13 +1,12 @@
 package co.topl.nodeView.state
 
-import java.io.File
-
-import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.modifier.box.{BoxId, ProgramBox, ProgramId}
+import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
+import java.io.File
 import scala.util.{Failure, Success, Try}
 
 /** A registry containing mapping from fixed programId -> changing boxId

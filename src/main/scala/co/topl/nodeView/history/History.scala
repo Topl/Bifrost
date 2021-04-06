@@ -1,7 +1,5 @@
 package co.topl.nodeView.history
 
-import java.io.File
-
 import co.topl.consensus.{BlockValidator, DifficultyBlockValidator, SyntaxBlockValidator}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
@@ -14,6 +12,7 @@ import co.topl.settings.AppSettings
 import co.topl.utils.{Logging, TimeProvider}
 import io.iohk.iodb.LSMStore
 
+import java.io.File
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 

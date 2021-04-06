@@ -1,8 +1,8 @@
 package co.topl.network.peer
 
-import java.net.InetSocketAddress
-
 import co.topl.settings.Version
+
+import java.net.InetSocketAddress
 
 /** Declared information about peer
   *

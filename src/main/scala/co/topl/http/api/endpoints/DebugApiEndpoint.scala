@@ -8,8 +8,8 @@ import co.topl.http.api.{ApiEndpointWithView, DebugNamespace, ErrorResponse, Nam
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.ChangedHistory
-import co.topl.network.message.{BifrostSyncInfo, SyncInfo}
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, GetNodeViewChanges}
+import co.topl.network.message.BifrostSyncInfo
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetNodeViewChanges
 import co.topl.nodeView.history.{History, HistoryDebug, HistoryReader}
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
