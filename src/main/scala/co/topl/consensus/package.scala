@@ -3,7 +3,7 @@ package co.topl
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
 import co.topl.settings.ProtocolSettings
-import co.topl.utils.{Int128, TimeProvider}
+import co.topl.utils.TimeProvider
 import com.google.common.primitives.Longs
 import scorex.crypto.hash.Blake2b256
 
@@ -13,25 +13,14 @@ import scala.math.{max, min}
 package object consensus {
   private var _protocolMngr: ProtocolVersioner = ProtocolVersioner.empty
 
-  // these variables are left as vars since they are local state of the consensus protocol determined from the chain
-  private var _maxStake: Int128 = 200000000000000000L // this needs to be replaced by a store for consensus
-  private var _inflation: Int128 = 0  // not currently used
-  private var _difficulty: Long = 0 // not currently used
-  private var _height: Long = 0     // not currently used
+  // Initialize or restore a consensus storage that keeps track of the maxStake, difficulty, height, and inflation
+  private[consensus] var consensusStorage: ConsensusStorage = ConsensusStorage.emptyStorage()
 
-  // setters
+  // setter
   private[consensus] def protocolMngr_= (value: ProtocolVersioner): Unit = _protocolMngr = value
-  private[consensus] def maxStake_= (value: Int128): Unit = _maxStake = value
-  private[consensus] def inflation_= (value: Int128): Unit = _inflation = value
-  private[consensus] def height_= (value: Long): Unit = _height = value
-  private[consensus] def difficulty_= (value: Long): Unit = _difficulty = value
 
   // getters
   def protocolMngr: ProtocolVersioner = _protocolMngr
-  def maxStake: Int128 = _maxStake
-  def inflation: Int128 = _inflation
-  def difficulty: Long = _difficulty
-  def height: Long = _height
 
   // number of blocks to use for determining the avg block delay
   def nxtBlockNum: Int = 3
@@ -71,12 +60,9 @@ package object consensus {
    * @param timestamp      the current timestamp
    * @return the adjusted difficulty
    */
-  def calcAdjustedTarget(parent: Block,
-                         parentHeight: Long,
-                         baseDifficulty: Long,
-                         timestamp: Long): BigDecimal = {
+  def calcAdjustedTarget(parent: Block, parentHeight: Long, baseDifficulty: Long, timestamp: Long): BigDecimal = {
 
-    val target: Double = baseDifficulty.toDouble / maxStake.toDouble
+    val target: Double = baseDifficulty.toDouble / consensusStorage.totalStake.toDouble
     val timeDelta = timestamp - parent.timestamp
 
     BigDecimal(target * timeDelta.toDouble / targetBlockTime(parentHeight).toUnit(MILLISECONDS))

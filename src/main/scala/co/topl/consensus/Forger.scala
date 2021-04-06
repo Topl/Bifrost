@@ -48,6 +48,7 @@ class Forger[
   override def preStart(): Unit = {
     // determine the set of applicable protocol rules for this software version
     protocolMngr = ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
+    consensusStorage = ConsensusStorage(settings, appContext.networkType)
 
     //register for application initialization message
     context.system.eventStream.subscribe(self, classOf[NodeViewReady])
@@ -123,9 +124,6 @@ class Forger[
         .mapTo[Try[ForgerStartupKeyView]]
         .map {
           case Success(ForgerStartupKeyView(_, Some(_))) =>
-            // Update the maxStake by calculating the total amount of balance from all accounts
-            // TODO: JAA - we need to save these values to disk
-            settings.forging.privateTestnet.foreach(sfp => maxStake = sfp.numTestnetAccts * sfp.testnetBalance)
 
             // if forging has been enabled, then we should send the StartForging signal
             if (settings.forging.forgeOnStartup) self ! StartForging
@@ -156,9 +154,7 @@ class Forger[
 
     def initializeFromChainParamsAndGetBlock(block: Try[(Block, ChainParams)]): Try[Block] =
       block.map { case (block: Block, ChainParams(totalStake, initDifficulty)) =>
-        maxStake = totalStake
-        difficulty = initDifficulty
-        height = 0
+        consensusStorage.updateConsensusStorage(block.id, ConsensusParams(totalStake, initDifficulty, 0, 0))
 
         block
       }
