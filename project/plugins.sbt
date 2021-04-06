@@ -16,7 +16,7 @@ addSbtPlugin("io.kamon" % "sbt-kanela-runner" % "2.0.6")
 
 addSbtPlugin("com.github.cb372" % "sbt-explicit-dependencies" % "0.2.11")
 
-addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.3.7")
+addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.4.0")
 
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.4.0")
 

@@ -24,7 +24,7 @@ resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releas
 val akkaVersion = "2.6.13"
 val akkaHttpVersion = "10.2.4"
 val circeVersion = "0.13.0"
-val kamonVersion = "2.1.13"
+val kamonVersion = "2.1.15"
 val graalVersion = "21.0.0.2"
 
 val akkaDependencies = Seq(
@@ -59,7 +59,7 @@ val loggingDependencies = Seq(
 )
 
 val testingDependencies = Seq(
-  "org.scalactic"      %% "scalactic"         % "3.2.6"   % Test,
+  "org.scalactic"      %% "scalactic"         % "3.2.7"   % Test,
   "org.scalatest"      %% "scalatest"         % "3.2.7"   % Test,
   "org.scalacheck"     %% "scalacheck"        % "1.15.3"  % Test,
   "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % Test,
