@@ -1,12 +1,11 @@
 package co.topl.modifier.transaction
 
 import java.time.Instant
-
 import co.topl.attestation._
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TxType
-import co.topl.modifier.transaction.TransferTransaction.BoxParams
+import co.topl.modifier.transaction.TransferTransaction.{BoxParams, encodeFrom}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.codecs.Int128Codec
 import co.topl.utils.{Identifiable, Identifier, Int128}
@@ -90,7 +89,7 @@ object ArbitTransfer {
       "propositionType" -> tx.getPropIdentifier.typeString.asJson,
       "newBoxes"        -> tx.newBoxes.toSeq.asJson,
       "boxesToRemove"   -> tx.boxIdsToOpen.asJson,
-      "from"            -> tx.from.asJson,
+      "from"            -> encodeFrom(tx.from),
       "to"              -> tx.to.asJson,
       "signatures"      -> tx.attestation.asJson,
       "fee"             -> tx.fee.asJson(Int128Codec.jsonEncoder),

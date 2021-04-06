@@ -417,7 +417,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
         .flatMap(modifierById)
         .flatMap(getIdsFrom(_, _ => false, size))
         .map(_.map(mod => mod.getModType -> mod))
-        .get
+        .getOrElse(Seq())
 
     // case where we are at genesis
     if (isEmpty) {

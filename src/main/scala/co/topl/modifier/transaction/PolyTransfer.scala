@@ -1,12 +1,11 @@
 package co.topl.modifier.transaction
 
 import java.time.Instant
-
 import co.topl.attestation._
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TxType
-import co.topl.modifier.transaction.TransferTransaction.BoxParams
+import co.topl.modifier.transaction.TransferTransaction.{BoxParams, encodeFrom}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.codecs.Int128Codec
 import co.topl.utils.{Identifiable, Identifier, Int128, NetworkType}
@@ -75,9 +74,6 @@ object PolyTransfer {
         PolyTransfer[P](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data)
       }
 
-  def encodeFrom(from: IndexedSeq[(Address, Box.Nonce)]): Json = {
-    from.map(x => (x._1.asJson, x._2.toString.asJson)).asJson
-  }
 
   implicit def jsonEncoder[P <: Proposition]: Encoder[PolyTransfer[P]] = { tx: PolyTransfer[P] =>
     Map(
