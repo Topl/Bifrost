@@ -18,8 +18,8 @@ class ConsensusStorage(storage: Option[LSMStore], private val defaultTotalStake:
   private val heightKey = ByteArrayWrapper(Blake2b256("height".getBytes))
 
   private val defaultDifficulty: Long = 0
-  private val defaultInflation: BigInt = 0
-  private val defaultHeight: BigInt = 0
+  private val defaultInflation: Long = 0
+  private val defaultHeight: Long = 0
 
   private var _totalStake: Int128 = storage match {
     case Some(store) => store.get(totalStakeKey).map(v => Int128(v.data)).getOrElse(defaultTotalStake)
@@ -31,20 +31,20 @@ class ConsensusStorage(storage: Option[LSMStore], private val defaultTotalStake:
     case None => defaultDifficulty
   }
 
-  private var _inflation: Int128 = storage match {
-    case Some(store) => store.get(inflationKey).map(v => Int128(v.data)).getOrElse(defaultInflation)
+  private var _inflation: Long = storage match {
+    case Some(store) => store.get(inflationKey).map(v => Longs.fromByteArray(v.data)).getOrElse(defaultInflation)
     case None => defaultInflation
   }
 
-  private var _height: Int128 = storage match {
-    case Some(store) => store.get(heightKey).map(v => Int128(v.data)).getOrElse(defaultHeight)
+  private var _height: Long = storage match {
+    case Some(store) => store.get(heightKey).map(v => Longs.fromByteArray(v.data)).getOrElse(defaultHeight)
     case None => defaultHeight
   }
 
   def totalStake: Int128 = _totalStake
   def difficulty: Long = _difficulty
-  def inflation: Int128 = _inflation
-  def height: Int128 = _height
+  def inflation: Long = _inflation
+  def height: Long = _height
 
   /** Updates the consensus storage with the given values at a given block as the version.
     * @param blockId the block ID associated with the consensus parameters
@@ -60,8 +60,8 @@ class ConsensusStorage(storage: Option[LSMStore], private val defaultTotalStake:
 
     val totalStakePair = Seq(totalStakeKey -> params.totalStake.toByteArray)
     val difficultyPair = Seq(difficultyKey -> Longs.toByteArray(params.difficulty))
-    val inflationPair = Seq(inflationKey -> params.inflation.toByteArray)
-    val heightPair = Seq(heightKey -> params.height.toByteArray)
+    val inflationPair = Seq(inflationKey -> Longs.toByteArray(params.inflation))
+    val heightPair = Seq(heightKey -> Longs.toByteArray(params.height))
 
     val toUpdate = (totalStakePair ++ difficultyPair ++ inflationPair ++ heightPair).map{
       case (k, v) => k -> ByteArrayWrapper(v)
@@ -118,6 +118,6 @@ object ConsensusStorage {
 
 }
 
-case class ConsensusParams(totalStake: Int128, difficulty: Long, inflation: Int128, height: Int128)
+case class ConsensusParams(totalStake: Int128, difficulty: Long, inflation: Long, height: Long)
 
 case class NoStorageError()

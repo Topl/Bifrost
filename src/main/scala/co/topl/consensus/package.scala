@@ -3,7 +3,7 @@ package co.topl
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
 import co.topl.settings.ProtocolSettings
-import co.topl.utils.{Int128, TimeProvider}
+import co.topl.utils.TimeProvider
 import com.google.common.primitives.Longs
 import scorex.crypto.hash.Blake2b256
 
@@ -26,17 +26,17 @@ package object consensus {
   def nxtBlockNum: Int = 3
 
   /** Find the rule set for the given app version and block height */
-  def getProtocolRules(blockHeight: Int128): ProtocolSettings =
+  def getProtocolRules(blockHeight: Long): ProtocolSettings =
     protocolMngr.current(blockHeight)
     .getOrElse(throw new Error("Unable to find applicable protocol rules"))
 
-  def targetBlockTime(blockHeight: Int128): FiniteDuration =
+  def targetBlockTime(blockHeight: Long): FiniteDuration =
     getProtocolRules(blockHeight).targetBlockTime.get
 
-  def numTxInBlock(blockHeight: Int128): Int =
+  def numTxInBlock(blockHeight: Long): Int =
     getProtocolRules(blockHeight).numTxPerBlock.get
 
-  def blockVersion(blockHeight: Int128): Byte =
+  def blockVersion(blockHeight: Long): Byte =
     getProtocolRules(blockHeight).blockVersion.get
 
   /**
@@ -60,7 +60,7 @@ package object consensus {
    * @param timestamp      the current timestamp
    * @return the adjusted difficulty
    */
-  def calcAdjustedTarget(parent: Block, parentHeight: Int128, baseDifficulty: Int128, timestamp: Long): BigDecimal = {
+  def calcAdjustedTarget(parent: Block, parentHeight: Long, baseDifficulty: Long, timestamp: Long): BigDecimal = {
 
     val target: Double = baseDifficulty.toDouble / consensusStorage.totalStake.toDouble
     val timeDelta = timestamp - parent.timestamp
