@@ -20,19 +20,19 @@ trait ToplRpcClientCodecs {
   implicit val debugIdsFromHeightParamsEncoder: Encoder[ToplRpc.Debug.IdsFromHeight.Params] =
     deriveEncoder
 
-  implicit val utilsSeedParamsEncoder: Encoder[ToplRpc.Utils.Seed.Params] =
+  implicit val utilsSeedParamsEncoder: Encoder[ToplRpc.Util.Seed.Params] =
     deriveEncoder
 
-  implicit val utilsSeedOfLengthParamsEncoder: Encoder[ToplRpc.Utils.SeedOfLength.Params] =
+  implicit val utilsSeedOfLengthParamsEncoder: Encoder[ToplRpc.Util.SeedOfLength.Params] =
     deriveEncoder
 
-  implicit val utilsHashBlake2b256ParamsEncoder: Encoder[ToplRpc.Utils.HashBlake2b256.Params] =
+  implicit val utilsHashBlake2b256ParamsEncoder: Encoder[ToplRpc.Util.HashBlake2b256.Params] =
     deriveEncoder
 
-  implicit val utilsGenerateAssetCodeParamsEncoder: Encoder[ToplRpc.Utils.GenerateAssetCode.Params] =
+  implicit val utilsGenerateAssetCodeParamsEncoder: Encoder[ToplRpc.Util.GenerateAssetCode.Params] =
     Encoder.forProduct3("version", "issuer", "shortName")(p => (p.version, p.issuer, p.shortName))
 
-  implicit val utilsCheckValidAddressParamsEncoder: Encoder[ToplRpc.Utils.CheckValidAddress.Params] =
+  implicit val utilsCheckValidAddressParamsEncoder: Encoder[ToplRpc.Util.CheckValidAddress.Params] =
     Encoder.forProduct2("network", "address")(p => (p.network, p.address))
 
   // Response Decoders
@@ -48,21 +48,21 @@ trait ToplRpcClientCodecs {
   implicit val debugIdsFromHeightResponseDecoder: Decoder[ToplRpc.Debug.IdsFromHeight.Response] =
     _.as[ToplRpc.Debug.IdsFromHeight.Response]
 
-  implicit val utilsSeedResponseDecoder: Decoder[ToplRpc.Utils.Seed.Response] =
+  implicit val utilsSeedResponseDecoder: Decoder[ToplRpc.Util.Seed.Response] =
     deriveDecoder
 
-  implicit val utilsSeedOfLengthResponseDecoder: Decoder[ToplRpc.Utils.SeedOfLength.Response] =
+  implicit val utilsSeedOfLengthResponseDecoder: Decoder[ToplRpc.Util.SeedOfLength.Response] =
     deriveDecoder
 
-  implicit val utilsHashBlake2b256ResponseDecoder: Decoder[ToplRpc.Utils.HashBlake2b256.Response] =
+  implicit val utilsHashBlake2b256ResponseDecoder: Decoder[ToplRpc.Util.HashBlake2b256.Response] =
     deriveDecoder
 
-  implicit val utilsGenerateAssetCodeResponseDecoder: Decoder[ToplRpc.Utils.GenerateAssetCode.Response] =
-    Decoder.forProduct1("assetCode")(ToplRpc.Utils.GenerateAssetCode.Response.apply)
+  implicit val utilsGenerateAssetCodeResponseDecoder: Decoder[ToplRpc.Util.GenerateAssetCode.Response] =
+    Decoder.forProduct1("assetCode")(ToplRpc.Util.GenerateAssetCode.Response.apply)
 
   implicit def utilsCheckValidAddressResponseDecoder(implicit
     networkPrefix: NetworkPrefix
-  ): Decoder[ToplRpc.Utils.CheckValidAddress.Response] =
-    Decoder.forProduct2("address", "network")(ToplRpc.Utils.CheckValidAddress.Response.apply)
+  ): Decoder[ToplRpc.Util.CheckValidAddress.Response] =
+    Decoder.forProduct2("address", "network")(ToplRpc.Util.CheckValidAddress.Response.apply)
 
 }

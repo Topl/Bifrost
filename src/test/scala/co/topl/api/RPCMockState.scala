@@ -53,7 +53,6 @@ trait RPCMockState extends AnyWordSpec with GenesisGenerators with ScalatestRout
   implicit val timeout: Timeout = Timeout(10.seconds)
 
   private val apiRoutes: Seq[ApiEndpoint] = Seq(
-    UtilsApiEndpoint(rpcSettings.rpcApi, appContext),
     AdminApiEndpoint(rpcSettings.rpcApi, appContext, forgerRef),
     NodeViewApiEndpoint(rpcSettings.rpcApi, appContext, nodeViewHolderRef),
     TransactionApiEndpoint(rpcSettings.rpcApi, appContext, nodeViewHolderRef)

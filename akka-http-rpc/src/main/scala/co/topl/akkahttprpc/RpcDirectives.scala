@@ -21,9 +21,9 @@ trait RpcDirectives {
   def rejectionHandler(implicit throwableEncoder: Encoder[ThrowableData]): RejectionHandler =
     RejectionHandler
       .newBuilder()
-      .handle { case RpcErrorRejection(e: RpcError[_]) =>
-        complete(rpcErrorToFailureResponseUnknownContext(e).asJson)
-      }
+      .handleAll[RpcErrorRejection](rejections =>
+        complete(rpcErrorToFailureResponseUnknownContext(rejections.last.rpcError).asJson)
+      )
       .result()
 
   private[akkahttprpc] def recoverToRpcError(implicit
@@ -46,11 +46,13 @@ trait RpcDirectives {
           handler(params)
             .map(r => SuccessRpcResponse(context.id, context.jsonrpc, r.asJson))
             .value
-        )(_.toEither.leftMap(recoverToRpcError).flatMap(identity).fold(reject(_), completeRpc))
+        )(_.toEither.leftMap(recoverToRpcError).flatMap(identity).fold(completeRpc, completeRpc))
       }
     }
 
-  def rpcContextWithParams[RpcParams: Decoder](method: String): Directive[(RpcContext, RpcParams)] =
+  def rpcContextWithParams[RpcParams: Decoder](
+    method:                    String
+  )(implicit throwableEncoder: Encoder[ThrowableData]): Directive[(RpcContext, RpcParams)] =
     rpcContext.flatMap(ctx => filterRpcMethod(method)(ctx).tmap(_ => ctx)).flatMap { implicit ctx =>
       rpcParameters[RpcParams].map((ctx, _))
     }
@@ -66,11 +68,14 @@ trait RpcDirectives {
   )(implicit rpcContext: RpcContext, throwableEncoder: Encoder[ThrowableData]): StandardRoute =
     completeRpc(rpcErrorToFailureResponse(rpcContext, error))
 
-  def rpcParameters[RpcParams: Decoder](implicit context: RpcContext): Directive1[RpcParams] =
+  def rpcParameters[RpcParams: Decoder](implicit
+    context:          RpcContext,
+    throwableEncoder: Encoder[ThrowableData]
+  ): Directive1[RpcParams] =
     context.params
       .as[RpcParams]
-      .leftMap(InvalidParametersError(_): Rejection)
-      .fold(reject(_), provide)
+      .leftMap(InvalidParametersError(_))
+      .fold(completeRpc(_).toDirective, provide)
 
   def rpcContext: Directive1[RpcContext] =
     post

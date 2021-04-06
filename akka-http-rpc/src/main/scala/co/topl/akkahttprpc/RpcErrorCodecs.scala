@@ -86,7 +86,7 @@ trait RpcErrorCodecs {
         .as[Int]
         .flatMap {
           case ParseError.code             => Right(ParseError)
-          case InvalidRequestError.Code    => invalidParametersErrorCodec(c)
+          case InvalidRequestError.Code    => invalidRequestErrorCodec(c)
           case MethodNotFoundError.Code    => methodNotFoundErrorCodec(c)
           case InvalidParametersError.Code => invalidParametersErrorCodec(c)
           case InternalJsonRpcError.Code   => internalJsonRpcErrorDecoder(c)

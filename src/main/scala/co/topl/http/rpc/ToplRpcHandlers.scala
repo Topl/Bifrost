@@ -5,8 +5,8 @@ import akka.pattern.ask
 import akka.util.Timeout
 import cats.data.{EitherT, Kleisli}
 import cats.implicits._
-import co.topl.akkahttprpc.{CustomError, Rpc, RpcError, ThrowableData}
-import co.topl.attestation.Address
+import co.topl.akkahttprpc._
+import co.topl.attestation.{Address, AddressEncoder}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.box.AssetCode
 import co.topl.nodeView.CurrentView
@@ -16,7 +16,7 @@ import co.topl.nodeView.state.State
 import co.topl.settings.AppContext
 import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
-import io.circe.Encoder
+import io.circe.{DecodingFailure, Encoder}
 import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
@@ -39,11 +39,11 @@ object BifrostRpcHandlers {
   }
 
   trait Utils {
-    def seed: ToplRpc.Utils.Seed.rpc.ServerHandler
-    def seedOfLength: ToplRpc.Utils.SeedOfLength.rpc.ServerHandler
-    def hashBlake2b256: ToplRpc.Utils.HashBlake2b256.rpc.ServerHandler
-    def generateAssetCode: ToplRpc.Utils.GenerateAssetCode.rpc.ServerHandler
-    def checkValidAddress: ToplRpc.Utils.CheckValidAddress.rpc.ServerHandler
+    def seed: ToplRpc.Util.Seed.rpc.ServerHandler
+    def seedOfLength: ToplRpc.Util.SeedOfLength.rpc.ServerHandler
+    def hashBlake2b256: ToplRpc.Util.HashBlake2b256.rpc.ServerHandler
+    def generateAssetCode: ToplRpc.Util.GenerateAssetCode.rpc.ServerHandler
+    def checkValidAddress: ToplRpc.Util.CheckValidAddress.rpc.ServerHandler
   }
 }
 
@@ -127,50 +127,46 @@ object BifrostRpcHandlerImpls {
 
     val defaultSeedSize = 32 // todo: JAA - read this from a more appropriate place. Bip39 spec or something?
 
-    override val seed: ToplRpc.Utils.Seed.rpc.ServerHandler =
-      Kleisli[Rpc.ServerResponse, ToplRpc.Utils.Seed.Params, ToplRpc.Utils.Seed.Response](_ =>
-        EitherT.pure[Future, RpcError[_]](ToplRpc.Utils.Seed.Response(generateSeed(defaultSeedSize)))
+    override val seed: ToplRpc.Util.Seed.rpc.ServerHandler =
+      Kleisli[Rpc.ServerResponse, ToplRpc.Util.Seed.Params, ToplRpc.Util.Seed.Response](_ =>
+        EitherT.pure[Future, RpcError[_]](ToplRpc.Util.Seed.Response(generateSeed(defaultSeedSize)))
       )
 
-    override val seedOfLength: ToplRpc.Utils.SeedOfLength.rpc.ServerHandler =
-      Kleisli[Rpc.ServerResponse, ToplRpc.Utils.SeedOfLength.Params, ToplRpc.Utils.SeedOfLength.Response](params =>
-        EitherT.pure[Future, RpcError[_]](ToplRpc.Utils.SeedOfLength.Response(generateSeed(params.length)))
+    override val seedOfLength: ToplRpc.Util.SeedOfLength.rpc.ServerHandler =
+      Kleisli[Rpc.ServerResponse, ToplRpc.Util.SeedOfLength.Params, ToplRpc.Util.SeedOfLength.Response](params =>
+        EitherT.pure[Future, RpcError[_]](ToplRpc.Util.SeedOfLength.Response(generateSeed(params.length)))
       )
 
-    override val hashBlake2b256: ToplRpc.Utils.HashBlake2b256.rpc.ServerHandler =
-      Kleisli[Rpc.ServerResponse, ToplRpc.Utils.HashBlake2b256.Params, ToplRpc.Utils.HashBlake2b256.Response](params =>
+    override val hashBlake2b256: ToplRpc.Util.HashBlake2b256.rpc.ServerHandler =
+      Kleisli[Rpc.ServerResponse, ToplRpc.Util.HashBlake2b256.Params, ToplRpc.Util.HashBlake2b256.Response](params =>
         EitherT.pure[Future, RpcError[_]](
-          ToplRpc.Utils.HashBlake2b256.Response(params.message, Base58.encode(Blake2b256(params.message)))
+          ToplRpc.Util.HashBlake2b256.Response(params.message, Base58.encode(Blake2b256(params.message)))
         )
       )
 
-    override val generateAssetCode: ToplRpc.Utils.GenerateAssetCode.rpc.ServerHandler =
-      Kleisli[Rpc.ServerResponse, ToplRpc.Utils.GenerateAssetCode.Params, ToplRpc.Utils.GenerateAssetCode.Response](
+    override val generateAssetCode: ToplRpc.Util.GenerateAssetCode.rpc.ServerHandler =
+      Kleisli[Rpc.ServerResponse, ToplRpc.Util.GenerateAssetCode.Params, ToplRpc.Util.GenerateAssetCode.Response](
         params =>
           EitherT.fromEither[Future](
             Try(AssetCode(params.version, params.issuer, params.shortName)).toEither
               .leftMap(ToplRpcErrors.FailedToGenerateAssetCode)
-              .map(ToplRpc.Utils.GenerateAssetCode.Response)
+              .map(ToplRpc.Util.GenerateAssetCode.Response)
           )
       )
 
-    override val checkValidAddress: ToplRpc.Utils.CheckValidAddress.rpc.ServerHandler =
-      Kleisli[Rpc.ServerResponse, ToplRpc.Utils.CheckValidAddress.Params, ToplRpc.Utils.CheckValidAddress.Response](
+    override val checkValidAddress: ToplRpc.Util.CheckValidAddress.rpc.ServerHandler =
+      Kleisli[Rpc.ServerResponse, ToplRpc.Util.CheckValidAddress.Params, ToplRpc.Util.CheckValidAddress.Response](
         params =>
           EitherT.fromEither[Future](
-            params.network match {
-              case None =>
-                NetworkType
-                  .pickNetworkType(appContext.networkType.netPrefix)
-                  .toRight(ToplRpcErrors.InvalidNetworkSpecified)
-                  .map(nt => ToplRpc.Utils.CheckValidAddress.Response(params.address, nt.verboseName))
-              case Some(networkName) =>
-                NetworkType
-                  .pickNetworkType(networkName)
-                  .toRight(ToplRpcErrors.InvalidNetworkSpecified)
-                  // TODO: Re-extract the `address` field using the new network type
-                  .map(nt => ToplRpc.Utils.CheckValidAddress.Response(params.address, nt.verboseName))
-            }
+            params.network
+              .fold(NetworkType.pickNetworkType(appContext.networkType.netPrefix))(NetworkType.pickNetworkType)
+              .toRight(ToplRpcErrors.InvalidNetworkSpecified)
+              .flatMap(nt =>
+                AddressEncoder
+                  .fromStringWithCheck(params.address, nt.netPrefix)
+                  .leftMap(e => InvalidParametersError(DecodingFailure(e.toString, Nil)))
+                  .map(address => ToplRpc.Util.CheckValidAddress.Response(address, nt.verboseName))
+              )
           )
       )
   }

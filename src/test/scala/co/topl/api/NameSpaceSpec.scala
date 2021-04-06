@@ -30,7 +30,6 @@ class NameSpaceSpec extends AnyWordSpec with Matchers with RPCMockState {
     val newAppContext = new AppContext(newRpcSettings, StartupOpts.empty, None)
 
     val newApiRoutes: Seq[ApiEndpoint] = Seq(
-      UtilsApiEndpoint(newRpcSettings.rpcApi, newAppContext),
       AdminApiEndpoint(newRpcSettings.rpcApi, newAppContext, forgerRef),
       NodeViewApiEndpoint(newRpcSettings.rpcApi, newAppContext, nodeViewHolderRef),
       TransactionApiEndpoint(newRpcSettings.rpcApi, newAppContext, nodeViewHolderRef)

@@ -47,11 +47,11 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
   private var rewardAddress: Option[Address] =
     settings.forging.rewardsAddress.flatMap {
       AddressEncoder.fromStringWithCheck(_, appContext.networkType.netPrefix) match {
-        case Failure(ex) =>
+        case Left(ex) =>
           log.warn(s"${Console.YELLOW}Unable to set rewards address due to $ex ${Console.RESET}")
           None
 
-        case Success(addr) => Some(addr)
+        case Right(addr) => Some(addr)
       }
     }
 

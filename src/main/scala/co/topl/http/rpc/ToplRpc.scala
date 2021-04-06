@@ -35,37 +35,37 @@ object ToplRpc {
     }
   }
 
-  object Utils {
+  object Util {
 
     object Seed {
-      val rpc: Rpc[Params, Response] = Rpc("utils_seed")
+      val rpc: Rpc[Params, Response] = Rpc("util_seed")
       case class Params()
       case class Response(seed: String)
     }
 
     object SeedOfLength {
-      val rpc: Rpc[Params, Response] = Rpc("utils_seedOfLength")
+      val rpc: Rpc[Params, Response] = Rpc("util_seedOfLength")
       case class Params(length: Int)
       case class Response(seed: String)
     }
 
     object HashBlake2b256 {
-      val rpc: Rpc[Params, Response] = Rpc("utils_hashBlake2b256")
+      val rpc: Rpc[Params, Response] = Rpc("util_hashBlake2b256")
       case class Params(message: String)
       case class Response(message: String, hash: String)
     }
 
     object GenerateAssetCode {
-      val rpc: Rpc[Params, Response] = Rpc("utils_generateAssetCode")
+      val rpc: Rpc[Params, Response] = Rpc("util_generateAssetCode")
 
       case class Params(version: AssetCodeVersion, issuer: Address, shortName: String)
       case class Response(assetCode: AssetCode)
     }
 
     object CheckValidAddress {
-      val rpc: Rpc[Params, Response] = Rpc("utils_checkValidAddress")
+      val rpc: Rpc[Params, Response] = Rpc("util_checkValidAddress")
 
-      case class Params(network: Option[String], address: Address)
+      case class Params(network: Option[String], address: String)
       case class Response(address: Address, network: String)
     }
   }
