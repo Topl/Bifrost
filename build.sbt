@@ -2,12 +2,16 @@ import sbt.Keys.{homepage, organization, scmInfo}
 import sbtassembly.MergeStrategy
 import sbtrelease.ReleasePlugin.autoImport.ReleaseTransformations._
 
+val scala212 = "2.12.13"
+val scala213 = "2.13.4"
+
 lazy val commonSettings = Seq(
-  scalaVersion := scala212,
-  semanticdbEnabled := true, // enable SemanticDB for Scalafix
-  semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   organization := "co.topl",
   version := "1.3.4",
+  scalaVersion := scala212,
+  crossScalaVersions := Seq(scala212, scala213),
+  semanticdbEnabled := true, // enable SemanticDB for Scalafix
+  semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   // wartremoverErrors := Warts.unsafe // settings for wartremover
   Compile / unmanagedSourceDirectories += {
     val sourceDir = (sourceDirectory in Compile).value
@@ -25,7 +29,11 @@ lazy val commonSettings = Seq(
   logBuffered in Test := false,
   classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
   Test / fork := false,
-  Compile / run / fork := true
+  Compile / run / fork := true,
+  resolvers ++= Seq(
+    "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/",
+    "Sonatype OSS Staging" at "https://s01.oss.sonatype.org/content/repositories/staging"
+  )
 )
 
 lazy val publishSettings = Seq(
@@ -54,7 +62,7 @@ lazy val publishSettings = Seq(
         <name>Nicholas Edmonds</name>
       </developer>
     </developers>
-)
+) ++ commonRelease
 
 lazy val doNotPublishSettings = Seq(
   publish := {},
@@ -86,12 +94,7 @@ lazy val assemblySettings = Seq(
   }
 )
 
-val scala212 = "2.12.13"
-val scala213 = "2.13.4"
 
-
-resolvers ++= Seq("Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/",
-  "Sonatype OSS Staging" at "https://s01.oss.sonatype.org/content/repositories/staging")
 
 val akkaVersion = "2.6.13"
 val akkaHttpVersion = "10.2.4"
@@ -211,6 +214,8 @@ lazy val bifrost = Project(id = "bifrost", base = file("."))
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .settings(
     commonSettings,
+    publishSettings,
+    doNotPublishSettings,
     name := "bifrost",
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
@@ -227,13 +232,16 @@ lazy val bifrost = Project(id = "bifrost", base = file("."))
 lazy val common = Project(id = "common", base = file("common"))
   .settings(
     commonSettings,
+    publishSettings,
     name := "common",
-    crossScalaVersions := Seq(scala212, scala213),
     libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ apiDependencies ++ cryptoDependencies
   )
 
 lazy val benchmarking = Project(id = "benchmark", base = file("benchmark"))
-  .settings(commonSettings)
+  .settings(
+    commonSettings,
+    doNotPublishSettings
+  )
   .dependsOn(bifrost % "compile->compile;test->test")
   .enablePlugins(JmhPlugin)
   .disablePlugins(sbtassembly.AssemblyPlugin)
@@ -241,20 +249,26 @@ lazy val benchmarking = Project(id = "benchmark", base = file("benchmark"))
 lazy val gjallarhorn = Project(id = "gjallarhorn", base = file("gjallarhorn"))
   .settings(
     commonSettings,
+    doNotPublishSettings,
     libraryDependencies ++= akkaDependencies ++ testingDependencies ++ cryptoDependencies ++ apiDependencies
     ++ loggingDependencies ++ miscDependencies
   )
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
 lazy val it = Project(id = "it", base = file("it"))
-  .settings(commonSettings)
+  .settings(
+    commonSettings,
+    doNotPublishSettings
+  )
   .dependsOn(bifrost % "compile->compile;test->test")
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
-releaseProcess := Seq[ReleaseStep](
-  checkSnapshotDependencies,
-  inquireVersions,
-  runClean,
-  runTest,
-  setReleaseVersion
+lazy val commonRelease = Seq(
+  releaseProcess := Seq[ReleaseStep](
+    checkSnapshotDependencies,
+    inquireVersions,
+    runClean,
+    runTest,
+    setReleaseVersion
+  )
 )
