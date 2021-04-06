@@ -18,7 +18,7 @@ addSbtPlugin("com.github.cb372" % "sbt-explicit-dependencies" % "0.2.11")
 
 addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.4.0")
 
-addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.4.0")
+addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.4.2")
 
 addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.9.26")
 
