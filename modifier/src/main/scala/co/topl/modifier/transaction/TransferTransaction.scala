@@ -332,11 +332,11 @@ object TransferTransaction {
       } match {
       // a normal transfer will fall in this case
       case Success(sum: Int128) if txOutput == sum - tx.fee =>
-        Success(Unit)
+        Success(())
 
       // a minting transaction (of either Arbit, Polys, or Assets) will fall in this case
       case Success(_: Int128) if tx.minting =>
-        Success(Unit)
+        Success(())
 
       case Success(sum: Int128) if !tx.minting && txOutput != sum - tx.fee =>
         Failure(
