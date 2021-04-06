@@ -7,7 +7,7 @@ import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse}
 import akka.http.scaladsl.server.Route
 import co.topl.akkahttprpc.RpcDirectives._
 import co.topl.http.api.{ApiEndpoint, ApiResponse, ErrorResponse, SuccessResponse}
-import co.topl.http.rpc.BifrostRpcServer
+import co.topl.http.rpc.ToplRpcServer
 import co.topl.settings.RPCApiSettings
 import io.circe.Json
 import scorex.crypto.hash.{Blake2b256, Digest32}
@@ -18,7 +18,7 @@ import scala.concurrent.{Future, TimeoutException}
 final case class HttpService(
   apiServices:         Seq[ApiEndpoint],
   settings:            RPCApiSettings,
-  bifrostRpcServer:    BifrostRpcServer
+  bifrostRpcServer:    ToplRpcServer
 )(implicit val system: ActorSystem)
     extends CorsSupport {
 

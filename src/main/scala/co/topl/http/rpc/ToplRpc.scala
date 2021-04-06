@@ -6,7 +6,7 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.box.AssetCode
 import co.topl.modifier.box.AssetCode.AssetCodeVersion
 
-object BifrostRpc {
+object ToplRpc {
 
   object Debug {
 

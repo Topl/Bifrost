@@ -10,7 +10,7 @@ import co.topl.consensus.{Forger, ForgerRef}
 import co.topl.http.HttpService
 import co.topl.http.api.ApiEndpoint
 import co.topl.http.api.endpoints._
-import co.topl.http.rpc.{BifrostRpcHandlerImpls, BifrostRpcHandlers, BifrostRpcServer}
+import co.topl.http.rpc.{BifrostRpcHandlerImpls, BifrostRpcHandlers, ToplRpcServer}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.NetworkController.ReceivableMessages.BindP2P
@@ -126,10 +126,11 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   implicit val throwableEncoder: Encoder[ThrowableData] =
     ThrowableSupport.verbose(settings.rpcApi.verboseAPI)
 
-  private val bifrostRpcServer: BifrostRpcServer =
-    new BifrostRpcServer(
+  private val bifrostRpcServer: ToplRpcServer =
+    new ToplRpcServer(
       BifrostRpcHandlers(
-        new BifrostRpcHandlerImpls.Debug(appContext, nodeViewHolderRef, forgerRef)
+        new BifrostRpcHandlerImpls.Debug(appContext, nodeViewHolderRef, forgerRef),
+        new BifrostRpcHandlerImpls.Utils(appContext)
       ),
       appContext
     )

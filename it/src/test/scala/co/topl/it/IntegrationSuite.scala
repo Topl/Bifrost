@@ -2,7 +2,8 @@ package co.topl.it
 
 import akka.actor.{ActorSystem, Scheduler}
 import co.topl.it.util.{BifrostDockerNode, DockerSupport}
-import co.topl.utils.Logging
+import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.{Logging, NetworkType}
 import com.spotify.docker.client.DefaultDockerClient
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
@@ -25,6 +26,8 @@ trait IntegrationSuite extends BeforeAndAfterAll with Logging with ScalaFutures 
   implicit val dockerSupport: DockerSupport = new DockerSupport(dockerClient)
 
   override implicit val patienceConfig: PatienceConfig = PatienceConfig(2.seconds)
+
+  implicit val networkPrefix: NetworkPrefix = NetworkType.PrivateTestnet.netPrefix
 
   override def beforeAll(): Unit =
     log.debug("Starting integration tests")

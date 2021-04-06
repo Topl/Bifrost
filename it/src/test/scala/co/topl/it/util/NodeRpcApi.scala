@@ -8,7 +8,13 @@ import akka.http.scaladsl.model.headers.RawHeader
 import akka.stream.scaladsl.{Sink, Source}
 import cats.data.{EitherT, NonEmptyList}
 import cats.implicits._
-import co.topl.utils.Int128
+import co.topl.akkahttprpc.implicits.client.rpcToClient
+import co.topl.akkahttprpc.utils.Retry
+import co.topl.akkahttprpc.{RequestModifier, RpcClientFailure}
+import co.topl.http.rpc.ToplRpc
+import co.topl.http.rpc.implicits.client._
+import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.{Int128, NetworkType}
 import com.spotify.docker.client.DockerClient
 import io.circe._
 import io.circe.generic.semiauto._
@@ -23,7 +29,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-case class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem) {
+case class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem, node: BifrostDockerNode) {
 
   import NodeRpcApi._
   import system.dispatcher
@@ -31,6 +37,15 @@ case class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem) 
   protected val log: Logger = LoggerFactory.getLogger(s"${getClass.getName} host=$host rpcPort=$rpcPort")
 
   implicit def scheduler: Scheduler = system.scheduler
+
+  implicit val rpcRequestModifier: RequestModifier =
+    RequestModifier(
+      _.withMethod(HttpMethods.POST)
+        .withUri(s"http://$host:$rpcPort/")
+        .withHeaders(RawHeader("x-api-key", NodeRpcApi.ApiKey))
+    )
+
+  implicit val networkPrefix: NetworkPrefix = NetworkType.PrivateTestnet.netPrefix
 
   def retry[T](
     f:               () => Future[T],
@@ -100,8 +115,13 @@ case class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem) 
       params = params
     ).asJson.toString()
 
-  def waitForStartup(): Future[Either[NodeApiError, Done]] =
-    EitherT(Debug.myBlocks()).map(_ => Done).value
+  def waitForStartup(): Future[Either[RpcClientFailure, Done]] =
+    Retry(
+      () => ToplRpc.Debug.MyBlocks.rpc.call.run(ToplRpc.Debug.MyBlocks.Params()).map(_ => Done),
+      interval = 1.seconds,
+      timeout = 30.seconds,
+      attempts = 30
+    ).value
 
   def pollUntilHeight(targetHeight: Int128, period: FiniteDuration = 200.milli)(implicit
     scheduler:                      Scheduler
@@ -114,19 +134,6 @@ case class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem) 
           Right(Done)
       }
       .runWith(Sink.head)
-
-  object Debug {
-
-    def myBlocks(): Future[Either[NodeApiError, Long]] =
-      EitherT(rpc("debug_myBlocks"))
-        .subflatMap(_.hcursor.downField("result").downField("count").as[Long].leftMap(JsonDecodingError))
-        .value
-
-    def generators(): Future[Either[NodeApiError, Map[String, Long]]] =
-      EitherT(rpc("debug_generators"))
-        .subflatMap(_.hcursor.downField("result").as[Map[String, Long]].leftMap(JsonDecodingError))
-        .value
-  }
 
   object Admin {
 
@@ -181,6 +188,7 @@ object NodeRpcApi {
 
   def apply(node: BifrostDockerNode)(implicit system: ActorSystem, dockerClient: DockerClient): NodeRpcApi = {
     val host = dockerClient.inspectContainer(node.containerId).networkSettings().ipAddress()
+    implicit val n: BifrostDockerNode = node
     new NodeRpcApi(host, BifrostDockerNode.RpcPort)
   }
 

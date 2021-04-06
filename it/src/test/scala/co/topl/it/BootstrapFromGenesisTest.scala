@@ -51,7 +51,7 @@ class BootstrapFromGenesisTest
 
     logger.info("Starting oldNode")
 
-    val oldNode = dockerSupport.createNode("oldNode", seed)
+    implicit val oldNode = dockerSupport.createNode("oldNode", seed)
     oldNode.reconfigure(config)
     oldNode.start()
 

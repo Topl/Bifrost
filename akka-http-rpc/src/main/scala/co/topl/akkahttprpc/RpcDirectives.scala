@@ -37,7 +37,7 @@ trait RpcDirectives {
 
   def rpcRoute[RpcParams: Decoder, SuccessResult: Encoder](
     method:                    String,
-    handler:                   Rpc.Handler[RpcParams, SuccessResult]
+    handler:                   Rpc.ServerHandler[RpcParams, SuccessResult]
   )(implicit throwableEncoder: Encoder[ThrowableData]): Route =
     rpcContextWithParams[RpcParams](method).tapply { case (context, params) =>
       implicit val c: RpcContext = context
@@ -122,20 +122,27 @@ object RpcEncoders {
         )
       )
 
-  implicit val encodeFailureRpcResponseError: Encoder[FailureRpcResponse.Error] =
-    deriveEncoder[FailureRpcResponse.Error]
+  implicit val encodeRpcContext: Encoder[RpcContext] =
+    deriveEncoder[RpcContext]
 
-  implicit val encodeSuccessResponse: Encoder[SuccessRpcResponse] =
-    deriveEncoder[SuccessRpcResponse]
+  implicit val encodeFailureRpcResponseError: Codec[FailureRpcResponse.Error] =
+    deriveCodec[FailureRpcResponse.Error]
 
-  implicit val encodeFailureResponse: Encoder[FailureRpcResponse] =
-    deriveEncoder[FailureRpcResponse]
+  implicit val encodeSuccessResponse: Codec[SuccessRpcResponse] =
+    deriveCodec[SuccessRpcResponse]
+
+  implicit val encodeFailureResponse: Codec[FailureRpcResponse] =
+    deriveCodec[FailureRpcResponse]
 
   implicit val encodeRawRpcResponse: Encoder[RpcResponse] =
     Encoder.instance {
       case s: SuccessRpcResponse => s.asJson
       case f: FailureRpcResponse => f.asJson
     }
+
+  implicit val decodeRawRpcResponse: Decoder[RpcResponse] =
+    (encodeSuccessResponse: Decoder[SuccessRpcResponse]).widen
+      .or((encodeFailureResponse: Decoder[FailureRpcResponse]).widen)
 }
 
 case class RpcErrorRejection(rpcError: RpcError[_]) extends Rejection

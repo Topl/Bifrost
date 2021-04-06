@@ -1,10 +1,12 @@
 package co.topl.akkahttprpc
 
 import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import cats.data.EitherT
+import cats.data.{EitherT, Kleisli}
 import cats.implicits._
 import co.topl.akkahttprpc.ThrowableSupport.Verbose.verboseThrowableCodec
+import co.topl.akkahttprpc.implicits.server._
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
 import io.circe._
 import io.circe.generic.semiauto._
@@ -31,10 +33,7 @@ class RpcSpec
   import RpcSpec._
 
   it should "successfully handle an RPC call" in {
-    val underTest =
-      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(params =>
-        EitherT.pure[Future, RpcError[_]](TestMethodSuccess(params.userId.length))
-      )
+    val underTest = normalRoute
 
     Post(
       "/",
@@ -53,10 +52,7 @@ class RpcSpec
   }
 
   it should "successfully handle an RPC call with array-based parameters" in {
-    val underTest =
-      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(params =>
-        EitherT.pure[Future, RpcError[_]](TestMethodSuccess(params.userId.length))
-      )
+    val underTest = normalRoute
 
     Post(
       "/",
@@ -75,10 +71,7 @@ class RpcSpec
   }
 
   it should "return a ParseError when non-JSON is provided" in {
-    val underTest =
-      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(params =>
-        EitherT.pure[Future, RpcError[_]](TestMethodSuccess(params.userId.length))
-      )
+    val underTest = normalRoute
 
     Post(
       "/",
@@ -89,10 +82,7 @@ class RpcSpec
   }
 
   it should "return an InvalidRequestError when JSON is provided but is not valid RPC format" in {
-    val underTest =
-      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(params =>
-        EitherT.pure[Future, RpcError[_]](TestMethodSuccess(params.userId.length))
-      )
+    val underTest = normalRoute
 
     Post(
       "/",
@@ -105,10 +95,7 @@ class RpcSpec
   }
 
   it should "return a MethodNotFoundError when valid RPC format is provided but the method is not known" in {
-    val underTest =
-      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(params =>
-        EitherT.pure[Future, RpcError[_]](TestMethodSuccess(params.userId.length))
-      )
+    val underTest = normalRoute
 
     Post(
       "/",
@@ -128,11 +115,11 @@ class RpcSpec
   it should "choose the correct handler" in {
 
     val underTest =
-      Rpc[TestMethodParams, TestMethodSuccess]("test_method2").serve(params =>
-        EitherT.pure[Future, RpcError[_]](TestMethodSuccess(params.userId.length))
-      ) ~ Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(params =>
-        EitherT.pure[Future, RpcError[_]](TestMethodSuccess(params.userId.length))
-      )
+      Rpc[TestMethodParams, TestMethodSuccess]("test_method2").serve(
+        Kleisli[Rpc.ServerResponse, TestMethodParams, TestMethodSuccess](params =>
+          EitherT.pure[Future, RpcError[_]](TestMethodSuccess(params.userId.length))
+        )
+      ) ~ normalRoute
 
     Post(
       "/",
@@ -151,10 +138,7 @@ class RpcSpec
   }
 
   it should "return a InvalidParametersError when valid RPC format is provided but the parameters do not match the method" in {
-    val underTest =
-      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(params =>
-        EitherT.pure[Future, RpcError[_]](TestMethodSuccess(params.userId.length))
-      )
+    val underTest = normalRoute
 
     Post(
       "/",
@@ -173,8 +157,10 @@ class RpcSpec
 
   it should "return a custom error when an RPC results in an unhandled exception" in {
     val underTest =
-      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(_ =>
-        EitherT[Future, RpcError[_], TestMethodSuccess](Future.failed(new Exception("Heck")))
+      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(
+        Kleisli[Rpc.ServerResponse, TestMethodParams, TestMethodSuccess](_ =>
+          EitherT[Future, RpcError[_], TestMethodSuccess](Future.failed(new Exception("Heck")))
+        )
       )
 
     Post(
@@ -195,8 +181,10 @@ class RpcSpec
   it should "return a custom error when an RPC results in a known error" in {
 
     val underTest =
-      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(params =>
-        EitherT.leftT[Future, TestMethodSuccess](CustomError(-32005, "Heck", None))
+      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(
+        Kleisli[Rpc.ServerResponse, TestMethodParams, TestMethodSuccess](_ =>
+          EitherT.leftT[Future, TestMethodSuccess](CustomError(-32005, "Heck", None))
+        )
       )
 
     Post(
@@ -212,6 +200,15 @@ class RpcSpec
         e shouldBe a[CustomError]
       }
     }
+  }
+
+  private def normalRoute: Route = {
+    val rpc = Rpc[TestMethodParams, TestMethodSuccess]("test_method1")
+    val handler: rpc.ServerHandler =
+      Kleisli[Rpc.ServerResponse, TestMethodParams, TestMethodSuccess](params =>
+        EitherT.pure[Future, RpcError[_]](TestMethodSuccess(params.userId.length))
+      )
+    rpc.serve(handler)
   }
 
 }
