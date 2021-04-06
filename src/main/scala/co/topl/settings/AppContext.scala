@@ -1,12 +1,11 @@
 package co.topl.settings
 
-import java.net.InetSocketAddress
-
 import co.topl.network.message._
 import co.topl.network.utils.{NetworkTimeProvider, UPnPGateway}
 import co.topl.network.{NodeViewSynchronizer, PeerSynchronizer, peer}
 import co.topl.utils.NetworkType
 
+import java.net.InetSocketAddress
 import scala.concurrent.ExecutionContext
 
 /** Info that Bifrost needs based on the settings and user options

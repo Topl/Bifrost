@@ -3,16 +3,15 @@ package co.topl.http.api
 import akka.actor.ActorRef
 import akka.pattern.ask
 import co.topl.attestation.Address
-import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
+import co.topl.modifier.block.Block
 import co.topl.modifier.box.ProgramId
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.{ChangedHistory, ChangedMempool, ChangedState}
-import co.topl.network.message.{BifrostSyncInfo, SyncInfo}
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, GetNodeViewChanges}
-import co.topl.nodeView.history.{History, HistoryReader}
-import co.topl.nodeView.mempool.{MemPool, MemPoolReader}
-import co.topl.nodeView.state.{State, StateReader}
-import co.topl.utils.Logging
+import co.topl.network.message.BifrostSyncInfo
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetNodeViewChanges
+import co.topl.nodeView.history.HistoryReader
+import co.topl.nodeView.mempool.MemPoolReader
+import co.topl.nodeView.state.StateReader
 import io.circe.Json
 
 import scala.concurrent.{ExecutionContext, Future}

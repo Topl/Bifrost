@@ -1,10 +1,9 @@
 package co.topl.nodeView.state
 
-import co.topl.attestation.Address
 import co.topl.modifier.BoxReader
+import co.topl.modifier.box._
 import co.topl.nodeView.NodeViewComponent
 import co.topl.nodeView.state.MinimalState.VersionTag
-import co.topl.modifier.box._
 
 import scala.reflect.ClassTag
 

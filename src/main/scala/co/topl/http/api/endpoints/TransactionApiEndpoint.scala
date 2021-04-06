@@ -3,15 +3,15 @@ package co.topl.http.api.endpoints
 import akka.actor.ActorRef
 import co.topl.attestation.{Address, Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
 import co.topl.http.api.{ApiEndpointWithView, Namespace, ToplNamespace}
+import co.topl.modifier.box.{AssetValue, SimpleValue}
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.modifier.box.{AssetValue, SimpleValue}
 import co.topl.settings.{AppContext, RPCApiSettings}
+import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.{Int128, NetworkType}
 import co.topl.utils.codecs.Int128Codec
 import io.circe.Json
 import io.circe.syntax._

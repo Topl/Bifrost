@@ -1,6 +1,5 @@
 package co.topl.consensus
 
-import java.io.File
 import co.topl.modifier.ModifierId
 import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType.PrivateTestnet
@@ -8,6 +7,8 @@ import co.topl.utils.{Int128, Logging, NetworkType}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.hash.Blake2b256
+
+import java.io.File
 
 class ConsensusStorage(storage: Option[LSMStore], private val defaultTotalStake: BigInt) extends Logging {
 
