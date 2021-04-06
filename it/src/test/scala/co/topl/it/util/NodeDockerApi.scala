@@ -1,8 +1,7 @@
 package co.topl.it.util
 
 import com.spotify.docker.client.DockerClient
-import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions}
-import io.circe.syntax._
+import com.typesafe.config.{Config, ConfigRenderOptions}
 import org.slf4j.{Logger, LoggerFactory}
 
 import java.nio.file.{Files, Path, Paths}
@@ -52,21 +51,11 @@ case class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClien
     }
   }
 
-  def reconfigure(knownPeers: List[String]): Unit = {
-    val nodeConfig =
-      ConfigFactory.parseString(
-        raw"""bifrost.network.knownPeers = ${knownPeers.asJson}
-             |bifrost.rpcApi.namespaceSelector.debug = true
-             |""".stripMargin
-      )
-
-    reconfigure(nodeConfig)
-  }
-
 }
 
 object NodeDockerApi {
 
   def apply(node: BifrostDockerNode)(implicit dockerClient: DockerClient): NodeDockerApi =
     new NodeDockerApi(node.containerId)
+
 }

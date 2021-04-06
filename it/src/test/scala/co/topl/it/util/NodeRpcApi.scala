@@ -33,7 +33,7 @@ case class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem) 
     akka.pattern
       .retry(
         () => Http().singleRequest(request),
-        attempts = 100,
+        attempts = 20,
         1.seconds
       )
       .flatMap(response =>
@@ -83,19 +83,37 @@ case class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem) 
       params = params
     ).asJson.toString()
 
-  def waitForStartup(): Future[Done] =
-    call(
-      HttpRequest()
-        .withUri(s"http://$host:$rpcPort/status")
-    )
-      .filter(_.statusCode.isSuccess())
-      .map(_ => Done)
+  def waitForStartup(): Future[Either[NodeApiError, Done]] =
+    EitherT(Debug.myBlocks()).map(_ => Done).value
 
   object Debug {
 
     def myBlocks(): Future[Either[NodeApiError, Long]] =
       EitherT(rpc("debug_myBlocks"))
         .subflatMap(_.hcursor.downField("result").downField("count").as[Long].leftMap(JsonDecodingError))
+        .value
+
+    def generators(): Future[Either[NodeApiError, Map[String, Long]]] =
+      EitherT(rpc("debug_generators"))
+        .subflatMap(_.hcursor.downField("result").as[Map[String, Long]].leftMap(JsonDecodingError))
+        .value
+  }
+
+  object Admin {
+
+    def listOpenKeyfiles(): Future[Either[NodeApiError, List[String]]] =
+      EitherT(rpc("admin_listOpenKeyfiles"))
+        .subflatMap(_.hcursor.downField("result").downField("unlocked").as[List[String]].leftMap(JsonDecodingError))
+        .value
+
+    def lockKeyfile(address: String): Future[Either[NodeApiError, Done]] =
+      EitherT(rpc("admin_lockKeyfile", NonEmptyList.of(Map("address" -> address).asJson)))
+        .map(_ => Done)
+        .value
+
+    def startForging(): Future[Either[NodeApiError, Done]] =
+      EitherT(rpc("admin_startForging"))
+        .map(_ => Done)
         .value
   }
 }
