@@ -1,5 +1,6 @@
 import sbt.Keys.{homepage, organization, scmInfo}
 import sbtassembly.MergeStrategy
+import sbtrelease.ReleasePlugin.autoImport.ReleaseTransformations._
 
 lazy val commonSettings = Seq(
   scalaVersion := scala212,
@@ -7,10 +8,6 @@ lazy val commonSettings = Seq(
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   organization := "co.topl",
   version := "1.3.4",
-  homepage := Some(url("https://github.com/Topl/Bifrost")),
-  licenses := Seq("MPL2.0" -> url("https://www.mozilla.org/en-US/MPL/2.0/")),
-  publishMavenStyle := true,
-  publishTo := Some("Sonatype Nexus" at "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2"),
   // wartremoverErrors := Warts.unsafe // settings for wartremover
   Compile / unmanagedSourceDirectories += {
     val sourceDir = (sourceDirectory in Compile).value
@@ -19,12 +16,33 @@ lazy val commonSettings = Seq(
       case _ => sourceDir / "scala-2.12-"
     }
   },
-  scmInfo := Some(
-    ScmInfo(
-      url("https://github.com/Topl/Bifrost"),
-      "scm:git:git@github.com:Topl/Bifrost.git"
-    )
+  testOptions in Test ++= Seq(
+    Tests.Argument("-oD", "-u", "target/test-reports"),
+    Tests.Argument(TestFrameworks.ScalaCheck, "-verbosity", "2"),
+    Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-oDG")
   ),
+  parallelExecution in Test := false,
+  logBuffered in Test := false,
+  classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
+  Test / fork := false,
+  Compile / run / fork := true
+)
+
+lazy val publishSettings = Seq(
+  homepage := Some(url("https://github.com/Topl/Bifrost")),
+  licenses := Seq("MPL2.0" -> url("https://www.mozilla.org/en-US/MPL/2.0/")),
+  scmInfo := Some(ScmInfo(url("https://github.com/Topl/Bifrost"), "scm:git:git@github.com:Topl/Bifrost.git")),
+  publishMavenStyle := true,
+  publishArtifact in Test := false,
+  pomIncludeRepository := { _ => false },
+  usePgpKeyHex("CEE1DC9E7C8E9AF4441D5EB9E35E84257DCF8DCB"),
+  publishTo := {
+    val nexus = "https://s01.oss.sonatype.org/"
+    if(isSnapshot.value)
+      Some("Snapshots" at "content/repositories/snapshots")
+    else
+    Some("releases" at nexus + "service/local/staging/deploy/maven2")
+  },
   pomExtra :=
     <developers>
       <developer>
@@ -36,14 +54,41 @@ lazy val commonSettings = Seq(
         <name>Nicholas Edmonds</name>
       </developer>
     </developers>
+)
 
+lazy val doNotPublishSettings = Seq(
+  publish := {},
+  publishLocal := {},
+  publishArtifact := false
+)
+
+lazy val assemblySettings = Seq(
+  mainClass in assembly := Some("co.topl.BifrostApp"),
+  test in assembly := {},
+  assemblyJarName := s"bifrost-${version.value}.jar",
+  assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) => {
+      case ps if ps.endsWith(".SF")  => MergeStrategy.discard
+      case ps if ps.endsWith(".DSA") => MergeStrategy.discard
+      case ps if ps.endsWith(".RSA") => MergeStrategy.discard
+      case ps if ps.endsWith(".xml") => MergeStrategy.first
+      case PathList(ps @ _*) if ps.last endsWith "module-info.class" =>
+        MergeStrategy.discard // https://github.com/sbt/sbt-assembly/issues/370
+      case PathList("module-info.java")  => MergeStrategy.discard
+      case PathList("local.conf")        => MergeStrategy.discard
+      case "META-INF/truffle/instrument" => MergeStrategy.concat
+      case "META-INF/truffle/language"   => MergeStrategy.rename
+      case x                             => old(x)
+    }
+  },
+  assemblyExcludedJars in assembly := {
+    val cp = (fullClasspath in assembly).value
+    cp filter { el => el.data.getName == "ValkyrieInstrument-1.0.jar" }
+  }
 )
 
 val scala212 = "2.12.13"
 val scala213 = "2.13.4"
 
-mainClass in assembly := Some("co.topl.BifrostApp")
-test in assembly := {}
 
 resolvers ++= Seq("Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/",
   "Sonatype OSS Staging" at "https://s01.oss.sonatype.org/content/repositories/staging")
@@ -156,50 +201,6 @@ javaOptions ++= Seq(
   "-Xss64m"
 )
 
-testOptions in Test += Tests.Argument("-oD", "-u", "target/test-reports")
-testOptions in Test += Tests.Argument(TestFrameworks.ScalaCheck, "-verbosity", "2")
-
-usePgpKeyHex("CEE1DC9E7C8E9AF4441D5EB9E35E84257DCF8DCB")
-
-publishArtifact in Test := false
-
-parallelExecution in Test := false
-
-logBuffered in Test := false
-
-testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-oDG")
-
-classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
-
-Test / fork := false
-
-Compile / run / fork := true
-
-pomIncludeRepository := { _ => false }
-
-assemblyJarName := s"bifrost-${version.value}.jar"
-
-assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) =>
-  {
-    case ps if ps.endsWith(".SF")  => MergeStrategy.discard
-    case ps if ps.endsWith(".DSA") => MergeStrategy.discard
-    case ps if ps.endsWith(".RSA") => MergeStrategy.discard
-    case ps if ps.endsWith(".xml") => MergeStrategy.first
-    case PathList(ps @ _*) if ps.last endsWith "module-info.class" =>
-      MergeStrategy.discard // https://github.com/sbt/sbt-assembly/issues/370
-    case PathList("module-info.java")  => MergeStrategy.discard
-    case PathList("local.conf")        => MergeStrategy.discard
-    case "META-INF/truffle/instrument" => MergeStrategy.concat
-    case "META-INF/truffle/language"   => MergeStrategy.rename
-    case x                             => old(x)
-  }
-}
-
-assemblyExcludedJars in assembly := {
-  val cp = (fullClasspath in assembly).value
-  cp filter { el => el.data.getName == "ValkyrieInstrument-1.0.jar" }
-}
-
 connectInput in run := true
 outputStrategy := Some(StdoutOutput)
 
@@ -249,3 +250,11 @@ lazy val it = Project(id = "it", base = file("it"))
   .settings(commonSettings)
   .dependsOn(bifrost % "compile->compile;test->test")
   .disablePlugins(sbtassembly.AssemblyPlugin)
+
+releaseProcess := Seq[ReleaseStep](
+  checkSnapshotDependencies,
+  inquireVersions,
+  runClean,
+  runTest,
+  setReleaseVersion
+)
