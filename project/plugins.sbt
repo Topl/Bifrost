@@ -12,7 +12,7 @@ addSbtPlugin("com.github.gseitz" % "sbt-release" % "1.0.13")
 
 addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.9.2")
 
-addSbtPlugin("io.kamon" % "sbt-kanela-runner" % "2.0.6")
+addSbtPlugin("io.kamon" % "sbt-kanela-runner" % "2.0.10")
 
 addSbtPlugin("com.github.cb372" % "sbt-explicit-dependencies" % "0.2.11")
 
