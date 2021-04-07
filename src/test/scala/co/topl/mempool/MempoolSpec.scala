@@ -10,7 +10,7 @@ import co.topl.nodeView.state.State
 import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
 import co.topl.settings.{AppContext, StartupOpts}
 import co.topl.utils.CoreGenerators
-import org.scalatest.DoNotDiscover
+import org.scalatest.{BeforeAndAfterAll, DoNotDiscover}
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
@@ -23,7 +23,8 @@ import scala.concurrent.{Await, ExecutionContext}
 class MempoolSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with Matchers
-  with CoreGenerators {
+  with CoreGenerators
+  with BeforeAndAfterAll {
 
   private implicit val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
   private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
@@ -43,4 +44,7 @@ class MempoolSpec extends AnyPropSpec
     txs.foreach(tx ⇒ nodeViewHolderRef ! LocallyGeneratedTransaction(tx))
     txs.foreach(tx ⇒ view().pool.contains(tx) shouldBe false)
   }
+
+  override protected def afterAll(): Unit =
+    Await.result(actorSystem.terminate(), 10.seconds)
 }

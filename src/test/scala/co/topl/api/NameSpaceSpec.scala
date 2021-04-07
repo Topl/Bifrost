@@ -7,7 +7,8 @@ import co.topl.akkahttprpc.ThrowableSupport.Standard._
 import co.topl.http.HttpService
 import co.topl.http.api.ApiEndpoint
 import co.topl.http.api.endpoints._
-import co.topl.http.rpc.{BifrostRpcHandlerImpls, BifrostRpcHandlers, ToplRpcServer}
+import co.topl.http.rpc.ToplRpcServer
+import co.topl.rpc.handlers.{DebugRpcHandlerImpls, ToplRpcHandlers, UtilsRpcHandlerImpls}
 import co.topl.settings.{AppContext, AppSettings, StartupOpts}
 import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
@@ -35,11 +36,13 @@ class NameSpaceSpec extends AnyWordSpec with Matchers with RPCMockState {
       TransactionApiEndpoint(newRpcSettings.rpcApi, newAppContext, nodeViewHolderRef)
     )
 
+    import DebugRpcHandlerImpls._
+
     val rpcServer =
       new ToplRpcServer(
-        BifrostRpcHandlers(
-          new BifrostRpcHandlerImpls.Debug(newAppContext, nodeViewHolderRef, forgerRef),
-          new BifrostRpcHandlerImpls.Utils(newAppContext)
+        ToplRpcHandlers(
+          new DebugRpcHandlerImpls(nodeViewHolderRef, forgerRef),
+          new UtilsRpcHandlerImpls
         ),
         newAppContext
       )

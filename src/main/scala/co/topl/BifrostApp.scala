@@ -10,18 +10,20 @@ import co.topl.consensus.{Forger, ForgerRef}
 import co.topl.http.HttpService
 import co.topl.http.api.ApiEndpoint
 import co.topl.http.api.endpoints._
-import co.topl.http.rpc.{BifrostRpcHandlerImpls, BifrostRpcHandlers, ToplRpcServer}
+import co.topl.http.rpc.ToplRpcServer
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.NetworkController.ReceivableMessages.BindP2P
 import co.topl.network._
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.network.utils.UPnPGateway
+import co.topl.nodeView._
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.{MempoolAuditor, MempoolAuditorRef, NodeViewHolder, NodeViewHolderRef}
+import co.topl.rpc.handlers.{DebugRpcHandlerImpls, ToplRpcHandlers, UtilsRpcHandlerImpls}
 import co.topl.settings._
+import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Logging, NetworkType}
 import co.topl.wallet.{WalletConnectionHandler, WalletConnectionHandlerRef}
 import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
@@ -67,6 +69,9 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     s"forging status: ${settings.forging.forgeOnStartup}" +
     s"${Console.RESET}"
   )
+
+  private implicit val networkPrefix: NetworkPrefix =
+    appContext.networkType.netPrefix
 
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
   /** Create Bifrost singleton actors */
@@ -125,14 +130,16 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   implicit val throwableEncoder: Encoder[ThrowableData] =
     ThrowableSupport.verbose(settings.rpcApi.verboseAPI)
 
-  private val bifrostRpcServer: ToplRpcServer =
+  private val bifrostRpcServer: ToplRpcServer = {
+    import DebugRpcHandlerImpls._
     new ToplRpcServer(
-      BifrostRpcHandlers(
-        new BifrostRpcHandlerImpls.Debug(appContext, nodeViewHolderRef, forgerRef),
-        new BifrostRpcHandlerImpls.Utils(appContext)
+      ToplRpcHandlers(
+        new DebugRpcHandlerImpls(nodeViewHolderRef, forgerRef),
+        new UtilsRpcHandlerImpls
       ),
       appContext
     )
+  }
 
   private val httpService = HttpService(apiRoutes, settings.rpcApi, bifrostRpcServer)
 

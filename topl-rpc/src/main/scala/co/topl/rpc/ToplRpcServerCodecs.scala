@@ -1,10 +1,10 @@
-package co.topl.http.rpc
+package co.topl.rpc
 
 import co.topl.attestation.Address
 import co.topl.utils.NetworkType.NetworkPrefix
-import io.circe.generic.semiauto.{deriveEncoder, _}
-import io.circe.syntax._
+import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder, Encoder}
+import io.circe.syntax._
 
 trait ToplRpcServerCodecs {
 
@@ -40,7 +40,6 @@ trait ToplRpcServerCodecs {
     networkPrefix: NetworkPrefix
   ): Decoder[ToplRpc.Util.CheckValidAddress.Params] =
     Decoder.forProduct2("network", "address")(ToplRpc.Util.CheckValidAddress.Params.apply)
-
 
   // Response Encoders
 

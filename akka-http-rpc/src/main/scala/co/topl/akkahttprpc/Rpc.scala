@@ -13,9 +13,6 @@ case class Rpc[P, SR](method: String) {
 }
 
 object Rpc {
-  type ClientResponse[SuccessResponse] = EitherT[Future, RpcClientFailure, SuccessResponse]
-  type ClientHandler[-Params, SuccessResponse] = Kleisli[ClientResponse, Params, SuccessResponse]
-
-  type ServerResponse[SuccessResponse] = EitherT[Future, RpcError[_], SuccessResponse]
-  type ServerHandler[-Params, SuccessResponse] = Kleisli[ServerResponse, Params, SuccessResponse]
+  type ClientHandler[-Params, SuccessResponse] = Params => EitherT[Future, RpcClientFailure, SuccessResponse]
+  type ServerHandler[-Params, SuccessResponse] = Params => EitherT[Future, RpcError[_], SuccessResponse]
 }

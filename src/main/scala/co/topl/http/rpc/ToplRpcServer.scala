@@ -6,12 +6,14 @@ import cats.data.NonEmptyChain
 import co.topl.akkahttprpc.implicits.server.rpcToServer
 import co.topl.akkahttprpc.{MethodNotFoundError, RpcDirectives, RpcErrorRejection, ThrowableData}
 import co.topl.http.api.{DebugNamespace, UtilNamespace}
+import co.topl.rpc.handlers.ToplRpcHandlers
+import co.topl.rpc.{ToplRpc, ToplRpcServerCodecs}
 import co.topl.settings.AppContext
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe._
 
-class ToplRpcServer(handlers: BifrostRpcHandlers, appContext: AppContext)(implicit
-  throwableEncoder:           Encoder[ThrowableData]
+class ToplRpcServer(handlers: ToplRpcHandlers, appContext: AppContext)(implicit
+                                                                       throwableEncoder:           Encoder[ThrowableData]
 ) extends RpcDirectives
     with ToplRpcServerCodecs {
 

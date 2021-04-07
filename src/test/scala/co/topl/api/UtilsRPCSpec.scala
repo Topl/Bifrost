@@ -3,8 +3,8 @@ package co.topl.api
 import akka.util.ByteString
 import co.topl.akkahttprpc.InvalidParametersError
 import co.topl.attestation.Address
-import co.topl.http.rpc.ToplRpcErrors
 import co.topl.modifier.box.AssetCode
+import co.topl.rpc.ToplRpcErrors
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.EitherValues

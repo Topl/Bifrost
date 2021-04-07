@@ -225,6 +225,21 @@ lazy val akkaHttpRpc = Project(id = "akka-http-rpc", base = file("akka-http-rpc"
   )
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
+lazy val toplRpc = Project(id = "topl-rpc", base = file("topl-rpc"))
+  .settings(commonSettings: _*)
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.toplrpc",
+    libraryDependencies ++=
+      apiDependencies ++
+        akkaDependencies ++
+        akkaCirceDependencies ++
+        testingDependencies,
+  )
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .dependsOn(akkaHttpRpc, attestation, modifier)
+
 lazy val bifrost = Project(id = "bifrost", base = file("."))
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .settings(
@@ -239,7 +254,7 @@ lazy val bifrost = Project(id = "bifrost", base = file("."))
       "bifrost.version" -> version.value
     )
   )
-  .dependsOn(utils, attestation, modifier, akkaHttpRpc)
+  .dependsOn(utils, attestation, modifier, akkaHttpRpc, toplRpc)
 
 lazy val utils = Project(id = "utils", base = file("utils"))
   .settings(

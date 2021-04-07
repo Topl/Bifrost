@@ -7,16 +7,18 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.MockState
 import co.topl.settings.{AppContext, StartupOpts}
 import co.topl.utils.CoreGenerators
-import org.scalatest.{BeforeAndAfterAll, PrivateMethodTester}
 import org.scalatest.propspec.AnyPropSpec
+import org.scalatest.{BeforeAndAfterAll, PrivateMethodTester}
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext}
 
-class NodeViewHolderSpec extends AnyPropSpec
-  with PrivateMethodTester
-  with CoreGenerators
-  with MockState
-  with BeforeAndAfterAll {
+class NodeViewHolderSpec
+    extends AnyPropSpec
+    with PrivateMethodTester
+    with CoreGenerators
+    with MockState
+    with BeforeAndAfterAll {
 
   type MP = MemPool
 
@@ -42,7 +44,6 @@ class NodeViewHolderSpec extends AnyPropSpec
     }
   }
 
-  override protected def afterAll(): Unit = {
-    actorSystem.terminate()
-  }
+  override protected def afterAll(): Unit =
+    Await.result(actorSystem.terminate(), 10.seconds)
 }

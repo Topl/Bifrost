@@ -1,8 +1,8 @@
-package co.topl.http.rpc
+package co.topl.rpc
 
 import co.topl.utils.NetworkType.NetworkPrefix
-import io.circe._
-import io.circe.generic.semiauto._
+import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
+import io.circe.{Decoder, Encoder}
 
 trait ToplRpcClientCodecs {
 

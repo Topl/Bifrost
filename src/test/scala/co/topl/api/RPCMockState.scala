@@ -12,12 +12,13 @@ import co.topl.consensus.{Forger, ForgerRef}
 import co.topl.http.HttpService
 import co.topl.http.api.ApiEndpoint
 import co.topl.http.api.endpoints._
-import co.topl.http.rpc.{BifrostRpcHandlerImpls, BifrostRpcHandlers, ToplRpcServer}
+import co.topl.http.rpc.ToplRpcServer
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.{CurrentView, NodeViewHolder, NodeViewHolderRef}
+import co.topl.rpc.handlers.{DebugRpcHandlerImpls, ToplRpcHandlers, UtilsRpcHandlerImpls}
 import co.topl.settings.{AppContext, AppSettings, StartupOpts}
 import co.topl.utils.GenesisGenerators
 import org.scalatest.wordspec.AnyWordSpec
@@ -58,11 +59,13 @@ trait RPCMockState extends AnyWordSpec with GenesisGenerators with ScalatestRout
     TransactionApiEndpoint(rpcSettings.rpcApi, appContext, nodeViewHolderRef)
   )
 
+  import DebugRpcHandlerImpls._
+
   val rpcServer =
     new ToplRpcServer(
-      BifrostRpcHandlers(
-        new BifrostRpcHandlerImpls.Debug(appContext, nodeViewHolderRef, forgerRef),
-        new BifrostRpcHandlerImpls.Utils(appContext)
+      ToplRpcHandlers(
+        new DebugRpcHandlerImpls(nodeViewHolderRef, forgerRef),
+        new UtilsRpcHandlerImpls
       ),
       appContext
     )

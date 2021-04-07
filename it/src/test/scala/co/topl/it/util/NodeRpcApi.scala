@@ -11,8 +11,8 @@ import cats.implicits._
 import co.topl.akkahttprpc.implicits.client.rpcToClient
 import co.topl.akkahttprpc.utils.Retry
 import co.topl.akkahttprpc.{RequestModifier, RpcClientFailure}
-import co.topl.http.rpc.ToplRpc
-import co.topl.http.rpc.implicits.client._
+import co.topl.rpc.ToplRpc
+import co.topl.rpc.implicits.client._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Int128, NetworkType}
 import com.spotify.docker.client.DockerClient

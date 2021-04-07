@@ -1,4 +1,4 @@
-package co.topl.http.rpc
+package co.topl.rpc
 
 package object implicits {
   object client extends ToplRpcClientCodecs

@@ -2,9 +2,9 @@ package co.topl.it
 
 import cats.implicits._
 import co.topl.akkahttprpc.implicits.client._
-import co.topl.http.rpc.ToplRpc
-import co.topl.http.rpc.implicits.client._
+import co.topl.rpc.implicits.client._
 import co.topl.it.util._
+import co.topl.rpc.ToplRpc
 import com.typesafe.config.ConfigFactory
 import org.scalatest.EitherValues
 import org.scalatest.concurrent.PatienceConfiguration.Timeout

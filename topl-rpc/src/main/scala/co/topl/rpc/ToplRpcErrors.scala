@@ -1,4 +1,4 @@
-package co.topl.http.rpc
+package co.topl.rpc
 
 import co.topl.akkahttprpc.CustomError
 

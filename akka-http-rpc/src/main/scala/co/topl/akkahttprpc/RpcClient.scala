@@ -3,7 +3,7 @@ package co.topl.akkahttprpc
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
-import cats.data.{EitherT, Kleisli}
+import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.RpcEncoders._
 import co.topl.akkahttprpc.RpcErrorCodecs._
@@ -24,9 +24,7 @@ class RpcClient[Params, SuccessResponse](val rpc: Rpc[Params, SuccessResponse]) 
     system:                 ActorSystem,
     ec:                     ExecutionContext
   ): rpc.ClientHandler =
-    Kleisli[Rpc.ClientResponse, Params, SuccessResponse](params =>
-      sendRequest(asRequest(params)(paramsEncoder, requestModifier)).flatMap(handleResponse(_))
-    )
+    params => sendRequest(asRequest(params)(paramsEncoder, requestModifier)).flatMap(handleResponse(_))
 
   private[akkahttprpc] def asRequest(
     params:                 Params
