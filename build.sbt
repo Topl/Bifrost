@@ -48,7 +48,7 @@ test in assembly := {}
 resolvers ++= Seq("Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/",
   "Sonatype OSS Staging" at "https://s01.oss.sonatype.org/content/repositories/staging")
 
-val akkaVersion = "2.6.13"
+val akkaVersion = "2.6.14"
 val akkaHttpVersion = "10.2.4"
 val circeVersion = "0.13.0"
 val kamonVersion = "2.1.15"
