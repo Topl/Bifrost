@@ -222,10 +222,11 @@ outputStrategy := Some(StdoutOutput)
 lazy val bifrost = Project(id = "bifrost", base = file("."))
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .settings(
+    name := "bifrost",
     commonSettings,
     publishSettings,
     doNotPublishSettings,
-    name := "bifrost",
+    crossScalaVersions := Nil,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
     dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java8-21.0.0",
@@ -240,14 +241,15 @@ lazy val bifrost = Project(id = "bifrost", base = file("."))
 
 lazy val common = Project(id = "common", base = file("common"))
   .settings(
+    name := "common",
     commonSettings,
     publishSettings,
-    name := "common",
     libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ apiDependencies ++ cryptoDependencies
   )
 
 lazy val benchmarking = Project(id = "benchmark", base = file("benchmark"))
   .settings(
+    name := "benchmark",
     commonSettings,
     doNotPublishSettings
   )
@@ -257,6 +259,7 @@ lazy val benchmarking = Project(id = "benchmark", base = file("benchmark"))
 
 lazy val gjallarhorn = Project(id = "gjallarhorn", base = file("gjallarhorn"))
   .settings(
+    name := "Gjallarhorn",
     commonSettings,
     doNotPublishSettings,
     libraryDependencies ++= akkaDependencies ++ testingDependencies ++ cryptoDependencies ++ apiDependencies
@@ -266,6 +269,7 @@ lazy val gjallarhorn = Project(id = "gjallarhorn", base = file("gjallarhorn"))
 
 lazy val it = Project(id = "it", base = file("it"))
   .settings(
+    name := "Integration",
     commonSettings,
     doNotPublishSettings
   )
