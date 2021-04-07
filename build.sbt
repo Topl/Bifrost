@@ -49,8 +49,9 @@ lazy val commonSettings = Seq(
   Test / fork := false,
   Compile / run / fork := true,
   resolvers ++= Seq(
-    "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/",
-    "Sonatype OSS Staging" at "https://s01.oss.sonatype.org/content/repositories/staging"
+    "Typesafe Repository" at "https://repo.typesafe.com/typesafe/releases/",
+    "Sonatype Staging" at "https://s01.oss.sonatype.org/content/repositories/staging",
+    "Sonatype Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots/"
   )
 )
 
