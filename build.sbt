@@ -17,8 +17,7 @@ ThisBuild / githubWorkflowPublishTargetBranches += RefPredicate.StartsWith(Ref.T
 ThisBuild / githubWorkflowPublish := Seq(WorkflowStep.Sbt(List("ci-release")))
 ThisBuild / githubWorkflowPublish := Seq(
   WorkflowStep.Sbt(
-//    List("ci-release"),
-    List("publishLocal"),
+    List("ci-release"),
     env = Map(
       "PGP_PASSPHRASE" -> "${{ secrets.PGP_PASSPHRASE }}",
       "PGP_SECRET" -> "${{ secrets.PGP_SECRET }}",
