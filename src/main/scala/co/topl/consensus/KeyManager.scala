@@ -11,6 +11,7 @@ import co.topl.utils.NetworkType._
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
 
+/** Actor that manages the keyRing and reward address */
 class KeyManager(
   settings:    AppSettings,
   appContext:  AppContext
@@ -44,7 +45,7 @@ class KeyManager(
     case UpdateRewardsAddress(address)       => sender() ! updateRewardsAddress(keyRing, address)
     case GetRewardsAddress                   => sender() ! rewardAddress.fold("none")(_.toString)
     case GetAttemptForgingKeyView            => sender() ! getAttemptForgingKeyView(keyRing, rewardAddress)
-    case GenerateInititalAddresses           => sender() ! generateInitialAddresses(keyRing, rewardAddress)
+    case GenerateInitialAddresses            => sender() ! generateInitialAddresses(keyRing, rewardAddress)
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
@@ -94,6 +95,7 @@ class KeyManager(
       Success(ForgerStartupKeyView(keyRing.addresses, rewardAddress))
     }
 
+  /** Gets a read-only view of the key ring to use for forging. */
   private def getAttemptForgingKeyView(
     keyRing:       KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
     rewardAddress: Option[Address]
@@ -163,7 +165,7 @@ object KeyManager {
 
     case object GetAttemptForgingKeyView
 
-    case object GenerateInititalAddresses
+    case object GenerateInitialAddresses
   }
 
 }

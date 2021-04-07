@@ -120,7 +120,7 @@ class Forger[
     */
   private def checkPrivateForging()(implicit timeout: Timeout): Unit =
     if (Seq(PrivateTestnet, LocalTestnet).contains(appContext.networkType)) {
-      (keyManager ? GenerateInititalAddresses)
+      (keyManager ? GenerateInitialAddresses)
         .mapTo[Try[ForgerStartupKeyView]]
         .map {
           case Success(ForgerStartupKeyView(_, Some(_))) =>
@@ -144,7 +144,7 @@ class Forger[
     */
   private def generateGenesis(implicit timeout: Timeout = 10 seconds): Unit = {
     def generatePrivateGenesis(): Future[Try[(Block, ChainParams)]] =
-      (keyManager ? GenerateInititalAddresses)
+      (keyManager ? GenerateInitialAddresses)
         .mapTo[Try[ForgerStartupKeyView]]
         .map {
           case Success(view) => PrivateGenesis(view.addresses, settings).getGenesisBlock
@@ -226,15 +226,15 @@ class Forger[
     }
 
   private def attemptForging(
-    historyReader:      HR,
-    stateReader:        SR,
-    memPoolReader:      MR,
-    forgeTime:          TimeProvider.Time,
-    attemptForgingView: AttemptForgingKeyView
+    historyReader:          HR,
+    stateReader:            SR,
+    memPoolReader:          MR,
+    forgeTime:              TimeProvider.Time,
+    attemptForgingKeyView:  AttemptForgingKeyView
   ): Unit = {
     log.debug(
       s"${Console.MAGENTA}Attempting to forge with settings ${protocolMngr.current(historyReader.height)} " +
-      s"and from addresses: ${attemptForgingView.addresses}${Console.RESET}"
+      s"and from addresses: ${attemptForgingKeyView.addresses}${Console.RESET}"
     )
 
     log.info(
@@ -242,10 +242,10 @@ class Forger[
       s"height ${historyReader.height} and difficulty ${historyReader.difficulty} ${Console.RESET}"
     )
 
-    val rewardAddress = attemptForgingView.rewardAddr.getOrElse(throw new Error("No rewards address specified"))
+    val rewardAddress = attemptForgingKeyView.rewardAddr.getOrElse(throw new Error("No rewards address specified"))
 
     // get the set of boxes to use for testing
-    val boxes = getArbitBoxes(stateReader, attemptForgingView.addresses) match {
+    val boxes = getArbitBoxes(stateReader, attemptForgingKeyView.addresses) match {
       case Success(bx) => bx
       case Failure(ex) => throw ex
     }
@@ -282,8 +282,8 @@ class Forger[
       rewards,
       transactions,
       forgeTime,
-      attemptForgingView.sign,
-      attemptForgingView.getPublicKey
+      attemptForgingKeyView.sign,
+      attemptForgingKeyView.getPublicKey
     ) match {
       case Some(block) =>
         log.debug(s"Locally generated block: $block")
