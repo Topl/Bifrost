@@ -3,13 +3,32 @@ import sbtassembly.MergeStrategy
 import sbtrelease.ReleasePlugin.autoImport.ReleaseTransformations._
 
 val scala212 = "2.12.13"
-val scala213 = "2.13.4"
+val scala213 = "2.13.5"
+val GraalVM8 = "graalvm-ce-java8@20.2.0"
+
+organization in ThisBuild := "co.topl"
+ThisBuild / scalaVersion := scala212
+ThisBuild / crossScalaVersions := Seq(scala212, scala213)
+
+ThisBuild / githubWorkflowJavaVersions := Seq(GraalVM8)
+ThisBuild / githubWorkflowTargetBranches := Seq("main", "dev", "sbt-release")
+ThisBuild / githubWorkflowTargetTags ++= Seq("v*")
+ThisBuild / githubWorkflowPublishTargetBranches += RefPredicate.StartsWith(Ref.Tag("v"))
+ThisBuild / githubWorkflowPublish := Seq(WorkflowStep.Sbt(List("ci-release")))
+ThisBuild / githubWorkflowPublish := Seq(
+  WorkflowStep.Sbt(
+//    List("ci-release"),
+    List("publishLocal"),
+    env = Map(
+      "PGP_PASSPHRASE" -> "${{ secrets.PGP_PASSPHRASE }}",
+      "PGP_SECRET" -> "${{ secrets.PGP_SECRET }}",
+      "SONATYPE_PASSWORD" -> "${{ secrets.SONATYPE_PASSWORD }}",
+      "SONATYPE_USERNAME" -> "${{ secrets.SONATYPE_USERNAME }}"
+    )
+  )
+)
 
 lazy val commonSettings = Seq(
-  organization := "co.topl",
-  version := "1.3.4",
-  scalaVersion := scala212,
-  crossScalaVersions := Seq(scala212, scala213),
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   // wartremoverErrors := Warts.unsafe // settings for wartremover
@@ -40,17 +59,10 @@ lazy val publishSettings = Seq(
   homepage := Some(url("https://github.com/Topl/Bifrost")),
   licenses := Seq("MPL2.0" -> url("https://www.mozilla.org/en-US/MPL/2.0/")),
   scmInfo := Some(ScmInfo(url("https://github.com/Topl/Bifrost"), "scm:git:git@github.com:Topl/Bifrost.git")),
-  publishMavenStyle := true,
+  sonatypeCredentialHost := "s01.oss.sonatype.org",
   publishArtifact in Test := false,
   pomIncludeRepository := { _ => false },
   usePgpKeyHex("CEE1DC9E7C8E9AF4441D5EB9E35E84257DCF8DCB"),
-  publishTo := {
-    val nexus = "https://s01.oss.sonatype.org/"
-    if(isSnapshot.value)
-      Some("Snapshots" at "content/repositories/snapshots")
-    else
-    Some("releases" at nexus + "service/local/staging/deploy/maven2")
-  },
   pomExtra :=
     <developers>
       <developer>
@@ -62,7 +74,7 @@ lazy val publishSettings = Seq(
         <name>Nicholas Edmonds</name>
       </developer>
     </developers>
-) ++ commonRelease
+)
 
 lazy val doNotPublishSettings = Seq(
   publish := {},
@@ -93,8 +105,6 @@ lazy val assemblySettings = Seq(
     cp filter { el => el.data.getName == "ValkyrieInstrument-1.0.jar" }
   }
 )
-
-
 
 val akkaVersion = "2.6.13"
 val akkaHttpVersion = "10.2.4"
@@ -262,13 +272,3 @@ lazy val it = Project(id = "it", base = file("it"))
   )
   .dependsOn(bifrost % "compile->compile;test->test")
   .disablePlugins(sbtassembly.AssemblyPlugin)
-
-lazy val commonRelease = Seq(
-  releaseProcess := Seq[ReleaseStep](
-    checkSnapshotDependencies,
-    inquireVersions,
-    runClean,
-    runTest,
-    setReleaseVersion
-  )
-)

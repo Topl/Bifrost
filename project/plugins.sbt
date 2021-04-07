@@ -17,6 +17,6 @@ Seq(
   "com.eed3si9n"       % "sbt-buildinfo"             % "0.10.0",
   "org.xerial.sbt"     % "sbt-sonatype"              % "3.9.7",
   "com.github.sbt"     % "sbt-pgp"                   % "2.1.2",
-  "com.github.sbt"     % "sbt-release"               % "1.0.15"
-
+  "com.geirsson"       % "sbt-ci-release"            % "1.5.7",
+  "com.codecommit"     % "sbt-github-actions"        % "0.10.1"
 ).map(addSbtPlugin)
