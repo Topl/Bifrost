@@ -10,6 +10,7 @@ organization in ThisBuild := "co.topl"
 ThisBuild / scalaVersion := scala212
 ThisBuild / crossScalaVersions := Seq(scala212, scala213)
 
+ThisBuild / dynverSeparator := "-"
 ThisBuild / githubWorkflowJavaVersions := Seq(GraalVM8)
 ThisBuild / githubWorkflowTargetBranches := Seq("main", "dev", "sbt-release")
 ThisBuild / githubWorkflowTargetTags ++= Seq("v*")
@@ -252,7 +253,8 @@ lazy val benchmarking = Project(id = "benchmark", base = file("benchmark"))
   .settings(
     name := "benchmark",
     commonSettings,
-    doNotPublishSettings
+    doNotPublishSettings,
+    crossScalaVersions := Nil
   )
   .dependsOn(bifrost % "compile->compile;test->test")
   .enablePlugins(JmhPlugin)
@@ -263,6 +265,7 @@ lazy val gjallarhorn = Project(id = "gjallarhorn", base = file("gjallarhorn"))
     name := "Gjallarhorn",
     commonSettings,
     doNotPublishSettings,
+    crossScalaVersions := Nil,
     libraryDependencies ++= akkaDependencies ++ testingDependencies ++ cryptoDependencies ++ apiDependencies
     ++ loggingDependencies ++ miscDependencies
   )
@@ -272,7 +275,8 @@ lazy val it = Project(id = "it", base = file("it"))
   .settings(
     name := "Integration",
     commonSettings,
-    doNotPublishSettings
+    doNotPublishSettings,
+    crossScalaVersions := Nil
   )
   .dependsOn(bifrost % "compile->compile;test->test")
   .disablePlugins(sbtassembly.AssemblyPlugin)
