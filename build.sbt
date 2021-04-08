@@ -223,7 +223,8 @@ outputStrategy := Some(StdoutOutput)
 lazy val bifrost = project.in(file("."))
   .settings(
     moduleName := "bifrost",
-    doNotPublishSettings
+    doNotPublishSettings,
+    crossScalaVersions := Nil
   )
   .aggregate(
     node,
