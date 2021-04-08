@@ -15,7 +15,6 @@ ThisBuild / githubWorkflowJavaVersions := Seq(GraalVM8)
 ThisBuild / githubWorkflowTargetBranches := Seq("main", "dev", "sbt-release")
 ThisBuild / githubWorkflowTargetTags ++= Seq("v*")
 ThisBuild / githubWorkflowPublishTargetBranches += RefPredicate.StartsWith(Ref.Tag("v"))
-ThisBuild / githubWorkflowPublish := Seq(WorkflowStep.Sbt(List("ci-release")))
 ThisBuild / githubWorkflowPublish := Seq(
   WorkflowStep.Sbt(
     List("ci-release"),
