@@ -1,14 +1,13 @@
 import sbt.Keys.{homepage, organization, scmInfo}
 import sbtassembly.MergeStrategy
-import sbtrelease.ReleasePlugin.autoImport.ReleaseTransformations._
 
 val scala212 = "2.12.13"
-//val scala213 = "2.13.5"
+val scala213 = "2.13.5"
 val GraalVM8 = "graalvm-ce-java8@20.2.0"
 
 organization in ThisBuild := "co.topl"
 ThisBuild / scalaVersion := scala212
-//ThisBuild / crossScalaVersions := Seq(scala212)
+ThisBuild / crossScalaVersions := Seq(scala212, scala213)
 
 ThisBuild / dynverSeparator := "-"
 ThisBuild / githubWorkflowJavaVersions := Seq(GraalVM8)
@@ -143,14 +142,15 @@ val loggingDependencies = Seq(
   "org.slf4j"                   % "slf4j-api"       % "1.7.30"
 )
 
+lazy val scalatest = "org.scalatest" %% "scalatest" % "3.2.6"
+
 val testingDependencies = Seq(
   "org.scalactic"      %% "scalactic"         % "3.2.6"   % Test,
-  "org.scalatest"      %% "scalatest"         % "3.2.6"   % Test,
   "org.scalacheck"     %% "scalacheck"        % "1.15.3"  % Test,
   "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % Test,
   "com.spotify"         % "docker-client"     % "8.16.0"  % Test,
   "org.asynchttpclient" % "async-http-client" % "2.12.3"  % Test
-)
+) ++ Seq(scalatest)
 
 val cryptoDependencies = Seq(
   "org.scorexfoundation" %% "scrypto"         % "2.1.10",
@@ -220,10 +220,22 @@ outputStrategy := Some(StdoutOutput)
 connectInput in run := true
 outputStrategy := Some(StdoutOutput)
 
-lazy val bifrost = Project(id = "bifrost", base = file("."))
-  .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
+lazy val bifrost = project.in(file("."))
   .settings(
-    name := "bifrost",
+    moduleName := "bifrost",
+    doNotPublishSettings
+  )
+  .aggregate(
+    node,
+    common,
+    gjallarhorn,
+    benchmarking,
+    it
+  )
+
+lazy val node = project.in(file("node"))
+  .settings(
+    name := "node",
     commonSettings,
     publishSettings,
     doNotPublishSettings,
@@ -235,12 +247,14 @@ lazy val bifrost = Project(id = "bifrost", base = file("."))
     dockerExposedVolumes += "/opt/docker/.bifrost",
     dockerLabels ++= Map(
       "bifrost.version" -> version.value
-    )
+    ),
+    libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies
+      ++ testingDependencies ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
   )
-  .aggregate(common)
+  .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .dependsOn(common)
 
-lazy val common = Project(id = "common", base = file("common"))
+lazy val common = project.in(file("common"))
   .settings(
     name := "common",
     commonSettings,
@@ -248,34 +262,40 @@ lazy val common = Project(id = "common", base = file("common"))
     libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ apiDependencies ++ cryptoDependencies
   )
 
-lazy val benchmarking = Project(id = "benchmark", base = file("benchmark"))
+lazy val gjallarhorn = project.in(file("gjallarhorn"))
+  .settings(
+    name := "gjallarhorn",
+    commonSettings,
+    doNotPublishSettings,
+    crossScalaVersions := Nil,
+    Defaults.itSettings,
+    libraryDependencies ++= akkaDependencies ++ testingDependencies ++ cryptoDependencies ++ apiDependencies
+    ++ loggingDependencies ++ miscDependencies,
+    libraryDependencies += scalatest % "it, test"
+  )
+  .configs(IntegrationTest)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+
+lazy val benchmarking = project.in(file("benchmark"))
   .settings(
     name := "benchmark",
     commonSettings,
     doNotPublishSettings,
     crossScalaVersions := Nil
   )
-  .dependsOn(bifrost % "compile->compile;test->test")
+  .dependsOn(node % "compile->compile;test->test")
   .enablePlugins(JmhPlugin)
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
-lazy val gjallarhorn = Project(id = "gjallarhorn", base = file("gjallarhorn"))
+lazy val it = project.in(file("it"))
   .settings(
-    name := "Gjallarhorn",
+    name := "it",
     commonSettings,
     doNotPublishSettings,
     crossScalaVersions := Nil,
-    libraryDependencies ++= akkaDependencies ++ testingDependencies ++ cryptoDependencies ++ apiDependencies
-    ++ loggingDependencies ++ miscDependencies
+    Defaults.itSettings,
+    libraryDependencies += scalatest % "it, test"
   )
-  .disablePlugins(sbtassembly.AssemblyPlugin)
-
-lazy val it = Project(id = "it", base = file("it"))
-  .settings(
-    name := "Integration",
-    commonSettings,
-    doNotPublishSettings,
-    crossScalaVersions := Nil
-  )
-  .dependsOn(bifrost % "compile->compile;test->test")
+  .dependsOn(node % "compile->compile;test->test")
+  .configs(IntegrationTest)
   .disablePlugins(sbtassembly.AssemblyPlugin)
