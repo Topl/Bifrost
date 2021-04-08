@@ -18,7 +18,7 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.{CurrentView, NodeViewHolder, NodeViewHolderRef}
-import co.topl.rpc.handlers.{DebugRpcHandlerImpls, ToplRpcHandlers, UtilsRpcHandlerImpls}
+import co.topl.rpc.handlers.{DebugRpcHandlerImpls, NodeViewRpcHandlerImpls, ToplRpcHandlers, UtilsRpcHandlerImpls}
 import co.topl.settings.{AppContext, AppSettings, StartupOpts}
 import co.topl.utils.GenesisGenerators
 import org.scalatest.wordspec.AnyWordSpec
@@ -54,18 +54,18 @@ trait RPCMockState extends AnyWordSpec with GenesisGenerators with ScalatestRout
   implicit val timeout: Timeout = Timeout(10.seconds)
 
   private val apiRoutes: Seq[ApiEndpoint] = Seq(
-    AdminApiEndpoint(rpcSettings.rpcApi, appContext, forgerRef),
-    NodeViewApiEndpoint(rpcSettings.rpcApi, appContext, nodeViewHolderRef),
-    TransactionApiEndpoint(rpcSettings.rpcApi, appContext, nodeViewHolderRef)
+    AdminApiEndpoint(rpcSettings.rpcApi, appContext, forgerRef)
   )
 
-  import DebugRpcHandlerImpls._
+  import co.topl.rpc.handlers._
 
   val rpcServer =
     new ToplRpcServer(
       ToplRpcHandlers(
         new DebugRpcHandlerImpls(nodeViewHolderRef, forgerRef),
-        new UtilsRpcHandlerImpls
+        new UtilsRpcHandlerImpls,
+        new NodeViewRpcHandlerImpls(appContext, nodeViewHolderRef, nodeViewHolderRef, nodeViewHolderRef),
+        new TransactionRpcHandlerImpls(nodeViewHolderRef, nodeViewHolderRef)
       ),
       appContext
     )

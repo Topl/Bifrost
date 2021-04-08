@@ -122,20 +122,20 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
   /** Create and register controllers for API routes */
   private val apiRoutes: Seq[ApiEndpoint] = Seq(
-    AdminApiEndpoint(settings.rpcApi, appContext, forgerRef),
-    NodeViewApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef),
-    TransactionApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef)
+    AdminApiEndpoint(settings.rpcApi, appContext, forgerRef)
   )
 
   implicit val throwableEncoder: Encoder[ThrowableData] =
     ThrowableSupport.verbose(settings.rpcApi.verboseAPI)
 
   private val bifrostRpcServer: ToplRpcServer = {
-    import DebugRpcHandlerImpls._
+    import co.topl.rpc.handlers._
     new ToplRpcServer(
       ToplRpcHandlers(
         new DebugRpcHandlerImpls(nodeViewHolderRef, forgerRef),
-        new UtilsRpcHandlerImpls
+        new UtilsRpcHandlerImpls,
+        new NodeViewRpcHandlerImpls(appContext, nodeViewHolderRef, nodeViewHolderRef, nodeViewHolderRef),
+        new TransactionRpcHandlerImpls(nodeViewHolderRef, nodeViewHolderRef)
       ),
       appContext
     )

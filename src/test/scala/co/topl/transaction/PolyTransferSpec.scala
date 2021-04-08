@@ -15,17 +15,17 @@ class PolyTransferSpec
     with ValidGenerators {
 
   property("Generated PolyTransfer Tx should be valid") {
-    forAll(validPolyTransferGen) { polyTransfer: PolyTransfer[_] =>
+    forAll(validPolyTransferGen) { polyTransfer =>
       //TODO: Jing - change this back to using syntacticValidate once attestation in validPolyTransferGen works
-      polyTransfer.rawValidate.isSuccess shouldBe true
+      polyTransfer.rawValidate shouldBe 'valid
     }
   }
 
   property("Attempting to validate a PolyTransfer without valid signature should error") {
     // Create invalid PolyTransfer
     // send tx to state
-    forAll(polyTransferGen) { polyTransfer: PolyTransfer[_] =>
-      polyTransfer.syntacticValidate.isSuccess shouldBe false
+    forAll(polyTransferGen) { polyTransfer =>
+      polyTransfer.syntacticValidate shouldBe 'invalid
     }
   }
 }

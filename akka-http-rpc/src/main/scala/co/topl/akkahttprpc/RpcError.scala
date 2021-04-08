@@ -69,6 +69,11 @@ object InvalidParametersError {
       NonEmptyChain.one(Error(decodingFailure.history.map(_.show), decodingFailure.message, None))
     )
 
+  def adhoc(reason: String, path: String*): InvalidParametersError =
+    InvalidParametersError(
+      NonEmptyChain.one(Error(path.toList, reason, None))
+    )
+
   case class Error(path: List[String], message: String, data: Option[Json])
   case class Data(errors: NonEmptyChain[Error])
 

@@ -1,6 +1,6 @@
 package co.topl.akkahttprpc
 
-import cats.data.{EitherT, Kleisli}
+import cats.data.EitherT
 
 import scala.concurrent.Future
 

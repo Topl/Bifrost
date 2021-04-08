@@ -4,7 +4,9 @@ import co.topl.rpc.ToplRpc
 
 case class ToplRpcHandlers(
   debug: ToplRpcHandlers.Debug,
-  utils: ToplRpcHandlers.Utils
+  utils: ToplRpcHandlers.Utils,
+  nodeView: ToplRpcHandlers.NodeView,
+  transaction: ToplRpcHandlers.Transaction
 )
 
 object ToplRpcHandlers {
@@ -22,5 +24,23 @@ object ToplRpcHandlers {
     def hashBlake2b256: ToplRpc.Util.HashBlake2b256.rpc.ServerHandler
     def generateAssetCode: ToplRpc.Util.GenerateAssetCode.rpc.ServerHandler
     def checkValidAddress: ToplRpc.Util.CheckValidAddress.rpc.ServerHandler
+  }
+
+  trait NodeView {
+    def head: ToplRpc.NodeView.Head.rpc.ServerHandler
+    def balances: ToplRpc.NodeView.Balances.rpc.ServerHandler
+    def transactionById: ToplRpc.NodeView.TransactionById.rpc.ServerHandler
+    def blockById: ToplRpc.NodeView.BlockById.rpc.ServerHandler
+    def blockByHeight: ToplRpc.NodeView.BlockByHeight.rpc.ServerHandler
+    def mempool: ToplRpc.NodeView.Mempool.rpc.ServerHandler
+    def transactionFromMempool: ToplRpc.NodeView.TransactionFromMempool.rpc.ServerHandler
+    def info: ToplRpc.NodeView.Info.rpc.ServerHandler
+  }
+
+  trait Transaction {
+    def rawAssetTransfer: ToplRpc.Transaction.RawAssetTransfer.rpc.ServerHandler
+    def rawArbitTransfer: ToplRpc.Transaction.RawArbitTransfer.rpc.ServerHandler
+    def rawPolyTransfer: ToplRpc.Transaction.RawPolyTransfer.rpc.ServerHandler
+    def broadcastTx: ToplRpc.Transaction.BroadcastTx.rpc.ServerHandler
   }
 }

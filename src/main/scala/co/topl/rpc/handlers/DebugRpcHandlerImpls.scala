@@ -1,15 +1,10 @@
 package co.topl.rpc.handlers
 
-import akka.actor.ActorRef
-import akka.util.Timeout
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
-import co.topl.attestation.Address
-import co.topl.consensus.Forger
 import co.topl.modifier.ModifierId
-import co.topl.nodeView.history.{History, HistoryDebug}
-import co.topl.nodeView.{CurrentView, NodeViewHolder}
+import co.topl.nodeView.history.HistoryDebug
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Encoder
@@ -17,8 +12,8 @@ import io.circe.Encoder
 import scala.concurrent.{ExecutionContext, Future}
 
 class DebugRpcHandlerImpls(
-  getHistory: DebugRpcHandlerImpls.GetHistory,
-  listKeys:   DebugRpcHandlerImpls.ListKeys
+  getHistory: GetHistory,
+  listKeys:   ListKeys
 )(implicit
   ec:               ExecutionContext,
   throwableEncoder: Encoder[ThrowableData],
@@ -68,31 +63,4 @@ class DebugRpcHandlerImpls(
             ToplRpcErrors.NoBlockIdsAtHeight: RpcError[_]
           )
       } yield ids
-}
-
-object DebugRpcHandlerImpls {
-
-  import scala.language.implicitConversions
-
-  type GetHistory = () => EitherT[Future, RpcError[_], History]
-
-  implicit def nodeViewHolderRefAsGetHistory(
-    actorRef:         ActorRef
-  )(implicit timeout: Timeout, ec: ExecutionContext): GetHistory = {
-    import akka.pattern.ask
-    () =>
-      EitherT
-        .liftF(
-          (actorRef ? NodeViewHolder.ReceivableMessages.GetDataFromCurrentView)
-            .mapTo[CurrentView[History, _, _]]
-        )
-        .map(_.history)
-  }
-
-  type ListKeys = () => EitherT[Future, RpcError[_], Set[Address]]
-
-  implicit def forgerRefAsListKeys(actorRef: ActorRef)(implicit timeout: Timeout, ec: ExecutionContext): ListKeys = {
-    import akka.pattern.ask
-    () => EitherT.liftF((actorRef ? Forger.ReceivableMessages.ListKeys).mapTo[Set[Address]])
-  }
 }

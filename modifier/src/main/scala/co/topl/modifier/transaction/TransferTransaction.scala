@@ -1,5 +1,7 @@
 package co.topl.modifier.transaction
 
+import cats.data.{Validated, _}
+import cats.implicits._
 import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.attestation.{Evidence, _}
 import co.topl.modifier.BoxReader
@@ -41,10 +43,10 @@ abstract class TransferTransaction[
   def semanticValidate(boxReader: BoxReader[ProgramId, Address])(implicit networkPrefix: NetworkPrefix): Try[Unit] =
     TransferTransaction.semanticValidate(this, boxReader)
 
-  def syntacticValidate(implicit networkPrefix: NetworkPrefix): Try[Unit] =
+  def syntacticValidate(implicit networkPrefix: NetworkPrefix): ValidatedNec[SyntacticValidationFailure, TransferTransaction[T, P]] =
     TransferTransaction.syntacticValidate(this)
 
-  def rawValidate(implicit networkPrefix: NetworkPrefix): Try[Unit] =
+  def rawValidate(implicit networkPrefix: NetworkPrefix): ValidatedNec[SyntacticValidationFailure, TransferTransaction[T, P]] =
     TransferTransaction.syntacticValidate(this, hasAttMap = false)
 
 }
@@ -84,9 +86,8 @@ object TransferTransaction {
     (feeChangeParams, outputParams)
   }
 
-  def encodeFrom(from: IndexedSeq[(Address, Box.Nonce)]): Json = {
+  def encodeFrom(from: IndexedSeq[(Address, Box.Nonce)]): Json =
     from.map(x => (x._1.asJson, x._2.toString.asJson)).asJson
-  }
 
   /** Retrieves the boxes from state for the specified sequence of senders and filters them based on the type of transaction */
   private def getSenderBoxesForTx(
@@ -229,68 +230,66 @@ object TransferTransaction {
   def syntacticValidate[
     T <: TokenValueHolder,
     P <: Proposition: EvidenceProducer
-  ](tx: TransferTransaction[T, P], hasAttMap: Boolean = true)(implicit networkPrefix: NetworkPrefix): Try[Unit] = Try {
-
-    // enforce transaction specific requirements
-    tx match {
-      case t: ArbitTransfer[_] if t.minting => // Arbit block rewards
-      case t: PolyTransfer[_] if t.minting  => // Poly block rewards
-      case t @ _                            =>
-        // must provide input state to consume in order to generate new state
-        if (t.minting) require(t.fee > 0L, "Asset minting transactions must have a non-zero positive fee")
-        else require(t.fee >= 0L, "Transfer transactions must have a non-negative fee")
-
-        require(t.from.nonEmpty, "Non-block reward transactions must specify at least one input box")
-        require(t.to.forall(_._2.quantity > 0L), "Amount sent must be greater than 0")
-    }
-
-    require(tx.timestamp >= 0L, "Invalid timestamp")
-    require(
-      tx.data.forall(_.getValidLatin1Bytes.getOrElse(throw new Exception("String is not valid Latin-1")).length <= 128),
-      "Data field must be less than 128 bytes"
-    )
-
-    // prototype transactions do not contain signatures at creation
-    if (hasAttMap) {
-      // ensure that the signatures are valid signatures with the body of the transaction
-      require(
-        tx.attestation.forall { case (prop, proof) =>
-          proof.isValid(prop, tx.messageToSign)
-        },
-        "The provided proposition is not satisfied by the given proof"
-      )
-
-      // ensure that the propositions match the from addresses
-      require(
-        tx.from.forall { case (addr, _) =>
-          tx.attestation.keys.map(_.generateEvidence).toSeq.contains(addr.evidence)
-        },
-        "The proposition(s) given do not match the evidence contained in the input boxes"
-      )
-
+  ](tx:            TransferTransaction[T, P], hasAttMap: Boolean = true)(implicit
+    networkPrefix: NetworkPrefix
+  ): ValidatedNec[SyntacticValidationFailure, TransferTransaction[T, P]] = {
+    val validationByTransactionType: ValidatedNec[SyntacticValidationFailure, TransferTransaction[T, P]] =
       tx match {
-        // ensure that the asset issuer is signing a minting transaction
-        case t: AssetTransfer[_] if tx.minting =>
-          t.to.foreach {
-            case (_, asset: AssetValue) =>
-              require(
-                t.attestation.keys.map(_.address).toSeq.contains(asset.assetCode.issuer),
-                "Asset minting must include the issuers signature"
-              )
-            // do nothing with other token types
-            case (_, value: SimpleValue) =>
-            case _                       => throw new Error("AssetTransfer contains invalid value holder")
-          }
-
-        case _ => // put additional checks on attestations here
+        case _: ArbitTransfer[_] | _: PolyTransfer[_] =>
+          tx.validNec
+        case _ =>
+          NonEmptyChain(
+            Validated.condNec(tx.minting == tx.fee > 0L, tx, MintingZeroFeeFailure: SyntacticValidationFailure),
+            Validated.condNec(tx.fee > 0L, tx, ZeroFeeFailure: SyntacticValidationFailure),
+            Validated.condNec(tx.to.forall(_._2.quantity > 0L), tx, InvalidSendAmount: SyntacticValidationFailure)
+          ).reduceLeft { case (acc, f) => acc.andThen(_ => f) }
       }
-    }
 
-    // ensure that the input and output lists of box ids are unique
-    require(
-      tx.newBoxes.forall(b ⇒ !tx.boxIdsToOpen.contains(b.id)),
-      "The set of input box ids contains one or more of the output ids"
-    )
+    val dataValidation =
+      tx.data.fold(tx.validNec[SyntacticValidationFailure])(data =>
+        Validated
+          .fromOption(data.getValidLatin1Bytes, DataNotLatin1: SyntacticValidationFailure)
+          .toValidatedNec[SyntacticValidationFailure, Array[Byte]]
+          .andThen(bytes => Validated.condNec(bytes.length <= 128, tx, DataTooLong: SyntacticValidationFailure))
+      )
+
+    val attMapValidation =
+      if(hasAttMap)
+        Validated.condNec(tx.attestation.forall { case (prop, proof) =>
+          proof.isValid(prop, tx.messageToSign)
+        }, tx, UnsatisfiedProposition).andThen(tx =>
+          Validated.condNec(
+            tx.from.forall { case (addr, _) =>
+              tx.attestation.keys.map(_.generateEvidence).toSeq.contains(addr.evidence)
+            }, tx, PropositionEvidenceMismatch
+          )
+        )
+          .andThen {
+            case _: AssetTransfer[_] if tx.minting =>
+              tx.to.map {
+                case (_, asset: AssetValue) =>
+                  Validated.condNec(
+                  tx.attestation.keys.map(_.address).toSeq.contains(asset.assetCode.issuer),
+                    tx,
+                    MintingMissingIssuersSignature : SyntacticValidationFailure
+                  )
+                case (_, _: SimpleValue) => tx.validNec[SyntacticValidationFailure]
+                case _ => InvalidValue.invalidNec[TransferTransaction[T, P]]
+              }
+                .foldLeft(tx.validNec[SyntacticValidationFailure]) { case (acc, v) => acc.andThen(_ => v)}
+            case tx =>
+              tx.validNec[SyntacticValidationFailure]
+          }
+      else tx.validNec[SyntacticValidationFailure]
+
+    val inputOutputBoxesUniqueValidation =
+      Validated.condNec(tx.newBoxes.map(_.id).toSet.intersect(tx.boxIdsToOpen.toSet).isEmpty, tx, InputOutputBoxesNotUnique : SyntacticValidationFailure)
+
+    validationByTransactionType
+      .andThen(tx => Validated.condNec(tx.timestamp >= 0L, tx, InvalidTimestamp))
+      .andThen(_ => dataValidation)
+      .andThen(_ => attMapValidation)
+      .andThen(_ => inputOutputBoxesUniqueValidation)
   }
 
   /** Checks the stateful validity of a transaction
@@ -307,8 +306,8 @@ object TransferTransaction {
   ): Try[Unit] = {
 
     // check that the transaction is correctly formed before checking state
-    syntacticValidate(tx) match {
-      case Failure(e) => throw e
+    syntacticValidate(tx).toEither match {
+      case Left(e) => throw new Exception(e.head.toString)
       case _          => // continue processing
     }
 
@@ -349,3 +348,21 @@ object TransferTransaction {
     }
   }
 }
+
+sealed abstract class SyntacticValidationFailure
+case object ZeroFeeFailure extends SyntacticValidationFailure
+case object MintingZeroFeeFailure extends SyntacticValidationFailure
+case object InvalidSendAmount extends SyntacticValidationFailure
+case object InvalidTimestamp extends SyntacticValidationFailure
+case object DataNotLatin1 extends SyntacticValidationFailure
+case object DataTooLong extends SyntacticValidationFailure
+case object UnsatisfiedProposition extends SyntacticValidationFailure
+case object PropositionEvidenceMismatch extends SyntacticValidationFailure
+case object MintingMissingIssuersSignature extends SyntacticValidationFailure
+case object InvalidValue extends SyntacticValidationFailure
+case object InputOutputBoxesNotUnique extends SyntacticValidationFailure
+
+sealed abstract class Syntactic
+case object InvalidUnlocker extends Syntactic
+case object BoxNotFound extends Syntactic
+case object InvalidBoxTye extends Syntactic

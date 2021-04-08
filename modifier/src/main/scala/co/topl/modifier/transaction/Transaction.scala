@@ -1,5 +1,6 @@
 package co.topl.modifier.transaction
 
+import cats.data.ValidatedNec
 import co.topl.attestation.{Address, Proof, Proposition}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.BloomFilter.BloomTopic
@@ -45,9 +46,9 @@ abstract class Transaction[+T, P <: Proposition: Identifiable] extends NodeViewM
 
   def semanticValidate(boxReader: BoxReader[ProgramId, Address])(implicit networkPrefix: NetworkPrefix): Try[Unit]
 
-  def syntacticValidate(implicit networkPrefix: NetworkPrefix): Try[Unit]
+  def syntacticValidate(implicit networkPrefix: NetworkPrefix): ValidatedNec[SyntacticValidationFailure, Transaction[T, P]]
 
-  def rawValidate(implicit networkPrefix: NetworkPrefix): Try[Unit]
+  def rawValidate(implicit networkPrefix: NetworkPrefix): ValidatedNec[SyntacticValidationFailure, Transaction[T, P]]
 
 }
 
