@@ -3,12 +3,12 @@ import sbtassembly.MergeStrategy
 import sbtrelease.ReleasePlugin.autoImport.ReleaseTransformations._
 
 val scala212 = "2.12.13"
-val scala213 = "2.13.5"
+//val scala213 = "2.13.5"
 val GraalVM8 = "graalvm-ce-java8@20.2.0"
 
 organization in ThisBuild := "co.topl"
 ThisBuild / scalaVersion := scala212
-ThisBuild / crossScalaVersions := Seq(scala212, scala213)
+//ThisBuild / crossScalaVersions := Seq(scala212)
 
 ThisBuild / dynverSeparator := "-"
 ThisBuild / githubWorkflowJavaVersions := Seq(GraalVM8)
