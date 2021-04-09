@@ -36,7 +36,7 @@ class SingleNodeTest extends AnyFreeSpec with Matchers with IntegrationSuite wit
     Thread.sleep(2.seconds.toMillis)
 
     val forgeCount1 =
-      ToplRpc.Debug.MyBlocks.rpc.call.run(ToplRpc.Debug.MyBlocks.Params()).value.futureValue.value.count.toLong
+      ToplRpc.Debug.MyBlocks.rpc.call.apply(ToplRpc.Debug.MyBlocks.Params()).value.futureValue.value.count.toLong
 
     logger.info(s"Forge count=$forgeCount1")
 
@@ -46,7 +46,7 @@ class SingleNodeTest extends AnyFreeSpec with Matchers with IntegrationSuite wit
     Thread.sleep(5.seconds.toMillis)
 
     val forgeCount2 =
-      ToplRpc.Debug.MyBlocks.rpc.call.run(ToplRpc.Debug.MyBlocks.Params()).value.futureValue.value.count.toLong
+      ToplRpc.Debug.MyBlocks.rpc.call.apply(ToplRpc.Debug.MyBlocks.Params()).value.futureValue.value.count.toLong
 
     logger.info(s"Forge count=$forgeCount2")
 

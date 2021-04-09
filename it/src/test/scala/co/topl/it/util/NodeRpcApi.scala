@@ -117,7 +117,7 @@ case class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem, 
 
   def waitForStartup(): Future[Either[RpcClientFailure, Done]] =
     Retry(
-      () => ToplRpc.Debug.MyBlocks.rpc.call.run(ToplRpc.Debug.MyBlocks.Params()).map(_ => Done),
+      () => ToplRpc.Debug.MyBlocks.rpc.call.apply(ToplRpc.Debug.MyBlocks.Params()).map(_ => Done),
       interval = 1.seconds,
       timeout = 30.seconds,
       attempts = 30

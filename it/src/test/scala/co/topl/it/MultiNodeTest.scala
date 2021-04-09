@@ -43,7 +43,7 @@ class MultiNodeTest
       Future
         .traverse(nodes) { implicit node =>
           ToplRpc.Debug.Generators.rpc.call
-            .run(ToplRpc.Debug.Generators.Params())
+            .apply(ToplRpc.Debug.Generators.Params())
             .value
             .map(node.containerId -> _.value)
         }
@@ -75,7 +75,7 @@ class MultiNodeTest
       Future
         .traverse(nodes) { implicit node =>
           ToplRpc.Debug.MyBlocks.rpc.call
-            .run(ToplRpc.Debug.MyBlocks.Params())
+            .apply(ToplRpc.Debug.MyBlocks.Params())
             .map(_.count)
             .value
             .map(node.containerId -> _.value)
@@ -98,7 +98,7 @@ class MultiNodeTest
       Future
         .traverse(nodes) { implicit node =>
           ToplRpc.Debug.Generators.rpc.call
-            .run(ToplRpc.Debug.Generators.Params())
+            .apply(ToplRpc.Debug.Generators.Params())
             .value
             .map(node.containerId -> _.value)
         }

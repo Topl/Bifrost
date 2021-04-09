@@ -247,7 +247,7 @@ lazy val bifrost = Project(id = "bifrost", base = file("."))
     name := "bifrost",
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
-    dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java8-21.0.0",
+    dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java11-21.0.0",
     dockerExposedPorts := Seq(9084, 9085),
     dockerExposedVolumes += "/opt/docker/.bifrost",
     dockerLabels ++= Map(

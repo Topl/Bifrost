@@ -1,7 +1,7 @@
 FROM ubuntu:20.10
 
 ARG GRAALVM_VERSION=21.0.0.2
-ARG JAVA_VERSION=java8
+ARG JAVA_VERSION=java11
 ARG SBT_VERSION=1.4.9
 
 RUN apt -y update && apt -y upgrade

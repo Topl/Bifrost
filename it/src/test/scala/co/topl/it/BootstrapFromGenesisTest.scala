@@ -4,6 +4,7 @@ import co.topl.it.util._
 import co.topl.utils.Int128
 import Int128._
 import akka.actor.Scheduler
+import co.topl.rpc.ToplRpc
 import com.typesafe.config.ConfigFactory
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
@@ -51,7 +52,7 @@ class BootstrapFromGenesisTest
 
     logger.info("Starting oldNode")
 
-    implicit val oldNode = dockerSupport.createNode("oldNode", seed)
+    implicit val oldNode: BifrostDockerNode = dockerSupport.createNode("oldNode", seed)
     oldNode.reconfigure(config)
     oldNode.start()
 
