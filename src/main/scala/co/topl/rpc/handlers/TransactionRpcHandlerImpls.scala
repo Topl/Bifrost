@@ -103,7 +103,7 @@ class TransactionRpcHandlerImpls(getState: GetState, processTransaction: Process
 
     createRaw(
       state,
-      params.recipients.toNonEmptyVector.toVector,
+      params.recipients.map { case (address, amount) => address -> SimpleValue(amount) }.toNonEmptyVector.toVector,
       senderAddresses.to[IndexedSeq],
       params.changeAddress,
       params.consolidationAddress,

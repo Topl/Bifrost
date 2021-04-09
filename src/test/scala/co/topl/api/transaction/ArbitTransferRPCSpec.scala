@@ -6,13 +6,14 @@ import co.topl.attestation.Address
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
+import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import scorex.util.encode.Base58
 
 class ArbitTransferRPCSpec extends AnyWordSpec
   with Matchers
-  with RPCMockState {
+  with RPCMockState with EitherValues {
 
   val address: Address = keyRing.addresses.head
   var tx = ""
@@ -37,10 +38,7 @@ class ArbitTransferRPCSpec extends AnyWordSpec
         """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]) match {
-          case Right(re) => re;
-          case Left(ex) => throw ex
-        }
+        val res = parse(responseAs[String]).value
 
         val sigTx = for {
           rawTx <- res.hcursor.downField("result").get[Json]("rawTx")
@@ -53,7 +51,7 @@ class ArbitTransferRPCSpec extends AnyWordSpec
           rawTx.deepMerge(signatures)
         }
 
-        tx = sigTx.right.get.toString
+        tx = sigTx.value.toString
 
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
@@ -74,7 +72,7 @@ class ArbitTransferRPCSpec extends AnyWordSpec
            |""".stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
+        val res = parse(responseAs[String]).value
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
       }

@@ -167,7 +167,7 @@ object ToplRpc {
       case class Params(
         propositionType:      String,
         sender:               NonEmptyChain[Address],
-        recipients:           NonEmptyChain[(Address, SimpleValue)],
+        recipients:           NonEmptyChain[(Address, Int128)],
         fee:                  Int128,
         changeAddress:        Address,
         consolidationAddress: Option[Address],

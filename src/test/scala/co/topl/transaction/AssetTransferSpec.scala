@@ -18,7 +18,7 @@ class AssetTransferSpec extends AnyPropSpec
   with EitherValues {
   property("Randomly generated AssetTransfer Tx should be valid") {
     forAll(validAssetTransfer(keyRing, state, minting = true)) { assetTransfer =>
-      assetTransfer.syntacticValidate shouldBe 'valid
+      assetTransfer.syntacticValidate.isValid shouldBe true
     }
   }
 

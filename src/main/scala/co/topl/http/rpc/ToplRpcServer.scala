@@ -75,7 +75,7 @@ class ToplRpcServer(handlers: ToplRpcHandlers, appContext: AppContext)(implicit
   val route: Route =
     handleRejections(rejectionHandler)(
       NonEmptyChain.fromSeq(
-        (debugRoutes ++ utilRoutes ++ nodeViewRoutes).toList.flatMap(_.toNonEmptyList.toList)
+        (debugRoutes ++ utilRoutes ++ nodeViewRoutes ++ transactionRoutes).toList.flatMap(_.toNonEmptyList.toList)
       ) match {
         case Some(chain) =>
           chain.reduceLeft(_ ~ _)
