@@ -1,6 +1,7 @@
 package co.topl.modifier.transaction
 
 import java.time.Instant
+
 import co.topl.attestation._
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
@@ -9,8 +10,8 @@ import co.topl.modifier.transaction.TransferTransaction.{BoxParams, encodeFrom}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.codecs.Int128Codec
 import co.topl.utils.{Identifiable, Identifier, Int128}
-import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
+import io.circe.syntax.EncoderOps
 
 import scala.util.Try
 
@@ -27,18 +28,21 @@ case class ArbitTransfer[
 ) extends TransferTransaction[TokenValueHolder, P](from, to, attestation, fee, timestamp, data, minting) {
 
   override lazy val newBoxes: Traversable[TokenBox[SimpleValue]] = {
-    val params = TransferTransaction.boxParams(this)
+    if (to.map(_._2.quantity).sum == 0 && fee == 0)
+      // this drops the rewards transaction when it is zero-valued
+      Traversable()
+    else {
+      val params = TransferTransaction.calculateBoxNonce(this)
 
-    val feeChangeBox =
-      if (fee > 0L) Traversable(PolyBox(params._1.evidence, params._1.nonce, params._1.value))
-      else Traversable()
+      val feeChangeBox = Traversable(PolyBox(params._1.evidence, params._1.nonce, params._1.value))
 
-    val arbitBoxes = params._2.map {
-      case BoxParams(ev, n, v: SimpleValue) => ArbitBox(ev, n, v)
-      case _                                => throw new Error("Attempted application of invalid value holder")
+      val arbitBoxes = params._2.map {
+        case BoxParams(ev, n, v: SimpleValue) => ArbitBox(ev, n, v)
+        case _                                => throw new Error("Attempted application of invalid value holder")
+      }
+
+      feeChangeBox ++ arbitBoxes
     }
-
-    feeChangeBox ++ arbitBoxes
   }
 }
 
@@ -51,34 +55,48 @@ object ArbitTransfer {
   }
 
   /** @param boxReader
-    * @param toReceive
-    * @param sender
-    * @param fee
-    * @param data
-    * @return
-    */
+   * @param toReceive
+   * @param sender
+   * @param fee
+   * @param data
+   * @return
+   */
   def createRaw[
-    P <: Proposition: EvidenceProducer: Identifiable
+    P <: Proposition : EvidenceProducer : Identifiable
   ](
-    boxReader:            BoxReader[ProgramId, Address],
-    toReceive:            IndexedSeq[(Address, SimpleValue)],
-    sender:               IndexedSeq[Address],
-    changeAddress:        Address,
-    consolidationAddress: Option[Address],
-    fee:                  Int128,
-    data:                 Option[String]
-  ): Try[ArbitTransfer[P]] =
+     boxReader: BoxReader[ProgramId, Address],
+     toReceive: IndexedSeq[(Address, SimpleValue)],
+     sender: IndexedSeq[Address],
+     changeAddress: Address,
+     consolidationAddress: Option[Address],
+     fee: Int128,
+     data: Option[String]
+   ): Try[ArbitTransfer[P]] =
     TransferTransaction
-      .createRawTransferParams(
-        boxReader,
-        toReceive,
-        sender,
-        changeAddress,
-        consolidationAddress,
-        fee,
-        "ArbitTransfer"
-      )
-      .map { case (inputs, outputs) =>
+      .createRawTransferParams(boxReader, sender, fee, "Arbits")
+      .map { txState =>
+        // compute the amount of tokens that will be sent to the recipients
+        val amtToSpend = toReceive.map(_._2.quantity).sum
+
+        val availableToSpend =
+          txState.senderBoxes
+            .getOrElse("Arbit", throw new Exception(s"No Arbit funds available for the transaction"))
+            .map(_._3.value.quantity)
+            .sum
+
+        // create the list of inputs and outputs (senderChangeOut & recipientOut)
+        val inputs =
+          txState.senderBoxes("Arbit").map(bxs => (bxs._2, bxs._3.nonce)) ++
+            txState.senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce))
+
+        val outputs = IndexedSeq(
+          (changeAddress, SimpleValue(txState.polyBalance - fee)),
+          (consolidationAddress.getOrElse(changeAddress), SimpleValue(availableToSpend - amtToSpend))
+        ) ++ toReceive
+
+        // ensure there are sufficient funds from the sender boxes to create all outputs
+        require(availableToSpend >= amtToSpend, "Insufficient funds available to create transaction.")
+
         ArbitTransfer[P](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data)
       }
 

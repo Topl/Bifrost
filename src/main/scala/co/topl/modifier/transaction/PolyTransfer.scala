@@ -1,16 +1,17 @@
 package co.topl.modifier.transaction
 
 import java.time.Instant
+
 import co.topl.attestation._
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TxType
-import co.topl.modifier.transaction.TransferTransaction.{BoxParams, encodeFrom}
+import co.topl.modifier.transaction.TransferTransaction.{encodeFrom, BoxParams}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.codecs.Int128Codec
-import co.topl.utils.{Identifiable, Identifier, Int128, NetworkType}
+import co.topl.utils.{Identifiable, Identifier, Int128}
 import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, HCursor, Json}
+import io.circe.{Decoder, Encoder, HCursor}
 
 import scala.util.Try
 
@@ -26,20 +27,23 @@ case class PolyTransfer[
   override val minting:     Boolean = false
 ) extends TransferTransaction[TokenValueHolder, P](from, to, attestation, fee, timestamp, data, minting) {
 
-  override lazy val newBoxes: Traversable[TokenBox[SimpleValue]] = {
-    val params = TransferTransaction.boxParams(this)
+  override lazy val newBoxes: Traversable[TokenBox[SimpleValue]] =
+    if (to.map(_._2.quantity).sum == 0 && fee == 0)
+    // this drops the rewards transaction when it is zero-valued
+      Traversable()
+    else {
+      val params = TransferTransaction.calculateBoxNonce(this)
 
-    val feeChangeBox =
-      if (fee > 0L) Traversable(PolyBox(params._1.evidence, params._1.nonce, params._1.value))
-      else Traversable()
+      // this is different from other transactions because the token being sent is the fee token
+      val feeChangeBox = Traversable(PolyBox(params._1.evidence, params._1.nonce, params._1.value))
 
-    val polyBoxes = params._2.map {
-      case BoxParams(ev, n, v: SimpleValue) => PolyBox(ev, n, v)
-      case _                                => throw new Error("Attempted application of invalid value holder")
+      val polyBoxes = params._2.map {
+        case BoxParams(ev, n, v: SimpleValue) => PolyBox(ev, n, v)
+        case _                                => throw new Error("Attempted application of invalid value holder")
+      }
+
+      feeChangeBox ++ polyBoxes
     }
-
-    feeChangeBox ++ polyBoxes
-  }
 }
 
 object PolyTransfer {
@@ -60,20 +64,32 @@ object PolyTransfer {
   def createRaw[
     P <: Proposition: EvidenceProducer: Identifiable
   ](
-    boxReader:            BoxReader[ProgramId, Address],
-    toReceive:            IndexedSeq[(Address, SimpleValue)],
-    sender:               IndexedSeq[Address],
-    changeAddress:        Address,
-    consolidationAddress: Option[Address],
-    fee:                  Int128,
-    data:                 Option[String]
+    boxReader:     BoxReader[ProgramId, Address],
+    toReceive:     IndexedSeq[(Address, SimpleValue)],
+    sender:        IndexedSeq[Address],
+    changeAddress: Address,
+    fee:           Int128,
+    data:          Option[String]
   ): Try[PolyTransfer[P]] =
     TransferTransaction
-      .createRawTransferParams(boxReader, toReceive, sender, changeAddress, consolidationAddress, fee, "PolyTransfer")
-      .map { case (inputs, outputs) =>
+      .createRawTransferParams(boxReader, sender, fee, "Polys") // you always get Polys back
+      .map { txState =>
+        // compute the amount of tokens that will be sent to the recipients
+        val amtToSpend = toReceive.map(_._2.quantity).sum
+
+        // create the list of inputs and outputs (senderChangeOut & recipientOut)
+        val (availableToSpend, inputs, outputs) =
+          (
+            txState.polyBalance - fee,
+            txState.senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
+            (changeAddress, SimpleValue(txState.polyBalance - fee - amtToSpend)) +: toReceive
+          )
+
+        // ensure there are sufficient funds from the sender boxes to create all outputs
+        require(availableToSpend >= amtToSpend, "Insufficient funds available to create transaction.")
+
         PolyTransfer[P](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data)
       }
-
 
   implicit def jsonEncoder[P <: Proposition]: Encoder[PolyTransfer[P]] = { tx: PolyTransfer[P] =>
     Map(
