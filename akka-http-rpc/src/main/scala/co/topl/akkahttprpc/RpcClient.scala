@@ -17,6 +17,14 @@ import scala.util.Success
 
 class RpcClient[Params, SuccessResponse](val rpc: Rpc[Params, SuccessResponse]) extends AnyVal {
 
+  def apply(params:         Params)(implicit
+    paramsEncoder:          Encoder[Params],
+    successResponseDecoder: Decoder[SuccessResponse],
+    requestModifier:        RequestModifier,
+    system:                 ActorSystem,
+    ec:                     ExecutionContext
+  ): EitherT[Future, RpcClientFailure, SuccessResponse] = call.apply(params)
+
   def call(implicit
     paramsEncoder:          Encoder[Params],
     successResponseDecoder: Decoder[SuccessResponse],
@@ -74,7 +82,7 @@ class RpcClient[Params, SuccessResponse](val rpc: Rpc[Params, SuccessResponse]) 
               result.as[SuccessResponse].leftMap(_ => UnexpectedResponseFailure(r): RpcClientFailure)
             case FailureRpcResponse(_, _, error) =>
               error.asJson
-                .as[RpcError[_]]
+                .as[RpcError]
                 .leftMap(_ => UnexpectedResponseFailure(r): RpcClientFailure)
                 .flatMap(e => (RpcErrorFailure(e): RpcClientFailure).asLeft)
           }
@@ -87,7 +95,7 @@ class RpcClient[Params, SuccessResponse](val rpc: Rpc[Params, SuccessResponse]) 
 object RpcClient {}
 
 sealed abstract class RpcClientFailure
-case class RpcErrorFailure(rpcError: RpcError[_]) extends RpcClientFailure
+case class RpcErrorFailure(rpcError: RpcError) extends RpcClientFailure
 case class HttpExceptionFailure(throwable: Throwable) extends RpcClientFailure
 case class UnexpectedResponseFailure(response: HttpResponse) extends RpcClientFailure
 

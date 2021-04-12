@@ -22,11 +22,11 @@ package object handlers {
 
   import scala.language.implicitConversions
 
-  type GetHistory = () => EitherT[Future, RpcError[_], History]
-  type GetState = () => EitherT[Future, RpcError[_], State]
-  type GetMempool = () => EitherT[Future, RpcError[_], MemPool]
+  type GetHistory = () => EitherT[Future, RpcError, History]
+  type GetState = () => EitherT[Future, RpcError, State]
+  type GetMempool = () => EitherT[Future, RpcError, MemPool]
 
-  type ProcessTransaction = Transaction.TX => EitherT[Future, RpcError[_], Done]
+  type ProcessTransaction = Transaction.TX => EitherT[Future, RpcError, Done]
 
   implicit def nodeViewHolderRefAsGetHistory(
     actorRef:         ActorRef
@@ -62,15 +62,15 @@ package object handlers {
                                             actorRef:         ActorRef
                                           )(implicit timeout: Timeout, ec: ExecutionContext): ProcessTransaction = tx =>
     EitherT
-      .pure[Future, RpcError[_]](actorRef ! LocallyGeneratedTransaction(tx))
+      .pure[Future, RpcError](actorRef ! LocallyGeneratedTransaction(tx))
       .map(_ => Done)
 
-  type ListKeys = () => EitherT[Future, RpcError[_], Set[Address]]
+  type ListKeys = () => EitherT[Future, RpcError, Set[Address]]
 
   implicit def forgerRefAsListKeys(actorRef: ActorRef)(implicit timeout: Timeout, ec: ExecutionContext): ListKeys =
     () => EitherT.liftF((actorRef ? Forger.ReceivableMessages.ListKeys).mapTo[Set[Address]])
 
-  private[handlers] def checkAddresses(keys: List[Address], state: State): Either[RpcError[_], List[Address]] =
+  private[handlers] def checkAddresses(keys: List[Address], state: State): Either[RpcError, List[Address]] =
     for {
       _ <- Either.cond(state.hasTBR, {}, ToplRpcErrors.unsupportedOperation("TokenBoxRegistry not defined for node"))
       _ <- Either.cond(

@@ -1,6 +1,5 @@
 package co.topl.rpc.handlers
 
-import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{RpcError, ThrowableData}
 import co.topl.attestation.{Address, Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
@@ -25,11 +24,12 @@ class TransactionRpcHandlerImpls(getState: GetState, processTransaction: Process
     params =>
       for {
         state           <- getState()
-        senderAddresses <- EitherT.fromEither[Future](checkAddresses(params.sender.toList, state))
+        senderAddresses <- checkAddresses(params.sender.toList, state).toEitherT[Future]
         transferTry = tryCreateAssetTransfer(params, state, senderAddresses)
-        transfer <- EitherT.fromEither[Future](
-          Either.fromTry(transferTry).leftMap[RpcError[_]](ToplRpcErrors.transactionValidationException(_))
-        )
+        transfer <- Either
+          .fromTry(transferTry)
+          .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
+          .toEitherT[Future]
         messageToSign = Base58.encode(transfer.messageToSign)
       } yield ToplRpc.Transaction.RawAssetTransfer.Response(transfer, messageToSign)
 
@@ -37,11 +37,12 @@ class TransactionRpcHandlerImpls(getState: GetState, processTransaction: Process
     params =>
       for {
         state           <- getState()
-        senderAddresses <- EitherT.fromEither[Future](checkAddresses(params.sender.toList, state))
+        senderAddresses <- checkAddresses(params.sender.toList, state).toEitherT[Future]
         transferTry = tryCreateArbitTransfer(params, state, senderAddresses)
-        transfer <- EitherT.fromEither[Future](
-          Either.fromTry(transferTry).leftMap[RpcError[_]](ToplRpcErrors.transactionValidationException(_))
-        )
+        transfer <- Either
+          .fromTry(transferTry)
+          .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
+          .toEitherT[Future]
         messageToSign = Base58.encode(transfer.messageToSign)
       } yield ToplRpc.Transaction.RawArbitTransfer.Response(transfer, messageToSign)
 
@@ -49,20 +50,21 @@ class TransactionRpcHandlerImpls(getState: GetState, processTransaction: Process
     params =>
       for {
         state           <- getState()
-        senderAddresses <- EitherT.fromEither[Future](checkAddresses(params.sender.toList, state))
+        senderAddresses <- checkAddresses(params.sender.toList, state).toEitherT[Future]
         transferTry = tryCreatePolyTransfer(params, state, senderAddresses)
-        transfer <- EitherT.fromEither[Future](
-          Either.fromTry(transferTry).leftMap[RpcError[_]](ToplRpcErrors.transactionValidationException(_))
-        )
+        transfer <- Either
+          .fromTry(transferTry)
+          .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
+          .toEitherT[Future]
         messageToSign = Base58.encode(transfer.messageToSign)
       } yield ToplRpc.Transaction.RawPolyTransfer.Response(transfer, messageToSign)
 
   override def broadcastTx: ToplRpc.Transaction.BroadcastTx.rpc.ServerHandler =
     params =>
       for {
-        transaction <- EitherT.fromEither[Future](
-          params.tx.syntacticValidate.toEither.leftMap(ToplRpcErrors.syntacticValidationFailure)
-        )
+        transaction <- params.tx.syntacticValidate.toEither
+          .leftMap(ToplRpcErrors.syntacticValidationFailure)
+          .toEitherT[Future]
         _ <- processTransaction(transaction)
       } yield transaction
 

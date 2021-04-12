@@ -1,6 +1,5 @@
 package co.topl.rpc.handlers
 
-import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
 import co.topl.modifier.ModifierId
@@ -25,12 +24,11 @@ class DebugRpcHandlerImpls(
       for {
         history <- getHistory()
         historyDebug = new HistoryDebug(history)
-        delay <- EitherT.fromEither[Future](
-          historyDebug
-            .averageDelay(params.blockId, params.numBlocks)
-            .toEither
-            .leftMap(CustomError.fromThrowable(-32099, "Unexpected server error", _): RpcError[_])
-        )
+        delay <- historyDebug
+          .averageDelay(params.blockId, params.numBlocks)
+          .toEither
+          .leftMap(CustomError.fromThrowable(-32099, "Unexpected server error", _): RpcError)
+          .toEitherT[Future]
       } yield ToplRpc.Debug.Delay.Response(s"$delay milliseconds")
 
   override val myBlocks: ToplRpc.Debug.MyBlocks.rpc.ServerHandler =
@@ -53,14 +51,11 @@ class DebugRpcHandlerImpls(
 
   override val idsFromHeight: ToplRpc.Debug.IdsFromHeight.rpc.ServerHandler =
     params =>
-      for {
-        history <- getHistory()
-        historyDebug = new HistoryDebug(history)
-        ids <- EitherT
-          .fromOption[Future]
-          .apply[RpcError[_], Seq[ModifierId]](
-            historyDebug.getIdsFrom(params.height, params.limit),
-            ToplRpcErrors.NoBlockIdsAtHeight: RpcError[_]
-          )
-      } yield ids
+      getHistory().flatMap[RpcError, List[ModifierId]](
+        new HistoryDebug(_)
+          .getIdsFrom(params.height, params.limit)
+          .toRight(ToplRpcErrors.NoBlockIdsAtHeight: RpcError)
+          .toEitherT[Future]
+          .map(_.toList)
+      )
 }

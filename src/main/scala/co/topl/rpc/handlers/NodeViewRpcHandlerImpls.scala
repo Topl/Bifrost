@@ -31,7 +31,7 @@ class NodeViewRpcHandlerImpls(
       for {
         history <- getHistory()
       } yield ToplRpc.NodeView.Head.Response(
-        history.height.toString,
+        history.height,
         history.score,
         history.bestBlockId,
         history.bestBlock
@@ -41,20 +41,19 @@ class NodeViewRpcHandlerImpls(
     params =>
       for {
         state     <- getState()
-        addresses <- EitherT.fromEither[Future](checkAddresses(params.addresses, state))
+        addresses <- checkAddresses(params.addresses, state).toEitherT[Future]
       } yield balancesResponse(state, addresses)
 
   override val transactionById: ToplRpc.NodeView.TransactionById.rpc.ServerHandler =
     params =>
       for {
         history <- getHistory()
-        tResult <- EitherT.fromEither[Future](
-          history
-            .transactionById(params.transactionId)
-            .toRight[RpcError[_]](
-              InvalidParametersError.adhoc("Unable to find confirmed transaction", "modifierId")
-            )
-        )
+        tResult <- history
+          .transactionById(params.transactionId)
+          .toRight[RpcError](
+            InvalidParametersError.adhoc("Unable to find confirmed transaction", "modifierId")
+          )
+          .toEitherT[Future]
         (tx, blockId, blockNumber) = tResult
       } yield ToplRpc.NodeView.TransactionById.Response(tx, blockNumber, blockId)
 
@@ -62,26 +61,24 @@ class NodeViewRpcHandlerImpls(
     params =>
       for {
         history <- getHistory()
-        block <- EitherT.fromEither[Future](
-          history
-            .modifierById(params.blockId)
-            .toRight[RpcError[_]](
-              InvalidParametersError.adhoc("The requested block could not be found", "blockId")
-            )
-        )
+        block <- history
+          .modifierById(params.blockId)
+          .toRight[RpcError](
+            InvalidParametersError.adhoc("The requested block could not be found", "blockId")
+          )
+          .toEitherT[Future]
       } yield block
 
   override val blockByHeight: ToplRpc.NodeView.BlockByHeight.rpc.ServerHandler =
     params =>
       for {
         history <- getHistory()
-        block <- EitherT.fromEither[Future](
-          history
-            .modifierByHeight(params.height)
-            .toRight[RpcError[_]](
-              InvalidParametersError.adhoc("The requested block could not be found", "height")
-            )
-        )
+        block <- history
+          .modifierByHeight(params.height)
+          .toRight[RpcError](
+            InvalidParametersError.adhoc("The requested block could not be found", "height")
+          )
+          .toEitherT[Future]
       } yield block
 
   override val mempool: ToplRpc.NodeView.Mempool.rpc.ServerHandler =
@@ -95,11 +92,10 @@ class NodeViewRpcHandlerImpls(
     params =>
       for {
         pool <- getPool()
-        tx <- EitherT.fromEither[Future](
-          pool
-            .modifierById(params.transactionId)
-            .toRight[RpcError[_]](InvalidParametersError.adhoc("Unable to retrieve transaction", "transactionId"))
-        )
+        tx <- pool
+          .modifierById(params.transactionId)
+          .toRight[RpcError](InvalidParametersError.adhoc("Unable to retrieve transaction", "transactionId"))
+          .toEitherT[Future]
       } yield tx
 
   override val info: ToplRpc.NodeView.Info.rpc.ServerHandler =

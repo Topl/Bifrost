@@ -36,7 +36,7 @@ object ToplRpc {
     object IdsFromHeight {
       val rpc: Rpc[Params, Response] = Rpc("debug_idsFromHeight")
       case class Params(height: Long, limit: Int)
-      type Response = Seq[ModifierId]
+      type Response = List[ModifierId]
     }
   }
 
@@ -81,7 +81,7 @@ object ToplRpc {
       val rpc: Rpc[Params, Response] = Rpc("topl_head")
 
       case class Params()
-      case class Response(height: String, score: Long, bestBlockId: ModifierId, bestBlock: Block)
+      case class Response(height: Int128, score: Long, bestBlockId: ModifierId, bestBlock: Block)
     }
 
     object Balances {

@@ -5,27 +5,22 @@ import cats.implicits._
 import io.circe.syntax._
 import io.circe.{DecodingFailure, Encoder, Json}
 
-sealed abstract class RpcError[Data] {
+sealed abstract class RpcError {
   def code: Int
   def message: String
-  def data: Option[Data]
 }
 
-case object ParseError extends RpcError[None.type] {
+case object ParseError extends RpcError {
   override val code: Int = -32700
 
   override val message: String = "Invalid JSON"
-
-  override val data: Option[None.type] = None
 }
 
-case class InvalidRequestError(decodingFailure: DecodingFailure) extends RpcError[DecodingFailure] {
+case class InvalidRequestError(decodingFailure: DecodingFailure) extends RpcError {
 
   override def code: Int = InvalidRequestError.Code
 
   override def message: String = InvalidRequestError.Message
-
-  override def data: Option[DecodingFailure] = Some(decodingFailure)
 }
 
 object InvalidRequestError {
@@ -34,13 +29,11 @@ object InvalidRequestError {
   val Message: String = "Invalid RPC Request Format"
 }
 
-case class MethodNotFoundError(method: String) extends RpcError[MethodNotFoundError.Data] {
+case class MethodNotFoundError(method: String) extends RpcError {
 
   override def code: Int = MethodNotFoundError.Code
 
   override def message: String = MethodNotFoundError.Message
-
-  override def data: Option[MethodNotFoundError.Data] = Some(MethodNotFoundError.Data(method))
 }
 
 object MethodNotFoundError {
@@ -51,15 +44,11 @@ object MethodNotFoundError {
   val Message: String = "RPC Method Not Found"
 }
 
-case class InvalidParametersError(parameterErrors: NonEmptyChain[InvalidParametersError.Error])
-    extends RpcError[InvalidParametersError.Data] {
+case class InvalidParametersError(parameterErrors: NonEmptyChain[InvalidParametersError.Error]) extends RpcError {
 
   override def code: Int = InvalidParametersError.Code
 
   override def message: String = InvalidParametersError.Message
-
-  override def data: Option[InvalidParametersError.Data] =
-    Some(InvalidParametersError.Data(parameterErrors))
 }
 
 object InvalidParametersError {
@@ -82,14 +71,10 @@ object InvalidParametersError {
   val Message: String = "Invalid method parameter(s)"
 }
 
-case class InternalJsonRpcError(reason: String, throwable: Option[ThrowableData])
-    extends RpcError[InternalJsonRpcError.Data] {
+case class InternalJsonRpcError(reason: String, throwable: Option[ThrowableData]) extends RpcError {
   override def code: Int = InternalJsonRpcError.Code
 
   override def message: String = InternalJsonRpcError.Message
-
-  override def data: Option[InternalJsonRpcError.Data] =
-    Some(InternalJsonRpcError.Data(reason, throwable))
 }
 
 object InternalJsonRpcError {
@@ -100,14 +85,14 @@ object InternalJsonRpcError {
   val Message: String = "Internal JSON-RPC Error"
 }
 
-case class CustomError(code: Int, message: String, data: Option[Json]) extends RpcError[Json]
+case class CustomError(code: Int, message: String, data: Json = Json.Null) extends RpcError
 
 object CustomError {
 
   def fromThrowable(code: Int, message: String, throwable: Throwable)(implicit
     throwableEncoder:     Encoder[ThrowableData]
   ): CustomError =
-    CustomError(code, message, Some(ThrowableData(throwable).asJson))
+    CustomError(code, message, ThrowableData(throwable).asJson)
 }
 
 trait ThrowableData {
@@ -121,7 +106,8 @@ object ThrowableData {
     new ThrowableData {
       override def message: Option[String] = Option(throwable.getMessage)
 
-      override def stackTrace: Option[NonEmptyChain[String]] = NonEmptyChain.fromSeq(throwable.getStackTrace.map(_.toString))
+      override def stackTrace: Option[NonEmptyChain[String]] =
+        NonEmptyChain.fromSeq(throwable.getStackTrace.map(_.toString))
     }
 
   def apply(m: Option[String], s: Option[NonEmptyChain[String]]): ThrowableData =

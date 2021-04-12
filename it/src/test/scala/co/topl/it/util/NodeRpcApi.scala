@@ -128,7 +128,7 @@ case class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem, 
   ): Future[Either[NodeApiError, Done]] =
     Source
       .tick(Duration.Zero, period, {})
-      .mapAsync(1)(_ => Topl.head())
+      .mapAsync(1)(_ => ToplRpc.NodeView.Head.rpc.call.apply(ToplRpc.NodeView.Head.Params()).value)
       .collect {
         case Right(response) if response.height >= targetHeight =>
           Right(Done)
@@ -161,22 +161,6 @@ case class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem, 
       EitherT(rpc("admin_updateRewardsAddress", NonEmptyList.of(Map("address" -> address).asJson)))
         .subflatMap(_.hcursor.downField("result").downField("rewardsAddress").as[String].leftMap(JsonDecodingError))
         .value
-  }
-
-  object Topl {
-
-    def head(): Future[Either[NodeApiError, Responses.HeadResponse]] =
-      EitherT(rpc("topl_head"))
-        .subflatMap(_.hcursor.downField("result").as[Responses.HeadResponse].leftMap(JsonDecodingError))
-        .value
-
-    object Responses {
-      case class HeadResponse(height: Int128, score: Long, bestBlockId: String)
-
-      implicit val headResponseDecoder: Decoder[HeadResponse] =
-        Decoder.forProduct3("height", "score", "bestBlockId")(HeadResponse.apply)
-
-    }
   }
 }
 

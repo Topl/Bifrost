@@ -8,14 +8,11 @@ import io.circe.{Decoder, Encoder, _}
 
 trait RpcErrorCodecs {
 
-  val encodeNoData: Encoder[RpcError[_]] =
+  val encodeNoData: Encoder[RpcError] =
     a => Map("code" -> a.code.asJson, "message" -> a.message.asJson).asJson
 
-  implicit def encodeWithData[Data: Encoder, T <: RpcError[Data]]: Encoder[T] =
-    a =>
-      (Map("code" -> a.code.asJson, "message" -> a.message.asJson) ++ a.data.map(
-        "data"    -> implicitly[Encoder[Data]].apply(_)
-      )).asJson
+  private def encodeWithData[Data : Encoder](e: RpcError, data: Data): Json =
+    Map("code" -> e.code.asJson, "message" -> e.message.asJson, "data" -> data.asJson).asJson
 
   implicit val parseErrorCodec: Codec[ParseError.type] =
     Codec.from(
@@ -49,7 +46,7 @@ trait RpcErrorCodecs {
   implicit def internalJsonRpcErrorEncoder(implicit
     throwableEncoder: Encoder[ThrowableData]
   ): Encoder[InternalJsonRpcError] =
-    encodeWithData[InternalJsonRpcError.Data, InternalJsonRpcError]
+    e => e.throwable.fold(encodeNoData(e))(encodeWithData(e, _))
 
   import ThrowableSupport._
 
@@ -59,13 +56,13 @@ trait RpcErrorCodecs {
   implicit val invalidRequestErrorCodec: Codec[InvalidRequestError] =
     Codec.from(
       _.downField("data").downField("decodingFailure").as[DecodingFailure].map(InvalidRequestError.apply),
-      encodeWithData[DecodingFailure, InvalidRequestError]
+      e => encodeWithData(e, e.decodingFailure)
     )
 
   implicit val methodNotFoundErrorCodec: Codec[MethodNotFoundError] =
     Codec.from(
       _.downField("data").downField("method").as[String].map(MethodNotFoundError.apply),
-      encodeWithData[MethodNotFoundError.Data, MethodNotFoundError]
+      e => encodeWithData(e, MethodNotFoundError.Data(e.method))
     )
 
   implicit val invalidParametersErrorCodec: Codec[InvalidParametersError] =
@@ -74,13 +71,13 @@ trait RpcErrorCodecs {
         .downField("parameterErrors")
         .as[NonEmptyChain[InvalidParametersError.Error]]
         .map(InvalidParametersError.apply),
-      encodeWithData[InvalidParametersError.Data, InvalidParametersError]
+      e => encodeWithData(e, InvalidParametersError.Data(e.parameterErrors))
     )
 
   implicit val customErrorCodec: Codec[CustomError] =
     deriveCodec[CustomError]
 
-  implicit val rpcErrorDecoder: Decoder[RpcError[_]] =
+  implicit val rpcErrorDecoder: Decoder[RpcError] =
     c =>
       c.downField("code")
         .as[Int]
@@ -93,14 +90,14 @@ trait RpcErrorCodecs {
           case _                           => customErrorCodec(c)
         }
 
-  def rpcErrorDataEncoder(implicit throwableEncoder: Encoder[ThrowableData]): Encoder[RpcError[_]] =
-    Encoder.instance {
+  def encodeRpcData(a: RpcError)(implicit throwableEncoder: Encoder[ThrowableData]): Json =
+    a match {
       case ParseError                => Json.Null
-      case i: InvalidRequestError    => i.data.asJson
-      case i: MethodNotFoundError    => i.data.asJson
-      case i: InvalidParametersError => i.data.asJson
-      case i: InternalJsonRpcError   => i.data.asJson
-      case i: CustomError            => i.data.asJson
+      case e: InvalidRequestError    => e.decodingFailure.asJson
+      case e: MethodNotFoundError    => MethodNotFoundError.Data(e.method).asJson
+      case e: InvalidParametersError => InvalidParametersError.Data(e.parameterErrors).asJson
+      case e: InternalJsonRpcError   => e.throwable.fold(encodeNoData(e))(encodeWithData(e, _))
+      case e: CustomError            => e.data
     }
 }
 

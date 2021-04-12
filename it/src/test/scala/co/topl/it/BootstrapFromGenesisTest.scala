@@ -3,7 +3,6 @@ package co.topl.it
 import co.topl.it.util._
 import co.topl.utils.Int128
 import Int128._
-import akka.actor.Scheduler
 import co.topl.rpc.ToplRpc
 import com.typesafe.config.ConfigFactory
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
@@ -13,6 +12,9 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.{EitherValues, Inspectors}
 
 import scala.concurrent.duration._
+
+import co.topl.akkahttprpc.implicits.client._
+import co.topl.rpc.implicits.client._
 
 class BootstrapFromGenesisTest
     extends AnyFreeSpec
@@ -107,11 +109,11 @@ class BootstrapFromGenesisTest
     Thread.sleep(syncWindow.toMillis)
 
     val oldNodeHeight: Int128 =
-      oldNode.Topl.head().futureValue.value.height
+      ToplRpc.NodeView.Head.rpc(ToplRpc.NodeView.Head.Params()).value.futureValue.value.height
     logger.info(s"Old node height=$oldNodeHeight")
 
     val newNodeHeight: Int128 =
-      newNode.Topl.head().futureValue.value.height
+      ToplRpc.NodeView.Head.rpc(ToplRpc.NodeView.Head.Params()).value.futureValue.value.height
     logger.info(s"New node height=$newNodeHeight")
 
     oldNodeHeight shouldBe newNodeHeight +- 1

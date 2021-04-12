@@ -13,6 +13,9 @@ import org.scalatest.{EitherValues, Inspectors}
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import co.topl.akkahttprpc.implicits.client._
+import co.topl.rpc.ToplRpc
+import co.topl.rpc.implicits.client._
 
 // NOTE: This test currently fails because block difficulties diverge between nodes.  When nodes re-join, the blocks
 // can't be properly appended.
@@ -83,7 +86,7 @@ class ChainSelectionTest
     Thread.sleep(30.seconds.toMillis)
 
     logger.info("Comparing node heads")
-    val bestBlocks = nodes.map(_.Topl.head().futureValue.value)
+    val bestBlocks = nodes.map { implicit node => ToplRpc.NodeView.Head.rpc(ToplRpc.NodeView.Head.Params()).value.futureValue.value }
 
     logger.info(s"Best blocks: $bestBlocks")
 

@@ -3,7 +3,7 @@ package co.topl.akkahttprpc
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import cats.data.{EitherT, Kleisli}
+import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.ThrowableSupport.Verbose.verboseThrowableCodec
 import co.topl.akkahttprpc.implicits.server._
@@ -115,10 +115,8 @@ class RpcSpec
   it should "choose the correct handler" in {
 
     val underTest =
-      Rpc[TestMethodParams, TestMethodSuccess]("test_method2").serve(
-        Kleisli[Rpc.ServerResponse, TestMethodParams, TestMethodSuccess](params =>
-          EitherT.pure[Future, RpcError[_]](TestMethodSuccess(params.userId.length))
-        )
+      Rpc[TestMethodParams, TestMethodSuccess]("test_method2").serve(params =>
+        TestMethodSuccess(params.userId.length).asRight[RpcError].toEitherT[Future]
       ) ~ normalRoute
 
     Post(
@@ -157,10 +155,8 @@ class RpcSpec
 
   it should "return a custom error when an RPC results in an unhandled exception" in {
     val underTest =
-      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(
-        Kleisli[Rpc.ServerResponse, TestMethodParams, TestMethodSuccess](_ =>
-          EitherT[Future, RpcError[_], TestMethodSuccess](Future.failed(new Exception("Heck")))
-        )
+      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(_ =>
+        EitherT[Future, RpcError, TestMethodSuccess](Future.failed(new Exception("Heck")))
       )
 
     Post(
@@ -181,10 +177,8 @@ class RpcSpec
   it should "return a custom error when an RPC results in a known error" in {
 
     val underTest =
-      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(
-        Kleisli[Rpc.ServerResponse, TestMethodParams, TestMethodSuccess](_ =>
-          EitherT.leftT[Future, TestMethodSuccess](CustomError(-32005, "Heck", None))
-        )
+      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(_ =>
+        EitherT.leftT[Future, TestMethodSuccess](CustomError(-32005, "Heck"))
       )
 
     Post(
@@ -202,14 +196,10 @@ class RpcSpec
     }
   }
 
-  private def normalRoute: Route = {
-    val rpc = Rpc[TestMethodParams, TestMethodSuccess]("test_method1")
-    val handler: rpc.ServerHandler =
-      Kleisli[Rpc.ServerResponse, TestMethodParams, TestMethodSuccess](params =>
-        EitherT.pure[Future, RpcError[_]](TestMethodSuccess(params.userId.length))
-      )
-    rpc.serve(handler)
-  }
+  private def normalRoute: Route =
+    Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(params =>
+      TestMethodSuccess(params.userId.length).asRight[RpcError].toEitherT[Future]
+    )
 
 }
 

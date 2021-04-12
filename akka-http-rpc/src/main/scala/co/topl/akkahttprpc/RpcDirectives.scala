@@ -32,7 +32,7 @@ trait RpcDirectives {
     CustomError.fromThrowable(-32099, "Unknown server error", e)
   }
 
-  implicit def rpcErrorAsRejection(rpcError: RpcError[_]): Rejection =
+  implicit def rpcErrorAsRejection(rpcError: RpcError): Rejection =
     RpcErrorRejection(rpcError)
 
   def rpcRoute[RpcParams: Decoder, SuccessResult: Encoder](
@@ -64,7 +64,7 @@ trait RpcDirectives {
     complete(rawRpcResponse)
 
   def completeRpc(
-    error:               RpcError[_]
+    error:               RpcError
   )(implicit rpcContext: RpcContext, throwableEncoder: Encoder[ThrowableData]): StandardRoute =
     completeRpc(rpcErrorToFailureResponse(rpcContext, error))
 
@@ -85,7 +85,7 @@ trait RpcDirectives {
           .flatMap(
             parser
               .parse(_)
-              .leftMap(_ => ParseError: RpcError[_])
+              .leftMap(_ => ParseError: RpcError)
               .filterOrElse(_.isObject, ParseError)
               .flatMap(_.as[RpcContext].leftMap(InvalidRequestError.apply))
               .fold(reject(_), provide)
@@ -93,26 +93,24 @@ trait RpcDirectives {
       )
 
   private def rpcErrorToFailureResponseUnknownContext(
-    error:                     RpcError[_]
+    error:                     RpcError
   )(implicit throwableEncoder: Encoder[ThrowableData]): FailureRpcResponse = {
-    val json = rpcErrorDataEncoder(throwableEncoder).apply(error)
     FailureRpcResponse(
       UUID.randomUUID().toString,
       "2.0",
-      FailureRpcResponse.Error(error.code, error.message, Some(json))
+      FailureRpcResponse.Error(error.code, error.message, Some(encodeRpcData(error)))
     )
   }
 
-  private def rpcErrorToFailureResponse(request: RpcContext, error: RpcError[_])(implicit
+  private def rpcErrorToFailureResponse(request: RpcContext, error: RpcError)(implicit
     throwableEncoder:                            Encoder[ThrowableData]
-  ): FailureRpcResponse = {
-    val json = rpcErrorDataEncoder(throwableEncoder).apply(error)
+  ): FailureRpcResponse =
     FailureRpcResponse(
       request.id,
       request.jsonrpc,
-      FailureRpcResponse.Error(error.code, error.message, Some(json))
+      FailureRpcResponse.Error(error.code, error.message, Some(encodeRpcData(error)))
     )
-  }
+  
 }
 
 object RpcDirectives extends RpcDirectives
@@ -150,4 +148,4 @@ object RpcEncoders {
       .or((encodeFailureResponse: Decoder[FailureRpcResponse]).widen)
 }
 
-case class RpcErrorRejection(rpcError: RpcError[_]) extends Rejection
+case class RpcErrorRejection(rpcError: RpcError) extends Rejection

@@ -9,10 +9,9 @@ case class Rpc[P, SR](method: String) {
   type SuccessResponse = SR
   type ClientHandler = Rpc.ClientHandler[Params, SuccessResponse]
   type ServerHandler = Rpc.ServerHandler[Params, SuccessResponse]
-
 }
 
 object Rpc {
   type ClientHandler[-Params, SuccessResponse] = Params => EitherT[Future, RpcClientFailure, SuccessResponse]
-  type ServerHandler[-Params, SuccessResponse] = Params => EitherT[Future, RpcError[_], SuccessResponse]
+  type ServerHandler[-Params, SuccessResponse] = Params => EitherT[Future, RpcError, SuccessResponse]
 }
