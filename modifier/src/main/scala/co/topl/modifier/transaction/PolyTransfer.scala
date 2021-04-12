@@ -6,7 +6,7 @@ import co.topl.attestation._
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TxType
-import co.topl.modifier.transaction.TransferTransaction.{encodeFrom, BoxParams}
+import co.topl.modifier.transaction.TransferTransaction.{BoxParams, TransferCreationState, encodeFrom}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.codecs.Int128Codec
 import co.topl.utils.{Identifiable, Identifier, Int128}
@@ -19,31 +19,55 @@ case class PolyTransfer[
   P <: Proposition: EvidenceProducer: Identifiable
 ](
   override val from:        IndexedSeq[(Address, Box.Nonce)],
-  override val to:          IndexedSeq[(Address, TokenValueHolder)],
+  override val to:          IndexedSeq[(Address, SimpleValue)],
   override val attestation: Map[P, Proof[P]],
   override val fee:         Int128,
   override val timestamp:   Long,
   override val data:        Option[String] = None,
   override val minting:     Boolean = false
-) extends TransferTransaction[TokenValueHolder, P](from, to, attestation, fee, timestamp, data, minting) {
+) extends TransferTransaction[SimpleValue, P](from, to, attestation, fee, timestamp, data, minting) {
 
-  override lazy val newBoxes: Traversable[TokenBox[SimpleValue]] =
-    if (to.map(_._2.quantity).sum == 0 && fee == 0)
-    // this drops the rewards transaction when it is zero-valued
-      Traversable()
-    else {
-      val params = TransferTransaction.calculateBoxNonce(this)
 
-      // this is different from other transactions because the token being sent is the fee token
-      val feeChangeBox = Traversable(PolyBox(params._1.evidence, params._1.nonce, params._1.value))
-
-      val polyBoxes = params._2.map {
-        case BoxParams(ev, n, v: SimpleValue) => PolyBox(ev, n, v)
-        case _                                => throw new Error("Attempted application of invalid value holder")
-      }
-
-      feeChangeBox ++ polyBoxes
+  override val coinOutput: Traversable[PolyBox] =
+    coinOutputParams.collect {
+      case BoxParams(evi, nonce, value: SimpleValue) if value.quantity > 0 => PolyBox(evi, nonce, value)
     }
+
+  override val newBoxes: Traversable[TokenBox[SimpleValue]] = {
+    // this only creates an output if the value of the output boxes is non-zero
+    val hasReceipientOutput: Boolean = coinOutput.nonEmpty
+    val hasFeeChangeOutput: Boolean = feeChangeOutput.value.quantity > 0
+
+    // JAA - different logic here since Polys are the fee token, this allows a single output in 'to' to
+    //       produce a valid output.
+    (hasReceipientOutput, hasFeeChangeOutput) match {
+      case (false, false) => Traversable()
+      case (false, true) => Traversable(feeChangeOutput)
+      case (true, false) => coinOutput
+      case (true, true) => Traversable(feeChangeOutput) ++ coinOutput
+    }
+
+    //  override lazy val newBoxes: Traversable[TokenBox[SimpleValue]] =
+    //    if (to.map(_._2.quantity).sum == 0 && fee == 0)
+    //      // this drops the rewards transaction when it is zero-valued
+    //      Traversable()
+    //    else {
+    //      val params = TransferTransaction.calculateBoxNonce[SimpleValue](this, to)
+    //
+    //      println(s"\n>>>>>>>>>>>>>>> params: $params")
+    //
+    //      val feeChangeBox: Traversable[PolyBox] =
+    //        if (params._1.value.quantity > 0) Traversable(PolyBox(params._1.evidence, params._1.nonce, params._1.value))
+    //        else Traversable()
+    //
+    //      val polyBoxes: Traversable[PolyBox] = params._2
+    //        .map {
+    //          case BoxParams(ev, n, v: SimpleValue) if v.quantity > 0 => PolyBox(ev, n, v)
+    //      }
+    //
+    //      feeChangeBox ++ polyBoxes
+    //    }
+  }
 }
 
 object PolyTransfer {
@@ -72,24 +96,35 @@ object PolyTransfer {
     data:          Option[String]
   ): Try[PolyTransfer[P]] =
     TransferTransaction
-      .createRawTransferParams(boxReader, sender, fee, "Polys") // you always get Polys back
-      .map { txState =>
+      .getSenderBoxesAndCheckPolyBalance(boxReader, sender, fee, "Polys") // you always get Polys back
+      .map { txInputState =>
         // compute the amount of tokens that will be sent to the recipients
         val amtToSpend = toReceive.map(_._2.quantity).sum
 
         // create the list of inputs and outputs (senderChangeOut & recipientOut)
-        val (availableToSpend, inputs, outputs) =
-          (
-            txState.polyBalance - fee,
-            txState.senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce)),
-            (changeAddress, SimpleValue(txState.polyBalance - fee - amtToSpend)) +: toReceive
-          )
-
+        val (availableToSpend, inputs, outputs) = ioTransfer(txInputState, toReceive, changeAddress, fee, amtToSpend)
         // ensure there are sufficient funds from the sender boxes to create all outputs
         require(availableToSpend >= amtToSpend, "Insufficient funds available to create transaction.")
 
         PolyTransfer[P](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data)
       }
+
+  /** construct input and output box sequence for a transfer transaction */
+  private def ioTransfer(
+    txInputState:  TransferCreationState,
+    toReceive:     IndexedSeq[(Address, SimpleValue)],
+    changeAddress: Address,
+    fee:           Int128,
+    amtToSpend:    Int128
+  ): (Int128, IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, SimpleValue)]) = {
+
+    val availableToSpend = txInputState.polyBalance - fee
+    val inputs = txInputState.senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce))
+    val outputs = (changeAddress, SimpleValue(txInputState.polyBalance - fee - amtToSpend)) +: toReceive
+    val filterZeroChange = outputs.filter(_._2.quantity > 0)
+
+    (availableToSpend, inputs, filterZeroChange)
+  }
 
   implicit def jsonEncoder[P <: Proposition]: Encoder[PolyTransfer[P]] = { tx: PolyTransfer[P] =>
     Map(
