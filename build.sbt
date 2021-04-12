@@ -5,26 +5,28 @@ val scala212 = "2.12.13"
 val scala213 = "2.13.5"
 val GraalVM8 = "graalvm-ce-java8@20.2.0"
 
-organization in ThisBuild := "co.topl"
-ThisBuild / scalaVersion := scala212
-ThisBuild / crossScalaVersions := Seq(scala212, scala213)
-
-ThisBuild / dynverSeparator := "-"
-ThisBuild / githubWorkflowJavaVersions := Seq(GraalVM8)
-ThisBuild / githubWorkflowTargetBranches := Seq("main", "dev", "sbt-release")
-ThisBuild / githubWorkflowTargetTags ++= Seq("v*")
-ThisBuild / githubWorkflowPublishTargetBranches += RefPredicate.StartsWith(Ref.Tag("v"))
-ThisBuild / githubWorkflowPublish := Seq(
-  WorkflowStep.Sbt(
-    List("ci-release"),
-    env = Map(
-      "PGP_PASSPHRASE" -> "${{ secrets.PGP_PASSPHRASE }}",
-      "PGP_SECRET" -> "${{ secrets.PGP_SECRET }}",
-      "SONATYPE_PASSWORD" -> "${{ secrets.SONATYPE_PASSWORD }}",
-      "SONATYPE_USERNAME" -> "${{ secrets.SONATYPE_USERNAME }}"
+inThisBuild(List(
+  organization := "co.topl",
+  scalaVersion := scala212,
+  crossScalaVersions := Seq(scala212, scala213),
+  dynverSeparator := "-",
+  githubWorkflowJavaVersions := Seq(GraalVM8),
+  githubWorkflowTargetBranches := Seq("main", "dev", "sbt-release"),
+  githubWorkflowTargetTags ++= Seq("v*"),
+  githubWorkflowPublishTargetBranches += RefPredicate.StartsWith(Ref.Tag("v")),
+  githubWorkflowPublish := Seq(
+    WorkflowStep.Sbt(
+      List("ci-release"),
+      env = Map(
+        "PGP_PASSPHRASE" -> "${{ secrets.PGP_PASSPHRASE }}",
+        "PGP_SECRET" -> "${{ secrets.PGP_SECRET }}",
+        "SONATYPE_PASSWORD" -> "${{ secrets.SONATYPE_PASSWORD }}",
+        "SONATYPE_USERNAME" -> "${{ secrets.SONATYPE_USERNAME }}"
+      )
     )
   )
-)
+))
+
 
 lazy val commonSettings = Seq(
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
@@ -238,9 +240,7 @@ lazy val node = project.in(file("node"))
   .settings(
     name := "node",
     commonSettings,
-    publishSettings,
-    doNotPublishSettings,
-    crossScalaVersions := Nil,
+    publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
     dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java8-21.0.0",
