@@ -27,7 +27,6 @@ case class PolyTransfer[
   override val minting:     Boolean = false
 ) extends TransferTransaction[SimpleValue, P](from, to, attestation, fee, timestamp, data, minting) {
 
-
   override val coinOutput: Traversable[PolyBox] =
     coinOutputParams.collect {
       case BoxParams(evi, nonce, value: SimpleValue) if value.quantity > 0 => PolyBox(evi, nonce, value)
@@ -38,35 +37,12 @@ case class PolyTransfer[
     val hasReceipientOutput: Boolean = coinOutput.nonEmpty
     val hasFeeChangeOutput: Boolean = feeChangeOutput.value.quantity > 0
 
-    // JAA - different logic here since Polys are the fee token, this allows a single output in 'to' to
-    //       produce a valid output.
     (hasReceipientOutput, hasFeeChangeOutput) match {
       case (false, false) => Traversable()
-      case (false, true) => Traversable(feeChangeOutput)
+      case (false, true) => Traversable(feeChangeOutput) // JAA - only possible because this is Poly TX
       case (true, false) => coinOutput
       case (true, true) => Traversable(feeChangeOutput) ++ coinOutput
     }
-
-    //  override lazy val newBoxes: Traversable[TokenBox[SimpleValue]] =
-    //    if (to.map(_._2.quantity).sum == 0 && fee == 0)
-    //      // this drops the rewards transaction when it is zero-valued
-    //      Traversable()
-    //    else {
-    //      val params = TransferTransaction.calculateBoxNonce[SimpleValue](this, to)
-    //
-    //      println(s"\n>>>>>>>>>>>>>>> params: $params")
-    //
-    //      val feeChangeBox: Traversable[PolyBox] =
-    //        if (params._1.value.quantity > 0) Traversable(PolyBox(params._1.evidence, params._1.nonce, params._1.value))
-    //        else Traversable()
-    //
-    //      val polyBoxes: Traversable[PolyBox] = params._2
-    //        .map {
-    //          case BoxParams(ev, n, v: SimpleValue) if v.quantity > 0 => PolyBox(ev, n, v)
-    //      }
-    //
-    //      feeChangeBox ++ polyBoxes
-    //    }
   }
 }
 

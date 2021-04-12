@@ -43,32 +43,6 @@ case class ArbitTransfer[
       case (true, true)  => Traversable(feeChangeOutput) ++ coinOutput
     }
   }
-
-
-
-//
-//
-//  override val newBoxes_old: Traversable[TokenBox[SimpleValue]] = {
-//    if (to.map(_._2.quantity).sum == 0 && fee == 0)
-//    // this drops the rewards transaction when it is zero-valued
-//      Traversable()
-//    else {
-//      val params =
-//
-//      println(s"\n>>>>>>>>> arbit boxParams: $params")
-//
-//      val feeChangeBox: Traversable[PolyBox] =
-//        if (params._1.value.quantity > 0) Traversable(PolyBox(params._))
-//        else Traversable()
-//
-//      val arbitBoxes: Traversable[ArbitBox] = params._2
-//        .map {
-//          case BoxParams(ev, n, v: SimpleValue) if v.quantity > 0 => ArbitBox(ev, n, v)
-//        }
-//
-//      feeChangeBox ++ arbitBoxes
-//    }
-//  }
 }
 
 object ArbitTransfer {
@@ -140,8 +114,6 @@ object ArbitTransfer {
       (changeAddress, SimpleValue(txInputState.polyBalance - fee)),
       (consolidationAddress, SimpleValue(availableToSpend - amtToSpend))
     ) ++ toReceive
-
-    println(s"\n>>>>>>>>>>>>> arbit transfer ioTransfer outputs: $outputs")
 
     (availableToSpend, inputs, outputs)
   }

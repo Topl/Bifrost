@@ -240,8 +240,6 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
         case Failure(ex) => throw ex
       }
 
-      println(s">>>>>>>>>>> Attempting forging with mempool: $memPool")
-
       // pick the transactions from the mempool for inclusion in the block (if successful)
       val transactions = pickTransactions(memPool, state, history.height) match {
         case Success(res) =>

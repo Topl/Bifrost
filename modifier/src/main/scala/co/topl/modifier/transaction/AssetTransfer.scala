@@ -27,7 +27,6 @@ case class AssetTransfer[
   override val minting:     Boolean = false
 ) extends TransferTransaction[TokenValueHolder, P](from, to, attestation, fee, timestamp, data, minting) {
 
-
   override val coinOutput: Traversable[AssetBox] =
     coinOutputParams.collect {
       case BoxParams(evi, nonce, value: AssetValue) if value.quantity > 0 => AssetBox(evi, nonce, value)
@@ -43,27 +42,6 @@ case class AssetTransfer[
       case (true, false) => coinOutput
       case (true, true) => Traversable(feeChangeOutput) ++ coinOutput
     }
-
-    //  override lazy val newBoxes: Traversable[TokenBox[TokenValueHolder]] = {
-    //    if (to.map(_._2.quantity).sum == 0 && fee == 0)
-    //    // this drops the rewards transaction when it is zero-valued
-    //      Traversable()
-    //    else {
-    //      val params = TransferTransaction.calculateBoxNonce(this, to)
-    //
-    //      // if the fee spends the entire poly box input then this output will be zero (en shouldn't make a box in state)
-    //      val feeChangeBox: Traversable[PolyBox] =
-    //        if (params._1.value.quantity > 0) Traversable(PolyBox(params._1.evidence, params._1.nonce, params._1.value))
-    //        else Traversable()
-    //
-    //      val assetBoxes: Traversable[AssetBox] = params._2
-    //        .map {
-    //          case BoxParams(ev, n, v: AssetValue) if v.quantity > 0 => AssetBox(ev, n, v)
-    //        }
-    //
-    //      feeChangeBox ++ assetBoxes
-    //    }
-    //  }
   }
 }
 
@@ -108,7 +86,7 @@ object AssetTransfer {
         // compute the amount of tokens that will be sent to the recipients
         val amtToSpend = toReceive.map(_._2.quantity).sum
 
-        // if no consolidationAddress provideed, then default to the change address
+        // if no consolidationAddress provided, then default to the change address
         val consolidationAddr = consolidationAddress.getOrElse(changeAddress)
 
         // create the list of inputs and outputs (senderChangeOut & recipientOut)
