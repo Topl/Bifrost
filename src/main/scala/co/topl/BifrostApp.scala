@@ -6,7 +6,7 @@ import akka.io.Tcp
 import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.akkahttprpc.{ThrowableData, ThrowableSupport}
-import co.topl.consensus.{Forger, ForgerRef}
+import co.topl.consensus.{ActorForgerInterface, ActorKeyManagerInterface, Forger, ForgerRef}
 import co.topl.http.HttpService
 import co.topl.http.api.ApiEndpoint
 import co.topl.http.api.endpoints._
@@ -121,21 +121,24 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
   /** Create and register controllers for API routes */
-  private val apiRoutes: Seq[ApiEndpoint] = Seq(
-    AdminApiEndpoint(settings.rpcApi, appContext, forgerRef)
-  )
+  private val apiRoutes: Seq[ApiEndpoint] = Nil
 
   implicit val throwableEncoder: Encoder[ThrowableData] =
     ThrowableSupport.verbose(settings.rpcApi.verboseAPI)
+
+  private val forgerInterface = new ActorForgerInterface(forgerRef)
+  private val keyManagerInterface = new ActorKeyManagerInterface(forgerRef)
+  private val nodeViewHolderInterface = new ActorNodeViewHolderInterface(nodeViewHolderInterface)
 
   private val bifrostRpcServer: ToplRpcServer = {
     import co.topl.rpc.handlers._
     new ToplRpcServer(
       ToplRpcHandlers(
-        new DebugRpcHandlerImpls(nodeViewHolderRef, forgerRef),
+        new DebugRpcHandlerImpls(nodeViewHolderInterface, keyManagerInterface),
         new UtilsRpcHandlerImpls,
-        new NodeViewRpcHandlerImpls(appContext, nodeViewHolderRef, nodeViewHolderRef, nodeViewHolderRef),
-        new TransactionRpcHandlerImpls(nodeViewHolderRef, nodeViewHolderRef)
+        new NodeViewRpcHandlerImpls(appContext, nodeViewHolderInterface),
+        new TransactionRpcHandlerImpls(nodeViewHolderInterface),
+        new AdminRpcHandlerImpls(forgerInterface, keyManagerInterface)
       ),
       appContext
     )

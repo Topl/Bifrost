@@ -6,7 +6,8 @@ case class ToplRpcHandlers(
   debug: ToplRpcHandlers.Debug,
   utils: ToplRpcHandlers.Utils,
   nodeView: ToplRpcHandlers.NodeView,
-  transaction: ToplRpcHandlers.Transaction
+  transaction: ToplRpcHandlers.Transaction,
+  admin: ToplRpcHandlers.Admin
 )
 
 object ToplRpcHandlers {
@@ -42,5 +43,17 @@ object ToplRpcHandlers {
     def rawArbitTransfer: ToplRpc.Transaction.RawArbitTransfer.rpc.ServerHandler
     def rawPolyTransfer: ToplRpc.Transaction.RawPolyTransfer.rpc.ServerHandler
     def broadcastTx: ToplRpc.Transaction.BroadcastTx.rpc.ServerHandler
+  }
+
+  trait Admin {
+    def unlockKeyfile: ToplRpc.Admin.UnlockKeyfile.rpc.ServerHandler
+    def lockKeyfile: ToplRpc.Admin.LockKeyfile.rpc.ServerHandler
+    def generateKeyfile: ToplRpc.Admin.GenerateKeyfile.rpc.ServerHandler
+    def importSeedPhrase: ToplRpc.Admin.ImportSeedPhrase.rpc.ServerHandler
+    def listOpenKeyfiles: ToplRpc.Admin.ListOpenKeyfiles.rpc.ServerHandler
+    def startForging: ToplRpc.Admin.StartForging.rpc.ServerHandler
+    def stopForging: ToplRpc.Admin.StopForging.rpc.ServerHandler
+    def updateRewardsAddress: ToplRpc.Admin.UpdateRewardsAddress.rpc.ServerHandler
+    def getRewardsAddress: ToplRpc.Admin.GetRewardsAddress.rpc.ServerHandler
   }
 }

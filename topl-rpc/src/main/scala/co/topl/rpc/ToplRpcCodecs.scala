@@ -8,9 +8,9 @@ import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer,
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.codecs.Int128Codec
+import io.circe._
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.syntax._
-import io.circe.{Decoder, Encoder}
 
 trait ToplRpcCodecs extends ToplRpcClientCodecs with ToplRpcServerCodecs
 
@@ -19,10 +19,12 @@ trait ToplRpcClientCodecs
     with UtilRpcParamsEncoders
     with NodeViewRpcParamsEncoders
     with TransactionRpcParamsEncoders
+    with AdminRpcParamsEncoders
     with DebugRpcResponseDecoders
     with UtilRpcResponseDecoders
     with NodeViewRpcResponseDecoders
     with TransactionRpcResponseDecoders
+    with AdminRpcResponseDecoders
 
 trait DebugRpcParamsEncoders {
 
@@ -96,9 +98,36 @@ trait TransactionRpcParamsEncoders extends SharedCodecs {
   implicit val transactionRawPolyTransferParamsEncoder: Encoder[ToplRpc.Transaction.RawPolyTransfer.Params] =
     deriveEncoder
 
-//  implicit val transactionBroadcastParamsEncoder: Encoder[ToplRpc.Transaction.BroadcastTx.Params] =
-//    deriveEncoder
+}
 
+trait AdminRpcParamsEncoders extends SharedCodecs {
+
+  implicit val unlockKeyfileParamsEncoder: Encoder[ToplRpc.Admin.UnlockKeyfile.Params] =
+    deriveEncoder
+
+  implicit val lockKeyfileParamsEncoder: Encoder[ToplRpc.Admin.LockKeyfile.Params] =
+    deriveEncoder
+
+  implicit val generateKeyfileParamsEncoder: Encoder[ToplRpc.Admin.GenerateKeyfile.Params] =
+    deriveEncoder
+
+  implicit val importSeedPhraseParamsEncoder: Encoder[ToplRpc.Admin.ImportSeedPhrase.Params] =
+    deriveEncoder
+
+  implicit val listOpenKeyfilesParamsEncoder: Encoder[ToplRpc.Admin.ListOpenKeyfiles.Params] =
+    deriveEncoder
+
+  implicit val startForgingParamsEncoder: Encoder[ToplRpc.Admin.StartForging.Params] =
+    deriveEncoder
+
+  implicit val stopForgingParamsEncoder: Encoder[ToplRpc.Admin.StopForging.Params] =
+    deriveEncoder
+
+  implicit val updateRewardsAddressParamsEncoder: Encoder[ToplRpc.Admin.UpdateRewardsAddress.Params] =
+    deriveEncoder
+
+  implicit val getRewardsAddressParamsEncoder: Encoder[ToplRpc.Admin.GetRewardsAddress.Params] =
+    deriveEncoder
 }
 
 trait DebugRpcResponseDecoders {
@@ -142,26 +171,10 @@ trait NodeViewRpcResponseDecoders extends SharedCodecs {
   ): Decoder[ToplRpc.NodeView.Head.Response] =
     deriveDecoder
 
-//  implicit val nodeViewBalancesResponseDecoder: Decoder[ToplRpc.NodeView.Balances.Response] =
-//    deriveDecoder
-
   implicit def nodeViewTransactionByIdResponseDecoder(implicit
     networkPrefix: NetworkPrefix
   ): Decoder[ToplRpc.NodeView.TransactionById.Response] =
     Decoder.forProduct3("transaction", "blockNumber", "blockId")(ToplRpc.NodeView.TransactionById.Response.apply)
-
-//  implicit val nodeViewBlockByIdResponseDecoder: Decoder[ToplRpc.NodeView.BlockById.Response] =
-//    deriveDecoder
-
-//  implicit val nodeViewBlockByHeightResponseDecoder: Decoder[ToplRpc.NodeView.BlockByHeight.Response] =
-//    deriveDecoder
-
-//  implicit val nodeViewMempoolResponseDecoder: Decoder[ToplRpc.NodeView.Mempool.Response] =
-//    deriveDecoder
-
-//  implicit val nodeViewTransactionFromMempoolResponseDecoder
-//    : Decoder[ToplRpc.NodeView.TransactionFromMempool.Response] =
-//    deriveDecoder
 
   implicit val nodeViewInfoResponseDecoder: Decoder[ToplRpc.NodeView.Info.Response] =
     deriveDecoder
@@ -183,8 +196,42 @@ trait TransactionRpcResponseDecoders extends SharedCodecs {
     networkPrefix: NetworkPrefix
   ): Decoder[ToplRpc.Transaction.RawPolyTransfer.Response] =
     deriveDecoder
-//  implicit def transactionBroadcastResponseDecoder(implicit networkPrefix: NetworkPrefix): Decoder[ToplRpc.Transaction.BroadcastTx.Response] =
-//    deriveDecoder
+}
+
+trait AdminRpcResponseDecoders extends SharedCodecs {
+
+  implicit val unlockKeyfileResponseDecoder: Decoder[ToplRpc.Admin.UnlockKeyfile.Response] =
+    Decoder.decodeMap
+
+  implicit val lockKeyfileResponseDecoder: Decoder[ToplRpc.Admin.LockKeyfile.Response] =
+    Decoder.decodeMap
+
+  implicit def generateKeyfileResponseDecoder(implicit
+    networkPrefix: NetworkPrefix
+  ): Decoder[ToplRpc.Admin.GenerateKeyfile.Response] =
+    deriveDecoder
+
+  implicit def importSeedPhraseResponseDecoder(implicit
+    networkPrefix: NetworkPrefix
+  ): Decoder[ToplRpc.Admin.ImportSeedPhrase.Response] =
+    deriveDecoder
+
+  implicit def listOpenKeyfilesResponseDecoder(implicit
+    networkPrefix: NetworkPrefix
+  ): Decoder[ToplRpc.Admin.ListOpenKeyfiles.Response] =
+    deriveDecoder
+
+  implicit val startForgingResponseDecoder: Decoder[ToplRpc.Admin.StartForging.Response] =
+    deriveDecoder
+
+  implicit val stopForgingResponseDecoder: Decoder[ToplRpc.Admin.StopForging.Response] =
+    deriveDecoder
+
+  implicit val updateRewardsAddressResponseDecoder: Decoder[ToplRpc.Admin.UpdateRewardsAddress.Response] =
+    deriveDecoder
+
+  implicit val getRewardsAddressResponseDecoder: Decoder[ToplRpc.Admin.GetRewardsAddress.Response] =
+    deriveDecoder
 }
 
 trait ToplRpcServerCodecs
@@ -192,10 +239,12 @@ trait ToplRpcServerCodecs
     with UtilRpcParamsDecoders
     with NodeViewRpcParamsDecoders
     with TransactionRpcParamsDecoders
+    with AdminRpcParamsDecoders
     with DebugRpcResponseEncoders
     with UtilRpcResponseEncoders
     with NodeViewRpcResponseEncoders
     with TransactionRpcResponseEncoders
+    with AdminRpcResponseEncoders
 
 trait DebugRpcParamsDecoders extends SharedCodecs {
 
@@ -287,6 +336,38 @@ trait TransactionRpcParamsDecoders extends SharedCodecs {
 
 }
 
+trait AdminRpcParamsDecoders extends SharedCodecs {
+
+  implicit val unlockKeyfileParamsDecoder: Decoder[ToplRpc.Admin.UnlockKeyfile.Params] =
+    deriveDecoder
+
+  implicit val lockKeyfileParamsDecoder: Decoder[ToplRpc.Admin.LockKeyfile.Params] =
+    deriveDecoder
+
+  implicit val generateKeyfileParamsDecoder: Decoder[ToplRpc.Admin.GenerateKeyfile.Params] =
+    deriveDecoder
+
+  implicit val importSeedPhraseParamsDecoder: Decoder[ToplRpc.Admin.ImportSeedPhrase.Params] =
+    deriveDecoder
+
+  implicit val listOpenKeyfilesParamsDecoder: Decoder[ToplRpc.Admin.ListOpenKeyfiles.Params] =
+    deriveDecoder
+
+  implicit val startForgingParamsDecoder: Decoder[ToplRpc.Admin.StartForging.Params] =
+    deriveDecoder
+
+  implicit val stopForgingParamsDecoder: Decoder[ToplRpc.Admin.StopForging.Params] =
+    deriveDecoder
+
+  implicit def updateRewardsAddressParamsDecoder(implicit
+    networkPrefix: NetworkPrefix
+  ): Decoder[ToplRpc.Admin.UpdateRewardsAddress.Params] =
+    deriveDecoder
+
+  implicit val getRewardsAddressParamsDecoder: Decoder[ToplRpc.Admin.GetRewardsAddress.Params] =
+    deriveDecoder
+}
+
 trait DebugRpcResponseEncoders extends SharedCodecs {
 
   implicit val debugDelayResponseEncoder: Encoder[ToplRpc.Debug.Delay.Response] =
@@ -360,18 +441,36 @@ trait TransactionRpcResponseEncoders extends SharedCodecs {
 
   implicit val transactionRawPolyTransferResponseEncoder: Encoder[ToplRpc.Transaction.RawPolyTransfer.Response] =
     deriveEncoder
+}
 
-  // These are here but commented out because they can already be derived from previous implicits
-  //  implicit val nodeViewMempoolResponseEncoder: Encoder[ToplRpc.NodeView.Mempool.Response] =
-  //    deriveEncoder
-  //  implicit val nodeViewTransactionFromMempoolResponseEncoder: Encoder[ToplRpc.NodeView.TransactionFromMempool.Response] =
-  //    deriveEncoder
-  //  implicit val nodeViewBlockByIdResponseEncoder: Encoder[ToplRpc.NodeView.BlockById.Response] =
-  //    deriveEncoder
-  //  implicit val nodeViewBlockByHeightResponseEncoder: Encoder[ToplRpc.NodeView.BlockByHeight.Response] =
-  //    deriveEncoder
-  //  implicit val transactionBroadcastTxResponseEncoder: Encoder[ToplRpc.Transaction.BroadcastTx.Response] =
-  //    deriveEncoder
+trait AdminRpcResponseEncoders extends SharedCodecs {
+
+  implicit val unlockKeyfileResponseEncoder: Encoder[ToplRpc.Admin.UnlockKeyfile.Response] =
+    Encoder.encodeMap
+
+  implicit val lockKeyfileResponseEncoder: Encoder[ToplRpc.Admin.LockKeyfile.Response] =
+    Encoder.encodeMap
+
+  implicit val generateKeyfileResponseEncoder: Encoder[ToplRpc.Admin.GenerateKeyfile.Response] =
+    deriveEncoder
+
+  implicit val importSeedPhraseResponseEncoder: Encoder[ToplRpc.Admin.ImportSeedPhrase.Response] =
+    deriveEncoder
+
+  implicit val listOpenKeyfilesResponseEncoder: Encoder[ToplRpc.Admin.ListOpenKeyfiles.Response] =
+    deriveEncoder
+
+  implicit val startForgingResponseEncoder: Encoder[ToplRpc.Admin.StartForging.Response] =
+    deriveEncoder
+
+  implicit val stopForgingResponseEncoder: Encoder[ToplRpc.Admin.StopForging.Response] =
+    deriveEncoder
+
+  implicit val updateRewardsAddressResponseEncoder: Encoder[ToplRpc.Admin.UpdateRewardsAddress.Response] =
+    deriveEncoder
+
+  implicit val getRewardsAddressResponseEncoder: Encoder[ToplRpc.Admin.GetRewardsAddress.Response] =
+    deriveEncoder
 }
 
 trait SharedCodecs {

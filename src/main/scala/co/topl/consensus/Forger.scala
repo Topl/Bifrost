@@ -1,6 +1,11 @@
 package co.topl.consensus
 
+import akka.Done
 import akka.actor._
+import akka.util.Timeout
+import cats.data.EitherT
+import cats.implicits._
+import co.topl.akka.AskException
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, AddressEncoder, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.Forger.{ChainParams, PickTransactionsResult}
@@ -10,7 +15,11 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.CurrentView
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{EliminateTransactions, GetDataFromCurrentView, LocallyGeneratedModifier}
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{
+  EliminateTransactions,
+  GetDataFromCurrentView,
+  LocallyGeneratedModifier
+}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
@@ -19,7 +28,8 @@ import co.topl.utils.NetworkType._
 import co.topl.utils.TimeProvider.Time
 import co.topl.utils.{Int128, Logging, TimeProvider}
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
+import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
 
 /** Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
@@ -340,7 +350,9 @@ class Forger(settings: AppSettings, appContext: AppContext)(implicit ec: Executi
 
     memPool
       .take[Int128](numTxInBlock(chainHeight))(-_.tx.fee) // returns a sequence of transactions ordered by their fee
-      .filter(_.tx.fee > settings.forging.minTransactionFee) // default strategy ignores zero fee transactions in mempool
+      .filter(
+        _.tx.fee > settings.forging.minTransactionFee
+      ) // default strategy ignores zero fee transactions in mempool
       .foldLeft(PickTransactionsResult(Seq(), Seq())) { case (txAcc, utx) =>
         // ensure that each transaction opens a unique box by checking that this transaction
         // doesn't open a box already being opened by a previously included transaction
@@ -511,4 +523,114 @@ object ForgerRef {
     ec:           ExecutionContext
   ): ActorRef =
     system.actorOf(props(settings, appContext), name)
+}
+
+sealed trait UnlockKeyFailure
+case class UnlockKeyFailureException(throwable: Throwable) extends UnlockKeyFailure
+sealed trait LockKeyFailure
+case class LockKeyFailureException(throwable: Throwable) extends LockKeyFailure
+sealed trait CreateKeyFailure
+case class CreateKeyFailureException(throwable: Throwable) extends CreateKeyFailure
+sealed trait ImportKeyFailure
+case class ImportKeyFailureException(throwable: Throwable) extends ImportKeyFailure
+sealed trait GetRewardsAddressFailure
+case class GetRewardsAddressFailureException(throwable: Throwable) extends GetRewardsAddressFailure
+sealed trait UpdateRewardsAddressFailure
+case class UpdateRewardsAddressFailureException(throwable: Throwable) extends UpdateRewardsAddressFailure
+sealed trait ListOpenKeyfilesFailure
+case class ListOpenKeyfilesFailureException(throwable: Throwable) extends ListOpenKeyfilesFailure
+
+trait KeyManagerInterface {
+  def unlockKey(address:  String, password: String): EitherT[Future, UnlockKeyFailure, Address]
+  def lockKey(address:    Address): EitherT[Future, LockKeyFailure, Done.type]
+  def createKey(password: String): EitherT[Future, CreateKeyFailure, Address]
+  def importKey(password: String, mnemonic: String, lang: String): EitherT[Future, ImportKeyFailure, Address]
+  def getRewardsAddress(): EitherT[Future, GetRewardsAddressFailure, String]
+  def updateRewardsAddress(address: Address): EitherT[Future, UpdateRewardsAddressFailure, Done.type]
+  def listOpenKeyfiles(): EitherT[Future, ListOpenKeyfilesFailure, Set[Address]]
+}
+
+class ActorKeyManagerInterface(actorRef: ActorRef)(implicit ec: ExecutionContext, timeout: Timeout)
+    extends KeyManagerInterface {
+  import co.topl.akka.CatsActor._
+
+  override def unlockKey(address: String, password: String): EitherT[Future, UnlockKeyFailure, Address] =
+    actorRef
+      .askEither[Try[Address]](Forger.ReceivableMessages.UnlockKey(address, password))
+      .leftMap { case AskException(throwable) => UnlockKeyFailureException(throwable) }
+      .subflatMap(_.toEither.leftMap(UnlockKeyFailureException))
+
+  override def lockKey(address: Address): EitherT[Future, LockKeyFailure, Done.type] =
+    actorRef
+      .askEither[Try[_]](Forger.ReceivableMessages.LockKey(address))
+      .leftMap { case AskException(throwable) => LockKeyFailureException(throwable) }
+      .subflatMap(_.toEither.leftMap(LockKeyFailureException))
+      .map(_ => Done)
+      .leftMap(e => e: LockKeyFailure)
+
+  override def createKey(password: String): EitherT[Future, CreateKeyFailure, Address] =
+    actorRef
+      .askEither[Try[Address]](Forger.ReceivableMessages.CreateKey(password))
+      .leftMap { case AskException(throwable) => CreateKeyFailureException(throwable) }
+      .subflatMap(_.toEither.leftMap(CreateKeyFailureException))
+      .leftMap(e => e: CreateKeyFailure)
+
+  override def importKey(
+    password: String,
+    mnemonic: String,
+    lang:     String
+  ): EitherT[Future, ImportKeyFailure, Address] =
+    actorRef
+      .askEither[Try[Address]](Forger.ReceivableMessages.ImportKey(password, mnemonic = mnemonic, lang = lang))
+      .leftMap { case AskException(throwable) => ImportKeyFailureException(throwable) }
+      .subflatMap(_.toEither.leftMap(ImportKeyFailureException))
+      .leftMap(e => e: ImportKeyFailure)
+
+  override def getRewardsAddress(): EitherT[Future, GetRewardsAddressFailure, String] =
+    actorRef
+      .askEither[String](Forger.ReceivableMessages.GetRewardsAddress)
+      .leftMap { case AskException(throwable) => GetRewardsAddressFailureException(throwable) }
+      .leftMap(e => e: GetRewardsAddressFailure)
+
+  override def updateRewardsAddress(address: Address): EitherT[Future, UpdateRewardsAddressFailure, Done.type] =
+    actorRef
+      .askEither[String](Forger.ReceivableMessages.UpdateRewardsAddress(address))
+      .leftMap { case AskException(throwable) => UpdateRewardsAddressFailureException(throwable) }
+      .leftMap(e => e: UpdateRewardsAddressFailure)
+      .map(_ => Done)
+
+  override def listOpenKeyfiles(): EitherT[Future, ListOpenKeyfilesFailure, Set[Address]] =
+    actorRef
+      .askEither[Set[Address]](Forger.ReceivableMessages.ListKeys)
+      .leftMap { case AskException(throwable) => ListOpenKeyfilesFailureException(throwable) }
+      .leftMap(e => e: ListOpenKeyfilesFailure)
+}
+
+object ActorKeyManagerInterface {
+
+  implicit def interface(actorRef: ActorRef)(implicit ec: ExecutionContext, timeout: Timeout): ActorKeyManagerInterface =
+    new ActorKeyManagerInterface(actorRef)
+}
+
+sealed trait StartForgingFailure
+sealed trait StopForgingFailure
+
+trait ForgerInterface {
+  def startForging(): EitherT[Future, StartForgingFailure, Done.type]
+  def stopForging(): EitherT[Future, StopForgingFailure, Done.type]
+}
+
+class ActorForgerInterface(actorRef: ActorRef)(implicit ec: ExecutionContext) extends ForgerInterface {
+
+  override def startForging(): EitherT[Future, StartForgingFailure, Done.type] =
+    (actorRef ! Forger.ReceivableMessages.StartForging).asRight[StartForgingFailure].map(_ => Done).toEitherT[Future]
+
+  override def stopForging(): EitherT[Future, StopForgingFailure, Done.type] =
+    (actorRef ! Forger.ReceivableMessages.StopForging).asRight[StopForgingFailure].map(_ => Done).toEitherT[Future]
+}
+
+object ActorForgerInterface {
+
+  implicit def interface(actorRef: ActorRef)(implicit ec: ExecutionContext): ActorForgerInterface =
+    new ActorForgerInterface(actorRef)
 }

@@ -31,4 +31,11 @@ object ToplRpcErrors {
       Map("failures" -> failures.map(_.toString).asJson).asJson
     )
 
+  def genericFailure(reason: String): CustomError =
+    CustomError(
+      -32098,
+      "Unknown failure",
+      Map("reason" -> reason).asJson
+    )
+
 }

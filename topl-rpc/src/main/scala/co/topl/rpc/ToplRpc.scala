@@ -201,4 +201,60 @@ object ToplRpc {
     }
   }
 
+  object Admin {
+    object UnlockKeyfile {
+      val rpc: Rpc[Params, Response] = Rpc("admin_unlockKeyfile")
+      case class Params(address: String, password: String)
+      type Response = Map[String, String]
+    }
+    object LockKeyfile {
+      val rpc: Rpc[Params, Response] = Rpc("admin_lockKeyfile")
+
+      case class Params(address: Address)
+      type Response = Map[String, String]
+    }
+    object GenerateKeyfile {
+      val rpc: Rpc[Params, Response] = Rpc("admin_generateKeyfile")
+
+      case class Params(password: String)
+      case class Response(address: Address)
+    }
+    object ImportSeedPhrase {
+      val rpc: Rpc[Params, Response] = Rpc("admin_importSeedPhrase")
+
+      case class Params(password: String, seedPhrase: String, seedPhraseLang: String = "en")
+      case class Response(publicKey: Address)
+    }
+    object ListOpenKeyfiles {
+      val rpc: Rpc[Params, Response] = Rpc("admin_listOpenKeyfiles")
+
+      case class Params()
+      case class Response(unlocked: Set[Address])
+    }
+    object StartForging {
+      val rpc: Rpc[Params, Response] = Rpc("admin_startForging")
+
+      case class Params()
+      case class Response(msg: String)
+    }
+    object StopForging {
+      val rpc: Rpc[Params, Response] = Rpc("admin_stopForging")
+
+      case class Params()
+      case class Response(msg: String)
+    }
+    object UpdateRewardsAddress {
+      val rpc: Rpc[Params, Response] = Rpc("admin_updateRewardsAddress")
+
+      case class Params(address: Address)
+      case class Response(rewardsAddress: String)
+    }
+    object GetRewardsAddress {
+      val rpc: Rpc[Params, Response] = Rpc("admin_getRewardsAddress")
+
+      case class Params()
+      case class Response(rewardsAddress: String)
+    }
+  }
+
 }

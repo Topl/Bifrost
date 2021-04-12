@@ -2,10 +2,16 @@ package co.topl.rpc.handlers
 
 import cats.data.EitherT
 import cats.implicits._
-import co.topl.akkahttprpc.{InvalidParametersError, RpcError, ThrowableData}
+import co.topl.akkahttprpc.{CustomError, InvalidParametersError, RpcError, ThrowableData}
 import co.topl.attestation.Address
 import co.topl.modifier.box._
 import co.topl.nodeView.state.State
+import co.topl.nodeView.{
+  GetHistoryFailureException,
+  GetMempoolFailureException,
+  GetStateFailureException,
+  NodeViewHolderInterface
+}
 import co.topl.rpc.ToplRpc
 import co.topl.settings.AppContext
 import co.topl.utils.Int128
@@ -16,10 +22,8 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.language.existentials
 
 class NodeViewRpcHandlerImpls(
-  appContext: AppContext,
-  getHistory: GetHistory,
-  getState:   GetState,
-  getPool:    GetMempool
+  appContext:              AppContext,
+  nodeViewHolderInterface: NodeViewHolderInterface
 )(implicit
   ec:               ExecutionContext,
   throwableEncoder: Encoder[ThrowableData],
@@ -29,7 +33,7 @@ class NodeViewRpcHandlerImpls(
   override val head: ToplRpc.NodeView.Head.rpc.ServerHandler =
     _ =>
       for {
-        history <- getHistory()
+        history <- currentHistory()
       } yield ToplRpc.NodeView.Head.Response(
         history.height,
         history.score,
@@ -40,14 +44,14 @@ class NodeViewRpcHandlerImpls(
   override val balances: ToplRpc.NodeView.Balances.rpc.ServerHandler =
     params =>
       for {
-        state     <- getState()
+        state     <- currentState()
         addresses <- checkAddresses(params.addresses, state).toEitherT[Future]
       } yield balancesResponse(state, addresses)
 
   override val transactionById: ToplRpc.NodeView.TransactionById.rpc.ServerHandler =
     params =>
       for {
-        history <- getHistory()
+        history <- currentHistory()
         tResult <- history
           .transactionById(params.transactionId)
           .toRight[RpcError](
@@ -60,7 +64,7 @@ class NodeViewRpcHandlerImpls(
   override val blockById: ToplRpc.NodeView.BlockById.rpc.ServerHandler =
     params =>
       for {
-        history <- getHistory()
+        history <- currentHistory()
         block <- history
           .modifierById(params.blockId)
           .toRight[RpcError](
@@ -72,7 +76,7 @@ class NodeViewRpcHandlerImpls(
   override val blockByHeight: ToplRpc.NodeView.BlockByHeight.rpc.ServerHandler =
     params =>
       for {
-        history <- getHistory()
+        history <- currentHistory()
         block <- history
           .modifierByHeight(params.height)
           .toRight[RpcError](
@@ -84,14 +88,14 @@ class NodeViewRpcHandlerImpls(
   override val mempool: ToplRpc.NodeView.Mempool.rpc.ServerHandler =
     _ =>
       for {
-        pool <- getPool()
+        pool <- currentMempool()
         transactions = pool.take(100)(-_.dateAdded).map(_.tx).toList
       } yield transactions
 
   override val transactionFromMempool: ToplRpc.NodeView.TransactionFromMempool.rpc.ServerHandler =
     params =>
       for {
-        pool <- getPool()
+        pool <- currentMempool()
         tx <- pool
           .modifierById(params.transactionId)
           .toRight[RpcError](InvalidParametersError.adhoc("Unable to retrieve transaction", "transactionId"))
@@ -135,4 +139,19 @@ class NodeViewRpcHandlerImpls(
       )
     }
   }
+
+  private def currentHistory() =
+    nodeViewHolderInterface.getHistory().leftMap { case GetHistoryFailureException(throwable) =>
+      CustomError.fromThrowable(throwable): RpcError
+    }
+
+  private def currentState() =
+    nodeViewHolderInterface.getState().leftMap { case GetStateFailureException(throwable) =>
+      CustomError.fromThrowable(throwable): RpcError
+    }
+
+  private def currentMempool() =
+    nodeViewHolderInterface.getMempool().leftMap { case GetMempoolFailureException(throwable) =>
+      CustomError.fromThrowable(throwable): RpcError
+    }
 }
