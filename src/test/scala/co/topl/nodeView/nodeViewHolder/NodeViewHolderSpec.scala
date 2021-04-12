@@ -7,8 +7,8 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.MockState
 import co.topl.settings.{AppContext, StartupOpts}
 import co.topl.utils.CoreGenerators
-import org.scalatest.{BeforeAndAfterAll, PrivateMethodTester}
 import org.scalatest.propspec.AnyPropSpec
+import org.scalatest.{BeforeAndAfterAll, PrivateMethodTester}
 
 import scala.concurrent.ExecutionContext
 

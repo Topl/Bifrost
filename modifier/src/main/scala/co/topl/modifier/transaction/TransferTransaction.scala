@@ -77,26 +77,15 @@ object TransferTransaction {
     tx: TransferTransaction[T, _ <: Proposition],
     to: IndexedSeq[(Address, T)]
   ): (BoxParams[SimpleValue], Traversable[BoxParams[T]]) = {
+
+    // known input data (similar to messageToSign but without newBoxes since they aren't known yet)
     val txIdPrefix = Transaction.identifier(tx).typePrefix
     val boxIdsToOpenAccumulator = tx.boxIdsToOpen.foldLeft(Array[Byte]())((acc, x) => acc ++ x.hashBytes)
-    val orderedToAccumulator =
-      tx.to
-        .map {
-          case (address, holder) =>
-            val hashOfEntry = Blake2b256(address.bytes ++ holder.bytes)
-            BigInt(hashOfEntry) -> hashOfEntry
-        }
-        .sortBy(_._1)
-        .foldLeft(Array[Byte]()) {
-          case (acc, (_, hashOfEntry)) => acc ++ hashOfEntry
-        }
     val timestampBytes = Longs.toByteArray(tx.timestamp)
     val feeBytes = tx.fee.toByteArray
 
-    // known input data (similar to messageToSign but without newBoxes since they aren't known yet)
     val inputBytes =
-      Array(txIdPrefix) ++ boxIdsToOpenAccumulator ++ orderedToAccumulator ++ timestampBytes ++ feeBytes
-
+      Array(txIdPrefix) ++ boxIdsToOpenAccumulator ++ timestampBytes ++ feeBytes
 
     val calcNonce: Int => Box.Nonce = (index: Int) => {
       val digest = Blake2b256(inputBytes ++ Ints.toByteArray(index))

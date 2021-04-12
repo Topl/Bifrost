@@ -13,10 +13,7 @@ import co.topl.utils.{Identifiable, Identifier, Int128}
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
 
-import scala.collection.immutable.PagedSeq
-import scala.collection.{immutable, mutable}
 import scala.util.Try
-import scala.util.parsing.input.PagedSeq
 
 case class AssetTransfer[
   P <: Proposition: EvidenceProducer: Identifiable
