@@ -34,7 +34,7 @@ abstract class TransferTransaction[
     BoxId.idFromEviNonce(addr.evidence, nonce)
   }
 
-  val (feeOutputParams, coinOutputParams) =  TransferTransaction.calculateBoxNonce[TokenValueHolder](this, to)
+  val (feeOutputParams, coinOutputParams) = TransferTransaction.calculateBoxNonce[TokenValueHolder](this, to)
 
   val feeChangeOutput: PolyBox =
     PolyBox(feeOutputParams.evidence, feeOutputParams.nonce, feeOutputParams.value)
@@ -95,9 +95,7 @@ object TransferTransaction {
     val feeChangeParams = BoxParams(tx.to.head._1.evidence, calcNonce(0), SimpleValue(tx.to.head._2.quantity))
 
     val coinOutputParams: IndexedSeq[BoxParams[T]] =
-      to
-        .tail
-        .zipWithIndex
+      to.tail.zipWithIndex
         .map { case ((addr, value), idx) =>
           BoxParams[T](addr.evidence, calcNonce(idx + 1), value)
         }
@@ -183,25 +181,35 @@ object TransferTransaction {
     tx match {
       case t: ArbitTransfer[_] if t.minting => // Arbit block rewards
       case t: PolyTransfer[_] if t.minting  => // Poly block rewards
-      case t @ _                            =>
-        // must provide input state to consume in order to generate new state
-//        if (t.minting) require(t.fee > 0L, "Asset minting transactions must have a non-zero positive fee")
-//        else require(t.fee >= 0L, "Transfer transactions must have a non-negative fee")
-
-        require(t.fee >= 0L, "Transfer transactions must have a non-negative fee")
-
+      case t: PolyTransfer[_] =>
         require(t.from.nonEmpty, "Non-block reward transactions must specify at least one input box")
 
-//        // JAA - this only checks the tail because the head must be the feebox output that can be zero if a user
-//        // empties their address of poly's by spending them all on the fee. Semantic validate will enforce
-//        // that the first box in the `to` list will be a PolyBox.
-//        require(t.to.tail.forall(_._2.quantity > 0L), "Coin amount must be greater than 0")
+      case t: ArbitTransfer[_] =>
+        require(
+          tx.to.size >= 2,
+          "ArbitTransfers must specify two or more recipients in the `to` value such as [change_output, coin_output(s)]"
+        )
+        require(t.from.nonEmpty, "Non-block reward transactions must specify at least one input box")
+
+      case t: AssetTransfer[_] =>
+        require(
+          tx.to.size >= 2,
+          "AssetTransfers must specify two or more recipients in the `to` value such as [change_output, coin_output(s)]"
+        )
+        require(t.from.nonEmpty, "Non-block reward transactions must specify at least one input box")
     }
 
+    require(tx.fee >= 0, "Transfer transactions must have a non-negative fee")
     require(tx.timestamp >= 0L, "Invalid timestamp")
     require(
       tx.data.forall(_.getValidLatin1Bytes.getOrElse(throw new Exception("String is not valid Latin-1")).length <= 128),
       "Data field must be less than 128 bytes"
+    )
+
+    // ensure that the input and output lists of box ids are unique
+    require(
+      tx.newBoxes.forall(b ⇒ !tx.boxIdsToOpen.contains(b.id)),
+      "The set of input box ids contains one or more of the output ids"
     )
 
     // prototype transactions do not contain signatures at creation
@@ -239,12 +247,6 @@ object TransferTransaction {
         case _ => // put additional checks on attestations here
       }
     }
-
-    // ensure that the input and output lists of box ids are unique
-    require(
-      tx.newBoxes.forall(b ⇒ !tx.boxIdsToOpen.contains(b.id)),
-      "The set of input box ids contains one or more of the output ids"
-    )
   }
 
   /** Checks the stateful validity of a transaction
@@ -261,27 +263,55 @@ object TransferTransaction {
     networkPrefix: NetworkPrefix
   ): Try[Unit] = {
 
-    // check that the transaction is correctly formed before checking state
-    syntacticValidate(tx) match {
-      case Failure(e) => throw e
-      case _          => // continue processing
-    }
-
     // compute transaction values used for validation
     val txOutput = tx.newBoxes.map(b => b.value.quantity).sum
     val unlockers = BoxUnlocker.generate(tx.from, tx.attestation)
 
+    val inputBoxes = unlockers.map { u =>
+      u -> boxReader.getBox(u.closedBoxId)
+    }
+
+    val sumOfPolyInputs = inputBoxes.collect { case (_, Some(PolyBox(_, _, value))) =>
+      value.quantity
+    }.sum
+
+    // check that the transaction is correctly formed before checking state
+    lazy val syntacticResult = syntacticValidate(tx)
+
+    // enforce transaction specific requirements
+    // must provide input state to consume in order to generate new state
+    lazy val txSpecific = Try {
+      tx match {
+        case t: PolyTransfer[_] if t.minting => // Poly block rewards (skip enfocring)
+        case t: ArbitTransfer[_] if t.minting => // Arbit block rewards (skip enforcing)
+
+        case t: PolyTransfer[_] =>
+          require(
+            sumOfPolyInputs - t.fee == txOutput,
+            s"PolyTransfer output value does not equal input value for non-minting transaction. " +
+              s"$txOutput != ${sumOfPolyInputs - t.fee}"
+          )
+
+        case t@_ =>
+          require(
+            sumOfPolyInputs - t.fee == t.feeChangeOutput.value.quantity,
+            s"feeChangeOutput value does not equal input value for non-minting transaction. " +
+              s"${t.feeChangeOutput.value.quantity} != ${sumOfPolyInputs - t.fee}"
+          )
+      }
+    }
+
     // iterate through the unlockers and sum up the value of the box for each valid unlocker
-    unlockers
-      .foldLeft[Try[Int128]](Success[Int128](0)) { (trySum, unlocker) =>
+    lazy val accessibleFunds = inputBoxes
+      .foldLeft[Try[Int128]](Success[Int128](0)) { case (trySum, (unlocker, boxOpt)) =>
         trySum.flatMap { partialSum =>
-          boxReader.getBox(unlocker.closedBoxId) match {
+          boxOpt match {
             case Some(box: TokenBox[_]) if unlocker.boxKey.isValid(unlocker.proposition, tx.messageToSign) =>
               Success(partialSum + box.value.quantity)
 
             case Some(_) => Failure(new Exception("Invalid unlocker"))
-            case None    => Failure(new Exception(s"Box for unlocker $unlocker cannot be found in state"))
-            case _       => Failure(new Exception("Invalid Box type for this transaction"))
+            case None => Failure(new Exception(s"Box for unlocker $unlocker cannot be found in state"))
+            case _ => Failure(new Exception("Invalid Box type for this transaction"))
           }
         }
       } match {
@@ -302,5 +332,11 @@ object TransferTransaction {
 
       case Failure(e) => Failure(e)
     }
+
+    for {
+      _ <- syntacticResult
+      _ <- txSpecific
+      _ <- accessibleFunds
+    } yield Success(())
   }
 }
