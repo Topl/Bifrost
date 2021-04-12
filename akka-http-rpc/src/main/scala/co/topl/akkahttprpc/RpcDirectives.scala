@@ -29,7 +29,7 @@ trait RpcDirectives {
   private[akkahttprpc] def recoverToRpcError(implicit
     throwableEncoder: Encoder[ThrowableData]
   ): PartialFunction[Throwable, CustomError] = { case e =>
-    CustomError.fromThrowable(-32099, "Unknown server error", e)
+    CustomError.fromThrowable(e)
   }
 
   implicit def rpcErrorAsRejection(rpcError: RpcError): Rejection =

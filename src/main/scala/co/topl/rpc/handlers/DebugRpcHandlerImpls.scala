@@ -27,7 +27,7 @@ class DebugRpcHandlerImpls(
         delay <- historyDebug
           .averageDelay(params.blockId, params.numBlocks)
           .toEither
-          .leftMap(CustomError.fromThrowable(-32099, "Unexpected server error", _): RpcError)
+          .leftMap(CustomError.fromThrowable(_): RpcError)
           .toEitherT[Future]
       } yield ToplRpc.Debug.Delay.Response(s"$delay milliseconds")
 
