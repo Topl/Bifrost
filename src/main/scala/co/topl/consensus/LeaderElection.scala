@@ -81,12 +81,13 @@ object LeaderElectionProsomo extends Logging {
 
   case class Key(privateKey: SecretKey, publicKey: PublicKey)
 
-  case class Certificate(publicKey: PublicKey, proofHash: Hash, testProof: Proof, threshold: Ratio, metaInfo: String)
+  case class Certificate(publicKey: PublicKey, proofHash: Hash, testProof: Proof, threshold: Ratio)
 
   case class Hit(cert: Certificate, proof: Proof)
 
-  val defaultLddCutoff = 40
+  val defaultLddCutoff = 15
   val precision = 16
+  val baselineDifficulty = Ratio(1, 25)
 
   def getHit(
     key: Key,
@@ -97,32 +98,37 @@ object LeaderElectionProsomo extends Logging {
     epochNonce: Nonce,
     lddCutoff: Slot = defaultLddCutoff
   ): Option[Hit] = {
+    println(s"Slot diff is '${slotDiff}'")
+
     val privateKeyBytes = key.privateKey.tail
     val vrf = VrfProof(privateKeyBytes, epochNonce, slot)
 
     val testProof = vrf.testProof
 
-    val threshold = getThreshold(relativeStake, slotDiff)
+    val threshold = getThreshold(relativeStake, slotDiff, lddCutoff)
+
+    println(s"Threshold is '${threshold.toDouble}'")
+
     val isSlotLeader = isSlotLeaderForThreshold(threshold) _
 
     if (isSlotLeader(testProof, parentProof, slotDiff, lddCutoff, vrf.hash))
       // TODO: add meta info
-      Some(Hit(Certificate(key.publicKey, vrf.testProofHashed, testProof, threshold, ""), vrf.nonceProof))
+      Some(Hit(Certificate(key.publicKey, vrf.testProofHashed, testProof, threshold), vrf.nonceProof))
     else None
   }
 
-  // coefficient log(1-f(slot-parentSlot))
-  def mF(slotDiff: Int): Ratio = ProsomoMath.logOneMinus(slotDiff)
+  /** log(1-f(slot-parentSlot)) */
+  def mFunction(slotDiff: Int, lddCutoff: Int): Ratio =
+    if (slotDiff <= lddCutoff)
+      ProsomoMath.logOneMinus(ProsomoMath.lddGapSawtooth(slotDiff, lddCutoff))
+    else ProsomoMath.logOneMinus(baselineDifficulty)
 
-  def getThreshold(relativeStake: Ratio, slotDiff: Int): Ratio = {
-    val mFValue = mF(slotDiff)
+  def getThreshold(relativeStake: Ratio, slotDiff: Int, lddCutoff: Int): Ratio = {
+    val mFValue = mFunction(slotDiff, lddCutoff)
     val base = mFValue * relativeStake
 
     (1 to precision)
-      .foldLeft(Ratio(0)) { (total, i) =>
-        // TODO: digest and verify what this is doing
-        total - (base.pow(i) * Ratio(BigInt(1), ProsomoMath.factorial(i)))
-      }
+      .foldLeft(Ratio(0))((total, i) => total - (base.pow(i) * Ratio(BigInt(1), ProsomoMath.factorial(i))))
   }
 
   def isSlotLeaderForThreshold(threshold: Ratio)(
@@ -136,15 +142,12 @@ object LeaderElectionProsomo extends Logging {
     // I don't understand what this is for
     val testStakeProof = if (slotDiff <= lddCutoff) hash(testProof ++ parentProof) else testProof
 
-    val attempt = testStakeProof
+    threshold > testStakeProof
       .zip(1 to testStakeProof.length) // zip with indexes starting from 1
       .foldLeft(Ratio(0)) {
         case (net, (byte, i)) =>
-          // TODO: digest and verify what this is doing
           net + Ratio(BigInt(byte & 0xff), BigInt(2).pow(8 * i))
       }
-
-    attempt < threshold
 
   }
 
@@ -176,16 +179,13 @@ object LeaderElectionTester extends App {
     LeaderElectionProsomo.Key(k._2.bytes, k._1.bytes)
   }
 
-  val relativeStake = Ratio(2, 5)
+  val relativeStake = Ratio(1, 5)
   val parentProof = randomBytes(32)
   val epochNonce = randomBytes(32)
 
   // test slots 101 - 200
   // parent has slot 100
-  (1 to 20).foreach(x => {
-    println(x)
-    println(LeaderElectionProsomo.getThreshold(relativeStake, x).toDouble)
-
+  (1 to 100).foreach(x => {
     val result = LeaderElectionProsomo.getHit(
       key,
       relativeStake,
@@ -197,18 +197,20 @@ object LeaderElectionTester extends App {
 
     println(result)
   })
-
-  println(ProsomoMath.logOneMinus(Ratio(1, 2)).toDouble)
 }
 
 object ProsomoMath {
 
-  val precision = 16
+  val precision: Int = 16
+  val amplitude = Ratio(2, 5)
 
   def factorial(n: Int): BigInt = (1 to n).product
 
   /** Calculates log(1-f) */
   def logOneMinus(f: Ratio): Ratio =
     (1 to precision).foldLeft(Ratio(0))((total, value) => total - (f.pow(value) / value))
+
+  // Local Dynamic Difficulty curve
+  def lddGapSawtooth(slotDiff: Int, lddCutoff: Int): Ratio = Ratio(slotDiff, lddCutoff) * amplitude
 
 }
