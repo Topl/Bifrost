@@ -13,9 +13,8 @@ class ArbitTransferSpec extends AnyPropSpec
   with ValidGenerators {
 
   property("Randomly generated ArbitTransfer Tx should be valid") {
-    forAll(validArbitTransferGen) { arbitTransfer: ArbitTransfer[_] =>
-      //TODO: Jing - change this back to using syntacticValidate once attestation in validArbitTransferGen works
-      arbitTransfer.rawValidate.isSuccess shouldBe true
+    forAll(validArbitTransfer(keyRing, genesisState)) { arbitTransfer: ArbitTransfer[_] =>
+      arbitTransfer.syntacticValidate.isSuccess shouldBe true
     }
   }
 

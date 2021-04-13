@@ -47,63 +47,6 @@ trait ValidGenerators extends CoreGenerators {
     }
   }
 
-  lazy val validProgramGen: Gen[Program] = for {
-    producer <- propositionGen
-    investor <- propositionGen
-    hub <- propositionGen
-    executionBuilder <- validExecutionBuilderGen().map(_.json)
-    id <- genBytesList(Blake2b256.DigestSize)
-  } yield {
-    Program(Map(
-      "parties" -> Map(
-        producer.toString -> "producer",
-        investor.toString -> "investor",
-        hub.toString -> "hub"
-      ).asJson,
-      "executionBuilder" -> executionBuilder,
-      "lastUpdated" -> System.currentTimeMillis().asJson
-    ).asJson, id)
-  }
-
-  lazy val validPolyTransferGen: Gen[PolyTransfer[_]] = for {
-    from <- fromSeqGen
-    to <- toSeqGen
-    attestation <- attestationGen
-    key <- publicKeyPropositionCurve25519Gen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    data <- stringGen
-  } yield {
-
-    val tx = PolyTransfer(from, to, attestation, fee, timestamp, Some(data))
-    val sig = key._1.sign(tx.messageToSign)
-    tx.copy(attestation = Map(key._2 -> sig))
-  }
-
-  lazy val validArbitTransferGen: Gen[ArbitTransfer[_]] = for {
-    from <- fromSeqGen
-    to <- toSeqGen
-    attestation <- attestationGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    data <- stringGen
-  } yield {
-
-    ArbitTransfer(from, to, attestation, fee, timestamp, Some(data))
-  }
-
-  lazy val validAssetTransferGen: Gen[AssetTransfer[_]] = for {
-    from <- fromSeqGen
-    to <- assetToSeqGen
-    attestation <- attestationGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    data <- stringGen
-  } yield {
-
-    AssetTransfer(from, to, attestation, fee, timestamp, Some(data), minting = true)
-  }
-
   def genesisState(settings: AppSettings, genesisBlockWithVersion: Block = genesisBlock): State = {
     History.readOrGenerate(settings).append(genesisBlock)
     State.genesisState(settings, Seq(genesisBlockWithVersion))
@@ -114,10 +57,13 @@ trait ValidGenerators extends CoreGenerators {
                          state: State,
                          fee: Long = 1L
                        ): Gen[PolyTransfer[PublicKeyPropositionCurve25519]] = {
-    val sender = keyRing.addresses.head
+
+    val availablePolys = sumBoxes(collectBoxes(keyRing.addresses, state), "PolyBox")
+    val (sender, poly) = availablePolys(Random.nextInt(availablePolys.length))
+    val polyAmount = SimpleValue(Int128(sampleUntilNonEmpty(Gen.chooseNum(1L, poly.longValue()))))
+
     val prop = keyRing.lookupPublicKey(sender).get
-    val value = SimpleValue(1)
-    val recipients = IndexedSeq((sender, value))
+    val recipients = IndexedSeq((keyRing.addresses.toSeq(Random.nextInt(keyRing.addresses.size)), polyAmount))
     val rawTx = PolyTransfer.createRaw(
       state,
       recipients,
@@ -138,10 +84,13 @@ trait ValidGenerators extends CoreGenerators {
                           state: State,
                           fee: Long = 1L
                         ): Gen[ArbitTransfer[PublicKeyPropositionCurve25519]] = {
-    val sender = keyRing.addresses.head
+
+    val availableArbits = sumBoxes(collectBoxes(keyRing.addresses, state), "ArbitBox")
+    val (sender, arbit) = availableArbits(Random.nextInt(availableArbits.length))
+    val arbitAmount = SimpleValue(Int128(sampleUntilNonEmpty(Gen.chooseNum(1L, arbit.longValue()))))
+
     val prop = keyRing.lookupPublicKey(sender).get
-    val value = SimpleValue(1)
-    val recipients = IndexedSeq((sender, value))
+    val recipients = IndexedSeq((keyRing.addresses.toSeq(Random.nextInt(keyRing.addresses.size)), arbitAmount))
     val rawTx = ArbitTransfer.createRaw(
       state,
       recipients,
@@ -165,12 +114,9 @@ trait ValidGenerators extends CoreGenerators {
                         ): Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = {
 
     val (sender, asset) = if(!minting) {
-      println(collectBoxes(keyRing.addresses, state).filter(b => identifier(b).typeString == "AssetBox"))
       val availableAssets = sumBoxes(collectBoxes(keyRing.addresses, state), "AssetBox")
-      println(s"availableAssets: $availableAssets")
       val sender = availableAssets(Random.nextInt(availableAssets.length))
       val assetAmount = Gen.chooseNum(1L, sender._2.longValue()).sample.get
-      println(s"assetAmount: $assetAmount")
       val asset = AssetValue(assetAmount, AssetCode(1: Byte, sender._1, "test"), SecurityRoot.empty)
       (sender._1, asset)
     } else {
@@ -181,7 +127,6 @@ trait ValidGenerators extends CoreGenerators {
 
     val prop = keyRing.lookupPublicKey(sender).get
     val recipients = IndexedSeq((keyRing.addresses.toSeq(Random.nextInt(keyRing.addresses.size)), asset))
-    println(s"recipients: ${recipients.head._2.assetCode}")
     val rawTx = AssetTransfer.createRaw(
       state,
       recipients,
