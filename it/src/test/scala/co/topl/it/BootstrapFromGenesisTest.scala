@@ -1,27 +1,23 @@
 package co.topl.it
 
 import co.topl.it.util._
-import co.topl.utils.Int128
-import Int128._
 import co.topl.rpc.ToplRpc
+import co.topl.utils.Int128
+import co.topl.utils.Int128._
 import com.typesafe.config.ConfigFactory
+import org.scalatest.Inspectors
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.{EitherValues, Inspectors}
 
 import scala.concurrent.duration._
-
-import co.topl.akkahttprpc.implicits.client._
-import co.topl.rpc.implicits.client._
 
 class BootstrapFromGenesisTest
     extends AnyFreeSpec
     with Matchers
     with IntegrationSuite
     with ScalaFutures
-    with EitherValues
     with Inspectors {
 
   val initialForgeTarget: Int128 = 1024 + 50
@@ -54,22 +50,22 @@ class BootstrapFromGenesisTest
 
     logger.info("Starting oldNode")
 
-    implicit val oldNode: BifrostDockerNode = dockerSupport.createNode("oldNode", seed)
+    val oldNode: BifrostDockerNode = dockerSupport.createNode("oldNode", seed)
     oldNode.reconfigure(config)
     oldNode.start()
 
     oldNode.waitForStartup().futureValue(Timeout(60.seconds)).value
 
     val keyFiles =
-      oldNode.Admin.listOpenKeyfiles().futureValue.value
+      oldNode.run(ToplRpc.Admin.ListOpenKeyfiles.rpc)(ToplRpc.Admin.ListOpenKeyfiles.Params()).value.unlocked
 
     keyFiles should have size 2
 
-    val List(oldKeyFile, newKeyFile) = keyFiles
+    val List(oldKeyFile, newKeyFile) = keyFiles.toList
 
-    oldNode.Admin.lockKeyfile(newKeyFile).futureValue.value
+    oldNode.run(ToplRpc.Admin.LockKeyfile.rpc)(ToplRpc.Admin.LockKeyfile.Params(newKeyFile)).value
 
-    oldNode.Admin.startForging().futureValue.value
+    oldNode.run(ToplRpc.Admin.StartForging.rpc)(ToplRpc.Admin.StartForging.Params()).value
 
     logger.info(s"Allowing oldNode to forge $initialForgeTarget blocks.  This may take a while.")
 
@@ -80,10 +76,11 @@ class BootstrapFromGenesisTest
     val newNode = dockerSupport.createNode("newNode", seed)
 
     val newNodeConfig =
-      ConfigFactory.parseString(
-        raw"""bifrost.network.knownPeers = ["oldNode:${BifrostDockerNode.NetworkPort}"]
+      ConfigFactory
+        .parseString(
+          raw"""bifrost.network.knownPeers = ["oldNode:${BifrostDockerNode.NetworkPort}"]
           |""".stripMargin
-      )
+        )
         .withFallback(config)
 
     newNode.reconfigure(newNodeConfig)
@@ -91,9 +88,9 @@ class BootstrapFromGenesisTest
 
     newNode.waitForStartup().futureValue(Timeout(60.seconds)).value
 
-    newNode.Admin.lockKeyfile(oldKeyFile).futureValue.value
+    newNode.run(ToplRpc.Admin.LockKeyfile.rpc)(ToplRpc.Admin.LockKeyfile.Params(oldKeyFile)).value
 
-    newNode.Admin.startForging().futureValue.value
+    newNode.run(ToplRpc.Admin.StartForging.rpc)(ToplRpc.Admin.StartForging.Params()).value
 
     logger.info(s"Allowing newNode to sync and forge for $newNodeForgeDuration")
 
@@ -101,19 +98,18 @@ class BootstrapFromGenesisTest
 
     logger.info("Stopping forging on both nodes")
 
-    oldNode.Admin.stopForging().futureValue.value
-    newNode.Admin.stopForging().futureValue.value
+    newNode.run(ToplRpc.Admin.StopForging.rpc)(ToplRpc.Admin.StopForging.Params()).value
 
     logger.info(s"Waiting $syncWindow for the nodes to sync")
 
     Thread.sleep(syncWindow.toMillis)
 
     val oldNodeHeight: Int128 =
-      ToplRpc.NodeView.Head.rpc(ToplRpc.NodeView.Head.Params()).value.futureValue.value.height
+      oldNode.run(ToplRpc.NodeView.Head.rpc)(ToplRpc.NodeView.Head.Params()).value.height
     logger.info(s"Old node height=$oldNodeHeight")
 
     val newNodeHeight: Int128 =
-      ToplRpc.NodeView.Head.rpc(ToplRpc.NodeView.Head.Params()).value.futureValue.value.height
+      newNode.run(ToplRpc.NodeView.Head.rpc)(ToplRpc.NodeView.Head.Params()).value.height
     logger.info(s"New node height=$newNodeHeight")
 
     oldNodeHeight shouldBe newNodeHeight +- 1

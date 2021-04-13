@@ -15,6 +15,7 @@ case class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClien
   def start(): Unit = {
     logger.info(s"Starting")
     dockerClient.startContainer(containerId)
+    awaitContainerStart()
   }
 
   def stop(): Unit = {
@@ -49,6 +50,17 @@ case class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClien
     if (wasRunning) {
       start()
     }
+  }
+
+  def awaitContainerStart(): Unit = {
+    var remainingAttempts = 10
+    var ip = ipAddress()
+    while(ip.isEmpty && remainingAttempts > 0) {
+      Thread.sleep(1000)
+      ip = ipAddress()
+      remainingAttempts -= 1
+    }
+    if(ip.isEmpty) throw new IllegalStateException(s"Container IP not found.  containerId=$containerId")
   }
 
 }

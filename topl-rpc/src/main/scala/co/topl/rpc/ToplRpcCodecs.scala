@@ -205,10 +205,10 @@ trait AdminRpcResponseDecoders extends SharedCodecs {
   ): Decoder[ToplRpc.Admin.UnlockKeyfile.Response] =
     Decoder.decodeMap
 
-  implicit def lockKeyfileResponseDecoder(implicit
-    networkPrefix: NetworkPrefix
-  ): Decoder[ToplRpc.Admin.LockKeyfile.Response] =
-    Decoder.decodeMap
+//  implicit def lockKeyfileResponseDecoder(implicit
+//    networkPrefix: NetworkPrefix
+//  ): Decoder[ToplRpc.Admin.LockKeyfile.Response] =
+//    Decoder.decodeMap
 
   implicit def generateKeyfileResponseDecoder(implicit
     networkPrefix: NetworkPrefix
@@ -454,8 +454,8 @@ trait AdminRpcResponseEncoders extends SharedCodecs {
   implicit val unlockKeyfileResponseEncoder: Encoder[ToplRpc.Admin.UnlockKeyfile.Response] =
     Encoder.encodeMap
 
-  implicit val lockKeyfileResponseEncoder: Encoder[ToplRpc.Admin.LockKeyfile.Response] =
-    Encoder.encodeMap
+//  implicit val lockKeyfileResponseEncoder: Encoder[ToplRpc.Admin.LockKeyfile.Response] =
+//    Encoder.encodeMap
 
   implicit val generateKeyfileResponseEncoder: Encoder[ToplRpc.Admin.GenerateKeyfile.Response] =
     deriveEncoder

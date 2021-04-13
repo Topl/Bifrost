@@ -1,18 +1,24 @@
 package co.topl.it
 
 import akka.actor.{ActorSystem, Scheduler}
+import co.topl.attestation.Address
 import co.topl.it.util.{BifrostDockerNode, DockerSupport}
+import co.topl.rpc.{ToplRpc, ToplRpcClientCodecs}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Logging, NetworkType}
 import com.spotify.docker.client.DefaultDockerClient
-import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{BeforeAndAfterAll, EitherValues, Suite}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 
-trait IntegrationSuite extends BeforeAndAfterAll with Logging with ScalaFutures with EitherValues {
+trait IntegrationSuite
+    extends BeforeAndAfterAll
+    with Logging
+    with ScalaFutures
+    with EitherValues
+    with ToplRpcClientCodecs {
   self: Suite =>
 
   implicit val system: ActorSystem = ActorSystem("TestSuite")
@@ -29,6 +35,8 @@ trait IntegrationSuite extends BeforeAndAfterAll with Logging with ScalaFutures 
 
   implicit val networkPrefix: NetworkPrefix = NetworkType.PrivateTestnet.netPrefix
 
+  implicit def futureAwaiter[T]: Future[T] => T = _.futureValue
+
   override def beforeAll(): Unit =
     log.debug("Starting integration tests")
 
@@ -43,23 +51,30 @@ trait IntegrationSuite extends BeforeAndAfterAll with Logging with ScalaFutures 
     * address is determined by the node's index in the given list.
     */
   protected def assignForgingAddress(nodes: List[BifrostDockerNode]): Unit = {
-    val allAddresses: Map[String, List[String]] =
-      Future
-        .traverse(nodes)(node => node.Admin.listOpenKeyfiles().map(node.containerId -> _.value))
-        .futureValue(Timeout(10.seconds))
+    val allAddresses: Map[String, Set[Address]] =
+      nodes
+        .map(node =>
+          node.containerId -> node
+            .run(ToplRpc.Admin.ListOpenKeyfiles.rpc)(ToplRpc.Admin.ListOpenKeyfiles.Params())
+            .value
+            .unlocked
+        )
         .toMap
 
     require(allAddresses.values.toSet.size == 1, "Nodes do not contain the same addresses")
 
-    val addressList = allAddresses.head._2
+    val addressList = allAddresses.head._2.toList
 
     nodes.zipWithIndex.foreach { case (node, index) =>
       addressList.zipWithIndex.foreach {
         case (address, addressIndex) if addressIndex != index =>
-          node.Admin.lockKeyfile(address).futureValue.value
+          node.run(ToplRpc.Admin.LockKeyfile.rpc)(ToplRpc.Admin.LockKeyfile.Params(address)).value
         case (address, _) =>
-          node.Admin.updateRewardsAddress(address).futureValue.value
+          node.run(ToplRpc.Admin.UpdateRewardsAddress.rpc)(ToplRpc.Admin.UpdateRewardsAddress.Params(address)).value
       }
     }
   }
+
+  protected def wrapNode[T](node: BifrostDockerNode)(f: BifrostDockerNode => T): T =
+    f(node)
 }

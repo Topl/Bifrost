@@ -2,6 +2,7 @@ package co.topl.it
 
 import co.topl.consensus.maxStake
 import co.topl.it.util._
+import co.topl.rpc.ToplRpc
 import co.topl.utils.Int128
 import com.typesafe.config.{Config, ConfigFactory}
 import io.circe.syntax._
@@ -13,9 +14,6 @@ import org.scalatest.{EitherValues, Inspectors}
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import co.topl.akkahttprpc.implicits.client._
-import co.topl.rpc.ToplRpc
-import co.topl.rpc.implicits.client._
 
 // NOTE: This test currently fails because block difficulties diverge between nodes.  When nodes re-join, the blocks
 // can't be properly appended.
@@ -59,14 +57,17 @@ class ChainSelectionTest
     nodes.foreach(_.start())
     Future
       .traverse(nodes)(_.waitForStartup().map(_.value))
-      .futureValue(Timeout(30.seconds))
+      .futureValue(Timeout(60.seconds))
     assignForgingAddress(nodes)
 
     logger.info(s"Waiting for each node to forge $initialForgeCountTarget blocks")
-    nodes.foreach(_.Admin.startForging().futureValue.value)
+    nodes.foreach(_.run(ToplRpc.Admin.StartForging.rpc)(ToplRpc.Admin.StartForging.Params()).value)
     Future
       .traverse(nodes)(node =>
-        node.pollUntilHeight(initialForgeCountTarget).map(_.value).flatMap(_ => node.Admin.stopForging().map(_.value))
+        node
+          .pollUntilHeight(initialForgeCountTarget)
+          .map(_.value)
+          .map(_ => node.run(ToplRpc.Admin.StopForging.rpc)(ToplRpc.Admin.StopForging.Params()).value)
       )
       .futureValue(Timeout(10.minutes))
 
@@ -75,18 +76,19 @@ class ChainSelectionTest
     Thread.sleep(5.seconds.toMillis)
     Future
       .traverse(nodes)(_.waitForStartup().map(_.value))
-      .futureValue(Timeout(30.seconds))
+      .futureValue(Timeout(60.seconds))
 
     logger.info(s"Allowing blocks to forge and sync for $syncedForgeDuration")
-    nodes.foreach(_.Admin.startForging().futureValue.value)
+    nodes.foreach(_.run(ToplRpc.Admin.StartForging.rpc)(ToplRpc.Admin.StartForging.Params()).value)
     Thread.sleep(syncedForgeDuration.toMillis)
 
     logger.info("Stopping forging and allowing nodes to sync for a bit longer")
-    nodes.foreach(_.Admin.stopForging().futureValue.value)
+    nodes.foreach(_.run(ToplRpc.Admin.StopForging.rpc)(ToplRpc.Admin.StopForging.Params()).value)
     Thread.sleep(30.seconds.toMillis)
 
     logger.info("Comparing node heads")
-    val bestBlocks = nodes.map { implicit node => ToplRpc.NodeView.Head.rpc(ToplRpc.NodeView.Head.Params()).value.futureValue.value }
+
+    val bestBlocks = nodes.map(_.run(ToplRpc.NodeView.Head.rpc)(ToplRpc.NodeView.Head.Params()).value)
 
     logger.info(s"Best blocks: $bestBlocks")
 

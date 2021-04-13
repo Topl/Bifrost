@@ -5,7 +5,7 @@ import akka.http.scaladsl.server.Route
 import cats.data.NonEmptyChain
 import co.topl.akkahttprpc.implicits.server.rpcToServer
 import co.topl.akkahttprpc.{MethodNotFoundError, RpcDirectives, RpcErrorRejection, ThrowableData}
-import co.topl.http.api.{DebugNamespace, ToplNamespace, UtilNamespace}
+import co.topl.http.api.{AdminNamespace, DebugNamespace, ToplNamespace, UtilNamespace}
 import co.topl.rpc.handlers.ToplRpcHandlers
 import co.topl.rpc.{ToplRpc, ToplRpcServerCodecs}
 import co.topl.settings.AppContext
@@ -72,10 +72,28 @@ class ToplRpcServer(handlers: ToplRpcHandlers, appContext: AppContext)(implicit
       )
     } else None
 
+  val adminRoutes: Option[NonEmptyChain[Route]] =
+    if (appContext.settings.rpcApi.namespaceSelector.namespaceStates(AdminNamespace)) {
+      Some(
+        NonEmptyChain(
+          ToplRpc.Admin.UnlockKeyfile.rpc.serve(handlers.admin.unlockKeyfile),
+          ToplRpc.Admin.LockKeyfile.rpc.serve(handlers.admin.lockKeyfile),
+          ToplRpc.Admin.GenerateKeyfile.rpc.serve(handlers.admin.generateKeyfile),
+          ToplRpc.Admin.ImportSeedPhrase.rpc.serve(handlers.admin.importSeedPhrase),
+          ToplRpc.Admin.ListOpenKeyfiles.rpc.serve(handlers.admin.listOpenKeyfiles),
+          ToplRpc.Admin.StartForging.rpc.serve(handlers.admin.startForging),
+          ToplRpc.Admin.StopForging.rpc.serve(handlers.admin.stopForging),
+          ToplRpc.Admin.UpdateRewardsAddress.rpc.serve(handlers.admin.updateRewardsAddress),
+          ToplRpc.Admin.GetRewardsAddress.rpc.serve(handlers.admin.getRewardsAddress)
+        )
+      )
+    } else None
+
   val route: Route =
     handleRejections(rejectionHandler)(
       NonEmptyChain.fromSeq(
-        (debugRoutes ++ utilRoutes ++ nodeViewRoutes ++ transactionRoutes).toList.flatMap(_.toNonEmptyList.toList)
+        (debugRoutes ++ utilRoutes ++ nodeViewRoutes ++ transactionRoutes ++ adminRoutes).toList
+          .flatMap(_.toNonEmptyList.toList)
       ) match {
         case Some(chain) =>
           chain.reduceLeft(_ ~ _)

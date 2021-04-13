@@ -1,8 +1,6 @@
 package co.topl.it
 
 import cats.implicits._
-import co.topl.akkahttprpc.implicits.client._
-import co.topl.rpc.implicits.client._
 import co.topl.it.util._
 import co.topl.rpc.ToplRpc
 import com.typesafe.config.ConfigFactory
@@ -23,7 +21,7 @@ class SingleNodeTest extends AnyFreeSpec with Matchers with IntegrationSuite wit
              |bifrost.rpcApi.namespaceSelector.debug = true
              |""".stripMargin
       )
-    implicit val node: BifrostDockerNode =
+    val node: BifrostDockerNode =
       dockerSupport.createNode("bifrostTestNode", "SingleNodeTest")
 
     node.reconfigure(nodeConfig)
@@ -36,7 +34,7 @@ class SingleNodeTest extends AnyFreeSpec with Matchers with IntegrationSuite wit
     Thread.sleep(2.seconds.toMillis)
 
     val forgeCount1 =
-      ToplRpc.Debug.MyBlocks.rpc.call.apply(ToplRpc.Debug.MyBlocks.Params()).value.futureValue.value.count.toLong
+      node.run(ToplRpc.Debug.MyBlocks.rpc)(ToplRpc.Debug.MyBlocks.Params()).value.count.toLong
 
     logger.info(s"Forge count=$forgeCount1")
 
@@ -46,7 +44,7 @@ class SingleNodeTest extends AnyFreeSpec with Matchers with IntegrationSuite wit
     Thread.sleep(5.seconds.toMillis)
 
     val forgeCount2 =
-      ToplRpc.Debug.MyBlocks.rpc.call.apply(ToplRpc.Debug.MyBlocks.Params()).value.futureValue.value.count.toLong
+      node.run(ToplRpc.Debug.MyBlocks.rpc)(ToplRpc.Debug.MyBlocks.Params()).value.count.toLong
 
     logger.info(s"Forge count=$forgeCount2")
 
