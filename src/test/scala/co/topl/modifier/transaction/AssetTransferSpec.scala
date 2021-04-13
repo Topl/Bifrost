@@ -1,11 +1,16 @@
 package co.topl.modifier.transaction
 
-import co.topl.attestation.PublicKeyPropositionCurve25519
+import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.modifier.block.Block
+import co.topl.modifier.box.ArbitBox
+import co.topl.modifier.box.Box.identifier
 import co.topl.utils.{CoreGenerators, ValidGenerators}
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+
+import scala.util.Try
 
 class AssetTransferSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
@@ -13,25 +18,15 @@ class AssetTransferSpec extends AnyPropSpec
   with Matchers
   with CoreGenerators
   with ValidGenerators {
+
   property("Randomly generated AssetTransfer Tx should be valid") {
-    forAll(validAssetTransfer(keyRing, state, minting = true)) { assetTransfer: AssetTransfer[_] =>
+    forAll(validAssetTransfer(keyRing, genesisState, minting = true)) { assetTransfer: AssetTransfer[_] =>
       assetTransfer.syntacticValidate.isSuccess shouldBe true
     }
   }
 
-  //TODO: Test non minting AssetTransfer too
-
-  //TODO: This can't be tested yet because we don't have the assetBox needed in state yet to make the transfer
-//  property("Non minting AssetTransfer should be successful even if fee is 0") {
-//    val stateWithAsset: State = genesisState(settings)
-//    forAll(validAssetTransfer(keyRing, stateWithAsset, fee = 0)) {
-//      assetTransfer: AssetTransfer[PublicKeyPropositionCurve25519] =>
-//        assetTransfer.rawValidate.isSuccess shouldBe true
-//    }
-//  }
-
   property("Minting AssetTransfer should fail unless fee is greater than 0") {
-    forAll(validAssetTransfer(keyRing, state, fee = 0, minting = true)) {
+    forAll(validAssetTransfer(keyRing, genesisState, fee = 0, minting = true)) {
       assetTransfer: AssetTransfer[PublicKeyPropositionCurve25519] =>
         assetTransfer.syntacticValidate.failure.exception.getMessage shouldEqual
           "requirement failed: Asset minting transactions must have a non-zero positive fee"

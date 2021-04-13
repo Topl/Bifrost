@@ -34,7 +34,7 @@ trait ValidGenerators extends CoreGenerators {
 
   val genesisBlockId: ModifierId = genesisBlock.id
 
-  val state: State = genesisState(settings)
+  val genesisState: State = genesisState(settings)
 
   lazy val validBifrostTransactionSeqGen: Gen[Seq[TX]] = for {
     seqLen <- positiveMediumIntGen
@@ -165,9 +165,12 @@ trait ValidGenerators extends CoreGenerators {
                         ): Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = {
 
     val (sender, asset) = if(!minting) {
-      val boxAmounts = sumBoxes(collectBoxes(keyRing.addresses, state))
-      val sender = boxAmounts(Random.nextInt(boxAmounts.length))
-      val assetAmount = Gen.chooseNum(0L, sender._2("AssetBox").longValue()).sample.get
+      println(collectBoxes(keyRing.addresses, state).filter(b => identifier(b).typeString == "AssetBox"))
+      val availableAssets = sumBoxes(collectBoxes(keyRing.addresses, state), "AssetBox")
+      println(s"availableAssets: $availableAssets")
+      val sender = availableAssets(Random.nextInt(availableAssets.length))
+      val assetAmount = Gen.chooseNum(1L, sender._2.longValue()).sample.get
+      println(s"assetAmount: $assetAmount")
       val asset = AssetValue(assetAmount, AssetCode(1: Byte, sender._1, "test"), SecurityRoot.empty)
       (sender._1, asset)
     } else {
@@ -178,6 +181,7 @@ trait ValidGenerators extends CoreGenerators {
 
     val prop = keyRing.lookupPublicKey(sender).get
     val recipients = IndexedSeq((keyRing.addresses.toSeq(Random.nextInt(keyRing.addresses.size)), asset))
+    println(s"recipients: ${recipients.head._2.assetCode}")
     val rawTx = AssetTransfer.createRaw(
       state,
       recipients,
@@ -198,18 +202,14 @@ trait ValidGenerators extends CoreGenerators {
     addresses.flatMap(address => state.getTokenBoxes(address)).flatten.toSeq
   }
 
-  def sumBoxes(boxes: Seq[TokenBox[TokenValueHolder]]): Seq[(Address, Map[String, Int128])] = {
+  def sumBoxes(boxes: Seq[TokenBox[TokenValueHolder]], tokenType: String): Seq[(Address, Int128)] = {
     val boxesByOwner = boxes.groupBy(_.evidence)
     val ownerQuantities = boxesByOwner.map {
       case (evidence, boxes) =>
         Address(evidence) -> boxes
-          .groupBy(identifier(_).typeString)
-          .map {
-            case (boxType, b) =>
-              boxType -> b.map(_.value.quantity).foldLeft[Int128](0)(_ + _)
-          }
+          .filter(identifier(_).typeString == tokenType).map(_.value.quantity).foldLeft[Int128](0)(_ + _)
     }.toSeq
-    ownerQuantities
+    ownerQuantities.filter(_._2 > 0)
   }
 }
 
