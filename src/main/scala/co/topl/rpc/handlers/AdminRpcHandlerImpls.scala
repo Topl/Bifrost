@@ -2,7 +2,7 @@ package co.topl.rpc.handlers
 
 import akka.util.Timeout
 import cats.implicits._
-import co.topl.akkahttprpc.RpcError
+import co.topl.akkahttprpc.{InvalidParametersError, RpcError}
 import co.topl.consensus.{ForgerInterface, KeyManagerInterface}
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
 
@@ -18,6 +18,10 @@ class AdminRpcHandlerImpls(forgerInterface: ForgerInterface, keyManagerInterface
       keyManagerInterface
         .unlockKey(params.address, params.password)
         .leftMap(e => ToplRpcErrors.genericFailure(e.toString): RpcError)
+        .subflatMap {
+          case addr if params.address == addr.toString => Map(addr -> "unlocked").asRight
+          case _                                       => InvalidParametersError.adhoc("address", "Decrypted address does not match requested address").asLeft
+        }
         .map(address => Map(address -> "unlocked"))
 
   override val lockKeyfile: ToplRpc.Admin.LockKeyfile.rpc.ServerHandler =
