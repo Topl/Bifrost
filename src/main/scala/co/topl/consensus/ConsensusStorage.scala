@@ -5,7 +5,7 @@ import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType.{LocalTestnet, PrivateTestnet}
 import co.topl.utils.{Int128, Logging, NetworkType}
 import com.google.common.primitives.Longs
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore, Store}
 import scorex.crypto.hash.Blake2b256
 
 import java.io.File
@@ -14,7 +14,7 @@ import java.io.File
   * @param storage the LSM store to persist values in
   * @param defaultTotalStake should be 10000000 for private and local testnet, and 200000000000000000L otherwise
   */
-class ConsensusStorage(storage: Option[LSMStore], private val defaultTotalStake: Int128) extends Logging {
+class ConsensusStorage(storage: Option[Store], private val defaultTotalStake: Int128) extends Logging {
 
   // constant keys for each piece of consensus state
   private val totalStakeKey = ByteArrayWrapper(Blake2b256("totalStake".getBytes))
