@@ -1,24 +1,15 @@
 package co.topl.it
 
-import io.netty.util.Timer
-
-import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import akka.actor.ActorSystem
+import com.spotify.docker.client.DockerClient
 
 package object util {
-  implicit class TimerExt(val timer: Timer) extends AnyVal {
-    def schedule[A](f: => Future[A], delay: FiniteDuration): Future[A] = {
-      val p = Promise[A]
-      try {
-        timer.newTimeout(_ => p.completeWith(f), delay.toMillis, MILLISECONDS)
-      } catch {
-        case t: Throwable => p.failure(t)
-      }
-      p.future
-    }
 
-    def retryUntil[A](f: => Future[A], cond: A => Boolean, retryInterval: FiniteDuration)
-                     (implicit ec: ExecutionContext): Future[A] =
-      f.flatMap(v => if (cond(v)) Future.successful(v) else schedule(retryUntil(f, cond, retryInterval), retryInterval))
-  }
+  implicit def nodeToRpcApi(
+    node:            BifrostDockerNode
+  )(implicit system: ActorSystem, dockerClient: DockerClient): NodeRpcApi =
+    NodeRpcApi(node)
+
+  implicit def nodeToDockerApi(node: BifrostDockerNode)(implicit dockerClient: DockerClient): NodeDockerApi =
+    NodeDockerApi(node)
 }
