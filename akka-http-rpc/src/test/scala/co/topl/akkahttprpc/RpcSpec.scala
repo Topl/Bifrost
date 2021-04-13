@@ -16,7 +16,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{EitherValues, Inside, OptionValues}
-
+import RpcEncoders._
 import scala.concurrent.Future
 
 class RpcSpec
@@ -147,9 +147,9 @@ class RpcSpec
         "params"  -> Map("foo" -> "bar").asJson
       ).asJson
     ) ~> underTest ~> check {
-      inside(rejection) { case RpcErrorRejection(e) =>
-        e shouldBe a[InvalidParametersError]
-      }
+      val json = responseAs[Json]
+
+      root.error.code.int.getOption(json).value shouldBe InvalidParametersError.Code
     }
   }
 
@@ -168,9 +168,11 @@ class RpcSpec
         "params"  -> TestMethodParams("abcdef").asJson
       ).asJson
     ) ~> underTest ~> check {
-      inside(rejection) { case RpcErrorRejection(e) =>
-        e shouldBe a[CustomError]
-      }
+      val response = responseAs[FailureRpcResponse]
+      val error = response.error
+
+      root.message.string.getOption(error.data.value).value shouldBe "Heck"
+      root.stackTrace.arr.getOption(error.data.value).value should not be empty
     }
   }
 
@@ -190,9 +192,10 @@ class RpcSpec
         "params"  -> TestMethodParams("abcdef").asJson
       ).asJson
     ) ~> underTest ~> check {
-      inside(rejection) { case RpcErrorRejection(e) =>
-        e shouldBe a[CustomError]
-      }
+      val response = responseAs[FailureRpcResponse]
+      val error = response.error
+
+      error.message shouldBe "Heck"
     }
   }
 

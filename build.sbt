@@ -255,6 +255,7 @@ lazy val bifrost = Project(id = "bifrost", base = file("."))
     )
   )
   .dependsOn(utils, attestation, modifier, akkaHttpRpc, toplRpc)
+  .aggregate(utils, attestation, modifier, akkaHttpRpc, toplRpc)
 
 lazy val utils = Project(id = "utils", base = file("utils"))
   .settings(
