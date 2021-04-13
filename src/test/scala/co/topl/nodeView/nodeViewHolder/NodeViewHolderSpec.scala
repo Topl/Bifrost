@@ -20,19 +20,19 @@ class NodeViewHolderSpec extends AnyPropSpec
 
   type MP = MemPool
 
-  private implicit val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
+  private implicit val actorSystem: ActorSystem = ActorSystem("NodeviewHolderSpec")
   private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
   private val appContext = new AppContext(settings, StartupOpts.empty, None)
-  private val nvhTestRef = TestActorRef(new NodeViewHolder(settings, appContext))
+  private val nvhTestRef = TestActorRef(new NodeViewHolder(settings, appContext), "nvhTest")
   private val nodeView = nvhTestRef.underlyingActor
   private val state = createState()
 
   // TODO replace reward transactions with valid transactions
   property("Rewards transactions are removed from transactions extracted from a block being rolled back") {
     forAll(blockGen) { block =>
-      val polyReward = polyTransferGen.sample.get.copy(minting = true)
-      val arbitReward = arbitTransferGen.sample.get.copy(minting = true)
+      val polyReward = sampleUntilNonEmpty(polyTransferGen)
+      val arbitReward = sampleUntilNonEmpty(arbitTransferGen)
       val rewardBlock = block.copy(transactions = Seq(arbitReward, polyReward))
 
       val updateMemPool = PrivateMethod[MP]('updateMemPool)

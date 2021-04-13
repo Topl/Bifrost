@@ -14,8 +14,8 @@ class KeySpec
     with ValidGenerators
     with Matchers {
 
-  val password: String = stringGen.sample.get
-  val messageByte: Array[Byte] = nonEmptyBytesGen.sample.get
+  val password: String = sampleUntilNonEmpty(stringGen)
+  val messageByte: Array[Byte] = sampleUntilNonEmpty(nonEmptyBytesGen)
 
   val address: Address = keyRing.DiskOps.generateKeyFile(password) match {
     case Success(addr) => addr

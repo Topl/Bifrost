@@ -441,7 +441,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
       .putWithoutCheck(rolledBackTxs, appContext.timeProvider.time)
       .filter { tx =>
         !appliedTxs.exists(t => t.id == tx.id) && {
-          state.semanticValidate(tx).isSuccess
+          tx.syntacticValidate.isSuccess
         }
       }
   }

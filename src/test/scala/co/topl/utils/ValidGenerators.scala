@@ -12,11 +12,8 @@ import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction._
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.State
-import co.topl.program._
 import co.topl.settings.AppSettings
-import io.circe.syntax._
 import org.scalacheck.Gen
-import scorex.crypto.hash.Blake2b256
 
 import scala.util.{Failure, Random, Success}
 
@@ -60,10 +57,13 @@ trait ValidGenerators extends CoreGenerators {
 
     val availablePolys = sumBoxes(collectBoxes(keyRing.addresses, state), "PolyBox")
     val (sender, poly) = availablePolys(Random.nextInt(availablePolys.length))
-    val polyAmount = SimpleValue(Int128(sampleUntilNonEmpty(Gen.chooseNum(1L, poly.longValue()))))
+    val polyAmount = SimpleValue(Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, poly.longValue() - 1))) - fee)
 
     val prop = keyRing.lookupPublicKey(sender).get
-    val recipients = IndexedSeq((keyRing.addresses.toSeq(Random.nextInt(keyRing.addresses.size)), polyAmount))
+    val recipients = {
+      val address: Address = keyRing.addresses.filterNot(_ == sender).toSeq(Random.nextInt(keyRing.addresses.size - 1))
+      IndexedSeq((address, polyAmount))
+    }
     val rawTx = PolyTransfer.createRaw(
       state,
       recipients,
@@ -87,10 +87,13 @@ trait ValidGenerators extends CoreGenerators {
 
     val availableArbits = sumBoxes(collectBoxes(keyRing.addresses, state), "ArbitBox")
     val (sender, arbit) = availableArbits(Random.nextInt(availableArbits.length))
-    val arbitAmount = SimpleValue(Int128(sampleUntilNonEmpty(Gen.chooseNum(1L, arbit.longValue()))))
+    val arbitAmount = SimpleValue(Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, arbit.longValue() - 1))) - fee)
 
     val prop = keyRing.lookupPublicKey(sender).get
-    val recipients = IndexedSeq((keyRing.addresses.toSeq(Random.nextInt(keyRing.addresses.size)), arbitAmount))
+    val recipients = {
+      val address = keyRing.addresses.filterNot(_ == sender).toSeq(Random.nextInt(keyRing.addresses.size - 1))
+      IndexedSeq((address, arbitAmount))
+    }
     val rawTx = ArbitTransfer.createRaw(
       state,
       recipients,
@@ -152,7 +155,7 @@ trait ValidGenerators extends CoreGenerators {
     val ownerQuantities = boxesByOwner.map {
       case (evidence, boxes) =>
         Address(evidence) -> boxes
-          .filter(identifier(_).typeString == tokenType).map(_.value.quantity).foldLeft[Int128](0)(_ + _)
+          .filter(identifier(_).typeString == tokenType).map(_.value.quantity).sum
     }.toSeq
     ownerQuantities.filter(_._2 > 0)
   }

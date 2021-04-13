@@ -5,6 +5,8 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
+import scala.util.Failure
+
 class PolyTransferSpec
     extends AnyPropSpec
     with ScalaCheckPropertyChecks
@@ -15,6 +17,10 @@ class PolyTransferSpec
 
   property("Generated PolyTransfer Tx should be valid") {
     forAll(validPolyTransfer(keyRing, genesisState)) { polyTransfer: PolyTransfer[_] =>
+      polyTransfer.syntacticValidate match {
+        case Failure(exception) => println(exception)
+        case _ =>
+      }
       polyTransfer.syntacticValidate.isSuccess shouldBe true
     }
   }
