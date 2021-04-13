@@ -200,10 +200,14 @@ trait TransactionRpcResponseDecoders extends SharedCodecs {
 
 trait AdminRpcResponseDecoders extends SharedCodecs {
 
-  implicit val unlockKeyfileResponseDecoder: Decoder[ToplRpc.Admin.UnlockKeyfile.Response] =
+  implicit def unlockKeyfileResponseDecoder(implicit
+    networkPrefix: NetworkPrefix
+  ): Decoder[ToplRpc.Admin.UnlockKeyfile.Response] =
     Decoder.decodeMap
 
-  implicit val lockKeyfileResponseDecoder: Decoder[ToplRpc.Admin.LockKeyfile.Response] =
+  implicit def lockKeyfileResponseDecoder(implicit
+    networkPrefix: NetworkPrefix
+  ): Decoder[ToplRpc.Admin.LockKeyfile.Response] =
     Decoder.decodeMap
 
   implicit def generateKeyfileResponseDecoder(implicit
@@ -341,7 +345,9 @@ trait AdminRpcParamsDecoders extends SharedCodecs {
   implicit val unlockKeyfileParamsDecoder: Decoder[ToplRpc.Admin.UnlockKeyfile.Params] =
     deriveDecoder
 
-  implicit val lockKeyfileParamsDecoder: Decoder[ToplRpc.Admin.LockKeyfile.Params] =
+  implicit def lockKeyfileParamsDecoder(implicit
+    networkPrefix: NetworkPrefix
+  ): Decoder[ToplRpc.Admin.LockKeyfile.Params] =
     deriveDecoder
 
   implicit val generateKeyfileParamsDecoder: Decoder[ToplRpc.Admin.GenerateKeyfile.Params] =
@@ -480,7 +486,8 @@ trait SharedCodecs {
   implicit def modifierIdEncoder: Encoder[ModifierId] = ModifierId.jsonEncoder
   implicit def modifierIdDecoder: Decoder[ModifierId] = ModifierId.jsonDecoder
   implicit def addressEncoder: Encoder[Address] = Address.jsonEncoder
-  implicit def addressDecoder(implicit networkPrefix: NetworkPrefix): Decoder[Address] = Address.jsonDecoder
+  implicit def addressDecoder(implicit networkPrefix:    NetworkPrefix): Decoder[Address] = Address.jsonDecoder
+  implicit def addressKeyDecoder(implicit networkPrefix: NetworkPrefix): KeyDecoder[Address] = Address.jsonKeyDecoder
   implicit def transactionEncoder: Encoder[Transaction.TX] = Transaction.jsonEncoder
 
   implicit def transactionDecoder(implicit networkPrefix: NetworkPrefix): Decoder[Transaction.TX] =

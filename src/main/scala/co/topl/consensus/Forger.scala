@@ -5,9 +5,9 @@ import akka.actor._
 import akka.util.Timeout
 import cats.data.EitherT
 import cats.implicits._
-import co.topl.akka.AskException
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, AddressEncoder, PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.catsakka.AskException
 import co.topl.consensus.Forger.{ChainParams, PickTransactionsResult}
 import co.topl.consensus.genesis.{HelGenesis, PrivateGenesis, ToplnetGenesis, ValhallaGenesis}
 import co.topl.modifier.ModifierId
@@ -552,7 +552,7 @@ trait KeyManagerInterface {
 
 class ActorKeyManagerInterface(actorRef: ActorRef)(implicit ec: ExecutionContext, timeout: Timeout)
     extends KeyManagerInterface {
-  import co.topl.akka.CatsActor._
+  import co.topl.catsakka.CatsActor._
 
   override def unlockKey(address: String, password: String): EitherT[Future, UnlockKeyFailure, Address] =
     actorRef
@@ -606,12 +606,6 @@ class ActorKeyManagerInterface(actorRef: ActorRef)(implicit ec: ExecutionContext
       .leftMap(e => e: ListOpenKeyfilesFailure)
 }
 
-object ActorKeyManagerInterface {
-
-  implicit def interface(actorRef: ActorRef)(implicit ec: ExecutionContext, timeout: Timeout): ActorKeyManagerInterface =
-    new ActorKeyManagerInterface(actorRef)
-}
-
 sealed trait StartForgingFailure
 sealed trait StopForgingFailure
 
@@ -627,10 +621,4 @@ class ActorForgerInterface(actorRef: ActorRef)(implicit ec: ExecutionContext) ex
 
   override def stopForging(): EitherT[Future, StopForgingFailure, Done.type] =
     (actorRef ! Forger.ReceivableMessages.StopForging).asRight[StopForgingFailure].map(_ => Done).toEitherT[Future]
-}
-
-object ActorForgerInterface {
-
-  implicit def interface(actorRef: ActorRef)(implicit ec: ExecutionContext): ActorForgerInterface =
-    new ActorForgerInterface(actorRef)
 }

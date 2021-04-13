@@ -8,8 +8,6 @@ import akka.util.Timeout
 import co.topl.akkahttprpc.{ThrowableData, ThrowableSupport}
 import co.topl.consensus.{ActorForgerInterface, ActorKeyManagerInterface, Forger, ForgerRef}
 import co.topl.http.HttpService
-import co.topl.http.api.ApiEndpoint
-import co.topl.http.api.endpoints._
 import co.topl.http.rpc.ToplRpcServer
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
@@ -21,7 +19,6 @@ import co.topl.nodeView._
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.rpc.handlers.{DebugRpcHandlerImpls, ToplRpcHandlers, UtilsRpcHandlerImpls}
 import co.topl.settings._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Logging, NetworkType}
@@ -119,16 +116,12 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   /** hook for initiating the shutdown procedure */
   sys.addShutdownHook(BifrostApp.shutdown(actorSystem, actorsToStop))
 
-  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
-  /** Create and register controllers for API routes */
-  private val apiRoutes: Seq[ApiEndpoint] = Nil
-
   implicit val throwableEncoder: Encoder[ThrowableData] =
     ThrowableSupport.verbose(settings.rpcApi.verboseAPI)
 
   private val forgerInterface = new ActorForgerInterface(forgerRef)
   private val keyManagerInterface = new ActorKeyManagerInterface(forgerRef)
-  private val nodeViewHolderInterface = new ActorNodeViewHolderInterface(nodeViewHolderInterface)
+  private val nodeViewHolderInterface = new ActorNodeViewHolderInterface(nodeViewHolderRef)
 
   private val bifrostRpcServer: ToplRpcServer = {
     import co.topl.rpc.handlers._
@@ -144,7 +137,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     )
   }
 
-  private val httpService = HttpService(apiRoutes, settings.rpcApi, bifrostRpcServer)
+  private val httpService = HttpService(settings.rpcApi, bifrostRpcServer)
 
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
   /** Am I running on a JDK that supports JVMCI? */

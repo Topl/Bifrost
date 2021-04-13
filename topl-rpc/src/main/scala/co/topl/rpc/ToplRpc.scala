@@ -205,13 +205,13 @@ object ToplRpc {
     object UnlockKeyfile {
       val rpc: Rpc[Params, Response] = Rpc("admin_unlockKeyfile")
       case class Params(address: String, password: String)
-      type Response = Map[String, String]
+      type Response = Map[Address, String]
     }
     object LockKeyfile {
       val rpc: Rpc[Params, Response] = Rpc("admin_lockKeyfile")
 
       case class Params(address: Address)
-      type Response = Map[String, String]
+      type Response = Map[Address, String]
     }
     object GenerateKeyfile {
       val rpc: Rpc[Params, Response] = Rpc("admin_generateKeyfile")

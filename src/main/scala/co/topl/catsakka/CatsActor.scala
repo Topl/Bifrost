@@ -1,4 +1,4 @@
-package co.topl.akka
+package co.topl.catsakka
 
 import akka.actor.ActorRef
 import akka.pattern.ask

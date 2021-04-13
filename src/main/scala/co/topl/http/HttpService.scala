@@ -1,37 +1,22 @@
 package co.topl.http
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.marshalling.Marshaller
 import akka.http.scaladsl.marshalling.Marshaller._
-import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse}
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 import akka.http.scaladsl.server.Route
-import co.topl.akkahttprpc.RpcDirectives._
-import co.topl.http.api.{ApiEndpoint, ApiResponse, ErrorResponse, SuccessResponse}
 import co.topl.http.rpc.ToplRpcServer
 import co.topl.settings.RPCApiSettings
-import io.circe.Json
-import scorex.crypto.hash.{Blake2b256, Digest32}
+import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
-import scala.concurrent.{Future, TimeoutException}
-
 final case class HttpService(
-  apiServices:         Seq[ApiEndpoint],
   settings:            RPCApiSettings,
   bifrostRpcServer:    ToplRpcServer
 )(implicit val system: ActorSystem)
     extends CorsSupport {
 
-  import HttpService._
-  import system.dispatcher
-
-  private lazy val apiKeyHash: Option[Array[Byte]] = Base58.decode(settings.apiKeyHash).toOption
-
-  private val apiServiceHandlers: PartialFunction[(String, Vector[Json], String), Future[Json]] =
-    apiServices
-      .filter(endpoint => settings.namespaceSelector.namespaceStates(endpoint.namespace))
-      .map(_.handlers)
-      .fold(PartialFunction.empty[(String, Vector[Json], String), Future[Json]])(_ orElse _)
+  private val apiKeyHash: Option[Array[Byte]] =
+    Base58.decode(settings.apiKeyHash).toOption
 
   /** the primary route that the HTTP service is bound to in BifrostApp */
   val compositeRoute: Route =
@@ -49,37 +34,9 @@ final case class HttpService(
   private def basicRoute: Route =
     path("") {
       withAuth {
-        rpcContext { rpcContext =>
-          apiServiceHandlers
-            .andThen(h =>
-              complete(
-                timeoutFuture(
-                  rpcContext.id,
-                  h.map(SuccessResponse(_, rpcContext.id)).recover { case e =>
-                    ErrorResponse(e, 500, rpcContext.id, verbose = settings.verboseAPI)
-                  }
-                )
-              ): Route
-            )
-            .applyOrElse(
-              (rpcContext.method, Vector(rpcContext.params), rpcContext.id),
-              (_: (String, Vector[Json], String)) => bifrostRpcServer.route
-            )
-        }
+        bifrostRpcServer.route
       }
     }
-
-  private def timeoutFuture(requestId: String, futureResponse: => Future[ApiResponse]): Future[ApiResponse] =
-    Future
-      .firstCompletedOf(
-        List(
-          futureResponse,
-          akka.pattern.after(settings.timeout)(Future.failed(new TimeoutException))
-        )
-      )
-      .recover { case e: TimeoutException =>
-        ErrorResponse(e, 500, requestId, verbose = settings.verboseAPI)
-      }
 
   /** Helper route to wrap the handling of API key authentication */
   def withAuth(route: => Route): Route =
@@ -92,21 +49,6 @@ final case class HttpService(
     * @param keyOpt api key specified in header
     * @return
     */
-  private def isValid(keyOpt: Option[String]): Boolean = {
-    lazy val keyHash: Option[Digest32] = keyOpt.map(Blake2b256(_))
-    (apiKeyHash, keyHash) match {
-      case (None, _)                      => true
-      case (Some(expected), Some(passed)) => expected sameElements passed
-      case _                              => false
-    }
-  }
-}
-
-object HttpService {
-
-  implicit val apiResponseMarshaller: Marshaller[ApiResponse, HttpResponse] =
-    Marshaller.withFixedContentType[ApiResponse, HttpResponse](ContentTypes.`application/json`)(response =>
-      HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, response.toJson.spaces2))
-    )
-
+  private def isValid(keyOpt: Option[String]): Boolean =
+    apiKeyHash.forall(expected => keyOpt.map(Blake2b256(_)).exists(expected sameElements _))
 }

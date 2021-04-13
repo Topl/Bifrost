@@ -4,10 +4,10 @@ import akka.http.scaladsl.server.Route
 import akka.util.ByteString
 import co.topl.akkahttprpc.MethodNotFoundError
 import co.topl.akkahttprpc.ThrowableSupport.Standard._
+import co.topl.consensus.{ActorForgerInterface, ActorKeyManagerInterface}
 import co.topl.http.HttpService
-import co.topl.http.api.ApiEndpoint
-import co.topl.http.api.endpoints._
 import co.topl.http.rpc.ToplRpcServer
+import co.topl.nodeView.ActorNodeViewHolderInterface
 import co.topl.settings.{AppContext, AppSettings, StartupOpts}
 import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
@@ -29,24 +29,24 @@ class NameSpaceSpec extends AnyWordSpec with Matchers with RPCMockState {
 
     val newAppContext = new AppContext(newRpcSettings, StartupOpts.empty, None)
 
-    val newApiRoutes: Seq[ApiEndpoint] = Seq(
-      AdminApiEndpoint(newRpcSettings.rpcApi, newAppContext, forgerRef)
-    )
-
-    import co.topl.rpc.handlers._
-
-    val rpcServer =
+    val rpcServer: ToplRpcServer = {
+      val forgerInterface = new ActorForgerInterface(forgerRef)
+      val keyManagerInterface = new ActorKeyManagerInterface(forgerRef)
+      val nodeViewHolderInterface = new ActorNodeViewHolderInterface(nodeViewHolderRef)
+      import co.topl.rpc.handlers._
       new ToplRpcServer(
         ToplRpcHandlers(
-          new DebugRpcHandlerImpls(nodeViewHolderRef, forgerRef),
+          new DebugRpcHandlerImpls(nodeViewHolderInterface, keyManagerInterface),
           new UtilsRpcHandlerImpls,
-          new NodeViewRpcHandlerImpls(appContext, nodeViewHolderRef, nodeViewHolderRef, nodeViewHolderRef),
-          new TransactionRpcHandlerImpls(nodeViewHolderRef, nodeViewHolderRef)
+          new NodeViewRpcHandlerImpls(newAppContext, nodeViewHolderInterface),
+          new TransactionRpcHandlerImpls(nodeViewHolderInterface),
+          new AdminRpcHandlerImpls(forgerInterface, keyManagerInterface)
         ),
         newAppContext
       )
+    }
 
-    val newHttpService = HttpService(newApiRoutes, newRpcSettings.rpcApi, rpcServer)
+    val newHttpService = HttpService(newRpcSettings.rpcApi, rpcServer)
     newHttpService.compositeRoute
   }
 

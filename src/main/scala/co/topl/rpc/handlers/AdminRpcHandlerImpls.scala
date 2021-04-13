@@ -25,7 +25,7 @@ class AdminRpcHandlerImpls(forgerInterface: ForgerInterface, keyManagerInterface
       keyManagerInterface
         .lockKey(params.address)
         .leftMap(e => ToplRpcErrors.genericFailure(e.toString): RpcError)
-        .map(address => Map(address -> "locked"))
+        .map(_ => Map(params.address -> "locked"))
 
   override val generateKeyfile: ToplRpc.Admin.GenerateKeyfile.rpc.ServerHandler =
     params =>

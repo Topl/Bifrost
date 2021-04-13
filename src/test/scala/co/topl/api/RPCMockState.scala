@@ -8,17 +8,14 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import co.topl.akkahttprpc.ThrowableSupport.Standard._
-import co.topl.consensus.{Forger, ForgerRef}
+import co.topl.consensus.{ActorForgerInterface, ActorKeyManagerInterface, Forger, ForgerRef}
 import co.topl.http.HttpService
-import co.topl.http.api.ApiEndpoint
-import co.topl.http.api.endpoints._
 import co.topl.http.rpc.ToplRpcServer
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.{CurrentView, NodeViewHolder, NodeViewHolderRef}
-import co.topl.rpc.handlers.{DebugRpcHandlerImpls, NodeViewRpcHandlerImpls, ToplRpcHandlers, UtilsRpcHandlerImpls}
+import co.topl.nodeView.{ActorNodeViewHolderInterface, CurrentView, NodeViewHolder, NodeViewHolderRef}
 import co.topl.settings.{AppContext, AppSettings, StartupOpts}
 import co.topl.utils.GenesisGenerators
 import org.scalatest.wordspec.AnyWordSpec
@@ -53,24 +50,24 @@ trait RPCMockState extends AnyWordSpec with GenesisGenerators with ScalatestRout
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 
-  private val apiRoutes: Seq[ApiEndpoint] = Seq(
-    AdminApiEndpoint(rpcSettings.rpcApi, appContext, forgerRef)
-  )
-
-  import co.topl.rpc.handlers._
-
-  val rpcServer =
+  val rpcServer: ToplRpcServer = {
+    val forgerInterface = new ActorForgerInterface(forgerRef)
+    val keyManagerInterface = new ActorKeyManagerInterface(forgerRef)
+    val nodeViewHolderInterface = new ActorNodeViewHolderInterface(nodeViewHolderRef)
+    import co.topl.rpc.handlers._
     new ToplRpcServer(
       ToplRpcHandlers(
-        new DebugRpcHandlerImpls(nodeViewHolderRef, forgerRef),
+        new DebugRpcHandlerImpls(nodeViewHolderInterface, keyManagerInterface),
         new UtilsRpcHandlerImpls,
-        new NodeViewRpcHandlerImpls(appContext, nodeViewHolderRef, nodeViewHolderRef, nodeViewHolderRef),
-        new TransactionRpcHandlerImpls(nodeViewHolderRef, nodeViewHolderRef)
+        new NodeViewRpcHandlerImpls(appContext, nodeViewHolderInterface),
+        new TransactionRpcHandlerImpls(nodeViewHolderInterface),
+        new AdminRpcHandlerImpls(forgerInterface, keyManagerInterface)
       ),
       appContext
     )
+  }
 
-  private val httpService = HttpService(apiRoutes, rpcSettings.rpcApi, rpcServer)
+  private val httpService = HttpService(rpcSettings.rpcApi, rpcServer)
   val route: Route = httpService.compositeRoute
 
   def httpPOST(jsonRequest: ByteString): HttpRequest =
