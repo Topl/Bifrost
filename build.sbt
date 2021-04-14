@@ -9,22 +9,8 @@ inThisBuild(List(
   organization := "co.topl",
   scalaVersion := scala212,
   crossScalaVersions := Seq(scala212, scala213),
-  dynverSeparator := "-",
-  githubWorkflowJavaVersions := Seq(GraalVM8),
-  githubWorkflowTargetBranches := Seq("main", "dev", "sbt-release"),
-  githubWorkflowTargetTags ++= Seq("v*"),
-  githubWorkflowPublishTargetBranches += RefPredicate.StartsWith(Ref.Tag("v")),
-  githubWorkflowPublish := Seq(
-    WorkflowStep.Sbt(
-      List("ci-release"),
-      env = Map(
-        "PGP_PASSPHRASE" -> "${{ secrets.PGP_PASSPHRASE }}",
-        "PGP_SECRET" -> "${{ secrets.PGP_SECRET }}",
-        "SONATYPE_PASSWORD" -> "${{ secrets.SONATYPE_PASSWORD }}",
-        "SONATYPE_USERNAME" -> "${{ secrets.SONATYPE_USERNAME }}"
-      )
-    )
-  )
+  versionScheme := Some("early-semver"),
+  sonatypeCredentialHost := "s01.oss.sonatype.org"
 ))
 
 
@@ -33,19 +19,19 @@ lazy val commonSettings = Seq(
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   // wartremoverErrors := Warts.unsafe // settings for wartremover
   Compile / unmanagedSourceDirectories += {
-    val sourceDir = (sourceDirectory in Compile).value
+    val sourceDir = (Compile / sourceDirectory).value
     CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2, n)) if n >= 13 => sourceDir / "scala-2.13+"
       case _ => sourceDir / "scala-2.12-"
     }
   },
-  testOptions in Test ++= Seq(
+  Test / testOptions ++= Seq(
     Tests.Argument("-oD", "-u", "target/test-reports"),
     Tests.Argument(TestFrameworks.ScalaCheck, "-verbosity", "2"),
     Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-oDG")
   ),
-  parallelExecution in Test := false,
-  logBuffered in Test := false,
+  Test / parallelExecution := false,
+  Test / logBuffered := false,
   classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
   Test / fork := false,
   Compile / run / fork := true,
@@ -59,9 +45,7 @@ lazy val commonSettings = Seq(
 lazy val publishSettings = Seq(
   homepage := Some(url("https://github.com/Topl/Bifrost")),
   licenses := Seq("MPL2.0" -> url("https://www.mozilla.org/en-US/MPL/2.0/")),
-  scmInfo := Some(ScmInfo(url("https://github.com/Topl/Bifrost"), "scm:git:git@github.com:Topl/Bifrost.git")),
-  sonatypeCredentialHost := "s01.oss.sonatype.org",
-  publishArtifact in Test := false,
+  Test / publishArtifact := false,
   pomIncludeRepository := { _ => false },
   usePgpKeyHex("CEE1DC9E7C8E9AF4441D5EB9E35E84257DCF8DCB"),
   pomExtra :=
@@ -77,17 +61,11 @@ lazy val publishSettings = Seq(
     </developers>
 )
 
-lazy val doNotPublishSettings = Seq(
-  publish := {},
-  publishLocal := {},
-  publishArtifact := false
-)
-
 lazy val assemblySettings = Seq(
-  mainClass in assembly := Some("co.topl.BifrostApp"),
-  test in assembly := {},
+  assembly / mainClass := Some("co.topl.BifrostApp"),
+  assembly / test := {},
   assemblyJarName := s"bifrost-${version.value}.jar",
-  assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) => {
+  assembly / assemblyMergeStrategy ~= { old: ((String) => MergeStrategy) => {
       case ps if ps.endsWith(".SF")  => MergeStrategy.discard
       case ps if ps.endsWith(".DSA") => MergeStrategy.discard
       case ps if ps.endsWith(".RSA") => MergeStrategy.discard
@@ -101,8 +79,8 @@ lazy val assemblySettings = Seq(
       case x                             => old(x)
     }
   },
-  assemblyExcludedJars in assembly := {
-    val cp = (fullClasspath in assembly).value
+  assembly / assemblyExcludedJars := {
+    val cp = (assembly / fullClasspath).value
     cp filter { el => el.data.getName == "ValkyrieInstrument-1.0.jar" }
   }
 )
@@ -216,16 +194,16 @@ javaOptions ++= Seq(
   "-Xss64m"
 )
 
-connectInput in run := true
+connectInput / run := true
 outputStrategy := Some(StdoutOutput)
 
-connectInput in run := true
+connectInput / run := true
 outputStrategy := Some(StdoutOutput)
 
 lazy val bifrost = project.in(file("."))
   .settings(
     moduleName := "bifrost",
-    doNotPublishSettings,
+    publish / skip := true,
     crossScalaVersions := Nil
   )
   .aggregate(
@@ -267,8 +245,7 @@ lazy val gjallarhorn = project.in(file("gjallarhorn"))
   .settings(
     name := "gjallarhorn",
     commonSettings,
-    doNotPublishSettings,
-    crossScalaVersions := Nil,
+    publish / skip := true,
     Defaults.itSettings,
     libraryDependencies ++= akkaDependencies ++ testingDependencies ++ cryptoDependencies ++ apiDependencies
     ++ loggingDependencies ++ miscDependencies,
@@ -281,8 +258,7 @@ lazy val benchmarking = project.in(file("benchmark"))
   .settings(
     name := "benchmark",
     commonSettings,
-    doNotPublishSettings,
-    crossScalaVersions := Nil
+    publish / skip := true
   )
   .dependsOn(node % "compile->compile;test->test")
   .enablePlugins(JmhPlugin)
@@ -292,8 +268,7 @@ lazy val it = project.in(file("it"))
   .settings(
     name := "it",
     commonSettings,
-    doNotPublishSettings,
-    crossScalaVersions := Nil,
+    publish / skip := true,
     Defaults.itSettings,
     libraryDependencies += scalatest % "it, test"
   )
