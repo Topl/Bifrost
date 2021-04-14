@@ -13,6 +13,7 @@ inThisBuild(List(
 ))
 
 lazy val commonSettings = Seq(
+  sonatypeCredentialHost := "s01.oss.sonatype.org",
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   // wartremoverErrors := Warts.unsafe // settings for wartremover
@@ -46,7 +47,6 @@ lazy val publishSettings = Seq(
   Test / publishArtifact := false,
   pomIncludeRepository := { _ => false },
   usePgpKeyHex("CEE1DC9E7C8E9AF4441D5EB9E35E84257DCF8DCB"),
-  sonatypeCredentialHost := "s01.oss.sonatype.org",
   pomExtra :=
     <developers>
       <developer>
@@ -202,6 +202,7 @@ outputStrategy := Some(StdoutOutput)
 lazy val bifrost = project.in(file("."))
   .settings(
     moduleName := "bifrost",
+    commonSettings,
     publish / skip := true,
     crossScalaVersions := Nil
   )
