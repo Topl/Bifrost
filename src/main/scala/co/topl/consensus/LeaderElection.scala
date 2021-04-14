@@ -9,78 +9,50 @@ import co.topl.modifier.box.{ArbitBox, ProgramId}
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.StateReader
 import co.topl.utils.{Logging, TimeProvider}
-import com.google.common.primitives.Longs
-import com.ibm.icu.number.Precision
-import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.Curve25519
 
-import scala.concurrent.duration.MILLISECONDS
 import scala.math.BigInt
 import scala.util.Random
 
-object LeaderElectionBifrost extends Logging {
+object LeaderElection extends Logging {
 
   type TX = Transaction.TX
-
-  type Hit = ArbitBox
-
   type SR = StateReader[ProgramId, Address]
 
   /**
-    * Gets a hit if it exists on the next block in the chain.
+    * Gets an arbit box that is eligible for forging the next block if there are any.
     * @param parent the parent block
     * @param addresses the addresses to stake with
     * @param timestamp the current time
     * @param stateReader a read-only version of state
-    * @return a hit if one is found or an error if there are no boxes to stake with
+    * @return a hit if one is found
     */
-  def getHit(
+  def getEligibleBox(
     parent: Block,
     addresses: Set[Address],
     timestamp: TimeProvider.Time,
     stateReader: SR
-  ): Either[NoArbitBoxesError, Option[Hit]] = {
-    val arbitBoxes = getArbitBoxes(stateReader, addresses)
-
-    val adjustedTarget: BigDecimal = {
-      val target: Double = parent.difficulty.toDouble / consensusStorage.totalStake.toDouble
-      val timeDelta = timestamp - parent.timestamp
-
-      BigDecimal(target * timeDelta.toDouble / targetBlockTime(parent.height).toUnit(MILLISECONDS))
-    }
-
-    def calculateHit(blockBytes: Array[Byte], boxBytes: Array[Byte]): Long = {
-      val hash = Blake2b256(blockBytes ++ boxBytes)
-
-      Longs.fromByteArray((0: Byte) +: hash.take(7))
-    }
-
-    // test procedure to determine eligibility
-    arbitBoxes
-      .map(
-        _.map(box => (box, calculateHit(parent.bytes, box.bytes)))
-          .filter { test =>
-            BigInt(test._2) < (test._1.value.quantity.doubleValue() * adjustedTarget).toBigInt
-          }
-          .map(h => h._1)
-          .headOption)
-  }
-
-  def getArbitBoxes(stateReader: SR, addresses: Set[Address]): Either[NoArbitBoxesError, Seq[ArbitBox]] =
-    if (addresses.nonEmpty) {
-      val boxes = addresses.flatMap {
-        stateReader
-          .getTokenBoxes(_)
-          .getOrElse(Seq())
-          .collect { case box: ArbitBox => box }
-      }.toSeq
-
-      Right(boxes)
+  ): Option[ArbitBox] = {
+    if (addresses.isEmpty) {
+      log.warn("No addresses available for forging.")
+      None
     } else {
-      Left(NoArbitBoxesError())
+      addresses
+        .flatMap {
+          stateReader
+            .getTokenBoxes(_)
+            .getOrElse(Seq())
+            .collect { case box: ArbitBox => box }
+        }
+        .map(box => (box, calcHit(parent)(box)))
+        .filter {
+          case (box, hit) =>
+            hit < calcTarget(box.value.quantity, timestamp - parent.timestamp, parent.difficulty, parent.height)
+        }
+        .map(_._1)
+        .headOption
     }
-
-  case class NoArbitBoxesError()
+  }
 }
 
 object LeaderElectionProsomo extends Logging {

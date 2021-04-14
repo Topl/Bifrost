@@ -49,13 +49,15 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
     // calculate the hit value from the forger box included in the new block
     val hit = calcHit(parent)(block.generatorBox)
 
-    // calculate the adjusted difficulty the forger would have used to determine eligibility
-    val timestamp = block.timestamp
-    val target = calcAdjustedTarget(parent, parent.height, parent.difficulty, timestamp)
-    val valueTarget = (target * BigDecimal(block.generatorBox.value.quantity.doubleValue())).toBigInt
+    // calculate the difficulty the forger would have used to determine eligibility
+    val target = calcTarget(
+      block.generatorBox.value.quantity,
+      block.timestamp - parent.timestamp,
+      parent.difficulty,
+      parent.height)
 
     // did the forger create a block with a valid forger box and adjusted difficulty?
-    require(BigInt(hit) < valueTarget, s"Block difficulty failed since $hit > $valueTarget")
+    require(hit < target, s"Block difficulty failed since $hit >= $target")
   }
 
   /** Helper function to find the source of the parent block (either storage or chain cache) */
