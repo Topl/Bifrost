@@ -167,7 +167,7 @@ object TransferTransaction {
 
   /** Syntactic validation of a transfer transaction
     *
-    * @param tx an instance of a transaction to check
+    * @param transaction an instance of a transaction to check
     * @param hasAttMap boolean flag controlling whether signature verification should be checked or skipped
     * @return success or failure indicating the validity of the transaction
     */
@@ -175,40 +175,49 @@ object TransferTransaction {
   def syntacticValidate[
     T <: TokenValueHolder,
     P <: Proposition: EvidenceProducer
-  ](tx: TransferTransaction[T, P], hasAttMap: Boolean = true)(implicit networkPrefix: NetworkPrefix): Try[Unit] = Try {
+  ](transaction: TransferTransaction[T, P],
+    hasAttMap: Boolean = true
+                          )(implicit
+                            networkPrefix: NetworkPrefix
+  ): Try[Unit] = Try {
+
+    // todo: brainstorm other validation rules that may be overlooked
 
     // enforce transaction specific requirements
-    tx match {
-      case t: ArbitTransfer[_] if t.minting => // Arbit block rewards
-      case t: PolyTransfer[_] if t.minting  => // Poly block rewards
-      case t: PolyTransfer[_] =>
-        require(t.from.nonEmpty, "Non-block reward transactions must specify at least one input box")
+    transaction match {
+      case _: ArbitTransfer[_] if transaction.minting => // Arbit block rewards
+      case _: PolyTransfer[_] if transaction.minting  => // Poly block rewards
+      case _: PolyTransfer[_] =>
+        require(transaction.from.nonEmpty, "Non-block reward transactions must specify at least one input box")
 
-      case t: ArbitTransfer[_] =>
+      case _: ArbitTransfer[_] =>
+        require(transaction.from.nonEmpty, "Non-block reward transactions must specify at least one input box")
+
         require(
-          tx.to.size >= 2,
+          transaction.to.size >= 2,
           "ArbitTransfers must specify two or more recipients in the `to` value such as [change_output, coin_output(s)]"
         )
-        require(t.from.nonEmpty, "Non-block reward transactions must specify at least one input box")
 
-      case t: AssetTransfer[_] =>
+
+      case _: AssetTransfer[_] =>
+        require(transaction.from.nonEmpty, "Non-block reward transactions must specify at least one input box")
+
         require(
-          tx.to.size >= 2,
+          transaction.to.size >= 2,
           "AssetTransfers must specify two or more recipients in the `to` value such as [change_output, coin_output(s)]"
         )
-        require(t.from.nonEmpty, "Non-block reward transactions must specify at least one input box")
     }
 
-    require(tx.fee >= 0, "Transfer transactions must have a non-negative fee")
-    require(tx.timestamp >= 0L, "Invalid timestamp")
+    require(transaction.fee >= 0, "Transfer transactions must have a non-negative fee")
+    require(transaction.timestamp >= 0L, "Invalid timestamp")
     require(
-      tx.data.forall(_.getValidLatin1Bytes.getOrElse(throw new Exception("String is not valid Latin-1")).length <= 128),
+      transaction.data.forall(_.getValidLatin1Bytes.getOrElse(throw new Exception("String is not valid Latin-1")).length <= 128),
       "Data field must be less than 128 bytes"
     )
 
     // ensure that the input and output lists of box ids are unique
     require(
-      tx.newBoxes.forall(b ⇒ !tx.boxIdsToOpen.contains(b.id)),
+      transaction.newBoxes.forall(b ⇒ !transaction.boxIdsToOpen.contains(b.id)),
       "The set of input box ids contains one or more of the output ids"
     )
 
@@ -216,32 +225,32 @@ object TransferTransaction {
     if (hasAttMap) {
       // ensure that the signatures are valid signatures with the body of the transaction
       require(
-        tx.attestation.forall { case (prop, proof) =>
-          proof.isValid(prop, tx.messageToSign)
+        transaction.attestation.forall { case (prop, proof) =>
+          proof.isValid(prop, transaction.messageToSign)
         },
         "The provided proposition is not satisfied by the given proof"
       )
 
       // ensure that the propositions match the from addresses
       require(
-        tx.from.forall { case (addr, _) =>
-          tx.attestation.keys.map(_.generateEvidence).toSeq.contains(addr.evidence)
+        transaction.from.forall { case (addr, _) =>
+          transaction.attestation.keys.map(_.generateEvidence).toSeq.contains(addr.evidence)
         },
         "The proposition(s) given do not match the evidence contained in the input boxes"
       )
 
-      tx match {
+      transaction match {
         // ensure that the asset issuer is signing a minting transaction
-        case t: AssetTransfer[_] if tx.minting =>
-          t.to.foreach {
+        case _: AssetTransfer[_] if transaction.minting =>
+          transaction.to.foreach {
             case (_, asset: AssetValue) =>
               require(
-                t.attestation.keys.map(_.address).toSeq.contains(asset.assetCode.issuer),
+                transaction.attestation.keys.map(_.address).toSeq.contains(asset.assetCode.issuer),
                 "Asset minting must include the issuers signature"
               )
             // do nothing with other token types
-            case (_, value: SimpleValue) =>
-            case _                       => throw new Error("AssetTransfer contains invalid value holder")
+            case (_, _: SimpleValue) =>
+            case _                   => throw new Error("AssetTransfer contains invalid value holder")
           }
 
         case _ => // put additional checks on attestations here
@@ -251,7 +260,7 @@ object TransferTransaction {
 
   /** Checks the stateful validity of a transaction
     *
-    * @param tx the transaction to check
+    * @param transaction the transaction to check
     * @param boxReader the state to check the validity against
     * @return a success or failure denoting the result of this check
     */
@@ -259,13 +268,13 @@ object TransferTransaction {
   def semanticValidate[
     T <: TokenValueHolder,
     P <: Proposition: EvidenceProducer
-  ](tx:            TransferTransaction[T, P], boxReader: BoxReader[ProgramId, Address])(implicit
-    networkPrefix: NetworkPrefix
+  ](transaction:            TransferTransaction[T, P], boxReader: BoxReader[ProgramId, Address])(implicit
+                                                                                                 networkPrefix: NetworkPrefix
   ): Try[Unit] = {
 
     // compute transaction values used for validation
-    val txOutput = tx.newBoxes.map(b => b.value.quantity).sum
-    val unlockers = BoxUnlocker.generate(tx.from, tx.attestation)
+    val txOutput = transaction.newBoxes.map(b => b.value.quantity).sum
+    val unlockers = BoxUnlocker.generate(transaction.from, transaction.attestation)
 
     val inputBoxes = unlockers.map { u =>
       u -> boxReader.getBox(u.closedBoxId)
@@ -276,27 +285,39 @@ object TransferTransaction {
     }.sum
 
     // check that the transaction is correctly formed before checking state
-    lazy val syntacticResult = syntacticValidate(tx)
+    lazy val syntacticResult = syntacticValidate(transaction)
 
     // enforce transaction specific requirements
     // must provide input state to consume in order to generate new state
     lazy val txSpecific = Try {
-      tx match {
-        case t: PolyTransfer[_] if t.minting => // Poly block rewards (skip enfocring)
-        case t: ArbitTransfer[_] if t.minting => // Arbit block rewards (skip enforcing)
+      transaction match {
+        case _: PolyTransfer[_] if transaction.minting => // Poly block rewards (skip enfocring)
+        case _: ArbitTransfer[_] if transaction.minting => // Arbit block rewards (skip enforcing)
 
-        case t: PolyTransfer[_] =>
+        case _: PolyTransfer[_] =>
           require(
-            sumOfPolyInputs - t.fee == txOutput,
+            sumOfPolyInputs - transaction.fee == txOutput,
             s"PolyTransfer output value does not equal input value for non-minting transaction. " +
-              s"$txOutput != ${sumOfPolyInputs - t.fee}"
+              s"$txOutput != ${sumOfPolyInputs - transaction.fee}"
           )
 
-        case t@_ =>
+        case _ =>
+          /*  This case enforces that the poly input balance must equal the poly output balance
+
+          This case is special for AssetTransfer and ArbitTransfer (collapsed to one to not duplicate the code)
+          It assumes that syntactic validate enforces
+            - at least one box in the `from` field
+            - at least two boxes in the `to` field [changeOutput,
+          then we should have a non-zero value of `sumOfPolyInputs` (if we don't they didn't provide a poly input that is required)
+          and we should have the first element of the `to` list that is designated to be the feeChangeOutput (even if that output is zero)
+          these two invariants (for these two transaction) allow us to make the requirement below that enforces that
+          the sum of the poly inputs equals the sum of the poly outputs.
+           */
+
           require(
-            sumOfPolyInputs - t.fee == t.feeChangeOutput.value.quantity,
+            sumOfPolyInputs - transaction.fee == transaction.feeChangeOutput.value.quantity,
             s"feeChangeOutput value does not equal input value for non-minting transaction. " +
-              s"${t.feeChangeOutput.value.quantity} != ${sumOfPolyInputs - t.fee}"
+              s"${transaction.feeChangeOutput.value.quantity} != ${sumOfPolyInputs - transaction.fee}"
           )
       }
     }
@@ -306,7 +327,7 @@ object TransferTransaction {
       .foldLeft[Try[Int128]](Success[Int128](0)) { case (trySum, (unlocker, boxOpt)) =>
         trySum.flatMap { partialSum =>
           boxOpt match {
-            case Some(box: TokenBox[_]) if unlocker.boxKey.isValid(unlocker.proposition, tx.messageToSign) =>
+            case Some(box: TokenBox[_]) if unlocker.boxKey.isValid(unlocker.proposition, transaction.messageToSign) =>
               Success(partialSum + box.value.quantity)
 
             case Some(_) => Failure(new Exception("Invalid unlocker"))
@@ -316,17 +337,17 @@ object TransferTransaction {
         }
       } match {
       // a normal transfer will fall in this case
-      case Success(sum: Int128) if txOutput == sum - tx.fee =>
+      case Success(sum: Int128) if txOutput == sum - transaction.fee =>
         Success(())
 
       // a minting transaction (of either Arbit, Polys, or Assets) will fall in this case
-      case Success(_: Int128) if tx.minting =>
+      case Success(_: Int128) if transaction.minting =>
         Success(())
 
-      case Success(sum: Int128) if !tx.minting && txOutput != sum - tx.fee =>
+      case Success(sum: Int128) if !transaction.minting && txOutput != sum - transaction.fee =>
         Failure(
           new Exception(
-            s"Tx output value does not equal input value for non-minting transaction. $txOutput != ${sum - tx.fee}"
+            s"Tx output value does not equal input value for non-minting transaction. $txOutput != ${sum - transaction.fee}"
           )
         )
 
