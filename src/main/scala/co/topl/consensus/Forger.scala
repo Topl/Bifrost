@@ -3,8 +3,9 @@ package co.topl.consensus
 import akka.actor._
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
-import co.topl.attestation.{Address, Evidence, PublicKeyPropositionCurve25519, SignatureCurve25519}
-import co.topl.consensus.Forger.{ChainParams, PickTransactionsResult}
+import cats.implicits._
+import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.consensus.Forger.{AttemptForgingFailure, ChainParams, PickTransactionsResult}
 import co.topl.consensus.KeyManager.ReceivableMessages._
 import co.topl.consensus.KeyManager.{AttemptForgingKeyView, ForgerStartupKeyView}
 import co.topl.consensus.genesis.{HelGenesis, PrivateGenesis, ToplnetGenesis, ValhallaGenesis}
@@ -220,8 +221,14 @@ class Forger[
         .mapTo[AttemptForgingKeyView]
         .map(view => attemptForging(historyReader, stateReader, memPoolReader, forgeTime, view))
         .foreach {
-          case Some(block) => context.system.eventStream.publish(LocallyGeneratedModifier[Block](block))
-          case _ => log.debug("Failed to generate a block.")
+          case Right(block) =>
+            context.system.eventStream.publish(LocallyGeneratedModifier[Block](block))
+          case Left(Forger.ForgingError(error)) =>
+            log.warn("Forger was eligible to forge a new block, but an error occurred.", error)
+          case Left(Forger.LeaderElectionFailure(LeaderElection.NoAddressesAvailable)) =>
+            log.warn("Forger has no addresses available to stake with.")
+          case Left(Forger.LeaderElectionFailure(LeaderElection.NoBoxesEligible)) =>
+            log.debug("No boxes were eligible to forge with.")
         }
     } catch {
       case ex: Throwable =>
@@ -244,7 +251,7 @@ class Forger[
     memPoolReader:          MR,
     forgeTime:              TimeProvider.Time,
     attemptForgingKeyView:  AttemptForgingKeyView
-  ): Option[Block] = {
+  ): Either[AttemptForgingFailure, Block] = {
     log.debug(
       s"${Console.MAGENTA}Attempting to forge with settings ${protocolMngr.current(historyReader.height)} " +
       s"and from addresses: ${attemptForgingKeyView.addresses}${Console.RESET}"
@@ -279,6 +286,7 @@ class Forger[
 
     // check forging eligibility and forge block if successful
     LeaderElection.getEligibleBox(parentBlock, attemptForgingKeyView.addresses, forgeTime, stateReader)
+      .leftMap(Forger.LeaderElectionFailure)
       .flatMap(forgeBlockWithBox(
         _,
         parentBlock,
@@ -363,7 +371,7 @@ class Forger[
     forgeTime:    TimeProvider.Time,
     sign:         Address => Array[Byte] => Try[SignatureCurve25519],
     getPublicKey: Address => Try[PublicKeyPropositionCurve25519]
-  ): Option[Block] = {
+  ): Either[Forger.ForgingError, Block] = {
 
     // generate the address the owns the generator box
     val matchingAddr = Address(box.evidence)
@@ -407,12 +415,9 @@ class Forger[
       parent.height + 1,
       newDifficulty,
       blockVersion(parent.height + 1)
-    )(signingFunction) match {
-      case Success(block) => Some(block)
-      case Failure(ex) =>
-        log.warn(s"A successful hit was found but failed to forge block due to exception: $ex")
-        None
-    }
+    )(signingFunction)
+      .toEither
+      .leftMap(Forger.ForgingError)
   }
 }
 
@@ -426,6 +431,10 @@ object Forger {
   case class ChainParams(totalStake: Int128, difficulty: Long)
 
   case class PickTransactionsResult(toApply: Seq[Transaction.TX], toEliminate: Seq[Transaction.TX])
+
+  sealed trait AttemptForgingFailure
+  case class LeaderElectionFailure(reason: LeaderElection.IneligibilityReason) extends AttemptForgingFailure
+  case class ForgingError(error: Throwable) extends AttemptForgingFailure
 
   object ReceivableMessages {
 

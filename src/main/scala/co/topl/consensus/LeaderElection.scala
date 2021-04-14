@@ -32,10 +32,9 @@ object LeaderElection extends Logging {
     addresses: Set[Address],
     timestamp: TimeProvider.Time,
     stateReader: SR
-  ): Option[ArbitBox] = {
+  ): Either[IneligibilityReason, ArbitBox] = {
     if (addresses.isEmpty) {
-      log.warn("No addresses available for forging.")
-      None
+      Left(NoAddressesAvailable)
     } else {
       addresses
         .flatMap {
@@ -51,8 +50,13 @@ object LeaderElection extends Logging {
         }
         .map(_._1)
         .headOption
+        .toRight(NoBoxesEligible)
     }
   }
+
+  sealed trait IneligibilityReason
+  case object NoAddressesAvailable extends IneligibilityReason
+  case object NoBoxesEligible extends IneligibilityReason
 }
 
 object LeaderElectionProsomo extends Logging {
