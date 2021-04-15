@@ -29,18 +29,19 @@ case class AssetTransfer[
 
   override val coinOutput: Traversable[AssetBox] =
     coinOutputParams.collect {
-      case BoxParams(evi, nonce, value: AssetValue) if value.quantity > 0 => AssetBox(evi, nonce, value)
+      case BoxParams(evi, nonce, value: AssetValue) => AssetBox(evi, nonce, value)
     }
 
   override val newBoxes: Traversable[TokenBox[TokenValueHolder]] = {
     // this only creates an output if the value of the output boxes is non-zero
-    val hasReceipientOutput: Boolean = coinOutput.nonEmpty
+    val recipientCoinOutput: Traversable[AssetBox] = coinOutput.filter(_.value.quantity > 0)
+    val hasRecipientOutput: Boolean = recipientCoinOutput.nonEmpty
     val hasFeeChangeOutput: Boolean = feeChangeOutput.value.quantity > 0
 
-    (hasReceipientOutput, hasFeeChangeOutput) match {
+    (hasRecipientOutput, hasFeeChangeOutput) match {
       case (false, _) => Traversable()
-      case (true, false) => coinOutput
-      case (true, true) => Traversable(feeChangeOutput) ++ coinOutput
+      case (true, false) => recipientCoinOutput
+      case (true, true) => Traversable(feeChangeOutput) ++ recipientCoinOutput
     }
   }
 }
