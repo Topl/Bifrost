@@ -28,7 +28,7 @@ case class PolyTransfer[
 ) extends TransferTransaction[SimpleValue, P](from, to, attestation, fee, timestamp, data, minting) {
 
   override val coinOutput: Traversable[PolyBox] =
-    coinOutputParams.collect {
+    coinOutputParams.map {
       case BoxParams(evi, nonce, value: SimpleValue) => PolyBox(evi, nonce, value)
     }
 

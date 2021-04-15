@@ -28,7 +28,7 @@ case class ArbitTransfer[
 ) extends TransferTransaction[SimpleValue, P](from, to, attestation, fee, timestamp, data, minting) {
 
   override val coinOutput: Traversable[ArbitBox] =
-    coinOutputParams.collect {
+    coinOutputParams.map {
         case BoxParams(evi, nonce, value: SimpleValue) => ArbitBox(evi, nonce, value)
       }
 
