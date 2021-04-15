@@ -1,6 +1,5 @@
-package co.topl.transaction
+package co.topl.modifier.transaction
 
-import co.topl.modifier.transaction.ArbitTransfer
 import co.topl.utils.{CoreGenerators, ValidGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
@@ -14,9 +13,8 @@ class ArbitTransferSpec extends AnyPropSpec
   with ValidGenerators {
 
   property("Randomly generated ArbitTransfer Tx should be valid") {
-    forAll(validArbitTransferGen) { arbitTransfer: ArbitTransfer[_] =>
-      //TODO: Jing - change this back to using syntacticValidate once attestation in validArbitTransferGen works
-      arbitTransfer.rawValidate.isSuccess shouldBe true
+    forAll(validArbitTransfer(keyRing, genesisState)) { arbitTransfer: ArbitTransfer[_] =>
+      arbitTransfer.syntacticValidate.isSuccess shouldBe true
     }
   }
 
