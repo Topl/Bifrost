@@ -175,10 +175,8 @@ object TransferTransaction {
   def syntacticValidate[
     T <: TokenValueHolder,
     P <: Proposition: EvidenceProducer
-  ](transaction: TransferTransaction[T, P],
-    hasAttMap: Boolean = true
-                          )(implicit
-                            networkPrefix: NetworkPrefix
+  ](transaction:   TransferTransaction[T, P], hasAttMap: Boolean = true)(implicit
+    networkPrefix: NetworkPrefix
   ): Try[Unit] = Try {
 
     // todo: brainstorm other validation rules that may be overlooked
@@ -198,7 +196,6 @@ object TransferTransaction {
           "ArbitTransfers must specify two or more recipients in the `to` value such as [change_output, coin_output(s)]"
         )
 
-
       case _: AssetTransfer[_] =>
         require(transaction.from.nonEmpty, "Non-block reward transactions must specify at least one input box")
 
@@ -211,7 +208,9 @@ object TransferTransaction {
     require(transaction.fee >= 0, "Transfer transactions must have a non-negative fee")
     require(transaction.timestamp >= 0L, "Invalid timestamp")
     require(
-      transaction.data.forall(_.getValidLatin1Bytes.getOrElse(throw new Exception("String is not valid Latin-1")).length <= 128),
+      transaction.data.forall(
+        _.getValidLatin1Bytes.getOrElse(throw new Exception("String is not valid Latin-1")).length <= 128
+      ),
       "Data field must be less than 128 bytes"
     )
 
@@ -268,8 +267,8 @@ object TransferTransaction {
   def semanticValidate[
     T <: TokenValueHolder,
     P <: Proposition: EvidenceProducer
-  ](transaction:            TransferTransaction[T, P], boxReader: BoxReader[ProgramId, Address])(implicit
-                                                                                                 networkPrefix: NetworkPrefix
+  ](transaction:   TransferTransaction[T, P], boxReader: BoxReader[ProgramId, Address])(implicit
+    networkPrefix: NetworkPrefix
   ): Try[Unit] = {
 
     // compute transaction values used for validation
@@ -291,14 +290,14 @@ object TransferTransaction {
     // must provide input state to consume in order to generate new state
     lazy val txSpecific = Try {
       transaction match {
-        case _: PolyTransfer[_] if transaction.minting => // Poly block rewards (skip enfocring)
+        case _: PolyTransfer[_] if transaction.minting  => // Poly block rewards (skip enfocring)
         case _: ArbitTransfer[_] if transaction.minting => // Arbit block rewards (skip enforcing)
 
         case _: PolyTransfer[_] =>
           require(
             sumOfPolyInputs - transaction.fee == txOutput,
             s"PolyTransfer output value does not equal input value for non-minting transaction. " +
-              s"$txOutput != ${sumOfPolyInputs - transaction.fee}"
+            s"$txOutput != ${sumOfPolyInputs - transaction.fee}"
           )
 
         case _ =>
@@ -317,7 +316,7 @@ object TransferTransaction {
           require(
             sumOfPolyInputs - transaction.fee == transaction.feeChangeOutput.value.quantity,
             s"feeChangeOutput value does not equal input value for non-minting transaction. " +
-              s"${transaction.feeChangeOutput.value.quantity} != ${sumOfPolyInputs - transaction.fee}"
+            s"${transaction.feeChangeOutput.value.quantity} != ${sumOfPolyInputs - transaction.fee}"
           )
       }
     }
@@ -331,8 +330,8 @@ object TransferTransaction {
               Success(partialSum + box.value.quantity)
 
             case Some(_) => Failure(new Exception("Invalid unlocker"))
-            case None => Failure(new Exception(s"Box for unlocker $unlocker cannot be found in state"))
-            case _ => Failure(new Exception("Invalid Box type for this transaction"))
+            case None    => Failure(new Exception(s"Box for unlocker $unlocker cannot be found in state"))
+            case _       => Failure(new Exception("Invalid Box type for this transaction"))
           }
         }
       } match {
