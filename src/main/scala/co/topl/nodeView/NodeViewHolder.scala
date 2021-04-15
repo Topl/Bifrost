@@ -113,6 +113,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
     case newTxs: NewTransactions => newTxs.txs.foreach(txModify)
 
     case EliminateTransactions(ids) =>
+      log.debug(s"${Console.YELLOW} Removing transactions with ids: $ids from mempool${Console.RESET}")
       val updatedPool = memoryPool().filter(tx => !ids.contains(tx.id))
       updateNodeView(updatedMempool = Some(updatedPool))
       ids.foreach { id =>

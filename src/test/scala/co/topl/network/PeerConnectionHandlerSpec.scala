@@ -1,5 +1,7 @@
 package co.topl.network
 
+import java.net.InetSocketAddress
+
 import akka.actor._
 import akka.testkit.TestKit
 import co.topl.network.message.MessageSerializer
@@ -9,7 +11,6 @@ import org.scalatest.matchers.must.Matchers
 import org.scalatest.propspec.AnyPropSpecLike
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-import java.net.InetSocketAddress
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class PeerConnectionHandlerSpec extends TestKit(ActorSystem("PCHSpec"))
