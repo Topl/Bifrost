@@ -1,23 +1,23 @@
 package co.topl.modifier.transaction
 
-import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
-import co.topl.modifier.block.Block
-import co.topl.modifier.box.ArbitBox
-import co.topl.modifier.box.Box.identifier
+import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
+import co.topl.modifier.box.{AssetBox, Box, BoxId}
 import co.topl.utils.{CoreGenerators, ValidGenerators}
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
-import scala.util.Try
+class AssetTransferSpec
+    extends AnyPropSpec
+    with ScalaCheckPropertyChecks
+    with ScalaCheckDrivenPropertyChecks
+    with Matchers
+    with CoreGenerators
+    with ValidGenerators {
 
-class AssetTransferSpec extends AnyPropSpec
-  with ScalaCheckPropertyChecks
-  with ScalaCheckDrivenPropertyChecks
-  with Matchers
-  with CoreGenerators
-  with ValidGenerators {
+  // todo: JAA - we need to add all the the weird edge cases that were identified for the transactions
+  // (this isn't being done at this moment because the structure to generate a valid transaction needs to be addressed)
 
   property("Randomly generated AssetTransfer Tx should be valid") {
     forAll(validAssetTransfer(keyRing, genesisState, minting = true)) { assetTransfer: AssetTransfer[_] =>
@@ -25,11 +25,28 @@ class AssetTransferSpec extends AnyPropSpec
     }
   }
 
-  property("Minting AssetTransfer should fail unless fee is greater than 0") {
+  property("AssetTransfer with minting = true should fail if no PolyBoxes are provided") {
     forAll(validAssetTransfer(keyRing, genesisState, fee = 0, minting = true)) {
       assetTransfer: AssetTransfer[PublicKeyPropositionCurve25519] =>
-        assetTransfer.syntacticValidate.failure.exception.getMessage shouldEqual
-          "requirement failed: Asset minting transactions must have a non-zero positive fee"
+        val fromWithoutPolys: IndexedSeq[(Address, Box.Nonce)] = assetTransfer.from
+          .map { case (address, nonce) =>
+            val boxId = BoxId.idFromEviNonce(address.evidence, nonce)
+            val box = genesisState.getBox(boxId).get
+            (address, nonce, box)
+          }
+          .collect { case (address, nonce, _: AssetBox) =>
+            (address, nonce)
+          }
+
+        val noPolyRawTx = assetTransfer.copy(from = fromWithoutPolys)
+        val sender = keyRing.addresses.head
+        val noPolySignedTx =
+          noPolyRawTx.copy(attestation =
+            Transaction.updateAttestation(noPolyRawTx)(keyRing.generateAttestation(sender))
+          )
+
+        noPolySignedTx.semanticValidate(genesisState).failure.exception.getMessage shouldEqual
+        "requirement failed: Non-block reward transactions must specify at least one input box"
     }
   }
 
