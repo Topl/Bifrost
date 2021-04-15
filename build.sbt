@@ -110,7 +110,12 @@ val apiDependencies = Seq(
   "io.circe" %% "circe-core"    % circeVersion,
   "io.circe" %% "circe-generic" % circeVersion,
   "io.circe" %% "circe-parser"  % circeVersion,
-  "io.circe" %% "circe-literal" % circeVersion
+  "io.circe" %% "circe-literal" % circeVersion,
+  "io.circe" %% "circe-optics" % circeVersion
+)
+
+val akkaCirceDependencies = Seq(
+  "de.heikoseeberger" %% "akka-http-circe" % "1.36.0"
 )
 
 val loggingDependencies = Seq(
@@ -208,6 +213,8 @@ lazy val bifrost = project.in(file("."))
   .aggregate(
     node,
     common,
+    akkaHttpRpc,
+    toplRpc,
     gjallarhorn,
     benchmarking,
     it
@@ -240,6 +247,34 @@ lazy val common = project.in(file("common"))
     publishSettings,
     libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ apiDependencies ++ cryptoDependencies
   )
+lazy val akkaHttpRpc = Project(id = "akka-http-rpc", base = file("akka-http-rpc"))
+  .settings(commonSettings: _*)
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.akkahttprpc",
+    libraryDependencies ++=
+      apiDependencies ++
+        akkaDependencies ++
+        akkaCirceDependencies ++
+        testingDependencies,
+  )
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+
+lazy val toplRpc = Project(id = "topl-rpc", base = file("topl-rpc"))
+  .settings(commonSettings: _*)
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.toplrpc",
+    libraryDependencies ++=
+      apiDependencies ++
+        akkaDependencies ++
+        akkaCirceDependencies ++
+        testingDependencies,
+  )
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .dependsOn(akkaHttpRpc, common)
 
 lazy val gjallarhorn = project.in(file("gjallarhorn"))
   .settings(
