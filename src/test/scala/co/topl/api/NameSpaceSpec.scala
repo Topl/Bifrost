@@ -6,7 +6,7 @@ import co.topl.akkahttprpc.MethodNotFoundError
 import co.topl.akkahttprpc.ThrowableSupport.Standard._
 import co.topl.consensus.{ActorForgerInterface, ActorKeyManagerInterface}
 import co.topl.http.HttpService
-import co.topl.http.rpc.ToplRpcServer
+import co.topl.rpc.ToplRpcServer
 import co.topl.nodeView.ActorNodeViewHolderInterface
 import co.topl.settings.{AppContext, AppSettings, StartupOpts}
 import io.circe.parser.parse

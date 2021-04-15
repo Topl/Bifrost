@@ -8,7 +8,7 @@ import akka.util.Timeout
 import co.topl.akkahttprpc.{ThrowableData, ThrowableSupport}
 import co.topl.consensus.{ActorForgerInterface, ActorKeyManagerInterface, Forger, ForgerRef}
 import co.topl.http.HttpService
-import co.topl.http.rpc.ToplRpcServer
+import co.topl.rpc.ToplRpcServer
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.NetworkController.ReceivableMessages.BindP2P

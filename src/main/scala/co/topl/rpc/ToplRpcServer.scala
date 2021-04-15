@@ -1,14 +1,12 @@
-package co.topl.http.rpc
+package co.topl.rpc
 
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import cats.data.NonEmptyChain
 import co.topl.akkahttprpc.implicits.server.rpcToServer
 import co.topl.akkahttprpc.{MethodNotFoundError, RpcDirectives, RpcErrorRejection, ThrowableData}
-import co.topl.http.api.{AdminNamespace, DebugNamespace, ToplNamespace, UtilNamespace}
 import co.topl.rpc.handlers.ToplRpcHandlers
-import co.topl.rpc.{ToplRpc, ToplRpcServerCodecs}
-import co.topl.settings.AppContext
+import co.topl.settings._
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe._
 

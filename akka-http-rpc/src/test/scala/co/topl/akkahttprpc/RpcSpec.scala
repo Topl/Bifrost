@@ -199,10 +199,11 @@ class RpcSpec
     }
   }
 
-  private def normalRoute: Route =
-    Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(params =>
-      TestMethodSuccess(params.userId.length).asRight[RpcError].toEitherT[Future]
-    )
+  private def normalRoute: Route = {
+    val rpc = Rpc[TestMethodParams, TestMethodSuccess]("test_method1")
+    rpc.serve(params => TestMethodSuccess(params.userId.length).asRight[RpcError].toEitherT[Future])
+
+  }
 
 }
 

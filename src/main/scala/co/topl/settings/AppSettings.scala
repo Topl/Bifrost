@@ -2,8 +2,6 @@ package co.topl.settings
 
 import java.io.File
 import java.net.InetSocketAddress
-
-import co.topl.http.api.NamespaceSelector
 import co.topl.network.utils.NetworkTimeProviderSettings
 import co.topl.utils.Logging
 import com.typesafe.config.{Config, ConfigFactory}
@@ -87,10 +85,10 @@ case class PrivateTestnetSettings(
 )
 
 case class GjallarhornSettings(
-  enableWallet:     Boolean,
-  clusterEnabled:   Boolean,
-  clusterHost:      Option[String],
-  clusterPort:      Option[Int]
+  enableWallet:   Boolean,
+  clusterEnabled: Boolean,
+  clusterHost:    Option[String],
+  clusterPort:    Option[Int]
 )
 
 case class AppSettings(
@@ -134,8 +132,10 @@ object AppSettings extends Logging with SettingsReaders {
 
     val userConfig = args.userConfigPathOpt.fold(ConfigFactory.empty()) { uc =>
       val userFile = new File(uc)
-      log.info(s"${Console.YELLOW}Attempting to load custom configuration from " +
-        s"${userFile.getAbsolutePath}${Console.RESET}")
+      log.info(
+        s"${Console.YELLOW}Attempting to load custom configuration from " +
+        s"${userFile.getAbsolutePath}${Console.RESET}"
+      )
 
       ConfigFactory.parseFile(userFile)
     }
@@ -157,10 +157,10 @@ object AppSettings extends Logging with SettingsReaders {
 
   }
 
-  def clusterConfig(settings: AppSettings, config: Config): Config = {
+  def clusterConfig(settings: AppSettings, config: Config): Config =
     if (settings.gjallarhorn.clusterEnabled) {
-      ConfigFactory.parseString(
-        s"""
+      ConfigFactory
+        .parseString(s"""
       akka {
         actor.provider = cluster
         remote = {
@@ -175,5 +175,4 @@ object AppSettings extends Logging with SettingsReaders {
     } else {
       config
     }
-  }
 }

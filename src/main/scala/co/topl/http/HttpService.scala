@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.marshalling.Marshaller._
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 import akka.http.scaladsl.server.Route
-import co.topl.http.rpc.ToplRpcServer
+import co.topl.rpc.ToplRpcServer
 import co.topl.settings.RPCApiSettings
 import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58

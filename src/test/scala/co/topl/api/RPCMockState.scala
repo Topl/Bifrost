@@ -10,7 +10,7 @@ import akka.util.{ByteString, Timeout}
 import co.topl.akkahttprpc.ThrowableSupport.Standard._
 import co.topl.consensus.{ActorForgerInterface, ActorKeyManagerInterface, Forger, ForgerRef}
 import co.topl.http.HttpService
-import co.topl.http.rpc.ToplRpcServer
+import co.topl.rpc.ToplRpcServer
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
