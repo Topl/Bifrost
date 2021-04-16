@@ -31,7 +31,7 @@ object LeaderElection extends Logging {
     if (addresses.isEmpty) {
       Left(NoAddressesAvailable)
     } else {
-      addresses
+      val arbitBoxes = addresses
         .flatMap {
           stateReader
             .getTokenBoxes(_)
@@ -39,12 +39,11 @@ object LeaderElection extends Logging {
             .collect { case box: ArbitBox => box }
         }
         .toSeq
-        // return NoArbitBoxesAvailable error if there are no boxes to forge with
-        .foldLeft[Either[IneligibilityReason, Seq[ArbitBox]]](Left(NoArbitBoxesAvailable)) {
-          case (Right(seq), box) => Right(seq :+ box)
-          case (_, box) => Right(Seq(box))
-        }
-        .flatMap { boxes =>
+
+      (arbitBoxes match {
+        case Seq() => Left(NoArbitBoxesAvailable)
+        case seq => Right(seq)
+      }).flatMap { boxes =>
           boxes
             .map(box => (box, calcHit(parent)(box)))
             .filter {
