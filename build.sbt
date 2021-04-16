@@ -4,6 +4,8 @@ import sbtassembly.MergeStrategy
 val scala212 = "2.12.13"
 val scala213 = "2.13.5"
 
+
+
 inThisBuild(List(
   organization := "co.topl",
   scalaVersion := scala212,
@@ -129,11 +131,11 @@ val loggingDependencies = Seq(
 )
 
 val testingDependencies = Seq(
-  "org.scalatest"      %% "scalatest"         % "3.2.6"   % "test, it",
+  "org.scalatest"      %% "scalatest"         % "3.2.6"   % "it,test",
   "org.scalactic"      %% "scalactic"         % "3.2.6"   % "test",
   "org.scalacheck"     %% "scalacheck"        % "1.15.3"  % "test",
   "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
-  "com.spotify"         % "docker-client"     % "8.16.0"  % "test, it",
+  "com.spotify"         % "docker-client"     % "8.16.0"  % "it,test",
   "org.asynchttpclient" % "async-http-client" % "2.12.3"  % "test",
   "org.scalamock"      %% "scalamock"         % "5.1.0"   % "test"
 )
@@ -221,6 +223,7 @@ lazy val bifrost = project.in(file("."))
     publish / skip := true,
     crossScalaVersions := Nil
   )
+  .configs(IntegrationTest)
   .aggregate(
     node,
     common,
@@ -239,8 +242,8 @@ lazy val node = project.in(file("node"))
     name := "node",
     commonSettings,
     assemblySettings,
-    publish / skip := true,
     Defaults.itSettings,
+    publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
     dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java8-21.0.0",
@@ -252,8 +255,8 @@ lazy val node = project.in(file("node"))
     libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies
       ++ testingDependencies ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
   )
-  .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .configs(IntegrationTest)
+  .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .dependsOn(common)
 
 lazy val common = project.in(file("common"))
