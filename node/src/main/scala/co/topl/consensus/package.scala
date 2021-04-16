@@ -3,7 +3,7 @@ package co.topl
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
 import co.topl.settings.ProtocolSettings
-import co.topl.utils.TimeProvider
+import co.topl.utils.{Int128, TimeProvider}
 import com.google.common.primitives.Longs
 import scorex.crypto.hash.Blake2b256
 
@@ -52,21 +52,17 @@ package object consensus {
     Longs.fromByteArray((0: Byte) +: h.take(7))
   }
 
-  /**
-   * Calculates the adjusted difficulty for forging based on the time passed since the previous block
-   *
-   * @param parent         previous block
-   * @param baseDifficulty base difficulty of the parent block
-   * @param timestamp      the current timestamp
-   * @return the adjusted difficulty
-   */
-  def calcAdjustedTarget(parent: Block, parentHeight: Long, baseDifficulty: Long, timestamp: Long): BigDecimal = {
-
-    val target: Double = baseDifficulty.toDouble / consensusStorage.totalStake.toDouble
-    val timeDelta = timestamp - parent.timestamp
-
-    BigDecimal(target * timeDelta.toDouble / targetBlockTime(parentHeight).toUnit(MILLISECONDS))
-  }
+  /** Gets the target threshold.
+    * threshold = ( (address stake) * (time delta) * (difficulty) ) / ( (total stake) * (target block time) )
+    * @param stakeAmount amount of stake held in address
+    * @param timeDelta delta from previous block time to the current time
+    * @param difficulty forging difficulty
+    * @param parentHeight parent block height
+    * @return the target value
+    */
+  def calcTarget(stakeAmount: Int128, timeDelta: Long, difficulty: Long, parentHeight: Long): Int128 =
+    (stakeAmount * difficulty * timeDelta) /
+      (consensusStorage.totalStake * targetBlockTime(parentHeight).toUnit(MILLISECONDS).toLong)
 
   /**
     * Calculate the block difficulty according to

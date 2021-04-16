@@ -3,8 +3,9 @@ package co.topl.consensus
 import akka.actor._
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
+import cats.implicits._
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
-import co.topl.consensus.Forger.{ChainParams, PickTransactionsResult}
+import co.topl.consensus.Forger.{AttemptForgingFailure, ChainParams, PickTransactionsResult}
 import co.topl.consensus.KeyManager.ReceivableMessages._
 import co.topl.consensus.KeyManager.{AttemptForgingKeyView, ForgerStartupKeyView}
 import co.topl.consensus.genesis.{HelGenesis, PrivateGenesis, ToplnetGenesis, ValhallaGenesis}
@@ -218,20 +219,41 @@ class Forger[
     try {
       (keyManager ? GetAttemptForgingKeyView)
         .mapTo[AttemptForgingKeyView]
-        .foreach(view => attemptForging(historyReader, stateReader, memPoolReader, forgeTime, view))
+        .map(view => attemptForging(historyReader, stateReader, memPoolReader, forgeTime, view))
+        .foreach {
+          case Right(block) =>
+            context.system.eventStream.publish(LocallyGeneratedModifier[Block](block))
+          case Left(Forger.ForgingError(error)) =>
+            log.warn("Forger was eligible to forge a new block, but an error occurred.", error)
+          case Left(Forger.LeaderElectionFailure(LeaderElection.NoAddressesAvailable)) =>
+            log.warn("Forger has no addresses available to stake with.")
+          case Left(Forger.LeaderElectionFailure(LeaderElection.NoBoxesEligible)) =>
+            log.debug("No boxes were eligible to forge with.")
+          case Left(Forger.LeaderElectionFailure(LeaderElection.NoArbitBoxesAvailable)) =>
+            log.debug("No arbit boxes available to stake with.")
+        }
     } catch {
       case ex: Throwable =>
         log.warn(s"Disabling forging due to exception: $ex. Resolve forging error and try forging again.")
         self ! StopForging
     }
 
+  /**
+    * Determines if forging eligibility and forges block if eligible.
+    * @param historyReader read-only history
+    * @param stateReader read-only state
+    * @param memPoolReader read-only mem-pool
+    * @param forgeTime time since last forge
+    * @param attemptForgingKeyView forging view of the key ring
+    * @return a block if forging was successful and None otherwise
+    */
   private def attemptForging(
     historyReader:          HR,
     stateReader:            SR,
     memPoolReader:          MR,
     forgeTime:              TimeProvider.Time,
     attemptForgingKeyView:  AttemptForgingKeyView
-  ): Unit = {
+  ): Either[AttemptForgingFailure, Block] = {
     log.debug(
       s"${Console.MAGENTA}Attempting to forge with settings ${protocolMngr.current(historyReader.height)} " +
       s"and from addresses: ${attemptForgingKeyView.addresses}${Console.RESET}"
@@ -244,18 +266,6 @@ class Forger[
 
     val rewardAddress = attemptForgingKeyView.rewardAddr.getOrElse(throw new Error("No rewards address specified"))
 
-    // get the set of boxes to use for testing
-    val boxes = getArbitBoxes(stateReader, attemptForgingKeyView.addresses) match {
-      case Success(bx) => bx
-      case Failure(ex) => throw ex
-    }
-
-    log.debug(s"Trying to generate block from total stake ${boxes.map(_.value.quantity).sum}")
-    require(
-      boxes.map(_.value.quantity).sum > 0,
-      "No Arbits could be found to stake with, exiting attempt"
-    )
-
     // pick the transactions from the mempool for inclusion in the block (if successful)
     val transactions = pickTransactions(memPoolReader, stateReader, historyReader.height) match {
       case Success(res) =>
@@ -265,50 +275,30 @@ class Forger[
       case Failure(ex) => throw ex
     }
 
+    val parentBlock = historyReader.bestBlock
+
     // create the coinbase and unsigned fee reward transactions
-    val rewards = Rewards(transactions, rewardAddress, historyReader.bestBlock.id, forgeTime) match {
+    val rewards = Rewards(transactions, rewardAddress, parentBlock.id, forgeTime) match {
       case Success(r)  => r
       case Failure(ex) => throw ex
     }
 
     // retrieve the latest TWO block times for updating the difficulty if we forge a new blow
-    val prevTimes = historyReader.getTimestampsFrom(historyReader.bestBlock, nxtBlockNum)
+    val prevTimes = historyReader.getTimestampsFrom(parentBlock, nxtBlockNum)
 
-    // check forging eligibility
-    leaderElection(
-      historyReader.bestBlock,
-      prevTimes,
-      boxes,
-      rewards,
-      transactions,
-      forgeTime,
-      attemptForgingKeyView.sign,
-      attemptForgingKeyView.getPublicKey
-    ) match {
-      case Some(block) =>
-        log.debug(s"Locally generated block: $block")
-        context.system.eventStream.publish(LocallyGeneratedModifier[Block](block))
-
-      case _ => log.debug(s"Failed to generate block")
-    }
-  }
-
-  /** Get the set of Arbit boxes owned by all unlocked keys in the key ring
-    *
-    * @param stateReader read-only state instance used to lookup the balance for all unlocked keys
-    * @return a set of arbit boxes to use for testing leadership eligibility
-    */
-  private def getArbitBoxes(stateReader: SR, addresses: Set[Address]): Try[Seq[ArbitBox]] = Try {
-    if (addresses.nonEmpty) {
-      addresses.flatMap {
-        stateReader
-          .getTokenBoxes(_)
-          .getOrElse(Seq())
-          .collect { case box: ArbitBox => box }
-      }.toSeq
-    } else {
-      throw new Error("No boxes available for forging!")
-    }
+    // check forging eligibility and forge block if successful
+    LeaderElection.getEligibleBox(parentBlock, attemptForgingKeyView.addresses, forgeTime, stateReader)
+      .leftMap(Forger.LeaderElectionFailure)
+      .flatMap(forgeBlockWithBox(
+        _,
+        parentBlock,
+        prevTimes,
+        rewards,
+        transactions,
+        forgeTime,
+        attemptForgingKeyView.sign,
+        attemptForgingKeyView.getPublicKey)
+      )
   }
 
   /** Pick a set of transactions from the mempool that result in a valid state when applied to the current state
@@ -362,90 +352,74 @@ class Forger[
         }
     }
 
-  /** Performs the leader election procedure and returns a block if successful
-    *
-    * @param parent       block to forge on top of
-    * @param boxes        set of Arbit boxes to attempt to forge with
-    * @param txsToInclude sequence of transactions for inclusion in the block body
-    * @return a block if the leader election is successful (none if test failed)
+  /**
+    * Forges a block with the given eligible arbit box and state parameters.
+    * @param box an eligible arbit box
+    * @param parent the parent block
+    * @param prevTimes the previous block times to determine next difficulty
+    * @param rawRewards the raw forging rewards
+    * @param txsToInclude the set of transactions to be entered into the block
+    * @param forgeTime the current timestamp
+    * @param sign a function for signing messages
+    * @param getPublicKey a function for getting the public key associated with an address
+    * @return a block if forging was successful and None otherwise
     */
-  private def leaderElection(
+  private def forgeBlockWithBox(
+    box: ArbitBox,
     parent:       Block,
     prevTimes:    Vector[TimeProvider.Time],
-    boxes:        Seq[ArbitBox],
     rawRewards:   Seq[TX],
     txsToInclude: Seq[TX],
     forgeTime:    TimeProvider.Time,
     sign:         Address => Array[Byte] => Try[SignatureCurve25519],
     getPublicKey: Address => Try[PublicKeyPropositionCurve25519]
-  ): Option[Block] = {
+  ): Either[Forger.ForgingError, Block] = {
 
-    val target = calcAdjustedTarget(parent, parent.height, parent.difficulty, forgeTime)
+    // generate the address the owns the generator box
+    val matchingAddr = Address(box.evidence)
 
-    // test procedure to determine eligibility
-    val successfulHits = boxes
-      .map { box =>
-        (box, calcHit(parent)(box))
-      }
-      .filter { test =>
-        BigInt(test._2) < (test._1.value.quantity.doubleValue() * target).toBigInt
-      }
-
-    log.debug(s"Successful hits: ${successfulHits.size}")
-
-    successfulHits.headOption.flatMap { case (box, _) =>
-      {
-        // generate the address the owns the generator box
-        val matchingAddr = Address(box.evidence)
-
-        // lookup the public associated with the box,
-        // (this is separate from the signing function so that the private key never leaves the KeyRing)
-        val publicKey = getPublicKey(matchingAddr) match {
-          case Success(pk) => pk
-          case Failure(error) =>
-            log.warn("Error occurred while getting public key for address.")
-            throw error
-        }
-
-        // use the private key that owns the generator box to create a function that will sign the new block
-        val signingFunction = sign(matchingAddr)
-
-        // use the secret key that owns the successful box to sign the rewards transactions
-        val getAttMap: TX => Map[PublicKeyPropositionCurve25519, SignatureCurve25519] = (tx: TX) => {
-          val sig = signingFunction(tx.messageToSign) match {
-            case Success(sig) => sig
-            case Failure(ex)  => throw ex
-          }
-          Map(publicKey -> sig)
-        }
-
-        val signedRewards = rawRewards.map {
-          case tx: ArbitTransfer[_] => tx.copy(attestation = getAttMap(tx))
-          case tx: PolyTransfer[_]  => tx.copy(attestation = getAttMap(tx))
-        }
-
-        // calculate the newly forged blocks updated difficulty
-        val newDifficulty = calcNewBaseDifficulty(parent.height + 1, parent.difficulty, prevTimes :+ forgeTime)
-
-        // add the signed coinbase transaction to the block, sign it, and return the newly forged block
-        Block.createAndSign(
-          parent.id,
-          forgeTime,
-          signedRewards ++ txsToInclude,
-          box,
-          publicKey,
-          parent.height + 1,
-          newDifficulty,
-          blockVersion(parent.height + 1)
-        )(signingFunction)
-
-      } match {
-        case Success(block) => Some(block)
-        case Failure(ex) =>
-          log.warn(s"A successful hit was found but failed to forge block due to exception: $ex")
-          None
-      }
+    // lookup the public associated with the box,
+    // (this is separate from the signing function so that the private key never leaves the KeyRing)
+    val publicKey = getPublicKey(matchingAddr) match {
+      case Success(pk) => pk
+      case Failure(error) =>
+        log.warn("Error occurred while getting public key for address.")
+        throw error
     }
+
+    // use the private key that owns the generator box to create a function that will sign the new block
+    val signingFunction = sign(matchingAddr)
+
+    // use the secret key that owns the successful box to sign the rewards transactions
+    val getAttMap: TX => Map[PublicKeyPropositionCurve25519, SignatureCurve25519] = (tx: TX) => {
+      val sig = signingFunction(tx.messageToSign) match {
+        case Success(sig) => sig
+        case Failure(ex)  => throw ex
+      }
+      Map(publicKey -> sig)
+    }
+
+    val signedRewards = rawRewards.map {
+      case tx: ArbitTransfer[_] => tx.copy(attestation = getAttMap(tx))
+      case tx: PolyTransfer[_]  => tx.copy(attestation = getAttMap(tx))
+    }
+
+    // calculate the newly forged blocks updated difficulty
+    val newDifficulty = calcNewBaseDifficulty(parent.height + 1, parent.difficulty, prevTimes :+ forgeTime)
+
+    // add the signed coinbase transaction to the block, sign it, and return the newly forged block
+    Block.createAndSign(
+      parent.id,
+      forgeTime,
+      signedRewards ++ txsToInclude,
+      box,
+      publicKey,
+      parent.height + 1,
+      newDifficulty,
+      blockVersion(parent.height + 1)
+    )(signingFunction)
+      .toEither
+      .leftMap(Forger.ForgingError)
   }
 }
 
@@ -459,6 +433,10 @@ object Forger {
   case class ChainParams(totalStake: Int128, difficulty: Long)
 
   case class PickTransactionsResult(toApply: Seq[Transaction.TX], toEliminate: Seq[Transaction.TX])
+
+  sealed trait AttemptForgingFailure
+  case class LeaderElectionFailure(reason: LeaderElection.IneligibilityReason) extends AttemptForgingFailure
+  case class ForgingError(error: Throwable) extends AttemptForgingFailure
 
   object ReceivableMessages {
 
