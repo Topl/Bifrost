@@ -8,7 +8,14 @@ inThisBuild(List(
   organization := "co.topl",
   scalaVersion := scala212,
   crossScalaVersions := Seq(scala212, scala213),
-  versionScheme := Some("early-semver")
+  versionScheme := Some("early-semver"),
+  dynverSeparator := "-",
+  dynverSonatypeSnapshots := true,
+  version := dynverGitDescribeOutput.value.mkVersion(versionFmt, fallbackVersion(dynverCurrentDate.value)),
+  dynver := {
+    val d = new java.util.Date
+    sbtdynver.DynVer.getGitDescribeOutput(d).mkVersion(versionFmt, fallbackVersion(d))
+  }
 ))
 
 lazy val commonSettings = Seq(
@@ -125,15 +132,14 @@ val loggingDependencies = Seq(
   "org.slf4j"                   % "slf4j-api"       % "1.7.30"
 )
 
-lazy val scalatest = "org.scalatest" %% "scalatest" % "3.2.6"
-
 val testingDependencies = Seq(
-  "org.scalactic"      %% "scalactic"         % "3.2.6"   % Test,
-  "org.scalacheck"     %% "scalacheck"        % "1.15.3"  % Test,
-  "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % Test,
-  "com.spotify"         % "docker-client"     % "8.16.0"  % Test,
-  "org.asynchttpclient" % "async-http-client" % "2.12.3"  % Test
-) ++ Seq(scalatest)
+  "org.scalatest"      %% "scalatest"         % "3.2.6"   % "test, it",
+  "org.scalactic"      %% "scalactic"         % "3.2.6"   % "test",
+  "org.scalacheck"     %% "scalacheck"        % "1.15.3"  % "test",
+  "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
+  "com.spotify"         % "docker-client"     % "8.16.0"  % "test, it",
+  "org.asynchttpclient" % "async-http-client" % "2.12.3"  % "test"
+)
 
 val cryptoDependencies = Seq(
   "org.scorexfoundation" %% "scrypto"         % "2.1.10",
@@ -203,6 +209,14 @@ outputStrategy := Some(StdoutOutput)
 connectInput / run := true
 outputStrategy := Some(StdoutOutput)
 
+def versionFmt(out: sbtdynver.GitDescribeOutput): String = {
+  val dirtySuffix = out.dirtySuffix.dropPlus.mkString("-", "")
+  if (out.isCleanAfterTag) out.ref.dropPrefix + dirtySuffix // no commit info if clean after tag
+  else out.ref.dropPrefix + out.commitSuffix.mkString("-", "-", "") + dirtySuffix
+}
+
+def fallbackVersion(d: java.util.Date): String = s"HEAD-${sbtdynver.DynVer timestamp d}"
+
 lazy val bifrost = project.in(file("."))
   .settings(
     moduleName := "bifrost",
@@ -216,8 +230,7 @@ lazy val bifrost = project.in(file("."))
     akkaHttpRpc,
     toplRpc,
     gjallarhorn,
-    benchmarking,
-    it
+    benchmarking
   )
 
 lazy val node = project.in(file("node"))
@@ -226,6 +239,7 @@ lazy val node = project.in(file("node"))
     commonSettings,
     assemblySettings,
     publish / skip := true,
+    Defaults.itSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
     dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java8-21.0.0",
@@ -238,6 +252,7 @@ lazy val node = project.in(file("node"))
       ++ testingDependencies ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
   )
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
+  .configs(IntegrationTest)
   .dependsOn(common)
 
 lazy val common = project.in(file("common"))
@@ -283,8 +298,7 @@ lazy val gjallarhorn = project.in(file("gjallarhorn"))
     publish / skip := true,
     Defaults.itSettings,
     libraryDependencies ++= akkaDependencies ++ testingDependencies ++ cryptoDependencies ++ apiDependencies
-    ++ loggingDependencies ++ miscDependencies,
-    libraryDependencies += scalatest % "it, test"
+    ++ loggingDependencies ++ miscDependencies
   )
   .configs(IntegrationTest)
   .disablePlugins(sbtassembly.AssemblyPlugin)
@@ -297,16 +311,4 @@ lazy val benchmarking = project.in(file("benchmark"))
   )
   .dependsOn(node % "compile->compile;test->test")
   .enablePlugins(JmhPlugin)
-  .disablePlugins(sbtassembly.AssemblyPlugin)
-
-lazy val it = project.in(file("it"))
-  .settings(
-    name := "it",
-    commonSettings,
-    publish / skip := true,
-    Defaults.itSettings,
-    libraryDependencies += scalatest % "it, test"
-  )
-  .dependsOn(node % "compile->compile;test->test")
-  .configs(IntegrationTest)
   .disablePlugins(sbtassembly.AssemblyPlugin)
