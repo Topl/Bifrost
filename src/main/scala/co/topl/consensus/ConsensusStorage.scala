@@ -117,11 +117,15 @@ object ConsensusStorage {
     val defaultTotalStake = networkType match {
       case PrivateTestnet | LocalTestnet =>
         settings.forging.privateTestnet.map (sfp => sfp.numTestnetAccts * sfp.testnetBalance).getOrElse(10000000L)
-      case _ => 200000000000000000L
+      case _ => 200000000000000000L // todo: JAA - this should be with other genesis consensus parameters
     }
     val file = new File(s"$dataDir/consensus")
     file.mkdirs()
     val storage = new LSMStore(file)
+
+    // todo: JAA - we need to find a better pattern than this. I see why it is the most straightforward for now,
+    //       but maybe we elevate the ConsensusStorage interface up to a sealed abstract class and have two instances?
+    //
     val consensusStorage = new ConsensusStorage(Some(storage), defaultTotalStake)
 
     consensusStorage
