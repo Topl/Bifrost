@@ -8,6 +8,7 @@ inThisBuild(List(
   organization := "co.topl",
   scalaVersion := scala212,
   crossScalaVersions := Seq(scala212, scala213),
+  Compile / run / mainClass := Some("co.topl.BifrostApp"),
   versionScheme := Some("early-semver"),
   dynverSeparator := "-",
   dynverSonatypeSnapshots := true,
@@ -221,6 +222,12 @@ lazy val bifrost = project.in(file("."))
     crossScalaVersions := Nil
   )
   .aggregate(
+    node,
+    common,
+    gjallarhorn,
+    benchmarking
+  )
+  .dependsOn(
     node,
     common,
     gjallarhorn,
