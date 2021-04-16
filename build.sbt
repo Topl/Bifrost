@@ -132,13 +132,20 @@ val loggingDependencies = Seq(
   "org.slf4j"                   % "slf4j-api"       % "1.7.30"
 )
 
-val testingDependencies = Seq(
-  "org.scalatest"      %% "scalatest"         % "3.2.6"   % "test, it",
+val testingDependenciesTest = Seq(
+  "org.scalatest"      %% "scalatest"         % "3.2.6"   % "test",
   "org.scalactic"      %% "scalactic"         % "3.2.6"   % "test",
   "org.scalacheck"     %% "scalacheck"        % "1.15.3"  % "test",
   "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
-  "com.spotify"         % "docker-client"     % "8.16.0"  % "test, it",
+  "com.spotify"         % "docker-client"     % "8.16.0"  % "test",
   "org.asynchttpclient" % "async-http-client" % "2.12.3"  % "test"
+)
+
+val testingDependenciesIt = Seq(
+  "org.scalatest"      %% "scalatest"         % "3.2.6"   % "it",
+  "com.spotify"         % "docker-client"     % "8.16.0"  % "it",
+  "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion     % "it",
+  "com.typesafe.akka" %% "akka-http-testkit"   % akkaHttpVersion % "it"
 )
 
 val cryptoDependencies = Seq(
@@ -177,7 +184,7 @@ val graalDependencies = Seq(
 )
 
 libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies
-++ testingDependencies ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
+++ testingDependenciesTest ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
 
 scalacOptions ++= Seq(
   "-deprecation",
@@ -242,6 +249,7 @@ lazy val node = project.in(file("node"))
     Defaults.itSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
+    Docker / packageName := "bifrost-node",
     dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java8-21.0.0",
     dockerExposedPorts := Seq(9084, 9085),
     dockerExposedVolumes += "/opt/docker/.bifrost",
@@ -249,10 +257,14 @@ lazy val node = project.in(file("node"))
       "bifrost.version" -> version.value
     ),
     libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies
-      ++ testingDependencies ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
+      ++ testingDependenciesTest ++ testingDependenciesIt ++ cryptoDependencies ++ miscDependencies
+      ++ monitoringDependencies ++ graalDependencies)
   )
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .configs(IntegrationTest)
+  .settings(
+    IntegrationTest / parallelExecution := false
+  )
   .dependsOn(common)
 
 lazy val common = project.in(file("common"))
@@ -262,33 +274,28 @@ lazy val common = project.in(file("common"))
     publishSettings,
     libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ apiDependencies ++ cryptoDependencies
   )
-lazy val akkaHttpRpc = Project(id = "akka-http-rpc", base = file("akka-http-rpc"))
-  .settings(commonSettings: _*)
+
+lazy val akkaHttpRpc = project.in(file("akka-http-rpc"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
+    name := "akka-http-rpc",
+    commonSettings,
+    publishSettings,
+    libraryDependencies ++= apiDependencies ++ akkaDependencies ++ akkaCirceDependencies ++ testingDependenciesTest,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.akkahttprpc",
-    libraryDependencies ++=
-      apiDependencies ++
-        akkaDependencies ++
-        akkaCirceDependencies ++
-        testingDependencies,
   )
-  .disablePlugins(sbtassembly.AssemblyPlugin)
 
-lazy val toplRpc = Project(id = "topl-rpc", base = file("topl-rpc"))
-  .settings(commonSettings: _*)
+lazy val toplRpc = project.in(file("topl-rpc"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
+    name := "topl-rpc",
+    commonSettings,
+    publishSettings,
+    libraryDependencies ++= apiDependencies ++ akkaDependencies ++ akkaCirceDependencies ++ testingDependenciesTest,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.toplrpc",
-    libraryDependencies ++=
-      apiDependencies ++
-        akkaDependencies ++
-        akkaCirceDependencies ++
-        testingDependencies,
   )
-  .disablePlugins(sbtassembly.AssemblyPlugin)
   .dependsOn(akkaHttpRpc, common)
 
 lazy val gjallarhorn = project.in(file("gjallarhorn"))
@@ -297,8 +304,8 @@ lazy val gjallarhorn = project.in(file("gjallarhorn"))
     commonSettings,
     publish / skip := true,
     Defaults.itSettings,
-    libraryDependencies ++= akkaDependencies ++ testingDependencies ++ cryptoDependencies ++ apiDependencies
-    ++ loggingDependencies ++ miscDependencies
+    libraryDependencies ++= akkaDependencies ++ testingDependenciesTest ++ testingDependenciesIt ++ cryptoDependencies
+      ++ apiDependencies ++ loggingDependencies ++ miscDependencies
   )
   .configs(IntegrationTest)
   .disablePlugins(sbtassembly.AssemblyPlugin)
