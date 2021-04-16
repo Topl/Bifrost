@@ -92,10 +92,6 @@ object AssetTransfer {
 
         // create the list of inputs and outputs (senderChangeOut & recipientOut)
         val (availableToSpend, inputs, outputs) =
-          // case for minting asset transfers
-          // todo - JAA - what happens here when I specify a zero fee and use the same timestamp?
-          // need to check that unique outputs are generated but I am not sure they will be because the tx
-          // bytes will be the same so the nonce will end up being the same?
           if (minting) ioMint(txState, toReceive, changeAddress, fee)
           else ioTransfer(txState, toReceive, changeAddress, consolidationAddr, fee, amtToSpend, assetCode)
 
