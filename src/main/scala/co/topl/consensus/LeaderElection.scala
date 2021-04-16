@@ -18,7 +18,7 @@ object LeaderElection extends Logging {
     * @param addresses the addresses to stake with
     * @param timestamp the current time
     * @param stateReader a read-only version of state
-    * @return a hit if one is found
+    * @return an eligible box if one is found
     */
   def getEligibleBox(
     parent: Block,
