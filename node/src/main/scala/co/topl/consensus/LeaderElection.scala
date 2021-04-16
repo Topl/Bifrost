@@ -34,10 +34,7 @@ object LeaderElection extends Logging {
           stateReader
             .getTokenBoxes(_)
             .getOrElse(Seq())
-            .collect {
-              case box: ArbitBox => box
-              case _ => throw new Throwable("error!")
-            }
+            .collect { case box: ArbitBox => box }
         }
         .map(box => (box, calcHit(parent)(box)))
         .filter {
