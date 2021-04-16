@@ -1,7 +1,7 @@
 package co.topl.consensus
 
-import co.topl.attestation.{Address}
-import co.topl.consensus.LeaderElection.{NoAddressesAvailable, NoBoxesEligible}
+import co.topl.attestation.Address
+import co.topl.consensus.LeaderElection.{NoAddressesAvailable, NoArbitBoxesAvailable}
 import co.topl.utils.{CoreGenerators, NetworkType}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -25,14 +25,14 @@ class LeaderElectionTests extends AnyFlatSpec with MockFactory with CoreGenerato
     }
   }
 
-  "getEligibleBox" should "return NoBoxesEligible when no addresses contain arbit boxes" in {
+  "getEligibleBox" should "return NoArbitBoxesAvailable when no addresses contain arbit boxes" in {
     forAll(blockGen) { parent =>
       val stateReader = mock[LeaderElection.SR]
       (stateReader.getTokenBoxes _)
         .expects(address)
         .returns(None)
       val addresses = Set[Address](address)
-      val expectedResult = Left(NoBoxesEligible)
+      val expectedResult = Left(NoArbitBoxesAvailable)
 
       val result = LeaderElection.getEligibleBox(parent, addresses, parent.timestamp + 100, stateReader)
 
