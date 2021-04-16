@@ -229,6 +229,8 @@ class Forger[
             log.warn("Forger has no addresses available to stake with.")
           case Left(Forger.LeaderElectionFailure(LeaderElection.NoBoxesEligible)) =>
             log.debug("No boxes were eligible to forge with.")
+          case Left(Forger.LeaderElectionFailure(LeaderElection.NoArbitBoxesAvailable)) =>
+            log.debug("No arbit boxes available to stake with.")
         }
     } catch {
       case ex: Throwable =>

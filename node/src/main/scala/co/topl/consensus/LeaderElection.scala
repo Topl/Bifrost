@@ -7,6 +7,8 @@ import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.StateReader
 import co.topl.utils.{Logging, TimeProvider}
 
+import scala.collection.Set
+
 object LeaderElection extends Logging {
 
   type TX = Transaction.TX
@@ -36,18 +38,28 @@ object LeaderElection extends Logging {
             .getOrElse(Seq())
             .collect { case box: ArbitBox => box }
         }
-        .map(box => (box, calcHit(parent)(box)))
-        .filter {
-          case (box, hit) =>
-            hit < calcTarget(box.value.quantity, timestamp - parent.timestamp, parent.difficulty, parent.height)
+        .toSeq
+        // return NoArbitBoxesAvailable error if there are no boxes to forge with
+        .foldLeft[Either[IneligibilityReason, Seq[ArbitBox]]](Left(NoArbitBoxesAvailable)) {
+          case (Right(seq), box) => Right(seq :+ box)
+          case (_, box) => Right(Seq(box))
         }
-        .map(_._1)
-        .headOption
-        .toRight(NoBoxesEligible)
+        .flatMap { boxes =>
+          boxes
+            .map(box => (box, calcHit(parent)(box)))
+            .filter {
+              case (box, hit) =>
+                hit < calcTarget(box.value.quantity, timestamp - parent.timestamp, parent.difficulty, parent.height)
+            }
+            .map(_._1)
+            .headOption
+            .toRight(NoBoxesEligible)
+        }
     }
   }
 
   sealed trait IneligibilityReason
   case object NoAddressesAvailable extends IneligibilityReason
   case object NoBoxesEligible extends IneligibilityReason
+  case object NoArbitBoxesAvailable extends IneligibilityReason
 }
