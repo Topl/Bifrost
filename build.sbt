@@ -275,6 +275,18 @@ lazy val common = project.in(file("common"))
     libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ apiDependencies ++ cryptoDependencies
   )
 
+lazy val brambl = project.in(file("brambl"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "brambl",
+    commonSettings,
+    publishSettings,
+    libraryDependencies ++= apiDependencies ++ akkaDependencies ++ akkaCirceDependencies ++ testingDependenciesTest,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.brambl",
+  )
+  .dependsOn(toplRpc, common)
+
 lazy val akkaHttpRpc = project.in(file("akka-http-rpc"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
