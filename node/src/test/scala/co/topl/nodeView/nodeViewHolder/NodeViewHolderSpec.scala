@@ -7,8 +7,8 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.MockState
 import co.topl.settings.{AppContext, StartupOpts}
 import co.topl.utils.CoreGenerators
-import org.scalatest.{BeforeAndAfterAll, PrivateMethodTester}
 import org.scalatest.propspec.AnyPropSpec
+import org.scalatest.{BeforeAndAfterAll, PrivateMethodTester}
 
 import scala.concurrent.ExecutionContext
 
@@ -20,11 +20,11 @@ class NodeViewHolderSpec extends AnyPropSpec
 
   type MP = MemPool
 
-  private implicit val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
+  private implicit val actorSystem: ActorSystem = ActorSystem("NodeviewHolderSpec")
   private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
   private val appContext = new AppContext(settings, StartupOpts.empty, None)
-  private val nvhTestRef = TestActorRef(new NodeViewHolder(settings, appContext))
+  private val nvhTestRef = TestActorRef(new NodeViewHolder(settings, appContext), "nvhTest")
   private val nodeView = nvhTestRef.underlyingActor
   private val state = createState()
 

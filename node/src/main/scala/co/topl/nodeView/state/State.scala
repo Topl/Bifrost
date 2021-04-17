@@ -5,13 +5,13 @@ import java.io.File
 import co.topl.attestation.Address
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction._
-import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.modifier.box._
 import co.topl.modifier.box.serialization.BoxSerializer
+import co.topl.modifier.transaction._
+import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.settings.AppSettings
+import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.{Logging, NetworkType}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.util.encode.Base58
 

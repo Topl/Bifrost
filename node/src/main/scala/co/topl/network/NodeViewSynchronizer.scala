@@ -14,7 +14,7 @@ import co.topl.network.peer.{ConnectedPeer, PenaltyType}
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.HistoryReader
-import co.topl.nodeView.mempool.{MemPoolReader, UnconfirmedTx}
+import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.state.StateReader
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.serialization.BifrostSerializer
