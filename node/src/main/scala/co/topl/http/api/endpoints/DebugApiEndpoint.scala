@@ -3,11 +3,14 @@ package co.topl.http.api.endpoints
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.pattern.ask
 import co.topl.attestation.Address
-import co.topl.consensus.Forger.ReceivableMessages.ListKeys
+import co.topl.consensus.KeyManager.ReceivableMessages._
 import co.topl.http.api.{ApiEndpointWithView, DebugNamespace, ErrorResponse, Namespace}
 import co.topl.modifier.ModifierId
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import co.topl.nodeView.history.{History, HistoryDebug}
+import co.topl.modifier.block.Block
+import co.topl.network.NodeViewSynchronizer.ReceivableMessages.ChangedHistory
+import co.topl.network.message.BifrostSyncInfo
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetNodeViewChanges
+import co.topl.nodeView.history.{History, HistoryDebug, HistoryReader}
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppContext, RPCApiSettings}
@@ -23,7 +26,7 @@ case class DebugApiEndpoint(
   settings:             RPCApiSettings,
   appContext:           AppContext,
   nodeViewHolderRef:    ActorRef,
-  forgerRef:            ActorRef
+  keyManagerRef:        ActorRef
 )(implicit val context: ActorRefFactory)
     extends ApiEndpointWithView {
 
@@ -63,11 +66,11 @@ case class DebugApiEndpoint(
     * @return
     */
   private def delay(params: Json, id: String): Future[Json] =
-    viewAsync { view =>
+    asyncHistory { hr =>
       (for {
         blockId <- params.hcursor.get[ModifierId]("blockId")
         count   <- params.hcursor.get[Int]("numBlocks")
-      } yield new HistoryDebug(view.history).averageDelay(blockId, count)) match {
+      } yield new HistoryDebug(hr).averageDelay(blockId, count)) match {
         case Right(Success(delay)) => Map("delay" -> s"$delay milliseconds").asJson
         case Right(Failure(ex))    => throw ex
         case Left(ex)              => throw ex
@@ -90,9 +93,11 @@ case class DebugApiEndpoint(
     * @return
     */
   private def myBlocks(params: Json, id: String): Future[Json] =
-    (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CV].flatMap { view =>
-      (forgerRef ? ListKeys).mapTo[Set[Address]].map { myKeys =>
-        val blockNum = new HistoryDebug(view.history).count { b =>
+    (nodeViewHolderRef ? GetNodeViewChanges(history = true, state = false, mempool = false))
+      .mapTo[ChangedHistory[HistoryReader[Block, BifrostSyncInfo]]]
+      .flatMap { hr =>
+      (keyManagerRef ? ListKeys).mapTo[Set[Address]].map { myKeys =>
+        val blockNum = new HistoryDebug(hr.reader).count { b =>
           myKeys.map(_.evidence).contains(b.generatorBox.evidence)
         }
 
@@ -116,8 +121,8 @@ case class DebugApiEndpoint(
     * @return
     */
   private def generators(params: Json, id: String): Future[Json] =
-    viewAsync { view =>
-      new HistoryDebug(view.history)
+    asyncHistory { hr =>
+      new HistoryDebug(hr)
         .forgerDistribution()
         .map(d => d._1.address -> d._2)
         .asJson
@@ -136,11 +141,11 @@ case class DebugApiEndpoint(
     * @return
     */
   private def idsFromHeight(params: Json, id: String): Future[Json] =
-    viewAsync { view =>
+    asyncHistory { hr =>
       (for {
         height <- params.hcursor.get[Long]("height")
         limit <- params.hcursor.get[Int]("limit")
-      } yield new HistoryDebug(view.history).getIdsFrom(height, limit)) match {
+      } yield new HistoryDebug(hr).getIdsFrom(height, limit)) match {
         case Right(ids) => ids match {
           case Some(ids) => ids.asJson
           case None => ErrorResponse(

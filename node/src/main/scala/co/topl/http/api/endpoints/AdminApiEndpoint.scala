@@ -4,6 +4,7 @@ import akka.actor.{ActorRef, ActorRefFactory}
 import akka.pattern.ask
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.consensus.Forger.ReceivableMessages._
+import co.topl.consensus.KeyManager.ReceivableMessages._
 import co.topl.http.api.{AdminNamespace, ApiEndpoint, Namespace}
 import co.topl.settings.{AppContext, RPCApiSettings}
 import co.topl.utils.NetworkType.NetworkPrefix
@@ -14,8 +15,13 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
-case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: AppContext, keyHolderRef: ActorRef)
-                           (implicit val context:  ActorRefFactory) extends ApiEndpoint {
+case class AdminApiEndpoint(
+  override val settings: RPCApiSettings,
+  appContext:            AppContext,
+  forgerRef:             ActorRef,
+  keyHolderRef:          ActorRef
+)(implicit val context:  ActorRefFactory)
+    extends ApiEndpoint {
 
   // Establish the expected network prefix for addresses
   implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
@@ -63,8 +69,8 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
       password <- params.hcursor.get[String]("password")
     } yield (keyHolderRef ? UnlockKey(address, password)).mapTo[Try[Address]].map {
       case Success(addr) if address == addr.toString => Map(address -> "unlocked".asJson).asJson
-      case Success(addr) => throw new Exception(s"Decrypted address $addr does not match requested address")
-      case Failure(ex) => throw new Exception(s"An error occurred while trying to unlock the keyfile. $ex")
+      case Success(addr)                             => throw new Exception(s"Decrypted address $addr does not match requested address")
+      case Failure(ex)                               => throw new Exception(s"An error occurred while trying to unlock the keyfile. $ex")
     }) match {
       case Right(json) => json
       case Left(ex)    => throw ex
@@ -150,8 +156,8 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     */
   private def importKeyfile(implicit params: Json, id: String): Future[Json] =
     (for {
-      password   <- params.hcursor.get[String]("password")
-      seedPhrase <- params.hcursor.get[String]("seedPhrase")
+      password       <- params.hcursor.get[String]("password")
+      seedPhrase     <- params.hcursor.get[String]("seedPhrase")
       seedPhraseLang <- parseOptional("seedPhraseLand", "en")
     } yield (keyHolderRef ? ImportKey(password, seedPhrase, seedPhraseLang)).mapTo[Try[Address]].map {
       case Success(addr: Address) => Map("publicKey" -> addr.asJson).asJson
@@ -262,7 +268,7 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     * @return
     */
   private def startForging(params: Json, id: String): Future[Json] = Future {
-    keyHolderRef ! StartForging
+    forgerRef ! StartForging
     Map("msg" -> "START forging signal sent".asJson).asJson
   }
 
@@ -285,7 +291,7 @@ case class AdminApiEndpoint(override val settings: RPCApiSettings, appContext: A
     * @return
     */
   private def stopForging(params: Json, id: String): Future[Json] = Future {
-    keyHolderRef ! StopForging
+    forgerRef ! StopForging
     Map("msg" -> "STOP forging signal sent".asJson).asJson
   }
 }

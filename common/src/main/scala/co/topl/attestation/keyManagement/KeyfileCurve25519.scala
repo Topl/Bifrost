@@ -1,7 +1,5 @@
 package co.topl.attestation.keyManagement
 
-import java.nio.charset.StandardCharsets
-
 import co.topl.attestation.Address
 import co.topl.utils.Extensions.StringOps
 import co.topl.utils.NetworkType.NetworkPrefix

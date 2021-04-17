@@ -7,7 +7,7 @@ import akka.http.scaladsl.Http
 import akka.io.Tcp
 import akka.pattern.ask
 import akka.util.Timeout
-import co.topl.consensus.{Forger, ForgerRef}
+import co.topl.consensus.{Forger, ForgerRef, KeyManager, KeyManagerRef}
 import co.topl.http.HttpService
 import co.topl.http.api.ApiEndpoint
 import co.topl.http.api.endpoints.{DebugApiEndpoint, _}
@@ -72,7 +72,10 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   private val networkControllerRef: ActorRef =
     NetworkControllerRef(NetworkController.actorName, settings, peerManagerRef, appContext)
 
-  private val forgerRef: ActorRef = ForgerRef(Forger.actorName, settings, appContext)
+  private val keyManagerRef = KeyManagerRef(KeyManager.actorName, settings, appContext)
+
+  private val forgerRef: ActorRef =
+    ForgerRef[HIS, ST, MP](Forger.actorName, settings, appContext, keyManagerRef)
 
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef(NodeViewHolder.actorName, settings, appContext)
 
@@ -104,6 +107,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     networkControllerRef,
     peerSynchronizer,
     nodeViewSynchronizer,
+    keyManagerRef,
     forgerRef,
     nodeViewHolderRef,
     mempoolAuditor
@@ -116,10 +120,10 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   /** Create and register controllers for API routes */
   private val apiRoutes: Seq[ApiEndpoint] = Seq(
     UtilsApiEndpoint(settings.rpcApi, appContext),
-    AdminApiEndpoint(settings.rpcApi, appContext, forgerRef),
+    AdminApiEndpoint(settings.rpcApi, appContext, forgerRef, keyManagerRef),
     NodeViewApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef),
     TransactionApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef),
-    DebugApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef, forgerRef)
+    DebugApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef, keyManagerRef)
   )
 
   private val httpService = HttpService(apiRoutes, settings.rpcApi)

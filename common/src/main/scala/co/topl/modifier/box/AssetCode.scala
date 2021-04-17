@@ -1,7 +1,5 @@
 package co.topl.modifier.box
 
-import java.nio.charset.StandardCharsets
-
 import co.topl.attestation.Address
 import co.topl.modifier.box.AssetCode.AssetCodeVersion
 import co.topl.utils.Extensions.StringOps
@@ -11,6 +9,7 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import scorex.util.encode.Base58
 
+import java.nio.charset.StandardCharsets
 import scala.util.{Failure, Success}
 
 /** AssetCode serves as a unique identifier for user issued assets

@@ -1,10 +1,12 @@
 package co.topl.nodeView.history
 
-import co.topl.modifier.block.PersistentNodeViewModifier
+import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
+import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ContainsModifiers, ModifierId}
 import co.topl.network.message.SyncInfo
 import co.topl.nodeView.NodeViewComponent
 import co.topl.nodeView.history.GenericHistory.{HistoryComparisonResult, ModifierIds}
+import co.topl.utils.TimeProvider
 
 import scala.util.Try
 
@@ -12,10 +14,36 @@ import scala.util.Try
 trait HistoryReader[PM <: PersistentNodeViewModifier, SI <: SyncInfo] extends NodeViewComponent
   with ContainsModifiers[PM] {
 
+  val height: Long
+  val bestBlock: PM
+  val difficulty: Long
+  val bestBlockId: ModifierId
+  val score: Long
+
   /**
     * Is there's no history, even genesis block
     */
   def isEmpty: Boolean
+
+  /** Retrieve a series of PersistentNodeViewModifiers until the filter is satisfied */
+  def filter(f: PM => Boolean): Seq[PM]
+
+  /** get block id at a certain height */
+  def modifierByHeight(height: Long): Option[PM]
+
+  /** get parent block of a given block */
+  def parentBlock(m: PM): Option[PM]
+
+  /** Gets the timestamps for 'count' number of blocks prior to (and including) the startBlock
+    *
+    * @param startBlock the starting block
+    * @param count number of blocks to go back
+    * @return timestamps of number of blocks including the given starting block
+    */
+  def getTimestampsFrom(startBlock: PM, count: Long): Vector[TimeProvider.Time]
+
+
+  def transactionById(id: ModifierId): Option[(Transaction.TX, ModifierId, Long)]
 
   /**
     * Whether a modifier could be applied to the history
@@ -50,11 +78,27 @@ trait HistoryReader[PM <: PersistentNodeViewModifier, SI <: SyncInfo] extends No
   def compare(other: SI): HistoryComparisonResult
 
   /**
-   * Checks whether the modifier can be appended to the canonical chain or a tine
-   * in the chain cache
-   *
-   * @param modifier new block to be tracked in history
-   * @return 'true' if the block extends a known block, false otherwise
-   */
+    * Checks whether the modifier can be appended to the canonical chain or a tine
+    * in the chain cache
+    *
+    * @param modifier new block to be tracked in history
+    * @return 'true' if the block extends a known block, false otherwise
+    */
   def extendsKnownTine(modifier: PM): Boolean
+
+  /** Gets the modifier ID at the given height.
+    * @param height the height of the block
+    * @return the modifier ID if it exists
+    */
+  def idAtHeightOf(height: Long): Option[ModifierId]
+
+  /** Go back through chain and get block ids until condition `until` is satisfied
+    *
+    * @param startBlock     the modifier to start at
+    * @param until the condition that indicates (when true) that recursion should stop
+    * @param limit the maximum number of blocks to recurse back
+    * @return the sequence of block information (TypeId, Id) that were collected until `until` was satisfied
+    *         (None only if the parent for a block was not found) starting from the original `m`
+    */
+  def getIdsFrom(startBlock: Block, until: Block => Boolean, limit: Int): Option[Seq[ModifierId]]
 }

@@ -1,10 +1,10 @@
 package co.topl.settings
 
-import java.io.File
-import java.net.InetSocketAddress
-
 import com.typesafe.config.Config
 import net.ceedubs.ficus.readers.ValueReader
+
+import java.io.File
+import java.net.InetSocketAddress
 
 /** Reader for files/byte values/inet socket addresses from configs */
 trait SettingsReaders {

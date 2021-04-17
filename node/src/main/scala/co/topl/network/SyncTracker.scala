@@ -1,7 +1,5 @@
 package co.topl.network
 
-import java.net.InetSocketAddress
-
 import akka.actor.{ActorContext, ActorRef, Cancellable}
 import co.topl.network.NodeViewSynchronizer.Events.{BetterNeighbourAppeared, NoBetterNeighbour}
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.SendLocalSyncInfo
@@ -10,6 +8,7 @@ import co.topl.nodeView.history.GenericHistory.{Fork, HistoryComparisonResult, O
 import co.topl.settings.NetworkSettings
 import co.topl.utils.{Logging, TimeProvider}
 
+import java.net.InetSocketAddress
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{FiniteDuration, _}

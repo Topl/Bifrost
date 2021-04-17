@@ -2,10 +2,10 @@ package co.topl.modifier.transaction.serialization
 
 import co.topl.attestation._
 import co.topl.attestation.serialization.{ProofSerializer, PropositionSerializer}
-import co.topl.modifier.transaction.PolyTransfer
 import co.topl.modifier.box.{AssetValue, SimpleValue, TokenValueHolder}
-import co.topl.utils.Int128
+import co.topl.modifier.transaction.PolyTransfer
 import co.topl.utils.Extensions._
+import co.topl.utils.Int128
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 import scala.language.existentials

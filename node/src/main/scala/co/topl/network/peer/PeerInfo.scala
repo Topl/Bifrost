@@ -1,9 +1,9 @@
 package co.topl.network.peer
 
-import java.net.InetSocketAddress
-
 import co.topl.network.ConnectionDirection
 import co.topl.settings.Version
+
+import java.net.InetSocketAddress
 
 /** Information about peer to be stored in PeerDatabase
   *

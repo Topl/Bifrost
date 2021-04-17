@@ -12,6 +12,10 @@ trait StateReader[KP, KT] extends BoxReader[KP, KT] with NodeViewComponent {
   type ProgramKey = KP
   type TokenKey = KT
 
+  val hasTBR: Boolean
+  val hasPBR: Boolean
+  val nodeKeys: Option[Set[KT]]
+
   //must be ID of last applied modifier
   def version: VersionTag
 

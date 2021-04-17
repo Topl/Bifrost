@@ -16,8 +16,8 @@ class NodeViewRPCSpec extends AnyWordSpec
   val txId: String = txs.head.id.toString
   val block: Block = blockGen.sample.get.copy(transactions = txs)
 
-  view().history.storage.update(block, isBest = false)
-  view().pool.putWithoutCheck(txs, block.timestamp)
+  view()._1.storage.update(block, isBest = false)
+  view()._3.putWithoutCheck(txs, block.timestamp)
 
   "NodeView RPC" should {
     "Get first 100 transactions in mempool" in {
@@ -52,13 +52,13 @@ class NodeViewRPCSpec extends AnyWordSpec
            |
           """.stripMargin)
 
-      view().pool.putWithoutCheck(Seq(txs.head), block.timestamp)
+      view()._3.putWithoutCheck(Seq(txs.head), block.timestamp)
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         ((res \\ "result").head \\ "txId").head.asString.get shouldEqual txId
       }
-      view().pool.remove(txs.head)
+      view()._3.remove(txs.head)
     }
 
     "Get a confirmed transaction by id" in {
