@@ -1,8 +1,9 @@
 package co.topl.transaction
 
 import co.topl.attestation.PublicKeyPropositionCurve25519
-import co.topl.modifier.transaction.AssetTransfer
+import co.topl.modifier.transaction.{AssetTransfer, MintingZeroFeeFailure}
 import co.topl.utils.{CoreGenerators, ValidGenerators}
+import org.scalatest.EitherValues
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
@@ -13,10 +14,11 @@ class AssetTransferSpec extends AnyPropSpec
   with ScalaCheckDrivenPropertyChecks
   with Matchers
   with CoreGenerators
-  with ValidGenerators {
+  with ValidGenerators
+  with EitherValues {
   property("Randomly generated AssetTransfer Tx should be valid") {
     forAll(validAssetTransfer(keyRing, state, minting = true)) { assetTransfer: AssetTransfer[_] =>
-      assetTransfer.syntacticValidate.isSuccess shouldBe true
+      assetTransfer.syntacticValidate.isValid shouldBe true
     }
   }
 
@@ -34,8 +36,7 @@ class AssetTransferSpec extends AnyPropSpec
   property("Minting AssetTransfer should fail unless fee is greater than 0") {
     forAll(validAssetTransfer(keyRing, state, fee = 0, minting = true)) {
       assetTransfer: AssetTransfer[PublicKeyPropositionCurve25519] =>
-        assetTransfer.syntacticValidate.failure.exception.getMessage shouldEqual
-          "requirement failed: Asset minting transactions must have a non-zero positive fee"
+        assetTransfer.syntacticValidate.toEither.left.value.toNonEmptyList.toList should contain(MintingZeroFeeFailure)
     }
   }
 
@@ -43,7 +44,7 @@ class AssetTransferSpec extends AnyPropSpec
     // Create invalid AssetTransfer
     // send tx to state
     forAll(assetTransferGen) { assetTransfer: AssetTransfer[_] =>
-      assetTransfer.syntacticValidate.isSuccess shouldBe false
+      assetTransfer.syntacticValidate.isValid shouldBe false
     }
   }
 }

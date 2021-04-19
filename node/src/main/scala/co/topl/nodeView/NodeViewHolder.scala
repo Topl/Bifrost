@@ -237,8 +237,8 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
     * @param tx
     */
   protected def txModify(tx: TX): Unit =
-    tx.syntacticValidate match {
-      case Success(_) =>
+    tx.syntacticValidate.toEither match {
+      case Right(_) =>
         memoryPool().put(tx, appContext.timeProvider.time) match {
           case Success(_) =>
             log.debug(s"Unconfirmed transaction $tx added to the memory pool")
@@ -248,8 +248,10 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
             context.system.eventStream.publish(FailedTransaction(tx.id, e, immediateFailure = true))
         }
 
-      case Failure(e) =>
-        context.system.eventStream.publish(FailedTransaction(tx.id, e, immediateFailure = true))
+      case Left(e) =>
+        context.system.eventStream.publish(
+          FailedTransaction(tx.id, new Exception(e.head.toString), immediateFailure = true)
+        )
     }
 
   //todo: update state in async way?

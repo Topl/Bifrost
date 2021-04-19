@@ -171,9 +171,6 @@ val graalDependencies = Seq(
   "org.graalvm.truffle" % "truffle-api" % graalVersion
 )
 
-libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies
-++ testingDependencies ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
-
 scalacOptions ++= Seq(
   "-deprecation",
   "-feature",

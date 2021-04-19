@@ -197,7 +197,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
         val message = res.hcursor.downField("error").get[String]("message")
 
         code shouldEqual Right(InternalServerError.intValue)
-        message shouldEqual Right("Invalid address: Network type does not match")
+        message shouldEqual Right("NetworkTypeMismatch")
       }
     }
 

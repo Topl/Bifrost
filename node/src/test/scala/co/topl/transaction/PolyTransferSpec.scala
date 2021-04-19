@@ -17,7 +17,7 @@ class PolyTransferSpec
   property("Generated PolyTransfer Tx should be valid") {
     forAll(validPolyTransferGen) { polyTransfer: PolyTransfer[_] =>
       //TODO: Jing - change this back to using syntacticValidate once attestation in validPolyTransferGen works
-      polyTransfer.rawValidate.isSuccess shouldBe true
+      polyTransfer.rawValidate.isValid shouldBe true
     }
   }
 
@@ -25,7 +25,7 @@ class PolyTransferSpec
     // Create invalid PolyTransfer
     // send tx to state
     forAll(polyTransferGen) { polyTransfer: PolyTransfer[_] =>
-      polyTransfer.syntacticValidate.isSuccess shouldBe false
+      polyTransfer.syntacticValidate.isValid shouldBe false
     }
   }
 }
