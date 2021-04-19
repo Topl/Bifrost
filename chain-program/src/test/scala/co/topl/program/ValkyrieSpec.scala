@@ -1,17 +1,13 @@
 package co.topl.program
 
-import co.topl.utils.{CoreGenerators, ValidGenerators}
 import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 
 @DoNotDiscover
-class ValkyrieSpec extends AnyPropSpec
-  with Matchers
-  with CoreGenerators
-  with ValidGenerators {
+class ValkyrieSpec extends AnyPropSpec with Matchers {
 
-/*
+  /*
   val testValkyrie: String =
     s"""
        |  issuer = 'b';
@@ -212,5 +208,5 @@ class ValkyrieSpec extends AnyPropSpec
     assert(newArbitBox1.value == 10)
 
   }
-*/
+   */
 }

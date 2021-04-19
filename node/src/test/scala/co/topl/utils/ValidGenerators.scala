@@ -11,25 +11,24 @@ import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction._
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.State
-import co.topl.program._
 import co.topl.settings.AppSettings
-import io.circe.syntax._
 import org.scalacheck.Gen
-import scorex.crypto.hash.Blake2b256
 
 import scala.util.{Failure, Success}
 
 trait ValidGenerators extends CoreGenerators {
 
-
   val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
     KeyRing(settings.application.keyFileDir.get, KeyfileCurve25519)
 
-  val genesisBlock: Block = PrivateGenesis((_: Int, _: Option[String]) => {
-    keyRing.generateNewKeyPairs(num = 3) match {
-      case Success(keys) => keys.map(_.publicImage)
-      case Failure(ex)   => throw ex
-    } }, settings).getGenesisBlock.get._1
+  val genesisBlock: Block = PrivateGenesis(
+    (_: Int, _: Option[String]) =>
+      keyRing.generateNewKeyPairs(num = 3) match {
+        case Success(keys) => keys.map(_.publicImage)
+        case Failure(ex)   => throw ex
+      },
+    settings
+  ).getGenesisBlock.get._1
 
   val genesisBlockId: ModifierId = genesisBlock.id
 
@@ -37,41 +36,19 @@ trait ValidGenerators extends CoreGenerators {
 
   lazy val validBifrostTransactionSeqGen: Gen[Seq[TX]] = for {
     seqLen <- positiveMediumIntGen
-  } yield {
-    0 until seqLen map {
-      _ => {
-        val g: Gen[TX] = sampleUntilNonEmpty(Gen.oneOf(transactionTypes))
-        sampleUntilNonEmpty(g)
-      }
-    }
-  }
-
-  lazy val validProgramGen: Gen[Program] = for {
-    producer <- propositionGen
-    investor <- propositionGen
-    hub <- propositionGen
-    executionBuilder <- validExecutionBuilderGen().map(_.json)
-    id <- genBytesList(Blake2b256.DigestSize)
-  } yield {
-    Program(Map(
-      "parties" -> Map(
-        producer.toString -> "producer",
-        investor.toString -> "investor",
-        hub.toString -> "hub"
-      ).asJson,
-      "executionBuilder" -> executionBuilder,
-      "lastUpdated" -> System.currentTimeMillis().asJson
-    ).asJson, id)
+  } yield 0 until seqLen map { _ =>
+    val g: Gen[TX] = sampleUntilNonEmpty(Gen.oneOf(transactionTypes))
+    sampleUntilNonEmpty(g)
   }
 
   lazy val validPolyTransferGen: Gen[PolyTransfer[_]] = for {
-    from <- fromSeqGen
-    to <- toSeqGen
+    from        <- fromSeqGen
+    to          <- toSeqGen
     attestation <- attestationGen
-    key <- publicKeyPropositionCurve25519Gen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    data <- stringGen
+    key         <- publicKeyPropositionCurve25519Gen
+    fee         <- positiveLongGen
+    timestamp   <- positiveLongGen
+    data        <- stringGen
   } yield {
 
     val tx = PolyTransfer(from, to, attestation, fee, timestamp, Some(data))
@@ -80,28 +57,22 @@ trait ValidGenerators extends CoreGenerators {
   }
 
   lazy val validArbitTransferGen: Gen[ArbitTransfer[_]] = for {
-    from <- fromSeqGen
-    to <- toSeqGen
+    from        <- fromSeqGen
+    to          <- toSeqGen
     attestation <- attestationGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    data <- stringGen
-  } yield {
-
-    ArbitTransfer(from, to, attestation, fee, timestamp, Some(data))
-  }
+    fee         <- positiveLongGen
+    timestamp   <- positiveLongGen
+    data        <- stringGen
+  } yield ArbitTransfer(from, to, attestation, fee, timestamp, Some(data))
 
   lazy val validAssetTransferGen: Gen[AssetTransfer[_]] = for {
-    from <- fromSeqGen
-    to <- assetToSeqGen
+    from        <- fromSeqGen
+    to          <- assetToSeqGen
     attestation <- attestationGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    data <- stringGen
-  } yield {
-
-    AssetTransfer(from, to, attestation, fee, timestamp, Some(data), minting = true)
-  }
+    fee         <- positiveLongGen
+    timestamp   <- positiveLongGen
+    data        <- stringGen
+  } yield AssetTransfer(from, to, attestation, fee, timestamp, Some(data), minting = true)
 
   def genesisState(settings: AppSettings, genesisBlockWithVersion: Block = genesisBlock): State = {
     History.readOrGenerate(settings).append(genesisBlock)
@@ -109,29 +80,30 @@ trait ValidGenerators extends CoreGenerators {
   }
 
   def validAssetTransfer(
-                          keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-                          state: State,
-                          fee: Long = 1L,
-                          minting: Boolean = false
+    keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+    state:   State,
+    fee:     Long = 1L,
+    minting: Boolean = false
   ): Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = {
     val sender = keyRing.addresses.head
     val prop = keyRing.lookupPublicKey(sender).get
     val asset = AssetValue(1, AssetCode(1: Byte, sender, "test"), SecurityRoot.empty)
     val recipients = IndexedSeq((sender, asset))
-    val rawTx = AssetTransfer.createRaw(
-      state,
-      recipients,
-      IndexedSeq(sender),
-      changeAddress = sender,
-      None,
-      fee,
-      data = None,
-      minting
-    ).get
+    val rawTx = AssetTransfer
+      .createRaw(
+        state,
+        recipients,
+        IndexedSeq(sender),
+        changeAddress = sender,
+        None,
+        fee,
+        data = None,
+        minting
+      )
+      .get
 
     val sig = keyRing.signWithAddress(sender)(rawTx.messageToSign).get
     val tx = rawTx.copy(attestation = Map(prop -> sig))
     tx
   }
 }
-

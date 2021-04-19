@@ -113,7 +113,7 @@ val networkDependencies = Seq(
   "commons-net" % "commons-net" % "3.8.0"
 )
 
-val apiDependencies = Seq(
+val jsonDependencies = Seq(
   "io.circe" %% "circe-core"    % circeVersion,
   "io.circe" %% "circe-generic" % circeVersion,
   "io.circe" %% "circe-parser"  % circeVersion,
@@ -127,13 +127,20 @@ val loggingDependencies = Seq(
   "org.slf4j"                   % "slf4j-api"       % "1.7.30"
 )
 
-val testingDependencies = Seq(
-  "org.scalatest"      %% "scalatest"         % "3.2.6"   % "test, it",
+val testingDependenciesTest = Seq(
+  "org.scalatest"      %% "scalatest"         % "3.2.6"   % "test",
   "org.scalactic"      %% "scalactic"         % "3.2.6"   % "test",
   "org.scalacheck"     %% "scalacheck"        % "1.15.3"  % "test",
   "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
-  "com.spotify"         % "docker-client"     % "8.16.0"  % "test, it",
   "org.asynchttpclient" % "async-http-client" % "2.12.3"  % "test"
+)
+
+val testingDependenciesIt = Seq(
+  "com.spotify"         % "docker-client"     % "8.16.0"  % "test",
+  "org.scalatest"      %% "scalatest"         % "3.2.6"   % "it",
+  "com.spotify"         % "docker-client"     % "8.16.0"  % "it",
+  "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion     % "it",
+  "com.typesafe.akka" %% "akka-http-testkit"   % akkaHttpVersion % "it"
 )
 
 val cryptoDependencies = Seq(
@@ -171,8 +178,8 @@ val graalDependencies = Seq(
   "org.graalvm.truffle" % "truffle-api" % graalVersion
 )
 
-libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies
-++ testingDependencies ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
+libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ jsonDependencies ++ loggingDependencies
+++ testingDependenciesTest ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
 
 scalacOptions ++= Seq(
   "-deprecation",
@@ -241,8 +248,8 @@ lazy val node = project.in(file("node"))
     dockerLabels ++= Map(
       "bifrost.version" -> version.value
     ),
-    libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies
-      ++ testingDependencies ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
+    libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ jsonDependencies ++ loggingDependencies
+      ++ testingDependenciesTest ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ testingDependenciesIt)
   )
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .configs(IntegrationTest)
@@ -253,8 +260,18 @@ lazy val common = project.in(file("common"))
     name := "common",
     commonSettings,
     publishSettings,
-    libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ apiDependencies ++ cryptoDependencies
+    libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ jsonDependencies ++ cryptoDependencies
   )
+
+lazy val chainProgram = project.in(file("chain-program"))
+  .settings(
+    name := "chain-program",
+    commonSettings,
+    publish / skip := true,
+    libraryDependencies ++= jsonDependencies ++ testingDependenciesTest ++ graalDependencies
+  )
+  .dependsOn(common)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
 
 lazy val gjallarhorn = project.in(file("gjallarhorn"))
   .settings(
@@ -262,8 +279,8 @@ lazy val gjallarhorn = project.in(file("gjallarhorn"))
     commonSettings,
     publish / skip := true,
     Defaults.itSettings,
-    libraryDependencies ++= akkaDependencies ++ testingDependencies ++ cryptoDependencies ++ apiDependencies
-    ++ loggingDependencies ++ miscDependencies
+    libraryDependencies ++= akkaDependencies ++ testingDependenciesTest ++ cryptoDependencies ++ jsonDependencies
+    ++ loggingDependencies ++ miscDependencies ++ testingDependenciesIt
   )
   .configs(IntegrationTest)
   .disablePlugins(sbtassembly.AssemblyPlugin)
