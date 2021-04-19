@@ -52,4 +52,4 @@ COPY . /bifrost
 
 RUN sbt compile
 
-ENTRYPOINT sbt bifrost/docker:publishLocal it/test
+ENTRYPOINT sbt node/docker:publishLocal node/it:test
