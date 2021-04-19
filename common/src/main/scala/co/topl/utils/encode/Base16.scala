@@ -4,6 +4,8 @@ import java.io.IOException
 
 import scala.util.{Failure, Success, Try}
 
+/* Forked from https://github.com/ScorexFoundation/scorex-util/tree/master/src/main/scala/scorex/util/encode */
+
 object Base16 extends BytesEncoder {
 
   override val Alphabet: String = "0123456789abcdefABCDEF"

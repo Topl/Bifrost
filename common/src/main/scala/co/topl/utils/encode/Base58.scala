@@ -2,9 +2,9 @@ package co.topl.utils.encode
 
 import scala.util.Try
 
-/**
-  * A custom form of base58 is used to encode Scorex addresses.
-  */
+/* Forked from https://github.com/ScorexFoundation/scorex-util/tree/master/src/main/scala/scorex/util/encode */
+
+/** A custom form of base58 is used to encode Scorex addresses. */
 object Base58 extends BytesEncoder {
   val Alphabet: String = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
   private val DecodeTable = Array(

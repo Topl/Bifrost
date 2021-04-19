@@ -2,6 +2,8 @@ package co.topl.utils.encode
 
 import scala.util.Try
 
+/* Forked from https://github.com/ScorexFoundation/scorex-util/tree/master/src/main/scala/scorex/util/encode */
+
 trait BytesEncoder {
   // allowed characters
   val Alphabet: String
