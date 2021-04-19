@@ -227,12 +227,14 @@ lazy val bifrost = project.in(file("."))
   .aggregate(
     node,
     common,
+    crypto,
     gjallarhorn,
     benchmarking
   )
   .dependsOn(
     node,
     common,
+    crypto,
     gjallarhorn,
     benchmarking
   )
@@ -265,6 +267,14 @@ lazy val common = project.in(file("common"))
     commonSettings,
     publishSettings,
     libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ apiDependencies ++ cryptoDependencies
+  )
+
+lazy val crypto = project.in(file("crypto"))
+  .settings(
+    name := "crypto",
+    commonSettings,
+    publishSettings,
+    libraryDependencies ++= cryptoDependencies
   )
 
 lazy val gjallarhorn = project.in(file("gjallarhorn"))
