@@ -1,4 +1,4 @@
-package co.topl.attestation.keyManagement
+package co.topl.keyManagement
 
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}

@@ -1,4 +1,4 @@
-package co.topl.attestation.keyManagement
+package co.topl.keyManagement
 
 import co.topl.attestation.{KnowledgeProposition, ProofOfKnowledge}
 import co.topl.utils.serialization.BytesSerializable

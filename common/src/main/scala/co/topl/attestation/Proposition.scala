@@ -1,8 +1,8 @@
 package co.topl.attestation
 
 import co.topl.attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
-import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, Secret}
 import co.topl.attestation.serialization.PropositionSerializer
+import co.topl.keyManagement.{PrivateKeyCurve25519, Secret}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import co.topl.utils.{Identifiable, Identifier}

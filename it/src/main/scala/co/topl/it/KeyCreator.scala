@@ -1,7 +1,7 @@
 package co.topl.it
 
 import co.topl.attestation.Address
-import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
+import co.topl.keyManagement.{KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.{HelTestnet, LocalTestnet, NetworkPrefix, PrivateTestnet, ValhallaTestnet}
 

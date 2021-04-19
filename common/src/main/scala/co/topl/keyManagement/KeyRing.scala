@@ -1,4 +1,4 @@
-package co.topl.attestation.keyManagement
+package co.topl.keyManagement
 
 import co.topl.attestation.Address
 import co.topl.utils.NetworkType.NetworkPrefix

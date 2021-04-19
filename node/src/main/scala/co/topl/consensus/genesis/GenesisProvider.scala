@@ -1,7 +1,7 @@
 package co.topl.consensus.genesis
 
-import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 import co.topl.consensus.Forger.ChainParams
+import co.topl.keyManagement.PrivateKeyCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
