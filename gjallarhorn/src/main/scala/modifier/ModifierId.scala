@@ -6,7 +6,7 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import modifier.ModifierId.ModifierTypeId
 import co.topl.crypto.hash.Blake2b256
-import scorex.util.encode.Base58
+import co.topl.utils.encode.Base58
 import supertagged.TaggedType
 import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 

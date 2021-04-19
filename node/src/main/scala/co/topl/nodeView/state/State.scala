@@ -11,7 +11,7 @@ import co.topl.settings.AppSettings
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import scorex.util.encode.Base58
+import co.topl.utils.encode.Base58
 
 import java.io.File
 import scala.reflect.ClassTag

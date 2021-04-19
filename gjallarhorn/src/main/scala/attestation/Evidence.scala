@@ -3,7 +3,7 @@ package attestation
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import scorex.util.encode.Base58
+import co.topl.utils.encode.Base58
 import supertagged.TaggedType
 import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 

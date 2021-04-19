@@ -7,7 +7,7 @@ import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import scorex.util.encode.Base58
+import co.topl.utils.encode.Base58
 
 import java.nio.charset.StandardCharsets
 import scala.util.{Failure, Success}

@@ -5,7 +5,7 @@ import co.topl.utils.{CoreGenerators, NetworkType, ValidGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-import scorex.util.encode.Base58
+import co.topl.utils.encode.Base58
 
 class AddressSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks

@@ -13,7 +13,7 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Json
 import io.circe.syntax._
 import co.topl.crypto.hash.Blake2b256
-import scorex.util.encode.Base58
+import co.topl.utils.encode.Base58
 
 import java.security.SecureRandom
 import scala.concurrent.{ExecutionContext, Future}

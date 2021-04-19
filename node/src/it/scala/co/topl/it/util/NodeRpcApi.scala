@@ -14,7 +14,7 @@ import io.circe.parser._
 import io.circe.syntax._
 import org.slf4j.{Logger, LoggerFactory}
 import co.topl.crypto.hash.{Blake2b256, Digest32}
-import scorex.util.encode.Base58
+import co.topl.utils.encode.Base58
 
 import java.util.UUID
 import scala.concurrent.Future

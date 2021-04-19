@@ -3,13 +3,13 @@ package co.topl.program
 import co.topl.utils.Gzip
 import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}
-import scorex.util.encode.Base64
+import co.topl.utils.encode.Base58
 
 case class ExecutionBuilderTerms(terms: String){
   /*  */
   require(terms.length < 16*1024)
   lazy val json: Json = if(terms.length > 1024) {
-    s"gzip:${Base64.encode(Gzip.compress(terms.getBytes))}".asJson
+    s"gzip:${Base58.encode(Gzip.compress(terms.getBytes))}".asJson
   } else {
     terms.asJson
   }
@@ -20,7 +20,7 @@ case class ExecutionBuilderTerms(terms: String){
 object ExecutionBuilderTerms {
 
     def decodeGzip(zippedStr: String): String = {
-      val zipped: Array[Byte] = Base64.decode(zippedStr).get
+      val zipped: Array[Byte] = Base58.decode(zippedStr).get
       val unzipped: Array[Byte] = Gzip.decompress(zipped)
       new String(unzipped)
     }

@@ -15,7 +15,7 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.codecs.Int128Codec
 import io.circe.Json
 import io.circe.syntax._
-import scorex.util.encode.Base58
+import co.topl.utils.encode.Base58
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
