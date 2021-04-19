@@ -136,7 +136,6 @@ val testingDependenciesTest = Seq(
 )
 
 val testingDependenciesIt = Seq(
-  "com.spotify"         % "docker-client"     % "8.16.0"  % "test",
   "org.scalatest"      %% "scalatest"         % "3.2.6"   % "it",
   "com.spotify"         % "docker-client"     % "8.16.0"  % "it",
   "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion     % "it",
