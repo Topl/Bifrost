@@ -7,7 +7,7 @@ import co.topl.modifier.block.{BlockHeader, BloomFilter}
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.box.serialization.ArbitBoxSerializer
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
-import scorex.crypto.hash.{Blake2b256, Digest32}
+import co.topl.crypto.hash.{Blake2b256, Digest32}
 
 object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
   override def serialize(header: BlockHeader, w: Writer): Unit = {

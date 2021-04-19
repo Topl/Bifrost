@@ -13,7 +13,7 @@ import io.circe.generic.auto._
 import io.circe.parser._
 import io.circe.syntax._
 import org.slf4j.{Logger, LoggerFactory}
-import scorex.crypto.hash.{Blake2b256, Digest32}
+import co.topl.crypto.hash.{Blake2b256, Digest32}
 import scorex.util.encode.Base58
 
 import java.util.UUID

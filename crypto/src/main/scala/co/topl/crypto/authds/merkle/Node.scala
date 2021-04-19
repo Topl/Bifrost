@@ -1,7 +1,7 @@
 package co.topl.crypto.authds.merkle
 
-import scorex.crypto.authds.{EmptyByteArray, LeafData}
-import scorex.crypto.hash._
+import co.topl.crypto.authds.{EmptyByteArray, LeafData}
+import co.topl.crypto.hash._
 import scorex.util.ScorexEncoding
 
 /* Forked from https://github.com/input-output-hk/scrypto */

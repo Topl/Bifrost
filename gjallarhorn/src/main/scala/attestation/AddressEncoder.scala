@@ -1,6 +1,6 @@
 package attestation
 
-import scorex.crypto.hash.Blake2b256
+import co.topl.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
 import scala.util.{Failure, Try}

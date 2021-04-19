@@ -3,7 +3,7 @@ package co.topl.network.message
 import akka.util.ByteString
 import co.topl.network.MaliciousBehaviorException
 import co.topl.network.peer.ConnectedPeer
-import scorex.crypto.hash.Blake2b256
+import co.topl.crypto.hash.Blake2b256
 
 import java.nio.ByteOrder
 import scala.util.Try

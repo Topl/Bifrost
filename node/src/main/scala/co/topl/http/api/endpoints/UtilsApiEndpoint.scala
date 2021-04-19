@@ -12,7 +12,7 @@ import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Json
 import io.circe.syntax._
-import scorex.crypto.hash.Blake2b256
+import co.topl.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
 import java.security.SecureRandom

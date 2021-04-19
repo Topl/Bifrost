@@ -15,7 +15,7 @@ import co.topl.program._
 import co.topl.settings.AppSettings
 import io.circe.syntax._
 import org.scalacheck.Gen
-import scorex.crypto.hash.Blake2b256
+import co.topl.crypto.hash.Blake2b256
 
 import scala.util.{Failure, Success}
 

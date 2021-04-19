@@ -8,7 +8,7 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import modifier.ModifierId.ModifierTypeId
 import modifier.TransferTransaction.BoxParams
-import scorex.crypto.hash.Blake2b256
+import co.topl.crypto.hash.Blake2b256
 import utils.{Identifiable, Identifier}
 
 import scala.collection.mutable.{Map => MMap}

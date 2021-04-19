@@ -8,7 +8,7 @@ import co.topl.utils.Logging
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import scorex.crypto.hash.{Blake2b256, Digest32}
+import co.topl.crypto.hash.{Blake2b256, Digest32}
 
 import scala.concurrent.duration.MILLISECONDS
 import scala.util.Try

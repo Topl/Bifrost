@@ -8,7 +8,7 @@ import co.topl.utils.ValidGenerators
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-import scorex.crypto.signatures.Curve25519
+import co.topl.crypto.signatures.Curve25519
 
 class BloomFilterSpec
     extends AnyPropSpec

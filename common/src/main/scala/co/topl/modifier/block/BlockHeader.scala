@@ -9,7 +9,7 @@ import co.topl.utils.ScorexExtensions.Digest32Ops
 import co.topl.utils.TimeProvider
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
-import scorex.crypto.hash.Digest32
+import co.topl.crypto.hash.Digest32
 import supertagged.@@
 
 case class BlockHeader(

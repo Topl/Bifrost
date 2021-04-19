@@ -6,7 +6,7 @@ import co.topl.utils.exceptions.{ChainProgramException, JsonParsingException}
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.{Context, Value}
-import scorex.crypto.signatures.PublicKey
+import co.topl.crypto.signatures.PublicKey
 import scorex.util.encode.Base58
 
 import scala.util.Try

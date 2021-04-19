@@ -1,7 +1,7 @@
 package attestation.serialization
 
 import attestation.PublicKeyPropositionCurve25519
-import scorex.crypto.signatures.{Curve25519, PublicKey}
+import co.topl.crypto.signatures.{Curve25519, PublicKey}
 import utils.serialization.{GjalSerializer, Reader, Writer}
 
 /**

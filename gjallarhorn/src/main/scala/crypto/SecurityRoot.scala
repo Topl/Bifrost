@@ -3,7 +3,7 @@ package crypto
 import com.google.common.primitives.Ints
 import io.circe.{Decoder, Encoder}
 import io.circe.syntax.EncoderOps
-import scorex.crypto.hash.Blake2b256
+import co.topl.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 

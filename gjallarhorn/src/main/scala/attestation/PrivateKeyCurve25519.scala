@@ -1,7 +1,7 @@
 package attestation
 
 import crypto.KeyfileCurve25519
-import scorex.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
+import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
 import utils.serialization.{GjalSerializer, Reader, Writer}
 
 /**

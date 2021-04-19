@@ -6,7 +6,7 @@ import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
+import co.topl.crypto.signatures.{Curve25519, PublicKey, Signature}
 import scorex.util.encode.Base58
 
 import scala.util.{Failure, Success, Try}

@@ -7,7 +7,7 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Int128, Logging}
-import scorex.crypto.signatures.{PrivateKey, PublicKey}
+import co.topl.crypto.signatures.{PrivateKey, PublicKey}
 
 import scala.util.Try
 

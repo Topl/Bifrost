@@ -4,7 +4,7 @@ import crypto.KeyfileCurve25519
 import keymanager.Keys
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
-import scorex.crypto.hash.{Blake2b256, Digest32}
+import co.topl.crypto.hash.{Blake2b256, Digest32}
 
 import java.io.File
 import scala.reflect.io.Path

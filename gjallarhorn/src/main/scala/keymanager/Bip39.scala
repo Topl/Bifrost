@@ -1,7 +1,7 @@
 package keymanager
 
 import utils.Logging
-import scorex.crypto.hash.Sha256
+import co.topl.crypto.hash.Sha256
 
 import scala.io.Source
 import scala.math.BigInt

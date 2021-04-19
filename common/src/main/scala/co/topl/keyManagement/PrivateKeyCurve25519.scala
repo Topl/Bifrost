@@ -2,7 +2,7 @@ package co.topl.keyManagement
 
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
-import scorex.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
+import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
 
 case class PrivateKeyCurve25519 (private val privKeyBytes  : PrivateKey,
                                  private val publicKeyBytes: PublicKey

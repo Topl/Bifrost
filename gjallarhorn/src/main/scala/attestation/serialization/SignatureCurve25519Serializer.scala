@@ -1,7 +1,7 @@
 package attestation.serialization
 
 import attestation.SignatureCurve25519
-import scorex.crypto.signatures.Signature
+import co.topl.crypto.signatures.Signature
 import utils.serialization.{GjalSerializer, Reader, Writer}
 
 /**

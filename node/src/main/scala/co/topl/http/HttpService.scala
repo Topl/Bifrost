@@ -9,7 +9,7 @@ import co.topl.http.api.{ApiEndpoint, ApiResponse, ErrorResponse, SuccessRespons
 import co.topl.settings.RPCApiSettings
 import io.circe.Json
 import io.circe.parser.parse
-import scorex.crypto.hash.{Blake2b256, Digest32}
+import co.topl.crypto.hash.{Blake2b256, Digest32}
 import scorex.util.encode.Base58
 
 import scala.concurrent.{Future, TimeoutException}

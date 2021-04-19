@@ -4,7 +4,7 @@ import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import scorex.crypto.hash.Blake2b256
+import co.topl.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
 import scala.util.{Failure, Success}

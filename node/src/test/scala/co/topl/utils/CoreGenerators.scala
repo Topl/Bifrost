@@ -20,8 +20,8 @@ import io.circe.syntax._
 import io.circe.{Json, JsonObject}
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
-import scorex.crypto.hash.Blake2b256
-import scorex.crypto.signatures.{Curve25519, Signature}
+import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.signatures.{Curve25519, Signature}
 import scorex.util.encode.Base58
 
 import scala.collection.SortedSet

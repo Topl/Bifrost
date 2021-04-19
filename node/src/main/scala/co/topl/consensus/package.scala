@@ -5,7 +5,7 @@ import co.topl.modifier.box.ArbitBox
 import co.topl.settings.ProtocolSettings
 import co.topl.utils.{Int128, TimeProvider}
 import com.google.common.primitives.Longs
-import scorex.crypto.hash.Blake2b256
+import co.topl.crypto.hash.Blake2b256
 
 import scala.concurrent.duration._
 import scala.math.{max, min}

@@ -8,7 +8,7 @@ import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import scorex.crypto.hash.Blake2b256
+import co.topl.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
 import scala.util.{Failure, Success}

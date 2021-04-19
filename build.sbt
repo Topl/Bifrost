@@ -268,6 +268,7 @@ lazy val common = project.in(file("common"))
     publishSettings,
     libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ apiDependencies ++ cryptoDependencies
   )
+  .dependsOn(crypto)
 
 lazy val crypto = project.in(file("crypto"))
   .settings(
@@ -288,6 +289,7 @@ lazy val gjallarhorn = project.in(file("gjallarhorn"))
   )
   .configs(IntegrationTest)
   .disablePlugins(sbtassembly.AssemblyPlugin)
+  .dependsOn(crypto)
 
 lazy val benchmarking = project.in(file("benchmark"))
   .settings(

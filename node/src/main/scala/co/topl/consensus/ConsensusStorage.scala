@@ -6,7 +6,7 @@ import co.topl.utils.NetworkType.{LocalTestnet, PrivateTestnet}
 import co.topl.utils.{Int128, Logging, NetworkType}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore, Store}
-import scorex.crypto.hash.Blake2b256
+import co.topl.crypto.hash.Blake2b256
 
 import java.io.File
 

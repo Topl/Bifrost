@@ -9,7 +9,7 @@
 //import com.google.common.primitives.{ Bytes, Longs }
 //import io.circe.syntax._
 //import io.circe.{ Decoder, Encoder, HCursor, Json }
-//import scorex.crypto.hash.{ Blake2b256, Digest32 }
+//import co.topl.crypto.hash.{ Blake2b256, Digest32 }
 //
 //import scala.util.{ Failure, Success, Try }
 //

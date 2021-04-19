@@ -6,7 +6,7 @@ import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import io.circe.Json
 import io.circe.parser.parse
-import scorex.crypto.hash.{Blake2b256, Digest32}
+import co.topl.crypto.hash.{Blake2b256, Digest32}
 import requests.{ApiResponse, ApiRoute, ErrorResponse, SuccessResponse}
 import scorex.util.encode.Base58
 import settings.RPCApiSettings
