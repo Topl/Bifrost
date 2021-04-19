@@ -265,7 +265,7 @@ lazy val node = project.in(file("node"))
   .settings(
     IntegrationTest / parallelExecution := false
   )
-  .dependsOn(common)
+  .dependsOn(common, akkaHttpRpc, toplRpc)
 
 lazy val common = project.in(file("common"))
   .settings(
