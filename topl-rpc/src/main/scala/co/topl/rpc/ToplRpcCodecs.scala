@@ -4,7 +4,7 @@ import cats.implicits._
 import co.topl.attestation.{Address, Proposition}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.box.{ArbitBox, AssetBox, AssetValue, Box, PolyBox, SimpleValue, TokenBox}
+import co.topl.modifier.box._
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
@@ -178,7 +178,12 @@ trait NodeViewRpcResponseDecoders extends SharedCodecs {
   implicit def nodeViewTransactionByIdResponseDecoder(implicit
     networkPrefix: NetworkPrefix
   ): Decoder[ToplRpc.NodeView.TransactionById.Response] =
-    Decoder.forProduct3("transaction", "blockNumber", "blockId")(ToplRpc.NodeView.TransactionById.Response.apply)
+    a =>
+      for {
+        tx          <- a.as[Transaction.TX]
+        blockNumber <- a.get[Long]("blockNumber")
+        blockId     <- a.get[ModifierId]("blockId")
+      } yield ToplRpc.NodeView.TransactionById.Response(tx, blockNumber, blockId)
 
   implicit val nodeViewInfoResponseDecoder: Decoder[ToplRpc.NodeView.Info.Response] =
     deriveDecoder
