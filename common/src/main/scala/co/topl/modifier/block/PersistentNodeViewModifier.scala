@@ -6,7 +6,7 @@ import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.crypto.authds.LeafData
 import co.topl.crypto.authds.merkle.MerkleTree
-import co.topl.crypto.hash.Digest32
+import co.topl.crypto.hash.Hash.Digest32
 
 trait PersistentNodeViewModifier extends NodeViewModifier {
   def parentId: ModifierId

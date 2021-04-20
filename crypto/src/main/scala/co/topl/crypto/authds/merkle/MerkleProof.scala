@@ -1,7 +1,7 @@
 package co.topl.crypto.authds.merkle
 
 import co.topl.crypto.authds.{LeafData, Side}
-import co.topl.crypto.hash.{Digest, Hash}
+import co.topl.crypto.hash.{Hash, HashFunction}
 import scorex.util.ScorexEncoding
 
 /* Forked from https://github.com/input-output-hk/scrypto */
@@ -24,10 +24,10 @@ import scorex.util.ScorexEncoding
  * @param levels - levels in proof, bottom up, each level is about stored value and position of computed element
  *               (whether it is left or right to stored value)
  */
-case class MerkleProof[D <: Digest](leafData: LeafData, levels: Seq[(Digest, Side)])
-                                   (implicit val hashFunc: Hash[D]) extends ScorexEncoding {
+case class MerkleProof[D <: Hash.Digest](leafData: LeafData, levels: Seq[(Hash.Digest, Side)])
+                                   (implicit val hashFunc: HashFunction[D]) extends ScorexEncoding {
 
-  def valid(expectedRootHash: Digest): Boolean = {
+  def valid(expectedRootHash: Hash.Digest): Boolean = {
     val leafHash = Hash(MerkleTree.LeafPrefix, leafData)
 
     levels.foldLeft(leafHash) { case (prevHash, (hash, side)) =>

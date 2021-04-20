@@ -1,19 +1,26 @@
 package co.topl.crypto.hash
 
+import supertagged.TaggedType
+
 import scala.util.Try
 
-trait Hash[T] {
-  type Message = Array[Byte]
-
-  val digestSize: Int
-
-  def apply(input: Message): T
-  def apply(prefix: Byte, inputs: Array[Byte]*): T
-  def byteArrayToDigest(bytes: Array[Byte]): Try[T]
-}
-
-/** Library of hashing functions. */
 object Hash {
+
+  trait BaseDigest extends TaggedType[Array[Byte]]
+
+  type Digest = BaseDigest#Type
+
+  object Digest32 extends BaseDigest
+
+  type Digest32 = Digest32.Type
+
+  object Digest64 extends BaseDigest
+
+  type Digest64 = Digest64.Type
+
+  object NonStandardDigest extends BaseDigest
+
+  type NonStandardDigest = NonStandardDigest.Type
 
   /** Hashes the message.
    * @param message the message to hash
@@ -21,7 +28,7 @@ object Hash {
    * @tparam T the digest type
    * @return the hashed message
    */
-  def apply[T](message: Array[Byte])(implicit hashFunc: Hash[T]): T = hashFunc(message)
+  def apply[T](message: Array[Byte])(implicit hashFunc: HashFunction[T]): T = hashFunc(message)
 
   /** Hashes the message with the given prefix.
    * @param prefix the prefix of the message
@@ -30,7 +37,8 @@ object Hash {
    * @tparam T the digest type
    * @return the hashed message
    */
-  def apply[T](prefix: Byte, message: Array[Byte]*)(implicit hashFunc: Hash[T]): T = hashFunc(prefix, message: _*)
+  def apply[T](prefix: Byte, message: Array[Byte]*)(implicit hashFunc: HashFunction[T]): T =
+    hashFunc(prefix, message: _*)
 
   /** Hashes the message.
    * @param message the message to hash
@@ -38,7 +46,7 @@ object Hash {
    * @tparam T the digest type
    * @return the hashed message
    */
-  def apply[T](message: String)(implicit hashFunc: Hash[T]): T = hashFunc(message.getBytes)
+  def apply[T](message: String)(implicit hashFunc: HashFunction[T]): T = hashFunc(message.getBytes)
 
   /** Converts the byte array to the hashing function's digest type.
    * @param bytes the bytes to convert
@@ -46,12 +54,13 @@ object Hash {
    * @tparam T the digest type
    * @return the digest value if it the input is convertible
    */
-  def byteArrayToDigest[T](bytes: Array[Byte])(implicit hashFunc: Hash[T]): Try[T] =
+  def byteArrayToDigest[T](bytes: Array[Byte])(implicit hashFunc: HashFunction[T]): Try[T] =
     hashFunc.byteArrayToDigest(bytes)
 
   /** Gets hashing function's digest size.
    * @param hashFunc the implicit hashing function to use
    * @return the digest size of the hashing function
    */
-  def digestSize(implicit hashFunc: Hash[_]): Int = hashFunc.digestSize
+  def digestSize(implicit hashFunc: HashFunction[_]): Int = hashFunc.digestSize
+
 }

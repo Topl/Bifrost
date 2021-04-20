@@ -9,7 +9,7 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Identifiable, Identifier, Int128}
 import com.google.common.primitives.Longs
 import io.circe.{Decoder, Encoder, HCursor}
-import co.topl.crypto.hash.Digest32
+import co.topl.crypto.hash.Hash.Digest32
 
 import scala.util.Try
 

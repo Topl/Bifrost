@@ -8,7 +8,7 @@ import co.topl.utils.Logging
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import co.topl.crypto.hash.{Hash, Digest32}
+import co.topl.crypto.hash.Hash
 
 import scala.concurrent.duration.MILLISECONDS
 import scala.util.Try
@@ -123,25 +123,25 @@ class Storage( private[history] val storage: LSMStore,
 
   /** The keys below are used to store top-level information about blocks that we might be interested in
    * without needing to parse the entire block from storage */
-  private def blockScoreKey(blockId: ModifierId): Digest32 =
+  private def blockScoreKey(blockId: ModifierId): Hash.Digest32 =
     Hash("score".getBytes ++ blockId.getIdBytes)
 
-  private def blockHeightKey(blockId: ModifierId): Digest32 =
+  private def blockHeightKey(blockId: ModifierId): Hash.Digest32 =
     Hash("height".getBytes ++ blockId.getIdBytes)
 
-  private def blockDiffKey(blockId: ModifierId): Digest32 =
+  private def blockDiffKey(blockId: ModifierId): Hash.Digest32 =
     Hash("difficulty".getBytes ++ blockId.getIdBytes)
 
-  private def blockTimestampKey(blockId: ModifierId): Digest32 =
+  private def blockTimestampKey(blockId: ModifierId): Hash.Digest32 =
     Hash("timestamp".getBytes ++ blockId.getIdBytes)
 
-  private def blockBloomKey(blockId: ModifierId): Digest32 =
+  private def blockBloomKey(blockId: ModifierId): Hash.Digest32 =
     Hash("bloom".getBytes ++ blockId.getIdBytes)
 
-  private def blockParentKey(blockId: ModifierId): Digest32 =
+  private def blockParentKey(blockId: ModifierId): Hash.Digest32 =
     Hash("parentId".getBytes ++ blockId.getIdBytes)
 
-  private def idHeightKey(height: Long): Digest32 =
+  private def idHeightKey(height: Long): Hash.Digest32 =
     Hash(Longs.toByteArray(height))
 
 

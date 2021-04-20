@@ -1,11 +1,13 @@
 package co.topl.crypto.hash
+
 import scorex.utils.ByteArray
+import Hash.Digest32
 
 import java.security.MessageDigest
 import scala.util.Try
 
 object Sha256 {
-  implicit val digest32: Hash[Digest32] = new Hash[Digest32] {
+  implicit val digest32: HashFunction[Digest32] = new HashFunction[Digest32] {
 
     override val digestSize = 32
 

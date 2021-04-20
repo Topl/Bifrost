@@ -1,11 +1,12 @@
 package co.topl.crypto.hash
 
 import org.bouncycastle.crypto.digests.Blake2bDigest
+import Hash.Digest32
 
 import scala.util.Try
 
 object Blake2b256 {
-  implicit val digest32: Hash[Digest32] = new Hash[Digest32] {
+  implicit val digest32: HashFunction[Digest32] = new HashFunction[Digest32] {
 
     override val digestSize = 32
     lazy val digestFn: Blake2bDigest = new Blake2bDigest(digestSize)

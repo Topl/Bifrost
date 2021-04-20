@@ -9,7 +9,7 @@ import co.topl.http.api.{ApiEndpoint, ApiResponse, ErrorResponse, SuccessRespons
 import co.topl.settings.RPCApiSettings
 import io.circe.Json
 import io.circe.parser.parse
-import co.topl.crypto.hash.{Hash, Digest32}
+import co.topl.crypto.hash.Hash
 import co.topl.utils.encode.Base58
 
 import scala.concurrent.{Future, TimeoutException}
@@ -108,7 +108,7 @@ final case class HttpService(apiServices: Seq[ApiEndpoint], settings: RPCApiSett
     * @return
     */
   private def isValid(keyOpt: Option[String]): Boolean = {
-    lazy val keyHash: Option[Digest32] = keyOpt.map(Hash(_))
+    lazy val keyHash: Option[Hash.Digest32] = keyOpt.map(Hash(_))
     (apiKeyHash, keyHash) match {
       case (None, _)                      => true
       case (Some(expected), Some(passed)) => expected sameElements passed

@@ -78,7 +78,6 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
     }
 
     "Return blake2b hash of given message" in {
-      import co.topl.crypto.hash.Blake2b256._
       val requestBody = ByteString(
         s"""
            |{
@@ -96,7 +95,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
         val hash = res.hcursor.downField("result").get[String]("hash")
 
         res.hcursor.downField("error").values.isEmpty shouldBe true
-        hash shouldEqual Right(Base58.encode(Hash("Hello World")))
+        hash shouldEqual Right(Base58.encode(Hash("Hello World")(Blake2b256.digest32)))
       }
     }
 

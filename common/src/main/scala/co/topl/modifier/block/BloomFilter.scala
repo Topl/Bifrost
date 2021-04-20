@@ -5,7 +5,7 @@ import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader
 import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import co.topl.crypto.hash.{Blake2b256, Hash}
+import co.topl.crypto.hash.Hash
 import co.topl.utils.encode.Base58
 import supertagged.TaggedType
 

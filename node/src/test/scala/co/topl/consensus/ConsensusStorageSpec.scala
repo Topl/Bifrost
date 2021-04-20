@@ -25,14 +25,12 @@ class ConsensusStorageSpec extends AnyFlatSpec
   }
 
   "totalStake" should "load total stake from storage on start with an LSM Store" in {
-    import co.topl.crypto.hash.Blake2b256._
-
     forAll(positiveInt128Gen) { (storageTotalStake) =>
       val store = mock[Store]
       (store.get(_: ByteArrayWrapper))
         .expects(*)
         .onCall { key: ByteArrayWrapper => {
-            if (key == ByteArrayWrapper(Hash("totalStake")))
+            if (key == ByteArrayWrapper(Hash("totalStake")(Blake2b256.digest32)))
               Some(ByteArrayWrapper(storageTotalStake.toByteArray))
             else Some(ByteArrayWrapper(Longs.toByteArray(0)))
           }

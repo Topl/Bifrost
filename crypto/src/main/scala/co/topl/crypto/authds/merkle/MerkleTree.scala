@@ -1,14 +1,14 @@
 package co.topl.crypto.authds.merkle
 
 import co.topl.crypto.authds.{LeafData, Side}
-import co.topl.crypto.hash._
+import co.topl.crypto.hash.{Hash, HashFunction}
 
 import scala.annotation.tailrec
 import scala.collection.mutable
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 
-case class MerkleTree[D <: Digest](topNode: Node[D],
+case class MerkleTree[D <: Hash.Digest](topNode: Node[D],
                                    elementsHashIndex: Map[mutable.WrappedArray.ofByte, Int]) {
 
   lazy val rootHash: D = topNode.hash
@@ -77,8 +77,8 @@ object MerkleTree {
    * @tparam D - hash function application type
    * @return MerkleTree constructed from current leafs with defined empty node and hash function
    */
-  def apply[D <: Digest](payload: Seq[LeafData])
-                        (implicit hf: Hash[D]): MerkleTree[D] = {
+  def apply[D <: Hash.Digest](payload: Seq[LeafData])
+                        (implicit hf: HashFunction[D]): MerkleTree[D] = {
     val leafs = payload.map(d => Leaf(d))
     val elementsIndex: Map[mutable.WrappedArray.ofByte, Int] = leafs.indices.map { i =>
       (new mutable.WrappedArray.ofByte(leafs(i).hash), i)
@@ -89,7 +89,7 @@ object MerkleTree {
   }
 
   @tailrec
-  def calcTopNode[D <: Digest](nodes: Seq[Node[D]])(implicit hf: Hash[D]): Node[D] = {
+  def calcTopNode[D <: Hash.Digest](nodes: Seq[Node[D]])(implicit hf: HashFunction[D]): Node[D] = {
     if (nodes.isEmpty) {
       EmptyRootNode[D]
     } else {
