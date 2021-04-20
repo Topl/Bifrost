@@ -5,7 +5,7 @@ import java.time.Instant
 import NetworkType.NetworkPrefix
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
-import co.topl.keyManagement.{KeyfileCurve25519, PrivateKeyCurve25519, Secret}
+import co.topl.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519, Secret}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
@@ -20,7 +20,7 @@ import io.circe.syntax._
 import io.circe.{Json, JsonObject}
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
-import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.{Blake2b256, Hash}
 import co.topl.crypto.signatures.{Curve25519, Signature}
 import scorex.util.encode.Base58
 
@@ -291,7 +291,7 @@ trait CoreGenerators extends Logging {
   }
 
   lazy val securityRootGen: Gen[SecurityRoot] = for {
-    root <- specificLengthBytesGen(Blake2b256.DigestSize)
+    root <- specificLengthBytesGen(Hash.digestSize(Blake2b256.digest32))
   } yield {
     SecurityRoot(Base58.encode(root))
   }

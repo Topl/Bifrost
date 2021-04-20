@@ -4,7 +4,7 @@ import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.Hash
 import scorex.util.encode.Base58
 
 import scala.util.{Failure, Success}
@@ -27,7 +27,10 @@ case class ProgramId (private val hashBytes: Array[Byte]) extends BytesSerializa
 
 object ProgramId extends BifrostSerializer[ProgramId] {
 
-  val size: Int = Blake2b256.DigestSize; // number of bytes in identifier,
+  // use Blake2b256 hashing
+  import co.topl.crypto.hash.Blake2b256._
+
+  val size: Int = Hash.digestSize; // number of bytes in identifier,
 
   def apply(id: String): ProgramId = {
     Base58.decode(id) match {
@@ -40,7 +43,7 @@ object ProgramId extends BifrostSerializer[ProgramId] {
   }
 
   def create (seed: Array[Byte]): ProgramId = {
-    new ProgramId(Blake2b256(seed))
+    new ProgramId(Hash(seed))
   }
 
   override def serialize(obj: ProgramId, w: Writer): Unit = {

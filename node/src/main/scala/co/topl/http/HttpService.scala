@@ -9,7 +9,7 @@ import co.topl.http.api.{ApiEndpoint, ApiResponse, ErrorResponse, SuccessRespons
 import co.topl.settings.RPCApiSettings
 import io.circe.Json
 import io.circe.parser.parse
-import co.topl.crypto.hash.{Blake2b256, Digest32}
+import co.topl.crypto.hash.{Hash, Digest32}
 import scorex.util.encode.Base58
 
 import scala.concurrent.{Future, TimeoutException}
@@ -20,6 +20,9 @@ final case class HttpService(apiServices: Seq[ApiEndpoint], settings: RPCApiSett
 
   import HttpService._
   import system.dispatcher
+
+  // use Blake2b256 hashing
+  import co.topl.crypto.hash.Blake2b256._
 
   private lazy val apiKeyHash: Option[Array[Byte]] = Base58.decode(settings.apiKeyHash).toOption
 
@@ -105,7 +108,7 @@ final case class HttpService(apiServices: Seq[ApiEndpoint], settings: RPCApiSett
     * @return
     */
   private def isValid(keyOpt: Option[String]): Boolean = {
-    lazy val keyHash: Option[Digest32] = keyOpt.map(Blake2b256(_))
+    lazy val keyHash: Option[Digest32] = keyOpt.map(Hash(_))
     (apiKeyHash, keyHash) match {
       case (None, _)                      => true
       case (Some(expected), Some(passed)) => expected sameElements passed

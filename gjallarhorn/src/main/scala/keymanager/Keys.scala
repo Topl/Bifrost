@@ -1,12 +1,11 @@
 package keymanager
 
 import java.io.File
-
 import attestation.{Address, Secret, SecretGenerator}
 import com.google.common.primitives.Ints
 import attestation.AddressEncoder.NetworkPrefix
 import scorex.util.Random.randomBytes
-import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.Hash
 import settings.NetworkType
 import utils.Logging
 
@@ -32,6 +31,9 @@ class Keys[
   private var secrets:    Set[S],
   private val keyfileOps: KeyfileCompanion[S, KF]
  )(implicit networkPrefix: NetworkPrefix, sg: SecretGenerator[S]) extends Logging {
+
+  // use Blake2b256 hashing
+  import co.topl.crypto.hash.Blake2b256._
 
   type PR = S#PR
 
@@ -156,7 +158,7 @@ class Keys[
 
       // calculate the new keyfile and return
       val seed = bip.hexToUuid(bip.phraseToHex(mnemonic))
-      val sk = sg.generateSecret(Blake2b256(seed))
+      val sk = sg.generateSecret(Hash(seed))
 
       // add secret to the keyring
       secrets += sk._1

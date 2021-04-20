@@ -1,7 +1,7 @@
 package co.topl.crypto.authds.merkle
 
 import co.topl.crypto.authds.{LeafData, Side}
-import co.topl.crypto.hash.{CryptographicHash, Digest}
+import co.topl.crypto.hash.{Digest, Hash}
 import scorex.util.ScorexEncoding
 
 /* Forked from https://github.com/input-output-hk/scrypto */
@@ -25,22 +25,22 @@ import scorex.util.ScorexEncoding
  *               (whether it is left or right to stored value)
  */
 case class MerkleProof[D <: Digest](leafData: LeafData, levels: Seq[(Digest, Side)])
-                                   (implicit val hf: CryptographicHash[D]) extends ScorexEncoding {
+                                   (implicit val hashFunc: Hash[D]) extends ScorexEncoding {
 
   def valid(expectedRootHash: Digest): Boolean = {
-    val leafHash = hf.prefixedHash(MerkleTree.LeafPrefix, leafData)
+    val leafHash = Hash(MerkleTree.LeafPrefix, leafData)
 
     levels.foldLeft(leafHash) { case (prevHash, (hash, side)) =>
       if (side == MerkleProof.LeftSide) {
-        hf.prefixedHash(MerkleTree.InternalNodePrefix, prevHash ++ hash)
+        Hash(MerkleTree.InternalNodePrefix, prevHash ++ hash)
       } else {
-        hf.prefixedHash(MerkleTree.InternalNodePrefix, hash ++ prevHash)
+        Hash(MerkleTree.InternalNodePrefix, hash ++ prevHash)
       }
     }.sameElements(expectedRootHash)
   }
 
   override def toString: String =
-    s"MerkleProof(data: ${encoder.encode(leafData)}, hash: ${encoder.encode(hf(leafData))}, " +
+    s"MerkleProof(data: ${encoder.encode(leafData)}, hash: ${encoder.encode(Hash(leafData))}, " +
       s"(${levels.map(ht => encoder.encode(ht._1) + " : " + ht._2)}))"
 }
 

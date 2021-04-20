@@ -19,9 +19,9 @@ trait Node[D <: Digest] extends ScorexEncoding {
  * @tparam D - hash function application type
  */
 case class InternalNode[D <: Digest](left: Node[D], right: Node[D])
-                                    (implicit val hf: CryptographicHash[D]) extends Node[D] {
+                                    (implicit val hf: Hash[D]) extends Node[D] {
 
-  override lazy val hash: D = hf.prefixedHash(MerkleTree.InternalNodePrefix, left.hash, right.hash)
+  override lazy val hash: D = Hash(MerkleTree.InternalNodePrefix, left.hash, right.hash)
 
   override def toString: String = s"InternalNode(" +
     s"left: ${encoder.encode(left.hash)}, " +
@@ -36,8 +36,8 @@ case class InternalNode[D <: Digest](left: Node[D], right: Node[D])
  * @param hf   - hash function
  * @tparam D - hash function application type
  */
-case class Leaf[D <: Digest](data: LeafData)(implicit val hf: CryptographicHash[D]) extends Node[D] {
-  override lazy val hash: D = hf.prefixedHash(MerkleTree.LeafPrefix, data)
+case class Leaf[D <: Digest](data: LeafData)(implicit val hf: Hash[D]) extends Node[D] {
+  override lazy val hash: D = Hash(MerkleTree.LeafPrefix, data)
 
   override def toString: String = s"Leaf(${encoder.encode(hash)})"
 }
@@ -50,7 +50,7 @@ case class Leaf[D <: Digest](data: LeafData)(implicit val hf: CryptographicHash[
  * @param hf - hash function
  * @tparam D - hash function application type
  */
-case class EmptyNode[D <: Digest]()(implicit val hf: CryptographicHash[D]) extends Node[D] {
+case class EmptyNode[D <: Digest]()(implicit val hf: Hash[D]) extends Node[D] {
   override val hash: D = EmptyByteArray.asInstanceOf[D]
 }
 
@@ -61,9 +61,9 @@ case class EmptyNode[D <: Digest]()(implicit val hf: CryptographicHash[D]) exten
  * @param hf - hash function
  * @tparam D - hash function application type
  */
-case class EmptyRootNode[D <: Digest]()(implicit val hf: CryptographicHash[D]) extends Node[D] {
+case class EmptyRootNode[D <: Digest]()(implicit val hf: Hash[D]) extends Node[D] {
   // .get is secure here since we know that array size equals to digest size
-  override val hash: D = hf.byteArrayToDigest(Array.fill(hf.DigestSize)(0: Byte)).get
+  override val hash: D = hf.byteArrayToDigest(Array.fill(hf.digestSize)(0: Byte)).get
 
   override def toString: String = s"EmptyRootNode(${encoder.encode(hash)})"
 }

@@ -8,7 +8,7 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import modifier.ModifierId.ModifierTypeId
 import modifier.TransferTransaction.BoxParams
-import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.Hash
 import utils.{Identifiable, Identifier}
 
 import scala.collection.mutable.{Map => MMap}
@@ -82,6 +82,9 @@ case class TransferTransaction[P <: Proposition: EvidenceProducer: Identifiable]
 
 object TransferTransaction {
 
+  // use Blake2b256 for hashing
+  import co.topl.crypto.hash.Blake2b256._
+
   /**
     * Details needed to create a box
     * @param evidence - the evidence for a particular box
@@ -124,7 +127,7 @@ object TransferTransaction {
         Longs.toByteArray(tx.fee)
 
     def calcNonce(index: Int): Long = {
-      val digest = Blake2b256(inputBytes ++ Ints.toByteArray(index))
+      val digest = Hash(inputBytes ++ Ints.toByteArray(index))
       Longs.fromByteArray(digest.take(Longs.BYTES))
     }
 

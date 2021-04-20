@@ -4,7 +4,7 @@ import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder}
-import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.Hash
 import scorex.util.encode.Base58
 
 import scala.util.{Failure, Success, Try}
@@ -30,7 +30,10 @@ class SecurityRoot private (private val root: Array[Byte]) extends BytesSerializ
 
 object SecurityRoot extends BifrostSerializer[SecurityRoot] {
 
-  val size: Int = Blake2b256.DigestSize // 32 bytes
+  // use Blake2b256 hashing
+  import co.topl.crypto.hash.Blake2b256._
+
+  val size: Int = Hash.digestSize // 32 bytes
   val empty: SecurityRoot = new SecurityRoot(Array.fill(size)(0: Byte))
 
   implicit val jsonEncoder: Encoder[SecurityRoot] = (sr: SecurityRoot) => sr.toString.asJson

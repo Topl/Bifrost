@@ -78,7 +78,7 @@ object MerkleTree {
    * @return MerkleTree constructed from current leafs with defined empty node and hash function
    */
   def apply[D <: Digest](payload: Seq[LeafData])
-                        (implicit hf: CryptographicHash[D]): MerkleTree[D] = {
+                        (implicit hf: Hash[D]): MerkleTree[D] = {
     val leafs = payload.map(d => Leaf(d))
     val elementsIndex: Map[mutable.WrappedArray.ofByte, Int] = leafs.indices.map { i =>
       (new mutable.WrappedArray.ofByte(leafs(i).hash), i)
@@ -89,7 +89,7 @@ object MerkleTree {
   }
 
   @tailrec
-  def calcTopNode[D <: Digest](nodes: Seq[Node[D]])(implicit hf: CryptographicHash[D]): Node[D] = {
+  def calcTopNode[D <: Digest](nodes: Seq[Node[D]])(implicit hf: Hash[D]): Node[D] = {
     if (nodes.isEmpty) {
       EmptyRootNode[D]
     } else {

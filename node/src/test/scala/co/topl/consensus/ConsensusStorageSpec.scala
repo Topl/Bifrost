@@ -8,7 +8,7 @@ import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalamock.scalatest.MockFactory
-import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.{Blake2b256, Hash}
 
 class ConsensusStorageSpec extends AnyFlatSpec
   with ScalaCheckPropertyChecks
@@ -25,12 +25,14 @@ class ConsensusStorageSpec extends AnyFlatSpec
   }
 
   "totalStake" should "load total stake from storage on start with an LSM Store" in {
+    import co.topl.crypto.hash.Blake2b256._
+
     forAll(positiveInt128Gen) { (storageTotalStake) =>
       val store = mock[Store]
       (store.get(_: ByteArrayWrapper))
         .expects(*)
         .onCall { key: ByteArrayWrapper => {
-            if (key == ByteArrayWrapper(Blake2b256("totalStake".getBytes)))
+            if (key == ByteArrayWrapper(Hash("totalStake")))
               Some(ByteArrayWrapper(storageTotalStake.toByteArray))
             else Some(ByteArrayWrapper(Longs.toByteArray(0)))
           }

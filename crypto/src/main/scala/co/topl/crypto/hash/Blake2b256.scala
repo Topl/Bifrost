@@ -1,10 +1,38 @@
 package co.topl.crypto.hash
 
-/* Forked from https://github.com/input-output-hk/scrypto */
+import org.bouncycastle.crypto.digests.Blake2bDigest
 
-object Blake2b256 extends Blake2b[Digest32] with CryptographicHash32 {
-  override def hash(input: Message): Digest32 = Digest32 @@ internalHash(input)
+import scala.util.Try
 
-  override def prefixedHash(prefix: Byte, inputs: Array[Byte]*): Digest32 =
-    Digest32 @@ internalPrefixedHash(prefix, inputs: _*)
+object Blake2b256 {
+  implicit val digest32: Hash[Digest32] = new Hash[Digest32] {
+
+    override val digestSize = 32
+    lazy val digestFn: Blake2bDigest = new Blake2bDigest(digestSize)
+
+    override def apply(input: Array[Byte]): Digest32 = {
+      Digest32 @@ synchronized {
+        digestFn.update(input, 0, input.length)
+        val res = new Array[Byte](digestSize)
+        digestFn.doFinal(res, 0)
+        res
+      }
+    }
+
+    override def apply(prefix: Byte, inputs: Array[Byte]*): Digest32 = {
+      Digest32 @@ synchronized {
+        digestFn.update(prefix)
+        inputs.foreach(i => digestFn.update(i, 0, i.length))
+        val res = new Array[Byte](digestSize)
+        digestFn.doFinal(res, 0)
+        res
+      }
+    }
+
+    override def byteArrayToDigest(bytes: Array[Byte]): Try[Digest32] = Try {
+      require(bytes.lengthCompare(digestSize) == 0, "Incorrect digest size")
+      Digest32 @@ bytes
+    }
+
+  }
 }
