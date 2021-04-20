@@ -1,20 +1,29 @@
 package co.topl.nodeView.nodeViewHolder
 
+import akka.actor.ActorSystem
 import akka.testkit.TestActorRef
 import co.topl.nodeView.NodeViewHolder
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.MockState
+import co.topl.settings.{AppContext, StartupOpts}
 import co.topl.utils.CoreGenerators
-import org.scalatest.PrivateMethodTester
+import org.scalatest.{BeforeAndAfterAll, PrivateMethodTester}
 import org.scalatest.propspec.AnyPropSpec
+
+import scala.concurrent.ExecutionContext
 
 class NodeViewHolderSpec extends AnyPropSpec
   with PrivateMethodTester
   with CoreGenerators
-  with MockState {
+  with MockState
+  with BeforeAndAfterAll {
 
   type MP = MemPool
 
+  private implicit val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
+  private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
+
+  private val appContext = new AppContext(settings, StartupOpts.empty, None)
   private val nvhTestRef = TestActorRef(new NodeViewHolder(settings, appContext))
   private val nodeView = nvhTestRef.underlyingActor
   private val state = createState()
@@ -28,7 +37,12 @@ class NodeViewHolderSpec extends AnyPropSpec
 
       val updateMemPool = PrivateMethod[MP]('updateMemPool)
       val memPool = nodeView invokePrivate updateMemPool(Seq(rewardBlock), Seq(), MemPool.emptyPool, state)
-      memPool.size shouldBe 0
+      memPool.contains(polyReward) shouldBe false
+      memPool.contains(arbitReward) shouldBe false
     }
+  }
+
+  override protected def afterAll(): Unit = {
+    actorSystem.terminate()
   }
 }

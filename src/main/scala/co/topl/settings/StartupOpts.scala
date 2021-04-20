@@ -47,7 +47,11 @@ final case class RuntimeOpts(
     val rpcApiSettings = appSettings.rpcApi.copy(
       apiKeyHash = apiKeyHash.fold[String](appSettings.rpcApi.apiKeyHash)(a => a)
     )
-    val privateTestnetSettings = appSettings.forging.privateTestnet.map(_.copy(genesisSeed = seed))
+    val privateTestnetSettings =
+      appSettings.forging.privateTestnet
+        .map(_.copy(
+          genesisSeed = seed.orElse(appSettings.forging.privateTestnet.flatMap(_.genesisSeed))
+        ))
     val forgingSettings =
       appSettings.forging.copy(
         forgeOnStartup = appSettings.forging.forgeOnStartup || forgeOnStartup,

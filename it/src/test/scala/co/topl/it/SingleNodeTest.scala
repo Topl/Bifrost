@@ -1,6 +1,6 @@
 package co.topl.it
 
-import co.topl.it.util.{NodeDockerApi, NodeRpcApi}
+import co.topl.it.util._
 import com.typesafe.config.ConfigFactory
 import org.scalatest.EitherValues
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
@@ -19,19 +19,19 @@ class SingleNodeTest extends AnyFreeSpec with Matchers with IntegrationSuite wit
              |bifrost.rpcApi.namespaceSelector.debug = true
              |""".stripMargin
       )
-    val node = dockerSupport.createNode("bifrostTestNode")
+    val node = dockerSupport.createNode("bifrostTestNode", "SingleNodeTest")
 
-    NodeDockerApi(node).reconfigure(nodeConfig)
+    node.reconfigure(nodeConfig)
 
-    NodeDockerApi(node).start()
+    node.start()
 
-    NodeRpcApi(node).waitForStartup().futureValue(Timeout(30.seconds))
+    node.waitForStartup().futureValue(Timeout(30.seconds)).value
 
     logger.info("Wait 2 seconds for forging")
     Thread.sleep(2.seconds.toMillis)
 
     val forgeCount1 =
-      NodeRpcApi(node).Debug.myBlocks().futureValue.value
+      node.Debug.myBlocks().futureValue.value
 
     logger.info(s"Forge count=$forgeCount1")
 
@@ -41,7 +41,7 @@ class SingleNodeTest extends AnyFreeSpec with Matchers with IntegrationSuite wit
     Thread.sleep(5.seconds.toMillis)
 
     val forgeCount2 =
-      NodeRpcApi(node).Debug.myBlocks().futureValue.value
+      node.Debug.myBlocks().futureValue.value
 
     logger.info(s"Forge count=$forgeCount2")
 
