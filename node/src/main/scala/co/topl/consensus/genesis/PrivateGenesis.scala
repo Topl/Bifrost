@@ -1,7 +1,7 @@
 package co.topl.consensus.genesis
 
 import co.topl.attestation.EvidenceProducer.Syntax._
-import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.Forger.ChainParams
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -14,7 +14,7 @@ import co.topl.utils.NetworkType.NetworkPrefix
 
 import scala.util.Try
 
-case class PrivateGenesis(keyGen: (Int, Option[String]) => Set[PublicKeyPropositionCurve25519], settings: AppSettings)(
+case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(
   implicit val networkPrefix:     NetworkPrefix
 ) extends GenesisProvider {
 
@@ -41,13 +41,9 @@ case class PrivateGenesis(keyGen: (Int, Option[String]) => Set[PublicKeyProposit
     // map the members to their balances then continue as normal
     val privateTotalStake = numberOfKeys * balance
 
-    val accts: Set[PublicKeyPropositionCurve25519] =
-      keyGen(numberOfKeys, settings.forging.privateTestnet.flatMap(_.genesisSeed))
-
     val txInput = (
       IndexedSeq(),
-      (genesisAcct.publicImage.address -> SimpleValue(0L)) +:
-      accts.map(_.address -> SimpleValue(balance)).toIndexedSeq,
+      (genesisAcct.publicImage.address -> SimpleValue(0L)) +: addresses.map(_ -> SimpleValue(balance)).toIndexedSeq,
       Map(genesisAcct.publicImage -> SignatureCurve25519.genesis),
       Int128(0),
       0L,

@@ -16,11 +16,12 @@ trait GenesisGenerators extends CoreGenerators
   val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
     KeyRing(settings.application.keyFileDir.get, KeyfileCurve25519)
 
-  val genesisBlock: Block = PrivateGenesis((_: Int, _: Option[String]) => {
-    keyRing.generateNewKeyPairs(num = 3) match {
-      case Success(keys) => keys.map(_.publicImage)
-      case Failure(ex)   => throw ex
-    } }, settings).getGenesisBlock.get._1
+  keyRing.generateNewKeyPairs(num = 3) match {
+    case Success(_) => ()
+    case Failure(error) => throw error
+  }
+
+  val genesisBlock: Block = PrivateGenesis(keyRing.addresses, settings).getGenesisBlock.get._1
 
   val genesisBlockId: ModifierId = genesisBlock.id
 
