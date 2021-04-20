@@ -10,10 +10,11 @@ import co.topl.crypto.hash.Hash
 import scala.concurrent.duration._
 import scala.math.{max, min}
 
-// use Blake2b256 hashing
-import co.topl.crypto.hash.Blake2b256._
-
 package object consensus {
+
+  // use Blake2b256 hashing
+  import co.topl.crypto.hash.Blake2b256._
+
   private var _protocolMngr: ProtocolVersioner = ProtocolVersioner.empty
 
   // Initialize or restore a consensus storage that keeps track of the maxStake, difficulty, height, and inflation

@@ -6,6 +6,8 @@ import Hash.Digest32
 import scala.util.Try
 
 object Blake2b256 {
+
+  /** Blake2b256 hashing function implementation for a digest of 32 bytes. */
   implicit val digest32: HashFunction[Digest32] = new HashFunction[Digest32] {
 
     override val digestSize = 32

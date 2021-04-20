@@ -7,6 +7,8 @@ import java.security.MessageDigest
 import scala.util.Try
 
 object Sha256 {
+
+  /** Sha256 hashing function implementation for a digest of 32 bytes. */
   implicit val digest32: HashFunction[Digest32] = new HashFunction[Digest32] {
 
     override val digestSize = 32
@@ -23,4 +25,5 @@ object Sha256 {
     }
 
   }
+
 }

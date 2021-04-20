@@ -4,6 +4,9 @@ import scala.util.Try
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 
+/** A hash function which hashes a message into a digest of type T.
+ * @tparam T the digest type
+ */
 trait HashFunction[T] {
   type Message = Array[Byte]
 
