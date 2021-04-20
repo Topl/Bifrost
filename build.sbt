@@ -51,7 +51,7 @@ resolvers ++= Seq("Typesafe repository" at "https://repo.typesafe.com/typesafe/r
 val akkaVersion = "2.6.14"
 val akkaHttpVersion = "10.2.4"
 val circeVersion = "0.13.0"
-val kamonVersion = "2.1.15"
+val kamonVersion = "2.1.16"
 val graalVersion = "21.0.0.2"
 
 val akkaDependencies = Seq(
