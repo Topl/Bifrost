@@ -1,5 +1,7 @@
 package co.topl.program
 
+import java.time.Instant
+
 import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.utils.{CoreGenerators, ValidGenerators}
 import io.circe.{Json, JsonObject}
@@ -8,7 +10,6 @@ import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scorex.crypto.signatures.{Curve25519, PublicKey}
 
-import java.time.Instant
 import scala.util.{Failure, Success, Try}
 
 class ProgramSpec extends AnyPropSpec

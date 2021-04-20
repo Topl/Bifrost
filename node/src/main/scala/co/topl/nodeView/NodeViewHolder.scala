@@ -112,6 +112,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
     case newTxs: NewTransactions => newTxs.txs.foreach(txModify)
 
     case EliminateTransactions(ids) =>
+      log.debug(s"${Console.YELLOW} Removing transactions with ids: $ids from mempool${Console.RESET}")
       val updatedPool = memoryPool().filter(tx => !ids.contains(tx.id))
       updateNodeView(updatedMempool = Some(updatedPool))
       ids.foreach { id =>
@@ -435,7 +436,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
       .putWithoutCheck(rolledBackTxs, appContext.timeProvider.time)
       .filter { tx =>
         !appliedTxs.exists(t => t.id == tx.id) && {
-          state.semanticValidate(tx).isSuccess
+          tx.syntacticValidate.isSuccess
         }
       }
   }

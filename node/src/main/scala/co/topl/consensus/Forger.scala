@@ -313,7 +313,7 @@ class Forger[
       memPoolReader
         .take[Int128](numTxInBlock(chainHeight))(-_.tx.fee) // returns a sequence of transactions ordered by their fee
         .filter(
-          _.tx.fee > settings.forging.minTransactionFee
+          _.tx.fee >= settings.forging.minTransactionFee
         ) // default strategy ignores zero fee transactions in mempool
         .foldLeft(PickTransactionsResult(Seq(), Seq())) { case (txAcc, utx) =>
           // ensure that each transaction opens a unique box by checking that this transaction

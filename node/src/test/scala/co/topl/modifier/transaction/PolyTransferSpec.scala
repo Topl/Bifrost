@@ -1,10 +1,11 @@
-package co.topl.transaction
+package co.topl.modifier.transaction
 
-import co.topl.modifier.transaction.PolyTransfer
 import co.topl.utils.{CoreGenerators, ValidGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+
+import scala.util.Failure
 
 class PolyTransferSpec
     extends AnyPropSpec
@@ -15,9 +16,12 @@ class PolyTransferSpec
     with ValidGenerators {
 
   property("Generated PolyTransfer Tx should be valid") {
-    forAll(validPolyTransferGen) { polyTransfer: PolyTransfer[_] =>
-      //TODO: Jing - change this back to using syntacticValidate once attestation in validPolyTransferGen works
-      polyTransfer.rawValidate.isSuccess shouldBe true
+    forAll(validPolyTransfer(keyRing, genesisState)) { polyTransfer: PolyTransfer[_] =>
+      polyTransfer.syntacticValidate match {
+        case Failure(exception) => println(exception)
+        case _ =>
+      }
+      polyTransfer.syntacticValidate.isSuccess shouldBe true
     }
   }
 

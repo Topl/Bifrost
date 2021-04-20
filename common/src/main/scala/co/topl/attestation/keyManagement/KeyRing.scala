@@ -51,6 +51,10 @@ class KeyRing[
       case (Failure(e), _)             => throw e // this assumes the failure is due to not finding the address
     }
 
+  def generateAttestation(addresses: Set[Address])(messageToSign: Array[Byte]): Map[PK, PR] = {
+    addresses.map(addr => generateAttestation(addr)(messageToSign)).reduce(_ ++ _)
+  }
+
   /** Generates a new keypair and updates the key ring with the new secret
     * @param num
     * @param seedOpt

@@ -23,6 +23,7 @@ import co.topl.settings.{AppContext, AppSettings, StartupOpts}
 import co.topl.utils.GenesisGenerators
 import org.scalatest.wordspec.AnyWordSpec
 
+import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 
 trait RPCMockState extends AnyWordSpec with GenesisGenerators with ScalatestRouteTest {

@@ -1,5 +1,7 @@
 package co.topl.nodeView.state
 
+import java.io.File
+
 import co.topl.modifier.box.{BoxId, ProgramBox, ProgramId}
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.settings.AppSettings
@@ -38,6 +40,7 @@ class ProgramBoxRegistry(protected val storage: LSMStore) extends Registry[Progr
     *         N = Number of boxes owned by a public key
     *         L = Number of boxes to append
     */
+  // todo: James - this needs to be updated similarly to TokenBoxRegistry
   protected[state] def update(
     newVersion: VersionTag,
     toRemove:   Map[K, Seq[V]],
