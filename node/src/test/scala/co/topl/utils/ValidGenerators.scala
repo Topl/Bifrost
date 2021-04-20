@@ -25,12 +25,13 @@ trait ValidGenerators extends CoreGenerators {
   val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
     KeyRing(settings.application.keyFileDir.get, KeyfileCurve25519)
 
-  keyRing.generateNewKeyPairs(num = 3) match {
-    case Success(_) => ()
-    case Failure(error) => throw error
-  }
-
-  val genesisBlock: Block = PrivateGenesis(keyRing.addresses, settings).getGenesisBlock.get._1
+  val genesisBlock: Block = PrivateGenesis(
+      keyRing.generateNewKeyPairs(num = 3) match {
+        case Success(keys) => keys.map(_.publicImage.address)
+        case Failure(ex)   => throw ex
+      },
+    settings
+  ).getGenesisBlock.get._1
 
   val genesisBlockId: ModifierId = genesisBlock.id
 
