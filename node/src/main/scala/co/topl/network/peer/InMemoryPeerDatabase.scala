@@ -1,10 +1,9 @@
 package co.topl.network.peer
 
-import java.net.{InetAddress, InetSocketAddress}
-
 import co.topl.settings.NetworkSettings
 import co.topl.utils.{Logging, TimeProvider}
 
+import java.net.{InetAddress, InetSocketAddress}
 import scala.concurrent.duration._
 
 /** In-memory peer database implementation supporting temporal blacklisting.

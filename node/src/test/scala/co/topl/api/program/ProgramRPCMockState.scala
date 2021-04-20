@@ -14,7 +14,7 @@ trait ProgramRPCMockState extends RPCMockState
 
   def directlyAddPBRStorage(version: ModifierId, boxes: Seq[ProgramBox]): Unit = {
     // Manually manipulate state
-    state.directlyAddPBRStorage(version, boxes, view().state)
+    state.directlyAddPBRStorage(version, boxes, view()._2)
   }
 
   lazy val (signSk, signPk) = sampleUntilNonEmpty(keyPairSetGen).head

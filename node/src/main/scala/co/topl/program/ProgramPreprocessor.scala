@@ -1,7 +1,5 @@
 package co.topl.program
 
-import java.nio.file.{Files, Path}
-
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.utils.Gzip
 import com.oracle.js.parser.ir.visitor.NodeVisitor
@@ -12,6 +10,7 @@ import io.circe.syntax._
 import org.graalvm.polyglot.Context
 import scorex.util.encode.Base64
 
+import java.nio.file.{Files, Path}
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.matching.Regex
