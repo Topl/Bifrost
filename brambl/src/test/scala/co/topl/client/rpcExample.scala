@@ -7,6 +7,8 @@ import co.topl.akkahttprpc.RpcClientFailure
 import co.topl.akkahttprpc.implicits.client.rpcToClient
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, AddressEncoder, PublicKeyPropositionCurve25519}
+import co.topl.client.CreateAnDSendRawArbitTransfer.response
+import co.topl.client.CreateAnDSendRawAssetTransfer.response
 import co.topl.client.Provider.PrivateTestNet
 import co.topl.modifier.box.{AssetCode, AssetValue}
 import co.topl.rpc.ToplRpc
@@ -28,6 +30,9 @@ object exampleState {
 
   val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
     KeyRing[PrivateKeyCurve25519, KeyfileCurve25519]("./tmp", KeyfileCurve25519)(PrivateKeyCurve25519.secretGenerator, provider.networkPrefix)
+
+  def genKeys(): Unit = keyRing.generateNewKeyPairs(10, Some("test"))
+  def clearKeyRing(): Unit = keyRing.addresses.map(keyRing.removeFromKeyring)
 
   val externalAddress: Seq[Address] = List(
     "AUAvJqLKc8Un3C6bC4aj8WgHZo74vamvX8Kdm6MhtdXgw51cGfix",
@@ -76,30 +81,6 @@ object ReinstateAKeyFile {
     response.foreach(println)
 }
 
-object FailedToReinstateKeyfile {
-  import exampleState._
-  import provider._
-
-  val response: Either[RpcClientFailure, Address] = for {
-    keyfileJson <- CreateANewKeyInTheKeyRing.genKeyfile.map { keyfile =>
-      println(s"keyRing after generating a new key: ${keyRing.addresses}")
-      keyRing.removeFromKeyring(keyfile.address) // side effect mutation of keyRing
-      println(s"keyRing after removing generated key: ${keyRing.addresses}")
-      keyfile.asJson
-    }
-    address <- Brambl.importCurve25519JsonToKeyRing(keyfileJson, "someWrongPassword", keyRing)
-  } yield {
-    println(s"keyRing after re-importing the generated key from Json: ${keyRing.addresses}")
-    address
-  }
-
-  def main(args: Array[String]): Unit =
-    response match {
-      case Left(value) => println(s"Got some error $value")
-      case Right(value) => println("This shouldn't work unless the password above is 'test'")
-    }
-}
-
 object CreateAnDSendRawPolyTransfer {
 
   /** import starter state */
@@ -129,6 +110,8 @@ object CreateAnDSendRawPolyTransfer {
     rawTx <- ToplRpc.Transaction.RawPolyTransfer.rpc(params).map(_.rawTx)
 //    signTx <- EitherT(Future(Brambl.signTransaction(keyRing.addresses, rawTx)(keyRing.generateAttestation)))
     signTx <- EitherT.right {
+      clearKeyRing()
+      genKeys()
       val msg2Sign = rawTx.messageToSign
       val signFunc = (addr: Address) => keyRing.generateAttestation(addr)(msg2Sign)
       val signatures = keyRing.addresses.map(signFunc).reduce(_ ++ _)
@@ -138,7 +121,10 @@ object CreateAnDSendRawPolyTransfer {
   } yield broadcastTx
 
   def main(args: Array[String]): Unit =
-    response.value.foreach(println)
+    response.value.foreach {
+      case Left(value) => println(s"Got some error: $value")
+      case Right(value) => println(s"Got a success response: $value")
+    }
 
 }
 
@@ -160,6 +146,8 @@ object CreateAnDSendRawArbitTransfer {
   val response: RpcErrorOr[BroadcastTx.Response] = for {
     rawTx <- ToplRpc.Transaction.RawArbitTransfer.rpc(params).map(_.rawTx)
     signTx <- EitherT.right {
+      clearKeyRing()
+      genKeys()
       val msg2Sign = rawTx.messageToSign
       val signFunc = (addr: Address) => keyRing.generateAttestation(addr)(msg2Sign)
       val signatures = keyRing.addresses.map(signFunc).reduce(_ ++ _)
@@ -169,7 +157,10 @@ object CreateAnDSendRawArbitTransfer {
   } yield broadcastTx
 
   def main(args: Array[String]): Unit =
-    response.value.foreach(println)
+    response.value.foreach {
+      case Left(value) => println(s"Got some error: $value")
+      case Right(value) => println(s"Got a success response: $value")
+    }
 
 }
 
@@ -194,6 +185,8 @@ object CreateAnDSendRawAssetMintingTransfer {
   val response: RpcErrorOr[BroadcastTx.Response] = for {
     rawTx <- ToplRpc.Transaction.RawAssetTransfer.rpc(params).map(_.rawTx)
     signTx <- EitherT.right {
+      clearKeyRing()
+      genKeys()
       val msg2Sign = rawTx.messageToSign
       val signFunc = (addr: Address) => keyRing.generateAttestation(addr)(msg2Sign)
       val signatures = keyRing.addresses.map(signFunc).reduce(_ ++ _)
@@ -203,7 +196,10 @@ object CreateAnDSendRawAssetMintingTransfer {
   } yield broadcastTx
 
   def main(args: Array[String]): Unit =
-    response.value.foreach(println)
+    response.value.foreach {
+      case Left(value) => println(s"Got some error: $value")
+      case Right(value) => println(s"Got a success response: $value")
+    }
 }
 
 object CreateAnDSendRawAssetTransfer {
@@ -227,6 +223,8 @@ object CreateAnDSendRawAssetTransfer {
   val response: RpcErrorOr[BroadcastTx.Response] = for {
     rawTx <- ToplRpc.Transaction.RawAssetTransfer.rpc(params).map(_.rawTx)
     signTx <- EitherT.right {
+      clearKeyRing()
+      genKeys()
       val msg2Sign = rawTx.messageToSign
       val signFunc = (addr: Address) => keyRing.generateAttestation(addr)(msg2Sign)
       val signatures = keyRing.addresses.map(signFunc).reduce(_ ++ _)
@@ -236,7 +234,10 @@ object CreateAnDSendRawAssetTransfer {
   } yield broadcastTx
 
   def main(args: Array[String]): Unit =
-    response.value.foreach(println)
+    response.value.foreach {
+      case Left(value) => println(s"Got some error: $value")
+      case Right(value) => println(s"Got a success response: $value")
+    }
 
 }
 
@@ -249,7 +250,10 @@ object LookupBalance {
   val response: RpcErrorOr[Balances.Response] = ToplRpc.NodeView.Balances.rpc(params)
 
   def main(args: Array[String]): Unit =
-    response.value.foreach(println)
+    response.value.foreach {
+      case Left(value) => println(s"Got some error: $value")
+      case Right(value) => println(s"Got a success response: $value")
+    }
 
 }
 
@@ -262,7 +266,10 @@ object GetMempool {
   val response: RpcErrorOr[Mempool.Response] = ToplRpc.NodeView.Mempool.rpc(params)
 
   def main(args: Array[String]): Unit =
-    response.value.foreach(println)
+    response.value.foreach {
+      case Left(value) => println(s"Got some error: $value")
+      case Right(value) => println(s"Got a success response: $value")
+    }
 
 }
 
@@ -275,9 +282,9 @@ object GetHeadOfChain {
   val response: RpcErrorOr[Head.Response] = ToplRpc.NodeView.Head.rpc(params)
 
   def main(args: Array[String]): Unit =
-    response.value.onComplete {
-      case Failure(exception) => println(exception)
-      case Success(value) => println(value)
+    response.value.foreach {
+      case Left(value) => println(s"Got some error: $value")
+      case Right(value) => println(s"Got a success response: $value")
     }
 
 }
@@ -295,7 +302,10 @@ object LookupTransaction {
   } yield transaction
 
   def main(args: Array[String]): Unit =
-    response.value.foreach(println)
+    response.value.foreach {
+      case Left(value) => println(s"Got some error: $value")
+      case Right(value) => println(s"Got a success response: $value")
+    }
 
 }
 
@@ -312,7 +322,10 @@ object LookupTransactionFromMempool {
   } yield transaction
 
   def main(args: Array[String]): Unit =
-    response.value.foreach(println)
+    response.value.foreach {
+      case Left(value) => println(s"Got some error: $value")
+      case Right(value) => println(s"Got a success response: $value")
+    }
 
 }
 
@@ -329,7 +342,10 @@ object LookupBlockById {
   } yield block
 
   def main(args: Array[String]): Unit =
-    response.value.foreach(println)
+    response.value.foreach {
+      case Left(value) => println(s"Got some error: $value")
+      case Right(value) => println(s"Got a success response: $value")
+    }
 
 }
 
@@ -342,6 +358,9 @@ object LookupBlockByHeight {
   val response: RpcErrorOr[BlockByHeight.Response] = ToplRpc.NodeView.BlockByHeight.rpc(params)
 
   def main(args: Array[String]): Unit =
-    response.value.foreach(println)
+    response.value.foreach {
+      case Left(value) => println(s"Got some error: $value")
+      case Right(value) => println(s"Got a success response: $value")
+    }
 
 }
