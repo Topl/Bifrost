@@ -5,7 +5,6 @@ import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.NodeViewComponent
 import co.topl.utils.TimeProvider
 
-import scala.math.Ordering
 import scala.util.Try
 
 /**

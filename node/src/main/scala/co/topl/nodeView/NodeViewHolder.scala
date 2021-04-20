@@ -95,7 +95,6 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
   override def receive: Receive =
     processModifiers orElse
       transactionsProcessing orElse
-      getCurrentInfo orElse
       getNodeViewChanges orElse
       nonsense
 
@@ -119,11 +118,6 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
         val e = new Exception("Became invalid")
         context.system.eventStream.publish(FailedTransaction(id, e, immediateFailure = false))
       }
-  }
-
-  protected def getCurrentInfo: Receive = {
-    case GetDataFromCurrentView =>
-      sender() ! CurrentView(history(), minimalState(), memoryPool())
   }
 
   protected def getNodeViewChanges: Receive = {
@@ -485,7 +479,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
 ////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////// COMPANION SINGLETON ////////////////////////////////
 
-object NodeViewHolder {
+object     NodeViewHolder {
   val actorName = "nodeViewHolder"
 
   case class UpdateInformation[HIS, MS, PMOD <: PersistentNodeViewModifier](history: HIS,

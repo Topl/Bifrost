@@ -1,7 +1,5 @@
 package co.topl.network
 
-import java.net._
-
 import akka.actor.SupervisorStrategy._
 import akka.actor._
 import akka.io.{IO, Tcp}
@@ -16,6 +14,7 @@ import co.topl.settings.{AppContext, AppSettings, NodeViewReady, Version}
 import co.topl.utils.TimeProvider.Time
 import co.topl.utils.{Logging, NetworkUtils, TimeProvider}
 
+import java.net._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}

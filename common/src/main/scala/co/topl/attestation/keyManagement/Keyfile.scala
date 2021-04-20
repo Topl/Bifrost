@@ -1,14 +1,13 @@
 package co.topl.attestation.keyManagement
 
-import java.io.{BufferedWriter, FileWriter}
-import java.time.Instant
-import java.time.temporal.ChronoUnit
-
 import co.topl.attestation.Address
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Encoder
 import io.circe.syntax.EncoderOps
 
+import java.io.{BufferedWriter, FileWriter}
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import scala.util.Try
 
 trait Keyfile[S <: Secret] {
