@@ -267,7 +267,7 @@ object ToplRpc {
         recipients:           NonEmptyChain[(Address, AssetValue)],
         fee:                  Int128,
         changeAddress:        Address,
-        consolidationAddress: Option[Address],
+        consolidationAddress: Address,
         minting:              Boolean,
         data:                 Option[String]
       )
@@ -307,7 +307,7 @@ object ToplRpc {
         recipients:           NonEmptyChain[(Address, Int128)],
         fee:                  Int128,
         changeAddress:        Address,
-        consolidationAddress: Option[Address],
+        consolidationAddress: Address,
         data:                 Option[String]
       )
 
