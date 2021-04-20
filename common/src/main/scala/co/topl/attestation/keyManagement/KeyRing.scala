@@ -11,13 +11,19 @@ import scala.util.{Failure, Success, Try}
 class KeyRing[
   S <: Secret,
   KF <: Keyfile[S]
-](defaultKeyDir: File, private var secrets: Set[S], private val keyfileOps: KeyfileCompanion[S, KF])(implicit
-  networkPrefix: NetworkPrefix,
-  sg:            SecretGenerator[S]
+](
+  defaultKeyDir:       Option[File],
+  private var secrets: Set[S] = Set()
+)(implicit
+  networkPrefix:    NetworkPrefix,
+  sg:               SecretGenerator[S],
+  keyfileCompanion: KeyfileCompanion[S, KF]
 ) {
 
   type PK = S#PK
   type PR = S#PR
+
+  import keyfileCompanion._
 
   /** Retrieves a list of public images for the secrets currently held in the keyring
     *
@@ -51,9 +57,8 @@ class KeyRing[
       case (Failure(e), _)             => throw e // this assumes the failure is due to not finding the address
     }
 
-  def generateAttestation(addresses: Set[Address])(messageToSign: Array[Byte]): Map[PK, PR] = {
+  def generateAttestation(addresses: Set[Address])(messageToSign: Array[Byte]): Map[PK, PR] =
     addresses.map(addr => generateAttestation(addr)(messageToSign)).reduce(_ ++ _)
-  }
 
   /** Generates a new keypair and updates the key ring with the new secret
     * @param num
@@ -84,17 +89,17 @@ class KeyRing[
       s"Invalid key file for chosen network. " +
       s"Provided key has network prefix ${keyfile.address.networkPrefix} but required prefix is $networkPrefix"
     )
-    keyfileOps.decryptSecret(keyfile, password).map { s =>
+
+    decryptSecret(keyfile, password).map { s =>
       secrets ++= Set(s)
       s.publicImage.address
     }
   }
 
-  /**
-   * Removes an address from the keyring so that it is not available for signing any longer
-   * @param address network specific address to be removed
-   * @return a try indicating whether the key ring was successfully mutated or not
-   */
+  /** Removes an address from the keyring so that it is not available for signing any longer
+    * @param address network specific address to be removed
+    * @return a try indicating whether the key ring was successfully mutated or not
+    */
   def removeFromKeyring(address: Address): Try[Unit] = Try {
     secretByAddress(address) match {
       case Some(sk) => secrets -= (secrets find (p => p == sk)).get
@@ -160,14 +165,14 @@ class KeyRing[
       */
     private def exportKeyfileToDisk(address: Address, password: String): Try[Unit] = Try {
       secretByAddress(address) match {
-        case Some(sk) => keyfileOps.saveToDisk(defaultKeyDir.getAbsolutePath, password, sk)
+        case Some(sk) => saveToDisk(defaultKeyDir.getAbsolutePath, password, sk)
         case _        => Failure(new Error("Unable to find a matching secret in the key ring"))
       }
     }
 
     /** Return a list of KeuFile instances for all keys in the key file directory */
     private def listKeyFiles: List[KF] =
-      KeyRing.getListOfFiles(defaultKeyDir).map(file => keyfileOps.readFile(file.getPath))
+      KeyRing.getListOfFiles(defaultKeyDir).map(file => readFile(file.getPath))
 
     /** Check if given publicKey string is valid and contained in the key file directory
       *
@@ -196,10 +201,18 @@ object KeyRing {
   def apply[
     S <: Secret: SecretGenerator,
     KF <: Keyfile[S]
-  ](path: String, keyfileCompanion: KeyfileCompanion[S, KF])(implicit networkPrefix: NetworkPrefix): KeyRing[S, KF] = {
+  ](path:             Option[String] = None)(implicit
+    networkPrefix:    NetworkPrefix,
+    keyfileCompanion: KeyfileCompanion[S, KF]
+  ): KeyRing[S, KF] = {
+    path match {
+      case Some(value) =>
+      case None        =>
+    }
+
     val dir = new File(path)
     dir.mkdirs()
-    new KeyRing(dir, Set(), keyfileCompanion)
+    new KeyRing(dir)
   }
 
   def getListOfFiles(dir: File): List[File] =
