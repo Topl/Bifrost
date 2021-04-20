@@ -15,7 +15,7 @@ import keymanager.KeyManager.{ChangeNetwork, GenerateSignatures, GetAllKeyfiles,
 import keymanager.networkPrefix
 import modifier.{AssetValue, Box, BoxId, SimpleValue, TransferTransaction}
 import requests.ApiRoute
-import scorex.util.encode.Base58
+import co.topl.utils.encode.Base58
 import settings.{ApplicationSettings, ChainProvider, RPCApiSettings}
 import wallet.WalletManager.GetWallet
 

@@ -11,7 +11,7 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import co.topl.crypto.hash.Hash
 import co.topl.crypto.signatures.{Curve25519, PublicKey}
-import scorex.util.encode.Base58
+import co.topl.utils.encode.Base58
 
 import scala.collection.SortedSet
 import scala.util.{Failure, Success, Try}

@@ -1,8 +1,8 @@
 package co.topl.attestation
 
 import co.topl.utils.NetworkType
+import co.topl.utils.encode.Base58
 import co.topl.crypto.hash.Hash
-import scorex.util.encode.Base58
 
 import scala.util.{Failure, Try}
 

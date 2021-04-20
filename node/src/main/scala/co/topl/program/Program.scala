@@ -7,7 +7,7 @@ import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.{Context, Value}
 import co.topl.crypto.signatures.PublicKey
-import scorex.util.encode.Base58
+import co.topl.utils.encode.Base58
 
 import scala.util.Try
 

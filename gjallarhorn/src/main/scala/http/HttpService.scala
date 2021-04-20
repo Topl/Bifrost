@@ -8,7 +8,7 @@ import io.circe.Json
 import io.circe.parser.parse
 import co.topl.crypto.hash.{Digest32, Hash}
 import requests.{ApiResponse, ApiRoute, ErrorResponse, SuccessResponse}
-import scorex.util.encode.Base58
+import co.topl.utils.encode.Base58
 import settings.RPCApiSettings
 
 import scala.concurrent.{Await, Future}

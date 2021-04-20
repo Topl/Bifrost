@@ -9,7 +9,7 @@ import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import co.topl.crypto.hash.{Blake2b256, Hash}
-import scorex.util.encode.Base58
+import co.topl.utils.encode.Base58
 
 import scala.util.{Failure, Success}
 

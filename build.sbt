@@ -289,7 +289,7 @@ lazy val gjallarhorn = project.in(file("gjallarhorn"))
   )
   .configs(IntegrationTest)
   .disablePlugins(sbtassembly.AssemblyPlugin)
-  .dependsOn(crypto)
+  .dependsOn(crypto, common)
 
 lazy val benchmarking = project.in(file("benchmark"))
   .settings(

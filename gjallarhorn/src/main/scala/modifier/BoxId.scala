@@ -4,7 +4,7 @@ import com.google.common.primitives.{Ints, Longs}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import co.topl.crypto.hash.Hash
-import scorex.util.encode.Base58
+import co.topl.utils.encode.Base58
 import attestation.Evidence
 
 import scala.util.{Failure, Success}

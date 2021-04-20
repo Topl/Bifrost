@@ -3,7 +3,7 @@ package co.topl.utils
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder}
 import co.topl.crypto.hash.Digest32
-import scorex.util.encode.Base58
+import co.topl.utils.encode.Base58
 
 object ScorexExtensions {
   object Digest32Ops {

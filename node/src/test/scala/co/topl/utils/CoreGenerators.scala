@@ -22,7 +22,7 @@ import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
 import co.topl.crypto.hash.{Blake2b256, Hash}
 import co.topl.crypto.signatures.{Curve25519, Signature}
-import scorex.util.encode.Base58
+import co.topl.utils.encode.Base58
 
 import scala.collection.SortedSet
 import scala.util.{Random, Try}

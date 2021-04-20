@@ -10,7 +10,7 @@ import co.topl.settings.RPCApiSettings
 import io.circe.Json
 import io.circe.parser.parse
 import co.topl.crypto.hash.{Hash, Digest32}
-import scorex.util.encode.Base58
+import co.topl.utils.encode.Base58
 
 import scala.concurrent.{Future, TimeoutException}
 import scala.util.Try

@@ -5,7 +5,7 @@ import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import co.topl.crypto.signatures.{Curve25519, PublicKey, Signature}
-import scorex.util.encode.Base58
+import co.topl.utils.encode.Base58
 import utils.serialization.{BytesSerializable, GjalSerializer}
 
 import scala.util.{Failure, Success, Try}

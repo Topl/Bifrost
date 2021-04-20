@@ -6,7 +6,7 @@ import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import co.topl.crypto.hash.{Blake2b256, Hash}
-import scorex.util.encode.Base58
+import co.topl.utils.encode.Base58
 import supertagged.TaggedType
 
 import scala.util.Try

@@ -16,7 +16,7 @@
 //import io.circe.literal._
 //import io.circe.syntax._
 //import io.circe.{Decoder, Json, JsonObject}
-//import scorex.util.encode.Base58
+//import co.topl.utils.encode.Base58
 //
 //import scala.concurrent.ExecutionContext.Implicits.global
 //import scala.concurrent.Future
