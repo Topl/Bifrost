@@ -26,7 +26,7 @@ object Brambl {
       case Left(_) => Left(RpcErrorFailure(CustomError(7091, "Failed to decode JSON key")))
       case Right(kf) =>
         keyRing.importKeyPair(kf, password) match {
-          case Failure(_)     => Left(RpcErrorFailure(CustomError(7091, "Failed to import JSON key to key ring")))
+          case Failure(ex)     => Left(RpcErrorFailure(CustomError(7091, s"Failed to import JSON key to key ring. Reason: ${ex.getMessage}")))
           case Success(value) => Right(value)
         }
     }

@@ -8,7 +8,6 @@ import co.topl.akkahttprpc.implicits.client.rpcToClient
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, AddressEncoder, PublicKeyPropositionCurve25519}
 import co.topl.client.Provider.PrivateTestNet
-import co.topl.modifier.ModifierId
 import co.topl.modifier.box.{AssetCode, AssetValue}
 import co.topl.rpc.ToplRpc
 import co.topl.rpc.ToplRpc.NodeView._
@@ -59,7 +58,10 @@ object CreateANewKeyInTheKeyRing {
   val genKeyfile: Either[RpcClientFailure, KeyfileCurve25519] = Brambl.generateNewCurve25519Keyfile("test", keyRing)
 
   def main(args: Array[String]): Unit =
-    genKeyfile.foreach(a => println(a.asJson))
+    genKeyfile match {
+      case Left(value)  => println(s"Got some error: $value")
+      case Right(value) => println(s"Got a success response: ${value.asJson}")
+    }
 }
 
 object ReinstateAKeyFile {
@@ -80,7 +82,34 @@ object ReinstateAKeyFile {
   }
 
   def main(args: Array[String]): Unit =
-    response.foreach(println)
+    response match {
+      case Left(value)  => println(s"Got some error: $value")
+      case Right(value) => println(s"Got a success response: $value")
+    }
+}
+
+object FailedToReinstateAKeyFile {
+  import exampleState._
+  import provider._
+
+  val response: Either[RpcClientFailure, Address] = for {
+    keyfileJson <- CreateANewKeyInTheKeyRing.genKeyfile.map { keyfile =>
+      println(s"keyRing after generating a new key: ${keyRing.addresses}")
+      keyRing.removeFromKeyring(keyfile.address) // side effect mutation of keyRing
+      println(s"keyRing after removing generated key: ${keyRing.addresses}")
+      keyfile.asJson
+    }
+    address <- Brambl.importCurve25519JsonToKeyRing(keyfileJson, "someOtherPassword", keyRing)
+  } yield {
+    println(s"keyRing after re-importing the generated key from Json: ${keyRing.addresses}")
+    address
+  }
+
+  def main(args: Array[String]): Unit =
+    response match {
+      case Left(value)  => println(s"Got some error: $value")
+      case Right(value) => println(s"Got a success response: $value")
+    }
 }
 
 object CreateAnDSendRawPolyTransfer {
@@ -93,14 +122,11 @@ object CreateAnDSendRawPolyTransfer {
 
   /** Required arguments to request a Poly transfer from Bifrost (as opposed to building the Transaction directly yourself) */
   val params: RawPolyTransfer.Params = ToplRpc.Transaction.RawPolyTransfer.Params(
-    propositionType =
-      PublicKeyPropositionCurve25519.typeString, // required fixed string for now, exciting possibilities in the future!
-    sender =
-      NonEmptyChain.fromSeq(externalAddress).get, // Set of addresses whose state you want to use for the transaction
-    recipients =
-      NonEmptyChain((externalAddress.head, 10)), // Chain of (Recipients, Value) tuples that represent the output boxes
+    propositionType = PublicKeyPropositionCurve25519.typeString, // required fixed string for now, exciting possibilities in the future!
+    sender = NonEmptyChain.fromSeq(externalAddress).get, // Set of addresses whose state you want to use for the transaction
+    recipients = NonEmptyChain((externalAddress.head, 10)), // Chain of (Recipients, Value) tuples that represent the output boxes
     fee = 0, // fee to be paid to the network for the transaction (unit is nanoPoly)
-    changeAddress = externalAddress.tail.head, // who will get ALL the change from the transaction?
+    changeAddress = externalAddress.head, // who will get ALL the change from the transaction?
     data = None // upto 128 Latin-1 encoded characters of optional data
   )
 
@@ -291,15 +317,13 @@ object GetHeadOfChain {
 
 }
 
-object LookupTransaction {
+object LookupTransactionById {
 
   import exampleState._
   import provider._
 
   val response: RpcErrorOr[TransactionById.Response] = for {
     params <- GetHeadOfChain.response.map { head =>
-      println(head)
-      println(head.bestBlock.transactions.head.id)
       ToplRpc.NodeView.TransactionById.Params(head.bestBlock.transactions.head.id)
     }
     transaction <- ToplRpc.NodeView.TransactionById.rpc(params)
@@ -339,8 +363,8 @@ object LookupBlockById {
   import provider._
 
   val response: RpcErrorOr[BlockById.Response] = for {
-    params <- GetHeadOfChain.response.map { head => ToplRpc.NodeView.BlockById.Params(head.bestBlockId) }
-    block <- ToplRpc.NodeView.BlockById.rpc(params)
+    params <- GetHeadOfChain.response.map(head => ToplRpc.NodeView.BlockById.Params(head.bestBlockId))
+    block  <- ToplRpc.NodeView.BlockById.rpc(params)
   } yield block
 
   def main(args: Array[String]): Unit =
@@ -356,7 +380,7 @@ object LookupBlockByHeight {
   import exampleState._
   import provider._
 
-  val params: BlockByHeight.Params = ToplRpc.NodeView.BlockByHeight.Params(479)
+  val params: BlockByHeight.Params = ToplRpc.NodeView.BlockByHeight.Params(1)
   val response: RpcErrorOr[BlockByHeight.Response] = ToplRpc.NodeView.BlockByHeight.rpc(params)
 
   def main(args: Array[String]): Unit =
