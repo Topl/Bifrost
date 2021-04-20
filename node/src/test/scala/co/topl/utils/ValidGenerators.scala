@@ -72,7 +72,7 @@ trait ValidGenerators extends CoreGenerators {
     data        <- stringGen
   } yield {
 
-    val tx = PolyTransfer(from, to, attestation, fee, timestamp, Some(data))
+    val tx = PolyTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
     val sig = key._1.sign(tx.messageToSign)
     tx.copy(attestation = Map(key._2 -> sig))
   }
@@ -84,7 +84,7 @@ trait ValidGenerators extends CoreGenerators {
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
     data        <- stringGen
-  } yield ArbitTransfer(from, to, attestation, fee, timestamp, Some(data))
+  } yield ArbitTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
 
   lazy val validAssetTransferGen: Gen[AssetTransfer[_]] = for {
     from        <- fromSeqGen

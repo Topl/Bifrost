@@ -326,7 +326,7 @@ trait CoreGenerators extends Logging {
     //generate set of keys with proposition
     //use generated keys to create signature(s)
 
-    PolyTransfer(from, to, attestation, fee, timestamp, Some(data))
+    PolyTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
   }
 
   lazy val arbitTransferGen: Gen[ArbitTransfer[PublicKeyPropositionCurve25519]] = for {
@@ -337,7 +337,7 @@ trait CoreGenerators extends Logging {
     timestamp <- positiveLongGen
     data <- stringGen
   } yield {
-    ArbitTransfer(from, to, attestation, fee, timestamp, Some(data))
+    ArbitTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
   }
 
   lazy val assetTransferGen: Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = for {
