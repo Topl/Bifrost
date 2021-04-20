@@ -1,9 +1,9 @@
 package co.topl.network
 
-import java.net.InetSocketAddress
-
 import akka.actor.ActorRef
 import co.topl.network.peer.PeerFeature
+
+import java.net.InetSocketAddress
 
 /** Case class for connection info */
 case class ConnectionDescription(

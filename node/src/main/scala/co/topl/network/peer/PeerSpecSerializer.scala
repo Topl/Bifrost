@@ -1,10 +1,10 @@
 package co.topl.network.peer
 
-import java.net.{InetAddress, InetSocketAddress}
-
 import co.topl.settings.{Version, VersionSerializer}
 import co.topl.utils.Extensions._
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
+
+import java.net.{InetAddress, InetSocketAddress}
 
 class PeerSpecSerializer(featureSerializers: PeerFeature.Serializers) extends BifrostSerializer[PeerSpec] {
 

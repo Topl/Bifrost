@@ -7,9 +7,9 @@ package co.topl.nodeView.state
 import co.topl.attestation.Address
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.PersistentNodeViewModifier
+import co.topl.modifier.box.ProgramId
 import co.topl.nodeView.NodeViewComponent
 import co.topl.nodeView.state.MinimalState.VersionTag
-import co.topl.modifier.box.ProgramId
 
 import scala.util.Try
 

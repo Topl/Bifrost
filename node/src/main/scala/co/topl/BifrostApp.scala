@@ -6,7 +6,7 @@ import akka.io.Tcp
 import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.akkahttprpc.{ThrowableData, ThrowableSupport}
-import co.topl.consensus.{ActorForgerInterface, ActorKeyManagerInterface, Forger, ForgerRef}
+import co.topl.consensus.{ActorForgerInterface, ActorKeyManagerInterface, Forger, ForgerRef, KeyManager, KeyManagerRef}
 import co.topl.http.HttpService
 import co.topl.rpc.ToplRpcServer
 import co.topl.modifier.block.Block
@@ -77,7 +77,10 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   private val networkControllerRef: ActorRef =
     NetworkControllerRef(NetworkController.actorName, settings, peerManagerRef, appContext)
 
-  private val forgerRef: ActorRef = ForgerRef(Forger.actorName, settings, appContext)
+  private val keyManagerRef = KeyManagerRef(KeyManager.actorName, settings, appContext)
+
+  private val forgerRef: ActorRef =
+    ForgerRef[HIS, ST, MP](Forger.actorName, settings, appContext, keyManagerRef)
 
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef(NodeViewHolder.actorName, settings, appContext)
 
@@ -108,6 +111,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     networkControllerRef,
     peerSynchronizer,
     nodeViewSynchronizer,
+    keyManagerRef,
     forgerRef,
     nodeViewHolderRef,
     mempoolAuditor

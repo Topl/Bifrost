@@ -1,30 +1,37 @@
 package co.topl.api
 
+import java.io.File
 import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import akka.pattern.ask
+import akka.testkit.TestActorRef
 import akka.util.{ByteString, Timeout}
 import co.topl.akkahttprpc.ThrowableSupport.Standard._
-import co.topl.consensus.{ActorForgerInterface, ActorKeyManagerInterface, Forger, ForgerRef}
+import co.topl.consensus.{ActorForgerInterface, ActorKeyManagerInterface, Forger, ForgerRef, KeyManager}
 import co.topl.http.HttpService
+import co.topl.modifier.block.Block
 import co.topl.rpc.ToplRpcServer
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
+import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
+import co.topl.nodeView.nodeViewHolder.TestableNodeViewHolder
 import co.topl.nodeView.state.State
-import co.topl.nodeView.{ActorNodeViewHolderInterface, CurrentView, NodeViewHolder, NodeViewHolderRef}
+import co.topl.nodeView.ActorNodeViewHolderInterface
 import co.topl.settings.{AppContext, AppSettings, StartupOpts}
 import co.topl.utils.GenesisGenerators
 import org.scalatest.wordspec.AnyWordSpec
 
-import java.io.File
-import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 
 trait RPCMockState extends AnyWordSpec with GenesisGenerators with ScalatestRouteTest {
+
+  type BSI = BifrostSyncInfo
+  type PMOD = Block
+  type HIS = History
+  type MP = MemPool
+  type ST = State
 
   val tempFile: File = createTempFile
 
@@ -38,14 +45,33 @@ trait RPCMockState extends AnyWordSpec with GenesisGenerators with ScalatestRout
 
   //TODO Fails when using rpcSettings
   override def createActorSystem(): ActorSystem = ActorSystem(settings.network.agentName)
+  //override implicit val system: ActorSystem = createActorSystem()
 
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
   // save environment into a variable for reference throughout the application
   protected val appContext = new AppContext(rpcSettings, StartupOpts.empty, None)
 
   // Create Bifrost singleton actors
-  protected val forgerRef: ActorRef = ForgerRef(Forger.actorName, rpcSettings, appContext)
-  protected val nodeViewHolderRef: ActorRef = NodeViewHolderRef(NodeViewHolder.actorName, rpcSettings, appContext)
+
+  // NOTE: Some of these actors are TestActors in order to access the underlying instance so that we can manipulate
+  //       the state of the underlying instance while testing. Use with caution
+  protected val keyManagerRef: TestActorRef[KeyManager] = TestActorRef(
+    new KeyManager(rpcSettings, appContext)(system.getDispatcher, appContext.networkType.netPrefix)
+  )
+  protected val forgerRef: ActorRef = ForgerRef[HIS, ST, MP](Forger.actorName, rpcSettings, appContext, keyManagerRef)
+
+  protected val nodeViewHolderRef: TestActorRef[TestableNodeViewHolder] = TestActorRef(
+    new TestableNodeViewHolder(settings, appContext)(system.getDispatcher, appContext.networkType.netPrefix)
+  )
+
+  // Get underlying references
+  private val nvh = nodeViewHolderRef.underlyingActor
+  private val km = keyManagerRef.underlyingActor
+
+  // manipulate the underlying actor state
+  nvh.updateNodeViewPublicAccessor(updatedState = Some(genesisState))
+  km.context.become(km.receive(keyRing, Some(keyRing.addresses.head)))
+
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
   implicit val timeout: Timeout = Timeout(10.seconds)
@@ -76,6 +102,6 @@ trait RPCMockState extends AnyWordSpec with GenesisGenerators with ScalatestRout
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
     ).withHeaders(RawHeader("x-api-key", "test_key"))
 
-  protected def view(): CurrentView[History, State, MemPool] =
-    Await.result((nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]], 10.seconds)
+  // this method returns modifiable instances of the node view components
+  protected def view(): (History, State, MemPool) = nvh.nodeViewPublicAccessor
 }

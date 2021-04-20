@@ -1,13 +1,13 @@
 package co.topl.settings
 
-import java.io.File
-import java.net.InetSocketAddress
 import co.topl.network.utils.NetworkTimeProviderSettings
 import co.topl.utils.Logging
 import com.typesafe.config.{Config, ConfigFactory}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 
+import java.io.File
+import java.net.InetSocketAddress
 import scala.concurrent.duration._
 
 case class ApplicationSettings(

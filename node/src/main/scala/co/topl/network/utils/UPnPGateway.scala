@@ -1,11 +1,10 @@
 package co.topl.network.utils
 
-import java.net.{InetAddress, InetSocketAddress}
-
 import co.topl.settings.NetworkSettings
 import co.topl.utils.Logging
 import org.bitlet.weupnp.{GatewayDevice, GatewayDiscover, PortMappingEntry}
 
+import java.net.{InetAddress, InetSocketAddress}
 import scala.collection.JavaConverters._
 
 class UPnPGateway(gateway: GatewayDevice, port: Int) extends Logging {

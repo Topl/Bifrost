@@ -93,7 +93,6 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
   override def receive: Receive =
     processModifiers orElse
     transactionsProcessing orElse
-    getCurrentInfo orElse
     getNodeViewChanges orElse
     nonsense
 
@@ -117,10 +116,6 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
         val e = new Exception("Became invalid")
         context.system.eventStream.publish(FailedTransaction(id, e, immediateFailure = false))
       }
-  }
-
-  protected def getCurrentInfo: Receive = { case GetDataFromCurrentView =>
-    sender() ! CurrentView(history(), minimalState(), memoryPool())
   }
 
   protected def getNodeViewChanges: Receive = { case GetNodeViewChanges(history, state, mempool) =>

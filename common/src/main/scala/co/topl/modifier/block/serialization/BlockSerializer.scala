@@ -4,10 +4,10 @@ import co.topl.attestation.serialization.{PublicKeyPropositionCurve25519Serializ
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.Transaction
-import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.box.serialization.ArbitBoxSerializer
+import co.topl.modifier.transaction.Transaction
+import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.utils.Extensions.LongOps
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
