@@ -93,7 +93,7 @@ case class TransactionApiEndpoint(
     * @return
     */
   private def rawAssetTransfer(implicit params: Json, id: String): Future[Json] =
-    viewAsync { view =>
+    asyncState { stateReader =>
       val p = params.hcursor
       // parse arguments from the request
       (for {
@@ -108,14 +108,14 @@ case class TransactionApiEndpoint(
       } yield {
 
         // check that the state is available
-        checkAddress(sender, view)
+        checkAddress(sender, stateReader)
 
         // construct the transaction
         propType match {
           case PublicKeyPropositionCurve25519.`typeString` =>
             AssetTransfer
               .createRaw[PublicKeyPropositionCurve25519](
-                view.state,
+                stateReader,
                 recipients,
                 sender,
                 changeAddr,
@@ -128,7 +128,7 @@ case class TransactionApiEndpoint(
           case ThresholdPropositionCurve25519.`typeString` =>
             AssetTransfer
               .createRaw[ThresholdPropositionCurve25519](
-                view.state,
+                stateReader,
                 recipients,
                 sender,
                 changeAddr,
@@ -186,7 +186,7 @@ case class TransactionApiEndpoint(
     * @return
     */
   private def rawPolyTransfer(implicit params: Json, id: String): Future[Json] =
-    viewAsync { view =>
+    asyncState { stateReader =>
       val p = params.hcursor
 
       // parse arguments from the request
@@ -200,7 +200,7 @@ case class TransactionApiEndpoint(
       } yield {
 
         // check that the state is available
-        checkAddress(sender, view)
+        checkAddress(sender, stateReader)
 
         // convert to simple value type
         val to = recipients.map(r => r._1 -> SimpleValue(r._2))
@@ -209,11 +209,11 @@ case class TransactionApiEndpoint(
         propType match {
           case PublicKeyPropositionCurve25519.`typeString` =>
             PolyTransfer
-              .createRaw[PublicKeyPropositionCurve25519](view.state, to, sender, changeAddr, fee, data)
+              .createRaw[PublicKeyPropositionCurve25519](stateReader, to, sender, changeAddr, fee, data)
 
           case ThresholdPropositionCurve25519.`typeString` =>
             PolyTransfer
-              .createRaw[ThresholdPropositionCurve25519](view.state, to, sender, changeAddr, fee, data)
+              .createRaw[ThresholdPropositionCurve25519](stateReader, to, sender, changeAddr, fee, data)
         }
       }) match {
         case Right(Success(tx)) =>
@@ -264,7 +264,7 @@ case class TransactionApiEndpoint(
     * @return
     */
   private def rawArbitTransfer(implicit params: Json, id: String): Future[Json] =
-    viewAsync { view =>
+    asyncState { stateReader =>
       val p = params.hcursor
 
       // parse arguments from the request
@@ -279,7 +279,7 @@ case class TransactionApiEndpoint(
       } yield {
 
         // check that the state is available
-        checkAddress(sender, view)
+        checkAddress(sender, stateReader)
 
         // convert to simple value type
         val to = recipients.map(r => r._1 -> SimpleValue(r._2))
@@ -289,7 +289,7 @@ case class TransactionApiEndpoint(
           case PublicKeyPropositionCurve25519.`typeString` =>
             ArbitTransfer
               .createRaw[PublicKeyPropositionCurve25519](
-                view.state,
+                stateReader,
                 to,
                 sender,
                 changeAddr,
@@ -301,7 +301,7 @@ case class TransactionApiEndpoint(
           case ThresholdPropositionCurve25519.`typeString` =>
             ArbitTransfer
               .createRaw[ThresholdPropositionCurve25519](
-                view.state,
+                stateReader,
                 to,
                 sender,
                 changeAddr,

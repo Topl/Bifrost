@@ -1,12 +1,11 @@
 package co.topl.attestation.keyManagement
 
-import java.io.File
-
 import co.topl.attestation.Address
 import co.topl.utils.NetworkType.NetworkPrefix
 import com.google.common.primitives.Ints
 import scorex.util.Random.randomBytes
 
+import java.io.File
 import scala.util.{Failure, Success, Try}
 
 class KeyRing[

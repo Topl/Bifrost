@@ -3,14 +3,15 @@ package co.topl.nodeView.history
 import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
+import co.topl.network.message.SyncInfo
 
 import scala.annotation.tailrec
 import scala.util.Try
 
 /** A class for collecting methods that help debug history */
-class HistoryDebug(history: History) {
+class HistoryDebug(hr: HistoryReader[Block, _ <: SyncInfo]) {
 
-  def count(f: Block => Boolean): Int = history.filter(f).length
+  def count(f: Block => Boolean): Int = hr.filter(f).length
 
   /** @param height - block height
     * @return ids of headers on chosen height.
@@ -19,11 +20,11 @@ class HistoryDebug(history: History) {
     *         multiple ids if there are forks at chosen height.
     *         First id is always from the best headers chain.
     */
-  def idsAtHeight(height: Long): Seq[ModifierId] = history.storage.idAtHeightOf(height).toSeq
+  def idsAtHeight(height: Long): Seq[ModifierId] = hr.idAtHeightOf(height).toSeq
 
   def getIdsFrom(startHeight: Long, limit: Int): Option[Seq[ModifierId]] = {
-    history.modifierByHeight(startHeight) match {
-      case Some(block) => history.getIdsFrom(block, _ => false, limit)
+    hr.modifierByHeight(startHeight) match {
+      case Some(block) => hr.getIdsFrom(block, _ => false, limit)
       case None => None
     }
   }
@@ -35,8 +36,8 @@ class HistoryDebug(history: History) {
     * @param blockNum number of blocks to traverse back
     */
   def averageDelay(id: ModifierId, blockNum: Int): Try[Long] = Try {
-    val block = history.modifierById(id).get
-    val prevTimes = history.getTimestampsFrom(block, blockNum)
+    val block = hr.modifierById(id).get
+    val prevTimes = hr.getTimestampsFrom(block, blockNum)
     (prevTimes drop 1, prevTimes).zipped.map(_ - _).sum / (prevTimes.length)
   }
 
@@ -54,13 +55,13 @@ class HistoryDebug(history: History) {
     def loopBackAndIncrementForger(m: Block): Unit = {
       val forger = m.publicKey
       map.update(forger, map(forger) + 1)
-      history.parentBlock(m) match {
+      hr.parentBlock(m) match {
         case Some(parent) => loopBackAndIncrementForger(parent)
         case None         =>
       }
     }
 
-    loopBackAndIncrementForger(history.bestBlock)
+    loopBackAndIncrementForger(hr.bestBlock)
     map.toMap
   }
 

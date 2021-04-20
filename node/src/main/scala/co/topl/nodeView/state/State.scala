@@ -1,7 +1,5 @@
 package co.topl.nodeView.state
 
-import java.io.File
-
 import co.topl.attestation.Address
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -15,6 +13,7 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.util.encode.Base58
 
+import java.io.File
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
 

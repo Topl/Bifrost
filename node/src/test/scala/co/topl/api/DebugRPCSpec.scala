@@ -18,7 +18,7 @@ class DebugRPCSpec extends AnyWordSpec
            |   "id": "1",
            |   "method": "debug_delay",
            |   "params": [{
-           |      "blockId": "${view().history.bestBlockId}",
+           |      "blockId": "${view()._1.bestBlockId}",
            |      "numBlocks": 1
            |   }]
            |}

@@ -1,7 +1,5 @@
 package co.topl.network
 
-import java.net.InetSocketAddress
-
 import akka.actor.{ActorRef, ActorSystem, Props}
 import co.topl.modifier.NodeViewModifier.{ModifierTypeId, idsToString}
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
@@ -20,6 +18,7 @@ import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.serialization.BifrostSerializer
 import co.topl.utils.{Logging, MalformedModifierError}
 
+import java.net.InetSocketAddress
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag

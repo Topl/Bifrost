@@ -26,9 +26,8 @@ trait ValidGenerators extends CoreGenerators {
     KeyRing(settings.application.keyFileDir.get, KeyfileCurve25519)
 
   val genesisBlock: Block = PrivateGenesis(
-    (_: Int, _: Option[String]) =>
       keyRing.generateNewKeyPairs(num = 3) match {
-        case Success(keys) => keys.map(_.publicImage)
+        case Success(keys) => keys.map(_.publicImage.address)
         case Failure(ex)   => throw ex
       },
     settings
