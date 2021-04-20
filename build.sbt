@@ -120,7 +120,12 @@ val apiDependencies = Seq(
   "io.circe" %% "circe-core"    % circeVersion,
   "io.circe" %% "circe-generic" % circeVersion,
   "io.circe" %% "circe-parser"  % circeVersion,
-  "io.circe" %% "circe-literal" % circeVersion
+  "io.circe" %% "circe-literal" % circeVersion,
+  "io.circe" %% "circe-optics" % circeVersion
+)
+
+val akkaCirceDependencies = Seq(
+  "de.heikoseeberger" %% "akka-http-circe" % "1.36.0"
 )
 
 val loggingDependencies = Seq(
@@ -130,14 +135,21 @@ val loggingDependencies = Seq(
   "org.slf4j"                   % "slf4j-api"       % "1.7.30"
 )
 
-val testingDependencies = Seq(
-  "org.scalatest"      %% "scalatest"         % "3.2.6"   % "it,test",
+val testingDependenciesTest = Seq(
+  "org.scalatest"      %% "scalatest"         % "3.2.6"   % "test",
   "org.scalactic"      %% "scalactic"         % "3.2.6"   % "test",
   "org.scalacheck"     %% "scalacheck"        % "1.15.3"  % "test",
   "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
-  "com.spotify"         % "docker-client"     % "8.16.0"  % "it,test",
+  "com.spotify"         % "docker-client"     % "8.16.0"  % "test",
   "org.asynchttpclient" % "async-http-client" % "2.12.3"  % "test",
   "org.scalamock"      %% "scalamock"         % "5.1.0"   % "test"
+)
+
+val testingDependenciesIt = Seq(
+  "org.scalatest"      %% "scalatest"         % "3.2.6"   % "it",
+  "com.spotify"         % "docker-client"     % "8.16.0"  % "it",
+  "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion     % "it",
+  "com.typesafe.akka" %% "akka-http-testkit"   % akkaHttpVersion % "it"
 )
 
 val cryptoDependencies = Seq(
@@ -174,9 +186,6 @@ val graalDependencies = Seq(
   "org.graalvm.js"      % "js"          % graalVersion,
   "org.graalvm.truffle" % "truffle-api" % graalVersion
 )
-
-libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies
-  ++ testingDependencies ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
 
 scalacOptions ++= Seq(
   "-deprecation",
@@ -227,6 +236,8 @@ lazy val bifrost = project.in(file("."))
   .aggregate(
     node,
     common,
+    akkaHttpRpc,
+    toplRpc,
     gjallarhorn,
     benchmarking
   )
@@ -246,6 +257,7 @@ lazy val node = project.in(file("node"))
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
+    Docker / packageName := "bifrost-node",
     dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java8-21.0.0",
     dockerExposedPorts := Seq(9084, 9085),
     dockerExposedVolumes += "/opt/docker/.bifrost",
@@ -253,9 +265,13 @@ lazy val node = project.in(file("node"))
       "bifrost.version" -> version.value
     ),
     libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies
-      ++ testingDependencies ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
+      ++ testingDependenciesTest ++ testingDependenciesIt ++ cryptoDependencies ++ miscDependencies
+      ++ monitoringDependencies ++ graalDependencies)
   )
   .configs(IntegrationTest)
+  .settings(
+    IntegrationTest / parallelExecution := false
+  )
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .dependsOn(common)
 
@@ -267,14 +283,37 @@ lazy val common = project.in(file("common"))
     libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ apiDependencies ++ cryptoDependencies
   )
 
+lazy val akkaHttpRpc = project.in(file("akka-http-rpc"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "akka-http-rpc",
+    commonSettings,
+    publishSettings,
+    libraryDependencies ++= apiDependencies ++ akkaDependencies ++ akkaCirceDependencies ++ testingDependenciesTest,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.akkahttprpc",
+  )
+
+lazy val toplRpc = project.in(file("topl-rpc"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "topl-rpc",
+    commonSettings,
+    publishSettings,
+    libraryDependencies ++= apiDependencies ++ akkaDependencies ++ akkaCirceDependencies ++ testingDependenciesTest,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.toplrpc",
+  )
+  .dependsOn(akkaHttpRpc, common)
+
 lazy val gjallarhorn = project.in(file("gjallarhorn"))
   .settings(
     name := "gjallarhorn",
     commonSettings,
     publish / skip := true,
     Defaults.itSettings,
-    libraryDependencies ++= akkaDependencies ++ testingDependencies ++ cryptoDependencies ++ apiDependencies
-      ++ loggingDependencies ++ miscDependencies
+    libraryDependencies ++= akkaDependencies ++ testingDependenciesTest ++ testingDependenciesIt ++ cryptoDependencies
+      ++ apiDependencies ++ loggingDependencies ++ miscDependencies
   )
   .configs(IntegrationTest)
   .disablePlugins(sbtassembly.AssemblyPlugin)
