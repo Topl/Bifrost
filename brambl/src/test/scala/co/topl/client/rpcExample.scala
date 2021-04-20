@@ -7,9 +7,8 @@ import co.topl.akkahttprpc.RpcClientFailure
 import co.topl.akkahttprpc.implicits.client.rpcToClient
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, AddressEncoder, PublicKeyPropositionCurve25519}
-import co.topl.client.CreateAnDSendRawArbitTransfer.response
-import co.topl.client.CreateAnDSendRawAssetTransfer.response
 import co.topl.client.Provider.PrivateTestNet
+import co.topl.modifier.ModifierId
 import co.topl.modifier.box.{AssetCode, AssetValue}
 import co.topl.rpc.ToplRpc
 import co.topl.rpc.ToplRpc.NodeView._
@@ -18,7 +17,6 @@ import co.topl.rpc.implicits.client._
 import io.circe.syntax.EncoderOps
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
 
 object exampleState {
   type RpcErrorOr[T] = EitherT[Future, RpcClientFailure, T]
@@ -27,12 +25,6 @@ object exampleState {
 
   implicit val system: ActorSystem = ActorSystem()
   implicit val executionContext: ExecutionContext = system.dispatcher
-
-  val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
-    KeyRing[PrivateKeyCurve25519, KeyfileCurve25519]("./tmp", KeyfileCurve25519)(PrivateKeyCurve25519.secretGenerator, provider.networkPrefix)
-
-  def genKeys(): Unit = keyRing.generateNewKeyPairs(10, Some("test"))
-  def clearKeyRing(): Unit = keyRing.addresses.map(keyRing.removeFromKeyring)
 
   val externalAddress: Seq[Address] = List(
     "AUAvJqLKc8Un3C6bC4aj8WgHZo74vamvX8Kdm6MhtdXgw51cGfix",
@@ -47,6 +39,17 @@ object exampleState {
     "AUAbSWQxzfoCN4FizrKKf6E1qCSRffHhjrvo2v7L6q8xFZ7pxKqh"
   ).map(s => AddressEncoder.fromStringWithCheck(s, provider.networkPrefix).get)
 
+  val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
+    KeyRing[PrivateKeyCurve25519, KeyfileCurve25519]("./tmp", KeyfileCurve25519)(
+      PrivateKeyCurve25519.secretGenerator,
+      provider.networkPrefix
+    )
+
+  val assetCode: AssetCode = AssetCode(1: Byte, externalAddress.head, "test_1")
+
+  def genKeys(): Unit = keyRing.generateNewKeyPairs(10, Some("test"))
+  def clearKeyRing(): Unit = keyRing.addresses.map(keyRing.removeFromKeyring)
+
 }
 
 object CreateANewKeyInTheKeyRing {
@@ -55,9 +58,8 @@ object CreateANewKeyInTheKeyRing {
 
   val genKeyfile: Either[RpcClientFailure, KeyfileCurve25519] = Brambl.generateNewCurve25519Keyfile("test", keyRing)
 
-  def main(args: Array[String]): Unit = {
+  def main(args: Array[String]): Unit =
     genKeyfile.foreach(a => println(a.asJson))
-  }
 }
 
 object ReinstateAKeyFile {
@@ -65,13 +67,13 @@ object ReinstateAKeyFile {
   import provider._
 
   val response: Either[RpcClientFailure, Address] = for {
-  keyfileJson <- CreateANewKeyInTheKeyRing.genKeyfile.map { keyfile =>
-    println(s"keyRing after generating a new key: ${keyRing.addresses}")
-    keyRing.removeFromKeyring(keyfile.address) // side effect mutation of keyRing
-    println(s"keyRing after removing generated key: ${keyRing.addresses}")
-    keyfile.asJson
-  }
-  address <- Brambl.importCurve25519JsonToKeyRing(keyfileJson, "test", keyRing)
+    keyfileJson <- CreateANewKeyInTheKeyRing.genKeyfile.map { keyfile =>
+      println(s"keyRing after generating a new key: ${keyRing.addresses}")
+      keyRing.removeFromKeyring(keyfile.address) // side effect mutation of keyRing
+      println(s"keyRing after removing generated key: ${keyRing.addresses}")
+      keyfile.asJson
+    }
+    address <- Brambl.importCurve25519JsonToKeyRing(keyfileJson, "test", keyRing)
   } yield {
     println(s"keyRing after re-importing the generated key from Json: ${keyRing.addresses}")
     address
@@ -91,11 +93,14 @@ object CreateAnDSendRawPolyTransfer {
 
   /** Required arguments to request a Poly transfer from Bifrost (as opposed to building the Transaction directly yourself) */
   val params: RawPolyTransfer.Params = ToplRpc.Transaction.RawPolyTransfer.Params(
-    propositionType = PublicKeyPropositionCurve25519.typeString, // required fixed string for now, exciting possibilities in the future!
-    sender = NonEmptyChain.fromSeq(externalAddress).get, // Set of addresses whose state you want to use for the transaction
-    recipients = NonEmptyChain((externalAddress.head, 10)), // Chain of (Recipients, Value) tuples that represent the output boxes
+    propositionType =
+      PublicKeyPropositionCurve25519.typeString, // required fixed string for now, exciting possibilities in the future!
+    sender =
+      NonEmptyChain.fromSeq(externalAddress).get, // Set of addresses whose state you want to use for the transaction
+    recipients =
+      NonEmptyChain((externalAddress.head, 10)), // Chain of (Recipients, Value) tuples that represent the output boxes
     fee = 0, // fee to be paid to the network for the transaction (unit is nanoPoly)
-    changeAddress = externalAddress.head, // who will get ALL the change from the transaction?
+    changeAddress = externalAddress.tail.head, // who will get ALL the change from the transaction?
     data = None // upto 128 Latin-1 encoded characters of optional data
   )
 
@@ -105,7 +110,8 @@ object CreateAnDSendRawPolyTransfer {
     * 3. Send the newly signed transaction back to Bifrost
     *
     * NOTE: The ToplRpc client implicits `import co.topl.rpc.implicits.client._` must be in scope to bring all of the
-    * implicit Topl codecs into scope. */
+    * implicit Topl codecs into scope.
+    */
   val response: RpcErrorOr[BroadcastTx.Response] = for {
     rawTx <- ToplRpc.Transaction.RawPolyTransfer.rpc(params).map(_.rawTx)
 //    signTx <- EitherT(Future(Brambl.signTransaction(keyRing.addresses, rawTx)(keyRing.generateAttestation)))
@@ -122,7 +128,7 @@ object CreateAnDSendRawPolyTransfer {
 
   def main(args: Array[String]): Unit =
     response.value.foreach {
-      case Left(value) => println(s"Got some error: $value")
+      case Left(value)  => println(s"Got some error: $value")
       case Right(value) => println(s"Got a success response: $value")
     }
 
@@ -158,7 +164,7 @@ object CreateAnDSendRawArbitTransfer {
 
   def main(args: Array[String]): Unit =
     response.value.foreach {
-      case Left(value) => println(s"Got some error: $value")
+      case Left(value)  => println(s"Got some error: $value")
       case Right(value) => println(s"Got a success response: $value")
     }
 
@@ -169,11 +175,9 @@ object CreateAnDSendRawAssetMintingTransfer {
   import exampleState._
   import provider._
 
-  val assetCode: AssetCode = AssetCode(1: Byte, keyRing.addresses.head, "test_1")
-
   val params: RawAssetTransfer.Params = ToplRpc.Transaction.RawAssetTransfer.Params(
     propositionType = PublicKeyPropositionCurve25519.typeString,
-    sender = NonEmptyChain.fromSeq(externalAddress).get,
+    sender = NonEmptyChain(externalAddress.head),
     recipients = NonEmptyChain((externalAddress.head, AssetValue(100, assetCode))),
     fee = 0,
     changeAddress = externalAddress.head,
@@ -197,7 +201,7 @@ object CreateAnDSendRawAssetMintingTransfer {
 
   def main(args: Array[String]): Unit =
     response.value.foreach {
-      case Left(value) => println(s"Got some error: $value")
+      case Left(value)  => println(s"Got some error: $value")
       case Right(value) => println(s"Got a success response: $value")
     }
 }
@@ -207,11 +211,9 @@ object CreateAnDSendRawAssetTransfer {
   import exampleState._
   import provider._
 
-  val assetCode: AssetCode = AssetCode(1: Byte, keyRing.addresses.head, "test_1")
-
   val params: RawAssetTransfer.Params = ToplRpc.Transaction.RawAssetTransfer.Params(
     propositionType = PublicKeyPropositionCurve25519.typeString,
-    sender = NonEmptyChain.fromSeq(externalAddress).get,
+    sender = NonEmptyChain(externalAddress.head),
     recipients = NonEmptyChain((externalAddress.head, AssetValue(100, assetCode))),
     fee = 0,
     changeAddress = externalAddress.head,
@@ -235,7 +237,7 @@ object CreateAnDSendRawAssetTransfer {
 
   def main(args: Array[String]): Unit =
     response.value.foreach {
-      case Left(value) => println(s"Got some error: $value")
+      case Left(value)  => println(s"Got some error: $value")
       case Right(value) => println(s"Got a success response: $value")
     }
 
@@ -251,7 +253,7 @@ object LookupBalance {
 
   def main(args: Array[String]): Unit =
     response.value.foreach {
-      case Left(value) => println(s"Got some error: $value")
+      case Left(value)  => println(s"Got some error: $value")
       case Right(value) => println(s"Got a success response: $value")
     }
 
@@ -267,7 +269,7 @@ object GetMempool {
 
   def main(args: Array[String]): Unit =
     response.value.foreach {
-      case Left(value) => println(s"Got some error: $value")
+      case Left(value)  => println(s"Got some error: $value")
       case Right(value) => println(s"Got a success response: $value")
     }
 
@@ -283,7 +285,7 @@ object GetHeadOfChain {
 
   def main(args: Array[String]): Unit =
     response.value.foreach {
-      case Left(value) => println(s"Got some error: $value")
+      case Left(value)  => println(s"Got some error: $value")
       case Right(value) => println(s"Got a success response: $value")
     }
 
@@ -295,15 +297,17 @@ object LookupTransaction {
   import provider._
 
   val response: RpcErrorOr[TransactionById.Response] = for {
-    txByIdParams <- GetHeadOfChain.response.map { head =>
+    params <- GetHeadOfChain.response.map { head =>
+      println(head)
+      println(head.bestBlock.transactions.head.id)
       ToplRpc.NodeView.TransactionById.Params(head.bestBlock.transactions.head.id)
     }
-  transaction <- ToplRpc.NodeView.TransactionById.rpc(txByIdParams)
+    transaction <- ToplRpc.NodeView.TransactionById.rpc(params)
   } yield transaction
 
   def main(args: Array[String]): Unit =
     response.value.foreach {
-      case Left(value) => println(s"Got some error: $value")
+      case Left(value)  => println(s"Got some error: $value")
       case Right(value) => println(s"Got a success response: $value")
     }
 
@@ -315,15 +319,15 @@ object LookupTransactionFromMempool {
   import provider._
 
   val response: RpcErrorOr[TransactionFromMempool.Response] = for {
-    txFromMempool <- GetHeadOfChain.response.map { head =>
+    params <- GetHeadOfChain.response.map { head =>
       ToplRpc.NodeView.TransactionFromMempool.Params(head.bestBlock.transactions.head.id)
     }
-  transaction <- ToplRpc.NodeView.TransactionFromMempool.rpc(txFromMempool)
+    transaction <- ToplRpc.NodeView.TransactionFromMempool.rpc(params)
   } yield transaction
 
   def main(args: Array[String]): Unit =
     response.value.foreach {
-      case Left(value) => println(s"Got some error: $value")
+      case Left(value)  => println(s"Got some error: $value")
       case Right(value) => println(s"Got a success response: $value")
     }
 
@@ -335,15 +339,13 @@ object LookupBlockById {
   import provider._
 
   val response: RpcErrorOr[BlockById.Response] = for {
-    blockByIdParams <- GetHeadOfChain.response.map { head =>
-      ToplRpc.NodeView.BlockById.Params(head.bestBlockId)
-    }
-  block <- ToplRpc.NodeView.BlockById.rpc(blockByIdParams)
+    params <- GetHeadOfChain.response.map { head => ToplRpc.NodeView.BlockById.Params(head.bestBlockId) }
+    block <- ToplRpc.NodeView.BlockById.rpc(params)
   } yield block
 
   def main(args: Array[String]): Unit =
     response.value.foreach {
-      case Left(value) => println(s"Got some error: $value")
+      case Left(value)  => println(s"Got some error: $value")
       case Right(value) => println(s"Got a success response: $value")
     }
 
@@ -354,12 +356,12 @@ object LookupBlockByHeight {
   import exampleState._
   import provider._
 
-  val params: BlockByHeight.Params = ToplRpc.NodeView.BlockByHeight.Params(1)
+  val params: BlockByHeight.Params = ToplRpc.NodeView.BlockByHeight.Params(479)
   val response: RpcErrorOr[BlockByHeight.Response] = ToplRpc.NodeView.BlockByHeight.rpc(params)
 
   def main(args: Array[String]): Unit =
     response.value.foreach {
-      case Left(value) => println(s"Got some error: $value")
+      case Left(value)  => println(s"Got some error: $value")
       case Right(value) => println(s"Got a success response: $value")
     }
 
