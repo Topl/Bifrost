@@ -1,9 +1,10 @@
 package co.topl.rpc
 
+import cats.implicits._
 import co.topl.attestation.{Address, Proposition}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.box.{AssetValue, Box, SimpleValue, TokenBox}
+import co.topl.modifier.box._
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
@@ -98,6 +99,9 @@ trait TransactionRpcParamsEncoders extends SharedCodecs {
   implicit val transactionRawPolyTransferParamsEncoder: Encoder[ToplRpc.Transaction.RawPolyTransfer.Params] =
     deriveEncoder
 
+  implicit val transactionBroadcastTxParamsEncoder: Encoder[ToplRpc.Transaction.BroadcastTx.Params] =
+    Encoder.forProduct1("tx")(_.tx)
+
 }
 
 trait AdminRpcParamsEncoders extends SharedCodecs {
@@ -174,10 +178,30 @@ trait NodeViewRpcResponseDecoders extends SharedCodecs {
   implicit def nodeViewTransactionByIdResponseDecoder(implicit
     networkPrefix: NetworkPrefix
   ): Decoder[ToplRpc.NodeView.TransactionById.Response] =
-    Decoder.forProduct3("transaction", "blockNumber", "blockId")(ToplRpc.NodeView.TransactionById.Response.apply)
+    a =>
+      for {
+        tx          <- a.as[Transaction.TX]
+        blockNumber <- a.get[Long]("blockNumber")
+        blockId     <- a.get[ModifierId]("blockId")
+      } yield ToplRpc.NodeView.TransactionById.Response(tx, blockNumber, blockId)
 
   implicit val nodeViewInfoResponseDecoder: Decoder[ToplRpc.NodeView.Info.Response] =
     deriveDecoder
+
+  implicit def nodeViewBalancesResponseEntryBalancesDecoder(implicit
+    networkPrefix: NetworkPrefix
+  ): Decoder[ToplRpc.NodeView.Balances.EntryBalances] =
+    deriveDecoder
+
+  implicit def nodeViewBalancesResponseEntryDecoder(implicit
+    networkPrefix: NetworkPrefix
+  ): Decoder[ToplRpc.NodeView.Balances.Entry] =
+    deriveDecoder
+
+  implicit def nodeViewBalancesResponseDecoder(implicit
+    networkPrefix: NetworkPrefix
+  ): Decoder[ToplRpc.NodeView.Balances.Response] =
+    Decoder.decodeMap[Address, ToplRpc.NodeView.Balances.Entry]
 }
 
 trait TransactionRpcResponseDecoders extends SharedCodecs {
@@ -519,6 +543,10 @@ trait SharedCodecs {
         a
       }
   implicit val tokenBoxEncoder: Encoder[TokenBox[_]] = b => Box.jsonEncoder(b)
+
+  implicit val tokenBoxDecoder: Decoder[TokenBox[_]] =
+    List[Decoder[TokenBox[_]]](ArbitBox.jsonDecoder.widen, PolyBox.jsonDecoder.widen, AssetBox.jsonDecoder.widen)
+      .reduceLeft(_ or _)
   implicit def int128Encoder: Encoder[Int128] = Int128Codec.jsonEncoder
   implicit def int128Decoder: Decoder[Int128] = Int128Codec.jsonDecoder
   implicit def simpleValueEncoder: Encoder[SimpleValue] = SimpleValue.jsonEncoder
