@@ -183,20 +183,22 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     val httpPort = settings.rpcApi.bindAddress.getPort
 
     /** Helper function to kill the application if needed */
-    def failedP2P(): Unit = {
-      log.error(s"${Console.RED}Unable to bind to the P2P port. Terminating application!${Console.RESET}")
+    def failedP2P(throwable: Option[Throwable]): Unit = {
+      val message = s"${Console.RED}Unable to bind to the P2P port. Terminating application!${Console.RESET}"
+      throwable match {
+        case Some(e) => log.error(message, e)
+        case _ => log.error(message)
+      }
       BifrostApp.shutdown(actorSystem, actorsToStop)
     }
 
     /** Trigger the P2P network bind and check that the protocol bound successfully. */
     /** Terminate the application on failure */
-    (networkControllerRef ? BindP2P).onComplete {
-      case Success(bindResponse: Future[Any]) =>
-        bindResponse.onComplete {
-          case Success(Tcp.Bound(addr)) => log.info(s"${Console.YELLOW}P2P protocol bound to $addr${Console.RESET}")
-          case Success(_) | Failure(_)  => failedP2P()
-        }
-      case Success(_) | Failure(_) => failedP2P()
+    (networkControllerRef ? BindP2P).mapTo[Future[Tcp.Event]].flatten.onComplete {
+      case Success(Tcp.Bound(addr)) => log.info(s"${Console.YELLOW}P2P protocol bound to $addr${Console.RESET}")
+      case Success(f: Tcp.CommandFailed) => failedP2P(f.cause)
+      case Success(_) => failedP2P(None)
+      case Failure(e) => failedP2P(Some(e))
     }
 
     /** trigger the HTTP server bind and check that the bind is successful. Terminate the application on failure */

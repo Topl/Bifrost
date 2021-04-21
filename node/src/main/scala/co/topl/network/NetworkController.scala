@@ -94,7 +94,7 @@ class NetworkController(
         /** send a bind signal to the TCP manager to designate this actor as the
           * handler to accept incoming connections
           */
-        tcpManager ? Tcp.Bind(self, bindAddress, options = Nil, pullMode = false)
+        (tcpManager ? Tcp.Bind(self, bindAddress, options = Nil, pullMode = false)).mapTo[Tcp.Event]
       } else {
         throw new Error("Address validation failed. Aborting application startup.")
       }
