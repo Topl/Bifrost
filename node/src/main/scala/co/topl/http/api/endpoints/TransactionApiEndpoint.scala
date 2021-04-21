@@ -209,11 +209,11 @@ case class TransactionApiEndpoint(
         propType match {
           case PublicKeyPropositionCurve25519.`typeString` =>
             PolyTransfer
-              .createRaw[PublicKeyPropositionCurve25519](stateReader, to, sender, changeAddr, None, fee, data)
+              .createRaw[PublicKeyPropositionCurve25519](stateReader, to, sender, changeAddr, fee, data)
 
           case ThresholdPropositionCurve25519.`typeString` =>
             PolyTransfer
-              .createRaw[ThresholdPropositionCurve25519](stateReader, to, sender, changeAddr, None, fee, data)
+              .createRaw[ThresholdPropositionCurve25519](stateReader, to, sender, changeAddr, fee, data)
         }
       }) match {
         case Right(Success(tx)) =>

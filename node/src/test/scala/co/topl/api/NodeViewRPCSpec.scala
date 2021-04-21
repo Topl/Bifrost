@@ -52,10 +52,13 @@ class NodeViewRPCSpec extends AnyWordSpec
            |
           """.stripMargin)
 
+      view()._3.putWithoutCheck(Seq(txs.head), block.timestamp)
+
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
         ((res \\ "result").head \\ "txId").head.asString.get shouldEqual txId
       }
+      view()._3.remove(txs.head)
     }
 
     "Get a confirmed transaction by id" in {
