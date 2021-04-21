@@ -1,6 +1,6 @@
 package co.topl.crypto.hash
 
-import scorex.utils.ByteArray
+import co.topl.crypto.utils.ByteArray
 
 import scala.util.Try
 
