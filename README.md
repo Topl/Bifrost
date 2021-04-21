@@ -41,6 +41,7 @@ Testing
       - On Windows systems, run: ``for /f "tokens=* USEBACKQ" %i in (`docker build -q -f it/Dockerfile .`) do (set IMAGE_ID=%i) && docker run --rm -v //var/run/docker.sock:/var/run/docker.sock %IMAGE_ID% && docker image rm -f %IMAGE_ID%``
       - NOTE: You may not see any output for quite a while.  The Docker image takes a long time to build, and its output is mostly silent.  You will only see output for the run of the integration test.
       - NOTE: To speed up repeated runs, remove the cleanup step (` && docker image rm -f $IMAGE_ID`) from the end of the command.
+      - NOTE: When local testing through an IDE instead of through the Dockerfile, it is recommended to create a `version.sbt` at the project root with contents `ThisBuild / version := "it"`.   This file should not be checked into git, but it will help keep the published Docker tag stable.
 
 
 Contributions

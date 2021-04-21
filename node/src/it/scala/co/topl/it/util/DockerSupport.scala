@@ -71,6 +71,6 @@ class DockerSupport(dockerClient: DockerClient)(implicit system: ActorSystem) ex
 
 object DockerSupport {
 
-  val bifrostImage: String = s"bifrost:${BuildInfo.version}"
+  val bifrostImage: String = s"bifrost-node:${BuildInfo.version}"
   val networkNamePrefix: String = "bifrost-it"
 }
