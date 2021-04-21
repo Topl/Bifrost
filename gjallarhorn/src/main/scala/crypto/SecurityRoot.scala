@@ -3,7 +3,7 @@ package crypto
 import com.google.common.primitives.Ints
 import io.circe.{Decoder, Encoder}
 import io.circe.syntax.EncoderOps
-import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.Hash
 import co.topl.utils.encode.Base58
 import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 
@@ -35,7 +35,10 @@ class SecurityRoot private (private val root: Array[Byte]) extends BytesSerializ
 
 object SecurityRoot extends GjalSerializer[SecurityRoot] {
 
-  val size: Int = Blake2b256.DigestSize // 32 bytes
+  // use Blake2b256 hashing
+  import co.topl.crypto.hash.Blake2b256._
+
+  val size: Int = Hash.digestSize // 32 bytes
   val empty: SecurityRoot = new SecurityRoot(Array.fill(size)(0: Byte))
 
   implicit val jsonEncoder: Encoder[SecurityRoot] = (sr: SecurityRoot) => sr.toString.asJson

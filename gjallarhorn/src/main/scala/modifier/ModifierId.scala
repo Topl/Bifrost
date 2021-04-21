@@ -5,7 +5,7 @@ import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import modifier.ModifierId.ModifierTypeId
-import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.Hash
 import co.topl.utils.encode.Base58
 import supertagged.TaggedType
 import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
@@ -37,13 +37,17 @@ class ModifierId (private val value: Array[Byte]) extends BytesSerializable {
 }
 
 object ModifierId extends GjalSerializer[ModifierId] {
+
+  // use Blake2b256 for hashing
+  import co.topl.crypto.hash.Blake2b256._
+
   object ModifierTypeId extends TaggedType[Byte]
   type ModifierTypeId = ModifierTypeId.Type
 
-  val size: Int = 1 + Blake2b256.DigestSize // ModifierId's are derived from Blake2b-256
+  val size: Int = 1 + Hash.digestSize // ModifierId's are derived from Blake2b-256
   val empty: ModifierId = new ModifierId(Array.fill(size)(0: Byte))
   val genesisParentId: ModifierId = new ModifierId(ModifierTypeId @@ (3: Byte) +:
-    Array.fill(Blake2b256.DigestSize)(1: Byte))
+    Array.fill(Hash.digestSize)(1: Byte))
 
   implicit val ord: Ordering[ModifierId] = Ordering.by(_.toString)
 
@@ -53,7 +57,7 @@ object ModifierId extends GjalSerializer[ModifierId] {
   implicit val jsonKeyDecoder: KeyDecoder[ModifierId] = (id: String) => Some(ModifierId(id))
 
   def apply(transferTransaction: TransferTransaction[_ <: Proposition]): ModifierId =
-    new ModifierId(TransferTransaction.modifierTypeId +: Blake2b256(transferTransaction.messageToSign))
+    new ModifierId(TransferTransaction.modifierTypeId +: Hash(transferTransaction.messageToSign))
 
   def apply(str: String): ModifierId =
     Base58.decode(str) match {

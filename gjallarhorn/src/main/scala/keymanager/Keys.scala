@@ -1,12 +1,11 @@
 package keymanager
 
 import java.io.File
-
 import attestation.{Address, Secret, SecretGenerator}
 import com.google.common.primitives.Ints
 import attestation.AddressEncoder.NetworkPrefix
+import co.topl.crypto.hash.{Blake2b256, Hash}
 import co.topl.utils.Random.randomBytes
-import co.topl.crypto.hash.Blake2b256
 import settings.NetworkType
 import utils.Logging
 
@@ -156,7 +155,7 @@ class Keys[
 
       // calculate the new keyfile and return
       val seed = bip.hexToUuid(bip.phraseToHex(mnemonic))
-      val sk = sg.generateSecret(Blake2b256(seed))
+      val sk = sg.generateSecret(Hash[Blake2b256](seed))
 
       // add secret to the keyring
       secrets += sk._1

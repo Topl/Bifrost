@@ -9,7 +9,7 @@ import co.topl.utils.ScorexExtensions.Digest32Ops
 import co.topl.utils.TimeProvider
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
-import co.topl.crypto.hash.Digest32
+import co.topl.crypto.hash.Digest
 import supertagged.@@
 
 case class BlockHeader(
@@ -21,7 +21,7 @@ case class BlockHeader(
   signature:    SignatureCurve25519,
   height:       Long,
   difficulty:   Long,
-  txRoot:       Digest32,
+  txRoot:       Digest,
   bloomFilter:  BloomFilter,
   version:      PNVMVersion
 ) extends PersistentNodeViewModifier {
@@ -59,7 +59,7 @@ object BlockHeader {
       signature    <- c.downField("signature").as[SignatureCurve25519]
       height       <- c.downField("height").as[Long]
       difficulty   <- c.downField("difficulty").as[Long]
-      txRoot       <- c.downField("txRoot").as[Digest32](Digest32Ops.jsonDecoder)
+      txRoot       <- c.downField("txRoot").as[Digest](Digest32Ops.jsonDecoder)
       bloomFilter  <- c.downField("bloomFilter").as[BloomFilter]
       version      <- c.downField("version").as[Byte]
     } yield BlockHeader(

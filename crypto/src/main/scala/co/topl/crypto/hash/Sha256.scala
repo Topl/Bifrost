@@ -1,10 +1,30 @@
 package co.topl.crypto.hash
 
+import scorex.utils.ByteArray
+
 import java.security.MessageDigest
+import scala.util.Try
 
-/* Forked from https://github.com/input-output-hk/scrypto */
+case class Sha256()
 
-/** Hashing functions implementation with sha256 impl from Java SDK */
-object Sha256 extends CryptographicHash32 {
-  override def hash(input: Array[Byte]): Digest32 = Digest32 @@ MessageDigest.getInstance("SHA-256").digest(input)
+object Sha256 {
+
+  /** Sha256 hashing function implementation. */
+  implicit val hash: Hash[Sha256] = new Hash[Sha256] {
+
+    override val digestSize = 32
+
+    override def hash(input: Array[Byte]): Digest =
+      Digest @@ MessageDigest.getInstance("SHA-256").digest(input)
+
+    override def hashWithPrefix(prefix: Byte, inputs: Array[Byte]*): Digest =
+      hash(prefix +: ByteArray.concat(inputs))
+
+    override def byteArrayToDigest(bytes: Array[Byte]): Try[Digest] = Try {
+      require(bytes.lengthCompare(digestSize) == 0, "Incorrect digest size")
+      Digest @@ bytes
+    }
+
+  }
+
 }

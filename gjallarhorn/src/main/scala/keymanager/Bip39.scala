@@ -1,11 +1,14 @@
 package keymanager
 
+import co.topl.crypto.hash.Hash
 import utils.Logging
-import co.topl.crypto.hash.Sha256
 
 import scala.io.Source
 import scala.math.BigInt
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
+
+// use Sha256 hashing
+import co.topl.crypto.hash.Sha256._
 
 /**
   * AMS Feb 2019:
@@ -67,7 +70,7 @@ class Bip39 (wordList: List[String]) extends Logging {
     val pl = phraseWords.length
     if (phraseWords.forall(word => wordList.contains(word)) && validPhraseLengths.contains(pl)) {
       val phraseBin = phraseWords.map(wordList.indexOf(_)).map(toBinaryIndex).mkString
-      val phraseHashBin: List[String] = Sha256.hash(
+      val phraseHashBin: List[String] = Hash(
         phraseBin.slice(0, entMap(pl)).grouped(byteLen).toArray map {
           Integer.parseInt(_, 2).toByte
         }
@@ -99,7 +102,7 @@ class Bip39 (wordList: List[String]) extends Logging {
     val seed = inputUuid.filterNot("-".toSet)
     val seedBytes: Array[Byte] = seed.grouped(2).toArray map {Integer.parseInt(_, 16).toByte}
     val seedBin: Array[String] = seedBytes.map(toBinaryByte)
-    val seedHashBin: Array[String] = Sha256.hash(seedBytes).map(toBinaryByte)
+    val seedHashBin: Array[String] = Hash(seedBytes).map(toBinaryByte)
     val phrase = (seedBin.mkString("") + seedHashBin(0).slice(0,endCSMap(seedBin.mkString("").length)))
       .grouped(indexLen).toArray.map(Integer.parseInt(_,2)).map(wordList(_)).mkString(" ")
     (seed,phrase)
@@ -156,6 +159,6 @@ object Bip39 {
     )
 
     (phraseLanguagesHash(iso639_1_toFile(phraseLanguage.toLowerCase))
-      == Sha256.hash(wordList.mkString).map("%02x" format _).mkString)
+      == Hash(wordList.mkString).map("%02x" format _).mkString)
   }
 }

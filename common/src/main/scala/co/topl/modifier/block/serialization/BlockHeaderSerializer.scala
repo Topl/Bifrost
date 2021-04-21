@@ -7,9 +7,10 @@ import co.topl.modifier.block.{BlockHeader, BloomFilter}
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.box.serialization.ArbitBoxSerializer
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
-import co.topl.crypto.hash.{Blake2b256, Digest32}
+import co.topl.crypto.hash.{Blake2b256, Digest, Hash}
 
 object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
+
   override def serialize(header: BlockHeader, w: Writer): Unit = {
     /* version: Byte */
     w.put(header.version)
@@ -64,10 +65,21 @@ object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
 
     val difficulty: Long = r.getLong()
 
-    val txRoot: Digest32 = Digest32 @@ r.getBytes(Blake2b256.DigestSize)
+    val txRoot: Digest = Digest @@ r.getBytes(Hash[Blake2b256].digestSize)
 
     val bloomFilter: BloomFilter = BloomFilter.parse(r)
 
-    BlockHeader(id, parentId, timestamp, generatorBox, publicKey, signature, height, difficulty, txRoot, bloomFilter, version)
+    BlockHeader(
+      id,
+      parentId,
+      timestamp,
+      generatorBox,
+      publicKey,
+      signature,
+      height,
+      difficulty,
+      txRoot,
+      bloomFilter,
+      version)
   }
 }

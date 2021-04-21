@@ -5,7 +5,7 @@ import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader
 import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.Hash
 import co.topl.utils.encode.Base58
 import supertagged.TaggedType
 
@@ -55,6 +55,9 @@ class BloomFilter private (private val value: Array[Long]) extends BytesSerializ
 }
 
 object BloomFilter extends BifrostSerializer[BloomFilter] {
+
+  // use Blake2b256 hashing
+  import co.topl.crypto.hash.Blake2b256._
 
   object BloomTopic extends TaggedType[Array[Byte]]
   type BloomTopic = BloomTopic.Type
@@ -128,7 +131,7 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
     */
   private def calculateIndices(topic: BloomTopic): Set[Int] =
     // Pair up bytes and convert signed Byte to unsigned Int
-    Set(0, 2, 4, 6).map(i => Blake2b256(topic).slice(i, i + 2).map(_ & 0xff)).map { case Array(b1, b2) =>
+    Set(0, 2, 4, 6).map(i => Hash(topic).slice(i, i + 2).map(_ & 0xff)).map { case Array(b1, b2) =>
       ((b1 << 8) | b2) & idxMask
     }
 

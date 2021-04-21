@@ -1,7 +1,7 @@
 package co.topl.crypto.authds.merkle
 
 import co.topl.crypto.authds.{LeafData, Side}
-import co.topl.crypto.hash.{CryptographicHash, Digest}
+import co.topl.crypto.hash.{Hash, Digest}
 import co.topl.crypto.utils.encode.Base16
 
 /* Forked from https://github.com/input-output-hk/scrypto */
@@ -24,23 +24,22 @@ import co.topl.crypto.utils.encode.Base16
  * @param levels - levels in proof, bottom up, each level is about stored value and position of computed element
  *               (whether it is left or right to stored value)
  */
-case class MerkleProof[D <: Digest](leafData: LeafData, levels: Seq[(Digest, Side)])
-                                   (implicit val hf: CryptographicHash[D]) extends {
+case class MerkleProof[H : Hash](leafData: LeafData, levels: Seq[(Digest, Side)]) {
 
   def valid(expectedRootHash: Digest): Boolean = {
-    val leafHash = hf.prefixedHash(MerkleTree.LeafPrefix, leafData)
+    val leafHash = Hash(MerkleTree.LeafPrefix, leafData)
 
     levels.foldLeft(leafHash) { case (prevHash, (hash, side)) =>
       if (side == MerkleProof.LeftSide) {
-        hf.prefixedHash(MerkleTree.InternalNodePrefix, prevHash ++ hash)
+        Hash(MerkleTree.InternalNodePrefix, prevHash ++ hash)
       } else {
-        hf.prefixedHash(MerkleTree.InternalNodePrefix, hash ++ prevHash)
+        Hash(MerkleTree.InternalNodePrefix, hash ++ prevHash)
       }
     }.sameElements(expectedRootHash)
   }
 
   override def toString: String =
-    s"MerkleProof(data: ${Base16.encode(leafData)}, hash: ${Base16.encode(hf(leafData))}, " +
+    s"MerkleProof(data: ${Base16.encode(leafData)}, hash: ${Base16.encode(Hash(leafData))}, " +
       s"(${levels.map(ht => Base16.encode(ht._1) + " : " + ht._2)}))"
 }
 

@@ -15,12 +15,11 @@ import co.topl.program._
 import co.topl.settings.AppSettings
 import io.circe.syntax._
 import org.scalacheck.Gen
-import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.{Blake2b256, Hash}
 
 import scala.util.{Failure, Success}
 
 trait ValidGenerators extends CoreGenerators {
-
 
   val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
     KeyRing(settings.application.keyFileDir.get, KeyfileCurve25519)
@@ -52,7 +51,7 @@ trait ValidGenerators extends CoreGenerators {
     investor <- propositionGen
     hub <- propositionGen
     executionBuilder <- validExecutionBuilderGen().map(_.json)
-    id <- genBytesList(Blake2b256.DigestSize)
+    id <- genBytesList(Hash[Blake2b256].digestSize)
   } yield {
     Program(Map(
       "parties" -> Map(

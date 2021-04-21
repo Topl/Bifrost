@@ -275,8 +275,9 @@ lazy val crypto = project.in(file("crypto"))
     name := "crypto",
     commonSettings,
     publishSettings,
-    libraryDependencies ++= cryptoDependencies
+    libraryDependencies ++= cryptoDependencies ++ testingDependencies
   )
+  .configs(IntegrationTest)
 
 lazy val gjallarhorn = project.in(file("gjallarhorn"))
   .settings(
