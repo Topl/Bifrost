@@ -79,7 +79,7 @@ trait RPCMockState extends AnyWordSpec with GenesisGenerators with ScalatestRout
 
   val rpcServer: ToplRpcServer = {
     val forgerInterface = new ActorForgerInterface(forgerRef)
-    val keyManagerInterface = new ActorKeyManagerInterface(forgerRef)
+    val keyManagerInterface = new ActorKeyManagerInterface(keyManagerRef)
     val nodeViewHolderInterface = new ActorNodeViewHolderInterface(nodeViewHolderRef)
     import co.topl.rpc.handlers._
     new ToplRpcServer(

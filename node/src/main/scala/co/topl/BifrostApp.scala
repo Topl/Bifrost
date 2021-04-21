@@ -125,7 +125,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     ThrowableSupport.verbose(settings.rpcApi.verboseAPI)
 
   private val forgerInterface = new ActorForgerInterface(forgerRef)
-  private val keyManagerInterface = new ActorKeyManagerInterface(forgerRef)
+  private val keyManagerInterface = new ActorKeyManagerInterface(keyManagerRef)
   private val nodeViewHolderInterface = new ActorNodeViewHolderInterface(nodeViewHolderRef)
 
   private val bifrostRpcServer: ToplRpcServer = {

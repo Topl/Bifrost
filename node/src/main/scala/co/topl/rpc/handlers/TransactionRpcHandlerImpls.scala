@@ -138,7 +138,6 @@ class TransactionRpcHandlerImpls(
       params.recipients.map { case (address, v) => address -> SimpleValue(v) }.toNonEmptyVector.toVector,
       senderAddresses.to[IndexedSeq],
       params.changeAddress,
-      None,
       params.fee,
       params.data
     )
