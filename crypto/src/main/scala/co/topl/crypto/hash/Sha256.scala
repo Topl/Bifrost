@@ -1,7 +1,5 @@
 package co.topl.crypto.hash
 
-import scorex.utils.ByteArray
-
 import java.security.MessageDigest
 import scala.util.Try
 
@@ -18,7 +16,7 @@ object Sha256 {
       Digest @@ MessageDigest.getInstance("SHA-256").digest(input)
 
     override def hashWithPrefix(prefix: Byte, inputs: Array[Byte]*): Digest =
-      hash(prefix +: ByteArray.concat(inputs))
+      hash(prefix +: inputs.foldLeft(Array[Byte]())(_ ++ _))
 
     override def byteArrayToDigest(bytes: Array[Byte]): Try[Digest] = Try {
       require(bytes.lengthCompare(digestSize) == 0, "Incorrect digest size")
