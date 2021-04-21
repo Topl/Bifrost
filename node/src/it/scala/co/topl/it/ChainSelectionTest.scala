@@ -1,6 +1,5 @@
 package co.topl.it
 
-import co.topl.consensus.maxStake
 import co.topl.it.util._
 import co.topl.rpc.ToplRpc
 import co.topl.utils.Int128
@@ -24,6 +23,9 @@ class ChainSelectionTest
     with ScalaFutures
     with EitherValues
     with Inspectors {
+
+  // TODO: This shouldn't be hard-coded
+  private val maxStake = 200000000000000000L
 
   val nodeCount: Int = 4
   val initialForgeCountTarget: Int128 = 5
