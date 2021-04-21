@@ -12,11 +12,8 @@ import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction._
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.State
-import co.topl.program.Program
 import co.topl.settings.AppSettings
-import io.circe.syntax.EncoderOps
 import org.scalacheck.Gen
-import scorex.crypto.hash.Blake2b256
 
 import scala.util.{Failure, Random, Success}
 
@@ -26,10 +23,10 @@ trait ValidGenerators extends CoreGenerators {
     KeyRing(settings.application.keyFileDir.get, KeyfileCurve25519)
 
   val genesisBlock: Block = PrivateGenesis(
-      keyRing.generateNewKeyPairs(num = 3) match {
-        case Success(keys) => keys.map(_.publicImage.address)
-        case Failure(ex)   => throw ex
-      },
+    keyRing.generateNewKeyPairs(num = 3) match {
+      case Success(keys) => keys.map(_.publicImage.address)
+      case Failure(ex)   => throw ex
+    },
     settings
   ).getGenesisBlock.get._1
 
@@ -43,25 +40,6 @@ trait ValidGenerators extends CoreGenerators {
     val g: Gen[TX] = sampleUntilNonEmpty(Gen.oneOf(transactionTypes))
     sampleUntilNonEmpty(g)
   }
-
-  lazy val validProgramGen: Gen[Program] = for {
-    producer         <- propositionGen
-    investor         <- propositionGen
-    hub              <- propositionGen
-    executionBuilder <- validExecutionBuilderGen().map(_.json)
-    id               <- genBytesList(Blake2b256.DigestSize)
-  } yield Program(
-    Map(
-      "parties" -> Map(
-        producer.toString -> "producer",
-        investor.toString -> "investor",
-        hub.toString      -> "hub"
-      ).asJson,
-      "executionBuilder" -> executionBuilder,
-      "lastUpdated"      -> System.currentTimeMillis().asJson
-    ).asJson,
-    id
-  )
 
   lazy val validPolyTransferGen: Gen[PolyTransfer[_]] = for {
     from        <- fromSeqGen

@@ -116,7 +116,7 @@ val networkDependencies = Seq(
   "commons-net" % "commons-net" % "3.8.0"
 )
 
-val apiDependencies = Seq(
+val jsonDependencies = Seq(
   "io.circe" %% "circe-core"    % circeVersion,
   "io.circe" %% "circe-generic" % circeVersion,
   "io.circe" %% "circe-parser"  % circeVersion,
@@ -264,9 +264,8 @@ lazy val node = project.in(file("node"))
     dockerLabels ++= Map(
       "bifrost.version" -> version.value
     ),
-    libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies
-      ++ testingDependenciesTest ++ testingDependenciesIt ++ cryptoDependencies ++ miscDependencies
-      ++ monitoringDependencies ++ graalDependencies)
+    libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ jsonDependencies ++ loggingDependencies
+      ++ testingDependenciesTest ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ testingDependenciesIt)
   )
   .configs(IntegrationTest)
   .settings(
@@ -280,8 +279,18 @@ lazy val common = project.in(file("common"))
     name := "common",
     commonSettings,
     publishSettings,
-    libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ apiDependencies ++ cryptoDependencies
+    libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ jsonDependencies ++ cryptoDependencies
   )
+
+lazy val chainProgram = project.in(file("chain-program"))
+  .settings(
+    name := "chain-program",
+    commonSettings,
+    publish / skip := true,
+    libraryDependencies ++= jsonDependencies ++ testingDependenciesTest ++ graalDependencies
+  )
+  .dependsOn(common)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
 
 lazy val akkaHttpRpc = project.in(file("akka-http-rpc"))
   .enablePlugins(BuildInfoPlugin)
@@ -289,7 +298,7 @@ lazy val akkaHttpRpc = project.in(file("akka-http-rpc"))
     name := "akka-http-rpc",
     commonSettings,
     publishSettings,
-    libraryDependencies ++= apiDependencies ++ akkaDependencies ++ akkaCirceDependencies ++ testingDependenciesTest,
+    libraryDependencies ++= jsonDependencies ++ akkaDependencies ++ akkaCirceDependencies ++ testingDependenciesTest,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.akkahttprpc",
   )
@@ -300,7 +309,7 @@ lazy val toplRpc = project.in(file("topl-rpc"))
     name := "topl-rpc",
     commonSettings,
     publishSettings,
-    libraryDependencies ++= apiDependencies ++ akkaDependencies ++ akkaCirceDependencies ++ testingDependenciesTest,
+    libraryDependencies ++= jsonDependencies ++ akkaDependencies ++ akkaCirceDependencies ++ testingDependenciesTest,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.toplrpc",
   )
@@ -312,8 +321,8 @@ lazy val gjallarhorn = project.in(file("gjallarhorn"))
     commonSettings,
     publish / skip := true,
     Defaults.itSettings,
-    libraryDependencies ++= akkaDependencies ++ testingDependenciesTest ++ testingDependenciesIt ++ cryptoDependencies
-      ++ apiDependencies ++ loggingDependencies ++ miscDependencies
+    libraryDependencies ++= akkaDependencies ++ testingDependenciesTest ++ cryptoDependencies ++ jsonDependencies
+    ++ loggingDependencies ++ miscDependencies ++ testingDependenciesIt
   )
   .configs(IntegrationTest)
   .disablePlugins(sbtassembly.AssemblyPlugin)
