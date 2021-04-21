@@ -132,7 +132,7 @@ val loggingDependencies = Seq(
 
 val testingDependencies = Seq(
   "org.scalatest"      %% "scalatest"         % "3.2.8"   % "it,test",
-  "org.scalactic"      %% "scalactic"         % "3.2.7"   % "test",
+  "org.scalactic"      %% "scalactic"         % "3.2.8"   % "test",
   "org.scalacheck"     %% "scalacheck"        % "1.15.3"  % "test",
   "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
   "com.spotify"         % "docker-client"     % "8.16.0"  % "it,test",
