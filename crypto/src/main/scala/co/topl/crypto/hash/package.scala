@@ -36,18 +36,3 @@ package object hash {
     def digestSize[T : Hash]: Int = apply.digestSize
   }
 }
-
-object Tester extends App {
-  import co.topl.crypto.hash.{Hash, Digest}
-
-  def needsHash[H : Hash](value: Int): Option[Digest] = {
-    Some(Hash(value.toString))
-  }
-
-  import Blake2b256._
-
-  needsHash(1)
-  needsHash(2)
-  needsHash(5)
-  needsHash[Sha256](1000)
-}
