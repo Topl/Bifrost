@@ -36,7 +36,7 @@ object exampleState {
     "AUANVY6RqbJtTnQS1AFTQBjXMFYDknhV8NEixHFLmeZynMxVbp64",
     "AU9sKKy7MN7U9G6QeasZUMTirD6SeGQx8Sngmb9jmDgNB2EzA3rq",
     "AUAbSWQxzfoCN4FizrKKf6E1qCSRffHhjrvo2v7L6q8xFZ7pxKqh"
-  ).map(s => AddressEncoder.fromStringWithCheck(s, provider.networkPrefix).get)
+  ).map(s => AddressEncoder.fromStringWithCheck(s, provider.networkPrefix).right.get)
 
   val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
     KeyRing.empty[PrivateKeyCurve25519, KeyfileCurve25519]()(
@@ -172,7 +172,7 @@ object CreateAnDSendRawArbitTransfer {
     recipients = NonEmptyChain((externalAddress.head, 10)),
     fee = 0,
     changeAddress = externalAddress.head,
-    consolidationAddress = externalAddress.head,
+    consolidationAddress = externalAddress.headOption,
     data = None
   )
 
@@ -208,7 +208,7 @@ object CreateAnDSendRawAssetMintingTransfer {
     recipients = NonEmptyChain((externalAddress.head, AssetValue(100, assetCode))),
     fee = 0,
     changeAddress = externalAddress.head,
-    consolidationAddress = externalAddress.head,
+    consolidationAddress = externalAddress.headOption,
     minting = true,
     data = None
   )
@@ -244,7 +244,7 @@ object CreateAnDSendRawAssetTransfer {
     recipients = NonEmptyChain((externalAddress.head, AssetValue(100, assetCode))),
     fee = 0,
     changeAddress = externalAddress.head,
-    consolidationAddress = externalAddress.head,
+    consolidationAddress = externalAddress.headOption,
     minting = false,
     data = None
   )

@@ -76,7 +76,7 @@ class NetworkController(
 
   // ----------- CONTEXT ----------- //
   override def receive: Receive =
-    initialization orElse
+    initialization(p2pBound = false, nodeViewReady = false) orElse
     nonsense
 
   private def operational: Receive =
@@ -86,7 +86,7 @@ class NetworkController(
     nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS ----------- //
-  private def initialization: Receive = {
+  private def initialization(p2pBound: Boolean, nodeViewReady: Boolean): Receive = {
     case BindP2P =>
       /** check own declared address for validity */
       val addrValidationResult = if (validateDeclaredAddress()) {
@@ -100,6 +100,8 @@ class NetworkController(
       }
 
       sender() ! addrValidationResult
+      if(nodeViewReady) becomeOperational()
+      else context.become(initialization(p2pBound = true, nodeViewReady))
 
     case RegisterMessageSpecs(specs, handler) =>
       log.info(
@@ -112,10 +114,15 @@ class NetworkController(
 
     /** start attempting to connect to peers when NodeViewHolder is ready */
     case NodeViewReady(_) =>
-      log.info(s"${Console.YELLOW}Network Controller transitioning to the operational state${Console.RESET}")
-      scheduleConnectionToPeer()
-      scheduleDroppingDeadConnections()
-      context become operational
+      if(p2pBound) becomeOperational()
+      else context.become(initialization(p2pBound, nodeViewReady = true))
+  }
+
+  private def becomeOperational(): Unit = {
+    log.info(s"${Console.YELLOW}Network Controller transitioning to the operational state${Console.RESET}")
+    scheduleConnectionToPeer()
+    scheduleDroppingDeadConnections()
+    context become operational
   }
 
   private def businessLogic: Receive = {

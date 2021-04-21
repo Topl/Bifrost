@@ -45,7 +45,7 @@ class DockerSupport(dockerClient: DockerClient)(implicit system: ActorSystem) ex
       List("--apiKeyHash", NodeRpcApi.ApiKeyHashBase58, "-c", "/opt/docker/config/testConfig.conf")
 
     val hostConfig =
-      HostConfig.builder().nanoCpus((1d * 1000000000).toLong).build()
+      HostConfig.builder().nanoCpus((4d * 1000000000).toLong).build()
 
     ContainerConfig
       .builder()

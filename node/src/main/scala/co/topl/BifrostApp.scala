@@ -54,7 +54,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
   /** Setup the execution environment for running the application */
 
-  protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName, config)
+  protected implicit val actorSystem: ActorSystem = ActorSystem(settings.network.agentName, config)
   private implicit val timeout: Timeout = Timeout(settings.network.controllerTimeout.getOrElse(5 seconds))
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
