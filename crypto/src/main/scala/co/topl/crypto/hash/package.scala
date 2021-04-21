@@ -1,6 +1,5 @@
 package co.topl.crypto
 
-import co.topl.crypto.hash.{Blake2b256, Sha256}
 import supertagged.TaggedType
 
 import scala.util.Try
@@ -17,8 +16,8 @@ package object hash {
    */
   trait Hash[T] {
     val digestSize: Int
-    def hash(input: Array[Byte]): Digest
-    def hashWithPrefix(prefix: Byte, input: Array[Byte]*): Digest
+    def hash(message: Array[Byte]): Digest
+    def hashWithPrefix(prefix: Byte, message: Array[Byte]): Digest
     def byteArrayToDigest(bytes: Array[Byte]): Try[Digest]
   }
 
@@ -27,7 +26,7 @@ package object hash {
 
     def apply[T : Hash](message: Array[Byte]): Digest = Hash[T].hash(message)
 
-    def apply[T : Hash](prefix: Byte, message: Array[Byte]*): Digest = Hash[T].hashWithPrefix(prefix, message: _*)
+    def apply[T : Hash](prefix: Byte, message: Array[Byte]): Digest = Hash[T].hashWithPrefix(prefix, message)
 
     def apply[T : Hash](message: String): Digest = Hash(message.getBytes)
 

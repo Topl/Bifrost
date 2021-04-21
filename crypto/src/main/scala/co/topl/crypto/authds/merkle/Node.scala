@@ -17,7 +17,7 @@ trait Node {
  */
 case class InternalNode[H : Hash](left: Node, right: Node) extends Node {
 
-  override lazy val hash: Digest = Hash(MerkleTree.InternalNodePrefix, left.hash, right.hash)
+  override lazy val hash: Digest = Hash(MerkleTree.InternalNodePrefix, left.hash ++ right.hash)
 
   override def toString: String = s"InternalNode(" +
     s"left: ${Base16.encode(left.hash)}, " +

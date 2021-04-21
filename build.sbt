@@ -141,7 +141,7 @@ val testingDependencies = Seq(
 )
 
 val cryptoDependencies = Seq(
-  "org.scorexfoundation" %% "scrypto"         % "2.1.10",
+//  "org.scorexfoundation" %% "scrypto"         % "2.1.10",
   "org.bouncycastle"      % "bcprov-jdk15on"  % "1.68",
   "org.whispersystems"    % "curve25519-java" % "0.5.0"
 )
@@ -151,6 +151,7 @@ val miscDependencies = Seq(
   "com.chuusai"           %% "shapeless"   % "2.3.3",
   "com.iheart"            %% "ficus"       % "1.5.0",
   "org.rudogma"           %% "supertagged" % "1.5",
+  "io.estatico"           %% "newtype"     % "0.4.4",
   "com.joefkelley"        %% "argyle"      % "1.0.0",
   "org.scalanlp"          %% "breeze"      % "1.1",
   "io.netty"               % "netty"       % "3.10.6.Final",
@@ -186,7 +187,8 @@ scalacOptions ++= Seq(
   "-unchecked",
   "-Xfatal-warnings",
   "-Xlint:",
-  "-Ywarn-unused:-implicits,-privates"
+  "-Ywarn-unused:-implicits,-privates",
+  "-Ymacro-annotations"
 )
 
 javaOptions ++= Seq(
@@ -275,7 +277,7 @@ lazy val crypto = project.in(file("crypto"))
     name := "crypto",
     commonSettings,
     publishSettings,
-    libraryDependencies ++= cryptoDependencies ++ testingDependencies
+    libraryDependencies ++= cryptoDependencies ++ testingDependencies ++ miscDependencies
   )
   .configs(IntegrationTest)
 

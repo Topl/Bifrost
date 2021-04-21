@@ -25,7 +25,7 @@ import co.topl.crypto.signatures.{Curve25519, Signature}
 import co.topl.utils.encode.Base58
 
 import scala.collection.SortedSet
-import scala.util.{Random, Try}
+import scala.util.Try
 
 /**
   * Created by cykoz on 4/12/17.
@@ -118,7 +118,7 @@ trait CoreGenerators extends Logging {
   lazy val smallInt128Gen: Gen[Int128] = Gen.choose[Int128](0, Int.MaxValue)
   lazy val largeInt128Gen: Gen[Int128] = Gen.choose[Int128](Long.MaxValue, int128Max)
 
-  def samplePositiveDouble: Double = Random.nextFloat()
+  def samplePositiveDouble: Double = scala.util.Random.nextFloat()
 
   lazy val tokenBoxesGen: Gen[Seq[TokenBox[TokenValueHolder]]] = for {
     tx <- Gen.someOf(polyBoxGen, arbitBoxGen, assetBoxGen)
@@ -200,7 +200,7 @@ trait CoreGenerators extends Logging {
   lazy val validExecutionBuilderTermsGen: Gen[ExecutionBuilderTerms] = for {
     size <- Gen.choose(1, 1024-1)
   } yield {
-    ExecutionBuilderTerms(Random.alphanumeric.take(size).mkString)
+    ExecutionBuilderTerms(scala.util.Random.alphanumeric.take(size).mkString)
   }
 
   def validInitJsGen(): Gen[String] = for {
@@ -524,7 +524,7 @@ trait CoreGenerators extends Logging {
   }
 
   def generateHistory(genesisBlock: Block = genesisBlockGen.sample.get): History = {
-    val dataDir = s"/tmp/bifrost/test-data/test-${Random.nextInt(10000000)}"
+    val dataDir = s"/tmp/bifrost/test-data/test-${scala.util.Random.nextInt(10000000)}"
 
     val iFile = new File(s"$dataDir/blocks")
     iFile.mkdirs()

@@ -15,8 +15,8 @@ object Sha256 {
     override def hash(input: Array[Byte]): Digest =
       Digest @@ MessageDigest.getInstance("SHA-256").digest(input)
 
-    override def hashWithPrefix(prefix: Byte, inputs: Array[Byte]*): Digest =
-      hash(prefix +: inputs.foldLeft(Array[Byte]())(_ ++ _))
+    override def hashWithPrefix(prefix: Byte, message: Array[Byte]): Digest =
+      hash(prefix +: message)
 
     override def byteArrayToDigest(bytes: Array[Byte]): Try[Digest] = Try {
       require(bytes.lengthCompare(digestSize) == 0, "Incorrect digest size")
