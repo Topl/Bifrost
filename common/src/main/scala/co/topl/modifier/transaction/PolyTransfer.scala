@@ -23,7 +23,7 @@ case class PolyTransfer[
   override val fee:         Int128,
   override val timestamp:   Long,
   override val data:        Option[String] = None,
-  override val minting:     Boolean = false
+  override val minting:     Boolean
 ) extends TransferTransaction[SimpleValue, P](from, to, attestation, fee, timestamp, data, minting) {
 
   override val coinOutput: Traversable[PolyBox] =
@@ -82,7 +82,7 @@ object PolyTransfer {
         // ensure there are sufficient funds from the sender boxes to create all outputs
         require(availableToSpend >= amtToSpend, "Insufficient funds available to create transaction.")
 
-        PolyTransfer[P](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data)
+        PolyTransfer[P](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data, minting = false)
       }
 
   /** construct input and output box sequence for a transfer transaction */
@@ -128,15 +128,16 @@ object PolyTransfer {
         timestamp <- c.downField("timestamp").as[Long]
         data      <- c.downField("data").as[Option[String]]
         propType  <- c.downField("propositionType").as[String]
+        minting   <- c.downField("minting").as[Boolean]
       } yield (propType match {
         case PublicKeyPropositionCurve25519.`typeString` =>
           c.downField("signatures").as[Map[PublicKeyPropositionCurve25519, SignatureCurve25519]].map {
-            new PolyTransfer[PublicKeyPropositionCurve25519](from, to, _, fee, timestamp, data)
+            new PolyTransfer[PublicKeyPropositionCurve25519](from, to, _, fee, timestamp, data, minting)
           }
 
         case ThresholdPropositionCurve25519.`typeString` =>
           c.downField("signatures").as[Map[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]].map {
-            new PolyTransfer[ThresholdPropositionCurve25519](from, to, _, fee, timestamp, data)
+            new PolyTransfer[ThresholdPropositionCurve25519](from, to, _, fee, timestamp, data, minting)
           }
       }) match {
         case Right(tx) => tx

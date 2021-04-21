@@ -4,7 +4,7 @@ import java.io.File
 import java.time.Instant
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
-import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519, Secret}
+import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519, Secret}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
@@ -33,13 +33,14 @@ trait CoreGenerators extends Logging {
   type S = Secret
 
   implicit val networkPrefix: NetworkPrefix = PrivateTestnet.netPrefix
+  implicit val keyfileCurve25519Companion: KeyfileCurve25519Companion.type = KeyfileCurve25519Companion
 
   private val settingsFilename = "node/src/test/resources/test.conf"
   val settings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))._1
 
-  private val keyFileDir =
-    settings.application.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
-  private val keyRing = KeyRing[PrivateKeyCurve25519, KeyfileCurve25519](keyFileDir, KeyfileCurve25519)
+  private val keyFileDir = settings.application.keyFileDir.ensuring(
+    _.isDefined, "A keyfile directory must be specified").get
+  private val keyRing = KeyRing.empty[PrivateKeyCurve25519, KeyfileCurve25519](Some(keyFileDir))
 
   def sampleUntilNonEmpty[T](generator: Gen[T]): T = {
     var sampled = generator.sample
@@ -255,20 +256,18 @@ trait CoreGenerators extends Logging {
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
     data        <- stringGen
-  } yield
-
-  //generate set of keys with proposition
-  //use generated keys to create signature(s)
-  PolyTransfer(from, to, attestation, fee, timestamp, Some(data))
+  } yield PolyTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
 
   lazy val arbitTransferGen: Gen[ArbitTransfer[PublicKeyPropositionCurve25519]] = for {
     from        <- fromSeqGen
     to          <- toSeqGen
     attestation <- attestationGen
-    fee         <- positiveLongGen
-    timestamp   <- positiveLongGen
-    data        <- stringGen
-  } yield ArbitTransfer(from, to, attestation, fee, timestamp, Some(data))
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen
+    data <- stringGen
+  } yield {
+    ArbitTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
+  }
 
   lazy val assetTransferGen: Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = for {
     from        <- fromSeqGen

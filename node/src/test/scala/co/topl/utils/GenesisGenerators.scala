@@ -1,6 +1,6 @@
 package co.topl.utils
 
-import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
+import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.consensus.genesis.PrivateGenesis
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -14,7 +14,7 @@ trait GenesisGenerators extends CoreGenerators
   with FileUtils {
 
   val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
-    KeyRing(settings.application.keyFileDir.get, KeyfileCurve25519)
+    KeyRing.empty(settings.application.keyFileDir)
 
   keyRing.generateNewKeyPairs(num = 3) match {
     case Success(_) => ()

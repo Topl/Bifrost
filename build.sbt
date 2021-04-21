@@ -230,7 +230,7 @@ lazy val bifrost = project.in(file("."))
     moduleName := "bifrost",
     commonSettings,
     publish / skip := true,
-    crossScalaVersions := Nil
+    crossScalaVersions := Nil,
   )
   .configs(IntegrationTest)
   .aggregate(
@@ -291,6 +291,18 @@ lazy val chainProgram = project.in(file("chain-program"))
   )
   .dependsOn(common)
   .disablePlugins(sbtassembly.AssemblyPlugin)
+
+lazy val brambl = project.in(file("brambl"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "brambl",
+    commonSettings,
+    publishSettings,
+    libraryDependencies ++= jsonDependencies ++ akkaDependencies ++ akkaCirceDependencies ++ testingDependenciesTest,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.brambl",
+  )
+  .dependsOn(toplRpc, common)
 
 lazy val akkaHttpRpc = project.in(file("akka-http-rpc"))
   .enablePlugins(BuildInfoPlugin)
