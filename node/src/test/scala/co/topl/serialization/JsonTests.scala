@@ -4,8 +4,8 @@ import co.topl.attestation.keyManagement.KeyfileCurve25519
 import co.topl.attestation.{Address, Evidence, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
-import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.box._
+import co.topl.modifier.transaction.Transaction
 import co.topl.utils.CoreGenerators
 import io.circe.syntax.EncoderOps
 import org.scalacheck.Gen

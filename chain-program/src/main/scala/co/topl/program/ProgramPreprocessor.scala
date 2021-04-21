@@ -1,6 +1,5 @@
 package co.topl.program
 
-import java.nio.file.{Files, Path}
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.utils.Gzip
 import com.oracle.js.parser.ir.visitor.NodeVisitor
@@ -15,11 +14,12 @@ import com.oracle.js.parser.{
   TokenType,
   Parser => GraalParser
 }
-
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
+import scorex.util.encode.Base64
 
+import java.nio.file.{Files, Path}
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.matching.Regex
@@ -93,7 +93,7 @@ object ProgramPreprocessor {
 
     val (interface, /*cleanModuleState,*/ variables, code) = deriveFromInit(initjs /*modifiedInitjs*/, name)(args)
 
-    program.ProgramPreprocessor(
+    ProgramPreprocessor(
       name,
       initjs /*modifiedInitjs*/,
       interface, /*parse(cleanModuleState).right.getOrElse(JsonObject.empty.asJson),*/ variables,
@@ -132,7 +132,7 @@ object ProgramPreprocessor {
 
     val (interface, /*cleanModuleState,*/ variables, code) = deriveFromInit(initjs, name, announcedRegistry)(args)
 
-    program.ProgramPreprocessor(name, initjs, interface, /*parse(cleanModuleState).right.get,*/ variables, code, signed)
+    ProgramPreprocessor(name, initjs, interface, /*parse(cleanModuleState).right.get,*/ variables, code, signed)
   }
 
   //noinspection ScalaStyle

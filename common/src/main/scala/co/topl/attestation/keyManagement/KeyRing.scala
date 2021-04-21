@@ -1,12 +1,11 @@
 package co.topl.attestation.keyManagement
 
-import java.io.File
-
 import co.topl.attestation.Address
 import co.topl.utils.NetworkType.NetworkPrefix
 import com.google.common.primitives.Ints
 import scorex.util.Random.randomBytes
 
+import java.io.File
 import scala.util.{Failure, Success, Try}
 
 class KeyRing[
@@ -51,6 +50,10 @@ class KeyRing[
       case (_, Failure(e))             => throw e
       case (Failure(e), _)             => throw e // this assumes the failure is due to not finding the address
     }
+
+  def generateAttestation(addresses: Set[Address])(messageToSign: Array[Byte]): Map[PK, PR] = {
+    addresses.map(addr => generateAttestation(addr)(messageToSign)).reduce(_ ++ _)
+  }
 
   /** Generates a new keypair and updates the key ring with the new secret
     * @param num

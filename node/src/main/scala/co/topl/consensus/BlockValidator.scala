@@ -4,7 +4,7 @@ import co.topl.consensus
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
-import co.topl.utils.{Int128, TimeProvider}
+import co.topl.utils.TimeProvider
 
 import scala.util.{Failure, Try}
 
@@ -49,13 +49,15 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
     // calculate the hit value from the forger box included in the new block
     val hit = calcHit(parent)(block.generatorBox)
 
-    // calculate the adjusted difficulty the forger would have used to determine eligibility
-    val timestamp = block.timestamp
-    val target = calcAdjustedTarget(parent, parent.height, parent.difficulty, timestamp)
-    val valueTarget = (target * BigDecimal(block.generatorBox.value.quantity.doubleValue())).toBigInt
+    // calculate the difficulty the forger would have used to determine eligibility
+    val target = calcTarget(
+      block.generatorBox.value.quantity,
+      block.timestamp - parent.timestamp,
+      parent.difficulty,
+      parent.height)
 
     // did the forger create a block with a valid forger box and adjusted difficulty?
-    require(BigInt(hit) < valueTarget, s"Block difficulty failed since $hit > $valueTarget")
+    require(hit < target, s"Block difficulty failed since $hit >= $target")
   }
 
   /** Helper function to find the source of the parent block (either storage or chain cache) */
@@ -104,7 +106,7 @@ class SyntaxBlockValidator extends BlockValidator[Block] {
       case (tx, 0) => tx match {
         case tx: ArbitTransfer[_] if tx.minting =>
           forgerEntitlementCheck(tx, block)
-          require(tx.to.map(_._2.quantity).sum == inflation, //JAA -this needs to be done more carefully
+          require(tx.to.map(_._2.quantity).sum == consensusStorage.inflation, //JAA -this needs to be done more carefully
             "The inflation amount in the block must match the output of the Arbit rewards transaction")
           require(tx.data.fold(false)(_.split("_").head == block.parentId.toString),
             "Arbit reward transactions must contain the parent id of their minting block")

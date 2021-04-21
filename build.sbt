@@ -4,10 +4,13 @@ import sbtassembly.MergeStrategy
 val scala212 = "2.12.13"
 val scala213 = "2.13.5"
 
+
+
 inThisBuild(List(
   organization := "co.topl",
   scalaVersion := scala212,
   crossScalaVersions := Seq(scala212, scala213),
+  Compile / run / mainClass := Some("co.topl.BifrostApp"),
   versionScheme := Some("early-semver"),
   dynverSeparator := "-",
   dynverSonatypeSnapshots := true,
@@ -71,18 +74,18 @@ lazy val assemblySettings = Seq(
   assembly / test := {},
   assemblyJarName := s"bifrost-${version.value}.jar",
   assembly / assemblyMergeStrategy ~= { old: ((String) => MergeStrategy) => {
-      case ps if ps.endsWith(".SF")  => MergeStrategy.discard
-      case ps if ps.endsWith(".DSA") => MergeStrategy.discard
-      case ps if ps.endsWith(".RSA") => MergeStrategy.discard
-      case ps if ps.endsWith(".xml") => MergeStrategy.first
-      case PathList(ps @ _*) if ps.last endsWith "module-info.class" =>
-        MergeStrategy.discard // https://github.com/sbt/sbt-assembly/issues/370
-      case PathList("module-info.java")  => MergeStrategy.discard
-      case PathList("local.conf")        => MergeStrategy.discard
-      case "META-INF/truffle/instrument" => MergeStrategy.concat
-      case "META-INF/truffle/language"   => MergeStrategy.rename
-      case x                             => old(x)
-    }
+    case ps if ps.endsWith(".SF")  => MergeStrategy.discard
+    case ps if ps.endsWith(".DSA") => MergeStrategy.discard
+    case ps if ps.endsWith(".RSA") => MergeStrategy.discard
+    case ps if ps.endsWith(".xml") => MergeStrategy.first
+    case PathList(ps @ _*) if ps.last endsWith "module-info.class" =>
+      MergeStrategy.discard // https://github.com/sbt/sbt-assembly/issues/370
+    case PathList("module-info.java")  => MergeStrategy.discard
+    case PathList("local.conf")        => MergeStrategy.discard
+    case "META-INF/truffle/instrument" => MergeStrategy.concat
+    case "META-INF/truffle/language"   => MergeStrategy.rename
+    case x                             => old(x)
+  }
   },
   assembly / assemblyExcludedJars := {
     val cp = (assembly / fullClasspath).value
@@ -117,7 +120,12 @@ val jsonDependencies = Seq(
   "io.circe" %% "circe-core"    % circeVersion,
   "io.circe" %% "circe-generic" % circeVersion,
   "io.circe" %% "circe-parser"  % circeVersion,
-  "io.circe" %% "circe-literal" % circeVersion
+  "io.circe" %% "circe-literal" % circeVersion,
+  "io.circe" %% "circe-optics" % circeVersion
+)
+
+val akkaCirceDependencies = Seq(
+  "de.heikoseeberger" %% "akka-http-circe" % "1.36.0"
 )
 
 val loggingDependencies = Seq(
@@ -132,7 +140,9 @@ val testingDependenciesTest = Seq(
   "org.scalactic"      %% "scalactic"         % "3.2.6"   % "test",
   "org.scalacheck"     %% "scalacheck"        % "1.15.3"  % "test",
   "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
-  "org.asynchttpclient" % "async-http-client" % "2.12.3"  % "test"
+  "com.spotify"         % "docker-client"     % "8.16.0"  % "test",
+  "org.asynchttpclient" % "async-http-client" % "2.12.3"  % "test",
+  "org.scalamock"      %% "scalamock"         % "5.1.0"   % "test"
 )
 
 val testingDependenciesIt = Seq(
@@ -176,9 +186,6 @@ val graalDependencies = Seq(
   "org.graalvm.js"      % "js"          % graalVersion,
   "org.graalvm.truffle" % "truffle-api" % graalVersion
 )
-
-libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ jsonDependencies ++ loggingDependencies
-++ testingDependenciesTest ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
 
 scalacOptions ++= Seq(
   "-deprecation",
@@ -225,7 +232,16 @@ lazy val bifrost = project.in(file("."))
     publish / skip := true,
     crossScalaVersions := Nil
   )
+  .configs(IntegrationTest)
   .aggregate(
+    node,
+    common,
+    akkaHttpRpc,
+    toplRpc,
+    gjallarhorn,
+    benchmarking
+  )
+  .dependsOn(
     node,
     common,
     gjallarhorn,
@@ -237,10 +253,11 @@ lazy val node = project.in(file("node"))
     name := "node",
     commonSettings,
     assemblySettings,
-    publish / skip := true,
     Defaults.itSettings,
+    publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
+    Docker / packageName := "bifrost-node",
     dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java8-21.0.0",
     dockerExposedPorts := Seq(9084, 9085),
     dockerExposedVolumes += "/opt/docker/.bifrost",
@@ -250,8 +267,11 @@ lazy val node = project.in(file("node"))
     libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ jsonDependencies ++ loggingDependencies
       ++ testingDependenciesTest ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ testingDependenciesIt)
   )
-  .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .configs(IntegrationTest)
+  .settings(
+    IntegrationTest / parallelExecution := false
+  )
+  .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .dependsOn(common)
 
 lazy val common = project.in(file("common"))
@@ -271,6 +291,29 @@ lazy val chainProgram = project.in(file("chain-program"))
   )
   .dependsOn(common)
   .disablePlugins(sbtassembly.AssemblyPlugin)
+
+lazy val akkaHttpRpc = project.in(file("akka-http-rpc"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "akka-http-rpc",
+    commonSettings,
+    publishSettings,
+    libraryDependencies ++= jsonDependencies ++ akkaDependencies ++ akkaCirceDependencies ++ testingDependenciesTest,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.akkahttprpc",
+  )
+
+lazy val toplRpc = project.in(file("topl-rpc"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "topl-rpc",
+    commonSettings,
+    publishSettings,
+    libraryDependencies ++= jsonDependencies ++ akkaDependencies ++ akkaCirceDependencies ++ testingDependenciesTest,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.toplrpc",
+  )
+  .dependsOn(akkaHttpRpc, common)
 
 lazy val gjallarhorn = project.in(file("gjallarhorn"))
   .settings(

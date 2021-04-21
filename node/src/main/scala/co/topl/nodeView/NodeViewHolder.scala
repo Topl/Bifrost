@@ -95,7 +95,6 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
   override def receive: Receive =
     processModifiers orElse
       transactionsProcessing orElse
-      getCurrentInfo orElse
       getNodeViewChanges orElse
       nonsense
 
@@ -113,17 +112,13 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
     case newTxs: NewTransactions => newTxs.txs.foreach(txModify)
 
     case EliminateTransactions(ids) =>
+      log.debug(s"${Console.YELLOW} Removing transactions with ids: $ids from mempool${Console.RESET}")
       val updatedPool = memoryPool().filter(tx => !ids.contains(tx.id))
       updateNodeView(updatedMempool = Some(updatedPool))
       ids.foreach { id =>
         val e = new Exception("Became invalid")
         context.system.eventStream.publish(FailedTransaction(id, e, immediateFailure = false))
       }
-  }
-
-  protected def getCurrentInfo: Receive = {
-    case GetDataFromCurrentView =>
-      sender() ! CurrentView(history(), minimalState(), memoryPool())
   }
 
   protected def getNodeViewChanges: Receive = {
@@ -441,7 +436,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
       .putWithoutCheck(rolledBackTxs, appContext.timeProvider.time)
       .filter { tx =>
         !appliedTxs.exists(t => t.id == tx.id) && {
-          state.semanticValidate(tx).isSuccess
+          tx.syntacticValidate.isSuccess
         }
       }
   }
@@ -483,7 +478,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
 ////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////// COMPANION SINGLETON ////////////////////////////////
 
-object NodeViewHolder {
+object     NodeViewHolder {
   val actorName = "nodeViewHolder"
 
   case class UpdateInformation[HIS, MS, PMOD <: PersistentNodeViewModifier](history: HIS,

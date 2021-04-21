@@ -2,10 +2,10 @@ package co.topl.modifier.transaction.serialization
 
 import co.topl.attestation._
 import co.topl.attestation.serialization.{ProofSerializer, PropositionSerializer}
+import co.topl.modifier.box.{AssetValue, SimpleValue, TokenValueHolder}
 import co.topl.modifier.transaction.ArbitTransfer
-import co.topl.modifier.box.TokenValueHolder
-import co.topl.utils.Int128
 import co.topl.utils.Extensions._
+import co.topl.utils.Int128
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 import scala.language.existentials
@@ -65,7 +65,10 @@ object ArbitTransferSerializer extends BifrostSerializer[ArbitTransfer[_ <: Prop
     val toLength: Int = r.getUInt().toIntExact
     val to = (0 until toLength).map { _ =>
       val addr = Address.parse(r)
-      val value = TokenValueHolder.parse(r)
+      val value = TokenValueHolder.parse(r) match {
+        case v: SimpleValue => v
+        case _ => throw new Exception("Invalid TokenValueHolder for ArbitTransfer")
+      }
       addr -> value
     }
 

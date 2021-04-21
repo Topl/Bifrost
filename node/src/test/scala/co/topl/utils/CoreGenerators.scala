@@ -2,7 +2,6 @@ package co.topl.utils
 
 import java.io.File
 import java.time.Instant
-import NetworkType.NetworkPrefix
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519, Secret}
@@ -14,7 +13,7 @@ import co.topl.modifier.box.{ProgramId, _}
 import co.topl.modifier.transaction._
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
 import co.topl.settings.{AppSettings, StartupOpts, Version}
-import co.topl.utils.NetworkType.PrivateTestnet
+import co.topl.utils.NetworkType.{NetworkPrefix, PrivateTestnet}
 import io.circe.syntax._
 import io.circe.Json
 import io.iohk.iodb.LSMStore
