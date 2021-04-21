@@ -97,7 +97,7 @@ val akkaVersion = "2.6.14"
 val akkaHttpVersion = "10.2.4"
 val circeVersion = "0.13.0"
 val kamonVersion = "2.1.16"
-val graalVersion = "21.0.0.2"
+val graalVersion = "21.1.0"
 
 val akkaDependencies = Seq(
   "com.typesafe.akka" %% "akka-actor"          % akkaVersion,
