@@ -4,8 +4,8 @@ import java.io.File
 import attestation.{Address, Secret, SecretGenerator}
 import com.google.common.primitives.Ints
 import attestation.AddressEncoder.NetworkPrefix
+import co.topl.crypto.hash.{Blake2b256, Hash}
 import scorex.util.Random.randomBytes
-import co.topl.crypto.hash.Hash
 import settings.NetworkType
 import utils.Logging
 
@@ -31,9 +31,6 @@ class Keys[
   private var secrets:    Set[S],
   private val keyfileOps: KeyfileCompanion[S, KF]
  )(implicit networkPrefix: NetworkPrefix, sg: SecretGenerator[S]) extends Logging {
-
-  // use Blake2b256 hashing
-  import co.topl.crypto.hash.Blake2b256._
 
   type PR = S#PR
 
@@ -158,7 +155,7 @@ class Keys[
 
       // calculate the new keyfile and return
       val seed = bip.hexToUuid(bip.phraseToHex(mnemonic))
-      val sk = sg.generateSecret(Hash(seed))
+      val sk = sg.generateSecret(Hash[Blake2b256](seed))
 
       // add secret to the keyring
       secrets += sk._1

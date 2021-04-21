@@ -21,7 +21,6 @@ import scala.util.{Failure, Success}
 
 trait ValidGenerators extends CoreGenerators {
 
-
   val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
     KeyRing(settings.application.keyFileDir.get, KeyfileCurve25519)
 
@@ -52,7 +51,7 @@ trait ValidGenerators extends CoreGenerators {
     investor <- propositionGen
     hub <- propositionGen
     executionBuilder <- validExecutionBuilderGen().map(_.json)
-    id <- genBytesList(Hash.digestSize(Blake2b256.digest32))
+    id <- genBytesList(Hash[Blake2b256].digestSize)
   } yield {
     Program(Map(
       "parties" -> Map(

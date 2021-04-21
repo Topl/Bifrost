@@ -291,7 +291,7 @@ trait CoreGenerators extends Logging {
   }
 
   lazy val securityRootGen: Gen[SecurityRoot] = for {
-    root <- specificLengthBytesGen(Hash.digestSize(Blake2b256.digest32))
+    root <- specificLengthBytesGen(Hash[Blake2b256].digestSize)
   } yield {
     SecurityRoot(Base58.encode(root))
   }

@@ -1,20 +1,23 @@
 package co.topl.crypto.hash
 
 import org.bouncycastle.crypto.digests.Blake2bDigest
-import Hash.Digest32
 
 import scala.util.Try
 
+case class Blake2b256()
+
 object Blake2b256 {
 
-  /** Blake2b256 hashing function implementation for a digest of 32 bytes. */
-  implicit val digest32: HashFunction[Digest32] = new HashFunction[Digest32] {
+  /** Blake2b256 hashing function implementation. */
+  implicit val hash: Hash[Blake2b256] = new Hash[Blake2b256] {
+
+    private val blake2b256DigestSize = 256
 
     override val digestSize = 32
-    lazy val digestFn: Blake2bDigest = new Blake2bDigest(digestSize)
+    lazy val digestFn: Blake2bDigest = new Blake2bDigest(blake2b256DigestSize)
 
-    override def apply(input: Array[Byte]): Digest32 = {
-      Digest32 @@ synchronized {
+    override def hash(input: Array[Byte]): Digest = {
+      Digest @@ synchronized {
         digestFn.update(input, 0, input.length)
         val res = new Array[Byte](digestSize)
         digestFn.doFinal(res, 0)
@@ -22,8 +25,8 @@ object Blake2b256 {
       }
     }
 
-    override def apply(prefix: Byte, inputs: Array[Byte]*): Digest32 = {
-      Digest32 @@ synchronized {
+    override def hashWithPrefix(prefix: Byte, inputs: Array[Byte]*): Digest = {
+      Digest @@ synchronized {
         digestFn.update(prefix)
         inputs.foreach(i => digestFn.update(i, 0, i.length))
         val res = new Array[Byte](digestSize)
@@ -32,9 +35,9 @@ object Blake2b256 {
       }
     }
 
-    override def byteArrayToDigest(bytes: Array[Byte]): Try[Digest32] = Try {
+    override def byteArrayToDigest(bytes: Array[Byte]): Try[Digest] = Try {
       require(bytes.lengthCompare(digestSize) == 0, "Incorrect digest size")
-      Digest32 @@ bytes
+      Digest @@ bytes
     }
 
   }

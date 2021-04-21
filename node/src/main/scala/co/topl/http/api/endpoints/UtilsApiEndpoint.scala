@@ -12,7 +12,7 @@ import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Json
 import io.circe.syntax._
-import co.topl.crypto.hash.Hash
+import co.topl.crypto.hash.{Blake2b256, Hash}
 import co.topl.utils.encode.Base58
 
 import java.security.SecureRandom
@@ -25,9 +25,6 @@ case class UtilsApiEndpoint(override val settings: RPCApiSettings, appContext: A
   type HIS = History
   type MS = State
   type MP = MemPool
-
-  // use Blake2b256 hashing
-  import co.topl.crypto.hash.Blake2b256._
 
   // Establish the expected network prefix for addresses
   implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
@@ -105,7 +102,7 @@ case class UtilsApiEndpoint(override val settings: RPCApiSettings, appContext: A
     } yield Future(
       Map(
         "message" -> message,
-        "hash"    -> Base58.encode(Hash(message))
+        "hash"    -> Base58.encode(Hash[Blake2b256](message))
       ).asJson
     )) match {
       case Right(json) => json

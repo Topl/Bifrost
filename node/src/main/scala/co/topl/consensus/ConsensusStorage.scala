@@ -16,7 +16,6 @@ import java.io.File
   */
 class ConsensusStorage(storage: Option[Store], private val defaultTotalStake: Int128) extends Logging {
 
-  // use Blake2b256 hashing
   import co.topl.crypto.hash.Blake2b256._
 
   // constant keys for each piece of consensus state

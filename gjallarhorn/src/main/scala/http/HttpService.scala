@@ -6,7 +6,7 @@ import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import io.circe.Json
 import io.circe.parser.parse
-import co.topl.crypto.hash.Hash
+import co.topl.crypto.hash.{Blake2b256, Digest, Hash}
 import requests.{ApiResponse, ApiRoute, ErrorResponse, SuccessResponse}
 import co.topl.utils.encode.Base58
 import settings.RPCApiSettings
@@ -21,9 +21,6 @@ import scala.util.{Failure, Success, Try}
   */
 final case class HttpService (apiServices: Seq[ApiRoute], settings: RPCApiSettings)
   extends CorsSupport {
-
-  // use Blake2b256 hashing
-  import co.topl.crypto.hash.Blake2b256._
 
   private val timeout: Timeout = Timeout(settings.timeout)
 
@@ -121,7 +118,7 @@ final case class HttpService (apiServices: Seq[ApiRoute], settings: RPCApiSettin
     * @return true if api key is valid, false otherwise
     */
   private def isValid(keyOpt: Option[String]): Boolean = {
-    lazy val keyHash: Option[Hash.Digest32] = keyOpt.map(Hash(_))
+    lazy val keyHash: Option[Digest] = keyOpt.map(Hash[Blake2b256](_))
     (apiKeyHash, keyHash) match {
       case (None, _) => true
       case (Some(expected), Some(passed)) => expected sameElements passed

@@ -1,27 +1,28 @@
 package co.topl.crypto.hash
 
 import scorex.utils.ByteArray
-import Hash.Digest32
 
 import java.security.MessageDigest
 import scala.util.Try
 
+case class Sha256()
+
 object Sha256 {
 
-  /** Sha256 hashing function implementation for a digest of 32 bytes. */
-  implicit val digest32: HashFunction[Digest32] = new HashFunction[Digest32] {
+  /** Sha256 hashing function implementation. */
+  implicit val hash: Hash[Sha256] = new Hash[Sha256] {
 
     override val digestSize = 32
 
-    override def apply(input: Message): Digest32 =
-      Digest32 @@ MessageDigest.getInstance("SHA-256").digest(input)
+    override def hash(input: Array[Byte]): Digest =
+      Digest @@ MessageDigest.getInstance("SHA-256").digest(input)
 
-    override def apply(prefix: Byte, inputs: Array[Byte]*): Digest32 =
-      apply(prefix +: ByteArray.concat(inputs))
+    override def hashWithPrefix(prefix: Byte, inputs: Array[Byte]*): Digest =
+      hash(prefix +: ByteArray.concat(inputs))
 
-    override def byteArrayToDigest(bytes: Array[Byte]): Try[Digest32] = Try {
+    override def byteArrayToDigest(bytes: Array[Byte]): Try[Digest] = Try {
       require(bytes.lengthCompare(digestSize) == 0, "Incorrect digest size")
-      Digest32 @@ bytes
+      Digest @@ bytes
     }
 
   }

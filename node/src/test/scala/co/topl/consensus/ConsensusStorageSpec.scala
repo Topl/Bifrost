@@ -30,7 +30,7 @@ class ConsensusStorageSpec extends AnyFlatSpec
       (store.get(_: ByteArrayWrapper))
         .expects(*)
         .onCall { key: ByteArrayWrapper => {
-            if (key == ByteArrayWrapper(Hash("totalStake")(Blake2b256.digest32)))
+            if (key == ByteArrayWrapper(Hash[Blake2b256]("totalStake")))
               Some(ByteArrayWrapper(storageTotalStake.toByteArray))
             else Some(ByteArrayWrapper(Longs.toByteArray(0)))
           }
