@@ -15,7 +15,7 @@ import org.bouncycastle.crypto.modes.SICBlockCipher
 import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
-import scorex.util.Random.randomBytes
+import co.topl.utils.Random.randomBytes
 import co.topl.utils.encode.Base58
 
 import scala.util.Try
