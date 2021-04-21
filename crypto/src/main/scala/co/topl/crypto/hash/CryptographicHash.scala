@@ -1,7 +1,5 @@
 package co.topl.crypto.hash
 
-import co.topl.crypto.utils.ByteArray
-
 import scala.util.Try
 
 /* Forked from https://github.com/input-output-hk/scrypto */
@@ -36,9 +34,13 @@ trait CryptographicHash[D <: Digest] {
 
   def hash(input: String): D = hash(input.getBytes("UTF-8"))
 
-  def prefixedHash(prefix: Byte, inputs: Array[Byte]*): D = hash(prefix +: ByteArray.concat(inputs))
+  // TODO: Jing - remove after review
+  //  def prefixedHash(prefix: Byte, inputs: Array[Byte]*): D = hash(prefix +: ByteArray.concat(inputs))
+  //  def hash(inputs: Array[Byte]*): D = hash(ByteArray.concat(inputs))
 
-  def hash(inputs: Array[Byte]*): D = hash(ByteArray.concat(inputs))
+  def prefixedHash(prefix: Byte, inputs: Array[Byte]*): D = hash(prefix +: inputs.foldLeft(Array[Byte]())(_ ++ _))
+
+  def hash(inputs: Array[Byte]*): D = hash(inputs.foldLeft(Array[Byte]())(_ ++ _))
 
   def byteArrayToDigest(bytes: Array[Byte]): Try[D]
 }

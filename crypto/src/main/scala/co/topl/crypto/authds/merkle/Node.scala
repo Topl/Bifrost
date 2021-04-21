@@ -2,11 +2,11 @@ package co.topl.crypto.authds.merkle
 
 import co.topl.crypto.authds.{EmptyByteArray, LeafData}
 import co.topl.crypto.hash._
-import co.topl.crypto.utils.ScorexEncoding
+import co.topl.crypto.utils.encode.Base16
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 
-trait Node[D <: Digest] extends ScorexEncoding {
+trait Node[D <: Digest] {
   def hash: D
 }
 
@@ -24,9 +24,9 @@ case class InternalNode[D <: Digest](left: Node[D], right: Node[D])
   override lazy val hash: D = hf.prefixedHash(MerkleTree.InternalNodePrefix, left.hash, right.hash)
 
   override def toString: String = s"InternalNode(" +
-    s"left: ${encoder.encode(left.hash)}, " +
-    s"right: ${if (right.hash.isEmpty) "null" else encoder.encode(right.hash)}," +
-    s"hash: ${encoder.encode(hash)})"
+    s"left: ${Base16.encode(left.hash)}, " +
+    s"right: ${if (right.hash.isEmpty) "null" else Base16.encode(right.hash)}," +
+    s"hash: ${Base16.encode(hash)})"
 }
 
 /**
@@ -39,7 +39,7 @@ case class InternalNode[D <: Digest](left: Node[D], right: Node[D])
 case class Leaf[D <: Digest](data: LeafData)(implicit val hf: CryptographicHash[D]) extends Node[D] {
   override lazy val hash: D = hf.prefixedHash(MerkleTree.LeafPrefix, data)
 
-  override def toString: String = s"Leaf(${encoder.encode(hash)})"
+  override def toString: String = s"Leaf(${Base16.encode(hash)})"
 }
 
 /**
@@ -65,5 +65,5 @@ case class EmptyRootNode[D <: Digest]()(implicit val hf: CryptographicHash[D]) e
   // .get is secure here since we know that array size equals to digest size
   override val hash: D = hf.byteArrayToDigest(Array.fill(hf.DigestSize)(0: Byte)).get
 
-  override def toString: String = s"EmptyRootNode(${encoder.encode(hash)})"
+  override def toString: String = s"EmptyRootNode(${Base16.encode(hash)})"
 }
