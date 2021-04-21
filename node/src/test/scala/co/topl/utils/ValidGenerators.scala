@@ -1,7 +1,7 @@
 package co.topl.utils
 
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
-import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
+import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.consensus.genesis.PrivateGenesis
 import co.topl.modifier.ModifierId
@@ -23,7 +23,7 @@ import scala.util.{Failure, Random, Success}
 trait ValidGenerators extends CoreGenerators {
 
   val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
-    KeyRing(settings.application.keyFileDir.get, KeyfileCurve25519)
+    KeyRing.empty(settings.application.keyFileDir)
 
   val genesisBlock: Block = PrivateGenesis(
       keyRing.generateNewKeyPairs(num = 3) match {
@@ -102,9 +102,9 @@ trait ValidGenerators extends CoreGenerators {
   }
 
   def validPolyTransfer(
-    keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-    state:   State,
-    fee:     Long = 1L
+                         keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+                         state:   State,
+                         fee:     Long = 1L
   ): Gen[PolyTransfer[PublicKeyPropositionCurve25519]] = {
 
     val availablePolys = sumBoxes(collectBoxes(keyRing.addresses, state), "PolyBox")
@@ -130,9 +130,9 @@ trait ValidGenerators extends CoreGenerators {
   }
 
   def validArbitTransfer(
-    keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-    state:   State,
-    fee:     Long = 1L
+                          keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+                          state:   State,
+                          fee:     Long = 1L
   ): Gen[ArbitTransfer[PublicKeyPropositionCurve25519]] = {
 
     val availableArbits = sumBoxes(collectBoxes(keyRing.addresses, state), "ArbitBox")
@@ -159,10 +159,10 @@ trait ValidGenerators extends CoreGenerators {
   }
 
   def validAssetTransfer(
-    keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-    state:   State,
-    fee:     Long = 1L,
-    minting: Boolean = false
+                          keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+                          state:   State,
+                          fee:     Long = 1L,
+                          minting: Boolean = false
   ): Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = {
     val sender = keyRing.addresses.head
     val asset = AssetValue(1, AssetCode(1: Byte, sender, "test"), SecurityRoot.empty)
