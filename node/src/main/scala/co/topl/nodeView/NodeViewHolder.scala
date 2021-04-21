@@ -235,7 +235,7 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
 
       case Left(e) =>
         context.system.eventStream.publish(
-          FailedTransaction(tx.id, throw new Exception(e.head.toString), immediateFailure = true)
+          FailedTransaction(tx.id, new Exception(e.head.toString), immediateFailure = true)
         )
     }
 

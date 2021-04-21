@@ -43,10 +43,14 @@ abstract class TransferTransaction[
   def semanticValidate(boxReader: BoxReader[ProgramId, Address])(implicit networkPrefix: NetworkPrefix): Try[Unit] =
     TransferTransaction.semanticValidate(this, boxReader)
 
-  def syntacticValidate(implicit networkPrefix: NetworkPrefix): ValidatedNec[SyntacticValidationFailure, TransferTransaction[T, P]] =
+  def syntacticValidate(implicit
+    networkPrefix: NetworkPrefix
+  ): ValidatedNec[SyntacticValidationFailure, TransferTransaction[T, P]] =
     TransferTransaction.syntacticValidate(this)
 
-  def rawValidate(implicit networkPrefix: NetworkPrefix): ValidatedNec[SyntacticValidationFailure, TransferTransaction[T, P]] =
+  def rawValidate(implicit
+    networkPrefix: NetworkPrefix
+  ): ValidatedNec[SyntacticValidationFailure, TransferTransaction[T, P]] =
     TransferTransaction.syntacticValidate(this, hasAttMap = false)
 
 }
@@ -254,36 +258,49 @@ object TransferTransaction {
       )
 
     val attMapValidation =
-      if(hasAttMap)
-        Validated.condNec(tx.attestation.forall { case (prop, proof) =>
-          proof.isValid(prop, tx.messageToSign)
-        }, tx, UnsatisfiedProposition).andThen(tx =>
-          Validated.condNec(
-            tx.from.forall { case (addr, _) =>
-              tx.attestation.keys.map(_.generateEvidence).toSeq.contains(addr.evidence)
-            }, tx, PropositionEvidenceMismatch
+      if (hasAttMap)
+        Validated
+          .condNec(
+            tx.attestation.forall { case (prop, proof) =>
+              proof.isValid(prop, tx.messageToSign)
+            },
+            tx,
+            UnsatisfiedProposition
           )
-        )
+          .andThen(tx =>
+            Validated.condNec(
+              tx.from.forall { case (addr, _) =>
+                tx.attestation.keys.map(_.generateEvidence).toSeq.contains(addr.evidence)
+              },
+              tx,
+              PropositionEvidenceMismatch
+            )
+          )
           .andThen {
             case _: AssetTransfer[_] if tx.minting =>
-              tx.to.map {
-                case (_, asset: AssetValue) =>
-                  Validated.condNec(
-                  tx.attestation.keys.map(_.address).toSeq.contains(asset.assetCode.issuer),
-                    tx,
-                    MintingMissingIssuersSignature : SyntacticValidationFailure
-                  )
-                case (_, _: SimpleValue) => tx.validNec[SyntacticValidationFailure]
-                case _ => InvalidValue.invalidNec[TransferTransaction[T, P]]
-              }
-                .foldLeft(tx.validNec[SyntacticValidationFailure]) { case (acc, v) => acc.andThen(_ => v)}
+              tx.to
+                .map {
+                  case (_, asset: AssetValue) =>
+                    Validated.condNec(
+                      tx.attestation.keys.map(_.address).toSeq.contains(asset.assetCode.issuer),
+                      tx,
+                      MintingMissingIssuersSignature: SyntacticValidationFailure
+                    )
+                  case (_, _: SimpleValue) => tx.validNec[SyntacticValidationFailure]
+                  case _                   => InvalidValue.invalidNec[TransferTransaction[T, P]]
+                }
+                .foldLeft(tx.validNec[SyntacticValidationFailure]) { case (acc, v) => acc.andThen(_ => v) }
             case tx =>
               tx.validNec[SyntacticValidationFailure]
           }
       else tx.validNec[SyntacticValidationFailure]
 
     val inputOutputBoxesUniqueValidation =
-      Validated.condNec(tx.newBoxes.map(_.id).toSet.intersect(tx.boxIdsToOpen.toSet).isEmpty, tx, InputOutputBoxesNotUnique : SyntacticValidationFailure)
+      Validated.condNec(
+        tx.newBoxes.map(_.id).toSet.intersect(tx.boxIdsToOpen.toSet).isEmpty,
+        tx,
+        InputOutputBoxesNotUnique: SyntacticValidationFailure
+      )
 
     validationByTransactionType
       .andThen(tx => Validated.condNec(tx.timestamp >= 0L, tx, InvalidTimestamp))
@@ -308,7 +325,7 @@ object TransferTransaction {
     // check that the transaction is correctly formed before checking state
     syntacticValidate(tx).toEither match {
       case Left(e) => throw new Exception(e.head.toString)
-      case _          => // continue processing
+      case _       => // continue processing
     }
 
     // compute transaction values used for validation

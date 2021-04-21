@@ -24,8 +24,8 @@ class PolyTransferSpec
   property("Attempting to validate a PolyTransfer without valid signature should error") {
     // Create invalid PolyTransfer
     // send tx to state
-    forAll(polyTransferGen) { polyTransfer =>
-      polyTransfer.syntacticValidate shouldBe 'invalid
+    forAll(polyTransferGen) { polyTransfer: PolyTransfer[_] =>
+      polyTransfer.syntacticValidate.isValid shouldBe false
     }
   }
 }

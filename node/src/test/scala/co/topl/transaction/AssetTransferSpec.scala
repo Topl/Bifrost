@@ -1,7 +1,7 @@
 package co.topl.transaction
 
 import co.topl.attestation.PublicKeyPropositionCurve25519
-import co.topl.modifier.transaction.AssetTransfer
+import co.topl.modifier.transaction.{AssetTransfer, MintingZeroFeeFailure}
 import co.topl.utils.{CoreGenerators, ValidGenerators}
 import org.scalatest.EitherValues
 import co.topl.modifier.transaction.MintingZeroFeeFailure
@@ -9,15 +9,16 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
-class AssetTransferSpec extends AnyPropSpec
-  with ScalaCheckPropertyChecks
-  with ScalaCheckDrivenPropertyChecks
-  with Matchers
-  with CoreGenerators
-  with ValidGenerators
-  with EitherValues {
+class AssetTransferSpec
+    extends AnyPropSpec
+    with ScalaCheckPropertyChecks
+    with ScalaCheckDrivenPropertyChecks
+    with Matchers
+    with CoreGenerators
+    with ValidGenerators
+    with EitherValues {
   property("Randomly generated AssetTransfer Tx should be valid") {
-    forAll(validAssetTransfer(keyRing, state, minting = true)) { assetTransfer =>
+    forAll(validAssetTransfer(keyRing, state, minting = true)) { assetTransfer: AssetTransfer[_] =>
       assetTransfer.syntacticValidate.isValid shouldBe true
     }
   }
@@ -43,8 +44,8 @@ class AssetTransferSpec extends AnyPropSpec
   property("Attempting to validate a AssetTransfer without valid signature should error") {
     // Create invalid AssetTransfer
     // send tx to state
-    forAll(assetTransferGen) { assetTransfer =>
-      assetTransfer.syntacticValidate shouldBe 'invalid
+    forAll(assetTransferGen) { assetTransfer: AssetTransfer[_] =>
+      assetTransfer.syntacticValidate.isValid shouldBe false
     }
   }
 }
