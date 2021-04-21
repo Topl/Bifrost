@@ -21,7 +21,7 @@ class AssetTransferSpec
 
   property("Randomly generated AssetTransfer Tx should be valid") {
     forAll(validAssetTransfer(keyRing, genesisState, minting = true)) { assetTransfer: AssetTransfer[_] =>
-      assetTransfer.syntacticValidate.isSuccess shouldBe true
+      assetTransfer.syntacticValidate.isValid shouldBe true
     }
   }
 
@@ -45,8 +45,7 @@ class AssetTransferSpec
             Transaction.updateAttestation(noPolyRawTx)(keyRing.generateAttestation(sender))
           )
 
-        noPolySignedTx.semanticValidate(genesisState).failure.exception.getMessage shouldEqual
-        "requirement failed: Non-block reward transactions must specify at least one input box"
+        noPolySignedTx.semanticValidate(genesisState).failure.exception.getMessage shouldEqual "MintingZeroFeeFailure"
     }
   }
 
@@ -54,7 +53,7 @@ class AssetTransferSpec
     // Create invalid AssetTransfer
     // send tx to state
     forAll(assetTransferGen) { assetTransfer: AssetTransfer[_] =>
-      assetTransfer.syntacticValidate.isSuccess shouldBe false
+      assetTransfer.syntacticValidate.isValid shouldBe false
     }
   }
 }
