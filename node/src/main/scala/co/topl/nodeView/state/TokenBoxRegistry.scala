@@ -9,16 +9,15 @@ import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import java.io.File
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
-/**
- * A registry containing mappings from public keys to a sequence of boxIds
- *
- * @param storage Persistent storage object for saving the TokenBoxRegistry to disk
- * @param nodeKeys set of node keys that denote the state this node will maintain (useful for personal wallet nodes)
- */
-class TokenBoxRegistry (protected val storage: LSMStore, nodeKeys: Option[Set[Address]])
-  extends Registry[TokenBoxRegistry.K, TokenBoxRegistry.V] {
+/** A registry containing mappings from public keys to a sequence of boxIds
+  *
+  * @param storage Persistent storage object for saving the TokenBoxRegistry to disk
+  * @param nodeKeys set of node keys that denote the state this node will maintain (useful for personal wallet nodes)
+  */
+class TokenBoxRegistry(protected val storage: LSMStore, nodeKeys: Option[Set[Address]])
+    extends Registry[TokenBoxRegistry.K, TokenBoxRegistry.V] {
 
   import TokenBoxRegistry.{K, V}
 
@@ -28,7 +27,8 @@ class TokenBoxRegistry (protected val storage: LSMStore, nodeKeys: Option[Set[Ad
   override protected val registryOutput: Array[Byte] => Seq[V] =
     (value: Array[Byte]) => value.grouped(Longs.BYTES).toSeq.map(Longs.fromByteArray)
 
-  override protected val registryOut2StateIn: (K, V) => BoxId = (key: K, value: V) => BoxId.idFromEviNonce(key.evidence, value)
+  override protected val registryOut2StateIn: (K, V) => BoxId = (key: K, value: V) =>
+    BoxId.idFromEviNonce(key.evidence, value)
 
   protected[state] def getBox(key: K, state: SR): Option[Seq[TokenBox[TokenValueHolder]]] =
     super.getBox[TokenBox[TokenValueHolder]](key, state)
@@ -39,68 +39,79 @@ class TokenBoxRegistry (protected val storage: LSMStore, nodeKeys: Option[Set[Ad
     case None       => updates
   }
 
-  /**
-   * @param newVersion - block id
-   * @param toRemove map of public keys to a sequence of boxIds that should be removed
-   * @param toAppend map of public keys to a sequence of boxIds that should be added
-   * @return - instance of updated TokenBoxRegistry
-   *
-   *         Runtime complexity of below function is O(MN) + O(L)
-   *         where M = Number of boxes to remove
-   *         N = Number of boxes owned by a public key
-   *         L = Number of boxes to append
-   */
-  protected[state] def update ( newVersion: VersionTag,
-                                toRemove: Map[K, Seq[V]],
-                                toAppend: Map[K, Seq[V]]
-                              ): Try[TokenBoxRegistry] = Try {
-
+  /** Updates the key-value store to a new version by updating keys with their new state. LSM Store.
+    * @param newVersion - block id
+    * @param toRemove map of public keys to a sequence of boxIds that should be removed
+    * @param toAppend map of public keys to a sequence of boxIds that should be added
+    * @return - instance of updated TokenBoxRegistry
+    *
+    *         Runtime complexity of below function is O(MN) + O(L)
+    *         where M = Number of boxes to remove
+    *         N = Number of boxes owned by an address
+    *         L = Number of boxes to append
+    */
+  protected[state] def update(
+    newVersion: VersionTag,
+    toRemove:   Map[K, Seq[V]],
+    toAppend:   Map[K, Seq[V]]
+  ): Try[TokenBoxRegistry] = {
     val (filteredRemove, filteredAppend) = (filterByNodeKeys(toRemove), filterByNodeKeys(toAppend))
 
-    // determine the new state of each account from the changes
-    val (deleted: Seq[K], updated: Seq[(K, Set[V])]) = {
+    val (deleted: Seq[K], updated: Seq[(K, Seq[V])]) = formatUpdates(filteredRemove, filteredAppend)
 
-      // make a list of all accounts to consider then loop through them and determine their new state
-      (filteredRemove.keys ++ filteredAppend.keys).map(key => {
-        val current = lookupRaw(key).getOrElse(Seq())
-
-        // case where the account no longer has any boxes
-        if ( current.forall(filteredRemove.getOrElse(key, Seq()).contains) && filteredAppend.getOrElse(key, Seq()).isEmpty ) {
-          (Some(key), None)
-
-          // case where the account was initially empty and now has boxes
-        } else if ( current.isEmpty && filteredAppend.getOrElse(key, Seq()).nonEmpty ) {
-          (None, Some((key, filteredAppend(key).toSet)))
-
-          // case for updating the set of boxes for an account
-        } else if ( filteredAppend.getOrElse(key, List()).nonEmpty ) {
-          val idsToRemove = filteredRemove.getOrElse(key, Seq())
-          val idsToAppend = filteredAppend.getOrElse(key, Seq())
-          val newIds = (current.filterNot(idsToRemove.contains(_)) ++ idsToAppend).toSet
-          (None, Some((key, newIds)))
-
-          // fall through case where there are no previous boxes in state and we're trying to remove boxes that don't exist
-        } else throw new Error("Attempted invalid TBR update")
-      })
-    }.foldLeft((Seq[K](), Seq[(K, Set[V])]()))((acc, acct) => (acc._1 ++ acct._1, acc._2 ++ acct._2))
-
-    storage.update(
-      ByteArrayWrapper(newVersion.bytes),
-      deleted.map(k => ByteArrayWrapper(registryInput(k))),
-      updated.map {
-        case (key, value) => ByteArrayWrapper(registryInput(key)) -> ByteArrayWrapper(value.toSeq.flatMap(Longs.toByteArray).toArray)
-      })
-
-  } match {
-    case Success(_) =>
+    saveToStore(newVersion, deleted, updated).map { _ =>
       log.debug(s"${Console.GREEN} Update TokenBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
-      Success(new TokenBoxRegistry(storage, nodeKeys))
-
-    case Failure(ex) => Failure(ex)
+      new TokenBoxRegistry(storage, nodeKeys)
+    }
   }
 
-  override def rollbackTo (version: VersionTag): Try[TokenBoxRegistry] = Try {
-    if ( storage.lastVersionID.exists(_.data sameElements version.bytes) ) {
+  /** The algorithm below roughly outlines what is happening in this process (James Aman 2021.04.07)
+    * - filter the changes by the keys we care about
+    * - create the updated state for each address by constructing a list of all effected keys
+    * - iterate through that list of addresses and evaluate their state
+    *   - if it is empty, that address data needs to be removed in the key-value store
+    *   - if it is non-empty, the updated state needs to be calculated and updated in the key-value store
+    */
+  private def formatUpdates(
+    filteredRemove: Map[K, Seq[V]],
+    filteredAppend: Map[K, Seq[V]]
+  ): (Seq[K], Seq[(K, Seq[V])]) = {
+    // helper function to find the updated state of an address from the given changes
+    val newStateForAddress: K => Seq[V] = (address: K) => {
+      val boxes = lookupRaw(address).getOrElse(Seq[V]())
+      val toRemove = filteredRemove.getOrElse(address, Seq[V]())
+      val toAppend = filteredAppend.getOrElse(address, Seq[V]())
+
+      boxes.filterNot(toRemove.contains) ++ toAppend
+    }
+
+    // a sequence containing tuples for each affected key, the
+    val combinedListOfUpdates: Iterable[(Option[K], Option[(K, Seq[V])])] =
+      (filteredRemove.keys ++ filteredAppend.keys).map { address =>
+        val newState = newStateForAddress(address)
+        if (newState.isEmpty) (Some(address), None)
+        else (None, Some((address, newState)))
+      }
+
+    // determine the new state of each account from the changes
+
+    combinedListOfUpdates.foldLeft((Seq[K](), Seq[(K, Seq[V])]())) { (accumulator, address) =>
+      (accumulator._1 ++ address._1, accumulator._2 ++ address._2)
+    }
+  }
+
+  private def saveToStore(newVersion: VersionTag, toDelete: Seq[K], toUpdate: Seq[(K, Seq[V])]): Try[Unit] = Try {
+    storage.update(
+      ByteArrayWrapper(newVersion.bytes),
+      toDelete.map(k => ByteArrayWrapper(registryInput(k))),
+      toUpdate.map { case (key, value) =>
+        ByteArrayWrapper(registryInput(key)) -> ByteArrayWrapper(value.flatMap(Longs.toByteArray).toArray)
+      }
+    )
+  }
+
+  override def rollbackTo(version: VersionTag): Try[TokenBoxRegistry] = Try {
+    if (storage.lastVersionID.exists(_.data sameElements version.bytes)) {
       this
     } else {
       log.debug(s"Rolling back TokenBoxRegistry to: ${version.toString}")
@@ -115,7 +126,7 @@ object TokenBoxRegistry extends Logging {
   type K = Address
   type V = Box.Nonce
 
-  def readOrGenerate (settings: AppSettings, nodeKeys: Option[Set[Address]]): Option[TokenBoxRegistry] = {
+  def readOrGenerate(settings: AppSettings, nodeKeys: Option[Set[Address]]): Option[TokenBoxRegistry] =
     if (settings.application.enableTBR) {
       log.info("Initializing state with Token Box Registry")
 
@@ -128,5 +139,4 @@ object TokenBoxRegistry extends Logging {
       Some(new TokenBoxRegistry(storage, nodeKeys))
 
     } else None
-  }
 }

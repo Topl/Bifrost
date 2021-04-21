@@ -1,10 +1,12 @@
 package co.topl.modifier.transaction
 
+import java.time.Instant
+
 import co.topl.attestation._
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TxType
-import co.topl.modifier.transaction.TransferTransaction.{BoxParams, encodeFrom}
+import co.topl.modifier.transaction.TransferTransaction.{encodeFrom, BoxParams, TransferCreationState}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.codecs.Int128Codec
 import co.topl.utils.{Identifiable, Identifier, Int128}
@@ -18,27 +20,30 @@ case class ArbitTransfer[
   P <: Proposition: EvidenceProducer: Identifiable
 ](
   override val from:        IndexedSeq[(Address, Box.Nonce)],
-  override val to:          IndexedSeq[(Address, TokenValueHolder)],
+  override val to:          IndexedSeq[(Address, SimpleValue)],
   override val attestation: Map[P, Proof[P]],
   override val fee:         Int128,
   override val timestamp:   Long,
   override val data:        Option[String] = None,
   override val minting:     Boolean = false
-) extends TransferTransaction[TokenValueHolder, P](from, to, attestation, fee, timestamp, data, minting) {
+) extends TransferTransaction[SimpleValue, P](from, to, attestation, fee, timestamp, data, minting) {
 
-  override lazy val newBoxes: Traversable[TokenBox[SimpleValue]] = {
-    val params = TransferTransaction.boxParams(this)
+  override val coinOutput: Traversable[ArbitBox] =
+    coinOutputParams.map {
+        case BoxParams(evi, nonce, value) => ArbitBox(evi, nonce, value)
+      }
 
-    val feeChangeBox =
-      if (fee > 0L) Traversable(PolyBox(params._1.evidence, params._1.nonce, params._1.value))
-      else Traversable()
+  override val newBoxes: Traversable[TokenBox[SimpleValue]] = {
+    // this only creates an output if the value of the output boxes is non-zero
+    val recipientCoinOutput: Traversable[ArbitBox] = coinOutput.filter(_.value.quantity > 0)
+    val hasRecipientOutput: Boolean = recipientCoinOutput.nonEmpty
+    val hasFeeChangeOutput: Boolean = feeChangeOutput.value.quantity > 0
 
-    val arbitBoxes = params._2.map {
-      case BoxParams(ev, n, v: SimpleValue) => ArbitBox(ev, n, v)
-      case _                                => throw new Error("Attempted application of invalid value holder")
+    (hasRecipientOutput, hasFeeChangeOutput) match {
+      case (false, _)    => Traversable()
+      case (true, false) => recipientCoinOutput
+      case (true, true)  => Traversable(feeChangeOutput) ++ recipientCoinOutput
     }
-
-    feeChangeBox ++ arbitBoxes
   }
 }
 
@@ -69,18 +74,51 @@ object ArbitTransfer {
     data:                 Option[String]
   ): Try[ArbitTransfer[P]] =
     TransferTransaction
-      .createRawTransferParams(
-        boxReader,
-        toReceive,
-        sender,
-        changeAddress,
-        consolidationAddress,
-        fee,
-        "ArbitTransfer"
-      )
-      .map { case (inputs, outputs) =>
+      .getSenderBoxesAndCheckPolyBalance(boxReader, sender, fee, "Arbits")
+      .map { txState =>
+        // compute the amount of tokens that will be sent to the recipients
+        val amtToSpend = toReceive.map(_._2.quantity).sum
+
+        // if no consolidationAddress provideed, then default to the change address
+        val consolidationAddr = consolidationAddress.getOrElse(changeAddress)
+
+        // create the list of inputs and outputs (senderChangeOut & recipientOut)
+        val (availableToSpend, inputs, outputs) =
+          ioTransfer(txState, toReceive, changeAddress, consolidationAddr, fee, amtToSpend)
+
+        // ensure there are sufficient funds from the sender boxes to create all outputs
+        require(availableToSpend >= amtToSpend, "Insufficient funds available to create transaction.")
+
         ArbitTransfer[P](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data)
       }
+
+  /** construct input and output box sequence for a transfer transaction */
+  private def ioTransfer(
+    txInputState:         TransferCreationState,
+    toReceive:            IndexedSeq[(Address, SimpleValue)],
+    changeAddress:        Address,
+    consolidationAddress: Address,
+    fee:                  Int128,
+    amtToSpend:           Int128
+  ): (Int128, IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, SimpleValue)]) = {
+
+    val availableToSpend =
+      txInputState.senderBoxes
+        .getOrElse("Arbit", throw new Exception(s"No Arbit funds available for the transaction"))
+        .map(_._3.value.quantity)
+        .sum
+
+    val inputs =
+      txInputState.senderBoxes("Arbit").map(bxs => (bxs._2, bxs._3.nonce)) ++
+      txInputState.senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce))
+
+    val outputs = IndexedSeq(
+      (changeAddress, SimpleValue(txInputState.polyBalance - fee)),
+      (consolidationAddress, SimpleValue(availableToSpend - amtToSpend))
+    ) ++ toReceive
+
+    (availableToSpend, inputs, outputs)
+  }
 
   implicit def jsonEncoder[P <: Proposition]: Encoder[ArbitTransfer[P]] = { tx: ArbitTransfer[P] =>
     Map(

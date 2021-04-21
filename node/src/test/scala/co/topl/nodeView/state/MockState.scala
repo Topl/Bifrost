@@ -12,7 +12,6 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
-import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
 trait MockState extends AnyPropSpec
