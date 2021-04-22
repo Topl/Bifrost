@@ -23,6 +23,22 @@ class TransactionTest extends AnyFreeSpec with Matchers with IntegrationSuite wi
       KeyfileCurve25519Companion
     )
 
+  private val nodeGroupName = "test"
+
+//  private val addresses =
+//    List(
+//      "AUAvJqLKc8Un3C6bC4aj8WgHZo74vamvX8Kdm6MhtdXgw51cGfix",
+//      "AU9upSwu8MtmQz6EBMuv34bJ4G8i6Aw64xxRShJ3kpZRec5Ucp9Q",
+//      "AU9NkZmX5Pch2kUA28GUtv9m4bNaLNtKLoFXphcAAc9PUQXinXRm",
+//      "AU9avKWiVVPKyU9LoMqDpduS4knoLDMdPEK54qKDNBpdnAMwQZcS",
+//      "AU9Xs4B5HnsTiYGb7D71CCxg5mYhaQv1WH3ptfiGbV4LUGb87W54",
+//      "AUA3RmKwr39nVQFFTV1BQFELbFhJQVWfFDdS5YDx7r1om5UCbqef",
+//      "AU9dn9YhqL1YWxfemMfS97zjVXR6G9QX74XRq1jVLtP3snQtuuVk",
+//      "AUANVY6RqbJtTnQS1AFTQBjXMFYDknhV8NEixHFLmeZynMxVbp64",
+//      "AU9sKKy7MN7U9G6QeasZUMTirD6SeGQx8Sngmb9jmDgNB2EzA3rq",
+//      "AUAbSWQxzfoCN4FizrKKf6E1qCSRffHhjrvo2v7L6q8xFZ7pxKqh"
+//    ).map(AddressEncoder.fromStringWithCheck(_, networkPrefix).value)
+
   "A single node can handle transactions" in {
     val nodeConfig =
       ConfigFactory.parseString(
@@ -31,7 +47,7 @@ class TransactionTest extends AnyFreeSpec with Matchers with IntegrationSuite wi
              |""".stripMargin
       )
     val node: BifrostDockerNode =
-      dockerSupport.createNode("bifrostTestNode", "TransactionTest")
+      dockerSupport.createNode("bifrostTestNode", nodeGroupName)
 
     node.reconfigure(nodeConfig)
 
@@ -42,7 +58,7 @@ class TransactionTest extends AnyFreeSpec with Matchers with IntegrationSuite wi
     val addresses: List[Address] =
       node.run(ToplRpc.Admin.ListOpenKeyfiles.rpc)(ToplRpc.Admin.ListOpenKeyfiles.Params()).value.unlocked.toList
 
-    val ToplRpc.Transaction.RawPolyTransfer.Response(rawTx, messageToSign) =
+    val ToplRpc.Transaction.RawPolyTransfer.Response(rawTx, _) =
       node
         .run(ToplRpc.Transaction.RawPolyTransfer.rpc)(
           ToplRpc.Transaction.RawPolyTransfer.Params(
@@ -56,8 +72,11 @@ class TransactionTest extends AnyFreeSpec with Matchers with IntegrationSuite wi
         )
         .value
 
+    clearKeyRing()
+    genKeys()
+
     val signedTx = rawTx.copy(attestation =
-      keyRing.addresses.map(keyRing.generateAttestation(_)(rawTx.messageToSign)).reduce(_ ++ _)
+      keyRing.generateAttestation(addresses.toSet)(rawTx.messageToSign)
     )
 
     val broadcastedTx =
@@ -69,5 +88,8 @@ class TransactionTest extends AnyFreeSpec with Matchers with IntegrationSuite wi
 
     broadcastedTx shouldEqual signedTx
   }
+
+  def genKeys(): Unit = keyRing.generateNewKeyPairs(10, Some(nodeGroupName))
+  def clearKeyRing(): Unit = keyRing.addresses.map(keyRing.removeFromKeyring)
 
 }
