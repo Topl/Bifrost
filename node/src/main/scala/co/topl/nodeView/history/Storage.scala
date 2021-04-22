@@ -87,38 +87,38 @@ class Storage( private[history] val storage: LSMStore,
   /** These methods allow us to lookup top-level information from blocks using the special keys defined below */
   def scoreOf(blockId: ModifierId): Option[Long] =
     blockCache
-      .get(ByteArrayWrapper(blockScoreKey(blockId)))
+      .get(ByteArrayWrapper(blockScoreKey(blockId).bytes))
       .map(b => Longs.fromByteArray(b.data))
 
   def heightOf(blockId: ModifierId): Option[Long] =
     blockCache
-      .get(ByteArrayWrapper(blockHeightKey(blockId)))
+      .get(ByteArrayWrapper(blockHeightKey(blockId).bytes))
       .map(b => Longs.fromByteArray(b.data))
 
   def timestampOf(blockId: ModifierId): Option[Long] =
     blockCache
-      .get(ByteArrayWrapper(blockTimestampKey(blockId)))
+      .get(ByteArrayWrapper(blockTimestampKey(blockId).bytes))
       .map(b => Longs.fromByteArray(b.data))
 
   def idAtHeightOf(height: Long): Option[ModifierId] = {
     blockCache
-      .get(ByteArrayWrapper(idHeightKey(height)))
+      .get(ByteArrayWrapper(idHeightKey(height).bytes))
       .flatMap(id ⇒ ModifierId.parseBytes(id.data).toOption)
   }
 
   def difficultyOf(blockId: ModifierId): Option[Long] =
       blockCache
-        .get(ByteArrayWrapper(blockDiffKey(blockId)))
+        .get(ByteArrayWrapper(blockDiffKey(blockId).bytes))
         .map(b => Longs.fromByteArray(b.data))
 
   def bloomOf(blockId: ModifierId): Option[BloomFilter] =
     blockCache
-      .get(ByteArrayWrapper(blockBloomKey(blockId)))
+      .get(ByteArrayWrapper(blockBloomKey(blockId).bytes))
       .flatMap(b => BloomFilter.parseBytes(b.data).toOption)
 
   def parentIdOf(blockId: ModifierId): Option[ModifierId] =
     blockCache
-      .get(ByteArrayWrapper(blockParentKey(blockId)))
+      .get(ByteArrayWrapper(blockParentKey(blockId).bytes))
       .flatMap(d => ModifierId.parseBytes(d.data).toOption)
 
   /** The keys below are used to store top-level information about blocks that we might be interested in
@@ -165,22 +165,22 @@ class Storage( private[history] val storage: LSMStore,
 
     val newTransactionsToBlockIds = b.transactions.map(tx => (tx.id.getIdBytes, b.id.getIdBytes))
 
-    val blockH = Seq(blockHeightKey(b.id) -> Longs.toByteArray(heightAt(b.parentId) + 1))
+    val blockH = Seq(blockHeightKey(b.id).bytes -> Longs.toByteArray(heightAt(b.parentId) + 1))
 
-    val idHeight = Seq(idHeightKey(heightAt(b.parentId) + 1) → b.id.bytes)
+    val idHeight = Seq(idHeightKey(heightAt(b.parentId) + 1).bytes → b.id.bytes)
 
-    val blockDiff = Seq(blockDiffKey(b.id) -> Longs.toByteArray(b.difficulty))
+    val blockDiff = Seq(blockDiffKey(b.id).bytes -> Longs.toByteArray(b.difficulty))
 
-    val blockTimestamp = Seq(blockTimestampKey(b.id) → Longs.toByteArray(b.timestamp))
+    val blockTimestamp = Seq(blockTimestampKey(b.id).bytes → Longs.toByteArray(b.timestamp))
 
     // reference Bifrost #519 & #527 for discussion on this division of the score
-    val blockScore = Seq(blockScoreKey(b.id) -> Longs.toByteArray(scoreAt(b.parentId) + b.difficulty / 10000000000L))
+    val blockScore = Seq(blockScoreKey(b.id).bytes -> Longs.toByteArray(scoreAt(b.parentId) + b.difficulty / 10000000000L))
 
     val parentBlock =
       if (b.parentId == History.GenesisParentId) Seq()
-      else Seq(blockParentKey(b.id) -> b.parentId.bytes)
+      else Seq(blockParentKey(b.id).bytes -> b.parentId.bytes)
 
-    val blockBloom  = Seq(blockBloomKey(b.id) -> b.bloomFilter.bytes)
+    val blockBloom  = Seq(blockBloomKey(b.id).bytes -> b.bloomFilter.bytes)
 
     val wrappedUpdate =
       (blockK ++

@@ -43,7 +43,7 @@ object ProgramId extends BifrostSerializer[ProgramId] {
   }
 
   def create (seed: Array[Byte]): ProgramId = {
-    new ProgramId(Hash(seed))
+    new ProgramId(Hash(seed).bytes)
   }
 
   override def serialize(obj: ProgramId, w: Writer): Unit = {

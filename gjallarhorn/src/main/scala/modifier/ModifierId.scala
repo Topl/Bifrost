@@ -57,7 +57,7 @@ object ModifierId extends GjalSerializer[ModifierId] {
   implicit val jsonKeyDecoder: KeyDecoder[ModifierId] = (id: String) => Some(ModifierId(id))
 
   def apply(transferTransaction: TransferTransaction[_ <: Proposition]): ModifierId =
-    new ModifierId(TransferTransaction.modifierTypeId +: Hash(transferTransaction.messageToSign))
+    new ModifierId(TransferTransaction.modifierTypeId +: Hash(transferTransaction.messageToSign).bytes)
 
   def apply(str: String): ModifierId =
     Base58.decode(str) match {

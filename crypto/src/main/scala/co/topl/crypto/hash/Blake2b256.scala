@@ -1,5 +1,7 @@
 package co.topl.crypto.hash
 
+import cats.implicits._
+import cats.data.NonEmptyChain
 import org.bouncycastle.crypto.digests.Blake2bDigest
 
 import scala.util.Try
@@ -14,30 +16,17 @@ object Blake2b256 {
     private val blake2b256DigestSize = 256
 
     override val digestSize = 32
-    lazy val digestFn: Blake2bDigest = new Blake2bDigest(blake2b256DigestSize)
 
-    override def hash(message: Array[Byte]): Digest = {
-      Digest @@ synchronized {
-        digestFn.update(message, 0, message.length)
-        val res = new Array[Byte](digestSize)
-        digestFn.doFinal(res, 0)
-        res
-      }
-    }
+    override def hash(prefix: Option[Byte], messages: NonEmptyChain[Array[Byte]]): Digest = {
+      val blake2bDigest = new Blake2bDigest(blake2b256DigestSize)
+      prefix.foreach(p => blake2bDigest.update(p))
 
-    override def hashWithPrefix(prefix: Byte, message: Array[Byte]): Digest = {
-      Digest @@ synchronized {
-        digestFn.update(prefix)
-        digestFn.update(message, 0, message.length)
-        val res = new Array[Byte](digestSize)
-        digestFn.doFinal(res, 0)
-        res
-      }
-    }
+      messages.iterator.foreach(m => blake2bDigest.update(m, 0, m.length))
 
-    override def byteArrayToDigest(bytes: Array[Byte]): Try[Digest] = Try {
-      require(bytes.lengthCompare(digestSize) == 0, "Incorrect digest size")
-      Digest @@ bytes
+      val res = new Array[Byte](digestSize)
+      blake2bDigest.doFinal(res, 0)
+
+      Digest(res)
     }
 
   }

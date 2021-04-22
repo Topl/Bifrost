@@ -134,7 +134,7 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
     * @return
     */
   private def getMAC (derivedKey: Array[Byte], cipherText: Array[Byte]): Array[Byte] =
-    Hash(derivedKey.slice(16, 32) ++ cipherText)
+    Hash(derivedKey.slice(16, 32) ++ cipherText).bytes
 
   /**
     * Generates cipherText and MAC from AES (block cipher)

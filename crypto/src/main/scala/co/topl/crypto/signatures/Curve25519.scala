@@ -34,7 +34,7 @@ object Curve25519 extends EllipticCurveSignatureScheme {
 
   override def createKeyPair(seed: Array[Byte]): (PrivateKey, PublicKey) = {
     val hashedSeed = Hash(seed)
-    val privateKey = PrivateKey @@ provider.generatePrivateKey(hashedSeed)
+    val privateKey = PrivateKey @@ provider.generatePrivateKey(hashedSeed.bytes)
     privateKey -> PublicKey @@ provider.generatePublicKey(privateKey)
   }
 

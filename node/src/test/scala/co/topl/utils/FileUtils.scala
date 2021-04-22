@@ -3,7 +3,6 @@ package co.topl.utils
 import java.io.File
 import java.nio.file.Files.createTempDirectory
 import java.nio.file.{Files, Path}
-import scala.util.Random
 
 trait FileUtils {
 

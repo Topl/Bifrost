@@ -17,12 +17,12 @@ trait Node {
  */
 case class InternalNode[H : Hash](left: Node, right: Node) extends Node {
 
-  override lazy val hash: Digest = Hash(MerkleTree.InternalNodePrefix, left.hash ++ right.hash)
+  override lazy val hash: Digest = Hash(MerkleTree.InternalNodePrefix, left.hash.bytes ++ right.hash.bytes)
 
   override def toString: String = s"InternalNode(" +
-    s"left: ${Base16.encode(left.hash)}, " +
-    s"right: ${if (right.hash.isEmpty) "null" else Base16.encode(right.hash)}," +
-    s"hash: ${Base16.encode(hash)})"
+    s"left: ${Base16.encode(left.hash.bytes)}, " +
+    s"right: ${if (right.hash.bytes.isEmpty) "null" else Base16.encode(right.hash.bytes)}," +
+    s"hash: ${Base16.encode(hash.bytes)})"
 }
 
 /** Merkle tree leaf
@@ -32,7 +32,7 @@ case class InternalNode[H : Hash](left: Node, right: Node) extends Node {
 case class Leaf[H : Hash](data: LeafData) extends Node {
   override lazy val hash: Digest = Hash(MerkleTree.LeafPrefix, data)
 
-  override def toString: String = s"Leaf(${Base16.encode(hash)})"
+  override def toString: String = s"Leaf(${Base16.encode(hash.bytes)})"
 }
 
 /** Empty Merkle tree node.
@@ -47,8 +47,7 @@ case class EmptyNode[H : Hash]() extends Node {
  * length
  */
 case class EmptyRootNode[H : Hash]() extends Node {
-  // .get is secure here since we know that array size equals to digest size
-  override val hash: Digest = Hash.byteArrayToDigest(Array.fill(Hash.digestSize)(0: Byte)).get
+  override val hash: Digest = Digest(Array.fill(Hash.digestSize)(0: Byte))
 
-  override def toString: String = s"EmptyRootNode(${Base16.encode(hash)})"
+  override def toString: String = s"EmptyRootNode(${Base16.encode(hash.bytes)})"
 }

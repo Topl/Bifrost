@@ -19,10 +19,10 @@ class ConsensusStorage(storage: Option[Store], private val defaultTotalStake: In
   import co.topl.crypto.hash.Blake2b256._
 
   // constant keys for each piece of consensus state
-  private val totalStakeKey = ByteArrayWrapper(Hash("totalStake"))
-  private val difficultyKey = ByteArrayWrapper(Hash("difficulty"))
-  private val inflationKey = ByteArrayWrapper(Hash("inflation"))
-  private val heightKey = ByteArrayWrapper(Hash("height"))
+  private val totalStakeKey = ByteArrayWrapper(Hash("totalStake").bytes)
+  private val difficultyKey = ByteArrayWrapper(Hash("difficulty").bytes)
+  private val inflationKey = ByteArrayWrapper(Hash("inflation").bytes)
+  private val heightKey = ByteArrayWrapper(Hash("height").bytes)
 
   private val defaultDifficulty: Long = 0
   private val defaultInflation: Long = 0

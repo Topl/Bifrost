@@ -45,7 +45,7 @@ object BoxId {
   }
 
   def idFromEviNonce (evidence: Evidence, nonce: Long): BoxId = {
-    val hashBytes = Hash(evidence.bytes ++ Longs.toByteArray(nonce))
+    val hashBytes = Hash(evidence.bytes ++ Longs.toByteArray(nonce)).bytes
     BoxId(hashBytes)
   }
 

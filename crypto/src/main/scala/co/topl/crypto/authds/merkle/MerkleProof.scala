@@ -31,16 +31,16 @@ case class MerkleProof[H : Hash](leafData: LeafData, levels: Seq[(Digest, Side)]
 
     levels.foldLeft(leafHash) { case (prevHash, (hash, side)) =>
       if (side == MerkleProof.LeftSide) {
-        Hash(MerkleTree.InternalNodePrefix, prevHash ++ hash)
+        Hash(MerkleTree.InternalNodePrefix, prevHash.bytes ++ hash.bytes)
       } else {
-        Hash(MerkleTree.InternalNodePrefix, hash ++ prevHash)
+        Hash(MerkleTree.InternalNodePrefix, hash.bytes ++ prevHash.bytes)
       }
-    }.sameElements(expectedRootHash)
+    }.bytes.sameElements(expectedRootHash.bytes)
   }
 
   override def toString: String =
-    s"MerkleProof(data: ${Base16.encode(leafData)}, hash: ${Base16.encode(Hash(leafData))}, " +
-      s"(${levels.map(ht => Base16.encode(ht._1) + " : " + ht._2)}))"
+    s"MerkleProof(data: ${Base16.encode(leafData)}, hash: ${Base16.encode(Hash(leafData).bytes)}, " +
+      s"(${levels.map(ht => Base16.encode(ht._1.bytes) + " : " + ht._2)}))"
 }
 
 object MerkleProof {

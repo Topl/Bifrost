@@ -121,7 +121,7 @@ final case class HttpService (apiServices: Seq[ApiRoute], settings: RPCApiSettin
     lazy val keyHash: Option[Digest] = keyOpt.map(Hash[Blake2b256](_))
     (apiKeyHash, keyHash) match {
       case (None, _) => true
-      case (Some(expected), Some(passed)) => expected sameElements passed
+      case (Some(expected), Some(passed)) => expected sameElements passed.bytes
       case _ => false
     }
   }

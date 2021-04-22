@@ -40,7 +40,7 @@ object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
     w.putLong(header.difficulty)
 
     /* txRoot: Array[Byte] */
-    w.putBytes(header.txRoot)
+    w.putBytes(header.txRoot.bytes)
 
     /* bloomFilter: Array[Long] */
     BloomFilter.serialize(header.bloomFilter, w)
@@ -65,7 +65,7 @@ object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
 
     val difficulty: Long = r.getLong()
 
-    val txRoot: Digest = Digest @@ r.getBytes(Hash[Blake2b256].digestSize)
+    val txRoot: Digest = Digest(r.getBytes(Hash[Blake2b256].digestSize))
 
     val bloomFilter: BloomFilter = BloomFilter.parse(r)
 
