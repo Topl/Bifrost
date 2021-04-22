@@ -4,8 +4,6 @@ import sbtassembly.MergeStrategy
 val scala212 = "2.12.13"
 val scala213 = "2.13.5"
 
-
-
 inThisBuild(List(
   organization := "co.topl",
   scalaVersion := scala212,
