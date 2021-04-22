@@ -82,7 +82,7 @@ class TransactionTest
     balanceFor(node)(newKey.publicImage.address).Balances.Polys shouldBe Int128(10)
 
     val burnAddress = {
-      val bytes: Array[Byte] = Array(networkPrefix, 1: Byte) ++ Array.fill(32)(2: Byte)
+      val bytes: Array[Byte] = Array(networkPrefix, PublicKeyPropositionCurve25519.typePrefix) ++ Array.fill(32)(2: Byte)
       val checksum = Blake2b256(bytes).take(AddressEncoder.checksumLength)
       AddressEncoder.validateAddress(bytes ++ checksum, networkPrefix).value
     }

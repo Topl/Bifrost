@@ -1,7 +1,7 @@
 package co.topl.utils
 
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
-import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
+import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.consensus.genesis.PrivateGenesis
 import co.topl.modifier.ModifierId
@@ -127,7 +127,7 @@ trait ValidGenerators extends CoreGenerators {
         recipients,
         IndexedSeq(sender),
         changeAddress = sender,
-        None,
+        sender,
         fee,
         data = None
       )
@@ -153,7 +153,7 @@ trait ValidGenerators extends CoreGenerators {
         recipients,
         IndexedSeq(sender),
         changeAddress = sender,
-        None,
+        sender,
         fee,
         data = None,
         minting

@@ -1,7 +1,5 @@
 package co.topl.modifier.transaction
 
-import java.time.Instant
-
 import co.topl.attestation._
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
@@ -69,7 +67,7 @@ object AssetTransfer {
     toReceive:            IndexedSeq[(Address, AssetValue)],
     sender:               IndexedSeq[Address],
     changeAddress:        Address,
-    consolidationAddress: Option[Address],
+    consolidationAddress: Address,
     fee:                  Int128,
     data:                 Option[String],
     minting:              Boolean
@@ -88,13 +86,10 @@ object AssetTransfer {
         // compute the amount of tokens that will be sent to the recipients
         val amtToSpend = toReceive.map(_._2.quantity).sum
 
-        // if no consolidationAddress provided, then default to the change address
-        val consolidationAddr = consolidationAddress.getOrElse(changeAddress)
-
         // create the list of inputs and outputs (senderChangeOut & recipientOut)
         val (availableToSpend, inputs, outputs) =
           if (minting) ioMint(txState, toReceive, changeAddress, fee)
-          else ioTransfer(txState, toReceive, changeAddress, consolidationAddr, fee, amtToSpend, assetCode)
+          else ioTransfer(txState, toReceive, changeAddress, consolidationAddress, fee, amtToSpend, assetCode)
 
         // ensure there are sufficient funds from the sender boxes to create all outputs
         require(availableToSpend >= amtToSpend, "Insufficient funds available to create transaction.")
