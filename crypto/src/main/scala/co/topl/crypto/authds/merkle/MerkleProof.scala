@@ -1,8 +1,8 @@
 package co.topl.crypto.authds.merkle
 
 import co.topl.crypto.authds.{LeafData, Side}
-import co.topl.crypto.hash.{Hash, Digest}
-import co.topl.crypto.utils.encode.Base16
+import co.topl.crypto.hash.{Digest, Hash}
+import co.topl.crypto.utils.Base16
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 

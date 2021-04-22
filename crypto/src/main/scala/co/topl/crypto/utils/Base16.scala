@@ -1,7 +1,6 @@
-package co.topl.crypto.utils.encode
+package co.topl.crypto.utils
 
 import java.io.IOException
-
 import scala.util.{Failure, Success, Try}
 
 /* Forked from https://github.com/ScorexFoundation/scorex-util/tree/master/src/main/scala/scorex/util/encode */

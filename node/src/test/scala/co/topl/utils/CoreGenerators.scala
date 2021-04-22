@@ -25,7 +25,7 @@ import co.topl.crypto.signatures.{Curve25519, Signature}
 import co.topl.utils.encode.Base58
 
 import scala.collection.SortedSet
-import scala.util.Try
+import scala.util.{Random, Try}
 
 /**
   * Created by cykoz on 4/12/17.

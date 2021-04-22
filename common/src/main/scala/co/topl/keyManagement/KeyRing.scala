@@ -3,7 +3,7 @@ package co.topl.keyManagement
 import co.topl.attestation.Address
 import co.topl.utils.NetworkType.NetworkPrefix
 import com.google.common.primitives.Ints
-import co.topl.utils.Random.randomBytes
+import co.topl.utils.SecureRandom.randomBytes
 
 import java.io.File
 import scala.util.{Failure, Success, Try}

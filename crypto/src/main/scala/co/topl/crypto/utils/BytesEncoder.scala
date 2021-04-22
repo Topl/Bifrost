@@ -1,4 +1,4 @@
-package co.topl.crypto.utils.encode
+package co.topl.crypto.utils
 
 import scala.util.Try
 

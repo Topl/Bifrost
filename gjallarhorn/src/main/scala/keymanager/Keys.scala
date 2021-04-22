@@ -5,7 +5,7 @@ import attestation.{Address, Secret, SecretGenerator}
 import com.google.common.primitives.Ints
 import attestation.AddressEncoder.NetworkPrefix
 import co.topl.crypto.hash.{Blake2b256, Hash}
-import co.topl.utils.Random.randomBytes
+import co.topl.utils.SecureRandom.randomBytes
 import settings.NetworkType
 import utils.Logging
 
