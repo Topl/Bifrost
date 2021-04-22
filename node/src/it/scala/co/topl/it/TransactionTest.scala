@@ -2,9 +2,10 @@ package co.topl.it
 
 import cats.data.NonEmptyChain
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
-import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
+
 import co.topl.it.util._
 import co.topl.modifier.transaction.Transaction
+import co.topl.attestation._
 import co.topl.rpc.ToplRpc
 import co.topl.utils.Int128
 import com.typesafe.config.ConfigFactory
@@ -13,8 +14,8 @@ import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
-
 import scala.concurrent.duration._
+import scorex.crypto.hash.Blake2b256
 
 class TransactionTest
     extends AnyFreeSpec
@@ -54,13 +55,15 @@ class TransactionTest
     val addresses: List[Address] =
       node.run(ToplRpc.Admin.ListOpenKeyfiles.rpc)(ToplRpc.Admin.ListOpenKeyfiles.Params()).value.unlocked.toList
 
-    val tx1 =
-      sendAndAwaitTransaction(node)(
-        "tx1",
-        NonEmptyChain(addresses(0)),
-        NonEmptyChain((addresses(1), 10)),
-        addresses.head
-      )
+    clearKeyRing()
+    genKeys()
+
+    sendAndAwaitTransaction(node)(
+      name = "tx1",
+      sender = NonEmptyChain(addresses(0)),
+      recipients = NonEmptyChain((addresses(1), 10)),
+      changeAddress = addresses(0)
+    )
 
     balanceFor(node)(addresses(0)).Balances.Polys shouldBe Int128(999990)
     balanceFor(node)(addresses(1)).Balances.Polys shouldBe Int128(1000010)
@@ -69,15 +72,29 @@ class TransactionTest
     val newKey = keyRing.generateNewKeyPairs().success.value.head
 
     sendAndAwaitTransaction(node)(
-      "tx2",
-      NonEmptyChain(addresses(0)),
-      NonEmptyChain((newKey.publicImage.address, 10)),
-      addresses.head
+      name = "tx2",
+      sender = NonEmptyChain(addresses(0)),
+      recipients = NonEmptyChain((newKey.publicImage.address, 10)),
+      changeAddress = addresses(0)
     )
 
     balanceFor(node)(addresses(0)).Balances.Polys shouldBe Int128(999980)
     balanceFor(node)(newKey.publicImage.address).Balances.Polys shouldBe Int128(10)
 
+    val burnAddress = {
+      val bytes: Array[Byte] = Array(networkPrefix, 1: Byte) ++ Array.fill(32)(2: Byte)
+      val checksum = Blake2b256(bytes).take(AddressEncoder.checksumLength)
+      AddressEncoder.validateAddress(bytes ++ checksum, networkPrefix).value
+    }
+
+    sendAndAwaitTransaction(node)(
+      name = "tx3",
+      sender = NonEmptyChain(newKey.publicImage.address),
+      recipients = NonEmptyChain((burnAddress, 10)),
+      changeAddress = addresses(0)
+    )
+
+    balanceFor(node)(burnAddress).Balances.Polys shouldBe Int128(10)
   }
 
   private def genKeys(): Unit = keyRing.generateNewKeyPairs(10, Some(nodeGroupName))
@@ -112,9 +129,6 @@ class TransactionTest
           )
         )
         .value
-
-    clearKeyRing()
-    genKeys()
 
     val signedTx1 = rawTx.copy(attestation = keyRing.generateAttestation(sender.iterator.toSet)(rawTx.messageToSign))
 
