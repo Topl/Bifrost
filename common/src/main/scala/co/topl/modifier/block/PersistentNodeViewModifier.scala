@@ -4,8 +4,8 @@ import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ModifierId, NodeViewModifier}
-import co.topl.crypto.authds.LeafData
-import co.topl.crypto.authds.merkle.MerkleTree
+import co.topl.crypto.accumulators.LeafData
+import co.topl.crypto.accumulators.merkle.MerkleTree
 import co.topl.crypto.hash.Blake2b256
 
 trait PersistentNodeViewModifier extends NodeViewModifier {

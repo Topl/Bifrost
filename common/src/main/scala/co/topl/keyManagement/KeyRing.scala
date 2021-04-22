@@ -106,7 +106,7 @@ class KeyRing[
   def importPhrase(password: String, mnemonic: String, lang: String)(implicit sg: SecretGenerator[S]): Try[Address] =
     Failure(new Exception("Not yet implemented"))
 
-//  // JAA - 20210301 - Disabling for now so I can decouple the crypto package from Bifrost
+//  // JAA - 20210301 - Disabling for now so I can decouple the crypto accumulators from Bifrost
 //    Try {
 //      // create the BIP object used to verify the chosen language
 //      val bip = Bip39(lang)

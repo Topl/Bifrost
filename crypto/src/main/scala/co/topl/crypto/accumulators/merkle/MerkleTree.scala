@@ -1,6 +1,6 @@
-package co.topl.crypto.authds.merkle
+package co.topl.crypto.accumulators.merkle
 
-import co.topl.crypto.authds.{LeafData, Side}
+import co.topl.crypto.accumulators.{LeafData, Side}
 import co.topl.crypto.hash.{Digest, Hash}
 
 import scala.annotation.tailrec

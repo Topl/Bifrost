@@ -1,8 +1,8 @@
-package co.topl.crypto.authds.merkle
+package co.topl.crypto.accumulators.merkle
 
-import co.topl.crypto.authds.{LeafData, Side}
+import co.topl.crypto.accumulators.{LeafData, Side}
 import co.topl.crypto.hash.{Digest, Hash}
-import co.topl.crypto.utils.Base16
+import co.topl.crypto.utils.Base58
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 
@@ -39,8 +39,8 @@ case class MerkleProof[H : Hash](leafData: LeafData, levels: Seq[(Digest, Side)]
   }
 
   override def toString: String =
-    s"MerkleProof(data: ${Base16.encode(leafData)}, hash: ${Base16.encode(Hash(leafData))}, " +
-      s"(${levels.map(ht => Base16.encode(ht._1) + " : " + ht._2)}))"
+    s"MerkleProof(data: ${Base58.encode(leafData)}, hash: ${Base58.encode(Hash(leafData))}, " +
+      s"(${levels.map(ht => Base58.encode(ht._1) + " : " + ht._2)}))"
 }
 
 object MerkleProof {

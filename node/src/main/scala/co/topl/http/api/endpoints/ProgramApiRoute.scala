@@ -1,4 +1,4 @@
-//package co.topl.http.api.routes
+//accumulators co.topl.http.api.routes
 //
 //import akka.actor.{ActorRef, ActorRefFactory}
 //import akka.http.scaladsl.server.Route

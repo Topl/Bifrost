@@ -10,7 +10,7 @@ import co.topl.crypto.hash.Hash
 
 import java.io.File
 
-/** Persists parameters(totalStake, difficulty, inflation, and height) used in the consensus package.
+/** Persists parameters(totalStake, difficulty, inflation, and height) used in the consensus accumulators.
   * @param storage the LSM store to persist values in
   * @param defaultTotalStake should be 10000000 for private and local testnet, and 200000000000000000L otherwise
   */
@@ -141,7 +141,7 @@ object ConsensusStorage {
 
 }
 
-/** Global parameters used by the consensus package.
+/** Global parameters used by the consensus accumulators.
   * @param totalStake the total stake in the system
   * @param difficulty the current forging difficulty
   * @param inflation the current value of inflation

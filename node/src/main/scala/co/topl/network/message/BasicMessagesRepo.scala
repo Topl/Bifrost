@@ -131,7 +131,7 @@ object RequestModifierSpec {
 /** ------------------------------------------------------------------------------------------------------------------ */
 /** The `Modifier` message is a reply to a `RequestModifier` message which requested these modifiers.
   *
-  * @param maxMessageSize maximum income package size (bytes), maxPacketSize in configs
+  * @param maxMessageSize maximum income accumulators size (bytes), maxPacketSize in configs
   */
 class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] with Logging {
 

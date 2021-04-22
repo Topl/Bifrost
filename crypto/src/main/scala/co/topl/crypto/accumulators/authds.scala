@@ -4,7 +4,7 @@ import supertagged.TaggedType
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 
-package object authds {
+package object accumulators {
 
   type LeafData = LeafData.Type
   type Side = Side.Type
