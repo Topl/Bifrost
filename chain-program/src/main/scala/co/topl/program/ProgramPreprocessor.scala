@@ -4,7 +4,16 @@ import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.utils.Gzip
 import com.oracle.js.parser.ir.visitor.NodeVisitor
 import com.oracle.js.parser.ir.{FunctionNode, LexicalContext, Node, VarNode}
-import com.oracle.js.parser.{ErrorManager, Lexer, ScriptEnvironment, Source, Token, TokenStream, TokenType, Parser => GraalParser}
+import com.oracle.js.parser.{
+  ErrorManager,
+  Lexer,
+  ScriptEnvironment,
+  Source,
+  Token,
+  TokenStream,
+  TokenType,
+  Parser => GraalParser
+}
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
@@ -15,18 +24,17 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.matching.Regex
 
-/**
-  * Created by Matt Kindy on 7/27/2017.
+/** Created by Matt Kindy on 7/27/2017.
   */
-case class ProgramPreprocessor(name: String,
-                               initjs: String,
-                               interface: Map[String, Seq[String]],
-                               //state: Json,
-                               variables: Json,
-                               code: Map[String, String],
-                               signed: Option[(PublicKeyPropositionCurve25519, SignatureCurve25519)])
-
-
+case class ProgramPreprocessor(
+  name:      String,
+  initjs:    String,
+  interface: Map[String, Seq[String]],
+  //state: Json,
+  variables: Json,
+  code:      Map[String, String],
+  signed:    Option[(PublicKeyPropositionCurve25519, SignatureCurve25519)]
+)
 
 object ProgramPreprocessor {
 
@@ -71,19 +79,27 @@ object ProgramPreprocessor {
     val parsed = io.circe.parser.parse(new String(Files.readAllBytes(modulePath)))
 
     parsed match {
-      case Left(f) => throw f
+      case Left(f)     => throw f
       case Right(json) => wrapperFromJson(json, args)
     }
   }
 
-  def apply (name: String, initjs: String, signed: Option[(PublicKeyPropositionCurve25519, SignatureCurve25519)] = None)( args: JsonObject): ProgramPreprocessor = {
+  def apply(name: String, initjs: String, signed: Option[(PublicKeyPropositionCurve25519, SignatureCurve25519)] = None)(
+    args:         JsonObject
+  ): ProgramPreprocessor = {
 
     //val modifiedInitjs = initjs.replaceFirst("\\{", "\\{\n" + ValkyrieFunctions().reserved + "\n")
     //println(">>>>>>>>>>>>>>>>>>>>> initjs + reservedFunctions: " + modifiedInitjs)
 
     val (interface, /*cleanModuleState,*/ variables, code) = deriveFromInit(initjs /*modifiedInitjs*/, name)(args)
 
-    ProgramPreprocessor(name, initjs /*modifiedInitjs*/, interface, /*parse(cleanModuleState).right.getOrElse(JsonObject.empty.asJson),*/ variables, code, signed)
+    ProgramPreprocessor(
+      name,
+      initjs /*modifiedInitjs*/,
+      interface, /*parse(cleanModuleState).right.getOrElse(JsonObject.empty.asJson),*/ variables,
+      code,
+      signed
+    )
   }
 
   private def wrapperFromJson(json: Json, args: JsonObject): ProgramPreprocessor = {
@@ -101,18 +117,18 @@ object ProgramPreprocessor {
     }
 
     val announcedRegistry: Option[Map[String, Seq[String]]] =
-      (json \\ "interface")
-        .headOption.map(_.as[Map[String, Seq[String]]] match {
-          case Right(re) => re
-          case Left(ex) => throw ex})
+      (json \\ "interface").headOption.map(_.as[Map[String, Seq[String]]] match {
+        case Right(re) => re
+        case Left(ex)  => throw ex
+      })
 
-    val signed: Option[(PublicKeyPropositionCurve25519, SignatureCurve25519)] = (json \\ "signed")
-      .headOption
-      .map(_.as[(String, String)] match {case Right(re) => re; case Left(ex) => throw ex})
-      .map{pair =>
+    val signed: Option[(PublicKeyPropositionCurve25519, SignatureCurve25519)] = (json \\ "signed").headOption
+      .map(_.as[(String, String)] match { case Right(re) => re; case Left(ex) => throw ex })
+      .map { pair =>
         val pub = PublicKeyPropositionCurve25519(pair._1)
         val sig = SignatureCurve25519(pair._2)
-        pub -> sig}
+        pub -> sig
+      }
 
     val (interface, /*cleanModuleState,*/ variables, code) = deriveFromInit(initjs, name, announcedRegistry)(args)
 
@@ -120,8 +136,9 @@ object ProgramPreprocessor {
   }
 
   //noinspection ScalaStyle
-  private def deriveFromInit(initjs: String, name: String, announcedRegistry: Option[Map[String, Seq[String]]] = None)(args: JsonObject):
-    (Map[String, Seq[String]], /*String,*/ Json, Map[String, String]) = {
+  private def deriveFromInit(initjs: String, name: String, announcedRegistry: Option[Map[String, Seq[String]]] = None)(
+    args:                            JsonObject
+  ): (Map[String, Seq[String]], /*String,*/ Json, Map[String, String]) = {
 
     val jsre: Context = Context.create("js")
 
@@ -136,7 +153,7 @@ object ProgramPreprocessor {
      */
 
     /* Interpret interface from object */
-   /* val esprimajs: InputStream = classOf[ProgramPreprocessor].getResourceAsStream("/esprima.js")
+    /* val esprimajs: InputStream = classOf[ProgramPreprocessor].getResourceAsStream("/esprima.js")
     jsre.eval(new InputStreamReader(esprimajs))*/
 
     /*val defineEsprimaFnParamParser =
@@ -152,7 +169,6 @@ object ProgramPreprocessor {
 
     jsre.eval(defineEsprimaFnParamParser)*/
 
-
     //println(s">>>>>>>>>>> Registry: $interface")
 
     //val variables: Seq[String] = deriveState(jsre, initjs)
@@ -162,7 +178,7 @@ object ProgramPreprocessor {
 
     val code: Map[String, String] = deriveFunctions(jsre, initjs)
 
-    val interface = if(announcedRegistry.isDefined && checkRegistry(jsre, announcedRegistry.get)) {
+    val interface = if (announcedRegistry.isDefined && checkRegistry(jsre, announcedRegistry.get)) {
       announcedRegistry.get
     } else {
       val interfaceRes = deriveRegistry(jsre, initjs)
@@ -173,15 +189,17 @@ object ProgramPreprocessor {
     (interface, /*cleanModuleState,*/ variables, code)
   }
 
-  private def checkRegistry(jsre: Context, announcedRegistry: Map[String, Seq[String]]): Boolean = {
-    announcedRegistry.keySet.forall(k => {
-      jsre.eval("js",
-        s"""
+  private def checkRegistry(jsre: Context, announcedRegistry: Map[String, Seq[String]]): Boolean =
+    announcedRegistry.keySet.forall { k =>
+      jsre
+        .eval(
+          "js",
+          s"""
            |typeof c.$k === "function" ? getParameters(c.$k).length === ${announcedRegistry(k).size} : false
          """.stripMargin
-      ).asInstanceOf[Boolean]
-    })
-  }
+        )
+        .asInstanceOf[Boolean]
+    }
 
   private def deriveRegistry(jsre: Context, initjs: String): Seq[Seq[String]] = {
 
@@ -197,8 +215,10 @@ object ProgramPreprocessor {
 
       for (i <- 0 until tokenStream.last()) {
         val token = tokenStream.get(i)
-        if(Token.descType(tokenStream.get(i)) == TokenType.COMMENT &&
-          Token.descType(tokenStream.get(i + 4)) == TokenType.FUNCTION) {
+        if (
+          Token.descType(tokenStream.get(i)) == TokenType.COMMENT &&
+          Token.descType(tokenStream.get(i + 4)) == TokenType.FUNCTION
+        ) {
           commentList += source.getString(token)
         }
       }
@@ -233,7 +253,6 @@ object ProgramPreprocessor {
       .functionStatementBehavior(ScriptEnvironment.FunctionStatementBehavior.ERROR)
       .build()
 
-
     val errManager = new ErrorManager.ThrowErrorManager
     val src = Source.sourceFor("script", initjs)
     val parser: GraalParser = new GraalParser(scriptEnv, src, errManager)
@@ -257,11 +276,11 @@ object ProgramPreprocessor {
 
       jsre.eval("js", initjs)
 
-      vars.map{ v =>
+      vars.map { v =>
         jsre.eval("js", s"typeof ${v._1}").toString match {
           case "number" => varJson += (v._1 -> JsonNumber.fromString(v._2.toString).get.asJson)
           case "string" => varJson += (v._1 -> v._2.asJson)
-          case _ => throw new ClassCastException("Not a valid JavaScript type")
+          case _        => throw new ClassCastException("Not a valid JavaScript type")
         }
       }
       varJson.toMap.asJson
@@ -271,7 +290,6 @@ object ProgramPreprocessor {
   }
 
   private def deriveFunctions(jsre: Context, initjs: String): Map[String, String] = {
-
 
     val scriptEnv: ScriptEnvironment = ScriptEnvironment.builder
       .ecmaScriptVersion(8)
@@ -309,42 +327,43 @@ object ProgramPreprocessor {
   implicit val encodeTerms: Encoder[ProgramPreprocessor] = (p: ProgramPreprocessor) =>
     Map(
       //"state" -> Base64.encode(Gzip.encode(ByteString(state.noSpaces.getBytes)).toArray[Byte]).asJson,
-      "name" -> p.name.asJson,
-      "initjs" -> Base64.encode(Gzip.compress(p.initjs.getBytes)).asJson,
+      "name"      -> p.name.asJson,
+      "initjs"    -> Base64.encode(Gzip.compress(p.initjs.getBytes)).asJson,
       "interface" -> p.interface.map(a => a._1 -> a._2.map(_.asJson).asJson).asJson,
       "variables" -> p.variables.asJson,
-      "code" -> p.code.map(a => a._1 -> a._2).asJson,
-      "signed" -> p.signed.map(pair => pair._1.toString -> pair._2.toString).asJson
+      "code"      -> p.code.map(a => a._1 -> a._2).asJson,
+      "signed"    -> p.signed.map(pair => pair._1.toString -> pair._2.toString).asJson
     ).asJson
 
-  implicit val decodeTerms: Decoder[ProgramPreprocessor] = (c: HCursor) => for {
-    //state <- c.downField("state").as[String]
-    name <- c.downField("name").as[String]
-    initjs <- c.downField("initjs").as[String]
-    interface <- c.downField("interface").as[Map[String, Seq[String]]]
-    variables <- c.downField("variables").as[Json]
-    code <- c.downField("code").as[Map[String, String]]
-    signed <- c.downField("signed").as[Option[(String, String)]]
-  } yield {
+  implicit val decodeTerms: Decoder[ProgramPreprocessor] = (c: HCursor) =>
+    for {
+      //state <- c.downField("state").as[String]
+      name      <- c.downField("name").as[String]
+      initjs    <- c.downField("initjs").as[String]
+      interface <- c.downField("interface").as[Map[String, Seq[String]]]
+      variables <- c.downField("variables").as[Json]
+      code      <- c.downField("code").as[Map[String, String]]
+      signed    <- c.downField("signed").as[Option[(String, String)]]
+    } yield {
 
-    def decodeGzip(zippedStr: String): String = {
-      val zipped: Array[Byte] = Base64.decode(zippedStr).get
-      val unzipped: Array[Byte] = Gzip.decompress(zipped)
-      new String(unzipped)
-    }
-
-    ProgramPreprocessor(
-      name,
-      decodeGzip(initjs),
-      interface,
-      //parse(new String(decodedState.toArray[Byte])) match {case Right(re) => re; case Left(ex) => throw ex},
-      variables,
-      code,
-      signed.map{pair =>
-        val pub = PublicKeyPropositionCurve25519(pair._1)
-        val sig = SignatureCurve25519(pair._2)
-        pub -> sig
+      def decodeGzip(zippedStr: String): String = {
+        val zipped: Array[Byte] = Base64.decode(zippedStr).get
+        val unzipped: Array[Byte] = Gzip.decompress(zipped)
+        new String(unzipped)
       }
-    )
-  }
+
+      ProgramPreprocessor(
+        name,
+        decodeGzip(initjs),
+        interface,
+        //parse(new String(decodedState.toArray[Byte])) match {case Right(re) => re; case Left(ex) => throw ex},
+        variables,
+        code,
+        signed.map { pair =>
+          val pub = PublicKeyPropositionCurve25519(pair._1)
+          val sig = SignatureCurve25519(pair._2)
+          pub -> sig
+        }
+      )
+    }
 }
