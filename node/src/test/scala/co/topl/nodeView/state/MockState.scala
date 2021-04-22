@@ -24,7 +24,7 @@ trait MockState extends AnyPropSpec
 //  protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
 //  implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
-//  protected val appContext = new AppContext(settings, StartupOpts.empty, None)
+//  protected val appContext = new AppContext(settings, StartupOpts(), None)
 
   val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
     KeyRing(settings.application.keyFileDir.get, KeyfileCurve25519)

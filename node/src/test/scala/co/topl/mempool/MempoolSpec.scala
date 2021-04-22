@@ -29,7 +29,7 @@ class MempoolSpec extends AnyPropSpec with ScalaCheckPropertyChecks with Matcher
   private implicit val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
   private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
-  protected val appContext = new AppContext(settings, StartupOpts.empty, None)
+  protected val appContext = new AppContext(settings, StartupOpts(), None)
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
 
   implicit val timeout: Timeout = Timeout(10.seconds)

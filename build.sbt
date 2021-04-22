@@ -163,7 +163,7 @@ val miscDependencies = Seq(
   "com.chuusai"           %% "shapeless"   % "2.3.3",
   "com.iheart"            %% "ficus"       % "1.5.0",
   "org.rudogma"           %% "supertagged" % "1.5",
-  "com.joefkelley"        %% "argyle"      % "1.0.0",
+  "com.lihaoyi"           %% "mainargs"    % "0.2.1",
   "org.scalanlp"          %% "breeze"      % "1.1",
   "io.netty"               % "netty"       % "3.10.6.Final",
   "com.google.guava"       % "guava"       % "30.1.1-jre",

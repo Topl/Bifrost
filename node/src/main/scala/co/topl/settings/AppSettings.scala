@@ -110,7 +110,7 @@ object AppSettings extends Logging with SettingsReaders {
     * @param startupOpts startup options such as the path of the user defined config and network type
     * @return application settings
     */
-  def read(startupOpts: StartupOpts = StartupOpts.empty): (AppSettings, Config) = {
+  def read(startupOpts: StartupOpts = StartupOpts()): (AppSettings, Config) = {
     val config = readConfig(startupOpts)
     val settingFromConfig = fromConfig(config)
     val completeConfig = clusterConfig(settingFromConfig, config)

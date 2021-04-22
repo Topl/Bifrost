@@ -1,9 +1,10 @@
 package co.topl.settings
 
 import co.topl.utils.NetworkType
+import mainargs.{arg, main}
 
 /** Parameters that are given at application startup. Only parameters that are
-  * required for initialization should be includaed at the top level while all other
+  * required for initialization should be included at the top level while all other
   * settings that control the application runtime (similar in nature to config settings)
   * are delegated to the runtime options
   *
@@ -11,17 +12,14 @@ import co.topl.utils.NetworkType
   * @param networkTypeOpt string designating the type of network to be launched
   * @param runtimeParams all runtime determined application settings
   */
+@main
 final case class StartupOpts(
+  @arg(name = "config", short = 'c', doc = "file path to a user defined config file")
   userConfigPathOpt: Option[String] = None,
+  @arg(name = "network", short = 'n', doc = "specify preset network by name")
   networkTypeOpt:    Option[NetworkType] = None,
-  runtimeParams:     RuntimeOpts = RuntimeOpts.empty
+  runtimeParams:     RuntimeOpts = RuntimeOpts()
 )
-
-object StartupOpts {
-
-  /** used defaults above to simplify the empty */
-  def empty: StartupOpts = new StartupOpts()
-}
 
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
@@ -33,9 +31,13 @@ object StartupOpts {
   * @param forgeOnStartup a boolean controlling whether the node should attempt forging immediately on start
   * @param apiKeyHash hash of API key
   */
+@main
 final case class RuntimeOpts(
+  @arg(name = "seed", short = 's', doc = "string to deterministically generate keys on private and local networks")
   seed:           Option[String] = None,
+  @arg(name = "forge", short = 'f', doc = "enable forging as soon as the node starts")
   forgeOnStartup: Boolean = false,
+  @arg(name = "apiKeyHash", doc = "hash of API key")
   apiKeyHash:     Option[String] = None
 ) {
 
@@ -63,8 +65,4 @@ final case class RuntimeOpts(
       forging = forgingSettings
     )
   }
-}
-
-object RuntimeOpts {
-  def empty: RuntimeOpts = RuntimeOpts()
 }

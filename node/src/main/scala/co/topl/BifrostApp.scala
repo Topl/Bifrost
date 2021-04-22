@@ -27,6 +27,7 @@ import co.topl.wallet.{WalletConnectionHandler, WalletConnectionHandlerRef}
 import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
 import com.typesafe.config.{Config, ConfigFactory}
 import kamon.Kamon
+import mainargs.{ParserForClass, TokensReader, arg, main}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -208,24 +209,27 @@ object BifrostApp extends Logging {
   private val conf: Config = ConfigFactory.load("application")
   if (conf.getBoolean("kamon.enable")) Kamon.init()
 
-  /** import for parsing command line arguments */
-  import com.joefkelley.argyle._
+  /** networkReader, runtimeOptsParser, and startupOptsParser are defined here in a specific order
+   *  to define the runtime command flags using mainargs. StartupOpts has to be last as it uses NetworkType
+   *  and RuntimeOpts internally */
+  implicit object networkReader extends TokensReader[NetworkType](
+    shortName = "network",
+    str => NetworkType.pickNetworkType(str.head) match {
+      case Some(net) => Right(net)
+      case None => Left("No valid network found with that name")
+    }
+  )
 
-  /** parse command line arguments */
-  val argParser: Arg[StartupOpts] =
-    (optional[String]("--config", "-c") and
-      optionalOneOf[NetworkType](NetworkType.all.map(x => s"--${x.verboseName}" -> x): _*) and
-      (optional[String]("--seed", "-s") and
-      flag("--forge", "-f") and
-      optional[String]("--apiKeyHash")).to[RuntimeOpts]).to[StartupOpts]
+  implicit def runtimeOptsParser: ParserForClass[RuntimeOpts] = ParserForClass[RuntimeOpts]
+  implicit def startupOptsParser: ParserForClass[StartupOpts] = ParserForClass[StartupOpts]
 
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
-  def main(args: Array[String]): Unit =
-    argParser.parse(args) match {
-      case Success(argsParsed) => new BifrostApp(argsParsed).run()
-      case Failure(e)          => throw e
-    }
+
+  def main(args: Array[String]): Unit = ParserForClass[StartupOpts].constructEither(args) match {
+    case Right(parsedArgs) => new BifrostApp(parsedArgs).run()
+    case Left(e) => throw new Exception(e)
+  }
 
   def forceStopApplication(code: Int = 1): Nothing = sys.exit(code)
 

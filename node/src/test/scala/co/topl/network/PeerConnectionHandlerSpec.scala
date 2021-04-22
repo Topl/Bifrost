@@ -19,7 +19,7 @@ class PeerConnectionHandlerSpec extends TestKit(ActorSystem("PCHSpec"))
   with Matchers
   with CoreGenerators {
 
-  val appContext = new AppContext(settings, StartupOpts.empty, None)
+  val appContext = new AppContext(settings, StartupOpts(), None)
 
   property("MessageSerializer should initialize correctly with specified message codes") {
 
