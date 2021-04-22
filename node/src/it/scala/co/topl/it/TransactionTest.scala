@@ -4,9 +4,11 @@ import cats.data.NonEmptyChain
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.it.util._
+import co.topl.modifier.transaction.Transaction
 import co.topl.rpc.ToplRpc
+import co.topl.utils.Int128
 import com.typesafe.config.ConfigFactory
-import org.scalatest.EitherValues
+import org.scalatest._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.freespec.AnyFreeSpec
@@ -14,7 +16,13 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class TransactionTest extends AnyFreeSpec with Matchers with IntegrationSuite with ScalaFutures with EitherValues {
+class TransactionTest
+    extends AnyFreeSpec
+    with Matchers
+    with IntegrationSuite
+    with ScalaFutures
+    with EitherValues
+    with TryValues {
 
   private val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
     KeyRing.empty[PrivateKeyCurve25519, KeyfileCurve25519]()(
@@ -46,16 +54,60 @@ class TransactionTest extends AnyFreeSpec with Matchers with IntegrationSuite wi
     val addresses: List[Address] =
       node.run(ToplRpc.Admin.ListOpenKeyfiles.rpc)(ToplRpc.Admin.ListOpenKeyfiles.Params()).value.unlocked.toList
 
-    logger.info("Creating raw poly transfer")
+    val tx1 =
+      sendAndAwaitTransaction(node)(
+        "tx1",
+        NonEmptyChain(addresses(0)),
+        NonEmptyChain((addresses(1), 10)),
+        addresses.head
+      )
+
+    balanceFor(node)(addresses(0)).Balances.Polys shouldBe Int128(999990)
+    balanceFor(node)(addresses(1)).Balances.Polys shouldBe Int128(1000010)
+    balanceFor(node)(addresses(2)).Balances.Polys shouldBe Int128(1000000)
+
+    val newKey = keyRing.generateNewKeyPairs().success.value.head
+
+    sendAndAwaitTransaction(node)(
+      "tx2",
+      NonEmptyChain(addresses(0)),
+      NonEmptyChain((newKey.publicImage.address, 10)),
+      addresses.head
+    )
+
+    balanceFor(node)(addresses(0)).Balances.Polys shouldBe Int128(999980)
+    balanceFor(node)(newKey.publicImage.address).Balances.Polys shouldBe Int128(10)
+
+  }
+
+  private def genKeys(): Unit = keyRing.generateNewKeyPairs(10, Some(nodeGroupName))
+  private def clearKeyRing(): Unit = keyRing.addresses.map(keyRing.removeFromKeyring)
+
+  private def awaitBlocks(node: BifrostDockerNode)(count: Int): Unit = {
+    val currentHeight =
+      node.run(ToplRpc.NodeView.Head.rpc)(ToplRpc.NodeView.Head.Params()).value.height
+
+    logger.info(s"Waiting $count blocks")
+    node.pollUntilHeight(currentHeight + count).futureValue(Timeout((count * 4).seconds)).value
+
+  }
+
+  private def sendAndAwaitTransaction(node: BifrostDockerNode)(
+    name:                                   String,
+    sender:                                 NonEmptyChain[Address],
+    recipients:                             NonEmptyChain[(Address, Int128)],
+    changeAddress:                          Address
+  ): Transaction.TX = {
+    logger.info(s"Creating $name")
     val ToplRpc.Transaction.RawPolyTransfer.Response(rawTx, _) =
       node
         .run(ToplRpc.Transaction.RawPolyTransfer.rpc)(
           ToplRpc.Transaction.RawPolyTransfer.Params(
             propositionType = PublicKeyPropositionCurve25519.typeString,
-            sender = NonEmptyChain.fromSeq(addresses).get,
-            recipients = NonEmptyChain((addresses.head, 10)),
+            sender = sender,
+            recipients = recipients,
             fee = 0,
-            changeAddress = addresses.head,
+            changeAddress = changeAddress,
             data = None
           )
         )
@@ -64,40 +116,42 @@ class TransactionTest extends AnyFreeSpec with Matchers with IntegrationSuite wi
     clearKeyRing()
     genKeys()
 
-    val signedTx = rawTx.copy(attestation =
-      keyRing.generateAttestation(addresses.toSet)(rawTx.messageToSign)
-    )
+    val signedTx1 = rawTx.copy(attestation = keyRing.generateAttestation(sender.iterator.toSet)(rawTx.messageToSign))
 
-    logger.info("Broadcasting signed transaction")
+    logger.info(s"Broadcasting signed $name")
     val broadcastedTx =
       node
         .run(ToplRpc.Transaction.BroadcastTx.rpc)(
-          ToplRpc.Transaction.BroadcastTx.Params(signedTx)
+          ToplRpc.Transaction.BroadcastTx.Params(signedTx1)
         )
         .value
 
-    broadcastedTx shouldEqual signedTx
+    broadcastedTx shouldEqual signedTx1
 
-    logger.info("Retrieving transaction from mempool")
+    logger.info(s"Retrieving $name from mempool")
     val memPoolTx =
-      node.run(ToplRpc.NodeView.TransactionFromMempool.rpc)(ToplRpc.NodeView.TransactionFromMempool.Params(broadcastedTx.id)).value
+      node
+        .run(ToplRpc.NodeView.TransactionFromMempool.rpc)(
+          ToplRpc.NodeView.TransactionFromMempool.Params(broadcastedTx.id)
+        )
+        .value
 
     memPoolTx shouldEqual broadcastedTx
 
-    val currentHeight =
-      node.run(ToplRpc.NodeView.Head.rpc)(ToplRpc.NodeView.Head.Params()).value.height
+    awaitBlocks(node)(10)
 
-    logger.info("Waiting 10 blocks for transaction to complete")
-    node.pollUntilHeight(currentHeight + 10).futureValue(Timeout(60.seconds)).value
-
-    logger.info("Checking for transaction in the chain")
+    logger.info(s"Checking for $name in the chain")
     val ToplRpc.NodeView.TransactionById.Response(completedTransaction, _, _) =
       node.run(ToplRpc.NodeView.TransactionById.rpc)(ToplRpc.NodeView.TransactionById.Params(memPoolTx.id)).value
 
     completedTransaction shouldEqual memPoolTx
+
+    logger.info(s"$name complete: $completedTransaction")
+
+    completedTransaction
   }
 
-  def genKeys(): Unit = keyRing.generateNewKeyPairs(10, Some(nodeGroupName))
-  def clearKeyRing(): Unit = keyRing.addresses.map(keyRing.removeFromKeyring)
+  private def balanceFor(node: BifrostDockerNode)(address: Address): ToplRpc.NodeView.Balances.Entry =
+    node.run(ToplRpc.NodeView.Balances.rpc)(ToplRpc.NodeView.Balances.Params(List(address))).value(address)
 
 }
