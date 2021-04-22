@@ -53,6 +53,7 @@ object AddressEncoder {
   def validateAddress(decoded: Array[Byte], networkPrefix: NetworkPrefix): Either[AddressValidationError, Address] =
     for {
       decodedPrefix <- decoded.headOption.toRight(InvalidAddress)
+      // A user can pass in an invalid networkPrefix, so we must validate that it is real
       nt            <- NetworkType.pickNetworkType(networkPrefix).toRight(InvalidNetworkPrefix)
       address <-
         if (nt.netPrefix == decodedPrefix) fromBytes(decoded).toEither.leftMap(_ => InvalidAddress)

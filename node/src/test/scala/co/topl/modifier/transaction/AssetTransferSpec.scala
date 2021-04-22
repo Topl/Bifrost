@@ -45,7 +45,7 @@ class AssetTransferSpec
             Transaction.updateAttestation(noPolyRawTx)(keyRing.generateAttestation(sender))
           )
 
-        noPolySignedTx.semanticValidate(genesisState).failure.exception.getMessage shouldEqual "MintingZeroFeeFailure"
+        noPolySignedTx.semanticValidate(genesisState).failure.exception.getMessage shouldEqual "NoInputBoxesSpecified"
     }
   }
 
