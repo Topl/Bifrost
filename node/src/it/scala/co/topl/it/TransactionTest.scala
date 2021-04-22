@@ -23,27 +23,14 @@ class TransactionTest extends AnyFreeSpec with Matchers with IntegrationSuite wi
       KeyfileCurve25519Companion
     )
 
-  private val nodeGroupName = "test"
-
-//  private val addresses =
-//    List(
-//      "AUAvJqLKc8Un3C6bC4aj8WgHZo74vamvX8Kdm6MhtdXgw51cGfix",
-//      "AU9upSwu8MtmQz6EBMuv34bJ4G8i6Aw64xxRShJ3kpZRec5Ucp9Q",
-//      "AU9NkZmX5Pch2kUA28GUtv9m4bNaLNtKLoFXphcAAc9PUQXinXRm",
-//      "AU9avKWiVVPKyU9LoMqDpduS4knoLDMdPEK54qKDNBpdnAMwQZcS",
-//      "AU9Xs4B5HnsTiYGb7D71CCxg5mYhaQv1WH3ptfiGbV4LUGb87W54",
-//      "AUA3RmKwr39nVQFFTV1BQFELbFhJQVWfFDdS5YDx7r1om5UCbqef",
-//      "AU9dn9YhqL1YWxfemMfS97zjVXR6G9QX74XRq1jVLtP3snQtuuVk",
-//      "AUANVY6RqbJtTnQS1AFTQBjXMFYDknhV8NEixHFLmeZynMxVbp64",
-//      "AU9sKKy7MN7U9G6QeasZUMTirD6SeGQx8Sngmb9jmDgNB2EzA3rq",
-//      "AUAbSWQxzfoCN4FizrKKf6E1qCSRffHhjrvo2v7L6q8xFZ7pxKqh"
-//    ).map(AddressEncoder.fromStringWithCheck(_, networkPrefix).value)
+  private val nodeGroupName = "TransactionTest"
 
   "A single node can handle transactions" in {
     val nodeConfig =
       ConfigFactory.parseString(
         raw"""bifrost.network.knownPeers = []
              |bifrost.rpcApi.namespaceSelector.debug = true
+             |bifrost.forging.privateTestnet.genesisSeed = "$nodeGroupName"
              |""".stripMargin
       )
     val node: BifrostDockerNode =
@@ -55,9 +42,11 @@ class TransactionTest extends AnyFreeSpec with Matchers with IntegrationSuite wi
 
     node.waitForStartup().futureValue(Timeout(30.seconds)).value
 
+    logger.info("Fetching addresses from Node")
     val addresses: List[Address] =
       node.run(ToplRpc.Admin.ListOpenKeyfiles.rpc)(ToplRpc.Admin.ListOpenKeyfiles.Params()).value.unlocked.toList
 
+    logger.info("Creating raw poly transfer")
     val ToplRpc.Transaction.RawPolyTransfer.Response(rawTx, _) =
       node
         .run(ToplRpc.Transaction.RawPolyTransfer.rpc)(
@@ -79,6 +68,7 @@ class TransactionTest extends AnyFreeSpec with Matchers with IntegrationSuite wi
       keyRing.generateAttestation(addresses.toSet)(rawTx.messageToSign)
     )
 
+    logger.info("Broadcasting signed transaction")
     val broadcastedTx =
       node
         .run(ToplRpc.Transaction.BroadcastTx.rpc)(
@@ -87,6 +77,24 @@ class TransactionTest extends AnyFreeSpec with Matchers with IntegrationSuite wi
         .value
 
     broadcastedTx shouldEqual signedTx
+
+    logger.info("Retrieving transaction from mempool")
+    val memPoolTx =
+      node.run(ToplRpc.NodeView.TransactionFromMempool.rpc)(ToplRpc.NodeView.TransactionFromMempool.Params(broadcastedTx.id)).value
+
+    memPoolTx shouldEqual broadcastedTx
+
+    val currentHeight =
+      node.run(ToplRpc.NodeView.Head.rpc)(ToplRpc.NodeView.Head.Params()).value.height
+
+    logger.info("Waiting 10 blocks for transaction to complete")
+    node.pollUntilHeight(currentHeight + 10).futureValue(Timeout(60.seconds)).value
+
+    logger.info("Checking for transaction in the chain")
+    val ToplRpc.NodeView.TransactionById.Response(completedTransaction, _, _) =
+      node.run(ToplRpc.NodeView.TransactionById.rpc)(ToplRpc.NodeView.TransactionById.Params(memPoolTx.id)).value
+
+    completedTransaction shouldEqual memPoolTx
   }
 
   def genKeys(): Unit = keyRing.generateNewKeyPairs(10, Some(nodeGroupName))
