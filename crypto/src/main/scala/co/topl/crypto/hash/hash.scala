@@ -1,14 +1,14 @@
 package co.topl.crypto
 
 import cats.data.{NonEmptyChain, Validated}
-import io.estatico.newtype.macros.{newsubtype, newtype}
+import io.estatico.newtype.macros.newtype
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 
 package object hash {
 
-  @newsubtype
-  case class Digest(bytes: Array[Byte])
+  @newtype
+  case class Digest(toBytes: Array[Byte])
 
   object Digest {
 
@@ -29,12 +29,6 @@ package object hash {
   }
 
   object Hash {
-
-    val digest = Digest(Array[Byte]())
-
-    def arrayBytesFunc(a: Array[Byte]) = a
-
-    arrayBytesFunc(digest)
 
     def apply[T : Hash]: Hash[T] = implicitly[Hash[T]]
 

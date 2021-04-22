@@ -131,7 +131,7 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
     */
   private def calculateIndices(topic: BloomTopic): Set[Int] =
     // Pair up bytes and convert signed Byte to unsigned Int
-    Set(0, 2, 4, 6).map(i => Hash(topic).bytes.slice(i, i + 2).map(_ & 0xff)).map { case Array(b1, b2) =>
+    Set(0, 2, 4, 6).map(i => Hash(topic).toBytes.slice(i, i + 2).map(_ & 0xff)).map { case Array(b1, b2) =>
       ((b1 << 8) | b2) & idxMask
     }
 

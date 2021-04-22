@@ -102,7 +102,7 @@ case class UtilsApiEndpoint(override val settings: RPCApiSettings, appContext: A
     } yield Future(
       Map(
         "message" -> message,
-        "hash"    -> Base58.encode(Hash[Blake2b256](message).bytes)
+        "hash"    -> Base58.encode(Hash[Blake2b256](message).toBytes)
       ).asJson
     )) match {
       case Right(json) => json

@@ -63,7 +63,7 @@ object Transaction {
   ](tx: Transaction[_, P])(f: Array[Byte] => Map[P, Proof[P]]): Map[P, Proof[P]] =
     tx.attestation ++ f(tx.messageToSign)
 
-  def nonceFromDigest(digest: Digest): Box.Nonce = Longs.fromByteArray(digest.bytes.take(Longs.BYTES))
+  def nonceFromDigest(digest: Digest): Box.Nonce = Longs.fromByteArray(digest.toBytes.take(Longs.BYTES))
 
   def identifier(tx: TX): Identifier = tx match {
     case _: PolyTransfer[_]  => PolyTransfer.identifier.getId
