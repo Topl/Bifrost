@@ -1,4 +1,4 @@
-//package co.topl.crypto
+//accumulators co.topl.crypto
 //
 //import co.topl.keyManagement.PrivateKeyCurve25519
 //import co.topl.utils.Logging

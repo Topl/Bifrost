@@ -1,4 +1,4 @@
-//package co.topl.modifier.transaction.serialization
+//accumulators co.topl.modifier.transaction.serialization
 //
 //import co.topl.attestation.proposition.{PublicKeyPropositionCurve25519, PublicKeyPropositionCurve25519Serializer}
 //import co.topl.attestation.proof.{SignatureCurve25519, SignatureCurve25519Serializer}
