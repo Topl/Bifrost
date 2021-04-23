@@ -3,7 +3,6 @@ package co.topl.program
 import java.time.Instant
 
 import co.topl.attestation.PublicKeyPropositionCurve25519
-import co.topl.utils.{CoreGenerators, ValidGenerators}
 import io.circe.{Json, JsonObject}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
@@ -12,19 +11,17 @@ import scorex.crypto.signatures.{Curve25519, PublicKey}
 
 import scala.util.{Failure, Success, Try}
 
-class ProgramSpec extends AnyPropSpec
-  with ScalaCheckPropertyChecks
-  with ScalaCheckDrivenPropertyChecks
-  with Matchers
-  with CoreGenerators
-  with ValidGenerators {
+class ProgramSpec
+    extends AnyPropSpec
+    with ScalaCheckPropertyChecks
+    with ScalaCheckDrivenPropertyChecks
+    with Matchers
+    with ProgramGenerators {
 
   property("Json works properly for ExecutionBuilderTerms") {
-    forAll(validExecutionBuilderTermsGen) {
-      t: ExecutionBuilderTerms => {
-        val res = t.json.as[ExecutionBuilderTerms] match {case Right(re) => re; case Left(ex) => throw ex}
-        res shouldBe t
-      }
+    forAll(validExecutionBuilderTermsGen) { t: ExecutionBuilderTerms =>
+      val res = t.json.as[ExecutionBuilderTerms] match { case Right(re) => re; case Left(ex) => throw ex }
+      res shouldBe t
     }
   }
 
@@ -38,9 +35,8 @@ class ProgramSpec extends AnyPropSpec
       )(JsonObject.empty)
     ).json
 
-  def getMockPublicKeyProposition(fillByte: Byte): PublicKeyPropositionCurve25519 = {
+  def getMockPublicKeyProposition(fillByte: Byte): PublicKeyPropositionCurve25519 =
     PublicKeyPropositionCurve25519(PublicKey @@ Array.fill(Curve25519.KeyLength)(fillByte))
-  }
 
   property("Can create program") {
     Try {
@@ -62,5 +58,15 @@ class ProgramSpec extends AnyPropSpec
         mockExecutionBuilder
       )
     } shouldBe a[Failure[_]]
+  }
+
+  property("ExecutionBuilder serialization") {
+    forAll(validExecutionBuilderGen()) { a: ExecutionBuilder =>
+      val parsed = ExecutionBuilderSerializer
+        .parseBytes(ExecutionBuilderSerializer.toBytes(a))
+        .get
+
+      ExecutionBuilderSerializer.toBytes(parsed) sameElements ExecutionBuilderSerializer.toBytes(a) shouldBe true
+    }
   }
 }
