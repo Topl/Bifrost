@@ -101,7 +101,7 @@ case class TransactionApiEndpoint(
         recipients        <- p.get[IndexedSeq[(Address, AssetValue)]]("recipients")
         sender            <- p.get[IndexedSeq[Address]]("sender")
         changeAddr        <- p.get[Address]("changeAddress")
-        consolidationAddr <- p.get[Option[Address]]("consolidationAddress")
+        consolidationAddr <- p.get[Address]("consolidationAddress")
         fee               <- p.get[Int128]("fee")(Int128Codec.jsonDecoder)
         minting           <- p.get[Boolean]("minting")
         data              <- p.get[Option[String]]("data")
@@ -273,7 +273,7 @@ case class TransactionApiEndpoint(
         recipients        <- p.get[IndexedSeq[(Address, Int128)]]("recipients")
         sender            <- p.get[IndexedSeq[Address]]("sender")
         changeAddr        <- p.get[Address]("changeAddress")
-        consolidationAddr <- p.get[Option[Address]]("consolidationAddress")
+        consolidationAddr <- p.get[Address]("consolidationAddress")
         fee               <- p.get[Int128]("fee")(Int128Codec.jsonDecoder)
         data              <- p.get[Option[String]]("data")
       } yield {
