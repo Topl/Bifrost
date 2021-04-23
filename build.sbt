@@ -4,8 +4,6 @@ import sbtassembly.MergeStrategy
 val scala212 = "2.12.13"
 val scala213 = "2.13.5"
 
-
-
 inThisBuild(List(
   organization := "co.topl",
   scalaVersion := scala212,
@@ -157,7 +155,9 @@ val miscDependencies = Seq(
   "io.netty"               % "netty"       % "3.10.6.Final",
   "com.google.guava"       % "guava"       % "30.1.1-jre",
   "com.typesafe"           % "config"      % "1.4.1",
-  "com.github.pureconfig" %% "pureconfig"  % "0.14.1"
+  "com.github.pureconfig" %% "pureconfig"  % "0.14.1",
+  "org.typelevel"         %% "cats-core"   % "2.3.0",
+  compilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
 )
 
 val monitoringDependencies = Seq(
@@ -188,7 +188,6 @@ scalacOptions ++= Seq(
   "-Xfatal-warnings",
   "-Xlint:",
   "-Ywarn-unused:-implicits,-privates",
-  "-Ymacro-annotations"
 )
 
 javaOptions ++= Seq(

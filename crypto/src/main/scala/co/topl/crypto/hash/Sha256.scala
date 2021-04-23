@@ -1,7 +1,9 @@
 package co.topl.crypto.hash
 
+import cats.implicits._
+import cats.data.NonEmptyChain
+
 import java.security.MessageDigest
-import scala.util.Try
 
 case class Sha256()
 
@@ -12,15 +14,15 @@ object Sha256 {
 
     override val digestSize = 32
 
-    override def hash(input: Array[Byte]): Digest =
-      Digest @@ MessageDigest.getInstance("SHA-256").digest(input)
+    override def hash(prefix: Option[Byte], messages: NonEmptyChain[Array[Byte]]): Digest = {
+      val hashBytes = MessageDigest
+        .getInstance("SHA-256")
+        .digest(
+          messages.foldLeft(prefix.map(Array[Byte](_))
+            .getOrElse(Array[Byte]()))(_ ++ _)
+        )
 
-    override def hashWithPrefix(prefix: Byte, message: Array[Byte]): Digest =
-      hash(prefix +: message)
-
-    override def byteArrayToDigest(bytes: Array[Byte]): Try[Digest] = Try {
-      require(bytes.lengthCompare(digestSize) == 0, "Incorrect digest size")
-      Digest @@ bytes
+      Digest(hashBytes)
     }
 
   }

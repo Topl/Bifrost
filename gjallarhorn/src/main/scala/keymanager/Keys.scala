@@ -155,7 +155,7 @@ class Keys[
 
       // calculate the new keyfile and return
       val seed = bip.hexToUuid(bip.phraseToHex(mnemonic))
-      val sk = sg.generateSecret(Hash[Blake2b256](seed))
+      val sk = sg.generateSecret(Hash[Blake2b256](seed).toBytes)
 
       // add secret to the keyring
       secrets += sk._1

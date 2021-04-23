@@ -49,8 +49,8 @@ object ModifierId extends BifrostSerializer[ModifierId] {
   implicit val jsonKeyDecoder: KeyDecoder[ModifierId] = (id: String) => Some(ModifierId(id))
 
   def apply(nodeViewModifier: NodeViewModifier): ModifierId = nodeViewModifier match {
-    case mod: Block          => new ModifierId(Block.modifierTypeId +: Hash(mod.messageToSign))
-    case mod: Transaction.TX => new ModifierId(Transaction.modifierTypeId +: Hash(mod.messageToSign))
+    case mod: Block          => new ModifierId(Block.modifierTypeId +: Hash(mod.messageToSign).toBytes)
+    case mod: Transaction.TX => new ModifierId(Transaction.modifierTypeId +: Hash(mod.messageToSign).toBytes)
     case _ => throw new Error("Only blocks and transactions generate a modifierId")
   }
 
