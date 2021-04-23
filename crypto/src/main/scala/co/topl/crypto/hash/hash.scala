@@ -12,6 +12,10 @@ package object hash {
 
   object Digest {
 
+    /** Gets a validated Digest guaranteed to be the correct digest size.
+     * @param bytes the bytes to convert to a digest
+     * @return the digest or an invalid error
+     */
     def validated(bytes: Array[Byte]): Validated[InvalidDigestError, Digest] =
       Validated.cond(bytes.length == 32, Digest(bytes), IncorrectSize)
 
@@ -30,20 +34,50 @@ package object hash {
 
   object Hash {
 
+    /** Instantiates the hash function from the implicit scope.
+     * @tparam T the hash type
+     * @return the hash function
+     */
     def apply[T : Hash]: Hash[T] = implicitly[Hash[T]]
 
+    /** Hashes the given message.
+     * @param message the message to hash
+     * @tparam T the hash type
+     * @return the hash digest
+     */
     def apply[T : Hash](message: Array[Byte]): Digest =
       apply.hash(None, NonEmptyChain(message))
 
+    /** Hashes the given set of messages with a prefix
+     * @param prefix the prefix to apply to the hash
+     * @param messages the messages to hash
+     * @tparam T the hash type
+     * @return the hash digest
+     */
     def apply[T : Hash](prefix: Byte, messages: NonEmptyChain[Array[Byte]]): Digest =
       apply.hash(Some(prefix), messages)
 
+    /** Hashes the given message with a prefix.
+     * @param prefix the prefix to apply to the hash
+     * @param message the message to hash
+     * @tparam T the hash type
+     * @return a hashed digest
+     */
     def apply[T : Hash](prefix: Byte, message: Array[Byte]): Digest =
       apply.hash(Some(prefix), NonEmptyChain(message))
 
+    /** Hashes the given message.
+     * @param message the message to hash
+     * @tparam T the hash type
+     * @return the hash digest
+     */
     def apply[T : Hash](message: String): Digest =
       apply.hash(None, NonEmptyChain(message.getBytes))
 
+    /** Gets the digest size produced by the hash.
+     * @tparam T the hash type
+     * @return the size of the hash digest
+     */
     def digestSize[T : Hash]: Int = apply.digestSize
 
   }
