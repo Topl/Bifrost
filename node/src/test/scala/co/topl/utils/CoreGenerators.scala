@@ -40,7 +40,7 @@ trait CoreGenerators extends Logging {
 
   private val keyFileDir =
     settings.application.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
-  private val keyRing = KeyRing[PrivateKeyCurve25519, KeyfileCurve25519](keyFileDir, KeyfileCurve25519)
+  private val keyRing = KeyRing.empty[PrivateKeyCurve25519, KeyfileCurve25519](Some(keyFileDir))
 
   def sampleUntilNonEmpty[T](generator: Gen[T]): T = {
     var sampled = generator.sample
@@ -256,7 +256,7 @@ trait CoreGenerators extends Logging {
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
     data        <- stringGen
-  } yield
+  } yield {
 
     PolyTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
   }

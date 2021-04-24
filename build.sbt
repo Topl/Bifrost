@@ -185,7 +185,7 @@ val graalDependencies = Seq(
   "org.graalvm.truffle" % "truffle-api" % graalVersion
 )
 
-libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies
+libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ loggingDependencies
 ++ testingDependenciesTest ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
 
 scalacOptions ++= Seq(
@@ -299,7 +299,7 @@ lazy val brambl = project.in(file("brambl"))
     name := "brambl",
     commonSettings,
     publishSettings,
-    libraryDependencies ++= apiDependencies ++ akkaDependencies ++ akkaCirceDependencies ++ testingDependenciesTest,
+    libraryDependencies ++= akkaDependencies ++ akkaCirceDependencies ++ testingDependenciesTest,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.brambl",
   )
