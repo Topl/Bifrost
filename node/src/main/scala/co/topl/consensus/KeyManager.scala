@@ -1,7 +1,7 @@
 package co.topl.consensus
 
 import akka.actor._
-import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
+import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, AddressEncoder, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.KeyManager.{AttemptForgingKeyView, ForgerStartupKeyView}
 import co.topl.settings.{AppContext, AppSettings}
@@ -53,11 +53,13 @@ class KeyManager(
 
   /** Creates a new key ring. */
   def createKeyRing(): KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] = {
+    implicit val keyfileCurve25519Companion: KeyfileCurve25519Companion.type = KeyfileCurve25519Companion
+
     val keyFileDir = settings.application.keyFileDir
       .ensuring(_.isDefined, "A keyfile directory must be specified")
       .get
 
-    KeyRing[PrivateKeyCurve25519, KeyfileCurve25519](keyFileDir, KeyfileCurve25519)
+    KeyRing.empty[PrivateKeyCurve25519, KeyfileCurve25519](Some(keyFileDir))
   }
 
   /** Generates the initial addresses in the node for a private or local test network.

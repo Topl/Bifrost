@@ -30,6 +30,8 @@ class ArbitTransferRPCSpec extends AnyWordSpec
            |     "recipients": [["$address", "1"]],
            |     "sender": ["$address"],
            |     "changeAddress": "$address",
+           |     "consolidationAddress": "$address",
+           |     "minting": "false",
            |     "fee": "1",
            |     "data": ""
            |   }]
