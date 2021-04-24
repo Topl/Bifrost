@@ -196,8 +196,8 @@ class WalletConnectionHandler[
 
       Some(keystrings.map(key =>
         AddressEncoder.fromStringWithCheck(key, networkPrefix) match {
-          case Success(addr) => addr
-          case Failure(ex)   => throw new Error (s"The key: $key cannot be converted into an address: $ex")
+          case Right(addr) => addr
+          case Left(ex)   => throw new Error (s"The key: $key cannot be converted into an address: $ex")
         }))
     }
   }

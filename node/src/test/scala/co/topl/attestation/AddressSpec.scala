@@ -27,7 +27,7 @@ class AddressSpec extends AnyPropSpec
       networkPrefix = secNetworkType.netPrefix
       val thrown = intercept[Exception] (Address(networkPrefix)(addrStr))
 
-      thrown.getMessage shouldEqual "Invalid address: Network type does not match"
+      thrown.getMessage shouldEqual "NetworkTypeMismatch"
     }
   }
 
@@ -100,7 +100,7 @@ class AddressSpec extends AnyPropSpec
       val addrStr: String = address.toString
 
       val thrown = intercept[Exception] (Address(networkPrefix)(addrStr))
-      thrown.getMessage shouldEqual s"Invalid networkPrefix specified"
+      thrown.getMessage shouldEqual "InvalidNetworkPrefix"
     }
   }
 }

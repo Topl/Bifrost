@@ -17,11 +17,11 @@ class PolyTransferSpec
 
   property("Generated PolyTransfer Tx should be valid") {
     forAll(validPolyTransfer(keyRing, genesisState)) { polyTransfer: PolyTransfer[_] =>
-      polyTransfer.syntacticValidate match {
-        case Failure(exception) => println(exception)
-        case _ =>
+      polyTransfer.syntacticValidate.toEither match {
+        case Left(exception) => println(exception)
+        case _               =>
       }
-      polyTransfer.syntacticValidate.isSuccess shouldBe true
+      polyTransfer.syntacticValidate.isValid shouldBe true
     }
   }
 
@@ -29,7 +29,7 @@ class PolyTransferSpec
     // Create invalid PolyTransfer
     // send tx to state
     forAll(polyTransferGen) { polyTransfer: PolyTransfer[_] =>
-      polyTransfer.syntacticValidate.isSuccess shouldBe false
+      polyTransfer.syntacticValidate.isValid shouldBe false
     }
   }
 }

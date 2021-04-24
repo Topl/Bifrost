@@ -141,15 +141,15 @@ case class TransactionApiEndpoint(
       }) match {
         case Right(Success(tx)) =>
           // validate and update nodeView with new TX
-          tx.rawValidate match {
-            case Success(_) =>
+          tx.rawValidate.toEither match {
+            case Right(_) =>
               Map(
                 "rawTx"         -> tx.asJson,
                 "messageToSign" -> Base58.encode(tx.messageToSign).asJson
               ).asJson
 
-            case Failure(e) =>
-              throw new Exception(s"Could not validate transaction: $e")
+            case Left(e) =>
+              throw new Exception(s"Could not validate transaction: ${e.head}")
           }
 
         case Right(Failure(ex)) => throw new Exception(s"Failed to create raw AssetTransfer with error: $ex")
@@ -218,15 +218,15 @@ case class TransactionApiEndpoint(
       }) match {
         case Right(Success(tx)) =>
           // validate and update nodeView with new TX
-          tx.rawValidate match {
-            case Success(_) =>
+          tx.rawValidate.toEither match {
+            case Right(_) =>
               Map(
                 "rawTx"         -> tx.asJson,
                 "messageToSign" -> Base58.encode(tx.messageToSign).asJson
               ).asJson
 
-            case Failure(e) =>
-              throw new Exception(s"Could not validate transaction: $e")
+            case Left(e) =>
+              throw new Exception(s"Could not validate transaction: ${e.head}")
           }
 
         case Right(Failure(ex)) => throw new Exception(s"Failed to create raw PolyTransfer with error: $ex")
@@ -313,15 +313,15 @@ case class TransactionApiEndpoint(
       }) match {
         case Right(Success(tx)) =>
           // validate and update nodeView with new TX
-          tx.rawValidate match {
-            case Success(_) =>
+          tx.rawValidate.toEither match {
+            case Right(_) =>
               Map(
                 "rawTx"         -> tx.asJson,
                 "messageToSign" -> Base58.encode(tx.messageToSign).asJson
               ).asJson
 
-            case Failure(e) =>
-              throw new Exception(s"Could not validate transaction: $e")
+            case Left(e) =>
+              throw new Exception(s"Could not validate transaction: ${e.head}")
           }
 
         case Right(Failure(ex)) => throw new Exception(s"Failed to create raw ArbitTransfer with error: $ex")
@@ -356,9 +356,9 @@ case class TransactionApiEndpoint(
     } yield tx.syntacticValidate.map { _ =>
       nodeViewHolderRef ! LocallyGeneratedTransaction(tx)
       tx.asJson
-    }) match {
-      case Right(Success(json)) => json
-      case Right(Failure(ex))   => throw new Exception (ex)
+    }.toEither) match {
+      case Right(Right(json)) => json
+      case Right(Left(ex))   => throw new Exception(ex.head.toString)
       case Left(ex)             => throw ex
     }
   }
