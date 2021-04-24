@@ -68,7 +68,7 @@ If bifrost's running, you can run the tests by typing: `sbt "project gjallarhorn
 
 You can also run individual test files by typing: `sbt "project gjallarhorn" "testOnly <test-filename>"`
 
-*sbt test looks for files within the `test/scala` folder so running a single test should look like: `sbt "project gjallarhorn" "testOnly example.KeysSpec"`
+*sbt test looks for files within the `test/scala` folder so running a single test should look like: `sbt "project gjallarhorn" "testOnly KeysSpec"`
 
 **Note: right now you must run the tests individually or else you will get an error about the akka routing port being bound multiple times. There are already tickets for this issue (#892 and #895). 
 

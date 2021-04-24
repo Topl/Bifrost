@@ -1,25 +1,95 @@
-import sbt.Keys.organization
+import sbt.Keys.{homepage, organization}
 import sbtassembly.MergeStrategy
 
-name := "bifrost"
-scalaVersion := "2.12.13"
-organization := "co.topl"
-version := "1.3.4"
+val scala212 = "2.12.13"
+val scala213 = "2.13.5"
+
+inThisBuild(List(
+  organization := "co.topl",
+  scalaVersion := scala212,
+  crossScalaVersions := Seq(scala212, scala213),
+  Compile / run / mainClass := Some("co.topl.BifrostApp"),
+  versionScheme := Some("early-semver"),
+  dynverSeparator := "-",
+  dynverSonatypeSnapshots := true,
+  version := dynverGitDescribeOutput.value.mkVersion(versionFmt, fallbackVersion(dynverCurrentDate.value)),
+  dynver := {
+    val d = new java.util.Date
+    sbtdynver.DynVer.getGitDescribeOutput(d).mkVersion(versionFmt, fallbackVersion(d))
+  }
+))
 
 lazy val commonSettings = Seq(
-  scalaVersion := "2.12.13",
+  sonatypeCredentialHost := "s01.oss.sonatype.org",
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
-  organization := "co.topl",
-  version := "1.3.4"
   // wartremoverErrors := Warts.unsafe // settings for wartremover
+  Compile / unmanagedSourceDirectories += {
+    val sourceDir = (Compile / sourceDirectory).value
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, n)) if n >= 13 => sourceDir / "scala-2.13+"
+      case _ => sourceDir / "scala-2.12-"
+    }
+  },
+  Test / testOptions ++= Seq(
+    Tests.Argument("-oD", "-u", "target/test-reports"),
+    Tests.Argument(TestFrameworks.ScalaCheck, "-verbosity", "2"),
+    Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-oDG")
+  ),
+  Test / parallelExecution := false,
+  Test / logBuffered := false,
+  classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
+  Test / fork := false,
+  Compile / run / fork := true,
+  resolvers ++= Seq(
+    "Typesafe Repository" at "https://repo.typesafe.com/typesafe/releases/",
+    "Sonatype Staging" at "https://s01.oss.sonatype.org/content/repositories/staging",
+    "Sonatype Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots/"
+  )
 )
 
-mainClass in assembly := Some("co.topl.BifrostApp")
-test in assembly := {}
+lazy val publishSettings = Seq(
+  homepage := Some(url("https://github.com/Topl/Bifrost")),
+  licenses := Seq("MPL2.0" -> url("https://www.mozilla.org/en-US/MPL/2.0/")),
+  Test / publishArtifact := false,
+  pomIncludeRepository := { _ => false },
+  usePgpKeyHex("CEE1DC9E7C8E9AF4441D5EB9E35E84257DCF8DCB"),
+  pomExtra :=
+    <developers>
+      <developer>
+        <id>scasplte2</id>
+        <name>James Aman</name>
+      </developer>
+      <developer>
+        <id>tuxman</id>
+        <name>Nicholas Edmonds</name>
+      </developer>
+    </developers>
+)
 
-// The Typesafe repository
-resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/"
+lazy val assemblySettings = Seq(
+  assembly / mainClass := Some("co.topl.BifrostApp"),
+  assembly / test := {},
+  assemblyJarName := s"bifrost-${version.value}.jar",
+  assembly / assemblyMergeStrategy ~= { old: ((String) => MergeStrategy) => {
+    case ps if ps.endsWith(".SF")  => MergeStrategy.discard
+    case ps if ps.endsWith(".DSA") => MergeStrategy.discard
+    case ps if ps.endsWith(".RSA") => MergeStrategy.discard
+    case ps if ps.endsWith(".xml") => MergeStrategy.first
+    case PathList(ps @ _*) if ps.last endsWith "module-info.class" =>
+      MergeStrategy.discard // https://github.com/sbt/sbt-assembly/issues/370
+    case PathList("module-info.java")  => MergeStrategy.discard
+    case PathList("local.conf")        => MergeStrategy.discard
+    case "META-INF/truffle/instrument" => MergeStrategy.concat
+    case "META-INF/truffle/language"   => MergeStrategy.rename
+    case x                             => old(x)
+  }
+  },
+  assembly / assemblyExcludedJars := {
+    val cp = (assembly / fullClasspath).value
+    cp filter { el => el.data.getName == "ValkyrieInstrument-1.0.jar" }
+  }
+)
 
 val akkaVersion = "2.6.13"
 val akkaHttpVersion = "10.2.4"
@@ -44,11 +114,16 @@ val networkDependencies = Seq(
   "commons-net" % "commons-net" % "3.8.0"
 )
 
-val apiDependencies = Seq(
+val jsonDependencies = Seq(
   "io.circe" %% "circe-core"    % circeVersion,
   "io.circe" %% "circe-generic" % circeVersion,
   "io.circe" %% "circe-parser"  % circeVersion,
-  "io.circe" %% "circe-literal" % circeVersion
+  "io.circe" %% "circe-literal" % circeVersion,
+  "io.circe" %% "circe-optics" % circeVersion
+)
+
+val akkaCirceDependencies = Seq(
+  "de.heikoseeberger" %% "akka-http-circe" % "1.36.0"
 )
 
 val loggingDependencies = Seq(
@@ -58,13 +133,21 @@ val loggingDependencies = Seq(
   "org.slf4j"                   % "slf4j-api"       % "1.7.30"
 )
 
-val testingDependencies = Seq(
-  "org.scalactic"      %% "scalactic"         % "3.2.6"   % Test,
-  "org.scalatest"      %% "scalatest"         % "3.2.6"   % Test,
-  "org.scalacheck"     %% "scalacheck"        % "1.15.3"  % Test,
-  "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % Test,
-  "com.spotify"         % "docker-client"     % "8.16.0"  % Test,
-  "org.asynchttpclient" % "async-http-client" % "2.12.3"  % Test
+val testingDependenciesTest = Seq(
+  "org.scalatest"      %% "scalatest"         % "3.2.6"   % "test",
+  "org.scalactic"      %% "scalactic"         % "3.2.6"   % "test",
+  "org.scalacheck"     %% "scalacheck"        % "1.15.3"  % "test",
+  "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
+  "com.spotify"         % "docker-client"     % "8.16.0"  % "test",
+  "org.asynchttpclient" % "async-http-client" % "2.12.3"  % "test",
+  "org.scalamock"      %% "scalamock"         % "5.1.0"   % "test"
+)
+
+val testingDependenciesIt = Seq(
+  "org.scalatest"      %% "scalatest"         % "3.2.6"   % "it",
+  "com.spotify"         % "docker-client"     % "8.16.0"  % "it",
+  "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion     % "it",
+  "com.typesafe.akka" %% "akka-http-testkit"   % akkaHttpVersion % "it"
 )
 
 val cryptoDependencies = Seq(
@@ -102,8 +185,8 @@ val graalDependencies = Seq(
   "org.graalvm.truffle" % "truffle-api" % graalVersion
 )
 
-libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies
-++ testingDependencies ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
+libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ loggingDependencies
+++ testingDependenciesTest ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
 
 scalacOptions ++= Seq(
   "-deprecation",
@@ -129,89 +212,140 @@ javaOptions ++= Seq(
   "-Xss64m"
 )
 
-testOptions in Test += Tests.Argument("-oD", "-u", "target/test-reports")
-testOptions in Test += Tests.Argument(TestFrameworks.ScalaCheck, "-verbosity", "2")
-
-//publishing settings
-
-publishMavenStyle := true
-
-publishArtifact in Test := false
-
-parallelExecution in Test := false
-
-logBuffered in Test := false
-
-testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-oDG")
-
-classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
-
-Test / fork := false
-
-Compile / run / fork := true
-
-pomIncludeRepository := { _ => false }
-
-homepage := Some(url("https://github.com/Topl/Bifrost"))
-
-assemblyJarName := s"bifrost-${version.value}.jar"
-
-assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) =>
-  {
-    case ps if ps.endsWith(".SF")  => MergeStrategy.discard
-    case ps if ps.endsWith(".DSA") => MergeStrategy.discard
-    case ps if ps.endsWith(".RSA") => MergeStrategy.discard
-    case ps if ps.endsWith(".xml") => MergeStrategy.first
-    case PathList(ps @ _*) if ps.last endsWith "module-info.class" =>
-      MergeStrategy.discard // https://github.com/sbt/sbt-assembly/issues/370
-    case PathList("module-info.java")  => MergeStrategy.discard
-    case PathList("local.conf")        => MergeStrategy.discard
-    case "META-INF/truffle/instrument" => MergeStrategy.concat
-    case "META-INF/truffle/language"   => MergeStrategy.rename
-    case x                             => old(x)
-  }
-}
-
-assemblyExcludedJars in assembly := {
-  val cp = (fullClasspath in assembly).value
-  cp filter { el => el.data.getName == "ValkyrieInstrument-1.0.jar" }
-}
-
-connectInput in run := true
+connectInput / run := true
 outputStrategy := Some(StdoutOutput)
 
-connectInput in run := true
+connectInput / run := true
 outputStrategy := Some(StdoutOutput)
 
-lazy val bifrost = Project(id = "bifrost", base = file("."))
-  .settings(commonSettings: _*)
-  .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
+def versionFmt(out: sbtdynver.GitDescribeOutput): String = {
+  val dirtySuffix = out.dirtySuffix.dropPlus.mkString("-", "")
+  if (out.isCleanAfterTag) out.ref.dropPrefix + dirtySuffix // no commit info if clean after tag
+  else out.ref.dropPrefix + out.commitSuffix.mkString("-", "-", "") + dirtySuffix
+}
+
+def fallbackVersion(d: java.util.Date): String = s"HEAD-${sbtdynver.DynVer timestamp d}"
+
+lazy val bifrost = project.in(file("."))
   .settings(
+    moduleName := "bifrost",
+    commonSettings,
+    publish / skip := true,
+    crossScalaVersions := Nil,
+  )
+  .configs(IntegrationTest)
+  .aggregate(
+    node,
+    common,
+    akkaHttpRpc,
+    toplRpc,
+    gjallarhorn,
+    benchmarking
+  )
+  .dependsOn(
+    node,
+    common,
+    gjallarhorn,
+    benchmarking
+  )
+
+lazy val node = project.in(file("node"))
+  .settings(
+    name := "node",
+    commonSettings,
+    assemblySettings,
+    Defaults.itSettings,
+    publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
+    Docker / packageName := "bifrost-node",
     dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java8-21.0.0",
     dockerExposedPorts := Seq(9084, 9085),
     dockerExposedVolumes += "/opt/docker/.bifrost",
     dockerLabels ++= Map(
       "bifrost.version" -> version.value
-    )
+    ),
+    libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ jsonDependencies ++ loggingDependencies
+      ++ testingDependenciesTest ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ testingDependenciesIt)
   )
-
-lazy val benchmarking = Project(id = "benchmark", base = file("benchmark"))
-  .settings(commonSettings: _*)
-  .dependsOn(bifrost % "compile->compile;test->test")
-  .enablePlugins(JmhPlugin)
-  .disablePlugins(sbtassembly.AssemblyPlugin)
-
-lazy val gjallarhorn = Project(id = "gjallarhorn", base = file("gjallarhorn"))
+  .configs(IntegrationTest)
   .settings(
-    commonSettings,
-    libraryDependencies ++= akkaDependencies ++ testingDependencies ++ cryptoDependencies ++ apiDependencies
-    ++ loggingDependencies ++ miscDependencies
+    IntegrationTest / parallelExecution := false
   )
+  .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
+  .dependsOn(common)
+
+lazy val common = project.in(file("common"))
+  .settings(
+    name := "common",
+    commonSettings,
+    publishSettings,
+    libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ jsonDependencies ++ cryptoDependencies
+  )
+
+lazy val chainProgram = project.in(file("chain-program"))
+  .settings(
+    name := "chain-program",
+    commonSettings,
+    publish / skip := true,
+    libraryDependencies ++= jsonDependencies ++ testingDependenciesTest ++ graalDependencies
+  )
+  .dependsOn(common)
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
-lazy val it = Project(id = "it", base = file("it"))
-  .settings(commonSettings: _*)
-  .dependsOn(bifrost % "compile->compile;test->test")
+lazy val brambl = project.in(file("brambl"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "brambl",
+    commonSettings,
+    publishSettings,
+    libraryDependencies ++= akkaDependencies ++ akkaCirceDependencies ++ testingDependenciesTest,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.brambl",
+  )
+  .dependsOn(toplRpc, common)
+
+lazy val akkaHttpRpc = project.in(file("akka-http-rpc"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "akka-http-rpc",
+    commonSettings,
+    publishSettings,
+    libraryDependencies ++= jsonDependencies ++ akkaDependencies ++ akkaCirceDependencies ++ testingDependenciesTest,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.akkahttprpc",
+  )
+
+lazy val toplRpc = project.in(file("topl-rpc"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "topl-rpc",
+    commonSettings,
+    publishSettings,
+    libraryDependencies ++= jsonDependencies ++ akkaDependencies ++ akkaCirceDependencies ++ testingDependenciesTest,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.toplrpc",
+  )
+  .dependsOn(akkaHttpRpc, common)
+
+lazy val gjallarhorn = project.in(file("gjallarhorn"))
+  .settings(
+    name := "gjallarhorn",
+    commonSettings,
+    publish / skip := true,
+    Defaults.itSettings,
+    libraryDependencies ++= akkaDependencies ++ testingDependenciesTest ++ cryptoDependencies ++ jsonDependencies
+    ++ loggingDependencies ++ miscDependencies ++ testingDependenciesIt
+  )
+  .configs(IntegrationTest)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+
+lazy val benchmarking = project.in(file("benchmark"))
+  .settings(
+    name := "benchmark",
+    commonSettings,
+    publish / skip := true
+  )
+  .dependsOn(node % "compile->compile;test->test")
+  .enablePlugins(JmhPlugin)
   .disablePlugins(sbtassembly.AssemblyPlugin)
