@@ -134,7 +134,7 @@ val loggingDependencies = Seq(
 )
 
 val testingDependenciesTest = Seq(
-  "org.scalatest"      %% "scalatest"         % "3.2.6"   % "test",
+  "org.scalatest"      %% "scalatest"         % "3.2.8"   % "test",
   "org.scalactic"      %% "scalactic"         % "3.2.6"   % "test",
   "org.scalacheck"     %% "scalacheck"        % "1.15.3"  % "test",
   "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
@@ -144,7 +144,7 @@ val testingDependenciesTest = Seq(
 )
 
 val testingDependenciesIt = Seq(
-  "org.scalatest"      %% "scalatest"         % "3.2.6"   % "it",
+  "org.scalatest"      %% "scalatest"         % "3.2.8"   % "it",
   "com.spotify"         % "docker-client"     % "8.16.0"  % "it",
   "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion     % "it",
   "com.typesafe.akka" %% "akka-http-testkit"   % akkaHttpVersion % "it"
