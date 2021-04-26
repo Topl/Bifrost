@@ -1,8 +1,8 @@
 FROM ubuntu:20.10
 
-ARG GRAALVM_VERSION=21.0.0.2
+ARG GRAALVM_VERSION=21.1.0
 ARG JAVA_VERSION=java11
-ARG SBT_VERSION=1.4.9
+ARG SBT_VERSION=1.5.0
 
 RUN apt -y update && apt -y upgrade
 RUN apt -y install \
@@ -33,18 +33,12 @@ RUN set -eux \
     | gunzip | tar x -C /opt/
 
 # SBT Install
-# See: https://github.com/mozilla/docker-sbt/blob/main/Dockerfile
-RUN \
-  mkdir /working/ && \
-  cd /working/ && \
-  curl -L -o sbt-$SBT_VERSION.deb https://dl.bintray.com/sbt/debian/sbt-$SBT_VERSION.deb && \
-  dpkg -i sbt-$SBT_VERSION.deb && \
-  rm sbt-$SBT_VERSION.deb && \
-  apt-get update && \
-  apt-get install sbt && \
-  cd && \
-  rm -r /working/ && \
-  sbt sbtVersion
+ARG SBT_PKG=https://github.com/sbt/sbt/releases/download/v$SBT_VERSION/sbt-$SBT_VERSION.tgz
+ENV PATH=/opt/sbt/bin:$PATH
+
+RUN set -eux \
+    && curl --fail --silent --location --retry 3 ${SBT_PKG} \
+    | gunzip | tar x -C /opt/
 
 WORKDIR /bifrost
 
@@ -52,4 +46,4 @@ COPY . /bifrost
 
 RUN sbt compile
 
-ENTRYPOINT sbt bifrost/docker:publishLocal it/test
+ENTRYPOINT sbt node/docker:publishLocal node/it:test
