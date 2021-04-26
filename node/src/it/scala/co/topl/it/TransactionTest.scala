@@ -22,7 +22,7 @@ import scorex.crypto.hash.Blake2b256
   * 2. Extract the 10 keys from genesis.  Also generate the same 10 keys in a local keyring using the same seed.
   * 3. Send polys from address "A" to address "B".  Verify balance change.  Verify no change for address "C".
   * 4. Generate a new key in the local keyring.  (Address "D")
-  * 5. Send polys from address "B" to address "D".  Verify balance change.
+  * 5. Send polys from address "A" to address "D".  Verify balance change.
   * 6. Send polys from address "D" to a burn address (doesn't exist in any keyring).  Verify balance change.
   */
 class TransactionTest
