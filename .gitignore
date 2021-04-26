@@ -35,6 +35,7 @@ examples/lib/
 dumps/
 local/
 local.conf
+localVersion.sbt
 
 # monitoring persistent data files
 monit/data/
