@@ -268,6 +268,7 @@ lazy val common = project.in(file("common"))
     commonSettings,
     publishSettings,
     libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ apiDependencies ++ cryptoDependencies
+      ++ miscDependencies
   )
   .dependsOn(crypto)
 

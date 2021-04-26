@@ -61,10 +61,10 @@ object NodeViewModifier extends BifrostSerializer[NodeViewModifier] {
 
   override def parse(r: Reader): NodeViewModifier =
     (r.getByte() match {
-      case Block.modifierTypeId.toByte       => BlockSerializer.parseTry(r)
-      case BlockHeader.modifierTypeId.toByte => BlockHeaderSerializer.parseTry(r)
-      case BlockBody.modifierTypeId.toByte   => BlockBodySerializer.parseTry(r)
-      case Transaction.modifierTypeId.toByte => TransactionSerializer.parseTry(r)
+      case b if b == Block.modifierTypeId.toByte       => BlockSerializer.parseTry(r)
+      case b if b == BlockHeader.modifierTypeId.toByte => BlockHeaderSerializer.parseTry(r)
+      case b if b == BlockBody.modifierTypeId.toByte   => BlockBodySerializer.parseTry(r)
+      case b if b == Transaction.modifierTypeId.toByte => TransactionSerializer.parseTry(r)
     }) match {
       case Success(tx) => tx
       case Failure(ex) => throw ex

@@ -46,7 +46,7 @@ object ModifierId extends GjalSerializer[ModifierId] {
 
   val size: Int = 1 + Hash.digestSize // ModifierId's are derived from Blake2b-256
   val empty: ModifierId = new ModifierId(Array.fill(size)(0: Byte))
-  val genesisParentId: ModifierId = new ModifierId(ModifierTypeId(3: Byte) +:
+  val genesisParentId: ModifierId = new ModifierId(ModifierTypeId(3: Byte).toByte +:
     Array.fill(Hash.digestSize)(1: Byte))
 
   implicit val ord: Ordering[ModifierId] = Ordering.by(_.toString)

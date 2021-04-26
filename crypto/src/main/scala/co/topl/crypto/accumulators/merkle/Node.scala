@@ -30,7 +30,7 @@ case class InternalNode[H : Hash](left: Node, right: Node) extends Node {
  * @param data - leaf data.
  */
 case class Leaf[H : Hash](data: LeafData) extends Node {
-  override lazy val hash: Digest = Hash(MerkleTree.LeafPrefix, data)
+  override lazy val hash: Digest = Hash(MerkleTree.LeafPrefix, data.toBytes)
 
   override def toString: String = s"Leaf(${Base58.encode(hash.toBytes)})"
 }

@@ -24,7 +24,7 @@ trait TransactionCarryingPersistentNodeViewModifier[TX <: Transaction.TX] extend
   val transactions: Seq[TX]
 
   lazy val merkleTree: MerkleTree[Blake2b256] =
-    MerkleTree[Blake2b256](transactions.map(tx => LeafData(tx.blytes)))
+    MerkleTree[Blake2b256](transactions.map(tx => LeafData(tx.bytes)))
 
   lazy val bloomFilter: BloomFilter = TransactionsCarryingPersistentNodeViewModifier.createBloom(transactions)
 

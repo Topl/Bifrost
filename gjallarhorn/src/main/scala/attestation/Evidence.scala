@@ -4,7 +4,9 @@ import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import co.topl.utils.encode.Base58
+import shapeless.newtype
 import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
+import io.estatico.newtype.macros.newtype
 
 import scala.util.{Failure, Success, Try}
 
@@ -35,14 +37,14 @@ object Evidence extends GjalSerializer[Evidence] {
   // below are types and values used enforce the behavior of evidence
   type EvidenceTypePrefix = Byte
 
-  object EvidenceContent extends TaggedType[Array[Byte]]
-  type EvidenceContent = EvidenceContent.Type
+  @newtype
+  case class EvidenceContent(toBytes: Array[Byte])
 
   val contentLength = 32             //bytes (this is generally the output of a Blake2b-256 bit hash)
   val size: Int = 1 + contentLength  //length of typePrefix + contentLength
 
   def apply(typePrefix: EvidenceTypePrefix, content: EvidenceContent): Evidence = {
-    fromBytes(typePrefix +: content) match {
+    fromBytes(typePrefix +: content.toBytes) match {
       case Success(ec) => ec
       case Failure(ex) => throw ex
     }

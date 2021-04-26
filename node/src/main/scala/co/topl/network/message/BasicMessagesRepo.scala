@@ -68,7 +68,7 @@ class InvSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
     val elems = data.ids
     require(elems.nonEmpty, "empty inv list")
     require(elems.lengthCompare(maxInvObjects) <= 0, s"more invs than $maxInvObjects in a message")
-    w.put(typeId)
+    w.put(typeId.toByte)
     w.putUInt(elems.size)
     elems.foreach { id =>
       val bytes = id.bytes
@@ -151,7 +151,7 @@ class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] wi
     }
 
     val start = w.length()
-    w.put(typeId)
+    w.put(typeId.toByte)
     w.putUInt(msgCount)
 
     modifiers.take(msgCount).foreach { case (id, modifier) =>

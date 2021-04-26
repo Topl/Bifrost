@@ -27,7 +27,7 @@ import co.topl.crypto.utils.Base58
 case class MerkleProof[H : Hash](leafData: LeafData, levels: Seq[(Digest, Side)]) {
 
   def valid(expectedRootHash: Digest): Boolean = {
-    val leafHash = Hash(MerkleTree.LeafPrefix, leafData)
+    val leafHash = Hash(MerkleTree.LeafPrefix, leafData.toBytes)
 
     levels.foldLeft(leafHash) { case (prevHash, (hash, side)) =>
       if (side == MerkleProof.LeftSide) {
