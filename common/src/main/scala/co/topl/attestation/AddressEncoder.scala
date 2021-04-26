@@ -12,8 +12,8 @@ import scala.util.{Failure, Try}
  * as a quick check that may be used with external systems.
  */
 object AddressEncoder {
-  // use Blake2b256 for hashing
-  import co.topl.crypto.hash.Blake2b256._
+  // use Blake2b256 for hashing with 32 byte digest size
+  import co.topl.crypto.hash.Blake2b256.digest32
 
   val checksumLength = 4
 

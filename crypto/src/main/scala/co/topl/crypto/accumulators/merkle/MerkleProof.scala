@@ -1,7 +1,7 @@
 package co.topl.crypto.accumulators.merkle
 
 import co.topl.crypto.accumulators.{LeafData, Side}
-import co.topl.crypto.hash.{Digest, Hash}
+import co.topl.crypto.hash.{Digest32, Hash}
 import co.topl.crypto.utils.Base58
 
 /* Forked from https://github.com/input-output-hk/scrypto */
@@ -24,9 +24,9 @@ import co.topl.crypto.utils.Base58
  * @param levels - levels in proof, bottom up, each level is about stored value and position of computed element
  *               (whether it is left or right to stored value)
  */
-case class MerkleProof[H : Hash](leafData: LeafData, levels: Seq[(Digest, Side)]) {
+case class MerkleProof[H](leafData: LeafData, levels: Seq[(Digest32, Side)])(implicit h: Hash[H, Digest32]) {
 
-  def valid(expectedRootHash: Digest): Boolean = {
+  def valid(expectedRootHash: Digest32): Boolean = {
     val leafHash = Hash(MerkleTree.LeafPrefix, leafData.toBytes)
 
     levels.foldLeft(leafHash) { case (prevHash, (hash, side)) =>

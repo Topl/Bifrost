@@ -13,7 +13,7 @@ import scala.util.{Failure, Try}
 object AddressEncoder {
 
   // use Blake2b256 hashing
-  import co.topl.crypto.hash.Blake2b256._
+  import co.topl.crypto.hash.Blake2b256.digest32
 
   type NetworkPrefix = Byte
 

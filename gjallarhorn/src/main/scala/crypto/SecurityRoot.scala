@@ -36,7 +36,7 @@ class SecurityRoot private (private val root: Array[Byte]) extends BytesSerializ
 object SecurityRoot extends GjalSerializer[SecurityRoot] {
 
   // use Blake2b256 hashing
-  import co.topl.crypto.hash.Blake2b256._
+  import co.topl.crypto.hash.Blake2b256.digest32
 
   val size: Int = Hash.digestSize // 32 bytes
   val empty: SecurityRoot = new SecurityRoot(Array.fill(size)(0: Byte))

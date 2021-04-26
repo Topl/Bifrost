@@ -8,16 +8,30 @@ import io.estatico.newtype.macros.newtype
 package object hash {
 
   @newtype
-  case class Digest(toBytes: Array[Byte])
+  case class Digest32(toBytes: Array[Byte])
 
-  object Digest {
+  object Digest32 {
 
     /** Gets a validated Digest guaranteed to be the correct digest size.
      * @param bytes the bytes to convert to a digest
      * @return the digest or an invalid error
      */
-    def validated(bytes: Array[Byte]): Validated[InvalidDigestError, Digest] =
-      Validated.cond(bytes.length == 32, Digest(bytes), IncorrectSize)
+    def validated(bytes: Array[Byte]): Validated[InvalidDigestError, Digest32] =
+      Validated.cond(bytes.length == 32, Digest32(bytes), IncorrectSize)
+
+  }
+
+  @newtype
+  case class Digest64(toBytes: Array[Byte])
+
+  object Digest64 {
+
+    /** Gets a validated Digest guaranteed to be the correct digest size.
+     * @param bytes the bytes to convert to a digest
+     * @return the digest or an invalid error
+     */
+    def validated(bytes: Array[Byte]): Validated[InvalidDigestError, Digest64] =
+      Validated.cond(bytes.length == 64, Digest64(bytes), IncorrectSize)
 
   }
 
@@ -27,9 +41,9 @@ package object hash {
   /** A hash function which hashes a message into a digest of type T.
    * @tparam T the digest type
    */
-  trait Hash[T] {
+  trait Hash[T, D] {
     val digestSize: Int
-    def hash(prefix: Option[Byte], messages: NonEmptyChain[Array[Byte]]): Digest
+    def hash(prefix: Option[Byte], messages: NonEmptyChain[Array[Byte]]): D
   }
 
   object Hash {
@@ -38,14 +52,14 @@ package object hash {
      * @tparam T the hash type
      * @return the hash function
      */
-    def apply[T : Hash]: Hash[T] = implicitly[Hash[T]]
+    def apply[T, D](implicit hash: Hash[T, D]) : Hash[T, D] = implicitly[Hash[T, D]]
 
     /** Hashes the given message.
      * @param message the message to hash
      * @tparam T the hash type
      * @return the hash digest
      */
-    def apply[T : Hash](message: Array[Byte]): Digest =
+    def apply[T, D](message: Array[Byte])(implicit hash: Hash[T, D]): D =
       apply.hash(None, NonEmptyChain(message))
 
     /** Hashes the given set of messages with a prefix
@@ -54,7 +68,7 @@ package object hash {
      * @tparam T the hash type
      * @return the hash digest
      */
-    def apply[T : Hash](prefix: Byte, messages: NonEmptyChain[Array[Byte]]): Digest =
+    def apply[T, D](prefix: Byte, messages: NonEmptyChain[Array[Byte]])(implicit hash: Hash[T, D]): D =
       apply.hash(Some(prefix), messages)
 
     /** Hashes the given message with a prefix.
@@ -63,7 +77,7 @@ package object hash {
      * @tparam T the hash type
      * @return a hashed digest
      */
-    def apply[T : Hash](prefix: Byte, message: Array[Byte]): Digest =
+    def apply[T, D](prefix: Byte, message: Array[Byte])(implicit hash: Hash[T, D]): D =
       apply.hash(Some(prefix), NonEmptyChain(message))
 
     /** Hashes the given message.
@@ -71,14 +85,14 @@ package object hash {
      * @tparam T the hash type
      * @return the hash digest
      */
-    def apply[T : Hash](message: String): Digest =
+    def apply[T, D](message: String)(implicit hash: Hash[T, D]): D =
       apply.hash(None, NonEmptyChain(message.getBytes))
 
     /** Gets the digest size produced by the hash.
      * @tparam T the hash type
      * @return the size of the hash digest
      */
-    def digestSize[T : Hash]: Int = apply.digestSize
+    def digestSize[T, D](implicit hash: Hash[T, D]): Int = apply.digestSize
 
   }
 

@@ -15,7 +15,7 @@ import utils.serialization.{BytesSerializable, GjalSerializer}
 import scala.util.{Failure, Success, Try}
 
 // use Blake2b256 hashing
-import co.topl.crypto.hash.Blake2b256._
+import co.topl.crypto.hash.Blake2b256.digest32
 
 /**
   * Propositions are challenges that must be satisfied by the prover.

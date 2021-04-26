@@ -14,7 +14,7 @@ class MessageSerializer(specs: Seq[MessageSpec[_]], magicBytes: Array[Byte]) {
   import scala.language.existentials
 
   // use Blake2b256 hashing
-  import co.topl.crypto.hash.Blake2b256._
+  import co.topl.crypto.hash.Blake2b256.digest32
 
   private implicit val byteOrder: ByteOrder = ByteOrder.BIG_ENDIAN
 

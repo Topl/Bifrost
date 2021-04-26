@@ -82,8 +82,8 @@ case class TransferTransaction[P <: Proposition: EvidenceProducer: Identifiable]
 
 object TransferTransaction {
 
-  // use Blake2b256 for hashing
-  import co.topl.crypto.hash.Blake2b256._
+  // use Blake2b256 for hashing with 32 byte digest size
+  import co.topl.crypto.hash.Blake2b256.digest32
 
   /**
     * Details needed to create a box

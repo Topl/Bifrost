@@ -34,8 +34,8 @@ class ModifierId private (private val value: Array[Byte]) extends BytesSerializa
 
 object ModifierId extends BifrostSerializer[ModifierId] {
 
-  // use Blake2b256 hashing
-  import co.topl.crypto.hash.Blake2b256._
+  // use Blake2b256 hashing with 32 byte digest size
+  import co.topl.crypto.hash.Blake2b256.digest32
 
   val size: Int = 1 + Hash.digestSize // ModifierId's are derived from Blake2b-256
   val empty: ModifierId = new ModifierId(Array.fill(size)(0: Byte))

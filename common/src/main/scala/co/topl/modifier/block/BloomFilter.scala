@@ -57,7 +57,7 @@ class BloomFilter private (private val value: Array[Long]) extends BytesSerializ
 object BloomFilter extends BifrostSerializer[BloomFilter] {
 
   // use Blake2b256 hashing
-  import co.topl.crypto.hash.Blake2b256._
+  import co.topl.crypto.hash.Blake2b256.digest32
 
   @newtype
   case class BloomTopic(toBytes: Array[Byte])
