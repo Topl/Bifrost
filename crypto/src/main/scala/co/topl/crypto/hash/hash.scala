@@ -12,12 +12,14 @@ package object hash {
 
   object Digest32 {
 
+    val size = 32
+
     /** Gets a validated Digest guaranteed to be the correct digest size.
      * @param bytes the bytes to convert to a digest
      * @return the digest or an invalid error
      */
     def validated(bytes: Array[Byte]): Validated[InvalidDigestError, Digest32] =
-      Validated.cond(bytes.length == 32, Digest32(bytes), IncorrectSize)
+      Validated.cond(bytes.length == size, Digest32(bytes), IncorrectSize)
 
   }
 
@@ -26,12 +28,14 @@ package object hash {
 
   object Digest64 {
 
+    val size = 64
+
     /** Gets a validated Digest guaranteed to be the correct digest size.
      * @param bytes the bytes to convert to a digest
      * @return the digest or an invalid error
      */
     def validated(bytes: Array[Byte]): Validated[InvalidDigestError, Digest64] =
-      Validated.cond(bytes.length == 64, Digest64(bytes), IncorrectSize)
+      Validated.cond(bytes.length == size, Digest64(bytes), IncorrectSize)
 
   }
 
@@ -42,7 +46,6 @@ package object hash {
    * @tparam T the digest type
    */
   trait Hash[T, D] {
-    val digestSize: Int
     def hash(prefix: Option[Byte], messages: NonEmptyChain[Array[Byte]]): D
   }
 
@@ -87,12 +90,6 @@ package object hash {
      */
     def apply[T, D](message: String)(implicit hash: Hash[T, D]): D =
       apply.hash(None, NonEmptyChain(message.getBytes))
-
-    /** Gets the digest size produced by the hash.
-     * @tparam T the hash type
-     * @return the size of the hash digest
-     */
-    def digestSize[T, D](implicit hash: Hash[T, D]): Int = apply.digestSize
 
   }
 

@@ -65,7 +65,7 @@ object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
 
     val difficulty: Long = r.getLong()
 
-    val txRoot: Digest32 = Digest32(r.getBytes(Hash[Blake2b256, Digest32].digestSize))
+    val txRoot: Digest32 = Digest32(r.getBytes(Digest32.size))
 
     val bloomFilter: BloomFilter = BloomFilter.parse(r)
 

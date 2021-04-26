@@ -50,7 +50,7 @@ case class EmptyNode[H](implicit h: Hash[H, Digest32]) extends Node {
  */
 case class EmptyRootNode[H](implicit h: Hash[H, Digest32]) extends Node {
   // .get is secure here since we know that array size equals to digest size
-  override val hash: Digest32 = Digest32(Array.fill(Hash[H, Digest32].digestSize)(0: Byte))
+  override val hash: Digest32 = Digest32(Array.fill(Digest32.size)(0: Byte))
 
   override def toString: String = s"EmptyRootNode(${Base58.encode(hash.toBytes)})"
 }

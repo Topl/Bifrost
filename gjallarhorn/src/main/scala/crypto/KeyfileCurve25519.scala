@@ -1,7 +1,6 @@
 package crypto
 
 import java.nio.charset.StandardCharsets
-
 import attestation.{Address, PrivateKeyCurve25519}
 import attestation.AddressEncoder.NetworkPrefix
 import keymanager.{Keyfile, KeyfileCompanion}
@@ -13,7 +12,7 @@ import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
 import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
-import co.topl.crypto.hash.Hash
+import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
 import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
 import co.topl.utils.SecureRandom.randomBytes
 import co.topl.utils.encode.Base58
@@ -38,9 +37,6 @@ case class KeyfileCurve25519(address   : Address,
                              iv        : Array[Byte]) extends Keyfile[PrivateKeyCurve25519]
 
 object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileCurve25519] {
-
-  // use Blake2b256 hashing
-  import co.topl.crypto.hash.Blake2b256.digest32
 
   /**
     * Create a keyfile from the provided seed and save it to disk
@@ -134,7 +130,7 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
     * @return
     */
   private def getMAC (derivedKey: Array[Byte], cipherText: Array[Byte]): Array[Byte] =
-    Hash(derivedKey.slice(16, 32) ++ cipherText).toBytes
+    Hash[Blake2b256, Digest32](derivedKey.slice(16, 32) ++ cipherText).toBytes
 
   /**
     * Generates cipherText and MAC from AES (block cipher)

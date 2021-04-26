@@ -51,7 +51,7 @@ trait ValidGenerators extends CoreGenerators {
     investor <- propositionGen
     hub <- propositionGen
     executionBuilder <- validExecutionBuilderGen().map(_.json)
-    id <- genBytesList(Hash[Blake2b256, Digest32].digestSize)
+    id <- genBytesList(Digest32.size)
   } yield {
     Program(Map(
       "parties" -> Map(

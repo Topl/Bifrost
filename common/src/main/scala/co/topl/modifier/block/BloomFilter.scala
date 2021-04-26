@@ -5,7 +5,7 @@ import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader
 import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import co.topl.crypto.hash.Hash
+import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
 import co.topl.utils.encode.Base58
 import io.estatico.newtype.macros.newtype
 
@@ -55,9 +55,6 @@ class BloomFilter private (private val value: Array[Long]) extends BytesSerializ
 }
 
 object BloomFilter extends BifrostSerializer[BloomFilter] {
-
-  // use Blake2b256 hashing
-  import co.topl.crypto.hash.Blake2b256.digest32
 
   @newtype
   case class BloomTopic(toBytes: Array[Byte])
@@ -131,9 +128,12 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
     */
   private def calculateIndices(topic: BloomTopic): Set[Int] =
     // Pair up bytes and convert signed Byte to unsigned Int
-    Set(0, 2, 4, 6).map(i => Hash(topic.toBytes).toBytes.slice(i, i + 2).map(_ & 0xff)).map { case Array(b1, b2) =>
-      ((b1 << 8) | b2) & idxMask
-    }
+    Set(0, 2, 4, 6)
+      .map(i =>
+        Hash[Blake2b256, Digest32](topic.toBytes).toBytes.slice(i, i + 2).map(_ & 0xff))
+      .map { case Array(b1, b2) =>
+        ((b1 << 8) | b2) & idxMask
+      }
 
   /** From the set of indices, create a long (with the appropriate bits flipped) that will be inserted in the
     * * bloom filter. This function performs bit-wise operations to split the 11 bit bit index integer into two pieces.

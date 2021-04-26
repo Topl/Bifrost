@@ -7,7 +7,7 @@ import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import co.topl.crypto.hash.Hash
+import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
 import co.topl.utils.encode.Base58
 
 import scala.util.{Failure, Success, Try}
@@ -34,12 +34,9 @@ class ModifierId private (private val value: Array[Byte]) extends BytesSerializa
 
 object ModifierId extends BifrostSerializer[ModifierId] {
 
-  // use Blake2b256 hashing with 32 byte digest size
-  import co.topl.crypto.hash.Blake2b256.digest32
-
-  val size: Int = 1 + Hash.digestSize // ModifierId's are derived from Blake2b-256
+  val size: Int = 1 + Digest32.size // ModifierId's are derived from Blake2b-256
   val empty: ModifierId = new ModifierId(Array.fill(size)(0: Byte))
-  val genesisParentId: ModifierId = new ModifierId(Block.modifierTypeId.toByte +: Array.fill(Hash.digestSize)(1: Byte))
+  val genesisParentId: ModifierId = new ModifierId(Block.modifierTypeId.toByte +: Array.fill(Digest32.size)(1: Byte))
 
   implicit val ord: Ordering[ModifierId] = Ordering.by(_.toString)
 
@@ -49,8 +46,10 @@ object ModifierId extends BifrostSerializer[ModifierId] {
   implicit val jsonKeyDecoder: KeyDecoder[ModifierId] = (id: String) => Some(ModifierId(id))
 
   def apply(nodeViewModifier: NodeViewModifier): ModifierId = nodeViewModifier match {
-    case mod: Block          => new ModifierId(Block.modifierTypeId.toByte +: Hash(mod.messageToSign).toBytes)
-    case mod: Transaction.TX => new ModifierId(Transaction.modifierTypeId.toByte +: Hash(mod.messageToSign).toBytes)
+    case mod: Block          =>
+      new ModifierId(Block.modifierTypeId.toByte +: Hash[Blake2b256, Digest32](mod.messageToSign).toBytes)
+    case mod: Transaction.TX =>
+      new ModifierId(Transaction.modifierTypeId.toByte +: Hash[Blake2b256, Digest32](mod.messageToSign).toBytes)
     case _ => throw new Error("Only blocks and transactions generate a modifierId")
   }
 

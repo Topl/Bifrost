@@ -2,7 +2,7 @@ package co.topl.attestation
 
 import co.topl.utils.NetworkType
 import co.topl.utils.encode.Base58
-import co.topl.crypto.hash.Hash
+import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
 
 import scala.util.{Failure, Try}
 
@@ -12,8 +12,6 @@ import scala.util.{Failure, Try}
  * as a quick check that may be used with external systems.
  */
 object AddressEncoder {
-  // use Blake2b256 for hashing with 32 byte digest size
-  import co.topl.crypto.hash.Blake2b256.digest32
 
   val checksumLength = 4
 
@@ -28,7 +26,8 @@ object AddressEncoder {
     * @param addrBytes the bytes of an address (1 - networkPrefix, 1 - addressTypePres, 32 - content bytes)
     * @return a 4 byte checksum value
     */
-  private def genChecksum(addrBytes: Array[Byte]): Array[Byte] = Hash(addrBytes).toBytes.take(checksumLength)
+  private def genChecksum(addrBytes: Array[Byte]): Array[Byte] =
+    Hash[Blake2b256, Digest32](addrBytes).toBytes.take(checksumLength)
 
   def toString(addr: Address): String = {
     val addrBytes = addr.bytes

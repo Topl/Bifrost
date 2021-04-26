@@ -5,15 +5,12 @@ import co.topl.modifier.box.ArbitBox
 import co.topl.settings.ProtocolSettings
 import co.topl.utils.{Int128, TimeProvider}
 import com.google.common.primitives.Longs
-import co.topl.crypto.hash.Hash
+import co.topl.crypto.hash.{Blake2b256, Hash, Digest32}
 
 import scala.concurrent.duration._
 import scala.math.{max, min}
 
 package object consensus {
-
-  // use Blake2b256 hashing
-  import co.topl.crypto.hash.Blake2b256.digest32
 
   private var _protocolMngr: ProtocolVersioner = ProtocolVersioner.empty
 
@@ -51,7 +48,7 @@ package object consensus {
    * @return the test value to be compared to the adjusted difficulty
    */
   def calcHit(lastBlock: Block)(box: ArbitBox): Long = {
-    val h = Hash(lastBlock.bytes ++ box.bytes).toBytes
+    val h = Hash[Blake2b256, Digest32](lastBlock.bytes ++ box.bytes).toBytes
 
     Longs.fromByteArray((0: Byte) +: h.take(7))
   }

@@ -8,7 +8,7 @@ import co.topl.utils.Logging
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import co.topl.crypto.hash.{Digest32, Hash}
+import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
 
 import scala.concurrent.duration.MILLISECONDS
 import scala.util.Try
@@ -17,8 +17,6 @@ class Storage( private[history] val storage: LSMStore,
                private val cacheExpire: Int,
                private val cacheSize: Int
              ) extends Logging {
-
-  import co.topl.crypto.hash.Blake2b256.digest32
 
   /* ------------------------------- Cache Initialization ------------------------------- */
   type KEY = ByteArrayWrapper
@@ -124,25 +122,25 @@ class Storage( private[history] val storage: LSMStore,
   /** The keys below are used to store top-level information about blocks that we might be interested in
    * without needing to parse the entire block from storage */
   private def blockScoreKey(blockId: ModifierId): Digest32 =
-    Hash("score".getBytes ++ blockId.getIdBytes)
+    Hash[Blake2b256, Digest32]("score".getBytes ++ blockId.getIdBytes)
 
   private def blockHeightKey(blockId: ModifierId): Digest32 =
-    Hash("height".getBytes ++ blockId.getIdBytes)
+    Hash[Blake2b256, Digest32]("height".getBytes ++ blockId.getIdBytes)
 
   private def blockDiffKey(blockId: ModifierId): Digest32 =
-    Hash("difficulty".getBytes ++ blockId.getIdBytes)
+    Hash[Blake2b256, Digest32]("difficulty".getBytes ++ blockId.getIdBytes)
 
   private def blockTimestampKey(blockId: ModifierId): Digest32 =
-    Hash("timestamp".getBytes ++ blockId.getIdBytes)
+    Hash[Blake2b256, Digest32]("timestamp".getBytes ++ blockId.getIdBytes)
 
   private def blockBloomKey(blockId: ModifierId): Digest32 =
-    Hash("bloom".getBytes ++ blockId.getIdBytes)
+    Hash[Blake2b256, Digest32]("bloom".getBytes ++ blockId.getIdBytes)
 
   private def blockParentKey(blockId: ModifierId): Digest32 =
-    Hash("parentId".getBytes ++ blockId.getIdBytes)
+    Hash[Blake2b256, Digest32]("parentId".getBytes ++ blockId.getIdBytes)
 
   private def idHeightKey(height: Long): Digest32 =
-    Hash(Longs.toByteArray(height))
+    Hash[Blake2b256, Digest32](Longs.toByteArray(height))
 
 
   /* << EXAMPLE >>

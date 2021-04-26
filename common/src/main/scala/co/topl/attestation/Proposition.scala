@@ -9,15 +9,12 @@ import co.topl.utils.{Identifiable, Identifier}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import co.topl.crypto.hash.Hash
+import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
 import co.topl.crypto.signatures.{Curve25519, PublicKey}
 import co.topl.utils.encode.Base58
 
 import scala.collection.SortedSet
 import scala.util.{Failure, Success, Try}
-
-// use Blake2b256 hashing with 32 byte digest size
-import co.topl.crypto.hash.Blake2b256.digest32
 
 // Propositions are challenges that must be satisfied by the prover.
 // In most cases, propositions are used by transactions issuers (spenders) to prove the right
@@ -79,7 +76,8 @@ object PublicKeyPropositionCurve25519 {
 
   implicit val evProducer: EvidenceProducer[PublicKeyPropositionCurve25519] =
     EvidenceProducer.instance[PublicKeyPropositionCurve25519] {
-      prop: PublicKeyPropositionCurve25519 => Evidence(typePrefix, EvidenceContent(Hash(prop.bytes.tail).toBytes))
+      prop: PublicKeyPropositionCurve25519 =>
+        Evidence(typePrefix, EvidenceContent(Hash[Blake2b256, Digest32](prop.bytes.tail).toBytes))
     }
 
   implicit val identifier: Identifiable[PublicKeyPropositionCurve25519] = Identifiable.instance { () =>
@@ -125,7 +123,8 @@ object ThresholdPropositionCurve25519 {
 
   implicit val evProducer: EvidenceProducer[ThresholdPropositionCurve25519] =
     EvidenceProducer.instance[ThresholdPropositionCurve25519] {
-      prop: ThresholdPropositionCurve25519 => Evidence(typePrefix, EvidenceContent(Hash(prop.bytes.tail).toBytes))
+      prop: ThresholdPropositionCurve25519 =>
+        Evidence(typePrefix, EvidenceContent(Hash[Blake2b256, Digest32](prop.bytes.tail).toBytes))
     }
 
   implicit val identifier: Identifiable[ThresholdPropositionCurve25519] = Identifiable.instance { () =>

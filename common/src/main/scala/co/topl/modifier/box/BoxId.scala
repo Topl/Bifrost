@@ -4,7 +4,7 @@ import co.topl.attestation.Evidence
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import co.topl.crypto.hash.Hash
+import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
 import co.topl.utils.encode.Base58
 
 import scala.util.{Failure, Success}
@@ -23,10 +23,7 @@ case class BoxId (hashBytes: Array[Byte]) {
 
 object BoxId {
 
-  // use Blake2b256 hashing
-  import co.topl.crypto.hash.Blake2b256.digest32
-
-  val size: Int = Hash.digestSize // boxId is a 32 byte identifier
+  val size: Int = Digest32.size // boxId is a 32 byte identifier
 
   def apply[T] (box: Box[T]): BoxId = idFromEviNonce(box.evidence, box.nonce)
 
@@ -41,7 +38,7 @@ object BoxId {
   }
 
   def idFromEviNonce (evidence: Evidence, nonce: Box.Nonce): BoxId = {
-    val hashDigest = Hash(evidence.bytes ++ Longs.toByteArray(nonce))
+    val hashDigest = Hash[Blake2b256, Digest32](evidence.bytes ++ Longs.toByteArray(nonce))
     BoxId(hashDigest.toBytes)
   }
 
