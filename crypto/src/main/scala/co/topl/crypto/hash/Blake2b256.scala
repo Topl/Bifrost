@@ -12,7 +12,7 @@ object Blake2b256 {
   implicit val digest32: Hash[Blake2b256, Digest32] = new Hash[Blake2b256, Digest32] {
     override val digestSize: Int = 32
 
-    private val digestFunc = new Blake2bDigest(digestSizeInBits(digestSize))
+    private lazy val digestFunc = new Blake2bDigest(digestSizeInBits(digestSize))
 
     override def hash(prefix: Option[Byte], messages: NonEmptyChain[Array[Byte]]): Digest32 =
       Digest32(Blake2b256.hash(prefix, messages, digestFunc, digestSize))
@@ -21,7 +21,7 @@ object Blake2b256 {
   implicit val digest64: Hash[Blake2b256, Digest64] = new Hash[Blake2b256, Digest64] {
     override val digestSize: Int = 32
 
-    private val digestFunc = new Blake2bDigest(digestSizeInBits(digestSize))
+    private lazy val digestFunc = new Blake2bDigest(digestSizeInBits(digestSize))
 
     override def hash(prefix: Option[Byte], messages: NonEmptyChain[Array[Byte]]): Digest64 =
       Digest64(Blake2b256.hash(prefix, messages, digestFunc, digestSize))
