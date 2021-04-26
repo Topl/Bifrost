@@ -34,19 +34,19 @@ object Curve25519 extends EllipticCurveSignatureScheme {
 
   override def createKeyPair(seed: Array[Byte]): (PrivateKey, PublicKey) = {
     val hashedSeed = Hash(seed)
-    val privateKey = PrivateKey @@ provider.generatePrivateKey(hashedSeed.toBytes)
-    privateKey -> PublicKey @@ provider.generatePublicKey(privateKey)
+    val privateKey = PrivateKey(provider.generatePrivateKey(hashedSeed.toBytes))
+    privateKey -> PublicKey(provider.generatePublicKey(privateKey.toBytes))
   }
 
   override def sign(privateKey: PrivateKey, message: MessageToSign): Signature = {
-    require(privateKey.length == KeyLength)
-    Signature @@ provider.calculateSignature(provider.getRandom(SignatureLength), privateKey, message)
+    require(privateKey.toBytes.length == KeyLength)
+    Signature(provider.calculateSignature(provider.getRandom(SignatureLength), privateKey.toBytes, message))
   }
 
   override def verify(signature: Signature, message: MessageToSign, publicKey: PublicKey): Boolean = Try {
-    require(signature.length == SignatureLength)
-    require(publicKey.length == KeyLength)
-    provider.verifySignature(publicKey, message, signature)
+    require(signature.toBytes.length == SignatureLength)
+    require(publicKey.toBytes.length == KeyLength)
+    provider.verifySignature(publicKey.toBytes, message, signature.toBytes)
   }.recoverWith { case e =>
     // TODO: Jing - remove this log
     // log.debug("Error while message signature verification", e)
@@ -54,6 +54,6 @@ object Curve25519 extends EllipticCurveSignatureScheme {
   }.getOrElse(false)
 
   override def createSharedSecret(privateKey: PrivateKey, publicKey: PublicKey): SharedSecret = {
-    SharedSecret @@ provider.calculateAgreement(privateKey, publicKey)
+    SharedSecret(provider.calculateAgreement(privateKey.toBytes, publicKey.toBytes))
   }
 }

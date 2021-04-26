@@ -58,11 +58,11 @@ sealed trait ProofOfKnowledge[S <: Secret, P <: KnowledgeProposition[S]] extends
 case class SignatureCurve25519(private[attestation] val sigBytes: Signature)
   extends ProofOfKnowledge[PrivateKeyCurve25519, PublicKeyPropositionCurve25519] {
 
-  require(sigBytes.isEmpty || sigBytes.length == Curve25519.SignatureLength,
-    s"${sigBytes.length} != ${Curve25519.SignatureLength}")
+  require(sigBytes.toBytes.isEmpty || sigBytes.toBytes.length == Curve25519.SignatureLength,
+    s"${sigBytes.toBytes.length} != ${Curve25519.SignatureLength}")
 
   def isValid(proposition: PublicKeyPropositionCurve25519, message: Array[Byte]): Boolean = {
-    Curve25519.verify(sigBytes, message, PublicKey @@ proposition.pubKeyBytes)
+    Curve25519.verify(sigBytes, message, proposition.pubKeyBytes)
   }
 }
 
@@ -70,11 +70,11 @@ object SignatureCurve25519 {
   lazy val signatureSize: Int = Curve25519.SignatureLength
 
   /** Helper function to create empty signatures */
-  lazy val empty: SignatureCurve25519 = SignatureCurve25519(Signature @@ Array.emptyByteArray)
+  lazy val empty: SignatureCurve25519 = SignatureCurve25519(Signature(Array.emptyByteArray))
 
   /** Returns a signature filled with 1's for use in genesis signatures */
   lazy val genesis: SignatureCurve25519 =
-    SignatureCurve25519(Signature @@ Array.fill(SignatureCurve25519.signatureSize)(1: Byte))
+    SignatureCurve25519(Signature(Array.fill(SignatureCurve25519.signatureSize)(1: Byte)))
 
   def apply(str: String): SignatureCurve25519 =
     Proof.fromString(str) match {
@@ -102,7 +102,7 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
   extends ProofOfKnowledge[PrivateKeyCurve25519, ThresholdPropositionCurve25519] {
 
   signatures.foreach(sig => {
-    require(sig.sigBytes.length == SignatureCurve25519.signatureSize)
+    require(sig.sigBytes.toBytes.length == SignatureCurve25519.signatureSize)
   })
 
   override def isValid(proposition: ThresholdPropositionCurve25519, message: Array[Byte]): Boolean = Try {
@@ -115,7 +115,7 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
     val numValidSigs = signatures.foldLeft(0) { (acc, sig) =>
       if (acc < proposition.threshold) {
         if (proposition.pubKeyProps
-          .exists(prop => Curve25519.verify(sig.sigBytes, message, PublicKey @@ prop.pubKeyBytes))) {
+          .exists(prop => Curve25519.verify(sig.sigBytes, message, prop.pubKeyBytes))) {
           1
         } else {
           0

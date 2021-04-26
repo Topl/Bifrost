@@ -72,7 +72,7 @@ object Program {
           .toMap
           .map {
             party =>
-              val publicKey = PublicKey @@ Base58.decode(party._1).get
+              val publicKey = PublicKey(Base58.decode(party._1).get)
               val role = party._2.asString.get
               new PublicKeyPropositionCurve25519(publicKey) -> role
           }

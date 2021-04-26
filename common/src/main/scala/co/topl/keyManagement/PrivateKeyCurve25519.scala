@@ -8,8 +8,12 @@ case class PrivateKeyCurve25519 (private val privKeyBytes  : PrivateKey,
                                  private val publicKeyBytes: PublicKey
                           ) extends Secret {
 
-  require(privKeyBytes.length == Curve25519.KeyLength, s"${privKeyBytes.length} == ${Curve25519.KeyLength}")
-  require(publicKeyBytes.length == Curve25519.KeyLength, s"${publicKeyBytes.length} == ${Curve25519.KeyLength}")
+  require(
+    privKeyBytes.toBytes.length == Curve25519.KeyLength,
+    s"${privKeyBytes.toBytes.length} == ${Curve25519.KeyLength}")
+  require(
+    publicKeyBytes.toBytes.length == Curve25519.KeyLength,
+    s"${publicKeyBytes.toBytes.length} == ${Curve25519.KeyLength}")
 
   override type S = PrivateKeyCurve25519
   override type PK = PublicKeyPropositionCurve25519
@@ -23,7 +27,7 @@ case class PrivateKeyCurve25519 (private val privKeyBytes  : PrivateKey,
   override def sign (message: Array[Byte]): SignatureCurve25519 = SignatureCurve25519(Curve25519.sign(privKeyBytes, message))
 
   override def equals ( obj: Any ): Boolean = obj match {
-    case sk: PrivateKeyCurve25519 => sk.privKeyBytes sameElements privKeyBytes
+    case sk: PrivateKeyCurve25519 => sk.privKeyBytes.toBytes sameElements privKeyBytes.toBytes
     case _                        => false
   }
 }
@@ -43,14 +47,14 @@ object PrivateKeyCurve25519 extends BifrostSerializer[PrivateKeyCurve25519] {
 
   override def serialize(obj: PrivateKeyCurve25519, w: Writer): Unit = {
     /* privKeyBytes: Array[Byte] */
-    w.putBytes(obj.privKeyBytes)
+    w.putBytes(obj.privKeyBytes.toBytes)
 
     /* publicKeyBytes: Array[Byte] */
-    w.putBytes(obj.publicKeyBytes)
+    w.putBytes(obj.publicKeyBytes.toBytes)
   }
 
   override def parse(r: Reader): PrivateKeyCurve25519 = {
-    PrivateKeyCurve25519(PrivateKey @@ r.getBytes(Curve25519.KeyLength), PublicKey @@ r.getBytes(Curve25519.KeyLength))
+    PrivateKeyCurve25519(PrivateKey(r.getBytes(Curve25519.KeyLength)), PublicKey(r.getBytes(Curve25519.KeyLength)))
   }
 
 }

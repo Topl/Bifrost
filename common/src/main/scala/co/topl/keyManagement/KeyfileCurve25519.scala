@@ -68,7 +68,7 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
       case (cipherBytes, _) => cipherBytes.grouped(Curve25519.KeyLength).toSeq match {
         case Seq(skBytes, pkBytes) =>
           // recreate the private key
-          val privateKey = new PrivateKeyCurve25519(PrivateKey @@ skBytes, PublicKey @@ pkBytes)
+          val privateKey = new PrivateKeyCurve25519(PrivateKey(skBytes), PublicKey(pkBytes))
           val derivedAddress = Address.from(privateKey.publicImage)
           // check that the address given in the keyfile matches the public key
           require(encryptedKeyFile.address == derivedAddress, "Derived address does not match that listed in the keyfile")

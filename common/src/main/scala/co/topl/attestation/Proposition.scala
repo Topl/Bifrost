@@ -56,8 +56,8 @@ sealed trait KnowledgeProposition[S <: Secret] extends Proposition
 case class PublicKeyPropositionCurve25519 (private[attestation] val pubKeyBytes: PublicKey)
   extends KnowledgeProposition[PrivateKeyCurve25519] {
 
-  require(pubKeyBytes.length == Curve25519.KeyLength,
-    s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.length} found")
+  require(pubKeyBytes.toBytes.length == Curve25519.KeyLength,
+    s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.toBytes.length} found")
 
   def address (implicit networkPrefix: NetworkPrefix): Address = Address.from(this)
 
@@ -100,8 +100,8 @@ case class ThresholdPropositionCurve25519(threshold: Int, pubKeyProps: SortedSet
   extends KnowledgeProposition[PrivateKeyCurve25519] {
 
   pubKeyProps.foreach(prop => {
-    require(prop.pubKeyBytes.length == Curve25519.KeyLength,
-      s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${prop.pubKeyBytes.length} found")
+    require(prop.pubKeyBytes.toBytes.length == Curve25519.KeyLength,
+      s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${prop.pubKeyBytes.toBytes.length} found")
   })
 
 //  val propTypeString: String = ThresholdPropositionCurve25519.typeString

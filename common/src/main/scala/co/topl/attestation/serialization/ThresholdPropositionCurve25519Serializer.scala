@@ -14,7 +14,7 @@ object ThresholdPropositionCurve25519Serializer extends BifrostSerializer[Thresh
 
     /* setOfPubKeyBytes: Set[Array[Byte]] */
     w.putUInt(obj.pubKeyProps.size)
-    obj.pubKeyProps.foreach(prop => w.putBytes(prop.pubKeyBytes))
+    obj.pubKeyProps.foreach(prop => w.putBytes(prop.pubKeyBytes.toBytes))
   }
 
   override def parse(r: Reader): ThresholdPropositionCurve25519 = {

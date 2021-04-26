@@ -38,7 +38,7 @@ class ProgramSpec extends AnyPropSpec
     ).json
 
   def getMockPublicKeyProposition(fillByte: Byte): PublicKeyPropositionCurve25519 = {
-    PublicKeyPropositionCurve25519(PublicKey @@ Array.fill(Curve25519.KeyLength)(fillByte))
+    PublicKeyPropositionCurve25519(PublicKey(Array.fill(Curve25519.KeyLength)(fillByte)))
   }
 
   property("Can create program") {
