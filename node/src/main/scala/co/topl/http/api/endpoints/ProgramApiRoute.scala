@@ -47,7 +47,7 @@
 ////    viewAsync().map { view =>
 ////      val wallet = view.vault
 ////      val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
-////      val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(PublicKey @@ Base58.decode(signingPublicKey).get)).get
+////      val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(PublicKey(Base58.decode(signingPublicKey).get))).get
 ////      val state = view.state
 ////      val tx = createProgramInstance(params, state)
 ////      val signature = selectedSecret.sign(tx.messageToSign)
@@ -136,13 +136,13 @@
 ////
 ////      val modifiedParams = params.hcursor.downField("programId").delete.top.get.deepMerge(programJson)
 ////
-////      val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(PublicKey @@ Base58.decode(signingPublicKey).get)).get
+////      val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(PublicKey(Base58.decode(signingPublicKey).get))).get
 ////      val tempTx = modifiedParams.as[ProgramMethodExecution] match {
 ////        case Right(p: ProgramMethodExecution) => p
 ////        case Left(e) => throw new JsonParsingException(s"Could not parse ProgramMethodExecution: $e")
 ////      }
 ////      val realSignature = selectedSecret.sign(tempTx.messageToSign)
-////      val tx = tempTx.copy(signatures = Map(PublicKey25519Proposition(PublicKey @@ Base58.decode(signingPublicKey).get) -> realSignature))
+////      val tx = tempTx.copy(signatures = Map(PublicKey25519Proposition(PublicKey(Base58.decode(signingPublicKey).get)) -> realSignature))
 ////
 ////      ProgramMethodExecution.semanticValidate(tx, view.state) match {
 ////        case Success(_) =>

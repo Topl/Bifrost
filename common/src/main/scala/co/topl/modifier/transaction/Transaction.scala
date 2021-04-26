@@ -56,7 +56,7 @@ object Transaction {
   type TxType = Byte
   type TransactionId = ModifierId
 
-  val modifierTypeId: ModifierTypeId = ModifierTypeId @@ (2: Byte)
+  val modifierTypeId: ModifierTypeId = ModifierTypeId(2: Byte)
 
   def updateAttestation[
     P <: Proposition

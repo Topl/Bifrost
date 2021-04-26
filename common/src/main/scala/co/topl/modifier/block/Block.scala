@@ -11,7 +11,6 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
-import supertagged.@@
 
 import scala.util.Try
 
@@ -54,7 +53,7 @@ case class Block(parentId    : ModifierId,
 
 object Block {
 
-  val modifierTypeId: Byte @@ NodeViewModifier.ModifierTypeId.Tag = ModifierTypeId @@ (3: Byte)
+  val modifierTypeId: NodeViewModifier.ModifierTypeId = ModifierTypeId(3: Byte)
 
   /**
     * Deconstruct a block to its compoennts

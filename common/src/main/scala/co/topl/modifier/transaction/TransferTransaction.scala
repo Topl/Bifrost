@@ -28,7 +28,7 @@ abstract class TransferTransaction[
   val minting:     Boolean
 ) extends Transaction[T, P] {
 
-  lazy val bloomTopics: IndexedSeq[BloomTopic] = to.map(b => BloomTopic @@ b._1.bytes)
+  lazy val bloomTopics: IndexedSeq[BloomTopic] = to.map(b => BloomTopic(b._1.bytes))
 
   lazy val boxIdsToOpen: IndexedSeq[BoxId] = from.map { case (addr, nonce) =>
     BoxId.idFromEviNonce(addr.evidence, nonce)

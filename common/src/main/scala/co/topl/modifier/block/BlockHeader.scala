@@ -10,7 +10,6 @@ import co.topl.utils.TimeProvider
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 import co.topl.crypto.hash.Digest
-import supertagged.@@
 
 case class BlockHeader(
   id:           ModifierId,
@@ -31,7 +30,7 @@ case class BlockHeader(
 }
 
 object BlockHeader {
-  val modifierTypeId: Byte @@ NodeViewModifier.ModifierTypeId.Tag = ModifierTypeId @@ (4: Byte)
+  val modifierTypeId: NodeViewModifier.ModifierTypeId = ModifierTypeId(4: Byte)
 
   implicit val jsonEncoder: Encoder[BlockHeader] = { bh: BlockHeader ⇒
     Map(

@@ -39,13 +39,13 @@ case class MerkleProof[H : Hash](leafData: LeafData, levels: Seq[(Digest, Side)]
   }
 
   override def toString: String =
-    s"MerkleProof(data: ${Base58.encode(leafData)}, hash: ${Base58.encode(Hash(leafData).toBytes)}, " +
+    s"MerkleProof(data: ${Base58.encode(leafData.toBytes)}, hash: ${Base58.encode(Hash(leafData.toBytes).toBytes)}, " +
       s"(${levels.map(ht => Base58.encode(ht._1.toBytes) + " : " + ht._2)}))"
 }
 
 object MerkleProof {
 
-  val LeftSide: Side = Side @@ 0.toByte
-  val RightSide: Side = Side @@ 1.toByte
+  val LeftSide: Side = Side(0.toByte)
+  val RightSide: Side = Side(1.toByte)
 }
 

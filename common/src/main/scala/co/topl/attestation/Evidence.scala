@@ -5,7 +5,7 @@ import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import co.topl.utils.encode.Base58
-import supertagged.TaggedType
+import io.estatico.newtype.macros.newtype
 
 import scala.util.{Failure, Success}
 
@@ -36,16 +36,16 @@ object Evidence extends BifrostSerializer[Evidence] {
   // below are types and values used enforce the behavior of evidence
   type EvidenceTypePrefix = Byte
 
-  object EvidenceContent extends TaggedType[Array[Byte]]
-  type EvidenceContent = EvidenceContent.Type
+  @newtype
+  case class EvidenceContent(toBytes: Array[Byte])
 
   val contentLength = 32             //bytes (this is generally the output of a Blake2b-256 bit hash)
   val size: Int = 1 + contentLength  //length of typePrefix + contentLength
 
   def apply(typePrefix: EvidenceTypePrefix, content: EvidenceContent): Evidence = {
-    require(content.length == contentLength, "Invalid evidence: incorrect EvidenceContent length")
+    require(content.toBytes.length == contentLength, "Invalid evidence: incorrect EvidenceContent length")
 
-    parseBytes(typePrefix +: content) match {
+    parseBytes(typePrefix +: content.toBytes) match {
       case Success(ec) => ec
       case Failure(ex) => throw ex
     }

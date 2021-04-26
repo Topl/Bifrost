@@ -7,7 +7,7 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import co.topl.crypto.hash.Hash
 import co.topl.utils.encode.Base58
-import supertagged.TaggedType
+import io.estatico.newtype.macros.newtype
 
 import scala.util.Try
 
@@ -59,8 +59,8 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
   // use Blake2b256 hashing
   import co.topl.crypto.hash.Blake2b256._
 
-  object BloomTopic extends TaggedType[Array[Byte]]
-  type BloomTopic = BloomTopic.Type
+  @newtype
+  case class BloomTopic(toBytes: Array[Byte])
 
   val numBytes: Int = 256 //bytes (2048 bits)
   private val size: Int = numBytes * 8

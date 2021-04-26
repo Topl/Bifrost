@@ -94,7 +94,7 @@ object TransferTransaction {
     */
   case class BoxParams[T <: TokenValueHolder](evidence: Evidence, nonce: Long, value: T)
 
-  val modifierTypeId: ModifierTypeId = ModifierTypeId @@ (2: Byte)
+  val modifierTypeId: ModifierTypeId = ModifierTypeId(2: Byte)
 
   def identifier[P <: Proposition] (tx: TransferTransaction[P]): Identifier = {
     Identifiable.instance{() => Identifier(tx.txType, typePrefix(tx))}.getId

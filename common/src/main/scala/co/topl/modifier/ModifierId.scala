@@ -20,7 +20,7 @@ class ModifierId private (private val value: Array[Byte]) extends BytesSerializa
   lazy val serializer: BifrostSerializer[ModifierId] = ModifierId
 
   def getIdBytes: Array[Byte] = value.tail
-  def getModType: ModifierTypeId = ModifierTypeId @@ value.head
+  def getModType: ModifierTypeId = ModifierTypeId(value.head)
 
   override def hashCode: Int = Ints.fromByteArray(value)
 
@@ -39,7 +39,7 @@ object ModifierId extends BifrostSerializer[ModifierId] {
 
   val size: Int = 1 + Hash.digestSize // ModifierId's are derived from Blake2b-256
   val empty: ModifierId = new ModifierId(Array.fill(size)(0: Byte))
-  val genesisParentId: ModifierId = new ModifierId(Block.modifierTypeId +: Array.fill(Hash.digestSize)(1: Byte))
+  val genesisParentId: ModifierId = new ModifierId(Block.modifierTypeId.toByte +: Array.fill(Hash.digestSize)(1: Byte))
 
   implicit val ord: Ordering[ModifierId] = Ordering.by(_.toString)
 
@@ -49,8 +49,8 @@ object ModifierId extends BifrostSerializer[ModifierId] {
   implicit val jsonKeyDecoder: KeyDecoder[ModifierId] = (id: String) => Some(ModifierId(id))
 
   def apply(nodeViewModifier: NodeViewModifier): ModifierId = nodeViewModifier match {
-    case mod: Block          => new ModifierId(Block.modifierTypeId +: Hash(mod.messageToSign).toBytes)
-    case mod: Transaction.TX => new ModifierId(Transaction.modifierTypeId +: Hash(mod.messageToSign).toBytes)
+    case mod: Block          => new ModifierId(Block.modifierTypeId.toByte +: Hash(mod.messageToSign).toBytes)
+    case mod: Transaction.TX => new ModifierId(Transaction.modifierTypeId.toByte +: Hash(mod.messageToSign).toBytes)
     case _ => throw new Error("Only blocks and transactions generate a modifierId")
   }
 

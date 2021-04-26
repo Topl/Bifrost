@@ -64,9 +64,9 @@ class BloomFilterSpec
         .map(s => PrivateKeyCurve25519.secretGenerator.generateSecret(s)._2)
         .map(k => k.address)
 
-    val bloomTopics: Set[BloomTopic] = randAddr.take(numBloom).map(addr => BloomTopic @@ addr.bytes).toSet
+    val bloomTopics: Set[BloomTopic] = randAddr.take(numBloom).map(addr => BloomTopic(addr.bytes)).toSet
     val bloomfilter: BloomFilter = BloomFilter(bloomTopics)
-    val testTopics: Seq[BloomTopic] = randAddr.drop(numBloom).map(addr => BloomTopic @@ addr.bytes)
+    val testTopics: Seq[BloomTopic] = randAddr.drop(numBloom).map(addr => BloomTopic(addr.bytes))
 
     val falsePositives = testTopics.foldLeft(0) { (count, bt) =>
       if (bloomfilter.contains(bt)) count + 1
