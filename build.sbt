@@ -94,7 +94,7 @@ lazy val assemblySettings = Seq(
 val akkaVersion = "2.6.14"
 val akkaHttpVersion = "10.2.4"
 val circeVersion = "0.13.0"
-val kamonVersion = "2.1.16"
+val kamonVersion = "2.1.17"
 val graalVersion = "21.1.0"
 
 val akkaDependencies = Seq(
@@ -134,8 +134,8 @@ val loggingDependencies = Seq(
 )
 
 val testingDependenciesTest = Seq(
-  "org.scalatest"      %% "scalatest"         % "3.2.6"   % "test",
-  "org.scalactic"      %% "scalactic"         % "3.2.6"   % "test",
+  "org.scalatest"      %% "scalatest"         % "3.2.8"   % "test",
+  "org.scalactic"      %% "scalactic"         % "3.2.8"   % "test",
   "org.scalacheck"     %% "scalacheck"        % "1.15.3"  % "test",
   "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
   "com.spotify"         % "docker-client"     % "8.16.0"  % "test",
