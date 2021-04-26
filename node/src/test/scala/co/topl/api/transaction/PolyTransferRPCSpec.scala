@@ -1,5 +1,6 @@
 package co.topl.api.transaction
 
+import akka.http.scaladsl.testkit.RouteTestTimeout
 import akka.util.ByteString
 import co.topl.api.RPCMockState
 import co.topl.attestation.Address
@@ -10,6 +11,7 @@ import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import scorex.util.encode.Base58
+import scala.concurrent.duration._
 
 class PolyTransferRPCSpec extends AnyWordSpec
   with Matchers
@@ -18,6 +20,8 @@ class PolyTransferRPCSpec extends AnyWordSpec
 
   val address: Address = keyRing.addresses.head
   var tx = ""
+
+  private implicit val routeTestTimeout: RouteTestTimeout = RouteTestTimeout(5.seconds)
 
   "PolyTransfer RPC" should {
     "Create new poly transfer raw transaction" in {
@@ -32,6 +36,7 @@ class PolyTransferRPCSpec extends AnyWordSpec
            |     "recipients": [["$address", "1"]],
            |     "sender": ["$address"],
            |     "changeAddress": "$address",
+           |     "consolidationAddress": "$address",
            |     "fee": "1",
            |     "data": ""
            |   }]

@@ -172,7 +172,7 @@ object CreateAnDSendRawArbitTransfer {
     recipients = NonEmptyChain((externalAddress.head, 10)),
     fee = 0,
     changeAddress = externalAddress.head,
-    consolidationAddress = externalAddress.headOption,
+    consolidationAddress = externalAddress.head,
     data = None
   )
 
@@ -208,7 +208,7 @@ object CreateAnDSendRawAssetMintingTransfer {
     recipients = NonEmptyChain((externalAddress.head, AssetValue(100, assetCode))),
     fee = 0,
     changeAddress = externalAddress.head,
-    consolidationAddress = externalAddress.headOption,
+    consolidationAddress = externalAddress.head,
     minting = true,
     data = None
   )
@@ -244,7 +244,7 @@ object CreateAnDSendRawAssetTransfer {
     recipients = NonEmptyChain((externalAddress.head, AssetValue(100, assetCode))),
     fee = 0,
     changeAddress = externalAddress.head,
-    consolidationAddress = externalAddress.headOption,
+    consolidationAddress = externalAddress.head,
     minting = false,
     data = None
   )
