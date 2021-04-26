@@ -112,6 +112,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
     case newTxs: NewTransactions => newTxs.txs.foreach(txModify)
 
     case EliminateTransactions(ids) =>
+      log.debug(s"${Console.YELLOW} Removing transactions with ids: $ids from mempool${Console.RESET}")
       val updatedPool = memoryPool().filter(tx => !ids.contains(tx.id))
       updateNodeView(updatedMempool = Some(updatedPool))
       ids.foreach { id =>
@@ -231,8 +232,8 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
     * @param tx
     */
   protected def txModify(tx: TX): Unit =
-    tx.syntacticValidate match {
-      case Success(_) =>
+    tx.syntacticValidate.toEither match {
+      case Right(_) =>
         memoryPool().put(tx, appContext.timeProvider.time) match {
           case Success(_) =>
             log.debug(s"Unconfirmed transaction $tx added to the memory pool")
@@ -242,8 +243,10 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
             context.system.eventStream.publish(FailedTransaction(tx.id, e, immediateFailure = true))
         }
 
-      case Failure(e) =>
-        context.system.eventStream.publish(FailedTransaction(tx.id, e, immediateFailure = true))
+      case Left(e) =>
+        context.system.eventStream.publish(
+          FailedTransaction(tx.id, new Exception(e.head.toString), immediateFailure = true)
+        )
     }
 
   //todo: update state in async way?
@@ -435,7 +438,7 @@ class NodeViewHolder ( settings: AppSettings, appContext: AppContext )
       .putWithoutCheck(rolledBackTxs, appContext.timeProvider.time)
       .filter { tx =>
         !appliedTxs.exists(t => t.id == tx.id) && {
-          state.semanticValidate(tx).isSuccess
+          tx.syntacticValidate.isValid
         }
       }
   }

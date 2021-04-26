@@ -1,11 +1,11 @@
 package co.topl.serialization
 
-import co.topl.attestation.keyManagement.KeyfileCurve25519
+import co.topl.attestation.keyManagement.{KeyfileCurve25519, KeyfileCurve25519Companion}
 import co.topl.attestation.{Address, Evidence, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
-import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.box._
+import co.topl.modifier.transaction.Transaction
 import co.topl.utils.CoreGenerators
 import io.circe.syntax.EncoderOps
 import org.scalacheck.Gen
@@ -33,7 +33,7 @@ class JsonTests extends AnyPropSpec
 
   property("KeyfileCurve25519 json") {
     forAll(key25519Gen) { key =>
-      val keyfile = KeyfileCurve25519.encryptSecret(key._1, "test")
+      val keyfile = KeyfileCurve25519Companion.encryptSecret(key._1, "test")
       keyfile.asJson.as[KeyfileCurve25519] match {
         case Right(kf) =>
           kf.address shouldEqual keyfile.address

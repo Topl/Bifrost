@@ -2,7 +2,7 @@ package co.topl.nodeView.state
 
 import akka.actor.ActorSystem
 import co.topl.attestation.Address
-import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
+import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.consensus.genesis.PrivateGenesis
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -12,7 +12,6 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
-import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
 trait MockState extends AnyPropSpec
@@ -28,7 +27,7 @@ trait MockState extends AnyPropSpec
 //  protected val appContext = new AppContext(settings, StartupOpts.empty, None)
 
   val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
-    KeyRing(settings.application.keyFileDir.get, KeyfileCurve25519)
+    KeyRing.empty(settings.application.keyFileDir)
 
   keyRing.generateNewKeyPairs(num = 3) match {
     case Success(_) => ()

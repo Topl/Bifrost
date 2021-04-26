@@ -125,7 +125,6 @@ class Forger[
         .mapTo[Try[ForgerStartupKeyView]]
         .map {
           case Success(ForgerStartupKeyView(_, Some(_))) =>
-
             // if forging has been enabled, then we should send the StartForging signal
             if (settings.forging.forgeOnStartup) self ! StartForging
 
@@ -238,8 +237,7 @@ class Forger[
         self ! StopForging
     }
 
-  /**
-    * Determines if forging eligibility and forges block if eligible.
+  /** Determines if forging eligibility and forges block if eligible.
     * @param historyReader read-only history
     * @param stateReader read-only state
     * @param memPoolReader read-only mem-pool
@@ -248,11 +246,11 @@ class Forger[
     * @return a block if forging was successful and None otherwise
     */
   private def attemptForging(
-    historyReader:          HR,
-    stateReader:            SR,
-    memPoolReader:          MR,
-    forgeTime:              TimeProvider.Time,
-    attemptForgingKeyView:  AttemptForgingKeyView
+    historyReader:         HR,
+    stateReader:           SR,
+    memPoolReader:         MR,
+    forgeTime:             TimeProvider.Time,
+    attemptForgingKeyView: AttemptForgingKeyView
   ): Either[AttemptForgingFailure, Block] = {
     log.debug(
       s"${Console.MAGENTA}Attempting to forge with settings ${protocolMngr.current(historyReader.height)} " +
@@ -287,17 +285,20 @@ class Forger[
     val prevTimes = historyReader.getTimestampsFrom(parentBlock, nxtBlockNum)
 
     // check forging eligibility and forge block if successful
-    LeaderElection.getEligibleBox(parentBlock, attemptForgingKeyView.addresses, forgeTime, stateReader)
+    LeaderElection
+      .getEligibleBox(parentBlock, attemptForgingKeyView.addresses, forgeTime, stateReader)
       .leftMap(Forger.LeaderElectionFailure)
-      .flatMap(forgeBlockWithBox(
-        _,
-        parentBlock,
-        prevTimes,
-        rewards,
-        transactions,
-        forgeTime,
-        attemptForgingKeyView.sign,
-        attemptForgingKeyView.getPublicKey)
+      .flatMap(
+        forgeBlockWithBox(
+          _,
+          parentBlock,
+          prevTimes,
+          rewards,
+          transactions,
+          forgeTime,
+          attemptForgingKeyView.sign,
+          attemptForgingKeyView.getPublicKey
+        )
       )
   }
 
@@ -313,7 +314,7 @@ class Forger[
       memPoolReader
         .take[Int128](numTxInBlock(chainHeight))(-_.tx.fee) // returns a sequence of transactions ordered by their fee
         .filter(
-          _.tx.fee > settings.forging.minTransactionFee
+          _.tx.fee >= settings.forging.minTransactionFee
         ) // default strategy ignores zero fee transactions in mempool
         .foldLeft(PickTransactionsResult(Seq(), Seq())) { case (txAcc, utx) =>
           // ensure that each transaction opens a unique box by checking that this transaction
@@ -352,8 +353,7 @@ class Forger[
         }
     }
 
-  /**
-    * Forges a block with the given eligible arbit box and state parameters.
+  /** Forges a block with the given eligible arbit box and state parameters.
     * @param box an eligible arbit box
     * @param parent the parent block
     * @param prevTimes the previous block times to determine next difficulty
@@ -365,7 +365,7 @@ class Forger[
     * @return a block if forging was successful and None otherwise
     */
   private def forgeBlockWithBox(
-    box: ArbitBox,
+    box:          ArbitBox,
     parent:       Block,
     prevTimes:    Vector[TimeProvider.Time],
     rawRewards:   Seq[TX],
@@ -408,16 +408,17 @@ class Forger[
     val newDifficulty = calcNewBaseDifficulty(parent.height + 1, parent.difficulty, prevTimes :+ forgeTime)
 
     // add the signed coinbase transaction to the block, sign it, and return the newly forged block
-    Block.createAndSign(
-      parent.id,
-      forgeTime,
-      signedRewards ++ txsToInclude,
-      box,
-      publicKey,
-      parent.height + 1,
-      newDifficulty,
-      blockVersion(parent.height + 1)
-    )(signingFunction)
+    Block
+      .createAndSign(
+        parent.id,
+        forgeTime,
+        signedRewards ++ txsToInclude,
+        box,
+        publicKey,
+        parent.height + 1,
+        newDifficulty,
+        blockVersion(parent.height + 1)
+      )(signingFunction)
       .toEither
       .leftMap(Forger.ForgingError)
   }

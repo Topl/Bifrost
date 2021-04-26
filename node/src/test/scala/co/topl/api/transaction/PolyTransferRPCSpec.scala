@@ -30,6 +30,7 @@ class PolyTransferRPCSpec extends AnyWordSpec
            |     "recipients": [["$address", "1"]],
            |     "sender": ["$address"],
            |     "changeAddress": "$address",
+           |     "minting": "false",
            |     "fee": "1",
            |     "data": ""
            |   }]
