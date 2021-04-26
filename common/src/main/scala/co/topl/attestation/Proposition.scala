@@ -16,8 +16,8 @@ import co.topl.utils.encode.Base58
 import scala.collection.SortedSet
 import scala.util.{Failure, Success, Try}
 
-// use Blake2b256 hashing
-import co.topl.crypto.hash.Blake2b256._
+// use Blake2b256 hashing with 32 byte digest size
+import co.topl.crypto.hash.Blake2b256.digest32
 
 // Propositions are challenges that must be satisfied by the prover.
 // In most cases, propositions are used by transactions issuers (spenders) to prove the right

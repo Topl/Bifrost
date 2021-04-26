@@ -8,7 +8,7 @@ import scala.math.BigInt
 import scala.util.{Failure, Success, Try}
 
 // use Sha256 hashing
-import co.topl.crypto.hash.Sha256._
+import co.topl.crypto.hash.Sha.Sha256.digest32
 
 /**
   * AMS Feb 2019:

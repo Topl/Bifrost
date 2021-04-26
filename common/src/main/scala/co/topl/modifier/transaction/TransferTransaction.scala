@@ -11,7 +11,7 @@ import co.topl.utils.{Identifiable, Int128}
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
-import co.topl.crypto.hash.Hash
+import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
 
 import scala.util.{Failure, Success, Try}
 
@@ -51,9 +51,6 @@ abstract class TransferTransaction[
 
 object TransferTransaction {
 
-  // use Blake2b256 hashing
-  import co.topl.crypto.hash.Blake2b256._
-
   case class BoxParams[T <: TokenValueHolder](evidence: Evidence, nonce: Box.Nonce, value: T)
 
   /** Computes a unique nonce value based on the transaction type and
@@ -71,7 +68,7 @@ object TransferTransaction {
       tx.fee.toByteArray
 
     def calcNonce(index: Int): Box.Nonce = {
-      val digest = Hash(inputBytes ++ Ints.toByteArray(index))
+      val digest = Hash[Blake2b256, Digest32](inputBytes ++ Ints.toByteArray(index))
       Transaction.nonceFromDigest(digest)
     }
 

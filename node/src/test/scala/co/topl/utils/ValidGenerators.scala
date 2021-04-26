@@ -15,7 +15,7 @@ import co.topl.program._
 import co.topl.settings.AppSettings
 import io.circe.syntax._
 import org.scalacheck.Gen
-import co.topl.crypto.hash.{Blake2b256, Hash}
+import co.topl.crypto.hash.{Blake2b256, Hash, Digest32}
 
 import scala.util.{Failure, Success}
 
@@ -51,7 +51,7 @@ trait ValidGenerators extends CoreGenerators {
     investor <- propositionGen
     hub <- propositionGen
     executionBuilder <- validExecutionBuilderGen().map(_.json)
-    id <- genBytesList(Hash[Blake2b256].digestSize)
+    id <- genBytesList(Hash[Blake2b256, Digest32].digestSize)
   } yield {
     Program(Map(
       "parties" -> Map(

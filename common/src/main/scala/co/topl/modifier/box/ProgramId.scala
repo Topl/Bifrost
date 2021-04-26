@@ -27,8 +27,8 @@ case class ProgramId (private val hashBytes: Array[Byte]) extends BytesSerializa
 
 object ProgramId extends BifrostSerializer[ProgramId] {
 
-  // use Blake2b256 hashing
-  import co.topl.crypto.hash.Blake2b256._
+  // use Blake2b256 hashing with 32 byte digest
+  import co.topl.crypto.hash.Blake2b256.digest32
 
   val size: Int = Hash.digestSize; // number of bytes in identifier,
 

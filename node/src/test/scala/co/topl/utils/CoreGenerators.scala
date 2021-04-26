@@ -20,7 +20,7 @@ import io.circe.syntax._
 import io.circe.{Json, JsonObject}
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
-import co.topl.crypto.hash.{Blake2b256, Hash}
+import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
 import co.topl.crypto.signatures.{Curve25519, Signature}
 import co.topl.utils.encode.Base58
 
@@ -291,7 +291,7 @@ trait CoreGenerators extends Logging {
   }
 
   lazy val securityRootGen: Gen[SecurityRoot] = for {
-    root <- specificLengthBytesGen(Hash[Blake2b256].digestSize)
+    root <- specificLengthBytesGen(Hash[Blake2b256, Digest32].digestSize)
   } yield {
     SecurityRoot(Base58.encode(root))
   }

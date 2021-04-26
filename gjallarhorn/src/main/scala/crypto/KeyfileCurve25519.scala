@@ -40,7 +40,7 @@ case class KeyfileCurve25519(address   : Address,
 object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileCurve25519] {
 
   // use Blake2b256 hashing
-  import co.topl.crypto.hash.Blake2b256._
+  import co.topl.crypto.hash.Blake2b256.digest32
 
   /**
     * Create a keyfile from the provided seed and save it to disk

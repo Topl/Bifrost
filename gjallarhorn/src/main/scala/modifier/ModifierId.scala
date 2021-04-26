@@ -38,8 +38,8 @@ class ModifierId (private val value: Array[Byte]) extends BytesSerializable {
 
 object ModifierId extends GjalSerializer[ModifierId] {
 
-  // use Blake2b256 for hashing
-  import co.topl.crypto.hash.Blake2b256._
+  // use Blake2b256 for hashing with 32 byte digest
+  import co.topl.crypto.hash.Blake2b256.digest32
 
   @newtype
   case class ModifierTypeId(toByte: Byte)

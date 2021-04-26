@@ -1,22 +1,23 @@
 package co.topl.crypto.accumulators.merkle
 
 import co.topl.crypto.accumulators.{LeafData, Side}
-import co.topl.crypto.hash.{Digest, Hash}
+import co.topl.crypto.hash.{Digest32, Hash}
 
 import scala.annotation.tailrec
 import scala.collection.mutable
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 
-case class MerkleTree[H : Hash](topNode: Node,
-                                   elementsHashIndex: Map[mutable.WrappedArray.ofByte, Int]) {
+case class MerkleTree[H](topNode: Node,
+                                   elementsHashIndex: Map[mutable.WrappedArray.ofByte, Int])(implicit
+  h: Hash[H, Digest32]) {
 
-  lazy val rootHash: Digest = topNode.hash
+  lazy val rootHash: Digest32 = topNode.hash
   lazy val length: Int = elementsHashIndex.size
 
   def proofByElement(element: Leaf[H]): Option[MerkleProof[H]] = proofByElementHash(element.hash)
 
-  def proofByElementHash(hash: Digest): Option[MerkleProof[H]] = {
+  def proofByElementHash(hash: Digest32): Option[MerkleProof[H]] = {
     elementsHashIndex.get(new mutable.WrappedArray.ofByte(hash.toBytes)).flatMap(i => proofByIndex(i))
   }
 
@@ -27,8 +28,8 @@ case class MerkleTree[H : Hash](topNode: Node,
       node: Node,
       i: Int,
       curLength: Int,
-      acc: Seq[(Digest, Side)]
-    ): Option[(Leaf[H], Seq[(Digest, Side)])] = {
+      acc: Seq[(Digest32, Side)]
+    ): Option[(Leaf[H], Seq[(Digest32, Side)])] = {
       node match {
         case n: InternalNode[H] if i < curLength / 2 =>
           loop(n.left, i, curLength / 2, acc :+ (n.right.hash, MerkleProof.LeftSide))
@@ -84,7 +85,7 @@ object MerkleTree {
    * @param payload       - sequence of leafs data
    * @return MerkleTree constructed from current leafs with defined empty node and hash function
    */
-  def apply[H : Hash](payload: Seq[LeafData]): MerkleTree[H] = {
+  def apply[H](payload: Seq[LeafData])(implicit h: Hash[H, Digest32]): MerkleTree[H] = {
     val leafs = payload.map(d => Leaf(d))
     val elementsIndex: Map[mutable.WrappedArray.ofByte, Int] = leafs.indices.map { i =>
       (new mutable.WrappedArray.ofByte(leafs(i).hash.toBytes), i)
@@ -95,7 +96,7 @@ object MerkleTree {
   }
 
   @tailrec
-  def calcTopNode[H : Hash](nodes: Seq[Node]): Node = {
+  def calcTopNode[H](nodes: Seq[Node])(implicit h: Hash[H, Digest32]): Node = {
     if (nodes.isEmpty) {
       EmptyRootNode[H]
     } else {

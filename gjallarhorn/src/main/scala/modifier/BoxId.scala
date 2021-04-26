@@ -28,7 +28,7 @@ case class BoxId (hashBytes: Array[Byte]) {
 object BoxId {
 
   // use Blake2b256 hashing
-  import co.topl.crypto.hash.Blake2b256._
+  import co.topl.crypto.hash.Blake2b256.digest32
 
   val size: Int = Hash.digestSize // boxId is a 32 byte identifier
 

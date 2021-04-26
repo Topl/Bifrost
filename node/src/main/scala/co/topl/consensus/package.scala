@@ -13,7 +13,7 @@ import scala.math.{max, min}
 package object consensus {
 
   // use Blake2b256 hashing
-  import co.topl.crypto.hash.Blake2b256._
+  import co.topl.crypto.hash.Blake2b256.digest32
 
   private var _protocolMngr: ProtocolVersioner = ProtocolVersioner.empty
 

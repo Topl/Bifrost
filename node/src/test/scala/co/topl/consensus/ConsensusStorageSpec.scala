@@ -8,7 +8,7 @@ import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalamock.scalatest.MockFactory
-import co.topl.crypto.hash.{Blake2b256, Hash}
+import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
 
 class ConsensusStorageSpec extends AnyFlatSpec
   with ScalaCheckPropertyChecks
@@ -30,7 +30,7 @@ class ConsensusStorageSpec extends AnyFlatSpec
       (store.get(_: ByteArrayWrapper))
         .expects(*)
         .onCall { key: ByteArrayWrapper => {
-            if (key == ByteArrayWrapper(Hash[Blake2b256]("totalStake").toBytes))
+            if (key == ByteArrayWrapper(Hash[Blake2b256, Digest32]("totalStake").toBytes))
               Some(ByteArrayWrapper(storageTotalStake.toByteArray))
             else Some(ByteArrayWrapper(Longs.toByteArray(0)))
           }

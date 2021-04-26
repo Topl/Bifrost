@@ -12,7 +12,7 @@ import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Json
 import io.circe.syntax._
-import co.topl.crypto.hash.{Blake2b256, Hash}
+import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
 import co.topl.utils.encode.Base58
 
 import java.security.SecureRandom
@@ -102,7 +102,7 @@ case class UtilsApiEndpoint(override val settings: RPCApiSettings, appContext: A
     } yield Future(
       Map(
         "message" -> message,
-        "hash"    -> Base58.encode(Hash[Blake2b256](message).toBytes)
+        "hash"    -> Base58.encode(Hash[Blake2b256, Digest32](message).toBytes)
       ).asJson
     )) match {
       case Right(json) => json
