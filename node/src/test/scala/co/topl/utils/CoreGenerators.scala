@@ -38,8 +38,8 @@ trait CoreGenerators extends Logging {
   private val settingsFilename = "node/src/test/resources/test.conf"
   val settings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))._1
 
-  private val keyFileDir = settings.application.keyFileDir.ensuring(
-    _.isDefined, "A keyfile directory must be specified").get
+  private val keyFileDir =
+    settings.application.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
   private val keyRing = KeyRing.empty[PrivateKeyCurve25519, KeyfileCurve25519](Some(keyFileDir))
 
   def sampleUntilNonEmpty[T](generator: Gen[T]): T = {
@@ -256,7 +256,9 @@ trait CoreGenerators extends Logging {
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
     data        <- stringGen
-  } yield PolyTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
+  } yield {
+    PolyTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
+  }
 
   lazy val arbitTransferGen: Gen[ArbitTransfer[PublicKeyPropositionCurve25519]] = for {
     from        <- fromSeqGen

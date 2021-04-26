@@ -127,7 +127,7 @@ trait ValidGenerators extends CoreGenerators {
         recipients,
         IndexedSeq(sender),
         changeAddress = sender,
-        sender,
+        consolidationAddress = sender,
         fee,
         data = None
       )
@@ -153,7 +153,7 @@ trait ValidGenerators extends CoreGenerators {
         recipients,
         IndexedSeq(sender),
         changeAddress = sender,
-        sender,
+        consolidationAddress = sender,
         fee,
         data = None,
         minting

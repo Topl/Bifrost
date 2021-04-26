@@ -237,7 +237,9 @@ lazy val bifrost = project.in(file("."))
     akkaHttpRpc,
     toplRpc,
     gjallarhorn,
-    benchmarking
+    benchmarking,
+    brambl,
+    chainProgram
   )
   .dependsOn(
     node,

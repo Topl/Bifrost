@@ -36,7 +36,10 @@ object exampleState {
     "AUANVY6RqbJtTnQS1AFTQBjXMFYDknhV8NEixHFLmeZynMxVbp64",
     "AU9sKKy7MN7U9G6QeasZUMTirD6SeGQx8Sngmb9jmDgNB2EzA3rq",
     "AUAbSWQxzfoCN4FizrKKf6E1qCSRffHhjrvo2v7L6q8xFZ7pxKqh"
-  ).map(s => AddressEncoder.fromStringWithCheck(s, provider.networkPrefix).right.get)
+  ).map(s => AddressEncoder.fromStringWithCheck(s, provider.networkPrefix) match {
+    case Left(_) => throw new Exception("Address encoding failed")
+    case Right(value) => value
+  })
 
   val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
     KeyRing.empty[PrivateKeyCurve25519, KeyfileCurve25519]()(
