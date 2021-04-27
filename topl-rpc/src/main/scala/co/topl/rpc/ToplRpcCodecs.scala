@@ -193,9 +193,9 @@ trait NodeViewRpcResponseDecoders extends SharedCodecs {
   implicit val nodeViewBalancesResponseEntryBoxesDecoder: Decoder[ToplRpc.NodeView.Balances.EntryBoxes] =
     c =>
       for {
-        polyBox  <- c.getOrElse[List[PolyBox]]("PolyBox")(Nil)
-        arbitBox <- c.getOrElse[List[ArbitBox]]("ArbitBox")(Nil)
-        assetBox <- c.getOrElse[List[AssetBox]]("AssetBox")(Nil)
+        polyBox  <- c.getOrElse[List[PolyBox]](PolyBox.typeString)(Nil)
+        arbitBox <- c.getOrElse[List[ArbitBox]](ArbitBox.typeString)(Nil)
+        assetBox <- c.getOrElse[List[AssetBox]](AssetBox.typeString)(Nil)
       } yield ToplRpc.NodeView.Balances.EntryBoxes(polyBox, arbitBox, assetBox)
 
   implicit val nodeViewBalancesResponseEntryDecoder: Decoder[ToplRpc.NodeView.Balances.Entry] =
