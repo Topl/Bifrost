@@ -1,7 +1,7 @@
 package co.topl.settings
 
 import co.topl.utils.NetworkType
-import mainargs.{arg, main}
+import mainargs.{Flag, arg, main}
 
 /** Parameters that are given at application startup. Only parameters that are
   * required for initialization should be included at the top level while all other
@@ -36,7 +36,7 @@ final case class RuntimeOpts(
   @arg(name = "seed", short = 's', doc = "string to deterministically generate keys on private and local networks")
   seed:           Option[String] = None,
   @arg(name = "forge", short = 'f', doc = "enable forging as soon as the node starts")
-  forgeOnStartup: Boolean = false,
+  forgeOnStartup: Flag = Flag(),
   @arg(name = "apiKeyHash", doc = "hash of API key")
   apiKeyHash:     Option[String] = None
 ) {
@@ -56,7 +56,7 @@ final case class RuntimeOpts(
         ))
     val forgingSettings =
       appSettings.forging.copy(
-        forgeOnStartup = appSettings.forging.forgeOnStartup || forgeOnStartup,
+        forgeOnStartup = appSettings.forging.forgeOnStartup || forgeOnStartup.value,
         privateTestnet = privateTestnetSettings
       )
 
