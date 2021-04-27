@@ -26,6 +26,7 @@ case class ApplicationSettings(
 
 case class RPCApiSettings(
   bindAddress:       InetSocketAddress,
+  authEnabled:       Boolean,
   apiKeyHash:        String,
   timeout:           FiniteDuration,
   verboseAPI:        Boolean,

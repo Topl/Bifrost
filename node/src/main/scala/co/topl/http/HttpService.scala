@@ -95,10 +95,12 @@ final case class HttpService(apiServices: Seq[ApiEndpoint], settings: RPCApiSett
 
   /** Helper route to wrap the handling of API key authentication */
   def withAuth(route: => Route): Route =
-    optionalHeaderValueByName("x-api-key") { keyOpt =>
-      if (isValid(keyOpt)) route
-      else complete(HttpEntity(ContentTypes.`application/json`, "Provided API key is not correct"))
-    }
+    if (settings.authEnabled) {
+      optionalHeaderValueByName("x-api-key") { keyOpt =>
+        if (isValid(keyOpt)) route
+        else complete(HttpEntity(ContentTypes.`application/json`, "Provided API key is not correct"))
+      }
+    } else complete(HttpEntity(ContentTypes.`application/json`, "Requests are not authorized for this node."))
 
   /** Performs the check of an incoming api key
     * @param keyOpt api key specified in header
