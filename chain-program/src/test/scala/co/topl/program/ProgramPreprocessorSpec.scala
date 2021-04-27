@@ -1,30 +1,27 @@
 package co.topl.program
 
-import co.topl.utils.{CoreGenerators, ValidGenerators}
 import io.circe.JsonObject
 import io.circe.syntax._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
-
-class ProgramPreprocessorSpec extends AnyPropSpec
-  with ScalaCheckPropertyChecks
-  with ScalaCheckDrivenPropertyChecks
-  with Matchers
-  with CoreGenerators
-  with ValidGenerators {
+class ProgramPreprocessorSpec
+    extends AnyPropSpec
+    with ScalaCheckPropertyChecks
+    with ScalaCheckDrivenPropertyChecks
+    with Matchers {
 
   val args: JsonObject = Map(
-    "principal" -> "0".asJson,
-    "accruedInterest" -> "0".asJson,
-    "paymentInterval" -> "0".asJson,
-    "interestRate" -> "0".asJson,
+    "principal"        -> "0".asJson,
+    "accruedInterest"  -> "0".asJson,
+    "paymentInterval"  -> "0".asJson,
+    "interestRate"     -> "0".asJson,
     "interestInterval" -> "0".asJson,
-    "startingDate" -> "0".asJson,
-    "totalPaid" -> "0".asJson,
-    "lastPayment" -> Array("0", "0").map(_.asJson).asJson,
-    "nextPayment" -> Array("0", "0").map(_.asJson).asJson
+    "startingDate"     -> "0".asJson,
+    "totalPaid"        -> "0".asJson,
+    "lastPayment"      -> Array("0", "0").map(_.asJson).asJson,
+    "nextPayment"      -> Array("0", "0").map(_.asJson).asJson
   ).asJsonObject
 
   val name = "test"
@@ -138,6 +135,6 @@ class ProgramPreprocessorSpec extends AnyPropSpec
          |  return a + b
          |}
        """.stripMargin
-      */
+     */
   }
 }

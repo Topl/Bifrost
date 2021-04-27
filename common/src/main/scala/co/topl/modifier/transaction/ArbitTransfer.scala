@@ -25,7 +25,7 @@ case class ArbitTransfer[
   override val fee:         Int128,
   override val timestamp:   Long,
   override val data:        Option[String] = None,
-  override val minting:     Boolean = false
+  override val minting:     Boolean
 ) extends TransferTransaction[SimpleValue, P](from, to, attestation, fee, timestamp, data, minting) {
 
   override val coinOutput: Traversable[ArbitBox] =
@@ -69,7 +69,7 @@ object ArbitTransfer {
     toReceive:            IndexedSeq[(Address, SimpleValue)],
     sender:               IndexedSeq[Address],
     changeAddress:        Address,
-    consolidationAddress: Option[Address],
+    consolidationAddress: Address,
     fee:                  Int128,
     data:                 Option[String]
   ): Try[ArbitTransfer[P]] =
@@ -79,17 +79,14 @@ object ArbitTransfer {
         // compute the amount of tokens that will be sent to the recipients
         val amtToSpend = toReceive.map(_._2.quantity).sum
 
-        // if no consolidationAddress provideed, then default to the change address
-        val consolidationAddr = consolidationAddress.getOrElse(changeAddress)
-
         // create the list of inputs and outputs (senderChangeOut & recipientOut)
         val (availableToSpend, inputs, outputs) =
-          ioTransfer(txState, toReceive, changeAddress, consolidationAddr, fee, amtToSpend)
+          ioTransfer(txState, toReceive, changeAddress, consolidationAddress, fee, amtToSpend)
 
         // ensure there are sufficient funds from the sender boxes to create all outputs
         require(availableToSpend >= amtToSpend, "Insufficient funds available to create transaction.")
 
-        ArbitTransfer[P](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data)
+        ArbitTransfer[P](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data, minting = false)
       }
 
   /** construct input and output box sequence for a transfer transaction */
@@ -146,15 +143,16 @@ object ArbitTransfer {
         timestamp <- c.downField("timestamp").as[Long]
         data      <- c.downField("data").as[Option[String]]
         propType  <- c.downField("propositionType").as[String]
+        minting   <- c.downField("minting").as[Boolean]
       } yield (propType match {
         case PublicKeyPropositionCurve25519.`typeString` =>
           c.downField("signatures").as[Map[PublicKeyPropositionCurve25519, SignatureCurve25519]].map {
-            new ArbitTransfer[PublicKeyPropositionCurve25519](from, to, _, fee, timestamp, data)
+            new ArbitTransfer[PublicKeyPropositionCurve25519](from, to, _, fee, timestamp, data, minting)
           }
 
         case ThresholdPropositionCurve25519.`typeString` =>
           c.downField("signatures").as[Map[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]].map {
-            new ArbitTransfer[ThresholdPropositionCurve25519](from, to, _, fee, timestamp, data)
+            new ArbitTransfer[ThresholdPropositionCurve25519](from, to, _, fee, timestamp, data, minting)
           }
       }) match {
         case Right(tx) => tx
