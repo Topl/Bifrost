@@ -4,7 +4,7 @@ import cats.data.NonEmptyChain
 import co.topl.attestation._
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.it.util._
-import co.topl.modifier.box.{AssetBox, AssetCode, AssetValue}
+import co.topl.modifier.box.{AssetCode, AssetValue}
 import co.topl.modifier.transaction.Transaction
 import co.topl.rpc.ToplRpc
 import co.topl.utils.Int128
@@ -168,7 +168,7 @@ class TransactionTest
       minting = true
     )
 
-    val List(assetBox) = balancesFor(addressA).Boxes("AssetBox").map { case a: AssetBox => a }
+    val List(assetBox) = balancesFor(addressA).Boxes.AssetBox
 
     assetBox.value.quantity shouldBe Int128(10)
     assetBox.value.assetCode shouldEqual assetCode
@@ -183,7 +183,7 @@ class TransactionTest
       minting = false
     )
 
-    val List(assetBox) = balancesFor(addressB).Boxes("AssetBox").map { case a: AssetBox => a }
+    val List(assetBox) = balancesFor(addressB).Boxes.AssetBox
 
     assetBox.value.quantity shouldBe Int128(10)
     assetBox.value.assetCode shouldEqual assetCode
