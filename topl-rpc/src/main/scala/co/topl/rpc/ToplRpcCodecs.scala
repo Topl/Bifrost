@@ -545,8 +545,12 @@ trait SharedCodecs {
   implicit val tokenBoxEncoder: Encoder[TokenBox[_]] = b => Box.jsonEncoder(b)
 
   implicit val tokenBoxDecoder: Decoder[TokenBox[_]] =
-    List[Decoder[TokenBox[_]]](ArbitBox.jsonDecoder.widen, PolyBox.jsonDecoder.widen, AssetBox.jsonDecoder.widen)
-      .reduceLeft(_ or _)
+    c => c.get[String]("type").flatMap {
+      case PolyBox.typeString => PolyBox.jsonDecoder(c)
+      case ArbitBox.typeString => ArbitBox.jsonDecoder(c)
+      case AssetBox.typeString => AssetBox.jsonDecoder(c)
+      case t => Left(DecodingFailure(s"Unexpected Box.type '$t'", c.history))
+    }
   implicit def int128Encoder: Encoder[Int128] = Int128Codec.jsonEncoder
   implicit def int128Decoder: Decoder[Int128] = Int128Codec.jsonDecoder
   implicit def simpleValueEncoder: Encoder[SimpleValue] = SimpleValue.jsonEncoder
