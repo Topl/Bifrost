@@ -1,7 +1,5 @@
 package co.topl
 
-import java.lang.management.ManagementFactory
-
 import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.http.scaladsl.Http
 import akka.io.Tcp
@@ -27,13 +25,14 @@ import co.topl.wallet.{WalletConnectionHandler, WalletConnectionHandlerRef}
 import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
 import com.typesafe.config.{Config, ConfigFactory}
 import kamon.Kamon
-import mainargs.{ParserForClass, TokensReader, arg, main}
+import mainargs.{ParserForClass, TokensReader}
 
+import java.lang.management.ManagementFactory
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
+class BifrostApp(startupOpts: StartupOpts) extends NodeLogging with Runnable {
 
   type BSI = BifrostSyncInfo
   type TX = Transaction.TX
@@ -41,6 +40,10 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   type HIS = History
   type MP = MemPool
   type ST = State
+
+  /** Configure logging backend to set debug logging level if verbose mode is enabled. Needs to be placed
+   *  before any log output to set the level correctly. */
+  if (startupOpts.verbose.value) setLogLevel()
 
   /** Setup settings file to be passed into the application */
   private val (settings: AppSettings, config: Config) = AppSettings.read(startupOpts)
