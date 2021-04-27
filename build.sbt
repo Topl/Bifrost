@@ -271,7 +271,7 @@ lazy val node = project.in(file("node"))
   .settings(
     IntegrationTest / parallelExecution := false
   )
-  .dependsOn(common, akkaHttpRpc, toplRpc)
+  .dependsOn(common, toplRpc)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
 lazy val common = project.in(file("common"))
@@ -334,7 +334,7 @@ lazy val gjallarhorn = project.in(file("gjallarhorn"))
     publish / skip := true,
     Defaults.itSettings,
     libraryDependencies ++= akkaDependencies ++ testingDependenciesTest ++ cryptoDependencies ++ jsonDependencies
-    ++ loggingDependencies ++ miscDependencies ++ testingDependenciesIt
+      ++ loggingDependencies ++ miscDependencies ++ testingDependenciesIt
   )
   .configs(IntegrationTest)
   .disablePlugins(sbtassembly.AssemblyPlugin)
