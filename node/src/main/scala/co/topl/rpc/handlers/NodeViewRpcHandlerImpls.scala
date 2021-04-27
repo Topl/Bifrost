@@ -135,7 +135,11 @@ class NodeViewRpcHandlerImpls(
           balances(addr).getOrElse(PolyBox.typeString, Int128(0)),
           balances(addr).getOrElse(ArbitBox.typeString, Int128(0))
         ),
-        boxes
+        ToplRpc.NodeView.Balances.EntryBoxes(
+          boxes.getOrElse(PolyBox.typeString, Nil).collect { case p: PolyBox => p },
+          boxes.getOrElse(ArbitBox.typeString, Nil).collect { case p: ArbitBox => p },
+          boxes.getOrElse(AssetBox.typeString, Nil).collect { case p: AssetBox => p },
+        )
       )
     }
   }
