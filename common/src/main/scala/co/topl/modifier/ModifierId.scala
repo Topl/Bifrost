@@ -36,7 +36,7 @@ object ModifierId extends BifrostSerializer[ModifierId] {
 
   val size: Int = 1 + Digest32.size // ModifierId's are derived from Blake2b-256
   val empty: ModifierId = new ModifierId(Array.fill(size)(0: Byte))
-  val genesisParentId: ModifierId = new ModifierId(Block.modifierTypeId.toByte +: Array.fill(Digest32.size)(1: Byte))
+  val genesisParentId: ModifierId = new ModifierId(Block.modifierTypeId.value +: Array.fill(Digest32.size)(1: Byte))
 
   implicit val ord: Ordering[ModifierId] = Ordering.by(_.toString)
 
@@ -47,9 +47,9 @@ object ModifierId extends BifrostSerializer[ModifierId] {
 
   def apply(nodeViewModifier: NodeViewModifier): ModifierId = nodeViewModifier match {
     case mod: Block          =>
-      new ModifierId(Block.modifierTypeId.toByte +: Hash[Blake2b256, Digest32](mod.messageToSign).toBytes)
+      new ModifierId(Block.modifierTypeId.value +: Hash[Blake2b256, Digest32](mod.messageToSign).value)
     case mod: Transaction.TX =>
-      new ModifierId(Transaction.modifierTypeId.toByte +: Hash[Blake2b256, Digest32](mod.messageToSign).toBytes)
+      new ModifierId(Transaction.modifierTypeId.value +: Hash[Blake2b256, Digest32](mod.messageToSign).value)
     case _ => throw new Error("Only blocks and transactions generate a modifierId")
   }
 

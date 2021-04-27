@@ -39,11 +39,11 @@ class ModifierId (private val value: Array[Byte]) extends BytesSerializable {
 object ModifierId extends GjalSerializer[ModifierId] {
 
   @newtype
-  case class ModifierTypeId(toByte: Byte)
+  case class ModifierTypeId(value: Byte)
 
   val size: Int = 1 + Digest32.size // ModifierId's are derived from Blake2b-256
   val empty: ModifierId = new ModifierId(Array.fill(size)(0: Byte))
-  val genesisParentId: ModifierId = new ModifierId(ModifierTypeId(3: Byte).toByte +:
+  val genesisParentId: ModifierId = new ModifierId(ModifierTypeId(3: Byte).value +:
     Array.fill(Digest32.size)(1: Byte))
 
   implicit val ord: Ordering[ModifierId] = Ordering.by(_.toString)
@@ -54,8 +54,8 @@ object ModifierId extends GjalSerializer[ModifierId] {
   implicit val jsonKeyDecoder: KeyDecoder[ModifierId] = (id: String) => Some(ModifierId(id))
 
   def apply(transferTransaction: TransferTransaction[_ <: Proposition]): ModifierId =
-    new ModifierId(TransferTransaction.modifierTypeId.toByte +:
-      Hash[Blake2b256, Digest32](transferTransaction.messageToSign).toBytes)
+    new ModifierId(TransferTransaction.modifierTypeId.value +:
+      Hash[Blake2b256, Digest32](transferTransaction.messageToSign).value)
 
   def apply(str: String): ModifierId =
     Base58.decode(str) match {

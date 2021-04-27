@@ -37,15 +37,15 @@ object Evidence extends BifrostSerializer[Evidence] {
   type EvidenceTypePrefix = Byte
 
   @newtype
-  case class EvidenceContent(toBytes: Array[Byte])
+  case class EvidenceContent(value: Array[Byte])
 
   val contentLength = 32             //bytes (this is generally the output of a Blake2b-256 bit hash)
   val size: Int = 1 + contentLength  //length of typePrefix + contentLength
 
   def apply(typePrefix: EvidenceTypePrefix, content: EvidenceContent): Evidence = {
-    require(content.toBytes.length == contentLength, "Invalid evidence: incorrect EvidenceContent length")
+    require(content.value.length == contentLength, "Invalid evidence: incorrect EvidenceContent length")
 
-    parseBytes(typePrefix +: content.toBytes) match {
+    parseBytes(typePrefix +: content.value) match {
       case Success(ec) => ec
       case Failure(ex) => throw ex
     }

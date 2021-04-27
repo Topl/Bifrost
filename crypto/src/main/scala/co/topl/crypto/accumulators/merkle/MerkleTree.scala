@@ -18,7 +18,7 @@ case class MerkleTree[H](topNode: Node,
   def proofByElement(element: Leaf[H]): Option[MerkleProof[H]] = proofByElementHash(element.hash)
 
   def proofByElementHash(hash: Digest32): Option[MerkleProof[H]] = {
-    elementsHashIndex.get(new mutable.WrappedArray.ofByte(hash.toBytes)).flatMap(i => proofByIndex(i))
+    elementsHashIndex.get(new mutable.WrappedArray.ofByte(hash.value)).flatMap(i => proofByIndex(i))
   }
 
   def proofByIndex(index: Int): Option[MerkleProof[H]] = if (index >= 0 && index < length) {
@@ -88,7 +88,7 @@ object MerkleTree {
   def apply[H](payload: Seq[LeafData])(implicit h: Hash[H, Digest32]): MerkleTree[H] = {
     val leafs = payload.map(d => Leaf(d))
     val elementsIndex: Map[mutable.WrappedArray.ofByte, Int] = leafs.indices.map { i =>
-      (new mutable.WrappedArray.ofByte(leafs(i).hash.toBytes), i)
+      (new mutable.WrappedArray.ofByte(leafs(i).hash.value), i)
     }.toMap
     val topNode = calcTopNode(leafs)
 

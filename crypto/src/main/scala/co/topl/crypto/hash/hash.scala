@@ -8,7 +8,7 @@ import io.estatico.newtype.macros.newtype
 package object hash {
 
   @newtype
-  case class Digest32(toBytes: Array[Byte])
+  case class Digest32(value: Array[Byte])
 
   object Digest32 {
 
@@ -24,7 +24,7 @@ package object hash {
   }
 
   @newtype
-  case class Digest64(toBytes: Array[Byte])
+  case class Digest64(value: Array[Byte])
 
   object Digest64 {
 

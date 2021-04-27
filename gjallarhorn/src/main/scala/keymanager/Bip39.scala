@@ -72,7 +72,7 @@ class Bip39 (wordList: List[String]) extends Logging {
         phraseBin.slice(0, entMap(pl)).grouped(byteLen).toArray map {
           Integer.parseInt(_, 2).toByte
         }
-      ).toBytes.map(toBinaryByte).toList
+      ).value.map(toBinaryByte).toList
       phraseBin.substring(entMap(pl)) == phraseHashBin.head.slice(0, chkMap(pl))
     } else {
       false
@@ -100,7 +100,7 @@ class Bip39 (wordList: List[String]) extends Logging {
     val seed = inputUuid.filterNot("-".toSet)
     val seedBytes: Array[Byte] = seed.grouped(2).toArray map {Integer.parseInt(_, 16).toByte}
     val seedBin: Array[String] = seedBytes.map(toBinaryByte)
-    val seedHashBin: Array[String] = Hash[Sha256, Digest32](seedBytes).toBytes.map(toBinaryByte)
+    val seedHashBin: Array[String] = Hash[Sha256, Digest32](seedBytes).value.map(toBinaryByte)
     val phrase = (seedBin.mkString("") + seedHashBin(0).slice(0,endCSMap(seedBin.mkString("").length)))
       .grouped(indexLen).toArray.map(Integer.parseInt(_,2)).map(wordList(_)).mkString(" ")
     (seed,phrase)
@@ -157,6 +157,6 @@ object Bip39 {
     )
 
     (phraseLanguagesHash(iso639_1_toFile(phraseLanguage.toLowerCase))
-      == Hash[Sha256, Digest32](wordList.mkString).toBytes.map("%02x" format _).mkString)
+      == Hash[Sha256, Digest32](wordList.mkString).value.map("%02x" format _).mkString)
   }
 }

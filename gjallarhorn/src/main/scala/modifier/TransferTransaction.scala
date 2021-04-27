@@ -125,7 +125,7 @@ object TransferTransaction {
 
     def calcNonce(index: Int): Long = {
       val digest = Hash[Blake2b256, Digest32](inputBytes ++ Ints.toByteArray(index))
-      Longs.fromByteArray(digest.toBytes.take(Longs.BYTES))
+      Longs.fromByteArray(digest.value.take(Longs.BYTES))
     }
 
     val feeChangeParams = BoxParams(tx.to.head._1.evidence, calcNonce(0), SimpleValue(tx.to.head._2.quantity))

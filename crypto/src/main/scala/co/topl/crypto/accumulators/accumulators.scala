@@ -7,19 +7,19 @@ import io.estatico.newtype.macros.newtype
 package object accumulators {
 
   @newtype
-  case class LeafData(toBytes: Array[Byte])
+  case class LeafData(value: Array[Byte])
   @newtype
-  case class Side(toBytes: Byte)
+  case class Side(value: Byte)
   @newtype
-  case class ADKey(toBytes: Array[Byte])
+  case class ADKey(value: Array[Byte])
   @newtype
-  case class ADValue(toBytes: Array[Byte])
+  case class ADValue(value: Array[Byte])
   @newtype
-  case class ADDigest(toBytes: Array[Byte])
+  case class ADDigest(value: Array[Byte])
   @newtype
-  case class SerializedAdProof(toBytes: Array[Byte])
+  case class SerializedAdProof(value: Array[Byte])
   @newtype
-  case class Balance(toBytes: Byte)
+  case class Balance(value: Byte)
 
   /** Immutable empty array which can be used in many places to avoid allocations. */
   val EmptyByteArray = Array.empty[Byte]

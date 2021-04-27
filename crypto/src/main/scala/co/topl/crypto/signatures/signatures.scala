@@ -7,16 +7,16 @@ import io.estatico.newtype.macros.newtype
 package object signatures {
 
   @newtype
-  case class PrivateKey(toBytes: Array[Byte])
+  case class PrivateKey(value: Array[Byte])
 
   @newtype
-  case class PublicKey(toBytes: Array[Byte])
+  case class PublicKey(value: Array[Byte])
 
   @newtype
-  case class SharedSecret(toBytes: Array[Byte])
+  case class SharedSecret(value: Array[Byte])
 
   @newtype
-  case class Signature(toBytes: Array[Byte])
+  case class Signature(value: Array[Byte])
 
   type MessageToSign = Array[Byte]
 

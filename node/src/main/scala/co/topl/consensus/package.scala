@@ -48,7 +48,7 @@ package object consensus {
    * @return the test value to be compared to the adjusted difficulty
    */
   def calcHit(lastBlock: Block)(box: ArbitBox): Long = {
-    val h = Hash[Blake2b256, Digest32](lastBlock.bytes ++ box.bytes).toBytes
+    val h = Hash[Blake2b256, Digest32](lastBlock.bytes ++ box.bytes).value
 
     Longs.fromByteArray((0: Byte) +: h.take(7))
   }

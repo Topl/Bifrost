@@ -62,8 +62,8 @@ sealed trait KnowledgeProposition[S <: Secret] extends Proposition
 case class PublicKeyPropositionCurve25519 (private[attestation] val pubKeyBytes: PublicKey)
   extends KnowledgeProposition[PrivateKeyCurve25519] {
 
-  require(pubKeyBytes.toBytes.length == Curve25519.KeyLength,
-    s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.toBytes.length} found")
+  require(pubKeyBytes.value.length == Curve25519.KeyLength,
+    s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.value.length} found")
 
   val propTypeString: String = PublicKeyPropositionCurve25519.typeString
   val propTypePrefix: EvidenceTypePrefix = PublicKeyPropositionCurve25519.typePrefix
@@ -87,7 +87,7 @@ object PublicKeyPropositionCurve25519 {
   implicit val evProducer: EvidenceProducer[PublicKeyPropositionCurve25519] =
     EvidenceProducer.instance[PublicKeyPropositionCurve25519] {
       prop: PublicKeyPropositionCurve25519 =>
-        Evidence(typePrefix, EvidenceContent(Hash[Blake2b256, Digest32](prop.bytes).toBytes))
+        Evidence(typePrefix, EvidenceContent(Hash[Blake2b256, Digest32](prop.bytes).value))
     }
 
   implicit val identifier: Identifiable[PublicKeyPropositionCurve25519] = Identifiable.instance { () =>
@@ -113,8 +113,8 @@ case class ThresholdPropositionCurve25519 (threshold: Int, pubKeyProps: Set[Publ
   extends KnowledgeProposition[PrivateKeyCurve25519] {
 
   pubKeyProps.foreach(prop => {
-    require(prop.pubKeyBytes.toBytes.length == Curve25519.KeyLength,
-      s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${prop.pubKeyBytes.toBytes.length} found")
+    require(prop.pubKeyBytes.value.length == Curve25519.KeyLength,
+      s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${prop.pubKeyBytes.value.length} found")
   })
 
   val propTypeString: String = ThresholdPropositionCurve25519.typeString
@@ -139,7 +139,7 @@ object ThresholdPropositionCurve25519 {
   implicit val evProducer: EvidenceProducer[ThresholdPropositionCurve25519] =
     EvidenceProducer.instance[ThresholdPropositionCurve25519] {
       prop: ThresholdPropositionCurve25519 =>
-        Evidence(typePrefix, EvidenceContent(Hash[Blake2b256, Digest32](prop.bytes).toBytes))
+        Evidence(typePrefix, EvidenceContent(Hash[Blake2b256, Digest32](prop.bytes).value))
     }
 
   implicit val identifier: Identifiable[ThresholdPropositionCurve25519] = Identifiable.instance { () =>

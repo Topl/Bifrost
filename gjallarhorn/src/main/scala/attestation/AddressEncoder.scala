@@ -28,7 +28,7 @@ object AddressEncoder {
     * @return a 4 byte checksum value
     */
   private def genChecksum(addrBytes: Array[Byte]): Array[Byte] =
-    Hash[Blake2b256, Digest32](addrBytes).toBytes.take(checksumLength)
+    Hash[Blake2b256, Digest32](addrBytes).value.take(checksumLength)
 
   def toString(addr: Address): String = {
     val addrBytes = addr.bytes

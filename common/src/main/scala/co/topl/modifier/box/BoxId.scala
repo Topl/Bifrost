@@ -39,7 +39,7 @@ object BoxId {
 
   def idFromEviNonce (evidence: Evidence, nonce: Box.Nonce): BoxId = {
     val hashDigest = Hash[Blake2b256, Digest32](evidence.bytes ++ Longs.toByteArray(nonce))
-    BoxId(hashDigest.toBytes)
+    BoxId(hashDigest.value)
   }
 
   implicit val jsonEncoder: Encoder[BoxId] = (id: BoxId) => id.toString.asJson

@@ -17,10 +17,10 @@ import java.io.File
 class ConsensusStorage(storage: Option[Store], private val defaultTotalStake: Int128) extends Logging {
 
   // constant keys for each piece of consensus state
-  private val totalStakeKey = ByteArrayWrapper(Hash[Blake2b256, Digest32]("totalStake").toBytes)
-  private val difficultyKey = ByteArrayWrapper(Hash[Blake2b256, Digest32]("difficulty").toBytes)
-  private val inflationKey = ByteArrayWrapper(Hash[Blake2b256, Digest32]("inflation").toBytes)
-  private val heightKey = ByteArrayWrapper(Hash[Blake2b256, Digest32]("height").toBytes)
+  private val totalStakeKey = ByteArrayWrapper(Hash[Blake2b256, Digest32]("totalStake").value)
+  private val difficultyKey = ByteArrayWrapper(Hash[Blake2b256, Digest32]("difficulty").value)
+  private val inflationKey = ByteArrayWrapper(Hash[Blake2b256, Digest32]("inflation").value)
+  private val heightKey = ByteArrayWrapper(Hash[Blake2b256, Digest32]("height").value)
 
   private val defaultDifficulty: Long = 0
   private val defaultInflation: Long = 0

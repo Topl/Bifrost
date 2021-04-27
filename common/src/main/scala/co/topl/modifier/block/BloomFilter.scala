@@ -57,7 +57,7 @@ class BloomFilter private (private val value: Array[Long]) extends BytesSerializ
 object BloomFilter extends BifrostSerializer[BloomFilter] {
 
   @newtype
-  case class BloomTopic(toBytes: Array[Byte])
+  case class BloomTopic(value: Array[Byte])
 
   val numBytes: Int = 256 //bytes (2048 bits)
   private val size: Int = numBytes * 8
@@ -130,7 +130,7 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
     // Pair up bytes and convert signed Byte to unsigned Int
     Set(0, 2, 4, 6)
       .map(i =>
-        Hash[Blake2b256, Digest32](topic.toBytes).toBytes.slice(i, i + 2).map(_ & 0xff))
+        Hash[Blake2b256, Digest32](topic.value).value.slice(i, i + 2).map(_ & 0xff))
       .map { case Array(b1, b2) =>
         ((b1 << 8) | b2) & idxMask
       }

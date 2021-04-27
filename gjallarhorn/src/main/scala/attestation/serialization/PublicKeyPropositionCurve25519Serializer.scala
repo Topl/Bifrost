@@ -10,7 +10,7 @@ import utils.serialization.{GjalSerializer, Reader, Writer}
 object PublicKeyPropositionCurve25519Serializer extends GjalSerializer[PublicKeyPropositionCurve25519] {
 
   override def serialize(obj: PublicKeyPropositionCurve25519, w: Writer): Unit = {
-    w.putBytes(obj.pubKeyBytes.toBytes)
+    w.putBytes(obj.pubKeyBytes.value)
   }
 
   override def parse(r: Reader): PublicKeyPropositionCurve25519 = {

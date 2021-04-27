@@ -82,7 +82,7 @@ class IODBSpec extends AnyPropSpec
       blocksStorage.update(
         ByteArrayWrapper(b.id.getIdBytes),
         Seq(),
-        Seq(ByteArrayWrapper(b.id.getIdBytes) -> ByteArrayWrapper(Block.modifierTypeId.toByte +: b.bytes))
+        Seq(ByteArrayWrapper(b.id.getIdBytes) -> ByteArrayWrapper(Block.modifierTypeId.value +: b.bytes))
       )
     }
 

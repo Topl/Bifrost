@@ -25,7 +25,7 @@ class MessageSerializer(specs: Seq[MessageSpec[_]], magicBytes: Array[Byte]) {
       .putInt(obj.dataLength)
 
     if (obj.dataLength > 0) {
-      val checksum = Hash[Blake2b256, Digest32](obj.dataBytes).toBytes.take(Message.ChecksumLength)
+      val checksum = Hash[Blake2b256, Digest32](obj.dataBytes).value.take(Message.ChecksumLength)
       builder.putBytes(checksum).putBytes(obj.dataBytes)
     }
 
@@ -60,7 +60,7 @@ class MessageSerializer(specs: Seq[MessageSpec[_]], magicBytes: Array[Byte]) {
         val msgData = if (length > 0) {
           val checksum = it.getBytes(Message.ChecksumLength)
           val data = it.getBytes(length)
-          val digest = Hash[Blake2b256, Digest32](data).toBytes.take(Message.ChecksumLength)
+          val digest = Hash[Blake2b256, Digest32](data).value.take(Message.ChecksumLength)
 
           /** peer reported incorrect checksum */
           if (!java.util.Arrays.equals(checksum, digest)) {

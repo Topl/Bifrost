@@ -27,7 +27,7 @@ object NodeViewModifier extends BifrostSerializer[NodeViewModifier] {
   val modifierIdSize: Int = ModifierId.size // bytes (1 byte modifierTypeId + 32 modiifierId)
 
   @newtype
-  case class ModifierTypeId(toByte: Byte)
+  case class ModifierTypeId(value: Byte)
 
   val modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
     Map(Block.modifierTypeId -> BlockSerializer, Transaction.modifierTypeId -> TransactionSerializer)
@@ -43,28 +43,28 @@ object NodeViewModifier extends BifrostSerializer[NodeViewModifier] {
   override def serialize(obj: NodeViewModifier, w: Writer): Unit =
     obj match {
       case obj: Block =>
-        w.put(Block.modifierTypeId.toByte)
+        w.put(Block.modifierTypeId.value)
         BlockSerializer.serialize(obj, w)
 
       case obj: BlockHeader =>
-        w.put(BlockHeader.modifierTypeId.toByte)
+        w.put(BlockHeader.modifierTypeId.value)
         BlockHeaderSerializer.serialize(obj, w)
 
       case obj: BlockBody =>
-        w.put(BlockBody.modifierTypeId.toByte)
+        w.put(BlockBody.modifierTypeId.value)
         BlockBodySerializer.serialize(obj, w)
 
       case obj: Transaction.TX =>
-        w.put(Transaction.modifierTypeId.toByte)
+        w.put(Transaction.modifierTypeId.value)
         TransactionSerializer.serialize(obj, w)
     }
 
   override def parse(r: Reader): NodeViewModifier =
     (r.getByte() match {
-      case b if b == Block.modifierTypeId.toByte       => BlockSerializer.parseTry(r)
-      case b if b == BlockHeader.modifierTypeId.toByte => BlockHeaderSerializer.parseTry(r)
-      case b if b == BlockBody.modifierTypeId.toByte   => BlockBodySerializer.parseTry(r)
-      case b if b == Transaction.modifierTypeId.toByte => TransactionSerializer.parseTry(r)
+      case b if b == Block.modifierTypeId.value       => BlockSerializer.parseTry(r)
+      case b if b == BlockHeader.modifierTypeId.value => BlockHeaderSerializer.parseTry(r)
+      case b if b == BlockBody.modifierTypeId.value   => BlockBodySerializer.parseTry(r)
+      case b if b == Transaction.modifierTypeId.value => TransactionSerializer.parseTry(r)
     }) match {
       case Success(tx) => tx
       case Failure(ex) => throw ex

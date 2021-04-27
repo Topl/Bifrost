@@ -19,12 +19,12 @@ case class InternalNode[H](left: Node, right: Node)(implicit h: Hash[H, Digest32
 
   override lazy val hash: Digest32 = Hash[H, Digest32](
     MerkleTree.InternalNodePrefix,
-    left.hash.toBytes ++ right.hash.toBytes)
+    left.hash.value ++ right.hash.value)
 
   override def toString: String = s"InternalNode(" +
-    s"left: ${Base58.encode(left.hash.toBytes)}, " +
-    s"right: ${if (right.hash.toBytes.isEmpty) "null" else Base58.encode(right.hash.toBytes)}," +
-    s"hash: ${Base58.encode(hash.toBytes)})"
+    s"left: ${Base58.encode(left.hash.value)}, " +
+    s"right: ${if (right.hash.value.isEmpty) "null" else Base58.encode(right.hash.value)}," +
+    s"hash: ${Base58.encode(hash.value)})"
 }
 
 /** Merkle tree leaf
@@ -32,9 +32,9 @@ case class InternalNode[H](left: Node, right: Node)(implicit h: Hash[H, Digest32
  * @param data - leaf data.
  */
 case class Leaf[H](data: LeafData)(implicit h: Hash[H, Digest32]) extends Node {
-  override lazy val hash: Digest32 = Hash[H, Digest32](MerkleTree.LeafPrefix, data.toBytes)
+  override lazy val hash: Digest32 = Hash[H, Digest32](MerkleTree.LeafPrefix, data.value)
 
-  override def toString: String = s"Leaf(${Base58.encode(hash.toBytes)})"
+  override def toString: String = s"Leaf(${Base58.encode(hash.value)})"
 }
 
 /** Empty Merkle tree node.
@@ -52,5 +52,5 @@ case class EmptyRootNode[H](implicit h: Hash[H, Digest32]) extends Node {
   // .get is secure here since we know that array size equals to digest size
   override val hash: Digest32 = Digest32(Array.fill(Digest32.size)(0: Byte))
 
-  override def toString: String = s"EmptyRootNode(${Base58.encode(hash.toBytes)})"
+  override def toString: String = s"EmptyRootNode(${Base58.encode(hash.value)})"
 }
