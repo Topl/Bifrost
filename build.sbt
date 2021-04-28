@@ -351,3 +351,6 @@ lazy val benchmarking = project.in(file("benchmark"))
   .dependsOn(node % "compile->compile;test->test")
   .enablePlugins(JmhPlugin)
   .disablePlugins(sbtassembly.AssemblyPlugin)
+
+
+addCommandAlias("checkPR", "; scalafixAll --check; scalafmtCheckAll; test")
