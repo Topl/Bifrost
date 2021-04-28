@@ -8,6 +8,8 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import co.topl.crypto.signatures.{Curve25519, PublicKey, Signature}
 import co.topl.utils.encode.Base58
+import co.topl.crypto.BytesOf
+import co.topl.crypto.Implicits._
 
 import scala.util.{Failure, Success, Try}
 
@@ -59,10 +61,10 @@ sealed trait ProofOfKnowledge[S <: Secret, P <: KnowledgeProposition[S]] extends
 case class SignatureCurve25519(private[attestation] val sig: Signature)
   extends ProofOfKnowledge[PrivateKeyCurve25519, PublicKeyPropositionCurve25519] {
 
-  private val sigBytes = sig.value
+  private val signatureLength = BytesOf[Signature].length(sig)
 
-  require(sigBytes.isEmpty || sigBytes.length == Curve25519.SignatureLength,
-    s"${sigBytes.length} != ${Curve25519.SignatureLength}")
+  require(signatureLength == Curve25519.SignatureLength,
+    s"$signatureLength != ${Curve25519.SignatureLength}")
 
   def isValid(proposition: PublicKeyPropositionCurve25519, message: Array[Byte]): Boolean = {
     Curve25519.verify(sig, message, PublicKey(proposition.pubKeyBytes.value))
@@ -100,7 +102,7 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
   extends ProofOfKnowledge[PrivateKeyCurve25519, ThresholdPropositionCurve25519] {
 
   signatures.foreach(sig => {
-    require(sig.sig.value.length == SignatureCurve25519.signatureSize)
+    require(BytesOf[Signature].length(sig.sig) == SignatureCurve25519.signatureSize)
   })
 
   override def isValid(proposition: ThresholdPropositionCurve25519, message: Array[Byte]): Boolean = Try {
@@ -112,7 +114,7 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
     // only need to check until the threshold is exceeded
     val numValidSigs = signatures.foldLeft(0) { (acc, sig) =>
       if (acc < proposition.threshold) {
-        if (proposition.pubKeyProps.exists(prop => Curve25519.verify(sig.sig, message, PublicKey(prop.pubKeyBytes.value)))) {
+        if (proposition.pubKeyProps.exists(prop => Curve25519.verify(sig.sig, message, PublicKey(prop.pubKeyBytes)))) {
           1
         } else {
           0

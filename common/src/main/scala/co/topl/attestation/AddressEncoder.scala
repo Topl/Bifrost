@@ -3,6 +3,8 @@ package co.topl.attestation
 import co.topl.utils.NetworkType
 import co.topl.utils.encode.Base58
 import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
+import co.topl.crypto.Implicits._
+import co.topl.crypto.BytesOf
 
 import scala.util.{Failure, Try}
 
@@ -27,7 +29,7 @@ object AddressEncoder {
     * @return a 4 byte checksum value
     */
   private def genChecksum(addrBytes: Array[Byte]): Array[Byte] =
-    Hash[Blake2b256, Digest32](addrBytes).value.take(checksumLength)
+    BytesOf[Array[Byte]].take(Hash[Blake2b256, Digest32].hash(addrBytes), checksumLength)
 
   def toString(addr: Address): String = {
     val addrBytes = addr.bytes

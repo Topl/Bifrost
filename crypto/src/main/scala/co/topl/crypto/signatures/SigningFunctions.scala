@@ -22,4 +22,5 @@ trait SigningFunctions {
   def verify(signature: Signature, message: MessageToSign, publicKey: PublicKey): Boolean
 
   def createSharedSecret(privateKey: PrivateKey, publicKey: PublicKey): SharedSecret
+
 }

@@ -5,6 +5,7 @@ import attestation.{Address, Secret, SecretGenerator}
 import com.google.common.primitives.Ints
 import attestation.AddressEncoder.NetworkPrefix
 import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
+import co.topl.crypto.Implicits._
 import co.topl.utils.SecureRandom.randomBytes
 import settings.NetworkType
 import utils.Logging
@@ -155,7 +156,7 @@ class Keys[
 
       // calculate the new keyfile and return
       val seed = bip.hexToUuid(bip.phraseToHex(mnemonic))
-      val sk = sg.generateSecret(Hash[Blake2b256, Digest32](seed).value)
+      val sk = sg.generateSecret(Hash[Blake2b256, Digest32].hash(seed))
 
       // add secret to the keyring
       secrets += sk._1

@@ -12,6 +12,7 @@ import com.google.common.primitives.{Ints, Longs}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
+import co.topl.crypto.Implicits._
 
 import scala.util.{Failure, Success, Try}
 
@@ -68,7 +69,7 @@ object TransferTransaction {
       tx.fee.toByteArray
 
     def calcNonce(index: Int): Box.Nonce = {
-      val digest = Hash[Blake2b256, Digest32](inputBytes ++ Ints.toByteArray(index))
+      val digest = Hash[Blake2b256, Digest32].hash(inputBytes ++ Ints.toByteArray(index))
       Transaction.nonceFromDigest(digest)
     }
 

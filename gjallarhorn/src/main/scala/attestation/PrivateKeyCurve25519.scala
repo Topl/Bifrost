@@ -2,7 +2,9 @@ package attestation
 
 import crypto.KeyfileCurve25519
 import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
+import co.topl.crypto.BytesOf
 import utils.serialization.{GjalSerializer, Reader, Writer}
+import co.topl.crypto.Implicits._
 
 /**
   * A Secret corresponding to a PublicKeyCurve25519 proposition.
@@ -13,12 +15,15 @@ case class PrivateKeyCurve25519 (private val privKeyBytes  : PrivateKey,
                                  private val publicKeyBytes: PublicKey
                                 ) extends Secret {
 
+  private val privateKeyLength = BytesOf[PrivateKey].length(privKeyBytes)
+  private val publicKeyLength = BytesOf[PublicKey].length(publicKeyBytes)
+
   require(
-    privKeyBytes.value.length == Curve25519.KeyLength,
-    s"${privKeyBytes.value.length} == ${Curve25519.KeyLength}")
+    privateKeyLength == Curve25519.KeyLength,
+    s"$privateKeyLength == ${Curve25519.KeyLength}")
   require(
-    publicKeyBytes.value.length == Curve25519.KeyLength,
-    s"${publicKeyBytes.value.length} == ${Curve25519.KeyLength}")
+    publicKeyLength == Curve25519.KeyLength,
+    s"$publicKeyLength == ${Curve25519.KeyLength}")
 
   override type S = PrivateKeyCurve25519
   override type PK = PublicKeyPropositionCurve25519
@@ -33,7 +38,7 @@ case class PrivateKeyCurve25519 (private val privKeyBytes  : PrivateKey,
     SignatureCurve25519(Curve25519.sign(privKeyBytes, message))
 
   override def equals ( obj: Any ): Boolean = obj match {
-    case sk: PrivateKeyCurve25519 => sk.privKeyBytes.value sameElements privKeyBytes.value
+    case sk: PrivateKeyCurve25519 => BytesOf[PrivateKey].sameElements(sk.privKeyBytes, privKeyBytes)
     case _                        => false
   }
 }
@@ -53,10 +58,10 @@ object PrivateKeyCurve25519 extends GjalSerializer[PrivateKeyCurve25519] {
 
   override def serialize(obj: PrivateKeyCurve25519, w: Writer): Unit = {
     /* privKeyBytes: Array[Byte] */
-    w.putBytes(obj.privKeyBytes.value)
+    w.putBytes(obj.privKeyBytes)
 
     /* publicKeyBytes: Array[Byte] */
-    w.putBytes(obj.publicKeyBytes.value)
+    w.putBytes(obj.publicKeyBytes)
   }
 
   override def parse(r: Reader): PrivateKeyCurve25519 = {

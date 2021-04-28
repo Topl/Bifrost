@@ -6,6 +6,7 @@ import akka.http.scaladsl.marshalling.Marshaller._
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse}
 import akka.http.scaladsl.server.Route
 import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
+import co.topl.crypto.Implicits._
 import co.topl.http.api.{ApiEndpoint, ApiResponse, ErrorResponse, SuccessResponse}
 import co.topl.settings.RPCApiSettings
 import io.circe.Json
@@ -105,7 +106,7 @@ final case class HttpService(apiServices: Seq[ApiEndpoint], settings: RPCApiSett
     * @return
     */
   private def isValid(keyOpt: Option[String]): Boolean = {
-    lazy val keyHash: Option[Digest32] = keyOpt.map(Hash[Blake2b256, Digest32](_))
+    lazy val keyHash: Option[Digest32] = keyOpt.map(Hash[Blake2b256, Digest32].hash[String])
     (apiKeyHash, keyHash) match {
       case (None, _)                      => true
       case (Some(expected), Some(passed)) => expected sameElements passed.value

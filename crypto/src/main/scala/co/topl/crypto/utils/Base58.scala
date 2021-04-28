@@ -1,5 +1,7 @@
 package co.topl.crypto.utils
 
+import co.topl.crypto.BytesOf
+
 import scala.util.Try
 
 /* Forked from https://github.com/ScorexFoundation/scorex-util/tree/master/src/main/scala/scorex/util/encode */
@@ -15,8 +17,9 @@ object Base58 extends BytesEncoder {
 
   private val Base = BigInt(58)
 
-  override def encode(input: Array[Byte]): String = {
-    var bi = BigInt(1, input)
+  override def encode[V: BytesOf](input: V): String = {
+    val inputBytes = BytesOf[V].get(input)
+    var bi = BigInt(1, inputBytes)
     val s = new StringBuilder()
     if (bi > 0) {
       while (bi >= Base) {
@@ -27,7 +30,7 @@ object Base58 extends BytesEncoder {
       s.insert(0, Alphabet.charAt(bi.intValue))
     }
     // Convert leading zeros too.
-    input.takeWhile(_ == 0).foldLeft(s) { case (ss, _) =>
+    inputBytes.takeWhile(_ == 0).foldLeft(s) { case (ss, _) =>
       ss.insert(0, Alphabet.charAt(0))
     }.toString()
   }

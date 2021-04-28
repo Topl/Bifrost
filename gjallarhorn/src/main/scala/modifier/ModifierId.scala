@@ -1,6 +1,8 @@
 package modifier
 
 import attestation.Proposition
+import co.topl.crypto.BytesOf
+import co.topl.crypto.Implicits._
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
@@ -54,8 +56,11 @@ object ModifierId extends GjalSerializer[ModifierId] {
   implicit val jsonKeyDecoder: KeyDecoder[ModifierId] = (id: String) => Some(ModifierId(id))
 
   def apply(transferTransaction: TransferTransaction[_ <: Proposition]): ModifierId =
-    new ModifierId(TransferTransaction.modifierTypeId.value +:
-      Hash[Blake2b256, Digest32](transferTransaction.messageToSign).value)
+    new ModifierId(BytesOf[Digest32].prepend(
+      Hash[Blake2b256, Digest32].hash(transferTransaction.messageToSign),
+      TransferTransaction.modifierTypeId.value
+    ))
+
 
   def apply(str: String): ModifierId =
     Base58.decode(str) match {

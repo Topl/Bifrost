@@ -1,5 +1,7 @@
 package co.topl.crypto.utils
 
+import co.topl.crypto.BytesOf
+
 import scala.util.Try
 
 /* Forked from https://github.com/ScorexFoundation/scorex-util/tree/master/src/main/scala/scorex/util/encode */
@@ -9,7 +11,7 @@ trait BytesEncoder {
   val Alphabet: String
 
   // encode Array[Byte] to String
-  def encode(input: Array[Byte]): String
+  def encode[V: BytesOf](input: V): String
 
   // decode string to Array[Byte]. Return Failure on incorrect character in input
   def decode(input: String): Try[Array[Byte]]

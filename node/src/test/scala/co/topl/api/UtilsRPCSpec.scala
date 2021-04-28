@@ -9,6 +9,7 @@ import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
+import co.topl.crypto.Implicits._
 import co.topl.utils.encode.Base58
 
 import scala.util.{Failure, Success}
@@ -95,7 +96,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
         val hash = res.hcursor.downField("result").get[String]("hash")
 
         res.hcursor.downField("error").values.isEmpty shouldBe true
-        hash shouldEqual Right(Base58.encode(Hash[Blake2b256, Digest32]("Hello World").toBytes))
+        hash shouldEqual Right(Base58.encode(Hash[Blake2b256, Digest32].hash("Hello World")))
       }
     }
 

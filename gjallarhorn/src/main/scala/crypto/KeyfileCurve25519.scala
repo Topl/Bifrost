@@ -13,6 +13,7 @@ import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
 import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
 import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
+import co.topl.crypto.Implicits._
 import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
 import co.topl.utils.SecureRandom.randomBytes
 import co.topl.utils.encode.Base58
@@ -130,7 +131,7 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
     * @return
     */
   private def getMAC (derivedKey: Array[Byte], cipherText: Array[Byte]): Array[Byte] =
-    Hash[Blake2b256, Digest32](derivedKey.slice(16, 32) ++ cipherText).value
+    Hash[Blake2b256, Digest32].hash(derivedKey.slice(16, 32) ++ cipherText)
 
   /**
     * Generates cipherText and MAC from AES (block cipher)

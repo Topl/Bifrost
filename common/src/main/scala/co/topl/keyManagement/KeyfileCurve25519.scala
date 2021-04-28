@@ -15,6 +15,7 @@ import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
 import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
 import co.topl.utils.SecureRandom.randomBytes
 import co.topl.utils.encode.Base58
+import co.topl.crypto.Implicits._
 
 import scala.util.Try
 
@@ -116,7 +117,7 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
    * @return
    */
   private def getMAC (derivedKey: Array[Byte], cipherText: Array[Byte]): Array[Byte] =
-    Hash[Blake2b256, Digest32](derivedKey.slice(16, 32) ++ cipherText).value
+    Hash[Blake2b256, Digest32].hash(derivedKey.slice(16, 32) ++ cipherText)
 
   /**
     *
@@ -126,7 +127,12 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
     * @param encrypt
     * @return
     */
-  private def getAESResult(derivedKey: Array[Byte], ivData: Array[Byte], inputText: Array[Byte], encrypt: Boolean): (Array[Byte], Array[Byte]) = {
+  private def getAESResult(
+    derivedKey: Array[Byte],
+    ivData: Array[Byte],
+    inputText: Array[Byte],
+    encrypt: Boolean
+  ): (Array[Byte], Array[Byte]) = {
     val cipherParams = new ParametersWithIV(new KeyParameter(derivedKey), ivData)
     val aesCtr = new BufferedBlockCipher(new SICBlockCipher(new AESEngine))
     aesCtr.init(encrypt, cipherParams)

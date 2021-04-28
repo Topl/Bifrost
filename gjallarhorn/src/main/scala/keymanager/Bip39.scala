@@ -1,7 +1,9 @@
 package keymanager
 
+import co.topl.crypto.BytesOf
 import co.topl.crypto.hash.{Digest32, Hash}
 import co.topl.crypto.hash.Sha.Sha256
+import co.topl.crypto.Implicits._
 import utils.Logging
 
 import scala.io.Source
@@ -68,11 +70,16 @@ class Bip39 (wordList: List[String]) extends Logging {
     val pl = phraseWords.length
     if (phraseWords.forall(word => wordList.contains(word)) && validPhraseLengths.contains(pl)) {
       val phraseBin = phraseWords.map(wordList.indexOf(_)).map(toBinaryIndex).mkString
-      val phraseHashBin: List[String] = Hash[Sha256, Digest32](
-        phraseBin.slice(0, entMap(pl)).grouped(byteLen).toArray map {
-          Integer.parseInt(_, 2).toByte
-        }
-      ).value.map(toBinaryByte).toList
+
+      val phraseHashBin: List[String] =
+        BytesOf[Digest32].map(
+          Hash[Sha256, Digest32].hash(
+            phraseBin.slice(0, entMap(pl)).grouped(byteLen).toArray map {
+              Integer.parseInt(_, 2).toByte
+            }),
+          toBinaryByte
+        )
+
       phraseBin.substring(entMap(pl)) == phraseHashBin.head.slice(0, chkMap(pl))
     } else {
       false
@@ -100,8 +107,8 @@ class Bip39 (wordList: List[String]) extends Logging {
     val seed = inputUuid.filterNot("-".toSet)
     val seedBytes: Array[Byte] = seed.grouped(2).toArray map {Integer.parseInt(_, 16).toByte}
     val seedBin: Array[String] = seedBytes.map(toBinaryByte)
-    val seedHashBin: Array[String] = Hash[Sha256, Digest32](seedBytes).value.map(toBinaryByte)
-    val phrase = (seedBin.mkString("") + seedHashBin(0).slice(0,endCSMap(seedBin.mkString("").length)))
+    val seedHashBin: List[String] = BytesOf[Digest32].map(Hash[Sha256, Digest32].hash(seedBytes), toBinaryByte)
+    val phrase = (seedBin.mkString("") + seedHashBin.head.slice(0,endCSMap(seedBin.mkString("").length)))
       .grouped(indexLen).toArray.map(Integer.parseInt(_,2)).map(wordList(_)).mkString(" ")
     (seed,phrase)
   }
@@ -157,6 +164,6 @@ object Bip39 {
     )
 
     (phraseLanguagesHash(iso639_1_toFile(phraseLanguage.toLowerCase))
-      == Hash[Sha256, Digest32](wordList.mkString).value.map("%02x" format _).mkString)
+      == BytesOf[Digest32].map(Hash[Sha256, Digest32].hash(wordList.mkString), "%02x" format _).mkString)
   }
 }

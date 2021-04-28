@@ -6,6 +6,7 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
 import co.topl.utils.encode.Base58
+import co.topl.crypto.Implicits._
 
 import scala.util.{Failure, Success}
 
@@ -40,7 +41,7 @@ object ProgramId extends BifrostSerializer[ProgramId] {
   }
 
   def create (seed: Array[Byte]): ProgramId = {
-    new ProgramId(Hash[Blake2b256, Digest32](seed).value)
+    new ProgramId(Hash[Blake2b256, Digest32].hash(seed))
   }
 
   override def serialize(obj: ProgramId, w: Writer): Unit = {

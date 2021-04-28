@@ -1,5 +1,7 @@
 package co.topl.crypto.signatures
 
+import co.topl.crypto.BytesOf
+import co.topl.crypto.Implicits._
 import co.topl.crypto.hash.{Digest32, Hash}
 import co.topl.crypto.hash.Sha.Sha256
 import org.whispersystems.curve25519.OpportunisticCurve25519Provider
@@ -31,19 +33,19 @@ object Curve25519 extends EllipticCurveSignatureScheme {
   }
 
   override def createKeyPair(seed: Array[Byte]): (PrivateKey, PublicKey) = {
-    val hashedSeed = Hash[Sha256, Digest32](seed)
+    val hashedSeed = Hash[Sha256, Digest32].hash(seed)
     val privateKey = PrivateKey(provider.generatePrivateKey(hashedSeed.value))
     privateKey -> PublicKey(provider.generatePublicKey(privateKey.value))
   }
 
   override def sign(privateKey: PrivateKey, message: MessageToSign): Signature = {
-    require(privateKey.value.length == KeyLength)
+    require(BytesOf[PrivateKey].length(privateKey) == KeyLength)
     Signature(provider.calculateSignature(provider.getRandom(SignatureLength), privateKey.value, message))
   }
 
   override def verify(signature: Signature, message: MessageToSign, publicKey: PublicKey): Boolean = Try {
-    require(signature.value.length == SignatureLength)
-    require(publicKey.value.length == KeyLength)
+    require(BytesOf[Signature].length(signature) == SignatureLength)
+    require(BytesOf[PublicKey].length(publicKey) == KeyLength)
     provider.verifySignature(publicKey.value, message, signature.value)
   }.recoverWith { case e =>
     // TODO: Jing - remove this log

@@ -4,6 +4,7 @@ import com.google.common.primitives.{Ints, Longs}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
+import co.topl.crypto.Implicits._
 import co.topl.utils.encode.Base58
 import attestation.Evidence
 
@@ -42,7 +43,7 @@ object BoxId {
   }
 
   def idFromEviNonce (evidence: Evidence, nonce: Long): BoxId = {
-    val hashBytes = Hash[Blake2b256, Digest32](evidence.bytes ++ Longs.toByteArray(nonce)).value
+    val hashBytes = Hash[Blake2b256, Digest32].hash(evidence.bytes ++ Longs.toByteArray(nonce))
     BoxId(hashBytes)
   }
 

@@ -1,10 +1,12 @@
 package attestation
 
 import attestation.serialization.ProofSerializer
+import co.topl.crypto.BytesOf
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import co.topl.crypto.signatures.{Curve25519, PublicKey, Signature}
+import co.topl.crypto.signatures.{Curve25519, Signature}
+import co.topl.crypto.Implicits._
 import co.topl.utils.encode.Base58
 import utils.serialization.{BytesSerializable, GjalSerializer}
 
@@ -58,8 +60,10 @@ sealed trait ProofOfKnowledge[S <: Secret, P <: KnowledgeProposition[S]] extends
 case class SignatureCurve25519(private[attestation] val sigBytes: Signature)
   extends ProofOfKnowledge[PrivateKeyCurve25519, PublicKeyPropositionCurve25519] {
 
-  require(sigBytes.value.isEmpty || sigBytes.value.length == Curve25519.SignatureLength,
-    s"${sigBytes.value.length} != ${Curve25519.SignatureLength}")
+  private val signatureLength = BytesOf[Signature].length(sigBytes)
+
+  require(signatureLength == 0 || signatureLength == Curve25519.SignatureLength,
+    s"$signatureLength != ${Curve25519.SignatureLength}")
 
   def isValid(proposition: PublicKeyPropositionCurve25519, message: Array[Byte]): Boolean = {
     Curve25519.verify(sigBytes, message, proposition.pubKeyBytes)
@@ -102,7 +106,7 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
   extends ProofOfKnowledge[PrivateKeyCurve25519, ThresholdPropositionCurve25519] {
 
   signatures.foreach(sig => {
-    require(sig.sigBytes.value.length == SignatureCurve25519.signatureSize)
+    require(sig.sigBytes.length == SignatureCurve25519.signatureSize)
   })
 
   override def isValid(proposition: ThresholdPropositionCurve25519, message: Array[Byte]): Boolean = Try {
