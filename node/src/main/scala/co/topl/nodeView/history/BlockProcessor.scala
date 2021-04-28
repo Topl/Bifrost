@@ -25,28 +25,28 @@ class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends Logging 
   def applicableInCache(modifier: Block): Boolean = chainCache.getCacheBlock(modifier.parentId).nonEmpty
 
   /**
-    * Publicly accessible method to check if a block exists in the cache
-    *
-    * @param id block id that we are checking for
-    * @return 'true' is the block ID of the given modifier is available in the cache
-    */
+   * Publicly accessible method to check if a block exists in the cache
+   *
+   * @param id block id that we are checking for
+   * @return 'true' is the block ID of the given modifier is available in the cache
+   */
   def contains(id: ModifierId): Boolean = chainCache.getCacheBlock(id).nonEmpty
 
   /**
-    * Publicly accessible method to retrieve a block from the cache
-    *
-    * @param id id of the block to retrieve
-    * @return
-    */
+   * Publicly accessible method to retrieve a block from the cache
+   *
+   * @param id id of the block to retrieve
+   * @return
+   */
   def getCacheBlock(id: ModifierId): Option[CacheBlock] = chainCache.getCacheBlock(id)
 
   /**
-    * Process a single block and determine if any of the possible chains in the
-    * chain cache are taller than the main chain section
-    *
-    * @param block - new block to put in cache
-    * @return
-    */
+   * Process a single block and determine if any of the possible chains in the
+   * chain cache are taller than the main chain section
+   *
+   * @param block - new block to put in cache
+   * @return
+   */
   def process(history: History, block: Block): ProgressInfo[Block] = {
     // check if the current block is starting a new branch off the main chain
     val pi: ProgressInfo[Block] = if (history.applicable(block)) {
@@ -57,7 +57,7 @@ class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends Logging 
 
       ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
 
-    // if not starting a new branch, can it extend an already known tine?
+      // if not starting a new branch, can it extend an already known tine?
     } else if (applicableInCache(block)) {
       val cacheParent = chainCache.getCacheBlock(block.parentId).get
 
@@ -65,18 +65,18 @@ class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends Logging 
 
       chainCache = chainCache.add(block, prevTimes)
 
-        // if new chain is longer, calculate and return the ProgressInfo needed to switch tines
-        if (block.height > history.height) {
-          val newChain = possibleChain(chainCache.getCacheBlock(block.id).get)
-          val commonAncestor = history.modifierById(newChain.head.parentId).get
-          val oldChain = history.getBlocksFrom(history.bestBlock, history.height - commonAncestor.height)
+      // if new chain is longer, calculate and return the ProgressInfo needed to switch tines
+      if (block.height > history.height) {
+        val newChain = possibleChain(chainCache.getCacheBlock(block.id).get)
+        val commonAncestor = history.modifierById(newChain.head.parentId).get
+        val oldChain = history.getBlocksFrom(history.bestBlock, history.height - commonAncestor.height)
 
-          ProgressInfo(Some(commonAncestor.id), oldChain, newChain, Seq.empty)
+        ProgressInfo(Some(commonAncestor.id), oldChain, newChain, Seq.empty)
 
         // otherwise, exit after adding the new block to the chain cache
-        } else ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
+      } else ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
 
-    // if no parent, log and do not add the block to the chain cache
+      // if no parent, log and do not add the block to the chain cache
     } else {
       log.warn(s"Received orphan block")
       ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
@@ -97,23 +97,19 @@ class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends Logging 
    */
   private def possibleChain(from: CacheBlock): Seq[Block] = {
     @tailrec
-    def loop( currBlock: Option[CacheBlock], height: Long, acc: Seq[Block]): Seq[Block] = {
+    def loop(currBlock: Option[CacheBlock], height: Long, acc: Seq[Block]): Seq[Block] =
       currBlock match {
-        case Some(b) ⇒ loop(chainCache.getCacheBlock(b.block.parentId), height - 1, b.block +: acc)
-        case None ⇒ acc
+        case Some(b) => loop(chainCache.getCacheBlock(b.block.parentId), height - 1, b.block +: acc)
+        case None => acc
       }
-    }
 
     loop(Some(from), from.block.height, Seq.empty)
   }
 }
 
-
-
-
 object BlockProcessor extends Logging {
 
-  private implicit val ord: Ordering[CacheBlock] =
+  implicit private val ord: Ordering[CacheBlock] =
     Ordering[(Long, ModifierId)].on(x => (x.block.height, x.block.id))
 
   def apply(maxDepth: Int): BlockProcessor = new BlockProcessor(emptyCache, maxDepth)
@@ -135,10 +131,10 @@ object BlockProcessor extends Logging {
       }
 
     def getCacheBlock(id: ModifierId): Option[CacheBlock] =
-      cache.keys.find(k ⇒ k.block.id == id)
+      cache.keys.find(k => k.block.id == id)
 
     def getHeight(id: ModifierId): Option[Long] =
-      cache.keys.find(k ⇒ k.block.id == id).map(_.block.height)
+      cache.keys.find(k => k.block.id == id).map(_.block.height)
 
     def add(block: Block, prevTimes: Seq[TimeProvider.Time]): ChainCache = {
       val cacheBlock = CacheBlock(block, prevTimes)

@@ -24,6 +24,7 @@ class ProtocolVersioner(appVersion: Version, protocolVersions: SortedSet[Protoco
 }
 
 object ProtocolVersioner {
+
   def apply(appVersion: Version, protocolVersions: Seq[ProtocolSettings]): ProtocolVersioner = {
     val sortedAndUniqueVersions = SortedSet[ProtocolSettings]() ++ protocolVersions.toSet
     require(sortedAndUniqueVersions.size == protocolVersions.size, "Non-unique protocol versions specified at runtime")

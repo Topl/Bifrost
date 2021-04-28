@@ -94,13 +94,12 @@ trait RpcDirectives {
 
   private def rpcErrorToFailureResponseUnknownContext(
     error:                     RpcError
-  )(implicit throwableEncoder: Encoder[ThrowableData]): FailureRpcResponse = {
+  )(implicit throwableEncoder: Encoder[ThrowableData]): FailureRpcResponse =
     FailureRpcResponse(
       UUID.randomUUID().toString,
       "2.0",
       FailureRpcResponse.Error(error.code, error.message, Some(encodeRpcData(error)))
     )
-  }
 
   private def rpcErrorToFailureResponse(request: RpcContext, error: RpcError)(implicit
     throwableEncoder:                            Encoder[ThrowableData]
@@ -110,7 +109,7 @@ trait RpcDirectives {
       request.jsonrpc,
       FailureRpcResponse.Error(error.code, error.message, Some(encodeRpcData(error)))
     )
-  
+
 }
 
 object RpcDirectives extends RpcDirectives

@@ -7,12 +7,13 @@ import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
-class TokenBoxRegistrySpec extends MockState
-  with ScalaCheckPropertyChecks
-  with ScalaCheckDrivenPropertyChecks
-  with Matchers
-  with BeforeAndAfterAll
-  with CoreGenerators {
+class TokenBoxRegistrySpec
+    extends MockState
+    with ScalaCheckPropertyChecks
+    with ScalaCheckDrivenPropertyChecks
+    with Matchers
+    with BeforeAndAfterAll
+    with CoreGenerators {
 
   val state: State = createState()
 

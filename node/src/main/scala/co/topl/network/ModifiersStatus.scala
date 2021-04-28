@@ -10,14 +10,16 @@ object ModifiersStatus {
   /** Our node have requested this modifier from other peers but did not received it yet */
   case object Requested extends ModifiersStatus
 
-  /** Our node have received this modifier from other peers but did not applied yet.
-    * The modifier might be in ModifiersCache or on the way to it
-    */
+  /**
+   * Our node have received this modifier from other peers but did not applied yet.
+   * The modifier might be in ModifiersCache or on the way to it
+   */
   case object Received extends ModifiersStatus
 
-  /** This modifier is already on NodeViewHoder - applied to History if it is PersistentModifier or
-    * in MemPool if it is Ephemereal modifier.
-    */
+  /**
+   * This modifier is already on NodeViewHoder - applied to History if it is PersistentModifier or
+   * in MemPool if it is Ephemereal modifier.
+   */
   case object Held extends ModifiersStatus
 
   /** This modifier is permanently invalid - never try to download it */

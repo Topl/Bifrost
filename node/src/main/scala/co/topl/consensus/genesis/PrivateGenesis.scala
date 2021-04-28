@@ -14,8 +14,8 @@ import co.topl.utils.NetworkType.NetworkPrefix
 
 import scala.util.Try
 
-case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(
-  implicit val networkPrefix:     NetworkPrefix
+case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implicit
+  val networkPrefix:                 NetworkPrefix
 ) extends GenesisProvider {
 
   override protected val blockChecksum: ModifierId = ModifierId.empty
@@ -26,11 +26,12 @@ case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(
 
   override def getGenesisBlock: Try[(Block, ChainParams)] = Try(formNewBlock)
 
-  /** We want a private network to have a brand new genesis block that is created at runtime. This is
-    * done to allow the user to forge on their private network. Therefore, we need to generate a new set of keys
-    * by making a call to the key manager holder to create a the set of forging keys. Once these keys are created,
-    * we can use the public images to pre-fund the accounts from genesis.
-    */
+  /**
+   * We want a private network to have a brand new genesis block that is created at runtime. This is
+   * done to allow the user to forge on their private network. Therefore, we need to generate a new set of keys
+   * by making a call to the key manager holder to create a the set of forging keys. Once these keys are created,
+   * we can use the public images to pre-fund the accounts from genesis.
+   */
   val (numberOfKeys, balance, initialDifficulty) = settings.forging.privateTestnet
     .map { settings =>
       (settings.numTestnetAccts, settings.testnetBalance, settings.initialDifficulty)

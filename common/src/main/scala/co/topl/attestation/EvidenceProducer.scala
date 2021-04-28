@@ -1,23 +1,25 @@
 package co.topl.attestation
 
 /**
-  * EvidenceProducer is a type-class that must be implemented by a proposition in order to generate the evidence
-  * for that proposition. The evidence is then used to construct an address that holds outputs from a transaction.
+ * EvidenceProducer is a type-class that must be implemented by a proposition in order to generate the evidence
+ * for that proposition. The evidence is then used to construct an address that holds outputs from a transaction.
  *
-  * @tparam P a proposition that is used to encumber a UTXO
-  */
+ * @tparam P a proposition that is used to encumber a UTXO
+ */
 sealed trait EvidenceProducer[P <: Proposition] {
-  def generateEvidence (prop: P): Evidence
+  def generateEvidence(prop: P): Evidence
 }
 
 object EvidenceProducer {
   def apply[P <: Proposition](implicit ev: EvidenceProducer[P]): EvidenceProducer[P] = ev
-  def instance[P <: Proposition](f: P => Evidence): EvidenceProducer[P] = new EvidenceProducer[P] {
-    override def generateEvidence (prop: P): Evidence = f(prop)
+
+  def instance[P <: Proposition](f:        P => Evidence): EvidenceProducer[P] = new EvidenceProducer[P] {
+    override def generateEvidence(prop: P): Evidence = f(prop)
   }
 
   object Syntax {
-    implicit final class ProducerOps[P<: Proposition: EvidenceProducer] ( private val value: P) {
+
+    implicit final class ProducerOps[P <: Proposition: EvidenceProducer](private val value: P) {
       def generateEvidence: Evidence = EvidenceProducer[P].generateEvidence(value)
     }
   }

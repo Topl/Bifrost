@@ -5,15 +5,16 @@ import co.topl.network.peer.ConnectedPeer
 
 import scala.util.{Success, Try}
 
-/** Wrapper for a network message, whether come from external peer or generated locally.
-  * The message could be ModifiersData/InvData/PeerData
-  *
-  * @param spec message specification of p2p messages in the network
-  * @param input message being wrapped, whether in byte-array form (if from outside), or structured data (if
-  *              formed locally)
-  * @param source source peer, if the message is from outside
-  * @tparam Content message data type
-  */
+/**
+ * Wrapper for a network message, whether come from external peer or generated locally.
+ * The message could be ModifiersData/InvData/PeerData
+ *
+ * @param spec message specification of p2p messages in the network
+ * @param input message being wrapped, whether in byte-array form (if from outside), or structured data (if
+ *              formed locally)
+ * @param source source peer, if the message is from outside
+ * @tparam Content message data type
+ */
 case class Message[Content](
   spec:   MessageSpec[Content],
   input:  Either[Array[Byte], Content],
@@ -37,9 +38,8 @@ case class Message[Content](
   lazy val dataLength: Int = dataBytes.length
 
   /** @return serialized message length in bytes */
-  def messageLength: Int = {
+  def messageLength: Int =
     if (dataLength > 0) HeaderLength + ChecksumLength + dataLength else HeaderLength
-  }
 }
 
 object Message {

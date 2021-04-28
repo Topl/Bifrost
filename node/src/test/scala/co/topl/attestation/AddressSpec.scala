@@ -7,12 +7,13 @@ import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scorex.util.encode.Base58
 
-class AddressSpec extends AnyPropSpec
-  with ScalaCheckPropertyChecks
-  with ScalaCheckDrivenPropertyChecks
-  with Matchers
-  with CoreGenerators
-  with ValidGenerators {
+class AddressSpec
+    extends AnyPropSpec
+    with ScalaCheckPropertyChecks
+    with ScalaCheckDrivenPropertyChecks
+    with Matchers
+    with CoreGenerators
+    with ValidGenerators {
 
   property("Applying address string with incorrect networkPrefix will result in error") {
     forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
@@ -25,7 +26,7 @@ class AddressSpec extends AnyPropSpec
       val addrStr = address.toString
 
       networkPrefix = secNetworkType.netPrefix
-      val thrown = intercept[Exception] (Address(networkPrefix)(addrStr))
+      val thrown = intercept[Exception](Address(networkPrefix)(addrStr))
 
       thrown.getMessage shouldEqual "NetworkTypeMismatch"
     }
@@ -40,12 +41,12 @@ class AddressSpec extends AnyPropSpec
 
       /** Alter the third byte in the address, which should be the first byte of the content */
       val corruptByte: Byte = (addrByte(2).toInt + 1).toByte
-      val modedAddrByte: Array[Byte] = addrByte.slice(0,2) ++ Array(corruptByte) ++ addrByte.slice(3,addrByte.length)
+      val modedAddrByte: Array[Byte] = addrByte.slice(0, 2) ++ Array(corruptByte) ++ addrByte.slice(3, addrByte.length)
       val modedAddrStr: String = Base58.encode(modedAddrByte)
 
       assert(!(addrByte sameElements modedAddrByte))
 
-      val thrown = intercept[Exception] (Address(networkPrefix)(modedAddrStr))
+      val thrown = intercept[Exception](Address(networkPrefix)(modedAddrStr))
 
       thrown.getMessage shouldEqual s"requirement failed: Invalid address: Checksum fails for $modedAddrStr"
     }
@@ -99,7 +100,7 @@ class AddressSpec extends AnyPropSpec
       val address: Address = pubkey.address
       val addrStr: String = address.toString
 
-      val thrown = intercept[Exception] (Address(networkPrefix)(addrStr))
+      val thrown = intercept[Exception](Address(networkPrefix)(addrStr))
       thrown.getMessage shouldEqual "InvalidNetworkPrefix"
     }
   }
