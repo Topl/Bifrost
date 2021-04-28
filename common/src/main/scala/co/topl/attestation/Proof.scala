@@ -63,7 +63,7 @@ case class SignatureCurve25519(private[attestation] val sig: Signature)
 
   private val signatureLength = BytesOf[Signature].length(sig)
 
-  require(signatureLength == Curve25519.SignatureLength,
+  require(signatureLength == 0 || signatureLength == Curve25519.SignatureLength,
     s"$signatureLength != ${Curve25519.SignatureLength}")
 
   def isValid(proposition: PublicKeyPropositionCurve25519, message: Array[Byte]): Boolean = {
