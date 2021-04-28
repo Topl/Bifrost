@@ -1,0 +1,49 @@
+# Scala CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/sample-config/ for more details
+#
+version: 2
+jobs:
+  unit_tests:
+    docker:
+      # specify the version you desire here
+      - image: toplprotocol/graalvm-test-21.0.0
+
+      # Specify service dependencies here if necessary
+      # CircleCI maintains a library of pre-built images
+      # documented at https://circleci.com/docs/2.0/circleci-images/
+      # - image: circleci/postgres:9.4
+
+    working_directory: ~/repo
+
+    environment:
+      SBT_VERSION: 1.4.6
+      # Customize the JVM maximum heap limit
+      JVM_OPTS: -Xmx3600m
+      #SBT_OPTS: -XX:MaxMetaspaceSize=512M -Xmx6G # <- Graal is saying this is was deprecated
+      TERM: dumb
+
+    steps:
+
+      - checkout
+
+      # Download and cache dependencies
+      - restore_cache:
+          key: sbt-cache
+      - run: cat /dev/null | sbt test:compile
+
+      - save_cache:
+          paths:
+            - ~/.m2
+            - ~/.ivy2
+            - ~/.sbt
+          key: v1-dependencies--{{ checksum "build.sbt" }}
+
+      # run tests!
+      - run: cat /dev/null | sbt -mem 2048 test:test
+
+workflows:
+  version: 2
+  tests:
+    jobs:
+      - unit_tests
