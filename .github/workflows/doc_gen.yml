@@ -6,18 +6,24 @@ on:
 
 jobs:
   build:
-
-    runs-on: ubuntu-latest
+    strategy:
+        matrix:
+          os: [ubuntu-latest]
+          scala: [2.12.13]
+          java: [graalvm-ce-java11@21.0.0]
+    
+    runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v2
- 
-    - name: Set up JDK 1.8
-      uses: ayltai/setup-graalvm@v1
+    - name: Checkout current branch (full)
+      uses: actions/checkout@v2
       with:
-        java-version: 8
-        graalvm-version: 19.3.1
-        native-image: false
+        fetch-depth: 0
+ 
+    - name: Setup Java and Scala
+      uses: olafurpg/setup-scala@v10
+      with:
+        java-version: ${{ matrix.java }}
  
 #     - name: Show java version
 #       run: java -version
