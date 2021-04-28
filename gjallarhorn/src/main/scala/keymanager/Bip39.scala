@@ -93,7 +93,8 @@ class Bip39(wordList: List[String]) extends Logging {
       .mkString
       .slice(0, entMap(phraseWords.length))
       .grouped(byteLen)
-      .toArray.map(Integer.parseInt(_, 2).toByte)
+      .toArray
+      .map(Integer.parseInt(_, 2).toByte)
     phraseBytes.map("%02x" format _).mkString
   }
 

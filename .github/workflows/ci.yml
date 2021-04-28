@@ -43,8 +43,11 @@ jobs:
       - name: Check formatting
         run: sbt scalafmtCheckAll
 
+      - name: Check Scalafix
+        run: sbt "scalafixAll --check"
+
       - name: Compile
         run: sbt test:compile
 
       - name: Test
-        run: sbt test
+        run: sbt test:test

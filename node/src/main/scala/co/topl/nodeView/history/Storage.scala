@@ -152,7 +152,7 @@ class Storage(private[history] val storage: LSMStore, private val cacheExpire: I
         "bestBlock": b00123123
       }
    */
-  def update(b: Block, isBest: Boolean) {
+  def update(b: Block, isBest: Boolean): Unit = {
     log.debug(s"Write new best=$isBest block ${b.id}")
 
     val blockK = Seq(b.id.getIdBytes -> b.bytes)
