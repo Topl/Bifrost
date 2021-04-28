@@ -17,7 +17,8 @@ object NetworkTime {
 case class NetworkTimeProviderSettings(server: String, updateEvery: FiniteDuration, timeout: FiniteDuration)
 
 class NetworkTimeProvider(ntpSettings: NetworkTimeProviderSettings)(implicit ec: ExecutionContext)
-  extends TimeProvider with Logging {
+    extends TimeProvider
+    with Logging {
 
   private val lastUpdate = new AtomicLong(0)
   private[NetworkTimeProvider] val offset = new AtomicLong(0)
@@ -25,10 +26,11 @@ class NetworkTimeProvider(ntpSettings: NetworkTimeProviderSettings)(implicit ec:
   client.setDefaultTimeout(ntpSettings.timeout.toMillis.toInt)
   client.open()
 
-  /** Check if the NTP offset should be updated and returns current time (milliseconds)
-    *
-    * @return the current timestamp in milliseconds
-    */
+  /**
+   * Check if the NTP offset should be updated and returns current time (milliseconds)
+   *
+   * @return the current timestamp in milliseconds
+   */
   override def time: TimeProvider.Time = {
     checkUpdateRequired()
     NetworkTime.localWithOffset(offset.get())

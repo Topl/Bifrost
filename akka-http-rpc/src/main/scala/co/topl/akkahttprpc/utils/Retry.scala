@@ -11,11 +11,11 @@ import scala.util.{Failure, Success}
 object Retry {
 
   def apply[A, B](
-                   attempt:         () => EitherT[Future, A, B],
-                   interval:        FiniteDuration,
-                   timeout:         FiniteDuration,
-                   attempts:        Int
-                 )(implicit system: ActorSystem): EitherT[Future, A, B] = {
+    attempt:         () => EitherT[Future, A, B],
+    interval:        FiniteDuration,
+    timeout:         FiniteDuration,
+    attempts:        Int
+  )(implicit system: ActorSystem): EitherT[Future, A, B] = {
     import system.dispatcher
     EitherT(
       Source

@@ -5,6 +5,7 @@ import co.topl.modifier.box.{AssetBox, AssetValue}
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object AssetBoxSerializer extends BifrostSerializer[AssetBox] {
+
   override def serialize(obj: AssetBox, w: Writer): Unit = {
     /* proposition: PublicKey25519Proposition */
     Evidence.serialize(obj.evidence, w)

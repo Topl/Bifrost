@@ -16,8 +16,7 @@ class ProgramMethodExecutionSpec extends ProgramRPCMockState {
 
     "Update mutable state in a Program and return the updated state" in {
 
-      val requestBody = ByteString(
-        s"""{
+      val requestBody = ByteString(s"""{
            |  "jsonrpc": "2.0",
            |  "id": "1",
            |  "method": "executeProgramMethod",
@@ -42,7 +41,7 @@ class ProgramMethodExecutionSpec extends ProgramRPCMockState {
            |""".stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val res = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
 
         (res \\ "result").head.isObject shouldEqual true
         (res \\ "error").isEmpty shouldEqual true

@@ -24,8 +24,9 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.matching.Regex
 
-/** Created by Matt Kindy on 7/27/2017.
-  */
+/**
+ * Created by Matt Kindy on 7/27/2017.
+ */
 case class ProgramPreprocessor(
   name:      String,
   initjs:    String,

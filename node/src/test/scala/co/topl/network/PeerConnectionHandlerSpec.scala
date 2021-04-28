@@ -13,11 +13,12 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class PeerConnectionHandlerSpec extends TestKit(ActorSystem("PCHSpec"))
-  with AnyPropSpecLike
-  with ScalaCheckPropertyChecks
-  with Matchers
-  with CoreGenerators {
+class PeerConnectionHandlerSpec
+    extends TestKit(ActorSystem("PCHSpec"))
+    with AnyPropSpecLike
+    with ScalaCheckPropertyChecks
+    with Matchers
+    with CoreGenerators {
 
   val appContext = new AppContext(settings, StartupOpts.empty, None)
 

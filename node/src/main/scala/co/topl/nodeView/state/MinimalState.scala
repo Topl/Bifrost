@@ -1,8 +1,8 @@
 package co.topl.nodeView.state
 
 /**
-  * Created by cykoz on 4/13/17.
-  */
+ * Created by cykoz on 4/13/17.
+ */
 
 import co.topl.attestation.Address
 import co.topl.modifier.ModifierId
@@ -14,11 +14,12 @@ import co.topl.nodeView.state.MinimalState.VersionTag
 import scala.util.Try
 
 /**
-  * Abstract functional interface of state which is a result of a sequential blocks applying
-  */
+ * Abstract functional interface of state which is a result of a sequential blocks applying
+ */
 
 trait MinimalState[M <: PersistentNodeViewModifier, MS <: MinimalState[M, MS]]
-    extends NodeViewComponent with StateReader[ProgramId, Address] {
+    extends NodeViewComponent
+    with StateReader[ProgramId, Address] {
 
   self: MS =>
 
@@ -34,4 +35,3 @@ trait MinimalState[M <: PersistentNodeViewModifier, MS <: MinimalState[M, MS]]
 object MinimalState {
   type VersionTag = ModifierId
 }
-

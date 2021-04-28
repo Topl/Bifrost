@@ -16,20 +16,22 @@ object ExecutionBuilderSerializer extends BifrostSerializer[ExecutionBuilder] {
 
     val terms: ExecutionBuilderTerms = parser.parse(r.getIntString()) match {
       case Left(_) => throw new Exception("ExecutionBuilderTerm json not properly formatted")
-      case Right(x) => x.as[ExecutionBuilderTerms] match {
-        case Left(_) => throw new Exception("ExecutionBuilder terms json was malformed")
-        case Right(a: ExecutionBuilderTerms) => a
-      }
+      case Right(x) =>
+        x.as[ExecutionBuilderTerms] match {
+          case Left(_)                         => throw new Exception("ExecutionBuilder terms json was malformed")
+          case Right(a: ExecutionBuilderTerms) => a
+        }
     }
 
     val assetCode: String = r.getIntString()
 
     val core: ProgramPreprocessor = parser.parse(r.getIntString()) match {
       case Left(_) => throw new Exception("BaseModule json not properly formatted")
-      case Right(x) => x.as[ProgramPreprocessor] match {
-        case Left(_) => throw new Exception("Internal json was malformed in BaseModule")
-        case Right(b: ProgramPreprocessor) => b
-      }
+      case Right(x) =>
+        x.as[ProgramPreprocessor] match {
+          case Left(_)                       => throw new Exception("Internal json was malformed in BaseModule")
+          case Right(b: ProgramPreprocessor) => b
+        }
     }
 
     ExecutionBuilder(terms, assetCode, core)

@@ -37,7 +37,8 @@ class ProgramBoxRegistrySpec extends MockState {
     assert(newState_1.getProgramBox[StateBox](sboxOne.value).get.bytes sameElements sboxOne.bytes)
 
     val changes_2: StateChanges = StateChanges(Seq(sboxOne.id), Seq(sboxTwo))
-    val pbr_changes_2 = Some(ProgramRegistryChanges(Map(sboxOne.value -> Seq(sboxOne.id)), Map(sboxTwo.value -> Seq(sboxTwo.id))))
+    val pbr_changes_2 =
+      Some(ProgramRegistryChanges(Map(sboxOne.value -> Seq(sboxOne.id)), Map(sboxTwo.value -> Seq(sboxTwo.id))))
     val newState_2 = newState_1.applyChanges(modifierIdGen.sample.get, changes_2, None, pbr_changes_2).get
 
     assert(newState_2.registryLookup(sboxTwo.value).get.head == sboxTwo.id)

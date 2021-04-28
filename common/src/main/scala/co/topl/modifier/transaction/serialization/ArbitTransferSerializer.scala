@@ -67,7 +67,7 @@ object ArbitTransferSerializer extends BifrostSerializer[ArbitTransfer[_ <: Prop
       val addr = Address.parse(r)
       val value = TokenValueHolder.parse(r) match {
         case v: SimpleValue => v
-        case _ => throw new Exception("Invalid TokenValueHolder for ArbitTransfer")
+        case _              => throw new Exception("Invalid TokenValueHolder for ArbitTransfer")
       }
       addr -> value
     }
