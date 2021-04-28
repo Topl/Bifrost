@@ -11,7 +11,7 @@ trait Identifiable[A] { self =>
 object Identifiable {
   def apply[A](implicit ev: Identifiable[A]): Identifiable[A] = ev
 
-  def instance[A](f:        () => Identifier): Identifiable[A] = new Identifiable[A] {
+  def instance[A](f: () => Identifier): Identifiable[A] = new Identifiable[A] {
     override def getId: Identifier = f()
   }
 

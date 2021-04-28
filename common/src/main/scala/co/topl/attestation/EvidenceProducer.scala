@@ -13,7 +13,7 @@ sealed trait EvidenceProducer[P <: Proposition] {
 object EvidenceProducer {
   def apply[P <: Proposition](implicit ev: EvidenceProducer[P]): EvidenceProducer[P] = ev
 
-  def instance[P <: Proposition](f:        P => Evidence): EvidenceProducer[P] = new EvidenceProducer[P] {
+  def instance[P <: Proposition](f: P => Evidence): EvidenceProducer[P] = new EvidenceProducer[P] {
     override def generateEvidence(prop: P): Evidence = f(prop)
   }
 

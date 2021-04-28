@@ -100,7 +100,7 @@ class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends Logging 
     def loop(currBlock: Option[CacheBlock], height: Long, acc: Seq[Block]): Seq[Block] =
       currBlock match {
         case Some(b) => loop(chainCache.getCacheBlock(b.block.parentId), height - 1, b.block +: acc)
-        case None => acc
+        case None    => acc
       }
 
     loop(Some(from), from.block.height, Seq.empty)
