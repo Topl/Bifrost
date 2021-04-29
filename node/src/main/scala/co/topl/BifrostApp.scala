@@ -41,8 +41,10 @@ class BifrostApp(startupOpts: StartupOpts) extends NodeLogging with Runnable {
   type MP = MemPool
   type ST = State
 
-  /** Configure logging backend to set debug logging level if verbose mode is enabled. Needs to be placed
-   *  before any log output to set the level correctly. */
+  /**
+   * Configure logging backend to set debug logging level if verbose mode is enabled. Needs to be placed
+   *  before any log output to set the level correctly.
+   */
   if (startupOpts.verbose.value) setLogLevel()
 
   /** Setup settings file to be passed into the application */
@@ -212,16 +214,20 @@ object BifrostApp extends Logging {
   private val conf: Config = ConfigFactory.load("application")
   if (conf.getBoolean("kamon.enable")) Kamon.init()
 
-  /** networkReader, runtimeOptsParser, and startupOptsParser are defined here in a specific order
+  /**
+   * networkReader, runtimeOptsParser, and startupOptsParser are defined here in a specific order
    *  to define the runtime command flags using mainargs. StartupOpts has to be last as it uses NetworkType
-   *  and RuntimeOpts internally */
-  implicit object networkReader extends TokensReader[NetworkType](
-    shortName = "network",
-    str => NetworkType.pickNetworkType(str.head) match {
-      case Some(net) => Right(net)
-      case None => Left("No valid network found with that name")
-    }
-  )
+   *  and RuntimeOpts internally
+   */
+  implicit object networkReader
+      extends TokensReader[NetworkType](
+        shortName = "network",
+        str =>
+          NetworkType.pickNetworkType(str.head) match {
+            case Some(net) => Right(net)
+            case None      => Left("No valid network found with that name")
+          }
+      )
 
   implicit def runtimeOptsParser: ParserForClass[RuntimeOpts] = ParserForClass[RuntimeOpts]
   implicit def startupOptsParser: ParserForClass[StartupOpts] = ParserForClass[StartupOpts]
@@ -231,7 +237,7 @@ object BifrostApp extends Logging {
 
   def main(args: Array[String]): Unit = ParserForClass[StartupOpts].constructEither(args) match {
     case Right(parsedArgs) => new BifrostApp(parsedArgs).run()
-    case Left(e) => throw new Exception(e)
+    case Left(e)           => throw new Exception(e)
   }
 
   def forceStopApplication(code: Int = 1): Nothing = sys.exit(code)

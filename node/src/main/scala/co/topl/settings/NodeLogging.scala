@@ -8,10 +8,9 @@ trait NodeLogging extends LazyLogging {
 
   def log: Logger = logger
 
-  def setLogLevel(): Unit = {
+  def setLogLevel(): Unit =
     LoggerFactory.getILoggerFactory
       .asInstanceOf[LoggerContext]
       .getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME)
       .setLevel(Level.DEBUG)
-  }
 }

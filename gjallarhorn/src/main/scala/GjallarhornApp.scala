@@ -123,9 +123,8 @@ object GjallarhornApp extends Logging {
 
   implicit val timeout: Timeout = 10.seconds
 
-  def main(args: Array[String]): Unit = {
+  def main(args: Array[String]): Unit =
     new GjallarhornApp(StartupOpts()).run()
-  }
 
   def forceStopApplication(code: Int = 1): Nothing = sys.exit(code)
 

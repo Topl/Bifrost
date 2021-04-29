@@ -106,11 +106,12 @@ object AppSettings extends Logging with SettingsReaders {
 
   protected val configPath: String = "bifrost"
 
-  /** Produces an application settings class, and modify the default settings if user options are provided
-    *
-    * @param startupOpts startup options such as the path of the user defined config and network type
-    * @return application settings
-    */
+  /**
+   * Produces an application settings class, and modify the default settings if user options are provided
+   *
+   * @param startupOpts startup options such as the path of the user defined config and network type
+   * @return application settings
+   */
   def read(startupOpts: StartupOpts = StartupOpts()): (AppSettings, Config) = {
     val config = readConfig(startupOpts)
     val settingFromConfig = fromConfig(config)
