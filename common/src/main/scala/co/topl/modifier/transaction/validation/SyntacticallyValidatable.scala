@@ -9,10 +9,11 @@ import co.topl.modifier.box._
 import co.topl.modifier.transaction._
 import co.topl.utils.Extensions.StringOps
 import co.topl.utils.NetworkType.NetworkPrefix
+import simulacrum._
 
 import scala.language.implicitConversions
 
-trait SyntacticallyValidatable[T] {
+@typeclass trait SyntacticallyValidatable[T] {
 
   def syntacticValidation(t: T)(implicit
     networkPrefix:           NetworkPrefix
@@ -21,119 +22,91 @@ trait SyntacticallyValidatable[T] {
   def rawSyntacticValidation(t: T): ValidatedNec[SyntacticValidationFailure, T]
 }
 
-object SyntacticallyValidatable {
+trait SyntacticallyValidatableInstances {
 
-  trait ContravariantSyntacticallyValidatable[-T] extends Serializable {
-    def show(t: T): String
-  }
+  implicit def polyTransferTransactionSyntacticallyValidatable[P <: Proposition]
+    : SyntacticallyValidatable[PolyTransfer[P]] = {
+    val delegate =
+      new TransferTransactionSyntacticallyValidatable[SimpleValue, P]
 
-  trait Ops[A] {
-    def typeClassInstance: SyntacticallyValidatable[A]
-    def self: A
+    new SyntacticallyValidatable[PolyTransfer[P]] {
+      override def syntacticValidation(t: PolyTransfer[P])(implicit
+        networkPrefix:                    NetworkPrefix
+      ): ValidatedNec[SyntacticValidationFailure, PolyTransfer[P]] =
+        delegate.syntacticValidation(t).map(_ => t)
 
-    def syntacticValidation(implicit networkPrefix: NetworkPrefix): ValidatedNec[SyntacticValidationFailure, A] =
-      typeClassInstance.syntacticValidation(self)
-
-    def rawSyntacticValidation: ValidatedNec[SyntacticValidationFailure, A] =
-      typeClassInstance.rawSyntacticValidation(self)
-  }
-
-  trait ToSyntacticallyValidatableOps {
-
-    implicit def toSyntacticValidation[T: SyntacticallyValidatable](target: T): Ops[T] =
-      new Ops[T] {
-        val self = target
-        val typeClassInstance = implicitly[SyntacticallyValidatable[T]]
-      }
-  }
-
-  trait Instances {
-
-    implicit def polyTransferTransactionSyntacticallyValidatable[P <: Proposition]
-      : SyntacticallyValidatable[PolyTransfer[P]] = {
-      val delegate =
-        new TransferTransactionSyntacticallyValidatable[SimpleValue, P]
-
-      new SyntacticallyValidatable[PolyTransfer[P]] {
-        override def syntacticValidation(t: PolyTransfer[P])(implicit
-          networkPrefix:                    NetworkPrefix
-        ): ValidatedNec[SyntacticValidationFailure, PolyTransfer[P]] =
-          delegate.syntacticValidation(t).map(_ => t)
-
-        override def rawSyntacticValidation(
-          t: PolyTransfer[P]
-        ): ValidatedNec[SyntacticValidationFailure, PolyTransfer[P]] =
-          delegate.rawSyntacticValidation(t).map(_ => t)
-      }
+      override def rawSyntacticValidation(
+        t: PolyTransfer[P]
+      ): ValidatedNec[SyntacticValidationFailure, PolyTransfer[P]] =
+        delegate.rawSyntacticValidation(t).map(_ => t)
     }
-
-    implicit def arbitTransferTransactionSyntacticallyValidatable[P <: Proposition]
-      : SyntacticallyValidatable[ArbitTransfer[P]] = {
-      val delegate =
-        new TransferTransactionSyntacticallyValidatable[SimpleValue, P]
-
-      new SyntacticallyValidatable[ArbitTransfer[P]] {
-        override def syntacticValidation(t: ArbitTransfer[P])(implicit
-          networkPrefix:                    NetworkPrefix
-        ): ValidatedNec[SyntacticValidationFailure, ArbitTransfer[P]] =
-          delegate.syntacticValidation(t).map(_ => t)
-
-        override def rawSyntacticValidation(
-          t: ArbitTransfer[P]
-        ): ValidatedNec[SyntacticValidationFailure, ArbitTransfer[P]] =
-          delegate.rawSyntacticValidation(t).map(_ => t)
-      }
-    }
-
-    implicit def assetTransferTransactionSyntacticallyValidatable[P <: Proposition]
-      : SyntacticallyValidatable[AssetTransfer[P]] = {
-      val delegate =
-        new TransferTransactionSyntacticallyValidatable[TokenValueHolder, P]
-
-      new SyntacticallyValidatable[AssetTransfer[P]] {
-        override def syntacticValidation(t: AssetTransfer[P])(implicit
-          networkPrefix:                    NetworkPrefix
-        ): ValidatedNec[SyntacticValidationFailure, AssetTransfer[P]] =
-          delegate.syntacticValidation(t).map(_ => t)
-
-        override def rawSyntacticValidation(
-          t: AssetTransfer[P]
-        ): ValidatedNec[SyntacticValidationFailure, AssetTransfer[P]] =
-          delegate.rawSyntacticValidation(t).map(_ => t)
-      }
-    }
-
-    implicit def transferTransactionSyntacticallyValidatable[T <: TokenValueHolder, P <: Proposition]
-      : TransferTransactionSyntacticallyValidatable[T, P] =
-      new TransferTransactionSyntacticallyValidatable[T, P]
-
-    implicit def transactionSyntacticallyValidatable[T, P <: Proposition]: SyntacticallyValidatable[Transaction[T, P]] =
-      new SyntacticallyValidatable[Transaction[T, P]] {
-
-        override def syntacticValidation(
-          t:                      Transaction[T, P]
-        )(implicit networkPrefix: NetworkPrefix): ValidatedNec[SyntacticValidationFailure, Transaction[T, P]] =
-          t match {
-            case transaction: TransferTransaction[TokenValueHolder, P] =>
-              transferTransactionSyntacticallyValidatable[TokenValueHolder, P]
-                .syntacticValidation(transaction)
-                .map(_ => t)
-            case t => t.validNec
-          }
-
-        override def rawSyntacticValidation(
-          t: Transaction[T, P]
-        ): ValidatedNec[SyntacticValidationFailure, Transaction[T, P]] =
-          t match {
-            case transaction: TransferTransaction[TokenValueHolder, P] =>
-              transferTransactionSyntacticallyValidatable[TokenValueHolder, P]
-                .rawSyntacticValidation(transaction)
-                .map(_ => t)
-            case t => t.validNec
-          }
-      }
   }
 
+  implicit def arbitTransferTransactionSyntacticallyValidatable[P <: Proposition]
+    : SyntacticallyValidatable[ArbitTransfer[P]] = {
+    val delegate =
+      new TransferTransactionSyntacticallyValidatable[SimpleValue, P]
+
+    new SyntacticallyValidatable[ArbitTransfer[P]] {
+      override def syntacticValidation(t: ArbitTransfer[P])(implicit
+        networkPrefix:                    NetworkPrefix
+      ): ValidatedNec[SyntacticValidationFailure, ArbitTransfer[P]] =
+        delegate.syntacticValidation(t).map(_ => t)
+
+      override def rawSyntacticValidation(
+        t: ArbitTransfer[P]
+      ): ValidatedNec[SyntacticValidationFailure, ArbitTransfer[P]] =
+        delegate.rawSyntacticValidation(t).map(_ => t)
+    }
+  }
+
+  implicit def assetTransferTransactionSyntacticallyValidatable[P <: Proposition]
+    : SyntacticallyValidatable[AssetTransfer[P]] = {
+    val delegate =
+      new TransferTransactionSyntacticallyValidatable[TokenValueHolder, P]
+
+    new SyntacticallyValidatable[AssetTransfer[P]] {
+      override def syntacticValidation(t: AssetTransfer[P])(implicit
+        networkPrefix:                    NetworkPrefix
+      ): ValidatedNec[SyntacticValidationFailure, AssetTransfer[P]] =
+        delegate.syntacticValidation(t).map(_ => t)
+
+      override def rawSyntacticValidation(
+        t: AssetTransfer[P]
+      ): ValidatedNec[SyntacticValidationFailure, AssetTransfer[P]] =
+        delegate.rawSyntacticValidation(t).map(_ => t)
+    }
+  }
+
+  implicit def transferTransactionSyntacticallyValidatable[T <: TokenValueHolder, P <: Proposition]
+    : TransferTransactionSyntacticallyValidatable[T, P] =
+    new TransferTransactionSyntacticallyValidatable[T, P]
+
+  implicit def transactionSyntacticallyValidatable[T, P <: Proposition]: SyntacticallyValidatable[Transaction[T, P]] =
+    new SyntacticallyValidatable[Transaction[T, P]] {
+
+      override def syntacticValidation(
+        t:                      Transaction[T, P]
+      )(implicit networkPrefix: NetworkPrefix): ValidatedNec[SyntacticValidationFailure, Transaction[T, P]] =
+        t match {
+          case transaction: TransferTransaction[TokenValueHolder, P] =>
+            transferTransactionSyntacticallyValidatable[TokenValueHolder, P]
+              .syntacticValidation(transaction)
+              .map(_ => t)
+          case t => t.validNec
+        }
+
+      override def rawSyntacticValidation(
+        t: Transaction[T, P]
+      ): ValidatedNec[SyntacticValidationFailure, Transaction[T, P]] =
+        t match {
+          case transaction: TransferTransaction[TokenValueHolder, P] =>
+            transferTransactionSyntacticallyValidatable[TokenValueHolder, P]
+              .rawSyntacticValidation(transaction)
+              .map(_ => t)
+          case t => t.validNec
+        }
+    }
 }
 
 class TransferTransactionSyntacticallyValidatable[T <: TokenValueHolder, P <: Proposition]

@@ -8,10 +8,11 @@ import co.topl.modifier.box._
 import co.topl.modifier.transaction._
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
+import simulacrum._
 
 import scala.language.implicitConversions
 
-trait SemanticallyValidatable[T] {
+@typeclass trait SemanticallyValidatable[T] {
 
   def semanticValidation(t: T, boxReader: BoxReader[ProgramId, Address])(implicit
     networkPrefix:          NetworkPrefix
@@ -19,89 +20,67 @@ trait SemanticallyValidatable[T] {
 
 }
 
-object SemanticallyValidatable {
+trait SemanticallyValidatableInstances {
 
-  trait Ops[A] {
-    def typeClassInstance: SemanticallyValidatable[A]
-    def self: A
+  implicit def polyTransferTransactionSemanticallyValidatable[P <: Proposition]
+    : SemanticallyValidatable[PolyTransfer[P]] = {
+    val delegate =
+      new TransferTransactionSemanticallyValidatable[SimpleValue, P]
 
-    def semanticValidation(boxReader: BoxReader[ProgramId, Address])(implicit
-      networkPrefix:                  NetworkPrefix
-    ): ValidatedNec[SemanticValidationFailure, A] =
-      typeClassInstance.semanticValidation(self, boxReader)
-  }
-
-  trait ToSemanticallyValidatableOps {
-
-    implicit def toSemanticallyValidatable[T: SemanticallyValidatable](target: T): Ops[T] =
-      new Ops[T] {
-        val self = target
-        val typeClassInstance = implicitly[SemanticallyValidatable[T]]
-      }
-  }
-
-  trait Instances {
-
-    implicit def polyTransferTransactionSemanticallyValidatable[P <: Proposition]
-      : SemanticallyValidatable[PolyTransfer[P]] = {
-      val delegate =
-        new TransferTransactionSemanticallyValidatable[SimpleValue, P]
-
-      new SemanticallyValidatable[PolyTransfer[P]] {
-        override def semanticValidation(t: PolyTransfer[P], boxReader: BoxReader[ProgramId, Address])(implicit
-          networkPrefix:                   NetworkPrefix
-        ): ValidatedNec[SemanticValidationFailure, PolyTransfer[P]] =
-          delegate.semanticValidation(t, boxReader).map(_ => t)
-      }
-
+    new SemanticallyValidatable[PolyTransfer[P]] {
+      override def semanticValidation(t: PolyTransfer[P], boxReader: BoxReader[ProgramId, Address])(implicit
+        networkPrefix:                   NetworkPrefix
+      ): ValidatedNec[SemanticValidationFailure, PolyTransfer[P]] =
+        delegate.semanticValidation(t, boxReader).map(_ => t)
     }
 
-    implicit def arbitTransferTransactionSemanticallyValidatable[P <: Proposition]
-      : SemanticallyValidatable[ArbitTransfer[P]] = {
-      val delegate =
-        new TransferTransactionSemanticallyValidatable[SimpleValue, P]
-
-      new SemanticallyValidatable[ArbitTransfer[P]] {
-        override def semanticValidation(t: ArbitTransfer[P], boxReader: BoxReader[ProgramId, Address])(implicit
-          networkPrefix:                   NetworkPrefix
-        ): ValidatedNec[SemanticValidationFailure, ArbitTransfer[P]] =
-          delegate.semanticValidation(t, boxReader).map(_ => t)
-      }
-    }
-
-    implicit def assetTransferTransactionSemanticallyValidatable[P <: Proposition]
-      : SemanticallyValidatable[AssetTransfer[P]] = {
-      val delegate =
-        new TransferTransactionSemanticallyValidatable[TokenValueHolder, P]
-
-      new SemanticallyValidatable[AssetTransfer[P]] {
-        override def semanticValidation(t: AssetTransfer[P], boxReader: BoxReader[ProgramId, Address])(implicit
-          networkPrefix:                   NetworkPrefix
-        ): ValidatedNec[SemanticValidationFailure, AssetTransfer[P]] =
-          delegate.semanticValidation(t, boxReader).map(_ => t)
-      }
-    }
-
-    implicit def transferTransactionSemanticallyValidatable[T <: TokenValueHolder, P <: Proposition]
-      : TransferTransactionSemanticallyValidatable[T, P] =
-      new TransferTransactionSemanticallyValidatable[T, P]
-
-    implicit def transactionSemanticallyValidatable[T, P <: Proposition]: SemanticallyValidatable[Transaction[T, P]] =
-      new SemanticallyValidatable[Transaction[T, P]] {
-
-        override def semanticValidation(
-          t:                      Transaction[T, P],
-          boxReader:              BoxReader[ProgramId, Address]
-        )(implicit networkPrefix: NetworkPrefix): ValidatedNec[SemanticValidationFailure, Transaction[T, P]] =
-          t match {
-            case transaction: TransferTransaction[TokenValueHolder, P] =>
-              transferTransactionSemanticallyValidatable[TokenValueHolder, P]
-                .semanticValidation(transaction, boxReader)
-                .map(_ => t)
-            case t => t.validNec
-          }
-      }
   }
+
+  implicit def arbitTransferTransactionSemanticallyValidatable[P <: Proposition]
+    : SemanticallyValidatable[ArbitTransfer[P]] = {
+    val delegate =
+      new TransferTransactionSemanticallyValidatable[SimpleValue, P]
+
+    new SemanticallyValidatable[ArbitTransfer[P]] {
+      override def semanticValidation(t: ArbitTransfer[P], boxReader: BoxReader[ProgramId, Address])(implicit
+        networkPrefix:                   NetworkPrefix
+      ): ValidatedNec[SemanticValidationFailure, ArbitTransfer[P]] =
+        delegate.semanticValidation(t, boxReader).map(_ => t)
+    }
+  }
+
+  implicit def assetTransferTransactionSemanticallyValidatable[P <: Proposition]
+    : SemanticallyValidatable[AssetTransfer[P]] = {
+    val delegate =
+      new TransferTransactionSemanticallyValidatable[TokenValueHolder, P]
+
+    new SemanticallyValidatable[AssetTransfer[P]] {
+      override def semanticValidation(t: AssetTransfer[P], boxReader: BoxReader[ProgramId, Address])(implicit
+        networkPrefix:                   NetworkPrefix
+      ): ValidatedNec[SemanticValidationFailure, AssetTransfer[P]] =
+        delegate.semanticValidation(t, boxReader).map(_ => t)
+    }
+  }
+
+  implicit def transferTransactionSemanticallyValidatable[T <: TokenValueHolder, P <: Proposition]
+    : TransferTransactionSemanticallyValidatable[T, P] =
+    new TransferTransactionSemanticallyValidatable[T, P]
+
+  implicit def transactionSemanticallyValidatable[T, P <: Proposition]: SemanticallyValidatable[Transaction[T, P]] =
+    new SemanticallyValidatable[Transaction[T, P]] {
+
+      override def semanticValidation(
+        t:                      Transaction[T, P],
+        boxReader:              BoxReader[ProgramId, Address]
+      )(implicit networkPrefix: NetworkPrefix): ValidatedNec[SemanticValidationFailure, Transaction[T, P]] =
+        t match {
+          case transaction: TransferTransaction[TokenValueHolder, P] =>
+            transferTransactionSemanticallyValidatable[TokenValueHolder, P]
+              .semanticValidation(transaction, boxReader)
+              .map(_ => t)
+          case t => t.validNec
+        }
+    }
 }
 
 class TransferTransactionSemanticallyValidatable[T <: TokenValueHolder, P <: Proposition]

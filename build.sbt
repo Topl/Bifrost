@@ -92,6 +92,30 @@ lazy val assemblySettings = Seq(
   }
 )
 
+lazy val scalamacrosParadiseSettings =
+  Seq(
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, v)) if v <= 12 =>
+          Seq(
+            compilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
+          )
+        case _ =>
+          Nil
+      }
+    },
+    scalacOptions ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, v)) if v >= 13 =>
+          Seq(
+            "-Ymacro-annotations"
+          )
+        case _ =>
+          Nil
+      }
+    }
+  )
+
 val akkaVersion = "2.6.13"
 val akkaHttpVersion = "10.2.4"
 val circeVersion = "0.13.0"
@@ -185,6 +209,10 @@ val graalDependencies = Seq(
   "org.graalvm.sdk"     % "graal-sdk"   % graalVersion,
   "org.graalvm.js"      % "js"          % graalVersion,
   "org.graalvm.truffle" % "truffle-api" % graalVersion
+)
+
+val simulacrum = Seq(
+  "org.typelevel" %% "simulacrum" % "1.0.0"
 )
 
 libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ loggingDependencies
@@ -283,8 +311,10 @@ lazy val common = project.in(file("common"))
     name := "common",
     commonSettings,
     publishSettings,
-    libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ jsonDependencies ++ cryptoDependencies
+    libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ jsonDependencies ++
+      cryptoDependencies ++ simulacrum
   )
+  .settings(scalamacrosParadiseSettings)
 
 lazy val chainProgram = project.in(file("chain-program"))
   .settings(
