@@ -8,11 +8,10 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppContext, RPCApiSettings}
-import co.topl.utils.NetworkType
+import co.topl.utils.{blake2b256, NetworkType}
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Json
 import io.circe.syntax._
-import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
 import co.topl.crypto.Implicits._
 import co.topl.utils.encode.Base58
 
@@ -107,7 +106,7 @@ case class UtilsApiEndpoint(override val settings: RPCApiSettings, appContext: A
     } yield Future(
       Map(
         "message" -> message,
-        "hash"    -> Base58.encode(Hash[Blake2b256, Digest32].hash(message))
+        "hash"    -> Base58.encode(blake2b256(message))
       ).asJson
     )) match {
       case Right(json) => json

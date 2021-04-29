@@ -3,8 +3,8 @@ package keymanager
 import attestation.AddressEncoder.NetworkPrefix
 import attestation.{Address, Secret, SecretGenerator}
 import co.topl.crypto.Implicits._
-import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
 import co.topl.utils.SecureRandom.randomBytes
+import co.topl.utils.blake2b256
 import com.google.common.primitives.Ints
 import settings.NetworkType
 import utils.Logging
@@ -156,7 +156,7 @@ class Keys[
 
       // calculate the new keyfile and return
       val seed = bip.hexToUuid(bip.phraseToHex(mnemonic))
-      val sk = sg.generateSecret(Hash[Blake2b256, Digest32].hash(seed))
+      val sk = sg.generateSecret(blake2b256(seed))
 
       // add secret to the keyring
       secrets += sk._1

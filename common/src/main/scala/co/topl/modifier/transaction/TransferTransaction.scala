@@ -8,11 +8,10 @@ import co.topl.modifier.box.{Box, _}
 import co.topl.modifier.transaction.AsSemanticallyValidatableOps._
 import co.topl.modifier.transaction.AsSyntacticallyValidatableOps._
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.{Identifiable, Int128}
+import co.topl.utils.{blake2b256, Identifiable, Int128}
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
-import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
 import co.topl.crypto.Implicits._
 
 import scala.util.Try
@@ -94,10 +93,8 @@ object TransferTransaction {
     val inputBytes =
       Array(txIdPrefix) ++ boxIdsToOpenAccumulator ++ timestampBytes ++ feeBytes
 
-    def calcNonce(index: Int): Box.Nonce = {
-      val digest = Hash[Blake2b256, Digest32].hash(inputBytes ++ Ints.toByteArray(index))
-      Transaction.nonceFromDigest(digest)
-    }
+    def calcNonce(index: Int): Box.Nonce =
+      Transaction.nonceFromDigest(blake2b256(inputBytes ++ Ints.toByteArray(index)))
 
     val feeChangeParams = BoxParams(tx.to.head._1.evidence, calcNonce(0), SimpleValue(tx.to.head._2.quantity))
 

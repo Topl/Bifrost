@@ -1,14 +1,14 @@
 package co.topl.modifier.block
 
 import co.topl.crypto.BytesOf
+import co.topl.crypto.Implicits._
 import co.topl.modifier.block.BloomFilter.BloomTopic
+import co.topl.utils.{blake2b256, HashDigest}
+import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
-import co.topl.crypto.Implicits._
-import co.topl.utils.encode.Base58
 import io.estatico.newtype.macros.newtype
 
 import scala.util.Try
@@ -135,8 +135,7 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
   private def calculateIndices(topic: BloomTopic): Set[Int] =
     // Pair up bytes and convert signed Byte to unsigned Int
     Set(0, 2, 4, 6)
-      .map(i =>
-        BytesOf[Digest32].slice(Hash[Blake2b256, Digest32].hash(topic), i, i + 2).map(_ & 0xff))
+      .map(i => BytesOf[HashDigest].slice(blake2b256(topic), i, i + 2).map(_ & 0xff))
       .map { case Array(b1, b2) =>
         ((b1 << 8) | b2) & idxMask
       }

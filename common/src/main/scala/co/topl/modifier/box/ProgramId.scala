@@ -1,12 +1,13 @@
 package co.topl.modifier.box
 
+import co.topl.crypto.Implicits._
+import co.topl.crypto.hash.Digest
+import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
+import co.topl.utils.{blake2b256, HashDigest}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
-import co.topl.utils.encode.Base58
-import co.topl.crypto.Implicits._
 
 import scala.util.{Failure, Success}
 
@@ -27,7 +28,7 @@ case class ProgramId(private val hashBytes: Array[Byte]) extends BytesSerializab
 
 object ProgramId extends BifrostSerializer[ProgramId] {
 
-  val size: Int = Digest32.size; // number of bytes in identifier,
+  val size: Int = Digest[HashDigest].size; // number of bytes in identifier,
 
   def apply(id: String): ProgramId =
     Base58.decode(id) match {
@@ -38,9 +39,8 @@ object ProgramId extends BifrostSerializer[ProgramId] {
       case Failure(ex) => throw ex
     }
 
-  def create (seed: Array[Byte]): ProgramId = {
-    new ProgramId(Hash[Blake2b256, Digest32].hash(seed))
-  }
+  def create(seed: Array[Byte]): ProgramId =
+    new ProgramId(blake2b256(seed))
 
   override def serialize(obj: ProgramId, w: Writer): Unit =
     w.putBytes(obj.hashBytes)

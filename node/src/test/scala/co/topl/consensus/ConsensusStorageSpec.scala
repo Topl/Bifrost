@@ -1,15 +1,14 @@
 package co.topl.consensus
 
-import co.topl.utils.CoreGenerators
+import co.topl.crypto.Implicits._
+import co.topl.utils.{blake2b256, CoreGenerators}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, Store}
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import org.scalamock.scalatest.MockFactory
-import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
-import co.topl.crypto.Implicits._
 
 class ConsensusStorageSpec
     extends AnyFlatSpec
@@ -32,11 +31,10 @@ class ConsensusStorageSpec
       (store
         .get(_: ByteArrayWrapper))
         .expects(*)
-        .onCall { key: ByteArrayWrapper => {
-            if (key == ByteArrayWrapper(Hash[Blake2b256, Digest32].hash("totalStake")))
-              Some(ByteArrayWrapper(storageTotalStake.toByteArray))
-            else Some(ByteArrayWrapper(Longs.toByteArray(0)))
-          }
+        .onCall { key: ByteArrayWrapper =>
+          if (key == ByteArrayWrapper(blake2b256("totalStake")))
+            Some(ByteArrayWrapper(storageTotalStake.toByteArray))
+          else Some(ByteArrayWrapper(Longs.toByteArray(0)))
         }
         .anyNumberOfTimes()
 

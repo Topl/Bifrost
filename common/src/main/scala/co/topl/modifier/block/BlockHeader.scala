@@ -1,6 +1,7 @@
 package co.topl.modifier.block
 
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.crypto.hash.Digest32
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.ArbitBox
@@ -9,7 +10,6 @@ import co.topl.utils.ScorexExtensions.Digest32Ops
 import co.topl.utils.TimeProvider
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
-import co.topl.crypto.hash.Digest32
 
 case class BlockHeader(
   id:           ModifierId,

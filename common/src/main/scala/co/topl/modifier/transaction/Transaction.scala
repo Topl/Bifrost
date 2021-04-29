@@ -8,10 +8,9 @@ import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.box.{Box, BoxId, ProgramId}
 import co.topl.modifier.{BoxReader, ModifierId, NodeViewModifier}
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.{Identifiable, Identifier, Int128}
+import co.topl.utils.{HashDigest, Identifiable, Identifier, Int128}
 import com.google.common.primitives.Longs
 import io.circe.{Decoder, Encoder, HCursor}
-import co.topl.crypto.hash.Digest32
 import co.topl.crypto.Implicits._
 
 import scala.util.Try
@@ -68,8 +67,8 @@ object Transaction {
   ](tx: Transaction[_, P])(f: Array[Byte] => Map[P, Proof[P]]): Map[P, Proof[P]] =
     tx.attestation ++ f(tx.messageToSign)
 
-  def nonceFromDigest(digest: Digest32): Box.Nonce =
-    Longs.fromByteArray(BytesOf[Digest32].take(digest, Longs.BYTES))
+  def nonceFromDigest(digest: HashDigest): Box.Nonce =
+    Longs.fromByteArray(BytesOf[HashDigest].take(digest, Longs.BYTES))
 
   def identifier(tx: TX): Identifier = tx match {
     case _: PolyTransfer[_]  => PolyTransfer.identifier.getId

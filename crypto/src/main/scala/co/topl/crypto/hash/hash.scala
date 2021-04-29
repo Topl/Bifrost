@@ -9,6 +9,8 @@ package object hash {
 
   trait Digest[T] {
     val size: Int
+
+    def from[B: BytesOf](b: B): T
   }
 
   object Digest {
@@ -21,7 +23,8 @@ package object hash {
   object Digest32 {
     val size = 32
 
-    /** Gets a validated Digest guaranteed to be the correct digest size.
+    /**
+     * Gets a validated Digest guaranteed to be the correct digest size.
      * @param bytes the bytes to convert to a digest
      * @return the digest or an invalid error
      */
@@ -35,7 +38,8 @@ package object hash {
   object Digest64 {
     val size = 64
 
-    /** Gets a validated Digest guaranteed to be the correct digest size.
+    /**
+     * Gets a validated Digest guaranteed to be the correct digest size.
      * @param bytes the bytes to convert to a digest
      * @return the digest or an invalid error
      */

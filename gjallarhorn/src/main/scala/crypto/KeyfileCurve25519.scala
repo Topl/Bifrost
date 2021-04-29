@@ -1,23 +1,23 @@
 package crypto
 
-import java.nio.charset.StandardCharsets
-import attestation.{Address, PrivateKeyCurve25519}
 import attestation.AddressEncoder.NetworkPrefix
-import keymanager.{Keyfile, KeyfileCompanion}
+import attestation.{Address, PrivateKeyCurve25519}
+import co.topl.crypto.Implicits._
+import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
+import co.topl.utils.SecureRandom.randomBytes
+import co.topl.utils.blake2b256
+import co.topl.utils.encode.Base58
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
+import keymanager.{Keyfile, KeyfileCompanion}
 import org.bouncycastle.crypto.BufferedBlockCipher
 import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
 import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
-import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
-import co.topl.crypto.Implicits._
-import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
-import co.topl.utils.SecureRandom.randomBytes
-import co.topl.utils.encode.Base58
 
+import java.nio.charset.StandardCharsets
 import scala.util.Try
 
 /**
@@ -133,13 +133,13 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
   }
 
   /**
-    * Calculate mac for a given key
-    * @param derivedKey the key as array of bytes
-    * @param cipherText cipherText for the key to calculate mac
-    * @return
-    */
-  private def getMAC (derivedKey: Array[Byte], cipherText: Array[Byte]): Array[Byte] =
-    Hash[Blake2b256, Digest32].hash(derivedKey.slice(16, 32) ++ cipherText)
+   * Calculate mac for a given key
+   * @param derivedKey the key as array of bytes
+   * @param cipherText cipherText for the key to calculate mac
+   * @return
+   */
+  private def getMAC(derivedKey: Array[Byte], cipherText: Array[Byte]): Array[Byte] =
+    blake2b256(derivedKey.slice(16, 32) ++ cipherText)
 
   /**
    * Generates cipherText and MAC from AES (block cipher)

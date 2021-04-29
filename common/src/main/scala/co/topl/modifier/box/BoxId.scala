@@ -1,12 +1,13 @@
 package co.topl.modifier.box
 
 import co.topl.attestation.Evidence
+import co.topl.crypto.Implicits._
+import co.topl.crypto.hash.Digest32
+import co.topl.utils.blake2b256
+import co.topl.utils.encode.Base58
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
-import co.topl.utils.encode.Base58
-import co.topl.crypto.Implicits._
 
 import scala.util.{Failure, Success}
 
@@ -26,7 +27,7 @@ object BoxId {
 
   val size: Int = Digest32.size // boxId is a 32 byte identifier
 
-  def apply[T] (box: Box[T]): BoxId = idFromEviNonce(box.evidence, box.nonce)
+  def apply[T](box: Box[T]): BoxId = idFromEviNonce(box.evidence, box.nonce)
 
   def apply(id: String): BoxId =
     Base58.decode(id) match {
@@ -37,10 +38,8 @@ object BoxId {
       case Failure(ex) => throw ex
     }
 
-  def idFromEviNonce (evidence: Evidence, nonce: Box.Nonce): BoxId = {
-    val hashDigest = Hash[Blake2b256, Digest32].hash(evidence.bytes ++ Longs.toByteArray(nonce))
-    BoxId(hashDigest)
-  }
+  def idFromEviNonce(evidence: Evidence, nonce: Box.Nonce): BoxId =
+    BoxId(blake2b256(evidence.bytes ++ Longs.toByteArray(nonce)))
 
   implicit val jsonEncoder: Encoder[BoxId] = (id: BoxId) => id.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[BoxId] = (id: BoxId) => id.toString

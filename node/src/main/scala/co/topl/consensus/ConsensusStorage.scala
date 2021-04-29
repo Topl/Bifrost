@@ -1,29 +1,27 @@
 package co.topl.consensus
 
+import co.topl.crypto.Implicits._
 import co.topl.modifier.ModifierId
 import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType.{LocalTestnet, PrivateTestnet}
-import co.topl.utils.{Int128, Logging, NetworkType}
+import co.topl.utils.{blake2b256, Int128, Logging, NetworkType}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore, Store}
-import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
-import co.topl.crypto.Implicits._
 
 import java.io.File
 
-/** Persists parameters(totalStake, difficulty, inflation, and height) used in the consensus accumulators.
-  * @param storage the LSM store to persist values in
-  * @param defaultTotalStake should be 10000000 for private and local testnet, and 200000000000000000L otherwise
-  */
+/**
+ * Persists parameters(totalStake, difficulty, inflation, and height) used in the consensus accumulators.
+ * @param storage the LSM store to persist values in
+ * @param defaultTotalStake should be 10000000 for private and local testnet, and 200000000000000000L otherwise
+ */
 class ConsensusStorage(storage: Option[Store], private val defaultTotalStake: Int128) extends Logging {
 
-  private val hashFunc = Hash[Blake2b256, Digest32].hash[String](_: String)
-
   // constant keys for each piece of consensus state
-  private val totalStakeKey = ByteArrayWrapper(hashFunc("totalStake"))
-  private val difficultyKey = ByteArrayWrapper(hashFunc("difficulty"))
-  private val inflationKey = ByteArrayWrapper(hashFunc("inflation"))
-  private val heightKey = ByteArrayWrapper(hashFunc("height"))
+  private val totalStakeKey = ByteArrayWrapper(blake2b256("totalStake"))
+  private val difficultyKey = ByteArrayWrapper(blake2b256("difficulty"))
+  private val inflationKey = ByteArrayWrapper(blake2b256("inflation"))
+  private val heightKey = ByteArrayWrapper(blake2b256("height"))
 
   private val defaultDifficulty: Long = 0
   private val defaultInflation: Long = 0
@@ -149,12 +147,13 @@ object ConsensusStorage {
 
 }
 
-/** Global parameters used by the consensus accumulators.
-  * @param totalStake the total stake in the system
-  * @param difficulty the current forging difficulty
-  * @param inflation the current value of inflation
-  * @param height the height of the main chain
-  */
+/**
+ * Global parameters used by the consensus accumulators.
+ * @param totalStake the total stake in the system
+ * @param difficulty the current forging difficulty
+ * @param inflation the current value of inflation
+ * @param height the height of the main chain
+ */
 case class ConsensusParams(totalStake: Int128, difficulty: Long, inflation: Long, height: Long)
 
 /** Indicates that there is no persisted store available. */

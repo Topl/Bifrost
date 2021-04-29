@@ -3,13 +3,14 @@ package modifier
 import attestation.Proposition
 import co.topl.crypto.BytesOf
 import co.topl.crypto.Implicits._
+import co.topl.crypto.hash.Digest
+import co.topl.crypto.utils.Base58
+import co.topl.utils.{blake2b256, HashDigest}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import modifier.ModifierId.ModifierTypeId
-import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
-import co.topl.crypto.utils.Base58
 import io.estatico.newtype.macros.newtype
+import modifier.ModifierId.ModifierTypeId
 import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 
 import scala.util.{Failure, Success, Try}
@@ -43,12 +44,12 @@ object ModifierId extends GjalSerializer[ModifierId] {
   @newtype
   case class ModifierTypeId(value: Byte)
 
-  val size: Int = 1 + Digest32.size // ModifierId's are derived from Blake2b-256
+  val size: Int = 1 + Digest[HashDigest].size // ModifierId's are derived from Blake2b-256
   val empty: ModifierId = new ModifierId(Array.fill(size)(0: Byte))
 
   val genesisParentId: ModifierId = new ModifierId(
     ModifierTypeId(3: Byte).value +:
-    Array.fill(Digest32.size)(1: Byte)
+    Array.fill(Digest[HashDigest].size)(1: Byte)
   )
 
   implicit val ord: Ordering[ModifierId] = Ordering.by(_.toString)
@@ -60,8 +61,8 @@ object ModifierId extends GjalSerializer[ModifierId] {
 
   def apply(transferTransaction: TransferTransaction[_ <: Proposition]): ModifierId =
     new ModifierId(
-      BytesOf[Digest32].prepend(
-        Hash[Blake2b256, Digest32].hash(transferTransaction.messageToSign),
+      BytesOf[HashDigest].prepend(
+        blake2b256(transferTransaction.messageToSign),
         TransferTransaction.modifierTypeId.value
       )
     )

@@ -9,8 +9,8 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import modifier.ModifierId.ModifierTypeId
 import modifier.TransferTransaction.BoxParams
-import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
 import co.topl.crypto.Implicits._
+import co.topl.utils.{blake2b256, HashDigest}
 import utils.{Identifiable, Identifier}
 
 import scala.collection.mutable.{Map => MMap}
@@ -126,8 +126,8 @@ object TransferTransaction {
       Longs.toByteArray(tx.fee)
 
     def calcNonce(index: Int): Long = {
-      val digest = Hash[Blake2b256, Digest32].hash(inputBytes ++ Ints.toByteArray(index))
-      Longs.fromByteArray(BytesOf[Digest32].take(digest, Longs.BYTES))
+      val digest = blake2b256(inputBytes ++ Ints.toByteArray(index))
+      Longs.fromByteArray(BytesOf[HashDigest].take(digest, Longs.BYTES))
     }
 
     val feeChangeParams = BoxParams(tx.to.head._1.evidence, calcNonce(0), SimpleValue(tx.to.head._2.quantity))
