@@ -7,14 +7,15 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
 import cats.data.{EitherT, NonEmptyList}
 import cats.implicits._
+import co.topl.crypto.Implicits._
 import com.spotify.docker.client.DockerClient
 import io.circe._
 import io.circe.generic.auto._
 import io.circe.parser._
 import io.circe.syntax._
 import org.slf4j.{Logger, LoggerFactory}
-import co.topl.crypto.hash.{Blake2b256, Digest32}
-import co.topl.utils.encode.Base58
+import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
+import co.topl.crypto.utils.Base58
 
 import java.util.UUID
 import scala.concurrent.Future
@@ -121,7 +122,7 @@ case class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem) 
 object NodeRpcApi {
 
   val ApiKey = "integration-test-key"
-  val ApiKeyHash: Digest32 = Blake2b256(ApiKey)
+  val ApiKeyHash: Digest32 = Hash[Blake2b256, Digest32].hash(ApiKey)
   val ApiKeyHashBase58: String = Base58.encode(ApiKeyHash)
 
   def apply(node: BifrostDockerNode)(implicit system: ActorSystem, dockerClient: DockerClient): NodeRpcApi = {

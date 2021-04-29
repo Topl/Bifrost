@@ -6,10 +6,10 @@ import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import co.topl.crypto.Implicits._
 import co.topl.utils.{blake2b256, HashDigest}
-import co.topl.utils.encode.Base58
 import io.circe.Json
 import io.circe.parser.parse
 import requests.{ApiResponse, ApiRoute, ErrorResponse, SuccessResponse}
+import co.topl.crypto.utils.Base58
 import settings.RPCApiSettings
 
 import scala.concurrent.{Await, Future}

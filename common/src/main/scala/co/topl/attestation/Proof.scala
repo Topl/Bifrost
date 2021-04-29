@@ -7,7 +7,7 @@ import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import co.topl.crypto.signatures.{Curve25519, PublicKey, Signature}
-import co.topl.utils.encode.Base58
+import co.topl.crypto.utils.Base58
 import co.topl.crypto.BytesOf
 import co.topl.crypto.Implicits._
 

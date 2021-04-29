@@ -3,7 +3,7 @@ package co.topl.utils
 import co.topl.crypto.hash.Digest32
 import co.topl.crypto.Implicits._
 import io.circe.{Decoder, Encoder}
-import co.topl.utils.encode.Base58
+import co.topl.crypto.utils.Base58
 import io.circe.syntax.EncoderOps
 
 object ScorexExtensions {

@@ -8,7 +8,7 @@ import io.circe.parser.parse
 import io.circe.syntax._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import co.topl.utils.encode.Base58
+import co.topl.crypto.utils.Base58
 
 class ArbitTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
 

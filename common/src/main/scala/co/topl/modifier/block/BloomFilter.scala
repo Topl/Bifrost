@@ -4,11 +4,11 @@ import co.topl.crypto.BytesOf
 import co.topl.crypto.Implicits._
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.utils.{blake2b256, HashDigest}
-import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
+import co.topl.crypto.utils.Base58
 import io.estatico.newtype.macros.newtype
 
 import scala.util.Try

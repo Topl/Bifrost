@@ -1,7 +1,8 @@
-package co.topl.utils.encode
+package co.topl.crypto.utils
+
+import co.topl.crypto.BytesOf
 
 import java.io.IOException
-
 import scala.util.{Failure, Success, Try}
 
 /* Forked from https://github.com/ScorexFoundation/scorex-util/tree/master/src/main/scala/scorex/util/encode */
@@ -22,12 +23,13 @@ object Base16 extends BytesEncoder {
     index
   }
 
-  def encode(input: Array[Byte]): String = {
-    if (input.length == 0) return ""  // avoid allocation of empty array and new String instance
-    val buf = new Array[Char](input.length * 2)
+  def encode[V: BytesOf](input: V): String = {
+    val inputBytes = BytesOf[V].get(input)
+    if (inputBytes.length == 0) return ""  // avoid allocation of empty array and new String instance
+    val buf = new Array[Char](inputBytes.length * 2)
     var j = 0
-    while (j < input.length) {
-      val v = input(j) & 0xFF
+    while (j < inputBytes.length) {
+      val v = inputBytes(j) & 0xFF
       buf(j * 2) = hexArray(v >>> 4)
       buf(j * 2 + 1)= hexArray(v & 0x0F)
       j += 1

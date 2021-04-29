@@ -1,13 +1,14 @@
 package co.topl.modifier.box
 
 import co.topl.attestation.Address
+import co.topl.crypto.Implicits.bytesOfArrayBytes
 import co.topl.modifier.box.AssetCode.AssetCodeVersion
 import co.topl.utils.Extensions.StringOps
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import co.topl.utils.encode.Base58
+import co.topl.crypto.utils.Base58
 
 import java.nio.charset.StandardCharsets
 import scala.util.{Failure, Success}

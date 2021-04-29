@@ -2,6 +2,7 @@ package co.topl.http.api.endpoints
 
 import akka.actor.ActorRef
 import co.topl.attestation.{Address, Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
+import co.topl.crypto.Implicits.bytesOfArrayBytes
 import co.topl.http.api.{ApiEndpointWithView, Namespace, ToplNamespace}
 import co.topl.modifier.box.{AssetValue, SimpleValue}
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
@@ -15,7 +16,7 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.codecs.Int128Codec
 import io.circe.Json
 import io.circe.syntax._
-import co.topl.utils.encode.Base58
+import co.topl.crypto.utils.Base58
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}

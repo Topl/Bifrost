@@ -2,11 +2,11 @@ package http
 
 import java.io.{BufferedReader, BufferedWriter, File, FileReader, FileWriter}
 import java.time.Instant
-
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.pattern.ask
 import attestation.{Address, Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
 import attestation.AddressEncoder.NetworkPrefix
+import co.topl.crypto.Implicits.bytesOfArrayBytes
 import crypto.AssetCode
 import http.GjallarhornOfflineApiRoute.updateConfigFile
 import io.circe.{HCursor, Json}
@@ -15,7 +15,7 @@ import keymanager.KeyManager.{ChangeNetwork, GenerateSignatures, GetAllKeyfiles,
 import keymanager.networkPrefix
 import modifier.{AssetValue, Box, BoxId, SimpleValue, TransferTransaction}
 import requests.ApiRoute
-import co.topl.utils.encode.Base58
+import co.topl.crypto.utils.Base58
 import settings.{ApplicationSettings, ChainProvider, RPCApiSettings}
 import wallet.WalletManager.GetWallet
 

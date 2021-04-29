@@ -2,7 +2,7 @@ package co.topl.attestation
 
 import cats.implicits._
 import co.topl.utils.{blake2b256, HashDigest, NetworkType}
-import co.topl.utils.encode.Base58
+import co.topl.crypto.utils.Base58
 import co.topl.crypto.Implicits._
 import co.topl.crypto.BytesOf
 import co.topl.utils.NetworkType.NetworkPrefix

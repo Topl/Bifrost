@@ -8,10 +8,10 @@ import akka.http.scaladsl.server.Route
 import co.topl.crypto.Implicits._
 import co.topl.http.api.{ApiEndpoint, ApiResponse, ErrorResponse, SuccessResponse}
 import co.topl.settings.RPCApiSettings
-import co.topl.utils.encode.Base58
 import co.topl.utils.{blake2b256, HashDigest}
 import io.circe.Json
 import io.circe.parser.parse
+import co.topl.crypto.utils.Base58
 
 import scala.concurrent.{Future, TimeoutException}
 import scala.util.Try

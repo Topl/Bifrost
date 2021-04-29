@@ -1,10 +1,11 @@
 package co.topl.attestation
 
+import co.topl.crypto.Implicits.bytesOfArrayBytes
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import co.topl.utils.encode.Base58
+import co.topl.crypto.utils.Base58
 import io.estatico.newtype.macros.newtype
 
 import scala.util.{Failure, Success}

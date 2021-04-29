@@ -13,7 +13,7 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Json
 import io.circe.syntax._
 import co.topl.crypto.Implicits._
-import co.topl.utils.encode.Base58
+import co.topl.crypto.utils.Base58
 
 import java.security.SecureRandom
 import scala.concurrent.{ExecutionContext, Future}

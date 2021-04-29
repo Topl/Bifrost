@@ -1,5 +1,6 @@
 package attestation
 
+import co.topl.crypto.Implicits.bytesOfArrayBytes
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
