@@ -13,6 +13,4 @@ class PolyTransferSpec
     with ScalaCheckDrivenPropertyChecks
     with Matchers
     with CoreGenerators
-    with ValidGenerators {
-
-}
+    with ValidGenerators {}
