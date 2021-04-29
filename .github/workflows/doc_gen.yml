@@ -24,19 +24,13 @@ jobs:
       uses: olafurpg/setup-scala@v10
       with:
         java-version: ${{ matrix.java }}
- 
-#     - name: Show java version
-#       run: java -version
-      
-#     - name: Run tests
-#       run: sbt test
       
     - name: Generate documentation
-      run: sbt doc
+      run: sbt "project node" "doc"
 
     - name: Deploy github pages
       uses: peaceiris/actions-gh-pages@v3
       with:
         deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
-        publish_dir: ./target/scala-2.12/api
+        publish_dir: ./node/target/scala-2.12/api/
         cname: bifrost.docs.topl.co
