@@ -51,6 +51,7 @@ package object hash {
   case object IncorrectSize extends InvalidDigestError
 
   trait Hash[T, D] {
+
     def hash[M: BytesOf](prefix: Option[Byte], messages: M*): D
 
     def hash[M: BytesOf](prefix: Byte, messages: M*): D = hash[M](Some(prefix), messages: _*)
@@ -59,7 +60,7 @@ package object hash {
   }
 
   object Hash {
-    def apply[T, D](implicit hash: Hash[T, D]): Hash[T, D] = implicitly[Hash[T, D]]
+    def apply[T, D](implicit hash: Hash[T, D]): Hash[T, D] = hash
   }
 
 }

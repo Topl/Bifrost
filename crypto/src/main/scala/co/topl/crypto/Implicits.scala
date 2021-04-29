@@ -7,7 +7,7 @@ import co.topl.crypto.signatures.{PrivateKey, PublicKey, Signature}
 import scala.language.implicitConversions
 
 object Implicits {
-  implicit def unwrapFancyBytes[B: BytesOf](b: B): Array[Byte] = BytesOf[B].get(b)
+  implicit def unwrapBytesOf[B: BytesOf](b: B): Array[Byte] = BytesOf[B].get(b)
 
   implicit val bytesOfArrayBytes: BytesOf[Array[Byte]] = new BytesOf[Array[Byte]] {
     override def get(bytes:  Array[Byte]): Array[Byte] = bytes
