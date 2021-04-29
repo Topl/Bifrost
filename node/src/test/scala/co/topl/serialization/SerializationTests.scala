@@ -23,8 +23,9 @@ import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckP
 
 import scala.util.{Failure, Success}
 
-/** Created by cykoz on 4/12/17.
-  */
+/**
+ * Created by cykoz on 4/12/17.
+ */
 class SerializationTests
     extends AnyPropSpec
     with ScalaCheckPropertyChecks

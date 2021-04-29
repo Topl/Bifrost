@@ -6,9 +6,9 @@ import io.circe.{Decoder, Encoder, HCursor}
 import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 
 /**
-  * An abstract class for the type of values (or tokens) held in boxes
-  * @param quantity the quantity of the value held in the box
-  */
+ * An abstract class for the type of values (or tokens) held in boxes
+ * @param quantity the quantity of the value held in the box
+ */
 sealed abstract class TokenValueHolder(val quantity: Long) extends BytesSerializable {
   override type M = TokenValueHolder
 
@@ -33,7 +33,7 @@ object TokenValueHolder extends GjalSerializer[TokenValueHolder] {
     }
   }
 
-  override def serialize(obj: TokenValueHolder, w: Writer): Unit = {
+  override def serialize(obj: TokenValueHolder, w: Writer): Unit =
     obj match {
       case obj: SimpleValue =>
         w.put(SimpleValue.valueTypePrefix)
@@ -45,22 +45,20 @@ object TokenValueHolder extends GjalSerializer[TokenValueHolder] {
 
       case _ => throw new Exception("Unanticipated TokenValueType type")
     }
-  }
 
-  override def parse(r: Reader): TokenValueHolder = {
+  override def parse(r: Reader): TokenValueHolder =
     r.getByte() match {
       case SimpleValue.valueTypePrefix => SimpleValue.parse(r)
       case AssetValue.valueTypePrefix  => AssetValue.parse(r)
       case _                           => throw new Exception("Unanticipated Box Type")
     }
-  }
 }
 
 /**
-  * The [[TokenValueHolder]] for an "ArbitBox" or "PolyBox".
-  * This token only contains a type and quantity
-  * @param quantity the quantity of arbits or polys held in the box
-  */
+ * The [[TokenValueHolder]] for an "ArbitBox" or "PolyBox".
+ * This token only contains a type and quantity
+ * @param quantity the quantity of arbits or polys held in the box
+ */
 case class SimpleValue(override val quantity: Long) extends TokenValueHolder(quantity)
 
 object SimpleValue extends GjalSerializer[SimpleValue] {
@@ -69,16 +67,14 @@ object SimpleValue extends GjalSerializer[SimpleValue] {
 
   implicit val jsonEncoder: Encoder[SimpleValue] = (value: SimpleValue) =>
     Map(
-      "type" -> valueTypeString.asJson,
+      "type"     -> valueTypeString.asJson,
       "quantity" -> value.quantity.asJson
     ).asJson
 
-  implicit val jsonDecoder: Decoder[SimpleValue] = (hCursor: HCursor)  =>
+  implicit val jsonDecoder: Decoder[SimpleValue] = (hCursor: HCursor) =>
     for {
       quantity <- hCursor.downField("quantity").as[Long]
-    } yield {
-      SimpleValue(quantity)
-    }
+    } yield SimpleValue(quantity)
 
   override def serialize(obj: SimpleValue, w: Writer): Unit =
     w.putULong(obj.quantity)
@@ -89,16 +85,18 @@ object SimpleValue extends GjalSerializer[SimpleValue] {
 }
 
 /**
-  * The [[TokenValueHolder]] for an "AssetBox"
-  * @param quantity the quantity of the asset held in the box
-  * @param assetCode an id that identifies the asset
-  * @param securityRoot used to prove membership
-  * @param metadata additional data for the given asset
-  */
-case class AssetValue(override val quantity: Long,
-                      assetCode: AssetCode,
-                      securityRoot: SecurityRoot = SecurityRoot.empty,
-                      metadata: Option[String] = None) extends TokenValueHolder(quantity)
+ * The [[TokenValueHolder]] for an "AssetBox"
+ * @param quantity the quantity of the asset held in the box
+ * @param assetCode an id that identifies the asset
+ * @param securityRoot used to prove membership
+ * @param metadata additional data for the given asset
+ */
+case class AssetValue(
+  override val quantity: Long,
+  assetCode:             AssetCode,
+  securityRoot:          SecurityRoot = SecurityRoot.empty,
+  metadata:              Option[String] = None
+) extends TokenValueHolder(quantity)
 
 object AssetValue extends GjalSerializer[AssetValue] {
   val valueTypeString: String = "Asset"

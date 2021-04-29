@@ -1,7 +1,16 @@
 package co.topl.nodeView
 
 import akka.actor.SupervisorStrategy.{Restart, Stop}
-import akka.actor.{Actor, ActorInitializationException, ActorKilledException, ActorRef, ActorRefFactory, DeathPactException, OneForOneStrategy, Props}
+import akka.actor.{
+  Actor,
+  ActorInitializationException,
+  ActorKilledException,
+  ActorRef,
+  ActorRefFactory,
+  DeathPactException,
+  OneForOneStrategy,
+  Props
+}
 import co.topl.attestation.Address
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, BlockHeader}
@@ -9,7 +18,11 @@ import co.topl.modifier.box.ProgramId
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.Broadcast
 import co.topl.network.NetworkController.ReceivableMessages.SendToNetwork
-import co.topl.network.NodeViewSynchronizer.ReceivableMessages.{ChangedMempool, ChangedState, SemanticallySuccessfulModifier}
+import co.topl.network.NodeViewSynchronizer.ReceivableMessages.{
+  ChangedMempool,
+  ChangedState,
+  SemanticallySuccessfulModifier
+}
 import co.topl.network.message.{InvData, InvSpec, Message}
 import co.topl.nodeView.CleanupWorker.RunCleanup
 import co.topl.nodeView.MempoolAuditor.CleanupDone
@@ -23,10 +36,11 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import scala.concurrent.duration._
 import scala.reflect.ClassTag
 
-/** Controls mempool cleanup workflow. Watches NodeView events and delegates
-  * mempool cleanup task to [[CleanupWorker]] when needed.
-  * Adapted from ErgoPlatform available at https://github.com/ergoplatform/ergo
-  */
+/**
+ * Controls mempool cleanup workflow. Watches NodeView events and delegates
+ * mempool cleanup task to [[CleanupWorker]] when needed.
+ * Adapted from ErgoPlatform available at https://github.com/ergoplatform/ergo
+ */
 class MempoolAuditor[
   SR <: StateReader[ProgramId, Address]: ClassTag,
   MR <: MemPoolReader[Transaction.TX]: ClassTag

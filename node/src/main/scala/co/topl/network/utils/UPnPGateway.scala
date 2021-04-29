@@ -16,31 +16,26 @@ class UPnPGateway(gateway: GatewayDevice, port: Int) extends Logging {
   log.info("Using UPnP gateway device on " + localAddress.getHostAddress)
   log.info("External IP address is " + externalAddress.getHostAddress)
 
-  try {
-    if (gateway.addPortMapping(port, port, localAddress.getHostAddress, "TCP", "BifrostClient")) {
-      log.info("Mapped port [" + externalAddress.getHostAddress + "]:" + port)
-    } else {
-      log.info("Unable to map port " + port)
-    }
+  try if (gateway.addPortMapping(port, port, localAddress.getHostAddress, "TCP", "BifrostClient")) {
+    log.info("Mapped port [" + externalAddress.getHostAddress + "]:" + port)
+  } else {
+    log.info("Unable to map port " + port)
   } catch {
     case t: Throwable =>
       log.error("Unable to map port " + port + ": " + t.toString)
   }
 
-  def deletePort(port: Int): Unit = {
-    try {
-      if (gateway.deletePortMapping(port, "TCP")) {
-        log.info("Mapping deleted for port " + port)
-      } else {
-        log.info("Unable to delete mapping for port " + port)
-      }
+  def deletePort(port: Int): Unit =
+    try if (gateway.deletePortMapping(port, "TCP")) {
+      log.info("Mapping deleted for port " + port)
+    } else {
+      log.info("Unable to delete mapping for port " + port)
     } catch {
       case t: Throwable =>
         log.error("Unable to delete mapping for port " + port + ": " + t.toString)
     }
-  }
 
-  def getLocalAddressForExternalPort(externalPort: Int): Option[InetSocketAddress] = {
+  def getLocalAddressForExternalPort(externalPort: Int): Option[InetSocketAddress] =
     try {
       val entry = new PortMappingEntry
       if (gateway.getSpecificPortMappingEntry(externalPort, "TCP", entry)) {
@@ -54,19 +49,17 @@ class UPnPGateway(gateway: GatewayDevice, port: Int) extends Logging {
         log.error("Unable to get local address for external port " + externalPort + ": " + t.toString)
         None
     }
-  }
 }
 
 object UPnPGateway extends Logging {
 
-  def getPort(settings: NetworkSettings): Int = {
+  def getPort(settings: NetworkSettings): Int =
     settings.upnpUseRandom match {
       case Some(_) => scala.util.Random.nextInt(15000) + 50000
       case _       => settings.bindAddress.getPort
     }
-  }
 
-  def apply(settings: NetworkSettings): Option[UPnPGateway] = {
+  def apply(settings: NetworkSettings): Option[UPnPGateway] =
     try {
       log.info("Looking for UPnP gateway device...")
       val defaultHttpReadTimeout =
@@ -103,5 +96,4 @@ object UPnPGateway extends Logging {
         log.error("Unable to discover UPnP gateway devices", t)
         None
     }
-  }
 }

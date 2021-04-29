@@ -5,7 +5,7 @@ import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object BoxSerializer extends BifrostSerializer[Box[_]] {
 
-  override def serialize ( obj: Box[_], w: Writer ): Unit = {
+  override def serialize(obj: Box[_], w: Writer): Unit =
     obj match {
       case obj: PolyBox =>
         w.put(PolyBox.typePrefix)
@@ -31,11 +31,10 @@ object BoxSerializer extends BifrostSerializer[Box[_]] {
         w.put(ExecutionBox.typePrefix)
         ExecutionBoxSerializer.serialize(obj, w)
 
-      case _                 => throw new Exception("Unanticipated Box type")
+      case _ => throw new Exception("Unanticipated Box type")
     }
-  }
 
-  override def parse ( r: Reader ): Box[_] = {
+  override def parse(r: Reader): Box[_] =
     r.getByte() match {
       case ArbitBox.typePrefix     => ArbitBoxSerializer.parse(r)
       case AssetBox.typePrefix     => AssetBoxSerializer.parse(r)
@@ -43,7 +42,6 @@ object BoxSerializer extends BifrostSerializer[Box[_]] {
       case StateBox.typePrefix     => StateBoxSerializer.parse(r)
       case CodeBox.typePrefix      => CodeBoxSerializer.parse(r)
       case ExecutionBox.typePrefix => ExecutionBoxSerializer.parse(r)
-      case _              => throw new Exception("Unanticipated Box Type")
+      case _                       => throw new Exception("Unanticipated Box Type")
     }
-  }
 }

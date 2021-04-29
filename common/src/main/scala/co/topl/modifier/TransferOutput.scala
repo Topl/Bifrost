@@ -16,12 +16,13 @@ object TransferOutput {
 
   type ToInfo[+T] = (Address, T)
 
-  /** Computes a unique nonce value based on the transaction type and
-    * inputs and returns the details needed to create the output boxes for the transaction
-    */
+  /**
+   * Computes a unique nonce value based on the transaction type and
+   * inputs and returns the details needed to create the output boxes for the transaction
+   */
   def generateOutputBoxes[BX <: TokenBox[_]](
-                                                  tx: TransferTransaction[_, _ <: Proposition]
-                                                ): (PolyBox, IndexedSeq[BX]) = {
+    tx: TransferTransaction[_, _ <: Proposition]
+  ): (PolyBox, IndexedSeq[BX]) =
     ???
 //    // known input data (similar to messageToSign but without newBoxes since they aren't known yet)
 //    val txIdPrefix = Transaction.identifier(tx).typePrefix
@@ -65,5 +66,4 @@ object TransferOutput {
 //    }
 //
 //    (feeChangeOutput, coinOutputParams)
-  }
 }

@@ -13,10 +13,10 @@ import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 import scala.util.{Failure, Success, Try}
 
 /**
-  * Helps to create the Id for a transaction.
-  * @param value the value (as an array of bytes) to create id for.
-  */
-class ModifierId (private val value: Array[Byte]) extends BytesSerializable {
+ * Helps to create the Id for a transaction.
+ * @param value the value (as an array of bytes) to create id for.
+ */
+class ModifierId(private val value: Array[Byte]) extends BytesSerializable {
 
   require(value.length == ModifierId.size, s"Invalid size for ModifierId")
 
@@ -30,7 +30,7 @@ class ModifierId (private val value: Array[Byte]) extends BytesSerializable {
 
   override def equals(obj: Any): Boolean = obj match {
     case mId: ModifierId => mId.value sameElements value
-    case _ => false
+    case _               => false
   }
 
   override def toString: String = Base58.encode(value)
@@ -42,14 +42,17 @@ object ModifierId extends GjalSerializer[ModifierId] {
 
   val size: Int = 1 + Blake2b256.DigestSize // ModifierId's are derived from Blake2b-256
   val empty: ModifierId = new ModifierId(Array.fill(size)(0: Byte))
-  val genesisParentId: ModifierId = new ModifierId(ModifierTypeId @@ (3: Byte) +:
-    Array.fill(Blake2b256.DigestSize)(1: Byte))
+
+  val genesisParentId: ModifierId = new ModifierId(
+    ModifierTypeId @@ (3: Byte) +:
+    Array.fill(Blake2b256.DigestSize)(1: Byte)
+  )
 
   implicit val ord: Ordering[ModifierId] = Ordering.by(_.toString)
 
   implicit val jsonEncoder: Encoder[ModifierId] = (id: ModifierId) => id.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[ModifierId] = (id: ModifierId) => id.toString
-  implicit val jsonDecoder: Decoder[ModifierId] = Decoder.decodeString.emapTry { id => Try(ModifierId(id)) }
+  implicit val jsonDecoder: Decoder[ModifierId] = Decoder.decodeString.emapTry(id => Try(ModifierId(id)))
   implicit val jsonKeyDecoder: KeyDecoder[ModifierId] = (id: String) => Some(ModifierId(id))
 
   def apply(transferTransaction: TransferTransaction[_ <: Proposition]): ModifierId =
@@ -58,13 +61,12 @@ object ModifierId extends GjalSerializer[ModifierId] {
   def apply(str: String): ModifierId =
     Base58.decode(str) match {
       case Success(id) => new ModifierId(id)
-      case Failure(ex)  => throw ex
+      case Failure(ex) => throw ex
     }
 
-  def serialize(obj: ModifierId, w: Writer): Unit = {
+  def serialize(obj: ModifierId, w: Writer): Unit =
     /* value: Array[Byte] */
     w.putBytes(obj.value)
-  }
 
   def parse(r: Reader): ModifierId = {
     val value: Array[Byte] = r.getBytes(size)
@@ -72,4 +74,3 @@ object ModifierId extends GjalSerializer[ModifierId] {
   }
 
 }
-

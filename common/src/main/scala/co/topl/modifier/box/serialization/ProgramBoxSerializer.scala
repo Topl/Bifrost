@@ -15,7 +15,6 @@ object ProgramBoxSerializer {
     ProgramId.serialize(obj.value, w)
   }
 
-  def parse(r: Reader): (Evidence, Long, ProgramId) = {
+  def parse(r: Reader): (Evidence, Long, ProgramId) =
     (Evidence.parse(r), r.getLong(), ProgramId.parse(r))
-  }
 }

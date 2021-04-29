@@ -13,24 +13,23 @@ import scorex.crypto.hash.{Blake2b256, Digest32}
 import scala.concurrent.duration.MILLISECONDS
 import scala.util.Try
 
-class Storage( private[history] val storage: LSMStore,
-               private val cacheExpire: Int,
-               private val cacheSize: Int
-             ) extends Logging {
+class Storage(private[history] val storage: LSMStore, private val cacheExpire: Int, private val cacheSize: Int)
+    extends Logging {
   /* ------------------------------- Cache Initialization ------------------------------- */
   type KEY = ByteArrayWrapper
   type VAL = ByteArrayWrapper
 
   private val blockLoader: CacheLoader[KEY, Option[VAL]] = new CacheLoader[KEY, Option[VAL]] {
-    def load(key: KEY): Option[VAL] = {
+
+    def load(key: KEY): Option[VAL] =
       storage.get(key) match {
         case Some(blockData: VAL) => Some(blockData)
-        case _ => None
+        case _                    => None
       }
-    }
   }
 
-  val blockCache: LoadingCache[KEY, Option[VAL]] = CacheBuilder.newBuilder()
+  val blockCache: LoadingCache[KEY, Option[VAL]] = CacheBuilder
+    .newBuilder()
     .expireAfterAccess(cacheExpire, MILLISECONDS)
     .maximumSize(cacheSize)
     .build[KEY, Option[VAL]](blockLoader)
@@ -97,16 +96,15 @@ class Storage( private[history] val storage: LSMStore,
       .get(ByteArrayWrapper(blockTimestampKey(blockId)))
       .map(b => Longs.fromByteArray(b.data))
 
-  def idAtHeightOf(height: Long): Option[ModifierId] = {
+  def idAtHeightOf(height: Long): Option[ModifierId] =
     blockCache
       .get(ByteArrayWrapper(idHeightKey(height)))
-      .flatMap(id ⇒ ModifierId.parseBytes(id.data).toOption)
-  }
+      .flatMap(id => ModifierId.parseBytes(id.data).toOption)
 
   def difficultyOf(blockId: ModifierId): Option[Long] =
-      blockCache
-        .get(ByteArrayWrapper(blockDiffKey(blockId)))
-        .map(b => Longs.fromByteArray(b.data))
+    blockCache
+      .get(ByteArrayWrapper(blockDiffKey(blockId)))
+      .map(b => Longs.fromByteArray(b.data))
 
   def bloomOf(blockId: ModifierId): Option[BloomFilter] =
     blockCache
@@ -118,8 +116,10 @@ class Storage( private[history] val storage: LSMStore,
       .get(ByteArrayWrapper(blockParentKey(blockId)))
       .flatMap(d => ModifierId.parseBytes(d.data).toOption)
 
-  /** The keys below are used to store top-level information about blocks that we might be interested in
-   * without needing to parse the entire block from storage */
+  /**
+   * The keys below are used to store top-level information about blocks that we might be interested in
+   * without needing to parse the entire block from storage
+   */
   private def blockScoreKey(blockId: ModifierId): Digest32 =
     Blake2b256("score".getBytes ++ blockId.getIdBytes)
 
@@ -140,7 +140,6 @@ class Storage( private[history] val storage: LSMStore,
 
   private def idHeightKey(height: Long): Digest32 =
     Blake2b256(Longs.toByteArray(height))
-
 
   /* << EXAMPLE >>
       For version "b00123123":
@@ -164,11 +163,11 @@ class Storage( private[history] val storage: LSMStore,
 
     val blockH = Seq(blockHeightKey(b.id) -> Longs.toByteArray(heightAt(b.parentId) + 1))
 
-    val idHeight = Seq(idHeightKey(heightAt(b.parentId) + 1) → b.id.bytes)
+    val idHeight = Seq(idHeightKey(heightAt(b.parentId) + 1) -> b.id.bytes)
 
     val blockDiff = Seq(blockDiffKey(b.id) -> Longs.toByteArray(b.difficulty))
 
-    val blockTimestamp = Seq(blockTimestampKey(b.id) → Longs.toByteArray(b.timestamp))
+    val blockTimestamp = Seq(blockTimestampKey(b.id) -> Longs.toByteArray(b.timestamp))
 
     // reference Bifrost #519 & #527 for discussion on this division of the score
     val blockScore = Seq(blockScoreKey(b.id) -> Longs.toByteArray(scoreAt(b.parentId) + b.difficulty / 10000000000L))
@@ -177,7 +176,7 @@ class Storage( private[history] val storage: LSMStore,
       if (b.parentId == History.GenesisParentId) Seq()
       else Seq(blockParentKey(b.id) -> b.parentId.bytes)
 
-    val blockBloom  = Seq(blockBloomKey(b.id) -> b.bloomFilter.bytes)
+    val blockBloom = Seq(blockBloomKey(b.id) -> b.bloomFilter.bytes)
 
     val wrappedUpdate =
       (blockK ++
@@ -189,8 +188,8 @@ class Storage( private[history] val storage: LSMStore,
         bestBlock ++
         newTransactionsToBlockIds ++
         blockBloom ++
-        parentBlock).map {
-        case(k,v) => ByteArrayWrapper(k) -> ByteArrayWrapper(v)
+        parentBlock).map { case (k, v) =>
+        ByteArrayWrapper(k) -> ByteArrayWrapper(v)
       }
 
     /* update storage */
@@ -200,10 +199,11 @@ class Storage( private[history] val storage: LSMStore,
     wrappedUpdate.foreach(pair => blockCache.put(pair._1, Some(pair._2)))
   }
 
-  /** rollback storage to have the parent block as the last block
-    *
-    * @param parentId is the parent id of the block intended to be removed
-    */
+  /**
+   * rollback storage to have the parent block as the last block
+   *
+   * @param parentId is the parent id of the block intended to be removed
+   */
   def rollback(parentId: ModifierId): Try[Unit] = Try {
     blockCache.invalidateAll()
     storage.rollback(ByteArrayWrapper(parentId.bytes))

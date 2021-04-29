@@ -25,7 +25,7 @@ class PeerSynchronizer(
     extends Synchronizer
     with Logging {
 
-  private implicit val timeout: Timeout = Timeout(settings.network.syncTimeout.getOrElse(5 seconds))
+  implicit private val timeout: Timeout = Timeout(settings.network.syncTimeout.getOrElse(5 seconds))
 
   /** types of remote messages to be handled by this synchronizer */
   protected val peersSpec: PeersSpec = appContext.peerSyncRemoteMessages.peersSpec
@@ -53,17 +53,15 @@ class PeerSynchronizer(
   override def receive: Receive =
     initialization orElse nonsense
 
-  private def operational: Receive = {
+  private def operational: Receive =
     processDataFromPeer orElse
     nonsense
-  }
 
   // ----------- MESSAGE PROCESSING FUNCTIONS ----------- //
-  private def initialization(): Receive = {
-    case NodeViewReady(_) =>
-      log.info(s"${Console.YELLOW}PeerSynchronizer transitioning to the operational state${Console.RESET}")
-      context become operational
-      scheduleGetPeers()
+  private def initialization(): Receive = { case NodeViewReady(_) =>
+    log.info(s"${Console.YELLOW}PeerSynchronizer transitioning to the operational state${Console.RESET}")
+    context become operational
+    scheduleGetPeers()
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
@@ -79,19 +77,21 @@ class PeerSynchronizer(
     )
   }
 
-  /** Handles adding new peers to the peer database if they were previously unknown
-    *
-    * @param peers sequence of peer specs describing a remote peers details
-    */
+  /**
+   * Handles adding new peers to the peer database if they were previously unknown
+   *
+   * @param peers sequence of peer specs describing a remote peers details
+   */
   private def addNewPeers(peers: Seq[PeerSpec]): Unit =
     if (peers.cast[Seq[PeerSpec]].isDefined) {
       peers.foreach(peerSpec => peerManager ! AddPeerIfEmpty(peerSpec))
     }
 
-  /** Handles gossiping about the locally known peer set to a given remote peer
-    *
-    * @param remote the remote peer to be informed of our local peers
-    */
+  /**
+   * Handles gossiping about the locally known peer set to a given remote peer
+   *
+   * @param remote the remote peer to be informed of our local peers
+   */
   private def gossipPeers(remote: ConnectedPeer): Unit =
     (peerManager ? RecentlySeenPeers(settings.network.maxPeerSpecObjects))
       .mapTo[Seq[PeerInfo]]
@@ -100,9 +100,8 @@ class PeerSynchronizer(
         networkControllerRef ! SendToNetwork(msg, SendToPeer(remote))
       }
 
-  override protected def penalizeMaliciousPeer(peer: ConnectedPeer): Unit = {
+  override protected def penalizeMaliciousPeer(peer: ConnectedPeer): Unit =
     networkControllerRef ! PenalizePeer(peer.connectionId.remoteAddress, PenaltyType.PermanentPenalty)
-  }
 
   protected def nonsense: Receive = { case nonsense: Any =>
     log.warn(s"NodeViewSynchronizer: got unexpected input $nonsense from ${sender()}")
