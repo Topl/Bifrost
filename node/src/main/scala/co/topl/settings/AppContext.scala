@@ -2,18 +2,19 @@ package co.topl.settings
 
 import co.topl.network.message._
 import co.topl.network.utils.{NetworkTimeProvider, UPnPGateway}
-import co.topl.network.{NodeViewSynchronizer, PeerSynchronizer, peer}
+import co.topl.network.{peer, NodeViewSynchronizer, PeerSynchronizer}
 import co.topl.utils.NetworkType
 
 import java.net.InetSocketAddress
 import scala.concurrent.ExecutionContext
 
-/** Info that Bifrost needs based on the settings and user options
-  *
-  * @param settings application settings
-  * @param startupOpts user defined startup options
-  * @param upnpGateway Option of Gateway class handling gateway device and port forwarding
-  */
+/**
+ * Info that Bifrost needs based on the settings and user options
+ *
+ * @param settings application settings
+ * @param startupOpts user defined startup options
+ * @param upnpGateway Option of Gateway class handling gateway device and port forwarding
+ */
 class AppContext(
   val settings:    AppSettings,
   startupOpts:     StartupOpts,

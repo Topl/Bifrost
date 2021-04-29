@@ -4,8 +4,8 @@ import co.topl.attestation.{Address, Evidence, PublicKeyPropositionCurve25519, S
 import co.topl.keyManagement.KeyfileCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
-import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.box._
+import co.topl.modifier.transaction.Transaction
 import co.topl.utils.CoreGenerators
 import io.circe.syntax.EncoderOps
 import org.scalacheck.Gen
@@ -14,10 +14,7 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class JsonTests extends AnyPropSpec
-  with Matchers
-  with ScalaCheckPropertyChecks
-  with CoreGenerators {
+class JsonTests extends AnyPropSpec with Matchers with ScalaCheckPropertyChecks with CoreGenerators {
 
   property("PublicKey25519Proposition json") {
     forAll(propositionGen) { prop =>
@@ -125,9 +122,8 @@ class JsonTests extends AnyPropSpec
   }
 
   property("Transaction json") {
-    forAll(Gen.oneOf(polyTransferGen, arbitTransferGen, assetTransferGen)) {
-      tx: Transaction.TX =>
-        tx.asJson.as[Transaction.TX] shouldEqual Right(tx)
+    forAll(Gen.oneOf(polyTransferGen, arbitTransferGen, assetTransferGen)) { tx: Transaction.TX =>
+      tx.asJson.as[Transaction.TX] shouldEqual Right(tx)
     }
   }
 

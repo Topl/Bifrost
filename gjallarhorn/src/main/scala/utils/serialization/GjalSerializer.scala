@@ -20,9 +20,8 @@ trait GjalSerializer[Content] extends Serializer[Content, Content, Reader, Write
     parse(reader)
   }
 
-  def parseByteStringTry(byteString: ByteString): Try[Content] = {
+  def parseByteStringTry(byteString: ByteString): Try[Content] =
     Try(parseByteString(byteString))
-  }
 
   def toBytes(obj: Content): Array[Byte] = {
     val writer = new VLQByteBufferWriter(new ByteArrayBuilder())

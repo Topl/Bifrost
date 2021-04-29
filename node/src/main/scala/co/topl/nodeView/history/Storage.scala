@@ -14,25 +14,23 @@ import co.topl.crypto.Implicits._
 import scala.concurrent.duration.MILLISECONDS
 import scala.util.Try
 
-class Storage( private[history] val storage: LSMStore,
-               private val cacheExpire: Int,
-               private val cacheSize: Int
-             ) extends Logging {
-
+class Storage(private[history] val storage: LSMStore, private val cacheExpire: Int, private val cacheSize: Int)
+    extends Logging {
   /* ------------------------------- Cache Initialization ------------------------------- */
   type KEY = ByteArrayWrapper
   type VAL = ByteArrayWrapper
 
   private val blockLoader: CacheLoader[KEY, Option[VAL]] = new CacheLoader[KEY, Option[VAL]] {
-    def load(key: KEY): Option[VAL] = {
+
+    def load(key: KEY): Option[VAL] =
       storage.get(key) match {
         case Some(blockData: VAL) => Some(blockData)
-        case _ => None
+        case _                    => None
       }
-    }
   }
 
-  val blockCache: LoadingCache[KEY, Option[VAL]] = CacheBuilder.newBuilder()
+  val blockCache: LoadingCache[KEY, Option[VAL]] = CacheBuilder
+    .newBuilder()
     .expireAfterAccess(cacheExpire, MILLISECONDS)
     .maximumSize(cacheSize)
     .build[KEY, Option[VAL]](blockLoader)
@@ -99,16 +97,15 @@ class Storage( private[history] val storage: LSMStore,
       .get(ByteArrayWrapper(blockTimestampKey(blockId)))
       .map(b => Longs.fromByteArray(b.data))
 
-  def idAtHeightOf(height: Long): Option[ModifierId] = {
+  def idAtHeightOf(height: Long): Option[ModifierId] =
     blockCache
       .get(ByteArrayWrapper(idHeightKey(height)))
-      .flatMap(id ⇒ ModifierId.parseBytes(id.data).toOption)
-  }
+      .flatMap(id => ModifierId.parseBytes(id.data).toOption)
 
   def difficultyOf(blockId: ModifierId): Option[Long] =
-      blockCache
-        .get(ByteArrayWrapper(blockDiffKey(blockId)))
-        .map(b => Longs.fromByteArray(b.data))
+    blockCache
+      .get(ByteArrayWrapper(blockDiffKey(blockId)))
+      .map(b => Longs.fromByteArray(b.data))
 
   def bloomOf(blockId: ModifierId): Option[BloomFilter] =
     blockCache
@@ -145,7 +142,6 @@ class Storage( private[history] val storage: LSMStore,
   private def idHeightKey(height: Long): Digest32 =
     hashFunc(Longs.toByteArray(height))
 
-
   /* << EXAMPLE >>
       For version "b00123123":
       ADD
@@ -157,7 +153,7 @@ class Storage( private[history] val storage: LSMStore,
         "bestBlock": b00123123
       }
    */
-  def update(b: Block, isBest: Boolean) {
+  def update(b: Block, isBest: Boolean): Unit = {
     log.debug(s"Write new best=$isBest block ${b.id}")
 
     val blockK = Seq(b.id.getIdBytes -> b.bytes)
@@ -181,7 +177,7 @@ class Storage( private[history] val storage: LSMStore,
       if (b.parentId == History.GenesisParentId) Seq()
       else Seq(blockParentKey(b.id) -> b.parentId.bytes)
 
-    val blockBloom  = Seq(blockBloomKey(b.id) -> b.bloomFilter.bytes)
+    val blockBloom = Seq(blockBloomKey(b.id) -> b.bloomFilter.bytes)
 
     val wrappedUpdate =
       (blockK ++
@@ -204,10 +200,11 @@ class Storage( private[history] val storage: LSMStore,
     wrappedUpdate.foreach(pair => blockCache.put(pair._1, Some(pair._2)))
   }
 
-  /** rollback storage to have the parent block as the last block
-    *
-    * @param parentId is the parent id of the block intended to be removed
-    */
+  /**
+   * rollback storage to have the parent block as the last block
+   *
+   * @param parentId is the parent id of the block intended to be removed
+   */
   def rollback(parentId: ModifierId): Try[Unit] = Try {
     blockCache.invalidateAll()
     storage.rollback(ByteArrayWrapper(parentId.bytes))

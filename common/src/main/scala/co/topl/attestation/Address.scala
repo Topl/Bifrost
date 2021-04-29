@@ -1,14 +1,11 @@
 package co.topl.attestation
 
-import EvidenceProducer.Syntax._
+import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
-import co.topl.attestation.EvidenceProducer.Syntax._
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-
-import scala.util.{Failure, Success}
 
 /**
  * An address is a network specific commitment to a proposition encumbering a box. Addresses incorporate the evidence type
@@ -36,8 +33,6 @@ case class Address(evidence: Evidence)(implicit val networkPrefix: NetworkPrefix
   override def hashCode(): Int = Ints.fromByteArray(bytes)
 }
 
-
-
 object Address extends BifrostSerializer[Address] {
   // the byte length of an address (network prefix + Evidence type + evidence content)
   val addressSize: Int = 1 + Evidence.size
@@ -53,9 +48,8 @@ object Address extends BifrostSerializer[Address] {
 
   def apply(networkPrefix: NetworkPrefix)(addrStr: String): Address =
     AddressEncoder.fromStringWithCheck(addrStr, networkPrefix) match {
-      case Success(addr) => addr
-      case Failure(_: java.lang.AssertionError) => throw new Exception(s"The address: $addrStr is an invalid Base58 string")
-      case Failure(ex) => throw ex
+      case Right(value) => value
+      case Left(value)  => throw new Exception(value.toString)
     }
 
   /**
@@ -79,4 +73,3 @@ object Address extends BifrostSerializer[Address] {
     Address(evidence)
   }
 }
-

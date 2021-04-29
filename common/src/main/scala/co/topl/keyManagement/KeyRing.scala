@@ -11,18 +11,26 @@ import scala.util.{Failure, Success, Try}
 class KeyRing[
   S <: Secret,
   KF <: Keyfile[S]
-](defaultKeyDir: File, private var secrets: Set[S], private val keyfileOps: KeyfileCompanion[S, KF])(implicit
-  networkPrefix: NetworkPrefix,
-  sg:            SecretGenerator[S]
+](
+  keyDirectory:        Option[File],
+  private var secrets: Set[S] = Set()
+)(implicit
+  networkPrefix:    NetworkPrefix,
+  secretGenerator:  SecretGenerator[S],
+  keyfileCompanion: KeyfileCompanion[S, KF]
 ) {
 
   type PK = S#PK
   type PR = S#PR
 
-  /** Retrieves a list of public images for the secrets currently held in the keyring
-    *
-    * @return - the public keys as ProofOfKnowledgePropositions
-    */
+  // bring encryptSecret and decryptSecret into scope from the companion
+  import keyfileCompanion._
+
+  /**
+   * Retrieves a list of public images for the secrets currently held in the keyring
+   *
+   * @return - the public keys as ProofOfKnowledgePropositions
+   */
   def addresses: Set[Address] = secrets.map(_.publicImage.address)
 
   /** Generate a signature using the secret key associated with an Address */
@@ -39,11 +47,12 @@ class KeyRing[
       case _        => throw new Exception("Unable to find secret for the given address")
     }
 
-  /** Generate an attestation map using the given address and message to sign
-    * @param addr address to lookup the proposition associated with the proof that is needed
-    * @param messageToSign the message that should be committed to
-    * @return a map that can be inserted into a transaction
-    */
+  /**
+   * Generate an attestation map using the given address and message to sign
+   * @param addr address to lookup the proposition associated with the proof that is needed
+   * @param messageToSign the message that should be committed to
+   * @return a map that can be inserted into a transaction
+   */
   def generateAttestation(addr: Address)(messageToSign: Array[Byte]): Map[PK, PR] =
     (lookupPublicKey(addr), signWithAddress(addr)(messageToSign)) match {
       case (Success(pk), Success(sig)) => Map(pk -> sig)
@@ -51,17 +60,22 @@ class KeyRing[
       case (Failure(e), _)             => throw e // this assumes the failure is due to not finding the address
     }
 
-  /** Generates a new keypair and updates the key ring with the new secret
-    * @param num
-    * @param seedOpt
-    * @return
-    */
+  def generateAttestation(addresses: Set[Address])(messageToSign: Array[Byte]): Map[PK, PR] =
+    addresses.map(addr => generateAttestation(addr)(messageToSign)).reduce(_ ++ _)
+
+  /**
+   * Generates a new keypair and updates the key ring with the new secret
+   * @param num
+   * @param seedOpt
+   * @return
+   */
   def generateNewKeyPairs(num: Int = 1, seedOpt: Option[String] = None): Try[Set[S]] =
     Try {
       if (num >= 1) {
         val newSecrets = seedOpt match {
-          case Some(seed) => (1 to num).map(i => sg.generateSecret(Ints.toByteArray(i) ++ seed.getBytes())._1).toSet
-          case _          => (1 to num).map(_ => sg.generateSecret(randomBytes(128))._1).toSet
+          case Some(seed) =>
+            (1 to num).map(i => secretGenerator.generateSecret(Ints.toByteArray(i) ++ seed.getBytes())._1).toSet
+          case _ => (1 to num).map(_ => secretGenerator.generateSecret(randomBytes(128))._1).toSet
         }
 
         secrets ++= newSecrets
@@ -69,18 +83,20 @@ class KeyRing[
       } else throw new Error("Number of requested keys must be greater than or equal to 1")
     }
 
-  /** Attempts to import a keyfile into the key ring
-    * @param keyfile encrypted keyfile that will be added
-    * @param password password for decrypting the keyfile
-    * @return the address of the key pair for this network
-    */
+  /**
+   * Attempts to import a keyfile into the key ring
+   * @param keyfile encrypted keyfile that will be added
+   * @param password password for decrypting the keyfile
+   * @return the address of the key pair for this network
+   */
   def importKeyPair(keyfile: KF, password: String): Try[Address] = {
     require(
       keyfile.address.networkPrefix == networkPrefix,
       s"Invalid key file for chosen network. " +
       s"Provided key has network prefix ${keyfile.address.networkPrefix} but required prefix is $networkPrefix"
     )
-    keyfileOps.decryptSecret(keyfile, password).map { s =>
+
+    decryptSecret(keyfile, password).map { s =>
       secrets ++= Set(s)
       s.publicImage.address
     }
@@ -98,11 +114,12 @@ class KeyRing[
     }
   }
 
-  /** @param password
-    * @param mnemonic
-    * @param lang
-    * @return
-    */
+  /**
+   * @param password
+   * @param mnemonic
+   * @param lang
+   * @return
+   */
   def importPhrase(password: String, mnemonic: String, lang: String)(implicit sg: SecretGenerator[S]): Try[Address] =
     Failure(new Exception("Not yet implemented"))
 
@@ -131,74 +148,94 @@ class KeyRing[
 
   object DiskOps {
 
-    /** generate a new random key pair and save to disk
-      * @param password
-      */
+    /**
+     * generate a new random key pair and save to disk
+     *
+     * @param password
+     */
     def generateKeyFile(password: String): Try[Address] =
       generateNewKeyPairs().map { sk =>
         exportKeyfileToDisk(sk.head.publicImage.address, password)
         sk.head.publicImage.address
       }
 
-    /** Given am address and password, unlock the associated key file.
-      *
-      * @param address Base58 encoded address of the key to unlock
-      * @param password        - password for the given public key.
-      */
+    /**
+     * Given am address and password, unlock the associated key file.
+     *
+     * @param address  Base58 encoded address of the key to unlock
+     * @param password - password for the given public key.
+     */
     def unlockKeyFile(address: String, password: String): Try[Address] = {
-      val keyfile = checkValid(address: String, password: String)
+      val keyfile = checkValid(address, password)
       importKeyPair(keyfile, password)
     }
 
-    /** @param address
-      * @param password
-      * @return
-      */
-    private def exportKeyfileToDisk(address: Address, password: String): Try[Unit] = Try {
-      secretByAddress(address) match {
-        case Some(sk) => keyfileOps.saveToDisk(defaultKeyDir.getAbsolutePath, password, sk)
-        case _        => Failure(new Error("Unable to find a matching secret in the key ring"))
+    /**
+     * @param address
+     * @param password
+     * @return
+     */
+    private def exportKeyfileToDisk(address: Address, password: String): Try[Unit] =
+      (for {
+        secret <- secretByAddress(address)
+        keyDir <- keyDirectory.map(_.getAbsolutePath)
+        _      <- saveToDisk(keyDir, password, secret).toOption
+      } yield ()) match {
+        case Some(_) => Success(())
+        case None    => Failure(new Exception("Failed to export key to disk"))
       }
-    }
 
     /** Return a list of KeuFile instances for all keys in the key file directory */
-    private def listKeyFiles: List[KF] =
-      KeyRing.getListOfFiles(defaultKeyDir).map(file => keyfileOps.readFile(file.getPath))
+    private def listKeyFiles(): Option[List[KF]] = for {
+      keyDir       <- keyDirectory
+      listContents <- KeyRing.getListOfFiles(keyDir)
+    } yield listContents.map(file => readFile(file.getPath))
 
-    /** Check if given publicKey string is valid and contained in the key file directory
-      *
-      * @param address Base58 encoded public key to query
-      * @param password        password used to decrypt the keyfile
-      * @return the relevant PrivateKey25519 to be processed
-      */
-    private def checkValid(address: String, password: String): KF = {
-      val keyfile = listKeyFiles.filter {
-        _.address == Address(networkPrefix)(address)
+    /**
+     * Check if given publicKey string is valid and contained in the key file directory
+     *
+     * @param address Base58 encoded public key to query
+     * @param password        password used to decrypt the keyfile
+     * @return the relevant PrivateKey25519 to be processed
+     */
+    private def checkValid(address: String, password: String): KF =
+      listKeyFiles()
+        .map {
+          _.filter {
+            _.address == Address(networkPrefix)(address)
+          }
+        } match {
+        case Some(listOfKeyfiles) =>
+          require(listOfKeyfiles.size == 1, s"Cannot find a unique matching keyfile in $keyDirectory")
+          listOfKeyfiles.head
+
+        case None => throw new Exception("Unable to find valid keyfile matching the given address")
       }
-
-      require(keyfile.size == 1, s"Cannot find a unique matching keyfile in $defaultKeyDir")
-      keyfile.head
-
-//      keyfileOps.decryptSecret(keyfile.head, password) match {
-//        case Success(sk) => sk
-//        case Failure(e)  => throw e
-//      }
-    }
   }
 }
 
 object KeyRing {
 
-  def apply[
-    S <: Secret: SecretGenerator,
+  def empty[
+    S <: Secret,
     KF <: Keyfile[S]
-  ](path: String, keyfileCompanion: KeyfileCompanion[S, KF])(implicit networkPrefix: NetworkPrefix): KeyRing[S, KF] = {
-    val dir = new File(path)
-    dir.mkdirs()
-    new KeyRing(dir, Set(), keyfileCompanion)
-  }
+  ](path:             Option[String] = None)(implicit
+    networkPrefix:    NetworkPrefix,
+    secretGenerator:  SecretGenerator[S],
+    keyfileCompanion: KeyfileCompanion[S, KF]
+  ): KeyRing[S, KF] =
+    path match {
+      case Some(value) =>
+        val dir = new File(value)
+        dir.mkdirs()
+        new KeyRing(Some(dir), Set())(networkPrefix, secretGenerator, keyfileCompanion)
 
-  def getListOfFiles(dir: File): List[File] =
-    if (dir.exists && dir.isDirectory) dir.listFiles.filter(_.isFile).toList
-    else List[File]()
+      case None => new KeyRing(None, Set())
+    }
+
+  def getListOfFiles(dir: File): Option[List[File]] =
+    if (dir.exists && dir.isDirectory) {
+      val contents = dir.listFiles.filter(_.isFile)
+      Some(contents.toList)
+    } else None
 }

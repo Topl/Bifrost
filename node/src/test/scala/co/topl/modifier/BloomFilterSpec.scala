@@ -40,20 +40,24 @@ class BloomFilterSpec
         else count
       }
 
-      /** Sometimes there's very few addresses in the last transaction, we only test here to make sure we don't get too
-        * many false positives. There's a very slight chance that this will break (if it does this is probably an issue)
-        */
+      /**
+       * Sometimes there's very few addresses in the last transaction, we only test here to make sure we don't get too
+       * many false positives. There's a very slight chance that this will break (if it does this is probably an issue)
+       */
       (falsePositives <= addressInBloom / 3) shouldBe true
     }
   }
 
-  /** See: https://hur.st/bloomfilter/?n=500&p=&m=2048&k=4
-    * Assuming that there will be 500 address in the bloom filter:
-    *   the probability of false positives will be 0.151 (1 in 7)
-    */
+  /**
+   * See: https://hur.st/bloomfilter/?n=500&p=&m=2048&k=4
+   * Assuming that there will be 500 address in the bloom filter:
+   *   the probability of false positives will be 0.151 (1 in 7)
+   */
   property("The probability of false positives in bloomfilter with 500 addresses should be lower than 0.15") {
+
     /** The generated addresses are made deterministic, so that the variation won't break the test */
     val rand = new scala.util.Random(1)
+
     /** 500 addresses in bloomfilter and 100 addresses for the test */
     val numAddr = 600
     val numBloom = 500

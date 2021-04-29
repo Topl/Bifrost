@@ -6,12 +6,11 @@ import akka.util.ByteString
 
 class VLQByteStringWriter extends VLQWriter {
   override type CH = ByteString
-  private[VLQByteStringWriter] implicit val byteOrder: ByteOrder = ByteOrder.BIG_ENDIAN
+  implicit private[VLQByteStringWriter] val byteOrder: ByteOrder = ByteOrder.BIG_ENDIAN
 
   @inline
-  override def newWriter(): Writer.Aux[CH] = {
+  override def newWriter(): Writer.Aux[CH] =
     new VLQByteStringWriter()
-  }
 
   private val builder = ByteString.createBuilder
 
@@ -44,11 +43,9 @@ class VLQByteStringWriter extends VLQWriter {
   }
 
   @inline
-  override def result(): ByteString = {
+  override def result(): ByteString =
     builder.result()
-  }
 
-  @inline override def toBytes: Array[Byte] = {
+  @inline override def toBytes: Array[Byte] =
     builder.result().toArray
-  }
 }

@@ -6,11 +6,12 @@ import co.topl.utils.{Logging, TimeProvider}
 import java.net.{InetAddress, InetSocketAddress}
 import scala.concurrent.duration._
 
-/** In-memory peer database implementation supporting temporal blacklisting.
-  *
-  * @param settings network settings
-  * @param timeProvider NetworkTimeProvider that provides the current timestamp in milliseconds with ntp offset checked
-  */
+/**
+ * In-memory peer database implementation supporting temporal blacklisting.
+ *
+ * @param settings network settings
+ * @param timeProvider NetworkTimeProvider that provides the current timestamp in milliseconds with ntp offset checked
+ */
 final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimeProvider)
     extends PeerDatabase
     with Logging {
@@ -27,14 +28,13 @@ final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimePr
   override def get(peer: InetSocketAddress): Option[PeerInfo] = peers.get(peer)
 
   /** Add peer to the database(a Map of InetSocketAddress with PeerInfo) if it's not blacklisted */
-  override def addOrUpdateKnownPeer(peerInfo: PeerInfo): Unit = {
+  override def addOrUpdateKnownPeer(peerInfo: PeerInfo): Unit =
     if (!peerInfo.peerSpec.declaredAddress.exists(x => isBlacklisted(x.getAddress))) {
       peerInfo.peerSpec.address.foreach { address =>
         log.info(s"Updating peer info for $address")
         peers += address -> peerInfo
       }
     }
-  }
 
   /** Blacklist a malicious peer if its penalty score exceeds the penaltyScoreThreshold from network settings */
   override def addToBlacklist(socketAddress: InetSocketAddress, penaltyType: PenaltyType): Unit = {
@@ -54,9 +54,8 @@ final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimePr
   }
 
   /** Remove peer from the peer database */
-  override def remove(address: InetSocketAddress): Unit = {
+  override def remove(address: InetSocketAddress): Unit =
     peers -= address
-  }
 
   /** @return the peer database(a Map of InetSocketAddress with PeerInfo) */
   override def knownPeers: Map[InetSocketAddress, PeerInfo] = peers
@@ -77,12 +76,13 @@ final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimePr
   def isBlacklisted(address: InetSocketAddress): Boolean =
     Option(address.getAddress).exists(isBlacklisted)
 
-  /** Registers a new penalty in the penalty book.
-    *
-    * @param socketAddress InetSocketAddress of the peer
-    * @param penaltyType type of the penalty
-    * @return `true` if penalty threshold is reached, `false` otherwise
-    */
+  /**
+   * Registers a new penalty in the penalty book.
+   *
+   * @param socketAddress InetSocketAddress of the peer
+   * @param penaltyType type of the penalty
+   * @return `true` if penalty threshold is reached, `false` otherwise
+   */
   def penalize(socketAddress: InetSocketAddress, penaltyType: PenaltyType): Boolean =
     Option(socketAddress.getAddress).exists { address =>
       val currentTime = timeProvider.time
@@ -104,10 +104,11 @@ final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimePr
     addOrUpdateKnownPeer(pi)
   }
 
-  /** Currently accumulated penalty score for a given address.
-    *
-    * @param address InetAddress of the peer
-    */
+  /**
+   * Currently accumulated penalty score for a given address.
+   *
+   * @param address InetAddress of the peer
+   */
   def penaltyScore(address: InetAddress): Int =
     penaltyBook.getOrElse(address, (0, 0L))._1
 

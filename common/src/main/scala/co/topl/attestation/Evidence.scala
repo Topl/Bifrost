@@ -31,7 +31,6 @@ final class Evidence private (private val evBytes: Array[Byte]) extends BytesSer
   override def hashCode(): Int = Ints.fromByteArray(bytes)
 }
 
-
 object Evidence extends BifrostSerializer[Evidence] {
   // below are types and values used enforce the behavior of evidence
   type EvidenceTypePrefix = Byte
@@ -39,8 +38,8 @@ object Evidence extends BifrostSerializer[Evidence] {
   @newtype
   case class EvidenceContent(value: Array[Byte])
 
-  val contentLength = 32             //bytes (this is generally the output of a Blake2b-256 bit hash)
-  val size: Int = 1 + contentLength  //length of typePrefix + contentLength
+  val contentLength = 32 //bytes (this is generally the output of a Blake2b-256 bit hash)
+  val size: Int = 1 + contentLength //length of typePrefix + contentLength
 
   def apply(typePrefix: EvidenceTypePrefix, content: EvidenceContent): Evidence = {
     require(content.value.length == contentLength, "Invalid evidence: incorrect EvidenceContent length")
@@ -51,7 +50,7 @@ object Evidence extends BifrostSerializer[Evidence] {
     }
   }
 
-  private def apply(str: String): Evidence = {
+  private def apply(str: String): Evidence =
     Base58.decode(str) match {
       case Success(bytes) =>
         require(bytes.length == size, "Invalid evidence: incorrect evidence length")
@@ -61,23 +60,19 @@ object Evidence extends BifrostSerializer[Evidence] {
         }
       case Failure(e) => throw e
     }
-  }
 
-  override def serialize (obj: Evidence, w: Writer): Unit =
+  override def serialize(obj: Evidence, w: Writer): Unit =
     w.putBytes(obj.evBytes)
 
-  override def parse(r:  Reader): Evidence = {
+  override def parse(r: Reader): Evidence = {
     val evBytes = r.getBytes(size)
     new Evidence(evBytes)
   }
 
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html
-  implicit val jsonEncoder: Encoder[Evidence] = ( ec: Evidence) => ec.toString.asJson
-  implicit val jsonKeyEncoder: KeyEncoder[Evidence] = ( ec: Evidence) => ec.toString
+  implicit val jsonEncoder: Encoder[Evidence] = (ec: Evidence) => ec.toString.asJson
+  implicit val jsonKeyEncoder: KeyEncoder[Evidence] = (ec: Evidence) => ec.toString
   implicit val jsonDecoder: Decoder[Evidence] = Decoder.decodeString.map(apply)
   implicit val jsonKeyDecoder: KeyDecoder[Evidence] = (str: String) => Some(apply(str))
 }
-
-
-

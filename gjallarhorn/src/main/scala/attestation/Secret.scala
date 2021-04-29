@@ -4,9 +4,9 @@ import keymanager.Keyfile
 import utils.serialization.BytesSerializable
 
 /**
-  * A Secret is equivalent to the typical private key
-  * Right now we only have one type of secret [[PrivateKeyCurve25519]]
-  */
+ * A Secret is equivalent to the typical private key
+ * Right now we only have one type of secret [[PrivateKeyCurve25519]]
+ */
 trait Secret extends BytesSerializable {
   self =>
 

@@ -20,9 +20,10 @@ trait NodeViewModifier extends BytesSerializable {
   def id: ModifierId
 }
 
-/** It is supposed that all the modifiers (offchain transactions, blocks, blockheaders etc)
-  * have identifiers of the some length fixed with the ModifierIdSize constant
-  */
+/**
+ * It is supposed that all the modifiers (offchain transactions, blocks, blockheaders etc)
+ * have identifiers of the some length fixed with the ModifierIdSize constant
+ */
 object NodeViewModifier extends BifrostSerializer[NodeViewModifier] {
   val modifierIdSize: Int = ModifierId.size // bytes (1 byte modifierTypeId + 32 modiifierId)
 

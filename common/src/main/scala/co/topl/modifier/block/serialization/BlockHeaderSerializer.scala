@@ -81,6 +81,7 @@ object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
       difficulty,
       txRoot,
       bloomFilter,
-      version)
+      version
+    )
   }
 }

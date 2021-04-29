@@ -1,12 +1,14 @@
 package co.topl.attestation
 
+import cats.implicits._
 import co.topl.utils.NetworkType
 import co.topl.utils.encode.Base58
 import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
 import co.topl.crypto.Implicits._
 import co.topl.crypto.BytesOf
+import co.topl.utils.NetworkType.NetworkPrefix
 
-import scala.util.{Failure, Try}
+import scala.util.Try
 
 /**
  * The Address encoder dictates how addresses are cast To and From strings. Since this is the primary
@@ -21,13 +23,12 @@ object AddressEncoder {
   // ENCODED ADDRESS != ADDRESS (Address are contained in an encoded address)
   private val encodedAddressLength: Int = Address.addressSize + checksumLength
 
-
   /**
-    * Generates a checksum value for checking correctness of string parsed addresses
-    *
-    * @param addrBytes the bytes of an address (1 - networkPrefix, 1 - addressTypePres, 32 - content bytes)
-    * @return a 4 byte checksum value
-    */
+   * Generates a checksum value for checking correctness of string parsed addresses
+   *
+   * @param addrBytes the bytes of an address (1 - networkPrefix, 1 - addressTypePres, 32 - content bytes)
+   * @return a 4 byte checksum value
+   */
   private def genChecksum(addrBytes: Array[Byte]): Array[Byte] =
     BytesOf[Array[Byte]].take(Hash[Blake2b256, Digest32].hash(addrBytes), checksumLength)
 
@@ -51,23 +52,37 @@ object AddressEncoder {
    * @param networkPrefix a single byte used to identify a network
    * @return the network prefix of the address
    */
-  def fromStringWithCheck(addrStr: String, networkPrefix: NetworkType.NetworkPrefix): Try[Address] =
-    Base58.decode(addrStr).flatMap { b =>
-      NetworkType.pickNetworkType(networkPrefix) match {
-        case None => throw new Exception("Invalid networkPrefix specified")
-        case Some(nt) if nt.netPrefix == b.head => fromBytes(b)
-        case Some(nt) if nt.netPrefix != b.head =>
-          Failure(new Exception("Invalid address: Network type does not match"))
-      }
-    }
+  def fromStringWithCheck(
+    addrStr:       String,
+    networkPrefix: NetworkType.NetworkPrefix
+  ): Either[AddressValidationError, Address] =
+    Base58.decode(addrStr).toEither.leftMap(_ => InvalidAddress).flatMap(validateAddress(_, networkPrefix))
+
+  def validateAddress(decoded: Array[Byte], networkPrefix: NetworkPrefix): Either[AddressValidationError, Address] =
+    for {
+      decodedPrefix <- decoded.headOption.toRight(InvalidAddress)
+      // A user can pass in an invalid networkPrefix, so we must validate that it is real
+      nt <- NetworkType.pickNetworkType(networkPrefix).toRight(InvalidNetworkPrefix)
+      address <-
+        if (nt.netPrefix == decodedPrefix) fromBytes(decoded).toEither.leftMap(_ => InvalidAddress)
+        else Left(NetworkTypeMismatch)
+    } yield address
 
   private def fromBytes(bytes: Array[Byte]): Try[Address] = {
     require(bytes.length == encodedAddressLength, s"Invalid address: Not the required length")
 
     val addrBytes = bytes.dropRight(checksumLength)
     val checksum = bytes.takeRight(checksumLength)
-    require(genChecksum(addrBytes) sameElements checksum, s"Invalid address: Checksum fails for ${Base58.encode(bytes)}")
+    require(
+      genChecksum(addrBytes) sameElements checksum,
+      s"Invalid address: Checksum fails for ${Base58.encode(bytes)}"
+    )
 
     Address.parseBytes(addrBytes)
   }
 }
+
+sealed abstract class AddressValidationError
+case object InvalidNetworkPrefix extends AddressValidationError
+case object InvalidAddress extends AddressValidationError
+case object NetworkTypeMismatch extends AddressValidationError

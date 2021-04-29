@@ -12,15 +12,15 @@ import co.topl.utils.encode.Base58
 import java.nio.charset.StandardCharsets
 import scala.util.{Failure, Success}
 
-/** AssetCode serves as a unique identifier for user issued assets
-  */
+/**
+ * AssetCode serves as a unique identifier for user issued assets
+ */
 case class AssetCode(version: AssetCodeVersion, issuer: Address, shortName: String) extends BytesSerializable {
 
   require(version == 1.toByte, "AssetCode version required to be 1")
 
   require(
-    shortName
-      .getValidLatin1Bytes
+    shortName.getValidLatin1Bytes
       .getOrElse(throw new Exception("String is not valid Latin-1"))
       .length <= AssetCode.shortNameLimit,
     "Asset short names must be less than 8 Latin-1 encoded characters"

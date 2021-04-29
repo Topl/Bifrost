@@ -16,12 +16,11 @@ import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
 /**
-  * Handles api requests
-  * @param apiServices the set of ApiRoutes to send requests to
-  * @param settings the app Api settings
-  */
-final case class HttpService (apiServices: Seq[ApiRoute], settings: RPCApiSettings)
-  extends CorsSupport {
+ * Handles api requests
+ * @param apiServices the set of ApiRoutes to send requests to
+ * @param settings the app Api settings
+ */
+final case class HttpService(apiServices: Seq[ApiRoute], settings: RPCApiSettings) extends CorsSupport {
 
   private val timeout: Timeout = Timeout(settings.timeout)
 
@@ -43,8 +42,7 @@ final case class HttpService (apiServices: Seq[ApiRoute], settings: RPCApiSettin
   /** a static route for exposing an HTML webpage with the node status */
   private def status: Route =
     path("status")(getFromResource("ui/build/index.html")) ~
-      getFromResourceDirectory("ui/build")
-
+    getFromResourceDirectory("ui/build")
 
   /** the api controller, this will parse the JSON body and target the appropriate service for handling the request */
   private def basicRoute: Route = path("") {
@@ -74,7 +72,7 @@ final case class HttpService (apiServices: Seq[ApiRoute], settings: RPCApiSettin
                 Await.result(response, timeout.duration)
               } match {
                 case Success(resp) => SuccessResponse(resp, reqId)
-                case Failure(e) => ErrorResponse(e, 500, reqId, verbose = settings.verboseAPI)
+                case Failure(e)    => ErrorResponse(e, 500, reqId, verbose = settings.verboseAPI)
               }
           }
         }
@@ -83,10 +81,10 @@ final case class HttpService (apiServices: Seq[ApiRoute], settings: RPCApiSettin
   }
 
   /**
-    * Formats the JSON-RPC post request (this is the primary method of communication)
-    * @param fn outgoing response
-    * @return route for post request
-    */
+   * Formats the JSON-RPC post request (this is the primary method of communication)
+   * @param fn outgoing response
+   * @return route for post request
+   */
   private def postJsonRoute(fn: ApiResponse): Route = post {
     complete(
       HttpEntity(ContentTypes.`application/json`, fn.toJson.spaces2)
@@ -94,7 +92,7 @@ final case class HttpService (apiServices: Seq[ApiRoute], settings: RPCApiSettin
   }
 
   /** List of acceptable domains for API route */
-  val acceptableDomains: List[HttpOrigin] = List[HttpOrigin] (
+  val acceptableDomains: List[HttpOrigin] = List[HttpOrigin](
     HttpOrigin("http://localhost:9085"),
     HttpOrigin("http://localhost:9585"),
     HttpOrigin("http://localhost:3000"),
@@ -102,22 +100,21 @@ final case class HttpService (apiServices: Seq[ApiRoute], settings: RPCApiSettin
   )
 
   /** Helper route to wrap the handling of origin and API key authentication */
-  def withAuth(route: => Route): Route = {
-   headerValueByType(Origin) { origin => {
+  def withAuth(route: => Route): Route =
+    headerValueByType(Origin) { origin =>
       if (acceptableDomains.contains(origin.origins.head)) {
         optionalHeaderValueByName("x-api-key") { keyOpt =>
           if (isValid(keyOpt)) route
           else complete(HttpEntity(ContentTypes.`application/json`, "Provided API key is not correct"))
         }
       } else complete(HttpEntity(ContentTypes.`application/json`, "The request came from an unapproved host."))
-    }}
-  }
+    }
 
   /**
-    * Performs the check of an incoming api key
-    * @param keyOpt api key specified in header
-    * @return true if api key is valid, false otherwise
-    */
+   * Performs the check of an incoming api key
+   * @param keyOpt api key specified in header
+   * @return true if api key is valid, false otherwise
+   */
   private def isValid(keyOpt: Option[String]): Boolean = {
     lazy val keyHash: Option[Digest32] = keyOpt.map(Hash[Blake2b256, Digest32].hash[String])
     (apiKeyHash, keyHash) match {

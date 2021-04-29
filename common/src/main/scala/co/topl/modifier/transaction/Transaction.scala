@@ -1,5 +1,6 @@
 package co.topl.modifier.transaction
 
+import cats.data.ValidatedNec
 import co.topl.attestation.{Address, Proof, Proposition}
 import co.topl.crypto.BytesOf
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
@@ -47,9 +48,11 @@ abstract class Transaction[+T, P <: Proposition: Identifiable] extends NodeViewM
 
   def semanticValidate(boxReader: BoxReader[ProgramId, Address])(implicit networkPrefix: NetworkPrefix): Try[Unit]
 
-  def syntacticValidate(implicit networkPrefix: NetworkPrefix): Try[Unit]
+  def syntacticValidate(implicit
+    networkPrefix: NetworkPrefix
+  ): ValidatedNec[SyntacticValidationFailure, Transaction[T, P]]
 
-  def rawValidate(implicit networkPrefix: NetworkPrefix): Try[Unit]
+  def rawValidate(implicit networkPrefix: NetworkPrefix): ValidatedNec[SyntacticValidationFailure, Transaction[T, P]]
 
 }
 
@@ -90,10 +93,10 @@ object Transaction {
 
   implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[TX] = { c: HCursor =>
     c.downField("txType").as[String].map {
-//      case "CodeCreation"           => CodeCreation.jsonDecoder(c)
-//      case "ProgramCreation"        => ProgramCreation.jsonDecoder(c)
-//      case "ProgramMethodExecution" => ProgramMethodExecution.jsonDecoder(c)
-//      case "ProgramTransfer"        => ProgramTransfer.jsonDecoder(c)
+      //      case "CodeCreation"           => CodeCreation.jsonDecoder(c)
+      //      case "ProgramCreation"        => ProgramCreation.jsonDecoder(c)
+      //      case "ProgramMethodExecution" => ProgramMethodExecution.jsonDecoder(c)
+      //      case "ProgramTransfer"        => ProgramTransfer.jsonDecoder(c)
       case PolyTransfer.typeString  => PolyTransfer.jsonDecoder(networkPrefix)(c)
       case ArbitTransfer.typeString => ArbitTransfer.jsonDecoder(networkPrefix)(c)
       case AssetTransfer.typeString => AssetTransfer.jsonDecoder(networkPrefix)(c)

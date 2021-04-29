@@ -17,14 +17,15 @@ import java.io.File
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
 
-/** BifrostState is a data structure which deterministically defines whether an arbitrary transaction is valid and so
-  * applicable to it or not. Also has methods to get a closed box, to apply a persistent modifier, and to roll back
-  * to a previous version.
-  *
-  * @param storage singleton Iodb storage instance
-  * @param version blockId used to identify each block. Also used for rollback
-  *                //@param timestamp timestamp of the block that results in this state
-  */
+/**
+ * BifrostState is a data structure which deterministically defines whether an arbitrary transaction is valid and so
+ * applicable to it or not. Also has methods to get a closed box, to apply a persistent modifier, and to roll back
+ * to a previous version.
+ *
+ * @param storage singleton Iodb storage instance
+ * @param version blockId used to identify each block. Also used for rollback
+ *                //@param timestamp timestamp of the block that results in this state
+ */
 case class State(
   override val version:      VersionTag,
   protected val storage:     LSMStore,
@@ -52,44 +53,48 @@ case class State(
     pbrOpt.foreach(_.closeStorage())
   }
 
-  /** Accessor method to retrieve box data from the state storage
-    *
-    * @param id unique identifier where the box data is stored
-    * @return
-    */
+  /**
+   * Accessor method to retrieve box data from the state storage
+   *
+   * @param id unique identifier where the box data is stored
+   * @return
+   */
   override def getBox(id: BoxId): Option[Box[_]] =
     getFromStorage(id.hashBytes)
       .map(BoxSerializer.parseBytes)
       .flatMap(_.toOption)
 
-  /** Accessor method to retrieve program box data from state by abstracting the
-    * registry lookup and subsequent state access
-    *
-    * @param key the program id of the program box to retrieve
-    * @tparam PBX the type of box that you are expecting to get back (StateBox, ExecBox, etc.)
-    * @return a program box of the specified type if found at the given program is
-    */
+  /**
+   * Accessor method to retrieve program box data from state by abstracting the
+   * registry lookup and subsequent state access
+   *
+   * @param key the program id of the program box to retrieve
+   * @tparam PBX the type of box that you are expecting to get back (StateBox, ExecBox, etc.)
+   * @return a program box of the specified type if found at the given program is
+   */
   override def getProgramBox[PBX <: ProgramBox: ClassTag](key: ProgramId): Option[PBX] =
     pbrOpt.flatMap(_.getBox(key, getReader) match {
       case Some(box: PBX) => Some(box)
       case _              => None
     })
 
-  /** Accessor method to retrieve a set of token boxes from state that are owned by a
-    * certain public key. This works by abstracting the registry lookup and subsequent state access
-    *
-    * @param key the public key to find boxes for
-    * @return a sequence of token boxes held by the public key
-    */
+  /**
+   * Accessor method to retrieve a set of token boxes from state that are owned by a
+   * certain public key. This works by abstracting the registry lookup and subsequent state access
+   *
+   * @param key the public key to find boxes for
+   * @return a sequence of token boxes held by the public key
+   */
   override def getTokenBoxes(key: Address): Option[Seq[TokenBox[TokenValueHolder]]] =
     tbrOpt.flatMap(_.getBox(key, getReader))
 
-  /** Lookup a sequence of boxIds from the appropriate registry.
-    * These boxIds can then be used in `getBox` to retrieve the box data.
-    *
-    * @param key storage key used to identify value(s) in registry
-    * @return a sequence of boxes stored beneath the specified key
-    */
+  /**
+   * Lookup a sequence of boxIds from the appropriate registry.
+   * These boxIds can then be used in `getBox` to retrieve the box data.
+   *
+   * @param key storage key used to identify value(s) in registry
+   * @return a sequence of boxes stored beneath the specified key
+   */
   def registryLookup[K](key: K): Option[Seq[BoxId]] =
     key match {
       case k: TokenBoxRegistry.K if tbrOpt.isDefined   => tbrOpt.get.lookup(k)
@@ -97,11 +102,12 @@ case class State(
       case _ if pbrOpt.isEmpty | tbrOpt.isEmpty        => None
     }
 
-  /** Revert version of state to a specific version
-    *
-    * @param version tag marking a specific state within the store
-    * @return an instance of State at the version given
-    */
+  /**
+   * Revert version of state to a specific version
+   *
+   * @param version tag marking a specific state within the store
+   * @return an instance of State at the version given
+   */
   override def rollbackTo(version: VersionTag): Try[NVCT] = Try {
 
     // throwing error here since we should stop attempting updates if any part fails
@@ -133,11 +139,12 @@ case class State(
     }
   }
 
-  /** Public method used to update an instance of state with a new set of transactions
-    *
-    * @param block block to be applied to state
-    * @return a new instance of state with the transaction within mod applied
-    */
+  /**
+   * Public method used to update an instance of state with a new set of transactions
+   *
+   * @param block block to be applied to state
+   * @return a new instance of state with the transaction within mod applied
+   */
   override def applyModifier(block: Block): Try[State] = {
     // extract the state changes to be made
     // using option for TBR and PBR since we can skip if the registries aren't present
@@ -152,14 +159,15 @@ case class State(
     }
   }
 
-  /** Apply a series of changes to the internal stores of the state objects
-    *
-    * @param newVersion version id of this update
-    * @param stateChanges changes to be made to state storage
-    * @param tokenChanges changes to be made to the token box registry
-    * @param programChanges changes to be made to the program box registry
-    * @return an updated version of state
-    */
+  /**
+   * Apply a series of changes to the internal stores of the state objects
+   *
+   * @param newVersion version id of this update
+   * @param stateChanges changes to be made to state storage
+   * @param tokenChanges changes to be made to the token box registry
+   * @param programChanges changes to be made to the program box registry
+   * @return an updated version of state
+   */
   private[state] def applyChanges(
     newVersion:     VersionTag,
     stateChanges:   StateChanges,
@@ -245,20 +253,22 @@ case class State(
         Failure(ex)
     }
 
-  /** @param transaction
-    * @return
-    */
+  /**
+   * @param transaction
+   * @return
+   */
   def semanticValidate(transaction: Transaction.TX)(implicit networkPrefix: NetworkPrefix): Try[Unit] =
     transaction.semanticValidate(getReader)
 }
 
 object State extends Logging {
 
-  /** @param settings
-    * @param initialBlocks
-    * @param networkPrefix
-    * @return
-    */
+  /**
+   * @param settings
+   * @param initialBlocks
+   * @param networkPrefix
+   * @return
+   */
   def genesisState(settings: AppSettings, initialBlocks: Seq[Block])(implicit networkPrefix: NetworkPrefix): State =
     initialBlocks
       .foldLeft(readOrGenerate(settings)) { (state, mod) =>
@@ -267,19 +277,21 @@ object State extends Logging {
 
   def exists(settings: AppSettings): Boolean = stateFile(settings).exists()
 
-  /** Construct and returns the directory where state data will be stored
-    * @param settings the configuration file for the node
-    * @return a file where data is stored
-    */
+  /**
+   * Construct and returns the directory where state data will be stored
+   * @param settings the configuration file for the node
+   * @return a file where data is stored
+   */
   def stateFile(settings: AppSettings): File = {
     val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
     new File(s"$dataDir/state")
   }
 
-  /** @param settings
-    * @param networkPrefix
-    * @return
-    */
+  /**
+   * @param settings
+   * @param networkPrefix
+   * @return
+   */
   def readOrGenerate(settings: AppSettings)(implicit networkPrefix: NetworkPrefix): State = {
     val sFile = stateFile(settings)
     sFile.mkdirs()

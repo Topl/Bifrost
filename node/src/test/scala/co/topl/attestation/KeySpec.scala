@@ -8,18 +8,18 @@ import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckP
 import scala.util.{Failure, Success}
 
 class KeySpec
-  extends AnyPropSpec
+    extends AnyPropSpec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with ValidGenerators
     with Matchers {
 
-  val password: String = stringGen.sample.get
-  val messageByte: Array[Byte] = nonEmptyBytesGen.sample.get
+  val password: String = sampleUntilNonEmpty(stringGen)
+  val messageByte: Array[Byte] = sampleUntilNonEmpty(nonEmptyBytesGen)
 
   val address: Address = keyRing.DiskOps.generateKeyFile(password) match {
     case Success(addr) => addr
-    case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
+    case Failure(ex)   => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
 
   property("The randomly generated address from generateKeyFile should exist in keyRing") {
@@ -28,6 +28,7 @@ class KeySpec
 
   property("Once we lock the generated address, it will be removed from the secrets set in the keyRing") {
     keyRing.removeFromKeyring(address)
+
     /** There will be a warning for locking again if a key is already locked */
     keyRing.removeFromKeyring(address)
 
@@ -36,6 +37,7 @@ class KeySpec
 
   property("Once unlocked, the address will be accessible from the keyRing again") {
     keyRing.DiskOps.unlockKeyFile(address.toString, password)
+
     /** There will be a warning for unlocking again if a key is already unlocked */
     keyRing.DiskOps.unlockKeyFile(address.toString, password)
 
@@ -55,7 +57,7 @@ class KeySpec
 
   property("Trying to sign a message with an address not on the keyRing will fail") {
     val randAddr: Address = addressGen.sample.get
-    val error = intercept[Exception] (keyRing.signWithAddress(randAddr)(messageByte))
+    val error = intercept[Exception](keyRing.signWithAddress(randAddr)(messageByte))
     error.getMessage shouldEqual "Unable to find secret for the given address"
   }
 

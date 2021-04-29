@@ -5,8 +5,8 @@ import co.topl.crypto.signatures.{Curve25519, PublicKey}
 import utils.serialization.{GjalSerializer, Reader, Writer}
 
 /**
-  * For serializing a PublicKeyProposition
-  */
+ * For serializing a PublicKeyProposition
+ */
 object PublicKeyPropositionCurve25519Serializer extends GjalSerializer[PublicKeyPropositionCurve25519] {
 
   override def serialize(obj: PublicKeyPropositionCurve25519, w: Writer): Unit = {

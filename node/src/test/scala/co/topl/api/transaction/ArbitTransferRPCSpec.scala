@@ -10,17 +10,14 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import co.topl.utils.encode.Base58
 
-class ArbitTransferRPCSpec extends AnyWordSpec
-  with Matchers
-  with RPCMockState {
+class ArbitTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
 
   val address: Address = keyRing.addresses.head
   var tx = ""
 
   "ArbitTransfer RPC" should {
     "Create new arbit transfer raw transaction" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "2",
@@ -30,6 +27,8 @@ class ArbitTransferRPCSpec extends AnyWordSpec
            |     "recipients": [["$address", "1"]],
            |     "sender": ["$address"],
            |     "changeAddress": "$address",
+           |     "consolidationAddress": "$address",
+           |     "minting": "false",
            |     "fee": "1",
            |     "data": ""
            |   }]
@@ -39,11 +38,11 @@ class ArbitTransferRPCSpec extends AnyWordSpec
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]) match {
           case Right(re) => re;
-          case Left(ex) => throw ex
+          case Left(ex)  => throw ex
         }
 
         val sigTx = for {
-          rawTx <- res.hcursor.downField("result").get[Json]("rawTx")
+          rawTx   <- res.hcursor.downField("result").get[Json]("rawTx")
           message <- res.hcursor.downField("result").get[String]("messageToSign")
         } yield {
           val sig = keyRing.generateAttestation(address)(Base58.decode(message).get)
@@ -61,8 +60,7 @@ class ArbitTransferRPCSpec extends AnyWordSpec
     }
 
     "Broadcast signed ArbitTransfer transaction" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "2",

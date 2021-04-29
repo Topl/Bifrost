@@ -9,7 +9,7 @@ import co.topl.utils.Logging
 import co.topl.utils.NetworkType._
 
 import scala.concurrent.ExecutionContext
-import scala.util.{Failure, Success, Try}
+import scala.util.{Success, Try}
 
 /** Actor that manages the keyRing and reward address */
 class KeyManager(
@@ -31,11 +31,12 @@ class KeyManager(
     receive(keyRing, rewardsAddress)
   }
 
-  /** Receives messages with the given key ring and reward address set as context data.
-    * @param keyRing the current key ring state
-    * @param rewardAddress the address to give forging rewards to
-    * @return a Receive partial function
-    */
+  /**
+   * Receives messages with the given key ring and reward address set as context data.
+   * @param keyRing the current key ring state
+   * @param rewardAddress the address to give forging rewards to
+   * @return a Receive partial function
+   */
   def receive(keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519], rewardAddress: Option[Address]): Receive = {
     case CreateKey(password)                 => sender() ! keyRing.DiskOps.generateKeyFile(password)
     case UnlockKey(addr, password)           => sender() ! keyRing.DiskOps.unlockKeyFile(addr, password)
@@ -53,18 +54,21 @@ class KeyManager(
 
   /** Creates a new key ring. */
   def createKeyRing(): KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] = {
+    implicit val keyfileCurve25519Companion: KeyfileCurve25519.type = KeyfileCurve25519
+
     val keyFileDir = settings.application.keyFileDir
       .ensuring(_.isDefined, "A keyfile directory must be specified")
       .get
 
-    KeyRing[PrivateKeyCurve25519, KeyfileCurve25519](keyFileDir, KeyfileCurve25519)
+    KeyRing.empty[PrivateKeyCurve25519, KeyfileCurve25519](Some(keyFileDir))
   }
 
-  /** Generates the initial addresses in the node for a private or local test network.
-    * @param keyRing the key ring to generate addresses in
-    * @param rewardAddress the current reward address
-    * @return a try which results in a ForgerView of the current addresses and rewards address
-    */
+  /**
+   * Generates the initial addresses in the node for a private or local test network.
+   * @param keyRing the key ring to generate addresses in
+   * @param rewardAddress the current reward address
+   * @return a try which results in a ForgerView of the current addresses and rewards address
+   */
   private def generateInitialAddresses(
     keyRing:       KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
     rewardAddress: Option[Address]
@@ -111,11 +115,11 @@ class KeyManager(
   private def tryGetRewardsAddressFromSettings(): Option[Address] =
     settings.forging.rewardsAddress.flatMap {
       AddressEncoder.fromStringWithCheck(_, appContext.networkType.netPrefix) match {
-        case Failure(ex) =>
+        case Left(ex) =>
           log.warn(s"${Console.YELLOW}Unable to set rewards address due to $ex ${Console.RESET}")
           None
 
-        case Success(addr) => Some(addr)
+        case Right(addr) => Some(addr)
       }
     }
 

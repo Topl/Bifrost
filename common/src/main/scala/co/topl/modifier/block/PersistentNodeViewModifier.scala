@@ -18,7 +18,7 @@ object PersistentNodeViewModifier {
   type PNVMVersion = Byte
 }
 
-/* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+/* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
 trait TransactionCarryingPersistentNodeViewModifier[TX <: Transaction.TX] extends PersistentNodeViewModifier {
 
@@ -32,15 +32,16 @@ trait TransactionCarryingPersistentNodeViewModifier[TX <: Transaction.TX] extend
 }
 
 object TransactionsCarryingPersistentNodeViewModifier {
+
   /**
-    * Calculates a bloom filter based on the topics in the transactions
-    * @param txs sequence of transaction to create the bloom for
-    * @return a bloom filter
-    */
-  def createBloom (txs: Seq[Transaction.TX]): BloomFilter = {
-    val topics = txs.foldLeft(Set[BloomTopic]())((acc, tx) => {
+   * Calculates a bloom filter based on the topics in the transactions
+   * @param txs sequence of transaction to create the bloom for
+   * @return a bloom filter
+   */
+  def createBloom(txs: Seq[Transaction.TX]): BloomFilter = {
+    val topics = txs.foldLeft(Set[BloomTopic]()) { (acc, tx) =>
       acc ++ tx.bloomTopics
-    })
+    }
 
     BloomFilter(topics)
   }

@@ -10,14 +10,14 @@ import co.topl.crypto.Implicits._
 
 import scala.util.{Failure, Success}
 
-case class ProgramId (private val hashBytes: Array[Byte]) extends BytesSerializable {
+case class ProgramId(private val hashBytes: Array[Byte]) extends BytesSerializable {
 
   override type M = ProgramId
   override def serializer: BifrostSerializer[ProgramId] = ProgramId
 
   override def equals(obj: Any): Boolean = obj match {
     case obj: ProgramId => obj.hashBytes sameElements hashBytes
-    case _ => false
+    case _              => false
   }
 
   override def toString: String = Base58.encode(hashBytes)
@@ -25,12 +25,11 @@ case class ProgramId (private val hashBytes: Array[Byte]) extends BytesSerializa
   override def hashCode: Int = Ints.fromByteArray(hashBytes)
 }
 
-
 object ProgramId extends BifrostSerializer[ProgramId] {
 
   val size: Int = Digest32.size; // number of bytes in identifier,
 
-  def apply(id: String): ProgramId = {
+  def apply(id: String): ProgramId =
     Base58.decode(id) match {
       case Success(id) =>
         require(id.length == ProgramId.size, s"Invalid size for ProgramId")
@@ -38,22 +37,19 @@ object ProgramId extends BifrostSerializer[ProgramId] {
 
       case Failure(ex) => throw ex
     }
-  }
 
   def create (seed: Array[Byte]): ProgramId = {
     new ProgramId(Hash[Blake2b256, Digest32].hash(seed))
   }
 
-  override def serialize(obj: ProgramId, w: Writer): Unit = {
+  override def serialize(obj: ProgramId, w: Writer): Unit =
     w.putBytes(obj.hashBytes)
-  }
 
-  override def parse(r: Reader): ProgramId = {
+  override def parse(r: Reader): ProgramId =
     ProgramId(r.getBytes(size))
-  }
 
   implicit val jsonEncoder: Encoder[ProgramId] = (id: ProgramId) => id.toString.asJson
-  implicit val jsonKeyEncoder: KeyEncoder[ProgramId] = ( id: ProgramId ) => id.toString
+  implicit val jsonKeyEncoder: KeyEncoder[ProgramId] = (id: ProgramId) => id.toString
   implicit val jsonDecoder: Decoder[ProgramId] = Decoder.decodeString.map(apply)
-  implicit val jsonKeyDecoder: KeyDecoder[ProgramId] = ( id: String ) => Some(apply(id))
+  implicit val jsonKeyDecoder: KeyDecoder[ProgramId] = (id: String) => Some(apply(id))
 }

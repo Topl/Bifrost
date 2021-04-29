@@ -3,6 +3,7 @@ package co.topl.utils
 import java.io.File
 import java.nio.file.Files.createTempDirectory
 import java.nio.file.{Files, Path}
+
 import scala.util.Random
 
 trait FileUtils {
@@ -31,14 +32,13 @@ trait FileUtils {
   }
 
   def removeDir(path: Path): Unit = {
-    def deleteRecursive(dir: File): Unit = {
+    def deleteRecursive(dir: File): Unit =
       for (file <- dir.listFiles) {
         if (file.isDirectory) {
           deleteRecursive(file)
         }
         file.delete()
       }
-    }
     deleteRecursive(path.toFile)
   }
 }

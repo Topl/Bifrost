@@ -30,19 +30,23 @@ class ConsensusStorage(storage: Option[Store], private val defaultTotalStake: In
   private val defaultHeight: Long = 0
 
   private val totalStakeFromStorageOrDefault =
-    storage.flatMap(_.get(totalStakeKey).map(v => Int128(v.data)))
+    storage
+      .flatMap(_.get(totalStakeKey).map(v => Int128(v.data)))
       .getOrElse(defaultTotalStake)
 
   private val difficultyFromStorageOrDefault =
-    storage.flatMap(_.get(difficultyKey).map(v => Longs.fromByteArray(v.data)))
+    storage
+      .flatMap(_.get(difficultyKey).map(v => Longs.fromByteArray(v.data)))
       .getOrElse(defaultDifficulty)
 
   private val inflationFromStorageOrDefault =
-    storage.flatMap(_.get(inflationKey).map(v => Longs.fromByteArray(v.data)))
+    storage
+      .flatMap(_.get(inflationKey).map(v => Longs.fromByteArray(v.data)))
       .getOrElse(defaultInflation)
 
   private val heightFromStorageOrDefault =
-    storage.flatMap(_.get(heightKey).map(v => Longs.fromByteArray(v.data)))
+    storage
+      .flatMap(_.get(heightKey).map(v => Longs.fromByteArray(v.data)))
       .getOrElse(defaultHeight)
 
   // cached state
@@ -56,10 +60,11 @@ class ConsensusStorage(storage: Option[Store], private val defaultTotalStake: In
   def inflation: Long = _inflation
   def height: Long = _height
 
-  /** Updates the consensus storage with the given values at a given block as the version.
-    * @param blockId the block ID associated with the consensus parameters
-    * @param params the current state of the parameters
-    */
+  /**
+   * Updates the consensus storage with the given values at a given block as the version.
+   * @param blockId the block ID associated with the consensus parameters
+   * @param params the current state of the parameters
+   */
   def updateConsensusStorage(blockId: ModifierId, params: ConsensusParams): Unit = {
     _totalStake = params.totalStake
     _difficulty = params.difficulty
@@ -73,22 +78,23 @@ class ConsensusStorage(storage: Option[Store], private val defaultTotalStake: In
     val inflationPair = Seq(inflationKey -> Longs.toByteArray(params.inflation))
     val heightPair = Seq(heightKey -> Longs.toByteArray(params.height))
 
-    val toUpdate = (totalStakePair ++ difficultyPair ++ inflationPair ++ heightPair).map{
-      case (k, v) => k -> ByteArrayWrapper(v)
+    val toUpdate = (totalStakePair ++ difficultyPair ++ inflationPair ++ heightPair).map { case (k, v) =>
+      k -> ByteArrayWrapper(v)
     }
 
     // update cached values here
     storage match {
       case Some(store) => store.update(versionId, Seq(), toUpdate)
-      case _ => log.warn("Failed saving consensus params in storage")
+      case _           => log.warn("Failed saving consensus params in storage")
     }
   }
 
-  /** Rolls back the current state of storage to the data within the given version.
-    * @param blockId the ID of the block to rollback to
-    * @return a NoStorageError if no storage exists or a Unit if successful
-    */
-  def rollbackTo(blockId: ModifierId): Either[NoStorageError, Unit] = {
+  /**
+   * Rolls back the current state of storage to the data within the given version.
+   * @param blockId the ID of the block to rollback to
+   * @return a NoStorageError if no storage exists or a Unit if successful
+   */
+  def rollbackTo(blockId: ModifierId): Either[NoStorageError, Unit] =
     storage match {
       case Some(store) =>
         store.rollback(toVersionId(blockId))
@@ -103,12 +109,12 @@ class ConsensusStorage(storage: Option[Store], private val defaultTotalStake: In
       case None =>
         Left(NoStorageError())
     }
-  }
 
-  /** Converts the given block ID to a version ID to use with LSM Store.
-    * @param blockId the ID of the block
-    * @return the version ID
-    */
+  /**
+   * Converts the given block ID to a version ID to use with LSM Store.
+   * @param blockId the ID of the block
+   * @return the version ID
+   */
   private def toVersionId(blockId: ModifierId): ByteArrayWrapper = ByteArrayWrapper(blockId.getIdBytes)
 
 }
@@ -119,7 +125,7 @@ object ConsensusStorage {
     val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
     val defaultTotalStake = networkType match {
       case PrivateTestnet | LocalTestnet =>
-        settings.forging.privateTestnet.map (sfp => sfp.numTestnetAccts * sfp.testnetBalance).getOrElse(10000000L)
+        settings.forging.privateTestnet.map(sfp => sfp.numTestnetAccts * sfp.testnetBalance).getOrElse(10000000L)
       case _ => 200000000000000000L // todo: JAA - this should be with other genesis consensus parameters
     }
     val file = new File(s"$dataDir/consensus")
@@ -134,10 +140,11 @@ object ConsensusStorage {
     consensusStorage
   }
 
-  /** Initializes an empty ConsensusStorage object with no persisted store.
-    * Values will be cached in memory.
-    * @return the initialized storage
-    */
+  /**
+   * Initializes an empty ConsensusStorage object with no persisted store.
+   * Values will be cached in memory.
+   * @return the initialized storage
+   */
   def emptyStorage(): ConsensusStorage = new ConsensusStorage(None, 0)
 
 }

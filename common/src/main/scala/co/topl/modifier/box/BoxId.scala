@@ -10,13 +10,13 @@ import co.topl.crypto.Implicits._
 
 import scala.util.{Failure, Success}
 
-case class BoxId (hashBytes: Array[Byte]) {
+case class BoxId(hashBytes: Array[Byte]) {
 
   override def hashCode: Int = Ints.fromByteArray(hashBytes)
 
   override def equals(obj: Any): Boolean = obj match {
     case obj: BoxId => obj.hashBytes sameElements hashBytes
-    case _ => false
+    case _          => false
   }
 
   override def toString: String = Base58.encode(hashBytes)
@@ -28,7 +28,7 @@ object BoxId {
 
   def apply[T] (box: Box[T]): BoxId = idFromEviNonce(box.evidence, box.nonce)
 
-  def apply(id: String): BoxId = {
+  def apply(id: String): BoxId =
     Base58.decode(id) match {
       case Success(id) =>
         require(id.length == BoxId.size, s"Invalid size for BoxId")
@@ -36,7 +36,6 @@ object BoxId {
 
       case Failure(ex) => throw ex
     }
-  }
 
   def idFromEviNonce (evidence: Evidence, nonce: Box.Nonce): BoxId = {
     val hashDigest = Hash[Blake2b256, Digest32].hash(evidence.bytes ++ Longs.toByteArray(nonce))

@@ -27,9 +27,10 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
 
-/** Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
-  * Must be singleton
-  */
+/**
+ * Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
+ * Must be singleton
+ */
 class Forger[
   HR <: HistoryReader[Block, BifrostSyncInfo]: ClassTag,
   SR <: StateReader[ProgramId, Address]: ClassTag,
@@ -116,16 +117,16 @@ class Forger[
   /** Updates the forging actors timestamp */
   private def getForgeTime: TimeProvider.Time = appContext.timeProvider.time
 
-  /** Initializes addresses, updates max stake, and begins forging if using private network.
-    * @param timeout time to wait for responses from key manager
-    */
+  /**
+   * Initializes addresses, updates max stake, and begins forging if using private network.
+   * @param timeout time to wait for responses from key manager
+   */
   private def checkPrivateForging()(implicit timeout: Timeout): Unit =
     if (Seq(PrivateTestnet, LocalTestnet).contains(appContext.networkType)) {
       (keyManager ? GenerateInitialAddresses)
         .mapTo[Try[ForgerStartupKeyView]]
         .map {
           case Success(ForgerStartupKeyView(_, Some(_))) =>
-
             // if forging has been enabled, then we should send the StartForging signal
             if (settings.forging.forgeOnStartup) self ! StartForging
 
@@ -140,9 +141,10 @@ class Forger[
         }
     }
 
-  /** Return the correct genesis parameters for the chosen network.
-    * NOTE: the default private network is set in AppContext so the fall-through should result in an error.
-    */
+  /**
+   * Return the correct genesis parameters for the chosen network.
+   * NOTE: the default private network is set in AppContext so the fall-through should result in an error.
+   */
   private def generateGenesis(implicit timeout: Timeout = 10 seconds): Unit = {
     def generatePrivateGenesis(): Future[Try[(Block, ChainParams)]] =
       (keyManager ? GenerateInitialAddresses)
@@ -193,10 +195,11 @@ class Forger[
         context.become(activeForging(hrOpt, srOpt, mrOpt)) // still waiting for components from NodeViewHolder
     }
 
-  /** This function checks if the needed readers have been provided to the context in order to attempt forging.
-    * If they have not, a None will be returned and forging will be attempted once all node view components
-    * have been supplied
-    */
+  /**
+   * This function checks if the needed readers have been provided to the context in order to attempt forging.
+   * If they have not, a None will be returned and forging will be attempted once all node view components
+   * have been supplied
+   */
   private def checkNeededReaders(hrOpt: Option[HR], srOpt: Option[SR], mrOpt: Option[MR]): Option[Unit] =
     for {
       hr <- hrOpt
@@ -207,12 +210,13 @@ class Forger[
       context.become(activeForging(None, None, None)) // reset forging attempt (get new node view)
     }
 
-  /** Primary method for attempting to forge a new block and publish it to the network
-    *
-    * @param historyReader read-only history instance for gathering chain parameters
-    * @param stateReader   read-only state instance for semantic validity tests of transactions
-    * @param memPoolReader read-only mempool instance for picking transactions to include in the block if created
-    */
+  /**
+   * Primary method for attempting to forge a new block and publish it to the network
+   *
+   * @param historyReader read-only history instance for gathering chain parameters
+   * @param stateReader   read-only state instance for semantic validity tests of transactions
+   * @param memPoolReader read-only mempool instance for picking transactions to include in the block if created
+   */
   private def tryForging(historyReader: HR, stateReader: SR, memPoolReader: MR, forgeTime: TimeProvider.Time)(implicit
     timeout:                            Timeout = settings.forging.blockGenerationDelay
   ): Unit =
@@ -239,20 +243,20 @@ class Forger[
     }
 
   /**
-    * Determines if forging eligibility and forges block if eligible.
-    * @param historyReader read-only history
-    * @param stateReader read-only state
-    * @param memPoolReader read-only mem-pool
-    * @param forgeTime time since last forge
-    * @param attemptForgingKeyView forging view of the key ring
-    * @return a block if forging was successful and None otherwise
-    */
+   * Determines if forging eligibility and forges block if eligible.
+   * @param historyReader read-only history
+   * @param stateReader read-only state
+   * @param memPoolReader read-only mem-pool
+   * @param forgeTime time since last forge
+   * @param attemptForgingKeyView forging view of the key ring
+   * @return a block if forging was successful and None otherwise
+   */
   private def attemptForging(
-    historyReader:          HR,
-    stateReader:            SR,
-    memPoolReader:          MR,
-    forgeTime:              TimeProvider.Time,
-    attemptForgingKeyView:  AttemptForgingKeyView
+    historyReader:         HR,
+    stateReader:           SR,
+    memPoolReader:         MR,
+    forgeTime:             TimeProvider.Time,
+    attemptForgingKeyView: AttemptForgingKeyView
   ): Either[AttemptForgingFailure, Block] = {
     log.debug(
       s"${Console.MAGENTA}Attempting to forge with settings ${protocolMngr.current(historyReader.height)} " +
@@ -287,33 +291,37 @@ class Forger[
     val prevTimes = historyReader.getTimestampsFrom(parentBlock, nxtBlockNum)
 
     // check forging eligibility and forge block if successful
-    LeaderElection.getEligibleBox(parentBlock, attemptForgingKeyView.addresses, forgeTime, stateReader)
+    LeaderElection
+      .getEligibleBox(parentBlock, attemptForgingKeyView.addresses, forgeTime, stateReader)
       .leftMap(Forger.LeaderElectionFailure)
-      .flatMap(forgeBlockWithBox(
-        _,
-        parentBlock,
-        prevTimes,
-        rewards,
-        transactions,
-        forgeTime,
-        attemptForgingKeyView.sign,
-        attemptForgingKeyView.getPublicKey)
+      .flatMap(
+        forgeBlockWithBox(
+          _,
+          parentBlock,
+          prevTimes,
+          rewards,
+          transactions,
+          forgeTime,
+          attemptForgingKeyView.sign,
+          attemptForgingKeyView.getPublicKey
+        )
       )
   }
 
-  /** Pick a set of transactions from the mempool that result in a valid state when applied to the current state
-    *
-    * @param memPoolReader the set of pending transactions
-    * @param stateReader state to use for semantic validity checking
-    * @return a sequence of valid transactions
-    */
+  /**
+   * Pick a set of transactions from the mempool that result in a valid state when applied to the current state
+   *
+   * @param memPoolReader the set of pending transactions
+   * @param stateReader state to use for semantic validity checking
+   * @return a sequence of valid transactions
+   */
   private def pickTransactions(memPoolReader: MR, stateReader: SR, chainHeight: Long): Try[PickTransactionsResult] =
     Try {
 
       memPoolReader
         .take[Int128](numTxInBlock(chainHeight))(-_.tx.fee) // returns a sequence of transactions ordered by their fee
         .filter(
-          _.tx.fee > settings.forging.minTransactionFee
+          _.tx.fee >= settings.forging.minTransactionFee
         ) // default strategy ignores zero fee transactions in mempool
         .foldLeft(PickTransactionsResult(Seq(), Seq())) { case (txAcc, utx) =>
           // ensure that each transaction opens a unique box by checking that this transaction
@@ -353,19 +361,19 @@ class Forger[
     }
 
   /**
-    * Forges a block with the given eligible arbit box and state parameters.
-    * @param box an eligible arbit box
-    * @param parent the parent block
-    * @param prevTimes the previous block times to determine next difficulty
-    * @param rawRewards the raw forging rewards
-    * @param txsToInclude the set of transactions to be entered into the block
-    * @param forgeTime the current timestamp
-    * @param sign a function for signing messages
-    * @param getPublicKey a function for getting the public key associated with an address
-    * @return a block if forging was successful and None otherwise
-    */
+   * Forges a block with the given eligible arbit box and state parameters.
+   * @param box an eligible arbit box
+   * @param parent the parent block
+   * @param prevTimes the previous block times to determine next difficulty
+   * @param rawRewards the raw forging rewards
+   * @param txsToInclude the set of transactions to be entered into the block
+   * @param forgeTime the current timestamp
+   * @param sign a function for signing messages
+   * @param getPublicKey a function for getting the public key associated with an address
+   * @return a block if forging was successful and None otherwise
+   */
   private def forgeBlockWithBox(
-    box: ArbitBox,
+    box:          ArbitBox,
     parent:       Block,
     prevTimes:    Vector[TimeProvider.Time],
     rawRewards:   Seq[TX],
@@ -408,16 +416,17 @@ class Forger[
     val newDifficulty = calcNewBaseDifficulty(parent.height + 1, parent.difficulty, prevTimes :+ forgeTime)
 
     // add the signed coinbase transaction to the block, sign it, and return the newly forged block
-    Block.createAndSign(
-      parent.id,
-      forgeTime,
-      signedRewards ++ txsToInclude,
-      box,
-      publicKey,
-      parent.height + 1,
-      newDifficulty,
-      blockVersion(parent.height + 1)
-    )(signingFunction)
+    Block
+      .createAndSign(
+        parent.id,
+        forgeTime,
+        signedRewards ++ txsToInclude,
+        box,
+        publicKey,
+        parent.height + 1,
+        newDifficulty,
+        blockVersion(parent.height + 1)
+      )(signingFunction)
       .toEither
       .leftMap(Forger.ForgingError)
   }

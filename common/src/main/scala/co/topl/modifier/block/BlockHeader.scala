@@ -32,7 +32,7 @@ case class BlockHeader(
 object BlockHeader {
   val modifierTypeId: NodeViewModifier.ModifierTypeId = ModifierTypeId(4: Byte)
 
-  implicit val jsonEncoder: Encoder[BlockHeader] = { bh: BlockHeader ⇒
+  implicit val jsonEncoder: Encoder[BlockHeader] = { bh: BlockHeader =>
     Map(
       "id"           -> bh.id.toString.asJson,
       "parentId"     -> bh.parentId.toString.asJson,

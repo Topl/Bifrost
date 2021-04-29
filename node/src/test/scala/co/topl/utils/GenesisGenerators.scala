@@ -10,14 +10,13 @@ import co.topl.settings.AppSettings
 
 import scala.util.{Failure, Success}
 
-trait GenesisGenerators extends CoreGenerators
-  with FileUtils {
+trait GenesisGenerators extends CoreGenerators with FileUtils {
 
   val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
-    KeyRing(settings.application.keyFileDir.get, KeyfileCurve25519)
+    KeyRing.empty(settings.application.keyFileDir)
 
   keyRing.generateNewKeyPairs(num = 3) match {
-    case Success(_) => ()
+    case Success(_)     => ()
     case Failure(error) => throw error
   }
 
