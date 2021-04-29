@@ -1,7 +1,5 @@
 package co.topl.modifier.transaction
 
-import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
-import co.topl.modifier.box.{ArbitBox, Box, BoxId}
 import co.topl.utils.{CoreGenerators, ValidGenerators}
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
