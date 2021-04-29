@@ -8,7 +8,6 @@ trait Serializer[TFamily, T <: TFamily, R <: Reader, W <: Writer] {
 
   def parse(r: R): TFamily
 
-  def parseTry(r: R): Try[TFamily] = {
+  def parseTry(r: R): Try[TFamily] =
     Try(parse(r))
-  }
 }

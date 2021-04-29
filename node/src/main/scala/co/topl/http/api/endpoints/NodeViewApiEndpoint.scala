@@ -46,24 +46,25 @@ case class NodeViewApiEndpoint(
     case (method, params, id) if method == s"${namespace.name}_mempool"         => mempool(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_transactionFromMempool" =>
       transactionFromMempool(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_info"            => info(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_info" => info(params.head, id)
   }
 
-  /** #### Summary
-    * Retrieve the best block
-    *
-    * #### Description
-    * Find information about the current state of the chain including height, score, bestBlockId, etc
-    *
-    * #### Params
-    * | Fields             | Data type | Required / Optional | Description |
-    * |--------------------|-----------|---------------------|-------------|
-    * | --None specified-- |           |                     |             |
-    *
-    * @param params input parameters as specified above
-    * @param id request identifier
-    * @return
-    */
+  /**
+   * #### Summary
+   * Retrieve the best block
+   *
+   * #### Description
+   * Find information about the current state of the chain including height, score, bestBlockId, etc
+   *
+   * #### Params
+   * | Fields             | Data type | Required / Optional | Description |
+   * |--------------------|-----------|---------------------|-------------|
+   * | --None specified-- |           |                     |             |
+   *
+   * @param params input parameters as specified above
+   * @param id request identifier
+   * @return
+   */
   private def getBestBlock(params: Json, id: String): Future[Json] =
     asyncHistory { hr =>
       Map(
@@ -74,27 +75,28 @@ case class NodeViewApiEndpoint(
       ).asJson
     }
 
-  /** #### Summary
-    * Lookup balances
-    *
-    * #### Type
-    * Remote -- Transaction must be used in conjunction with an external key manager service.
-    *
-    * #### Description
-    * Check balances of specified keys.
-    *
-    * #### Notes
-    * - Requires the Token Box Registry to be active
-    *
-    * #### Params
-    * | Fields    | Data type | Required / Optional | Description                                  |
-    * |-----------|-----------|---------------------|----------------------------------------------|
-    * | addresses | [String]  | Required            | Addresses whose balances are to be retrieved |
-    *
-    * @param params input parameters as specified above
-    * @param id     request identifier
-    * @return
-    */
+  /**
+   * #### Summary
+   * Lookup balances
+   *
+   * #### Type
+   * Remote -- Transaction must be used in conjunction with an external key manager service.
+   *
+   * #### Description
+   * Check balances of specified keys.
+   *
+   * #### Notes
+   * - Requires the Token Box Registry to be active
+   *
+   * #### Params
+   * | Fields    | Data type | Required / Optional | Description                                  |
+   * |-----------|-----------|---------------------|----------------------------------------------|
+   * | addresses | [String]  | Required            | Addresses whose balances are to be retrieved |
+   *
+   * @param params input parameters as specified above
+   * @param id     request identifier
+   * @return
+   */
   private def balances(params: Json, id: String): Future[Json] =
     asyncState { hr =>
       // parse arguments from the request
@@ -135,33 +137,35 @@ case class NodeViewApiEndpoint(
       }
     }
 
-  /** #### Summary
-    * Get the first 100 transactions in the mempool (sorted by fee amount)
-    *
-    * #### Params
-    * | Fields             | Data type | Required / Optional | Description |
-    * |--------------------|-----------|---------------------|-------------|
-    * | --None specified-- |           |                     |             |
-    *
-    * @param params input parameters as specified above
-    * @param id request identifier
-    * @return
-    */
+  /**
+   * #### Summary
+   * Get the first 100 transactions in the mempool (sorted by fee amount)
+   *
+   * #### Params
+   * | Fields             | Data type | Required / Optional | Description |
+   * |--------------------|-----------|---------------------|-------------|
+   * | --None specified-- |           |                     |             |
+   *
+   * @param params input parameters as specified above
+   * @param id request identifier
+   * @return
+   */
   private def mempool(params: Json, id: String): Future[Json] =
-    asyncMempool { _.take(100)(-_.dateAdded).map(_.tx).asJson }
+    asyncMempool(_.take(100)(-_.dateAdded).map(_.tx).asJson)
 
-  /** #### Summary
-    * Lookup a transaction by its id
-    *
-    * #### Params
-    * | Fields        | Data type | Required / Optional | Description                     |
-    * |---------------|-----------|---------------------|---------------------------------|
-    * | transactionId | String    | Required            | Base58 encoded transaction hash |
-    *
-    * @param params input parameters as specified above
-    * @param id request identifier
-    * @return
-    */
+  /**
+   * #### Summary
+   * Lookup a transaction by its id
+   *
+   * #### Params
+   * | Fields        | Data type | Required / Optional | Description                     |
+   * |---------------|-----------|---------------------|---------------------------------|
+   * | transactionId | String    | Required            | Base58 encoded transaction hash |
+   *
+   * @param params input parameters as specified above
+   * @param id request identifier
+   * @return
+   */
   private def transactionById(params: Json, id: String): Future[Json] =
     asyncHistory { hr =>
       (for {
@@ -180,18 +184,19 @@ case class NodeViewApiEndpoint(
       }
     }
 
-  /** #### Summary
-    * Lookup a transaction in the mempool by its id
-    *
-    *  #### Params
-    * | Fields        | Data type | Required / Optional | Description                     |
-    * |---------------|-----------|---------------------|---------------------------------|
-    * | transactionId | String    | Required            | Base58 encoded transaction hash |
-    *
-    * @param params input parameters as specified above
-    * @param id request identifier
-    * @return
-    */
+  /**
+   * #### Summary
+   * Lookup a transaction in the mempool by its id
+   *
+   *  #### Params
+   * | Fields        | Data type | Required / Optional | Description                     |
+   * |---------------|-----------|---------------------|---------------------------------|
+   * | transactionId | String    | Required            | Base58 encoded transaction hash |
+   *
+   * @param params input parameters as specified above
+   * @param id request identifier
+   * @return
+   */
   private def transactionFromMempool(params: Json, id: String): Future[Json] =
     asyncMempool { mr =>
       (for {
@@ -203,18 +208,19 @@ case class NodeViewApiEndpoint(
       }
     }
 
-  /** #### Summary
-    * Lookup a block by its id
-    *
-    * #### Params
-    * | Fields  | Data type | Required / Optional | Description                     |
-    * |---------|-----------|---------------------|---------------------------------|
-    * | blockId | String    | Required            | Base58 encoded transaction hash |
-    *
-    * @param params input parameters as specified above
-    * @param id request identifier
-    * @return
-    */
+  /**
+   * #### Summary
+   * Lookup a block by its id
+   *
+   * #### Params
+   * | Fields  | Data type | Required / Optional | Description                     |
+   * |---------|-----------|---------------------|---------------------------------|
+   * | blockId | String    | Required            | Base58 encoded transaction hash |
+   *
+   * @param params input parameters as specified above
+   * @param id request identifier
+   * @return
+   */
   private def blockById(params: Json, id: String): Future[Json] =
     asyncHistory { hr =>
       (for {
@@ -226,18 +232,19 @@ case class NodeViewApiEndpoint(
       }
     }
 
-  /** #### Summary
-    * Lookup a block by its height
-    *
-    * #### Params
-    * | Fields | Data type | Required / Optional | Description                               |
-    * |--------|-----------|---------------------|-------------------------------------------|
-    * | height | Number    | Required            | Height to retrieve on the canonical chain |
-    *
-    * @param params input parameters as specified above
-    * @param id request identifier
-    * @return
-    */
+  /**
+   * #### Summary
+   * Lookup a block by its height
+   *
+   * #### Params
+   * | Fields | Data type | Required / Optional | Description                               |
+   * |--------|-----------|---------------------|-------------------------------------------|
+   * | height | Number    | Required            | Height to retrieve on the canonical chain |
+   *
+   * @param params input parameters as specified above
+   * @param id request identifier
+   * @return
+   */
   private def blockByHeight(params: Json, id: String): Future[Json] =
     asyncHistory { hr =>
       (for {
@@ -256,7 +263,7 @@ case class NodeViewApiEndpoint(
         "nodeAddress" -> {
           appContext.externalNodeAddress match {
             case Some(address) => address.toString
-            case None => "N/A"
+            case None          => "N/A"
           }
         },
         "version" -> appContext.settings.application.version.toString

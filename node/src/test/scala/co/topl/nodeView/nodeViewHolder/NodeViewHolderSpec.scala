@@ -12,16 +12,17 @@ import org.scalatest.{BeforeAndAfterAll, PrivateMethodTester}
 
 import scala.concurrent.ExecutionContext
 
-class NodeViewHolderSpec extends AnyPropSpec
-  with PrivateMethodTester
-  with CoreGenerators
-  with MockState
-  with BeforeAndAfterAll {
+class NodeViewHolderSpec
+    extends AnyPropSpec
+    with PrivateMethodTester
+    with CoreGenerators
+    with MockState
+    with BeforeAndAfterAll {
 
   type MP = MemPool
 
-  private implicit val actorSystem: ActorSystem = ActorSystem("NodeviewHolderSpec")
-  private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
+  implicit private val actorSystem: ActorSystem = ActorSystem("NodeviewHolderSpec")
+  implicit private val executionContext: ExecutionContext = actorSystem.dispatcher
 
   private val appContext = new AppContext(settings, StartupOpts(), None)
   private val nvhTestRef = TestActorRef(new NodeViewHolder(settings, appContext), "nvhTest")
@@ -42,7 +43,6 @@ class NodeViewHolderSpec extends AnyPropSpec
     }
   }
 
-  override protected def afterAll(): Unit = {
+  override protected def afterAll(): Unit =
     actorSystem.terminate()
-  }
 }

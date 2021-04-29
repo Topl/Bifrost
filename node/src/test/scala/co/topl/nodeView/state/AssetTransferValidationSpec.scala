@@ -1,8 +1,8 @@
 package co.topl.nodeView.state
 
 /**
-  * Created by Matt Kindy on 6/7/2017.
-  */
+ * Created by Matt Kindy on 6/7/2017.
+ */
 class AssetTransferValidationSpec extends MockState {
 
   /*property("A block with valid AssetTransfer should result in more tokens for receiver, fewer for sender") {

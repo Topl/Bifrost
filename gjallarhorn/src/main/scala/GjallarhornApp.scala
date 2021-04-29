@@ -4,7 +4,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import attestation.Address
 import io.circe.syntax._
-import http.{GjallarhornOnlineApiRoute, GjallarhornOfflineApiRoute, HttpService, KeyManagementApiRoute}
+import http.{GjallarhornOfflineApiRoute, GjallarhornOnlineApiRoute, HttpService, KeyManagementApiRoute}
 import io.circe.Json
 import keymanager.KeyManager.GenerateKeyFile
 import keymanager.KeyManagerRef
@@ -19,9 +19,9 @@ import scala.concurrent.duration._
 import scala.reflect.io.Path
 
 /**
-  * Gjallarhorn is the wallet application for Bifrost, the Topl blockchain.
-  * @param startupOpts optional parameters for the application start up
-  */
+ * Gjallarhorn is the wallet application for Bifrost, the Topl blockchain.
+ * @param startupOpts optional parameters for the application start up
+ */
 class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   // Setup settings file to be passed into the application
@@ -32,7 +32,7 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   implicit val context: ExecutionContextExecutor = system.dispatcher
   implicit val timeout: Timeout = 10.seconds
 
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
   //Initially set-up offline mode
   log.info(s"${Console.MAGENTA} Gjallarhorn running in offline mode.${Console.RESET}")
 
@@ -44,21 +44,26 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", settings.application)
 
   //TODO: this is just for testing purposes - shouldn't create keys on start-up
-  val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))
-    .mapTo[Try[Address]], 10.seconds) match {
+  val pk1: Address = Await.result(
+    (keyManagerRef ? GenerateKeyFile("password", Some("test")))
+      .mapTo[Try[Address]],
+    10.seconds
+  ) match {
     case Success(pubKey) => pubKey
-    case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
+    case Failure(ex)     => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
 
   //Create WalletManager actor
-  val walletManagerRef: ActorRef = system.actorOf(
-    Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
+  val walletManagerRef: ActorRef =
+    system.actorOf(Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
 
   //Create requests object
   val requests: Requests = new Requests(settings, keyManagerRef)
 
   //Set up API routes
-  val gjalBifrostRoute: ApiRoute = GjallarhornOnlineApiRoute(settings.rpcApi, settings.application, keyManagerRef, walletManagerRef, requests)
+  val gjalBifrostRoute: ApiRoute =
+    GjallarhornOnlineApiRoute(settings.rpcApi, settings.application, keyManagerRef, walletManagerRef, requests)
+
   val apiRoutes: Seq[ApiRoute] = Seq(
     GjallarhornOfflineApiRoute(settings.rpcApi, settings.application, keyManagerRef, walletManagerRef),
     KeyManagementApiRoute(settings.rpcApi, keyManagerRef),
@@ -66,12 +71,19 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   )
 
   //Attempt to connect to Bifrost and start online mode.
-  val connectRequest: Vector[Json] = Vector(Map("params" ->
-    Vector(Map("chainProvider" -> settings.application.defaultChainProviders
-      .get(settings.application.currentChainProvider)).asJson)).asJson)
-  try {
-    gjalBifrostRoute.handlers("onlineWallet_connectToBifrost", connectRequest, "2")
-  } catch {
+  val connectRequest: Vector[Json] = Vector(
+    Map(
+      "params" ->
+      Vector(
+        Map(
+          "chainProvider" -> settings.application.defaultChainProviders
+            .get(settings.application.currentChainProvider)
+        ).asJson
+      )
+    ).asJson
+  )
+  try gjalBifrostRoute.handlers("onlineWallet_connectToBifrost", connectRequest, "2")
+  catch {
     case _: Exception => log.warn(s"${Console.RED} Continuing to run in offline mode. ${Console.RESET}")
   }
 
@@ -96,13 +108,15 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
     case Success(serverBinding) =>
       log.info(s"${Console.YELLOW}HTTP server bound to ${serverBinding.localAddress}${Console.RESET}")
     case Failure(ex) =>
-      log.error(s"${Console.YELLOW}Failed to bind to localhost:$httpPort. " +
-        s"Terminating application!${Console.RESET}", ex)
+      log.error(
+        s"${Console.YELLOW}Failed to bind to localhost:$httpPort. " +
+        s"Terminating application!${Console.RESET}",
+        ex
+      )
       GjallarhornApp.shutdown(system, actorsToStop, gjalBifrostRoute)
   }
 
-  def run(): Unit = {
-  }
+  def run(): Unit = {}
 }
 
 object GjallarhornApp extends Logging {
@@ -118,7 +132,7 @@ object GjallarhornApp extends Logging {
   def shutdown(system: ActorSystem, actors: Seq[ActorRef], apiRoute: ApiRoute): Unit = {
     apiRoute.handlers("onlineWallet_disconnectFromBifrost", Vector("".asJson), "2")
     log.warn("Terminating Actors")
-    actors.foreach { a => a ! PoisonPill }
+    actors.foreach(a => a ! PoisonPill)
     log.warn("Terminating ActorSystem")
     val termination = system.terminate()
     Await.result(termination, 60.seconds)

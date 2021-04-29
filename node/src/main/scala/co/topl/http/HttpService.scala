@@ -82,15 +82,15 @@ final case class HttpService(apiServices: Seq[ApiEndpoint], settings: RPCApiSett
   }
 
   private def timeoutFuture(requestId: String, futureResponse: => Future[ApiResponse]): Future[ApiResponse] =
-    Future.firstCompletedOf(
-      List(
-        futureResponse,
-        akka.pattern.after(settings.timeout)(Future.failed(new TimeoutException))
+    Future
+      .firstCompletedOf(
+        List(
+          futureResponse,
+          akka.pattern.after(settings.timeout)(Future.failed(new TimeoutException))
+        )
       )
-    )
-      .recover {
-        case e: TimeoutException =>
-          ErrorResponse(e, 500, requestId, verbose = settings.verboseAPI)
+      .recover { case e: TimeoutException =>
+        ErrorResponse(e, 500, requestId, verbose = settings.verboseAPI)
       }
 
   /** Helper route to wrap the handling of API key authentication */
@@ -102,10 +102,11 @@ final case class HttpService(apiServices: Seq[ApiEndpoint], settings: RPCApiSett
       }
     } else complete(HttpEntity(ContentTypes.`application/json`, "Requests are not authorized for this node."))
 
-  /** Performs the check of an incoming api key
-    * @param keyOpt api key specified in header
-    * @return
-    */
+  /**
+   * Performs the check of an incoming api key
+   * @param keyOpt api key specified in header
+   * @return
+   */
   private def isValid(keyOpt: Option[String]): Boolean = {
     lazy val keyHash: Option[Digest32] = keyOpt.map(Blake2b256(_))
     (apiKeyHash, keyHash) match {

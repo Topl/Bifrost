@@ -17,7 +17,7 @@ object ExecutionBoxSerializer extends BifrostSerializer[ExecutionBox] {
 
     /* codeBoxIds: Seq[ProgramId] */
     w.putUInt(obj.codeBoxIds.length)
-    obj.codeBoxIds.foreach{id =>
+    obj.codeBoxIds.foreach { id =>
       ProgramId.serialize(id, w)
     }
   }

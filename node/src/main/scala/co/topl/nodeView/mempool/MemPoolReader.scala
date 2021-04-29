@@ -10,10 +10,9 @@ import scala.math.Ordering
 case class UnconfirmedTx[TX <: Transaction.TX](tx: TX, dateAdded: TimeProvider.Time)
 
 /**
-  * Unconfirmed transactions pool
-  */
-trait MemPoolReader[TX <: Transaction.TX]
-  extends NodeViewComponent with ContainsModifiers[TX] {
+ * Unconfirmed transactions pool
+ */
+trait MemPoolReader[TX <: Transaction.TX] extends NodeViewComponent with ContainsModifiers[TX] {
 
   //getters
   override def modifierById(modifierId: ModifierId): Option[TX]

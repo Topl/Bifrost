@@ -2,7 +2,7 @@ package co.topl.modifier.box.serialization
 
 import co.topl.modifier.box.StateBox
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
-import io.circe.{Json, parser}
+import io.circe.{parser, Json}
 
 object StateBoxSerializer extends BifrostSerializer[StateBox] {
 
@@ -17,7 +17,7 @@ object StateBoxSerializer extends BifrostSerializer[StateBox] {
     val (evidence, nonce, programId) = ProgramBoxSerializer.parse(r)
 
     val state: Json = parser.parse(r.getIntString()) match {
-      case Left(f) => throw f
+      case Left(f)        => throw f
       case Right(j: Json) => j
     }
 

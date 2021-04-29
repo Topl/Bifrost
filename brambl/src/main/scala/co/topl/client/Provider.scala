@@ -43,6 +43,5 @@ object Provider {
     implicit val networkPrefix: NetworkPrefix = PrivateTestnet.netPrefix
   }
 
-  class Custom(val uri: Uri, val apiKey: String, val networkPrefix: NetworkPrefix)
-      extends Provider
+  class Custom(val uri: Uri, val apiKey: String, val networkPrefix: NetworkPrefix) extends Provider
 }

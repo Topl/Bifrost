@@ -10,11 +10,12 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalamock.scalatest.MockFactory
 import scorex.crypto.hash.Blake2b256
 
-class ConsensusStorageSpec extends AnyFlatSpec
-  with ScalaCheckPropertyChecks
-  with Matchers
-  with CoreGenerators
-  with MockFactory {
+class ConsensusStorageSpec
+    extends AnyFlatSpec
+    with ScalaCheckPropertyChecks
+    with Matchers
+    with CoreGenerators
+    with MockFactory {
 
   "totalStake" should "return default total stake after no updates with empty storage" in {
     forAll(positiveMediumIntGen) { defaultTotalStake =>
@@ -27,13 +28,13 @@ class ConsensusStorageSpec extends AnyFlatSpec
   "totalStake" should "load total stake from storage on start with an LSM Store" in {
     forAll(positiveInt128Gen) { (storageTotalStake) =>
       val store = mock[Store]
-      (store.get(_: ByteArrayWrapper))
+      (store
+        .get(_: ByteArrayWrapper))
         .expects(*)
-        .onCall { key: ByteArrayWrapper => {
-            if (key == ByteArrayWrapper(Blake2b256("totalStake".getBytes)))
-              Some(ByteArrayWrapper(storageTotalStake.toByteArray))
-            else Some(ByteArrayWrapper(Longs.toByteArray(0)))
-          }
+        .onCall { key: ByteArrayWrapper =>
+          if (key == ByteArrayWrapper(Blake2b256("totalStake".getBytes)))
+            Some(ByteArrayWrapper(storageTotalStake.toByteArray))
+          else Some(ByteArrayWrapper(Longs.toByteArray(0)))
         }
         .anyNumberOfTimes()
 
@@ -46,7 +47,8 @@ class ConsensusStorageSpec extends AnyFlatSpec
   "totalStake" should "return default total stake when storage does not contain value" in {
     forAll(positiveMediumIntGen) { defaultTotalStake =>
       val store = mock[Store]
-      (store.get(_: ByteArrayWrapper))
+      (store
+        .get(_: ByteArrayWrapper))
         .expects(*)
         .returns(None)
         .anyNumberOfTimes()

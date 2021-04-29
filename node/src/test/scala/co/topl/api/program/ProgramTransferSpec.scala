@@ -18,8 +18,7 @@ class ProgramTransferSpec extends ProgramRPCMockState {
 
     "Transfer a program and create a new ExecutionBox with the updated owner" in {
 
-      val requestBody = ByteString(
-        s"""{
+      val requestBody = ByteString(s"""{
            |  "jsonrpc": "2.0",
            |  "id": "1",
            |  "method": "transferProgram",
@@ -34,7 +33,7 @@ class ProgramTransferSpec extends ProgramRPCMockState {
            |""".stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val res: Json = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
 
         (res \\ "result").head.asObject.isDefined shouldEqual true
         (res \\ "error").isEmpty shouldEqual true

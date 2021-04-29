@@ -45,10 +45,11 @@ final case class RuntimeOpts(
   apiKeyHash:     Option[String] = None
 ) {
 
-  /** Helper method to replace settings values with parameters passed from command line arguments
-    * @param appSettings application settings read from the configuration file
-    * @return an updated appSettings instance
-    */
+  /**
+   * Helper method to replace settings values with parameters passed from command line arguments
+   * @param appSettings application settings read from the configuration file
+   * @return an updated appSettings instance
+   */
   def overrideWithCmdArgs(appSettings: AppSettings): AppSettings = {
     val rpcApiSettings = appSettings.rpcApi.copy(
       authEnabled = appSettings.rpcApi.authEnabled || authEnabled.value,
@@ -56,9 +57,11 @@ final case class RuntimeOpts(
     )
     val privateTestnetSettings =
       appSettings.forging.privateTestnet
-        .map(_.copy(
-          genesisSeed = seed.orElse(appSettings.forging.privateTestnet.flatMap(_.genesisSeed))
-        ))
+        .map(
+          _.copy(
+            genesisSeed = seed.orElse(appSettings.forging.privateTestnet.flatMap(_.genesisSeed))
+          )
+        )
     val forgingSettings =
       appSettings.forging.copy(
         forgeOnStartup = appSettings.forging.forgeOnStartup || forgeOnStartup.value,

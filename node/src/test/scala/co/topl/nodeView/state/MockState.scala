@@ -14,12 +14,13 @@ import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckP
 
 import scala.util.{Failure, Success}
 
-trait MockState extends AnyPropSpec
-  with ScalaCheckPropertyChecks
-  with ScalaCheckDrivenPropertyChecks
-  with Matchers
-  with CoreGenerators
-  with FileUtils {
+trait MockState
+    extends AnyPropSpec
+    with ScalaCheckPropertyChecks
+    with ScalaCheckDrivenPropertyChecks
+    with Matchers
+    with CoreGenerators
+    with FileUtils {
 
 //  protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
 //  implicit val executionContext: ExecutionContext = actorSystem.dispatcher
@@ -30,7 +31,7 @@ trait MockState extends AnyPropSpec
     KeyRing.empty(settings.application.keyFileDir)
 
   keyRing.generateNewKeyPairs(num = 3) match {
-    case Success(_) => ()
+    case Success(_)     => ()
     case Failure(error) => throw error
   }
 
@@ -43,7 +44,8 @@ trait MockState extends AnyPropSpec
     val tempSettings = settings.copy(
       application = settings.application.copy(
         dataDir = Some(file.getPath + "data")
-      ))
+      )
+    )
 
     State.genesisState(tempSettings, Seq(genesisBlockWithVersion))
   }
