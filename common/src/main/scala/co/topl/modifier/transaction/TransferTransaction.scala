@@ -59,9 +59,10 @@ object TransferTransaction {
   def encodeFrom(from: IndexedSeq[(Address, Box.Nonce)]): Json =
     from.map(x => (x._1.asJson, x._2.toString.asJson)).asJson
 
-  /** Computes a unique nonce value based on the transaction type and
-    * inputs and returns the details needed to create the output boxes for the transaction
-    */
+  /**
+   * Computes a unique nonce value based on the transaction type and
+   * inputs and returns the details needed to create the output boxes for the transaction
+   */
   def calculateBoxNonce[T <: TokenValueHolder](
     tx: TransferTransaction[T, _ <: Proposition],
     to: IndexedSeq[(Address, T)]
@@ -119,15 +120,16 @@ object TransferTransaction {
       }
       .groupBy(_._1)
 
-  /** Determines the input boxes needed to create a transfer transaction
-    *
-    * @param boxReader a read-only version of the nodes current state
-    * @param sender the set of addresses that will contribute boxes to this transaction
-    * @param fee the fee to be paid for the transaction
-    * @param txType the type of transfer
-    * @param assetCode an asset specific detail for finding the right asset boxes to be sent in a transfer
-    * @return the input box information and output data needed to create the transaction case class
-    */
+  /**
+   * Determines the input boxes needed to create a transfer transaction
+   *
+   * @param boxReader a read-only version of the nodes current state
+   * @param sender the set of addresses that will contribute boxes to this transaction
+   * @param fee the fee to be paid for the transaction
+   * @param txType the type of transfer
+   * @param assetCode an asset specific detail for finding the right asset boxes to be sent in a transfer
+   * @return the input box information and output data needed to create the transaction case class
+   */
   def getSenderBoxesAndCheckPolyBalance(
     boxReader: BoxReader[ProgramId, Address],
     sender:    IndexedSeq[Address],

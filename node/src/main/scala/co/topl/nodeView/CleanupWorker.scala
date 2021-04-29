@@ -16,9 +16,10 @@ import co.topl.utils.NetworkType.NetworkPrefix
 
 import scala.collection.immutable.TreeSet
 
-/** Performs mempool validation task on demand.
-  * Validation result is sent directly to `NodeViewHolder`.
-  */
+/**
+ * Performs mempool validation task on demand.
+ * Validation result is sent directly to `NodeViewHolder`.
+ */
 class CleanupWorker(nodeViewHolderRef: ActorRef, settings: AppSettings, appContext: AppContext)(implicit
   networkPrefix:                       NetworkPrefix
 ) extends Actor
@@ -55,10 +56,11 @@ class CleanupWorker(nodeViewHolderRef: ActorRef, settings: AppSettings, appConte
     validated
   }
 
-  /** Checks if the outputs of unconfirmed transactions exists in state or if the transaction has become
-    *  stale (by exceeding the mempoolTimeout). If either are true, the transaction is removed from the mempool
-    * @return - a sequence of recently validated transactions id's to be rebroadcast and a sequence of ids to remove
-    */
+  /**
+   * Checks if the outputs of unconfirmed transactions exists in state or if the transaction has become
+   *  stale (by exceeding the mempoolTimeout). If either are true, the transaction is removed from the mempool
+   * @return - a sequence of recently validated transactions id's to be rebroadcast and a sequence of ids to remove
+   */
   private def validatePool(stateReader: SR, mempool: MR): (Seq[ModifierId], Seq[ModifierId]) = {
 
     // Check transactions sorted by priority. Parent transaction comes before its children.
@@ -91,18 +93,20 @@ class CleanupWorker(nodeViewHolderRef: ActorRef, settings: AppSettings, appConte
 
 object CleanupWorker {
 
-  /** Constant which shows on how many cleanup operations (called when a new block arrives) a transaction
-    * re-check happens.
-    *
-    * If transactions set is large and stable, then about (1/RevisionInterval)-th of the pool is checked
-    */
+  /**
+   * Constant which shows on how many cleanup operations (called when a new block arrives) a transaction
+   * re-check happens.
+   *
+   * If transactions set is large and stable, then about (1/RevisionInterval)-th of the pool is checked
+   */
   val RevisionInterval: Int = 4
 
-  /** A command to run (partial) memory pool cleanup
-    *
-    * @param stateReader - a state implementation which provides transaction validation
-    * @param mempool - mempool reader instance
-    */
+  /**
+   * A command to run (partial) memory pool cleanup
+   *
+   * @param stateReader - a state implementation which provides transaction validation
+   * @param mempool - mempool reader instance
+   */
   case class RunCleanup(stateReader: StateReader[ProgramId, Address], mempool: MemPoolReader[Transaction.TX])
 
 }

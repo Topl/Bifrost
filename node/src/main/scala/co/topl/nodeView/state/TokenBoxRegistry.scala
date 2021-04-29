@@ -11,11 +11,12 @@ import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import java.io.File
 import scala.util.Try
 
-/** A registry containing mappings from public keys to a sequence of boxIds
-  *
-  * @param storage Persistent storage object for saving the TokenBoxRegistry to disk
-  * @param nodeKeys set of node keys that denote the state this node will maintain (useful for personal wallet nodes)
-  */
+/**
+ * A registry containing mappings from public keys to a sequence of boxIds
+ *
+ * @param storage Persistent storage object for saving the TokenBoxRegistry to disk
+ * @param nodeKeys set of node keys that denote the state this node will maintain (useful for personal wallet nodes)
+ */
 class TokenBoxRegistry(protected val storage: LSMStore, nodeKeys: Option[Set[Address]])
     extends Registry[TokenBoxRegistry.K, TokenBoxRegistry.V] {
 
@@ -39,17 +40,18 @@ class TokenBoxRegistry(protected val storage: LSMStore, nodeKeys: Option[Set[Add
     case None       => updates
   }
 
-  /** Updates the key-value store to a new version by updating keys with their new state. LSM Store.
-    * @param newVersion - block id
-    * @param toRemove map of public keys to a sequence of boxIds that should be removed
-    * @param toAppend map of public keys to a sequence of boxIds that should be added
-    * @return - instance of updated TokenBoxRegistry
-    *
-    *         Runtime complexity of below function is O(MN) + O(L)
-    *         where M = Number of boxes to remove
-    *         N = Number of boxes owned by an address
-    *         L = Number of boxes to append
-    */
+  /**
+   * Updates the key-value store to a new version by updating keys with their new state. LSM Store.
+   * @param newVersion - block id
+   * @param toRemove map of public keys to a sequence of boxIds that should be removed
+   * @param toAppend map of public keys to a sequence of boxIds that should be added
+   * @return - instance of updated TokenBoxRegistry
+   *
+   *         Runtime complexity of below function is O(MN) + O(L)
+   *         where M = Number of boxes to remove
+   *         N = Number of boxes owned by an address
+   *         L = Number of boxes to append
+   */
   protected[state] def update(
     newVersion: VersionTag,
     toRemove:   Map[K, Seq[V]],
@@ -65,13 +67,14 @@ class TokenBoxRegistry(protected val storage: LSMStore, nodeKeys: Option[Set[Add
     }
   }
 
-  /** The algorithm below roughly outlines what is happening in this process (James Aman 2021.04.07)
-    * - filter the changes by the keys we care about
-    * - create the updated state for each address by constructing a list of all effected keys
-    * - iterate through that list of addresses and evaluate their state
-    *   - if it is empty, that address data needs to be removed in the key-value store
-    *   - if it is non-empty, the updated state needs to be calculated and updated in the key-value store
-    */
+  /**
+   * The algorithm below roughly outlines what is happening in this process (James Aman 2021.04.07)
+   * - filter the changes by the keys we care about
+   * - create the updated state for each address by constructing a list of all effected keys
+   * - iterate through that list of addresses and evaluate their state
+   *   - if it is empty, that address data needs to be removed in the key-value store
+   *   - if it is non-empty, the updated state needs to be calculated and updated in the key-value store
+   */
   private def formatUpdates(
     filteredRemove: Map[K, Seq[V]],
     filteredAppend: Map[K, Seq[V]]

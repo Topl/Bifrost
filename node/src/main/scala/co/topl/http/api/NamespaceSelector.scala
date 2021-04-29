@@ -1,6 +1,6 @@
 package co.topl.http.api
 
-/** A case class used in AppSettings to note the state of the differnet API endpoints*/
+/** A case class used in AppSettings to note the state of the differnet API endpoints */
 case class NamespaceSelector(
   private val topl:  Boolean = false,
   private val util:  Boolean = false,
@@ -10,15 +10,17 @@ case class NamespaceSelector(
 
   lazy val namespaceStates: Map[Namespace, Boolean] =
     Map(
-      ToplNamespace -> topl,
-      UtilNamespace -> util,
+      ToplNamespace  -> topl,
+      UtilNamespace  -> util,
       AdminNamespace -> admin,
       DebugNamespace -> debug
     )
 }
 
-/** a generic class to be shared by all namespaces that provides a common name value used for pattern matching
-  * in the end-point handler partial function */
+/**
+ * a generic class to be shared by all namespaces that provides a common name value used for pattern matching
+ * in the end-point handler partial function
+ */
 sealed abstract class Namespace(val name: String)
 
 case object ToplNamespace extends Namespace("topl")

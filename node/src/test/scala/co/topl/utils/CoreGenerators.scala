@@ -4,7 +4,13 @@ import java.io.File
 import java.time.Instant
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
-import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519, Secret}
+import co.topl.attestation.keyManagement.{
+  KeyRing,
+  KeyfileCurve25519,
+  KeyfileCurve25519Companion,
+  PrivateKeyCurve25519,
+  Secret
+}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
@@ -25,8 +31,9 @@ import scorex.util.encode.Base58
 import scala.collection.SortedSet
 import scala.util.{Random, Try}
 
-/** Created by cykoz on 4/12/17.
-  */
+/**
+ * Created by cykoz on 4/12/17.
+ */
 trait CoreGenerators extends Logging {
 
   type P = Proposition
@@ -256,21 +263,16 @@ trait CoreGenerators extends Logging {
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
     data        <- stringGen
-  } yield {
-
-    PolyTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
-  }
+  } yield PolyTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
 
   lazy val arbitTransferGen: Gen[ArbitTransfer[PublicKeyPropositionCurve25519]] = for {
     from        <- fromSeqGen
     to          <- toSeqGen
     attestation <- attestationGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    data <- stringGen
-  } yield {
-    ArbitTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
-  }
+    fee         <- positiveLongGen
+    timestamp   <- positiveLongGen
+    data        <- stringGen
+  } yield ArbitTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
 
   lazy val assetTransferGen: Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = for {
     from        <- fromSeqGen

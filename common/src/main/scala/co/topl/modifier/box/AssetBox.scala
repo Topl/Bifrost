@@ -20,7 +20,6 @@ object AssetBox {
     Identifier(typeString, typePrefix)
   }
 
-
   implicit val jsonEncoder: Encoder[AssetBox] = (box: AssetBox) => Box.jsonEncode[AssetValue, AssetBox](box).asJson
 
   implicit val jsonDecoder: Decoder[AssetBox] = (c: HCursor) =>

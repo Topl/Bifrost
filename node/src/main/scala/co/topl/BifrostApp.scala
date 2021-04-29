@@ -46,13 +46,14 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   log.debug(s"Starting application with settings \n$settings")
 
   /** check for gateway device and setup port forwarding */
-  private val upnpGateway: Option[UPnPGateway] = if (settings.network.upnpEnabled) UPnPGateway(settings.network) else None
+  private val upnpGateway: Option[UPnPGateway] =
+    if (settings.network.upnpEnabled) UPnPGateway(settings.network) else None
 
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
   /** Setup the execution environment for running the application */
 
-  protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName, config)
-  private implicit val timeout: Timeout = Timeout(settings.network.controllerTimeout.getOrElse(5 seconds))
+  implicit protected lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName, config)
+  implicit private val timeout: Timeout = Timeout(settings.network.controllerTimeout.getOrElse(5 seconds))
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
   /** save runtime environment into a variable for reference throughout the application */
@@ -84,11 +85,10 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   private val walletConnectionHandlerRef: Option[ActorRef] =
     if (settings.gjallarhorn.enableWallet) {
-    Some(WalletConnectionHandlerRef[PMOD]
-      (WalletConnectionHandler.actorName, settings, appContext, nodeViewHolderRef))
-  } else {
-    None
-  }
+      Some(WalletConnectionHandlerRef[PMOD](WalletConnectionHandler.actorName, settings, appContext, nodeViewHolderRef))
+    } else {
+      None
+    }
 
   private val peerSynchronizer: ActorRef =
     PeerSynchronizerRef(PeerSynchronizer.actorName, networkControllerRef, peerManagerRef, settings, appContext)

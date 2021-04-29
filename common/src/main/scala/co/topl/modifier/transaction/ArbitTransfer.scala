@@ -29,9 +29,9 @@ case class ArbitTransfer[
 ) extends TransferTransaction[SimpleValue, P](from, to, attestation, fee, timestamp, data, minting) {
 
   override val coinOutput: Traversable[ArbitBox] =
-    coinOutputParams.map {
-        case BoxParams(evi, nonce, value) => ArbitBox(evi, nonce, value)
-      }
+    coinOutputParams.map { case BoxParams(evi, nonce, value) =>
+      ArbitBox(evi, nonce, value)
+    }
 
   override val newBoxes: Traversable[TokenBox[SimpleValue]] = {
     // this only creates an output if the value of the output boxes is non-zero
@@ -55,13 +55,14 @@ object ArbitTransfer {
     Identifier(typeString, typePrefix)
   }
 
-  /** @param boxReader
-    * @param toReceive
-    * @param sender
-    * @param fee
-    * @param data
-    * @return
-    */
+  /**
+   * @param boxReader
+   * @param toReceive
+   * @param sender
+   * @param fee
+   * @param data
+   * @return
+   */
   def createRaw[
     P <: Proposition: EvidenceProducer: Identifiable
   ](

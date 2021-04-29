@@ -20,8 +20,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
 
   "Utils RPC" should {
     "Generate random seed" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -31,25 +30,24 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
         """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val res: Json = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
 
         val seedString: String = res.hcursor.downField("result").get[String]("seed") match {
           case Right(re) => re;
-          case Left(ex) => throw ex
+          case Left(ex)  => throw ex
         }
 
         res.hcursor.downField("error").values.isEmpty shouldBe true
 
         Base58.decode(seedString) match {
           case Success(seed) => seed.length shouldEqual 32
-          case Failure(_) => fail("Could not Base 58 decode seed output")
+          case Failure(_)    => fail("Could not Base 58 decode seed output")
         }
       }
     }
 
     "Generate random of given length" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -61,25 +59,24 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
       """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val res: Json = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
 
         val seedString: String = res.hcursor.downField("result").get[String]("seed") match {
           case Right(re) => re;
-          case Left(ex) => throw ex
+          case Left(ex)  => throw ex
         }
 
         res.hcursor.downField("error").values.isEmpty shouldBe true
 
         Base58.decode(seedString) match {
           case Success(seed) => seed.length shouldEqual seedLength
-          case Failure(_) => fail("Could not Base 58 decode seed output")
+          case Failure(_)    => fail("Could not Base 58 decode seed output")
         }
       }
     }
 
     "Return blake2b hash of given message" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -91,7 +88,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
       """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val res: Json = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
         val hash = res.hcursor.downField("result").get[String]("hash")
 
         res.hcursor.downField("error").values.isEmpty shouldBe true
@@ -100,8 +97,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
     }
 
     "Generate AssetCode with given issuer and shortName" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -115,12 +111,12 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
       """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val res: Json = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
         val oldAssetCode: AssetCode = AssetCode(1: Byte, address, "testcode")
 
         val genAssetCode: AssetCode = res.hcursor.downField("result").get[AssetCode]("assetCode") match {
           case Right(re) => re;
-          case Left(ex) => throw ex
+          case Left(ex)  => throw ex
         }
 
         res.hcursor.downField("error").values.isEmpty shouldBe true
@@ -129,8 +125,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
     }
 
     "Return the same address and network if the given address and network type are valid and matching" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -143,7 +138,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
       """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val res: Json = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
         val resAddress = res.hcursor.downField("result").get[Address]("address")
         val network = res.hcursor.downField("result").get[String]("network")
 
@@ -154,8 +149,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
     }
 
     "Returns the address and the current network type, which should be private for tests, if only address is given" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -167,7 +161,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
       """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val res: Json = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
         val network = res.hcursor.downField("result").get[String]("network")
         val resAddress = res.hcursor.downField("result").get[Address]("address")
 
@@ -178,8 +172,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
     }
 
     "Complain that the network type doesn't match if the received address and network type are not matching" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -192,7 +185,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
       """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val res: Json = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
         val code = res.hcursor.downField("error").get[Int]("code")
         val message = res.hcursor.downField("error").get[String]("message")
 
@@ -202,8 +195,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
     }
 
     "Reject request if the network type doesn't exist" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -216,7 +208,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
       """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val res: Json = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
         val code = res.hcursor.downField("error").get[Int]("code")
         val message = res.hcursor.downField("error").get[String]("message")
 
