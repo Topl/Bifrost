@@ -514,7 +514,7 @@ class NetworkController(
           val upnpAddress = appContext.upnpGateway.map(_.externalAddress)
 
           val valid =
-            listenAddresses.exists(myAddress.contains) || upnpAddress.exists(
+            listenAddresses.exists(address => myAddress.contains(address.getAddress)) || upnpAddress.exists(
               myAddress.contains
             )
 

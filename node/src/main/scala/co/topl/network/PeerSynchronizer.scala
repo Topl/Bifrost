@@ -68,7 +68,7 @@ class PeerSynchronizer(
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
   /** Schedule a message to gossip about our locally known peers */
   private def scheduleGetPeers(): Unit = {
-    val msg = Message[Unit](getPeersSpec, Right(Unit), None)
+    val msg = Message[Unit](getPeersSpec, Right(()), None)
     context.system.scheduler.scheduleWithFixedDelay(
       2.seconds,
       settings.network.getPeersInterval,

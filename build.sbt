@@ -6,7 +6,7 @@ val scala213 = "2.13.5"
 
 inThisBuild(List(
   organization := "co.topl",
-  scalaVersion := scala212,
+  scalaVersion := scala213,
   crossScalaVersions := Seq(scala212, scala213),
   Compile / run / mainClass := Some("co.topl.BifrostApp"),
   versionScheme := Some("early-semver"),
