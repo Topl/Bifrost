@@ -129,7 +129,7 @@ class WalletConnectionHandler[
   private def anyRemoteAddressInBloom(bf: BloomFilter): Boolean =
     remoteWalletAddresses match {
       case Some(addresses) => addresses.map(addr => bf.contains(BloomTopic(addr.bytes))).reduce(_ || _)
-      case _ => false
+      case _               => false
     }
 
   /**

@@ -17,7 +17,7 @@ object Base16 extends BytesEncoder {
     hexArray.zipWithIndex.foreach { case (c, i) =>
       index(c) = i.toByte
     }
-    "abcdef".toCharArray.foreach{ c =>
+    "abcdef".toCharArray.foreach { c =>
       index(c.toUpper) = index(c)
     }
     index
@@ -25,13 +25,13 @@ object Base16 extends BytesEncoder {
 
   def encode[V: BytesOf](input: V): String = {
     val inputBytes = BytesOf[V].get(input)
-    if (inputBytes.length == 0) return ""  // avoid allocation of empty array and new String instance
+    if (inputBytes.length == 0) return "" // avoid allocation of empty array and new String instance
     val buf = new Array[Char](inputBytes.length * 2)
     var j = 0
     while (j < inputBytes.length) {
-      val v = inputBytes(j) & 0xFF
+      val v = inputBytes(j) & 0xff
       buf(j * 2) = hexArray(v >>> 4)
-      buf(j * 2 + 1)= hexArray(v & 0x0F)
+      buf(j * 2 + 1) = hexArray(v & 0x0f)
       j += 1
     }
     new String(buf)

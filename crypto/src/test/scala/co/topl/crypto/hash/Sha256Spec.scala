@@ -1,5 +1,3 @@
 package co.topl.crypto.hash
 
-class Sha256Spec {
-
-}
+class Sha256Spec {}

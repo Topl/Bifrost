@@ -3,6 +3,7 @@ package co.topl
 import scala.language.implicitConversions
 
 package object crypto {
+
   trait BytesOf[A] {
     def get(value: A): Array[Byte]
 

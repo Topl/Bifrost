@@ -1,5 +1,3 @@
 package co.topl.crypto.hash
 
-class PackageSpec {
-
-}
+class PackageSpec {}

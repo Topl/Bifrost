@@ -60,16 +60,17 @@ sealed trait ProofOfKnowledge[S <: Secret, P <: KnowledgeProposition[S]] extends
  * @param sig 25519 signature
  */
 case class SignatureCurve25519(private[attestation] val sig: Signature)
-  extends ProofOfKnowledge[PrivateKeyCurve25519, PublicKeyPropositionCurve25519] {
+    extends ProofOfKnowledge[PrivateKeyCurve25519, PublicKeyPropositionCurve25519] {
 
   private val signatureLength = BytesOf[Signature].length(sig)
 
-  require(signatureLength == 0 || signatureLength == Curve25519.SignatureLength,
-    s"$signatureLength != ${Curve25519.SignatureLength}")
+  require(
+    signatureLength == 0 || signatureLength == Curve25519.SignatureLength,
+    s"$signatureLength != ${Curve25519.SignatureLength}"
+  )
 
-  def isValid(proposition: PublicKeyPropositionCurve25519, message: Array[Byte]): Boolean = {
+  def isValid(proposition: PublicKeyPropositionCurve25519, message: Array[Byte]): Boolean =
     Curve25519.verify(sig, message, PublicKey(proposition.pubKeyBytes.value))
-  }
 }
 
 object SignatureCurve25519 {
@@ -102,9 +103,9 @@ object SignatureCurve25519 {
 case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set[SignatureCurve25519])
     extends ProofOfKnowledge[PrivateKeyCurve25519, ThresholdPropositionCurve25519] {
 
-  signatures.foreach(sig => {
+  signatures.foreach { sig =>
     require(BytesOf[Signature].length(sig.sig) == SignatureCurve25519.signatureSize)
-  })
+  }
 
   override def isValid(proposition: ThresholdPropositionCurve25519, message: Array[Byte]): Boolean = Try {
     // check that we have at least m signatures

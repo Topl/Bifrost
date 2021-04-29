@@ -17,12 +17,8 @@ case class PrivateKeyCurve25519(private val privKeyBytes: PrivateKey, private va
   private val privateKeyLength = BytesOf[PrivateKey].length(privKeyBytes)
   private val publicKeyLength = BytesOf[PublicKey].length(publicKeyBytes)
 
-  require(
-    privateKeyLength == Curve25519.KeyLength,
-    s"$privateKeyLength == ${Curve25519.KeyLength}")
-  require(
-    publicKeyLength == Curve25519.KeyLength,
-    s"$publicKeyLength == ${Curve25519.KeyLength}")
+  require(privateKeyLength == Curve25519.KeyLength, s"$privateKeyLength == ${Curve25519.KeyLength}")
+  require(publicKeyLength == Curve25519.KeyLength, s"$publicKeyLength == ${Curve25519.KeyLength}")
 
   override type S = PrivateKeyCurve25519
   override type PK = PublicKeyPropositionCurve25519
@@ -37,7 +33,7 @@ case class PrivateKeyCurve25519(private val privKeyBytes: PrivateKey, private va
     Curve25519.sign(privKeyBytes, message)
   )
 
-  override def equals ( obj: Any ): Boolean = obj match {
+  override def equals(obj: Any): Boolean = obj match {
     case sk: PrivateKeyCurve25519 => BytesOf[PrivateKey].sameElements(sk.privKeyBytes, privKeyBytes)
     case _                        => false
   }
@@ -60,8 +56,7 @@ object PrivateKeyCurve25519 extends GjalSerializer[PrivateKeyCurve25519] {
     w.putBytes(obj.publicKeyBytes)
   }
 
-  override def parse(r: Reader): PrivateKeyCurve25519 = {
+  override def parse(r: Reader): PrivateKeyCurve25519 =
     PrivateKeyCurve25519(PrivateKey(r.getBytes(Curve25519.KeyLength)), PublicKey(r.getBytes(Curve25519.KeyLength)))
-  }
 
 }
