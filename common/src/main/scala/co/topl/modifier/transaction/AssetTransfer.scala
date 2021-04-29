@@ -6,7 +6,7 @@ import co.topl.attestation._
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TxType
-import co.topl.modifier.transaction.TransferTransaction.{BoxParams, TransferCreationState, encodeFrom}
+import co.topl.modifier.transaction.TransferTransaction.{encodeFrom, BoxParams, TransferCreationState}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.codecs.Int128Codec
 import co.topl.utils.{Identifiable, Identifier, Int128}
@@ -29,8 +29,8 @@ case class AssetTransfer[
 ) extends TransferTransaction[TokenValueHolder, P](from, to, attestation, fee, timestamp, data, minting) {
 
   override val coinOutput: Traversable[AssetBox] =
-    coinOutputParams.map {
-      case BoxParams(evi, nonce, value: AssetValue) => AssetBox(evi, nonce, value)
+    coinOutputParams.map { case BoxParams(evi, nonce, value: AssetValue) =>
+      AssetBox(evi, nonce, value)
     }
 
   override val newBoxes: Traversable[TokenBox[TokenValueHolder]] = {
@@ -40,9 +40,9 @@ case class AssetTransfer[
     val hasFeeChangeOutput: Boolean = feeChangeOutput.value.quantity > 0
 
     (hasRecipientOutput, hasFeeChangeOutput) match {
-      case (false, _) => Traversable()
+      case (false, _)    => Traversable()
       case (true, false) => recipientCoinOutput
-      case (true, true) => Traversable(feeChangeOutput) ++ recipientCoinOutput
+      case (true, true)  => Traversable(feeChangeOutput) ++ recipientCoinOutput
     }
   }
 }
@@ -55,25 +55,26 @@ object AssetTransfer {
     Identifier(typeString, typePrefix)
   }
 
-  /** @param boxReader
-    * @param toReceive
-    * @param sender
-    * @param fee
-    * @param data
-    * @return
-    */
+  /**
+   * @param boxReader
+   * @param toReceive
+   * @param sender
+   * @param fee
+   * @param data
+   * @return
+   */
   def createRaw[
-    P <: Proposition: EvidenceProducer: Identifiable
+    P <: Proposition
   ](
-    boxReader:            BoxReader[ProgramId, Address],
-    toReceive:            IndexedSeq[(Address, AssetValue)],
-    sender:               IndexedSeq[Address],
-    changeAddress:        Address,
-    consolidationAddress: Address,
-    fee:                  Int128,
-    data:                 Option[String],
-    minting:              Boolean
-  ): Try[AssetTransfer[P]] = {
+    boxReader:                   BoxReader[ProgramId, Address],
+    toReceive:                   IndexedSeq[(Address, AssetValue)],
+    sender:                      IndexedSeq[Address],
+    changeAddress:               Address,
+    consolidationAddress:        Address,
+    fee:                         Int128,
+    data:                        Option[String],
+    minting:                     Boolean
+  )(implicit evidenceProducerEv: EvidenceProducer[P], identifiableEv: Identifiable[P]): Try[AssetTransfer[P]] = {
 
     val assetCode =
       toReceive
@@ -105,7 +106,7 @@ object AssetTransfer {
     txInputState:  TransferCreationState,
     toReceive:     IndexedSeq[(Address, AssetValue)],
     changeAddress: Address,
-    fee:           Int128,
+    fee:           Int128
   ): (Int128, IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, TokenValueHolder)]) = {
     val availableToSpend = Int128.MaxValue // you cannot mint more than the max number we can represent
     val inputs = txInputState.senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce))

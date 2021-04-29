@@ -1,13 +1,9 @@
 package co.topl.modifier.transaction
 
-import cats.data._
 import co.topl.attestation.{Evidence, _}
 import co.topl.modifier.BoxReader
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.box.{Box, _}
-import co.topl.modifier.transaction.AsSemanticallyValidatableOps._
-import co.topl.modifier.transaction.AsSyntacticallyValidatableOps._
-import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Identifiable, Int128}
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.Json
@@ -18,16 +14,17 @@ import scala.util.Try
 
 abstract class TransferTransaction[
   +T <: TokenValueHolder,
-  P <: Proposition: EvidenceProducer: Identifiable
+  P <: Proposition
 ](
-  val from:        IndexedSeq[(Address, Box.Nonce)],
-  val to:          IndexedSeq[(Address, T)],
-  val attestation: Map[P, Proof[P]],
-  val fee:         Int128,
-  val timestamp:   Long,
-  val data:        Option[String],
-  val minting:     Boolean
-) extends Transaction[TokenValueHolder, P] {
+  val from:                        IndexedSeq[(Address, Box.Nonce)],
+  val to:                          IndexedSeq[(Address, T)],
+  val attestation:                 Map[P, Proof[P]],
+  val fee:                         Int128,
+  val timestamp:                   Long,
+  val data:                        Option[String],
+  val minting:                     Boolean
+)(implicit val evidenceProducerEv: EvidenceProducer[P], identifiableEv: Identifiable[P])
+    extends Transaction[TokenValueHolder, P] {
 
   lazy val bloomTopics: IndexedSeq[BloomTopic] = to.map(b => BloomTopic @@ b._1.bytes)
 
@@ -47,19 +44,6 @@ abstract class TransferTransaction[
   override def messageToSign: Array[Byte] =
     super.messageToSign ++
     data.fold(Array(0: Byte))(_.getBytes) :+ (if (minting) 1: Byte else 0: Byte)
-
-  def semanticValidate(boxReader: BoxReader[ProgramId, Address])(implicit networkPrefix: NetworkPrefix): Try[Unit] =
-    this.semanticValidation(boxReader)
-
-  def syntacticValidate(implicit
-    networkPrefix: NetworkPrefix
-  ): ValidatedNec[SyntacticValidationFailure, TransferTransaction[T, P]] =
-    this.syntacticValidation
-
-  def rawValidate(implicit
-    networkPrefix: NetworkPrefix
-  ): ValidatedNec[SyntacticValidationFailure, TransferTransaction[T, P]] =
-    this.rawSyntacticValidation
 
 }
 
