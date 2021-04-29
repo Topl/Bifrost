@@ -13,6 +13,7 @@ import io.circe.{Decoder, Encoder, HCursor}
 import scorex.crypto.hash.Digest32
 
 import scala.util.Try
+import scala.Iterable
 
 abstract class Transaction[+T, P <: Proposition: Identifiable] extends NodeViewModifier {
 
@@ -24,7 +25,7 @@ abstract class Transaction[+T, P <: Proposition: Identifiable] extends NodeViewM
 
   val boxIdsToOpen: IndexedSeq[BoxId]
 
-  val newBoxes: Traversable[Box[T]]
+  val newBoxes: Iterable[Box[T]]
 
   val attestation: Map[P, Proof[P]]
 

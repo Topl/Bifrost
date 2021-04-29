@@ -4,6 +4,7 @@ import java.nio.charset.{Charset, StandardCharsets}
 
 import scala.collection.generic.CanBuildFrom
 import scala.reflect.ClassTag
+import scala.Iterable
 
 object Extensions {
 
@@ -90,7 +91,7 @@ object Extensions {
     }
   }
 
-  implicit class TraversableOps[A, Source[X] <: Traversable[X]](val xs: Source[A]) extends AnyVal {
+  implicit class TraversableOps[A, Source[X] <: Iterable[X]](val xs: Source[A]) extends AnyVal {
 
     /**
      * Safely casting each element of collection to be type of `B`.

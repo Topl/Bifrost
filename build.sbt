@@ -4,6 +4,11 @@ import sbtassembly.MergeStrategy
 val scala212 = "2.12.13"
 val scala213 = "2.13.5"
 
+
+ThisBuild / scalafixDependencies += "org.scala-lang.modules" %% "scala-collection-migrations" % "2.4.3"
+addCompilerPlugin(scalafixSemanticdb)
+scalacOptions ++= List("-Yrangepos", "-P:semanticdb:synthetics:on")
+
 inThisBuild(List(
   organization := "co.topl",
   scalaVersion := scala213,
@@ -166,7 +171,8 @@ val miscDependencies = Seq(
   "io.netty"               % "netty"       % "3.10.6.Final",
   "com.google.guava"       % "guava"       % "30.1.1-jre",
   "com.typesafe"           % "config"      % "1.4.1",
-  "com.github.pureconfig" %% "pureconfig"  % "0.14.1"
+  "com.github.pureconfig" %% "pureconfig"  % "0.14.1",
+  "org.scala-lang.modules" %% "scala-collection-compat" % "2.4.3"
 )
 
 val monitoringDependencies = Seq(

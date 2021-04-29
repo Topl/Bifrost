@@ -15,6 +15,7 @@ import io.circe.syntax.EncoderOps
 import scorex.crypto.hash.Blake2b256
 
 import scala.util.Try
+import scala.Iterable
 
 abstract class TransferTransaction[
   +T <: TokenValueHolder,
@@ -40,9 +41,9 @@ abstract class TransferTransaction[
   val feeChangeOutput: PolyBox =
     PolyBox(feeOutputParams.evidence, feeOutputParams.nonce, feeOutputParams.value)
 
-  val coinOutput: Traversable[TokenBox[T]]
+  val coinOutput: Iterable[TokenBox[T]]
 
-  override val newBoxes: Traversable[TokenBox[TokenValueHolder]]
+  override val newBoxes: Iterable[TokenBox[TokenValueHolder]]
 
   override def messageToSign: Array[Byte] =
     super.messageToSign ++
@@ -82,7 +83,7 @@ object TransferTransaction {
   def calculateBoxNonce[T <: TokenValueHolder](
     tx: TransferTransaction[T, _ <: Proposition],
     to: IndexedSeq[(Address, T)]
-  ): (BoxParams[SimpleValue], Traversable[BoxParams[T]]) = {
+  ): (BoxParams[SimpleValue], Iterable[BoxParams[T]]) = {
 
     // known input data (similar to messageToSign but without newBoxes since they aren't known yet)
     val txIdPrefix = Transaction.identifier(tx).typePrefix
