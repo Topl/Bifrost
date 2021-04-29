@@ -9,8 +9,8 @@ import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier, TransactionCarryingPersistentNodeViewModifier}
 import co.topl.modifier.transaction.Transaction
-import co.topl.modifier.transaction.implicits._
 import co.topl.modifier.transaction.serialization.TransactionSerializer
+import co.topl.modifier.transaction.validation.implicits._
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
 import co.topl.nodeView.NodeViewHolder.UpdateInformation

@@ -7,7 +7,8 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.box._
 import co.topl.modifier.box.serialization.BoxSerializer
 import co.topl.modifier.transaction._
-import co.topl.modifier.transaction.implicits._
+import co.topl.modifier.transaction.validation._
+import co.topl.modifier.transaction.validation.implicits._
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging

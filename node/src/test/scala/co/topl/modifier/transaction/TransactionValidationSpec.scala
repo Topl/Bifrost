@@ -4,7 +4,8 @@ import cats.data.NonEmptyChain
 import cats.scalatest.{ValidatedMatchers, ValidatedNecMatchers}
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.modifier.box._
-import co.topl.modifier.transaction.implicits._
+import co.topl.modifier.transaction.validation._
+import co.topl.modifier.transaction.validation.implicits._
 import co.topl.utils.NetworkType.PrivateTestnet
 import co.topl.utils.{CoreGenerators, NetworkType, ValidGenerators}
 import org.scalatest.EitherValues

@@ -334,7 +334,7 @@ class Forger[
 
           (boxAlreadyUsed, boxAlreadyExists) match {
             case (false, false) =>
-              import co.topl.modifier.transaction.implicits._
+              import co.topl.modifier.transaction.validation.implicits._
               utx.tx.semanticValidation(stateReader) match {
                 case Validated.Valid(_) => PickTransactionsResult(txAcc.toApply :+ utx.tx, txAcc.toEliminate)
                 case Validated.Invalid(ex) =>

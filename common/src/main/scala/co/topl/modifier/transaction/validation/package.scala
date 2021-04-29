@@ -1,6 +1,6 @@
-package co.topl.modifier
+package co.topl.modifier.transaction
 
-package object transaction {
+package object validation {
 
   object implicits
       extends SyntacticallyValidatable.ToSyntacticallyValidatableOps
