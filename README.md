@@ -1,4 +1,4 @@
-Project-Bifrost:<br/>A Scala Client for the Topl Blockchain Protocol [![CircleCI](https://circleci.com/gh/Topl/Bifrost/tree/master.svg?style=svg)](https://circleci.com/gh/Topl/Bifrost/tree/master)
+Project-Bifrost:<br/>A Scala Client for the Topl Blockchain Protocol 
 ====================================================================================================================================================================================
 
 Project Bifrost is a Scala client designed over a cryptocurrency/blockchain protocol developed to achieve three specific goals:

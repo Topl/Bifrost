@@ -237,9 +237,9 @@ class History(
         acc
       } else {
         parentBlock(block) match {
-          case Some(parent: Block) => loop(parent, acc :+ parent)
+          case Some(parent: Block)         => loop(parent, acc :+ parent)
           case None if acc.contains(block) => acc
-          case _ => acc :+ block
+          case _                           => acc :+ block
         }
       }
 

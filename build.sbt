@@ -21,6 +21,7 @@ inThisBuild(List(
 
 lazy val commonSettings = Seq(
   sonatypeCredentialHost := "s01.oss.sonatype.org",
+  scalacOptions ++= commonScalacOptions,
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   // wartremoverErrors := Warts.unsafe // settings for wartremover
@@ -185,13 +186,12 @@ val graalDependencies = Seq(
   "org.graalvm.truffle" % "truffle-api" % graalVersion
 )
 
-scalacOptions ++= Seq(
+lazy val commonScalacOptions = Seq(
   "-deprecation",
   "-feature",
   "-language:higherKinds",
   "-language:postfixOps",
   "-unchecked",
-  "-Xfatal-warnings",
   "-Xlint:",
   "-Ywarn-unused:-implicits,-privates"
 )
@@ -348,3 +348,6 @@ lazy val benchmarking = project.in(file("benchmark"))
   .dependsOn(node % "compile->compile;test->test")
   .enablePlugins(JmhPlugin)
   .disablePlugins(sbtassembly.AssemblyPlugin)
+
+
+addCommandAlias("checkPR", "; scalafixAll --check; scalafmtCheckAll; test")

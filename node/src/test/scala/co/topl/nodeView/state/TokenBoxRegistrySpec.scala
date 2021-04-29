@@ -44,7 +44,6 @@ class TokenBoxRegistrySpec
     }
   }
 
-  override def afterAll() {
+  override def afterAll(): Unit =
     state.closeStorage()
-  }
 }
