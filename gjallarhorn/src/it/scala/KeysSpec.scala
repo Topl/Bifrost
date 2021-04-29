@@ -4,7 +4,8 @@ import crypto.KeyfileCurve25519
 import keymanager.Keys
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
-import co.topl.crypto.hash.{Blake2b256, Digest32}
+import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
+import co.topl.crypto.Implicits._
 
 import java.io.File
 import scala.reflect.io.Path
@@ -22,8 +23,8 @@ class KeysSpec extends AsyncFlatSpec with Matchers {
   val keyFileDir = "keyfiles/keyManagerTest"
   val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] = Keys(keyFileDir, KeyfileCurve25519)
 
-  val randomBytes1: Digest32 = Blake2b256(java.util.UUID.randomUUID.toString)
-  val randomBytes2: Digest32 = Blake2b256(java.util.UUID.randomUUID.toString)
+  val randomBytes1: Digest32 = Hash[Blake2b256, Digest32].hash(java.util.UUID.randomUUID.toString)
+  val randomBytes2: Digest32 = Hash[Blake2b256, Digest32].hash(java.util.UUID.randomUUID.toString)
 
   //Create keys for testing
   var privateKeys: Set[PrivateKeyCurve25519] = keyManager.generateNewKeyPairs(2, Some("keystest")) match {
@@ -49,12 +50,13 @@ class KeysSpec extends AsyncFlatSpec with Matchers {
 
   //generate seed
   val seedString: String = java.util.UUID.randomUUID.toString
-  val seed1: Digest32 = Blake2b256(seedString)
+  val seed1: Digest32 = Hash[Blake2b256, Digest32].hash(seedString)
 
   //------------------------------------------------------------------------------------
   //Signed messages
-  val messageBytes: Digest32 = Blake2b256("sameEntropic") //Should have same input to check determinism
-  val messageToSign: Digest32 = Blake2b256(java.util.UUID.randomUUID.toString)
+  //Should have same input to check determinism
+  val messageBytes: Digest32 = Hash[Blake2b256, Digest32].hash("sameEntropic")
+  val messageToSign: Digest32 = Hash[Blake2b256, Digest32].hash(java.util.UUID.randomUUID.toString)
 
   it should "Match its signature to the expected sender private key" in {
       //Entropic input to input for pub/priv keypair

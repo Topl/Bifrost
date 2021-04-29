@@ -9,7 +9,7 @@ import io.circe.parser.parse
 import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
 import co.topl.crypto.Implicits._
 import requests.{ApiResponse, ApiRoute, ErrorResponse, SuccessResponse}
-import co.topl.utils.encode.Base58
+import co.topl.crypto.utils.Base58
 import settings.RPCApiSettings
 
 import scala.concurrent.{Await, Future}

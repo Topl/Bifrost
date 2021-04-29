@@ -3,10 +3,11 @@ package crypto
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import co.topl.utils.encode.Base58
-import java.nio.charset.StandardCharsets
+import co.topl.crypto.utils.Base58
 
+import java.nio.charset.StandardCharsets
 import attestation.Address
+import co.topl.crypto.Implicits.bytesOfArrayBytes
 import crypto.AssetCode.AssetCodeVersion
 import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 

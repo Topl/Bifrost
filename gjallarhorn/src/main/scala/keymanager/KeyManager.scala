@@ -6,7 +6,7 @@ import attestation.{Address, PrivateKeyCurve25519}
 import crypto.KeyfileCurve25519
 import io.circe.Json
 import io.circe.syntax._
-import co.topl.utils.encode.Base58
+import co.topl.crypto.utils.Base58
 import settings.{ApplicationSettings, NetworkType}
 import http.GjallarhornOfflineApiRoute.updateConfigFile
 import utils.Logging

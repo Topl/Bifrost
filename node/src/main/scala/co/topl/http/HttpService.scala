@@ -11,7 +11,7 @@ import co.topl.http.api.{ApiEndpoint, ApiResponse, ErrorResponse, SuccessRespons
 import co.topl.settings.RPCApiSettings
 import io.circe.Json
 import io.circe.parser.parse
-import co.topl.utils.encode.Base58
+import co.topl.crypto.utils.Base58
 
 import scala.concurrent.{Future, TimeoutException}
 import scala.util.Try

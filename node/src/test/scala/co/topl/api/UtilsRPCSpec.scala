@@ -10,7 +10,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
 import co.topl.crypto.Implicits._
-import co.topl.utils.encode.Base58
+import co.topl.crypto.utils.Base58
 
 import scala.util.{Failure, Success}
 

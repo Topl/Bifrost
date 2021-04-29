@@ -1,10 +1,11 @@
 package crypto
 
+import co.topl.crypto.Implicits.bytesOfArrayBytes
 import com.google.common.primitives.Ints
 import io.circe.{Decoder, Encoder}
 import io.circe.syntax.EncoderOps
 import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
-import co.topl.utils.encode.Base58
+import co.topl.crypto.utils.Base58
 import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 
 import scala.util.{Failure, Success, Try}

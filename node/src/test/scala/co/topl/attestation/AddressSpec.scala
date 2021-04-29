@@ -1,11 +1,12 @@
 package co.topl.attestation
 
+import co.topl.crypto.Implicits.bytesOfArrayBytes
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{CoreGenerators, NetworkType, ValidGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-import co.topl.utils.encode.Base58
+import co.topl.crypto.utils.Base58
 
 class AddressSpec
     extends AnyPropSpec

@@ -1,11 +1,12 @@
 package co.topl.modifier.box
 
+import co.topl.crypto.Implicits.bytesOfArrayBytes
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder}
 import co.topl.crypto.hash.Digest32
-import co.topl.utils.encode.Base58
+import co.topl.crypto.utils.Base58
 
 import scala.util.{Failure, Success, Try}
 
