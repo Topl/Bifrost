@@ -355,3 +355,4 @@ lazy val benchmarking = project.in(file("benchmark"))
 
 
 addCommandAlias("checkPR", "; scalafixAll --check; scalafmtCheckAll; test")
+addCommandAlias("preparePR", "; scalafixAll; scalafmtAll; test")
