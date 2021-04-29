@@ -150,11 +150,12 @@ class TransferTransactionSemanticallyValidatableOps[T <: TokenValueHolder, P <: 
 ) {
   import AsSyntacticallyValidatableOps._
 
-  /** Checks the stateful validity of a transaction
-    *
-    * @param boxReader the state to check the validity against
-    * @return a success or failure denoting the result of this check
-    */
+  /**
+   * Checks the stateful validity of a transaction
+   *
+   * @param boxReader the state to check the validity against
+   * @return a success or failure denoting the result of this check
+   */
   // todo: JAA - this is the sort of validation that should fail eagerly (since it can be expensive)
   def semanticValidation(boxReader: BoxReader[ProgramId, Address])(implicit networkPrefix: NetworkPrefix): Try[Unit] = {
 

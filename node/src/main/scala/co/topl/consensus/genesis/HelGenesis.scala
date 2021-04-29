@@ -43,7 +43,7 @@ case object HelGenesis extends GenesisProvider {
     "5jcoHDP4L6Q2kpFrL3xTC1Psd7MkFav7TaHi2HbwCAoC6B6DcLN7" -> 10000000000000000L,
     "5jcKxM4HxgJUmxJRERP2BXjYivRCNo2bjPtj5iYwbLXH9odhrw9u" -> 10000000000000000L,
     "5jcuxJSuUWnhg9xQsMGFnPGWdD3tDsZKGAvCBZSn6GnSx2bHug8J" -> 10000000000000000L,
-    "5jcoA2BAZ27HxANAPKuCkT45TpLz4GizNfmd9HXYm5eC3zno1dKU" -> 10000000000000000L,
+    "5jcoA2BAZ27HxANAPKuCkT45TpLz4GizNfmd9HXYm5eC3zno1dKU" -> 10000000000000000L
   )
 
   def getGenesisBlock: Try[(Block, ChainParams)] = Try {
@@ -101,7 +101,7 @@ case object HelGenesis extends GenesisProvider {
     require(
       block.id == blockChecksum,
       s"${Console.RED}MALFORMED GENESIS BLOCK! The calculated genesis block " +
-        s"with id ${block.id} does not match the required block for the chosen network mode.${Console.RESET}"
+      s"with id ${block.id} does not match the required block for the chosen network mode.${Console.RESET}"
     )
 
     log.debug(s"Initialize state with transaction ${txs.head} with boxes ${txs.head.newBoxes}")

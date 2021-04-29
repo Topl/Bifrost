@@ -10,16 +10,15 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 /**
-  * Akka actor that manages request from Gjallarhorn to Bifrost (WalletConnectionHandler)
-  * @param bifrostActorRef the actor ref for Bifrost's WalletConnectionHandler
-  * @param ec the execution context used for Futures.
-  */
-class RequestsManager (val bifrostActorRef: ActorRef)( implicit ec: ExecutionContext ) extends Actor with Logging {
+ * Akka actor that manages request from Gjallarhorn to Bifrost (WalletConnectionHandler)
+ * @param bifrostActorRef the actor ref for Bifrost's WalletConnectionHandler
+ * @param ec the execution context used for Futures.
+ */
+class RequestsManager(val bifrostActorRef: ActorRef)(implicit ec: ExecutionContext) extends Actor with Logging {
 
   import RequestsManager._
 
   implicit val timeout: Timeout = 30.seconds
-
 
   override def receive: Receive = {
 

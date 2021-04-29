@@ -8,12 +8,11 @@ import co.topl.utils.TimeProvider
 import scala.util.Try
 
 /**
-  * Unconfirmed transactions pool
-  *
-  * @tparam M -type of this memory pool
-  */
-trait MemoryPool[TX <: Transaction.TX, M <: MemoryPool[TX, M]]
-  extends NodeViewComponent with MemPoolReader[TX] {
+ * Unconfirmed transactions pool
+ *
+ * @tparam M -type of this memory pool
+ */
+trait MemoryPool[TX <: Transaction.TX, M <: MemoryPool[TX, M]] extends NodeViewComponent with MemPoolReader[TX] {
 
   //get ids from Seq, not presenting in mempool
   override def notIn(ids: Seq[ModifierId]): Seq[ModifierId] = ids.filter(id => !contains(id))
@@ -32,8 +31,7 @@ trait MemoryPool[TX <: Transaction.TX, M <: MemoryPool[TX, M]]
   def filter(condition: TX => Boolean): M
 
   /**
-    * @return read-only copy of this state
-    */
+   * @return read-only copy of this state
+   */
   def getReader: MemPoolReader[TX] = this
 }
-

@@ -26,7 +26,7 @@ class ModifierId private (private val value: Array[Byte]) extends BytesSerializa
 
   override def equals(obj: Any): Boolean = obj match {
     case mId: ModifierId => mId.value sameElements value
-    case _ => false
+    case _               => false
   }
 
   override def toString: String = Base58.encode(value)
@@ -41,25 +41,24 @@ object ModifierId extends BifrostSerializer[ModifierId] {
 
   implicit val jsonEncoder: Encoder[ModifierId] = (id: ModifierId) => id.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[ModifierId] = (id: ModifierId) => id.toString
-  implicit val jsonDecoder: Decoder[ModifierId] = Decoder.decodeString.emapTry { id => Try(ModifierId(id)) }
+  implicit val jsonDecoder: Decoder[ModifierId] = Decoder.decodeString.emapTry(id => Try(ModifierId(id)))
   implicit val jsonKeyDecoder: KeyDecoder[ModifierId] = (id: String) => Some(ModifierId(id))
 
   def apply(nodeViewModifier: NodeViewModifier): ModifierId = nodeViewModifier match {
     case mod: Block          => new ModifierId(Block.modifierTypeId +: Blake2b256(mod.messageToSign))
     case mod: Transaction.TX => new ModifierId(Transaction.modifierTypeId +: Blake2b256(mod.messageToSign))
-    case _ => throw new Error("Only blocks and transactions generate a modifierId")
+    case _                   => throw new Error("Only blocks and transactions generate a modifierId")
   }
 
   def apply(str: String): ModifierId =
     Base58.decode(str) match {
       case Success(id) => new ModifierId(id)
-      case Failure(ex)  => throw ex
+      case Failure(ex) => throw ex
     }
 
-  def serialize(obj: ModifierId, w: Writer): Unit = {
+  def serialize(obj: ModifierId, w: Writer): Unit =
     /* value: Array[Byte] */
     w.putBytes(obj.value)
-  }
 
   def parse(r: Reader): ModifierId = {
     val value: Array[Byte] = r.getBytes(size)

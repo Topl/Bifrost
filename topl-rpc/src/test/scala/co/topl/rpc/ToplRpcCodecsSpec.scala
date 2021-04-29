@@ -11,7 +11,7 @@ import org.scalatest.matchers.should.Matchers
 
 class ToplRpcCodecsSpec extends AnyFlatSpec with ToplRpcCodecs with Matchers with EitherValues {
 
-  private implicit val networkPrefix: NetworkPrefix = NetworkType.PrivateTestnet.netPrefix
+  implicit private val networkPrefix: NetworkPrefix = NetworkType.PrivateTestnet.netPrefix
 
   private val address = PrivateKeyCurve25519.secretGenerator.generateSecret("test".getBytes)._2.address
   private val assetCode = AssetCode(1: Byte, address, "test")

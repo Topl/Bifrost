@@ -28,7 +28,7 @@ sealed trait Proposition extends BytesSerializable {
 
   override def toString: String = Base58.encode(bytes)
 
-  override def equals (obj: Any): Boolean = obj match {
+  override def equals(obj: Any): Boolean = obj match {
     case prop: Proposition => prop.bytes sameElements bytes
     case _                 => false
   }
@@ -37,7 +37,8 @@ sealed trait Proposition extends BytesSerializable {
 }
 
 object Proposition {
-  def fromString (str: String): Try[_ <: Proposition] =
+
+  def fromString(str: String): Try[_ <: Proposition] =
     Base58.decode(str).flatMap(bytes => PropositionSerializer.parseBytes(bytes))
 
   implicit def jsonKeyEncoder[P <: Proposition]: KeyEncoder[P] = (prop: P) => prop.toString
@@ -48,15 +49,17 @@ object Proposition {
 // of secret information.
 sealed trait KnowledgeProposition[S <: Secret] extends Proposition
 
-/* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+/* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
-case class PublicKeyPropositionCurve25519 (private[attestation] val pubKeyBytes: PublicKey)
-  extends KnowledgeProposition[PrivateKeyCurve25519] {
+case class PublicKeyPropositionCurve25519(private[attestation] val pubKeyBytes: PublicKey)
+    extends KnowledgeProposition[PrivateKeyCurve25519] {
 
-  require(pubKeyBytes.length == Curve25519.KeyLength,
-    s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.length} found")
+  require(
+    pubKeyBytes.length == Curve25519.KeyLength,
+    s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.length} found"
+  )
 
-  def address (implicit networkPrefix: NetworkPrefix): Address = Address.from(this)
+  def address(implicit networkPrefix: NetworkPrefix): Address = Address.from(this)
 
 }
 
@@ -75,8 +78,8 @@ object PublicKeyPropositionCurve25519 {
   implicit val ord: Ordering[PublicKeyPropositionCurve25519] = Ordering.by(_.toString)
 
   implicit val evProducer: EvidenceProducer[PublicKeyPropositionCurve25519] =
-    EvidenceProducer.instance[PublicKeyPropositionCurve25519] {
-      prop: PublicKeyPropositionCurve25519 => Evidence(typePrefix, EvidenceContent @@ Blake2b256(prop.bytes.tail))
+    EvidenceProducer.instance[PublicKeyPropositionCurve25519] { prop: PublicKeyPropositionCurve25519 =>
+      Evidence(typePrefix, EvidenceContent @@ Blake2b256(prop.bytes.tail))
     }
 
   implicit val identifier: Identifiable[PublicKeyPropositionCurve25519] = Identifiable.instance { () =>
@@ -85,21 +88,26 @@ object PublicKeyPropositionCurve25519 {
 
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html
-  implicit val jsonEncoder: Encoder[PublicKeyPropositionCurve25519] = (prop: PublicKeyPropositionCurve25519) => prop.toString.asJson
-  implicit val jsonKeyEncoder: KeyEncoder[PublicKeyPropositionCurve25519] = (prop: PublicKeyPropositionCurve25519) => prop.toString
+  implicit val jsonEncoder: Encoder[PublicKeyPropositionCurve25519] = (prop: PublicKeyPropositionCurve25519) =>
+    prop.toString.asJson
+
+  implicit val jsonKeyEncoder: KeyEncoder[PublicKeyPropositionCurve25519] = (prop: PublicKeyPropositionCurve25519) =>
+    prop.toString
   implicit val jsonDecoder: Decoder[PublicKeyPropositionCurve25519] = Decoder.decodeString.map(apply)
   implicit val jsonKeyDecoder: KeyDecoder[PublicKeyPropositionCurve25519] = (str: String) => Some(apply(str))
 }
 
-/* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+/* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
 case class ThresholdPropositionCurve25519(threshold: Int, pubKeyProps: SortedSet[PublicKeyPropositionCurve25519])
-  extends KnowledgeProposition[PrivateKeyCurve25519] {
+    extends KnowledgeProposition[PrivateKeyCurve25519] {
 
-  pubKeyProps.foreach(prop => {
-    require(prop.pubKeyBytes.length == Curve25519.KeyLength,
-      s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${prop.pubKeyBytes.length} found")
-  })
+  pubKeyProps.foreach { prop =>
+    require(
+      prop.pubKeyBytes.length == Curve25519.KeyLength,
+      s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${prop.pubKeyBytes.length} found"
+    )
+  }
 
 //  val propTypeString: String = ThresholdPropositionCurve25519.typeString
 //  val propTypePrefix: EvidenceTypePrefix = ThresholdPropositionCurve25519.typePrefix
@@ -121,8 +129,8 @@ object ThresholdPropositionCurve25519 {
     }
 
   implicit val evProducer: EvidenceProducer[ThresholdPropositionCurve25519] =
-    EvidenceProducer.instance[ThresholdPropositionCurve25519] {
-      prop: ThresholdPropositionCurve25519 => Evidence(typePrefix, EvidenceContent @@ Blake2b256(prop.bytes.tail))
+    EvidenceProducer.instance[ThresholdPropositionCurve25519] { prop: ThresholdPropositionCurve25519 =>
+      Evidence(typePrefix, EvidenceContent @@ Blake2b256(prop.bytes.tail))
     }
 
   implicit val identifier: Identifiable[ThresholdPropositionCurve25519] = Identifiable.instance { () =>
@@ -131,8 +139,11 @@ object ThresholdPropositionCurve25519 {
 
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html
-  implicit val jsonEncoder: Encoder[ThresholdPropositionCurve25519] = ( prop: ThresholdPropositionCurve25519) => prop.toString.asJson
-  implicit val jsonKeyEncoder: KeyEncoder[ThresholdPropositionCurve25519] = ( prop: ThresholdPropositionCurve25519) => prop.toString
+  implicit val jsonEncoder: Encoder[ThresholdPropositionCurve25519] = (prop: ThresholdPropositionCurve25519) =>
+    prop.toString.asJson
+
+  implicit val jsonKeyEncoder: KeyEncoder[ThresholdPropositionCurve25519] = (prop: ThresholdPropositionCurve25519) =>
+    prop.toString
   implicit val jsonDecoder: Decoder[ThresholdPropositionCurve25519] = Decoder.decodeString.map(apply)
-  implicit val jsonKeyDecoder: KeyDecoder[ThresholdPropositionCurve25519] = ( str: String) => Some(apply(str))
+  implicit val jsonKeyDecoder: KeyDecoder[ThresholdPropositionCurve25519] = (str: String) => Some(apply(str))
 }

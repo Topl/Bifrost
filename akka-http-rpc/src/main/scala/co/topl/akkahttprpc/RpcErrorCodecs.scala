@@ -11,7 +11,7 @@ trait RpcErrorCodecs {
   val encodeNoData: Encoder[RpcError] =
     a => Map("code" -> a.code.asJson, "message" -> a.message.asJson).asJson
 
-  private def encodeWithData[Data : Encoder](e: RpcError, data: Data): Json =
+  private def encodeWithData[Data: Encoder](e: RpcError, data: Data): Json =
     Map("code" -> e.code.asJson, "message" -> e.message.asJson, "data" -> data.asJson).asJson
 
   implicit val parseErrorCodec: Codec[ParseError.type] =

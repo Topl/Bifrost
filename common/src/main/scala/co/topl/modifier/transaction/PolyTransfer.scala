@@ -4,7 +4,7 @@ import co.topl.attestation._
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TxType
-import co.topl.modifier.transaction.TransferTransaction.{BoxParams, TransferCreationState, encodeFrom}
+import co.topl.modifier.transaction.TransferTransaction.{encodeFrom, BoxParams, TransferCreationState}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.codecs.Int128Codec
 import co.topl.utils.{Identifiable, Identifier, Int128}
@@ -27,8 +27,8 @@ case class PolyTransfer[
 ) extends TransferTransaction[SimpleValue, P](from, to, attestation, fee, timestamp, data, minting) {
 
   override val coinOutput: Traversable[PolyBox] =
-    coinOutputParams.map {
-      case BoxParams(evi, nonce, value) => PolyBox(evi, nonce, value)
+    coinOutputParams.map { case BoxParams(evi, nonce, value) =>
+      PolyBox(evi, nonce, value)
     }
 
   override val newBoxes: Traversable[TokenBox[SimpleValue]] = {
@@ -39,9 +39,9 @@ case class PolyTransfer[
 
     (hasRecipientOutput, hasFeeChangeOutput) match {
       case (false, false) => Traversable()
-      case (false, true) => Traversable(feeChangeOutput) // JAA - only possible because this is Poly TX
-      case (true, false) => recipientCoinOutput
-      case (true, true) => Traversable(feeChangeOutput) ++ recipientCoinOutput
+      case (false, true)  => Traversable(feeChangeOutput) // JAA - only possible because this is Poly TX
+      case (true, false)  => recipientCoinOutput
+      case (true, true)   => Traversable(feeChangeOutput) ++ recipientCoinOutput
     }
   }
 }
@@ -54,13 +54,14 @@ object PolyTransfer {
     Identifier(typeString, typePrefix)
   }
 
-  /** @param boxReader
-    * @param toReceive
-    * @param sender
-    * @param fee
-    * @param data
-    * @return
-    */
+  /**
+   * @param boxReader
+   * @param toReceive
+   * @param sender
+   * @param fee
+   * @param data
+   * @return
+   */
   def createRaw[
     P <: Proposition: EvidenceProducer: Identifiable
   ](
