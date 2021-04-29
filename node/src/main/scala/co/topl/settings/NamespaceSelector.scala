@@ -17,9 +17,10 @@ case class NamespaceSelector(
     )
 }
 
-/** a generic class to be shared by all namespaces that provides a common name value used for pattern matching
-  * in the end-point handler partial function
-  */
+/**
+ * a generic class to be shared by all namespaces that provides a common name value used for pattern matching
+ * in the end-point handler partial function
+ */
 sealed abstract class Namespace(val name: String)
 
 case object ToplNamespace extends Namespace("topl")

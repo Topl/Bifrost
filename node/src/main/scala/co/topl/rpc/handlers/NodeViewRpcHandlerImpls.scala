@@ -138,7 +138,7 @@ class NodeViewRpcHandlerImpls(
         ToplRpc.NodeView.Balances.EntryBoxes(
           boxes.getOrElse(PolyBox.typeString, Nil).collect { case p: PolyBox => p },
           boxes.getOrElse(ArbitBox.typeString, Nil).collect { case p: ArbitBox => p },
-          boxes.getOrElse(AssetBox.typeString, Nil).collect { case p: AssetBox => p },
+          boxes.getOrElse(AssetBox.typeString, Nil).collect { case p: AssetBox => p }
         )
       )
     }

@@ -54,8 +54,8 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
   /** Setup the execution environment for running the application */
 
-  protected implicit val actorSystem: ActorSystem = ActorSystem(settings.network.agentName, config)
-  private implicit val timeout: Timeout = Timeout(settings.network.controllerTimeout.getOrElse(5 seconds))
+  implicit protected val actorSystem: ActorSystem = ActorSystem(settings.network.agentName, config)
+  implicit private val timeout: Timeout = Timeout(settings.network.controllerTimeout.getOrElse(5 seconds))
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
   /** save runtime environment into a variable for reference throughout the application */
@@ -68,7 +68,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     s"${Console.RESET}"
   )
 
-  private implicit val networkPrefix: NetworkPrefix =
+  implicit private val networkPrefix: NetworkPrefix =
     appContext.networkType.netPrefix
 
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
@@ -187,7 +187,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
       val message = s"${Console.RED}Unable to bind to the P2P port. Terminating application!${Console.RESET}"
       throwable match {
         case Some(e) => log.error(message, e)
-        case _ => log.error(message)
+        case _       => log.error(message)
       }
       BifrostApp.shutdown(actorSystem, actorsToStop)
     }
@@ -195,10 +195,10 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     /** Trigger the P2P network bind and check that the protocol bound successfully. */
     /** Terminate the application on failure */
     (networkControllerRef ? BindP2P).mapTo[Future[Tcp.Event]].flatten.onComplete {
-      case Success(Tcp.Bound(addr)) => log.info(s"${Console.YELLOW}P2P protocol bound to $addr${Console.RESET}")
+      case Success(Tcp.Bound(addr))      => log.info(s"${Console.YELLOW}P2P protocol bound to $addr${Console.RESET}")
       case Success(f: Tcp.CommandFailed) => failedP2P(f.cause)
-      case Success(_) => failedP2P(None)
-      case Failure(e) => failedP2P(Some(e))
+      case Success(_)                    => failedP2P(None)
+      case Failure(e)                    => failedP2P(Some(e))
     }
 
     /** trigger the HTTP server bind and check that the bind is successful. Terminate the application on failure */

@@ -30,8 +30,8 @@ class MempoolSpec
     with CoreGenerators
     with BeforeAndAfterAll {
 
-  private implicit val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
-  private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
+  implicit private val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
+  implicit private val executionContext: ExecutionContext = actorSystem.dispatcher
 
   protected val appContext = new AppContext(settings, StartupOpts.empty, None)
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
@@ -57,8 +57,8 @@ class MempoolSpec
     "when received by the node view"
   ) {
     val txs = getHistory.bestBlock.transactions
-    txs.foreach(tx ⇒ nodeViewHolderRef ! LocallyGeneratedTransaction(tx))
-    txs.foreach(tx ⇒ getMempool.contains(tx) shouldBe false)
+    txs.foreach(tx => nodeViewHolderRef ! LocallyGeneratedTransaction(tx))
+    txs.foreach(tx => getMempool.contains(tx) shouldBe false)
   }
 
   override protected def afterAll(): Unit =

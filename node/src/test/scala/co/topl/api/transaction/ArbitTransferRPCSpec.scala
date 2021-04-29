@@ -11,17 +11,14 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import scorex.util.encode.Base58
 
-class ArbitTransferRPCSpec extends AnyWordSpec
-  with Matchers
-  with RPCMockState with EitherValues {
+class ArbitTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState with EitherValues {
 
   val address: Address = keyRing.addresses.head
   var tx = ""
 
   "ArbitTransfer RPC" should {
     "Create new arbit transfer raw transaction" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "2",
@@ -43,7 +40,7 @@ class ArbitTransferRPCSpec extends AnyWordSpec
         val res = parse(responseAs[String]).value
 
         val sigTx = for {
-          rawTx <- res.hcursor.downField("result").get[Json]("rawTx")
+          rawTx   <- res.hcursor.downField("result").get[Json]("rawTx")
           message <- res.hcursor.downField("result").get[String]("messageToSign")
         } yield {
           val sig = keyRing.generateAttestation(address)(Base58.decode(message).get)
@@ -61,8 +58,7 @@ class ArbitTransferRPCSpec extends AnyWordSpec
     }
 
     "Broadcast signed ArbitTransfer transaction" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "2",

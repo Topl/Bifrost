@@ -45,10 +45,11 @@ final case class HttpService(
       else complete(HttpEntity(ContentTypes.`application/json`, "Provided API key is not correct"))
     }
 
-  /** Performs the check of an incoming api key
-    * @param keyOpt api key specified in header
-    * @return
-    */
+  /**
+   * Performs the check of an incoming api key
+   * @param keyOpt api key specified in header
+   * @return
+   */
   private def isValid(keyOpt: Option[String]): Boolean =
     apiKeyHash.forall(expected => keyOpt.map(Blake2b256(_)).exists(expected sameElements _))
 }

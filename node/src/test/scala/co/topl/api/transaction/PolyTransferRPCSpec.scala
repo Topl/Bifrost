@@ -13,20 +13,16 @@ import org.scalatest.wordspec.AnyWordSpec
 import scorex.util.encode.Base58
 import scala.concurrent.duration._
 
-class PolyTransferRPCSpec extends AnyWordSpec
-  with Matchers
-  with RPCMockState
-  with EitherValues {
+class PolyTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState with EitherValues {
 
   val address: Address = keyRing.addresses.head
   var tx = ""
 
-  private implicit val routeTestTimeout: RouteTestTimeout = RouteTestTimeout(5.seconds)
+  implicit private val routeTestTimeout: RouteTestTimeout = RouteTestTimeout(5.seconds)
 
   "PolyTransfer RPC" should {
     "Create new poly transfer raw transaction" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "2",
@@ -48,7 +44,7 @@ class PolyTransferRPCSpec extends AnyWordSpec
         val res = parse(responseAs[String]).value
 
         val sigTx = for {
-          rawTx <- res.hcursor.downField("result").get[Json]("rawTx")
+          rawTx   <- res.hcursor.downField("result").get[Json]("rawTx")
           message <- res.hcursor.downField("result").get[String]("messageToSign")
         } yield {
           val sig = keyRing.generateAttestation(address)(Base58.decode(message).get)
@@ -66,8 +62,7 @@ class PolyTransferRPCSpec extends AnyWordSpec
     }
 
     "Broadcast signed PolyTransfer transaction" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "2",

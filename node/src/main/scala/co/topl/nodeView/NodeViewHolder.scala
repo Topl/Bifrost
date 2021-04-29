@@ -30,12 +30,13 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
-/** Composite local view of the node
-  *
-  * Contains instances for History, MinimalState, Vault, MemoryPool.
-  * The instances are read-only for external world.
-  * Updates of the composite view(the instances are to be performed atomically.
-  */
+/**
+ * Composite local view of the node
+ *
+ * Contains instances for History, MinimalState, Vault, MemoryPool.
+ * The instances are read-only for external world.
+ * Updates of the composite view(the instances are to be performed atomically.
+ */
 class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec: ExecutionContext, np: NetworkPrefix)
     extends Actor
     with Logging {
@@ -50,15 +51,17 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
   type MP = MemPool
   type NodeView = (HIS, MS, MP)
 
-  /** The main data structure a node software is taking care about, a node view consists
-    * of four elements to be updated atomically: history (log of persistent modifiers),
-    * state (result of log's modifiers application to pre-historical(genesis) state,
-    * user-specific information stored in vault (it could be e.g. a wallet), and a memory pool.
-    */
+  /**
+   * The main data structure a node software is taking care about, a node view consists
+   * of four elements to be updated atomically: history (log of persistent modifiers),
+   * state (result of log's modifiers application to pre-historical(genesis) state,
+   * user-specific information stored in vault (it could be e.g. a wallet), and a memory pool.
+   */
   private var nodeView: NodeView = restoreState().getOrElse(genesisState)
 
-  /** Cache for modifiers. If modifiers are coming out-of-order, they are to be stored in this cache.
-    */
+  /**
+   * Cache for modifiers. If modifiers are coming out-of-order, they are to be stored in this cache.
+   */
   protected lazy val modifiersCache: ModifiersCache[PMOD, HIS] =
     new DefaultModifiersCache[PMOD, HIS](settings.network.maxModifiersCacheSize)
 
@@ -138,9 +141,10 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
 
   protected def memoryPool(): MP = nodeView._3
 
-  /** Restore a local view during a node startup. If no any stored view found
-    * (e.g. if it is a first launch of a node) None is to be returned
-    */
+  /**
+   * Restore a local view during a node startup. If no any stored view found
+   * (e.g. if it is a first launch of a node) None is to be returned
+   */
   def restoreState(): Option[NodeView] =
     if (State.exists(settings)) {
       Some(
@@ -176,12 +180,13 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
       }
     }
 
-  /** Handles adding remote modifiers to the default cache and then attempts to apply them to the history.
-    * Since this cache is unordered, we continue to loop through the cache until it's size remains constant.
-    * This indicates that no more modifiers in the cache can be appended into history
-    *
-    * @param mods recieved persistent modifiers from the remote peer
-    */
+  /**
+   * Handles adding remote modifiers to the default cache and then attempts to apply them to the history.
+   * Since this cache is unordered, we continue to loop through the cache until it's size remains constant.
+   * This indicates that no more modifiers in the cache can be appended into history
+   *
+   * @param mods recieved persistent modifiers from the remote peer
+   */
   protected def processRemoteModifiers(mods: Iterable[PMOD]): Unit = {
 
     /** First-order loop that tries to pop blocks out of the cache and apply them into history */
@@ -220,8 +225,9 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
     log.debug(s"Cache size after: ${modifiersCache.size}")
   }
 
-  /** @param tx
-    */
+  /**
+   * @param tx
+   */
   protected def txModify(tx: TX): Unit =
     tx.syntacticValidate.toEither match {
       case Right(_) =>
@@ -241,8 +247,9 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
     }
 
   //todo: update state in async way?
-  /** @param pmod
-    */
+  /**
+   * @param pmod
+   */
   protected def pmodModify(pmod: PMOD): Unit =
     if (!history().contains(pmod.id)) {
       context.system.eventStream.publish(StartingPersistentModifierApplication(pmod))
@@ -289,61 +296,65 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
       log.warn(s"Trying to apply modifier ${pmod.id} that's already in history")
     }
 
-  /** @param mod - the block to retrieve transactions from
-    * @return the sequence of transactions from a block
-    */
+  /**
+   * @param mod - the block to retrieve transactions from
+   * @return the sequence of transactions from a block
+   */
   protected def extractTransactions(mod: PMOD): Seq[TX] = mod match {
     case tcm: TransactionCarryingPersistentNodeViewModifier[_] => tcm.transactions
     case _                                                     => Seq()
   }
 
-  /** @param pi
-    */
+  /**
+   * @param pi
+   */
   private def requestDownloads(pi: ProgressInfo[PMOD]): Unit =
     pi.toDownload.foreach { case (tid, id) =>
       context.system.eventStream.publish(DownloadRequest(tid, id))
     }
 
-  /** @param suffix
-    * @param rollbackPoint
-    * @return
-    */
+  /**
+   * @param suffix
+   * @param rollbackPoint
+   * @return
+   */
   private def trimChainSuffix(suffix: IndexedSeq[PMOD], rollbackPoint: ModifierId): IndexedSeq[PMOD] = {
     val idx = suffix.indexWhere(_.id == rollbackPoint)
     if (idx == -1) IndexedSeq() else suffix.drop(idx)
   }
 
   /** Below is a description of how state updates are managed */
-  /** --------------------------------------------------------------------------------------------------------------- /
-    *  Assume that history knows the following blocktree:
-    *
-    *           G
-    *          / \
-    *   G
-    *        /     \
-    *       G
-    *
-    *    where path with G-s is about canonical chain (G means semantically valid modifier), path with * is sidechain
-    *    (* means that semantic validity is unknown). New modifier is coming to the sidechain, it sends rollback to
-    *    the root + application of the sidechain to the state. Assume that state is finding that some modifier in the
-    *    sidechain is incorrect:
-    *
-    *           G
-    *          / \
-    *         G   G
-    *        /     \
-    *       B       G
-    *      /
-    *
-    *  In this case history should be informed about the bad modifier and it should retarget state
-    *
-    *    //todo: improve the comment below
-    *
-    *    We assume that we apply modifiers sequentially (on a single modifier coming from the network or generated locally),
-    *    and in case of failed application of some modifier in a progressInfo, rollback point in an alternative should be not
-    *    earlier than a rollback point of an initial progressInfo.
-    *  / --------------------------------------------------------------------------------------------------------------- *
-    */
+  /**
+   * --------------------------------------------------------------------------------------------------------------- /
+   *  Assume that history knows the following blocktree:
+   *
+   *           G
+   *          / \
+   *   G
+   *        /     \
+   *       G
+   *
+   *    where path with G-s is about canonical chain (G means semantically valid modifier), path with * is sidechain
+   *    (* means that semantic validity is unknown). New modifier is coming to the sidechain, it sends rollback to
+   *    the root + application of the sidechain to the state. Assume that state is finding that some modifier in the
+   *    sidechain is incorrect:
+   *
+   *           G
+   *          / \
+   *         G   G
+   *        /     \
+   *       B       G
+   *      /
+   *
+   *  In this case history should be informed about the bad modifier and it should retarget state
+   *
+   *    //todo: improve the comment below
+   *
+   *    We assume that we apply modifiers sequentially (on a single modifier coming from the network or generated locally),
+   *    and in case of failed application of some modifier in a progressInfo, rollback point in an alternative should be not
+   *    earlier than a rollback point of an initial progressInfo.
+   *  / --------------------------------------------------------------------------------------------------------------- *
+   */
 
   @tailrec
   private def updateState(
@@ -382,12 +393,13 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
     }
   }
 
-  /** Update NodeView with new components and notify subscribers of changed components
-    *
-    * @param updatedHistory
-    * @param updatedState
-    * @param updatedMempool
-    */
+  /**
+   * Update NodeView with new components and notify subscribers of changed components
+   *
+   * @param updatedHistory
+   * @param updatedState
+   * @param updatedMempool
+   */
   protected def updateNodeView(
     updatedHistory: Option[HIS] = None,
     updatedState:   Option[MS] = None,
@@ -429,14 +441,15 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
       }
   }
 
-  /** Attempts to update the local view of state by applying a set of blocks
-    *
-    * @param history the initial view of history prior to updating
-    * @param stateToApply the initial view of state prior to updating
-    * @param suffixTrimmed ???
-    * @param progressInfo class with blocks that need to be applied to state
-    * @return
-    */
+  /**
+   * Attempts to update the local view of state by applying a set of blocks
+   *
+   * @param history the initial view of history prior to updating
+   * @param stateToApply the initial view of state prior to updating
+   * @param suffixTrimmed ???
+   * @param progressInfo class with blocks that need to be applied to state
+   * @return
+   */
   protected def applyState(
     history:       HIS,
     stateToApply:  MS,

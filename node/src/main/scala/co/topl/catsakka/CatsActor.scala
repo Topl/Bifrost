@@ -13,8 +13,8 @@ import scala.reflect.ClassTag
 class CatsActor(val actorRef: ActorRef) extends AnyVal {
 
   def askEither[ReturnType: ClassTag](message: Any)(implicit
-    timeout:                                                              Timeout,
-    ec:                                                                   ExecutionContext
+    timeout:                                   Timeout,
+    ec:                                        ExecutionContext
   ): EitherT[Future, AskFailure, ReturnType] =
     EitherT(
       (actorRef ? message)

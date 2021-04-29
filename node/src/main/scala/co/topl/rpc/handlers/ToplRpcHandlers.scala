@@ -3,11 +3,11 @@ package co.topl.rpc.handlers
 import co.topl.rpc.ToplRpc
 
 case class ToplRpcHandlers(
-  debug: ToplRpcHandlers.Debug,
-  utils: ToplRpcHandlers.Utils,
-  nodeView: ToplRpcHandlers.NodeView,
+  debug:       ToplRpcHandlers.Debug,
+  utils:       ToplRpcHandlers.Utils,
+  nodeView:    ToplRpcHandlers.NodeView,
   transaction: ToplRpcHandlers.Transaction,
-  admin: ToplRpcHandlers.Admin
+  admin:       ToplRpcHandlers.Admin
 )
 
 object ToplRpcHandlers {
