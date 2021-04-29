@@ -246,8 +246,7 @@ lazy val bifrost = project.in(file("."))
     toplRpc,
     gjallarhorn,
     benchmarking,
-    brambl,
-    chainProgram
+    brambl
   )
   .dependsOn(
     node,
