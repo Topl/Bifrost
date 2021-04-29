@@ -15,10 +15,26 @@ import scala.language.implicitConversions
 
 @typeclass trait SyntacticallyValidatable[T] {
 
+  /**
+   * Performs syntactic validation on the given T.  Semantic validation performs context-free checks on the given value.
+   * This validation only verifies that the given T is "grammatically valid", but it does not consider the history of
+   * the blockchain or any other variable data.
+   *
+   * This type of validation is expected to be "computationally inexpensive"
+   *
+   * @param t The item to validate
+   * @return either a non-empty listt of SyntacticValidationFailures, or the given value T
+   */
   def syntacticValidation(t: T)(implicit
     networkPrefix:           NetworkPrefix
   ): ValidatedNec[SyntacticValidationFailure, T]
 
+  /**
+   * Performs most syntactic validation of the given value T, but without a specification of a NetworkPrefix.  This
+   * generally means it does not perform signature or address verifications.
+   * @param t The item to validate
+   * @return either a non-empty listt of SyntacticValidationFailures, or the given value T
+   */
   def rawSyntacticValidation(t: T): ValidatedNec[SyntacticValidationFailure, T]
 }
 

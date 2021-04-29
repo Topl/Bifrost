@@ -14,6 +14,16 @@ import scala.language.implicitConversions
 
 @typeclass trait SemanticallyValidatable[T] {
 
+  /**
+   * Performs semantic validation on the given T.  Semantic validation needs to consider some sort of context when
+   * making decisions.  The context in this case is a view/reader of the boxes in the history of the blockchain.
+   *
+   * This type of validation is expected to be "computationally expensive"
+   *
+   * @param t The item to validate
+   * @param boxReader The context of this validation
+   * @return either a non-empty listt of SemanticValidationFailures, or the given value T
+   */
   def semanticValidation(t: T, boxReader: BoxReader[ProgramId, Address])(implicit
     networkPrefix:          NetworkPrefix
   ): ValidatedNec[SemanticValidationFailure, T]
