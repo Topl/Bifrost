@@ -1,8 +1,5 @@
 package co.topl.crypto.hash
 
-import co.topl.crypto.BytesOf
-import co.topl.crypto.Implicits._
-
 import java.security.MessageDigest
 
 case class Sha()
@@ -11,7 +8,7 @@ object Sha {
 
   def shaHashFor[D: Digest](algorithm: String): Hash[Sha, D] = new Hash[Sha, D] {
 
-    override def hash[M: BytesOf](prefix: Option[Byte], messages: M*): D =
+    override def hash(prefix: Option[Byte], messages: Array[Byte]*): D =
       Digest[D].from(
         MessageDigest
           .getInstance(algorithm)
@@ -20,7 +17,7 @@ object Sha {
               prefix
                 .map(Array[Byte](_))
                 .getOrElse(Array[Byte]())
-            )(BytesOf[Array[Byte]].concat)
+            )(_ ++ _)
           )
       )
 

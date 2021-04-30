@@ -1,7 +1,5 @@
 package co.topl.crypto.signatures
 
-import co.topl.crypto.BytesOf
-import co.topl.crypto.Implicits._
 import co.topl.crypto.hash.sha256
 import org.whispersystems.curve25519.OpportunisticCurve25519Provider
 
@@ -36,13 +34,13 @@ object Curve25519 extends EllipticCurveSignatureScheme {
   }
 
   override def sign(privateKey: PrivateKey, message: MessageToSign): Signature = {
-    require(BytesOf[PrivateKey].length(privateKey) == KeyLength)
+    require(privateKey.value.length == KeyLength)
     Signature(provider.calculateSignature(provider.getRandom(SignatureLength), privateKey.value, message))
   }
 
   override def verify(signature: Signature, message: MessageToSign, publicKey: PublicKey): Boolean = Try {
-    require(BytesOf[Signature].length(signature) == SignatureLength)
-    require(BytesOf[PublicKey].length(publicKey) == KeyLength)
+    require(signature.value.length == SignatureLength)
+    require(publicKey.value.length == KeyLength)
     provider.verifySignature(publicKey.value, message, signature.value)
   }.recoverWith { case e =>
     // TODO: Jing - remove this log

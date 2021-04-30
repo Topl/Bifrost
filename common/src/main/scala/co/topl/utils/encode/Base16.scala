@@ -1,6 +1,6 @@
-package co.topl.crypto.utils
+package co.topl.utils.encode
 
-import co.topl.crypto.BytesOf
+import co.topl.utils.BytesOf
 
 import java.io.IOException
 import scala.util.{Failure, Success, Try}

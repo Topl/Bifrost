@@ -1,7 +1,5 @@
 package co.topl.crypto.accumulators.merkle
 
-import co.topl.crypto.BytesOf
-import co.topl.crypto.Implicits._
 import co.topl.crypto.accumulators.{LeafData, Side}
 import co.topl.crypto.hash.{Digest, Hash}
 
@@ -10,7 +8,7 @@ import scala.collection.mutable
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 
-case class MerkleTree[H, D: Digest: BytesOf](
+case class MerkleTree[H, D: Digest](
   topNode:           Node[D],
   elementsHashIndex: Map[mutable.WrappedArray.ofByte, Int]
 )(implicit h:        Hash[H, D]) {
@@ -21,7 +19,7 @@ case class MerkleTree[H, D: Digest: BytesOf](
   def proofByElement(element: Leaf[H, D]): Option[MerkleProof[H, D]] = proofByElementHash(element.hash)
 
   def proofByElementHash(hash: D): Option[MerkleProof[H, D]] =
-    elementsHashIndex.get(new mutable.WrappedArray.ofByte(hash)).flatMap(i => proofByIndex(i))
+    elementsHashIndex.get(new mutable.WrappedArray.ofByte(Digest[D].bytes(hash))).flatMap(i => proofByIndex(i))
 
   def proofByIndex(index: Int): Option[MerkleProof[H, D]] = if (index >= 0 && index < length) {
 
@@ -55,24 +53,25 @@ case class MerkleTree[H, D: Digest: BytesOf](
     Math.max(math.pow(2, math.ceil(log2(length))).toInt, 2)
   }
 
-  //Debug only
-  override lazy val toString: String = {
-
-    @tailrec
-    def loop(nodes: Seq[Node[D]], level: Int, acc: String): String =
-      if (nodes.nonEmpty) {
-        val thisLevStr = s"Level $level: " + nodes.map(_.toString).mkString(",") + "\n"
-        val nextLevNodes = nodes.flatMap {
-          case i: InternalNode[H, D] => Seq(i.left, i.right)
-          case _                     => Seq()
-        }
-        loop(nextLevNodes, level + 1, acc + thisLevStr)
-      } else {
-        acc
-      }
-
-    loop(Seq(topNode), 0, "")
-  }
+  // TODO: This is temporarily disabled because we removed Base58, use Hex.scala in test here if needed
+  //  //Debug only
+  //  override lazy val toString: String = {
+  //
+  //    @tailrec
+  //    def loop(nodes: Seq[Node[D]], level: Int, acc: String): String =
+  //      if (nodes.nonEmpty) {
+  //        val thisLevStr = s"Level $level: " + nodes.map(_.toString).mkString(",") + "\n"
+  //        val nextLevNodes = nodes.flatMap {
+  //          case i: InternalNode[H, D] => Seq(i.left, i.right)
+  //          case _                     => Seq()
+  //        }
+  //        loop(nextLevNodes, level + 1, acc + thisLevStr)
+  //      } else {
+  //        acc
+  //      }
+  //
+  //    loop(Seq(topNode), 0, "")
+  //  }
 }
 
 object MerkleTree {
@@ -85,10 +84,10 @@ object MerkleTree {
    * @param payload       - sequence of leafs data
    * @return MerkleTree constructed from current leafs with defined empty node and hash function
    */
-  def apply[H, D: Digest: BytesOf](payload: Seq[LeafData])(implicit h: Hash[H, D]): MerkleTree[H, D] = {
+  def apply[H, D: Digest](payload: Seq[LeafData])(implicit h: Hash[H, D]): MerkleTree[H, D] = {
     val leafs = payload.map(d => Leaf[H, D](d))
     val elementsIndex: Map[mutable.WrappedArray.ofByte, Int] = leafs.indices.map { i =>
-      (new mutable.WrappedArray.ofByte(leafs(i).hash), i)
+      (new mutable.WrappedArray.ofByte(Digest[D].bytes(leafs(i).hash)), i)
     }.toMap
     val topNode = calcTopNode[H, D](leafs)
 
@@ -96,7 +95,7 @@ object MerkleTree {
   }
 
   @tailrec
-  def calcTopNode[H, D: Digest: BytesOf](nodes: Seq[Node[D]])(implicit h: Hash[H, D]): Node[D] =
+  def calcTopNode[H, D: Digest](nodes: Seq[Node[D]])(implicit h: Hash[H, D]): Node[D] =
     if (nodes.isEmpty) {
       EmptyRootNode[H, D]
     } else {

@@ -1,36 +1,18 @@
 package co.topl.crypto.hash
 
-import org.scalatest.propspec.AnyPropSpec
-import co.topl.crypto.Implicits._
-import co.topl.crypto.utils.Base58
-import org.scalacheck.Gen
-import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+class Blake2b256Spec extends HashSpec {
 
-class Blake2b256Spec extends AnyPropSpec with ScalaCheckPropertyChecks {
-
-  lazy val stringGen: Gen[String] = Gen.alphaNumStr.suchThat(_.nonEmpty)
-
-  val testVectors = List(
-    "test"  -> "As3ZuwnL9LpoW3wz8HoDpHtZqJ4dhPFFnv87GYrnCYKj",
-    "topl"  -> "EASZj3hxx47a8N81aAUjRKDK2GfZf5J2D4p9mdt1DUh3",
-    "scala" -> "EQAX2eVMsKtWD7ioiRSnU8kckB44QazXkfNbwEgzFFoD",
-    ""      -> "xyw95Bsby3s4mt6f4FmFDnFVpQBAeJxBFNGzu2cX4dM" // WHAT?!
+  hashCheckString[Sha, Digest32](
+    List(
+      "test"  -> "928b20366943e2afd11ebc0eae2e53a93bf177a4fcf35bcc64d503704e65e202",
+      "topl"  -> "c39310192260edc08a5fde86b81068055ea63571dbcfdcb40c533fba2d1e6d9e",
+      "scala" -> "c7170ce5f424098943d56d421b5bb731cf28701c79158fc6c168968ba004c0d0",
+      ""      -> "a075abe9a4c0ca81c29421dd37208ac1160ecd207541a8ec89c75a0071ae2529"
+    )
   )
 
-  property("all test vectors should hash to expected with Blake2b256") {
-    testVectors.foreach { v =>
-      val result = blake2b256(v._1)
-
-      Base58.encode(result) shouldBe v._2
-    }
-  }
-
-  property("should hash to length 32") {
-    forAll(stringGen) { value =>
-      val result = blake2b256(value)
-
-      result.value.length shouldBe 32
-    }
-  }
+  hashCheckString[Sha, Digest64](
+    List(
+    )
+  )
 }

@@ -1,8 +1,6 @@
 package co.topl.crypto.hash
 
-import co.topl.crypto.BytesOf
 import org.bouncycastle.crypto.digests.Blake2bDigest
-import co.topl.crypto.Implicits._
 
 case class Blake2b()
 
@@ -13,7 +11,7 @@ object Blake2b {
     val digestSizeInBits: Int = 8 * digestSize
     lazy val digestFunc = new Blake2bDigest(digestSizeInBits)
 
-    override def hash[M: BytesOf](prefix: Option[Byte], messages: M*): D =
+    override def hash(prefix: Option[Byte], messages: Array[Byte]*): D =
       // must be synchronized on the digest function so that everyone shares an instance
       synchronized {
         // update digest with prefix and messages

@@ -10,17 +10,17 @@ package object hash {
   trait Digest[T] {
     val size: Int
 
-    def from[B: BytesOf](b: B): T
+    def from(b: Array[Byte]): T
+
+    def bytes(d: T): Array[Byte]
+
+    def concat[B: Digest](d: T, b: B): Array[Byte] = bytes(d) ++ Digest[B].bytes(b)
+
+    def sameElements[B: Digest](d: T, b: B): Boolean = bytes(d) sameElements Digest[B].bytes(b)
   }
 
   object Digest {
     def apply[T: Digest]: Digest[T] = implicitly[Digest[T]]
-
-    implicit val digestDigest32: Digest[Digest32] = new Digest[Digest32] {
-      override val size: Int = Digest32.size
-
-      override def from[B: BytesOf](b: B): Digest32 = Digest32(BytesOf[B].get(b))
-    }
   }
 
   @newtype
@@ -36,6 +36,14 @@ package object hash {
      */
     def validated(bytes: Array[Byte]): Validated[InvalidDigestError, Digest32] =
       Validated.cond(bytes.length == size, Digest32(bytes), IncorrectSize)
+
+    implicit val digestDigest32: Digest[Digest32] = new Digest[Digest32] {
+      override val size: Int = Digest32.size
+
+      override def from(b: Array[Byte]): Digest32 = Digest32(b)
+
+      override def bytes(d: Digest32): Array[Byte] = d.value
+    }
   }
 
   @newtype
@@ -55,28 +63,34 @@ package object hash {
     implicit val digestDigest64: Digest[Digest64] = new Digest[Digest64] {
       override val size: Int = Digest64.size
 
-      override def from[B: BytesOf](b: B): Digest64 = Digest64(BytesOf[B].get(b))
+      override def from(b: Array[Byte]): Digest64 = Digest64(b)
+
+      override def bytes(d: Digest64): Array[Byte] = d.value
     }
   }
 
   sealed trait InvalidDigestError
   case object IncorrectSize extends InvalidDigestError
 
-  trait Hash[T, D] {
+  abstract class Hash[H, D: Digest] {
 
-    def hash[M: BytesOf](prefix: Option[Byte], messages: M*): D
+    def hash(prefix: Option[Byte], messages: Array[Byte]*): D
 
-    def hash[M: BytesOf](prefix: Byte, messages: M*): D = hash[M](Some(prefix), messages: _*)
+    def hash(prefix: Byte, messages: Array[Byte]*): D = hash(Some(prefix), messages: _*)
 
-    def hash[M: BytesOf](message: M)(implicit h: Hash[T, D]): D = hash[M](None, message)
+    def hash(message: Array[Byte])(implicit h: Hash[H, D]): D = hash(None, message)
   }
 
   object Hash {
-    def apply[T, D](implicit hash: Hash[T, D]): Hash[T, D] = hash
+    def apply[H, D: Digest](implicit hash: Hash[H, D]): Hash[H, D] = hash
   }
 
-  def blake2b256[T: BytesOf](value: T): Digest32 = Hash[Blake2b, Digest32].hash(value)
+  def blake2b256(value: Array[Byte]): Digest32 = Hash[Blake2b, Digest32].hash(value)
 
-  def sha256[T: BytesOf](value: T): Digest32 = Hash[Sha, Digest32].hash(value)
+  def blake2b512(value: Array[Byte]): Digest64 = Hash[Blake2b, Digest64].hash(value)
+
+  def sha256(value: Array[Byte]): Digest32 = Hash[Sha, Digest32].hash(value)
+
+  def sha512(value: Array[Byte]): Digest64 = Hash[Sha, Digest64].hash(value)
 
 }
