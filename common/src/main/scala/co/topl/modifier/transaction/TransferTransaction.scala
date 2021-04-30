@@ -2,17 +2,18 @@ package co.topl.modifier.transaction
 
 import cats.data._
 import co.topl.attestation.{Evidence, _}
+import co.topl.crypto.Implicits._
+import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.BoxReader
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.box.{Box, _}
 import co.topl.modifier.transaction.AsSemanticallyValidatableOps._
 import co.topl.modifier.transaction.AsSyntacticallyValidatableOps._
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.{blake2b256, Identifiable, Int128}
+import co.topl.utils.{Identifiable, Int128}
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
-import co.topl.crypto.Implicits._
 
 import scala.util.Try
 

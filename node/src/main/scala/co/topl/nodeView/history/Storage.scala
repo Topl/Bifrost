@@ -4,11 +4,12 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.transaction.Transaction
-import co.topl.utils.{blake2b256, HashDigest, Logging}
+import co.topl.utils.Logging
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import co.topl.crypto.Implicits._
+import co.topl.crypto.hash.{blake2b256, Digest32}
 
 import scala.concurrent.duration.MILLISECONDS
 import scala.util.Try
@@ -120,21 +121,21 @@ class Storage(private[history] val storage: LSMStore, private val cacheExpire: I
    * The keys below are used to store top-level information about blocks that we might be interested in
    * without needing to parse the entire block from storage
    */
-  private def blockScoreKey(blockId: ModifierId): HashDigest = blake2b256("score".getBytes ++ blockId.getIdBytes)
+  private def blockScoreKey(blockId: ModifierId): Digest32 = blake2b256("score".getBytes ++ blockId.getIdBytes)
 
-  private def blockHeightKey(blockId: ModifierId): HashDigest = blake2b256("height".getBytes ++ blockId.getIdBytes)
+  private def blockHeightKey(blockId: ModifierId): Digest32 = blake2b256("height".getBytes ++ blockId.getIdBytes)
 
-  private def blockDiffKey(blockId: ModifierId): HashDigest = blake2b256("difficulty".getBytes ++ blockId.getIdBytes)
+  private def blockDiffKey(blockId: ModifierId): Digest32 = blake2b256("difficulty".getBytes ++ blockId.getIdBytes)
 
-  private def blockTimestampKey(blockId: ModifierId): HashDigest = blake2b256(
+  private def blockTimestampKey(blockId: ModifierId): Digest32 = blake2b256(
     "timestamp".getBytes ++ blockId.getIdBytes
   )
 
-  private def blockBloomKey(blockId: ModifierId): HashDigest = blake2b256("bloom".getBytes ++ blockId.getIdBytes)
+  private def blockBloomKey(blockId: ModifierId): Digest32 = blake2b256("bloom".getBytes ++ blockId.getIdBytes)
 
-  private def blockParentKey(blockId: ModifierId): HashDigest = blake2b256("parentId".getBytes ++ blockId.getIdBytes)
+  private def blockParentKey(blockId: ModifierId): Digest32 = blake2b256("parentId".getBytes ++ blockId.getIdBytes)
 
-  private def idHeightKey(height: Long): HashDigest = blake2b256(Longs.toByteArray(height))
+  private def idHeightKey(height: Long): Digest32 = blake2b256(Longs.toByteArray(height))
 
   /* << EXAMPLE >>
       For version "b00123123":

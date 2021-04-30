@@ -1,10 +1,11 @@
 package co.topl.consensus
 
 import co.topl.crypto.Implicits._
+import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.ModifierId
 import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType.{LocalTestnet, PrivateTestnet}
-import co.topl.utils.{blake2b256, Int128, Logging, NetworkType}
+import co.topl.utils.{Int128, Logging, NetworkType}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore, Store}
 

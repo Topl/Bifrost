@@ -1,17 +1,16 @@
 package co.topl.modifier
 
-import co.topl.crypto.BytesOf
 import co.topl.crypto.Implicits._
-import co.topl.crypto.hash.Digest
+import co.topl.crypto.hash.{blake2b256, Digest32}
+import co.topl.crypto.utils.Base58
+import co.topl.crypto.BytesOf
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
-import co.topl.utils.{blake2b256, HashDigest}
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import co.topl.crypto.utils.Base58
 
 import scala.util.{Failure, Success, Try}
 
@@ -37,11 +36,11 @@ class ModifierId private (private val value: Array[Byte]) extends BytesSerializa
 
 object ModifierId extends BifrostSerializer[ModifierId] {
 
-  val size: Int = 1 + Digest[HashDigest].size // ModifierId's are derived from Blake2b-256
+  val size: Int = 1 + Digest32.size // ModifierId's are derived from Blake2b-256
   val empty: ModifierId = new ModifierId(Array.fill(size)(0: Byte))
 
   val genesisParentId: ModifierId =
-    new ModifierId(Block.modifierTypeId.value +: Array.fill(Digest[HashDigest].size)(1: Byte))
+    new ModifierId(Block.modifierTypeId.value +: Array.fill(Digest32.size)(1: Byte))
 
   implicit val ord: Ordering[ModifierId] = Ordering.by(_.toString)
 
@@ -52,9 +51,9 @@ object ModifierId extends BifrostSerializer[ModifierId] {
 
   def apply(nodeViewModifier: NodeViewModifier): ModifierId = nodeViewModifier match {
     case mod: Block =>
-      new ModifierId(BytesOf[HashDigest].prepend(blake2b256(mod.messageToSign), Block.modifierTypeId.value))
+      new ModifierId(BytesOf[Digest32].prepend(blake2b256(mod.messageToSign), Block.modifierTypeId.value))
     case mod: Transaction.TX =>
-      new ModifierId(BytesOf[HashDigest].prepend(blake2b256(mod.messageToSign), Transaction.modifierTypeId.value))
+      new ModifierId(BytesOf[Digest32].prepend(blake2b256(mod.messageToSign), Transaction.modifierTypeId.value))
     case _ => throw new Error("Only blocks and transactions generate a modifierId")
   }
 

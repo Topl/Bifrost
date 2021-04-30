@@ -2,8 +2,7 @@ package co.topl.crypto.signatures
 
 import co.topl.crypto.BytesOf
 import co.topl.crypto.Implicits._
-import co.topl.crypto.hash.{Digest32, Hash}
-import co.topl.crypto.hash.Sha.Sha256
+import co.topl.crypto.hash.sha256
 import org.whispersystems.curve25519.OpportunisticCurve25519Provider
 
 import java.lang.reflect.Constructor
@@ -54,8 +53,4 @@ object Curve25519 extends EllipticCurveSignatureScheme {
   override def createSharedSecret(privateKey: PrivateKey, publicKey: PublicKey): SharedSecret =
     SharedSecret(provider.calculateAgreement(privateKey.value, publicKey.value))
 
-  type HashScheme = Sha256
-  type HashDigest = Digest32
-
-  def sha256[T: BytesOf](message: T): HashDigest = Hash[HashScheme, HashDigest].hash[T](message)
 }

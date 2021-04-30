@@ -15,6 +15,12 @@ package object hash {
 
   object Digest {
     def apply[T: Digest]: Digest[T] = implicitly[Digest[T]]
+
+    implicit val digestDigest32: Digest[Digest32] = new Digest[Digest32] {
+      override val size: Int = Digest32.size
+
+      override def from[B: BytesOf](b: B): Digest32 = Digest32(BytesOf[B].get(b))
+    }
   }
 
   @newtype
@@ -45,6 +51,12 @@ package object hash {
      */
     def validated(bytes: Array[Byte]): Validated[InvalidDigestError, Digest64] =
       Validated.cond(bytes.length == size, Digest64(bytes), IncorrectSize)
+
+    implicit val digestDigest64: Digest[Digest64] = new Digest[Digest64] {
+      override val size: Int = Digest64.size
+
+      override def from[B: BytesOf](b: B): Digest64 = Digest64(BytesOf[B].get(b))
+    }
   }
 
   sealed trait InvalidDigestError
@@ -59,7 +71,11 @@ package object hash {
   }
 
   object Hash {
-    def apply[T, D](implicit hash: Hash[T, D]): Hash[T, D] = implicitly[Hash[T, D]]
+    def apply[T, D](implicit hash: Hash[T, D]): Hash[T, D] = hash
   }
+
+  def blake2b256[T: BytesOf](value: T): Digest32 = Hash[Blake2b, Digest32].hash(value)
+
+  def sha256[T: BytesOf](value: T): Digest32 = Hash[Sha, Digest32].hash(value)
 
 }

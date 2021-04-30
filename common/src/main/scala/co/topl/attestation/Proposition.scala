@@ -3,11 +3,12 @@ package co.topl.attestation
 import co.topl.attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
 import co.topl.attestation.serialization.PropositionSerializer
 import co.topl.crypto.Implicits._
+import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signatures.{Curve25519, PublicKey}
 import co.topl.keyManagement.{PrivateKeyCurve25519, Secret}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
-import co.topl.utils.{blake2b256, Identifiable, Identifier}
+import co.topl.utils.{Identifiable, Identifier}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}

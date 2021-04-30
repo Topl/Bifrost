@@ -2,8 +2,8 @@ package co.topl.modifier.box
 
 import co.topl.attestation.Evidence
 import co.topl.crypto.Implicits._
+import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.Digest32
-import co.topl.utils.blake2b256
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}

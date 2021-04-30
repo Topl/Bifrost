@@ -2,16 +2,18 @@ package co.topl.modifier.block
 
 import co.topl.crypto.BytesOf
 import co.topl.crypto.Implicits._
-import co.topl.modifier.block.BloomFilter.BloomTopic
-import co.topl.utils.{blake2b256, HashDigest}
+import co.topl.crypto.hash.{blake2b256, Digest32}
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import co.topl.crypto.utils.Base58
+import co.topl.modifier.block.BloomFilter.BloomTopic
 import io.estatico.newtype.macros.newtype
 
 import scala.util.Try
+
+import scala.language.implicitConversions
 
 /**
  * This implementation of Bloom filter is inspired from the Ethereum Yellow Paper
@@ -135,7 +137,7 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
   private def calculateIndices(topic: BloomTopic): Set[Int] =
     // Pair up bytes and convert signed Byte to unsigned Int
     Set(0, 2, 4, 6)
-      .map(i => BytesOf[HashDigest].slice(blake2b256(topic), i, i + 2).map(_ & 0xff))
+      .map(i => BytesOf[Digest32].slice(blake2b256(topic), i, i + 2).map(_ & 0xff))
       .map { case Array(b1, b2) =>
         ((b1 << 8) | b2) & idxMask
       }
