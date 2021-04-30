@@ -38,15 +38,10 @@ object Curve25519 extends EllipticCurveSignatureScheme {
     Signature(provider.calculateSignature(provider.getRandom(SignatureLength), privateKey.value, message))
   }
 
-  override def verify(signature: Signature, message: MessageToSign, publicKey: PublicKey): Boolean = Try {
-    require(signature.value.length == SignatureLength)
-    require(publicKey.value.length == KeyLength)
+  override def verify(signature: Signature, message: MessageToSign, publicKey: PublicKey): Boolean =
+    signature.value.length == SignatureLength &&
+    publicKey.value.length == KeyLength &&
     provider.verifySignature(publicKey.value, message, signature.value)
-  }.recoverWith { case e =>
-    // TODO: Jing - remove this log
-    // log.debug("Error while message signature verification", e)
-    Failure(e)
-  }.getOrElse(false)
 
   override def createSharedSecret(privateKey: PrivateKey, publicKey: PublicKey): SharedSecret =
     SharedSecret(provider.calculateAgreement(privateKey.value, publicKey.value))
