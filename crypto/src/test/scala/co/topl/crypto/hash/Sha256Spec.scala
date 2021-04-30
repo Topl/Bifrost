@@ -1,6 +1,5 @@
 package co.topl.crypto.hash
 
-import co.topl.crypto.hash.Sha.Sha256
 import co.topl.crypto.utils.Base58
 import org.scalacheck.Gen
 import org.scalatest.propspec.AnyPropSpec
@@ -21,7 +20,7 @@ class Sha256Spec extends AnyPropSpec with ScalaCheckPropertyChecks {
 
   property("all test vectors should hash to expected") {
     testVectors.foreach { v =>
-      val result: Digest32 = Sha256.digest32.hash(None, v._1)
+      val result: Digest32 = sha256(v._1)
 
       Base58.encode(result) shouldBe v._2
     }
@@ -29,7 +28,7 @@ class Sha256Spec extends AnyPropSpec with ScalaCheckPropertyChecks {
 
   property("should hash to length 32") {
     forAll(stringGen) { value =>
-      val result = Sha256.digest32.hash(None, value)
+      val result = sha256(value)
 
       result.value.length shouldBe 32
     }

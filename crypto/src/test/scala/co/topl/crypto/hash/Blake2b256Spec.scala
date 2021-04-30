@@ -20,7 +20,7 @@ class Blake2b256Spec extends AnyPropSpec with ScalaCheckPropertyChecks {
 
   property("all test vectors should hash to expected with Blake2b256") {
     testVectors.foreach { v =>
-      val result: Digest32 = Blake2b256.digest32.hash(None, v._1)
+      val result = blake2b256(v._1)
 
       Base58.encode(result) shouldBe v._2
     }
@@ -28,7 +28,7 @@ class Blake2b256Spec extends AnyPropSpec with ScalaCheckPropertyChecks {
 
   property("should hash to length 32") {
     forAll(stringGen) { value =>
-      val result = Blake2b256.digest32.hash(None, value)
+      val result = blake2b256(value)
 
       result.value.length shouldBe 32
     }
