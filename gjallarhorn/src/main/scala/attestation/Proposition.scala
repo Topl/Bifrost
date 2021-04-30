@@ -6,11 +6,10 @@ import attestation.serialization.PropositionSerializer
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import co.topl.crypto.hash.{Blake2b256, Digest32, Hash}
 import co.topl.crypto.signatures.{Curve25519, PublicKey}
 import co.topl.crypto.Implicits._
+import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.utils.Base58
-import co.topl.utils.blake2b256
 import utils.{Identifiable, Identifier}
 import utils.serialization.{BytesSerializable, GjalSerializer}
 

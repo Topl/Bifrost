@@ -3,8 +3,8 @@ package keymanager
 import attestation.AddressEncoder.NetworkPrefix
 import attestation.{Address, Secret, SecretGenerator}
 import co.topl.crypto.Implicits._
+import co.topl.crypto.hash.blake2b256
 import co.topl.utils.SecureRandom.randomBytes
-import co.topl.utils.blake2b256
 import com.google.common.primitives.Ints
 import settings.NetworkType
 import utils.Logging

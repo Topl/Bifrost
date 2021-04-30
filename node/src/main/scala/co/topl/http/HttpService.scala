@@ -6,9 +6,9 @@ import akka.http.scaladsl.marshalling.Marshaller._
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse}
 import akka.http.scaladsl.server.Route
 import co.topl.crypto.Implicits._
+import co.topl.crypto.hash.{blake2b256, Digest32}
 import co.topl.http.api.{ApiEndpoint, ApiResponse, ErrorResponse, SuccessResponse}
 import co.topl.settings.RPCApiSettings
-import co.topl.utils.{blake2b256, HashDigest}
 import io.circe.Json
 import io.circe.parser.parse
 import co.topl.crypto.utils.Base58
@@ -107,7 +107,7 @@ final case class HttpService(apiServices: Seq[ApiEndpoint], settings: RPCApiSett
    * @return
    */
   private def isValid(keyOpt: Option[String]): Boolean = {
-    lazy val keyHash: Option[HashDigest] = keyOpt.map(blake2b256[String])
+    lazy val keyHash: Option[Digest32] = keyOpt.map(blake2b256[String])
     (apiKeyHash, keyHash) match {
       case (None, _)                      => true
       case (Some(expected), Some(passed)) => expected sameElements passed.value

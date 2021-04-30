@@ -9,8 +9,8 @@ import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import co.topl.crypto.Implicits._
+import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.utils.Base58
-import co.topl.utils.blake2b256
 
 import scala.util.{Failure, Success}
 

@@ -2,9 +2,8 @@ package modifier
 
 import attestation.Evidence
 import co.topl.crypto.Implicits._
-import co.topl.crypto.hash.Digest
+import co.topl.crypto.hash.{blake2b256, Digest32}
 import co.topl.crypto.utils.Base58
-import co.topl.utils.{blake2b256, HashDigest}
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
@@ -29,7 +28,7 @@ case class BoxId(hashBytes: Array[Byte]) {
 
 object BoxId {
 
-  val size: Int = Digest[HashDigest].size // boxId is a 32 byte identifier
+  val size: Int = Digest32.size // boxId is a 32 byte identifier
 
   def apply[T](box: Box): BoxId = idFromEviNonce(box.evidence, box.nonce)
 

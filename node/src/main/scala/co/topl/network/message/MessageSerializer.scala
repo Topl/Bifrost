@@ -5,7 +5,7 @@ import co.topl.crypto.BytesOf
 import co.topl.network.MaliciousBehaviorException
 import co.topl.network.peer.ConnectedPeer
 import co.topl.crypto.Implicits._
-import co.topl.utils.{blake2b256, HashDigest}
+import co.topl.crypto.hash.{blake2b256, Digest32}
 
 import java.nio.ByteOrder
 import scala.util.Try
@@ -27,7 +27,7 @@ class MessageSerializer(specs: Seq[MessageSpec[_]], magicBytes: Array[Byte]) {
       .putInt(obj.dataLength)
 
     if (obj.dataLength > 0) {
-      val checksum = BytesOf[HashDigest].take(blake2b256(obj.dataBytes), Message.ChecksumLength)
+      val checksum = BytesOf[Digest32].take(blake2b256(obj.dataBytes), Message.ChecksumLength)
       builder.putBytes(checksum).putBytes(obj.dataBytes)
     }
 
@@ -62,7 +62,7 @@ class MessageSerializer(specs: Seq[MessageSpec[_]], magicBytes: Array[Byte]) {
         val msgData = if (length > 0) {
           val checksum = it.getBytes(Message.ChecksumLength)
           val data = it.getBytes(length)
-          val digest = BytesOf[HashDigest].take(blake2b256(data), Message.ChecksumLength)
+          val digest = BytesOf[Digest32].take(blake2b256(data), Message.ChecksumLength)
 
           /** peer reported incorrect checksum */
           if (!java.util.Arrays.equals(checksum, digest)) {

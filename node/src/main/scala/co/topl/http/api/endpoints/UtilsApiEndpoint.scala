@@ -8,11 +8,12 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppContext, RPCApiSettings}
-import co.topl.utils.{blake2b256, NetworkType}
+import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Json
 import io.circe.syntax._
 import co.topl.crypto.Implicits._
+import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.utils.Base58
 
 import java.security.SecureRandom

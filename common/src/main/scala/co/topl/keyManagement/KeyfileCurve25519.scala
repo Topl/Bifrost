@@ -2,11 +2,11 @@ package co.topl.keyManagement
 
 import co.topl.attestation.Address
 import co.topl.crypto.Implicits._
+import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
 import co.topl.utils.Extensions.StringOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.SecureRandom.randomBytes
-import co.topl.utils.blake2b256
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
