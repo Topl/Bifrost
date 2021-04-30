@@ -1,15 +1,15 @@
 package co.topl.nodeView.history
 
+import co.topl.crypto.hash.{Digest32, blake2b256}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.transaction.Transaction
+import co.topl.utils.BytesOf.Implicits._
 import co.topl.utils.Logging
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import co.topl.crypto.Implicits._
-import co.topl.crypto.hash.{blake2b256, Digest32}
 
 import scala.concurrent.duration.MILLISECONDS
 import scala.util.Try

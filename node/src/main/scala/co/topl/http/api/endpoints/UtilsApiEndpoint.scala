@@ -1,6 +1,7 @@
 package co.topl.http.api.endpoints
 
 import co.topl.attestation.Address
+import co.topl.crypto.hash.blake2b256
 import co.topl.http.api.{ApiEndpoint, Namespace, UtilNamespace}
 import co.topl.modifier.box.AssetCode
 import co.topl.modifier.box.AssetCode.AssetCodeVersion
@@ -8,13 +9,12 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppContext, RPCApiSettings}
+import co.topl.utils.BytesOf.Implicits._
 import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.encode.Base58
 import io.circe.Json
 import io.circe.syntax._
-import co.topl.crypto.Implicits._
-import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.utils.Base58
 
 import java.security.SecureRandom
 import scala.concurrent.{ExecutionContext, Future}

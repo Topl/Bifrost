@@ -1,10 +1,10 @@
 package attestation
 
-import crypto.KeyfileCurve25519
 import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
-import co.topl.crypto.BytesOf
+import co.topl.utils.BytesOf
+import co.topl.utils.BytesOf.Implicits._
+import crypto.KeyfileCurve25519
 import utils.serialization.{GjalSerializer, Reader, Writer}
-import co.topl.crypto.Implicits._
 
 /**
  * A Secret corresponding to a PublicKeyCurve25519 proposition.

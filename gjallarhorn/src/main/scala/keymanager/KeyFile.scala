@@ -1,15 +1,14 @@
 package keymanager
 
+import attestation.AddressEncoder.NetworkPrefix
+import attestation.{Address, Secret}
+import crypto.KeyfileCurve25519
+import io.circe.Encoder
+import io.circe.syntax.EncoderOps
+
 import java.io.{BufferedWriter, FileWriter}
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-
-import attestation.{Address, Secret}
-import attestation.AddressEncoder.NetworkPrefix
-import crypto.KeyfileCurve25519
-import io.circe.syntax.EncoderOps
-import io.circe.Encoder
-
 import scala.util.Try
 
 /**

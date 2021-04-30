@@ -1,7 +1,6 @@
 package co.topl.nodeView.state
 
 import co.topl.attestation.Address
-import co.topl.crypto.Implicits.bytesOfArrayBytes
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
@@ -9,10 +8,11 @@ import co.topl.modifier.box.serialization.BoxSerializer
 import co.topl.modifier.transaction._
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.settings.AppSettings
+import co.topl.utils.BytesOf.Implicits._
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.encode.Base58
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import co.topl.crypto.utils.Base58
 
 import java.io.File
 import scala.reflect.ClassTag

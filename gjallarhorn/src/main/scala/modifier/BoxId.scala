@@ -1,9 +1,9 @@
 package modifier
 
 import attestation.Evidence
-import co.topl.crypto.Implicits._
-import co.topl.crypto.hash.{blake2b256, Digest32}
-import co.topl.crypto.utils.Base58
+import co.topl.crypto.hash.{Digest32, blake2b256}
+import co.topl.utils.BytesOf.Implicits._
+import co.topl.utils.encode.Base58
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}

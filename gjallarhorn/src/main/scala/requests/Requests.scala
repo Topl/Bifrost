@@ -1,22 +1,22 @@
 package requests
 
 import akka.actor.{ActorRef, ActorSystem}
-import akka.http.scaladsl.{Http, HttpExt}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
+import akka.http.scaladsl.{Http, HttpExt}
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import attestation.Address
 import io.circe.parser.parse
-import io.circe.{parser, Json}
 import io.circe.syntax._
+import io.circe.{Json, parser}
 import keymanager.KeyManager.SignTx
 import requests.RequestsManager.BifrostRequest
+import settings.{AkkaChainProvider, AppSettings, HttpChainProvider}
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
-import settings.{AkkaChainProvider, AppSettings, HttpChainProvider}
+import scala.concurrent.{Await, Future}
 
 /**
  * Class that handles requests for bifrost

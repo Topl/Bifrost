@@ -3,15 +3,15 @@ package attestation
 import attestation.AddressEncoder.NetworkPrefix
 import attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
 import attestation.serialization.PropositionSerializer
+import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.signatures.{Curve25519, PublicKey}
+import co.topl.utils.BytesOf.Implicits._
+import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import co.topl.crypto.signatures.{Curve25519, PublicKey}
-import co.topl.crypto.Implicits._
-import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.utils.Base58
-import utils.{Identifiable, Identifier}
 import utils.serialization.{BytesSerializable, GjalSerializer}
+import utils.{Identifiable, Identifier}
 
 import scala.util.{Failure, Success, Try}
 

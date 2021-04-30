@@ -1,13 +1,13 @@
 package co.topl.consensus.genesis
 
 import co.topl.consensus.Forger.ChainParams
+import co.topl.crypto.signatures.{PrivateKey, PublicKey}
 import co.topl.keyManagement.PrivateKeyCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Int128, Logging}
-import co.topl.crypto.signatures.{PrivateKey, PublicKey}
 
 import scala.util.Try
 

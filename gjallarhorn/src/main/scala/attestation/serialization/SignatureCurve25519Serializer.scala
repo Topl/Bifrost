@@ -2,7 +2,7 @@ package attestation.serialization
 
 import attestation.SignatureCurve25519
 import co.topl.crypto.signatures.Signature
-import co.topl.crypto.Implicits._
+import co.topl.utils.BytesOf.Implicits._
 import utils.serialization.{GjalSerializer, Reader, Writer}
 
 /**

@@ -2,15 +2,15 @@ package modifier
 
 import attestation.AddressEncoder.NetworkPrefix
 import attestation.{Evidence, _}
-import co.topl.crypto.BytesOf
+import co.topl.crypto.hash.{Digest32, blake2b256}
+import co.topl.utils.BytesOf
+import co.topl.utils.BytesOf.Implicits._
 import com.google.common.primitives.{Ints, Longs}
 import crypto.AssetCode
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import modifier.ModifierId.ModifierTypeId
 import modifier.TransferTransaction.BoxParams
-import co.topl.crypto.Implicits._
-import co.topl.crypto.hash.{blake2b256, Digest32}
 import utils.{Identifiable, Identifier}
 
 import scala.collection.mutable.{Map => MMap}

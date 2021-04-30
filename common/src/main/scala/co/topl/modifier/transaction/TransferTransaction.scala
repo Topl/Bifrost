@@ -2,7 +2,6 @@ package co.topl.modifier.transaction
 
 import cats.data._
 import co.topl.attestation.{Evidence, _}
-import co.topl.crypto.Implicits._
 import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.BoxReader
 import co.topl.modifier.block.BloomFilter.BloomTopic

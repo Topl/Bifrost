@@ -3,14 +3,14 @@ package co.topl.api
 import akka.http.scaladsl.model.StatusCodes.InternalServerError
 import akka.util.ByteString
 import co.topl.attestation.Address
+import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.box.AssetCode
+import co.topl.utils.BytesOf.Implicits._
+import co.topl.utils.encode.Base58
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import co.topl.crypto.Implicits._
-import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.utils.Base58
 
 import scala.util.{Failure, Success}
 

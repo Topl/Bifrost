@@ -2,15 +2,14 @@ package co.topl.modifier.transaction
 
 import cats.data.ValidatedNec
 import co.topl.attestation.{Address, Proof, Proposition}
-import co.topl.crypto.BytesOf
-import co.topl.crypto.Implicits._
 import co.topl.crypto.hash.Digest32
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.box.{Box, BoxId, ProgramId}
 import co.topl.modifier.{BoxReader, ModifierId, NodeViewModifier}
+import co.topl.utils.BytesOf.Implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.{Identifiable, Identifier, Int128}
+import co.topl.utils.{BytesOf, Identifiable, Identifier, Int128}
 import com.google.common.primitives.Longs
 import io.circe.{Decoder, Encoder, HCursor}
 

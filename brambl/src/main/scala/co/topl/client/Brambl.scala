@@ -1,9 +1,8 @@
 package co.topl.client
 
 import co.topl.akkahttprpc.{CustomError, RpcClientFailure, RpcErrorFailure}
-import co.topl.keyManagement.KeyfileCurve25519
 import co.topl.attestation.{Address, EvidenceProducer, Proof, Proposition}
-import co.topl.keyManagement.{KeyRing, PrivateKeyCurve25519}
+import co.topl.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.modifier.transaction._
 import co.topl.utils.Identifiable
 import co.topl.utils.NetworkType.NetworkPrefix

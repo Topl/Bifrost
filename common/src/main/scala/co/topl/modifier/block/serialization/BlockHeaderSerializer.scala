@@ -2,13 +2,13 @@ package co.topl.modifier.block.serialization
 
 import co.topl.attestation.serialization.{PublicKeyPropositionCurve25519Serializer, SignatureCurve25519Serializer}
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.crypto.hash.Digest32
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{BlockHeader, BloomFilter}
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.box.serialization.ArbitBoxSerializer
+import co.topl.utils.BytesOf.Implicits._
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
-import co.topl.crypto.Implicits._
-import co.topl.crypto.hash.{Digest, Digest32}
 
 object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
 

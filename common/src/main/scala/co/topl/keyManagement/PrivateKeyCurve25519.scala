@@ -1,10 +1,10 @@
 package co.topl.keyManagement
 
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
-import co.topl.crypto.BytesOf
-import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
-import co.topl.crypto.Implicits._
+import co.topl.utils.BytesOf
+import co.topl.utils.BytesOf.Implicits._
+import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 case class PrivateKeyCurve25519(private val privKeyBytes: PrivateKey, private val publicKeyBytes: PublicKey)
     extends Secret {

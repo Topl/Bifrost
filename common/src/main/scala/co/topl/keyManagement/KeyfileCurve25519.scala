@@ -1,12 +1,13 @@
 package co.topl.keyManagement
 
 import co.topl.attestation.Address
-import co.topl.crypto.Implicits._
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
+import co.topl.utils.BytesOf.Implicits._
 import co.topl.utils.Extensions.StringOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.SecureRandom.randomBytes
+import co.topl.utils.encode.Base58
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
@@ -15,7 +16,6 @@ import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
 import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
-import co.topl.crypto.utils.Base58
 
 import scala.util.Try
 

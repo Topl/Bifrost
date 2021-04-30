@@ -1,12 +1,11 @@
 package co.topl
 
-import co.topl.crypto.BytesOf
-import co.topl.crypto.Implicits._
-import co.topl.crypto.hash.{blake2b256, Digest32}
+import co.topl.crypto.hash.{Digest32, blake2b256}
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
 import co.topl.settings.ProtocolSettings
-import co.topl.utils.{Int128, TimeProvider}
+import co.topl.utils.BytesOf.Implicits._
+import co.topl.utils.{BytesOf, Int128, TimeProvider}
 import com.google.common.primitives.Longs
 
 import scala.concurrent.duration._

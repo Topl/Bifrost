@@ -1,12 +1,7 @@
 package co.topl.serialization
 
 import co.topl.attestation._
-import co.topl.attestation.serialization.{
-  PublicKeyPropositionCurve25519Serializer,
-  SignatureCurve25519Serializer,
-  ThresholdPropositionCurve25519Serializer,
-  ThresholdSignatureCurve25519Serializer
-}
+import co.topl.attestation.serialization.{PublicKeyPropositionCurve25519Serializer, SignatureCurve25519Serializer, ThresholdPropositionCurve25519Serializer, ThresholdSignatureCurve25519Serializer}
 import co.topl.keyManagement.PrivateKeyCurve25519
 import co.topl.modifier.block.serialization.{BlockBodySerializer, BlockHeaderSerializer, BlockSerializer}
 import co.topl.modifier.block.{Block, BloomFilter}

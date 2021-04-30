@@ -2,17 +2,17 @@ package co.topl.attestation
 
 import co.topl.attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
 import co.topl.attestation.serialization.PropositionSerializer
-import co.topl.crypto.Implicits._
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signatures.{Curve25519, PublicKey}
 import co.topl.keyManagement.{PrivateKeyCurve25519, Secret}
+import co.topl.utils.BytesOf.Implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import co.topl.utils.{Identifiable, Identifier}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import co.topl.crypto.utils.Base58
 
 import scala.collection.SortedSet
 import scala.util.{Failure, Success, Try}

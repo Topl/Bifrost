@@ -1,12 +1,10 @@
 package co.topl.modifier.transaction
 
-import java.time.Instant
-
 import co.topl.attestation._
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TxType
-import co.topl.modifier.transaction.TransferTransaction.{encodeFrom, BoxParams, TransferCreationState}
+import co.topl.modifier.transaction.TransferTransaction.{BoxParams, TransferCreationState, encodeFrom}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.codecs.Int128Codec
 import co.topl.utils.{Identifiable, Identifier, Int128}

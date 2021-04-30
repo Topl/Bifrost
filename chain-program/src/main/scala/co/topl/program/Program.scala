@@ -2,9 +2,9 @@ package co.topl.program
 
 import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.crypto.signatures.PublicKey
-import co.topl.crypto.utils.Base58
-import co.topl.crypto.Implicits._
 import co.topl.modifier.box.{CodeBox, StateBox}
+import co.topl.utils.BytesOf.Implicits._
+import co.topl.utils.encode.Base58
 import co.topl.utils.exceptions.{ChainProgramException, JsonParsingException}
 import io.circe._
 import io.circe.syntax._

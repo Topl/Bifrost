@@ -1,7 +1,7 @@
 package co.topl.consensus
 
-import co.topl.crypto.Implicits._
 import co.topl.crypto.hash.blake2b256
+import co.topl.utils.BytesOf.Implicits._
 import co.topl.utils.CoreGenerators
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, Store}

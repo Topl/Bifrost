@@ -1,7 +1,5 @@
 package co.topl
 
-import java.lang.management.ManagementFactory
-
 import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.http.scaladsl.Http
 import akka.io.Tcp
@@ -28,6 +26,7 @@ import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
 import com.typesafe.config.{Config, ConfigFactory}
 import kamon.Kamon
 
+import java.lang.management.ManagementFactory
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success}

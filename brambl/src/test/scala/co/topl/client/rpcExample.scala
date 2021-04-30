@@ -5,9 +5,9 @@ import cats.data.{EitherT, NonEmptyChain}
 import cats.implicits._
 import co.topl.akkahttprpc.RpcClientFailure
 import co.topl.akkahttprpc.implicits.client.rpcToClient
-import co.topl.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, AddressEncoder, PublicKeyPropositionCurve25519}
 import co.topl.client.Provider.PrivateTestNet
+import co.topl.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.modifier.box.{AssetCode, AssetValue}
 import co.topl.rpc.ToplRpc
 import co.topl.rpc.ToplRpc.NodeView._

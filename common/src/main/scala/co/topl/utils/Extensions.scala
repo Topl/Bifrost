@@ -1,7 +1,6 @@
 package co.topl.utils
 
 import java.nio.charset.{Charset, StandardCharsets}
-
 import scala.collection.generic.CanBuildFrom
 import scala.reflect.ClassTag
 

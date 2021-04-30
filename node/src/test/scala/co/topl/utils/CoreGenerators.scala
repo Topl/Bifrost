@@ -2,7 +2,6 @@ package co.topl.utils
 
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
-import co.topl.crypto.Implicits.bytesOfArrayBytes
 import co.topl.crypto.hash.Digest32
 import co.topl.crypto.signatures.{Curve25519, Signature}
 import co.topl.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519, Secret}
@@ -14,8 +13,9 @@ import co.topl.modifier.box.{ProgramId, _}
 import co.topl.modifier.transaction._
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
 import co.topl.settings.{AppSettings, StartupOpts, Version}
+import co.topl.utils.BytesOf.Implicits._
 import co.topl.utils.NetworkType.{NetworkPrefix, PrivateTestnet}
-import co.topl.crypto.utils.Base58
+import co.topl.utils.encode.Base58
 import io.circe.Json
 import io.circe.syntax._
 import io.iohk.iodb.LSMStore

@@ -1,9 +1,8 @@
 package co.topl.modifier.box
 
-import co.topl.crypto.Implicits._
-import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.hash.Digest32
-import co.topl.crypto.utils.Base58
+import co.topl.crypto.hash.{Digest32, blake2b256}
+import co.topl.utils.BytesOf.Implicits._
+import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps

@@ -4,19 +4,19 @@ import akka.actor.{Actor, ActorRef}
 import akka.pattern.ask
 import akka.util.Timeout
 import attestation.Address
-import io.circe.{parser, Json}
+import cats.syntax.show._
 import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
-import utils.Logging
-import cats.syntax.show._
+import io.circe.{Json, parser}
 import keymanager.KeyManager.{ChangeNetwork, GetAllKeyfiles}
 import keymanager.networkPrefix
 import modifier.{Box, BoxId, Transaction}
 import settings.NetworkType
+import utils.Logging
 
 import scala.collection.mutable.{Map => MMap}
-import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext}
 import scala.util.{Failure, Success, Try}
 
 /**

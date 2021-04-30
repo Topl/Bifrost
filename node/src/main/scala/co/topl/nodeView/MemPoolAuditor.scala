@@ -1,16 +1,7 @@
 package co.topl.nodeView
 
 import akka.actor.SupervisorStrategy.{Restart, Stop}
-import akka.actor.{
-  Actor,
-  ActorInitializationException,
-  ActorKilledException,
-  ActorRef,
-  ActorRefFactory,
-  DeathPactException,
-  OneForOneStrategy,
-  Props
-}
+import akka.actor.{Actor, ActorInitializationException, ActorKilledException, ActorRef, ActorRefFactory, DeathPactException, OneForOneStrategy, Props}
 import co.topl.attestation.Address
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, BlockHeader}
@@ -18,11 +9,7 @@ import co.topl.modifier.box.ProgramId
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.Broadcast
 import co.topl.network.NetworkController.ReceivableMessages.SendToNetwork
-import co.topl.network.NodeViewSynchronizer.ReceivableMessages.{
-  ChangedMempool,
-  ChangedState,
-  SemanticallySuccessfulModifier
-}
+import co.topl.network.NodeViewSynchronizer.ReceivableMessages.{ChangedMempool, ChangedState, SemanticallySuccessfulModifier}
 import co.topl.network.message.{InvData, InvSpec, Message}
 import co.topl.nodeView.CleanupWorker.RunCleanup
 import co.topl.nodeView.MempoolAuditor.CleanupDone

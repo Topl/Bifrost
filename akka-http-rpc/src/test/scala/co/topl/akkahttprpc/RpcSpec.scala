@@ -5,6 +5,7 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import cats.data.EitherT
 import cats.implicits._
+import co.topl.akkahttprpc.RpcEncoders._
 import co.topl.akkahttprpc.ThrowableSupport.Verbose.verboseThrowableCodec
 import co.topl.akkahttprpc.implicits.server._
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
@@ -16,7 +17,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{EitherValues, Inside, OptionValues}
-import RpcEncoders._
+
 import scala.concurrent.Future
 
 class RpcSpec

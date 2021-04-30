@@ -1,7 +1,5 @@
 package co.topl.api
 
-import java.io.File
-
 import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
@@ -23,7 +21,7 @@ import co.topl.settings.{AppContext, AppSettings, StartupOpts}
 import co.topl.utils.GenesisGenerators
 import org.scalatest.wordspec.AnyWordSpec
 
-import scala.concurrent.Await
+import java.io.File
 import scala.concurrent.duration.DurationInt
 
 trait RPCMockState extends AnyWordSpec with GenesisGenerators with ScalatestRouteTest {

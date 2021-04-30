@@ -1,10 +1,10 @@
 package co.topl.program
 
-import co.topl.crypto.Implicits.bytesOfArrayBytes
+import co.topl.utils.BytesOf.Implicits._
 import co.topl.utils.Gzip
+import co.topl.utils.encode.Base58
 import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}
-import co.topl.crypto.utils.Base58
 
 case class ExecutionBuilderTerms(terms: String) {
   /*  */

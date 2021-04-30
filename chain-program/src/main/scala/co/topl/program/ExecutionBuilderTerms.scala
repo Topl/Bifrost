@@ -1,8 +1,8 @@
 package co.topl.program
 
-import co.topl.crypto.utils.Base58
-import co.topl.crypto.Implicits._
+import co.topl.utils.BytesOf.Implicits._
 import co.topl.utils.Gzip
+import co.topl.utils.encode.Base58
 import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}
 

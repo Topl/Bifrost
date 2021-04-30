@@ -1,16 +1,15 @@
 package attestation
 
-import co.topl.crypto.Implicits.bytesOfArrayBytes
-import co.topl.crypto.utils.Base58
+import co.topl.utils.BytesOf.Implicits._
+import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import io.estatico.newtype.macros.newtype
 import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 
-import scala.util.{Failure, Success, Try}
-
 import scala.language.implicitConversions
+import scala.util.{Failure, Success, Try}
 
 /**
  * Evidence content serves as a fingerprint (or commitment) of a particular proposition that is used to lock a box.
