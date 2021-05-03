@@ -1,6 +1,6 @@
 //TODO migrate to JSON-RPC once testing framework is established
 
-//accumulators co.topl.api.http
+//package co.topl.api.http
 //
 //import java.net.{InetAddress, InetSocketAddress}
 //import javax.ws.rs.Path

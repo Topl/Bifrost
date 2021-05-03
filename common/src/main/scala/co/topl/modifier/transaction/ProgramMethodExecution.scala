@@ -1,4 +1,4 @@
-//accumulators co.topl.modifier.transaction
+//package co.topl.modifier.transaction
 //
 //import co.topl.attestation.proof.{ SignatureCurve25519, ThresholdSignatureCurve25519 }
 //import co.topl.attestation.proposition.PublicKeyCurve25519Proposition

@@ -1,4 +1,4 @@
-//accumulators db
+//package db
 //
 //import java.util.concurrent.TimeUnit
 //
@@ -80,7 +80,7 @@
 //
 //
 ///*
-//accumulators db
+//package db
 //
 //import java.io.File
 //import java.util.concurrent.TimeUnit
