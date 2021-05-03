@@ -1,6 +1,6 @@
 import attestation.AddressEncoder.NetworkPrefix
 import attestation.{Address, PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
-import co.topl.crypto.hash.{Blake2b, Digest32, Hash}
+import co.topl.crypto.hash.{blake2b256, Digest32}
 import co.topl.utils.BytesOf.Implicits._
 import crypto.KeyfileCurve25519
 import keymanager.Keys
@@ -23,8 +23,8 @@ class KeysSpec extends AsyncFlatSpec with Matchers {
   val keyFileDir = "keyfiles/keyManagerTest"
   val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] = Keys(keyFileDir, KeyfileCurve25519)
 
-  val randomBytes1: Digest32 = Hash[Blake2b, Digest32].hash(java.util.UUID.randomUUID.toString)
-  val randomBytes2: Digest32 = Hash[Blake2b, Digest32].hash(java.util.UUID.randomUUID.toString)
+  val randomBytes1: Digest32 = blake2b256(java.util.UUID.randomUUID.toString)
+  val randomBytes2: Digest32 = blake2b256(java.util.UUID.randomUUID.toString)
 
   //Create keys for testing
   var privateKeys: Set[PrivateKeyCurve25519] = keyManager.generateNewKeyPairs(2, Some("keystest")) match {
@@ -50,13 +50,13 @@ class KeysSpec extends AsyncFlatSpec with Matchers {
 
   //generate seed
   val seedString: String = java.util.UUID.randomUUID.toString
-  val seed1: Digest32 = Hash[Blake2b, Digest32].hash(seedString)
+  val seed1: Digest32 = blake2b256(seedString)
 
   //------------------------------------------------------------------------------------
   //Signed messages
   //Should have same input to check determinism
-  val messageBytes: Digest32 = Hash[Blake2b, Digest32].hash("sameEntropic")
-  val messageToSign: Digest32 = Hash[Blake2b, Digest32].hash(java.util.UUID.randomUUID.toString)
+  val messageBytes: Digest32 = blake2b256("sameEntropic")
+  val messageToSign: Digest32 = blake2b256(java.util.UUID.randomUUID.toString)
 
   it should "Match its signature to the expected sender private key" in {
       //Entropic input to input for pub/priv keypair

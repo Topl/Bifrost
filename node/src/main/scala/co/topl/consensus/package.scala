@@ -1,6 +1,6 @@
 package co.topl
 
-import co.topl.crypto.hash.{Digest32, blake2b256}
+import co.topl.crypto.hash.{blake2b256, Digest32}
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
 import co.topl.settings.ProtocolSettings

@@ -1,17 +1,24 @@
 package co.topl.program
 
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
-import co.topl.utils.BytesOf.Implicits._
 import co.topl.utils.Gzip
-import co.topl.utils.encode.Base58
 import com.oracle.js.parser.ir.visitor.NodeVisitor
 import com.oracle.js.parser.ir.{FunctionNode, LexicalContext, Node, VarNode}
 import com.oracle.js.parser.{
-  ErrorManager, Lexer, ScriptEnvironment, Source, Token, TokenStream, TokenType, Parser => GraalParser
+  ErrorManager,
+  Lexer,
+  ScriptEnvironment,
+  Source,
+  Token,
+  TokenStream,
+  TokenType,
+  Parser => GraalParser
 }
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
+import co.topl.utils.encode.Base58
+import co.topl.utils.BytesOf.Implicits._
 
 import java.nio.file.{Files, Path}
 import scala.collection.mutable
@@ -161,6 +168,7 @@ object ProgramPreprocessor {
         |    return ret;
         |}
       """.stripMargin
+
     jsre.eval(defineEsprimaFnParamParser)*/
 
     //println(s">>>>>>>>>>> Registry: $interface")
@@ -189,7 +197,7 @@ object ProgramPreprocessor {
         .eval(
           "js",
           s"""
-             |typeof c.$k === "function" ? getParameters(c.$k).length === ${announcedRegistry(k).size} : false
+           |typeof c.$k === "function" ? getParameters(c.$k).length === ${announcedRegistry(k).size} : false
          """.stripMargin
         )
         .asInstanceOf[Boolean]

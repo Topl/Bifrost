@@ -1,6 +1,6 @@
 package co.topl.nodeView.history
 
-import co.topl.crypto.hash.{Digest32, blake2b256}
+import co.topl.crypto.hash.{blake2b256, Digest32}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.block.{Block, BloomFilter}

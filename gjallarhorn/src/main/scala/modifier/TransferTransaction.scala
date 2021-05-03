@@ -2,7 +2,7 @@ package modifier
 
 import attestation.AddressEncoder.NetworkPrefix
 import attestation.{Evidence, _}
-import co.topl.crypto.hash.{Digest32, blake2b256}
+import co.topl.crypto.hash.{blake2b256, Digest32}
 import co.topl.utils.BytesOf
 import co.topl.utils.BytesOf.Implicits._
 import com.google.common.primitives.{Ints, Longs}

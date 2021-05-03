@@ -1,5 +1,7 @@
 package co.topl.nodeView.state
 
+import akka.actor.ActorSystem
+import co.topl.attestation.Address
 import co.topl.consensus.genesis.PrivateGenesis
 import co.topl.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.modifier.ModifierId

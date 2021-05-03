@@ -1,6 +1,6 @@
 package keymanager
 
-import co.topl.crypto.hash.{Digest32, sha256}
+import co.topl.crypto.hash.{sha256, Digest32}
 import co.topl.utils.BytesOf
 import co.topl.utils.BytesOf.Implicits._
 import utils.Logging

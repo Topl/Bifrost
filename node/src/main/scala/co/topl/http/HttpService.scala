@@ -5,7 +5,7 @@ import akka.http.scaladsl.marshalling.Marshaller
 import akka.http.scaladsl.marshalling.Marshaller._
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse}
 import akka.http.scaladsl.server.Route
-import co.topl.crypto.hash.{Digest32, blake2b256}
+import co.topl.crypto.hash.{blake2b256, Digest32}
 import co.topl.http.api.{ApiEndpoint, ApiResponse, ErrorResponse, SuccessResponse}
 import co.topl.settings.RPCApiSettings
 import co.topl.utils.BytesOf.Implicits._
