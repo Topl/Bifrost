@@ -5,7 +5,7 @@ Seq(
   "com.eed3si9n"       % "sbt-assembly"              % "0.15.0",
   "org.scalastyle"    %% "scalastyle-sbt-plugin"     % "1.0.0",
   "org.scoverage"      % "sbt-scoverage"             % "1.6.1",
-  "com.github.gseitz"  % "sbt-release"               % "1.0.13",
+  "com.github.sbt"  % "sbt-release"               % "1.0.15",
   "net.virtual-void"   % "sbt-dependency-graph"      % "0.9.2",
   "io.kamon"           % "sbt-kanela-runner"         % "2.0.6",
   "com.github.cb372"   % "sbt-explicit-dependencies" % "0.2.11",
