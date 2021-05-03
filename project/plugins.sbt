@@ -4,7 +4,7 @@ logLevel := Level.Error
 Seq(
   "com.eed3si9n"       % "sbt-assembly"              % "0.15.0",
   "org.scalastyle"    %% "scalastyle-sbt-plugin"     % "1.0.0",
-  "org.scoverage"      % "sbt-scoverage"             % "1.6.1",
+  "org.scoverage"      % "sbt-scoverage"             % "1.7.2",
   "com.github.gseitz"  % "sbt-release"               % "1.0.13",
   "net.virtual-void"   % "sbt-dependency-graph"      % "0.9.2",
   "io.kamon"           % "sbt-kanela-runner"         % "2.0.6",
