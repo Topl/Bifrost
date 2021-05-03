@@ -167,7 +167,7 @@ val miscDependencies = Seq(
   "io.netty"               % "netty"       % "3.10.6.Final",
   "com.google.guava"       % "guava"       % "30.1.1-jre",
   "com.typesafe"           % "config"      % "1.4.1",
-  "com.github.pureconfig" %% "pureconfig"  % "0.14.1"
+  "com.github.pureconfig" %% "pureconfig"  % "0.15.0"
 )
 
 val monitoringDependencies = Seq(
