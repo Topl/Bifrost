@@ -18,6 +18,7 @@ import scorex.crypto.hash.Blake2b256
 
 import scala.concurrent.duration._
 
+//noinspection ScalaStyle
 class TransactionTest
     extends AnyFreeSpec
     with Matchers
@@ -56,6 +57,7 @@ class TransactionTest
   private def addressA: Address = addresses.head
   private def addressB: Address = addresses(1)
   private def addressC: Address = addresses(2)
+  private def rewardsAddress: Address = addresses.last
   private var keyD: PrivateKeyCurve25519 = _
 
   override def beforeAll(): Unit = {
@@ -70,71 +72,79 @@ class TransactionTest
       node.run(ToplRpc.Admin.ListOpenKeyfiles.rpc)(ToplRpc.Admin.ListOpenKeyfiles.Params()).value.unlocked.toList
     keyRing.addresses shouldBe addresses.toSet
 
+    assignForgingAddress(node, rewardsAddress)
     keyD = keyRing.generateNewKeyPairs().success.value.head
   }
 
   "Polys can be sent from address A to addressB" in {
-    sendAndAwaitPolyTransaction(
-      name = "tx-poly-a-to-b-10",
-      sender = NonEmptyChain(addressA),
-      recipients = NonEmptyChain((addressB, 10)),
-      changeAddress = addressA
-    )
-
-    balancesFor(addressA).Balances.Polys shouldBe Int128(999990)
-    balancesFor(addressB).Balances.Polys shouldBe Int128(1000010)
-    balancesFor(addressC).Balances.Polys shouldBe Int128(1000000)
+    verifyBalanceChange(addressA, -10, _.Balances.Polys) {
+      verifyBalanceChange(addressB, 10, _.Balances.Polys) {
+        verifyBalanceChange(addressC, 0, _.Balances.Polys) {
+          sendAndAwaitPolyTransaction(
+            name = "tx-poly-a-to-b-10",
+            sender = NonEmptyChain(addressA),
+            recipients = NonEmptyChain((addressB, 10)),
+            changeAddress = addressA
+          )
+        }
+      }
+    }
   }
 
   "Polys can be sent from addressA to addressD" in {
-    sendAndAwaitPolyTransaction(
-      name = "tx-poly-a-to-d-10",
-      sender = NonEmptyChain(addressA),
-      recipients = NonEmptyChain((keyD.publicImage.address, 10)),
-      changeAddress = addressA
-    )
-
-    balancesFor(addressA).Balances.Polys shouldBe Int128(999980)
-    balancesFor(keyD.publicImage.address).Balances.Polys shouldBe Int128(10)
+    verifyBalanceChange(addressA, -10, _.Balances.Polys) {
+      verifyBalanceChange(keyD.publicImage.address, 10, _.Balances.Polys) {
+        sendAndAwaitPolyTransaction(
+          name = "tx-poly-a-to-d-10",
+          sender = NonEmptyChain(addressA),
+          recipients = NonEmptyChain((keyD.publicImage.address, 10)),
+          changeAddress = addressA
+        )
+      }
+    }
   }
 
   "Polys can be sent from addressD to a burner address" in {
-    sendAndAwaitPolyTransaction(
-      name = "tx-poly-d-to-burn-10",
-      sender = NonEmptyChain(keyD.publicImage.address),
-      recipients = NonEmptyChain((burnAddress, 10)),
-      changeAddress = keyD.publicImage.address
-    )
-
-    balancesFor(burnAddress).Balances.Polys shouldBe Int128(10)
-    balancesFor(keyD.publicImage.address).Balances.Polys shouldBe Int128(0)
+    verifyBalanceChange(keyD.publicImage.address, -10, _.Balances.Polys) {
+      verifyBalanceChange(burnAddress, 10, _.Balances.Polys) {
+        sendAndAwaitPolyTransaction(
+          name = "tx-poly-d-to-burn-10",
+          sender = NonEmptyChain(keyD.publicImage.address),
+          recipients = NonEmptyChain((burnAddress, 10)),
+          changeAddress = keyD.publicImage.address
+        )
+      }
+    }
   }
 
   "Arbits can be sent from addressA to addressB" in {
-    sendAndAwaitArbitTransaction(
-      name = "tx-arbit-a-to-b-10",
-      sender = NonEmptyChain(addressA),
-      recipients = NonEmptyChain((addressB, 10)),
-      changeAddress = addressA
-    )
-
-    balancesFor(addressA).Balances.Arbits shouldBe Int128(999990)
-    balancesFor(addressB).Balances.Arbits shouldBe Int128(1000010)
-    balancesFor(addressC).Balances.Arbits shouldBe Int128(1000000)
+    verifyBalanceChange(addressA, -10, _.Balances.Arbits) {
+      verifyBalanceChange(addressB, 10, _.Balances.Arbits) {
+        verifyBalanceChange(addressC, 0, _.Balances.Arbits) {
+          sendAndAwaitArbitTransaction(
+            name = "tx-arbit-a-to-b-10",
+            sender = NonEmptyChain(addressA),
+            recipients = NonEmptyChain((addressB, 10)),
+            changeAddress = addressA,
+            consolidationAddress = addressA
+          )
+        }
+      }
+    }
   }
 
   "Arbits can be sent from addressA to addressD" in {
-
-    sendAndAwaitArbitTransaction(
-      name = "tx-arbit-a-to-d-10",
-      sender = NonEmptyChain(addressA),
-      recipients = NonEmptyChain((keyD.publicImage.address, 10)),
-      changeAddress = addressA
-    )
-
-    balancesFor(addressA).Balances.Arbits shouldBe Int128(999980)
-    balancesFor(keyD.publicImage.address).Balances.Arbits shouldBe Int128(10)
-
+    verifyBalanceChange(addressA, -10, _.Balances.Arbits) {
+      verifyBalanceChange(keyD.publicImage.address, 10, _.Balances.Arbits) {
+        sendAndAwaitArbitTransaction(
+          name = "tx-arbit-a-to-d-10",
+          sender = NonEmptyChain(addressA),
+          recipients = NonEmptyChain((keyD.publicImage.address, 10)),
+          changeAddress = addressA,
+          consolidationAddress = addressA
+        )
+      }
+    }
   }
 
   "Arbits can be sent from addressD to a burner address" in {
@@ -146,46 +156,43 @@ class TransactionTest
       changeAddress = addressC
     )
 
-    val List(initialPolyBox) = balancesFor(keyD.publicImage.address).Boxes.PolyBox
-
-    sendAndAwaitArbitTransaction(
-      name = "tx-arbit-d-to-burn-10",
-      sender = NonEmptyChain(keyD.publicImage.address),
-      recipients = NonEmptyChain((burnAddress, 10)),
-      changeAddress = keyD.publicImage.address
-    )
-
-    balancesFor(burnAddress).Balances.Arbits shouldBe Int128(10)
-    balancesFor(keyD.publicImage.address).Balances.Arbits shouldBe Int128(0)
-
-    val List(finalPolyBox) = balancesFor(keyD.publicImage.address).Boxes.PolyBox
-
-    initialPolyBox should not equal finalPolyBox
-    initialPolyBox.nonce should not equal finalPolyBox.nonce
+    verifyPolyEntropy(keyD.publicImage.address) {
+      verifyBalanceChange(keyD.publicImage.address, -10, _.Balances.Arbits) {
+        verifyBalanceChange(burnAddress, 10, _.Balances.Arbits) {
+          sendAndAwaitArbitTransaction(
+            name = "tx-arbit-d-to-burn-10",
+            sender = NonEmptyChain(keyD.publicImage.address),
+            recipients = NonEmptyChain((burnAddress, 10)),
+            changeAddress = keyD.publicImage.address,
+            consolidationAddress = keyD.publicImage.address
+          )
+        }
+      }
+    }
   }
 
   def assetCode: AssetCode = AssetCode(1: Byte, addressC, "test_1")
 
   "Assets can be sent from addressC to addressA (minting)" in {
-    sendAndAwaitAssetTransaction(
-      name = "tx-asset-c-to-a-10",
-      sender = NonEmptyChain(addressC),
-      recipients = NonEmptyChain((addressA, AssetValue(10, assetCode))),
-      changeAddress = addressC,
-      minting = true
-    )
-
-    val List(initialPolyBox) = balancesFor(addressC).Boxes.PolyBox
-
-    val List(assetBox) = balancesFor(addressA).Boxes.AssetBox
-
-    assetBox.value.quantity shouldBe Int128(10)
-    assetBox.value.assetCode shouldEqual assetCode
-
-    val List(finalPolyBox) = balancesFor(addressC).Boxes.PolyBox
-
-    initialPolyBox should not equal finalPolyBox
-    initialPolyBox.nonce should not equal finalPolyBox.nonce
+    verifyPolyEntropy(addressC) {
+      verifyBalanceChange(rewardsAddress, 1, _.Balances.Polys) {
+        verifyBalanceChange(
+          addressA,
+          10,
+          _.Boxes.AssetBox.find(_.value.assetCode == assetCode).fold(0: Int128)(_.value.quantity)
+        ) {
+          sendAndAwaitAssetTransaction(
+            name = "tx-asset-c-to-a-10",
+            sender = NonEmptyChain(addressC),
+            recipients = NonEmptyChain((addressA, AssetValue(10, assetCode))),
+            changeAddress = addressC,
+            consolidationAddress = addressC,
+            minting = true,
+            fee = 1
+          )
+        }
+      }
+    }
   }
 
   "Assets can be sent from addressA to addressB (non-minting)" in {
@@ -194,6 +201,7 @@ class TransactionTest
       sender = NonEmptyChain(addressA),
       recipients = NonEmptyChain((addressB, AssetValue(10, assetCode))),
       changeAddress = addressA,
+      consolidationAddress = addressA,
       minting = false
     )
 
@@ -208,14 +216,15 @@ class TransactionTest
       node.run(ToplRpc.NodeView.Head.rpc)(ToplRpc.NodeView.Head.Params()).value.height
 
     logger.info(s"Waiting $count blocks")
-    node.pollUntilHeight(currentHeight + count).futureValue(Timeout((count * 4).seconds)).value
+    node.pollUntilHeight(currentHeight + count).futureValue(Timeout((count * 5).seconds)).value
   }
 
   private def sendAndAwaitPolyTransaction(
     name:          String,
     sender:        NonEmptyChain[Address],
     recipients:    NonEmptyChain[(Address, Int128)],
-    changeAddress: Address
+    changeAddress: Address,
+    fee:           Int128 = 0
   ): Transaction.TX = {
     logger.info(s"Creating $name")
     val ToplRpc.Transaction.RawPolyTransfer.Response(rawTx, _) =
@@ -225,7 +234,7 @@ class TransactionTest
             propositionType = PublicKeyPropositionCurve25519.typeString,
             sender = sender,
             recipients = recipients,
-            fee = 0,
+            fee = fee,
             changeAddress = changeAddress,
             data = None
           )
@@ -238,10 +247,12 @@ class TransactionTest
   }
 
   private def sendAndAwaitArbitTransaction(
-    name:          String,
-    sender:        NonEmptyChain[Address],
-    recipients:    NonEmptyChain[(Address, Int128)],
-    changeAddress: Address
+    name:                 String,
+    sender:               NonEmptyChain[Address],
+    recipients:           NonEmptyChain[(Address, Int128)],
+    changeAddress:        Address,
+    consolidationAddress: Address,
+    fee:                  Int128 = 0
   ): Transaction.TX = {
     logger.info(s"Creating $name")
     val ToplRpc.Transaction.RawArbitTransfer.Response(rawTx, _) =
@@ -251,9 +262,9 @@ class TransactionTest
             propositionType = PublicKeyPropositionCurve25519.typeString,
             sender = sender,
             recipients = recipients,
-            fee = 0,
+            fee = fee,
             changeAddress = changeAddress,
-            consolidationAddress = changeAddress,
+            consolidationAddress = consolidationAddress,
             data = None
           )
         )
@@ -265,11 +276,13 @@ class TransactionTest
   }
 
   private def sendAndAwaitAssetTransaction(
-    name:          String,
-    sender:        NonEmptyChain[Address],
-    recipients:    NonEmptyChain[(Address, AssetValue)],
-    changeAddress: Address,
-    minting:       Boolean
+    name:                 String,
+    sender:               NonEmptyChain[Address],
+    recipients:           NonEmptyChain[(Address, AssetValue)],
+    changeAddress:        Address,
+    consolidationAddress: Address,
+    minting:              Boolean,
+    fee:                  Int128 = 0
   ): Transaction.TX = {
     logger.info(s"Creating $name")
     val ToplRpc.Transaction.RawAssetTransfer.Response(rawTx, _) =
@@ -279,9 +292,9 @@ class TransactionTest
             propositionType = PublicKeyPropositionCurve25519.typeString,
             sender = sender,
             recipients = recipients,
-            fee = 0,
+            fee = fee,
             changeAddress = changeAddress,
-            consolidationAddress = changeAddress,
+            consolidationAddress = consolidationAddress,
             minting = minting,
             data = None
           )
@@ -333,6 +346,39 @@ class TransactionTest
       node.run(ToplRpc.NodeView.Balances.rpc)(ToplRpc.NodeView.Balances.Params(List(address))).value
 
     balances(address)
+  }
+
+  /**
+   * Compares the balance of the given address before and after the given test function
+   * @param address The address to check
+   * @param delta The expected change (Int128)
+   * @param f A function which retrieves the value to check from a Balances Entry
+   * @param test The test case to run (usually a transaction)
+   * @return A wrapped test/Unit
+   */
+  private def verifyBalanceChange(address: Address, delta: Int128, f: ToplRpc.NodeView.Balances.Entry => Int128)(
+    test:                                  => Any
+  ) = {
+    val initialBalances = balancesFor(address)
+    val _ = test
+    val finalBalances = balancesFor(address)
+    f(finalBalances) shouldBe (f(initialBalances) + delta)
+  }
+
+  /**
+   * Compares the poly boxes of the given address before and after the given test function and verifies
+   * that they change
+   * @param address The address to check
+   * @param test The test case to run (usually a transaction)
+   * @return A wrapped test/Unit
+   */
+  private def verifyPolyEntropy(address: Address)(test: => Any) = {
+    val List(initialPolyBox) = balancesFor(address).Boxes.PolyBox
+    val _ = test
+    val List(finalPolyBox) = balancesFor(address).Boxes.PolyBox
+
+    initialPolyBox should not equal finalPolyBox
+    initialPolyBox.nonce should not equal finalPolyBox.nonce
   }
 
 }
