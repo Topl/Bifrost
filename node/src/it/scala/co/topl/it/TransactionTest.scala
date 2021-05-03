@@ -146,6 +146,8 @@ class TransactionTest
       changeAddress = addressC
     )
 
+    val List(initialPolyBox) = balancesFor(keyD.publicImage.address).Boxes.PolyBox
+
     sendAndAwaitArbitTransaction(
       name = "tx-arbit-d-to-burn-10",
       sender = NonEmptyChain(keyD.publicImage.address),
@@ -155,6 +157,11 @@ class TransactionTest
 
     balancesFor(burnAddress).Balances.Arbits shouldBe Int128(10)
     balancesFor(keyD.publicImage.address).Balances.Arbits shouldBe Int128(0)
+
+    val List(finalPolyBox) = balancesFor(keyD.publicImage.address).Boxes.PolyBox
+
+    initialPolyBox should not equal finalPolyBox
+    initialPolyBox.nonce should not equal finalPolyBox.nonce
   }
 
   def assetCode: AssetCode = AssetCode(1: Byte, addressC, "test_1")
@@ -168,10 +175,17 @@ class TransactionTest
       minting = true
     )
 
+    val List(initialPolyBox) = balancesFor(addressC).Boxes.PolyBox
+
     val List(assetBox) = balancesFor(addressA).Boxes.AssetBox
 
     assetBox.value.quantity shouldBe Int128(10)
     assetBox.value.assetCode shouldEqual assetCode
+
+    val List(finalPolyBox) = balancesFor(addressC).Boxes.PolyBox
+
+    initialPolyBox should not equal finalPolyBox
+    initialPolyBox.nonce should not equal finalPolyBox.nonce
   }
 
   "Assets can be sent from addressA to addressB (non-minting)" in {
