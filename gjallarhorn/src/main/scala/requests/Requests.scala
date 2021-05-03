@@ -9,7 +9,7 @@ import akka.util.{ByteString, Timeout}
 import attestation.Address
 import io.circe.parser.parse
 import io.circe.syntax._
-import io.circe.{Json, parser}
+import io.circe.{parser, Json}
 import keymanager.KeyManager.SignTx
 import requests.RequestsManager.BifrostRequest
 import settings.{AkkaChainProvider, AppSettings, HttpChainProvider}

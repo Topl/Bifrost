@@ -7,7 +7,7 @@ import attestation.Address
 import cats.syntax.show._
 import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
-import io.circe.{Json, parser}
+import io.circe.{parser, Json}
 import keymanager.KeyManager.{ChangeNetwork, GetAllKeyfiles}
 import keymanager.networkPrefix
 import modifier.{Box, BoxId, Transaction}

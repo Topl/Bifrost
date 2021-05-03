@@ -15,7 +15,9 @@ trait HashSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matc
   def testHash[H, D: Digest](hashName: String, external: List[(String, String)])(implicit hash: Hash[H, D]): Unit =
     hashCheck(hashName, external.map(x => x._1.getBytes("UTF-8") -> x._2))
 
-  def hashCheck[H, D: Digest](hashName: String, external: List[(Array[Byte], String)])(implicit hash: Hash[H, D]): Unit = {
+  def hashCheck[H, D: Digest](hashName: String, external: List[(Array[Byte], String)])(implicit
+    hash:                               Hash[H, D]
+  ): Unit = {
 
     property(s"$hashName returns hash with expected size") {
       forAll { data: Array[Byte] =>

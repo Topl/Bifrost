@@ -1,7 +1,7 @@
 package co.topl.attestation
 
 import cats.implicits._
-import co.topl.crypto.hash.{Digest32, blake2b256}
+import co.topl.crypto.hash.{blake2b256, Digest32}
 import co.topl.utils.BytesOf.Implicits._
 import co.topl.utils.{BytesOf, NetworkType}
 import co.topl.utils.NetworkType.NetworkPrefix

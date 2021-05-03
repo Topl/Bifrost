@@ -31,6 +31,7 @@ object BytesOf {
   def apply[T: BytesOf]: BytesOf[T] = implicitly[BytesOf[T]]
 
   object Implicits {
+
     implicit val bytesOfDigest32: BytesOf[Digest32] = new BytesOf[Digest32] {
       override def get(value: Digest32): Array[Byte] = value.value
 

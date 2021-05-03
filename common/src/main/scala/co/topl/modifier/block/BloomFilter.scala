@@ -1,6 +1,6 @@
 package co.topl.modifier.block
 
-import co.topl.crypto.hash.{Digest32, blake2b256}
+import co.topl.crypto.hash.{blake2b256, Digest32}
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.utils.BytesOf
 import co.topl.utils.BytesOf.Implicits._

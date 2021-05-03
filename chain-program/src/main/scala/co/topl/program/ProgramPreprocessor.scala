@@ -7,7 +7,14 @@ import co.topl.utils.encode.Base58
 import com.oracle.js.parser.ir.visitor.NodeVisitor
 import com.oracle.js.parser.ir.{FunctionNode, LexicalContext, Node, VarNode}
 import com.oracle.js.parser.{
-  ErrorManager, Lexer, ScriptEnvironment, Source, Token, TokenStream, TokenType, Parser => GraalParser
+  ErrorManager,
+  Lexer,
+  ScriptEnvironment,
+  Source,
+  Token,
+  TokenStream,
+  TokenType,
+  Parser => GraalParser
 }
 import io.circe._
 import io.circe.syntax._

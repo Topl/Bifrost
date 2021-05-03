@@ -1,7 +1,7 @@
 package co.topl.network.message
 
 import akka.util.ByteString
-import co.topl.crypto.hash.{Digest32, blake2b256}
+import co.topl.crypto.hash.{blake2b256, Digest32}
 import co.topl.network.MaliciousBehaviorException
 import co.topl.network.peer.ConnectedPeer
 import co.topl.utils.BytesOf
@@ -9,7 +9,6 @@ import co.topl.utils.BytesOf.Implicits._
 
 import java.nio.ByteOrder
 import scala.util.Try
-
 
 /** Serializer for Message case class */
 class MessageSerializer(specs: Seq[MessageSpec[_]], magicBytes: Array[Byte]) {

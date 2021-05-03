@@ -24,7 +24,7 @@ import co.topl.crypto.hash.{Digest, Hash}
  *               (whether it is left or right to stored value)
  */
 case class MerkleProof[H, D: Digest](leafData: LeafData, levels: Seq[(D, Side)])(implicit
-  hashFunc:                                             Hash[H, D]
+  hashFunc:                                    Hash[H, D]
 ) {
 
   def valid(expectedRootHash: D): Boolean = {
