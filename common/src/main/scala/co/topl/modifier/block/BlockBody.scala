@@ -20,7 +20,7 @@ object BlockBody {
 
   val modifierTypeId: Byte @@ NodeViewModifier.ModifierTypeId.Tag = ModifierTypeId @@ (5: Byte)
 
-  implicit val jsonEncoder: Encoder[BlockBody] = { b: BlockBody ⇒
+  implicit val jsonEncoder: Encoder[BlockBody] = { b: BlockBody =>
     Map(
       "id"       -> b.id.toString.asJson,
       "parentId" -> b.parentId.toString.asJson,

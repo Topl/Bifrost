@@ -20,11 +20,12 @@ import scorex.util.encode.Base58
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-/** Class route for managing assets using JSON-RPC requests
-  *
-  * @param nodeViewHolderRef actor reference to inform of new transactions
-  * @param settings the settings for HTTP REST API
-  */
+/**
+ * Class route for managing assets using JSON-RPC requests
+ *
+ * @param nodeViewHolderRef actor reference to inform of new transactions
+ * @param settings the settings for HTTP REST API
+ */
 case class TransactionApiEndpoint(
   settings:          RPCApiSettings,
   appContext:        AppContext,
@@ -52,46 +53,47 @@ case class TransactionApiEndpoint(
     case (method, params, id) if method == s"${namespace.name}_broadcastTx"      => broadcastTx(params.head, id)
   }
 
-  /** #### Summary
-    * Transfer Assets from an account to a specified recipient
-    *
-    * #### Type
-    * Remote -- Transaction must be used in conjunction with an external key manager service.
-    *
-    * #### Description
-    * Default behavior of the wallet is to find the first unlocked address which hold the targetted Asset.
-    * The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
-    *
-    * #### Notes
-    * - `AssetCode` in `AssetValue` can be generated using `util_generateAssetCode`
-    * - `fee` and `quantity` in `AssetValue` need to be strings, they will be converted into Int128 which can go up to
-    * 178 undecillion(2^127-1)
-    *
-    * #### Params
-    * | Fields               | Data type              | Required / Optional | Description                                                                       |
-    * |----------------------|------------------------|---------------------|-----------------------------------------------------------------------------------|
-    * | propositionType      | String                 | Required            | Type of proposition, eg., PublicKeyCurve25519, ThresholdCurve25519                |
-    * | recipients           | [[String, AssetValue]] | Required            | Array of addresses and assetValues for the transfer recipients(check table below) |
-    * | sender               | [String]               | Required            | Array of addresses from which Assets should be sent                               |
-    * | changeAddress        | String                 | Required            | Address for recipient of unspent Polys                                            |
-    * | consolidationAddress | String                 | Optional            | Address for recipient of unspent Assets                                           |
-    * | fee                  | String                 | Required            | Fee for the transfer. Minting AssetTransfer requires fee to be greater than 0     |
-    * | minting              | Boolean                | Required            | If this is a minting AssetTransfer or not                                         |
-    * | data                 | String                 | Optional            | Data string which can be associated with this transaction(may be empty)           |
-    *
-    * ###### AssetValue
-    * | Fields       | Data type | Required / Optional | Description                                                                                     |
-    * |--------------|-----------|---------------------|-------------------------------------------------------------------------------------------------|
-    * | type         | String    | Required            | Type of transfer, should be "Asset" for AssetTransfer                                           |
-    * | quantity     | String    | Required            | Number of tokens in String                                                                      |
-    * | assetCode    | String    | Required            | Unique identifier for user issued Assets, generated from version, issuer address, and shortName |
-    * | securityRoot | String    | Optional            | Optional 32 byte commitment to instance of the AssetBox                                         |
-    * | metadata     | String    | Optional            | String must be less than 128 Latin-1 encoded characters                                                   |
-    *
-    * @param params input parameter as specified above
-    * @param id request identifier
-    * @return
-    */
+  /**
+   * #### Summary
+   * Transfer Assets from an account to a specified recipient
+   *
+   * #### Type
+   * Remote -- Transaction must be used in conjunction with an external key manager service.
+   *
+   * #### Description
+   * Default behavior of the wallet is to find the first unlocked address which hold the targetted Asset.
+   * The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
+   *
+   * #### Notes
+   * - `AssetCode` in `AssetValue` can be generated using `util_generateAssetCode`
+   * - `fee` and `quantity` in `AssetValue` need to be strings, they will be converted into Int128 which can go up to
+   * 178 undecillion(2^127-1)
+   *
+   * #### Params
+   * | Fields               | Data type              | Required / Optional | Description                                                                       |
+   * |----------------------|------------------------|---------------------|-----------------------------------------------------------------------------------|
+   * | propositionType      | String                 | Required            | Type of proposition, eg., PublicKeyCurve25519, ThresholdCurve25519                |
+   * | recipients           | [[String, AssetValue]] | Required            | Array of addresses and assetValues for the transfer recipients(check table below) |
+   * | sender               | [String]               | Required            | Array of addresses from which Assets should be sent                               |
+   * | changeAddress        | String                 | Required            | Address for recipient of unspent Polys                                            |
+   * | consolidationAddress | String                 | Optional            | Address for recipient of unspent Assets                                           |
+   * | fee                  | String                 | Required            | Fee for the transfer. Minting AssetTransfer requires fee to be greater than 0     |
+   * | minting              | Boolean                | Required            | If this is a minting AssetTransfer or not                                         |
+   * | data                 | String                 | Optional            | Data string which can be associated with this transaction(may be empty)           |
+   *
+   * ###### AssetValue
+   * | Fields       | Data type | Required / Optional | Description                                                                                     |
+   * |--------------|-----------|---------------------|-------------------------------------------------------------------------------------------------|
+   * | type         | String    | Required            | Type of transfer, should be "Asset" for AssetTransfer                                           |
+   * | quantity     | String    | Required            | Number of tokens in String                                                                      |
+   * | assetCode    | String    | Required            | Unique identifier for user issued Assets, generated from version, issuer address, and shortName |
+   * | securityRoot | String    | Optional            | Optional 32 byte commitment to instance of the AssetBox                                         |
+   * | metadata     | String    | Optional            | String must be less than 128 Latin-1 encoded characters                                                   |
+   *
+   * @param params input parameter as specified above
+   * @param id request identifier
+   * @return
+   */
   private def rawAssetTransfer(implicit params: Json, id: String): Future[Json] =
     asyncState { stateReader =>
       val p = params.hcursor
@@ -157,34 +159,35 @@ case class TransactionApiEndpoint(
       }
     }
 
-  /** #### Summary
-    * Transfer Polys from an account to a specified recipient.
-    *
-    * #### Type
-    * Remote -- Transaction must be used in conjunction with an external key manager service.
-    *
-    * #### Description
-    * Default behavior of the wallet is to find the first unlocked address which hold Polys.
-    * The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
-    *
-    * #### Notes
-    * - `fee` and Poly amounts in `recipients` need to be strings, they will be converted into Int128 which can go up
-    * to 178 undecillion(2^127-1)
-    *
-    * #### Params
-    * | Fields          | Data type          | Required / Optional | Description                                                              |
-    * |-----------------|--------------------|---------------------|--------------------------------------------------------------------------|
-    * | propositionType | String             | Required            | Type of proposition, eg., PublicKeyCurve25519, ThresholdCurve25519       |
-    * | recipients      | [[String, String]] | Required            | Array of addresses and Poly amounts for the corresponding recipients     |
-    * | sender          | [String]           | Required            | Array of addresses from which Polys should be sent                       |
-    * | changeAddress   | String             | Required            | Address for recipient of unspent Polys                                   |
-    * | fee             | String             | Required            | Fee for the transfer                                                     |
-    * | data            | String             | Optional            | Data string which can be associated with this transaction (may be empty) |
-    *
-    * @param params input parameters as specified above
-    * @param id     request identifier
-    * @return
-    */
+  /**
+   * #### Summary
+   * Transfer Polys from an account to a specified recipient.
+   *
+   * #### Type
+   * Remote -- Transaction must be used in conjunction with an external key manager service.
+   *
+   * #### Description
+   * Default behavior of the wallet is to find the first unlocked address which hold Polys.
+   * The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
+   *
+   * #### Notes
+   * - `fee` and Poly amounts in `recipients` need to be strings, they will be converted into Int128 which can go up
+   * to 178 undecillion(2^127-1)
+   *
+   * #### Params
+   * | Fields          | Data type          | Required / Optional | Description                                                              |
+   * |-----------------|--------------------|---------------------|--------------------------------------------------------------------------|
+   * | propositionType | String             | Required            | Type of proposition, eg., PublicKeyCurve25519, ThresholdCurve25519       |
+   * | recipients      | [[String, String]] | Required            | Array of addresses and Poly amounts for the corresponding recipients     |
+   * | sender          | [String]           | Required            | Array of addresses from which Polys should be sent                       |
+   * | changeAddress   | String             | Required            | Address for recipient of unspent Polys                                   |
+   * | fee             | String             | Required            | Fee for the transfer                                                     |
+   * | data            | String             | Optional            | Data string which can be associated with this transaction (may be empty) |
+   *
+   * @param params input parameters as specified above
+   * @param id     request identifier
+   * @return
+   */
   private def rawPolyTransfer(implicit params: Json, id: String): Future[Json] =
     asyncState { stateReader =>
       val p = params.hcursor
@@ -234,35 +237,36 @@ case class TransactionApiEndpoint(
       }
     }
 
-  /** #### Summary
-    * Transfer Arbits from an account to a specified recipient.
-    *
-    * #### Type
-    * Remote -- Transaction must be used in conjunction with an external key manager service.
-    *
-    * #### Description
-    * Default behavior of the wallet is to find the first unlocked address which hold Arbits.
-    * The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
-    *
-    * #### Notes
-    * - `fee` and Arbit amounts in `recipients` need to be strings, they will be converted into Int128 which can go up
-    * to 178 undecillion(2^127-1)
-    *
-    * #### Params
-    * | Fields               | Data type          | Required / Optional | Description                                                              |
-    * |----------------------|--------------------|---------------------|--------------------------------------------------------------------------|
-    * | propositionType      | String             | Required            | Type of proposition, eg., PublicKeyCurve25519, ThresholdCurve25519       |
-    * | recipients           | [[String, String]] | Required            | Array of addresses and Arbit amounts for the corresponding recipients    |
-    * | sender               | [String]           | Required            | Array of addresses from which Arbits should be sent                      |
-    * | changeAddress        | String             | Required            | Address for recipient of changes                                         |
-    * | consolidationAddress | String             | Optional            | Address for recipient of unspent Arbits                                  |
-    * | fee                  | String             | Required            | Fee for the transfer                                                     |
-    * | data                 | String             | Optional            | Data string which can be associated with this transaction (may be empty) |
-    *
-    * @param params input parameters as specified above
-    * @param id     request identifier
-    * @return
-    */
+  /**
+   * #### Summary
+   * Transfer Arbits from an account to a specified recipient.
+   *
+   * #### Type
+   * Remote -- Transaction must be used in conjunction with an external key manager service.
+   *
+   * #### Description
+   * Default behavior of the wallet is to find the first unlocked address which hold Arbits.
+   * The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
+   *
+   * #### Notes
+   * - `fee` and Arbit amounts in `recipients` need to be strings, they will be converted into Int128 which can go up
+   * to 178 undecillion(2^127-1)
+   *
+   * #### Params
+   * | Fields               | Data type          | Required / Optional | Description                                                              |
+   * |----------------------|--------------------|---------------------|--------------------------------------------------------------------------|
+   * | propositionType      | String             | Required            | Type of proposition, eg., PublicKeyCurve25519, ThresholdCurve25519       |
+   * | recipients           | [[String, String]] | Required            | Array of addresses and Arbit amounts for the corresponding recipients    |
+   * | sender               | [String]           | Required            | Array of addresses from which Arbits should be sent                      |
+   * | changeAddress        | String             | Required            | Address for recipient of changes                                         |
+   * | consolidationAddress | String             | Optional            | Address for recipient of unspent Arbits                                  |
+   * | fee                  | String             | Required            | Fee for the transfer                                                     |
+   * | data                 | String             | Optional            | Data string which can be associated with this transaction (may be empty) |
+   *
+   * @param params input parameters as specified above
+   * @param id     request identifier
+   * @return
+   */
   private def rawArbitTransfer(implicit params: Json, id: String): Future[Json] =
     asyncState { stateReader =>
       val p = params.hcursor
@@ -329,27 +333,28 @@ case class TransactionApiEndpoint(
       }
     }
 
-  /** #### Summary
-    * Broadcast transaction
-    *
-    * #### Type
-    * Remote -- Route must be used in conjunction with an external key manager service.
-    *
-    * #### Description
-    * Place specified signed transaction into the mempool and broadcast to other nodes
-    *
-    * #### Notes
-    * - Currently only enabled for `AssetCreation` and `AssetTransfer` transactions
-    *
-    * #### Params
-    * | Fields | Data type | Required / Optional | Description                                                                   |
-    * |--------|-----------|---------------------|-------------------------------------------------------------------------------|
-    * | tx     | object    | Required            | A full formatted transaction JSON object (prototype transaction + signatures) |
-    *
-    * @param params input parameters as specified above
-    * @param id     request identifier
-    * @return
-    */
+  /**
+   * #### Summary
+   * Broadcast transaction
+   *
+   * #### Type
+   * Remote -- Route must be used in conjunction with an external key manager service.
+   *
+   * #### Description
+   * Place specified signed transaction into the mempool and broadcast to other nodes
+   *
+   * #### Notes
+   * - Currently only enabled for `AssetCreation` and `AssetTransfer` transactions
+   *
+   * #### Params
+   * | Fields | Data type | Required / Optional | Description                                                                   |
+   * |--------|-----------|---------------------|-------------------------------------------------------------------------------|
+   * | tx     | object    | Required            | A full formatted transaction JSON object (prototype transaction + signatures) |
+   *
+   * @param params input parameters as specified above
+   * @param id     request identifier
+   * @return
+   */
   private def broadcastTx(params: Json, id: String): Future[Json] = Future {
     (for {
       tx <- params.hcursor.get[Transaction[_, _ <: Proposition]]("tx")
@@ -358,8 +363,8 @@ case class TransactionApiEndpoint(
       tx.asJson
     }.toEither) match {
       case Right(Right(json)) => json
-      case Right(Left(ex))   => throw new Exception(ex.head.toString)
-      case Left(ex)             => throw ex
+      case Right(Left(ex))    => throw new Exception(ex.head.toString)
+      case Left(ex)           => throw ex
     }
   }
 }

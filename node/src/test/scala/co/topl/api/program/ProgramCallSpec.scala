@@ -35,7 +35,7 @@ class ProgramCallSpec extends ProgramRPCMockState {
 
       val requestBody = ByteString(programCallTemplate.stripMargin)
       httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val res = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
 
         (res \\ "result").head.asNumber.isDefined shouldEqual true
         (res \\ "error").isEmpty shouldEqual true

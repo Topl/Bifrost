@@ -8,9 +8,7 @@ import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class NodeViewRPCSpec extends AnyWordSpec
-  with Matchers
-  with RPCMockState {
+class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
 
   val txs: Seq[TX] = bifrostTransactionSeqGen.sample.get
   val txId: String = txs.head.id.toString
@@ -21,8 +19,7 @@ class NodeViewRPCSpec extends AnyWordSpec
 
   "NodeView RPC" should {
     "Get first 100 transactions in mempool" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -32,15 +29,14 @@ class NodeViewRPCSpec extends AnyWordSpec
           """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val res: Json = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
         val txIds = (res \\ "result").head.asArray.get.flatMap(txJson => (txJson \\ "txId").head.asString)
         txs.foreach(tx => txIds.contains(tx.id.toString))
       }
     }
 
     "Get transaction from the mempool by id" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -55,7 +51,7 @@ class NodeViewRPCSpec extends AnyWordSpec
       view()._3.putWithoutCheck(Seq(txs.head), block.timestamp)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val res: Json = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
         ((res \\ "result").head \\ "txId").head.asString.get shouldEqual txId
       }
       view()._3.remove(txs.head)
@@ -63,8 +59,7 @@ class NodeViewRPCSpec extends AnyWordSpec
 
     "Get a confirmed transaction by id" in {
 
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "1",
@@ -77,7 +72,7 @@ class NodeViewRPCSpec extends AnyWordSpec
           """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val res: Json = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
         ((res \\ "result").head \\ "txId").head.asString.get shouldEqual txId
@@ -85,8 +80,7 @@ class NodeViewRPCSpec extends AnyWordSpec
     }
 
     "Get block by id" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |
@@ -100,7 +94,7 @@ class NodeViewRPCSpec extends AnyWordSpec
           """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]) match {case Right(re) => re; case Left(ex) => throw ex}
+        val res: Json = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
       }

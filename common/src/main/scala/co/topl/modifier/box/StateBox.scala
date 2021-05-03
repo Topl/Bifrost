@@ -6,11 +6,12 @@ import co.topl.utils.{Identifiable, Identifier}
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor, Json}
 
-case class StateBox(override val evidence   : Evidence,
-                    override val nonce      : Box.Nonce,
-                    override val value      : ProgramId,
-                    state: Json //  JSON representation of JS Variable Declarations
-                    ) extends ProgramBox(evidence, nonce, value)
+case class StateBox(
+  override val evidence: Evidence,
+  override val nonce:    Box.Nonce,
+  override val value:    ProgramId,
+  state:                 Json //  JSON representation of JS Variable Declarations
+) extends ProgramBox(evidence, nonce, value)
 
 object StateBox {
   val typePrefix: BoxType = 12: Byte
@@ -22,13 +23,13 @@ object StateBox {
 
   implicit val jsonEncoder: Encoder[StateBox] = { box: StateBox =>
     (Box.jsonEncode[ProgramId, StateBox](box) ++ Map(
-      "state" -> box.state.asJson,
+      "state" -> box.state.asJson
     )).asJson
   }
 
-  implicit val jsonDecoder: Decoder[StateBox] = ( c: HCursor ) =>
+  implicit val jsonDecoder: Decoder[StateBox] = (c: HCursor) =>
     for {
-      b <- Box.jsonDecode[ProgramId](c)
+      b     <- Box.jsonDecode[ProgramId](c)
       state <- c.downField("state").as[Json]
     } yield {
       val (evidence, nonce, programId) = b

@@ -18,12 +18,12 @@ object StateChanges {
         .map { tx =>
           (tx.boxIdsToOpen, tx.newBoxes)
         }
-        .foldLeft((Seq[BoxId](), Seq[Box[_]]()))((aggregate, boxDelta) => {
+        .foldLeft((Seq[BoxId](), Seq[Box[_]]())) { (aggregate, boxDelta) =>
           (
             aggregate._1 ++ boxDelta._1,
             aggregate._2 ++ boxDelta._2
           )
-        })
+        }
 
     // return the state changes that can be applied
     new StateChanges(toRemove, toAdd)

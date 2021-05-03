@@ -10,6 +10,7 @@ import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 import scorex.crypto.hash.{Blake2b256, Digest32}
 
 object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
+
   override def serialize(header: BlockHeader, w: Writer): Unit = {
     /* version: Byte */
     w.put(header.version)
@@ -68,6 +69,18 @@ object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
 
     val bloomFilter: BloomFilter = BloomFilter.parse(r)
 
-    BlockHeader(id, parentId, timestamp, generatorBox, publicKey, signature, height, difficulty, txRoot, bloomFilter, version)
+    BlockHeader(
+      id,
+      parentId,
+      timestamp,
+      generatorBox,
+      publicKey,
+      signature,
+      height,
+      difficulty,
+      txRoot,
+      bloomFilter,
+      version
+    )
   }
 }

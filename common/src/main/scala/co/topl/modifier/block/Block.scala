@@ -30,16 +30,17 @@ import scala.util.Try
  *
  * - additional data: block structure version no, timestamp etc
  */
-case class Block(parentId    : ModifierId,
-                 timestamp   : TimeProvider.Time,
-                 generatorBox: ArbitBox,
-                 publicKey   : PublicKeyPropositionCurve25519,
-                 signature   : SignatureCurve25519,
-                 height      : Long,
-                 difficulty  : Long,
-                 transactions: Seq[Transaction.TX],
-                 version     : PNVMVersion
-                ) extends TransactionCarryingPersistentNodeViewModifier[Transaction.TX] {
+case class Block(
+  parentId:     ModifierId,
+  timestamp:    TimeProvider.Time,
+  generatorBox: ArbitBox,
+  publicKey:    PublicKeyPropositionCurve25519,
+  signature:    SignatureCurve25519,
+  height:       Long,
+  difficulty:   Long,
+  transactions: Seq[Transaction.TX],
+  version:      PNVMVersion
+) extends TransactionCarryingPersistentNodeViewModifier[Transaction.TX] {
 
   lazy val modifierTypeId: ModifierTypeId = Block.modifierTypeId
 
@@ -57,10 +58,10 @@ object Block {
   val modifierTypeId: Byte @@ NodeViewModifier.ModifierTypeId.Tag = ModifierTypeId @@ (3: Byte)
 
   /**
-    * Deconstruct a block to its compoennts
-    * @param block the block to decompose
-    * @return a block header and block body
-    */
+   * Deconstruct a block to its compoennts
+   * @param block the block to decompose
+   * @return a block header and block body
+   */
   def toComponents(block: Block): (BlockHeader, BlockBody) = {
     val header: BlockHeader =
       BlockHeader(
@@ -104,25 +105,26 @@ object Block {
   }
 
   /**
-    * Creates a new block
-    * @param parentId the id of the previous block
-    * @param timestamp time this block was forged
-    * @param txs a seqence of state modifiers
-    * @param generatorBox the Arbit box that resulted in the successful hit
-    * @param height the new height of the chain with this block
-    * @param difficulty the new difficulty of the chain with this block
-    * @param version a byte used to signal the serializer version to use for this block
-    * @return a block to be sent to the network
-    */
-  def createAndSign(parentId: ModifierId,
-                    timestamp: TimeProvider.Time,
-                    txs: Seq[Transaction.TX],
-                    generatorBox: ArbitBox,
-                    publicKey: PublicKeyPropositionCurve25519,
-                    height: Long,
-                    difficulty: Long,
-                    version: PNVMVersion
-                   )(signFunction: Array[Byte] => Try[SignatureCurve25519]): Try[Block] = {
+   * Creates a new block
+   * @param parentId the id of the previous block
+   * @param timestamp time this block was forged
+   * @param txs a seqence of state modifiers
+   * @param generatorBox the Arbit box that resulted in the successful hit
+   * @param height the new height of the chain with this block
+   * @param difficulty the new difficulty of the chain with this block
+   * @param version a byte used to signal the serializer version to use for this block
+   * @return a block to be sent to the network
+   */
+  def createAndSign(
+    parentId:     ModifierId,
+    timestamp:    TimeProvider.Time,
+    txs:          Seq[Transaction.TX],
+    generatorBox: ArbitBox,
+    publicKey:    PublicKeyPropositionCurve25519,
+    height:       Long,
+    difficulty:   Long,
+    version:      PNVMVersion
+  )(signFunction: Array[Byte] => Try[SignatureCurve25519]): Try[Block] = {
 
     // the owner of the generator box must be the key used to sign the block
     require(generatorBox.evidence == publicKey.generateEvidence, "Attempted invalid block generation")
@@ -145,11 +147,11 @@ object Block {
     signFunction(block.messageToSign).map(s => block.copy(signature = s))
   }
 
-  implicit val jsonEncoder: Encoder[Block] = { b: Block ⇒
+  implicit val jsonEncoder: Encoder[Block] = { b: Block =>
     val (header, body) = b.toComponents
     Map(
-      "header" -> header.asJson,
-      "body" -> body.asJson,
+      "header"    -> header.asJson,
+      "body"      -> body.asJson,
       "blockSize" -> b.bytes.length.asJson
     ).asJson
   }
@@ -157,8 +159,6 @@ object Block {
   implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[Block] = (c: HCursor) =>
     for {
       header <- c.downField("header").as[BlockHeader]
-      body <- c.downField("body").as[BlockBody]
-    } yield {
-      Block.fromComponents(header, body)
-    }
+      body   <- c.downField("body").as[BlockBody]
+    } yield Block.fromComponents(header, body)
 }

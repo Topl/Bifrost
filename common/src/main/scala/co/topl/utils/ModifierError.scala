@@ -1,7 +1,8 @@
 package co.topl.utils
 
-/** Base trait for errors that were occurred during NodeView Modifier validation
-  */
+/**
+ * Base trait for errors that were occurred during NodeView Modifier validation
+ */
 trait ModifierError {
   def message: String
   def isFatal: Boolean
@@ -13,30 +14,34 @@ trait ModifierError {
   }
 }
 
-/** Permanent modifier error that could not be recovered in future even after any history updates
-  */
+/**
+ * Permanent modifier error that could not be recovered in future even after any history updates
+ */
 @SuppressWarnings(Array("org.wartremover.warts.Null"))
 class MalformedModifierError(val message: String, cause: Option[Throwable] = None)
-  extends Exception(message, cause.orNull) with ModifierError {
+    extends Exception(message, cause.orNull)
+    with ModifierError {
   def isFatal: Boolean = true
   def toThrowable: Throwable = this
 }
 
-/** Temporary modifier error that may be recovered in future after some history updates
-  */
+/**
+ * Temporary modifier error that may be recovered in future after some history updates
+ */
 @SuppressWarnings(Array("org.wartremover.warts.Null"))
 class RecoverableModifierError(val message: String, cause: Option[Throwable] = None)
-  extends Exception(message, cause.orNull) with ModifierError {
+    extends Exception(message, cause.orNull)
+    with ModifierError {
   def isFatal: Boolean = false
   def toThrowable: Throwable = this
 }
 
-
-/** Composite error class that can hold more than one modifier error inside. This was not made a `ModifierError` instance
-  * intentionally to prevent nesting `MultipleErrors` to `MultipleErrors`
-  */
+/**
+ * Composite error class that can hold more than one modifier error inside. This was not made a `ModifierError` instance
+ * intentionally to prevent nesting `MultipleErrors` to `MultipleErrors`
+ */
 @SuppressWarnings(Array("org.wartremover.warts.Null"))
 case class MultipleErrors(errors: Seq[ModifierError])
-  extends Exception(errors.mkString(" | "), errors.headOption.map(_.toThrowable).orNull) {
+    extends Exception(errors.mkString(" | "), errors.headOption.map(_.toThrowable).orNull) {
   def isFatal: Boolean = errors.exists(_.isFatal)
 }

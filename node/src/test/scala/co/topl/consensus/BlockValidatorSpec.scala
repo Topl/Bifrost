@@ -8,10 +8,7 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class BlockValidatorSpec extends AnyPropSpec
-  with ScalaCheckPropertyChecks
-  with Matchers
-  with CoreGenerators {
+class BlockValidatorSpec extends AnyPropSpec with ScalaCheckPropertyChecks with Matchers with CoreGenerators {
 
   /* Initialize protocolMngr */
   setProtocolMngr(settings)
@@ -19,7 +16,7 @@ class BlockValidatorSpec extends AnyPropSpec
   val history: History = generateHistory()
 
   property("A block with a timestamp older than its parent should never result in a hit") {
-    forAll(blockGen) { blockTemp ⇒
+    forAll(blockGen) { blockTemp =>
       val block = blockTemp.copy(parentId = history.bestBlockId)
       val nextBlock = block.copy(timestamp = block.timestamp - 1, parentId = block.id)
       val newHistory = history.append(block).get._1

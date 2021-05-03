@@ -7,7 +7,7 @@ import scala.util.{Failure, Success}
 
 object TransactionSerializer extends BifrostSerializer[Transaction.TX] {
 
-  override def serialize(obj: Transaction.TX, w: Writer): Unit = {
+  override def serialize(obj: Transaction.TX, w: Writer): Unit =
     obj match {
       case obj: ArbitTransfer[_] =>
         w.put(ArbitTransfer.typePrefix)
@@ -37,13 +37,12 @@ object TransactionSerializer extends BifrostSerializer[Transaction.TX] {
 //        w.put(ProgramTransfer.txTypePrefix)
 //        ProgramTransferSerializer.serialize(obj, w)
     }
-  }
 
-  override def parse(r: Reader): Transaction.TX = {
+  override def parse(r: Reader): Transaction.TX =
     (r.getByte() match {
       case ArbitTransfer.typePrefix => ArbitTransferSerializer.parseTry(r)
       case PolyTransfer.typePrefix  => PolyTransferSerializer.parseTry(r)
-      case AssetTransfer.typePrefix  => AssetTransferSerializer.parseTry(r)
+      case AssetTransfer.typePrefix => AssetTransferSerializer.parseTry(r)
 //      case CodeCreation.txTypePrefix  => CodeCreationTransferSerializer.parse(r)
 //      case ProgramCreation.txTypePrefix  => ProgramCreationTransferSerializer.parse(r)
 //      case ProgramMethodExecution.txTypePrefix  => ProgramMethodExecutionTransferSerializer.parse(r)
@@ -52,5 +51,4 @@ object TransactionSerializer extends BifrostSerializer[Transaction.TX] {
       case Success(tx) => tx
       case Failure(ex) => throw ex
     }
-  }
 }

@@ -18,8 +18,9 @@ import scorex.util.encode.Base58
 
 import scala.util.Try
 
-/** Created by cykoz on 6/22/2017.
-  */
+/**
+ * Created by cykoz on 6/22/2017.
+ */
 
 case class KeyfileCurve25519(
   address:    Address,
@@ -30,7 +31,8 @@ case class KeyfileCurve25519(
 ) extends Keyfile[PrivateKeyCurve25519]
 
 object KeyfileCurve25519 {
-  implicit val jsonEncoder: Encoder[KeyfileCurve25519] = { kf: KeyfileCurve25519 ⇒
+
+  implicit val jsonEncoder: Encoder[KeyfileCurve25519] = { kf: KeyfileCurve25519 =>
     Map(
       "crypto" -> Map(
         "cipher"       -> "aes-256-ctr".asJson,
@@ -64,11 +66,12 @@ object KeyfileCurve25519 {
 
 object KeyfileCurve25519Companion extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileCurve25519] {
 
-  /** Create a keyfile from the provided seed and save it to disk
-    *
-    * @param password string used to encrypt the private key when saved to disk
-    * @return
-    */
+  /**
+   * Create a keyfile from the provided seed and save it to disk
+   *
+   * @param password string used to encrypt the private key when saved to disk
+   * @return
+   */
   def encryptSecret(secretKey: PrivateKeyCurve25519, password: String)(implicit
     networkPrefix:             NetworkPrefix
   ): KeyfileCurve25519 = {
@@ -119,9 +122,10 @@ object KeyfileCurve25519Companion extends KeyfileCompanion[PrivateKeyCurve25519,
     }
   }
 
-  /** @param filename
-    * @return
-    */
+  /**
+   * @param filename
+   * @return
+   */
   def readFile(filename: String)(implicit networkPrefix: NetworkPrefix): KeyfileCurve25519 = {
     // read data from disk
     val src = scala.io.Source.fromFile(filename)
@@ -141,28 +145,31 @@ object KeyfileCurve25519Companion extends KeyfileCompanion[PrivateKeyCurve25519,
     keyfile
   }
 
-  /** @param password
-    * @param salt
-    * @return
-    */
+  /**
+   * @param password
+   * @param salt
+   * @return
+   */
   private def getDerivedKey(password: String, salt: Array[Byte]): Array[Byte] = {
     val passwordBytes = password.getValidLatin1Bytes.getOrElse(throw new Exception("String is not valid Latin-1"))
     SCrypt.generate(passwordBytes, salt, scala.math.pow(2, 18).toInt, 8, 1, 32)
   }
 
-  /** @param derivedKey
-    * @param cipherText
-    * @return
-    */
+  /**
+   * @param derivedKey
+   * @param cipherText
+   * @return
+   */
   private def getMAC(derivedKey: Array[Byte], cipherText: Array[Byte]): Array[Byte] =
     Blake2b256(derivedKey.slice(16, 32) ++ cipherText)
 
-  /** @param derivedKey
-    * @param ivData
-    * @param inputText
-    * @param encrypt
-    * @return
-    */
+  /**
+   * @param derivedKey
+   * @param ivData
+   * @param inputText
+   * @param encrypt
+   * @return
+   */
   private def getAESResult(
     derivedKey: Array[Byte],
     ivData:     Array[Byte],

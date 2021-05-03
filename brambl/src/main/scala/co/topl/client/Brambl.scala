@@ -14,11 +14,12 @@ import scala.util.{Failure, Success}
 object Brambl {
   type KeyRing_PK25519 = KeyRing[PrivateKeyCurve25519, KeyfileCurve25519]
 
-  /** Helper function to import a keyfile from JSON format into the keyring
-    * @param keyfile json representation of the keyfile to be imported
-    * @param password the password used to decrypt the private key from the keyfile
-    * @return if successful, the address will be returned and the key is now available in the keyring
-    */
+  /**
+   * Helper function to import a keyfile from JSON format into the keyring
+   * @param keyfile json representation of the keyfile to be imported
+   * @param password the password used to decrypt the private key from the keyfile
+   * @return if successful, the address will be returned and the key is now available in the keyring
+   */
   def importCurve25519JsonToKeyRing(keyfile: Json, password: String, keyRing: KeyRing_PK25519)(implicit
     networkPrefix:                           NetworkPrefix
   ): Either[RpcClientFailure, Address] =
@@ -26,15 +27,17 @@ object Brambl {
       case Left(_) => Left(RpcErrorFailure(CustomError(7091, "Failed to decode JSON key")))
       case Right(kf) =>
         keyRing.importKeyPair(kf, password) match {
-          case Failure(ex)     => Left(RpcErrorFailure(CustomError(7091, s"Failed to import JSON key to key ring. Reason: ${ex.getMessage}")))
+          case Failure(ex) =>
+            Left(RpcErrorFailure(CustomError(7091, s"Failed to import JSON key to key ring. Reason: ${ex.getMessage}")))
           case Success(value) => Right(value)
         }
     }
 
-  /** Generatees a new keyfile and address in the keyring
-    * @param password string used to encrypt the returned keyfile
-    * @return
-    */
+  /**
+   * Generatees a new keyfile and address in the keyring
+   * @param password string used to encrypt the returned keyfile
+   * @return
+   */
   def generateNewCurve25519Keyfile(password: String, keyRing: KeyRing_PK25519)(implicit
     networkPrefix:                           NetworkPrefix
   ): Either[RpcClientFailure, KeyfileCurve25519] =
@@ -48,11 +51,12 @@ object Brambl {
         }
     }
 
-  /** Signs a provided transactions using the key associated with a particular address
-    * @param address address used to lookup the private key needed to generate a signature
-    * @param transaction transaction to be signed
-    * @return a transaction with the
-    */
+  /**
+   * Signs a provided transactions using the key associated with a particular address
+   * @param address address used to lookup the private key needed to generate a signature
+   * @param transaction transaction to be signed
+   * @return a transaction with the
+   */
   def signTransaction[P <: Proposition: EvidenceProducer: Identifiable, TX <: Transaction[_, P]](
     addresses:   Set[Address],
     transaction: TX
@@ -68,7 +72,7 @@ object Brambl {
       case tx: ArbitTransfer[P @unchecked] => Right(tx.copy(attestation = signatures))
       case tx: PolyTransfer[P @unchecked]  => Right(tx.copy(attestation = signatures))
       case tx: AssetTransfer[P @unchecked] => Right(tx.copy(attestation = signatures))
-      case _                    => Left(RpcErrorFailure(CustomError(7091, "Transaction type not supported")))
+      case _                               => Left(RpcErrorFailure(CustomError(7091, "Transaction type not supported")))
     }
 
   }
