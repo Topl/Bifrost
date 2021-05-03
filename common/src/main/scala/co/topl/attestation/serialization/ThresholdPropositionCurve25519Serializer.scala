@@ -8,7 +8,7 @@ import scala.collection.SortedSet
 
 object ThresholdPropositionCurve25519Serializer extends BifrostSerializer[ThresholdPropositionCurve25519] {
 
-  override def serialize( obj: ThresholdPropositionCurve25519, w: Writer): Unit = {
+  override def serialize(obj: ThresholdPropositionCurve25519, w: Writer): Unit = {
     /* m: Int */
     w.putUInt(obj.threshold)
 
@@ -22,7 +22,8 @@ object ThresholdPropositionCurve25519Serializer extends BifrostSerializer[Thresh
 
     val numSigs: Int = r.getUInt().toIntExact
     val signatures: SortedSet[PublicKeyPropositionCurve25519] = SortedSet[PublicKeyPropositionCurve25519](
-      (0 until numSigs).map(_ => PublicKeyPropositionCurve25519Serializer.parse(r)): _*)
+      (0 until numSigs).map(_ => PublicKeyPropositionCurve25519Serializer.parse(r)): _*
+    )
 
     ThresholdPropositionCurve25519(threshold, signatures)
   }

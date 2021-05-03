@@ -12,24 +12,26 @@ import scorex.util.encode.Base58
 import scala.util.Try
 
 /**
- *
  * @param parties          Public keys allowed to interact with the program
  * @param lastUpdated      timestamp of last update made to the program
  * @param id               Unique identifier
  * @param executionBuilder Context for the state and code to execute methods on the program
  */
-case class Program ( parties         : Map[PublicKeyPropositionCurve25519, String],
-                     lastUpdated     : Long,
-                     id              : Array[Byte],
-                     executionBuilder: Json
-                   ) {
+case class Program(
+  parties:          Map[PublicKeyPropositionCurve25519, String],
+  lastUpdated:      Long,
+  id:               Array[Byte],
+  executionBuilder: Json
+) {
 
   val MIN_PARTIES: Int = 2
   val MAX_PARTIES: Int = 1024
 
-  if ( parties.size < MIN_PARTIES || parties.size > MAX_PARTIES ) {
-    throw new ChainProgramException("An invalid number of parties was specified for the program " +
-                                      "(must be between 2 and 1024).")
+  if (parties.size < MIN_PARTIES || parties.size > MAX_PARTIES) {
+    throw new ChainProgramException(
+      "An invalid number of parties was specified for the program " +
+      "(must be between 2 and 1024)."
+    )
   }
 
   val jsre: Context = Context.create("js")
@@ -42,8 +44,8 @@ case class Program ( parties         : Map[PublicKeyPropositionCurve25519, Strin
   jsre.eval("js", ProgramPreprocessor.objectAssignPolyfill)
 
   //noinspection ScalaStyle
-  def applyFunction ( methodName: String )( args: JsonObject )
-                    ( params: Array[String] ) /*: Try[(Program, Option[Json])]*/ = Try {}
+  def applyFunction(methodName: String)(args: JsonObject)(params: Array[String]) /*: Try[(Program, Option[Json])]*/ =
+    Try {}
 
   lazy val json: Json = Map(
     "executionBuilder" -> executionBuilder,
@@ -53,30 +55,27 @@ case class Program ( parties         : Map[PublicKeyPropositionCurve25519, Strin
 //      })
 //      .asJson,
     "lastUpdated" -> lastUpdated.asJson,
-    "id" -> Base58.encode(id).asJson
-    ).asJson
+    "id"          -> Base58.encode(id).asJson
+  ).asJson
 
 }
 
 object Program {
 
-  def apply ( programJson: Json, id: Array[Byte] ): Program = {
-    val jsonMap: Map[String, Json] = programJson
-      .asObject
+  def apply(programJson: Json, id: Array[Byte]): Program = {
+    val jsonMap: Map[String, Json] = programJson.asObject
       .map(_.toMap)
       .get
 
     val parties: Map[PublicKeyPropositionCurve25519, String] = jsonMap("parties").asObject match {
       case Some(partiesObject) =>
-        partiesObject
-          .toMap
-          .map {
-            party =>
-              val publicKey = PublicKey @@ Base58.decode(party._1).get
-              val role = party._2.asString.get
-              new PublicKeyPropositionCurve25519(publicKey) -> role
+        partiesObject.toMap
+          .map { party =>
+            val publicKey = PublicKey @@ Base58.decode(party._1).get
+            val role = party._2.asString.get
+            new PublicKeyPropositionCurve25519(publicKey) -> role
           }
-      case None                => throw new JsonParsingException(s"Error: ${jsonMap("parties")}")
+      case None => throw new JsonParsingException(s"Error: ${jsonMap("parties")}")
     }
 
     new Program(
@@ -84,12 +83,10 @@ object Program {
       jsonMap("lastUpdated").asNumber.get.toLong.getOrElse(0L),
       id,
       jsonMap("executionBuilder")
-      )
+    )
   }
 
-
   /**
-   *
    * @param stateBoxes Set of StateBoxes to form program
    * @param codeBoxes  Set of CodeBoxes to form program
    * @param methodName The method to be called on the program
@@ -98,10 +95,9 @@ object Program {
    * @return State members to update the mutable StateBox
    */
   //noinspection ScalaStyle
-  def execute ( stateBoxes: Seq[StateBox], codeBoxes: Seq[CodeBox], methodName: String )
-              ( party: PublicKeyPropositionCurve25519 )
-              ( args: JsonObject ): Try[Json] = {
-
+  def execute(stateBoxes: Seq[StateBox], codeBoxes: Seq[CodeBox], methodName: String)(
+    party:                PublicKeyPropositionCurve25519
+  )(args:                 JsonObject): Try[Json] =
     Try {
       val chainProgramInterface = createProgramInterface(codeBoxes)
 
@@ -111,11 +107,13 @@ object Program {
       val bindings = jsre.getBindings("js")
 
       val mutableState: Map[String, Json] = stateBoxes.head.state.asObject.get.toMap
-      val preparedState: String = mutableState.map { st =>
-        s"${st._1} = ${st._2}"
-      }.mkString("\n")
+      val preparedState: String = mutableState
+        .map { st =>
+          s"${st._1} = ${st._2}"
+        }
+        .mkString("\n")
 
-      val programCode: String = codeBoxes.foldLeft("")(( a, b ) => a ++ b.code.foldLeft("")(( a, b ) => a ++ (b + "\n")))
+      val programCode: String = codeBoxes.foldLeft("")((a, b) => a ++ b.code.foldLeft("")((a, b) => a ++ (b + "\n")))
 
       //Pass in JSON objects for each read-only StateBox
       stateBoxes.drop(1).foreach { sb =>
@@ -138,13 +136,12 @@ object Program {
       jsre.eval("js", programCode)
 
       val params: Array[String] = args.toMap.values.toArray.map(_.noSpaces)
-      val paramString: String = if ( params.nonEmpty ) {
-        params.tail.foldLeft(params.headOption.getOrElse(""))(( a, b ) => s"""$a, $b""")
+      val paramString: String = if (params.nonEmpty) {
+        params.tail.foldLeft(params.headOption.getOrElse(""))((a, b) => s"""$a, $b""")
       } else ""
 
       //Evaluate the method on the built script context
       jsre.eval("js", s"""$methodName($paramString)""")
-
 
       val returnState: Map[String, Json] = mutableState.map { s =>
         val valueType: String = jsre.eval("js", s"typeof ${s._1}").asString
@@ -157,9 +154,8 @@ object Program {
 
       returnState.asJson
     }
-  }
 
-  private def methodCheck ( methodName: String, args: JsonObject, interface: Map[String, Seq[String]] ): Unit = {
+  private def methodCheck(methodName: String, args: JsonObject, interface: Map[String, Seq[String]]): Unit = {
     val params: Seq[String] = interface(methodName)
 
     args.toMap.zip(params).map { p =>
@@ -170,9 +166,8 @@ object Program {
     }
   }
 
-  private def stateTypeCheck ( variable: (String, Json), member: Value, memberType: String ): Json = {
-
-    if ( variable._2.name == memberType.capitalize )
+  private def stateTypeCheck(variable: (String, Json), member: Value, memberType: String): Json =
+    if (variable._2.name == memberType.capitalize)
       variable._2.name match {
         //TODO Check for all valid JS types
         case "Number" => JsonNumber.fromString(member.toString).get.asJson
@@ -180,10 +175,10 @@ object Program {
         case _        => throw new NoSuchElementException(s"""Element "${variable._1}" does not exist in program state """)
       }
     else
-      throw new ClassCastException(s"""Updated state variable ${member} with type ${memberType} does not match original variable type of ${variable._2.name}""")
-  }
+      throw new ClassCastException(
+        s"""Updated state variable ${member} with type ${memberType} does not match original variable type of ${variable._2.name}"""
+      )
 
-  private def createProgramInterface ( codeBoxes: Seq[CodeBox] ): Map[String, Seq[String]] = {
-    codeBoxes.foldLeft(Map[String, Seq[String]]())(( a, b ) => a ++ b.interface)
-  }
+  private def createProgramInterface(codeBoxes: Seq[CodeBox]): Map[String, Seq[String]] =
+    codeBoxes.foldLeft(Map[String, Seq[String]]())((a, b) => a ++ b.interface)
 }

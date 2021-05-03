@@ -21,9 +21,9 @@ trait NodeViewModifier extends BytesSerializable {
 }
 
 /**
-  * It is supposed that all the modifiers (offchain transactions, blocks, blockheaders etc)
-  * have identifiers of the some length fixed with the ModifierIdSize constant
-  */
+ * It is supposed that all the modifiers (offchain transactions, blocks, blockheaders etc)
+ * have identifiers of the some length fixed with the ModifierIdSize constant
+ */
 object NodeViewModifier extends BifrostSerializer[NodeViewModifier] {
   val modifierIdSize: Int = ModifierId.size // bytes (1 byte modifierTypeId + 32 modiifierId)
 
@@ -33,18 +33,15 @@ object NodeViewModifier extends BifrostSerializer[NodeViewModifier] {
   val modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
     Map(Block.modifierTypeId -> BlockSerializer, Transaction.modifierTypeId -> TransactionSerializer)
 
-  def idsToString(ids: Seq[(ModifierTypeId, ModifierId)]): String = {
-    List(ids.headOption, ids.lastOption)
-      .flatten
+  def idsToString(ids: Seq[(ModifierTypeId, ModifierId)]): String =
+    List(ids.headOption, ids.lastOption).flatten
       .map { case (typeId, id) => s"($typeId,${id.toString})" }
       .mkString("[", "..", "]")
-  }
 
-  def idsToString(modifierType: ModifierTypeId, ids: Seq[ModifierId]): String = {
+  def idsToString(modifierType: ModifierTypeId, ids: Seq[ModifierId]): String =
     idsToString(ids.map(id => (modifierType, id)))
-  }
 
-  override def serialize(obj: NodeViewModifier, w: Writer): Unit = {
+  override def serialize(obj: NodeViewModifier, w: Writer): Unit =
     obj match {
       case obj: Block =>
         w.put(Block.modifierTypeId)
@@ -62,9 +59,8 @@ object NodeViewModifier extends BifrostSerializer[NodeViewModifier] {
         w.put(Transaction.modifierTypeId)
         TransactionSerializer.serialize(obj, w)
     }
-  }
 
-  override def parse(r: Reader): NodeViewModifier = {
+  override def parse(r: Reader): NodeViewModifier =
     (r.getByte() match {
       case Block.modifierTypeId       => BlockSerializer.parseTry(r)
       case BlockHeader.modifierTypeId => BlockHeaderSerializer.parseTry(r)
@@ -74,13 +70,12 @@ object NodeViewModifier extends BifrostSerializer[NodeViewModifier] {
       case Success(tx) => tx
       case Failure(ex) => throw ex
     }
-  }
 
   implicit val jsonEncoder: Encoder[NodeViewModifier] = {
     case mod: Block          => Block.jsonEncoder(mod)
     case mod: BlockHeader    => BlockHeader.jsonEncoder(mod)
     case mod: BlockBody      => BlockBody.jsonEncoder(mod)
     case mod: Transaction.TX => Transaction.jsonEncoder(mod)
-    case other => throw new Exception(s"Unknown modifier type: $other")
+    case other               => throw new Exception(s"Unknown modifier type: $other")
   }
 }

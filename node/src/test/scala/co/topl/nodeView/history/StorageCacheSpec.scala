@@ -8,10 +8,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class StorageCacheSpec extends AnyPropSpec
-  with ScalaCheckPropertyChecks
-  with Matchers
-  with CoreGenerators {
+class StorageCacheSpec extends AnyPropSpec with ScalaCheckPropertyChecks with Matchers with CoreGenerators {
 
   /* Initialize protocolMngr */
   setProtocolMngr(settings)
@@ -28,7 +25,7 @@ class StorageCacheSpec extends AnyPropSpec
     val bestBlockIdKey = ByteArrayWrapper(Array.fill(history.storage.storage.keySize)(-1: Byte))
 
     /* Append a new block, make sure it is updated in cache, then drop it */
-    val fstBlock:Block = blockGen.sample.get.copy(parentId = history.bestBlockId)
+    val fstBlock: Block = blockGen.sample.get.copy(parentId = history.bestBlockId)
     history = history.append(fstBlock).get._1
 
     history.storage.blockCache.getIfPresent(bestBlockIdKey) should not be null
@@ -41,7 +38,7 @@ class StorageCacheSpec extends AnyPropSpec
 
     /* Append multiple times */
     forAll(blockGen) { blockTemp =>
-      val block:Block = blockTemp.copy(parentId = history.bestBlockId)
+      val block: Block = blockTemp.copy(parentId = history.bestBlockId)
 
       history = history.append(block).get._1
     }
@@ -60,11 +57,11 @@ class StorageCacheSpec extends AnyPropSpec
   property("The new block updated is stored in cache") {
 
     forAll(blockGen) { blockTemp =>
-      val block:Block = blockTemp.copy(parentId = history.bestBlockId)
+      val block: Block = blockTemp.copy(parentId = history.bestBlockId)
 
       history = history.append(block).get._1
       history.storage.blockCache.getIfPresent(ByteArrayWrapper(block.id.getIdBytes)) shouldEqual
-        history.storage.storage.get(ByteArrayWrapper(block.id.getIdBytes))
+      history.storage.storage.get(ByteArrayWrapper(block.id.getIdBytes))
     }
   }
 
@@ -91,7 +88,7 @@ class StorageCacheSpec extends AnyPropSpec
 
     history.storage.blockCache.getIfPresent(ByteArrayWrapper(fstBlock.id.hashBytes)) shouldBe null
   }
-  */
+   */
 
   property("blockLoader should correctly return a block from storage not found in cache") {
     val block: Block = blockGen.sample.get.copy(parentId = history.bestBlockId)

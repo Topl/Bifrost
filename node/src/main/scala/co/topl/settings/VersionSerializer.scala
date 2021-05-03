@@ -11,11 +11,10 @@ object VersionSerializer extends BifrostSerializer[Version] {
     w.put(obj.thirdDigit)
   }
 
-  override def parse(r: Reader): Version = {
+  override def parse(r: Reader): Version =
     new Version(
       r.getByte(),
       r.getByte(),
       r.getByte()
     )
-  }
 }

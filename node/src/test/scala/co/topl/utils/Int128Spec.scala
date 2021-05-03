@@ -6,7 +6,7 @@ import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 class Int128Spec
-  extends AnyPropSpec
+    extends AnyPropSpec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with ValidGenerators
@@ -14,7 +14,6 @@ class Int128Spec
 
   property("Int128 should have a Numeric typeclass to allow .sum calls (small numbers)") {
     forAll(Gen.listOfN(10, smallInt128Gen)) { int128s =>
-
       // Intentionally verbose method of verifying the sum
       var expectedSum = 0: Int128
       int128s.foreach(expectedSum += _)
@@ -25,7 +24,6 @@ class Int128Spec
 
   property("Int128 should have an Ordering typeclass to allow .sort calls (small numbers)") {
     forAll(Gen.listOfN(10, smallInt128Gen)) { int128s =>
-
       val sortedInt128s = int128s.sorted
 
       // Intentionally verbose method of verifying sorting

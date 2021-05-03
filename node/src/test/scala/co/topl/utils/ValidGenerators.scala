@@ -80,9 +80,9 @@ trait ValidGenerators extends CoreGenerators {
   }
 
   def validPolyTransfer(
-                         keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-                         state:   State,
-                         fee:     Long = 1L
+    keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+    state:   State,
+    fee:     Long = 1L
   ): Gen[PolyTransfer[PublicKeyPropositionCurve25519]] = {
 
     val availablePolys = sumBoxes(collectBoxes(keyRing.addresses, state), "PolyBox")
@@ -108,9 +108,9 @@ trait ValidGenerators extends CoreGenerators {
   }
 
   def validArbitTransfer(
-                          keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-                          state:   State,
-                          fee:     Long = 1L
+    keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+    state:   State,
+    fee:     Long = 1L
   ): Gen[ArbitTransfer[PublicKeyPropositionCurve25519]] = {
 
     val availableArbits = sumBoxes(collectBoxes(keyRing.addresses, state), "ArbitBox")
@@ -137,10 +137,10 @@ trait ValidGenerators extends CoreGenerators {
   }
 
   def validAssetTransfer(
-                          keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-                          state:   State,
-                          fee:     Long = 1L,
-                          minting: Boolean = false
+    keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+    state:   State,
+    fee:     Long = 1L,
+    minting: Boolean = false
   ): Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = {
     val sender = keyRing.addresses.head
     val asset = AssetValue(1, AssetCode(1: Byte, sender, "test"), SecurityRoot.empty)

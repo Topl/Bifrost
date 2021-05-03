@@ -8,10 +8,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class BifrostHistorySpec extends AnyPropSpec
-  with ScalaCheckPropertyChecks
-  with Matchers
-  with CoreGenerators {
+class BifrostHistorySpec extends AnyPropSpec with ScalaCheckPropertyChecks with Matchers with CoreGenerators {
 
   var history: History = generateHistory()
 
@@ -20,7 +17,6 @@ class BifrostHistorySpec extends AnyPropSpec
 
     /* Apply blocks and ensure that they are stored */
     forAll(blockGen) { blockTemp =>
-
       val block = blockTemp.copy(parentId = history.bestBlockId)
 
       history = history.append(block).get._1
@@ -39,13 +35,14 @@ class BifrostHistorySpec extends AnyPropSpec
 
     continuationIds shouldEqual ids
 
-
     forAll(Gen.choose(0, ids.length - 1)) { startIndex: Int =>
       val startFrom = Seq((Block.modifierTypeId, ids(startIndex)))
       val startList = ids.take(startIndex + 1).map((Block.modifierTypeId, _))
-      val restIds = ids.zipWithIndex.filter {
-        case (_, index) => index >= startIndex
-      }.map(_._1)
+      val restIds = ids.zipWithIndex
+        .filter { case (_, index) =>
+          index >= startIndex
+        }
+        .map(_._1)
 
       val continuationIds = history.continuationIds(startFrom, ids.length).get.map(_._2)
 
