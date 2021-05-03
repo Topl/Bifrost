@@ -15,4 +15,6 @@ object Generators {
 
   def genByteArrayOfSize(n: Int): Gen[Array[Byte]] =
     Gen.listOfN(n, Arbitrary.arbitrary[Byte]).retryUntil(_.length == n).map(_.toArray)
+
+  def smallInt: Gen[Int] = Gen.choose(0, 20)
 }
