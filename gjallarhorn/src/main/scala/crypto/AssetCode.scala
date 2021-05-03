@@ -13,11 +13,11 @@ import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 import scala.util.{Failure, Success}
 
 /**
-  * AssetCode serves as a unique identifier for user issued assets
-  * @param version single byte for asset code version
-  * @param issuer the address for the issuer of the asset
-  * @param shortName string used to create the asset code
-  */
+ * AssetCode serves as a unique identifier for user issued assets
+ * @param version single byte for asset code version
+ * @param issuer the address for the issuer of the asset
+ * @param shortName string used to create the asset code
+ */
 case class AssetCode private (version: AssetCodeVersion, issuer: Address, shortName: String) extends BytesSerializable {
 
   require(
@@ -54,7 +54,7 @@ object AssetCode extends GjalSerializer[AssetCode] {
       case Failure(ex) => throw ex
     }
 
-  override def serialize (obj: AssetCode, w: Writer): Unit = {
+  override def serialize(obj: AssetCode, w: Writer): Unit = {
     w.put(obj.version)
     Address.serialize(obj.issuer, w)
     w.putByteString(obj.shortName)

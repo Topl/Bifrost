@@ -19,11 +19,13 @@ class BlockVersionTests extends MockState {
 
   property(
     "Applying different blocks in different versions according to the test.conf should yield blocks " +
-      "with intended versions"
+    "with intended versions"
   ) {
-    /** Apply enough blocks to history and state so there will be blocks of all possible versions
-      * Don't make a test.conf that has a version with a really large startBlock
-      */
+
+    /**
+     * Apply enough blocks to history and state so there will be blocks of all possible versions
+     * Don't make a test.conf that has a version with a really large startBlock
+     */
     val blocksToAppend: Int = protocolMngr.applicable.maxBy(_.startBlock).startBlock.toInt
     val blocksCount: Int = blocksToAppend + 1 // with genesis block
 

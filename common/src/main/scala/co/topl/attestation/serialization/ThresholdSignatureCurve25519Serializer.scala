@@ -4,7 +4,6 @@ import co.topl.attestation.{SignatureCurve25519, ThresholdSignatureCurve25519}
 import co.topl.utils.Extensions._
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
-
 object ThresholdSignatureCurve25519Serializer extends BifrostSerializer[ThresholdSignatureCurve25519] {
 
   override def serialize(obj: ThresholdSignatureCurve25519, w: Writer): Unit = {

@@ -17,15 +17,15 @@ trait Synchronizer extends Actor with Logging {
     parseAndHandle(spec, msgBytes, source)
   }
 
-  /** This method will attempt to parse a message from a remote peer into it class representation and use
-    * the defined message handlers for processing the message
-    *
-    * @param spec the message specification (basically a header informing of the message type)
-    * @param msgBytes a ByteString of the message data that must be parsed
-    * @param source the remote peer that sent the message
-    */
-  protected def parseAndHandle(spec: MessageSpec[Any], msgBytes: Array[Byte], source: ConnectedPeer): Unit = {
-
+  /**
+   * This method will attempt to parse a message from a remote peer into it class representation and use
+   * the defined message handlers for processing the message
+   *
+   * @param spec the message specification (basically a header informing of the message type)
+   * @param msgBytes a ByteString of the message data that must be parsed
+   * @param source the remote peer that sent the message
+   */
+  protected def parseAndHandle(spec: MessageSpec[Any], msgBytes: Array[Byte], source: ConnectedPeer): Unit =
     /** Attempt to parse the message */
     spec.parseBytes(msgBytes) match {
       /** If a message could be parsed, match the type of content found and ensure a handler is defined */
@@ -39,11 +39,11 @@ trait Synchronizer extends Actor with Logging {
         log.error(s"Failed to deserialize data from ${source}: ", e)
         penalizeMaliciousPeer(source)
     }
-  }
 
-  /** Handles how a peer that sent un-parsable data should be handled
-    *
-    * @param peer peer that sent the offending message
-    */
+  /**
+   * Handles how a peer that sent un-parsable data should be handled
+   *
+   * @param peer peer that sent the offending message
+   */
   protected def penalizeMaliciousPeer(peer: ConnectedPeer): Unit
 }
