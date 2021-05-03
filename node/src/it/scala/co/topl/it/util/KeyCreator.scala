@@ -1,7 +1,7 @@
 package co.topl.it.util
 
 import co.topl.attestation.Address
-import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
+import co.topl.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType._
 
@@ -19,13 +19,13 @@ object KeyCreator extends Logging {
       .empty[PrivateKeyCurve25519, KeyfileCurve25519](Some(dir))(
         networkPrefix,
         PrivateKeyCurve25519.secretGenerator,
-        KeyfileCurve25519Companion
+        KeyfileCurve25519
       )
       .generateNewKeyPairs(num, seed)
       .map {
         _.map { sk =>
           val ps = pass
-          KeyfileCurve25519Companion.saveToDisk(dir, ps, sk)
+          KeyfileCurve25519.saveToDisk(dir, ps, sk)
           sk.publicImage.address -> ps
         }
       }
