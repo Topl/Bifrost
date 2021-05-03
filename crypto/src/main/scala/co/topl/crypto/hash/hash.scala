@@ -9,7 +9,6 @@ import scala.language.implicitConversions
 
 package object hash {
 
-
   trait Digest[T] {
     val size: Int
 
