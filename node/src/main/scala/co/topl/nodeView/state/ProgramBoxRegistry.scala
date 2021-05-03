@@ -1,5 +1,7 @@
 package co.topl.nodeView.state
 
+import java.io.File
+
 import co.topl.modifier.box.{BoxId, ProgramBox, ProgramId}
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.settings.AppSettings

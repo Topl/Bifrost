@@ -5,6 +5,8 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
+import scala.util.Failure
+
 class PolyTransferSpec
     extends AnyPropSpec
     with ScalaCheckPropertyChecks

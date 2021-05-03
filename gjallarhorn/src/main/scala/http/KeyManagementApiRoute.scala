@@ -6,8 +6,17 @@ import attestation.Address
 import attestation.AddressEncoder.NetworkPrefix
 import io.circe.Json
 import io.circe.syntax._
-import keymanager.KeyManager.{GenerateKeyFile, ImportKeyfile, LockKeyFile, UnlockKeyFile, _}
 import keymanager.{networkPrefix, Bip39}
+import keymanager.KeyManager.{
+  ChangeKeyfileDir,
+  GenerateKeyFile,
+  GetAllKeyfiles,
+  GetKeyfileDir,
+  GetOpenKeyfiles,
+  ImportKeyfile,
+  LockKeyFile,
+  UnlockKeyFile
+}
 import requests.ApiRoute
 import settings.RPCApiSettings
 

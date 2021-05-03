@@ -189,7 +189,7 @@ val graalDependencies = Seq(
 )
 
 libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ loggingDependencies
-  ++ testingDependenciesTest ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
+++ testingDependenciesTest ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
 
 lazy val commonScalacOptions = Seq(
   "-deprecation",
@@ -286,8 +286,7 @@ lazy val common = project.in(file("common"))
     name := "common",
     commonSettings,
     publishSettings,
-    libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ jsonDependencies ++ cryptoDependencies
-      ++ miscDependencies
+    libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ jsonDependencies ++ cryptoDependencies ++ miscDependencies
   )
   .dependsOn(crypto)
 
@@ -311,7 +310,7 @@ lazy val brambl = project.in(file("brambl"))
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.brambl",
   )
-  .dependsOn(toplRpc, common)
+  .dependsOn(akkaHttpRpc, toplRpc, common)
 
 lazy val akkaHttpRpc = project.in(file("akka-http-rpc"))
   .enablePlugins(BuildInfoPlugin)

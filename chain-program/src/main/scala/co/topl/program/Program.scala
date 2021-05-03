@@ -1,14 +1,14 @@
 package co.topl.program
 
 import co.topl.attestation.PublicKeyPropositionCurve25519
-import co.topl.crypto.signatures.PublicKey
 import co.topl.modifier.box.{CodeBox, StateBox}
-import co.topl.utils.BytesOf.Implicits._
-import co.topl.utils.encode.Base58
 import co.topl.utils.exceptions.{ChainProgramException, JsonParsingException}
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.{Context, Value}
+import co.topl.crypto.signatures.PublicKey
+import co.topl.utils.encode.Base58
+import co.topl.utils.BytesOf.Implicits._
 
 import scala.util.Try
 
@@ -50,11 +50,11 @@ case class Program(
 
   lazy val json: Json = Map(
     "executionBuilder" -> executionBuilder,
-    //    "parties" -> parties
-    //      .map(p => {
-    //        p._1.address -> p._2.asJson
-    //      })
-    //      .asJson,
+//    "parties" -> parties
+//      .map(p => {
+//        p._1.address -> p._2.asJson
+//      })
+//      .asJson,
     "lastUpdated" -> lastUpdated.asJson,
     "id"          -> Base58.encode(id).asJson
   ).asJson
@@ -74,7 +74,7 @@ object Program {
           .map { party =>
             val publicKey = PublicKey(Base58.decode(party._1).get)
             val role = party._2.asString.get
-            new PublicKeyPropositionCurve25519(PublicKey(publicKey)) -> role
+            new PublicKeyPropositionCurve25519(publicKey) -> role
           }
       case None => throw new JsonParsingException(s"Error: ${jsonMap("parties")}")
     }

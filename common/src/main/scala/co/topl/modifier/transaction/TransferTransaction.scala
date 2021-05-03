@@ -93,8 +93,10 @@ object TransferTransaction {
     val inputBytes =
       Array(txIdPrefix) ++ boxIdsToOpenAccumulator ++ timestampBytes ++ feeBytes
 
-    def calcNonce(index: Int): Box.Nonce =
-      Transaction.nonceFromDigest(blake2b256(inputBytes ++ Ints.toByteArray(index)))
+    val calcNonce: Int => Box.Nonce = (index: Int) => {
+      val digest = blake2b256(inputBytes ++ Ints.toByteArray(index))
+      Transaction.nonceFromDigest(digest)
+    }
 
     val feeChangeParams = BoxParams(tx.to.head._1.evidence, calcNonce(0), SimpleValue(tx.to.head._2.quantity))
 

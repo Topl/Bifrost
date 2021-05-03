@@ -6,6 +6,8 @@ import attestation.Address
 import http.{GjallarhornOfflineApiRoute, GjallarhornOnlineApiRoute, HttpService, KeyManagementApiRoute}
 import io.circe.Json
 import io.circe.syntax._
+import http.{GjallarhornOfflineApiRoute, GjallarhornOnlineApiRoute, HttpService, KeyManagementApiRoute}
+import io.circe.Json
 import keymanager.KeyManager.GenerateKeyFile
 import keymanager.KeyManagerRef
 import requests.{ApiRoute, Requests}
