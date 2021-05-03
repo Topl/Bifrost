@@ -5,6 +5,7 @@ import co.topl.utils.BytesOf
 import co.topl.utils.BytesOf.Implicits._
 import crypto.KeyfileCurve25519
 import utils.serialization.{GjalSerializer, Reader, Writer}
+import cats.implicits._
 
 /**
  * A Secret corresponding to a PublicKeyCurve25519 proposition.
@@ -34,7 +35,7 @@ case class PrivateKeyCurve25519(private val privKeyBytes: PrivateKey, private va
   )
 
   override def equals(obj: Any): Boolean = obj match {
-    case sk: PrivateKeyCurve25519 => BytesOf[PrivateKey].sameElements(sk.privKeyBytes, privKeyBytes)
+    case sk: PrivateKeyCurve25519 => sk.privKeyBytes === privKeyBytes
     case _                        => false
   }
 }

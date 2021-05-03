@@ -5,6 +5,7 @@ import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
 import co.topl.utils.BytesOf
 import co.topl.utils.BytesOf.Implicits._
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
+import cats.implicits._
 
 case class PrivateKeyCurve25519(private val privKeyBytes: PrivateKey, private val publicKeyBytes: PublicKey)
     extends Secret {
@@ -29,7 +30,7 @@ case class PrivateKeyCurve25519(private val privKeyBytes: PrivateKey, private va
   )
 
   override def equals(obj: Any): Boolean = obj match {
-    case sk: PrivateKeyCurve25519 => BytesOf[PrivateKey].sameElements(sk.privKeyBytes, privKeyBytes)
+    case sk: PrivateKeyCurve25519 => sk.privKeyBytes === privKeyBytes
     case _                        => false
   }
 }

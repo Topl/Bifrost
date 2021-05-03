@@ -1,5 +1,6 @@
 package co.topl.utils
 
+import cats.Eq
 import co.topl.crypto.hash.{Digest32, Digest64}
 import co.topl.crypto.signatures.{PrivateKey, PublicKey, Signature}
 
@@ -9,8 +10,6 @@ trait BytesOf[A] {
   def get(value: A): Array[Byte]
 
   def from(bytes: Array[Byte]): A
-
-  def sameElements[B: BytesOf](a: A, b: B): Boolean = get(a) sameElements BytesOf[B].get(b)
 
   def concat[B: BytesOf](a: A, b: B): Array[Byte] = get(a) ++ BytesOf[B].get(b)
 
@@ -31,6 +30,10 @@ object BytesOf {
   def apply[T: BytesOf]: BytesOf[T] = implicitly[BytesOf[T]]
 
   object Implicits {
+
+    implicit def eqBytesOf[A: BytesOf]: Eq[A] = (x: A, y: A) => BytesOf[A].get(x) sameElements BytesOf[A].get(y)
+
+    implicit def unwrapBytesOf[B: BytesOf](b: B): Array[Byte] = BytesOf[B].get(b)
 
     implicit val bytesOfDigest32: BytesOf[Digest32] = new BytesOf[Digest32] {
       override def get(value: Digest32): Array[Byte] = value.value
@@ -56,8 +59,6 @@ object BytesOf {
       override def from(bytes: Array[Byte]): PublicKey = PublicKey(bytes)
     }
 
-    implicit def unwrapBytesOf[B: BytesOf](b: B): Array[Byte] = BytesOf[B].get(b)
-
     implicit val bytesOfArrayBytes: BytesOf[Array[Byte]] = new BytesOf[Array[Byte]] {
       override def get(bytes:  Array[Byte]): Array[Byte] = bytes
       override def from(bytes: Array[Byte]): Array[Byte] = bytes
@@ -73,5 +74,6 @@ object BytesOf {
 
       override def from(bytes: Array[Byte]): PrivateKey = PrivateKey(bytes)
     }
+
   }
 }
