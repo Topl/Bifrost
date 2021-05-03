@@ -3,9 +3,12 @@ package co.topl.crypto
 import cats.data.Validated
 import io.estatico.newtype.macros.newtype
 
+import scala.language.implicitConversions
+
 /* Forked from https://github.com/input-output-hk/scrypto */
 
 package object hash {
+
 
   trait Digest[T] {
     val size: Int

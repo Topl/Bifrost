@@ -9,6 +9,7 @@ import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader
 import io.circe.Encoder
 import io.estatico.newtype.macros.newtype
 
+import scala.language.implicitConversions
 import scala.util.{Failure, Success}
 
 trait NodeViewModifier extends BytesSerializable {
@@ -25,6 +26,7 @@ trait NodeViewModifier extends BytesSerializable {
  * have identifiers of the some length fixed with the ModifierIdSize constant
  */
 object NodeViewModifier extends BifrostSerializer[NodeViewModifier] {
+
   val modifierIdSize: Int = ModifierId.size // bytes (1 byte modifierTypeId + 32 modiifierId)
 
   @newtype
