@@ -155,7 +155,7 @@ class WalletManager(keyManagerRef: ActorRef)(implicit ec: ExecutionContext) exte
       )
     }
     (keyManagerRef ? ChangeNetwork(bifrostNetwork)).onComplete {
-      case Success(networkResponse: Try[Json]@unchecked) =>
+      case Success(networkResponse: Try[Json] @unchecked) =>
         networkResponse match {
           case Success(networkJson) =>
             assert(
