@@ -91,11 +91,11 @@ lazy val assemblySettings = Seq(
   }
 )
 
-val akkaVersion = "2.6.13"
+val akkaVersion = "2.6.14"
 val akkaHttpVersion = "10.2.4"
 val circeVersion = "0.13.0"
-val kamonVersion = "2.1.13"
-val graalVersion = "21.0.0.2"
+val kamonVersion = "2.1.17"
+val graalVersion = "21.1.0"
 
 val akkaDependencies = Seq(
   "com.typesafe.akka" %% "akka-actor"          % akkaVersion,
@@ -134,8 +134,8 @@ val loggingDependencies = Seq(
 )
 
 val testingDependenciesTest = Seq(
-  "org.scalatest"      %% "scalatest"         % "3.2.6"   % "test",
-  "org.scalactic"      %% "scalactic"         % "3.2.6"   % "test",
+  "org.scalatest"      %% "scalatest"         % "3.2.8"   % "test",
+  "org.scalactic"      %% "scalactic"         % "3.2.8"   % "test",
   "org.scalacheck"     %% "scalacheck"        % "1.15.4"  % "test",
   "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
   "com.spotify"         % "docker-client"     % "8.16.0"  % "test",
@@ -158,15 +158,15 @@ val cryptoDependencies = Seq(
 
 val miscDependencies = Seq(
   "org.scorexfoundation"  %% "iodb"        % "0.3.2",
-  "com.chuusai"           %% "shapeless"   % "2.3.3",
+  "com.chuusai"           %% "shapeless"   % "2.3.4",
   "com.iheart"            %% "ficus"       % "1.5.0",
   "org.rudogma"           %% "supertagged" % "1.5",
   "com.joefkelley"        %% "argyle"      % "1.0.0",
-  "org.scalanlp"          %% "breeze"      % "1.1",
+  "org.scalanlp"          %% "breeze"      % "1.2",
   "io.netty"               % "netty"       % "3.10.6.Final",
   "com.google.guava"       % "guava"       % "30.1.1-jre",
   "com.typesafe"           % "config"      % "1.4.1",
-  "com.github.pureconfig" %% "pureconfig"  % "0.14.1"
+  "com.github.pureconfig" %% "pureconfig"  % "0.15.0"
 )
 
 val monitoringDependencies = Seq(
