@@ -6,12 +6,13 @@ import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 import scala.collection.mutable.ArrayBuffer
 
 object Gzip {
+
   /**
-    * Compress byte array using GZIPOutputStream in java
-    * @see [[https://gist.github.com/owainlewis/1e7d1e68a6818ee4d50e]]
-    * @see [[http://yangcongchufang.com/scala-gzip-class.html]]
-    * @return Array[Byte]
-    */
+   * Compress byte array using GZIPOutputStream in java
+   * @see [[https://gist.github.com/owainlewis/1e7d1e68a6818ee4d50e]]
+   * @see [[http://yangcongchufang.com/scala-gzip-class.html]]
+   * @return Array[Byte]
+   */
   def compress(input: Array[Byte]): Array[Byte] = {
     val bos = new ByteArrayOutputStream(input.length)
     val gzip = new GZIPOutputStream(bos)
@@ -23,11 +24,11 @@ object Gzip {
   }
 
   /**
-    * Decompress byte array using GZIPInputStream in java
-    * @see [[https://gist.github.com/owainlewis/1e7d1e68a6818ee4d50e]]
-    * @see [[http://yangcongchufang.com/scala-gzip-class.html]]
-    * @return Array[Byte]
-    */
+   * Decompress byte array using GZIPInputStream in java
+   * @see [[https://gist.github.com/owainlewis/1e7d1e68a6818ee4d50e]]
+   * @see [[http://yangcongchufang.com/scala-gzip-class.html]]
+   * @return Array[Byte]
+   */
   def decompress(compressed: Array[Byte]): Array[Byte] = {
     val gzipInputStream = new GZIPInputStream(new ByteArrayInputStream(compressed))
     val output = new ArrayBuffer[Byte]()

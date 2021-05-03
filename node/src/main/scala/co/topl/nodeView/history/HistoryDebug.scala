@@ -13,44 +13,47 @@ class HistoryDebug(hr: HistoryReader[Block, _ <: SyncInfo]) {
 
   def count(f: Block => Boolean): Int = hr.filter(f).length
 
-  /** @param height - block height
-    * @return ids of headers on chosen height.
-    *         Seq.empty we don't have any headers on this height (e.g. it is too big or we bootstrap in PoPoW regime)
-    *         single id if no forks on this height
-    *         multiple ids if there are forks at chosen height.
-    *         First id is always from the best headers chain.
-    */
+  /**
+   * @param height - block height
+   * @return ids of headers on chosen height.
+   *         Seq.empty we don't have any headers on this height (e.g. it is too big or we bootstrap in PoPoW regime)
+   *         single id if no forks on this height
+   *         multiple ids if there are forks at chosen height.
+   *         First id is always from the best headers chain.
+   */
   def idsAtHeight(height: Long): Seq[ModifierId] = hr.idAtHeightOf(height).toSeq
 
-  def getIdsFrom(startHeight: Long, limit: Int): Option[Seq[ModifierId]] = {
+  def getIdsFrom(startHeight: Long, limit: Int): Option[Seq[ModifierId]] =
     hr.modifierByHeight(startHeight) match {
       case Some(block) => hr.getIdsFrom(block, _ => false, limit)
-      case None => None
+      case None        => None
     }
-  }
 
-  /** Average delay in milliseconds between last `blockNum` blocks starting from `block`
-    * Debug only
-    *
-    * @param id modifier to start at
-    * @param blockNum number of blocks to traverse back
-    */
+  /**
+   * Average delay in milliseconds between last `blockNum` blocks starting from `block`
+   * Debug only
+   *
+   * @param id modifier to start at
+   * @param blockNum number of blocks to traverse back
+   */
   def averageDelay(id: ModifierId, blockNum: Int): Try[Long] = Try {
     val block = hr.modifierById(id).get
     val prevTimes = hr.getTimestampsFrom(block, blockNum)
     (prevTimes drop 1, prevTimes).zipped.map(_ - _).sum / (prevTimes.length)
   }
 
-  /** Calculates the distribution of blocks to forgers
-    *
-    * @return a map from public keys of forgers to the number of blocks they have forged
-    */
+  /**
+   * Calculates the distribution of blocks to forgers
+   *
+   * @return a map from public keys of forgers to the number of blocks they have forged
+   */
   def forgerDistribution(): Map[PublicKeyPropositionCurve25519, Int] = {
     val map = collection.mutable.Map[PublicKeyPropositionCurve25519, Int]().withDefaultValue(0)
 
-    /** Finds the forger for this block, increments their block number entry in map, and continues down the chain
-      * m is the current block for which to increment the forger entry
-      */
+    /**
+     * Finds the forger for this block, increments their block number entry in map, and continues down the chain
+     * m is the current block for which to increment the forger entry
+     */
     @tailrec
     def loopBackAndIncrementForger(m: Block): Unit = {
       val forger = m.publicKey

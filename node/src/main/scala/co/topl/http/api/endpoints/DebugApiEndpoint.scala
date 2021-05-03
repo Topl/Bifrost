@@ -42,29 +42,30 @@ case class DebugApiEndpoint(
 
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
-    case (method, params, id) if method == s"${namespace.name}_delay"      => delay(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_myBlocks"   => myBlocks(params.head, id)
-    case (method, params, id) if method == s"${namespace.name}_generators" => generators(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_delay"         => delay(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_myBlocks"      => myBlocks(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_generators"    => generators(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_idsFromHeight" => idsFromHeight(params.head, id)
   }
 
-  /** #### Summary
-    * Calculate the average delay over a number of blocks
-    *
-    * #### Description
-    * Find the average delay between blocks starting from a specified blockId and till a certain number of blocks
-    * forged on top of it
-    *
-    * #### Params
-    * | Fields    | Data type | Required / Optional | Description                                                    |
-    * |-----------|-----------|---------------------|----------------------------------------------------------------|
-    * | blockId   | String    | Required            | Id of block from which to start average delay computation      |
-    * | numBlocks | Number    | Required            | Number of blocks back to consider when computing average delay |
-    *
-    * @param params input parameters as specified above
-    * @param id request identifier
-    * @return
-    */
+  /**
+   * #### Summary
+   * Calculate the average delay over a number of blocks
+   *
+   * #### Description
+   * Find the average delay between blocks starting from a specified blockId and till a certain number of blocks
+   * forged on top of it
+   *
+   * #### Params
+   * | Fields    | Data type | Required / Optional | Description                                                    |
+   * |-----------|-----------|---------------------|----------------------------------------------------------------|
+   * | blockId   | String    | Required            | Id of block from which to start average delay computation      |
+   * | numBlocks | Number    | Required            | Number of blocks back to consider when computing average delay |
+   *
+   * @param params input parameters as specified above
+   * @param id request identifier
+   * @return
+   */
   private def delay(params: Json, id: String): Future[Json] =
     asyncHistory { hr =>
       (for {
@@ -77,49 +78,51 @@ case class DebugApiEndpoint(
       }
     }
 
-  /** #### Summary
-    * Find the number of blocks forged by addresses held by the node
-    *
-    * #### Type
-    * Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
-    *
-    * #### Params
-    * | Fields             | Data type | Required / Optional | Description |
-    * |--------------------|-----------|---------------------|-------------|
-    * | --None specified-- |           |                     |             |
-    *
-    * @param params input parameters as specified above
-    * @param id request identifier
-    * @return
-    */
+  /**
+   * #### Summary
+   * Find the number of blocks forged by addresses held by the node
+   *
+   * #### Type
+   * Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
+   *
+   * #### Params
+   * | Fields             | Data type | Required / Optional | Description |
+   * |--------------------|-----------|---------------------|-------------|
+   * | --None specified-- |           |                     |             |
+   *
+   * @param params input parameters as specified above
+   * @param id request identifier
+   * @return
+   */
   private def myBlocks(params: Json, id: String): Future[Json] =
     (nodeViewHolderRef ? GetNodeViewChanges(history = true, state = false, mempool = false))
       .mapTo[ChangedHistory[HistoryReader[Block, BifrostSyncInfo]]]
       .flatMap { hr =>
-      (keyManagerRef ? ListKeys).mapTo[Set[Address]].map { myKeys =>
-        val blockNum = new HistoryDebug(hr.reader).count { b =>
-          myKeys.map(_.evidence).contains(b.generatorBox.evidence)
+        (keyManagerRef ? ListKeys).mapTo[Set[Address]].map { myKeys =>
+          val blockNum = new HistoryDebug(hr.reader).count { b =>
+            myKeys.map(_.evidence).contains(b.generatorBox.evidence)
+          }
+
+          Map(
+            "pubkeys" -> myKeys.asJson,
+            "count"   -> blockNum.asJson
+          ).asJson
         }
-
-        Map(
-          "pubkeys" -> myKeys.asJson,
-          "count"   -> blockNum.asJson
-        ).asJson
       }
-    }
 
-  /** #### Summary
-    * Find distribution of block generators from all addresses in the chain's history
-    *
-    * #### Params
-    * | Fields             | Data type | Required / Optional | Description |
-    * |--------------------|-----------|---------------------|-------------|
-    * | --None specified-- |           |                     |             |
-    *
-    * @param params input parameters as specified above
-    * @param id request identifier
-    * @return
-    */
+  /**
+   * #### Summary
+   * Find distribution of block generators from all addresses in the chain's history
+   *
+   * #### Params
+   * | Fields             | Data type | Required / Optional | Description |
+   * |--------------------|-----------|---------------------|-------------|
+   * | --None specified-- |           |                     |             |
+   *
+   * @param params input parameters as specified above
+   * @param id request identifier
+   * @return
+   */
   private def generators(params: Json, id: String): Future[Json] =
     asyncHistory { hr =>
       new HistoryDebug(hr)
@@ -128,34 +131,36 @@ case class DebugApiEndpoint(
         .asJson
     }
 
-  /** #### Summary
-    * Return all block ids from a given height and down to a given limit
-    *
-    * #### Params
-    * | Fields             | Data type | Required / Optional | Description |
-    * |--------------------|-----------|---------------------|-------------|
-    * | --None specified-- |           |                     |             |
-    *
-    * @param params input parameters as specified above
-    * @param id request identifier
-    * @return
-    */
+  /**
+   * #### Summary
+   * Return all block ids from a given height and down to a given limit
+   *
+   * #### Params
+   * | Fields             | Data type | Required / Optional | Description |
+   * |--------------------|-----------|---------------------|-------------|
+   * | --None specified-- |           |                     |             |
+   *
+   * @param params input parameters as specified above
+   * @param id request identifier
+   * @return
+   */
   private def idsFromHeight(params: Json, id: String): Future[Json] =
     asyncHistory { hr =>
       (for {
         height <- params.hcursor.get[Long]("height")
-        limit <- params.hcursor.get[Int]("limit")
+        limit  <- params.hcursor.get[Int]("limit")
       } yield new HistoryDebug(hr).getIdsFrom(height, limit)) match {
-        case Right(ids) => ids match {
-          case Some(ids) => ids.asJson
-          case None => ErrorResponse(
-            new Exception("No block ids found from that block height"),
-            500,
-            id
-          ).toJson
-        }
+        case Right(ids) =>
+          ids match {
+            case Some(ids) => ids.asJson
+            case None =>
+              ErrorResponse(
+                new Exception("No block ids found from that block height"),
+                500,
+                id
+              ).toJson
+          }
         case Left(e) => throw e
       }
     }
 }
-

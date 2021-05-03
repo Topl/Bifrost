@@ -43,8 +43,8 @@ case object ValhallaGenesis extends GenesisProvider {
     "3NL9rLQHetFaNcgwTZZcY1LaPZgsMqVVrZUf3aC3QRPZ3m8DhLzu" -> 10000000000000000L,
     "3NLsfCVB1jYoQauXeFkKYqMnykeT25fgH7Gd4uQNtFQhUcPXTWza" -> 10000000000000000L,
     "3NKagfyL2GGdLS4AQjoWaNuwrCHkBTMzKKKxULHrZY3dqTVKHbQH" -> 10000000000000000L,
-    "3NLpNbhznjmKrR1447GBPr8NUxqwGxDSDCqWudLHSpDruY6JxkGy" -> 10000000000000000L,
-    )
+    "3NLpNbhznjmKrR1447GBPr8NUxqwGxDSDCqWudLHSpDruY6JxkGy" -> 10000000000000000L
+  )
 
   def getGenesisBlock: Try[(Block, ChainParams)] = Try {
 
@@ -101,7 +101,7 @@ case object ValhallaGenesis extends GenesisProvider {
     require(
       block.id == blockChecksum,
       s"${Console.RED}MALFORMED GENESIS BLOCK! The calculated genesis block " +
-        s"with id ${block.id} does not match the required block for the chosen network mode.${Console.RESET}"
+      s"with id ${block.id} does not match the required block for the chosen network mode.${Console.RESET}"
     )
 
     log.debug(s"Initialize state with transaction ${txs.head} with boxes ${txs.head.newBoxes}")

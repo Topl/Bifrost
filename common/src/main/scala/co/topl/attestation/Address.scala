@@ -7,15 +7,16 @@ import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 
-/** An address is a network specific commitment to a proposition encumbering a box. Addresses incorporate the evidence type
-  * and content from a proposition and add a network specific prefix.
-  * NOTE: when converted to/from string encodings Addresses will include a 4 byte checksum to allow for external
-  * software to enforce correctness checks (this behavior is controlled in the AddressEncoder). This 4 byte checksum is
-  * not included in the byte serialization of an Address.
-  *
-  * @param evidence a commitment produced from a proposition that identifies that proposition.
-  * @param networkPrefix a runtime specified parameter denoting the type of network that is executing
-  */
+/**
+ * An address is a network specific commitment to a proposition encumbering a box. Addresses incorporate the evidence type
+ * and content from a proposition and add a network specific prefix.
+ * NOTE: when converted to/from string encodings Addresses will include a 4 byte checksum to allow for external
+ * software to enforce correctness checks (this behavior is controlled in the AddressEncoder). This 4 byte checksum is
+ * not included in the byte serialization of an Address.
+ *
+ * @param evidence a commitment produced from a proposition that identifies that proposition.
+ * @param networkPrefix a runtime specified parameter denoting the type of network that is executing
+ */
 case class Address(evidence: Evidence)(implicit val networkPrefix: NetworkPrefix) extends BytesSerializable {
 
   type M = Address
@@ -51,9 +52,10 @@ object Address extends BifrostSerializer[Address] {
       case Left(value)  => throw new Exception(value.toString)
     }
 
-  /** Generates an Address from a proppsition. This method enables propositions to have an accessor method
-    * like .address that will return the Address for that instance of the proposition.
-    */
+  /**
+   * Generates an Address from a proppsition. This method enables propositions to have an accessor method
+   * like .address that will return the Address for that instance of the proposition.
+   */
   def from[P <: Proposition: EvidenceProducer](proposition: P)(implicit networkPrefix: NetworkPrefix): Address =
     Address(proposition.generateEvidence)
 

@@ -26,10 +26,11 @@ class KeyRing[
   // bring encryptSecret and decryptSecret into scope from the companion
   import keyfileCompanion._
 
-  /** Retrieves a list of public images for the secrets currently held in the keyring
-    *
-    * @return - the public keys as ProofOfKnowledgePropositions
-    */
+  /**
+   * Retrieves a list of public images for the secrets currently held in the keyring
+   *
+   * @return - the public keys as ProofOfKnowledgePropositions
+   */
   def addresses: Set[Address] = secrets.map(_.publicImage.address)
 
   /** Generate a signature using the secret key associated with an Address */
@@ -46,11 +47,12 @@ class KeyRing[
       case _        => throw new Exception("Unable to find secret for the given address")
     }
 
-  /** Generate an attestation map using the given address and message to sign
-    * @param addr address to lookup the proposition associated with the proof that is needed
-    * @param messageToSign the message that should be committed to
-    * @return a map that can be inserted into a transaction
-    */
+  /**
+   * Generate an attestation map using the given address and message to sign
+   * @param addr address to lookup the proposition associated with the proof that is needed
+   * @param messageToSign the message that should be committed to
+   * @return a map that can be inserted into a transaction
+   */
   def generateAttestation(addr: Address)(messageToSign: Array[Byte]): Map[PK, PR] =
     (lookupPublicKey(addr), signWithAddress(addr)(messageToSign)) match {
       case (Success(pk), Success(sig)) => Map(pk -> sig)
@@ -61,11 +63,12 @@ class KeyRing[
   def generateAttestation(addresses: Set[Address])(messageToSign: Array[Byte]): Map[PK, PR] =
     addresses.map(addr => generateAttestation(addr)(messageToSign)).reduce(_ ++ _)
 
-  /** Generates a new keypair and updates the key ring with the new secret
-    * @param num
-    * @param seedOpt
-    * @return
-    */
+  /**
+   * Generates a new keypair and updates the key ring with the new secret
+   * @param num
+   * @param seedOpt
+   * @return
+   */
   def generateNewKeyPairs(num: Int = 1, seedOpt: Option[String] = None): Try[Set[S]] =
     Try {
       if (num >= 1) {
@@ -80,11 +83,12 @@ class KeyRing[
       } else throw new Error("Number of requested keys must be greater than or equal to 1")
     }
 
-  /** Attempts to import a keyfile into the key ring
-    * @param keyfile encrypted keyfile that will be added
-    * @param password password for decrypting the keyfile
-    * @return the address of the key pair for this network
-    */
+  /**
+   * Attempts to import a keyfile into the key ring
+   * @param keyfile encrypted keyfile that will be added
+   * @param password password for decrypting the keyfile
+   * @return the address of the key pair for this network
+   */
   def importKeyPair(keyfile: KF, password: String): Try[Address] = {
     require(
       keyfile.address.networkPrefix == networkPrefix,
@@ -98,10 +102,11 @@ class KeyRing[
     }
   }
 
-  /** Removes an address from the keyring so that it is not available for signing any longer
-    * @param address network specific address to be removed
-    * @return a try indicating whether the key ring was successfully mutated or not
-    */
+  /**
+   * Removes an address from the keyring so that it is not available for signing any longer
+   * @param address network specific address to be removed
+   * @return a try indicating whether the key ring was successfully mutated or not
+   */
   def removeFromKeyring(address: Address): Try[Unit] = Try {
     secretByAddress(address) match {
       case Some(sk) => secrets -= (secrets find (p => p == sk)).get
@@ -109,11 +114,12 @@ class KeyRing[
     }
   }
 
-  /** @param password
-    * @param mnemonic
-    * @param lang
-    * @return
-    */
+  /**
+   * @param password
+   * @param mnemonic
+   * @param lang
+   * @return
+   */
   def importPhrase(password: String, mnemonic: String, lang: String)(implicit sg: SecretGenerator[S]): Try[Address] =
     Failure(new Exception("Not yet implemented"))
 
@@ -142,30 +148,33 @@ class KeyRing[
 
   object DiskOps {
 
-    /** generate a new random key pair and save to disk
-      *
-      * @param password
-      */
+    /**
+     * generate a new random key pair and save to disk
+     *
+     * @param password
+     */
     def generateKeyFile(password: String): Try[Address] =
       generateNewKeyPairs().map { sk =>
         exportKeyfileToDisk(sk.head.publicImage.address, password)
         sk.head.publicImage.address
       }
 
-    /** Given am address and password, unlock the associated key file.
-      *
-      * @param address  Base58 encoded address of the key to unlock
-      * @param password - password for the given public key.
-      */
+    /**
+     * Given am address and password, unlock the associated key file.
+     *
+     * @param address  Base58 encoded address of the key to unlock
+     * @param password - password for the given public key.
+     */
     def unlockKeyFile(address: String, password: String): Try[Address] = {
       val keyfile = checkValid(address, password)
       importKeyPair(keyfile, password)
     }
 
-    /** @param address
-      * @param password
-      * @return
-      */
+    /**
+     * @param address
+     * @param password
+     * @return
+     */
     private def exportKeyfileToDisk(address: Address, password: String): Try[Unit] =
       (for {
         secret <- secretByAddress(address)
@@ -182,12 +191,13 @@ class KeyRing[
       listContents <- KeyRing.getListOfFiles(keyDir)
     } yield listContents.map(file => readFile(file.getPath))
 
-    /** Check if given publicKey string is valid and contained in the key file directory
-      *
-      * @param address Base58 encoded public key to query
-      * @param password        password used to decrypt the keyfile
-      * @return the relevant PrivateKey25519 to be processed
-      */
+    /**
+     * Check if given publicKey string is valid and contained in the key file directory
+     *
+     * @param address Base58 encoded public key to query
+     * @param password        password used to decrypt the keyfile
+     * @return the relevant PrivateKey25519 to be processed
+     */
     private def checkValid(address: String, password: String): KF =
       listKeyFiles()
         .map {

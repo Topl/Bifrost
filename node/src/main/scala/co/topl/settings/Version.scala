@@ -2,13 +2,14 @@ package co.topl.settings
 
 import co.topl.utils.serialization.{BytesSerializable, _}
 
-/** Version of blockchain protocol
-  *
-  * @param firstDigit Significant hard fork/version change/consensus rule set change
-  * @param secondDigit Feature additions, bugs fixing hard forks, minor hard forks, significant soft forks,
-  *                    interface should work the same
-  * @param thirdDigit Minor changes
-  */
+/**
+ * Version of blockchain protocol
+ *
+ * @param firstDigit Significant hard fork/version change/consensus rule set change
+ * @param secondDigit Feature additions, bugs fixing hard forks, minor hard forks, significant soft forks,
+ *                    interface should work the same
+ * @param thirdDigit Minor changes
+ */
 class Version(val firstDigit: Byte, val secondDigit: Byte, val thirdDigit: Byte)
     extends BytesSerializable
     with Ordered[Version] {
