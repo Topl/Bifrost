@@ -31,7 +31,7 @@ trait IntegrationSuite
 
   implicit val dockerSupport: DockerSupport = new DockerSupport(dockerClient)
 
-  override implicit val patienceConfig: PatienceConfig = PatienceConfig(2.seconds)
+  implicit override val patienceConfig: PatienceConfig = PatienceConfig(2.seconds)
 
   implicit val networkPrefix: NetworkPrefix = NetworkType.PrivateTestnet.netPrefix
 
@@ -46,11 +46,12 @@ trait IntegrationSuite
     Await.result(system.terminate(), 10.seconds)
   }
 
-  /** The genesis block contains pre-loaded addresses, one for each of our test nodes.  Assign
-    * each test node to a single address by locking each node out of all-but-one address, where the assigned
-    * address is determined by the node's index in the given list.
-    */
-  protected def assignForgingAddress(nodes: List[BifrostDockerNode]): Unit = {
+  /**
+   * The genesis block contains pre-loaded addresses, one for each of our test nodes.  Assign
+   * each test node to a single address by locking each node out of all-but-one address, where the assigned
+   * address is determined by the node's index in the given list.
+   */
+  protected def assignForgingAddresses(nodes: List[BifrostDockerNode]): Unit = {
     val allAddresses: Map[String, Set[Address]] =
       nodes
         .map(node =>
@@ -73,6 +74,25 @@ trait IntegrationSuite
           node.run(ToplRpc.Admin.UpdateRewardsAddress.rpc)(ToplRpc.Admin.UpdateRewardsAddress.Params(address)).value
       }
     }
+  }
+
+  /**
+   * Assigns a specific rewards address to a node, and locks out all other keys from the node's ring.  The given address
+   * should already exist in the forger's keyring
+   */
+  protected def assignForgingAddress(node: BifrostDockerNode, address: Address): Unit = {
+    val unlockedAddresses = node
+      .run(ToplRpc.Admin.ListOpenKeyfiles.rpc)(ToplRpc.Admin.ListOpenKeyfiles.Params())
+      .value
+      .unlocked
+
+    unlockedAddresses.foreach {
+      case `address` =>
+        node.run(ToplRpc.Admin.UpdateRewardsAddress.rpc)(ToplRpc.Admin.UpdateRewardsAddress.Params(address)).value
+      case a =>
+        node.run(ToplRpc.Admin.LockKeyfile.rpc)(ToplRpc.Admin.LockKeyfile.Params(a)).value
+    }
+
   }
 
   protected def wrapNode[T](node: BifrostDockerNode)(f: BifrostDockerNode => T): T =

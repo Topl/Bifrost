@@ -61,7 +61,7 @@ class ChainSelectionTest
     Future
       .traverse(nodes)(_.waitForStartup().map(_.value))
       .futureValue(Timeout(60.seconds))
-    assignForgingAddress(nodes)
+    assignForgingAddresses(nodes)
 
     logger.info(s"Waiting for each node to forge $initialForgeCountTarget blocks")
     nodes.foreach(_.run(ToplRpc.Admin.StartForging.rpc)(ToplRpc.Admin.StartForging.Params()).value)
