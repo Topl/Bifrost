@@ -3,6 +3,8 @@ package co.topl.it
 import akka.actor.ActorSystem
 import com.spotify.docker.client.DockerClient
 
+import scala.language.implicitConversions
+
 package object util {
 
   implicit def nodeToRpcApi(
