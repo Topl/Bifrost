@@ -3,7 +3,7 @@ package co.topl.consensus
 import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.ModifierId
 import co.topl.settings.AppSettings
-import co.topl.utils.BytesOf.Implicits._
+import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.NetworkType.{LocalTestnet, PrivateTestnet}
 import co.topl.utils.{Int128, Logging, NetworkType}
 import com.google.common.primitives.Longs

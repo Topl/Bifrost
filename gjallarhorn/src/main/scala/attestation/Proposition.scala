@@ -5,7 +5,7 @@ import attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
 import attestation.serialization.PropositionSerializer
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signatures.{Curve25519, PublicKey}
-import co.topl.utils.BytesOf.Implicits._
+import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
@@ -59,14 +59,14 @@ sealed trait KnowledgeProposition[S <: Secret] extends Proposition
 
 /**
  * A public key with a single signature
- * @param pubKeyBytes the public key bytes
+ * @param pubKey the public key bytes
  */
-case class PublicKeyPropositionCurve25519(private[attestation] val pubKeyBytes: PublicKey)
+case class PublicKeyPropositionCurve25519(private[attestation] val pubKey: PublicKey)
     extends KnowledgeProposition[PrivateKeyCurve25519] {
 
   require(
-    pubKeyBytes.value.length == Curve25519.KeyLength,
-    s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.value.length} found"
+    pubKey.asBytes.length == Curve25519.KeyLength,
+    s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKey.asBytes.length} found"
   )
 
   val propTypeString: String = PublicKeyPropositionCurve25519.typeString
@@ -120,8 +120,8 @@ case class ThresholdPropositionCurve25519(threshold: Int, pubKeyProps: Set[Publi
 
   pubKeyProps.foreach { prop =>
     require(
-      prop.pubKeyBytes.value.length == Curve25519.KeyLength,
-      s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${prop.pubKeyBytes.value.length} found"
+      prop.pubKey.value.length == Curve25519.KeyLength,
+      s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${prop.pubKey.value.length} found"
     )
   }
 

@@ -3,8 +3,8 @@ package co.topl.attestation
 import co.topl.attestation.serialization.ProofSerializer
 import co.topl.crypto.signatures.{Curve25519, PublicKey, Signature}
 import co.topl.keyManagement.{PrivateKeyCurve25519, Secret}
-import co.topl.utils.BytesOf
-import co.topl.utils.BytesOf.Implicits._
+import co.topl.utils.AsBytes
+import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import com.google.common.primitives.Ints
@@ -62,7 +62,7 @@ sealed trait ProofOfKnowledge[S <: Secret, P <: KnowledgeProposition[S]] extends
 case class SignatureCurve25519(private[attestation] val sig: Signature)
     extends ProofOfKnowledge[PrivateKeyCurve25519, PublicKeyPropositionCurve25519] {
 
-  private val signatureLength = BytesOf[Signature].length(sig)
+  private val signatureLength = sig.asBytes.length
 
   require(
     signatureLength == 0 || signatureLength == Curve25519.SignatureLength,
@@ -104,7 +104,7 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
     extends ProofOfKnowledge[PrivateKeyCurve25519, ThresholdPropositionCurve25519] {
 
   signatures.foreach { sig =>
-    require(BytesOf[Signature].length(sig.sig) == SignatureCurve25519.signatureSize)
+    require(sig.sig.asBytes.length == SignatureCurve25519.signatureSize)
   }
 
   override def isValid(proposition: ThresholdPropositionCurve25519, message: Array[Byte]): Boolean = Try {

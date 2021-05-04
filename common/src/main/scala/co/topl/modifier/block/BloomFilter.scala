@@ -1,9 +1,9 @@
 package co.topl.modifier.block
 
-import co.topl.crypto.hash.{blake2b256, Digest32}
+import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.block.BloomFilter.BloomTopic
-import co.topl.utils.BytesOf
-import co.topl.utils.BytesOf.Implicits._
+import co.topl.utils.AsBytes
+import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Longs
@@ -136,7 +136,7 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
   private def calculateIndices(topic: BloomTopic): Set[Int] =
     // Pair up bytes and convert signed Byte to unsigned Int
     Set(0, 2, 4, 6)
-      .map(i => BytesOf[Digest32].slice(blake2b256(topic), i, i + 2).map(_ & 0xff))
+      .map(i => blake2b256(topic).asBytes.slice(i, i + 2).map(_ & 0xff))
       .map { case Array(b1, b2) =>
         ((b1 << 8) | b2) & idxMask
       }
@@ -179,11 +179,7 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
   implicit val jsonDecoder: Decoder[BloomFilter] = Decoder.decodeString.emapTry(fromString)
   implicit val jsonKeyDecoder: KeyDecoder[BloomFilter] = (str: String) => fromString(str).toOption
 
-  implicit val bytesOfBloomTopic: BytesOf[BloomTopic] = new BytesOf[BloomTopic] {
-    override def get(value: BloomTopic): Array[Byte] = value.value
-
-    override def from(bytes: Array[Byte]): BloomTopic = BloomTopic(bytes)
-  }
+  implicit val bloomTopicAsBytes: AsBytes[BloomTopic] = value => value.value
 
   override def serialize(obj: BloomFilter, w: Writer): Unit =
     obj.value.foreach(l => w.putLong(l))

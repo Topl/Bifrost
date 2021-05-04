@@ -8,7 +8,7 @@ import akka.http.scaladsl.model.headers.RawHeader
 import cats.data.{EitherT, NonEmptyList}
 import cats.implicits._
 import co.topl.crypto.hash.{blake2b256, Digest32}
-import co.topl.utils.BytesOf.Implicits._
+import co.topl.utils.AsBytes.Implicits._
 import co.topl.utils.encode.Base58
 import com.spotify.docker.client.DockerClient
 import io.circe._
@@ -52,7 +52,7 @@ case class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem) 
         log.debug(s"Request: ${request.uri} \n Response: ${strict.body}")
       }
 
-  def post(path: String, data: String, f: HttpRequest ⇒ HttpRequest = identity): Future[StrictHttpResponse] =
+  def post(path: String, data: String, f: HttpRequest => HttpRequest = identity): Future[StrictHttpResponse] =
     call(
       f(
         HttpRequest()

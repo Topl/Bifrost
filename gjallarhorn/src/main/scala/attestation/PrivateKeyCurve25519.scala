@@ -1,22 +1,20 @@
 package attestation
 
 import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
-import co.topl.utils.BytesOf
-import co.topl.utils.BytesOf.Implicits._
+import co.topl.utils.AsBytes.implicits._
 import crypto.KeyfileCurve25519
 import utils.serialization.{GjalSerializer, Reader, Writer}
 import cats.implicits._
 
 /**
  * A Secret corresponding to a PublicKeyCurve25519 proposition.
- * @param privKeyBytes - array of bytes that form the private key
- * @param publicKeyBytes - array of bytes that form the public key
+ * @param privKey - array of bytes that form the private key
+ * @param publicKey - array of bytes that form the public key
  */
-case class PrivateKeyCurve25519(private val privKeyBytes: PrivateKey, private val publicKeyBytes: PublicKey)
-    extends Secret {
+case class PrivateKeyCurve25519(private val privKey: PrivateKey, private val publicKey: PublicKey) extends Secret {
 
-  private val privateKeyLength = BytesOf[PrivateKey].length(privKeyBytes)
-  private val publicKeyLength = BytesOf[PublicKey].length(publicKeyBytes)
+  private val privateKeyLength = privKey.asBytes.length
+  private val publicKeyLength = publicKey.asBytes.length
 
   require(privateKeyLength == Curve25519.KeyLength, s"$privateKeyLength == ${Curve25519.KeyLength}")
   require(publicKeyLength == Curve25519.KeyLength, s"$publicKeyLength == ${Curve25519.KeyLength}")
@@ -28,14 +26,14 @@ case class PrivateKeyCurve25519(private val privKeyBytes: PrivateKey, private va
 
   override lazy val serializer: GjalSerializer[PrivateKeyCurve25519] = PrivateKeyCurve25519
 
-  override lazy val publicImage: PublicKeyPropositionCurve25519 = PublicKeyPropositionCurve25519(publicKeyBytes)
+  override lazy val publicImage: PublicKeyPropositionCurve25519 = PublicKeyPropositionCurve25519(publicKey)
 
   override def sign(message: Array[Byte]): SignatureCurve25519 = SignatureCurve25519(
-    Curve25519.sign(privKeyBytes, message)
+    Curve25519.sign(privKey, message)
   )
 
   override def equals(obj: Any): Boolean = obj match {
-    case sk: PrivateKeyCurve25519 => sk.privKeyBytes === privKeyBytes
+    case sk: PrivateKeyCurve25519 => sk.privKey === privKey
     case _                        => false
   }
 }
@@ -50,11 +48,11 @@ object PrivateKeyCurve25519 extends GjalSerializer[PrivateKeyCurve25519] {
     }
 
   override def serialize(obj: PrivateKeyCurve25519, w: Writer): Unit = {
-    /* privKeyBytes: Array[Byte] */
-    w.putBytes(obj.privKeyBytes)
+    /* privKey: Array[Byte] */
+    w.putBytes(obj.privKey)
 
-    /* publicKeyBytes: Array[Byte] */
-    w.putBytes(obj.publicKeyBytes)
+    /* publicKey: Array[Byte] */
+    w.putBytes(obj.publicKey)
   }
 
   override def parse(r: Reader): PrivateKeyCurve25519 =

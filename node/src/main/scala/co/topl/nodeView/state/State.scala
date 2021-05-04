@@ -8,7 +8,7 @@ import co.topl.modifier.box.serialization.BoxSerializer
 import co.topl.modifier.transaction._
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.settings.AppSettings
-import co.topl.utils.BytesOf.Implicits._
+import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.encode.Base58

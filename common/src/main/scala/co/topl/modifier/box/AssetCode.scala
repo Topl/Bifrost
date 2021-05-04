@@ -2,7 +2,7 @@ package co.topl.modifier.box
 
 import co.topl.attestation.Address
 import co.topl.modifier.box.AssetCode.AssetCodeVersion
-import co.topl.utils.BytesOf.Implicits._
+import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.Extensions.StringOps
 import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}

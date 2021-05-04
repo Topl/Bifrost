@@ -1,12 +1,12 @@
 package co.topl.attestation
 
-import co.topl.utils.BytesOf.Implicits._
 import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import io.estatico.newtype.macros.newtype
+import co.topl.utils.AsBytes.implicits._
 
 import scala.language.implicitConversions
 import scala.util.{Failure, Success}

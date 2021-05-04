@@ -3,7 +3,7 @@ package co.topl.attestation.serialization
 import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.crypto.signatures.{Curve25519, PublicKey}
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
-import co.topl.utils.BytesOf.Implicits._
+import co.topl.utils.AsBytes.implicits._
 
 object PublicKeyPropositionCurve25519Serializer extends BifrostSerializer[PublicKeyPropositionCurve25519] {
 

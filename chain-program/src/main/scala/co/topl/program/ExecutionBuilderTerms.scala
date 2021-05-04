@@ -4,7 +4,7 @@ import co.topl.utils.Gzip
 import co.topl.utils.encode.Base58
 import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}
-import co.topl.utils.BytesOf.Implicits._
+import co.topl.utils.AsBytes.implicits._
 
 case class ExecutionBuilderTerms(terms: String) {
   /*  */
