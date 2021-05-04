@@ -5,7 +5,7 @@ import akka.util.ByteString
 import co.topl.attestation.Address
 import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.box.AssetCode
-import co.topl.utils.BytesOf.Implicits._
+import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.encode.Base58
 import io.circe.Json
 import io.circe.parser.parse

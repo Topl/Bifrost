@@ -7,9 +7,9 @@ import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.box.{Box, BoxId, ProgramId}
 import co.topl.modifier.{BoxReader, ModifierId, NodeViewModifier}
-import co.topl.utils.BytesOf.Implicits._
+import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.{BytesOf, Identifiable, Identifier, Int128}
+import co.topl.utils.{Identifiable, Identifier, Int128}
 import com.google.common.primitives.Longs
 import io.circe.{Decoder, Encoder, HCursor}
 
@@ -68,7 +68,7 @@ object Transaction {
     tx.attestation ++ f(tx.messageToSign)
 
   def nonceFromDigest(digest: Digest32): Box.Nonce =
-    Longs.fromByteArray(BytesOf[Digest32].take(digest, Longs.BYTES))
+    Longs.fromByteArray(digest.asBytes.take(Longs.BYTES))
 
   def identifier(tx: TX): Identifier = tx match {
     case _: PolyTransfer[_]  => PolyTransfer.identifier.getId
