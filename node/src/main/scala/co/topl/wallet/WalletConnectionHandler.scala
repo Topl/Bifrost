@@ -3,7 +3,8 @@ package co.topl.wallet
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.pipe
 import akka.util.Timeout
-import co.topl.attestation.{Address, AddressEncoder}
+import co.topl.attestation.Address
+import co.topl.attestation.AddressCodec.implicits.StringOps
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.block.{Block, BloomFilter, PersistentNodeViewModifier}
 import co.topl.modifier.transaction._
@@ -117,11 +118,15 @@ class WalletConnectionHandler[
 
     if (msg.contains("New key:")) {
       val addr: String = msg.substring("New key: ".length)
+      val decodedAddress = addr.decodeAddress.toEither match {
+        case Left(value)  => throw new Exception(value.toString)
+        case Right(value) => value
+      }
       remoteWalletAddresses match {
         case Some(addresses) =>
-          val newAddresses: Set[Address] = addresses + Address(networkPrefix)(addr)
+          val newAddresses: Set[Address] = addresses + decodedAddress
           remoteWalletAddresses = Some(newAddresses)
-        case None => remoteWalletAddresses = Some(Set(Address(networkPrefix)(addr)))
+        case None => remoteWalletAddresses = Some(Set(decodedAddress))
       }
     }
   }
@@ -196,12 +201,10 @@ class WalletConnectionHandler[
       val keystrings = keysArr.map(key => key.trim).toSet
 
       Some(
-        keystrings.map(key =>
-          AddressEncoder.fromStringWithCheck(key, networkPrefix) match {
-            case Right(addr) => addr
-            case Left(ex)    => throw new Error(s"The key: $key cannot be converted into an address: $ex")
-          }
-        )
+        keystrings.map(_.decodeAddress.toEither match {
+          case Left(value)  => throw new Exception(value.toString)
+          case Right(value) => value
+        })
       )
     }
 

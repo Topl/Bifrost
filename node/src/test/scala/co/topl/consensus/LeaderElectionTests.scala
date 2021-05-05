@@ -1,8 +1,9 @@
 package co.topl.consensus
 
 import co.topl.attestation.Address
+import co.topl.attestation.AddressCodec.implicits.StringOps
 import co.topl.consensus.LeaderElection.{NoAddressesAvailable, NoArbitBoxesAvailable}
-import co.topl.utils.{CoreGenerators, NetworkType}
+import co.topl.utils.CoreGenerators
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
@@ -11,7 +12,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks.forAll
 class LeaderElectionTests extends AnyFlatSpec with MockFactory with CoreGenerators {
 
   val address: Address =
-    Address(NetworkType.PrivateTestnet.netPrefix)("AUAvJqLKc8Un3C6bC4aj8WgHZo74vamvX8Kdm6MhtdXgw51cGfix")
+    "AUAvJqLKc8Un3C6bC4aj8WgHZo74vamvX8Kdm6MhtdXgw51cGfix".decodeAddress.toEither.right.get
 
   "getEligibleBox" should "return NoAddressesAvailable when no addresses provided" in {
     forAll(blockGen) { parent =>

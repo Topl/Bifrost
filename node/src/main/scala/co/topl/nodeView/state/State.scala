@@ -1,6 +1,7 @@
 package co.topl.nodeView.state
 
 import co.topl.attestation.Address
+import co.topl.attestation.AddressCodec.implicits.StringOps
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
@@ -8,6 +9,7 @@ import co.topl.modifier.box.serialization.BoxSerializer
 import co.topl.modifier.transaction._
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.settings.AppSettings
+import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
@@ -306,7 +308,8 @@ object State extends Logging {
     val nodeKeys: Option[Set[Address]] = settings.application.nodeKeys match {
       case None                       => None
       case Some(keys) if keys.isEmpty => None
-      case Some(keys)                 => Some(keys.map(Address(networkPrefix)(_)))
+      case Some(keys) =>
+        Some(keys.map(_.decodeAddress.getOrThrow()))
     }
 
     if (nodeKeys.isDefined) log.info(s"Initializing state to watch for public keys: $nodeKeys")
