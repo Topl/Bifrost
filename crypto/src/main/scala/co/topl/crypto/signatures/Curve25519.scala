@@ -4,7 +4,6 @@ import co.topl.crypto.hash.sha256
 import org.whispersystems.curve25519.OpportunisticCurve25519Provider
 
 import java.lang.reflect.Constructor
-import scala.util.{Failure, Try}
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 
