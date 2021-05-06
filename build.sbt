@@ -271,7 +271,7 @@ lazy val node = project.in(file("node"))
   .settings(
     IntegrationTest / parallelExecution := false
   )
-  .dependsOn(common, toplRpc % "it")
+  .dependsOn(common, toplRpc)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
 lazy val common = project.in(file("common"))

@@ -1,8 +1,11 @@
 package co.topl.nodeView
 
+import akka.Done
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
+import cats.data.EitherT
+import co.topl.catsakka.AskException
 import co.topl.consensus.Forger
 import co.topl.consensus.Forger.ReceivableMessages.GenerateGenesis
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
@@ -528,4 +531,59 @@ object NodeViewHolderRef {
     ec:           ExecutionContext
   ): ActorRef =
     system.actorOf(props(settings, appContext), name)
+}
+
+sealed trait GetHistoryFailure
+case class GetHistoryFailureException(throwable: Throwable) extends GetHistoryFailure
+sealed trait GetStateFailure
+case class GetStateFailureException(throwable: Throwable) extends GetStateFailure
+sealed trait GetMempoolFailure
+case class GetMempoolFailureException(throwable: Throwable) extends GetMempoolFailure
+sealed trait BroadcastTxFailure
+case class BroadcastTxFailureException(throwable: Throwable) extends BroadcastTxFailure
+
+trait NodeViewHolderInterface {
+  def getHistory(): EitherT[Future, GetHistoryFailure, History]
+  def getState(): EitherT[Future, GetStateFailure, State]
+  def getMempool(): EitherT[Future, GetMempoolFailure, MemPool]
+  def broadcastTransaction(tx: Transaction.TX): EitherT[Future, BroadcastTxFailure, Done.type]
+}
+
+class ActorNodeViewHolderInterface(actorRef: ActorRef)(implicit ec: ExecutionContext, timeout: Timeout)
+    extends NodeViewHolderInterface {
+  import cats.implicits._
+  import co.topl.catsakka.CatsActor._
+
+  override def getHistory(): EitherT[Future, GetHistoryFailure, History] =
+    actorRef
+      .askEither[ChangedHistory[History]](
+        NodeViewHolder.ReceivableMessages.GetNodeViewChanges(history = true, state = false, mempool = false)
+      )
+      .leftMap { case AskException(throwable) => GetHistoryFailureException(throwable) }
+      .leftMap(e => e: GetHistoryFailure)
+      .map(_.reader)
+
+  override def getState(): EitherT[Future, GetStateFailure, State] =
+    actorRef
+      .askEither[ChangedState[State]](
+        NodeViewHolder.ReceivableMessages.GetNodeViewChanges(history = false, state = true, mempool = false)
+      )
+      .leftMap { case AskException(throwable) => GetStateFailureException(throwable) }
+      .leftMap(e => e: GetStateFailure)
+      .map(_.reader)
+
+  override def getMempool(): EitherT[Future, GetMempoolFailure, MemPool] =
+    actorRef
+      .askEither[ChangedMempool[MemPool]](
+        NodeViewHolder.ReceivableMessages.GetNodeViewChanges(history = false, state = false, mempool = true)
+      )
+      .leftMap { case AskException(throwable) => GetMempoolFailureException(throwable) }
+      .leftMap(e => e: GetMempoolFailure)
+      .map(_.reader)
+
+  def broadcastTransaction(tx: Transaction.TX): EitherT[Future, BroadcastTxFailure, Done.type] =
+    (actorRef ! NodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction(tx))
+      .asRight[BroadcastTxFailure]
+      .map(_ => Done)
+      .toEitherT[Future]
 }
