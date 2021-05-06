@@ -535,7 +535,7 @@ class NetworkController(
             false
         }
 
-      case None =>
+      case _ =>
         log.info(s"No declared address was provided. Skipping address validation.")
         true
     }
