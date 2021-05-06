@@ -17,7 +17,7 @@ import mainargs.{arg, main, Flag}
 final case class StartupOpts(
   @arg(name = "config", short = 'c', doc = "file path to a user defined config file")
   userConfigPathOpt: Option[String] = None,
-  @arg(name = "verbose", doc = "Turn on debugging information")
+  @arg(name = "debug", short = 'd', doc = "Turn on debugging information")
   verbose: Flag = Flag(),
   @arg(name = "network", short = 'n', doc = "specify preset network by name")
   networkTypeOpt: Option[NetworkType] = None,
