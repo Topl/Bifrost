@@ -5,15 +5,19 @@ import cats.implicits._
 
 import scala.language.implicitConversions
 
-trait ToBytes[Decoded] {
+/**
+ * A typeclass which decodes a value to a byte array
+ * @tparam Decoded The domain-specific representation
+ */
+trait AsBytes[Decoded] {
   def encode(decoded: Decoded): Array[Byte]
 }
 
-object ToBytes {
+object AsBytes {
 
   class Ops[T](val instance: T) extends AnyVal {
 
-    def encodeToBytes(implicit encoder: ToBytes[T]): Array[Byte] =
+    def encodeAsBytes(implicit encoder: AsBytes[T]): Array[Byte] =
       encoder.encode(instance)
   }
 
@@ -22,12 +26,16 @@ object ToBytes {
   }
 
   trait Instances {
-    val identityBytesEncoder: ToBytes[Array[Byte]] = identity
+    val identityBytesEncoder: AsBytes[Array[Byte]] = identity
   }
 
   object implicits extends ToOps with Instances
 }
 
+/**
+ * A typeclass which encodes a value to a byte array
+ * @tparam Decoded The domain-specific representation
+ */
 trait FromBytes[DecodeFailure, Decoded] {
   def decode(encoded: Array[Byte]): ValidatedNec[DecodeFailure, Decoded]
 }

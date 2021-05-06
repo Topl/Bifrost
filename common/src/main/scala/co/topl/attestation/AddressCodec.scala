@@ -4,7 +4,7 @@ import cats.Semigroup
 import cats.data.{Validated, ValidatedNec}
 import cats.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.{FromBytes, NetworkType, ToBytes}
+import co.topl.utils.{AsBytes, FromBytes, NetworkType}
 import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
@@ -25,14 +25,14 @@ object AddressCodec {
   trait Implicits {
 
     implicit def addressFromBytes(implicit networkPrefix: NetworkPrefix): AddressFromBytes = new AddressFromBytes
-    implicit val addressToBytes: ToBytes[Address] = address => address.bytes ++ address.bytes.checksum
+    implicit val addressToBytes: AsBytes[Address] = address => address.bytes ++ address.bytes.checksum
 
     implicit class AddressOps(address: Address) {
 
-      import ToBytes.implicits._
+      import AsBytes.implicits._
 
       def base58Encoded: String =
-        Base58.encode(address.encodeToBytes)
+        Base58.encode(address.encodeAsBytes)
     }
 
     implicit class StringOps(value: String) {
@@ -42,7 +42,7 @@ object AddressCodec {
       def decodeAddress(implicit networkPrefix: NetworkPrefix): ValidatedNec[AddressValidationError, Address] =
         Validated
           .fromTry(Base58.decode(value))
-          .leftMap(_ => InvalidAddress)
+          .leftMap(_ => NotBase58)
           .toValidatedNec
           .andThen((bytes: Array[Byte]) => bytes.decodeTo[AddressValidationError, Address])
     }
@@ -106,6 +106,7 @@ object AddressCodec {
 sealed abstract class AddressValidationError
 case object InvalidNetworkPrefix extends AddressValidationError
 case object InvalidAddress extends AddressValidationError
+case object NotBase58 extends AddressValidationError
 case object NetworkTypeMismatch extends AddressValidationError
 case object InvalidAddressLength extends AddressValidationError
 case object InvalidChecksum extends AddressValidationError

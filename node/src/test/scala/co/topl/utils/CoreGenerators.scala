@@ -23,6 +23,7 @@ import co.topl.utils.NetworkType.{NetworkPrefix, PrivateTestnet}
 import io.circe.syntax._
 import io.circe.Json
 import io.iohk.iodb.LSMStore
+import org.scalacheck.rng.Seed
 import org.scalacheck.{Arbitrary, Gen}
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.{Curve25519, Signature}
@@ -49,14 +50,8 @@ trait CoreGenerators extends Logging {
     settings.application.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
   private val keyRing = KeyRing.empty[PrivateKeyCurve25519, KeyfileCurve25519](Some(keyFileDir))
 
-  def sampleUntilNonEmpty[T](generator: Gen[T]): T = {
-    var sampled = generator.sample
-
-    while (sampled.isEmpty)
-      sampled = generator.sample
-
-    sampled.get
-  }
+  def sampleUntilNonEmpty[T](generator: Gen[T]): T =
+    generator.pureApply(Gen.Parameters.default, Seed.random())
 
   lazy val stringGen: Gen[String] = Gen.alphaNumStr.suchThat(_.nonEmpty)
 
@@ -171,7 +166,7 @@ trait CoreGenerators extends Logging {
   } yield {
 
     val interface: Map[String, Seq[String]] = methods.map {
-      _ -> Gen.containerOfN[Seq, String](paramLen, Gen.oneOf(jsonTypes)).sample.get
+      _ -> sampleUntilNonEmpty(Gen.containerOfN[Seq, String](paramLen, Gen.oneOf(jsonTypes)))
     }.toMap
 
     CodeBox(evidence, nonce, programId, methods, interface)
@@ -323,10 +318,10 @@ trait CoreGenerators extends Logging {
     propType <- propTypes
   } yield propType match {
     case PublicKeyPropositionCurve25519.typeString =>
-      val key = publicKeyPropositionCurve25519Gen.sample.get
+      val key = sampleUntilNonEmpty(publicKeyPropositionCurve25519Gen)
       Set(key._1) -> key._2
     case ThresholdPropositionCurve25519.typeString =>
-      thresholdPropositionCurve25519Gen.sample.get
+      sampleUntilNonEmpty(thresholdPropositionCurve25519Gen)
   }
 
   lazy val attestationGen: Gen[Map[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]] = for {
@@ -361,13 +356,7 @@ trait CoreGenerators extends Logging {
   lazy val bifrostTransactionSeqGen: Gen[Seq[Transaction.TX]] = for {
     seqLen <- positiveMediumIntGen
   } yield 0 until seqLen map { _ =>
-    val g = sampleUntilNonEmpty(Gen.oneOf(transactionTypes))
-
-    var sampled = g.sample
-
-    while (sampled.isEmpty) sampled = g.sample
-
-    sampled.get
+    sampleUntilNonEmpty(sampleUntilNonEmpty(Gen.oneOf(transactionTypes)))
   }
 
   lazy val intSeqGen: Gen[Seq[Int]] = for {
@@ -445,7 +434,7 @@ trait CoreGenerators extends Logging {
       .get
   }
 
-  def generateHistory(genesisBlock: Block = genesisBlockGen.sample.get): History = {
+  def generateHistory(genesisBlock: Block = sampleUntilNonEmpty(genesisBlockGen)): History = {
     val dataDir = s"/tmp/bifrost/test-data/test-${Random.nextInt(10000000)}"
 
     val iFile = new File(s"$dataDir/blocks")
