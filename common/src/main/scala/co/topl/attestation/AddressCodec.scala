@@ -25,14 +25,16 @@ object AddressCodec {
   trait Implicits {
 
     implicit def addressFromBytes(implicit networkPrefix: NetworkPrefix): AddressFromBytes = new AddressFromBytes
-    implicit val addressToBytes: AsBytes[Address] = address => address.bytes ++ address.bytes.checksum
+
+    implicit val addressToBytes: AsBytes[Nothing, Address] = address =>
+      (address.bytes ++ address.bytes.checksum).validNec
 
     implicit class AddressOps(address: Address) {
 
       import AsBytes.implicits._
 
-      def base58Encoded: String =
-        Base58.encode(address.encodeAsBytes)
+      def base58Encoded: ValidatedNec[Nothing, String] =
+        address.encodeAsBytes.map(Base58.encode)
     }
 
     implicit class StringOps(value: String) {

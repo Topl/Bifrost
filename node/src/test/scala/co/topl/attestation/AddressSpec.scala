@@ -72,6 +72,15 @@ class AddressSpec
     }
   }
 
+  property("Applying non-base58 encoded address will result in error") {
+    forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
+      implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
+      val modedAddrStr: String = "0OIlL+/"
+
+      modedAddrStr.decodeAddress.toEither.left.value.toNonEmptyList.toList should contain(NotBase58)
+    }
+  }
+
   property("Applying address with incorrect length will result in error") {
     forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
       implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
