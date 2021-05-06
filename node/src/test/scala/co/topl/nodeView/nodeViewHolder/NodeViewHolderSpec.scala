@@ -10,7 +10,8 @@ import co.topl.utils.CoreGenerators
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatest.{BeforeAndAfterAll, PrivateMethodTester}
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext}
 
 class NodeViewHolderSpec
     extends AnyPropSpec
@@ -44,5 +45,5 @@ class NodeViewHolderSpec
   }
 
   override protected def afterAll(): Unit =
-    actorSystem.terminate()
+    Await.result(actorSystem.terminate(), 10.seconds)
 }

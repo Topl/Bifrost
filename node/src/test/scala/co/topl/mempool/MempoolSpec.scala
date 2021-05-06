@@ -7,18 +7,13 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.{ChangedHistory, ChangedMempool}
 import co.topl.network.message.BifrostSyncInfo
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{
-  GetDataFromCurrentView,
-  GetNodeViewChanges,
-  LocallyGeneratedTransaction
-}
-import co.topl.nodeView.history.{History, HistoryReader}
-import co.topl.nodeView.mempool.{MemPool, MemPoolReader}
-import co.topl.nodeView.state.State
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetNodeViewChanges, LocallyGeneratedTransaction}
+import co.topl.nodeView.history.HistoryReader
+import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.NodeViewHolderRef
 import co.topl.settings.{AppContext, StartupOpts}
 import co.topl.utils.CoreGenerators
-import org.scalatest.DoNotDiscover
+import org.scalatest.{BeforeAndAfterAll, DoNotDiscover}
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
@@ -28,7 +23,12 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContext}
 
 @DoNotDiscover
-class MempoolSpec extends AnyPropSpec with ScalaCheckPropertyChecks with Matchers with CoreGenerators {
+class MempoolSpec
+    extends AnyPropSpec
+    with ScalaCheckPropertyChecks
+    with Matchers
+    with CoreGenerators
+    with BeforeAndAfterAll {
 
   implicit private val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
   implicit private val executionContext: ExecutionContext = actorSystem.dispatcher
@@ -60,4 +60,7 @@ class MempoolSpec extends AnyPropSpec with ScalaCheckPropertyChecks with Matcher
     txs.foreach(tx => nodeViewHolderRef ! LocallyGeneratedTransaction(tx))
     txs.foreach(tx => getMempool.contains(tx) shouldBe false)
   }
+
+  override protected def afterAll(): Unit =
+    Await.result(actorSystem.terminate(), 10.seconds)
 }

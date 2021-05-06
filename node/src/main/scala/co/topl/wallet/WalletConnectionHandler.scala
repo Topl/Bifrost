@@ -4,7 +4,6 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.pipe
 import akka.util.Timeout
 import co.topl.attestation.{Address, AddressEncoder}
-import co.topl.http.api.endpoints.{NodeViewApiEndpoint, TransactionApiEndpoint}
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.block.{Block, BloomFilter, PersistentNodeViewModifier}
 import co.topl.modifier.transaction._
@@ -45,8 +44,9 @@ class WalletConnectionHandler[
     context.system.eventStream.subscribe(self, classOf[SemanticallySuccessfulModifier[PMOD]])
 
   private val apiServiceHandlers =
-    NodeViewApiEndpoint(settings, appContext, nodeViewHolderRef).handlers orElse
-    TransactionApiEndpoint(settings, appContext, nodeViewHolderRef).handlers
+    PartialFunction.empty[(String, Vector[Json], String), Future[Json]]
+//    NodeViewApiEndpoint(settings, appContext, nodeViewHolderRef).handlers orElse
+//      TransactionApiEndpoint(settings, appContext, nodeViewHolderRef).handlers
 
   ////////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
