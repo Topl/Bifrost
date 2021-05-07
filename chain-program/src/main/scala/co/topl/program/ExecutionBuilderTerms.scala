@@ -5,6 +5,7 @@ import co.topl.utils.encode.Base58
 import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}
 import co.topl.utils.AsBytes.implicits._
+import co.topl.utils.StringTypes.Base58String
 
 case class ExecutionBuilderTerms(terms: String) {
   /*  */
@@ -21,8 +22,8 @@ case class ExecutionBuilderTerms(terms: String) {
 
 object ExecutionBuilderTerms {
 
-  def decodeGzip(zippedStr: String): String = {
-    val zipped: Array[Byte] = Base58.decode(zippedStr).get
+  def decodeGzip(zippedStr: Base58String): String = {
+    val zipped: Array[Byte] = Base58.decode(zippedStr).getOrElse(Array[Byte]())
     val unzipped: Array[Byte] = Gzip.decompress(zipped)
     new String(unzipped)
   }
@@ -32,7 +33,11 @@ object ExecutionBuilderTerms {
       terms <- c.as[String]
     } yield
       if (terms.startsWith("gzip:")) {
-        ExecutionBuilderTerms(decodeGzip(terms.substring("gzip:".length)))
+        Base58String
+          .validated(terms.substring("gzip:".length))
+          .map(decodeGzip)
+          .map(ExecutionBuilderTerms(_))
+          .getOrElse(ExecutionBuilderTerms(""))
       } else {
         ExecutionBuilderTerms(terms)
       }

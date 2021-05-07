@@ -2,10 +2,12 @@ package co.topl.attestation
 
 import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.StringTypes.Base58String
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
+import co.topl.utils.StringTypes.implicits._
 
 /**
  * An address is a network specific commitment to a proposition encumbering a box. Addresses incorporate the evidence type
@@ -41,12 +43,12 @@ object Address extends BifrostSerializer[Address] {
   implicit val jsonKeyEncoder: KeyEncoder[Address] = (addr: Address) => addr.toString
 
   implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[Address] =
-    Decoder.decodeString.map(str => apply(networkPrefix)(str))
+    Decoder[Base58String].map(apply(networkPrefix))
 
   implicit def jsonKeyDecoder(implicit networkPrefix: NetworkPrefix): KeyDecoder[Address] =
-    (str: String) => Some(apply(networkPrefix)(str))
+    KeyDecoder[Base58String].map(apply(networkPrefix))
 
-  def apply(networkPrefix: NetworkPrefix)(addrStr: String): Address =
+  def apply(networkPrefix: NetworkPrefix)(addrStr: Base58String): Address =
     AddressEncoder.fromStringWithCheck(addrStr, networkPrefix) match {
       case Right(value) => value
       case Left(value)  => throw new Exception(value.toString)

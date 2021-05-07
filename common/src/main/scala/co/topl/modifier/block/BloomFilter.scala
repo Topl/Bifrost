@@ -1,10 +1,13 @@
 package co.topl.modifier.block
 
+import cats.implicits._
 import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.utils.AsBytes
 import co.topl.utils.AsBytes.implicits._
-import co.topl.utils.encode.Base58
+import co.topl.utils.StringTypes.Base58String
+import co.topl.utils.StringTypes.implicits._
+import co.topl.utils.encode.{Base58, DecodingError}
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
@@ -12,7 +15,6 @@ import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import io.estatico.newtype.macros.newtype
 
 import scala.language.implicitConversions
-import scala.util.Try
 
 /**
  * This implementation of Bloom filter is inspired from the Ethereum Yellow Paper
@@ -48,7 +50,7 @@ class BloomFilter private (private val value: Array[Long]) extends BytesSerializ
   }
 
   /** JAA - DO NOT USE THE `.bytes` or `toBytes` methods from the BifrostSerailizer, this must be fixed length */
-  override def toString: String = Base58.encode(value.flatMap(Longs.toByteArray))
+  override def toString: String = Base58.encode(value.flatMap(Longs.toByteArray)).map(_.show).getOrElse("")
 
   override def equals(obj: Any): Boolean = obj match {
     case b: BloomFilter => b.value sameElements value
@@ -136,7 +138,7 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
   private def calculateIndices(topic: BloomTopic): Set[Int] =
     // Pair up bytes and convert signed Byte to unsigned Int
     Set(0, 2, 4, 6)
-      .map(i => blake2b256(topic).asBytes.slice(i, i + 2).map(_ & 0xff))
+      .map(i => blake2b256(topic.asBytes).asBytes.slice(i, i + 2).map(_ & 0xff))
       .map { case Array(b1, b2) =>
         ((b1 << 8) | b2) & idxMask
       }
@@ -168,7 +170,7 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
 
   /** Recreate a bloom filter from a string encoding */
   /** JAA - DO NOT USE THE `parseBytes` method from BifrostSerializer, this must be fixed length */
-  private def fromString(str: String): Try[BloomFilter] =
+  private def fromString(str: Base58String): Either[DecodingError, BloomFilter] =
     Base58
       .decode(str)
       .map(_.grouped(Longs.BYTES).map(Longs.fromByteArray).toArray) //Array[Byte] -> Array[Long]
@@ -176,8 +178,12 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
 
   implicit val jsonEncoder: Encoder[BloomFilter] = (bf: BloomFilter) => bf.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[BloomFilter] = (bf: BloomFilter) => bf.toString
-  implicit val jsonDecoder: Decoder[BloomFilter] = Decoder.decodeString.emapTry(fromString)
-  implicit val jsonKeyDecoder: KeyDecoder[BloomFilter] = (str: String) => fromString(str).toOption
+
+  implicit val jsonDecoder: Decoder[BloomFilter] =
+    Decoder[Base58String].emap(fromString(_).leftMap(_ => "Failed to decode value to Base 58"))
+
+  implicit val jsonKeyDecoder: KeyDecoder[BloomFilter] =
+    KeyDecoder[Base58String].map(fromString(_).getOrElse(throw new Exception("Failed to decode value to Base 58")))
 
   implicit val bloomTopicAsBytes: AsBytes[BloomTopic] = value => value.value
 

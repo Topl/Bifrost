@@ -41,7 +41,7 @@ object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
     w.putLong(header.difficulty)
 
     /* txRoot: Array[Byte] */
-    w.putBytes(header.txRoot)
+    w.putBytes(header.txRoot.asBytes)
 
     /* bloomFilter: Array[Long] */
     BloomFilter.serialize(header.bloomFilter, w)

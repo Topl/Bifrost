@@ -3,6 +3,7 @@ package co.topl.keyManagement
 import co.topl.attestation.Address
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.SecureRandom.randomBytes
+import co.topl.utils.StringTypes.{Base58String, Latin1String, UTF8String}
 import com.google.common.primitives.Ints
 
 import java.io.File
@@ -89,7 +90,7 @@ class KeyRing[
    * @param password password for decrypting the keyfile
    * @return the address of the key pair for this network
    */
-  def importKeyPair(keyfile: KF, password: String): Try[Address] = {
+  def importKeyPair(keyfile: KF, password: Latin1String): Try[Address] = {
     require(
       keyfile.address.networkPrefix == networkPrefix,
       s"Invalid key file for chosen network. " +
@@ -153,7 +154,7 @@ class KeyRing[
      *
      * @param password
      */
-    def generateKeyFile(password: String): Try[Address] =
+    def generateKeyFile(password: Latin1String): Try[Address] =
       generateNewKeyPairs().map { sk =>
         exportKeyfileToDisk(sk.head.publicImage.address, password)
         sk.head.publicImage.address
@@ -165,7 +166,7 @@ class KeyRing[
      * @param address  Base58 encoded address of the key to unlock
      * @param password - password for the given public key.
      */
-    def unlockKeyFile(address: String, password: String): Try[Address] = {
+    def unlockKeyFile(address: Base58String, password: Latin1String): Try[Address] = {
       val keyfile = checkValid(address, password)
       importKeyPair(keyfile, password)
     }
@@ -175,11 +176,12 @@ class KeyRing[
      * @param password
      * @return
      */
-    private def exportKeyfileToDisk(address: Address, password: String): Try[Unit] =
+    private def exportKeyfileToDisk(address: Address, password: Latin1String): Try[Unit] =
       (for {
-        secret <- secretByAddress(address)
-        keyDir <- keyDirectory.map(_.getAbsolutePath)
-        _      <- saveToDisk(keyDir, password, secret).toOption
+        secret     <- secretByAddress(address)
+        keyDir     <- keyDirectory.map(_.getAbsolutePath)
+        keyDirUTF8 <- UTF8String.validated(keyDir).toOption
+        _          <- saveToDisk(keyDirUTF8, password, secret).toOption
       } yield ()) match {
         case Some(_) => Success(())
         case None    => Failure(new Exception("Failed to export key to disk"))
@@ -198,7 +200,7 @@ class KeyRing[
      * @param password        password used to decrypt the keyfile
      * @return the relevant PrivateKey25519 to be processed
      */
-    private def checkValid(address: String, password: String): KF =
+    private def checkValid(address: Base58String, password: Latin1String): KF =
       listKeyFiles()
         .map {
           _.filter {

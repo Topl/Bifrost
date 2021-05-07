@@ -44,10 +44,10 @@ object PrivateKeyCurve25519 extends BifrostSerializer[PrivateKeyCurve25519] {
 
   override def serialize(obj: PrivateKeyCurve25519, w: Writer): Unit = {
     /* : Array[Byte] */
-    w.putBytes(obj.privateKey)
+    w.putBytes(obj.privateKey.asBytes)
 
     /* publicKeyBytes: Array[Byte] */
-    w.putBytes(obj.publicKey)
+    w.putBytes(obj.publicKey.asBytes)
   }
 
   override def parse(r: Reader): PrivateKeyCurve25519 =

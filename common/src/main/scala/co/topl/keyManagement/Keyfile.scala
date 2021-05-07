@@ -2,6 +2,7 @@ package co.topl.keyManagement
 
 import co.topl.attestation.Address
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.StringTypes.{Latin1String, UTF8String}
 import io.circe.Encoder
 import io.circe.syntax.EncoderOps
 
@@ -24,7 +25,7 @@ trait KeyfileCompanion[S <: Secret, KF <: Keyfile[S]] {
    * @param networkPrefix
    * @return
    */
-  def encryptSecret(secret: S, password: String)(implicit networkPrefix: NetworkPrefix): KF
+  def encryptSecret(secret: S, password: Latin1String)(implicit networkPrefix: NetworkPrefix): KF
 
   /**
    * Retrieves the secret key from an encrypted keyfile
@@ -33,7 +34,7 @@ trait KeyfileCompanion[S <: Secret, KF <: Keyfile[S]] {
    * @param networkPrefix
    * @return
    */
-  def decryptSecret(keyfile: KF, password: String)(implicit networkPrefix: NetworkPrefix): Try[S]
+  def decryptSecret(keyfile: KF, password: Latin1String)(implicit networkPrefix: NetworkPrefix): Try[S]
 
   /**
    * Saves an encrypted keyfile to disk
@@ -43,13 +44,15 @@ trait KeyfileCompanion[S <: Secret, KF <: Keyfile[S]] {
    * @param networkPrefix
    * @return
    */
-  def saveToDisk(dir: String, password: String, secretKey: S)(implicit networkPrefix: NetworkPrefix): Try[Unit] = Try {
+  def saveToDisk(dir: UTF8String, password: Latin1String, secretKey: S)(implicit
+    networkPrefix:    NetworkPrefix
+  ): Try[Unit] = Try {
     // encrypt secret using password
     val kf = encryptSecret(secretKey, password)
 
     // save the keyfile to disk
     val dateString = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString.replace(":", "-")
-    val w = new BufferedWriter(new FileWriter(s"$dir/$dateString-${kf.address.toString}.json"))
+    val w = new BufferedWriter(new FileWriter(s"${dir.value}/$dateString-${kf.address.toString}.json"))
     w.write(kf.asJson.toString)
     w.close()
   }

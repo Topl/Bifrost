@@ -3,9 +3,12 @@ package co.topl.keyManagement
 import co.topl.attestation.Address
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
+import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.Extensions.StringOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.SecureRandom.randomBytes
+import co.topl.utils.StringTypes.{Base58String, Latin1String}
+import co.topl.utils.StringTypes.implicits._
 import co.topl.utils.encode.Base58
 import io.circe.parser.parse
 import io.circe.syntax._
@@ -15,7 +18,6 @@ import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
 import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
-import co.topl.utils.AsBytes.implicits._
 
 import scala.util.Try
 
@@ -39,7 +41,7 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
    * @param password string used to encrypt the private key when saved to disk
    * @return
    */
-  def encryptSecret(secretKey: PrivateKeyCurve25519, password: String)(implicit
+  def encryptSecret(secretKey: PrivateKeyCurve25519, password: Latin1String)(implicit
     networkPrefix:             NetworkPrefix
   ): KeyfileCurve25519 = {
     // get random bytes to obfuscate the cipher
@@ -59,7 +61,7 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
     new KeyfileCurve25519(address, cipherText, mac, salt, ivData)
   }
 
-  def decryptSecret(encryptedKeyFile: KeyfileCurve25519, password: String)(implicit
+  def decryptSecret(encryptedKeyFile: KeyfileCurve25519, password: Latin1String)(implicit
     networkPrefix:                    NetworkPrefix
   ): Try[PrivateKeyCurve25519] = Try {
     val derivedKey = KeyfileCurve25519.getDerivedKey(password, encryptedKeyFile.salt)
@@ -116,10 +118,8 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
    * @param salt
    * @return
    */
-  private def getDerivedKey(password: String, salt: Array[Byte]): Array[Byte] = {
-    val passwordBytes = password.getValidLatin1Bytes.getOrElse(throw new Exception("String is not valid Latin-1"))
-    SCrypt.generate(passwordBytes, salt, scala.math.pow(2, 18).toInt, 8, 1, 32)
-  }
+  private def getDerivedKey(password: Latin1String, salt: Array[Byte]): Array[Byte] =
+    SCrypt.generate(password.asBytes, salt, scala.math.pow(2, 18).toInt, 8, 1, 32)
 
   /**
    * @param derivedKey
@@ -159,11 +159,11 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
     Map(
       "crypto" -> Map(
         "cipher"       -> "aes-256-ctr".asJson,
-        "cipherParams" -> Map("iv" -> Base58.encode(kf.iv).asJson).asJson,
-        "cipherText"   -> Base58.encode(kf.cipherText).asJson,
+        "cipherParams" -> Map("iv" -> Base58.encode(kf.iv).map(_.value.value).getOrElse("").asJson).asJson,
+        "cipherText"   -> Base58.encode(kf.cipherText).map(_.value.value).getOrElse("").asJson,
         "kdf"          -> "scrypt".asJson,
-        "kdfSalt"      -> Base58.encode(kf.salt).asJson,
-        "mac"          -> Base58.encode(kf.mac).asJson
+        "kdfSalt"      -> Base58.encode(kf.salt).map(_.value.value).getOrElse("").asJson,
+        "mac"          -> Base58.encode(kf.mac).map(_.value.value).getOrElse("").asJson
       ).asJson,
       "address" -> kf.address.asJson
     ).asJson
@@ -171,18 +171,13 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
 
   implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[KeyfileCurve25519] = (c: HCursor) =>
     for {
-      address          <- c.downField("address").as[Address]
-      cipherTextString <- c.downField("crypto").downField("cipherText").as[String]
-      macString        <- c.downField("crypto").downField("mac").as[String]
-      saltString       <- c.downField("crypto").downField("kdfSalt").as[String]
-      ivString         <- c.downField("crypto").downField("cipherParams").downField("iv").as[String]
+      address    <- c.downField("address").as[Address]
+      cipherText <- c.downField("crypto").downField("cipherText").as[Base58String]
+      mac        <- c.downField("crypto").downField("mac").as[Base58String]
+      salt       <- c.downField("crypto").downField("kdfSalt").as[Base58String]
+      iv         <- c.downField("crypto").downField("cipherParams").downField("iv").as[Base58String]
     } yield {
-      val cipherText = Base58.decode(cipherTextString).get
-      val mac = Base58.decode(macString).get
-      val salt = Base58.decode(saltString).get
-      val iv = Base58.decode(ivString).get
-
       implicit val netPrefix: NetworkPrefix = address.networkPrefix
-      new KeyfileCurve25519(address, cipherText, mac, salt, iv)
+      new KeyfileCurve25519(address, cipherText.asBytes, mac.asBytes, salt.asBytes, iv.asBytes)
     }
 }

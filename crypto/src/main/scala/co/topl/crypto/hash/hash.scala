@@ -1,6 +1,5 @@
 package co.topl.crypto
 
-import cats.data.Validated
 import io.estatico.newtype.macros.newtype
 
 import scala.language.implicitConversions
@@ -36,8 +35,8 @@ package object hash {
      * @param bytes the bytes to convert to a digest
      * @return the digest or an invalid error
      */
-    def validated(bytes: Array[Byte]): Validated[InvalidDigestError, Digest32] =
-      Validated.cond(bytes.length == size, Digest32(bytes), IncorrectSize)
+    def validated(bytes: Array[Byte]): Either[InvalidDigestError, Digest32] =
+      Either.cond(bytes.length == size, Digest32(bytes), IncorrectSize)
 
     implicit val digestDigest32: Digest[Digest32] = new Digest[Digest32] {
       override val size: Int = Digest32.size
@@ -59,8 +58,8 @@ package object hash {
      * @param bytes the bytes to convert to a digest
      * @return the digest or an invalid error
      */
-    def validated(bytes: Array[Byte]): Validated[InvalidDigestError, Digest64] =
-      Validated.cond(bytes.length == size, Digest64(bytes), IncorrectSize)
+    def validated(bytes: Array[Byte]): Either[InvalidDigestError, Digest64] =
+      Either.cond(bytes.length == size, Digest64(bytes), IncorrectSize)
 
     implicit val digestDigest64: Digest[Digest64] = new Digest[Digest64] {
       override val size: Int = Digest64.size

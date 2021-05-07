@@ -8,7 +8,7 @@ import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 object SignatureCurve25519Serializer extends BifrostSerializer[SignatureCurve25519] {
 
   override def serialize(obj: SignatureCurve25519, w: Writer): Unit =
-    w.putBytes(obj.sig)
+    w.putBytes(obj.sig.asBytes)
 
   override def parse(r: Reader): SignatureCurve25519 = {
     val sigBytes = r.getBytes(SignatureCurve25519.signatureSize)

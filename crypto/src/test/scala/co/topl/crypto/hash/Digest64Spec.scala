@@ -40,7 +40,7 @@ class Digest64Spec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with 
 
   property("when validated should contain correct bytes when length is digest size") {
     forAll(genByteArrayOfSize(Digest64.size)) { bytes =>
-      Digest64.validated(bytes).valueOr(_ => Digest64(Array[Byte]())).value shouldBe bytes
+      Digest64.validated(bytes).getOrElse(Digest64(Array[Byte]())).value shouldBe bytes
     }
   }
 

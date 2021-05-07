@@ -5,7 +5,9 @@ import co.topl.crypto.hash.blake2b256
 import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.encode.Base58
+import co.topl.utils.StringTypes.Base58String
+import co.topl.utils.encode.{Base58, DecodingError}
+import co.topl.utils.StringTypes.implicits._
 
 import scala.util.Try
 
@@ -34,7 +36,7 @@ object AddressEncoder {
     val addrBytes = addr.bytes
     val checksum = genChecksum(addrBytes)
 
-    Base58.encode(addrBytes ++ checksum)
+    Base58.encode(addrBytes ++ checksum).map(_.show).getOrElse("")
   }
 
   /**
@@ -42,7 +44,14 @@ object AddressEncoder {
    * @param addrStr
    * @return
    */
-  def fromStringUnsafe(addrStr: String): Try[Address] = Base58.decode(addrStr).flatMap(fromBytes)
+  def fromStringUnsafe(addrStr: Base58String): Either[AddressValidationError, Address] =
+    Base58
+      .decode(addrStr)
+      .leftMap(Base58DecodingError)
+      .flatMap(
+        fromBytes(_).toEither
+          .leftMap(_ => InvalidAddress)
+      )
 
   /**
    * Parse an Address from a string ensuring that the networkPrefix is correct
@@ -51,10 +60,10 @@ object AddressEncoder {
    * @return the network prefix of the address
    */
   def fromStringWithCheck(
-    addrStr:       String,
+    addrStr:       Base58String,
     networkPrefix: NetworkType.NetworkPrefix
   ): Either[AddressValidationError, Address] =
-    Base58.decode(addrStr).toEither.leftMap(_ => InvalidAddress).flatMap(validateAddress(_, networkPrefix))
+    Base58.decode(addrStr).leftMap(Base58DecodingError).flatMap(validateAddress(_, networkPrefix))
 
   def validateAddress(decoded: Array[Byte], networkPrefix: NetworkPrefix): Either[AddressValidationError, Address] =
     for {
@@ -81,6 +90,7 @@ object AddressEncoder {
 }
 
 sealed abstract class AddressValidationError
+case class Base58DecodingError(error: DecodingError) extends AddressValidationError
 case object InvalidNetworkPrefix extends AddressValidationError
 case object InvalidAddress extends AddressValidationError
 case object NetworkTypeMismatch extends AddressValidationError
