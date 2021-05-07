@@ -169,8 +169,9 @@ object ToplRpc {
        */
       case class Params(addresses: List[Address])
       type Response = Map[Address, Entry]
-      case class Entry(Balances: EntryBalances, Boxes: Map[String, List[TokenBox[_]]])
+      case class Entry(Balances: EntryBalances, Boxes: EntryBoxes)
       case class EntryBalances(Polys: Int128, Arbits: Int128)
+      case class EntryBoxes(PolyBox: List[PolyBox], ArbitBox: List[ArbitBox], AssetBox: List[AssetBox])
     }
 
     object TransactionById {

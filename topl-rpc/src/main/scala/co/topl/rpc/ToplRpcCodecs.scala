@@ -1,6 +1,5 @@
 package co.topl.rpc
 
-import cats.implicits._
 import co.topl.attestation.{Address, Proposition}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -188,14 +187,18 @@ trait NodeViewRpcResponseDecoders extends SharedCodecs {
   implicit val nodeViewInfoResponseDecoder: Decoder[ToplRpc.NodeView.Info.Response] =
     deriveDecoder
 
-  implicit def nodeViewBalancesResponseEntryBalancesDecoder(implicit
-    networkPrefix: NetworkPrefix
-  ): Decoder[ToplRpc.NodeView.Balances.EntryBalances] =
+  implicit val nodeViewBalancesResponseEntryBalancesDecoder: Decoder[ToplRpc.NodeView.Balances.EntryBalances] =
     deriveDecoder
 
-  implicit def nodeViewBalancesResponseEntryDecoder(implicit
-    networkPrefix: NetworkPrefix
-  ): Decoder[ToplRpc.NodeView.Balances.Entry] =
+  implicit val nodeViewBalancesResponseEntryBoxesDecoder: Decoder[ToplRpc.NodeView.Balances.EntryBoxes] =
+    c =>
+      for {
+        polyBox  <- c.getOrElse[List[PolyBox]](PolyBox.typeString)(Nil)
+        arbitBox <- c.getOrElse[List[ArbitBox]](ArbitBox.typeString)(Nil)
+        assetBox <- c.getOrElse[List[AssetBox]](AssetBox.typeString)(Nil)
+      } yield ToplRpc.NodeView.Balances.EntryBoxes(polyBox, arbitBox, assetBox)
+
+  implicit val nodeViewBalancesResponseEntryDecoder: Decoder[ToplRpc.NodeView.Balances.Entry] =
     deriveDecoder
 
   implicit def nodeViewBalancesResponseDecoder(implicit
@@ -446,6 +449,9 @@ trait NodeViewRpcResponseEncoders extends SharedCodecs {
   implicit val nodeViewBalancesResponseEntryBalancesEncoder: Encoder[ToplRpc.NodeView.Balances.EntryBalances] =
     deriveEncoder
 
+  implicit val nodeViewBalancesResponseEntryBoxesEncoder: Encoder[ToplRpc.NodeView.Balances.EntryBoxes] =
+    deriveEncoder
+
   implicit val nodeViewBalancesResponseEncoder: Encoder[ToplRpc.NodeView.Balances.Response] =
     _.map { case (address, entry) =>
       Address.jsonKeyEncoder(address) -> entry
@@ -542,11 +548,14 @@ trait SharedCodecs {
       .map { case a: PolyTransfer[Proposition @unchecked] =>
         a
       }
-  implicit val tokenBoxEncoder: Encoder[TokenBox[_]] = b => Box.jsonEncoder(b)
 
-  implicit val tokenBoxDecoder: Decoder[TokenBox[_]] =
-    List[Decoder[TokenBox[_]]](ArbitBox.jsonDecoder.widen, PolyBox.jsonDecoder.widen, AssetBox.jsonDecoder.widen)
-      .reduceLeft(_ or _)
+  implicit def polyBoxEncoder: Encoder[PolyBox] = PolyBox.jsonEncoder
+  implicit def arbitBoxEncoder: Encoder[ArbitBox] = ArbitBox.jsonEncoder
+  implicit def assetBoxEncoder: Encoder[AssetBox] = AssetBox.jsonEncoder
+  implicit def polyBoxDecoder: Decoder[PolyBox] = PolyBox.jsonDecoder
+  implicit def arbitBoxDecoder: Decoder[ArbitBox] = ArbitBox.jsonDecoder
+  implicit def assetBoxDecoder: Decoder[AssetBox] = AssetBox.jsonDecoder
+
   implicit def int128Encoder: Encoder[Int128] = Int128Codec.jsonEncoder
   implicit def int128Decoder: Decoder[Int128] = Int128Codec.jsonDecoder
   implicit def simpleValueEncoder: Encoder[SimpleValue] = SimpleValue.jsonEncoder
