@@ -8,12 +8,14 @@ import scala.language.implicitConversions
 
 package object hash {
 
+  type Message = Array[Byte]
+
   abstract class Hash[H, D: Digest] {
-    def hash(prefix: Option[Byte], messages: Array[Byte]*): D
+    def hash(prefix: Option[Byte], messages: Message*): D
 
-    def hash(prefix: Byte, messages: Array[Byte]*): D = hash(Some(prefix), messages: _*)
+    def hash(prefix: Byte, messages: Message*): D = hash(Some(prefix), messages: _*)
 
-    def hash(message: Array[Byte]): D = hash(None, message)
+    def hash(message: Message): D = hash(None, message)
   }
 
   object Hash {

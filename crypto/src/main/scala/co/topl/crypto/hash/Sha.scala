@@ -7,7 +7,7 @@ import java.security.MessageDigest
 
 abstract class ShaHash[D: Digest](val algorithmName: String) extends Hash[Sha, D] {
 
-  override def hash(prefix: Option[Byte], messages: Array[Byte]*): D =
+  override def hash(prefix: Option[Byte], messages: Message*): D =
     Digest[D]
       .from(
         MessageDigest
