@@ -41,7 +41,7 @@ final case class RuntimeOpts(
   seed: Option[String] = None,
   @arg(name = "forge", short = 'f', doc = "enable forging as soon as the node starts")
   forgeOnStartup: Flag = Flag(),
-  @arg(name = "disableAuth", short = 'a', doc = "Allow the node to receive API requests without an API key")
+  @arg(name = "disableAuth", doc = "Allow the node to receive API requests without an API key")
   disableAuth: Flag = Flag(),
   @arg(name = "apiKeyHash", doc = "hash of API key")
   apiKeyHash: Option[String] = None
