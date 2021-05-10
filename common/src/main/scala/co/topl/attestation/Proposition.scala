@@ -4,7 +4,7 @@ import co.topl.attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
 import co.topl.attestation.serialization.PropositionSerializer
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signatures.{Curve25519, PublicKey}
-import co.topl.keyManagement.{PrivateKeyCurve25519, Secret}
+import co.topl.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519, Secret}
 import co.topl.utils.BytesOf.Implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.encode.Base58
@@ -50,7 +50,7 @@ object Proposition {
 // of secret information.
 sealed trait KnowledgeProposition[S <: Secret] extends Proposition
 
-/* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
+/* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
 case class PublicKeyPropositionCurve25519(private[attestation] val pubKeyBytes: PublicKey)
     extends KnowledgeProposition[PrivateKeyCurve25519] {
@@ -98,7 +98,7 @@ object PublicKeyPropositionCurve25519 {
   implicit val jsonKeyDecoder: KeyDecoder[PublicKeyPropositionCurve25519] = (str: String) => Some(apply(str))
 }
 
-/* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
+/* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
 case class ThresholdPropositionCurve25519(threshold: Int, pubKeyProps: SortedSet[PublicKeyPropositionCurve25519])
     extends KnowledgeProposition[PrivateKeyCurve25519] {
@@ -147,4 +147,50 @@ object ThresholdPropositionCurve25519 {
     prop.toString
   implicit val jsonDecoder: Decoder[ThresholdPropositionCurve25519] = Decoder.decodeString.map(apply)
   implicit val jsonKeyDecoder: KeyDecoder[ThresholdPropositionCurve25519] = (str: String) => Some(apply(str))
+}
+
+/* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
+
+case class PublicKeyPropositionEd25519(private[attestation] val pubKeyBytes: PublicKey)
+    extends KnowledgeProposition[PrivateKeyEd25519] {
+
+  require(
+    pubKeyBytes.value.length == Curve25519.KeyLength,
+    s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.value.length} found"
+  )
+
+  def address(implicit networkPrefix: NetworkPrefix): Address = Address.from(this)
+
+}
+
+object PublicKeyPropositionEd25519 {
+  // type prefix used for address creation
+  val typePrefix: EvidenceTypePrefix = 3: Byte
+  val typeString: String = "PublicKeyEd25519"
+
+  def apply(str: String): PublicKeyPropositionEd25519 =
+    Proposition.fromString(str) match {
+      case Success(prop: PublicKeyPropositionEd25519) => prop
+      case Success(_)                                 => throw new Error("Invalid proposition generation")
+      case Failure(ex)                                => throw ex
+    }
+
+  implicit val evProducer: EvidenceProducer[PublicKeyPropositionEd25519] =
+    EvidenceProducer.instance[PublicKeyPropositionEd25519] { prop: PublicKeyPropositionEd25519 =>
+      Evidence(typePrefix, EvidenceContent(blake2b256(prop.bytes.tail)))
+    }
+
+  implicit val identifier: Identifiable[PublicKeyPropositionEd25519] = Identifiable.instance { () =>
+    Identifier(typeString, typePrefix)
+  }
+
+  // see circe documentation for custom encoder / decoders
+  // https://circe.github.io/circe/codecs/custom-codecs.html
+  implicit val jsonEncoder: Encoder[PublicKeyPropositionEd25519] = (prop: PublicKeyPropositionEd25519) =>
+    prop.toString.asJson
+
+  implicit val jsonKeyEncoder: KeyEncoder[PublicKeyPropositionEd25519] = (prop: PublicKeyPropositionEd25519) =>
+    prop.toString
+  implicit val jsonDecoder: Decoder[PublicKeyPropositionEd25519] = Decoder.decodeString.map(apply)
+  implicit val jsonKeyDecoder: KeyDecoder[PublicKeyPropositionEd25519] = (str: String) => Some(apply(str))
 }
