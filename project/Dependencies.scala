@@ -77,7 +77,8 @@ object Dependencies {
     "com.google.guava"        % "guava"                   % "30.1.1-jre",
     "com.typesafe"            % "config"                  % "1.4.1",
     "com.github.pureconfig"  %% "pureconfig"              % "0.14.1",
-    "org.scala-lang.modules" %% "scala-collection-compat" % "2.4.3"
+    "org.scala-lang.modules" %% "scala-collection-compat" % "2.4.3",
+    "net.jpountz.lz4"         % "lz4"                     % "1.3.0"
   )
 
   val monitoring = Seq(

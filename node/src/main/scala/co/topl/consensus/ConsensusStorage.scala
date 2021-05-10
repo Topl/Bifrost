@@ -5,7 +5,7 @@ import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType.{LocalTestnet, PrivateTestnet}
 import co.topl.utils.{Int128, Logging, NetworkType}
 import com.google.common.primitives.Longs
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore, Store}
+import io.iohk.iodb.{ByteArrayWrapper, LogStore, Store}
 import scorex.crypto.hash.Blake2b256
 
 import java.io.File
@@ -128,7 +128,7 @@ object ConsensusStorage {
     }
     val file = new File(s"$dataDir/consensus")
     file.mkdirs()
-    val storage = new LSMStore(file)
+    val storage = new LogStore(file)
 
     // todo: JAA - we need to find a better pattern than this. I see why it is the most straightforward for now,
     //       but maybe we elevate the ConsensusStorage interface up to a sealed abstract class and have two instances?

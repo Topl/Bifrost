@@ -22,7 +22,7 @@ import co.topl.settings.{AppSettings, StartupOpts, Version}
 import co.topl.utils.NetworkType.{NetworkPrefix, PrivateTestnet}
 import io.circe.syntax._
 import io.circe.Json
-import io.iohk.iodb.LSMStore
+import io.iohk.iodb.LogStore
 import org.scalacheck.{Arbitrary, Gen}
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.{Curve25519, Signature}
@@ -450,7 +450,7 @@ trait CoreGenerators extends Logging {
 
     val iFile = new File(s"$dataDir/blocks")
     iFile.mkdirs()
-    val blockStorage = new LSMStore(iFile)
+    val blockStorage = new LogStore(iFile)
 
     val storage = new Storage(blockStorage, settings.application.cacheExpire, settings.application.cacheSize)
     //we don't care about validation here

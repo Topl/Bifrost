@@ -1,10 +1,10 @@
 package co.topl.nodeView.state
 
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
+import io.iohk.iodb.{ByteArrayWrapper, LogStore}
 
 trait StoreInterface {
 
-  protected val storage: LSMStore
+  protected val storage: LogStore
 
   /** method to retrieve data from storage */
   protected def getFromStorage(id: Array[Byte]): Option[Array[Byte]] =

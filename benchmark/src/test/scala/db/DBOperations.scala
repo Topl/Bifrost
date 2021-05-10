@@ -90,7 +90,7 @@
 //import org.openjdk.jmh.infra.Blackhole
 //import co.topl.nodeView.history._
 //import io.circe.Json
-//import io.iohk.iodb.LSMStore
+//import io.iohk.iodb.LogStore
 //
 //
 //@OutputTimeUnit(TimeUnit.NANOSECONDS)
@@ -128,7 +128,7 @@
 //    }
 //    val dataDir: File = new File(settings.dataDirOpt.get)
 //    println(settings.dataDirOpt.getOrElse("Could not find bench.json"))
-//    val blockStorage: LSMStore = new LSMStore(dataDir)
+//    val blockStorage: LogStore = new LogStore(dataDir)
 //  }
 //}
 // */
