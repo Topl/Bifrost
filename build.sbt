@@ -16,7 +16,8 @@ inThisBuild(List(
   dynver := {
     val d = new java.util.Date
     sbtdynver.DynVer.getGitDescribeOutput(d).mkVersion(versionFmt, fallbackVersion(d))
-  }
+  },
+  parallelExecution := false
 ))
 
 lazy val commonSettings = Seq(
