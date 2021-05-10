@@ -61,7 +61,7 @@ case class State(
    * @return
    */
   override def getBox(id: BoxId): Option[Box[_]] =
-    getFromStorage(id.hashBytes)
+    getFromStorage(id.hash.value)
       .map(BoxSerializer.parseBytes)
       .flatMap(_.toOption)
 
@@ -181,7 +181,7 @@ case class State(
       val boxesToAdd = (nodeKeys match {
         case Some(keys) => stateChanges.toAppend.filter(b => keys.contains(Address(b.evidence)))
         case None       => stateChanges.toAppend
-      }).map(b => ByteArrayWrapper(b.id.hashBytes) -> ByteArrayWrapper(b.bytes))
+      }).map(b => ByteArrayWrapper(b.id.hash.value) -> ByteArrayWrapper(b.bytes))
 
       val boxIdsToRemove = (nodeKeys match {
         case Some(keys) =>
@@ -191,7 +191,7 @@ case class State(
             .map(b => b.id)
 
         case None => stateChanges.boxIdsToRemove
-      }).map(b => ByteArrayWrapper(b.hashBytes))
+      }).map(b => ByteArrayWrapper(b.hash.value))
 
       // enforce that the input id's must not match any of the output id's (added emptiness checks for testing)
       require(

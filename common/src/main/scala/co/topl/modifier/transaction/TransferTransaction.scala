@@ -86,7 +86,7 @@ object TransferTransaction {
 
     // known input data (similar to messageToSign but without newBoxes since they aren't known yet)
     val txIdPrefix = Transaction.identifier(tx).typePrefix
-    val boxIdsToOpenAccumulator = tx.boxIdsToOpen.foldLeft(Array[Byte]())((acc, x) => acc ++ x.hashBytes)
+    val boxIdsToOpenAccumulator = tx.boxIdsToOpen.foldLeft(Array[Byte]())((acc, x) => acc ++ x.hash.value)
     val timestampBytes = Longs.toByteArray(tx.timestamp)
     val feeBytes = tx.fee.toByteArray
 

@@ -52,12 +52,12 @@ package object hash {
   type Blake2b
   type Sha
 
-  trait instances {
+  trait Instances {
     implicit val sha256: Hash[Sha, Digest32] = Sha256
     implicit val sha512: Hash[Sha, Digest64] = Sha512
     implicit val blake2b256: Hash[Blake2b, Digest32] = Blake2b256
     implicit val blake2b512: Hash[Blake2b, Digest64] = Blake2b512
   }
 
-  object implicits extends digest.instances with digest.Digest.ToDigestOps with instances
+  object implicits extends digest.Instances with digest.Digest.ToDigestOps with digest.Extensions with Instances
 }

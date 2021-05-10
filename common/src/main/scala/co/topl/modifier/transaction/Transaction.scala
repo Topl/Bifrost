@@ -38,7 +38,7 @@ abstract class Transaction[+T, P <: Proposition: Identifiable] extends NodeViewM
   def messageToSign: Array[Byte] =
     Array(Transaction.identifier(this).typePrefix) ++
     newBoxes.foldLeft(Array[Byte]())((acc, x) => acc ++ x.bytes) ++
-    boxIdsToOpen.foldLeft(Array[Byte]())((acc, x) => acc ++ x.hashBytes) ++
+    boxIdsToOpen.foldLeft(Array[Byte]())((acc, x) => acc ++ x.hash.value) ++
     Longs.toByteArray(timestamp) ++
     fee.toByteArray
 

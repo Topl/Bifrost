@@ -3,6 +3,8 @@ package co.topl.modifier.box
 import co.topl.attestation.Evidence
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.digest.Digest32
+import co.topl.crypto.hash.implicits._
+import cats.implicits._
 import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.{Ints, Longs}
@@ -11,16 +13,16 @@ import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 
 import scala.util.{Failure, Success}
 
-case class BoxId(hashBytes: Array[Byte]) {
+case class BoxId(hash: Digest32) {
 
-  override def hashCode: Int = Ints.fromByteArray(hashBytes)
+  override def hashCode: Int = Ints.fromByteArray(hash.value)
 
   override def equals(obj: Any): Boolean = obj match {
-    case obj: BoxId => obj.hashBytes sameElements hashBytes
+    case obj: BoxId => obj.hash === hash
     case _          => false
   }
 
-  override def toString: String = Base58.encode(hashBytes)
+  override def toString: String = Base58.encode(hash)
 }
 
 object BoxId {
@@ -32,14 +34,16 @@ object BoxId {
   def apply(id: String): BoxId =
     Base58.decode(id) match {
       case Success(id) =>
-        require(id.length == BoxId.size, s"Invalid size for BoxId")
-        new BoxId(id)
+        Digest32.validated(id).map(BoxId(_)).getOrElse(throw new Exception(s"Invalid size for BoxId"))
 
       case Failure(ex) => throw ex
     }
 
+  def apply(bytes: Array[Byte]): BoxId =
+    Digest32.validated(bytes).map(BoxId(_)).getOrElse(throw new Exception(s"Invalid size for BoxId"))
+
   def idFromEviNonce(evidence: Evidence, nonce: Box.Nonce): BoxId =
-    BoxId(Blake2b256.hash(evidence.bytes ++ Longs.toByteArray(nonce)).value)
+    BoxId(Blake2b256.hash(evidence.bytes ++ Longs.toByteArray(nonce)))
 
   implicit val jsonEncoder: Encoder[BoxId] = (id: BoxId) => id.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[BoxId] = (id: BoxId) => id.toString
