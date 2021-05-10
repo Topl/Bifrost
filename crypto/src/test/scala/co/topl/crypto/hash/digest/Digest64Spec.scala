@@ -10,7 +10,7 @@ class Digest64Spec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with 
 
   property("should be invalid when length is less than digest size") {
     forAll(genByteArrayWithBoundedSize(0, Digest64.size - 1)) { bytes =>
-      Digest64.validated(bytes) shouldBe Validated.Invalid(IncorrectSize)
+      Digest64.validated(bytes).isValid shouldBe false
     }
   }
 
@@ -18,7 +18,7 @@ class Digest64Spec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with 
     val upperBound = 10000
 
     forAll(genByteArrayWithBoundedSize(Digest64.size + 1, upperBound)) { bytes =>
-      Digest64.validated(bytes) shouldBe Validated.Invalid(IncorrectSize)
+      Digest64.validated(bytes).isValid shouldBe false
     }
   }
 

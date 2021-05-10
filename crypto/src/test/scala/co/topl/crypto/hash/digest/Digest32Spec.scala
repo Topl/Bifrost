@@ -10,7 +10,7 @@ class Digest32Spec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with 
 
   property("should be invalid when length is less than digest size") {
     forAll(genByteArrayWithBoundedSize(0, Digest32.size - 1)) { bytes =>
-      Digest32.validated(bytes) shouldBe Validated.Invalid(IncorrectSize)
+      Digest32.validated(bytes).isValid shouldBe false
     }
   }
 
@@ -18,7 +18,7 @@ class Digest32Spec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with 
     val upperBound = 10000
 
     forAll(genByteArrayWithBoundedSize(Digest32.size + 1, upperBound)) { bytes =>
-      Digest32.validated(bytes) shouldBe Validated.Invalid(IncorrectSize)
+      Digest32.validated(bytes).isValid shouldBe false
     }
   }
 
