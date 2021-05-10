@@ -1,7 +1,7 @@
 package co.topl.settings
 
 import co.topl.utils.NetworkType
-import mainargs.{arg, main, Flag}
+import mainargs.{arg, main, Flag, ParserForClass, TokensReader}
 
 /**
  * Parameters that are given at application startup. Only parameters that are
@@ -75,4 +75,25 @@ final case class RuntimeOpts(
       forging = forgingSettings
     )
   }
+}
+
+object StartupOptsImplicits {
+
+  /**
+   * networkReader, runtimeOptsParser, and startupOptsParser are defined here in a specific order
+   *  to define the runtime command flags using mainargs. StartupOpts has to be last as it uses NetworkType
+   *  and RuntimeOpts internally
+   */
+  implicit object networkReader
+      extends TokensReader[NetworkType](
+        shortName = "network",
+        str =>
+          NetworkType.pickNetworkType(str.head) match {
+            case Some(net) => Right(net)
+            case None      => Left("No valid network found with that name")
+          }
+      )
+
+  implicit def runtimeOptsParser: ParserForClass[RuntimeOpts] = ParserForClass[RuntimeOpts]
+  implicit def startupOptsParser: ParserForClass[StartupOpts] = ParserForClass[StartupOpts]
 }

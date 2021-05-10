@@ -6,9 +6,8 @@ import akka.io.Tcp
 import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.akkahttprpc.{ThrowableData, ThrowableSupport}
-import co.topl.consensus.{ActorForgerInterface, ActorKeyManagerInterface, Forger, ForgerRef, KeyManager, KeyManagerRef}
+import co.topl.consensus._
 import co.topl.http.HttpService
-import co.topl.rpc.ToplRpcServer
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.NetworkController.ReceivableMessages.BindP2P
@@ -19,15 +18,16 @@ import co.topl.nodeView._
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
+import co.topl.rpc.ToplRpcServer
 import co.topl.settings._
+import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.{Logging, NetworkType}
 import co.topl.wallet.{WalletConnectionHandler, WalletConnectionHandlerRef}
 import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.circe.Encoder
 import kamon.Kamon
-import mainargs.{ParserForClass, TokensReader}
+import mainargs.ParserForClass
 
 import java.lang.management.ManagementFactory
 import scala.concurrent.duration._
@@ -227,28 +227,12 @@ class BifrostApp(startupOpts: StartupOpts) extends NodeLogging with Runnable {
 /** This is the primary application object and is the entry point for Bifrost to begin execution */
 object BifrostApp extends Logging {
 
+  import StartupOptsImplicits._
+
   /** Check if Kamon instrumentation should be started. */
   /** DO NOT MOVE!! This must happen before anything else! */
   private val conf: Config = ConfigFactory.load("application")
   if (conf.getBoolean("kamon.enable")) Kamon.init()
-
-  /**
-   * networkReader, runtimeOptsParser, and startupOptsParser are defined here in a specific order
-   *  to define the runtime command flags using mainargs. StartupOpts has to be last as it uses NetworkType
-   *  and RuntimeOpts internally
-   */
-  implicit object networkReader
-      extends TokensReader[NetworkType](
-        shortName = "network",
-        str =>
-          NetworkType.pickNetworkType(str.head) match {
-            case Some(net) => Right(net)
-            case None      => Left("No valid network found with that name")
-          }
-      )
-
-  implicit def runtimeOptsParser: ParserForClass[RuntimeOpts] = ParserForClass[RuntimeOpts]
-  implicit def startupOptsParser: ParserForClass[StartupOpts] = ParserForClass[StartupOpts]
 
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
