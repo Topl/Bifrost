@@ -41,8 +41,8 @@ final case class RuntimeOpts(
   seed: Option[String] = None,
   @arg(name = "forge", short = 'f', doc = "enable forging as soon as the node starts")
   forgeOnStartup: Flag = Flag(),
-  @arg(name = "authEnabled", short = 'a', doc = "Allow the node to receive API requests")
-  authEnabled: Flag = Flag(),
+  @arg(name = "disableAuth", short = 'a', doc = "Allow the node to receive API requests without an API key")
+  disableAuth: Flag = Flag(),
   @arg(name = "apiKeyHash", doc = "hash of API key")
   apiKeyHash: Option[String] = None
 ) {
@@ -54,7 +54,7 @@ final case class RuntimeOpts(
    */
   def overrideWithCmdArgs(appSettings: AppSettings): AppSettings = {
     val rpcApiSettings = appSettings.rpcApi.copy(
-      authEnabled = appSettings.rpcApi.authEnabled || authEnabled.value,
+      disableAuth = appSettings.rpcApi.disableAuth || disableAuth.value,
       apiKeyHash = apiKeyHash.fold[String](appSettings.rpcApi.apiKeyHash)(a => a)
     )
     val privateTestnetSettings =
