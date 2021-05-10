@@ -1,7 +1,6 @@
 package co.topl.modifier.box
 
 import co.topl.attestation.Evidence
-import co.topl.crypto.hash.implicits._
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.utils.AsBytes.implicits._
@@ -40,7 +39,7 @@ object BoxId {
     }
 
   def idFromEviNonce(evidence: Evidence, nonce: Box.Nonce): BoxId =
-    BoxId(Blake2b256.hash(evidence.bytes ++ Longs.toByteArray(nonce)).asBytes)
+    BoxId(Blake2b256.hash(evidence.bytes ++ Longs.toByteArray(nonce)).value)
 
   implicit val jsonEncoder: Encoder[BoxId] = (id: BoxId) => id.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[BoxId] = (id: BoxId) => id.toString

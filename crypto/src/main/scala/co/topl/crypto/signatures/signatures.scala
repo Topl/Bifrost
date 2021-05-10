@@ -1,5 +1,6 @@
 package co.topl.crypto
 
+import cats.Eq
 import io.estatico.newtype.macros.newtype
 
 import scala.language.implicitConversions
@@ -10,6 +11,13 @@ package object signatures {
 
   @newtype
   case class PrivateKey(value: Array[Byte])
+
+  object PrivateKey {
+
+    trait Instances {
+      implicit val eqPrivateKey: Eq[PrivateKey] = _.value sameElements _.value
+    }
+  }
 
   @newtype
   case class PublicKey(value: Array[Byte])
@@ -22,7 +30,7 @@ package object signatures {
   @newtype
   case class Signature(value: Array[Byte])
 
-  object Signature {}
+  object implicits extends PrivateKey.Instances
 
   type MessageToSign = Array[Byte]
 

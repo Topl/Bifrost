@@ -2,7 +2,6 @@ package co.topl.attestation
 
 import cats.implicits._
 import co.topl.crypto.hash.Blake2b256
-import co.topl.crypto.hash.implicits._
 import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
@@ -29,7 +28,8 @@ object AddressEncoder {
    * @param addrBytes the bytes of an address (1 - networkPrefix, 1 - addressTypePres, 32 - content bytes)
    * @return a 4 byte checksum value
    */
-  private def genChecksum(addrBytes: Array[Byte]): Array[Byte] = Blake2b256.hash(addrBytes).asBytes.take(checksumLength)
+  private def genChecksum(addrBytes: Array[Byte]): Array[Byte] =
+    Blake2b256.hash(addrBytes).value.take(checksumLength)
 
   def toString(addr: Address): String = {
     val addrBytes = addr.bytes

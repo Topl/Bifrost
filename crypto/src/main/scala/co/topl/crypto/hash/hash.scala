@@ -10,11 +10,38 @@ package object hash {
 
   type Message = Array[Byte]
 
+  /**
+   * Represents a hashing function with a scheme and digest type.
+   *
+   * @tparam H the hashing scheme
+   * @tparam D the digest type with an implicit Digest implementation
+   */
   abstract class Hash[H, D: Digest] {
+
+    /**
+     * Hashes a set of messages with an optional prefix.
+     *
+     * @param prefix the optional prefix byte of the hashed message
+     * @param messages the set of messages to iteratively hash
+     * @return the hash digest
+     */
     def hash(prefix: Option[Byte], messages: Message*): D
 
+    /**
+     * Hashes a set of messages with a given prefix.
+     *
+     * @param prefix the prefix byte of the hashed message
+     * @param messages the set of messages to iteratively hash
+     * @return the hash digest
+     */
     def hash(prefix: Byte, messages: Message*): D = hash(Some(prefix), messages: _*)
 
+    /**
+     * Hashes a message.
+     *
+     * @param message the message to hash
+     * @return the hash digest
+     */
     def hash(message: Message): D = hash(None, message)
   }
 

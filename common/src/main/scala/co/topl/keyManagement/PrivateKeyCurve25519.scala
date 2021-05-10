@@ -1,15 +1,15 @@
 package co.topl.keyManagement
 
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
-import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
-import co.topl.utils.AsBytes.implicits._
-import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
+import co.topl.crypto.signatures.implicits._
 import cats.implicits._
+import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
+import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 case class PrivateKeyCurve25519(private val privateKey: PrivateKey, private val publicKey: PublicKey) extends Secret {
 
-  private val privateKeyLength = privateKey.asBytes.length
-  private val publicKeyLength = publicKey.asBytes.length
+  private val privateKeyLength = privateKey.value.length
+  private val publicKeyLength = publicKey.value.length
 
   require(privateKeyLength == Curve25519.KeyLength, s"$privateKeyLength == ${Curve25519.KeyLength}")
   require(publicKeyLength == Curve25519.KeyLength, s"$publicKeyLength == ${Curve25519.KeyLength}")
@@ -44,10 +44,10 @@ object PrivateKeyCurve25519 extends BifrostSerializer[PrivateKeyCurve25519] {
 
   override def serialize(obj: PrivateKeyCurve25519, w: Writer): Unit = {
     /* : Array[Byte] */
-    w.putBytes(obj.privateKey.asBytes)
+    w.putBytes(obj.privateKey.value)
 
     /* publicKeyBytes: Array[Byte] */
-    w.putBytes(obj.publicKey.asBytes)
+    w.putBytes(obj.publicKey.value)
   }
 
   override def parse(r: Reader): PrivateKeyCurve25519 =

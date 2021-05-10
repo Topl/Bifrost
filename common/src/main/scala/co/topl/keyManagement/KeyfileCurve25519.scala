@@ -2,8 +2,8 @@ package co.topl.keyManagement
 
 import co.topl.attestation.Address
 import co.topl.crypto.hash.Blake2b256
-import co.topl.crypto.hash.implicits._
 import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
+import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.Extensions.StringOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.SecureRandom.randomBytes
@@ -16,7 +16,6 @@ import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
 import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
-import co.topl.utils.AsBytes.implicits._
 
 import scala.util.Try
 
@@ -128,7 +127,7 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
    * @return
    */
   private def getMAC(derivedKey: Array[Byte], cipherText: Array[Byte]): Array[Byte] =
-    Blake2b256.hash(derivedKey.slice(16, 32) ++ cipherText).asBytes
+    Blake2b256.hash(derivedKey.slice(16, 32) ++ cipherText).value
 
   /**
    * @param derivedKey

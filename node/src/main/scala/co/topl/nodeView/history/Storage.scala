@@ -6,8 +6,6 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.transaction.Transaction
-import co.topl.crypto.hash.implicits._
-import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.Logging
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.google.common.primitives.Longs
@@ -86,37 +84,37 @@ class Storage(private[history] val storage: LSMStore, private val cacheExpire: I
   /** These methods allow us to lookup top-level information from blocks using the special keys defined below */
   def scoreOf(blockId: ModifierId): Option[Long] =
     blockCache
-      .get(ByteArrayWrapper(blockScoreKey(blockId).asBytes))
+      .get(ByteArrayWrapper(blockScoreKey(blockId).value))
       .map(b => Longs.fromByteArray(b.data))
 
   def heightOf(blockId: ModifierId): Option[Long] =
     blockCache
-      .get(ByteArrayWrapper(blockHeightKey(blockId).asBytes))
+      .get(ByteArrayWrapper(blockHeightKey(blockId).value))
       .map(b => Longs.fromByteArray(b.data))
 
   def timestampOf(blockId: ModifierId): Option[Long] =
     blockCache
-      .get(ByteArrayWrapper(blockTimestampKey(blockId).asBytes))
+      .get(ByteArrayWrapper(blockTimestampKey(blockId).value))
       .map(b => Longs.fromByteArray(b.data))
 
   def idAtHeightOf(height: Long): Option[ModifierId] =
     blockCache
-      .get(ByteArrayWrapper(idHeightKey(height).asBytes))
+      .get(ByteArrayWrapper(idHeightKey(height).value))
       .flatMap(id => ModifierId.parseBytes(id.data).toOption)
 
   def difficultyOf(blockId: ModifierId): Option[Long] =
     blockCache
-      .get(ByteArrayWrapper(blockDiffKey(blockId).asBytes))
+      .get(ByteArrayWrapper(blockDiffKey(blockId).value))
       .map(b => Longs.fromByteArray(b.data))
 
   def bloomOf(blockId: ModifierId): Option[BloomFilter] =
     blockCache
-      .get(ByteArrayWrapper(blockBloomKey(blockId).asBytes))
+      .get(ByteArrayWrapper(blockBloomKey(blockId).value))
       .flatMap(b => BloomFilter.parseBytes(b.data).toOption)
 
   def parentIdOf(blockId: ModifierId): Option[ModifierId] =
     blockCache
-      .get(ByteArrayWrapper(blockParentKey(blockId).asBytes))
+      .get(ByteArrayWrapper(blockParentKey(blockId).value))
       .flatMap(d => ModifierId.parseBytes(d.data).toOption)
 
   /**

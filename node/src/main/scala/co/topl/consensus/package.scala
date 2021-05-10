@@ -4,8 +4,6 @@ import co.topl.crypto.hash.Blake2b256
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
 import co.topl.settings.ProtocolSettings
-import co.topl.crypto.hash.implicits._
-import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.{Int128, TimeProvider}
 import com.google.common.primitives.Longs
 
@@ -53,7 +51,7 @@ package object consensus {
   def calcHit(lastBlock: Block)(box: ArbitBox): Long = {
     val h = Blake2b256.hash(lastBlock.bytes ++ box.bytes)
 
-    Longs.fromByteArray((0: Byte) +: h.asBytes.take(7))
+    Longs.fromByteArray((0: Byte) +: h.value.take(7))
   }
 
   /**

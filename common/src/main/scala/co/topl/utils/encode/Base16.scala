@@ -24,8 +24,8 @@ object Base16 extends BytesEncoder {
     index
   }
 
-  def encode[V: AsBytes](input: V): String = {
-    val inputBytes = input.asBytes
+  def encode[V](input: V)(implicit encoder: AsBytes[_, V]): String = {
+    val inputBytes = input.encodeAsBytes.getOrElse(Array.emptyByteArray)
     if (inputBytes.length == 0) return "" // avoid allocation of empty array and new String instance
     val buf = new Array[Char](inputBytes.length * 2)
     var j = 0

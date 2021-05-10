@@ -7,8 +7,6 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{BlockHeader, BloomFilter}
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.box.serialization.ArbitBoxSerializer
-import co.topl.crypto.hash.implicits._
-import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
@@ -42,7 +40,7 @@ object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
     w.putLong(header.difficulty)
 
     /* txRoot: Array[Byte] */
-    w.putBytes(header.txRoot.asBytes)
+    w.putBytes(header.txRoot.value)
 
     /* bloomFilter: Array[Long] */
     BloomFilter.serialize(header.bloomFilter, w)

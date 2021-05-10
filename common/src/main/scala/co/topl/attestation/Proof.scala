@@ -61,7 +61,7 @@ sealed trait ProofOfKnowledge[S <: Secret, P <: KnowledgeProposition[S]] extends
 case class SignatureCurve25519(private[attestation] val sig: Signature)
     extends ProofOfKnowledge[PrivateKeyCurve25519, PublicKeyPropositionCurve25519] {
 
-  private val signatureLength = sig.asBytes.length
+  private val signatureLength = sig.encodeAsBytes.map(_.length).getOrElse(0)
 
   require(
     signatureLength == 0 || signatureLength == Curve25519.SignatureLength,
@@ -103,7 +103,7 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
     extends ProofOfKnowledge[PrivateKeyCurve25519, ThresholdPropositionCurve25519] {
 
   signatures.foreach { sig =>
-    require(sig.sig.asBytes.length == SignatureCurve25519.signatureSize)
+    require(sig.sig.value.length == SignatureCurve25519.signatureSize)
   }
 
   override def isValid(proposition: ThresholdPropositionCurve25519, message: Array[Byte]): Boolean = Try {
@@ -117,7 +117,7 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
       if (acc < proposition.threshold) {
         if (
           proposition.pubKeyProps
-            .exists(prop => Curve25519.verify(sig.sig, message, PublicKey(prop.pubKeyBytes.asBytes)))
+            .exists(prop => Curve25519.verify(sig.sig, message, prop.pubKeyBytes))
         ) {
           1
         } else {

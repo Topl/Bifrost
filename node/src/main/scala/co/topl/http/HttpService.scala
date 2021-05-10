@@ -6,8 +6,6 @@ import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 import akka.http.scaladsl.server.Route
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.crypto.hash.implicits._
-import co.topl.utils.AsBytes.implicits._
 import co.topl.rpc.ToplRpcServer
 import co.topl.settings.RPCApiSettings
 import co.topl.utils.encode.Base58
@@ -57,7 +55,7 @@ final case class HttpService(
     lazy val keyHash: Option[Digest32] = keyOpt.map(k => Blake2b256.hash(k.getBytes))
     (apiKeyHash, keyHash) match {
       case (None, _)                      => true
-      case (Some(expected), Some(passed)) => expected sameElements passed.asBytes
+      case (Some(expected), Some(passed)) => expected sameElements passed.value
       case _                              => false
     }
   }

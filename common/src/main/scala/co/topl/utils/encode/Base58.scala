@@ -1,7 +1,7 @@
 package co.topl.utils.encode
 
 import co.topl.utils.AsBytes
-import co.topl.utils.AsBytes.ops._
+import co.topl.utils.AsBytes.implicits._
 
 import scala.util.Try
 
@@ -19,8 +19,9 @@ object Base58 extends BytesEncoder {
 
   private val Base = BigInt(58)
 
-  override def encode[V: AsBytes](input: V): String = {
-    var bi = BigInt(1, input.asBytes)
+  override def encode[V](input: V)(implicit encoder: AsBytes[_, V]): String = {
+    val inputBytes = input.encodeAsBytes.getOrElse(Array[Byte]())
+    var bi = BigInt(1, inputBytes)
     val s = new StringBuilder()
     if (bi > 0) {
       while (bi >= Base) {
@@ -31,7 +32,7 @@ object Base58 extends BytesEncoder {
       s.insert(0, Alphabet.charAt(bi.intValue))
     }
     // Convert leading zeros too.
-    input.asBytes
+    inputBytes
       .takeWhile(_ == 0)
       .foldLeft(s) { case (ss, _) =>
         ss.insert(0, Alphabet.charAt(0))
