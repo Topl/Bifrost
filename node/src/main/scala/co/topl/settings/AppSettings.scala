@@ -1,6 +1,5 @@
 package co.topl.settings
 
-import co.topl.http.api.NamespaceSelector
 import co.topl.network.utils.NetworkTimeProviderSettings
 import co.topl.utils.Logging
 import com.typesafe.config.{Config, ConfigFactory}
