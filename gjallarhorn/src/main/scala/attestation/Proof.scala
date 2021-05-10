@@ -107,7 +107,7 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
     extends ProofOfKnowledge[PrivateKeyCurve25519, ThresholdPropositionCurve25519] {
 
   signatures.foreach { sig =>
-    require(sig.signature.length == SignatureCurve25519.signatureSize)
+    require(sig.signature.asBytes.length == SignatureCurve25519.signatureSize)
   }
 
   override def isValid(proposition: ThresholdPropositionCurve25519, message: Array[Byte]): Boolean = Try {
@@ -121,7 +121,7 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
       if (acc < proposition.threshold) {
         if (
           proposition.pubKeyProps
-            .exists(prop => Curve25519.verify(sig.signature, message, PublicKey(prop.pubKey)))
+            .exists(prop => Curve25519.verify(sig.signature, message, PublicKey(prop.pubKey.asBytes)))
         ) {
           1
         } else {

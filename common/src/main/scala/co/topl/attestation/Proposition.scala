@@ -2,7 +2,8 @@ package co.topl.attestation
 
 import co.topl.attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
 import co.topl.attestation.serialization.PropositionSerializer
-import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.implicits._
 import co.topl.crypto.signatures.{Curve25519, PublicKey}
 import co.topl.keyManagement.{PrivateKeyCurve25519, Secret}
 import co.topl.utils.AsBytes.implicits._
@@ -80,7 +81,7 @@ object PublicKeyPropositionCurve25519 {
 
   implicit val evProducer: EvidenceProducer[PublicKeyPropositionCurve25519] =
     EvidenceProducer.instance[PublicKeyPropositionCurve25519] { prop: PublicKeyPropositionCurve25519 =>
-      Evidence(typePrefix, EvidenceContent(blake2b256(prop.bytes.tail)))
+      Evidence(typePrefix, EvidenceContent(Blake2b256.hash(prop.bytes.tail).asBytes))
     }
 
   implicit val identifier: Identifiable[PublicKeyPropositionCurve25519] = Identifiable.instance { () =>
@@ -131,7 +132,7 @@ object ThresholdPropositionCurve25519 {
 
   implicit val evProducer: EvidenceProducer[ThresholdPropositionCurve25519] =
     EvidenceProducer.instance[ThresholdPropositionCurve25519] { prop: ThresholdPropositionCurve25519 =>
-      Evidence(typePrefix, EvidenceContent(blake2b256(prop.bytes.tail)))
+      Evidence(typePrefix, EvidenceContent(Blake2b256.hash(prop.bytes.tail).asBytes))
     }
 
   implicit val identifier: Identifiable[ThresholdPropositionCurve25519] = Identifiable.instance { () =>

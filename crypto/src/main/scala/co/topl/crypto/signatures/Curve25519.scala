@@ -1,10 +1,9 @@
 package co.topl.crypto.signatures
 
-import co.topl.crypto.hash.sha256
+import co.topl.crypto.hash.Sha256
 import org.whispersystems.curve25519.OpportunisticCurve25519Provider
 
 import java.lang.reflect.Constructor
-import scala.util.{Failure, Try}
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 
@@ -28,7 +27,7 @@ object Curve25519 extends EllipticCurveSignatureScheme {
   }
 
   override def createKeyPair(seed: Array[Byte]): (PrivateKey, PublicKey) = {
-    val hashedSeed = sha256(seed)
+    val hashedSeed = Sha256.hash(seed)
     val privateKey = PrivateKey(provider.generatePrivateKey(hashedSeed.value))
     privateKey -> PublicKey(provider.generatePublicKey(privateKey.value))
   }

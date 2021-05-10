@@ -1,5 +1,6 @@
 package co.topl.crypto.hash
 
+import co.topl.crypto.hash.digest.Digest
 import co.topl.crypto.utils.Hex
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec

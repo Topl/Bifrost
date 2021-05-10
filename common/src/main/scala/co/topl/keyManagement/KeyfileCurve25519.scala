@@ -1,7 +1,8 @@
 package co.topl.keyManagement
 
 import co.topl.attestation.Address
-import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.implicits._
 import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
 import co.topl.utils.Extensions.StringOps
 import co.topl.utils.NetworkType.NetworkPrefix
@@ -127,7 +128,7 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
    * @return
    */
   private def getMAC(derivedKey: Array[Byte], cipherText: Array[Byte]): Array[Byte] =
-    blake2b256(derivedKey.slice(16, 32) ++ cipherText).asBytes
+    Blake2b256.hash(derivedKey.slice(16, 32) ++ cipherText).asBytes
 
   /**
    * @param derivedKey

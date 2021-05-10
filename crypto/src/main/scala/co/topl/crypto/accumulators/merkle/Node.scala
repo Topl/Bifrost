@@ -1,7 +1,8 @@
 package co.topl.crypto.accumulators.merkle
 
 import co.topl.crypto.accumulators.{EmptyByteArray, LeafData}
-import co.topl.crypto.hash.{Digest, Hash}
+import co.topl.crypto.hash.Hash
+import co.topl.crypto.hash.digest.Digest
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 
@@ -53,8 +54,10 @@ case class EmptyNode[H, D: Digest]()(implicit h: Hash[H, D]) extends Node[D] {
  * length
  */
 case class EmptyRootNode[H, D: Digest]()(implicit h: Hash[H, D]) extends Node[D] {
-  // .get is secure here since we know that array size equals to digest size
-  override val hash: D = Digest[D].from(Array.fill(Digest[D].size)(0: Byte))
+
+  override val hash: D = Digest[D]
+    .from(Array.fill(Digest[D].size)(0: Byte))
+    .valueOr(ex => throw new Exception(s"Failed to create empty digest: $ex"))
 
   // TODO: This is temporarily disabled because we removed Base58, use Hex.scala in test here if needed
   //  override def toString: String = s"EmptyRootNode(${Base58.encode(hash)})"

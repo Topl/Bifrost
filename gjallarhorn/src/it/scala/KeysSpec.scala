@@ -1,6 +1,6 @@
 import attestation.AddressEncoder.NetworkPrefix
 import attestation.{Address, PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
-import co.topl.crypto.hash.{blake2b256, Digest32}
+import co.topl.crypto.hash.blake2b256
 import co.topl.utils.AsBytes.Implicits._
 import crypto.KeyfileCurve25519
 import keymanager.Keys

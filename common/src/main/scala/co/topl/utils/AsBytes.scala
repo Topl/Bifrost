@@ -1,7 +1,8 @@
 package co.topl.utils
 
 import cats.Eq
-import co.topl.crypto.hash.{Digest32, Digest64}
+import co.topl.crypto.hash.digest.Digest
+import co.topl.crypto.hash.digest.implicits._
 import co.topl.crypto.signatures.{PrivateKey, PublicKey, Signature}
 import simulacrum.typeclass
 
@@ -13,9 +14,7 @@ trait AsBytes[A] {
 }
 
 trait AsBytesInstances {
-  implicit val digest32AsBytes: AsBytes[Digest32] = (value: Digest32) => value.value
-
-  implicit val digest64AsBytes: AsBytes[Digest64] = (value: Digest64) => value.value
+  implicit def digestAsBytes[T: Digest]: AsBytes[T] = (value: T) => value.bytes
 
   implicit val signatureAsBytes: AsBytes[Signature] = (value: Signature) => value.value
 
@@ -23,15 +22,11 @@ trait AsBytesInstances {
 
   implicit val arrayBytesAsBytes: AsBytes[Array[Byte]] = (bytes: Array[Byte]) => bytes
 
-  implicit val stringAsBytes: AsBytes[String] = (value: String) => value.getBytes
-
   implicit val privateKeyAsBytes: AsBytes[PrivateKey] = (value: PrivateKey) => value.value
 }
 
 trait AsBytesImplicitExtensions {
   implicit def eqAsBytes[A: AsBytes]: Eq[A] = (x: A, y: A) => AsBytes[A].asBytes(x) sameElements AsBytes[A].asBytes(y)
-
-  implicit def unwrapAsBytes[B: AsBytes](b: B): Array[Byte] = AsBytes[B].asBytes(b)
 }
 
 object AsBytes {

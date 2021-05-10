@@ -3,8 +3,9 @@ package co.topl.api
 import akka.http.scaladsl.model.StatusCodes.InternalServerError
 import akka.util.ByteString
 import co.topl.attestation.Address
-import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.hash.Blake2b256
 import co.topl.modifier.box.AssetCode
+import co.topl.crypto.hash.implicits._
 import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.encode.Base58
 import io.circe.Json
@@ -93,7 +94,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
         val hash = res.hcursor.downField("result").get[String]("hash")
 
         res.hcursor.downField("error").values.isEmpty shouldBe true
-        hash shouldEqual Right(Base58.encode(blake2b256("Hello World")))
+        hash shouldEqual Right(Base58.encode(Blake2b256.hash("Hello World".getBytes)))
       }
     }
 

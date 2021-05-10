@@ -7,7 +7,7 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
 import cats.data.{EitherT, NonEmptyList}
 import cats.implicits._
-import co.topl.crypto.hash.{blake2b256, Digest32}
+import co.topl.crypto.hash.blake2b256
 import co.topl.utils.AsBytes.Implicits._
 import co.topl.utils.encode.Base58
 import com.spotify.docker.client.DockerClient

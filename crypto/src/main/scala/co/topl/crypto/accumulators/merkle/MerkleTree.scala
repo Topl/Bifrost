@@ -1,7 +1,9 @@
 package co.topl.crypto.accumulators.merkle
 
 import co.topl.crypto.accumulators.{LeafData, Side}
-import co.topl.crypto.hash.{Digest, Hash}
+import co.topl.crypto.hash.Hash
+import co.topl.crypto.hash.digest.Digest
+import co.topl.crypto.hash.digest.implicits._
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -19,7 +21,7 @@ case class MerkleTree[H, D: Digest](
   def proofByElement(element: Leaf[H, D]): Option[MerkleProof[H, D]] = proofByElementHash(element.hash)
 
   def proofByElementHash(hash: D): Option[MerkleProof[H, D]] =
-    elementsHashIndex.get(new mutable.WrappedArray.ofByte(Digest[D].bytes(hash))).flatMap(i => proofByIndex(i))
+    elementsHashIndex.get(new mutable.WrappedArray.ofByte(hash.bytes)).flatMap(i => proofByIndex(i))
 
   def proofByIndex(index: Int): Option[MerkleProof[H, D]] = if (index >= 0 && index < length) {
 
@@ -87,7 +89,7 @@ object MerkleTree {
   def apply[H, D: Digest](payload: Seq[LeafData])(implicit h: Hash[H, D]): MerkleTree[H, D] = {
     val leafs = payload.map(d => Leaf[H, D](d))
     val elementsIndex: Map[mutable.WrappedArray.ofByte, Int] = leafs.indices.map { i =>
-      (new mutable.WrappedArray.ofByte(Digest[D].bytes(leafs(i).hash)), i)
+      (new mutable.WrappedArray.ofByte(leafs(i).hash.bytes), i)
     }.toMap
     val topNode = calcTopNode[H, D](leafs)
 

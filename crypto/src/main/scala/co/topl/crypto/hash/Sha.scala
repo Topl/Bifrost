@@ -1,17 +1,17 @@
 package co.topl.crypto.hash
 
+import co.topl.crypto.hash.digest.{Digest, Digest32, Digest64}
+import co.topl.crypto.hash.implicits._
+
 import java.security.MessageDigest
 
-case class Sha()
+abstract class ShaHash[D: Digest](val algorithmName: String) extends Hash[Sha, D] {
 
-object Sha {
-
-  def shaHashFor[D: Digest](algorithm: String): Hash[Sha, D] = new Hash[Sha, D] {
-
-    override def hash(prefix: Option[Byte], messages: Array[Byte]*): D =
-      Digest[D].from(
+  override def hash(prefix: Option[Byte], messages: Array[Byte]*): D =
+    Digest[D]
+      .from(
         MessageDigest
-          .getInstance(algorithm)
+          .getInstance(algorithmName)
           .digest(
             messages.foldLeft(
               prefix
@@ -20,11 +20,8 @@ object Sha {
             )(_ ++ _)
           )
       )
-
-  }
-
-  implicit val sha256: Hash[Sha, Digest32] = shaHashFor[Digest32]("Sha-256")
-
-  implicit val sha512: Hash[Sha, Digest64] = shaHashFor[Digest64]("Sha-512")
-
+      .valueOr(ex => throw new Exception(s"Unexpected hash result: $ex"))
 }
+
+case object Sha256 extends ShaHash[Digest32]("Sha-256")
+case object Sha512 extends ShaHash[Digest64]("Sha-512")

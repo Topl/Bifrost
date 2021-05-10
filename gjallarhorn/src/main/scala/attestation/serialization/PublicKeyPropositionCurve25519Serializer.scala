@@ -11,7 +11,7 @@ import co.topl.utils.AsBytes.implicits._
 object PublicKeyPropositionCurve25519Serializer extends GjalSerializer[PublicKeyPropositionCurve25519] {
 
   override def serialize(obj: PublicKeyPropositionCurve25519, w: Writer): Unit =
-    w.putBytes(obj.pubKey)
+    w.putBytes(obj.pubKey.asBytes)
 
   override def parse(r: Reader): PublicKeyPropositionCurve25519 = {
     val proposition = r.getBytes(Curve25519.KeyLength)

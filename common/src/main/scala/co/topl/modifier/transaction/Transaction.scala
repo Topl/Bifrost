@@ -2,11 +2,12 @@ package co.topl.modifier.transaction
 
 import cats.data.ValidatedNec
 import co.topl.attestation.{Address, Proof, Proposition}
-import co.topl.crypto.hash.Digest32
+import co.topl.crypto.hash.digest.Digest32
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.box.{Box, BoxId, ProgramId}
 import co.topl.modifier.{BoxReader, ModifierId, NodeViewModifier}
+import co.topl.crypto.hash.implicits._
 import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Identifiable, Identifier, Int128}

@@ -3,7 +3,6 @@ package co.topl.attestation
 import co.topl.attestation.serialization.ProofSerializer
 import co.topl.crypto.signatures.{Curve25519, PublicKey, Signature}
 import co.topl.keyManagement.{PrivateKeyCurve25519, Secret}
-import co.topl.utils.AsBytes
 import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
@@ -116,7 +115,10 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
     // only need to check until the threshold is exceeded
     val numValidSigs = signatures.foldLeft(0) { (acc, sig) =>
       if (acc < proposition.threshold) {
-        if (proposition.pubKeyProps.exists(prop => Curve25519.verify(sig.sig, message, PublicKey(prop.pubKeyBytes)))) {
+        if (
+          proposition.pubKeyProps
+            .exists(prop => Curve25519.verify(sig.sig, message, PublicKey(prop.pubKeyBytes.asBytes)))
+        ) {
           1
         } else {
           0

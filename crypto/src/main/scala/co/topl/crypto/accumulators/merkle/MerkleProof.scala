@@ -1,7 +1,9 @@
 package co.topl.crypto.accumulators.merkle
 
 import co.topl.crypto.accumulators.{LeafData, Side}
-import co.topl.crypto.hash.{Digest, Hash}
+import co.topl.crypto.hash.Hash
+import co.topl.crypto.hash.digest.Digest
+import co.topl.crypto.hash.digest.implicits._
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 
@@ -32,13 +34,13 @@ case class MerkleProof[H, D: Digest](leafData: LeafData, levels: Seq[(D, Side)])
 
     val result = levels.foldLeft(leafHash) { case (prevHash, (hash, side)) =>
       if (side == MerkleProof.LeftSide) {
-        hashFunc.hash(MerkleTree.InternalNodePrefix, Digest[D].concat(prevHash, hash))
+        hashFunc.hash(MerkleTree.InternalNodePrefix, prevHash.bytes ++ hash.bytes)
       } else {
-        hashFunc.hash(MerkleTree.InternalNodePrefix, Digest[D].concat(hash, prevHash))
+        hashFunc.hash(MerkleTree.InternalNodePrefix, hash.bytes, prevHash.bytes)
       }
     }
 
-    Digest[D].sameElements(result, expectedRootHash)
+    result.bytes sameElements expectedRootHash.bytes
   }
 
   // TODO: This is temporarily disabled because we removed Base58, use Hex.scala in test here if needed

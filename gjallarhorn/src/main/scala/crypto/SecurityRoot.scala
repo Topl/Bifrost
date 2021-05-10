@@ -1,6 +1,6 @@
 package crypto
 
-import co.topl.crypto.hash.Digest32
+import co.topl.crypto.hash.digest.Digest32
 import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints

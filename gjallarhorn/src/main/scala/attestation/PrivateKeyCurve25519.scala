@@ -49,10 +49,10 @@ object PrivateKeyCurve25519 extends GjalSerializer[PrivateKeyCurve25519] {
 
   override def serialize(obj: PrivateKeyCurve25519, w: Writer): Unit = {
     /* privKey: Array[Byte] */
-    w.putBytes(obj.privKey)
+    w.putBytes(obj.privKey.asBytes)
 
     /* publicKey: Array[Byte] */
-    w.putBytes(obj.publicKey)
+    w.putBytes(obj.publicKey.asBytes)
   }
 
   override def parse(r: Reader): PrivateKeyCurve25519 =

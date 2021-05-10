@@ -1,7 +1,8 @@
 package co.topl.http.api.endpoints
 
 import co.topl.attestation.Address
-import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.implicits._
 import co.topl.http.api.{ApiEndpoint, Namespace, UtilNamespace}
 import co.topl.modifier.box.AssetCode
 import co.topl.modifier.box.AssetCode.AssetCodeVersion
@@ -107,7 +108,7 @@ case class UtilsApiEndpoint(override val settings: RPCApiSettings, appContext: A
     } yield Future(
       Map(
         "message" -> message,
-        "hash"    -> Base58.encode(blake2b256(message))
+        "hash"    -> Base58.encode(Blake2b256.hash(message.getBytes).asBytes)
       ).asJson
     )) match {
       case Right(json) => json

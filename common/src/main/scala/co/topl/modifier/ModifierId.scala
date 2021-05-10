@@ -1,6 +1,8 @@
 package co.topl.modifier
 
-import co.topl.crypto.hash.{blake2b256, Digest32}
+import co.topl.crypto.hash.implicits._
+import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.digest.Digest32
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
@@ -50,9 +52,9 @@ object ModifierId extends BifrostSerializer[ModifierId] {
 
   def apply(nodeViewModifier: NodeViewModifier): ModifierId = nodeViewModifier match {
     case mod: Block =>
-      new ModifierId(Block.modifierTypeId.value +: blake2b256(mod.messageToSign).asBytes)
+      new ModifierId(Block.modifierTypeId.value +: Blake2b256.hash(mod.messageToSign).asBytes)
     case mod: Transaction.TX =>
-      new ModifierId(Transaction.modifierTypeId.value +: blake2b256(mod.messageToSign).asBytes)
+      new ModifierId(Transaction.modifierTypeId.value +: Blake2b256.hash(mod.messageToSign).asBytes)
     case _ => throw new Error("Only blocks and transactions generate a modifierId")
   }
 
