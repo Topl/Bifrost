@@ -95,11 +95,11 @@ lazy val assemblySettings = Seq(
   }
 )
 
-val akkaVersion = "2.6.13"
+val akkaVersion = "2.6.14"
 val akkaHttpVersion = "10.2.4"
 val circeVersion = "0.13.0"
-val kamonVersion = "2.1.13"
-val graalVersion = "21.0.0.2"
+val kamonVersion = "2.1.17"
+val graalVersion = "21.1.0"
 
 val akkaDependencies = Seq(
   "com.typesafe.akka" %% "akka-actor"          % akkaVersion,
@@ -138,9 +138,9 @@ val loggingDependencies = Seq(
 )
 
 val testingDependenciesTest = Seq(
-  "org.scalatest"      %% "scalatest"         % "3.2.6"   % "test",
-  "org.scalactic"      %% "scalactic"         % "3.2.6"   % "test",
-  "org.scalacheck"     %% "scalacheck"        % "1.15.3"  % "test",
+  "org.scalatest"      %% "scalatest"         % "3.2.8"   % "test",
+  "org.scalactic"      %% "scalactic"         % "3.2.8"   % "test",
+  "org.scalacheck"     %% "scalacheck"        % "1.15.4"  % "test",
   "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
   "com.spotify"         % "docker-client"     % "8.16.0"  % "test",
   "org.asynchttpclient" % "async-http-client" % "2.12.3"  % "test",
@@ -161,16 +161,16 @@ val cryptoDependencies = Seq(
 
 val miscDependencies = Seq(
   "org.scorexfoundation"  %% "iodb"        % "0.3.2",
-  "com.chuusai"           %% "shapeless"   % "2.3.3",
+  "com.chuusai"           %% "shapeless"   % "2.3.5",
   "com.iheart"            %% "ficus"       % "1.5.0",
   "org.rudogma"           %% "supertagged" % "1.5",
   "io.estatico"           %% "newtype"     % "0.4.4",
   "com.joefkelley"        %% "argyle"      % "1.0.0",
-  "org.scalanlp"          %% "breeze"      % "1.1",
+  "org.scalanlp"          %% "breeze"      % "1.2",
   "io.netty"               % "netty"       % "3.10.6.Final",
   "com.google.guava"       % "guava"       % "30.1.1-jre",
   "com.typesafe"           % "config"      % "1.4.1",
-  "com.github.pureconfig" %% "pureconfig"  % "0.14.1",
+  "com.github.pureconfig" %% "pureconfig"  % "0.15.0",
   "org.typelevel"         %% "cats-core"   % "2.3.0",
   "org.typelevel"         %% "simulacrum"  % "1.0.0",
   compilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
@@ -191,9 +191,6 @@ val graalDependencies = Seq(
   "org.graalvm.js"      % "js"          % graalVersion,
   "org.graalvm.truffle" % "truffle-api" % graalVersion
 )
-
-libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ loggingDependencies
-++ testingDependenciesTest ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
 
 lazy val commonScalacOptions = Seq(
   "-deprecation",
@@ -271,7 +268,7 @@ lazy val node = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
     Docker / packageName := "bifrost-node",
-    dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java8-21.0.0",
+    dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java11-21.1.0",
     dockerExposedPorts := Seq(9084, 9085),
     dockerExposedVolumes += "/opt/docker/.bifrost",
     dockerLabels ++= Map(
@@ -284,8 +281,8 @@ lazy val node = project
   .settings(
     IntegrationTest / parallelExecution := false
   )
+  .dependsOn(common, toplRpc)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
-  .dependsOn(common)
 
 lazy val common = project
   .in(file("common"))
@@ -315,7 +312,7 @@ lazy val brambl = project
     name := "brambl",
     commonSettings,
     publishSettings,
-    libraryDependencies ++= akkaDependencies ++ akkaCirceDependencies ++ testingDependenciesTest,
+    libraryDependencies ++= jsonDependencies ++ akkaDependencies ++ akkaCirceDependencies ++ testingDependenciesTest,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.brambl"
   )
@@ -354,7 +351,7 @@ lazy val gjallarhorn = project
     publish / skip := true,
     Defaults.itSettings,
     libraryDependencies ++= akkaDependencies ++ testingDependenciesTest ++ cryptoDependencies ++ jsonDependencies
-    ++ loggingDependencies ++ miscDependencies ++ testingDependenciesIt
+      ++ loggingDependencies ++ miscDependencies ++ testingDependenciesIt
   )
   .configs(IntegrationTest)
   .disablePlugins(sbtassembly.AssemblyPlugin)

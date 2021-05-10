@@ -22,9 +22,10 @@ class Digest32Spec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with 
     }
   }
 
-  property("should be valid when length is equal to digest size") {
+  property("should be valid when length is equal to digest size and invalid otherwise") {
     forAll(genByteArrayOfSize(Digest32.size)) { bytes =>
-      Digest32.validated(bytes) shouldBe Validated.Valid
+      if (bytes.length == Digest32.size) Digest32.validated(bytes).isValid shouldBe true
+      else Digest32.validated(bytes).isValid shouldBe false
     }
   }
 

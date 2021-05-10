@@ -24,7 +24,8 @@ class Digest64Spec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with 
 
   property("should be valid when length is equal to digest size") {
     forAll(genByteArrayOfSize(Digest64.size)) { bytes =>
-      Digest64.validated(bytes) shouldBe Validated.Valid
+      if (bytes.length == Digest64.size) Digest64.validated(bytes).isValid shouldBe true
+      else Digest64.validated(bytes).isValid shouldBe false
     }
   }
 

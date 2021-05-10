@@ -1,5 +1,6 @@
 package co.topl.api.transaction
 
+import akka.http.scaladsl.testkit.RouteTestTimeout
 import akka.util.ByteString
 import co.topl.api.RPCMockState
 import co.topl.attestation.Address
@@ -7,13 +8,17 @@ import co.topl.utils.encode.Base58
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
+import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import scala.concurrent.duration._
 
-class PolyTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
+class PolyTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState with EitherValues {
 
   val address: Address = keyRing.addresses.head
   var tx = ""
+
+  implicit private val routeTestTimeout: RouteTestTimeout = RouteTestTimeout(5.seconds)
 
   "PolyTransfer RPC" should {
     "Create new poly transfer raw transaction" in {
@@ -27,6 +32,7 @@ class PolyTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
            |     "recipients": [["$address", "1"]],
            |     "sender": ["$address"],
            |     "changeAddress": "$address",
+           |     "consolidationAddress": "$address",
            |     "minting": "false",
            |     "fee": "1",
            |     "data": ""
@@ -35,10 +41,7 @@ class PolyTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
         """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]) match {
-          case Right(re) => re;
-          case Left(ex)  => throw ex
-        }
+        val res = parse(responseAs[String]).value
 
         val sigTx = for {
           rawTx   <- res.hcursor.downField("result").get[Json]("rawTx")
@@ -51,7 +54,7 @@ class PolyTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
           rawTx.deepMerge(signatures)
         }
 
-        tx = sigTx.right.get.toString
+        tx = sigTx.value.toString
 
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true

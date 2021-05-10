@@ -1,14 +1,20 @@
 package co.topl.consensus
 
+import akka.Done
 import akka.actor._
+import akka.util.Timeout
+import cats.data.EitherT
+import cats.implicits._
+import co.topl.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, AddressEncoder, PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.catsakka.AskException
 import co.topl.consensus.KeyManager.{AttemptForgingKeyView, ForgerStartupKeyView}
 import co.topl.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType._
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Success, Try}
 
 /** Actor that manages the keyRing and reward address */
@@ -190,4 +196,85 @@ object KeyManagerRef {
   ): ActorRef =
     system.actorOf(props(settings, appContext)(ec, appContext.networkType.netPrefix), name)
 
+}
+
+sealed trait UnlockKeyFailure
+case class UnlockKeyFailureException(throwable: Throwable) extends UnlockKeyFailure
+sealed trait LockKeyFailure
+case class LockKeyFailureException(throwable: Throwable) extends LockKeyFailure
+sealed trait CreateKeyFailure
+case class CreateKeyFailureException(throwable: Throwable) extends CreateKeyFailure
+sealed trait ImportKeyFailure
+case class ImportKeyFailureException(throwable: Throwable) extends ImportKeyFailure
+sealed trait GetRewardsAddressFailure
+case class GetRewardsAddressFailureException(throwable: Throwable) extends GetRewardsAddressFailure
+sealed trait UpdateRewardsAddressFailure
+case class UpdateRewardsAddressFailureException(throwable: Throwable) extends UpdateRewardsAddressFailure
+sealed trait ListOpenKeyfilesFailure
+case class ListOpenKeyfilesFailureException(throwable: Throwable) extends ListOpenKeyfilesFailure
+
+trait KeyManagerInterface {
+  def unlockKey(address:  String, password: String): EitherT[Future, UnlockKeyFailure, Address]
+  def lockKey(address:    Address): EitherT[Future, LockKeyFailure, Done.type]
+  def createKey(password: String): EitherT[Future, CreateKeyFailure, Address]
+  def importKey(password: String, mnemonic: String, lang: String): EitherT[Future, ImportKeyFailure, Address]
+  def getRewardsAddress(): EitherT[Future, GetRewardsAddressFailure, String]
+  def updateRewardsAddress(address: Address): EitherT[Future, UpdateRewardsAddressFailure, Done.type]
+  def listOpenKeyfiles(): EitherT[Future, ListOpenKeyfilesFailure, Set[Address]]
+}
+
+class ActorKeyManagerInterface(actorRef: ActorRef)(implicit ec: ExecutionContext, timeout: Timeout)
+    extends KeyManagerInterface {
+  import co.topl.catsakka.CatsActor._
+
+  override def unlockKey(address: String, password: String): EitherT[Future, UnlockKeyFailure, Address] =
+    actorRef
+      .askEither[Try[Address]](KeyManager.ReceivableMessages.UnlockKey(address, password))
+      .leftMap { case AskException(throwable) => UnlockKeyFailureException(throwable) }
+      .subflatMap(_.toEither.leftMap(UnlockKeyFailureException))
+
+  override def lockKey(address: Address): EitherT[Future, LockKeyFailure, Done.type] =
+    actorRef
+      .askEither[Try[_]](KeyManager.ReceivableMessages.LockKey(address))
+      .leftMap { case AskException(throwable) => LockKeyFailureException(throwable) }
+      .subflatMap(_.toEither.leftMap(LockKeyFailureException))
+      .map(_ => Done)
+      .leftMap(e => e: LockKeyFailure)
+
+  override def createKey(password: String): EitherT[Future, CreateKeyFailure, Address] =
+    actorRef
+      .askEither[Try[Address]](KeyManager.ReceivableMessages.CreateKey(password))
+      .leftMap { case AskException(throwable) => CreateKeyFailureException(throwable) }
+      .subflatMap(_.toEither.leftMap(CreateKeyFailureException))
+      .leftMap(e => e: CreateKeyFailure)
+
+  override def importKey(
+    password: String,
+    mnemonic: String,
+    lang:     String
+  ): EitherT[Future, ImportKeyFailure, Address] =
+    actorRef
+      .askEither[Try[Address]](KeyManager.ReceivableMessages.ImportKey(password, mnemonic = mnemonic, lang = lang))
+      .leftMap { case AskException(throwable) => ImportKeyFailureException(throwable) }
+      .subflatMap(_.toEither.leftMap(ImportKeyFailureException))
+      .leftMap(e => e: ImportKeyFailure)
+
+  override def getRewardsAddress(): EitherT[Future, GetRewardsAddressFailure, String] =
+    actorRef
+      .askEither[String](KeyManager.ReceivableMessages.GetRewardsAddress)
+      .leftMap { case AskException(throwable) => GetRewardsAddressFailureException(throwable) }
+      .leftMap(e => e: GetRewardsAddressFailure)
+
+  override def updateRewardsAddress(address: Address): EitherT[Future, UpdateRewardsAddressFailure, Done.type] =
+    actorRef
+      .askEither[String](KeyManager.ReceivableMessages.UpdateRewardsAddress(address))
+      .leftMap { case AskException(throwable) => UpdateRewardsAddressFailureException(throwable) }
+      .leftMap(e => e: UpdateRewardsAddressFailure)
+      .map(_ => Done)
+
+  override def listOpenKeyfiles(): EitherT[Future, ListOpenKeyfilesFailure, Set[Address]] =
+    actorRef
+      .askEither[Set[Address]](KeyManager.ReceivableMessages.ListKeys)
+      .leftMap { case AskException(throwable) => ListOpenKeyfilesFailureException(throwable) }
+      .leftMap(e => e: ListOpenKeyfilesFailure)
 }
