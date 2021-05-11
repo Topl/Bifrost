@@ -1,5 +1,6 @@
 package co.topl.settings
 
+import akka.actor.ActorSystem
 import co.topl.network.message._
 import co.topl.network.utils.{NetworkTimeProvider, UPnPGateway}
 import co.topl.network.{peer, NodeViewSynchronizer, PeerSynchronizer}
@@ -19,7 +20,7 @@ class AppContext(
   val settings:    AppSettings,
   startupOpts:     StartupOpts,
   val upnpGateway: Option[UPnPGateway]
-)(implicit ec:     ExecutionContext) {
+)(implicit system: ActorSystem, ec: ExecutionContext) {
 
   /** Save your address for sending to others peers */
   val externalNodeAddress: Option[InetSocketAddress] =
