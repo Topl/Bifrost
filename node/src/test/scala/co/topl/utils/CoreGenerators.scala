@@ -44,7 +44,7 @@ trait CoreGenerators extends Logging {
   implicit val keyfileCurve25519Companion: KeyfileCurve25519Companion.type = KeyfileCurve25519Companion
 
   private val settingsFilename = "node/src/test/resources/test.conf"
-  val settings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))._1
+  val settings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename)))._1
 
   private val keyFileDir =
     settings.application.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get

@@ -1,5 +1,6 @@
 package co.topl.nodeView.state
 
+import cats.data.ValidatedNec
 import co.topl.attestation.Address
 import co.topl.attestation.AddressCodec.implicits.StringOps
 import co.topl.modifier.ModifierId
@@ -7,6 +8,8 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.box._
 import co.topl.modifier.box.serialization.BoxSerializer
 import co.topl.modifier.transaction._
+import co.topl.modifier.transaction.validation._
+import co.topl.modifier.transaction.validation.implicits._
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.settings.AppSettings
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
@@ -259,8 +262,10 @@ case class State(
    * @param transaction
    * @return
    */
-  def semanticValidate(transaction: Transaction.TX)(implicit networkPrefix: NetworkPrefix): Try[Unit] =
-    transaction.semanticValidate(getReader)
+  def semanticValidate(transaction: Transaction.TX)(implicit
+    networkPrefix:                  NetworkPrefix
+  ): ValidatedNec[SemanticValidationFailure, Transaction.TX] =
+    transaction.semanticValidation(getReader)
 }
 
 object State extends Logging {
