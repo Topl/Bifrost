@@ -50,7 +50,7 @@ trait RPCMockState extends AnyWordSpec with GenesisGenerators with ScalatestRout
 
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
   // save environment into a variable for reference throughout the application
-  protected val appContext = new AppContext(rpcSettings, StartupOpts.empty, None)
+  protected val appContext = new AppContext(rpcSettings, StartupOpts(), None)
 
   // Create Bifrost singleton actors
 

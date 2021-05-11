@@ -13,6 +13,7 @@ import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier, TransactionCarryingPersistentNodeViewModifier}
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.serialization.TransactionSerializer
+import co.topl.modifier.transaction.validation.implicits._
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
 import co.topl.nodeView.NodeViewHolder.UpdateInformation
@@ -229,7 +230,7 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
    * @param tx
    */
   protected def txModify(tx: TX): Unit =
-    tx.syntacticValidate.toEither match {
+    tx.syntacticValidation.toEither match {
       case Right(_) =>
         memoryPool().put(tx, appContext.timeProvider.time) match {
           case Success(_) =>
@@ -255,7 +256,7 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
       context.system.eventStream.publish(StartingPersistentModifierApplication(pmod))
 
       // check that the transactions are semantically valid
-      if (pmod.transactions.forall(_.semanticValidate(minimalState()).isSuccess)) {
+      if (pmod.transactions.forall(_.semanticValidation(minimalState()).isValid)) {
         log.info(s"Apply modifier ${pmod.id} of type ${pmod.modifierTypeId} to nodeViewHolder")
 
         // append the block to history
@@ -436,7 +437,7 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
       .putWithoutCheck(rolledBackTxs, appContext.timeProvider.time)
       .filter { tx =>
         !appliedTxs.exists(t => t.id == tx.id) && {
-          tx.syntacticValidate.isValid
+          tx.syntacticValidation.isValid
         }
       }
   }

@@ -4,22 +4,21 @@ import sbtassembly.MergeStrategy
 val scala212 = "2.12.13"
 val scala213 = "2.13.5"
 
-inThisBuild(
-  List(
-    organization := "co.topl",
-    scalaVersion := scala212,
-    crossScalaVersions := Seq(scala212, scala213),
-    Compile / run / mainClass := Some("co.topl.BifrostApp"),
-    versionScheme := Some("early-semver"),
-    dynverSeparator := "-",
-    dynverSonatypeSnapshots := true,
-    version := dynverGitDescribeOutput.value.mkVersion(versionFmt, fallbackVersion(dynverCurrentDate.value)),
-    dynver := {
-      val d = new java.util.Date
-      sbtdynver.DynVer.getGitDescribeOutput(d).mkVersion(versionFmt, fallbackVersion(d))
-    }
-  )
-)
+inThisBuild(List(
+  organization := "co.topl",
+  scalaVersion := scala212,
+  crossScalaVersions := Seq(scala212, scala213),
+  Compile / run / mainClass := Some("co.topl.BifrostApp"),
+  versionScheme := Some("early-semver"),
+  dynverSeparator := "-",
+  dynverSonatypeSnapshots := true,
+  version := dynverGitDescribeOutput.value.mkVersion(versionFmt, fallbackVersion(dynverCurrentDate.value)),
+  dynver := {
+    val d = new java.util.Date
+    sbtdynver.DynVer.getGitDescribeOutput(d).mkVersion(versionFmt, fallbackVersion(d))
+  },
+  parallelExecution := false
+))
 
 lazy val commonSettings = Seq(
   sonatypeCredentialHost := "s01.oss.sonatype.org",
@@ -95,6 +94,30 @@ lazy val assemblySettings = Seq(
   }
 )
 
+lazy val scalamacrosParadiseSettings =
+  Seq(
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, v)) if v <= 12 =>
+          Seq(
+            compilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
+          )
+        case _ =>
+          Nil
+      }
+    },
+    scalacOptions ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, v)) if v >= 13 =>
+          Seq(
+            "-Ymacro-annotations"
+          )
+        case _ =>
+          Nil
+      }
+    }
+  )
+
 val akkaVersion = "2.6.14"
 val akkaHttpVersion = "10.2.4"
 val circeVersion = "0.13.0"
@@ -144,7 +167,8 @@ val testingDependenciesTest = Seq(
   "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
   "com.spotify"         % "docker-client"     % "8.16.0"  % "test",
   "org.asynchttpclient" % "async-http-client" % "2.12.3"  % "test",
-  "org.scalamock"      %% "scalamock"         % "5.1.0"   % "test"
+  "org.scalamock"      %% "scalamock"         % "5.1.0"   % "test",
+  "com.ironcorelabs" %% "cats-scalatest" % "3.0.5" % "test"
 )
 
 val testingDependenciesIt = Seq(
@@ -164,9 +188,9 @@ val miscDependencies = Seq(
   "com.chuusai"           %% "shapeless"   % "2.3.5",
   "com.iheart"            %% "ficus"       % "1.5.0",
   "org.rudogma"           %% "supertagged" % "1.5",
+  "com.lihaoyi"           %% "mainargs"    % "0.2.1",
+  "org.scalanlp"          %% "breeze"      % "1.1",
   "io.estatico"           %% "newtype"     % "0.4.4",
-  "com.joefkelley"        %% "argyle"      % "1.0.0",
-  "org.scalanlp"          %% "breeze"      % "1.2",
   "io.netty"               % "netty"       % "3.10.6.Final",
   "com.google.guava"       % "guava"       % "30.1.1-jre",
   "com.typesafe"           % "config"      % "1.4.1",
@@ -191,6 +215,13 @@ val graalDependencies = Seq(
   "org.graalvm.js"      % "js"          % graalVersion,
   "org.graalvm.truffle" % "truffle-api" % graalVersion
 )
+
+val simulacrum = Seq(
+  "org.typelevel" %% "simulacrum" % "1.0.0"
+)
+
+libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ loggingDependencies
+++ testingDependenciesTest ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
 
 lazy val commonScalacOptions = Seq(
   "-deprecation",
@@ -290,9 +321,10 @@ lazy val common = project
     name := "common",
     commonSettings,
     publishSettings,
-    libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ jsonDependencies ++ cryptoDependencies ++ miscDependencies
+    libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ jsonDependencies ++ cryptoDependencies ++ miscDependencies ++ simulacrum
   )
   .dependsOn(crypto)
+  .settings(scalamacrosParadiseSettings)
 
 lazy val chainProgram = project
   .in(file("chain-program"))
@@ -380,3 +412,4 @@ lazy val crypto = project
   )
 
 addCommandAlias("checkPR", "; scalafixAll --check; scalafmtCheckAll; test")
+addCommandAlias("preparePR", "; scalafixAll; scalafmtAll; test")
