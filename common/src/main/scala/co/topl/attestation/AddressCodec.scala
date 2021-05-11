@@ -4,7 +4,7 @@ import cats.Semigroup
 import cats.data.{Validated, ValidatedNec}
 import cats.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.{AsBytes, FromBytes, NetworkType}
+import co.topl.utils.{AsBytes, FromBytes, Infallible, NetworkType}
 import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
@@ -26,15 +26,15 @@ object AddressCodec {
 
     implicit def addressFromBytes(implicit networkPrefix: NetworkPrefix): AddressFromBytes = new AddressFromBytes
 
-    implicit val addressToBytes: AsBytes[Nothing, Address] = address =>
-      (address.bytes ++ address.bytes.checksum).validNec
+    implicit val addressToBytes: AsBytes[Infallible, Address] =
+      AsBytes.infallible[Address](address => address.bytes ++ address.bytes.checksum)
 
     implicit class AddressOps(address: Address) {
 
       import AsBytes.implicits._
 
-      def base58Encoded: ValidatedNec[Nothing, String] =
-        address.encodeAsBytes.map(Base58.encode)
+      def base58Encoded: String =
+        Base58.encode(address.infalliblyEncodeAsBytes)
     }
 
     implicit class StringOps(value: String) {
