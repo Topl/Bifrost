@@ -9,7 +9,7 @@ class Int128Spec
     extends AnyPropSpec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
-    with ValidGenerators
+    with CoreGenerators
     with Matchers {
 
   property("Int128 should have a Numeric typeclass to allow .sum calls (small numbers)") {

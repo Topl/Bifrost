@@ -5,7 +5,7 @@ import java.io.File
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.TX
-import co.topl.utils.{CoreGenerators, FileUtils, ValidGenerators}
+import co.topl.utils.{CoreGenerators, FileUtils, NodeGenerators}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
@@ -17,7 +17,7 @@ class IODBSpec
     with ScalaCheckDrivenPropertyChecks
     with Matchers
     with CoreGenerators
-    with ValidGenerators
+    with NodeGenerators
     with FileUtils {
 
   val iFile: File = createTempDir

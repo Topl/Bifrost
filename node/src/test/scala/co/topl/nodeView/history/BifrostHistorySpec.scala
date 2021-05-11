@@ -2,15 +2,26 @@ package co.topl.nodeView.history
 
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.utils.CoreGenerators
+import co.topl.utils.{CoreGenerators, NodeGenerators}
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class BifrostHistorySpec extends AnyPropSpec with ScalaCheckPropertyChecks with Matchers with CoreGenerators {
+class BifrostHistorySpec
+    extends AnyPropSpec
+    with ScalaCheckPropertyChecks
+    with Matchers
+    with CoreGenerators
+    with NodeGenerators {
 
-  var history: History = generateHistory()
+  var history: History = _
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+
+    history = generateHistory()
+  }
 
   property("Block application should result in storage and BifrostHistory.continuationIds") {
     var ids: Seq[ModifierId] = Seq()

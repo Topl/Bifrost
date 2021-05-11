@@ -15,7 +15,13 @@ class TokenBoxRegistrySpec
     with BeforeAndAfterAll
     with CoreGenerators {
 
-  val state: State = createState()
+  var state: State = _
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+
+    state = createState()
+  }
 
   property("Token boxes should be inserted into the registry") {
     forAll(tokenBoxesGen) { tokens =>

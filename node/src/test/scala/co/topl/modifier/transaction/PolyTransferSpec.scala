@@ -1,6 +1,6 @@
 package co.topl.modifier.transaction
 
-import co.topl.utils.{CoreGenerators, ValidGenerators}
+import co.topl.utils.{CoreGenerators, KeyFileTestHelper, NodeGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
@@ -10,8 +10,9 @@ class PolyTransferSpec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers
+    with KeyFileTestHelper
     with CoreGenerators
-    with ValidGenerators {
+    with NodeGenerators {
 
   property("Generated PolyTransfer Tx should be valid") {
     forAll(validPolyTransfer(keyRing, genesisState)) { polyTransfer: PolyTransfer[_] =>

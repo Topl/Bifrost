@@ -10,12 +10,20 @@ import org.scalatest.wordspec.AnyWordSpec
 
 class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
 
-  val txs: Seq[TX] = bifrostTransactionSeqGen.sample.get
-  val txId: String = txs.head.id.toString
-  val block: Block = blockGen.sample.get.copy(transactions = txs)
+  var txs: Seq[TX] = _
+  var txId: String = _
+  var block: Block = _
 
-  view()._1.storage.update(block, isBest = false)
-  view()._3.putWithoutCheck(txs, block.timestamp)
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+
+    txs = bifrostTransactionSeqGen.sample.get
+    txId = txs.head.id.toString
+    block = blockGen.sample.get.copy(transactions = txs)
+
+    view()._1.storage.update(block, isBest = false)
+    view()._3.putWithoutCheck(txs, block.timestamp)
+  }
 
   "NodeView RPC" should {
     "Get first 100 transactions in mempool" in {

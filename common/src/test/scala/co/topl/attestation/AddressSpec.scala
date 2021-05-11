@@ -1,7 +1,7 @@
 package co.topl.attestation
 
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.{CoreGenerators, NetworkType, ValidGenerators}
+import co.topl.utils.{CoreGenerators, NetworkType}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
@@ -12,8 +12,7 @@ class AddressSpec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers
-    with CoreGenerators
-    with ValidGenerators {
+    with CoreGenerators {
 
   property("Applying address string with incorrect networkPrefix will result in error") {
     forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>

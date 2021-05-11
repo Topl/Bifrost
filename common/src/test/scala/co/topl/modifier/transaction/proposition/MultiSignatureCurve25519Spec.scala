@@ -1,4 +1,4 @@
-package co.topl.transaction.proposition
+package co.topl.modifier.transaction.proposition
 
 import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 import co.topl.attestation.{

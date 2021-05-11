@@ -2,18 +2,29 @@ package co.topl.nodeView.history
 
 import co.topl.consensus.consensusHelper.setProtocolMngr
 import co.topl.modifier.block.Block
-import co.topl.utils.CoreGenerators
+import co.topl.utils.{CoreGenerators, NodeGenerators}
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class StorageCacheSpec extends AnyPropSpec with ScalaCheckPropertyChecks with Matchers with CoreGenerators {
+class StorageCacheSpec
+    extends AnyPropSpec
+    with ScalaCheckPropertyChecks
+    with Matchers
+    with CoreGenerators
+    with NodeGenerators {
 
-  /* Initialize protocolMngr */
-  setProtocolMngr(settings)
+  var history: History = _
 
-  var history: History = generateHistory()
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+
+    /* Initialize protocolMngr */
+    setProtocolMngr(settings)
+
+    history = generateHistory()
+  }
 
   property("The genesis block is stored in cache") {
     val genesisBlockId = ByteArrayWrapper(Array.fill(history.storage.storage.keySize)(-1: Byte))
