@@ -61,7 +61,7 @@ sealed trait ProofOfKnowledge[S <: Secret, P <: KnowledgeProposition[S]] extends
 case class SignatureCurve25519(private[attestation] val sig: Signature)
     extends ProofOfKnowledge[PrivateKeyCurve25519, PublicKeyPropositionCurve25519] {
 
-  private val signatureLength = sig.encodeAsBytes.map(_.length).getOrElse(0)
+  private val signatureLength = sig.encodeAsBytes.length
 
   require(
     signatureLength == 0 || signatureLength == Curve25519.SignatureLength,

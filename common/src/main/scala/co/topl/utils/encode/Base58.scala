@@ -19,8 +19,8 @@ object Base58 extends BytesEncoder {
 
   private val Base = BigInt(58)
 
-  override def encode[V](input: V)(implicit encoder: AsBytes[_, V]): String = {
-    val inputBytes = input.encodeAsBytes.getOrElse(Array[Byte]())
+  override def encode[V: AsBytes](input: V): String = {
+    val inputBytes = input.encodeAsBytes
     var bi = BigInt(1, inputBytes)
     val s = new StringBuilder()
     if (bi > 0) {
@@ -74,3 +74,5 @@ object Base58 extends BytesEncoder {
     if (x < 49) -1 else if (x <= 122) DecodeTable(x - 49) else -1
   }
 }
+
+case class Base58DecodingError()

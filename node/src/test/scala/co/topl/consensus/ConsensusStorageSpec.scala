@@ -36,7 +36,7 @@ class ConsensusStorageSpec
         .onCall { key: ByteArrayWrapper =>
           if (
             key == ByteArrayWrapper(
-              Blake2b256.hash("totalStake".getBytes).encodeAsBytes.getOrElse(Array.emptyByteArray)
+              Blake2b256.hash("totalStake".getBytes).encodeAsBytes
             )
           )
             Some(ByteArrayWrapper(storageTotalStake.toByteArray))

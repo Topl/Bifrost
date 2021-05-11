@@ -6,6 +6,7 @@ import co.topl.crypto.hash.digest.{Digest, InvalidDigestError}
 import co.topl.crypto.hash.implicits._
 import co.topl.crypto.signatures.{PrivateKey, PublicKey, Signature}
 import co.topl.modifier.block.BloomFilter.BloomTopic
+import simulacrum.typeclass
 
 import scala.language.implicitConversions
 
@@ -20,43 +21,32 @@ import scala.language.implicitConversions
  * sealed abstract class StringAsBytesFailure
  * implicit val stringAsBytes: AsBytes[StringAsBytesFailure, String] = _.getBytes("UTF-8").validNec
  *
- * "Test".encodeAsBytes[StringAsBytesFailure]
+ * "Test".encodeAsBytes
  * }}}
  * @tparam Decoded The domain-specific representation
  */
-trait AsBytes[EncodingFailure, Decoded] {
-  def encode(decoded: Decoded): ValidatedNec[EncodingFailure, Array[Byte]]
+@typeclass
+trait AsBytes[Decoded] {
+  def encodeAsBytes(decoded: Decoded): Array[Byte]
 }
 
 object AsBytes {
 
-  class Ops[T](val instance: T) extends AnyVal {
-
-    def encodeAsBytes[EncodingFailure](implicit
-      encoder: AsBytes[EncodingFailure, T]
-    ): ValidatedNec[EncodingFailure, Array[Byte]] =
-      encoder.encode(instance)
-  }
-
-  trait ToOps {
-    implicit def toEncoderOps[T](target: T): Ops[T] = new Ops(target)
-  }
-
   trait Instances {
-    implicit val identityBytesEncoder: AsBytes[Nothing, Array[Byte]] = _.validNec[Nothing]
+    implicit val identityBytesEncoder: AsBytes[Array[Byte]] = x => x
 
-    implicit def digestBytesEncoder[T: Digest]: AsBytes[Nothing, T] = _.bytes.validNec[Nothing]
+    implicit def digestBytesEncoder[T: Digest]: AsBytes[T] = _.bytes
 
-    implicit val signatureEncoder: AsBytes[Nothing, Signature] = _.value.validNec[Nothing]
+    implicit val signatureEncoder: AsBytes[Signature] = _.value
 
-    implicit val publicKeyEncoder: AsBytes[Nothing, PublicKey] = _.value.validNec[Nothing]
+    implicit val publicKeyEncoder: AsBytes[PublicKey] = _.value
 
-    implicit val privateKeyEncoder: AsBytes[Nothing, PrivateKey] = _.value.validNec[Nothing]
+    implicit val privateKeyEncoder: AsBytes[PrivateKey] = _.value
 
-    implicit val bloomTopicEncoder: AsBytes[Nothing, BloomTopic] = _.value.validNec[Nothing]
+    implicit val bloomTopicEncoder: AsBytes[BloomTopic] = _.value
   }
 
-  object implicits extends ToOps with Instances
+  object implicits extends Instances with AsBytes.ToAsBytesOps
 }
 
 /**
@@ -91,6 +81,8 @@ object FromBytes {
 
   trait ToOps {
     implicit def toDecoderOps(target: Array[Byte]): Ops = new Ops(target)
+
+    implicit def toDecoderOps[T: AsBytes](target: T): Ops = new Ops(AsBytes[T].encodeAsBytes(target))
   }
 
   trait Instances {
