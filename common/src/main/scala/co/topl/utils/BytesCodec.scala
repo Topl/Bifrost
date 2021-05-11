@@ -74,7 +74,7 @@ trait FromBytes[DecodeFailure, Decoded] {
 object FromBytes {
 
   /** Represents a decode that will never fail. Should never be returned from a decode. */
-  case class Infallible()
+  type Infallible
 
   class Ops(val instance: Array[Byte]) extends AnyVal {
 
@@ -100,6 +100,10 @@ object FromBytes {
 
     implicit def byteArrayWrapperDecoder: FromBytes[Infallible, ByteArrayWrapper] =
       ByteArrayWrapper(_).validNec[Infallible]
+
+    implicit val publicKeyDecoder: FromBytes[Infallible, PublicKey] = PublicKey(_).validNec[Infallible]
+
+    implicit val privateKeyDecoder: FromBytes[Infallible, PrivateKey] = PrivateKey(_).validNec[Infallible]
   }
 
   object implicits extends ToOps with Instances

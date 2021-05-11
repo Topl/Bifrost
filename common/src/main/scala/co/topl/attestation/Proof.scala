@@ -9,6 +9,7 @@ import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
+import co.topl.utils.FromBytes.implicits._
 
 import scala.util.{Failure, Success, Try}
 
@@ -69,7 +70,7 @@ case class SignatureCurve25519(private[attestation] val sig: Signature)
   )
 
   def isValid(proposition: PublicKeyPropositionCurve25519, message: Array[Byte]): Boolean =
-    Curve25519.verify(sig, message, PublicKey(proposition.pubKeyBytes.value))
+    Curve25519.verify(sig, message, proposition.pubKeyBytes.infallibleDecodeTo[PublicKey])
 }
 
 object SignatureCurve25519 {
