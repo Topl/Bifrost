@@ -7,6 +7,9 @@ import co.topl.utils.NetworkType.{LocalTestnet, PrivateTestnet}
 import co.topl.utils.{Int128, Logging, NetworkType}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore, Store}
+import co.topl.utils.FromBytes.implicits._
+import co.topl.utils.AsBytes.implicits._
+import co.topl.crypto.hash.implicits._
 
 import java.io.File
 
@@ -18,10 +21,10 @@ import java.io.File
 class ConsensusStorage(storage: Option[Store], private val defaultTotalStake: Int128) extends Logging {
 
   // constant keys for each piece of consensus state
-  private val totalStakeKey = ByteArrayWrapper(Blake2b256.hash("totalStake".getBytes).value)
-  private val difficultyKey = ByteArrayWrapper(Blake2b256.hash("difficulty".getBytes).value)
-  private val inflationKey = ByteArrayWrapper(Blake2b256.hash("inflation".getBytes).value)
-  private val heightKey = ByteArrayWrapper(Blake2b256.hash("height".getBytes).value)
+  private val totalStakeKey = Blake2b256.hash("totalStake".getBytes).infallibleDecodeTo[ByteArrayWrapper]
+  private val difficultyKey = Blake2b256.hash("difficulty".getBytes).infallibleDecodeTo[ByteArrayWrapper]
+  private val inflationKey = Blake2b256.hash("inflation".getBytes).infallibleDecodeTo[ByteArrayWrapper]
+  private val heightKey = Blake2b256.hash("height".getBytes).infallibleDecodeTo[ByteArrayWrapper]
 
   private val defaultDifficulty: Long = 0
   private val defaultInflation: Long = 0

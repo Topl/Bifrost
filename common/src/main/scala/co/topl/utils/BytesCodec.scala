@@ -6,6 +6,7 @@ import co.topl.crypto.hash.digest.{Digest, InvalidDigestError}
 import co.topl.crypto.hash.implicits._
 import co.topl.crypto.signatures.{PrivateKey, PublicKey, Signature}
 import co.topl.modifier.block.BloomFilter.BloomTopic
+import io.iohk.iodb.ByteArrayWrapper
 import simulacrum.typeclass
 
 import scala.language.implicitConversions
@@ -19,7 +20,7 @@ import scala.language.implicitConversions
  * import co.topl.utils.AsBytes.implicits._
  *
  * sealed abstract class StringAsBytesFailure
- * implicit val stringAsBytes: AsBytes[StringAsBytesFailure, String] = _.getBytes("UTF-8").validNec
+ * implicit val stringAsBytes: AsBytes[String] = _.getBytes("UTF-8")
  *
  * "Test".encodeAsBytes
  * }}}
@@ -62,6 +63,7 @@ object AsBytes {
  *
  * val bytes: Array[Byte] = ???
  * bytes.decodeTo[BytesAsStringFailure, String]
+ * bytes.infallibleDecodeTo[ByteArrayWrapper]
  * }}}
  * @tparam Decoded The domain-specific representation
  */
@@ -71,12 +73,18 @@ trait FromBytes[DecodeFailure, Decoded] {
 
 object FromBytes {
 
+  /** Represents a decode that will never fail. Should never be returned from a decode. */
+  case class Infallible()
+
   class Ops(val instance: Array[Byte]) extends AnyVal {
 
     def decodeTo[DecodeFailure, Decoded](implicit
       decoder: FromBytes[DecodeFailure, Decoded]
     ): ValidatedNec[DecodeFailure, Decoded] =
       decoder.decode(instance)
+
+    def infallibleDecodeTo[Decoded](implicit decoder: FromBytes[Infallible, Decoded]): Decoded =
+      decoder.decode(instance).getOrElse(throw new Exception("Failed to decode infallible value!"))
   }
 
   trait ToOps {
@@ -86,9 +94,12 @@ object FromBytes {
   }
 
   trait Instances {
-    implicit val identityBytesDecoder: FromBytes[Nothing, Array[Byte]] = _.validNec[Nothing]
+    implicit val identityBytesDecoder: FromBytes[Infallible, Array[Byte]] = _.validNec[Infallible]
 
     implicit def digestBytesDecoder[T: Digest]: FromBytes[InvalidDigestError, T] = Digest[T].from(_)
+
+    implicit def byteArrayWrapperDecoder: FromBytes[Infallible, ByteArrayWrapper] =
+      ByteArrayWrapper(_).validNec[Infallible]
   }
 
   object implicits extends ToOps with Instances
