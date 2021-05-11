@@ -1,5 +1,6 @@
 package co.topl.attestation
 
+import cats.scalatest.{ValidatedMatchers, ValidatedNecMatchers}
 import co.topl.attestation.AddressCodec.implicits.StringOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{CoreGenerators, NetworkType, ValidGenerators}
@@ -16,7 +17,9 @@ class AddressSpec
     with Matchers
     with CoreGenerators
     with ValidGenerators
-    with EitherValues {
+    with EitherValues
+    with ValidatedMatchers
+    with ValidatedNecMatchers {
 
   property("Applying address string with incorrect networkPrefix will result in error") {
     forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
@@ -31,7 +34,7 @@ class AddressSpec
       }
       {
         implicit val networkPrefix: NetworkPrefix = secNetworkType.netPrefix
-        addrStr.decodeAddress.toEither.left.value.toNonEmptyList.toList should contain(NetworkTypeMismatch)
+        addrStr.decodeAddress should haveInvalidC[AddressValidationError](NetworkTypeMismatch)
       }
     }
   }
@@ -50,7 +53,7 @@ class AddressSpec
 
       addrByte should not contain theSameElementsInOrderAs(modedAddrByte)
 
-      modedAddrStr.decodeAddress.toEither.left.value.toNonEmptyList.toList should contain(InvalidChecksum)
+      modedAddrStr.decodeAddress should haveInvalidC[AddressValidationError](InvalidChecksum)
     }
   }
 
@@ -68,17 +71,15 @@ class AddressSpec
 
       addrByte should not contain theSameElementsAs(modedAddrByte)
 
-      modedAddrStr.decodeAddress.toEither.left.value.toNonEmptyList.toList should contain(InvalidChecksum)
+      modedAddrStr.decodeAddress should haveInvalidC[AddressValidationError](InvalidChecksum)
     }
   }
 
   property("Applying non-base58 encoded address will result in error") {
-    forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
-      implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
-      val modedAddrStr: String = "0OIlL+/"
+    implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
+    val addressStr: String = "0OIlL+/"
 
-      modedAddrStr.decodeAddress.toEither.left.value.toNonEmptyList.toList should contain(NotBase58)
-    }
+    addressStr.decodeAddress should haveInvalidC[AddressValidationError](NotBase58)
   }
 
   property("Applying address with incorrect length will result in error") {
@@ -95,7 +96,7 @@ class AddressSpec
 
       addrByte should not contain theSameElementsAs(modedAddrByte)
 
-      modedAddrStr.decodeAddress.toEither.left.value.toNonEmptyList.toList should contain(InvalidAddressLength)
+      modedAddrStr.decodeAddress should haveInvalidC[AddressValidationError](InvalidAddressLength)
     }
   }
 
@@ -105,7 +106,7 @@ class AddressSpec
       val address: Address = pubkey.address
       val addrStr: String = address.toString
 
-      addrStr.decodeAddress.toEither.left.value.toNonEmptyList.toList should contain(InvalidNetworkPrefix)
+      addrStr.decodeAddress should haveInvalidC[AddressValidationError](InvalidNetworkPrefix)
     }
   }
 }
