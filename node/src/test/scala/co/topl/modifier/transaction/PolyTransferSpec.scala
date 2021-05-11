@@ -11,23 +11,4 @@ class PolyTransferSpec
     with ScalaCheckDrivenPropertyChecks
     with Matchers
     with CoreGenerators
-    with ValidGenerators {
-
-  property("Generated PolyTransfer Tx should be valid") {
-    forAll(validPolyTransfer(keyRing, genesisState)) { polyTransfer: PolyTransfer[_] =>
-      polyTransfer.syntacticValidate.toEither match {
-        case Left(exception) => println(exception)
-        case _               =>
-      }
-      polyTransfer.syntacticValidate.isValid shouldBe true
-    }
-  }
-
-  property("Attempting to validate a PolyTransfer without valid signature should error") {
-    // Create invalid PolyTransfer
-    // send tx to state
-    forAll(polyTransferGen) { polyTransfer: PolyTransfer[_] =>
-      polyTransfer.syntacticValidate.isValid shouldBe false
-    }
-  }
-}
+    with ValidGenerators {}
