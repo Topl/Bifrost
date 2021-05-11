@@ -33,7 +33,7 @@ class MempoolSpec
   implicit private val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
   implicit private val executionContext: ExecutionContext = actorSystem.dispatcher
 
-  protected val appContext = new AppContext(settings, StartupOpts.empty, None)
+  protected val appContext = new AppContext(settings, StartupOpts(), None)
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
 
   implicit val timeout: Timeout = Timeout(10.seconds)
