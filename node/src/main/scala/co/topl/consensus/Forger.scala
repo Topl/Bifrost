@@ -5,6 +5,7 @@ import akka.actor._
 import cats.data.EitherT
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
+import cats.data.Validated
 import cats.implicits._
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.Forger.{AttemptForgingFailure, ChainParams, PickTransactionsResult}
@@ -337,9 +338,10 @@ class Forger[
 
           (boxAlreadyUsed, boxAlreadyExists) match {
             case (false, false) =>
-              utx.tx.semanticValidate(stateReader) match {
-                case Success(_) => PickTransactionsResult(txAcc.toApply :+ utx.tx, txAcc.toEliminate)
-                case Failure(ex) =>
+              import co.topl.modifier.transaction.validation.implicits._
+              utx.tx.semanticValidation(stateReader) match {
+                case Validated.Valid(_) => PickTransactionsResult(txAcc.toApply :+ utx.tx, txAcc.toEliminate)
+                case Validated.Invalid(ex) =>
                   log.debug(
                     s"${Console.RED}Transaction ${utx.tx.id} failed semantic validation. " +
                     s"Transaction will be removed.${Console.RESET} Failure: $ex"

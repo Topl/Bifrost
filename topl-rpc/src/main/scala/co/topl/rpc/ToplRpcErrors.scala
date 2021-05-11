@@ -2,7 +2,7 @@ package co.topl.rpc
 
 import cats.data.NonEmptyChain
 import co.topl.akkahttprpc.{CustomError, ThrowableData}
-import co.topl.modifier.transaction.SyntacticValidationFailure
+import co.topl.modifier.transaction.validation.SyntacticValidationFailure
 import io.circe.Encoder
 import io.circe.syntax._
 
