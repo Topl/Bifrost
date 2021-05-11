@@ -32,6 +32,7 @@ class NetworkTimeProvider(ntpSettings: NetworkTimeProviderSettings)(implicit sys
   private val client = new NTPUDPClient()
   client.setDefaultTimeout(ntpSettings.timeout.toMillis.toInt)
   client.open()
+  system.registerOnTermination(client.close())
 
   /**
    * Check if the NTP offset should be updated and returns current time (milliseconds)
