@@ -9,7 +9,7 @@ Seq(
   "net.virtual-void"   % "sbt-dependency-graph"      % "0.9.2",
   "io.kamon"           % "sbt-kanela-runner"         % "2.0.6",
   "com.github.cb372"   % "sbt-explicit-dependencies" % "0.2.11",
-  "pl.project13.scala" % "sbt-jmh"                   % "0.3.7",
+  "pl.project13.scala" % "sbt-jmh"                   % "0.4.1",
   "org.scalameta"      % "sbt-scalafmt"              % "2.4.0",
   "ch.epfl.scala"      % "sbt-scalafix"              % "0.9.26",
   "org.wartremover"    % "sbt-wartremover"           % "2.4.13",
