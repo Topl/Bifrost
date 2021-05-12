@@ -132,7 +132,7 @@ class NodeViewSynchronizer[
   protected def manageModifiers: Receive = {
 
     /** Request data from any remote node */
-    case DownloadRequest(modifierTypeId: ModifierTypeId @unchecked, modifierId: ModifierId) =>
+    case DownloadRequest(modifierTypeId: ModifierTypeId, modifierId: ModifierId) =>
       if (deliveryTracker.status(modifierId, historyReaderOpt.toSeq) == ModifiersStatus.Unknown) {
         requestDownload(modifierTypeId, Seq(modifierId), None)
       }
@@ -423,7 +423,7 @@ class NodeViewSynchronizer[
       case (Some(mempool), Some(history)) =>
         val objs: Seq[NodeViewModifier] = invData.typeId match {
           case Transaction.modifierTypeId   => mempool.getAll(invData.ids)
-          case _: ModifierTypeId @unchecked => invData.ids.flatMap(id => history.modifierById(id))
+          case Block.modifierTypeId => invData.ids.flatMap(id => history.modifierById(id))
         }
 
         log.debug(
