@@ -422,8 +422,8 @@ class NodeViewSynchronizer[
     (mempoolReaderOpt, historyReaderOpt) match {
       case (Some(mempool), Some(history)) =>
         val objs: Seq[NodeViewModifier] = invData.typeId match {
-          case Transaction.modifierTypeId   => mempool.getAll(invData.ids)
-          case Block.modifierTypeId => invData.ids.flatMap(id => history.modifierById(id))
+          case Transaction.modifierTypeId => mempool.getAll(invData.ids)
+          case Block.modifierTypeId       => invData.ids.flatMap(id => history.modifierById(id))
         }
 
         log.debug(
