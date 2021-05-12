@@ -69,7 +69,7 @@ class AddressSpec
       val modedAddrByte: Array[Byte] = addrByte.slice(0, addrByte.length - 1) ++ Array(corruptByte)
       val modedAddrStr: String = Base58.encode(modedAddrByte)
 
-      addrByte should not contain theSameElementsAs(modedAddrByte)
+      addrByte should not contain theSameElementsInOrderAs(modedAddrByte)
 
       modedAddrStr.decodeAddress should haveInvalidC[AddressValidationError](InvalidChecksum)
     }
@@ -94,7 +94,7 @@ class AddressSpec
       val modedAddrByte: Array[Byte] = addrByte.slice(0, addrByte.length) ++ Array(corruptByte)
       val modedAddrStr: String = Base58.encode(modedAddrByte)
 
-      addrByte should not contain theSameElementsAs(modedAddrByte)
+      addrByte should not contain theSameElementsInOrderAs(modedAddrByte)
 
       modedAddrStr.decodeAddress should haveInvalidC[AddressValidationError](InvalidAddressLength)
     }
