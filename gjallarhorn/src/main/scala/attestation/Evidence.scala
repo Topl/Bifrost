@@ -7,7 +7,6 @@ import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import io.estatico.newtype.macros.newtype
-import io.estatico.newtype.ops._
 import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 
 import scala.language.implicitConversions
@@ -43,7 +42,7 @@ object Evidence extends GjalSerializer[Evidence] {
   case class EvidenceContent(value: Array[Byte])
 
   object EvidenceContent {
-    def apply[D: Digest](d: D): EvidenceContent = d.infalliblyEncodeAsBytes.coerce
+    def apply[D: Digest](d: D): EvidenceContent = EvidenceContent(d.infalliblyEncodeAsBytes)
   }
 
   val contentLength = 32 //bytes (this is generally the output of a Blake2b-256 bit hash)
