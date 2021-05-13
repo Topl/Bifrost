@@ -15,11 +15,17 @@ trait MockState
     with NodeGenerators
     with FileUtils {
 
-//  protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
-//  implicit val executionContext: ExecutionContext = actorSystem.dispatcher
-
-//  protected val appContext = new AppContext(settings, StartupOpts.empty, None)
-
-  def createState(genesisBlockWithVersion: Block = genesisBlock): State =
-    State.genesisState(settings, Seq(genesisBlockWithVersion))
+  def createState(genesisBlockWithVersion: Block = genesisBlock, inTempFile: Boolean = true): State = {
+    val finalSettings = if (inTempFile) {
+      val file = createTempFile
+      settings.copy(
+        application = settings.application.copy(
+          dataDir = Some(file.getPath + "data")
+        )
+      )
+    } else {
+      settings
+    }
+    State.genesisState(finalSettings, Seq(genesisBlockWithVersion))
+  }
 }
