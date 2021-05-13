@@ -17,7 +17,7 @@ class VersionSerializationSpec
     forAll(versionGen) { version =>
       val parsed = VersionSerializer.parseBytes(VersionSerializer.toBytes(version)).get
 
-      parsed.bytes sameElements version.bytes
+      parsed.bytes should contain theSameElementsInOrderAs version.bytes
     }
   }
 }
