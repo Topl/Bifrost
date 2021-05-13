@@ -17,7 +17,7 @@ class AddressSpec
     with ValidGenerators {
 
   property("Applying address string with incorrect networkPrefix will result in error") {
-    forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
+    forAll(propositionCurve25519Gen) { pubkey: PublicKeyPropositionCurve25519 =>
       val twoNetworkType = scala.util.Random.shuffle(NetworkType.all).take(2)
       val fstNetworkType: NetworkType = twoNetworkType.head
       val secNetworkType: NetworkType = twoNetworkType.last
@@ -34,7 +34,7 @@ class AddressSpec
   }
 
   property("Applying address with incorrect content that doesn't match the checksum will result in error") {
-    forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
+    forAll(propositionCurve25519Gen) { pubkey: PublicKeyPropositionCurve25519 =>
       implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
       val address: Address = pubkey.address
       val addrStr: String = address.toString
@@ -54,7 +54,7 @@ class AddressSpec
   }
 
   property("Applying address with incorrect checksum will result in error") {
-    forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
+    forAll(propositionCurve25519Gen) { pubkey: PublicKeyPropositionCurve25519 =>
       implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
       val address: Address = pubkey.address
       val addrStr: String = address.toString
@@ -75,7 +75,7 @@ class AddressSpec
   }
 
   property("Applying address with incorrect length will result in error") {
-    forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
+    forAll(propositionCurve25519Gen) { pubkey: PublicKeyPropositionCurve25519 =>
       implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
       val address: Address = pubkey.address
       val addrStr: String = address.toString
@@ -96,7 +96,7 @@ class AddressSpec
   }
 
   property("Applying address with incorrect NetworkPrefix will result in error") {
-    forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
+    forAll(propositionCurve25519Gen) { pubkey: PublicKeyPropositionCurve25519 =>
       implicit val networkPrefix: NetworkPrefix = -42: Byte
       val address: Address = pubkey.address
       val addrStr: String = address.toString

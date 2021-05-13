@@ -9,7 +9,7 @@ class ProgramBoxRegistrySpec extends MockState {
 
   val state: State = createState()
 
-  val pubKey: PublicKeyPropositionCurve25519 = propositionGen.sample.get
+  val pubKey: PublicKeyPropositionCurve25519 = propositionCurve25519Gen.sample.get
   val address: Address = pubKey.address
 
   val stateOne: Json =

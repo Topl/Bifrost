@@ -5,8 +5,9 @@ import java.time.Instant
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
 import co.topl.crypto.hash.Digest32
+import co.topl.crypto.signatures.eddsa.Ed25519
 import co.topl.crypto.signatures.{Curve25519, Signature}
-import co.topl.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519, Secret}
+import co.topl.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519, PrivateKeyEd25519, Secret}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
@@ -124,25 +125,25 @@ trait CoreGenerators extends Logging {
   } yield tx
 
   lazy val polyBoxGen: Gen[PolyBox] = for {
-    evidence <- evidenceGen
+    evidence <- evidenceCurve25519Gen
     nonce    <- positiveLongGen
     value    <- positiveLongGen
   } yield PolyBox(evidence, nonce, SimpleValue(value))
 
   lazy val arbitBoxGen: Gen[ArbitBox] = for {
-    evidence <- evidenceGen
+    evidence <- evidenceCurve25519Gen
     nonce    <- positiveLongGen
     value    <- positiveLongGen
   } yield ArbitBox(evidence, nonce, SimpleValue(value))
 
   lazy val assetBoxGen: Gen[AssetBox] = for {
-    evidence <- evidenceGen
+    evidence <- evidenceCurve25519Gen
     nonce    <- positiveLongGen
     quantity <- positiveLongGen
     // TODO: Hard coded as 1, but change this to arbitrary in the future
     //assetVersion <- Arbitrary.arbitrary[Byte]
     shortName <- shortNameGen
-    issuer    <- addressGen
+    issuer    <- addressCurve25519Gen
     data      <- stringGen
   } yield {
     // TODO: Hard coded as 1, but change this to arbitrary in the future
@@ -153,14 +154,14 @@ trait CoreGenerators extends Logging {
   }
 
   lazy val stateBoxGen: Gen[StateBox] = for {
-    evidence  <- evidenceGen
+    evidence  <- evidenceCurve25519Gen
     state     <- stringGen
     nonce     <- positiveLongGen
     programId <- programIdGen
   } yield StateBox(evidence, nonce, programId, state.asJson)
 
   lazy val codeBoxGen: Gen[CodeBox] = for {
-    evidence  <- evidenceGen
+    evidence  <- evidenceCurve25519Gen
     nonce     <- positiveLongGen
     methodLen <- positiveTinyIntGen
     methods   <- Gen.containerOfN[Seq, String](methodLen, stringGen)
@@ -176,7 +177,7 @@ trait CoreGenerators extends Logging {
   }
 
   lazy val executionBoxGen: Gen[ExecutionBox] = for {
-    evidence   <- evidenceGen
+    evidence   <- evidenceCurve25519Gen
     codeBox_1  <- codeBoxGen
     codeBox_2  <- codeBoxGen
     nonce      <- positiveLongGen
@@ -204,7 +205,7 @@ trait CoreGenerators extends Logging {
   } yield (nonce, amount)
 
   lazy val fromGen: Gen[(Address, Nonce)] = for {
-    address <- addressGen
+    address <- addressCurve25519Gen
     nonce   <- positiveLongGen
   } yield (address, nonce)
 
@@ -217,14 +218,14 @@ trait CoreGenerators extends Logging {
   } yield SimpleValue(value)
 
   lazy val toGen: Gen[(Address, SimpleValue)] = for {
-    address <- addressGen
+    address <- addressCurve25519Gen
     value   <- positiveLongGen
   } yield (address, SimpleValue(value))
 
   lazy val assetCodeGen: Gen[AssetCode] = for {
     // TODO: Hard coded as 1, but change this to arbitrary in the future
     // assetVersion <- Arbitrary.arbitrary[Byte]
-    issuer    <- addressGen
+    issuer    <- addressCurve25519Gen
     shortName <- shortNameGen
   } yield AssetCode(1: Byte, issuer, shortName)
 
@@ -282,7 +283,7 @@ trait CoreGenerators extends Logging {
   } yield AssetTransfer(from, to, attestation, fee, timestamp, Some(data), minting = true)
 
   lazy val publicKeyPropositionCurve25519Gen: Gen[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] =
-    key25519Gen.map(key => key._1 -> key._2)
+    keyCurve25519Gen.map(key => key._1 -> key._2)
 
   lazy val thresholdPropositionCurve25519Gen: Gen[(Set[PrivateKeyCurve25519], ThresholdPropositionCurve25519)] = for {
     numKeys   <- positiveMediumIntGen
@@ -290,7 +291,7 @@ trait CoreGenerators extends Logging {
   } yield {
     val setOfKeys = (0 until numKeys)
       .map { _ =>
-        val key = sampleUntilNonEmpty(key25519Gen)
+        val key = sampleUntilNonEmpty(keyCurve25519Gen)
         (key._1, key._2)
       }
       .foldLeft((Set[PrivateKeyCurve25519](), Set[PublicKeyPropositionCurve25519]())) { (set, cur) =>
@@ -307,7 +308,7 @@ trait CoreGenerators extends Logging {
     message <- nonEmptyBytesGen
   } yield {
     val sigs = (0 until numKeys).map { _ =>
-      val key = sampleUntilNonEmpty(key25519Gen)
+      val key = sampleUntilNonEmpty(keyCurve25519Gen)
       key._1.sign(message)
     }.toSet
     ThresholdSignatureCurve25519(sigs)
@@ -328,7 +329,7 @@ trait CoreGenerators extends Logging {
   }
 
   lazy val attestationGen: Gen[Map[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]] = for {
-    prop <- propositionGen
+    prop <- propositionCurve25519Gen
     sig  <- signatureGen
   } yield Map(prop -> sig)
 
@@ -337,7 +338,7 @@ trait CoreGenerators extends Logging {
   } yield {
     val setOfKeys = (0 until n)
       .map { _ =>
-        val key = sampleUntilNonEmpty(key25519Gen)
+        val key = sampleUntilNonEmpty(keyCurve25519Gen)
         (key._1, key._2)
       }
       .foldLeft((Set[PrivateKeyCurve25519](), Set[PublicKeyPropositionCurve25519]())) { (set, cur) =>
@@ -351,7 +352,7 @@ trait CoreGenerators extends Logging {
 
   lazy val keyPairSetGen: Gen[Set[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)]] = for {
     seqLen <- positiveTinyIntGen
-  } yield ((0 until seqLen) map { _ => sampleUntilNonEmpty(key25519Gen) }).toSet
+  } yield ((0 until seqLen) map { _ => sampleUntilNonEmpty(keyCurve25519Gen) }).toSet
 
   val transactionTypes: Seq[Gen[Transaction.TX]] =
     Seq(polyTransferGen, arbitTransferGen, assetTransferGen)
@@ -383,11 +384,17 @@ trait CoreGenerators extends Logging {
   lazy val modifierIdGen: Gen[ModifierId] =
     Gen.listOfN(ModifierId.size, Arbitrary.arbitrary[Byte]).map(li => ModifierId.parseBytes(li.toArray).get)
 
-  lazy val key25519Gen: Gen[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] = genBytesList(Curve25519.KeyLength)
-    .map(s => PrivateKeyCurve25519.secretGenerator.generateSecret(s))
-  lazy val propositionGen: Gen[PublicKeyPropositionCurve25519] = key25519Gen.map(_._2)
-  lazy val evidenceGen: Gen[Evidence] = for { address <- addressGen } yield address.evidence
-  lazy val addressGen: Gen[Address] = for { key <- propositionGen } yield key.address
+  lazy val keyCurve25519Gen: Gen[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] =
+    genBytesList(Curve25519.KeyLength).map(s => PrivateKeyCurve25519.secretGenerator.generateSecret(s))
+  lazy val propositionCurve25519Gen: Gen[PublicKeyPropositionCurve25519] = keyCurve25519Gen.map(_._2)
+  lazy val evidenceCurve25519Gen: Gen[Evidence] = for {address <- addressCurve25519Gen} yield address.evidence
+  lazy val addressCurve25519Gen: Gen[Address] = for {key <- propositionCurve25519Gen} yield key.address
+
+  lazy val keyEd25519Gen: Gen[(PrivateKeyEd25519, PublicKeyPropositionEd25519)] =
+    genBytesList(Ed25519.KeyLength).map(s => PrivateKeyEd25519.secretGenerator.generateSecret(s))
+  lazy val propositionEd25519Gen: Gen[PublicKeyPropositionEd25519] = keyEd25519Gen.map(_._2)
+  lazy val evidenceEd25519Gen: Gen[Evidence] = for {address <- addressEd25519Gen} yield address.evidence
+  lazy val addressEd25519Gen: Gen[Address] = for {key <- propositionEd25519Gen} yield key.address
 
   lazy val versionGen: Gen[Version] = for {
     first  <- Gen.choose(0: Byte, Byte.MaxValue)
@@ -408,7 +415,7 @@ trait CoreGenerators extends Logging {
     parentIdBytes <- specificLengthBytesGen(ModifierId.size)
     timestamp     <- positiveLongGen
     generatorBox  <- arbitBoxGen
-    publicKey     <- propositionGen
+    publicKey     <- propositionCurve25519Gen
     signature     <- signatureGen
     txs           <- bifrostTransactionSeqGen
   } yield {

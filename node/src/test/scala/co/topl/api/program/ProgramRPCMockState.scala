@@ -16,7 +16,7 @@ trait ProgramRPCMockState extends RPCMockState with should.Matchers {
 
   lazy val (signSk, signPk) = sampleUntilNonEmpty(keyPairSetGen).head
 
-  val publicKey: PublicKeyPropositionCurve25519 = propositionGen.sample.get
+  val publicKey: PublicKeyPropositionCurve25519 = propositionCurve25519Gen.sample.get
   val address: Address = publicKey.address
 
   val fees: Map[String, Int] = Map(publicKey.toString -> 500)

@@ -16,8 +16,8 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class JsonTests extends AnyPropSpec with Matchers with ScalaCheckPropertyChecks with CoreGenerators {
 
-  property("PublicKey25519Proposition json") {
-    forAll(propositionGen) { prop =>
+  property("PublicKeyPropositionCurve25519 json") {
+    forAll(propositionCurve25519Gen) { prop =>
       prop.asJson.as[PublicKeyPropositionCurve25519] shouldEqual Right(prop)
     }
   }
@@ -29,7 +29,7 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckPropertyChecks 
   }
 
   property("KeyfileCurve25519 json") {
-    forAll(key25519Gen) { key =>
+    forAll(keyCurve25519Gen) { key =>
       val keyfile = KeyfileCurve25519.encryptSecret(key._1, "test")
       keyfile.asJson.as[KeyfileCurve25519] match {
         case Right(kf) =>
@@ -44,13 +44,13 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckPropertyChecks 
   }
 
   property("Address json") {
-    forAll(addressGen) { address =>
+    forAll(addressCurve25519Gen) { address =>
       address.asJson.as[Address] shouldEqual Right(address)
     }
   }
 
   property("Evidence json") {
-    forAll(evidenceGen) { evidence =>
+    forAll(evidenceCurve25519Gen) { evidence =>
       evidence.asJson.as[Evidence] shouldEqual Right(evidence)
     }
   }

@@ -56,7 +56,7 @@ class KeySpec
   }
 
   property("Trying to sign a message with an address not on the keyRing will fail") {
-    val randAddr: Address = addressGen.sample.get
+    val randAddr: Address = addressCurve25519Gen.sample.get
     val error = intercept[Exception](keyRing.signWithAddress(randAddr)(messageByte))
     error.getMessage shouldEqual "Unable to find secret for the given address"
   }

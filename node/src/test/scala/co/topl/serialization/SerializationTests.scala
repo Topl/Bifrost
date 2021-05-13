@@ -45,7 +45,7 @@ class SerializationTests
   }
 
   property("PrivateKeyCurve25519 serialization") {
-    forAll(key25519Gen) { case (key: PrivateKeyCurve25519, _) =>
+    forAll(keyCurve25519Gen) { case (key: PrivateKeyCurve25519, _) =>
       val parsed = PrivateKeyCurve25519.parseBytes(PrivateKeyCurve25519.toBytes(key)).get
 
       parsed.bytes sameElements key.bytes shouldBe true
@@ -246,7 +246,7 @@ class SerializationTests
   }
 
   property("Evidence serialization") {
-    forAll(evidenceGen) { evidence =>
+    forAll(evidenceCurve25519Gen) { evidence =>
       val parsed = Evidence.parseBytes(Evidence.toBytes(evidence)).get
 
       Evidence.toBytes(parsed) sameElements Evidence.toBytes(evidence) shouldBe true
@@ -254,7 +254,7 @@ class SerializationTests
   }
 
   property("Address serialization") {
-    forAll(addressGen) { address =>
+    forAll(addressCurve25519Gen) { address =>
       val parsed: Address = Address.parseBytes(Address.toBytes(address)).get
 
       Address.toBytes(parsed) sameElements Address.toBytes(address) shouldBe true
