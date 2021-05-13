@@ -1,6 +1,5 @@
 package co.topl.settings
 
-import co.topl.http.api.NamespaceSelector
 import co.topl.network.utils.NetworkTimeProviderSettings
 import co.topl.utils.Logging
 import com.typesafe.config.{Config, ConfigFactory}
@@ -26,7 +25,7 @@ case class ApplicationSettings(
 
 case class RPCApiSettings(
   bindAddress:       InetSocketAddress,
-  authEnabled:       Boolean,
+  disableAuth:       Boolean,
   apiKeyHash:        String,
   timeout:           FiniteDuration,
   verboseAPI:        Boolean,

@@ -5,11 +5,6 @@ import Dependencies._
 val scala212 = "2.12.13"
 val scala213 = "2.13.5"
 
-
-ThisBuild / scalafixDependencies += "org.scala-lang.modules" %% "scala-collection-migrations" % "2.4.3"
-addCompilerPlugin(scalafixSemanticdb)
-scalacOptions ++= List("-Yrangepos", "-P:semanticdb:synthetics:on")
-
 inThisBuild(List(
   organization := "co.topl",
   scalaVersion := scala213,
@@ -22,7 +17,8 @@ inThisBuild(List(
   dynver := {
     val d = new java.util.Date
     sbtdynver.DynVer.getGitDescribeOutput(d).mkVersion(versionFmt, fallbackVersion(d))
-  }
+  },
+  parallelExecution := false
 ))
 
 lazy val commonSettings = Seq(
@@ -98,6 +94,30 @@ lazy val assemblySettings = Seq(
   }
 )
 
+lazy val scalamacrosParadiseSettings =
+  Seq(
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, v)) if v <= 12 =>
+          Seq(
+            compilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
+          )
+        case _ =>
+          Nil
+      }
+    },
+    scalacOptions ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, v)) if v >= 13 =>
+          Seq(
+            "-Ymacro-annotations"
+          )
+        case _ =>
+          Nil
+      }
+    }
+  )
+
 lazy val commonScalacOptions = Seq(
   "-deprecation",
   "-feature",
@@ -164,12 +184,13 @@ lazy val node = project.in(file("node"))
     name := "node",
     commonSettings,
     assemblySettings,
+    crossScalaVersions := Seq(scala213),
     Defaults.itSettings,
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
     Docker / packageName := "bifrost-node",
-    dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java8-21.0.0",
+    dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java11-21.1.0",
     dockerExposedPorts := Seq(9084, 9085),
     dockerExposedVolumes += "/opt/docker/.bifrost",
     dockerLabels ++= Map(
@@ -181,8 +202,8 @@ lazy val node = project.in(file("node"))
   .settings(
     IntegrationTest / parallelExecution := false
   )
+  .dependsOn(common, toplRpc)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
-  .dependsOn(common)
 
 lazy val common = project.in(file("common"))
   .settings(
@@ -191,6 +212,7 @@ lazy val common = project.in(file("common"))
     publishSettings,
     libraryDependencies ++= Dependencies.common
   )
+  .settings(scalamacrosParadiseSettings)
 
 lazy val chainProgram = project.in(file("chain-program"))
   .settings(
@@ -261,3 +283,4 @@ lazy val benchmarking = project.in(file("benchmark"))
 
 
 addCommandAlias("checkPR", "; scalafixAll --check; scalafmtCheckAll; test")
+addCommandAlias("preparePR", "; scalafixAll; scalafmtAll; test")

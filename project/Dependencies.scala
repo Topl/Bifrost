@@ -2,11 +2,11 @@ import sbt._
 
 object Dependencies {
 
-  val akkaVersion = "2.6.13"
+  val akkaVersion = "2.6.14"
   val akkaHttpVersion = "10.2.4"
   val circeVersion = "0.13.0"
-  val kamonVersion = "2.1.13"
-  val graalVersion = "21.0.0.2"
+  val kamonVersion = "2.1.17"
+  val graalVersion = "21.1.0"
 
   val logging = Seq(
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.3",
@@ -16,13 +16,14 @@ object Dependencies {
   )
 
   val test = Seq(
-    "org.scalatest"      %% "scalatest"         % "3.2.6"   % "test",
-    "org.scalactic"      %% "scalactic"         % "3.2.6"   % "test",
-    "org.scalacheck"     %% "scalacheck"        % "1.15.3"  % "test",
+    "org.scalatest"      %% "scalatest"         % "3.2.8"   % "test",
+    "org.scalactic"      %% "scalactic"         % "3.2.8"   % "test",
+    "org.scalacheck"     %% "scalacheck"        % "1.15.4"  % "test",
     "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
     "com.spotify"         % "docker-client"     % "8.16.0"  % "test",
     "org.asynchttpclient" % "async-http-client" % "2.12.3"  % "test",
-    "org.scalamock"      %% "scalamock"         % "5.1.0"   % "test"
+    "org.scalamock"      %% "scalamock"         % "5.1.0"   % "test",
+    "com.ironcorelabs"   %% "cats-scalatest"    % "3.0.5"   % "test"
   )
 
   val it = Seq(
@@ -68,7 +69,7 @@ object Dependencies {
   )
 
   val misc = Seq(
-    "com.chuusai"            %% "shapeless"               % "2.3.3",
+    "com.chuusai"            %% "shapeless"               % "2.3.5",
     "com.iheart"             %% "ficus"                   % "1.5.0",
     "org.rudogma"            %% "supertagged"             % "1.5",
     "com.lihaoyi"            %% "mainargs"                % "0.2.1",
@@ -76,7 +77,7 @@ object Dependencies {
     "io.netty"                % "netty"                   % "3.10.6.Final",
     "com.google.guava"        % "guava"                   % "30.1.1-jre",
     "com.typesafe"            % "config"                  % "1.4.1",
-    "com.github.pureconfig"  %% "pureconfig"              % "0.14.1",
+    "com.github.pureconfig"  %% "pureconfig"              % "0.15.0",
     "org.scala-lang.modules" %% "scala-collection-compat" % "2.4.3",
     "net.jpountz.lz4"         % "lz4"                     % "1.3.0"
   )
@@ -97,6 +98,10 @@ object Dependencies {
     "org.graalvm.truffle" % "truffle-api" % graalVersion
   )
 
+  val simulacrum = Seq(
+    "org.typelevel" %% "simulacrum" % "1.0.0"
+  )
+
   val node: Seq[ModuleID] =
     logging ++
     test ++
@@ -113,7 +118,8 @@ object Dependencies {
     akka ++
     logging ++
     json ++
-    crypto
+    crypto ++
+    simulacrum
 
   lazy val chainProgram: Seq[ModuleID] =
     json ++

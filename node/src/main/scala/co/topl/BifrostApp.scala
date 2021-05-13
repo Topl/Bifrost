@@ -5,27 +5,29 @@ import akka.http.scaladsl.Http
 import akka.io.Tcp
 import akka.pattern.ask
 import akka.util.Timeout
-import co.topl.consensus.{Forger, ForgerRef, KeyManager, KeyManagerRef}
+import co.topl.akkahttprpc.{ThrowableData, ThrowableSupport}
+import co.topl.consensus._
 import co.topl.http.HttpService
-import co.topl.http.api.ApiEndpoint
-import co.topl.http.api.endpoints.{DebugApiEndpoint, _}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.NetworkController.ReceivableMessages.BindP2P
 import co.topl.network._
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.network.utils.UPnPGateway
+import co.topl.nodeView._
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.{MempoolAuditor, MempoolAuditorRef, NodeViewHolder, NodeViewHolderRef}
+import co.topl.rpc.ToplRpcServer
 import co.topl.settings._
-import co.topl.utils.{Logging, NetworkType}
+import co.topl.utils.Logging
+import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.wallet.{WalletConnectionHandler, WalletConnectionHandlerRef}
 import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
 import com.typesafe.config.{Config, ConfigFactory}
+import io.circe.Encoder
 import kamon.Kamon
-import mainargs.{ParserForClass, TokensReader}
+import mainargs.ParserForClass
 
 import java.lang.management.ManagementFactory
 import scala.concurrent.duration._
@@ -58,7 +60,7 @@ class BifrostApp(startupOpts: StartupOpts) extends NodeLogging with Runnable {
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
   /** Setup the execution environment for running the application */
 
-  implicit protected lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName, config)
+  implicit protected val actorSystem: ActorSystem = ActorSystem(settings.network.agentName, config)
   implicit private val timeout: Timeout = Timeout(settings.network.controllerTimeout.getOrElse(5 seconds))
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
@@ -71,6 +73,9 @@ class BifrostApp(startupOpts: StartupOpts) extends NodeLogging with Runnable {
     s"forging status: ${settings.forging.forgeOnStartup}" +
     s"${Console.RESET}"
   )
+
+  implicit private val networkPrefix: NetworkPrefix =
+    appContext.networkType.netPrefix
 
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
   /** Create Bifrost singleton actors */
@@ -122,17 +127,28 @@ class BifrostApp(startupOpts: StartupOpts) extends NodeLogging with Runnable {
   /** hook for initiating the shutdown procedure */
   sys.addShutdownHook(BifrostApp.shutdown(actorSystem, actorsToStop))
 
-  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
-  /** Create and register controllers for API routes */
-  private val apiRoutes: Seq[ApiEndpoint] = Seq(
-    UtilsApiEndpoint(settings.rpcApi, appContext),
-    AdminApiEndpoint(settings.rpcApi, appContext, forgerRef, keyManagerRef),
-    NodeViewApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef),
-    TransactionApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef),
-    DebugApiEndpoint(settings.rpcApi, appContext, nodeViewHolderRef, keyManagerRef)
-  )
+  implicit val throwableEncoder: Encoder[ThrowableData] =
+    ThrowableSupport.verbose(settings.rpcApi.verboseAPI)
 
-  private val httpService = HttpService(apiRoutes, settings.rpcApi)
+  private val forgerInterface = new ActorForgerInterface(forgerRef)
+  private val keyManagerInterface = new ActorKeyManagerInterface(keyManagerRef)
+  private val nodeViewHolderInterface = new ActorNodeViewHolderInterface(nodeViewHolderRef)
+
+  private val bifrostRpcServer: ToplRpcServer = {
+    import co.topl.rpc.handlers._
+    new ToplRpcServer(
+      ToplRpcHandlers(
+        new DebugRpcHandlerImpls(nodeViewHolderInterface, keyManagerInterface),
+        new UtilsRpcHandlerImpls,
+        new NodeViewRpcHandlerImpls(appContext, nodeViewHolderInterface),
+        new TransactionRpcHandlerImpls(nodeViewHolderInterface),
+        new AdminRpcHandlerImpls(forgerInterface, keyManagerInterface)
+      ),
+      appContext
+    )
+  }
+
+  private val httpService = HttpService(settings.rpcApi, bifrostRpcServer)
 
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
   /** Am I running on a JDK that supports JVMCI? */
@@ -173,20 +189,22 @@ class BifrostApp(startupOpts: StartupOpts) extends NodeLogging with Runnable {
     val httpPort = settings.rpcApi.bindAddress.getPort
 
     /** Helper function to kill the application if needed */
-    def failedP2P(): Unit = {
-      log.error(s"${Console.RED}Unable to bind to the P2P port. Terminating application!${Console.RESET}")
+    def failedP2P(throwable: Option[Throwable]): Unit = {
+      val message = s"${Console.RED}Unable to bind to the P2P port. Terminating application!${Console.RESET}"
+      throwable match {
+        case Some(e) => log.error(message, e)
+        case _       => log.error(message)
+      }
       BifrostApp.shutdown(actorSystem, actorsToStop)
     }
 
     /** Trigger the P2P network bind and check that the protocol bound successfully. */
     /** Terminate the application on failure */
-    (networkControllerRef ? BindP2P).onComplete {
-      case Success(bindResponse: Future[Any]) =>
-        bindResponse.onComplete {
-          case Success(Tcp.Bound(addr)) => log.info(s"${Console.YELLOW}P2P protocol bound to $addr${Console.RESET}")
-          case Success(_) | Failure(_)  => failedP2P()
-        }
-      case Success(_) | Failure(_) => failedP2P()
+    (networkControllerRef ? BindP2P).mapTo[Future[Tcp.Event]].flatten.onComplete {
+      case Success(Tcp.Bound(addr))      => log.info(s"${Console.YELLOW}P2P protocol bound to $addr${Console.RESET}")
+      case Success(f: Tcp.CommandFailed) => failedP2P(f.cause)
+      case Success(_)                    => failedP2P(None)
+      case Failure(e)                    => failedP2P(Some(e))
     }
 
     /** trigger the HTTP server bind and check that the bind is successful. Terminate the application on failure */
@@ -209,28 +227,12 @@ class BifrostApp(startupOpts: StartupOpts) extends NodeLogging with Runnable {
 /** This is the primary application object and is the entry point for Bifrost to begin execution */
 object BifrostApp extends Logging {
 
+  import StartupOptsImplicits._
+
   /** Check if Kamon instrumentation should be started. */
   /** DO NOT MOVE!! This must happen before anything else! */
   private val conf: Config = ConfigFactory.load("application")
   if (conf.getBoolean("kamon.enable")) Kamon.init()
-
-  /**
-   * networkReader, runtimeOptsParser, and startupOptsParser are defined here in a specific order
-   *  to define the runtime command flags using mainargs. StartupOpts has to be last as it uses NetworkType
-   *  and RuntimeOpts internally
-   */
-  implicit object networkReader
-      extends TokensReader[NetworkType](
-        shortName = "network",
-        str =>
-          NetworkType.pickNetworkType(str.head) match {
-            case Some(net) => Right(net)
-            case None      => Left("No valid network found with that name")
-          }
-      )
-
-  implicit def runtimeOptsParser: ParserForClass[RuntimeOpts] = ParserForClass[RuntimeOpts]
-  implicit def startupOptsParser: ParserForClass[StartupOpts] = ParserForClass[StartupOpts]
 
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////

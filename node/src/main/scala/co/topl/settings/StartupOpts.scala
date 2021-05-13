@@ -1,7 +1,7 @@
 package co.topl.settings
 
 import co.topl.utils.NetworkType
-import mainargs.{arg, main, Flag}
+import mainargs.{arg, main, Flag, ParserForClass, TokensReader}
 
 /**
  * Parameters that are given at application startup. Only parameters that are
@@ -17,7 +17,7 @@ import mainargs.{arg, main, Flag}
 final case class StartupOpts(
   @arg(name = "config", short = 'c', doc = "file path to a user defined config file")
   userConfigPathOpt: Option[String] = None,
-  @arg(name = "verbose", doc = "Turn on debugging information")
+  @arg(name = "debug", short = 'd', doc = "Turn on debugging information")
   verbose: Flag = Flag(),
   @arg(name = "network", short = 'n', doc = "specify preset network by name")
   networkTypeOpt: Option[NetworkType] = None,
@@ -41,8 +41,8 @@ final case class RuntimeOpts(
   seed: Option[String] = None,
   @arg(name = "forge", short = 'f', doc = "enable forging as soon as the node starts")
   forgeOnStartup: Flag = Flag(),
-  @arg(name = "authEnabled", short = 'a', doc = "Allow the node to receive API requests")
-  authEnabled: Flag = Flag(),
+  @arg(name = "disableAuth", doc = "Allow the node to receive API requests without an API key")
+  disableAuth: Flag = Flag(),
   @arg(name = "apiKeyHash", doc = "hash of API key")
   apiKeyHash: Option[String] = None
 ) {
@@ -54,7 +54,7 @@ final case class RuntimeOpts(
    */
   def overrideWithCmdArgs(appSettings: AppSettings): AppSettings = {
     val rpcApiSettings = appSettings.rpcApi.copy(
-      authEnabled = appSettings.rpcApi.authEnabled || authEnabled.value,
+      disableAuth = appSettings.rpcApi.disableAuth || disableAuth.value,
       apiKeyHash = apiKeyHash.fold[String](appSettings.rpcApi.apiKeyHash)(a => a)
     )
     val privateTestnetSettings =
@@ -75,4 +75,25 @@ final case class RuntimeOpts(
       forging = forgingSettings
     )
   }
+}
+
+object StartupOptsImplicits {
+
+  /**
+   * networkReader, runtimeOptsParser, and startupOptsParser are defined here in a specific order
+   *  to define the runtime command flags using mainargs. StartupOpts has to be last as it uses NetworkType
+   *  and RuntimeOpts internally
+   */
+  implicit object networkReader
+      extends TokensReader[NetworkType](
+        shortName = "network",
+        str =>
+          NetworkType.pickNetworkType(str.head) match {
+            case Some(net) => Right(net)
+            case None      => Left("No valid network found with that name")
+          }
+      )
+
+  implicit def runtimeOptsParser: ParserForClass[RuntimeOpts] = ParserForClass[RuntimeOpts]
+  implicit def startupOptsParser: ParserForClass[StartupOpts] = ParserForClass[StartupOpts]
 }
