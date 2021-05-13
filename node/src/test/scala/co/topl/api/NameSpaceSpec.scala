@@ -27,7 +27,7 @@ class NameSpaceSpec extends AnyWordSpec with Matchers with RPCMockState {
       )
     )
 
-    val newAppContext = new AppContext(newRpcSettings, StartupOpts.empty, None)
+    val newAppContext = new AppContext(newRpcSettings, StartupOpts(), None)
 
     val rpcServer: ToplRpcServer = {
       val forgerInterface = new ActorForgerInterface(forgerRef)

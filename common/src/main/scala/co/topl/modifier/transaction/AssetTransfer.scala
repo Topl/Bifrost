@@ -62,17 +62,17 @@ object AssetTransfer {
    * @return
    */
   def createRaw[
-    P <: Proposition: EvidenceProducer: Identifiable
+    P <: Proposition
   ](
-    boxReader:            BoxReader[ProgramId, Address],
-    toReceive:            IndexedSeq[(Address, AssetValue)],
-    sender:               IndexedSeq[Address],
-    changeAddress:        Address,
-    consolidationAddress: Address,
-    fee:                  Int128,
-    data:                 Option[String],
-    minting:              Boolean
-  ): Try[AssetTransfer[P]] = {
+    boxReader:                   BoxReader[ProgramId, Address],
+    toReceive:                   IndexedSeq[(Address, AssetValue)],
+    sender:                      IndexedSeq[Address],
+    changeAddress:               Address,
+    consolidationAddress:        Address,
+    fee:                         Int128,
+    data:                        Option[String],
+    minting:                     Boolean
+  )(implicit evidenceProducerEv: EvidenceProducer[P], identifiableEv: Identifiable[P]): Try[AssetTransfer[P]] = {
 
     val assetCode =
       toReceive

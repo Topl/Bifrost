@@ -20,7 +20,7 @@ class PeerConnectionHandlerSpec
     with CoreGenerators
     with NodeGenerators {
 
-  val appContext = new AppContext(settings, StartupOpts.empty, None)
+  val appContext = new AppContext(settings, StartupOpts(), None)
 
   property("MessageSerializer should initialize correctly with specified message codes") {
 

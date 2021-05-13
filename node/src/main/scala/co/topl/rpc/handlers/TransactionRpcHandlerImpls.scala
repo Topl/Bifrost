@@ -5,6 +5,7 @@ import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
 import co.topl.attestation.{Address, Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
 import co.topl.modifier.box.SimpleValue
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
+import co.topl.modifier.transaction.validation.implicits._
 import co.topl.nodeView.state.State
 import co.topl.nodeView.{BroadcastTxFailureException, GetStateFailureException, NodeViewHolderInterface}
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
@@ -65,7 +66,7 @@ class TransactionRpcHandlerImpls(
   override val broadcastTx: ToplRpc.Transaction.BroadcastTx.rpc.ServerHandler =
     params =>
       for {
-        transaction <- params.tx.syntacticValidate.toEither
+        transaction <- params.tx.syntacticValidation.toEither
           .leftMap(ToplRpcErrors.syntacticValidationFailure)
           .toEitherT[Future]
         _ <- processTransaction(transaction)
