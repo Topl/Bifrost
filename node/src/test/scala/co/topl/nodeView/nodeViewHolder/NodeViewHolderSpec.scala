@@ -32,7 +32,7 @@ class NodeViewHolderSpec
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    appContext = new AppContext(settings, StartupOpts.empty, None)
+    appContext = new AppContext(settings, StartupOpts(), None)
     state = createState(inTempFile = false)
     nvhTestRef = TestActorRef(new NodeViewHolder(settings, appContext), "nvhTest")
     nodeView = nvhTestRef.underlyingActor

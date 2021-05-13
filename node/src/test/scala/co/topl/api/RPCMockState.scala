@@ -67,7 +67,7 @@ trait RPCMockState
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    appContext = new AppContext(settings, StartupOpts.empty, None)
+    appContext = new AppContext(settings, StartupOpts(), None)
 
     keyManagerRef = TestActorRef(
       new KeyManager(settings, appContext)(system.getDispatcher, appContext.networkType.netPrefix)

@@ -26,8 +26,7 @@ trait NodeGenerators extends CoreGenerators with KeyFileTestHelper {
   private val settingsFilename = "node/src/test/resources/test.conf"
 
   lazy val settings: AppSettings = {
-    val s =
-      AppSettings.read(StartupOpts(Some(settingsFilename), None))._1
+    val s = AppSettings.read(StartupOpts(Some(settingsFilename)))._1
     s.copy(
       application = s.application.copy(
         dataDir = Some(Files.createTempDirectory("bifrost-test-data").toString)
