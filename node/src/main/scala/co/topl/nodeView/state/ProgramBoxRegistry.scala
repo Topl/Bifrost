@@ -6,7 +6,7 @@ import co.topl.modifier.box.{BoxId, ProgramBox, ProgramId}
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
-import io.iohk.iodb.{ByteArrayWrapper, LogStore}
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import java.io.File
 import scala.util.{Failure, Success, Try}
@@ -16,7 +16,7 @@ import scala.util.{Failure, Success, Try}
  *
  * @param storage Persistent storage object for saving the ProgramBoxRegistry to disk
  */
-class ProgramBoxRegistry(protected val storage: LogStore) extends Registry[ProgramBoxRegistry.K, ProgramBoxRegistry.V] {
+class ProgramBoxRegistry(protected val storage: LSMStore) extends Registry[ProgramBoxRegistry.K, ProgramBoxRegistry.V] {
 
   import ProgramBoxRegistry.{K, V}
 
@@ -107,7 +107,7 @@ object ProgramBoxRegistry extends Logging {
 
       val file = new File(s"$dataDir/programBoxRegistry")
       file.mkdirs()
-      val storage = new LogStore(file, keySize = ProgramId.size)
+      val storage = new LSMStore(file, keySize = ProgramId.size)
 
       Some(new ProgramBoxRegistry(storage))
 

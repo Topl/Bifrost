@@ -6,7 +6,7 @@ import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
 import com.google.common.primitives.Longs
-import io.iohk.iodb.{ByteArrayWrapper, LogStore}
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import java.io.File
 import scala.util.Try
@@ -17,7 +17,7 @@ import scala.util.Try
  * @param storage Persistent storage object for saving the TokenBoxRegistry to disk
  * @param nodeKeys set of node keys that denote the state this node will maintain (useful for personal wallet nodes)
  */
-class TokenBoxRegistry(protected val storage: LogStore, nodeKeys: Option[Set[Address]])
+class TokenBoxRegistry(protected val storage: LSMStore, nodeKeys: Option[Set[Address]])
     extends Registry[TokenBoxRegistry.K, TokenBoxRegistry.V] {
 
   import TokenBoxRegistry.{K, V}
@@ -137,7 +137,7 @@ object TokenBoxRegistry extends Logging {
 
       val file = new File(s"$dataDir/tokenBoxRegistry")
       file.mkdirs()
-      val storage = new LogStore(file, keySize = Address.addressSize)
+      val storage = new LSMStore(file, keySize = Address.addressSize)
 
       Some(new TokenBoxRegistry(storage, nodeKeys))
 

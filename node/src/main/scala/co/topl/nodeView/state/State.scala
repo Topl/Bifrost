@@ -13,7 +13,7 @@ import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
-import io.iohk.iodb.{ByteArrayWrapper, LogStore}
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.util.encode.Base58
 
 import java.io.File
@@ -31,7 +31,7 @@ import scala.util.{Failure, Success, Try}
  */
 case class State(
   override val version:      VersionTag,
-  protected val storage:     LogStore,
+  protected val storage:     LSMStore,
   private[state] val tbrOpt: Option[TokenBoxRegistry] = None,
   private[state] val pbrOpt: Option[ProgramBoxRegistry] = None,
   nodeKeys:                  Option[Set[Address]] = None
@@ -300,7 +300,7 @@ object State extends Logging {
   def readOrGenerate(settings: AppSettings)(implicit networkPrefix: NetworkPrefix): State = {
     val sFile = stateFile(settings)
     sFile.mkdirs()
-    val storage = new LogStore(sFile, keySize = BoxId.size)
+    val storage = new LSMStore(sFile, keySize = BoxId.size)
 
     val version: VersionTag =
       storage.lastVersionID

@@ -6,7 +6,7 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.utils.{CoreGenerators, FileUtils, ValidGenerators}
-import io.iohk.iodb.{ByteArrayWrapper, LogStore}
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
@@ -22,7 +22,7 @@ class IODBSpec
 
   val iFile: File = createTempDir
 
-  val blocksStorage = new LogStore(iFile)
+  val blocksStorage = new LSMStore(iFile)
   blocksStorage.update(ByteArrayWrapper(Array[Byte](1)), Seq(), Seq())
 
   property("Rollback should not touch keys before") {

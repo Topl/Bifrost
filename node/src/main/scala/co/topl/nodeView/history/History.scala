@@ -10,7 +10,7 @@ import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.History.GenesisParentId
 import co.topl.settings.AppSettings
 import co.topl.utils.{Logging, TimeProvider}
-import io.iohk.iodb.LogStore
+import io.iohk.iodb.LSMStore
 
 import java.io.File
 import scala.annotation.tailrec
@@ -19,7 +19,7 @@ import scala.util.{Failure, Success, Try}
 /**
  * A representation of the entire blockchain (whether it's a blocktree, blockchain, etc.)
  *
- * @param storage    a wrapper primarily for the LogStore and for storage of the minimal state
+ * @param storage    a wrapper primarily for the LSMStore and for storage of the minimal state
  * @param validators rule sets that dictate validity of blocks in the history
  */
 class History(
@@ -485,7 +485,7 @@ object History extends Logging {
     val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
     val file = new File(s"$dataDir/blocks")
     file.mkdirs()
-    val blockStorageDB = new LogStore(file)
+    val blockStorageDB = new LSMStore(file)
     val storage = new Storage(blockStorageDB, settings.application.cacheExpire, settings.application.cacheSize)
 
     /** This in-memory cache helps us to keep track of tines sprouting off the canonical chain */
