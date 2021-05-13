@@ -1,7 +1,7 @@
 package co.topl.utils.encode
 
-import co.topl.utils.AsBytes
 import co.topl.utils.AsBytes.implicits._
+import co.topl.utils.{AsBytes, Infallible}
 
 import scala.util.Try
 
@@ -19,8 +19,8 @@ object Base58 extends BytesEncoder {
 
   private val Base = BigInt(58)
 
-  override def encode[V: AsBytes](input: V): String = {
-    val inputBytes = input.encodeAsBytes
+  override def encode[V](input: V)(implicit encoder: AsBytes[Infallible, V]): String = {
+    val inputBytes = input.infalliblyEncodeAsBytes
     var bi = BigInt(1, inputBytes)
     val s = new StringBuilder()
     if (bi > 0) {

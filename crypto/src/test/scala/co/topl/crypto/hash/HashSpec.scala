@@ -1,6 +1,7 @@
 package co.topl.crypto.hash
 
 import co.topl.crypto.hash.digest.Digest
+import co.topl.crypto.hash.implicits.toHashResultOps
 import co.topl.crypto.utils.Hex
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
@@ -22,7 +23,7 @@ trait HashSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matc
 
     property(s"$hashName returns hash with expected size") {
       forAll { data: Array[Byte] =>
-        Digest[D].bytes(hash.hash(data)).length shouldBe Digest[D].size
+        Digest[D].bytes(hash.hash(data).getOrThrow()).length shouldBe Digest[D].size
       }
     }
 
@@ -36,7 +37,7 @@ trait HashSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matc
 
     property(s"$hashName comparing with externally computed value") {
       external.foreach { m =>
-        Hex.encode(Digest[D].bytes(hash.hash(m._1))).toLowerCase shouldBe m._2.toLowerCase
+        Hex.encode(Digest[D].bytes(hash.hash(m._1).getOrThrow())).toLowerCase shouldBe m._2.toLowerCase
       }
     }
 
@@ -44,13 +45,12 @@ trait HashSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matc
       val singleThreadHashes = (0 until 100).map(i => hash.hash(i.toString.getBytes))
       val multiThreadHashes = Future.sequence((0 until 100).map(i => Future(hash.hash(i.toString.getBytes))))
       singleThreadHashes
-        .map(x => Hex.encode(Digest[D].bytes(x)))
+        .map(x => Hex.encode(Digest[D].bytes(x.getOrThrow())))
         .shouldBe(
           Await
             .result(multiThreadHashes, 1.minute)
-            .map(x => Hex.encode(Digest[D].bytes(x)))
+            .map(x => Hex.encode(Digest[D].bytes(x.getOrThrow())))
         )
     }
-
   }
 }

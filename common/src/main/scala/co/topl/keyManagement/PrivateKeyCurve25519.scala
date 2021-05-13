@@ -5,6 +5,7 @@ import co.topl.crypto.signatures.implicits._
 import cats.implicits._
 import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 
 case class PrivateKeyCurve25519(private val privateKey: PrivateKey, private val publicKey: PublicKey) extends Secret {
 
@@ -37,7 +38,7 @@ object PrivateKeyCurve25519 extends BifrostSerializer[PrivateKeyCurve25519] {
 
   implicit val secretGenerator: SecretGenerator[PrivateKeyCurve25519] =
     SecretGenerator.instance[PrivateKeyCurve25519] { seed: Array[Byte] =>
-      val (sk, pk) = Curve25519.createKeyPair(seed)
+      val (sk, pk) = Curve25519.createKeyPair(seed).getOrThrow()
       val secret: PrivateKeyCurve25519 = PrivateKeyCurve25519(sk, pk)
       secret -> secret.publicImage
     }

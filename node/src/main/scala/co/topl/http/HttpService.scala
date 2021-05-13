@@ -55,7 +55,7 @@ final case class HttpService(
    * @return
    */
   private def isValid(keyOpt: Option[String]): Boolean = {
-    lazy val keyHash: Option[Digest32] = keyOpt.map(k => Blake2b256.hash(k.getBytes))
+    lazy val keyHash: Option[Digest32] = keyOpt.flatMap(k => Blake2b256.hash(k.getBytes).toOption)
     (apiKeyHash, keyHash) match {
       case (None, _)                      => true
       case (Some(expected), Some(passed)) => expected sameElements passed.value

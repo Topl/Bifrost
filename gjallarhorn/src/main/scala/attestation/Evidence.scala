@@ -43,7 +43,7 @@ object Evidence extends GjalSerializer[Evidence] {
   case class EvidenceContent(value: Array[Byte])
 
   object EvidenceContent {
-    def apply[D: Digest](d: D): EvidenceContent = d.encodeAsBytes.coerce
+    def apply[D: Digest](d: D): EvidenceContent = d.infalliblyEncodeAsBytes.coerce
   }
 
   val contentLength = 32 //bytes (this is generally the output of a Blake2b-256 bit hash)

@@ -14,6 +14,7 @@ import co.topl.utils.{Identifiable, Identifier}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 
 import scala.collection.SortedSet
 import scala.util.{Failure, Success, Try}
@@ -81,7 +82,7 @@ object PublicKeyPropositionCurve25519 {
 
   implicit val evProducer: EvidenceProducer[PublicKeyPropositionCurve25519] =
     EvidenceProducer.instance[PublicKeyPropositionCurve25519] { prop: PublicKeyPropositionCurve25519 =>
-      Evidence(typePrefix, EvidenceContent(Blake2b256.hash(prop.bytes.tail)))
+      Evidence(typePrefix, Blake2b256.hash(prop.bytes.tail).map(EvidenceContent(_)).getOrThrow())
     }
 
   implicit val identifier: Identifiable[PublicKeyPropositionCurve25519] = Identifiable.instance { () =>
@@ -132,7 +133,7 @@ object ThresholdPropositionCurve25519 {
 
   implicit val evProducer: EvidenceProducer[ThresholdPropositionCurve25519] =
     EvidenceProducer.instance[ThresholdPropositionCurve25519] { prop: ThresholdPropositionCurve25519 =>
-      Evidence(typePrefix, EvidenceContent(Blake2b256.hash(prop.bytes.tail)))
+      Evidence(typePrefix, Blake2b256.hash(prop.bytes.tail).map(EvidenceContent(_)).getOrThrow())
     }
 
   implicit val identifier: Identifiable[ThresholdPropositionCurve25519] = Identifiable.instance { () =>

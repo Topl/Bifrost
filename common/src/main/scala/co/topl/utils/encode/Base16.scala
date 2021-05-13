@@ -1,6 +1,6 @@
 package co.topl.utils.encode
 
-import co.topl.utils.AsBytes
+import co.topl.utils.{AsBytes, Infallible}
 import co.topl.utils.AsBytes.implicits._
 
 import java.io.IOException
@@ -24,8 +24,8 @@ object Base16 extends BytesEncoder {
     index
   }
 
-  def encode[V: AsBytes](input: V): String = {
-    val inputBytes = input.encodeAsBytes
+  override def encode[V](input: V)(implicit encoder: AsBytes[Infallible, V]): String = {
+    val inputBytes = input.infalliblyEncodeAsBytes
     if (inputBytes.length == 0) return "" // avoid allocation of empty array and new String instance
     val buf = new Array[Char](inputBytes.length * 2)
     var j = 0
@@ -38,7 +38,7 @@ object Base16 extends BytesEncoder {
     new String(buf)
   }
 
-  def decode(input: String): Try[Array[Byte]] = {
+  override def decode(input: String): Try[Array[Byte]] = {
     var isError = false
     var errorMsg = ""
     if (input.length % 2 != 0) {

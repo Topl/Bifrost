@@ -5,7 +5,7 @@ import cats.data.{EitherT, NonEmptyChain}
 import cats.implicits._
 import co.topl.akkahttprpc.RpcClientFailure
 import co.topl.akkahttprpc.implicits.client.rpcToClient
-import co.topl.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
+import co.topl.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, AddressEncoder, PublicKeyPropositionCurve25519}
 import co.topl.client.Provider.PrivateTestNet
 import co.topl.modifier.box.{AssetCode, AssetValue}
@@ -47,7 +47,7 @@ object exampleState {
     KeyRing.empty[PrivateKeyCurve25519, KeyfileCurve25519]()(
       provider.networkPrefix,
       PrivateKeyCurve25519.secretGenerator,
-      KeyfileCurve25519
+      KeyfileCurve25519Companion
     )
 
   val assetCode: AssetCode = AssetCode(1: Byte, externalAddress.head, "test_1")

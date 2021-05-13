@@ -1,6 +1,7 @@
 package co.topl
 
 import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.implicits.toHashResultOps
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
 import co.topl.settings.ProtocolSettings
@@ -49,7 +50,7 @@ package object consensus {
    * @return the test value to be compared to the adjusted difficulty
    */
   def calcHit(lastBlock: Block)(box: ArbitBox): Long = {
-    val h = Blake2b256.hash(lastBlock.bytes ++ box.bytes)
+    val h = Blake2b256.hash(lastBlock.bytes ++ box.bytes).getOrThrow()
 
     Longs.fromByteArray((0: Byte) +: h.value.take(7))
   }

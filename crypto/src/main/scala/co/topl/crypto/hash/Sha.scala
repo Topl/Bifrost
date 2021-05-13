@@ -7,7 +7,7 @@ import java.security.MessageDigest
 
 abstract class ShaHash[D: Digest](val algorithmName: String) extends Hash[Sha, D] {
 
-  override def hash(prefix: Option[Byte], messages: Message*): D =
+  override def hash(prefix: Option[Byte], messages: Message*): HashResult[D] =
     Digest[D]
       .from(
         MessageDigest
@@ -20,7 +20,8 @@ abstract class ShaHash[D: Digest](val algorithmName: String) extends Hash[Sha, D
             )(_ ++ _)
           )
       )
-      .valueOr(ex => throw new Exception(s"Unexpected hash result: $ex"))
+      .leftMap(InvalidDigestFailure)
+      .toEither
 }
 
 case object Sha256 extends ShaHash[Digest32]("Sha-256")

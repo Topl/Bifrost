@@ -2,6 +2,7 @@ package keymanager
 
 import co.topl.crypto.hash.Sha256
 import utils.Logging
+import co.topl.crypto.hash.implicits._
 
 import scala.io.Source
 import scala.math.BigInt
@@ -78,8 +79,8 @@ class Bip39(wordList: List[String]) extends Logging {
                 Integer.parseInt(_, 2).toByte
               }
           )
-          .value
-          .map(toBinaryByte)
+          .map(_.value.map(toBinaryByte))
+          .getOrThrow()
           .toList
 
       phraseBin.substring(entMap(pl)) == phraseHashBin.head.slice(0, chkMap(pl))
@@ -115,7 +116,7 @@ class Bip39(wordList: List[String]) extends Logging {
     val seed = inputUuid.filterNot("-".toSet)
     val seedBytes: Array[Byte] = seed.grouped(2).toArray.map(Integer.parseInt(_, 16).toByte)
     val seedBin: Array[String] = seedBytes.map(toBinaryByte)
-    val seedHashBin: List[String] = Sha256.hash(seedBytes).value.map(toBinaryByte).toList
+    val seedHashBin: List[String] = Sha256.hash(seedBytes).getOrThrow().value.map(toBinaryByte).toList
     val phrase = (seedBin.mkString("") + seedHashBin.head.slice(0, endCSMap(seedBin.mkString("").length)))
       .grouped(indexLen)
       .toArray
@@ -174,6 +175,6 @@ object Bip39 {
     )
 
     (phraseLanguagesHash(iso639_1_toFile(phraseLanguage.toLowerCase))
-      == Sha256.hash(wordList.mkString.getBytes).value.map("%02x" format _).mkString)
+      == Sha256.hash(wordList.mkString.getBytes).getOrThrow().value.map("%02x" format _).mkString)
   }
 }

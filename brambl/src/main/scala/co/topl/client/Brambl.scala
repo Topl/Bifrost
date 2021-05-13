@@ -1,7 +1,7 @@
 package co.topl.client
 
 import co.topl.akkahttprpc.{CustomError, RpcClientFailure, RpcErrorFailure}
-import co.topl.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
+import co.topl.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, EvidenceProducer, Proof, Proposition}
 import co.topl.modifier.transaction._
 import co.topl.utils.Identifiable
@@ -45,7 +45,7 @@ object Brambl {
       case Failure(_) => Left(RpcErrorFailure(CustomError(7091, "Error occurred during key creation")))
       case Success(value) =>
         value match {
-          case s: Set.Set1[PrivateKeyCurve25519] => Right(KeyfileCurve25519.encryptSecret(s.head, password))
+          case s: Set.Set1[PrivateKeyCurve25519] => Right(KeyfileCurve25519Companion.encryptSecret(s.head, password))
           case _ =>
             Left(RpcErrorFailure(CustomError(7091, "More than one key was generated when only was was asked for")))
         }

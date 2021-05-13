@@ -8,6 +8,7 @@ import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 
 import scala.util.{Failure, Success}
 
@@ -40,7 +41,7 @@ object ProgramId extends BifrostSerializer[ProgramId] {
     }
 
   def create(seed: Array[Byte]): ProgramId =
-    new ProgramId(Blake2b256.hash(seed).value)
+    new ProgramId(Blake2b256.hash(seed).getOrThrow().value)
 
   override def serialize(obj: ProgramId, w: Writer): Unit =
     w.putBytes(obj.hashBytes)

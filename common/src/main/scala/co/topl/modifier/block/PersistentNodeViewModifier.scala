@@ -2,6 +2,7 @@ package co.topl.modifier.block
 
 import co.topl.crypto.accumulators.LeafData
 import co.topl.crypto.accumulators.merkle.MerkleTree
+import co.topl.crypto.accumulators.merkle.MerkleTree.MerkleTreeResult
 import co.topl.crypto.hash.implicits._
 import co.topl.crypto.hash.Blake2b
 import co.topl.crypto.hash.digest.Digest32
@@ -25,8 +26,8 @@ trait TransactionCarryingPersistentNodeViewModifier[TX <: Transaction.TX] extend
 
   val transactions: Seq[TX]
 
-  lazy val merkleTree: MerkleTree[Blake2b, Digest32] =
-    MerkleTree[Blake2b, Digest32](transactions.map(tx => LeafData(tx.bytes)))
+  def constructMerkleTree(): MerkleTreeResult[Blake2b, Digest32] =
+    MerkleTree.construct[Blake2b, Digest32](transactions.map(tx => LeafData(tx.bytes)))
 
   lazy val bloomFilter: BloomFilter = TransactionsCarryingPersistentNodeViewModifier.createBloom(transactions)
 

@@ -1,7 +1,6 @@
 package co.topl.modifier.transaction
 
-import cats.data.ValidatedNec
-import co.topl.attestation.{Address, Proof, Proposition}
+import co.topl.attestation.{Proof, Proposition}
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.BloomFilter.BloomTopic
@@ -9,13 +8,14 @@ import co.topl.modifier.box.{Box, BoxId}
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Identifiable, Identifier, Int128}
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import com.google.common.primitives.Longs
 import io.circe.{Decoder, Encoder, HCursor}
 
 abstract class Transaction[+T, P <: Proposition](implicit val identifiableEv: Identifiable[P])
     extends NodeViewModifier {
 
-  override lazy val id: ModifierId = ModifierId(this)
+  override lazy val id: ModifierId = ModifierId.create(this).getOrThrow()
 
   val modifierTypeId: ModifierTypeId = Transaction.modifierTypeId
 

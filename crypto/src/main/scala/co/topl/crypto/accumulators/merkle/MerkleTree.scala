@@ -1,9 +1,11 @@
 package co.topl.crypto.accumulators.merkle
 
+import cats.implicits._
 import co.topl.crypto.accumulators.{LeafData, Side}
-import co.topl.crypto.hash.Hash
 import co.topl.crypto.hash.digest.Digest
 import co.topl.crypto.hash.digest.implicits._
+import co.topl.crypto.hash.implicits.toHashResultOps
+import co.topl.crypto.hash.{Hash, HashFailure, HashResult}
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -15,10 +17,11 @@ case class MerkleTree[H, D: Digest](
   elementsHashIndex: Map[mutable.WrappedArray.ofByte, Int]
 )(implicit h:        Hash[H, D]) {
 
-  lazy val rootHash: D = topNode.hash
+  lazy val rootHash: HashResult[D] = topNode.hash
   lazy val length: Int = elementsHashIndex.size
 
-  def proofByElement(element: Leaf[H, D]): Option[MerkleProof[H, D]] = proofByElementHash(element.hash)
+  def proofByElement(element: Leaf[H, D]): Option[MerkleProof[H, D]] =
+    element.hash.map(proofByElementHash).getOrThrow()
 
   def proofByElementHash(hash: D): Option[MerkleProof[H, D]] =
     elementsHashIndex.get(new mutable.WrappedArray.ofByte(hash.bytes)).flatMap(i => proofByIndex(i))
@@ -34,9 +37,9 @@ case class MerkleTree[H, D: Digest](
     ): Option[(Leaf[H, D], Seq[(D, Side)])] =
       node match {
         case n: InternalNode[H, D] if i < curLength / 2 =>
-          loop(n.left, i, curLength / 2, acc :+ (n.right.hash, MerkleProof.LeftSide))
+          loop(n.left, i, curLength / 2, acc :+ (n.right.hash.getOrThrow(), MerkleProof.LeftSide))
         case n: InternalNode[H, D] if i < curLength =>
-          loop(n.right, i - curLength / 2, curLength / 2, acc :+ (n.left.hash, MerkleProof.RightSide))
+          loop(n.right, i - curLength / 2, curLength / 2, acc :+ ((n.left.hash.getOrThrow(), MerkleProof.RightSide)))
         case n: Leaf[H, D] =>
           Some((n, acc.reverse))
         case _ =>
@@ -80,20 +83,35 @@ object MerkleTree {
   val LeafPrefix: Byte = 0: Byte
   val InternalNodePrefix: Byte = 1: Byte
 
+  sealed trait MerkleTreeFailure
+  case class LeafHashFailure(failure: HashFailure) extends MerkleTreeFailure
+
+  type MerkleTreeResult[H, D] = Either[MerkleTreeFailure, MerkleTree[H, D]]
+
   /**
    * Construct Merkle tree from leafs
    *
    * @param payload       - sequence of leafs data
    * @return MerkleTree constructed from current leafs with defined empty node and hash function
    */
-  def apply[H, D: Digest](payload: Seq[LeafData])(implicit h: Hash[H, D]): MerkleTree[H, D] = {
+  def construct[H, D: Digest](payload: Seq[LeafData])(implicit h: Hash[H, D]): MerkleTreeResult[H, D] = {
     val leafs = payload.map(d => Leaf[H, D](d))
-    val elementsIndex: Map[mutable.WrappedArray.ofByte, Int] = leafs.indices.map { i =>
-      (new mutable.WrappedArray.ofByte(leafs(i).hash.bytes), i)
-    }.toMap
+
+    val elementsToIndex =
+      leafs.zipWithIndex
+        .foldLeft(Map[mutable.WrappedArray.ofByte, Int]().asRight[MerkleTreeFailure]) {
+          case (elements, (leaf, leafIndex)) =>
+            elements.flatMap(e =>
+              leaf.hash
+                .leftMap(LeafHashFailure)
+                .map(h => new mutable.WrappedArray.ofByte(h.bytes))
+                .map(w => e + (w -> leafIndex))
+            )
+        }
+
     val topNode = calcTopNode[H, D](leafs)
 
-    MerkleTree[H, D](topNode, elementsIndex)
+    elementsToIndex.map(MerkleTree[H, D](topNode, _))
   }
 
   @tailrec

@@ -26,7 +26,7 @@ package object digest {
      * @param bytes the bytes to be converted into a digest
      * @return a validated digest with a possible invalid digest error
      */
-    def from(bytes: Array[Byte]): ValidatedNec[InvalidDigestError, T]
+    def from(bytes: Array[Byte]): ValidatedNec[InvalidDigestFailure, T]
 
     /**
      * Gets the bytes representing the digest.
@@ -49,7 +49,7 @@ package object digest {
      * @param bytes the bytes to convert to a digest
      * @return the digest or an invalid error
      */
-    def validated(bytes: Array[Byte]): ValidatedNec[InvalidDigestError, Digest32] =
+    def validated(bytes: Array[Byte]): ValidatedNec[InvalidDigestFailure, Digest32] =
       Validated.condNec(bytes.length == size, bytes.coerce, IncorrectSize)
   }
 
@@ -65,19 +65,19 @@ package object digest {
      * @param bytes the bytes to convert to a digest
      * @return the digest or an invalid error
      */
-    def validated(bytes: Array[Byte]): ValidatedNec[InvalidDigestError, Digest64] =
+    def validated(bytes: Array[Byte]): ValidatedNec[InvalidDigestFailure, Digest64] =
       Validated.condNec(bytes.length == size, bytes.coerce, IncorrectSize)
   }
 
-  sealed trait InvalidDigestError
-  case object IncorrectSize extends InvalidDigestError
+  sealed trait InvalidDigestFailure
+  case object IncorrectSize extends InvalidDigestFailure
 
   trait Instances {
 
     implicit val digestDigest32: Digest[Digest32] = new Digest[Digest32] {
       override def size: Int = Digest32.size
 
-      override def from(bytes: Array[Byte]): ValidatedNec[InvalidDigestError, Digest32] = Digest32.validated(bytes)
+      override def from(bytes: Array[Byte]): ValidatedNec[InvalidDigestFailure, Digest32] = Digest32.validated(bytes)
 
       override def bytes(d: Digest32): Array[Byte] = d.value
     }
@@ -85,7 +85,7 @@ package object digest {
     implicit val digestDigest64: Digest[Digest64] = new Digest[Digest64] {
       override def size: Int = Digest64.size
 
-      override def from(bytes: Array[Byte]): ValidatedNec[InvalidDigestError, Digest64] = Digest64.validated(bytes)
+      override def from(bytes: Array[Byte]): ValidatedNec[InvalidDigestFailure, Digest64] = Digest64.validated(bytes)
 
       override def bytes(d: Digest64): Array[Byte] = d.value
     }

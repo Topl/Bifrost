@@ -1,13 +1,14 @@
 package co.topl.crypto.accumulators.merkle
 
 import co.topl.crypto.accumulators.{EmptyByteArray, LeafData}
-import co.topl.crypto.hash.Hash
 import co.topl.crypto.hash.digest.Digest
+import co.topl.crypto.hash.digest.implicits._
+import co.topl.crypto.hash.{Hash, HashResult, InvalidDigestFailure}
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 
 abstract class Node[D: Digest] {
-  def hash: D
+  def hash: HashResult[D]
 }
 
 /**
@@ -18,8 +19,12 @@ abstract class Node[D: Digest] {
  */
 case class InternalNode[H, D: Digest](left: Node[D], right: Node[D])(implicit hashFunc: Hash[H, D]) extends Node[D] {
 
-  override lazy val hash: D =
-    hashFunc.hash(MerkleTree.InternalNodePrefix, Digest[D].bytes(left.hash) ++ Digest[D].bytes(right.hash))
+  override lazy val hash: HashResult[D] =
+    for {
+      leftHash  <- left.hash
+      rightHash <- right.hash
+      nodeHash  <- hashFunc.hash(MerkleTree.InternalNodePrefix, leftHash.bytes ++ rightHash.bytes)
+    } yield nodeHash
 
   // TODO: This is temporarily disabled because we removed Base58, use Hex.scala in test here if needed
   //  override def toString: String = s"InternalNode(" +
@@ -34,7 +39,7 @@ case class InternalNode[H, D: Digest](left: Node[D], right: Node[D])(implicit ha
  * @param data - leaf data.
  */
 case class Leaf[H, D: Digest](data: LeafData)(implicit h: Hash[H, D]) extends Node[D] {
-  override lazy val hash: D = Hash[H, D].hash(MerkleTree.LeafPrefix, data.value)
+  override lazy val hash: HashResult[D] = Hash[H, D].hash(MerkleTree.LeafPrefix, data.value)
 
   // TODO: This is temporarily disabled because we removed Base58, use Hex.scala in test here if needed
   //  override def toString: String = s"Leaf(${Base58.encode(hash)})"
@@ -46,7 +51,7 @@ case class Leaf[H, D: Digest](data: LeafData)(implicit h: Hash[H, D]) extends No
  * or InternalNode (if both childs of an InternalNode are empty, it is EmptyNode)
  */
 case class EmptyNode[H, D: Digest]()(implicit h: Hash[H, D]) extends Node[D] {
-  override val hash: D = EmptyByteArray.asInstanceOf[D]
+  override val hash: HashResult[D] = Digest[D].from(EmptyByteArray).leftMap(InvalidDigestFailure).toEither
 }
 
 /**
@@ -55,9 +60,10 @@ case class EmptyNode[H, D: Digest]()(implicit h: Hash[H, D]) extends Node[D] {
  */
 case class EmptyRootNode[H, D: Digest]()(implicit h: Hash[H, D]) extends Node[D] {
 
-  override val hash: D = Digest[D]
+  override val hash: HashResult[D] = Digest[D]
     .from(Array.fill(Digest[D].size)(0: Byte))
-    .valueOr(ex => throw new Exception(s"Failed to create empty digest: $ex"))
+    .leftMap(InvalidDigestFailure)
+    .toEither
 
   // TODO: This is temporarily disabled because we removed Base58, use Hex.scala in test here if needed
   //  override def toString: String = s"EmptyRootNode(${Base58.encode(hash)})"

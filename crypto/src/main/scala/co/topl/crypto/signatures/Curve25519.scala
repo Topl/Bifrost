@@ -1,5 +1,6 @@
 package co.topl.crypto.signatures
 
+import cats.implicits._
 import co.topl.crypto.hash.Sha256
 import org.whispersystems.curve25519.OpportunisticCurve25519Provider
 
@@ -26,11 +27,12 @@ object Curve25519 extends EllipticCurveSignatureScheme {
     constructor.newInstance()
   }
 
-  override def createKeyPair(seed: Array[Byte]): (PrivateKey, PublicKey) = {
-    val hashedSeed = Sha256.hash(seed)
-    val privateKey = PrivateKey(provider.generatePrivateKey(hashedSeed.value))
-    privateKey -> PublicKey(provider.generatePublicKey(privateKey.value))
-  }
+  override def createKeyPair(seed: Array[Byte]): CreateKeyPairResult =
+    (for {
+      hashedSeed <- Sha256.hash(seed)
+      privateKey = PrivateKey(provider.generatePrivateKey(hashedSeed.value))
+      publicKey = PublicKey(provider.generatePublicKey(privateKey.value))
+    } yield privateKey -> publicKey) leftMap PrivateKeyHashFailure
 
   override def sign(privateKey: PrivateKey, message: MessageToSign): Signature = {
     require(privateKey.value.length == KeyLength)

@@ -1,5 +1,7 @@
 package co.topl.crypto.signatures
 
+import cats.implicits._
+import co.topl.crypto.signatures.Curve25519.CreateKeyPairResult
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
@@ -10,8 +12,8 @@ class SigningFunctionsSpecification extends AnyPropSpec with ScalaCheckDrivenPro
   property("signed message should be verifiable with appropriate public key") {
     forAll { (seed1: Array[Byte], seed2: Array[Byte], message1: Array[Byte], message2: Array[Byte]) =>
       whenever(!seed1.sameElements(seed2) && !message1.sameElements(message2)) {
-        val keyPair = Curve25519.createKeyPair(seed1)
-        val keyPair2 = Curve25519.createKeyPair(seed2)
+        val keyPair = Curve25519.createKeyPair(seed1).getOrThrow()
+        val keyPair2 = Curve25519.createKeyPair(seed2).getOrThrow()
 
         val sig = Curve25519.sign(keyPair._1, message1)
 
@@ -27,8 +29,8 @@ class SigningFunctionsSpecification extends AnyPropSpec with ScalaCheckDrivenPro
 
     forAll { (seed1: Array[Byte], seed2: Array[Byte]) =>
       whenever(!seed1.sameElements(seed2)) {
-        val keyPair1 = Curve25519.createKeyPair(seed1)
-        val keyPair2 = Curve25519.createKeyPair(seed2)
+        val keyPair1 = Curve25519.createKeyPair(seed1).getOrThrow()
+        val keyPair2 = Curve25519.createKeyPair(seed2).getOrThrow()
 
         val shared = Curve25519.createSharedSecret(keyPair1._1, keyPair2._2)
         val sharedWithKeysReversed = Curve25519.createSharedSecret(keyPair2._1, keyPair1._2)
@@ -125,5 +127,11 @@ class SigningFunctionsSpecification extends AnyPropSpec with ScalaCheckDrivenPro
       "bc7c66431e0303dca179c138ac17ad9bef1177331a704"
     )
     sig.value.sameElements(specSig)
+  }
+
+  implicit class CreateKeyPairOps(result: CreateKeyPairResult) {
+
+    def getOrThrow(): (PrivateKey, PublicKey) =
+      result.valueOr(err => throw new Exception(s"Failed to create key pair: $err"))
   }
 }

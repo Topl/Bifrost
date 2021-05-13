@@ -62,7 +62,7 @@ sealed trait ProofOfKnowledge[S <: Secret, P <: KnowledgeProposition[S]] extends
 case class SignatureCurve25519(private[attestation] val sig: Signature)
     extends ProofOfKnowledge[PrivateKeyCurve25519, PublicKeyPropositionCurve25519] {
 
-  private val signatureLength = sig.encodeAsBytes.length
+  private val signatureLength = sig.infalliblyEncodeAsBytes.length
 
   require(
     signatureLength == 0 || signatureLength == Curve25519.SignatureLength,
@@ -70,7 +70,7 @@ case class SignatureCurve25519(private[attestation] val sig: Signature)
   )
 
   def isValid(proposition: PublicKeyPropositionCurve25519, message: Array[Byte]): Boolean =
-    Curve25519.verify(sig, message, proposition.pubKeyBytes.infallibleDecodeTo[PublicKey])
+    Curve25519.verify(sig, message, proposition.pubKeyBytes.infalliblyDecodeTo[PublicKey])
 }
 
 object SignatureCurve25519 {

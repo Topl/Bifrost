@@ -1,7 +1,8 @@
 package co.topl.modifier
 
-import co.topl.crypto.hash.Blake2b256
+import cats.implicits._
 import co.topl.crypto.hash.digest.Digest32
+import co.topl.crypto.hash.{Blake2b256, HashFailure}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
@@ -11,8 +12,6 @@ import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-
-import scala.util.{Failure, Success, Try}
 
 class ModifierId private (private val value: Array[Byte]) extends BytesSerializable {
 
@@ -44,24 +43,36 @@ object ModifierId extends BifrostSerializer[ModifierId] {
 
   implicit val ord: Ordering[ModifierId] = Ordering.by(_.toString)
 
+  sealed trait CreateModifierIdFailure
+  case class MessageHashFailure(failure: HashFailure) extends CreateModifierIdFailure
+  case object InvalidModifierFailure extends CreateModifierIdFailure
+  case class Base58DecodeFailure(failure: Throwable) extends CreateModifierIdFailure
+
+  type CreateModifierIdResult = Either[CreateModifierIdFailure, ModifierId]
+
   implicit val jsonEncoder: Encoder[ModifierId] = (id: ModifierId) => id.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[ModifierId] = (id: ModifierId) => id.toString
-  implicit val jsonDecoder: Decoder[ModifierId] = Decoder.decodeString.emapTry(id => Try(ModifierId(id)))
-  implicit val jsonKeyDecoder: KeyDecoder[ModifierId] = (id: String) => Some(ModifierId(id))
 
-  def apply(nodeViewModifier: NodeViewModifier): ModifierId = nodeViewModifier match {
+  implicit val jsonDecoder: Decoder[ModifierId] =
+    Decoder.decodeString.emap(id => ModifierId.create(id).leftMap(err => s"Failed to create modifier ID: $err"))
+  implicit val jsonKeyDecoder: KeyDecoder[ModifierId] = (id: String) => ModifierId.create(id).toOption
+
+  def create(nodeViewModifier: NodeViewModifier): CreateModifierIdResult = nodeViewModifier match {
     case mod: Block =>
-      new ModifierId(Block.modifierTypeId.value +: Blake2b256.hash(mod.messageToSign).value)
+      Blake2b256
+        .hash(mod.messageToSign)
+        .map(hash => new ModifierId(Block.modifierTypeId.value +: hash.value))
+        .leftMap(MessageHashFailure)
     case mod: Transaction.TX =>
-      new ModifierId(Transaction.modifierTypeId.value +: Blake2b256.hash(mod.messageToSign).value)
-    case _ => throw new Error("Only blocks and transactions generate a modifierId")
+      Blake2b256
+        .hash(mod.messageToSign)
+        .map(hash => new ModifierId(Transaction.modifierTypeId.value +: hash.value))
+        .leftMap(MessageHashFailure)
+    case _ => Left(InvalidModifierFailure)
   }
 
-  def apply(str: String): ModifierId =
-    Base58.decode(str) match {
-      case Success(id) => new ModifierId(id)
-      case Failure(ex) => throw ex
-    }
+  def create(str: String): CreateModifierIdResult =
+    Base58.decode(str).toEither.map(new ModifierId(_)).leftMap(Base58DecodeFailure)
 
   def serialize(obj: ModifierId, w: Writer): Unit =
     /* value: Array[Byte] */

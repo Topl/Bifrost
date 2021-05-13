@@ -6,6 +6,7 @@ import co.topl.modifier.BoxReader
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.box.{Box, _}
 import co.topl.utils.{Identifiable, Int128}
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -78,7 +79,7 @@ object TransferTransaction {
       Array(txIdPrefix) ++ boxIdsToOpenAccumulator ++ timestampBytes ++ feeBytes
 
     val calcNonce: Int => Box.Nonce = (index: Int) => {
-      val digest = Blake2b256.hash(inputBytes ++ Ints.toByteArray(index))
+      val digest = Blake2b256.hash(inputBytes ++ Ints.toByteArray(index)).getOrThrow()
       Transaction.nonceFromDigest(digest)
     }
 

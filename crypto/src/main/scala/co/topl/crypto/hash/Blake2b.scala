@@ -9,7 +9,7 @@ abstract class Blake2bHash[D: Digest] extends Hash[Blake2b, D] {
   val digestSizeInBits: Int = 8 * digestSize
   lazy val digestFunc = new Blake2bDigest(digestSizeInBits)
 
-  override def hash(prefix: Option[Byte], messages: Message*): D =
+  override def hash(prefix: Option[Byte], messages: Message*): HashResult[D] =
     // must be synchronized on the digest function so that everyone shares an instance
     synchronized {
       // update digest with prefix and messages
@@ -23,7 +23,7 @@ abstract class Blake2bHash[D: Digest] extends Hash[Blake2b, D] {
       // calling .doFinal resets to a default state
       digestFunc.doFinal(res, 0)
 
-      Digest[D].from(res).valueOr(ex => throw new Exception(s"Unexpected hash result: $ex"))
+      Digest[D].from(res).leftMap(InvalidDigestFailure).toEither
     }
 }
 
