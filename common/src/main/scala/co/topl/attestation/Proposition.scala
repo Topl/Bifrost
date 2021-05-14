@@ -5,7 +5,7 @@ import co.topl.attestation.serialization.PropositionSerializer
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.implicits._
 import co.topl.crypto.signatures.{Curve25519, PublicKey}
-import co.topl.keyManagement.{PrivateKeyCurve25519, Secret}
+import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, Secret}
 import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.encode.Base58

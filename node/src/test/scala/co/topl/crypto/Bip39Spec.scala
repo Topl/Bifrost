@@ -1,6 +1,6 @@
 //package co.topl.crypto
 //
-//import co.topl.keyManagement.PrivateKeyCurve25519
+//import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 //import co.topl.utils.Logging
 //import org.scalatest.flatspec.AnyFlatSpec
 //import org.scalatest.matchers.should.Matchers

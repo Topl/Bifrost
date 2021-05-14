@@ -1,7 +1,7 @@
 package co.topl.serialization
 
 import co.topl.attestation.{Address, Evidence, PublicKeyPropositionCurve25519, SignatureCurve25519}
-import co.topl.keyManagement.KeyfileCurve25519
+import co.topl.attestation.keyManagement.{KeyfileCurve25519, KeyfileCurve25519Companion}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
 import co.topl.modifier.box._
@@ -30,7 +30,7 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckPropertyChecks 
 
   property("KeyfileCurve25519 json") {
     forAll(key25519Gen) { key =>
-      val keyfile = KeyfileCurve25519.encryptSecret(key._1, "test")
+      val keyfile = KeyfileCurve25519Companion.encryptSecret(key._1, "test")
       keyfile.asJson.as[KeyfileCurve25519] match {
         case Right(kf) =>
           kf.address shouldEqual keyfile.address
@@ -135,7 +135,7 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckPropertyChecks 
 
   property("BlockHeader json") {
     forAll(blockGen) { block =>
-      val header = block.toComponents._1
+      val header = block.toComponents.getOrElse(throw new Exception("Failed to split block into components."))._1
       header.asJson.as[BlockHeader] match {
         case Right(value) =>
           value.id shouldEqual header.id
@@ -157,7 +157,7 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckPropertyChecks 
 
   property("BlockBody json") {
     forAll(blockGen) { block =>
-      val body = block.toComponents._2
+      val body = block.toComponents.getOrElse(throw new Exception("Failed to get components from block"))._2
       body.asJson.as[BlockBody] shouldEqual Right(body)
     }
   }

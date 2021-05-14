@@ -1,4 +1,4 @@
-package co.topl.keyManagement
+package co.topl.attestation.keyManagement
 
 import co.topl.attestation.Address
 import co.topl.crypto.hash.Blake2b256

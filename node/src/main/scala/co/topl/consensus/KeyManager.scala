@@ -6,10 +6,10 @@ import akka.util.Timeout
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.attestation.{Address, AddressEncoder, PublicKeyPropositionCurve25519, SignatureCurve25519}
-import co.topl.keyManagement.KeyfileCurve25519Companion
+import co.topl.attestation.keyManagement.KeyfileCurve25519Companion
 import co.topl.catsakka.AskException
 import co.topl.consensus.KeyManager.{AttemptForgingKeyView, ForgerStartupKeyView}
-import co.topl.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
+import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType._

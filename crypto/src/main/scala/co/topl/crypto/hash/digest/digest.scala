@@ -10,6 +10,11 @@ import scala.language.implicitConversions
 
 package object digest {
 
+  /**
+   * Represents a digest with a size and the ability to convert to and from bytes.
+   *
+   * @tparam T the implemented digest type
+   */
   @typeclass
   trait Digest[T] {
 

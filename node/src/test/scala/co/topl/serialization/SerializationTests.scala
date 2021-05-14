@@ -7,7 +7,7 @@ import co.topl.attestation.serialization.{
   ThresholdPropositionCurve25519Serializer,
   ThresholdSignatureCurve25519Serializer
 }
-import co.topl.keyManagement.PrivateKeyCurve25519
+import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 import co.topl.modifier.block.serialization.{BlockBodySerializer, BlockHeaderSerializer, BlockSerializer}
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.box._
@@ -203,7 +203,7 @@ class SerializationTests
 
   property("BlockHeader serialization") {
     forAll(blockGen) { b: Block =>
-      val blockHeader = b.toComponents._1
+      val blockHeader = b.toComponents.getOrElse(throw new Exception("Failed to get components of block"))._1
       val parsed = BlockHeaderSerializer
         .parseBytes(BlockHeaderSerializer.toBytes(blockHeader))
         .get
@@ -214,7 +214,7 @@ class SerializationTests
 
   property("BlockBody serialization") {
     forAll(blockGen) { b: Block =>
-      val blockBody = b.toComponents._2
+      val blockBody = b.toComponents.getOrElse(throw new Exception("Failed to get components of block"))._2
       val parsed = BlockBodySerializer
         .parseBytes(BlockBodySerializer.toBytes(blockBody))
         .get

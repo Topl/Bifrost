@@ -2,7 +2,7 @@ package co.topl.attestation
 
 import co.topl.attestation.serialization.ProofSerializer
 import co.topl.crypto.signatures.{Curve25519, PublicKey, Signature}
-import co.topl.keyManagement.{PrivateKeyCurve25519, Secret}
+import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, Secret}
 import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}

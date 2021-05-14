@@ -1,4 +1,4 @@
-package co.topl.keyManagement
+package co.topl.attestation.keyManagement
 
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.crypto.signatures.implicits._

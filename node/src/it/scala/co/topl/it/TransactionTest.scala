@@ -2,6 +2,8 @@ package co.topl.it
 
 import cats.data.NonEmptyChain
 import co.topl.attestation._
+import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.implicits.toHashResultOps
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.it.util._
 import co.topl.modifier.box.{AssetCode, AssetValue}
@@ -14,7 +16,6 @@ import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
-import scorex.crypto.hash.Blake2b256
 
 import scala.concurrent.duration._
 
@@ -48,7 +49,7 @@ class TransactionTest
 
   private val burnAddress = {
     val bytes: Array[Byte] = Array(networkPrefix, PublicKeyPropositionCurve25519.typePrefix) ++ Array.fill(32)(2: Byte)
-    val checksum = Blake2b256(bytes).take(AddressEncoder.checksumLength)
+    val checksum = Blake2b256.hash(bytes).getOrThrow().value.take(AddressEncoder.checksumLength)
     AddressEncoder.validateAddress(bytes ++ checksum, networkPrefix).value
   }
 

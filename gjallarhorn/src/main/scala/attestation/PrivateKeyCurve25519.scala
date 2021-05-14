@@ -42,9 +42,7 @@ object PrivateKeyCurve25519 extends GjalSerializer[PrivateKeyCurve25519] {
 
   implicit val secretGenerator: SecretGenerator[PrivateKeyCurve25519] =
     SecretGenerator.instance[PrivateKeyCurve25519] { seed: Array[Byte] =>
-      val (sk, pk) = Curve25519
-        .createKeyPair(seed)
-        .valueOr(err => throw new Exception(s"Failed to create signature key pair: $err"))
+      val (sk, pk) = Curve25519.createKeyPair(seed).getOrThrow()
       val secret: PrivateKeyCurve25519 = PrivateKeyCurve25519(sk, pk)
       secret -> secret.publicImage
     }

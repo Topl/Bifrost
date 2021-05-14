@@ -1,7 +1,8 @@
 import attestation.AddressEncoder.NetworkPrefix
 import attestation.{Address, PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
-import co.topl.crypto.hash.blake2b256
-import co.topl.utils.AsBytes.Implicits._
+import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.implicits.toHashResultOps
+import co.topl.crypto.hash.digest.Digest32
 import crypto.KeyfileCurve25519
 import keymanager.Keys
 import org.scalatest.flatspec.AsyncFlatSpec
@@ -23,8 +24,8 @@ class KeysSpec extends AsyncFlatSpec with Matchers {
   val keyFileDir = "keyfiles/keyManagerTest"
   val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] = Keys(keyFileDir, KeyfileCurve25519)
 
-  val randomBytes1: Digest32 = blake2b256(java.util.UUID.randomUUID.toString)
-  val randomBytes2: Digest32 = blake2b256(java.util.UUID.randomUUID.toString)
+  val randomBytes1: Digest32 = Blake2b256.hash(java.util.UUID.randomUUID.toString.getBytes).getOrThrow()
+  val randomBytes2: Digest32 = Blake2b256.hash(java.util.UUID.randomUUID.toString.getBytes).getOrThrow()
 
   //Create keys for testing
   var privateKeys: Set[PrivateKeyCurve25519] = keyManager.generateNewKeyPairs(2, Some("keystest")) match {
@@ -50,29 +51,29 @@ class KeysSpec extends AsyncFlatSpec with Matchers {
 
   //generate seed
   val seedString: String = java.util.UUID.randomUUID.toString
-  val seed1: Digest32 = blake2b256(seedString)
+  val seed1: Digest32 = Blake2b256.hash(seedString.getBytes).getOrThrow()
 
   //------------------------------------------------------------------------------------
   //Signed messages
   //Should have same input to check determinism
-  val messageBytes: Digest32 = blake2b256("sameEntropic")
-  val messageToSign: Digest32 = blake2b256(java.util.UUID.randomUUID.toString)
+  val messageBytes: Digest32 = Blake2b256.hash("sameEntropic".getBytes).getOrThrow()
+  val messageToSign: Digest32 = Blake2b256.hash(java.util.UUID.randomUUID.toString.getBytes).getOrThrow()
 
   it should "Match its signature to the expected sender private key" in {
     //Entropic input to input for pub/priv keypair
-    val proof = sk1.sign(messageToSign)
-    assert(proof.isValid(sk1.publicImage, messageToSign))
+    val proof = sk1.sign(messageToSign.value)
+    assert(proof.isValid(sk1.publicImage, messageToSign.value))
   }
 
   it should "Yield an invalid signature if signed with incorrect foreign key" in {
-    val proof = sk1.sign(messageToSign)
-    assert(!proof.isValid(sk2.publicImage, messageToSign))
+    val proof = sk1.sign(messageToSign.value)
+    assert(!proof.isValid(sk2.publicImage, messageToSign.value))
   }
 
   it should "Sign and verify as expected when msg is deterministic" in {
-    val proof = sk2.sign(messageBytes)
+    val proof = sk2.sign(messageBytes.value)
     //Utilize same input. Proving hashing function AND keygen methods are deterministic
-    assert(proof.isValid(sk2.publicImage, messageBytes))
+    assert(proof.isValid(sk2.publicImage, messageBytes.value))
   }
   //------------------------------------------------------------------------------------
   //Key Generation

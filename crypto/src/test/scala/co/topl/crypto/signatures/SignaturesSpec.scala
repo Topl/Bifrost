@@ -1,11 +1,10 @@
 package co.topl.crypto.signatures
 
-import cats.implicits._
-import co.topl.crypto.signatures.Curve25519.CreateKeyPairResult
-import org.scalatest.propspec.AnyPropSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import co.topl.crypto.signatures.implicits.toCreateKeyPairResultOps
 import co.topl.crypto.utils.Hex
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 class SigningFunctionsSpecification extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
 
@@ -127,11 +126,5 @@ class SigningFunctionsSpecification extends AnyPropSpec with ScalaCheckDrivenPro
       "bc7c66431e0303dca179c138ac17ad9bef1177331a704"
     )
     sig.value.sameElements(specSig)
-  }
-
-  implicit class CreateKeyPairOps(result: CreateKeyPairResult) {
-
-    def getOrThrow(): (PrivateKey, PublicKey) =
-      result.valueOr(err => throw new Exception(s"Failed to create key pair: $err"))
   }
 }

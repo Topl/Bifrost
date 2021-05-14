@@ -68,6 +68,12 @@ package object hash {
   trait HashResultOps[T] {
     def instance: HashResult[T]
 
+    /**
+     * Gets the valid hash result or throws an exception.
+     *
+     * @param orThrow an override for the exception to throw
+     * @return a valid hash result
+     */
     def getOrThrow(orThrow: HashFailure => Throwable = e => new Exception(e.toString)): T =
       instance match {
         case Right(a) => a

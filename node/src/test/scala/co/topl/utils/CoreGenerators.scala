@@ -4,7 +4,13 @@ import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.signatures.{Curve25519, Signature}
-import co.topl.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519, Secret}
+import co.topl.attestation.keyManagement.{
+  KeyRing,
+  KeyfileCurve25519,
+  KeyfileCurve25519Companion,
+  PrivateKeyCurve25519,
+  Secret
+}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
@@ -35,7 +41,7 @@ trait CoreGenerators extends Logging {
   type S = Secret
 
   implicit val networkPrefix: NetworkPrefix = PrivateTestnet.netPrefix
-  implicit val keyfileCurve25519Companion: KeyfileCurve25519.type = KeyfileCurve25519
+  implicit val keyfileCurve25519Companion: KeyfileCurve25519Companion.type = KeyfileCurve25519Companion
 
   private val settingsFilename = "node/src/test/resources/test.conf"
   val settings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename)))._1
@@ -409,7 +415,7 @@ trait CoreGenerators extends Logging {
     signature     <- signatureGen
     txs           <- bifrostTransactionSeqGen
   } yield {
-    val parentId = ModifierId(Base58.encode(parentIdBytes))
+    val parentId = ModifierId.create(Base58.encode(parentIdBytes)).getOrElse(ModifierId.empty)
     val height: Long = 1L
     val difficulty = settings.forging.privateTestnet.map(_.initialDifficulty).get
     val version: PNVMVersion = settings.application.version.firstDigit

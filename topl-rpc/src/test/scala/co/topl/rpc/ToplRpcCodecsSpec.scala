@@ -1,6 +1,6 @@
 package co.topl.rpc
 
-import co.topl.keyManagement.PrivateKeyCurve25519
+import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 import co.topl.modifier.box._
 import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
