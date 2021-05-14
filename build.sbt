@@ -9,10 +9,8 @@ inThisBuild(List(
   organization := "co.topl",
   scalaVersion := scala213,
   crossScalaVersions := Seq(scala212, scala213),
-  Compile / run / mainClass := Some("co.topl.BifrostApp"),
   versionScheme := Some("early-semver"),
   dynverSeparator := "-",
-  dynverSonatypeSnapshots := true,
   version := dynverGitDescribeOutput.value.mkVersion(versionFmt, fallbackVersion(dynverCurrentDate.value)),
   dynver := {
     val d = new java.util.Date
@@ -184,7 +182,6 @@ lazy val node = project.in(file("node"))
     name := "node",
     commonSettings,
     assemblySettings,
-    crossScalaVersions := Seq(scala213),
     Defaults.itSettings,
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),

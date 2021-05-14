@@ -35,11 +35,9 @@ object Dependencies {
 
   val akka = Seq(
     "com.typesafe.akka" %% "akka-actor"          % akkaVersion,
-    "com.typesafe.akka" %% "akka-cluster"        % akkaVersion,
     "com.typesafe.akka" %% "akka-stream"         % akkaVersion,
     "com.typesafe.akka" %% "akka-http"           % akkaHttpVersion,
     "com.typesafe.akka" %% "akka-http-core"      % akkaHttpVersion,
-    "com.typesafe.akka" %% "akka-remote"         % akkaVersion,
     "com.typesafe.akka" %% "akka-slf4j"          % akkaVersion,
     "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion     % Test,
     "com.typesafe.akka" %% "akka-http-testkit"   % akkaHttpVersion % Test
@@ -50,16 +48,12 @@ object Dependencies {
     "commons-net" % "commons-net" % "3.8.0"
   )
 
-  val json = Seq(
+  val circe = Seq(
     "io.circe" %% "circe-core"    % circeVersion,
     "io.circe" %% "circe-generic" % circeVersion,
     "io.circe" %% "circe-parser"  % circeVersion,
     "io.circe" %% "circe-literal" % circeVersion,
     "io.circe" %% "circe-optics"  % circeVersion
-  )
-
-  val akkaCirceDependencies = Seq(
-    "de.heikoseeberger" %% "akka-http-circe" % "1.36.0"
   )
 
   val crypto = Seq(
@@ -69,17 +63,14 @@ object Dependencies {
   )
 
   val misc = Seq(
-    "com.chuusai"            %% "shapeless"               % "2.3.5",
-    "com.iheart"             %% "ficus"                   % "1.5.0",
-    "org.rudogma"            %% "supertagged"             % "1.5",
-    "com.lihaoyi"            %% "mainargs"                % "0.2.1",
-    "org.scalanlp"           %% "breeze"                  % "1.1",
-    "io.netty"                % "netty"                   % "3.10.6.Final",
-    "com.google.guava"        % "guava"                   % "30.1.1-jre",
-    "com.typesafe"            % "config"                  % "1.4.1",
-    "com.github.pureconfig"  %% "pureconfig"              % "0.15.0",
-    "org.scala-lang.modules" %% "scala-collection-compat" % "2.4.3",
-    "net.jpountz.lz4"         % "lz4"                     % "1.3.0"
+    "com.chuusai"     %% "shapeless"   % "2.3.5",
+    "com.iheart"      %% "ficus"       % "1.5.0",
+    "org.rudogma"     %% "supertagged" % "1.5",
+    "org.scalanlp"    %% "breeze"      % "1.1",
+    "io.netty"         % "netty"       % "3.10.6.Final",
+    "com.google.guava" % "guava"       % "30.1.1-jre",
+    "com.lihaoyi"     %% "mainargs"    % "0.2.1",
+    "com.typesafe"     % "config"      % "1.4.1"
   )
 
   val monitoring = Seq(
@@ -90,67 +81,76 @@ object Dependencies {
   )
 
   val graal = Seq(
-    // https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
-    // https://mvnrepository.com/artifact/org.graalvm.js/js
-    // https://mvnrepository.com/artifact/org.graalvm.truffle/truffle-api
     "org.graalvm.sdk"     % "graal-sdk"   % graalVersion,
     "org.graalvm.js"      % "js"          % graalVersion,
     "org.graalvm.truffle" % "truffle-api" % graalVersion
   )
 
-  val simulacrum = Seq(
-    "org.typelevel" %% "simulacrum" % "1.0.0"
-  )
-
-  val node: Seq[ModuleID] =
+  val node: Seq[ModuleID] = {
+    Seq(
+      "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
+      "com.typesafe.akka" %% "akka-remote"  % akkaVersion,
+      "net.jpountz.lz4"    % "lz4"          % "1.3.0"
+    )
     logging ++
     test ++
     it ++
     akka ++
     network ++
-    json ++
+    circe ++
     crypto ++
     misc ++
     monitoring ++
     graal
+  }
 
-  lazy val common: Seq[ModuleID] =
-    akka ++
+  lazy val common: Seq[ModuleID] = {
+    Seq(
+      "com.typesafe.akka" %% "akka-actor" % akkaVersion,
+      "org.typelevel"     %% "simulacrum" % "1.0.0"
+    ) ++
     logging ++
-    json ++
-    crypto ++
-    simulacrum
+    circe ++
+    crypto
+  }
 
   lazy val chainProgram: Seq[ModuleID] =
-    json ++
+    Seq(
+      "io.circe" %% "circe-core"   % circeVersion,
+      "io.circe" %% "circe-parser" % circeVersion
+    ) ++
     test ++
     graal
 
   lazy val brambl: Seq[ModuleID] =
-    akka ++
-    akkaCirceDependencies ++
     test
 
   lazy val akkaHttpRpc: Seq[ModuleID] =
-    json ++
+    Seq(
+      "de.heikoseeberger" %% "akka-http-circe" % "1.36.0"
+    ) ++
+    circe ++
     akka ++
-    akkaCirceDependencies ++
     test
 
   lazy val toplRpc: Seq[ModuleID] =
-    json ++
-    akka ++
-    akkaCirceDependencies ++
+    circe ++
     test
 
-  lazy val gjallarhorn: Seq[ModuleID] =
+  lazy val gjallarhorn: Seq[ModuleID] = {
+    Seq(
+      "com.typesafe.akka"     %% "akka-cluster" % akkaVersion,
+      "com.typesafe.akka"     %% "akka-remote"  % akkaVersion,
+      "com.github.pureconfig" %% "pureconfig"   % "0.15.0"
+    ) ++
     akka ++
     test ++
     crypto ++
-    json ++
+    circe ++
     logging ++
     misc ++
     it
+  }
 
   lazy val benchmarking: Seq[ModuleID] = Seq()
 
