@@ -1,7 +1,6 @@
 package co.topl.crypto.accumulators.merkle
 
 import cats.implicits._
-import co.topl.crypto.Hex
 import co.topl.crypto.accumulators.{LeafData, Side}
 import co.topl.crypto.hash.digest.Digest
 import co.topl.crypto.hash.digest.implicits._
@@ -56,7 +55,7 @@ case class MerkleTree[H, D: Digest](
             case None => loop(Some(n.left), i, curLength / 2, (None, MerkleProof.LeftSide) +: acc)
           }
         case Some(n: InternalNode[H, D]) if i < curLength =>
-          n.hash match {
+          n.left.hash match {
             case Right(hash) =>
               loop(n.right, i - curLength / 2, curLength / 2, (Some(hash), MerkleProof.RightSide) +: acc)
             case Left(_) => None
@@ -79,25 +78,6 @@ case class MerkleTree[H, D: Digest](
     Math.max(math.pow(2, math.ceil(log2(length))).toInt, 2)
   }
 
-  // TODO: This is temporarily disabled because we removed Base58, use Hex.scala in test here if needed
-  //  //Debug only
-  //  override lazy val toString: String = {
-  //
-  //    @tailrec
-  //    def loop(nodes: Seq[Node[D]], level: Int, acc: String): String =
-  //      if (nodes.nonEmpty) {
-  //        val thisLevStr = s"Level $level: " + nodes.map(_.toString).mkString(",") + "\n"
-  //        val nextLevNodes = nodes.flatMap {
-  //          case i: InternalNode[H, D] => Seq(i.left, i.right)
-  //          case _                     => Seq()
-  //        }
-  //        loop(nextLevNodes, level + 1, acc + thisLevStr)
-  //      } else {
-  //        acc
-  //      }
-  //
-  //    loop(Seq(topNode), 0, "")
-  //  }
 }
 
 object MerkleTree {
@@ -147,16 +127,4 @@ object MerkleTree {
       if (nextNodes.lengthCompare(1) == 0) Some(nextNodes.head) else calcTopNode(nextNodes)
     }
 
-  def treeAsText[H, D: Digest](tree: MerkleTree[H, D])(implicit h: Hash[H, D]): String = {
-    def nodeAsText(node: Option[Node[D]]): String = node match {
-      case Some(n: InternalNode[H, D]) =>
-        s"InternalNode( hash: ${n.hash.map(h => Hex.encode(h.bytes)).getOrElse("hash error")}, \n" +
-          s"left: ${nodeAsText(Some(n.left))}, \n" +
-          s"right: ${nodeAsText(n.right)} )"
-      case Some(n: Leaf[H, D]) => s"LeafNode(${n.hash.map(h => Hex.encode(h.bytes)).getOrElse("hash error")})"
-      case None                => s"EmptyNode()"
-    }
-
-    nodeAsText(tree.topNode)
-  }
 }

@@ -27,12 +27,6 @@ case class InternalNode[H, D: Digest](left: Node[D], right: Option[Node[D]])(imp
       rightHashBytes <- right.map(_.hash.map(_.bytes)).getOrElse(Array.emptyByteArray.asRight[HashFailure])
       nodeHash       <- hashFunc.hash(MerkleTree.InternalNodePrefix, leftHashBytes ++ rightHashBytes)
     } yield nodeHash
-
-  // TODO: This is temporarily disabled because we removed Base58, use Hex.scala in test here if needed
-  //  override def toString: String = s"InternalNode(" +
-  //    s"left: ${Base58.encode(left.hash)}, " +
-  //    s"right: ${if (BytesOf[D].isEmpty(right.hash)) "null" else Base58.encode(right.hash)}," +
-  //    s"hash: ${Base58.encode(hash)})"
 }
 
 /**
@@ -42,7 +36,4 @@ case class InternalNode[H, D: Digest](left: Node[D], right: Option[Node[D]])(imp
  */
 case class Leaf[H, D: Digest](data: LeafData)(implicit h: Hash[H, D]) extends Node[D] {
   override lazy val hash: HashResult[D] = Hash[H, D].hash(MerkleTree.LeafPrefix, data.value)
-
-  // TODO: This is temporarily disabled because we removed Base58, use Hex.scala in test here if needed
-  //  override def toString: String = s"Leaf(${Base58.encode(hash)})"
 }

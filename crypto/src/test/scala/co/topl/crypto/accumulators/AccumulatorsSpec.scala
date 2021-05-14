@@ -43,8 +43,6 @@ class MerkleTreeSpecification extends AnyPropSpec with ScalaCheckDrivenPropertyC
         val d = (0 until N).map(_ => LeafData(randomBytes(leafSize)))
         val tree = MerkleTree.construct[HashScheme, HashDigest](d).getOrThrow()
 
-        println(MerkleTree.treeAsText(tree))
-
         (0 until N).foreach { i =>
           tree.proofByIndex(i).get.leafData.value shouldEqual d(i).value
           tree
