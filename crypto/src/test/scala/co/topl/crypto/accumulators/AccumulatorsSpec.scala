@@ -26,11 +26,12 @@ class MerkleTreeSpecification extends AnyPropSpec with ScalaCheckDrivenPropertyC
       whenever(N > 0) {
         val d = (0 until N).map(_ => LeafData(randomBytes(leafSize)))
         val leafs = d.map(data => Leaf[HashScheme, HashDigest](data))
-        val tree = MerkleTree.construct[HashScheme, HashDigest](d).getOrThrow
+        val tree = MerkleTree.construct[HashScheme, HashDigest](d).getOrThrow()
+        val treeRootHash = tree.rootHash.getOrThrow()
         leafs.foreach { l =>
           val proof = tree.proofByElement(l).get
           proof.leafData.value.sameElements(l.data.value) shouldBe true
-          proof.valid(tree.rootHash.getOrThrow()) shouldBe true
+          proof.valid(treeRootHash) shouldBe true
         }
       }
     }
@@ -60,14 +61,14 @@ class MerkleTreeSpecification extends AnyPropSpec with ScalaCheckDrivenPropertyC
   }
 
   property("Tree creation from 0 elements") {
-    val tree = MerkleTree.construct[HashScheme, HashDigest](Seq.empty).getOrThrow
-    tree.rootHash shouldEqual Array.fill(Digest[HashDigest].size)(0: Byte)
+    val tree = MerkleTree.construct[HashScheme, HashDigest](Seq.empty).getOrThrow()
+    tree.rootHash.getOrThrow().value shouldEqual Array.fill(Digest[HashDigest].size)(0: Byte)
   }
 
   property("Tree creation from 1 element") {
     forAll { d: Array[Byte] =>
       whenever(d.length > 0) {
-        val tree = MerkleTree.construct[HashScheme, HashDigest](Seq(LeafData(d))).getOrThrow
+        val tree = MerkleTree.construct[HashScheme, HashDigest](Seq(LeafData(d))).getOrThrow()
 
         bytesOf(tree.rootHash.getOrThrow()) shouldEqual
         hf.hash(MerkleTree.InternalNodePrefix, bytesOf(hf.hash(MerkleTree.LeafPrefix, d).getOrThrow()))
@@ -114,7 +115,7 @@ class MerkleTreeSpecification extends AnyPropSpec with ScalaCheckDrivenPropertyC
 
   implicit class MerkleTreeResultExtensions[H, D](m: MerkleTreeResult[H, D]) {
 
-    def getOrThrow: MerkleTree[H, D] =
+    def getOrThrow(): MerkleTree[H, D] =
       m.valueOr(err => throw new Exception(s"Merkle tree construction failure: ${err}"))
   }
 }

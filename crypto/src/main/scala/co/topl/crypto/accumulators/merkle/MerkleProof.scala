@@ -26,7 +26,7 @@ import co.topl.crypto.hash.digest.implicits._
  * @param levels - levels in proof, bottom up, each level is about stored value and position of computed element
  *               (whether it is left or right to stored value)
  */
-case class MerkleProof[H, D: Digest](leafData: LeafData, levels: Seq[(D, Side)])(implicit
+case class MerkleProof[H, D: Digest](leafData: LeafData, levels: Seq[(Option[D], Side)])(implicit
   hashFunc:                                    Hash[H, D]
 ) {
 
@@ -35,15 +35,17 @@ case class MerkleProof[H, D: Digest](leafData: LeafData, levels: Seq[(D, Side)])
 
     val result = levels.foldLeft(leafHash) {
       case (Right(prevHash), (hash, side)) =>
-        if (side == MerkleProof.LeftSide) {
-          hashFunc.hash(MerkleTree.InternalNodePrefix, prevHash.bytes ++ hash.bytes)
-        } else {
-          hashFunc.hash(MerkleTree.InternalNodePrefix, hash.bytes, prevHash.bytes)
-        }
+        val nodeBytes =
+          hash.map { h =>
+            if (side == MerkleProof.LeftSide) prevHash.bytes ++ h.bytes
+            else h.bytes ++ prevHash.bytes
+          } getOrElse prevHash.bytes
+
+        hashFunc.hash(MerkleTree.InternalNodePrefix, nodeBytes)
       case (invalidHash, _) => invalidHash
     }
 
-    result.map(_ === expectedRootHash).getOrElse(false)
+    result.map(r => r === expectedRootHash).getOrElse(false)
   }
 
   // TODO: This is temporarily disabled because we removed Base58, use Hex.scala in test here if needed

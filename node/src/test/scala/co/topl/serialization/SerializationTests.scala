@@ -16,6 +16,7 @@ import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.serialization._
 import co.topl.settings.VersionSerializer
 import co.topl.utils.{CoreGenerators, ValidGenerators}
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
@@ -203,7 +204,7 @@ class SerializationTests
 
   property("BlockHeader serialization") {
     forAll(blockGen) { b: Block =>
-      val blockHeader = b.toComponents.getOrElse(throw new Exception("Failed to get components of block"))._1
+      val blockHeader = b.toComponents.getOrThrow()._1
       val parsed = BlockHeaderSerializer
         .parseBytes(BlockHeaderSerializer.toBytes(blockHeader))
         .get
@@ -214,7 +215,7 @@ class SerializationTests
 
   property("BlockBody serialization") {
     forAll(blockGen) { b: Block =>
-      val blockBody = b.toComponents.getOrElse(throw new Exception("Failed to get components of block"))._2
+      val blockBody = b.toComponents.getOrThrow()._2
       val parsed = BlockBodySerializer
         .parseBytes(BlockBodySerializer.toBytes(blockBody))
         .get

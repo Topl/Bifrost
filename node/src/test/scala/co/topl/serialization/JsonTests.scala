@@ -7,6 +7,7 @@ import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction
 import co.topl.utils.CoreGenerators
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import io.circe.syntax.EncoderOps
 import org.scalacheck.Gen
 import org.scalatest.matchers.must.Matchers
@@ -135,7 +136,7 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckPropertyChecks 
 
   property("BlockHeader json") {
     forAll(blockGen) { block =>
-      val header = block.toComponents.getOrElse(throw new Exception("Failed to split block into components."))._1
+      val header = block.toComponents.getOrThrow()._1
       header.asJson.as[BlockHeader] match {
         case Right(value) =>
           value.id shouldEqual header.id
@@ -157,7 +158,7 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckPropertyChecks 
 
   property("BlockBody json") {
     forAll(blockGen) { block =>
-      val body = block.toComponents.getOrElse(throw new Exception("Failed to get components from block"))._2
+      val body = block.toComponents.getOrThrow()._2
       body.asJson.as[BlockBody] shouldEqual Right(body)
     }
   }

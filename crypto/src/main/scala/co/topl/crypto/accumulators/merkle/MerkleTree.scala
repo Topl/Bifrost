@@ -4,8 +4,7 @@ import cats.implicits._
 import co.topl.crypto.accumulators.{LeafData, Side}
 import co.topl.crypto.hash.digest.Digest
 import co.topl.crypto.hash.digest.implicits._
-import co.topl.crypto.hash.implicits.toHashResultOps
-import co.topl.crypto.hash.{Hash, HashFailure, HashResult}
+import co.topl.crypto.hash.{Hash, HashFailure, HashResult, InvalidDigestFailure}
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -13,15 +12,25 @@ import scala.collection.mutable
 /* Forked from https://github.com/input-output-hk/scrypto */
 
 case class MerkleTree[H, D: Digest](
-  topNode:           Node[D],
+  topNode:           Option[Node[D]],
   elementsHashIndex: Map[mutable.WrappedArray.ofByte, Int]
 )(implicit h:        Hash[H, D]) {
 
-  lazy val rootHash: HashResult[D] = topNode.hash
+  private lazy val emptyRootHash: HashResult[D] =
+    Digest[D]
+      .from(Array.fill(Digest[D].size)(0: Byte))
+      .leftMap(InvalidDigestFailure)
+      .toEither
+
+  lazy val rootHash: HashResult[D] =
+    topNode
+      .map(_.hash)
+      .getOrElse(emptyRootHash)
+
   lazy val length: Int = elementsHashIndex.size
 
   def proofByElement(element: Leaf[H, D]): Option[MerkleProof[H, D]] =
-    element.hash.map(proofByElementHash).getOrThrow()
+    element.hash.toOption.flatMap(proofByElementHash)
 
   def proofByElementHash(hash: D): Option[MerkleProof[H, D]] =
     elementsHashIndex.get(new mutable.WrappedArray.ofByte(hash.bytes)).flatMap(i => proofByIndex(i))
@@ -30,17 +39,28 @@ case class MerkleTree[H, D: Digest](
 
     @tailrec
     def loop(
-      node:      Node[D],
+      node:      Option[Node[D]],
       i:         Int,
       curLength: Int,
-      acc:       Seq[(D, Side)]
-    ): Option[(Leaf[H, D], Seq[(D, Side)])] =
+      acc:       Seq[(Option[D], Side)]
+    ): Option[(Leaf[H, D], Seq[(Option[D], Side)])] =
       node match {
-        case n: InternalNode[H, D] if i < curLength / 2 =>
-          loop(n.left, i, curLength / 2, acc :+ (n.right.hash.getOrThrow(), MerkleProof.LeftSide))
-        case n: InternalNode[H, D] if i < curLength =>
-          loop(n.right, i - curLength / 2, curLength / 2, acc :+ ((n.left.hash.getOrThrow(), MerkleProof.RightSide)))
-        case n: Leaf[H, D] =>
+        case Some(n: InternalNode[H, D]) if i < curLength / 2 =>
+          n.right match {
+            case Some(right) =>
+              right.hash match {
+                case Right(hash) => loop(Some(n.left), i, curLength / 2, acc :+ (Some(hash), MerkleProof.LeftSide))
+                case Left(_)     => None
+              }
+            case None => loop(Some(n.left), i, curLength / 2, acc :+ (None, MerkleProof.LeftSide))
+          }
+        case Some(n: InternalNode[H, D]) if i < curLength =>
+          n.hash match {
+            case Right(hash) =>
+              loop(n.right, i - curLength / 2, curLength / 2, acc :+ (Some(hash), MerkleProof.RightSide))
+            case Left(_) => None
+          }
+        case Some(n: Leaf[H, D]) =>
           Some((n, acc.reverse))
         case _ =>
           None
@@ -115,14 +135,14 @@ object MerkleTree {
   }
 
   @tailrec
-  def calcTopNode[H, D: Digest](nodes: Seq[Node[D]])(implicit h: Hash[H, D]): Node[D] =
+  def calcTopNode[H, D: Digest](nodes: Seq[Node[D]])(implicit h: Hash[H, D]): Option[Node[D]] =
     if (nodes.isEmpty) {
-      EmptyRootNode[H, D]
+      None
     } else {
       val nextNodes = nodes
         .grouped(2)
-        .map(lr => InternalNode[H, D](lr.head, if (lr.lengthCompare(2) == 0) lr.last else EmptyNode[H, D]))
+        .map(lr => InternalNode[H, D](lr.head, if (lr.lengthCompare(2) == 0) Some(lr.last) else None))
         .toSeq
-      if (nextNodes.lengthCompare(1) == 0) nextNodes.head else calcTopNode(nextNodes)
+      if (nextNodes.lengthCompare(1) == 0) Some(nextNodes.head) else calcTopNode(nextNodes)
     }
 }
