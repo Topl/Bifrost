@@ -433,11 +433,9 @@ class TransactionTest
 
     memPoolTx shouldEqual broadcastedTx
 
-    awaitBlocks(node)(3)
-
     logger.info(s"Checking for $name in the chain")
     val ToplRpc.NodeView.TransactionById.Response(completedTransaction, _, _) =
-      node.run(ToplRpc.NodeView.TransactionById.rpc)(ToplRpc.NodeView.TransactionById.Params(memPoolTx.id)).value
+      node.pollForTransaction(memPoolTx.id).value.futureValue(Timeout(30.seconds)).value
 
     completedTransaction shouldEqual memPoolTx
 
