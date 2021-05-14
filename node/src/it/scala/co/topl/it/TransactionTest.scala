@@ -117,6 +117,53 @@ class TransactionTest
     }
   }
 
+  "Polys can be sent from addressA to addressB with a fee" in {
+    verifyBalanceChange(addressA, -15, _.Balances.Polys) {
+      verifyBalanceChange(addressB, 10, _.Balances.Polys) {
+        verifyBalanceChange(rewardsAddress, 5, _.Balances.Polys) {
+          sendAndAwaitPolyTransaction(
+            name = "tx-poly-a-to-b-10-with-fee",
+            sender = NonEmptyChain(addressA),
+            recipients = NonEmptyChain((addressB, 10)),
+            changeAddress = addressA,
+            fee = 5
+          )
+        }
+      }
+    }
+  }
+
+  "Change from a poly transaction should go to the change address" in {
+    val addressCBalance = balancesFor(addressC).Balances.Polys
+    verifyBalanceChange(addressA, addressCBalance - 10, _.Balances.Polys) {
+      verifyBalanceChange(addressB, 10, _.Balances.Polys) {
+        sendAndAwaitPolyTransaction(
+          name = "tx-poly-c-to-b-10-with-change-address",
+          sender = NonEmptyChain(addressC),
+          recipients = NonEmptyChain((addressB, 10)),
+          changeAddress = addressA
+        )
+      }
+    }
+
+    balancesFor(addressC).Balances.Polys shouldBe Int128(0)
+
+    // Now return the polys back to addressC to allow subsequent tests to work
+
+    sendAndAwaitPolyTransaction(
+      name = "tx-poly-c-to-b-10-with-change-address-revert1",
+      sender = NonEmptyChain(addressA),
+      recipients = NonEmptyChain((addressC, addressCBalance - 10)),
+      changeAddress = addressA
+    )
+    sendAndAwaitPolyTransaction(
+      name = "tx-poly-c-to-b-10-with-change-address-revert2",
+      sender = NonEmptyChain(addressB),
+      recipients = NonEmptyChain((addressC, 10)),
+      changeAddress = addressB
+    )
+  }
+
   "Arbits can be sent from addressA to addressB" in {
     verifyBalanceChange(addressA, -10, _.Balances.Arbits) {
       verifyBalanceChange(addressB, 10, _.Balances.Arbits) {
@@ -166,6 +213,25 @@ class TransactionTest
             changeAddress = keyD.publicImage.address,
             consolidationAddress = keyD.publicImage.address
           )
+        }
+      }
+    }
+  }
+
+  "Arbits can be sent from addressA to addressB with a fee" in {
+    verifyBalanceChange(addressA, -5, _.Balances.Polys) {
+      verifyBalanceChange(addressA, -10, _.Balances.Arbits) {
+        verifyBalanceChange(addressB, 10, _.Balances.Arbits) {
+          verifyBalanceChange(rewardsAddress, 5, _.Balances.Polys) {
+            sendAndAwaitArbitTransaction(
+              name = "tx-arbit-a-to-b-10-with-fee",
+              sender = NonEmptyChain(addressA),
+              recipients = NonEmptyChain((addressB, 10)),
+              changeAddress = addressA,
+              consolidationAddress = addressA,
+              fee = 5
+            )
+          }
         }
       }
     }
