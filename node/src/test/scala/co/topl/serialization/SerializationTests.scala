@@ -255,9 +255,9 @@ class SerializationTests
 
   property("Address serialization") {
     forAll(addressGen) { address =>
-      val parsed: Address = Address.parseBytes(Address.toBytes(address)).get
+      val parsed: Address = AddressSerializer.parseBytes(AddressSerializer.toBytes(address)).get
 
-      Address.toBytes(parsed) sameElements Address.toBytes(address) shouldBe true
+      AddressSerializer.toBytes(parsed) should contain theSameElementsInOrderAs AddressSerializer.toBytes(address)
     }
   }
 
@@ -265,7 +265,7 @@ class SerializationTests
     forAll(versionGen) { version =>
       val parsed = VersionSerializer.parseBytes(VersionSerializer.toBytes(version)).get
 
-      parsed.bytes sameElements version.bytes
+      parsed.bytes should contain theSameElementsInOrderAs version.bytes
     }
   }
 }
