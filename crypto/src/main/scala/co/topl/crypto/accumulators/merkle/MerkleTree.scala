@@ -1,6 +1,7 @@
 package co.topl.crypto.accumulators.merkle
 
 import cats.implicits._
+import co.topl.crypto.Hex
 import co.topl.crypto.accumulators.{LeafData, Side}
 import co.topl.crypto.hash.digest.Digest
 import co.topl.crypto.hash.digest.implicits._
@@ -49,19 +50,19 @@ case class MerkleTree[H, D: Digest](
           n.right match {
             case Some(right) =>
               right.hash match {
-                case Right(hash) => loop(Some(n.left), i, curLength / 2, acc :+ (Some(hash), MerkleProof.LeftSide))
+                case Right(hash) => loop(Some(n.left), i, curLength / 2, (Some(hash), MerkleProof.LeftSide) +: acc)
                 case Left(_)     => None
               }
-            case None => loop(Some(n.left), i, curLength / 2, acc :+ (None, MerkleProof.LeftSide))
+            case None => loop(Some(n.left), i, curLength / 2, (None, MerkleProof.LeftSide) +: acc)
           }
         case Some(n: InternalNode[H, D]) if i < curLength =>
           n.hash match {
             case Right(hash) =>
-              loop(n.right, i - curLength / 2, curLength / 2, acc :+ (Some(hash), MerkleProof.RightSide))
+              loop(n.right, i - curLength / 2, curLength / 2, (Some(hash), MerkleProof.RightSide) +: acc)
             case Left(_) => None
           }
         case Some(n: Leaf[H, D]) =>
-          Some((n, acc.reverse))
+          Some((n, acc))
         case _ =>
           None
       }
@@ -145,4 +146,17 @@ object MerkleTree {
         .toSeq
       if (nextNodes.lengthCompare(1) == 0) Some(nextNodes.head) else calcTopNode(nextNodes)
     }
+
+  def treeAsText[H, D: Digest](tree: MerkleTree[H, D])(implicit h: Hash[H, D]): String = {
+    def nodeAsText(node: Option[Node[D]]): String = node match {
+      case Some(n: InternalNode[H, D]) =>
+        s"InternalNode( hash: ${n.hash.map(h => Hex.encode(h.bytes)).getOrElse("hash error")}, \n" +
+          s"left: ${nodeAsText(Some(n.left))}, \n" +
+          s"right: ${nodeAsText(n.right)} )"
+      case Some(n: Leaf[H, D]) => s"LeafNode(${n.hash.map(h => Hex.encode(h.bytes)).getOrElse("hash error")})"
+      case None                => s"EmptyNode()"
+    }
+
+    nodeAsText(tree.topNode)
+  }
 }

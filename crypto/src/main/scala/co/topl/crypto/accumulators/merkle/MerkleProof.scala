@@ -1,6 +1,7 @@
 package co.topl.crypto.accumulators.merkle
 
 import cats.implicits._
+import co.topl.crypto.Hex
 import co.topl.crypto.accumulators.{LeafData, Side}
 import co.topl.crypto.hash.Hash
 import co.topl.crypto.hash.digest.Digest
@@ -41,17 +42,22 @@ case class MerkleProof[H, D: Digest](leafData: LeafData, levels: Seq[(Option[D],
             else h.bytes ++ prevHash.bytes
           } getOrElse prevHash.bytes
 
-        hashFunc.hash(MerkleTree.InternalNodePrefix, nodeBytes)
+        val resultHash = hashFunc.hash(MerkleTree.InternalNodePrefix, nodeBytes)
+
+        println(resultHash.map(r => Hex.encode(r.bytes)).getOrElse("fail"))
+
+        resultHash
+
       case (invalidHash, _) => invalidHash
     }
 
-    result.map(r => r === expectedRootHash).getOrElse(false)
+    val isValid = result.map(r => r === expectedRootHash).getOrElse(false)
+
+    isValid
   }
 
-  // TODO: This is temporarily disabled because we removed Base58, use Hex.scala in test here if needed
-  //  override def toString: String =
-  //    s"MerkleProof(data: ${Base58.encode(leafData)}, hash: ${Base58.encode(hashFunc.hash(leafData))}, " +
-  //    s"(${levels.map(ht => Base58.encode(ht._1) + " : " + ht._2)}))"
+  override def toString: String =
+    s"MerkleProof(${Hex.encode(leafData.value)}, levels: ${levels.map(l => (l._1.map(d => Hex.encode(d.bytes)), l._2))})"
 }
 
 object MerkleProof {
