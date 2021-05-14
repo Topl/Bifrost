@@ -14,7 +14,6 @@ import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
-import scorex.crypto.hash.Blake2b256
 
 import scala.concurrent.duration._
 
@@ -43,14 +42,11 @@ class TransactionTest
       raw"""bifrost.network.knownPeers = []
            |bifrost.rpcApi.namespaceSelector.debug = true
            |bifrost.forging.privateTestnet.genesisSeed = "$nodeGroupName"
+           |bifrost.forging.forgeOnStartup = false
            |""".stripMargin
     )
 
-  private val burnAddress = {
-    val bytes: Array[Byte] = Array(networkPrefix, PublicKeyPropositionCurve25519.typePrefix) ++ Array.fill(32)(2: Byte)
-    val checksum = Blake2b256(bytes).take(AddressEncoder.checksumLength)
-    AddressEncoder.validateAddress(bytes ++ checksum, networkPrefix).value
-  }
+  private val burnAddress = addressFromBytes(Array.fill(32)(2: Byte))
 
   private var node: BifrostDockerNode = _
   private var addresses: List[Address] = _
@@ -74,6 +70,7 @@ class TransactionTest
 
     assignForgingAddress(node, rewardsAddress)
     keyD = keyRing.generateNewKeyPairs().success.value.head
+    node.run(ToplRpc.Admin.StartForging.rpc)(ToplRpc.Admin.StartForging.Params()).value
   }
 
   "Polys can be sent from address A to addressB" in {
@@ -275,6 +272,49 @@ class TransactionTest
 
     assetBox.value.quantity shouldBe Int128(10)
     assetBox.value.assetCode shouldEqual assetCode
+  }
+
+  "Fees are sent to the proper address after a forger address update" in {
+    val newRewardsAddress =
+      node.run(ToplRpc.Admin.GenerateKeyfile.rpc)(ToplRpc.Admin.GenerateKeyfile.Params("rewards")).value.address
+
+    node
+      .run(ToplRpc.Admin.UnlockKeyfile.rpc)(ToplRpc.Admin.UnlockKeyfile.Params(newRewardsAddress.toString, "rewards"))
+      .value
+
+    sendAndAwaitPolyTransaction(
+      name = "give-poly-to-new-forger-address",
+      sender = NonEmptyChain(addressA),
+      recipients = NonEmptyChain((newRewardsAddress, 999000)),
+      changeAddress = addressA
+    )
+
+    sendAndAwaitArbitTransaction(
+      name = "give-arbit-to-new-forger-address",
+      sender = NonEmptyChain(addressA),
+      recipients = NonEmptyChain((newRewardsAddress, 999000)),
+      changeAddress = addressA,
+      consolidationAddress = addressA
+    )
+
+    assignForgingAddress(node, newRewardsAddress)
+
+    verifyBalanceChange(addressA, -15, _.Balances.Polys) {
+      verifyBalanceChange(addressB, 10, _.Balances.Polys) {
+        verifyBalanceChange(newRewardsAddress, 5, _.Balances.Polys) {
+          sendAndAwaitPolyTransaction(
+            name = "forger-address-change",
+            sender = NonEmptyChain(addressA),
+            recipients = NonEmptyChain((addressB, 10)),
+            changeAddress = addressA,
+            fee = 5
+          )
+        }
+      }
+    }
+
+    // Double-check the rewards balance
+    balancesFor(newRewardsAddress).Balances.Polys shouldBe Int128(999000 + 5)
   }
 
   private def awaitBlocks(node: BifrostDockerNode)(count: Int): Unit = {

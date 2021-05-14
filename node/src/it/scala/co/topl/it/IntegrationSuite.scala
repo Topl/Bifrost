@@ -1,7 +1,7 @@
 package co.topl.it
 
 import akka.actor.{ActorSystem, Scheduler}
-import co.topl.attestation.Address
+import co.topl.attestation.{Address, AddressEncoder, PublicKeyPropositionCurve25519}
 import co.topl.it.util.{BifrostDockerNode, DockerSupport}
 import co.topl.rpc.{ToplRpc, ToplRpcClientCodecs}
 import co.topl.utils.NetworkType.NetworkPrefix
@@ -9,6 +9,7 @@ import co.topl.utils.{Logging, NetworkType}
 import com.spotify.docker.client.DefaultDockerClient
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{BeforeAndAfterAll, EitherValues, Suite}
+import scorex.crypto.hash.Blake2b256
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -97,4 +98,10 @@ trait IntegrationSuite
 
   protected def wrapNode[T](node: BifrostDockerNode)(f: BifrostDockerNode => T): T =
     f(node)
+
+  protected def addressFromBytes(b: Array[Byte]): Address = {
+    val bytes: Array[Byte] = Array(networkPrefix, PublicKeyPropositionCurve25519.typePrefix) ++ b
+    val checksum = Blake2b256(bytes).take(AddressEncoder.checksumLength)
+    AddressEncoder.validateAddress(bytes ++ checksum, networkPrefix).value
+  }
 }
