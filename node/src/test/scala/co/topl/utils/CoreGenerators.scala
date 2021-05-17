@@ -194,9 +194,6 @@ trait CoreGenerators extends Logging {
     Seq(codeBox_1.value, codeBox_2.value)
   )
 
-  lazy val signatureGen: Gen[SignatureCurve25519] =
-    genBytesList(SignatureCurve25519.signatureSize).map(bytes => SignatureCurve25519(Signature(bytes)))
-
   lazy val programIdGen: Gen[ProgramId] = for {
     seed <- specificLengthBytesGen(ProgramId.size)
   } yield ProgramId.create(seed)
@@ -255,7 +252,7 @@ trait CoreGenerators extends Logging {
 
   lazy val sigSeqGen: Gen[IndexedSeq[SignatureCurve25519]] = for {
     seqLen <- positiveTinyIntGen
-  } yield (0 until seqLen) map { _ => sampleUntilNonEmpty(signatureGen) }
+  } yield (0 until seqLen) map { _ => sampleUntilNonEmpty(signatureCurve25519Gen) }
 
   lazy val polyTransferGen: Gen[PolyTransfer[PublicKeyPropositionCurve25519]] = for {
     from        <- fromSeqGen
@@ -332,7 +329,7 @@ trait CoreGenerators extends Logging {
 
   lazy val attestationGen: Gen[Map[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]] = for {
     prop <- propositionCurve25519Gen
-    sig  <- signatureGen
+    sig  <- signatureCurve25519Gen
   } yield Map(prop -> sig)
 
   lazy val oneOfNPropositionGen: Gen[(Set[PrivateKeyCurve25519], ThresholdPropositionCurve25519)] = for {
@@ -391,12 +388,16 @@ trait CoreGenerators extends Logging {
   lazy val propositionCurve25519Gen: Gen[PublicKeyPropositionCurve25519] = keyCurve25519Gen.map(_._2)
   lazy val evidenceCurve25519Gen: Gen[Evidence] = for {address <- addressCurve25519Gen} yield address.evidence
   lazy val addressCurve25519Gen: Gen[Address] = for {key <- propositionCurve25519Gen} yield key.address
+  lazy val signatureCurve25519Gen: Gen[SignatureCurve25519] =
+    genBytesList(SignatureCurve25519.signatureSize).map(bytes => SignatureCurve25519(Signature(bytes)))
 
   lazy val keyEd25519Gen: Gen[(PrivateKeyEd25519, PublicKeyPropositionEd25519)] =
     genBytesList(Ed25519.KeyLength).map(s => PrivateKeyEd25519.secretGenerator.generateSecret(s))
   lazy val propositionEd25519Gen: Gen[PublicKeyPropositionEd25519] = keyEd25519Gen.map(_._2)
   lazy val evidenceEd25519Gen: Gen[Evidence] = for {address <- addressEd25519Gen} yield address.evidence
   lazy val addressEd25519Gen: Gen[Address] = for {key <- propositionEd25519Gen} yield key.address
+  lazy val signatureEd25519Gen: Gen[SignatureEd25519] =
+    genBytesList(SignatureEd25519.signatureSize).map(bytes => SignatureEd25519(Signature(bytes)))
 
   lazy val versionGen: Gen[Version] = for {
     first  <- Gen.choose(0: Byte, Byte.MaxValue)
@@ -418,7 +419,7 @@ trait CoreGenerators extends Logging {
     timestamp     <- positiveLongGen
     generatorBox  <- arbitBoxGen
     publicKey     <- propositionCurve25519Gen
-    signature     <- signatureGen
+    signature     <- signatureCurve25519Gen
     txs           <- bifrostTransactionSeqGen
   } yield {
     val parentId = ModifierId.create(Base58.encode(parentIdBytes)).getOrElse(ModifierId.empty)

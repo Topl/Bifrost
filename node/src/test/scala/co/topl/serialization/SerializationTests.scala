@@ -54,7 +54,7 @@ class SerializationTests
   }
 
   property("SignatureCurve25519 serialization") {
-    forAll(signatureGen) { sig: SignatureCurve25519 =>
+    forAll(signatureCurve25519Gen) { sig: SignatureCurve25519 =>
       val parsed = SignatureCurve25519Serializer
         .parseBytes(SignatureCurve25519Serializer.toBytes(sig))
         .get

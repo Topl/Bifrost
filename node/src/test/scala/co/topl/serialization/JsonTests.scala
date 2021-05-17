@@ -24,7 +24,7 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckPropertyChecks 
   }
 
   property("SignatureCurve25519 json") {
-    forAll(signatureGen) { sig =>
+    forAll(signatureCurve25519Gen) { sig =>
       sig.asJson.as[SignatureCurve25519] shouldEqual Right(sig)
     }
   }
