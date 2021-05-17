@@ -1,4 +1,4 @@
-package co.topl.http.api
+package co.topl.settings
 
 /** A case class used in AppSettings to note the state of the differnet API endpoints */
 case class NamespaceSelector(
