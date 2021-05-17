@@ -1,6 +1,6 @@
 package co.topl.modifier.box
 
-import co.topl.attestation.Address
+import co.topl.attestation.{Address, AddressSerializer}
 import co.topl.modifier.box.AssetCode.AssetCodeVersion
 import co.topl.utils.Extensions.StringOps
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
@@ -60,13 +60,13 @@ object AssetCode extends BifrostSerializer[AssetCode] {
     val paddedShortName = obj.shortName.getBytes(StandardCharsets.ISO_8859_1).padTo(shortNameLimit, 0: Byte)
 
     w.put(obj.version)
-    Address.serialize(obj.issuer, w)
+    AddressSerializer.serialize(obj.issuer, w)
     w.putBytes(paddedShortName)
   }
 
   override def parse(r: Reader): AssetCode = {
     val version = r.getByte()
-    val issuer = Address.parse(r)
+    val issuer = AddressSerializer.parse(r)
     val shortNameBytes = r.getBytes(shortNameLimit).filter(_ != 0)
     val shortName = new String(shortNameBytes, StandardCharsets.ISO_8859_1)
 

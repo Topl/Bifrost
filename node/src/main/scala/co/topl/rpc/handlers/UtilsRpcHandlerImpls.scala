@@ -3,12 +3,12 @@ package co.topl.rpc.handlers
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{InvalidParametersError, RpcError, ThrowableData}
-import co.topl.attestation.AddressEncoder
+import co.topl.attestation.AddressCodec.implicits.StringOps
 import co.topl.modifier.box.AssetCode
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
 import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
-import io.circe.{DecodingFailure, Encoder}
+import io.circe.Encoder
 import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
@@ -52,9 +52,10 @@ class UtilsRpcHandlerImpls(implicit
         .fold(NetworkType.pickNetworkType(networkPrefix))(NetworkType.pickNetworkType)
         .toRight(ToplRpcErrors.InvalidNetworkSpecified)
         .flatMap(nt =>
-          AddressEncoder
-            .fromStringWithCheck(params.address, nt.netPrefix)
-            .leftMap(e => InvalidParametersError(DecodingFailure(e.toString, Nil)): RpcError)
+          params.address
+            .decodeAddress(nt.netPrefix)
+            .toEither
+            .leftMap(e => InvalidParametersError.adhoc(e.head.toString, "address"): RpcError)
             .map(address => ToplRpc.Util.CheckValidAddress.Response(address, nt.verboseName))
         )
         .toEitherT[Future]
