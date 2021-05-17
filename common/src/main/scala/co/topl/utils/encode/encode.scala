@@ -1,5 +1,6 @@
 package co.topl.utils
 
+import co.topl.utils.StringTypes.StringValidationFailure
 import simulacrum.typeclass
 
 import scala.language.implicitConversions
@@ -8,17 +9,17 @@ package object encode {
 
   @typeclass
   trait Encoding[T] {
-    def encode[Message: AsBytes](input: Message): Either[EncodingError, T]
+    def encode[Message](input: Message)(implicit encoder: AsBytes[EncodingFailure]): Either[EncodingFailure, T]
 
-    def decode(input: T): Either[DecodingError, Array[Byte]]
+    def decode(input: T): Either[DecodingFailure, Array[Byte]]
   }
 
-  sealed trait EncodingError
-  case class StringValidationError(value: StringTypes.StringValidationError) extends EncodingError
+  sealed trait EncodingFailure
+  case class InvalidString(value: StringValidationFailure) extends EncodingFailure
 
-  sealed trait DecodingError
-  case class InvalidCharactersError() extends DecodingError
-  case class InvalidDataLengthError() extends DecodingError
+  sealed trait DecodingFailure
+  case class InvalidCharacters() extends DecodingFailure
+  case class InvalidDataLength() extends DecodingFailure
 
   object implicits extends Encoding.ToEncodingOps with Base16EncodingInstance with Base58EncodingInstance
 }

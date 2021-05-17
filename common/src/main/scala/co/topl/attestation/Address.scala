@@ -1,13 +1,15 @@
 package co.topl.attestation
 
+import cats.implicits._
+import co.topl.attestation.AddressCodec.implicits._
 import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringTypes.Base58String
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
+import io.circe._
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import co.topl.utils.StringTypes.implicits._
 
 /**
  * An address is a network specific commitment to a proposition encumbering a box. Addresses incorporate the evidence type
@@ -23,9 +25,9 @@ case class Address(evidence: Evidence)(implicit val networkPrefix: NetworkPrefix
 
   type M = Address
 
-  override def toString: String = AddressEncoder.toString(this)
+  override def toString: String = this.base58Encoded
 
-  override def serializer: BifrostSerializer[Address] = Address
+  override def serializer: BifrostSerializer[Address] = AddressSerializer
 
   override def equals(obj: Any): Boolean = obj match {
     case addr: Address => bytes sameElements addr.bytes
@@ -35,7 +37,7 @@ case class Address(evidence: Evidence)(implicit val networkPrefix: NetworkPrefix
   override def hashCode(): Int = Ints.fromByteArray(bytes)
 }
 
-object Address extends BifrostSerializer[Address] {
+object Address {
   // the byte length of an address (network prefix + Evidence type + evidence content)
   val addressSize: Int = 1 + Evidence.size
 
@@ -43,16 +45,10 @@ object Address extends BifrostSerializer[Address] {
   implicit val jsonKeyEncoder: KeyEncoder[Address] = (addr: Address) => addr.toString
 
   implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[Address] =
-    Decoder[Base58String].map(apply(networkPrefix))
+    _.as[String].flatMap(_.decodeAddress.toEither.leftMap(errors => DecodingFailure(errors.head.toString, Nil)))
 
   implicit def jsonKeyDecoder(implicit networkPrefix: NetworkPrefix): KeyDecoder[Address] =
-    KeyDecoder[Base58String].map(apply(networkPrefix))
-
-  def apply(networkPrefix: NetworkPrefix)(addrStr: Base58String): Address =
-    AddressEncoder.fromStringWithCheck(addrStr, networkPrefix) match {
-      case Right(value) => value
-      case Left(value)  => throw new Exception(value.toString)
-    }
+    _.decodeAddress.toOption
 
   /**
    * Generates an Address from a proppsition. This method enables propositions to have an accessor method
@@ -60,6 +56,9 @@ object Address extends BifrostSerializer[Address] {
    */
   def from[P <: Proposition: EvidenceProducer](proposition: P)(implicit networkPrefix: NetworkPrefix): Address =
     Address(proposition.generateEvidence)
+}
+
+object AddressSerializer extends BifrostSerializer[Address] {
 
   def serialize(obj: Address, w: Writer): Unit = {
     /* networkType: Byte */

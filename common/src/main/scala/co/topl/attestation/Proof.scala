@@ -3,15 +3,17 @@ package co.topl.attestation
 import cats.implicits._
 import co.topl.attestation.serialization.ProofSerializer
 import co.topl.crypto.signatures.{Curve25519, PublicKey, Signature}
-import co.topl.keyManagement.{PrivateKeyCurve25519, Secret}
+import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, Secret}
 import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.StringTypes.implicits._
-import co.topl.utils.StringTypes.{Base58String, InvalidCharacterSet, StringValidationError}
-import co.topl.utils.encode.{Base58, DecodingError, InvalidCharactersError, InvalidDataLengthError}
+import co.topl.utils.StringTypes.{Base58String, InvalidCharacterSet, StringValidationFailure}
+import co.topl.utils.encode.{Base58, DecodingFailure, InvalidCharacters, InvalidDataLength}
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
+import co.topl.utils.FromBytes.implicits._
+import co.topl.utils.codecs.CryptoCodec.implicits._
 
 import scala.util.Try
 
@@ -49,8 +51,8 @@ object Proof {
     } yield result
 
   sealed abstract class ProofFromStringError
-  case class Base58ValidationError(error: StringValidationError) extends ProofFromStringError
-  case class Base58DecodingError(error: DecodingError) extends ProofFromStringError
+  case class Base58ValidationError(error: StringValidationFailure) extends ProofFromStringError
+  case class Base58DecodingError(error: DecodingFailure) extends ProofFromStringError
   case class ProofParseFailure(error: Throwable) extends ProofFromStringError
 
   implicit def jsonEncoder[PR <: Proof[_]]: Encoder[PR] = (proof: PR) => proof.toString.asJson
@@ -68,12 +70,12 @@ sealed trait ProofOfKnowledge[S <: Secret, P <: KnowledgeProposition[S]] extends
  * A proof corresponding to a PublicKeyCurve25519 proposition. This is a zero-knowledge proof that argues knowledge of
  * the underlying private key associated with a public key
  *
- * @param sig 25519 signature
+ * @param sigBytes 25519 signature
  */
-case class SignatureCurve25519(private[attestation] val sig: Signature)
+case class SignatureCurve25519(private[attestation] val sigBytes: Signature)
     extends ProofOfKnowledge[PrivateKeyCurve25519, PublicKeyPropositionCurve25519] {
 
-  private val signatureLength = sig.asBytes.length
+  private val signatureLength = sigBytes.infalliblyEncodeAsBytes.length
 
   require(
     signatureLength == 0 || signatureLength == Curve25519.SignatureLength,
@@ -81,7 +83,7 @@ case class SignatureCurve25519(private[attestation] val sig: Signature)
   )
 
   def isValid(proposition: PublicKeyPropositionCurve25519, message: Array[Byte]): Boolean =
-    Curve25519.verify(sig, message, PublicKey(proposition.pubKeyBytes.value))
+    Curve25519.verify(sigBytes, message, proposition.pubKeyBytes.infalliblyDecodeTo[PublicKey])
 }
 
 object SignatureCurve25519 {
@@ -99,10 +101,10 @@ object SignatureCurve25519 {
       case Right(sig: SignatureCurve25519) => sig
       case Right(_)                        => throw new Exception("Parsed to incorrect signature type")
       case Left(Proof.Base58ValidationError(InvalidCharacterSet())) | Left(
-            Proof.Base58DecodingError(InvalidCharactersError())
+            Proof.Base58DecodingError(InvalidCharacters())
           ) =>
         throw new Exception("Invalid character in signature proof.")
-      case Left(Proof.Base58DecodingError(InvalidDataLengthError())) =>
+      case Left(Proof.Base58DecodingError(InvalidDataLength())) =>
         throw new Exception("Invalid length of signature proof.")
       case Left(Proof.ProofParseFailure(error)) => throw new Exception(s"Error while parsing proof: $error")
       case Left(error)                          => throw new Exception(s"Invalid signature: $error")
@@ -122,7 +124,7 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
     extends ProofOfKnowledge[PrivateKeyCurve25519, ThresholdPropositionCurve25519] {
 
   signatures.foreach { sig =>
-    require(sig.sig.asBytes.length == SignatureCurve25519.signatureSize)
+    require(sig.sigBytes.value.length == SignatureCurve25519.signatureSize)
   }
 
   override def isValid(proposition: ThresholdPropositionCurve25519, message: Array[Byte]): Boolean = Try {
@@ -136,7 +138,7 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
       if (acc < proposition.threshold) {
         if (
           proposition.pubKeyProps
-            .exists(prop => Curve25519.verify(sig.sig, message, PublicKey(prop.pubKeyBytes.asBytes)))
+            .exists(prop => Curve25519.verify(sig.sigBytes, message, prop.pubKeyBytes))
         ) {
           1
         } else {

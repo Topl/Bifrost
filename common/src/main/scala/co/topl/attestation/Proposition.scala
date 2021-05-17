@@ -4,18 +4,20 @@ import cats.implicits.toBifunctorOps
 import co.topl.attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
 import co.topl.attestation.Proposition.{Base58DecodingFailure, BytesParsingError, InvalidBase58Failure}
 import co.topl.attestation.serialization.PropositionSerializer
-import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.implicits._
 import co.topl.crypto.signatures.{Curve25519, PublicKey}
-import co.topl.keyManagement.{PrivateKeyCurve25519, Secret}
+import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, Secret}
 import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.StringTypes.{Base58String, StringValidationError}
-import co.topl.utils.encode.{Base58, DecodingError}
+import co.topl.utils.StringTypes.{Base58String, StringValidationFailure}
+import co.topl.utils.encode.{Base58, DecodingFailure}
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import co.topl.utils.{Identifiable, Identifier}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 
 import scala.collection.SortedSet
 
@@ -55,8 +57,8 @@ object Proposition {
   implicit val jsonKeyDecoder: KeyDecoder[Proposition] = (str: String) => fromString(str).toOption
 
   sealed trait PropositionFromStringFailure
-  final case class InvalidBase58Failure(error: StringValidationError) extends PropositionFromStringFailure
-  final case class Base58DecodingFailure(error: DecodingError) extends PropositionFromStringFailure
+  final case class InvalidBase58Failure(error: StringValidationFailure) extends PropositionFromStringFailure
+  final case class Base58DecodingFailure(error: DecodingFailure) extends PropositionFromStringFailure
   final case class BytesParsingError(error: Throwable) extends PropositionFromStringFailure
 }
 
@@ -97,7 +99,7 @@ object PublicKeyPropositionCurve25519 {
 
   implicit val evProducer: EvidenceProducer[PublicKeyPropositionCurve25519] =
     EvidenceProducer.instance[PublicKeyPropositionCurve25519] { prop: PublicKeyPropositionCurve25519 =>
-      Evidence(typePrefix, EvidenceContent(blake2b256(prop.bytes.tail).asBytes))
+      Evidence(typePrefix, Blake2b256.hash(prop.bytes.tail).map(EvidenceContent(_)).getOrThrow())
     }
 
   implicit val identifier: Identifiable[PublicKeyPropositionCurve25519] = Identifiable.instance { () =>
@@ -151,7 +153,7 @@ object ThresholdPropositionCurve25519 {
 
   implicit val evProducer: EvidenceProducer[ThresholdPropositionCurve25519] =
     EvidenceProducer.instance[ThresholdPropositionCurve25519] { prop: ThresholdPropositionCurve25519 =>
-      Evidence(typePrefix, EvidenceContent(blake2b256(prop.bytes.tail).asBytes))
+      Evidence(typePrefix, Blake2b256.hash(prop.bytes.tail).map(EvidenceContent(_)).getOrThrow())
     }
 
   implicit val identifier: Identifiable[ThresholdPropositionCurve25519] = Identifiable.instance { () =>

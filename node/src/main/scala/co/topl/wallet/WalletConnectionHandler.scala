@@ -3,13 +3,14 @@ package co.topl.wallet
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.pipe
 import akka.util.Timeout
-import co.topl.attestation.{Address, AddressEncoder}
-import co.topl.http.api.endpoints.{NodeViewApiEndpoint, TransactionApiEndpoint}
+import co.topl.attestation.Address
+import co.topl.attestation.AddressCodec.implicits.StringOps
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.block.{Block, BloomFilter, PersistentNodeViewModifier}
 import co.topl.modifier.transaction._
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.SemanticallySuccessfulModifier
 import co.topl.settings.{AppContext, AppSettings, RPCApiSettings}
+import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Json
@@ -45,8 +46,9 @@ class WalletConnectionHandler[
     context.system.eventStream.subscribe(self, classOf[SemanticallySuccessfulModifier[PMOD]])
 
   private val apiServiceHandlers =
-    NodeViewApiEndpoint(settings, appContext, nodeViewHolderRef).handlers orElse
-    TransactionApiEndpoint(settings, appContext, nodeViewHolderRef).handlers
+    PartialFunction.empty[(String, Vector[Json], String), Future[Json]]
+//    NodeViewApiEndpoint(settings, appContext, nodeViewHolderRef).handlers orElse
+//      TransactionApiEndpoint(settings, appContext, nodeViewHolderRef).handlers
 
   ////////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
@@ -117,11 +119,12 @@ class WalletConnectionHandler[
 
     if (msg.contains("New key:")) {
       val addr: String = msg.substring("New key: ".length)
+      val decodedAddress = addr.decodeAddress.getOrThrow()
       remoteWalletAddresses match {
         case Some(addresses) =>
-          val newAddresses: Set[Address] = addresses + Address(networkPrefix)(addr)
+          val newAddresses: Set[Address] = addresses + decodedAddress
           remoteWalletAddresses = Some(newAddresses)
-        case None => remoteWalletAddresses = Some(Set(Address(networkPrefix)(addr)))
+        case None => remoteWalletAddresses = Some(Set(decodedAddress))
       }
     }
   }
@@ -196,12 +199,7 @@ class WalletConnectionHandler[
       val keystrings = keysArr.map(key => key.trim).toSet
 
       Some(
-        keystrings.map(key =>
-          AddressEncoder.fromStringWithCheck(key, networkPrefix) match {
-            case Right(addr) => addr
-            case Left(ex)    => throw new Error(s"The key: $key cannot be converted into an address: $ex")
-          }
-        )
+        keystrings.map(_.decodeAddress.getOrThrow())
       )
     }
 

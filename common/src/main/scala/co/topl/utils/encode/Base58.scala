@@ -18,7 +18,7 @@ object Base58 extends Encoding[Base58String] {
 
   private val Base = BigInt(58)
 
-  override def encode[Message: AsBytes](input: Message): Either[EncodingError, Base58String] = {
+  override def encode[Message: AsBytes](input: Message): Either[EncodingFailure, Base58String] = {
     val inputBytes = input.asBytes
 
     var bi = BigInt(1, inputBytes)
@@ -39,10 +39,10 @@ object Base58 extends Encoding[Base58String] {
       }
       .toString()
 
-    Base58String.validated(encodedResult).leftMap(StringValidationError)
+    Base58String.validated(encodedResult).leftMap(InvalidString)
   }
 
-  override def decode(input: Base58String): Either[DecodingError, Array[Byte]] =
+  override def decode(input: Base58String): Either[DecodingFailure, Array[Byte]] =
     decodeToBigInteger(input).map { decodedToBigInt =>
       val bytes =
         if (decodedToBigInt == BigInt(0)) Array.emptyByteArray
@@ -67,11 +67,11 @@ object Base58 extends Encoding[Base58String] {
 
   def isValidBase58(s: UTF8String): Boolean = !s.value.toCharArray.map(toBase58).contains(-1)
 
-  private def decodeToBigInteger(input: Base58String): Either[InvalidCharactersError, BigInt] =
+  private def decodeToBigInteger(input: Base58String): Either[InvalidCharacters, BigInt] =
     // Work backwards through the string.
     input.value.value
-      .foldRight[Either[InvalidCharactersError, (BigInt, BigInt)]](Right(BigInt(0) -> BigInt(1))) {
-        case (ch, Right(_)) if toBase58(ch) == -1 => Left(InvalidCharactersError())
+      .foldRight[Either[InvalidCharacters, (BigInt, BigInt)]](Right(BigInt(0) -> BigInt(1))) {
+        case (ch, Right(_)) if toBase58(ch) == -1 => Left(InvalidCharacters())
         case (ch, Right((bi, k)))                 => Right(bi + BigInt(toBase58(ch)) * k -> k * Base)
         case (_, other)                           => other
       }
@@ -83,6 +83,4 @@ object Base58 extends Encoding[Base58String] {
   }
 }
 
-trait Base58EncodingInstance {
-  implicit val base58Encoding: Encoding[Base58String] = Base58
-}
+case class Base58DecodingError()

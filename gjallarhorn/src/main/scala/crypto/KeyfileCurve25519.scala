@@ -1,12 +1,14 @@
 package crypto
 
 import attestation.{Address, PrivateKeyCurve25519}
-import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.implicits._
 import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
 import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.SecureRandom.randomBytes
 import co.topl.utils.encode.Base58
+import co.topl.utils.codecs.CryptoCodec.implicits._
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
@@ -139,7 +141,7 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
    * @return
    */
   private def getMAC(derivedKey: Array[Byte], cipherText: Array[Byte]): Array[Byte] =
-    blake2b256(derivedKey.slice(16, 32) ++ cipherText)
+    Blake2b256.hash(derivedKey.slice(16, 32) ++ cipherText).getOrThrow().infalliblyEncodeAsBytes
 
   /**
    * Generates cipherText and MAC from AES (block cipher)

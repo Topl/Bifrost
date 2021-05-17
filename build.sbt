@@ -17,7 +17,8 @@ inThisBuild(
     dynver := {
       val d = new java.util.Date
       sbtdynver.DynVer.getGitDescribeOutput(d).mkVersion(versionFmt, fallbackVersion(d))
-    }
+    },
+    parallelExecution := false
   )
 )
 
@@ -95,11 +96,35 @@ lazy val assemblySettings = Seq(
   }
 )
 
-val akkaVersion = "2.6.13"
+lazy val scalamacrosParadiseSettings =
+  Seq(
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, v)) if v <= 12 =>
+          Seq(
+            compilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
+          )
+        case _ =>
+          Nil
+      }
+    },
+    scalacOptions ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, v)) if v >= 13 =>
+          Seq(
+            "-Ymacro-annotations"
+          )
+        case _ =>
+          Nil
+      }
+    }
+  )
+
+val akkaVersion = "2.6.14"
 val akkaHttpVersion = "10.2.4"
 val circeVersion = "0.13.0"
-val kamonVersion = "2.1.13"
-val graalVersion = "21.0.0.2"
+val kamonVersion = "2.1.17"
+val graalVersion = "21.1.0"
 
 val akkaDependencies = Seq(
   "com.typesafe.akka" %% "akka-actor"          % akkaVersion,
@@ -138,13 +163,14 @@ val loggingDependencies = Seq(
 )
 
 val testingDependenciesTest = Seq(
-  "org.scalatest"      %% "scalatest"         % "3.2.6"   % "test",
-  "org.scalactic"      %% "scalactic"         % "3.2.6"   % "test",
-  "org.scalacheck"     %% "scalacheck"        % "1.15.3"  % "test",
+  "org.scalatest"      %% "scalatest"         % "3.2.8"   % "test",
+  "org.scalactic"      %% "scalactic"         % "3.2.8"   % "test",
+  "org.scalacheck"     %% "scalacheck"        % "1.15.4"  % "test",
   "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
   "com.spotify"         % "docker-client"     % "8.16.0"  % "test",
   "org.asynchttpclient" % "async-http-client" % "2.12.3"  % "test",
-  "org.scalamock"      %% "scalamock"         % "5.1.0"   % "test"
+  "org.scalamock"      %% "scalamock"         % "5.1.0"   % "test",
+  "com.ironcorelabs"   %% "cats-scalatest"    % "3.0.5"   % "test"
 )
 
 val testingDependenciesIt = Seq(
@@ -160,20 +186,16 @@ val cryptoDependencies = Seq(
 )
 
 val miscDependencies = Seq(
-  "org.scorexfoundation"  %% "iodb"        % "0.3.2",
-  "com.chuusai"           %% "shapeless"   % "2.3.3",
-  "com.iheart"            %% "ficus"       % "1.5.0",
-  "org.rudogma"           %% "supertagged" % "1.5",
-  "io.estatico"           %% "newtype"     % "0.4.4",
-  "com.joefkelley"        %% "argyle"      % "1.0.0",
-  "org.scalanlp"          %% "breeze"      % "1.1",
-  "io.netty"               % "netty"       % "3.10.6.Final",
-  "com.google.guava"       % "guava"       % "30.1.1-jre",
-  "com.typesafe"           % "config"      % "1.4.1",
-  "com.github.pureconfig" %% "pureconfig"  % "0.14.1",
-  "org.typelevel"         %% "cats-core"   % "2.3.0",
-  "org.typelevel"         %% "simulacrum"  % "1.0.0",
-  compilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
+  "org.scorexfoundation"  %% "iodb"       % "0.3.2",
+  "com.chuusai"           %% "shapeless"  % "2.3.5",
+  "com.iheart"            %% "ficus"      % "1.5.0",
+  "com.lihaoyi"           %% "mainargs"   % "0.2.1",
+  "org.scalanlp"          %% "breeze"     % "1.1",
+  "io.netty"               % "netty"      % "3.10.6.Final",
+  "com.google.guava"       % "guava"      % "30.1.1-jre",
+  "com.typesafe"           % "config"     % "1.4.1",
+  "com.github.pureconfig" %% "pureconfig" % "0.15.0",
+  "io.estatico"           %% "newtype"    % "0.4.4"
 )
 
 val monitoringDependencies = Seq(
@@ -190,6 +212,14 @@ val graalDependencies = Seq(
   "org.graalvm.sdk"     % "graal-sdk"   % graalVersion,
   "org.graalvm.js"      % "js"          % graalVersion,
   "org.graalvm.truffle" % "truffle-api" % graalVersion
+)
+
+val simulacrum = Seq(
+  "org.typelevel" %% "simulacrum" % "1.0.0"
+)
+
+val cats = Seq(
+  "org.typelevel" %% "cats-core" % "2.3.0",
 )
 
 libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ loggingDependencies
@@ -256,8 +286,7 @@ lazy val bifrost = project
     node,
     common,
     gjallarhorn,
-    benchmarking,
-    crypto
+    benchmarking
   )
 
 lazy val node = project
@@ -271,7 +300,7 @@ lazy val node = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
     Docker / packageName := "bifrost-node",
-    dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java8-21.0.0",
+    dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java11-21.1.0",
     dockerExposedPorts := Seq(9084, 9085),
     dockerExposedVolumes += "/opt/docker/.bifrost",
     dockerLabels ++= Map(
@@ -284,8 +313,8 @@ lazy val node = project
   .settings(
     IntegrationTest / parallelExecution := false
   )
+  .dependsOn(common, toplRpc)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
-  .dependsOn(common)
 
 lazy val common = project
   .in(file("common"))
@@ -293,9 +322,11 @@ lazy val common = project
     name := "common",
     commonSettings,
     publishSettings,
-    libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ jsonDependencies ++ cryptoDependencies ++ miscDependencies
+    libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ jsonDependencies ++
+    cryptoDependencies ++ simulacrum
   )
   .dependsOn(crypto)
+  .settings(scalamacrosParadiseSettings)
 
 lazy val chainProgram = project
   .in(file("chain-program"))
@@ -315,11 +346,11 @@ lazy val brambl = project
     name := "brambl",
     commonSettings,
     publishSettings,
-    libraryDependencies ++= akkaDependencies ++ akkaCirceDependencies ++ testingDependenciesTest,
+    libraryDependencies ++= jsonDependencies ++ akkaDependencies ++ akkaCirceDependencies ++ testingDependenciesTest,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.brambl"
   )
-  .dependsOn(akkaHttpRpc, toplRpc, common)
+  .dependsOn(toplRpc, common)
 
 lazy val akkaHttpRpc = project
   .in(file("akka-http-rpc"))
@@ -356,9 +387,10 @@ lazy val gjallarhorn = project
     libraryDependencies ++= akkaDependencies ++ testingDependenciesTest ++ cryptoDependencies ++ jsonDependencies
     ++ loggingDependencies ++ miscDependencies ++ testingDependenciesIt
   )
+  .dependsOn(crypto, common)
   .configs(IntegrationTest)
   .disablePlugins(sbtassembly.AssemblyPlugin)
-  .dependsOn(crypto, common)
+  .settings(scalamacrosParadiseSettings)
 
 lazy val benchmarking = project
   .in(file("benchmark"))
@@ -373,13 +405,17 @@ lazy val benchmarking = project
 
 lazy val crypto = project
   .in(file("crypto"))
+  .enablePlugins(BuildInfoPlugin)
   .settings(
     name := "crypto",
     commonSettings,
     publishSettings,
-    libraryDependencies ++= testingDependenciesTest ++ cryptoDependencies ++ miscDependencies,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "co.topl.buildinfo.crypto"
+    buildInfoPackage := "co.topl.buildinfo.crypto",
+    libraryDependencies ++= loggingDependencies ++ cryptoDependencies ++ simulacrum ++ testingDependenciesTest
+      ++ miscDependencies ++ cats
   )
+  .settings(scalamacrosParadiseSettings)
 
 addCommandAlias("checkPR", "; scalafixAll --check; scalafmtCheckAll; test")
+addCommandAlias("preparePR", "; scalafixAll; scalafmtAll; test")

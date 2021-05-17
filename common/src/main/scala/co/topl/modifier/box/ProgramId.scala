@@ -1,7 +1,7 @@
 package co.topl.modifier.box
 
-import cats.implicits._
-import co.topl.crypto.hash.{blake2b256, Digest32}
+import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.digest.Digest32
 import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.StringTypes.Base58String
 import co.topl.utils.StringTypes.implicits._
@@ -10,6 +10,7 @@ import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 
 case class ProgramId(private val hashBytes: Array[Byte]) extends BytesSerializable {
 
@@ -40,7 +41,7 @@ object ProgramId extends BifrostSerializer[ProgramId] {
     }
 
   def create(seed: Array[Byte]): ProgramId =
-    new ProgramId(blake2b256(seed).asBytes)
+    new ProgramId(Blake2b256.hash(seed).getOrThrow().value)
 
   override def serialize(obj: ProgramId, w: Writer): Unit =
     w.putBytes(obj.hashBytes)

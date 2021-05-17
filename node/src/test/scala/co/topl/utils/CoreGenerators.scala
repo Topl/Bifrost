@@ -2,9 +2,15 @@ package co.topl.utils
 
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
-import co.topl.crypto.hash.Digest32
+import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.signatures.{Curve25519, Signature}
-import co.topl.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519, Secret}
+import co.topl.attestation.keyManagement.{
+  KeyRing,
+  KeyfileCurve25519,
+  KeyfileCurve25519Companion,
+  PrivateKeyCurve25519,
+  Secret
+}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
@@ -19,12 +25,13 @@ import co.topl.utils.encode.Base58
 import io.circe.Json
 import io.circe.syntax._
 import io.iohk.iodb.LSMStore
+import org.scalacheck.rng.Seed
 import org.scalacheck.{Arbitrary, Gen}
 
 import java.io.File
 import java.time.Instant
 import scala.collection.SortedSet
-import scala.util.Try
+import scala.util.{Random, Try}
 
 /**
  * Created by cykoz on 4/12/17.
@@ -35,23 +42,17 @@ trait CoreGenerators extends Logging {
   type S = Secret
 
   implicit val networkPrefix: NetworkPrefix = PrivateTestnet.netPrefix
-  implicit val keyfileCurve25519Companion: KeyfileCurve25519.type = KeyfileCurve25519
+  implicit val keyfileCurve25519Companion: KeyfileCurve25519Companion.type = KeyfileCurve25519Companion
 
   private val settingsFilename = "node/src/test/resources/test.conf"
-  val settings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))._1
+  val settings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename)))._1
 
   private val keyFileDir =
     settings.application.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
   private val keyRing = KeyRing.empty[PrivateKeyCurve25519, KeyfileCurve25519](Some(keyFileDir))
 
-  def sampleUntilNonEmpty[T](generator: Gen[T]): T = {
-    var sampled = generator.sample
-
-    while (sampled.isEmpty)
-      sampled = generator.sample
-
-    sampled.get
-  }
+  def sampleUntilNonEmpty[T](generator: Gen[T]): T =
+    generator.pureApply(Gen.Parameters.default, Seed.random())
 
   lazy val stringGen: Gen[String] = Gen.alphaNumStr.suchThat(_.nonEmpty)
 
@@ -166,7 +167,7 @@ trait CoreGenerators extends Logging {
   } yield {
 
     val interface: Map[String, Seq[String]] = methods.map {
-      _ -> Gen.containerOfN[Seq, String](paramLen, Gen.oneOf(jsonTypes)).sample.get
+      _ -> sampleUntilNonEmpty(Gen.containerOfN[Seq, String](paramLen, Gen.oneOf(jsonTypes)))
     }.toMap
 
     CodeBox(evidence, nonce, programId, methods, interface)
@@ -318,10 +319,10 @@ trait CoreGenerators extends Logging {
     propType <- propTypes
   } yield propType match {
     case PublicKeyPropositionCurve25519.typeString =>
-      val key = publicKeyPropositionCurve25519Gen.sample.get
+      val key = sampleUntilNonEmpty(publicKeyPropositionCurve25519Gen)
       Set(key._1) -> key._2
     case ThresholdPropositionCurve25519.typeString =>
-      thresholdPropositionCurve25519Gen.sample.get
+      sampleUntilNonEmpty(thresholdPropositionCurve25519Gen)
   }
 
   lazy val attestationGen: Gen[Map[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]] = for {
@@ -356,13 +357,7 @@ trait CoreGenerators extends Logging {
   lazy val bifrostTransactionSeqGen: Gen[Seq[Transaction.TX]] = for {
     seqLen <- positiveMediumIntGen
   } yield 0 until seqLen map { _ =>
-    val g = sampleUntilNonEmpty(Gen.oneOf(transactionTypes))
-
-    var sampled = g.sample
-
-    while (sampled.isEmpty) sampled = g.sample
-
-    sampled.get
+    sampleUntilNonEmpty(sampleUntilNonEmpty(Gen.oneOf(transactionTypes)))
   }
 
   lazy val intSeqGen: Gen[Seq[Int]] = for {
@@ -409,7 +404,7 @@ trait CoreGenerators extends Logging {
     signature     <- signatureGen
     txs           <- bifrostTransactionSeqGen
   } yield {
-    val parentId = ModifierId(Base58.encode(parentIdBytes))
+    val parentId = ModifierId.create(Base58.encode(parentIdBytes)).getOrElse(ModifierId.empty)
     val height: Long = 1L
     val difficulty = settings.forging.privateTestnet.map(_.initialDifficulty).get
     val version: PNVMVersion = settings.application.version.firstDigit
@@ -440,8 +435,8 @@ trait CoreGenerators extends Logging {
       .get
   }
 
-  def generateHistory(genesisBlock: Block = genesisBlockGen.sample.get): History = {
-    val dataDir = s"/tmp/bifrost/test-data/test-${scala.util.Random.nextInt(10000000)}"
+  def generateHistory(genesisBlock: Block = sampleUntilNonEmpty(genesisBlockGen)): History = {
+    val dataDir = s"/tmp/bifrost/test-data/test-${Random.nextInt(10000000)}"
 
     val iFile = new File(s"$dataDir/blocks")
     iFile.mkdirs()

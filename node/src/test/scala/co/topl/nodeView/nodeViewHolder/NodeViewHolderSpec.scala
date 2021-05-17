@@ -10,7 +10,8 @@ import co.topl.utils.CoreGenerators
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatest.{BeforeAndAfterAll, PrivateMethodTester}
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext}
 
 class NodeViewHolderSpec
     extends AnyPropSpec
@@ -24,7 +25,7 @@ class NodeViewHolderSpec
   implicit private val actorSystem: ActorSystem = ActorSystem("NodeviewHolderSpec")
   implicit private val executionContext: ExecutionContext = actorSystem.dispatcher
 
-  private val appContext = new AppContext(settings, StartupOpts.empty, None)
+  private val appContext = new AppContext(settings, StartupOpts(), None)
   private val nvhTestRef = TestActorRef(new NodeViewHolder(settings, appContext), "nvhTest")
   private val nodeView = nvhTestRef.underlyingActor
   private val state = createState()
@@ -44,5 +45,5 @@ class NodeViewHolderSpec
   }
 
   override protected def afterAll(): Unit =
-    actorSystem.terminate()
+    Await.result(actorSystem.terminate(), 10.seconds)
 }

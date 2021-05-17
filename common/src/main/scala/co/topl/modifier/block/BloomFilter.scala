@@ -1,14 +1,12 @@
 package co.topl.modifier.block
 
-import cats.implicits._
-import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.hash.Blake2b256
 import co.topl.modifier.block.BloomFilter.BloomTopic
-import co.topl.utils.AsBytes
 import co.topl.utils.AsBytes.implicits._
-import co.topl.utils.StringTypes.Base58String
-import co.topl.utils.StringTypes.implicits._
-import co.topl.utils.encode.{Base58, DecodingError}
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
+import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
+import co.topl.utils.{AsBytes, FromBytes, Infallible}
 import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
@@ -138,7 +136,7 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
   private def calculateIndices(topic: BloomTopic): Set[Int] =
     // Pair up bytes and convert signed Byte to unsigned Int
     Set(0, 2, 4, 6)
-      .map(i => blake2b256(topic.asBytes).asBytes.slice(i, i + 2).map(_ & 0xff))
+      .map(i => Blake2b256.hash(topic.value).getOrThrow().value.slice(i, i + 2).map(_ & 0xff))
       .map { case Array(b1, b2) =>
         ((b1 << 8) | b2) & idxMask
       }
@@ -179,12 +177,6 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
   implicit val jsonEncoder: Encoder[BloomFilter] = (bf: BloomFilter) => bf.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[BloomFilter] = (bf: BloomFilter) => bf.toString
 
-  implicit val jsonDecoder: Decoder[BloomFilter] =
-    Decoder[Base58String].emap(fromString(_).leftMap(_ => "Failed to decode value to Base 58"))
-
-  implicit val jsonKeyDecoder: KeyDecoder[BloomFilter] =
-    KeyDecoder[Base58String].map(fromString(_).getOrElse(throw new Exception("Failed to decode value to Base 58")))
-
   implicit val bloomTopicAsBytes: AsBytes[BloomTopic] = value => value.value
 
   override def serialize(obj: BloomFilter, w: Writer): Unit =
@@ -194,4 +186,11 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
     val value: Array[Long] = (for (_ <- 0 until numLongs) yield r.getLong()).toArray
     new BloomFilter(value)
   }
+
+  trait Instances {
+    implicit val bloomTopicDecoder: AsBytes[Infallible, BloomTopic] = AsBytes.infallible(_.value)
+    implicit val bloomTopicEncoder: FromBytes[Infallible, BloomTopic] = FromBytes.infallible(BloomTopic(_))
+  }
+
+  object implicits extends Instances
 }

@@ -1,10 +1,10 @@
 package attestation
 
 import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
-import co.topl.utils.AsBytes.implicits._
+import co.topl.crypto.signatures.implicits._
+import cats.implicits._
 import crypto.KeyfileCurve25519
 import utils.serialization.{GjalSerializer, Reader, Writer}
-import cats.implicits._
 
 /**
  * A Secret corresponding to a PublicKeyCurve25519 proposition.
@@ -13,8 +13,8 @@ import cats.implicits._
  */
 case class PrivateKeyCurve25519(private val privKey: PrivateKey, private val publicKey: PublicKey) extends Secret {
 
-  private val privateKeyLength = privKey.asBytes.length
-  private val publicKeyLength = publicKey.asBytes.length
+  private val privateKeyLength = privKey.value.length
+  private val publicKeyLength = publicKey.value.length
 
   require(privateKeyLength == Curve25519.KeyLength, s"$privateKeyLength == ${Curve25519.KeyLength}")
   require(publicKeyLength == Curve25519.KeyLength, s"$publicKeyLength == ${Curve25519.KeyLength}")
@@ -42,17 +42,17 @@ object PrivateKeyCurve25519 extends GjalSerializer[PrivateKeyCurve25519] {
 
   implicit val secretGenerator: SecretGenerator[PrivateKeyCurve25519] =
     SecretGenerator.instance[PrivateKeyCurve25519] { seed: Array[Byte] =>
-      val (sk, pk) = Curve25519.createKeyPair(seed)
+      val (sk, pk) = Curve25519.createKeyPair(seed).getOrThrow()
       val secret: PrivateKeyCurve25519 = PrivateKeyCurve25519(sk, pk)
       secret -> secret.publicImage
     }
 
   override def serialize(obj: PrivateKeyCurve25519, w: Writer): Unit = {
     /* privKey: Array[Byte] */
-    w.putBytes(obj.privKey)
+    w.putBytes(obj.privKey.value)
 
     /* publicKey: Array[Byte] */
-    w.putBytes(obj.publicKey)
+    w.putBytes(obj.publicKey.value)
   }
 
   override def parse(r: Reader): PrivateKeyCurve25519 =

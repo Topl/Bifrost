@@ -1,7 +1,6 @@
 package co.topl.modifier.box
 
-import cats.implicits._
-import co.topl.crypto.hash.{Digest, Digest32}
+import co.topl.crypto.hash.digest.Digest32
 import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.StringTypes.Base58String
 import co.topl.utils.StringTypes.implicits._
@@ -34,7 +33,7 @@ class SecurityRoot private (private val root: Array[Byte]) extends BytesSerializ
 
 object SecurityRoot extends BifrostSerializer[SecurityRoot] {
 
-  val size: Int = Digest[Digest32].size // 32 bytes
+  val size: Int = Digest32.size // 32 bytes
   val empty: SecurityRoot = new SecurityRoot(Array.fill(size)(0: Byte))
 
   implicit val jsonEncoder: Encoder[SecurityRoot] = (sr: SecurityRoot) => sr.toString.asJson

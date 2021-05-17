@@ -1,7 +1,7 @@
 package co.topl.consensus.genesis
 
 import co.topl.attestation.EvidenceProducer.Syntax._
-import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.Forger.ChainParams
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -17,7 +17,9 @@ case object ToplnetGenesis extends GenesisProvider {
 
   implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
 
-  override protected val blockChecksum: ModifierId = ModifierId("y2srCtQZiV2XkYfhjgmyxZQE8SZcETQrxZjKGHGuFjv7")
+  override protected val blockChecksum: ModifierId = ModifierId
+    .create("y2srCtQZiV2XkYfhjgmyxZQE8SZcETQrxZjKGHGuFjv7")
+    .getOrElse(ModifierId.empty)
 
   override protected val blockVersion: PNVMVersion = 1: Byte
 
@@ -47,8 +49,6 @@ case object ToplnetGenesis extends GenesisProvider {
   )
 
   def getGenesisBlock: Try[(Block, ChainParams)] = Try {
-
-    val memberKeys = members.keys.map(Address(networkPrefix)(_))
 
     val txInput = (
       IndexedSeq(),

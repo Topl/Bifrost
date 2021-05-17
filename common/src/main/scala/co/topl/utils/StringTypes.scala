@@ -1,5 +1,6 @@
 package co.topl.utils
 
+import cats.data.{Validated, ValidatedNec}
 import cats.implicits._
 import cats.{Eq, Show}
 import co.topl.utils.Extensions.StringOps
@@ -13,7 +14,7 @@ import scala.language.implicitConversions
 
 object StringTypes {
 
-  type ValidationResult[A] = Either[StringValidationError, A]
+  type ValidationResult[A] = ValidatedNec[StringValidationFailure, A]
 
   @newtype
   class UTF8String(val value: String)
@@ -134,8 +135,8 @@ object StringTypes {
     implicit val keyDecodeBase16String: KeyDecoder[Base16String] = Base16String.validated(_).toOption
   }
 
-  sealed trait StringValidationError
-  final case class InvalidCharacterSet() extends StringValidationError
+  sealed trait StringValidationFailure
+  final case class InvalidCharacterSet() extends StringValidationFailure
 
   object implicits
       extends UTF8StringImplicits

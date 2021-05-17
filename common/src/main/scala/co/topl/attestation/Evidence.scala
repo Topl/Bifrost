@@ -1,15 +1,15 @@
 package co.topl.attestation
 
-import co.topl.utils.StringTypes.Base58String
-import co.topl.utils.encode.{Base58, InvalidCharactersError, InvalidDataLengthError}
+import co.topl.crypto.hash.digest.Digest
+import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import io.estatico.newtype.macros.newtype
+import io.estatico.newtype.ops._
 import co.topl.utils.AsBytes.implicits._
-import cats.implicits._
-import co.topl.utils.StringTypes.implicits._
+import co.topl.utils.codecs.CryptoCodec.implicits._
 
 import scala.language.implicitConversions
 import scala.util.{Failure, Success}
@@ -42,6 +42,10 @@ object Evidence extends BifrostSerializer[Evidence] {
 
   @newtype
   case class EvidenceContent(value: Array[Byte])
+
+  object EvidenceContent {
+    def apply[D: Digest](d: D): EvidenceContent = d.infalliblyEncodeAsBytes.coerce
+  }
 
   val contentLength = 32 //bytes (this is generally the output of a Blake2b-256 bit hash)
   val size: Int = 1 + contentLength //length of typePrefix + contentLength
