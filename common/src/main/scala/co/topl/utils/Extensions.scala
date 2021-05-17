@@ -1,10 +1,8 @@
 package co.topl.utils
 
 import java.nio.charset.{Charset, StandardCharsets}
-
-import scala.collection.generic.CanBuildFrom
+import scala.collection.BuildFrom
 import scala.reflect.ClassTag
-import scala.Iterable
 
 object Extensions {
 
@@ -97,7 +95,7 @@ object Extensions {
      * Safely casting each element of collection to be type of `B`.
      * If element can not to be cast to `B` then `AssertionError` is thrown
      */
-    def cast[B: ClassTag](implicit cbf: CanBuildFrom[Source[A], B, Source[B]]): Source[B] = {
+    def cast[B: ClassTag](implicit cbf: BuildFrom[Source[A], B, Source[B]]): Source[B] = {
 
       for (x <- xs)
         require(

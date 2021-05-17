@@ -536,7 +536,7 @@ class NetworkController(
           /** address was valid */
           case Success(res: Boolean) if res => true
           /** address was not valid */
-          case Success(res: Boolean) if !res => false
+          case Success(_) => false
           case Failure(ex) =>
             log.error("There was an error while attempting to validate the declared address: ", ex)
             false

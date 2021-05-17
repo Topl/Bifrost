@@ -37,7 +37,7 @@ class PeerSynchronizer(
     case (_: GetPeersSpec, _, remote)       => gossipPeers(remote)
   }
 
-  override def preStart: Unit = {
+  override def preStart(): Unit = {
 
     /** register as a handler for synchronization-specific types of messages */
     networkControllerRef ! RegisterMessageSpecs(appContext.peerSyncRemoteMessages.toSeq, self)
@@ -58,7 +58,7 @@ class PeerSynchronizer(
     nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS ----------- //
-  private def initialization(): Receive = { case NodeViewReady(_) =>
+  private def initialization: Receive = { case NodeViewReady(_) =>
     log.info(s"${Console.YELLOW}PeerSynchronizer transitioning to the operational state${Console.RESET}")
     context become operational
     scheduleGetPeers()
