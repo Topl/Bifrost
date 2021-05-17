@@ -23,7 +23,7 @@ abstract class Blake2bHash[D: Digest] extends Hash[Blake2b, D] {
       // calling .doFinal resets to a default state
       digestFunc.doFinal(res, 0)
 
-      Digest[D].from(res).leftMap(InvalidDigestFailure).toEither
+      Digest[D].from(res).leftMap(InvalidDigest).toEither
     }
 }
 

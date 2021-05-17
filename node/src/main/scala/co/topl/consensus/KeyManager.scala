@@ -5,8 +5,9 @@ import akka.actor._
 import akka.util.Timeout
 import cats.data.EitherT
 import cats.implicits._
-import co.topl.attestation.{Address, AddressEncoder, PublicKeyPropositionCurve25519, SignatureCurve25519}
-import co.topl.attestation.keyManagement.KeyfileCurve25519Companion
+import co.topl.attestation.AddressCodec.implicits.StringOps
+import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
+import co.topl.attestation.{Address, AddressCodec, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.catsakka.AskException
 import co.topl.consensus.KeyManager.{AttemptForgingKeyView, ForgerStartupKeyView}
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
@@ -120,7 +121,7 @@ class KeyManager(
   /** Tries to get a configured rewards address from the forging settings. */
   private def tryGetRewardsAddressFromSettings(): Option[Address] =
     settings.forging.rewardsAddress.flatMap {
-      AddressEncoder.fromStringWithCheck(_, appContext.networkType.netPrefix) match {
+      _.decodeAddress.toEither match {
         case Left(ex) =>
           log.warn(s"${Console.YELLOW}Unable to set rewards address due to $ex ${Console.RESET}")
           None

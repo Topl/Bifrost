@@ -9,6 +9,7 @@ import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import io.estatico.newtype.macros.newtype
 import io.estatico.newtype.ops._
 import co.topl.utils.AsBytes.implicits._
+import co.topl.utils.codecs.CryptoCodec.implicits._
 
 import scala.language.implicitConversions
 import scala.util.{Failure, Success}

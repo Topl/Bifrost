@@ -10,6 +10,7 @@ import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import co.topl.utils.FromBytes.implicits._
+import co.topl.utils.codecs.CryptoCodec.implicits._
 
 import scala.util.{Failure, Success, Try}
 

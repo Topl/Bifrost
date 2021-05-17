@@ -1,6 +1,8 @@
 package co.topl.it
 
 import cats.data.NonEmptyChain
+import co.topl.attestation.AddressCodec.implicits._
+import co.topl.utils.FromBytes.implicits._
 import co.topl.attestation._
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.implicits.toHashResultOps
@@ -49,8 +51,8 @@ class TransactionTest
 
   private val burnAddress = {
     val bytes: Array[Byte] = Array(networkPrefix, PublicKeyPropositionCurve25519.typePrefix) ++ Array.fill(32)(2: Byte)
-    val checksum = Blake2b256.hash(bytes).getOrThrow().value.take(AddressEncoder.checksumLength)
-    AddressEncoder.validateAddress(bytes ++ checksum, networkPrefix).value
+    val checksum = Blake2b256(bytes).take(AddressCodec.ChecksumLength)
+    (bytes ++ checksum).decodeTo[AddressValidationError, Address].toEither.value
   }
 
   private var node: BifrostDockerNode = _

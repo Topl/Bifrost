@@ -5,14 +5,16 @@ import cats.data.{EitherT, NonEmptyChain}
 import cats.implicits._
 import co.topl.akkahttprpc.RpcClientFailure
 import co.topl.akkahttprpc.implicits.client.rpcToClient
+import co.topl.attestation.AddressCodec.implicits.StringOps
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
-import co.topl.attestation.{Address, AddressEncoder, PublicKeyPropositionCurve25519}
+import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.client.Provider.PrivateTestNet
 import co.topl.modifier.box.{AssetCode, AssetValue}
 import co.topl.rpc.ToplRpc
 import co.topl.rpc.ToplRpc.NodeView._
 import co.topl.rpc.ToplRpc.Transaction.{BroadcastTx, RawArbitTransfer, RawAssetTransfer, RawPolyTransfer}
 import co.topl.rpc.implicits.client._
+import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import io.circe.syntax.EncoderOps
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -21,6 +23,7 @@ object exampleState {
   type RpcErrorOr[T] = EitherT[Future, RpcClientFailure, T]
 
   val provider: Provider = new PrivateTestNet(apiKey = "topl_the_world!")
+  import provider._
 
   implicit val system: ActorSystem = ActorSystem()
   implicit val executionContext: ExecutionContext = system.dispatcher
@@ -36,12 +39,7 @@ object exampleState {
     "AUANVY6RqbJtTnQS1AFTQBjXMFYDknhV8NEixHFLmeZynMxVbp64",
     "AU9sKKy7MN7U9G6QeasZUMTirD6SeGQx8Sngmb9jmDgNB2EzA3rq",
     "AUAbSWQxzfoCN4FizrKKf6E1qCSRffHhjrvo2v7L6q8xFZ7pxKqh"
-  ).map(s =>
-    AddressEncoder.fromStringWithCheck(s, provider.networkPrefix) match {
-      case Left(_)      => throw new Exception("Address encoding failed")
-      case Right(value) => value
-    }
-  )
+  ).map(_.decodeAddress.getOrThrow())
 
   val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
     KeyRing.empty[PrivateKeyCurve25519, KeyfileCurve25519]()(
