@@ -49,11 +49,8 @@ object Dependencies {
   )
 
   val circe = Seq(
-    "io.circe" %% "circe-core"    % circeVersion,
-    "io.circe" %% "circe-generic" % circeVersion,
-    "io.circe" %% "circe-parser"  % circeVersion,
-    "io.circe" %% "circe-literal" % circeVersion,
-    "io.circe" %% "circe-optics"  % circeVersion
+    "io.circe" %% "circe-core"   % circeVersion,
+    "io.circe" %% "circe-parser" % circeVersion
   )
 
   val crypto = Seq(
@@ -68,17 +65,14 @@ object Dependencies {
     "org.rudogma"     %% "supertagged" % "1.5",
     "org.scalanlp"    %% "breeze"      % "1.1",
     "io.netty"         % "netty"       % "3.10.6.Final",
-    "com.google.guava" % "guava"       % "30.1.1-jre",
-    "com.lihaoyi"     %% "mainargs"    % "0.2.1",
-    "com.typesafe"     % "config"      % "1.4.1",
-    "net.jpountz.lz4"  % "lz4"         % "1.3.0"
+    "com.google.guava" % "guava"       % "30.1.1-jre"
   )
 
   val monitoring = Seq(
-    "io.kamon" %% "kamon-bundle"   % kamonVersion,
     "io.kamon" %% "kamon-core"     % kamonVersion,
-    "io.kamon" %% "kamon-influxdb" % kamonVersion,
-    "io.kamon" %% "kamon-zipkin"   % kamonVersion
+    "io.kamon" %% "kamon-bundle"   % kamonVersion % Runtime,
+    "io.kamon" %% "kamon-influxdb" % kamonVersion % Runtime,
+    "io.kamon" %% "kamon-zipkin"   % kamonVersion % Runtime
   )
 
   val graal = Seq(
@@ -90,8 +84,11 @@ object Dependencies {
   val node: Seq[ModuleID] = {
     Seq(
       "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
-      "com.typesafe.akka" %% "akka-remote"  % akkaVersion
-    )
+      "com.typesafe.akka" %% "akka-remote"  % akkaVersion,
+      "com.typesafe"       % "config"       % "1.4.1",
+      "com.lihaoyi"       %% "mainargs"     % "0.2.1",
+      "net.jpountz.lz4"    % "lz4"          % "1.3.0"
+    ) ++
     logging ++
     test ++
     it ++
@@ -100,8 +97,7 @@ object Dependencies {
     circe ++
     crypto ++
     misc ++
-    monitoring ++
-    graal
+    monitoring
   }
 
   lazy val common: Seq[ModuleID] = {
@@ -127,13 +123,18 @@ object Dependencies {
 
   lazy val akkaHttpRpc: Seq[ModuleID] =
     Seq(
-      "de.heikoseeberger" %% "akka-http-circe" % "1.36.0"
+      "de.heikoseeberger" %% "akka-http-circe" % "1.36.0",
+      "io.circe"          %% "circe-optics"    % circeVersion,
+      "io.circe"          %% "circe-generic"   % circeVersion
     ) ++
     circe ++
     akka ++
     test
 
   lazy val toplRpc: Seq[ModuleID] =
+    Seq(
+      "io.circe" %% "circe-generic" % circeVersion
+    ) ++
     circe ++
     test
 
