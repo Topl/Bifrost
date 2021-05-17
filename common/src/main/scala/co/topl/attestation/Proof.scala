@@ -1,16 +1,16 @@
 package co.topl.attestation
 
+import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519, Secret}
 import co.topl.attestation.serialization.ProofSerializer
 import co.topl.crypto.signatures.eddsa.Ed25519
 import co.topl.crypto.signatures.{Curve25519, PublicKey, Signature}
-import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, Secret}
 import co.topl.utils.AsBytes.implicits._
+import co.topl.utils.FromBytes.implicits._
 import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import co.topl.utils.FromBytes.implicits._
 
 import scala.util.{Failure, Success, Try}
 
@@ -164,7 +164,7 @@ object ThresholdSignatureCurve25519 {
 case class SignatureEd25519(private[attestation] val sig: Signature)
     extends ProofOfKnowledge[PrivateKeyEd25519, PublicKeyPropositionEd25519] {
 
-  private val signatureLength = BytesOf[Signature].length(sig)
+  private val signatureLength = sig.infalliblyEncodeAsBytes.length
 
   require(
     signatureLength == 0 || signatureLength == Ed25519.SignatureLength,

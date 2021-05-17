@@ -1,6 +1,7 @@
 package co.topl.crypto.signatures.eddsa
 
-import co.topl.crypto.hash.sha256
+import cats.implicits._
+import co.topl.crypto.hash.Sha256
 import co.topl.crypto.signatures._
 
 import java.security.SecureRandom
@@ -328,14 +329,16 @@ object Ed25519 extends EC with EllipticCurveSignatureScheme {
   override val SignatureLength: Int = SIGNATURE_SIZE
   override val KeyLength: Int = SECRET_KEY_SIZE
 
-  override def createKeyPair(seed: Array[Byte]): (PrivateKey, PublicKey) = {
-    val sk:Array[Byte] = new Array[Byte](SECRET_KEY_SIZE)
-    val pk:Array[Byte] = new Array[Byte](PUBLIC_KEY_SIZE)
-    val hashedSeed = sha256(seed)
-    generatePrivateKey(new SecureRandom(hashedSeed.value), sk)
-    generatePublicKey(sk, 0, pk, 0)
-    (PrivateKey(sk), PublicKey(pk))
-  }
+  override def createKeyPair(seed: Array[Byte]): CreateKeyPairResult =
+    (for {
+      hashedSeed <- Sha256.hash(seed)
+    } yield {
+      val sk: Array[Byte] = new Array[Byte](SECRET_KEY_SIZE)
+      val pk: Array[Byte] = new Array[Byte](PUBLIC_KEY_SIZE)
+      generatePrivateKey(new SecureRandom(hashedSeed.value), sk)
+      generatePublicKey(sk, 0, pk, 0)
+      PrivateKey(sk) -> PublicKey(pk)
+    }) leftMap PrivateKeyHashFailure
 
   override def sign(privateKey: PrivateKey, message: MessageToSign): Signature = {
     require(privateKey.value.length == SECRET_KEY_SIZE)
@@ -344,11 +347,10 @@ object Ed25519 extends EC with EllipticCurveSignatureScheme {
     Signature(sig)
   }
 
-  override def verify(signature: Signature, message: MessageToSign, publicKey: PublicKey): Boolean = {
+  override def verify(signature: Signature, message: MessageToSign, publicKey: PublicKey): Boolean =
     signature.value.length == SIGNATURE_SIZE &&
     publicKey.value.length == PUBLIC_KEY_SIZE &&
     verify(signature.value, 0, publicKey.value, 0, message, 0, message.length)
-  }
 
   override def createSharedSecret(privateKey: PrivateKey, publicKey: PublicKey): SharedSecret = ???
 }

@@ -1,18 +1,19 @@
 package co.topl.crypto.signatures
 
-import co.topl.crypto.signatures.eddsa.Ed25519
-import org.scalatest.propspec.AnyPropSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import co.topl.crypto.signatures.implicits.toCreateKeyPairResultOps
 import co.topl.crypto.utils.Hex
+import co.topl.crypto.signatures.eddsa.Ed25519
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 class Ed25519Spec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
 
   property("with Ed25519, signed message should be verifiable with appropriate public key") {
     forAll { (seed1: Array[Byte], seed2: Array[Byte], message1: Array[Byte], message2: Array[Byte]) =>
       whenever(!seed1.sameElements(seed2) && !message1.sameElements(message2)) {
-        val keyPair = Ed25519.createKeyPair(seed1)
-        val keyPair2 = Ed25519.createKeyPair(seed2)
+        val keyPair = Ed25519.createKeyPair(seed1).getOrThrow()
+        val keyPair2 = Ed25519.createKeyPair(seed2).getOrThrow()
 
         val sig = Ed25519.sign(keyPair._1, message1)
 
