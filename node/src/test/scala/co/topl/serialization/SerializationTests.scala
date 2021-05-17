@@ -204,7 +204,7 @@ class SerializationTests
 
   property("BlockHeader serialization") {
     forAll(blockGen) { b: Block =>
-      val blockHeader = b.toComponents.getOrThrow()._1
+      val blockHeader = b.toBlockComponents.getOrThrow()._1
       val parsed = BlockHeaderSerializer
         .parseBytes(BlockHeaderSerializer.toBytes(blockHeader))
         .get
@@ -215,7 +215,7 @@ class SerializationTests
 
   property("BlockBody serialization") {
     forAll(blockGen) { b: Block =>
-      val blockBody = b.toComponents.getOrThrow()._2
+      val blockBody = b.toBlockComponents.getOrThrow()._2
       val parsed = BlockBodySerializer
         .parseBytes(BlockBodySerializer.toBytes(blockBody))
         .get

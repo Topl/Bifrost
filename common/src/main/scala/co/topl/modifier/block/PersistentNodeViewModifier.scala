@@ -10,6 +10,7 @@ import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ModifierId, NodeViewModifier}
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 
 trait PersistentNodeViewModifier extends NodeViewModifier {
   def parentId: ModifierId
@@ -25,6 +26,10 @@ object PersistentNodeViewModifier {
 trait TransactionCarryingPersistentNodeViewModifier[TX <: Transaction.TX] extends PersistentNodeViewModifier {
 
   val transactions: Seq[TX]
+
+  @deprecated
+  lazy val merkleTree: MerkleTree[Blake2b, Digest32] =
+    MerkleTree.construct[Blake2b, Digest32](transactions.map(tx => LeafData(tx.bytes))).getOrThrow()
 
   def constructMerkleTree(): MerkleTreeResult[Blake2b, Digest32] =
     MerkleTree.construct[Blake2b, Digest32](transactions.map(tx => LeafData(tx.bytes)))
