@@ -159,7 +159,7 @@ val cryptoDependencies = Seq(
 
 val miscDependencies = Seq(
   "org.scorexfoundation"  %% "iodb"        % "0.3.2",
-  "com.chuusai"           %% "shapeless"   % "2.3.3",
+  "com.chuusai"           %% "shapeless"   % "2.3.7",
   "com.iheart"            %% "ficus"       % "1.5.0",
   "org.rudogma"           %% "supertagged" % "1.5",
   "com.joefkelley"        %% "argyle"      % "1.0.0",
