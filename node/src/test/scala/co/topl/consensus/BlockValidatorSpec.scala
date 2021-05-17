@@ -2,7 +2,7 @@ package co.topl.consensus
 
 import co.topl.consensus.consensusHelper.setProtocolMngr
 import co.topl.nodeView.history.{BlockProcessor, History}
-import co.topl.utils.{CoreGenerators, NodeGenerators}
+import co.topl.utils.{CommonGenerators, NodeGenerators}
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
@@ -12,7 +12,7 @@ class BlockValidatorSpec
     extends AnyPropSpec
     with ScalaCheckPropertyChecks
     with Matchers
-    with CoreGenerators
+    with CommonGenerators
     with NodeGenerators {
 
   var history: History = _

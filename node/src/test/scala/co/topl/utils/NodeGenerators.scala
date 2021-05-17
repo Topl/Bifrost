@@ -20,7 +20,7 @@ import java.io.File
 import java.nio.file.Files
 import scala.util.Random
 
-trait NodeGenerators extends CoreGenerators with KeyFileTestHelper {
+trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
   self: Suite =>
 
   private val settingsFilename = "node/src/test/resources/test.conf"

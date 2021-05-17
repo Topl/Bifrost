@@ -13,7 +13,7 @@ import io.circe.Json
 import io.circe.syntax._
 import org.scalacheck.rng.Seed
 import org.scalacheck.{Arbitrary, Gen}
-import org.scalatest.{BeforeAndAfterAll, Suite}
+import org.scalatest.Suite
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.{Curve25519, Signature}
 import scorex.util.encode.Base58
@@ -24,14 +24,11 @@ import scala.util.Random
 /**
  * Created by cykoz on 4/12/17.
  */
-trait CoreGenerators extends Logging with BeforeAndAfterAll with NetworkPrefixTestHelper {
+trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   self: Suite =>
 
   type P = Proposition
   type S = Secret
-
-  override protected def beforeAll(): Unit =
-    super.beforeAll()
 
   def sampleUntilNonEmpty[T](generator: Gen[T]): T =
     generator.pureApply(Gen.Parameters.default, Seed.random())

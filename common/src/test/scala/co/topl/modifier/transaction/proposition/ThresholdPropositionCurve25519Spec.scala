@@ -2,7 +2,7 @@ package co.topl.modifier.transaction.proposition
 
 import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 import co.topl.attestation.{ThresholdPropositionCurve25519, ThresholdSignatureCurve25519}
-import co.topl.utils.CoreGenerators
+import co.topl.utils.CommonGenerators
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
@@ -12,7 +12,7 @@ class ThresholdPropositionCurve25519Spec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers
-    with CoreGenerators {
+    with CommonGenerators {
 
   property("Any signature from set validates") {
     forAll(oneOfNPropositionGen) { case (keySet: Set[PrivateKeyCurve25519], mn: ThresholdPropositionCurve25519) =>

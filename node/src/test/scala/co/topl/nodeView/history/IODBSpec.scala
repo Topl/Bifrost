@@ -5,7 +5,7 @@ import java.io.File
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.TX
-import co.topl.utils.{CoreGenerators, FileUtils, NodeGenerators}
+import co.topl.utils.{CommonGenerators, FileUtils, NodeGenerators}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
@@ -16,7 +16,7 @@ class IODBSpec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers
-    with CoreGenerators
+    with CommonGenerators
     with NodeGenerators
     with FileUtils {
 

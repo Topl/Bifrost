@@ -3,7 +3,7 @@ package co.topl.attestation
 import cats.scalatest.{ValidatedMatchers, ValidatedNecMatchers}
 import co.topl.attestation.AddressCodec.implicits.StringOps
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.{CoreGenerators, NetworkType}
+import co.topl.utils.{CommonGenerators, NetworkType}
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
@@ -15,7 +15,7 @@ class AddressSpec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers
-    with CoreGenerators
+    with CommonGenerators
     with EitherValues
     with ValidatedMatchers
     with ValidatedNecMatchers {

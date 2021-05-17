@@ -7,7 +7,7 @@ import co.topl.modifier.box._
 import co.topl.modifier.transaction.validation.implicits._
 import co.topl.modifier.transaction._
 import co.topl.utils.NetworkType.PrivateTestnet
-import co.topl.utils.{CoreGenerators, NetworkType, NodeGenerators}
+import co.topl.utils.{CommonGenerators, NetworkType, NodeGenerators}
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
@@ -20,7 +20,7 @@ class TransactionValidationSpec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers
-    with CoreGenerators
+    with CommonGenerators
     with NodeGenerators
     with EitherValues
     with ValidatedMatchers
