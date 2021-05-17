@@ -2,15 +2,14 @@ package co.topl.it
 
 import cats.data.NonEmptyChain
 import co.topl.attestation.AddressCodec.implicits._
-import co.topl.utils.FromBytes.implicits._
 import co.topl.attestation._
-import co.topl.crypto.hash.Blake2b256
-import co.topl.crypto.hash.implicits.toHashResultOps
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
+import co.topl.crypto.hash.Blake2b256
 import co.topl.it.util._
 import co.topl.modifier.box.{AssetCode, AssetValue}
 import co.topl.modifier.transaction.Transaction
 import co.topl.rpc.ToplRpc
+import co.topl.utils.FromBytes.implicits._
 import co.topl.utils.Int128
 import com.typesafe.config.ConfigFactory
 import org.scalatest._
@@ -51,7 +50,10 @@ class TransactionTest
 
   private val burnAddress = {
     val bytes: Array[Byte] = Array(networkPrefix, PublicKeyPropositionCurve25519.typePrefix) ++ Array.fill(32)(2: Byte)
-    val checksum = Blake2b256(bytes).take(AddressCodec.ChecksumLength)
+    val checksum = Blake2b256
+      .hash(bytes)
+      .map(_.value.take(AddressCodec.ChecksumLength))
+      .getOrElse(Array.emptyByteArray)
     (bytes ++ checksum).decodeTo[AddressValidationError, Address].toEither.value
   }
 

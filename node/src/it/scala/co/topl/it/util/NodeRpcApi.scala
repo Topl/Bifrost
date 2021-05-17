@@ -14,8 +14,8 @@ import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.hash.implicits._
 import co.topl.rpc.ToplRpc
 import co.topl.rpc.implicits.client._
-import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.codecs.CryptoCodec.implicits._
 import co.topl.utils.encode.Base58
 import co.topl.utils.{Int128, NetworkType}
 import com.spotify.docker.client.DockerClient
