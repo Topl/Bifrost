@@ -2,6 +2,7 @@ package co.topl.attestation.keyManagement
 
 import co.topl.attestation.Address
 import co.topl.utils.Extensions.StringOps
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.parser.parse
 import io.circe.syntax._
@@ -134,10 +135,7 @@ object KeyfileCurve25519Companion extends KeyfileCompanion[PrivateKeyCurve25519,
     val keyfile = parse(src.mkString) match {
       case Left(ex) => throw ex
       case Right(json) =>
-        json.as[KeyfileCurve25519] match {
-          case Left(ex)  => throw new Exception(s"Could not parse KeyFile: $ex")
-          case Right(kf) => kf
-        }
+        json.as[KeyfileCurve25519].getOrThrow(ex => new Exception(s"Could not parse KeyFile: $ex"))
     }
 
     // close the stream and return the keyfile

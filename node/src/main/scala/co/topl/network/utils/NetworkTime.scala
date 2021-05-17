@@ -1,5 +1,7 @@
 package co.topl.network.utils
 
+import akka.actor.ActorSystem
+import akka.dispatch.Dispatchers
 import co.topl.utils.{Logging, TimeProvider}
 import org.apache.commons.net.ntp.NTPUDPClient
 
@@ -16,15 +18,21 @@ object NetworkTime {
 
 case class NetworkTimeProviderSettings(server: String, updateEvery: FiniteDuration, timeout: FiniteDuration)
 
-class NetworkTimeProvider(ntpSettings: NetworkTimeProviderSettings)(implicit ec: ExecutionContext)
+class NetworkTimeProvider(ntpSettings: NetworkTimeProviderSettings)(implicit system: ActorSystem)
     extends TimeProvider
     with Logging {
+
+  import system.dispatcher
+
+  private val blockingExecutionContext: ExecutionContext =
+    system.dispatchers.lookup(Dispatchers.DefaultBlockingDispatcherId)
 
   private val lastUpdate = new AtomicLong(0)
   private[NetworkTimeProvider] val offset = new AtomicLong(0)
   private val client = new NTPUDPClient()
   client.setDefaultTimeout(ntpSettings.timeout.toMillis.toInt)
   client.open()
+  system.registerOnTermination(client.close())
 
   /**
    * Check if the NTP offset should be updated and returns current time (milliseconds)
@@ -36,11 +44,15 @@ class NetworkTimeProvider(ntpSettings: NetworkTimeProviderSettings)(implicit ec:
     NetworkTime.localWithOffset(offset.get())
   }
 
+  /**
+   * Fetches the offset from the NTP client using a blocking call.  This blocking call is run in an async computation,
+   * but it must run on a special execution context meant specifically for blocking operations
+   */
   private def updateOffset(): Future[NetworkTime.Offset] = Future {
     val info = client.getTime(InetAddress.getByName(ntpSettings.server))
     info.computeDetails()
-    info.getOffset
-  }
+    info.getOffset: NetworkTime.Offset
+  }(blockingExecutionContext)
 
   private def checkUpdateRequired(): Unit = {
     val time = NetworkTime.localWithOffset(offset.get())

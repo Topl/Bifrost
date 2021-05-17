@@ -1,7 +1,10 @@
 package co.topl.attestation
 
+import cats.scalatest.{ValidatedMatchers, ValidatedNecMatchers}
+import co.topl.attestation.AddressCodec.implicits.StringOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{CoreGenerators, NetworkType}
+import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
@@ -12,7 +15,10 @@ class AddressSpec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers
-    with CoreGenerators {
+    with CoreGenerators
+    with EitherValues
+    with ValidatedMatchers
+    with ValidatedNecMatchers {
 
   property("Applying address string with incorrect networkPrefix will result in error") {
     forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
@@ -20,14 +26,15 @@ class AddressSpec
       val fstNetworkType: NetworkType = twoNetworkType.head
       val secNetworkType: NetworkType = twoNetworkType.last
 
-      implicit var networkPrefix: NetworkPrefix = fstNetworkType.netPrefix
-      val address: Address = pubkey.address
-      val addrStr = address.toString
-
-      networkPrefix = secNetworkType.netPrefix
-      val thrown = intercept[Exception](Address(networkPrefix)(addrStr))
-
-      thrown.getMessage shouldEqual "NetworkTypeMismatch"
+      val addrStr = {
+        implicit val networkPrefix: NetworkPrefix = fstNetworkType.netPrefix
+        val address: Address = pubkey.address
+        address.toString
+      }
+      {
+        implicit val networkPrefix: NetworkPrefix = secNetworkType.netPrefix
+        addrStr.decodeAddress should haveInvalidC[AddressValidationError](NetworkTypeMismatch)
+      }
     }
   }
 
@@ -43,11 +50,9 @@ class AddressSpec
       val modedAddrByte: Array[Byte] = addrByte.slice(0, 2) ++ Array(corruptByte) ++ addrByte.slice(3, addrByte.length)
       val modedAddrStr: String = Base58.encode(modedAddrByte)
 
-      assert(!(addrByte sameElements modedAddrByte))
+      addrByte should not contain theSameElementsInOrderAs(modedAddrByte)
 
-      val thrown = intercept[Exception](Address(networkPrefix)(modedAddrStr))
-
-      thrown.getMessage shouldEqual s"requirement failed: Invalid address: Checksum fails for $modedAddrStr"
+      modedAddrStr.decodeAddress should haveInvalidC[AddressValidationError](InvalidChecksum)
     }
   }
 
@@ -63,13 +68,17 @@ class AddressSpec
       val modedAddrByte: Array[Byte] = addrByte.slice(0, addrByte.length - 1) ++ Array(corruptByte)
       val modedAddrStr: String = Base58.encode(modedAddrByte)
 
-      assert(!(addrByte sameElements modedAddrByte))
+      addrByte should not contain theSameElementsInOrderAs(modedAddrByte)
 
-      val thrown = intercept[Exception] {
-        Address(networkPrefix)(modedAddrStr)
-      }
-      thrown.getMessage shouldEqual s"requirement failed: Invalid address: Checksum fails for $modedAddrStr"
+      modedAddrStr.decodeAddress should haveInvalidC[AddressValidationError](InvalidChecksum)
     }
+  }
+
+  property("Applying non-base58 encoded address will result in error") {
+    implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
+    val addressStr: String = "0OIlL+/"
+
+    addressStr.decodeAddress should haveInvalidC[AddressValidationError](NotBase58)
   }
 
   property("Applying address with incorrect length will result in error") {
@@ -84,12 +93,9 @@ class AddressSpec
       val modedAddrByte: Array[Byte] = addrByte.slice(0, addrByte.length) ++ Array(corruptByte)
       val modedAddrStr: String = Base58.encode(modedAddrByte)
 
-      assert(!(addrByte sameElements modedAddrByte))
+      addrByte should not contain theSameElementsInOrderAs(modedAddrByte)
 
-      val thrown = intercept[Exception] {
-        Address(networkPrefix)(modedAddrStr)
-      }
-      thrown.getMessage shouldEqual s"requirement failed: Invalid address: Not the required length"
+      modedAddrStr.decodeAddress should haveInvalidC[AddressValidationError](InvalidAddressLength)
     }
   }
 
@@ -99,8 +105,7 @@ class AddressSpec
       val address: Address = pubkey.address
       val addrStr: String = address.toString
 
-      val thrown = intercept[Exception](Address(networkPrefix)(addrStr))
-      thrown.getMessage shouldEqual "InvalidNetworkPrefix"
+      addrStr.decodeAddress should haveInvalidC[AddressValidationError](InvalidNetworkPrefix)
     }
   }
 }
