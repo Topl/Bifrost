@@ -1,13 +1,16 @@
 package co.topl.utils
 
-import java.io.File
-import java.time.Instant
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
-import co.topl.crypto.hash.Digest32
-import co.topl.crypto.signatures.eddsa.Ed25519
+import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.signatures.{Curve25519, Signature}
-import co.topl.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519, PrivateKeyEd25519, Secret}
+import co.topl.attestation.keyManagement.{
+  KeyRing,
+  KeyfileCurve25519,
+  KeyfileCurve25519Companion,
+  PrivateKeyCurve25519,
+  Secret
+}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
@@ -16,12 +19,11 @@ import co.topl.modifier.box.{ProgramId, _}
 import co.topl.modifier.transaction._
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
 import co.topl.settings.{AppSettings, StartupOpts, Version}
-import co.topl.utils.BytesOf.Implicits._
+import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.NetworkType.{NetworkPrefix, PrivateTestnet}
 import co.topl.utils.encode.Base58
 import io.circe.Json
 import io.circe.syntax._
-import io.circe.Json
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
 
@@ -39,10 +41,10 @@ trait CoreGenerators extends Logging {
   type S = Secret
 
   implicit val networkPrefix: NetworkPrefix = PrivateTestnet.netPrefix
-  implicit val keyfileCurve25519Companion: KeyfileCurve25519.type = KeyfileCurve25519
+  implicit val keyfileCurve25519Companion: KeyfileCurve25519Companion.type = KeyfileCurve25519Companion
 
   private val settingsFilename = "node/src/test/resources/test.conf"
-  val settings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))._1
+  val settings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename)))._1
 
   private val keyFileDir =
     settings.application.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
@@ -419,7 +421,7 @@ trait CoreGenerators extends Logging {
     signature     <- signatureGen
     txs           <- bifrostTransactionSeqGen
   } yield {
-    val parentId = ModifierId(Base58.encode(parentIdBytes))
+    val parentId = ModifierId.create(Base58.encode(parentIdBytes)).getOrElse(ModifierId.empty)
     val height: Long = 1L
     val difficulty = settings.forging.privateTestnet.map(_.initialDifficulty).get
     val version: PNVMVersion = settings.application.version.firstDigit

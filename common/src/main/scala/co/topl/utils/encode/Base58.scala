@@ -1,6 +1,7 @@
 package co.topl.utils.encode
 
-import co.topl.utils.BytesOf
+import co.topl.utils.AsBytes.implicits._
+import co.topl.utils.{AsBytes, Infallible}
 
 import scala.util.Try
 
@@ -18,8 +19,8 @@ object Base58 extends BytesEncoder {
 
   private val Base = BigInt(58)
 
-  override def encode[V: BytesOf](input: V): String = {
-    val inputBytes = BytesOf[V].get(input)
+  override def encode[V](input: V)(implicit encoder: AsBytes[Infallible, V]): String = {
+    val inputBytes = input.infalliblyEncodeAsBytes
     var bi = BigInt(1, inputBytes)
     val s = new StringBuilder()
     if (bi > 0) {
@@ -73,3 +74,5 @@ object Base58 extends BytesEncoder {
     if (x < 49) -1 else if (x <= 122) DecodeTable(x - 49) else -1
   }
 }
+
+case class Base58DecodingError()

@@ -2,146 +2,81 @@ package co.topl.it.util
 
 import akka.Done
 import akka.actor.{ActorSystem, Scheduler}
-import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
-import cats.data.{EitherT, NonEmptyList}
+import akka.stream.scaladsl.{Sink, Source}
 import cats.implicits._
-import co.topl.crypto.hash.{blake2b256, Digest32}
-import co.topl.utils.BytesOf.Implicits._
+import co.topl.akkahttprpc.implicits.client.rpcToClient
+import co.topl.akkahttprpc.utils.Retry
+import co.topl.akkahttprpc.{RequestModifier, Rpc, RpcClientFailure, RpcError}
+import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.digest.Digest32
+import co.topl.crypto.hash.implicits._
+import co.topl.rpc.ToplRpc
+import co.topl.rpc.implicits.client._
+import co.topl.utils.AsBytes.implicits._
+import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.encode.Base58
+import co.topl.utils.{Int128, NetworkType}
 import com.spotify.docker.client.DockerClient
 import io.circe._
-import io.circe.generic.auto._
-import io.circe.parser._
-import io.circe.syntax._
-import org.slf4j.{Logger, LoggerFactory}
 
-import java.util.UUID
 import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
-import scala.util.Success
+import scala.concurrent.duration._
 
-case class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem) {
+case class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem, node: BifrostDockerNode) {
 
   import system.dispatcher
 
-  protected val log: Logger = LoggerFactory.getLogger(s"${getClass.getName} host=$host rpcPort=$rpcPort")
-
   implicit def scheduler: Scheduler = system.scheduler
 
-  def call(request: HttpRequest): Future[StrictHttpResponse] =
-    akka.pattern
-      .retry(
-        () => Http().singleRequest(request),
-        attempts = 20,
-        1.seconds
-      )
-      .flatMap(response =>
-        response.entity
-          .toStrict(1.second)
-          .map(entity =>
-            StrictHttpResponse(
-              response.status,
-              response.headers.map(header => header.name() -> header.value()).toMap,
-              entity.data.utf8String
-            )
-          )
-      )
-      .andThen { case Success(strict) =>
-        log.debug(s"Request: ${request.uri} \n Response: ${strict.body}")
-      }
-
-  def post(path: String, data: String, f: HttpRequest ⇒ HttpRequest = identity): Future[StrictHttpResponse] =
-    call(
-      f(
-        HttpRequest()
-          .withMethod(HttpMethods.POST)
-          .withUri(s"http://$host:$rpcPort$path")
-          .withHeaders(RawHeader("x-api-key", NodeRpcApi.ApiKey))
-          .withEntity(ContentTypes.`application/json`, data)
-      )
+  implicit val rpcRequestModifier: RequestModifier =
+    RequestModifier(
+      _.withMethod(HttpMethods.POST)
+        .withUri(s"http://$host:$rpcPort")
+        .withHeaders(RawHeader("x-api-key", NodeRpcApi.ApiKey))
     )
 
-  def rpc(
-    method: String,
-    params: NonEmptyList[Json] = NonEmptyList.of(Json.obj())
-  ): Future[Either[NodeApiError, Json]] =
-    EitherT
-      .right(post("/", encodeRpcBody(method, params)))
-      .subflatMap(response =>
-        response.statusCode match {
-          case StatusCodes.OK => Right(response)
-          case _              => Left(UnexpectedHttpResponseError(response))
-        }
-      )
-      .subflatMap(response => parse(response.body).left.map(JsonParsingError))
-      .value
+  def run[Params: Encoder, Result: Decoder](rpc: Rpc[Params, Result])(
+    params:                                      Params
+  )(implicit
+    futureAwaiter: Future[Either[RpcClientFailure, Result]] => Either[RpcClientFailure, Result]
+  ): Either[RpcClientFailure, Result] =
+    futureAwaiter(rpc(params).value)
 
-  def encodeRpcBody(method: String, params: NonEmptyList[Json]): String =
-    RpcIn(
-      method = method,
-      params = params
-    ).asJson.toString()
+  implicit val networkPrefix: NetworkPrefix = NetworkType.PrivateTestnet.netPrefix
 
-  def waitForStartup(): Future[Either[NodeApiError, Done]] =
-    EitherT(Debug.myBlocks()).map(_ => Done).value
+  def waitForStartup(): Future[Either[RpcClientFailure, Done]] =
+    Retry(
+      () => ToplRpc.Debug.MyBlocks.rpc.call.apply(ToplRpc.Debug.MyBlocks.Params()).map(_ => Done),
+      interval = 1.seconds,
+      timeout = 30.seconds,
+      attempts = 30
+    ).value
 
-  object Debug {
-
-    def myBlocks(): Future[Either[NodeApiError, Long]] =
-      EitherT(rpc("debug_myBlocks"))
-        .subflatMap(_.hcursor.downField("result").downField("count").as[Long].leftMap(JsonDecodingError))
-        .value
-
-    def generators(): Future[Either[NodeApiError, Map[String, Long]]] =
-      EitherT(rpc("debug_generators"))
-        .subflatMap(_.hcursor.downField("result").as[Map[String, Long]].leftMap(JsonDecodingError))
-        .value
-  }
-
-  object Admin {
-
-    def listOpenKeyfiles(): Future[Either[NodeApiError, List[String]]] =
-      EitherT(rpc("admin_listOpenKeyfiles"))
-        .subflatMap(_.hcursor.downField("result").downField("unlocked").as[List[String]].leftMap(JsonDecodingError))
-        .value
-
-    def lockKeyfile(address: String): Future[Either[NodeApiError, Done]] =
-      EitherT(rpc("admin_lockKeyfile", NonEmptyList.of(Map("address" -> address).asJson)))
-        .map(_ => Done)
-        .value
-
-    def startForging(): Future[Either[NodeApiError, Done]] =
-      EitherT(rpc("admin_startForging"))
-        .map(_ => Done)
-        .value
-  }
+  def pollUntilHeight(targetHeight: Int128, period: FiniteDuration = 200.milli)(implicit
+    scheduler:                      Scheduler
+  ): Future[Either[RpcError, Done]] =
+    Source
+      .tick(Duration.Zero, period, {})
+      .mapAsync(1)(_ => ToplRpc.NodeView.Head.rpc.call.apply(ToplRpc.NodeView.Head.Params()).value)
+      .collect {
+        case Right(response) if response.height >= targetHeight =>
+          Right(Done)
+      }
+      .runWith(Sink.head)
 }
 
 object NodeRpcApi {
 
   val ApiKey = "integration-test-key"
-  val ApiKeyHash: Digest32 = blake2b256(ApiKey)
+  val ApiKeyHash: Digest32 = Blake2b256.hash(ApiKey.getBytes).getOrThrow()
   val ApiKeyHashBase58: String = Base58.encode(ApiKeyHash)
 
   def apply(node: BifrostDockerNode)(implicit system: ActorSystem, dockerClient: DockerClient): NodeRpcApi = {
     val host = dockerClient.inspectContainer(node.containerId).networkSettings().ipAddress()
+    require(host.nonEmpty, s"Docker container is missing IP address.  containerId=${node.containerId}")
+    implicit val n: BifrostDockerNode = node
     new NodeRpcApi(host, BifrostDockerNode.RpcPort)
   }
 }
-
-case class StrictHttpResponse(statusCode: StatusCode, headers: Map[String, String], body: String)
-
-case class RpcIn(
-  jsonrpc: String = "2.0",
-  id:      String = UUID.randomUUID().toString,
-  method:  String,
-  params:  NonEmptyList[Json]
-)
-
-sealed trait NodeApiError
-case class JsonParsingError(parsingFailure: ParsingFailure) extends NodeApiError
-case class JsonDecodingError(decodingFailure: DecodingFailure) extends NodeApiError
-case class UnexpectedHttpResponseError(strictHttpResponse: StrictHttpResponse) extends NodeApiError
-case class RpcError(id: String, code: Int, message: String, trace: List[String]) extends NodeApiError

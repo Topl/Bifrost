@@ -1,14 +1,17 @@
 package co.topl.nodeView.state
 
+import cats.data.ValidatedNec
 import co.topl.attestation.Address
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
 import co.topl.modifier.box.serialization.BoxSerializer
 import co.topl.modifier.transaction._
+import co.topl.modifier.transaction.validation._
+import co.topl.modifier.transaction.validation.implicits._
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.settings.AppSettings
-import co.topl.utils.BytesOf.Implicits._
+import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.encode.Base58
@@ -61,7 +64,7 @@ case class State(
    * @return
    */
   override def getBox(id: BoxId): Option[Box[_]] =
-    getFromStorage(id.hashBytes)
+    getFromStorage(id.hash.value)
       .map(BoxSerializer.parseBytes)
       .flatMap(_.toOption)
 
@@ -181,7 +184,7 @@ case class State(
       val boxesToAdd = (nodeKeys match {
         case Some(keys) => stateChanges.toAppend.filter(b => keys.contains(Address(b.evidence)))
         case None       => stateChanges.toAppend
-      }).map(b => ByteArrayWrapper(b.id.hashBytes) -> ByteArrayWrapper(b.bytes))
+      }).map(b => ByteArrayWrapper(b.id.hash.value) -> ByteArrayWrapper(b.bytes))
 
       val boxIdsToRemove = (nodeKeys match {
         case Some(keys) =>
@@ -191,7 +194,7 @@ case class State(
             .map(b => b.id)
 
         case None => stateChanges.boxIdsToRemove
-      }).map(b => ByteArrayWrapper(b.hashBytes))
+      }).map(b => ByteArrayWrapper(b.hash.value))
 
       // enforce that the input id's must not match any of the output id's (added emptiness checks for testing)
       require(
@@ -258,8 +261,10 @@ case class State(
    * @param transaction
    * @return
    */
-  def semanticValidate(transaction: Transaction.TX)(implicit networkPrefix: NetworkPrefix): Try[Unit] =
-    transaction.semanticValidate(getReader)
+  def semanticValidate(transaction: Transaction.TX)(implicit
+    networkPrefix:                  NetworkPrefix
+  ): ValidatedNec[SemanticValidationFailure, Transaction.TX] =
+    transaction.semanticValidation(getReader)
 }
 
 object State extends Logging {

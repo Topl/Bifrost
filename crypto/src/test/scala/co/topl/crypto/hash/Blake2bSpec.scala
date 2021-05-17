@@ -1,5 +1,8 @@
 package co.topl.crypto.hash
 
+import co.topl.crypto.hash.digest.{Digest32, Digest64}
+import co.topl.crypto.hash.implicits._
+
 class Blake2bSpec extends HashSpec {
   testHash[Blake2b, Digest32](
     "Blake2b256",

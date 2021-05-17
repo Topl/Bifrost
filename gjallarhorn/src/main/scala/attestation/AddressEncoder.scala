@@ -1,9 +1,9 @@
 package attestation
 
-import co.topl.crypto.hash.{blake2b256, Digest32}
-import co.topl.utils.BytesOf
-import co.topl.utils.BytesOf.Implicits._
+import co.topl.crypto.hash.Blake2b256
+import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.encode.Base58
+import cats.implicits._
 
 import scala.util.{Failure, Try}
 
@@ -29,7 +29,11 @@ object AddressEncoder {
    * @return a 4 byte checksum value
    */
   private def genChecksum(addrBytes: Array[Byte]): Array[Byte] =
-    BytesOf[Digest32].take(blake2b256(addrBytes), checksumLength)
+    Blake2b256
+      .hash(addrBytes)
+      .map(_.value)
+      .valueOr(err => throw new Exception(s"Failed to hash address bytes: $err"))
+      .take(checksumLength)
 
   def toString(addr: Address): String = {
     val addrBytes = addr.bytes

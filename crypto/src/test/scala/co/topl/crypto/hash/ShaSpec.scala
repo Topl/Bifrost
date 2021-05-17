@@ -1,5 +1,8 @@
 package co.topl.crypto.hash
 
+import co.topl.crypto.hash.digest.{Digest32, Digest64}
+import co.topl.crypto.hash.implicits._
+
 class ShaSpec extends HashSpec {
 
   testHash[Sha, Digest32](

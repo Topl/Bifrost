@@ -88,7 +88,7 @@ object AppSettings extends Logging with SettingsReaders {
     }
   }
 
-  def read(startupOpts: StartupOpts = StartupOpts.empty): AppSettings =
+  def read(startupOpts: StartupOpts = StartupOpts()): AppSettings =
     readFile(startupOpts) match {
       case Some(file) =>
         ConfigSource.file(file).at(configPath).load[AppSettings] match {

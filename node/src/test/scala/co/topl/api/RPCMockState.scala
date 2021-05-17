@@ -1,5 +1,6 @@
 package co.topl.api
 
+import java.io.File
 import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
@@ -7,16 +8,17 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.testkit.TestActorRef
 import akka.util.{ByteString, Timeout}
-import co.topl.consensus.{Forger, ForgerRef, KeyManager}
+import co.topl.akkahttprpc.ThrowableSupport.Standard._
+import co.topl.consensus.{ActorForgerInterface, ActorKeyManagerInterface, Forger, ForgerRef, KeyManager}
 import co.topl.http.HttpService
-import co.topl.http.api.ApiEndpoint
-import co.topl.http.api.endpoints._
 import co.topl.modifier.block.Block
+import co.topl.rpc.ToplRpcServer
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.nodeViewHolder.TestableNodeViewHolder
 import co.topl.nodeView.state.State
+import co.topl.nodeView.ActorNodeViewHolderInterface
 import co.topl.settings.{AppContext, AppSettings, StartupOpts}
 import co.topl.utils.GenesisGenerators
 import org.scalatest.wordspec.AnyWordSpec
@@ -48,9 +50,10 @@ trait RPCMockState extends AnyWordSpec with GenesisGenerators with ScalatestRout
 
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
   // save environment into a variable for reference throughout the application
-  protected val appContext = new AppContext(rpcSettings, StartupOpts.empty, None)
+  protected val appContext = new AppContext(rpcSettings, StartupOpts(), None)
 
   // Create Bifrost singleton actors
+
   // NOTE: Some of these actors are TestActors in order to access the underlying instance so that we can manipulate
   //       the state of the underlying instance while testing. Use with caution
   protected val keyManagerRef: TestActorRef[KeyManager] = TestActorRef(
@@ -74,15 +77,24 @@ trait RPCMockState extends AnyWordSpec with GenesisGenerators with ScalatestRout
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 
-  private val apiRoutes: Seq[ApiEndpoint] = Seq(
-    UtilsApiEndpoint(rpcSettings.rpcApi, appContext),
-    AdminApiEndpoint(settings.rpcApi, appContext, forgerRef, keyManagerRef),
-    NodeViewApiEndpoint(rpcSettings.rpcApi, appContext, nodeViewHolderRef),
-    TransactionApiEndpoint(rpcSettings.rpcApi, appContext, nodeViewHolderRef),
-    DebugApiEndpoint(rpcSettings.rpcApi, appContext, nodeViewHolderRef, keyManagerRef)
-  )
+  val rpcServer: ToplRpcServer = {
+    val forgerInterface = new ActorForgerInterface(forgerRef)
+    val keyManagerInterface = new ActorKeyManagerInterface(keyManagerRef)
+    val nodeViewHolderInterface = new ActorNodeViewHolderInterface(nodeViewHolderRef)
+    import co.topl.rpc.handlers._
+    new ToplRpcServer(
+      ToplRpcHandlers(
+        new DebugRpcHandlerImpls(nodeViewHolderInterface, keyManagerInterface),
+        new UtilsRpcHandlerImpls,
+        new NodeViewRpcHandlerImpls(appContext, nodeViewHolderInterface),
+        new TransactionRpcHandlerImpls(nodeViewHolderInterface),
+        new AdminRpcHandlerImpls(forgerInterface, keyManagerInterface)
+      ),
+      appContext
+    )
+  }
 
-  private val httpService = HttpService(apiRoutes, rpcSettings.rpcApi)
+  private val httpService = HttpService(rpcSettings.rpcApi, rpcServer)
   val route: Route = httpService.compositeRoute
 
   def httpPOST(jsonRequest: ByteString): HttpRequest =
@@ -93,5 +105,4 @@ trait RPCMockState extends AnyWordSpec with GenesisGenerators with ScalatestRout
 
   // this method returns modifiable instances of the node view components
   protected def view(): (History, State, MemPool) = nvh.nodeViewPublicAccessor
-
 }

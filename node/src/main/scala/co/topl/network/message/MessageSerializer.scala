@@ -1,11 +1,10 @@
 package co.topl.network.message
 
 import akka.util.ByteString
-import co.topl.crypto.hash.{blake2b256, Digest32}
+import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.implicits.toHashResultOps
 import co.topl.network.MaliciousBehaviorException
 import co.topl.network.peer.ConnectedPeer
-import co.topl.utils.BytesOf
-import co.topl.utils.BytesOf.Implicits._
 
 import java.nio.ByteOrder
 import scala.util.Try
@@ -27,7 +26,7 @@ class MessageSerializer(specs: Seq[MessageSpec[_]], magicBytes: Array[Byte]) {
       .putInt(obj.dataLength)
 
     if (obj.dataLength > 0) {
-      val checksum = BytesOf[Digest32].take(blake2b256(obj.dataBytes), Message.ChecksumLength)
+      val checksum = Blake2b256.hash(obj.dataBytes).getOrThrow().value.take(Message.ChecksumLength)
       builder.putBytes(checksum).putBytes(obj.dataBytes)
     }
 
@@ -62,7 +61,7 @@ class MessageSerializer(specs: Seq[MessageSpec[_]], magicBytes: Array[Byte]) {
         val msgData = if (length > 0) {
           val checksum = it.getBytes(Message.ChecksumLength)
           val data = it.getBytes(length)
-          val digest = BytesOf[Digest32].take(blake2b256(data), Message.ChecksumLength)
+          val digest = Blake2b256.hash(data).getOrThrow().value.take(Message.ChecksumLength)
 
           /** peer reported incorrect checksum */
           if (!java.util.Arrays.equals(checksum, digest)) {

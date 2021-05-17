@@ -1,6 +1,6 @@
 package co.topl.attestation
 
-import co.topl.utils.BytesOf.Implicits._
+import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.encode.Base58
 import co.topl.utils.{CoreGenerators, NetworkType, ValidGenerators}

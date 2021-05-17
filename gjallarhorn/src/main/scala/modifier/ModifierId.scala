@@ -1,9 +1,10 @@
 package modifier
 
 import attestation.Proposition
-import co.topl.crypto.hash.{blake2b256, Digest32}
-import co.topl.utils.BytesOf
-import co.topl.utils.BytesOf.Implicits._
+import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.digest.Digest32
+import co.topl.crypto.hash.implicits.toHashResultOps
+import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
@@ -61,10 +62,7 @@ object ModifierId extends GjalSerializer[ModifierId] {
 
   def apply(transferTransaction: TransferTransaction[_ <: Proposition]): ModifierId =
     new ModifierId(
-      BytesOf[Digest32].prepend(
-        blake2b256(transferTransaction.messageToSign),
-        TransferTransaction.modifierTypeId.value
-      )
+      TransferTransaction.modifierTypeId.value +: Blake2b256.hash(transferTransaction.messageToSign).getOrThrow().value
     )
 
   def apply(str: String): ModifierId =

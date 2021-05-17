@@ -1,7 +1,8 @@
 package co.topl.consensus
 
-import co.topl.crypto.hash.blake2b256
-import co.topl.utils.BytesOf.Implicits._
+import co.topl.crypto.hash.implicits._
+import co.topl.utils.AsBytes.implicits._
+import co.topl.crypto.hash.Blake2b256
 import co.topl.utils.CoreGenerators
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, Store}
@@ -33,7 +34,11 @@ class ConsensusStorageSpec
         .get(_: ByteArrayWrapper))
         .expects(*)
         .onCall { key: ByteArrayWrapper =>
-          if (key == ByteArrayWrapper(blake2b256("totalStake")))
+          if (
+            key == ByteArrayWrapper(
+              Blake2b256.hash("totalStake".getBytes).getOrThrow().infalliblyEncodeAsBytes
+            )
+          )
             Some(ByteArrayWrapper(storageTotalStake.toByteArray))
           else Some(ByteArrayWrapper(Longs.toByteArray(0)))
         }

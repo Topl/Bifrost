@@ -8,7 +8,7 @@ import io.circe.syntax._
 import org.graalvm.polyglot.{Context, Value}
 import co.topl.crypto.signatures.PublicKey
 import co.topl.utils.encode.Base58
-import co.topl.utils.BytesOf.Implicits._
+import co.topl.utils.AsBytes.implicits._
 
 import scala.util.Try
 

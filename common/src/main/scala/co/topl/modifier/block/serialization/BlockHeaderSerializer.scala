@@ -2,12 +2,11 @@ package co.topl.modifier.block.serialization
 
 import co.topl.attestation.serialization.{PublicKeyPropositionCurve25519Serializer, SignatureCurve25519Serializer}
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
-import co.topl.crypto.hash.Digest32
+import co.topl.crypto.hash.digest.Digest32
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{BlockHeader, BloomFilter}
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.box.serialization.ArbitBoxSerializer
-import co.topl.utils.BytesOf.Implicits._
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
@@ -41,7 +40,7 @@ object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
     w.putLong(header.difficulty)
 
     /* txRoot: Array[Byte] */
-    w.putBytes(header.txRoot)
+    w.putBytes(header.txRoot.value)
 
     /* bloomFilter: Array[Long] */
     BloomFilter.serialize(header.bloomFilter, w)
@@ -66,7 +65,9 @@ object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
 
     val difficulty: Long = r.getLong()
 
-    val txRoot: Digest32 = Digest32(r.getBytes(Digest32.size))
+    val txRoot: Digest32 = Digest32
+      .validated(r.getBytes(Digest32.size))
+      .valueOr(ex => throw new Exception(s"Failed to parse reader into digest 32: $ex"))
 
     val bloomFilter: BloomFilter = BloomFilter.parse(r)
 

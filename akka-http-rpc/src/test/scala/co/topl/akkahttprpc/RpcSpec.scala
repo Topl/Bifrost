@@ -1,12 +1,10 @@
 package co.topl.akkahttprpc
 
-import akka.actor.ActorSystem
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
+import akka.http.scaladsl.testkit.ScalatestRouteTest
 import cats.data.EitherT
 import cats.implicits._
-import co.topl.akkahttprpc.RpcEncoders._
 import co.topl.akkahttprpc.ThrowableSupport.Verbose.verboseThrowableCodec
 import co.topl.akkahttprpc.implicits.server._
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
@@ -18,9 +16,8 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{EitherValues, Inside, OptionValues}
-
+import RpcEncoders._
 import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
 
 class RpcSpec
     extends AnyFlatSpecLike
@@ -34,8 +31,6 @@ class RpcSpec
   behavior of "Rpc"
 
   import RpcSpec._
-
-  implicit def default(implicit system: ActorSystem) = RouteTestTimeout(5.seconds)
 
   it should "successfully handle an RPC call" in {
     val underTest = normalRoute

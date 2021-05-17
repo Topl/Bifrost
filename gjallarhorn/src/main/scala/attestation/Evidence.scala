@@ -1,6 +1,7 @@
 package attestation
 
-import co.topl.utils.BytesOf.Implicits._
+import co.topl.crypto.hash.digest.Digest
+import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
@@ -39,6 +40,10 @@ object Evidence extends GjalSerializer[Evidence] {
 
   @newtype
   case class EvidenceContent(value: Array[Byte])
+
+  object EvidenceContent {
+    def apply[D: Digest](d: D): EvidenceContent = EvidenceContent(d.infalliblyEncodeAsBytes)
+  }
 
   val contentLength = 32 //bytes (this is generally the output of a Blake2b-256 bit hash)
   val size: Int = 1 + contentLength //length of typePrefix + contentLength
