@@ -278,26 +278,7 @@ class TransactionTest
     val newRewardsAddress =
       node.run(ToplRpc.Admin.GenerateKeyfile.rpc)(ToplRpc.Admin.GenerateKeyfile.Params("rewards")).value.address
 
-    node
-      .run(ToplRpc.Admin.UnlockKeyfile.rpc)(ToplRpc.Admin.UnlockKeyfile.Params(newRewardsAddress.toString, "rewards"))
-      .value
-
-    sendAndAwaitPolyTransaction(
-      name = "give-poly-to-new-forger-address",
-      sender = NonEmptyChain(addressA),
-      recipients = NonEmptyChain((newRewardsAddress, 999000)),
-      changeAddress = addressA
-    )
-
-    sendAndAwaitArbitTransaction(
-      name = "give-arbit-to-new-forger-address",
-      sender = NonEmptyChain(addressA),
-      recipients = NonEmptyChain((newRewardsAddress, 999000)),
-      changeAddress = addressA,
-      consolidationAddress = addressA
-    )
-
-    assignForgingAddress(node, newRewardsAddress)
+    node.run(ToplRpc.Admin.UpdateRewardsAddress.rpc)(ToplRpc.Admin.UpdateRewardsAddress.Params(newRewardsAddress)).value
 
     verifyBalanceChange(addressA, -15, _.Balances.Polys) {
       verifyBalanceChange(addressB, 10, _.Balances.Polys) {
@@ -314,7 +295,7 @@ class TransactionTest
     }
 
     // Double-check the rewards balance
-    balancesFor(newRewardsAddress).Balances.Polys shouldBe Int128(999000 + 5)
+    balancesFor(newRewardsAddress).Balances.Polys shouldBe Int128(5)
   }
 
   private def awaitBlocks(node: BifrostDockerNode)(count: Int): Unit = {
