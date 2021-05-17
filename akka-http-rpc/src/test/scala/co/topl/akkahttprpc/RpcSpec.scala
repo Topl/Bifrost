@@ -2,7 +2,7 @@ package co.topl.akkahttprpc
 
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.testkit.ScalatestRouteTest
+import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.ThrowableSupport.Verbose.verboseThrowableCodec
@@ -17,6 +17,8 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{EitherValues, Inside, OptionValues}
 import RpcEncoders._
+import scala.concurrent.duration._
+
 import scala.concurrent.Future
 
 class RpcSpec
@@ -217,6 +219,8 @@ object RpcSpec {
 
   implicit val encodeTestMethod1Success: Encoder[TestMethodSuccess] =
     deriveEncoder[TestMethodSuccess]
+
+  implicit val timeout: RouteTestTimeout = RouteTestTimeout(5.seconds)
 
 }
 
