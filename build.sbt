@@ -217,7 +217,7 @@ val simulacrum = Seq(
 )
 
 libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ loggingDependencies
-++ testingDependenciesTest ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
+  ++ testingDependenciesTest ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
 
 lazy val commonScalacOptions = Seq(
   "-deprecation",
@@ -304,7 +304,7 @@ lazy val node = project.in(file("node"))
   .settings(
     IntegrationTest / parallelExecution := false
   )
-  .dependsOn(common, toplRpc)
+  .dependsOn(common % "compile->compile;test->test", toplRpc)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
 lazy val common = project.in(file("common"))
@@ -313,7 +313,7 @@ lazy val common = project.in(file("common"))
     commonSettings,
     publishSettings,
     libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ jsonDependencies ++
-      cryptoDependencies ++ simulacrum
+      cryptoDependencies ++ simulacrum ++ testingDependenciesTest
   )
   .settings(scalamacrosParadiseSettings)
 

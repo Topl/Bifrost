@@ -1,7 +1,7 @@
 package co.topl.nodeView.state
 
 import co.topl.attestation.Address
-import co.topl.utils.CoreGenerators
+import co.topl.utils.CommonGenerators
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.matchers.should.Matchers
@@ -13,9 +13,15 @@ class TokenBoxRegistrySpec
     with ScalaCheckDrivenPropertyChecks
     with Matchers
     with BeforeAndAfterAll
-    with CoreGenerators {
+    with CommonGenerators {
 
-  val state: State = createState()
+  var state: State = _
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+
+    state = createState()
+  }
 
   property("Token boxes should be inserted into the registry") {
     forAll(tokenBoxesGen) { tokens =>

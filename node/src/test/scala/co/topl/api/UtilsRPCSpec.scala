@@ -18,7 +18,12 @@ import scala.util.{Failure, Success}
 class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState with EitherValues {
 
   val seedLength: Int = 10
-  val address: Address = keyRing.addresses.head
+  var address: Address = _
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    address = keyRing.addresses.head
+  }
 
   "Utils RPC" should {
     "Generate random seed" in {

@@ -14,8 +14,7 @@ import co.topl.modifier.box._
 import co.topl.modifier.box.serialization.BoxSerializer
 import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.serialization._
-import co.topl.settings.VersionSerializer
-import co.topl.utils.{CoreGenerators, ValidGenerators}
+import co.topl.utils.CommonGenerators
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
@@ -31,8 +30,7 @@ class SerializationTests
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers
-    with CoreGenerators
-    with ValidGenerators {
+    with CommonGenerators {
 
   property("PublicKeyPropositionCurve25519 serialization") {
     forAll(publicKeyPropositionCurve25519Gen) { case (_, prop: PublicKeyPropositionCurve25519) =>
@@ -257,15 +255,7 @@ class SerializationTests
     forAll(addressGen) { address =>
       val parsed: Address = AddressSerializer.parseBytes(AddressSerializer.toBytes(address)).get
 
-      AddressSerializer.toBytes(parsed) should contain theSameElementsInOrderAs AddressSerializer.toBytes(address)
-    }
-  }
-
-  property("Version serialization") {
-    forAll(versionGen) { version =>
-      val parsed = VersionSerializer.parseBytes(VersionSerializer.toBytes(version)).get
-
-      parsed.bytes should contain theSameElementsInOrderAs version.bytes
+      parsed.bytes should contain theSameElementsInOrderAs AddressSerializer.toBytes(address)
     }
   }
 }
