@@ -1,10 +1,10 @@
 package co.topl.consensus
 
+import co.topl.utils.CommonGenerators
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.implicits._
-import co.topl.utils.AsBytes.implicits._
+import co.topl.utils.codecs.AsBytes.implicits._
 import co.topl.utils.codecs.CryptoCodec.implicits._
-import co.topl.utils.CoreGenerators
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, Store}
 import org.scalamock.scalatest.MockFactory
@@ -17,7 +17,7 @@ class ConsensusStorageSpec
     extends AnyFlatSpec
     with ScalaCheckPropertyChecks
     with Matchers
-    with CoreGenerators
+    with CommonGenerators
     with MockFactory {
 
   "totalStake" should "return default total stake after no updates with empty storage" in {

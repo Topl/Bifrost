@@ -7,10 +7,10 @@ import io.circe.syntax._
 
 class ProgramBoxRegistrySpec extends MockState {
 
-  val state: State = createState()
+  var state: State = _
 
-  val pubKey: PublicKeyPropositionCurve25519 = propositionCurve25519Gen.sample.get
-  val address: Address = pubKey.address
+  var pubKey: PublicKeyPropositionCurve25519 = _
+  var address: Address = _
 
   val stateOne: Json =
     s"""
@@ -22,10 +22,22 @@ class ProgramBoxRegistrySpec extends MockState {
        |{"b": "1" }
      """.stripMargin.asJson
 
-  val sboxOne: StateBox = StateBox(address.evidence, 0L, programIdGen.sample.get, stateOne)
-  val sboxTwo: StateBox = StateBox(address.evidence, 1L, programIdGen.sample.get, stateTwo)
+  var sboxOne: StateBox = _
+  var sboxTwo: StateBox = _
 
-  var newState_1: State = null
+  var newState_1: State = _
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+
+    state = createState()
+
+    pubKey = propositionGen.sample.get
+    address = pubKey.address
+
+    sboxOne = StateBox(address.evidence, 0L, programIdGen.sample.get, stateOne)
+    sboxTwo = StateBox(address.evidence, 1L, programIdGen.sample.get, stateTwo)
+  }
 
   property("BifrostState should update programBoxRegistry with state box and rollback correctly") {
 

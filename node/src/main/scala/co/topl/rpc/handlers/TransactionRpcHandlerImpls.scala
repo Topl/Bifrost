@@ -1,7 +1,7 @@
 package co.topl.rpc.handlers
 
 import cats.implicits._
-import co.topl.utils.AsBytes.implicits._
+import co.topl.utils.codecs.AsBytes.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
 import co.topl.attestation.{Address, Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
 import co.topl.modifier.box.SimpleValue

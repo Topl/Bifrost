@@ -1,25 +1,32 @@
 package co.topl.attestation
 
-import co.topl.utils.ValidGenerators
+import co.topl.utils.{KeyFileTestHelper, NodeGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-
-import scala.util.{Failure, Success}
 
 class KeySpec
     extends AnyPropSpec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
-    with ValidGenerators
-    with Matchers {
+    with NodeGenerators
+    with Matchers
+    with KeyFileTestHelper {
 
-  val password: String = sampleUntilNonEmpty(stringGen)
-  val messageByte: Array[Byte] = sampleUntilNonEmpty(nonEmptyBytesGen)
+  var password: String = _
+  var messageByte: Array[Byte] = _
 
-  val address: Address = keyRing.DiskOps.generateKeyFile(password) match {
-    case Success(addr) => addr
-    case Failure(ex)   => throw new Error(s"An error occurred while creating a new keyfile. $ex")
+  var address: Address = _
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+
+    password = sampleUntilNonEmpty(stringGen)
+    messageByte = sampleUntilNonEmpty(nonEmptyBytesGen)
+
+    import org.scalatest.TryValues._
+
+    address = keyRing.DiskOps.generateKeyFile(password).success.value
   }
 
   property("The randomly generated address from generateKeyFile should exist in keyRing") {

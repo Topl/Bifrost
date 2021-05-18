@@ -1,38 +1,73 @@
 package co.topl.utils
 
-import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
+import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.consensus.genesis.PrivateGenesis
-import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.Box.identifier
-import co.topl.modifier.box.{AssetCode, AssetValue, SecurityRoot, SimpleValue, _}
+import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TX
-import co.topl.modifier.transaction._
-import co.topl.nodeView.history.History
+import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
+import co.topl.nodeView.history.{BlockProcessor, History, Storage}
 import co.topl.nodeView.state.State
-import co.topl.settings.AppSettings
+import co.topl.settings.{AppSettings, StartupOpts, Version}
+import io.iohk.iodb.LSMStore
 import org.scalacheck.Gen
+import org.scalatest.Suite
 
-import scala.util.{Failure, Random, Success}
+import java.io.File
+import java.nio.file.Files
+import scala.util.Random
 
-trait ValidGenerators extends CoreGenerators {
+trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
+  self: Suite =>
 
-  val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
-    KeyRing.empty(settings.application.keyFileDir)
+  private val settingsFilename = "node/src/test/resources/test.conf"
 
-  val genesisBlock: Block = PrivateGenesis(
-    keyRing.generateNewKeyPairs(num = 3) match {
-      case Success(keys) => keys.map(_.publicImage.address)
-      case Failure(ex)   => throw ex
-    },
-    settings
-  ).getGenesisBlock.get._1
+  lazy val settings: AppSettings = {
+    val s = AppSettings.read(StartupOpts(Some(settingsFilename)))._1
+    s.copy(
+      application = s.application.copy(
+        dataDir = Some(Files.createTempDirectory("bifrost-test-data").toString)
+      )
+    )
+  }
 
-  val genesisBlockId: ModifierId = genesisBlock.id
+  lazy val versionGen: Gen[Version] = for {
+    first  <- Gen.choose(0: Byte, Byte.MaxValue)
+    second <- Gen.choose(0: Byte, Byte.MaxValue)
+    third  <- Gen.choose(0: Byte, Byte.MaxValue)
+  } yield new Version(first, second, third)
 
-  val genesisState: State = genesisState(settings)
+  lazy val genesisBlock: Block = PrivateGenesis(keyRing.addresses, settings).getGenesisBlock.get._1
+
+  def genesisBlockId: ModifierId = genesisBlock.id
+
+  def generateHistory(genesisBlock: Block = genesisBlock): History = {
+    val dataDir = s"/tmp/bifrost/test-data/test-${Random.nextInt(10000000)}"
+
+    val iFile = new File(s"$dataDir/blocks")
+    iFile.mkdirs()
+    val blockStorage = new LSMStore(iFile)
+
+    val storage = new Storage(blockStorage, settings.application.cacheExpire, settings.application.cacheSize)
+    //we don't care about validation here
+    val validators = Seq()
+
+    var history = new History(storage, BlockProcessor(1024), validators)
+
+    history = history.append(genesisBlock).get._1
+    assert(history.modifierById(genesisBlock.id).isDefined)
+    history
+  }
+
+  def genesisState(settings: AppSettings, genesisBlockWithVersion: Block = genesisBlock): State = {
+    History.readOrGenerate(settings).append(genesisBlock)
+    State.genesisState(settings, Seq(genesisBlockWithVersion))
+  }
+
+  lazy val genesisState: State = genesisState(settings)
 
   lazy val validBifrostTransactionSeqGen: Gen[Seq[TX]] = for {
     seqLen <- positiveMediumIntGen
@@ -74,10 +109,10 @@ trait ValidGenerators extends CoreGenerators {
     data        <- stringGen
   } yield AssetTransfer(from, to, attestation, fee, timestamp, Some(data), minting = true)
 
-  def genesisState(settings: AppSettings, genesisBlockWithVersion: Block = genesisBlock): State = {
-    History.readOrGenerate(settings).append(genesisBlock)
-    State.genesisState(settings, Seq(genesisBlockWithVersion))
-  }
+//  def genesisState(settings: AppSettings, genesisBlockWithVersion: Block = genesisBlock): State = {
+//    History.readOrGenerate(settings).append(genesisBlock)
+//    State.genesisState(settings, Seq(genesisBlockWithVersion))
+//  }
 
   def validPolyTransfer(
     keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
@@ -94,7 +129,7 @@ trait ValidGenerators extends CoreGenerators {
       IndexedSeq((address, polyAmount))
     }
     val rawTx = PolyTransfer
-      .createRaw(
+      .createRaw[PublicKeyPropositionCurve25519](
         state,
         recipients,
         IndexedSeq(sender),
@@ -122,7 +157,7 @@ trait ValidGenerators extends CoreGenerators {
       IndexedSeq((address, arbitAmount))
     }
     val rawTx = ArbitTransfer
-      .createRaw(
+      .createRaw[PublicKeyPropositionCurve25519](
         state,
         recipients,
         IndexedSeq(sender),
@@ -148,7 +183,7 @@ trait ValidGenerators extends CoreGenerators {
 
     // todo: This should not be using the create raw function because we are testing too many things then!
     val rawTx = AssetTransfer
-      .createRaw(
+      .createRaw[PublicKeyPropositionCurve25519](
         state,
         recipients,
         IndexedSeq(sender),
@@ -176,4 +211,5 @@ trait ValidGenerators extends CoreGenerators {
     }.toSeq
     ownerQuantities.filter(_._2 > 0)
   }
+
 }

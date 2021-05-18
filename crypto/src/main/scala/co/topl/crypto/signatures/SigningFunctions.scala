@@ -1,5 +1,7 @@
 package co.topl.crypto.signatures
 
+import co.topl.crypto.{PrivateKey, PublicKey, SharedSecret}
+
 import java.security.SecureRandom
 
 /* Forked from https://github.com/input-output-hk/scrypto */

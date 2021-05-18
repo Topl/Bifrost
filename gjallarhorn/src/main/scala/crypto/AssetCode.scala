@@ -1,7 +1,7 @@
 package crypto
 
 import attestation.Address
-import co.topl.utils.AsBytes.implicits._
+import co.topl.utils.codecs.AsBytes.implicits._
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
 import crypto.AssetCode.AssetCodeVersion

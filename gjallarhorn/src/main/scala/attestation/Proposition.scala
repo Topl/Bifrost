@@ -3,10 +3,11 @@ package attestation
 import attestation.AddressEncoder.NetworkPrefix
 import attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
 import attestation.serialization.PropositionSerializer
+import co.topl.crypto.PublicKey
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.implicits._
-import co.topl.crypto.signatures.{Curve25519, PublicKey}
-import co.topl.utils.AsBytes.implicits._
+import co.topl.crypto.signatures.Curve25519
+import co.topl.utils.codecs.AsBytes.implicits._
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps

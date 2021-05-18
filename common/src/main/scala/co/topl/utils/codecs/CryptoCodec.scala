@@ -1,17 +1,17 @@
 package co.topl.utils.codecs
 
+import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.crypto.hash.digest.{Digest, Digest32, InvalidDigestFailure}
 import co.topl.crypto.hash.implicits._
-import co.topl.crypto.signatures.{PrivateKey, PublicKey, Signature}
+import co.topl.crypto.signatures.Signature
 import co.topl.utils.encode.Base58
-import co.topl.utils.{AsBytes, FromBytes, Infallible}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder}
 
 object CryptoCodec {
 
   trait AsBytesInstances {
-    import co.topl.utils.AsBytes.infallible
+    import AsBytes.infallible
 
     implicit def digestBytesEncoder[T: Digest]: AsBytes[Infallible, T] = infallible(_.bytes)
     implicit val signatureEncoder: AsBytes[Infallible, Signature] = infallible(_.value)
@@ -20,7 +20,7 @@ object CryptoCodec {
   }
 
   trait FromBytesInstances {
-    import co.topl.utils.FromBytes.infallible
+    import FromBytes.infallible
 
     implicit def digestBytesDecoder[T: Digest]: FromBytes[InvalidDigestFailure, T] = Digest[T].from(_)
     implicit val publicKeyDecoder: FromBytes[Infallible, PublicKey] = infallible(PublicKey(_))

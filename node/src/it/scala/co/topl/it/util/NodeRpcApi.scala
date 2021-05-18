@@ -5,6 +5,7 @@ import akka.actor.{ActorSystem, Scheduler}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.stream.scaladsl.{Sink, Source}
+import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.implicits.client.rpcToClient
 import co.topl.akkahttprpc.utils.Retry
@@ -12,7 +13,9 @@ import co.topl.akkahttprpc.{RequestModifier, Rpc, RpcClientFailure, RpcError}
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.hash.implicits._
+import co.topl.modifier.ModifierId
 import co.topl.rpc.ToplRpc
+import co.topl.rpc.ToplRpc.NodeView.TransactionById
 import co.topl.rpc.implicits.client._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.codecs.CryptoCodec.implicits._
@@ -65,6 +68,16 @@ case class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem, 
           Right(Done)
       }
       .runWith(Sink.head)
+
+  def pollForTransaction(transactionId: ModifierId, timeout: FiniteDuration = 20.seconds)(implicit
+    scheduler:                          Scheduler
+  ): EitherT[Future, RpcClientFailure, TransactionById.Response] =
+    Retry(
+      () => ToplRpc.NodeView.TransactionById.rpc.call.apply(ToplRpc.NodeView.TransactionById.Params(transactionId)),
+      interval = 500.milli,
+      timeout = timeout,
+      attempts = Int.MaxValue
+    )
 }
 
 object NodeRpcApi {
