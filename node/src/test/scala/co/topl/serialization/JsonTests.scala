@@ -30,7 +30,7 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckPropertyChecks 
   }
 
   property("KeyfileCurve25519 json") {
-    forAll(key25519Gen) { key =>
+    forAll(keyCurve25519Gen) { key =>
       val keyfile = KeyfileCurve25519Companion.encryptSecret(key._1, "test")
       keyfile.asJson.as[KeyfileCurve25519] match {
         case Right(kf) =>
