@@ -48,8 +48,11 @@ class DockerSupport(dockerClient: DockerClient)(implicit system: ActorSystem) ex
         "-Dcom.sun.management.jmxremote.ssl=false",
         "-Dcom.sun.management.jmxremote.local.only=false",
         "-Dcom.sun.management.jmxremote.authenticate=false",
-        "--apiKeyHash", NodeRpcApi.ApiKeyHashBase58,
-        "-c", "/opt/docker/config/testConfig.conf"
+        "--apiKeyHash",
+        NodeRpcApi.ApiKeyHashBase58,
+        "-c",
+        "/opt/docker/config/testConfig.conf",
+        "--debug"
       )
 
     val hostConfig =
