@@ -1,8 +1,9 @@
 package co.topl.utils.encode
 
-import cats.data.{Validated, ValidatedNec}
-import co.topl.utils.{AsBytes, FromBytes}
+import cats.data.Validated.{Invalid, Valid}
+import cats.data.{NonEmptyChain, ValidatedNec}
 import co.topl.utils.StringTypes.{Base16String, UTF8String}
+import co.topl.utils.{AsBytes, FromBytes}
 
 /* Forked from https://github.com/ScorexFoundation/scorex-util/tree/master/src/main/scala/scorex/util/encode */
 
@@ -11,7 +12,7 @@ class Base16Encoder extends FromBytes[EncodingFailure, Base16String] {
   override def decode(encoded: Array[Byte]): ValidatedNec[EncodingFailure, Base16String] =
     if (encoded.length == 0)
       // avoid allocation of empty array and new String instance
-      Base16String.validated("").leftMap(InvalidString)
+      Base16String.validated("").leftMap(_.map(InvalidString))
     else {
       val buf = new Array[Char](encoded.length * 2)
       var j = 0
@@ -21,15 +22,15 @@ class Base16Encoder extends FromBytes[EncodingFailure, Base16String] {
         buf(j * 2 + 1) = Base16.charIndex(v & 0x0f)
         j += 1
       }
-      Base16String.validated(buf).leftMap(InvalidString)
+      Base16String.validated(buf).leftMap(_.map(InvalidString))
     }
 }
 
-class Base16Decoder extends AsBytes[EncodingFailure, Base16String] {
+class Base16Decoder extends AsBytes[DecodingFailure, Base16String] {
 
   override def encode(input: Base16String): ValidatedNec[DecodingFailure, Array[Byte]] = {
     var isError = false
-    var result: ValidatedNec = None
+    var error: Option[DecodingFailure] = None
 
     val inputValue = input.value.value
     val inputLength = inputValue.length
@@ -60,7 +61,9 @@ class Base16Decoder extends AsBytes[EncodingFailure, Base16String] {
       }
     }
 
-    Validated.condNec()
+    error
+      .map(e => Invalid(NonEmptyChain(e)))
+      .getOrElse(Valid(result))
   }
 }
 
