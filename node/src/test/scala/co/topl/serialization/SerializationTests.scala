@@ -1,13 +1,8 @@
 package co.topl.serialization
 
 import co.topl.attestation._
-import co.topl.attestation.serialization.{
-  PublicKeyPropositionCurve25519Serializer,
-  SignatureCurve25519Serializer,
-  ThresholdPropositionCurve25519Serializer,
-  ThresholdSignatureCurve25519Serializer
-}
-import co.topl.attestation.keyManagement.PrivateKeyCurve25519
+import co.topl.attestation.serialization.{PublicKeyPropositionCurve25519Serializer, PublicKeyPropositionEd25519Serializer, SignatureCurve25519Serializer, SignatureEd25519Serializer, ThresholdPropositionCurve25519Serializer, ThresholdSignatureCurve25519Serializer}
+import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519}
 import co.topl.modifier.block.serialization.{BlockBodySerializer, BlockHeaderSerializer, BlockSerializer}
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.box._
@@ -45,9 +40,27 @@ class SerializationTests
     }
   }
 
+  property("PublicKeyPropositionEd25519 serialization") {
+    forAll(publicKeyPropositionEd25519Gen) { case (_, prop: PublicKeyPropositionEd25519) =>
+      val parsed = PublicKeyPropositionEd25519Serializer
+        .parseBytes(PublicKeyPropositionEd25519Serializer.toBytes(prop))
+        .get
+
+      parsed.bytes sameElements prop.bytes shouldBe true
+    }
+  }
+
   property("PrivateKeyCurve25519 serialization") {
     forAll(keyCurve25519Gen) { case (key: PrivateKeyCurve25519, _) =>
       val parsed = PrivateKeyCurve25519.parseBytes(PrivateKeyCurve25519.toBytes(key)).get
+
+      parsed.bytes sameElements key.bytes shouldBe true
+    }
+  }
+
+  property("PrivateKeyEd25519 serialization") {
+    forAll(keyEd25519Gen) { case (key: PrivateKeyEd25519, _) =>
+      val parsed = PrivateKeyEd25519.parseBytes(PrivateKeyEd25519.toBytes(key)).get
 
       parsed.bytes sameElements key.bytes shouldBe true
     }
@@ -57,6 +70,16 @@ class SerializationTests
     forAll(signatureCurve25519Gen) { sig: SignatureCurve25519 =>
       val parsed = SignatureCurve25519Serializer
         .parseBytes(SignatureCurve25519Serializer.toBytes(sig))
+        .get
+
+      parsed.bytes sameElements sig.bytes shouldBe true
+    }
+  }
+
+  property("SignatureEd25519 serialization") {
+    forAll(signatureEd25519Gen) { sig: SignatureEd25519 =>
+      val parsed = SignatureEd25519Serializer
+        .parseBytes(SignatureEd25519Serializer.toBytes(sig))
         .get
 
       parsed.bytes sameElements sig.bytes shouldBe true
@@ -246,7 +269,7 @@ class SerializationTests
     }
   }
 
-  property("Evidence serialization") {
+  property("Evidence serialization with Curve25519") {
     forAll(evidenceCurve25519Gen) { evidence =>
       val parsed = Evidence.parseBytes(Evidence.toBytes(evidence)).get
 
@@ -254,8 +277,24 @@ class SerializationTests
     }
   }
 
-  property("Address serialization") {
+  property("Evidence serialization with Ed25519") {
+    forAll(evidenceEd25519Gen) { evidence =>
+      val parsed = Evidence.parseBytes(Evidence.toBytes(evidence)).get
+
+      Evidence.toBytes(parsed) sameElements Evidence.toBytes(evidence) shouldBe true
+    }
+  }
+
+  property("Address serialization with Curve25519") {
     forAll(addressCurve25519Gen) { address =>
+      val parsed: Address = AddressSerializer.parseBytes(AddressSerializer.toBytes(address)).get
+
+      AddressSerializer.toBytes(parsed) should contain theSameElementsInOrderAs AddressSerializer.toBytes(address)
+    }
+  }
+
+  property("Address serialization with Ed25519") {
+    forAll(addressEd25519Gen) { address =>
       val parsed: Address = AddressSerializer.parseBytes(AddressSerializer.toBytes(address)).get
 
       AddressSerializer.toBytes(parsed) should contain theSameElementsInOrderAs AddressSerializer.toBytes(address)
