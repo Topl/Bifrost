@@ -1,15 +1,12 @@
 package co.topl.it
 
 import cats.data.NonEmptyChain
-import co.topl.attestation.AddressCodec.implicits._
 import co.topl.attestation._
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
-import co.topl.crypto.hash.Blake2b256
 import co.topl.it.util._
 import co.topl.modifier.box.{AssetCode, AssetValue}
 import co.topl.modifier.transaction.Transaction
 import co.topl.rpc.ToplRpc
-import co.topl.utils.FromBytes.implicits._
 import co.topl.utils.Int128
 import com.typesafe.config.ConfigFactory
 import org.scalatest._

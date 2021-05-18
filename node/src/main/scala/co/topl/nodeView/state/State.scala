@@ -16,7 +16,7 @@ import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.encode.Base58
-import co.topl.utils.AsBytes.implicits._
+import co.topl.utils.codecs.AsBytes.implicits._
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import java.io.File

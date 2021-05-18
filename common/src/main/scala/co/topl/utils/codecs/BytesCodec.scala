@@ -1,4 +1,4 @@
-package co.topl.utils
+package co.topl.utils.codecs
 
 import cats.Eq
 import cats.data.{Validated, ValidatedNec}

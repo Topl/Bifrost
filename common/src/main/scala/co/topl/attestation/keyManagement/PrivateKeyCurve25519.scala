@@ -1,11 +1,11 @@
 package co.topl.attestation.keyManagement
 
-import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
-import co.topl.crypto.signatures.implicits._
 import cats.implicits._
-import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
+import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.crypto.implicits._
+import co.topl.crypto.signatures.Curve25519
+import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
-import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 
 case class PrivateKeyCurve25519(private val privateKey: PrivateKey, private val publicKey: PublicKey) extends Secret {
 

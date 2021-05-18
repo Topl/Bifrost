@@ -1,7 +1,8 @@
 package attestation
 
-import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
-import co.topl.crypto.signatures.implicits._
+import co.topl.crypto.implicits._
+import co.topl.crypto.{PrivateKey, PublicKey}
+import co.topl.crypto.signatures.Curve25519
 import cats.implicits._
 import crypto.KeyfileCurve25519
 import utils.serialization.{GjalSerializer, Reader, Writer}

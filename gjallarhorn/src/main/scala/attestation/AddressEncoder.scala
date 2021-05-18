@@ -1,7 +1,7 @@
 package attestation
 
 import co.topl.crypto.hash.Blake2b256
-import co.topl.utils.AsBytes.implicits._
+import co.topl.utils.codecs.AsBytes.implicits._
 import co.topl.utils.encode.Base58
 import cats.implicits._
 

@@ -4,7 +4,7 @@ import akka.actor.{ActorRef, ActorRefFactory}
 import akka.pattern.ask
 import attestation.AddressEncoder.NetworkPrefix
 import attestation.{Address, Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
-import co.topl.utils.AsBytes.implicits._
+import co.topl.utils.codecs.AsBytes.implicits._
 import co.topl.utils.encode.Base58
 import crypto.AssetCode
 import http.GjallarhornOfflineApiRoute.updateConfigFile

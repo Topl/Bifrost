@@ -3,7 +3,7 @@ package co.topl.attestation
 import cats.scalatest.{ValidatedMatchers, ValidatedNecMatchers}
 import co.topl.attestation.AddressCodec.implicits.StringOps
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.AsBytes.implicits._
+import co.topl.utils.codecs.AsBytes.implicits._
 import co.topl.utils.encode.Base58
 import co.topl.utils.{CommonGenerators, NetworkType}
 import org.scalatest.EitherValues

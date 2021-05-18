@@ -1,7 +1,7 @@
 package co.topl.utils.encode
 
-import co.topl.utils.{AsBytes, Infallible}
-import co.topl.utils.AsBytes.implicits._
+import co.topl.utils.codecs.{AsBytes, Infallible}
+import co.topl.utils.codecs.AsBytes.implicits._
 
 import java.io.IOException
 import scala.util.{Failure, Success, Try}

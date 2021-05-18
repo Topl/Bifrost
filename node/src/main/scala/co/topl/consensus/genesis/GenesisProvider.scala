@@ -4,8 +4,7 @@ import co.topl.attestation.Address
 import co.topl.attestation.AddressCodec.implicits._
 import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 import co.topl.consensus.Forger.ChainParams
-import co.topl.crypto.signatures.{PrivateKey, PublicKey}
-import co.topl.attestation.keyManagement.PrivateKeyCurve25519
+import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
