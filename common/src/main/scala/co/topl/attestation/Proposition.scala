@@ -1,7 +1,7 @@
 package co.topl.attestation
 
 import co.topl.attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
-import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, Secret}
+import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519, Secret}
 import co.topl.attestation.serialization.PropositionSerializer
 import co.topl.crypto.PublicKey
 import co.topl.crypto.hash.Blake2b256

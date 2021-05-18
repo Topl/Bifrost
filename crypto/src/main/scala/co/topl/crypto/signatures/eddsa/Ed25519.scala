@@ -1,6 +1,7 @@
 package co.topl.crypto.signatures.eddsa
 
 import cats.implicits._
+import co.topl.crypto.{PrivateKey, PublicKey, SharedSecret}
 import co.topl.crypto.hash.Sha256
 import co.topl.crypto.signatures._
 

@@ -1,5 +1,6 @@
 package co.topl.crypto.signatures
 
+import co.topl.crypto.PrivateKey
 import co.topl.crypto.signatures.implicits.toCreateKeyPairResultOps
 import co.topl.crypto.utils.Hex
 import co.topl.crypto.signatures.eddsa.Ed25519
