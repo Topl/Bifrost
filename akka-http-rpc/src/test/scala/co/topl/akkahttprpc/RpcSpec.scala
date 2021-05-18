@@ -46,6 +46,7 @@ class RpcSpec
         "params"  -> TestMethodParams("abcdef").asJson
       ).asJson
     ) ~> underTest ~> check {
+      implicit val timeout: Duration = 5.seconds
       val json = responseAs[Json]
 
       root.id.string.getOption(json).value shouldBe "1"
@@ -219,8 +220,6 @@ object RpcSpec {
 
   implicit val encodeTestMethod1Success: Encoder[TestMethodSuccess] =
     deriveEncoder[TestMethodSuccess]
-
-  implicit val timeout: Duration = 5.seconds
 
 }
 
