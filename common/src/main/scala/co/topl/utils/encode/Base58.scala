@@ -1,8 +1,7 @@
 package co.topl.utils.encode
 
-import cats.implicits.toBifunctorOps
-import co.topl.utils.AsBytes
-import co.topl.utils.AsBytes.implicits._
+import co.topl.utils.codecs.AsBytes.implicits._
+import co.topl.utils.codecs.{AsBytes, Infallible}
 import co.topl.utils.StringTypes.{Base58String, UTF8String}
 
 /* Forked from https://github.com/ScorexFoundation/scorex-util/tree/master/src/main/scala/scorex/util/encode */

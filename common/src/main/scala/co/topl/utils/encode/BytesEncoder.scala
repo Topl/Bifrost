@@ -1,6 +1,6 @@
 package co.topl.utils.encode
 
-import co.topl.utils.{AsBytes, Infallible}
+import co.topl.utils.codecs.{AsBytes, Infallible}
 
 import scala.util.Try
 

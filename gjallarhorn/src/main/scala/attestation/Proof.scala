@@ -2,7 +2,7 @@ package attestation
 
 import attestation.serialization.ProofSerializer
 import co.topl.crypto.signatures.{Curve25519, Signature}
-import co.topl.utils.AsBytes.implicits._
+import co.topl.utils.codecs.AsBytes.implicits._
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps

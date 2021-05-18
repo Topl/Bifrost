@@ -1,13 +1,12 @@
 package co.topl.serialization
 
-import co.topl.attestation.{Address, Evidence, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.attestation.keyManagement.{KeyfileCurve25519, KeyfileCurve25519Companion}
+import co.topl.attestation.{Address, Evidence, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction
-import co.topl.utils.CoreGenerators
-import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
+import co.topl.utils.CommonGenerators
 import io.circe.syntax.EncoderOps
 import org.scalacheck.Gen
 import org.scalatest.matchers.must.Matchers
@@ -15,7 +14,7 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class JsonTests extends AnyPropSpec with Matchers with ScalaCheckPropertyChecks with CoreGenerators {
+class JsonTests extends AnyPropSpec with Matchers with ScalaCheckPropertyChecks with CommonGenerators {
 
   property("PublicKey25519Proposition json") {
     forAll(propositionGen) { prop =>
@@ -136,7 +135,7 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckPropertyChecks 
 
   property("BlockHeader json") {
     forAll(blockGen) { block =>
-      val header = block.toBlockComponents.getOrThrow()._1
+      val header = block.toComponents._1
       header.asJson.as[BlockHeader] match {
         case Right(value) =>
           value.id shouldEqual header.id
@@ -158,7 +157,7 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckPropertyChecks 
 
   property("BlockBody json") {
     forAll(blockGen) { block =>
-      val body = block.toBlockComponents.getOrThrow()._2
+      val body = block.toComponents._2
       body.asJson.as[BlockBody] shouldEqual Right(body)
     }
   }

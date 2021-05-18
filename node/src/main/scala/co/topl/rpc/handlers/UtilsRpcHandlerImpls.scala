@@ -8,7 +8,7 @@ import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.digest.implicits._
 import co.topl.modifier.box.AssetCode
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
-import co.topl.utils.AsBytes.implicits._
+import co.topl.utils.codecs.AsBytes.implicits._
 import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.codecs.CryptoCodec.implicits._

@@ -18,7 +18,7 @@ import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
 import co.topl.utils.encode.Base58
-import co.topl.utils.AsBytes.implicits._
+import co.topl.utils.codecs.AsBytes.implicits._
 
 import java.nio.file.{Files, Path}
 import scala.collection.mutable

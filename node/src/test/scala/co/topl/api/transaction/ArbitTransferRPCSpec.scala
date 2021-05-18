@@ -13,8 +13,13 @@ import org.scalatest.wordspec.AnyWordSpec
 
 class ArbitTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState with EitherValues {
 
-  val address: Address = keyRing.addresses.head
+  var address: Address = _
   var tx = ""
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    address = keyRing.addresses.head
+  }
 
   "ArbitTransfer RPC" should {
     "Create new arbit transfer raw transaction" in {

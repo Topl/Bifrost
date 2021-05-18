@@ -1,7 +1,7 @@
 package co.topl.modifier.box
 
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.utils.AsBytes.implicits._
+import co.topl.utils.codecs.AsBytes.implicits._
 import co.topl.utils.StringTypes.Base58String
 import co.topl.utils.StringTypes.implicits._
 import co.topl.utils.encode.Base58

@@ -6,7 +6,8 @@ import cats.implicits._
 import co.topl.crypto.hash.Blake2b256
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.encode.Base58
-import co.topl.utils.{AsBytes, FromBytes, Infallible, NetworkType}
+import co.topl.utils.NetworkType
+import co.topl.utils.codecs.{AsBytes, FromBytes, Infallible}
 
 import scala.language.implicitConversions
 
@@ -31,7 +32,7 @@ object AddressCodec {
 
     implicit class AddressOps(address: Address) {
 
-      import AsBytes.implicits._
+      import co.topl.utils.codecs.AsBytes.implicits._
 
       def base58Encoded: String =
         Base58.encode(address.infalliblyEncodeAsBytes)(identityBytesEncoder)
@@ -39,7 +40,7 @@ object AddressCodec {
 
     implicit class StringOps(value: String) {
 
-      import FromBytes.implicits._
+      import co.topl.utils.codecs.FromBytes.implicits._
 
       def decodeAddress(implicit networkPrefix: NetworkPrefix): ValidatedNec[AddressValidationError, Address] =
         Validated

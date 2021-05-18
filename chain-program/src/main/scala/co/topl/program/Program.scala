@@ -1,14 +1,14 @@
 package co.topl.program
 
 import co.topl.attestation.PublicKeyPropositionCurve25519
+import co.topl.crypto.PublicKey
 import co.topl.modifier.box.{CodeBox, StateBox}
 import co.topl.utils.exceptions.{ChainProgramException, JsonParsingException}
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.{Context, Value}
-import co.topl.crypto.signatures.PublicKey
 import co.topl.utils.encode.Base58
-import co.topl.utils.AsBytes.implicits._
+import co.topl.utils.codecs.AsBytes.implicits._
 import co.topl.utils.StringTypes.Base58String
 
 import scala.util.Try

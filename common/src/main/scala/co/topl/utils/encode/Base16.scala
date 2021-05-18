@@ -1,9 +1,8 @@
 package co.topl.utils.encode
 
-import cats.data.Validated.{Invalid, Valid}
-import cats.data.{NonEmptyChain, ValidatedNec}
+import co.topl.utils.codecs.{AsBytes, Infallible}
+import co.topl.utils.codecs.AsBytes.implicits._
 import co.topl.utils.StringTypes.{Base16String, UTF8String}
-import co.topl.utils.{AsBytes, FromBytes}
 
 /* Forked from https://github.com/ScorexFoundation/scorex-util/tree/master/src/main/scala/scorex/util/encode */
 

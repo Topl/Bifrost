@@ -17,8 +17,9 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{EitherValues, Inside, OptionValues}
 import RpcEncoders._
-import scala.concurrent.duration._
+import akka.actor.ActorSystem
 
+import scala.concurrent.duration._
 import scala.concurrent.Future
 
 class RpcSpec
@@ -35,6 +36,12 @@ class RpcSpec
   import RpcSpec._
 
   it should "successfully handle an RPC call" in {
+    implicit val timeout: Duration = 5.seconds
+
+    // https://stackoverflow.com/questions/32214005
+    // /request-was-neither-completed-nor-rejected-within-1-second-scala-spray-testing
+    implicit def default(implicit system: ActorSystem): RouteTestTimeout = RouteTestTimeout(5.seconds)
+
     val underTest = normalRoute
 
     Post(
@@ -219,8 +226,6 @@ object RpcSpec {
 
   implicit val encodeTestMethod1Success: Encoder[TestMethodSuccess] =
     deriveEncoder[TestMethodSuccess]
-
-  implicit val timeout: RouteTestTimeout = RouteTestTimeout(5.seconds)
 
 }
 
