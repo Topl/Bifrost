@@ -6,7 +6,7 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction
-import co.topl.utils.CoreGenerators
+import co.topl.utils.CommonGenerators
 import io.circe.syntax.EncoderOps
 import org.scalacheck.Gen
 import org.scalatest.matchers.must.Matchers
@@ -14,7 +14,7 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class JsonTests extends AnyPropSpec with Matchers with ScalaCheckPropertyChecks with CoreGenerators {
+class JsonTests extends AnyPropSpec with Matchers with ScalaCheckPropertyChecks with CommonGenerators {
 
   property("PublicKey25519Proposition json") {
     forAll(propositionGen) { prop =>

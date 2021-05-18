@@ -1,6 +1,8 @@
 package co.topl.attestation.keyManagement
 
 import co.topl.attestation.Address
+import co.topl.attestation.AddressCodec.implicits._
+import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import com.google.common.primitives.Ints
 import scorex.util.Random.randomBytes
@@ -202,7 +204,7 @@ class KeyRing[
       listKeyFiles()
         .map {
           _.filter {
-            _.address == Address(networkPrefix)(address)
+            _.address == address.decodeAddress.getOrThrow()
           }
         } match {
         case Some(listOfKeyfiles) =>

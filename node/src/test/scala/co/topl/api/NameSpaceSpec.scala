@@ -16,9 +16,9 @@ import org.scalatest.wordspec.AnyWordSpec
 class NameSpaceSpec extends AnyWordSpec with Matchers with RPCMockState {
 
   def createRoute(args: Boolean*): Route = {
-    val newRpcSettings: AppSettings = rpcSettings.copy(
-      rpcApi = rpcSettings.rpcApi.copy(
-        namespaceSelector = rpcSettings.rpcApi.namespaceSelector.copy(
+    val newRpcSettings: AppSettings = settings.copy(
+      rpcApi = settings.rpcApi.copy(
+        namespaceSelector = settings.rpcApi.namespaceSelector.copy(
           topl = args(0),
           util = args(1),
           admin = args(2),
@@ -27,7 +27,7 @@ class NameSpaceSpec extends AnyWordSpec with Matchers with RPCMockState {
       )
     )
 
-    val newAppContext = new AppContext(newRpcSettings, StartupOpts.empty, None)
+    val newAppContext = new AppContext(newRpcSettings, StartupOpts(), None)
 
     val rpcServer: ToplRpcServer = {
       val forgerInterface = new ActorForgerInterface(forgerRef)

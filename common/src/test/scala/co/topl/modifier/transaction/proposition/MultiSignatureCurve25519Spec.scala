@@ -1,4 +1,4 @@
-package co.topl.transaction.proposition
+package co.topl.modifier.transaction.proposition
 
 import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 import co.topl.attestation.{
@@ -6,7 +6,7 @@ import co.topl.attestation.{
   ThresholdPropositionCurve25519,
   ThresholdSignatureCurve25519
 }
-import co.topl.utils.CoreGenerators
+import co.topl.utils.CommonGenerators
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
@@ -18,7 +18,7 @@ class MultiSignatureCurve25519Spec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers
-    with CoreGenerators {
+    with CommonGenerators {
 
   property(
     "A MultiSignature25519 created from single Signature25519 " +
