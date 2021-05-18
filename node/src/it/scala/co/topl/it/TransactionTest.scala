@@ -45,17 +45,11 @@ class TransactionTest
       raw"""bifrost.network.knownPeers = []
            |bifrost.rpcApi.namespaceSelector.debug = true
            |bifrost.forging.privateTestnet.genesisSeed = "$nodeGroupName"
+           |bifrost.forging.forgeOnStartup = false
            |""".stripMargin
     )
 
-  private val burnAddress = {
-    val bytes: Array[Byte] = Array(networkPrefix, PublicKeyPropositionCurve25519.typePrefix) ++ Array.fill(32)(2: Byte)
-    val checksum = Blake2b256
-      .hash(bytes)
-      .map(_.value.take(AddressCodec.ChecksumLength))
-      .getOrElse(Array.emptyByteArray)
-    (bytes ++ checksum).decodeTo[AddressValidationError, Address].toEither.value
-  }
+  private val burnAddress = addressFromBytes(Array.fill(32)(2: Byte))
 
   private var node: BifrostDockerNode = _
   private var addresses: List[Address] = _
@@ -79,6 +73,7 @@ class TransactionTest
 
     assignForgingAddress(node, rewardsAddress)
     keyD = keyRing.generateNewKeyPairs().success.value.head
+    node.run(ToplRpc.Admin.StartForging.rpc)(ToplRpc.Admin.StartForging.Params()).value
   }
 
   "Polys can be sent from address A to addressB" in {
@@ -120,6 +115,53 @@ class TransactionTest
         )
       }
     }
+  }
+
+  "Polys can be sent from addressA to addressB with a fee" in {
+    verifyBalanceChange(addressA, -15, _.Balances.Polys) {
+      verifyBalanceChange(addressB, 10, _.Balances.Polys) {
+        verifyBalanceChange(rewardsAddress, 5, _.Balances.Polys) {
+          sendAndAwaitPolyTransaction(
+            name = "tx-poly-a-to-b-10-with-fee",
+            sender = NonEmptyChain(addressA),
+            recipients = NonEmptyChain((addressB, 10)),
+            changeAddress = addressA,
+            fee = 5
+          )
+        }
+      }
+    }
+  }
+
+  "Change from a poly transaction should go to the change address" in {
+    val addressCBalance = balancesFor(addressC).Balances.Polys
+    verifyBalanceChange(addressA, addressCBalance - 10, _.Balances.Polys) {
+      verifyBalanceChange(addressB, 10, _.Balances.Polys) {
+        sendAndAwaitPolyTransaction(
+          name = "tx-poly-c-to-b-10-with-change-address",
+          sender = NonEmptyChain(addressC),
+          recipients = NonEmptyChain((addressB, 10)),
+          changeAddress = addressA
+        )
+      }
+    }
+
+    balancesFor(addressC).Balances.Polys shouldBe Int128(0)
+
+    // Now return the polys back to addressC to allow subsequent tests to work
+
+    sendAndAwaitPolyTransaction(
+      name = "tx-poly-c-to-b-10-with-change-address-revert1",
+      sender = NonEmptyChain(addressA),
+      recipients = NonEmptyChain((addressC, addressCBalance - 10)),
+      changeAddress = addressA
+    )
+    sendAndAwaitPolyTransaction(
+      name = "tx-poly-c-to-b-10-with-change-address-revert2",
+      sender = NonEmptyChain(addressB),
+      recipients = NonEmptyChain((addressC, 10)),
+      changeAddress = addressB
+    )
   }
 
   "Arbits can be sent from addressA to addressB" in {
@@ -176,6 +218,25 @@ class TransactionTest
     }
   }
 
+  "Arbits can be sent from addressA to addressB with a fee" in {
+    verifyBalanceChange(addressA, -5, _.Balances.Polys) {
+      verifyBalanceChange(addressA, -10, _.Balances.Arbits) {
+        verifyBalanceChange(addressB, 10, _.Balances.Arbits) {
+          verifyBalanceChange(rewardsAddress, 5, _.Balances.Polys) {
+            sendAndAwaitArbitTransaction(
+              name = "tx-arbit-a-to-b-10-with-fee",
+              sender = NonEmptyChain(addressA),
+              recipients = NonEmptyChain((addressB, 10)),
+              changeAddress = addressA,
+              consolidationAddress = addressA,
+              fee = 5
+            )
+          }
+        }
+      }
+    }
+  }
+
   def assetCode: AssetCode = AssetCode(1: Byte, addressC, "test_1")
 
   "Assets can be sent from addressC to addressA (minting)" in {
@@ -214,6 +275,30 @@ class TransactionTest
 
     assetBox.value.quantity shouldBe Int128(10)
     assetBox.value.assetCode shouldEqual assetCode
+  }
+
+  "Fees are sent to the proper address after a forger address update" in {
+    val newRewardsAddress =
+      node.run(ToplRpc.Admin.GenerateKeyfile.rpc)(ToplRpc.Admin.GenerateKeyfile.Params("rewards")).value.address
+
+    node.run(ToplRpc.Admin.UpdateRewardsAddress.rpc)(ToplRpc.Admin.UpdateRewardsAddress.Params(newRewardsAddress)).value
+
+    verifyBalanceChange(addressA, -15, _.Balances.Polys) {
+      verifyBalanceChange(addressB, 10, _.Balances.Polys) {
+        verifyBalanceChange(newRewardsAddress, 5, _.Balances.Polys) {
+          sendAndAwaitPolyTransaction(
+            name = "forger-address-change",
+            sender = NonEmptyChain(addressA),
+            recipients = NonEmptyChain((addressB, 10)),
+            changeAddress = addressA,
+            fee = 5
+          )
+        }
+      }
+    }
+
+    // Double-check the rewards balance
+    balancesFor(newRewardsAddress).Balances.Polys shouldBe Int128(5)
   }
 
   private def awaitBlocks(node: BifrostDockerNode)(count: Int): Unit = {
@@ -332,11 +417,9 @@ class TransactionTest
 
     memPoolTx shouldEqual broadcastedTx
 
-    awaitBlocks(node)(3)
-
     logger.info(s"Checking for $name in the chain")
     val ToplRpc.NodeView.TransactionById.Response(completedTransaction, _, _) =
-      node.run(ToplRpc.NodeView.TransactionById.rpc)(ToplRpc.NodeView.TransactionById.Params(memPoolTx.id)).value
+      node.pollForTransaction(memPoolTx.id).value.futureValue(Timeout(30.seconds)).value
 
     completedTransaction shouldEqual memPoolTx
 

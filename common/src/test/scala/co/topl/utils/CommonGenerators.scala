@@ -2,54 +2,34 @@ package co.topl.utils
 
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
+import co.topl.attestation.keyManagement._
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.signatures.{Curve25519, Signature}
-import co.topl.attestation.keyManagement.{
-  KeyRing,
-  KeyfileCurve25519,
-  KeyfileCurve25519Companion,
-  PrivateKeyCurve25519,
-  Secret
-}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.Box.Nonce
 import co.topl.modifier.box.{ProgramId, _}
 import co.topl.modifier.transaction._
-import co.topl.nodeView.history.{BlockProcessor, History, Storage}
-import co.topl.settings.{AppSettings, StartupOpts, Version}
-import co.topl.utils.AsBytes.implicits._
-import co.topl.utils.NetworkType.{NetworkPrefix, PrivateTestnet}
 import co.topl.utils.encode.Base58
+import co.topl.utils.AsBytes.implicits._
 import io.circe.Json
 import io.circe.syntax._
-import io.iohk.iodb.LSMStore
 import org.scalacheck.rng.Seed
 import org.scalacheck.{Arbitrary, Gen}
+import org.scalatest.Suite
 
-import java.io.File
-import java.time.Instant
 import scala.collection.SortedSet
-import scala.util.{Random, Try}
+import scala.util.Random
 
 /**
  * Created by cykoz on 4/12/17.
  */
-trait CoreGenerators extends Logging {
+trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
+  self: Suite =>
 
   type P = Proposition
   type S = Secret
-
-  implicit val networkPrefix: NetworkPrefix = PrivateTestnet.netPrefix
-  implicit val keyfileCurve25519Companion: KeyfileCurve25519Companion.type = KeyfileCurve25519Companion
-
-  private val settingsFilename = "node/src/test/resources/test.conf"
-  val settings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename)))._1
-
-  private val keyFileDir =
-    settings.application.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
-  private val keyRing = KeyRing.empty[PrivateKeyCurve25519, KeyfileCurve25519](Some(keyFileDir))
 
   def sampleUntilNonEmpty[T](generator: Gen[T]): T =
     generator.pureApply(Gen.Parameters.default, Seed.random())
@@ -115,7 +95,7 @@ trait CoreGenerators extends Logging {
   lazy val smallInt128Gen: Gen[Int128] = Gen.choose[Int128](0, Int.MaxValue)
   lazy val largeInt128Gen: Gen[Int128] = Gen.choose[Int128](Long.MaxValue, int128Max)
 
-  def samplePositiveDouble: Double = scala.util.Random.nextFloat()
+  def samplePositiveDouble: Double = Random.nextFloat()
 
   lazy val tokenBoxesGen: Gen[Seq[TokenBox[TokenValueHolder]]] = for {
     tx <- Gen.someOf(polyBoxGen, arbitBoxGen, assetBoxGen)
@@ -381,12 +361,6 @@ trait CoreGenerators extends Logging {
   lazy val evidenceGen: Gen[Evidence] = for { address <- addressGen } yield address.evidence
   lazy val addressGen: Gen[Address] = for { key <- propositionGen } yield key.address
 
-  lazy val versionGen: Gen[Version] = for {
-    first  <- Gen.choose(0: Byte, Byte.MaxValue)
-    second <- Gen.choose(0: Byte, Byte.MaxValue)
-    third  <- Gen.choose(0: Byte, Byte.MaxValue)
-  } yield new Version(first, second, third)
-
   def genBytesList(size: Int): Gen[Array[Byte]] = genBoundedBytes(size, size)
 
   def genBoundedBytes(minSize: Int, maxSize: Int): Gen[Array[Byte]] =
@@ -404,53 +378,12 @@ trait CoreGenerators extends Logging {
     signature     <- signatureGen
     txs           <- bifrostTransactionSeqGen
   } yield {
-    val parentId = ModifierId.create(Base58.encode(parentIdBytes)).getOrElse(ModifierId.empty)
+    val parentId = ModifierId(Base58.encode(parentIdBytes))
     val height: Long = 1L
-    val difficulty = settings.forging.privateTestnet.map(_.initialDifficulty).get
-    val version: PNVMVersion = settings.application.version.firstDigit
+    val difficulty = 1000000000000000000L
+    val version: PNVMVersion = 1: Byte
 
     Block(parentId, timestamp, generatorBox, publicKey, signature, height, difficulty, txs, version)
-  }
-
-  lazy val genesisBlockGen: Gen[Block] = {
-    val keyPair = keyRing.generateNewKeyPairs().get.head
-    val matchingAddr = keyPair.publicImage.address
-    val height: Long = 1L
-    val difficulty = settings.forging.privateTestnet.map(_.initialDifficulty).get
-    val version: PNVMVersion = settings.application.version.firstDigit
-    val signingFunction: Array[Byte] => Try[SignatureCurve25519] =
-      (messageToSign: Array[Byte]) => keyRing.signWithAddress(matchingAddr)(messageToSign)
-
-    Block
-      .createAndSign(
-        History.GenesisParentId,
-        Instant.now().toEpochMilli,
-        Seq(),
-        ArbitBox(matchingAddr.evidence, 0L, SimpleValue(0)),
-        keyPair.publicImage,
-        height,
-        difficulty,
-        version
-      )(signingFunction)
-      .get
-  }
-
-  def generateHistory(genesisBlock: Block = sampleUntilNonEmpty(genesisBlockGen)): History = {
-    val dataDir = s"/tmp/bifrost/test-data/test-${Random.nextInt(10000000)}"
-
-    val iFile = new File(s"$dataDir/blocks")
-    iFile.mkdirs()
-    val blockStorage = new LSMStore(iFile)
-
-    val storage = new Storage(blockStorage, settings.application.cacheExpire, settings.application.cacheSize)
-    //we don't care about validation here
-    val validators = Seq()
-
-    var history = new History(storage, BlockProcessor(1024), validators)
-
-    history = history.append(genesisBlock).get._1
-    assert(history.modifierById(genesisBlock.id).isDefined)
-    history
   }
 
 }

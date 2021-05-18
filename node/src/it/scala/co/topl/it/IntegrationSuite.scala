@@ -1,7 +1,7 @@
 package co.topl.it
 
 import akka.actor.{ActorSystem, Scheduler}
-import co.topl.attestation.Address
+import co.topl.attestation.{Address, Evidence, PublicKeyPropositionCurve25519}
 import co.topl.it.util.{BifrostDockerNode, DockerSupport}
 import co.topl.rpc.{ToplRpc, ToplRpcClientCodecs}
 import co.topl.utils.NetworkType.NetworkPrefix
@@ -97,4 +97,7 @@ trait IntegrationSuite
 
   protected def wrapNode[T](node: BifrostDockerNode)(f: BifrostDockerNode => T): T =
     f(node)
+
+  protected def addressFromBytes(b: Array[Byte]): Address =
+    Address(Evidence(PublicKeyPropositionCurve25519.typePrefix, Evidence.EvidenceContent @@ b))
 }

@@ -1,22 +1,20 @@
 package co.topl.serialization
 
 import co.topl.attestation._
+import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 import co.topl.attestation.serialization.{
   PublicKeyPropositionCurve25519Serializer,
   SignatureCurve25519Serializer,
   ThresholdPropositionCurve25519Serializer,
   ThresholdSignatureCurve25519Serializer
 }
-import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 import co.topl.modifier.block.serialization.{BlockBodySerializer, BlockHeaderSerializer, BlockSerializer}
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.box._
 import co.topl.modifier.box.serialization.BoxSerializer
 import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.serialization._
-import co.topl.settings.VersionSerializer
-import co.topl.utils.{CoreGenerators, ValidGenerators}
-import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
+import co.topl.utils.CommonGenerators
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
@@ -32,8 +30,7 @@ class SerializationTests
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers
-    with CoreGenerators
-    with ValidGenerators {
+    with CommonGenerators {
 
   property("PublicKeyPropositionCurve25519 serialization") {
     forAll(publicKeyPropositionCurve25519Gen) { case (_, prop: PublicKeyPropositionCurve25519) =>
@@ -204,7 +201,7 @@ class SerializationTests
 
   property("BlockHeader serialization") {
     forAll(blockGen) { b: Block =>
-      val blockHeader = b.toBlockComponents.getOrThrow()._1
+      val blockHeader = b.toComponents._1
       val parsed = BlockHeaderSerializer
         .parseBytes(BlockHeaderSerializer.toBytes(blockHeader))
         .get
@@ -215,7 +212,7 @@ class SerializationTests
 
   property("BlockBody serialization") {
     forAll(blockGen) { b: Block =>
-      val blockBody = b.toBlockComponents.getOrThrow()._2
+      val blockBody = b.toComponents._2
       val parsed = BlockBodySerializer
         .parseBytes(BlockBodySerializer.toBytes(blockBody))
         .get
@@ -258,15 +255,7 @@ class SerializationTests
     forAll(addressGen) { address =>
       val parsed: Address = AddressSerializer.parseBytes(AddressSerializer.toBytes(address)).get
 
-      AddressSerializer.toBytes(parsed) should contain theSameElementsInOrderAs AddressSerializer.toBytes(address)
-    }
-  }
-
-  property("Version serialization") {
-    forAll(versionGen) { version =>
-      val parsed = VersionSerializer.parseBytes(VersionSerializer.toBytes(version)).get
-
-      parsed.bytes should contain theSameElementsInOrderAs version.bytes
+      parsed.bytes should contain theSameElementsInOrderAs AddressSerializer.toBytes(address)
     }
   }
 }
