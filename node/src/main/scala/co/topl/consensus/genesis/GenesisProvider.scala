@@ -1,11 +1,15 @@
 package co.topl.consensus.genesis
 
+import co.topl.attestation.Address
+import co.topl.attestation.AddressCodec.implicits._
+import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 import co.topl.consensus.Forger.ChainParams
 import co.topl.crypto.signatures.{PrivateKey, PublicKey}
 import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
+import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Int128, Logging}
 
@@ -29,5 +33,7 @@ trait GenesisProvider extends Logging {
   protected val members: Map[String, Int128]
 
   def getGenesisBlock: Try[(Block, ChainParams)]
+
+  protected def memberKeys: Iterable[Address] = members.keys.map(_.decodeAddress.getOrThrow())
 
 }

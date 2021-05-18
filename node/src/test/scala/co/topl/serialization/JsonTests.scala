@@ -136,7 +136,7 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckPropertyChecks 
 
   property("BlockHeader json") {
     forAll(blockGen) { block =>
-      val header = block.toComponents.getOrThrow()._1
+      val header = block.toBlockComponents.getOrThrow()._1
       header.asJson.as[BlockHeader] match {
         case Right(value) =>
           value.id shouldEqual header.id
@@ -158,7 +158,7 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckPropertyChecks 
 
   property("BlockBody json") {
     forAll(blockGen) { block =>
-      val body = block.toComponents.getOrThrow()._2
+      val body = block.toBlockComponents.getOrThrow()._2
       body.asJson.as[BlockBody] shouldEqual Right(body)
     }
   }

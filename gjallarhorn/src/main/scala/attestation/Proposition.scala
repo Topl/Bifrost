@@ -60,14 +60,14 @@ sealed trait KnowledgeProposition[S <: Secret] extends Proposition
 
 /**
  * A public key with a single signature
- * @param pubKey the public key bytes
+ * @param pubKeyBytes the public key bytes
  */
-case class PublicKeyPropositionCurve25519(private[attestation] val pubKey: PublicKey)
+case class PublicKeyPropositionCurve25519(private[attestation] val pubKeyBytes: PublicKey)
     extends KnowledgeProposition[PrivateKeyCurve25519] {
 
   require(
-    pubKey.value.length == Curve25519.KeyLength,
-    s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKey.value.length} found"
+    pubKeyBytes.value.length == Curve25519.KeyLength,
+    s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.value.length} found"
   )
 
   val propTypeString: String = PublicKeyPropositionCurve25519.typeString
@@ -121,8 +121,8 @@ case class ThresholdPropositionCurve25519(threshold: Int, pubKeyProps: Set[Publi
 
   pubKeyProps.foreach { prop =>
     require(
-      prop.pubKey.value.length == Curve25519.KeyLength,
-      s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${prop.pubKey.value.length} found"
+      prop.pubKeyBytes.value.length == Curve25519.KeyLength,
+      s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${prop.pubKeyBytes.value.length} found"
     )
   }
 

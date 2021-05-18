@@ -132,7 +132,7 @@ class NodeViewSynchronizer[
   protected def manageModifiers: Receive = {
 
     /** Request data from any remote node */
-    case DownloadRequest(modifierTypeId: ModifierTypeId, modifierId: ModifierId) =>
+    case DownloadRequest(modifierTypeId, modifierId) =>
       if (deliveryTracker.status(modifierId, historyReaderOpt.toSeq) == ModifiersStatus.Unknown) {
         requestDownload(modifierTypeId, Seq(modifierId), None)
       }

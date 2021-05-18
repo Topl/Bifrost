@@ -11,6 +11,8 @@ import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
+import co.topl.utils.FromBytes.implicits._
+import co.topl.utils.codecs.CryptoCodec.implicits._
 
 import scala.util.{Failure, Success, Try}
 
@@ -58,12 +60,12 @@ sealed trait ProofOfKnowledge[S <: Secret, P <: KnowledgeProposition[S]] extends
  * A proof corresponding to a PublicKeyCurve25519 proposition. This is a zero-knowledge proof that argues knowledge of
  * the underlying private key associated with a public key
  *
- * @param sig 25519 signature
+ * @param sigBytes 25519 signature
  */
-case class SignatureCurve25519(private[attestation] val sig: Signature)
+case class SignatureCurve25519(private[attestation] val sigBytes: Signature)
     extends ProofOfKnowledge[PrivateKeyCurve25519, PublicKeyPropositionCurve25519] {
 
-  private val signatureLength = sig.infalliblyEncodeAsBytes.length
+  private val signatureLength = sigBytes.infalliblyEncodeAsBytes.length
 
   require(
     signatureLength == 0 || signatureLength == Curve25519.SignatureLength,
@@ -71,7 +73,7 @@ case class SignatureCurve25519(private[attestation] val sig: Signature)
   )
 
   def isValid(proposition: PublicKeyPropositionCurve25519, message: Array[Byte]): Boolean =
-    Curve25519.verify(sig, message, proposition.pubKeyBytes.infalliblyDecodeTo[PublicKey])
+    Curve25519.verify(sigBytes, message, proposition.pubKeyBytes.infalliblyDecodeTo[PublicKey])
 }
 
 object SignatureCurve25519 {
@@ -105,7 +107,7 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
     extends ProofOfKnowledge[PrivateKeyCurve25519, ThresholdPropositionCurve25519] {
 
   signatures.foreach { sig =>
-    require(sig.sig.value.length == SignatureCurve25519.signatureSize)
+    require(sig.sigBytes.value.length == SignatureCurve25519.signatureSize)
   }
 
   override def isValid(proposition: ThresholdPropositionCurve25519, message: Array[Byte]): Boolean = Try {
@@ -119,7 +121,7 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
       if (acc < proposition.threshold) {
         if (
           proposition.pubKeyProps
-            .exists(prop => Curve25519.verify(sig.sig, message, prop.pubKeyBytes))
+            .exists(prop => Curve25519.verify(sig.sigBytes, message, prop.pubKeyBytes))
         ) {
           1
         } else {

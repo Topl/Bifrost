@@ -1,12 +1,13 @@
 package co.topl.modifier.box
 
+import cats.implicits._
 import co.topl.attestation.Evidence
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.hash.implicits._
-import cats.implicits._
-import co.topl.utils.AsBytes.implicits._
+import co.topl.utils.codecs.CryptoCodec.implicits._
 import co.topl.utils.encode.Base58
+import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
@@ -34,13 +35,13 @@ object BoxId {
   def apply(id: String): BoxId =
     Base58.decode(id) match {
       case Success(id) =>
-        Digest32.validated(id).map(BoxId(_)).getOrElse(throw new Exception(s"Invalid size for BoxId"))
+        Digest32.validated(id).map(BoxId(_)).getOrThrow()
 
       case Failure(ex) => throw ex
     }
 
   def apply(bytes: Array[Byte]): BoxId =
-    Digest32.validated(bytes).map(BoxId(_)).getOrElse(throw new Exception(s"Invalid size for BoxId"))
+    Digest32.validated(bytes).map(BoxId(_)).getOrThrow()
 
   def idFromEviNonce(evidence: Evidence, nonce: Box.Nonce): BoxId =
     BoxId(Blake2b256.hash(evidence.bytes ++ Longs.toByteArray(nonce)).getOrThrow())

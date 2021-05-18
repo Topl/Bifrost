@@ -1,7 +1,7 @@
 package attestation
 
 import attestation.serialization.ProofSerializer
-import co.topl.crypto.signatures.{Curve25519, PublicKey, Signature}
+import co.topl.crypto.signatures.{Curve25519, Signature}
 import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
@@ -68,7 +68,7 @@ case class SignatureCurve25519(private[attestation] val signature: Signature)
   )
 
   def isValid(proposition: PublicKeyPropositionCurve25519, message: Array[Byte]): Boolean =
-    Curve25519.verify(signature, message, proposition.pubKey)
+    Curve25519.verify(signature, message, proposition.pubKeyBytes)
 }
 
 object SignatureCurve25519 {
@@ -121,7 +121,7 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
       if (acc < proposition.threshold) {
         if (
           proposition.pubKeyProps
-            .exists(prop => Curve25519.verify(sig.signature, message, prop.pubKey))
+            .exists(prop => Curve25519.verify(sig.signature, message, prop.pubKeyBytes))
         ) {
           1
         } else {

@@ -20,7 +20,7 @@ abstract class ShaHash[D: Digest](val algorithmName: String) extends Hash[Sha, D
             )(_ ++ _)
           )
       )
-      .leftMap(InvalidDigestFailure)
+      .leftMap(InvalidDigest)
       .toEither
 }
 

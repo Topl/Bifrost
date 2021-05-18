@@ -4,7 +4,7 @@ import cats.implicits._
 import co.topl.crypto.accumulators.{LeafData, Side}
 import co.topl.crypto.hash.digest.Digest
 import co.topl.crypto.hash.digest.implicits._
-import co.topl.crypto.hash.{Hash, HashFailure, HashResult, InvalidDigestFailure}
+import co.topl.crypto.hash.{Hash, HashFailure, HashResult, InvalidDigest}
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -19,7 +19,7 @@ case class MerkleTree[H, D: Digest](
   private lazy val emptyRootHash: HashResult[D] =
     Digest[D]
       .from(Array.fill(Digest[D].size)(0: Byte))
-      .leftMap(InvalidDigestFailure)
+      .leftMap(InvalidDigest)
       .toEither
 
   lazy val rootHash: HashResult[D] =

@@ -12,7 +12,7 @@ package object hash {
   type Message = Array[Byte]
 
   sealed trait HashFailure
-  case class InvalidDigestFailure(errors: NonEmptyChain[digest.InvalidDigestFailure]) extends HashFailure
+  case class InvalidDigest(errors: NonEmptyChain[digest.InvalidDigestFailure]) extends HashFailure
 
   type HashResult[D] = Either[HashFailure, D]
 

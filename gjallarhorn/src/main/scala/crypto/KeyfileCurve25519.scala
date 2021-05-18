@@ -8,6 +8,7 @@ import co.topl.utils.AsBytes.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.SecureRandom.randomBytes
 import co.topl.utils.encode.Base58
+import co.topl.utils.codecs.CryptoCodec.implicits._
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}

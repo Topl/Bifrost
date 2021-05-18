@@ -204,7 +204,7 @@ class SerializationTests
 
   property("BlockHeader serialization") {
     forAll(blockGen) { b: Block =>
-      val blockHeader = b.toComponents.getOrThrow()._1
+      val blockHeader = b.toBlockComponents.getOrThrow()._1
       val parsed = BlockHeaderSerializer
         .parseBytes(BlockHeaderSerializer.toBytes(blockHeader))
         .get
@@ -215,7 +215,7 @@ class SerializationTests
 
   property("BlockBody serialization") {
     forAll(blockGen) { b: Block =>
-      val blockBody = b.toComponents.getOrThrow()._2
+      val blockBody = b.toBlockComponents.getOrThrow()._2
       val parsed = BlockBodySerializer
         .parseBytes(BlockBodySerializer.toBytes(blockBody))
         .get
@@ -256,9 +256,9 @@ class SerializationTests
 
   property("Address serialization") {
     forAll(addressCurve25519Gen) { address =>
-      val parsed: Address = Address.parseBytes(Address.toBytes(address)).get
+      val parsed: Address = AddressSerializer.parseBytes(AddressSerializer.toBytes(address)).get
 
-      Address.toBytes(parsed) sameElements Address.toBytes(address) shouldBe true
+      AddressSerializer.toBytes(parsed) should contain theSameElementsInOrderAs AddressSerializer.toBytes(address)
     }
   }
 
@@ -266,7 +266,7 @@ class SerializationTests
     forAll(versionGen) { version =>
       val parsed = VersionSerializer.parseBytes(VersionSerializer.toBytes(version)).get
 
-      parsed.bytes sameElements version.bytes
+      parsed.bytes should contain theSameElementsInOrderAs version.bytes
     }
   }
 }

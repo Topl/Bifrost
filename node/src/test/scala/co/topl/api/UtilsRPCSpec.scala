@@ -4,10 +4,10 @@ import akka.util.ByteString
 import co.topl.akkahttprpc.InvalidParametersError
 import co.topl.attestation.Address
 import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.implicits._
 import co.topl.modifier.box.AssetCode
 import co.topl.rpc.ToplRpcErrors
-import co.topl.crypto.hash.implicits._
-import co.topl.utils.AsBytes.implicits._
+import co.topl.utils.codecs.CryptoCodec.implicits._
 import co.topl.utils.encode.Base58
 import io.circe.Json
 import io.circe.parser.parse

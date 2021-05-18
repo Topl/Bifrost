@@ -1,11 +1,8 @@
 package co.topl.utils
 
+import cats.Eq
 import cats.data.{Validated, ValidatedNec}
 import cats.implicits._
-import co.topl.crypto.hash.digest.{Digest, InvalidDigestFailure}
-import co.topl.crypto.hash.implicits._
-import co.topl.crypto.signatures.{PrivateKey, PublicKey, Signature}
-import co.topl.modifier.block.BloomFilter.BloomTopic
 import io.iohk.iodb.ByteArrayWrapper
 
 import scala.language.implicitConversions
@@ -61,20 +58,17 @@ object AsBytes {
   }
 
   trait Instances {
-    implicit val identityBytesEncoder: AsBytes[Infallible, Array[Byte]] = infallible(x => x)
+    implicit val identityBytesEncoder: AsBytes[Infallible, Array[Byte]] = infallible(identity)
 
-    implicit def digestBytesEncoder[T: Digest]: AsBytes[Infallible, T] = infallible(_.bytes)
-
-    implicit val signatureEncoder: AsBytes[Infallible, Signature] = infallible(_.value)
-
-    implicit val publicKeyEncoder: AsBytes[Infallible, PublicKey] = infallible(_.value)
-
-    implicit val privateKeyEncoder: AsBytes[Infallible, PrivateKey] = infallible(_.value)
-
-    implicit val bloomTopicEncoder: AsBytes[Infallible, BloomTopic] = infallible(_.value)
+    implicit def asBytesEq[T](implicit ev: AsBytes[_, T]): Eq[T] =
+      (x: T, y: T) =>
+        (for {
+          xBytes <- ev.encode(x).toEither
+          yBytes <- ev.encode(y).toEither
+        } yield xBytes sameElements yBytes).getOrElse(false)
   }
 
-  object implicits extends Instances with AsBytes.ToOps
+  object implicits extends ToOps with Instances
 }
 
 /**
@@ -90,9 +84,11 @@ object AsBytes {
  *
  * val bytes: Array[Byte] = ???
  * bytes.decodeTo[BytesAsStringFailure, String]
- * bytes.infallibleDecodeTo[ByteArrayWrapper]
  * }}}
  * @tparam Decoded The domain-specific representation
+ * @tparam DecodeFailure The domain-specific failure conditions from decoding the domain object.  If decoding is
+ *                         never expected to fail, you may specify `Infallible` as the type which grants access to
+ *                         a helper operation for direct decoding without validation
  */
 trait FromBytes[DecodeFailure, Decoded] {
   def decode(encoded: Array[Byte]): ValidatedNec[DecodeFailure, Decoded]
@@ -127,21 +123,14 @@ object FromBytes {
 
     implicit def toDecoderOps(target: Array[Byte]): Ops = new Ops(target)
 
-    implicit def toDecoderOps[V](target: V)(implicit encoder: AsBytes[Infallible, V]): Ops = new Ops(
-      target.infalliblyEncodeAsBytes
-    )
+    implicit def toDecoderOps[V](target: V)(implicit encoder: AsBytes[Infallible, V]): Ops =
+      new Ops(target.infalliblyEncodeAsBytes)
   }
 
   trait Instances {
-    implicit val identityBytesDecoder: FromBytes[Infallible, Array[Byte]] = infallible(x => x)
-
-    implicit def digestBytesDecoder[T: Digest]: FromBytes[InvalidDigestFailure, T] = Digest[T].from(_)
+    implicit val identityBytesDecoder: FromBytes[Infallible, Array[Byte]] = infallible(identity)
 
     implicit def byteArrayWrapperDecoder: FromBytes[Infallible, ByteArrayWrapper] = infallible(ByteArrayWrapper(_))
-
-    implicit val publicKeyDecoder: FromBytes[Infallible, PublicKey] = infallible(PublicKey(_))
-
-    implicit val privateKeyDecoder: FromBytes[Infallible, PrivateKey] = infallible(PrivateKey(_))
   }
 
   object implicits extends ToOps with Instances

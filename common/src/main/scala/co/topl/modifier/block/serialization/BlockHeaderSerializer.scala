@@ -8,6 +8,7 @@ import co.topl.modifier.block.{BlockHeader, BloomFilter}
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.box.serialization.ArbitBoxSerializer
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
+import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 
 object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
 
@@ -67,7 +68,7 @@ object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
 
     val txRoot: Digest32 = Digest32
       .validated(r.getBytes(Digest32.size))
-      .valueOr(ex => throw new Exception(s"Failed to parse reader into digest 32: $ex"))
+      .getOrThrow()
 
     val bloomFilter: BloomFilter = BloomFilter.parse(r)
 

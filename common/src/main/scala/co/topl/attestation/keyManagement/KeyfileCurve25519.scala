@@ -3,12 +3,12 @@ package co.topl.attestation.keyManagement
 import co.topl.attestation.Address
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
-import co.topl.utils.Extensions.StringOps
-import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.encode.Base58
-import co.topl.utils.SecureRandom.randomBytes
-import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.AsBytes.implicits.identityBytesEncoder
+import co.topl.utils.Extensions.StringOps
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
+import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.SecureRandom.randomBytes
+import co.topl.utils.encode.Base58
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
@@ -136,10 +136,7 @@ object KeyfileCurve25519Companion extends KeyfileCompanion[PrivateKeyCurve25519,
     val keyfile = parse(src.mkString) match {
       case Left(ex) => throw ex
       case Right(json) =>
-        json.as[KeyfileCurve25519] match {
-          case Left(ex)  => throw new Exception(s"Could not parse KeyFile: $ex")
-          case Right(kf) => kf
-        }
+        json.as[KeyfileCurve25519].getOrThrow(ex => new Exception(s"Could not parse KeyFile: $ex"))
     }
 
     // close the stream and return the keyfile
