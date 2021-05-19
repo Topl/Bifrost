@@ -7,7 +7,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class Curve25519Spec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
+class Curve25519SignatureSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
 
   property("signed message should be verifiable with appropriate public key") {
     forAll { (seed1: Array[Byte], seed2: Array[Byte], message1: Array[Byte], message2: Array[Byte]) =>
