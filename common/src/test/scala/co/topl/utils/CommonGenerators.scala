@@ -352,21 +352,25 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
 
   lazy val keyCurve25519Gen: Gen[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] =
     genBytesList(Curve25519.KeyLength).map(s => PrivateKeyCurve25519.secretGenerator.generateSecret(s))
+
   lazy val publicKeyPropositionCurve25519Gen: Gen[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] =
     keyCurve25519Gen.map(key => key._1 -> key._2)
   lazy val propositionCurve25519Gen: Gen[PublicKeyPropositionCurve25519] = keyCurve25519Gen.map(_._2)
   lazy val evidenceCurve25519Gen: Gen[Evidence] = for { address <- addressCurve25519Gen } yield address.evidence
   lazy val addressCurve25519Gen: Gen[Address] = for { key <- propositionCurve25519Gen } yield key.address
+
   lazy val signatureCurve25519Gen: Gen[SignatureCurve25519] =
     genBytesList(SignatureCurve25519.signatureSize).map(bytes => SignatureCurve25519(Signature(bytes)))
 
   lazy val keyEd25519Gen: Gen[(PrivateKeyEd25519, PublicKeyPropositionEd25519)] =
     genBytesList(Ed25519.KeyLength).map(s => PrivateKeyEd25519.secretGenerator.generateSecret(s))
+
   lazy val publicKeyPropositionEd25519Gen: Gen[(PrivateKeyEd25519, PublicKeyPropositionEd25519)] =
     keyEd25519Gen.map(key => key._1 -> key._2)
   lazy val propositionEd25519Gen: Gen[PublicKeyPropositionEd25519] = keyEd25519Gen.map(_._2)
   lazy val evidenceEd25519Gen: Gen[Evidence] = for { address <- addressEd25519Gen } yield address.evidence
   lazy val addressEd25519Gen: Gen[Address] = for { key <- propositionEd25519Gen } yield key.address
+
   lazy val signatureEd25519Gen: Gen[SignatureEd25519] =
     genBytesList(SignatureEd25519.signatureSize).map(bytes => SignatureEd25519(Signature(bytes)))
 
