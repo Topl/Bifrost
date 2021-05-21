@@ -1,9 +1,12 @@
 package attestation
 
+import cats.implicits._
 import attestation.serialization.ProofSerializer
 import co.topl.crypto.signatures.{Curve25519, Signature}
-import co.topl.utils.codecs.AsBytes.implicits._
+import co.topl.utils.StringTypes.Base58String
+import co.topl.utils.codecs.implicits._
 import co.topl.utils.encode.Base58
+import co.topl.utils.StringTypes.implicits._
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
@@ -25,7 +28,7 @@ sealed trait Proof[P <: Proposition] extends BytesSerializable {
 
   override def serializer: GjalSerializer[Proof[_]] = ProofSerializer
 
-  override def toString: String = Base58.encode(bytes)
+  override def toString: String = Base58.encode(bytes).show
 
   override def equals(obj: Any): Boolean = obj match {
     case pr: Proof[_] => pr.bytes sameElements bytes
@@ -38,12 +41,11 @@ sealed trait Proof[P <: Proposition] extends BytesSerializable {
 
 object Proof {
 
-  def fromString(str: String): Try[Proof[_]] =
-    Base58.decode(str).flatMap(bytes => ProofSerializer.parseBytes(bytes))
+  def fromString(str: Base58String): Try[Proof[_]] = ProofSerializer.parseBytes(Base58.decode(str))
 
   implicit def jsonEncoder[PR <: Proof[_]]: Encoder[PR] = (proof: PR) => proof.toString.asJson
 
-  implicit def jsonDecoder: Decoder[Proof[_]] = Decoder.decodeString.map((str: String) => fromString(str).get)
+  implicit def jsonDecoder: Decoder[Proof[_]] = Decoder[Base58String].emap(fromString(_).toEither.leftMap(_.toString))
 }
 
 /** The proof for a given type of [[Secret]] and [[KnowledgeProposition]] */
@@ -82,7 +84,8 @@ object SignatureCurve25519 {
     SignatureCurve25519(Signature(Array.fill(SignatureCurve25519.signatureSize)(1: Byte)))
 
   def apply(str: String): SignatureCurve25519 =
-    Proof.fromString(str) match {
+    Try(Base58String.validated(str).valueOr(errors => throw new Error(s"Input is not Base 58: $errors")))
+      .flatMap(Proof.fromString) match {
       case Success(sig: SignatureCurve25519) => sig
       case Success(_)                        => throw new Error("Invalid proof generation")
       case Failure(ex)                       => throw ex
@@ -141,7 +144,8 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
 object ThresholdSignatureCurve25519 {
 
   def apply(str: String): ThresholdSignatureCurve25519 =
-    Proof.fromString(str) match {
+    Try(Base58String.validated(str).valueOr(errors => throw new Error(s"Input is not Base 58: $errors")))
+      .flatMap(Proof.fromString) match {
       case Success(sig: ThresholdSignatureCurve25519) => sig
       case Success(_)                                 => throw new Error("Invalid proof generation")
       case Failure(ex)                                => throw ex

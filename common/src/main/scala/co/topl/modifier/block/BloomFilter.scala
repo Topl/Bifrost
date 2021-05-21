@@ -1,15 +1,19 @@
 package co.topl.modifier.block
 
+import cats.data.ValidatedNec
+import cats.implicits._
 import co.topl.crypto.hash.Blake2b256
 import co.topl.modifier.block.BloomFilter.BloomTopic
-import co.topl.utils.codecs.AsBytes.implicits._
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
+import co.topl.utils.StringTypes.Base58String
+import co.topl.utils.StringTypes.implicits.showBase58String
 import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import co.topl.utils.codecs.{AsBytes, FromBytes, Infallible}
+import co.topl.utils.codecs.implicits._
 import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
+import io.circe.{Decoder, Encoder, KeyEncoder}
 import io.estatico.newtype.macros.newtype
 
 import scala.language.implicitConversions
@@ -48,7 +52,7 @@ class BloomFilter private (private val value: Array[Long]) extends BytesSerializ
   }
 
   /** JAA - DO NOT USE THE `.bytes` or `toBytes` methods from the BifrostSerailizer, this must be fixed length */
-  override def toString: String = Base58.encode(value.flatMap(Longs.toByteArray)).map(_.show).getOrElse("")
+  override def toString: String = Base58.encode(value.flatMap(Longs.toByteArray)).show
 
   override def equals(obj: Any): Boolean = obj match {
     case b: BloomFilter => b.value sameElements value
@@ -168,16 +172,21 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
 
   /** Recreate a bloom filter from a string encoding */
   /** JAA - DO NOT USE THE `parseBytes` method from BifrostSerializer, this must be fixed length */
-  private def fromString(str: Base58String): Either[DecodingError, BloomFilter] =
-    Base58
-      .decode(str)
-      .map(_.grouped(Longs.BYTES).map(Longs.fromByteArray).toArray) //Array[Byte] -> Array[Long]
-      .map(new BloomFilter(_))
+  private def fromString(str: Base58String): BloomFilter =
+    new BloomFilter(
+      Base58
+        .decode(str)
+        .grouped(Longs.BYTES)
+        .map(Longs.fromByteArray)
+        .toArray
+    )
 
   implicit val jsonEncoder: Encoder[BloomFilter] = (bf: BloomFilter) => bf.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[BloomFilter] = (bf: BloomFilter) => bf.toString
 
-  implicit val bloomTopicAsBytes: AsBytes[BloomTopic] = value => value.value
+  implicit val jsonDecoder: Decoder[BloomFilter] = Decoder[Base58String].map(fromString)
+
+  implicit val bloomTopicAsBytes: AsBytes[Infallible, BloomTopic] = AsBytes.infallible(_.value)
 
   override def serialize(obj: BloomFilter, w: Writer): Unit =
     obj.value.foreach(l => w.putLong(l))

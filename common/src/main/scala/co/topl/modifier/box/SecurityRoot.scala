@@ -1,7 +1,7 @@
 package co.topl.modifier.box
 
+import cats.implicits._
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.utils.codecs.AsBytes.implicits._
 import co.topl.utils.StringTypes.Base58String
 import co.topl.utils.StringTypes.implicits._
 import co.topl.utils.encode.Base58
@@ -28,7 +28,7 @@ class SecurityRoot private (private val root: Array[Byte]) extends BytesSerializ
     case _                => false
   }
 
-  override def toString: String = Base58.encode(root).map(_.show).getOrElse("")
+  override def toString: String = Base58.encode(root).show
 }
 
 object SecurityRoot extends BifrostSerializer[SecurityRoot] {
@@ -40,13 +40,10 @@ object SecurityRoot extends BifrostSerializer[SecurityRoot] {
 
   implicit val jsonDecoder: Decoder[SecurityRoot] =
     Decoder.decodeString
-      .emap(Base58String.validated(_).leftMap(_ => "Value is not Base 58"))
+      .emap(Base58String.validated(_).leftMap(_ => "Value is not Base 58").toEither)
       .emapTry(sr => Try(SecurityRoot(sr)))
 
-  def apply(str: Base58String): SecurityRoot = Base58.decode(str) match {
-    case Right(value)    => new SecurityRoot(value)
-    case Left(exception) => throw new Exception(s"Unable to decode SecurityRoot, $exception")
-  }
+  def apply(str: Base58String): SecurityRoot = new SecurityRoot(Base58.decode(str))
 
   override def serialize(obj: SecurityRoot, w: Writer): Unit =
     w.putBytes(obj.root)

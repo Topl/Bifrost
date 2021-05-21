@@ -10,6 +10,7 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.StringTypes.Base58String
 import co.topl.utils.{Int128, Logging}
 
 import scala.util.Try
@@ -33,6 +34,6 @@ trait GenesisProvider extends Logging {
 
   def getGenesisBlock: Try[(Block, ChainParams)]
 
-  protected def memberKeys: Iterable[Address] = members.keys.map(_.decodeAddress.getOrThrow())
+  protected def memberKeys: Iterable[Address] = members.keys.map(Base58String.unsafe(_).decodeAddress.getOrThrow())
 
 }

@@ -1,7 +1,11 @@
 package co.topl.attestation
 
+import cats.data.Validated.{Invalid, Valid}
+import cats.implicits._
 import co.topl.crypto.hash.digest.Digest
 import co.topl.utils.encode.Base58
+import co.topl.utils.StringTypes.implicits._
+import co.topl.utils.StringTypes.Base58String
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
@@ -10,6 +14,7 @@ import io.estatico.newtype.macros.newtype
 import io.estatico.newtype.ops._
 import co.topl.utils.codecs.AsBytes.implicits._
 import co.topl.utils.codecs.CryptoCodec.implicits._
+import co.topl.utils.codecs.implicits.base58BytesEncoder
 
 import scala.language.implicitConversions
 import scala.util.{Failure, Success}
@@ -26,7 +31,7 @@ final class Evidence private (private val evBytes: Array[Byte]) extends BytesSer
   override type M = Evidence
   override def serializer: BifrostSerializer[Evidence] = Evidence
 
-  override def toString: String = Base58.encode(bytes).map(_.show).getOrElse("")
+  override def toString: String = Base58.encode(bytes).show
 
   override def equals(obj: Any): Boolean = obj match {
     case ec: Evidence => bytes sameElements ec.bytes
@@ -59,18 +64,14 @@ object Evidence extends BifrostSerializer[Evidence] {
     }
   }
 
-  private def apply(str: Base58String): Evidence =
-    Base58.decode(str) match {
-      case Right(bytes) =>
-        require(bytes.length == size, "Invalid evidence: incorrect evidence length")
-        parseBytes(bytes) match {
-          case Success(ec) => ec
-          case Failure(ex) => throw ex
-        }
-      case Left(InvalidCharactersError()) =>
-        throw new Exception("Invalid evidence: evidence contains invalid characters")
-      case Left(InvalidDataLengthError()) => throw new Exception("Invalid evidence: evidence data is incorrect length")
+  private def apply(str: Base58String): Evidence = {
+    val bytes = str.infalliblyEncodeAsBytes
+    require(bytes.length == size, "Invalid evidence: incorrect evidence length")
+    parseBytes(bytes) match {
+      case Success(ec) => ec
+      case Failure(ex) => throw ex
     }
+  }
 
   override def serialize(obj: Evidence, w: Writer): Unit =
     w.putBytes(obj.evBytes)
@@ -87,7 +88,12 @@ object Evidence extends BifrostSerializer[Evidence] {
 
   implicit val jsonDecoder: Decoder[Evidence] =
     Decoder.decodeString
-      .emap(Base58String.validated(_).leftMap(_ => "Value is not a valid Base 58"))
+      .emap(
+        Base58String
+          .validated(_)
+          .leftMap(err => s"Value is not a valid Base 58: ${err.show}")
+          .toEither
+      )
       .map(apply)
 
   implicit val jsonKeyDecoder: KeyDecoder[Evidence] = (str: String) => Base58String.validated(str).map(apply).toOption

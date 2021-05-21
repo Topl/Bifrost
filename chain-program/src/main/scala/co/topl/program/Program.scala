@@ -8,7 +8,7 @@ import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.{Context, Value}
 import co.topl.utils.encode.Base58
-import co.topl.utils.codecs.AsBytes.implicits._
+import co.topl.utils.codecs.implicits._
 import co.topl.utils.StringTypes.Base58String
 
 import scala.util.Try
@@ -57,7 +57,7 @@ case class Program(
 //      })
 //      .asJson,
     "lastUpdated" -> lastUpdated.asJson,
-    "id"          -> Base58.encode(id).map(_.value.value).getOrElse("").asJson
+    "id"          -> Base58.encode(id).value.value.asJson
   ).asJson
 
 }
@@ -76,8 +76,9 @@ object Program {
             val publicKey =
               Base58String
                 .validated(party._1)
-                .getOrElse(Array[Byte]())
-            PublicKey(Base58.decode().getOrElse(Array[Byte]()))
+                .andThen(_.encodeAsBytes)
+                .map(PublicKey(_))
+                .getOrElse(PublicKey(Array[Byte]()))
             val role = party._2.asString.get
             new PublicKeyPropositionCurve25519(publicKey) -> role
           }

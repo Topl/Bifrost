@@ -15,7 +15,7 @@ import io.circe.{Decoder, Encoder, HCursor}
 abstract class Transaction[+T, P <: Proposition](implicit val identifiableEv: Identifiable[P])
     extends NodeViewModifier {
 
-  override lazy val id: ModifierId = ModifierId.create(this).getOrThrow()
+  override lazy val id: ModifierId = ModifierId.createFromModifier(this).getOrThrow()
 
   val modifierTypeId: ModifierTypeId = Transaction.modifierTypeId
 

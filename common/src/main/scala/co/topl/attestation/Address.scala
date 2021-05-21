@@ -3,6 +3,8 @@ package co.topl.attestation
 import cats.implicits._
 import co.topl.attestation.AddressCodec.implicits._
 import co.topl.attestation.EvidenceProducer.Syntax._
+import co.topl.utils.codecs.implicits._
+import co.topl.utils.StringTypes.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringTypes.Base58String
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
@@ -25,7 +27,7 @@ case class Address(evidence: Evidence)(implicit val networkPrefix: NetworkPrefix
 
   type M = Address
 
-  override def toString: String = this.base58Encoded
+  override def toString: String = this.base58Encoded.show
 
   override def serializer: BifrostSerializer[Address] = AddressSerializer
 
@@ -45,10 +47,10 @@ object Address {
   implicit val jsonKeyEncoder: KeyEncoder[Address] = (addr: Address) => addr.toString
 
   implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[Address] =
-    _.as[String].flatMap(_.decodeAddress.toEither.leftMap(errors => DecodingFailure(errors.head.toString, Nil)))
+    _.as[Base58String].flatMap(_.decodeAddress.toEither.leftMap(errors => DecodingFailure(errors.head.toString, Nil)))
 
   implicit def jsonKeyDecoder(implicit networkPrefix: NetworkPrefix): KeyDecoder[Address] =
-    _.decodeAddress.toOption
+    Base58String.validated(_).andThen(_.decodeAddress).toOption
 
   /**
    * Generates an Address from a proppsition. This method enables propositions to have an accessor method

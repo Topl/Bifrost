@@ -44,7 +44,7 @@ case class Block(
 
   lazy val modifierTypeId: ModifierTypeId = Block.modifierTypeId
 
-  lazy val id: ModifierId = ModifierId.create(this).getOrThrow()
+  lazy val id: ModifierId = ModifierId.createFromModifier(this).getOrThrow()
 
   lazy val messageToSign: Array[Byte] = this.copy(signature = SignatureCurve25519.empty).bytes
 

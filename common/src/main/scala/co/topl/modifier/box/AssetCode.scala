@@ -1,8 +1,9 @@
 package co.topl.modifier.box
 
+import cats.implicits._
 import co.topl.attestation.{Address, AddressSerializer}
 import co.topl.modifier.box.AssetCode.AssetCodeVersion
-import co.topl.utils.codecs.AsBytes.implicits._
+import co.topl.utils.codecs.implicits._
 import co.topl.utils.Extensions.StringOps
 import co.topl.utils.StringTypes.Base58String
 import co.topl.utils.StringTypes.implicits._
@@ -13,6 +14,7 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 
 import java.nio.charset.StandardCharsets
+import scala.util.{Failure, Success}
 
 /**
  * AssetCode serves as a unique identifier for user issued assets
@@ -31,7 +33,7 @@ case class AssetCode(version: AssetCodeVersion, issuer: Address, shortName: Stri
   override type M = AssetCode
   override def serializer: BifrostSerializer[AssetCode] = AssetCode
 
-  override def toString: String = Base58.encode(bytes).map(_.show).getOrElse("")
+  override def toString: String = Base58.encode(bytes).show
 
   override def equals(obj: Any): Boolean = obj match {
     case ec: AssetCode => bytes sameElements ec.bytes
@@ -51,15 +53,14 @@ object AssetCode extends BifrostSerializer[AssetCode] {
 
   implicit val jsonDecoder: Decoder[AssetCode] =
     Decoder.decodeString
-      .emap(Base58String.validated(_).leftMap(_ => "Value is not Base 58"))
+      .emap(Base58String.validated(_).leftMap(_ => "Value is not Base 58").toEither)
       .map(apply)
   implicit val jsonKeyDecoder: KeyDecoder[AssetCode] = KeyDecoder[Base58String].map(apply)
 
-  private def apply(str: Base58String): AssetCode =
-    Base58.decode(str).flatMap(parseBytes(_).toEither) match {
-      case Right(ec) => ec
-      case Left(_)   => throw new Exception("Failed to parse value to asset code.")
-    }
+  private def apply(str: Base58String): AssetCode = parseBytes(Base58.decode(str)) match {
+    case Success(ec)  => ec
+    case Failure(err) => throw err
+  }
 
   override def serialize(obj: AssetCode, w: Writer): Unit = {
     // should be safe to assume Latin-1 encoding since AssetCode already checks this once instantiation

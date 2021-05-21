@@ -3,12 +3,15 @@ package attestation
 import attestation.AddressEncoder.NetworkPrefix
 import attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
 import attestation.serialization.PropositionSerializer
+import cats.implicits._
 import co.topl.crypto.PublicKey
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.implicits._
 import co.topl.crypto.signatures.Curve25519
-import co.topl.utils.codecs.AsBytes.implicits._
+import co.topl.utils.StringTypes.Base58String
+import co.topl.utils.codecs.implicits._
 import co.topl.utils.encode.Base58
+import co.topl.utils.StringTypes.implicits._
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
@@ -32,7 +35,7 @@ sealed trait Proposition extends BytesSerializable {
 
   def address(implicit networkPrefix: NetworkPrefix): Address
 
-  override def toString: String = Base58.encode(bytes)
+  override def toString: String = Base58.encode(bytes).show
 
   override def equals(obj: Any): Boolean = obj match {
     case prop: Proposition => prop.bytes sameElements bytes
@@ -45,7 +48,9 @@ sealed trait Proposition extends BytesSerializable {
 object Proposition {
 
   def fromString(str: String): Try[_ <: Proposition] =
-    Base58.decode(str).flatMap(bytes => PropositionSerializer.parseBytes(bytes))
+    Try(Base58String.validated(str).valueOr(errors => throw new Error(s"Input is not Base 58: ${errors.show}")))
+      .map(base58String => Base58.decode(base58String))
+      .flatMap(PropositionSerializer.parseBytes)
 
   implicit def jsonKeyEncoder[P <: Proposition]: KeyEncoder[P] = (prop: P) => prop.toString
   implicit val jsonKeyDecoder: KeyDecoder[Proposition] = (str: String) => fromString(str).toOption

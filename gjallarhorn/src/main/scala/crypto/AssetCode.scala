@@ -1,7 +1,9 @@
 package crypto
 
 import attestation.Address
-import co.topl.utils.codecs.AsBytes.implicits._
+import cats.implicits._
+import co.topl.utils.StringTypes.Base58String
+import co.topl.utils.StringTypes.implicits.showBase58String
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
 import crypto.AssetCode.AssetCodeVersion
@@ -28,7 +30,7 @@ case class AssetCode private (version: AssetCodeVersion, issuer: Address, shortN
   override type M = AssetCode
   override def serializer: GjalSerializer[AssetCode] = AssetCode
 
-  override def toString: String = Base58.encode(bytes)
+  override def toString: String = Base58.encode(bytes).show
 
   override def equals(obj: Any): Boolean = obj match {
     case ec: AssetCode => bytes sameElements ec.bytes
@@ -49,10 +51,12 @@ object AssetCode extends GjalSerializer[AssetCode] {
   implicit val jsonKeyDecoder: KeyDecoder[AssetCode] = (str: String) => Some(apply(str))
 
   private def apply(str: String): AssetCode =
-    Base58.decode(str).flatMap(parseBytes) match {
-      case Success(ec) => ec
-      case Failure(ex) => throw ex
-    }
+    (for {
+      base58String <- Base58String.validated(str).toEither
+      bytes = Base58.decode(base58String)
+      assetCode <- parseBytes(bytes).toEither
+    } yield assetCode)
+      .valueOr(error => throw new Error(s"Failed to create asset code from string $error"))
 
   override def serialize(obj: AssetCode, w: Writer): Unit = {
     w.put(obj.version)

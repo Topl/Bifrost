@@ -1,13 +1,16 @@
 package co.topl.attestation
 
 import cats.Semigroup
-import cats.data.{Validated, ValidatedNec}
+import cats.data.{NonEmptyChain, Validated, ValidatedNec}
 import cats.implicits._
 import co.topl.crypto.hash.Blake2b256
+import co.topl.utils.codecs.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.encode.Base58
 import co.topl.utils.NetworkType
+import co.topl.utils.StringTypes.Base58String
 import co.topl.utils.codecs.{AsBytes, FromBytes, Infallible}
+import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 
 import scala.language.implicitConversions
 
@@ -32,22 +35,15 @@ object AddressCodec {
 
     implicit class AddressOps(address: Address) {
 
-      import co.topl.utils.codecs.AsBytes.implicits._
-
-      def base58Encoded: String =
-        Base58.encode(address.infalliblyEncodeAsBytes)(identityBytesEncoder)
+      def base58Encoded: Base58String = address.infalliblyDecodeTo[Base58String]
     }
 
-    implicit class StringOps(value: String) {
+    implicit class Base58StringOps(value: Base58String) {
 
       import co.topl.utils.codecs.FromBytes.implicits._
 
       def decodeAddress(implicit networkPrefix: NetworkPrefix): ValidatedNec[AddressValidationError, Address] =
-        Validated
-          .fromTry(Base58.decode(value))
-          .leftMap(_ => NotBase58)
-          .toValidatedNec
-          .andThen((bytes: Array[Byte]) => bytes.decodeTo[AddressValidationError, Address])
+        value.decodeTo[AddressValidationError, Address]
     }
 
     implicit class ByteArrayOps(bytes: Array[Byte]) {

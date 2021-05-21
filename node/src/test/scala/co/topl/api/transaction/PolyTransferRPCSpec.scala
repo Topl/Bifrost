@@ -3,6 +3,8 @@ package co.topl.api.transaction
 import akka.util.ByteString
 import co.topl.api.RPCMockState
 import co.topl.attestation.Address
+import co.topl.utils.StringTypes.Base58String
+import co.topl.utils.codecs.implicits.base58JsonDecoder
 import co.topl.utils.encode.Base58
 import io.circe.Json
 import io.circe.parser.parse
@@ -10,6 +12,7 @@ import io.circe.syntax._
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+
 import scala.concurrent.duration._
 
 class PolyTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState with EitherValues {
@@ -48,9 +51,9 @@ class PolyTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState wi
 
         val sigTx = for {
           rawTx   <- res.hcursor.downField("result").get[Json]("rawTx")
-          message <- res.hcursor.downField("result").get[String]("messageToSign")
+          message <- res.hcursor.downField("result").get[Base58String]("messageToSign")
         } yield {
-          val sig = keyRing.generateAttestation(address)(Base58.decode(message).get)
+          val sig = keyRing.generateAttestation(address)(Base58.decode(message))
           val signatures: Json = Map(
             "signatures" -> sig.asJson
           ).asJson

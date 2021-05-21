@@ -378,7 +378,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     signature     <- signatureGen
     txs           <- bifrostTransactionSeqGen
   } yield {
-    val parentId = ModifierId(Base58.encode(parentIdBytes))
+    val parentId = ModifierId.createFromString(Base58.encode(parentIdBytes))
     val height: Long = 1L
     val difficulty = 1000000000000000000L
     val version: PNVMVersion = 1: Byte

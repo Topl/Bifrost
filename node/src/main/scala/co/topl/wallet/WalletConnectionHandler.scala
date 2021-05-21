@@ -3,8 +3,10 @@ package co.topl.wallet
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.pipe
 import akka.util.Timeout
+import cats.data.Validated.Valid
+import cats.implicits._
 import co.topl.attestation.Address
-import co.topl.attestation.AddressCodec.implicits.StringOps
+import co.topl.attestation.AddressCodec.implicits.Base58StringOps
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.block.{Block, BloomFilter, PersistentNodeViewModifier}
 import co.topl.modifier.transaction._
@@ -13,6 +15,7 @@ import co.topl.settings.{AppContext, AppSettings, RPCApiSettings}
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.StringTypes.{Base58String, StringValidationResult}
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
@@ -119,7 +122,7 @@ class WalletConnectionHandler[
 
     if (msg.contains("New key:")) {
       val addr: String = msg.substring("New key: ".length)
-      val decodedAddress = addr.decodeAddress.getOrThrow()
+      val decodedAddress = Base58String.unsafe(addr).decodeAddress.getOrThrow()
       remoteWalletAddresses match {
         case Some(addresses) =>
           val newAddresses: Set[Address] = addresses + decodedAddress
@@ -198,9 +201,10 @@ class WalletConnectionHandler[
       val keysArr: Array[String] = keys.substring("Set(".length, keys.length - 1).split(",")
       val keystrings = keysArr.map(key => key.trim).toSet
 
-      Some(
-        keystrings.map(_.decodeAddress.getOrThrow())
-      )
+      keystrings.map(Base58String.validated).foldLeft[Option[Set[Address]]](Some(Set[Address]())) {
+        case (Some(keys), Valid(key)) => Some(keys + key.decodeAddress.getOrThrow())
+        case _                        => None
+      }
     }
 
   private def balanceRequest(addresses: Set[Address]): String = {

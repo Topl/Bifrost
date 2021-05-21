@@ -1,9 +1,11 @@
 package attestation
 
+import cats.implicits._
 import co.topl.crypto.hash.digest.Digest
-import co.topl.utils.codecs.AsBytes.implicits._
+import co.topl.utils.StringTypes.implicits._
+import co.topl.utils.StringTypes.Base58String
 import co.topl.utils.encode.Base58
-import co.topl.utils.codecs.CryptoCodec.implicits._
+import co.topl.utils.codecs.implicits._
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
@@ -25,7 +27,7 @@ final class Evidence private (private val evBytes: Array[Byte]) extends BytesSer
   override type M = Evidence
   override def serializer: GjalSerializer[Evidence] = Evidence
 
-  override def toString: String = Base58.encode(bytes)
+  override def toString: String = Base58.encode(bytes).show
 
   override def equals(obj: Any): Boolean = obj match {
     case ec: Evidence => bytes sameElements ec.bytes
@@ -56,10 +58,12 @@ object Evidence extends GjalSerializer[Evidence] {
     }
 
   private def apply(str: String): Evidence =
-    Base58.decode(str).flatMap(fromBytes) match {
-      case Success(ec) => ec
-      case Failure(ex) => throw ex
-    }
+    Base58String
+      .validated(str)
+      .map(_.infalliblyEncodeAsBytes)
+      .map(bytes => fromBytes(bytes))
+      .valueOr(errors => throw new Error(s"Failed to create evidence from string $errors"))
+      .get
 
   private def fromBytes(byteArray: Array[Byte]): Try[Evidence] = Try {
     require(byteArray.length == size, s"Incorrect length of input byte array when constructing evidence")

@@ -5,10 +5,10 @@ import co.topl.utils.Extensions.StringOps
 import co.topl.utils.Int128
 import co.topl.utils.StringTypes.Base58String
 import co.topl.utils.codecs.Int128Codec
+import co.topl.utils.codecs.implicits._
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
-import co.topl.utils.StringTypes.implicits._
 
 sealed abstract class TokenValueHolder(val quantity: Int128) extends BytesSerializable {
   override type M = TokenValueHolder

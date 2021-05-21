@@ -1,20 +1,19 @@
 package co.topl.attestation
 
+import cats.data.NonEmptyChain
 import cats.implicits._
 import co.topl.attestation.serialization.ProofSerializer
 import co.topl.crypto.signatures.{Curve25519, Signature}
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, Secret}
 import co.topl.crypto.PublicKey
-import co.topl.utils.codecs.AsBytes.implicits._
-import co.topl.utils.StringTypes.{Base58String, InvalidCharacterSet, StringValidationFailure}
+import co.topl.utils.codecs.implicits._
+import co.topl.utils.StringTypes.Base58String
 import co.topl.utils.StringTypes.implicits._
-import co.topl.utils.encode.{Base58, DecodingFailure, InvalidCharacters, InvalidDataLength}
+import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import co.topl.utils.codecs.FromBytes.implicits._
-import co.topl.utils.codecs.CryptoCodec.implicits._
 
 import scala.util.Try
 
@@ -32,7 +31,7 @@ sealed trait Proof[P <: Proposition] extends BytesSerializable {
 
   override def serializer: BifrostSerializer[Proof[_]] = ProofSerializer
 
-  override def toString: String = Base58.encode(bytes).map(_.show).getOrElse("")
+  override def toString: String = Base58.encode(bytes).show
 
   override def equals(obj: Any): Boolean = obj match {
     case pr: Proof[_] => pr.bytes sameElements bytes
@@ -46,14 +45,9 @@ sealed trait Proof[P <: Proposition] extends BytesSerializable {
 object Proof {
 
   def fromString(str: Base58String): Either[ProofFromStringError, Proof[_]] =
-    for {
-      bytes  <- Base58.decode(str).leftMap(Base58DecodingError)
-      result <- ProofSerializer.parseBytes(bytes).toEither.leftMap(ProofParseFailure)
-    } yield result
+    ProofSerializer.parseBytes(Base58.decode(str)).toEither.leftMap(ProofParseFailure)
 
   sealed abstract class ProofFromStringError
-  case class Base58ValidationError(error: StringValidationFailure) extends ProofFromStringError
-  case class Base58DecodingError(error: DecodingFailure) extends ProofFromStringError
   case class ProofParseFailure(error: Throwable) extends ProofFromStringError
 
   implicit def jsonEncoder[PR <: Proof[_]]: Encoder[PR] = (proof: PR) => proof.toString.asJson
@@ -76,7 +70,7 @@ sealed trait ProofOfKnowledge[S <: Secret, P <: KnowledgeProposition[S]] extends
 case class SignatureCurve25519(private[attestation] val sigBytes: Signature)
     extends ProofOfKnowledge[PrivateKeyCurve25519, PublicKeyPropositionCurve25519] {
 
-  private val signatureLength = sigBytes.infalliblyEncodeAsBytes.length
+  private val signatureLength = sigBytes.value.length
 
   require(
     signatureLength == 0 || signatureLength == Curve25519.SignatureLength,
@@ -99,16 +93,9 @@ object SignatureCurve25519 {
 
   def apply(str: Base58String)(implicit d: DummyImplicit): SignatureCurve25519 =
     Proof.fromString(str) match {
-      case Right(sig: SignatureCurve25519) => sig
-      case Right(_)                        => throw new Exception("Parsed to incorrect signature type")
-      case Left(Proof.Base58ValidationError(InvalidCharacterSet())) | Left(
-            Proof.Base58DecodingError(InvalidCharacters())
-          ) =>
-        throw new Exception("Invalid character in signature proof.")
-      case Left(Proof.Base58DecodingError(InvalidDataLength())) =>
-        throw new Exception("Invalid length of signature proof.")
+      case Right(sig: SignatureCurve25519)      => sig
+      case Right(_)                             => throw new Exception("Parsed to incorrect signature type")
       case Left(Proof.ProofParseFailure(error)) => throw new Exception(s"Error while parsing proof: $error")
-      case Left(error)                          => throw new Exception(s"Invalid signature: $error")
     }
 
   // see circe documentation for custom encoder / decoders

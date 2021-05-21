@@ -8,6 +8,7 @@ import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.rpc.ToplRpcServer
 import co.topl.settings.RPCApiSettings
+import co.topl.utils.StringTypes.Base58String
 import co.topl.utils.encode.Base58
 
 final case class HttpService(
@@ -17,7 +18,10 @@ final case class HttpService(
     extends CorsSupport {
 
   private val apiKeyHash: Option[Array[Byte]] =
-    Base58.decode(settings.apiKeyHash).toOption
+    Base58String
+      .validated(settings.apiKeyHash)
+      .map(Base58.decode)
+      .toOption
 
   /** the primary route that the HTTP service is bound to in BifrostApp */
   val compositeRoute: Route =

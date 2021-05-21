@@ -27,7 +27,6 @@ package object crypto {
   object implicits
       extends digest.Instances
       with digest.Digest.ToDigestOps
-      with digest.Extensions
       with hash.Instances
       with PrivateKey.Instances
 

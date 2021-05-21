@@ -5,8 +5,6 @@ import cats.implicits._
 import cats.{Eq, Show}
 import co.topl.utils.Extensions.StringOps
 import co.topl.utils.encode.{Base16, Base58}
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import io.estatico.newtype.macros.newtype
 import io.estatico.newtype.ops._
 
@@ -31,15 +29,6 @@ object StringTypes {
     implicit val eqUTF8String: Eq[UTF8String] = (a: UTF8String, b: UTF8String) => a.value === b.value
 
     implicit val showUTF8String: Show[UTF8String] = (value: UTF8String) => value.value
-
-    implicit val jsonUTF8StringEncoder: Encoder[UTF8String] = (t: UTF8String) => t.value.asJson
-
-    implicit val jsonUTF8StringDecoder: Decoder[UTF8String] =
-      Decoder.decodeString.emap(UTF8String.validated(_).toEither.leftMap(_ => "Value is not a UTF-8 string"))
-
-    implicit val keyEncodeUTF8String: KeyEncoder[UTF8String] = showUTF8String.show
-
-    implicit val keyDecodeUTF8String: KeyDecoder[UTF8String] = UTF8String.validated(_).toOption
   }
 
   @newtype
@@ -57,15 +46,6 @@ object StringTypes {
     implicit val eqLatin1String: Eq[Latin1String] = (a: Latin1String, b: Latin1String) => a.value === b.value
 
     implicit val showLatin1String: Show[Latin1String] = (value: Latin1String) => value.value
-
-    implicit val encodeLatin1String: Encoder[Latin1String] = (t: Latin1String) => t.value.asJson
-
-    implicit val decodeLatin1String: Decoder[Latin1String] =
-      Decoder.decodeString.emap(Latin1String.validated(_).toEither.leftMap(_ => "Value is not a Latin-1 string"))
-
-    implicit val keyEncodeLatin1String: KeyEncoder[Latin1String] = showLatin1String.show
-
-    implicit val keyDecodeLatin1String: KeyDecoder[Latin1String] = Latin1String.validated(_).toOption
   }
 
   @newtype
@@ -76,7 +56,7 @@ object StringTypes {
     def validated(from: String): StringValidationResult[Base58String] =
       (for {
         validUtf8 <- UTF8String.validated(from).toEither
-        isValidBase58 = Base58.isValidBase58(validUtf8)
+        isValidBase58 = Base58.isValid(validUtf8)
         validBase58 <- Either.cond(isValidBase58, validUtf8.coerce, NonEmptyChain(InvalidCharacterSet()))
       } yield validBase58).toValidated
 
@@ -89,16 +69,6 @@ object StringTypes {
       a.value.value === b.value.value
 
     implicit val showBase58String: Show[Base58String] = (value: Base58String) => value.value.value
-
-    implicit val encodeBase58String: Encoder[Base58String] = (t: Base58String) => t.value.value.asJson
-
-    implicit val decodeBase58String: Decoder[Base58String] =
-      Decoder.decodeString
-        .emap(Base58String.validated(_).toEither.leftMap(_ => "Value is not Base 58"))
-
-    implicit val keyEncodeBase58String: KeyEncoder[Base58String] = showBase58String.show
-
-    implicit val keyDecodeBase58String: KeyDecoder[Base58String] = Base58String.validated(_).toOption
   }
 
   @newtype
@@ -115,6 +85,8 @@ object StringTypes {
 
     def validated(from: Array[Char]): StringValidationResult[Base16String] = validated(new String(from))
 
+    def unsafe(from: Array[Char]): Base16String = UTF8String.unsafe(new String(from)).coerce
+
     def unsafe(from: String): Base16String = UTF8String.unsafe(from).coerce
   }
 
@@ -124,24 +96,53 @@ object StringTypes {
       a.value.value === b.value.value
 
     implicit val showBase16String: Show[Base16String] = (value: Base16String) => value.value.value
-
-    implicit val encodeBase16String: Encoder[Base16String] = (t: Base16String) => t.value.value.asJson
-
-    implicit val decodeBase16String: Decoder[Base16String] =
-      Decoder.decodeString.emap(Base16String.validated(_).toEither.leftMap(_ => "Value is not a Base 16 string"))
-
-    implicit val keyEncodeBase16String: KeyEncoder[Base16String] = showBase16String.show
-
-    implicit val keyDecodeBase16String: KeyDecoder[Base16String] = Base16String.validated(_).toOption
   }
 
   sealed trait StringValidationFailure
   final case class InvalidCharacterSet() extends StringValidationFailure
+
+  trait StringValidationFailureInstances {
+
+    implicit val showStringValidationFailure: Show[StringValidationFailure] = { case InvalidCharacterSet() =>
+      s"Invalid character in string"
+    }
+  }
 
   object implicits
       extends UTF8StringInstances
       with Latin1StringInstances
       with Base58StringInstances
       with Base16StringInstances
+      with StringValidationFailureInstances
 
+}
+
+object StringTypesTester extends App {
+  import co.topl.utils.StringTypes._
+  import co.topl.utils.StringTypes.implicits._
+  import co.topl.utils.codecs.implicits._
+
+  val latin1 = Latin1String.validated("hello")
+
+  println(latin1.show)
+
+  val base58Encoded = latin1.map(_.infalliblyDecodeTo[Base58String])
+
+  println(base58Encoded)
+
+  val utfStringOutput = base58Encoded.andThen(_.decodeTo[StringValidationFailure, UTF8String])
+
+  println(utfStringOutput.show)
+
+//    val latin1Unsafe = Latin1String.unsafe("😃")
+//
+//    println(latin1Unsafe.show)
+//
+//    val base58Encoded = latin1Unsafe.infalliblyDecodeTo[Base58String]
+//
+//    println(base58Encoded)
+//
+//    val utfStringOutput = base58Encoded.decodeTo[StringValidationFailure, UTF8String]
+//
+//    println(utfStringOutput.show)
 }

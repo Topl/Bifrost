@@ -60,5 +60,5 @@ package object hash {
     implicit val blake2b512: Hash[Blake2b, Digest64] = Blake2b512
   }
 
-  object implicits extends digest.Instances with digest.Digest.ToDigestOps with digest.Extensions with Instances
+  object implicits extends digest.Instances with digest.Digest.ToDigestOps with Instances
 }

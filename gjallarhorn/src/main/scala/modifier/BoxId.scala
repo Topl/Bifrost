@@ -1,10 +1,12 @@
 package modifier
 
 import attestation.Evidence
+import cats.implicits._
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.utils.codecs.AsBytes.implicits._
+import co.topl.utils.StringTypes.Base58String
 import co.topl.utils.encode.Base58
+import co.topl.utils.StringTypes.implicits._
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
@@ -24,7 +26,7 @@ case class BoxId(hashBytes: Array[Byte]) {
     case _          => false
   }
 
-  override def toString: String = Base58.encode(hashBytes)
+  override def toString: String = Base58.encode(hashBytes).show
 }
 
 object BoxId {
@@ -33,14 +35,12 @@ object BoxId {
 
   def apply[T](box: Box): BoxId = idFromEviNonce(box.evidence, box.nonce)
 
-  def apply(id: String): BoxId =
-    Base58.decode(id) match {
-      case Success(id) =>
-        require(id.length == BoxId.size, s"Invalid size for BoxId")
-        new BoxId(id)
+  def apply(id: String): BoxId = {
+    val idBytes = Base58.decode(Base58String.unsafe(id))
 
-      case Failure(ex) => throw ex
-    }
+    require(idBytes.length == BoxId.size, s"Invalid size for BoxId")
+    new BoxId(idBytes)
+  }
 
   def idFromEviNonce(evidence: Evidence, nonce: Long): BoxId =
     BoxId(Blake2b256.hash(evidence.bytes ++ Longs.toByteArray(nonce)).value)

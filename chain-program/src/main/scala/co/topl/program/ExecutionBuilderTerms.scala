@@ -23,7 +23,7 @@ case class ExecutionBuilderTerms(terms: String) {
 object ExecutionBuilderTerms {
 
   def decodeGzip(zippedStr: Base58String): String = {
-    val zipped: Array[Byte] = Base58.decode(zippedStr).getOrElse(Array[Byte]())
+    val zipped: Array[Byte] = Base58.decode(zippedStr)
     val unzipped: Array[Byte] = Gzip.decompress(zipped)
     new String(unzipped)
   }

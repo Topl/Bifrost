@@ -5,7 +5,7 @@ import akka.actor._
 import akka.util.Timeout
 import cats.data.EitherT
 import cats.implicits._
-import co.topl.attestation.AddressCodec.implicits.StringOps
+import co.topl.attestation.AddressCodec.implicits.Base58StringOps
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, AddressCodec, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.catsakka.AskException
@@ -14,6 +14,7 @@ import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKey
 import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType._
+import co.topl.utils.StringTypes.{Base58String, Latin1String}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Success, Try}
@@ -45,8 +46,9 @@ class KeyManager(
    * @return a Receive partial function
    */
   def receive(keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519], rewardAddress: Option[Address]): Receive = {
-    case CreateKey(password)                 => sender() ! keyRing.DiskOps.generateKeyFile(password)
-    case UnlockKey(addr, password)           => sender() ! keyRing.DiskOps.unlockKeyFile(addr, password)
+    case CreateKey(password) => sender() ! keyRing.DiskOps.generateKeyFile(Latin1String.unsafe(password))
+    case UnlockKey(addr, password) =>
+      sender() ! keyRing.DiskOps.unlockKeyFile(Base58String.unsafe(addr), Latin1String.unsafe(password))
     case LockKey(addr)                       => sender() ! keyRing.removeFromKeyring(addr)
     case ImportKey(password, mnemonic, lang) => sender() ! keyRing.importPhrase(password, mnemonic, lang)
     case ListKeys                            => sender() ! keyRing.addresses
@@ -121,7 +123,7 @@ class KeyManager(
   /** Tries to get a configured rewards address from the forging settings. */
   private def tryGetRewardsAddressFromSettings(): Option[Address] =
     settings.forging.rewardsAddress.flatMap {
-      _.decodeAddress.toEither match {
+      Base58String.unsafe(_).decodeAddress.toEither match {
         case Left(ex) =>
           log.warn(s"${Console.YELLOW}Unable to set rewards address due to $ex ${Console.RESET}")
           None

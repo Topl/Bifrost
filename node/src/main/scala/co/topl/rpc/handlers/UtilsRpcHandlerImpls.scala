@@ -3,15 +3,15 @@ package co.topl.rpc.handlers
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{InvalidParametersError, RpcError, ThrowableData}
-import co.topl.attestation.AddressCodec.implicits.StringOps
+import co.topl.attestation.AddressCodec.implicits.Base58StringOps
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.digest.implicits._
 import co.topl.modifier.box.AssetCode
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
-import co.topl.utils.codecs.AsBytes.implicits._
 import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.codecs.CryptoCodec.implicits._
+import co.topl.utils.StringTypes.Base58String
+import co.topl.utils.StringTypes.implicits.showBase58String
 import co.topl.utils.encode.Base58
 import io.circe.Encoder
 
@@ -38,7 +38,10 @@ class UtilsRpcHandlerImpls(implicit
   override val hashBlake2b256: ToplRpc.Util.HashBlake2b256.rpc.ServerHandler =
     params =>
       ToplRpc.Util.HashBlake2b256
-        .Response(params.message, Base58.encode(Blake2b256.hash(params.message.getBytes("UTF-8"))))
+        .Response(
+          params.message,
+          Base58.encode(Blake2b256.hash(params.message.getBytes("UTF-8")).bytes).show
+        )
         .asRight[RpcError]
         .toEitherT[Future]
 
@@ -55,8 +58,9 @@ class UtilsRpcHandlerImpls(implicit
         .fold(NetworkType.pickNetworkType(networkPrefix))(NetworkType.pickNetworkType)
         .toRight(ToplRpcErrors.InvalidNetworkSpecified)
         .flatMap(nt =>
-          params.address
-            .decodeAddress(nt.netPrefix)
+          Base58String
+            .validated(params.address)
+            .andThen(_.decodeAddress(nt.netPrefix))
             .toEither
             .leftMap(e => InvalidParametersError.adhoc(e.head.toString, "address"): RpcError)
             .map(address => ToplRpc.Util.CheckValidAddress.Response(address, nt.verboseName))
@@ -69,6 +73,6 @@ object UtilsRpcHandlerImpls {
   private def generateSeed(length: Int): String = {
     val seed = new Array[Byte](length)
     new SecureRandom().nextBytes(seed) //seed mutated here!
-    Base58.encode(seed)
+    Base58.encode(seed).show
   }
 }

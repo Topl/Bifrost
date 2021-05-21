@@ -7,7 +7,9 @@ import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.implicits._
 import co.topl.modifier.box.AssetCode
 import co.topl.rpc.ToplRpcErrors
+import co.topl.utils.StringTypes.Base58String
 import co.topl.utils.codecs.CryptoCodec.implicits._
+import co.topl.utils.codecs.implicits.base58JsonDecoder
 import co.topl.utils.encode.Base58
 import io.circe.Json
 import io.circe.parser.parse
@@ -41,14 +43,11 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState with Eith
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
 
-        val seedString: String = res.hcursor.downField("result").get[String]("seed").value
+        val seedString: Base58String = res.hcursor.downField("result").get[Base58String]("seed").value
 
         res.hcursor.downField("error").values shouldBe None
 
-        Base58.decode(seedString) match {
-          case Success(seed) => seed.length shouldEqual 32
-          case Failure(_)    => fail("Could not Base 58 decode seed output")
-        }
+        Base58.decode(seedString).length shouldEqual 32
       }
     }
 
@@ -67,14 +66,11 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState with Eith
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
 
-        val seedString: String = res.hcursor.downField("result").get[String]("seed").value
+        val seedString: Base58String = res.hcursor.downField("result").get[Base58String]("seed").value
 
         res.hcursor.downField("error").values shouldBe None
 
-        Base58.decode(seedString) match {
-          case Success(seed) => seed.length shouldEqual seedLength
-          case Failure(_)    => fail("Could not Base 58 decode seed output")
-        }
+        Base58.decode(seedString).length shouldEqual seedLength
       }
     }
 
@@ -94,7 +90,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState with Eith
         val res: Json = parse(responseAs[String]).value
         val hash = res.hcursor.downField("result").get[String]("hash").value
 
-        hash shouldEqual Base58.encode(Blake2b256.hash("Hello World".getBytes))
+        hash shouldEqual Base58.encode(Blake2b256.hash("Hello World".getBytes).value)
         res.hcursor.downField("error").values shouldBe None
       }
     }

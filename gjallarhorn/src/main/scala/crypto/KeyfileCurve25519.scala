@@ -1,6 +1,9 @@
 package crypto
 
 import attestation.{Address, PrivateKeyCurve25519}
+import cats.implicits._
+import cats.data.Validated
+import cats.data.Validated.Valid
 import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.implicits._
@@ -8,8 +11,10 @@ import co.topl.crypto.signatures.Curve25519
 import co.topl.utils.codecs.AsBytes.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.SecureRandom.randomBytes
+import co.topl.utils.StringTypes.Base58String
 import co.topl.utils.encode.Base58
 import co.topl.utils.codecs.CryptoCodec.implicits._
+import co.topl.utils.codecs.implicits.{base58JsonDecoder, base58JsonEncoder}
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
@@ -188,17 +193,18 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
   implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[KeyfileCurve25519] = (c: HCursor) =>
     for {
       address          <- c.downField("address").as[Address]
-      cipherTextString <- c.downField("crypto").downField("cipherText").as[String]
-      macString        <- c.downField("crypto").downField("mac").as[String]
-      saltString       <- c.downField("crypto").downField("kdfSalt").as[String]
-      ivString         <- c.downField("crypto").downField("cipherParams").downField("iv").as[String]
+      cipherTextString <- c.downField("crypto").downField("cipherText").as[Base58String]
+      macString        <- c.downField("crypto").downField("mac").as[Base58String]
+      saltString       <- c.downField("crypto").downField("kdfSalt").as[Base58String]
+      ivString         <- c.downField("crypto").downField("cipherParams").downField("iv").as[Base58String]
     } yield {
-      val cipherText = Base58.decode(cipherTextString).get
-      val mac = Base58.decode(macString).get
-      val salt = Base58.decode(saltString).get
-      val iv = Base58.decode(ivString).get
+      val cipherText = Base58.decode(cipherTextString)
+      val mac = Base58.decode(macString)
+      val salt = Base58.decode(saltString)
+      val iv = Base58.decode(ivString)
 
       implicit val netPrefix: NetworkPrefix = address.networkPrefix
+
       new KeyfileCurve25519(address, cipherText, mac, salt, iv)
     }
 }
