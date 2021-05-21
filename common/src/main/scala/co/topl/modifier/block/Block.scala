@@ -11,10 +11,6 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
-import cats.implicits._
-import co.topl.crypto.accumulators.merkle.MerkleTree.MerkleTreeFailure
-import co.topl.crypto.hash.HashFailure
-import co.topl.modifier.block.Block.ToBlockComponentsResult
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 
 import scala.util.Try
@@ -52,7 +48,7 @@ case class Block(
 
   lazy val messageToSign: Array[Byte] = this.copy(signature = SignatureCurve25519.empty).bytes
 
-  def toBlockComponents: ToBlockComponentsResult = Block.toBlockComponents(this)
+  def toBlockComponents: (BlockHeader, BlockBody) = Block.toBlockComponents(this)
 
   @deprecated
   def toComponents: (BlockHeader, BlockBody) = Block.toComponents(this)
@@ -64,41 +60,35 @@ object Block {
 
   val modifierTypeId: NodeViewModifier.ModifierTypeId = ModifierTypeId(3: Byte)
 
-  sealed trait BlockToComponentsFailure
-  case class HashMerkleTreeFailure(failure: HashFailure) extends BlockToComponentsFailure
-  case class ConstructMerkleTreeFailure(failure: MerkleTreeFailure) extends BlockToComponentsFailure
-
-  type ToBlockComponentsResult = Either[BlockToComponentsFailure, (BlockHeader, BlockBody)]
-
   /**
    * Deconstruct a block to its components
    * @param block the block to decompose
    * @return a block header and block body or a failure
    */
-  def toBlockComponents(block: Block): ToBlockComponentsResult =
-    for {
-      merkleTree <- block.constructMerkleTree().leftMap(ConstructMerkleTreeFailure)
-      rootHash   <- merkleTree.rootHash.leftMap(HashMerkleTreeFailure)
-      blockHeader = BlockHeader(
-        block.id,
-        block.parentId,
-        block.timestamp,
-        block.generatorBox,
-        block.publicKey,
-        block.signature,
-        block.height,
-        block.difficulty,
-        rootHash,
-        block.bloomFilter,
-        block.version
-      )
-      blockBody = BlockBody(
-        block.id,
-        block.parentId,
-        block.transactions,
-        block.version
-      )
-    } yield blockHeader -> blockBody
+  def toBlockComponents(block: Block): (BlockHeader, BlockBody) = {
+    val blockHeader = BlockHeader(
+      block.id,
+      block.parentId,
+      block.timestamp,
+      block.generatorBox,
+      block.publicKey,
+      block.signature,
+      block.height,
+      block.difficulty,
+      block.merkleTree.rootHash,
+      block.bloomFilter,
+      block.version
+    )
+
+    val blockBody = BlockBody(
+      block.id,
+      block.parentId,
+      block.transactions,
+      block.version
+    )
+
+    blockHeader -> blockBody
+  }
 
   /**
    * Deconstruct a block to its compoennts
@@ -117,7 +107,7 @@ object Block {
         block.signature,
         block.height,
         block.difficulty,
-        block.merkleTree.rootHash.getOrThrow(),
+        block.merkleTree.rootHash,
         block.bloomFilter,
         block.version
       )
@@ -192,15 +182,12 @@ object Block {
   }
 
   implicit val jsonEncoder: Encoder[Block] = { b: Block =>
-    (for {
-      components <- toBlockComponents(b)
-      (header, body) = components
-      data = Map(
-        "header"    -> header.asJson,
-        "body"      -> body.asJson,
-        "blockSize" -> b.bytes.length.asJson
-      )
-    } yield data.asJson).getOrThrow()
+    val components = toBlockComponents(b)
+    Map(
+      "header"    -> components._1.asJson,
+      "body"      -> components._2.asJson,
+      "blockSize" -> b.bytes.length.asJson
+    ).asJson
   }
 
   implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[Block] = (c: HCursor) =>

@@ -41,7 +41,7 @@ object ProgramId extends BifrostSerializer[ProgramId] {
     }
 
   def create(seed: Array[Byte]): ProgramId =
-    new ProgramId(Blake2b256.hash(seed).getOrThrow().value)
+    new ProgramId(Blake2b256.hash(seed).value)
 
   override def serialize(obj: ProgramId, w: Writer): Unit =
     w.putBytes(obj.hashBytes)

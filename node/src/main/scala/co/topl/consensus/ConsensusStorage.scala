@@ -1,10 +1,12 @@
 package co.topl.consensus
 
 import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.implicits.digestDigest32
 import co.topl.modifier.ModifierId
 import co.topl.settings.AppSettings
 import co.topl.utils.codecs.FromBytes.implicits._
 import co.topl.utils.NetworkType.{LocalTestnet, PrivateTestnet}
+import co.topl.utils.codecs.implicits.digestBytesEncoder
 import co.topl.utils.{Int128, Logging, NetworkType}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore, Store}
@@ -21,8 +23,6 @@ class ConsensusStorage(storage: Option[Store], private val defaultTotalStake: In
   private def byteArrayWrappedKey(name: String): ByteArrayWrapper =
     Blake2b256
       .hash(name.getBytes)
-      .map(_.value)
-      .getOrElse(Array.emptyByteArray)
       .infalliblyDecodeTo[ByteArrayWrapper]
 
   // constant keys for each piece of consensus state

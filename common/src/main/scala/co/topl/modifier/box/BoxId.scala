@@ -44,7 +44,7 @@ object BoxId {
     Digest32.validated(bytes).map(BoxId(_)).getOrThrow()
 
   def idFromEviNonce(evidence: Evidence, nonce: Box.Nonce): BoxId =
-    BoxId(Blake2b256.hash(evidence.bytes ++ Longs.toByteArray(nonce)).getOrThrow())
+    BoxId(Blake2b256.hash(evidence.bytes ++ Longs.toByteArray(nonce)))
 
   implicit val jsonEncoder: Encoder[BoxId] = (id: BoxId) => id.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[BoxId] = (id: BoxId) => id.toString

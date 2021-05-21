@@ -94,7 +94,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState with Eith
         val res: Json = parse(responseAs[String]).value
         val hash = res.hcursor.downField("result").get[String]("hash").value
 
-        hash shouldEqual Base58.encode(Blake2b256.hash("Hello World".getBytes).getOrThrow())
+        hash shouldEqual Base58.encode(Blake2b256.hash("Hello World".getBytes))
         res.hcursor.downField("error").values shouldBe None
       }
     }

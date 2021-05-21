@@ -31,8 +31,7 @@ object AddressEncoder {
   private def genChecksum(addrBytes: Array[Byte]): Array[Byte] =
     Blake2b256
       .hash(addrBytes)
-      .map(_.value)
-      .valueOr(err => throw new Exception(s"Failed to hash address bytes: $err"))
+      .value
       .take(checksumLength)
 
   def toString(addr: Address): String = {
