@@ -1,5 +1,6 @@
 package co.topl.crypto.hash
 
+import cats.implicits._
 import co.topl.crypto.hash.digest._
 import co.topl.crypto.hash.implicits._
 import org.bouncycastle.crypto.digests.Blake2bDigest
@@ -9,7 +10,7 @@ abstract class Blake2bHash[D: Digest] extends Hash[Blake2b, D] {
   val digestSizeInBits: Int = 8 * digestSize
   lazy val digestFunc = new Blake2bDigest(digestSizeInBits)
 
-  override def hash(prefix: Option[Byte], messages: Message*): HashResult[D] =
+  override def hash(prefix: Option[Byte], messages: Message*): D =
     // must be synchronized on the digest function so that everyone shares an instance
     synchronized {
       // update digest with prefix and messages
@@ -23,7 +24,9 @@ abstract class Blake2bHash[D: Digest] extends Hash[Blake2b, D] {
       // calling .doFinal resets to a default state
       digestFunc.doFinal(res, 0)
 
-      Digest[D].from(res).leftMap(InvalidDigest).toEither
+      Digest[D]
+        .from(res)
+        .valueOr(err => throw new Error(s"Blake2b hash with digest size $digestSize was invalid! $err"))
     }
 }
 

@@ -1,15 +1,14 @@
 package co.topl.crypto.accumulators.merkle
 
-import cats.implicits._
 import co.topl.crypto.accumulators.LeafData
 import co.topl.crypto.hash.digest.Digest
 import co.topl.crypto.hash.digest.implicits._
-import co.topl.crypto.hash.{Hash, HashFailure, HashResult}
+import co.topl.crypto.hash.Hash
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 
 sealed abstract class Node[D: Digest] {
-  def hash: HashResult[D]
+  def hash: D
 }
 
 /**
@@ -21,12 +20,12 @@ sealed abstract class Node[D: Digest] {
 case class InternalNode[H, D: Digest](left: Node[D], right: Option[Node[D]])(implicit hashFunc: Hash[H, D])
     extends Node[D] {
 
-  override lazy val hash: HashResult[D] =
-    for {
-      leftHashBytes  <- left.hash.map(_.bytes)
-      rightHashBytes <- right.map(_.hash.map(_.bytes)).getOrElse(Array.emptyByteArray.asRight[HashFailure])
-      nodeHash       <- hashFunc.hash(MerkleTree.InternalNodePrefix, leftHashBytes ++ rightHashBytes)
-    } yield nodeHash
+  override lazy val hash: D =
+    hashFunc.hash(
+      MerkleTree.InternalNodePrefix,
+      left.hash.bytes ++ right.map(_.hash.bytes).getOrElse(Array.emptyByteArray)
+    )
+
 }
 
 /**
@@ -35,5 +34,5 @@ case class InternalNode[H, D: Digest](left: Node[D], right: Option[Node[D]])(imp
  * @param data - leaf data.
  */
 case class Leaf[H, D: Digest](data: LeafData)(implicit h: Hash[H, D]) extends Node[D] {
-  override lazy val hash: HashResult[D] = Hash[H, D].hash(MerkleTree.LeafPrefix, data.value)
+  override lazy val hash: D = Hash[H, D].hash(MerkleTree.LeafPrefix, data.value)
 }

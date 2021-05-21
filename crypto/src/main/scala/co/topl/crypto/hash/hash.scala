@@ -11,11 +11,6 @@ package object hash {
 
   type Message = Array[Byte]
 
-  sealed trait HashFailure
-  case class InvalidDigest(errors: NonEmptyChain[digest.InvalidDigestFailure]) extends HashFailure
-
-  type HashResult[D] = Either[HashFailure, D]
-
   /**
    * Represents a hashing function with a scheme and digest type.
    *
@@ -31,7 +26,7 @@ package object hash {
      * @param messages the set of messages to iteratively hash
      * @return the hash digest
      */
-    def hash(prefix: Option[Byte], messages: Message*): HashResult[D]
+    def hash(prefix: Option[Byte], messages: Message*): D
 
     /**
      * Hashes a set of messages with a given prefix.
@@ -40,7 +35,7 @@ package object hash {
      * @param messages the set of messages to iteratively hash
      * @return the hash digest
      */
-    def hash(prefix: Byte, messages: Message*): HashResult[D] = hash(Some(prefix), messages: _*)
+    def hash(prefix: Byte, messages: Message*): D = hash(Some(prefix), messages: _*)
 
     /**
      * Hashes a message.
@@ -48,7 +43,7 @@ package object hash {
      * @param message the message to hash
      * @return the hash digest
      */
-    def hash(message: Message): HashResult[D] = hash(None, message)
+    def hash(message: Message): D = hash(None, message)
   }
 
   object Hash {
@@ -65,33 +60,5 @@ package object hash {
     implicit val blake2b512: Hash[Blake2b, Digest64] = Blake2b512
   }
 
-  trait HashResultOps[T] {
-    def instance: HashResult[T]
-
-    /**
-     * Gets the valid hash result or throws an exception.
-     *
-     * @param orThrow an override for the exception to throw
-     * @return a valid hash result
-     */
-    def getOrThrow(orThrow: HashFailure => Throwable = e => new Exception(e.toString)): T =
-      instance match {
-        case Right(a) => a
-        case Left(e)  => throw orThrow(e)
-      }
-  }
-
-  trait ToHashResultOps {
-
-    implicit def toHashResultOps[T](result: HashResult[T]): HashResultOps[T] = new HashResultOps[T] {
-      def instance: HashResult[T] = result
-    }
-  }
-
-  object implicits
-      extends digest.Instances
-      with digest.Digest.ToDigestOps
-      with digest.Extensions
-      with Instances
-      with ToHashResultOps
+  object implicits extends digest.Instances with digest.Digest.ToDigestOps with digest.Extensions with Instances
 }

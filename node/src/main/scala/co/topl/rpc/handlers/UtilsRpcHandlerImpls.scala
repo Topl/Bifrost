@@ -37,10 +37,9 @@ class UtilsRpcHandlerImpls(implicit
 
   override val hashBlake2b256: ToplRpc.Util.HashBlake2b256.rpc.ServerHandler =
     params =>
-      Blake2b256
-        .hash(params.message.getBytes)
-        .map(hash => ToplRpc.Util.HashBlake2b256.Response(params.message, Base58.encode(hash)))
-        .leftMap(err => InvalidParametersError.adhoc(err.toString, "message"): RpcError)
+      ToplRpc.Util.HashBlake2b256
+        .Response(params.message, Base58.encode(Blake2b256.hash(params.message.getBytes("UTF-8"))))
+        .asRight[RpcError]
         .toEitherT[Future]
 
   override val generateAssetCode: ToplRpc.Util.GenerateAssetCode.rpc.ServerHandler =

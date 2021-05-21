@@ -60,8 +60,8 @@ object AddressCodec {
       def checksum: Array[Byte] =
         Blake2b256
           .hash(bytes)
-          .map(_.value.take(ChecksumLength))
-          .getOrElse(Array.emptyByteArray)
+          .value
+          .take(ChecksumLength)
     }
 
   }

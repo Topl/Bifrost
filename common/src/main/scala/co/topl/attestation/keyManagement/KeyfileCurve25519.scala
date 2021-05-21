@@ -161,7 +161,7 @@ object KeyfileCurve25519Companion extends KeyfileCompanion[PrivateKeyCurve25519,
    * @return
    */
   private def getMAC(derivedKey: Array[Byte], cipherText: Array[Byte]): Array[Byte] =
-    Blake2b256.hash(derivedKey.slice(16, 32) ++ cipherText).getOrThrow().value
+    Blake2b256.hash(derivedKey.slice(16, 32) ++ cipherText).value
 
   /**
    * @param derivedKey

@@ -79,7 +79,7 @@ object TransferTransaction {
       Array(txIdPrefix) ++ boxIdsToOpenAccumulator ++ timestampBytes ++ feeBytes
 
     val calcNonce: Int => Box.Nonce = (index: Int) => {
-      val digest = Blake2b256.hash(inputBytes ++ Ints.toByteArray(index)).getOrThrow()
+      val digest = Blake2b256.hash(inputBytes ++ Ints.toByteArray(index))
       Transaction.nonceFromDigest(digest)
     }
 
