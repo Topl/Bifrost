@@ -11,8 +11,8 @@ Seq(
   "com.github.cb372"   % "sbt-explicit-dependencies" % "0.2.16",
   "pl.project13.scala" % "sbt-jmh"                   % "0.4.2",
   "org.scalameta"      % "sbt-scalafmt"              % "2.4.2",
-  "ch.epfl.scala"      % "sbt-scalafix"              % "0.9.27",
-  "org.wartremover"    % "sbt-wartremover"           % "2.4.13",
+  "ch.epfl.scala"      % "sbt-scalafix"              % "0.9.28",
+  "org.wartremover"    % "sbt-wartremover"           % "2.4.15",
   "com.typesafe.sbt"   % "sbt-native-packager"       % "1.8.1",
   "com.eed3si9n"       % "sbt-buildinfo"             % "0.10.0",
   "com.geirsson"       % "sbt-ci-release"            % "1.5.7"
