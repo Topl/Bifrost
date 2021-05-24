@@ -3,7 +3,7 @@ package co.topl.consensus
 import co.topl.consensus
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
-import co.topl.nodeView.history.{BlockProcessor, History, Storage}
+import co.topl.nodeView.history.{BlockProcessor, History, VersionedStorage}
 import co.topl.utils.TimeProvider
 
 import scala.util.{Failure, Try}
@@ -13,7 +13,8 @@ sealed trait BlockValidator[PM <: Block] {
   def validate(block: PM): Try[Unit]
 }
 
-class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor) extends BlockValidator[Block] {
+class DifficultyBlockValidator(storage: VersionedStorage, blockProcessor: BlockProcessor)
+    extends BlockValidator[Block] {
 
   def validate(block: Block): Try[Unit] = Try {
     // lookup our local data about the parent

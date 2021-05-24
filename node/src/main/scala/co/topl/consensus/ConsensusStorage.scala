@@ -21,7 +21,7 @@ class ConsensusStorage(storage: Option[Store], private val defaultTotalStake: In
   private val totalStakeKey = ByteArrayWrapper(Blake2b256("totalStake".getBytes))
   private val difficultyKey = ByteArrayWrapper(Blake2b256("difficulty".getBytes))
   private val inflationKey = ByteArrayWrapper(Blake2b256("inflation".getBytes))
-  private val heightKey = ByteArrayWrapper(Blake2b256("height".getBytes))
+  private val heightKey = Blake2b256("height".getBytes)
 
   private val defaultDifficulty: Long = 0
   private val defaultInflation: Long = 0

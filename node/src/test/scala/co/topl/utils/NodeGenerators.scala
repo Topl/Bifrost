@@ -9,7 +9,7 @@ import co.topl.modifier.box.Box.identifier
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
-import co.topl.nodeView.history.{BlockProcessor, History, Storage}
+import co.topl.nodeView.history.{BlockProcessor, History, VersionedStorage}
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppSettings, StartupOpts, Version}
 import io.iohk.iodb.LSMStore
@@ -51,7 +51,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
     iFile.mkdirs()
     val blockStorage = new LSMStore(iFile)
 
-    val storage = new Storage(blockStorage, settings.application.cacheExpire, settings.application.cacheSize)
+    val storage = new VersionedStorage(blockStorage, settings.application.cacheExpire, settings.application.cacheSize)
     //we don't care about validation here
     val validators = Seq()
 

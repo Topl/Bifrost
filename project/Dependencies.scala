@@ -89,7 +89,8 @@ object Dependencies {
       "com.lihaoyi"                %% "mainargs"      % "0.2.1",
       "net.jpountz.lz4"             % "lz4"           % "1.3.0",
       "com.github.julien-truffaut" %% "monocle-core"  % "3.0.0-M5",
-      "com.github.julien-truffaut" %% "monocle-macro" % "3.0.0-M5"
+      "com.github.julien-truffaut" %% "monocle-macro" % "3.0.0-M5",
+      "org.iq80.leveldb"            % "leveldb"       % "0.12"
     ) ++
     logging ++
     test ++
