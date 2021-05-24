@@ -12,7 +12,7 @@ import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.NodeViewHolderRef
 import co.topl.settings.{AppContext, StartupOpts}
-import co.topl.utils.CoreGenerators
+import co.topl.utils.{CommonGenerators, NodeGenerators}
 import org.scalatest.{BeforeAndAfterAll, DoNotDiscover}
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
@@ -27,7 +27,8 @@ class MempoolSpec
     extends AnyPropSpec
     with ScalaCheckPropertyChecks
     with Matchers
-    with CoreGenerators
+    with CommonGenerators
+    with NodeGenerators
     with BeforeAndAfterAll {
 
   implicit private val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)

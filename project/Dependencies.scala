@@ -109,7 +109,8 @@ object Dependencies {
     ) ++
     logging ++
     circe ++
-    crypto
+    crypto ++
+    test
   }
 
   lazy val chainProgram: Seq[ModuleID] =
