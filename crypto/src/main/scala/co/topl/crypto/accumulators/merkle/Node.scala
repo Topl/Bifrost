@@ -17,13 +17,12 @@ sealed abstract class Node[D: Digest] {
  * @param left  - left child. always non-empty
  * @param right - right child. can be emptyNode
  */
-case class InternalNode[H, D: Digest](left: Node[D], right: Option[Node[D]])(implicit hashFunc: Hash[H, D])
-    extends Node[D] {
+case class InternalNode[H, D: Digest](left: Node[D], right: Option[Node[D]])(implicit h: Hash[H, D]) extends Node[D] {
 
   override lazy val hash: D =
-    hashFunc.hash(
+    h.hash(
       MerkleTree.InternalNodePrefix,
-      left.hash.bytes ++ right.map(_.hash.bytes).getOrElse(Array.emptyByteArray)
+      left.hash.bytes ++ right.map(_.hash.bytes).getOrElse(Array[Byte]())
     )
 
 }
@@ -34,5 +33,5 @@ case class InternalNode[H, D: Digest](left: Node[D], right: Option[Node[D]])(imp
  * @param data - leaf data.
  */
 case class Leaf[H, D: Digest](data: LeafData)(implicit h: Hash[H, D]) extends Node[D] {
-  override lazy val hash: D = Hash[H, D].hash(MerkleTree.LeafPrefix, data.value)
+  override lazy val hash: D = h.hash(MerkleTree.LeafPrefix, data.value)
 }

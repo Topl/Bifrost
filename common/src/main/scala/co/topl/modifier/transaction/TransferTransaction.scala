@@ -1,7 +1,7 @@
 package co.topl.modifier.transaction
 
 import co.topl.attestation.{Evidence, _}
-import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.BoxReader
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.box.{Box, _}
@@ -79,7 +79,7 @@ object TransferTransaction {
       Array(txIdPrefix) ++ boxIdsToOpenAccumulator ++ timestampBytes ++ feeBytes
 
     val calcNonce: Int => Box.Nonce = (index: Int) => {
-      val digest = Blake2b256.hash(inputBytes ++ Ints.toByteArray(index))
+      val digest = blake2b256.hash(inputBytes ++ Ints.toByteArray(index))
       Transaction.nonceFromDigest(digest)
     }
 

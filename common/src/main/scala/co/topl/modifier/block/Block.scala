@@ -48,9 +48,6 @@ case class Block(
 
   lazy val messageToSign: Array[Byte] = this.copy(signature = SignatureCurve25519.empty).bytes
 
-  def toBlockComponents: (BlockHeader, BlockBody) = Block.toBlockComponents(this)
-
-  @deprecated
   def toComponents: (BlockHeader, BlockBody) = Block.toComponents(this)
 
   override def toString: String = Block.jsonEncoder(this).noSpaces
@@ -61,41 +58,10 @@ object Block {
   val modifierTypeId: NodeViewModifier.ModifierTypeId = ModifierTypeId(3: Byte)
 
   /**
-   * Deconstruct a block to its components
-   * @param block the block to decompose
-   * @return a block header and block body or a failure
-   */
-  def toBlockComponents(block: Block): (BlockHeader, BlockBody) = {
-    val blockHeader = BlockHeader(
-      block.id,
-      block.parentId,
-      block.timestamp,
-      block.generatorBox,
-      block.publicKey,
-      block.signature,
-      block.height,
-      block.difficulty,
-      block.merkleTree.rootHash,
-      block.bloomFilter,
-      block.version
-    )
-
-    val blockBody = BlockBody(
-      block.id,
-      block.parentId,
-      block.transactions,
-      block.version
-    )
-
-    blockHeader -> blockBody
-  }
-
-  /**
    * Deconstruct a block to its compoennts
    * @param block the block to decompose
    * @return a block header and block body
    */
-  @deprecated
   def toComponents(block: Block): (BlockHeader, BlockBody) = {
     val header: BlockHeader =
       BlockHeader(
@@ -182,10 +148,10 @@ object Block {
   }
 
   implicit val jsonEncoder: Encoder[Block] = { b: Block =>
-    val components = toBlockComponents(b)
+    val (header, body) = b.toComponents
     Map(
-      "header"    -> components._1.asJson,
-      "body"      -> components._2.asJson,
+      "header"    -> header.asJson,
+      "body"      -> body.asJson,
       "blockSize" -> b.bytes.length.asJson
     ).asJson
   }

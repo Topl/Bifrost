@@ -105,5 +105,7 @@ package object digest {
     implicit def eqDigest[D: Digest]: Eq[D] = _.bytes sameElements _.bytes
   }
 
-  object implicits extends Instances with Digest.ToDigestOps with Extensions
+  trait DigestImplicits extends Instances with Digest.ToDigestOps with Extensions
+
+  object implicits extends DigestImplicits
 }

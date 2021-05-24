@@ -3,7 +3,7 @@ package co.topl.attestation
 import cats.Semigroup
 import cats.data.{Validated, ValidatedNec}
 import cats.implicits._
-import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.blake2b256
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.encode.Base58
 import co.topl.utils.NetworkType
@@ -58,7 +58,7 @@ object AddressCodec {
        * @return a 4 byte checksum value
        */
       def checksum: Array[Byte] =
-        Blake2b256
+        blake2b256
           .hash(bytes)
           .value
           .take(ChecksumLength)

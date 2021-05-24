@@ -2,7 +2,7 @@ package modifier
 
 import attestation.AddressEncoder.NetworkPrefix
 import attestation.{Evidence, _}
-import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.blake2b256
 import com.google.common.primitives.{Ints, Longs}
 import crypto.AssetCode
 import io.circe.syntax.EncoderOps
@@ -124,7 +124,7 @@ object TransferTransaction {
       Longs.toByteArray(tx.fee)
 
     def calcNonce(index: Int): Long = {
-      val digest = Blake2b256.hash(inputBytes ++ Ints.toByteArray(index))
+      val digest = blake2b256.hash(inputBytes ++ Ints.toByteArray(index))
       Longs.fromByteArray(digest.value.take(Longs.BYTES))
     }
 
