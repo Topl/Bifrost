@@ -1,6 +1,5 @@
 package co.topl.crypto.accumulators
 
-import cats.implicits._
 import co.topl.crypto.accumulators.merkle.{Leaf, MerkleTree}
 import co.topl.crypto.hash.digest.{Digest, Digest32}
 import co.topl.crypto.hash.implicits._
