@@ -1,17 +1,16 @@
-import sbt.Keys.{homepage, organization}
+import sbt.Keys.{homepage, organization, test}
 import sbtassembly.MergeStrategy
+import Dependencies._
 
 val scala212 = "2.12.13"
 val scala213 = "2.13.5"
 
 inThisBuild(List(
   organization := "co.topl",
-  scalaVersion := scala212,
+  scalaVersion := scala213,
   crossScalaVersions := Seq(scala212, scala213),
-  Compile / run / mainClass := Some("co.topl.BifrostApp"),
   versionScheme := Some("early-semver"),
   dynverSeparator := "-",
-  dynverSonatypeSnapshots := true,
   version := dynverGitDescribeOutput.value.mkVersion(versionFmt, fallbackVersion(dynverCurrentDate.value)),
   dynver := {
     val d = new java.util.Date
@@ -117,108 +116,6 @@ lazy val scalamacrosParadiseSettings =
     }
   )
 
-val akkaVersion = "2.6.14"
-val akkaHttpVersion = "10.2.4"
-val circeVersion = "0.13.0"
-val kamonVersion = "2.1.17"
-val graalVersion = "21.1.0"
-
-val akkaDependencies = Seq(
-  "com.typesafe.akka" %% "akka-actor"          % akkaVersion,
-  "com.typesafe.akka" %% "akka-cluster"        % akkaVersion,
-  "com.typesafe.akka" %% "akka-stream"         % akkaVersion,
-  "com.typesafe.akka" %% "akka-http"           % akkaHttpVersion,
-  "com.typesafe.akka" %% "akka-http-core"      % akkaHttpVersion,
-  "com.typesafe.akka" %% "akka-remote"         % akkaVersion,
-  "com.typesafe.akka" %% "akka-slf4j"          % akkaVersion,
-  "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion     % Test,
-  "com.typesafe.akka" %% "akka-http-testkit"   % akkaHttpVersion % Test
-)
-
-val networkDependencies = Seq(
-  "org.bitlet"  % "weupnp"      % "0.1.4",
-  "commons-net" % "commons-net" % "3.8.0"
-)
-
-val jsonDependencies = Seq(
-  "io.circe" %% "circe-core"    % circeVersion,
-  "io.circe" %% "circe-generic" % circeVersion,
-  "io.circe" %% "circe-parser"  % circeVersion,
-  "io.circe" %% "circe-literal" % circeVersion,
-  "io.circe" %% "circe-optics" % circeVersion
-)
-
-val akkaCirceDependencies = Seq(
-  "de.heikoseeberger" %% "akka-http-circe" % "1.36.0"
-)
-
-val loggingDependencies = Seq(
-  "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.3",
-  "ch.qos.logback"              % "logback-classic" % "1.2.3",
-  "ch.qos.logback"              % "logback-core"    % "1.2.3",
-  "org.slf4j"                   % "slf4j-api"       % "1.7.30"
-)
-
-val testingDependenciesTest = Seq(
-  "org.scalatest"      %% "scalatest"         % "3.2.8"   % "test",
-  "org.scalactic"      %% "scalactic"         % "3.2.8"   % "test",
-  "org.scalacheck"     %% "scalacheck"        % "1.15.4"  % "test",
-  "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
-  "com.spotify"         % "docker-client"     % "8.16.0"  % "test",
-  "org.asynchttpclient" % "async-http-client" % "2.12.3"  % "test",
-  "org.scalamock"      %% "scalamock"         % "5.1.0"   % "test",
-  "com.ironcorelabs" %% "cats-scalatest" % "3.0.5" % "test"
-)
-
-val testingDependenciesIt = Seq(
-  "org.scalatest"      %% "scalatest"         % "3.2.6"   % "it",
-  "com.spotify"         % "docker-client"     % "8.16.0"  % "it",
-  "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion     % "it",
-  "com.typesafe.akka" %% "akka-http-testkit"   % akkaHttpVersion % "it"
-)
-
-val cryptoDependencies = Seq(
-  "org.scorexfoundation" %% "scrypto"         % "2.1.10",
-  "org.bouncycastle"      % "bcprov-jdk15on"  % "1.68",
-  "org.whispersystems"    % "curve25519-java" % "0.5.0"
-)
-
-val miscDependencies = Seq(
-  "org.scorexfoundation"  %% "iodb"        % "0.3.2",
-  "com.chuusai"           %% "shapeless"   % "2.3.5",
-  "com.iheart"            %% "ficus"       % "1.5.0",
-  "org.rudogma"           %% "supertagged" % "1.5",
-  "com.lihaoyi"           %% "mainargs"    % "0.2.1",
-  "org.scalanlp"          %% "breeze"      % "1.1",
-  "io.netty"               % "netty"       % "3.10.6.Final",
-  "com.google.guava"       % "guava"       % "30.1.1-jre",
-  "com.typesafe"           % "config"      % "1.4.1",
-  "com.github.pureconfig" %% "pureconfig"  % "0.15.0"
-)
-
-val monitoringDependencies = Seq(
-  "io.kamon" %% "kamon-bundle"   % kamonVersion,
-  "io.kamon" %% "kamon-core"     % kamonVersion,
-  "io.kamon" %% "kamon-influxdb" % kamonVersion,
-  "io.kamon" %% "kamon-zipkin"   % kamonVersion
-)
-
-val graalDependencies = Seq(
-  // https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
-  // https://mvnrepository.com/artifact/org.graalvm.js/js
-  // https://mvnrepository.com/artifact/org.graalvm.truffle/truffle-api
-  "org.graalvm.sdk"     % "graal-sdk"   % graalVersion,
-  "org.graalvm.js"      % "js"          % graalVersion,
-  "org.graalvm.truffle" % "truffle-api" % graalVersion
-)
-
-val simulacrum = Seq(
-  "org.typelevel" %% "simulacrum" % "1.0.0"
-)
-
-libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ loggingDependencies
-  ++ testingDependenciesTest ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ graalDependencies)
-
 lazy val commonScalacOptions = Seq(
   "-deprecation",
   "-feature",
@@ -271,8 +168,7 @@ lazy val bifrost = project.in(file("."))
     toplRpc,
     gjallarhorn,
     benchmarking,
-    brambl,
-    chainProgram
+    brambl
   )
   .dependsOn(
     node,
@@ -297,8 +193,7 @@ lazy val node = project.in(file("node"))
     dockerLabels ++= Map(
       "bifrost.version" -> version.value
     ),
-    libraryDependencies ++= (akkaDependencies ++ networkDependencies ++ jsonDependencies ++ loggingDependencies
-      ++ testingDependenciesTest ++ cryptoDependencies ++ miscDependencies ++ monitoringDependencies ++ testingDependenciesIt)
+    libraryDependencies ++= Dependencies.node,
   )
   .configs(IntegrationTest)
   .settings(
@@ -312,8 +207,7 @@ lazy val common = project.in(file("common"))
     name := "common",
     commonSettings,
     publishSettings,
-    libraryDependencies ++= akkaDependencies ++ loggingDependencies ++ jsonDependencies ++
-      cryptoDependencies ++ simulacrum ++ testingDependenciesTest
+    libraryDependencies ++= Dependencies.common
   )
   .settings(scalamacrosParadiseSettings)
 
@@ -322,7 +216,7 @@ lazy val chainProgram = project.in(file("chain-program"))
     name := "chain-program",
     commonSettings,
     publish / skip := true,
-    libraryDependencies ++= jsonDependencies ++ testingDependenciesTest ++ graalDependencies
+    libraryDependencies ++= Dependencies.chainProgram
   )
   .dependsOn(common)
   .disablePlugins(sbtassembly.AssemblyPlugin)
@@ -333,7 +227,7 @@ lazy val brambl = project.in(file("brambl"))
     name := "brambl",
     commonSettings,
     publishSettings,
-    libraryDependencies ++= jsonDependencies ++ akkaDependencies ++ akkaCirceDependencies ++ testingDependenciesTest,
+    libraryDependencies ++= Dependencies.brambl,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.brambl",
   )
@@ -345,7 +239,7 @@ lazy val akkaHttpRpc = project.in(file("akka-http-rpc"))
     name := "akka-http-rpc",
     commonSettings,
     publishSettings,
-    libraryDependencies ++= jsonDependencies ++ akkaDependencies ++ akkaCirceDependencies ++ testingDependenciesTest,
+    libraryDependencies ++= Dependencies.akkaHttpRpc,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.akkahttprpc",
   )
@@ -356,7 +250,7 @@ lazy val toplRpc = project.in(file("topl-rpc"))
     name := "topl-rpc",
     commonSettings,
     publishSettings,
-    libraryDependencies ++= jsonDependencies ++ akkaDependencies ++ akkaCirceDependencies ++ testingDependenciesTest,
+    libraryDependencies ++= Dependencies.toplRpc,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.toplrpc",
   )
@@ -368,8 +262,7 @@ lazy val gjallarhorn = project.in(file("gjallarhorn"))
     commonSettings,
     publish / skip := true,
     Defaults.itSettings,
-    libraryDependencies ++= akkaDependencies ++ testingDependenciesTest ++ cryptoDependencies ++ jsonDependencies
-      ++ loggingDependencies ++ miscDependencies ++ testingDependenciesIt
+    libraryDependencies ++= Dependencies.gjallarhorn
   )
   .configs(IntegrationTest)
   .disablePlugins(sbtassembly.AssemblyPlugin)
@@ -378,7 +271,8 @@ lazy val benchmarking = project.in(file("benchmark"))
   .settings(
     name := "benchmark",
     commonSettings,
-    publish / skip := true
+    publish / skip := true,
+    libraryDependencies ++= Dependencies.benchmarking
   )
   .dependsOn(node % "compile->compile;test->test")
   .enablePlugins(JmhPlugin)
