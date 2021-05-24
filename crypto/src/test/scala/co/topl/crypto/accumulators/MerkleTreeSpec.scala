@@ -11,7 +11,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class MerkleTreeSpecification extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
+class MerkleTreeSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
 
   type HashScheme = Blake2b
   type HashDigest = Digest32
