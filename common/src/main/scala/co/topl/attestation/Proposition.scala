@@ -179,7 +179,7 @@ object PublicKeyPropositionEd25519 {
 
   implicit val evProducer: EvidenceProducer[PublicKeyPropositionEd25519] =
     EvidenceProducer.instance[PublicKeyPropositionEd25519] { prop: PublicKeyPropositionEd25519 =>
-      Evidence(typePrefix, Blake2b256.hash(prop.bytes.tail).map(EvidenceContent(_)).getOrThrow())
+      Evidence(typePrefix, EvidenceContent(blake2b256.hash(prop.bytes.tail)))
     }
 
   implicit val identifier: Identifiable[PublicKeyPropositionEd25519] = Identifiable.instance { () =>
