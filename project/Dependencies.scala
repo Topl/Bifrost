@@ -63,7 +63,7 @@ object Dependencies {
     "com.chuusai"     %% "shapeless"   % "2.3.5",
     "com.iheart"      %% "ficus"       % "1.5.0",
     "org.rudogma"     %% "supertagged" % "1.5",
-    "org.scalanlp"    %% "breeze"      % "1.1",
+    "org.scalanlp"    %% "breeze"      % "1.2",
     "io.netty"         % "netty"       % "3.10.6.Final",
     "com.google.guava" % "guava"       % "30.1.1-jre"
   )
