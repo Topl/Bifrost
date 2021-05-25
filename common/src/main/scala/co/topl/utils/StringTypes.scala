@@ -116,33 +116,3 @@ object StringTypes {
       with StringValidationFailureInstances
 
 }
-
-object StringTypesTester extends App {
-  import co.topl.utils.StringTypes._
-  import co.topl.utils.StringTypes.implicits._
-  import co.topl.utils.codecs.implicits._
-
-  val latin1 = Latin1String.validated("hello")
-
-  println(latin1.show)
-
-  val base58Encoded = latin1.map(_.infalliblyDecodeTo[Base58String])
-
-  println(base58Encoded)
-
-  val utfStringOutput = base58Encoded.andThen(_.decodeTo[StringValidationFailure, UTF8String])
-
-  println(utfStringOutput.show)
-
-//    val latin1Unsafe = Latin1String.unsafe("😃")
-//
-//    println(latin1Unsafe.show)
-//
-//    val base58Encoded = latin1Unsafe.infalliblyDecodeTo[Base58String]
-//
-//    println(base58Encoded)
-//
-//    val utfStringOutput = base58Encoded.decodeTo[StringValidationFailure, UTF8String]
-//
-//    println(utfStringOutput.show)
-}
