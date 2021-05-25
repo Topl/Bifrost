@@ -13,10 +13,18 @@ import scorex.util.encode.Base58
 
 class AssetRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
 
-  val address: Address = keyRing.addresses.head
-  val recipients: String = assetToSeqGen.sample.get.asJson.toString()
-  val assetCode: AssetCode = AssetCode(1: Byte, address, "test")
+  var address: Address = _
+  var recipients: String = _
+  var assetCode: AssetCode = _
   var tx = ""
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+
+    address = keyRing.addresses.head
+    recipients = assetToSeqGen.sample.get.asJson.toString()
+    assetCode = AssetCode(1: Byte, address, "test")
+  }
 
   "AssetTransfer RPC" should {
     "Create new assets raw transaction" in {
@@ -62,7 +70,7 @@ class AssetRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
           rawTx.deepMerge(signatures)
         }
 
-        tx = sigTx.right.get.toString
+        tx = sigTx.getOrElse("").toString
 
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true

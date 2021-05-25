@@ -77,7 +77,7 @@ class NetworkController(
 
   // ----------- CONTEXT ----------- //
   override def receive: Receive =
-    initialization orElse
+    initialization(p2pBound = false, nodeViewReady = false) orElse
     nonsense
 
   private def operational: Receive =
@@ -87,7 +87,7 @@ class NetworkController(
     nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS ----------- //
-  private def initialization: Receive = {
+  private def initialization(p2pBound: Boolean, nodeViewReady: Boolean): Receive = {
     case BindP2P =>
       /** check own declared address for validity */
       val addrValidationResult = if (validateDeclaredAddress()) {
@@ -96,12 +96,14 @@ class NetworkController(
          * send a bind signal to the TCP manager to designate this actor as the
          * handler to accept incoming connections
          */
-        tcpManager ? Tcp.Bind(self, bindAddress, options = Nil, pullMode = false)
+        (tcpManager ? Tcp.Bind(self, bindAddress, options = Nil, pullMode = false)).mapTo[Tcp.Event]
       } else {
         throw new Error("Address validation failed. Aborting application startup.")
       }
 
       sender() ! addrValidationResult
+      if (nodeViewReady) becomeOperational()
+      else context.become(initialization(p2pBound = true, nodeViewReady))
 
     case RegisterMessageSpecs(specs, handler) =>
       log.info(
@@ -114,10 +116,15 @@ class NetworkController(
 
     /** start attempting to connect to peers when NodeViewHolder is ready */
     case NodeViewReady(_) =>
-      log.info(s"${Console.YELLOW}Network Controller transitioning to the operational state${Console.RESET}")
-      scheduleConnectionToPeer()
-      scheduleDroppingDeadConnections()
-      context become operational
+      if (p2pBound) becomeOperational()
+      else context.become(initialization(p2pBound, nodeViewReady = true))
+  }
+
+  private def becomeOperational(): Unit = {
+    log.info(s"${Console.YELLOW}Network Controller transitioning to the operational state${Console.RESET}")
+    scheduleConnectionToPeer()
+    scheduleDroppingDeadConnections()
+    context become operational
   }
 
   private def businessLogic: Receive = {
@@ -514,7 +521,7 @@ class NetworkController(
           val upnpAddress = appContext.upnpGateway.map(_.externalAddress)
 
           val valid =
-            listenAddresses.exists(myAddress.contains) || upnpAddress.exists(
+            listenAddresses.exists(address => myAddress.contains(address.getAddress)) || upnpAddress.exists(
               myAddress.contains
             )
 
@@ -529,13 +536,13 @@ class NetworkController(
           /** address was valid */
           case Success(res: Boolean) if res => true
           /** address was not valid */
-          case Success(res: Boolean) if !res => false
+          case Success(_) => false
           case Failure(ex) =>
             log.error("There was an error while attempting to validate the declared address: ", ex)
             false
         }
 
-      case None =>
+      case _ =>
         log.info(s"No declared address was provided. Skipping address validation.")
         true
     }

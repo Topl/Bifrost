@@ -19,14 +19,14 @@ object AssetTransferSerializer extends BifrostSerializer[AssetTransfer[_ <: Prop
     /* from: IndexedSeq[(Address, Nonce)] */
     w.putUInt(obj.from.length)
     obj.from.foreach { case (addr, nonce) =>
-      Address.serialize(addr, w)
+      AddressSerializer.serialize(addr, w)
       w.putLong(nonce)
     }
 
     /* to: IndexedSeq[(Address, Long)] */
     w.putUInt(obj.to.length)
     obj.to.foreach { case (prop, value) =>
-      Address.serialize(prop, w)
+      AddressSerializer.serialize(prop, w)
       TokenValueHolder.serialize(value, w)
     }
 
@@ -57,14 +57,14 @@ object AssetTransferSerializer extends BifrostSerializer[AssetTransfer[_ <: Prop
 
     val fromLength: Int = r.getUInt().toIntExact
     val from = (0 until fromLength).map { _ =>
-      val addr = Address.parse(r)
+      val addr = AddressSerializer.parse(r)
       val nonce = r.getLong()
       addr -> nonce
     }
 
     val toLength: Int = r.getUInt().toIntExact
     val to = (0 until toLength).map { _ =>
-      val addr = Address.parse(r)
+      val addr = AddressSerializer.parse(r)
       val value = TokenValueHolder.parse(r)
       addr -> value
     }

@@ -112,7 +112,7 @@ class NodeViewSynchronizer[
     nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS ----------- //
-  private def initialization(): Receive = { case NodeViewReady(_) =>
+  private def initialization: Receive = { case NodeViewReady(_) =>
     log.info(s"${Console.YELLOW}NodeViewSynchronizer transitioning to the operational state${Console.RESET}")
 
     /** instantiate the internal NodeViewSynchronizer state for History and Mempool */
@@ -358,7 +358,7 @@ class NodeViewSynchronizer[
     status: HistoryComparisonResult,
     ext:    Seq[(ModifierTypeId, ModifierId)]
   ): Unit =
-    ext.groupBy(_._2.getModType).mapValues(_.map(_._2)).foreach { case (mid, mods) =>
+    ext.groupBy(_._2.getModType).view.mapValues(_.map(_._2)).foreach { case (mid, mods) =>
       val msg = Message(invSpec, Right(InvData(mid, mods)), None)
       networkControllerRef ! SendToNetwork(msg, SendToPeer(remote))
     }

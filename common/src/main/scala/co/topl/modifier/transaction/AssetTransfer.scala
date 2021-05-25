@@ -1,7 +1,5 @@
 package co.topl.modifier.transaction
 
-import java.time.Instant
-
 import co.topl.attestation._
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
@@ -15,6 +13,7 @@ import io.circe.{Decoder, Encoder, HCursor}
 
 import java.time.Instant
 import scala.util.Try
+import scala.Iterable
 
 case class AssetTransfer[
   P <: Proposition: EvidenceProducer: Identifiable
@@ -28,21 +27,21 @@ case class AssetTransfer[
   override val minting:     Boolean = false
 ) extends TransferTransaction[TokenValueHolder, P](from, to, attestation, fee, timestamp, data, minting) {
 
-  override val coinOutput: Traversable[AssetBox] =
+  override val coinOutput: Iterable[AssetBox] =
     coinOutputParams.map { case BoxParams(evi, nonce, value: AssetValue) =>
       AssetBox(evi, nonce, value)
     }
 
-  override val newBoxes: Traversable[TokenBox[TokenValueHolder]] = {
+  override val newBoxes: Iterable[TokenBox[TokenValueHolder]] = {
     // this only creates an output if the value of the output boxes is non-zero
-    val recipientCoinOutput: Traversable[AssetBox] = coinOutput.filter(_.value.quantity > 0)
+    val recipientCoinOutput: Iterable[AssetBox] = coinOutput.filter(_.value.quantity > 0)
     val hasRecipientOutput: Boolean = recipientCoinOutput.nonEmpty
     val hasFeeChangeOutput: Boolean = feeChangeOutput.value.quantity > 0
 
     (hasRecipientOutput, hasFeeChangeOutput) match {
-      case (false, _)    => Traversable()
+      case (false, _)    => Iterable()
       case (true, false) => recipientCoinOutput
-      case (true, true)  => Traversable(feeChangeOutput) ++ recipientCoinOutput
+      case (true, true)  => Iterable(feeChangeOutput) ++ recipientCoinOutput
     }
   }
 }
@@ -64,17 +63,17 @@ object AssetTransfer {
    * @return
    */
   def createRaw[
-    P <: Proposition: EvidenceProducer: Identifiable
+    P <: Proposition
   ](
-    boxReader:            BoxReader[ProgramId, Address],
-    toReceive:            IndexedSeq[(Address, AssetValue)],
-    sender:               IndexedSeq[Address],
-    changeAddress:        Address,
-    consolidationAddress: Address,
-    fee:                  Int128,
-    data:                 Option[String],
-    minting:              Boolean
-  ): Try[AssetTransfer[P]] = {
+    boxReader:                   BoxReader[ProgramId, Address],
+    toReceive:                   IndexedSeq[(Address, AssetValue)],
+    sender:                      IndexedSeq[Address],
+    changeAddress:               Address,
+    consolidationAddress:        Address,
+    fee:                         Int128,
+    data:                        Option[String],
+    minting:                     Boolean
+  )(implicit evidenceProducerEv: EvidenceProducer[P], identifiableEv: Identifiable[P]): Try[AssetTransfer[P]] = {
 
     val assetCode =
       toReceive

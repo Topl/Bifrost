@@ -4,7 +4,7 @@ import co.topl.attestation.Address
 import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.block.{BloomFilter, TransactionsCarryingPersistentNodeViewModifier}
-import co.topl.utils.ValidGenerators
+import co.topl.utils.NodeGenerators
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
@@ -14,7 +14,7 @@ class BloomFilterSpec
     extends AnyPropSpec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
-    with ValidGenerators
+    with NodeGenerators
     with Matchers {
 
   property("Bloomfilter should be able to tell if it definitely contains an address(false negatives)") {

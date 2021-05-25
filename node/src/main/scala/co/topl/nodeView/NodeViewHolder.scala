@@ -1,8 +1,11 @@
 package co.topl.nodeView
 
+import akka.Done
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
+import cats.data.EitherT
+import co.topl.catsakka.AskException
 import co.topl.consensus.Forger
 import co.topl.consensus.Forger.ReceivableMessages.GenerateGenesis
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
@@ -10,6 +13,7 @@ import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier, TransactionCarryingPersistentNodeViewModifier}
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.serialization.TransactionSerializer
+import co.topl.modifier.transaction.validation.implicits._
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
 import co.topl.nodeView.NodeViewHolder.UpdateInformation
@@ -80,7 +84,7 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
     System.exit(100) // this actor shouldn't be restarted at all so kill the whole app if that happened
   }
 
-  override def postStop: Unit = {
+  override def postStop(): Unit = {
     log.info(s"${Console.RED}Application is going down NOW!${Console.RESET}")
     nodeView._1.closeStorage() // close History storage
     nodeView._2.closeStorage() // close State storage
@@ -226,7 +230,7 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
    * @param tx
    */
   protected def txModify(tx: TX): Unit =
-    tx.syntacticValidate.toEither match {
+    tx.syntacticValidation.toEither match {
       case Right(_) =>
         memoryPool().put(tx, appContext.timeProvider.time) match {
           case Success(_) =>
@@ -252,7 +256,7 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
       context.system.eventStream.publish(StartingPersistentModifierApplication(pmod))
 
       // check that the transactions are semantically valid
-      if (pmod.transactions.forall(_.semanticValidate(minimalState()).isSuccess)) {
+      if (pmod.transactions.forall(_.semanticValidation(minimalState()).isValid)) {
         log.info(s"Apply modifier ${pmod.id} of type ${pmod.modifierTypeId} to nodeViewHolder")
 
         // append the block to history
@@ -433,7 +437,7 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
       .putWithoutCheck(rolledBackTxs, appContext.timeProvider.time)
       .filter { tx =>
         !appliedTxs.exists(t => t.id == tx.id) && {
-          tx.syntacticValidate.isValid
+          tx.syntacticValidation.isValid
         }
       }
   }
@@ -528,4 +532,59 @@ object NodeViewHolderRef {
     ec:           ExecutionContext
   ): ActorRef =
     system.actorOf(props(settings, appContext), name)
+}
+
+sealed trait GetHistoryFailure
+case class GetHistoryFailureException(throwable: Throwable) extends GetHistoryFailure
+sealed trait GetStateFailure
+case class GetStateFailureException(throwable: Throwable) extends GetStateFailure
+sealed trait GetMempoolFailure
+case class GetMempoolFailureException(throwable: Throwable) extends GetMempoolFailure
+sealed trait BroadcastTxFailure
+case class BroadcastTxFailureException(throwable: Throwable) extends BroadcastTxFailure
+
+trait NodeViewHolderInterface {
+  def getHistory(): EitherT[Future, GetHistoryFailure, History]
+  def getState(): EitherT[Future, GetStateFailure, State]
+  def getMempool(): EitherT[Future, GetMempoolFailure, MemPool]
+  def broadcastTransaction(tx: Transaction.TX): EitherT[Future, BroadcastTxFailure, Done.type]
+}
+
+class ActorNodeViewHolderInterface(actorRef: ActorRef)(implicit ec: ExecutionContext, timeout: Timeout)
+    extends NodeViewHolderInterface {
+  import cats.implicits._
+  import co.topl.catsakka.CatsActor._
+
+  override def getHistory(): EitherT[Future, GetHistoryFailure, History] =
+    actorRef
+      .askEither[ChangedHistory[History]](
+        NodeViewHolder.ReceivableMessages.GetNodeViewChanges(history = true, state = false, mempool = false)
+      )
+      .leftMap { case AskException(throwable) => GetHistoryFailureException(throwable) }
+      .leftMap(e => e: GetHistoryFailure)
+      .map(_.reader)
+
+  override def getState(): EitherT[Future, GetStateFailure, State] =
+    actorRef
+      .askEither[ChangedState[State]](
+        NodeViewHolder.ReceivableMessages.GetNodeViewChanges(history = false, state = true, mempool = false)
+      )
+      .leftMap { case AskException(throwable) => GetStateFailureException(throwable) }
+      .leftMap(e => e: GetStateFailure)
+      .map(_.reader)
+
+  override def getMempool(): EitherT[Future, GetMempoolFailure, MemPool] =
+    actorRef
+      .askEither[ChangedMempool[MemPool]](
+        NodeViewHolder.ReceivableMessages.GetNodeViewChanges(history = false, state = false, mempool = true)
+      )
+      .leftMap { case AskException(throwable) => GetMempoolFailureException(throwable) }
+      .leftMap(e => e: GetMempoolFailure)
+      .map(_.reader)
+
+  def broadcastTransaction(tx: Transaction.TX): EitherT[Future, BroadcastTxFailure, Done.type] =
+    (actorRef ! NodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction(tx))
+      .asRight[BroadcastTxFailure]
+      .map(_ => Done)
+      .toEitherT[Future]
 }

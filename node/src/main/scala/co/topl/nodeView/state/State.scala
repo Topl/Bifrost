@@ -1,13 +1,18 @@
 package co.topl.nodeView.state
 
+import cats.data.ValidatedNec
 import co.topl.attestation.Address
+import co.topl.attestation.AddressCodec.implicits.StringOps
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
 import co.topl.modifier.box.serialization.BoxSerializer
 import co.topl.modifier.transaction._
+import co.topl.modifier.transaction.validation._
+import co.topl.modifier.transaction.validation.implicits._
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.settings.AppSettings
+import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
@@ -257,8 +262,10 @@ case class State(
    * @param transaction
    * @return
    */
-  def semanticValidate(transaction: Transaction.TX)(implicit networkPrefix: NetworkPrefix): Try[Unit] =
-    transaction.semanticValidate(getReader)
+  def semanticValidate(transaction: Transaction.TX)(implicit
+    networkPrefix:                  NetworkPrefix
+  ): ValidatedNec[SemanticValidationFailure, Transaction.TX] =
+    transaction.semanticValidation(getReader)
 }
 
 object State extends Logging {
@@ -306,7 +313,8 @@ object State extends Logging {
     val nodeKeys: Option[Set[Address]] = settings.application.nodeKeys match {
       case None                       => None
       case Some(keys) if keys.isEmpty => None
-      case Some(keys)                 => Some(keys.map(Address(networkPrefix)(_)))
+      case Some(keys) =>
+        Some(keys.map(_.decodeAddress.getOrThrow()))
     }
 
     if (nodeKeys.isDefined) log.info(s"Initializing state to watch for public keys: $nodeKeys")

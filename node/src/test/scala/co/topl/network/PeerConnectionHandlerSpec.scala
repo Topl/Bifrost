@@ -1,12 +1,11 @@
 package co.topl.network
 
 import java.net.InetSocketAddress
-
 import akka.actor._
 import akka.testkit.TestKit
 import co.topl.network.message.MessageSerializer
 import co.topl.settings.{AppContext, StartupOpts}
-import co.topl.utils.CoreGenerators
+import co.topl.utils.{CommonGenerators, NodeGenerators}
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.propspec.AnyPropSpecLike
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -18,9 +17,10 @@ class PeerConnectionHandlerSpec
     with AnyPropSpecLike
     with ScalaCheckPropertyChecks
     with Matchers
-    with CoreGenerators {
+    with CommonGenerators
+    with NodeGenerators {
 
-  val appContext = new AppContext(settings, StartupOpts.empty, None)
+  val appContext = new AppContext(settings, StartupOpts(), None)
 
   property("MessageSerializer should initialize correctly with specified message codes") {
 
