@@ -109,5 +109,7 @@ package object digest {
     implicit val eqDigest64: Eq[Digest64] = eqDigest[Digest64]
   }
 
-  object implicits extends Instances with Digest.ToDigestOps
+  trait DigestImplicits extends Instances with Digest.ToDigestOps
+
+  object implicits extends DigestImplicits
 }

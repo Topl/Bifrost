@@ -1,16 +1,15 @@
 package co.topl.attestation
 
 import cats.Semigroup
-import cats.data.{NonEmptyChain, Validated, ValidatedNec}
+import cats.data.{Validated, ValidatedNec}
 import cats.implicits._
-import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.blake2b256
 import co.topl.utils.codecs.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.encode.Base58
 import co.topl.utils.NetworkType
 import co.topl.utils.StringTypes.Base58String
 import co.topl.utils.codecs.{AsBytes, FromBytes, Infallible}
-import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
+import co.topl.utils.codecs.implicits.toDecoderOps
 
 import scala.language.implicitConversions
 
@@ -40,8 +39,6 @@ object AddressCodec {
 
     implicit class Base58StringOps(value: Base58String) {
 
-      import co.topl.utils.codecs.FromBytes.implicits._
-
       def decodeAddress(implicit networkPrefix: NetworkPrefix): ValidatedNec[AddressValidationError, Address] =
         value.decodeTo[AddressValidationError, Address]
     }
@@ -54,7 +51,7 @@ object AddressCodec {
        * @return a 4 byte checksum value
        */
       def checksum: Array[Byte] =
-        Blake2b256
+        blake2b256
           .hash(bytes)
           .value
           .take(ChecksumLength)

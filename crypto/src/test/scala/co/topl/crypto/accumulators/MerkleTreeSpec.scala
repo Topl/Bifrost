@@ -1,6 +1,5 @@
 package co.topl.crypto.accumulators
 
-import cats.implicits._
 import co.topl.crypto.accumulators.merkle.{Leaf, MerkleTree}
 import co.topl.crypto.hash.digest.{Digest, Digest32}
 import co.topl.crypto.hash.implicits._
@@ -11,7 +10,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class MerkleTreeSpecification extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
+class MerkleTreeSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
 
   type HashScheme = Blake2b
   type HashDigest = Digest32

@@ -1,12 +1,11 @@
 package modifier
 
 import attestation.Proposition
-import cats.implicits.toShow
-import co.topl.crypto.hash.Blake2b256
+import cats.implicits._
+import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.utils.StringTypes.Base58String
-import co.topl.utils.StringTypes.implicits.showBase58String
-import co.topl.utils.codecs.AsBytes.implicits._
+import co.topl.utils.StringTypes.implicits._
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
@@ -16,7 +15,7 @@ import modifier.ModifierId.ModifierTypeId
 import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 
 import scala.language.implicitConversions
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 /**
  * Helps to create the Id for a transaction.
@@ -64,7 +63,7 @@ object ModifierId extends GjalSerializer[ModifierId] {
 
   def apply(transferTransaction: TransferTransaction[_ <: Proposition]): ModifierId =
     new ModifierId(
-      TransferTransaction.modifierTypeId.value +: Blake2b256.hash(transferTransaction.messageToSign).value
+      TransferTransaction.modifierTypeId.value +: blake2b256.hash(transferTransaction.messageToSign).value
     )
 
   def apply(str: String): ModifierId = new ModifierId(Base58.decode(Base58String.unsafe(str)))

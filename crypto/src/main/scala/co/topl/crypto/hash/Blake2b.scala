@@ -1,8 +1,6 @@
 package co.topl.crypto.hash
 
-import cats.implicits._
-import co.topl.crypto.hash.digest._
-import co.topl.crypto.hash.implicits._
+import co.topl.crypto.hash.digest.Digest
 import org.bouncycastle.crypto.digests.Blake2bDigest
 
 abstract class Blake2bHash[D: Digest] extends Hash[Blake2b, D] {
@@ -29,6 +27,3 @@ abstract class Blake2bHash[D: Digest] extends Hash[Blake2b, D] {
         .valueOr(err => throw new Error(s"Blake2b hash with digest size $digestSize was invalid! $err"))
     }
 }
-
-case object Blake2b256 extends Blake2bHash[Digest32]
-case object Blake2b512 extends Blake2bHash[Digest64]

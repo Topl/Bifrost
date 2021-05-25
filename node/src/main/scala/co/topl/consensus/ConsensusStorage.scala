@@ -1,7 +1,7 @@
 package co.topl.consensus
 
-import co.topl.crypto.hash.Blake2b256
-import co.topl.crypto.implicits.digestDigest32
+import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.implicits._
 import co.topl.modifier.ModifierId
 import co.topl.settings.AppSettings
 import co.topl.utils.codecs.FromBytes.implicits._
@@ -21,9 +21,7 @@ import java.io.File
 class ConsensusStorage(storage: Option[Store], private val defaultTotalStake: Int128) extends Logging {
 
   private def byteArrayWrappedKey(name: String): ByteArrayWrapper =
-    Blake2b256
-      .hash(name.getBytes)
-      .infalliblyDecodeTo[ByteArrayWrapper]
+    ByteArrayWrapper(blake2b256.hash(name.getBytes).bytes)
 
   // constant keys for each piece of consensus state
   private val totalStakeKey = byteArrayWrappedKey("totalStake")

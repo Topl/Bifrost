@@ -42,11 +42,11 @@ case class MerkleTree[H, D: Digest](
       node match {
         case Some(n: InternalNode[H, D]) if i < curLength / 2 =>
           n.right match {
-            case Some(right) => loop(Some(n.left), i, curLength / 2, (Some(n.hash), MerkleProof.LeftSide) +: acc)
+            case Some(right) => loop(Some(n.left), i, curLength / 2, (Some(right.hash), MerkleProof.LeftSide) +: acc)
             case None        => loop(Some(n.left), i, curLength / 2, (None, MerkleProof.LeftSide) +: acc)
           }
         case Some(n: InternalNode[H, D]) if i < curLength =>
-          loop(n.right, i - curLength / 2, curLength / 2, (Some(n.hash), MerkleProof.RightSide) +: acc)
+          loop(n.right, i - curLength / 2, curLength / 2, (Some(n.left.hash), MerkleProof.RightSide) +: acc)
         case Some(n: Leaf[H, D]) =>
           Some((n, acc))
         case _ =>

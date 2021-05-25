@@ -3,7 +3,7 @@ package co.topl.attestation.keyManagement
 import cats.data.Validated.{Invalid, Valid}
 import co.topl.attestation.Address
 import co.topl.crypto.{PrivateKey, PublicKey}
-import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signatures.Curve25519
 import co.topl.utils.codecs.implicits._
 import co.topl.utils.IdiomaticScalaTransition.implicits.{toEitherOps, toValidatedOps}
@@ -163,7 +163,7 @@ object KeyfileCurve25519Companion extends KeyfileCompanion[PrivateKeyCurve25519,
    * @return
    */
   private def getMAC(derivedKey: Array[Byte], cipherText: Array[Byte]): Array[Byte] =
-    Blake2b256.hash(derivedKey.slice(16, 32) ++ cipherText).value
+    blake2b256.hash(derivedKey.slice(16, 32) ++ cipherText).value
 
   /**
    * @param derivedKey

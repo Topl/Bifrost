@@ -2,7 +2,7 @@ package attestation
 
 import cats.data.Validated.{Invalid, Valid}
 import cats.implicits._
-import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.blake2b256
 import co.topl.utils.codecs.implicits._
 import co.topl.utils.encode.Base58
 import co.topl.utils.StringTypes.Base58String
@@ -32,7 +32,7 @@ object AddressEncoder {
    * @return a 4 byte checksum value
    */
   private def genChecksum(addrBytes: Array[Byte]): Array[Byte] =
-    Blake2b256
+    blake2b256
       .hash(addrBytes)
       .value
       .take(checksumLength)

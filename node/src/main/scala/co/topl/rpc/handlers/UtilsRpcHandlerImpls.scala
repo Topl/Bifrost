@@ -3,8 +3,8 @@ package co.topl.rpc.handlers
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{InvalidParametersError, RpcError, ThrowableData}
-import co.topl.attestation.AddressCodec.implicits.Base58StringOps
-import co.topl.crypto.hash.Blake2b256
+import co.topl.attestation.AddressCodec.implicits._
+import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.implicits._
 import co.topl.modifier.box.AssetCode
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
@@ -40,7 +40,7 @@ class UtilsRpcHandlerImpls(implicit
       ToplRpc.Util.HashBlake2b256
         .Response(
           params.message,
-          Base58.encode(Blake2b256.hash(params.message.getBytes("UTF-8")).bytes).show
+          Base58.encode(blake2b256.hash(params.message.getBytes("UTF-8")).bytes).show
         )
         .asRight[RpcError]
         .toEitherT[Future]

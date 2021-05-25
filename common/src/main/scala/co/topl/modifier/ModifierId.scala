@@ -4,7 +4,7 @@ import cats.data.NonEmptyChain
 import cats.implicits._
 import co.topl.crypto.hash.digest.implicits._
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
@@ -68,17 +68,16 @@ object ModifierId extends BifrostSerializer[ModifierId] {
    * @param nodeViewModifier the modifier to create an ID from
    * @return a create result with a CreateModifierIdFailure if a failure occurred
    */
-  def createFromModifier(nodeViewModifier: NodeViewModifier): Either[CreateModifierIdFailure, ModifierId] =
-    nodeViewModifier match {
-      case mod: Block =>
-        new ModifierId(
-          Block.modifierTypeId.value +: Blake2b256.hash(mod.messageToSign).bytes
-        ).asRight[CreateModifierIdFailure]
-      case mod: Transaction.TX =>
-        new ModifierId(Transaction.modifierTypeId.value +: Blake2b256.hash(mod.messageToSign).bytes)
-          .asRight[CreateModifierIdFailure]
-      case _ => Left(InvalidModifierFailure)
-    }
+  def create(nodeViewModifier: NodeViewModifier): Either[CreateModifierIdFailure, ModifierId] = nodeViewModifier match {
+    case mod: Block =>
+      new ModifierId(
+        Block.modifierTypeId.value +: blake2b256.hash(mod.messageToSign).bytes
+      ).asRight[CreateModifierIdFailure]
+    case mod: Transaction.TX =>
+      new ModifierId(Transaction.modifierTypeId.value +: blake2b256.hash(mod.messageToSign).bytes)
+        .asRight[CreateModifierIdFailure]
+    case _ => Left(InvalidModifierFailure)
+  }
 
   /**
    * Creates a modifier ID from a string.
@@ -91,9 +90,9 @@ object ModifierId extends BifrostSerializer[ModifierId] {
   @deprecated
   def apply(nodeViewModifier: NodeViewModifier): ModifierId = nodeViewModifier match {
     case mod: Block =>
-      new ModifierId(Block.modifierTypeId.value +: Blake2b256.hash(mod.messageToSign).bytes)
+      new ModifierId(Block.modifierTypeId.value +: blake2b256.hash(mod.messageToSign).bytes)
     case mod: Transaction.TX =>
-      new ModifierId(Transaction.modifierTypeId.value +: Blake2b256.hash(mod.messageToSign).bytes)
+      new ModifierId(Transaction.modifierTypeId.value +: blake2b256.hash(mod.messageToSign).bytes)
     case _ => throw new Error("Only blocks and transactions generate a modifierId")
   }
 
