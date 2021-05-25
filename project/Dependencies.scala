@@ -105,7 +105,7 @@ object Dependencies {
   lazy val common: Seq[ModuleID] = {
     Seq(
       "com.typesafe.akka" %% "akka-actor" % akkaVersion,
-      "org.typelevel"     %% "simulacrum" % "1.0.0"
+      "org.typelevel"     %% "simulacrum" % "1.0.1"
     ) ++
     logging ++
     circe ++
