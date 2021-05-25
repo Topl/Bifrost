@@ -5,7 +5,7 @@ object Dependencies {
   val akkaVersion = "2.6.14"
   val akkaHttpVersion = "10.2.4"
   val circeVersion = "0.13.0"
-  val kamonVersion = "2.1.17"
+  val kamonVersion = "2.1.18"
   val graalVersion = "21.1.0"
 
   val logging = Seq(
@@ -16,14 +16,14 @@ object Dependencies {
   )
 
   val test = Seq(
-    "org.scalatest"      %% "scalatest"         % "3.2.8"   % "test",
-    "org.scalactic"      %% "scalactic"         % "3.2.8"   % "test",
+    "org.scalatest"      %% "scalatest"         % "3.2.9"   % "test",
+    "org.scalactic"      %% "scalactic"         % "3.2.9"   % "test",
     "org.scalacheck"     %% "scalacheck"        % "1.15.4"  % "test",
     "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
     "com.spotify"         % "docker-client"     % "8.16.0"  % "test",
     "org.asynchttpclient" % "async-http-client" % "2.12.3"  % "test",
     "org.scalamock"      %% "scalamock"         % "5.1.0"   % "test",
-    "com.ironcorelabs"   %% "cats-scalatest"    % "3.0.5"   % "test"
+    "com.ironcorelabs"   %% "cats-scalatest"    % "3.0.8"   % "test"
   )
 
   val it = Seq(
@@ -60,10 +60,10 @@ object Dependencies {
   )
 
   val misc = Seq(
-    "com.chuusai"     %% "shapeless"   % "2.3.5",
+    "com.chuusai"     %% "shapeless"   % "2.3.7",
     "com.iheart"      %% "ficus"       % "1.5.0",
     "org.rudogma"     %% "supertagged" % "1.5",
-    "org.scalanlp"    %% "breeze"      % "1.1",
+    "org.scalanlp"    %% "breeze"      % "1.2",
     "io.netty"         % "netty"       % "3.10.6.Final",
     "com.google.guava" % "guava"       % "30.1.1-jre"
   )
@@ -105,7 +105,7 @@ object Dependencies {
   lazy val common: Seq[ModuleID] = {
     Seq(
       "com.typesafe.akka" %% "akka-actor" % akkaVersion,
-      "org.typelevel"     %% "simulacrum" % "1.0.0"
+      "org.typelevel"     %% "simulacrum" % "1.0.1"
     ) ++
     logging ++
     circe ++
