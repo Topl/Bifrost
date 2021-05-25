@@ -21,11 +21,11 @@ class Storage(private[history] val storage: LSMStore, private val cacheExpire: I
 
   private val blockLoader: CacheLoader[KEY, Option[VAL]] = new CacheLoader[KEY, Option[VAL]] {
 
-    def load(key: KEY): Option[VAL] =
-      storage.get(key) match {
-        case Some(blockData: VAL) => Some(blockData)
-        case _                    => None
-      }
+    def load(key: KEY): Option[VAL]
+    storage.get(key) match {
+      case Some(blockData: VAL) => Some(blockData)
+      case _                    => None
+    }
   }
 
   val blockCache: LoadingCache[KEY, Option[VAL]] = CacheBuilder
