@@ -21,9 +21,7 @@ import java.io.File
 class ConsensusStorage(storage: Option[Store], private val defaultTotalStake: Int128) extends Logging {
 
   private def byteArrayWrappedKey(name: String): ByteArrayWrapper =
-    blake2b256
-      .hash(name.getBytes)
-      .infalliblyDecodeTo[ByteArrayWrapper]
+    ByteArrayWrapper(blake2b256.hash(name.getBytes).bytes)
 
   // constant keys for each piece of consensus state
   private val totalStakeKey = byteArrayWrappedKey("totalStake")
