@@ -1,7 +1,9 @@
 package co.topl.attestation.keyManagement
 
 import cats.implicits._
-import co.topl.crypto.hash.sha256
+import co.topl.crypto.hash.{Hash, sha256}
+import co.topl.crypto.hash.digest.Digest
+import co.topl.crypto.hash.implicits._
 
 import scala.math.BigInt
 import scala.util.Try
@@ -67,12 +69,7 @@ case class Bip39(words: List[String], hash: String) {
     }
   }
 
-  /**
-   * Translates valid seed phrase to a hex string
-   * @param phrase user input seed phrase
-   * @return hex string
-   */
-  def phraseToHex(phrase: String): String = {
+  def phraseToBytes(phrase: String): Array[Byte] = {
     val phraseWords: List[String] = phrase.split(" ").toList
     val phraseBytes: Array[Byte] = phraseWords
       .map(words.indexOf(_))
@@ -82,8 +79,18 @@ case class Bip39(words: List[String], hash: String) {
       .grouped(Bip39.byteLen)
       .toArray
       .map(Integer.parseInt(_, 2).toByte)
-    phraseBytes.map("%02x" format _).mkString
   }
+
+  /**
+   * Translates valid seed phrase to a hex string
+   * @param phrase user input seed phrase
+   * @return hex string
+   */
+  def phraseToHex(phrase: String): String =
+    phraseToBytes(phrase).map("%02x" format _).mkString
+
+  def phraseToSeed[H, D: Digest](phrase: String, password: String)(implicit h: Hash[H, D]): Array[Byte] =
+    h.hash(None, password.getBytes("UTF-8"), phraseToBytes(phrase)).bytes
 
   /**
    * Produces a seed phrase from a UUID string
@@ -136,7 +143,7 @@ object Bip39 {
   sealed abstract class Language(val file: String, val hash: String) {
 
     def getWords: Either[ReadWordListFailure, List[String]] =
-      Try(scala.io.Source.fromResource(s"${Bip39.wordlistDirectory}/$file").getLines.toList).toEither
+      Try(scala.io.Source.fromResource(s"${wordlistDirectory}/$file").getLines.toList).toEither
         .leftMap(ReadWordListFailure)
   }
 
