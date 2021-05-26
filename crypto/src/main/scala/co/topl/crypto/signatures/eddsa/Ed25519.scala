@@ -331,8 +331,8 @@ object Ed25519 extends EC with EllipticCurveSignatureScheme {
   override val KeyLength: Int = SECRET_KEY_SIZE
 
   override def createKeyPair(seed: Array[Byte]): (PrivateKey, PublicKey) = {
-    val sk:Array[Byte] = new Array[Byte](SECRET_KEY_SIZE)
-    val pk:Array[Byte] = new Array[Byte](PUBLIC_KEY_SIZE)
+    val sk: Array[Byte] = new Array[Byte](SECRET_KEY_SIZE)
+    val pk: Array[Byte] = new Array[Byte](PUBLIC_KEY_SIZE)
     val hashedSeed = sha256.hash(seed)
     generatePrivateKey(new SecureRandom(hashedSeed.value), sk)
     generatePublicKey(sk, 0, pk, 0)
