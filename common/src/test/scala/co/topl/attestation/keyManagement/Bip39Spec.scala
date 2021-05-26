@@ -24,7 +24,7 @@ class Bip39Spec extends AnyPropSpec with CommonGenerators {
   property("phrase should always output the same seed") {
     val mnemonic = "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic"
     val englishBip39 = Bip39.withLanguage(Bip39.English).getOrElse(throw new Error("Failed to read english word list"))
-    val password = "test"
+    val password = Some("test")
 
     val firstAttempt = englishBip39.phraseToSeed(mnemonic, password)
     val secondAttempt = englishBip39.phraseToSeed(mnemonic, password)
@@ -33,13 +33,14 @@ class Bip39Spec extends AnyPropSpec with CommonGenerators {
   }
 
   property("test vectors should pass") {
-    case class Bip39TestVector(mnemonic: String, password: String, seed: String)
+    case class Bip39TestVector(mnemonic: String, password: Option[String], seed: String)
 
     val testVectors = Seq(
       Bip39TestVector(
         "hand chicken express snow under choice cruise pumpkin follow edge myth sunset",
-        "topl",
-        "b7361dfc9f54f4f35bf5ca868625f6e834089320e635987f73a0c8ff7fc04f1f35bc3be1b7e09da7fd9bc6ae26e61fc9aaf7899bb2a1faf2386d3e6f9d7e49e7"
+        Some("topl"),
+        "b7361dfc9f54f4f35bf5ca868625f6e834089320e635987f73a0c8ff7fc04f1f35bc3be1b7e09da7fd9bc6ae26e61fc9aaf7899b" +
+          "b2a1faf2386d3e6f9d7e49e7"
       )
     )
 
