@@ -1,8 +1,7 @@
 package co.topl.attestation.keyManagement
 
 import cats.implicits._
-import co.topl.crypto.hash.{Hash, sha256}
-import co.topl.crypto.hash.digest.Digest
+import co.topl.crypto.hash.{hmacSha512, sha256}
 import co.topl.crypto.hash.implicits._
 
 import scala.math.BigInt
@@ -71,7 +70,7 @@ case class Bip39(words: List[String], hash: String) {
 
   def phraseToBytes(phrase: String): Array[Byte] = {
     val phraseWords: List[String] = phrase.split(" ").toList
-    val phraseBytes: Array[Byte] = phraseWords
+    phraseWords
       .map(words.indexOf(_))
       .map(Bip39.toBinaryIndex)
       .mkString
@@ -89,8 +88,8 @@ case class Bip39(words: List[String], hash: String) {
   def phraseToHex(phrase: String): String =
     phraseToBytes(phrase).map("%02x" format _).mkString
 
-  def phraseToSeed[H, D: Digest](phrase: String, password: String)(implicit h: Hash[H, D]): Array[Byte] =
-    h.hash(None, password.getBytes("UTF-8"), phraseToBytes(phrase)).bytes
+  def phraseToSeed(phrase: String, password: String): Array[Byte] =
+    hmacSha512.hash(None, phraseToBytes(phrase), password.getBytes("UTF-8")).bytes
 
   /**
    * Produces a seed phrase from a UUID string
