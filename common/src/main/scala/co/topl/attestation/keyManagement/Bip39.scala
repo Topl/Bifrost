@@ -3,6 +3,8 @@ package co.topl.attestation.keyManagement
 import cats.implicits._
 import co.topl.crypto.Pbkdf2Sha512
 import co.topl.crypto.hash.sha256
+import co.topl.utils.codecs.implicits.identityBytesEncoder
+import co.topl.utils.encode.Base16
 
 import scala.math.BigInt
 import scala.util.Try
@@ -68,9 +70,14 @@ case class Bip39(words: List[String], hash: String) {
     }
   }
 
-  def phraseToBytes(phrase: String): Array[Byte] = {
+  /**
+   * Translates valid seed phrase to a hex string
+   * @param phrase user input seed phrase
+   * @return hex string
+   */
+  def phraseToHex(phrase: String): String = {
     val phraseWords: List[String] = phrase.split(" ").toList
-    phraseWords
+    val phraseBytes = phraseWords
       .map(words.indexOf(_))
       .map(Bip39.toBinaryIndex)
       .mkString
@@ -78,19 +85,14 @@ case class Bip39(words: List[String], hash: String) {
       .grouped(Bip39.byteLen)
       .toArray
       .map(Integer.parseInt(_, 2).toByte)
+
+    Base16.encode(phraseBytes)
   }
 
-  /**
-   * Translates valid seed phrase to a hex string
-   * @param phrase user input seed phrase
-   * @return hex string
-   */
-  def phraseToHex(phrase: String): String =
-    phraseToBytes(phrase).map("%02x" format _).mkString
 
   def phraseToSeed(phrase: String, password: Option[String]): Array[Byte] =
     Pbkdf2Sha512.generateKey(
-      phraseToBytes(phrase),
+      phrase.trim.toLowerCase.getBytes("UTF-8"),
       ("mnemonic" + password.getOrElse("")).getBytes("UTF-8"),
       64,
       2048)
