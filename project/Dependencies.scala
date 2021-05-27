@@ -104,8 +104,9 @@ object Dependencies {
 
   lazy val common: Seq[ModuleID] = {
     Seq(
-      "com.typesafe.akka" %% "akka-actor" % akkaVersion,
-      "org.typelevel"     %% "simulacrum" % "1.0.0"
+      "com.typesafe.akka"      %% "akka-actor"              % akkaVersion,
+      "org.typelevel"          %% "simulacrum"              % "1.0.0",
+      "org.scala-lang.modules" %% "scala-collection-compat" % "2.4.4"
     ) ++
     logging ++
     circe ++
@@ -115,8 +116,9 @@ object Dependencies {
 
   lazy val chainProgram: Seq[ModuleID] =
     Seq(
-      "io.circe" %% "circe-core"   % circeVersion,
-      "io.circe" %% "circe-parser" % circeVersion
+      "io.circe"               %% "circe-core"              % circeVersion,
+      "io.circe"               %% "circe-parser"            % circeVersion,
+      "org.scala-lang.modules" %% "scala-collection-compat" % "2.4.4"
     ) ++
     test ++
     graal
@@ -126,9 +128,10 @@ object Dependencies {
 
   lazy val akkaHttpRpc: Seq[ModuleID] =
     Seq(
-      "de.heikoseeberger" %% "akka-http-circe" % "1.36.0",
-      "io.circe"          %% "circe-optics"    % circeVersion,
-      "io.circe"          %% "circe-generic"   % circeVersion
+      "de.heikoseeberger"      %% "akka-http-circe"         % "1.36.0",
+      "io.circe"               %% "circe-optics"            % circeVersion,
+      "io.circe"               %% "circe-generic"           % circeVersion,
+      "org.scala-lang.modules" %% "scala-collection-compat" % "2.4.4"
     ) ++
     circe ++
     akka ++
@@ -136,7 +139,8 @@ object Dependencies {
 
   lazy val toplRpc: Seq[ModuleID] =
     Seq(
-      "io.circe" %% "circe-generic" % circeVersion
+      "io.circe"               %% "circe-generic"           % circeVersion,
+      "org.scala-lang.modules" %% "scala-collection-compat" % "2.4.4"
     ) ++
     circe ++
     test

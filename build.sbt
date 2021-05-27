@@ -183,6 +183,7 @@ lazy val node = project.in(file("node"))
     commonSettings,
     assemblySettings,
     Defaults.itSettings,
+    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
@@ -260,6 +261,7 @@ lazy val gjallarhorn = project.in(file("gjallarhorn"))
   .settings(
     name := "gjallarhorn",
     commonSettings,
+    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
     publish / skip := true,
     Defaults.itSettings,
     libraryDependencies ++= Dependencies.gjallarhorn
