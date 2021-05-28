@@ -53,11 +53,6 @@ object Dependencies {
     "io.circe" %% "circe-parser" % circeVersion
   )
 
-  val crypto = Seq(
-    "org.bouncycastle"   % "bcprov-jdk15on"  % "1.68",
-    "org.whispersystems" % "curve25519-java" % "0.5.0"
-  )
-
   val misc = Seq(
     "com.chuusai"     %% "shapeless" % "2.3.5",
     "com.iheart"      %% "ficus"     % "1.5.0",
@@ -96,7 +91,6 @@ object Dependencies {
     akka ++
     network ++
     circe ++
-    crypto ++
     misc ++
     monitoring
   }
@@ -108,7 +102,6 @@ object Dependencies {
     ) ++
     logging ++
     circe ++
-    crypto ++
     test
   }
 
@@ -148,7 +141,6 @@ object Dependencies {
     ) ++
     akka ++
     test ++
-    crypto ++
     circe ++
     logging ++
     misc ++
@@ -157,12 +149,13 @@ object Dependencies {
 
   lazy val benchmarking: Seq[ModuleID] = Seq()
 
-  lazy val cryptoModule: Seq[ModuleID] =
+  lazy val crypto: Seq[ModuleID] =
     Seq(
       "org.typelevel" %% "simulacrum" % "1.0.0",
-      "org.typelevel" %% "cats-core"  % "2.3.0"
+      "org.typelevel" %% "cats-core"  % "2.3.0",
+      "org.bouncycastle"   % "bcprov-jdk15on"  % "1.68",
+      "org.whispersystems" % "curve25519-java" % "0.5.0"
     ) ++
     misc ++
-    crypto ++
     test
 }

@@ -301,8 +301,7 @@ lazy val crypto = project
     scalamacrosParadiseSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.crypto",
-    libraryDependencies ++= Dependencies.cryptoModule,
-
+    libraryDependencies ++= Dependencies.crypto,
   )
 
 addCommandAlias("checkPR", "; scalafixAll --check; scalafmtCheckAll; test")
