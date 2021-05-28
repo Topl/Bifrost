@@ -1,33 +1,21 @@
 package co.topl.attestation.keyManagement.bip39
 
-import cats.data.ValidatedNec
 import cats.implicits._
-import co.topl.attestation.keyManagement.bip39.Mnemonic.MnemonicSize
 import co.topl.crypto.Pbkdf2Sha512
 import co.topl.crypto.hash.sha256
-import co.topl.utils.codecs.implicits.identityBytesEncoder
-import co.topl.utils.encode.Base16
 
 import java.util.UUID
 import scala.language.implicitConversions
 
-case class Mnemonic private (
-  phrase:   String,
-  entropy:  String,
-  size:     MnemonicSize,
-  language: Language
-) {
-
-  def toSeed(password: Option[String]): Array[Byte] =
-    Pbkdf2Sha512.generateKey(
-      phrase.getBytes("UTF-8"),
-      ("mnemonic" + password.getOrElse("")).getBytes("UTF-8"),
-      64,
-      2048
-    )
-}
-
 object Mnemonic {
+
+  type Password = String
+  type Seed = Array[Byte]
+
+  /**
+   * A mnemonic represents a function that takes in an optional password and returns a seed
+   */
+  type Mnemonic = Option[Password] => Seed
 
   /*
    * ENT = entropy
@@ -44,10 +32,15 @@ object Mnemonic {
    *
    */
 
+  /**
+   * Mnemonic size is an enum with additional parameters for calculating checksum and entropy lengths.
+   * @param wordLength the size of the mnemonic
+   */
   sealed abstract class MnemonicSize(val wordLength: Int) {
     val checksumLength: Int = wordLength / 3
     val entropyLength: Int = 32 * checksumLength
   }
+
   case object Mnemonic12 extends MnemonicSize(12)
   case object Mnemonic15 extends MnemonicSize(15)
   case object Mnemonic18 extends MnemonicSize(18)
@@ -55,12 +48,20 @@ object Mnemonic {
   case object Mnemonic24 extends MnemonicSize(24)
 
   sealed trait CreateMnemonicFailure
-  case class InvalidWordLength(length: Int) extends CreateMnemonicFailure
-  case class InvalidWords(invalidWords: List[String]) extends CreateMnemonicFailure
+  case class InvalidWordLength() extends CreateMnemonicFailure
+  case class InvalidWords() extends CreateMnemonicFailure
   case class UnableToReadWordList(error: ReadWordListFailure) extends CreateMnemonicFailure
   case class InvalidChecksum() extends CreateMnemonicFailure
   case class InvalidLanguageHash() extends CreateMnemonicFailure
 
+  /**
+   * Creates a validated BIP-39 mnemonic of the given size and language.
+   *
+   * @param phrase the mnemonic phrase
+   * @param size the size of the mnemonic phrase
+   * @param language the language to pull the word list for
+   * @return either a `CreateMnemonicFailure` or a `Mnemonic` value
+   */
   def fromPhrase(phrase: String, size: MnemonicSize, language: Language): Either[CreateMnemonicFailure, Mnemonic] =
     if (!language.verifyPhraseList) InvalidLanguageHash().asLeft
     else {
@@ -74,13 +75,7 @@ object Mnemonic {
               validWords(phraseWords, wordsList) match {
                 case None =>
                   validChecksum(phraseWords, wordsList, size.checksumLength, size.entropyLength) match {
-                    case None =>
-                      Mnemonic(
-                        phraseWords.mkString(" "),
-                        phraseToHex(phraseWords, size, wordsList),
-                        size,
-                        language
-                      ).asRight
+                    case None      => mnemonicFromValidatedPhrase(phraseWords.mkString(" ")).asRight
                     case Some(err) => err.asLeft
                   }
                 case Some(err) => err.asLeft
@@ -91,6 +86,12 @@ object Mnemonic {
         .valueOr(err => UnableToReadWordList(err).asLeft)
     }
 
+  /**
+   * Creates a mnemonic from the byte representation of a given UUID.
+   * @param uuid the UUID to convert into entropy
+   * @param language the language of the mnemonic
+   * @return either a `CreateMnemonicFailure` or a valid `Mnemonic` of size `Mnemonic12`
+   */
   def fromUuid(uuid: UUID, language: Language): Either[CreateMnemonicFailure, Mnemonic] =
     fromEntropy(
       uuid.toString.filterNot("-".toSet).grouped(2).map(Integer.parseInt(_, 16).toByte).toArray,
@@ -98,12 +99,19 @@ object Mnemonic {
       language
     )
 
+  /**
+   * Creates a mnemonic from the given entropy byte array.
+   * @param entropy the entropy byte array
+   * @param size the expected size of the entropy
+   * @param language the language to create the mnemonic from
+   * @return either a `CreateMnemonicFailure` or a valid mnemonic of the given size
+   */
   def fromEntropy(
     entropy:  Array[Byte],
     size:     MnemonicSize,
     language: Language
   ): Either[CreateMnemonicFailure, Mnemonic] =
-    if (entropy.length * byteLen != size.entropyLength) InvalidWordLength(entropy.length).asLeft
+    if (entropy.length * byteLen != size.entropyLength) InvalidWordLength().asLeft
     else if (!language.verifyPhraseList) InvalidLanguageHash().asLeft
     else {
       val languageWords = language.getWords
@@ -111,15 +119,19 @@ object Mnemonic {
       val binaryHashes = sha256.hash(entropy).value.map(toBinaryByte)
 
       languageWords.map { words =>
-        Mnemonic(
-          phraseFromBinaryString(binaryString, binaryHashes, size, words),
-          Base16.encode(entropy),
-          size,
-          language
-        ).asRight
+        mnemonicFromValidatedPhrase(phraseFromBinaryString(binaryString, binaryHashes, size, words)).asRight
       } valueOr (err => UnableToReadWordList(err).asLeft)
     }
 
+  /**
+   * Creates a mnemonic phrase from the given string of binary numbers (0,1) and binary hashes of the original entropy
+   * bytes.
+   * @param binaryString the binary string to convert to a mnemonic
+   * @param binaryHashes the hashes of the original entropy bytes
+   * @param size the size of the mnemonic
+   * @param wordList the word list to create the mnemonic from
+   * @return a mnemonic phrase
+   */
   private def phraseFromBinaryString(
     binaryString: String,
     binaryHashes: Array[String],
@@ -134,12 +146,12 @@ object Mnemonic {
       .mkString(" ")
 
   private def validWordLength(words: List[String], expected: Int): Option[InvalidWordLength] =
-    if (words.length != expected) Some(InvalidWordLength(words.length)) else None
+    if (words.length != expected) Some(InvalidWordLength()) else None
 
   private def validWords(words: List[String], expected: List[String]): Option[InvalidWords] = {
     val invalidWords = words.filterNot(expected.contains)
 
-    if (invalidWords.isEmpty) None else Some(InvalidWords(invalidWords))
+    if (invalidWords.isEmpty) None else Some(InvalidWords())
   }
 
   private def validChecksum(
@@ -164,16 +176,17 @@ object Mnemonic {
     else Some(InvalidChecksum())
   }
 
-  private def phraseToHex(words: List[String], size: MnemonicSize, languageWords: List[String]): String = {
-    val bytes = words
-      .map(languageWords.indexOf(_))
-      .map(toBinaryIndex)
-      .mkString
-      .slice(0, size.entropyLength)
-      .grouped(byteLen)
-      .toArray
-      .map(Integer.parseInt(_, 2).toByte)
-
-    Base16.encode(bytes)
-  }
+  /**
+   * Creates a mnemonic from a pre-validated phrase.
+   * @param validatedPhrase the valid phrase to create a mnemonic from
+   * @return the mnemonic function
+   */
+  private def mnemonicFromValidatedPhrase(validatedPhrase: String): Mnemonic =
+    (password: Option[String]) =>
+      Pbkdf2Sha512.generateKey(
+        validatedPhrase.getBytes("UTF-8"),
+        ("mnemonic" + password.getOrElse("")).getBytes("UTF-8"),
+        64,
+        2048
+      )
 }

@@ -8,9 +8,18 @@ import scala.language.implicitConversions
 
 case class ReadWordListFailure(exception: Throwable)
 
+/**
+ * Represents a set of 2048 words that can be used to create a mnemonic.
+ * @param filePath the location of the words list
+ * @param hash the SHA-256 hash of the words for verification
+ */
 sealed abstract class Language(val filePath: String, val hash: String) {
   val wordlistDirectory: String = "bip-0039"
 
+  /**
+   * Gets the valid set of words for the language.
+   * @return either a read failure or the word list
+   */
   def getWords: Either[ReadWordListFailure, List[String]] =
     Try(scala.io.Source.fromResource(s"${wordlistDirectory}/$filePath").getLines.toList).toEither
       .leftMap(ReadWordListFailure)

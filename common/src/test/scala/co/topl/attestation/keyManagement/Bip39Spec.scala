@@ -29,16 +29,15 @@ class Bip39Spec
 
     val mnemonic = Mnemonic.fromPhrase(phrase, Mnemonic12, English)
 
-    mnemonic shouldBe Left(InvalidWordLength(8))
+    mnemonic shouldBe Left(InvalidWordLength())
   }
 
   property("12 phrase mnemonic with invalid words should be invalid") {
     val phrase = "amber glue hallway can truth drawer wave flex cousin grace close compose"
-    val invalidWords = List("amber", "hallway", "drawer", "flex", "compose")
 
     val mnemonic = Mnemonic.fromPhrase(phrase, Mnemonic12, English)
 
-    mnemonic shouldBe Left(InvalidWords(invalidWords))
+    mnemonic shouldBe Left(InvalidWords())
   }
 
   property("12 phrase mnemonic with valid words and invalid checksum should be invalid") {
@@ -54,8 +53,8 @@ class Bip39Spec
       val mnemonic = Mnemonic.fromPhrase(phrase, Mnemonic12, English).getOrElse(throw new Error("Invalid mnemonic!"))
       val password = Some(s)
 
-      val firstAttempt = mnemonic.toSeed(password)
-      val secondAttempt = mnemonic.toSeed(password)
+      val firstAttempt = mnemonic(password)
+      val secondAttempt = mnemonic(password)
 
       firstAttempt shouldBe secondAttempt
     }
@@ -68,40 +67,28 @@ class Bip39Spec
       val password1 = Some(s1)
       val password2 = Some(s2)
 
-      val firstAttempt = mnemonic.toSeed(password1)
-      val secondAttempt = mnemonic.toSeed(password2)
+      val firstAttempt = mnemonic(password1)
+      val secondAttempt = mnemonic(password2)
 
       if (s1 != s2) firstAttempt sameElements secondAttempt shouldBe false
     }
   }
 
-  property("mnemonic hex should match expected") {
-    val phrase = "pretty click account champion boost vocal rescue chapter inform fringe ivory chest supply say " +
-      "raw kind oval obvious"
-    val expectedHex = "aa25540613019beaadc933738ba1db93cd9d7feca3d49db3"
-
-    val mnemonic = Mnemonic.fromPhrase(phrase, Mnemonic18, English)
-    val hex = mnemonic.valueOr(err => throw new Error(s"Invalid mnemonic: $err")).entropy
-
-    hex shouldBe expectedHex
-  }
-
   property("from UUID should return valid mnemonic with size 12") {
     forAll(Gen.uuid) { uuid =>
-      val mnemonic = Mnemonic.fromUuid(uuid, English).valueOr(err => throw new Error(s"Invalid mnemonic: $err"))
+      val mnemonic = Mnemonic.fromUuid(uuid, English)
 
-      mnemonic.size shouldBe Mnemonic12
+      mnemonic.isRight shouldBe true
     }
   }
 
   def entropyLengthTest(bytes: Int, expected: MnemonicSize): Unit = {
-    property(s"from entropy of length $bytes should be valid size $expected") {
+    property(s"from entropy of length $bytes should be valid") {
       forAll(specificLengthBytesGen(bytes)) { entropy =>
         if (entropy.length == bytes) {
           val mnemonic = Mnemonic.fromEntropy(entropy, expected, English)
-          val mnemonicSize = mnemonic.valueOr(err => throw new Error(s"Invalid mnemonic: $err")).size
 
-          mnemonicSize shouldBe expected
+          mnemonic.isRight shouldBe true
         }
       }
     }
@@ -254,7 +241,7 @@ class Bip39Spec
 
   property("test vectors should pass") {
     testVectors.foreach { vector =>
-      val result = vector.mnemonic.toSeed(Some("TREZOR"))
+      val result = vector.mnemonic(Some("TREZOR"))
       val hexResult = Base16.encode(result)
 
       hexResult shouldBe vector.seed
