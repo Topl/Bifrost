@@ -24,28 +24,6 @@ class SigningFunctionsSpecification extends AnyPropSpec with ScalaCheckDrivenPro
     }
   }
 
-  property("shared secret should be same for both parties ") {
-
-    forAll { (seed1: Array[Byte], seed2: Array[Byte]) =>
-      whenever(!seed1.sameElements(seed2)) {
-        val keyPair1 = Curve25519.createKeyPair(seed1)
-        val keyPair2 = Curve25519.createKeyPair(seed2)
-
-        val shared = Curve25519.createSharedSecret(keyPair1._1, keyPair2._2)
-        val sharedWithKeysReversed = Curve25519.createSharedSecret(keyPair2._1, keyPair1._2)
-
-        val badSharedSecret1 = Curve25519.createSharedSecret(PrivateKey(keyPair2._2.value), keyPair1._2)
-        val badSharedSecret2 = Curve25519.createSharedSecret(PrivateKey(keyPair2._2.value), keyPair1._2)
-
-        shared.value.sameElements(sharedWithKeysReversed.value) should be(true)
-
-        badSharedSecret1.value.sameElements(shared.value) shouldNot be(true)
-
-        badSharedSecret2.value.sameElements(shared.value) shouldNot be(true)
-      }
-    }
-  }
-
   property("test vectors from https://tools.ietf.org/html/rfc8032#page-24 - test 1") {
     val privKey = PrivateKey(Hex.decode("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60"))
     val message = Array[Byte]()
