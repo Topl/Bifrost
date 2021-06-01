@@ -1,0 +1,151 @@
+package co.topl.storage.graph
+
+import akka.Done
+import akka.actor.ActorSystem
+import akka.stream.scaladsl.Sink
+import cats.data.EitherT
+import neotypes.akkastreams.AkkaStream
+import neotypes.akkastreams.implicits._
+import neotypes.generic.auto._
+import neotypes.implicits.all._
+import neotypes.{GraphDatabase, StreamingDriver}
+
+import java.nio.file.Path
+import scala.concurrent.Future
+
+trait BlockchainGraph {
+  def insertBlockHeader(blockHeader: BlockHeader): EitherT[Future, BlockchainGraph.Error, Done]
+  def insertBlockBody(blockId:       String, blockBody: BlockBody): EitherT[Future, BlockchainGraph.Error, Done]
+
+  def insertTransaction(
+    blockId:     String,
+    transaction: Transaction,
+    index:       Int
+  ): EitherT[Future, BlockchainGraph.Error, Done]
+  def createBoxForTx(box:    Box, transactionId:    String): EitherT[Future, BlockchainGraph.Error, Done]
+  def createBoxForBlock(box: Box, blockId:          String): EitherT[Future, BlockchainGraph.Error, Done]
+  def openBox(boxId:         String, transactionId: String, attestation: String): EitherT[Future, BlockchainGraph.Error, Done]
+
+  def getBlockHeader(blockId:       String): EitherT[Future, BlockchainGraph.Error, Option[BlockHeader]]
+  def getTransaction(transactionId: String): EitherT[Future, BlockchainGraph.Error, Option[Transaction]]
+  def getBox(boxId:                 String): EitherT[Future, BlockchainGraph.Error, Option[Box]]
+}
+
+object BlockchainGraph {
+  sealed trait Error
+  case class ExceptionError(throwable: Throwable) extends Error
+}
+
+class Neo4jBlockhainGraph(driver: StreamingDriver[AkkaStream, Future])(implicit system: ActorSystem)
+    extends BlockchainGraph {
+  import system.dispatcher
+
+  override def insertBlockHeader(blockHeader: BlockHeader): EitherT[Future, BlockchainGraph.Error, Done] =
+    EitherT(
+      c"CREATE (blockHeader: BlockHeader { $blockHeader })"
+        .query[Unit]
+        .execute(driver)
+        .map(_ => Right(Done))
+        .recover { case e => Left(BlockchainGraph.ExceptionError(e)) }
+    )
+
+  override def insertBlockBody(blockId: String, blockBody: BlockBody): EitherT[Future, BlockchainGraph.Error, Done] =
+    EitherT(
+      (c"MATCH (blockHeader: BlockHeader { id: $blockId })" +
+      c"CREATE (blockBody: BlockBody { $blockBody })-[:BODY_BELONGS_TO]->(blockHeader)")
+        .query[Unit]
+        .execute(driver)
+        .map(_ => Right(Done))
+        .recover { case e => Left(BlockchainGraph.ExceptionError(e)) }
+    )
+
+  override def insertTransaction(
+    blockId:     String,
+    transaction: Transaction,
+    index:       Int
+  ): EitherT[Future, BlockchainGraph.Error, Done] =
+    EitherT(
+      (c"MATCH (blockHeader: BlockHeader { id: $blockId })<-[:BODY_BELONGS_TO]-(blockBody: BlockBody)" +
+      c"CREATE (transaction: Transaction { $transaction })-[:TX_BELONGS_TO { index : $index }]->(blockBody)")
+        .query[Unit]
+        .execute(driver)
+        .map(_ => Right(Done))
+        .recover { case e => Left(BlockchainGraph.ExceptionError(e)) }
+    )
+
+  override def createBoxForTx(box: Box, transactionId: String): EitherT[Future, BlockchainGraph.Error, Done] =
+    EitherT(
+      (c"MATCH (transaction: Transaction { id: $transactionId })" +
+      c"CREATE (box: Box { $box })-[:BOX_CREATED_BY]->(transaction)")
+        .query[Unit]
+        .execute(driver)
+        .map(_ => Right(Done))
+        .recover { case e => Left(BlockchainGraph.ExceptionError(e)) }
+    )
+
+  override def createBoxForBlock(box: Box, blockId: String): EitherT[Future, BlockchainGraph.Error, Done] =
+    EitherT(
+      (c"MATCH (blockHeader: BlockHeader { id: $blockId })<-[:BODY_BELONGS_TO]-(blockBody: BlockBody)" +
+      c"CREATE (box: Box { $box })-[:BOX_CREATED_BY]->(blockBody)")
+        .query[Unit]
+        .execute(driver)
+        .map(_ => Right(Done))
+        .recover { case e => Left(BlockchainGraph.ExceptionError(e)) }
+    )
+
+  override def openBox(
+    boxId:         String,
+    transactionId: String,
+    attestation:   String
+  ): EitherT[Future, BlockchainGraph.Error, Done] =
+    EitherT(
+      (c"MATCH (transaction: Transaction { id: $transactionId }), (box: Box { id : $boxId }) " +
+      c"CREATE (box)-[:BOX_OPENED_BY { attestation: $attestation }]->(transaction)")
+        .query[Unit]
+        .execute(driver)
+        .map(_ => Right(Done))
+        .recover { case e => Left(BlockchainGraph.ExceptionError(e)) }
+    )
+
+  override def getBlockHeader(blockId: String): EitherT[Future, BlockchainGraph.Error, Option[BlockHeader]] =
+    EitherT(
+      (c"MATCH (blockHeader: BlockHeader { id: $blockId })" +
+      c"return blockHeader")
+        .query[BlockHeader]
+        .stream(driver)
+        .runWith(Sink.headOption)
+        .map(Right(_))
+        .recover { case e => Left(BlockchainGraph.ExceptionError(e)) }
+    )
+
+  override def getTransaction(transactionId: String): EitherT[Future, BlockchainGraph.Error, Option[Transaction]] =
+    EitherT(
+      (c"MATCH (transaction: Transaction { id: $transactionId })" +
+      c"return transaction")
+        .query[Transaction]
+        .stream(driver)
+        .runWith(Sink.headOption)
+        .map(Right(_))
+        .recover { case e => Left(BlockchainGraph.ExceptionError(e)) }
+    )
+
+  override def getBox(boxId: String): EitherT[Future, BlockchainGraph.Error, Option[Box]] =
+    EitherT(
+      (c"MATCH (box: Box { id: $boxId })" +
+      c"return box")
+        .query[Box]
+        .stream(driver)
+        .runWith(Sink.headOption)
+        .map(Right(_))
+        .recover { case e => Left(BlockchainGraph.ExceptionError(e)) }
+    )
+}
+
+object Neo4jBlockhainGraph {
+
+  def apply(path: Path)(implicit system: ActorSystem): Neo4jBlockhainGraph = {
+    import system.dispatcher
+    val driver = GraphDatabase.streamingDriver[AkkaStream]("bolt://localhost:7687")
+    new Neo4jBlockhainGraph(driver)
+  }
+}

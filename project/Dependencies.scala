@@ -7,6 +7,7 @@ object Dependencies {
   val circeVersion = "0.13.0"
   val kamonVersion = "2.1.17"
   val graalVersion = "21.1.0"
+  val neo4jVersion = "4.3.0"
 
   val logging = Seq(
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.3",
@@ -81,6 +82,29 @@ object Dependencies {
     "org.graalvm.truffle" % "truffle-api" % graalVersion
   )
 
+  val neo4j: Seq[ModuleID] = {
+    val neotypesVersion = "0.17.0"
+    Seq(
+      "com.dimafeng"    %% "neotypes"             % neotypesVersion,
+      "com.dimafeng"    %% "neotypes-akka-stream" % neotypesVersion,
+      "com.dimafeng"    %% "neotypes-cats-data"   % neotypesVersion,
+      "org.neo4j.driver" % "neo4j-java-driver"    % neo4jVersion
+    )
+  }
+
+  val orientDb: Seq[ModuleID] = {
+    val version = "3.2.0"
+    Seq(
+//      "com.orientechnologies" % "orientdb-server"  % version,
+      "com.orientechnologies" % "orientdb-graphdb" % version
+    )
+  }
+
+  val neo4jServer: Seq[ModuleID] =
+    Seq(
+      "org.neo4j" % "neo4j" % "4.2.7"
+    )
+
   val node: Seq[ModuleID] = {
     Seq(
       "com.typesafe.akka"          %% "akka-cluster"  % akkaVersion,
@@ -112,6 +136,17 @@ object Dependencies {
     crypto ++
     test
   }
+
+  lazy val graphDb: Seq[ModuleID] =
+    akka ++
+    logging ++
+    circe ++
+    test ++
+    neo4j ++
+    orientDb
+
+  lazy val graphDbServer: Seq[ModuleID] =
+    neo4jServer
 
   lazy val chainProgram: Seq[ModuleID] =
     Seq(

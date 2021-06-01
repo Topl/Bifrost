@@ -1,0 +1,47 @@
+package co.topl.storage.graph
+
+import akka.actor.ActorSystem
+import akka.testkit.TestKit
+import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.{BeforeAndAfterAll, EitherValues, OptionValues}
+
+import java.nio.file.Files
+
+class BlockchainGraphSpec
+    extends TestKit(ActorSystem("BlockchainGraphSpec"))
+    with AnyFlatSpecLike
+    with BeforeAndAfterAll
+    with ScalaFutures
+    with EitherValues
+    with OptionValues
+    with Matchers {
+
+  behavior of "BlockchainGraph"
+
+  private var db: BlockchainGraph = _
+
+  it should "Add blocks" in {
+    val blockHeader = BlockHeader(
+      id = "foo",
+      timestamp = 1,
+      publicKey = "topl",
+      signature = "topl",
+      height = 1,
+      difficulty = 1,
+      txRoot = "bar",
+      bloomFilter = "baz",
+      version = 1
+    )
+
+    db.insertBlockHeader(blockHeader).value.futureValue.value
+
+    db.getBlockHeader("foo").value.futureValue.value.value shouldBe blockHeader
+  }
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    db = Neo4jBlockhainGraph(Files.createTempDirectory("BlockchainGraphSpec"))
+  }
+}

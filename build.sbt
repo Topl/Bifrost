@@ -126,6 +126,11 @@ lazy val commonScalacOptions = Seq(
   "-Ywarn-unused:-implicits,-privates"
 )
 
+javacOptions ++= Seq(
+  "--add-exports java.base/jdk.internal.misc=ALL-UNNAMED",
+  "-Dio.netty.tryReflectionSetAccessible=true"
+)
+
 javaOptions ++= Seq(
   "-Xbootclasspath/a:ValkyrieInstrument-1.0.jar",
   // from https://groups.google.com/d/msg/akka-user/9s4Yl7aEz3E/zfxmdc0cGQAJ
@@ -164,6 +169,8 @@ lazy val bifrost = project.in(file("."))
   .aggregate(
     node,
     common,
+    graphDb,
+    graphDbServer,
     akkaHttpRpc,
     toplRpc,
     gjallarhorn,
@@ -210,6 +217,23 @@ lazy val common = project.in(file("common"))
     libraryDependencies ++= Dependencies.common
   )
   .settings(scalamacrosParadiseSettings)
+
+lazy val graphDb = project.in(file("graph-db"))
+  .settings(
+    name := "graph-db",
+    commonSettings,
+    publishSettings,
+    libraryDependencies ++= Dependencies.graphDb
+  )
+  .settings(scalamacrosParadiseSettings)
+
+lazy val graphDbServer = project.in(file("graph-db-server"))
+  .settings(
+    name := "graph-db-server",
+    libraryDependencies ++= Dependencies.graphDbServer,
+    scalaVersion := scala212
+  )
+  .enablePlugins(JavaAppPackaging)
 
 lazy val chainProgram = project.in(file("chain-program"))
   .settings(
