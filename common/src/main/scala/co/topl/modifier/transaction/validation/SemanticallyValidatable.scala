@@ -214,7 +214,7 @@ object SemanticValidation {
   /**
    * Similar to Iterable#takeWhile, but the first item that fails the condition will be kept instead of discarded
    */
-  def takeWhileInclusive[A](items: LazyList[A])(cond: A => Boolean): LazyList[A] = {
+  def takeWhileInclusive[A](items: Iterable[A])(cond: A => Boolean): Iterable[A] = {
     var foundFailure: Boolean = false
     items.takeWhile { t =>
       if (foundFailure) false

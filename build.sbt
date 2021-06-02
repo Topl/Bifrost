@@ -226,6 +226,7 @@ lazy val graphDb = project.in(file("graph-db"))
     libraryDependencies ++= Dependencies.graphDb
   )
   .settings(scalamacrosParadiseSettings)
+  .dependsOn(common % "test->test")
 
 lazy val graphDbServer = project.in(file("graph-db-server"))
   .settings(

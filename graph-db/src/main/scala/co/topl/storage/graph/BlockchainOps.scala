@@ -26,12 +26,15 @@ trait BlockchainOpsProvider {
     modifications: NonEmptyChain[BlockchainModification]
   ): BlockchainModificationsOps
   implicit def stringOps(value: String): StringOps
+
+  implicit def blockchainOps(blockchain: Blockchain.type): BlockchainOps
 }
 
 trait BlockHeaderOps {
   def parentBlock: EitherT[Future, BlockchainOps.Error, BlockHeader]
   def childBlocks: Source[Either[BlockchainOps.Error, BlockHeader], NotUsed]
   def body: EitherT[Future, BlockchainOps.Error, BlockBody]
+  def history: Source[Either[BlockchainOps.Error, BlockHeader], NotUsed]
 }
 
 trait BlockBodyOps {
@@ -40,7 +43,7 @@ trait BlockBodyOps {
 }
 
 trait TransactionOps {
-  def body: EitherT[Future, BlockchainOps.Error, BlockBody]
+  def blockBody: EitherT[Future, BlockchainOps.Error, BlockBody]
   def opens: Source[Either[BlockchainOps.Error, Box], NotUsed]
   def creates: Source[Either[BlockchainOps.Error, Box], NotUsed]
 }
@@ -61,14 +64,25 @@ trait StringOps {
   def box: EitherT[Future, BlockchainOps.Error, Box]
 }
 
+trait BlockchainOps {
+  def currentHead: EitherT[Future, BlockchainOps.Error, BlockHeader]
+  def currentHeads: Source[Either[BlockchainOps.Error, BlockHeader], NotUsed]
+  def genesis: EitherT[Future, BlockchainOps.Error, BlockHeader]
+}
+
 sealed trait BlockchainModification
+
+case class SetHead(blockId: String) extends BlockchainModification
 
 case class CreateBlockHeader(header: BlockHeader) extends BlockchainModification
 case class CreateBlockBody(body: BlockBody) extends BlockchainModification
 case class CreateTransaction(transaction: Transaction) extends BlockchainModification
 case class CreateBox(box: Box) extends BlockchainModification
 
+case class AssociateBlockToParent(childBlockId: String, parentBlockId: String) extends BlockchainModification
 case class AssociateBodyToHeader(headerId: String, bodyId: String) extends BlockchainModification
 case class AssociateTransactionToBody(transactionId: String, blockId: String, index: Int) extends BlockchainModification
 case class AssociateBoxCreator(boxId: String, transactionId: String, minted: Boolean) extends BlockchainModification
 case class AssociateBoxOpener(boxId: String, transactionId: String, attestation: String) extends BlockchainModification
+
+object Blockchain
