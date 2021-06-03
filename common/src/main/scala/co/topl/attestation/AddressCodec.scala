@@ -32,7 +32,7 @@ object AddressCodec {
 
     implicit class AddressOps(address: Address) {
 
-      import co.topl.utils.codecs.AsBytes.implicits._
+      import AsBytes.implicits._
 
       def base58Encoded: String =
         Base58.encode(address.infalliblyEncodeAsBytes)(identityBytesEncoder)
@@ -40,7 +40,7 @@ object AddressCodec {
 
     implicit class StringOps(value: String) {
 
-      import co.topl.utils.codecs.FromBytes.implicits._
+      import FromBytes.implicits._
 
       def decodeAddress(implicit networkPrefix: NetworkPrefix): ValidatedNec[AddressValidationError, Address] =
         Validated
@@ -57,11 +57,7 @@ object AddressCodec {
        *
        * @return a 4 byte checksum value
        */
-      def checksum: Array[Byte] =
-        blake2b256
-          .hash(bytes)
-          .value
-          .take(ChecksumLength)
+      def checksum: Array[Byte] = blake2b256.hash(bytes).value.take(ChecksumLength)
     }
 
   }
