@@ -37,6 +37,7 @@ object AddressCodec {
     }
 
     implicit class Base58StringOps(value: Base58String) {
+
       def decodeAddress(implicit networkPrefix: NetworkPrefix): ValidatedNec[AddressValidationError, Address] =
         value.decodeTo[AddressValidationError, Address]
     }
@@ -100,7 +101,6 @@ object AddressCodec {
 sealed abstract class AddressValidationError
 case object InvalidNetworkPrefix extends AddressValidationError
 case object InvalidAddress extends AddressValidationError
-case object NotBase58 extends AddressValidationError
 case object NetworkTypeMismatch extends AddressValidationError
 case object InvalidAddressLength extends AddressValidationError
 case object InvalidChecksum extends AddressValidationError

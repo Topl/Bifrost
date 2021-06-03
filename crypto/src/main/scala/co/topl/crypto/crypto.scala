@@ -21,10 +21,6 @@ package object crypto {
   @newtype
   case class PublicKey(value: Array[Byte])
 
-  object implicits
-      extends digest.Instances
-      with digest.Digest.ToDigestOps
-      with hash.Instances
-      with PrivateKey.Instances
+  object implicits extends digest.Instances with digest.Digest.ToDigestOps with hash.Instances with PrivateKey.Instances
 
 }

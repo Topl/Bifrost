@@ -7,7 +7,7 @@ import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.SecureRandom.randomBytes
 import co.topl.utils.StringTypes.implicits._
-import co.topl.utils.StringTypes.{Base58String, Latin1String, UTF8String}
+import co.topl.utils.StringTypes.{Base58String, Latin1String, Utf8String}
 import com.google.common.primitives.Ints
 
 import java.io.File
@@ -195,7 +195,7 @@ class KeyRing[
       (for {
         secret     <- secretByAddress(address)
         keyDir     <- keyDirectory.map(_.getAbsolutePath)
-        keyDirUTF8 <- UTF8String.validated(keyDir).toOption
+        keyDirUTF8 <- Utf8String.validated(keyDir).toOption
         _          <- saveToDiskSafe(keyDirUTF8, password, secret).toOption
       } yield ()) match {
         case Some(_) => Success(())

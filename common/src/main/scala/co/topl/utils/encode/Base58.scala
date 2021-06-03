@@ -1,7 +1,7 @@
 package co.topl.utils.encode
 
 import cats.Show
-import co.topl.utils.StringTypes.{Base58String, StringValidationFailure, UTF8String}
+import co.topl.utils.StringTypes.{Base58String, StringValidationFailure, Utf8String}
 
 /* Forked from https://github.com/ScorexFoundation/scorex-util/tree/master/src/main/scala/scorex/util/encode */
 
@@ -64,7 +64,7 @@ object Base58 {
 
   def unsafeDecode(input: String): Array[Byte] = decode(Base58String.unsafe(input))
 
-  def isValid(s: UTF8String): Boolean = !s.value.toCharArray.map(toBase58).contains(-1)
+  def isValid(s: Utf8String): Boolean = !s.value.toCharArray.map(toBase58).contains(-1)
 
   private def decodeToBigInteger(input: Base58String): BigInt =
     // Work backwards through the string.

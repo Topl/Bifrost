@@ -1,6 +1,6 @@
 package co.topl.utils
 
-import co.topl.utils.StringTypes.{Base16String, Base58String, Latin1String, UTF8String}
+import co.topl.utils.StringTypes.{Base16String, Base58String, Latin1String, Utf8String}
 import co.topl.utils.encode.{Base16, Base58}
 import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
@@ -25,7 +25,7 @@ class StringTypesSpec extends AnyFlatSpec with ScalaCheckDrivenPropertyChecks wi
 
   "UTF-8 Encoded String" should "be valid if only contains letters and numbers" in {
     forAll(Gen.alphaNumStr) { alphaNum =>
-      UTF8String.validated(alphaNum).isValid shouldBe true
+      Utf8String.validated(alphaNum).isValid shouldBe true
     }
   }
 
@@ -67,7 +67,7 @@ class StringTypesSpec extends AnyFlatSpec with ScalaCheckDrivenPropertyChecks wi
   private def isValidBase58(str: String): Boolean =
     str.forall(x =>
       (x >= '1' && x <= '9') ||
-        (x >= 'A' && x <= 'Z' && x != 'I' && x != 'O') ||
-        (x >= 'a' && x <= 'z' && x != 'l')
+      (x >= 'A' && x <= 'Z' && x != 'I' && x != 'O') ||
+      (x >= 'a' && x <= 'z' && x != 'l')
     )
 }

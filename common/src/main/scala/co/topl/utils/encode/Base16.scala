@@ -1,6 +1,6 @@
 package co.topl.utils.encode
 
-import co.topl.utils.StringTypes.{Base16String, UTF8String}
+import co.topl.utils.StringTypes.{Base16String, Utf8String}
 
 /* Forked from https://github.com/ScorexFoundation/scorex-util/tree/master/src/main/scala/scorex/util/encode */
 
@@ -57,7 +57,7 @@ object Base16 {
 
   def unsafeDecode(input: String): Array[Byte] = decode(Base16String.unsafe(input))
 
-  def isValid(s: UTF8String): Boolean =
+  def isValid(s: Utf8String): Boolean =
     s.value.toCharArray
       .forall { c =>
         characters.contains(c)

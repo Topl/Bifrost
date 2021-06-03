@@ -10,7 +10,6 @@ import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import co.topl.attestation.AddressCodec.implicits._
 import co.topl.utils.StringTypes.Base58String
-import co.topl.utils.IdiomaticScalaTransition.implicits._
 
 class AddressSpec
     extends AnyPropSpec
@@ -74,13 +73,6 @@ class AddressSpec
 
       modedAddrStr.decodeAddress should haveInvalidC[AddressValidationError](InvalidChecksum)
     }
-  }
-
-  property("Applying non-base58 encoded address will result in error") {
-    implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
-    val addressStr: Base58String = Base58String.unsafe("0OIlL+/")
-
-    addressStr.decodeAddress should haveInvalidC[AddressValidationError](NotBase58)
   }
 
   property("Applying address with incorrect length will result in error") {

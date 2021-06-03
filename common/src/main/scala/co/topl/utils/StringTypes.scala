@@ -16,20 +16,20 @@ object StringTypes {
   type StringValidationResult[A] = ValidatedNec[StringValidationFailure, A]
 
   @newtype
-  class UTF8String(val value: String)
+  class Utf8String(val value: String)
 
-  object UTF8String {
+  object Utf8String {
 
-    def validated(from: String): StringValidationResult[UTF8String] =
+    def validated(from: String): StringValidationResult[Utf8String] =
       Validated.condNec(from.getValidUTF8Bytes.isDefined, from.coerce, InvalidCharacterSet())
 
-    def unsafe(from: String): UTF8String = from.coerce
+    def unsafe(from: String): Utf8String = from.coerce
   }
 
   trait UTF8StringInstances {
-    implicit val eqUTF8String: Eq[UTF8String] = (a: UTF8String, b: UTF8String) => a.value === b.value
+    implicit val eqUTF8String: Eq[Utf8String] = (a: Utf8String, b: Utf8String) => a.value === b.value
 
-    implicit val showUTF8String: Show[UTF8String] = (value: UTF8String) => value.value
+    implicit val showUTF8String: Show[Utf8String] = (value: Utf8String) => value.value
   }
 
   @newtype
@@ -50,18 +50,18 @@ object StringTypes {
   }
 
   @newtype
-  class Base58String(val value: UTF8String)
+  class Base58String(val value: Utf8String)
 
   object Base58String {
 
     def validated(from: String): StringValidationResult[Base58String] =
       (for {
-        validUtf8 <- UTF8String.validated(from).toEither
+        validUtf8 <- Utf8String.validated(from).toEither
         isValidBase58 = Base58.isValid(validUtf8)
         validBase58 <- Either.cond(isValidBase58, validUtf8.coerce, NonEmptyChain(InvalidCharacterSet()))
       } yield validBase58).toValidated
 
-    def unsafe(from: String): Base58String = UTF8String.unsafe(from).coerce
+    def unsafe(from: String): Base58String = Utf8String.unsafe(from).coerce
   }
 
   trait Base58StringInstances {
@@ -73,22 +73,22 @@ object StringTypes {
   }
 
   @newtype
-  class Base16String(val value: UTF8String)
+  class Base16String(val value: Utf8String)
 
   object Base16String {
 
     def validated(from: String): StringValidationResult[Base16String] =
       (for {
-        validUtf8 <- UTF8String.validated(from.toLowerCase).toEither
+        validUtf8 <- Utf8String.validated(from.toLowerCase).toEither
         isValidBase16 = Base16.isValid(validUtf8)
         validBase16 <- Either.cond(isValidBase16, validUtf8.coerce, NonEmptyChain(InvalidCharacterSet()))
       } yield validBase16).toValidated
 
     def validated(from: Array[Char]): StringValidationResult[Base16String] = validated(new String(from))
 
-    def unsafe(from: Array[Char]): Base16String = UTF8String.unsafe(new String(from)).coerce
+    def unsafe(from: Array[Char]): Base16String = Utf8String.unsafe(new String(from)).coerce
 
-    def unsafe(from: String): Base16String = UTF8String.unsafe(from).coerce
+    def unsafe(from: String): Base16String = Utf8String.unsafe(from).coerce
   }
 
   trait Base16StringInstances {

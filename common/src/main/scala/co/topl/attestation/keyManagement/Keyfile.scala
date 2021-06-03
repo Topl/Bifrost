@@ -5,7 +5,7 @@ import cats.data.Validated.{Invalid, Valid}
 import co.topl.attestation.Address
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringTypes.implicits._
-import co.topl.utils.StringTypes.{Latin1String, UTF8String}
+import co.topl.utils.StringTypes.{Latin1String, Utf8String}
 import io.circe.Encoder
 import io.circe.syntax.EncoderOps
 
@@ -61,7 +61,7 @@ trait KeyfileCompanion[S <: Secret, KF <: Keyfile[S]] {
    * @param networkPrefix
    * @return
    */
-  def saveToDiskSafe(dir: UTF8String, password: Latin1String, secretKey: S)(implicit
+  def saveToDiskSafe(dir: Utf8String, password: Latin1String, secretKey: S)(implicit
     networkPrefix:        NetworkPrefix
   ): Try[Unit] = Try {
     // encrypt secret using password
@@ -77,7 +77,7 @@ trait KeyfileCompanion[S <: Secret, KF <: Keyfile[S]] {
   def saveToDisk(dir: String, password: String, secretKey: S)(implicit
     networkPrefix:    NetworkPrefix
   ): Try[Unit] =
-    (UTF8String.validated(dir), Latin1String.validated(password)).mapN(saveToDiskSafe(_, _, secretKey)) match {
+    (Utf8String.validated(dir), Latin1String.validated(password)).mapN(saveToDiskSafe(_, _, secretKey)) match {
       case Valid(success)  => success
       case Invalid(errors) => Failure(throw new Error(s"Invalid inputs: ${errors.show}"))
     }
