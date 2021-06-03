@@ -6,7 +6,7 @@ import co.topl.utils.StringTypes.{Base16String, UTF8String}
 
 object Base16 {
 
-  private val charIndex: Array[Char] = "0123456789abcdef".toCharArray
+  private val characters: Array[Char] = "0123456789abcdef".toCharArray
 
   def encode(bytes: Array[Byte]): Base16String =
     if (bytes.length == 0)
@@ -17,8 +17,8 @@ object Base16 {
       var j = 0
       while (j < bytes.length) {
         val v = bytes(j) & 0xff
-        buf(j * 2) = Base16.charIndex(v >>> 4)
-        buf(j * 2 + 1) = Base16.charIndex(v & 0x0f)
+        buf(j * 2) = characters(v >>> 4)
+        buf(j * 2 + 1) = characters(v & 0x0f)
         j += 1
       }
       Base16String.unsafe(buf)
@@ -38,8 +38,8 @@ object Base16 {
         val c1 = inputValue(j)
         val c2 = inputValue(j + 1)
         if (c1 > 0 && c1 < 127 && c2 > 0 && c2 < 127) {
-          val b1 = Base16.charIndex(c1)
-          val b2 = Base16.charIndex(c2)
+          val b1 = base16Indices(c1)
+          val b2 = base16Indices(c2)
           if ((b1 | b2) < 0) {
             throw new Error("Invalid character in Base 16 string!")
           } else {
@@ -59,8 +59,18 @@ object Base16 {
 
   def isValid(s: UTF8String): Boolean =
     s.value.toCharArray
-      .map(_.toInt)
       .forall { c =>
-        c < 127 && c > 0 && charIndex(c) > 0
-      }
+        characters.contains(c)
+      } && (s.value.length % 2 == 0)
+
+  private val base16Indices: Array[Byte] = {
+    val indices = Array.fill[Byte](128)(0xff.toByte)
+    characters.zipWithIndex.foreach { case (c, i) =>
+      indices(c) = i.toByte
+    }
+    "abcdef".toCharArray.foreach { c =>
+      indices(c.toUpper) = indices(c)
+    }
+    indices
+  }
 }

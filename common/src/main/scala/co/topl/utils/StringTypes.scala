@@ -8,6 +8,7 @@ import co.topl.utils.encode.{Base16, Base58}
 import io.estatico.newtype.macros.newtype
 import io.estatico.newtype.ops._
 
+import java.util.Locale
 import scala.language.implicitConversions
 
 object StringTypes {
@@ -78,7 +79,7 @@ object StringTypes {
 
     def validated(from: String): StringValidationResult[Base16String] =
       (for {
-        validUtf8 <- UTF8String.validated(from).toEither
+        validUtf8 <- UTF8String.validated(from.toLowerCase).toEither
         isValidBase16 = Base16.isValid(validUtf8)
         validBase16 <- Either.cond(isValidBase16, validUtf8.coerce, NonEmptyChain(InvalidCharacterSet()))
       } yield validBase16).toValidated
