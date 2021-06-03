@@ -4,16 +4,16 @@ import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
 import co.topl.attestation.keyManagement._
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.crypto.signatures.Ed25519
-import co.topl.crypto.signatures.{Curve25519, Signature}
+import co.topl.crypto.signatures.{Curve25519, Ed25519, Signature}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.Box.Nonce
 import co.topl.modifier.box.{ProgramId, _}
 import co.topl.modifier.transaction._
-import co.topl.utils.encode.Base58
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.codecs.AsBytes.implicits._
+import co.topl.utils.encode.Base58
 import io.circe.Json
 import io.circe.syntax._
 import org.scalacheck.rng.Seed
@@ -391,7 +391,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     signature     <- signatureCurve25519Gen
     txs           <- bifrostTransactionSeqGen
   } yield {
-    val parentId = ModifierId(Base58.encode(parentIdBytes))
+    val parentId = ModifierId.create(Base58.encode(parentIdBytes)).getOrThrow()
     val height: Long = 1L
     val difficulty = 1000000000000000000L
     val version: PNVMVersion = 1: Byte
