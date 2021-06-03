@@ -168,14 +168,15 @@ case class SignatureEd25519(private[attestation] val sig: Signature)
     extends ProofOfKnowledge[PrivateKeyEd25519, PublicKeyPropositionEd25519] {
 
   private val signatureLength = sig.infalliblyEncodeAsBytes.length
+  private val ec = new Ed25519
 
   require(
-    signatureLength == 0 || signatureLength == Ed25519.SignatureLength,
-    s"$signatureLength != ${Ed25519.SignatureLength}"
+    signatureLength == 0 || signatureLength == ec.SignatureLength,
+    s"$signatureLength != ${ec.SignatureLength}"
   )
 
   def isValid(proposition: PublicKeyPropositionEd25519, message: Array[Byte]): Boolean =
-    Ed25519.verify(sig, message, PublicKey(proposition.pubKeyBytes.value))
+    ec.verify(sig, message, PublicKey(proposition.pubKeyBytes.value))
 }
 
 object SignatureEd25519 {

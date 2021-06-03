@@ -11,9 +11,10 @@ case class PrivateKeyEd25519(private val privateKey: PrivateKey, private val pub
 
   private val privateKeyLength = privateKey.value.length
   private val publicKeyLength = publicKey.value.length
+  private val ec = new Ed25519
 
-  require(privateKeyLength == Ed25519.KeyLength, s"$privateKeyLength == ${Ed25519.KeyLength}")
-  require(publicKeyLength == Ed25519.KeyLength, s"$publicKeyLength == ${Ed25519.KeyLength}")
+  require(privateKeyLength == ec.KeyLength, s"$privateKeyLength == ${ec.KeyLength}")
+  require(publicKeyLength == ec.KeyLength, s"$publicKeyLength == ${ec.KeyLength}")
 
   override type S = PrivateKeyEd25519
   override type PK = PublicKeyPropositionEd25519
@@ -25,7 +26,7 @@ case class PrivateKeyEd25519(private val privateKey: PrivateKey, private val pub
   override lazy val publicImage: PublicKeyPropositionEd25519 = PublicKeyPropositionEd25519(publicKey)
 
   override def sign(message: Array[Byte]): SignatureEd25519 = SignatureEd25519(
-    Ed25519.sign(privateKey, message)
+    ec.sign(privateKey, message)
   )
 
   override def equals(obj: Any): Boolean = obj match {
@@ -38,7 +39,8 @@ object PrivateKeyEd25519 extends BifrostSerializer[PrivateKeyEd25519] {
 
   implicit val secretGenerator: SecretGenerator[PrivateKeyEd25519] =
     SecretGenerator.instance[PrivateKeyEd25519] { seed: Array[Byte] =>
-      val (sk, pk) = Ed25519.createKeyPair(seed)
+      val ec = new Ed25519
+      val (sk, pk) = ec.createKeyPair(seed)
       val secret: PrivateKeyEd25519 = PrivateKeyEd25519(sk, pk)
       secret -> secret.publicImage
     }
