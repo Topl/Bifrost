@@ -17,7 +17,8 @@ import com.oracle.js.parser.{
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
-import scorex.util.encode.Base64
+import co.topl.utils.encode.Base58
+import co.topl.utils.codecs.AsBytes.implicits._
 
 import java.nio.file.{Files, Path}
 import scala.collection.mutable
@@ -329,7 +330,7 @@ object ProgramPreprocessor {
     Map(
       //"state" -> Base64.encode(Gzip.encode(ByteString(state.noSpaces.getBytes)).toArray[Byte]).asJson,
       "name"      -> p.name.asJson,
-      "initjs"    -> Base64.encode(Gzip.compress(p.initjs.getBytes)).asJson,
+      "initjs"    -> Base58.encode(Gzip.compress(p.initjs.getBytes)).asJson,
       "interface" -> p.interface.map(a => a._1 -> a._2.map(_.asJson).asJson).asJson,
       "variables" -> p.variables.asJson,
       "code"      -> p.code.map(a => a._1 -> a._2).asJson,
@@ -348,7 +349,7 @@ object ProgramPreprocessor {
     } yield {
 
       def decodeGzip(zippedStr: String): String = {
-        val zipped: Array[Byte] = Base64.decode(zippedStr).get
+        val zipped: Array[Byte] = Base58.decode(zippedStr).get
         val unzipped: Array[Byte] = Gzip.decompress(zipped)
         new String(unzipped)
       }

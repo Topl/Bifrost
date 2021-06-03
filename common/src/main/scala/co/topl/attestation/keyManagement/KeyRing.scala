@@ -4,8 +4,8 @@ import co.topl.attestation.Address
 import co.topl.attestation.AddressCodec.implicits._
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.SecureRandom.randomBytes
 import com.google.common.primitives.Ints
-import scorex.util.Random.randomBytes
 
 import java.io.File
 import scala.util.{Failure, Success, Try}

@@ -1,16 +1,17 @@
 package co.topl
 
+import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
 import co.topl.settings.ProtocolSettings
 import co.topl.utils.{Int128, TimeProvider}
 import com.google.common.primitives.Longs
-import scorex.crypto.hash.Blake2b256
 
 import scala.concurrent.duration._
 import scala.math.{max, min}
 
 package object consensus {
+
   private var _protocolMngr: ProtocolVersioner = ProtocolVersioner.empty
 
   // Initialize or restore a consensus storage that keeps track of the maxStake, difficulty, height, and inflation
@@ -48,9 +49,9 @@ package object consensus {
    * @return the test value to be compared to the adjusted difficulty
    */
   def calcHit(lastBlock: Block)(box: ArbitBox): Long = {
-    val h = Blake2b256(lastBlock.bytes ++ box.bytes)
+    val h = blake2b256.hash(lastBlock.bytes ++ box.bytes)
 
-    Longs.fromByteArray((0: Byte) +: h.take(7))
+    Longs.fromByteArray((0: Byte) +: h.value.take(7))
   }
 
   /**

@@ -1,12 +1,16 @@
 package attestation
 
+import co.topl.crypto.hash.digest.Digest
+import co.topl.utils.codecs.AsBytes.implicits._
+import co.topl.utils.encode.Base58
+import co.topl.utils.codecs.CryptoCodec.implicits._
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import scorex.util.encode.Base58
-import supertagged.TaggedType
+import io.estatico.newtype.macros.newtype
 import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 
+import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -35,14 +39,18 @@ object Evidence extends GjalSerializer[Evidence] {
   // below are types and values used enforce the behavior of evidence
   type EvidenceTypePrefix = Byte
 
-  object EvidenceContent extends TaggedType[Array[Byte]]
-  type EvidenceContent = EvidenceContent.Type
+  @newtype
+  case class EvidenceContent(value: Array[Byte])
+
+  object EvidenceContent {
+    def apply[D: Digest](d: D): EvidenceContent = EvidenceContent(d.infalliblyEncodeAsBytes)
+  }
 
   val contentLength = 32 //bytes (this is generally the output of a Blake2b-256 bit hash)
   val size: Int = 1 + contentLength //length of typePrefix + contentLength
 
   def apply(typePrefix: EvidenceTypePrefix, content: EvidenceContent): Evidence =
-    fromBytes(typePrefix +: content) match {
+    fromBytes(typePrefix +: content.value) match {
       case Success(ec) => ec
       case Failure(ex) => throw ex
     }

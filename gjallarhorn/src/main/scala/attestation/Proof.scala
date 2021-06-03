@@ -1,11 +1,12 @@
 package attestation
 
 import attestation.serialization.ProofSerializer
+import co.topl.crypto.signatures.{Curve25519, Signature}
+import co.topl.utils.codecs.AsBytes.implicits._
+import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
-import scorex.util.encode.Base58
 import utils.serialization.{BytesSerializable, GjalSerializer}
 
 import scala.util.{Failure, Success, Try}
@@ -54,29 +55,31 @@ sealed trait ProofOfKnowledge[S <: Secret, P <: KnowledgeProposition[S]] extends
  * A proof corresponding to a PublicKeyCurve25519 proposition. This is a zero-knowledge proof that argues knowledge of
  * the underlying private key associated with a public key
  *
- * @param sigBytes 25519 signature
+ * @param signature 25519 signature
  */
-case class SignatureCurve25519(private[attestation] val sigBytes: Signature)
+case class SignatureCurve25519(private[attestation] val signature: Signature)
     extends ProofOfKnowledge[PrivateKeyCurve25519, PublicKeyPropositionCurve25519] {
 
+  private val signatureLength = signature.value.length
+
   require(
-    sigBytes.isEmpty || sigBytes.length == Curve25519.SignatureLength,
-    s"${sigBytes.length} != ${Curve25519.SignatureLength}"
+    signatureLength == 0 || signatureLength == Curve25519.SignatureLength,
+    s"$signatureLength != ${Curve25519.SignatureLength}"
   )
 
   def isValid(proposition: PublicKeyPropositionCurve25519, message: Array[Byte]): Boolean =
-    Curve25519.verify(sigBytes, message, PublicKey @@ proposition.pubKeyBytes)
+    Curve25519.verify(signature, message, proposition.pubKeyBytes)
 }
 
 object SignatureCurve25519 {
   lazy val signatureSize: Int = Curve25519.SignatureLength
 
   /** Helper function to create empty signatures */
-  lazy val empty: SignatureCurve25519 = SignatureCurve25519(Signature @@ Array.emptyByteArray)
+  lazy val empty: SignatureCurve25519 = SignatureCurve25519(Signature(Array.emptyByteArray))
 
   /** Returns a signature filled with 1's for use in genesis signatures */
   lazy val genesis: SignatureCurve25519 =
-    SignatureCurve25519(Signature @@ Array.fill(SignatureCurve25519.signatureSize)(1: Byte))
+    SignatureCurve25519(Signature(Array.fill(SignatureCurve25519.signatureSize)(1: Byte)))
 
   def apply(str: String): SignatureCurve25519 =
     Proof.fromString(str) match {
@@ -104,7 +107,7 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
     extends ProofOfKnowledge[PrivateKeyCurve25519, ThresholdPropositionCurve25519] {
 
   signatures.foreach { sig =>
-    require(sig.sigBytes.length == SignatureCurve25519.signatureSize)
+    require(sig.signature.value.length == SignatureCurve25519.signatureSize)
   }
 
   override def isValid(proposition: ThresholdPropositionCurve25519, message: Array[Byte]): Boolean = Try {
@@ -118,7 +121,7 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
       if (acc < proposition.threshold) {
         if (
           proposition.pubKeyProps
-            .exists(prop => Curve25519.verify(sig.sigBytes, message, PublicKey @@ prop.pubKeyBytes))
+            .exists(prop => Curve25519.verify(sig.signature, message, prop.pubKeyBytes))
         ) {
           1
         } else {

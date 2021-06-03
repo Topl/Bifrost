@@ -3,13 +3,14 @@ package co.topl.api.transaction
 import akka.util.ByteString
 import co.topl.api.RPCMockState
 import co.topl.attestation.Address
+import co.topl.utils.encode.Base58
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import scorex.util.encode.Base58
+import scala.concurrent.duration._
 
 class PolyTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState with EitherValues {
 

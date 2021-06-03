@@ -1,8 +1,8 @@
 package co.topl.utils.serialization
 
-import java.nio.ByteOrder
-
 import akka.util.ByteString
+
+import java.nio.ByteOrder
 
 class VLQByteStringWriter extends VLQWriter {
   override type CH = ByteString

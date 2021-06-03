@@ -3,20 +3,20 @@ package keymanager
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.util.Timeout
 import attestation.{Address, PrivateKeyCurve25519}
+import co.topl.utils.encode.Base58
 import crypto.KeyfileCurve25519
+import http.GjallarhornOfflineApiRoute.updateConfigFile
 import io.circe.Json
 import io.circe.syntax._
-import scorex.util.encode.Base58
 import settings.{ApplicationSettings, NetworkType}
-import http.GjallarhornOfflineApiRoute.updateConfigFile
 import utils.Logging
 import wallet.WalletManager
 import wallet.WalletManager.NewKey
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
+import scala.util.{Failure, Success, Try}
 
 /**
  * Manages the keys and handles requests related to the keys.

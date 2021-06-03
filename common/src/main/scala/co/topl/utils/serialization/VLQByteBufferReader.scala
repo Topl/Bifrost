@@ -1,8 +1,8 @@
 package co.topl.utils.serialization
 
-import java.nio.ByteBuffer
-
 import co.topl.utils.serialization.Reader.Aux
+
+import java.nio.ByteBuffer
 
 /**
  * Not thread safe
