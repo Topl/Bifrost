@@ -1,7 +1,6 @@
 package co.topl.crypto.signatures
 
-import cats.implicits._
-import co.topl.crypto.{PrivateKey, PublicKey, SharedSecret}
+import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.crypto.hash.sha256
 import org.whispersystems.curve25519.OpportunisticCurve25519Provider
 
@@ -45,8 +44,5 @@ object Curve25519 extends EllipticCurveSignatureScheme {
     signature.value.length == SignatureLength &&
     publicKey.value.length == KeyLength &&
     provider.verifySignature(publicKey.value, message, signature.value)
-
-  override def createSharedSecret(privateKey: PrivateKey, publicKey: PublicKey): SharedSecret =
-    SharedSecret(provider.calculateAgreement(privateKey.value, publicKey.value))
 
 }

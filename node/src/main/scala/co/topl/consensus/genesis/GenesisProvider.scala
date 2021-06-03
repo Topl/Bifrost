@@ -20,7 +20,7 @@ trait GenesisProvider extends Logging {
   implicit val networkPrefix: NetworkPrefix
 
   protected lazy val genesisAcct: PrivateKeyCurve25519 =
-    PrivateKeyCurve25519(PrivateKey(Array.fill(32)(2: Byte)), PublicKey(Array.fill(32)(2: Byte)))
+    new PrivateKeyCurve25519(PrivateKey(Array.fill(32)(2: Byte)), PublicKey(Array.fill(32)(2: Byte)))
 
   protected lazy val totalStake: Int128 = members.values.sum
 

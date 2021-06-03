@@ -186,6 +186,7 @@ lazy val node = project
     commonSettings,
     assemblySettings,
     Defaults.itSettings,
+    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
@@ -270,6 +271,7 @@ lazy val gjallarhorn = project
   .settings(
     name := "gjallarhorn",
     commonSettings,
+    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
     publish / skip := true,
     Defaults.itSettings,
     libraryDependencies ++= Dependencies.gjallarhorn
@@ -301,7 +303,7 @@ lazy val crypto = project
     scalamacrosParadiseSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.crypto",
-    libraryDependencies ++= Dependencies.cryptoModule,
+    libraryDependencies ++= Dependencies.crypto,
   )
 
 addCommandAlias("checkPR", "; scalafixAll --check; scalafmtCheckAll; test")

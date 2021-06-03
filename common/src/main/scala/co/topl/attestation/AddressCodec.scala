@@ -33,12 +33,10 @@ object AddressCodec {
       AsBytes.infallible[Address](address => address.bytes ++ address.bytes.checksum)
 
     implicit class AddressOps(address: Address) {
-
       def base58Encoded: Base58String = address.infalliblyDecodeTo[Base58String]
     }
 
     implicit class Base58StringOps(value: Base58String) {
-
       def decodeAddress(implicit networkPrefix: NetworkPrefix): ValidatedNec[AddressValidationError, Address] =
         value.decodeTo[AddressValidationError, Address]
     }
@@ -50,11 +48,7 @@ object AddressCodec {
        *
        * @return a 4 byte checksum value
        */
-      def checksum: Array[Byte] =
-        blake2b256
-          .hash(bytes)
-          .value
-          .take(ChecksumLength)
+      def checksum: Array[Byte] = blake2b256.hash(bytes).value.take(ChecksumLength)
     }
 
   }
