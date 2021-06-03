@@ -1,3 +1,11 @@
+package co.topl.crypto.signatures
+
+import co.topl.crypto.PrivateKey
+import co.topl.crypto.utils.Hex
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+
 class Curve25519AxolotlSignatureSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
 
   property("signed message should be verifiable with appropriate public key") {
