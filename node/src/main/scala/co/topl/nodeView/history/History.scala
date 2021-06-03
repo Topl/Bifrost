@@ -23,7 +23,7 @@ import scala.util.{Failure, Success, Try}
  * @param validators rule sets that dictate validity of blocks in the history
  */
 class History(
-  val storage:        VersionedStorage, //todo: JAA - make this private[history]
+  val storage:        Storage, //todo: JAA - make this private[history]
   fullBlockProcessor: BlockProcessor,
   validators:         Seq[BlockValidator[Block]]
 ) extends GenericHistory[Block, BifrostSyncInfo, History]
@@ -488,7 +488,7 @@ object History extends Logging {
     val file = new File(s"$dataDir/blocks")
     file.mkdirs()
     val blockStorageDB = new LSMStore(file)
-    val storage = new VersionedStorage(blockStorageDB, settings.application.cacheExpire, settings.application.cacheSize)
+    val storage = new Storage(blockStorageDB, settings.application.cacheExpire, settings.application.cacheSize)
 
     /** This in-memory cache helps us to keep track of tines sprouting off the canonical chain */
     val blockProcessor = BlockProcessor(settings.network.maxChainCacheDepth)
@@ -502,7 +502,7 @@ object History extends Logging {
   }
 
   /** Gets the timestamps for 'count' number of blocks prior to (and including) the startBlock */
-  def getTimestamps(storage: VersionedStorage, count: Long, startBlock: Block): Vector[TimeProvider.Time] = {
+  def getTimestamps(storage: Storage, count: Long, startBlock: Block): Vector[TimeProvider.Time] = {
     @tailrec
     def loop(id: ModifierId, acc: Vector[TimeProvider.Time] = Vector()): Vector[TimeProvider.Time] =
       if (acc.length > count) acc

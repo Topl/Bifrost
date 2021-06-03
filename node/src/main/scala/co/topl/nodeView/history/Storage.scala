@@ -4,17 +4,16 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.transaction.Transaction
+import co.topl.nodeView.history.db.LDBVersionedStore
 import co.topl.utils.Logging
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.google.common.primitives.Longs
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import org.iq80.leveldb.DB
 import scorex.crypto.hash.{Blake2b256, Digest32}
 
 import scala.concurrent.duration.MILLISECONDS
 import scala.util.Try
 
-class VersionedStorage(private[history] val storage: DB, private val cacheExpire: Int, private val cacheSize: Int)
+class Storage(private[history] val storage: LDBVersionedStore, private val cacheExpire: Int, private val cacheSize: Int)
     extends Logging {
   /* ------------------------------- Cache Initialization ------------------------------- */
   type KEY = Array[Byte]
@@ -192,7 +191,7 @@ class VersionedStorage(private[history] val storage: DB, private val cacheExpire
       parentBlock
 
     /* update storage */
-    storage.update(ByteArrayWrapper(b.id.bytes), Seq(), wrappedUpdate)
+    storage.update(b.id.bytes, Seq(), wrappedUpdate)
 
     /* update the cache the in the same way */
     wrappedUpdate.foreach(pair => blockCache.put(pair._1, Some(pair._2)))
@@ -205,6 +204,6 @@ class VersionedStorage(private[history] val storage: DB, private val cacheExpire
    */
   def rollback(parentId: ModifierId): Try[Unit] = Try {
     blockCache.invalidateAll()
-    storage.rollback(ByteArrayWrapper(parentId.bytes))
+    storage.rollbackTo(parentId.bytes)
   }
 }
