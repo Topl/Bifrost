@@ -10,6 +10,7 @@ import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
 import simulacrum._
 
+import scala.collection.compat.immutable.LazyList
 import scala.language.implicitConversions
 
 @typeclass trait SemanticallyValidatable[T] {
