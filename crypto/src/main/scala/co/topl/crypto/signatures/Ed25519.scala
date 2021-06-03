@@ -3,12 +3,12 @@ package co.topl.crypto.signatures
 import co.topl.crypto
 import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.crypto.hash.sha256
-import co.topl.crypto.signatures.eddsa.BouncyCastleEd25519
+import co.topl.crypto.signatures.eddsa.ECEd25519
 
 import java.security.SecureRandom
 
 object Ed25519 extends EllipticCurveSignatureScheme {
-  val ec = new BouncyCastleEd25519
+  val ec = new ECEd25519
   override val SignatureLength: Int = ec.SIGNATURE_SIZE
   override val KeyLength: Int = ec.SECRET_KEY_SIZE
 
