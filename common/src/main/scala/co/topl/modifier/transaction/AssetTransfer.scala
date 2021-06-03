@@ -28,7 +28,7 @@ case class AssetTransfer[
 ) extends TransferTransaction[TokenValueHolder, P](from, to, attestation, fee, timestamp, data, minting) {
 
   override val coinOutput: Iterable[AssetBox] =
-    coinOutputParams.map { case BoxParams(evi, nonce, value: AssetValue) =>
+    coinOutputParams.collect { case BoxParams(evi, nonce, value: AssetValue) =>
       AssetBox(evi, nonce, value)
     }
 

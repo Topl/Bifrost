@@ -379,7 +379,7 @@ trait EC {
         val bit = word16 & 1
         if (bit == carry) {
           j += 1
-          break
+          break()
         }
         var digit = (word16 & mask) + carry
         carry = digit & sign
@@ -835,7 +835,7 @@ trait EC {
           x25519Field.cnegate(sign, p.xyd)
           pointAddPrecomp(p, r)
         }
-        if ({ cOff -= PRECOMP_TEETH; cOff } < 0) break
+        if ({ cOff -= PRECOMP_TEETH; cOff } < 0) break()
         pointDouble(r)
       }
     }
@@ -870,7 +870,7 @@ trait EC {
           val index = (wp ^ sign) >>> 1
           pointAddVar(sign != 0, tp(index), r)
         }
-        if ({ bit -= 1; bit } < 0) break
+        if ({ bit -= 1; bit } < 0) break()
         pointDouble(r)
       }
     }

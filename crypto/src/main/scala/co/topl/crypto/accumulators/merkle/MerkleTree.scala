@@ -13,7 +13,7 @@ import scala.collection.mutable
 
 case class MerkleTree[H, D: Digest](
   topNode:           Option[Node[D]],
-  elementsHashIndex: Map[mutable.WrappedArray.ofByte, Int]
+  elementsHashIndex: Map[mutable.ArraySeq.ofByte, Int]
 )(implicit h:        Hash[H, D]) {
 
   private lazy val emptyRootHash: D = Digest[D].empty
@@ -28,7 +28,7 @@ case class MerkleTree[H, D: Digest](
   def proofByElement(element: Leaf[H, D]): Option[MerkleProof[H, D]] = proofByElementHash(element.hash)
 
   def proofByElementHash(hash: D): Option[MerkleProof[H, D]] =
-    elementsHashIndex.get(new mutable.WrappedArray.ofByte(hash.bytes)).flatMap(i => proofByIndex(i))
+    elementsHashIndex.get(new mutable.ArraySeq.ofByte(hash.bytes)).flatMap(i => proofByIndex(i))
 
   def proofByIndex(index: Int): Option[MerkleProof[H, D]] = if (index >= 0 && index < length) {
 
@@ -82,8 +82,8 @@ object MerkleTree {
 
     val elementsToIndex =
       leafs.zipWithIndex
-        .foldLeft(Map[mutable.WrappedArray.ofByte, Int]()) { case (elements, (leaf, leafIndex)) =>
-          elements + (new mutable.WrappedArray.ofByte(leaf.hash.bytes) -> leafIndex)
+        .foldLeft(Map[mutable.ArraySeq.ofByte, Int]()) { case (elements, (leaf, leafIndex)) =>
+          elements + (new mutable.ArraySeq.ofByte(leaf.hash.bytes) -> leafIndex)
         }
 
     val topNode = calcTopNode[H, D](leafs)
