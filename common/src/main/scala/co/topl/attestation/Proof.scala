@@ -169,17 +169,19 @@ case class SignatureEd25519(private[attestation] val sig: Signature)
 
   private val signatureLength = sig.infalliblyEncodeAsBytes.length
 
+  private val ed25519 = new Ed25519
+
   require(
-    signatureLength == 0 || signatureLength == Ed25519.SignatureLength,
-    s"$signatureLength != ${Ed25519.SignatureLength}"
+    signatureLength == 0 || signatureLength == ed25519.SignatureLength,
+    s"$signatureLength != ${ed25519.SignatureLength}"
   )
 
   def isValid(proposition: PublicKeyPropositionEd25519, message: Array[Byte]): Boolean =
-    Ed25519.verify(sig, message, PublicKey(proposition.pubKeyBytes.value))
+    ed25519.verify(sig, message, PublicKey(proposition.pubKeyBytes.value))
 }
 
 object SignatureEd25519 {
-  lazy val signatureSize: Int = Ed25519.SignatureLength
+  lazy val signatureSize: Int = new Ed25519().SignatureLength
 
   /** Helper function to create empty signatures */
   lazy val empty: SignatureEd25519 = SignatureEd25519(Signature(Array.emptyByteArray))

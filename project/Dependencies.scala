@@ -159,8 +159,9 @@ object Dependencies {
 
   lazy val cryptoModule: Seq[ModuleID] =
     Seq(
-      "org.typelevel" %% "simulacrum" % "1.0.0",
-      "org.typelevel" %% "cats-core"  % "2.3.0"
+      "org.typelevel" %% "simulacrum"  % "1.0.0",
+      "org.typelevel" %% "cats-core"   % "2.3.0",
+      "org.scodec"    %% "scodec-bits" % "1.1.27"
     ) ++
     misc ++
     crypto ++

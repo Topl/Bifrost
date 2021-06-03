@@ -27,7 +27,7 @@ import java.util
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-object Ed25519 extends EC with EllipticCurveSignatureScheme {
+class Ed25519 extends EC with EllipticCurveSignatureScheme {
 
   def dom2(d: SHA512Digest, phflag: Byte, ctx: Array[Byte]): Unit =
     if (ctx.nonEmpty) {

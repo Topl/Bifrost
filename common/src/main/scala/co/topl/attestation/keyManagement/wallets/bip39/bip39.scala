@@ -1,4 +1,4 @@
-package co.topl.attestation.keyManagement
+package co.topl.attestation.keyManagement.wallets
 
 import scala.math.BigInt
 

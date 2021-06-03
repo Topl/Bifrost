@@ -12,8 +12,10 @@ case class PrivateKeyEd25519(private val privateKey: PrivateKey, private val pub
   private val privateKeyLength = privateKey.value.length
   private val publicKeyLength = publicKey.value.length
 
-  require(privateKeyLength == Ed25519.KeyLength, s"$privateKeyLength == ${Ed25519.KeyLength}")
-  require(publicKeyLength == Ed25519.KeyLength, s"$publicKeyLength == ${Ed25519.KeyLength}")
+  private val ed25519 = new Ed25519
+
+  require(privateKeyLength == ed25519.KeyLength, s"$privateKeyLength == ${ed25519.KeyLength}")
+  require(publicKeyLength == ed25519.KeyLength, s"$publicKeyLength == ${ed25519.KeyLength}")
 
   override type S = PrivateKeyEd25519
   override type PK = PublicKeyPropositionEd25519
@@ -25,7 +27,7 @@ case class PrivateKeyEd25519(private val privateKey: PrivateKey, private val pub
   override lazy val publicImage: PublicKeyPropositionEd25519 = PublicKeyPropositionEd25519(publicKey)
 
   override def sign(message: Array[Byte]): SignatureEd25519 = SignatureEd25519(
-    Ed25519.sign(privateKey, message)
+    ed25519.sign(privateKey, message)
   )
 
   override def equals(obj: Any): Boolean = obj match {
@@ -36,12 +38,16 @@ case class PrivateKeyEd25519(private val privateKey: PrivateKey, private val pub
 
 object PrivateKeyEd25519 extends BifrostSerializer[PrivateKeyEd25519] {
 
-  implicit val secretGenerator: SecretGenerator[PrivateKeyEd25519] =
+  private val ed25519KeyLength = new Ed25519().KeyLength
+
+  implicit val secretGenerator: SecretGenerator[PrivateKeyEd25519] = {
     SecretGenerator.instance[PrivateKeyEd25519] { seed: Array[Byte] =>
-      val (sk, pk) = Ed25519.createKeyPair(seed)
+      val ed25519 = new Ed25519
+      val (sk, pk) = ed25519.createKeyPair(seed)
       val secret: PrivateKeyEd25519 = PrivateKeyEd25519(sk, pk)
       secret -> secret.publicImage
     }
+  }
 
   override def serialize(obj: PrivateKeyEd25519, w: Writer): Unit = {
     /* privKeyBytes: Array[Byte] */
@@ -52,6 +58,6 @@ object PrivateKeyEd25519 extends BifrostSerializer[PrivateKeyEd25519] {
   }
 
   override def parse(r: Reader): PrivateKeyEd25519 =
-    PrivateKeyEd25519(PrivateKey(r.getBytes(Ed25519.KeyLength)), PublicKey(r.getBytes(Ed25519.KeyLength)))
+    PrivateKeyEd25519(PrivateKey(r.getBytes(ed25519KeyLength)), PublicKey(r.getBytes(ed25519KeyLength)))
 
 }
