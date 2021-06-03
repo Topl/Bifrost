@@ -31,8 +31,10 @@ object BlockHeader {
     )
 
     override val indices: Map[String, OClass.INDEX_TYPE] = Map(
-      "BlockHeader_idIndex" -> OClass.INDEX_TYPE.UNIQUE_HASH_INDEX
-      "BlockHeader_timestampIndex" -> OClass.INDEX_TYPE.UNIQUE_HASH_INDEX
+      "BlockHeader_idIndex"          -> OClass.INDEX_TYPE.UNIQUE_HASH_INDEX,
+      "BlockHeader_timestampIndex"   -> OClass.INDEX_TYPE.NOTUNIQUE,
+      "BlockHeader_heightIndex"      -> OClass.INDEX_TYPE.NOTUNIQUE,
+      "BlockHeader_bloomFilterIndex" -> OClass.INDEX_TYPE.NOTUNIQUE
     )
 
     override def srcEdges: Set[EdgeSchema[_, _, BlockHeader]] = ???
@@ -66,6 +68,10 @@ object BlockBody {
 
     override val properties: Map[String, OType] = Map(
       "blockId" -> OType.STRING
+    )
+
+    override val indices: Map[String, OClass.INDEX_TYPE] = Map(
+      "BlockHeader_idIndex" -> OClass.INDEX_TYPE.UNIQUE_HASH_INDEX
     )
 
     override def srcEdges: Set[EdgeSchema[_, _, BlockBody]] = ???
