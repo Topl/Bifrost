@@ -13,7 +13,7 @@ import org.scalatest.{BeforeAndAfterAll, OptionValues}
 
 import scala.concurrent.duration._
 
-class OrientDbBlockchainGraphSpec
+class BlockchainGraphSpec
     extends TestKit(ActorSystem("OrientDbBlockchainGraphSpec"))
     with AnyFlatSpecLike
     with BeforeAndAfterAll
@@ -38,7 +38,7 @@ class OrientDbBlockchainGraphSpec
   private val boxId2 = "box2"
 
   private val blockHeader1 = BlockHeader(
-    id = blockId1,
+    blockId = blockId1,
     timestamp = 1,
     publicKey = "topl",
     signature = "topl",
@@ -52,7 +52,7 @@ class OrientDbBlockchainGraphSpec
   private val blockBody1 = BlockBody(blockId1)
 
   private val transaction1 = Transaction(
-    id = transactionId1,
+    transactionId = transactionId1,
     fee = "100",
     timestamp = 1,
     data = None,
@@ -60,15 +60,14 @@ class OrientDbBlockchainGraphSpec
   )
 
   private val box1 = Box(
-    id = boxId1,
+    boxId = boxId1,
     boxType = "PolyBox",
-    evidence = "Bob",
     value = "7",
     nonce = 1
   )
 
   private val blockHeader2 = BlockHeader(
-    id = blockId2,
+    blockId = blockId2,
     timestamp = 2,
     publicKey = "topl",
     signature = "topl",
@@ -82,7 +81,7 @@ class OrientDbBlockchainGraphSpec
   private val blockBody2 = BlockBody(blockId2)
 
   private val transaction2 = Transaction(
-    id = transactionId2,
+    transactionId = transactionId2,
     fee = "100",
     timestamp = 2,
     data = None,
@@ -90,9 +89,8 @@ class OrientDbBlockchainGraphSpec
   )
 
   private val box2 = Box(
-    id = boxId2,
+    boxId = boxId2,
     boxType = "PolyBox",
-    evidence = "Bob",
     value = "7",
     nonce = 1
   )
@@ -232,6 +230,9 @@ class OrientDbBlockchainGraphSpec
     val t = underTest
     import t._
 
+    // TODO: OrientDB hasn't caught up yet for some reason, so without a slight delay, the following queries may fail
+    Thread.sleep(1000)
+
     Blockchain.currentHead.futureRightValue shouldBe blockHeader2
     Blockchain.currentHeads.runWith(Sink.seq).futureValue.toList.map(_.value) should (have size 1 and contain(
       blockHeader2
@@ -246,7 +247,7 @@ class OrientDbBlockchainGraphSpec
     (3 to 500).foreach { i =>
       val id = s"block$i"
       val header = BlockHeader(
-        id = id,
+        blockId = id,
         timestamp = i,
         publicKey = "topl",
         signature = "topl",
@@ -264,21 +265,23 @@ class OrientDbBlockchainGraphSpec
 
     val head = Blockchain.currentHead.futureRightValue
 
-    head.id shouldBe "block500"
+    head.blockId shouldBe "block500"
 
     val history =
       head.history.runWith(Sink.seq).futureValue.toList.map(_.value)
 
     history should have size 499
     history.zip(500 to 1).foreach { case (header, index) =>
-      header.id shouldBe s"block${index + 1}"
+      header.blockId shouldBe s"block${index + 1}"
     }
   }
 
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    underTest = new OrientDbBlockchainGraph(OrientDbBlockchainGraph.InMemory)
+    val schema = BlockchainGraphSchema.value
+
+    underTest = new BlockchainGraph(OrientDBGraph(schema, OrientDBGraph.InMemory))
   }
 
   override def afterAll(): Unit = {

@@ -7,6 +7,7 @@ import cats.data.{EitherT, NonEmptyChain}
 import scala.concurrent.Future
 
 import scala.languageFeature.implicitConversions
+import scala.language.implicitConversions
 
 object BlockchainOps {
 
@@ -62,6 +63,7 @@ trait StringOps {
   def blockBody: EitherT[Future, BlockchainOps.Error, BlockBody]
   def transaction: EitherT[Future, BlockchainOps.Error, Transaction]
   def box: EitherT[Future, BlockchainOps.Error, Box]
+  def addressAccount: EitherT[Future, BlockchainOps.Error, Account]
 }
 
 trait BlockchainOps {
