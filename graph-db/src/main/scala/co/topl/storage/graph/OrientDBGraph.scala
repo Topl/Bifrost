@@ -2,7 +2,7 @@ package co.topl.storage.graph
 
 import akka.actor.ActorSystem
 import akka.dispatch.Dispatchers
-import akka.stream.scaladsl.Source
+import akka.stream.scaladsl.{Sink, Source}
 import akka.stream.{ActorAttributes, Attributes}
 import akka.{Done, NotUsed}
 import com.orientechnologies.orient.core.sql.OCommandSQL
@@ -97,7 +97,9 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
   }
 
   private def blockingOperation[T](operation: => T): Future[T] =
-    Future(operation)(blockingDispatcher)
+    Future {
+      operation
+    }(blockingDispatcher)
 
   private def blockingIteratorSource[T](iteratorFactory: () => Iterator[T]): Source[T, NotUsed] =
     Source
@@ -109,10 +111,17 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
       session
         .command(new OCommandSQL(query))
         .execute[OrientDynaElementIterable]()
+        .iterator()
         .asScala
-        .iterator
         .collect { case r: R => r }
     )
+
+  def getNode[T: NodeSchema](query: String): Future[Option[T]] = {
+    import Ops._
+    resultSetQuery[OrientVertex](query)
+      .map(_.as[T])
+      .runWith(Sink.headOption)
+  }
 
   object Ops {
 

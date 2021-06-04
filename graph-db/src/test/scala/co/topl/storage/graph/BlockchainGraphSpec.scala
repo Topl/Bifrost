@@ -3,7 +3,7 @@ package co.topl.storage.graph
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Sink
 import akka.testkit.TestKit
-import cats.data.{EitherT, NonEmptyChain}
+import cats.data.{Chain, EitherT, NonEmptyChain}
 import cats.implicits._
 import cats.scalatest.FutureEitherValues
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
@@ -167,6 +167,13 @@ class BlockchainGraphSpec
     boxCreatedBy shouldBe transaction1
   }
 
+  it should "Not have block2 yet" in {
+    val t = underTest
+    import t._
+
+    blockId2.blockHeader.futureLeftValue shouldBe BlockchainOps.NotFound
+  }
+
   it should "Add Block, Transaction, and Box 2" in {
     val t = underTest
     import t._
@@ -231,7 +238,7 @@ class BlockchainGraphSpec
     import t._
 
     // TODO: OrientDB hasn't caught up yet for some reason, so without a slight delay, the following queries may fail
-    Thread.sleep(1000)
+    Thread.sleep(2000)
 
     Blockchain.currentHead.futureRightValue shouldBe blockHeader2
     Blockchain.currentHeads.runWith(Sink.seq).futureValue.toList.map(_.value) should (have size 1 and contain(
@@ -244,24 +251,26 @@ class BlockchainGraphSpec
   it should "retrieve a long history" in {
     val t = underTest
     import t._
-    (3 to 500).foreach { i =>
-      val id = s"block$i"
-      val header = BlockHeader(
-        blockId = id,
-        timestamp = i,
-        publicKey = "topl",
-        signature = "topl",
-        height = i,
-        difficulty = 1,
-        txRoot = "bar",
-        bloomFilter = "baz",
-        version = 1
-      )
 
-      NonEmptyChain(CreateBlockHeader(header), AssociateBlockToParent(id, s"block${i - 1}"), SetHead(id))
-        .run()
-        .futureRightValue
-    }
+    val modifications =
+      (3 to 500).flatMap { i =>
+        val id = s"block$i"
+        val header = BlockHeader(
+          blockId = id,
+          timestamp = i,
+          publicKey = "topl",
+          signature = "topl",
+          height = i,
+          difficulty = 1,
+          txRoot = "bar",
+          bloomFilter = "baz",
+          version = 1
+        )
+
+        List(CreateBlockHeader(header), AssociateBlockToParent(id, s"block${i - 1}"))
+      } :+ SetHead("block500")
+
+    NonEmptyChain.fromChainUnsafe(Chain.fromSeq(modifications)).run().futureRightValue
 
     val head = Blockchain.currentHead.futureRightValue
 

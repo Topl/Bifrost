@@ -125,11 +125,6 @@ lazy val commonScalacOptions = Seq(
   "-Ywarn-unused:-implicits,-privates"
 )
 
-javacOptions ++= Seq(
-  "--add-exports java.base/jdk.internal.misc=ALL-UNNAMED",
-  "-Dio.netty.tryReflectionSetAccessible=true"
-)
-
 javaOptions ++= Seq(
   "-Xbootclasspath/a:ValkyrieInstrument-1.0.jar",
   // from https://groups.google.com/d/msg/akka-user/9s4Yl7aEz3E/zfxmdc0cGQAJ
