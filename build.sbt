@@ -1,6 +1,5 @@
 import sbt.Keys.{homepage, organization, test}
 import sbtassembly.MergeStrategy
-import Dependencies._
 
 val scala212 = "2.12.13"
 val scala213 = "2.13.5"
@@ -170,7 +169,6 @@ lazy val bifrost = project.in(file("."))
     node,
     common,
     graphDb,
-    graphDbServer,
     akkaHttpRpc,
     toplRpc,
     gjallarhorn,
@@ -227,14 +225,6 @@ lazy val graphDb = project.in(file("graph-db"))
   )
   .settings(scalamacrosParadiseSettings)
   .dependsOn(common % "test->test")
-
-lazy val graphDbServer = project.in(file("graph-db-server"))
-  .settings(
-    name := "graph-db-server",
-    libraryDependencies ++= Dependencies.graphDbServer,
-    scalaVersion := scala212
-  )
-  .enablePlugins(JavaAppPackaging)
 
 lazy val chainProgram = project.in(file("chain-program"))
   .settings(
