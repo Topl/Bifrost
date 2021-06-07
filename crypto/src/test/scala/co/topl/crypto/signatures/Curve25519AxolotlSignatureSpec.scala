@@ -1,6 +1,6 @@
 package co.topl.crypto.signatures
 
-import co.topl.crypto.PrivateKey
+import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.crypto.utils.Hex
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
@@ -35,45 +35,64 @@ class Curve25519AxolotlSignatureSpec extends AnyPropSpec with ScalaCheckDrivenPr
     }
   }
 
-  property("test vectors from https://tools.ietf.org/html/rfc8032#page-24 - test 1") {
-    val privKey = PrivateKey(Hex.decode("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60"))
+  /* The tests below are generated with on June 7, 2021 using Curve25519.scala in the Crypto module:
+   * https://github.com/Topl/Bifrost/blob/ed25519/crypto/src/main/scala/co/topl/crypto/signatures/Curve25519.scala
+   * Commit hash:
+   */
+  property("test vectors with seed string: test1") {
+    val privKey = PrivateKey(Hex.decode("184F0E9851971998E732078544C96B36C3D01CEDF7CAA332359D6F1D83567054"))
+    val pubKey = PublicKey(Hex.decode("4652486EBC271520D844E5BDDA9AC243C05DCBE7BC9B93807073A32177A6F73D"))
     val message = Array[Byte]()
     val sig = Curve25519.sign(privKey, message)
-    val specSig = Hex.decode(
-      "e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e065224901555fb8821590a33bacc61e" +
-      "39701cf9b46bd25bf5f0595bbe24655141438e7a100b"
+    val specSig = Signature(
+      Hex.decode(
+        "AD7B2C434DE419712A55AF65D485DA4F673076D4FDBFF4730A20AA8DC1F0C05A" +
+        "D757F6B50674CFB622131377F29C646DF60C7148E6B8AF33850276F98D31DA0A"
+      )
     )
-    sig.value.sameElements(specSig)
+
+    Curve25519.verify(sig, message, pubKey) shouldBe true
+    Curve25519.verify(specSig, message, pubKey) shouldBe true
+    // sig.value.sameElements(specSig) shouldBe true
   }
 
-  property("test vectors from https://tools.ietf.org/html/rfc8032#page-24 - test 2") {
-    val privKey = PrivateKey(Hex.decode("4ccd089b28ff96da9db6c346ec114e0f5b8a319f35aba624da8cf6ed4fb8a6fb"))
+  property("test vectors with seed string: test2, and one byte message length") {
+    val privKey = PrivateKey(Hex.decode("60303AE22B998861BCE3B28F33EEC1BE758A213C86C93C076DBE9F558C11C752"))
+    val pubKey = PublicKey(Hex.decode("FFBC7BA2E4C43BE03F8A7F020D0651F582AD1901C254EEBB4EC2ECB73148E50D"))
     val message = Hex.decode("72")
     val sig = Curve25519.sign(privKey, message)
-    val specSig = Hex.decode(
-      "92a009a9f0d4cab8720e820b5f642540" +
-      "a2b27b5416503f8fb3762223ebdb69da" +
-      "085ac1e43e15996e458f3613d0f11d8c" +
-      "387b2eaeb4302aeeb00d291612bb0c00"
+    val specSig = Signature(
+      Hex.decode(
+        "E7D628E6A25AFF86A7A81CF60B40D0C8BCA038A75CB6BEF34B384E5D098C1F29" +
+        "1FD7068CDBF001CAF0EB82810B0A13F0B2806E02124E416B671E51241DD4EB0F"
+      )
     )
-    sig.value.sameElements(specSig)
+
+    Curve25519.verify(sig, message, pubKey) shouldBe true
+    Curve25519.verify(specSig, message, pubKey) shouldBe true
+    // sig.value.sameElements(specSig)
   }
 
-  property("test vectors from https://tools.ietf.org/html/rfc8032#page-24 - test 3") {
-    val privKey = PrivateKey(Hex.decode("c5aa8df43f9f837bedb7442f31dcb7b166d38535076f094b85ce3a2e0b4458f7"))
+  property("test vectors with seed string: test3, and two bytes message length") {
+    val privKey = PrivateKey(Hex.decode("F861A03AF4F77D870FC21E05E7E80678095C92D808CFB3B5C279EE04C74ACA53"))
+    val pubKey = PublicKey(Hex.decode("59DF714EAD8FB10B68E31153AD01994117652CB3C960C6E32C57E7DEC28A5846"))
     val message = Hex.decode("af82")
     val sig = Curve25519.sign(privKey, message)
-    val specSig = Hex.decode(
-      "6291d657deec24024827e69c3abe01a3" +
-      "0ce548a284743a445e3680d7db5ac3ac" +
-      "18ff9b538d16f290ae67f760984dc659" +
-      "4a7c15e9716ed28dc027beceea1ec40a"
+    val specSig = Signature(
+      Hex.decode(
+        "12ED7C9B5D757C23809FF620CF0B48CF054F6FC60B8B45B50C49F78C80332D1B" +
+        "4F1DEF16F3270E75686CF12F661CF777EBDCFF2977078D5EEC32F0EB39D11802"
+      )
     )
-    sig.value.sameElements(specSig)
+
+    Curve25519.verify(sig, message, pubKey) shouldBe true
+    Curve25519.verify(specSig, message, pubKey) shouldBe true
+    // sig.value.sameElements(specSig)
   }
 
-  property("test vectors from https://tools.ietf.org/html/rfc8032#page-24 - test 1024") {
-    val privKey = PrivateKey(Hex.decode("f5e5767cf153319517630f226876b86c8160cc583bc013744c6bf255f5cc0ee5"))
+  property("test vectors with seed string: test1024, and 1023 bytes message length") {
+    val privKey = PrivateKey(Hex.decode("30929AC0656504EF9782D0164A3603C09AA3FDCB07973948D03472A571CAB769"))
+    val pubKey = PublicKey(Hex.decode("05C54041990DEF35C6B163F1B6DBE5194BC4139C7D3BA8F1FCF28DE3A8B07357"))
     val message = Hex.decode(
       "08b8b2b733424243760fe426a4b54908632110a66c2f6591eabd3345e3e4eb98fa6e264bf09efe12ee50" +
       "f8f54e9f77b1e355f6c50544e23fb1433ddf73be84d879de7c0046dc4996d9e773f4bc9efe5738829adb26c81b37c93a1b270b20329d65" +
@@ -96,24 +115,35 @@ class Curve25519AxolotlSignatureSpec extends AnyPropSpec with ScalaCheckDrivenPr
       "c1ffc872eeee475a64dfac86aba41c0618983f8741c5ef68d3a101e8a3b8cac60c905c15fc910840b94c00a0b9d0"
     )
     val sig = Curve25519.sign(privKey, message)
-    val specSig = Hex.decode(
-      "0aab4c900501b3e24d7cdf4663326a3a87df5e4843b2cbdb67cbf6e460fec350aa5371b1508f9f4528ec" +
-      "ea23c436d94b5e8fcd4f681e30a6ac00a9704a188a03"
+    val specSig = Signature(
+      Hex.decode(
+        "AA9D3EF915F416A85717A00B69C4CB01514AEB9D743259974F36B9EEB429BE40" +
+        "39C0491C68EE3987F493BFB7D54039BA2D03DD8CBF83A1D978E0B18C4C363680"
+      )
     )
-    sig.value.sameElements(specSig)
+
+    Curve25519.verify(sig, message, pubKey) shouldBe true
+    Curve25519.verify(specSig, message, pubKey) shouldBe true
+    // sig.value.sameElements(specSig)
   }
 
-  property("test vectors from https://tools.ietf.org/html/rfc8032#page-24 - test SHA") {
-    val privKey = PrivateKey(Hex.decode("833fe62409237b9d62ec77587520911e9a759cec1d19755b7da901b96dca3d42"))
+  property("test vectors with seed string: testsha, and abc hashed by SHA512 as message") {
+    val privKey = PrivateKey(Hex.decode("C8A312FBBCF8FF3213B917D4232BCA39AAE7740338791114072F07FF3692CA72"))
+    val pubKey = PublicKey(Hex.decode("5EFBB8396F73F2663403B242347E8B72FBA96DD1E92DBA71A909076643631752"))
     val message = Hex.decode(
       "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836" +
       "ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f"
     )
     val sig = Curve25519.sign(privKey, message)
-    val specSig = Hex.decode(
-      "dc2a4459e7369633a52b1bf277839a00201009a3efbf3ecb69bea2186c26b58909351fc9ac90b3ecfdf" +
-      "bc7c66431e0303dca179c138ac17ad9bef1177331a704"
+    val specSig = Signature(
+      Hex.decode(
+        "DC8566EF933EEE7527E7150C5464CAA67F244BF6DCE052821B5A7424892D2879" +
+        "8C6674E2B6671E3AB3E73B0FA8F2BC960714FF05F48DA91CD720FE7140875E87"
+      )
     )
-    sig.value.sameElements(specSig)
+
+    Curve25519.verify(sig, message, pubKey) shouldBe true
+    Curve25519.verify(specSig, message, pubKey) shouldBe true
+    // sig.value.sameElements(specSig)
   }
 }
