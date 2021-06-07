@@ -8,13 +8,16 @@ import co.topl.utils.encode.{Base16, Base58}
 import io.estatico.newtype.macros.newtype
 import io.estatico.newtype.ops._
 
-import java.util.Locale
 import scala.language.implicitConversions
 
 object StringTypes {
 
   type StringValidationResult[A] = ValidatedNec[StringValidationFailure, A]
 
+  /**
+   * Represents a string with UTF-8 encoding.
+   * @param value the underlying String value
+   */
   @newtype
   class Utf8String(val value: String)
 
@@ -32,6 +35,10 @@ object StringTypes {
     implicit val showUTF8String: Show[Utf8String] = (value: Utf8String) => value.value
   }
 
+  /**
+   * Represents a string with Latin-1 encoding.
+   * @param value the underlying String value.
+   */
   @newtype
   class Latin1String(val value: String)
 
@@ -40,7 +47,8 @@ object StringTypes {
     def validated(from: String): StringValidationResult[Latin1String] =
       Validated.condNec(from.getValidLatin1Bytes.isDefined, from.coerce, InvalidCharacterSet())
 
-    def unsafe(from: String): Latin1String = from.coerce
+    def unsafe(from: String): Latin1String =
+      validated(from).valueOr(err => throw new IllegalArgumentException(s"Invalid Latin-1 string: $err"))
   }
 
   trait Latin1StringInstances {
@@ -49,6 +57,10 @@ object StringTypes {
     implicit val showLatin1String: Show[Latin1String] = (value: Latin1String) => value.value
   }
 
+  /**
+   * Represents a string with Base-58 encoding.
+   * @param value the underlying UTF-8 encoded value.
+   */
   @newtype
   class Base58String(val value: Utf8String)
 
@@ -61,7 +73,8 @@ object StringTypes {
         validBase58 <- Either.cond(isValidBase58, validUtf8.coerce, NonEmptyChain(InvalidCharacterSet()))
       } yield validBase58).toValidated
 
-    def unsafe(from: String): Base58String = Utf8String.unsafe(from).coerce
+    def unsafe(from: String): Base58String =
+      validated(from).valueOr(err => throw new IllegalArgumentException(s"Invalid Base-58 string: $err"))
   }
 
   trait Base58StringInstances {
@@ -72,6 +85,10 @@ object StringTypes {
     implicit val showBase58String: Show[Base58String] = (value: Base58String) => value.value.value
   }
 
+  /**
+   * Represents a string with Base-16 encoding.
+   * @param value the underlying UTF-8 encoded value.
+   */
   @newtype
   class Base16String(val value: Utf8String)
 
@@ -86,9 +103,11 @@ object StringTypes {
 
     def validated(from: Array[Char]): StringValidationResult[Base16String] = validated(new String(from))
 
-    def unsafe(from: Array[Char]): Base16String = Utf8String.unsafe(new String(from)).coerce
+    def unsafe(from: Array[Char]): Base16String =
+      validated(from).valueOr(err => throw new IllegalArgumentException(s"Invalid Base-16 string: $err"))
 
-    def unsafe(from: String): Base16String = Utf8String.unsafe(from).coerce
+    def unsafe(from: String): Base16String =
+      validated(from).valueOr(err => throw new IllegalArgumentException(s"Invalid Base-16 string: $err"))
   }
 
   trait Base16StringInstances {
