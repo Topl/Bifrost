@@ -4,13 +4,16 @@ import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{InvalidParametersError, RpcError, ThrowableData}
 import co.topl.attestation.AddressCodec.implicits.StringOps
+import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.hash.digest.implicits._
 import co.topl.modifier.box.AssetCode
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
+import co.topl.utils.codecs.AsBytes.implicits._
 import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.codecs.CryptoCodec.implicits._
+import co.topl.utils.encode.Base58
 import io.circe.Encoder
-import scorex.crypto.hash.Blake2b256
-import scorex.util.encode.Base58
 
 import java.security.SecureRandom
 import scala.concurrent.{ExecutionContext, Future}
@@ -35,7 +38,7 @@ class UtilsRpcHandlerImpls(implicit
   override val hashBlake2b256: ToplRpc.Util.HashBlake2b256.rpc.ServerHandler =
     params =>
       ToplRpc.Util.HashBlake2b256
-        .Response(params.message, Base58.encode(Blake2b256(params.message)))
+        .Response(params.message, Base58.encode(blake2b256.hash(params.message.getBytes("UTF-8"))))
         .asRight[RpcError]
         .toEitherT[Future]
 

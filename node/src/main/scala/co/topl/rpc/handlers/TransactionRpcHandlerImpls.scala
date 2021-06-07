@@ -1,6 +1,7 @@
 package co.topl.rpc.handlers
 
 import cats.implicits._
+import co.topl.utils.codecs.AsBytes.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
 import co.topl.attestation.{Address, Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
 import co.topl.modifier.box.SimpleValue
@@ -10,8 +11,8 @@ import co.topl.nodeView.state.State
 import co.topl.nodeView.{BroadcastTxFailureException, GetStateFailureException, NodeViewHolderInterface}
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.encode.Base58
 import io.circe.Encoder
-import scorex.util.encode.Base58
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try

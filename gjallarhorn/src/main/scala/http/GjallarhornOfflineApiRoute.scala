@@ -1,28 +1,28 @@
 package http
 
-import java.io.{BufferedReader, BufferedWriter, File, FileReader, FileWriter}
-import java.time.Instant
-
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.pattern.ask
-import attestation.{Address, Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
 import attestation.AddressEncoder.NetworkPrefix
+import attestation.{Address, Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
+import co.topl.utils.codecs.AsBytes.implicits._
+import co.topl.utils.encode.Base58
 import crypto.AssetCode
 import http.GjallarhornOfflineApiRoute.updateConfigFile
-import io.circe.{HCursor, Json}
 import io.circe.syntax._
-import keymanager.KeyManager.{ChangeNetwork, GenerateSignatures, GetAllKeyfiles, GetKeyfileDir, SignTx}
+import io.circe.{HCursor, Json}
+import keymanager.KeyManager._
 import keymanager.networkPrefix
-import modifier.{AssetValue, Box, BoxId, SimpleValue, TransferTransaction}
+import modifier._
 import requests.ApiRoute
-import scorex.util.encode.Base58
 import settings.{ApplicationSettings, ChainProvider, RPCApiSettings}
 import wallet.WalletManager.GetWallet
 
+import java.io._
+import java.time.Instant
 import scala.collection.mutable.{Map => MMap}
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
 /**

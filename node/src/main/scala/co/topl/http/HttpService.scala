@@ -4,10 +4,11 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.marshalling.Marshaller._
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 import akka.http.scaladsl.server.Route
+import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.hash.digest.Digest32
 import co.topl.rpc.ToplRpcServer
 import co.topl.settings.RPCApiSettings
-import scorex.crypto.hash.Blake2b256
-import scorex.util.encode.Base58
+import co.topl.utils.encode.Base58
 
 final case class HttpService(
   settings:            RPCApiSettings,
@@ -54,5 +55,7 @@ final case class HttpService(
    * @return
    */
   private def isValid(keyOpt: Option[String]): Boolean =
-    apiKeyHash.forall(expected => keyOpt.map(Blake2b256(_)).exists(expected sameElements _))
+    apiKeyHash.forall(expected =>
+      keyOpt.map(key => blake2b256.hash(key.getBytes("UTF-8"))).exists(expected sameElements _.value)
+    )
 }

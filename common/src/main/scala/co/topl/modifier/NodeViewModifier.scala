@@ -1,14 +1,15 @@
 package co.topl.modifier
 
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
-import co.topl.modifier.block.{Block, BlockBody, BlockHeader}
 import co.topl.modifier.block.serialization.{BlockBodySerializer, BlockHeaderSerializer, BlockSerializer}
+import co.topl.modifier.block.{Block, BlockBody, BlockHeader}
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import io.circe.Encoder
-import supertagged.TaggedType
+import io.estatico.newtype.macros.newtype
 
+import scala.language.implicitConversions
 import scala.util.{Failure, Success}
 
 trait NodeViewModifier extends BytesSerializable {
@@ -25,10 +26,11 @@ trait NodeViewModifier extends BytesSerializable {
  * have identifiers of the some length fixed with the ModifierIdSize constant
  */
 object NodeViewModifier extends BifrostSerializer[NodeViewModifier] {
+
   val modifierIdSize: Int = ModifierId.size // bytes (1 byte modifierTypeId + 32 modiifierId)
 
-  object ModifierTypeId extends TaggedType[Byte]
-  type ModifierTypeId = ModifierTypeId.Type
+  @newtype
+  case class ModifierTypeId(value: Byte)
 
   val modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
     Map(Block.modifierTypeId -> BlockSerializer, Transaction.modifierTypeId -> TransactionSerializer)
@@ -44,28 +46,28 @@ object NodeViewModifier extends BifrostSerializer[NodeViewModifier] {
   override def serialize(obj: NodeViewModifier, w: Writer): Unit =
     obj match {
       case obj: Block =>
-        w.put(Block.modifierTypeId)
+        w.put(Block.modifierTypeId.value)
         BlockSerializer.serialize(obj, w)
 
       case obj: BlockHeader =>
-        w.put(BlockHeader.modifierTypeId)
+        w.put(BlockHeader.modifierTypeId.value)
         BlockHeaderSerializer.serialize(obj, w)
 
       case obj: BlockBody =>
-        w.put(BlockBody.modifierTypeId)
+        w.put(BlockBody.modifierTypeId.value)
         BlockBodySerializer.serialize(obj, w)
 
       case obj: Transaction.TX =>
-        w.put(Transaction.modifierTypeId)
+        w.put(Transaction.modifierTypeId.value)
         TransactionSerializer.serialize(obj, w)
     }
 
   override def parse(r: Reader): NodeViewModifier =
     (r.getByte() match {
-      case Block.modifierTypeId       => BlockSerializer.parseTry(r)
-      case BlockHeader.modifierTypeId => BlockHeaderSerializer.parseTry(r)
-      case BlockBody.modifierTypeId   => BlockBodySerializer.parseTry(r)
-      case Transaction.modifierTypeId => TransactionSerializer.parseTry(r)
+      case b if b == Block.modifierTypeId.value       => BlockSerializer.parseTry(r)
+      case b if b == BlockHeader.modifierTypeId.value => BlockHeaderSerializer.parseTry(r)
+      case b if b == BlockBody.modifierTypeId.value   => BlockBodySerializer.parseTry(r)
+      case b if b == Transaction.modifierTypeId.value => TransactionSerializer.parseTry(r)
     }) match {
       case Success(tx) => tx
       case Failure(ex) => throw ex

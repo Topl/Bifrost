@@ -3,20 +3,21 @@ package co.topl.utils
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
 import co.topl.attestation.keyManagement._
+import co.topl.crypto.hash.digest.Digest32
+import co.topl.crypto.signatures.{Curve25519, Signature}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.Box.Nonce
 import co.topl.modifier.box.{ProgramId, _}
 import co.topl.modifier.transaction._
+import co.topl.utils.encode.Base58
+import co.topl.utils.codecs.AsBytes.implicits._
 import io.circe.Json
 import io.circe.syntax._
 import org.scalacheck.rng.Seed
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.Suite
-import scorex.crypto.hash.Blake2b256
-import scorex.crypto.signatures.{Curve25519, Signature}
-import scorex.util.encode.Base58
 
 import scala.collection.SortedSet
 import scala.util.Random
@@ -169,7 +170,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   )
 
   lazy val signatureGen: Gen[SignatureCurve25519] =
-    genBytesList(SignatureCurve25519.signatureSize).map(bytes => SignatureCurve25519(Signature @@ bytes))
+    genBytesList(SignatureCurve25519.signatureSize).map(bytes => SignatureCurve25519(Signature(bytes)))
 
   lazy val programIdGen: Gen[ProgramId] = for {
     seed <- specificLengthBytesGen(ProgramId.size)
@@ -216,7 +217,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   } yield (assetValue.assetCode.issuer, assetValue)
 
   lazy val securityRootGen: Gen[SecurityRoot] = for {
-    root <- specificLengthBytesGen(Blake2b256.DigestSize)
+    root <- specificLengthBytesGen(Digest32.size)
   } yield SecurityRoot(Base58.encode(root))
 
   lazy val toSeqGen: Gen[IndexedSeq[(Address, SimpleValue)]] = for {

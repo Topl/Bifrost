@@ -3,15 +3,18 @@ package co.topl.attestation
 import co.topl.attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, Secret}
 import co.topl.attestation.serialization.PropositionSerializer
+import co.topl.crypto.PublicKey
+import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.hash.implicits._
+import co.topl.crypto.signatures.Curve25519
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.codecs.AsBytes.implicits._
+import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import co.topl.utils.{Identifiable, Identifier}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import scorex.crypto.hash.Blake2b256
-import scorex.crypto.signatures.{Curve25519, PublicKey}
-import scorex.util.encode.Base58
 
 import scala.collection.SortedSet
 import scala.util.{Failure, Success, Try}
@@ -55,8 +58,8 @@ case class PublicKeyPropositionCurve25519(private[attestation] val pubKeyBytes: 
     extends KnowledgeProposition[PrivateKeyCurve25519] {
 
   require(
-    pubKeyBytes.length == Curve25519.KeyLength,
-    s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.length} found"
+    pubKeyBytes.value.length == Curve25519.KeyLength,
+    s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.value.length} found"
   )
 
   def address(implicit networkPrefix: NetworkPrefix): Address = Address.from(this)
@@ -79,7 +82,7 @@ object PublicKeyPropositionCurve25519 {
 
   implicit val evProducer: EvidenceProducer[PublicKeyPropositionCurve25519] =
     EvidenceProducer.instance[PublicKeyPropositionCurve25519] { prop: PublicKeyPropositionCurve25519 =>
-      Evidence(typePrefix, EvidenceContent @@ Blake2b256(prop.bytes.tail))
+      Evidence(typePrefix, EvidenceContent(blake2b256.hash(prop.bytes.tail)))
     }
 
   implicit val identifier: Identifiable[PublicKeyPropositionCurve25519] = Identifiable.instance { () =>
@@ -104,8 +107,8 @@ case class ThresholdPropositionCurve25519(threshold: Int, pubKeyProps: SortedSet
 
   pubKeyProps.foreach { prop =>
     require(
-      prop.pubKeyBytes.length == Curve25519.KeyLength,
-      s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${prop.pubKeyBytes.length} found"
+      prop.pubKeyBytes.value.length == Curve25519.KeyLength,
+      s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${prop.pubKeyBytes.value.length} found"
     )
   }
 
@@ -130,7 +133,7 @@ object ThresholdPropositionCurve25519 {
 
   implicit val evProducer: EvidenceProducer[ThresholdPropositionCurve25519] =
     EvidenceProducer.instance[ThresholdPropositionCurve25519] { prop: ThresholdPropositionCurve25519 =>
-      Evidence(typePrefix, EvidenceContent @@ Blake2b256(prop.bytes.tail))
+      Evidence(typePrefix, EvidenceContent(blake2b256.hash(prop.bytes.tail)))
     }
 
   implicit val identifier: Identifiable[ThresholdPropositionCurve25519] = Identifiable.instance { () =>

@@ -1,23 +1,26 @@
 package crypto
 
-import java.nio.charset.StandardCharsets
-
 import attestation.{Address, PrivateKeyCurve25519}
-import attestation.AddressEncoder.NetworkPrefix
-import keymanager.{Keyfile, KeyfileCompanion}
+import co.topl.crypto.{PrivateKey, PublicKey}
+import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.hash.implicits._
+import co.topl.crypto.signatures.Curve25519
+import co.topl.utils.codecs.AsBytes.implicits._
+import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.SecureRandom.randomBytes
+import co.topl.utils.encode.Base58
+import co.topl.utils.codecs.CryptoCodec.implicits._
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
+import keymanager.{Keyfile, KeyfileCompanion}
 import org.bouncycastle.crypto.BufferedBlockCipher
 import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
 import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
-import scorex.crypto.hash.Blake2b256
-import scorex.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
-import scorex.util.Random.randomBytes
-import scorex.util.encode.Base58
 
+import java.nio.charset.StandardCharsets
 import scala.util.Try
 
 /**
@@ -92,7 +95,7 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
         cipherBytes.grouped(Curve25519.KeyLength).toSeq match {
           case Seq(skBytes, pkBytes) =>
             // recreate the private key
-            val privateKey = new PrivateKeyCurve25519(PrivateKey @@ skBytes, PublicKey @@ pkBytes)
+            val privateKey = new PrivateKeyCurve25519(PrivateKey(skBytes), PublicKey(pkBytes))
             val derivedAddress = Address.from(privateKey.publicImage)
             // check that the address given in the keyfile matches the public key
             require(encryptedKeyFile.address == derivedAddress, "PublicKey in file is invalid")
@@ -143,7 +146,7 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
    * @return
    */
   private def getMAC(derivedKey: Array[Byte], cipherText: Array[Byte]): Array[Byte] =
-    Blake2b256(derivedKey.slice(16, 32) ++ cipherText)
+    blake2b256.hash(derivedKey.slice(16, 32) ++ cipherText).infalliblyEncodeAsBytes
 
   /**
    * Generates cipherText and MAC from AES (block cipher)

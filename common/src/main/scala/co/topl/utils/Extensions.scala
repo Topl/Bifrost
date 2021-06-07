@@ -1,8 +1,8 @@
 package co.topl.utils
 
 import java.nio.charset.{Charset, StandardCharsets}
-import scala.collection.BuildFrom
 import scala.reflect.ClassTag
+import scala.collection.compat.BuildFrom
 
 object Extensions {
 

@@ -1,14 +1,18 @@
 package co.topl.modifier.block
 
+import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.block.BloomFilter.BloomTopic
+import co.topl.utils.codecs.AsBytes.implicits._
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
+import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
+import co.topl.utils.codecs.{AsBytes, FromBytes, Infallible}
 import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import scorex.crypto.hash.Blake2b256
-import scorex.util.encode.Base58
-import supertagged.TaggedType
+import io.estatico.newtype.macros.newtype
 
+import scala.language.implicitConversions
 import scala.util.Try
 
 /**
@@ -57,8 +61,8 @@ class BloomFilter private (private val value: Array[Long]) extends BytesSerializ
 
 object BloomFilter extends BifrostSerializer[BloomFilter] {
 
-  object BloomTopic extends TaggedType[Array[Byte]]
-  type BloomTopic = BloomTopic.Type
+  @newtype
+  case class BloomTopic(value: Array[Byte])
 
   val numBytes: Int = 256 //bytes (2048 bits)
   private val size: Int = numBytes * 8
@@ -132,9 +136,11 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
    */
   private def calculateIndices(topic: BloomTopic): Set[Int] =
     // Pair up bytes and convert signed Byte to unsigned Int
-    Set(0, 2, 4, 6).map(i => Blake2b256(topic).slice(i, i + 2).map(_ & 0xff)).map { case Array(b1, b2) =>
-      ((b1 << 8) | b2) & idxMask
-    }
+    Set(0, 2, 4, 6)
+      .map(i => blake2b256.hash(topic.value).value.slice(i, i + 2).map(_ & 0xff))
+      .map { case Array(b1, b2) =>
+        ((b1 << 8) | b2) & idxMask
+      }
 
   /**
    * From the set of indices, create a long (with the appropriate bits flipped) that will be inserted in the
@@ -181,4 +187,11 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
     val value: Array[Long] = (for (_ <- 0 until numLongs) yield r.getLong()).toArray
     new BloomFilter(value)
   }
+
+  trait Instances {
+    implicit val bloomTopicDecoder: AsBytes[Infallible, BloomTopic] = AsBytes.infallible(_.value)
+    implicit val bloomTopicEncoder: FromBytes[Infallible, BloomTopic] = FromBytes.infallible(BloomTopic(_))
+  }
+
+  object implicits extends Instances
 }

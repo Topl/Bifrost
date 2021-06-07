@@ -1,11 +1,13 @@
 package modifier
 
+import attestation.Evidence
+import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.hash.digest.Digest32
+import co.topl.utils.codecs.AsBytes.implicits._
+import co.topl.utils.encode.Base58
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import scorex.crypto.hash.Blake2b256
-import scorex.util.encode.Base58
-import attestation.Evidence
 
 import scala.util.{Failure, Success}
 
@@ -26,7 +28,8 @@ case class BoxId(hashBytes: Array[Byte]) {
 }
 
 object BoxId {
-  val size: Int = Blake2b256.DigestSize // boxId is a 32 byte identifier
+
+  val size: Int = Digest32.size // boxId is a 32 byte identifier
 
   def apply[T](box: Box): BoxId = idFromEviNonce(box.evidence, box.nonce)
 
@@ -39,10 +42,8 @@ object BoxId {
       case Failure(ex) => throw ex
     }
 
-  def idFromEviNonce(evidence: Evidence, nonce: Long): BoxId = {
-    val hashBytes = Blake2b256(evidence.bytes ++ Longs.toByteArray(nonce))
-    BoxId(hashBytes)
-  }
+  def idFromEviNonce(evidence: Evidence, nonce: Long): BoxId =
+    BoxId(blake2b256.hash(evidence.bytes ++ Longs.toByteArray(nonce)).value)
 
   implicit val jsonEncoder: Encoder[BoxId] = (id: BoxId) => id.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[BoxId] = (id: BoxId) => id.toString

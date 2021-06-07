@@ -1,14 +1,15 @@
 package co.topl.modifier.transaction
 
 import co.topl.attestation.{Evidence, _}
+import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.BoxReader
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.box.{Box, _}
 import co.topl.utils.{Identifiable, Int128}
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
-import scorex.crypto.hash.Blake2b256
 
 import scala.util.Try
 import scala.Iterable
@@ -27,7 +28,7 @@ abstract class TransferTransaction[
 )(implicit val evidenceProducerEv: EvidenceProducer[P], identifiableEv: Identifiable[P])
     extends Transaction[TokenValueHolder, P] {
 
-  lazy val bloomTopics: IndexedSeq[BloomTopic] = to.map(b => BloomTopic @@ b._1.bytes)
+  lazy val bloomTopics: IndexedSeq[BloomTopic] = to.map(b => BloomTopic(b._1.bytes))
 
   lazy val boxIdsToOpen: IndexedSeq[BoxId] = from.map { case (addr, nonce) =>
     BoxId.idFromEviNonce(addr.evidence, nonce)
@@ -71,7 +72,7 @@ object TransferTransaction {
 
     // known input data (similar to messageToSign but without newBoxes since they aren't known yet)
     val txIdPrefix = Transaction.identifier(tx).typePrefix
-    val boxIdsToOpenAccumulator = tx.boxIdsToOpen.foldLeft(Array[Byte]())((acc, x) => acc ++ x.hashBytes)
+    val boxIdsToOpenAccumulator = tx.boxIdsToOpen.foldLeft(Array[Byte]())((acc, x) => acc ++ x.hash.value)
     val timestampBytes = Longs.toByteArray(tx.timestamp)
     val feeBytes = tx.fee.toByteArray
 
@@ -79,7 +80,7 @@ object TransferTransaction {
       Array(txIdPrefix) ++ boxIdsToOpenAccumulator ++ timestampBytes ++ feeBytes
 
     val calcNonce: Int => Box.Nonce = (index: Int) => {
-      val digest = Blake2b256(inputBytes ++ Ints.toByteArray(index))
+      val digest = blake2b256.hash(inputBytes ++ Ints.toByteArray(index))
       Transaction.nonceFromDigest(digest)
     }
 

@@ -1,15 +1,15 @@
 package crypto
 
+import attestation.Address
+import co.topl.utils.codecs.AsBytes.implicits._
+import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
+import crypto.AssetCode.AssetCodeVersion
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import scorex.util.encode.Base58
-import java.nio.charset.StandardCharsets
-
-import attestation.Address
-import crypto.AssetCode.AssetCodeVersion
 import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 
+import java.nio.charset.StandardCharsets
 import scala.util.{Failure, Success}
 
 /**

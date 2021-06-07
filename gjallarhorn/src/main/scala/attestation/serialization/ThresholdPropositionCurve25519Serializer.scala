@@ -15,7 +15,7 @@ object ThresholdPropositionCurve25519Serializer extends GjalSerializer[Threshold
 
     /* setOfPubKeyBytes: Set[Array[Byte]] */
     w.putUInt(obj.pubKeyProps.size)
-    obj.pubKeyProps.foreach(prop => w.putBytes(prop.pubKeyBytes))
+    obj.pubKeyProps.foreach(prop => w.putBytes(prop.pubKeyBytes.value))
   }
 
   override def parse(r: Reader): ThresholdPropositionCurve25519 = {

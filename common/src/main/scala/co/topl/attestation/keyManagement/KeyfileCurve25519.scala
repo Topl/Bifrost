@@ -1,9 +1,15 @@
 package co.topl.attestation.keyManagement
 
 import co.topl.attestation.Address
+import co.topl.crypto.{PrivateKey, PublicKey}
+import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.signatures.Curve25519
+import co.topl.utils.codecs.AsBytes.implicits.identityBytesEncoder
 import co.topl.utils.Extensions.StringOps
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.SecureRandom.randomBytes
+import co.topl.utils.encode.Base58
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
@@ -12,10 +18,6 @@ import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
 import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
-import scorex.crypto.hash.Blake2b256
-import scorex.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
-import scorex.util.Random.randomBytes
-import scorex.util.encode.Base58
 
 import scala.util.Try
 
@@ -111,7 +113,7 @@ object KeyfileCurve25519Companion extends KeyfileCompanion[PrivateKeyCurve25519,
         cipherBytes.grouped(Curve25519.KeyLength).toSeq match {
           case Seq(skBytes, pkBytes) =>
             // recreate the private key
-            val privateKey = new PrivateKeyCurve25519(PrivateKey @@ skBytes, PublicKey @@ pkBytes)
+            val privateKey = new PrivateKeyCurve25519(PrivateKey(skBytes), PublicKey(pkBytes))
             val derivedAddress = Address.from(privateKey.publicImage)
             // check that the address given in the keyfile matches the public key
             require(
@@ -159,7 +161,7 @@ object KeyfileCurve25519Companion extends KeyfileCompanion[PrivateKeyCurve25519,
    * @return
    */
   private def getMAC(derivedKey: Array[Byte], cipherText: Array[Byte]): Array[Byte] =
-    Blake2b256(derivedKey.slice(16, 32) ++ cipherText)
+    blake2b256.hash(derivedKey.slice(16, 32) ++ cipherText).value
 
   /**
    * @param derivedKey
