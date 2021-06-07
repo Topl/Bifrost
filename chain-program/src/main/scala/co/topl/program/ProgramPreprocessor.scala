@@ -130,7 +130,7 @@ object ProgramPreprocessor {
       .map(_.as[(String, String)] match { case Right(re) => re; case Left(ex) => throw ex })
       .map { pair =>
         val pub = PublicKeyPropositionCurve25519(pair._1)
-        val sig = SignatureCurve25519(Base58String.validated(pair._2).getOrThrow())
+        val sig = SignatureCurve25519(Base58String.unsafe(pair._2))
         pub -> sig
       }
 
@@ -365,7 +365,7 @@ object ProgramPreprocessor {
         code,
         signed.map { pair =>
           val pub = PublicKeyPropositionCurve25519(pair._1)
-          val sig = SignatureCurve25519(Base58String.validated(pair._2).getOrThrow())
+          val sig = SignatureCurve25519(Base58String.unsafe(pair._2))
           pub -> sig
         }
       )

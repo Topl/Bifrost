@@ -57,7 +57,7 @@ case class Program(
 //      })
 //      .asJson,
     "lastUpdated" -> lastUpdated.asJson,
-    "id"          -> Base58.encode(id).value.value.asJson
+    "id"          -> Base58.encode(id).asJson
   ).asJson
 
 }

@@ -144,7 +144,7 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
 object ThresholdSignatureCurve25519 {
 
   def apply(str: String): ThresholdSignatureCurve25519 =
-    Try(Base58String.validated(str).valueOr(errors => throw new Error(s"Input is not Base 58: $errors")))
+    Try(Base58String.unsafe(str))
       .flatMap(Proof.fromString) match {
       case Success(sig: ThresholdSignatureCurve25519) => sig
       case Success(_)                                 => throw new Error("Invalid proof generation")

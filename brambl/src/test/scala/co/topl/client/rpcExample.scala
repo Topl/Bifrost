@@ -40,7 +40,7 @@ object exampleState {
     "AUANVY6RqbJtTnQS1AFTQBjXMFYDknhV8NEixHFLmeZynMxVbp64",
     "AU9sKKy7MN7U9G6QeasZUMTirD6SeGQx8Sngmb9jmDgNB2EzA3rq",
     "AUAbSWQxzfoCN4FizrKKf6E1qCSRffHhjrvo2v7L6q8xFZ7pxKqh"
-  ).map(Base58String.validated(_).getOrThrow()).map(_.decodeAddress.getOrThrow())
+  ).map(Base58String.unsafe).map(_.decodeAddress.getOrThrow())
 
   val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
     KeyRing.empty[PrivateKeyCurve25519, KeyfileCurve25519]()(

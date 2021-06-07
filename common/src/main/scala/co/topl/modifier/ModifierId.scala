@@ -84,8 +84,7 @@ object ModifierId extends BifrostSerializer[ModifierId] {
    * @param str the string to turn into a modifier ID
    * @return a create result with a CreateModifierIdFailure if a failure occurred
    */
-  def createFromString(str: Base58String): ModifierId =
-    new ModifierId(str.infalliblyEncodeAsBytes)
+  def createFromString(str: Base58String): ModifierId = new ModifierId(str.infalliblyEncodeAsBytes)
 
   @deprecated
   def apply(nodeViewModifier: NodeViewModifier): ModifierId = nodeViewModifier match {
@@ -97,12 +96,7 @@ object ModifierId extends BifrostSerializer[ModifierId] {
   }
 
   @deprecated
-  def apply(str: String): ModifierId =
-    Base58String
-      .validated(str)
-      .map(Base58.decode)
-      .map(new ModifierId(_))
-      .getOrThrow()
+  def apply(str: String): ModifierId = new ModifierId(Base58String.unsafe(str).infalliblyEncodeAsBytes)
 
   def serialize(obj: ModifierId, w: Writer): Unit =
     /* value: Array[Byte] */

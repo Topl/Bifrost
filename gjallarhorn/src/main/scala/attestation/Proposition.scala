@@ -48,7 +48,7 @@ sealed trait Proposition extends BytesSerializable {
 object Proposition {
 
   def fromString(str: String): Try[_ <: Proposition] =
-    Try(Base58String.validated(str).valueOr(errors => throw new Error(s"Input is not Base 58: ${errors.show}")))
+    Try(Base58String.unsafe(str))
       .map(base58String => Base58.decode(base58String))
       .flatMap(PropositionSerializer.parseBytes)
 
