@@ -13,8 +13,6 @@ trait NodeSchema[T] {
   def name: String
   def properties: List[Property]
   def indices: List[Index]
-  def srcEdges: List[EdgeSchema[_, T, _]]
-  def destEdges: List[EdgeSchema[_, _, T]]
 
   def encode: T => Map[String, Any]
 
@@ -27,8 +25,6 @@ object NodeSchema {
   def apply[T: ClassTag](
     p:   List[Property] = Nil,
     i:   List[Index] = Nil,
-    s:   => List[EdgeSchema[_, T, _]],
-    d:   => List[EdgeSchema[_, _, T]],
     enc: T => Map[String, Any],
     dec: Decoder => T
   ): NodeSchema[T] = new NodeSchema[T] {
@@ -37,10 +33,6 @@ object NodeSchema {
     override def properties: List[Property] = p
 
     override def indices: List[Index] = i
-
-    override def srcEdges: List[EdgeSchema[_, T, _]] = s
-
-    override def destEdges: List[EdgeSchema[_, _, T]] = d
 
     override def encode: T => Map[String, Any] = enc
 

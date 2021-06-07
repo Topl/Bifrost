@@ -233,6 +233,24 @@ class BlockchainGraphSpec
     ))
   }
 
+  it should "retrieve state" in {
+    val t = underTest
+    import t._
+
+    blockBody1.lookupUnopenedBox(boxId1).futureRightValue shouldBe box1
+    blockBody1.lookupUnopenedBox(boxId2).futureLeftValue shouldBe BlockchainOps.NotFound
+//    blockBody1.state.futureRightValue.unopenedBoxes
+//      .runWith(Sink.seq)
+//      .futureValue
+//      .map(_.value) should (have size 1 and contain(box1))
+    blockBody2.lookupUnopenedBox(boxId1).futureLeftValue shouldBe BlockchainOps.NotFound
+    blockBody2.lookupUnopenedBox(boxId2).futureRightValue shouldBe box2
+//    blockBody2.state.futureRightValue.unopenedBoxes
+//      .runWith(Sink.seq)
+//      .futureValue
+//      .map(_.value) should (have size 1 and contain(box2))
+  }
+
   it should "know the current heads" in {
     val t = underTest
     import t._

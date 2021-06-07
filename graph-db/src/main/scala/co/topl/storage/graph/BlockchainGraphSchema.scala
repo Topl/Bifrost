@@ -22,7 +22,7 @@ object BlockchainGraphSchema {
       TransactionBoxOpens.edgeSchema,
       CanonicalHead.edgeSchema,
       BoxAccount.edgeSchema,
-      HeaderState.edgeSchema,
+      BodyState.edgeSchema,
       StateUnopenedBox.edgeSchema
     )
   )
@@ -60,8 +60,6 @@ object BlockHeader {
       Index("BlockHeader_heightIndex", OClass.INDEX_TYPE.NOTUNIQUE, "height"),
       Index("BlockHeader_bloomFilterIndex", OClass.INDEX_TYPE.NOTUNIQUE, "bloomFilter")
     ),
-    s = List(BlockParent.edgeSchema, HeaderState.edgeSchema),
-    d = List(BlockParent.edgeSchema, BodyHeader.edgeSchema, CanonicalHead.edgeSchema),
     enc = header =>
       Map(
         "blockId"     -> header.blockId,
@@ -101,8 +99,6 @@ object BlockBody {
     i = List(
       Index("BlockBody_idIndex", OClass.INDEX_TYPE.UNIQUE_HASH_INDEX, "blockId")
     ),
-    s = List(BodyHeader.edgeSchema),
-    d = List(TransactionBlock.edgeSchema),
     enc = body =>
       Map(
         "blockId" -> body.blockId
@@ -130,8 +126,6 @@ object Transaction {
       Index("Transaction_idIndex", OClass.INDEX_TYPE.UNIQUE_HASH_INDEX, "transactionId"),
       Index("Transaction_timestampIndex", OClass.INDEX_TYPE.NOTUNIQUE, "timestamp")
     ),
-    s = List(TransactionBlock.edgeSchema, TransactionBoxCreates.edgeSchema, TransactionBoxOpens.edgeSchema),
-    d = Nil,
     enc = transaction =>
       Map(
         "transactionId"                -> transaction.transactionId,
@@ -166,8 +160,6 @@ object Box {
       Index("Box_idIndex", OClass.INDEX_TYPE.UNIQUE_HASH_INDEX, "boxId"),
       Index("Box_boxTypeIndex", OClass.INDEX_TYPE.NOTUNIQUE, "boxType")
     ),
-    s = List(BoxAccount.edgeSchema),
-    d = List(TransactionBoxCreates.edgeSchema, TransactionBoxOpens.edgeSchema, StateUnopenedBox.edgeSchema),
     enc = box =>
       Map(
         "boxId"   -> box.boxId,
@@ -196,8 +188,6 @@ object Account {
     i = List(
       Index("Account_addressIndex", OClass.INDEX_TYPE.UNIQUE_HASH_INDEX, "address")
     ),
-    s = Nil,
-    d = List(BoxAccount.edgeSchema),
     enc = account =>
       Map(
         "address" -> account.address
@@ -217,25 +207,23 @@ object ChainHead {
     NodeSchema[ChainHead](
       p = Nil,
       i = Nil,
-      s = List(CanonicalHead.edgeSchema),
-      d = Nil,
       enc = _ => Map.empty,
       dec = _ => ChainHead()
     )
 }
 
-case class State()
+case class State(stateId: String)
 
 object State {
 
   implicit val nodeSchema: NodeSchema[State] =
     NodeSchema[State](
-      p = Nil,
-      i = Nil,
-      s = List(StateUnopenedBox.edgeSchema),
-      d = List(HeaderState.edgeSchema),
+      p = List(Property("stateId", OType.STRING)),
+      i = List(
+        Index("State_stateId", OClass.INDEX_TYPE.UNIQUE_HASH_INDEX, "stateId")
+      ),
       enc = _ => Map.empty,
-      dec = _ => State()
+      dec = decoder => State(decoder("stateId"))
     )
 }
 
@@ -306,12 +294,12 @@ object BoxAccount {
 
 }
 
-case class HeaderState()
+case class BodyState()
 
-object HeaderState {
+object BodyState {
 
-  implicit val edgeSchema: EdgeSchema[HeaderState, BlockHeader, State] =
-    EdgeSchema(enc = _ => Map.empty, dec = _ => HeaderState())
+  implicit val edgeSchema: EdgeSchema[BodyState, BlockBody, State] =
+    EdgeSchema(enc = _ => Map.empty, dec = _ => BodyState())
 
 }
 

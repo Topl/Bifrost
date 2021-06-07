@@ -90,10 +90,15 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
           val vertexType = session.createVertexType(nodeSchema.name)
           nodeSchema.properties.foreach(property => vertexType.createProperty(property.name, property.propertyType))
           nodeSchema.indices.foreach(index => vertexType.createIndex(index.name, index.indexType, index.propertyName))
-          nodeSchema.srcEdges.foreach(edgeSchema => vertexType.createEdgeProperty(Direction.OUT, edgeSchema.name))
-          nodeSchema.destEdges.foreach(edgeSchema => vertexType.createEdgeProperty(Direction.IN, edgeSchema.name))
       }
     }
+    schema.edgeSchemas
+      .foreach { edgeSchema =>
+        val srcVertex = session.getVertexType(edgeSchema.srcSchema.name)
+        val destVertex = session.getVertexType(edgeSchema.destSchema.name)
+        srcVertex.createEdgeProperty(Direction.OUT, edgeSchema.name)
+        destVertex.createEdgeProperty(Direction.IN, edgeSchema.name)
+      }
   }
 
   private def blockingOperation[T](operation: => T): Future[T] =
@@ -113,7 +118,7 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
         .execute[OrientDynaElementIterable]()
         .iterator()
         .asScala
-        .collect { case r: R => r }
+        .collect { case r: R @unchecked => r }
     )
 
   def getNode[T: NodeSchema](query: String): Future[Option[T]] = {
