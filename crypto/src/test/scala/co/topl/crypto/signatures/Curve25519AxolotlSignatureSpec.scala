@@ -37,7 +37,7 @@ class Curve25519AxolotlSignatureSpec extends AnyPropSpec with ScalaCheckDrivenPr
 
   /* The tests below are generated with on June 7, 2021 using Curve25519.scala in the Crypto module:
    * https://github.com/Topl/Bifrost/blob/ed25519/crypto/src/main/scala/co/topl/crypto/signatures/Curve25519.scala
-   * Commit hash:
+   * Commit hash: ef396e2faa36cfb50a6ec00961a2a021491c88a6
    */
   property("test vectors with seed string: test1") {
     val privKey = PrivateKey(Hex.decode("184F0E9851971998E732078544C96B36C3D01CEDF7CAA332359D6F1D83567054"))
