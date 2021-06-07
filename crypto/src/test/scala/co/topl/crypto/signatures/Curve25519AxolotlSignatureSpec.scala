@@ -53,7 +53,6 @@ class Curve25519AxolotlSignatureSpec extends AnyPropSpec with ScalaCheckDrivenPr
 
     Curve25519.verify(sig, message, pubKey) shouldBe true
     Curve25519.verify(specSig, message, pubKey) shouldBe true
-    // sig.value.sameElements(specSig) shouldBe true
   }
 
   property("test vectors with seed string: test2, and one byte message length") {
@@ -70,7 +69,6 @@ class Curve25519AxolotlSignatureSpec extends AnyPropSpec with ScalaCheckDrivenPr
 
     Curve25519.verify(sig, message, pubKey) shouldBe true
     Curve25519.verify(specSig, message, pubKey) shouldBe true
-    // sig.value.sameElements(specSig)
   }
 
   property("test vectors with seed string: test3, and two bytes message length") {
@@ -87,7 +85,6 @@ class Curve25519AxolotlSignatureSpec extends AnyPropSpec with ScalaCheckDrivenPr
 
     Curve25519.verify(sig, message, pubKey) shouldBe true
     Curve25519.verify(specSig, message, pubKey) shouldBe true
-    // sig.value.sameElements(specSig)
   }
 
   property("test vectors with seed string: test1024, and 1023 bytes message length") {
@@ -124,7 +121,6 @@ class Curve25519AxolotlSignatureSpec extends AnyPropSpec with ScalaCheckDrivenPr
 
     Curve25519.verify(sig, message, pubKey) shouldBe true
     Curve25519.verify(specSig, message, pubKey) shouldBe true
-    // sig.value.sameElements(specSig)
   }
 
   property("test vectors with seed string: testsha, and abc hashed by SHA512 as message") {
@@ -144,6 +140,5 @@ class Curve25519AxolotlSignatureSpec extends AnyPropSpec with ScalaCheckDrivenPr
 
     Curve25519.verify(sig, message, pubKey) shouldBe true
     Curve25519.verify(specSig, message, pubKey) shouldBe true
-    // sig.value.sameElements(specSig)
   }
 }
