@@ -8,7 +8,7 @@ import java.security.SecureRandom
  * Implements RFC7748 Section 6.1 Diffie-Hellman key exchange with base point 9
  */
 
-class ECX25519 {
+private[crypto] class ECX25519 {
 
   val x25519: X25519 = new X25519
 

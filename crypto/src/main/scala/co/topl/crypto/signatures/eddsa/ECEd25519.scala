@@ -8,12 +8,19 @@ import java.util
  * Ed25519 ported from BouncyCastle
  * Licensing: https://www.bouncycastle.org/licence.html
  * Copyright (c) 2000 - 2021 The Legion of the Bouncy Castle Inc. (https://www.bouncycastle.org)
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+ * Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+ * WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-class ECEd25519 extends EC {
+private[crypto] class ECEd25519 extends EC {
 
   def dom2(d: SHA512Digest, phflag: Byte, ctx: Array[Byte]): Unit =
     if (ctx.nonEmpty) {
@@ -148,7 +155,15 @@ class ECEd25519 extends EC {
     util.Arrays.equals(check, R)
   }
 
-  def sign(sk: Array[Byte], skOff: Int, m: Array[Byte], mOff: Int, mLen: Int, sig: Array[Byte], sigOff: Int): Unit = {
+  def sign(
+    sk:     Array[Byte],
+    skOff:  Int,
+    m:      Array[Byte],
+    mOff:   Int,
+    mLen:   Int,
+    sig:    Array[Byte],
+    sigOff: Int
+  ): Unit = {
     val ctx: Array[Byte] = Array.empty
     val phflag: Byte = 0x00
     implSign(sk, skOff, ctx, phflag, m, mOff, mLen, sig, sigOff)

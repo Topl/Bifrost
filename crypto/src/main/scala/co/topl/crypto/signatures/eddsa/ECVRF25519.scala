@@ -9,7 +9,7 @@ import java.security.SecureRandom
  * https://tools.ietf.org/html/draft-irtf-cfrg-vrf-04
  */
 
-class ECVRF25519 extends EC {
+private[crypto] class ECVRF25519 extends EC {
   val suite: Array[Byte] = Array(0x03.toByte)
   val cofactor: Array[Byte] = Array.fill(SCALAR_BYTES)(0x00.toByte)
   val zeroScalar: Array[Byte] = Array.fill(SCALAR_BYTES)(0x00.toByte)
