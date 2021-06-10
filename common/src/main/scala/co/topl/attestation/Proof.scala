@@ -95,16 +95,16 @@ object SignatureCurve25519 {
 
   def apply(data: Base58Data)(implicit d: DummyImplicit): SignatureCurve25519 =
     Proof.fromBase58(data) match {
-      case Right(sig: SignatureCurve25519)      => sig
-      case Right(_)                             => throw new Exception("Parsed to incorrect signature type")
-      case Left(error) => throw new Exception(s"Error while parsing proof: $error")
+      case Right(sig: SignatureCurve25519) => sig
+      case Right(_)                        => throw new Exception("Parsed to incorrect signature type")
+      case Left(error)                     => throw new Exception(s"Error while parsing proof: $error")
     }
 
   def apply(str: String)(implicit d: DummyImplicit): SignatureCurve25519 =
     Proof.fromString(str) match {
-      case Right(sig: SignatureCurve25519)      => sig
-      case Right(_)                             => throw new Exception("Parsed to incorrect signature type")
-      case Left(error) => throw new Exception(s"Error while parsing proof: $error")
+      case Right(sig: SignatureCurve25519) => sig
+      case Right(_)                        => throw new Exception("Parsed to incorrect signature type")
+      case Left(error)                     => throw new Exception(s"Error while parsing proof: $error")
     }
 
   // see circe documentation for custom encoder / decoders
