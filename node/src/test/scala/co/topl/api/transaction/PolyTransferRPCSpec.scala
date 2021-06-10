@@ -3,7 +3,7 @@ package co.topl.api.transaction
 import akka.util.ByteString
 import co.topl.api.RPCMockState
 import co.topl.attestation.Address
-import co.topl.utils.StringTypes.Base58String
+import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.codecs.implicits.base58JsonDecoder
 import co.topl.utils.encode.Base58
 import io.circe.Json
@@ -51,9 +51,9 @@ class PolyTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState wi
 
         val sigTx = for {
           rawTx   <- res.hcursor.downField("result").get[Json]("rawTx")
-          message <- res.hcursor.downField("result").get[Base58String]("messageToSign")
+          message <- res.hcursor.downField("result").get[Base58Data]("messageToSign")
         } yield {
-          val sig = keyRing.generateAttestation(address)(Base58.decode(message))
+          val sig = keyRing.generateAttestation(address)(message.value)
           val signatures: Json = Map(
             "signatures" -> sig.asJson
           ).asJson

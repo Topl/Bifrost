@@ -2,9 +2,8 @@ package attestation
 
 import cats.implicits._
 import co.topl.crypto.hash.digest.Digest
-import co.topl.utils.StringTypes.implicits._
-import co.topl.utils.StringTypes.Base58String
-import co.topl.utils.encode.Base58
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.codecs.implicits._
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
@@ -27,7 +26,7 @@ final class Evidence private (private val evBytes: Array[Byte]) extends BytesSer
   override type M = Evidence
   override def serializer: GjalSerializer[Evidence] = Evidence
 
-  override def toString: String = Base58.encode(bytes).show
+  override def toString: String = bytes.encodeAsBase58.show
 
   override def equals(obj: Any): Boolean = obj match {
     case ec: Evidence => bytes sameElements ec.bytes
@@ -57,13 +56,7 @@ object Evidence extends GjalSerializer[Evidence] {
       case Failure(ex) => throw ex
     }
 
-  private def apply(str: String): Evidence =
-    Base58String
-      .validated(str)
-      .map(_.infalliblyEncodeAsBytes)
-      .map(bytes => fromBytes(bytes))
-      .valueOr(errors => throw new Error(s"Failed to create evidence from string $errors"))
-      .get
+  private def fromBase58(data: Base58Data): Evidence = fromBytes(data.value).get
 
   private def fromBytes(byteArray: Array[Byte]): Try[Evidence] = Try {
     require(byteArray.length == size, s"Incorrect length of input byte array when constructing evidence")
@@ -82,6 +75,6 @@ object Evidence extends GjalSerializer[Evidence] {
   // https://circe.github.io/circe/codecs/custom-codecs.html
   implicit val jsonEncoder: Encoder[Evidence] = (ec: Evidence) => ec.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[Evidence] = (ec: Evidence) => ec.toString
-  implicit val jsonDecoder: Decoder[Evidence] = Decoder.decodeString.map(apply)
-  implicit val jsonKeyDecoder: KeyDecoder[Evidence] = (str: String) => Some(apply(str))
+  implicit val jsonDecoder: Decoder[Evidence] = Decoder[Base58Data].map(fromBase58)
+  implicit val jsonKeyDecoder: KeyDecoder[Evidence] = KeyDecoder[Base58Data].map(fromBase58)
 }

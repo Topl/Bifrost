@@ -15,7 +15,7 @@ import co.topl.rpc.ToplRpc.NodeView._
 import co.topl.rpc.ToplRpc.Transaction.{BroadcastTx, RawArbitTransfer, RawAssetTransfer, RawPolyTransfer}
 import co.topl.rpc.implicits.client._
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
-import co.topl.utils.StringTypes.Base58String
+import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import io.circe.syntax.EncoderOps
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -40,7 +40,7 @@ object exampleState {
     "AUANVY6RqbJtTnQS1AFTQBjXMFYDknhV8NEixHFLmeZynMxVbp64",
     "AU9sKKy7MN7U9G6QeasZUMTirD6SeGQx8Sngmb9jmDgNB2EzA3rq",
     "AUAbSWQxzfoCN4FizrKKf6E1qCSRffHhjrvo2v7L6q8xFZ7pxKqh"
-  ).map(Base58String.unsafe).map(_.decodeAddress.getOrThrow())
+  ).map(Base58Data.unsafe).map(_.decodeAddress.getOrThrow())
 
   val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
     KeyRing.empty[PrivateKeyCurve25519, KeyfileCurve25519]()(
@@ -49,7 +49,7 @@ object exampleState {
       KeyfileCurve25519Companion
     )
 
-  val assetCode: AssetCode = AssetCode(1: Byte, externalAddress.head, "test_1")
+  val assetCode: AssetCode = AssetCode(1: Byte, externalAddress.head, Latin1Data.unsafe("test_1"))
 
   def genKeys(): Unit = keyRing.generateNewKeyPairs(10, Some("test"))
   def clearKeyRing(): Unit = keyRing.addresses.map(keyRing.removeFromKeyring)

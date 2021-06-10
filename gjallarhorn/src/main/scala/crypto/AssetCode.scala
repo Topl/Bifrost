@@ -1,10 +1,10 @@
 package crypto
 
-import attestation.Address
 import cats.implicits._
-import co.topl.utils.StringTypes.Base58String
-import co.topl.utils.StringTypes.implicits.showBase58String
-import co.topl.utils.encode.Base58
+import attestation.Address
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.StringDataTypes.implicits._
+import co.topl.utils.codecs.implicits._
 import com.google.common.primitives.Ints
 import crypto.AssetCode.AssetCodeVersion
 import io.circe.syntax.EncoderOps
@@ -30,7 +30,7 @@ case class AssetCode private (version: AssetCodeVersion, issuer: Address, shortN
   override type M = AssetCode
   override def serializer: GjalSerializer[AssetCode] = AssetCode
 
-  override def toString: String = Base58.encode(bytes).show
+  override def toString: String = bytes.encodeAsBase58.show
 
   override def equals(obj: Any): Boolean = obj match {
     case ec: AssetCode => bytes sameElements ec.bytes
@@ -45,19 +45,6 @@ object AssetCode extends GjalSerializer[AssetCode] {
 
   val shortNameLimit = 8 // limit to the asset shortName is 8 UTF-8 encoded characters
 
-  implicit val jsonEncoder: Encoder[AssetCode] = (ac: AssetCode) => ac.toString.asJson
-  implicit val jsonKeyEncoder: KeyEncoder[AssetCode] = (ac: AssetCode) => ac.toString
-  implicit val jsonDecoder: Decoder[AssetCode] = Decoder.decodeString.map(apply)
-  implicit val jsonKeyDecoder: KeyDecoder[AssetCode] = (str: String) => Some(apply(str))
-
-  private def apply(str: String): AssetCode =
-    (for {
-      base58String <- Base58String.validated(str).toEither
-      bytes = Base58.decode(base58String)
-      assetCode <- parseBytes(bytes).toEither
-    } yield assetCode)
-      .valueOr(error => throw new Error(s"Failed to create asset code from string $error"))
-
   override def serialize(obj: AssetCode, w: Writer): Unit = {
     w.put(obj.version)
     Address.serialize(obj.issuer, w)
@@ -71,4 +58,14 @@ object AssetCode extends GjalSerializer[AssetCode] {
     require(version == 1.toByte, "AssetCode version required to be 1")
     new AssetCode(version, issuer, shortName)
   }
+
+  private def fromBase58(data: Base58Data): AssetCode = parseBytes(data.value) match {
+    case Success(ec)  => ec
+    case Failure(err) => throw err
+  }
+
+  implicit val jsonEncoder: Encoder[AssetCode] = (ac: AssetCode) => ac.toString.asJson
+  implicit val jsonKeyEncoder: KeyEncoder[AssetCode] = (ac: AssetCode) => ac.toString
+  implicit val jsonDecoder: Decoder[AssetCode] = Decoder[Base58Data].map(fromBase58)
+  implicit val jsonKeyDecoder: KeyDecoder[AssetCode] = KeyDecoder[Base58Data].map(fromBase58)
 }

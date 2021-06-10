@@ -1,5 +1,6 @@
 package co.topl.utils
 
+import cats.implicits._
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
 import co.topl.attestation.keyManagement._
@@ -11,8 +12,10 @@ import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.Box.Nonce
 import co.topl.modifier.box.{ProgramId, _}
 import co.topl.modifier.transaction._
+import co.topl.utils.StringDataTypes.Latin1Data
+import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.encode.Base58
-import co.topl.utils.codecs.AsBytes.implicits._
+import co.topl.utils.codecs.implicits._
 import io.circe.Json
 import io.circe.syntax._
 import org.scalacheck.rng.Seed
@@ -125,7 +128,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   } yield {
     // TODO: Hard coded as 1, but change this to arbitrary in the future
     val assetVersion = 1: Byte
-    val assetCode = AssetCode(assetVersion, issuer, shortName)
+    val assetCode = AssetCode(assetVersion, issuer, Latin1Data.unsafe(shortName))
     val value = AssetValue(quantity, assetCode, metadata = Some(data))
     AssetBox(evidence, nonce, value)
   }
@@ -204,7 +207,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     // assetVersion <- Arbitrary.arbitrary[Byte]
     issuer    <- addressGen
     shortName <- shortNameGen
-  } yield AssetCode(1: Byte, issuer, shortName)
+  } yield AssetCode(1: Byte, issuer, Latin1Data.unsafe(shortName))
 
   lazy val assetValueGen: Gen[AssetValue] = for {
     quantity  <- positiveLongGen
@@ -378,7 +381,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     signature     <- signatureGen
     txs           <- bifrostTransactionSeqGen
   } yield {
-    val parentId = ModifierId.createFromString(Base58.encode(parentIdBytes))
+    val parentId = ModifierId.fromBase58(parentIdBytes.encodeAsBase58)
     val height: Long = 1L
     val difficulty = 1000000000000000000L
     val version: PNVMVersion = 1: Byte

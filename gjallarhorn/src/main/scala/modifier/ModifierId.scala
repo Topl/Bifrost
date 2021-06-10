@@ -4,8 +4,7 @@ import attestation.Proposition
 import cats.implicits._
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.utils.StringTypes.Base58String
-import co.topl.utils.StringTypes.implicits._
+import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
@@ -66,7 +65,7 @@ object ModifierId extends GjalSerializer[ModifierId] {
       TransferTransaction.modifierTypeId.value +: blake2b256.hash(transferTransaction.messageToSign).value
     )
 
-  def apply(str: String): ModifierId = new ModifierId(Base58.decode(Base58String.unsafe(str)))
+  def apply(str: String): ModifierId = new ModifierId(Base58Data.unsafe(str).value)
 
   def serialize(obj: ModifierId, w: Writer): Unit =
     /* value: Array[Byte] */

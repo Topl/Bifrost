@@ -1,17 +1,16 @@
 package attestation
 
+import cats.implicits._
 import attestation.AddressEncoder.NetworkPrefix
 import attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
 import attestation.serialization.PropositionSerializer
-import cats.implicits._
 import co.topl.crypto.PublicKey
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.implicits._
 import co.topl.crypto.signatures.Curve25519
-import co.topl.utils.StringTypes.Base58String
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.codecs.implicits._
-import co.topl.utils.encode.Base58
-import co.topl.utils.StringTypes.implicits._
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
@@ -35,7 +34,7 @@ sealed trait Proposition extends BytesSerializable {
 
   def address(implicit networkPrefix: NetworkPrefix): Address
 
-  override def toString: String = Base58.encode(bytes).show
+  override def toString: String = bytes.encodeAsBase58.show
 
   override def equals(obj: Any): Boolean = obj match {
     case prop: Proposition => prop.bytes sameElements bytes
@@ -47,13 +46,14 @@ sealed trait Proposition extends BytesSerializable {
 
 object Proposition {
 
-  def fromString(str: String): Try[_ <: Proposition] =
-    Try(Base58String.unsafe(str))
-      .map(base58String => Base58.decode(base58String))
-      .flatMap(PropositionSerializer.parseBytes)
+  def fromBase58(data: Base58Data): Try[_ <: Proposition] = PropositionSerializer.parseBytes(data.value)
+
+  def fromString(str: String): Try[_ <: Proposition] = Try(Base58Data.unsafe(str)).flatMap(fromBase58)
 
   implicit def jsonKeyEncoder[P <: Proposition]: KeyEncoder[P] = (prop: P) => prop.toString
-  implicit val jsonKeyDecoder: KeyDecoder[Proposition] = (str: String) => fromString(str).toOption
+
+  implicit val jsonKeyDecoder: KeyDecoder[Proposition] =
+    json => Base58Data.validated(json).toOption.flatMap(fromBase58(_).toOption)
 }
 
 /**
@@ -95,6 +95,13 @@ object PublicKeyPropositionCurve25519 {
       case Failure(ex)                                 => throw ex
     }
 
+  def fromBase58(data: Base58Data): PublicKeyPropositionCurve25519 =
+    Proposition.fromBase58(data) match {
+      case Success(prop: PublicKeyPropositionCurve25519) => prop
+      case Success(_)                                    => throw new Error("Invalid proposition generation")
+      case Failure(ex)                                   => throw ex
+    }
+
   implicit val evProducer: EvidenceProducer[PublicKeyPropositionCurve25519] =
     EvidenceProducer.instance[PublicKeyPropositionCurve25519] { prop: PublicKeyPropositionCurve25519 =>
       Evidence(typePrefix, EvidenceContent(blake2b256.hash(prop.bytes)))
@@ -111,8 +118,8 @@ object PublicKeyPropositionCurve25519 {
 
   implicit val jsonKeyEncoder: KeyEncoder[PublicKeyPropositionCurve25519] = (prop: PublicKeyPropositionCurve25519) =>
     prop.toString
-  implicit val jsonDecoder: Decoder[PublicKeyPropositionCurve25519] = Decoder.decodeString.map(apply)
-  implicit val jsonKeyDecoder: KeyDecoder[PublicKeyPropositionCurve25519] = (str: String) => Some(apply(str))
+  implicit val jsonDecoder: Decoder[PublicKeyPropositionCurve25519] = Decoder[Base58Data].map(fromBase58)
+  implicit val jsonKeyDecoder: KeyDecoder[PublicKeyPropositionCurve25519] = KeyDecoder[Base58Data].map(fromBase58)
 }
 
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
@@ -151,6 +158,13 @@ object ThresholdPropositionCurve25519 {
       case Failure(ex)                                   => throw ex
     }
 
+  def fromBase58(data: Base58Data): ThresholdPropositionCurve25519 =
+    Proposition.fromBase58(data) match {
+      case Success(prop: ThresholdPropositionCurve25519) => prop
+      case Success(_)                                    => throw new Error("Invalid proposition generation")
+      case Failure(ex)                                   => throw ex
+    }
+
   implicit val evProducer: EvidenceProducer[ThresholdPropositionCurve25519] =
     EvidenceProducer.instance[ThresholdPropositionCurve25519] { prop: ThresholdPropositionCurve25519 =>
       Evidence(typePrefix, EvidenceContent(blake2b256.hash(prop.bytes)))
@@ -167,6 +181,6 @@ object ThresholdPropositionCurve25519 {
 
   implicit val jsonKeyEncoder: KeyEncoder[ThresholdPropositionCurve25519] = (prop: ThresholdPropositionCurve25519) =>
     prop.toString
-  implicit val jsonDecoder: Decoder[ThresholdPropositionCurve25519] = Decoder.decodeString.map(apply)
-  implicit val jsonKeyDecoder: KeyDecoder[ThresholdPropositionCurve25519] = (str: String) => Some(apply(str))
+  implicit val jsonDecoder: Decoder[ThresholdPropositionCurve25519] = Decoder[Base58Data].map(fromBase58)
+  implicit val jsonKeyDecoder: KeyDecoder[ThresholdPropositionCurve25519] = KeyDecoder[Base58Data].map(fromBase58)
 }

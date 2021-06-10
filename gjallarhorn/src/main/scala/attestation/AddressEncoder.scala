@@ -5,8 +5,8 @@ import cats.implicits._
 import co.topl.crypto.hash.blake2b256
 import co.topl.utils.codecs.implicits._
 import co.topl.utils.encode.Base58
-import co.topl.utils.StringTypes.Base58String
-import co.topl.utils.StringTypes.implicits._
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.StringDataTypes.implicits._
 
 import scala.util.{Failure, Try}
 
@@ -37,7 +37,7 @@ object AddressEncoder {
     val addrBytes = addr.bytes
     val checksum = genChecksum(addrBytes)
 
-    (addrBytes ++ checksum).infalliblyDecodeTo[Base58String].show
+    (addrBytes ++ checksum).encodeAsBase58.show
   }
 
   /**
@@ -45,14 +45,13 @@ object AddressEncoder {
    * @param addrStr a Base58 encoded address
    * @return the address that was encoded in the string
    */
-  @deprecated
-  def fromStringUnsafe(addrStr: String): Try[Address] =
-    Base58String.validated(addrStr).map(fromStringUnsafe) match {
+  def fromString(addrStr: String): Try[Address] =
+    Base58Data.validated(addrStr).map(fromBase58) match {
       case Valid(result)   => result
-      case Invalid(errors) => Failure(new Error(s"Address is not Base 58 encoded: ${errors.show}"))
+      case Invalid(errors) => Failure(new Error(s"Address is not Base 58 encoded: $errors"))
     }
 
-  def fromStringUnsafe(addrStr: Base58String): Try[Address] = fromBytes(addrStr.infalliblyEncodeAsBytes)
+  def fromBase58(addrData: Base58Data): Try[Address] = fromBytes(addrData.infalliblyEncodeAsBytes)
 
   /**
    * Parse an Address from a string ensuring that the networkPrefix is correct
@@ -60,19 +59,15 @@ object AddressEncoder {
    * @param networkPrefix a single byte used to identify a network
    * @return the address encoded in the string
    */
-  @deprecated
   def fromStringWithCheck(addrStr: String, networkPrefix: NetworkPrefix): Try[Address] =
-    Base58String.validated(addrStr).map(fromStringWithCheck(_, networkPrefix)) match {
+    Base58Data.validated(addrStr).map(fromBase58WithCheck(_, networkPrefix)) match {
       case Valid(result)   => result
-      case Invalid(errors) => Failure(new Error(s"Address is not Base 58: ${errors.show}"))
+      case Invalid(errors) => Failure(new Error(s"""Invalid address: "$addrStr". Value not Base 58: $errors"""))
     }
 
-  def fromStringWithCheck(addrStr: Base58String, networkPrefix: NetworkPrefix): Try[Address] = {
-    val addr = Base58.decode(addrStr)
-
-    if (addr.head == networkPrefix) fromBytes(addr)
-    else Failure(new Exception(s"""Invalid address: "$addrStr". Network type does not match"""))
-  }
+  def fromBase58WithCheck(addrData: Base58Data, networkPrefix: NetworkPrefix): Try[Address] =
+    if (addrData.value.head == networkPrefix) fromBytes(addrData.value)
+    else Failure(new Exception(s"""Invalid address: "${addrData.show}". Network type does not match"""))
 
   /**
    * Parses an address from an array of bytes

@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.util.Timeout
 import attestation.{Address, PrivateKeyCurve25519}
 import cats.data.Validated.{Invalid, Valid}
-import co.topl.utils.StringTypes.Base58String
+import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.encode.Base58
 import crypto.KeyfileCurve25519
 import http.GjallarhornOfflineApiRoute.updateConfigFile
@@ -98,7 +98,7 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
    */
   private def createSignatures(keys: IndexedSeq[Address], msg: String): Map[PrivateKeyCurve25519#PK, Json] =
     keys.map { address =>
-      Base58String.validated(msg).map(Base58.decode) match {
+      Base58Data.validated(msg).map(_.value) match {
         case Valid(msgToSign) =>
           keyRing.signWithAddress(address, msgToSign) match {
             case Success(signedTx) =>

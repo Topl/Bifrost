@@ -9,7 +9,8 @@ import co.topl.modifier.transaction.validation.implicits._
 import co.topl.nodeView.state.State
 import co.topl.nodeView.{BroadcastTxFailureException, GetStateFailureException, NodeViewHolderInterface}
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
-import co.topl.utils.StringTypes.implicits._
+import co.topl.utils.codecs.implicits._
+import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.encode.Base58
 import io.circe.Encoder
@@ -35,7 +36,7 @@ class TransactionRpcHandlerImpls(
           .fromTry(transferTry)
           .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
           .toEitherT[Future]
-        messageToSign = Base58.encode(transfer.messageToSign)
+        messageToSign = transfer.messageToSign.encodeAsBase58
       } yield ToplRpc.Transaction.RawAssetTransfer.Response(transfer, messageToSign.show)
 
   override val rawArbitTransfer: ToplRpc.Transaction.RawArbitTransfer.rpc.ServerHandler =
@@ -48,7 +49,7 @@ class TransactionRpcHandlerImpls(
           .fromTry(transferTry)
           .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
           .toEitherT[Future]
-        messageToSign = Base58.encode(transfer.messageToSign)
+        messageToSign = transfer.messageToSign.encodeAsBase58
       } yield ToplRpc.Transaction.RawArbitTransfer.Response(transfer, messageToSign.show)
 
   override val rawPolyTransfer: ToplRpc.Transaction.RawPolyTransfer.rpc.ServerHandler =
@@ -61,7 +62,7 @@ class TransactionRpcHandlerImpls(
           .fromTry(transferTry)
           .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
           .toEitherT[Future]
-        messageToSign = Base58.encode(transfer.messageToSign)
+        messageToSign = transfer.messageToSign.encodeAsBase58
       } yield ToplRpc.Transaction.RawPolyTransfer.Response(transfer, messageToSign.show)
 
   override val broadcastTx: ToplRpc.Transaction.BroadcastTx.rpc.ServerHandler =

@@ -2,15 +2,13 @@ package co.topl.modifier.box
 
 import cats.implicits._
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.utils.StringTypes.Base58String
-import co.topl.utils.StringTypes.implicits._
-import co.topl.utils.encode.Base58
+import co.topl.utils.codecs.implicits._
+import co.topl.utils.StringDataTypes.implicits._
+import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder}
-
-import scala.util.Try
 
 class SecurityRoot private (private val root: Array[Byte]) extends BytesSerializable {
 
@@ -28,7 +26,7 @@ class SecurityRoot private (private val root: Array[Byte]) extends BytesSerializ
     case _                => false
   }
 
-  override def toString: String = Base58.encode(root).show
+  override def toString: String = root.encodeAsBase58.show
 }
 
 object SecurityRoot extends BifrostSerializer[SecurityRoot] {
@@ -36,14 +34,10 @@ object SecurityRoot extends BifrostSerializer[SecurityRoot] {
   val size: Int = Digest32.size // 32 bytes
   val empty: SecurityRoot = new SecurityRoot(Array.fill(size)(0: Byte))
 
-  implicit val jsonEncoder: Encoder[SecurityRoot] = (sr: SecurityRoot) => sr.toString.asJson
+  @deprecated
+  def apply(str: String): SecurityRoot = new SecurityRoot(Base58Data.unsafe(str).value)
 
-  implicit val jsonDecoder: Decoder[SecurityRoot] =
-    Decoder.decodeString
-      .emap(Base58String.validated(_).leftMap(_ => "Value is not Base 58").toEither)
-      .emapTry(sr => Try(SecurityRoot(sr)))
-
-  def apply(str: Base58String): SecurityRoot = new SecurityRoot(Base58.decode(str))
+  def fromBase58(data: Base58Data): SecurityRoot = new SecurityRoot(data.value)
 
   override def serialize(obj: SecurityRoot, w: Writer): Unit =
     w.putBytes(obj.root)
@@ -52,4 +46,7 @@ object SecurityRoot extends BifrostSerializer[SecurityRoot] {
     val root: Array[Byte] = r.getBytes(size)
     new SecurityRoot(root)
   }
+
+  implicit val jsonEncoder: Encoder[SecurityRoot] = (sr: SecurityRoot) => sr.toString.asJson
+  implicit val jsonDecoder: Decoder[SecurityRoot] = Decoder[Base58Data].map(fromBase58)
 }

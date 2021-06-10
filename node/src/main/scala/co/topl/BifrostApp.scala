@@ -253,12 +253,3 @@ object BifrostApp extends Logging {
     log.warn("Application has been terminated.")
   }
 }
-
-object Test extends App {
-  import co.topl.utils.codecs.implicits._
-  import co.topl.utils.StringTypes.Utf8String
-  import co.topl.crypto.hash.sha256
-  import co.topl.crypto.implicits._
-
-  println(sha256.hash(Utf8String.unsafe("hiya!").infalliblyEncodeAsBytes).encodeAsBase16)
-}

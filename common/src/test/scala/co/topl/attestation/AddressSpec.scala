@@ -8,8 +8,9 @@ import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import co.topl.utils.codecs.implicits._
+import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.attestation.AddressCodec.implicits._
-import co.topl.utils.StringTypes.Base58String
 
 class AddressSpec
     extends AnyPropSpec
@@ -27,14 +28,14 @@ class AddressSpec
       val fstNetworkType: NetworkType = twoNetworkType.head
       val secNetworkType: NetworkType = twoNetworkType.last
 
-      val addrStr = {
+      val base58Data = {
         implicit val networkPrefix: NetworkPrefix = fstNetworkType.netPrefix
         val address: Address = pubkey.address
-        address.base58Encoded
+        address.encodeAsBase58
       }
       {
         implicit val networkPrefix: NetworkPrefix = secNetworkType.netPrefix
-        addrStr.decodeAddress should haveInvalidC[AddressValidationError](NetworkTypeMismatch)
+        base58Data.decodeAddress should haveInvalidC[AddressValidationError](NetworkTypeMismatch)
       }
     }
   }
@@ -43,17 +44,17 @@ class AddressSpec
     forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
       implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
       val address: Address = pubkey.address
-      val addrStr: Base58String = address.base58Encoded
-      val addrByte: Array[Byte] = Base58.decode(addrStr)
+      val addressBytes: Array[Byte] = address.infalliblyEncodeAsBytes
 
       /** Alter the third byte in the address, which should be the first byte of the content */
-      val corruptByte: Byte = (addrByte(2).toInt + 1).toByte
-      val modedAddrByte: Array[Byte] = addrByte.slice(0, 2) ++ Array(corruptByte) ++ addrByte.slice(3, addrByte.length)
-      val modedAddrStr: Base58String = Base58.encode(modedAddrByte)
+      val corruptByte: Byte = (addressBytes(2).toInt + 1).toByte
+      val modedAddrByte: Array[Byte] =
+        addressBytes.slice(0, 2) ++ Array(corruptByte) ++ addressBytes.slice(3, addressBytes.length)
+      val modedAddrBase58: Base58Data = modedAddrByte.encodeAsBase58
 
-      addrByte should not contain theSameElementsInOrderAs(modedAddrByte)
+      addressBytes should not contain theSameElementsInOrderAs(modedAddrByte)
 
-      modedAddrStr.decodeAddress should haveInvalidC[AddressValidationError](InvalidChecksum)
+      modedAddrBase58.decodeAddress should haveInvalidC[AddressValidationError](InvalidChecksum)
     }
   }
 
@@ -61,17 +62,16 @@ class AddressSpec
     forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
       implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
       val address: Address = pubkey.address
-      val addrStr: Base58String = address.base58Encoded
-      val addrByte: Array[Byte] = Base58.decode(addrStr)
+      val addrByte: Array[Byte] = address.bytes
 
       /** Alter the last byte in the address, which is part of the checksum */
       val corruptByte: Byte = (addrByte(addrByte.length - 1).toInt + 1).toByte
       val modedAddrByte: Array[Byte] = addrByte.slice(0, addrByte.length - 1) ++ Array(corruptByte)
-      val modedAddrStr: Base58String = Base58.encode(modedAddrByte)
+      val modedAddrBase58: Base58Data = modedAddrByte.encodeAsBase58
 
       addrByte should not contain theSameElementsInOrderAs(modedAddrByte)
 
-      modedAddrStr.decodeAddress should haveInvalidC[AddressValidationError](InvalidChecksum)
+      modedAddrBase58.decodeAddress should haveInvalidC[AddressValidationError](InvalidChecksum)
     }
   }
 
@@ -79,17 +79,16 @@ class AddressSpec
     forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
       implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
       val address: Address = pubkey.address
-      val addrStr: Base58String = address.base58Encoded
-      val addrByte: Array[Byte] = Base58.decode(addrStr)
+      val addrByte: Array[Byte] = address.bytes
 
       /** Alter the last byte in the address, which is part of the checksum */
       val corruptByte: Byte = (addrByte(addrByte.length - 1).toInt + 1).toByte
       val modedAddrByte: Array[Byte] = addrByte.slice(0, addrByte.length) ++ Array(corruptByte)
-      val modedAddrStr: Base58String = Base58.encode(modedAddrByte)
+      val modedAddrBase58: Base58Data = modedAddrByte.encodeAsBase58
 
       addrByte should not contain theSameElementsInOrderAs(modedAddrByte)
 
-      modedAddrStr.decodeAddress should haveInvalidC[AddressValidationError](InvalidAddressLength)
+      modedAddrBase58.decodeAddress should haveInvalidC[AddressValidationError](InvalidAddressLength)
     }
   }
 
@@ -97,9 +96,9 @@ class AddressSpec
     forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
       implicit val networkPrefix: NetworkPrefix = -42: Byte
       val address: Address = pubkey.address
-      val addrStr: Base58String = address.base58Encoded
+      val addrBase58: Base58Data = address.encodeAsBase58
 
-      addrStr.decodeAddress should haveInvalidC[AddressValidationError](InvalidNetworkPrefix)
+      addrBase58.decodeAddress should haveInvalidC[AddressValidationError](InvalidNetworkPrefix)
     }
   }
 }

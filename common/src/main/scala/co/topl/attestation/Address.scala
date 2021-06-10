@@ -5,8 +5,8 @@ import co.topl.attestation.AddressCodec.implicits._
 import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.utils.codecs.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.StringTypes.Base58String
-import co.topl.utils.StringTypes.implicits.showBase58String
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe._
@@ -27,7 +27,7 @@ case class Address(evidence: Evidence)(implicit val networkPrefix: NetworkPrefix
 
   type M = Address
 
-  override def toString: String = this.base58Encoded.show
+  override def toString: String = Base58.encode(this.bytes)
 
   override def serializer: BifrostSerializer[Address] = AddressSerializer
 
@@ -47,10 +47,10 @@ object Address {
   implicit val jsonKeyEncoder: KeyEncoder[Address] = (addr: Address) => addr.toString
 
   implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[Address] =
-    _.as[Base58String].flatMap(_.decodeAddress.toEither.leftMap(errors => DecodingFailure(errors.head.toString, Nil)))
+    Decoder[Base58Data].emap(x => x.decodeAddress.toEither.leftMap(_.toString))
 
   implicit def jsonKeyDecoder(implicit networkPrefix: NetworkPrefix): KeyDecoder[Address] =
-    Base58String.validated(_).andThen(_.decodeAddress).toOption
+    json => Base58Data.validated(json).toOption.flatMap(_.decodeAddress.toOption)
 
   /**
    * Generates an Address from a proppsition. This method enables propositions to have an accessor method

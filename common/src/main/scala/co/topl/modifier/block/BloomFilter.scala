@@ -3,9 +3,7 @@ package co.topl.modifier.block
 import cats.implicits.toShow
 import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.block.BloomFilter.BloomTopic
-import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
-import co.topl.utils.StringTypes.Base58String
-import co.topl.utils.StringTypes.implicits.showBase58String
+import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import co.topl.utils.codecs.{AsBytes, FromBytes, Infallible}
@@ -171,19 +169,13 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
 
   /** Recreate a bloom filter from a string encoding */
   /** JAA - DO NOT USE THE `parseBytes` method from BifrostSerializer, this must be fixed length */
-  private def fromString(str: Base58String): BloomFilter =
-    new BloomFilter(
-      Base58
-        .decode(str)
-        .grouped(Longs.BYTES)
-        .map(Longs.fromByteArray)
-        .toArray
-    )
+  private def fromBase58(data: Base58Data): BloomFilter =
+    new BloomFilter(data.value.grouped(Longs.BYTES).map(Longs.fromByteArray).toArray)
 
   implicit val jsonEncoder: Encoder[BloomFilter] = (bf: BloomFilter) => bf.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[BloomFilter] = (bf: BloomFilter) => bf.toString
 
-  implicit val jsonDecoder: Decoder[BloomFilter] = Decoder[Base58String].map(fromString)
+  implicit val jsonDecoder: Decoder[BloomFilter] = Decoder[Base58Data].map(fromBase58)
 
   implicit val bloomTopicAsBytes: AsBytes[Infallible, BloomTopic] = AsBytes.infallible(_.value)
 

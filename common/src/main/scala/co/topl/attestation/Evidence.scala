@@ -1,20 +1,16 @@
 package co.topl.attestation
 
-import cats.data.Validated.{Invalid, Valid}
 import cats.implicits._
 import co.topl.crypto.hash.digest.Digest
-import co.topl.utils.encode.Base58
-import co.topl.utils.StringTypes.implicits._
-import co.topl.utils.StringTypes.Base58String
+import co.topl.utils.codecs.implicits._
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import io.estatico.newtype.macros.newtype
 import io.estatico.newtype.ops._
-import co.topl.utils.codecs.AsBytes.implicits._
-import co.topl.utils.codecs.CryptoCodec.implicits._
-import co.topl.utils.codecs.implicits.base58BytesEncoder
 
 import scala.language.implicitConversions
 import scala.util.{Failure, Success}
@@ -31,7 +27,7 @@ final class Evidence private (private val evBytes: Array[Byte]) extends BytesSer
   override type M = Evidence
   override def serializer: BifrostSerializer[Evidence] = Evidence
 
-  override def toString: String = Base58.encode(bytes).show
+  override def toString: String = bytes.encodeAsBase58.show
 
   override def equals(obj: Any): Boolean = obj match {
     case ec: Evidence => bytes sameElements ec.bytes
@@ -64,8 +60,8 @@ object Evidence extends BifrostSerializer[Evidence] {
     }
   }
 
-  private def apply(str: Base58String): Evidence = {
-    val bytes = str.infalliblyEncodeAsBytes
+  private def apply(data: Base58Data): Evidence = {
+    val bytes = data.value
     require(bytes.length == size, "Invalid evidence: incorrect evidence length")
     parseBytes(bytes) match {
       case Success(ec) => ec
@@ -85,16 +81,6 @@ object Evidence extends BifrostSerializer[Evidence] {
   // https://circe.github.io/circe/codecs/custom-codecs.html
   implicit val jsonEncoder: Encoder[Evidence] = (ec: Evidence) => ec.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[Evidence] = (ec: Evidence) => ec.toString
-
-  implicit val jsonDecoder: Decoder[Evidence] =
-    Decoder.decodeString
-      .emap(
-        Base58String
-          .validated(_)
-          .leftMap(err => s"Value is not a valid Base 58: ${err.show}")
-          .toEither
-      )
-      .map(apply)
-
-  implicit val jsonKeyDecoder: KeyDecoder[Evidence] = (str: String) => Base58String.validated(str).map(apply).toOption
+  implicit val jsonDecoder: Decoder[Evidence] = Decoder[Base58Data].map(apply)
+  implicit val jsonKeyDecoder: KeyDecoder[Evidence] = KeyDecoder[Base58Data].map(apply)
 }

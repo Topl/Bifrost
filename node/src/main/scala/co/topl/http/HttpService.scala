@@ -5,11 +5,9 @@ import akka.http.scaladsl.marshalling.Marshaller._
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 import akka.http.scaladsl.server.Route
 import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.hash.digest.Digest32
 import co.topl.rpc.ToplRpcServer
 import co.topl.settings.RPCApiSettings
-import co.topl.utils.StringTypes.Base58String
-import co.topl.utils.encode.Base58
+import co.topl.utils.StringDataTypes.Base58Data
 
 final case class HttpService(
   settings:            RPCApiSettings,
@@ -17,11 +15,7 @@ final case class HttpService(
 )(implicit val system: ActorSystem)
     extends CorsSupport {
 
-  private val apiKeyHash: Option[Array[Byte]] =
-    Base58String
-      .validated(settings.apiKeyHash)
-      .map(Base58.decode)
-      .toOption
+  private val apiKeyHash: Option[Array[Byte]] = Base58Data.validated(settings.apiKeyHash).map(_.value).toOption
 
   /** the primary route that the HTTP service is bound to in BifrostApp */
   val compositeRoute: Route =

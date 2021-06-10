@@ -1,6 +1,5 @@
 package co.topl.modifier
 
-import cats.data.NonEmptyChain
 import cats.implicits._
 import co.topl.crypto.hash.digest.implicits._
 import co.topl.crypto.hash.digest.Digest32
@@ -8,18 +7,13 @@ import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
-import co.topl.utils.codecs.AsBytes.implicits._
-import co.topl.utils.codecs.implicits.{base58BytesEncoder, base58JsonDecoder}
-import co.topl.utils.StringTypes.Base58String
-import co.topl.utils.encode.Base58
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
-import co.topl.utils.IdiomaticScalaTransition.implicits.{toEitherOps, toValidatedOps}
-import co.topl.utils.StringTypes.implicits.showBase58String
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-
-import scala.util.{Failure, Success, Try}
+import co.topl.utils.codecs.implicits._
 
 class ModifierId private (private val value: Array[Byte]) extends BytesSerializable {
 
@@ -38,7 +32,7 @@ class ModifierId private (private val value: Array[Byte]) extends BytesSerializa
     case _               => false
   }
 
-  override def toString: String = Base58.encode(value).show
+  override def toString: String = value.encodeAsBase58.show
 }
 
 object ModifierId extends BifrostSerializer[ModifierId] {
@@ -56,12 +50,8 @@ object ModifierId extends BifrostSerializer[ModifierId] {
 
   implicit val jsonEncoder: Encoder[ModifierId] = (id: ModifierId) => id.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[ModifierId] = (id: ModifierId) => id.toString
-
-  implicit val jsonDecoder: Decoder[ModifierId] =
-    base58JsonDecoder.map(id => ModifierId.createFromString(id))
-
-  implicit val jsonKeyDecoder: KeyDecoder[ModifierId] =
-    Base58String.validated(_).toEither.map(ModifierId.createFromString).toOption
+  implicit val jsonDecoder: Decoder[ModifierId] = Decoder[Base58Data].map(ModifierId.fromBase58)
+  implicit val jsonKeyDecoder: KeyDecoder[ModifierId] = KeyDecoder[Base58Data].map(ModifierId.fromBase58)
 
   /**
    * Creates a modifier ID from a node view modifier.
@@ -79,14 +69,6 @@ object ModifierId extends BifrostSerializer[ModifierId] {
     case _ => Left(InvalidModifierFailure)
   }
 
-  /**
-   * Creates a modifier ID from a string.
-   * @param str the string to turn into a modifier ID
-   * @return a create result with a CreateModifierIdFailure if a failure occurred
-   */
-  def createFromString(str: Base58String): ModifierId = new ModifierId(str.infalliblyEncodeAsBytes)
-
-  @deprecated
   def apply(nodeViewModifier: NodeViewModifier): ModifierId = nodeViewModifier match {
     case mod: Block =>
       new ModifierId(Block.modifierTypeId.value +: blake2b256.hash(mod.messageToSign).bytes)
@@ -96,7 +78,14 @@ object ModifierId extends BifrostSerializer[ModifierId] {
   }
 
   @deprecated
-  def apply(str: String): ModifierId = new ModifierId(Base58String.unsafe(str).infalliblyEncodeAsBytes)
+  def apply(str: String): ModifierId = new ModifierId(Base58Data.unsafe(str).value)
+
+  /**
+   * Creates a modifier ID from a base 58 encoded data.
+   * @param data the string to turn into a modifier ID
+   * @return modifier id
+   */
+  def fromBase58(data: Base58Data): ModifierId = new ModifierId(data.value)
 
   def serialize(obj: ModifierId, w: Writer): Unit =
     /* value: Array[Byte] */

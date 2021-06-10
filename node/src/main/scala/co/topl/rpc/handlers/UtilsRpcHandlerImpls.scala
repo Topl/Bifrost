@@ -10,9 +10,10 @@ import co.topl.modifier.box.AssetCode
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
 import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.StringTypes.Base58String
-import co.topl.utils.StringTypes.implicits.showBase58String
+import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
+import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.encode.Base58
+import co.topl.utils.codecs.implicits._
 import io.circe.Encoder
 
 import java.security.SecureRandom
@@ -47,7 +48,7 @@ class UtilsRpcHandlerImpls(implicit
 
   override val generateAssetCode: ToplRpc.Util.GenerateAssetCode.rpc.ServerHandler =
     params =>
-      Try(AssetCode(params.version, params.issuer, params.shortName)).toEither
+      Try(AssetCode(params.version, params.issuer, Latin1Data.unsafe(params.shortName))).toEither
         .leftMap(ToplRpcErrors.FailedToGenerateAssetCode(_): RpcError)
         .map(ToplRpc.Util.GenerateAssetCode.Response)
         .toEitherT[Future]
@@ -58,7 +59,7 @@ class UtilsRpcHandlerImpls(implicit
         .fold(NetworkType.pickNetworkType(networkPrefix))(NetworkType.pickNetworkType)
         .toRight(ToplRpcErrors.InvalidNetworkSpecified)
         .flatMap(nt =>
-          Base58String
+          Base58Data
             .validated(params.address)
             .andThen(_.decodeAddress(nt.netPrefix))
             .toEither
@@ -73,6 +74,6 @@ object UtilsRpcHandlerImpls {
   private def generateSeed(length: Int): String = {
     val seed = new Array[Byte](length)
     new SecureRandom().nextBytes(seed) //seed mutated here!
-    Base58.encode(seed).show
+    seed.encodeAsBase58.show
   }
 }

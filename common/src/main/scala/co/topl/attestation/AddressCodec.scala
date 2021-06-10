@@ -7,7 +7,7 @@ import co.topl.crypto.hash.blake2b256
 import co.topl.utils.codecs.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.NetworkType
-import co.topl.utils.StringTypes.Base58String
+import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.codecs.{AsBytes, FromBytes, Infallible}
 import co.topl.utils.codecs.implicits.toDecoderOps
 
@@ -32,11 +32,7 @@ object AddressCodec {
     implicit val addressToBytes: AsBytes[Infallible, Address] =
       AsBytes.infallible[Address](address => address.bytes ++ address.bytes.checksum)
 
-    implicit class AddressOps(address: Address) {
-      def base58Encoded: Base58String = address.infalliblyDecodeTo[Base58String]
-    }
-
-    implicit class Base58StringOps(value: Base58String) {
+    implicit class Base58DataOps(value: Base58Data) {
 
       def decodeAddress(implicit networkPrefix: NetworkPrefix): ValidatedNec[AddressValidationError, Address] =
         value.decodeTo[AddressValidationError, Address]

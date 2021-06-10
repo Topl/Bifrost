@@ -7,7 +7,7 @@ import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.implicits._
 import co.topl.modifier.box.AssetCode
 import co.topl.rpc.ToplRpcErrors
-import co.topl.utils.StringTypes.Base58String
+import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import co.topl.utils.codecs.CryptoCodec.implicits._
 import co.topl.utils.codecs.implicits.base58JsonDecoder
 import co.topl.utils.encode.Base58
@@ -43,11 +43,11 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState with Eith
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
 
-        val seedString: Base58String = res.hcursor.downField("result").get[Base58String]("seed").value
+        val seedData: Base58Data = res.hcursor.downField("result").get[Base58Data]("seed").value
 
         res.hcursor.downField("error").values shouldBe None
 
-        Base58.decode(seedString).length shouldEqual 32
+        seedData.value.length shouldEqual 32
       }
     }
 
@@ -66,11 +66,11 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState with Eith
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
 
-        val seedString: Base58String = res.hcursor.downField("result").get[Base58String]("seed").value
+        val seedData: Base58Data = res.hcursor.downField("result").get[Base58Data]("seed").value
 
         res.hcursor.downField("error").values shouldBe None
 
-        Base58.decode(seedString).length shouldEqual seedLength
+        seedData.value.length shouldEqual seedLength
       }
     }
 
@@ -111,7 +111,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState with Eith
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
-        val oldAssetCode: AssetCode = AssetCode(1: Byte, address, "testcode")
+        val oldAssetCode: AssetCode = AssetCode(1: Byte, address, Latin1Data.unsafe("testcode"))
 
         val genAssetCode: AssetCode = res.hcursor.downField("result").get[AssetCode]("assetCode").value
 

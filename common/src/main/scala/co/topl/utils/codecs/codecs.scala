@@ -8,5 +8,5 @@ package object codecs {
       with FromBytes.Instances
       with FromBytes.ToOps
       with CryptoCodec.CryptoCodecInstances
-      with StringTypesCodec.StringTypesInstances
+      with StringDataTypesCodec.StringTypesInstances
 }

@@ -11,9 +11,9 @@ import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.implicits._
 import co.topl.crypto.signatures.Curve25519
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.encode.Base58
-import co.topl.utils.StringTypes.implicits._
-import co.topl.utils.StringTypes.{Base58String, StringValidationFailure}
+import co.topl.utils.codecs.implicits._
+import co.topl.utils.StringDataTypes.implicits._
+import co.topl.utils.StringDataTypes.{Base58Data, DataValidationFailure}
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import co.topl.utils.{Identifiable, Identifier}
 import com.google.common.primitives.Ints
@@ -32,7 +32,7 @@ sealed trait Proposition extends BytesSerializable {
 
   def address(implicit networkPrefix: NetworkPrefix): Address
 
-  override def toString: String = Base58.encode(bytes).show
+  override def toString: String = bytes.encodeAsBase58.show
 
   override def equals(obj: Any): Boolean = obj match {
     case prop: Proposition => prop.bytes sameElements bytes
@@ -44,23 +44,23 @@ sealed trait Proposition extends BytesSerializable {
 
 object Proposition {
 
-  def fromString(str: String): Either[PropositionFromStringFailure, _ <: Proposition] =
-    for {
-      base58String <- Base58String.validated(str).leftMap(IncorrectEncoding).toEither
-      decodedBytes = Base58.decode(base58String)
-      proposition <- PropositionSerializer.parseBytes(decodedBytes).toEither.leftMap(ex => BytesParsingError(ex))
-    } yield proposition
+  sealed trait PropositionFromDataFailure
+  final case class IncorrectEncoding(error: NonEmptyChain[DataValidationFailure]) extends PropositionFromDataFailure
+  final case class BytesParsingError(error: Throwable) extends PropositionFromDataFailure
+
+  def fromString(str: String): Either[PropositionFromDataFailure, _ <: Proposition] =
+    Base58Data.validated(str).leftMap(IncorrectEncoding).toEither.flatMap(fromBase58)
+
+  def fromBase58(data: Base58Data): Either[PropositionFromDataFailure, _ <: Proposition] =
+    PropositionSerializer.parseBytes(data.value).toEither.leftMap(BytesParsingError)
 
   implicit def jsonKeyEncoder[P <: Proposition]: KeyEncoder[P] = (prop: P) => prop.toString
-  implicit val jsonKeyDecoder: KeyDecoder[Proposition] = (str: String) => fromString(str).toOption
 
-  sealed trait PropositionFromStringFailure
+  implicit val jsonKeyDecoder: KeyDecoder[Proposition] =
+    json => Base58Data.validated(json).toOption.flatMap(fromBase58(_).toOption)
 
-  final case class IncorrectEncoding(error: NonEmptyChain[StringValidationFailure]) extends PropositionFromStringFailure
-  final case class BytesParsingError(error: Throwable) extends PropositionFromStringFailure
-
-  implicit val showPropositionFromStringFailure: Show[PropositionFromStringFailure] = {
-    case IncorrectEncoding(errors) => s"String is an incorrect encoding type: ${errors.show}"
+  implicit val showPropositionFromStringFailure: Show[PropositionFromDataFailure] = {
+    case IncorrectEncoding(errors) => s"String is an incorrect encoding type: $errors"
     case BytesParsingError(error)  => s"Failed to parse the decoded bytes: $error"
   }
 }
@@ -96,6 +96,14 @@ object PublicKeyPropositionCurve25519 {
         throw new Error(s"Failed to create Public Key Curve 25519 proposition from string: ${failure.show}")
     }
 
+  def fromBase58(data: Base58Data): PublicKeyPropositionCurve25519 =
+    Proposition.fromBase58(data) match {
+      case Right(pk: PublicKeyPropositionCurve25519) => pk
+      case Right(_)                                  => throw new Error("Invalid proposition generation")
+      case Left(failure) =>
+        throw new Error(s"Failed to create Public Key Curve 25519 proposition from string: ${failure.show}")
+    }
+
   implicit val ord: Ordering[PublicKeyPropositionCurve25519] = Ordering.by(_.toString)
 
   implicit val evProducer: EvidenceProducer[PublicKeyPropositionCurve25519] =
@@ -114,8 +122,8 @@ object PublicKeyPropositionCurve25519 {
 
   implicit val jsonKeyEncoder: KeyEncoder[PublicKeyPropositionCurve25519] = (prop: PublicKeyPropositionCurve25519) =>
     prop.toString
-  implicit val jsonDecoder: Decoder[PublicKeyPropositionCurve25519] = Decoder.decodeString.map(apply)
-  implicit val jsonKeyDecoder: KeyDecoder[PublicKeyPropositionCurve25519] = (str: String) => Some(apply(str))
+  implicit val jsonDecoder: Decoder[PublicKeyPropositionCurve25519] = Decoder[Base58Data].map(fromBase58)
+  implicit val jsonKeyDecoder: KeyDecoder[PublicKeyPropositionCurve25519] = KeyDecoder[Base58Data].map(fromBase58)
 }
 
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
@@ -150,6 +158,14 @@ object ThresholdPropositionCurve25519 {
         throw new Error(s"Failed to create Threshold Curve 25519 proposition from string: ${failure.show}")
     }
 
+  def fromBase58(data: Base58Data): ThresholdPropositionCurve25519 =
+    Proposition.fromBase58(data) match {
+      case Right(prop: ThresholdPropositionCurve25519) => prop
+      case Right(_)                                    => throw new Error("Invalid proposition generation")
+      case Left(failure) =>
+        throw new Error(s"Failed to create Threshold Curve 25519 proposition from string: ${failure.show}")
+    }
+
   implicit val evProducer: EvidenceProducer[ThresholdPropositionCurve25519] =
     EvidenceProducer.instance[ThresholdPropositionCurve25519] { prop: ThresholdPropositionCurve25519 =>
       Evidence(typePrefix, EvidenceContent(blake2b256.hash(prop.bytes.tail)))
@@ -166,6 +182,6 @@ object ThresholdPropositionCurve25519 {
 
   implicit val jsonKeyEncoder: KeyEncoder[ThresholdPropositionCurve25519] = (prop: ThresholdPropositionCurve25519) =>
     prop.toString
-  implicit val jsonDecoder: Decoder[ThresholdPropositionCurve25519] = Decoder.decodeString.map(apply)
-  implicit val jsonKeyDecoder: KeyDecoder[ThresholdPropositionCurve25519] = (str: String) => Some(apply(str))
+  implicit val jsonDecoder: Decoder[ThresholdPropositionCurve25519] = Decoder[Base58Data].map(fromBase58)
+  implicit val jsonKeyDecoder: KeyDecoder[ThresholdPropositionCurve25519] = KeyDecoder[Base58Data].map(fromBase58)
 }

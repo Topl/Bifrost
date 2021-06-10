@@ -3,7 +3,7 @@ package co.topl.program
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.utils.Gzip
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
-import co.topl.utils.StringTypes.Base58String
+import co.topl.utils.StringDataTypes.Base58Data
 import com.oracle.js.parser.ir.visitor.NodeVisitor
 import com.oracle.js.parser.ir.{FunctionNode, LexicalContext, Node, VarNode}
 import com.oracle.js.parser.{
@@ -130,7 +130,7 @@ object ProgramPreprocessor {
       .map(_.as[(String, String)] match { case Right(re) => re; case Left(ex) => throw ex })
       .map { pair =>
         val pub = PublicKeyPropositionCurve25519(pair._1)
-        val sig = SignatureCurve25519(Base58String.unsafe(pair._2))
+        val sig = SignatureCurve25519(Base58Data.unsafe(pair._2))
         pub -> sig
       }
 
@@ -343,15 +343,15 @@ object ProgramPreprocessor {
     for {
       //state <- c.downField("state").as[String]
       name      <- c.downField("name").as[String]
-      initjs    <- c.downField("initjs").as[Base58String]
+      initjs    <- c.downField("initjs").as[Base58Data]
       interface <- c.downField("interface").as[Map[String, Seq[String]]]
       variables <- c.downField("variables").as[Json]
       code      <- c.downField("code").as[Map[String, String]]
       signed    <- c.downField("signed").as[Option[(String, String)]]
     } yield {
 
-      def decodeGzip(zippedStr: Base58String): String = {
-        val zipped: Array[Byte] = Base58.decode(zippedStr)
+      def decodeGzip(zippedStr: Base58Data): String = {
+        val zipped: Array[Byte] = zippedStr.value
         val unzipped: Array[Byte] = Gzip.decompress(zipped)
         new String(unzipped)
       }
@@ -365,7 +365,7 @@ object ProgramPreprocessor {
         code,
         signed.map { pair =>
           val pub = PublicKeyPropositionCurve25519(pair._1)
-          val sig = SignatureCurve25519(Base58String.unsafe(pair._2))
+          val sig = SignatureCurve25519(Base58Data.unsafe(pair._2))
           pub -> sig
         }
       )
