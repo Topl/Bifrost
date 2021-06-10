@@ -51,7 +51,7 @@ object AddressEncoder {
       case Invalid(errors) => Failure(new Error(s"Address is not Base 58 encoded: $errors"))
     }
 
-  def fromBase58(addrData: Base58Data): Try[Address] = fromBytes(addrData.infalliblyEncodeAsBytes)
+  def fromBase58(addrData: Base58Data): Try[Address] = fromBytes(addrData.value)
 
   /**
    * Parse an Address from a string ensuring that the networkPrefix is correct

@@ -6,10 +6,9 @@ import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.utils.codecs.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.encode.Base58
+import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
-import io.circe._
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 
@@ -27,7 +26,7 @@ case class Address(evidence: Evidence)(implicit val networkPrefix: NetworkPrefix
 
   type M = Address
 
-  override def toString: String = Base58.encode(this.bytes)
+  override def toString: String = (this.bytes ++ this.bytes.checksum).encodeAsBase58.show
 
   override def serializer: BifrostSerializer[Address] = AddressSerializer
 
