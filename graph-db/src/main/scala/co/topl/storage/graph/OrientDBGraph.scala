@@ -5,9 +5,11 @@ import akka.dispatch.Dispatchers
 import akka.stream.scaladsl.{Sink, Source}
 import akka.stream.{ActorAttributes, Attributes}
 import akka.{Done, NotUsed}
+import cats.data.EitherT
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.tinkerpop.blueprints.impls.orient._
 import com.tinkerpop.blueprints.{Direction, Edge}
+import cats.implicits._
 
 import java.nio.file.Path
 import scala.concurrent.Future
@@ -22,7 +24,7 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
 
   initialize()
 
-  def initialize(): Unit = {
+  private def initialize(): Unit = {
     session = factory.getNoTx
     initializeSchemas()
 
@@ -32,7 +34,7 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
     }
   }
 
-  def blockingIteratorQuery(query: String): Iterator[OrientElement] =
+  private def blockingIteratorQuery(query: String): Iterator[OrientElement] =
     session
       .command(new OCommandSQL(query))
       .execute[OrientDynaElementIterable]()
@@ -54,7 +56,7 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
   private def resolveNodeReference(ref: OrientDBGraph.NodeReference): OrientVertex =
     ref match {
       case OrientDBGraph.QueryNodeReference(query) =>
-        blockingIteratorQuery(query).next().asInstanceOf[OrientVertex]
+        blockingIteratorQuery(queryString(query)).next().asInstanceOf[OrientVertex]
       case OrientDBGraph.VertexNodeReference(orientVertex) =>
         orientVertex
     }
@@ -111,21 +113,115 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
       .fromIterator(iteratorFactory)
       .withAttributes(Attributes.name("OrientDBQuery").and(ActorAttributes.IODispatcher))
 
-  def resultSetQuery[R <: OrientElement](query: String): Source[R, NotUsed] =
+  private def resultSetQuery[R <: OrientElement](query: String): Source[Either[OrientDBGraph.Error, R], NotUsed] =
     blockingIteratorSource(() =>
       session
         .command(new OCommandSQL(query))
         .execute[OrientDynaElementIterable]()
         .iterator()
         .asScala
-        .collect { case r: R @unchecked => r }
+        .collect { case r: R @unchecked => r.asRight }
     )
 
-  def getNode[T: NodeSchema](query: String): Future[Option[T]] = {
+//  def getNode[T: NodeSchema](query: String): Future[Option[T]] = {
+//    import Ops._
+//    resultSetQuery[OrientVertex](query)
+//      .map(_.as[T])
+//      .runWith(Sink.headOption)
+//  }
+
+  private def whereToString(where: Where): Option[String] =
+    where match {
+      case WhereAny => None
+      case PropEquals(name, value) =>
+        val value1 = value match {
+          case s1: String => "\"" + s1 + "\""
+          case s1         => s1.toString
+        }
+        Some(s"$name=$value1")
+      case And(op1, op2) =>
+        (whereToString(op1), whereToString(op2)) match {
+          case (Some(l), Some(r)) => Some(s"$l && $r")
+          case (Some(l), _)       => Some(l)
+          case (_, Some(r))       => Some(r)
+          case _                  => None
+        }
+      case Or(op1, op2) =>
+        (whereToString(op1), whereToString(op2)) match {
+          case (Some(l), Some(r)) => Some(s"$l || $r")
+          case (Some(l), _)       => Some(l)
+          case (_, Some(r))       => Some(r)
+          case _                  => None
+        }
+    }
+
+  def getNode[T: NodeSchema](graphQuery: GraphQuery[T]): EitherT[Future, OrientDBGraph.Error, Option[T]] =
+    EitherT(
+      getNodes(graphQuery)
+        .runWith(Sink.headOption)
+        .map {
+          case Some(Right(value)) => Right(Some(value))
+          case Some(Left(e))      => Left(e)
+          case None               => Right(None)
+        }
+    )
+
+  def getRawNode(graphQuery: GraphQuery[_]): EitherT[Future, OrientDBGraph.Error, Option[OrientVertex]] =
+    EitherT(
+      resultSetQuery[OrientVertex](queryString(graphQuery))
+        .runWith(Sink.headOption)
+        .map {
+          case Some(Right(value)) => Right(Some(value))
+          case Some(Left(e))      => Left(e)
+          case None               => Right(None)
+        }
+    )
+
+  private def queryString[T](graphQuery: GraphQuery[T]): String =
+    graphQuery match {
+      case q @ NodesByClass(where) =>
+        "SELECT" +
+          s" FROM ${q.resultSchema.name}" +
+          whereToString(where).fold("")(" WHERE " + _)
+      case f @ Trace(where, edges) =>
+        val expansion = edges
+          .map { edgeWithDirection =>
+            val directionString = {
+              edgeWithDirection.direction match {
+                case In  => "in"
+                case Out => "out"
+              }
+            }
+            s"$directionString('${edgeWithDirection.edgeSchema.name}')"
+          }
+          .mkString(".")
+        s"SELECT expand($expansion)" +
+        s" FROM ${f.originNodeSchema.name}" +
+        whereToString(where).fold("")(" WHERE " + _)
+      case t @ Traverse(origin, edges) =>
+        //          s"TRAVERSE out('${BlockParent.edgeSchema.name}')" +
+        //            s" FROM (SELECT FROM ${BlockHeader.nodeSchema.name}" +
+        //            s" WHERE blockId='${header.blockId}')"
+        val expansion = edges
+          .map { edgeWithDirection =>
+            val directionString = {
+              edgeWithDirection.direction match {
+                case In  => "in"
+                case Out => "out"
+              }
+            }
+            s"$directionString('${edgeWithDirection.edgeSchema.name}')"
+          }
+          .mkString(".")
+        val originQuery = queryString(origin)
+        s"TRAVERSE $expansion" +
+        s" FROM ($originQuery)"
+    }
+
+  def getNodes[T: NodeSchema](graphQuery: GraphQuery[T]): Source[Either[OrientDBGraph.Error, T], NotUsed] = {
     import Ops._
-    resultSetQuery[OrientVertex](query)
-      .map(_.as[T])
-      .runWith(Sink.headOption)
+    resultSetQuery[OrientVertex](queryString(graphQuery))
+      .map(_.map(_.as[T]))
   }
 
   object Ops {
@@ -175,7 +271,8 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
 
 object OrientDBGraph {
 
-  trait Error
+  sealed trait Error
+  case class ThrowableError(throwable: Throwable) extends Error
 
   sealed abstract class Location
   case object InMemory extends Location
@@ -193,6 +290,6 @@ object OrientDBGraph {
   }
 
   sealed abstract class NodeReference
-  case class QueryNodeReference(query: String) extends NodeReference
+  case class QueryNodeReference(query: GraphQuery[_]) extends NodeReference
   case class VertexNodeReference(orientVertex: OrientVertex) extends NodeReference
 }

@@ -55,7 +55,7 @@ object BlockHeader {
       Property("version", OType.BYTE)
     ),
     i = List(
-      Index("BlockHeader_idIndex", OClass.INDEX_TYPE.UNIQUE_HASH_INDEX, "blockId"),
+      Index("BlockHeader_idIndex", OClass.INDEX_TYPE.UNIQUE, "blockId"),
       Index("BlockHeader_timestampIndex", OClass.INDEX_TYPE.NOTUNIQUE, "timestamp"),
       Index("BlockHeader_heightIndex", OClass.INDEX_TYPE.NOTUNIQUE, "height"),
       Index("BlockHeader_bloomFilterIndex", OClass.INDEX_TYPE.NOTUNIQUE, "bloomFilter")
@@ -97,7 +97,7 @@ object BlockBody {
       Property("blockId", OType.STRING)
     ),
     i = List(
-      Index("BlockBody_idIndex", OClass.INDEX_TYPE.UNIQUE_HASH_INDEX, "blockId")
+      Index("BlockBody_idIndex", OClass.INDEX_TYPE.UNIQUE, "blockId")
     ),
     enc = body =>
       Map(
@@ -123,7 +123,7 @@ object Transaction {
       Property("minting", OType.BOOLEAN)
     ),
     i = List(
-      Index("Transaction_idIndex", OClass.INDEX_TYPE.UNIQUE_HASH_INDEX, "transactionId"),
+      Index("Transaction_idIndex", OClass.INDEX_TYPE.UNIQUE, "transactionId"),
       Index("Transaction_timestampIndex", OClass.INDEX_TYPE.NOTUNIQUE, "timestamp")
     ),
     enc = transaction =>
@@ -157,7 +157,7 @@ object Box {
       Property("nonce", OType.LONG)
     ),
     i = List(
-      Index("Box_idIndex", OClass.INDEX_TYPE.UNIQUE_HASH_INDEX, "boxId"),
+      Index("Box_idIndex", OClass.INDEX_TYPE.UNIQUE, "boxId"),
       Index("Box_boxTypeIndex", OClass.INDEX_TYPE.NOTUNIQUE, "boxType")
     ),
     enc = box =>
@@ -186,7 +186,7 @@ object Account {
       Property("address", OType.STRING)
     ),
     i = List(
-      Index("Account_addressIndex", OClass.INDEX_TYPE.UNIQUE_HASH_INDEX, "address")
+      Index("Account_addressIndex", OClass.INDEX_TYPE.UNIQUE, "address")
     ),
     enc = account =>
       Map(
@@ -220,9 +220,9 @@ object State {
     NodeSchema[State](
       p = List(Property("stateId", OType.STRING)),
       i = List(
-        Index("State_stateId", OClass.INDEX_TYPE.UNIQUE_HASH_INDEX, "stateId")
+        Index("State_stateId", OClass.INDEX_TYPE.UNIQUE, "stateId")
       ),
-      enc = _ => Map.empty,
+      enc = state => Map("stateId" -> state.stateId),
       dec = decoder => State(decoder("stateId"))
     )
 }

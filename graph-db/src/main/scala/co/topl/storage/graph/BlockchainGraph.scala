@@ -6,6 +6,8 @@ import akka.{Done, NotUsed}
 import cats.data.{EitherT, NonEmptyChain}
 import cats.implicits._
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
+import co.topl.utils.codecs.implicits.identityBytesEncoder
+import co.topl.utils.encode.Base58
 import com.tinkerpop.blueprints.Edge
 import com.tinkerpop.blueprints.impls.orient.OrientVertex
 
@@ -14,7 +16,6 @@ import scala.language.implicitConversions
 
 class BlockchainGraph(val orientDBGraph: OrientDBGraph)(implicit system: ActorSystem) extends BlockchainOpsProvider {
 
-  import orientDBGraph.Ops._
   import system.dispatcher
 
   implicit override def headerOps(header: BlockHeader): BlockHeaderOps =
@@ -23,52 +24,41 @@ class BlockchainGraph(val orientDBGraph: OrientDBGraph)(implicit system: ActorSy
       override protected def instance: BlockHeader = header
 
       override def parentBlock: EitherT[Future, BlockchainOps.Error, BlockHeader] =
-        EitherT(
-          orientDBGraph
-            .getNode[BlockHeader](
-              s"SELECT expand(out('${BlockParent.edgeSchema.name}'))" +
-              s" FROM ${BlockHeader.nodeSchema.name}" +
-              s" WHERE blockId='${header.blockId}'"
-            )
-            .map(_.toRight(BlockchainOps.NotFound))
-            .recover { case e => Left(BlockchainOps.ThrowableError(e)) }
-        )
+        orientDBGraph
+          .getNode[BlockHeader](
+            Trace[BlockHeader](where = PropEquals("blockId", header.blockId))
+              .out(BlockParent.edgeSchema)
+          )
+          .leftMap { case OrientDBGraph.ThrowableError(throwable) => BlockchainOps.ThrowableError(throwable) }
+          .subflatMap(_.toRight(BlockchainOps.NotFound))
 
       override def childBlocks: Source[Either[BlockchainOps.Error, BlockHeader], NotUsed] =
         orientDBGraph
-          .resultSetQuery[OrientVertex](
-            s"SELECT expand(in('${BlockParent.edgeSchema.name}'))" +
-            s" FROM ${BlockHeader.nodeSchema.name}" +
-            s" WHERE blockId='${header.blockId}'"
+          .getNodes[BlockHeader](
+            Trace[BlockHeader](where = PropEquals("blockId", header.blockId))
+              .in(BlockParent.edgeSchema)
           )
-          .map(_.as[BlockHeader])
-          .map(Right(_))
+          .map(_.leftMap { case OrientDBGraph.ThrowableError(throwable) => BlockchainOps.ThrowableError(throwable) })
           .recover { case e => Left(BlockchainOps.ThrowableError(e)) }
           .takeWhile(_.isRight, inclusive = true)
 
       override def body: EitherT[Future, BlockchainOps.Error, BlockBody] =
-        EitherT(
-          orientDBGraph
-            .getNode[BlockBody](
-              s"SELECT expand(in('${BodyHeader.edgeSchema.name}'))" +
-              s" FROM ${BlockHeader.nodeSchema.name}" +
-              s" WHERE blockId='${header.blockId}'"
-            )
-            .map(_.toRight(BlockchainOps.NotFound))
-            .recover { case e => Left(BlockchainOps.ThrowableError(e)) }
-        )
+        orientDBGraph
+          .getNode[BlockBody](
+            Trace[BlockHeader](where = PropEquals("blockId", header.blockId))
+              .in(BodyHeader.edgeSchema)
+          )
+          .leftMap { case OrientDBGraph.ThrowableError(throwable) => BlockchainOps.ThrowableError(throwable) }
+          .subflatMap(_.toRight(BlockchainOps.NotFound))
 
       override def history: Source[Either[BlockchainOps.Error, BlockHeader], NotUsed] =
         orientDBGraph
-          .resultSetQuery[OrientVertex](
-            s"TRAVERSE out('${BlockParent.edgeSchema.name}')" +
-            s" FROM (SELECT FROM ${BlockHeader.nodeSchema.name}" +
-            s" WHERE blockId='${header.blockId}')"
+          .getNodes[BlockHeader](
+            Traverse(NodesByClass[BlockHeader](where = PropEquals("blockId", header.blockId)))
+              .out(BlockParent.edgeSchema)
           )
           .drop(1)
-          .map(_.as[BlockHeader])
-          .map(Right(_))
-          .recover { case e => Left(BlockchainOps.ThrowableError(e)) }
+          .map(_.leftMap { case OrientDBGraph.ThrowableError(throwable) => BlockchainOps.ThrowableError(throwable) })
           .takeWhile(_.isRight, inclusive = true)
     }
 
@@ -78,27 +68,21 @@ class BlockchainGraph(val orientDBGraph: OrientDBGraph)(implicit system: ActorSy
       override protected def instance: BlockBody = body
 
       override def header: EitherT[Future, BlockchainOps.Error, BlockHeader] =
-        EitherT(
-          orientDBGraph
-            .getNode[BlockHeader](
-              s"SELECT expand(out('${BodyHeader.edgeSchema.name}'))" +
-              s" FROM ${BlockBody.nodeSchema.name}" +
-              s" WHERE blockId='${body.blockId}'"
-            )
-            .map(_.toRight(BlockchainOps.NotFound))
-            .recover { case e => Left(BlockchainOps.ThrowableError(e)) }
-        )
+        orientDBGraph
+          .getNode[BlockHeader](
+            Trace[BlockBody](where = PropEquals("blockId", body.blockId))
+              .out(BodyHeader.edgeSchema)
+          )
+          .leftMap { case OrientDBGraph.ThrowableError(throwable) => BlockchainOps.ThrowableError(throwable) }
+          .subflatMap(_.toRight(BlockchainOps.NotFound))
 
       override def transactions: Source[Either[BlockchainOps.Error, Transaction], NotUsed] =
         orientDBGraph
-          .resultSetQuery[OrientVertex](
-            s"SELECT expand(in('${TransactionBlock.edgeSchema.name}'))" +
-            s" FROM ${BlockBody.nodeSchema.name}" +
-            s" WHERE blockId='${body.blockId}'"
+          .getNodes[Transaction](
+            Trace[BlockBody](where = PropEquals("blockId", body.blockId))
+              .in(TransactionBlock.edgeSchema)
           )
-          .map(_.as[Transaction])
-          .map(Right(_))
-          .recover { case e => Left(BlockchainOps.ThrowableError(e)) }
+          .map(_.leftMap { case OrientDBGraph.ThrowableError(throwable) => BlockchainOps.ThrowableError(throwable) })
           .takeWhile(_.isRight, inclusive = true)
 
       override def lookupUnopenedBox(boxId: String): EitherT[Future, BlockchainOps.Error, Box] =
@@ -134,16 +118,13 @@ class BlockchainGraph(val orientDBGraph: OrientDBGraph)(implicit system: ActorSy
         )
 
       override def state: EitherT[Future, BlockchainOps.Error, State] =
-        EitherT(
-          orientDBGraph
-            .getNode[State](
-              s"SELECT expand(in('${BodyState.edgeSchema.name}'))" +
-              s" FROM ${BlockBody.nodeSchema.name}" +
-              s" WHERE blockId='${body.blockId}'"
-            )
-            .map(_.toRight(BlockchainOps.NotFound))
-            .recover { case e => Left(BlockchainOps.ThrowableError(e)) }
-        )
+        orientDBGraph
+          .getNode[State](
+            Trace[BlockBody](where = PropEquals("blockId", body.blockId))
+              .out(BodyState.edgeSchema)
+          )
+          .leftMap { case OrientDBGraph.ThrowableError(throwable) => BlockchainOps.ThrowableError(throwable) }
+          .subflatMap(_.toRight(BlockchainOps.NotFound))
     }
 
   implicit override def transactionOps(transaction: Transaction): TransactionOps =
@@ -152,39 +133,30 @@ class BlockchainGraph(val orientDBGraph: OrientDBGraph)(implicit system: ActorSy
       override protected def instance: Transaction = transaction
 
       override def blockBody: EitherT[Future, BlockchainOps.Error, BlockBody] =
-        EitherT(
-          orientDBGraph
-            .getNode[BlockBody](
-              s"SELECT expand(out('${TransactionBlock.edgeSchema.name}'))" +
-              s" FROM ${Transaction.nodeSchema.name}" +
-              s" WHERE transactionId='${transaction.transactionId}'"
-            )
-            .map(_.toRight(BlockchainOps.NotFound))
-            .recover { case e => Left(BlockchainOps.ThrowableError(e)) }
-        )
+        orientDBGraph
+          .getNode(
+            Trace[Transaction](where = PropEquals("transactionId", transaction.transactionId))
+              .out(TransactionBlock.edgeSchema)
+          )
+          .leftMap { case OrientDBGraph.ThrowableError(throwable) => BlockchainOps.ThrowableError(throwable) }
+          .subflatMap(_.toRight(BlockchainOps.NotFound))
 
       override def opens: Source[Either[BlockchainOps.Error, Box], NotUsed] =
         orientDBGraph
-          .resultSetQuery[OrientVertex](
-            s"SELECT expand(out('${TransactionBoxOpens.edgeSchema.name}'))" +
-            s" FROM ${Transaction.nodeSchema.name}" +
-            s" WHERE transactionId='${transaction.transactionId}'"
+          .getNodes(
+            Trace[Transaction](where = PropEquals("transactionId", transaction.transactionId))
+              .out(TransactionBoxOpens.edgeSchema)
           )
-          .map(_.as[Box])
-          .map(Right(_))
-          .recover { case e => Left(BlockchainOps.ThrowableError(e)) }
+          .map(_.leftMap { case OrientDBGraph.ThrowableError(throwable) => BlockchainOps.ThrowableError(throwable) })
           .takeWhile(_.isRight, inclusive = true)
 
       override def creates: Source[Either[BlockchainOps.Error, Box], NotUsed] =
         orientDBGraph
-          .resultSetQuery[OrientVertex](
-            s"SELECT expand(out('${TransactionBoxCreates.edgeSchema.name}'))" +
-            s" FROM ${Transaction.nodeSchema.name}" +
-            s" WHERE transactionId='${transaction.transactionId}'"
+          .getNodes(
+            Trace[Transaction](where = PropEquals("transactionId", transaction.transactionId))
+              .out(TransactionBoxCreates.edgeSchema)
           )
-          .map(_.as[Box])
-          .map(Right(_))
-          .recover { case e => Left(BlockchainOps.ThrowableError(e)) }
+          .map(_.leftMap { case OrientDBGraph.ThrowableError(throwable) => BlockchainOps.ThrowableError(throwable) })
           .takeWhile(_.isRight, inclusive = true)
     }
 
@@ -194,29 +166,26 @@ class BlockchainGraph(val orientDBGraph: OrientDBGraph)(implicit system: ActorSy
 
       override def unopenedBoxes: Source[Either[BlockchainOps.Error, Box], NotUsed] =
         orientDBGraph
-          .resultSetQuery[OrientVertex](
-            s"SELECT expand(out('${StateUnopenedBox.edgeSchema.name}'))" +
-            s" FROM ${State.nodeSchema.name}" +
-            s" WHERE stateId='${state.stateId}'"
+          .getNodes(
+            Trace[State](where = PropEquals("stateId", state.stateId))
+              .out(StateUnopenedBox.edgeSchema)
           )
-          .map(_.as[Box])
-          .map(Right(_))
-          .recover { case e => Left(BlockchainOps.ThrowableError(e)) }
+          .map(_.leftMap { case OrientDBGraph.ThrowableError(throwable) => BlockchainOps.ThrowableError(throwable) })
           .takeWhile(_.isRight, inclusive = true)
 
       override def lookupUnopenedBox(boxId: String): EitherT[Future, BlockchainOps.Error, Box] =
-        EitherT(
-          orientDBGraph
-            .getNode[Box](
+        orientDBGraph
+          .getNode[Box](
+            Raw[Box](
               s"SELECT $$box" +
               s" FROM ${Transaction.nodeSchema.name}" +
               s" LET $$box=expand(out('${StateUnopenedBox.edgeSchema.name}'))" +
               s" WHERE stateId='${state.stateId}'" +
               s" AND $$box.boxId='$boxId'"
             )
-            .map(_.toRight(BlockchainOps.NotFound))
-            .recover { case e => Left(BlockchainOps.ThrowableError(e)) }
-        )
+          )
+          .leftMap { case OrientDBGraph.ThrowableError(throwable) => BlockchainOps.ThrowableError(throwable) }
+          .subflatMap(_.toRight(BlockchainOps.NotFound))
     }
 
   implicit override def boxOps(box: Box): BoxOps =
@@ -225,27 +194,21 @@ class BlockchainGraph(val orientDBGraph: OrientDBGraph)(implicit system: ActorSy
       override protected def instance: Box = box
 
       override def createdBy: EitherT[Future, BlockchainOps.Error, Transaction] =
-        EitherT(
-          orientDBGraph
-            .getNode[Transaction](
-              s"SELECT expand(in('${TransactionBoxCreates.edgeSchema.name}'))" +
-              s" FROM ${Box.nodeSchema.name}" +
-              s" WHERE boxId='${box.boxId}'"
-            )
-            .map(_.toRight(BlockchainOps.NotFound))
-            .recover { case e => Left(BlockchainOps.ThrowableError(e)) }
-        )
+        orientDBGraph
+          .getNode(
+            Trace[Box](where = PropEquals("boxId", box.boxId))
+              .in(TransactionBoxCreates.edgeSchema)
+          )
+          .leftMap { case OrientDBGraph.ThrowableError(throwable) => BlockchainOps.ThrowableError(throwable) }
+          .subflatMap(_.toRight(BlockchainOps.NotFound))
 
       override def openedBy: Source[Either[BlockchainOps.Error, Transaction], NotUsed] =
         orientDBGraph
-          .resultSetQuery[OrientVertex](
-            s"SELECT expand(in('${TransactionBoxOpens.edgeSchema.name}'))" +
-            s" FROM ${Box.nodeSchema.name}" +
-            s" WHERE boxId='${box.boxId}'"
+          .getNodes[Transaction](
+            Trace[Box](where = PropEquals("boxId", box.boxId))
+              .in(TransactionBoxOpens.edgeSchema)
           )
-          .map(_.as[Transaction])
-          .map(Right(_))
-          .recover { case e => Left(BlockchainOps.ThrowableError(e)) }
+          .map(_.leftMap { case OrientDBGraph.ThrowableError(throwable) => BlockchainOps.ThrowableError(throwable) })
           .takeWhile(_.isRight, inclusive = true)
     }
 
@@ -258,26 +221,73 @@ class BlockchainGraph(val orientDBGraph: OrientDBGraph)(implicit system: ActorSy
         body.state
           .map(_ => state)
           .recoverWith { case BlockchainOps.NotFound =>
-            accumulateOpenedBoxesUntilState(body)
-              .flatMap { case (changes, stateOpt) =>
-                val stateNode = orientDBGraph.insertNode()
-                for {
-                  blockStateHistory <- nearestState(body)
-                    .mapAsync(1)(b => b.stateChanges.map((b.blockId, _)).value.map(_.getOrThrow()))
+            EitherT.right(
+              for {
+                blockStateHistory <-
+                  traverseToNearestState(body)
+                    .concat(Source.single(body))
+                    .mapAsync(1)(b =>
+                      b.stateChanges.map((b.blockId, _)).value.map(_.getOrThrow(BlockchainOps.ErrorThrowable))
+                    )
                     .runWith(Sink.seq)
                     .map(_.reverse)
-                  closestState <- blockStateHistory.head._1.blockBody.flatMap(_.state).value.map(_.getOrThrow())
-                  knownUnopenedBoxes = blockStateHistory.tail
-                    .map(_._2)
-                    .fold(BlockStateChange(Set.empty, Set.empty))(_.merge(_))
-                    .boxesCreated
-                  newStateId = blockStateHistory.map(_._2).tail.foldLeft(Base58.decode(closestState.stateId))()
-                } yield Done
-              }
+                closestState <-
+                  blockStateHistory.head._1.blockBody.flatMap(_.state).value.map {
+                    case Right(s)                     => Some(s)
+                    case Left(BlockchainOps.NotFound) => None
+                    case Left(e)                      => throw BlockchainOps.ErrorThrowable(e)
+                  }
+                historyAfterClosestState =
+                  blockStateHistory.drop(closestState.size.toInt)
+                newStateId = historyAfterClosestState
+                  .map(_._2.hash)
+                  .foldLeft(
+                    closestState.fold(Array.fill(32)(0: Byte))(cs => Base58.decode(cs.stateId).getOrThrow())
+                  ) { case (previousStateHash, changeHistoryHash) =>
+                    co.topl.crypto.hash.blake2b256.hash(None, previousStateHash, changeHistoryHash).value
+                  }
+                stateNode <-
+                  orientDBGraph.insertNode[State](State(Base58.encode(newStateId)))
+                knownUnopenedBoxes = {
+                  val mergedStateChange =
+                    historyAfterClosestState
+                      .map(_._2)
+                      .fold(BlockStateChange(Set.empty, Set.empty))(_.combine(_))
+                  mergedStateChange.boxesCreated -- mergedStateChange.boxesOpened
+                }
+                _ <-
+                  orientDBGraph
+                    .insertEdge(
+                      BodyState(),
+                      OrientDBGraph.QueryNodeReference(
+                        NodesByClass[BlockBody](where = PropEquals("blockId", blockId))
+                      ),
+                      OrientDBGraph.VertexNodeReference(stateNode)
+                    )
+                _ <-
+                  Source(knownUnopenedBoxes)
+                    .concat(closestState.fold(Source.empty[String])(_.unopenedBoxes.map(_.getOrThrow().boxId)))
+                    .runWith(
+                      Sink.foreachAsync(1)(boxId =>
+                        orientDBGraph
+                          .insertEdge(
+                            StateUnopenedBox(),
+                            OrientDBGraph.VertexNodeReference(stateNode),
+                            OrientDBGraph.QueryNodeReference(
+                              NodesByClass[Box](where = PropEquals("boxId", boxId))
+                            )
+                          )
+                          .map { _ => }
+                      )
+                    )
+              } yield state.withVertex(stateNode)
+            )
           }
       )
+      .value
+      .map(_.getOrThrow(BlockchainOps.ErrorThrowable))
 
-  private def nearestState(blockBody: BlockBody): Source[BlockBody, NotUsed] =
+  private def traverseToNearestState(blockBody: BlockBody): Source[BlockBody, NotUsed] =
     Source
       .future(
         blockBody.header.value
@@ -301,35 +311,6 @@ class BlockchainGraph(val orientDBGraph: OrientDBGraph)(implicit system: ActorSy
           )
           .takeWhile(_.isRight)
           .map(_.getOrThrow())
-      )
-
-  private def accumulateOpenedBoxesUntilState(blockBody: BlockBody): Future[(BlockStateChange, Option[State])] =
-    blockBody.header.value
-      .map(_.getOrThrow(BlockchainOps.ErrorThrowable))
-      .flatMap(
-        _.history
-          .map(_.getOrThrow(BlockchainOps.ErrorThrowable))
-          .mapAsync(1)(
-            _.body.value
-              .map(_.getOrThrow(BlockchainOps.ErrorThrowable))
-          )
-          .mapAsync(1)(body =>
-            body.state
-              .map(Right(_): Either[BlockStateChange, State])
-              .recoverWith { case BlockchainOps.NotFound =>
-                body.stateChanges.map(Left(_))
-              }
-              .value
-              .map(_.getOrThrow(BlockchainOps.ErrorThrowable))
-          )
-          .takeWhile(_.isLeft, inclusive = true)
-          .runFold((BlockStateChange(Set.empty, Set.empty), None: Option[State])) {
-            case ((stateChanges, maybeState), Left(moreStateChanges)) =>
-              (stateChanges.merge(moreStateChanges), maybeState)
-            case ((stateChanges, maybeState), Right(state)) =>
-              // It _should_ be impossible for `maybeState` to be Some in this case, but if so, let's prefer it `state`
-              (stateChanges, Some(maybeState.getOrElse(state)))
-          }
       )
 
   private def applyCreateBlockHeader(
@@ -363,18 +344,18 @@ class BlockchainGraph(val orientDBGraph: OrientDBGraph)(implicit system: ActorSy
     import orientDBGraph.Ops._
     for {
       headVertex <- orientDBGraph
-        .resultSetQuery[OrientVertex](s"SELECT FROM ${ChainHead.nodeSchema.name}")
-        .runWith(Sink.headOption)
+        .getRawNode(NodesByClass[ChainHead]())
+        .value
+        .map(_.getOrThrow())
         .flatMap {
           case Some(vertex) => Future.successful(vertex)
           case _            => orientDBGraph.insertNode(ChainHead())
         }
       newTarget <- orientDBGraph
-        .resultSetQuery[OrientVertex](
-          s"SELECT FROM ${BlockHeader.nodeSchema.name}" +
-          s" WHERE blockId='${setHead.blockId}'"
-        )
-        .runWith(Sink.head)
+        .getRawNode(NodesByClass[BlockHeader](where = PropEquals("blockId", setHead.blockId)))
+        .subflatMap(_.toRight(BlockchainOps.NotFound))
+        .value
+        .map(_.getOrThrow())
       _ <- headVertex
         .allEdges(Some(CanonicalHead.edgeSchema.name))
         .runWith(Sink.foreachAsync(1)(_.removeAsync().map { _ => }))
@@ -397,7 +378,7 @@ class BlockchainGraph(val orientDBGraph: OrientDBGraph)(implicit system: ActorSy
       .map(OrientDBGraph.VertexNodeReference)
       .getOrElse(
         OrientDBGraph.QueryNodeReference(
-          s"SELECT FROM ${BlockHeader.nodeSchema.name} WHERE blockId='${associateBlockToParent.parentBlockId}'"
+          NodesByClass[BlockHeader](where = PropEquals("blockId", associateBlockToParent.parentBlockId))
         )
       )
     val childHeader = state.newVertices
@@ -405,7 +386,7 @@ class BlockchainGraph(val orientDBGraph: OrientDBGraph)(implicit system: ActorSy
       .map(OrientDBGraph.VertexNodeReference)
       .getOrElse(
         OrientDBGraph.QueryNodeReference(
-          s"SELECT FROM ${BlockHeader.nodeSchema.name} WHERE blockId='${associateBlockToParent.childBlockId}'"
+          NodesByClass[BlockHeader](where = PropEquals("blockId", associateBlockToParent.childBlockId))
         )
       )
 
@@ -423,7 +404,7 @@ class BlockchainGraph(val orientDBGraph: OrientDBGraph)(implicit system: ActorSy
       .map(OrientDBGraph.VertexNodeReference)
       .getOrElse(
         OrientDBGraph.QueryNodeReference(
-          s"SELECT FROM ${BlockHeader.nodeSchema.name} WHERE blockId='$headerId'"
+          NodesByClass[BlockHeader](where = PropEquals("blockId", headerId))
         )
       )
     val body = state.newVertices
@@ -431,7 +412,7 @@ class BlockchainGraph(val orientDBGraph: OrientDBGraph)(implicit system: ActorSy
       .map(OrientDBGraph.VertexNodeReference)
       .getOrElse(
         OrientDBGraph.QueryNodeReference(
-          s"SELECT FROM ${BlockBody.nodeSchema.name} WHERE blockId='$bodyId'"
+          NodesByClass[BlockBody](where = PropEquals("blockId", bodyId))
         )
       )
     orientDBGraph.insertEdge(BodyHeader(), body, header).map(state.withEdge)
@@ -448,7 +429,7 @@ class BlockchainGraph(val orientDBGraph: OrientDBGraph)(implicit system: ActorSy
       .map(OrientDBGraph.VertexNodeReference)
       .getOrElse(
         OrientDBGraph.QueryNodeReference(
-          s"SELECT FROM ${Transaction.nodeSchema.name} WHERE transactionId='$transactionId'"
+          NodesByClass[Transaction](where = PropEquals("transactionId", transactionId))
         )
       )
     val body = state.newVertices
@@ -456,7 +437,7 @@ class BlockchainGraph(val orientDBGraph: OrientDBGraph)(implicit system: ActorSy
       .map(OrientDBGraph.VertexNodeReference)
       .getOrElse(
         OrientDBGraph.QueryNodeReference(
-          s"SELECT FROM ${BlockBody.nodeSchema.name} WHERE blockId='$blockId'"
+          NodesByClass[BlockBody](where = PropEquals("blockId", blockId))
         )
       )
     orientDBGraph.insertEdge(TransactionBlock(), transaction, body).map(state.withEdge)
@@ -475,7 +456,7 @@ class BlockchainGraph(val orientDBGraph: OrientDBGraph)(implicit system: ActorSy
       .map(OrientDBGraph.VertexNodeReference)
       .getOrElse(
         OrientDBGraph.QueryNodeReference(
-          s"SELECT FROM ${Transaction.nodeSchema.name} WHERE transactionId='$transactionId'"
+          NodesByClass[Transaction](where = PropEquals("transactionId", transactionId))
         )
       )
     val box = state.newVertices
@@ -483,7 +464,7 @@ class BlockchainGraph(val orientDBGraph: OrientDBGraph)(implicit system: ActorSy
       .map(OrientDBGraph.VertexNodeReference)
       .getOrElse(
         OrientDBGraph.QueryNodeReference(
-          s"SELECT FROM ${Box.nodeSchema.name} WHERE boxId='$boxId'"
+          NodesByClass[Box](where = PropEquals("boxId", boxId))
         )
       )
     orientDBGraph.insertEdge(TransactionBoxCreates(minted = true), transaction, box).map(state.withEdge)
@@ -501,7 +482,7 @@ class BlockchainGraph(val orientDBGraph: OrientDBGraph)(implicit system: ActorSy
       .map(OrientDBGraph.VertexNodeReference)
       .getOrElse(
         OrientDBGraph.QueryNodeReference(
-          s"SELECT FROM ${Transaction.nodeSchema.name} WHERE transactionId='$transactionId'"
+          NodesByClass[Transaction](where = PropEquals("transactionId", transactionId))
         )
       )
     val box = state.newVertices
@@ -509,7 +490,7 @@ class BlockchainGraph(val orientDBGraph: OrientDBGraph)(implicit system: ActorSy
       .map(OrientDBGraph.VertexNodeReference)
       .getOrElse(
         OrientDBGraph.QueryNodeReference(
-          s"SELECT FROM ${Box.nodeSchema.name} WHERE boxId='$boxId'"
+          NodesByClass[Box](where = PropEquals("boxId", boxId))
         )
       )
     orientDBGraph
@@ -544,6 +525,8 @@ class BlockchainGraph(val orientDBGraph: OrientDBGraph)(implicit system: ActorSy
               applyAssociateBoxCreator(c, state)
             case c: AssociateBoxOpener =>
               applyAssociateBoxOpener(c, state)
+            case c: CreateState =>
+              applyCreateState(c.blockId, state)
           }
         }
         .map(_ => Right(Done))
@@ -556,78 +539,73 @@ class BlockchainGraph(val orientDBGraph: OrientDBGraph)(implicit system: ActorSy
       override protected def instance: String = value
 
       override def blockHeader: EitherT[Future, BlockchainOps.Error, BlockHeader] =
-        EitherT(
-          orientDBGraph
-            .getNode[BlockHeader](s"SELECT FROM ${BlockHeader.nodeSchema.name} WHERE blockId='$value'")
-            .map(_.toRight(BlockchainOps.NotFound))
-            .recover { case e => Left(BlockchainOps.ThrowableError(e)) }
-        )
+        orientDBGraph
+          .getNode(
+            NodesByClass[BlockHeader](where = PropEquals("blockId", value))
+          )
+          .leftMap { case OrientDBGraph.ThrowableError(throwable) => BlockchainOps.ThrowableError(throwable) }
+          .subflatMap(_.toRight(BlockchainOps.NotFound))
 
       override def blockBody: EitherT[Future, BlockchainOps.Error, BlockBody] =
-        EitherT(
-          orientDBGraph
-            .getNode[BlockBody](s"SELECT FROM ${BlockBody.nodeSchema.name} WHERE blockId='$value'")
-            .map(_.toRight(BlockchainOps.NotFound))
-            .recover { case e => Left(BlockchainOps.ThrowableError(e)) }
-        )
+        orientDBGraph
+          .getNode(
+            NodesByClass[BlockBody](where = PropEquals("blockId", value))
+          )
+          .leftMap { case OrientDBGraph.ThrowableError(throwable) => BlockchainOps.ThrowableError(throwable) }
+          .subflatMap(_.toRight(BlockchainOps.NotFound))
 
       override def transaction: EitherT[Future, BlockchainOps.Error, Transaction] =
-        EitherT(
-          orientDBGraph
-            .getNode[Transaction](s"SELECT FROM ${Transaction.nodeSchema.name} WHERE transactionId='$value'")
-            .map(_.toRight(BlockchainOps.NotFound))
-            .recover { case e => Left(BlockchainOps.ThrowableError(e)) }
-        )
+        orientDBGraph
+          .getNode(
+            NodesByClass[Transaction](where = PropEquals("transactionId", value))
+          )
+          .leftMap { case OrientDBGraph.ThrowableError(throwable) => BlockchainOps.ThrowableError(throwable) }
+          .subflatMap(_.toRight(BlockchainOps.NotFound))
 
       override def box: EitherT[Future, BlockchainOps.Error, Box] =
-        EitherT(
-          orientDBGraph
-            .getNode[Box](s"SELECT FROM ${Box.nodeSchema.name} WHERE boxId='$value'")
-            .map(_.toRight(BlockchainOps.NotFound))
-            .recover { case e => Left(BlockchainOps.ThrowableError(e)) }
-        )
+        orientDBGraph
+          .getNode(
+            NodesByClass[Box](where = PropEquals("boxId", value))
+          )
+          .leftMap { case OrientDBGraph.ThrowableError(throwable) => BlockchainOps.ThrowableError(throwable) }
+          .subflatMap(_.toRight(BlockchainOps.NotFound))
 
       override def addressAccount: EitherT[Future, BlockchainOps.Error, Account] =
-        EitherT(
-          orientDBGraph
-            .getNode[Account](s"SELECT FROM ${Account.nodeSchema.name} WHERE address='$value'")
-            .map(_.toRight(BlockchainOps.NotFound))
-            .recover { case e => Left(BlockchainOps.ThrowableError(e)) }
-        )
+        orientDBGraph
+          .getNode(
+            NodesByClass[Account](where = PropEquals("address", value))
+          )
+          .leftMap { case OrientDBGraph.ThrowableError(throwable) => BlockchainOps.ThrowableError(throwable) }
+          .subflatMap(_.toRight(BlockchainOps.NotFound))
+
     }
 
   implicit override def blockchainOps(blockchain: Blockchain.type): BlockchainOps =
     new BlockchainOps {
 
       override def currentHead: EitherT[Future, BlockchainOps.Error, BlockHeader] =
-        EitherT(
-          orientDBGraph
-            .getNode[BlockHeader](
-              s"SELECT expand(out('${CanonicalHead.edgeSchema.name}')) FROM ${ChainHead.nodeSchema.name}"
-            )
-            .map(_.toRight(BlockchainOps.NotFound))
-            .recover { case e => Left(BlockchainOps.ThrowableError(e)) }
-        )
+        orientDBGraph
+          .getNode[BlockHeader](
+            Trace[ChainHead]().out(CanonicalHead.edgeSchema)
+          )
+          .leftMap { case OrientDBGraph.ThrowableError(throwable) => BlockchainOps.ThrowableError(throwable) }
+          .subflatMap(_.toRight(BlockchainOps.NotFound))
 
       override def currentHeads: Source[Either[BlockchainOps.Error, BlockHeader], NotUsed] =
         orientDBGraph
-          .resultSetQuery[OrientVertex](
-            s"SELECT FROM ${BlockHeader.nodeSchema.name} WHERE in('${BlockParent.edgeSchema.name}').size()=0"
+          .getNodes(
+            NodesByClass[BlockHeader](where = PropEquals(s"in('${BlockParent.edgeSchema.name}').size()", 0))
           )
-          .map(_.as[BlockHeader])
-          .map(Right(_))
-          .recover { case e => Left(BlockchainOps.ThrowableError(e)) }
+          .map(_.leftMap { case OrientDBGraph.ThrowableError(throwable) => BlockchainOps.ThrowableError(throwable) })
           .takeWhile(_.isRight, inclusive = true)
 
       override def genesis: EitherT[Future, BlockchainOps.Error, BlockHeader] =
-        EitherT(
-          orientDBGraph
-            .getNode[BlockHeader](
-              s"SELECT FROM ${BlockHeader.nodeSchema.name} WHERE out('${BlockParent.edgeSchema.name}').size()=0"
-            )
-            .map(_.toRight(BlockchainOps.NotFound))
-            .recover { case e => Left(BlockchainOps.ThrowableError(e)) }
-        )
+        orientDBGraph
+          .getNode[BlockHeader](
+            NodesByClass[BlockHeader](where = PropEquals(s"out('${BlockParent.edgeSchema.name}').size()", 0))
+          )
+          .leftMap { case OrientDBGraph.ThrowableError(throwable) => BlockchainOps.ThrowableError(throwable) }
+          .subflatMap(_.toRight(BlockchainOps.NotFound))
     }
 }
 

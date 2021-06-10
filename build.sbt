@@ -167,16 +167,10 @@ lazy val bifrost = project
     graphDb,
     akkaHttpRpc,
     toplRpc,
-    gjallarhorn,
+//    gjallarhorn,
     benchmarking,
     crypto,
     brambl
-  )
-  .dependsOn(
-    node,
-    common,
-    gjallarhorn,
-    benchmarking
   )
 
 lazy val node = project
@@ -225,7 +219,7 @@ lazy val graphDb = project.in(file("graph-db"))
     libraryDependencies ++= Dependencies.graphDb
   )
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(common % "test->test")
+  .dependsOn(common % "compile->compile;test->test", crypto)
 
 lazy val chainProgram = project
   .in(file("chain-program"))
@@ -276,20 +270,20 @@ lazy val toplRpc = project
   )
   .dependsOn(akkaHttpRpc, common)
 
-lazy val gjallarhorn = project
-  .in(file("gjallarhorn"))
-  .settings(
-    name := "gjallarhorn",
-    commonSettings,
-    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
-    publish / skip := true,
-    Defaults.itSettings,
-    libraryDependencies ++= Dependencies.gjallarhorn
-  )
-  .dependsOn(crypto, common)
-  .configs(IntegrationTest)
-  .disablePlugins(sbtassembly.AssemblyPlugin)
-  .settings(scalamacrosParadiseSettings)
+//lazy val gjallarhorn = project
+//  .in(file("gjallarhorn"))
+//  .settings(
+//    name := "gjallarhorn",
+//    commonSettings,
+//    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
+//    publish / skip := true,
+//    Defaults.itSettings,
+//    libraryDependencies ++= Dependencies.gjallarhorn
+//  )
+//  .dependsOn(crypto, common)
+//  .configs(IntegrationTest)
+//  .disablePlugins(sbtassembly.AssemblyPlugin)
+//  .settings(scalamacrosParadiseSettings)
 
 lazy val benchmarking = project
   .in(file("benchmark"))
@@ -305,14 +299,14 @@ lazy val benchmarking = project
 
 lazy val crypto = project
   .in(file("crypto"))
-  .enablePlugins(BuildInfoPlugin)
+//  .enablePlugins(BuildInfoPlugin)
   .settings(
     name := "crypto",
     commonSettings,
     publishSettings,
     scalamacrosParadiseSettings,
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "co.topl.buildinfo.crypto",
+//    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+//    buildInfoPackage := "co.topl.buildinfo.crypto",
     libraryDependencies ++= Dependencies.crypto,
   )
 

@@ -3,7 +3,7 @@ package co.topl.storage.graph
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Sink
 import akka.testkit.TestKit
-import cats.data.{Chain, EitherT, NonEmptyChain}
+import cats.data._
 import cats.implicits._
 import cats.scalatest.FutureEitherValues
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
@@ -233,30 +233,35 @@ class BlockchainGraphSpec
     ))
   }
 
-  it should "retrieve state" in {
+  it should "find a specific unopened box for a given block/state" in {
     val t = underTest
     import t._
 
     blockBody1.lookupUnopenedBox(boxId1).futureRightValue shouldBe box1
     blockBody1.lookupUnopenedBox(boxId2).futureLeftValue shouldBe BlockchainOps.NotFound
-//    blockBody1.state.futureRightValue.unopenedBoxes
-//      .runWith(Sink.seq)
-//      .futureValue
-//      .map(_.value) should (have size 1 and contain(box1))
     blockBody2.lookupUnopenedBox(boxId1).futureLeftValue shouldBe BlockchainOps.NotFound
     blockBody2.lookupUnopenedBox(boxId2).futureRightValue shouldBe box2
-//    blockBody2.state.futureRightValue.unopenedBoxes
-//      .runWith(Sink.seq)
-//      .futureValue
-//      .map(_.value) should (have size 1 and contain(box2))
+  }
+
+  it should "save a snapshot at a specific block" in {
+    val t = underTest
+    import t._
+    NonEmptyChain(CreateState(blockId2)).run().futureRightValue
+    blockBody1.state.futureLeftValue shouldBe BlockchainOps.NotFound
+
+    val unopenedBoxes =
+      blockBody2.state.futureRightValue.unopenedBoxes
+        .runWith(Sink.seq)
+        .futureValue
+        .map(_.value)
+
+    unopenedBoxes should (have size 1 and contain(box2))
+    unopenedBoxes should not contain box1
   }
 
   it should "know the current heads" in {
     val t = underTest
     import t._
-
-    // TODO: OrientDB hasn't caught up yet for some reason, so without a slight delay, the following queries may fail
-    Thread.sleep(2000)
 
     Blockchain.currentHead.futureRightValue shouldBe blockHeader2
     Blockchain.currentHeads.runWith(Sink.seq).futureValue.toList.map(_.value) should (have size 1 and contain(
