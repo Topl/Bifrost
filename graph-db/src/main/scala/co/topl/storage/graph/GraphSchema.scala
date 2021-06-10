@@ -9,6 +9,10 @@ case class GraphSchema(nodeSchemas: List[NodeSchema[_]], edgeSchemas: List[EdgeS
 case class Property(name: String, propertyType: OType)
 case class Index(name: String, indexType: OClass.INDEX_TYPE, propertyName: String)
 
+/**
+ * Represents a class name, properties, indices, and codec for a Node in a Graph Database
+ * @tparam T the represented type
+ */
 trait NodeSchema[T] {
   def name: String
   def properties: List[Property]
@@ -17,7 +21,6 @@ trait NodeSchema[T] {
   def encode: T => Map[String, Any]
 
   def decode: Decoder => T
-
 }
 
 object NodeSchema {
@@ -40,6 +43,12 @@ object NodeSchema {
   }
 }
 
+/**
+ * Represents a class name, properties, indices, codec, src/in Node schema, and dest/out Node schema for an Edge in a Graph Database
+ * @tparam T The represented (Edge) type
+ * @tparam Src The represented src/in Node type
+ * @tparam Dest The represented dest/out Node type
+ */
 trait EdgeSchema[T, Src, Dest] {
   def name: String
   def properties: List[Property]

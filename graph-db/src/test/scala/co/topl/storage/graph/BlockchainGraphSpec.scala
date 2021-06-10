@@ -1,7 +1,7 @@
 package co.topl.storage.graph
 
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.Sink
+import akka.stream.scaladsl.{Sink, Source}
 import akka.testkit.TestKit
 import cats.data._
 import cats.implicits._
@@ -27,7 +27,7 @@ class BlockchainGraphSpec
 
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(2.minutes)
 
-  private var underTest: BlockchainOpsProvider = _
+  private var underTest: BlockchainData = _
 
   private val blockId1 = "block1"
   private val transactionId1 = "tx1"
@@ -171,7 +171,7 @@ class BlockchainGraphSpec
     val t = underTest
     import t._
 
-    blockId2.blockHeader.futureLeftValue shouldBe BlockchainOps.NotFound
+    blockId2.blockHeader.futureLeftValue shouldBe BlockchainData.NotFound
   }
 
   it should "Add Block, Transaction, and Box 2" in {
@@ -238,8 +238,8 @@ class BlockchainGraphSpec
     import t._
 
     blockBody1.lookupUnopenedBox(boxId1).futureRightValue shouldBe box1
-    blockBody1.lookupUnopenedBox(boxId2).futureLeftValue shouldBe BlockchainOps.NotFound
-    blockBody2.lookupUnopenedBox(boxId1).futureLeftValue shouldBe BlockchainOps.NotFound
+    blockBody1.lookupUnopenedBox(boxId2).futureLeftValue shouldBe BlockchainData.NotFound
+    blockBody2.lookupUnopenedBox(boxId1).futureLeftValue shouldBe BlockchainData.NotFound
     blockBody2.lookupUnopenedBox(boxId2).futureRightValue shouldBe box2
   }
 
@@ -247,7 +247,7 @@ class BlockchainGraphSpec
     val t = underTest
     import t._
     NonEmptyChain(CreateState(blockId2)).run().futureRightValue
-    blockBody1.state.futureLeftValue shouldBe BlockchainOps.NotFound
+    blockBody1.state.futureLeftValue shouldBe BlockchainData.NotFound
 
     val unopenedBoxes =
       blockBody2.state.futureRightValue.unopenedBoxes
@@ -275,35 +275,56 @@ class BlockchainGraphSpec
     val t = underTest
     import t._
 
-    val modifications =
-      (3 to 500).flatMap { i =>
-        val id = s"block$i"
-        val header = BlockHeader(
-          blockId = id,
-          timestamp = i,
-          publicKey = "topl",
-          signature = "topl",
-          height = i,
-          difficulty = 1,
-          txRoot = "bar",
-          bloomFilter = "baz",
-          version = 1
-        )
+    implicit val patienceConfig: PatienceConfig = PatienceConfig(10.minutes)
 
-        List(CreateBlockHeader(header), AssociateBlockToParent(id, s"block${i - 1}"))
-      } :+ SetHead("block500")
+    val count = 500
 
-    NonEmptyChain.fromChainUnsafe(Chain.fromSeq(modifications)).run().futureRightValue
+    Source(3 to (count + 3))
+      .grouped(10)
+      .map(indices =>
+        NonEmptyChain
+          .fromChainUnsafe(Chain.fromSeq(indices))
+          .map(i =>
+            CreateBlockHeader(
+              BlockHeader(
+                blockId = s"block$i",
+                timestamp = i,
+                publicKey = "topl",
+                signature = "topl",
+                height = i,
+                difficulty = 1,
+                txRoot = "bar",
+                bloomFilter = "baz",
+                version = 1
+              )
+            )
+          )
+      )
+      .concat(
+        Source(3 to (count + 3))
+          .grouped(10)
+          .map(indices =>
+            NonEmptyChain
+              .fromChainUnsafe(Chain.fromSeq(indices))
+              .map(i => AssociateBlockToParent(s"block$i", s"block${i - 1}"))
+          )
+      )
+      // TODO: Multi-threading is currently unsafe
+      .mapAsync(1)(v => v.run().value.map(_.value))
+      .runWith(Sink.ignore)
+      .futureValue
+
+    NonEmptyChain(SetHead(s"block${count + 3}")).run().futureRightValue
 
     val head = Blockchain.currentHead.futureRightValue
 
-    head.blockId shouldBe "block500"
+    head.blockId shouldBe s"block${count + 3}"
 
     val history =
       head.history.runWith(Sink.seq).futureValue.toList.map(_.value)
 
-    history should have size 499
-    history.zip(500 to 1).foreach { case (header, index) =>
+    history should have size (count + 2)
+    history.zip((count + 2) to 1).foreach { case (header, index) =>
       header.blockId shouldBe s"block${index + 1}"
     }
   }

@@ -299,14 +299,14 @@ lazy val benchmarking = project
 
 lazy val crypto = project
   .in(file("crypto"))
-//  .enablePlugins(BuildInfoPlugin)
+  .enablePlugins(BuildInfoPlugin)
   .settings(
     name := "crypto",
     commonSettings,
     publishSettings,
     scalamacrosParadiseSettings,
-//    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-//    buildInfoPackage := "co.topl.buildinfo.crypto",
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.crypto",
     libraryDependencies ++= Dependencies.crypto,
   )
 

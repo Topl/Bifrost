@@ -6,6 +6,9 @@ case class Raw[Result: NodeSchema](query: String) extends GraphQuery[Result]
 
 case class NodesByClass[Result: NodeSchema](where: Where = WhereAny) extends GraphQuery[Result]
 
+/**
+ * A non-recursive query which follows edges from an origin node
+ */
 case class Trace[Origin, Result](where: Where, edges: List[EdgeWithDirection])(implicit
   val originNodeSchema:                 NodeSchema[Origin],
   resultNodeSchema:                     NodeSchema[Result]
@@ -30,6 +33,9 @@ object Trace {
     Trace[Origin, Origin](where, Nil)
 }
 
+/**
+ * A recursive query which follows edges from an origin node
+ */
 case class Traverse[Origin, Result](origin: NodesByClass[Origin], edges: List[EdgeWithDirection])(implicit
   val originNodeSchema:                     NodeSchema[Origin],
   resultNodeSchema:                         NodeSchema[Result]
