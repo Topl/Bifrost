@@ -55,7 +55,7 @@ object Dependencies {
 
   val crypto = Seq(
     "org.scorexfoundation" %% "scrypto"         % "2.1.10",
-    "org.bouncycastle"      % "bcprov-jdk15on"  % "1.68",
+    "org.bouncycastle"      % "bcprov-jdk15on"  % "1.69",
     "org.whispersystems"    % "curve25519-java" % "0.5.0"
   )
 
