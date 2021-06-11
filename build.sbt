@@ -24,7 +24,7 @@ lazy val commonSettings = Seq(
   scalacOptions ++= commonScalacOptions,
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
-  // wartremoverErrors := Warts.unsafe // settings for wartremover
+//  wartremoverErrors := Warts.unsafe, // settings for wartremover
   Compile / unmanagedSourceDirectories += {
     val sourceDir = (Compile / sourceDirectory).value
     CrossVersion.partialVersion(scalaVersion.value) match {

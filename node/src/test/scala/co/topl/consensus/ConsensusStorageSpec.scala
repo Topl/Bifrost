@@ -9,6 +9,7 @@ import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scorex.crypto.hash.Blake2b256
+import scorex.util.encode.Base58
 
 class ConsensusStorageSpec
     extends AnyFlatSpec
@@ -32,9 +33,9 @@ class ConsensusStorageSpec
         .get(_: Array[Byte]))
         .expects(*)
         .onCall { key: Array[Byte] =>
-          if (key == Blake2b256("totalStake".getBytes))
+          if (key sameElements Blake2b256("totalStake".getBytes)) {
             Some(storageTotalStake.toByteArray)
-          else Some(Longs.toByteArray(0))
+          } else Some(Longs.toByteArray(0))
         }
         .anyNumberOfTimes()
 

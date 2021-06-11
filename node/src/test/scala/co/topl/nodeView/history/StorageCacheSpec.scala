@@ -4,7 +4,6 @@ import co.topl.consensus.consensusHelper.setProtocolMngr
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.utils.{CommonGenerators, NodeGenerators}
-import io.iohk.iodb.ByteArrayWrapper
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -31,7 +30,7 @@ class StorageCacheSpec
     val genesisBlockId = ModifierId.genesisParentId
 
     history.storage.blockCache.getIfPresent(genesisBlockId) shouldEqual
-    ByteArrayWrapper(history.storage.modifierById(genesisBlockId).get.bytes)
+    history.storage.modifierById(genesisBlockId).get.bytes
   }
 
   property("Cache should invalidate all entry when it's rolled back in storage") {
@@ -73,7 +72,7 @@ class StorageCacheSpec
       val block: Block = blockTemp.copy(parentId = history.bestBlockId)
 
       history = history.append(block).get._1
-      history.storage.blockCache.getIfPresent(ByteArrayWrapper(block.id.getIdBytes)) shouldEqual
+      history.storage.blockCache.getIfPresent(block.id.getIdBytes) shouldEqual
       history.storage.storage.get(block.id.getIdBytes)
     }
   }
