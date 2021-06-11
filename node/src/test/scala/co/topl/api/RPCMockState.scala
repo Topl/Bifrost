@@ -19,7 +19,7 @@ import co.topl.nodeView.nodeViewHolder.TestableNodeViewHolder
 import co.topl.nodeView.state.State
 import co.topl.rpc.ToplRpcServer
 import co.topl.settings.{AppContext, StartupOpts}
-import co.topl.utils.{KeyFileTestHelper, NodeGenerators}
+import co.topl.utils.NodeGenerators
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -29,8 +29,7 @@ trait RPCMockState
     extends AnyWordSpec
     with NodeGenerators
     with ScalatestRouteTest
-    with BeforeAndAfterAll
-    with KeyFileTestHelper {
+    with BeforeAndAfterAll {
 
   type BSI = BifrostSyncInfo
   type PMOD = Block

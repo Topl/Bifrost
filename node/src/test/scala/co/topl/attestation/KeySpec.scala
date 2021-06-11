@@ -1,17 +1,15 @@
 package co.topl.attestation
 
-import co.topl.utils.{KeyFileTestHelper, NodeGenerators}
+import co.topl.utils.NodeGenerators
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 class KeySpec
     extends AnyPropSpec
-    with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with NodeGenerators
-    with Matchers
-    with KeyFileTestHelper {
+    with Matchers {
 
   var password: String = _
   var messageByte: Array[Byte] = _

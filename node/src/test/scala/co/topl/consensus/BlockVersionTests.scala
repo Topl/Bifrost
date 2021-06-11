@@ -5,9 +5,11 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.{MockState, State}
-import co.topl.utils.{GenesisBlockGenerators, KeyFileTestHelper, NodeGenerators}
+import co.topl.utils.GenesisBlockGenerators
 
-class BlockVersionTests extends MockState with NodeGenerators with KeyFileTestHelper with GenesisBlockGenerators {
+class BlockVersionTests
+    extends MockState
+    with GenesisBlockGenerators {
 
   /** Generate a history and state with a genesis block of the oldest version in the configuration */
   var fstVersion: Byte = _

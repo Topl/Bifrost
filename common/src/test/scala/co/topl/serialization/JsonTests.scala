@@ -24,9 +24,9 @@ import org.scalacheck.Gen
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class JsonTests extends AnyPropSpec with Matchers with ScalaCheckPropertyChecks with CommonGenerators {
+class JsonTests extends AnyPropSpec with Matchers with ScalaCheckDrivenPropertyChecks with CommonGenerators {
 
   property("PublicKeyPropositionCurve25519 json") {
     forAll(propositionCurve25519Gen)(prop => prop.asJson.as[PublicKeyPropositionCurve25519] shouldEqual Right(prop))

@@ -8,7 +8,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks.forAll
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks.forAll
 
 class LeaderElectionTests extends AnyFlatSpec with MockFactory with CommonGenerators with EitherValues {
 

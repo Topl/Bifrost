@@ -5,11 +5,10 @@ import co.topl.attestation.{ThresholdPropositionCurve25519, ThresholdSignatureCu
 import co.topl.utils.CommonGenerators
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 class ThresholdPropositionCurve25519Spec
     extends AnyPropSpec
-    with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers
     with CommonGenerators {

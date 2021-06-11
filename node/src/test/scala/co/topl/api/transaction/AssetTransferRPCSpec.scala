@@ -11,7 +11,7 @@ import io.circe.syntax._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class AssetRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
+class AssetTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
 
   var address: Address = _
   var recipients: String = _

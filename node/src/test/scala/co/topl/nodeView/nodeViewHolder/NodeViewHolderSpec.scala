@@ -6,7 +6,6 @@ import co.topl.nodeView.NodeViewHolder
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.{MockState, State}
 import co.topl.settings.{AppContext, StartupOpts}
-import co.topl.utils.CommonGenerators
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatest.{BeforeAndAfterAll, PrivateMethodTester}
 
@@ -16,7 +15,6 @@ import scala.concurrent.duration._
 class NodeViewHolderSpec
     extends AnyPropSpec
     with PrivateMethodTester
-    with CommonGenerators
     with MockState
     with BeforeAndAfterAll {
 

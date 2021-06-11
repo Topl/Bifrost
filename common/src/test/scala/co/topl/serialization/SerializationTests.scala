@@ -2,14 +2,7 @@ package co.topl.serialization
 
 import co.topl.attestation._
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519}
-import co.topl.attestation.serialization.{
-  PublicKeyPropositionCurve25519Serializer,
-  PublicKeyPropositionEd25519Serializer,
-  SignatureCurve25519Serializer,
-  SignatureEd25519Serializer,
-  ThresholdPropositionCurve25519Serializer,
-  ThresholdSignatureCurve25519Serializer
-}
+import co.topl.attestation.serialization._
 import co.topl.modifier.block.serialization.{BlockBodySerializer, BlockHeaderSerializer, BlockSerializer}
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.box._
@@ -20,7 +13,7 @@ import co.topl.utils.CommonGenerators
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 import scala.util.{Failure, Success}
 
@@ -29,7 +22,6 @@ import scala.util.{Failure, Success}
  */
 class SerializationTests
     extends AnyPropSpec
-    with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers
     with CommonGenerators {

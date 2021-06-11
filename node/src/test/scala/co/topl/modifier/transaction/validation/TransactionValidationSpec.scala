@@ -4,23 +4,21 @@ import cats.data.NonEmptyChain
 import cats.scalatest.{ValidatedMatchers, ValidatedNecMatchers}
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.modifier.box._
-import co.topl.modifier.transaction.validation.implicits._
 import co.topl.modifier.transaction._
+import co.topl.modifier.transaction.validation.implicits._
 import co.topl.utils.NetworkType.PrivateTestnet
-import co.topl.utils.{CommonGenerators, NetworkType, NodeGenerators}
+import co.topl.utils.{NetworkType, NodeGenerators}
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 import scala.util.Random
 
 class TransactionValidationSpec
     extends AnyPropSpec
-    with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers
-    with CommonGenerators
     with NodeGenerators
     with EitherValues
     with ValidatedMatchers
