@@ -45,7 +45,8 @@ lazy val commonSettings = Seq(
   resolvers ++= Seq(
     "Typesafe Repository" at "https://repo.typesafe.com/typesafe/releases/",
     "Sonatype Staging" at "https://s01.oss.sonatype.org/content/repositories/staging",
-    "Sonatype Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots/"
+    "Sonatype Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots/",
+    "Bintray" at "https://jcenter.bintray.com/"
   )
 )
 

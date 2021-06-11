@@ -1,13 +1,13 @@
 package co.topl.consensus
 
+import co.topl.nodeView.history.db.LDBVersionedStore
 import co.topl.utils.CommonGenerators
 import com.google.common.primitives.Longs
-import io.iohk.iodb.{ByteArrayWrapper, Store}
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import org.scalamock.scalatest.MockFactory
 import scorex.crypto.hash.Blake2b256
 
 class ConsensusStorageSpec
@@ -25,16 +25,16 @@ class ConsensusStorageSpec
     }
   }
 
-  "totalStake" should "load total stake from storage on start with an LSM Store" in {
-    forAll(positiveInt128Gen) { (storageTotalStake) =>
-      val store = mock[Store]
+  "totalStake" should "load total stake from storage on start" in {
+    forAll(positiveInt128Gen) { storageTotalStake =>
+      val store = mock[LDBVersionedStore]
       (store
-        .get(_: ByteArrayWrapper))
+        .get(_: Array[Byte]))
         .expects(*)
-        .onCall { key: ByteArrayWrapper =>
-          if (key == ByteArrayWrapper(Blake2b256("totalStake".getBytes)))
-            Some(ByteArrayWrapper(storageTotalStake.toByteArray))
-          else Some(ByteArrayWrapper(Longs.toByteArray(0)))
+        .onCall { key: Array[Byte] =>
+          if (key == Blake2b256("totalStake".getBytes))
+            Some(storageTotalStake.toByteArray)
+          else Some(Longs.toByteArray(0))
         }
         .anyNumberOfTimes()
 
@@ -46,9 +46,9 @@ class ConsensusStorageSpec
 
   "totalStake" should "return default total stake when storage does not contain value" in {
     forAll(positiveMediumIntGen) { defaultTotalStake =>
-      val store = mock[Store]
+      val store = mock[LDBVersionedStore]
       (store
-        .get(_: ByteArrayWrapper))
+        .get(_: Array[Byte]))
         .expects(*)
         .returns(None)
         .anyNumberOfTimes()

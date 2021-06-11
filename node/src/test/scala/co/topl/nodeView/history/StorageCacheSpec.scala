@@ -1,6 +1,7 @@
 package co.topl.nodeView.history
 
 import co.topl.consensus.consensusHelper.setProtocolMngr
+import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.utils.{CommonGenerators, NodeGenerators}
 import io.iohk.iodb.ByteArrayWrapper
@@ -27,13 +28,14 @@ class StorageCacheSpec
   }
 
   property("The genesis block is stored in cache") {
-    val genesisBlockId = ByteArrayWrapper(Array.fill(history.storage.storage.keySize)(-1: Byte))
+    val genesisBlockId = ModifierId.genesisParentId
 
-    history.storage.blockCache.getIfPresent(genesisBlockId) shouldEqual history.storage.storage.get(genesisBlockId)
+    history.storage.blockCache.getIfPresent(genesisBlockId) shouldEqual
+    ByteArrayWrapper(history.storage.modifierById(genesisBlockId).get.bytes)
   }
 
   property("Cache should invalidate all entry when it's rolled back in storage") {
-    val bestBlockIdKey = ByteArrayWrapper(Array.fill(history.storage.storage.keySize)(-1: Byte))
+    val bestBlockIdKey = ModifierId.genesisParentId
 
     /* Append a new block, make sure it is updated in cache, then drop it */
     val fstBlock: Block = blockGen.sample.get.copy(parentId = history.bestBlockId)
@@ -72,7 +74,7 @@ class StorageCacheSpec
 
       history = history.append(block).get._1
       history.storage.blockCache.getIfPresent(ByteArrayWrapper(block.id.getIdBytes)) shouldEqual
-      history.storage.storage.get(ByteArrayWrapper(block.id.getIdBytes))
+      history.storage.storage.get(block.id.getIdBytes)
     }
   }
 
