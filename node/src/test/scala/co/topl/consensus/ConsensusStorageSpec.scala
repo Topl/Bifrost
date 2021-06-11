@@ -1,6 +1,6 @@
 package co.topl.consensus
 
-import co.topl.nodeView.history.db.LDBVersionedStore
+import co.topl.db.LDBVersionedStore
 import co.topl.utils.CommonGenerators
 import com.google.common.primitives.Longs
 import org.scalamock.scalatest.MockFactory

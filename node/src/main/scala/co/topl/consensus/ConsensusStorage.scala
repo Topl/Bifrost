@@ -1,7 +1,7 @@
 package co.topl.consensus
 
 import co.topl.modifier.ModifierId
-import co.topl.nodeView.history.db.LDBVersionedStore
+import co.topl.db.LDBVersionedStore
 import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType.{LocalTestnet, PrivateTestnet}
 import co.topl.utils.{Int128, Logging, NetworkType}

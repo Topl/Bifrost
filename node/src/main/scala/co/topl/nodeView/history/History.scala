@@ -8,7 +8,7 @@ import co.topl.modifier.transaction.Transaction
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.History.GenesisParentId
-import co.topl.nodeView.history.db.LDBVersionedStore
+import co.topl.db.LDBVersionedStore
 import co.topl.settings.AppSettings
 import co.topl.utils.{Logging, TimeProvider}
 

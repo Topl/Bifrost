@@ -1,6 +1,6 @@
-package co.topl.nodeView.history.db
+package co.topl.db
 
-import co.topl.nodeView.history.db.LDBFactory.factory
+import co.topl.db.LDBFactory.factory
 import org.iq80.leveldb._
 
 import java.io.File

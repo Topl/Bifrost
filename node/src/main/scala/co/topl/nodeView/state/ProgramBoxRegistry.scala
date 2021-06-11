@@ -1,7 +1,7 @@
 package co.topl.nodeView.state
 
 import co.topl.modifier.box.{BoxId, ProgramBox, ProgramId}
-import co.topl.nodeView.history.db.LDBVersionedStore
+import co.topl.db.LDBVersionedStore
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging

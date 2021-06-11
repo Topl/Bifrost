@@ -2,7 +2,7 @@ package co.topl.nodeView.state
 
 import co.topl.attestation.Address
 import co.topl.modifier.box.{Box, BoxId, TokenBox, TokenValueHolder}
-import co.topl.nodeView.history.db.LDBVersionedStore
+import co.topl.db.LDBVersionedStore
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging

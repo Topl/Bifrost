@@ -1,4 +1,4 @@
-package co.topl.nodeView.history.db
+package co.topl.db
 
 import java.io.File
 import java.util.concurrent.locks.ReentrantReadWriteLock

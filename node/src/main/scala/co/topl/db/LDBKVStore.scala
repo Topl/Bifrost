@@ -1,4 +1,4 @@
-package co.topl.nodeView.history.db
+package co.topl.db
 
 import org.iq80.leveldb.DB
 import co.topl.utils.Logging

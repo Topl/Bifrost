@@ -9,7 +9,7 @@ import co.topl.modifier.box.Box.identifier
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
-import co.topl.nodeView.history.db.LDBVersionedStore
+import co.topl.db.LDBVersionedStore
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppSettings, StartupOpts, Version}

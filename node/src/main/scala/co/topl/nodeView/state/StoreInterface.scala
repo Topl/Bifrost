@@ -1,6 +1,6 @@
 package co.topl.nodeView.state
 
-import co.topl.nodeView.history.db.LDBVersionedStore
+import co.topl.db.LDBVersionedStore
 
 trait StoreInterface {
 
