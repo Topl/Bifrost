@@ -25,11 +25,7 @@ import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.duration.DurationInt
 
-trait RPCMockState
-    extends AnyWordSpec
-    with NodeGenerators
-    with ScalatestRouteTest
-    with BeforeAndAfterAll {
+trait RPCMockState extends AnyWordSpec with NodeGenerators with ScalatestRouteTest with BeforeAndAfterAll {
 
   type BSI = BifrostSyncInfo
   type PMOD = Block

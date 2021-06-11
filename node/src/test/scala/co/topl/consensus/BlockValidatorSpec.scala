@@ -8,11 +8,7 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class BlockValidatorSpec
-    extends AnyPropSpec
-    with ScalaCheckDrivenPropertyChecks
-    with Matchers
-    with NodeGenerators {
+class BlockValidatorSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers with NodeGenerators {
 
   var history: History = _
 

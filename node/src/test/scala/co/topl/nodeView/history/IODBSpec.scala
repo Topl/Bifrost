@@ -11,7 +11,12 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 import java.io.File
 
-class IODBSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers with NodeGenerators with FileUtils {
+class IODBSpec
+    extends AnyPropSpec
+    with ScalaCheckDrivenPropertyChecks
+    with Matchers
+    with NodeGenerators
+    with FileUtils {
 
   val iFile: File = createTempDir
 

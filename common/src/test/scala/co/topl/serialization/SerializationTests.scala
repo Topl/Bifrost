@@ -20,11 +20,7 @@ import scala.util.{Failure, Success}
 /**
  * Created by cykoz on 4/12/17.
  */
-class SerializationTests
-    extends AnyPropSpec
-    with ScalaCheckDrivenPropertyChecks
-    with Matchers
-    with CommonGenerators {
+class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers with CommonGenerators {
 
   property("PublicKeyPropositionCurve25519 serialization") {
     forAll(publicKeyPropositionCurve25519Gen) { case (_, prop: PublicKeyPropositionCurve25519) =>

@@ -10,11 +10,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class BloomFilterSpec
-    extends AnyPropSpec
-    with ScalaCheckDrivenPropertyChecks
-    with NodeGenerators
-    with Matchers {
+class BloomFilterSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with NodeGenerators with Matchers {
 
   property("Bloomfilter should be able to tell if it definitely contains an address(false negatives)") {
     forAll(validBifrostTransactionSeqGen) { txs =>

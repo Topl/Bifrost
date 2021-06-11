@@ -5,11 +5,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class Int128Spec
-    extends AnyPropSpec
-    with ScalaCheckDrivenPropertyChecks
-    with CommonGenerators
-    with Matchers {
+class Int128Spec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with CommonGenerators with Matchers {
 
   property("Int128 should have a Numeric typeclass to allow .sum calls (small numbers)") {
     forAll(Gen.listOfN(10, smallInt128Gen)) { int128s =>

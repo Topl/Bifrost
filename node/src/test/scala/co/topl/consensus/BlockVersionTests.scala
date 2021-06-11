@@ -7,9 +7,7 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.state.{MockState, State}
 import co.topl.utils.GenesisBlockGenerators
 
-class BlockVersionTests
-    extends MockState
-    with GenesisBlockGenerators {
+class BlockVersionTests extends MockState with GenesisBlockGenerators {
 
   /** Generate a history and state with a genesis block of the oldest version in the configuration */
   var fstVersion: Byte = _

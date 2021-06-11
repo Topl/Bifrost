@@ -6,7 +6,12 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-trait MockState extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers with NodeGenerators with FileUtils {
+trait MockState
+    extends AnyPropSpec
+    with ScalaCheckDrivenPropertyChecks
+    with Matchers
+    with NodeGenerators
+    with FileUtils {
 
   def createState(genesisBlockWithVersion: Block = genesisBlock, inTempFile: Boolean = true): State = {
     val finalSettings = if (inTempFile) {

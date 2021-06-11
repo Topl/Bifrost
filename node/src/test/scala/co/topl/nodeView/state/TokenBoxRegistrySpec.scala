@@ -6,11 +6,7 @@ import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class TokenBoxRegistrySpec
-    extends MockState
-    with ScalaCheckDrivenPropertyChecks
-    with Matchers
-    with BeforeAndAfterAll {
+class TokenBoxRegistrySpec extends MockState with ScalaCheckDrivenPropertyChecks with Matchers with BeforeAndAfterAll {
 
   var state: State = _
 

@@ -22,11 +22,7 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContext}
 
 @DoNotDiscover
-class MempoolSpec
-    extends AnyPropSpec
-    with Matchers
-    with NodeGenerators
-    with BeforeAndAfterAll {
+class MempoolSpec extends AnyPropSpec with Matchers with NodeGenerators with BeforeAndAfterAll {
 
   implicit private val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
   implicit private val executionContext: ExecutionContext = actorSystem.dispatcher

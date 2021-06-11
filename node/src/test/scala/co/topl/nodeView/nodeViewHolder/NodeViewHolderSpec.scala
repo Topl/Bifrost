@@ -12,11 +12,7 @@ import org.scalatest.{BeforeAndAfterAll, PrivateMethodTester}
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
-class NodeViewHolderSpec
-    extends AnyPropSpec
-    with PrivateMethodTester
-    with MockState
-    with BeforeAndAfterAll {
+class NodeViewHolderSpec extends AnyPropSpec with PrivateMethodTester with MockState with BeforeAndAfterAll {
 
   type MP = MemPool
 

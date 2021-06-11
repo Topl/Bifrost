@@ -5,11 +5,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class KeySpec
-    extends AnyPropSpec
-    with ScalaCheckDrivenPropertyChecks
-    with NodeGenerators
-    with Matchers {
+class KeySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with NodeGenerators with Matchers {
 
   var password: String = _
   var messageByte: Array[Byte] = _
