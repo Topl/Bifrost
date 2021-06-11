@@ -1,17 +1,17 @@
 package co.topl.nodeView.history
 
-import java.io.File
-
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.TX
+import co.topl.nodeView.history.db.LDBVersionedStore
 import co.topl.utils.{CommonGenerators, FileUtils, NodeGenerators}
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
-class IODBSpec
+import java.io.File
+
+class LevelDBSpec
     extends AnyPropSpec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
@@ -22,8 +22,8 @@ class IODBSpec
 
   val iFile: File = createTempDir
 
-  val blocksStorage = new LSMStore(iFile)
-  blocksStorage.update(ByteArrayWrapper(Array[Byte](1)), Seq(), Seq())
+  val blocksStorage = new LDBVersionedStore(iFile, 1000)
+  blocksStorage.update(Array[Byte](1), Seq(), Seq())
 
   property("Rollback should not touch keys before") {
 
@@ -33,13 +33,13 @@ class IODBSpec
      * @param tx the transaction to write boxes to storage
      */
     def writeTx(tx: TX): Unit = {
-      val boxIdsToRemove: Iterable[ByteArrayWrapper] = Seq()
-      val boxesToAdd: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
+      val boxIdsToRemove: Iterable[Array[Byte]] = Seq()
+      val boxesToAdd: Iterable[(Array[Byte], Array[Byte])] =
         tx.newBoxes
-          .map(b => (ByteArrayWrapper(b.id.hashBytes), ByteArrayWrapper(b.bytes)))
+          .map(b => (b.id.hashBytes, b.bytes))
           .toList
 
-      blocksStorage.update(ByteArrayWrapper(tx.id.getIdBytes), boxIdsToRemove, boxesToAdd)
+      blocksStorage.update(tx.id.getIdBytes, boxIdsToRemove, boxesToAdd)
     }
 
     /**
@@ -49,11 +49,11 @@ class IODBSpec
      */
     def checkTx(tx: TX): Unit =
       tx.newBoxes
-        .foreach(b => require(blocksStorage.get(ByteArrayWrapper(b.id.hashBytes)).isDefined))
+        .foreach(b => require(blocksStorage.get(b.id.hashBytes).isDefined))
 
     forAll(validBifrostTransactionSeqGen) { txs =>
       whenever(txs.length >= 2) {
-        blocksStorage.rollback(ByteArrayWrapper(Array[Byte](1)))
+        blocksStorage.rollbackTo(Array[Byte](1))
 
         /* Make sure transactions get written to storage */
         txs.foreach { tx =>
@@ -64,7 +64,7 @@ class IODBSpec
         val head = txs.head
 
         /* Rollback to head shouldn't affect the head tx */
-        blocksStorage.rollback(ByteArrayWrapper(head.id.getIdBytes))
+        blocksStorage.rollbackTo(head.id.getIdBytes)
         checkTx(head)
       }
     }
@@ -80,9 +80,9 @@ class IODBSpec
 
     def writeBlock(b: Block): Unit =
       blocksStorage.update(
-        ByteArrayWrapper(b.id.getIdBytes),
+        b.id.getIdBytes,
         Seq(),
-        Seq(ByteArrayWrapper(b.id.getIdBytes) -> ByteArrayWrapper(Block.modifierTypeId +: b.bytes))
+        Seq(b.id.getIdBytes -> (Block.modifierTypeId +: b.bytes))
       )
 
     var ids: Seq[ModifierId] = Seq()
@@ -90,11 +90,11 @@ class IODBSpec
     forAll(blockGen) { block =>
       ids = block.id +: ids
       writeBlock(block)
-      blocksStorage.get(ByteArrayWrapper(block.id.getIdBytes)).isDefined shouldBe true
+      blocksStorage.get(block.id.getIdBytes).isDefined shouldBe true
     }
 
     ids.foreach { id =>
-      val idInStorage = blocksStorage.get(ByteArrayWrapper(id.getIdBytes)) match {
+      val idInStorage = blocksStorage.get(id.getIdBytes) match {
         case None    => log.warn(s"${Console.RED} Id ${id.toString} not found"); false
         case Some(_) => true
       }
