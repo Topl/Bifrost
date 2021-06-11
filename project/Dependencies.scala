@@ -5,7 +5,7 @@ object Dependencies {
   val akkaVersion = "2.6.15"
   val akkaHttpVersion = "10.2.4"
   val circeVersion = "0.14.1"
-  val kamonVersion = "2.1.20"
+  val kamonVersion = "2.1.21"
   val graalVersion = "21.1.0"
 
   val logging = Seq(
