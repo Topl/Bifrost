@@ -45,7 +45,9 @@ sealed trait Proposition extends BytesSerializable {
 object Proposition {
 
   sealed trait PropositionFromDataFailure
-  final case class IncorrectEncoding(error: NonEmptyChain[DataEncodingValidationFailure]) extends PropositionFromDataFailure
+
+  final case class IncorrectEncoding(error: NonEmptyChain[DataEncodingValidationFailure])
+      extends PropositionFromDataFailure
   final case class BytesParsingError(error: Throwable) extends PropositionFromDataFailure
 
   def fromString(str: String): Either[PropositionFromDataFailure, _ <: Proposition] =
