@@ -13,7 +13,7 @@ import co.topl.crypto.signatures.Curve25519
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.codecs.implicits._
 import co.topl.utils.StringDataTypes.implicits._
-import co.topl.utils.StringDataTypes.{Base58Data, DataValidationFailure}
+import co.topl.utils.StringDataTypes.{Base58Data, DataEncodingValidationFailure}
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import co.topl.utils.{Identifiable, Identifier}
 import com.google.common.primitives.Ints
@@ -45,7 +45,7 @@ sealed trait Proposition extends BytesSerializable {
 object Proposition {
 
   sealed trait PropositionFromDataFailure
-  final case class IncorrectEncoding(error: NonEmptyChain[DataValidationFailure]) extends PropositionFromDataFailure
+  final case class IncorrectEncoding(error: NonEmptyChain[DataEncodingValidationFailure]) extends PropositionFromDataFailure
   final case class BytesParsingError(error: Throwable) extends PropositionFromDataFailure
 
   def fromString(str: String): Either[PropositionFromDataFailure, _ <: Proposition] =

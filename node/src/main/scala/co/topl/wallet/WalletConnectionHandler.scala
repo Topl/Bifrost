@@ -15,7 +15,7 @@ import co.topl.settings.{AppContext, AppSettings, RPCApiSettings}
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.StringDataTypes.{Base58Data, DataValidationResult}
+import co.topl.utils.StringDataTypes.{Base58Data, DataEncodingValidationResult}
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
