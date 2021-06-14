@@ -40,7 +40,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
     third  <- Gen.choose(0: Byte, Byte.MaxValue)
   } yield new Version(first, second, third)
 
-  lazy val genesisBlock: Block = PrivateGenesis(keyRing.addresses, settings).getGenesisBlock.get._1
+  lazy val genesisBlock: Block = PrivateGenesis(keyRingCurve25519.addresses, settings).getGenesisBlock.get._1
 
   def genesisBlockId: ModifierId = genesisBlock.id
 

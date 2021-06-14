@@ -21,7 +21,7 @@ class AssetTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    address = keyRing.addresses.head
+    address = keyRingCurve25519.addresses.head
     recipients = assetToSeqGen.sample.get.asJson.toString()
     assetCode = AssetCode(1: Byte, address, "test")
   }
@@ -34,7 +34,7 @@ class AssetTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
            |   "id": "2",
            |   "method": "topl_rawAssetTransfer",
            |   "params": [{
-           |     "propositionType": "PublicKeyCurve25519",
+           |     "propositionType": "$propTypeCurve25519",
            |     "recipients":
            |    [
            |  [
@@ -63,7 +63,7 @@ class AssetTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
           rawTx   <- res.hcursor.downField("result").get[Json]("rawTx")
           message <- res.hcursor.downField("result").get[String]("messageToSign")
         } yield {
-          val sig = keyRing.generateAttestation(address)(Base58.decode(message).get)
+          val sig = keyRingCurve25519.generateAttestation(address)(Base58.decode(message).get)
           val signatures: Json = Map(
             "signatures" -> sig.asJson
           ).asJson

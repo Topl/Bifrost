@@ -20,7 +20,7 @@ class PolyTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState wi
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    address = keyRing.addresses.head
+    address = keyRingCurve25519.addresses.head
   }
 
   "PolyTransfer RPC" should {
@@ -31,7 +31,7 @@ class PolyTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState wi
            |   "id": "2",
            |   "method": "topl_rawPolyTransfer",
            |   "params": [{
-           |     "propositionType": "PublicKeyCurve25519",
+           |     "propositionType": "$propTypeCurve25519",
            |     "recipients": [["$address", "1"]],
            |     "sender": ["$address"],
            |     "changeAddress": "$address",
@@ -50,7 +50,7 @@ class PolyTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState wi
           rawTx   <- res.hcursor.downField("result").get[Json]("rawTx")
           message <- res.hcursor.downField("result").get[String]("messageToSign")
         } yield {
-          val sig = keyRing.generateAttestation(address)(Base58.decode(message).get)
+          val sig = keyRingCurve25519.generateAttestation(address)(Base58.decode(message).get)
           val signatures: Json = Map(
             "signatures" -> sig.asJson
           ).asJson

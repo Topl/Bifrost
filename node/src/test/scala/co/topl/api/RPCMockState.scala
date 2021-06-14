@@ -77,7 +77,7 @@ trait RPCMockState extends AnyWordSpec with NodeGenerators with ScalatestRouteTe
 
     // manipulate the underlying actor state
     nvh.updateNodeViewPublicAccessor(updatedState = Some(genesisState))
-    km.context.become(km.receive(keyRing, Some(keyRing.addresses.head)))
+    km.context.become(km.receive(keyRingCurve25519, Some(keyRingCurve25519.addresses.head)))
 
     rpcServer = {
       val forgerInterface = new ActorForgerInterface(forgerRef)

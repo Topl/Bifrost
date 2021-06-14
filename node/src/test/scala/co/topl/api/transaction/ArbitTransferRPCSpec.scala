@@ -18,7 +18,7 @@ class ArbitTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState w
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    address = keyRing.addresses.head
+    address = keyRingCurve25519.addresses.head
   }
 
   "ArbitTransfer RPC" should {
@@ -29,7 +29,7 @@ class ArbitTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState w
            |   "id": "2",
            |   "method": "topl_rawArbitTransfer",
            |   "params": [{
-           |     "propositionType": "PublicKeyCurve25519",
+           |     "propositionType": "$propTypeCurve25519",
            |     "recipients": [["$address", "1"]],
            |     "sender": ["$address"],
            |     "changeAddress": "$address",
@@ -48,7 +48,7 @@ class ArbitTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState w
           rawTx   <- res.hcursor.downField("result").get[Json]("rawTx")
           message <- res.hcursor.downField("result").get[String]("messageToSign")
         } yield {
-          val sig = keyRing.generateAttestation(address)(Base58.decode(message).get)
+          val sig = keyRingCurve25519.generateAttestation(address)(Base58.decode(message).get)
           val signatures: Json = Map(
             "signatures" -> sig.asJson
           ).asJson

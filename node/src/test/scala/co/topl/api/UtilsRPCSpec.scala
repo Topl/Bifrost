@@ -24,7 +24,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState with Eith
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    address = keyRing.addresses.head
+    address = keyRingCurve25519.addresses.head
   }
 
   "Utils RPC" should {
