@@ -287,7 +287,11 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   }
 
   lazy val propTypes: Gen[String] = sampleUntilNonEmpty(
-    Gen.oneOf(PublicKeyPropositionCurve25519.typeString, ThresholdPropositionCurve25519.typeString)
+    Gen.oneOf(
+      PublicKeyPropositionCurve25519.typeString,
+      ThresholdPropositionCurve25519.typeString,
+      PublicKeyPropositionEd25519.typeString
+    )
   )
 
   lazy val keyPairGen: Gen[(Set[_ <: Secret], _ <: KnowledgeProposition[_ <: Secret])] = for {
@@ -298,6 +302,9 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
       Set(key._1) -> key._2
     case ThresholdPropositionCurve25519.typeString =>
       sampleUntilNonEmpty(thresholdPropositionCurve25519Gen)
+    case PublicKeyPropositionEd25519.typeString =>
+      val key = sampleUntilNonEmpty(publicKeyPropositionEd25519Gen)
+      Set(key._1) -> key._2
   }
 
   lazy val attestationGen: Gen[Map[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]] = for {
