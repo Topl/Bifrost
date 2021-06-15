@@ -4,10 +4,12 @@ import com.orientechnologies.orient.core.metadata.schema.{OClass, OType}
 
 import scala.reflect.ClassTag
 
+/**
+ * Represents the domain of all node and edge types in a graph
+ * @param nodeSchemas All of the node schemas used in this graph
+ * @param edgeSchemas All of the edge schemas used in this graph
+ */
 case class GraphSchema(nodeSchemas: List[NodeSchema[_]], edgeSchemas: List[EdgeSchema[_, _, _]])
-
-case class Property(name: String, propertyType: OType)
-case class Index(name: String, indexType: OClass.INDEX_TYPE, propertyName: String)
 
 /**
  * Represents a class name, properties, indices, and codec for a Node in a Graph Database
@@ -77,6 +79,21 @@ object EdgeSchema {
       def destSchema: NodeSchema[Dest] = implicitly[NodeSchema[Dest]]
     }
 }
+
+/**
+ * Represents an individual piece of data
+ * @param name The name of the property
+ * @param propertyType The datatype of the property
+ */
+case class Property(name: String, propertyType: OType)
+
+/**
+ * Represents a reference to a property that should be indexed to improve query performance
+ * @param name The name of the index - must be unique within a graph
+ * @param indexType The type of the index
+ * @param propertyName The name of the property on the entity being indexed
+ */
+case class Index(name: String, indexType: OClass.INDEX_TYPE, propertyName: String)
 
 trait Decoder {
   def apply[T](key: String): T

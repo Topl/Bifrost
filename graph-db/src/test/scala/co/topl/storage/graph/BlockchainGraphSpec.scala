@@ -1,8 +1,7 @@
 package co.topl.storage.graph
 
-import akka.actor.ActorSystem
+import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.stream.scaladsl.{Sink, Source}
-import akka.testkit.TestKit
 import cats.data._
 import cats.implicits._
 import cats.scalatest.FutureEitherValues
@@ -11,22 +10,25 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, OptionValues}
 
+import java.nio.file.Paths
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 class BlockchainGraphSpec
-    extends TestKit(ActorSystem("OrientDbBlockchainGraphSpec"))
+    extends ScalaTestWithActorTestKit
     with AnyFlatSpecLike
     with BeforeAndAfterAll
     with FutureEitherValues
     with OptionValues
     with Matchers {
 
-  import system.dispatcher
-
   behavior of "OrientDbBlockchainGraph"
+
+  implicit val ec: ExecutionContext = system.executionContext
 
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(2.minutes)
 
+  private var graph: OrientDBGraph = _
   private var underTest: BlockchainData = _
 
   private val blockId1 = "block1"
@@ -120,14 +122,27 @@ class BlockchainGraphSpec
     Blockchain.genesis.futureRightValue shouldBe blockHeader1
   }
 
+  it should "know blocks at height=1" in {
+    val t = underTest
+    import t._
+
+    val blocks =
+      Blockchain.blocksAtHeight(1).runWith(Sink.seq).futureValue.toList.map(_.value)
+
+    blocks should (have size 1 and contain(blockHeader1))
+  }
+
   it should "Add BlockBody 1" in {
     val t = underTest
     import t._
 
-    NonEmptyChain(CreateBlockBody(blockBody1), AssociateBodyToHeader(blockId1, blockId1)).run().value.futureValue.value
+    NonEmptyChain(CreateBlockBody(blockBody1), AssociateBodyToHeader(blockId1, blockId1))
+      .run()
+      .futureRightValue
+
+    println(graph.dump())
 
     blockId1.blockBody.futureRightValue shouldBe blockBody1
-
     blockBody1.header.futureRightValue shouldBe blockHeader1
     blockHeader1.body.futureRightValue shouldBe blockBody1
   }
@@ -247,6 +262,7 @@ class BlockchainGraphSpec
     val t = underTest
     import t._
     NonEmptyChain(CreateState(blockId2)).run().futureRightValue
+
     blockBody1.state.futureLeftValue shouldBe BlockchainData.NotFound
 
     val unopenedBoxes =
@@ -275,9 +291,7 @@ class BlockchainGraphSpec
     val t = underTest
     import t._
 
-    implicit val patienceConfig: PatienceConfig = PatienceConfig(10.minutes)
-
-    val count = 500
+    val count = 5000
 
     Source(3 to (count + 3))
       .grouped(10)
@@ -300,19 +314,20 @@ class BlockchainGraphSpec
             )
           )
       )
-      .concat(
-        Source(3 to (count + 3))
-          .grouped(10)
-          .map(indices =>
-            NonEmptyChain
-              .fromChainUnsafe(Chain.fromSeq(indices))
-              .map(i => AssociateBlockToParent(s"block$i", s"block${i - 1}"))
-          )
+      // TODO: Multi-threading is currently unsafe
+      .runWith(Sink.foreachAsync(2)(v => v.run().value.map(_.value)))
+      .futureValue(Timeout(10.minutes))
+
+    Source(3 to (count + 3))
+      .grouped(10)
+      .map(indices =>
+        NonEmptyChain
+          .fromChainUnsafe(Chain.fromSeq(indices))
+          .map(i => AssociateBlockToParent(s"block$i", s"block${i - 1}"))
       )
       // TODO: Multi-threading is currently unsafe
-      .mapAsync(1)(v => v.run().value.map(_.value))
-      .runWith(Sink.ignore)
-      .futureValue
+      .runWith(Sink.foreachAsync(2)(v => v.run().value.map(_.value)))
+      .futureValue(Timeout(10.minutes))
 
     NonEmptyChain(SetHead(s"block${count + 3}")).run().futureRightValue
 
@@ -321,7 +336,11 @@ class BlockchainGraphSpec
     head.blockId shouldBe s"block${count + 3}"
 
     val history =
-      head.history.runWith(Sink.seq).futureValue.toList.map(_.value)
+      head.history
+        .runWith(Sink.seq)
+        .futureValue(Timeout(10.minutes))
+        .toList
+        .map(_.value)
 
     history should have size (count + 2)
     history.zip((count + 2) to 1).foreach { case (header, index) =>
@@ -334,11 +353,9 @@ class BlockchainGraphSpec
 
     val schema = BlockchainGraphSchema.value
 
-    underTest = new BlockchainGraph(OrientDBGraph(schema, OrientDBGraph.InMemory))
-  }
+//    graph = OrientDBGraph(schema, OrientDBGraph.Local(Paths.get(".", "target", "test", "db")))
+    graph = OrientDBGraph(schema, OrientDBGraph.InMemory)
 
-  override def afterAll(): Unit = {
-    super.afterAll()
-    system.terminate().futureValue(Timeout(20.seconds))
+    underTest = new BlockchainGraph(graph)
   }
 }

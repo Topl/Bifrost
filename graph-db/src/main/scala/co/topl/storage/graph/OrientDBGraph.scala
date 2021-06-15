@@ -1,52 +1,70 @@
 package co.topl.storage.graph
 
-import akka.actor.ActorSystem
-import akka.dispatch.Dispatchers
+import akka.actor.CoordinatedShutdown
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.scaladsl.{Behaviors, StashBuffer}
+import akka.actor.typed.{ActorRef, ActorSystem, Behavior, DispatcherSelector}
+import akka.pattern.StatusReply
 import akka.stream.scaladsl.{Sink, Source}
-import akka.stream.{ActorAttributes, Attributes}
+import akka.util.Timeout
 import akka.{Done, NotUsed}
 import cats.data.EitherT
 import cats.implicits._
+import com.orientechnologies.orient.core.config.OGlobalConfiguration
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.tinkerpop.blueprints.impls.orient._
 import com.tinkerpop.blueprints.{Direction, Edge}
 
 import java.nio.file.Path
-import scala.concurrent.Future
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.jdk.CollectionConverters._
+import scala.util.{Failure, Success, Try}
 
-class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit system: ActorSystem) {
+class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit system: ActorSystem[_])
+    extends ReadableGraph {
 
-  import system.dispatcher
+  import OrientDBGraph._
+  import Ops._
+  import system.executionContext
 
-  private val blockingDispatcher = system.dispatchers.lookup(Dispatchers.DefaultBlockingDispatcherId)
-  var session: OrientGraphNoTx = _
+  private val workDispatcher =
+    system.systemActorOf(OrientDBGraphActorParent(factory), "graph-work-dispatcher")
+
+  implicit private val timeout: Timeout =
+    10.minutes
 
   initialize()
 
-  def insertNode[T: NodeSchema](node: T): Future[OrientVertex] =
-    blockingOperation {
-      val schema = implicitly[NodeSchema[T]]
-      val v = session.addVertex(s"class:${schema.name}")
-      schema.encode(node).foreach { case (name, value) =>
-        v.setProperty(name, value)
-      }
-      v.save()
-      v
-    }
+  private def executeSingle[T](f: OrientBaseGraph => T): Future[T] =
+    workDispatcher.askWithStatus[T](ref => OrientDBGraphActorParent.Work(OrientDBGraphActor.Execute(f, ref)))
 
-  def insertEdge[T](edge: T, srcRef: OrientDBGraph.NodeReference, destRef: OrientDBGraph.NodeReference)(implicit
-    schema:               EdgeSchema[T, _, _]
-  ): Future[Edge] =
-    blockingOperation {
-      val src = resolveNodeReference(srcRef)
-      val dest = resolveNodeReference(destRef)
-      val e = src.addEdge(schema.name, dest)
-      schema.encode(edge).foreach { case (name, value) =>
-        e.setProperty(name, value)
-      }
-      e
-    }
+  private def executeIterator[T](f: OrientBaseGraph => Iterator[T]): Source[T, NotUsed] =
+    Source
+      .futureSource(
+        workDispatcher.ask[Source[T, NotUsed]](ref =>
+          OrientDBGraphActorParent.Work(OrientDBGraphActor.ExecuteIterator(f, ref))
+        )
+      )
+      .mapMaterializedValue(_ => NotUsed)
+
+  def transactionally[Result](
+    f: ReadableWritableGraph => Future[Result]
+  ): Future[Result] =
+    workDispatcher.askWithStatus[Result](ref =>
+      OrientDBGraphActorParent.TxWork(
+        OrientDbTransactionActor.Execute(
+          (session, blockingExecutionContext) =>
+            f(
+              new ReadableWritableGraph(
+                new ReadableOrientGraph(session, blockingExecutionContext),
+                new WritableOrientGraph(session, blockingExecutionContext)
+              )
+            ),
+          ref
+        )
+      )
+    )
 
   def getNode[T: NodeSchema](graphQuery: GraphQuery[T]): EitherT[Future, OrientDBGraph.Error, Option[T]] =
     EitherT(
@@ -59,50 +77,31 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
         }
     )
 
-  def getRawNode(graphQuery: GraphQuery[_]): EitherT[Future, OrientDBGraph.Error, Option[OrientVertex]] =
-    EitherT(
-      runCommand[OrientVertex](stringifyQuery(graphQuery))
-        .runWith(Sink.headOption)
-        .map {
-          case Some(Right(value)) => Right(Some(value))
-          case Some(Left(e))      => Left(e)
-          case None               => Right(None)
-        }
-    )
-
   def getNodes[T: NodeSchema](graphQuery: GraphQuery[T]): Source[Either[OrientDBGraph.Error, T], NotUsed] = {
-    import Ops._
-    runCommand[OrientVertex](stringifyQuery(graphQuery))
-      .map(_.map(_.as[T]))
+    val query = stringifyQuery(graphQuery)
+    executeIterator(session =>
+      session
+        .command(new OCommandSQL(query))
+        .execute[OrientDynaElementIterable]()
+        .iterator()
+        .asScala
+        .collect { case r: OrientVertex @unchecked => r.as[T].asRight }
+    )
   }
 
   private def initialize(): Unit = {
-    session = factory.getNoTx
-    initializeSchemas()
+    CoordinatedShutdown(system).addTask(CoordinatedShutdown.PhaseServiceStop, "shutdown-graph-context")(() =>
+      Future {
+        factory.close()
+        Done
+      }
+    )
 
-    system.registerOnTermination {
-      session.shutdown()
-      factory.close()
-    }
+    Await.result(initializeSchemas(), 30.seconds)
   }
 
-  private def blockingIteratorQuery(query: String): Iterator[OrientElement] =
-    session
-      .command(new OCommandSQL(query))
-      .execute[OrientDynaElementIterable]()
-      .iterator()
-      .asScala
-      .map(_.asInstanceOf[OrientElement])
-
-  private def resolveNodeReference(ref: OrientDBGraph.NodeReference): OrientVertex =
-    ref match {
-      case OrientDBGraph.QueryNodeReference(query) =>
-        blockingIteratorQuery(stringifyQuery(query)).next().asInstanceOf[OrientVertex]
-      case OrientDBGraph.VertexNodeReference(orientVertex) =>
-        orientVertex
-    }
-
-  private def initializeSchemas(): Unit = {
+  private def initializeSchemas(): Future[Done] = Future {
+    val session = factory.getNoTx
     schema.edgeSchemas.foreach { edgeSchema =>
       Option(session.getEdgeType(edgeSchema.name)) match {
         case Some(_) =>
@@ -129,29 +128,71 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
         srcVertex.createEdgeProperty(Direction.OUT, edgeSchema.name)
         destVertex.createEdgeProperty(Direction.IN, edgeSchema.name)
       }
+    session.shutdown()
+    Done
   }
 
-  private def blockingOperation[T](operation: => T): Future[T] =
-    Future {
-      operation
-    }(blockingDispatcher)
+  def dump(): String = {
+    val builder = new StringBuilder
+    val session = factory.getTx
+    session.getVertices.asScala.foreach { v =>
+      builder.append(v)
+      builder.append(v.getPropertyKeys.asScala.map(key => key -> v.getProperty(key)).toMap)
+      builder.append('\n')
+    }
+    session.getEdges.asScala.foreach { e =>
+      builder.append(e)
+      builder.append(e.getPropertyKeys.asScala.map(key => key -> e.getProperty(key)).toMap)
+      builder.append('\n')
+    }
+    session.shutdown()
+    builder.result()
+  }
 
-  private def blockingIteratorSource[T](iteratorFactory: () => Iterator[T]): Source[T, NotUsed] =
-    Source
-      .fromIterator(iteratorFactory)
-      .withAttributes(Attributes.name("OrientDBQuery").and(ActorAttributes.IODispatcher))
+}
 
-  private def runCommand[R <: OrientElement](query: String): Source[Either[OrientDBGraph.Error, R], NotUsed] =
-    blockingIteratorSource(() =>
-      session
-        .command(new OCommandSQL(query))
-        .execute[OrientDynaElementIterable]()
-        .iterator()
-        .asScala
-        .collect { case r: R @unchecked => r.asRight }
-    )
+trait ReadableGraph {
+  def getNode[T: NodeSchema](graphQuery:  GraphQuery[T]): EitherT[Future, OrientDBGraph.Error, Option[T]]
+  def getNodes[T: NodeSchema](graphQuery: GraphQuery[T]): Source[Either[OrientDBGraph.Error, T], NotUsed]
+}
 
-  private def whereToString(where: Where): Option[String] =
+trait WritableGraph {
+  def insertNode[T: NodeSchema](node: T): EitherT[Future, OrientDBGraph.Error, Done]
+
+  def insertEdge[T](edge: T, srcRef: OrientDBGraph.NodeReference, destRef: OrientDBGraph.NodeReference)(implicit
+    schema:               EdgeSchema[T, _, _]
+  ): EitherT[Future, OrientDBGraph.Error, Done]
+
+  def deleteEdges[T]()(implicit
+    schema: EdgeSchema[T, _, _]
+  ): EitherT[Future, OrientDBGraph.Error, Done]
+}
+
+object OrientDBGraph {
+
+  sealed trait Error
+  case class ThrowableError(throwable: Throwable) extends Error
+
+  sealed abstract class Location
+  case object InMemory extends Location
+  case class Local(path: Path) extends Location
+
+  def apply(schema: GraphSchema, location: Location)(implicit system: ActorSystem[_]): OrientDBGraph = {
+    OGlobalConfiguration.RID_BAG_EMBEDDED_TO_SBTREEBONSAI_THRESHOLD.setValue(-1)
+
+    val factory = location match {
+      case InMemory =>
+        new OrientGraphFactory(s"memory:blockchain", true)
+
+      case Local(path) =>
+        new OrientGraphFactory(s"plocal:$path", true)
+    }
+    new OrientDBGraph(schema, factory)
+  }
+
+  case class NodeReference(query: GraphQuery[_])
+
+  private[graph] def whereToString(where: Where): Option[String] =
     where match {
       case WhereAny => None
       case PropEquals(name, value) =>
@@ -176,7 +217,7 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
         }
     }
 
-  private def stringifyQuery[T](graphQuery: GraphQuery[T]): String =
+  private[graph] def stringifyQuery[T](graphQuery: GraphQuery[T]): String =
     graphQuery match {
       case q @ NodesByClass(where) =>
         "SELECT" +
@@ -185,12 +226,11 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
       case f @ Trace(where, edges) =>
         val expansion = edges
           .map { edgeWithDirection =>
-            val directionString = {
+            val directionString =
               edgeWithDirection.direction match {
                 case In  => "in"
                 case Out => "out"
               }
-            }
             s"$directionString('${edgeWithDirection.edgeSchema.name}')"
           }
           .mkString(".")
@@ -200,12 +240,11 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
       case Traverse(origin, edges) =>
         val expansion = edges
           .map { edgeWithDirection =>
-            val directionString = {
+            val directionString =
               edgeWithDirection.direction match {
                 case In  => "in"
                 case Out => "out"
               }
-            }
             s"$directionString('${edgeWithDirection.edgeSchema.name}')"
           }
           .mkString(".")
@@ -224,63 +263,316 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
             override def apply[X](key: String): X = orientVertex.getProperty[X](key)
           }
         )
-
-      def removeAsync(): Future[Done] =
-        blockingOperation(orientVertex.remove()).map(_ => Done)
-
-      def inEdges(edgeClass: Option[String]): Source[Edge, NotUsed] =
-        edges(Direction.IN, edgeClass)
-
-      def outEdges(edgeClass: Option[String]): Source[Edge, NotUsed] =
-        edges(Direction.OUT, edgeClass)
-
-      def allEdges(edgeClass: Option[String]): Source[Edge, NotUsed] =
-        edges(Direction.BOTH, edgeClass)
-
-      private def edges(direction: Direction, edgeClass: Option[String]): Source[Edge, NotUsed] =
-        blockingIteratorSource(edgeClass match {
-          case Some(value) => () => orientVertex.getEdges(direction, value).iterator().asScala
-          case None        => () => orientVertex.getEdges(direction).iterator().asScala
-        })
     }
 
     implicit class EdgeOps(edge: Edge) {
 
-      def removeAsync(): Future[Done] =
-        blockingOperation(edge.remove()).map(_ => Done)
-
-      def srcAsync(): Future[OrientVertex] =
-        blockingOperation(edge.getVertex(Direction.IN)).mapTo[OrientVertex]
-
-      def destAsync(): Future[OrientVertex] =
-        blockingOperation(edge.getVertex(Direction.OUT)).mapTo[OrientVertex]
+      def as[T](implicit schema: EdgeSchema[T, _, _]): T =
+        schema.decode(
+          new Decoder {
+            override def apply[X](key: String): X = edge.getProperty[X](key)
+          }
+        )
     }
   }
+}
+
+private object OrientDBGraphActorParent {
+
+  def apply(factory: OrientGraphFactory): Behavior[Message] = {
+    def withStash(stash: StashBuffer[Message]): Behavior[Message] = {
+      def withState(
+        readyForWork:   List[ActorRef[OrientDBGraphActor.Message[_]]],
+        working:        List[ActorRef[OrientDBGraphActor.Message[_]]],
+        txWorker:       Option[ActorRef[OrientDbTransactionActor.Message]],
+        txWorkerIsBusy: Boolean
+      ): Behavior[Message] =
+        Behaviors.receive((ctx, message) =>
+          message match {
+            case GiveWork(to) =>
+              withState(readyForWork :+ to, working.filterNot(_ == to), txWorker, txWorkerIsBusy)
+            case Work(message) =>
+              val (worker, newReadyForWork) =
+                readyForWork match {
+                  case Nil =>
+                    val w =
+                      ctx.spawnAnonymous(
+                        OrientDBGraphActor(() => factory.getNoTx, ctx.self),
+                        DispatcherSelector.fromConfig("orient-db-actor-dispatcher")
+                      )
+                    (w, readyForWork)
+                  case w :: rest =>
+                    (w, rest)
+                }
+
+              worker ! message
+
+              withState(newReadyForWork, working :+ worker, txWorker, txWorkerIsBusy)
+
+            case m @ TxWork(message) =>
+              if (txWorkerIsBusy) {
+                stash.stash(m)
+                Behaviors.same
+              } else {
+                val worker =
+                  txWorker.getOrElse(
+                    ctx.spawnAnonymous(
+                      OrientDbTransactionActor(factory, ctx.self),
+                      DispatcherSelector.fromConfig("orient-db-actor-dispatcher")
+                    )
+                  )
+                worker ! message
+                withState(
+                  readyForWork,
+                  working,
+                  Some(worker),
+                  txWorkerIsBusy = true
+                )
+              }
+
+            case GiveTxWork(to) =>
+              stash.unstashAll(
+                withState(readyForWork, working, Some(to), txWorkerIsBusy = false)
+              )
+          }
+        )
+
+      withState(Nil, Nil, None, txWorkerIsBusy = false)
+    }
+
+    Behaviors.withStash(200)(withStash)
+  }
+
+  sealed abstract class Message
+  case class GiveWork(to: ActorRef[OrientDBGraphActor.Message[_]]) extends Message
+  case class GiveTxWork(to: ActorRef[OrientDbTransactionActor.Message]) extends Message
+  case class Work[Response](message: OrientDBGraphActor.Message[Response]) extends Message
+  case class TxWork[Response](message: OrientDbTransactionActor.Message) extends Message
+}
+
+private object OrientDBGraphActor {
+
+  def apply(factory: () => OrientBaseGraph, parent: ActorRef[OrientDBGraphActorParent.Message]): Behavior[Message[_]] =
+    Behaviors.setup { ctx =>
+      import ctx.executionContext
+      def idle: Behavior[Message[_]] =
+        Behaviors.receiveMessagePartial {
+          case e: Execute[_] =>
+            val session = factory()
+            ctx.pipeToSelf(e.runAndReply(session, ctx.executionContext))(CompleteExecution(_))
+            withSession(session)
+          case e: ExecuteIterator[_] =>
+            val session = factory()
+            e.runAndReply(session, ctx.self, ctx.executionContext)
+            Behaviors.same
+            withSession(session)
+        }
+
+      def withSession(session: OrientBaseGraph): Behavior[Message[_]] =
+        Behaviors.receiveMessagePartial { case _: CompleteExecution[_] =>
+          parent.tell(OrientDBGraphActorParent.GiveWork(ctx.self))
+          session.shutdown()
+          idle
+        }
+
+      idle
+    }
+
+  sealed abstract class Message[+Response]
+
+  case class Execute[T](f: OrientBaseGraph => T, replyTo: ActorRef[StatusReply[T]]) extends Message {
+
+    def runAndReply(session: OrientBaseGraph, blockingEc: ExecutionContext)(implicit ec: ExecutionContext): Future[T] =
+      Future(f(session))(blockingEc)
+        .andThen {
+          case Success(v)         => replyTo.tell(StatusReply.Success(v))
+          case Failure(exception) => replyTo ! StatusReply.Error(exception)
+        }
+  }
+
+  case class ExecuteIterator[T](f: OrientBaseGraph => Iterator[T], replyTo: ActorRef[Source[T, NotUsed]])
+      extends Message {
+
+    def runAndReply(
+      session:                  OrientBaseGraph,
+      worker:                   ActorRef[OrientDBGraphActor.Message[_]],
+      blockingExecutionContext: ExecutionContext
+    ): Unit = {
+      val source =
+        iteratorSourceOnDispatcher(() => f(session), blockingExecutionContext)
+          .alsoTo(Sink.onComplete(result => worker ! CompleteExecution(result)))
+      replyTo.tell(source)
+    }
+  }
+
+  case class CompleteExecution[T](result: Try[T]) extends Message
 
 }
 
-object OrientDBGraph {
+private object OrientDbTransactionActor {
 
-  sealed trait Error
-  case class ThrowableError(throwable: Throwable) extends Error
+  def apply(factory: OrientGraphFactory, parent: ActorRef[OrientDBGraphActorParent.Message]): Behavior[Message] =
+    Behaviors.setup { ctx =>
+      val session = factory.getTx
+      session.setAutoStartTx(false)
 
-  sealed abstract class Location
-  case object InMemory extends Location
-  case class Local(path: Path) extends Location
-
-  def apply(schema: GraphSchema, location: Location)(implicit system: ActorSystem): OrientDBGraph = {
-    val factory = location match {
-      case InMemory =>
-        new OrientGraphFactory(s"memory:blockchain")
-
-      case Local(path) =>
-        new OrientGraphFactory(s"plocal:$path")
+      Behaviors.receiveMessage {
+        case Execute(f, replyTo) =>
+          session.begin()
+          ctx.pipeToSelf(f(session, ctx.executionContext))(CompleteExecution(_, replyTo))
+          Behaviors.same
+        case CompleteExecution(result, replyTo) =>
+          result match {
+            case Failure(exception) =>
+              session.rollback()
+              replyTo ! StatusReply.Error(exception)
+            case Success(value) =>
+              session.commit()
+              replyTo ! StatusReply.Success(value)
+          }
+          parent.tell(OrientDBGraphActorParent.GiveTxWork(ctx.self))
+          Behaviors.same
+      }
     }
-    new OrientDBGraph(schema, factory)
+
+  sealed abstract class Message
+
+  case class Execute[T](f: (OrientBaseGraph, ExecutionContext) => Future[T], replyTo: ActorRef[StatusReply[T]])
+      extends Message
+  case class CompleteExecution[T](result: Try[T], replyTo: ActorRef[StatusReply[T]]) extends Message
+}
+
+abstract class OrientGraphBaseScala(orientGraph: OrientBaseGraph, blockingDispatcher: ExecutionContext) {
+
+  import OrientDBGraph._
+
+  def runRawCommand[Result](raw: String): Future[Result] = blockingOperation {
+    orientGraph
+      .command(new OCommandSQL(raw))
+      .execute[Result]()
   }
 
-  sealed abstract class NodeReference
-  case class QueryNodeReference(query: GraphQuery[_]) extends NodeReference
-  case class VertexNodeReference(orientVertex: OrientVertex) extends NodeReference
+  protected def blockingOperation[T](operation: => T): Future[T] =
+    Future {
+      operation
+    }(blockingDispatcher)
 
+  protected def blockingIteratorQuery(query: String): Iterator[OrientElement] =
+    orientGraph
+      .command(new OCommandSQL(query))
+      .execute[OrientDynaElementIterable]()
+      .iterator()
+      .asScala
+      .map(_.asInstanceOf[OrientElement])
+
+  protected def resolveNodeReference(ref: OrientDBGraph.NodeReference): OrientVertex =
+    blockingIteratorQuery(stringifyQuery(ref.query)).next().asInstanceOf[OrientVertex]
+}
+
+class ReadableOrientGraph(orientGraph: OrientBaseGraph, blockingDispatcher: ExecutionContext)
+    extends OrientGraphBaseScala(orientGraph, blockingDispatcher)
+    with ReadableGraph {
+
+  import OrientDBGraph._
+  import Ops._
+
+  override def getNode[T: NodeSchema](graphQuery: GraphQuery[T]): EitherT[Future, OrientDBGraph.Error, Option[T]] =
+    EitherT(
+      blockingOperation {
+        blockingIteratorQuery(stringifyQuery(graphQuery))
+          .collect { case r: OrientVertex @unchecked => r.as[T] }
+          .nextOption()
+          .asRight
+      }
+    )
+
+  override def getNodes[T: NodeSchema](graphQuery: GraphQuery[T]): Source[Either[OrientDBGraph.Error, T], NotUsed] =
+    iteratorSourceOnDispatcher(
+      () =>
+        blockingIteratorQuery(stringifyQuery(graphQuery))
+          .collect { case r: OrientVertex @unchecked => r.as[T].asRight },
+      blockingDispatcher
+    )
+
+}
+
+class WritableOrientGraph(orientGraph: OrientBaseGraph, blockingDispatcher: ExecutionContext)
+    extends OrientGraphBaseScala(orientGraph, blockingDispatcher)
+    with WritableGraph {
+
+  implicit val ec: ExecutionContext = blockingDispatcher
+  import OrientDBGraph._
+
+  override def insertNode[T: NodeSchema](node: T): EitherT[Future, OrientDBGraph.Error, Done] =
+    EitherT(
+      blockingOperation {
+        val schema = implicitly[NodeSchema[T]]
+        val v = orientGraph.addVertex(s"class:${schema.name}")
+        schema.encode(node).foreach { case (name, value) =>
+          v.setProperty(name, value)
+        }
+        v.save()
+        Right(Done)
+      }
+        .recover { case e => Left(OrientDBGraph.ThrowableError(e)) }
+    )
+
+  override def insertEdge[T](edge: T, srcRef: OrientDBGraph.NodeReference, destRef: OrientDBGraph.NodeReference)(
+    implicit schema:               EdgeSchema[T, _, _]
+  ): EitherT[Future, OrientDBGraph.Error, Done] =
+    EitherT(
+//      blockingOperation {
+//        val src = resolveNodeReference(srcRef)
+//        val dest = resolveNodeReference(destRef)
+//        val e = orientGraph.addEdge(s"class:${schema.name}", src, dest, null)
+////        val e = src.addEdge(schema.name, dest)
+//        schema.encode(edge).foreach { case (name, value) =>
+//          e.setProperty(name, value)
+//        }
+//        src.save()
+//        dest.save()
+//        Right(Done)
+//      }
+      runRawCommand[Any](
+        s"CREATE EDGE ${schema.name} FROM (${stringifyQuery(srcRef.query)} LIMIT 1) TO (${stringifyQuery(destRef.query)} LIMIT 1)"
+      )
+        .map(_ => Right(Done))
+        .recover { case e => Left(OrientDBGraph.ThrowableError(e)) }
+    )
+
+  override def deleteEdges[T]()(implicit
+    schema: EdgeSchema[T, _, _]
+  ): EitherT[Future, OrientDBGraph.Error, Done] =
+    EitherT(
+      blockingOperation {
+        orientGraph
+          .getEdgesOfClass(schema.name)
+          .iterator()
+          .asScala
+          .foreach(edge => edge.remove())
+        Right(Done)
+      }
+        .recover { case e => Left(OrientDBGraph.ThrowableError(e)) }
+    )
+}
+
+class ReadableWritableGraph(readableGraph: ReadableGraph, writableGraph: WritableGraph)
+    extends ReadableGraph
+    with WritableGraph {
+
+  override def getNode[T: NodeSchema](graphQuery: GraphQuery[T]): EitherT[Future, OrientDBGraph.Error, Option[T]] =
+    readableGraph.getNode(graphQuery)
+
+  override def getNodes[T: NodeSchema](graphQuery: GraphQuery[T]): Source[Either[OrientDBGraph.Error, T], NotUsed] =
+    readableGraph.getNodes(graphQuery)
+
+  override def insertNode[T: NodeSchema](node: T): EitherT[Future, OrientDBGraph.Error, Done] =
+    writableGraph.insertNode(node)
+
+  override def insertEdge[T](edge: T, srcRef: OrientDBGraph.NodeReference, destRef: OrientDBGraph.NodeReference)(
+    implicit schema:               EdgeSchema[T, _, _]
+  ): EitherT[Future, OrientDBGraph.Error, Done] = writableGraph.insertEdge(edge, srcRef, destRef)
+
+  override def deleteEdges[T]()(implicit schema: EdgeSchema[T, _, _]): EitherT[Future, OrientDBGraph.Error, Done] =
+    writableGraph.deleteEdges()
 }

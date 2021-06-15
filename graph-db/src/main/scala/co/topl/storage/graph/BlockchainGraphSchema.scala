@@ -110,6 +110,7 @@ object BlockBody {
   )
 }
 
+// TODO: attestation
 case class Transaction(transactionId: String, fee: String, timestamp: Long, data: Option[String], minting: Boolean)
 
 object Transaction {
@@ -145,6 +146,7 @@ object Transaction {
 
 }
 
+// TODO: boxType -> Byte
 case class Box(boxId: String, boxType: String, value: String, nonce: Long)
 
 object Box {

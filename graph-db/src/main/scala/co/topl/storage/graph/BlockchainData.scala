@@ -30,8 +30,9 @@ object BlockchainData {
   trait Error
   case object NotFound extends Error
   case class ThrowableError(throwable: Throwable) extends Error
-  case class ErrorThrowable(error: Error) extends Throwable
+  case class OrientDBGraphError(error: OrientDBGraph.Error) extends Error
 
+  case class ErrorThrowable(error: Error) extends Throwable
 }
 
 trait BlockHeaderOps {
@@ -199,6 +200,8 @@ trait BlockchainOps {
    * Retrieve the genesis/starting block of the Blockchain
    */
   def genesis: EitherT[Future, BlockchainData.Error, BlockHeader]
+
+  def blocksAtHeight(height: Long): Source[Either[BlockchainData.Error, BlockHeader], NotUsed]
 }
 
 sealed trait BlockchainModification
