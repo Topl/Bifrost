@@ -26,7 +26,7 @@ trait KeyFileTestHelper extends BeforeAndAfterAll with NetworkPrefixTestHelper {
 
   override protected def afterAll(): Unit = {
     super.afterAll()
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     Files
       .walk(keyFileDir)
       .sorted(Comparator.reverseOrder[Path]())

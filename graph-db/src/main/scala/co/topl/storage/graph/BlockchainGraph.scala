@@ -9,6 +9,7 @@ import cats.implicits._
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.codecs.implicits.identityBytesEncoder
 import co.topl.utils.encode.Base58
+import com.orientechnologies.orient.core.exception.OConcurrentModificationException
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -216,37 +217,40 @@ class BlockchainGraph(val graph: OrientDBGraph)(implicit system: ActorSystem[_])
        */
       override def run(): EitherT[Future, BlockchainData.Error, Done] =
         EitherT(
-          graph.transactionally { implicit session =>
-            val support = new BlockchainGraphModificationSupport()
-            Source(modifications.toNonEmptyList.toList)
-              .mapAsync(1) {
-                case c: CreateBlockHeader =>
-                  support.apply(c).value
-                case c: CreateBlockBody =>
-                  support.apply(c).value
-                case c: CreateTransaction =>
-                  support.apply(c).value
-                case c: CreateBox =>
-                  support.apply(c).value
-                case c: SetHead =>
-                  support.apply(c).value
-                case c: AssociateBlockToParent =>
-                  support.apply(c).value
-                case c: AssociateBodyToHeader =>
-                  support.apply(c).value
-                case c: AssociateTransactionToBody =>
-                  support.apply(c).value
-                case c: AssociateBoxCreator =>
-                  support.apply(c).value
-                case c: AssociateBoxOpener =>
-                  support.apply(c).value
-                case c: CreateState =>
-                  support.apply(c).value
-              }
-              .takeWhile(_.isRight, inclusive = true)
-              .runWith(Sink.last)
-          }
+          graph
+            .transactionally { implicit session =>
+              val support = new BlockchainGraphModificationSupport()
+              Source(modifications.toNonEmptyList.toList)
+                .mapAsync(1) {
+                  case c: CreateBlockHeader =>
+                    support.apply(c).value
+                  case c: CreateBlockBody =>
+                    support.apply(c).value
+                  case c: CreateTransaction =>
+                    support.apply(c).value
+                  case c: CreateBox =>
+                    support.apply(c).value
+                  case c: SetHead =>
+                    support.apply(c).value
+                  case c: AssociateBlockToParent =>
+                    support.apply(c).value
+                  case c: AssociateBodyToHeader =>
+                    support.apply(c).value
+                  case c: AssociateTransactionToBody =>
+                    support.apply(c).value
+                  case c: AssociateBoxCreator =>
+                    support.apply(c).value
+                  case c: AssociateBoxOpener =>
+                    support.apply(c).value
+                  case c: CreateState =>
+                    support.apply(c).value
+                }
+                .takeWhile(_.isRight, inclusive = true)
+                .runWith(Sink.last)
+            }
+            .recover { case _: OConcurrentModificationException => Left(BlockchainData.OrientDBConcurrencyError) }
         )
+          .recoverWith { case BlockchainData.OrientDBConcurrencyError => run() }
     }
 
   private def initialize(): Unit =
@@ -522,7 +526,7 @@ class BlockchainGraphModificationSupport()(implicit
         NodesByClass[Box](where = PropEquals("boxId", boxId))
       )
     orientDBGraph
-      .insertEdge(TransactionBoxOpens(attestation = associateBoxOpener.attestation), transaction, box)
+      .insertEdge(TransactionBoxOpens(), transaction, box)
       .leftMap(BlockchainData.OrientDBGraphError)
   }
 

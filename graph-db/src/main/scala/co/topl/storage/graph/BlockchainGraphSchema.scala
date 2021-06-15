@@ -1,6 +1,7 @@
 package co.topl.storage.graph
 
 import com.orientechnologies.orient.core.metadata.schema.{OClass, OType}
+import scala.jdk.CollectionConverters._
 
 object BlockchainGraphSchema {
 
@@ -110,8 +111,14 @@ object BlockBody {
   )
 }
 
-// TODO: attestation
-case class Transaction(transactionId: String, fee: String, timestamp: Long, data: Option[String], minting: Boolean)
+case class Transaction(
+  transactionId: String,
+  fee:           String,
+  timestamp:     Long,
+  data:          Option[String],
+  minting:       Boolean,
+  attestation:   Map[String, String]
+)
 
 object Transaction {
 
@@ -121,7 +128,8 @@ object Transaction {
       Property("fee", OType.STRING),
       Property("timestamp", OType.LONG),
       Property("data", OType.STRING),
-      Property("minting", OType.BOOLEAN)
+      Property("minting", OType.BOOLEAN),
+      Property("attestation", OType.EMBEDDEDMAP)
     ),
     i = List(
       Index("Transaction_idIndex", OClass.INDEX_TYPE.UNIQUE, "transactionId"),
@@ -132,7 +140,8 @@ object Transaction {
         "transactionId"                -> transaction.transactionId,
         "fee"                          -> transaction.fee,
         "timestamp"                    -> transaction.timestamp,
-        "minting"                      -> transaction.minting
+        "minting"                      -> transaction.minting,
+        "attestation"                  -> transaction.attestation.asJava
       ) ++ transaction.data.map("data" -> _),
     dec = decoder =>
       Transaction(
@@ -140,21 +149,21 @@ object Transaction {
         decoder("fee"),
         decoder("timestamp"),
         Option(decoder("data")),
-        decoder("minting")
+        decoder("minting"),
+        decoder[java.util.Map[String, String]]("attestation").asScala.toMap
       )
   )
 
 }
 
-// TODO: boxType -> Byte
-case class Box(boxId: String, boxType: String, value: String, nonce: Long)
+case class Box(boxId: String, boxType: Byte, value: String, nonce: Long)
 
 object Box {
 
   implicit val nodeSchema: NodeSchema[Box] = NodeSchema[Box](
     p = List(
       Property("boxId", OType.STRING),
-      Property("boxType", OType.STRING),
+      Property("boxType", OType.BYTE),
       Property("value", OType.STRING),
       Property("nonce", OType.LONG)
     ),
@@ -266,15 +275,14 @@ object TransactionBoxCreates {
     )
 }
 
-case class TransactionBoxOpens(attestation: String)
+case class TransactionBoxOpens()
 
 object TransactionBoxOpens {
 
   implicit val edgeSchema: EdgeSchema[TransactionBoxOpens, Transaction, Box] =
     EdgeSchema(
-      List(Property("attestation", OType.STRING)),
-      enc = v => Map("attestation" -> v.attestation),
-      dec = decoder => TransactionBoxOpens(decoder("attestation"))
+      enc = _ => Map.empty,
+      dec = _ => TransactionBoxOpens()
     )
 }
 

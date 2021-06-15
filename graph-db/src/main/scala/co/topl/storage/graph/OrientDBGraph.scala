@@ -1,9 +1,8 @@
 package co.topl.storage.graph
 
-import akka.actor.CoordinatedShutdown
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.{Behaviors, StashBuffer}
-import akka.actor.typed.{ActorRef, ActorSystem, Behavior, DispatcherSelector}
+import akka.actor.typed.{ActorRef, ActorSystem, Behavior, DispatcherSelector, PostStop}
 import akka.pattern.StatusReply
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.Timeout
@@ -36,18 +35,6 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
 
   initialize()
 
-  private def executeSingle[T](f: OrientBaseGraph => T): Future[T] =
-    workDispatcher.askWithStatus[T](ref => OrientDBGraphActorParent.Work(OrientDBGraphActor.Execute(f, ref)))
-
-  private def executeIterator[T](f: OrientBaseGraph => Iterator[T]): Source[T, NotUsed] =
-    Source
-      .futureSource(
-        workDispatcher.ask[Source[T, NotUsed]](ref =>
-          OrientDBGraphActorParent.Work(OrientDBGraphActor.ExecuteIterator(f, ref))
-        )
-      )
-      .mapMaterializedValue(_ => NotUsed)
-
   def transactionally[Result](
     f: ReadableWritableGraph => Future[Result]
   ): Future[Result] =
@@ -79,26 +66,32 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
 
   def getNodes[T: NodeSchema](graphQuery: GraphQuery[T]): Source[Either[OrientDBGraph.Error, T], NotUsed] = {
     val query = stringifyQuery(graphQuery)
-    executeIterator(session =>
-      session
-        .command(new OCommandSQL(query))
-        .execute[OrientDynaElementIterable]()
-        .iterator()
-        .asScala
-        .collect { case r: OrientVertex @unchecked => r.as[T].asRight }
-    )
+
+    Source
+      .futureSource(
+        workDispatcher.ask[Source[Either[OrientDBGraph.Error, T], NotUsed]](ref =>
+          OrientDBGraphActorParent.Work(
+            OrientDBGraphActor.ExecuteIterator(
+              session =>
+                session
+                  .command(new OCommandSQL(query))
+                  .execute[OrientDynaElementIterable]()
+                  .iterator()
+                  .asScala
+                  .collect { case r: OrientVertex @unchecked => r.as[T].asRight },
+              ref
+            )
+          )
+        )
+      )
+      .mapMaterializedValue(_ => NotUsed)
   }
 
-  private def initialize(): Unit = {
-    CoordinatedShutdown(system).addTask(CoordinatedShutdown.PhaseServiceStop, "shutdown-graph-context")(() =>
-      Future {
-        factory.close()
-        Done
-      }
-    )
-
+  private def initialize(): Unit =
     Await.result(initializeSchemas(), 30.seconds)
-  }
+
+  def close(): Unit =
+    factory.close()
 
   private def initializeSchemas(): Future[Done] = Future {
     val session = factory.getNoTx
@@ -283,14 +276,12 @@ private object OrientDBGraphActorParent {
     def withStash(stash: StashBuffer[Message]): Behavior[Message] = {
       def withState(
         readyForWork:   List[ActorRef[OrientDBGraphActor.Message[_]]],
-        working:        List[ActorRef[OrientDBGraphActor.Message[_]]],
-        txWorker:       Option[ActorRef[OrientDbTransactionActor.Message]],
-        txWorkerIsBusy: Boolean
+        readyForTxWork: List[ActorRef[OrientDbTransactionActor.Message]]
       ): Behavior[Message] =
         Behaviors.receive((ctx, message) =>
           message match {
             case GiveWork(to) =>
-              withState(readyForWork :+ to, working.filterNot(_ == to), txWorker, txWorkerIsBusy)
+              withState(readyForWork :+ to, readyForTxWork)
             case Work(message) =>
               val (worker, newReadyForWork) =
                 readyForWork match {
@@ -307,37 +298,31 @@ private object OrientDBGraphActorParent {
 
               worker ! message
 
-              withState(newReadyForWork, working :+ worker, txWorker, txWorkerIsBusy)
-
-            case m @ TxWork(message) =>
-              if (txWorkerIsBusy) {
-                stash.stash(m)
-                Behaviors.same
-              } else {
-                val worker =
-                  txWorker.getOrElse(
-                    ctx.spawnAnonymous(
-                      OrientDbTransactionActor(factory, ctx.self),
-                      DispatcherSelector.fromConfig("orient-db-actor-dispatcher")
-                    )
-                  )
-                worker ! message
-                withState(
-                  readyForWork,
-                  working,
-                  Some(worker),
-                  txWorkerIsBusy = true
-                )
-              }
+              withState(newReadyForWork, readyForTxWork)
 
             case GiveTxWork(to) =>
-              stash.unstashAll(
-                withState(readyForWork, working, Some(to), txWorkerIsBusy = false)
-              )
+              withState(readyForWork, readyForTxWork :+ to)
+
+            case m @ TxWork(message) =>
+              val (txWorker, newReadyForTxWork) =
+                readyForTxWork match {
+                  case Nil =>
+                    val w =
+                      ctx.spawnAnonymous(
+                        OrientDbTransactionActor(factory, ctx.self),
+                        DispatcherSelector.fromConfig("orient-db-actor-dispatcher")
+                      )
+                    (w, readyForTxWork)
+                  case w :: rest =>
+                    (w, rest)
+                }
+
+              txWorker ! message
+
+              withState(readyForWork, newReadyForTxWork)
           }
         )
-
-      withState(Nil, Nil, None, txWorkerIsBusy = false)
+      withState(Nil, Nil)
     }
 
     Behaviors.withStash(200)(withStash)
@@ -369,11 +354,16 @@ private object OrientDBGraphActor {
         }
 
       def withSession(session: OrientBaseGraph): Behavior[Message[_]] =
-        Behaviors.receiveMessagePartial { case _: CompleteExecution[_] =>
-          parent.tell(OrientDBGraphActorParent.GiveWork(ctx.self))
-          session.shutdown()
-          idle
-        }
+        Behaviors
+          .receiveMessagePartial[Message[_]] { case _: CompleteExecution[_] =>
+            parent.tell(OrientDBGraphActorParent.GiveWork(ctx.self))
+            session.shutdown()
+            idle
+          }
+          .receiveSignal { case (_, PostStop) =>
+            session.shutdown()
+            Behaviors.same
+          }
 
       idle
     }
@@ -416,23 +406,27 @@ private object OrientDbTransactionActor {
       val session = factory.getTx
       session.setAutoStartTx(false)
 
-      Behaviors.receiveMessage {
-        case Execute(f, replyTo) =>
-          session.begin()
-          ctx.pipeToSelf(f(session, ctx.executionContext))(CompleteExecution(_, replyTo))
-          Behaviors.same
-        case CompleteExecution(result, replyTo) =>
-          result match {
-            case Failure(exception) =>
-              session.rollback()
-              replyTo ! StatusReply.Error(exception)
-            case Success(value) =>
-              session.commit()
-              replyTo ! StatusReply.Success(value)
-          }
-          parent.tell(OrientDBGraphActorParent.GiveTxWork(ctx.self))
-          Behaviors.same
-      }
+      Behaviors
+        .receiveMessage[Message] {
+          case Execute(f, replyTo) =>
+            session.begin()
+            ctx.pipeToSelf(f(session, ctx.executionContext))(CompleteExecution(_, replyTo))
+            Behaviors.same
+          case CompleteExecution(result, replyTo) =>
+            result.flatMap(r => Try(session.commit()).map(_ => r)) match {
+              case Failure(exception) =>
+                session.rollback()
+                replyTo ! StatusReply.Error(exception)
+              case Success(value) =>
+                replyTo ! StatusReply.Success(value)
+            }
+            parent.tell(OrientDBGraphActorParent.GiveTxWork(ctx.self))
+            Behaviors.same
+        }
+        .receiveSignal { case (_, PostStop) =>
+          session.shutdown()
+          Behaviors.stopped[Message]
+        }
     }
 
   sealed abstract class Message

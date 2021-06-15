@@ -31,6 +31,7 @@ object BlockchainData {
   case object NotFound extends Error
   case class ThrowableError(throwable: Throwable) extends Error
   case class OrientDBGraphError(error: OrientDBGraph.Error) extends Error
+  case object OrientDBConcurrencyError extends Error
 
   case class ErrorThrowable(error: Error) extends Throwable
 }
@@ -218,6 +219,6 @@ case class AssociateBlockToParent(childBlockId: String, parentBlockId: String) e
 case class AssociateBodyToHeader(headerId: String, bodyId: String) extends BlockchainModification
 case class AssociateTransactionToBody(transactionId: String, blockId: String, index: Int) extends BlockchainModification
 case class AssociateBoxCreator(boxId: String, transactionId: String, minted: Boolean) extends BlockchainModification
-case class AssociateBoxOpener(boxId: String, transactionId: String, attestation: String) extends BlockchainModification
+case class AssociateBoxOpener(boxId: String, transactionId: String) extends BlockchainModification
 
 object Blockchain

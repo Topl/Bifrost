@@ -1,16 +1,14 @@
 package co.topl.storage.graph
 
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.scaladsl.Sink
 import cats.data._
 import cats.implicits._
 import cats.scalatest.FutureEitherValues
-import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, OptionValues}
 
-import java.nio.file.Paths
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
@@ -22,11 +20,11 @@ class BlockchainGraphSpec
     with OptionValues
     with Matchers {
 
-  behavior of "OrientDbBlockchainGraph"
+  behavior of "BlockchainGraphSpec"
 
   implicit val ec: ExecutionContext = system.executionContext
 
-  implicit override val patienceConfig: PatienceConfig = PatienceConfig(2.minutes)
+  implicit override val patienceConfig: PatienceConfig = PatienceConfig(2.seconds)
 
   private var graph: OrientDBGraph = _
   private var underTest: BlockchainData = _
@@ -58,12 +56,13 @@ class BlockchainGraphSpec
     fee = "100",
     timestamp = 1,
     data = None,
-    minting = true
+    minting = true,
+    attestation = Map("topl" -> "BobSaidSo")
   )
 
   private val box1 = Box(
     boxId = boxId1,
-    boxType = "PolyBox",
+    boxType = 1,
     value = "7",
     nonce = 1
   )
@@ -87,12 +86,13 @@ class BlockchainGraphSpec
     fee = "100",
     timestamp = 2,
     data = None,
-    minting = false
+    minting = false,
+    attestation = Map("topl" -> "BobSaidSo")
   )
 
   private val box2 = Box(
     boxId = boxId2,
-    boxType = "PolyBox",
+    boxType = 1,
     value = "7",
     nonce = 1
   )
@@ -139,8 +139,6 @@ class BlockchainGraphSpec
     NonEmptyChain(CreateBlockBody(blockBody1), AssociateBodyToHeader(blockId1, blockId1))
       .run()
       .futureRightValue
-
-    println(graph.dump())
 
     blockId1.blockBody.futureRightValue shouldBe blockBody1
     blockBody1.header.futureRightValue shouldBe blockHeader1
@@ -199,7 +197,7 @@ class BlockchainGraphSpec
       AssociateBodyToHeader(blockId2, blockId2),
       CreateTransaction(transaction2),
       AssociateTransactionToBody(transactionId2, blockId2, index = 0),
-      AssociateBoxOpener(boxId1, transactionId2, attestation = "BobSaidSo"),
+      AssociateBoxOpener(boxId1, transactionId2),
       CreateBox(box2),
       AssociateBoxCreator(boxId2, transactionId2, minted = false),
       SetHead(blockId2)
@@ -287,75 +285,18 @@ class BlockchainGraphSpec
     Blockchain.genesis.futureRightValue shouldBe blockHeader1
   }
 
-  it should "retrieve a long history" in {
-    val t = underTest
-    import t._
-
-    val count = 5000
-
-    Source(3 to (count + 3))
-      .grouped(10)
-      .map(indices =>
-        NonEmptyChain
-          .fromChainUnsafe(Chain.fromSeq(indices))
-          .map(i =>
-            CreateBlockHeader(
-              BlockHeader(
-                blockId = s"block$i",
-                timestamp = i,
-                publicKey = "topl",
-                signature = "topl",
-                height = i,
-                difficulty = 1,
-                txRoot = "bar",
-                bloomFilter = "baz",
-                version = 1
-              )
-            )
-          )
-      )
-      // TODO: Multi-threading is currently unsafe
-      .runWith(Sink.foreachAsync(2)(v => v.run().value.map(_.value)))
-      .futureValue(Timeout(10.minutes))
-
-    Source(3 to (count + 3))
-      .grouped(10)
-      .map(indices =>
-        NonEmptyChain
-          .fromChainUnsafe(Chain.fromSeq(indices))
-          .map(i => AssociateBlockToParent(s"block$i", s"block${i - 1}"))
-      )
-      // TODO: Multi-threading is currently unsafe
-      .runWith(Sink.foreachAsync(2)(v => v.run().value.map(_.value)))
-      .futureValue(Timeout(10.minutes))
-
-    NonEmptyChain(SetHead(s"block${count + 3}")).run().futureRightValue
-
-    val head = Blockchain.currentHead.futureRightValue
-
-    head.blockId shouldBe s"block${count + 3}"
-
-    val history =
-      head.history
-        .runWith(Sink.seq)
-        .futureValue(Timeout(10.minutes))
-        .toList
-        .map(_.value)
-
-    history should have size (count + 2)
-    history.zip((count + 2) to 1).foreach { case (header, index) =>
-      header.blockId shouldBe s"block${index + 1}"
-    }
-  }
-
   override def beforeAll(): Unit = {
     super.beforeAll()
 
     val schema = BlockchainGraphSchema.value
 
-//    graph = OrientDBGraph(schema, OrientDBGraph.Local(Paths.get(".", "target", "test", "db")))
     graph = OrientDBGraph(schema, OrientDBGraph.InMemory)
 
     underTest = new BlockchainGraph(graph)
+  }
+
+  override def afterAll(): Unit = {
+    super.afterAll()
+    graph.close()
   }
 }
