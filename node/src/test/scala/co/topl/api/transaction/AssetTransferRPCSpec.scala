@@ -1,99 +1,64 @@
 package co.topl.api.transaction
 
-import akka.util.ByteString
-import co.topl.api.RPCMockState
 import co.topl.attestation.Address
 import co.topl.modifier.box.AssetCode
-import co.topl.utils.encode.Base58
-import io.circe.Json
-import io.circe.parser.parse
 import io.circe.syntax._
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 
-class AssetTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
+class AssetTransferRPCSpec extends TransferRPCTestMethods {
 
-  var address: Address = _
+  var addressCurve25519send: Address = _
+  var addressCurve25519recv: Address = _
+  var addressEd25519send: Address = _
+  var addressEd25519recv: Address = _
   var recipients: String = _
-  var assetCode: AssetCode = _
-  var tx = ""
+  var assetCodeCurve25519: AssetCode = _
+  var assetCodeEd25519: AssetCode = _
 
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    address = keyRingCurve25519.addresses.head
+    addressCurve25519send = keyRingCurve25519.addresses.head
+    addressCurve25519recv = keyRingCurve25519.addresses.tail.head
+    addressEd25519send = keyRingEd25519.addresses.head
+    addressEd25519recv = keyRingEd25519.addresses.tail.head
     recipients = assetToSeqGen.sample.get.asJson.toString()
-    assetCode = AssetCode(1: Byte, address, "test")
+    assetCodeCurve25519 = AssetCode(1: Byte, addressCurve25519send, "test")
+    assetCodeEd25519 = AssetCode(1: Byte, addressEd25519send, "test")
   }
 
   "AssetTransfer RPC" should {
-    "Create new assets raw transaction" in {
-      val requestBody = ByteString(s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "2",
-           |   "method": "topl_rawAssetTransfer",
-           |   "params": [{
-           |     "propositionType": "$propTypeCurve25519",
-           |     "recipients":
-           |    [
-           |  [
-           |    "$address",
-           |      {
-           |        "quantity" : "1",
-           |        "assetCode" : "${assetCode.toString}",
-           |        "metadata" : "ApdGzs6uwKAhuKJQswBWoVAFjNA5B8enBKfxVbzlcQ8EnpxicpRcE9B9Bgn2LGv02kYUSA1h1181ZYeECvr",
-           |        "type" : "Asset",
-           |        "securityRoot" : "11111111111111111111111111111111"
-           |      }]],
-           |     "sender": ["$address"],
-           |     "changeAddress": "$address",
-           |     "consolidationAddress": "$address",
-           |     "fee": "1",
-           |     "minting": true,
-           |     "data": ""
-           |   }]
-           |}
-        """.stripMargin)
-
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
-
-        val sigTx = for {
-          rawTx   <- res.hcursor.downField("result").get[Json]("rawTx")
-          message <- res.hcursor.downField("result").get[String]("messageToSign")
-        } yield {
-          val sig = keyRingCurve25519.generateAttestation(address)(Base58.decode(message).get)
-          val signatures: Json = Map(
-            "signatures" -> sig.asJson
-          ).asJson
-          rawTx.deepMerge(signatures)
-        }
-
-        tx = sigTx.getOrElse("").toString
-
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").head.asObject.isDefined shouldBe true
-      }
+    "Create, sign and broadcast new asset transfer raw transaction from a Curve25519 address to itself" in {
+      val tx = testCreateSignAssetTransfer(
+        addressCurve25519send,
+        addressCurve25519recv,
+        assetCodeCurve25519,
+        propTypeCurve25519,
+        3
+      )
+      testBroadcastTx(tx)
     }
 
-    "Broadcast signed AssetTransfer transaction" in {
-      val requestBody = ByteString(s"""
-          |{
-          |   "jsonrpc": "2.0",
-          |   "id": "2",
-          |   "method": "topl_broadcastTx",
-          |   "params": [{
-          |     "tx": $tx
-          |   }]
-          |}
-          |""".stripMargin)
+    "Create, sign and broadcast new asset transfer raw transaction from a Curve25519 address to an Ed25519 address" +
+    " address" in {
+      val tx = testCreateSignAssetTransfer(
+        addressCurve25519send,
+        addressEd25519send,
+        assetCodeCurve25519,
+        propTypeCurve25519,
+        3
+      )
+      testBroadcastTx(tx)
+    }
 
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").head.asObject.isDefined shouldBe true
-      }
+    "Create, sign and broadcast new asset transfer raw transaction from an Ed25519 address to itself" in {
+      val tx = testCreateSignAssetTransfer(addressEd25519send, addressEd25519recv, assetCodeEd25519, propTypeEd25519, 3)
+      testBroadcastTx(tx)
+    }
+
+    "Create, sign and broadcast new asset transfer raw transaction from an Ed25519 address to a Curve25519 address" in {
+      val tx =
+        testCreateSignAssetTransfer(addressEd25519send, addressCurve25519send, assetCodeEd25519, propTypeEd25519, 3)
+      testBroadcastTx(tx)
     }
   }
 }
