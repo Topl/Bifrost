@@ -11,6 +11,7 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import utils.serialization.{BytesSerializable, GjalSerializer}
 
+import scala.reflect.ClassTag
 import scala.util.Try
 
 /**
@@ -40,15 +41,26 @@ sealed trait Proof[P <: Proposition] extends BytesSerializable {
 
 object Proof {
 
-  sealed trait ProofFromDataError
-  case class InvalidBase58() extends ProofFromDataError
-  case class ProofParseFailure(error: Throwable) extends ProofFromDataError
+  sealed trait ProofFromBase58DataError
+  case class ProofParseFailure(error: Throwable) extends ProofFromBase58DataError
+  case class ParsedIncorrectSignatureType() extends ProofFromBase58DataError
 
-  def fromBase58(data: Base58Data): Either[ProofFromDataError, Proof[_]] =
-    ProofSerializer.parseBytes(data.value).toEither.leftMap(ProofParseFailure)
+  sealed trait ProofFromStringDataError
+  case class InvalidBase58() extends ProofFromStringDataError
+  case class ProofFromDataError(inner: ProofFromBase58DataError) extends ProofFromStringDataError
 
-  def fromString(str: String): Either[ProofFromDataError, Proof[_]] =
-    Base58Data.validated(str).toEither.leftMap(_ => InvalidBase58()).flatMap(fromBase58)
+  def fromBase58[T <: Proof[_]: ClassTag](data: Base58Data): Either[ProofFromBase58DataError, T] =
+    ProofSerializer.parseBytes(data.value).toEither.leftMap(ProofParseFailure).flatMap {
+      case t: T => Right(t)
+      case _    => Left(ParsedIncorrectSignatureType())
+    }
+
+  def fromString[T <: Proof[_]: ClassTag](str: String): Either[ProofFromStringDataError, T] =
+    Base58Data
+      .validated(str)
+      .toEither
+      .leftMap(_ => InvalidBase58())
+      .flatMap(fromBase58[T](_).leftMap(ProofFromDataError))
 
   implicit def jsonEncoder[PR <: Proof[_]]: Encoder[PR] = (proof: PR) => proof.toString.asJson
 
@@ -90,19 +102,15 @@ object SignatureCurve25519 {
   lazy val genesis: SignatureCurve25519 =
     SignatureCurve25519(Signature(Array.fill(SignatureCurve25519.signatureSize)(1: Byte)))
 
-  def apply(data: Base58Data)(implicit d: DummyImplicit): SignatureCurve25519 =
-    Proof.fromBase58(data) match {
-      case Right(sig: SignatureCurve25519) => sig
-      case Right(_)                        => throw new Exception("Parsed to incorrect signature type")
-      case Left(error)                     => throw new Exception(s"Error while parsing proof: $error")
+  // DummyImplicit required because Base58Data and Signature have same base type after type erasure
+  def apply(data: Base58Data)(implicit dummyImplicit: DummyImplicit): SignatureCurve25519 =
+    Proof.fromBase58[SignatureCurve25519](data) match {
+      case Right(sig)  => sig
+      case Left(error) => throw new Exception(s"Error while parsing proof: $error")
     }
 
-  def apply(str: String)(implicit d: DummyImplicit): SignatureCurve25519 =
-    Proof.fromString(str) match {
-      case Right(sig: SignatureCurve25519) => sig
-      case Right(_)                        => throw new Exception("Parsed to incorrect signature type")
-      case Left(error)                     => throw new Exception(s"Error while parsing proof: $error")
-    }
+  def apply(str: String): SignatureCurve25519 =
+    Base58Data.validated(str).map(apply).valueOr(err => throw new Exception(s"Invalid Base-58 String: $err"))
 
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html
@@ -157,18 +165,13 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
 object ThresholdSignatureCurve25519 {
 
   def apply(data: Base58Data): ThresholdSignatureCurve25519 =
-    Proof.fromBase58(data) match {
-      case Right(sig: ThresholdSignatureCurve25519) => sig
-      case Right(_)                                 => throw new Exception("Parsed to incorrect signature type")
-      case Left(error)                              => throw new Exception(s"Invalid signature: $error")
+    Proof.fromBase58[ThresholdSignatureCurve25519](data) match {
+      case Right(sig)  => sig
+      case Left(error) => throw new Exception(s"Invalid signature: $error")
     }
 
   def apply(str: String): ThresholdSignatureCurve25519 =
-    Proof.fromString(str) match {
-      case Right(sig: ThresholdSignatureCurve25519) => sig
-      case Right(_)                                 => throw new Exception("Parsed to incorrect signature type")
-      case Left(error)                              => throw new Exception(s"Invalid signature: $error")
-    }
+    Base58Data.validated(str).map(apply).valueOr(err => throw new Exception(s"Invalid Base-58 String: $err"))
 
   /** Helper function to create empty signatures */
   def empty(): ThresholdSignatureCurve25519 = ThresholdSignatureCurve25519(Set[SignatureCurve25519]())

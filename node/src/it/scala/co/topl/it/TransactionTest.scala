@@ -8,6 +8,7 @@ import co.topl.modifier.box.{AssetCode, AssetValue}
 import co.topl.modifier.transaction.Transaction
 import co.topl.rpc.ToplRpc
 import co.topl.utils.Int128
+import co.topl.utils.StringDataTypes.Latin1Data
 import com.typesafe.config.ConfigFactory
 import org.scalatest._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
@@ -234,7 +235,7 @@ class TransactionTest
     }
   }
 
-  def assetCode: AssetCode = AssetCode(1: Byte, addressC, "test_1")
+  def assetCode: AssetCode = AssetCode(1: Byte, addressC, Latin1Data.unsafe("test_1"))
 
   "Assets can be sent from addressC to addressA (minting)" in {
     verifyPolyEntropy(addressC) {
