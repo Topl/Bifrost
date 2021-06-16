@@ -46,7 +46,9 @@ class TransactionValidationSpec
 
       val noPolyRawTx = tx.copy(from = fromWithoutPolys)
       val sender = keyRingCurve25519.addresses.head
-      noPolyRawTx.copy(attestation = Transaction.updateAttestation(noPolyRawTx)(keyRingCurve25519.generateAttestation(sender)))
+      noPolyRawTx.copy(attestation =
+        Transaction.updateAttestation(noPolyRawTx)(keyRingCurve25519.generateAttestation(sender))
+      )
     }
     forAll(gen)(tx =>
       tx.semanticValidation(genesisState) should haveInvalidC[SemanticValidationFailure](
@@ -165,11 +167,17 @@ class TransactionValidationSpec
   }
 
   private def signTx(tx: PolyTransfer[PublicKeyPropositionCurve25519]): PolyTransfer[PublicKeyPropositionCurve25519] =
-    tx.copy(attestation = Transaction.updateAttestation(tx)(keyRingCurve25519.generateAttestation(tx.from.map(_._1).toSet)))
+    tx.copy(attestation =
+      Transaction.updateAttestation(tx)(keyRingCurve25519.generateAttestation(tx.from.map(_._1).toSet))
+    )
 
   private def signTx(tx: ArbitTransfer[PublicKeyPropositionCurve25519]): ArbitTransfer[PublicKeyPropositionCurve25519] =
-    tx.copy(attestation = Transaction.updateAttestation(tx)(keyRingCurve25519.generateAttestation(tx.from.map(_._1).toSet)))
+    tx.copy(attestation =
+      Transaction.updateAttestation(tx)(keyRingCurve25519.generateAttestation(tx.from.map(_._1).toSet))
+    )
 
   private def signTx(tx: AssetTransfer[PublicKeyPropositionCurve25519]): AssetTransfer[PublicKeyPropositionCurve25519] =
-    tx.copy(attestation = Transaction.updateAttestation(tx)(keyRingCurve25519.generateAttestation(tx.from.map(_._1).toSet)))
+    tx.copy(attestation =
+      Transaction.updateAttestation(tx)(keyRingCurve25519.generateAttestation(tx.from.map(_._1).toSet))
+    )
 }
