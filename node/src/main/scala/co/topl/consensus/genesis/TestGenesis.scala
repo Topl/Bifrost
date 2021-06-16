@@ -1,7 +1,13 @@
 package co.topl.consensus.genesis
 
 import co.topl.attestation.EvidenceProducer.Syntax._
-import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.attestation.{
+  Address,
+  PublicKeyPropositionCurve25519,
+  PublicKeyPropositionEd25519,
+  SignatureCurve25519,
+  SignatureEd25519
+}
 import co.topl.consensus.Forger.ChainParams
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -14,8 +20,8 @@ import co.topl.utils.NetworkType.NetworkPrefix
 
 import scala.util.Try
 
-case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implicit
-  val networkPrefix:                 NetworkPrefix
+case class TestGenesis(addressesCurve25519: Set[Address], addressesEd25519: Set[Address], settings: AppSettings)(
+  implicit val networkPrefix:               NetworkPrefix
 ) extends GenesisProvider {
 
   override protected val blockChecksum: ModifierId = ModifierId.empty
@@ -42,9 +48,9 @@ case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implic
     // map the members to their balances then continue as normal
     val privateTotalStake = numberOfKeys * balance
 
-    val txInput = (
+    val txInputCurve25519 = (
       IndexedSeq(),
-      (genesisAcctCruve25519.publicImage.address -> SimpleValue(0L)) +: addresses
+      (genesisAcctCruve25519.publicImage.address -> SimpleValue(0L)) +: addressesCurve25519
         .map(_ -> SimpleValue(balance))
         .toIndexedSeq,
       Map(genesisAcctCruve25519.publicImage -> SignatureCurve25519.genesis),
@@ -54,25 +60,23 @@ case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implic
       true
     )
 
+    val txInputEd25519 = (
+      IndexedSeq(),
+      (genesisAcctEd25519.publicImage.address -> SimpleValue(0L)) +: addressesEd25519
+        .map(_ -> SimpleValue(balance))
+        .toIndexedSeq,
+      Map(genesisAcctEd25519.publicImage -> SignatureEd25519.genesis),
+      Int128(0),
+      0L,
+      None,
+      true
+    )
+
     val txs = Seq(
-      ArbitTransfer[PublicKeyPropositionCurve25519](
-        txInput._1,
-        txInput._2,
-        txInput._3,
-        txInput._4,
-        txInput._5,
-        txInput._6,
-        txInput._7
-      ),
-      PolyTransfer[PublicKeyPropositionCurve25519](
-        txInput._1,
-        txInput._2,
-        txInput._3,
-        txInput._4,
-        txInput._5,
-        txInput._6,
-        txInput._7
-      )
+      (ArbitTransfer[PublicKeyPropositionCurve25519] _).tupled(txInputCurve25519),
+      (PolyTransfer[PublicKeyPropositionCurve25519] _).tupled(txInputCurve25519),
+      (ArbitTransfer[PublicKeyPropositionEd25519] _).tupled(txInputEd25519),
+      (PolyTransfer[PublicKeyPropositionEd25519] _).tupled(txInputEd25519)
     )
 
     val generatorBox = ArbitBox(genesisAcctCruve25519.publicImage.generateEvidence, 0, SimpleValue(privateTotalStake))

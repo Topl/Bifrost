@@ -2,7 +2,7 @@ package co.topl.utils
 
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
-import co.topl.consensus.genesis.PrivateGenesis
+import co.topl.consensus.genesis.TestGenesis
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.Box.identifier
@@ -40,7 +40,8 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
     third  <- Gen.choose(0: Byte, Byte.MaxValue)
   } yield new Version(first, second, third)
 
-  lazy val genesisBlock: Block = PrivateGenesis(keyRingCurve25519.addresses, settings).getGenesisBlock.get._1
+  lazy val genesisBlock: Block =
+    TestGenesis(keyRingCurve25519.addresses, keyRingEd25519.addresses, settings).getGenesisBlock.get._1
 
   def genesisBlockId: ModifierId = genesisBlock.id
 

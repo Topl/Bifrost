@@ -54,7 +54,7 @@ case object HelGenesis extends GenesisProvider {
     val txInput = (
       IndexedSeq(),
       memberKeys.zip(members.values.map(SimpleValue(_))).toIndexedSeq,
-      Map(genesisAcct.publicImage -> SignatureCurve25519.genesis),
+      Map(genesisAcctCruve25519.publicImage -> SignatureCurve25519.genesis),
       Int128(0),
       0L,
       None,
@@ -82,7 +82,7 @@ case object HelGenesis extends GenesisProvider {
       )
     )
 
-    val generatorBox = ArbitBox(genesisAcct.publicImage.generateEvidence, 0, SimpleValue(totalStake))
+    val generatorBox = ArbitBox(genesisAcctCruve25519.publicImage.generateEvidence, 0, SimpleValue(totalStake))
 
     val signature = SignatureCurve25519.genesis
 
@@ -91,7 +91,7 @@ case object HelGenesis extends GenesisProvider {
         ModifierId.genesisParentId,
         0L,
         generatorBox,
-        genesisAcct.publicImage,
+        genesisAcctCruve25519.publicImage,
         signature,
         1L,
         initialDifficulty,
