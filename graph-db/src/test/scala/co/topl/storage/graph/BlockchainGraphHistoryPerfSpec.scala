@@ -124,7 +124,7 @@ class BlockchainGraphHistoryPerfSpec
 
     logger.info("Inserting block header parent edges")
 
-    Source((0 until parallelism))
+    Source(0 until parallelism)
       .flatMapMerge(
         parallelism,
         partition =>

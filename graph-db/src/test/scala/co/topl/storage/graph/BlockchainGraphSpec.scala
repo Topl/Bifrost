@@ -24,7 +24,7 @@ class BlockchainGraphSpec
 
   implicit val ec: ExecutionContext = system.executionContext
 
-  implicit override val patienceConfig: PatienceConfig = PatienceConfig(2.seconds)
+  implicit override val patienceConfig: PatienceConfig = PatienceConfig(2.hours)
 
   private var graph: OrientDBGraph = _
   private var underTest: BlockchainData = _

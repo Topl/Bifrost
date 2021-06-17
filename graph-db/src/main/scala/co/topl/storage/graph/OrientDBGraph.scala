@@ -1,8 +1,8 @@
 package co.topl.storage.graph
 
 import akka.actor.typed.scaladsl.AskPattern._
-import akka.actor.typed.scaladsl.{Behaviors, StashBuffer}
-import akka.actor.typed.{ActorRef, ActorSystem, Behavior, DispatcherSelector, PostStop}
+import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed._
 import akka.pattern.StatusReply
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.Timeout
@@ -31,7 +31,7 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
     system.systemActorOf(OrientDBGraphActorParent(factory), "graph-work-dispatcher")
 
   implicit private val timeout: Timeout =
-    10.minutes
+    10.hours
 
   initialize()
 
@@ -55,13 +55,24 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
 
   def getNode[T: NodeSchema](graphQuery: GraphQuery[T]): EitherT[Future, OrientDBGraph.Error, Option[T]] =
     EitherT(
-      getNodes(graphQuery)
-        .runWith(Sink.headOption)
-        .map {
-          case Some(Right(value)) => Right(Some(value))
-          case Some(Left(e))      => Left(e)
-          case None               => Right(None)
-        }
+      workDispatcher
+        .askWithStatus[Option[T]](ref =>
+          OrientDBGraphActorParent.Work(
+            OrientDBGraphActor.Execute(
+              session =>
+                session
+                  .command(new OCommandSQL(stringifyQuery(graphQuery) + " LIMIT 1"))
+                  .execute[OrientDynaElementIterable]()
+                  .iterator()
+                  .asScala
+                  .collect { case r: OrientVertex @unchecked => r.as[T] }
+                  .nextOption(),
+              ref
+            )
+          )
+        )
+        .map(Right(_))
+        .recover { case e => Left(OrientDBGraph.ThrowableError(e)) }
     )
 
   def getNodes[T: NodeSchema](graphQuery: GraphQuery[T]): Source[Either[OrientDBGraph.Error, T], NotUsed] = {
@@ -244,6 +255,8 @@ object OrientDBGraph {
         val originQuery = stringifyQuery(origin)
         s"TRAVERSE $expansion" +
         s" FROM ($originQuery)"
+      case Raw(query) =>
+        query
     }
 
   object Ops {
@@ -251,20 +264,16 @@ object OrientDBGraph {
     implicit class VertexOps(orientVertex: OrientVertex) {
 
       def as[T: NodeSchema]: T =
-        implicitly[NodeSchema[T]].decode(
-          new Decoder {
-            override def apply[X](key: String): X = orientVertex.getProperty[X](key)
-          }
-        )
+        implicitly[NodeSchema[T]].decode(orientVertex.getProperties.asScala.toMap + ("@class" -> orientVertex.getLabel))
     }
 
     implicit class EdgeOps(edge: Edge) {
 
       def as[T](implicit schema: EdgeSchema[T, _, _]): T =
         schema.decode(
-          new Decoder {
-            override def apply[X](key: String): X = edge.getProperty[X](key)
-          }
+          edge.getPropertyKeys.asScala
+            .map(key => key -> edge.getProperty(key))
+            .toMap + ("@class" -> edge.getLabel)
         )
     }
   }
@@ -273,59 +282,55 @@ object OrientDBGraph {
 private object OrientDBGraphActorParent {
 
   def apply(factory: OrientGraphFactory): Behavior[Message] = {
-    def withStash(stash: StashBuffer[Message]): Behavior[Message] = {
-      def withState(
-        readyForWork:   List[ActorRef[OrientDBGraphActor.Message[_]]],
-        readyForTxWork: List[ActorRef[OrientDbTransactionActor.Message]]
-      ): Behavior[Message] =
-        Behaviors.receive((ctx, message) =>
-          message match {
-            case GiveWork(to) =>
-              withState(readyForWork :+ to, readyForTxWork)
-            case Work(message) =>
-              val (worker, newReadyForWork) =
-                readyForWork match {
-                  case Nil =>
-                    val w =
-                      ctx.spawnAnonymous(
-                        OrientDBGraphActor(() => factory.getNoTx, ctx.self),
-                        DispatcherSelector.fromConfig("orient-db-actor-dispatcher")
-                      )
-                    (w, readyForWork)
-                  case w :: rest =>
-                    (w, rest)
-                }
+    def withState(
+      readyForWork:   List[ActorRef[OrientDBGraphActor.Message[_]]],
+      readyForTxWork: List[ActorRef[OrientDbTransactionActor.Message]]
+    ): Behavior[Message] =
+      Behaviors.receive((ctx, message) =>
+        message match {
+          case GiveWork(to) =>
+            withState(readyForWork :+ to, readyForTxWork)
+          case Work(message) =>
+            val (worker, newReadyForWork) =
+              readyForWork match {
+                case Nil =>
+                  val w =
+                    ctx.spawnAnonymous(
+                      OrientDBGraphActor(() => factory.getNoTx, ctx.self),
+                      DispatcherSelector.fromConfig("orient-db-actor-dispatcher")
+                    )
+                  (w, readyForWork)
+                case w :: rest =>
+                  (w, rest)
+              }
 
-              worker ! message
+            worker ! message
 
-              withState(newReadyForWork, readyForTxWork)
+            withState(newReadyForWork, readyForTxWork)
 
-            case GiveTxWork(to) =>
-              withState(readyForWork, readyForTxWork :+ to)
+          case GiveTxWork(to) =>
+            withState(readyForWork, readyForTxWork :+ to)
 
-            case m @ TxWork(message) =>
-              val (txWorker, newReadyForTxWork) =
-                readyForTxWork match {
-                  case Nil =>
-                    val w =
-                      ctx.spawnAnonymous(
-                        OrientDbTransactionActor(factory, ctx.self),
-                        DispatcherSelector.fromConfig("orient-db-actor-dispatcher")
-                      )
-                    (w, readyForTxWork)
-                  case w :: rest =>
-                    (w, rest)
-                }
+          case TxWork(message) =>
+            val (txWorker, newReadyForTxWork) =
+              readyForTxWork match {
+                case Nil =>
+                  val w =
+                    ctx.spawnAnonymous(
+                      OrientDbTransactionActor(factory, ctx.self),
+                      DispatcherSelector.fromConfig("orient-db-actor-dispatcher")
+                    )
+                  (w, readyForTxWork)
+                case w :: rest =>
+                  (w, rest)
+              }
 
-              txWorker ! message
+            txWorker ! message
 
-              withState(readyForWork, newReadyForTxWork)
-          }
-        )
-      withState(Nil, Nil)
-    }
-
-    Behaviors.withStash(200)(withStash)
+            withState(readyForWork, newReadyForTxWork)
+        }
+      )
+    withState(Nil, Nil)
   }
 
   sealed abstract class Message
@@ -515,20 +520,10 @@ class WritableOrientGraph(orientGraph: OrientBaseGraph, blockingDispatcher: Exec
     implicit schema:               EdgeSchema[T, _, _]
   ): EitherT[Future, OrientDBGraph.Error, Done] =
     EitherT(
-//      blockingOperation {
-//        val src = resolveNodeReference(srcRef)
-//        val dest = resolveNodeReference(destRef)
-//        val e = orientGraph.addEdge(s"class:${schema.name}", src, dest, null)
-////        val e = src.addEdge(schema.name, dest)
-//        schema.encode(edge).foreach { case (name, value) =>
-//          e.setProperty(name, value)
-//        }
-//        src.save()
-//        dest.save()
-//        Right(Done)
-//      }
       runRawCommand[Any](
-        s"CREATE EDGE ${schema.name} FROM (${stringifyQuery(srcRef.query)} LIMIT 1) TO (${stringifyQuery(destRef.query)} LIMIT 1)"
+        s"CREATE EDGE ${schema.name}" +
+        s" FROM (${stringifyQuery(srcRef.query)} LIMIT 1)" +
+        s" TO (${stringifyQuery(destRef.query)} LIMIT 1)"
       )
         .map(_ => Right(Done))
         .recover { case e => Left(OrientDBGraph.ThrowableError(e)) }

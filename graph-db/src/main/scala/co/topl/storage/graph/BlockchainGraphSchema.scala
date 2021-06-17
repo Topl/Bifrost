@@ -2,6 +2,7 @@ package co.topl.storage.graph
 
 import com.orientechnologies.orient.core.metadata.schema.{OClass, OType}
 import scala.jdk.CollectionConverters._
+import Decoder._
 
 object BlockchainGraphSchema {
 
@@ -75,15 +76,15 @@ object BlockHeader {
       ),
     dec = decoder =>
       BlockHeader(
-        decoder("blockId"),
-        decoder("timestamp"),
-        decoder("publicKey"),
-        decoder("signature"),
-        decoder("height"),
-        decoder("difficulty"),
-        decoder("txRoot"),
-        decoder("bloomFilter"),
-        decoder("version")
+        decoder.typed("blockId"),
+        decoder.typed("timestamp"),
+        decoder.typed("publicKey"),
+        decoder.typed("signature"),
+        decoder.typed("height"),
+        decoder.typed("difficulty"),
+        decoder.typed("txRoot"),
+        decoder.typed("bloomFilter"),
+        decoder.typed("version")
       )
   )
 
@@ -106,7 +107,7 @@ object BlockBody {
       ),
     dec = decoder =>
       BlockBody(
-        decoder("blockId")
+        decoder.typed("blockId")
       )
   )
 }
@@ -145,12 +146,12 @@ object Transaction {
       ) ++ transaction.data.map("data" -> _),
     dec = decoder =>
       Transaction(
-        decoder("transactionId"),
-        decoder("fee"),
-        decoder("timestamp"),
-        Option(decoder("data")),
-        decoder("minting"),
-        decoder[java.util.Map[String, String]]("attestation").asScala.toMap
+        decoder.typed("transactionId"),
+        decoder.typed("fee"),
+        decoder.typed("timestamp"),
+        decoder.getTyped("data"),
+        decoder.typed("minting"),
+        decoder.typed[java.util.Map[String, String]]("attestation").asScala.toMap
       )
   )
 
@@ -180,10 +181,10 @@ object Box {
       ),
     dec = decoder =>
       Box(
-        decoder("boxId"),
-        decoder("boxType"),
-        decoder("value"),
-        decoder("nonce")
+        decoder.typed("boxId"),
+        decoder.typed("boxType"),
+        decoder.typed("value"),
+        decoder.typed("nonce")
       )
   )
 }
@@ -205,7 +206,7 @@ object Account {
       ),
     dec = decoder =>
       Account(
-        decoder("address")
+        decoder.typed("address")
       )
   )
 }
@@ -234,7 +235,7 @@ object State {
         Index("State_stateId", OClass.INDEX_TYPE.UNIQUE, "stateId")
       ),
       enc = state => Map("stateId" -> state.stateId),
-      dec = decoder => State(decoder("stateId"))
+      dec = decoder => State(decoder.typed("stateId"))
     )
 }
 
@@ -271,7 +272,7 @@ object TransactionBoxCreates {
     EdgeSchema(
       List(Property("minted", OType.BOOLEAN)),
       enc = v => Map("minted" -> v.minted),
-      dec = decoder => TransactionBoxCreates(decoder("minted"))
+      dec = decoder => TransactionBoxCreates(decoder.typed("minted"))
     )
 }
 

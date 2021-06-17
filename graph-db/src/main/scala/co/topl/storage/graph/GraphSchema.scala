@@ -3,6 +3,7 @@ package co.topl.storage.graph
 import com.orientechnologies.orient.core.metadata.schema.{OClass, OType}
 
 import scala.reflect.ClassTag
+import scala.util.Try
 
 /**
  * Represents the domain of all node and edge types in a graph
@@ -22,7 +23,7 @@ trait NodeSchema[T] {
 
   def encode: T => Map[String, Any]
 
-  def decode: Decoder => T
+  def decode: Decoder[T]
 }
 
 object NodeSchema {
@@ -31,7 +32,7 @@ object NodeSchema {
     p:   List[Property] = Nil,
     i:   List[Index] = Nil,
     enc: T => Map[String, Any],
-    dec: Decoder => T
+    dec: Decoder[T]
   ): NodeSchema[T] = new NodeSchema[T] {
     override def name: String = implicitly[ClassTag[T]].runtimeClass.getSimpleName
 
@@ -41,8 +42,27 @@ object NodeSchema {
 
     override def encode: T => Map[String, Any] = enc
 
-    override def decode: Decoder => T = dec
+    override def decode: Decoder[T] = dec
   }
+}
+
+case class RawNode(className: String, properties: Map[String, Any])
+
+object RawNode {
+
+  implicit val nodeSchema: NodeSchema[RawNode] =
+    new NodeSchema[RawNode] {
+      import Decoder._
+      override def name: String = ???
+
+      override def properties: List[Property] = ???
+
+      override def indices: List[Index] = ???
+
+      override def encode: RawNode => Map[String, Any] = _.properties
+
+      override def decode: Decoder[RawNode] = props => RawNode(props.getTyped[String]("@class").getOrElse(""), props)
+    }
 }
 
 /**
@@ -56,7 +76,7 @@ trait EdgeSchema[T, Src, Dest] {
   def properties: List[Property]
   def indices: List[Index]
   def encode: T => Map[String, Any]
-  def decode: Decoder => T
+  def decode: Decoder[T]
   def srcSchema: NodeSchema[Src]
   def destSchema: NodeSchema[Dest]
 }
@@ -67,14 +87,14 @@ object EdgeSchema {
     p:   List[Property] = Nil,
     i:   List[Index] = Nil,
     enc: T => Map[String, Any],
-    dec: Decoder => T
+    dec: Decoder[T]
   ): EdgeSchema[T, Src, Dest] =
     new EdgeSchema[T, Src, Dest] {
       def name: String = implicitly[ClassTag[T]].runtimeClass.getSimpleName
       def properties: List[Property] = p
       def indices: List[Index] = i
       def encode: T => Map[String, Any] = enc
-      def decode: Decoder => T = dec
+      def decode: Decoder[T] = dec
       def srcSchema: NodeSchema[Src] = implicitly[NodeSchema[Src]]
       def destSchema: NodeSchema[Dest] = implicitly[NodeSchema[Dest]]
     }
@@ -95,6 +115,14 @@ case class Property(name: String, propertyType: OType)
  */
 case class Index(name: String, indexType: OClass.INDEX_TYPE, propertyName: String)
 
-trait Decoder {
-  def apply[T](key: String): T
+trait Decoder[T] {
+  def apply(properties: Map[String, Any]): T
+}
+
+object Decoder {
+
+  implicit class MapOps(properties: Map[String, Any]) {
+    def typed[R](key:    String): R = properties(key).asInstanceOf[R]
+    def getTyped[R](key: String): Option[R] = properties.get(key).flatMap(v => Try(v.asInstanceOf[R]).toOption)
+  }
 }
