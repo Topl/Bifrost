@@ -38,7 +38,7 @@ case class TestGenesis(addressesCurve25519: Set[Address], addressesEd25519: Set[
    * by making a call to the key manager holder to create a the set of forging keys. Once these keys are created,
    * we can use the public images to pre-fund the accounts from genesis.
    */
-  val (numberOfKeys, balance, initialDifficulty) = settings.forging.privateTestnet
+  val (_, balance, initialDifficulty) = settings.forging.privateTestnet
     .map { settings =>
       (settings.numTestnetAccts, settings.testnetBalance, settings.initialDifficulty)
     }
@@ -46,7 +46,7 @@ case class TestGenesis(addressesCurve25519: Set[Address], addressesEd25519: Set[
 
   def formNewBlock: (Block, ChainParams) = {
     // map the members to their balances then continue as normal
-    val privateTotalStake = numberOfKeys * balance
+    val privateTotalStake = (addressesCurve25519.size + addressesEd25519.size) * balance
 
     val txInputCurve25519 = (
       IndexedSeq(),
