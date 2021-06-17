@@ -1,13 +1,7 @@
 package co.topl.consensus.genesis
 
 import co.topl.attestation.EvidenceProducer.Syntax._
-import co.topl.attestation.{
-  Address,
-  PublicKeyPropositionCurve25519,
-  PublicKeyPropositionEd25519,
-  SignatureCurve25519,
-  SignatureEd25519
-}
+import co.topl.attestation._
 import co.topl.consensus.Forger.ChainParams
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
