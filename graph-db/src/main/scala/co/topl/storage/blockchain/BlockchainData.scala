@@ -1,8 +1,10 @@
-package co.topl.storage.graph
+package co.topl.storage.blockchain
 
 import akka.stream.scaladsl.Source
 import akka.{Done, NotUsed}
 import cats.data.{EitherT, NonEmptyChain}
+import co.topl.storage.graph.OrientDBGraph
+import co.topl.storage.mapdb.MapDBStore
 
 import scala.concurrent.Future
 
@@ -32,6 +34,7 @@ object BlockchainData {
   case class ThrowableError(throwable: Throwable) extends Error
   case class OrientDBGraphError(error: OrientDBGraph.Error) extends Error
   case object OrientDBConcurrencyError extends Error
+  case class MapDBError(mapDBError: MapDBStore.Error) extends Error
 
   case class ErrorThrowable(error: Error) extends Throwable
 }
@@ -135,7 +138,7 @@ trait StateOps {
   /**
    * Retrieve all unopened boxes within this State
    */
-  def unopenedBoxes: Source[Either[BlockchainData.Error, Box], NotUsed]
+  def unopenedBoxIds: Source[Either[BlockchainData.Error, String], NotUsed]
 
   /**
    * Find the box associated with the given ID, but only if the box is unopened within this state

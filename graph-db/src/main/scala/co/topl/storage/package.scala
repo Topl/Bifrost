@@ -1,13 +1,13 @@
-package co.topl.storage
+package co.topl
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
 
 import scala.concurrent.{ExecutionContext, Future}
 
-package object graph {
+package object storage {
 
-  private[graph] def iteratorSourceOnDispatcher[T](
+  def iteratorSourceOnDispatcher[T](
     iteratorF:                () => Iterator[T],
     blockingExecutionContext: ExecutionContext
   ): Source[T, NotUsed] =

@@ -1,8 +1,10 @@
-package co.topl.storage.graph
+package co.topl.storage.blockchain
 
+import co.topl.storage.graph.Decoder._
+import co.topl.storage.graph._
 import com.orientechnologies.orient.core.metadata.schema.{OClass, OType}
+
 import scala.jdk.CollectionConverters._
-import Decoder._
 
 object BlockchainGraphSchema {
 

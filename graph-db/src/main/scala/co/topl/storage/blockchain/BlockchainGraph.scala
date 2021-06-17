@@ -1,4 +1,4 @@
-package co.topl.storage.graph
+package co.topl.storage.blockchain
 
 import akka.actor.typed.ActorSystem
 import akka.stream.Materializer
@@ -6,26 +6,35 @@ import akka.stream.scaladsl.{Sink, Source}
 import akka.{Done, NotUsed}
 import cats.data.{EitherT, NonEmptyChain}
 import cats.implicits._
+import co.topl.storage.graph.Decoder._
+import co.topl.storage.graph._
+import co.topl.storage.mapdb.MapDBStore.implicits.stringSerializer
+import co.topl.storage.mapdb.{MapDBStore, MapStore, SetStore}
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.codecs.implicits.identityBytesEncoder
 import co.topl.utils.encode.Base58
 import com.orientechnologies.orient.core.exception.OConcurrentModificationException
-import RawNode._
-import Decoder._
+import org.mapdb.{DataInput2, DataOutput2, Serializer}
+
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.implicitConversions
 
-class BlockchainGraph(val graph: OrientDBGraph)(implicit system: ActorSystem[_]) extends BlockchainData {
+class BlockchainGraph()(implicit system: ActorSystem[_], val graph: OrientDBGraph, val mapDBStore: MapDBStore)
+    extends BlockchainData {
 
   import BlockchainGraph._
   import system.executionContext
 
   initialize()
 
-  implicit private def g: OrientDBGraph = graph
-
   implicit private def opsProvider: BlockchainData = this
+
+  private def stateStore(stateId: String): SetStore[String] =
+    mapDBStore.forSet(stateId)
+
+  private val blockStateModificationStore: MapStore[String, BlockStateChange] =
+    mapDBStore.forMap[String, BlockStateChange]("block-state-modifications")
 
   implicit override def headerOps(header: BlockHeader): BlockHeaderOps =
     new BlockHeaderOps {
@@ -72,45 +81,50 @@ class BlockchainGraph(val graph: OrientDBGraph)(implicit system: ActorSystem[_])
         .source
 
     override def lookupUnopenedBox(boxId: String): EitherT[Future, BlockchainData.Error, Box] = {
+      // TODO: Traversal appears to load result set into memory?
       val traversalFields = List(
-        s"in('${TransactionBlock.edgeSchema.name}')",
-        s"out('${TransactionBoxCreates.edgeSchema.name}')",
         s"out('${BodyState.edgeSchema.name}')",
         s"out('${BodyHeader.edgeSchema.name}')",
         s"out('${BlockParent.edgeSchema.name}')",
         s"in('${BodyHeader.edgeSchema.name}')"
       )
       val targetQuery = s"SELECT FROM ${BlockBody.nodeSchema.name} WHERE blockId='${body.blockId}' LIMIT 1"
-      val whileCondition =
-        // Traverse until we hit a Block that opens the Box
-        s"in('${BodyHeader.edgeSchema.name}')" +
-        s".in('${TransactionBlock.edgeSchema.name}')" +
-        s".out('${TransactionBoxOpens.edgeSchema.name}')" +
-        s".boxId<>'$boxId'"
       val traverseQuery =
         s"TRAVERSE ${traversalFields.mkString(",")}" +
         s" FROM ($targetQuery)" +
-        s" WHILE $whileCondition" +
         " strategy BREADTH_FIRST"
       val query =
         s"SELECT FROM ($traverseQuery)" +
-        s" WHERE (@class='${Box.nodeSchema.name}' AND boxId='$boxId') OR (@class='${State.nodeSchema.name}')"
+        s" WHERE (@class='${BlockBody.nodeSchema.name}') OR (@class='${State.nodeSchema.name}')"
       EitherT(
         Raw[RawNode](query).source
           .map(_.getOrThrow(BlockchainData.ErrorThrowable))
           .map {
-            case raw if raw.className == Box.nodeSchema.name && raw.properties.typed[String]("boxId") == boxId =>
-              Right(Box.nodeSchema.decode(raw.properties))
+            case raw if raw.className == BlockBody.nodeSchema.name =>
+              Right(BlockBody.nodeSchema.decode(raw.properties))
             case raw if raw.className == State.nodeSchema.name =>
               Left(State.nodeSchema.decode(raw.properties))
             case raw =>
               throw new IllegalArgumentException(s"Unexpected traversal node returned. $raw")
           }
-          .runWith(Sink.head)
-          .flatMap {
-            case Left(state) => state.lookupUnopenedBox(boxId).value.map(_.getOrThrow(BlockchainData.ErrorThrowable))
-            case Right(box)  => Future.successful(box)
+          .takeWhile(_.isRight, inclusive = true)
+          .mapAsync(10) {
+            case Left(state) =>
+              state
+                .lookupUnopenedBox(boxId)
+                .map(Some(_))
+                .valueOrF(e => Future.failed(BlockchainData.ErrorThrowable(e)))
+            case Right(body) =>
+              body.stateChanges
+                .flatMap[BlockchainData.Error, Option[Box]](changes =>
+                  if (changes.boxesOpened.contains(boxId)) EitherT.leftT[Future, Option[Box]](BlockchainData.NotFound)
+                  else if (changes.boxesCreated.contains(boxId)) boxId.box.map(Some(_))
+                  else EitherT.rightT[Future, BlockchainData.Error](None)
+                )
+                .valueOrF(e => Future.failed(BlockchainData.ErrorThrowable(e)))
           }
+          .collect { case Some(v) => v }
+          .runWith(Sink.head)
           .map(Right(_))
           .recover {
             case e: BlockchainData.ErrorThrowable => Left(e.error)
@@ -121,10 +135,26 @@ class BlockchainGraph(val graph: OrientDBGraph)(implicit system: ActorSystem[_])
     }
 
     override def stateChanges: EitherT[Future, BlockchainData.Error, BlockStateChange] =
+      blockStateModificationStore
+        .get(body.blockId)
+        .leftMap(BlockchainData.MapDBError)
+        .flatMap {
+          case Some(changes) =>
+            EitherT.rightT[Future, BlockchainData.Error](changes)
+          case _ =>
+            deriveStateChanges
+              .flatMap(changes =>
+                blockStateModificationStore
+                  .put(body.blockId, changes)
+                  .transform(_ => changes.asRight[BlockchainData.Error])
+              )
+        }
+
+    private def deriveStateChanges: EitherT[Future, BlockchainData.Error, BlockStateChange] =
       EitherT(
         transactions
           .map(_.getOrThrow(BlockchainData.ErrorThrowable))
-          .runFoldAsync(BlockStateChange(Set.empty, Set.empty)) { case (changes, transaction) =>
+          .mapAsync(10)(transaction =>
             for {
               opens <- transaction.opens
                 .map(_.getOrThrow(BlockchainData.ErrorThrowable).boxId)
@@ -132,8 +162,11 @@ class BlockchainGraph(val graph: OrientDBGraph)(implicit system: ActorSystem[_])
               creates <- transaction.creates
                 .map(_.getOrThrow(BlockchainData.ErrorThrowable).boxId)
                 .runWith(Sink.seq)
-            } yield BlockStateChange(changes.boxesOpened ++ opens, changes.boxesCreated ++ creates)
-          }
+            } yield BlockStateChange(opens.toSet, creates.toSet)
+          )
+          .runFold(BlockStateChange(Set.empty, Set.empty))((c1, c2) =>
+            BlockStateChange(c1.boxesOpened ++ c2.boxesOpened, c1.boxesCreated ++ c2.boxesCreated)
+          )
           .map(Right(_))
           .recover {
             case BlockchainData.ErrorThrowable(e) => Left(e)
@@ -231,21 +264,19 @@ class BlockchainGraph(val graph: OrientDBGraph)(implicit system: ActorSystem[_])
     new StateOps {
       override protected def instance: State = state
 
-      override def unopenedBoxes: Source[Either[BlockchainData.Error, Box], NotUsed] =
-        Trace[State](where = PropEquals("stateId", state.stateId))
-          .out(StateUnopenedBox.edgeSchema)
-          .source
+      override def unopenedBoxIds: Source[Either[BlockchainData.Error, String], NotUsed] =
+        stateStore(state.stateId)
+          .values()
+          .map(Right(_))
 
-      override def lookupUnopenedBox(boxId: String): EitherT[Future, BlockchainData.Error, Box] = {
-        val stateSelection =
-          s"SELECT expand(out('${StateUnopenedBox.edgeSchema.name}'))" +
-          s" FROM ${State.nodeSchema.name}" +
-          s" WHERE stateId='${state.stateId}'"
-        Raw[Box](
-          s"SELECT FROM($stateSelection) WHERE boxId='$boxId'"
-        )
-          .single()
-      }
+      override def lookupUnopenedBox(boxId: String): EitherT[Future, BlockchainData.Error, Box] =
+        stateStore(state.stateId)
+          .contains(boxId)
+          .leftMap(e => ??? : BlockchainData.Error)
+          .flatMap {
+            case true => boxId.box
+            case _    => EitherT.leftT[Future, Box](BlockchainData.NotFound)
+          }
     }
 
   implicit override def blockchainModificationsOps(
@@ -328,6 +359,23 @@ object BlockchainGraph {
         .map(_.leftMap { case OrientDBGraph.ThrowableError(throwable) => BlockchainData.ThrowableError(throwable) })
         .takeWhile(_.isRight, inclusive = true)
   }
+
+  implicit val blockStateChangeSerializer: Serializer[BlockStateChange] =
+    new Serializer[BlockStateChange] {
+
+      override def serialize(out: DataOutput2, value: BlockStateChange): Unit = {
+        out.writeInt(value.boxesOpened.size)
+        value.boxesOpened.foreach(out.writeUTF)
+        out.writeInt(value.boxesCreated.size)
+        value.boxesCreated.foreach(out.writeUTF)
+      }
+
+      override def deserialize(input: DataInput2, available: Int): BlockStateChange = {
+        val boxesOpened = (0 until input.readInt()).map(_ => input.readUTF()).toSet
+        val boxesCreated = (0 until input.readInt()).map(_ => input.readUTF()).toSet
+        BlockStateChange(boxesOpened, boxesCreated)
+      }
+    }
 }
 
 object BlockchainGraphStateSupport {
@@ -340,7 +388,8 @@ object BlockchainGraphStateSupport {
         opsProvider:   BlockchainData,
         ec:            ExecutionContext,
         orientDBGraph: WritableGraph,
-        mat:           Materializer
+        mat:           Materializer,
+        mapDBStore:    MapDBStore
       ): EitherT[Future, BlockchainData.Error, Done] = {
         import opsProvider._
         blockBody.state
@@ -352,7 +401,7 @@ object BlockchainGraphStateSupport {
                   Source
                     .single(blockBody)
                     .concat(traverseToNearestState)
-                    .mapAsync(1)(b =>
+                    .mapAsync(10)(b =>
                       b.stateChanges
                         .map((b.blockId, _))
                         .valueOrF(e => Future.failed(BlockchainData.ErrorThrowable(e)))
@@ -412,33 +461,25 @@ object BlockchainGraphStateSupport {
           .valueOrF(e => Future.failed(BlockchainData.ErrorThrowable(BlockchainData.OrientDBGraphError(e))))
 
       private def insertStateUnopenedBoxEdges(
-        closestState:         Option[State],
-        knownUnopenedBoxes:   Set[String],
-        knownOpenedBoxes:     Set[String],
-        encodedStateId:       String
-      )(implicit opsProvider: BlockchainData, orientDBGraph: WritableGraph, mat: Materializer) = {
+        closestState:       Option[State],
+        knownUnopenedBoxes: Set[String],
+        knownOpenedBoxes:   Set[String],
+        encodedStateId:     String
+      )(implicit
+        opsProvider:   BlockchainData,
+        orientDBGraph: WritableGraph,
+        mat:           Materializer,
+        mapDBStore:    MapDBStore
+      ) = {
         import opsProvider._
-        import mat.executionContext
+        val setStore = mapDBStore.forSet[String](encodedStateId)(Serializer.STRING)
         Source(knownUnopenedBoxes)
           .concat(
             closestState.fold(Source.empty[String])(
-              _.unopenedBoxes.map(_.getOrThrow().boxId).filterNot(knownOpenedBoxes.contains)
+              _.unopenedBoxIds.map(_.getOrThrow()).filterNot(knownOpenedBoxes.contains)
             )
           )
-          .mapAsync(1)(boxId =>
-            orientDBGraph
-              .insertEdge(
-                StateUnopenedBox(),
-                OrientDBGraph.NodeReference(
-                  NodesByClass[State](where = PropEquals("stateId", encodedStateId))
-                ),
-                OrientDBGraph.NodeReference(
-                  NodesByClass[Box](where = PropEquals("boxId", boxId))
-                )
-              )
-              .valueOrF(e => Future.failed(BlockchainData.ErrorThrowable(BlockchainData.OrientDBGraphError(e))))
-          )
-          .runWith(Sink.ignore)
+          .runWith(setStore.putMany())
       }
 
       def traverseToNearestState(implicit
@@ -473,7 +514,8 @@ class BlockchainGraphModificationSupport()(implicit
   blockchainData:   BlockchainData,
   orientDBGraph:    WritableGraph,
   executionContext: ExecutionContext,
-  materializer:     Materializer
+  materializer:     Materializer,
+  mapDBStore:       MapDBStore
 ) {
   import blockchainData._
 

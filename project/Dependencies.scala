@@ -84,6 +84,13 @@ object Dependencies {
     )
   }
 
+  val mapDb: Seq[ModuleID] = {
+    val version = "3.0.8"
+    Seq(
+      "org.mapdb" % "mapdb" % version
+    )
+  }
+
   val node: Seq[ModuleID] = {
     Seq(
       "com.typesafe.akka"          %% "akka-cluster"  % akkaVersion,
@@ -120,7 +127,8 @@ object Dependencies {
     logging ++
     circe ++
     test ++
-    orientDb
+    orientDb ++
+    mapDb
 
   lazy val chainProgram: Seq[ModuleID] =
     Seq(

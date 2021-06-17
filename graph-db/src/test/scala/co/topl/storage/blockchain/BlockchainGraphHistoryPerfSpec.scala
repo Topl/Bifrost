@@ -1,9 +1,11 @@
-package co.topl.storage.graph
+package co.topl.storage.blockchain
 
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.stream.scaladsl.{Sink, Source}
 import cats.data.{Chain, NonEmptyChain}
 import cats.scalatest.FutureEitherValues
+import co.topl.storage.graph.OrientDBGraph
+import co.topl.storage.mapdb.MapDBStore
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -75,7 +77,7 @@ class BlockchainGraphHistoryPerfSpec
     graph = OrientDBGraph(schema, OrientDBGraph.Local(dataDir))
 //    graph = OrientDBGraph(schema, OrientDBGraph.InMemory)
 
-    underTest = new BlockchainGraph(graph)
+    underTest = new BlockchainGraph()(system, graph, MapDBStore.memory())
 
     prepareGraph()
   }

@@ -1,4 +1,4 @@
-package co.topl.storage.graph
+package co.topl.storage.blockchain
 
 import cats.kernel.Semigroup
 import co.topl.crypto.hash.blake2b256

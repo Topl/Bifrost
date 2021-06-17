@@ -1,10 +1,12 @@
-package co.topl.storage.graph
+package co.topl.storage.blockchain
 
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.stream.scaladsl.Sink
 import cats.data._
 import cats.implicits._
 import cats.scalatest.FutureEitherValues
+import co.topl.storage.graph.OrientDBGraph
+import co.topl.storage.mapdb.MapDBStore
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, OptionValues}
@@ -264,12 +266,12 @@ class BlockchainGraphSpec
     blockBody1.state.futureLeftValue shouldBe BlockchainData.NotFound
 
     val unopenedBoxes =
-      blockBody2.state.futureRightValue.unopenedBoxes
+      blockBody2.state.futureRightValue.unopenedBoxIds
         .runWith(Sink.seq)
         .futureValue
         .map(_.value)
 
-    unopenedBoxes should (have size 1 and contain(box2))
+    unopenedBoxes should (have size 1 and contain(boxId2))
     unopenedBoxes should not contain box1
   }
 
@@ -292,7 +294,7 @@ class BlockchainGraphSpec
 
     graph = OrientDBGraph(schema, OrientDBGraph.InMemory)
 
-    underTest = new BlockchainGraph(graph)
+    underTest = new BlockchainGraph()(system, graph, MapDBStore.memory())
   }
 
   override def afterAll(): Unit = {
