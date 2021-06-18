@@ -14,7 +14,7 @@ class ThresholdPropositionCurve25519Spec
     with CommonGenerators {
 
   property("Any signature from set validates") {
-    forAll(oneOfNPropositionGen) { case (keySet: Set[PrivateKeyCurve25519], mn: ThresholdPropositionCurve25519) =>
+    forAll(oneOfNPropositionCurve25519Gen) { case (keySet: Set[PrivateKeyCurve25519], mn: ThresholdPropositionCurve25519) =>
       val message = nonEmptyBytesGen.sample.getOrElse(Array.fill(positiveMediumIntGen.sample.get)(1: Byte))
       val signatures = keySet.map(_.sign(message))
 

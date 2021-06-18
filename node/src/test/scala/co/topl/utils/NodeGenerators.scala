@@ -80,7 +80,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
   lazy val validPolyTransferGen: Gen[PolyTransfer[_]] = for {
     from        <- fromSeqGen
     to          <- toSeqGen
-    attestation <- attestationGen
+    attestation <- attestationCurve25519Gen
     key         <- publicKeyPropositionCurve25519Gen
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
@@ -95,7 +95,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
   lazy val validArbitTransferGen: Gen[ArbitTransfer[_]] = for {
     from        <- fromSeqGen
     to          <- toSeqGen
-    attestation <- attestationGen
+    attestation <- attestationCurve25519Gen
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
     data        <- stringGen
@@ -104,7 +104,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
   lazy val validAssetTransferGen: Gen[AssetTransfer[_]] = for {
     from        <- fromSeqGen
     to          <- assetToSeqGen
-    attestation <- attestationGen
+    attestation <- attestationCurve25519Gen
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
     data        <- stringGen

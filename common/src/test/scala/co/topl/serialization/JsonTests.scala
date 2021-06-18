@@ -74,20 +74,12 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckDrivenPropertyC
     }
   }
 
-  property("Address json with Curve25519") {
-    forAll(addressCurve25519Gen)(address => address.asJson.as[Address] shouldEqual Right(address))
+  property("Address json") {
+    forAll(addressGen)(address => address.asJson.as[Address] shouldEqual Right(address))
   }
 
-  property("Address json with Ed25519") {
-    forAll(addressEd25519Gen)(address => address.asJson.as[Address] shouldEqual Right(address))
-  }
-
-  property("Evidence json with Curve25519") {
-    forAll(evidenceCurve25519Gen)(evidence => evidence.asJson.as[Evidence] shouldEqual Right(evidence))
-  }
-
-  property("Evidence json with Ed25519") {
-    forAll(evidenceEd25519Gen)(evidence => evidence.asJson.as[Evidence] shouldEqual Right(evidence))
+  property("Evidence json") {
+    forAll(evidenceGen)(evidence => evidence.asJson.as[Evidence] shouldEqual Right(evidence))
   }
 
   property("ModifierId json") {

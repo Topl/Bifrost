@@ -133,7 +133,7 @@ class TransactionValidationSpec
   property("Attempting to validate a PolyTransfer without valid signature should error") {
     // Create invalid PolyTransfer
     // send tx to state
-    forAll(polyTransferGen) { tx =>
+    forAll(polyTransferCurve25519Gen) { tx =>
       tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](UnsatisfiedProposition)
     }
   }

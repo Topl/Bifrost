@@ -182,7 +182,7 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
   }
 
   property("PolyTransfer serialization") {
-    forAll(polyTransferGen) { tx: PolyTransfer[_ <: Proposition] =>
+    forAll(polyTransferCurve25519Gen) { tx: PolyTransfer[_ <: Proposition] =>
       val serializer = TransactionSerializer
       val parsed = serializer
         .parseBytes(serializer.toBytes(tx))
@@ -261,35 +261,19 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
     }
   }
 
-  property("Evidence serialization with Curve25519") {
-    forAll(evidenceCurve25519Gen) { evidence =>
+  property("Evidence serialization") {
+    forAll(evidenceGen) { evidence =>
       val parsed = Evidence.parseBytes(Evidence.toBytes(evidence)).get
 
       Evidence.toBytes(parsed) sameElements Evidence.toBytes(evidence) shouldBe true
     }
   }
 
-  property("Evidence serialization with Ed25519") {
-    forAll(evidenceEd25519Gen) { evidence =>
-      val parsed = Evidence.parseBytes(Evidence.toBytes(evidence)).get
-
-      Evidence.toBytes(parsed) sameElements Evidence.toBytes(evidence) shouldBe true
-    }
-  }
-
-  property("Address serialization with Curve25519") {
-    forAll(addressCurve25519Gen) { address =>
+  property("Address serialization") {
+    forAll(addressGen) { address =>
       val parsed: Address = AddressSerializer.parseBytes(AddressSerializer.toBytes(address)).get
 
       AddressSerializer.toBytes(parsed) should contain theSameElementsInOrderAs AddressSerializer.toBytes(address)
-    }
-  }
-
-  property("Address serialization with Ed25519") {
-    forAll(addressEd25519Gen) { address =>
-      val parsed: Address = AddressSerializer.parseBytes(AddressSerializer.toBytes(address)).get
-
-      parsed.bytes should contain theSameElementsInOrderAs AddressSerializer.toBytes(address)
     }
   }
 }

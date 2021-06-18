@@ -24,7 +24,7 @@ class MultiSignatureCurve25519Spec
     "should be valid for oneOfNProposition"
   ) {
 
-    forAll(keyPairSetGen) { s: Set[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] =>
+    forAll(keyPairSetCurve25519Gen) { s: Set[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] =>
       val message = nonEmptyBytesGen.sample.get
       val signatures = s.map(_._1.sign(message))
       val pubKeyProps = SortedSet[PublicKeyPropositionCurve25519]() ++ s.map(_._2)
@@ -41,7 +41,7 @@ class MultiSignatureCurve25519Spec
     "should not be valid for twoOfNProposition"
   ) {
 
-    forAll(keyPairSetGen) { s: Set[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] =>
+    forAll(keyPairSetCurve25519Gen) { s: Set[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] =>
       val message = nonEmptyBytesGen.sample.get
       val signatures = s.map(_._1.sign(message))
       val pubKeyProps = SortedSet[PublicKeyPropositionCurve25519]() ++ s.map(_._2)
