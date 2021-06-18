@@ -1,14 +1,7 @@
 package co.topl.utils
 
-import co.topl.attestation.keyManagement.{
-  KeyRing,
-  KeyfileCurve25519,
-  KeyfileCurve25519Companion,
-  KeyfileEd25519,
-  KeyfileEd25519Companion,
-  PrivateKeyCurve25519,
-  PrivateKeyEd25519
-}
+import co.topl.attestation.keyManagement._
+import co.topl.attestation.{PublicKeyPropositionCurve25519, PublicKeyPropositionEd25519}
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
 import java.nio.file.{Files, Path}
@@ -24,9 +17,9 @@ trait KeyFileTestHelper extends BeforeAndAfterAll with NetworkPrefixTestHelper {
 
   protected var keyRingEd25519: KeyRing[PrivateKeyEd25519, KeyfileEd25519] = _
 
-  protected val propTypeCurve25519: String = "PublicKeyCurve25519"
+  protected val propTypeCurve25519: String = PublicKeyPropositionCurve25519.typeString
 
-  protected val propTypeEd25519: String = "PublicKeyEd25519"
+  protected val propTypeEd25519: String = PublicKeyPropositionEd25519.typeString
 
   override def beforeAll(): Unit = {
     super.beforeAll()
