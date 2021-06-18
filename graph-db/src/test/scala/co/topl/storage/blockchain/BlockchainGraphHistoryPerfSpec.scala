@@ -37,6 +37,7 @@ class BlockchainGraphHistoryPerfSpec
 
   private var dataDir: Path = _
   private var graph: OrientDBGraph = _
+  private var mapDb: MapDBStore = _
   private var underTest: BlockchainData = _
 
   private val count = 5000
@@ -74,10 +75,11 @@ class BlockchainGraphHistoryPerfSpec
 
     dataDir = Paths.get(".", "target", "test", "db" + System.currentTimeMillis().toString)
 
-    graph = OrientDBGraph(schema, OrientDBGraph.Local(dataDir))
+    graph = OrientDBGraph(schema, OrientDBGraph.Local(Paths.get(dataDir.toString, "graph")))
 //    graph = OrientDBGraph(schema, OrientDBGraph.InMemory)
+    mapDb = MapDBStore.disk(Paths.get(dataDir.toString, "mapdb"))
 
-    underTest = new BlockchainGraph()(system, graph, MapDBStore.memory())
+    underTest = new BlockchainGraph()(system, graph, mapDb)
 
     prepareGraph()
   }

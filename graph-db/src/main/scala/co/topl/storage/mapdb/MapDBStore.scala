@@ -9,7 +9,6 @@ import org.mapdb._
 import org.mapdb.serializer.GroupSerializer
 
 import java.nio.file.Path
-import java.util
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.CollectionConverters._
@@ -27,7 +26,7 @@ class MapDBStore(db: DB)(implicit system: ActorSystem[_]) extends AutoCloseable 
 
   def forSet[T: GroupSerializer](name: String): SetStore[T] =
     setStores
-      .getOrElseUpdate(name, new NavigableSetStore[T](db.treeSet(name).serializer[T](implicitly).createOrOpen()))
+      .getOrElseUpdate(name, new NavigableSetStore[T](db.hashSet(name).serializer[T](implicitly).createOrOpen()))
       .asInstanceOf[SetStore[T]]
 
   def forMap[K: Serializer, V: Serializer](name: String): MapStore[K, V] =
@@ -46,29 +45,28 @@ class MapDBStore(db: DB)(implicit system: ActorSystem[_]) extends AutoCloseable 
   override def close(): Unit = db.close()
 }
 
-private class NavigableSetStore[T](treeSet: util.NavigableSet[T])(implicit blockingEc: ExecutionContext)
-    extends SetStore[T] {
+private class NavigableSetStore[T](set: HTreeMap.KeySet[T])(implicit blockingEc: ExecutionContext) extends SetStore[T] {
 
   override def contains(t: T): EitherT[Future, MapDBStore.Error, Boolean] =
-    f(treeSet.contains(t))
+    f(set.contains(t))
 
   override def put(t: T): EitherT[Future, MapDBStore.Error, Boolean] =
-    f(treeSet.add(t))
+    f(set.add(t))
 
   override def remove(t: T): EitherT[Future, MapDBStore.Error, Boolean] =
-    f(treeSet.remove(t))
+    f(set.remove(t))
 
   private def f[R](r: => R): EitherT[Future, MapDBStore.Error, R] =
     EitherT(Future(r).map(Right(_)).recover { case e => Left(MapDBStore.ThrowableError(e)) })
 
   override def values(): Source[T, NotUsed] =
     Source
-      .fromIterator(() => treeSet.iterator().asScala)
+      .fromIterator(() => set.iterator().asScala)
       .addAttributes(ActorAttributes.dispatcher(ActorAttributes.IODispatcher.dispatcher))
 
   override def putMany(): Sink[T, Future[Done]] =
     Sink
-      .foreach(treeSet.add)
+      .foreach(set.add)
       .addAttributes(ActorAttributes.dispatcher(ActorAttributes.IODispatcher.dispatcher))
 }
 

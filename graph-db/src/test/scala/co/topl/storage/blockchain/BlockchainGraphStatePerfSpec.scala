@@ -6,10 +6,11 @@ import cats.data.NonEmptyChain
 import cats.scalatest.FutureEitherValues
 import co.topl.storage.graph.OrientDBGraph
 import co.topl.storage.mapdb.MapDBStore
+import fixtures.TimedOperationCompletionHandler
+import org.scalatest._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.scalatest._
 import org.slf4j.{Logger, LoggerFactory}
 
 import java.nio.file.{Files, Path, Paths}
@@ -17,6 +18,7 @@ import java.util.Comparator
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{Duration, _}
 import scala.jdk.CollectionConverters._
+import fixtures.TimedOperation._
 
 @DoNotDiscover
 class BlockchainGraphStatePerfSpec
@@ -41,11 +43,13 @@ class BlockchainGraphStatePerfSpec
   private var mapDb: MapDBStore = _
   private var underTest: BlockchainData = _
 
-  private val count = 50000
-
-  private val snapshotInterval = 500
+  private val count = 600
 
   private val parallelism = 4
+
+  implicit private val timedOperationCompletionHandler: TimedOperationCompletionHandler =
+    (name: String, duration: Duration) =>
+      logger.info(s"Operation `$name` took ${duration.toNanos} nanos (${duration.toNanos / 1_000_000_000d} seconds)")
 
   it should "contain a block" in {
     val t = underTest
@@ -60,39 +64,23 @@ class BlockchainGraphStatePerfSpec
     body.blockId shouldBe head.blockId
   }
 
-  it should "find opened and unopened boxes" in {
+  it should "find opened and unopened boxes without any cached BlockStateChanges" in {
     val t = underTest
     import t._
     val headBody = Blockchain.currentHead.flatMap(_.body).futureRightValue
 
-    headBody.lookupUnopenedBox("1_1_1").futureLeftValue shouldBe BlockchainData.NotFound
-    headBody.lookupUnopenedBox("2_1_2").futureRightValue shouldBe Box("2_1_2", 1, "1", 1)
+    timed("lookup box 1_1_1", headBody.lookupUnopenedBox("1_1_1").futureLeftValue) shouldBe BlockchainData.NotFound
+    timed("lookup box 2_1_2", headBody.lookupUnopenedBox("2_1_2").futureRightValue) shouldBe Box("2_1_2", 1, "1", 1)
   }
 
-//  it should s"store snapshots every $snapshotInterval blocks" in {
-//    val t = underTest
-//    import t._
-//
-//    Source
-//      .unfoldAsync(1)(height =>
-//        Blockchain
-//          .blocksAtHeight(height)
-//          .map(_.value)
-//          .runWith(Sink.seq)
-//          .map {
-//            case Nil =>
-//              //
-//              None
-//            case blocks =>
-//              //
-//              Some((height + snapshotInterval, blocks))
-//          }
-//      )
-//      .mapConcat(identity)
-//      .mapAsync(1)(header => NonEmptyChain(CreateState(header.blockId)).run().value.map(_.value))
-//      .runWith(Sink.ignore)
-//      .futureValue
-//  }
+  it should "find the same opened and unopened boxes with cached BlockStateChanges" in {
+    val t = underTest
+    import t._
+    val headBody = Blockchain.currentHead.flatMap(_.body).futureRightValue
+
+    timed("lookup box 1_1_1", headBody.lookupUnopenedBox("1_1_1").futureLeftValue) shouldBe BlockchainData.NotFound
+    timed("lookup box 2_1_2", headBody.lookupUnopenedBox("2_1_2").futureRightValue) shouldBe Box("2_1_2", 1, "1", 1)
+  }
 
   it should "create a state snapshot at H-500" in {
     val t = underTest
@@ -108,8 +96,8 @@ class BlockchainGraphStatePerfSpec
 
     val headBody = Blockchain.currentHead.flatMap(_.body).futureRightValue
 
-    headBody.lookupUnopenedBox("1_1_1").futureLeftValue shouldBe BlockchainData.NotFound
-    headBody.lookupUnopenedBox("2_1_2").futureRightValue shouldBe Box("2_1_2", 1, "1", 1)
+    timed("lookup box 1_1_1", headBody.lookupUnopenedBox("1_1_1").futureLeftValue) shouldBe BlockchainData.NotFound
+    timed("lookup box 2_1_2", headBody.lookupUnopenedBox("2_1_2").futureRightValue) shouldBe Box("2_1_2", 1, "1", 1)
   }
 
   it should "create a state snapshot at H-100" in {
@@ -126,8 +114,8 @@ class BlockchainGraphStatePerfSpec
 
     val headBody = Blockchain.currentHead.flatMap(_.body).futureRightValue
 
-    headBody.lookupUnopenedBox("1_1_1").futureLeftValue shouldBe BlockchainData.NotFound
-    headBody.lookupUnopenedBox("2_1_2").futureRightValue shouldBe Box("2_1_2", 1, "1", 1)
+    timed("lookup box 1_1_1", headBody.lookupUnopenedBox("1_1_1").futureLeftValue) shouldBe BlockchainData.NotFound
+    timed("lookup box 2_1_2", headBody.lookupUnopenedBox("2_1_2").futureRightValue) shouldBe Box("2_1_2", 1, "1", 1)
   }
 
   it should "create a state snapshot at H-10" in {
@@ -144,8 +132,8 @@ class BlockchainGraphStatePerfSpec
 
     val headBody = Blockchain.currentHead.flatMap(_.body).futureRightValue
 
-    headBody.lookupUnopenedBox("1_1_1").futureLeftValue shouldBe BlockchainData.NotFound
-    headBody.lookupUnopenedBox("2_1_2").futureRightValue shouldBe Box("2_1_2", 1, "1", 1)
+    timed("lookup box 1_1_1", headBody.lookupUnopenedBox("1_1_1").futureLeftValue) shouldBe BlockchainData.NotFound
+    timed("lookup box 2_1_2", headBody.lookupUnopenedBox("2_1_2").futureRightValue) shouldBe Box("2_1_2", 1, "1", 1)
   }
 
   it should "create a state snapshot at H-1" in {
@@ -162,8 +150,8 @@ class BlockchainGraphStatePerfSpec
 
     val headBody = Blockchain.currentHead.flatMap(_.body).futureRightValue
 
-    headBody.lookupUnopenedBox("1_1_1").futureLeftValue shouldBe BlockchainData.NotFound
-    headBody.lookupUnopenedBox("2_1_2").futureRightValue shouldBe Box("2_1_2", 1, "1", 1)
+    timed("lookup box 1_1_1", headBody.lookupUnopenedBox("1_1_1").futureLeftValue) shouldBe BlockchainData.NotFound
+    timed("lookup box 2_1_2", headBody.lookupUnopenedBox("2_1_2").futureRightValue) shouldBe Box("2_1_2", 1, "1", 1)
   }
 
   private var testStartTimestampNano: Long = _

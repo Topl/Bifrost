@@ -3,6 +3,7 @@ package co.topl.storage.graph
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed._
+import akka.actor.typed.javadsl.AbstractBehavior
 import akka.pattern.StatusReply
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.Timeout
@@ -341,6 +342,44 @@ private object OrientDBGraphActorParent {
   case class TxWork[Response](message: OrientDbTransactionActor.Message) extends Message
 }
 
+object Summer {
+
+  def apply(): Behavior[Value] =
+    Summer(state = 0)
+
+  def apply(state: Int): Behavior[Value] =
+    Behaviors.receiveMessage { case Value(value, replyTo) =>
+      val newState = state + value
+      replyTo ! newState
+      Summer(newState)
+    }
+
+  case class Value(value: Int, replyTo: ActorRef[Int])
+}
+
+object SummerTest extends App {
+
+  implicit val system: ActorSystem[Nothing] =
+    ActorSystem(Behaviors.empty, "foo")
+
+  val ref: ActorRef[Summer.Value] =
+    system.systemActorOf(Summer(), "summer")
+
+  import akka.actor.typed.scaladsl.AskPattern._
+
+  implicit val timeout: Timeout = Timeout(5.seconds)
+
+  val sumResult: Future[Int] = // 3
+    ref.ask(replyTo => Summer.Value(3, replyTo))
+
+  val sum2Result: Future[Int] = // 6
+    ref.ask(replyTo => Summer.Value(3, replyTo))
+
+  val sum3Result: Future[Int] = // 9
+    ref.ask(Summer.Value(3, _))
+
+}
+
 private object OrientDBGraphActor {
 
   def apply(factory: () => OrientBaseGraph, parent: ActorRef[OrientDBGraphActorParent.Message]): Behavior[Message[_]] =
@@ -351,15 +390,15 @@ private object OrientDBGraphActor {
           case e: Execute[_] =>
             val session = factory()
             ctx.pipeToSelf(e.runAndReply(session, ctx.executionContext))(CompleteExecution(_))
-            withSession(session)
+            busy(session)
           case e: ExecuteIterator[_] =>
             val session = factory()
             e.runAndReply(session, ctx.self, ctx.executionContext)
             Behaviors.same
-            withSession(session)
+            busy(session)
         }
 
-      def withSession(session: OrientBaseGraph): Behavior[Message[_]] =
+      def busy(session: OrientBaseGraph): Behavior[Message[_]] =
         Behaviors
           .receiveMessagePartial[Message[_]] { case _: CompleteExecution[_] =>
             parent.tell(OrientDBGraphActorParent.GiveWork(ctx.self))
@@ -394,7 +433,7 @@ private object OrientDBGraphActor {
       worker:                   ActorRef[OrientDBGraphActor.Message[_]],
       blockingExecutionContext: ExecutionContext
     ): Unit = {
-      val source =
+      val source: Source[T, NotUsed] =
         iteratorSourceOnDispatcher(() => f(session), blockingExecutionContext)
           .alsoTo(Sink.onComplete(result => worker ! CompleteExecution(result)))
       replyTo.tell(source)
@@ -416,7 +455,8 @@ private object OrientDbTransactionActor {
         .receiveMessage[Message] {
           case Execute(f, replyTo) =>
             session.begin()
-            ctx.pipeToSelf(f(session, ctx.executionContext))(CompleteExecution(_, replyTo))
+            val computation: Future[Any] = f(session, ctx.executionContext)
+            ctx.pipeToSelf(computation)(CompleteExecution(_, replyTo))
             Behaviors.same
           case CompleteExecution(result, replyTo) =>
             result.flatMap(r => Try(session.commit()).map(_ => r)) match {
@@ -429,9 +469,13 @@ private object OrientDbTransactionActor {
             parent.tell(OrientDBGraphActorParent.GiveTxWork(ctx.self))
             Behaviors.same
         }
-        .receiveSignal { case (_, PostStop) =>
-          session.shutdown()
-          Behaviors.stopped[Message]
+        .receiveSignal {
+          case (_, PostStop) =>
+            session.shutdown()
+            Behaviors.stopped[Message]
+          case (_, PreRestart) =>
+            ctx.log.info("Hello")
+            Behaviors.same
         }
     }
 

@@ -80,7 +80,50 @@ class BlockchainGraph()(implicit system: ActorSystem[_], val graph: OrientDBGrap
         .in(TransactionBlock.edgeSchema)
         .source
 
-    override def lookupUnopenedBox(boxId: String): EitherT[Future, BlockchainData.Error, Box] = {
+    override def lookupUnopenedBox(boxId: String): EitherT[Future, BlockchainData.Error, Box] =
+      EitherT(
+        Source
+          .single(body)
+          .concat(
+            Source
+              .unfoldAsync(body)(body =>
+                body.header
+                  .flatMap(_.parentBlock)
+                  .flatMap(_.body)
+                  .map(b => Some((b, b)): Option[(BlockBody, BlockBody)])
+                  .recover { case BlockchainData.NotFound => None }
+                  .valueOrF(e => Future.failed(BlockchainData.ErrorThrowable(e)))
+              )
+          )
+          .mapAsync(1)(body =>
+            body.stateChanges
+              .valueOrF(e => Future.failed(BlockchainData.ErrorThrowable(e)))
+              .flatMap(changes =>
+                if (changes.boxesOpened.contains(boxId))
+                  Future.failed(BlockchainData.ErrorThrowable(BlockchainData.NotFound))
+                else if (changes.boxesCreated.contains(boxId))
+                  boxId.box
+                    .map(Some(_))
+                    .valueOrF(e => Future.failed(BlockchainData.ErrorThrowable(e)))
+                else
+                  state
+                    .flatMap(_.lookupUnopenedBox(boxId))
+                    .map(Some(_): Option[Box])
+                    .recover { case BlockchainData.NotFound => None }
+                    .valueOrF(e => Future.failed(BlockchainData.ErrorThrowable(e)))
+              )
+          )
+          .collect { case Some(box) => box }
+          .runWith(Sink.headOption)
+          .map(_.toRight(BlockchainData.NotFound))
+          .recover {
+            case e: BlockchainData.ErrorThrowable => Left(e.error)
+            case _: NoSuchElementException        => Left(BlockchainData.NotFound)
+            case e                                => Left(BlockchainData.ThrowableError(e))
+          }
+      )
+
+    def lookupUnopenedBox1(boxId: String): EitherT[Future, BlockchainData.Error, Box] = {
       // TODO: Traversal appears to load result set into memory?
       val traversalFields = List(
         s"out('${BodyState.edgeSchema.name}')",
