@@ -1,7 +1,12 @@
 package co.topl.serialization
 
-import co.topl.attestation.keyManagement.{KeyfileCurve25519, KeyfileCurve25519Companion, KeyfileEd25519, KeyfileEd25519Companion}
 import co.topl.attestation._
+import co.topl.attestation.keyManagement.{
+  KeyfileCurve25519,
+  KeyfileCurve25519Companion,
+  KeyfileEd25519,
+  KeyfileEd25519Companion
+}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
 import co.topl.modifier.box._
