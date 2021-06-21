@@ -7,7 +7,7 @@ import co.topl.crypto.signatures.Curve25519
 import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
-case class PrivateKeyCurve25519(private val privateKey: PrivateKey, private val publicKey: PublicKey) extends Secret {
+class PrivateKeyCurve25519(private val privateKey: PrivateKey, private val publicKey: PublicKey) extends Secret {
 
   private val privateKeyLength = privateKey.value.length
   private val publicKeyLength = publicKey.value.length
@@ -39,7 +39,7 @@ object PrivateKeyCurve25519 extends BifrostSerializer[PrivateKeyCurve25519] {
   implicit val secretGenerator: SecretGenerator[PrivateKeyCurve25519] =
     SecretGenerator.instance[PrivateKeyCurve25519] { seed: Array[Byte] =>
       val (sk, pk) = Curve25519.createKeyPair(seed)
-      val secret: PrivateKeyCurve25519 = PrivateKeyCurve25519(sk, pk)
+      val secret: PrivateKeyCurve25519 = new PrivateKeyCurve25519(sk, pk)
       secret -> secret.publicImage
     }
 
@@ -52,6 +52,6 @@ object PrivateKeyCurve25519 extends BifrostSerializer[PrivateKeyCurve25519] {
   }
 
   override def parse(r: Reader): PrivateKeyCurve25519 =
-    PrivateKeyCurve25519(PrivateKey(r.getBytes(Curve25519.KeyLength)), PublicKey(r.getBytes(Curve25519.KeyLength)))
+    new PrivateKeyCurve25519(PrivateKey(r.getBytes(Curve25519.KeyLength)), PublicKey(r.getBytes(Curve25519.KeyLength)))
 
 }
