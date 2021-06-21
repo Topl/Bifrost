@@ -17,9 +17,7 @@ case object ValhallaGenesis extends GenesisProvider {
 
   implicit val networkPrefix: NetworkPrefix = NetworkType.ValhallaTestnet.netPrefix
 
-  override protected val blockChecksum: ModifierId = ModifierId
-    .create("wgUeiENYY32eC5T6WM2UiqAf6Ayba2tFNtvFkgn999iG")
-    .getOrElse(ModifierId.empty)
+  override protected val blockChecksum: ModifierId = ModifierId("wgUeiENYY32eC5T6WM2UiqAf6Ayba2tFNtvFkgn999iG")
 
   override protected val blockVersion: PNVMVersion = 1: Byte
 

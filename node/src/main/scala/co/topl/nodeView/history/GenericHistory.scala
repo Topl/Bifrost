@@ -58,7 +58,7 @@ trait GenericHistory[
 
   def modifierById(modifierId: ModifierId): Option[PM]
 
-  def modifierById(modifierId: String): Option[PM] = ModifierId.create(modifierId).toOption.flatMap(modifierById)
+  def modifierById(modifierId: String): Option[PM] = modifierById(ModifierId(modifierId))
 
   def modifierByHeight(height: Long): Option[PM]
 

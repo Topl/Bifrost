@@ -1,15 +1,18 @@
 package attestation
 
+import cats.implicits._
 import attestation.serialization.ProofSerializer
 import co.topl.crypto.signatures.{Curve25519, Signature}
-import co.topl.utils.codecs.AsBytes.implicits._
-import co.topl.utils.encode.Base58
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.StringDataTypes.implicits._
+import co.topl.utils.codecs.implicits._
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import utils.serialization.{BytesSerializable, GjalSerializer}
 
-import scala.util.{Failure, Success, Try}
+import scala.reflect.ClassTag
+import scala.util.Try
 
 /**
  * The most general abstraction of fact a prover can provide a non-interactive proof
@@ -25,7 +28,7 @@ sealed trait Proof[P <: Proposition] extends BytesSerializable {
 
   override def serializer: GjalSerializer[Proof[_]] = ProofSerializer
 
-  override def toString: String = Base58.encode(bytes)
+  override def toString: String = bytes.encodeAsBase58.show
 
   override def equals(obj: Any): Boolean = obj match {
     case pr: Proof[_] => pr.bytes sameElements bytes
@@ -38,12 +41,30 @@ sealed trait Proof[P <: Proposition] extends BytesSerializable {
 
 object Proof {
 
-  def fromString(str: String): Try[Proof[_]] =
-    Base58.decode(str).flatMap(bytes => ProofSerializer.parseBytes(bytes))
+  sealed trait ProofFromBase58DataError
+  case class ProofParseFailure(error: Throwable) extends ProofFromBase58DataError
+  case class ParsedIncorrectSignatureType() extends ProofFromBase58DataError
+
+  sealed trait ProofFromStringDataError
+  case class InvalidBase58() extends ProofFromStringDataError
+  case class ProofFromDataError(inner: ProofFromBase58DataError) extends ProofFromStringDataError
+
+  def fromBase58[T <: Proof[_]: ClassTag](data: Base58Data): Either[ProofFromBase58DataError, T] =
+    ProofSerializer.parseBytes(data.value).toEither.leftMap(ProofParseFailure).flatMap {
+      case t: T => Right(t)
+      case _    => Left(ParsedIncorrectSignatureType())
+    }
+
+  def fromString[T <: Proof[_]: ClassTag](str: String): Either[ProofFromStringDataError, T] =
+    Base58Data
+      .validated(str)
+      .toEither
+      .leftMap(_ => InvalidBase58())
+      .flatMap(fromBase58[T](_).leftMap(ProofFromDataError))
 
   implicit def jsonEncoder[PR <: Proof[_]]: Encoder[PR] = (proof: PR) => proof.toString.asJson
 
-  implicit def jsonDecoder: Decoder[Proof[_]] = Decoder.decodeString.map((str: String) => fromString(str).get)
+  implicit def jsonDecoder: Decoder[Proof[_]] = Decoder[Base58Data].emap(fromBase58(_).leftMap(_.toString))
 }
 
 /** The proof for a given type of [[Secret]] and [[KnowledgeProposition]] */
@@ -81,19 +102,22 @@ object SignatureCurve25519 {
   lazy val genesis: SignatureCurve25519 =
     SignatureCurve25519(Signature(Array.fill(SignatureCurve25519.signatureSize)(1: Byte)))
 
-  def apply(str: String): SignatureCurve25519 =
-    Proof.fromString(str) match {
-      case Success(sig: SignatureCurve25519) => sig
-      case Success(_)                        => throw new Error("Invalid proof generation")
-      case Failure(ex)                       => throw ex
+  // DummyImplicit required because Base58Data and Signature have same base type after type erasure
+  def apply(data: Base58Data)(implicit dummyImplicit: DummyImplicit): SignatureCurve25519 =
+    Proof.fromBase58[SignatureCurve25519](data) match {
+      case Right(sig)  => sig
+      case Left(error) => throw new Exception(s"Error while parsing proof: $error")
     }
+
+  def apply(str: String): SignatureCurve25519 =
+    Base58Data.validated(str).map(apply).valueOr(err => throw new Exception(s"Invalid Base-58 String: $err"))
 
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html
   implicit val jsonEncoder: Encoder[SignatureCurve25519] = (sig: SignatureCurve25519) => sig.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[SignatureCurve25519] = (sig: SignatureCurve25519) => sig.toString
-  implicit val jsonDecoder: Decoder[SignatureCurve25519] = Decoder.decodeString.map(apply)
-  implicit val jsonKeyDecoder: KeyDecoder[SignatureCurve25519] = (str: String) => Some(apply(str))
+  implicit val jsonDecoder: Decoder[SignatureCurve25519] = Decoder[Base58Data].map(apply)
+  implicit val jsonKeyDecoder: KeyDecoder[SignatureCurve25519] = KeyDecoder[Base58Data].map(apply)
 }
 
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
@@ -140,12 +164,14 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
 
 object ThresholdSignatureCurve25519 {
 
-  def apply(str: String): ThresholdSignatureCurve25519 =
-    Proof.fromString(str) match {
-      case Success(sig: ThresholdSignatureCurve25519) => sig
-      case Success(_)                                 => throw new Error("Invalid proof generation")
-      case Failure(ex)                                => throw ex
+  def apply(data: Base58Data): ThresholdSignatureCurve25519 =
+    Proof.fromBase58[ThresholdSignatureCurve25519](data) match {
+      case Right(sig)  => sig
+      case Left(error) => throw new Exception(s"Invalid signature: $error")
     }
+
+  def apply(str: String): ThresholdSignatureCurve25519 =
+    Base58Data.validated(str).map(apply).valueOr(err => throw new Exception(s"Invalid Base-58 String: $err"))
 
   /** Helper function to create empty signatures */
   def empty(): ThresholdSignatureCurve25519 = ThresholdSignatureCurve25519(Set[SignatureCurve25519]())
@@ -157,6 +183,6 @@ object ThresholdSignatureCurve25519 {
 
   implicit val jsonKeyEncoder: KeyEncoder[ThresholdSignatureCurve25519] = (sig: ThresholdSignatureCurve25519) =>
     sig.toString
-  implicit val jsonDecoder: Decoder[ThresholdSignatureCurve25519] = Decoder.decodeString.map(apply)
-  implicit val jsonKeyDecoder: KeyDecoder[ThresholdSignatureCurve25519] = (str: String) => Some(apply(str))
+  implicit val jsonDecoder: Decoder[ThresholdSignatureCurve25519] = Decoder[Base58Data].map(apply)
+  implicit val jsonKeyDecoder: KeyDecoder[ThresholdSignatureCurve25519] = KeyDecoder[Base58Data].map(apply)
 }
