@@ -1,7 +1,7 @@
 package co.topl.serialization
 
 import co.topl.attestation._
-import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519}
+import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519, Secret}
 import co.topl.attestation.serialization._
 import co.topl.modifier.block.serialization.{BlockBodySerializer, BlockHeaderSerializer, BlockSerializer}
 import co.topl.modifier.block.{Block, BloomFilter}
@@ -22,20 +22,10 @@ import scala.util.{Failure, Success}
  */
 class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers with CommonGenerators {
 
-  property("PublicKeyPropositionCurve25519 serialization") {
-    forAll(publicKeyPropositionCurve25519Gen) { case (_, prop: PublicKeyPropositionCurve25519) =>
-      val parsed = PublicKeyPropositionCurve25519Serializer
-        .parseBytes(PublicKeyPropositionCurve25519Serializer.toBytes(prop))
-        .get
-
-      parsed.bytes sameElements prop.bytes shouldBe true
-    }
-  }
-
-  property("PublicKeyPropositionEd25519 serialization") {
-    forAll(publicKeyPropositionEd25519Gen) { case (_, prop: PublicKeyPropositionEd25519) =>
-      val parsed = PublicKeyPropositionEd25519Serializer
-        .parseBytes(PublicKeyPropositionEd25519Serializer.toBytes(prop))
+  property("PublicKeyProposition serialization") {
+    forAll(publicKeyPropositionGen) { case (_, prop: Proposition) =>
+      val parsed = PropositionSerializer
+        .parseBytes(PropositionSerializer.toBytes(prop))
         .get
 
       parsed.bytes sameElements prop.bytes shouldBe true
@@ -58,20 +48,10 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
     }
   }
 
-  property("SignatureCurve25519 serialization") {
-    forAll(signatureCurve25519Gen) { sig: SignatureCurve25519 =>
-      val parsed = SignatureCurve25519Serializer
-        .parseBytes(SignatureCurve25519Serializer.toBytes(sig))
-        .get
-
-      parsed.bytes sameElements sig.bytes shouldBe true
-    }
-  }
-
-  property("SignatureEd25519 serialization") {
-    forAll(signatureEd25519Gen) { sig: SignatureEd25519 =>
-      val parsed = SignatureEd25519Serializer
-        .parseBytes(SignatureEd25519Serializer.toBytes(sig))
+  property("Signature serialization") {
+    forAll(signatureGen) { sig: Proof[_] =>
+      val parsed = ProofSerializer
+        .parseBytes(ProofSerializer.toBytes(sig))
         .get
 
       parsed.bytes sameElements sig.bytes shouldBe true
@@ -182,7 +162,7 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
   }
 
   property("PolyTransfer serialization") {
-    forAll(polyTransferCurve25519Gen) { tx: PolyTransfer[_ <: Proposition] =>
+    forAll(polyTransferGen) { tx: PolyTransfer[_ <: Proposition] =>
       val serializer = TransactionSerializer
       val parsed = serializer
         .parseBytes(serializer.toBytes(tx))
