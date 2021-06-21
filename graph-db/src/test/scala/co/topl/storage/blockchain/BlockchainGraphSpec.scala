@@ -6,11 +6,13 @@ import cats.data._
 import cats.implicits._
 import cats.scalatest.FutureEitherValues
 import co.topl.storage.graph.OrientDBGraph
+import co.topl.storage.leveldb.LevelDBStore
 import co.topl.storage.mapdb.MapDBStore
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, OptionValues}
 
+import java.nio.file.Files
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
@@ -29,7 +31,7 @@ class BlockchainGraphSpec
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(2.hours)
 
   private var graph: OrientDBGraph = _
-  private var underTest: BlockchainData = _
+  private var underTest: BlockchainGraph = _
 
   private val blockId1 = "block1"
   private val transactionId1 = "tx1"
@@ -294,11 +296,11 @@ class BlockchainGraphSpec
 
     graph = OrientDBGraph(schema, OrientDBGraph.InMemory)
 
-    underTest = new BlockchainGraph()(system, graph, MapDBStore.memory())
+    underTest = new BlockchainGraph()(system, graph, new LevelDBStore(Files.createTempDirectory("BlockchainGraphSpec")))
   }
 
   override def afterAll(): Unit = {
+    underTest.close()
     super.afterAll()
-    graph.close()
   }
 }

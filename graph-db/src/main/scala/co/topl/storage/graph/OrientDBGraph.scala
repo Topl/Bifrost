@@ -1,11 +1,8 @@
 package co.topl.storage.graph
 
-import akka.actor.typed.scaladsl.AskPattern._
-import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed._
-import akka.actor.typed.javadsl.AbstractBehavior
-import akka.pattern.StatusReply
-import akka.stream.scaladsl.{Sink, Source}
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.stream.scaladsl.Source
 import akka.util.Timeout
 import akka.{Done, NotUsed}
 import cats.data.EitherT
@@ -20,7 +17,6 @@ import java.nio.file.Path
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.jdk.CollectionConverters._
-import scala.util.{Failure, Success, Try}
 
 class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit system: ActorSystem[_])
     extends ReadableGraph {
@@ -103,8 +99,13 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
   private def initialize(): Unit =
     Await.result(initializeSchemas(), 30.seconds)
 
-  def close(): Unit =
+  def close(): Unit = {
+    Await.result(
+      workDispatcher.ask[Done](OrientDBGraphActorParent.Stop),
+      30.seconds
+    )
     factory.close()
+  }
 
   private def initializeSchemas(): Future[Done] = Future {
     val session = factory.getNoTx
@@ -155,23 +156,6 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
     builder.result()
   }
 
-}
-
-trait ReadableGraph {
-  def getNode[T: NodeSchema](graphQuery:  GraphQuery[T]): EitherT[Future, OrientDBGraph.Error, Option[T]]
-  def getNodes[T: NodeSchema](graphQuery: GraphQuery[T]): Source[Either[OrientDBGraph.Error, T], NotUsed]
-}
-
-trait WritableGraph {
-  def insertNode[T: NodeSchema](node: T): EitherT[Future, OrientDBGraph.Error, Done]
-
-  def insertEdge[T](edge: T, srcRef: OrientDBGraph.NodeReference, destRef: OrientDBGraph.NodeReference)(implicit
-    schema:               EdgeSchema[T, _, _]
-  ): EitherT[Future, OrientDBGraph.Error, Done]
-
-  def deleteEdges[T]()(implicit
-    schema: EdgeSchema[T, _, _]
-  ): EitherT[Future, OrientDBGraph.Error, Done]
 }
 
 object OrientDBGraph {
@@ -281,211 +265,6 @@ object OrientDBGraph {
   }
 }
 
-private object OrientDBGraphActorParent {
-
-  def apply(factory: OrientGraphFactory): Behavior[Message] = {
-    def withState(
-      readyForWork:   List[ActorRef[OrientDBGraphActor.Message[_]]],
-      readyForTxWork: List[ActorRef[OrientDbTransactionActor.Message]]
-    ): Behavior[Message] =
-      Behaviors.receive((ctx, message) =>
-        message match {
-          case GiveWork(to) =>
-            withState(readyForWork :+ to, readyForTxWork)
-          case Work(message) =>
-            val (worker, newReadyForWork) =
-              readyForWork match {
-                case Nil =>
-                  val w =
-                    ctx.spawnAnonymous(
-                      OrientDBGraphActor(() => factory.getNoTx, ctx.self),
-                      DispatcherSelector.fromConfig("orient-db-actor-dispatcher")
-                    )
-                  (w, readyForWork)
-                case w :: rest =>
-                  (w, rest)
-              }
-
-            worker ! message
-
-            withState(newReadyForWork, readyForTxWork)
-
-          case GiveTxWork(to) =>
-            withState(readyForWork, readyForTxWork :+ to)
-
-          case TxWork(message) =>
-            val (txWorker, newReadyForTxWork) =
-              readyForTxWork match {
-                case Nil =>
-                  val w =
-                    ctx.spawnAnonymous(
-                      OrientDbTransactionActor(factory, ctx.self),
-                      DispatcherSelector.fromConfig("orient-db-actor-dispatcher")
-                    )
-                  (w, readyForTxWork)
-                case w :: rest =>
-                  (w, rest)
-              }
-
-            txWorker ! message
-
-            withState(readyForWork, newReadyForTxWork)
-        }
-      )
-    withState(Nil, Nil)
-  }
-
-  sealed abstract class Message
-  case class GiveWork(to: ActorRef[OrientDBGraphActor.Message[_]]) extends Message
-  case class GiveTxWork(to: ActorRef[OrientDbTransactionActor.Message]) extends Message
-  case class Work[Response](message: OrientDBGraphActor.Message[Response]) extends Message
-  case class TxWork[Response](message: OrientDbTransactionActor.Message) extends Message
-}
-
-object Summer {
-
-  def apply(): Behavior[Value] =
-    Summer(state = 0)
-
-  def apply(state: Int): Behavior[Value] =
-    Behaviors.receiveMessage { case Value(value, replyTo) =>
-      val newState = state + value
-      replyTo ! newState
-      Summer(newState)
-    }
-
-  case class Value(value: Int, replyTo: ActorRef[Int])
-}
-
-object SummerTest extends App {
-
-  implicit val system: ActorSystem[Nothing] =
-    ActorSystem(Behaviors.empty, "foo")
-
-  val ref: ActorRef[Summer.Value] =
-    system.systemActorOf(Summer(), "summer")
-
-  import akka.actor.typed.scaladsl.AskPattern._
-
-  implicit val timeout: Timeout = Timeout(5.seconds)
-
-  val sumResult: Future[Int] = // 3
-    ref.ask(replyTo => Summer.Value(3, replyTo))
-
-  val sum2Result: Future[Int] = // 6
-    ref.ask(replyTo => Summer.Value(3, replyTo))
-
-  val sum3Result: Future[Int] = // 9
-    ref.ask(Summer.Value(3, _))
-
-}
-
-private object OrientDBGraphActor {
-
-  def apply(factory: () => OrientBaseGraph, parent: ActorRef[OrientDBGraphActorParent.Message]): Behavior[Message[_]] =
-    Behaviors.setup { ctx =>
-      import ctx.executionContext
-      def idle: Behavior[Message[_]] =
-        Behaviors.receiveMessagePartial {
-          case e: Execute[_] =>
-            val session = factory()
-            ctx.pipeToSelf(e.runAndReply(session, ctx.executionContext))(CompleteExecution(_))
-            busy(session)
-          case e: ExecuteIterator[_] =>
-            val session = factory()
-            e.runAndReply(session, ctx.self, ctx.executionContext)
-            Behaviors.same
-            busy(session)
-        }
-
-      def busy(session: OrientBaseGraph): Behavior[Message[_]] =
-        Behaviors
-          .receiveMessagePartial[Message[_]] { case _: CompleteExecution[_] =>
-            parent.tell(OrientDBGraphActorParent.GiveWork(ctx.self))
-            session.shutdown()
-            idle
-          }
-          .receiveSignal { case (_, PostStop) =>
-            session.shutdown()
-            Behaviors.same
-          }
-
-      idle
-    }
-
-  sealed abstract class Message[+Response]
-
-  case class Execute[T](f: OrientBaseGraph => T, replyTo: ActorRef[StatusReply[T]]) extends Message {
-
-    def runAndReply(session: OrientBaseGraph, blockingEc: ExecutionContext)(implicit ec: ExecutionContext): Future[T] =
-      Future(f(session))(blockingEc)
-        .andThen {
-          case Success(v)         => replyTo.tell(StatusReply.Success(v))
-          case Failure(exception) => replyTo ! StatusReply.Error(exception)
-        }
-  }
-
-  case class ExecuteIterator[T](f: OrientBaseGraph => Iterator[T], replyTo: ActorRef[Source[T, NotUsed]])
-      extends Message {
-
-    def runAndReply(
-      session:                  OrientBaseGraph,
-      worker:                   ActorRef[OrientDBGraphActor.Message[_]],
-      blockingExecutionContext: ExecutionContext
-    ): Unit = {
-      val source: Source[T, NotUsed] =
-        iteratorSourceOnDispatcher(() => f(session), blockingExecutionContext)
-          .alsoTo(Sink.onComplete(result => worker ! CompleteExecution(result)))
-      replyTo.tell(source)
-    }
-  }
-
-  case class CompleteExecution[T](result: Try[T]) extends Message
-
-}
-
-private object OrientDbTransactionActor {
-
-  def apply(factory: OrientGraphFactory, parent: ActorRef[OrientDBGraphActorParent.Message]): Behavior[Message] =
-    Behaviors.setup { ctx =>
-      val session = factory.getTx
-      session.setAutoStartTx(false)
-
-      Behaviors
-        .receiveMessage[Message] {
-          case Execute(f, replyTo) =>
-            session.begin()
-            val computation: Future[Any] = f(session, ctx.executionContext)
-            ctx.pipeToSelf(computation)(CompleteExecution(_, replyTo))
-            Behaviors.same
-          case CompleteExecution(result, replyTo) =>
-            result.flatMap(r => Try(session.commit()).map(_ => r)) match {
-              case Failure(exception) =>
-                session.rollback()
-                replyTo ! StatusReply.Error(exception)
-              case Success(value) =>
-                replyTo ! StatusReply.Success(value)
-            }
-            parent.tell(OrientDBGraphActorParent.GiveTxWork(ctx.self))
-            Behaviors.same
-        }
-        .receiveSignal {
-          case (_, PostStop) =>
-            session.shutdown()
-            Behaviors.stopped[Message]
-          case (_, PreRestart) =>
-            ctx.log.info("Hello")
-            Behaviors.same
-        }
-    }
-
-  sealed abstract class Message
-
-  case class Execute[T](f: (OrientBaseGraph, ExecutionContext) => Future[T], replyTo: ActorRef[StatusReply[T]])
-      extends Message
-  case class CompleteExecution[T](result: Try[T], replyTo: ActorRef[StatusReply[T]]) extends Message
-}
-
 abstract class OrientGraphBaseScala(orientGraph: OrientBaseGraph, blockingDispatcher: ExecutionContext) {
 
   import OrientDBGraph._
@@ -588,25 +367,4 @@ class WritableOrientGraph(orientGraph: OrientBaseGraph, blockingDispatcher: Exec
       }
         .recover { case e => Left(OrientDBGraph.ThrowableError(e)) }
     )
-}
-
-class ReadableWritableGraph(readableGraph: ReadableGraph, writableGraph: WritableGraph)
-    extends ReadableGraph
-    with WritableGraph {
-
-  override def getNode[T: NodeSchema](graphQuery: GraphQuery[T]): EitherT[Future, OrientDBGraph.Error, Option[T]] =
-    readableGraph.getNode(graphQuery)
-
-  override def getNodes[T: NodeSchema](graphQuery: GraphQuery[T]): Source[Either[OrientDBGraph.Error, T], NotUsed] =
-    readableGraph.getNodes(graphQuery)
-
-  override def insertNode[T: NodeSchema](node: T): EitherT[Future, OrientDBGraph.Error, Done] =
-    writableGraph.insertNode(node)
-
-  override def insertEdge[T](edge: T, srcRef: OrientDBGraph.NodeReference, destRef: OrientDBGraph.NodeReference)(
-    implicit schema:               EdgeSchema[T, _, _]
-  ): EitherT[Future, OrientDBGraph.Error, Done] = writableGraph.insertEdge(edge, srcRef, destRef)
-
-  override def deleteEdges[T]()(implicit schema: EdgeSchema[T, _, _]): EitherT[Future, OrientDBGraph.Error, Done] =
-    writableGraph.deleteEdges()
 }

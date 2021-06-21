@@ -5,6 +5,7 @@ import akka.stream.ActorAttributes
 import akka.stream.scaladsl.{Sink, Source}
 import akka.{Done, NotUsed}
 import cats.data.EitherT
+import co.topl.storage.generic._
 import org.mapdb._
 import org.mapdb.serializer.GroupSerializer
 
@@ -47,17 +48,17 @@ class MapDBStore(db: DB)(implicit system: ActorSystem[_]) extends AutoCloseable 
 
 private class NavigableSetStore[T](set: HTreeMap.KeySet[T])(implicit blockingEc: ExecutionContext) extends SetStore[T] {
 
-  override def contains(t: T): EitherT[Future, MapDBStore.Error, Boolean] =
+  override def contains(t: T): EitherT[Future, GenericStore.Error, Boolean] =
     f(set.contains(t))
 
-  override def put(t: T): EitherT[Future, MapDBStore.Error, Boolean] =
+  override def put(t: T): EitherT[Future, GenericStore.Error, Boolean] =
     f(set.add(t))
 
-  override def remove(t: T): EitherT[Future, MapDBStore.Error, Boolean] =
+  override def remove(t: T): EitherT[Future, GenericStore.Error, Boolean] =
     f(set.remove(t))
 
-  private def f[R](r: => R): EitherT[Future, MapDBStore.Error, R] =
-    EitherT(Future(r).map(Right(_)).recover { case e => Left(MapDBStore.ThrowableError(e)) })
+  private def f[R](r: => R): EitherT[Future, GenericStore.Error, R] =
+    EitherT(Future(r).map(Right(_)).recover { case e => Left(GenericStore.ThrowableError(e)) })
 
   override def values(): Source[T, NotUsed] =
     Source
@@ -72,13 +73,13 @@ private class NavigableSetStore[T](set: HTreeMap.KeySet[T])(implicit blockingEc:
 
 private class HTreeMapStore[K, V](store: HTreeMap[K, V])(implicit blockingEc: ExecutionContext) extends MapStore[K, V] {
 
-  override def contains(k: K): EitherT[Future, MapDBStore.Error, Boolean] =
+  override def contains(k: K): EitherT[Future, GenericStore.Error, Boolean] =
     f(store.containsKey(store))
 
-  override def put(k: K, v: V): EitherT[Future, MapDBStore.Error, Boolean] =
+  override def put(k: K, v: V): EitherT[Future, GenericStore.Error, Boolean] =
     f(store.putIfAbsentBoolean(k, v))
 
-  override def remove(k: K): EitherT[Future, MapDBStore.Error, Boolean] =
+  override def remove(k: K): EitherT[Future, GenericStore.Error, Boolean] =
     f(Option(store.remove(k)).nonEmpty)
 
   override def keys(): Source[K, NotUsed] =
@@ -101,10 +102,10 @@ private class HTreeMapStore[K, V](store: HTreeMap[K, V])(implicit blockingEc: Ex
       .foreach[(K, V)] { case (k, v) => store.putIfAbsent(k, v) }
       .addAttributes(ActorAttributes.dispatcher(ActorAttributes.IODispatcher.dispatcher))
 
-  private def f[R](r: => R): EitherT[Future, MapDBStore.Error, R] =
-    EitherT(Future(r).map(Right(_)).recover { case e => Left(MapDBStore.ThrowableError(e)) })
+  private def f[R](r: => R): EitherT[Future, GenericStore.Error, R] =
+    EitherT(Future(r).map(Right(_)).recover { case e => Left(GenericStore.ThrowableError(e)) })
 
-  override def get(k: K): EitherT[Future, MapDBStore.Error, Option[V]] =
+  override def get(k: K): EitherT[Future, GenericStore.Error, Option[V]] =
     f(Option(store.get(k)))
 
 }
@@ -117,31 +118,9 @@ object MapDBStore {
   def memory()(implicit system: ActorSystem[_]): MapDBStore =
     new MapDBStore(DBMaker.heapDB().make())
 
-  sealed trait Error
-  case class ThrowableError(throwable: Throwable) extends Error
-
   trait Implicits {
     implicit val stringSerializer: GroupSerializer[String] = Serializer.STRING
   }
 
   object implicits extends Implicits
-}
-
-trait SetStore[T] {
-  def contains(t: T): EitherT[Future, MapDBStore.Error, Boolean]
-  def put(t:      T): EitherT[Future, MapDBStore.Error, Boolean]
-  def remove(t:   T): EitherT[Future, MapDBStore.Error, Boolean]
-  def values(): Source[T, NotUsed]
-  def putMany(): Sink[T, Future[Done]]
-}
-
-trait MapStore[K, V] {
-  def contains(k: K): EitherT[Future, MapDBStore.Error, Boolean]
-  def get(k:      K): EitherT[Future, MapDBStore.Error, Option[V]]
-  def put(k:      K, v: V): EitherT[Future, MapDBStore.Error, Boolean]
-  def remove(k:   K): EitherT[Future, MapDBStore.Error, Boolean]
-  def keys(): Source[K, NotUsed]
-  def values(): Source[V, NotUsed]
-  def keyValues(): Source[(K, V), NotUsed]
-  def putMany(): Sink[(K, V), Future[Done]]
 }

@@ -5,6 +5,7 @@ import akka.stream.scaladsl.{Sink, Source}
 import cats.data.NonEmptyChain
 import cats.scalatest.FutureEitherValues
 import co.topl.storage.graph.OrientDBGraph
+import co.topl.storage.leveldb.LevelDBStore
 import co.topl.storage.mapdb.MapDBStore
 import fixtures.TimedOperationCompletionHandler
 import org.scalatest._
@@ -40,16 +41,24 @@ class BlockchainGraphStatePerfSpec
 
   private var dataDir: Path = _
   private var graph: OrientDBGraph = _
-  private var mapDb: MapDBStore = _
-  private var underTest: BlockchainData = _
+  private var genericDb: LevelDBStore = _
+  private var underTest: BlockchainGraph = _
 
-  private val count = 600
+  private val count = 5000
+
+  private val snapshotCount = 100
+
+  private val snapshotDepths = List.tabulate(snapshotCount)(slice => (count / snapshotCount) * slice)
+
+  private val boxesPerTx = 5
 
   private val parallelism = 4
 
   implicit private val timedOperationCompletionHandler: TimedOperationCompletionHandler =
     (name: String, duration: Duration) =>
       logger.info(s"Operation `$name` took ${duration.toNanos} nanos (${duration.toNanos / 1_000_000_000d} seconds)")
+
+  private var perfResults: List[PerfResult] = Nil
 
   it should "contain a block" in {
     val t = underTest
@@ -82,76 +91,26 @@ class BlockchainGraphStatePerfSpec
     timed("lookup box 2_1_2", headBody.lookupUnopenedBox("2_1_2").futureRightValue) shouldBe Box("2_1_2", 1, "1", 1)
   }
 
-  it should "create a state snapshot at H-500" in {
-    val t = underTest
-    import t._
-    val block = Blockchain.blocksAtHeight(count - 499).runWith(Sink.head).futureValue.value
+  it should "create snapshots and run lookups" in {
+    snapshotDepths.reverse.foreach { depth =>
+      val t = underTest
+      import t._
 
-    NonEmptyChain(CreateState(block.blockId)).run().futureRightValue
-  }
+      NonEmptyChain(CreateState(Blockchain.blocksAtHeight(count - depth).runWith(Sink.head).futureValue.value.blockId))
+        .run()
+        .futureRightValue
 
-  it should "find the same unopened and opened boxes with snapshot at H-500" in {
-    val t = underTest
-    import t._
+      val headBody = Blockchain.currentHead.flatMap(_.body).futureRightValue
+      val (openedResult, openedDuration) =
+        withTime(headBody.lookupUnopenedBox("1_1_1").futureLeftValue)
+      val (unopenedResult, unopenedDuration) =
+        withTime(headBody.lookupUnopenedBox("2_1_2").futureRightValue)
 
-    val headBody = Blockchain.currentHead.flatMap(_.body).futureRightValue
+      perfResults :+= PerfResult(depth, openedDuration, unopenedDuration)
 
-    timed("lookup box 1_1_1", headBody.lookupUnopenedBox("1_1_1").futureLeftValue) shouldBe BlockchainData.NotFound
-    timed("lookup box 2_1_2", headBody.lookupUnopenedBox("2_1_2").futureRightValue) shouldBe Box("2_1_2", 1, "1", 1)
-  }
-
-  it should "create a state snapshot at H-100" in {
-    val t = underTest
-    import t._
-    val block = Blockchain.blocksAtHeight(count - 99).runWith(Sink.head).futureValue.value
-
-    NonEmptyChain(CreateState(block.blockId)).run().futureRightValue
-  }
-
-  it should "find the same unopened and opened boxes with snapshot at H-100" in {
-    val t = underTest
-    import t._
-
-    val headBody = Blockchain.currentHead.flatMap(_.body).futureRightValue
-
-    timed("lookup box 1_1_1", headBody.lookupUnopenedBox("1_1_1").futureLeftValue) shouldBe BlockchainData.NotFound
-    timed("lookup box 2_1_2", headBody.lookupUnopenedBox("2_1_2").futureRightValue) shouldBe Box("2_1_2", 1, "1", 1)
-  }
-
-  it should "create a state snapshot at H-10" in {
-    val t = underTest
-    import t._
-    val block = Blockchain.blocksAtHeight(count - 9).runWith(Sink.head).futureValue.value
-
-    NonEmptyChain(CreateState(block.blockId)).run().futureRightValue
-  }
-
-  it should "find the same unopened and opened boxes with snapshot at H-10" in {
-    val t = underTest
-    import t._
-
-    val headBody = Blockchain.currentHead.flatMap(_.body).futureRightValue
-
-    timed("lookup box 1_1_1", headBody.lookupUnopenedBox("1_1_1").futureLeftValue) shouldBe BlockchainData.NotFound
-    timed("lookup box 2_1_2", headBody.lookupUnopenedBox("2_1_2").futureRightValue) shouldBe Box("2_1_2", 1, "1", 1)
-  }
-
-  it should "create a state snapshot at H-1" in {
-    val t = underTest
-    import t._
-    val block = Blockchain.blocksAtHeight(count).runWith(Sink.head).futureValue.value
-
-    NonEmptyChain(CreateState(block.blockId)).run().futureRightValue
-  }
-
-  it should "find the same unopened and opened boxes with snapshot at H-1" in {
-    val t = underTest
-    import t._
-
-    val headBody = Blockchain.currentHead.flatMap(_.body).futureRightValue
-
-    timed("lookup box 1_1_1", headBody.lookupUnopenedBox("1_1_1").futureLeftValue) shouldBe BlockchainData.NotFound
-    timed("lookup box 2_1_2", headBody.lookupUnopenedBox("2_1_2").futureRightValue) shouldBe Box("2_1_2", 1, "1", 1)
+      openedResult shouldBe BlockchainData.NotFound
+      unopenedResult shouldBe Box("2_1_2", 1, "1", 1)
+    }
   }
 
   private var testStartTimestampNano: Long = _
@@ -166,9 +125,9 @@ class BlockchainGraphStatePerfSpec
 //    graph = OrientDBGraph(schema, OrientDBGraph.InMemory)
     graph = OrientDBGraph(schema, OrientDBGraph.Local(Paths.get(dataDir.toString, "graph")))
 
-    mapDb = MapDBStore.disk(Paths.get(dataDir.toString, "mapdb"))
+    genericDb = new LevelDBStore(Paths.get(dataDir.toString, "genericdb"))
 
-    underTest = new BlockchainGraph()(system, graph, mapDb)
+    underTest = new BlockchainGraph()(system, graph, genericDb)
 
     logger.info(s"Preparing graph with $count blocks")
     testStartTimestampNano = System.nanoTime()
@@ -178,16 +137,24 @@ class BlockchainGraphStatePerfSpec
   }
 
   override def afterAll(): Unit = {
+    underTest.close()
     super.afterAll()
-    graph.close()
-    mapDb.close()
 
-    Files
-      .walk(dataDir)
-      .sorted(Comparator.reverseOrder[Path]())
-      .iterator()
-      .asScala
-      .foreach(Files.delete)
+    val resultsOut =
+      List(
+        (List("Depth") ++ perfResults.map(_.depth.toString)).mkString(","),
+        (List("Opened Box Seek (nanos)") ++ perfResults.map(_.openedSeekDuration.toNanos.toString)).mkString(","),
+        (List("Unopened Box Seek (nanos)") ++ perfResults.map(_.unopenedSeekDuration.toNanos.toString)).mkString(",")
+      ).mkString("\n")
+
+    println(resultsOut)
+
+//    Files
+//      .walk(dataDir)
+//      .sorted(Comparator.reverseOrder[Path]())
+//      .iterator()
+//      .asScala
+//      .foreach(Files.delete)
   }
 
   override def beforeEach(testData: TestData): Unit = {
@@ -215,7 +182,7 @@ class BlockchainGraphStatePerfSpec
         parallelism,
         partition =>
           Source(partition)
-            .map(NewBlockPackage.forHeight(_).nodeModifications)
+            .map(NewBlockPackage.forHeight(_, boxesPerTx).nodeModifications)
             .mapAsync(1)(v => v.run().value.map(_.value))
       )
       .runWith(Sink.ignore)
@@ -227,7 +194,7 @@ class BlockchainGraphStatePerfSpec
         parallelism,
         partition =>
           Source(partition)
-            .map(NewBlockPackage.forHeight(_).edgeModifications)
+            .map(NewBlockPackage.forHeight(_, boxesPerTx).edgeModifications)
             .mapAsync(1)(v => v.run().value.map(_.value))
       )
       .runWith(Sink.ignore)
@@ -312,7 +279,7 @@ object NewBlockPackage {
     )
   )
 
-  def forHeight(height: Int): NewBlockPackage = {
+  def forHeight(height: Int, blocksPerTx: Int): NewBlockPackage = {
     val newBlockId = s"${height}_1"
     NewBlockPackage(
       parentBlockId = Some(s"${height - 1}_1"),
@@ -341,15 +308,9 @@ object NewBlockPackage {
             attestation = Map("topl" -> "BobSaidSo")
           ),
           openedBoxIds = List(s"${height - 1}_1_1"),
-          newBoxes = List(
+          newBoxes = List.tabulate(blocksPerTx)(boxIdx =>
             Box(
-              newBlockId + "_1",
-              boxType = 1,
-              value = "1",
-              nonce = 1
-            ),
-            Box(
-              newBlockId + "_2",
+              newBlockId + s"_${boxIdx + 1}",
               boxType = 1,
               value = "1",
               nonce = 1
@@ -362,3 +323,5 @@ object NewBlockPackage {
 }
 
 case class NewTransactionPackage(transaction: Transaction, openedBoxIds: List[String], newBoxes: List[Box])
+
+private case class PerfResult(depth: Int, openedSeekDuration: FiniteDuration, unopenedSeekDuration: FiniteDuration)

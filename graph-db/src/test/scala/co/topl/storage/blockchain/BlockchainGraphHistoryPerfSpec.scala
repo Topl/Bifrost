@@ -5,6 +5,7 @@ import akka.stream.scaladsl.{Sink, Source}
 import cats.data.{Chain, NonEmptyChain}
 import cats.scalatest.FutureEitherValues
 import co.topl.storage.graph.OrientDBGraph
+import co.topl.storage.leveldb.LevelDBStore
 import co.topl.storage.mapdb.MapDBStore
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -37,8 +38,8 @@ class BlockchainGraphHistoryPerfSpec
 
   private var dataDir: Path = _
   private var graph: OrientDBGraph = _
-  private var mapDb: MapDBStore = _
-  private var underTest: BlockchainData = _
+  private var genericDb: LevelDBStore = _
+  private var underTest: BlockchainGraph = _
 
   private val count = 5000
   private val parallelism = 4
@@ -77,16 +78,17 @@ class BlockchainGraphHistoryPerfSpec
 
     graph = OrientDBGraph(schema, OrientDBGraph.Local(Paths.get(dataDir.toString, "graph")))
 //    graph = OrientDBGraph(schema, OrientDBGraph.InMemory)
-    mapDb = MapDBStore.disk(Paths.get(dataDir.toString, "mapdb"))
 
-    underTest = new BlockchainGraph()(system, graph, mapDb)
+    genericDb = new LevelDBStore(Paths.get(dataDir.toString, "genericdb"))
+
+    underTest = new BlockchainGraph()(system, graph, genericDb)
 
     prepareGraph()
   }
 
   override def afterAll(): Unit = {
+    underTest.close()
     super.afterAll()
-    graph.close()
 
     Files
       .walk(dataDir)

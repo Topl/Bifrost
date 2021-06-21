@@ -3,6 +3,7 @@ package co.topl.storage.blockchain
 import akka.stream.scaladsl.Source
 import akka.{Done, NotUsed}
 import cats.data.{EitherT, NonEmptyChain}
+import co.topl.storage.generic.GenericStore
 import co.topl.storage.graph.OrientDBGraph
 import co.topl.storage.mapdb.MapDBStore
 
@@ -34,7 +35,7 @@ object BlockchainData {
   case class ThrowableError(throwable: Throwable) extends Error
   case class OrientDBGraphError(error: OrientDBGraph.Error) extends Error
   case object OrientDBConcurrencyError extends Error
-  case class MapDBError(mapDBError: MapDBStore.Error) extends Error
+  case class GenericStoreError(genericStoreError: GenericStore.Error) extends Error
 
   case class ErrorThrowable(error: Error) extends Throwable
 }

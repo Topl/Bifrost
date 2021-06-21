@@ -91,6 +91,13 @@ object Dependencies {
     )
   }
 
+  val levelDb: Seq[ModuleID] = {
+    val version = "1.8"
+    Seq(
+      "org.fusesource.leveldbjni" % "leveldbjni-all" % version
+    )
+  }
+
   val node: Seq[ModuleID] = {
     Seq(
       "com.typesafe.akka"          %% "akka-cluster"  % akkaVersion,
@@ -128,7 +135,8 @@ object Dependencies {
     circe ++
     test ++
     orientDb ++
-    mapDb
+    mapDb ++
+    levelDb
 
   lazy val chainProgram: Seq[ModuleID] =
     Seq(
