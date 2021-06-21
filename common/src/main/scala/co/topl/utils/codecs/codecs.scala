@@ -11,4 +11,5 @@ package object codecs {
       with CryptoCodec.AsBytesInstances
       with CryptoCodec.JsonDecoderInstances
       with CryptoCodec.JsonEncoderInstances
+      with SizedByteVectorCodec.Instances
 }
