@@ -14,13 +14,13 @@ trait GenesisBlockGenerators {
   self: KeyFileTestHelper =>
 
   lazy val genesisBlockGen: Gen[Block] = {
-    val keyPair = keyRing.generateNewKeyPairs().get.head
+    val keyPair = keyRingCurve25519.generateNewKeyPairs().get.head
     val matchingAddr = keyPair.publicImage.address
     val height: Long = 1L
     val difficulty = 1000000000000000000L
     val version: PNVMVersion = 1: Byte
     val signingFunction: Array[Byte] => Try[SignatureCurve25519] =
-      (messageToSign: Array[Byte]) => keyRing.signWithAddress(matchingAddr)(messageToSign)
+      (messageToSign: Array[Byte]) => keyRingCurve25519.signWithAddress(matchingAddr)(messageToSign)
 
     Block
       .createAndSign(

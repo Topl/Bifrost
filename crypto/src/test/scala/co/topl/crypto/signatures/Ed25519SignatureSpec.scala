@@ -1,7 +1,6 @@
 package co.topl.crypto.signatures
 
 import co.topl.crypto.PrivateKey
-import co.topl.crypto.signatures.eddsa.Ed25519
 import co.topl.crypto.utils.Hex
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
@@ -12,25 +11,36 @@ class Ed25519SignatureSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChec
   property("with Ed25519, signed message should be verifiable with appropriate public key") {
     forAll { (seed1: Array[Byte], seed2: Array[Byte], message1: Array[Byte], message2: Array[Byte]) =>
       whenever(!seed1.sameElements(seed2) && !message1.sameElements(message2)) {
-        val ed25519 = new Ed25519
-        val keyPair = ed25519.createKeyPair(seed1)
-        val keyPair2 = ed25519.createKeyPair(seed2)
+        val ec = new Ed25519
+        val keyPair = ec.createKeyPair(seed1)
+        val keyPair2 = ec.createKeyPair(seed2)
+        val sig = ec.sign(keyPair._1, message1)
 
-        val sig = ed25519.sign(keyPair._1, message1)
+        ec.verify(sig, message1, keyPair._2) shouldBe true
+        ec.verify(sig, message1, keyPair2._2) shouldBe false
+        ec.verify(sig, message2, keyPair._2) shouldBe false
+      }
+    }
+  }
 
-        ed25519.verify(sig, message1, keyPair._2) shouldBe true
-        ed25519.verify(sig, message1, keyPair2._2) shouldBe false
-        ed25519.verify(sig, message2, keyPair._2) shouldBe false
+  property("with Ed25519, keyPairs generated with the same seed should be the same") {
+    forAll { seedBytes: Array[Byte] =>
+      whenever(seedBytes.size != 0) {
+        val ec = new Ed25519
+        val keyPair1 = ec.createKeyPair(seedBytes)
+        val keyPair2 = ec.createKeyPair(seedBytes)
 
+        keyPair1._1 === keyPair2._1 shouldBe true
+        keyPair1._2 === keyPair2._2 shouldBe true
       }
     }
   }
 
   property("test vectors from https://tools.ietf.org/html/rfc8032#page-24 - test 1") {
+    val ec = new Ed25519
     val privKey = PrivateKey(Hex.decode("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60"))
     val message = Array[Byte]()
-    val ed25519 = new Ed25519
-    val sig = ed25519.sign(privKey, message)
+    val sig = ec.sign(privKey, message)
     val specSig = Hex.decode(
       "e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e065224901555fb8821590a33bacc61e" +
       "39701cf9b46bd25bf5f0595bbe24655141438e7a100b"
@@ -39,10 +49,10 @@ class Ed25519SignatureSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChec
   }
 
   property("test vectors from https://tools.ietf.org/html/rfc8032#page-24 - test 2") {
+    val ec = new Ed25519
     val privKey = PrivateKey(Hex.decode("4ccd089b28ff96da9db6c346ec114e0f5b8a319f35aba624da8cf6ed4fb8a6fb"))
     val message = Hex.decode("72")
-    val ed25519 = new Ed25519
-    val sig = ed25519.sign(privKey, message)
+    val sig = ec.sign(privKey, message)
     val specSig = Hex.decode(
       "92a009a9f0d4cab8720e820b5f642540" +
       "a2b27b5416503f8fb3762223ebdb69da" +
@@ -53,10 +63,10 @@ class Ed25519SignatureSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChec
   }
 
   property("test vectors from https://tools.ietf.org/html/rfc8032#page-24 - test 3") {
+    val ec = new Ed25519
     val privKey = PrivateKey(Hex.decode("c5aa8df43f9f837bedb7442f31dcb7b166d38535076f094b85ce3a2e0b4458f7"))
     val message = Hex.decode("af82")
-    val ed25519 = new Ed25519
-    val sig = ed25519.sign(privKey, message)
+    val sig = ec.sign(privKey, message)
     val specSig = Hex.decode(
       "6291d657deec24024827e69c3abe01a3" +
       "0ce548a284743a445e3680d7db5ac3ac" +
@@ -67,6 +77,7 @@ class Ed25519SignatureSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChec
   }
 
   property("test vectors from https://tools.ietf.org/html/rfc8032#page-24 - test 1024") {
+    val ec = new Ed25519
     val privKey = PrivateKey(Hex.decode("f5e5767cf153319517630f226876b86c8160cc583bc013744c6bf255f5cc0ee5"))
     val message = Hex.decode(
       "08b8b2b733424243760fe426a4b54908632110a66c2f6591eabd3345e3e4eb98fa6e264bf09efe12ee50" +
@@ -89,8 +100,7 @@ class Ed25519SignatureSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChec
       "faa933a15ef1369546868a7f3a45a96768d40fd9d03412c091c6315cf4fde7cb68606937380db2eaaa707b4c4185c32eddcdd306705e4d" +
       "c1ffc872eeee475a64dfac86aba41c0618983f8741c5ef68d3a101e8a3b8cac60c905c15fc910840b94c00a0b9d0"
     )
-    val ed25519 = new Ed25519
-    val sig = ed25519.sign(privKey, message)
+    val sig = ec.sign(privKey, message)
     val specSig = Hex.decode(
       "0aab4c900501b3e24d7cdf4663326a3a87df5e4843b2cbdb67cbf6e460fec350aa5371b1508f9f4528ec" +
       "ea23c436d94b5e8fcd4f681e30a6ac00a9704a188a03"
@@ -99,13 +109,13 @@ class Ed25519SignatureSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChec
   }
 
   property("test vectors from https://tools.ietf.org/html/rfc8032#page-24 - test SHA") {
+    val ec = new Ed25519
     val privKey = PrivateKey(Hex.decode("833fe62409237b9d62ec77587520911e9a759cec1d19755b7da901b96dca3d42"))
     val message = Hex.decode(
       "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836" +
       "ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f"
     )
-    val ed25519 = new Ed25519
-    val sig = ed25519.sign(privKey, message)
+    val sig = ec.sign(privKey, message)
     val specSig = Hex.decode(
       "dc2a4459e7369633a52b1bf277839a00201009a3efbf3ecb69bea2186c26b58909351fc9ac90b3ecfdf" +
       "bc7c66431e0303dca179c138ac17ad9bef1177331a704"

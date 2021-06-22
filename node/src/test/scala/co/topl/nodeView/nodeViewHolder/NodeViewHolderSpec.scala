@@ -6,19 +6,13 @@ import co.topl.nodeView.NodeViewHolder
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.{MockState, State}
 import co.topl.settings.{AppContext, StartupOpts}
-import co.topl.utils.CommonGenerators
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatest.{BeforeAndAfterAll, PrivateMethodTester}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
-class NodeViewHolderSpec
-    extends AnyPropSpec
-    with PrivateMethodTester
-    with CommonGenerators
-    with MockState
-    with BeforeAndAfterAll {
+class NodeViewHolderSpec extends AnyPropSpec with PrivateMethodTester with MockState with BeforeAndAfterAll {
 
   type MP = MemPool
 
@@ -41,7 +35,7 @@ class NodeViewHolderSpec
   // TODO replace reward transactions with valid transactions
   property("Rewards transactions are removed from transactions extracted from a block being rolled back") {
     forAll(blockGen) { block =>
-      val polyReward = sampleUntilNonEmpty(polyTransferGen)
+      val polyReward = sampleUntilNonEmpty(polyTransferCurve25519Gen)
       val arbitReward = sampleUntilNonEmpty(arbitTransferGen)
       val rewardBlock = block.copy(transactions = Seq(arbitReward, polyReward))
 

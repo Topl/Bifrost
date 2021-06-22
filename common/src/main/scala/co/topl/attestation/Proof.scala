@@ -7,6 +7,7 @@ import co.topl.crypto.signatures.{Curve25519, Signature}
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, Secret}
 import co.topl.crypto.PublicKey
 import co.topl.utils.codecs.implicits._
+import co.topl.crypto.signatures.Ed25519
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.StringDataTypes.implicits._
 import co.topl.crypto.signatures.eddsa.Ed25519
@@ -186,6 +187,7 @@ case class SignatureEd25519(private[attestation] val sig: Signature)
     extends ProofOfKnowledge[PrivateKeyEd25519, PublicKeyPropositionEd25519] {
 
   private val signatureLength = sig.infalliblyEncodeAsBytes.length
+  private val ec = new Ed25519
 
   private val ed25519 = new Ed25519
 

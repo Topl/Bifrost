@@ -3,7 +3,7 @@ package co.topl.attestation.keyManagement
 import cats.implicits._
 import co.topl.attestation.{PublicKeyPropositionEd25519, SignatureEd25519}
 import co.topl.crypto.implicits._
-import co.topl.crypto.signatures.eddsa.Ed25519
+import co.topl.crypto.signatures.Ed25519
 import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
@@ -11,8 +11,10 @@ case class PrivateKeyEd25519(private val privateKey: PrivateKey, private val pub
 
   private val privateKeyLength = privateKey.value.length
   private val publicKeyLength = publicKey.value.length
+  private val ec = new Ed25519
 
-  private val ed25519 = new Ed25519
+  require(privateKeyLength == ec.KeyLength, s"$privateKeyLength == ${ec.KeyLength}")
+  require(publicKeyLength == ec.KeyLength, s"$publicKeyLength == ${ec.KeyLength}")
 
   require(privateKeyLength == ed25519.KeyLength, s"$privateKeyLength == ${ed25519.KeyLength}")
   require(publicKeyLength == ed25519.KeyLength, s"$publicKeyLength == ${ed25519.KeyLength}")
@@ -27,7 +29,7 @@ case class PrivateKeyEd25519(private val privateKey: PrivateKey, private val pub
   override lazy val publicImage: PublicKeyPropositionEd25519 = PublicKeyPropositionEd25519(publicKey)
 
   override def sign(message: Array[Byte]): SignatureEd25519 = SignatureEd25519(
-    ed25519.sign(privateKey, message)
+    ec.sign(privateKey, message)
   )
 
   override def equals(obj: Any): Boolean = obj match {
@@ -42,8 +44,8 @@ object PrivateKeyEd25519 extends BifrostSerializer[PrivateKeyEd25519] {
 
   implicit val secretGenerator: SecretGenerator[PrivateKeyEd25519] = {
     SecretGenerator.instance[PrivateKeyEd25519] { seed: Array[Byte] =>
-      val ed25519 = new Ed25519
-      val (sk, pk) = ed25519.createKeyPair(seed)
+      val ec = new Ed25519
+      val (sk, pk) = ec.createKeyPair(seed)
       val secret: PrivateKeyEd25519 = PrivateKeyEd25519(sk, pk)
       secret -> secret.publicImage
     }

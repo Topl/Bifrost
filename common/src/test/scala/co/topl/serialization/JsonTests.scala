@@ -1,18 +1,11 @@
 package co.topl.serialization
 
+import co.topl.attestation._
 import co.topl.attestation.keyManagement.{
   KeyfileCurve25519,
   KeyfileCurve25519Companion,
   KeyfileEd25519,
   KeyfileEd25519Companion
-}
-import co.topl.attestation.{
-  Address,
-  Evidence,
-  PublicKeyPropositionCurve25519,
-  PublicKeyPropositionEd25519,
-  SignatureCurve25519,
-  SignatureEd25519
 }
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
@@ -24,9 +17,9 @@ import org.scalacheck.Gen
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class JsonTests extends AnyPropSpec with Matchers with ScalaCheckPropertyChecks with CommonGenerators {
+class JsonTests extends AnyPropSpec with Matchers with ScalaCheckDrivenPropertyChecks with CommonGenerators {
 
   property("PublicKeyPropositionCurve25519 json") {
     forAll(propositionCurve25519Gen)(prop => prop.asJson.as[PublicKeyPropositionCurve25519] shouldEqual Right(prop))
@@ -74,20 +67,12 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckPropertyChecks 
     }
   }
 
-  property("Address json with Curve25519") {
-    forAll(addressCurve25519Gen)(address => address.asJson.as[Address] shouldEqual Right(address))
+  property("Address json") {
+    forAll(addressGen)(address => address.asJson.as[Address] shouldEqual Right(address))
   }
 
-  property("Address json with Ed25519") {
-    forAll(addressEd25519Gen)(address => address.asJson.as[Address] shouldEqual Right(address))
-  }
-
-  property("Evidence json with Curve25519") {
-    forAll(evidenceCurve25519Gen)(evidence => evidence.asJson.as[Evidence] shouldEqual Right(evidence))
-  }
-
-  property("Evidence json with Ed25519") {
-    forAll(evidenceEd25519Gen)(evidence => evidence.asJson.as[Evidence] shouldEqual Right(evidence))
+  property("Evidence json") {
+    forAll(evidenceGen)(evidence => evidence.asJson.as[Evidence] shouldEqual Right(evidence))
   }
 
   property("ModifierId json") {
@@ -137,7 +122,7 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckPropertyChecks 
   }
 
   property("Transaction json") {
-    forAll(Gen.oneOf(polyTransferGen, arbitTransferGen, assetTransferGen)) { tx: Transaction.TX =>
+    forAll(transferGen) { tx: Transaction.TX =>
       tx.asJson.as[Transaction.TX] shouldEqual Right(tx)
     }
   }

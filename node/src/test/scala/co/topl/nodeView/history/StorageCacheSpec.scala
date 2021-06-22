@@ -2,18 +2,13 @@ package co.topl.nodeView.history
 
 import co.topl.consensus.consensusHelper.setProtocolMngr
 import co.topl.modifier.block.Block
-import co.topl.utils.{CommonGenerators, NodeGenerators}
+import co.topl.utils.NodeGenerators
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class StorageCacheSpec
-    extends AnyPropSpec
-    with ScalaCheckPropertyChecks
-    with Matchers
-    with CommonGenerators
-    with NodeGenerators {
+class StorageCacheSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers with NodeGenerators {
 
   var history: History = _
 
