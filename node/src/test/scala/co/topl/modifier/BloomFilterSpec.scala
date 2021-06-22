@@ -13,7 +13,7 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 class BloomFilterSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with NodeGenerators with Matchers {
 
   property("Bloomfilter should be able to tell if it definitely contains an address(false negatives)") {
-    forAll(validBifrostTransactionSeqGen) { txs =>
+    forAll(bifrostTransactionSeqGen) { txs =>
       val bloomfilter: BloomFilter = TransactionsCarryingPersistentNodeViewModifier.createBloom(txs)
 
       txs.foreach { tx =>
@@ -25,7 +25,7 @@ class BloomFilterSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wi
   }
 
   property("Bloomfilter should be able to tell if an address is likely not in the block(false positives)") {
-    forAll(validBifrostTransactionSeqGen) { txs =>
+    forAll(bifrostTransactionSeqGen) { txs =>
       val bloomfilter: BloomFilter = TransactionsCarryingPersistentNodeViewModifier.createBloom(txs.dropRight(1))
       val addressInBloom: Int = txs.dropRight(1).foldLeft(0)(_ + _.bloomTopics.size)
       val numAddressLastTx: Int = txs.last.bloomTopics.size

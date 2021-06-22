@@ -49,7 +49,7 @@ class IODBSpec
       tx.newBoxes
         .foreach(b => require(blocksStorage.get(ByteArrayWrapper(b.id.hash.value)).isDefined))
 
-    forAll(validBifrostTransactionSeqGen) { txs =>
+    forAll(bifrostTransactionSeqGen) { txs =>
       whenever(txs.length >= 2) {
         blocksStorage.rollback(ByteArrayWrapper(Array[Byte](1)))
 
