@@ -1,10 +1,9 @@
 package co.topl.attestation
 
-import co.topl.utils.codecs.implicits._
 import co.topl.attestation.AddressCodec.implicits._
-import co.topl.utils.StringDataTypes.Latin1Data
-import co.topl.utils.{KeyFileTestHelper, NodeGenerators}
+import co.topl.utils.codecs.implicits._
 import co.topl.utils.NodeGenerators
+import co.topl.utils.StringDataTypes.Latin1Data
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
@@ -50,10 +49,11 @@ class KeySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with NodeG
   }
 
   property("Once unlocked, the address will be accessible from the keyRing again") {
-    keyRingEd25519.DiskOps.unlockKeyFile(addressEd25519.encodeAsBase58, password)
+    keyRingCurve25519.DiskOps.unlockKeyFile(addressCurve25519.encodeAsBase58, password)
 
     /** There will be a warning for unlocking again if a key is already unlocked */
-    keyRingEd25519.DiskOps.unlockKeyFile(addressEd25519.encodeAsBase58, password)
+    keyRingCurve25519.DiskOps.unlockKeyFile(addressCurve25519.encodeAsBase58, password)
+    keyRingCurve25519.addresses.contains(addressCurve25519) shouldBe true
 
     keyRingEd25519.DiskOps.unlockKeyFile(addressEd25519.encodeAsBase58, password)
 
@@ -97,12 +97,12 @@ class KeySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with NodeG
     newProofCurve25519.isValid(propCurve25519, messageByte) shouldBe false
     newProofCurve25519.isValid(newPropCurve25519, messageByte) shouldBe true
 
-    val newAddr: Address = keyRingCurve25519.DiskOps.generateKeyFile(Latin1Data.unsafe(stringGen.sample.get)).get
-    val newProp = keyRingCurve25519.lookupPublicKey(newAddr).get
-    val newProof = keyRingCurve25519.signWithAddress(newAddr)(messageByte).get
-
-    newProof.isValid(propCurve25519, messageByte) shouldBe false
-    newProof.isValid(newProp, messageByte) shouldBe true
+    val propEd25519 = keyRingEd25519.lookupPublicKey(addressEd25519).get
+    val newAddrEd25519: Address = keyRingEd25519.DiskOps.generateKeyFile(Latin1Data.unsafe(stringGen.sample.get)).get
+    val newPropEd25519 = keyRingEd25519.lookupPublicKey(newAddrEd25519).get
+    val newProofEd25519 = keyRingEd25519.signWithAddress(newAddrEd25519)(messageByte).get
+    newProofEd25519.isValid(propEd25519, messageByte) shouldBe false
+    newProofEd25519.isValid(newPropEd25519, messageByte) shouldBe true
   }
 
   //TODO: Jing - test importPhrase
