@@ -14,17 +14,15 @@ import co.topl.utils.codecs.implicits.identityBytesEncoder
 import co.topl.utils.encode.Base58
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.orientechnologies.orient.core.exception.OConcurrentModificationException
-import org.mapdb.serializer.GroupSerializer
-import org.mapdb.{DataInput2, DataOutput2, Serializer}
-import scalacache.{Cache, _}
 import scalacache.caffeine._
 import scalacache.modes.scalaFuture._
+import scalacache.{Cache, _}
 
 import java.nio.charset.StandardCharsets
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.language.implicitConversions
 import scala.jdk.CollectionConverters._
+import scala.language.implicitConversions
 
 class BlockchainGraph(val graph: OrientDBGraph, parallelism: Int)(implicit
   system:                        ActorSystem[_],
@@ -46,7 +44,10 @@ class BlockchainGraph(val graph: OrientDBGraph, parallelism: Int)(implicit
   implicit private val blockStateModificationCache: Cache[BlockStateChange] =
     CaffeineCache(
       Caffeine.newBuilder
-        .maximumSize(100_000L)
+        .maximumWeight(100 * 1024 * 1024)
+        .weigher((k: String, v: Entry[BlockStateChange]) =>
+          k.length + v.value.boxesOpened.toSeq.map(_.length).sum + v.value.boxesCreated.toSeq.map(_.length).sum
+        )
         .executor(system.executionContext)
         .build[String, Entry[BlockStateChange]]
     )
@@ -291,6 +292,32 @@ class BlockchainGraph(val graph: OrientDBGraph, parallelism: Int)(implicit
   ): BlockchainModificationsOps =
     new BlockchainModificationsOps {
 
+      private def applyToSupport(modification: BlockchainModification, support: BlockchainGraphModificationSupport) =
+        modification match {
+          case c: CreateBlockHeader =>
+            support.apply(c)
+          case c: CreateBlockBody =>
+            support.apply(c)
+          case c: CreateTransaction =>
+            support.apply(c)
+          case c: CreateBox =>
+            support.apply(c)
+          case c: SetHead =>
+            support.apply(c)
+          case c: AssociateBlockToParent =>
+            support.apply(c)
+          case c: AssociateBodyToHeader =>
+            support.apply(c)
+          case c: AssociateTransactionToBody =>
+            support.apply(c)
+          case c: AssociateBoxCreator =>
+            support.apply(c)
+          case c: AssociateBoxOpener =>
+            support.apply(c)
+          case c: CreateState =>
+            support.apply(c)
+        }
+
       /**
        * Run the chain modifications in-order
        */
@@ -299,35 +326,22 @@ class BlockchainGraph(val graph: OrientDBGraph, parallelism: Int)(implicit
           graph
             .transactionally { implicit session =>
               val support = new BlockchainGraphModificationSupport(parallelism)
-              Source(modifications.toNonEmptyList.toList)
-                .mapAsync(1) {
-                  case c: CreateBlockHeader =>
-                    support.apply(c).value
-                  case c: CreateBlockBody =>
-                    support.apply(c).value
-                  case c: CreateTransaction =>
-                    support.apply(c).value
-                  case c: CreateBox =>
-                    support.apply(c).value
-                  case c: SetHead =>
-                    support.apply(c).value
-                  case c: AssociateBlockToParent =>
-                    support.apply(c).value
-                  case c: AssociateBodyToHeader =>
-                    support.apply(c).value
-                  case c: AssociateTransactionToBody =>
-                    support.apply(c).value
-                  case c: AssociateBoxCreator =>
-                    support.apply(c).value
-                  case c: AssociateBoxOpener =>
-                    support.apply(c).value
-                  case c: CreateState =>
-                    support.apply(c).value
-                }
-                .takeWhile(_.isRight, inclusive = true)
-                .runWith(Sink.last)
+              def r(): Future[Done] =
+                Source(modifications.toNonEmptyList.toList)
+                  .map(applyToSupport(_, support))
+                  .mapAsync(1)(_.valueOrF(e => Future.failed(BlockchainData.ErrorThrowable(e))))
+                  .runWith(Sink.last)
+                  .recoverWith { case _: OConcurrentModificationException =>
+                    r()
+                  }
+
+              r()
             }
-            .recover { case _: OConcurrentModificationException => Left(BlockchainData.OrientDBConcurrencyError) }
+            .map(Right(_))
+            .recover {
+              case BlockchainData.ErrorThrowable(e) => Left(e)
+              case e                                => Left(BlockchainData.ThrowableError(e))
+            }
         )
           .recoverWith { case BlockchainData.OrientDBConcurrencyError => run() }
     }
@@ -379,43 +393,27 @@ object BlockchainGraph {
         .map(_.leftMap { case OrientDBGraph.ThrowableError(throwable) => BlockchainData.ThrowableError(throwable) })
         .takeWhile(_.isRight, inclusive = true)
   }
-
-  implicit val stringSerializer: GroupSerializer[String] = Serializer.STRING
-
-  implicit val blockStateChangeSerializer: Serializer[BlockStateChange] =
-    new Serializer[BlockStateChange] {
-
-      override def serialize(out: DataOutput2, value: BlockStateChange): Unit = {
-        out.writeInt(value.boxesOpened.size)
-        value.boxesOpened.foreach(out.writeUTF)
-        out.writeInt(value.boxesCreated.size)
-        value.boxesCreated.foreach(out.writeUTF)
-      }
-
-      override def deserialize(input: DataInput2, available: Int): BlockStateChange = {
-        val boxesOpened = (0 until input.readInt()).map(_ => input.readUTF()).toSet
-        val boxesCreated = (0 until input.readInt()).map(_ => input.readUTF()).toSet
-        BlockStateChange(boxesOpened, boxesCreated)
-      }
-    }
-
-  implicit val blockStateChangesCodec: LevelDBStore.BytesCodec[BlockStateChange] =
-    new LevelDBStore.BytesCodec[BlockStateChange] {
-
-      override def asBytes(v: BlockStateChange): Array[Byte] = {
-        val out = new DataOutput2
-        blockStateChangeSerializer.serialize(out, v)
-        out.copyBytes()
-      }
-
-      override def fromBytes(bytes: Array[Byte]): BlockStateChange = {
-        val in = new DataInput2.ByteArray(bytes)
-        blockStateChangeSerializer.deserialize(in, 0)
-      }
-    }
 }
 
 object BlockchainGraphStateSupport {
+
+  final private val BlocksAndStateQuery: String = {
+
+    val traversalFields = List(
+      s"out('${BodyState.edgeSchema.name}')",
+      s"out('${BodyHeader.edgeSchema.name}')",
+      s"out('${BlockParent.edgeSchema.name}')",
+      s"in('${BodyHeader.edgeSchema.name}')"
+    )
+    val targetQuery = s"SELECT FROM ${BlockBody.nodeSchema.name} WHERE blockId=? LIMIT 1"
+    val traverseQuery =
+      s"TRAVERSE ${traversalFields.mkString(",")}" +
+      s" FROM ($targetQuery)" +
+      " LIMIT 50" +
+      " strategy BREADTH_FIRST"
+    s"SELECT FROM ($traverseQuery)" +
+    s" WHERE (@class='${BlockBody.nodeSchema.name}') OR (@class='${State.nodeSchema.name}')"
+  }
 
   trait Ops {
 
@@ -433,22 +431,7 @@ object BlockchainGraphStateSupport {
         import mat.executionContext
         Source
           .unfoldAsync(blockBody) { body =>
-            val traversalFields = List(
-              s"out('${BodyState.edgeSchema.name}')",
-              s"out('${BodyHeader.edgeSchema.name}')",
-              s"out('${BlockParent.edgeSchema.name}')",
-              s"in('${BodyHeader.edgeSchema.name}')"
-            )
-            val targetQuery = s"SELECT FROM ${BlockBody.nodeSchema.name} WHERE blockId=? LIMIT 1"
-            val traverseQuery =
-              s"TRAVERSE ${traversalFields.mkString(",")}" +
-              s" FROM ($targetQuery)" +
-              " LIMIT 50" +
-              " strategy BREADTH_FIRST"
-            val query =
-              s"SELECT FROM ($traverseQuery)" +
-              s" WHERE (@class='${BlockBody.nodeSchema.name}') OR (@class='${State.nodeSchema.name}')"
-            Raw[RawNode](query, Array[Any](body.blockId)).source
+            Raw[RawNode](BlocksAndStateQuery, Array[Any](body.blockId)).source
               .map(_.getOrThrow(BlockchainData.ErrorThrowable))
               .drop(1)
               .map {
@@ -499,14 +482,14 @@ object BlockchainGraphStateSupport {
                         .valueOrF(e => Future.failed(BlockchainData.ErrorThrowable(e)))
                     )
                     .runWith(Sink.seq)
-                closestState = blockStateHistory.collectFirst { case Left(state) => state }
-                historyAfterClosestState =
-                  blockStateChangeHistory.drop(closestState.size.toInt)
+                latestState = blockStateHistory.collectFirst { case Left(state) => state }
+                changesSinceLatestState =
+                  blockStateChangeHistory.drop(latestState.size.toInt)
                 encodedStateId = Base58.encode(
-                  historyAfterClosestState
+                  changesSinceLatestState
                     .map(_.hash)
                     .foldLeft(
-                      closestState.fold(Array.fill(32)(0: Byte))(cs => Base58.decode(cs.stateId).getOrThrow())
+                      latestState.fold(Array.fill(32)(0: Byte))(cs => Base58.decode(cs.stateId).getOrThrow())
                     ) { case (previousStateHash, changeHistoryHash) =>
                       co.topl.crypto.hash.blake2b256.hash(None, previousStateHash, changeHistoryHash).value
                     }
@@ -515,12 +498,12 @@ object BlockchainGraphStateSupport {
                   .insertNode[State](State(encodedStateId))
                   .valueOrF(e => Future.failed(BlockchainData.ErrorThrowable(BlockchainData.OrientDBGraphError(e))))
                 mergedStateChange =
-                  historyAfterClosestState.fold(BlockStateChange(Set.empty, Set.empty))(_.combine(_))
+                  changesSinceLatestState.fold(BlockStateChange(Set.empty, Set.empty))(_.combine(_))
                 knownUnopenedBoxes =
                   mergedStateChange.boxesCreated -- mergedStateChange.boxesOpened
                 knownOpenedBoxes = mergedStateChange.boxesOpened
                 _ <- associateBodyToState(encodedStateId)
-                _ <- insertStateUnopenedBoxEdges(closestState, knownUnopenedBoxes, knownOpenedBoxes, encodedStateId)
+                _ <- insertStateUnopenedBoxEdges(latestState, knownUnopenedBoxes, knownOpenedBoxes, encodedStateId)
               } yield Done)
                 .map(Right(_))
                 .recover { case e => Left(BlockchainData.ThrowableError(e)) }

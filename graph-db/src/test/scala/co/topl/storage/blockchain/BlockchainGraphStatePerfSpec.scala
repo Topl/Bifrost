@@ -41,7 +41,7 @@ class BlockchainGraphStatePerfSpec
   private var genericDb: LevelDBStore = _
   private var underTest: BlockchainGraph = _
 
-  private val count = 500000
+  private val count = 50000
 
   private val snapshotCount = 100
 
@@ -93,9 +93,14 @@ class BlockchainGraphStatePerfSpec
       val t = underTest
       import t._
 
-      NonEmptyChain(CreateState(Blockchain.blocksAtHeight(count - depth).runWith(Sink.head).futureValue.value.blockId))
-        .run()
-        .futureRightValue
+      val (_, creationDuration) =
+        withTime(
+          NonEmptyChain(
+            CreateState(Blockchain.blocksAtHeight(count - depth).runWith(Sink.head).futureValue.value.blockId)
+          )
+            .run()
+            .futureRightValue
+        )
 
       val headBody = Blockchain.currentHead.flatMap(_.body).futureRightValue
       val (openedResult, openedDuration) =
@@ -103,7 +108,7 @@ class BlockchainGraphStatePerfSpec
       val (unopenedResult, unopenedDuration) =
         withTime(headBody.lookupUnopenedBox("2_1_2").futureRightValue)
 
-      perfResults :+= PerfResult(depth, openedDuration, unopenedDuration)
+      perfResults :+= PerfResult(depth, openedDuration, unopenedDuration, creationDuration)
 
       openedResult shouldBe BlockchainData.NotFound
       unopenedResult shouldBe Box("2_1_2", 1, "1", 1)
@@ -119,19 +124,15 @@ class BlockchainGraphStatePerfSpec
 
     dataDir = Paths.get(".", "target", "test", "db" + System.currentTimeMillis().toString)
 
-//    graph = OrientDBGraph(schema, OrientDBGraph.InMemory)
     graph = OrientDBGraph(schema, OrientDBGraph.Local(Paths.get(dataDir.toString, "graph")))
 
-//    genericDb = MapDBStore.disk(Paths.get(dataDir.toString, "genericdb"))
     genericDb = new LevelDBStore(Paths.get(dataDir.toString, "genericdb"))
 
     underTest = new BlockchainGraph(graph, parallelism)(system, genericDb)
 
     logger.info(s"Preparing graph with $count blocks")
-    testStartTimestampNano = System.nanoTime()
-    prepareGraph()
-    val deltaNanos = System.nanoTime() - testStartTimestampNano
-    logger.info(s"Graph prepared after ${deltaNanos} nanos (${deltaNanos / 1_000_000_000d} seconds)")
+
+    timed("Prepare Graph", prepareGraph())
   }
 
   override def afterAll(): Unit = {
@@ -142,7 +143,8 @@ class BlockchainGraphStatePerfSpec
       List(
         (List("Depth") ++ perfResults.map(_.depth.toString)).mkString(","),
         (List("Opened Box Seek (nanos)") ++ perfResults.map(_.openedSeekDuration.toNanos.toString)).mkString(","),
-        (List("Unopened Box Seek (nanos)") ++ perfResults.map(_.unopenedSeekDuration.toNanos.toString)).mkString(",")
+        (List("Unopened Box Seek (nanos)") ++ perfResults.map(_.unopenedSeekDuration.toNanos.toString)).mkString(","),
+        (List("Create State (nanos)") ++ perfResults.map(_.stateCreationDuration.toNanos.toString)).mkString(",")
       ).mkString("\n")
 
     println(resultsOut)
@@ -336,4 +338,9 @@ object NewBlockPackage {
 
 case class NewTransactionPackage(transaction: Transaction, openedBoxIds: List[String], newBoxes: List[Box])
 
-private case class PerfResult(depth: Int, openedSeekDuration: FiniteDuration, unopenedSeekDuration: FiniteDuration)
+private case class PerfResult(
+  depth:                 Int,
+  openedSeekDuration:    FiniteDuration,
+  unopenedSeekDuration:  FiniteDuration,
+  stateCreationDuration: FiniteDuration
+)

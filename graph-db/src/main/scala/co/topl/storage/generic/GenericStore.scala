@@ -1,7 +1,7 @@
 package co.topl.storage.generic
 
-import akka.{Done, NotUsed}
 import akka.stream.scaladsl.{Sink, Source}
+import akka.{Done, NotUsed}
 import cats.data.EitherT
 
 import scala.concurrent.Future

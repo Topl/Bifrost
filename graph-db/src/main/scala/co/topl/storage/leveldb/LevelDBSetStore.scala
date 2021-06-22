@@ -2,7 +2,7 @@ package co.topl.storage.leveldb
 
 import akka.actor.typed.{ActorSystem, DispatcherSelector}
 import akka.stream.ActorAttributes
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import akka.{Done, NotUsed}
 import cats.data.EitherT
 import co.topl.storage.generic.{GenericStore, SetStore}
@@ -44,9 +44,18 @@ class LevelDBSetStore[V](db: DB)(implicit system: ActorSystem[_], codec: LevelDB
       .addAttributes(ActorAttributes.dispatcher(ActorAttributes.IODispatcher.dispatcher))
 
   override def putMany(): Sink[V, Future[Done]] =
-    Sink
-      .foreach[V](v => db.put(codec.asBytes(v), LevelDBSetStore.ValueArray))
-      .addAttributes(ActorAttributes.dispatcher(ActorAttributes.IODispatcher.dispatcher))
+    Flow[V]
+      .grouped(100)
+      .toMat(
+        Sink
+          .foreach[Seq[V]] { vs =>
+            val batch = db.createWriteBatch()
+            vs.foreach(v => batch.put(codec.asBytes(v), LevelDBSetStore.ValueArray))
+            db.write(batch)
+            batch.close()
+          }
+          .addAttributes(ActorAttributes.dispatcher(ActorAttributes.IODispatcher.dispatcher))
+      )(Keep.right)
 
   private def f[R](r: => R): EitherT[Future, GenericStore.Error, R] =
     EitherT(Future(r).map(Right(_)).recover { case e => Left(GenericStore.ThrowableError(e)) })

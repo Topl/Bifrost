@@ -5,7 +5,6 @@ import akka.{Done, NotUsed}
 import cats.data.{EitherT, NonEmptyChain}
 import co.topl.storage.generic.GenericStore
 import co.topl.storage.graph.OrientDBGraph
-import co.topl.storage.mapdb.MapDBStore
 
 import scala.concurrent.Future
 

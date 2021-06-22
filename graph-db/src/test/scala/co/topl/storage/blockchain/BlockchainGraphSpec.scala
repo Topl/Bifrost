@@ -7,7 +7,6 @@ import cats.implicits._
 import cats.scalatest.FutureEitherValues
 import co.topl.storage.graph.OrientDBGraph
 import co.topl.storage.leveldb.LevelDBStore
-import co.topl.storage.mapdb.MapDBStore
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, OptionValues}
@@ -298,7 +297,6 @@ class BlockchainGraphSpec
 
     underTest =
       new BlockchainGraph(graph, 2)(system, new LevelDBStore(Files.createTempDirectory("BlockchainGraphSpec")))
-//    underTest = new BlockchainGraph(graph)(system, MapDBStore.memory())
   }
 
   override def afterAll(): Unit = {

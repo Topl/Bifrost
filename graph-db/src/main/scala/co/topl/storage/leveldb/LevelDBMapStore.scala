@@ -2,8 +2,8 @@ package co.topl.storage.leveldb
 
 import akka.actor.typed.{ActorSystem, DispatcherSelector}
 import akka.stream.ActorAttributes
+import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import akka.{Done, NotUsed}
-import akka.stream.scaladsl.{Sink, Source}
 import cats.data.EitherT
 import co.topl.storage.generic.{GenericStore, MapStore}
 import org.iq80.leveldb.{DB, Options}
@@ -70,9 +70,18 @@ class LevelDBMapStore[K, V](db: DB)(implicit
       .addAttributes(ActorAttributes.dispatcher(ActorAttributes.IODispatcher.dispatcher))
 
   override def putMany(): Sink[(K, V), Future[Done]] =
-    Sink
-      .foreach[(K, V)] { case (k, v) => db.put(keyCodec.asBytes(k), valueCodec.asBytes(v)) }
-      .addAttributes(ActorAttributes.dispatcher(ActorAttributes.IODispatcher.dispatcher))
+    Flow[(K, V)]
+      .grouped(100)
+      .toMat(
+        Sink
+          .foreach[Seq[(K, V)]] { vs =>
+            val batch = db.createWriteBatch()
+            vs.foreach { case (k, v) => db.put(keyCodec.asBytes(k), valueCodec.asBytes(v)) }
+            db.write(batch)
+            batch.close()
+          }
+          .addAttributes(ActorAttributes.dispatcher(ActorAttributes.IODispatcher.dispatcher))
+      )(Keep.right)
 
   private def f[R](r: => R): EitherT[Future, GenericStore.Error, R] =
     EitherT(Future(r).map(Right(_)).recover { case e => Left(GenericStore.ThrowableError(e)) })

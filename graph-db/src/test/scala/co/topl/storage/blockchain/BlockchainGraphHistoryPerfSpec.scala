@@ -6,7 +6,6 @@ import cats.data.{Chain, NonEmptyChain}
 import cats.scalatest.FutureEitherValues
 import co.topl.storage.graph.OrientDBGraph
 import co.topl.storage.leveldb.LevelDBStore
-import co.topl.storage.mapdb.MapDBStore
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -79,7 +78,6 @@ class BlockchainGraphHistoryPerfSpec
     graph = OrientDBGraph(schema, OrientDBGraph.Local(Paths.get(dataDir.toString, "graph")))
 //    graph = OrientDBGraph(schema, OrientDBGraph.InMemory)
 
-//    genericDb = MapDBStore.disk(Paths.get(dataDir.toString, "genericdb"))
     genericDb = new LevelDBStore(Paths.get(dataDir.toString, "genericdb"))
 
     underTest = new BlockchainGraph(graph, parallelism)(system, genericDb)

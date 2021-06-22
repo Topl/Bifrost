@@ -1,7 +1,7 @@
 package co.topl.storage.graph
 
-import akka.{Done, NotUsed}
 import akka.stream.scaladsl.Source
+import akka.{Done, NotUsed}
 import cats.data.EitherT
 
 import scala.concurrent.Future
@@ -14,8 +14,8 @@ trait ReadableGraph {
 trait WritableGraph {
   def insertNode[T: NodeSchema](node: T): EitherT[Future, OrientDBGraph.Error, Done]
 
-  def insertEdge[T](edge: T, srcRef: OrientDBGraph.NodeReference, destRef: OrientDBGraph.NodeReference)(implicit
-    schema:               EdgeSchema[T, _, _]
+  def insertEdge[T, S, D](edge: T, srcRef: OrientDBGraph.NodeReference[S], destRef: OrientDBGraph.NodeReference[D])(
+    implicit schema:            EdgeSchema[T, S, D]
   ): EitherT[Future, OrientDBGraph.Error, Done]
 
   def deleteEdges[T]()(implicit
@@ -36,8 +36,8 @@ class ReadableWritableGraph(readableGraph: ReadableGraph, writableGraph: Writabl
   override def insertNode[T: NodeSchema](node: T): EitherT[Future, OrientDBGraph.Error, Done] =
     writableGraph.insertNode(node)
 
-  override def insertEdge[T](edge: T, srcRef: OrientDBGraph.NodeReference, destRef: OrientDBGraph.NodeReference)(
-    implicit schema:               EdgeSchema[T, _, _]
+  def insertEdge[T, S, D](edge: T, srcRef: OrientDBGraph.NodeReference[S], destRef: OrientDBGraph.NodeReference[D])(
+    implicit schema:            EdgeSchema[T, S, D]
   ): EitherT[Future, OrientDBGraph.Error, Done] = writableGraph.insertEdge(edge, srcRef, destRef)
 
   override def deleteEdges[T]()(implicit schema: EdgeSchema[T, _, _]): EitherT[Future, OrientDBGraph.Error, Done] =

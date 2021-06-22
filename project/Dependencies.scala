@@ -84,13 +84,6 @@ object Dependencies {
     )
   }
 
-  val mapDb: Seq[ModuleID] = {
-    val version = "3.0.8"
-    Seq(
-      "org.mapdb" % "mapdb" % version
-    )
-  }
-
   val levelDb: Seq[ModuleID] = {
     val version = "1.8"
     Seq(
@@ -143,7 +136,6 @@ object Dependencies {
     circe ++
     test ++
     orientDb ++
-    mapDb ++
     levelDb ++
     scalacache
 

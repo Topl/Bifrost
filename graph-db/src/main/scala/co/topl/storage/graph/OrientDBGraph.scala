@@ -207,7 +207,7 @@ object OrientDBGraph {
     new OrientDBGraph(schema, factory)
   }
 
-  case class NodeReference(query: GraphQuery[_])
+  case class NodeReference[T](query: GraphQuery[T])
 
   private[graph] def whereToString(where: Where): Option[(String, Array[Any])] =
     where match {
@@ -316,7 +316,7 @@ abstract class OrientGraphBaseScala(orientGraph: OrientBaseGraph, blockingDispat
       .asScala
       .map(_.asInstanceOf[OrientElement])
 
-  protected def resolveNodeReference(ref: OrientDBGraph.NodeReference): OrientVertex = {
+  protected def resolveNodeReference(ref: OrientDBGraph.NodeReference[_]): OrientVertex = {
     val (q, args) = stringifyQuery(ref.query)
     blockingIteratorQuery(q, ArraySeq.unsafeWrapArray(args): _*)
       .next()
@@ -375,8 +375,12 @@ class WritableOrientGraph(orientGraph: OrientBaseGraph, blockingDispatcher: Exec
         .recover { case e => Left(OrientDBGraph.ThrowableError(e)) }
     )
 
-  override def insertEdge[T](edge: T, srcRef: OrientDBGraph.NodeReference, destRef: OrientDBGraph.NodeReference)(
-    implicit schema:               EdgeSchema[T, _, _]
+  override def insertEdge[T, S, D](
+    edge:    T,
+    srcRef:  OrientDBGraph.NodeReference[S],
+    destRef: OrientDBGraph.NodeReference[D]
+  )(implicit
+    schema: EdgeSchema[T, S, D]
   ): EitherT[Future, OrientDBGraph.Error, Done] = {
     val (srcQuery, srcArgs) = stringifyQuery(srcRef.query)
     val (destQuery, destArgs) = stringifyQuery(destRef.query)
