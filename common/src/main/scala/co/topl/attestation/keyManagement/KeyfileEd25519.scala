@@ -4,7 +4,7 @@ import cats.implicits._
 import co.topl.attestation.Address
 import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.signatures.eddsa.Ed25519
+import co.topl.crypto.signatures.Ed25519
 import co.topl.utils.codecs.implicits._
 import co.topl.utils.Extensions.StringOps
 import co.topl.utils.NetworkType.NetworkPrefix
@@ -55,7 +55,6 @@ object KeyfileEd25519 {
       salt       <- c.downField("crypto").downField("kdfSalt").as[Base58Data]
       iv         <- c.downField("crypto").downField("cipherParams").downField("iv").as[Base58Data]
     } yield {
-
       implicit val netPrefix: NetworkPrefix = address.networkPrefix
       new KeyfileEd25519(address, cipherText.value, mac.value, salt.value, iv.value)
     }

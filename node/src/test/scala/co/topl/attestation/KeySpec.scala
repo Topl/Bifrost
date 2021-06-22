@@ -50,15 +50,15 @@ class KeySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with NodeG
   }
 
   property("Once unlocked, the address will be accessible from the keyRing again") {
-    keyRing.DiskOps.unlockKeyFile(address.encodeAsBase58, password)
+    keyRingEd25519.DiskOps.unlockKeyFile(addressEd25519.encodeAsBase58, password)
 
     /** There will be a warning for unlocking again if a key is already unlocked */
-    keyRing.DiskOps.unlockKeyFile(address.encodeAsBase58, password)
+    keyRingEd25519.DiskOps.unlockKeyFile(addressEd25519.encodeAsBase58, password)
 
-    keyRingEd25519.DiskOps.unlockKeyFile(addressEd25519.toString, password)
+    keyRingEd25519.DiskOps.unlockKeyFile(addressEd25519.encodeAsBase58, password)
 
     /** There will be a warning for unlocking again if a key is already unlocked */
-    keyRingEd25519.DiskOps.unlockKeyFile(addressEd25519.toString, password)
+    keyRingEd25519.DiskOps.unlockKeyFile(addressEd25519.encodeAsBase58, password)
     keyRingEd25519.addresses.contains(addressEd25519) shouldBe true
   }
 
@@ -90,17 +90,18 @@ class KeySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with NodeG
 
   property("The proof from signing with an address should only be valid for the corresponding proposition") {
     val propCurve25519 = keyRingCurve25519.lookupPublicKey(addressCurve25519).get
-    val newAddrCurve25519: Address = keyRingCurve25519.DiskOps.generateKeyFile(stringGen.sample.get).get
+    val newAddrCurve25519: Address =
+      keyRingCurve25519.DiskOps.generateKeyFile(Latin1Data.unsafe(stringGen.sample.get)).get
     val newPropCurve25519 = keyRingCurve25519.lookupPublicKey(newAddrCurve25519).get
     val newProofCurve25519 = keyRingCurve25519.signWithAddress(newAddrCurve25519)(messageByte).get
     newProofCurve25519.isValid(propCurve25519, messageByte) shouldBe false
     newProofCurve25519.isValid(newPropCurve25519, messageByte) shouldBe true
 
-    val newAddr: Address = keyRing.DiskOps.generateKeyFile(Latin1Data.unsafe(stringGen.sample.get)).get
-    val newProp = keyRing.lookupPublicKey(newAddr).get
-    val newProof = keyRing.signWithAddress(newAddr)(messageByte).get
+    val newAddr: Address = keyRingCurve25519.DiskOps.generateKeyFile(Latin1Data.unsafe(stringGen.sample.get)).get
+    val newProp = keyRingCurve25519.lookupPublicKey(newAddr).get
+    val newProof = keyRingCurve25519.signWithAddress(newAddr)(messageByte).get
 
-    newProof.isValid(prop, messageByte) shouldBe false
+    newProof.isValid(propCurve25519, messageByte) shouldBe false
     newProof.isValid(newProp, messageByte) shouldBe true
   }
 

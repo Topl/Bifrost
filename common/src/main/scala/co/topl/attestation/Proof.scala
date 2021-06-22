@@ -214,7 +214,7 @@ object SignatureEd25519 {
     Proof.fromString(str) match {
       case Right(sig: SignatureEd25519) => sig
       case Right(_)                     => throw new Error("Invalid proof generation")
-      case Left(ex)                     => throw new Exception(s"Invalid signature: $ex")
+      case Left(ex)                     => throw new Error(s"Invalid signature: $ex")
     }
 
   // see circe documentation for custom encoder / decoders

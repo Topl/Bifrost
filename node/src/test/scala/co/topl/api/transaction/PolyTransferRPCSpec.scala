@@ -1,17 +1,6 @@
 package co.topl.api.transaction
 
 import co.topl.attestation.Address
-import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.codecs.implicits.base58JsonDecoder
-import co.topl.utils.encode.Base58
-import io.circe.Json
-import io.circe.parser.parse
-import io.circe.syntax._
-import org.scalatest.EitherValues
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
-
-import scala.concurrent.duration._
 
 class PolyTransferRPCSpec extends TransferRPCTestMethods {
 
@@ -41,22 +30,9 @@ class PolyTransferRPCSpec extends TransferRPCTestMethods {
       testBroadcastTx(tx)
     }
 
-        val sigTx = for {
-          rawTx   <- res.hcursor.downField("result").get[Json]("rawTx")
-          message <- res.hcursor.downField("result").get[Base58Data]("messageToSign")
-        } yield {
-          val sig = keyRing.generateAttestation(address)(message.value)
-          val signatures: Json = Map(
-            "signatures" -> sig.asJson
-          ).asJson
-          rawTx.deepMerge(signatures)
-        }
-
-        tx = sigTx.value.toString
-
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").head.asObject.isDefined shouldBe true
-      }
+    "Create, sign and broadcast new poly transfer raw transaction from an Ed25519 address to itself" in {
+      val tx = testCreateSignPolyTransfer(addressEd25519send, addressEd25519recv, propTypeEd25519, 3)
+      testBroadcastTx(tx)
     }
 
     "Create, sign and broadcast new poly transfer raw transaction from an Ed25519 address to a Curve25519 address" in {

@@ -39,10 +39,10 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
 
   lazy val stringGen: Gen[String] = Gen.alphaNumStr.suchThat(_.nonEmpty)
 
-  lazy val shortNameGen: Gen[String] = for {
+  lazy val shortNameGen: Gen[Latin1Data] = for {
     n   <- Gen.choose(0, AssetCode.shortNameLimit)
     str <- Gen.listOfN(n, Gen.alphaNumChar).map(_.mkString)
-  } yield str
+  } yield Latin1Data.unsafe(str)
 
   val jsonTypes: Seq[String] = Seq("Object", "Array", "Boolean", "String", "Number")
 
@@ -144,7 +144,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   } yield {
     // TODO: Hard coded as 1, but change this to arbitrary in the future
     val assetVersion = 1: Byte
-    val assetCode = AssetCode(assetVersion, issuer, Latin1Data.unsafe(shortName))
+    val assetCode = AssetCode(assetVersion, issuer, shortName)
     val value = AssetValue(quantity, assetCode, metadata = Some(data))
     AssetBox(evidence, nonce, value)
   }
@@ -312,7 +312,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     // assetVersion <- Arbitrary.arbitrary[Byte]
     issuer    <- addressCurve25519Gen
     shortName <- shortNameGen
-  } yield AssetCode(1: Byte, issuer, Latin1Data.unsafe(shortName))
+  } yield AssetCode(1: Byte, issuer, shortName)
 
   lazy val assetCodeEd25519Gen: Gen[AssetCode] = for {
     // TODO: Hard coded as 1, but change this to arbitrary in the future
