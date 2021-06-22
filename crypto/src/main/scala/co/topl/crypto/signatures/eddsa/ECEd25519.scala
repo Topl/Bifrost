@@ -44,19 +44,19 @@ private[crypto] class ECEd25519 extends EC {
   }
 
   def implSign(
-                d:      SHA512Digest,
-                h:      Array[Byte],
-                s:      Array[Byte],
-                pk:     Array[Byte],
-                pkOff:  Int,
-                ctx:    Array[Byte],
-                phflag: Byte,
-                m:      Array[Byte],
-                mOff:   Int,
-                mLen:   Int,
-                sig:    Array[Byte],
-                sigOff: Int
-              ): Unit = {
+    d:      SHA512Digest,
+    h:      Array[Byte],
+    s:      Array[Byte],
+    pk:     Array[Byte],
+    pkOff:  Int,
+    ctx:    Array[Byte],
+    phflag: Byte,
+    m:      Array[Byte],
+    mOff:   Int,
+    mLen:   Int,
+    sig:    Array[Byte],
+    sigOff: Int
+  ): Unit = {
     dom2(d, phflag, ctx)
     d.update(h, SCALAR_BYTES, SCALAR_BYTES)
     d.update(m, mOff, mLen)
@@ -76,16 +76,16 @@ private[crypto] class ECEd25519 extends EC {
   }
 
   def implSign(
-                sk:     Array[Byte],
-                skOff:  Int,
-                ctx:    Array[Byte],
-                phflag: Byte,
-                m:      Array[Byte],
-                mOff:   Int,
-                mLen:   Int,
-                sig:    Array[Byte],
-                sigOff: Int
-              ): Unit = {
+    sk:     Array[Byte],
+    skOff:  Int,
+    ctx:    Array[Byte],
+    phflag: Byte,
+    m:      Array[Byte],
+    mOff:   Int,
+    mLen:   Int,
+    sig:    Array[Byte],
+    sigOff: Int
+  ): Unit = {
     if (!checkContextVar(ctx, phflag)) throw new IllegalArgumentException("ctx")
     val h = new Array[Byte](shaDigest.getDigestSize)
     shaDigest.update(sk, skOff, SECRET_KEY_SIZE)
@@ -98,18 +98,18 @@ private[crypto] class ECEd25519 extends EC {
   }
 
   def implSign(
-                sk:     Array[Byte],
-                skOff:  Int,
-                pk:     Array[Byte],
-                pkOff:  Int,
-                ctx:    Array[Byte],
-                phflag: Byte,
-                m:      Array[Byte],
-                mOff:   Int,
-                mLen:   Int,
-                sig:    Array[Byte],
-                sigOff: Int
-              ): Unit = {
+    sk:     Array[Byte],
+    skOff:  Int,
+    pk:     Array[Byte],
+    pkOff:  Int,
+    ctx:    Array[Byte],
+    phflag: Byte,
+    m:      Array[Byte],
+    mOff:   Int,
+    mLen:   Int,
+    sig:    Array[Byte],
+    sigOff: Int
+  ): Unit = {
     if (!checkContextVar(ctx, phflag)) throw new IllegalArgumentException("ctx")
     val h = new Array[Byte](shaDigest.getDigestSize)
     shaDigest.update(sk, skOff, SECRET_KEY_SIZE)
@@ -120,16 +120,16 @@ private[crypto] class ECEd25519 extends EC {
   }
 
   def implVerify(
-                  sig:    Array[Byte],
-                  sigOff: Int,
-                  pk:     Array[Byte],
-                  pkOff:  Int,
-                  ctx:    Array[Byte],
-                  phflag: Byte,
-                  m:      Array[Byte],
-                  mOff:   Int,
-                  mLen:   Int
-                ): Boolean = {
+    sig:    Array[Byte],
+    sigOff: Int,
+    pk:     Array[Byte],
+    pkOff:  Int,
+    ctx:    Array[Byte],
+    phflag: Byte,
+    m:      Array[Byte],
+    mOff:   Int,
+    mLen:   Int
+  ): Boolean = {
     if (!checkContextVar(ctx, phflag)) throw new IllegalArgumentException("ctx")
     val R = util.Arrays.copyOfRange(sig, sigOff, sigOff + POINT_BYTES)
     val S = util.Arrays.copyOfRange(sig, sigOff + POINT_BYTES, sigOff + SIGNATURE_SIZE)
@@ -156,101 +156,101 @@ private[crypto] class ECEd25519 extends EC {
   }
 
   def sign(
-            sk:     Array[Byte],
-            skOff:  Int,
-            m:      Array[Byte],
-            mOff:   Int,
-            mLen:   Int,
-            sig:    Array[Byte],
-            sigOff: Int
-          ): Unit = {
+    sk:     Array[Byte],
+    skOff:  Int,
+    m:      Array[Byte],
+    mOff:   Int,
+    mLen:   Int,
+    sig:    Array[Byte],
+    sigOff: Int
+  ): Unit = {
     val ctx: Array[Byte] = Array.empty
     val phflag: Byte = 0x00
     implSign(sk, skOff, ctx, phflag, m, mOff, mLen, sig, sigOff)
   }
 
   def sign(
-            sk:     Array[Byte],
-            skOff:  Int,
-            pk:     Array[Byte],
-            pkOff:  Int,
-            m:      Array[Byte],
-            mOff:   Int,
-            mLen:   Int,
-            sig:    Array[Byte],
-            sigOff: Int
-          ): Unit = {
+    sk:     Array[Byte],
+    skOff:  Int,
+    pk:     Array[Byte],
+    pkOff:  Int,
+    m:      Array[Byte],
+    mOff:   Int,
+    mLen:   Int,
+    sig:    Array[Byte],
+    sigOff: Int
+  ): Unit = {
     val ctx: Array[Byte] = Array.empty
     val phflag: Byte = 0x00
     implSign(sk, skOff, pk, pkOff, ctx, phflag, m, mOff, mLen, sig, sigOff)
   }
 
   def sign(
-            sk:     Array[Byte],
-            skOff:  Int,
-            ctx:    Array[Byte],
-            m:      Array[Byte],
-            mOff:   Int,
-            mLen:   Int,
-            sig:    Array[Byte],
-            sigOff: Int
-          ): Unit = {
+    sk:     Array[Byte],
+    skOff:  Int,
+    ctx:    Array[Byte],
+    m:      Array[Byte],
+    mOff:   Int,
+    mLen:   Int,
+    sig:    Array[Byte],
+    sigOff: Int
+  ): Unit = {
     val phflag: Byte = 0x00
     implSign(sk, skOff, ctx, phflag, m, mOff, mLen, sig, sigOff)
   }
 
   def sign(
-            sk:     Array[Byte],
-            skOff:  Int,
-            pk:     Array[Byte],
-            pkOff:  Int,
-            ctx:    Array[Byte],
-            m:      Array[Byte],
-            mOff:   Int,
-            mLen:   Int,
-            sig:    Array[Byte],
-            sigOff: Int
-          ): Unit = {
+    sk:     Array[Byte],
+    skOff:  Int,
+    pk:     Array[Byte],
+    pkOff:  Int,
+    ctx:    Array[Byte],
+    m:      Array[Byte],
+    mOff:   Int,
+    mLen:   Int,
+    sig:    Array[Byte],
+    sigOff: Int
+  ): Unit = {
     val phflag: Byte = 0x00
     implSign(sk, skOff, pk, pkOff, ctx, phflag, m, mOff, mLen, sig, sigOff)
   }
 
   def signPrehash(
-                   sk:     Array[Byte],
-                   skOff:  Int,
-                   ctx:    Array[Byte],
-                   ph:     Array[Byte],
-                   phOff:  Int,
-                   sig:    Array[Byte],
-                   sigOff: Int
-                 ): Unit = {
+    sk:     Array[Byte],
+    skOff:  Int,
+    ctx:    Array[Byte],
+    ph:     Array[Byte],
+    phOff:  Int,
+    sig:    Array[Byte],
+    sigOff: Int
+  ): Unit = {
     val phflag: Byte = 0x01
     implSign(sk, skOff, ctx, phflag, ph, phOff, PREHASH_SIZE, sig, sigOff)
   }
 
   def signPrehash(
-                   sk:     Array[Byte],
-                   skOff:  Int,
-                   pk:     Array[Byte],
-                   pkOff:  Int,
-                   ctx:    Array[Byte],
-                   ph:     Array[Byte],
-                   phOff:  Int,
-                   sig:    Array[Byte],
-                   sigOff: Int
-                 ): Unit = {
+    sk:     Array[Byte],
+    skOff:  Int,
+    pk:     Array[Byte],
+    pkOff:  Int,
+    ctx:    Array[Byte],
+    ph:     Array[Byte],
+    phOff:  Int,
+    sig:    Array[Byte],
+    sigOff: Int
+  ): Unit = {
     val phflag: Byte = 0x01
     implSign(sk, skOff, pk, pkOff, ctx, phflag, ph, phOff, PREHASH_SIZE, sig, sigOff)
   }
 
   def signPrehash(
-                   sk:     Array[Byte],
-                   skOff:  Int,
-                   ctx:    Array[Byte],
-                   ph:     SHA512Digest,
-                   sig:    Array[Byte],
-                   sigOff: Int
-                 ): Unit = {
+    sk:     Array[Byte],
+    skOff:  Int,
+    ctx:    Array[Byte],
+    ph:     SHA512Digest,
+    sig:    Array[Byte],
+    sigOff: Int
+  ): Unit = {
     val m = new Array[Byte](PREHASH_SIZE)
     if (PREHASH_SIZE != ph.doFinal(m, 0)) throw new IllegalArgumentException("ph")
     val phflag: Byte = 0x01
@@ -258,15 +258,15 @@ private[crypto] class ECEd25519 extends EC {
   }
 
   def signPrehash(
-                   sk:     Array[Byte],
-                   skOff:  Int,
-                   pk:     Array[Byte],
-                   pkOff:  Int,
-                   ctx:    Array[Byte],
-                   ph:     SHA512Digest,
-                   sig:    Array[Byte],
-                   sigOff: Int
-                 ): Unit = {
+    sk:     Array[Byte],
+    skOff:  Int,
+    pk:     Array[Byte],
+    pkOff:  Int,
+    ctx:    Array[Byte],
+    ph:     SHA512Digest,
+    sig:    Array[Byte],
+    sigOff: Int
+  ): Unit = {
     val m = new Array[Byte](PREHASH_SIZE)
     if (PREHASH_SIZE != ph.doFinal(m, 0)) throw new IllegalArgumentException("ph")
     val phflag: Byte = 0x01
@@ -274,54 +274,54 @@ private[crypto] class ECEd25519 extends EC {
   }
 
   def verify(
-              sig:    Array[Byte],
-              sigOff: Int,
-              pk:     Array[Byte],
-              pkOff:  Int,
-              m:      Array[Byte],
-              mOff:   Int,
-              mLen:   Int
-            ): Boolean = {
+    sig:    Array[Byte],
+    sigOff: Int,
+    pk:     Array[Byte],
+    pkOff:  Int,
+    m:      Array[Byte],
+    mOff:   Int,
+    mLen:   Int
+  ): Boolean = {
     val ctx: Array[Byte] = Array.empty
     val phflag: Byte = 0x00
     implVerify(sig, sigOff, pk, pkOff, ctx, phflag, m, mOff, mLen)
   }
 
   def verify(
-              sig:    Array[Byte],
-              sigOff: Int,
-              pk:     Array[Byte],
-              pkOff:  Int,
-              ctx:    Array[Byte],
-              m:      Array[Byte],
-              mOff:   Int,
-              mLen:   Int
-            ): Boolean = {
+    sig:    Array[Byte],
+    sigOff: Int,
+    pk:     Array[Byte],
+    pkOff:  Int,
+    ctx:    Array[Byte],
+    m:      Array[Byte],
+    mOff:   Int,
+    mLen:   Int
+  ): Boolean = {
     val phflag: Byte = 0x00
     implVerify(sig, sigOff, pk, pkOff, ctx, phflag, m, mOff, mLen)
   }
 
   def verifyPrehash(
-                     sig:    Array[Byte],
-                     sigOff: Int,
-                     pk:     Array[Byte],
-                     pkOff:  Int,
-                     ctx:    Array[Byte],
-                     ph:     Array[Byte],
-                     phOff:  Int
-                   ): Boolean = {
+    sig:    Array[Byte],
+    sigOff: Int,
+    pk:     Array[Byte],
+    pkOff:  Int,
+    ctx:    Array[Byte],
+    ph:     Array[Byte],
+    phOff:  Int
+  ): Boolean = {
     val phflag: Byte = 0x01
     implVerify(sig, sigOff, pk, pkOff, ctx, phflag, ph, phOff, PREHASH_SIZE)
   }
 
   def verifyPrehash(
-                     sig:    Array[Byte],
-                     sigOff: Int,
-                     pk:     Array[Byte],
-                     pkOff:  Int,
-                     ctx:    Array[Byte],
-                     ph:     SHA512Digest
-                   ): Boolean = {
+    sig:    Array[Byte],
+    sigOff: Int,
+    pk:     Array[Byte],
+    pkOff:  Int,
+    ctx:    Array[Byte],
+    ph:     SHA512Digest
+  ): Boolean = {
     val m = new Array[Byte](PREHASH_SIZE)
     if (PREHASH_SIZE != ph.doFinal(m, 0)) throw new IllegalArgumentException("ph")
     val phflag = 0x01.toByte

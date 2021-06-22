@@ -37,14 +37,13 @@ case class PrivateKeyEd25519(private val privateKey: PrivateKey, private val pub
 
 object PrivateKeyEd25519 extends BifrostSerializer[PrivateKeyEd25519] {
 
-  implicit val secretGenerator: SecretGenerator[PrivateKeyEd25519] = {
+  implicit val secretGenerator: SecretGenerator[PrivateKeyEd25519] =
     SecretGenerator.instance[PrivateKeyEd25519] { seed: Array[Byte] =>
       val ec = new Ed25519
       val (sk, pk) = ec.createKeyPair(seed)
       val secret: PrivateKeyEd25519 = PrivateKeyEd25519(sk, pk)
       secret -> secret.publicImage
     }
-  }
 
   override def serialize(obj: PrivateKeyEd25519, w: Writer): Unit = {
     /* privKeyBytes: Array[Byte] */
