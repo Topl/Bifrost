@@ -7,16 +7,16 @@ import co.topl.crypto.signatures.{Curve25519, Signature}
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, Secret}
 import co.topl.crypto.PublicKey
 import co.topl.utils.codecs.implicits._
+import co.topl.crypto.signatures.Ed25519
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.StringDataTypes.implicits._
-import co.topl.crypto.signatures.eddsa.Ed25519
-import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import spire.ClassTag
 
+import scala.reflect.ClassTag
 import scala.util.Try
 
 /**
@@ -187,16 +187,17 @@ case class SignatureEd25519(private[attestation] val sig: Signature)
     extends ProofOfKnowledge[PrivateKeyEd25519, PublicKeyPropositionEd25519] {
 
   private val signatureLength = sig.infalliblyEncodeAsBytes.length
+  private val ec = new Ed25519
 
   private val ed25519 = new Ed25519
 
   require(
-    signatureLength == 0 || signatureLength == ed25519.SignatureLength,
-    s"$signatureLength != ${ed25519.SignatureLength}"
+    signatureLength == 0 || signatureLength == ec.SignatureLength,
+    s"$signatureLength != ${ec.SignatureLength}"
   )
 
   def isValid(proposition: PublicKeyPropositionEd25519, message: Array[Byte]): Boolean =
-    ed25519.verify(sig, message, PublicKey(proposition.pubKeyBytes.value))
+    ec.verify(sig, message, PublicKey(proposition.pubKeyBytes.value))
 }
 
 object SignatureEd25519 {
@@ -213,7 +214,7 @@ object SignatureEd25519 {
     Proof.fromString(str) match {
       case Right(sig: SignatureEd25519) => sig
       case Right(_)                     => throw new Error("Invalid proof generation")
-      case Left(ex)                     => throw new Exception(s"Invalid signature: $ex")
+      case Left(ex)                     => throw new Error(s"Invalid signature: $ex")
     }
 
   // see circe documentation for custom encoder / decoders

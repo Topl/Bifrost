@@ -211,7 +211,7 @@ object PublicKeyPropositionEd25519 {
     Proposition.fromString(str) match {
       case Right(prop: PublicKeyPropositionEd25519) => prop
       case Right(_)                                 => throw new Error("Invalid proposition generation")
-      case Left(ex)                                 => throw new Error(ex.toString)
+      case Left(ex)                                 => throw new Error(s"$ex")
     }
 
   implicit val evProducer: EvidenceProducer[PublicKeyPropositionEd25519] =

@@ -28,7 +28,7 @@ case class AssetTransfer[
 ) extends TransferTransaction[TokenValueHolder, P](from, to, attestation, fee, timestamp, data, minting) {
 
   override val coinOutput: Iterable[AssetBox] =
-    coinOutputParams.map { case BoxParams(evi, nonce, value: AssetValue) =>
+    coinOutputParams.collect { case BoxParams(evi, nonce, value: AssetValue) =>
       AssetBox(evi, nonce, value)
     }
 
@@ -179,6 +179,11 @@ object AssetTransfer {
         case ThresholdPropositionCurve25519.`typeString` =>
           c.downField("signatures").as[Map[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]].map {
             new AssetTransfer[ThresholdPropositionCurve25519](from, to, _, fee, timestamp, data, minting)
+          }
+
+        case PublicKeyPropositionEd25519.`typeString` =>
+          c.downField("signatures").as[Map[PublicKeyPropositionEd25519, SignatureEd25519]].map {
+            new AssetTransfer[PublicKeyPropositionEd25519](from, to, _, fee, timestamp, data, minting)
           }
       }) match {
         case Right(tx) => tx
