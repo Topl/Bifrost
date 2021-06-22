@@ -296,7 +296,9 @@ class BlockchainGraphSpec
 
     graph = OrientDBGraph(schema, OrientDBGraph.InMemory)
 
-    underTest = new BlockchainGraph()(system, graph, new LevelDBStore(Files.createTempDirectory("BlockchainGraphSpec")))
+    underTest =
+      new BlockchainGraph(graph, 2)(system, new LevelDBStore(Files.createTempDirectory("BlockchainGraphSpec")))
+//    underTest = new BlockchainGraph(graph)(system, MapDBStore.memory())
   }
 
   override def afterAll(): Unit = {

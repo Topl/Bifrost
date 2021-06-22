@@ -2,7 +2,7 @@ package co.topl.storage.graph
 
 sealed abstract class GraphQuery[Result](implicit val resultSchema: NodeSchema[Result])
 
-case class Raw[Result: NodeSchema](query: String) extends GraphQuery[Result]
+case class Raw[Result: NodeSchema](query: String, args: Array[Any]) extends GraphQuery[Result]
 
 case class NodesByClass[Result: NodeSchema](where: Where = WhereAny) extends GraphQuery[Result]
 

@@ -98,6 +98,14 @@ object Dependencies {
     )
   }
 
+  val scalacache: Seq[ModuleID] = {
+    val version = "0.28.0"
+    Seq(
+      "com.github.cb372" %% "scalacache-core"     % version,
+      "com.github.cb372" %% "scalacache-caffeine" % version
+    )
+  }
+
   val node: Seq[ModuleID] = {
     Seq(
       "com.typesafe.akka"          %% "akka-cluster"  % akkaVersion,
@@ -136,7 +144,8 @@ object Dependencies {
     test ++
     orientDb ++
     mapDb ++
-    levelDb
+    levelDb ++
+    scalacache
 
   lazy val chainProgram: Seq[ModuleID] =
     Seq(

@@ -8,15 +8,16 @@ import akka.{Done, NotUsed}
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.storage.iteratorSourceOnDispatcher
-import com.orientechnologies.orient.core.config.OGlobalConfiguration
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.tinkerpop.blueprints.impls.orient._
 import com.tinkerpop.blueprints.{Direction, Edge}
 
 import java.nio.file.Path
+import scala.collection.immutable.ArraySeq
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.jdk.CollectionConverters._
+import scala.util.Try
 
 class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit system: ActorSystem[_])
     extends ReadableGraph {
@@ -51,7 +52,9 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
       )
     )
 
-  def getNode[T: NodeSchema](graphQuery: GraphQuery[T]): EitherT[Future, OrientDBGraph.Error, Option[T]] =
+  def getNode[T: NodeSchema](graphQuery: GraphQuery[T]): EitherT[Future, OrientDBGraph.Error, Option[T]] = {
+    val (query, args) =
+      stringifyQuery(graphQuery)
     EitherT(
       workDispatcher
         .askWithStatus[Option[T]](ref =>
@@ -59,8 +62,8 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
             OrientDBGraphActor.Execute(
               session =>
                 session
-                  .command(new OCommandSQL(stringifyQuery(graphQuery) + " LIMIT 1"))
-                  .execute[OrientDynaElementIterable]()
+                  .command(new OCommandSQL(query + " LIMIT 1"))
+                  .execute[OrientDynaElementIterable](ArraySeq.unsafeWrapArray(args): _*)
                   .iterator()
                   .asScala
                   .collect { case r: OrientVertex @unchecked => r.as[T] }
@@ -72,9 +75,10 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
         .map(Right(_))
         .recover { case e => Left(OrientDBGraph.ThrowableError(e)) }
     )
+  }
 
   def getNodes[T: NodeSchema](graphQuery: GraphQuery[T]): Source[Either[OrientDBGraph.Error, T], NotUsed] = {
-    val query = stringifyQuery(graphQuery)
+    val (query, args) = stringifyQuery(graphQuery)
 
     Source
       .futureSource(
@@ -84,7 +88,7 @@ class OrientDBGraph(schema: GraphSchema, factory: OrientGraphFactory)(implicit s
               session =>
                 session
                   .command(new OCommandSQL(query))
-                  .execute[OrientDynaElementIterable]()
+                  .execute[OrientDynaElementIterable](args: _*)
                   .iterator()
                   .asScala
                   .collect { case r: OrientVertex @unchecked => r.as[T].asRight },
@@ -167,52 +171,74 @@ object OrientDBGraph {
   case object InMemory extends Location
   case class Local(path: Path) extends Location
 
+  private val Password = "topl"
+
   def apply(schema: GraphSchema, location: Location)(implicit system: ActorSystem[_]): OrientDBGraph = {
-    OGlobalConfiguration.RID_BAG_EMBEDDED_TO_SBTREEBONSAI_THRESHOLD.setValue(-1)
 
-    val factory = location match {
-      case InMemory =>
-        new OrientGraphFactory(s"memory:blockchain", true)
+    Try {
+      val adminFactory = new OrientGraphFactory(
+        location match {
+          case InMemory    => "memory:blockchain"
+          case Local(path) => s"plocal:$path"
+        },
+        "admin",
+        "admin"
+      )
+      val session =
+        adminFactory.getNoTx
 
-      case Local(path) =>
-        new OrientGraphFactory(s"plocal:$path", true)
+      session
+        .command(
+          new OCommandSQL(s"UPDATE OUser SET password='$Password' WHERE name='admin'")
+        )
+        .execute()
+      adminFactory.close()
     }
+
+    val factory =
+      new OrientGraphFactory(
+        location match {
+          case InMemory    => "memory:blockchain"
+          case Local(path) => s"plocal:$path"
+        },
+        "admin",
+        Password
+      )
     new OrientDBGraph(schema, factory)
   }
 
   case class NodeReference(query: GraphQuery[_])
 
-  private[graph] def whereToString(where: Where): Option[String] =
+  private[graph] def whereToString(where: Where): Option[(String, Array[Any])] =
     where match {
       case WhereAny => None
       case PropEquals(name, value) =>
-        val value1 = value match {
-          case s1: String => "\"" + s1 + "\""
-          case s1         => s1.toString
-        }
-        Some(s"$name=$value1")
+        Some((s"$name=?", Array(value)))
       case And(op1, op2) =>
         (whereToString(op1), whereToString(op2)) match {
-          case (Some(l), Some(r)) => Some(s"$l && $r")
-          case (Some(l), _)       => Some(l)
-          case (_, Some(r))       => Some(r)
-          case _                  => None
+          case (Some((l, lArgs)), Some((r, rArgs))) => Some((s"$l && $r", lArgs ++ rArgs))
+          case (Some(l), _)                         => Some(l)
+          case (_, Some(r))                         => Some(r)
+          case _                                    => None
         }
       case Or(op1, op2) =>
         (whereToString(op1), whereToString(op2)) match {
-          case (Some(l), Some(r)) => Some(s"$l || $r")
-          case (Some(l), _)       => Some(l)
-          case (_, Some(r))       => Some(r)
-          case _                  => None
+          case (Some((l, lArgs)), Some((r, rArgs))) => Some((s"$l || $r", lArgs ++ rArgs))
+          case (Some(l), _)                         => Some(l)
+          case (_, Some(r))                         => Some(r)
+          case _                                    => None
         }
     }
 
-  private[graph] def stringifyQuery[T](graphQuery: GraphQuery[T]): String =
+  private[graph] def stringifyQuery[T](graphQuery: GraphQuery[T]): (String, Array[Any]) =
     graphQuery match {
       case q @ NodesByClass(where) =>
-        "SELECT" +
+        val wts = whereToString(where)
+        val query = "SELECT" +
           s" FROM ${q.resultSchema.name}" +
-          whereToString(where).fold("")(" WHERE " + _)
+          wts.map(_._1).fold("")(" WHERE " + _)
+
+        (query, wts.fold(Array.empty[Any])(_._2))
       case f @ Trace(where, edges) =>
         val expansion = edges
           .map { edgeWithDirection =>
@@ -224,9 +250,12 @@ object OrientDBGraph {
             s"$directionString('${edgeWithDirection.edgeSchema.name}')"
           }
           .mkString(".")
-        s"SELECT expand($expansion)" +
-        s" FROM ${f.originNodeSchema.name}" +
-        whereToString(where).fold("")(" WHERE " + _)
+        val wts = whereToString(where)
+        val query =
+          s"SELECT expand($expansion)" +
+          s" FROM ${f.originNodeSchema.name}" +
+          wts.map(_._1).fold("")(" WHERE " + _)
+        (query, wts.fold(Array.empty[Any])(_._2))
       case Traverse(origin, edges) =>
         val expansion = edges
           .map { edgeWithDirection =>
@@ -238,11 +267,10 @@ object OrientDBGraph {
             s"$directionString('${edgeWithDirection.edgeSchema.name}')"
           }
           .mkString(".")
-        val originQuery = stringifyQuery(origin)
-        s"TRAVERSE $expansion" +
-        s" FROM ($originQuery)"
-      case Raw(query) =>
-        query
+        val (originQuery, originArgs) = stringifyQuery(origin)
+        (s"TRAVERSE $expansion FROM ($originQuery)", originArgs)
+      case Raw(query, args) =>
+        (query, args)
     }
 
   object Ops {
@@ -269,10 +297,10 @@ abstract class OrientGraphBaseScala(orientGraph: OrientBaseGraph, blockingDispat
 
   import OrientDBGraph._
 
-  def runRawCommand[Result](raw: String): Future[Result] = blockingOperation {
+  def runRawCommand[Result](raw: String, args: Any*): Future[Result] = blockingOperation {
     orientGraph
       .command(new OCommandSQL(raw))
-      .execute[Result]()
+      .execute[Result](args: _*)
   }
 
   protected def blockingOperation[T](operation: => T): Future[T] =
@@ -280,16 +308,20 @@ abstract class OrientGraphBaseScala(orientGraph: OrientBaseGraph, blockingDispat
       operation
     }(blockingDispatcher)
 
-  protected def blockingIteratorQuery(query: String): Iterator[OrientElement] =
+  protected def blockingIteratorQuery(query: String, args: Any*): Iterator[OrientElement] =
     orientGraph
       .command(new OCommandSQL(query))
-      .execute[OrientDynaElementIterable]()
+      .execute[OrientDynaElementIterable](args: _*)
       .iterator()
       .asScala
       .map(_.asInstanceOf[OrientElement])
 
-  protected def resolveNodeReference(ref: OrientDBGraph.NodeReference): OrientVertex =
-    blockingIteratorQuery(stringifyQuery(ref.query)).next().asInstanceOf[OrientVertex]
+  protected def resolveNodeReference(ref: OrientDBGraph.NodeReference): OrientVertex = {
+    val (q, args) = stringifyQuery(ref.query)
+    blockingIteratorQuery(q, ArraySeq.unsafeWrapArray(args): _*)
+      .next()
+      .asInstanceOf[OrientVertex]
+  }
 }
 
 class ReadableOrientGraph(orientGraph: OrientBaseGraph, blockingDispatcher: ExecutionContext)
@@ -302,7 +334,8 @@ class ReadableOrientGraph(orientGraph: OrientBaseGraph, blockingDispatcher: Exec
   override def getNode[T: NodeSchema](graphQuery: GraphQuery[T]): EitherT[Future, OrientDBGraph.Error, Option[T]] =
     EitherT(
       blockingOperation {
-        blockingIteratorQuery(stringifyQuery(graphQuery))
+        val (q, args) = stringifyQuery(graphQuery)
+        blockingIteratorQuery(q, ArraySeq.unsafeWrapArray(args): _*)
           .collect { case r: OrientVertex @unchecked => r.as[T] }
           .nextOption()
           .asRight
@@ -311,9 +344,11 @@ class ReadableOrientGraph(orientGraph: OrientBaseGraph, blockingDispatcher: Exec
 
   override def getNodes[T: NodeSchema](graphQuery: GraphQuery[T]): Source[Either[OrientDBGraph.Error, T], NotUsed] =
     iteratorSourceOnDispatcher(
-      () =>
-        blockingIteratorQuery(stringifyQuery(graphQuery))
-          .collect { case r: OrientVertex @unchecked => r.as[T].asRight },
+      () => {
+        val (q, args) = stringifyQuery(graphQuery)
+        blockingIteratorQuery(q, ArraySeq.unsafeWrapArray(args): _*)
+          .collect { case r: OrientVertex @unchecked => r.as[T].asRight }
+      },
       blockingDispatcher
     )
 
@@ -342,16 +377,20 @@ class WritableOrientGraph(orientGraph: OrientBaseGraph, blockingDispatcher: Exec
 
   override def insertEdge[T](edge: T, srcRef: OrientDBGraph.NodeReference, destRef: OrientDBGraph.NodeReference)(
     implicit schema:               EdgeSchema[T, _, _]
-  ): EitherT[Future, OrientDBGraph.Error, Done] =
+  ): EitherT[Future, OrientDBGraph.Error, Done] = {
+    val (srcQuery, srcArgs) = stringifyQuery(srcRef.query)
+    val (destQuery, destArgs) = stringifyQuery(destRef.query)
     EitherT(
       runRawCommand[Any](
         s"CREATE EDGE ${schema.name}" +
-        s" FROM (${stringifyQuery(srcRef.query)} LIMIT 1)" +
-        s" TO (${stringifyQuery(destRef.query)} LIMIT 1)"
+        s" FROM ($srcQuery LIMIT 1)" +
+        s" TO ($destQuery LIMIT 1)",
+        ArraySeq.unsafeWrapArray(srcArgs ++ destArgs): _*
       )
         .map(_ => Right(Done))
         .recover { case e => Left(OrientDBGraph.ThrowableError(e)) }
     )
+  }
 
   override def deleteEdges[T]()(implicit
     schema: EdgeSchema[T, _, _]

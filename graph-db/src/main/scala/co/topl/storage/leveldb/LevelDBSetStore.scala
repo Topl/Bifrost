@@ -68,5 +68,5 @@ object LevelDBSetStore {
     new LevelDBSetStore[K](db)
   }
 
-  final private[leveldb] val ValueArray: Array[Byte] = Array(1)
+  final private[leveldb] val ValueArray: Array[Byte] = Array.emptyByteArray
 }

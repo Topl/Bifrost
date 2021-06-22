@@ -1,7 +1,7 @@
 package co.topl.storage.graph
 
 import akka.{Done, NotUsed}
-import akka.actor.typed.{ActorRef, Behavior, DispatcherSelector, PostStop, PreRestart, Terminated}
+import akka.actor.typed.{ActorRef, Behavior, DispatcherSelector, PostStop, Terminated}
 import akka.actor.typed.scaladsl.Behaviors
 import akka.pattern.StatusReply
 import akka.stream.scaladsl.{Sink, Source}
@@ -21,7 +21,7 @@ private[graph] object OrientDBGraphActorParent {
       Behaviors.receive((ctx, message) =>
         message match {
           case GiveWork(to) =>
-            withState(readyForWork :+ to, readyForTxWork)
+            withState(to +: readyForWork, readyForTxWork)
           case Work(message) =>
             val (worker, newReadyForWork) =
               readyForWork match {
@@ -41,7 +41,7 @@ private[graph] object OrientDBGraphActorParent {
             withState(newReadyForWork, readyForTxWork)
 
           case GiveTxWork(to) =>
-            withState(readyForWork, readyForTxWork :+ to)
+            withState(readyForWork, to +: readyForTxWork)
 
           case TxWork(message) =>
             val (txWorker, newReadyForTxWork) =

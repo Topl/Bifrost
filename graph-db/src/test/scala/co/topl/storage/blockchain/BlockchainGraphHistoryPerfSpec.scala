@@ -42,7 +42,7 @@ class BlockchainGraphHistoryPerfSpec
   private var underTest: BlockchainGraph = _
 
   private val count = 5000
-  private val parallelism = 4
+  private val parallelism = 2
 
   it should "retrieve a long history" in {
     val t = underTest
@@ -79,9 +79,10 @@ class BlockchainGraphHistoryPerfSpec
     graph = OrientDBGraph(schema, OrientDBGraph.Local(Paths.get(dataDir.toString, "graph")))
 //    graph = OrientDBGraph(schema, OrientDBGraph.InMemory)
 
+//    genericDb = MapDBStore.disk(Paths.get(dataDir.toString, "genericdb"))
     genericDb = new LevelDBStore(Paths.get(dataDir.toString, "genericdb"))
 
-    underTest = new BlockchainGraph()(system, graph, genericDb)
+    underTest = new BlockchainGraph(graph, parallelism)(system, genericDb)
 
     prepareGraph()
   }

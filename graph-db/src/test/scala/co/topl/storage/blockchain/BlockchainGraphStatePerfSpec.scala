@@ -6,7 +6,7 @@ import cats.data.NonEmptyChain
 import cats.scalatest.FutureEitherValues
 import co.topl.storage.graph.OrientDBGraph
 import co.topl.storage.leveldb.LevelDBStore
-import co.topl.storage.mapdb.MapDBStore
+import fixtures.TimedOperation._
 import fixtures.TimedOperationCompletionHandler
 import org.scalatest._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
@@ -14,12 +14,9 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.slf4j.{Logger, LoggerFactory}
 
-import java.nio.file.{Files, Path, Paths}
-import java.util.Comparator
+import java.nio.file.{Path, Paths}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{Duration, _}
-import scala.jdk.CollectionConverters._
-import fixtures.TimedOperation._
 
 @DoNotDiscover
 class BlockchainGraphStatePerfSpec
@@ -44,7 +41,7 @@ class BlockchainGraphStatePerfSpec
   private var genericDb: LevelDBStore = _
   private var underTest: BlockchainGraph = _
 
-  private val count = 5000
+  private val count = 500000
 
   private val snapshotCount = 100
 
@@ -52,7 +49,7 @@ class BlockchainGraphStatePerfSpec
 
   private val boxesPerTx = 5
 
-  private val parallelism = 4
+  private val parallelism = 2
 
   implicit private val timedOperationCompletionHandler: TimedOperationCompletionHandler =
     (name: String, duration: Duration) =>
@@ -125,9 +122,10 @@ class BlockchainGraphStatePerfSpec
 //    graph = OrientDBGraph(schema, OrientDBGraph.InMemory)
     graph = OrientDBGraph(schema, OrientDBGraph.Local(Paths.get(dataDir.toString, "graph")))
 
+//    genericDb = MapDBStore.disk(Paths.get(dataDir.toString, "genericdb"))
     genericDb = new LevelDBStore(Paths.get(dataDir.toString, "genericdb"))
 
-    underTest = new BlockchainGraph()(system, graph, genericDb)
+    underTest = new BlockchainGraph(graph, parallelism)(system, genericDb)
 
     logger.info(s"Preparing graph with $count blocks")
     testStartTimestampNano = System.nanoTime()
@@ -182,11 +180,18 @@ class BlockchainGraphStatePerfSpec
         parallelism,
         partition =>
           Source(partition)
-            .map(NewBlockPackage.forHeight(_, boxesPerTx).nodeModifications)
+            .map(NewBlockPackage.forHeight(_, boxesPerTx))
+            .map { pack =>
+              if (pack.header.height % (count / 20) == 0) {
+                logger.info(s"Inserting block nodes at height=${pack.header.height}")
+              }
+              pack
+            }
+            .map(_.nodeModifications)
             .mapAsync(1)(v => v.run().value.map(_.value))
       )
       .runWith(Sink.ignore)
-      .futureValue(Timeout(10.minutes))
+      .futureValue(Timeout(Duration.Inf))
 
     Source
       .fromIterator(() => (2 to (count + 1)).grouped(count / parallelism))
@@ -194,11 +199,18 @@ class BlockchainGraphStatePerfSpec
         parallelism,
         partition =>
           Source(partition)
-            .map(NewBlockPackage.forHeight(_, boxesPerTx).edgeModifications)
+            .map(NewBlockPackage.forHeight(_, boxesPerTx))
+            .map { pack =>
+              if (pack.header.height % (count / 20) == 0) {
+                logger.info(s"Inserting block edges at height=${pack.header.height}")
+              }
+              pack
+            }
+            .map(_.edgeModifications)
             .mapAsync(1)(v => v.run().value.map(_.value))
       )
       .runWith(Sink.ignore)
-      .futureValue(Timeout(10.minutes))
+      .futureValue(Timeout(Duration.Inf))
 
     NonEmptyChain(SetHead(s"${count + 1}_1")).run().futureRightValue
   }
