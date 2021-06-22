@@ -1,14 +1,16 @@
 package co.topl.attestation.keyManagement
 
+import cats.data.Validated.{Invalid, Valid}
 import co.topl.attestation.Address
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.StringDataTypes.Latin1Data
 import io.circe.Encoder
 import io.circe.syntax.EncoderOps
 
 import java.io.{BufferedWriter, FileWriter}
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 trait Keyfile[S <: Secret] {
   val address: Address
@@ -24,7 +26,14 @@ trait KeyfileCompanion[S <: Secret, KF <: Keyfile[S]] {
    * @param networkPrefix
    * @return
    */
-  def encryptSecret(secret: S, password: String)(implicit networkPrefix: NetworkPrefix): KF
+  def encryptSecretSafe(secret: S, password: Latin1Data)(implicit networkPrefix: NetworkPrefix): KF
+
+  def encryptSecret(secretKey: S, password: String)(implicit
+    networkPrefix:             NetworkPrefix
+  ): KF = Latin1Data.validated(password) match {
+    case Valid(str)      => encryptSecretSafe(secretKey, str)
+    case Invalid(errors) => throw new Error(s"Password is not Latin-1 encoded: $errors")
+  }
 
   /**
    * Retrieves the secret key from an encrypted keyfile
@@ -33,7 +42,14 @@ trait KeyfileCompanion[S <: Secret, KF <: Keyfile[S]] {
    * @param networkPrefix
    * @return
    */
-  def decryptSecret(keyfile: KF, password: String)(implicit networkPrefix: NetworkPrefix): Try[S]
+  def decryptSecretSafe(keyfile: KF, password: Latin1Data)(implicit networkPrefix: NetworkPrefix): Try[S]
+
+  def decryptSecret(keyfile: KF, password: String)(implicit
+    networkPrefix:           NetworkPrefix
+  ): Try[S] = Latin1Data.validated(password) match {
+    case Valid(str)      => decryptSecretSafe(keyfile, str)
+    case Invalid(errors) => Failure(new Error(s"Password is not Latin-1 encoded: $errors"))
+  }
 
   /**
    * Saves an encrypted keyfile to disk
@@ -43,9 +59,11 @@ trait KeyfileCompanion[S <: Secret, KF <: Keyfile[S]] {
    * @param networkPrefix
    * @return
    */
-  def saveToDisk(dir: String, password: String, secretKey: S)(implicit networkPrefix: NetworkPrefix): Try[Unit] = Try {
+  def saveToDiskSafe(dir: String, password: Latin1Data, secretKey: S)(implicit
+    networkPrefix:        NetworkPrefix
+  ): Try[Unit] = Try {
     // encrypt secret using password
-    val kf = encryptSecret(secretKey, password)
+    val kf = encryptSecretSafe(secretKey, password)
 
     // save the keyfile to disk
     val dateString = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString.replace(":", "-")
@@ -53,6 +71,14 @@ trait KeyfileCompanion[S <: Secret, KF <: Keyfile[S]] {
     w.write(kf.asJson.toString)
     w.close()
   }
+
+  def saveToDisk(dir: String, password: String, secretKey: S)(implicit
+    networkPrefix:    NetworkPrefix
+  ): Try[Unit] =
+    Latin1Data.validated(password).map(saveToDiskSafe(dir, _, secretKey)) match {
+      case Valid(success)  => success
+      case Invalid(errors) => Failure(throw new Error(s"Invalid inputs: $errors"))
+    }
 
   /**
    * Reads a given file from disk and attempts to return a keyfile of the correct type

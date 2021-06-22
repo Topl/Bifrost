@@ -1,6 +1,8 @@
 package co.topl.attestation.keyManagement
 
+import co.topl.attestation.{PublicKeyPropositionEd25519, SignatureEd25519}
 import co.topl.attestation.keyManagement.wallet.bip39.Mnemonic.Mnemonic
+import co.topl.crypto.PublicKey
 import co.topl.crypto.hash.sha512
 import org.bouncycastle.crypto.digests.SHA512Digest
 import org.bouncycastle.crypto.macs.HMac
@@ -153,6 +155,8 @@ package object wallet {
 
       ExtendedPublicKey(nextPk, nextChainCode)
     }
+
+    def toProposition: PublicKeyPropositionEd25519 = new PublicKeyPropositionEd25519(PublicKey(bytes.toArray))
   }
 
   def fromMnemonic(m: Mnemonic, password: Option[String]): ExtendedPrivateKey = fromSeed(m(password))
@@ -174,6 +178,8 @@ package object wallet {
       SizedByteVector[ByteVector32].fit(iRight, ByteOrdering.LittleEndian)
     )
   }
+
+  def sign(privateKey: ExtendedPrivateKey, message: Array[Byte]): SignatureEd25519 = ???
 
   private def hmac512WithKey(key: ByteVector, data: ByteVector): ByteVector = {
     val mac = new HMac(new SHA512Digest())

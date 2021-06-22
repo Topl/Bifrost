@@ -2,7 +2,7 @@ package co.topl.nodeView.state
 
 import cats.data.ValidatedNec
 import co.topl.attestation.Address
-import co.topl.attestation.AddressCodec.implicits.StringOps
+import co.topl.attestation.AddressCodec.implicits.Base58DataOps
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
@@ -15,8 +15,8 @@ import co.topl.settings.AppSettings
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.encode.Base58
-import co.topl.utils.codecs.AsBytes.implicits._
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import java.io.File
@@ -315,7 +315,7 @@ object State extends Logging {
       case None                       => None
       case Some(keys) if keys.isEmpty => None
       case Some(keys) =>
-        Some(keys.map(_.decodeAddress.getOrThrow()))
+        Some(keys.map(Base58Data.unsafe(_).decodeAddress.getOrThrow()))
     }
 
     if (nodeKeys.isDefined) log.info(s"Initializing state to watch for public keys: $nodeKeys")

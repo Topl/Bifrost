@@ -6,6 +6,7 @@ import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.Digest32
+import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.encode.Base58
 import io.circe.Json
 import io.circe.parser.parse
@@ -26,7 +27,7 @@ final case class HttpService(apiServices: Seq[ApiRoute], settings: RPCApiSetting
 
   private lazy val apiKeyHash: Option[Array[Byte]] =
     if (settings.apiKeyHash == "") None
-    else Base58.decode(settings.apiKeyHash).toOption
+    else Base58Data.validated(settings.apiKeyHash).map(_.value).toOption
 
   private val apiServiceHandlers: PartialFunction[(String, Vector[Json], String), Future[Json]] =
     apiServices

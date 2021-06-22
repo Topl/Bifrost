@@ -350,4 +350,6 @@ class Ed25519 extends EC with EllipticCurveSignatureScheme {
     signature.value.length == SIGNATURE_SIZE &&
     publicKey.value.length == PUBLIC_KEY_SIZE &&
     verify(signature.value, 0, publicKey.value, 0, message, 0, message.length)
+
+  def sign(pkLeft: Array[Byte], pkRight: Array[Byte], message: MessageToSign): Signature = ???
 }

@@ -2,15 +2,12 @@ package co.topl.modifier.box
 
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.utils.codecs.AsBytes.implicits._
+import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
-
-import scala.util.{Failure, Success}
 
 case class ProgramId(private val hashBytes: Array[Byte]) extends BytesSerializable {
 
@@ -31,14 +28,11 @@ object ProgramId extends BifrostSerializer[ProgramId] {
 
   val size: Int = Digest32.size; // number of bytes in identifier,
 
-  def apply(id: String): ProgramId =
-    Base58.decode(id) match {
-      case Success(id) =>
-        require(id.length == ProgramId.size, s"Invalid size for ProgramId")
-        new ProgramId(id)
-
-      case Failure(ex) => throw ex
-    }
+  def apply(id: Base58Data): ProgramId = {
+    val idBytes = id.value
+    require(idBytes.length == ProgramId.size, s"Invalid size for ProgramId")
+    new ProgramId(idBytes)
+  }
 
   def create(seed: Array[Byte]): ProgramId =
     new ProgramId(blake2b256.hash(seed).value)
@@ -51,6 +45,8 @@ object ProgramId extends BifrostSerializer[ProgramId] {
 
   implicit val jsonEncoder: Encoder[ProgramId] = (id: ProgramId) => id.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[ProgramId] = (id: ProgramId) => id.toString
-  implicit val jsonDecoder: Decoder[ProgramId] = Decoder.decodeString.map(apply)
-  implicit val jsonKeyDecoder: KeyDecoder[ProgramId] = (id: String) => Some(apply(id))
+
+  implicit val jsonDecoder: Decoder[ProgramId] =
+    Decoder.decodeString.emap(Base58Data.validated(_).leftMap(_ => "Value is not Base 58").toEither).map(apply)
+  implicit val jsonKeyDecoder: KeyDecoder[ProgramId] = (id: String) => Base58Data.validated(id).map(apply).toOption
 }
