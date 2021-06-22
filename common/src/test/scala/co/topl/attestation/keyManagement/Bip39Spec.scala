@@ -1,10 +1,9 @@
-package co.topl.attestation.keyManagement.wallets
+package co.topl.attestation.keyManagement
 
 import cats.implicits._
 import co.topl.attestation.keyManagement.bip39.Mnemonic._
 import co.topl.attestation.keyManagement.bip39.{English, Mnemonic}
 import co.topl.utils.CommonGenerators
-import co.topl.utils.codecs.implicits.identityBytesEncoder
 import co.topl.utils.encode.Base16
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
@@ -82,7 +81,7 @@ class Bip39Spec
     }
   }
 
-  def entropyLengthTest(bytes: Int, expected: MnemonicSize): Unit = {
+  def entropyLengthTest(bytes: Int, expected: MnemonicSize): Unit =
     property(s"from entropy of length $bytes should be valid") {
       forAll(specificLengthBytesGen(bytes)) { entropy =>
         if (entropy.length == bytes) {
@@ -92,7 +91,6 @@ class Bip39Spec
         }
       }
     }
-  }
 
   entropyLengthTest(16, Mnemonic12)
   entropyLengthTest(20, Mnemonic15)

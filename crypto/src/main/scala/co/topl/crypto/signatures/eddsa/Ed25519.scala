@@ -3,7 +3,7 @@ package co.topl.crypto.signatures.eddsa
 import cats.implicits._
 import co.topl.crypto.hash.sha256
 import co.topl.crypto.signatures._
-import co.topl.crypto.{PrivateKey, PublicKey, SharedSecret}
+import co.topl.crypto.{PrivateKey, PublicKey}
 
 import java.security.SecureRandom
 import java.util
@@ -350,6 +350,4 @@ class Ed25519 extends EC with EllipticCurveSignatureScheme {
     signature.value.length == SIGNATURE_SIZE &&
     publicKey.value.length == PUBLIC_KEY_SIZE &&
     verify(signature.value, 0, publicKey.value, 0, message, 0, message.length)
-
-  override def createSharedSecret(privateKey: PrivateKey, publicKey: PublicKey): SharedSecret = ???
 }
