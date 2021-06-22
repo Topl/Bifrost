@@ -10,7 +10,7 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
-class Bip39Spec
+class MnemonicSeedPackageSpec
     extends AnyPropSpec
     with CommonGenerators
     with ScalaCheckPropertyChecks
