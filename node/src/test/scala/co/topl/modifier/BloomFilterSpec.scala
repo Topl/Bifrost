@@ -1,21 +1,16 @@
 package co.topl.modifier
 
 import co.topl.attestation.Address
-import co.topl.crypto.signatures.Curve25519
 import co.topl.attestation.keyManagement.PrivateKeyCurve25519
+import co.topl.crypto.signatures.Curve25519
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.block.{BloomFilter, TransactionsCarryingPersistentNodeViewModifier}
 import co.topl.utils.NodeGenerators
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class BloomFilterSpec
-    extends AnyPropSpec
-    with ScalaCheckPropertyChecks
-    with ScalaCheckDrivenPropertyChecks
-    with NodeGenerators
-    with Matchers {
+class BloomFilterSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with NodeGenerators with Matchers {
 
   property("Bloomfilter should be able to tell if it definitely contains an address(false negatives)") {
     forAll(validBifrostTransactionSeqGen) { txs =>

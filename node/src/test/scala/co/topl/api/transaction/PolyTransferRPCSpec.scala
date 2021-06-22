@@ -1,7 +1,5 @@
 package co.topl.api.transaction
 
-import akka.util.ByteString
-import co.topl.api.RPCMockState
 import co.topl.attestation.Address
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.codecs.implicits.base58JsonDecoder
@@ -15,39 +13,33 @@ import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.duration._
 
-class PolyTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState with EitherValues {
+class PolyTransferRPCSpec extends TransferRPCTestMethods {
 
-  var address: Address = _
-  var tx = ""
+  var addressCurve25519send: Address = _
+  var addressCurve25519recv: Address = _
+  var addressEd25519send: Address = _
+  var addressEd25519recv: Address = _
 
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    address = keyRing.addresses.head
+    addressCurve25519send = keyRingCurve25519.addresses.head
+    addressCurve25519recv = keyRingCurve25519.addresses.tail.head
+    addressEd25519send = keyRingEd25519.addresses.head
+    addressEd25519recv = keyRingEd25519.addresses.tail.head
   }
 
   "PolyTransfer RPC" should {
-    "Create new poly transfer raw transaction" in {
-      val requestBody = ByteString(s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "2",
-           |   "method": "topl_rawPolyTransfer",
-           |   "params": [{
-           |     "propositionType": "PublicKeyCurve25519",
-           |     "recipients": [["$address", "1"]],
-           |     "sender": ["$address"],
-           |     "changeAddress": "$address",
-           |     "consolidationAddress": "$address",
-           |     "minting": "false",
-           |     "fee": "1",
-           |     "data": ""
-           |   }]
-           |}
-        """.stripMargin)
+    "Create, sign and broadcast new poly transfer raw transaction from a Curve25519 address to itself" in {
+      val tx = testCreateSignPolyTransfer(addressCurve25519send, addressCurve25519recv, propTypeCurve25519, 3)
+      testBroadcastTx(tx)
+    }
 
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).value
+    "Create, sign and broadcast new poly transfer raw transaction from a Curve25519 address to an Ed25519 address" +
+    " address" in {
+      val tx = testCreateSignPolyTransfer(addressCurve25519send, addressEd25519send, propTypeCurve25519, 3)
+      testBroadcastTx(tx)
+    }
 
         val sigTx = for {
           rawTx   <- res.hcursor.downField("result").get[Json]("rawTx")
@@ -67,23 +59,9 @@ class PolyTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState wi
       }
     }
 
-    "Broadcast signed PolyTransfer transaction" in {
-      val requestBody = ByteString(s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "2",
-           |   "method": "topl_broadcastTx",
-           |   "params": [{
-           |     "tx": $tx
-           |   }]
-           |}
-           |""".stripMargin)
-
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").head.asObject.isDefined shouldBe true
-      }
+    "Create, sign and broadcast new poly transfer raw transaction from an Ed25519 address to a Curve25519 address" in {
+      val tx = testCreateSignPolyTransfer(addressEd25519send, addressCurve25519send, propTypeEd25519, 3)
+      testBroadcastTx(tx)
     }
   }
 }

@@ -11,11 +11,11 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 class ConsensusStorageSpec
     extends AnyFlatSpec
-    with ScalaCheckPropertyChecks
+    with ScalaCheckDrivenPropertyChecks
     with Matchers
     with CommonGenerators
     with MockFactory {

@@ -2,18 +2,13 @@ package co.topl.consensus
 
 import co.topl.consensus.consensusHelper.setProtocolMngr
 import co.topl.nodeView.history.{BlockProcessor, History}
-import co.topl.utils.{CommonGenerators, NodeGenerators}
+import co.topl.utils.NodeGenerators
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class BlockValidatorSpec
-    extends AnyPropSpec
-    with ScalaCheckPropertyChecks
-    with Matchers
-    with CommonGenerators
-    with NodeGenerators {
+class BlockValidatorSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers with NodeGenerators {
 
   var history: History = _
 

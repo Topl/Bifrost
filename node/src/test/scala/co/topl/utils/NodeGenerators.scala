@@ -2,7 +2,7 @@ package co.topl.utils
 
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
-import co.topl.consensus.genesis.PrivateGenesis
+import co.topl.consensus.genesis.TestGenesis
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.Box.identifier
@@ -41,7 +41,8 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
     third  <- Gen.choose(0: Byte, Byte.MaxValue)
   } yield new Version(first, second, third)
 
-  lazy val genesisBlock: Block = PrivateGenesis(keyRing.addresses, settings).getGenesisBlock.get._1
+  lazy val genesisBlock: Block =
+    TestGenesis(keyRingCurve25519.addresses, keyRingEd25519.addresses, settings).getGenesisBlock.get._1
 
   def genesisBlockId: ModifierId = genesisBlock.id
 
@@ -80,7 +81,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
   lazy val validPolyTransferGen: Gen[PolyTransfer[_]] = for {
     from        <- fromSeqGen
     to          <- toSeqGen
-    attestation <- attestationGen
+    attestation <- attestationCurve25519Gen
     key         <- publicKeyPropositionCurve25519Gen
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
@@ -95,7 +96,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
   lazy val validArbitTransferGen: Gen[ArbitTransfer[_]] = for {
     from        <- fromSeqGen
     to          <- toSeqGen
-    attestation <- attestationGen
+    attestation <- attestationCurve25519Gen
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
     data        <- stringGen
@@ -104,7 +105,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
   lazy val validAssetTransferGen: Gen[AssetTransfer[_]] = for {
     from        <- fromSeqGen
     to          <- assetToSeqGen
-    attestation <- attestationGen
+    attestation <- attestationCurve25519Gen
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
     data        <- stringGen
