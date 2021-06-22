@@ -1,17 +1,17 @@
 package co.topl.attestation.keyManagement
 
+import co.topl.attestation.keyManagement.wallet.mnemonicSeed.Mnemonic.Mnemonic
 import co.topl.attestation.{PublicKeyPropositionEd25519, SignatureEd25519}
-import co.topl.attestation.keyManagement.wallet.bip39.Mnemonic.Mnemonic
 import co.topl.crypto.PublicKey
 import co.topl.crypto.hash.sha512
-import org.bouncycastle.crypto.digests.SHA512Digest
+import co.topl.crypto.signatures.{Ed25519, MessageToSign, Signature}
 import org.bouncycastle.crypto.macs.HMac
 import org.bouncycastle.crypto.params.KeyParameter
-import co.topl.crypto.signatures.eddsa.Ed25519
 import co.topl.utils.SizedByteVector
 import co.topl.utils.SizedByteVector.implicits._
 import co.topl.utils.SizedByteVector.Types.{ByteVector28, ByteVector32, ByteVector4}
 import co.topl.utils.codecs.{AsBytes, Infallible}
+import org.bouncycastle.crypto.digests.SHA512Digest
 import scodec.bits.{ByteOrdering, ByteVector}
 
 import java.nio.{ByteBuffer, ByteOrder}
@@ -68,19 +68,23 @@ package object wallet {
 
       val zLeft =
         BigInt(
-          1, SizedByteVector[ByteVector28].fit(z.slice(0, 28), ByteOrdering.LittleEndian).toArray.reverse
+          1,
+          SizedByteVector[ByteVector28].fit(z.slice(0, 28), ByteOrdering.LittleEndian).toArray.reverse
         )
 
       val zRight =
         BigInt(
-          1, SizedByteVector[ByteVector32].fit(z.slice(32, 64), ByteOrdering.LittleEndian).toArray.reverse
+          1,
+          SizedByteVector[ByteVector32].fit(z.slice(32, 64), ByteOrdering.LittleEndian).toArray.reverse
         )
 
       val nextLeft =
         SizedByteVector[ByteVector32].fit(
-          ByteBuffer.wrap(
-            (zLeft * 8 + leftNumber).toByteArray.reverse
-          ).order(ByteOrder.LITTLE_ENDIAN)
+          ByteBuffer
+            .wrap(
+              (zLeft * 8 + leftNumber).toByteArray.reverse
+            )
+            .order(ByteOrder.LITTLE_ENDIAN)
         )
 
       val nextRight =
@@ -179,9 +183,33 @@ package object wallet {
     )
   }
 
-  def sign(privateKey: ExtendedPrivateKey, message: Array[Byte]): SignatureEd25519 = ???
+  def sign(privateKey: ExtendedPrivateKey, message: MessageToSign): SignatureEd25519 = {
+    val mutableKey: ExtendedPrivateKey = privateKey.copy()
+    val ec = new Ed25519
 
-  private def hmac512WithKey(key: ByteVector, data: ByteVector): ByteVector = {
+    val resultSig = new Array[Byte](ec.SIGNATURE_SIZE)
+    val ctx: Array[Byte] = Array.empty
+    val phflag: Byte = 0x00
+
+    val h: Array[Byte] = mutableKey.left.toArray ++ mutableKey.right.toArray
+    val s: Array[Byte] = mutableKey.left.toArray
+    val pk: Array[Byte] = mutableKey.publicKey.bytes.toArray
+    val m: Array[Byte] = message
+
+    ec.implSign(ec.shaDigest, h, s, pk, 0, ctx, phflag, m, 0, m.length, resultSig, 0)
+
+    SignatureEd25519(Signature(resultSig))
+  }
+
+  private[wallet] def hmac512(data: ByteVector): ByteVector = {
+    val mac = new HMac(new SHA512Digest())
+    mac.update(data.toArray, 0, data.length.toInt)
+    val out = new Array[Byte](64)
+    mac.doFinal(out, 0)
+    ByteVector.view(out)
+  }
+
+  private[wallet] def hmac512WithKey(key: ByteVector, data: ByteVector): ByteVector = {
     val mac = new HMac(new SHA512Digest())
     mac.init(new KeyParameter(key.toArray))
     mac.update(data.toArray, 0, data.length.toInt)

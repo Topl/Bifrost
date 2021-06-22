@@ -7,6 +7,7 @@ import co.topl.utils.SizedByteVector.Types._
 import co.topl.utils.SizedByteVector.implicits._
 
 object SizedByteVectorCodec {
+
   trait AsBytesInstances {
     implicit val byteVector128AsBytes: AsBytes[Infallible, ByteVector128] = AsBytes.infallible(_.toArray)
     implicit val byteVector64AsBytes: AsBytes[Infallible, ByteVector64] = AsBytes.infallible(_.toArray)
@@ -16,6 +17,7 @@ object SizedByteVectorCodec {
   }
 
   trait FromBytesInstances {
+
     implicit val byteVector128FromBytes: FromBytes[InvalidSize, ByteVector128] =
       bytes => SizedByteVector[ByteVector128].validated(bytes).toValidatedNec
 
