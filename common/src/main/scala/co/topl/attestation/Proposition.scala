@@ -209,9 +209,9 @@ object PublicKeyPropositionEd25519 {
 
   def apply(str: String): PublicKeyPropositionEd25519 =
     Proposition.fromString(str) match {
-      case Success(prop: PublicKeyPropositionEd25519) => prop
-      case Success(_)                                 => throw new Error("Invalid proposition generation")
-      case Failure(ex)                                => throw ex
+      case Right(prop: PublicKeyPropositionEd25519) => prop
+      case Right(_)                                 => throw new Error("Invalid proposition generation")
+      case Left(ex)                                 => throw new Error(s"$ex")
     }
 
   implicit val evProducer: EvidenceProducer[PublicKeyPropositionEd25519] =

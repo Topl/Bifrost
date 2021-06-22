@@ -50,13 +50,13 @@ object Proof {
   case class ProofParseFailure(error: Throwable) extends ProofFromDataError
   case class ParsedIncorrectSignatureType() extends ProofFromDataError
 
-  def fromBase58[T <: Proof[_] : ClassTag](data: Base58Data): Either[ProofFromDataError, T] =
+  def fromBase58[T <: Proof[_]: ClassTag](data: Base58Data): Either[ProofFromDataError, T] =
     ProofSerializer.parseBytes(data.value).toEither.leftMap(ProofParseFailure).flatMap {
       case t: T => Right(t)
       case _    => Left(ParsedIncorrectSignatureType())
     }
 
-  def fromString[T <: Proof[_] : ClassTag](str: String): Either[ProofFromDataError, T] =
+  def fromString[T <: Proof[_]: ClassTag](str: String): Either[ProofFromDataError, T] =
     Base58Data.validated(str).toEither.leftMap(_ => InvalidBase58()).flatMap(fromBase58[T])
 
   implicit def jsonEncoder[PR <: Proof[_]]: Encoder[PR] = (proof: PR) => proof.toString.asJson
@@ -209,9 +209,9 @@ object SignatureEd25519 {
 
   def apply(str: String): SignatureEd25519 =
     Proof.fromString(str) match {
-      case Success(sig: SignatureEd25519) => sig
-      case Success(_)                     => throw new Error("Invalid proof generation")
-      case Failure(ex)                    => throw new Exception(s"Invalid signature: $ex")
+      case Right(sig: SignatureEd25519) => sig
+      case Right(_)                     => throw new Error("Invalid proof generation")
+      case Left(ex)                     => throw new Error(s"Invalid signature: $ex")
     }
 
   // see circe documentation for custom encoder / decoders

@@ -1,14 +1,16 @@
 package co.topl.attestation.keyManagement
 
+import cats.implicits._
 import co.topl.attestation.Address
 import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signatures.Ed25519
-import co.topl.utils.codecs.AsBytes.implicits.identityBytesEncoder
+import co.topl.utils.codecs.implicits._
 import co.topl.utils.Extensions.StringOps
-import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.SecureRandom.randomBytes
+import co.topl.utils.StringDataTypes.implicits._
+import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import co.topl.utils.encode.Base58
 import io.circe.parser.parse
 import io.circe.syntax._
@@ -47,19 +49,14 @@ object KeyfileEd25519 {
 
   implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[KeyfileEd25519] = (c: HCursor) =>
     for {
-      address          <- c.downField("address").as[Address]
-      cipherTextString <- c.downField("crypto").downField("cipherText").as[String]
-      macString        <- c.downField("crypto").downField("mac").as[String]
-      saltString       <- c.downField("crypto").downField("kdfSalt").as[String]
-      ivString         <- c.downField("crypto").downField("cipherParams").downField("iv").as[String]
+      address    <- c.downField("address").as[Address]
+      cipherText <- c.downField("crypto").downField("cipherText").as[Base58Data]
+      mac        <- c.downField("crypto").downField("mac").as[Base58Data]
+      salt       <- c.downField("crypto").downField("kdfSalt").as[Base58Data]
+      iv         <- c.downField("crypto").downField("cipherParams").downField("iv").as[Base58Data]
     } yield {
-      val cipherText = Base58.decode(cipherTextString).get
-      val mac = Base58.decode(macString).get
-      val salt = Base58.decode(saltString).get
-      val iv = Base58.decode(ivString).get
-
       implicit val netPrefix: NetworkPrefix = address.networkPrefix
-      new KeyfileEd25519(address, cipherText, mac, salt, iv)
+      new KeyfileEd25519(address, cipherText.value, mac.value, salt.value, iv.value)
     }
 }
 
@@ -71,15 +68,15 @@ object KeyfileEd25519Companion extends KeyfileCompanion[PrivateKeyEd25519, Keyfi
    * @param password string used to encrypt the private key when saved to disk
    * @return
    */
-  def encryptSecret(secretKey: PrivateKeyEd25519, password: String)(implicit
-    networkPrefix:             NetworkPrefix
+  override def encryptSecretSafe(secretKey: PrivateKeyEd25519, password: Latin1Data)(implicit
+    networkPrefix:                          NetworkPrefix
   ): KeyfileEd25519 = {
     // get random bytes to obfuscate the cipher
     val salt = randomBytes(32)
     val ivData = randomBytes(16)
 
     // calculate the deterministic key used to create the cipher
-    val derivedKey = getDerivedKey(password, salt)
+    val derivedKey = getDerivedKey(password.show, salt)
 
     // encrypt private key
     val (cipherText, mac) = getAESResult(derivedKey, ivData, secretKey.bytes, encrypt = true)
@@ -91,10 +88,10 @@ object KeyfileEd25519Companion extends KeyfileCompanion[PrivateKeyEd25519, Keyfi
     new KeyfileEd25519(address, cipherText, mac, salt, ivData)
   }
 
-  def decryptSecret(encryptedKeyFile: KeyfileEd25519, password: String)(implicit
-    networkPrefix:                    NetworkPrefix
+  override def decryptSecretSafe(encryptedKeyFile: KeyfileEd25519, password: Latin1Data)(implicit
+    networkPrefix:                                 NetworkPrefix
   ): Try[PrivateKeyEd25519] = Try {
-    val derivedKey = getDerivedKey(password, encryptedKeyFile.salt)
+    val derivedKey = getDerivedKey(password.show, encryptedKeyFile.salt)
     val calcMAC = getMAC(derivedKey, encryptedKeyFile.cipherText)
 
     require(calcMAC sameElements encryptedKeyFile.mac, "MAC does not match. Try again")
