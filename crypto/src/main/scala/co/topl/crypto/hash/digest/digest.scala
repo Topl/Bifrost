@@ -1,6 +1,6 @@
 package co.topl.crypto.hash
 
-import cats.Eq
+import cats.{Eq, Show}
 import cats.data.{Validated, ValidatedNec}
 import io.estatico.newtype.macros.newtype
 import io.estatico.newtype.ops._
@@ -97,15 +97,19 @@ package object digest {
 
       override def bytes(d: Digest64): Array[Byte] = d.value
     }
+
+    implicit val showInvalidDigestFailure: Show[InvalidDigestFailure] = { case IncorrectSize =>
+      s"Digest is the incorrect size"
+    }
+
+    implicit def eqDigest[D: Digest]: Eq[D] = Digest[D].bytes(_) sameElements Digest[D].bytes(_)
+
+    implicit val eqDigest32: Eq[Digest32] = eqDigest[Digest32]
+
+    implicit val eqDigest64: Eq[Digest64] = eqDigest[Digest64]
   }
 
-  trait Extensions {
-    import Digest.ops._
-
-    implicit def eqDigest[D: Digest]: Eq[D] = _.bytes sameElements _.bytes
-  }
-
-  trait DigestImplicits extends Instances with Digest.ToDigestOps with Extensions
+  trait DigestImplicits extends Instances with Digest.ToDigestOps
 
   object implicits extends DigestImplicits
 }
