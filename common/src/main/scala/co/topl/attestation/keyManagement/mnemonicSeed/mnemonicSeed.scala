@@ -2,7 +2,7 @@ package co.topl.attestation.keyManagement
 
 import scala.math.BigInt
 
-package object bip39 {
+package object mnemonicSeed {
 
   val byteLen = 8
   val indexLen = 11

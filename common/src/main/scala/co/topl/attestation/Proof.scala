@@ -1,7 +1,7 @@
 package co.topl.attestation
 
 import cats.implicits._
-import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519, Secret}
+import co.topl.attestation.keyManagement.PrivateKeyEd25519
 import co.topl.attestation.serialization.ProofSerializer
 import co.topl.crypto.signatures.{Curve25519, Signature}
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, Secret}
@@ -10,7 +10,6 @@ import co.topl.utils.codecs.implicits._
 import co.topl.crypto.signatures.Ed25519
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.StringDataTypes.implicits._
-import co.topl.crypto.signatures.eddsa.Ed25519
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
@@ -189,19 +188,17 @@ case class SignatureEd25519(private[attestation] val sig: Signature)
   private val signatureLength = sig.infalliblyEncodeAsBytes.length
   private val ec = new Ed25519
 
-  private val ed25519 = new Ed25519
-
   require(
-    signatureLength == 0 || signatureLength == ed25519.SignatureLength,
-    s"$signatureLength != ${ed25519.SignatureLength}"
+    signatureLength == 0 || signatureLength == Ed25519.SignatureLength,
+    s"$signatureLength != ${Ed25519.SignatureLength}"
   )
 
   def isValid(proposition: PublicKeyPropositionEd25519, message: Array[Byte]): Boolean =
-    ed25519.verify(sig, message, PublicKey(proposition.pubKeyBytes.value))
+    ec.verify(sig, message, PublicKey(proposition.pubKeyBytes.value))
 }
 
 object SignatureEd25519 {
-  lazy val signatureSize: Int = new Ed25519().SignatureLength
+  lazy val signatureSize: Int = Ed25519.SignatureLength
 
   /** Helper function to create empty signatures */
   lazy val empty: SignatureEd25519 = SignatureEd25519(Signature(Array.emptyByteArray))

@@ -1,8 +1,8 @@
 package co.topl.attestation.keyManagement
 
 import cats.implicits._
-import co.topl.attestation.keyManagement.bip39.Mnemonic._
-import co.topl.attestation.keyManagement.bip39.{English, Mnemonic}
+import co.topl.attestation.keyManagement.mnemonicSeed.Mnemonic._
+import co.topl.attestation.keyManagement.mnemonicSeed.{English, Mnemonic}
 import co.topl.utils.CommonGenerators
 import co.topl.utils.encode.Base16
 import org.scalacheck.Gen

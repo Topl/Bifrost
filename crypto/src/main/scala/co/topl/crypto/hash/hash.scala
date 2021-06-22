@@ -59,14 +59,12 @@ package object hash {
   val blake2b512: Hash[Blake2b, Digest64] = new Blake2bHash[Digest64] {}
   val sha256: Hash[Sha, Digest32] = new ShaHash[Digest32]("Sha-256") {}
   val sha512: Hash[Sha, Digest64] = new ShaHash[Digest64]("Sha-512") {}
-  val hmacSha512: Hash[HmacSha, Digest64] = new HmacSha512
 
   trait Instances {
     implicit val sha256Hash: Hash[Sha, Digest32] = sha256
     implicit val sha512Hash: Hash[Sha, Digest64] = sha512
     implicit val blake2b256Hash: Hash[Blake2b, Digest32] = blake2b256
     implicit val blake2b512Hash: Hash[Blake2b, Digest64] = blake2b512
-    implicit val hmacSha512Hash: Hash[HmacSha, Digest64] = hmacSha512
   }
 
   object implicits extends Instances with DigestImplicits

@@ -16,9 +16,6 @@ case class PrivateKeyEd25519(private val privateKey: PrivateKey, private val pub
   require(privateKeyLength == ec.KeyLength, s"$privateKeyLength == ${ec.KeyLength}")
   require(publicKeyLength == ec.KeyLength, s"$publicKeyLength == ${ec.KeyLength}")
 
-  require(privateKeyLength == ed25519.KeyLength, s"$privateKeyLength == ${ed25519.KeyLength}")
-  require(publicKeyLength == ed25519.KeyLength, s"$publicKeyLength == ${ed25519.KeyLength}")
-
   override type S = PrivateKeyEd25519
   override type PK = PublicKeyPropositionEd25519
   override type PR = SignatureEd25519
@@ -40,8 +37,6 @@ case class PrivateKeyEd25519(private val privateKey: PrivateKey, private val pub
 
 object PrivateKeyEd25519 extends BifrostSerializer[PrivateKeyEd25519] {
 
-  private val ed25519KeyLength = new Ed25519().KeyLength
-
   implicit val secretGenerator: SecretGenerator[PrivateKeyEd25519] = {
     SecretGenerator.instance[PrivateKeyEd25519] { seed: Array[Byte] =>
       val ec = new Ed25519
@@ -60,6 +55,6 @@ object PrivateKeyEd25519 extends BifrostSerializer[PrivateKeyEd25519] {
   }
 
   override def parse(r: Reader): PrivateKeyEd25519 =
-    PrivateKeyEd25519(PrivateKey(r.getBytes(ed25519KeyLength)), PublicKey(r.getBytes(ed25519KeyLength)))
+    PrivateKeyEd25519(PrivateKey(r.getBytes(Ed25519.KeyLength)), PublicKey(r.getBytes(Ed25519.KeyLength)))
 
 }

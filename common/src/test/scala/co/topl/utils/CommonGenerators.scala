@@ -551,7 +551,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     genBytesList(Curve25519.KeyLength).map(s => PrivateKeyCurve25519.secretGenerator.generateSecret(s))
 
   lazy val keyEd25519Gen: Gen[(PrivateKeyEd25519, PublicKeyPropositionEd25519)] =
-    genBytesList(new Ed25519().KeyLength).map(s => PrivateKeyEd25519.secretGenerator.generateSecret(s))
+    genBytesList(Ed25519.KeyLength).map(s => PrivateKeyEd25519.secretGenerator.generateSecret(s))
 
   lazy val keyGen: Gen[(_ <: Secret, _ <: Proposition)] = Gen.oneOf(keyCurve25519Gen, keyEd25519Gen)
 
