@@ -4,6 +4,8 @@ import akka.util.ByteString
 import co.topl.api.RPCMockState
 import co.topl.attestation.Address
 import co.topl.modifier.box.AssetCode
+import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
+import co.topl.utils.codecs.implicits.base58JsonDecoder
 import co.topl.utils.encode.Base58
 import io.circe.Json
 import io.circe.parser.parse
@@ -23,7 +25,7 @@ class AssetRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
 
     address = keyRing.addresses.head
     recipients = assetToSeqGen.sample.get.asJson.toString()
-    assetCode = AssetCode(1: Byte, address, "test")
+    assetCode = AssetCode(1: Byte, address, Latin1Data.unsafe("test"))
   }
 
   "AssetTransfer RPC" should {
@@ -61,9 +63,9 @@ class AssetRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
 
         val sigTx = for {
           rawTx   <- res.hcursor.downField("result").get[Json]("rawTx")
-          message <- res.hcursor.downField("result").get[String]("messageToSign")
+          message <- res.hcursor.downField("result").get[Base58Data]("messageToSign")
         } yield {
-          val sig = keyRing.generateAttestation(address)(Base58.decode(message).get)
+          val sig = keyRing.generateAttestation(address)(message.value)
           val signatures: Json = Map(
             "signatures" -> sig.asJson
           ).asJson

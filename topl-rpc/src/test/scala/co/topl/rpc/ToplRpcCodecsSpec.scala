@@ -4,6 +4,7 @@ import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 import co.topl.modifier.box._
 import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.StringDataTypes.Latin1Data
 import io.circe.syntax._
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
@@ -14,7 +15,7 @@ class ToplRpcCodecsSpec extends AnyFlatSpec with ToplRpcCodecs with Matchers wit
   implicit private val networkPrefix: NetworkPrefix = NetworkType.PrivateTestnet.netPrefix
 
   private val address = PrivateKeyCurve25519.secretGenerator.generateSecret("test".getBytes)._2.address
-  private val assetCode = AssetCode(1: Byte, address, "test")
+  private val assetCode = AssetCode(1: Byte, address, Latin1Data.unsafe("test"))
 
   behavior of "ToplRpcCodecs"
 
