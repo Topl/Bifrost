@@ -1,4 +1,4 @@
-package co.topl.attestation.keyManagement.wallet.bip39
+package co.topl.attestation.keyManagement.mnemonicSeed
 
 import cats.implicits._
 import co.topl.crypto.Pbkdf2Sha512
@@ -7,6 +7,7 @@ import co.topl.crypto.hash.sha256
 import java.util.UUID
 import scala.language.implicitConversions
 
+// mnemonic seed protocol follows BIP-39 -> https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
 object Mnemonic {
 
   type Password = String

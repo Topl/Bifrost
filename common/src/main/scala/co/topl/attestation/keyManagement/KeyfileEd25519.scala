@@ -103,9 +103,7 @@ object KeyfileEd25519Companion extends KeyfileCompanion[PrivateKeyEd25519, Keyfi
       encrypt = false
     ) match {
       case (cipherBytes, _) =>
-        val ed25519 = new Ed25519
-
-        cipherBytes.grouped(ed25519.KeyLength).toSeq match {
+        cipherBytes.grouped(Ed25519.KeyLength).toSeq match {
           case Seq(skBytes, pkBytes) =>
             // recreate the private key
             val privateKey = new PrivateKeyEd25519(PrivateKey(skBytes), PublicKey(pkBytes))

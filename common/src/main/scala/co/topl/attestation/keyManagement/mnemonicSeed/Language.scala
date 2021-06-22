@@ -1,4 +1,4 @@
-package co.topl.attestation.keyManagement.wallet.bip39
+package co.topl.attestation.keyManagement.mnemonicSeed
 
 import cats.implicits._
 import co.topl.crypto.hash.sha256
