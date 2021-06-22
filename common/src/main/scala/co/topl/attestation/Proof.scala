@@ -15,6 +15,7 @@ import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 
+import scala.reflect.ClassTag
 import scala.util.Try
 
 /**
@@ -49,13 +50,13 @@ object Proof {
   case class ProofParseFailure(error: Throwable) extends ProofFromDataError
   case class ParsedIncorrectSignatureType() extends ProofFromDataError
 
-  def fromBase58[T <: Proof[_]](data: Base58Data): Either[ProofFromDataError, T] =
+  def fromBase58[T <: Proof[_] : ClassTag](data: Base58Data): Either[ProofFromDataError, T] =
     ProofSerializer.parseBytes(data.value).toEither.leftMap(ProofParseFailure).flatMap {
       case t: T => Right(t)
       case _    => Left(ParsedIncorrectSignatureType())
     }
 
-  def fromString[T <: Proof[_]](str: String): Either[ProofFromDataError, T] =
+  def fromString[T <: Proof[_] : ClassTag](str: String): Either[ProofFromDataError, T] =
     Base58Data.validated(str).toEither.leftMap(_ => InvalidBase58()).flatMap(fromBase58[T])
 
   implicit def jsonEncoder[PR <: Proof[_]]: Encoder[PR] = (proof: PR) => proof.toString.asJson
