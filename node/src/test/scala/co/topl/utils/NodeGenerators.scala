@@ -73,48 +73,15 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
   lazy val validBifrostTransactionSeqGen: Gen[Seq[TX]] = for {
     seqLen <- positiveMediumIntGen
   } yield 0 until seqLen map { _ =>
-    val g: Gen[TX] = sampleUntilNonEmpty(Gen.oneOf(???))
+    val g: Gen[TX] = sampleUntilNonEmpty(
+      Gen.oneOf(
+        validPolyTransferGen(keyRingCurve25519, keyRingEd25519, genesisState),
+        validArbitTransferGen(keyRingCurve25519, keyRingEd25519, genesisState),
+        validAssetTransferGen(keyRingCurve25519, keyRingEd25519, genesisState, minting = true)
+      )
+    )
     sampleUntilNonEmpty(g)
   }
-
-  //TODO: Jing - these three are not used anywhere
-//  lazy val validPolyTransferGen: Gen[PolyTransfer[_]] = for {
-//    from        <- fromSeqGen
-//    to          <- toSeqGen
-//    attestation <- attestationCurve25519Gen
-//    key         <- publicKeyPropositionCurve25519Gen
-//    fee         <- positiveLongGen
-//    timestamp   <- positiveLongGen
-//    data        <- stringGen
-//  } yield {
-//
-//    val tx = PolyTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
-//    val sig = key._1.sign(tx.messageToSign)
-//    tx.copy(attestation = Map(key._2 -> sig))
-//  }
-//
-//  lazy val validArbitTransferGen: Gen[ArbitTransfer[_]] = for {
-//    from        <- fromSeqGen
-//    to          <- toSeqGen
-//    attestation <- attestationCurve25519Gen
-//    fee         <- positiveLongGen
-//    timestamp   <- positiveLongGen
-//    data        <- stringGen
-//  } yield ArbitTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
-//
-//  lazy val validAssetTransferGen: Gen[AssetTransfer[_]] = for {
-//    from        <- fromSeqGen
-//    to          <- assetToSeqGen
-//    attestation <- attestationCurve25519Gen
-//    fee         <- positiveLongGen
-//    timestamp   <- positiveLongGen
-//    data        <- stringGen
-//  } yield AssetTransfer(from, to, attestation, fee, timestamp, Some(data), minting = true)
-
-//  def genesisState(settings: AppSettings, genesisBlockWithVersion: Block = genesisBlock): State = {
-//    History.readOrGenerate(settings).append(genesisBlock)
-//    State.genesisState(settings, Seq(genesisBlockWithVersion))
-//  }
 
   def validPolyTransferCurve25519Gen(
     keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
@@ -311,7 +278,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
     keyRingEd25519:    KeyRing[PrivateKeyEd25519, KeyfileEd25519],
     state:             State,
     fee:               Long = 1L,
-    minting: Boolean = false
+    minting:           Boolean = false
   ): Gen[AssetTransfer[_ <: Proposition]] =
     Gen.oneOf(
       validAssetTransferCurve25519Gen(keyRingCurve25519, state, fee, minting),
@@ -331,5 +298,4 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
     }.toSeq
     ownerQuantities.filter(_._2 > 0)
   }
-
 }
