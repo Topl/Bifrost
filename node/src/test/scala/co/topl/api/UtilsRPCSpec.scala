@@ -8,7 +8,6 @@ import co.topl.crypto.hash.implicits._
 import co.topl.modifier.box.AssetCode
 import co.topl.rpc.ToplRpcErrors
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
-import co.topl.utils.codecs.CryptoCodec.implicits._
 import co.topl.utils.codecs.implicits.base58JsonDecoder
 import co.topl.utils.encode.Base58
 import io.circe.Json
@@ -16,8 +15,6 @@ import io.circe.parser.parse
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-
-import scala.util.{Failure, Success}
 
 class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState with EitherValues {
 
@@ -115,9 +112,9 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState with Eith
           |}
         """.stripMargin)
 
-      httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]).value
-        val oldAssetCode: AssetCode = AssetCode(1: Byte, address, Latin1Data.unsafe("testcode"))
+        httpPOST(requestBody) ~> route ~> check {
+          val res: Json = parse(responseAs[String]).value
+          val oldAssetCode: AssetCode = AssetCode(1: Byte, address, Latin1Data.unsafe("testcode"))
 
           val genAssetCode: AssetCode = res.hcursor.downField("result").get[AssetCode]("assetCode").value
 

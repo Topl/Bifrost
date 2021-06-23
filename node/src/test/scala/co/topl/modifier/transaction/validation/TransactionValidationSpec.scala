@@ -191,9 +191,8 @@ class TransactionValidationSpec
   }
 
   property("Transaction with negative fee should be invalid") {
-    forAll(validPolyTransferCurve25519Gen(keyRingCurve25519, genesisState).map(tx => signTx(tx.copy(fee = -1)))) {
-      tx =>
-        tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](NegativeFeeFailure)
+    forAll(validPolyTransferCurve25519Gen(keyRingCurve25519, genesisState).map(tx => signTx(tx.copy(fee = -1)))) { tx =>
+      tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](NegativeFeeFailure)
     }
 
     forAll(validPolyTransferEd25519Gen(keyRingEd25519, genesisState).map(tx => signTx(tx.copy(fee = -1)))) { tx =>
@@ -208,9 +207,8 @@ class TransactionValidationSpec
       tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](InvalidTimestamp)
     }
 
-    forAll(validPolyTransferEd25519Gen(keyRingEd25519, genesisState).map(tx => signTx(tx.copy(timestamp = -1)))) {
-      tx =>
-        tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](InvalidTimestamp)
+    forAll(validPolyTransferEd25519Gen(keyRingEd25519, genesisState).map(tx => signTx(tx.copy(timestamp = -1)))) { tx =>
+      tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](InvalidTimestamp)
     }
   }
 
