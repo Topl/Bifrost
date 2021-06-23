@@ -4,6 +4,7 @@ import cats.implicits._
 import co.topl.attestation.keyManagement.mnemonicSeed.Mnemonic._
 import co.topl.attestation.keyManagement.mnemonicSeed.{English, Mnemonic}
 import co.topl.utils.CommonGenerators
+import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.encode.Base16
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
@@ -244,6 +245,86 @@ class MnemonicSeedPackageSpec
 
       hexResult shouldBe vector.seed
     }
+  }
+
+  property("mnemonic with extra whitespace is valid") {
+    val mnemonic = Mnemonic.fromPhrase(
+      "vessel ladder alter error  federal sibling chat   ability sun glass valve picture",
+      Mnemonic12,
+      English
+    )
+
+    mnemonic.isRight shouldBe true
+  }
+
+  property("mnemonic with extra whitespace has same seed as single spaced") {
+    val password: Option[String] = None
+
+    val expectedSeed = Mnemonic
+      .fromPhrase(
+        "vessel ladder alter error federal sibling chat ability sun glass valve picture",
+        Mnemonic12,
+        English
+      )
+      .getOrThrow()(password)
+
+    val seed = Mnemonic
+      .fromPhrase(
+        "vessel ladder alter error  federal sibling chat   ability sun glass valve picture",
+        Mnemonic12,
+        English
+      )
+      .getOrThrow()(password)
+
+    seed shouldBe expectedSeed
+  }
+
+  property("mnemonic with capital letters is valid") {
+    val mnemonic = Mnemonic.fromPhrase(
+      "Legal Winner Thank Year Wave Sausage Worth Useful Legal " +
+      "Winner Thank Year Wave Sausage Worth Useful Legal Will",
+      Mnemonic18,
+      English
+    )
+
+    mnemonic.isRight shouldBe true
+  }
+
+  property("mnemonic with capital letters has same seed as lowercase") {
+    val password: Option[String] = None
+
+    val expectedSeed = Mnemonic
+      .fromPhrase(
+        "legal winner thank year wave sausage worth useful legal " +
+        "winner thank year wave sausage worth useful legal will",
+        Mnemonic18,
+        English
+      )
+      .getOrThrow()(password)
+
+    val seed = Mnemonic
+      .fromPhrase(
+        "Legal Winner Thank Year Wave Sausage Worth Useful Legal " +
+        "Winner Thank Year Wave Sausage Worth Useful Legal Will",
+        Mnemonic18,
+        English
+      )
+      .getOrThrow()(password)
+
+    seed shouldBe expectedSeed
+  }
+
+  property("mnemonic with unusual characters is invalid") {
+    val mnemonic = Mnemonic.fromPhrase(
+      "voi\uD83D\uDD25d come effort suffer camp su\uD83D\uDD25rvey warrior heavy shoot primary" +
+      " clutch c\uD83D\uDD25rush" +
+      " open amazing screen " +
+      "patrol group space point ten exist slush inv\uD83D\uDD25olve unfold",
+      Mnemonic24,
+      English
+    )
+
+    mnemonic shouldBe Left(InvalidWords())
   }
 
   def mnemonic12TestVector(phrase: String, seed: String): Bip39TestVector =
