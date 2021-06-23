@@ -9,6 +9,7 @@ import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.{Int128, NetworkType}
 
 import scala.util.Try
@@ -18,7 +19,7 @@ case object HelGenesis extends GenesisProvider {
   implicit val networkPrefix: NetworkPrefix = NetworkType.HelTestnet.netPrefix
 
   override protected val blockChecksum: ModifierId =
-    ModifierId("29jsARiMtRqoE5Z8okN6fddDVN4HHeDb7vdvsaEPVzgXD")
+    ModifierId.fromBase58(Base58Data.unsafe("29jsARiMtRqoE5Z8okN6fddDVN4HHeDb7vdvsaEPVzgXD"))
 
   override protected val blockVersion: PNVMVersion = 1: Byte
 

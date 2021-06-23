@@ -1,10 +1,12 @@
 package co.topl.nodeView.history
 
+import cats.data.Validated.{Invalid, Valid}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.PersistentNodeViewModifier
 import co.topl.network.message.SyncInfo
 import co.topl.nodeView.NodeViewComponent
+import co.topl.utils.StringDataTypes.Base58Data
 
 import scala.util.Try
 
@@ -58,7 +60,11 @@ trait GenericHistory[
 
   def modifierById(modifierId: ModifierId): Option[PM]
 
-  def modifierById(modifierId: String): Option[PM] = modifierById(ModifierId(modifierId))
+  def modifierById(modifierId: String): Option[PM] =
+    Base58Data.validated(modifierId).map(ModifierId.fromBase58).map(modifierById) match {
+      case Valid(res) => res
+      case Invalid(_) => throw new Error(s"modifierId is not Base-58!")
+    }
 
   def modifierByHeight(height: Long): Option[PM]
 
