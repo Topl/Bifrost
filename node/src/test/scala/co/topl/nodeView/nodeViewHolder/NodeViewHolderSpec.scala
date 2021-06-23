@@ -34,7 +34,7 @@ class NodeViewHolderSpec extends AnyPropSpec with PrivateMethodTester with MockS
 
   // TODO replace reward transactions with valid transactions
   property("Rewards transactions are removed from transactions extracted from a block being rolled back") {
-    forAll(blockGen) { block =>
+    forAll(blockCurve25519Gen) { block =>
       val polyReward = sampleUntilNonEmpty(polyTransferGen)
       val arbitReward = sampleUntilNonEmpty(arbitTransferGen)
       val rewardBlock = block.copy(transactions = Seq(arbitReward, polyReward))

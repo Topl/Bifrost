@@ -85,30 +85,20 @@ class KeySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with NodeG
   }
 
   property("The proof from signing with an address should only be valid for the corresponding proposition") {
-    <<<<<<< HEAD
     val propCurve25519 = keyRingCurve25519.lookupPublicKey(addressCurve25519).get
-    val newAddrCurve25519: Address = keyRingCurve25519.DiskOps.generateKeyFile(stringGen.sample.get).get
+    val newAddrCurve25519: Address =
+      keyRingCurve25519.DiskOps.generateKeyFile(Latin1Data.unsafe(stringGen.sample.get)).get
     val newPropCurve25519 = keyRingCurve25519.lookupPublicKey(newAddrCurve25519).get
     val newProofCurve25519 = keyRingCurve25519.signWithAddress(newAddrCurve25519)(messageByte).get
     newProofCurve25519.isValid(propCurve25519, messageByte) shouldBe false
     newProofCurve25519.isValid(newPropCurve25519, messageByte) shouldBe true
 
     val propEd25519 = keyRingEd25519.lookupPublicKey(addressEd25519).get
-    val newAddrEd25519: Address = keyRingEd25519.DiskOps.generateKeyFile(stringGen.sample.get).get
+    val newAddrEd25519: Address = keyRingEd25519.DiskOps.generateKeyFile(Latin1Data.unsafe(stringGen.sample.get)).get
     val newPropEd25519 = keyRingEd25519.lookupPublicKey(newAddrEd25519).get
     val newProofEd25519 = keyRingEd25519.signWithAddress(newAddrEd25519)(messageByte).get
     newProofEd25519.isValid(propEd25519, messageByte) shouldBe false
     newProofEd25519.isValid(newPropEd25519, messageByte) shouldBe true
-    =======
-    val prop = keyRing.lookupPublicKey(address).get
-
-    val newAddr: Address = keyRing.DiskOps.generateKeyFile(Latin1Data.unsafe(stringGen.sample.get)).get
-    val newProp = keyRing.lookupPublicKey(newAddr).get
-    val newProof = keyRing.signWithAddress(newAddr)(messageByte).get
-
-    newProof.isValid(prop, messageByte) shouldBe false
-    newProof.isValid(newProp, messageByte) shouldBe true
-    >>>>>>> dev
   }
 
   //TODO: Jing - test importPhrase

@@ -9,11 +9,11 @@ import co.topl.attestation.serialization.PropositionSerializer
 import co.topl.crypto.PublicKey
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.implicits._
-import co.topl.crypto.signatures.Curve25519
+import co.topl.crypto.signatures.{Curve25519, Ed25519}
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.codecs.implicits._
 import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.StringDataTypes.{Base58Data, DataEncodingValidationFailure}
+import co.topl.utils.codecs.implicits._
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import co.topl.utils.{Identifiable, Identifier}
 import com.google.common.primitives.Ints
@@ -95,7 +95,7 @@ object PublicKeyPropositionCurve25519 {
       case Right(pk: PublicKeyPropositionCurve25519) => pk
       case Right(_)                                  => throw new Error("Invalid proposition generation")
       case Left(failure) =>
-        throw new Error(s"Failed to create Public Key Curve 25519 proposition from string: ${failure.show}")
+        throw new Error(s"Failed to create PublicKeyPropositionCurve25519 from string: ${failure.show}")
     }
 
   def fromBase58(data: Base58Data): PublicKeyPropositionCurve25519 =
@@ -103,7 +103,7 @@ object PublicKeyPropositionCurve25519 {
       case Right(pk: PublicKeyPropositionCurve25519) => pk
       case Right(_)                                  => throw new Error("Invalid proposition generation")
       case Left(failure) =>
-        throw new Error(s"Failed to create Public Key Curve 25519 proposition from string: ${failure.show}")
+        throw new Error(s"Failed to create PublicKeyPropositionCurve25519 from string: ${failure.show}")
     }
 
   implicit val ord: Ordering[PublicKeyPropositionCurve25519] = Ordering.by(_.toString)
@@ -194,8 +194,8 @@ case class PublicKeyPropositionEd25519(private[attestation] val pubKeyBytes: Pub
     extends KnowledgeProposition[PrivateKeyEd25519] {
 
   require(
-    pubKeyBytes.value.length == Curve25519.KeyLength,
-    s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.value.length} found"
+    pubKeyBytes.value.length == Ed25519.KeyLength,
+    s"Incorrect pubKey length, ${Ed25519.KeyLength} expected, ${pubKeyBytes.value.length} found"
   )
 
   def address(implicit networkPrefix: NetworkPrefix): Address = Address.from(this)
@@ -209,10 +209,21 @@ object PublicKeyPropositionEd25519 {
 
   def apply(str: String): PublicKeyPropositionEd25519 =
     Proposition.fromString(str) match {
-      case Success(prop: PublicKeyPropositionEd25519) => prop
-      case Success(_)                                 => throw new Error("Invalid proposition generation")
-      case Failure(ex)                                => throw ex
+      case Right(pk: PublicKeyPropositionEd25519) => pk
+      case Right(_)                               => throw new Error("Invalid proposition generation")
+      case Left(failure) =>
+        throw new Error(s"Failed to create PublicKeyPropositionEd25519 from string: ${failure.show}")
     }
+
+  def fromBase58(data: Base58Data): PublicKeyPropositionEd25519 =
+    Proposition.fromBase58(data) match {
+      case Right(pk: PublicKeyPropositionEd25519) => pk
+      case Right(_)                               => throw new Error("Invalid proposition generation")
+      case Left(failure) =>
+        throw new Error(s"Failed to create PublicKeyPropositionEd25519 from string: ${failure.show}")
+    }
+
+  implicit val ord: Ordering[PublicKeyPropositionEd25519] = Ordering.by(_.toString)
 
   implicit val evProducer: EvidenceProducer[PublicKeyPropositionEd25519] =
     EvidenceProducer.instance[PublicKeyPropositionEd25519] { prop: PublicKeyPropositionEd25519 =>
@@ -230,6 +241,6 @@ object PublicKeyPropositionEd25519 {
 
   implicit val jsonKeyEncoder: KeyEncoder[PublicKeyPropositionEd25519] = (prop: PublicKeyPropositionEd25519) =>
     prop.toString
-  implicit val jsonDecoder: Decoder[PublicKeyPropositionEd25519] = Decoder.decodeString.map(apply)
-  implicit val jsonKeyDecoder: KeyDecoder[PublicKeyPropositionEd25519] = (str: String) => Some(apply(str))
+  implicit val jsonDecoder: Decoder[PublicKeyPropositionEd25519] = Decoder[Base58Data].map(fromBase58)
+  implicit val jsonKeyDecoder: KeyDecoder[PublicKeyPropositionEd25519] = KeyDecoder[Base58Data].map(fromBase58)
 }

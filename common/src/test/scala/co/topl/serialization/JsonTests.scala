@@ -120,11 +120,11 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckDrivenPropertyC
   }
 
   property("FullBlock json") {
-    forAll(blockGen)(block => block.asJson.as[Block] shouldEqual Right(block))
+    forAll(blockCurve25519Gen)(block => block.asJson.as[Block] shouldEqual Right(block))
   }
 
   property("BlockHeader json") {
-    forAll(blockGen) { block =>
+    forAll(blockCurve25519Gen) { block =>
       val header = block.toComponents._1
       header.asJson.as[BlockHeader] match {
         case Right(value) =>
@@ -146,13 +146,13 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckDrivenPropertyC
   }
 
   property("BlockBody json") {
-    forAll(blockGen) { block =>
+    forAll(blockCurve25519Gen) { block =>
       val body = block.toComponents._2
       body.asJson.as[BlockBody] shouldEqual Right(body)
     }
   }
 
   property("BloomFilter json") {
-    forAll(blockGen)(block => block.bloomFilter.asJson.as[BloomFilter] shouldEqual Right(block.bloomFilter))
+    forAll(blockCurve25519Gen)(block => block.bloomFilter.asJson.as[BloomFilter] shouldEqual Right(block.bloomFilter))
   }
 }

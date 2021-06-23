@@ -198,7 +198,7 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
   }
 
   property("BlockHeader serialization") {
-    forAll(blockGen) { b: Block =>
+    forAll(blockCurve25519Gen) { b: Block =>
       val blockHeader = b.toComponents._1
       val parsed = BlockHeaderSerializer
         .parseBytes(BlockHeaderSerializer.toBytes(blockHeader))
@@ -209,7 +209,7 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
   }
 
   property("BlockBody serialization") {
-    forAll(blockGen) { b: Block =>
+    forAll(blockCurve25519Gen) { b: Block =>
       val blockBody = b.toComponents._2
       val parsed = BlockBodySerializer
         .parseBytes(BlockBodySerializer.toBytes(blockBody))
@@ -220,7 +220,7 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
   }
 
   property("FullBlock serialization") {
-    forAll(blockGen) { bb: Block =>
+    forAll(blockCurve25519Gen) { bb: Block =>
       val parsed = BlockSerializer.parseBytes(BlockSerializer.toBytes(bb))
 
       parsed match {
@@ -233,7 +233,7 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
   }
 
   property("BloomFilter serialization") {
-    forAll(blockGen) { block =>
+    forAll(blockCurve25519Gen) { block =>
       val parsed: BloomFilter = BloomFilter.parseBytes(BloomFilter.toBytes(block.bloomFilter)).get
 
       BloomFilter.toBytes(parsed) sameElements

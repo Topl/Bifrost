@@ -85,7 +85,7 @@ class IODBSpec
 
     var ids: Seq[ModifierId] = Seq()
 
-    forAll(blockGen) { block =>
+    forAll(blockCurve25519Gen) { block =>
       ids = block.id +: ids
       writeBlock(block)
       blocksStorage.get(ByteArrayWrapper(block.id.getIdBytes)).isDefined shouldBe true

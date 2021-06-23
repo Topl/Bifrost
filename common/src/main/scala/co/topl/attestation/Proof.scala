@@ -179,10 +179,10 @@ object ThresholdSignatureCurve25519 {
 
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
-case class SignatureEd25519(private[attestation] val sig: Signature)
+case class SignatureEd25519(private[attestation] val sigBytes: Signature)
     extends ProofOfKnowledge[PrivateKeyEd25519, PublicKeyPropositionEd25519] {
 
-  private val signatureLength = sig.infalliblyEncodeAsBytes.length
+  private val signatureLength = sigBytes.value.length
   private val ec = new Ed25519
 
   require(
@@ -191,7 +191,7 @@ case class SignatureEd25519(private[attestation] val sig: Signature)
   )
 
   def isValid(proposition: PublicKeyPropositionEd25519, message: Array[Byte]): Boolean =
-    ec.verify(sig, message, PublicKey(proposition.pubKeyBytes.value))
+    ec.verify(sigBytes, message, proposition.pubKeyBytes.infalliblyDecodeTo[PublicKey])
 }
 
 object SignatureEd25519 {
@@ -204,17 +204,20 @@ object SignatureEd25519 {
   lazy val genesis: SignatureEd25519 =
     SignatureEd25519(Signature(Array.fill(SignatureEd25519.signatureSize)(1: Byte)))
 
-  def apply(str: String): SignatureEd25519 =
-    Proof.fromString(str) match {
-      case Success(sig: SignatureEd25519) => sig
-      case Success(_)                     => throw new Error("Invalid proof generation")
-      case Failure(ex)                    => throw new Exception(s"Invalid signature: $ex")
+  // DummyImplicit required because Base58Data and Signature have same base type after type erasure
+  def apply(data: Base58Data)(implicit dummyImplicit: DummyImplicit): SignatureEd25519 =
+    Proof.fromBase58[SignatureEd25519](data) match {
+      case Right(sig)  => sig
+      case Left(error) => throw new Exception(s"Error while parsing proof: $error")
     }
+
+  def apply(str: String): SignatureEd25519 =
+    Base58Data.validated(str).map(apply).valueOr(err => throw new Exception(s"Invalid Base-58 String: $err"))
 
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html
   implicit val jsonEncoder: Encoder[SignatureEd25519] = (sig: SignatureEd25519) => sig.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[SignatureEd25519] = (sig: SignatureEd25519) => sig.toString
-  implicit val jsonDecoder: Decoder[SignatureEd25519] = Decoder.decodeString.map(apply)
-  implicit val jsonKeyDecoder: KeyDecoder[SignatureEd25519] = (str: String) => Some(apply(str))
+  implicit val jsonDecoder: Decoder[SignatureEd25519] = Decoder[Base58Data].map(apply)
+  implicit val jsonKeyDecoder: KeyDecoder[SignatureEd25519] = KeyDecoder[Base58Data].map(apply)
 }

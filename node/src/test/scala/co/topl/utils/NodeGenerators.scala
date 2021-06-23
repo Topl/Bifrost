@@ -254,7 +254,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
     minting: Boolean = false
   ): Gen[AssetTransfer[PublicKeyPropositionEd25519]] = {
     val sender = keyRing.addresses.head
-    val asset = AssetValue(1, AssetCode(1: Byte, sender, "test"), SecurityRoot.empty)
+    val asset = AssetValue(1, AssetCode(1: Byte, sender, Latin1Data.unsafe("test")), SecurityRoot.empty)
     val recipients = IndexedSeq((sender, asset))
 
     // todo: This should not be using the create raw function because we are testing too many things then!
