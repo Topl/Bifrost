@@ -11,7 +11,7 @@ import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.Box.Nonce
 import co.topl.modifier.box.{ProgramId, _}
 import co.topl.modifier.transaction._
-import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
+import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.codecs.implicits._
 import io.circe.Json
 import io.circe.syntax._
@@ -358,7 +358,6 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   lazy val securityRootGen: Gen[SecurityRoot] = for {
     root <- specificLengthBytesGen(Digest32.size)
   } yield SecurityRoot.fromBase58(root.encodeAsBase58)
-
 
   lazy val sigSeqCurve25519Gen: Gen[IndexedSeq[SignatureCurve25519]] = for {
     seqLen <- positiveTinyIntGen
