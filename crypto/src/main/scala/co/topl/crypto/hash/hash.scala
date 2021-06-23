@@ -51,7 +51,6 @@ package object hash {
 
   type Blake2b
   type Sha
-  type HmacSha
 
   import digest.implicits._
 
