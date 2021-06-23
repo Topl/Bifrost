@@ -92,24 +92,26 @@ class DeliveryTracker(nvsRef: ActorRef, context: ActorContext, networkSettings: 
      * but only ask up to the number of maxDeliveryChecks
      */
     peerOpt match {
-      /** case for waiting on anyone to provide a modifier */
-      case Some(_) if checks < maxDeliveryChecks =>
-        setRequested(id, typeId, peerOpt, checks)
-        true
+      case Some(_) =>
+        if (checks < maxDeliveryChecks) {
+          /** case for waiting on anyone to provide a modifier */
+          setRequested(id, typeId, peerOpt, checks)
+          true
+        } else {
+          /** case for transitioning to ask anyone for the modifier */
+          setRequested(id, typeId, None)
+          false
+        }
 
-      /** case for transitioning to ask anyone for the modifier */
-      case Some(_) if checks >= maxDeliveryChecks =>
-        setRequested(id, typeId, None)
-        false
-
-      /** case for transitioning to ask anyone for the modifier */
-      case None if checks < maxDeliveryChecks =>
-        setRequested(id, typeId, None)
-        false
-
-      /** case where we've exhausted attempts to get the modifier so stop checking for it */
-      case None if checks >= maxDeliveryChecks =>
-        throw new StopExpectingError(id, checks)
+      case None =>
+        if (checks < maxDeliveryChecks) {
+          /** case for transitioning to ask anyone for the modifier */
+          setRequested(id, typeId, None)
+          false
+        } else {
+          /** case where we've exhausted attempts to get the modifier so stop checking for it */
+          throw new StopExpectingError(id, checks)
+        }
     }
   }
 
