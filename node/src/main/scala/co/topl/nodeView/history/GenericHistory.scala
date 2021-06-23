@@ -1,6 +1,5 @@
 package co.topl.nodeView.history
 
-import cats.data.Validated.{Invalid, Valid}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.PersistentNodeViewModifier
@@ -61,10 +60,11 @@ trait GenericHistory[
   def modifierById(modifierId: ModifierId): Option[PM]
 
   def modifierById(modifierId: String): Option[PM] =
-    Base58Data.validated(modifierId).map(ModifierId.fromBase58).map(modifierById) match {
-      case Valid(res) => res
-      case Invalid(_) => throw new Error(s"modifierId is not Base-58!")
-    }
+    Base58Data
+      .validated(modifierId)
+      .map(ModifierId.fromBase58)
+      .toOption
+      .flatMap(modifierById)
 
   def modifierByHeight(height: Long): Option[PM]
 
