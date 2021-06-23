@@ -1,13 +1,16 @@
 package co.topl.attestation
 
+import co.topl.attestation.AddressCodec.implicits._
 import co.topl.utils.NodeGenerators
+import co.topl.utils.StringDataTypes.Latin1Data
+import co.topl.utils.codecs.implicits._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 class KeySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with NodeGenerators with Matchers {
 
-  var password: String = _
+  var password: Latin1Data = _
   var messageByte: Array[Byte] = _
 
   var addressCurve25519: Address = _
@@ -16,7 +19,7 @@ class KeySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with NodeG
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    password = sampleUntilNonEmpty(stringGen)
+    password = Latin1Data.unsafe(sampleUntilNonEmpty(stringGen))
     messageByte = sampleUntilNonEmpty(nonEmptyBytesGen)
 
     import org.scalatest.TryValues._
@@ -32,30 +35,26 @@ class KeySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with NodeG
   }
 
   property("Once we lock the generated address, it will be removed from the secrets set in the keyRing") {
-    keyRingCurve25519.removeFromKeyring(addressCurve25519)
 
     /** There will be a warning for locking again if a key is already locked */
+    keyRingCurve25519.removeFromKeyring(addressCurve25519)
     keyRingCurve25519.removeFromKeyring(addressCurve25519)
     keyRingCurve25519.addresses.contains(addressCurve25519) shouldBe false
 
     keyRingEd25519.removeFromKeyring(addressEd25519)
-
-    /** There will be a warning for locking again if a key is already locked */
     keyRingEd25519.removeFromKeyring(addressEd25519)
     keyRingEd25519.addresses.contains(addressEd25519) shouldBe false
   }
 
   property("Once unlocked, the address will be accessible from the keyRing again") {
-    keyRingCurve25519.DiskOps.unlockKeyFile(addressCurve25519.toString, password)
 
     /** There will be a warning for unlocking again if a key is already unlocked */
-    keyRingCurve25519.DiskOps.unlockKeyFile(addressCurve25519.toString, password)
+    keyRingCurve25519.DiskOps.unlockKeyFile(addressCurve25519.encodeAsBase58, password)
+    keyRingCurve25519.DiskOps.unlockKeyFile(addressCurve25519.encodeAsBase58, password)
     keyRingCurve25519.addresses.contains(addressCurve25519) shouldBe true
 
-    keyRingEd25519.DiskOps.unlockKeyFile(addressEd25519.toString, password)
-
-    /** There will be a warning for unlocking again if a key is already unlocked */
-    keyRingEd25519.DiskOps.unlockKeyFile(addressEd25519.toString, password)
+    keyRingEd25519.DiskOps.unlockKeyFile(addressEd25519.encodeAsBase58, password)
+    keyRingEd25519.DiskOps.unlockKeyFile(addressEd25519.encodeAsBase58, password)
     keyRingEd25519.addresses.contains(addressEd25519) shouldBe true
   }
 
@@ -86,6 +85,7 @@ class KeySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with NodeG
   }
 
   property("The proof from signing with an address should only be valid for the corresponding proposition") {
+    <<<<<<< HEAD
     val propCurve25519 = keyRingCurve25519.lookupPublicKey(addressCurve25519).get
     val newAddrCurve25519: Address = keyRingCurve25519.DiskOps.generateKeyFile(stringGen.sample.get).get
     val newPropCurve25519 = keyRingCurve25519.lookupPublicKey(newAddrCurve25519).get
@@ -99,6 +99,16 @@ class KeySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with NodeG
     val newProofEd25519 = keyRingEd25519.signWithAddress(newAddrEd25519)(messageByte).get
     newProofEd25519.isValid(propEd25519, messageByte) shouldBe false
     newProofEd25519.isValid(newPropEd25519, messageByte) shouldBe true
+    =======
+    val prop = keyRing.lookupPublicKey(address).get
+
+    val newAddr: Address = keyRing.DiskOps.generateKeyFile(Latin1Data.unsafe(stringGen.sample.get)).get
+    val newProp = keyRing.lookupPublicKey(newAddr).get
+    val newProof = keyRing.signWithAddress(newAddr)(messageByte).get
+
+    newProof.isValid(prop, messageByte) shouldBe false
+    newProof.isValid(newProp, messageByte) shouldBe true
+    >>>>>>> dev
   }
 
   //TODO: Jing - test importPhrase

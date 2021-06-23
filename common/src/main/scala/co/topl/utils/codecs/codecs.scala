@@ -7,8 +7,6 @@ package object codecs {
       with AsBytes.ToOps
       with FromBytes.Instances
       with FromBytes.ToOps
-      with CryptoCodec.FromBytesInstances
-      with CryptoCodec.AsBytesInstances
-      with CryptoCodec.JsonDecoderInstances
-      with CryptoCodec.JsonEncoderInstances
+      with CryptoCodec.CryptoCodecInstances
+      with StringDataTypesCodec.StringTypesInstances
 }

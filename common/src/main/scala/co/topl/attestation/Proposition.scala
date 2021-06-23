@@ -1,5 +1,8 @@
 package co.topl.attestation
 
+import cats.Show
+import cats.data.NonEmptyChain
+import cats.implicits._
 import co.topl.attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519, Secret}
 import co.topl.attestation.serialization.PropositionSerializer
@@ -8,8 +11,9 @@ import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.implicits._
 import co.topl.crypto.signatures.Curve25519
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.codecs.AsBytes.implicits._
-import co.topl.utils.encode.Base58
+import co.topl.utils.codecs.implicits._
+import co.topl.utils.StringDataTypes.implicits._
+import co.topl.utils.StringDataTypes.{Base58Data, DataEncodingValidationFailure}
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import co.topl.utils.{Identifiable, Identifier}
 import com.google.common.primitives.Ints
@@ -17,7 +21,6 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 
 import scala.collection.SortedSet
-import scala.util.{Failure, Success, Try}
 
 // Propositions are challenges that must be satisfied by the prover.
 // In most cases, propositions are used by transactions issuers (spenders) to prove the right
@@ -29,7 +32,7 @@ sealed trait Proposition extends BytesSerializable {
 
   def address(implicit networkPrefix: NetworkPrefix): Address
 
-  override def toString: String = Base58.encode(bytes)
+  override def toString: String = bytes.encodeAsBase58.show
 
   override def equals(obj: Any): Boolean = obj match {
     case prop: Proposition => prop.bytes sameElements bytes
@@ -41,11 +44,27 @@ sealed trait Proposition extends BytesSerializable {
 
 object Proposition {
 
-  def fromString(str: String): Try[_ <: Proposition] =
-    Base58.decode(str).flatMap(bytes => PropositionSerializer.parseBytes(bytes))
+  sealed trait PropositionFromDataFailure
+
+  final case class IncorrectEncoding(error: NonEmptyChain[DataEncodingValidationFailure])
+      extends PropositionFromDataFailure
+  final case class BytesParsingError(error: Throwable) extends PropositionFromDataFailure
+
+  def fromString(str: String): Either[PropositionFromDataFailure, _ <: Proposition] =
+    Base58Data.validated(str).leftMap(IncorrectEncoding).toEither.flatMap(fromBase58)
+
+  def fromBase58(data: Base58Data): Either[PropositionFromDataFailure, _ <: Proposition] =
+    PropositionSerializer.parseBytes(data.value).toEither.leftMap(BytesParsingError)
 
   implicit def jsonKeyEncoder[P <: Proposition]: KeyEncoder[P] = (prop: P) => prop.toString
-  implicit val jsonKeyDecoder: KeyDecoder[Proposition] = (str: String) => fromString(str).toOption
+
+  implicit val jsonKeyDecoder: KeyDecoder[Proposition] =
+    json => Base58Data.validated(json).toOption.flatMap(fromBase58(_).toOption)
+
+  implicit val showPropositionFromStringFailure: Show[PropositionFromDataFailure] = {
+    case IncorrectEncoding(errors) => s"String is an incorrect encoding type: $errors"
+    case BytesParsingError(error)  => s"Failed to parse the decoded bytes: $error"
+  }
 }
 
 // Knowledge propositions require the prover to supply a proof attesting to their knowledge
@@ -73,9 +92,18 @@ object PublicKeyPropositionCurve25519 {
 
   def apply(str: String): PublicKeyPropositionCurve25519 =
     Proposition.fromString(str) match {
-      case Success(pk: PublicKeyPropositionCurve25519) => pk
-      case Success(_)                                  => throw new Error("Invalid proposition generation")
-      case Failure(ex)                                 => throw ex
+      case Right(pk: PublicKeyPropositionCurve25519) => pk
+      case Right(_)                                  => throw new Error("Invalid proposition generation")
+      case Left(failure) =>
+        throw new Error(s"Failed to create Public Key Curve 25519 proposition from string: ${failure.show}")
+    }
+
+  def fromBase58(data: Base58Data): PublicKeyPropositionCurve25519 =
+    Proposition.fromBase58(data) match {
+      case Right(pk: PublicKeyPropositionCurve25519) => pk
+      case Right(_)                                  => throw new Error("Invalid proposition generation")
+      case Left(failure) =>
+        throw new Error(s"Failed to create Public Key Curve 25519 proposition from string: ${failure.show}")
     }
 
   implicit val ord: Ordering[PublicKeyPropositionCurve25519] = Ordering.by(_.toString)
@@ -96,8 +124,8 @@ object PublicKeyPropositionCurve25519 {
 
   implicit val jsonKeyEncoder: KeyEncoder[PublicKeyPropositionCurve25519] = (prop: PublicKeyPropositionCurve25519) =>
     prop.toString
-  implicit val jsonDecoder: Decoder[PublicKeyPropositionCurve25519] = Decoder.decodeString.map(apply)
-  implicit val jsonKeyDecoder: KeyDecoder[PublicKeyPropositionCurve25519] = (str: String) => Some(apply(str))
+  implicit val jsonDecoder: Decoder[PublicKeyPropositionCurve25519] = Decoder[Base58Data].map(fromBase58)
+  implicit val jsonKeyDecoder: KeyDecoder[PublicKeyPropositionCurve25519] = KeyDecoder[Base58Data].map(fromBase58)
 }
 
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
@@ -126,9 +154,18 @@ object ThresholdPropositionCurve25519 {
 
   def apply(str: String): ThresholdPropositionCurve25519 =
     Proposition.fromString(str) match {
-      case Success(prop: ThresholdPropositionCurve25519) => prop
-      case Success(_)                                    => throw new Error("Invalid proposition generation")
-      case Failure(ex)                                   => throw ex
+      case Right(prop: ThresholdPropositionCurve25519) => prop
+      case Right(_)                                    => throw new Error("Invalid proposition generation")
+      case Left(failure) =>
+        throw new Error(s"Failed to create Threshold Curve 25519 proposition from string: ${failure.show}")
+    }
+
+  def fromBase58(data: Base58Data): ThresholdPropositionCurve25519 =
+    Proposition.fromBase58(data) match {
+      case Right(prop: ThresholdPropositionCurve25519) => prop
+      case Right(_)                                    => throw new Error("Invalid proposition generation")
+      case Left(failure) =>
+        throw new Error(s"Failed to create Threshold Curve 25519 proposition from string: ${failure.show}")
     }
 
   implicit val evProducer: EvidenceProducer[ThresholdPropositionCurve25519] =
@@ -147,8 +184,8 @@ object ThresholdPropositionCurve25519 {
 
   implicit val jsonKeyEncoder: KeyEncoder[ThresholdPropositionCurve25519] = (prop: ThresholdPropositionCurve25519) =>
     prop.toString
-  implicit val jsonDecoder: Decoder[ThresholdPropositionCurve25519] = Decoder.decodeString.map(apply)
-  implicit val jsonKeyDecoder: KeyDecoder[ThresholdPropositionCurve25519] = (str: String) => Some(apply(str))
+  implicit val jsonDecoder: Decoder[ThresholdPropositionCurve25519] = Decoder[Base58Data].map(fromBase58)
+  implicit val jsonKeyDecoder: KeyDecoder[ThresholdPropositionCurve25519] = KeyDecoder[Base58Data].map(fromBase58)
 }
 
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */

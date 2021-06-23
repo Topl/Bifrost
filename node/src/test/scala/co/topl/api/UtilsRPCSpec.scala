@@ -7,7 +7,9 @@ import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.implicits._
 import co.topl.modifier.box.AssetCode
 import co.topl.rpc.ToplRpcErrors
+import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import co.topl.utils.codecs.CryptoCodec.implicits._
+import co.topl.utils.codecs.implicits.base58JsonDecoder
 import co.topl.utils.encode.Base58
 import io.circe.Json
 import io.circe.parser.parse
@@ -43,14 +45,11 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState with Eith
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
 
-        val seedString: String = res.hcursor.downField("result").get[String]("seed").value
+        val seedData: Base58Data = res.hcursor.downField("result").get[Base58Data]("seed").value
 
         res.hcursor.downField("error").values shouldBe None
 
-        Base58.decode(seedString) match {
-          case Success(seed) => seed.length shouldEqual 32
-          case Failure(_)    => fail("Could not Base 58 decode seed output")
-        }
+        seedData.value.length shouldEqual 32
       }
     }
 
@@ -69,14 +68,11 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState with Eith
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
 
-        val seedString: String = res.hcursor.downField("result").get[String]("seed").value
+        val seedData: Base58Data = res.hcursor.downField("result").get[Base58Data]("seed").value
 
         res.hcursor.downField("error").values shouldBe None
 
-        Base58.decode(seedString) match {
-          case Success(seed) => seed.length shouldEqual seedLength
-          case Failure(_)    => fail("Could not Base 58 decode seed output")
-        }
+        seedData.value.length shouldEqual seedLength
       }
     }
 
@@ -96,7 +92,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState with Eith
         val res: Json = parse(responseAs[String]).value
         val hash = res.hcursor.downField("result").get[String]("hash").value
 
-        hash shouldEqual Base58.encode(blake2b256.hash("Hello World".getBytes))
+        hash shouldEqual Base58.encode(blake2b256.hash("Hello World".getBytes).bytes)
         res.hcursor.downField("error").values shouldBe None
       }
     }
@@ -119,9 +115,9 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState with Eith
           |}
         """.stripMargin)
 
-        httpPOST(requestBody) ~> route ~> check {
-          val res: Json = parse(responseAs[String]).value
-          val oldAssetCode: AssetCode = AssetCode(1: Byte, address, "testcode")
+      httpPOST(requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]).value
+        val oldAssetCode: AssetCode = AssetCode(1: Byte, address, Latin1Data.unsafe("testcode"))
 
           val genAssetCode: AssetCode = res.hcursor.downField("result").get[AssetCode]("assetCode").value
 

@@ -1,6 +1,15 @@
 package co.topl.api.transaction
 
 import co.topl.attestation.Address
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.codecs.implicits.base58JsonDecoder
+import co.topl.utils.encode.Base58
+import io.circe.Json
+import io.circe.parser.parse
+import io.circe.syntax._
+import org.scalatest.EitherValues
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class ArbitTransferRPCSpec extends TransferRPCTestMethods {
 
