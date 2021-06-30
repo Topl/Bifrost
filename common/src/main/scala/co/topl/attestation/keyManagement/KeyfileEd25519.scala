@@ -20,10 +20,6 @@ import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
 
 import scala.util.Try
 
-/**
- * Created by cykoz on 6/22/2017.
- */
-
 case class KeyfileEd25519(
   address:    Address,
   cipherText: Array[Byte],
