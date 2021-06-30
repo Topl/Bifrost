@@ -102,7 +102,7 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit np:
     log.info(s"${Console.RED}Application is going down NOW!${Console.RESET}")
     Option(busyCompletion).foreach { p =>
       log.info("Awaiting current batch of modifiers to be written")
-      Await.result(p.future, 1.minute)
+      Await.result(p.future, 10.minutes)
     }
     nodeView._1.closeStorage() // close History storage
     nodeView._2.closeStorage() // close State storage
@@ -145,9 +145,8 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit np:
     import akka.pattern.pipe
 
     /**
-     * Process the modifications asynchronously in a "background" Future, and notify this actor once complete
-     * Instead, move into the "busy" state until the previous Future completes.
-     * But don't try to process more modifiers.
+     * Process the modifications asynchronously in a "background" Future, and notify this actor once complete.  Also,
+     * move into a "busy" state such that new "writes" are stashed until the current one completes.
      * @param f The side-effecting operation to run
      */
     def processAsync(f: => Unit): Unit = {
