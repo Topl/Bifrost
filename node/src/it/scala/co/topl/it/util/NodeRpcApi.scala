@@ -83,7 +83,7 @@ object NodeRpcApi {
 
   val ApiKey = "integration-test-key"
   val ApiKeyHash: Digest32 = blake2b256.hash(ApiKey.getBytes)
-  val ApiKeyHashBase58: String = ApiKeyHash.encodeAsBase58
+  val ApiKeyHashBase58: String = new String(ApiKeyHash.encodeAsBase58.value)
 
   def apply(node: BifrostDockerNode)(implicit system: ActorSystem, dockerClient: DockerClient): NodeRpcApi = {
     val host = dockerClient.inspectContainer(node.containerId).networkSettings().ipAddress()

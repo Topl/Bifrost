@@ -70,7 +70,7 @@ trait RPCMockState
     appContext = new AppContext(settings, StartupOpts(), None)
 
     keyManagerRef = TestActorRef(
-      new KeyManager(settings, appContext)(system.getDispatcher, appContext.networkType.netPrefix)
+      new KeyManager(settings, appContext)(appContext.networkType.netPrefix)
     )
     forgerRef = ForgerRef[HIS, ST, MP](Forger.actorName, settings, appContext, keyManagerRef)
 

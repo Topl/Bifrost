@@ -1,22 +1,20 @@
 package co.topl.network
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.dispatch.Dispatchers
 import co.topl.network.NetworkController.ReceivableMessages._
 import co.topl.network.peer.{InMemoryPeerDatabase, PeerInfo, PeerSpec, PenaltyType}
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.{Logging, NetworkUtils}
 
 import java.net.{InetAddress, InetSocketAddress}
-import scala.concurrent.ExecutionContext
 import scala.util.Random
 
 /**
  * Peer manager takes care of peers connected and in process, and also chooses a random peer to connect
  * Must be singleton
  */
-class PeerManager(settings: AppSettings, appContext: AppContext)(implicit ec: ExecutionContext)
-    extends Actor
-    with Logging {
+class PeerManager(settings: AppSettings, appContext: AppContext) extends Actor with Logging {
 
   /** Import the types of messages this actor can RECEIVE */
   import PeerManager.ReceivableMessages._
@@ -202,15 +200,16 @@ object PeerManager {
 object PeerManagerRef {
 
   def props(
-    settings:    AppSettings,
-    appContext:  AppContext
-  )(implicit ec: ExecutionContext): Props =
+    settings:   AppSettings,
+    appContext: AppContext
+  ): Props =
     Props(new PeerManager(settings, appContext))
+      .withDispatcher(Dispatchers.DefaultBlockingDispatcherId)
 
   def apply(
     name:            String,
     settings:        AppSettings,
     appContext:      AppContext
-  )(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+  )(implicit system: ActorSystem): ActorRef =
     system.actorOf(props(settings, appContext), name)
 }

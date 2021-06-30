@@ -2,15 +2,15 @@ package co.topl.consensus
 
 import akka.Done
 import akka.actor._
+import akka.dispatch.Dispatchers
 import akka.util.Timeout
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.attestation.AddressCodec.implicits.Base58DataOps
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
-import co.topl.attestation.{Address, AddressCodec, PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.catsakka.AskException
 import co.topl.consensus.KeyManager.{AttemptForgingKeyView, ForgerStartupKeyView}
-import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType._
@@ -20,12 +20,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Success, Try}
 
 /** Actor that manages the keyRing and reward address */
-class KeyManager(
-  settings:    AppSettings,
-  appContext:  AppContext
-)(implicit ec: ExecutionContext, np: NetworkPrefix)
-    extends Actor
-    with Logging {
+class KeyManager(settings: AppSettings, appContext: AppContext)(implicit np: NetworkPrefix) extends Actor with Logging {
 
   import KeyManager.ReceivableMessages._
 
@@ -188,16 +183,13 @@ object KeyManager {
 
 object KeyManagerRef {
 
-  def props(settings: AppSettings, appContext: AppContext)(implicit ec: ExecutionContext, np: NetworkPrefix): Props =
+  def props(settings: AppSettings, appContext: AppContext)(implicit np: NetworkPrefix): Props =
     Props(
       new KeyManager(settings, appContext)
-    )
+    ).withDispatcher(Dispatchers.DefaultBlockingDispatcherId)
 
-  def apply(name: String, settings: AppSettings, appContext: AppContext)(implicit
-    system:       ActorSystem,
-    ec:           ExecutionContext
-  ): ActorRef =
-    system.actorOf(props(settings, appContext)(ec, appContext.networkType.netPrefix), name)
+  def apply(name: String, settings: AppSettings, appContext: AppContext)(implicit system: ActorSystem): ActorRef =
+    system.actorOf(props(settings, appContext)(appContext.networkType.netPrefix), name)
 
 }
 

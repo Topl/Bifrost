@@ -96,7 +96,7 @@ class BifrostApp(startupOpts: StartupOpts) extends NodeLogging with Runnable {
 
   private val walletConnectionHandlerRef: Option[ActorRef] =
     if (settings.gjallarhorn.enableWallet) {
-      Some(WalletConnectionHandlerRef[PMOD](WalletConnectionHandler.actorName, settings, appContext, nodeViewHolderRef))
+      Some(WalletConnectionHandlerRef[PMOD](WalletConnectionHandler.actorName, settings, appContext))
     } else {
       None
     }

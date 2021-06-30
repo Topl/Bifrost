@@ -1,6 +1,7 @@
 package co.topl.network
 
 import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.dispatch.Dispatchers
 import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
@@ -21,9 +22,10 @@ class PeerSynchronizer(
   peerManager:          ActorRef,
   settings:             AppSettings,
   appContext:           AppContext
-)(implicit ec:          ExecutionContext)
-    extends Synchronizer
+) extends Synchronizer
     with Logging {
+
+  import context.dispatcher
 
   implicit private val timeout: Timeout = Timeout(settings.network.syncTimeout.getOrElse(5 seconds))
 
@@ -132,7 +134,7 @@ object PeerSynchronizerRef {
     peerManager:          ActorRef,
     settings:             AppSettings,
     appContext:           AppContext
-  )(implicit system:      ActorSystem, ec: ExecutionContext): ActorRef =
+  )(implicit system:      ActorSystem): ActorRef =
     system.actorOf(props(networkControllerRef, peerManager, settings, appContext), name)
 
   def props(
@@ -140,6 +142,7 @@ object PeerSynchronizerRef {
     peerManager:          ActorRef,
     settings:             AppSettings,
     appContext:           AppContext
-  )(implicit ec:          ExecutionContext): Props =
+  ): Props =
     Props(new PeerSynchronizer(networkControllerRef, peerManager, settings, appContext))
+      .withDispatcher(Dispatchers.DefaultBlockingDispatcherId)
 }

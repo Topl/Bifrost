@@ -1,7 +1,8 @@
 package co.topl.nodeView
 
 import akka.Done
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props, Stash}
+import akka.dispatch.Dispatchers
 import akka.pattern.ask
 import akka.util.Timeout
 import cats.data.EitherT
@@ -28,7 +29,7 @@ import co.topl.utils.serialization.BifrostSerializer
 
 import scala.annotation.tailrec
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -38,9 +39,12 @@ import scala.util.{Failure, Success, Try}
  * The instances are read-only for external world.
  * Updates of the composite view(the instances are to be performed atomically.
  */
-class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec: ExecutionContext, np: NetworkPrefix)
+class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit np: NetworkPrefix)
     extends Actor
-    with Logging {
+    with Logging
+    with Stash {
+
+  import context.dispatcher
 
   // Import the types of messages this actor can RECEIVE
   import NodeViewHolder.ReceivableMessages._
@@ -58,7 +62,16 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
    * state (result of log's modifiers application to pre-historical(genesis) state,
    * user-specific information stored in vault (it could be e.g. a wallet), and a memory pool.
    */
-  private var nodeView: NodeView = restoreState().getOrElse(genesisState)
+  private var nodeView: NodeView = _
+
+  /**
+   * While this actor is processing modifiers asynchronously, it is busy.  Upon completion of the processing, this
+   * Promise is completed.
+   *
+   * This Promise exists because this Actor could be instructed to shutdown while a batch of modifiers are still processing.
+   * The actor should wait until the batch finishes before terminating.
+   */
+  private var busyCompletion: Promise[DoneProcessingModifiers.type] = _
 
   /**
    * Cache for modifiers. If modifiers are coming out-of-order, they are to be stored in this cache.
@@ -71,6 +84,7 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
 
   /** Define actor control behavior */
   override def preStart(): Unit = {
+    nodeView = restoreState().getOrElse(genesisState)
     // subscribe to particular messages this actor expects to receive
     context.system.eventStream.subscribe(self, classOf[LocallyGeneratedModifier[PMOD]])
 
@@ -86,6 +100,10 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
 
   override def postStop(): Unit = {
     log.info(s"${Console.RED}Application is going down NOW!${Console.RESET}")
+    Option(busyCompletion).foreach { p =>
+      log.info("Awaiting current batch of modifiers to be written")
+      Await.result(p.future, 1.minute)
+    }
     nodeView._1.closeStorage() // close History storage
     nodeView._2.closeStorage() // close State storage
   }
@@ -100,14 +118,57 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
     getNodeViewChanges orElse
     nonsense
 
+  /**
+   * Syncing modifiers from another node takes a long time, especially for large batches.  To avoid blocking "read"
+   * requests, this actor can operate in a "busy" state such that new requests for "writes" are stashed while still
+   * being responsive to "read" requests.  Once the _current_ batch of modifications have been applied, all previously stashed
+   * messages are unstashed, and the actor returns to its normal/not-busy state
+   * @return
+   */
+  private def busyProcessingModifiers: Receive = {
+    val altProcessModifiers: Receive = {
+      case _: ModifiersFromRemote[_] =>
+        stash()
+      case _: LocallyGeneratedModifier[_] =>
+        stash()
+      case DoneProcessingModifiers =>
+        unstashAll()
+        context.become(receive)
+    }
+
+    altProcessModifiers orElse transactionsProcessing orElse getNodeViewChanges orElse nonsense
+  }
+
   // ----------- MESSAGE PROCESSING FUNCTIONS
 
   protected def processModifiers: Receive = {
-    case ModifiersFromRemote(mods: Iterable[PMOD] @unchecked) => processRemoteModifiers(mods)
+    import akka.pattern.pipe
 
-    case LocallyGeneratedModifier(mod: Block) =>
-      log.info(s"Got locally generated modifier ${mod.id} of type ${mod.modifierTypeId}")
-      pmodModify(mod)
+    /**
+     * Process the modifications asynchronously in a "background" Future, and notify this actor once complete
+     * Instead, move into the "busy" state until the previous Future completes.
+     * But don't try to process more modifiers.
+     * @param f The side-effecting operation to run
+     */
+    def processAsync(f: => Unit): Unit = {
+      busyCompletion = Promise().completeWith(
+        Future(f)
+          .andThen { case Failure(exception) =>
+            log.error("Failed to process remote modifiers.", exception)
+          }
+          .transform(_ => Success(DoneProcessingModifiers))
+          .pipeTo(self)
+      )
+      context.become(busyProcessingModifiers)
+    }
+
+    {
+      case ModifiersFromRemote(mods: Iterable[PMOD] @unchecked) =>
+        processAsync(processRemoteModifiers(mods))
+      case LocallyGeneratedModifier(mod: Block) =>
+        log.info(s"Got locally generated modifier ${mod.id} of type ${mod.modifierTypeId}")
+        processAsync(pmodModify(mod))
+    }
   }
 
   protected def transactionsProcessing: Receive = {
@@ -505,6 +566,8 @@ object NodeViewHolder {
 
     case class LocallyGeneratedModifier[PMOD <: PersistentNodeViewModifier](pmod: PMOD)
 
+    private[nodeView] case object DoneProcessingModifiers
+
     sealed trait NewTransactions { val txs: Iterable[Transaction.TX] }
 
     case class LocallyGeneratedTransaction(tx: Transaction.TX) extends NewTransactions {
@@ -524,12 +587,12 @@ object NodeViewHolder {
 
 object NodeViewHolderRef {
 
-  def props(settings: AppSettings, appContext: AppContext)(implicit ec: ExecutionContext): Props =
-    Props(new NodeViewHolder(settings, appContext)(ec, appContext.networkType.netPrefix))
+  def props(settings: AppSettings, appContext: AppContext): Props =
+    Props(new NodeViewHolder(settings, appContext)(appContext.networkType.netPrefix))
+      .withDispatcher(Dispatchers.DefaultBlockingDispatcherId)
 
   def apply(name: String, settings: AppSettings, appContext: AppContext)(implicit
-    system:       ActorSystem,
-    ec:           ExecutionContext
+    system:       ActorSystem
   ): ActorRef =
     system.actorOf(props(settings, appContext), name)
 }
