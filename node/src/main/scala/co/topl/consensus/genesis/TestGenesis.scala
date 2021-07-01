@@ -12,6 +12,7 @@ import co.topl.settings.AppSettings
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
 
+import scala.collection.immutable.ListMap
 import scala.util.Try
 
 case class TestGenesis(addressesCurve25519: Set[Address], addressesEd25519: Set[Address], settings: AppSettings)(
@@ -22,7 +23,7 @@ case class TestGenesis(addressesCurve25519: Set[Address], addressesEd25519: Set[
 
   override protected val blockVersion: PNVMVersion = settings.application.version.blockByte
 
-  override protected val members: Map[String, Int128] = Map("Not implemented here" -> 0L)
+  override protected val members: ListMap[String, Int128] = ListMap("Not implemented here" -> 0L)
 
   override def getGenesisBlock: Try[(Block, ChainParams)] = Try(formNewBlock)
 
