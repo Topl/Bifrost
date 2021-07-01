@@ -5,9 +5,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalacheck.Gen.asciiStr
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
-import co.topl.utils.SizedByteVector.implicits._
 import co.topl.utils.codecs.implicits._
-import co.topl.crypto.PublicKey
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks.forAll
 import co.topl.utils.StringDataTypes.Base16Data
 
@@ -58,7 +56,6 @@ class WalletSpec extends AnyFlatSpec {
     ExtendedPrivateKey
       .fromSeed(testVector1Seed.value)
       .publicKey
-      .bytes
       .encodeAsBase16
       .shouldBe(Base16Data.unsafe("83e3ecaf57f90f022c45e10d1b8cb78499c30819515ad9a81ad82139fdb12a90"))
   }
@@ -67,7 +64,6 @@ class WalletSpec extends AnyFlatSpec {
     ExtendedPrivateKey
       .fromSeed(testVector2Seed.value)
       .publicKey
-      .bytes
       .encodeAsBase16
       .shouldBe(Base16Data.unsafe("eea170f0ef97b59d22907cb429888029721ed67d3e7a1b56b81731086ab7db64"))
   }
@@ -101,103 +97,16 @@ class WalletSpec extends AnyFlatSpec {
 
       val signature = privateKey.sign(messageToSign)
 
-      val isValidSignature = ed25519.verify(signature.sig, messageToSign, PublicKey(publicKey.bytes.toArray))
+      val isValidSignature = ed25519.verify(signature.sig, messageToSign, publicKey)
 
       isValidSignature shouldBe true
-    }
-  }
-
-  it should "generate matching chain codes for all public keys from private keys" in {
-    forAll(asciiStr, positiveIntListGen) { (seed, path) =>
-      val root = ExtendedPrivateKey.fromSeed(seed.getBytes)
-
-      val privateKey = path.foldLeft(root)((key, step) => key.derive(HardenedIndex(step)))
-      val publicKey = privateKey.publicKey
-
-      privateKey.chainCode shouldBe publicKey.chainCode
-    }
-  }
-
-  it should "generate matching chain codes for all soft-index child public keys derived from private keys" in {
-    forAll(asciiStr, positiveIntListGen, Gen.chooseNum(0, Int.MaxValue)) { (seed, path, childIndex) =>
-      val root = ExtendedPrivateKey.fromSeed(seed.getBytes)
-
-      val privateKey = path.foldLeft(root)((key, step) => key.derive(HardenedIndex(step)))
-      val publicKey = privateKey.publicKey
-
-      val derivedChildIndex = DerivedKeyIndex.soft(childIndex)
-
-      val publicKeyChild = publicKey.derive(derivedChildIndex)
-      val privateKeyChild = privateKey.derive(derivedChildIndex)
-
-      privateKeyChild.chainCode shouldBe privateKeyChild.chainCode
-    }
-  }
-
-  it should "generate valid signing keys for all soft-index child public keys derived from private keys" in {
-    forAll(asciiStr, positiveIntListGen, Gen.chooseNum(0, Int.MaxValue), asciiStr) {
-      (seed, path, childIndex, message) =>
-        val root = ExtendedPrivateKey.fromSeed(seed.getBytes)
-
-        val privateKey = path.foldLeft(root)((key, step) => key.derive(HardenedIndex(step)))
-        val publicKey = privateKey.publicKey
-
-        val derivedChildIndex = DerivedKeyIndex.soft(childIndex)
-
-        val publicKeyChild = publicKey.derive(derivedChildIndex)
-        val privateKeyChild = privateKey.derive(derivedChildIndex)
-
-        val messageToSign = message.getBytes
-
-        val ed25519 = new Ed25519
-
-        val signature = privateKeyChild.sign(messageToSign)
-
-        val isValidSignature = ed25519.verify(signature.sig, messageToSign, PublicKey(publicKeyChild.bytes.toArray))
-
-        isValidSignature shouldBe true
-    }
-  }
-
-  it should "test" in {
-    val root = ExtendedPrivateKey.fromSeed("test".getBytes)
-
-    val privateKey = root.derive(DerivedKeyIndex.soft(1))
-    val publicKey = root.publicKey.derive(DerivedKeyIndex.soft(1))
-
-    privateKey.chainCode shouldBe publicKey.chainCode
-
-    val message = "hi".getBytes
-
-    val ed = new Ed25519
-
-    val signature = privateKey.sign(message)
-
-    val isValid = ed.verify(signature.sig, message, publicKey.toPublicKey)
-
-    isValid shouldBe true
-  }
-
-  it should "generate matching chain codes for all hardened-index child public keys derived from private keys" in {
-    forAll(asciiStr, positiveIntListGen, Gen.chooseNum(0, Int.MaxValue)) { (seed, path, childIndex) =>
-      val root = ExtendedPrivateKey.fromSeed(seed.getBytes)
-
-      val privateKey = path.foldLeft(root)((key, step) => key.derive(HardenedIndex(step)))
-      val publicKey = privateKey.publicKey
-
-      val derivedChildIndex = DerivedKeyIndex.hardened(childIndex)
-
-      val publicKeyChild = publicKey.derive(derivedChildIndex, privateKey)
-      val privateKeyChild = privateKey.derive(derivedChildIndex)
-
-      privateKeyChild.chainCode shouldBe publicKeyChild.chainCode
     }
   }
 
   it should "create a valid signing root key with test vector #1" in {
     val root = ExtendedPrivateKey.fromSeed(testVector1Seed.value)
 
-    val publicKey = PublicKey(root.publicKey.bytes.toArray)
+    val publicKey = root.publicKey
 
     val message = "test".getBytes
 
@@ -213,7 +122,7 @@ class WalletSpec extends AnyFlatSpec {
   it should "create a valid signing root key with test vector #2" in {
     val root = ExtendedPrivateKey.fromSeed(testVector2Seed.value)
 
-    val publicKey = PublicKey(root.publicKey.bytes.toArray)
+    val publicKey = root.publicKey
 
     val message = "test".getBytes
 
