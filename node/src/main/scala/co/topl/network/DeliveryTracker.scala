@@ -108,7 +108,7 @@ class DeliveryTracker(nvsRef: ActorRef, context: ActorContext, networkSettings: 
         false
 
       /** case where we've exhausted attempts to get the modifier so stop checking for it */
-      case None if checks >= maxDeliveryChecks =>
+      case _ =>
         throw new StopExpectingError(id, checks)
     }
   }
