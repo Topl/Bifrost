@@ -1,16 +1,16 @@
-package co.topl.attestation.keyManagement.wallet
+package co.topl.attestation.keyManagement.derivedKeys
 
 import co.topl.crypto.signatures.Ed25519
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalacheck.Gen.asciiStr
-import org.scalacheck.Gen
-import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import co.topl.utils.codecs.implicits._
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks.forAll
 import co.topl.utils.StringDataTypes.Base16Data
+import org.scalacheck.Gen
+import org.scalacheck.Gen.asciiStr
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks.forAll
 
 // Test Vectors: https://github.com/satoshilabs/slips/blob/master/slip-0023.md
-class WalletSpec extends AnyFlatSpec {
+class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
 
   private val positiveIntListGen: Gen[List[Int]] = Gen.listOf(Gen.chooseNum(0, Int.MaxValue))
 
@@ -21,7 +21,7 @@ class WalletSpec extends AnyFlatSpec {
     Base16Data.unsafe("a055b781aac0c9dc1bfb7d803bc8ffd5d4392e506db2e4a5a93f0aba958c5be7")
 
   "Wallet" should "create correct root left key with test vector #1 seed" in {
-    ExtendedPrivateKey
+    ExtendedPrivateKeyEd25519
       .fromSeed(testVector1Seed.value)
       .leftNumber
       .toString
@@ -29,7 +29,7 @@ class WalletSpec extends AnyFlatSpec {
   }
 
   it should "create correct root left key with test vector #2 seed" in {
-    ExtendedPrivateKey
+    ExtendedPrivateKeyEd25519
       .fromSeed(testVector2Seed.value)
       .leftNumber
       .toString
@@ -37,7 +37,7 @@ class WalletSpec extends AnyFlatSpec {
   }
 
   it should "create correct root right key with test vector #1 seed" in {
-    ExtendedPrivateKey
+    ExtendedPrivateKeyEd25519
       .fromSeed(testVector1Seed.value)
       .rightKey
       .encodeAsBase16
@@ -45,7 +45,7 @@ class WalletSpec extends AnyFlatSpec {
   }
 
   it should "create correct root right key with test vector #2 seed" in {
-    ExtendedPrivateKey
+    ExtendedPrivateKeyEd25519
       .fromSeed(testVector2Seed.value)
       .rightKey
       .encodeAsBase16
@@ -53,7 +53,7 @@ class WalletSpec extends AnyFlatSpec {
   }
 
   it should "create correct root public key with test vector #1 seed" in {
-    ExtendedPrivateKey
+    ExtendedPrivateKeyEd25519
       .fromSeed(testVector1Seed.value)
       .publicKey
       .encodeAsBase16
@@ -61,7 +61,7 @@ class WalletSpec extends AnyFlatSpec {
   }
 
   it should "create correct root public key with test vector #2 seed" in {
-    ExtendedPrivateKey
+    ExtendedPrivateKeyEd25519
       .fromSeed(testVector2Seed.value)
       .publicKey
       .encodeAsBase16
@@ -69,7 +69,7 @@ class WalletSpec extends AnyFlatSpec {
   }
 
   it should "create correct root chain code with test vector #1 seed" in {
-    ExtendedPrivateKey
+    ExtendedPrivateKeyEd25519
       .fromSeed(testVector1Seed.value)
       .chainCode
       .encodeAsBase16
@@ -77,7 +77,7 @@ class WalletSpec extends AnyFlatSpec {
   }
 
   it should "create correct root chain code with test vector #2 seed" in {
-    ExtendedPrivateKey
+    ExtendedPrivateKeyEd25519
       .fromSeed(testVector2Seed.value)
       .chainCode
       .encodeAsBase16
@@ -86,9 +86,9 @@ class WalletSpec extends AnyFlatSpec {
 
   it should "generate valid signing keys for a hardened path" in {
     forAll(asciiStr, asciiStr, positiveIntListGen) { (seed, message, path) =>
-      val root = ExtendedPrivateKey.fromSeed(seed.getBytes)
+      val root = ExtendedPrivateKeyEd25519.fromSeed(seed.getBytes)
 
-      val privateKey = path.foldLeft(root)((key, step) => key.derive(DerivedKeyIndex.hardened(step)))
+      val privateKey = path.foldLeft(root)((key, step) => key.deriveChildKey(DerivedKeyIndex.hardened(step)))
       val publicKey = privateKey.publicKey
 
       val messageToSign = message.getBytes
@@ -104,7 +104,7 @@ class WalletSpec extends AnyFlatSpec {
   }
 
   it should "create a valid signing root key with test vector #1" in {
-    val root = ExtendedPrivateKey.fromSeed(testVector1Seed.value)
+    val root = ExtendedPrivateKeyEd25519.fromSeed(testVector1Seed.value)
 
     val publicKey = root.publicKey
 
@@ -120,7 +120,7 @@ class WalletSpec extends AnyFlatSpec {
   }
 
   it should "create a valid signing root key with test vector #2" in {
-    val root = ExtendedPrivateKey.fromSeed(testVector2Seed.value)
+    val root = ExtendedPrivateKeyEd25519.fromSeed(testVector2Seed.value)
 
     val publicKey = root.publicKey
 

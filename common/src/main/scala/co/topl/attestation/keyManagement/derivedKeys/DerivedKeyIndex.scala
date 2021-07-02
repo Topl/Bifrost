@@ -1,4 +1,4 @@
-package co.topl.attestation.keyManagement.wallet
+package co.topl.attestation.keyManagement.derivedKeys
 
 import co.topl.utils.SizedByteVector
 import co.topl.utils.SizedByteVector.Types.ByteVector4

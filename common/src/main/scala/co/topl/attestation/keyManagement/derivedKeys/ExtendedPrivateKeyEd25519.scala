@@ -1,13 +1,14 @@
-package co.topl.attestation.keyManagement.wallet
+package co.topl.attestation.keyManagement.derivedKeys
 
-import co.topl.attestation.SignatureEd25519
-import co.topl.attestation.keyManagement.wallet.mnemonicSeed.Mnemonic.Mnemonic
+import co.topl.attestation.keyManagement.mnemonicSeed.Mnemonic.Mnemonic
+import co.topl.attestation.{PublicKeyPropositionEd25519, SignatureEd25519}
 import co.topl.crypto.PublicKey
 import co.topl.crypto.hash.sha512
-import co.topl.crypto.signatures.{Ed25519, MessageToSign, Signature}
-import co.topl.utils.SizedByteVector.implicits._
+import co.topl.crypto.signatures.{Ed25519, Signature}
 import co.topl.utils.SizedByteVector
 import co.topl.utils.SizedByteVector.Types.{ByteVector28, ByteVector32}
+import co.topl.utils.SizedByteVector.implicits._
+import co.topl.utils.serialization.BifrostSerializer
 import scodec.bits.{ByteOrdering, ByteVector}
 
 import java.nio.charset.StandardCharsets
@@ -23,15 +24,15 @@ import java.nio.{ByteBuffer, ByteOrder}
  * @param rightKey the right 32 bytes of the private key
  * @param chainCode the 32-byte chain code
  */
-class ExtendedPrivateKey(
-  private[wallet] val leftKey:   ByteVector32,
-  private[wallet] val rightKey:  ByteVector32,
-  private[wallet] val chainCode: ByteVector32
+case class ExtendedPrivateKeyEd25519(
+  leftKey:   ByteVector32,
+  rightKey:  ByteVector32,
+  chainCode: ByteVector32
 ) {
 
   // Note: BigInt expects Big-Endian, but SLIP/BIP-ED25519 need Little-Endian
-  private[wallet] val leftNumber: BigInt = BigInt(1, leftKey.toArray.reverse)
-  private[wallet] val rightNumber: BigInt = BigInt(1, rightKey.toArray.reverse)
+  val leftNumber: BigInt = BigInt(1, leftKey.toArray.reverse)
+  val rightNumber: BigInt = BigInt(1, rightKey.toArray.reverse)
 
   /**
    * Gets the public key paired with this private key.
@@ -50,10 +51,13 @@ class ExtendedPrivateKey(
    * @param index the index of the child key to derive
    * @return the derived `ExtendedPrivateKey`
    */
-  def derive(index: DerivedKeyIndex): ExtendedPrivateKey = {
+  def deriveChildKey(index: DerivedKeyIndex): ExtendedPrivateKeyEd25519 = {
     val z = index match {
       case s: SoftIndex =>
-        hmac512WithKey(chainCode.toVector, ByteVector(0x00.toByte) ++ ByteVector(publicKey.value) ++ s.bytes.toVector)
+        hmac512WithKey(
+          chainCode.toVector,
+          ByteVector(0x00.toByte) ++ ByteVector(publicKey.value) ++ s.bytes.toVector
+        )
       case h: HardenedIndex =>
         hmac512WithKey(
           chainCode.toVector,
@@ -103,7 +107,7 @@ class ExtendedPrivateKey(
         ByteOrdering.LittleEndian
       )
 
-    ExtendedPrivateKey(nextLeft, nextRight, nextChainCode)
+    ExtendedPrivateKeyEd25519(nextLeft, nextRight, nextChainCode)
   }
 
   /**
@@ -111,9 +115,9 @@ class ExtendedPrivateKey(
    * @param message the message to sign serialized as a `MessageToSign`
    * @return the signature
    */
-  def sign(message: MessageToSign): SignatureEd25519 = {
+  def sign(message: Array[Byte]): SignatureEd25519 = {
     // signing is a mutable process
-    val mutableKey: ExtendedPrivateKey = ExtendedPrivateKey.copy(this)
+    val mutableKey: ExtendedPrivateKeyEd25519 = ExtendedPrivateKeyEd25519.copy(this)
     val ec = new Ed25519
 
     val resultSig = new Array[Byte](ec.SIGNATURE_SIZE)
@@ -129,23 +133,13 @@ class ExtendedPrivateKey(
 
     SignatureEd25519(Signature(resultSig))
   }
+
+  lazy val serializer: BifrostSerializer[ExtendedPrivateKeyEd25519] = ExtendedPrivateKeyEd25519Serializer
+
+  lazy val publicImage: PublicKeyPropositionEd25519 = PublicKeyPropositionEd25519(publicKey)
 }
 
-object ExtendedPrivateKey {
-
-  /**
-   * Creates a new `ExtendedPrivateKey` instance from the key and chain code.
-   * @param leftKeyBytes the left 32-bytes of the private key
-   * @param rightKeyBytes the left 32-bytes of the private key
-   * @param chaincode the 32-byte chain code
-   * @return a new `ExtendedPrivateKey` instance
-   */
-  private[wallet] def apply(
-    leftKeyBytes:  ByteVector32,
-    rightKeyBytes: ByteVector32,
-    chaincode:     ByteVector32
-  ): ExtendedPrivateKey =
-    new ExtendedPrivateKey(leftKeyBytes, rightKeyBytes, chaincode)
+object ExtendedPrivateKeyEd25519 {
 
   /**
    * Generates a root `ExtendedPrivateKey` from a mnemonic phrase and an optional password.
@@ -153,7 +147,7 @@ object ExtendedPrivateKey {
    * @param password the password (optional)
    * @return a root `ExtendedPrivateKey`
    */
-  def fromMnemonic(m: Mnemonic, password: Option[String]): ExtendedPrivateKey = fromSeed(m(password))
+  def fromMnemonic(m: Mnemonic, password: Option[String]): ExtendedPrivateKeyEd25519 = fromSeed(m(password))
 
   /**
    * Creates a root `ExtendedPrivateKey` from the given seed.
@@ -162,7 +156,7 @@ object ExtendedPrivateKey {
    * @param seed the seed to generate from
    * @return a root `ExtendedPrivateKey`
    */
-  def fromSeed(seed: Array[Byte]): ExtendedPrivateKey = {
+  def fromSeed(seed: Array[Byte]): ExtendedPrivateKeyEd25519 = {
     val i =
       hmac512WithKey(ByteVector.view("ed25519 cardano seed".getBytes(StandardCharsets.UTF_8)), ByteVector.view(seed))
 
@@ -173,7 +167,7 @@ object ExtendedPrivateKey {
     k(0) = (k(0) & 0xf8).toByte
     k(31) = ((k(31) & 0x1f) | 0x40).toByte
 
-    ExtendedPrivateKey(
+    ExtendedPrivateKeyEd25519(
       SizedByteVector[ByteVector32].fit(k.slice(0, 32), ByteOrdering.LittleEndian),
       SizedByteVector[ByteVector32].fit(k.slice(32, 64), ByteOrdering.LittleEndian),
       SizedByteVector[ByteVector32].fit(iRight, ByteOrdering.LittleEndian)
@@ -185,8 +179,8 @@ object ExtendedPrivateKey {
    * @param value the private key to copy
    * @return the copied `ExtendedPrivateKey`
    */
-  private[wallet] def copy(value: ExtendedPrivateKey): ExtendedPrivateKey =
-    new ExtendedPrivateKey(
+  def copy(value: ExtendedPrivateKeyEd25519): ExtendedPrivateKeyEd25519 =
+    new ExtendedPrivateKeyEd25519(
       SizedByteVector[ByteVector32].fit(value.leftKey.toArray.clone(), ByteOrdering.LittleEndian),
       SizedByteVector[ByteVector32].fit(value.rightKey.toArray.clone(), ByteOrdering.LittleEndian),
       SizedByteVector[ByteVector32].fit(value.chainCode.toArray.clone(), ByteOrdering.LittleEndian)
