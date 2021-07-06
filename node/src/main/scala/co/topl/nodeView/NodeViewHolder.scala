@@ -1,35 +1,39 @@
 package co.topl.nodeView
 
 import akka.Done
+import akka.actor.typed.scaladsl.adapter._
 import akka.actor.{Actor, ActorRef, ActorSystem, Props, Stash}
 import akka.dispatch.Dispatchers
-import akka.pattern.ask
+import akka.pattern._
 import akka.util.Timeout
 import cats.data.EitherT
+import co.topl.attestation.Address
 import co.topl.catsakka.AskException
 import co.topl.consensus.Forger
 import co.topl.consensus.Forger.ReceivableMessages.GenerateGenesis
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier, TransactionCarryingPersistentNodeViewModifier}
+import co.topl.modifier.box.ProgramId
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.modifier.transaction.validation.implicits._
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
-import co.topl.nodeView.NodeViewHolder.UpdateInformation
+import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
-import co.topl.nodeView.history.History
-import co.topl.nodeView.mempool.MemPool
-import co.topl.nodeView.state.State
+import co.topl.nodeView.history.{GenericHistory, History, HistoryReader}
+import co.topl.nodeView.mempool.{MemPool, MemPoolReader}
+import co.topl.nodeView.state.{State, StateReader}
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
-import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.serialization.BifrostSerializer
+import co.topl.utils.{AsyncRunner, Logging}
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.annotation.tailrec
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{Await, ExecutionContext, Future, Promise}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -44,17 +48,10 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit np:
     with Logging
     with Stash {
 
-  import context.dispatcher
-
-  // Import the types of messages this actor can RECEIVE
   import NodeViewHolder.ReceivableMessages._
+  import context.{dispatcher, system}
 
-  type TX = Transaction.TX
-  type PMOD = Block
-  type HIS = History
-  type MS = State
-  type MP = MemPool
-  type NodeView = (HIS, MS, MP)
+  private val blockingDispatcher = context.system.dispatchers.lookup(Dispatchers.DefaultBlockingDispatcherId)
 
   /**
    * The main data structure a node software is taking care about, a node view consists
@@ -62,31 +59,22 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit np:
    * state (result of log's modifiers application to pre-historical(genesis) state,
    * user-specific information stored in vault (it could be e.g. a wallet), and a memory pool.
    */
-  private var nodeView: NodeView = _
+  private[nodeView] var nodeView: NodeView = _
 
-  /**
-   * While this actor is processing modifiers asynchronously, it is busy.  Upon completion of the processing, this
-   * Promise is completed.
-   *
-   * This Promise exists because this Actor could be instructed to shutdown while a batch of modifiers are still processing.
-   * The actor should wait until the batch finishes before terminating.
-   */
-  private var busyCompletion: Promise[DoneProcessingModifiers.type] = _
+  private[nodeView] var nodeViewWriter: NodeViewWriter = _
 
-  /**
-   * Cache for modifiers. If modifiers are coming out-of-order, they are to be stored in this cache.
-   */
-  protected lazy val modifiersCache: ModifiersCache[PMOD, HIS] =
-    new DefaultModifiersCache[PMOD, HIS](settings.network.maxModifiersCacheSize)
-
-  lazy val modifierCompanions: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
-    Map(Block.modifierTypeId -> BlockSerializer, Transaction.modifierTypeId -> TransactionSerializer)
+  private var writerRunner: AsyncRunner = _
 
   /** Define actor control behavior */
   override def preStart(): Unit = {
     nodeView = restoreState().getOrElse(genesisState)
+
+    nodeViewWriter = new NodeViewWriter(settings, appContext, nodeView)
+
+    writerRunner = AsyncRunner("node-view-writer")(system = context.system.toTyped, timeout = Timeout(10.minutes))
+
     // subscribe to particular messages this actor expects to receive
-    context.system.eventStream.subscribe(self, classOf[LocallyGeneratedModifier[PMOD]])
+    context.system.eventStream.subscribe(self, classOf[LocallyGeneratedModifier[Block]])
 
     log.info(s"${Console.YELLOW}NodeViewHolder publishing ready signal${Console.RESET}")
     context.system.eventStream.publish(NodeViewReady(this.self))
@@ -100,12 +88,9 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit np:
 
   override def postStop(): Unit = {
     log.info(s"${Console.RED}Application is going down NOW!${Console.RESET}")
-    Option(busyCompletion).foreach { p =>
-      log.info("Awaiting current batch of modifiers to be written")
-      Await.result(p.future, 10.minutes)
-    }
-    nodeView._1.closeStorage() // close History storage
-    nodeView._2.closeStorage() // close State storage
+
+    nodeView.history.closeStorage() // close History storage
+    nodeView.state.closeStorage() // close State storage
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
@@ -113,80 +98,64 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit np:
 
   // ----------- CONTEXT
   override def receive: Receive =
-    processModifiers orElse
-    transactionsProcessing orElse
-    getNodeViewChanges orElse
-    nonsense
-
-  /**
-   * Syncing modifiers from another node takes a long time, especially for large batches.  To avoid blocking "read"
-   * requests, this actor can operate in a "busy" state such that new requests for "writes" are stashed while still
-   * being responsive to "read" requests.  Once the _current_ batch of modifications have been applied, all previously stashed
-   * messages are unstashed, and the actor returns to its normal/not-busy state
-   * @return
-   */
-  private def busyProcessingModifiers: Receive = {
-    val altProcessModifiers: Receive = {
-      case _: ModifiersFromRemote[_] =>
-        stash()
-      case _: LocallyGeneratedModifier[_] =>
-        stash()
-      case DoneProcessingModifiers =>
-        unstashAll()
-        context.become(receive)
-    }
-
-    altProcessModifiers orElse transactionsProcessing orElse getNodeViewChanges orElse nonsense
-  }
+    getNodeViewChanges orElse runWithNodeView orElse nodeViewChanged orElse modification orElse nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
 
-  protected def processModifiers: Receive = {
-    import akka.pattern.pipe
-
-    /**
-     * Process the modifications asynchronously in a "background" Future, and notify this actor once complete.  Also,
-     * move into a "busy" state such that new "writes" are stashed until the current one completes.
-     * @param f The side-effecting operation to run
-     */
-    def processAsync(f: => Unit): Unit = {
-      busyCompletion = Promise().completeWith(
-        Future(f)
-          .andThen { case Failure(exception) =>
-            log.error("Failed to process remote modifiers.", exception)
-          }
-          .transform(_ => Success(DoneProcessingModifiers))
-          .pipeTo(self)
-      )
-      context.become(busyProcessingModifiers)
-    }
-
-    {
-      case ModifiersFromRemote(mods: Iterable[PMOD] @unchecked) =>
-        processAsync(processRemoteModifiers(mods))
-      case LocallyGeneratedModifier(mod: Block) =>
-        log.info(s"Got locally generated modifier ${mod.id} of type ${mod.modifierTypeId}")
-        processAsync(pmodModify(mod))
-    }
-  }
-
-  protected def transactionsProcessing: Receive = {
-    case newTxs: NewTransactions => newTxs.txs.foreach(txModify)
-
-    case EliminateTransactions(ids) =>
-      log.debug(s"${Console.YELLOW} Removing transactions with ids: $ids from mempool${Console.RESET}")
-      val updatedPool = memoryPool().filter(tx => !ids.contains(tx.id))
-      updateNodeView(updatedMempool = Some(updatedPool))
-      ids.foreach { id =>
-        val e = new Exception("Became invalid")
-        context.system.eventStream.publish(FailedTransaction(id, e, immediateFailure = false))
-      }
+  private def runWithNodeView: Receive = { case RunWithNodeView(f) =>
+    Future(f(ReadableNodeView(nodeView.history.getReader, nodeView.state.getReader, nodeView.mempool.getReader)))(
+      blockingDispatcher
+    )
+      .pipeTo(sender())
   }
 
   protected def getNodeViewChanges: Receive = { case GetNodeViewChanges(history, state, mempool) =>
-    if (history) sender() ! ChangedHistory(nodeView._1.getReader)
-    if (state) sender() ! ChangedState(nodeView._2.getReader)
-    if (mempool) sender() ! ChangedMempool(nodeView._3.getReader)
+    if (history) sender() ! ChangedHistory(nodeView.history.getReader)
+    if (state) sender() ! ChangedState(nodeView.state.getReader)
+    if (mempool) sender() ! ChangedMempool(nodeView.mempool.getReader)
+  }
+
+  private def nodeViewChanged: Receive = { case NodeViewChanged(updated) =>
+    nodeView = updated
+  }
+
+  private def modification: Receive = {
+    case m: ModifiersFromRemote[_] =>
+      writerRunner
+        .run(() =>
+          nodeViewWriter.handle(
+            NodeViewWriter.Messages.WriteBlocks(m.modifiers.asInstanceOf[Iterable[Block]])
+          )
+        )
+        .map(NodeViewChanged)
+        .pipeTo(self)
+    case m: LocallyGeneratedModifier[_] =>
+      writerRunner
+        .run(() =>
+          nodeViewWriter.handle(
+            NodeViewWriter.Messages.WriteBlock(m.pmod.asInstanceOf[Block])
+          )
+        )
+        .map(NodeViewChanged)
+        .pipeTo(self)
+    case m: NewTransactions =>
+      writerRunner
+        .run(() =>
+          nodeViewWriter.handle(
+            NodeViewWriter.Messages.WriteTransactions(m.txs)
+          )
+        )
+        .map(NodeViewChanged)
+        .pipeTo(self)
+    case m: EliminateTransactions =>
+      writerRunner
+        .run(() =>
+          nodeViewWriter.handle(
+            NodeViewWriter.Messages.EliminateTransactions(m.ids)
+          )
+        )
+        .map(NodeViewChanged)
+        .pipeTo(self)
   }
 
   protected def nonsense: Receive = { case nonsense: Any =>
@@ -196,20 +165,14 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit np:
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
 
-  protected def history(): HIS = nodeView._1
-
-  protected def minimalState(): MS = nodeView._2
-
-  protected def memoryPool(): MP = nodeView._3
-
   /**
    * Restore a local view during a node startup. If no any stored view found
    * (e.g. if it is a first launch of a node) None is to be returned
    */
-  def restoreState(): Option[NodeView] =
+  private def restoreState(): Option[NodeView] =
     if (State.exists(settings)) {
       Some(
-        (
+        NodeView(
           History.readOrGenerate(settings),
           State.readOrGenerate(settings),
           MemPool.emptyPool
@@ -223,7 +186,7 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit np:
     val genesisBlock = Await.result(getGenesisBlock, timeout.duration)
 
     // generate the nodeView and return
-    (
+    NodeView(
       History.readOrGenerate(settings).append(genesisBlock).get._1,
       State.genesisState(settings, Seq(genesisBlock)),
       MemPool.emptyPool
@@ -241,6 +204,114 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit np:
       }
     }
 
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////// COMPANION SINGLETON ////////////////////////////////
+
+object NodeViewHolder {
+  val actorName = "nodeViewHolder"
+
+  case class UpdateInformation[HIS, MS, PMOD <: PersistentNodeViewModifier](
+    history:                 HIS,
+    state:                   MS,
+    failedMod:               Option[PMOD],
+    alternativeProgressInfo: Option[ProgressInfo[PMOD]],
+    suffix:                  IndexedSeq[PMOD]
+  )
+
+  object ReceivableMessages {
+
+    // Explicit request of NodeViewChange events of certain types.
+    case class GetNodeViewChanges(history: Boolean, state: Boolean, mempool: Boolean)
+
+    case class RunWithNodeView[T](f: ReadableNodeView => T)
+
+    // Retrieve data from current view
+    case object GetDataFromCurrentView
+
+    // Modifiers received from the remote peer with new elements in it
+    case class ModifiersFromRemote[PMOD <: PersistentNodeViewModifier](modifiers: Iterable[PMOD])
+
+    case class LocallyGeneratedModifier[PMOD <: PersistentNodeViewModifier](pmod: PMOD)
+
+    private[nodeView] case object DoneProcessingModifiers
+
+    private[nodeView] case class NodeViewChanged(nodeView: NodeView)
+
+    sealed trait NewTransactions { val txs: Iterable[Transaction.TX] }
+
+    case class LocallyGeneratedTransaction(tx: Transaction.TX) extends NewTransactions {
+      override val txs: Iterable[Transaction.TX] = Iterable(tx)
+    }
+
+    case class TransactionsFromRemote(txs: Iterable[Transaction.TX]) extends NewTransactions
+
+    case class EliminateTransactions(ids: Seq[ModifierId])
+
+  }
+
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// ACTOR REF HELPER //////////////////////////////////
+
+object NodeViewHolderRef {
+
+  def props(settings: AppSettings, appContext: AppContext): Props =
+    Props(new NodeViewHolder(settings, appContext)(appContext.networkType.netPrefix))
+      .withDispatcher(Dispatchers.DefaultBlockingDispatcherId)
+
+  def apply(name: String, settings: AppSettings, appContext: AppContext)(implicit
+    system:       ActorSystem
+  ): ActorRef =
+    system.actorOf(props(settings, appContext), name)
+}
+
+case class NodeView(history: History, state: State, mempool: MemPool)
+
+case class ReadableNodeView(
+  history: HistoryReader[Block, BifrostSyncInfo],
+  state:   StateReader[ProgramId, Address],
+  memPool: MemPoolReader[Transaction.TX]
+)
+
+private class NodeViewWriter(settings: AppSettings, appContext: AppContext, initialNodeView: NodeView)(implicit
+  np:                                  NetworkPrefix,
+  system:                              ActorSystem
+) {
+
+  import NodeViewHolder._
+  import NodeViewWriter.Messages
+
+  private[nodeView] var nodeView: NodeView = initialNodeView
+
+  private val log: Logger = LoggerFactory.getLogger(this.getClass)
+
+  /**
+   * Cache for modifiers. If modifiers are coming out-of-order, they are to be stored in this cache.
+   */
+  protected lazy val modifiersCache: ModifiersCache[Block, History] =
+    new DefaultModifiersCache[Block, History](settings.network.maxModifiersCacheSize)
+
+  lazy val modifierCompanions: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
+    Map(Block.modifierTypeId -> BlockSerializer, Transaction.modifierTypeId -> TransactionSerializer)
+
+  def handle(message: NodeViewWriter.Message): NodeView = {
+    message match {
+      case Messages.WriteBlock(block) =>
+        log.info(s"Got locally generated modifier ${block.id} of type ${block.modifierTypeId}")
+        nodeView = pmodModify(block, nodeView)
+      case Messages.WriteBlocks(blocks) =>
+        nodeView = processRemoteModifiers(blocks, nodeView)
+      case Messages.WriteTransactions(transactions) =>
+        nodeView = transactions.foldLeft(nodeView)((view, tx) => txModify(tx, view))
+      case Messages.EliminateTransactions(ids) =>
+        nodeView = eliminateTransactions(ids, nodeView)
+    }
+    nodeView
+  }
+
   /**
    * Handles adding remote modifiers to the default cache and then attempts to apply them to the history.
    * Since this cache is unordered, we continue to loop through the cache until it's size remains constant.
@@ -248,25 +319,24 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit np:
    *
    * @param mods recieved persistent modifiers from the remote peer
    */
-  protected def processRemoteModifiers(mods: Iterable[PMOD]): Unit = {
+  private def processRemoteModifiers(mods: Iterable[Block], nodeView: NodeView): NodeView = {
 
     /** First-order loop that tries to pop blocks out of the cache and apply them into history */
     @tailrec
-    def applyLoop(applied: Seq[PMOD]): Seq[PMOD] =
-      modifiersCache.popCandidate(history()) match {
+    def applyLoop(applied: Seq[Block], nodeView: NodeView): (Seq[Block], NodeView) =
+      modifiersCache.popCandidate(nodeView.history) match {
         case Some(mod) =>
-          pmodModify(mod)
-          applyLoop(mod +: applied)
+          applyLoop(mod +: applied, pmodModify(mod, nodeView))
         case None =>
-          applied
+          (applied, nodeView)
       }
 
     /** Second-order loop that continues to call the first-order loop until the size of the cache remains constant */
     @tailrec
-    def applyAllApplicable(acc: Seq[PMOD], startSize: Int): Seq[PMOD] = {
-      val applied = applyLoop(acc)
-      if (modifiersCache.size == startSize) applied
-      else applyAllApplicable(applied, modifiersCache.size)
+    def applyAllApplicable(acc: Seq[Block], startSize: Int, nodeView: NodeView): (Seq[Block], NodeView) = {
+      val (applied, newNodeView) = applyLoop(acc, nodeView)
+      if (modifiersCache.size == startSize) (applied, newNodeView)
+      else applyAllApplicable(applied, modifiersCache.size, newNodeView)
     }
 
     // add all newly received modifiers to the cache
@@ -276,110 +346,107 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit np:
     val initialSize = modifiersCache.size
 
     // begin looping through the cache and trying to apply all applicable modifiers
-    val applied = applyAllApplicable(Seq(), initialSize)
+    val (applied, newNodeView) = applyAllApplicable(Seq(), initialSize, nodeView)
 
     // clean the cache if it is growing too large
     val cleared = modifiersCache.cleanOverfull()
 
-    context.system.eventStream.publish(ModifiersProcessingResult(applied, cleared))
+    system.eventStream.publish(ModifiersProcessingResult(applied, cleared))
     log.debug(s"Cache size before: $initialSize")
     log.debug(s"Cache size after: ${modifiersCache.size}")
+
+    newNodeView
   }
 
-  /**
-   * @param tx
-   */
-  protected def txModify(tx: TX): Unit =
+  private def txModify(tx: Transaction.TX, nodeView: NodeView): NodeView =
     tx.syntacticValidation.toEither match {
       case Right(_) =>
-        memoryPool().put(tx, appContext.timeProvider.time) match {
-          case Success(_) =>
+        nodeView.mempool.put(tx, appContext.timeProvider.time) match {
+          case Success(pool) =>
             log.debug(s"Unconfirmed transaction $tx added to the memory pool")
-            context.system.eventStream.publish(SuccessfulTransaction[TX](tx))
+            system.eventStream.publish(SuccessfulTransaction[Transaction.TX](tx))
+            nodeView.copy(mempool = pool)
 
           case Failure(e) =>
-            context.system.eventStream.publish(FailedTransaction(tx.id, e, immediateFailure = true))
+            system.eventStream.publish(FailedTransaction(tx.id, e, immediateFailure = true))
+            nodeView
         }
 
       case Left(e) =>
-        context.system.eventStream.publish(
+        system.eventStream.publish(
           FailedTransaction(tx.id, new Exception(e.head.toString), immediateFailure = true)
         )
+        nodeView
     }
 
-  //todo: update state in async way?
-  /**
-   * @param pmod
-   */
-  protected def pmodModify(pmod: PMOD): Unit =
-    if (!history().contains(pmod.id)) {
-      context.system.eventStream.publish(StartingPersistentModifierApplication(pmod))
+  private def pmodModify(pmod: Block, nodeView: NodeView): NodeView =
+    if (!nodeView.history.contains(pmod.id)) {
+      system.eventStream.publish(StartingPersistentModifierApplication(pmod))
 
       // check that the transactions are semantically valid
-      if (pmod.transactions.forall(_.semanticValidation(minimalState()).isValid)) {
+      if (pmod.transactions.forall(_.semanticValidation(nodeView.state).isValid)) {
         log.info(s"Apply modifier ${pmod.id} of type ${pmod.modifierTypeId} to nodeViewHolder")
 
         // append the block to history
-        history().append(pmod) match {
+        nodeView.history.append(pmod) match {
           case Success((historyBeforeStUpdate, progressInfo)) =>
             log.debug(s"Going to apply modifications to the state: $progressInfo")
-            context.system.eventStream.publish(SyntacticallySuccessfulModifier(pmod))
-            context.system.eventStream.publish(NewOpenSurface(historyBeforeStUpdate.openSurfaceIds()))
+            system.eventStream.publish(SyntacticallySuccessfulModifier(pmod))
+            system.eventStream.publish(NewOpenSurface(historyBeforeStUpdate.openSurfaceIds()))
 
             if (progressInfo.toApply.nonEmpty) {
               val (newHistory, newStateTry, blocksApplied) =
-                updateState(historyBeforeStUpdate, minimalState(), progressInfo, IndexedSeq())
+                updateState(historyBeforeStUpdate, nodeView.state, progressInfo, IndexedSeq())
 
               newStateTry match {
                 case Success(newMinState) =>
-                  val newMemPool = updateMemPool(progressInfo.toRemove, blocksApplied, memoryPool(), newMinState)
-
+                  val newMemPool = updateMemPool(progressInfo.toRemove, blocksApplied, nodeView.mempool, newMinState)
                   log.info(s"Persistent modifier ${pmod.id} applied successfully")
-                  updateNodeView(Some(newHistory), Some(newMinState), Some(newMemPool))
+                  notifyUpdate(newHistory)
+                  notifyUpdate(newMinState)
+                  notifyUpdate(newMemPool)
+                  NodeView(newHistory, newMinState, newMemPool)
 
                 case Failure(e) =>
-                  log.warn(s"Can`t apply persistent modifier (id: ${pmod.id}, contents: $pmod) to minimal state", e)
-                  updateNodeView(updatedHistory = Some(newHistory))
-                  context.system.eventStream.publish(SemanticallyFailedModification(pmod, e))
+                  log.error(s"Can`t apply persistent modifier (id: ${pmod.id}, contents: $pmod) to minimal state", e)
+                  system.eventStream.publish(SemanticallyFailedModification(pmod, e))
+                  notifyUpdate(newHistory)
+                  nodeView.copy(history = newHistory)
               }
             } else {
               requestDownloads(progressInfo)
-              updateNodeView(updatedHistory = Some(historyBeforeStUpdate))
+              notifyUpdate(historyBeforeStUpdate)
+              nodeView.copy(history = historyBeforeStUpdate)
             }
           case Failure(e) =>
-            log.warn(s"Can`t apply persistent modifier (id: ${pmod.id}, contents: $pmod) to history", e)
-            context.system.eventStream.publish(SyntacticallyFailedModification(pmod, e))
+            log.error(s"Can`t apply persistent modifier (id: ${pmod.id}, contents: $pmod) to history", e)
+            system.eventStream.publish(SyntacticallyFailedModification(pmod, e))
+            nodeView
         }
       } else {
         log.warn(s"Trying to apply modifier ${pmod.id} containing invalid transactions")
+        nodeView
       }
     } else {
       log.warn(s"Trying to apply modifier ${pmod.id} that's already in history")
+      nodeView
     }
 
   /**
    * @param mod - the block to retrieve transactions from
    * @return the sequence of transactions from a block
    */
-  protected def extractTransactions(mod: PMOD): Seq[TX] = mod match {
+  private def extractTransactions(mod: Block): Seq[Transaction.TX] = mod match {
     case tcm: TransactionCarryingPersistentNodeViewModifier[_] => tcm.transactions
     case _                                                     => Seq()
   }
 
-  /**
-   * @param pi
-   */
-  private def requestDownloads(pi: ProgressInfo[PMOD]): Unit =
+  private def requestDownloads(pi: ProgressInfo[Block]): Unit =
     pi.toDownload.foreach { case (tid, id) =>
-      context.system.eventStream.publish(DownloadRequest(tid, id))
+      system.eventStream.publish(DownloadRequest(tid, id))
     }
 
-  /**
-   * @param suffix
-   * @param rollbackPoint
-   * @return
-   */
-  private def trimChainSuffix(suffix: IndexedSeq[PMOD], rollbackPoint: ModifierId): IndexedSeq[PMOD] = {
+  private def trimChainSuffix(suffix: IndexedSeq[Block], rollbackPoint: ModifierId): IndexedSeq[Block] = {
     val idx = suffix.indexWhere(_.id == rollbackPoint)
     if (idx == -1) IndexedSeq() else suffix.drop(idx)
   }
@@ -419,15 +486,15 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit np:
 
   @tailrec
   private def updateState(
-    history:       HIS,
-    state:         MS,
-    progressInfo:  ProgressInfo[PMOD],
-    suffixApplied: IndexedSeq[PMOD]
-  ): (HIS, Try[MS], Seq[PMOD]) = {
+    history:       History,
+    state:         State,
+    progressInfo:  ProgressInfo[Block],
+    suffixApplied: IndexedSeq[Block]
+  ): (History, Try[State], Seq[Block]) = {
 
     requestDownloads(progressInfo)
 
-    val (stateToApplyTry: Try[MS], suffixTrimmed: IndexedSeq[PMOD]) = if (progressInfo.chainSwitchingNeeded) {
+    val (stateToApplyTry: Try[State], suffixTrimmed: IndexedSeq[Block]) = if (progressInfo.chainSwitchingNeeded) {
       @SuppressWarnings(Array("org.wartremover.warts.OptionPartial"))
       val branchingPoint = progressInfo.branchPoint.get //todo: .get
       if (state.version != branchingPoint) {
@@ -448,46 +515,29 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit np:
         }
       case Failure(e) =>
         log.error("Rollback failed: ", e)
-        context.system.eventStream.publish(RollbackFailed)
+        system.eventStream.publish(RollbackFailed)
         //todo: what to return here? the situation is totally wrong
         ???
     }
   }
 
-  /**
-   * Update NodeView with new components and notify subscribers of changed components
-   *
-   * @param updatedHistory
-   * @param updatedState
-   * @param updatedMempool
-   */
-  protected def updateNodeView(
-    updatedHistory: Option[HIS] = None,
-    updatedState:   Option[MS] = None,
-    updatedMempool: Option[MP] = None
-  ): Unit = {
-    val newNodeView =
-      (
-        updatedHistory.getOrElse(history()),
-        updatedState.getOrElse(minimalState()),
-        updatedMempool.getOrElse(memoryPool())
-      )
+  private def notifyUpdate(updatedHistory: History): Unit =
+    system.eventStream.publish(ChangedHistory(updatedHistory.getReader))
 
-    if (updatedHistory.nonEmpty)
-      context.system.eventStream.publish(ChangedHistory(newNodeView._1.getReader))
+  private def notifyUpdate(updatedState: State): Unit =
+    system.eventStream.publish(ChangedState(updatedState.getReader))
 
-    if (updatedState.nonEmpty)
-      context.system.eventStream.publish(ChangedState(newNodeView._2.getReader))
-
-    if (updatedMempool.nonEmpty)
-      context.system.eventStream.publish(ChangedMempool(newNodeView._3.getReader))
-
-    nodeView = newNodeView
-  }
+  private def notifyUpdate(updatedMempool: MemPool): Unit =
+    system.eventStream.publish(ChangedMempool(updatedMempool.getReader))
 
   //todo: this method causes delays in a block processing as it removes transactions from mempool and checks
   //todo: validity of remaining transactions in a synchronous way. Do this job async!
-  protected def updateMemPool(blocksRemoved: Seq[PMOD], blocksApplied: Seq[PMOD], memPool: MP, state: MS): MP = {
+  private def updateMemPool(
+    blocksRemoved: Seq[Block],
+    blocksApplied: Seq[Block],
+    memPool:       MemPool,
+    state:         State
+  ): MemPool = {
     // drop the first two transactions, since these are the reward transactions and invalid
     val rolledBackTxs = blocksRemoved.flatMap(b => extractTransactions(b).drop(2))
 
@@ -511,89 +561,54 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit np:
    * @param progressInfo class with blocks that need to be applied to state
    * @return
    */
-  protected def applyState(
-    history:       HIS,
-    stateToApply:  MS,
-    suffixTrimmed: IndexedSeq[PMOD],
-    progressInfo:  ProgressInfo[PMOD]
-  ): UpdateInformation[HIS, MS, PMOD] = {
+  private def applyState(
+    history:       History,
+    stateToApply:  State,
+    suffixTrimmed: IndexedSeq[Block],
+    progressInfo:  ProgressInfo[Block]
+  ): UpdateInformation[History, State, Block] = {
 
-    val updateInfoInit = UpdateInformation[HIS, MS, PMOD](history, stateToApply, None, None, suffixTrimmed)
+    val updateInfoInit = UpdateInformation[History, State, Block](history, stateToApply, None, None, suffixTrimmed)
 
     progressInfo.toApply.foldLeft(updateInfoInit) { case (updateInfo, modToApply) =>
       if (updateInfo.failedMod.isEmpty) {
         updateInfo.state.applyModifier(modToApply) match {
           case Success(stateAfterApply) =>
             val newHis = history.reportModifierIsValid(modToApply)
-            context.system.eventStream.publish(SemanticallySuccessfulModifier(modToApply))
+            system.eventStream.publish(SemanticallySuccessfulModifier(modToApply))
             UpdateInformation(newHis, stateAfterApply, None, None, updateInfo.suffix :+ modToApply)
 
           case Failure(e) =>
             val (newHis, newProgressInfo) = history.reportModifierIsInvalid(modToApply, progressInfo)
-            context.system.eventStream.publish(SemanticallyFailedModification(modToApply, e))
+            system.eventStream.publish(SemanticallyFailedModification(modToApply, e))
             UpdateInformation(newHis, updateInfo.state, Some(modToApply), Some(newProgressInfo), updateInfo.suffix)
         }
       } else updateInfo
     }
   }
-}
 
-////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////// COMPANION SINGLETON ////////////////////////////////
-
-object NodeViewHolder {
-  val actorName = "nodeViewHolder"
-
-  case class UpdateInformation[HIS, MS, PMOD <: PersistentNodeViewModifier](
-    history:                 HIS,
-    state:                   MS,
-    failedMod:               Option[PMOD],
-    alternativeProgressInfo: Option[ProgressInfo[PMOD]],
-    suffix:                  IndexedSeq[PMOD]
-  )
-
-  object ReceivableMessages {
-
-    // Explicit request of NodeViewChange events of certain types.
-    case class GetNodeViewChanges(history: Boolean, state: Boolean, mempool: Boolean)
-
-    // Retrieve data from current view
-    case object GetDataFromCurrentView
-
-    // Modifiers received from the remote peer with new elements in it
-    case class ModifiersFromRemote[PMOD <: PersistentNodeViewModifier](modifiers: Iterable[PMOD])
-
-    case class LocallyGeneratedModifier[PMOD <: PersistentNodeViewModifier](pmod: PMOD)
-
-    private[nodeView] case object DoneProcessingModifiers
-
-    sealed trait NewTransactions { val txs: Iterable[Transaction.TX] }
-
-    case class LocallyGeneratedTransaction(tx: Transaction.TX) extends NewTransactions {
-      override val txs: Iterable[Transaction.TX] = Iterable(tx)
+  private def eliminateTransactions(ids: Seq[ModifierId], nodeView: NodeView): NodeView = {
+    log.debug(s"${Console.YELLOW} Removing transactions with ids: $ids from mempool${Console.RESET}")
+    val updatedPool = nodeView.mempool.filter(tx => !ids.contains(tx.id))
+    notifyUpdate(updatedPool)
+    ids.foreach { id =>
+      val e = new Exception("Became invalid")
+      system.eventStream.publish(FailedTransaction(id, e, immediateFailure = false))
     }
-
-    case class TransactionsFromRemote(txs: Iterable[Transaction.TX]) extends NewTransactions
-
-    case class EliminateTransactions(ids: Seq[ModifierId])
-
+    nodeView.copy(mempool = updatedPool)
   }
-
 }
 
-////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////// ACTOR REF HELPER //////////////////////////////////
+private object NodeViewWriter {
 
-object NodeViewHolderRef {
+  sealed abstract class Message
 
-  def props(settings: AppSettings, appContext: AppContext): Props =
-    Props(new NodeViewHolder(settings, appContext)(appContext.networkType.netPrefix))
-      .withDispatcher(Dispatchers.DefaultBlockingDispatcherId)
-
-  def apply(name: String, settings: AppSettings, appContext: AppContext)(implicit
-    system:       ActorSystem
-  ): ActorRef =
-    system.actorOf(props(settings, appContext), name)
+  object Messages {
+    case class WriteBlocks(blocks: Iterable[Block]) extends Message
+    case class WriteBlock(block: Block) extends Message
+    case class WriteTransactions(transactions: Iterable[Transaction.TX]) extends Message
+    case class EliminateTransactions(ids: Seq[ModifierId]) extends Message
+  }
 }
 
 sealed trait GetHistoryFailure

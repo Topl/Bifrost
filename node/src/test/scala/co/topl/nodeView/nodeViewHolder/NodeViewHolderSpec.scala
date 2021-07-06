@@ -46,7 +46,8 @@ class NodeViewHolderSpec
       val rewardBlock = block.copy(transactions = Seq(arbitReward, polyReward))
 
       val updateMemPool = PrivateMethod[MP](Symbol("updateMemPool"))
-      val memPool = nodeView invokePrivate updateMemPool(Seq(rewardBlock), Seq(), MemPool.emptyPool, state)
+      val memPool =
+        nodeView.nodeViewWriter invokePrivate updateMemPool(Seq(rewardBlock), Seq(), MemPool.emptyPool, state)
       memPool.contains(polyReward) shouldBe false
       memPool.contains(arbitReward) shouldBe false
     }

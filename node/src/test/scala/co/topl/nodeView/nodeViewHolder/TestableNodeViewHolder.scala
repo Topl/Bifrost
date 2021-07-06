@@ -1,26 +1,12 @@
 package co.topl.nodeView.nodeViewHolder
 
-import co.topl.nodeView.NodeViewHolder
-import co.topl.settings.{AppContext, AppSettings}
-import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.nodeView.{NodeView, NodeViewHolder}
 
-import scala.concurrent.ExecutionContext
+object TestableNodeViewHolder {
+  def nodeViewOf(nodeViewHolder: NodeViewHolder): NodeView = nodeViewHolder.nodeView
 
-class TestableNodeViewHolder(
-  settings:   AppSettings,
-  appContext: AppContext
-)(implicit
-  ec: ExecutionContext,
-  np: NetworkPrefix
-) extends NodeViewHolder(settings, appContext) {
-
-  def nodeViewPublicAccessor: NodeView = (history(), minimalState(), memoryPool())
-
-  def updateNodeViewPublicAccessor(
-    updatedHistory: Option[HIS] = None,
-    updatedState:   Option[MS] = None,
-    updatedMempool: Option[MP] = None
-  ): Unit =
-    updateNodeView(updatedHistory, updatedState, updatedMempool)
-
+  def setNodeView(nodeViewHolder: NodeViewHolder, nodeView: NodeView): Unit = {
+    nodeViewHolder.nodeView = nodeView
+    nodeViewHolder.nodeViewWriter.nodeView = nodeView
+  }
 }

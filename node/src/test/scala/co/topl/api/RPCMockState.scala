@@ -12,15 +12,16 @@ import co.topl.consensus._
 import co.topl.http.HttpService
 import co.topl.modifier.block.Block
 import co.topl.network.message.BifrostSyncInfo
-import co.topl.nodeView.ActorNodeViewHolderInterface
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.nodeViewHolder.TestableNodeViewHolder
 import co.topl.nodeView.state.State
+import co.topl.nodeView.{ActorNodeViewHolderInterface, NodeViewHolder}
 import co.topl.rpc.ToplRpcServer
 import co.topl.settings.{AppContext, StartupOpts}
 import co.topl.utils.{KeyFileTestHelper, NodeGenerators}
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.duration.DurationInt
@@ -30,7 +31,8 @@ trait RPCMockState
     with NodeGenerators
     with ScalatestRouteTest
     with BeforeAndAfterAll
-    with KeyFileTestHelper {
+    with KeyFileTestHelper
+    with ScalaFutures {
 
   type BSI = BifrostSyncInfo
   type PMOD = Block
@@ -54,10 +56,10 @@ trait RPCMockState
   protected var keyManagerRef: TestActorRef[KeyManager] = _
   protected var forgerRef: ActorRef = _
 
-  protected var nodeViewHolderRef: TestActorRef[TestableNodeViewHolder] = _
+  protected var nodeViewHolderRef: TestActorRef[NodeViewHolder] = _
 
   // Get underlying references
-  protected var nvh: TestableNodeViewHolder = _
+  protected var nvh: NodeViewHolder = _
   protected var km: KeyManager = _
 
   var rpcServer: ToplRpcServer = _
@@ -75,13 +77,16 @@ trait RPCMockState
     forgerRef = ForgerRef[HIS, ST, MP](Forger.actorName, settings, appContext, keyManagerRef)
 
     nodeViewHolderRef = TestActorRef(
-      new TestableNodeViewHolder(settings, appContext)(system.getDispatcher, appContext.networkType.netPrefix)
+      new NodeViewHolder(settings, appContext)(appContext.networkType.netPrefix)
     )
     nvh = nodeViewHolderRef.underlyingActor
     km = keyManagerRef.underlyingActor
 
     // manipulate the underlying actor state
-    nvh.updateNodeViewPublicAccessor(updatedState = Some(genesisState))
+    TestableNodeViewHolder.setNodeView(
+      nodeViewHolderRef.underlyingActor,
+      TestableNodeViewHolder.nodeViewOf(nodeViewHolderRef.underlyingActor).copy(state = genesisState)
+    )
     km.context.become(km.receive(keyRing, Some(keyRing.addresses.head)))
 
     rpcServer = {
@@ -112,5 +117,10 @@ trait RPCMockState
     ).withHeaders(RawHeader("x-api-key", "test_key"))
 
   // this method returns modifiable instances of the node view components
-  protected def view(): (History, State, MemPool) = nvh.nodeViewPublicAccessor
+  protected def view(): (History, State, MemPool) = {
+    val nodeView =
+      TestableNodeViewHolder.nodeViewOf(nodeViewHolderRef.underlyingActor)
+
+    (nodeView.history, nodeView.state, nodeView.mempool)
+  }
 }
