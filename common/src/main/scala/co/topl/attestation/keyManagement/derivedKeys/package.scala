@@ -6,6 +6,7 @@ import org.bouncycastle.crypto.params.KeyParameter
 import scodec.bits.ByteVector
 
 package object derivedKeys {
+
   def hmac512WithKey(key: ByteVector, data: ByteVector): ByteVector = {
     val mac = new HMac(new SHA512Digest())
     mac.init(new KeyParameter(key.toArray))
@@ -14,6 +15,5 @@ package object derivedKeys {
     mac.doFinal(out, 0)
     ByteVector.view(out)
   }
-
 
 }

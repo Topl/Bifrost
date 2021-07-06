@@ -7,6 +7,7 @@ import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 import scodec.bits.ByteOrdering
 
 object ExtendedPrivateKeyEd25519Serializer extends BifrostSerializer[ExtendedPrivateKeyEd25519] {
+
   override def serialize(obj: ExtendedPrivateKeyEd25519, w: Writer): Unit = {
     w.putBytes(obj.leftKey.toArray)
     w.putBytes(obj.rightKey.toArray)
