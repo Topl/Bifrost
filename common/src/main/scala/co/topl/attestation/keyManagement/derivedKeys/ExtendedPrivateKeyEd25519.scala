@@ -51,7 +51,9 @@ case class ExtendedPrivateKeyEd25519(
    * @param index the index of the child key to derive
    * @return the derived `ExtendedPrivateKey`
    */
-  def deriveChildKey(index: DerivedKeyIndex): ExtendedPrivateKeyEd25519 = {
+  def deriveChildKey(
+    index: DerivedKeyIndex
+  ): Either[ExtendedPrivateKeyEd25519.InvalidDerivedKey, ExtendedPrivateKeyEd25519] = {
     val z = index match {
       case s: SoftIndex =>
         hmac512WithKey(
@@ -107,7 +109,7 @@ case class ExtendedPrivateKeyEd25519(
         ByteOrdering.LittleEndian
       )
 
-    ExtendedPrivateKeyEd25519(nextLeft, nextRight, nextChainCode)
+    ExtendedPrivateKeyEd25519.validate(ExtendedPrivateKeyEd25519(nextLeft, nextRight, nextChainCode))
   }
 
   /**
@@ -140,6 +142,16 @@ case class ExtendedPrivateKeyEd25519(
 }
 
 object ExtendedPrivateKeyEd25519 {
+
+  case object InvalidDerivedKey
+  type InvalidDerivedKey = InvalidDerivedKey.type
+
+  /**
+   * ED-25519 Base Order N
+   *
+   * Equivalent to `2^252 + 27742317777372353535851937790883648493`
+   */
+  val edBaseN: BigInt = BigInt("7237005577332262213973186563042994240857116359379907606001950938285454250989")
 
   /**
    * Generates a root `ExtendedPrivateKey` from a mnemonic phrase and an optional password.
@@ -185,4 +197,13 @@ object ExtendedPrivateKeyEd25519 {
       SizedByteVector[ByteVector32].fit(value.rightKey.toArray.clone(), ByteOrdering.LittleEndian),
       SizedByteVector[ByteVector32].fit(value.chainCode.toArray.clone(), ByteOrdering.LittleEndian)
     )
+
+  /**
+   * Validates that the given key is a valid derived key.
+   * Keys are invalid if their left private keys are divisible by the ED-25519 Base Order N.
+   * @param value the private key value
+   * @return either an invalid error or the private key
+   */
+  def validate(value: ExtendedPrivateKeyEd25519): Either[InvalidDerivedKey, ExtendedPrivateKeyEd25519] =
+    Either.cond(value.leftNumber % edBaseN != 0, value, InvalidDerivedKey)
 }

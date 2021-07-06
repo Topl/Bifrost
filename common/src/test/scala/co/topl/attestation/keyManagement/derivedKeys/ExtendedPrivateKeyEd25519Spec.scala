@@ -1,8 +1,10 @@
 package co.topl.attestation.keyManagement.derivedKeys
 
+import cats.implicits._
+import co.topl.attestation.keyManagement.derivedKeys.ExtendedPrivateKeyEd25519.InvalidDerivedKey
 import co.topl.crypto.signatures.Ed25519
-import co.topl.utils.codecs.implicits._
 import co.topl.utils.StringDataTypes.Base16Data
+import co.topl.utils.codecs.implicits._
 import org.scalacheck.Gen
 import org.scalacheck.Gen.asciiStr
 import org.scalatest.flatspec.AnyFlatSpec
@@ -88,18 +90,25 @@ class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
     forAll(asciiStr, asciiStr, positiveIntListGen) { (seed, message, path) =>
       val root = ExtendedPrivateKeyEd25519.fromSeed(seed.getBytes)
 
-      val privateKey = path.foldLeft(root)((key, step) => key.deriveChildKey(DerivedKeyIndex.hardened(step)))
-      val publicKey = privateKey.publicKey
+      val derivedKey = path.foldLeft(root.asRight[InvalidDerivedKey]) {
+        case (Right(key), step) => key.deriveChildKey(DerivedKeyIndex.hardened(step))
+        case (error, _)         => error
+      }
 
-      val messageToSign = message.getBytes
+      // do not test invalid keys
+      derivedKey.foreach { privateKey =>
+        val publicKey = privateKey.publicKey
 
-      val ed25519 = new Ed25519
+        val messageToSign = message.getBytes
 
-      val signature = privateKey.sign(messageToSign)
+        val ed25519 = new Ed25519
 
-      val isValidSignature = ed25519.verify(signature.sig, messageToSign, publicKey)
+        val signature = privateKey.sign(messageToSign)
 
-      isValidSignature shouldBe true
+        val isValidSignature = ed25519.verify(signature.sig, messageToSign, publicKey)
+
+        isValidSignature shouldBe true
+      }
     }
   }
 
