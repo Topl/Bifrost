@@ -7,7 +7,7 @@ import akka.dispatch.Dispatchers
 import akka.pattern._
 import akka.util.Timeout
 import cats.data.EitherT
-import co.topl.attestation.Address
+import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.catsakka.AskException
 import co.topl.consensus.Forger
 import co.topl.consensus.Forger.ReceivableMessages.GenerateGenesis
@@ -27,6 +27,7 @@ import co.topl.nodeView.mempool.{MemPool, MemPoolReader}
 import co.topl.nodeView.state.{State, StateReader}
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.BifrostSerializer
 import co.topl.utils.{AsyncRunner, Logging}
 import org.slf4j.{Logger, LoggerFactory}
@@ -309,6 +310,7 @@ private class NodeViewWriter(settings: AppSettings, appContext: AppContext, init
       case Messages.EliminateTransactions(ids) =>
         nodeView = eliminateTransactions(ids, nodeView)
     }
+
     nodeView
   }
 
@@ -340,7 +342,7 @@ private class NodeViewWriter(settings: AppSettings, appContext: AppContext, init
     }
 
     // add all newly received modifiers to the cache
-    mods.foreach(m => modifiersCache.put(m.id, m))
+    mods.toSeq.sortBy(_.height).foreach(m => modifiersCache.put(m.id, m))
 
     // record the initial size for comparison
     val initialSize = modifiersCache.size
