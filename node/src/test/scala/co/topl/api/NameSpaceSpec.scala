@@ -1,13 +1,14 @@
 package co.topl.api
 
+import akka.actor.typed.scaladsl.adapter._
 import akka.http.scaladsl.server.Route
-import akka.util.ByteString
+import akka.util.{ByteString, Timeout}
 import co.topl.akkahttprpc.MethodNotFoundError
 import co.topl.akkahttprpc.ThrowableSupport.Standard._
 import co.topl.consensus.{ActorForgerInterface, ActorKeyManagerInterface}
 import co.topl.http.HttpService
-import co.topl.rpc.ToplRpcServer
 import co.topl.nodeView.ActorNodeViewHolderInterface
+import co.topl.rpc.ToplRpcServer
 import co.topl.settings.{AppContext, AppSettings, StartupOpts}
 import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
@@ -30,9 +31,10 @@ class NameSpaceSpec extends AnyWordSpec with Matchers with RPCMockState {
     val newAppContext = new AppContext(newRpcSettings, StartupOpts(), None)
 
     val rpcServer: ToplRpcServer = {
-      val forgerInterface = new ActorForgerInterface(forgerRef)
+      val forgerInterface = new ActorForgerInterface(forgerRef)(system.toTyped)
       val keyManagerInterface = new ActorKeyManagerInterface(keyManagerRef)
-      val nodeViewHolderInterface = new ActorNodeViewHolderInterface(nodeViewHolderRef)
+      val nodeViewHolderInterface =
+        new ActorNodeViewHolderInterface(nodeViewHolderRef)(system.toTyped, implicitly[Timeout])
       import co.topl.rpc.handlers._
       new ToplRpcServer(
         ToplRpcHandlers(

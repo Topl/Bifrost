@@ -1,7 +1,8 @@
 package co.topl.network
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{typed, ActorRef, ActorSystem, Props}
 import akka.dispatch.Dispatchers
+import akka.util.Timeout
 import co.topl.modifier.NodeViewModifier.{idsToString, ModifierTypeId}
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
 import co.topl.modifier.transaction.Transaction
@@ -10,22 +11,15 @@ import co.topl.network.ModifiersStatus.Requested
 import co.topl.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
 import co.topl.network.message.{InvSpec, MessageSpec, ModifiersSpec, RequestModifierSpec, SyncInfo, SyncInfoSpec, _}
 import co.topl.network.peer.{ConnectedPeer, PenaltyType}
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{
-  GetNodeViewChanges,
-  ModifiersFromRemote,
-  TransactionsFromRemote
-}
 import co.topl.nodeView.history.GenericHistory._
-import co.topl.nodeView.history.HistoryReader
-import co.topl.nodeView.mempool.MemPoolReader
-import co.topl.nodeView.state.StateReader
+import co.topl.nodeView.{NodeViewReaderWriter, ReadableNodeView}
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.serialization.BifrostSerializer
 import co.topl.utils.{Logging, MalformedModifierError}
 
 import java.net.InetSocketAddress
 import scala.annotation.tailrec
-import scala.reflect.ClassTag
+import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 /**
@@ -33,16 +27,13 @@ import scala.util.{Failure, Success}
  *
  * @param networkControllerRef reference to network controller actor
  * @param viewHolderRef        reference to node view holder actor
- * @tparam TX transaction
  */
-class NodeViewSynchronizer[
-  TX <: Transaction.TX,
-  SI <: SyncInfo,
-  PMOD <: PersistentNodeViewModifier,
-  HR <: HistoryReader[PMOD, SI]: ClassTag,
-  MR <: MemPoolReader[TX]: ClassTag
-](networkControllerRef: ActorRef, viewHolderRef: ActorRef, settings: AppSettings, appContext: AppContext)
-    extends Synchronizer
+class NodeViewSynchronizer(
+  networkControllerRef: ActorRef,
+  viewHolderRef:        akka.actor.typed.ActorRef[NodeViewReaderWriter.ReceivableMessage],
+  settings:             AppSettings,
+  appContext:           AppContext
+) extends Synchronizer
     with Logging {
 
   /** Import the types of messages this actor may SEND */
@@ -64,17 +55,14 @@ class NodeViewSynchronizer[
 
   /** partial functions for identifying local method handlers for the messages above */
   protected val msgHandlers: PartialFunction[(MessageSpec[_], _, ConnectedPeer), Unit] = {
-    case (_: SyncInfoSpec, data: SI @unchecked, remote)  => gotRemoteSyncInfo(data, remote)
-    case (_: InvSpec, data: InvData, remote)             => gotRemoteInventory(data, remote)
-    case (_: RequestModifierSpec, data: InvData, remote) => gotModifierRequest(data, remote)
-    case (_: ModifiersSpec, data: ModifiersData, remote) => gotRemoteModifiers(data, remote)
+    case (_: SyncInfoSpec, data: BifrostSyncInfo @unchecked, remote) => gotRemoteSyncInfo(data, remote)
+    case (_: InvSpec, data: InvData, remote)                         => gotRemoteInventory(data, remote)
+    case (_: RequestModifierSpec, data: InvData, remote)             => gotModifierRequest(data, remote)
+    case (_: ModifiersSpec, data: ModifiersData, remote)             => gotRemoteModifiers(data, remote)
   }
 
   protected val deliveryTracker = new DeliveryTracker(self, context, settings.network)
   protected val statusTracker = new SyncTracker(self, context, settings.network, appContext.timeProvider)
-
-  protected var historyReaderOpt: Option[HR] = None
-  protected var mempoolReaderOpt: Option[MR] = None
 
   override def preStart(): Unit = {
 
@@ -89,11 +77,9 @@ class NodeViewSynchronizer[
     context.system.eventStream.subscribe(self, classOf[DisconnectedPeer])
 
     /** subscribe for all the node view holder events involving modifiers and transactions */
-    context.system.eventStream.subscribe(self, classOf[ChangedHistory[HR]])
-    context.system.eventStream.subscribe(self, classOf[ChangedMempool[MR]])
     context.system.eventStream.subscribe(self, classOf[ModificationOutcome])
     context.system.eventStream.subscribe(self, classOf[DownloadRequest])
-    context.system.eventStream.subscribe(self, classOf[ModifiersProcessingResult[PMOD]])
+    context.system.eventStream.subscribe(self, classOf[ModifiersProcessingResult[Block]])
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
@@ -115,9 +101,6 @@ class NodeViewSynchronizer[
   private def initialization: Receive = { case NodeViewReady(_) =>
     log.info(s"${Console.YELLOW}NodeViewSynchronizer transitioning to the operational state${Console.RESET}")
 
-    /** instantiate the internal NodeViewSynchronizer state for History and Mempool */
-    viewHolderRef ! GetNodeViewChanges(history = true, state = false, mempool = true)
-
     /** schedules a SendLocalSyncInfo message to be sent at a fixed interval */
     statusTracker.scheduleSendSyncInfo()
 
@@ -128,16 +111,17 @@ class NodeViewSynchronizer[
   protected def processSyncStatus: Receive = {
     /** send local sync status to a peer */
     case SendLocalSyncInfo =>
-      historyReaderOpt.foreach(sendSync)
+      sendSync()
   }
 
   protected def manageModifiers: Receive = {
 
     /** Request data from any remote node */
     case DownloadRequest(modifierTypeId, modifierId) =>
-      if (deliveryTracker.status(modifierId, historyReaderOpt.toSeq) == ModifiersStatus.Unknown) {
-        requestDownload(modifierTypeId, Seq(modifierId), None)
-      }
+      withNodeView(view => deliveryTracker.status(modifierId, view.history))
+        .foreach(status =>
+          if (status == ModifiersStatus.Unknown) requestDownload(modifierTypeId, Seq(modifierId), None)
+        )
 
     /** Respond with data from the local node */
     case ResponseFromLocal(peer, _, modifiers: Seq[NodeViewModifier]) =>
@@ -182,13 +166,7 @@ class NodeViewSynchronizer[
     case SemanticallyFailedModification(mod, _) =>
       deliveryTracker.setInvalid(mod.id).foreach(penalizeMisbehavingPeer)
 
-    case ChangedHistory(reader: HR) =>
-      historyReaderOpt = Some(reader)
-
-    case ChangedMempool(reader: MR) =>
-      mempoolReaderOpt = Some(reader)
-
-    case ModifiersProcessingResult(applied: Seq[PMOD], cleared: Seq[PMOD]) =>
+    case ModifiersProcessingResult(applied: Seq[Block], cleared: Seq[Block]) =>
       /** stop processing for cleared modifiers */
       /** applied modifiers state was already changed at `SyntacticallySuccessfulModifier` */
       cleared.foreach(m => deliveryTracker.setUnknown(m.id))
@@ -227,7 +205,7 @@ class NodeViewSynchronizer[
    * when our modifier is not synced yet, but no modifiers are expected from other peers
    * or request modifiers we need with known ids, that are not applied yet.
    */
-  protected def requestMoreModifiers(applied: Seq[PMOD]): Unit = {}
+  protected def requestMoreModifiers(applied: Seq[Block]): Unit = {}
 
   /**
    * Handles checking the status of modifiers that we have asked peers for using the `requestDownload` method.
@@ -285,17 +263,14 @@ class NodeViewSynchronizer[
   /**
    * Announce the local synchronization status by broadcasting the latest blocks ids
    * from the tip of our chain
-   *
-   * @param history history reader to use in the construction of the message
    */
-  protected def sendSync(history: HR): Unit = {
+  protected def sendSync(): Unit = {
     val peers = statusTracker.peersToSyncWith()
-    // todo: JAA - 2020.08.02 - may want to reconsider type system of syncInfo to avoid manually casting
-    // todo:       history.syncInfo to the sub-type BifrostSyncInfo
-    val msg = Message(syncInfoSpec, Right(history.syncInfo.asInstanceOf[BifrostSyncInfo]), None)
-    if (peers.nonEmpty) {
-      networkControllerRef ! SendToNetwork(msg, SendToPeers(peers))
-    }
+    withNodeView(_.history.syncInfo)
+      .foreach(syncInfo =>
+        if (peers.nonEmpty)
+          networkControllerRef ! SendToNetwork(Message(syncInfoSpec, Right(syncInfo), None), SendToPeers(peers))
+      )
   }
 
   protected def penalizeNonDeliveringPeer(peer: ConnectedPeer): Unit =
@@ -304,18 +279,25 @@ class NodeViewSynchronizer[
   override protected def penalizeMaliciousPeer(peer: ConnectedPeer): Unit =
     networkControllerRef ! PenalizePeer(peer.connectionId.remoteAddress, PenaltyType.PermanentPenalty)
 
+  private def withNodeView[T](f: ReadableNodeView => T): Future[T] = {
+    import akka.actor.typed.scaladsl.AskPattern._
+    import akka.actor.typed.scaladsl.adapter._
+
+    import scala.concurrent.duration._
+    implicit val timeout: Timeout = Timeout(10.seconds)
+    implicit val typedSystem: akka.actor.typed.ActorSystem[_] = context.system.toTyped
+    viewHolderRef.ask[T](NodeViewReaderWriter.ReceivableMessages.Read(f, _))
+  }
+
   /**
    * Process sync info coming from another node
    *
    * @param syncInfo a set of modifier ids from the tip of the remote peers chain
    * @param remote remote peer that sent the message
    */
-  private def gotRemoteSyncInfo(syncInfo: SI, remote: ConnectedPeer): Unit =
-    historyReaderOpt match {
-      case Some(historyReader) =>
-        val ext = historyReader.continuationIds(syncInfo, desiredInvObjects)
-        val comparison = historyReader.compare(syncInfo)
-
+  private def gotRemoteSyncInfo(syncInfo: BifrostSyncInfo, remote: ConnectedPeer): Unit =
+    withNodeView(state => (state.history.continuationIds(syncInfo, desiredInvObjects), state.history.compare(syncInfo)))
+      .foreach { case (ext, comparison) =>
         if (!(ext.nonEmpty || comparison != Younger))
           log.warn("Extension is empty while comparison is younger")
 
@@ -341,10 +323,7 @@ class NodeViewSynchronizer[
           /** does nothing for `Equal` and `Older` */
           case _ =>
         }
-
-      case _ =>
-        log.warn(s"Got sync information from a peer while history reader was not available")
-    }
+      }
 
   /**
    * Send history extension to the (less developed) peer 'remote' which does not have it.
@@ -370,25 +349,17 @@ class NodeViewSynchronizer[
    * @param remote remote peer that sent the message
    */
   private def gotRemoteInventory(invData: InvData, remote: ConnectedPeer): Unit =
-    (mempoolReaderOpt, historyReaderOpt) match {
-      /** Filter out modifier ids that are already in process (requested, received or applied) */
-      case (Some(mempool), Some(history)) =>
-        val modifierTypeId = invData.typeId
-        val newModifierIds = modifierTypeId match {
-          case Transaction.modifierTypeId =>
-            invData.ids.filter(mid => deliveryTracker.status(mid, mempool) == ModifiersStatus.Unknown)
-          case _ =>
-            invData.ids.filter(mid => deliveryTracker.status(mid, history) == ModifiersStatus.Unknown)
-        }
-
-        /** request unknown ids from the peer that announced the unknown modifiers */
-        if (newModifierIds.nonEmpty) requestDownload(modifierTypeId, newModifierIds, Some(remote))
-
-      case _ =>
-        log.warn(
-          s"Got inventory data from peer while readers are not available: ${(mempoolReaderOpt, historyReaderOpt)}"
-        )
-    }
+    withNodeView(view =>
+      invData.typeId match {
+        case Transaction.modifierTypeId =>
+          invData.ids.filter(mid => deliveryTracker.status(mid, view.memPool) == ModifiersStatus.Unknown)
+        case _ =>
+          invData.ids.filter(mid => deliveryTracker.status(mid, view.history) == ModifiersStatus.Unknown)
+      }
+    )
+      .foreach(newModifierIds =>
+        if (newModifierIds.nonEmpty) requestDownload(invData.typeId, newModifierIds, Some(remote))
+      )
 
   /**
    * Our node needs modifiers of type `modifierTypeId` with ids `modifierIds`
@@ -421,23 +392,20 @@ class NodeViewSynchronizer[
    * @param remote remote peer that sent the message
    */
   private def gotModifierRequest(invData: InvData, remote: ConnectedPeer): Unit =
-    (mempoolReaderOpt, historyReaderOpt) match {
-      case (Some(mempool), Some(history)) =>
-        val objs: Seq[NodeViewModifier] = invData.typeId match {
-          case Transaction.modifierTypeId => mempool.getAll(invData.ids)
-          case Block.modifierTypeId       => invData.ids.flatMap(id => history.modifierById(id))
-        }
-
+    withNodeView(view =>
+      invData.typeId match {
+        case Transaction.modifierTypeId => view.memPool.getAll(invData.ids)
+        case Block.modifierTypeId       => invData.ids.flatMap(id => view.history.modifierById(id))
+      }
+    )
+      .foreach { objs =>
         log.debug(
           s"Requested ${invData.ids.length} modifiers ${invData.toString}, " +
           s"sending ${objs.length} modifiers ${idsToString(invData.typeId, objs.map(_.id))} "
         )
 
         self ! ResponseFromLocal(remote, invData.typeId, objs)
-
-      case _ =>
-        log.warn(s"Data was requested while readers are not available: ${(mempoolReaderOpt, historyReaderOpt)}")
-    }
+      }
 
   /**
    * Process modifiers received from a remote peer
@@ -454,18 +422,21 @@ class NodeViewSynchronizer[
 
     /** filter out non-requested modifiers */
     val requestedModifiers = processSpam(remote, typeId, modifiers)
-
+    import akka.actor.typed.scaladsl.adapter._
+    implicit val typedSender: typed.ActorRef[Any] = context.self.toTyped
     modifierSerializers.get(typeId) match {
-      case Some(serializer: BifrostSerializer[TX]) if typeId == Transaction.modifierTypeId =>
+      case Some(serializer: BifrostSerializer[Transaction.TX]) if typeId == Transaction.modifierTypeId =>
         /** parse all transactions and send them to node view holder */
         val parsed = parseModifiers(requestedModifiers, serializer, remote)
-        viewHolderRef ! TransactionsFromRemote(parsed)
+        viewHolderRef.tell(NodeViewReaderWriter.ReceivableMessages.WriteTransactions(parsed))
 
-      case Some(serializer: BifrostSerializer[PMOD]) if typeId == Block.modifierTypeId =>
+      case Some(serializer: BifrostSerializer[Block]) if typeId == Block.modifierTypeId =>
         /** parse all modifiers and put them to modifiers cache */
         val parsed = parseModifiers(requestedModifiers, serializer, remote)
-        val valid = parsed.filter(validateAndSetStatus(remote, _))
-        if (valid.nonEmpty) viewHolderRef ! ModifiersFromRemote[PMOD](valid)
+        withNodeView(view => parsed.filter(validateAndSetStatus(view, remote, _)).collect { case b: Block => b })
+          .foreach(valid =>
+            if (valid.nonEmpty) viewHolderRef.tell(NodeViewReaderWriter.ReceivableMessages.WriteBlocks(valid))
+          )
 
       case _ =>
         log.error(s"Undefined serializer for modifier of type $typeId")
@@ -502,25 +473,17 @@ class NodeViewSynchronizer[
    * @param pmod a persistent modifier (block) received from a remote peer
    * @return boolean flagging whether the modifier was expected and ensuring it is syntactically valid
    */
-  @SuppressWarnings(Array("org.wartremover.warts.IsInstanceOf"))
-  private def validateAndSetStatus(remote: ConnectedPeer, pmod: PMOD): Boolean =
-    historyReaderOpt match {
-      case Some(hr) =>
-        hr.applicableTry(pmod) match {
-          case Failure(e: Throwable) if e.isInstanceOf[MalformedModifierError] =>
-            log.warn(s"Modifier ${pmod.id} is permanently invalid", e)
-            deliveryTracker.setInvalid(pmod.id)
-            penalizeMisbehavingPeer(remote)
-            false
-
-          case _ =>
-            deliveryTracker.setReceived(pmod.id, remote)
-            true
-        }
-
-      case None =>
-        log.error("Got modifiers from remote while history reader is not ready")
+  private def validateAndSetStatus(view: ReadableNodeView, remote: ConnectedPeer, pmod: Block): Boolean =
+    view.history.applicableTry(pmod) match {
+      case Failure(e: MalformedModifierError) =>
+        log.warn(s"Modifier ${pmod.id} is permanently invalid", e)
+        deliveryTracker.setInvalid(pmod.id)
+        penalizeMisbehavingPeer(remote)
         false
+
+      case _ =>
+        deliveryTracker.setReceived(pmod.id, remote)
+        true
     }
 
   protected def penalizeMisbehavingPeer(peer: ConnectedPeer): Unit =
@@ -615,9 +578,7 @@ object NodeViewSynchronizer {
 
     trait NodeViewHolderEvent
 
-    trait NodeViewChange[R] extends NodeViewHolderEvent {
-      val reader: R
-    }
+    trait NodeViewChange extends NodeViewHolderEvent
 
     /** hierarchy of events regarding modifiers application outcome */
     trait ModificationOutcome extends NodeViewHolderEvent
@@ -645,12 +606,11 @@ object NodeViewSynchronizer {
 
     case class DisconnectedPeer(remote: InetSocketAddress) extends PeerManagerEvent
 
-    case class ChangedHistory[HR <: HistoryReader[_ <: PersistentNodeViewModifier, _ <: SyncInfo]](reader: HR)
-        extends NodeViewChange[HR]
+    case object ChangedHistory extends NodeViewChange
 
-    case class ChangedMempool[MR <: MemPoolReader[_ <: Transaction.TX]](reader: MR) extends NodeViewChange[MR]
+    case object ChangedMempool extends NodeViewChange
 
-    case class ChangedState[SR <: StateReader[_, _]](reader: SR) extends NodeViewChange[SR]
+    case object ChangedState extends NodeViewChange
 
     case class NewOpenSurface(newSurface: Seq[ModifierId]) extends NodeViewHolderEvent
 
@@ -696,33 +656,21 @@ object NodeViewSynchronizer {
 
 object NodeViewSynchronizerRef {
 
-  def props[
-    TX <: Transaction.TX,
-    SI <: SyncInfo,
-    PMOD <: PersistentNodeViewModifier,
-    HR <: HistoryReader[PMOD, SI]: ClassTag,
-    MR <: MemPoolReader[TX]: ClassTag
-  ](
+  def props(
     networkControllerRef: ActorRef,
-    viewHolderRef:        ActorRef,
+    viewHolderRef:        akka.actor.typed.ActorRef[NodeViewReaderWriter.ReceivableMessage],
     settings:             AppSettings,
     appContext:           AppContext
   ): Props =
-    Props(new NodeViewSynchronizer[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, settings, appContext))
+    Props(new NodeViewSynchronizer(networkControllerRef, viewHolderRef, settings, appContext))
       .withDispatcher(Dispatchers.DefaultBlockingDispatcherId)
 
-  def apply[
-    TX <: Transaction.TX,
-    SI <: SyncInfo,
-    PMOD <: PersistentNodeViewModifier,
-    HR <: HistoryReader[PMOD, SI]: ClassTag,
-    MR <: MemPoolReader[TX]: ClassTag
-  ](
+  def apply(
     name:                 String,
     networkControllerRef: ActorRef,
-    viewHolderRef:        ActorRef,
+    viewHolderRef:        akka.actor.typed.ActorRef[NodeViewReaderWriter.ReceivableMessage],
     settings:             AppSettings,
     appContext:           AppContext
   )(implicit system:      ActorSystem): ActorRef =
-    system.actorOf(props[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, settings, appContext), name)
+    system.actorOf(props(networkControllerRef, viewHolderRef, settings, appContext), name)
 }

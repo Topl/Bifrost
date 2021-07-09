@@ -1,6 +1,7 @@
 package co.topl.api
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.ActorSystem
+import akka.actor.typed.scaladsl.adapter._
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.server.Route
@@ -16,7 +17,7 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.nodeViewHolder.TestableNodeViewHolder
 import co.topl.nodeView.state.State
-import co.topl.nodeView.{ActorNodeViewHolderInterface, NodeViewHolder}
+import co.topl.nodeView.{ActorNodeViewHolderInterface, NodeViewReaderWriter}
 import co.topl.rpc.ToplRpcServer
 import co.topl.settings.{AppContext, StartupOpts}
 import co.topl.utils.{KeyFileTestHelper, NodeGenerators}
@@ -54,12 +55,10 @@ trait RPCMockState
   // NOTE: Some of these actors are TestActors in order to access the underlying instance so that we can manipulate
   //       the state of the underlying instance while testing. Use with caution
   protected var keyManagerRef: TestActorRef[KeyManager] = _
-  protected var forgerRef: ActorRef = _
+  protected var forgerRef: akka.actor.typed.ActorRef[Forger.ReceivableMessage] = _
 
-  protected var nodeViewHolderRef: TestActorRef[NodeViewHolder] = _
+  protected var nodeViewHolderRef: akka.actor.typed.ActorRef[NodeViewReaderWriter.ReceivableMessage] = _
 
-  // Get underlying references
-  protected var nvh: NodeViewHolder = _
   protected var km: KeyManager = _
 
   var rpcServer: ToplRpcServer = _
@@ -74,25 +73,26 @@ trait RPCMockState
     keyManagerRef = TestActorRef(
       new KeyManager(settings, appContext)(appContext.networkType.netPrefix)
     )
-    forgerRef = ForgerRef[HIS, ST, MP](Forger.actorName, settings, appContext, keyManagerRef)
+    forgerRef = system.toTyped.systemActorOf(Forger.behavior(settings, appContext, keyManagerRef), Forger.actorName)
 
-    nodeViewHolderRef = TestActorRef(
-      new NodeViewHolder(settings, appContext)(appContext.networkType.netPrefix)
+    nodeViewHolderRef = system.toTyped.systemActorOf(
+      NodeViewReaderWriter(settings, appContext)(appContext.networkType.netPrefix),
+      NodeViewReaderWriter.ActorName
     )
-    nvh = nodeViewHolderRef.underlyingActor
     km = keyManagerRef.underlyingActor
 
     // manipulate the underlying actor state
     TestableNodeViewHolder.setNodeView(
-      nodeViewHolderRef.underlyingActor,
-      TestableNodeViewHolder.nodeViewOf(nodeViewHolderRef.underlyingActor).copy(state = genesisState)
-    )
+      nodeViewHolderRef,
+      TestableNodeViewHolder.nodeViewOf(nodeViewHolderRef)(system.toTyped).copy(state = genesisState)
+    )(system.toTyped)
     km.context.become(km.receive(keyRing, Some(keyRing.addresses.head)))
 
     rpcServer = {
-      val forgerInterface = new ActorForgerInterface(forgerRef)
+      val forgerInterface = new ActorForgerInterface(forgerRef)(system.toTyped)
       val keyManagerInterface = new ActorKeyManagerInterface(keyManagerRef)
-      val nodeViewHolderInterface = new ActorNodeViewHolderInterface(nodeViewHolderRef)
+      val nodeViewHolderInterface =
+        new ActorNodeViewHolderInterface(nodeViewHolderRef)(system.toTyped, implicitly[Timeout])
       import co.topl.rpc.handlers._
       new ToplRpcServer(
         ToplRpcHandlers(
@@ -119,7 +119,7 @@ trait RPCMockState
   // this method returns modifiable instances of the node view components
   protected def view(): (History, State, MemPool) = {
     val nodeView =
-      TestableNodeViewHolder.nodeViewOf(nodeViewHolderRef.underlyingActor)
+      TestableNodeViewHolder.nodeViewOf(nodeViewHolderRef)(system.toTyped)
 
     (nodeView.history, nodeView.state, nodeView.mempool)
   }

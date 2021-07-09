@@ -1,5 +1,6 @@
 package co.topl
 
+import akka.actor.typed.DispatcherSelector
 import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.http.scaladsl.Http
 import akka.io.Tcp
@@ -33,6 +34,7 @@ import java.lang.management.ManagementFactory
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success}
+import akka.actor.typed.scaladsl.adapter._
 
 class BifrostApp(startupOpts: StartupOpts) extends NodeLogging with Runnable {
 
@@ -86,13 +88,18 @@ class BifrostApp(startupOpts: StartupOpts) extends NodeLogging with Runnable {
 
   private val keyManagerRef = KeyManagerRef(KeyManager.actorName, settings, appContext)
 
-  private val forgerRef: ActorRef =
-    ForgerRef[HIS, ST, MP](Forger.actorName, settings, appContext, keyManagerRef)
+  private val forgerRef: akka.actor.typed.ActorRef[Forger.ReceivableMessage] =
+    actorSystem.toTyped.systemActorOf(Forger.behavior(settings, appContext, keyManagerRef), Forger.actorName)
 
-  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef(NodeViewHolder.actorName, settings, appContext)
+  private val nodeViewHolderRef: akka.actor.typed.ActorRef[NodeViewReaderWriter.ReceivableMessage] =
+    actorSystem.toTyped.systemActorOf(
+      NodeViewReaderWriter(settings, appContext),
+      "NodeViewHolder",
+      DispatcherSelector.blocking()
+    )
 
   private val mempoolAuditor: ActorRef =
-    MempoolAuditorRef[ST, MP](MempoolAuditor.actorName, settings, appContext, nodeViewHolderRef, networkControllerRef)
+    MempoolAuditorRef(MempoolAuditor.actorName, settings, appContext, nodeViewHolderRef, networkControllerRef)
 
   private val walletConnectionHandlerRef: Option[ActorRef] =
     if (settings.gjallarhorn.enableWallet) {
@@ -104,7 +111,7 @@ class BifrostApp(startupOpts: StartupOpts) extends NodeLogging with Runnable {
   private val peerSynchronizer: ActorRef =
     PeerSynchronizerRef(PeerSynchronizer.actorName, networkControllerRef, peerManagerRef, settings, appContext)
 
-  private val nodeViewSynchronizer: ActorRef = NodeViewSynchronizerRef[TX, BSI, PMOD, HIS, MP](
+  private val nodeViewSynchronizer: ActorRef = NodeViewSynchronizerRef(
     NodeViewSynchronizer.actorName,
     networkControllerRef,
     nodeViewHolderRef,
@@ -119,8 +126,8 @@ class BifrostApp(startupOpts: StartupOpts) extends NodeLogging with Runnable {
     peerSynchronizer,
     nodeViewSynchronizer,
     keyManagerRef,
-    forgerRef,
-    nodeViewHolderRef,
+    forgerRef.toClassic,
+    nodeViewHolderRef.toClassic,
     mempoolAuditor
   ) ++ walletConnectionHandlerRef
 
@@ -130,9 +137,11 @@ class BifrostApp(startupOpts: StartupOpts) extends NodeLogging with Runnable {
   implicit val throwableEncoder: Encoder[ThrowableData] =
     ThrowableSupport.verbose(settings.rpcApi.verboseAPI)
 
-  private val forgerInterface = new ActorForgerInterface(forgerRef)
+  private val forgerInterface = new ActorForgerInterface(forgerRef)(actorSystem.toTyped)
   private val keyManagerInterface = new ActorKeyManagerInterface(keyManagerRef)
-  private val nodeViewHolderInterface = new ActorNodeViewHolderInterface(nodeViewHolderRef)
+
+  private val nodeViewHolderInterface =
+    new ActorNodeViewHolderInterface(nodeViewHolderRef)(actorSystem.toTyped, implicitly[Timeout])
 
   private val bifrostRpcServer: ToplRpcServer = {
     import co.topl.rpc.handlers._

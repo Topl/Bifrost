@@ -1,17 +1,15 @@
 package co.topl.nodeView.nodeViewHolder
 
-import akka.actor.ActorSystem
-import akka.testkit.TestActorRef
-import co.topl.nodeView.NodeViewHolder
+import akka.actor.typed._
+import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.scaladsl.adapter._
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.{MockState, State}
+import co.topl.nodeView.{NodeViewReaderWriter, NodeViewWriter}
 import co.topl.settings.{AppContext, StartupOpts}
 import co.topl.utils.CommonGenerators
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatest.{BeforeAndAfterAll, PrivateMethodTester}
-
-import scala.concurrent.Await
-import scala.concurrent.duration._
 
 class NodeViewHolderSpec
     extends AnyPropSpec
@@ -22,20 +20,19 @@ class NodeViewHolderSpec
 
   type MP = MemPool
 
-  implicit private val actorSystem: ActorSystem = ActorSystem("NodeviewHolderSpec")
-  import actorSystem.dispatcher
+  implicit private val actorSystem: ActorSystem[_] = ActorSystem(Behaviors.empty, settings.network.agentName)
 
   private var appContext: AppContext = _
-  private var nvhTestRef: TestActorRef[NodeViewHolder] = _
-  private var nodeView: NodeViewHolder = _
+
+  private val nodeViewHolderRef =
+    actorSystem.systemActorOf(NodeViewReaderWriter(settings, appContext), NodeViewReaderWriter.ActorName)
+
   private var state: State = _
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    appContext = new AppContext(settings, StartupOpts(), None)
+    appContext = new AppContext(settings, StartupOpts(), None)(actorSystem.toClassic)
     state = createState(inTempFile = false)
-    nvhTestRef = TestActorRef(new NodeViewHolder(settings, appContext), "nvhTest")
-    nodeView = nvhTestRef.underlyingActor
   }
 
   // TODO replace reward transactions with valid transactions
@@ -45,14 +42,16 @@ class NodeViewHolderSpec
       val arbitReward = sampleUntilNonEmpty(arbitTransferGen)
       val rewardBlock = block.copy(transactions = Seq(arbitReward, polyReward))
 
-      val updateMemPool = PrivateMethod[MP](Symbol("updateMemPool"))
+      val writer = new NodeViewWriter(appContext)
+
       val memPool =
-        nodeView.nodeViewWriter invokePrivate updateMemPool(Seq(rewardBlock), Seq(), MemPool.emptyPool, state)
+        writer.updateMemPool(List(rewardBlock), Nil, MemPool.emptyPool)
+
       memPool.contains(polyReward) shouldBe false
       memPool.contains(arbitReward) shouldBe false
     }
   }
 
   override protected def afterAll(): Unit =
-    Await.result(actorSystem.terminate(), 10.seconds)
+    actorSystem.terminate()
 }
