@@ -9,7 +9,7 @@ import akka.util.Timeout
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.message.BifrostSyncInfo
-import co.topl.nodeView.{LocallyGeneratedTransaction, NodeViewReaderWriter}
+import co.topl.nodeView.{LocallyGeneratedTransaction, NodeViewHolder}
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.settings.{AppContext, StartupOpts}
@@ -37,19 +37,19 @@ class MempoolSpec
   protected val appContext = new AppContext(settings, StartupOpts(), None)(actorSystem.toClassic)
 
   private val nodeViewHolderRef =
-    actorSystem.systemActorOf(NodeViewReaderWriter(settings, appContext), NodeViewReaderWriter.ActorName)
+    actorSystem.systemActorOf(NodeViewHolder(settings, appContext), NodeViewHolder.ActorName)
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 
   private def getHistory: HistoryReader[Block, BifrostSyncInfo] = Await.result(
     nodeViewHolderRef.ask[HistoryReader[Block, BifrostSyncInfo]](
-      NodeViewReaderWriter.ReceivableMessages.Read(_.history, _)
+      NodeViewHolder.ReceivableMessages.Read(_.history, _)
     ),
     10.seconds
   )
 
   private def getMempool: MemPoolReader[Transaction.TX] = Await.result(
-    nodeViewHolderRef.ask[MemPoolReader[Transaction.TX]](NodeViewReaderWriter.ReceivableMessages.Read(_.memPool, _)),
+    nodeViewHolderRef.ask[MemPoolReader[Transaction.TX]](NodeViewHolder.ReceivableMessages.Read(_.memPool, _)),
     10.seconds
   )
 

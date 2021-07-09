@@ -91,9 +91,9 @@ class BifrostApp(startupOpts: StartupOpts) extends NodeLogging with Runnable {
   private val forgerRef: akka.actor.typed.ActorRef[Forger.ReceivableMessage] =
     actorSystem.toTyped.systemActorOf(Forger.behavior(settings, appContext, keyManagerRef), Forger.actorName)
 
-  private val nodeViewHolderRef: akka.actor.typed.ActorRef[NodeViewReaderWriter.ReceivableMessage] =
+  private val nodeViewHolderRef: akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage] =
     actorSystem.toTyped.systemActorOf(
-      NodeViewReaderWriter(settings, appContext),
+      NodeViewHolder(settings, appContext),
       "NodeViewHolder",
       DispatcherSelector.blocking()
     )

@@ -20,7 +20,7 @@ import scala.collection.immutable.TreeSet
  * Validation result is sent directly to `NodeViewHolder`.
  */
 class CleanupWorker(
-  nodeViewHolderRef: akka.actor.typed.ActorRef[NodeViewReaderWriter.ReceivableMessage],
+  nodeViewHolderRef: akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage],
   settings:          AppSettings,
   appContext:        AppContext
 )(implicit
@@ -54,7 +54,7 @@ class CleanupWorker(
     val (validated, toEliminate) = validatePool(state, mempool)
     if (toEliminate.nonEmpty) {
       log.info(s"${toEliminate.size} transactions from mempool were invalidated")
-      nodeViewHolderRef ! NodeViewReaderWriter.ReceivableMessages.EvictTransactions(toEliminate)
+      nodeViewHolderRef ! NodeViewHolder.ReceivableMessages.EvictTransactions(toEliminate)
     }
     validated
   }

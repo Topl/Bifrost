@@ -12,7 +12,7 @@ import co.topl.network.NetworkController.ReceivableMessages.{PenalizePeer, Regis
 import co.topl.network.message.{InvSpec, MessageSpec, ModifiersSpec, RequestModifierSpec, SyncInfo, SyncInfoSpec, _}
 import co.topl.network.peer.{ConnectedPeer, PenaltyType}
 import co.topl.nodeView.history.GenericHistory._
-import co.topl.nodeView.{NodeViewReaderWriter, ReadableNodeView}
+import co.topl.nodeView.{NodeViewHolder, ReadableNodeView}
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.serialization.BifrostSerializer
 import co.topl.utils.{Logging, MalformedModifierError}
@@ -30,7 +30,7 @@ import scala.util.{Failure, Success}
  */
 class NodeViewSynchronizer(
   networkControllerRef: ActorRef,
-  viewHolderRef:        akka.actor.typed.ActorRef[NodeViewReaderWriter.ReceivableMessage],
+  viewHolderRef:        akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage],
   settings:             AppSettings,
   appContext:           AppContext
 ) extends Synchronizer
@@ -286,7 +286,7 @@ class NodeViewSynchronizer(
     import scala.concurrent.duration._
     implicit val timeout: Timeout = Timeout(10.seconds)
     implicit val typedSystem: akka.actor.typed.ActorSystem[_] = context.system.toTyped
-    viewHolderRef.ask[T](NodeViewReaderWriter.ReceivableMessages.Read(f, _))
+    viewHolderRef.ask[T](NodeViewHolder.ReceivableMessages.Read(f, _))
   }
 
   /**
@@ -428,14 +428,14 @@ class NodeViewSynchronizer(
       case Some(serializer: BifrostSerializer[Transaction.TX]) if typeId == Transaction.modifierTypeId =>
         /** parse all transactions and send them to node view holder */
         val parsed = parseModifiers(requestedModifiers, serializer, remote)
-        viewHolderRef.tell(NodeViewReaderWriter.ReceivableMessages.WriteTransactions(parsed))
+        viewHolderRef.tell(NodeViewHolder.ReceivableMessages.WriteTransactions(parsed))
 
       case Some(serializer: BifrostSerializer[Block]) if typeId == Block.modifierTypeId =>
         /** parse all modifiers and put them to modifiers cache */
         val parsed = parseModifiers(requestedModifiers, serializer, remote)
         withNodeView(view => parsed.filter(validateAndSetStatus(view, remote, _)).collect { case b: Block => b })
           .foreach(valid =>
-            if (valid.nonEmpty) viewHolderRef.tell(NodeViewReaderWriter.ReceivableMessages.WriteBlocks(valid))
+            if (valid.nonEmpty) viewHolderRef.tell(NodeViewHolder.ReceivableMessages.WriteBlocks(valid))
           )
 
       case _ =>
@@ -658,7 +658,7 @@ object NodeViewSynchronizerRef {
 
   def props(
     networkControllerRef: ActorRef,
-    viewHolderRef:        akka.actor.typed.ActorRef[NodeViewReaderWriter.ReceivableMessage],
+    viewHolderRef:        akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage],
     settings:             AppSettings,
     appContext:           AppContext
   ): Props =
@@ -668,7 +668,7 @@ object NodeViewSynchronizerRef {
   def apply(
     name:                 String,
     networkControllerRef: ActorRef,
-    viewHolderRef:        akka.actor.typed.ActorRef[NodeViewReaderWriter.ReceivableMessage],
+    viewHolderRef:        akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage],
     settings:             AppSettings,
     appContext:           AppContext
   )(implicit system:      ActorSystem): ActorRef =

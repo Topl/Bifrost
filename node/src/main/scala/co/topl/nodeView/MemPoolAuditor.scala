@@ -43,7 +43,7 @@ import scala.concurrent.duration._
  * Adapted from ErgoPlatform available at https://github.com/ergoplatform/ergo
  */
 class MempoolAuditor(
-  nodeViewHolderRef:    akka.actor.typed.ActorRef[NodeViewReaderWriter.ReceivableMessage],
+  nodeViewHolderRef:    akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage],
   networkControllerRef: ActorRef,
   settings:             AppSettings,
   appContext:           AppContext
@@ -109,7 +109,7 @@ class MempoolAuditor(
     import scala.concurrent.duration._
     implicit val timeout: Timeout = Timeout(10.seconds)
     implicit val typedSystem: akka.actor.typed.ActorSystem[_] = context.system.toTyped
-    nodeViewHolderRef.ask[T](NodeViewReaderWriter.ReceivableMessages.Read(f, _))
+    nodeViewHolderRef.ask[T](NodeViewHolder.ReceivableMessages.Read(f, _))
   }
 
   private def awaiting: Receive = {
@@ -184,7 +184,7 @@ object MempoolAuditorRef {
   def props(
     settings:             AppSettings,
     appContext:           AppContext,
-    nodeViewHolderRef:    akka.actor.typed.ActorRef[NodeViewReaderWriter.ReceivableMessage],
+    nodeViewHolderRef:    akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage],
     networkControllerRef: ActorRef
   ): Props =
     Props(new MempoolAuditor(nodeViewHolderRef, networkControllerRef, settings, appContext))
@@ -194,7 +194,7 @@ object MempoolAuditorRef {
     name:                 String,
     settings:             AppSettings,
     appContext:           AppContext,
-    nodeViewHolderRef:    akka.actor.typed.ActorRef[NodeViewReaderWriter.ReceivableMessage],
+    nodeViewHolderRef:    akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage],
     networkControllerRef: ActorRef
   )(implicit
     context: ActorRefFactory

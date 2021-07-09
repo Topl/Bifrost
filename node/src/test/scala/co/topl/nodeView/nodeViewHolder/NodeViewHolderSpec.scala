@@ -5,7 +5,7 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.scaladsl.adapter._
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.{MockState, State}
-import co.topl.nodeView.{NodeViewReaderWriter, NodeViewWriter}
+import co.topl.nodeView.{NodeViewHolder, NodeViewWriter}
 import co.topl.settings.{AppContext, StartupOpts}
 import co.topl.utils.CommonGenerators
 import org.scalatest.propspec.AnyPropSpec
@@ -25,7 +25,7 @@ class NodeViewHolderSpec
   private var appContext: AppContext = _
 
   private val nodeViewHolderRef =
-    actorSystem.systemActorOf(NodeViewReaderWriter(settings, appContext), NodeViewReaderWriter.ActorName)
+    actorSystem.systemActorOf(NodeViewHolder(settings, appContext), NodeViewHolder.ActorName)
 
   private var state: State = _
 

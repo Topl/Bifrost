@@ -22,7 +22,7 @@ import co.topl.modifier.box.{ArbitBox, ProgramId}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.{NodeViewChanged, NodeViewReaderWriter}
+import co.topl.nodeView.{NodeViewChanged, NodeViewHolder}
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.NetworkType._
 import co.topl.utils.{EventStreamSupport, Int128, NetworkType, TimeProvider}
@@ -57,7 +57,7 @@ object Forger {
 
     case class StopForging(replyTo: ActorRef[Done]) extends ReceivableMessage
 
-    case class NodeViewHolderReady(nodeViewHolderRef: ActorRef[NodeViewReaderWriter.ReceivableMessage])
+    case class NodeViewHolderReady(nodeViewHolderRef: ActorRef[NodeViewHolder.ReceivableMessage])
         extends ReceivableMessage
 
     private[Forger] case class ForgerStreamCompleted(result: Try[_]) extends ReceivableMessage
@@ -124,7 +124,7 @@ object Forger {
     settings:          AppSettings,
     appContext:        AppContext,
     keyManager:        akka.actor.ActorRef,
-    nodeViewHolderRef: ActorRef[NodeViewReaderWriter.ReceivableMessage]
+    nodeViewHolderRef: ActorRef[NodeViewHolder.ReceivableMessage]
   )(implicit
     ec:            ExecutionContext,
     networkPrefix: NetworkPrefix,
@@ -150,7 +150,7 @@ object Forger {
     settings:          AppSettings,
     appContext:        AppContext,
     keyManager:        akka.actor.ActorRef,
-    nodeViewHolderRef: ActorRef[NodeViewReaderWriter.ReceivableMessage]
+    nodeViewHolderRef: ActorRef[NodeViewHolder.ReceivableMessage]
   )(implicit
     ec:            ExecutionContext,
     networkPrefix: NetworkPrefix,
@@ -216,7 +216,7 @@ object Forger {
   private def blockForger(
     settings:               AppSettings,
     appContext:             AppContext,
-    nodeViewHolderRef:      ActorRef[NodeViewReaderWriter.ReceivableMessage],
+    nodeViewHolderRef:      ActorRef[NodeViewHolder.ReceivableMessage],
     keyManagerRef:          akka.actor.ActorRef
   )(implicit networkPrefix: NetworkPrefix, log: Logger): RunnableGraph[Future[Done]] = {
 
@@ -256,7 +256,7 @@ object Forger {
     settings:          AppSettings,
     appContext:        AppContext,
     keyManager:        akka.actor.ActorRef,
-    nodeViewHolderRef: ActorRef[NodeViewReaderWriter.ReceivableMessage]
+    nodeViewHolderRef: ActorRef[NodeViewHolder.ReceivableMessage]
   )(implicit
     system:        ActorSystem[_],
     timeout:       Timeout,
@@ -269,7 +269,7 @@ object Forger {
       dependencies <-
         nodeViewHolderRef
           .ask[Either[LeaderElection.IneligibilityReason, Forger.Dependencies]](
-            NodeViewReaderWriter.ReceivableMessages
+            NodeViewHolder.ReceivableMessages
               .Read(
                 { nodeView =>
                   val forgeTime = appContext.timeProvider.time
@@ -281,7 +281,7 @@ object Forger {
                     pickTransactions(settings, nodeView.memPool, nodeView.state, nodeView.history.height) match {
                       case Success(res) =>
                         if (res.toEliminate.nonEmpty)
-                          nodeViewHolderRef ! NodeViewReaderWriter.ReceivableMessages
+                          nodeViewHolderRef ! NodeViewHolder.ReceivableMessages
                             .EvictTransactions(res.toEliminate.map(_.id))
                         res.toApply
 

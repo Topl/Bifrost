@@ -39,6 +39,8 @@ import scala.util.{Failure, Success, Try}
 
 object NodeViewHolder {
 
+  final val ActorName = "node-view-holder"
+
   case class UpdateInformation[HIS, MS, PMOD <: PersistentNodeViewModifier](
     history:                 HIS,
     state:                   MS,
@@ -46,6 +48,211 @@ object NodeViewHolder {
     alternativeProgressInfo: Option[ProgressInfo[PMOD]],
     suffix:                  IndexedSeq[PMOD]
   )
+
+  sealed abstract class ReceivableMessage
+
+  object ReceivableMessages {
+    private[NodeViewHolder] case object Initialize extends ReceivableMessage
+
+    private[NodeViewHolder] case class Initialized(
+      nodeView: NodeView,
+      cache:    ActorRef[NodeViewModifiersCache.ReceivableMessage]
+    ) extends ReceivableMessage
+
+    case class InitializationFailed(reason: Throwable) extends ReceivableMessage
+
+    case class Read[T](f: ReadableNodeView => T, replyTo: ActorRef[T]) extends ReceivableMessage {
+
+      private[NodeViewHolder] def run(readableNodeView: ReadableNodeView): Unit =
+        replyTo.tell(f(readableNodeView))
+    }
+
+    case class WriteBlocks(blocks: Iterable[Block]) extends ReceivableMessage
+
+    private[NodeViewHolder] case class Write(f: NodeView => NodeView, replyTo: ActorRef[NodeView])
+        extends ReceivableMessage
+
+    private[NodeViewHolder] case object BlockWritten extends ReceivableMessage
+
+    case class WriteTransactions(transactions: Iterable[Transaction.TX]) extends ReceivableMessage
+    case class EvictTransactions(transactionIds: Iterable[ModifierId]) extends ReceivableMessage
+
+    private[nodeView] case class GetWritableNodeView(replyTo: ActorRef[NodeView]) extends ReceivableMessage
+
+    private[nodeView] case class SetWritableNodeView(nodeView: NodeView, replyTo: ActorRef[Done])
+        extends ReceivableMessage
+  }
+
+  def apply(
+    appSettings:            AppSettings,
+    appContext:             AppContext
+  )(implicit networkPrefix: NetworkPrefix): Behavior[ReceivableMessage] =
+    Behaviors.setup { context =>
+      context.self.tell(ReceivableMessages.Initialize)
+      uninitialized(appSettings, appContext)
+    }
+
+  final private val UninitializedStashSize = 150
+
+  private def uninitialized(
+    appSettings:            AppSettings,
+    appContext:             AppContext
+  )(implicit networkPrefix: NetworkPrefix): Behavior[ReceivableMessage] =
+    Behaviors.withStash(UninitializedStashSize)(stash =>
+      Behaviors.receivePartial {
+        case (context, ReceivableMessages.Initialize) =>
+          val cache = context.spawn(NodeViewModifiersCache(appSettings), "NodeViewModifiersCache")
+          restoreState(appSettings) match {
+            case Some(value) =>
+              context.self.tell(ReceivableMessages.Initialized(value, cache))
+            case None =>
+              implicit val system: ActorSystem[_] = context.system
+              implicit val timeout: Timeout = Timeout(10.seconds)
+              context.pipeToSelf(genesisState(appSettings)) {
+                case Success(state) =>
+                  ReceivableMessages.Initialized(state, cache)
+                case Failure(exception) =>
+                  ReceivableMessages.InitializationFailed(exception)
+
+              }
+          }
+          Behaviors.same
+
+        case (context, ReceivableMessages.Initialized(nodeView, cache)) =>
+          context.system.eventStream.tell(EventStream.Publish(NodeViewReady(context.self)))
+          context.system.eventStream.tell(
+            EventStream.Subscribe[LocallyGeneratedModifier](
+              context.messageAdapter(locallyGeneratedModifier =>
+                ReceivableMessages.WriteBlocks(List(locallyGeneratedModifier.block))
+              )
+            )
+          )
+          context.system.eventStream.tell(
+            EventStream.Subscribe[LocallyGeneratedTransaction](
+              context.messageAdapter(locallyGeneratedTransaction =>
+                ReceivableMessages.WriteTransactions(List(locallyGeneratedTransaction.transaction))
+              )
+            )
+          )
+          // A block wasn't actually written, this just kicks off the recursive operation to pop and write blocks
+          context.self.tell(ReceivableMessages.BlockWritten)
+          implicit val system: ActorSystem[_] = context.system
+          stash.unstashAll(
+            initialized(nodeView, cache, new NodeViewWriter(appContext))
+          )
+        case (_, ReceivableMessages.InitializationFailed(reason)) =>
+          throw reason
+        case (_, message) =>
+          stash.stash(message)
+          Behaviors.same
+      }
+    )
+
+  private def initialized(
+    nodeView:       NodeView,
+    cache:          ActorRef[NodeViewModifiersCache.ReceivableMessage],
+    nodeViewWriter: NodeViewWriter
+  ): Behavior[ReceivableMessage] =
+    Behaviors
+      .receivePartial[ReceivableMessage] {
+        case (_, r: ReceivableMessages.Read[_]) =>
+          r.run(nodeView.readableNodeView)
+          Behaviors.same
+
+        case (_, ReceivableMessages.WriteBlocks(blocks)) =>
+          cache.tell(NodeViewModifiersCache.ReceivableMessages.Insert(blocks))
+          Behaviors.same
+
+        case (_, r: ReceivableMessages.Write) =>
+          val newNodeView = r.f(nodeView)
+          r.replyTo.tell(newNodeView)
+          initialized(newNodeView, cache, nodeViewWriter)
+
+        case (context, ReceivableMessages.BlockWritten) =>
+          context.system.eventStream.tell(EventStream.Publish(NodeViewChanged))
+          cache.tell(
+            NodeViewModifiersCache.ReceivableMessages.Pop(
+              context.messageAdapter[Block](block =>
+                ReceivableMessages.Write(
+                  nodeViewWriter.handle(NodeViewWriter.Messages.WriteBlock(block), _),
+                  context.messageAdapter[NodeView](_ => ReceivableMessages.BlockWritten)
+                )
+              )
+            )
+          )
+          Behaviors.same
+
+        case (context, ReceivableMessages.WriteTransactions(transactions)) =>
+          val newNodeView =
+            nodeViewWriter.handle(NodeViewWriter.Messages.WriteTransactions(transactions), nodeView)
+          context.system.eventStream.tell(EventStream.Publish(NodeViewChanged))
+          initialized(newNodeView, cache, nodeViewWriter)
+
+        case (context, ReceivableMessages.EvictTransactions(transactionIds)) =>
+          val newNodeView =
+            nodeViewWriter.handle(NodeViewWriter.Messages.EliminateTransactions(transactionIds.toSeq), nodeView)
+          context.system.eventStream.tell(EventStream.Publish(NodeViewChanged))
+          initialized(newNodeView, cache, nodeViewWriter)
+
+        case (_, ReceivableMessages.GetWritableNodeView(replyTo)) =>
+          replyTo.tell(nodeView)
+          Behaviors.same
+
+        case (_, ReceivableMessages.SetWritableNodeView(newNodeView, replyTo)) =>
+          nodeView.history.closeStorage()
+          nodeView.state.closeStorage()
+          replyTo.tell(Done)
+          initialized(newNodeView, cache, nodeViewWriter)
+      }
+      .receiveSignal { case (_, PostStop) =>
+        nodeView.history.closeStorage()
+        nodeView.state.closeStorage()
+        Behaviors.same
+      }
+
+  private def restoreState(settings: AppSettings)(implicit networkPrefix: NetworkPrefix): Option[NodeView] =
+    if (State.exists(settings)) {
+      Some(
+        NodeView(
+          History.readOrGenerate(settings),
+          State.readOrGenerate(settings),
+          MemPool.emptyPool
+        )
+      )
+    } else None
+
+  /** Hard-coded initial view all the honest nodes in a network are making progress from. */
+  private[nodeView] def genesisState(
+    settings:        AppSettings
+  )(implicit system: ActorSystem[_], timeout: Timeout, networkPrefix: NetworkPrefix): Future[NodeView] = {
+    import akka.actor.typed.scaladsl.AskPattern._
+    import system.executionContext
+
+    // The forger will eventually register itself with the receptionist on startup, but we may need to wait a bit first
+    val forgerRefFuture =
+      akka.pattern
+        .retry(
+          () =>
+            system.receptionist
+              .ask[Listing](Receptionist.Find(Forger.ForgerServiceKey, _))
+              .map { case Forger.ForgerServiceKey.Listing(listings) => listings.head },
+          attempts = 5,
+          delay = 1.seconds
+        )(executionContext, system.toClassic.scheduler)
+
+    forgerRefFuture
+      .flatMap(ref => ref.ask[Try[Block]](GenerateGenesis))
+      .map {
+        case Success(genesisBlock) =>
+          NodeView(
+            History.readOrGenerate(settings).append(genesisBlock).get._1,
+            State.genesisState(settings, Seq(genesisBlock)),
+            MemPool.emptyPool
+          )
+        case Failure(ex) =>
+          throw new Error(s"${Console.RED}Failed to initialize genesis due to error${Console.RESET} $ex")
+      }
+  }
 }
 
 case class NodeView(history: History, state: State, mempool: MemPool) {
@@ -69,7 +276,7 @@ private class NodeViewWriter(appContext: AppContext)(implicit
   system:                                ActorSystem[_]
 ) {
 
-  import NodeViewHolder._
+  import NodeViewHolder.UpdateInformation
   import NodeViewWriter.Messages
 
   private val log: Logger = LoggerFactory.getLogger(this.getClass)
@@ -356,7 +563,7 @@ trait NodeViewHolderInterface {
   def broadcastTransaction(tx: Transaction.TX): EitherT[Future, BroadcastTxFailure, Done.type]
 }
 
-class ActorNodeViewHolderInterface(actorRef: ActorRef[NodeViewReaderWriter.ReceivableMessage])(implicit
+class ActorNodeViewHolderInterface(actorRef: ActorRef[NodeViewHolder.ReceivableMessage])(implicit
   system:                                    ActorSystem[_],
   timeout:                                   Timeout
 ) extends NodeViewHolderInterface {
@@ -367,230 +574,20 @@ class ActorNodeViewHolderInterface(actorRef: ActorRef[NodeViewReaderWriter.Recei
   override def withNodeView[T](f: ReadableNodeView => T): EitherT[Future, WithNodeViewFailure, T] =
     EitherT(
       actorRef
-        .ask[T](NodeViewReaderWriter.ReceivableMessages.Read(f, _))
+        .ask[T](NodeViewHolder.ReceivableMessages.Read(f, _))
         .map(Right(_))
         .recover { case e => Left(WithNodeViewFailure(e)) }
     )
 
   override def broadcastTransaction(tx: Transaction.TX): EitherT[Future, BroadcastTxFailure, Done.type] =
     actorRef
-      .tell(NodeViewReaderWriter.ReceivableMessages.WriteTransactions(List(tx)))
+      .tell(NodeViewHolder.ReceivableMessages.WriteTransactions(List(tx)))
       .asRight[BroadcastTxFailure]
       .map(_ => Done)
       .toEitherT[Future]
 }
 
 case object NodeViewChanged
-
-object NodeViewReaderWriter {
-
-  final val ActorName = "node-view-holder"
-
-  sealed abstract class ReceivableMessage
-
-  object ReceivableMessages {
-    private[NodeViewReaderWriter] case object Initialize extends ReceivableMessage
-
-    private[NodeViewReaderWriter] case class Initialized(
-      nodeView: NodeView,
-      cache:    ActorRef[NodeViewModifiersCache.ReceivableMessage]
-    ) extends ReceivableMessage
-
-    case class InitializationFailed(reason: Throwable) extends ReceivableMessage
-
-    case class Read[T](f: ReadableNodeView => T, replyTo: ActorRef[T]) extends ReceivableMessage {
-
-      private[NodeViewReaderWriter] def run(readableNodeView: ReadableNodeView): Unit =
-        replyTo.tell(f(readableNodeView))
-    }
-
-    case class WriteBlocks(blocks: Iterable[Block]) extends ReceivableMessage
-
-    private[NodeViewReaderWriter] case class Write(f: NodeView => NodeView, replyTo: ActorRef[NodeView])
-        extends ReceivableMessage
-
-    private[NodeViewReaderWriter] case object BlockWritten extends ReceivableMessage
-
-    case class WriteTransactions(transactions: Iterable[Transaction.TX]) extends ReceivableMessage
-    case class EvictTransactions(transactionIds: Iterable[ModifierId]) extends ReceivableMessage
-
-    private[nodeView] case class GetWritableNodeView(replyTo: ActorRef[NodeView]) extends ReceivableMessage
-
-    private[nodeView] case class SetWritableNodeView(nodeView: NodeView, replyTo: ActorRef[Done])
-        extends ReceivableMessage
-  }
-
-  def apply(
-    appSettings:            AppSettings,
-    appContext:             AppContext
-  )(implicit networkPrefix: NetworkPrefix): Behavior[ReceivableMessage] =
-    Behaviors.setup { context =>
-      context.self.tell(ReceivableMessages.Initialize)
-      uninitialized(appSettings, appContext)
-    }
-
-  final private val UninitializedStashSize = 150
-
-  private def uninitialized(
-    appSettings:            AppSettings,
-    appContext:             AppContext
-  )(implicit networkPrefix: NetworkPrefix): Behavior[ReceivableMessage] =
-    Behaviors.withStash(UninitializedStashSize)(stash =>
-      Behaviors.receivePartial {
-        case (context, ReceivableMessages.Initialize) =>
-          val cache = context.spawn(NodeViewModifiersCache(appSettings), "NodeViewModifiersCache")
-          restoreState(appSettings) match {
-            case Some(value) =>
-              context.self.tell(ReceivableMessages.Initialized(value, cache))
-            case None =>
-              implicit val system: ActorSystem[_] = context.system
-              implicit val timeout: Timeout = Timeout(10.seconds)
-              context.pipeToSelf(genesisState(appSettings)) {
-                case Success(state) =>
-                  ReceivableMessages.Initialized(state, cache)
-                case Failure(exception) =>
-                  ReceivableMessages.InitializationFailed(exception)
-
-              }
-          }
-          Behaviors.same
-
-        case (context, ReceivableMessages.Initialized(nodeView, cache)) =>
-          context.system.eventStream.tell(EventStream.Publish(NodeViewReady(context.self)))
-          context.system.eventStream.tell(
-            EventStream.Subscribe[LocallyGeneratedModifier](
-              context.messageAdapter(locallyGeneratedModifier =>
-                ReceivableMessages.WriteBlocks(List(locallyGeneratedModifier.block))
-              )
-            )
-          )
-          context.system.eventStream.tell(
-            EventStream.Subscribe[LocallyGeneratedTransaction](
-              context.messageAdapter(locallyGeneratedTransaction =>
-                ReceivableMessages.WriteTransactions(List(locallyGeneratedTransaction.transaction))
-              )
-            )
-          )
-          // A block wasn't actually written, this just kicks off the recursive operation to pop and write blocks
-          context.self.tell(ReceivableMessages.BlockWritten)
-          implicit val system: ActorSystem[_] = context.system
-          stash.unstashAll(
-            initialized(nodeView, cache, new NodeViewWriter(appContext))
-          )
-        case (_, ReceivableMessages.InitializationFailed(reason)) =>
-          throw reason
-        case (_, message) =>
-          stash.stash(message)
-          Behaviors.same
-      }
-    )
-
-  private def initialized(
-    nodeView:       NodeView,
-    cache:          ActorRef[NodeViewModifiersCache.ReceivableMessage],
-    nodeViewWriter: NodeViewWriter
-  ): Behavior[ReceivableMessage] =
-    Behaviors
-      .receivePartial[ReceivableMessage] {
-        case (_, r: ReceivableMessages.Read[_]) =>
-          r.run(nodeView.readableNodeView)
-          Behaviors.same
-
-        case (_, ReceivableMessages.WriteBlocks(blocks)) =>
-          cache.tell(NodeViewModifiersCache.ReceivableMessages.Insert(blocks))
-          Behaviors.same
-
-        case (_, r: ReceivableMessages.Write) =>
-          val newNodeView = r.f(nodeView)
-          r.replyTo.tell(newNodeView)
-          initialized(newNodeView, cache, nodeViewWriter)
-
-        case (context, ReceivableMessages.BlockWritten) =>
-          context.system.eventStream.tell(EventStream.Publish(NodeViewChanged))
-          cache.tell(
-            NodeViewModifiersCache.ReceivableMessages.Pop(
-              context.messageAdapter[Block](block =>
-                ReceivableMessages.Write(
-                  nodeViewWriter.handle(NodeViewWriter.Messages.WriteBlock(block), _),
-                  context.messageAdapter[NodeView](_ => ReceivableMessages.BlockWritten)
-                )
-              )
-            )
-          )
-          Behaviors.same
-
-        case (context, ReceivableMessages.WriteTransactions(transactions)) =>
-          val newNodeView =
-            nodeViewWriter.handle(NodeViewWriter.Messages.WriteTransactions(transactions), nodeView)
-          context.system.eventStream.tell(EventStream.Publish(NodeViewChanged))
-          initialized(newNodeView, cache, nodeViewWriter)
-
-        case (context, ReceivableMessages.EvictTransactions(transactionIds)) =>
-          val newNodeView =
-            nodeViewWriter.handle(NodeViewWriter.Messages.EliminateTransactions(transactionIds.toSeq), nodeView)
-          context.system.eventStream.tell(EventStream.Publish(NodeViewChanged))
-          initialized(newNodeView, cache, nodeViewWriter)
-
-        case (_, ReceivableMessages.GetWritableNodeView(replyTo)) =>
-          replyTo.tell(nodeView)
-          Behaviors.same
-
-        case (_, ReceivableMessages.SetWritableNodeView(newNodeView, replyTo)) =>
-          nodeView.history.closeStorage()
-          nodeView.state.closeStorage()
-          replyTo.tell(Done)
-          initialized(newNodeView, cache, nodeViewWriter)
-      }
-      .receiveSignal { case (_, PostStop) =>
-        nodeView.history.closeStorage()
-        nodeView.state.closeStorage()
-        Behaviors.same
-      }
-
-  private def restoreState(settings: AppSettings)(implicit networkPrefix: NetworkPrefix): Option[NodeView] =
-    if (State.exists(settings)) {
-      Some(
-        NodeView(
-          History.readOrGenerate(settings),
-          State.readOrGenerate(settings),
-          MemPool.emptyPool
-        )
-      )
-    } else None
-
-  /** Hard-coded initial view all the honest nodes in a network are making progress from. */
-  private[nodeView] def genesisState(
-    settings:        AppSettings
-  )(implicit system: ActorSystem[_], timeout: Timeout, networkPrefix: NetworkPrefix): Future[NodeView] = {
-    import akka.actor.typed.scaladsl.AskPattern._
-    import system.executionContext
-
-    // The forger will eventually register itself with the receptionist on startup, but we may need to wait a bit first
-    val forgerRefFuture =
-      akka.pattern
-        .retry(
-          () =>
-            system.receptionist
-              .ask[Listing](Receptionist.Find(Forger.ForgerServiceKey, _))
-              .map { case Forger.ForgerServiceKey.Listing(listings) => listings.head },
-          attempts = 5,
-          delay = 1.seconds
-        )(executionContext, system.toClassic.scheduler)
-
-    forgerRefFuture
-      .flatMap(ref => ref.ask[Try[Block]](GenerateGenesis))
-      .map {
-        case Success(genesisBlock) =>
-          NodeView(
-            History.readOrGenerate(settings).append(genesisBlock).get._1,
-            State.genesisState(settings, Seq(genesisBlock)),
-            MemPool.emptyPool
-          )
-        case Failure(ex) =>
-          throw new Error(s"${Console.RED}Failed to initialize genesis due to error${Console.RESET} $ex")
-      }
-  }
-}
 
 object NodeViewModifiersCache {
   import akka.actor.typed._

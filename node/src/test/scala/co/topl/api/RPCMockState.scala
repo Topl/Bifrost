@@ -17,7 +17,7 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.nodeViewHolder.TestableNodeViewHolder
 import co.topl.nodeView.state.State
-import co.topl.nodeView.{ActorNodeViewHolderInterface, NodeViewReaderWriter}
+import co.topl.nodeView.{ActorNodeViewHolderInterface, NodeViewHolder}
 import co.topl.rpc.ToplRpcServer
 import co.topl.settings.{AppContext, StartupOpts}
 import co.topl.utils.{KeyFileTestHelper, NodeGenerators}
@@ -57,7 +57,7 @@ trait RPCMockState
   protected var keyManagerRef: TestActorRef[KeyManager] = _
   protected var forgerRef: akka.actor.typed.ActorRef[Forger.ReceivableMessage] = _
 
-  protected var nodeViewHolderRef: akka.actor.typed.ActorRef[NodeViewReaderWriter.ReceivableMessage] = _
+  protected var nodeViewHolderRef: akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage] = _
 
   protected var km: KeyManager = _
 
@@ -76,8 +76,8 @@ trait RPCMockState
     forgerRef = system.toTyped.systemActorOf(Forger.behavior(settings, appContext, keyManagerRef), Forger.actorName)
 
     nodeViewHolderRef = system.toTyped.systemActorOf(
-      NodeViewReaderWriter(settings, appContext)(appContext.networkType.netPrefix),
-      NodeViewReaderWriter.ActorName
+      NodeViewHolder(settings, appContext)(appContext.networkType.netPrefix),
+      NodeViewHolder.ActorName
     )
     km = keyManagerRef.underlyingActor
 
