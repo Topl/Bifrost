@@ -1,10 +1,9 @@
 package co.topl.consensus
 
-//import akka.actor._
 import akka.actor.ClassicActorContextProvider
 import akka.actor.typed.eventstream.EventStream
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
-import akka.actor.typed.scaladsl.adapter._
+import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors, StashBuffer}
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior, Scheduler}
 import akka.pattern.ask
@@ -33,7 +32,6 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
-import akka.actor.typed.scaladsl.AskPattern._
 
 object Forger {
 
@@ -59,7 +57,8 @@ object Forger {
 
     case class StopForging(replyTo: ActorRef[Done]) extends ReceivableMessage
 
-    case class NodeViewHolderReady(nodeViewHolderRef: ActorRef[Any]) extends ReceivableMessage
+    case class NodeViewHolderReady(nodeViewHolderRef: ActorRef[NodeViewReaderWriter.ReceivableMessage])
+        extends ReceivableMessage
 
     private[Forger] case class ForgerStreamCompleted(result: Try[_]) extends ReceivableMessage
 
@@ -83,7 +82,7 @@ object Forger {
       consensusStorage = ConsensusStorage(settings, appContext.networkType)
       context.system.eventStream.tell(
         EventStream.Subscribe[NodeViewReady](
-          context.messageAdapter(m => ReceivableMessages.NodeViewHolderReady(m.nodeViewHolderRef.toTyped))
+          context.messageAdapter(m => ReceivableMessages.NodeViewHolderReady(m.nodeViewHolderRef))
         )
       )
 
@@ -125,7 +124,7 @@ object Forger {
     settings:          AppSettings,
     appContext:        AppContext,
     keyManager:        akka.actor.ActorRef,
-    nodeViewHolderRef: ActorRef[Any]
+    nodeViewHolderRef: ActorRef[NodeViewReaderWriter.ReceivableMessage]
   )(implicit
     ec:            ExecutionContext,
     networkPrefix: NetworkPrefix,
@@ -137,8 +136,9 @@ object Forger {
         generateGenesis(settings, appContext.networkType, keyManager, replyTo)
         Behaviors.same
       case ReceivableMessages.StartForging(replyTo) =>
+        log.info("Starting forging")
         implicit val mat: Materializer = Materializer(context)
-        blockForger(settings, appContext, nodeViewHolderRef.toClassic, keyManager)
+        blockForger(settings, appContext, nodeViewHolderRef, keyManager)
           .run()
           .onComplete(result => context.self.tell(ReceivableMessages.ForgerStreamCompleted(result)))
         replyTo.tell(Done)
@@ -150,7 +150,7 @@ object Forger {
     settings:          AppSettings,
     appContext:        AppContext,
     keyManager:        akka.actor.ActorRef,
-    nodeViewHolderRef: ActorRef[Any]
+    nodeViewHolderRef: ActorRef[NodeViewReaderWriter.ReceivableMessage]
   )(implicit
     ec:            ExecutionContext,
     networkPrefix: NetworkPrefix,
@@ -159,6 +159,7 @@ object Forger {
   ): Behaviors.Receive[ReceivableMessage] =
     Behaviors.receiveMessagePartial[ReceivableMessage] {
       case ReceivableMessages.StopForging(replyTo) =>
+        log.info("Stopping forging")
         materializer.shutdown()
         replyTo.tell(Done)
         idle(settings, appContext, keyManager, nodeViewHolderRef)
@@ -215,7 +216,7 @@ object Forger {
   private def blockForger(
     settings:               AppSettings,
     appContext:             AppContext,
-    nodeViewHolderRef:      akka.actor.ActorRef,
+    nodeViewHolderRef:      ActorRef[NodeViewReaderWriter.ReceivableMessage],
     keyManagerRef:          akka.actor.ActorRef
   )(implicit networkPrefix: NetworkPrefix, log: Logger): RunnableGraph[Future[Done]] = {
 
@@ -229,10 +230,10 @@ object Forger {
           import akka.actor.typed.scaladsl.adapter._
           implicit val system: ActorSystem[_] = mat.system.toTyped
           Flow[Any]
-            .mapAsync(1)(_ => prepareForgingDependencies(settings, appContext, keyManagerRef, nodeViewHolderRef))
+            .mapAsync(1)(_ => prepareForgingDependencies(settings, appContext, keyManagerRef, nodeViewHolderRef).value)
         }
       )
-      .map(forgeBlockWithBox)
+      .map(_.leftMap(Forger.LeaderElectionFailure).flatMap(forgeBlockWithBox))
       .alsoTo(
         Sink.foreach[Either[AttemptForgingFailure, Block]] {
           case Right(block) =>
@@ -261,13 +262,13 @@ object Forger {
     timeout:       Timeout,
     networkPrefix: NetworkPrefix,
     log:           Logger
-  ): Future[Forger.Dependencies] = {
+  ): EitherT[Future, LeaderElection.IneligibilityReason, Forger.Dependencies] = EitherT {
     import system.executionContext
     for {
       keyView <- (keyManager ? GetAttemptForgingKeyView).mapTo[AttemptForgingKeyView]
       dependencies <-
         nodeViewHolderRef
-          .ask[Forger.Dependencies](
+          .ask[Either[LeaderElection.IneligibilityReason, Forger.Dependencies]](
             NodeViewReaderWriter.ReceivableMessages
               .Read(
                 { nodeView =>
@@ -298,21 +299,20 @@ object Forger {
                   // retrieve the latest TWO block times for updating the difficulty if we forge a new blow
                   val prevTimes = nodeView.history.getTimestampsFrom(parentBlock, nxtBlockNum)
 
-                  // TODO: Either
-                  val Right(arbitBox) =
-                    LeaderElection
-                      .getEligibleBox(parentBlock, keyView.addresses, forgeTime, nodeView.state)
-
-                  Forger.Dependencies(
-                    arbitBox,
-                    parentBlock,
-                    prevTimes,
-                    rewards,
-                    transactions,
-                    forgeTime,
-                    keyView.sign,
-                    keyView.getPublicKey
-                  )
+                  LeaderElection
+                    .getEligibleBox(parentBlock, keyView.addresses, forgeTime, nodeView.state)
+                    .map(arbitBox =>
+                      Forger.Dependencies(
+                        arbitBox,
+                        parentBlock,
+                        prevTimes,
+                        rewards,
+                        transactions,
+                        forgeTime,
+                        keyView.sign,
+                        keyView.getPublicKey
+                      )
+                    )
                 },
                 _
               )

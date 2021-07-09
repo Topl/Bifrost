@@ -429,11 +429,13 @@ object NodeViewReaderWriter {
       uninitialized(appSettings, appContext)
     }
 
+  final private val UninitializedStashSize = 150
+
   private def uninitialized(
     appSettings:            AppSettings,
     appContext:             AppContext
   )(implicit networkPrefix: NetworkPrefix): Behavior[ReceivableMessage] =
-    Behaviors.withStash(150)(stash =>
+    Behaviors.withStash(UninitializedStashSize)(stash =>
       Behaviors.receivePartial {
         case (context, ReceivableMessages.Initialize) =>
           val cache = context.spawn(NodeViewModifiersCache(appSettings), "NodeViewModifiersCache")
@@ -454,7 +456,7 @@ object NodeViewReaderWriter {
           Behaviors.same
 
         case (context, ReceivableMessages.Initialized(nodeView, cache)) =>
-          context.system.eventStream.tell(EventStream.Publish(NodeViewReady))
+          context.system.eventStream.tell(EventStream.Publish(NodeViewReady(context.self)))
           context.system.eventStream.tell(
             EventStream.Subscribe[LocallyGeneratedModifier](
               context.messageAdapter(locallyGeneratedModifier =>
