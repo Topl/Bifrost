@@ -70,7 +70,7 @@ class InvSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
     val elems = data.ids
     require(elems.nonEmpty, "empty inv list")
     require(elems.lengthCompare(maxInvObjects) <= 0, s"more invs than $maxInvObjects in a message")
-    w.put(typeId)
+    w.put(typeId.value)
     w.putUInt(elems.size)
     elems.foreach { id =>
       val bytes = id.bytes
@@ -80,7 +80,7 @@ class InvSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
   }
 
   override def parse(r: Reader): InvData = {
-    val typeId = ModifierTypeId @@ r.getByte()
+    val typeId = ModifierTypeId(r.getByte())
     val count = r.getUInt().toIntExact
     require(count > 0, "empty inv list")
     require(count <= maxInvObjects, s"$count elements in a message while limit is $maxInvObjects")
@@ -153,7 +153,7 @@ class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] wi
     }
 
     val start = w.length()
-    w.put(typeId)
+    w.put(typeId.value)
     w.putUInt(msgCount)
 
     modifiers.take(msgCount).foreach { case (id, modifier) =>
@@ -171,7 +171,7 @@ class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] wi
   }
 
   override def parse(r: Reader): ModifiersData = {
-    val typeId = ModifierTypeId @@ r.getByte()
+    val typeId = ModifierTypeId(r.getByte())
     val count = r.getUInt().toIntExact
     val seq = (0 until count).map { _ =>
       val id = ModifierId.parse(r)

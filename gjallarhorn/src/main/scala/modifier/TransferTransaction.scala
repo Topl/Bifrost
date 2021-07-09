@@ -2,13 +2,13 @@ package modifier
 
 import attestation.AddressEncoder.NetworkPrefix
 import attestation.{Evidence, _}
+import co.topl.crypto.hash.blake2b256
 import com.google.common.primitives.{Ints, Longs}
 import crypto.AssetCode
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import modifier.ModifierId.ModifierTypeId
 import modifier.TransferTransaction.BoxParams
-import scorex.crypto.hash.Blake2b256
 import utils.{Identifiable, Identifier}
 
 import scala.collection.mutable.{Map => MMap}
@@ -93,7 +93,7 @@ object TransferTransaction {
    */
   case class BoxParams[T <: TokenValueHolder](evidence: Evidence, nonce: Long, value: T)
 
-  val modifierTypeId: ModifierTypeId = ModifierTypeId @@ (2: Byte)
+  val modifierTypeId: ModifierTypeId = ModifierTypeId(2: Byte)
 
   def identifier[P <: Proposition](tx: TransferTransaction[P]): Identifier =
     Identifiable.instance(() => Identifier(tx.txType, typePrefix(tx))).getId
@@ -125,8 +125,8 @@ object TransferTransaction {
       Longs.toByteArray(tx.fee)
 
     def calcNonce(index: Int): Long = {
-      val digest = Blake2b256(inputBytes ++ Ints.toByteArray(index))
-      Longs.fromByteArray(digest.take(Longs.BYTES))
+      val digest = blake2b256.hash(inputBytes ++ Ints.toByteArray(index))
+      Longs.fromByteArray(digest.value.take(Longs.BYTES))
     }
 
     val feeChangeParams = BoxParams(tx.to.head._1.evidence, calcNonce(0), SimpleValue(tx.to.head._2.quantity))

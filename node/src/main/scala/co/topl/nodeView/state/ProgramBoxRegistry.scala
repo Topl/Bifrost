@@ -1,7 +1,5 @@
 package co.topl.nodeView.state
 
-import java.io.File
-
 import co.topl.modifier.box.{BoxId, ProgramBox, ProgramId}
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.settings.AppSettings
@@ -71,7 +69,7 @@ class ProgramBoxRegistry(protected val storage: LSMStore) extends Registry[Progr
         ByteArrayWrapper(newVersion.bytes),
         deleted.map(k => ByteArrayWrapper(registryInput(k))),
         updated.map { case (key, value) =>
-          ByteArrayWrapper(registryInput(key)) -> ByteArrayWrapper(value.hashBytes)
+          ByteArrayWrapper(registryInput(key)) -> ByteArrayWrapper(value.hash.value)
         }
       )
 

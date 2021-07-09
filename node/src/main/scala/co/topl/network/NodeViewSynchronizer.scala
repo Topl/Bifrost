@@ -134,7 +134,7 @@ class NodeViewSynchronizer[
   protected def manageModifiers: Receive = {
 
     /** Request data from any remote node */
-    case DownloadRequest(modifierTypeId: ModifierTypeId, modifierId: ModifierId) =>
+    case DownloadRequest(modifierTypeId, modifierId) =>
       if (deliveryTracker.status(modifierId, historyReaderOpt.toSeq) == ModifiersStatus.Unknown) {
         requestDownload(modifierTypeId, Seq(modifierId), None)
       }
@@ -425,7 +425,7 @@ class NodeViewSynchronizer[
       case (Some(mempool), Some(history)) =>
         val objs: Seq[NodeViewModifier] = invData.typeId match {
           case Transaction.modifierTypeId => mempool.getAll(invData.ids)
-          case _: ModifierTypeId          => invData.ids.flatMap(id => history.modifierById(id))
+          case Block.modifierTypeId       => invData.ids.flatMap(id => history.modifierById(id))
         }
 
         log.debug(
@@ -456,12 +456,12 @@ class NodeViewSynchronizer[
     val requestedModifiers = processSpam(remote, typeId, modifiers)
 
     modifierSerializers.get(typeId) match {
-      case Some(serializer: BifrostSerializer[TX @unchecked]) if typeId == Transaction.modifierTypeId =>
+      case Some(serializer: BifrostSerializer[TX]) if typeId == Transaction.modifierTypeId =>
         /** parse all transactions and send them to node view holder */
         val parsed = parseModifiers(requestedModifiers, serializer, remote)
         viewHolderRef ! TransactionsFromRemote(parsed)
 
-      case Some(serializer: BifrostSerializer[PMOD @unchecked]) if typeId == Block.modifierTypeId =>
+      case Some(serializer: BifrostSerializer[PMOD]) if typeId == Block.modifierTypeId =>
         /** parse all modifiers and put them to modifiers cache */
         val parsed = parseModifiers(requestedModifiers, serializer, remote)
         val valid = parsed.filter(validateAndSetStatus(remote, _))

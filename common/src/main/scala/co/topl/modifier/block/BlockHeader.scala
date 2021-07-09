@@ -1,16 +1,15 @@
 package co.topl.modifier.block
 
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.crypto.hash.digest.Digest32
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.{ModifierId, NodeViewModifier}
-import co.topl.utils.ScorexExtensions.Digest32Ops
+import co.topl.utils.codecs.CryptoCodec.implicits._
 import co.topl.utils.TimeProvider
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
-import scorex.crypto.hash.Digest32
-import supertagged.@@
 
 case class BlockHeader(
   id:           ModifierId,
@@ -31,7 +30,7 @@ case class BlockHeader(
 }
 
 object BlockHeader {
-  val modifierTypeId: Byte @@ NodeViewModifier.ModifierTypeId.Tag = ModifierTypeId @@ (4: Byte)
+  val modifierTypeId: NodeViewModifier.ModifierTypeId = ModifierTypeId(4: Byte)
 
   implicit val jsonEncoder: Encoder[BlockHeader] = { bh: BlockHeader =>
     Map(
@@ -43,7 +42,7 @@ object BlockHeader {
       "signature"    -> bh.signature.asJson,
       "height"       -> bh.height.asJson,
       "difficulty"   -> bh.difficulty.asJson,
-      "txRoot"       -> bh.txRoot.asJson(Digest32Ops.jsonEncoder),
+      "txRoot"       -> bh.txRoot.asJson,
       "bloomFilter"  -> bh.bloomFilter.asJson,
       "version"      -> bh.version.asJson
     ).asJson
@@ -59,7 +58,7 @@ object BlockHeader {
       signature    <- c.downField("signature").as[SignatureCurve25519]
       height       <- c.downField("height").as[Long]
       difficulty   <- c.downField("difficulty").as[Long]
-      txRoot       <- c.downField("txRoot").as[Digest32](Digest32Ops.jsonDecoder)
+      txRoot       <- c.downField("txRoot").as[Digest32]
       bloomFilter  <- c.downField("bloomFilter").as[BloomFilter]
       version      <- c.downField("version").as[Byte]
     } yield BlockHeader(

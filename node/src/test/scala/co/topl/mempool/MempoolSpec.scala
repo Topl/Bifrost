@@ -11,6 +11,8 @@ import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetNodeViewChanges, L
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.NodeViewHolderRef
+import co.topl.nodeView.history.HistoryReader
+import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.settings.{AppContext, StartupOpts}
 import co.topl.utils.{CommonGenerators, NodeGenerators}
 import org.scalatest.{BeforeAndAfterAll, DoNotDiscover}
