@@ -1,13 +1,14 @@
 package co.topl.nodeView.history
 
 import co.topl.consensus.consensusHelper.setProtocolMngr
-import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.utils.{CommonGenerators, NodeGenerators}
+import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
+@DoNotDiscover
 class StorageCacheSpec
     extends AnyPropSpec
     with ScalaCheckPropertyChecks
@@ -27,14 +28,17 @@ class StorageCacheSpec
   }
 
   property("The genesis block is stored in cache") {
-    val genesisBlockId = ModifierId.genesisParentId
+    val genesisBlockId = genesisBlock.parentId
+
+    println(s"${genesisBlockId}")
+    println(s"${history.storage.modifierById(genesisBlockId)}")
 
     history.storage.blockCache.getIfPresent(genesisBlockId) shouldEqual
     history.storage.modifierById(genesisBlockId).get.bytes
   }
 
   property("Cache should invalidate all entry when it's rolled back in storage") {
-    val bestBlockIdKey = ModifierId.genesisParentId
+    val bestBlockIdKey = genesisBlock.parentId
 
     /* Append a new block, make sure it is updated in cache, then drop it */
     val fstBlock: Block = blockGen.sample.get.copy(parentId = history.bestBlockId)

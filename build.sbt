@@ -80,6 +80,8 @@ lazy val assemblySettings = Seq(
     case ps if ps.endsWith(".xml") => MergeStrategy.first
     case PathList(ps @ _*) if ps.last endsWith "module-info.class" =>
       MergeStrategy.discard // https://github.com/sbt/sbt-assembly/issues/370
+    case x if x.contains("simulacrum") => MergeStrategy.last
+    case PathList("org", "iq80", "leveldb", xs @ _*) => MergeStrategy.first
     case PathList("module-info.java")  => MergeStrategy.discard
     case PathList("local.conf")        => MergeStrategy.discard
     case "META-INF/truffle/instrument" => MergeStrategy.concat

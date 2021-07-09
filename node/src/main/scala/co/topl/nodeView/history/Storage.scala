@@ -1,10 +1,10 @@
 package co.topl.nodeView.history
 
+import co.topl.db.LDBVersionedStore
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.transaction.Transaction
-import co.topl.db.LDBVersionedStore
 import co.topl.utils.Logging
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.google.common.primitives.Longs
@@ -28,6 +28,7 @@ class Storage(private[history] val storage: LDBVersionedStore, private val cache
       }
   }
 
+  // todo: change key from Array[byte], the cache cannot match on an array of bytes
   val blockCache: LoadingCache[KEY, Option[VAL]] = CacheBuilder
     .newBuilder()
     .expireAfterAccess(cacheExpire, MILLISECONDS)
