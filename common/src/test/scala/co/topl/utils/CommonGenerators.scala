@@ -454,7 +454,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   }
 
   lazy val thresholdPropositionCurve25519Gen: Gen[(Set[PrivateKeyCurve25519], ThresholdPropositionCurve25519)] = for {
-    numKeys   <- positiveThresholdIntGen
+    numKeys <- positiveThresholdIntGen
   } yield {
     val setOfKeys = (0 until numKeys)
       .map { _ =>

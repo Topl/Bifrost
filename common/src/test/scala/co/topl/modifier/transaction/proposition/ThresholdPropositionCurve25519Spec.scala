@@ -36,13 +36,14 @@ class ThresholdPropositionCurve25519Spec
     }
   }
 
-  property("Threshold will not be satisfied if not enough signatures generated with unique proposition is" +
-    " provided") {
+  property(
+    "Threshold will not be satisfied if not enough signatures generated with unique proposition is" +
+    " provided"
+  ) {
     forAll(thresholdPropositionCurve25519Gen) {
       case (keySet: Set[PrivateKeyCurve25519], mn: ThresholdPropositionCurve25519) =>
         val message = nonEmptyBytesGen.sample.getOrElse(Array.fill(positiveMediumIntGen.sample.get)(1: Byte))
         val signatures = List.fill(keySet.size)(keySet.head).map(_.sign(message)).toSet // sigs from the same key
-
 
         ThresholdSignatureCurve25519(signatures).isValid(mn, message) shouldBe false
         ThresholdSignatureCurve25519(signatures.take(mn.threshold)).isValid(mn, message) shouldBe false
