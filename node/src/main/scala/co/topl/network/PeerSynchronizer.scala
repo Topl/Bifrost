@@ -1,7 +1,6 @@
 package co.topl.network
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.dispatch.Dispatchers
 import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
@@ -12,7 +11,6 @@ import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.Logging
 import shapeless.syntax.typeable._
 
-import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -144,5 +142,4 @@ object PeerSynchronizerRef {
     appContext:           AppContext
   ): Props =
     Props(new PeerSynchronizer(networkControllerRef, peerManager, settings, appContext))
-      .withDispatcher(Dispatchers.DefaultBlockingDispatcherId)
 }

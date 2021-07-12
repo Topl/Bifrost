@@ -1,4 +1,4 @@
-package co.topl.utils
+package co.topl.utils.akka
 
 import akka.actor.typed._
 import akka.actor.typed.scaladsl.AskPattern._

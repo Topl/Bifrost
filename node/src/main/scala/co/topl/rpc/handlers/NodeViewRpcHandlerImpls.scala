@@ -27,8 +27,7 @@ class NodeViewRpcHandlerImpls(
   networkPrefix:    NetworkPrefix
 ) extends ToplRpcHandlers.NodeView {
 
-  implicit private val ec: ExecutionContext =
-    system.dispatchers.lookup(Dispatchers.DefaultBlockingDispatcherId)
+  import system.dispatcher
 
   override val head: ToplRpc.NodeView.Head.rpc.ServerHandler =
     _ =>

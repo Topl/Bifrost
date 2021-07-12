@@ -204,7 +204,6 @@ object PeerManagerRef {
     appContext: AppContext
   ): Props =
     Props(new PeerManager(settings, appContext))
-      .withDispatcher(Dispatchers.DefaultBlockingDispatcherId)
 
   def apply(
     name:            String,

@@ -70,7 +70,6 @@ class MempoolAuditor(
   private val worker: ActorRef =
     context.actorOf(
       Props(new CleanupWorker(nodeViewHolderRef, settings, appContext))
-        .withDispatcher(Dispatchers.DefaultBlockingDispatcherId)
     )
 
   override def preStart(): Unit = {
@@ -109,7 +108,7 @@ class MempoolAuditor(
     import scala.concurrent.duration._
     implicit val timeout: Timeout = Timeout(10.seconds)
     implicit val typedSystem: akka.actor.typed.ActorSystem[_] = context.system.toTyped
-    nodeViewHolderRef.ask[T](NodeViewHolder.ReceivableMessages.Read(f, _))
+    nodeViewHolderRef.askWithStatus[T](NodeViewHolder.ReceivableMessages.Read(f, _))
   }
 
   private def awaiting: Receive = {
@@ -188,7 +187,6 @@ object MempoolAuditorRef {
     networkControllerRef: ActorRef
   ): Props =
     Props(new MempoolAuditor(nodeViewHolderRef, networkControllerRef, settings, appContext))
-      .withDispatcher(Dispatchers.DefaultBlockingDispatcherId)
 
   def apply(
     name:                 String,

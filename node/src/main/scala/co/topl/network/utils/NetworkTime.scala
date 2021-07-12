@@ -25,7 +25,7 @@ class NetworkTimeProvider(ntpSettings: NetworkTimeProviderSettings)(implicit sys
   import system.dispatcher
 
   private val blockingExecutionContext: ExecutionContext =
-    system.dispatchers.lookup(Dispatchers.DefaultBlockingDispatcherId)
+    system.dispatchers.lookup("bifrost.application.ntp.dispatcher")
 
   private val lastUpdate = new AtomicLong(0)
   private[NetworkTimeProvider] val offset = new AtomicLong(0)

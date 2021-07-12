@@ -1,5 +1,6 @@
 package co.topl.consensus
 
+import akka.Done
 import akka.actor.ClassicActorContextProvider
 import akka.actor.typed.eventstream.EventStream
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
@@ -10,7 +11,6 @@ import akka.pattern.ask
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Flow, Keep, RunnableGraph, Sink, Source}
 import akka.util.Timeout
-import akka.{Done, NotUsed}
 import cats.data.{EitherT, Validated}
 import cats.implicits._
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
@@ -20,12 +20,12 @@ import co.topl.consensus.genesis.{HelGenesis, PrivateGenesis, ToplnetGenesis, Va
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, ProgramId}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
+import co.topl.nodeView.NodeViewHolder
 import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.{NodeViewChanged, NodeViewHolder}
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.NetworkType._
-import co.topl.utils.{EventStreamSupport, Int128, NetworkType, TimeProvider}
+import co.topl.utils.{Int128, NetworkType, TimeProvider}
 import org.slf4j.Logger
 
 import scala.concurrent.duration.DurationInt
@@ -63,6 +63,8 @@ object Forger {
     private[Forger] case class ForgerStreamCompleted(result: Try[_]) extends ReceivableMessage
 
   }
+
+  private case object ForgerTick
 
   def behavior(
     settings:               AppSettings,
@@ -103,7 +105,7 @@ object Forger {
   ): Behaviors.Receive[ReceivableMessage] = {
     implicit val scheduler: Scheduler = context.system.scheduler
     implicit val timeout: Timeout = 5.seconds
-    Behaviors.receiveMessage[ReceivableMessage] {
+    Behaviors.receiveMessagePartial[ReceivableMessage] {
       case ReceivableMessages.GenerateGenesis(replyTo) =>
         generateGenesis(settings, appContext.networkType, keyManager, replyTo)
         Behaviors.same
@@ -221,10 +223,10 @@ object Forger {
   )(implicit networkPrefix: NetworkPrefix, log: Logger): RunnableGraph[Future[Done]] = {
 
     implicit val timeout: Timeout = settings.forging.blockGenerationDelay
-    import EventStreamSupport._
+    import co.topl.utils.akka.EventStreamSupport._
+    // Generate a new block every `blockGenerationDelay` AND every NodeViewChange
     Source
-      .tick(0.seconds, settings.forging.blockGenerationDelay, NotUsed)
-      .zip(Source.single(NodeViewChanged).concat(eventStreamSource(NodeViewChanged.getClass)))
+      .tick(0.seconds, settings.forging.blockGenerationDelay, ForgerTick)
       .via(
         Flow.fromMaterializer { (mat, _) =>
           import akka.actor.typed.scaladsl.adapter._
@@ -234,6 +236,7 @@ object Forger {
         }
       )
       .map(_.leftMap(Forger.LeaderElectionFailure).flatMap(forgeBlockWithBox))
+      .recover { case e => Left(Forger.ForgingError(e)) }
       .alsoTo(
         Sink.foreach[Either[AttemptForgingFailure, Block]] {
           case Right(block) =>
@@ -243,7 +246,7 @@ object Forger {
           case Left(Forger.LeaderElectionFailure(LeaderElection.NoAddressesAvailable)) =>
             log.warn("Forger has no addresses available to stake with.")
           case Left(Forger.LeaderElectionFailure(LeaderElection.NoBoxesEligible)) =>
-            log.debug("No boxes were eligible to forge with.")
+            log.debug("No Arbit boxes are eligible at the current difficulty.")
           case Left(Forger.LeaderElectionFailure(LeaderElection.NoArbitBoxesAvailable)) =>
             log.debug("No arbit boxes available to stake with.")
         }
@@ -268,7 +271,7 @@ object Forger {
       keyView <- (keyManager ? GetAttemptForgingKeyView).mapTo[AttemptForgingKeyView]
       dependencies <-
         nodeViewHolderRef
-          .ask[Either[LeaderElection.IneligibilityReason, Forger.Dependencies]](
+          .askWithStatus[Either[LeaderElection.IneligibilityReason, Forger.Dependencies]](
             NodeViewHolder.ReceivableMessages
               .Read(
                 { nodeView =>

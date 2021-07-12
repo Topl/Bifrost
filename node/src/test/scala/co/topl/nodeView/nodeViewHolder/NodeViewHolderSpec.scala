@@ -3,9 +3,9 @@ package co.topl.nodeView.nodeViewHolder
 import akka.actor.typed._
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.scaladsl.adapter._
+import co.topl.nodeView.NodeViewWriter
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.{MockState, State}
-import co.topl.nodeView.{NodeViewHolder, NodeViewWriter}
 import co.topl.settings.{AppContext, StartupOpts}
 import co.topl.utils.CommonGenerators
 import org.scalatest.propspec.AnyPropSpec
@@ -23,9 +23,6 @@ class NodeViewHolderSpec
   implicit private val actorSystem: ActorSystem[_] = ActorSystem(Behaviors.empty, settings.network.agentName)
 
   private var appContext: AppContext = _
-
-  private val nodeViewHolderRef =
-    actorSystem.systemActorOf(NodeViewHolder(settings, appContext), NodeViewHolder.ActorName)
 
   private var state: State = _
 

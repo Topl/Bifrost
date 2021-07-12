@@ -1,4 +1,4 @@
-package co.topl.utils
+package co.topl.utils.akka
 
 import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.{Sink, Source}

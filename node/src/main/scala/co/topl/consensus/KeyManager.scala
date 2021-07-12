@@ -186,7 +186,7 @@ object KeyManagerRef {
   def props(settings: AppSettings, appContext: AppContext)(implicit np: NetworkPrefix): Props =
     Props(
       new KeyManager(settings, appContext)
-    ).withDispatcher(Dispatchers.DefaultBlockingDispatcherId)
+    ).withDispatcher("bifrost.application.key-manager.dispatcher")
 
   def apply(name: String, settings: AppSettings, appContext: AppContext)(implicit system: ActorSystem): ActorRef =
     system.actorOf(props(settings, appContext)(appContext.networkType.netPrefix), name)

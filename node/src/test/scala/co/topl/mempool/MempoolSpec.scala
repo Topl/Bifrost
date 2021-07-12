@@ -42,14 +42,15 @@ class MempoolSpec
   implicit val timeout: Timeout = Timeout(10.seconds)
 
   private def getHistory: HistoryReader[Block, BifrostSyncInfo] = Await.result(
-    nodeViewHolderRef.ask[HistoryReader[Block, BifrostSyncInfo]](
+    nodeViewHolderRef.askWithStatus[HistoryReader[Block, BifrostSyncInfo]](
       NodeViewHolder.ReceivableMessages.Read(_.history, _)
     ),
     10.seconds
   )
 
   private def getMempool: MemPoolReader[Transaction.TX] = Await.result(
-    nodeViewHolderRef.ask[MemPoolReader[Transaction.TX]](NodeViewHolder.ReceivableMessages.Read(_.memPool, _)),
+    nodeViewHolderRef
+      .askWithStatus[MemPoolReader[Transaction.TX]](NodeViewHolder.ReceivableMessages.Read(_.memPool, _)),
     10.seconds
   )
 

@@ -95,7 +95,7 @@ class BifrostApp(startupOpts: StartupOpts) extends NodeLogging with Runnable {
     actorSystem.toTyped.systemActorOf(
       NodeViewHolder(settings, appContext),
       "NodeViewHolder",
-      DispatcherSelector.blocking()
+      DispatcherSelector.fromConfig("bifrost.application.node-view.dispatcher")
     )
 
   private val mempoolAuditor: ActorRef =

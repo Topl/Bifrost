@@ -286,7 +286,7 @@ class NodeViewSynchronizer(
     import scala.concurrent.duration._
     implicit val timeout: Timeout = Timeout(10.seconds)
     implicit val typedSystem: akka.actor.typed.ActorSystem[_] = context.system.toTyped
-    viewHolderRef.ask[T](NodeViewHolder.ReceivableMessages.Read(f, _))
+    viewHolderRef.askWithStatus[T](NodeViewHolder.ReceivableMessages.Read(f, _))
   }
 
   /**
@@ -663,7 +663,6 @@ object NodeViewSynchronizerRef {
     appContext:           AppContext
   ): Props =
     Props(new NodeViewSynchronizer(networkControllerRef, viewHolderRef, settings, appContext))
-      .withDispatcher(Dispatchers.DefaultBlockingDispatcherId)
 
   def apply(
     name:                 String,
