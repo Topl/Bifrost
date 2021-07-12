@@ -36,7 +36,7 @@ class IODBSpec
       val boxIdsToRemove: Iterable[ByteArrayWrapper] = Seq()
       val boxesToAdd: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
         tx.newBoxes
-          .map(b => (ByteArrayWrapper(b.id.hashBytes), ByteArrayWrapper(b.bytes)))
+          .map(b => (ByteArrayWrapper(b.id.hash.value), ByteArrayWrapper(b.bytes)))
           .toList
 
       blocksStorage.update(ByteArrayWrapper(tx.id.getIdBytes), boxIdsToRemove, boxesToAdd)
@@ -49,7 +49,7 @@ class IODBSpec
      */
     def checkTx(tx: TX): Unit =
       tx.newBoxes
-        .foreach(b => require(blocksStorage.get(ByteArrayWrapper(b.id.hashBytes)).isDefined))
+        .foreach(b => require(blocksStorage.get(ByteArrayWrapper(b.id.hash.value)).isDefined))
 
     forAll(validBifrostTransactionSeqGen) { txs =>
       whenever(txs.length >= 2) {
@@ -82,7 +82,7 @@ class IODBSpec
       blocksStorage.update(
         ByteArrayWrapper(b.id.getIdBytes),
         Seq(),
-        Seq(ByteArrayWrapper(b.id.getIdBytes) -> ByteArrayWrapper(Block.modifierTypeId +: b.bytes))
+        Seq(ByteArrayWrapper(b.id.getIdBytes) -> ByteArrayWrapper(Block.modifierTypeId.value +: b.bytes))
       )
 
     var ids: Seq[ModifierId] = Seq()

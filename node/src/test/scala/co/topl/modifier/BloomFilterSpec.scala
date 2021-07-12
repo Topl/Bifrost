@@ -1,6 +1,7 @@
 package co.topl.modifier
 
 import co.topl.attestation.Address
+import co.topl.crypto.signatures.Curve25519
 import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.block.{BloomFilter, TransactionsCarryingPersistentNodeViewModifier}
@@ -8,7 +9,6 @@ import co.topl.utils.NodeGenerators
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-import scorex.crypto.signatures.Curve25519
 
 class BloomFilterSpec
     extends AnyPropSpec
@@ -68,9 +68,9 @@ class BloomFilterSpec
         .map(s => PrivateKeyCurve25519.secretGenerator.generateSecret(s)._2)
         .map(k => k.address)
 
-    val bloomTopics: Set[BloomTopic] = randAddr.take(numBloom).map(addr => BloomTopic @@ addr.bytes).toSet
+    val bloomTopics: Set[BloomTopic] = randAddr.take(numBloom).map(addr => BloomTopic(addr.bytes)).toSet
     val bloomfilter: BloomFilter = BloomFilter(bloomTopics)
-    val testTopics: Seq[BloomTopic] = randAddr.drop(numBloom).map(addr => BloomTopic @@ addr.bytes)
+    val testTopics: Seq[BloomTopic] = randAddr.drop(numBloom).map(addr => BloomTopic(addr.bytes))
 
     val falsePositives = testTopics.foldLeft(0) { (count, bt) =>
       if (bloomfilter.contains(bt)) count + 1

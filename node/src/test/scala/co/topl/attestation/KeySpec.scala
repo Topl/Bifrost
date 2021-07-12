@@ -1,5 +1,8 @@
 package co.topl.attestation
 
+import co.topl.utils.codecs.implicits._
+import co.topl.attestation.AddressCodec.implicits._
+import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.{KeyFileTestHelper, NodeGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
@@ -13,7 +16,7 @@ class KeySpec
     with Matchers
     with KeyFileTestHelper {
 
-  var password: String = _
+  var password: Latin1Data = _
   var messageByte: Array[Byte] = _
 
   var address: Address = _
@@ -21,7 +24,7 @@ class KeySpec
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    password = sampleUntilNonEmpty(stringGen)
+    password = Latin1Data.unsafe(sampleUntilNonEmpty(stringGen))
     messageByte = sampleUntilNonEmpty(nonEmptyBytesGen)
 
     import org.scalatest.TryValues._
@@ -43,10 +46,10 @@ class KeySpec
   }
 
   property("Once unlocked, the address will be accessible from the keyRing again") {
-    keyRing.DiskOps.unlockKeyFile(address.toString, password)
+    keyRing.DiskOps.unlockKeyFile(address.encodeAsBase58, password)
 
     /** There will be a warning for unlocking again if a key is already unlocked */
-    keyRing.DiskOps.unlockKeyFile(address.toString, password)
+    keyRing.DiskOps.unlockKeyFile(address.encodeAsBase58, password)
 
     keyRing.addresses.contains(address) shouldBe true
   }
@@ -71,7 +74,7 @@ class KeySpec
   property("The proof from signing with an address should only be valid for the corresponding proposition") {
     val prop = keyRing.lookupPublicKey(address).get
 
-    val newAddr: Address = keyRing.DiskOps.generateKeyFile(stringGen.sample.get).get
+    val newAddr: Address = keyRing.DiskOps.generateKeyFile(Latin1Data.unsafe(stringGen.sample.get)).get
     val newProp = keyRing.lookupPublicKey(newAddr).get
     val newProof = keyRing.signWithAddress(newAddr)(messageByte).get
 

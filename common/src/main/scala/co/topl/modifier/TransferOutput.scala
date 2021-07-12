@@ -1,11 +1,9 @@
 package co.topl.modifier
 
-import co.topl.attestation.{Address, Evidence, Proposition}
+import co.topl.attestation.{Address, Proposition}
 import co.topl.modifier.TransferOutput.ToInfo
 import co.topl.modifier.box._
 import co.topl.modifier.transaction._
-import com.google.common.primitives.{Ints, Longs}
-import scorex.crypto.hash.Blake2b256
 
 case class TransferOutput[+T <: TokenValueHolder](feeChangeInfo: ToInfo[SimpleValue], coinInfo: IndexedSeq[ToInfo[T]]) {
   val all: IndexedSeq[ToInfo[TokenValueHolder]] = feeChangeInfo +: coinInfo

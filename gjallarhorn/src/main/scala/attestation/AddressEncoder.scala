@@ -1,7 +1,12 @@
 package attestation
 
-import scorex.crypto.hash.Blake2b256
-import scorex.util.encode.Base58
+import cats.data.Validated.{Invalid, Valid}
+import cats.implicits._
+import co.topl.crypto.hash.blake2b256
+import co.topl.utils.codecs.implicits._
+import co.topl.utils.encode.Base58
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.StringDataTypes.implicits._
 
 import scala.util.{Failure, Try}
 
@@ -11,6 +16,7 @@ import scala.util.{Failure, Try}
  * as a quick check that may be used with external systems.
  */
 object AddressEncoder {
+
   type NetworkPrefix = Byte
 
   val checksumLength = 4
@@ -25,13 +31,13 @@ object AddressEncoder {
    * @param addrBytes the bytes of an address (1 - networkPrefix, 1 - addressTypePres, 32 - content bytes)
    * @return a 4 byte checksum value
    */
-  private def genChecksum(addrBytes: Array[Byte]): Array[Byte] = Blake2b256(addrBytes).take(checksumLength)
+  private def genChecksum(addrBytes: Array[Byte]): Array[Byte] = blake2b256.hash(addrBytes).value.take(checksumLength)
 
   def toString(addr: Address): String = {
     val addrBytes = addr.bytes
     val checksum = genChecksum(addrBytes)
 
-    Base58.encode(addrBytes ++ checksum)
+    (addrBytes ++ checksum).encodeAsBase58.show
   }
 
   /**
@@ -39,7 +45,13 @@ object AddressEncoder {
    * @param addrStr a Base58 encoded address
    * @return the address that was encoded in the string
    */
-  def fromStringUnsafe(addrStr: String): Try[Address] = Base58.decode(addrStr).flatMap(fromBytes)
+  def fromString(addrStr: String): Try[Address] =
+    Base58Data.validated(addrStr).map(fromBase58) match {
+      case Valid(result)   => result
+      case Invalid(errors) => Failure(new Error(s"Address is not Base 58 encoded: $errors"))
+    }
+
+  def fromBase58(addrData: Base58Data): Try[Address] = fromBytes(addrData.value)
 
   /**
    * Parse an Address from a string ensuring that the networkPrefix is correct
@@ -48,10 +60,14 @@ object AddressEncoder {
    * @return the address encoded in the string
    */
   def fromStringWithCheck(addrStr: String, networkPrefix: NetworkPrefix): Try[Address] =
-    Base58.decode(addrStr).flatMap { b =>
-      if (b.head == networkPrefix) fromBytes(b)
-      else Failure(new Exception(s"""Invalid address: "$addrStr". Network type does not match"""))
+    Base58Data.validated(addrStr).map(fromBase58WithCheck(_, networkPrefix)) match {
+      case Valid(result)   => result
+      case Invalid(errors) => Failure(new Error(s"""Invalid address: "$addrStr". Value not Base 58: $errors"""))
     }
+
+  def fromBase58WithCheck(addrData: Base58Data, networkPrefix: NetworkPrefix): Try[Address] =
+    if (addrData.value.head == networkPrefix) fromBytes(addrData.value)
+    else Failure(new Exception(s"""Invalid address: "${addrData.show}". Network type does not match"""))
 
   /**
    * Parses an address from an array of bytes
