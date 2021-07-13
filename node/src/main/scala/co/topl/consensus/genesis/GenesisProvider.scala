@@ -13,6 +13,7 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.{Int128, Logging}
 
+import scala.collection.immutable.ListMap
 import scala.util.Try
 
 trait GenesisProvider extends Logging {
@@ -30,7 +31,7 @@ trait GenesisProvider extends Logging {
 
   protected val initialDifficulty: Long
 
-  protected val members: Map[String, Int128]
+  protected val members: ListMap[String, Int128]
 
   def getGenesisBlock: Try[(Block, ChainParams)]
 
