@@ -2,7 +2,7 @@ package co.topl.nodeView.state
 
 import cats.data.ValidatedNec
 import co.topl.attestation.Address
-import co.topl.attestation.AddressCodec.implicits.StringOps
+import co.topl.attestation.AddressCodec.implicits.Base58DataOps
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
@@ -16,7 +16,8 @@ import co.topl.settings.AppSettings
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
-import scorex.util.encode.Base58
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.encode.Base58
 
 import java.io.File
 import scala.reflect.ClassTag
@@ -65,7 +66,7 @@ case class State(
    * @return
    */
   override def getBox(id: BoxId): Option[Box[_]] =
-    getFromStorage(id.hashBytes)
+    getFromStorage(id.hash.value)
       .map(BoxSerializer.parseBytes)
       .flatMap(_.toOption)
 
@@ -185,7 +186,7 @@ case class State(
       val boxesToAdd = (nodeKeys match {
         case Some(keys) => stateChanges.toAppend.filter(b => keys.contains(Address(b.evidence)))
         case None       => stateChanges.toAppend
-      }).map(b => b.id.hashBytes -> b.bytes)
+      }).map(b => b.id.hash.value -> b.bytes)
 
       val boxIdsToRemove = (nodeKeys match {
         case Some(keys) =>
@@ -195,7 +196,7 @@ case class State(
             .map(b => b.id)
 
         case None => stateChanges.boxIdsToRemove
-      }).map(b => b.hashBytes)
+      }).map(b => b.hash.value)
 
       // enforce that the input id's must not match any of the output id's (added emptiness checks for testing)
       require(
@@ -314,7 +315,7 @@ object State extends Logging {
       case None                       => None
       case Some(keys) if keys.isEmpty => None
       case Some(keys) =>
-        Some(keys.map(_.decodeAddress.getOrThrow()))
+        Some(keys.map(Base58Data.unsafe(_).decodeAddress.getOrThrow()))
     }
 
     if (nodeKeys.isDefined) log.info(s"Initializing state to watch for public keys: $nodeKeys")

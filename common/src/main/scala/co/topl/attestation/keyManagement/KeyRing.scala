@@ -1,11 +1,13 @@
 package co.topl.attestation.keyManagement
 
+import cats.data.Validated.{Invalid, Valid}
 import co.topl.attestation.Address
 import co.topl.attestation.AddressCodec.implicits._
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.SecureRandom.randomBytes
+import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import com.google.common.primitives.Ints
-import scorex.util.Random.randomBytes
 
 import java.io.File
 import scala.util.{Failure, Success, Try}
@@ -88,20 +90,31 @@ class KeyRing[
   /**
    * Attempts to import a keyfile into the key ring
    * @param keyfile encrypted keyfile that will be added
-   * @param password password for decrypting the keyfile
+   * @param password Latin-1 encoded password for decrypting the keyfile
    * @return the address of the key pair for this network
    */
-  def importKeyPair(keyfile: KF, password: String): Try[Address] = {
+  def importKeyPairSafe(keyfile: KF, password: Latin1Data): Try[Address] = {
     require(
       keyfile.address.networkPrefix == networkPrefix,
       s"Invalid key file for chosen network. " +
       s"Provided key has network prefix ${keyfile.address.networkPrefix} but required prefix is $networkPrefix"
     )
 
-    decryptSecret(keyfile, password).map { s =>
+    decryptSecretSafe(keyfile, password).map { s =>
       secrets ++= Set(s)
       s.publicImage.address
     }
+  }
+
+  /**
+   * Attempts to import a keyfile into the key ring
+   * @param keyfile encrypted keyfile that will be added
+   * @param password Latin-1 encoded password for decrypting the keyfile
+   * @return the address of the key pair for this network
+   */
+  def importKeyPair(keyfile: KF, password: String): Try[Address] = Latin1Data.validated(password) match {
+    case Valid(str)      => importKeyPairSafe(keyfile, str)
+    case Invalid(errors) => Failure(new Error(s"Invalid Latin-1 password: $errors"))
   }
 
   /**
@@ -155,7 +168,7 @@ class KeyRing[
      *
      * @param password
      */
-    def generateKeyFile(password: String): Try[Address] =
+    def generateKeyFile(password: Latin1Data): Try[Address] =
       generateNewKeyPairs().map { sk =>
         exportKeyfileToDisk(sk.head.publicImage.address, password)
         sk.head.publicImage.address
@@ -167,9 +180,9 @@ class KeyRing[
      * @param address  Base58 encoded address of the key to unlock
      * @param password - password for the given public key.
      */
-    def unlockKeyFile(address: String, password: String): Try[Address] = {
+    def unlockKeyFile(address: Base58Data, password: Latin1Data): Try[Address] = {
       val keyfile = checkValid(address, password)
-      importKeyPair(keyfile, password)
+      importKeyPairSafe(keyfile, password)
     }
 
     /**
@@ -177,11 +190,11 @@ class KeyRing[
      * @param password
      * @return
      */
-    private def exportKeyfileToDisk(address: Address, password: String): Try[Unit] =
+    private def exportKeyfileToDisk(address: Address, password: Latin1Data): Try[Unit] =
       (for {
         secret <- secretByAddress(address)
         keyDir <- keyDirectory.map(_.getAbsolutePath)
-        _      <- saveToDisk(keyDir, password, secret).toOption
+        _      <- saveToDiskSafe(keyDir, password, secret).toOption
       } yield ()) match {
         case Some(_) => Success(())
         case None    => Failure(new Exception("Failed to export key to disk"))
@@ -200,7 +213,7 @@ class KeyRing[
      * @param password        password used to decrypt the keyfile
      * @return the relevant PrivateKey25519 to be processed
      */
-    private def checkValid(address: String, password: String): KF =
+    private def checkValid(address: Base58Data, password: Latin1Data): KF =
       listKeyFiles()
         .map {
           _.filter {

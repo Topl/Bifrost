@@ -2,14 +2,14 @@ package co.topl.consensus
 
 import co.topl.db.LDBVersionedStore
 import co.topl.utils.CommonGenerators
+import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.hash.implicits._
 import com.google.common.primitives.Longs
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scorex.crypto.hash.Blake2b256
-import scorex.util.encode.Base58
 
 class ConsensusStorageSpec
     extends AnyFlatSpec
@@ -33,7 +33,7 @@ class ConsensusStorageSpec
         .get(_: Array[Byte]))
         .expects(*)
         .onCall { key: Array[Byte] =>
-          if (key sameElements Blake2b256("totalStake".getBytes)) {
+          if (key sameElements blake2b256.hash("totalStake".getBytes).bytes) {
             Some(storageTotalStake.toByteArray)
           } else Some(Longs.toByteArray(0))
         }

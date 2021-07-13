@@ -1,12 +1,17 @@
 package attestation
 
+import cats.implicits._
+import co.topl.crypto.hash.digest.Digest
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.StringDataTypes.implicits._
+import co.topl.utils.codecs.implicits._
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import scorex.util.encode.Base58
-import supertagged.TaggedType
+import io.estatico.newtype.macros.newtype
 import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
 
+import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -21,7 +26,7 @@ final class Evidence private (private val evBytes: Array[Byte]) extends BytesSer
   override type M = Evidence
   override def serializer: GjalSerializer[Evidence] = Evidence
 
-  override def toString: String = Base58.encode(bytes)
+  override def toString: String = bytes.encodeAsBase58.show
 
   override def equals(obj: Any): Boolean = obj match {
     case ec: Evidence => bytes sameElements ec.bytes
@@ -35,23 +40,23 @@ object Evidence extends GjalSerializer[Evidence] {
   // below are types and values used enforce the behavior of evidence
   type EvidenceTypePrefix = Byte
 
-  object EvidenceContent extends TaggedType[Array[Byte]]
-  type EvidenceContent = EvidenceContent.Type
+  @newtype
+  case class EvidenceContent(value: Array[Byte])
+
+  object EvidenceContent {
+    def apply[D: Digest](d: D): EvidenceContent = EvidenceContent(d.infalliblyEncodeAsBytes)
+  }
 
   val contentLength = 32 //bytes (this is generally the output of a Blake2b-256 bit hash)
   val size: Int = 1 + contentLength //length of typePrefix + contentLength
 
   def apply(typePrefix: EvidenceTypePrefix, content: EvidenceContent): Evidence =
-    fromBytes(typePrefix +: content) match {
+    fromBytes(typePrefix +: content.value) match {
       case Success(ec) => ec
       case Failure(ex) => throw ex
     }
 
-  private def apply(str: String): Evidence =
-    Base58.decode(str).flatMap(fromBytes) match {
-      case Success(ec) => ec
-      case Failure(ex) => throw ex
-    }
+  private def fromBase58(data: Base58Data): Evidence = fromBytes(data.value).get
 
   private def fromBytes(byteArray: Array[Byte]): Try[Evidence] = Try {
     require(byteArray.length == size, s"Incorrect length of input byte array when constructing evidence")
@@ -70,6 +75,6 @@ object Evidence extends GjalSerializer[Evidence] {
   // https://circe.github.io/circe/codecs/custom-codecs.html
   implicit val jsonEncoder: Encoder[Evidence] = (ec: Evidence) => ec.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[Evidence] = (ec: Evidence) => ec.toString
-  implicit val jsonDecoder: Decoder[Evidence] = Decoder.decodeString.map(apply)
-  implicit val jsonKeyDecoder: KeyDecoder[Evidence] = (str: String) => Some(apply(str))
+  implicit val jsonDecoder: Decoder[Evidence] = Decoder[Base58Data].map(fromBase58)
+  implicit val jsonKeyDecoder: KeyDecoder[Evidence] = KeyDecoder[Base58Data].map(fromBase58)
 }

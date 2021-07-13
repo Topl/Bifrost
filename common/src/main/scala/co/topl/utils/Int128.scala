@@ -1,7 +1,5 @@
 package co.topl.utils
 
-import co.topl.utils.Int128.scalaBigInt2Int128
-
 import java.math.BigInteger
 import java.nio.{ByteBuffer, ByteOrder}
 import java.util.UUID

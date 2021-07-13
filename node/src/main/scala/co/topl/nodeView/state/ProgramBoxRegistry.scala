@@ -70,7 +70,7 @@ class ProgramBoxRegistry(protected val storage: LDBVersionedStore)
         newVersion.bytes,
         deleted.map(k => registryInput(k)),
         updated.map { case (key, value) =>
-          registryInput(key) -> value.hashBytes
+          registryInput(key) -> value.hash.value
         }
       )
 

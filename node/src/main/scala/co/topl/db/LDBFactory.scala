@@ -1,9 +1,10 @@
 package co.topl.db
 
+import co.topl.utils.Logging
+
 import java.io.File
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import org.iq80.leveldb.{DB, DBFactory, DBIterator, Options, Range, ReadOptions, Snapshot, WriteBatch, WriteOptions}
-import scorex.util.ScorexLogging
 
 import scala.collection.mutable
 
@@ -13,7 +14,7 @@ import scala.collection.mutable
  * And ergo application (mostly tests) quite frequently doesn't not explicitly close
  * database and tries to reopen it.
  */
-case class StoreRegistry(factory: DBFactory) extends DBFactory with ScorexLogging {
+case class StoreRegistry(factory: DBFactory) extends DBFactory with Logging {
 
   val lock = new ReentrantReadWriteLock()
   val map = new mutable.HashMap[File, RegisteredDB]
@@ -97,7 +98,7 @@ case class StoreRegistry(factory: DBFactory) extends DBFactory with ScorexLoggin
     factory.repair(path, options)
 }
 
-object LDBFactory extends ScorexLogging {
+object LDBFactory extends Logging {
 
   private val nativeFactory = "org.fusesource.leveldbjni.JniDBFactory"
   private val javaFactory = "org.iq80.leveldb.impl.Iq80DBFactory"

@@ -1,13 +1,15 @@
 package co.topl.program
 
 import co.topl.attestation.PublicKeyPropositionCurve25519
+import co.topl.crypto.PublicKey
 import co.topl.modifier.box.{CodeBox, StateBox}
+import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.exceptions.{ChainProgramException, JsonParsingException}
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.{Context, Value}
-import scorex.crypto.signatures.PublicKey
-import scorex.util.encode.Base58
+import co.topl.utils.codecs.implicits._
+import co.topl.utils.StringDataTypes.Base58Data
 
 import scala.util.Try
 
@@ -55,7 +57,7 @@ case class Program(
 //      })
 //      .asJson,
     "lastUpdated" -> lastUpdated.asJson,
-    "id"          -> Base58.encode(id).asJson
+    "id"          -> id.encodeAsBase58.asJson
   ).asJson
 
 }
@@ -71,7 +73,8 @@ object Program {
       case Some(partiesObject) =>
         partiesObject.toMap
           .map { party =>
-            val publicKey = PublicKey @@ Base58.decode(party._1).get
+            val publicKey =
+              Base58Data.validated(party._1).map(_.infalliblyDecodeTo[PublicKey]).getOrThrow()
             val role = party._2.asString.get
             new PublicKeyPropositionCurve25519(publicKey) -> role
           }

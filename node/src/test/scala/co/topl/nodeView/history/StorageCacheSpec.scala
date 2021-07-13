@@ -92,7 +92,7 @@ class StorageCacheSpec
     val fstBlock: Block = BlockGen.sample.get.copy(parentId = history.bestBlockId)
     history = history.append(fstBlock).get._1
 
-    history.storage.blockCache.getIfPresent(ByteArrayWrapper(fstBlock.id.hashBytes)) should not be null
+    history.storage.blockCache.getIfPresent((fstBlock.id.hashBytes)) should not be null
 
     /* Append a number of new blocks, so that we store more entries than the cache size limit */
     /* Assuming an average new block creates more than 50 entries */
@@ -102,7 +102,7 @@ class StorageCacheSpec
       history = history.append(oneBlock).get._1
     }
 
-    history.storage.blockCache.getIfPresent(ByteArrayWrapper(fstBlock.id.hashBytes)) shouldBe null
+    history.storage.blockCache.getIfPresent((fstBlock.id.hashBytes)) shouldBe null
   }
    */
 

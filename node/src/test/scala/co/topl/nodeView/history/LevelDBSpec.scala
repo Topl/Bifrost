@@ -36,7 +36,7 @@ class LevelDBSpec
       val boxIdsToRemove: Iterable[Array[Byte]] = Seq()
       val boxesToAdd: Iterable[(Array[Byte], Array[Byte])] =
         tx.newBoxes
-          .map(b => (b.id.hashBytes, b.bytes))
+          .map(b => (b.id.hash.value, b.bytes))
           .toList
 
       blocksStorage.update(tx.id.getIdBytes, boxIdsToRemove, boxesToAdd)
@@ -49,7 +49,7 @@ class LevelDBSpec
      */
     def checkTx(tx: TX): Unit =
       tx.newBoxes
-        .foreach(b => require(blocksStorage.get(b.id.hashBytes).isDefined))
+        .foreach(b => require(blocksStorage.get(b.id.hash.value).isDefined))
 
     forAll(validBifrostTransactionSeqGen) { txs =>
       whenever(txs.length >= 2) {
@@ -82,7 +82,7 @@ class LevelDBSpec
       blocksStorage.update(
         b.id.getIdBytes,
         Seq(),
-        Seq(b.id.getIdBytes -> (Block.modifierTypeId +: b.bytes))
+        Seq(b.id.getIdBytes -> (Block.modifierTypeId.value +: b.bytes))
       )
 
     var ids: Seq[ModifierId] = Seq()
