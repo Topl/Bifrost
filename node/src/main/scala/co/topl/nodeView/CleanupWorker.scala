@@ -54,7 +54,7 @@ class CleanupWorker(
     val (validated, toEliminate) = validatePool(state, mempool)
     if (toEliminate.nonEmpty) {
       log.info(s"${toEliminate.size} transactions from mempool were invalidated")
-      nodeViewHolderRef ! NodeViewHolder.ReceivableMessages.EvictTransactions(toEliminate)
+      nodeViewHolderRef ! NodeViewHolder.ReceivableMessages.EliminateTransactions(toEliminate)
     }
     validated
   }

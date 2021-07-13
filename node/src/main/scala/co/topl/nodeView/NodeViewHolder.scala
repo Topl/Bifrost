@@ -34,6 +34,10 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Success, Try}
 
+/**
+ * A Typed actor which holds onto block history, box state, and a transaction mempool.  The outside world can
+ * issue mutation instructions to it, or it reader functions can be provided to the actor to read data from the view.
+ */
 object NodeViewHolder {
 
   final val ActorName = "node-view-holder"
@@ -49,12 +53,30 @@ object NodeViewHolder {
   sealed abstract class ReceivableMessage
 
   object ReceivableMessages {
+
+    /**
+     * Instruct the actor to initialize state (read data from disk or generate genesis)
+     */
     private[NodeViewHolder] case object Initialize extends ReceivableMessage
 
+    /**
+     * A self-message that's sent to the actor once async initialization is completed
+     * @param nodeView the initialized NodeView
+     */
     private[NodeViewHolder] case class Initialized(nodeView: NodeView) extends ReceivableMessage
 
-    case class InitializationFailed(reason: Throwable) extends ReceivableMessage
+    /**
+     * A self-message indicating that initialization failed
+     */
+    private[NodeViewHolder] case class InitializationFailed(reason: Throwable) extends ReceivableMessage
 
+    /**
+     * The main public "read" interface for interacting with a read-only node view.  It accepts a function which is
+     * run on a readable node view and returns some sort of data belonging to the domain of the caller.
+     * @param f A function to extract data from the node view
+     * @param replyTo The actor that asked for the data
+     * @tparam T The caller's domain-specific response type
+     */
     case class Read[T](f: ReadableNodeView => T, replyTo: ActorRef[StatusReply[T]]) extends ReceivableMessage {
 
       private[NodeViewHolder] def run(readableNodeView: ReadableNodeView): Unit =
@@ -63,19 +85,47 @@ object NodeViewHolder {
         )
     }
 
+    /**
+     * The main public "write" interface for block data.
+     */
     case class WriteBlocks(blocks: Iterable[Block]) extends ReceivableMessage
 
+    /**
+     * An child-internal/private message for handling a single Block write operation at a time
+     * @param f a function which persists data to the node view and returns a new node view
+     * @param replyTo An actor to send the new node view to
+     */
     private[NodeViewHolder] case class Write(f: NodeView => NodeView, replyTo: ActorRef[StatusReply[NodeView]])
         extends ReceivableMessage
 
+    /**
+     * A self-message indicating that a block was successfully written
+     */
     private[NodeViewHolder] case object BlockWritten extends ReceivableMessage
+
+    /**
+     * A self-message indicating that a block failed to write
+     */
     private[NodeViewHolder] case class BlockFailedToWrite(reason: Throwable) extends ReceivableMessage
 
+    /**
+     * Public message to write transactions
+     */
     case class WriteTransactions(transactions: Iterable[Transaction.TX]) extends ReceivableMessage
-    case class EvictTransactions(transactionIds: Iterable[ModifierId]) extends ReceivableMessage
 
+    /**
+     * Remove transactions from the mempool
+     */
+    case class EliminateTransactions(transactionIds: Iterable[ModifierId]) extends ReceivableMessage
+
+    /**
+     * A message specifically used by unit tests to get the mutable internal actor state
+     */
     private[nodeView] case class GetWritableNodeView(replyTo: ActorRef[NodeView]) extends ReceivableMessage
 
+    /**
+     * A message specifically used by unit tests to mutate the internal actor state
+     */
     private[nodeView] case class SetWritableNodeView(nodeView: NodeView, replyTo: ActorRef[Done])
         extends ReceivableMessage
   }
@@ -101,8 +151,8 @@ object NodeViewHolder {
       Behaviors.receivePartial {
         case (context, ReceivableMessages.Initialize) =>
           restoreState(appSettings) match {
-            case Some(value) =>
-              context.self.tell(ReceivableMessages.Initialized(value))
+            case Some(nodeView) =>
+              context.self.tell(ReceivableMessages.Initialized(nodeView))
             case None =>
               implicit val system: ActorSystem[_] = context.system
               implicit val timeout: Timeout = Timeout(10.seconds)
@@ -111,7 +161,6 @@ object NodeViewHolder {
                   ReceivableMessages.Initialized(state)
                 case Failure(exception) =>
                   ReceivableMessages.InitializationFailed(exception)
-
               }
           }
           Behaviors.same
@@ -189,7 +238,7 @@ object NodeViewHolder {
           context.system.eventStream.tell(EventStream.Publish(NodeViewChanged))
           initialized(newNodeView, cache, nodeViewWriter)
 
-        case (context, ReceivableMessages.EvictTransactions(transactionIds)) =>
+        case (context, ReceivableMessages.EliminateTransactions(transactionIds)) =>
           val newNodeView =
             nodeViewWriter.eliminateTransactions(transactionIds.toSeq, nodeView)
 
@@ -223,11 +272,7 @@ object NodeViewHolder {
         nodeView.history.extendsKnownTine,
         context.messageAdapter[Block](block =>
           ReceivableMessages.Write(
-            {
-              val newNodeView = nodeViewWriter.writeBlock(block, _)
-              context.system.eventStream.tell(EventStream.Publish(NodeViewChanged))
-              newNodeView
-            },
+            nodeViewWriter.writeBlock(block, _),
             context.messageAdapter[StatusReply[NodeView]] {
               case StatusReply.Success(_) => ReceivableMessages.BlockWritten
               case StatusReply.Error(e)   => ReceivableMessages.BlockFailedToWrite(e)
@@ -298,6 +343,9 @@ case class ReadableNodeView(
   memPool: MemPoolReader[Transaction.TX]
 )
 
+/**
+ * A helper companion for performing the logic of the node view "write" operations
+ */
 private class NodeViewWriter(appContext: AppContext)(implicit
   np:                                    NetworkPrefix,
   system:                                ActorSystem[_]

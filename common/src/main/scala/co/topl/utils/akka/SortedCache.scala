@@ -49,6 +49,7 @@ object SortedCache {
     def pop(isViable: T => Boolean): (Impl[T], Option[T]) =
       items.indexWhere(poppableBlock => isViable(poppableBlock.item)) match {
         case -1 =>
+          // TODO: Logging when an entry is evicted
           (copy(items.map(_.incremented).filterNot(_.poppedCount >= itemPopLimit)), None)
         case index =>
           val (popped, candidate, unpopped) = {
@@ -56,6 +57,7 @@ object SortedCache {
             (a, b.head, b.tail)
           }
           (
+            // TODO: Logging when an entry is evicted
             copy(popped.map(_.incremented).filterNot(_.poppedCount >= itemPopLimit) ++ unpopped),
             Some(candidate.item)
           )

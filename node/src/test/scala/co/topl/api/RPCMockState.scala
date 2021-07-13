@@ -6,9 +6,11 @@ import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
+import akka.pattern.ask
 import akka.testkit.TestActorRef
 import akka.util.{ByteString, Timeout}
 import co.topl.akkahttprpc.ThrowableSupport.Standard._
+import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
 import co.topl.consensus._
 import co.topl.http.HttpService
 import co.topl.modifier.block.Block
@@ -25,7 +27,9 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.wordspec.AnyWordSpec
 
+import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
+import scala.util.Try
 
 trait RPCMockState
     extends AnyWordSpec
@@ -73,7 +77,18 @@ trait RPCMockState
     keyManagerRef = TestActorRef(
       new KeyManager(settings, appContext)(appContext.networkType.netPrefix)
     )
-    forgerRef = system.toTyped.systemActorOf(Forger.behavior(settings, appContext, keyManagerRef), Forger.actorName)
+    forgerRef = system.toTyped.systemActorOf(
+      Forger.behavior(
+        settings,
+        appContext,
+        () => (keyManagerRef ? KeyManager.ReceivableMessages.GetKeyView).mapTo[KeyView],
+        () =>
+          (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
+            .mapTo[Try[StartupKeyView]]
+            .flatMap(Future.fromTry)
+      ),
+      Forger.actorName
+    )
 
     nodeViewHolderRef = system.toTyped.systemActorOf(
       NodeViewHolder(settings, appContext)(appContext.networkType.netPrefix),

@@ -33,8 +33,9 @@ import mainargs.ParserForClass
 import java.lang.management.ManagementFactory
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 import akka.actor.typed.scaladsl.adapter._
+import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
 
 class BifrostApp(startupOpts: StartupOpts) extends NodeLogging with Runnable {
 
@@ -89,7 +90,18 @@ class BifrostApp(startupOpts: StartupOpts) extends NodeLogging with Runnable {
   private val keyManagerRef = KeyManagerRef(KeyManager.actorName, settings, appContext)
 
   private val forgerRef: akka.actor.typed.ActorRef[Forger.ReceivableMessage] =
-    actorSystem.toTyped.systemActorOf(Forger.behavior(settings, appContext, keyManagerRef), Forger.actorName)
+    actorSystem.toTyped.systemActorOf(
+      Forger.behavior(
+        settings,
+        appContext,
+        () => (keyManagerRef ? KeyManager.ReceivableMessages.GetKeyView).mapTo[KeyView],
+        () =>
+          (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
+            .mapTo[Try[StartupKeyView]]
+            .flatMap(Future.fromTry)
+      ),
+      Forger.actorName
+    )
 
   private val nodeViewHolderRef: akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage] =
     actorSystem.toTyped.systemActorOf(

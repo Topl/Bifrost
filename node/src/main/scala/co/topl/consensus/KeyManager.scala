@@ -2,7 +2,6 @@ package co.topl.consensus
 
 import akka.Done
 import akka.actor._
-import akka.dispatch.Dispatchers
 import akka.util.Timeout
 import cats.data.EitherT
 import cats.implicits._
@@ -10,7 +9,7 @@ import co.topl.attestation.AddressCodec.implicits.Base58DataOps
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.catsakka.AskException
-import co.topl.consensus.KeyManager.{AttemptForgingKeyView, ForgerStartupKeyView}
+import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
 import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType._
@@ -49,7 +48,7 @@ class KeyManager(settings: AppSettings, appContext: AppContext)(implicit np: Net
     case ListKeys                            => sender() ! keyRing.addresses
     case UpdateRewardsAddress(address)       => sender() ! updateRewardsAddress(keyRing, address)
     case GetRewardsAddress                   => sender() ! rewardAddress.fold("none")(_.toString)
-    case GetAttemptForgingKeyView            => sender() ! getAttemptForgingKeyView(keyRing, rewardAddress)
+    case GetKeyView                          => sender() ! getKeyView(keyRing, rewardAddress)
     case GenerateInitialAddresses            => sender() ! generateInitialAddresses(keyRing, rewardAddress)
   }
 
@@ -76,7 +75,7 @@ class KeyManager(settings: AppSettings, appContext: AppContext)(implicit np: Net
   private def generateInitialAddresses(
     keyRing:       KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
     rewardAddress: Option[Address]
-  ): Try[ForgerStartupKeyView] =
+  ): Try[StartupKeyView] =
     // If the keyring is not already populated and this is a private/local testnet, generate the keys
     // this is for when you have started up a private network and are attempting to resume it using
     // the same seed you used previously to continue forging
@@ -93,26 +92,26 @@ class KeyManager(settings: AppSettings, appContext: AppContext)(implicit np: Net
 
               context.become(receive(keyRing, newRewardAddress))
 
-              ForgerStartupKeyView(addresses, newRewardAddress)
+              StartupKeyView(addresses, newRewardAddress)
             }
         case _ =>
           log.warn("No private testnet settings found!")
-          Success(ForgerStartupKeyView(keyRing.addresses, rewardAddress))
+          Success(StartupKeyView(keyRing.addresses, rewardAddress))
       }
     } else {
-      Success(ForgerStartupKeyView(keyRing.addresses, rewardAddress))
+      Success(StartupKeyView(keyRing.addresses, rewardAddress))
     }
 
   /** Gets a read-only view of the key ring to use for forging. */
-  private def getAttemptForgingKeyView(
+  private def getKeyView(
     keyRing:       KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
     rewardAddress: Option[Address]
-  ): AttemptForgingKeyView =
-    AttemptForgingKeyView(
+  ): KeyView =
+    KeyView(
       keyRing.addresses,
       rewardAddress,
-      (address: Address) => (message: Array[Byte]) => keyRing.signWithAddress(address)(message),
-      (address: Address) => keyRing.lookupPublicKey(address)
+      keyRing.signWithAddress,
+      keyRing.lookupPublicKey
     )
 
   /** Tries to get a configured rewards address from the forging settings. */
@@ -145,9 +144,9 @@ object KeyManager {
 
   val actorName = "keyManager"
 
-  case class ForgerStartupKeyView(addresses: Set[Address], rewardAddr: Option[Address])
+  case class StartupKeyView(addresses: Set[Address], rewardAddr: Option[Address])
 
-  case class AttemptForgingKeyView(
+  case class KeyView(
     addresses:    Set[Address],
     rewardAddr:   Option[Address],
     sign:         Address => Array[Byte] => Try[SignatureCurve25519],
@@ -169,9 +168,7 @@ object KeyManager {
 
     case class UpdateRewardsAddress(address: Address)
 
-    case object GetForgerStartupKeyView
-
-    case object GetAttemptForgingKeyView
+    case object GetKeyView
 
     case object GenerateInitialAddresses
   }
