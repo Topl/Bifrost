@@ -165,7 +165,7 @@ class TransferTransactionSyntacticallyValidatable[T <: TokenValueHolder, P <: Pr
       Validated
         .fromOption(data.getValidLatin1Bytes, DataNotLatin1)
         .toValidatedNec[SyntacticValidationFailure, Array[Byte]]
-        .andThen(bytes => Validated.condNec(bytes.length <= 128, tx, DataTooLong))
+        .andThen(bytes => Validated.condNec(bytes.length <= 127, tx, DataTooLong))
     )
 
   private[transaction] def propositionSatisfiedValidation(
