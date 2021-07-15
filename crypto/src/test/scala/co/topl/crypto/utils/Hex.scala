@@ -1,7 +1,5 @@
 package co.topl.crypto.utils
 
-import java.math.BigInteger
-
 object Hex {
 
   def encode(bytes: Array[Byte]): String =

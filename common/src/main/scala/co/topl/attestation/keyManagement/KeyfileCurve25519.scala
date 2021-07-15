@@ -1,15 +1,14 @@
 package co.topl.attestation.keyManagement
 
 import co.topl.attestation.Address
-import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signatures.Curve25519
-import co.topl.utils.codecs.implicits._
+import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.SecureRandom.randomBytes
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
-import co.topl.utils.encode.Base58
+import co.topl.utils.codecs.implicits._
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}

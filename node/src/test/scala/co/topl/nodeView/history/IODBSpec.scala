@@ -1,22 +1,20 @@
 package co.topl.nodeView.history
 
-import java.io.File
-
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.TX
-import co.topl.utils.{CommonGenerators, FileUtils, NodeGenerators}
+import co.topl.utils.{FileUtils, NodeGenerators}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+
+import java.io.File
 
 class IODBSpec
     extends AnyPropSpec
-    with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers
-    with CommonGenerators
     with NodeGenerators
     with FileUtils {
 
@@ -51,7 +49,7 @@ class IODBSpec
       tx.newBoxes
         .foreach(b => require(blocksStorage.get(ByteArrayWrapper(b.id.hash.value)).isDefined))
 
-    forAll(validBifrostTransactionSeqGen) { txs =>
+    forAll(bifrostTransactionSeqGen) { txs =>
       whenever(txs.length >= 2) {
         blocksStorage.rollback(ByteArrayWrapper(Array[Byte](1)))
 
@@ -87,7 +85,7 @@ class IODBSpec
 
     var ids: Seq[ModifierId] = Seq()
 
-    forAll(blockGen) { block =>
+    forAll(blockCurve25519Gen) { block =>
       ids = block.id +: ids
       writeBlock(block)
       blocksStorage.get(ByteArrayWrapper(block.id.getIdBytes)).isDefined shouldBe true

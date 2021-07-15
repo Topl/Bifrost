@@ -1,6 +1,11 @@
 package co.topl.attestation.serialization
 
-import co.topl.attestation.{Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
+import co.topl.attestation.{
+  Proposition,
+  PublicKeyPropositionCurve25519,
+  PublicKeyPropositionEd25519,
+  ThresholdPropositionCurve25519
+}
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object PropositionSerializer extends BifrostSerializer[Proposition] {
@@ -14,11 +19,16 @@ object PropositionSerializer extends BifrostSerializer[Proposition] {
       case obj: ThresholdPropositionCurve25519 =>
         w.put(ThresholdPropositionCurve25519.typePrefix)
         ThresholdPropositionCurve25519Serializer.serialize(obj, w)
+
+      case obj: PublicKeyPropositionEd25519 =>
+        w.put(PublicKeyPropositionEd25519.typePrefix)
+        PublicKeyPropositionEd25519Serializer.serialize(obj, w)
     }
 
   override def parse(r: Reader): Proposition =
     r.getByte() match {
       case PublicKeyPropositionCurve25519.`typePrefix` => PublicKeyPropositionCurve25519Serializer.parse(r)
       case ThresholdPropositionCurve25519.`typePrefix` => ThresholdPropositionCurve25519Serializer.parse(r)
+      case PublicKeyPropositionEd25519.`typePrefix`    => PublicKeyPropositionEd25519Serializer.parse(r)
     }
 }

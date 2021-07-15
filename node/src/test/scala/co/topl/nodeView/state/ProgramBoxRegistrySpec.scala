@@ -32,7 +32,7 @@ class ProgramBoxRegistrySpec extends MockState {
 
     state = createState()
 
-    pubKey = propositionGen.sample.get
+    pubKey = propositionCurve25519Gen.sample.get
     address = pubKey.address
 
     sboxOne = StateBox(address.evidence, 0L, programIdGen.sample.get, stateOne)

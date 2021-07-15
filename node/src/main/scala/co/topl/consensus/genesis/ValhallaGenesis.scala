@@ -9,6 +9,7 @@ import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.{Int128, NetworkType}
 
 import scala.collection.immutable.ListMap
@@ -18,7 +19,8 @@ case object ValhallaGenesis extends GenesisProvider {
 
   implicit val networkPrefix: NetworkPrefix = NetworkType.ValhallaTestnet.netPrefix
 
-  override protected val blockChecksum: ModifierId = ModifierId("wgUeiENYY32eC5T6WM2UiqAf6Ayba2tFNtvFkgn999iG")
+  override protected val blockChecksum: ModifierId =
+    ModifierId.fromBase58(Base58Data.unsafe("wgUeiENYY32eC5T6WM2UiqAf6Ayba2tFNtvFkgn999iG"))
 
   override protected val blockVersion: PNVMVersion = 1: Byte
 
@@ -52,7 +54,7 @@ case object ValhallaGenesis extends GenesisProvider {
     val txInput = (
       IndexedSeq(),
       memberKeys.zip(members.values.map(SimpleValue(_))).toIndexedSeq,
-      Map(genesisAcct.publicImage -> SignatureCurve25519.genesis),
+      Map(genesisAcctCruve25519.publicImage -> SignatureCurve25519.genesis),
       Int128(0),
       0L,
       None,
@@ -80,7 +82,7 @@ case object ValhallaGenesis extends GenesisProvider {
       )
     )
 
-    val generatorBox = ArbitBox(genesisAcct.publicImage.generateEvidence, 0, SimpleValue(totalStake))
+    val generatorBox = ArbitBox(genesisAcctCruve25519.publicImage.generateEvidence, 0, SimpleValue(totalStake))
 
     val signature = SignatureCurve25519.genesis
 
@@ -89,7 +91,7 @@ case object ValhallaGenesis extends GenesisProvider {
         ModifierId.genesisParentId,
         0L,
         generatorBox,
-        genesisAcct.publicImage,
+        genesisAcctCruve25519.publicImage,
         signature,
         1L,
         initialDifficulty,

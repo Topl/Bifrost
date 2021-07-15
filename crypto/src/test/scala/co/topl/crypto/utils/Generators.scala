@@ -1,7 +1,6 @@
 package co.topl.crypto.utils
 
-import org.scalacheck.Gen
-import org.scalacheck.Arbitrary
+import org.scalacheck.{Arbitrary, Gen}
 
 object Generators {
   def genRandomlySizedByteArray: Gen[Array[Byte]] = Gen.listOf(Arbitrary.arbitrary[Byte]).map(_.toArray)

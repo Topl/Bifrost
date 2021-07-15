@@ -5,9 +5,9 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.{MockState, State}
-import co.topl.utils.{GenesisBlockGenerators, KeyFileTestHelper, NodeGenerators}
+import co.topl.utils.GenesisBlockGenerators
 
-class BlockVersionTests extends MockState with NodeGenerators with KeyFileTestHelper with GenesisBlockGenerators {
+class BlockVersionTests extends MockState with GenesisBlockGenerators {
 
   /** Generate a history and state with a genesis block of the oldest version in the configuration */
   var fstVersion: Byte = _
@@ -40,7 +40,7 @@ class BlockVersionTests extends MockState with NodeGenerators with KeyFileTestHe
     val blocksCount: Int = blocksToAppend + 1 // with genesis block
 
     for (_ <- 1 to blocksToAppend) {
-      val oneBlock: Block = blockGen.sample.get.copy(
+      val oneBlock: Block = blockCurve25519Gen.sample.get.copy(
         parentId = history.bestBlockId,
         transactions = Seq(),
         version = blockVersion(history.height + 1)

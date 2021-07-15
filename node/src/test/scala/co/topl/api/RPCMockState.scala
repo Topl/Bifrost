@@ -19,18 +19,13 @@ import co.topl.nodeView.nodeViewHolder.TestableNodeViewHolder
 import co.topl.nodeView.state.State
 import co.topl.rpc.ToplRpcServer
 import co.topl.settings.{AppContext, StartupOpts}
-import co.topl.utils.{KeyFileTestHelper, NodeGenerators}
+import co.topl.utils.NodeGenerators
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.duration.DurationInt
 
-trait RPCMockState
-    extends AnyWordSpec
-    with NodeGenerators
-    with ScalatestRouteTest
-    with BeforeAndAfterAll
-    with KeyFileTestHelper {
+trait RPCMockState extends AnyWordSpec with NodeGenerators with ScalatestRouteTest with BeforeAndAfterAll {
 
   type BSI = BifrostSyncInfo
   type PMOD = Block
@@ -82,7 +77,7 @@ trait RPCMockState
 
     // manipulate the underlying actor state
     nvh.updateNodeViewPublicAccessor(updatedState = Some(genesisState))
-    km.context.become(km.receive(keyRing, Some(keyRing.addresses.head)))
+    km.context.become(km.receive(keyRingCurve25519, Some(keyRingCurve25519.addresses.head)))
 
     rpcServer = {
       val forgerInterface = new ActorForgerInterface(forgerRef)
