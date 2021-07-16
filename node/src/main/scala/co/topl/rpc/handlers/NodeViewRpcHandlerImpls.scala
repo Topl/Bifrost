@@ -1,33 +1,31 @@
 package co.topl.rpc.handlers
 
-import akka.actor.ActorSystem
-import akka.dispatch.Dispatchers
+import akka.actor.typed.ActorSystem
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, InvalidParametersError, RpcError, ThrowableData}
 import co.topl.attestation.Address
 import co.topl.modifier.box._
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView, WithNodeViewFailure}
+import co.topl.nodeView.{NodeViewHolderInterface, ReadFailure, ReadableNodeView}
 import co.topl.rpc.ToplRpc
 import co.topl.settings.AppContext
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Encoder
 
-import scala.concurrent.ExecutionContext
 import scala.language.existentials
 
 class NodeViewRpcHandlerImpls(
   appContext:              AppContext,
   nodeViewHolderInterface: NodeViewHolderInterface
 )(implicit
-  system:           ActorSystem,
+  system:           ActorSystem[_],
   throwableEncoder: Encoder[ThrowableData],
   networkPrefix:    NetworkPrefix
 ) extends ToplRpcHandlers.NodeView {
 
-  import system.dispatcher
+  import system.executionContext
 
   override val head: ToplRpc.NodeView.Head.rpc.ServerHandler =
     _ =>
@@ -127,7 +125,7 @@ class NodeViewRpcHandlerImpls(
   private def withNodeView[T](f: ReadableNodeView => T) =
     nodeViewHolderInterface
       .withNodeView(f)
-      .leftMap { case WithNodeViewFailure(throwable) =>
+      .leftMap { case ReadFailure(throwable) =>
         CustomError.fromThrowable(throwable): RpcError
       }
 }

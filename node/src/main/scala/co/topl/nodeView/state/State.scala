@@ -41,22 +41,23 @@ case class State(
 )(implicit networkPrefix:    NetworkPrefix)
     extends MinimalState[Block, State]
     with StoreInterface
-    with Logging {
+    with Logging
+    with AutoCloseable {
 
   override type NVCT = State
 
   lazy val hasTBR: Boolean = tbrOpt.isDefined
   lazy val hasPBR: Boolean = pbrOpt.isDefined
 
-  override def closeStorage(): Unit = {
+  override def close(): Unit = {
     log.info("Attempting to close state storage")
-    super.closeStorage()
+    super.close()
 
     log.info("Attempting to close token box registry storage")
-    tbrOpt.foreach(_.closeStorage())
+    tbrOpt.foreach(_.close())
 
     log.info("Attempting to close program box registry storage")
-    pbrOpt.foreach(_.closeStorage())
+    pbrOpt.foreach(_.close())
   }
 
   /**

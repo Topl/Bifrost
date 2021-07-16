@@ -4,16 +4,15 @@ import akka.actor.typed._
 import akka.actor.typed.eventstream.EventStream
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.Behaviors
-import akka.actor.typed.scaladsl.adapter._
 import akka.util.Timeout
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.message.BifrostSyncInfo
-import co.topl.nodeView.{LocallyGeneratedTransaction, NodeViewHolder}
+import co.topl.network.utils.NetworkTimeProvider
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.mempool.MemPoolReader
-import co.topl.settings.{AppContext, StartupOpts}
-import co.topl.utils.{CommonGenerators, NodeGenerators}
+import co.topl.nodeView.{LocallyGeneratedTransaction, NodeViewHolder}
+import co.topl.utils.{CommonGenerators, NodeGenerators, TimeProvider}
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
@@ -34,10 +33,16 @@ class MempoolSpec
 
   implicit private val actorSystem: ActorSystem[_] = ActorSystem(Behaviors.empty, settings.network.agentName)
 
-  protected val appContext = new AppContext(settings, StartupOpts(), None)(actorSystem.toClassic)
+  implicit private val timeProvider: TimeProvider = new NetworkTimeProvider(settings.ntp)
 
   private val nodeViewHolderRef =
-    actorSystem.systemActorOf(NodeViewHolder(settings, appContext), NodeViewHolder.ActorName)
+    actorSystem.systemActorOf(
+      NodeViewHolder(
+        settings,
+        () => ???
+      ),
+      NodeViewHolder.ActorName
+    )
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 

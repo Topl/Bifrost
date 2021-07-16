@@ -1,11 +1,11 @@
 package co.topl.rpc.handlers
 
-import akka.actor.ActorSystem
+import akka.actor.typed.ActorSystem
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
 import co.topl.consensus.{KeyManagerInterface, ListOpenKeyfilesFailureException}
 import co.topl.nodeView.history.HistoryDebug
-import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView, WithNodeViewFailure}
+import co.topl.nodeView.{NodeViewHolderInterface, ReadFailure, ReadableNodeView}
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Encoder
@@ -14,12 +14,12 @@ class DebugRpcHandlerImpls(
   nodeViewHolderInterface: NodeViewHolderInterface,
   keyManagerInterface:     KeyManagerInterface
 )(implicit
-  system:           ActorSystem,
+  system:           ActorSystem[_],
   throwableEncoder: Encoder[ThrowableData],
   networkPrefix:    NetworkPrefix
 ) extends ToplRpcHandlers.Debug {
 
-  import system.dispatcher
+  import system.executionContext
 
   override val delay: ToplRpc.Debug.Delay.rpc.ServerHandler =
     params =>
@@ -64,7 +64,7 @@ class DebugRpcHandlerImpls(
   private def withNodeView[T](f: ReadableNodeView => T) =
     nodeViewHolderInterface
       .withNodeView(f)
-      .leftMap { case WithNodeViewFailure(throwable) =>
+      .leftMap { case ReadFailure(throwable) =>
         CustomError.fromThrowable(throwable): RpcError
       }
 }

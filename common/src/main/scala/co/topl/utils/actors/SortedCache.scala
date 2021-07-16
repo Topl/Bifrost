@@ -1,8 +1,14 @@
-package co.topl.utils.akka
+package co.topl.utils.actors
 
 import akka.actor.typed._
 import akka.actor.typed.scaladsl._
 
+/**
+ * A SortedCache is an actor that holds onto items in a sorted collection.  An item can be asynchronously popped off
+ * when needed.
+ *
+ * TODO: Timeout
+ */
 object SortedCache {
 
   sealed abstract class ReceivableMessage[T]
@@ -39,7 +45,7 @@ object SortedCache {
   implicit private def poppableItemOrdering[T](implicit ordering: Ordering[T]): Ordering[PoppableItem[T]] = (a, b) =>
     ordering.compare(a.item, b.item)
 
-  private[akka] case class Impl[T: Ordering](items: List[PoppableItem[T]], itemPopLimit: Int) {
+  private[actors] case class Impl[T: Ordering](items: List[PoppableItem[T]], itemPopLimit: Int) {
 
     def append(others: IterableOnce[T]): Impl[T] =
       copy(
@@ -64,7 +70,7 @@ object SortedCache {
       }
   }
 
-  private[akka] case class PoppableItem[T](item: T, poppedCount: Int) {
+  private[actors] case class PoppableItem[T](item: T, poppedCount: Int) {
     def incremented: PoppableItem[T] = copy(poppedCount = poppedCount + 1)
   }
 

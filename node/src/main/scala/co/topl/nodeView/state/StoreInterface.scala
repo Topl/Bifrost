@@ -2,7 +2,7 @@ package co.topl.nodeView.state
 
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
-trait StoreInterface {
+trait StoreInterface extends AutoCloseable {
 
   protected val storage: LSMStore
 
@@ -11,6 +11,7 @@ trait StoreInterface {
     storage.get(ByteArrayWrapper(id)).map(_.data)
 
   /** method to close storage on termination */
-  def closeStorage(): Unit = storage.close()
+  override def close(): Unit =
+    storage.close()
 
 }

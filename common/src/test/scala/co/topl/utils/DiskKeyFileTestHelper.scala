@@ -6,7 +6,7 @@ import org.scalatest.{BeforeAndAfterAll, Suite}
 import java.nio.file.{Files, Path}
 import java.util.Comparator
 
-trait KeyFileTestHelper extends BeforeAndAfterAll with NetworkPrefixTestHelper {
+trait DiskKeyFileTestHelper extends BeforeAndAfterAll with NetworkPrefixTestHelper {
 
   self: Suite =>
 
@@ -33,5 +33,13 @@ trait KeyFileTestHelper extends BeforeAndAfterAll with NetworkPrefixTestHelper {
       .iterator()
       .asScala
       .foreach(Files.delete)
+  }
+}
+
+trait InMemoryKeyFileTestHelper extends NetworkPrefixTestHelper {
+
+  protected val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] = {
+    implicit def keyfileCurve25519Companion: KeyfileCurve25519Companion.type = KeyfileCurve25519Companion
+    KeyRing.empty[PrivateKeyCurve25519, KeyfileCurve25519]()
   }
 }

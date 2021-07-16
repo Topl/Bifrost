@@ -1,4 +1,4 @@
-package co.topl.utils.akka
+package co.topl.utils.actors
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

@@ -1,6 +1,6 @@
 package co.topl.rpc.handlers
 
-import akka.actor.ActorSystem
+import akka.actor.typed.ActorSystem
 import akka.util.Timeout
 import cats.implicits._
 import co.topl.akkahttprpc.{InvalidParametersError, RpcError}
@@ -8,11 +8,11 @@ import co.topl.consensus.{ForgerInterface, KeyManagerInterface}
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
 
 class AdminRpcHandlerImpls(forgerInterface: ForgerInterface, keyManagerInterface: KeyManagerInterface)(implicit
-  system:                                   ActorSystem,
+  system:                                   ActorSystem[_],
   timeout:                                  Timeout
 ) extends ToplRpcHandlers.Admin {
 
-  import system.dispatcher
+  import system.executionContext
 
   override val unlockKeyfile: ToplRpc.Admin.UnlockKeyfile.rpc.ServerHandler =
     params =>

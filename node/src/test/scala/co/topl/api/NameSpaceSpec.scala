@@ -31,10 +31,10 @@ class NameSpaceSpec extends AnyWordSpec with Matchers with RPCMockState {
     val newAppContext = new AppContext(newRpcSettings, StartupOpts(), None)
 
     val rpcServer: ToplRpcServer = {
-      val forgerInterface = new ActorForgerInterface(forgerRef)(system.toTyped)
+      implicit val typedSystem: akka.actor.typed.ActorSystem[_] = system.toTyped
+      val forgerInterface = new ActorForgerInterface(forgerRef)
       val keyManagerInterface = new ActorKeyManagerInterface(keyManagerRef)
-      val nodeViewHolderInterface =
-        new ActorNodeViewHolderInterface(nodeViewHolderRef)(system.toTyped, implicitly[Timeout])
+      val nodeViewHolderInterface = new ActorNodeViewHolderInterface(nodeViewHolderRef)
       import co.topl.rpc.handlers._
       new ToplRpcServer(
         ToplRpcHandlers(

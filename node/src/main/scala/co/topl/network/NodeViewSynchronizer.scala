@@ -1,7 +1,6 @@
 package co.topl.network
 
-import akka.actor.{typed, ActorRef, ActorSystem, Props}
-import akka.dispatch.Dispatchers
+import akka.actor.{typed, ActorRef, Props}
 import akka.util.Timeout
 import co.topl.modifier.NodeViewModifier.{idsToString, ModifierTypeId}
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
@@ -15,7 +14,7 @@ import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.{NodeViewHolder, ReadableNodeView}
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.serialization.BifrostSerializer
-import co.topl.utils.{Logging, MalformedModifierError}
+import co.topl.utils.{Logging, MalformedModifierError, TimeProvider}
 
 import java.net.InetSocketAddress
 import scala.annotation.tailrec
@@ -29,11 +28,12 @@ import scala.util.{Failure, Success}
  * @param viewHolderRef        reference to node view holder actor
  */
 class NodeViewSynchronizer(
-  networkControllerRef: ActorRef,
-  viewHolderRef:        akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage],
-  settings:             AppSettings,
-  appContext:           AppContext
-) extends Synchronizer
+  networkControllerRef:  ActorRef,
+  viewHolderRef:         akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage],
+  settings:              AppSettings,
+  appContext:            AppContext
+)(implicit timeProvider: TimeProvider)
+    extends Synchronizer
     with Logging {
 
   /** Import the types of messages this actor may SEND */
@@ -62,7 +62,7 @@ class NodeViewSynchronizer(
   }
 
   protected val deliveryTracker = new DeliveryTracker(self, context, settings.network)
-  protected val statusTracker = new SyncTracker(self, context, settings.network, appContext.timeProvider)
+  protected val statusTracker = new SyncTracker(self, context, settings.network, timeProvider)
 
   override def preStart(): Unit = {
 
@@ -657,19 +657,11 @@ object NodeViewSynchronizer {
 object NodeViewSynchronizerRef {
 
   def props(
-    networkControllerRef: ActorRef,
-    viewHolderRef:        akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage],
-    settings:             AppSettings,
-    appContext:           AppContext
-  ): Props =
+    networkControllerRef:  ActorRef,
+    viewHolderRef:         akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage],
+    settings:              AppSettings,
+    appContext:            AppContext
+  )(implicit timeProvider: TimeProvider): Props =
     Props(new NodeViewSynchronizer(networkControllerRef, viewHolderRef, settings, appContext))
 
-  def apply(
-    name:                 String,
-    networkControllerRef: ActorRef,
-    viewHolderRef:        akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage],
-    settings:             AppSettings,
-    appContext:           AppContext
-  )(implicit system:      ActorSystem): ActorRef =
-    system.actorOf(props(networkControllerRef, viewHolderRef, settings, appContext), name)
 }

@@ -1,15 +1,14 @@
-package co.topl.nodeView.nodeViewHolder
+package co.topl.nodeView
 
 import akka.Done
-import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.util.Timeout
-import co.topl.nodeView.{NodeView, NodeViewHolder}
+import akka.actor.typed._
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import akka.actor.typed.scaladsl.AskPattern._
 
 object TestableNodeViewHolder {
-  import akka.actor.typed.scaladsl.AskPattern._
   implicit val timeout: Timeout = Timeout(10.seconds)
 
   def nodeViewOf(
@@ -20,11 +19,11 @@ object TestableNodeViewHolder {
       10.seconds
     )
 
-  def setNodeView(nodeViewHolder: ActorRef[NodeViewHolder.ReceivableMessage], nodeView: NodeView)(implicit
+  def setNodeView(nodeViewHolder: ActorRef[NodeViewHolder.ReceivableMessage], f: NodeView => NodeView)(implicit
     system:                       ActorSystem[_]
   ): Unit =
     Await.result(
-      nodeViewHolder.ask[Done](NodeViewHolder.ReceivableMessages.SetWritableNodeView(nodeView, _)),
+      nodeViewHolder.ask[Done](NodeViewHolder.ReceivableMessages.ModifyNodeView(f, _)),
       10.seconds
     )
 }

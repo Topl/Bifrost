@@ -1,8 +1,7 @@
 package co.topl.settings
 
-import akka.actor.ActorSystem
 import co.topl.network.message._
-import co.topl.network.utils.{NetworkTimeProvider, UPnPGateway}
+import co.topl.network.utils.UPnPGateway
 import co.topl.network.{peer, NodeViewSynchronizer, PeerSynchronizer}
 import co.topl.utils.NetworkType
 
@@ -19,16 +18,13 @@ class AppContext(
   val settings:    AppSettings,
   startupOpts:     StartupOpts,
   val upnpGateway: Option[UPnPGateway]
-)(implicit system: ActorSystem) {
+) {
 
   /** Save your address for sending to others peers */
   val externalNodeAddress: Option[InetSocketAddress] =
     settings.network.declaredAddress orElse {
       upnpGateway.map(u => new InetSocketAddress(u.externalAddress, u.mappedPort))
     }
-
-  /** Save a common time provider to be used */
-  val timeProvider = new NetworkTimeProvider(settings.ntp)
 
   /** Save chosen network for loading genesis config */
   val networkType: NetworkType =

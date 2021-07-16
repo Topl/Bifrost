@@ -9,9 +9,9 @@ import co.topl.modifier.box.Box.identifier
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
-import co.topl.nodeView.history.{BlockProcessor, History, Storage}
+import co.topl.nodeView.history.{BlockProcessor, History, InMemoryKeyValueStore, LSMKeyValueStore, Storage}
 import co.topl.nodeView.state.State
-import co.topl.settings.{AppSettings, StartupOpts, Version}
+import co.topl.settings.{AppContext, AppSettings, StartupOpts, Version}
 import co.topl.utils.StringDataTypes.Latin1Data
 import io.iohk.iodb.LSMStore
 import org.scalacheck.Gen
@@ -21,12 +21,10 @@ import java.io.File
 import java.nio.file.Files
 import scala.util.Random
 
-trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
-  self: Suite =>
-
+trait TestSettings {
   private val settingsFilename = "node/src/test/resources/test.conf"
 
-  lazy val settings: AppSettings = {
+  implicit lazy val settings: AppSettings = {
     val s = AppSettings.read(StartupOpts(Some(settingsFilename)))._1
     s.copy(
       application = s.application.copy(
@@ -34,6 +32,13 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
       )
     )
   }
+
+  implicit lazy val appContext: AppContext =
+    new AppContext(settings, StartupOpts(), None)
+}
+
+trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with TestSettings {
+  self: Suite =>
 
   lazy val versionGen: Gen[Version] = for {
     first  <- Gen.choose(0: Byte, Byte.MaxValue)
@@ -46,13 +51,14 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
   def genesisBlockId: ModifierId = genesisBlock.id
 
   def generateHistory(genesisBlock: Block = genesisBlock): History = {
-    val dataDir = s"/tmp/bifrost/test-data/test-${Random.nextInt(10000000)}"
+//    val dataDir = s"/tmp/bifrost/test-data/test-${Random.nextInt(10000000)}"
+//
+//    val iFile = new File(s"$dataDir/blocks")
+//    iFile.mkdirs()
+//    val blockStorage = new LSMStore(iFile)
 
-    val iFile = new File(s"$dataDir/blocks")
-    iFile.mkdirs()
-    val blockStorage = new LSMStore(iFile)
-
-    val storage = new Storage(blockStorage, settings.application.cacheExpire, settings.application.cacheSize)
+    val storage =
+      new Storage(new InMemoryKeyValueStore)
     //we don't care about validation here
     val validators = Seq()
 

@@ -1,12 +1,9 @@
 package co.topl.consensus
 
 import akka.Done
-import akka.actor.ClassicActorContextProvider
-import akka.actor.typed.eventstream.EventStream
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
-import akka.actor.typed.scaladsl.AskPattern._
-import akka.actor.typed.scaladsl.{ActorContext, Behaviors, StashBuffer}
-import akka.actor.typed.{ActorRef, ActorSystem, Behavior, Scheduler}
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.stream.scaladsl.{Flow, Keep, RunnableGraph, Sink, Source}
 import akka.stream.{KillSwitches, Materializer, UniqueKillSwitch}
 import akka.util.Timeout
@@ -18,10 +15,10 @@ import co.topl.consensus.genesis.{HelGenesis, PrivateGenesis, ToplnetGenesis, Va
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, ProgramId}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
-import co.topl.nodeView.NodeViewHolder
+import co.topl.nodeView.NodeViewHolderInterface
 import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.state.StateReader
-import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
+import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.NetworkType._
 import co.topl.utils.{Int128, NetworkType, TimeProvider}
@@ -30,182 +27,146 @@ import org.slf4j.Logger
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Try}
 
-object Forger {
+private class ForgerBehaviors(
+  settings:                AppSettings,
+  appContext:              AppContext,
+  fetchKeyView:            () => Future[KeyView],
+  fetchStartupKeyView:     () => Future[StartupKeyView],
+  nodeViewHolderInterface: NodeViewHolderInterface
+)(implicit context:        ActorContext[Forger.ReceivableMessage], networkPrefix: NetworkPrefix, timeProvider: TimeProvider) {
+  implicit private val mat: Materializer = Materializer(context)
+  import context.executionContext
+  implicit private val log: Logger = context.log
 
-  val actorName = "forger"
+  import Forger._
 
-  val ForgerServiceKey: ServiceKey[ReceivableMessage] = ServiceKey[ReceivableMessage](actorName)
-
-  case class ChainParams(totalStake: Int128, difficulty: Long)
-
-  case class PickTransactionsResult(toApply: Seq[Transaction.TX], toEliminate: Seq[Transaction.TX])
-
-  sealed trait AttemptForgingFailure
-  case class LeaderElectionFailure(reason: LeaderElection.IneligibilityReason) extends AttemptForgingFailure
-  case class ForgingError(error: Throwable) extends AttemptForgingFailure
-
-  sealed trait ReceivableMessage
-
-  object ReceivableMessages {
-
-    case class GenerateGenesis(replyTo: ActorRef[Try[Block]]) extends ReceivableMessage
-
-    case class StartForging(replyTo: ActorRef[Done]) extends ReceivableMessage
-
-    case class StopForging(replyTo: ActorRef[Done]) extends ReceivableMessage
-
-    case class NodeViewHolderReady(nodeViewHolderRef: ActorRef[NodeViewHolder.ReceivableMessage])
-        extends ReceivableMessage
-
-    private[Forger] case class ForgerStreamCompleted(result: Try[_]) extends ReceivableMessage
-
-  }
-
-  private case object ForgerTick
-
-  def behavior(
-    settings:               AppSettings,
-    appContext:             AppContext,
-    fetchKeyView:           () => Future[KeyView],
-    fetchStartupKeyView:    () => Future[StartupKeyView]
-  )(implicit networkPrefix: NetworkPrefix): Behavior[ReceivableMessage] =
-    Behaviors.setup { context =>
-      import context.executionContext
-
-      implicit val log: Logger = context.log
-
-      implicit val systemProvider: ActorContext[ReceivableMessage] = context
-
-      context.system.receptionist.tell(Receptionist.Register(ForgerServiceKey, context.self))
-
-      protocolMngr = ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
-      consensusStorage = ConsensusStorage(settings, appContext.networkType)
-      context.system.eventStream.tell(
-        EventStream.Subscribe[NodeViewReady](
-          context.messageAdapter(m => ReceivableMessages.NodeViewHolderReady(m.nodeViewHolderRef))
-        )
-      )
-
-      Behaviors.withStash(100)(uninitialized(settings, appContext, fetchKeyView, fetchStartupKeyView, _))
-    }
-
-  private def uninitialized(
-    settings:            AppSettings,
-    appContext:          AppContext,
-    fetchKeyView:        () => Future[KeyView],
-    fetchStartupKeyView: () => Future[StartupKeyView],
-    stash:               StashBuffer[ReceivableMessage]
-  )(implicit
-    ec:                          ExecutionContext,
-    networkPrefix:               NetworkPrefix,
-    log:                         Logger,
-    classicActorContextProvider: ClassicActorContextProvider,
-    context:                     ActorContext[ReceivableMessage]
-  ): Behaviors.Receive[ReceivableMessage] = {
-    implicit val scheduler: Scheduler = context.system.scheduler
-    implicit val timeout: Timeout = 5.seconds
+  val idle: Behavior[ReceivableMessage] =
     Behaviors.receiveMessagePartial[ReceivableMessage] {
-      case ReceivableMessages.GenerateGenesis(replyTo) =>
-        generateGenesis(settings, appContext.networkType, fetchStartupKeyView, replyTo)
-        Behaviors.same
-      case m: ReceivableMessages.StartForging =>
-        stash.stash(m)
-        Behaviors.same
-      case m: ReceivableMessages.StopForging =>
-        stash.stash(m)
-        Behaviors.same
-      case ReceivableMessages.NodeViewHolderReady(ref) =>
-        log.info(s"${Console.YELLOW}Forger transitioning to the operational state${Console.RESET}")
-        checkPrivateForging(settings, appContext, fetchStartupKeyView, context)
-        stash.unstashAll(idle(settings, appContext, fetchKeyView, fetchStartupKeyView, ref))
-    }
-  }
-
-  private def idle(
-    settings:            AppSettings,
-    appContext:          AppContext,
-    fetchKeyView:        () => Future[KeyView],
-    fetchStartupKeyView: () => Future[StartupKeyView],
-    nodeViewHolderRef:   ActorRef[NodeViewHolder.ReceivableMessage]
-  )(implicit
-    ec:            ExecutionContext,
-    networkPrefix: NetworkPrefix,
-    log:           Logger,
-    context:       ActorContext[ReceivableMessage]
-  ): Behaviors.Receive[ReceivableMessage] =
-    Behaviors.receiveMessagePartial[ReceivableMessage] {
-      case ReceivableMessages.GenerateGenesis(replyTo) =>
-        generateGenesis(settings, appContext.networkType, fetchStartupKeyView, replyTo)
-        Behaviors.same
       case ReceivableMessages.StartForging(replyTo) =>
         log.info("Starting forging")
-        implicit val mat: Materializer = Materializer(context)
         val (killSwitch, streamCompletionFuture) =
           blockForger(
             settings.forging.blockGenerationDelay,
             settings.forging.minTransactionFee,
-            appContext,
             fetchKeyView,
-            nodeViewHolderRef
+            nodeViewHolderInterface
           )
             .run()
-        streamCompletionFuture
-          .onComplete(result => context.self.tell(ReceivableMessages.ForgerStreamCompleted(result)))
+
+        streamCompletionFuture.onComplete {
+          case Failure(e) => context.self.tell(ReceivableMessages.Terminate(e))
+          case _          =>
+        }
+
         replyTo.tell(Done)
-        active(
-          killSwitch,
-          streamCompletionFuture,
-          settings,
-          appContext,
-          fetchKeyView,
-          fetchStartupKeyView,
-          nodeViewHolderRef
-        )
+        active(killSwitch, streamCompletionFuture)
+      case ReceivableMessages.StopForging(replyTo) =>
+        replyTo.tell(Done)
+        Behaviors.same
+      case ReceivableMessages.Terminate(reason) =>
+        throw reason
     }
 
-  private def active(
-    killSwitch:          UniqueKillSwitch,
-    completionFuture:    Future[Done],
-    settings:            AppSettings,
-    appContext:          AppContext,
-    fetchKeyView:        () => Future[KeyView],
-    fetchStartupKeyView: () => Future[StartupKeyView],
-    nodeViewHolderRef:   ActorRef[NodeViewHolder.ReceivableMessage]
-  )(implicit
-    ec:            ExecutionContext,
-    networkPrefix: NetworkPrefix,
-    log:           Logger,
-    context:       ActorContext[ReceivableMessage]
+  private val uninitializedStashSize = 100
+
+  val uninitialized: Behavior[ReceivableMessage] =
+    Behaviors.withStash[ReceivableMessage](uninitializedStashSize) { stash =>
+      Behaviors.receiveMessage[ReceivableMessage] {
+        case m: ReceivableMessages.StartForging =>
+          stash.stash(m)
+          Behaviors.same
+        case m: ReceivableMessages.StopForging =>
+          stash.stash(m)
+          Behaviors.same
+        case ReceivableMessages.NodeViewHolderReady =>
+          context.pipeToSelf(checkPrivateForging(appContext, fetchStartupKeyView))(
+            _.fold(ReceivableMessages.Terminate, _ => ReceivableMessages.InitializationComplete)
+          )
+          Behaviors.same
+        case ReceivableMessages.InitializationComplete =>
+          context.log.info(s"${Console.YELLOW}Forger transitioning to the operational state${Console.RESET}")
+          stash.unstashAll(idle)
+        case ReceivableMessages.Terminate(reason) =>
+          throw reason
+      }
+    }
+
+  def active(
+    killSwitch:       UniqueKillSwitch,
+    completionFuture: Future[Done]
   ): Behaviors.Receive[ReceivableMessage] =
     Behaviors.receiveMessagePartial[ReceivableMessage] {
       case ReceivableMessages.StopForging(replyTo) =>
         log.info("Stopping forging")
         killSwitch.shutdown()
         completionFuture.onComplete(_ => replyTo.tell(Done))
+        idle
+      case ReceivableMessages.StartForging(replyTo) =>
+        replyTo.tell(Done)
         Behaviors.same
-      case ReceivableMessages.ForgerStreamCompleted(result) =>
-        result match {
-          case Success(_) =>
-            throw new IllegalStateException("Forger stream ended unexpectedly")
-          case Failure(reason) =>
-            log.error("Forging process failed", reason)
-            throw reason
-        }
-        idle(settings, appContext, fetchKeyView, fetchStartupKeyView, nodeViewHolderRef)
+      case ReceivableMessages.Terminate(reason) =>
+        throw reason
+    }
+}
+
+object Forger {
+
+  val actorName = "forger"
+
+  val serviceKey: ServiceKey[ReceivableMessage] = ServiceKey[ReceivableMessage](actorName)
+
+  sealed trait ReceivableMessage
+
+  object ReceivableMessages {
+
+    case class StartForging(replyTo: ActorRef[Done]) extends ReceivableMessage
+
+    case class StopForging(replyTo: ActorRef[Done]) extends ReceivableMessage
+
+    case object NodeViewHolderReady extends ReceivableMessage
+
+    private[consensus] case object InitializationComplete extends ReceivableMessage
+
+    private[consensus] case class Terminate(reason: Throwable) extends ReceivableMessage
+
+  }
+
+  case class ChainParams(totalStake: Int128, difficulty: Long)
+
+  private case object ForgerTick
+
+  def behavior(
+    settings:                AppSettings,
+    appContext:              AppContext,
+    fetchKeyView:            () => Future[KeyView],
+    fetchStartupKeyView:     () => Future[StartupKeyView],
+    nodeViewHolderInterface: NodeViewHolderInterface
+  )(implicit networkPrefix:  NetworkPrefix, timeProvider: TimeProvider): Behavior[ReceivableMessage] =
+    Behaviors.setup { implicit context =>
+      context.system.receptionist.tell(Receptionist.Register(serviceKey, context.self))
+
+      protocolMngr = ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
+      consensusStorage = ConsensusStorage(settings, appContext.networkType)
+
+      context.pipeToSelf(nodeViewHolderInterface.onReady())(
+        _.fold(ReceivableMessages.Terminate, _ => ReceivableMessages.NodeViewHolderReady)
+      )
+
+      new ForgerBehaviors(
+        settings,
+        appContext,
+        fetchKeyView,
+        fetchStartupKeyView,
+        nodeViewHolderInterface
+      ).uninitialized
+
     }
 
-  /**
-   * Return the correct genesis parameters for the chosen network.
-   * NOTE: the default private network is set in AppContext so the fall-through should result in an error.
-   */
-  private def generateGenesis(
-    settings:            AppSettings,
-    networkType:         NetworkType,
-    fetchStartupKeyView: () => Future[StartupKeyView],
-    replyTo:             ActorRef[Try[Block]]
-  )(implicit ec:         ExecutionContext, timeout: Timeout = 10 seconds): Unit = {
+  def genesisBlock(settings: AppSettings, networkType: NetworkType, fetchStartupKeyView: () => Future[StartupKeyView])(
+    implicit ec:             ExecutionContext
+  ): Future[Block] = {
     implicit val networkPrefix: NetworkPrefix = networkType.netPrefix
 
     def initializeFromChainParamsAndGetBlock(block: Try[(Block, ChainParams)]): Try[Block] =
@@ -216,133 +177,116 @@ object Forger {
       }
 
     networkType match {
-      case Mainnet         => replyTo.tell(initializeFromChainParamsAndGetBlock(ToplnetGenesis.getGenesisBlock))
-      case ValhallaTestnet => replyTo.tell(initializeFromChainParamsAndGetBlock(ValhallaGenesis.getGenesisBlock))
-      case HelTestnet      => replyTo.tell(initializeFromChainParamsAndGetBlock(HelGenesis.getGenesisBlock))
+      case Mainnet         => Future.fromTry(initializeFromChainParamsAndGetBlock(ToplnetGenesis.getGenesisBlock))
+      case ValhallaTestnet => Future.fromTry(initializeFromChainParamsAndGetBlock(ValhallaGenesis.getGenesisBlock))
+      case HelTestnet      => Future.fromTry(initializeFromChainParamsAndGetBlock(HelGenesis.getGenesisBlock))
       case LocalTestnet | PrivateTestnet =>
         fetchStartupKeyView()
           .map(view => PrivateGenesis(view.addresses, settings).getGenesisBlock)
-          .map(initializeFromChainParamsAndGetBlock)
-          .onComplete(t => replyTo.tell(t.flatten))
+          .flatMap(r => Future.fromTry(initializeFromChainParamsAndGetBlock(r)))
       case _ =>
-        throw new Error("Undefined network type.")
+        Future.failed(new IllegalArgumentException(s"Undefined network type $networkType"))
     }
+
   }
 
-  private def blockForger(
-    blockGenerationDelay:   FiniteDuration,
-    minTransactionFee:      Int128,
-    appContext:             AppContext,
-    fetchKeyView:           () => Future[KeyView],
-    nodeViewHolderRef:      ActorRef[NodeViewHolder.ReceivableMessage]
-  )(implicit networkPrefix: NetworkPrefix, log: Logger): RunnableGraph[(UniqueKillSwitch, Future[Done])] = {
-
-    implicit val timeout: Timeout = blockGenerationDelay
-    import co.topl.utils.akka.EventStreamSupport._
-    // Generate a new block every `blockGenerationDelay` AND every NodeViewChange
+  private[consensus] def blockForger(
+    blockGenerationDelay:    FiniteDuration,
+    minTransactionFee:       Int128,
+    fetchKeyView:            () => Future[KeyView],
+    nodeViewHolderInterface: NodeViewHolderInterface
+  )(implicit
+    networkPrefix: NetworkPrefix,
+    log:           Logger,
+    timeProvider:  TimeProvider
+  ): RunnableGraph[(UniqueKillSwitch, Future[Done])] =
     Source
       .tick(0.seconds, blockGenerationDelay, ForgerTick)
       .viaMat(KillSwitches.single)(Keep.right)
       .via(
         Flow.fromMaterializer { (mat, _) =>
-          import akka.actor.typed.scaladsl.adapter._
-          implicit val system: ActorSystem[_] = mat.system.toTyped
+          import mat.executionContext
           Flow[Any]
             .mapAsync(1)(_ =>
-              prepareForgingDependencies(minTransactionFee, appContext, fetchKeyView, nodeViewHolderRef).value
+              prepareForgingDependencies(minTransactionFee, fetchKeyView, nodeViewHolderInterface).value
             )
         }
       )
-      .map(_.leftMap(Forger.LeaderElectionFailure).flatMap(forgeBlockWithBox))
-      .recover { case e => Left(Forger.ForgingError(e)) }
+      .map(_.leftMap(LeaderElectionFailure).flatMap(forgeBlockWithBox))
+      .recover { case e => Left(ForgingError(e)) }
       .alsoTo(
         Sink.foreach[Either[AttemptForgingFailure, Block]] {
           case Right(block) =>
             log.debug(s"New local block ${block.id} created with parent ${block.parentId} at height ${block.height}")
-          case Left(Forger.ForgingError(error)) =>
+          case Left(ForgingError(error)) =>
             log.warn("Forger was eligible to forge a new block, but an error occurred.", error)
-          case Left(Forger.LeaderElectionFailure(LeaderElection.NoAddressesAvailable)) =>
+          case Left(LeaderElectionFailure(LeaderElection.NoAddressesAvailable)) =>
             log.warn("Forger has no addresses available to stake with.")
-          case Left(Forger.LeaderElectionFailure(LeaderElection.NoBoxesEligible)) =>
+          case Left(LeaderElectionFailure(LeaderElection.NoBoxesEligible)) =>
             log.debug("No Arbit boxes are eligible at the current difficulty.")
-          case Left(Forger.LeaderElectionFailure(LeaderElection.NoArbitBoxesAvailable)) =>
+          case Left(LeaderElectionFailure(LeaderElection.NoArbitBoxesAvailable)) =>
             log.debug("No arbit boxes available to stake with.")
         }
       )
       .collect { case Right(v) => LocallyGeneratedModifier(v) }
-      .toMat(eventStreamSink)(Keep.both)
-  }
+      .toMat(
+        Sink
+          .fromMaterializer { case (mat, _) =>
+            Sink.foreach(mat.system.eventStream.publish)
+          }
+          .mapMaterializedValue(_.flatten)
+      )(Keep.both)
 
   private def prepareForgingDependencies(
-    minTransactionFee: Int128,
-    appContext:        AppContext,
-    fetchKeyView:      () => Future[KeyView],
-    nodeViewHolderRef: ActorRef[NodeViewHolder.ReceivableMessage]
+    minTransactionFee:       Int128,
+    fetchKeyView:            () => Future[KeyView],
+    nodeViewHolderInterface: NodeViewHolderInterface
   )(implicit
-    system:        ActorSystem[_],
-    timeout:       Timeout,
+    ec:            ExecutionContext,
     networkPrefix: NetworkPrefix,
-    log:           Logger
+    log:           Logger,
+    timeProvider:  TimeProvider
   ): EitherT[Future, LeaderElection.IneligibilityReason, Forger.Dependencies] = EitherT {
-    import system.executionContext
     for {
       keyView <- fetchKeyView()
-      dependencies <-
-        nodeViewHolderRef
-          .askWithStatus[Either[LeaderElection.IneligibilityReason, Forger.Dependencies]](
-            NodeViewHolder.ReceivableMessages
-              .Read(
-                { nodeView =>
-                  val forgeTime = appContext.timeProvider.time
+      dependencies <- nodeViewHolderInterface
+        .withNodeView[Either[LeaderElection.IneligibilityReason, Forger.Dependencies]] { nodeView =>
+          val forgeTime = timeProvider.time
 
-                  val rewardAddress = keyView.rewardAddr.getOrElse(throw new Error("No rewards address specified"))
+          val rewardAddress = keyView.rewardAddr.getOrElse(throw new Error("No rewards address specified"))
 
-                  // pick the transactions from the mempool for inclusion in the block (if successful)
-                  val transactions =
-                    pickTransactions(
-                      minTransactionFee,
-                      nodeView.memPool,
-                      nodeView.state,
-                      nodeView.history.height
-                    ) match {
-                      case Success(res) =>
-                        if (res.toEliminate.nonEmpty)
-                          nodeViewHolderRef ! NodeViewHolder.ReceivableMessages
-                            .EliminateTransactions(res.toEliminate.map(_.id))
-                        res.toApply
+          val transactions =
+            pickTransactions(
+              minTransactionFee,
+              nodeView.memPool,
+              nodeView.state,
+              nodeView.history.height
+            ).map(_.toApply).getOrThrow()
 
-                      case Failure(ex) => throw ex
-                    }
+          val parentBlock = nodeView.history.bestBlock
 
-                  val parentBlock = nodeView.history.bestBlock
+          // create the coinbase and unsigned fee reward transactions
+          val rewards = Rewards(transactions, rewardAddress, parentBlock.id, forgeTime).getOrThrow()
 
-                  // create the coinbase and unsigned fee reward transactions
-                  val rewards = Rewards(transactions, rewardAddress, parentBlock.id, forgeTime) match {
-                    case Success(r)  => r
-                    case Failure(ex) => throw ex
-                  }
+          // retrieve the latest TWO block times for updating the difficulty if we forge a new blow
+          val prevTimes = nodeView.history.getTimestampsFrom(parentBlock, nxtBlockNum)
 
-                  // retrieve the latest TWO block times for updating the difficulty if we forge a new blow
-                  val prevTimes = nodeView.history.getTimestampsFrom(parentBlock, nxtBlockNum)
-
-                  LeaderElection
-                    .getEligibleBox(parentBlock, keyView.addresses, forgeTime, nodeView.state)
-                    .map(arbitBox =>
-                      Forger.Dependencies(
-                        arbitBox,
-                        parentBlock,
-                        prevTimes,
-                        rewards,
-                        transactions,
-                        forgeTime,
-                        keyView.sign,
-                        keyView.getPublicKey
-                      )
-                    )
-                },
-                _
+          LeaderElection
+            .getEligibleBox(parentBlock, keyView.addresses, forgeTime, nodeView.state)
+            .map(arbitBox =>
+              Forger.Dependencies(
+                arbitBox,
+                parentBlock,
+                prevTimes,
+                rewards,
+                transactions,
+                forgeTime,
+                keyView.sign,
+                keyView.getPublicKey
               )
-          )
+            )
+        }
+        .valueOrF(e => Future.failed(e.reason))
     } yield dependencies
   }
 
@@ -410,7 +354,7 @@ object Forger {
    */
   private def forgeBlockWithBox(
     dependencies:           Forger.Dependencies
-  )(implicit networkPrefix: NetworkPrefix, log: Logger): Either[Forger.ForgingError, Block] = {
+  )(implicit networkPrefix: NetworkPrefix, log: Logger): Either[ForgingError, Block] = {
 
     // generate the address the owns the generator box
     val matchingAddr = Address(dependencies.box.evidence)
@@ -451,30 +395,20 @@ object Forger {
         blockVersion(dependencies.parent.height + 1)
       )(signingFunction)
       .toEither
-      .leftMap(Forger.ForgingError)
+      .leftMap(ForgingError)
   }
 
-  private def checkPrivateForging(
-    settings:            AppSettings,
+  private[consensus] def checkPrivateForging(
     appContext:          AppContext,
-    fetchStartupKeyView: () => Future[StartupKeyView],
-    context:             ActorContext[ReceivableMessage]
-  )(implicit ec:         ExecutionContext, timeout: Timeout, log: Logger, scheduler: Scheduler): Unit =
+    fetchStartupKeyView: () => Future[StartupKeyView]
+  )(implicit ec:         ExecutionContext): Future[Done] =
     if (Seq(PrivateTestnet, LocalTestnet).contains(appContext.networkType)) {
-      fetchStartupKeyView()
-        .onComplete {
-          case Success(StartupKeyView(_, Some(_))) =>
-            // if forging has been enabled, then we should send the StartForging signal
-            if (settings.forging.forgeOnStartup) {
-              context.self.tell(ReceivableMessages.StartForging(context.system.ignoreRef))
-            }
-
-          case Success(StartupKeyView(_, None)) =>
-            log.warn("Forging not started: no reward address set.")
-
-          case e =>
-            log.error("Forging not started: failed to generate initial addresses in Key Ring.", e)
-        }
+      fetchStartupKeyView().flatMap {
+        case keyView if keyView.rewardAddr.nonEmpty => Future.successful(Done)
+        case _                                      => Future.failed(new IllegalStateException("Forging requires a rewards address"))
+      }
+    } else {
+      Future.successful(Done)
     }
 
   /**
@@ -525,5 +459,11 @@ class ActorForgerInterface(actorRef: ActorRef[Forger.ReceivableMessage])(implici
   override def stopForging(): EitherT[Future, StopForgingFailure, Done] =
     EitherT.liftF(actorRef.ask[Done](Forger.ReceivableMessages.StopForging))
 }
+
+private case class PickTransactionsResult(toApply: Seq[Transaction.TX], toEliminate: Seq[Transaction.TX])
+
+sealed private trait AttemptForgingFailure
+private case class LeaderElectionFailure(reason: LeaderElection.IneligibilityReason) extends AttemptForgingFailure
+private case class ForgingError(error: Throwable) extends AttemptForgingFailure
 
 case class LocallyGeneratedModifier(block: Block)

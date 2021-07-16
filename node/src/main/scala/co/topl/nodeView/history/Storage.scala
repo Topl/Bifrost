@@ -11,32 +11,16 @@ import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
-import scala.concurrent.duration.MILLISECONDS
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 import scala.util.Try
 
-class Storage(private[history] val storage: LSMStore, private val cacheExpire: Int, private val cacheSize: Int)
-    extends Logging {
+class Storage(private[history] val keyValueStore: KeyValueStore) extends Logging {
   /* ------------------------------- Cache Initialization ------------------------------- */
   type KEY = ByteArrayWrapper
   type VAL = ByteArrayWrapper
-
-  private val blockLoader: CacheLoader[KEY, Option[VAL]] = new CacheLoader[KEY, Option[VAL]] {
-
-    def load(key: KEY): Option[VAL] =
-      storage.get(key) match {
-        case Some(blockData: VAL) => Some(blockData)
-        case _                    => None
-      }
-  }
-
-  val blockCache: LoadingCache[KEY, Option[VAL]] = CacheBuilder
-    .newBuilder()
-    .expireAfterAccess(cacheExpire, MILLISECONDS)
-    .maximumSize(cacheSize)
-    .build[KEY, Option[VAL]](blockLoader)
   /* ------------------------------------------------------------------------------------- */
 
-  private val bestBlockIdKey = Array.fill(storage.keySize)(-1: Byte)
+  private val bestBlockIdKey = Array.fill(keyValueStore.keySize)(-1: Byte)
 
   def scoreAt(b: ModifierId): Long = scoreOf(b).getOrElse(0L)
 
@@ -45,7 +29,7 @@ class Storage(private[history] val storage: LSMStore, private val cacheExpire: I
   def difficultyAt(b: ModifierId): Long = difficultyOf(b).getOrElse(0L)
 
   def bestBlockId: ModifierId =
-    blockCache
+    keyValueStore
       .get(ByteArrayWrapper(bestBlockIdKey))
       .flatMap(d => ModifierId.parseBytes(d.data).toOption)
       .getOrElse(History.GenesisParentId)
@@ -55,15 +39,15 @@ class Storage(private[history] val storage: LSMStore, private val cacheExpire: I
 
   /** Check for the existence of a modifier in storage without parsing the bytes */
   def containsModifier(id: ModifierId): Boolean =
-    blockCache.get(ByteArrayWrapper(id.getIdBytes)).isDefined
+    keyValueStore.get(ByteArrayWrapper(id.getIdBytes)).isDefined
 
   /** Retrieve a transaction and its block details from storage */
   def lookupConfirmedTransaction(id: ModifierId): Option[(Transaction.TX, ModifierId, Long)] =
     id.getModType match {
       case Transaction.modifierTypeId =>
-        blockCache
+        keyValueStore
           .get(ByteArrayWrapper(id.getIdBytes))
-          .flatMap(blockCache.get)
+          .flatMap(keyValueStore.get)
           .flatMap(bwBlock => BlockSerializer.parseBytes(bwBlock.data.tail).toOption)
           .map(block => (block.transactions.find(_.id == id).get, block.id, block.height))
 
@@ -74,46 +58,48 @@ class Storage(private[history] val storage: LSMStore, private val cacheExpire: I
   def modifierById(id: ModifierId): Option[Block] =
     id.getModType match {
       case Block.modifierTypeId =>
-        blockCache
+        keyValueStore
           .get(ByteArrayWrapper(id.getIdBytes))
           .flatMap(bwBlock => BlockSerializer.parseBytes(bwBlock.data.tail).toOption)
 
-      case _ => None
+      case _ =>
+        //
+        None
     }
 
   /** These methods allow us to lookup top-level information from blocks using the special keys defined below */
   def scoreOf(blockId: ModifierId): Option[Long] =
-    blockCache
+    keyValueStore
       .get(ByteArrayWrapper(blockScoreKey(blockId).value))
       .map(b => Longs.fromByteArray(b.data))
 
   def heightOf(blockId: ModifierId): Option[Long] =
-    blockCache
+    keyValueStore
       .get(ByteArrayWrapper(blockHeightKey(blockId).value))
       .map(b => Longs.fromByteArray(b.data))
 
   def timestampOf(blockId: ModifierId): Option[Long] =
-    blockCache
+    keyValueStore
       .get(ByteArrayWrapper(blockTimestampKey(blockId).value))
       .map(b => Longs.fromByteArray(b.data))
 
   def idAtHeightOf(height: Long): Option[ModifierId] =
-    blockCache
+    keyValueStore
       .get(ByteArrayWrapper(idHeightKey(height).value))
       .flatMap(id => ModifierId.parseBytes(id.data).toOption)
 
   def difficultyOf(blockId: ModifierId): Option[Long] =
-    blockCache
+    keyValueStore
       .get(ByteArrayWrapper(blockDiffKey(blockId).value))
       .map(b => Longs.fromByteArray(b.data))
 
   def bloomOf(blockId: ModifierId): Option[BloomFilter] =
-    blockCache
+    keyValueStore
       .get(ByteArrayWrapper(blockBloomKey(blockId).value))
       .flatMap(b => BloomFilter.parseBytes(b.data).toOption)
 
   def parentIdOf(blockId: ModifierId): Option[ModifierId] =
-    blockCache
+    keyValueStore
       .get(ByteArrayWrapper(blockParentKey(blockId).value))
       .flatMap(d => ModifierId.parseBytes(d.data).toOption)
 
@@ -188,15 +174,11 @@ class Storage(private[history] val storage: LSMStore, private val cacheExpire: I
         bestBlock ++
         newTransactionsToBlockIds ++
         blockBloom ++
-        parentBlock).map { case (k: Array[Byte], v) =>
-        ByteArrayWrapper(k) -> ByteArrayWrapper(v)
-      }
+        parentBlock)
+        .map { case (k: Array[Byte], v) => ByteArrayWrapper(k) -> ByteArrayWrapper(v) }
 
     /* update storage */
-    storage.update(ByteArrayWrapper(b.id.bytes), Seq(), wrappedUpdate)
-
-    /* update the cache the in the same way */
-    wrappedUpdate.foreach(pair => blockCache.put(pair._1, Some(pair._2)))
+    keyValueStore.update(ByteArrayWrapper(b.id.bytes), Seq(), wrappedUpdate)
   }
 
   /**
@@ -205,7 +187,86 @@ class Storage(private[history] val storage: LSMStore, private val cacheExpire: I
    * @param parentId is the parent id of the block intended to be removed
    */
   def rollback(parentId: ModifierId): Try[Unit] = Try {
-    blockCache.invalidateAll()
-    storage.rollback(ByteArrayWrapper(parentId.bytes))
+    keyValueStore.rollback(ByteArrayWrapper(parentId.bytes))
   }
+}
+
+trait KeyValueStore extends AutoCloseable {
+
+  def update(
+    version:  ByteArrayWrapper,
+    toRemove: Iterable[ByteArrayWrapper],
+    toAdd:    Iterable[(ByteArrayWrapper, ByteArrayWrapper)]
+  ): Unit
+  def rollback(version: ByteArrayWrapper): Unit
+  def get(key:          ByteArrayWrapper): Option[ByteArrayWrapper]
+  def keySize: Int
+}
+
+class LSMKeyValueStore(lsmStore: LSMStore) extends KeyValueStore {
+
+  override def update(
+    version:  ByteArrayWrapper,
+    toRemove: Iterable[ByteArrayWrapper],
+    toAdd:    Iterable[(ByteArrayWrapper, ByteArrayWrapper)]
+  ): Unit =
+    lsmStore.update(version, toRemove, toAdd)
+
+  override def rollback(version: ByteArrayWrapper): Unit =
+    lsmStore.rollback(version)
+
+  override def get(key: ByteArrayWrapper): Option[ByteArrayWrapper] =
+    lsmStore.get(key)
+
+  override def keySize: Int =
+    lsmStore.keySize
+
+  override def close(): Unit =
+    lsmStore.close()
+
+}
+
+class CacheLayerKeyValueStore(underlying: KeyValueStore, cacheExpiration: FiniteDuration, cacheSize: Int)
+    extends KeyValueStore {
+
+  type KEY = ByteArrayWrapper
+  type VAL = ByteArrayWrapper
+
+  private[history] val cache: LoadingCache[KEY, Option[VAL]] = CacheBuilder
+    .newBuilder()
+    .expireAfterAccess(cacheExpiration.toMillis, MILLISECONDS)
+    .maximumSize(cacheSize)
+    .build[KEY, Option[VAL]](
+      new CacheLoader[KEY, Option[VAL]] {
+
+        def load(key: KEY): Option[VAL] =
+          underlying.get(key)
+      }
+    )
+
+  override def update(
+    version:  ByteArrayWrapper,
+    toRemove: Iterable[ByteArrayWrapper],
+    toAdd:    Iterable[(ByteArrayWrapper, ByteArrayWrapper)]
+  ): Unit = {
+    underlying.update(version, toRemove, toAdd)
+    toRemove.foreach(cache.invalidate)
+    toAdd
+      .map { case (key, value) => key -> Some(value) }
+      .foreach((cache.put _).tupled)
+  }
+
+  override def rollback(version: ByteArrayWrapper): Unit = {
+    underlying.rollback(version)
+    cache.invalidateAll()
+  }
+
+  override def get(key: ByteArrayWrapper): Option[ByteArrayWrapper] =
+    cache.get(key)
+
+  override def keySize: Int =
+    underlying.keySize
+
+  override def close(): Unit =
+    underlying.close()
 }

@@ -2,62 +2,57 @@ package co.topl.nodeView
 
 import akka.Done
 import akka.actor.typed.eventstream.EventStream
-import akka.actor.typed.receptionist.Receptionist
-import akka.actor.typed.receptionist.Receptionist.Listing
+import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl._
-import akka.actor.typed.scaladsl.adapter._
 import akka.actor.typed.{ActorRef, ActorSystem, _}
 import akka.pattern.StatusReply
 import akka.util.Timeout
 import cats.data.{EitherT, Validated}
 import co.topl.attestation.Address
-import co.topl.consensus.Forger.ReceivableMessages.GenerateGenesis
+import co.topl.consensus.KeyManager.StartupKeyView
 import co.topl.consensus.{Forger, LocallyGeneratedModifier}
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
+import co.topl.modifier.block.Block
 import co.topl.modifier.box.ProgramId
 import co.topl.modifier.transaction.Transaction
+import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction.validation.implicits._
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
-import co.topl.nodeView.history.{History, HistoryReader}
-import co.topl.nodeView.mempool.{MemPool, MemPoolReader}
-import co.topl.nodeView.state.{State, StateReader}
-import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
+import co.topl.nodeView.history.{GenericHistory, History, HistoryReader}
+import co.topl.nodeView.mempool.{MemPool, MemPoolReader, MemoryPool}
+import co.topl.nodeView.state.{MinimalState, State, StateReader}
+import co.topl.settings.{AppSettings, NodeViewReady}
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.akka.SortedCache
+import co.topl.utils.actors.SortedCache
+import co.topl.utils.{NetworkType, TimeProvider}
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.annotation.tailrec
-import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success, Try}
 
 /**
  * A Typed actor which holds onto block history, box state, and a transaction mempool.  The outside world can
  * issue mutation instructions to it, or it reader functions can be provided to the actor to read data from the view.
  */
-object NodeViewHolder {
+object NodeViewHolder extends ExtensionId[NodeViewHolderInterface] {
 
   final val ActorName = "node-view-holder"
+  final val serviceKey: ServiceKey[ReceivableMessage] = ServiceKey(ActorName)
 
-  case class UpdateInformation[HIS, MS, PMOD <: PersistentNodeViewModifier](
-    history:                 HIS,
-    state:                   MS,
-    failedMod:               Option[PMOD],
-    alternativeProgressInfo: Option[ProgressInfo[PMOD]],
-    suffix:                  IndexedSeq[PMOD]
+  case class UpdateInformation(
+    history:                 GenericHistory[Block, BifrostSyncInfo, History],
+    state:                   MinimalState[Block, State],
+    failedMod:               Option[Block],
+    alternativeProgressInfo: Option[ProgressInfo[Block]],
+    suffix:                  IndexedSeq[Block]
   )
 
   sealed abstract class ReceivableMessage
 
   object ReceivableMessages {
-
-    /**
-     * Instruct the actor to initialize state (read data from disk or generate genesis)
-     */
-    private[NodeViewHolder] case object Initialize extends ReceivableMessage
 
     /**
      * A self-message that's sent to the actor once async initialization is completed
@@ -126,69 +121,60 @@ object NodeViewHolder {
     /**
      * A message specifically used by unit tests to mutate the internal actor state
      */
-    private[nodeView] case class SetWritableNodeView(nodeView: NodeView, replyTo: ActorRef[Done])
+    private[nodeView] case class ModifyNodeView(f: NodeView => NodeView, replyTo: ActorRef[Done])
         extends ReceivableMessage
   }
 
   def apply(
     appSettings:            AppSettings,
-    appContext:             AppContext
-  )(implicit networkPrefix: NetworkPrefix): Behavior[ReceivableMessage] =
+    initialState:           () => Future[NodeView]
+  )(implicit networkPrefix: NetworkPrefix, timeProvider: TimeProvider): Behavior[ReceivableMessage] =
     Behaviors.setup { context =>
-      context.self.tell(ReceivableMessages.Initialize)
-      uninitialized(appSettings, appContext)
+      context.pipeToSelf(initialState())(
+        _.fold(ReceivableMessages.InitializationFailed, ReceivableMessages.Initialized)
+      )
+      uninitialized
     }
 
   final private val UninitializedStashSize = 150
 
   implicit private val blockOrdering: Ordering[Block] = (a, b) => a.height.compareTo(b.height)
 
-  private def uninitialized(
-    appSettings:            AppSettings,
-    appContext:             AppContext
-  )(implicit networkPrefix: NetworkPrefix): Behavior[ReceivableMessage] =
+  /**
+   * The starting state of a NodeViewHolder actor.  It does not have a NodeView yet, so something in the background should
+   * be fetching a NodeView and forwarding it to this uninitialized state.
+   * @return A Behavior that is uninitialized
+   */
+  private def uninitialized(implicit
+    networkPrefix: NetworkPrefix,
+    timeProvider:  TimeProvider
+  ): Behavior[ReceivableMessage] =
     Behaviors.withStash(UninitializedStashSize)(stash =>
       Behaviors.receivePartial {
-        case (context, ReceivableMessages.Initialize) =>
-          restoreState(appSettings) match {
-            case Some(nodeView) =>
-              context.self.tell(ReceivableMessages.Initialized(nodeView))
-            case None =>
-              implicit val system: ActorSystem[_] = context.system
-              implicit val timeout: Timeout = Timeout(10.seconds)
-              context.pipeToSelf(genesisState(appSettings)) {
-                case Success(state) =>
-                  ReceivableMessages.Initialized(state)
-                case Failure(exception) =>
-                  ReceivableMessages.InitializationFailed(exception)
-              }
-          }
-          Behaviors.same
-
         case (context, ReceivableMessages.Initialized(nodeView)) =>
+          implicit val system: ActorSystem[_] = context.system
           val cache =
             context.spawn(SortedCache(), "NodeViewModifiersCache")
-          context.system.eventStream.tell(EventStream.Publish(NodeViewReady(context.self)))
-          context.system.eventStream.tell(
+
+          Receptionist(system).ref.tell(Receptionist.Register(serviceKey, context.self))
+          system.eventStream.tell(EventStream.Publish(NodeViewReady(context.self)))
+          system.eventStream.tell(
             EventStream.Subscribe[LocallyGeneratedModifier](
               context.messageAdapter(locallyGeneratedModifier =>
                 ReceivableMessages.WriteBlocks(List(locallyGeneratedModifier.block))
               )
             )
           )
-          context.system.eventStream.tell(
+          system.eventStream.tell(
             EventStream.Subscribe[LocallyGeneratedTransaction](
               context.messageAdapter(locallyGeneratedTransaction =>
                 ReceivableMessages.WriteTransactions(List(locallyGeneratedTransaction.transaction))
               )
             )
           )
-          // A block wasn't actually written, this just kicks off the recursive operation to pop and write blocks
-          context.self.tell(ReceivableMessages.BlockWritten)
-          implicit val system: ActorSystem[_] = context.system
-          stash.unstashAll(
-            initialized(nodeView, cache, new NodeViewWriter(appContext))
-          )
+
+          handleNextBlock(context, cache, nodeView)
+          stash.unstashAll(initialized(nodeView, cache))
         case (_, ReceivableMessages.InitializationFailed(reason)) =>
           throw reason
         case (_, message) =>
@@ -198,10 +184,9 @@ object NodeViewHolder {
     )
 
   private def initialized(
-    nodeView:       NodeView,
-    cache:          ActorRef[SortedCache.ReceivableMessage[Block]],
-    nodeViewWriter: NodeViewWriter
-  ): Behavior[ReceivableMessage] =
+    nodeView:               NodeView,
+    cache:                  ActorRef[SortedCache.ReceivableMessage[Block]]
+  )(implicit networkPrefix: NetworkPrefix, timeProvider: TimeProvider): Behavior[ReceivableMessage] =
     Behaviors
       .receivePartial[ReceivableMessage] {
         case (_, r: ReceivableMessages.Read[_]) =>
@@ -219,60 +204,67 @@ object NodeViewHolder {
               Behaviors.same
             case Success(newNodeView) =>
               r.replyTo.tell(StatusReply.success(newNodeView))
-              initialized(newNodeView, cache, nodeViewWriter)
+              initialized(newNodeView, cache)
           }
 
         case (context, ReceivableMessages.BlockWritten) =>
           context.system.eventStream.tell(EventStream.Publish(NodeViewChanged))
-          handleNextBlock(context, cache, nodeView, nodeViewWriter)
+          handleNextBlock(context, cache, nodeView)
           Behaviors.same
 
         case (context, ReceivableMessages.BlockFailedToWrite(reason)) =>
+          // TODO: Should we hold onto the block in the cache?
+          // TODO: Ban-list bad blocks?
           context.log.error("Failed to persist block", reason)
-          handleNextBlock(context, cache, nodeView, nodeViewWriter)
+          handleNextBlock(context, cache, nodeView)
           Behaviors.same
 
         case (context, ReceivableMessages.WriteTransactions(transactions)) =>
+          implicit def system: ActorSystem[_] = context.system
           val newNodeView =
-            nodeViewWriter.writeTransactions(transactions, nodeView)
+            nodeView.withTransactions(transactions, eventStreamPublishMessage)
           context.system.eventStream.tell(EventStream.Publish(NodeViewChanged))
-          initialized(newNodeView, cache, nodeViewWriter)
+          initialized(newNodeView, cache)
 
         case (context, ReceivableMessages.EliminateTransactions(transactionIds)) =>
+          implicit def system: ActorSystem[_] = context.system
           val newNodeView =
-            nodeViewWriter.eliminateTransactions(transactionIds.toSeq, nodeView)
+            nodeView.withoutTransactions(transactionIds.toSeq, eventStreamPublishMessage)
 
           context.system.eventStream.tell(EventStream.Publish(NodeViewChanged))
-          initialized(newNodeView, cache, nodeViewWriter)
+          initialized(newNodeView, cache)
 
         case (_, ReceivableMessages.GetWritableNodeView(replyTo)) =>
           replyTo.tell(nodeView)
           Behaviors.same
 
-        case (_, ReceivableMessages.SetWritableNodeView(newNodeView, replyTo)) =>
-          nodeView.history.closeStorage()
-          nodeView.state.closeStorage()
+        case (_, ReceivableMessages.ModifyNodeView(f, replyTo)) =>
           replyTo.tell(Done)
-          initialized(newNodeView, cache, nodeViewWriter)
+          initialized(f(nodeView), cache)
       }
       .receiveSignal { case (_, PostStop) =>
-        nodeView.history.closeStorage()
-        nodeView.state.closeStorage()
+        nodeView.close()
         Behaviors.same
       }
 
+  private def eventStreamPublishMessage(implicit system: ActorSystem[_]): Any => Unit =
+    (v: Any) => system.eventStream.tell(EventStream.Publish(v))
+
+  /**
+   * A recursive process which pops a block from our child cache actor, writes that block, and then repeats
+   */
   private def handleNextBlock(
-    context:        ActorContext[ReceivableMessage],
-    cache:          ActorRef[SortedCache.ReceivableMessage[Block]],
-    nodeView:       NodeView,
-    nodeViewWriter: NodeViewWriter
-  ): Unit =
+    context:                ActorContext[ReceivableMessage],
+    cache:                  ActorRef[SortedCache.ReceivableMessage[Block]],
+    nodeView:               NodeView
+  )(implicit networkPrefix: NetworkPrefix, timeProvider: TimeProvider): Unit = {
+    implicit def system: ActorSystem[_] = context.system
     cache.tell(
       SortedCache.ReceivableMessages.Pop(
         nodeView.history.extendsKnownTine,
         context.messageAdapter[Block](block =>
           ReceivableMessages.Write(
-            nodeViewWriter.writeBlock(block, _),
+            _.withBlock(block, eventStreamPublishMessage),
             context.messageAdapter[StatusReply[NodeView]] {
               case StatusReply.Success(_) => ReceivableMessages.BlockWritten
               case StatusReply.Error(e)   => ReceivableMessages.BlockFailedToWrite(e)
@@ -281,53 +273,23 @@ object NodeViewHolder {
         )
       )
     )
-
-  private def restoreState(settings: AppSettings)(implicit networkPrefix: NetworkPrefix): Option[NodeView] =
-    if (State.exists(settings)) {
-      Some(
-        NodeView(
-          History.readOrGenerate(settings),
-          State.readOrGenerate(settings),
-          MemPool.emptyPool
-        )
-      )
-    } else None
-
-  /** Hard-coded initial view all the honest nodes in a network are making progress from. */
-  private[nodeView] def genesisState(
-    settings:        AppSettings
-  )(implicit system: ActorSystem[_], timeout: Timeout, networkPrefix: NetworkPrefix): Future[NodeView] = {
-    import akka.actor.typed.scaladsl.AskPattern._
-    import system.executionContext
-
-    // The forger will eventually register itself with the receptionist on startup, but we may need to wait a bit first
-    val forgerRefFuture =
-      akka.pattern
-        .retry(
-          () =>
-            system.receptionist
-              .ask[Listing](Receptionist.Find(Forger.ForgerServiceKey, _))
-              .map { case Forger.ForgerServiceKey.Listing(listings) => listings.head },
-          attempts = 5,
-          delay = 1.seconds
-        )(executionContext, system.toClassic.scheduler)
-
-    forgerRefFuture
-      .flatMap(ref => ref.ask[Try[Block]](GenerateGenesis))
-      .map {
-        case Success(genesisBlock) =>
-          NodeView(
-            History.readOrGenerate(settings).append(genesisBlock).get._1,
-            State.genesisState(settings, Seq(genesisBlock)),
-            MemPool.emptyPool
-          )
-        case Failure(ex) =>
-          throw new Error(s"${Console.RED}Failed to initialize genesis due to error${Console.RESET} $ex")
-      }
   }
+
+  override def createExtension(system: ActorSystem[_]): NodeViewHolderInterface =
+    new DelayedNodeViewHolderInterface()(system)
 }
 
-case class NodeView(history: History, state: State, mempool: MemPool) {
+/**
+ * A mutable/writable representation of our current node.
+ * @param history A mutable representation of History
+ * @param state A mutable representation of State
+ * @param mempool A mutable representation of a Mempool
+ */
+case class NodeView(
+  history: GenericHistory[Block, BifrostSyncInfo, History],
+  state:   MinimalState[Block, State],
+  mempool: MemoryPool[Transaction.TX, MemPool]
+) extends AutoCloseable {
 
   def readableNodeView: ReadableNodeView =
     ReadableNodeView(
@@ -335,96 +297,104 @@ case class NodeView(history: History, state: State, mempool: MemPool) {
       state.getReader,
       mempool.getReader
     )
-}
 
-case class ReadableNodeView(
-  history: HistoryReader[Block, BifrostSyncInfo],
-  state:   StateReader[ProgramId, Address],
-  memPool: MemPoolReader[Transaction.TX]
-)
-
-/**
- * A helper companion for performing the logic of the node view "write" operations
- */
-private class NodeViewWriter(appContext: AppContext)(implicit
-  np:                                    NetworkPrefix,
-  system:                                ActorSystem[_]
-) {
+  override def close(): Unit = {
+    history match {
+      case c: AutoCloseable =>
+        c.close()
+      case _ =>
+    }
+    state match {
+      case c: AutoCloseable =>
+        c.close()
+      case _ =>
+    }
+  }
 
   import NodeViewHolder.UpdateInformation
 
   private val log: Logger = LoggerFactory.getLogger(this.getClass)
 
-  def writeTransactions(transactions: Iterable[Transaction.TX], nodeView: NodeView): NodeView =
-    transactions.foldLeft(nodeView)((view, tx) => txModify(tx, view))
+  // TODO: Use a WriterT to handle system messages
 
-  private def txModify(tx: Transaction.TX, nodeView: NodeView): NodeView =
+  def withTransactions(transactions: Iterable[Transaction.TX], publishSystemMessage: Any => Unit)(implicit
+    networkPrefix:                   NetworkPrefix,
+    timeProvider:                    TimeProvider,
+    system:                          ActorSystem[_]
+  ): NodeView =
+    transactions.foldLeft(this)(_.withTransaction(_, publishSystemMessage))
+
+  def withTransaction(tx: Transaction.TX, publishSystemMessage: Any => Unit)(implicit
+    networkPrefix:        NetworkPrefix,
+    timeProvider:         TimeProvider
+  ): NodeView =
     tx.syntacticValidation.toEither match {
       case Right(_) =>
-        nodeView.mempool.put(tx, appContext.timeProvider.time) match {
+        mempool.put(tx, timeProvider.time) match {
           case Success(pool) =>
             log.debug(s"Unconfirmed transaction $tx added to the memory pool")
-            system.eventStream.tell(EventStream.Publish(SuccessfulTransaction[Transaction.TX](tx)))
-            nodeView.copy(mempool = pool)
+            publishSystemMessage(SuccessfulTransaction[Transaction.TX](tx))
+            copy(mempool = pool)
 
           case Failure(e) =>
-            system.eventStream.tell(EventStream.Publish(FailedTransaction(tx.id, e, immediateFailure = true)))
-            nodeView
+            publishSystemMessage(FailedTransaction(tx.id, e, immediateFailure = true))
+            this
         }
 
       case Left(e) =>
-        system.eventStream.tell(
-          EventStream.Publish(
-            FailedTransaction(tx.id, new Exception(e.head.toString), immediateFailure = true)
-          )
+        publishSystemMessage(
+          FailedTransaction(tx.id, new Exception(e.head.toString), immediateFailure = true)
         )
-        nodeView
+        this
     }
 
-  def writeBlock(block: Block, nodeView: NodeView): NodeView =
-    if (!nodeView.history.contains(block.id)) {
-      system.eventStream.tell(EventStream.Publish(StartingPersistentModifierApplication(block)))
+  def withBlock(block: Block, publishSystemMessage: Any => Unit)(implicit
+    networkPrefix:     NetworkPrefix,
+    timeProvider:      TimeProvider
+  ): NodeView =
+    if (!history.contains(block.id)) {
+      publishSystemMessage(StartingPersistentModifierApplication(block))
       import cats.implicits._
 
-      block.transactions.traverse(_.semanticValidation(nodeView.state)) match {
+      block.transactions.traverse(_.semanticValidation(state)) match {
         case Validated.Valid(_) =>
           log.info("Applying valid blockId={} to history", block.id)
 
-          nodeView.history.append(block) match {
+          history.append(block) match {
             case Success((historyBeforeStUpdate, progressInfo)) =>
               log.info("Block blockId={} applied to history successfully", block.id)
               log.debug("Applying valid blockId={} to state with progressInfo={}", block.id, progressInfo)
-              system.eventStream.tell(EventStream.Publish(SyntacticallySuccessfulModifier(block)))
-              system.eventStream.tell(EventStream.Publish(NewOpenSurface(historyBeforeStUpdate.openSurfaceIds())))
+              publishSystemMessage(SyntacticallySuccessfulModifier(block))
+              publishSystemMessage(NewOpenSurface(historyBeforeStUpdate.openSurfaceIds()))
 
               if (progressInfo.toApply.nonEmpty) {
                 val (newHistory, newStateTry, blocksApplied) =
-                  updateState(historyBeforeStUpdate, nodeView.state, progressInfo, IndexedSeq())
+                  updateState(historyBeforeStUpdate, state, progressInfo, IndexedSeq(), publishSystemMessage)
 
                 newStateTry match {
                   case Success(newMinState) =>
-                    val newMemPool = updateMemPool(progressInfo.toRemove, blocksApplied, nodeView.mempool)
+                    val newMemPool = updateMemPool(progressInfo.toRemove, blocksApplied, mempool)
                     log.info("Block blockId={} applied to state successfully", block.id)
-                    notifyHistoryUpdate()
-                    notifyStateUpdate()
-                    notifyMemPoolUpdate()
+                    publishSystemMessage(ChangedHistory)
+                    publishSystemMessage(ChangedState)
+                    publishSystemMessage(ChangedMempool)
                     NodeView(newHistory, newMinState, newMemPool)
 
                   case Failure(e) =>
                     log.error(s"Error applying state for blockId=${block.id} block=$block", e)
-                    system.eventStream.tell(EventStream.Publish(SemanticallyFailedModification(block, e)))
-                    notifyHistoryUpdate()
-                    nodeView.copy(history = newHistory)
+                    publishSystemMessage(SemanticallyFailedModification(block, e))
+                    publishSystemMessage(ChangedHistory)
+                    copy(history = newHistory)
                 }
               } else {
-                requestDownloads(progressInfo)
-                notifyHistoryUpdate()
-                nodeView.copy(history = historyBeforeStUpdate)
+                requestDownloads(progressInfo, publishSystemMessage)
+                publishSystemMessage(ChangedHistory)
+                copy(history = historyBeforeStUpdate)
               }
             case Failure(e) =>
               log.error(s"Error applying history for blockId=${block.id} block=$block", e)
-              system.eventStream.tell(EventStream.Publish(SyntacticallyFailedModification(block, e)))
-              nodeView
+              publishSystemMessage(SyntacticallyFailedModification(block, e))
+              this
           }
         case Validated.Invalid(e) =>
           e.iterator.foreach(error =>
@@ -435,16 +405,16 @@ private class NodeViewWriter(appContext: AppContext)(implicit
               error
             )
           )
-          nodeView
+          this
       }
     } else {
       log.warn("Block with blockId={} already exists in history.  Skipping.", block.id)
-      nodeView
+      this
     }
 
-  private def requestDownloads(pi: ProgressInfo[Block]): Unit =
+  private def requestDownloads(pi: ProgressInfo[Block], publishSystemMessage: Any => Unit): Unit =
     pi.toDownload.foreach { case (tid, id) =>
-      system.eventStream.tell(EventStream.Publish(DownloadRequest(tid, id)))
+      publishSystemMessage(DownloadRequest(tid, id))
     }
 
   private def trimChainSuffix(suffix: IndexedSeq[Block], rollbackPoint: ModifierId): IndexedSeq[Block] = {
@@ -487,13 +457,14 @@ private class NodeViewWriter(appContext: AppContext)(implicit
 
   @tailrec
   private def updateState(
-    history:       History,
-    state:         State,
-    progressInfo:  ProgressInfo[Block],
-    suffixApplied: IndexedSeq[Block]
-  ): (History, Try[State], Seq[Block]) = {
+    history:              GenericHistory[Block, BifrostSyncInfo, History],
+    state:                MinimalState[Block, State],
+    progressInfo:         ProgressInfo[Block],
+    suffixApplied:        IndexedSeq[Block],
+    publishSystemMessage: Any => Unit
+  ): (GenericHistory[Block, BifrostSyncInfo, History], Try[MinimalState[Block, State]], Seq[Block]) = {
 
-    requestDownloads(progressInfo)
+    requestDownloads(progressInfo, publishSystemMessage)
 
     val (stateToApplyTry: Try[State], suffixTrimmed: IndexedSeq[Block]) = if (progressInfo.chainSwitchingNeeded) {
       @SuppressWarnings(Array("org.wartremover.warts.OptionPartial"))
@@ -505,46 +476,43 @@ private class NodeViewWriter(appContext: AppContext)(implicit
 
     stateToApplyTry match {
       case Success(stateToApply) =>
-        val stateUpdateInfo = applyState(history, stateToApply, suffixTrimmed, progressInfo)
+        val stateUpdateInfo = applyState(history, stateToApply, suffixTrimmed, progressInfo, publishSystemMessage)
 
         stateUpdateInfo.failedMod match {
           case Some(_) =>
             @SuppressWarnings(Array("org.wartremover.warts.OptionPartial"))
             val alternativeProgressInfo = stateUpdateInfo.alternativeProgressInfo.get
-            updateState(stateUpdateInfo.history, stateUpdateInfo.state, alternativeProgressInfo, stateUpdateInfo.suffix)
+            updateState(
+              stateUpdateInfo.history,
+              stateUpdateInfo.state,
+              alternativeProgressInfo,
+              stateUpdateInfo.suffix,
+              publishSystemMessage
+            )
           case None => (stateUpdateInfo.history, Success(stateUpdateInfo.state), stateUpdateInfo.suffix)
         }
       case Failure(e) =>
         log.error("Rollback failed: ", e)
-        system.eventStream.tell(EventStream.Publish(RollbackFailed))
+        publishSystemMessage(RollbackFailed)
         //todo: what to return here? the situation is totally wrong
         ???
     }
   }
 
-  private def notifyHistoryUpdate(): Unit =
-    system.eventStream.tell(EventStream.Publish(ChangedHistory))
-
-  private def notifyStateUpdate(): Unit =
-    system.eventStream.tell(EventStream.Publish(ChangedState))
-
-  private def notifyMemPoolUpdate(): Unit =
-    system.eventStream.tell(EventStream.Publish(ChangedMempool))
-
   //todo: this method causes delays in a block processing as it removes transactions from mempool and checks
   //todo: validity of remaining transactions in a synchronous way. Do this job async!
   private[nodeView] def updateMemPool(
-    blocksRemoved: Seq[Block],
-    blocksApplied: Seq[Block],
-    memPool:       MemPool
-  ): MemPool = {
+    blocksRemoved:          Seq[Block],
+    blocksApplied:          Seq[Block],
+    memPool:                MemoryPool[Transaction.TX, MemPool]
+  )(implicit networkPrefix: NetworkPrefix, timeProvider: TimeProvider): MemPool = {
     // drop the first two transactions, since these are the reward transactions and invalid
     val rolledBackTxs = blocksRemoved.flatMap(_.transactions.drop(2))
 
     val appliedTxs = blocksApplied.flatMap(_.transactions)
 
     memPool
-      .putWithoutCheck(rolledBackTxs, appContext.timeProvider.time)
+      .putWithoutCheck(rolledBackTxs, timeProvider.time)
       .filter { tx =>
         !appliedTxs.exists(t => t.id == tx.id) && {
           tx.syntacticValidation.isValid
@@ -562,49 +530,131 @@ private class NodeViewWriter(appContext: AppContext)(implicit
    * @return
    */
   private def applyState(
-    history:       History,
-    stateToApply:  State,
-    suffixTrimmed: IndexedSeq[Block],
-    progressInfo:  ProgressInfo[Block]
-  ): UpdateInformation[History, State, Block] = {
+    history:              GenericHistory[Block, BifrostSyncInfo, History],
+    stateToApply:         MinimalState[Block, State],
+    suffixTrimmed:        IndexedSeq[Block],
+    progressInfo:         ProgressInfo[Block],
+    publishSystemMessage: Any => Unit
+  ): UpdateInformation = {
 
-    val updateInfoInit = UpdateInformation[History, State, Block](history, stateToApply, None, None, suffixTrimmed)
+    val updateInfoInit = UpdateInformation(history, stateToApply, None, None, suffixTrimmed)
 
     progressInfo.toApply.foldLeft(updateInfoInit) { case (updateInfo, modToApply) =>
       if (updateInfo.failedMod.isEmpty) {
         updateInfo.state.applyModifier(modToApply) match {
           case Success(stateAfterApply) =>
             val newHis = history.reportModifierIsValid(modToApply)
-            system.eventStream.tell(EventStream.Publish(SemanticallySuccessfulModifier(modToApply)))
+            publishSystemMessage(SemanticallySuccessfulModifier(modToApply))
             UpdateInformation(newHis, stateAfterApply, None, None, updateInfo.suffix :+ modToApply)
 
           case Failure(e) =>
             val (newHis, newProgressInfo) = history.reportModifierIsInvalid(modToApply, progressInfo)
-            system.eventStream.tell(EventStream.Publish(SemanticallyFailedModification(modToApply, e)))
+            publishSystemMessage(SemanticallyFailedModification(modToApply, e))
             UpdateInformation(newHis, updateInfo.state, Some(modToApply), Some(newProgressInfo), updateInfo.suffix)
         }
       } else updateInfo
     }
   }
 
-  def eliminateTransactions(ids: Seq[ModifierId], nodeView: NodeView): NodeView = {
+  def withoutTransactions(ids: Seq[ModifierId], publishSystemMessage: Any => Unit): NodeView = {
     log.debug(s"${Console.YELLOW} Removing transactions with ids: $ids from mempool${Console.RESET}")
-    val updatedPool = nodeView.mempool.filter(tx => !ids.contains(tx.id))
-    notifyMemPoolUpdate()
+    val updatedPool = mempool.filter(tx => !ids.contains(tx.id))
+    publishSystemMessage(ChangedMempool)
     ids.foreach { id =>
       val e = new Exception("Became invalid")
-      system.eventStream.tell(EventStream.Publish(FailedTransaction(id, e, immediateFailure = false)))
+      publishSystemMessage(FailedTransaction(id, e, immediateFailure = false))
     }
-    nodeView.copy(mempool = updatedPool)
+    copy(mempool = updatedPool)
   }
 }
 
-case class BroadcastTxFailure(throwable: Throwable)
-case class WithNodeViewFailure(reason: Throwable)
+object NodeView {
 
-trait NodeViewHolderInterface {
-  def withNodeView[T](f:       ReadableNodeView => T): EitherT[Future, WithNodeViewFailure, T]
-  def broadcastTransaction(tx: Transaction.TX): EitherT[Future, BroadcastTxFailure, Done.type]
+  def persistent(
+    settings:       AppSettings,
+    networkType:    NetworkType,
+    startupKeyView: () => Future[StartupKeyView]
+  )(implicit ec:    ExecutionContext): Future[NodeView] =
+    local(settings)(networkType.netPrefix).fold(genesis(settings, networkType, startupKeyView))(Future.successful)
+
+  def local(settings: AppSettings)(implicit networkPrefix: NetworkPrefix): Option[NodeView] =
+    if (State.exists(settings)) {
+      Some(
+        NodeView(
+          History.readOrGenerate(settings),
+          State.readOrGenerate(settings),
+          MemPool.emptyPool
+        )
+      )
+    } else None
+
+  def genesis(settings: AppSettings, networkType: NetworkType, startupKeyView: () => Future[StartupKeyView])(implicit
+    ec:                 ExecutionContext
+  ): Future[NodeView] = {
+    implicit def networkPrefix: NetworkPrefix = networkType.netPrefix
+    Forger
+      .genesisBlock(settings, networkType, startupKeyView)
+      .map(genesis(settings, networkType, _))
+  }
+
+  def genesis(settings: AppSettings, networkType: NetworkType, genesisBlock: Block): NodeView = {
+    implicit def networkPrefix: NetworkPrefix = networkType.netPrefix
+    NodeView(
+      History.readOrGenerate(settings).append(genesisBlock).get._1,
+      State.genesisState(settings, Seq(genesisBlock)),
+      MemPool.emptyPool
+    )
+  }
+}
+
+case class ReadableNodeView(
+  history: HistoryReader[Block, BifrostSyncInfo],
+  state:   StateReader[ProgramId, Address],
+  memPool: MemPoolReader[Transaction.TX]
+)
+
+case class ReadFailure(reason: Throwable)
+case class ApplyFailure(reason: Throwable)
+case class UnapplyFailure(reason: Throwable)
+
+trait NodeViewHolderInterface extends Extension {
+  def withNodeView[T](f:                  ReadableNodeView => T): EitherT[Future, ReadFailure, T]
+  def applyBlocks(blocks:                 Iterable[Block]): EitherT[Future, ApplyFailure, Done]
+  def applyTransactions(tx:               Transaction.TX): EitherT[Future, ApplyFailure, Done]
+  def unapplyTransactions(transactionIds: Iterable[ModifierId]): EitherT[Future, UnapplyFailure, Done]
+  def onReady(): Future[Done]
+}
+
+class DelayedNodeViewHolderInterface(implicit system: ActorSystem[_]) extends NodeViewHolderInterface {
+  import akka.actor.typed.scaladsl.AskPattern._
+  import system.executionContext
+
+  private val refPromise: Promise[NodeViewHolderInterface] = {
+    import scala.concurrent.duration._
+    implicit val timeout: Timeout = Timeout(2.seconds)
+    Promise().completeWith(
+      system.receptionist
+        .ask[Receptionist.Listing](Receptionist.Subscribe(NodeViewHolder.serviceKey, _))
+        .map(_.serviceInstances(NodeViewHolder.serviceKey).head)
+        .map(new ActorNodeViewHolderInterface(_))
+    )
+  }
+
+  override def withNodeView[T](f: ReadableNodeView => T): EitherT[Future, ReadFailure, T] =
+    EitherT.liftF(refPromise.future).flatMap(_.withNodeView(f))
+
+  override def applyBlocks(blocks: Iterable[Block]): EitherT[Future, ApplyFailure, Done] =
+    EitherT.liftF(refPromise.future).flatMap(_.applyBlocks(blocks))
+
+  override def applyTransactions(tx: TX): EitherT[Future, ApplyFailure, Done] =
+    EitherT.liftF(refPromise.future).flatMap(_.applyTransactions(tx))
+
+  override def unapplyTransactions(transactionIds: Iterable[ModifierId]): EitherT[Future, UnapplyFailure, Done] =
+    EitherT.liftF(refPromise.future).flatMap(_.unapplyTransactions(transactionIds))
+
+  override def onReady(): Future[Done] =
+    refPromise.future.flatMap(_.onReady())
+
 }
 
 class ActorNodeViewHolderInterface(actorRef: ActorRef[NodeViewHolder.ReceivableMessage])(implicit
@@ -615,20 +665,41 @@ class ActorNodeViewHolderInterface(actorRef: ActorRef[NodeViewHolder.ReceivableM
   import cats.implicits._
   import system.executionContext
 
-  override def withNodeView[T](f: ReadableNodeView => T): EitherT[Future, WithNodeViewFailure, T] =
+  override def withNodeView[T](f: ReadableNodeView => T): EitherT[Future, ReadFailure, T] =
     EitherT(
       actorRef
         .askWithStatus[T](NodeViewHolder.ReceivableMessages.Read(f, _))
         .map(Right(_))
-        .recover { case e => Left(WithNodeViewFailure(e)) }
+        .recover { case e => Left(ReadFailure(e)) }
     )
 
-  override def broadcastTransaction(tx: Transaction.TX): EitherT[Future, BroadcastTxFailure, Done.type] =
+  override def applyTransactions(tx: Transaction.TX): EitherT[Future, ApplyFailure, Done] =
+    EitherT.pure[Future, ApplyFailure] {
+      actorRef
+        .tell(NodeViewHolder.ReceivableMessages.WriteTransactions(List(tx)))
+      Done
+    }
+
+  override def applyBlocks(blocks: Iterable[Block]): EitherT[Future, ApplyFailure, Done] =
+    EitherT.pure[Future, ApplyFailure] {
+      actorRef
+        .tell(NodeViewHolder.ReceivableMessages.WriteBlocks(blocks))
+      Done
+    }
+
+  override def unapplyTransactions(transactionIds: Iterable[ModifierId]): EitherT[Future, UnapplyFailure, Done] =
+    EitherT.pure[Future, UnapplyFailure] {
+      actorRef
+        .tell(NodeViewHolder.ReceivableMessages.EliminateTransactions(transactionIds))
+      Done
+    }
+
+  override def onReady(): Future[Done] = {
+    import scala.concurrent.duration._
+    implicit val timeout: Timeout = Timeout(10.minutes)
     actorRef
-      .tell(NodeViewHolder.ReceivableMessages.WriteTransactions(List(tx)))
-      .asRight[BroadcastTxFailure]
-      .map(_ => Done)
-      .toEitherT[Future]
+      .askWithStatus[Done](NodeViewHolder.ReceivableMessages.Read(_ => Done, _))
+  }
 }
 
 case object NodeViewChanged

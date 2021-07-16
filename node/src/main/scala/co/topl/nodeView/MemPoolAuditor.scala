@@ -6,12 +6,10 @@ import akka.actor.{
   ActorInitializationException,
   ActorKilledException,
   ActorRef,
-  ActorRefFactory,
   DeathPactException,
   OneForOneStrategy,
   Props
 }
-import akka.dispatch.Dispatchers
 import akka.util.Timeout
 import co.topl.attestation.Address
 import co.topl.modifier.ModifierId
@@ -31,8 +29,8 @@ import co.topl.nodeView.MempoolAuditor.CleanupDone
 import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.state.StateReader
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
-import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.{Logging, TimeProvider}
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -43,11 +41,12 @@ import scala.concurrent.duration._
  * Adapted from ErgoPlatform available at https://github.com/ergoplatform/ergo
  */
 class MempoolAuditor(
-  nodeViewHolderRef:    akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage],
-  networkControllerRef: ActorRef,
-  settings:             AppSettings,
-  appContext:           AppContext
-) extends Actor
+  nodeViewHolderRef:     akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage],
+  networkControllerRef:  ActorRef,
+  settings:              AppSettings,
+  appContext:            AppContext
+)(implicit timeProvider: TimeProvider)
+    extends Actor
     with Logging {
 
   import context.dispatcher
@@ -69,7 +68,7 @@ class MempoolAuditor(
 
   private val worker: ActorRef =
     context.actorOf(
-      Props(new CleanupWorker(nodeViewHolderRef, settings, appContext))
+      Props(new CleanupWorker(nodeViewHolderRef, settings))
     )
 
   override def preStart(): Unit = {
@@ -181,22 +180,11 @@ object MempoolAuditor {
 object MempoolAuditorRef {
 
   def props(
-    settings:             AppSettings,
-    appContext:           AppContext,
-    nodeViewHolderRef:    akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage],
-    networkControllerRef: ActorRef
-  ): Props =
+    settings:              AppSettings,
+    appContext:            AppContext,
+    nodeViewHolderRef:     akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage],
+    networkControllerRef:  ActorRef
+  )(implicit timeProvider: TimeProvider): Props =
     Props(new MempoolAuditor(nodeViewHolderRef, networkControllerRef, settings, appContext))
-
-  def apply(
-    name:                 String,
-    settings:             AppSettings,
-    appContext:           AppContext,
-    nodeViewHolderRef:    akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage],
-    networkControllerRef: ActorRef
-  )(implicit
-    context: ActorRefFactory
-  ): ActorRef =
-    context.actorOf(props(settings, appContext, nodeViewHolderRef, networkControllerRef), name)
 
 }

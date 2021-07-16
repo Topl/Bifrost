@@ -2,7 +2,7 @@ package co.topl.network
 
 import akka.actor.SupervisorStrategy._
 import akka.actor._
-import akka.io.{IO, Tcp}
+import akka.io.Tcp
 import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.{DisconnectedPeer, HandshakedPeer}
@@ -15,7 +15,6 @@ import co.topl.utils.TimeProvider.Time
 import co.topl.utils.{Logging, NetworkUtils, TimeProvider}
 
 import java.net._
-import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
@@ -27,13 +26,15 @@ import scala.util.{Failure, Success, Try}
  * @param tcpManager a reference to the manager actor for the Tcp IO extension
  */
 class NetworkController(
-  settings:       AppSettings,
-  peerManagerRef: ActorRef,
-  appContext:     AppContext,
-  tcpManager:     ActorRef
-)(implicit ec:    ExecutionContext)
+  settings:              AppSettings,
+  peerManagerRef:        ActorRef,
+  appContext:            AppContext,
+  tcpManager:            ActorRef
+)(implicit timeProvider: TimeProvider)
     extends Actor
     with Logging {
+
+  import context.dispatcher
 
   /** Import the types of messages this actor can RECEIVE */
   import NetworkController.ReceivableMessages._
@@ -240,7 +241,7 @@ class NetworkController(
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
 
-  def networkTime(): Time = appContext.timeProvider.time
+  def networkTime(): Time = timeProvider.time
 
   /** Schedule a periodic connection to a random known peer */
   private def scheduleConnectionToPeer(): Unit =
@@ -338,7 +339,8 @@ class NetworkController(
 
     val connectionDescription = ConnectionDescription(connection, connectionId, selfAddressOpt, peerFeatures)
 
-    val handler: ActorRef = PeerConnectionHandlerRef(self, settings, appContext, connectionDescription)
+    val handler: ActorRef =
+      context.actorOf(PeerConnectionHandlerRef.props(self, settings, appContext, connectionDescription))
 
     context.watch(handler)
 
@@ -604,18 +606,10 @@ object NetworkController {
 object NetworkControllerRef {
 
   def props(
-    settings:       AppSettings,
-    peerManagerRef: ActorRef,
-    appContext:     AppContext,
-    tcpManager:     ActorRef
-  )(implicit ec:    ExecutionContext): Props =
+    settings:              AppSettings,
+    peerManagerRef:        ActorRef,
+    appContext:            AppContext,
+    tcpManager:            ActorRef
+  )(implicit timeProvider: TimeProvider): Props =
     Props(new NetworkController(settings, peerManagerRef, appContext, tcpManager))
-
-  def apply(
-    name:            String,
-    settings:        AppSettings,
-    peerManagerRef:  ActorRef,
-    appContext:      AppContext
-  )(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(settings, peerManagerRef, appContext, IO(Tcp)), name)
 }

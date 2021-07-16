@@ -1,6 +1,6 @@
 package co.topl.rpc.handlers
 
-import akka.actor.ActorSystem
+import akka.actor.typed.ActorSystem
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
 import co.topl.attestation.{Address, Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
@@ -8,7 +8,7 @@ import co.topl.modifier.box.{ProgramId, SimpleValue}
 import co.topl.modifier.transaction.validation.implicits._
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.{BroadcastTxFailure, NodeViewHolderInterface, ReadableNodeView, WithNodeViewFailure}
+import co.topl.nodeView.{ApplyFailure, NodeViewHolderInterface, ReadFailure, ReadableNodeView}
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.implicits._
@@ -21,12 +21,12 @@ import scala.util.Try
 class TransactionRpcHandlerImpls(
   nodeViewHolderInterface: NodeViewHolderInterface
 )(implicit
-  system:           ActorSystem,
+  system:           ActorSystem[_],
   throwableEncoder: Encoder[ThrowableData],
   networkPrefix:    NetworkPrefix
 ) extends ToplRpcHandlers.Transaction {
 
-  import system.dispatcher
+  import system.executionContext
 
   override val rawAssetTransfer: ToplRpc.Transaction.RawAssetTransfer.rpc.ServerHandler =
     params =>
@@ -152,14 +152,14 @@ class TransactionRpcHandlerImpls(
   }.collect { case p: PolyTransfer[Proposition @unchecked] => p }
 
   private def processTransaction(tx: Transaction.TX) =
-    nodeViewHolderInterface.broadcastTransaction(tx).leftMap { case BroadcastTxFailure(throwable) =>
+    nodeViewHolderInterface.applyTransactions(tx).leftMap { case ApplyFailure(throwable) =>
       CustomError.fromThrowable(throwable): RpcError
     }
 
   private def withNodeView[T](f: ReadableNodeView => T) =
     nodeViewHolderInterface
       .withNodeView(f)
-      .leftMap { case WithNodeViewFailure(throwable) =>
+      .leftMap { case ReadFailure(throwable) =>
         CustomError.fromThrowable(throwable): RpcError
       }
 }

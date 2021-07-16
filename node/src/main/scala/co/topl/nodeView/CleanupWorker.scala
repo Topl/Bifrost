@@ -9,9 +9,9 @@ import co.topl.nodeView.CleanupWorker.RunCleanup
 import co.topl.nodeView.MempoolAuditor.CleanupDone
 import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.state.StateReader
-import co.topl.settings.{AppContext, AppSettings}
-import co.topl.utils.Logging
+import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.{Logging, TimeProvider}
 
 import scala.collection.immutable.TreeSet
 
@@ -21,10 +21,10 @@ import scala.collection.immutable.TreeSet
  */
 class CleanupWorker(
   nodeViewHolderRef: akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage],
-  settings:          AppSettings,
-  appContext:        AppContext
+  settings:          AppSettings
 )(implicit
-  networkPrefix: NetworkPrefix
+  networkPrefix: NetworkPrefix,
+  timeProvider:  TimeProvider
 ) extends Actor
     with Logging {
 
@@ -75,7 +75,7 @@ class CleanupWorker(
           // if any newly created box matches a box already in the UTXO set, remove the transaction
           val boxAlreadyExists = utx.tx.newBoxes.exists(b => stateReader.getBox(b.id).isDefined)
           val txTimeout =
-            (appContext.timeProvider.time - utx.dateAdded) > settings.application.mempoolTimeout.toMillis
+            (timeProvider.time - utx.dateAdded) > settings.application.mempoolTimeout.toMillis
 
           if (boxAlreadyExists | txTimeout) (validAcc, utx.tx.id +: invalidAcc)
           else (utx.tx.id +: validAcc, invalidAcc)

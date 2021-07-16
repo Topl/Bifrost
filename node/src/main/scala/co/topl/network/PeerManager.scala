@@ -1,11 +1,10 @@
 package co.topl.network
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import akka.dispatch.Dispatchers
+import akka.actor.{Actor, ActorRef, Props}
 import co.topl.network.NetworkController.ReceivableMessages._
 import co.topl.network.peer.{InMemoryPeerDatabase, PeerInfo, PeerSpec, PenaltyType}
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
-import co.topl.utils.{Logging, NetworkUtils}
+import co.topl.utils.{Logging, NetworkUtils, TimeProvider}
 
 import java.net.{InetAddress, InetSocketAddress}
 import scala.util.Random
@@ -14,12 +13,14 @@ import scala.util.Random
  * Peer manager takes care of peers connected and in process, and also chooses a random peer to connect
  * Must be singleton
  */
-class PeerManager(settings: AppSettings, appContext: AppContext) extends Actor with Logging {
+class PeerManager(settings: AppSettings, appContext: AppContext)(implicit timeProvider: TimeProvider)
+    extends Actor
+    with Logging {
 
   /** Import the types of messages this actor can RECEIVE */
   import PeerManager.ReceivableMessages._
 
-  private val peerDatabase = new InMemoryPeerDatabase(settings.network, appContext.timeProvider)
+  private val peerDatabase = new InMemoryPeerDatabase(settings.network, timeProvider)
 
   override def preStart(): Unit =
     /** register for application initialization message */
@@ -200,15 +201,8 @@ object PeerManager {
 object PeerManagerRef {
 
   def props(
-    settings:   AppSettings,
-    appContext: AppContext
-  ): Props =
+    settings:              AppSettings,
+    appContext:            AppContext
+  )(implicit timeProvider: TimeProvider): Props =
     Props(new PeerManager(settings, appContext))
-
-  def apply(
-    name:            String,
-    settings:        AppSettings,
-    appContext:      AppContext
-  )(implicit system: ActorSystem): ActorRef =
-    system.actorOf(props(settings, appContext), name)
 }
