@@ -1,10 +1,10 @@
 package co.topl.wallet
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.dispatch.Dispatchers
 import akka.pattern.pipe
 import akka.util.Timeout
 import cats.data.Validated.Valid
-import cats.implicits._
 import co.topl.attestation.Address
 import co.topl.attestation.AddressCodec.implicits.Base58DataOps
 import co.topl.modifier.block.BloomFilter.BloomTopic
@@ -15,13 +15,13 @@ import co.topl.settings.{AppContext, AppSettings, RPCApiSettings}
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.StringDataTypes.{Base58Data, DataEncodingValidationResult}
+import co.topl.utils.StringDataTypes.Base58Data
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 /**
@@ -31,13 +31,13 @@ import scala.util.{Failure, Success}
  */
 class WalletConnectionHandler[
   PMOD <: PersistentNodeViewModifier
-](settings:      RPCApiSettings, appContext: AppContext, nodeViewHolderRef: ActorRef)(implicit
-  ec:            ExecutionContext,
+](settings:      RPCApiSettings, appContext: AppContext)(implicit
   networkPrefix: NetworkPrefix
 ) extends Actor
     with Logging {
 
   import WalletConnectionHandler._
+  import context.dispatcher
 
   implicit val timeout: Timeout = 10.seconds
   implicit val actorSystem: ActorSystem = context.system
@@ -236,21 +236,18 @@ object WalletConnectionHandlerRef {
 
   def props[
     PMOD <: PersistentNodeViewModifier
-  ](settings: AppSettings, appContext: AppContext, nodeViewHolderRef: ActorRef)(implicit
-    ec:       ExecutionContext
-  ): Props =
+  ](settings: AppSettings, appContext: AppContext): Props =
     Props(
-      new WalletConnectionHandler[PMOD](settings.rpcApi, appContext, nodeViewHolderRef)(
-        ec,
+      new WalletConnectionHandler[PMOD](settings.rpcApi, appContext)(
         appContext.networkType.netPrefix
       )
     )
+      .withDispatcher(Dispatchers.DefaultBlockingDispatcherId)
 
   def apply[
     PMOD <: PersistentNodeViewModifier
-  ](name:   String, settings: AppSettings, appContext: AppContext, nodeViewHolderRef: ActorRef)(implicit
-    system: ActorSystem,
-    ec:     ExecutionContext
+  ](name:   String, settings: AppSettings, appContext: AppContext)(implicit
+    system: ActorSystem
   ): ActorRef =
-    system.actorOf(props[PMOD](settings, appContext, nodeViewHolderRef), name)
+    system.actorOf(props[PMOD](settings, appContext), name)
 }

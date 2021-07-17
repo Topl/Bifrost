@@ -1,18 +1,19 @@
 package co.topl.rpc.handlers
 
+import akka.actor.ActorSystem
+import akka.dispatch.Dispatchers
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
 import co.topl.attestation.{Address, Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
 import co.topl.modifier.box.SimpleValue
-import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
 import co.topl.modifier.transaction.validation.implicits._
+import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.state.State
 import co.topl.nodeView.{BroadcastTxFailureException, GetStateFailureException, NodeViewHolderInterface}
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
-import co.topl.utils.codecs.implicits._
-import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.encode.Base58
+import co.topl.utils.StringDataTypes.implicits._
+import co.topl.utils.codecs.implicits._
 import io.circe.Encoder
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -21,10 +22,13 @@ import scala.util.Try
 class TransactionRpcHandlerImpls(
   nodeViewHolderInterface: NodeViewHolderInterface
 )(implicit
-  ec:               ExecutionContext,
+  system:           ActorSystem,
   throwableEncoder: Encoder[ThrowableData],
   networkPrefix:    NetworkPrefix
 ) extends ToplRpcHandlers.Transaction {
+
+  implicit private val ec: ExecutionContext =
+    system.dispatchers.lookup(Dispatchers.DefaultBlockingDispatcherId)
 
   override val rawAssetTransfer: ToplRpc.Transaction.RawAssetTransfer.rpc.ServerHandler =
     params =>

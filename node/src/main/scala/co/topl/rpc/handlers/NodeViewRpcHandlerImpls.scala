@@ -1,5 +1,7 @@
 package co.topl.rpc.handlers
 
+import akka.actor.ActorSystem
+import akka.dispatch.Dispatchers
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, InvalidParametersError, RpcError, ThrowableData}
@@ -25,10 +27,13 @@ class NodeViewRpcHandlerImpls(
   appContext:              AppContext,
   nodeViewHolderInterface: NodeViewHolderInterface
 )(implicit
-  ec:               ExecutionContext,
+  system:           ActorSystem,
   throwableEncoder: Encoder[ThrowableData],
   networkPrefix:    NetworkPrefix
 ) extends ToplRpcHandlers.NodeView {
+
+  implicit private val ec: ExecutionContext =
+    system.dispatchers.lookup(Dispatchers.DefaultBlockingDispatcherId)
 
   override val head: ToplRpc.NodeView.Head.rpc.ServerHandler =
     _ =>

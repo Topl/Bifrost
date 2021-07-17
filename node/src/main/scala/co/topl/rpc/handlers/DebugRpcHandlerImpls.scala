@@ -1,5 +1,7 @@
 package co.topl.rpc.handlers
 
+import akka.actor.ActorSystem
+import akka.dispatch.Dispatchers
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
 import co.topl.consensus.{KeyManagerInterface, ListOpenKeyfilesFailureException}
@@ -16,10 +18,13 @@ class DebugRpcHandlerImpls(
   nodeViewHolderInterface: NodeViewHolderInterface,
   keyManagerInterface:     KeyManagerInterface
 )(implicit
-  ec:               ExecutionContext,
+  system:           ActorSystem,
   throwableEncoder: Encoder[ThrowableData],
   networkPrefix:    NetworkPrefix
 ) extends ToplRpcHandlers.Debug {
+
+  implicit private val ec: ExecutionContext =
+    system.dispatchers.lookup(Dispatchers.DefaultBlockingDispatcherId)
 
   override val delay: ToplRpc.Debug.Delay.rpc.ServerHandler =
     params =>

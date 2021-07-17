@@ -2,10 +2,10 @@ package co.topl.consensus
 
 import akka.Done
 import akka.actor._
-import cats.data.EitherT
+import akka.dispatch.Dispatchers
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
-import cats.data.Validated
+import cats.data.{EitherT, Validated}
 import cats.implicits._
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.Forger.{AttemptForgingFailure, ChainParams, PickTransactionsResult}
@@ -15,10 +15,9 @@ import co.topl.consensus.genesis.{HelGenesis, PrivateGenesis, ToplnetGenesis, Va
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, ProgramId}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{EliminateTransactions, LocallyGeneratedModifier}
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.{ChangedHistory, ChangedMempool, ChangedState}
 import co.topl.network.message.BifrostSyncInfo
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages._
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{EliminateTransactions, LocallyGeneratedModifier, _}
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.state.StateReader
@@ -26,9 +25,9 @@ import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.NetworkType._
 import co.topl.utils.{Int128, Logging, TimeProvider}
 
-import scala.language.implicitConversions
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
+import scala.language.implicitConversions
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
 
@@ -40,9 +39,11 @@ class Forger[
   HR <: HistoryReader[Block, BifrostSyncInfo]: ClassTag,
   SR <: StateReader[ProgramId, Address]: ClassTag,
   MR <: MemPoolReader[Transaction.TX]: ClassTag
-](settings: AppSettings, appContext: AppContext, keyManager: ActorRef)(implicit ec: ExecutionContext, np: NetworkPrefix)
+](settings: AppSettings, appContext: AppContext, keyManager: ActorRef)(implicit np: NetworkPrefix)
     extends Actor
     with Logging {
+
+  import context.dispatcher
 
   type TX = Transaction.TX
 
@@ -475,18 +476,17 @@ object ForgerRef {
     SR <: StateReader[ProgramId, Address]: ClassTag,
     MR <: MemPoolReader[Transaction.TX]: ClassTag
   ](settings: AppSettings, appContext: AppContext, keyManager: ActorRef)(implicit
-    ec:       ExecutionContext,
     np:       NetworkPrefix
   ): Props =
     Props(new Forger[HR, SR, MR](settings, appContext, keyManager))
+      .withDispatcher(Dispatchers.DefaultBlockingDispatcherId)
 
   def apply[
     HR <: HistoryReader[Block, BifrostSyncInfo]: ClassTag,
     SR <: StateReader[ProgramId, Address]: ClassTag,
     MR <: MemPoolReader[Transaction.TX]: ClassTag
   ](name:   String, settings: AppSettings, appContext: AppContext, keyManager: ActorRef)(implicit
-    system: ActorSystem,
-    ec:     ExecutionContext
+    system: ActorSystem
   ): ActorRef = {
     implicit val np: NetworkPrefix = appContext.networkType.netPrefix
     system.actorOf(props[HR, SR, MR](settings, appContext, keyManager), name)

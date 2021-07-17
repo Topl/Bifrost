@@ -7,7 +7,6 @@ import co.topl.network.{peer, NodeViewSynchronizer, PeerSynchronizer}
 import co.topl.utils.NetworkType
 
 import java.net.InetSocketAddress
-import scala.concurrent.ExecutionContext
 
 /**
  * Info that Bifrost needs based on the settings and user options
@@ -20,7 +19,7 @@ class AppContext(
   val settings:    AppSettings,
   startupOpts:     StartupOpts,
   val upnpGateway: Option[UPnPGateway]
-)(implicit system: ActorSystem, ec: ExecutionContext) {
+)(implicit system: ActorSystem) {
 
   /** Save your address for sending to others peers */
   val externalNodeAddress: Option[InetSocketAddress] =
