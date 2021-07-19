@@ -1,14 +1,17 @@
 package co.topl.consensus
 
 import co.topl.utils.CommonGenerators
+import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.hash.implicits._
+import co.topl.utils.codecs.AsBytes.implicits._
+import co.topl.utils.codecs.CryptoCodec.implicits._
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, Store}
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import org.scalamock.scalatest.MockFactory
-import scorex.crypto.hash.Blake2b256
 
 class ConsensusStorageSpec
     extends AnyFlatSpec
@@ -32,7 +35,11 @@ class ConsensusStorageSpec
         .get(_: ByteArrayWrapper))
         .expects(*)
         .onCall { key: ByteArrayWrapper =>
-          if (key == ByteArrayWrapper(Blake2b256("totalStake".getBytes)))
+          if (
+            key == ByteArrayWrapper(
+              blake2b256.hash("totalStake".getBytes).infalliblyEncodeAsBytes
+            )
+          )
             Some(ByteArrayWrapper(storageTotalStake.toByteArray))
           else Some(ByteArrayWrapper(Longs.toByteArray(0)))
         }

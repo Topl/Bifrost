@@ -1,8 +1,8 @@
 package co.topl.utils.serialization
 
-import java.nio.ByteOrder
-
 import akka.util.ByteString
+
+import java.nio.ByteOrder
 
 class VLQByteStringReader(byteString: ByteString) extends VLQReader {
 

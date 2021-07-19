@@ -3,11 +3,14 @@ package co.topl.attestation
 import cats.implicits._
 import co.topl.attestation.AddressCodec.implicits._
 import co.topl.attestation.EvidenceProducer.Syntax._
+import co.topl.utils.codecs.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
-import io.circe._
 import io.circe.syntax.EncoderOps
+import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 
 /**
  * An address is a network specific commitment to a proposition encumbering a box. Addresses incorporate the evidence type
@@ -23,7 +26,7 @@ case class Address(evidence: Evidence)(implicit val networkPrefix: NetworkPrefix
 
   type M = Address
 
-  override def toString: String = this.base58Encoded
+  override def toString: String = (this.bytes ++ this.bytes.checksum).encodeAsBase58.show
 
   override def serializer: BifrostSerializer[Address] = AddressSerializer
 
@@ -43,10 +46,10 @@ object Address {
   implicit val jsonKeyEncoder: KeyEncoder[Address] = (addr: Address) => addr.toString
 
   implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[Address] =
-    _.as[String].flatMap(_.decodeAddress.toEither.leftMap(errors => DecodingFailure(errors.head.toString, Nil)))
+    Decoder[Base58Data].emap(x => x.decodeAddress.toEither.leftMap(_.toString))
 
   implicit def jsonKeyDecoder(implicit networkPrefix: NetworkPrefix): KeyDecoder[Address] =
-    _.decodeAddress.toOption
+    json => Base58Data.validated(json).toOption.flatMap(_.decodeAddress.toOption)
 
   /**
    * Generates an Address from a proppsition. This method enables propositions to have an accessor method

@@ -3,20 +3,22 @@ package keymanager
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.util.Timeout
 import attestation.{Address, PrivateKeyCurve25519}
+import cats.data.Validated.{Invalid, Valid}
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.encode.Base58
 import crypto.KeyfileCurve25519
+import http.GjallarhornOfflineApiRoute.updateConfigFile
 import io.circe.Json
 import io.circe.syntax._
-import scorex.util.encode.Base58
 import settings.{ApplicationSettings, NetworkType}
-import http.GjallarhornOfflineApiRoute.updateConfigFile
 import utils.Logging
 import wallet.WalletManager
 import wallet.WalletManager.NewKey
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
+import scala.util.{Failure, Success, Try}
 
 /**
  * Manages the keys and handles requests related to the keys.
@@ -96,8 +98,8 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
    */
   private def createSignatures(keys: IndexedSeq[Address], msg: String): Map[PrivateKeyCurve25519#PK, Json] =
     keys.map { address =>
-      Base58.decode(msg) match {
-        case Success(msgToSign) =>
+      Base58Data.validated(msg).map(_.value) match {
+        case Valid(msgToSign) =>
           keyRing.signWithAddress(address, msgToSign) match {
             case Success(signedTx) =>
               val sig = signedTx.asJson
@@ -107,7 +109,7 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
               }
             case Failure(exception) => throw exception
           }
-        case Failure(exception) => throw exception
+        case Invalid(_) => throw new Error(s"Message is not Base-58!")
       }
     }.toMap
 

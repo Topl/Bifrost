@@ -1,15 +1,19 @@
 package co.topl.modifier.block
 
+import cats.implicits.toShow
+import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.block.BloomFilter.BloomTopic
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
+import co.topl.utils.codecs.{AsBytes, FromBytes, Infallible}
+import co.topl.utils.codecs.implicits._
 import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import scorex.crypto.hash.Blake2b256
-import scorex.util.encode.Base58
-import supertagged.TaggedType
+import io.circe.{Decoder, Encoder, KeyEncoder}
+import io.estatico.newtype.macros.newtype
 
-import scala.util.Try
+import scala.language.implicitConversions
 
 /**
  * This implementation of Bloom filter is inspired from the Ethereum Yellow Paper
@@ -45,7 +49,7 @@ class BloomFilter private (private val value: Array[Long]) extends BytesSerializ
   }
 
   /** JAA - DO NOT USE THE `.bytes` or `toBytes` methods from the BifrostSerailizer, this must be fixed length */
-  override def toString: String = Base58.encode(value.flatMap(Longs.toByteArray))
+  override def toString: String = Base58.encode(value.flatMap(Longs.toByteArray)).show
 
   override def equals(obj: Any): Boolean = obj match {
     case b: BloomFilter => b.value sameElements value
@@ -57,8 +61,8 @@ class BloomFilter private (private val value: Array[Long]) extends BytesSerializ
 
 object BloomFilter extends BifrostSerializer[BloomFilter] {
 
-  object BloomTopic extends TaggedType[Array[Byte]]
-  type BloomTopic = BloomTopic.Type
+  @newtype
+  case class BloomTopic(value: Array[Byte])
 
   val numBytes: Int = 256 //bytes (2048 bits)
   private val size: Int = numBytes * 8
@@ -132,9 +136,11 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
    */
   private def calculateIndices(topic: BloomTopic): Set[Int] =
     // Pair up bytes and convert signed Byte to unsigned Int
-    Set(0, 2, 4, 6).map(i => Blake2b256(topic).slice(i, i + 2).map(_ & 0xff)).map { case Array(b1, b2) =>
-      ((b1 << 8) | b2) & idxMask
-    }
+    Set(0, 2, 4, 6)
+      .map(i => blake2b256.hash(topic.value).value.slice(i, i + 2).map(_ & 0xff))
+      .map { case Array(b1, b2) =>
+        ((b1 << 8) | b2) & idxMask
+      }
 
   /**
    * From the set of indices, create a long (with the appropriate bits flipped) that will be inserted in the
@@ -163,16 +169,15 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
 
   /** Recreate a bloom filter from a string encoding */
   /** JAA - DO NOT USE THE `parseBytes` method from BifrostSerializer, this must be fixed length */
-  private def fromString(str: String): Try[BloomFilter] =
-    Base58
-      .decode(str)
-      .map(_.grouped(Longs.BYTES).map(Longs.fromByteArray).toArray) //Array[Byte] -> Array[Long]
-      .map(new BloomFilter(_))
+  private def fromBase58(data: Base58Data): BloomFilter =
+    new BloomFilter(data.value.grouped(Longs.BYTES).map(Longs.fromByteArray).toArray)
 
   implicit val jsonEncoder: Encoder[BloomFilter] = (bf: BloomFilter) => bf.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[BloomFilter] = (bf: BloomFilter) => bf.toString
-  implicit val jsonDecoder: Decoder[BloomFilter] = Decoder.decodeString.emapTry(fromString)
-  implicit val jsonKeyDecoder: KeyDecoder[BloomFilter] = (str: String) => fromString(str).toOption
+
+  implicit val jsonDecoder: Decoder[BloomFilter] = Decoder[Base58Data].map(fromBase58)
+
+  implicit val bloomTopicAsBytes: AsBytes[Infallible, BloomTopic] = AsBytes.infallible(_.value)
 
   override def serialize(obj: BloomFilter, w: Writer): Unit =
     obj.value.foreach(l => w.putLong(l))
@@ -181,4 +186,11 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
     val value: Array[Long] = (for (_ <- 0 until numLongs) yield r.getLong()).toArray
     new BloomFilter(value)
   }
+
+  trait Instances {
+    implicit val bloomTopicDecoder: AsBytes[Infallible, BloomTopic] = AsBytes.infallible(_.value)
+    implicit val bloomTopicEncoder: FromBytes[Infallible, BloomTopic] = FromBytes.infallible(BloomTopic(_))
+  }
+
+  object implicits extends Instances
 }

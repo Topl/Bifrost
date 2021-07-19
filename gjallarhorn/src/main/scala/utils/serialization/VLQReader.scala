@@ -2,6 +2,7 @@ package utils.serialization
 
 import utils.Extensions._
 import utils.ZigZagEncoder._
+
 import java.util
 
 trait VLQReader extends Reader {
