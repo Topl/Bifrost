@@ -1,5 +1,7 @@
 package modifier
 
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.codecs.implicits._
 import crypto.{AssetCode, SecurityRoot}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
@@ -116,12 +118,12 @@ object AssetValue extends GjalSerializer[AssetValue] {
     for {
       quantity     <- c.downField("quantity").as[Long]
       assetCode    <- c.downField("assetCode").as[AssetCode]
-      securityRoot <- c.downField("securityRoot").as[Option[String]]
+      securityRoot <- c.downField("securityRoot").as[Option[Base58Data]]
       metadata     <- c.downField("metadata").as[Option[String]]
     } yield {
       val sr = securityRoot match {
-        case Some(str) => SecurityRoot(str)
-        case None      => SecurityRoot.empty
+        case Some(data) => SecurityRoot.fromBase58(data)
+        case None       => SecurityRoot.empty
       }
 
       modifier.AssetValue(quantity, assetCode, sr, metadata)

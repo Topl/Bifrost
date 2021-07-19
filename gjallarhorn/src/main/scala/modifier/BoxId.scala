@@ -1,13 +1,15 @@
 package modifier
 
+import cats.implicits._
+import attestation.Evidence
+import co.topl.utils.codecs.implicits._
+import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.hash.digest.Digest32
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.StringDataTypes.implicits._
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import scorex.crypto.hash.Blake2b256
-import scorex.util.encode.Base58
-import attestation.Evidence
-
-import scala.util.{Failure, Success}
 
 /**
  * The ID for a [[Box]]. It is a 32 byte identifier
@@ -22,27 +24,24 @@ case class BoxId(hashBytes: Array[Byte]) {
     case _          => false
   }
 
-  override def toString: String = Base58.encode(hashBytes)
+  override def toString: String = hashBytes.encodeAsBase58.show
 }
 
 object BoxId {
-  val size: Int = Blake2b256.DigestSize // boxId is a 32 byte identifier
+
+  val size: Int = Digest32.size // boxId is a 32 byte identifier
 
   def apply[T](box: Box): BoxId = idFromEviNonce(box.evidence, box.nonce)
 
-  def apply(id: String): BoxId =
-    Base58.decode(id) match {
-      case Success(id) =>
-        require(id.length == BoxId.size, s"Invalid size for BoxId")
-        new BoxId(id)
+  def apply(id: String): BoxId = {
+    val idBytes = Base58Data.unsafe(id).value
 
-      case Failure(ex) => throw ex
-    }
-
-  def idFromEviNonce(evidence: Evidence, nonce: Long): BoxId = {
-    val hashBytes = Blake2b256(evidence.bytes ++ Longs.toByteArray(nonce))
-    BoxId(hashBytes)
+    require(idBytes.length == BoxId.size, s"Invalid size for BoxId")
+    new BoxId(idBytes)
   }
+
+  def idFromEviNonce(evidence: Evidence, nonce: Long): BoxId =
+    BoxId(blake2b256.hash(evidence.bytes ++ Longs.toByteArray(nonce)).value)
 
   implicit val jsonEncoder: Encoder[BoxId] = (id: BoxId) => id.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[BoxId] = (id: BoxId) => id.toString

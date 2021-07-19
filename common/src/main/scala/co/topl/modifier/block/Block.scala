@@ -11,7 +11,7 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
-import supertagged.@@
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 
 import scala.util.Try
 
@@ -44,7 +44,7 @@ case class Block(
 
   lazy val modifierTypeId: ModifierTypeId = Block.modifierTypeId
 
-  lazy val id: ModifierId = ModifierId(this)
+  lazy val id: ModifierId = ModifierId.create(this).getOrThrow()
 
   lazy val messageToSign: Array[Byte] = this.copy(signature = SignatureCurve25519.empty).bytes
 
@@ -55,7 +55,7 @@ case class Block(
 
 object Block {
 
-  val modifierTypeId: Byte @@ NodeViewModifier.ModifierTypeId.Tag = ModifierTypeId @@ (3: Byte)
+  val modifierTypeId: NodeViewModifier.ModifierTypeId = ModifierTypeId(3: Byte)
 
   /**
    * Deconstruct a block to its compoennts
