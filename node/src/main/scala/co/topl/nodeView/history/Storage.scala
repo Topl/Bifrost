@@ -172,7 +172,9 @@ class Storage(private[history] val storage: LDBVersionedStore, private val cache
     val blockTimestamp = Seq(blockTimestampKey(b.id).bytes -> Longs.toByteArray(b.timestamp))
 
     // reference Bifrost #519 & #527 for discussion on this division of the score
-    val blockScore = Seq(blockScoreKey(b.id).bytes -> Longs.toByteArray(scoreAt(b.parentId) + b.difficulty / 10000000000L))
+    val blockScore = Seq(
+      blockScoreKey(b.id).bytes -> Longs.toByteArray(scoreAt(b.parentId) + b.difficulty / 10000000000L)
+    )
 
     val parentBlock =
       if (b.parentId == History.GenesisParentId) Seq()
