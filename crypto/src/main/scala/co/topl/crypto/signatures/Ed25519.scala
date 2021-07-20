@@ -41,8 +41,8 @@ class Ed25519 extends ECEd25519 with EllipticCurveSignatureScheme {
 
   override def verify(signature: Signature, message: MessageToSign, publicKey: PublicKey): Boolean =
     signature.value.length == SIGNATURE_SIZE &&
-      publicKey.value.length == PUBLIC_KEY_SIZE &&
-      verify(signature.value, 0, publicKey.value, 0, message, 0, message.length)
+    publicKey.value.length == PUBLIC_KEY_SIZE &&
+    verify(signature.value, 0, publicKey.value, 0, message, 0, message.length)
 }
 
 object Ed25519 {

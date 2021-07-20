@@ -51,7 +51,7 @@ object Curve25519 extends EllipticCurveSignatureScheme {
 
   override def verify(signature: Signature, message: MessageToSign, publicKey: PublicKey): Boolean =
     signature.value.length == SignatureLength &&
-      publicKey.value.length == KeyLength &&
-      provider.verifySignature(publicKey.value, message, signature.value)
+    publicKey.value.length == KeyLength &&
+    provider.verifySignature(publicKey.value, message, signature.value)
 
 }
