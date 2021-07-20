@@ -1,7 +1,7 @@
 package co.topl
 
-import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.scaladsl.adapter._
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior, DispatcherSelector}
 import akka.actor.{ActorRef => CActorRef}
 import akka.http.scaladsl.Http
@@ -14,7 +14,7 @@ import co.topl.consensus._
 import co.topl.http.HttpService
 import co.topl.network._
 import co.topl.network.utils.NetworkTimeProvider
-import co.topl.nodeView.{ActorNodeViewHolderInterface, MempoolAuditor, MempoolAuditorRef, NodeView, NodeViewHolder}
+import co.topl.nodeView._
 import co.topl.rpc.ToplRpcServer
 import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.NetworkType.NetworkPrefix
@@ -25,6 +25,10 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
+/**
+ * Heimdall is the guardian of Bifrost.  More specifically, it is the "guardian actor"
+ * for the Bifrost application's ActorSystem.
+ */
 object Heimdall {
 
   sealed abstract class ReceivableMessage
@@ -35,6 +39,9 @@ object Heimdall {
   private case class RPCTrafficBound(httpService: HttpService, binding: Http.ServerBinding) extends ReceivableMessage
   case class Fail(throwable: Throwable) extends ReceivableMessage
 
+  /**
+   * A guardian behavior which creates all of the child actors needed to run Bifrost.
+   */
   def apply(settings: AppSettings, appContext: AppContext): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
       val state = prepareActors(settings, appContext)
@@ -44,6 +51,9 @@ object Heimdall {
       withActors(settings, appContext, state)
     }
 
+  /**
+   * The Heimdall state in which the child actors have been created but more initialization is needed.
+   */
   private def withActors(
     settings:   AppSettings,
     appContext: AppContext,
@@ -84,21 +94,21 @@ object Heimdall {
       case (context, RPCTrafficBound(service, binding)) =>
         context.log.info(s"${Console.YELLOW}HTTP server bound to ${binding.localAddress}${Console.RESET}")
 
-        if (settings.forging.forgeOnStartup) {
-          context.log.info(s"${Console.YELLOW}Sending local forge signal${Console.RESET}")
-          state.forger.tell(Forger.ReceivableMessages.StartForging(context.system.ignoreRef))
-        }
-
         running(State(state, service))
 
       case (_, Fail(reason)) =>
         throw reason
     }
 
+  /**
+   * The Heimdall state in which all of the child actors have been created, network traffic is bound, and
+   * the application is in an operational state.
+   */
   private def running(state: State): Behavior[ReceivableMessage] =
-    Behaviors.receivePartial { case (context, Fail(throwable)) =>
-      throw throwable
-    }
+    Behaviors
+      .receivePartial[ReceivableMessage] { case (_, Fail(throwable)) =>
+        throw throwable
+      }
 
   private case class ChildActorState(
     peerManager:          CActorRef,
@@ -207,7 +217,7 @@ object Heimdall {
               .flatMap(Future.fromTry),
           new ActorNodeViewHolderInterface(nodeViewHolderRef)
         ),
-        Forger.actorName
+        Forger.ActorName
       )
     }
 

@@ -8,7 +8,7 @@ import co.topl.modifier.box.{ProgramId, SimpleValue}
 import co.topl.modifier.transaction.validation.implicits._
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.{ApplyFailure, NodeViewHolderInterface, ReadFailure, ReadableNodeView}
+import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView}
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.implicits._
@@ -152,14 +152,14 @@ class TransactionRpcHandlerImpls(
   }.collect { case p: PolyTransfer[Proposition @unchecked] => p }
 
   private def processTransaction(tx: Transaction.TX) =
-    nodeViewHolderInterface.applyTransactions(tx).leftMap { case ApplyFailure(throwable) =>
+    nodeViewHolderInterface.applyTransactions(tx).leftMap { case NodeViewHolderInterface.ApplyFailure(throwable) =>
       CustomError.fromThrowable(throwable): RpcError
     }
 
   private def withNodeView[T](f: ReadableNodeView => T) =
     nodeViewHolderInterface
       .withNodeView(f)
-      .leftMap { case ReadFailure(throwable) =>
+      .leftMap { case NodeViewHolderInterface.ReadFailure(throwable) =>
         CustomError.fromThrowable(throwable): RpcError
       }
 }

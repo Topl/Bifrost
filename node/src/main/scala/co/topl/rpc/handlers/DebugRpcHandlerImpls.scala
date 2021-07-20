@@ -5,7 +5,7 @@ import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
 import co.topl.consensus.{KeyManagerInterface, ListOpenKeyfilesFailureException}
 import co.topl.nodeView.history.HistoryDebug
-import co.topl.nodeView.{NodeViewHolderInterface, ReadFailure, ReadableNodeView}
+import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView}
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Encoder
@@ -64,7 +64,7 @@ class DebugRpcHandlerImpls(
   private def withNodeView[T](f: ReadableNodeView => T) =
     nodeViewHolderInterface
       .withNodeView(f)
-      .leftMap { case ReadFailure(throwable) =>
+      .leftMap { case NodeViewHolderInterface.ReadFailure(throwable) =>
         CustomError.fromThrowable(throwable): RpcError
       }
 }

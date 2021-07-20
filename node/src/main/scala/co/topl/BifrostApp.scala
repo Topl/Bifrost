@@ -16,6 +16,7 @@ import kamon.Kamon
 import mainargs.ParserForClass
 
 import java.lang.management.ManagementFactory
+import scala.concurrent.Await
 
 class BifrostApp(startupOpts: StartupOpts) extends NodeLogging {
 
@@ -78,8 +79,11 @@ class BifrostApp(startupOpts: StartupOpts) extends NodeLogging {
   implicit val actorSystem: ActorSystem[Heimdall.ReceivableMessage] =
     ActorSystem(Heimdall(settings, appContext), settings.network.agentName, config)
 
-  /** hook for initiating the shutdown procedure */
-  sys.addShutdownHook(actorSystem.terminate())
+  sys.addShutdownHook {
+    actorSystem.terminate()
+    import scala.concurrent.duration._
+    Await.result(actorSystem.whenTerminated, 1.minute)
+  }
 }
 
 /** This is the primary application object and is the entry point for Bifrost to begin execution */

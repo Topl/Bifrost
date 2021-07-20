@@ -11,6 +11,7 @@ import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.validation._
 import co.topl.modifier.transaction.validation.implicits._
 import co.topl.nodeView.state.MinimalState.VersionTag
+import co.topl.nodeView.{KeyValueStore, LSMKeyValueStore}
 import co.topl.settings.AppSettings
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.Logging
@@ -34,7 +35,7 @@ import scala.util.{Failure, Success, Try}
  */
 case class State(
   override val version:      VersionTag,
-  protected val storage:     LSMStore,
+  protected val storage:     KeyValueStore,
   private[state] val tbrOpt: Option[TokenBoxRegistry] = None,
   private[state] val pbrOpt: Option[ProgramBoxRegistry] = None,
   nodeKeys:                  Option[Set[Address]] = None
@@ -136,7 +137,7 @@ case class State(
       None
     }
 
-    if (storage.lastVersionID.exists(_.data sameElements version.bytes)) {
+    if (storage.latestVersion().exists(_.data sameElements version.bytes)) {
       this
     } else {
       log.debug(s"Rollback State to $version from version ${this.version.toString}")
@@ -211,16 +212,18 @@ case class State(
         s"Adding boxes ${boxesToAdd.map(b => Base58.encode(b._1.data))}."
       )
 
-      if (storage.lastVersionID.isDefined) {
-        stateChanges.boxIdsToRemove
-          .foreach { id =>
-            require(
-              getBox(id).isDefined,
-              s"Box id: $id not found in state version: " +
-              s"${Base58.encode(storage.lastVersionID.get.data)}. Aborting state update"
-            )
-          }
-      }
+      storage
+        .latestVersion()
+        .foreach(latestVersion =>
+          stateChanges.boxIdsToRemove
+            .foreach { id =>
+              require(
+                getBox(id).isDefined,
+                s"Box id: $id not found in state version: " +
+                s"${Base58.encode(latestVersion.data)}. Aborting state update"
+              )
+            }
+        )
 
       // throwing error here since we should stop attempting updates if any part fails
       val updatedTBR = tokenChanges match {
@@ -304,10 +307,20 @@ object State extends Logging {
   def readOrGenerate(settings: AppSettings)(implicit networkPrefix: NetworkPrefix): State = {
     val sFile = stateFile(settings)
     sFile.mkdirs()
-    val storage = new LSMStore(sFile, keySize = BoxId.size)
+    val storage = new LSMKeyValueStore(new LSMStore(sFile, keySize = BoxId.size))
 
+    apply(settings, storage, TokenBoxRegistry.readOrGenerate(settings, _), ProgramBoxRegistry.readOrGenerate(settings))
+  }
+
+  def apply(
+    settings:               AppSettings,
+    storage:                KeyValueStore,
+    tbrOptF:                Option[Set[Address]] => Option[TokenBoxRegistry],
+    pbrOpt:                 Option[ProgramBoxRegistry]
+  )(implicit networkPrefix: NetworkPrefix): State = {
     val version: VersionTag =
-      storage.lastVersionID
+      storage
+        .latestVersion()
         .fold(Option(ModifierId.empty))(bw => ModifierId.parseBytes(bw.data).toOption)
         .getOrElse(throw new Error("Unable to define state version during initialization"))
 
@@ -322,9 +335,6 @@ object State extends Logging {
     if (nodeKeys.isDefined) log.info(s"Initializing state to watch for public keys: $nodeKeys")
     else log.info("Initializing state to watch for all public keys")
 
-    val pbr = ProgramBoxRegistry.readOrGenerate(settings)
-    val tbr = TokenBoxRegistry.readOrGenerate(settings, nodeKeys)
-
-    State(version, storage, tbr, pbr, nodeKeys)
+    State(version, storage, tbrOptF(nodeKeys), pbrOpt, nodeKeys)
   }
 }

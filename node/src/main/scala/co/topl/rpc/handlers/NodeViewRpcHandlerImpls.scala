@@ -7,7 +7,7 @@ import co.topl.akkahttprpc.{CustomError, InvalidParametersError, RpcError, Throw
 import co.topl.attestation.Address
 import co.topl.modifier.box._
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.{NodeViewHolderInterface, ReadFailure, ReadableNodeView}
+import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView}
 import co.topl.rpc.ToplRpc
 import co.topl.settings.AppContext
 import co.topl.utils.Int128
@@ -125,7 +125,7 @@ class NodeViewRpcHandlerImpls(
   private def withNodeView[T](f: ReadableNodeView => T) =
     nodeViewHolderInterface
       .withNodeView(f)
-      .leftMap { case ReadFailure(throwable) =>
+      .leftMap { case NodeViewHolderInterface.ReadFailure(throwable) =>
         CustomError.fromThrowable(throwable): RpcError
       }
 }

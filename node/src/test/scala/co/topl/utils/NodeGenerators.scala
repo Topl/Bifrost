@@ -9,20 +9,18 @@ import co.topl.modifier.box.Box.identifier
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
-import co.topl.nodeView.history.{BlockProcessor, History, InMemoryKeyValueStore, LSMKeyValueStore, Storage}
+import co.topl.nodeView.history.{BlockProcessor, History, InMemoryKeyValueStore, Storage}
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppContext, AppSettings, StartupOpts, Version}
 import co.topl.utils.StringDataTypes.Latin1Data
-import io.iohk.iodb.LSMStore
 import org.scalacheck.Gen
 import org.scalatest.Suite
 
-import java.io.File
 import java.nio.file.Files
 import scala.util.Random
 
 trait TestSettings {
-  private val settingsFilename = "node/src/test/resources/test.conf"
+  private val settingsFilename = "node/src/test/resources/application-test.conf"
 
   implicit lazy val settings: AppSettings = {
     val s = AppSettings.read(StartupOpts(Some(settingsFilename)))._1
@@ -58,7 +56,7 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
 //    val blockStorage = new LSMStore(iFile)
 
     val storage =
-      new Storage(new InMemoryKeyValueStore)
+      new Storage(new InMemoryKeyValueStore, keySize = 32)
     //we don't care about validation here
     val validators = Seq()
 

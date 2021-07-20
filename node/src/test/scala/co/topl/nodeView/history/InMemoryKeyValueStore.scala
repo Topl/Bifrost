@@ -1,10 +1,12 @@
 package co.topl.nodeView.history
 
+import co.topl.nodeView.KeyValueStore
 import io.iohk.iodb.ByteArrayWrapper
 
 class InMemoryKeyValueStore extends KeyValueStore {
-  private var state: Map[ByteArrayWrapper, ByteArrayWrapper] = Map.empty
-  private var changes: List[ChangeSet] = Nil
+  import InMemoryKeyValueStore._
+  var state: Map[ByteArrayWrapper, ByteArrayWrapper] = Map.empty
+  var changes: List[ChangeSet] = Nil
 
   override def update(
     version:  ByteArrayWrapper,
@@ -46,11 +48,17 @@ class InMemoryKeyValueStore extends KeyValueStore {
   override def get(key: ByteArrayWrapper): Option[ByteArrayWrapper] =
     state.get(key)
 
-  override def keySize: Int = 32
-
   override def close(): Unit = {}
 
-  private case class ChangeSet(version: ByteArrayWrapper, changes: List[Change])
+  override def latestVersion(): Option[ByteArrayWrapper] =
+    changes.lastOption.map(_.version)
+}
+
+object InMemoryKeyValueStore {
+
+  def empty(): InMemoryKeyValueStore = new InMemoryKeyValueStore
+
+  case class ChangeSet(version: ByteArrayWrapper, changes: List[Change])
   sealed abstract class Change
   case class Insert(key: ByteArrayWrapper, value: ByteArrayWrapper) extends Change
   case class Update(key: ByteArrayWrapper, previous: ByteArrayWrapper, value: ByteArrayWrapper) extends Change

@@ -1,50 +1,180 @@
 package co.topl.nodeView
 
-import akka.actor.typed.ActorSystem
-import akka.actor.typed.scaladsl.Behaviors
-import co.topl.network.utils.NetworkTimeProvider
+import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import co.topl.modifier.block.Block
+import co.topl.modifier.transaction.Transaction
+import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
+import co.topl.nodeView.NodeViewTestHelpers.TestIn
 import co.topl.nodeView.mempool.MemPool
-import co.topl.utils.{CommonGenerators, GenesisBlockGenerators, InMemoryKeyFileTestHelper, TestSettings, TimeProvider}
-import org.scalacheck.Gen
-import org.scalacheck.rng.Seed
-import org.scalatest.BeforeAndAfterAll
+import co.topl.utils._
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.propspec.AnyPropSpec
+import org.scalatest.propspec.AnyPropSpecLike
+import org.scalatest.{BeforeAndAfterAll, EitherValues, OptionValues}
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 class NodeViewSpec
-    extends AnyPropSpec
+    extends ScalaTestWithActorTestKit
+    with AnyPropSpecLike
     with CommonGenerators
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers
     with TestSettings
     with BeforeAndAfterAll
+    with NodeViewTestHelpers
     with InMemoryKeyFileTestHelper
-    with GenesisBlockGenerators {
-
-  implicit private val actorSystem: ActorSystem[_] = ActorSystem(Behaviors.empty, settings.network.agentName)
-
-  implicit private val timeProvidedr: TimeProvider = new NetworkTimeProvider(settings.ntp)
+    with GenesisBlockGenerators
+    with OptionValues
+    with EitherValues
+    with MockFactory {
 
   property("Rewards transactions are removed from transactions extracted from a block being rolled back") {
-    val genesis = genesisBlockGen(keyRing).pureApply(Gen.Parameters.default, Seed.random())
-    val nodeView = NodeView.genesis(settings, appContext.networkType, genesis)
-    forAll(blockGen) { block =>
-      val polyReward = sampleUntilNonEmpty(polyTransferGen)
-      val arbitReward = sampleUntilNonEmpty(arbitTransferGen)
-      val rewardBlock = block.copy(transactions = Seq(arbitReward, polyReward), parentId = genesis.id)
+    withGenesisNodeView { testIn =>
+      forAll(blockGen) { block =>
+        implicit val timeProvider: TimeProvider = mock[TimeProvider]
+        (() => timeProvider.time)
+          .expects()
+          .once()
+          .returning(10)
+        val polyReward = sampleUntilNonEmpty(polyTransferGen)
+        val arbitReward = sampleUntilNonEmpty(arbitTransferGen)
+        val rewardBlock = block.copy(transactions = Seq(arbitReward, polyReward), parentId = genesisBlock.id)
 
-      val memPool =
-        nodeView.updateMemPool(List(rewardBlock), Nil, MemPool.emptyPool)
+        val memPool =
+          testIn.nodeView.updateMemPool(List(rewardBlock), Nil, MemPool.empty())
 
-      memPool.contains(polyReward) shouldBe false
-      memPool.contains(arbitReward) shouldBe false
+        memPool.contains(polyReward) shouldBe false
+        memPool.contains(arbitReward) shouldBe false
+      }
     }
   }
 
-  override protected def afterAll(): Unit = {
-    super.afterAll()
-    actorSystem.terminate()
+  property("NodeView can include syntactically valid transactions") {
+    val addressA :: _ = keyRing.addresses.toList
+    forAll(signedPolyTransferGen(positiveMediumIntGen.map(nonce => IndexedSeq((addressA, nonce))), keyRing)) { tx =>
+      implicit val timeProvider: TimeProvider = mock[TimeProvider]
+      (() => timeProvider.time)
+        .expects()
+        .once()
+        .returning(10)
+      withGenesisNodeView { testIn =>
+        val (events, updatedNodeView) = testIn.nodeView.withTransaction(tx).run
+        updatedNodeView.mempool.contains(tx.id) shouldBe true
+        events shouldBe List(SuccessfulTransaction[Transaction.TX](tx))
+      }
+    }
   }
+
+  property("NodeView should reject syntactically invalid transactions") {
+    implicit val timeProvider: TimeProvider = mock[TimeProvider]
+    (() => timeProvider.time)
+      .expects()
+      .never()
+    // polyTransferGen generates invalid attestations, which are considered syntactically invalid
+    forAll(polyTransferGen) { tx =>
+      withGenesisNodeView { testIn =>
+        val (events, updatedNodeView) = testIn.nodeView.withTransaction(tx).run
+        updatedNodeView.mempool.contains(tx.id) shouldBe false
+
+        val List(failedTransaction: FailedTransaction) = events
+
+        failedTransaction.transactionId shouldBe tx.id
+      }
+    }
+  }
+
+  property("NodeView can remove previously added transactions") {
+    implicit val timeProvider: TimeProvider = mock[TimeProvider]
+    (() => timeProvider.time)
+      .expects()
+      .anyNumberOfTimes()
+      .returning(10)
+    val addressA :: _ = keyRing.addresses.toList
+    forAll(signedPolyTransferGen(positiveMediumIntGen.map(nonce => IndexedSeq((addressA, nonce))), keyRing)) { tx =>
+      withGenesisNodeView { testIn =>
+        val (_, updatedNodeView1) = testIn.nodeView.withTransaction(tx).run
+        updatedNodeView1.mempool.contains(tx.id) shouldBe true
+
+        val (events, updatedNodeView2) =
+          updatedNodeView1.withoutTransactions(List(tx.id)).run
+        updatedNodeView2.mempool.contains(tx.id) shouldBe false
+        import org.scalatest.Inspectors._
+        forExactly(1, events) { e =>
+          e shouldBe ChangedMempool
+        }
+        forExactly(1, events) { e =>
+          e shouldBe a[FailedTransaction]
+          e.asInstanceOf[FailedTransaction].transactionId shouldBe tx.id
+        }
+      }
+    }
+  }
+
+  property("NodeView can skip adding an existing block to history") {
+    implicit val timeProvider: TimeProvider = mock[TimeProvider]
+    (() => timeProvider.time)
+      .expects()
+      .never()
+    withGenesisNodeView { testIn =>
+      val initialHistoryStoreState = testIn.historyStore.state
+      val (events, _) =
+        testIn.nodeView.withBlock(genesisBlock).run
+
+      testIn.historyStore.state shouldBe initialHistoryStoreState
+      events shouldBe Nil
+    }
+  }
+
+  property("NodeView can add a new block to history") {
+    implicit val timeProvider: TimeProvider = mock[TimeProvider]
+
+    (() => timeProvider.time)
+      .expects()
+      .once()
+      .returning(genesisBlock.timestamp + 1000)
+
+    withGenesisNodeView { testIn =>
+      val block = nextBlock(genesisBlock, testIn.nodeView)
+
+      val (events, updatedNodeView) =
+        testIn.nodeView.withBlock(block).run
+
+      events shouldBe List(
+        StartingPersistentModifierApplication(block),
+        SyntacticallySuccessfulModifier(block),
+        NewOpenSurface(List(genesisBlock.id)),
+        ChangedHistory,
+        SemanticallySuccessfulModifier(block),
+        ChangedState,
+        ChangedMempool
+      )
+      updatedNodeView.history.modifierById(block.id).value shouldBe block
+    }
+  }
+
+  property("NodeView should refuse an invalid Block") {
+    implicit val timeProvider: TimeProvider = mock[TimeProvider]
+
+    (() => timeProvider.time)
+      .expects()
+      .never()
+
+    withGenesisNodeView { testIn =>
+      val block = nextBlock(genesisBlock, testIn.nodeView).copy(difficulty = -1)
+
+      val (events, updatedNodeView) =
+        testIn.nodeView.withBlock(block).run
+
+      events should have size 2
+
+      events(0) shouldBe StartingPersistentModifierApplication(block)
+      events(1).asInstanceOf[SyntacticallyFailedModification[Block]].modifier shouldBe block
+      updatedNodeView.history.modifierById(block.id) shouldBe None
+    }
+  }
+
+  private def withGenesisNodeView(test: TestIn => Unit): Unit =
+    test(genesisNodeView())
+
 }

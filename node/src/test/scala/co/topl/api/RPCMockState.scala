@@ -104,7 +104,7 @@ trait RPCMockState
             .flatMap(Future.fromTry),
         new ActorNodeViewHolderInterface(nodeViewHolderRef)(system.toTyped, timeout)
       ),
-      Forger.actorName
+      Forger.ActorName
     )
 
     km = keyManagerRef.underlyingActor

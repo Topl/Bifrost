@@ -2,6 +2,7 @@ package co.topl.nodeView.history
 
 import co.topl.consensus.consensusHelper.setProtocolMngr
 import co.topl.modifier.block.Block
+import co.topl.nodeView.{CacheLayerKeyValueStore, LSMKeyValueStore}
 import co.topl.utils.{CommonGenerators, NodeGenerators}
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalatest.matchers.should.Matchers
@@ -27,7 +28,7 @@ class StorageCacheSpec
   }
 
   property("The genesis block is stored in cache") {
-    val genesisBlockId = ByteArrayWrapper(Array.fill(history.storage.keyValueStore.keySize)(-1: Byte))
+    val genesisBlockId = ByteArrayWrapper(Array.fill(32)(-1: Byte))
 
     history.storage.keyValueStore
       .asInstanceOf[CacheLayerKeyValueStore]
@@ -36,7 +37,7 @@ class StorageCacheSpec
   }
 
   property("Cache should invalidate all entry when it's rolled back in storage") {
-    val bestBlockIdKey = ByteArrayWrapper(Array.fill(history.storage.keyValueStore.keySize)(-1: Byte))
+    val bestBlockIdKey = ByteArrayWrapper(Array.fill(32)(-1: Byte))
 
     /* Append a new block, make sure it is updated in cache, then drop it */
     val fstBlock: Block = blockGen.sample.get.copy(parentId = history.bestBlockId)
@@ -134,7 +135,7 @@ class StorageCacheSpec
     iFile.mkdirs()
     val blockStorage = new LSMStore(iFile)
     val storage =
-      new Storage(new CacheLayerKeyValueStore(new LSMKeyValueStore(blockStorage), 10.minutes, 20000))
+      new Storage(new CacheLayerKeyValueStore(new LSMKeyValueStore(blockStorage), 10.minutes, 20000), keySize = 32)
     //we don't care about validation here
     val validators = Seq()
 

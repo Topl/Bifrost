@@ -6,21 +6,20 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.transaction.Transaction
+import co.topl.nodeView.KeyValueStore
 import co.topl.utils.Logging
-import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.google.common.primitives.Longs
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
+import io.iohk.iodb.ByteArrayWrapper
 
-import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 import scala.util.Try
 
-class Storage(private[history] val keyValueStore: KeyValueStore) extends Logging {
+class Storage(private[nodeView] val keyValueStore: KeyValueStore, keySize: Int) extends Logging {
   /* ------------------------------- Cache Initialization ------------------------------- */
   type KEY = ByteArrayWrapper
   type VAL = ByteArrayWrapper
   /* ------------------------------------------------------------------------------------- */
 
-  private val bestBlockIdKey = Array.fill(keyValueStore.keySize)(-1: Byte)
+  private val bestBlockIdKey = Array.fill(keySize)(-1: Byte)
 
   def scoreAt(b: ModifierId): Long = scoreOf(b).getOrElse(0L)
 
@@ -189,84 +188,4 @@ class Storage(private[history] val keyValueStore: KeyValueStore) extends Logging
   def rollback(parentId: ModifierId): Try[Unit] = Try {
     keyValueStore.rollback(ByteArrayWrapper(parentId.bytes))
   }
-}
-
-trait KeyValueStore extends AutoCloseable {
-
-  def update(
-    version:  ByteArrayWrapper,
-    toRemove: Iterable[ByteArrayWrapper],
-    toAdd:    Iterable[(ByteArrayWrapper, ByteArrayWrapper)]
-  ): Unit
-  def rollback(version: ByteArrayWrapper): Unit
-  def get(key:          ByteArrayWrapper): Option[ByteArrayWrapper]
-  def keySize: Int
-}
-
-class LSMKeyValueStore(lsmStore: LSMStore) extends KeyValueStore {
-
-  override def update(
-    version:  ByteArrayWrapper,
-    toRemove: Iterable[ByteArrayWrapper],
-    toAdd:    Iterable[(ByteArrayWrapper, ByteArrayWrapper)]
-  ): Unit =
-    lsmStore.update(version, toRemove, toAdd)
-
-  override def rollback(version: ByteArrayWrapper): Unit =
-    lsmStore.rollback(version)
-
-  override def get(key: ByteArrayWrapper): Option[ByteArrayWrapper] =
-    lsmStore.get(key)
-
-  override def keySize: Int =
-    lsmStore.keySize
-
-  override def close(): Unit =
-    lsmStore.close()
-
-}
-
-class CacheLayerKeyValueStore(underlying: KeyValueStore, cacheExpiration: FiniteDuration, cacheSize: Int)
-    extends KeyValueStore {
-
-  type KEY = ByteArrayWrapper
-  type VAL = ByteArrayWrapper
-
-  private[history] val cache: LoadingCache[KEY, Option[VAL]] = CacheBuilder
-    .newBuilder()
-    .expireAfterAccess(cacheExpiration.toMillis, MILLISECONDS)
-    .maximumSize(cacheSize)
-    .build[KEY, Option[VAL]](
-      new CacheLoader[KEY, Option[VAL]] {
-
-        def load(key: KEY): Option[VAL] =
-          underlying.get(key)
-      }
-    )
-
-  override def update(
-    version:  ByteArrayWrapper,
-    toRemove: Iterable[ByteArrayWrapper],
-    toAdd:    Iterable[(ByteArrayWrapper, ByteArrayWrapper)]
-  ): Unit = {
-    underlying.update(version, toRemove, toAdd)
-    toRemove.foreach(cache.invalidate)
-    toAdd
-      .map { case (key, value) => key -> Some(value) }
-      .foreach((cache.put _).tupled)
-  }
-
-  override def rollback(version: ByteArrayWrapper): Unit = {
-    underlying.rollback(version)
-    cache.invalidateAll()
-  }
-
-  override def get(key: ByteArrayWrapper): Option[ByteArrayWrapper] =
-    cache.get(key)
-
-  override def keySize: Int =
-    underlying.keySize
-
-  override def close(): Unit =
-    underlying.close()
 }

@@ -18,28 +18,30 @@ object SortedCache {
     case class Pop[T](isViable: T => Boolean, replyTo: ActorRef[T]) extends ReceivableMessage[T]
   }
 
-  private val StashSize = 100
+  final val DefaultItemPopLimit = 50
 
-  def apply[T: Ordering](itemPopLimit: Int = 50): Behavior[ReceivableMessage[T]] =
-    Behaviors.withStash(StashSize)(stateful(_, Impl(Nil, itemPopLimit)))
+  def apply[T: Ordering](itemPopLimit: Int = DefaultItemPopLimit): Behavior[ReceivableMessage[T]] =
+    stateful(Map.empty, Impl(Nil, itemPopLimit))
 
   private def stateful[T: Ordering](
-    stash: StashBuffer[ReceivableMessage[T]],
+    stash: Map[ActorRef[T], ReceivableMessages.Pop[T]],
     cache: Impl[T]
   ): Behaviors.Receive[ReceivableMessage[T]] =
-    Behaviors.receiveMessage {
-      case ReceivableMessages.Insert(values) =>
-        stash.unstashAll(stateful(stash, cache.append(values)))
-      case m @ ReceivableMessages.Pop(isViable, replyTo) =>
+    Behaviors.receive {
+      case (context, ReceivableMessages.Insert(values)) =>
+        stash.values.foreach(context.self.tell)
+        stateful[T](Map.empty, cache.append(values))
+      case (_, m @ ReceivableMessages.Pop(isViable, replyTo)) =>
         val (nextCache, maybeCandidate) =
           cache.pop(isViable)
         maybeCandidate match {
           case Some(candidate) =>
             replyTo ! candidate
+            stateful(stash - replyTo, nextCache)
           case None =>
-            stash.stash(m)
+            // Overwrite any existing Pop request for the given replyTo
+            stateful(stash + (replyTo -> m), nextCache)
         }
-        stateful(stash, nextCache)
     }
 
   implicit private def poppableItemOrdering[T](implicit ordering: Ordering[T]): Ordering[PoppableItem[T]] = (a, b) =>

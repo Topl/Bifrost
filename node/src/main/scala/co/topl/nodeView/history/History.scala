@@ -6,6 +6,7 @@ import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.message.BifrostSyncInfo
+import co.topl.nodeView.{CacheLayerKeyValueStore, LSMKeyValueStore}
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.History.GenesisParentId
 import co.topl.settings.AppSettings
@@ -33,11 +34,11 @@ class History(
 
   override type NVCT = History
 
-  def bestBlockId: ModifierId = storage.bestBlockId
-  def bestBlock: Block = storage.bestBlock
-  def height: Long = storage.heightAt(bestBlockId)
-  def score: Long = storage.scoreAt(bestBlockId)
-  def difficulty: Long = storage.difficultyAt(bestBlockId)
+  lazy val bestBlockId: ModifierId = storage.bestBlockId
+  lazy val bestBlock: Block = storage.bestBlock
+  lazy val height: Long = storage.heightAt(bestBlockId)
+  lazy val score: Long = storage.scoreAt(bestBlockId)
+  lazy val difficulty: Long = storage.difficultyAt(bestBlockId)
 
   /** Public method to close storage */
   override def close(): Unit = {
@@ -484,20 +485,29 @@ object History extends Logging {
   val GenesisParentId: ModifierId = ModifierId.genesisParentId
 
   def readOrGenerate(settings: AppSettings): History = {
+    val storage = {
 
-    /** Setup persistent on-disk storage */
-    val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
-    val file = new File(s"$dataDir/blocks")
-    file.mkdirs()
-    val blockStorageDB = new LSMStore(file)
-    import scala.concurrent.duration._
-    val storage = new Storage(
-      new CacheLayerKeyValueStore(
-        new LSMKeyValueStore(blockStorageDB),
-        settings.application.cacheExpire.millis,
-        settings.application.cacheSize
+      /** Setup persistent on-disk storage */
+      val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
+      val file = new File(s"$dataDir/blocks")
+      file.mkdirs()
+
+      import scala.concurrent.duration._
+      val blockStorageDB = new LSMStore(file)
+      new Storage(
+        new CacheLayerKeyValueStore(
+          new LSMKeyValueStore(blockStorageDB),
+          settings.application.cacheExpire.millis,
+          settings.application.cacheSize
+        ),
+        blockStorageDB.keySize
       )
-    )
+    }
+
+    apply(settings, storage)
+  }
+
+  def apply(settings: AppSettings, storage: Storage): History = {
 
     /** This in-memory cache helps us to keep track of tines sprouting off the canonical chain */
     val blockProcessor = BlockProcessor(settings.network.maxChainCacheDepth)

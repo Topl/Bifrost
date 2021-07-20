@@ -36,10 +36,16 @@ trait DiskKeyFileTestHelper extends BeforeAndAfterAll with NetworkPrefixTestHelp
   }
 }
 
-trait InMemoryKeyFileTestHelper extends NetworkPrefixTestHelper {
+trait InMemoryKeyFileTestHelper extends NetworkPrefixTestHelper with BeforeAndAfterAll {
+  self: Suite =>
 
   protected val keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] = {
     implicit def keyfileCurve25519Companion: KeyfileCurve25519Companion.type = KeyfileCurve25519Companion
     KeyRing.empty[PrivateKeyCurve25519, KeyfileCurve25519]()
+  }
+
+  override protected def beforeAll(): Unit = {
+    super.beforeAll()
+    keyRing.generateNewKeyPairs(3)
   }
 }
