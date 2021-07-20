@@ -17,6 +17,15 @@ class Ed25519 extends ECEd25519 with EllipticCurveSignatureScheme {
     val random = SecureRandom.getInstance("SHA1PRNG")
 
     random.setSeed(hashedSeed.value)
+    generatePrivateKey(random, sk)
+    generatePublicKey(sk, 0, pk, 0)
+    (PrivateKey(sk), PublicKey(pk))
+  }
+
+  override def createKeyPair: (PrivateKey, PublicKey) = {
+    val sk: Array[Byte] = new Array[Byte](SECRET_KEY_SIZE)
+    val pk: Array[Byte] = new Array[Byte](PUBLIC_KEY_SIZE)
+    val random = new SecureRandom()
 
     generatePrivateKey(random, sk)
     generatePublicKey(sk, 0, pk, 0)
@@ -32,8 +41,8 @@ class Ed25519 extends ECEd25519 with EllipticCurveSignatureScheme {
 
   override def verify(signature: Signature, message: MessageToSign, publicKey: PublicKey): Boolean =
     signature.value.length == SIGNATURE_SIZE &&
-    publicKey.value.length == PUBLIC_KEY_SIZE &&
-    verify(signature.value, 0, publicKey.value, 0, message, 0, message.length)
+      publicKey.value.length == PUBLIC_KEY_SIZE &&
+      verify(signature.value, 0, publicKey.value, 0, message, 0, message.length)
 }
 
 object Ed25519 {
