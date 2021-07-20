@@ -48,12 +48,13 @@ class SyncTracker(
     if (stableSyncRegime) networkSettings.syncIntervalStable
     else networkSettings.syncInterval
 
-  /** when peerConnectionSynchronizer finds a new peer, it updates the SyncTracker and publish info about whether
-    * there is a better neighbour or not
-    *
-    * @param peer new peer
-    * @param status result of history comparison between self and the new peer
-    */
+  /**
+   * when peerConnectionSynchronizer finds a new peer, it updates the SyncTracker and publish info about whether
+   * there is a better neighbour or not
+   *
+   * @param peer new peer
+   * @param status result of history comparison between self and the new peer
+   */
   def updateStatus(peer: ConnectedPeer, status: HistoryComparisonResult): Unit = {
     val seniorsBefore = numOfSeniors()
     statuses += peer -> status
@@ -100,11 +101,12 @@ class SyncTracker(
   /** Number of peers that are older */
   private def numOfSeniors(): Int = statuses.count(_._2 == Older)
 
-  /** Return the peers to which this node should send a sync signal, including:
-    * outdated peers, if any, otherwise, all the peers with unknown status plus a random peer with
-    * `Older` status.
-    * Updates lastSyncSentTime for all returned peers as a side effect
-    */
+  /**
+   * Return the peers to which this node should send a sync signal, including:
+   * outdated peers, if any, otherwise, all the peers with unknown status plus a random peer with
+   * `Older` status.
+   * Updates lastSyncSentTime for all returned peers as a side effect
+   */
   def peersToSyncWith(): Seq[ConnectedPeer] = {
     val outdated = outdatedPeers()
     val peers =
@@ -115,7 +117,7 @@ class SyncTracker(
         val elders = statuses.filter(_._2 == Older).keys.toIndexedSeq
         val nonOutdated =
           (if (elders.nonEmpty) elders(scala.util.Random.nextInt(elders.size)) +: unknowns else unknowns) ++ forks
-        nonOutdated.filter(p => (timeProvider.time - lastSyncSentTime.getOrElse(p, 0L)).millis >= minInterval)
+        nonOutdated.filter(p => (timeProvider.time - lastSyncSentTime.getOrElse(p, 0L)).millis >= minInterval())
       }
 
     peers.foreach(updateLastSyncSentTime)

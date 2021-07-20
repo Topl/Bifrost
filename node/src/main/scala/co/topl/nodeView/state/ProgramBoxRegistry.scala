@@ -9,10 +9,11 @@ import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import java.io.File
 import scala.util.{Failure, Success, Try}
 
-/** A registry containing mapping from fixed programId -> changing boxId
-  *
-  * @param storage Persistent storage object for saving the ProgramBoxRegistry to disk
-  */
+/**
+ * A registry containing mapping from fixed programId -> changing boxId
+ *
+ * @param storage Persistent storage object for saving the ProgramBoxRegistry to disk
+ */
 class ProgramBoxRegistry(protected val storage: LSMStore) extends Registry[ProgramBoxRegistry.K, ProgramBoxRegistry.V] {
 
   import ProgramBoxRegistry.{K, V}
@@ -28,16 +29,18 @@ class ProgramBoxRegistry(protected val storage: LSMStore) extends Registry[Progr
   protected[state] def getBox(key: K, stateReader: SR): Option[ProgramBox] =
     super.getBox[ProgramBox](key, stateReader).map(_.head)
 
-  /** @param newVersion - block id
-    * @param toRemove   map of public keys to a sequence of boxIds that should be removed
-    * @param toAppend   map of public keys to a sequence of boxIds that should be added
-    * @return - instance of updated ProgramBoxRegistry
-    *
-    *         Runtime complexity of below function is O(MN) + O(L)
-    *         where M = Number of boxes to remove
-    *         N = Number of boxes owned by a public key
-    *         L = Number of boxes to append
-    */
+  /**
+   * @param newVersion - block id
+   * @param toRemove   map of public keys to a sequence of boxIds that should be removed
+   * @param toAppend   map of public keys to a sequence of boxIds that should be added
+   * @return - instance of updated ProgramBoxRegistry
+   *
+   *         Runtime complexity of below function is O(MN) + O(L)
+   *         where M = Number of boxes to remove
+   *         N = Number of boxes owned by a public key
+   *         L = Number of boxes to append
+   */
+  // todo: James - this needs to be updated similarly to TokenBoxRegistry
   protected[state] def update(
     newVersion: VersionTag,
     toRemove:   Map[K, Seq[V]],
@@ -66,7 +69,7 @@ class ProgramBoxRegistry(protected val storage: LSMStore) extends Registry[Progr
         ByteArrayWrapper(newVersion.bytes),
         deleted.map(k => ByteArrayWrapper(registryInput(k))),
         updated.map { case (key, value) =>
-          ByteArrayWrapper(registryInput(key)) -> ByteArrayWrapper(value.hashBytes)
+          ByteArrayWrapper(registryInput(key)) -> ByteArrayWrapper(value.hash.value)
         }
       )
 

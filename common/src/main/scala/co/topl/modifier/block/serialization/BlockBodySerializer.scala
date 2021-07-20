@@ -8,6 +8,7 @@ import co.topl.utils.Extensions.LongOps
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object BlockBodySerializer extends BifrostSerializer[BlockBody] {
+
   override def serialize(body: BlockBody, w: Writer): Unit = {
     /* version: Byte */
     w.put(body.version)

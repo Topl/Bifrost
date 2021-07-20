@@ -10,9 +10,10 @@ import java.net.{InetAddress, InetSocketAddress}
 import scala.concurrent.ExecutionContext
 import scala.util.Random
 
-/** Peer manager takes care of peers connected and in process, and also chooses a random peer to connect
-  * Must be singleton
-  */
+/**
+ * Peer manager takes care of peers connected and in process, and also chooses a random peer to connect
+ * Must be singleton
+ */
 class PeerManager(settings: AppSettings, appContext: AppContext)(implicit ec: ExecutionContext)
     extends Actor
     with Logging {
@@ -22,10 +23,9 @@ class PeerManager(settings: AppSettings, appContext: AppContext)(implicit ec: Ex
 
   private val peerDatabase = new InMemoryPeerDatabase(settings.network, appContext.timeProvider)
 
-  override def preStart: Unit = {
+  override def preStart(): Unit =
     /** register for application initialization message */
     context.system.eventStream.subscribe(self, classOf[NodeViewReady])
-  }
 
   /** fill database with peers from config file if empty */
   if (peerDatabase.isEmpty) {
@@ -46,10 +46,9 @@ class PeerManager(settings: AppSettings, appContext: AppContext)(implicit ec: Ex
     nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS ----------- //
-  private def initialization(): Receive = {
-    case NodeViewReady(_) =>
-      log.info(s"${Console.YELLOW}PeerManager transitioning to the operational state${Console.RESET}")
-      context become operational
+  private def initialization: Receive = { case NodeViewReady(_) =>
+    log.info(s"${Console.YELLOW}PeerManager transitioning to the operational state${Console.RESET}")
+    context become operational
   }
 
   private def peersManagement: Receive = {
@@ -97,13 +96,11 @@ class PeerManager(settings: AppSettings, appContext: AppContext)(implicit ec: Ex
 //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
 
   /** Given a peer's address, returns `true` if the peer is the same is this node. */
-  private def isSelf(peerAddress: InetSocketAddress): Boolean = {
+  private def isSelf(peerAddress: InetSocketAddress): Boolean =
     NetworkUtils.isSelf(peerAddress, settings.network.bindAddress, appContext.externalNodeAddress)
-  }
 
-  private def isSelf(peerSpec: PeerSpec): Boolean = {
+  private def isSelf(peerSpec: PeerSpec): Boolean =
     peerSpec.declaredAddress.exists(isSelf) || peerSpec.localAddressOpt.exists(isSelf)
-  }
 
 }
 
@@ -141,9 +138,10 @@ object PeerManager {
       ): T
     }
 
-    /** Choose at most `howMany` random peers, which were connected to our peer and weren't blacklisted.
-      * Used in peer propagation: peers chosen are recommended to a peer asking our node about more peers.
-      */
+    /**
+     * Choose at most `howMany` random peers, which were connected to our peer and weren't blacklisted.
+     * Used in peer propagation: peers chosen are recommended to a peer asking our node about more peers.
+     */
     case class RecentlySeenPeers(howMany: Int) extends GetPeers[Seq[PeerInfo]] {
 
       override def choose(
@@ -171,9 +169,10 @@ object PeerManager {
 
     case class RandomPeerExcluding(excludedPeers: Seq[PeerInfo]) extends GetPeers[Option[PeerInfo]] {
 
-      override def choose(knownPeers:       Map[InetSocketAddress, PeerInfo],
-                          blacklistedPeers: Seq[InetAddress],
-                          sc:               AppContext
+      override def choose(
+        knownPeers:       Map[InetSocketAddress, PeerInfo],
+        blacklistedPeers: Seq[InetAddress],
+        sc:               AppContext
       ): Option[PeerInfo] = {
         val candidates = knownPeers.values.filterNot { p =>
           excludedPeers.exists(_.peerSpec.address == p.peerSpec.address) &&

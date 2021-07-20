@@ -1,7 +1,5 @@
 package co.topl.utils
 
-import co.topl.utils.Int128.scalaBigInt2Int128
-
 import java.math.BigInteger
 import java.nio.{ByteBuffer, ByteOrder}
 import java.util.UUID
@@ -24,24 +22,26 @@ import scala.util.{Failure, Success, Try}
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/** Container for a 128 bit signed integer stored in big-endian format.
-  * Adopted from the original work available at
-  * https://github.com/PlatformLab/TorcDB/blob/master/src/main/java/net/ellitron/torc/util/Int128.java
-  * by Jonathan Ellithorpe (jde@cs.stanford.edu)
-  *
-  * @author James Aman (j.aman@topl.me)
-  */
+/**
+ * Container for a 128 bit signed integer stored in big-endian format.
+ * Adopted from the original work available at
+ * https://github.com/PlatformLab/TorcDB/blob/master/src/main/java/net/ellitron/torc/util/Int128.java
+ * by Jonathan Ellithorpe (jde@cs.stanford.edu)
+ *
+ * @author James Aman (j.aman@topl.me)
+ */
 object Int128 extends VersionSpecificInt128Integral {
   val size = 128
   val numBytes: Int = size / java.lang.Byte.SIZE
   val MinValue: Int128 = Int128(Long.MinValue, 0L)
   val MaxValue: Int128 = Int128(Long.MaxValue, -1L)
 
-  /** This method attempts to translate its argument into a Int128.
-    *
-    * @param n Number to translate.
-    * @return Int128
-    */
+  /**
+   * This method attempts to translate its argument into a Int128.
+   *
+   * @param n Number to translate.
+   * @return Int128
+   */
   def decode(n: Any): Try[Int128] = Try {
     n match {
       case b: Byte                                 => Int128(b)
@@ -59,54 +59,60 @@ object Int128 extends VersionSpecificInt128Integral {
     }
   }
 
-  /** Constructs a Int128 from two longs, one representing the upper 64 bits
-    * and the other representing the lower 64 bits.
-    *
-    * @param upperLong Upper 64 bits.
-    * @param lowerLong Lower 64 bits.
-    */
+  /**
+   * Constructs a Int128 from two longs, one representing the upper 64 bits
+   * and the other representing the lower 64 bits.
+   *
+   * @param upperLong Upper 64 bits.
+   * @param lowerLong Lower 64 bits.
+   */
   def apply(upperLong: Long, lowerLong: Long): Int128 = new Int128(upperLong, lowerLong)
 
-  /** Constructs a Int128 from a Byte value.
-    *
-    * @param value Byte
-    */
+  /**
+   * Constructs a Int128 from a Byte value.
+   *
+   * @param value Byte
+   */
   def apply(value: Byte): Int128 =
     if (value < 0) new Int128(-1, value.toLong)
     else new Int128(0, value.toLong)
 
-  /** Constructs a Int128 from a Short value.
-    *
-    * @param value Short
-    */
+  /**
+   * Constructs a Int128 from a Short value.
+   *
+   * @param value Short
+   */
   def apply(value: Short): Int128 =
     if (value < 0) new Int128(-1, value.toLong)
     else new Int128(0, value.toLong)
 
-  /** Constructs a Int128 from an Integer value.
-    *
-    * @param value Int
-    */
+  /**
+   * Constructs a Int128 from an Integer value.
+   *
+   * @param value Int
+   */
   def apply(value: Int): Int128 =
     if (value < 0) new Int128(-1, value.toLong)
     else new Int128(0, value.toLong)
 
-  /** Constructs a Int128 from a Long value.
-    *
-    * @param value Long
-    */
+  /**
+   * Constructs a Int128 from a Long value.
+   *
+   * @param value Long
+   */
   def apply(value: Long): Int128 =
     if (value < 0) new Int128(-1, value.toLong)
     else new Int128(0, value.toLong)
 
-  /** Constructs a Int128 from a BigInteger value. The value used to construct
-    * the Int128 is the 128-bit two's complement representation of the
-    * BigInteger. In the case that the number of bits in the minimal
-    * two's-complement representation of the BigInteger is greater than 128,
-    * then the lower 128 bits are used and higher order bits are discarded.
-    *
-    * @param value BigInteger, treated as a 128 bit signed value.
-    */
+  /**
+   * Constructs a Int128 from a BigInteger value. The value used to construct
+   * the Int128 is the 128-bit two's complement representation of the
+   * BigInteger. In the case that the number of bits in the minimal
+   * two's-complement representation of the BigInteger is greater than 128,
+   * then the lower 128 bits are used and higher order bits are discarded.
+   *
+   * @param value BigInteger, treated as a 128 bit signed value.
+   */
   def apply(value: BigInt): Int128 = {
     val bigIntBytes = value.toByteArray
     val res = if (bigIntBytes.length >= Int128.numBytes) {
@@ -122,45 +128,49 @@ object Int128 extends VersionSpecificInt128Integral {
     new Int128(buf.getLong(), buf.getLong())
   }
 
-  /** Constructs a Int128 from a String value representing a number in a
-    * specified base. The value stored in this Int128 is the 128 bit
-    * two's-complement representation of this value. If the two's-complement
-    * representation of the value requires more than 128 bits to represent, only
-    * the lower 128 bits are used to construct this Int128.
-    *
-    * @param value String, treated as a 128 bit signed value.
-    * @param radix The base of the number represented by the string.
-    */
+  /**
+   * Constructs a Int128 from a String value representing a number in a
+   * specified base. The value stored in this Int128 is the 128 bit
+   * two's-complement representation of this value. If the two's-complement
+   * representation of the value requires more than 128 bits to represent, only
+   * the lower 128 bits are used to construct this Int128.
+   *
+   * @param value String, treated as a 128 bit signed value.
+   * @param radix The base of the number represented by the string.
+   */
   def apply(value: String, radix: Int): Int128 = apply(new BigInteger(value, radix))
 
-  /** Constructs a Int128 from a String value representing a number in base 10.
-    * The value stored in this Int128 is the 128 bit two's-complement
-    * representation of this value. If the two's-complement representation of
-    * the value requires more than 128 bits to represent, only the lower 128
-    * bits are used to construct this Int128.
-    *
-    * @param value Base 10 format String, treated as a 128 bit signed value.
-    */
+  /**
+   * Constructs a Int128 from a String value representing a number in base 10.
+   * The value stored in this Int128 is the 128 bit two's-complement
+   * representation of this value. If the two's-complement representation of
+   * the value requires more than 128 bits to represent, only the lower 128
+   * bits are used to construct this Int128.
+   *
+   * @param value Base 10 format String, treated as a 128 bit signed value.
+   */
   def apply(value: String): Int128 = apply(value, 10)
 
-  /** Constructs a Int128 from a UUID value.
-    * The value stored in this Int128 is the 128 bit two's-complement
-    * representation of this value. If the two's-complement representation of
-    * the value requires more than 128 bits to represent, only the lower 128
-    * bits are used to construct this Int128.
-    *
-    * @param value 128-bit UUID value
-    */
+  /**
+   * Constructs a Int128 from a UUID value.
+   * The value stored in this Int128 is the 128 bit two's-complement
+   * representation of this value. If the two's-complement representation of
+   * the value requires more than 128 bits to represent, only the lower 128
+   * bits are used to construct this Int128.
+   *
+   * @param value 128-bit UUID value
+   */
   def apply(value: UUID): Int128 = new Int128(value.getMostSignificantBits, value.getLeastSignificantBits)
 
-  /** Constructs a Int128 from a byte array value. The byte array value is
-    * interpreted as unsigned and in big-endian format. If the byte array is
-    * less than 16 bytes, then the higher order bytes of the resulting Int128
-    * are padded with 0s. If the byte array is greater than 16 bytes, then the
-    * lower 16 bytes are used.
-    *
-    * @param value Byte array in big-endian format.
-    */
+  /**
+   * Constructs a Int128 from a byte array value. The byte array value is
+   * interpreted as unsigned and in big-endian format. If the byte array is
+   * less than 16 bytes, then the higher order bytes of the resulting Int128
+   * are padded with 0s. If the byte array is greater than 16 bytes, then the
+   * lower 16 bytes are used.
+   *
+   * @param value Byte array in big-endian format.
+   */
   def apply(value: Array[Byte]): Int128 = {
     val res = if (value.length >= Int128.numBytes) {
       value.takeRight(16)
@@ -174,14 +184,15 @@ object Int128 extends VersionSpecificInt128Integral {
     new Int128(buf.getLong(), buf.getLong())
   }
 
-  /** Parses a Int128 from a ByteBuffer. The ByteBuffer is expected to have at
-    * least 16 bytes at the current position, storing a Int128 in big-endian
-    * order. This method will also advance the current position of the
-    * ByteBuffer by 16 bytes.
-    *
-    * @param buf ByteBuffer containing the value in big-endian format at the
-    *            current position of the buffer.
-    */
+  /**
+   * Parses a Int128 from a ByteBuffer. The ByteBuffer is expected to have at
+   * least 16 bytes at the current position, storing a Int128 in big-endian
+   * order. This method will also advance the current position of the
+   * ByteBuffer by 16 bytes.
+   *
+   * @param buf ByteBuffer containing the value in big-endian format at the
+   *            current position of the buffer.
+   */
   def parseFromByteBuffer(buf: ByteBuffer): Int128 = {
     val upperLong = buf.getLong
     val lowerLong = buf.getLong
@@ -210,11 +221,12 @@ final class Int128(val upperLong: Long, val lowerLong: Long)
 
   private[utils] val bigInt = BigInt(this.toByteArray)
 
-  /** Returns a byte array containing this 128 bit unsigned integer in
-    * big-endian format.
-    *
-    * @return Byte array containing this number in big-endian format.
-    */
+  /**
+   * Returns a byte array containing this 128 bit unsigned integer in
+   * big-endian format.
+   *
+   * @return Byte array containing this number in big-endian format.
+   */
   def toByteArray: Array[Byte] = {
     val buf = ByteBuffer.allocate(Int128.numBytes).order(ByteOrder.BIG_ENDIAN)
     buf.putLong(upperLong)
@@ -222,21 +234,23 @@ final class Int128(val upperLong: Long, val lowerLong: Long)
     buf.array
   }
 
-  /** Returns a hexadecimal String representing this 128 bit unsigned integer
-    * with the minimum number of digits.
-    *
-    * @return Formatted string representing this number.
-    */
+  /**
+   * Returns a hexadecimal String representing this 128 bit unsigned integer
+   * with the minimum number of digits.
+   *
+   * @return Formatted string representing this number.
+   */
   override def toString: String = this.bigInt.toString()
 
   def toString(radix: Int): String = this.bigInt.toString(radix)
 
   override def compare(that: Int128): Int = this.bigInt.compare(that.bigInt)
 
-  /** If the supplied argument is another Int128, tests for bit-wise equality,
-    * otherwise attempts to convert the argument to a Int128 and then tests for
-    * equality.
-    */
+  /**
+   * If the supplied argument is another Int128, tests for bit-wise equality,
+   * otherwise attempts to convert the argument to a Int128 and then tests for
+   * equality.
+   */
   override def equals(that: Any): Boolean = that match {
     case int12: Int128 => int12.upperLong == this.upperLong && int12.lowerLong == this.lowerLong
     case _ =>
@@ -296,8 +310,9 @@ final class Int128(val upperLong: Long, val lowerLong: Long)
 
 }
 
-/** A trait demonstrating that Int128 can be seen as both Numeric and "whole"
-  */
+/**
+ * A trait demonstrating that Int128 can be seen as both Numeric and "whole"
+ */
 trait Int128IsIntegral extends Integral[Int128] {
   override def plus(x: Int128, y: Int128): Int128 = x + y
 
@@ -324,7 +339,8 @@ trait Int128IsIntegral extends Integral[Int128] {
   override def rem(x: Int128, y: Int128): Int128 = x % y
 }
 
-/** A trait demonstrating that Int128 can be seen as Ordering
+/**
+ * A trait demonstrating that Int128 can be seen as Ordering
  */
 trait Int128Ordering extends Ordering[Int128] {
   override def compare(x: Int128, y: Int128): Int = x.compare(y)

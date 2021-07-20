@@ -1,25 +1,35 @@
 package co.topl.attestation
 
-import co.topl.utils.ValidGenerators
+import co.topl.utils.codecs.implicits._
+import co.topl.attestation.AddressCodec.implicits._
+import co.topl.utils.StringDataTypes.Latin1Data
+import co.topl.utils.{KeyFileTestHelper, NodeGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
-import scala.util.{Failure, Success}
-
 class KeySpec
-  extends AnyPropSpec
+    extends AnyPropSpec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
-    with ValidGenerators
-    with Matchers {
+    with NodeGenerators
+    with Matchers
+    with KeyFileTestHelper {
 
-  val password: String = stringGen.sample.get
-  val messageByte: Array[Byte] = nonEmptyBytesGen.sample.get
+  var password: Latin1Data = _
+  var messageByte: Array[Byte] = _
 
-  val address: Address = keyRing.DiskOps.generateKeyFile(password) match {
-    case Success(addr) => addr
-    case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
+  var address: Address = _
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+
+    password = Latin1Data.unsafe(sampleUntilNonEmpty(stringGen))
+    messageByte = sampleUntilNonEmpty(nonEmptyBytesGen)
+
+    import org.scalatest.TryValues._
+
+    address = keyRing.DiskOps.generateKeyFile(password).success.value
   }
 
   property("The randomly generated address from generateKeyFile should exist in keyRing") {
@@ -28,6 +38,7 @@ class KeySpec
 
   property("Once we lock the generated address, it will be removed from the secrets set in the keyRing") {
     keyRing.removeFromKeyring(address)
+
     /** There will be a warning for locking again if a key is already locked */
     keyRing.removeFromKeyring(address)
 
@@ -35,9 +46,10 @@ class KeySpec
   }
 
   property("Once unlocked, the address will be accessible from the keyRing again") {
-    keyRing.DiskOps.unlockKeyFile(address.toString, password)
+    keyRing.DiskOps.unlockKeyFile(address.encodeAsBase58, password)
+
     /** There will be a warning for unlocking again if a key is already unlocked */
-    keyRing.DiskOps.unlockKeyFile(address.toString, password)
+    keyRing.DiskOps.unlockKeyFile(address.encodeAsBase58, password)
 
     keyRing.addresses.contains(address) shouldBe true
   }
@@ -55,14 +67,14 @@ class KeySpec
 
   property("Trying to sign a message with an address not on the keyRing will fail") {
     val randAddr: Address = addressGen.sample.get
-    val error = intercept[Exception] (keyRing.signWithAddress(randAddr)(messageByte))
+    val error = intercept[Exception](keyRing.signWithAddress(randAddr)(messageByte))
     error.getMessage shouldEqual "Unable to find secret for the given address"
   }
 
   property("The proof from signing with an address should only be valid for the corresponding proposition") {
     val prop = keyRing.lookupPublicKey(address).get
 
-    val newAddr: Address = keyRing.DiskOps.generateKeyFile(stringGen.sample.get).get
+    val newAddr: Address = keyRing.DiskOps.generateKeyFile(Latin1Data.unsafe(stringGen.sample.get)).get
     val newProp = keyRing.lookupPublicKey(newAddr).get
     val newProof = keyRing.signWithAddress(newAddr)(messageByte).get
 

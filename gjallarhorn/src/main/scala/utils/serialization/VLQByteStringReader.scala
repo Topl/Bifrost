@@ -1,8 +1,8 @@
 package utils.serialization
 
-import java.nio.ByteOrder
-
 import akka.util.ByteString
+
+import java.nio.ByteOrder
 
 class VLQByteStringReader(byteString: ByteString) extends VLQReader {
 
@@ -11,26 +11,24 @@ class VLQByteStringReader(byteString: ByteString) extends VLQReader {
   private var it = byteString.iterator
   private var _position = 0
   private var _mark = 0
-  private[VLQByteStringReader] implicit val byteOrder: ByteOrder = ByteOrder.BIG_ENDIAN
+  implicit private[VLQByteStringReader] val byteOrder: ByteOrder = ByteOrder.BIG_ENDIAN
 
   @inline
-  override def newReader(chunk: ByteString): Reader.Aux[CH] = {
+  override def newReader(chunk: ByteString): Reader.Aux[CH] =
     new VLQByteStringReader(chunk)
-  }
 
   /**
-    * Get a byte at current position without advancing the position.
-    *
-    * @return byte at current position
-    */
+   * Get a byte at current position without advancing the position.
+   *
+   * @return byte at current position
+   */
   @inline
   override def peekByte(): Byte = byteString(position)
 
   @inline
-  override def getBoolean(): Boolean = {
+  override def getBoolean(): Boolean =
     if (getByte() == 0x01) true
     else false
-  }
 
   @inline
   override def getByte(): Byte = {
@@ -45,9 +43,8 @@ class VLQByteStringReader(byteString: ByteString) extends VLQReader {
   }
 
   @inline
-  override def getChunk(size: Int): ByteString = {
+  override def getChunk(size: Int): ByteString =
     it.getByteString(size)
-  }
 
   @inline
   override def mark(): this.type = {
@@ -71,12 +68,10 @@ class VLQByteStringReader(byteString: ByteString) extends VLQReader {
   override def remaining: Int = it.len
 
   @inline
-  private def incPosition(): Unit = {
+  private def incPosition(): Unit =
     _position += 1
-  }
 
   @inline
-  private def incPosition(size: Int): Unit = {
+  private def incPosition(size: Int): Unit =
     _position += size
-  }
 }

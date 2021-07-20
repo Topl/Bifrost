@@ -10,8 +10,9 @@ import com.google.common.primitives.Ints
 import io.circe._
 import io.circe.syntax.EncoderOps
 
-/** Created by Matthew on 4/11/2017.
-  */
+/**
+ * Created by Matthew on 4/11/2017.
+ */
 sealed abstract class Box[+T](val evidence: Evidence, val value: T, val nonce: Nonce) extends GenericBox[T] {
 
   type M = Box[_]
@@ -27,7 +28,7 @@ sealed abstract class Box[+T](val evidence: Evidence, val value: T, val nonce: N
 
   override def equals(obj: Any): Boolean = obj match {
     case box: Box[_] => bytes sameElements box.bytes
-    case _ => false
+    case _           => false
   }
 }
 

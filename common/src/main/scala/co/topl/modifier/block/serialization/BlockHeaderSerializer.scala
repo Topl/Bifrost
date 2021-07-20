@@ -2,14 +2,16 @@ package co.topl.modifier.block.serialization
 
 import co.topl.attestation.serialization.{PublicKeyPropositionCurve25519Serializer, SignatureCurve25519Serializer}
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.crypto.hash.digest.Digest32
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{BlockHeader, BloomFilter}
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.box.serialization.ArbitBoxSerializer
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
-import scorex.crypto.hash.{Blake2b256, Digest32}
+import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 
 object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
+
   override def serialize(header: BlockHeader, w: Writer): Unit = {
     /* version: Byte */
     w.put(header.version)
@@ -39,7 +41,7 @@ object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
     w.putLong(header.difficulty)
 
     /* txRoot: Array[Byte] */
-    w.putBytes(header.txRoot)
+    w.putBytes(header.txRoot.value)
 
     /* bloomFilter: Array[Long] */
     BloomFilter.serialize(header.bloomFilter, w)
@@ -64,10 +66,24 @@ object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
 
     val difficulty: Long = r.getLong()
 
-    val txRoot: Digest32 = Digest32 @@ r.getBytes(Blake2b256.DigestSize)
+    val txRoot: Digest32 = Digest32
+      .validated(r.getBytes(Digest32.size))
+      .getOrThrow()
 
     val bloomFilter: BloomFilter = BloomFilter.parse(r)
 
-    BlockHeader(id, parentId, timestamp, generatorBox, publicKey, signature, height, difficulty, txRoot, bloomFilter, version)
+    BlockHeader(
+      id,
+      parentId,
+      timestamp,
+      generatorBox,
+      publicKey,
+      signature,
+      height,
+      difficulty,
+      txRoot,
+      bloomFilter,
+      version
+    )
   }
 }

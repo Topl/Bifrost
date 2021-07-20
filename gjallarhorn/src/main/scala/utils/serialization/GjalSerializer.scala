@@ -1,10 +1,9 @@
 package utils.serialization
 
-import java.nio.ByteBuffer
-
 import akka.util.ByteString
 import utils.ByteArrayBuilder
 
+import java.nio.ByteBuffer
 import scala.util.Try
 
 trait GjalSerializer[Content] extends Serializer[Content, Content, Reader, Writer] {
@@ -20,9 +19,8 @@ trait GjalSerializer[Content] extends Serializer[Content, Content, Reader, Write
     parse(reader)
   }
 
-  def parseByteStringTry(byteString: ByteString): Try[Content] = {
+  def parseByteStringTry(byteString: ByteString): Try[Content] =
     Try(parseByteString(byteString))
-  }
 
   def toBytes(obj: Content): Array[Byte] = {
     val writer = new VLQByteBufferWriter(new ByteArrayBuilder())

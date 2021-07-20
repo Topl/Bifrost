@@ -1,21 +1,21 @@
 package co.topl.modifier.transaction
 
-import co.topl.attestation.{Address, Proof, Proposition}
+import co.topl.attestation.{Proof, Proposition}
+import co.topl.crypto.hash.digest.Digest32
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.BloomFilter.BloomTopic
-import co.topl.modifier.box.{Box, BoxId, ProgramId}
-import co.topl.modifier.{BoxReader, ModifierId, NodeViewModifier}
+import co.topl.modifier.box.{Box, BoxId}
+import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Identifiable, Identifier, Int128}
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import com.google.common.primitives.Longs
 import io.circe.{Decoder, Encoder, HCursor}
-import scorex.crypto.hash.Digest32
 
-import scala.util.Try
+abstract class Transaction[+T, P <: Proposition](implicit val identifiableEv: Identifiable[P])
+    extends NodeViewModifier {
 
-abstract class Transaction[+T, P <: Proposition: Identifiable] extends NodeViewModifier {
-
-  override lazy val id: ModifierId = ModifierId(this)
+  override lazy val id: ModifierId = ModifierId.create(this).getOrThrow()
 
   val modifierTypeId: ModifierTypeId = Transaction.modifierTypeId
 
@@ -23,7 +23,7 @@ abstract class Transaction[+T, P <: Proposition: Identifiable] extends NodeViewM
 
   val boxIdsToOpen: IndexedSeq[BoxId]
 
-  val newBoxes: Traversable[Box[T]]
+  val newBoxes: Iterable[Box[T]]
 
   val attestation: Map[P, Proof[P]]
 
@@ -37,17 +37,11 @@ abstract class Transaction[+T, P <: Proposition: Identifiable] extends NodeViewM
   def messageToSign: Array[Byte] =
     Array(Transaction.identifier(this).typePrefix) ++
     newBoxes.foldLeft(Array[Byte]())((acc, x) => acc ++ x.bytes) ++
-    boxIdsToOpen.foldLeft(Array[Byte]())((acc, x) => acc ++ x.hashBytes) ++
+    boxIdsToOpen.foldLeft(Array[Byte]())((acc, x) => acc ++ x.hash.value) ++
     Longs.toByteArray(timestamp) ++
     fee.toByteArray
 
   def getPropIdentifier: Identifier = Identifiable[P].getId
-
-  def semanticValidate(boxReader: BoxReader[ProgramId, Address])(implicit networkPrefix: NetworkPrefix): Try[Unit]
-
-  def syntacticValidate(implicit networkPrefix: NetworkPrefix): Try[Unit]
-
-  def rawValidate(implicit networkPrefix: NetworkPrefix): Try[Unit]
 
 }
 
@@ -56,14 +50,15 @@ object Transaction {
   type TxType = Byte
   type TransactionId = ModifierId
 
-  val modifierTypeId: ModifierTypeId = ModifierTypeId @@ (2: Byte)
+  val modifierTypeId: ModifierTypeId = ModifierTypeId(2: Byte)
 
   def updateAttestation[
     P <: Proposition
   ](tx: Transaction[_, P])(f: Array[Byte] => Map[P, Proof[P]]): Map[P, Proof[P]] =
     tx.attestation ++ f(tx.messageToSign)
 
-  def nonceFromDigest(digest: Digest32): Box.Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
+  def nonceFromDigest(digest: Digest32): Box.Nonce =
+    Longs.fromByteArray(digest.value.take(Longs.BYTES))
 
   def identifier(tx: TX): Identifier = tx match {
     case _: PolyTransfer[_]  => PolyTransfer.identifier.getId
@@ -87,10 +82,10 @@ object Transaction {
 
   implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[TX] = { c: HCursor =>
     c.downField("txType").as[String].map {
-//      case "CodeCreation"           => CodeCreation.jsonDecoder(c)
-//      case "ProgramCreation"        => ProgramCreation.jsonDecoder(c)
-//      case "ProgramMethodExecution" => ProgramMethodExecution.jsonDecoder(c)
-//      case "ProgramTransfer"        => ProgramTransfer.jsonDecoder(c)
+      //      case "CodeCreation"           => CodeCreation.jsonDecoder(c)
+      //      case "ProgramCreation"        => ProgramCreation.jsonDecoder(c)
+      //      case "ProgramMethodExecution" => ProgramMethodExecution.jsonDecoder(c)
+      //      case "ProgramTransfer"        => ProgramTransfer.jsonDecoder(c)
       case PolyTransfer.typeString  => PolyTransfer.jsonDecoder(networkPrefix)(c)
       case ArbitTransfer.typeString => ArbitTransfer.jsonDecoder(networkPrefix)(c)
       case AssetTransfer.typeString => AssetTransfer.jsonDecoder(networkPrefix)(c)

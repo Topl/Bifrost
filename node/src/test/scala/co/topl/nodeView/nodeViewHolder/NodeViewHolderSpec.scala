@@ -4,29 +4,39 @@ import akka.actor.ActorSystem
 import akka.testkit.TestActorRef
 import co.topl.nodeView.NodeViewHolder
 import co.topl.nodeView.mempool.MemPool
-import co.topl.nodeView.state.MockState
+import co.topl.nodeView.state.{MockState, State}
 import co.topl.settings.{AppContext, StartupOpts}
-import co.topl.utils.CoreGenerators
-import org.scalatest.{BeforeAndAfterAll, PrivateMethodTester}
+import co.topl.utils.CommonGenerators
 import org.scalatest.propspec.AnyPropSpec
+import org.scalatest.{BeforeAndAfterAll, PrivateMethodTester}
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.Await
+import scala.concurrent.duration._
 
-class NodeViewHolderSpec extends AnyPropSpec
-  with PrivateMethodTester
-  with CoreGenerators
-  with MockState
-  with BeforeAndAfterAll {
+class NodeViewHolderSpec
+    extends AnyPropSpec
+    with PrivateMethodTester
+    with CommonGenerators
+    with MockState
+    with BeforeAndAfterAll {
 
   type MP = MemPool
 
-  private implicit val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
-  private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
+  implicit private val actorSystem: ActorSystem = ActorSystem("NodeviewHolderSpec")
+  import actorSystem.dispatcher
 
-  private val appContext = new AppContext(settings, StartupOpts.empty, None)
-  private val nvhTestRef = TestActorRef(new NodeViewHolder(settings, appContext))
-  private val nodeView = nvhTestRef.underlyingActor
-  private val state = createState()
+  private var appContext: AppContext = _
+  private var nvhTestRef: TestActorRef[NodeViewHolder] = _
+  private var nodeView: NodeViewHolder = _
+  private var state: State = _
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    appContext = new AppContext(settings, StartupOpts(), None)
+    state = createState(inTempFile = false)
+    nvhTestRef = TestActorRef(new NodeViewHolder(settings, appContext), "nvhTest")
+    nodeView = nvhTestRef.underlyingActor
+  }
 
   // TODO replace reward transactions with valid transactions
   property("Rewards transactions are removed from transactions extracted from a block being rolled back") {
@@ -35,14 +45,13 @@ class NodeViewHolderSpec extends AnyPropSpec
       val arbitReward = sampleUntilNonEmpty(arbitTransferGen)
       val rewardBlock = block.copy(transactions = Seq(arbitReward, polyReward))
 
-      val updateMemPool = PrivateMethod[MP]('updateMemPool)
+      val updateMemPool = PrivateMethod[MP](Symbol("updateMemPool"))
       val memPool = nodeView invokePrivate updateMemPool(Seq(rewardBlock), Seq(), MemPool.emptyPool, state)
       memPool.contains(polyReward) shouldBe false
       memPool.contains(arbitReward) shouldBe false
     }
   }
 
-  override protected def afterAll(): Unit = {
-    actorSystem.terminate()
-  }
+  override protected def afterAll(): Unit =
+    Await.result(actorSystem.terminate(), 10.seconds)
 }

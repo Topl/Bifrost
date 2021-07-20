@@ -59,16 +59,17 @@ class PeerConnectionHandler(
 
   private var outMessagesCounter: Long = 0
 
-  override def preStart: Unit = {
+  override def preStart(): Unit = {
 
     /** per Akka docs this "signs the death pact: this actor terminates when connection breaks" */
     context watch connection
     connection ! Tcp.Register(self, keepOpenOnPeerClosed = false, useResumeWriting = true)
 
-    /** On instantiation of a PeerConnectionHandler, send ResumeReading to the TCP system since the
-      * connection was created with pullMode = true (this is done in the NetworkController)
-      * https://doc.akka.io/docs/akka/current/io-tcp.html#read-back-pressure-with-pull-mode
-      */
+    /**
+     * On instantiation of a PeerConnectionHandler, send ResumeReading to the TCP system since the
+     * connection was created with pullMode = true (this is done in the NetworkController)
+     * https://doc.akka.io/docs/akka/current/io-tcp.html#read-back-pressure-with-pull-mode
+     */
     connection ! Tcp.ResumeReading
 
     /** transition to create and listen for a handshake from the remote peer */
@@ -195,14 +196,15 @@ class PeerConnectionHandler(
   private def closeNonEmptyBuffer: Receive = {
     case Tcp.CommandFailed(_: Tcp.Write) =>
       connection ! Tcp.ResumeWriting
-      context.become({
-                       case Tcp.WritingResumed =>
-                         writeAll()
-                         context.unbecome()
-                       case Ack(id) =>
-                         outMessagesBuffer -= id
-                     },
-                     discardOld = false
+      context.become(
+        {
+          case Tcp.WritingResumed =>
+            writeAll()
+            context.unbecome()
+          case Ack(id) =>
+            outMessagesBuffer -= id
+        },
+        discardOld = false
       )
 
     case Ack(id) =>
@@ -228,28 +230,26 @@ class PeerConnectionHandler(
 ////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
 
-  private def buffer(id: Long, msg: ByteString): Unit = {
+  private def buffer(id: Long, msg: ByteString): Unit =
     outMessagesBuffer += id -> msg
-  }
 
-  private def writeFirst(): Unit = {
+  private def writeFirst(): Unit =
     outMessagesBuffer.headOption.foreach { case (id, msg) =>
       connection ! Tcp.Write(msg, Ack(id))
     }
-  }
 
-  private def writeAll(): Unit = {
+  private def writeAll(): Unit =
     outMessagesBuffer.foreach { case (id, msg) =>
       connection ! Tcp.Write(msg, Ack(id))
     }
-  }
 
   private def createHandshakeMessage(): Unit = {
     val nodeInfo = message.Handshake(localPeerSpec, appContext.timeProvider.time)
 
-    /** create, save, and schedule a timeout option. The variable lets us cancel the timeout message
-      * if a handshake is received
-      */
+    /**
+     * create, save, and schedule a timeout option. The variable lets us cancel the timeout message
+     * if a handshake is received
+     */
     handshakeTimeoutCancellableOpt = Some(
       context.system.scheduler.scheduleOnce(settings.network.handshakeTimeout)(self ! HandshakeTimeout)
     )
@@ -277,7 +277,7 @@ class PeerConnectionHandler(
   }
 
   @tailrec
-  private def processRemoteData(): Unit = {
+  private def processRemoteData(): Unit =
     messageSerializer.deserialize(chunksBuffer, selfPeer) match {
       case Success(Some(message)) =>
         log.info("Received message " + message.spec + " from " + connectionId)
@@ -299,7 +299,6 @@ class PeerConnectionHandler(
             log.info(s"Corrupted data from ${connectionId.toString}: ${e.getMessage}")
         }
     }
-  }
 
 }
 

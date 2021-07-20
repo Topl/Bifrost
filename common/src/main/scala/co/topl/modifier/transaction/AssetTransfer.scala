@@ -4,7 +4,7 @@ import co.topl.attestation._
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TxType
-import co.topl.modifier.transaction.TransferTransaction.{BoxParams, encodeFrom}
+import co.topl.modifier.transaction.TransferTransaction.{encodeFrom, BoxParams, TransferCreationState}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.codecs.Int128Codec
 import co.topl.utils.{Identifiable, Identifier, Int128}
@@ -13,6 +13,7 @@ import io.circe.{Decoder, Encoder, HCursor}
 
 import java.time.Instant
 import scala.util.Try
+import scala.Iterable
 
 case class AssetTransfer[
   P <: Proposition: EvidenceProducer: Identifiable
@@ -26,19 +27,22 @@ case class AssetTransfer[
   override val minting:     Boolean = false
 ) extends TransferTransaction[TokenValueHolder, P](from, to, attestation, fee, timestamp, data, minting) {
 
-  override lazy val newBoxes: Traversable[TokenBox[TokenValueHolder]] = {
-    val params = TransferTransaction.boxParams(this)
-
-    val feeChangeBox =
-      if (fee > 0L) Traversable(PolyBox(params._1.evidence, params._1.nonce, params._1.value))
-      else Traversable()
-
-    val assetBoxes = params._2.map {
-      case BoxParams(ev, n, v: AssetValue) => AssetBox(ev, n, v)
-      case _                               => throw new Error("Attempted application of invalid value holder")
+  override val coinOutput: Iterable[AssetBox] =
+    coinOutputParams.map { case BoxParams(evi, nonce, value: AssetValue) =>
+      AssetBox(evi, nonce, value)
     }
 
-    feeChangeBox ++ assetBoxes
+  override val newBoxes: Iterable[TokenBox[TokenValueHolder]] = {
+    // this only creates an output if the value of the output boxes is non-zero
+    val recipientCoinOutput: Iterable[AssetBox] = coinOutput.filter(_.value.quantity > 0)
+    val hasRecipientOutput: Boolean = recipientCoinOutput.nonEmpty
+    val hasFeeChangeOutput: Boolean = feeChangeOutput.value.quantity > 0
+
+    (hasRecipientOutput, hasFeeChangeOutput) match {
+      case (false, _)    => Iterable()
+      case (true, false) => recipientCoinOutput
+      case (true, true)  => Iterable(feeChangeOutput) ++ recipientCoinOutput
+    }
   }
 }
 
@@ -50,25 +54,26 @@ object AssetTransfer {
     Identifier(typeString, typePrefix)
   }
 
-  /** @param boxReader
-    * @param toReceive
-    * @param sender
-    * @param fee
-    * @param data
-    * @return
-    */
+  /**
+   * @param boxReader
+   * @param toReceive
+   * @param sender
+   * @param fee
+   * @param data
+   * @return
+   */
   def createRaw[
-    P <: Proposition: EvidenceProducer: Identifiable
+    P <: Proposition
   ](
-    boxReader:            BoxReader[ProgramId, Address],
-    toReceive:            IndexedSeq[(Address, AssetValue)],
-    sender:               IndexedSeq[Address],
-    changeAddress:        Address,
-    consolidationAddress: Option[Address],
-    fee:                  Int128,
-    data:                 Option[String],
-    minting:              Boolean
-  ): Try[AssetTransfer[P]] = {
+    boxReader:                   BoxReader[ProgramId, Address],
+    toReceive:                   IndexedSeq[(Address, AssetValue)],
+    sender:                      IndexedSeq[Address],
+    changeAddress:               Address,
+    consolidationAddress:        Address,
+    fee:                         Int128,
+    data:                        Option[String],
+    minting:                     Boolean
+  )(implicit evidenceProducerEv: EvidenceProducer[P], identifiableEv: Identifiable[P]): Try[AssetTransfer[P]] = {
 
     val assetCode =
       toReceive
@@ -78,19 +83,64 @@ object AssetTransfer {
         .head
 
     TransferTransaction
-      .createRawTransferParams(
-        boxReader,
-        toReceive,
-        sender,
-        changeAddress,
-        consolidationAddress,
-        fee,
-        "AssetTransfer",
-        Some((assetCode, minting))
-      )
-      .map { case (inputs, outputs) =>
+      .getSenderBoxesAndCheckPolyBalance(boxReader, sender, fee, "Assets", Some(assetCode))
+      .map { txState =>
+        // compute the amount of tokens that will be sent to the recipients
+        val amtToSpend = toReceive.map(_._2.quantity).sum
+
+        // create the list of inputs and outputs (senderChangeOut & recipientOut)
+        val (availableToSpend, inputs, outputs) =
+          if (minting) ioMint(txState, toReceive, changeAddress, fee)
+          else ioTransfer(txState, toReceive, changeAddress, consolidationAddress, fee, amtToSpend, assetCode)
+
+        // ensure there are sufficient funds from the sender boxes to create all outputs
+        require(availableToSpend >= amtToSpend, "Insufficient funds available to create transaction.")
+
         AssetTransfer[P](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data, minting)
       }
+  }
+
+  /** Construct input and output box sequences for a minting transaction */
+  private def ioMint(
+    txInputState:  TransferCreationState,
+    toReceive:     IndexedSeq[(Address, AssetValue)],
+    changeAddress: Address,
+    fee:           Int128
+  ): (Int128, IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, TokenValueHolder)]) = {
+    val availableToSpend = Int128.MaxValue // you cannot mint more than the max number we can represent
+    val inputs = txInputState.senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce))
+    val outputs = (changeAddress, SimpleValue(txInputState.polyBalance - fee)) +: toReceive
+
+    (availableToSpend, inputs, outputs)
+  }
+
+  /** construct input and output box sequence for a transfer transaction */
+  private def ioTransfer(
+    txInputState:         TransferCreationState,
+    toReceive:            IndexedSeq[(Address, AssetValue)],
+    changeAddress:        Address,
+    consolidationAddress: Address,
+    fee:                  Int128,
+    amtToSpend:           Int128,
+    assetCode:            AssetCode
+  ): (Int128, IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, TokenValueHolder)]) = {
+
+    val availableToSpend =
+      txInputState.senderBoxes
+        .getOrElse("Asset", throw new Exception(s"No Assets found with assetCode $assetCode"))
+        .map(_._3.value.quantity)
+        .sum
+
+    // create the list of inputs and outputs (senderChangeOut & recipientOut)
+    val inputs = txInputState.senderBoxes("Asset").map(bxs => (bxs._2, bxs._3.nonce)) ++
+      txInputState.senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce))
+
+    val outputs = IndexedSeq(
+      (changeAddress, SimpleValue(txInputState.polyBalance - fee)),
+      (consolidationAddress, AssetValue(availableToSpend - amtToSpend, assetCode))
+    ) ++ toReceive
+
+    (availableToSpend, inputs, outputs)
   }
 
   implicit def jsonEncoder[P <: Proposition]: Encoder[AssetTransfer[P]] = { tx: AssetTransfer[P] =>

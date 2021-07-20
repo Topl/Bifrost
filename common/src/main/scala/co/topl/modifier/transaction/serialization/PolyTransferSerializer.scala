@@ -2,7 +2,7 @@ package co.topl.modifier.transaction.serialization
 
 import co.topl.attestation._
 import co.topl.attestation.serialization.{ProofSerializer, PropositionSerializer}
-import co.topl.modifier.box.TokenValueHolder
+import co.topl.modifier.box.{AssetValue, SimpleValue, TokenValueHolder}
 import co.topl.modifier.transaction.PolyTransfer
 import co.topl.utils.Extensions._
 import co.topl.utils.Int128
@@ -19,14 +19,14 @@ object PolyTransferSerializer extends BifrostSerializer[PolyTransfer[_ <: Propos
     /* from: IndexedSeq[(Address, Nonce)] */
     w.putUInt(obj.from.length)
     obj.from.foreach { case (addr, nonce) =>
-      Address.serialize(addr, w)
+      AddressSerializer.serialize(addr, w)
       w.putLong(nonce)
     }
 
     /* to: IndexedSeq[(Address, Long)] */
     w.putUInt(obj.to.length)
     obj.to.foreach { case (addr, value) =>
-      Address.serialize(addr, w)
+      AddressSerializer.serialize(addr, w)
       TokenValueHolder.serialize(value, w)
     }
 
@@ -57,15 +57,18 @@ object PolyTransferSerializer extends BifrostSerializer[PolyTransfer[_ <: Propos
 
     val fromLength: Int = r.getUInt().toIntExact
     val from = (0 until fromLength).map { _ =>
-      val addr = Address.parse(r)
+      val addr = AddressSerializer.parse(r)
       val nonce = r.getLong()
       addr -> nonce
     }
 
     val toLength: Int = r.getUInt().toIntExact
     val to = (0 until toLength).map { _ =>
-      val addr = Address.parse(r)
-      val value = TokenValueHolder.parse(r)
+      val addr = AddressSerializer.parse(r)
+      val value = TokenValueHolder.parse(r) match {
+        case v: SimpleValue => v
+        case _              => throw new Exception("Invalid TokenValueHolder for ArbitTransfer")
+      }
       addr -> value
     }
 

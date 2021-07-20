@@ -42,7 +42,18 @@ class DockerSupport(dockerClient: DockerClient)(implicit system: ActorSystem) ex
       environment.toList.map { case (key, value) => s"$key=$value" }
 
     val cmd =
-      List("--apiKeyHash", NodeRpcApi.ApiKeyHashBase58, "-c", "/opt/docker/config/testConfig.conf")
+      List(
+        "-Dcom.sun.management.jmxremote.port=9083",
+        "-Dcom.sun.management.jmxremote.rmi.port=9083",
+        "-Dcom.sun.management.jmxremote.ssl=false",
+        "-Dcom.sun.management.jmxremote.local.only=false",
+        "-Dcom.sun.management.jmxremote.authenticate=false",
+        "--apiKeyHash",
+        NodeRpcApi.ApiKeyHashBase58,
+        "-c",
+        "/opt/docker/config/testConfig.conf",
+        "--debug"
+      )
 
     val hostConfig =
       HostConfig.builder().nanoCpus((1d * 1000000000).toLong).build()
@@ -55,6 +66,7 @@ class DockerSupport(dockerClient: DockerClient)(implicit system: ActorSystem) ex
       .cmd(cmd: _*)
       .hostname(name)
       .hostConfig(hostConfig)
+      .exposedPorts(BifrostDockerNode.RpcPort.toString, BifrostDockerNode.NetworkPort.toString, "9083")
       .build()
   }
 
@@ -71,6 +83,6 @@ class DockerSupport(dockerClient: DockerClient)(implicit system: ActorSystem) ex
 
 object DockerSupport {
 
-  val bifrostImage: String = s"bifrost:${BuildInfo.version}"
+  val bifrostImage: String = s"bifrost-node:${BuildInfo.version}"
   val networkNamePrefix: String = "bifrost-it"
 }

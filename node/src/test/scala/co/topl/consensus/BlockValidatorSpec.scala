@@ -2,24 +2,32 @@ package co.topl.consensus
 
 import co.topl.consensus.consensusHelper.setProtocolMngr
 import co.topl.nodeView.history.{BlockProcessor, History}
-import co.topl.utils.CoreGenerators
+import co.topl.utils.{CommonGenerators, NodeGenerators}
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class BlockValidatorSpec extends AnyPropSpec
-  with ScalaCheckPropertyChecks
-  with Matchers
-  with CoreGenerators {
+class BlockValidatorSpec
+    extends AnyPropSpec
+    with ScalaCheckPropertyChecks
+    with Matchers
+    with CommonGenerators
+    with NodeGenerators {
 
-  /* Initialize protocolMngr */
-  setProtocolMngr(settings)
+  var history: History = _
 
-  val history: History = generateHistory()
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+
+    /* Initialize protocolMngr */
+    setProtocolMngr(settings)
+
+    history = generateHistory()
+  }
 
   property("A block with a timestamp older than its parent should never result in a hit") {
-    forAll(blockGen) { blockTemp ⇒
+    forAll(blockGen) { blockTemp =>
       val block = blockTemp.copy(parentId = history.bestBlockId)
       val nextBlock = block.copy(timestamp = block.timestamp - 1, parentId = block.id)
       val newHistory = history.append(block).get._1

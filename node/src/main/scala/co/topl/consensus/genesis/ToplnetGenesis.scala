@@ -1,7 +1,7 @@
 package co.topl.consensus.genesis
 
 import co.topl.attestation.EvidenceProducer.Syntax._
-import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.Forger.ChainParams
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -11,6 +11,7 @@ import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Int128, NetworkType}
 
+import scala.collection.immutable.ListMap
 import scala.util.Try
 
 case object ToplnetGenesis extends GenesisProvider {
@@ -23,32 +24,30 @@ case object ToplnetGenesis extends GenesisProvider {
 
   override protected val initialDifficulty: Long = 1000000000000000000L
 
-  override protected val members: Map[String, Int128] = Map(
-    "9dcWXPVWkXRmFJfisXbBguVcfZvX75gnQX5hxbAm1JzNXsyJfT2" -> 10000000000000000L,
-    "9dWhopwVrLHw61RPWPBPbViXAJoZa6MfBMPiNt1CZcpbiHY8WH6" -> 10000000000000000L,
-    "9dGWgpcR7kJw2HsWNPed4J7e8Vn61vwKHwLjrUawuXR1vcYC4QB" -> 10000000000000000L,
-    "9chb47nYoSHWh8kt8GGP4XGZEcbJAKPJT3p8YNa9U7i6Q3kjMuR" -> 10000000000000000L,
+  override protected val members: ListMap[String, Int128] = ListMap(
     "9caWb2hfQdRceaSBdhh9yxNTyVzTKvDn5HEUdi2oaQ77hpZRhPS" -> 10000000000000000L,
+    "9dGWgpcR7kJw2HsWNPed4J7e8Vn61vwKHwLjrUawuXR1vcYC4QB" -> 10000000000000000L,
+    "9d42DjKEQ2CTiC6sF8WjLGGTrr7wRYWDB1urGVvBJkQRDYvxyFf" -> 10000000000000000L,
+    "9cuQTFYRLpgmansPVFXaoqBHofLwWkktCt33a7WXM9s1HUqHWgv" -> 10000000000000000L,
+    "9ckvdkLS1KbCeTVPwzf8cUTeognE3dbJNqZTH8727MSqrzL6hgY" -> 10000000000000000L,
+    "9dcWXPVWkXRmFJfisXbBguVcfZvX75gnQX5hxbAm1JzNXsyJfT2" -> 10000000000000000L,
+    "9e5gU6BeGRCGxQubPaRAG277P73Qjd2zWZU3CqiABmuVA1AvUt5" -> 10000000000000000L,
+    "9chb47nYoSHWh8kt8GGP4XGZEcbJAKPJT3p8YNa9U7i6Q3kjMuR" -> 10000000000000000L,
+    "9ceUYwXNYQNmTe7rc6MF95yCMJhr2PoMqLtgE4Yitk9w2zSBAoD" -> 10000000000000000L,
+    "9d1seGeX3xZ1Q7qfnCRamwZZFozWeHCALEwPvypLCCc7wMGUcNJ" -> 10000000000000000L,
+    "9dCq5YpBzMeDx1HKbih2SxRxRuDQXrxHk5gV76jmu4ni93peJoq" -> 10000000000000000L,
+    "9cpA8Vp2wZkTaVqsdXtxttPnSzQsqjRMfqqeoRnkyaWq71D83QM" -> 10000000000000000L,
+    "9eWrmeAfGxPgsLCi1YhAmSwLoDT8k2Z2b9sJvXM1EWAcN7DeDBs" -> 10000000000000000L,
+    "9dG87swWcJ9WHigMfF9i8ZU2kz5wYQtwqpFV7r5moUjRWobnH55" -> 10000000000000000L,
     "9dLUQ8R7yihAiCVoFwH3VorDF6FCabSFrhdfbM6cmSN9AaWzqC3" -> 10000000000000000L,
     "9eHs4AcM6K8qs8yk7njQfeBsun8aKH6n5YnGzEMaoZnW7ZZUDvs" -> 10000000000000000L,
-    "9d42DjKEQ2CTiC6sF8WjLGGTrr7wRYWDB1urGVvBJkQRDYvxyFf" -> 10000000000000000L,
-    "9dCq5YpBzMeDx1HKbih2SxRxRuDQXrxHk5gV76jmu4ni93peJoq" -> 10000000000000000L,
-    "9eWrmeAfGxPgsLCi1YhAmSwLoDT8k2Z2b9sJvXM1EWAcN7DeDBs" -> 10000000000000000L,
-    "9ckvdkLS1KbCeTVPwzf8cUTeognE3dbJNqZTH8727MSqrzL6hgY" -> 10000000000000000L,
-    "9e61tfxRFP3xu3dPFsdCwJH7thn5Zh657BzwghpNWK1prkMPFPg" -> 10000000000000000L,
-    "9dG87swWcJ9WHigMfF9i8ZU2kz5wYQtwqpFV7r5moUjRWobnH55" -> 10000000000000000L,
-    "9dhrbcHDBm8Wcpo5CsNV3reowLqHqwVs7uGdp6SUXgm4bUT3mvW" -> 10000000000000000L,
-    "9ceUYwXNYQNmTe7rc6MF95yCMJhr2PoMqLtgE4Yitk9w2zSBAoD" -> 10000000000000000L,
     "9e2XbV8ueayCbf9dF3uVSN2UEVtwPv6hfpuQRPEfhbio9JtEXJU" -> 10000000000000000L,
-    "9cuQTFYRLpgmansPVFXaoqBHofLwWkktCt33a7WXM9s1HUqHWgv" -> 10000000000000000L,
-    "9e5gU6BeGRCGxQubPaRAG277P73Qjd2zWZU3CqiABmuVA1AvUt5" -> 10000000000000000L,
-    "9d1seGeX3xZ1Q7qfnCRamwZZFozWeHCALEwPvypLCCc7wMGUcNJ" -> 10000000000000000L,
-    "9cpA8Vp2wZkTaVqsdXtxttPnSzQsqjRMfqqeoRnkyaWq71D83QM" -> 10000000000000000L
+    "9e61tfxRFP3xu3dPFsdCwJH7thn5Zh657BzwghpNWK1prkMPFPg" -> 10000000000000000L,
+    "9dhrbcHDBm8Wcpo5CsNV3reowLqHqwVs7uGdp6SUXgm4bUT3mvW" -> 10000000000000000L,
+    "9dWhopwVrLHw61RPWPBPbViXAJoZa6MfBMPiNt1CZcpbiHY8WH6" -> 10000000000000000L
   )
 
   def getGenesisBlock: Try[(Block, ChainParams)] = Try {
-
-    val memberKeys = members.keys.map(Address(networkPrefix)(_))
 
     val txInput = (
       IndexedSeq(),

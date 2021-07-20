@@ -10,7 +10,8 @@ import scala.math.Ordering
 import scala.util.Try
 
 case class MemPool(private val unconfirmed: TrieMap[ModifierId, UnconfirmedTx[Transaction.TX]])
-  extends MemoryPool[Transaction.TX, MemPool] with Logging {
+    extends MemoryPool[Transaction.TX, MemPool]
+    with Logging {
 
   override type NVCT = MemPool
   type TX = Transaction.TX
@@ -35,36 +36,39 @@ case class MemPool(private val unconfirmed: TrieMap[ModifierId, UnconfirmedTx[Tr
   }
 
   /**
-   *
    * @param txs
    * @return
    */
   override def put(txs: Iterable[TX], time: TimeProvider.Time): Try[MemPool] = Try {
     txs.foreach(tx => unconfirmed.put(tx.id, UnconfirmedTx(tx, time)))
-    txs.foreach(tx => tx.boxIdsToOpen.foreach {
-      boxId => require(!boxesInMempool.contains(boxId))
-    })
-    txs.foreach(tx => tx.boxIdsToOpen.map {
-      boxId => boxesInMempool.put(boxId, boxId)
-    })
+    txs.foreach(tx =>
+      tx.boxIdsToOpen.foreach { boxId =>
+        require(!boxesInMempool.contains(boxId))
+      }
+    )
+    txs.foreach(tx =>
+      tx.boxIdsToOpen.map { boxId =>
+        boxesInMempool.put(boxId, boxId)
+      }
+    )
     this
   }
 
   /**
-   *
    * @param txs
    * @return
    */
   override def putWithoutCheck(txs: Iterable[TX], time: TimeProvider.Time): MemPool = {
     txs.foreach(tx => unconfirmed.put(tx.id, UnconfirmedTx(tx, time)))
-    txs.foreach(tx => tx.boxIdsToOpen.map {
-      boxId => boxesInMempool.put(boxId, boxId)
-    })
+    txs.foreach(tx =>
+      tx.boxIdsToOpen.map { boxId =>
+        boxesInMempool.put(boxId, boxId)
+      }
+    )
     this
   }
 
   /**
-   *
    * @param tx
    * @return
    */
@@ -74,7 +78,6 @@ case class MemPool(private val unconfirmed: TrieMap[ModifierId, UnconfirmedTx[Tr
   }
 
   /**
-   *
    * @param limit
    * @return
    */
@@ -82,18 +85,17 @@ case class MemPool(private val unconfirmed: TrieMap[ModifierId, UnconfirmedTx[Tr
     unconfirmed.values.toSeq.sortBy(f).take(limit)
 
   /**
-   *
    * @param condition
    * @return
    */
   override def filter(condition: TX => Boolean): MemPool = {
-    unconfirmed.retain { (_, v) =>
+    unconfirmed.filterInPlace { (_, v) =>
       if (condition(v.tx)) {
         true
       } else {
-        v.tx.boxIdsToOpen.foreach(boxId => {
+        v.tx.boxIdsToOpen.foreach { boxId =>
           boxesInMempool -= (boxId: BoxId)
-        })
+        }
         false
       }
     }
@@ -101,7 +103,6 @@ case class MemPool(private val unconfirmed: TrieMap[ModifierId, UnconfirmedTx[Tr
     this
   }
 }
-
 
 object MemPool {
   lazy val emptyPool: MemPool = MemPool(TrieMap())

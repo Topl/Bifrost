@@ -2,25 +2,32 @@ package co.topl.nodeView.history
 
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.utils.CoreGenerators
+import co.topl.utils.{CommonGenerators, NodeGenerators}
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class BifrostHistorySpec extends AnyPropSpec
-  with ScalaCheckPropertyChecks
-  with Matchers
-  with CoreGenerators {
+class BifrostHistorySpec
+    extends AnyPropSpec
+    with ScalaCheckPropertyChecks
+    with Matchers
+    with CommonGenerators
+    with NodeGenerators {
 
-  var history: History = generateHistory()
+  var history: History = _
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+
+    history = generateHistory()
+  }
 
   property("Block application should result in storage and BifrostHistory.continuationIds") {
     var ids: Seq[ModifierId] = Seq()
 
     /* Apply blocks and ensure that they are stored */
     forAll(blockGen) { blockTemp =>
-
       val block = blockTemp.copy(parentId = history.bestBlockId)
 
       history = history.append(block).get._1
@@ -39,13 +46,14 @@ class BifrostHistorySpec extends AnyPropSpec
 
     continuationIds shouldEqual ids
 
-
     forAll(Gen.choose(0, ids.length - 1)) { startIndex: Int =>
       val startFrom = Seq((Block.modifierTypeId, ids(startIndex)))
       val startList = ids.take(startIndex + 1).map((Block.modifierTypeId, _))
-      val restIds = ids.zipWithIndex.filter {
-        case (_, index) => index >= startIndex
-      }.map(_._1)
+      val restIds = ids.zipWithIndex
+        .filter { case (_, index) =>
+          index >= startIndex
+        }
+        .map(_._1)
 
       val continuationIds = history.continuationIds(startFrom, ids.length).get.map(_._2)
 

@@ -3,15 +3,19 @@ package co.topl.wallet
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.pipe
 import akka.util.Timeout
-import co.topl.attestation.{Address, AddressEncoder}
-import co.topl.http.api.endpoints.{NodeViewApiEndpoint, TransactionApiEndpoint}
+import cats.data.Validated.Valid
+import cats.implicits._
+import co.topl.attestation.Address
+import co.topl.attestation.AddressCodec.implicits.Base58DataOps
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.block.{Block, BloomFilter, PersistentNodeViewModifier}
 import co.topl.modifier.transaction._
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.SemanticallySuccessfulModifier
 import co.topl.settings.{AppContext, AppSettings, RPCApiSettings}
+import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.StringDataTypes.{Base58Data, DataEncodingValidationResult}
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
@@ -20,16 +24,18 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-/** Manages the communication between Bifrost and a running wallet.
-  * @param settings - the current AppSettings from Bifrost.
-  * @param ec - the execution context used for futures.
-  */
+/**
+ * Manages the communication between Bifrost and a running wallet.
+ * @param settings - the current AppSettings from Bifrost.
+ * @param ec - the execution context used for futures.
+ */
 class WalletConnectionHandler[
   PMOD <: PersistentNodeViewModifier
-](settings:          RPCApiSettings,
-  appContext:        AppContext,
-  nodeViewHolderRef: ActorRef)
- (implicit ec: ExecutionContext, networkPrefix: NetworkPrefix) extends Actor with Logging {
+](settings:      RPCApiSettings, appContext: AppContext, nodeViewHolderRef: ActorRef)(implicit
+  ec:            ExecutionContext,
+  networkPrefix: NetworkPrefix
+) extends Actor
+    with Logging {
 
   import WalletConnectionHandler._
 
@@ -39,14 +45,13 @@ class WalletConnectionHandler[
   var remoteWalletActor: Option[ActorRef] = None
   var remoteWalletAddresses: Option[Set[Address]] = None
 
-
-  override def preStart(): Unit = {
+  override def preStart(): Unit =
     context.system.eventStream.subscribe(self, classOf[SemanticallySuccessfulModifier[PMOD]])
-  }
 
   private val apiServiceHandlers =
-    NodeViewApiEndpoint(settings, appContext, nodeViewHolderRef).handlers orElse
-      TransactionApiEndpoint(settings, appContext, nodeViewHolderRef).handlers
+    PartialFunction.empty[(String, Vector[Json], String), Future[Json]]
+//    NodeViewApiEndpoint(settings, appContext, nodeViewHolderRef).handlers orElse
+//      TransactionApiEndpoint(settings, appContext, nodeViewHolderRef).handlers
 
   ////////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
@@ -55,17 +60,16 @@ class WalletConnectionHandler[
 
     case msg: String => handleMsgFromRemote(msg)
 
-    case GetRemoteWalletRef => sender ! remoteWalletActor
+    case GetRemoteWalletRef => sender() ! remoteWalletActor
 
     case SemanticallySuccessfulModifier(block: Block) => handleNewBlock(block)
 
   }
 
-
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
 
-  private def handleNewBlock(block: Block): Unit = {
+  private def handleNewBlock(block: Block): Unit =
     remoteWalletAddresses match {
       case Some(addresses) =>
         log.info(s"Received new block ${block.id}, parsing for transactions for addresses: $addresses")
@@ -77,10 +81,10 @@ class WalletConnectionHandler[
 
       case _ => // Do nothing since there are no addresses registered
     }
-  }
 
-  /** @param msg - the message received from Gjallarhorn
-    */
+  /**
+   * @param msg - the message received from Gjallarhorn
+   */
   private def handleMsgFromRemote(msg: String): Unit = {
     if (msg.contains("Remote wallet actor initialized")) {
       remoteWalletActor = Some(sender())
@@ -106,7 +110,7 @@ class WalletConnectionHandler[
       remoteWalletActor = None
       remoteWalletAddresses = None
       log.info(s"The remote wallet ${sender()} has been removed from the WalletConnectionHandler in Bifrost")
-      sender ! s"The remote wallet ${sender()} has been removed from the WalletConnectionHandler in Bifrost"
+      sender() ! s"The remote wallet ${sender()} has been removed from the WalletConnectionHandler in Bifrost"
     }
 
     if (msg.contains("request from gjallarhorn:")) {
@@ -118,61 +122,63 @@ class WalletConnectionHandler[
 
     if (msg.contains("New key:")) {
       val addr: String = msg.substring("New key: ".length)
+      val decodedAddress = Base58Data.unsafe(addr).decodeAddress.getOrThrow()
       remoteWalletAddresses match {
         case Some(addresses) =>
-          val newAddresses: Set[Address] = addresses + Address(networkPrefix)(addr)
+          val newAddresses: Set[Address] = addresses + decodedAddress
           remoteWalletAddresses = Some(newAddresses)
-        case None => remoteWalletAddresses = Some(Set(Address(networkPrefix)(addr)))
+        case None => remoteWalletAddresses = Some(Set(decodedAddress))
       }
     }
   }
 
-  private def anyRemoteAddressInBloom(bf: BloomFilter): Boolean = {
+  private def anyRemoteAddressInBloom(bf: BloomFilter): Boolean =
     remoteWalletAddresses match {
-      case Some(addresses) => addresses.map(addr => bf.contains(BloomTopic @@ addr.bytes)).reduce(_ || _)
-      case _ => false
+      case Some(addresses) => addresses.map(addr => bf.contains(BloomTopic(addr.bytes))).reduce(_ || _)
+      case _               => false
     }
-  }
 
-  /** Parses a block, looking for the addresses from the remote wallet.
-    * @param block - a new block that was just added.
-    * @return - returns json of the transactions from the new block if it contains addresses from the remote wallet.
-    *         Otherwise, returns None.
-    */
+  /**
+   * Parses a block, looking for the addresses from the remote wallet.
+   * @param block - a new block that was just added.
+   * @return - returns json of the transactions from the new block if it contains addresses from the remote wallet.
+   *         Otherwise, returns None.
+   */
   private def parseBlockForKeys(block: Block): Option[Json] = remoteWalletAddresses map { keys =>
     val txs: Seq[Transaction.TX] = block.transactions.filter {
-      case tx: TransferTransaction[_,_] if keys.toSeq.intersect(tx.to.map(_._1)).nonEmpty => true
-      case _                                                                            => false
+      case tx: TransferTransaction[_, _] if keys.toSeq.intersect(tx.to.map(_._1)).nonEmpty => true
+      case _                                                                               => false
     }
 
     txs.asJson
   }
 
-  /** Handles requests sent from a remote Gjallarhorn instance and sends them to the appropriate API methods
-    * @param req parameters to fulfill the request
-    * @param actorRef the actor to respond to
-    */
-  private def processRequest(req: (String, Vector[Json], String), actorRef: ActorRef): Unit = {
+  /**
+   * Handles requests sent from a remote Gjallarhorn instance and sends them to the appropriate API methods
+   * @param req parameters to fulfill the request
+   * @param actorRef the actor to respond to
+   */
+  private def processRequest(req: (String, Vector[Json], String), actorRef: ActorRef): Unit =
     if (apiServiceHandlers.isDefinedAt(req)) {
       apiServiceHandlers
         .apply(req)
         .transformWith {
-          case Success(resp) => Future(resp.noSpaces)
+          case Success(resp)      => Future(resp.noSpaces)
           case Failure(exception) => Future("Error: " + exception)
         }
         .pipeTo(actorRef)
 
     } else throw new Exception("Service handler not found for method: " + req._1)
-  }
 
-  /** Parse incoming request parameters and target the service with the appropriate handler function
-    * @param params function parameters needed to process the requested message type
-    * @param walletRef the actor reference of the Gjallarhorn instance
-    */
+  /**
+   * Parse incoming request parameters and target the service with the appropriate handler function
+   * @param params function parameters needed to process the requested message type
+   * @param walletRef the actor reference of the Gjallarhorn instance
+   */
   private def sendRequestApi(params: String, walletRef: ActorRef): Unit =
     (for {
-      tx <- parse(params)
-      id <- (tx \\ "id").head.as[String]
+      tx     <- parse(params)
+      id     <- (tx \\ "id").head.as[String]
       params <- (tx \\ "params").head.as[Vector[Json]]
       method <- (tx \\ "method").head.as[String]
     } yield {
@@ -183,24 +189,23 @@ class WalletConnectionHandler[
       case Left(error) => throw new Exception(s"error: $error")
     }
 
-  /** Parse the set of keys registered by the Gjallarhorn actor
-    * @param keys a stringified set of PublicKeyPropositions to monitor for changes
-    */
-  private def parseKeys(keys: String): Option[Set[Address]] = {
+  /**
+   * Parse the set of keys registered by the Gjallarhorn actor
+   * @param keys a stringified set of PublicKeyPropositions to monitor for changes
+   */
+  private def parseKeys(keys: String): Option[Set[Address]] =
     if (keys == "Set()") {
       log.info("Remote wallet has no keys!")
       None
     } else {
-      val keysArr: Array[String] = keys.substring("Set(".length, keys.length-1).split(",")
+      val keysArr: Array[String] = keys.substring("Set(".length, keys.length - 1).split(",")
       val keystrings = keysArr.map(key => key.trim).toSet
 
-      Some(keystrings.map(key =>
-        AddressEncoder.fromStringWithCheck(key, networkPrefix) match {
-          case Success(addr) => addr
-          case Failure(ex)   => throw new Error (s"The key: $key cannot be converted into an address: $ex")
-        }))
+      keystrings.map(Base58Data.validated).foldLeft[Option[Set[Address]]](Some(Set[Address]())) {
+        case (Some(keys), Valid(key)) => Some(keys + key.decodeAddress.getOrThrow())
+        case _                        => None
+      }
     }
-  }
 
   private def balanceRequest(addresses: Set[Address]): String = {
     val params: Json = Map("addresses" -> addresses.map(_.asJson).toList).asJson
@@ -232,18 +237,20 @@ object WalletConnectionHandlerRef {
   def props[
     PMOD <: PersistentNodeViewModifier
   ](settings: AppSettings, appContext: AppContext, nodeViewHolderRef: ActorRef)(implicit
-    ec:               ExecutionContext
+    ec:       ExecutionContext
   ): Props =
     Props(
-      new WalletConnectionHandler[PMOD](settings.rpcApi, appContext, nodeViewHolderRef)
-      (ec, appContext.networkType.netPrefix)
+      new WalletConnectionHandler[PMOD](settings.rpcApi, appContext, nodeViewHolderRef)(
+        ec,
+        appContext.networkType.netPrefix
+      )
     )
 
   def apply[
     PMOD <: PersistentNodeViewModifier
-  ](name: String, settings: AppSettings, appContext: AppContext, nodeViewHolderRef: ActorRef)(implicit
-    system:       ActorSystem,
-    ec:           ExecutionContext
+  ](name:   String, settings: AppSettings, appContext: AppContext, nodeViewHolderRef: ActorRef)(implicit
+    system: ActorSystem,
+    ec:     ExecutionContext
   ): ActorRef =
     system.actorOf(props[PMOD](settings, appContext, nodeViewHolderRef), name)
 }

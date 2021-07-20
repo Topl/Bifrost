@@ -7,10 +7,10 @@ import io.circe.syntax._
 
 class ProgramBoxRegistrySpec extends MockState {
 
-  val state: State = createState()
+  var state: State = _
 
-  val pubKey: PublicKeyPropositionCurve25519 = propositionGen.sample.get
-  val address: Address = pubKey.address
+  var pubKey: PublicKeyPropositionCurve25519 = _
+  var address: Address = _
 
   val stateOne: Json =
     s"""
@@ -22,10 +22,22 @@ class ProgramBoxRegistrySpec extends MockState {
        |{"b": "1" }
      """.stripMargin.asJson
 
-  val sboxOne: StateBox = StateBox(address.evidence, 0L, programIdGen.sample.get, stateOne)
-  val sboxTwo: StateBox = StateBox(address.evidence, 1L, programIdGen.sample.get, stateTwo)
+  var sboxOne: StateBox = _
+  var sboxTwo: StateBox = _
 
-  var newState_1: State = null
+  var newState_1: State = _
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+
+    state = createState()
+
+    pubKey = propositionGen.sample.get
+    address = pubKey.address
+
+    sboxOne = StateBox(address.evidence, 0L, programIdGen.sample.get, stateOne)
+    sboxTwo = StateBox(address.evidence, 1L, programIdGen.sample.get, stateTwo)
+  }
 
   property("BifrostState should update programBoxRegistry with state box and rollback correctly") {
 
@@ -37,7 +49,8 @@ class ProgramBoxRegistrySpec extends MockState {
     assert(newState_1.getProgramBox[StateBox](sboxOne.value).get.bytes sameElements sboxOne.bytes)
 
     val changes_2: StateChanges = StateChanges(Seq(sboxOne.id), Seq(sboxTwo))
-    val pbr_changes_2 = Some(ProgramRegistryChanges(Map(sboxOne.value -> Seq(sboxOne.id)), Map(sboxTwo.value -> Seq(sboxTwo.id))))
+    val pbr_changes_2 =
+      Some(ProgramRegistryChanges(Map(sboxOne.value -> Seq(sboxOne.id)), Map(sboxTwo.value -> Seq(sboxTwo.id))))
     val newState_2 = newState_1.applyChanges(modifierIdGen.sample.get, changes_2, None, pbr_changes_2).get
 
     assert(newState_2.registryLookup(sboxTwo.value).get.head == sboxTwo.id)

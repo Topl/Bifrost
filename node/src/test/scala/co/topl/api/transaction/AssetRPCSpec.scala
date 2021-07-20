@@ -4,26 +4,33 @@ import akka.util.ByteString
 import co.topl.api.RPCMockState
 import co.topl.attestation.Address
 import co.topl.modifier.box.AssetCode
+import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
+import co.topl.utils.codecs.implicits.base58JsonDecoder
+import co.topl.utils.encode.Base58
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import scorex.util.encode.Base58
 
-class AssetRPCSpec extends AnyWordSpec
-  with Matchers
-  with RPCMockState {
+class AssetRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
 
-  val address: Address = keyRing.addresses.head
-  val recipients: String = assetToSeqGen.sample.get.asJson.toString()
-  val assetCode: AssetCode = AssetCode(1: Byte, address, "test")
+  var address: Address = _
+  var recipients: String = _
+  var assetCode: AssetCode = _
   var tx = ""
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+
+    address = keyRing.addresses.head
+    recipients = assetToSeqGen.sample.get.asJson.toString()
+    assetCode = AssetCode(1: Byte, address, Latin1Data.unsafe("test"))
+  }
 
   "AssetTransfer RPC" should {
     "Create new assets raw transaction" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "2",
@@ -55,17 +62,17 @@ class AssetRPCSpec extends AnyWordSpec
         val res = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
 
         val sigTx = for {
-          rawTx <- res.hcursor.downField("result").get[Json]("rawTx")
-          message <- res.hcursor.downField("result").get[String]("messageToSign")
+          rawTx   <- res.hcursor.downField("result").get[Json]("rawTx")
+          message <- res.hcursor.downField("result").get[Base58Data]("messageToSign")
         } yield {
-          val sig = keyRing.generateAttestation(address)(Base58.decode(message).get)
+          val sig = keyRing.generateAttestation(address)(message.value)
           val signatures: Json = Map(
             "signatures" -> sig.asJson
           ).asJson
           rawTx.deepMerge(signatures)
         }
 
-        tx = sigTx.right.get.toString
+        tx = sigTx.getOrElse("").toString
 
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
@@ -73,8 +80,7 @@ class AssetRPCSpec extends AnyWordSpec
     }
 
     "Broadcast signed AssetTransfer transaction" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
           |{
           |   "jsonrpc": "2.0",
           |   "id": "2",

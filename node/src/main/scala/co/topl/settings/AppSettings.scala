@@ -1,6 +1,5 @@
 package co.topl.settings
 
-import co.topl.http.api.NamespaceSelector
 import co.topl.network.utils.NetworkTimeProviderSettings
 import co.topl.utils.Logging
 import com.typesafe.config.{Config, ConfigFactory}
@@ -26,6 +25,7 @@ case class ApplicationSettings(
 
 case class RPCApiSettings(
   bindAddress:       InetSocketAddress,
+  disableAuth:       Boolean,
   apiKeyHash:        String,
   timeout:           FiniteDuration,
   verboseAPI:        Boolean,
@@ -86,10 +86,10 @@ case class PrivateTestnetSettings(
 )
 
 case class GjallarhornSettings(
-  enableWallet:     Boolean,
-  clusterEnabled:   Boolean,
-  clusterHost:      Option[String],
-  clusterPort:      Option[Int]
+  enableWallet:   Boolean,
+  clusterEnabled: Boolean,
+  clusterHost:    Option[String],
+  clusterPort:    Option[Int]
 )
 
 case class AppSettings(
@@ -105,36 +105,41 @@ object AppSettings extends Logging with SettingsReaders {
 
   protected val configPath: String = "bifrost"
 
-  /** Produces an application settings class, and modify the default settings if user options are provided
-    *
-    * @param startupOpts startup options such as the path of the user defined config and network type
-    * @return application settings
-    */
-  def read(startupOpts: StartupOpts = StartupOpts.empty): (AppSettings, Config) = {
+  /**
+   * Produces an application settings class, and modify the default settings if user options are provided
+   *
+   * @param startupOpts startup options such as the path of the user defined config and network type
+   * @return application settings
+   */
+  def read(startupOpts: StartupOpts = StartupOpts()): (AppSettings, Config) = {
     val config = readConfig(startupOpts)
     val settingFromConfig = fromConfig(config)
     val completeConfig = clusterConfig(settingFromConfig, config)
     (startupOpts.runtimeParams.overrideWithCmdArgs(settingFromConfig), completeConfig)
   }
 
-  /** Produces an application settings class by reading the specified HOCON configuration file
-    *
-    * @param config config factory compatible configuration
-    * @return application settings
-    */
+  /**
+   * Produces an application settings class by reading the specified HOCON configuration file
+   *
+   * @param config config factory compatible configuration
+   * @return application settings
+   */
   def fromConfig(config: Config): AppSettings = config.as[AppSettings](configPath)
 
-  /** Based on the startup arguments given by the user, modify and return the default application config
-    *
-    * @param args startup options such as the path of the user defined config and network type
-    * @return config factory compatible configuration
-    */
+  /**
+   * Based on the startup arguments given by the user, modify and return the default application config
+   *
+   * @param args startup options such as the path of the user defined config and network type
+   * @return config factory compatible configuration
+   */
   def readConfig(args: StartupOpts): Config = {
 
     val userConfig = args.userConfigPathOpt.fold(ConfigFactory.empty()) { uc =>
       val userFile = new File(uc)
-      log.info(s"${Console.YELLOW}Attempting to load custom configuration from " +
-        s"${userFile.getAbsolutePath}${Console.RESET}")
+      log.info(
+        s"${Console.YELLOW}Attempting to load custom configuration from " +
+        s"${userFile.getAbsolutePath}${Console.RESET}"
+      )
 
       ConfigFactory.parseFile(userFile)
     }
@@ -156,10 +161,10 @@ object AppSettings extends Logging with SettingsReaders {
 
   }
 
-  def clusterConfig(settings: AppSettings, config: Config): Config = {
+  def clusterConfig(settings: AppSettings, config: Config): Config =
     if (settings.gjallarhorn.clusterEnabled) {
-      ConfigFactory.parseString(
-        s"""
+      ConfigFactory
+        .parseString(s"""
       akka {
         actor.provider = cluster
         remote = {
@@ -174,5 +179,4 @@ object AppSettings extends Logging with SettingsReaders {
     } else {
       config
     }
-  }
 }

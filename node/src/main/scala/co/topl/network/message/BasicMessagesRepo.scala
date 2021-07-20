@@ -21,13 +21,14 @@ case class InvData(typeId: ModifierTypeId, ids: Seq[ModifierId]) {
 case class PeersData(peers: Seq[PeerSpec])
 
 /* ----------------------------------------------------------------------------------------------------------------- */
-/** The `SyncInfo` message requests an `Inv` message that provides modifier ids
-  * required be sender to synchronize his blockchain with the recipient.
-  * It allows a peer which has been disconnected or started for the first
-  * time to get the data it needs to request the blocks it hasn't seen.
-  *
-  * Payload of this message should be determined in underlying applications.
-  */
+/**
+ * The `SyncInfo` message requests an `Inv` message that provides modifier ids
+ * required be sender to synchronize his blockchain with the recipient.
+ * It allows a peer which has been disconnected or started for the first
+ * time to get the data it needs to request the blocks it hasn't seen.
+ *
+ * Payload of this message should be determined in underlying applications.
+ */
 class SyncInfoSpec extends MessageSpecV1[BifrostSyncInfo] {
 
   override val messageCode: MessageCode = SyncInfoSpec.MessageCode
@@ -35,7 +36,7 @@ class SyncInfoSpec extends MessageSpecV1[BifrostSyncInfo] {
 
   override def serialize(data: BifrostSyncInfo, w: Writer): Unit = {
     w.putUShort(data.lastBlockIds.size)
-    data.lastBlockIds.foreach(id ⇒ w.putBytes(id.bytes))
+    data.lastBlockIds.foreach(id => w.putBytes(id.bytes))
   }
 
   override def parse(r: Reader): BifrostSyncInfo = {
@@ -51,13 +52,14 @@ object SyncInfoSpec {
 }
 
 /* ----------------------------------------------------------------------------------------------------------------- */
-/** The `Inv` message (inventory message) transmits one or more inventories of
-  * objects known to the transmitting peer.
-  * It can be sent unsolicited to announce new transactions or blocks,
-  * or it can be sent in reply to a `SyncInfo` message (or application-specific messages like `GetMempool`).
-  *
-  * @param maxInvObjects maximum inventory objects
-  */
+/**
+ * The `Inv` message (inventory message) transmits one or more inventories of
+ * objects known to the transmitting peer.
+ * It can be sent unsolicited to announce new transactions or blocks,
+ * or it can be sent in reply to a `SyncInfo` message (or application-specific messages like `GetMempool`).
+ *
+ * @param maxInvObjects maximum inventory objects
+ */
 class InvSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
 
   override val messageCode: MessageCode = InvSpec.MessageCode
@@ -68,7 +70,7 @@ class InvSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
     val elems = data.ids
     require(elems.nonEmpty, "empty inv list")
     require(elems.lengthCompare(maxInvObjects) <= 0, s"more invs than $maxInvObjects in a message")
-    w.put(typeId)
+    w.put(typeId.value)
     w.putUInt(elems.size)
     elems.foreach { id =>
       val bytes = id.bytes
@@ -78,7 +80,7 @@ class InvSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
   }
 
   override def parse(r: Reader): InvData = {
-    val typeId = ModifierTypeId @@ r.getByte()
+    val typeId = ModifierTypeId(r.getByte())
     val count = r.getUInt().toIntExact
     require(count > 0, "empty inv list")
     require(count <= maxInvObjects, s"$count elements in a message while limit is $maxInvObjects")
@@ -95,18 +97,19 @@ object InvSpec {
 }
 
 /** ------------------------------------------------------------------------------------------------------------------ */
-/** The `RequestModifier` message requests one or more modifiers from another node.
-  * The objects are requested by an inventory, which the requesting node
-  * typically received previously by way of an `Inv` message.
-  *
-  * This message cannot be used to request arbitrary data, such as historic transactions no
-  * longer in the memory pool. Full nodes may not even be able to provide older blocks if
-  * they’ve pruned old transactions from their block database.
-  * For this reason, the `RequestModifier` message should usually only be used to request
-  * data from a node which previously advertised it had that data by sending an `Inv` message.
-  *
-  * @param maxInvObjects maximum inventory objects
-  */
+/**
+ * The `RequestModifier` message requests one or more modifiers from another node.
+ * The objects are requested by an inventory, which the requesting node
+ * typically received previously by way of an `Inv` message.
+ *
+ * This message cannot be used to request arbitrary data, such as historic transactions no
+ * longer in the memory pool. Full nodes may not even be able to provide older blocks if
+ * they’ve pruned old transactions from their block database.
+ * For this reason, the `RequestModifier` message should usually only be used to request
+ * data from a node which previously advertised it had that data by sending an `Inv` message.
+ *
+ * @param maxInvObjects maximum inventory objects
+ */
 class RequestModifierSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
 
   override val messageCode: MessageCode = RequestModifierSpec.MessageCode
@@ -114,13 +117,11 @@ class RequestModifierSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
 
   private val invSpec = new InvSpec(maxInvObjects)
 
-  override def serialize(data: InvData, w: Writer): Unit = {
+  override def serialize(data: InvData, w: Writer): Unit =
     invSpec.serialize(data, w)
-  }
 
-  override def parse(r: Reader): InvData = {
+  override def parse(r: Reader): InvData =
     invSpec.parse(r)
-  }
 }
 
 object RequestModifierSpec {
@@ -129,10 +130,11 @@ object RequestModifierSpec {
 }
 
 /** ------------------------------------------------------------------------------------------------------------------ */
-/** The `Modifier` message is a reply to a `RequestModifier` message which requested these modifiers.
-  *
-  * @param maxMessageSize maximum income package size (bytes), maxPacketSize in configs
-  */
+/**
+ * The `Modifier` message is a reply to a `RequestModifier` message which requested these modifiers.
+ *
+ * @param maxMessageSize maximum income package size (bytes), maxPacketSize in configs
+ */
 class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] with Logging {
 
   override val messageCode: MessageCode = ModifiersSpec.MessageCode
@@ -151,7 +153,7 @@ class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] wi
     }
 
     val start = w.length()
-    w.put(typeId)
+    w.put(typeId.value)
     w.putUInt(msgCount)
 
     modifiers.take(msgCount).foreach { case (id, modifier) =>
@@ -169,7 +171,7 @@ class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] wi
   }
 
   override def parse(r: Reader): ModifiersData = {
-    val typeId = ModifierTypeId @@ r.getByte()
+    val typeId = ModifierTypeId(r.getByte())
     val count = r.getUInt().toIntExact
     val seq = (0 until count).map { _ =>
       val id = ModifierId.parse(r)
@@ -187,12 +189,13 @@ object ModifiersSpec {
 }
 
 /** ------------------------------------------------------------------------------------------------------------------ */
-/** The `GetPeer` message requests an `Peers` message from the receiving node,
-  * preferably one with lots of `PeerSpec` of other receiving nodes.
-  * The transmitting node can use those `PeerSpec` addresses to quickly update
-  * its database of available nodes rather than waiting for unsolicited `Peers`
-  * messages to arrive over time.
-  */
+/**
+ * The `GetPeer` message requests an `Peers` message from the receiving node,
+ * preferably one with lots of `PeerSpec` of other receiving nodes.
+ * The transmitting node can use those `PeerSpec` addresses to quickly update
+ * its database of available nodes rather than waiting for unsolicited `Peers`
+ * messages to arrive over time.
+ */
 class GetPeersSpec extends MessageSpecV1[Unit] {
 
   override val messageCode: MessageCode = GetPeersSpec.MessageCode
@@ -200,9 +203,8 @@ class GetPeersSpec extends MessageSpecV1[Unit] {
 
   override def serialize(obj: Unit, w: Writer): Unit = {}
 
-  override def parse(r: Reader): Unit = {
+  override def parse(r: Reader): Unit =
     require(r.remaining == 0, "Non-empty data for GetPeers")
-  }
 }
 
 object GetPeersSpec {
@@ -211,12 +213,13 @@ object GetPeersSpec {
 }
 
 /** ------------------------------------------------------------------------------------------------------------------ */
-/** The `Peers` message is a reply to a `GetPeer` message and relays connection information about peers
-  * on the network.
-  *
-  * @param featureSerializers searializer for feature
-  * @param peersLimit maximum number of PeerSpec objects in one Peers message
-  */
+/**
+ * The `Peers` message is a reply to a `GetPeer` message and relays connection information about peers
+ * on the network.
+ *
+ * @param featureSerializers searializer for feature
+ * @param peersLimit maximum number of PeerSpec objects in one Peers message
+ */
 class PeersSpec(featureSerializers: PeerFeature.Serializers, peersLimit: Int) extends MessageSpecV1[PeersData] {
 
   override val messageCode: Message.MessageCode = PeersSpec.MessageCode
@@ -246,10 +249,11 @@ object PeersSpec {
 }
 
 /** ------------------------------------------------------------------------------------------------------------------ */
-/** The `Handshake` message provides information about the transmitting node
-  * to the receiving node at the beginning of a connection. Until both peers
-  * have exchanged `Handshake` messages, no other messages will be accepted.
-  */
+/**
+ * The `Handshake` message provides information about the transmitting node
+ * to the receiving node at the beginning of a connection. Until both peers
+ * have exchanged `Handshake` messages, no other messages will be accepted.
+ */
 class HandshakeSpec(featureSerializers: PeerFeature.Serializers, sizeLimit: Int) extends MessageSpecV1[Handshake] {
 
   private val peersDataSerializer = new PeerSpecSerializer(featureSerializers)

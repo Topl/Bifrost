@@ -3,24 +3,32 @@ package co.topl.api.transaction
 import akka.util.ByteString
 import co.topl.api.RPCMockState
 import co.topl.attestation.Address
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.codecs.implicits.base58JsonDecoder
+import co.topl.utils.encode.Base58
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
+import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import scorex.util.encode.Base58
 
-class PolyTransferRPCSpec extends AnyWordSpec
-  with Matchers
-  with RPCMockState {
+import scala.concurrent.duration._
 
-  val address: Address = keyRing.addresses.head
+class PolyTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState with EitherValues {
+
+  var address: Address = _
   var tx = ""
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+
+    address = keyRing.addresses.head
+  }
 
   "PolyTransfer RPC" should {
     "Create new poly transfer raw transaction" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "2",
@@ -30,6 +38,8 @@ class PolyTransferRPCSpec extends AnyWordSpec
            |     "recipients": [["$address", "1"]],
            |     "sender": ["$address"],
            |     "changeAddress": "$address",
+           |     "consolidationAddress": "$address",
+           |     "minting": "false",
            |     "fee": "1",
            |     "data": ""
            |   }]
@@ -37,23 +47,20 @@ class PolyTransferRPCSpec extends AnyWordSpec
         """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]) match {
-          case Right(re) => re;
-          case Left(ex) => throw ex
-        }
+        val res = parse(responseAs[String]).value
 
         val sigTx = for {
-          rawTx <- res.hcursor.downField("result").get[Json]("rawTx")
-          message <- res.hcursor.downField("result").get[String]("messageToSign")
+          rawTx   <- res.hcursor.downField("result").get[Json]("rawTx")
+          message <- res.hcursor.downField("result").get[Base58Data]("messageToSign")
         } yield {
-          val sig = keyRing.generateAttestation(address)(Base58.decode(message).get)
+          val sig = keyRing.generateAttestation(address)(message.value)
           val signatures: Json = Map(
             "signatures" -> sig.asJson
           ).asJson
           rawTx.deepMerge(signatures)
         }
 
-        tx = sigTx.right.get.toString
+        tx = sigTx.value.toString
 
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
@@ -61,8 +68,7 @@ class PolyTransferRPCSpec extends AnyWordSpec
     }
 
     "Broadcast signed PolyTransfer transaction" in {
-      val requestBody = ByteString(
-        s"""
+      val requestBody = ByteString(s"""
            |{
            |   "jsonrpc": "2.0",
            |   "id": "2",
