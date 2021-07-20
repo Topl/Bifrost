@@ -1,12 +1,15 @@
 package co.topl.consensus
 
+import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.implicits._
 import co.topl.modifier.ModifierId
 import co.topl.settings.AppSettings
+import co.topl.utils.codecs.FromBytes.implicits._
 import co.topl.utils.NetworkType.{LocalTestnet, PrivateTestnet}
+import co.topl.utils.codecs.implicits.digestBytesEncoder
 import co.topl.utils.{Int128, Logging, NetworkType}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore, Store}
-import scorex.crypto.hash.Blake2b256
 
 import java.io.File
 
@@ -17,11 +20,14 @@ import java.io.File
  */
 class ConsensusStorage(storage: Option[Store], private val defaultTotalStake: Int128) extends Logging {
 
+  private def byteArrayWrappedKey(name: String): ByteArrayWrapper =
+    ByteArrayWrapper(blake2b256.hash(name.getBytes).bytes)
+
   // constant keys for each piece of consensus state
-  private val totalStakeKey = ByteArrayWrapper(Blake2b256("totalStake".getBytes))
-  private val difficultyKey = ByteArrayWrapper(Blake2b256("difficulty".getBytes))
-  private val inflationKey = ByteArrayWrapper(Blake2b256("inflation".getBytes))
-  private val heightKey = ByteArrayWrapper(Blake2b256("height".getBytes))
+  private val totalStakeKey = byteArrayWrappedKey("totalStake")
+  private val difficultyKey = byteArrayWrappedKey("difficulty")
+  private val inflationKey = byteArrayWrappedKey("inflation")
+  private val heightKey = byteArrayWrappedKey("height")
 
   private val defaultDifficulty: Long = 0
   private val defaultInflation: Long = 0

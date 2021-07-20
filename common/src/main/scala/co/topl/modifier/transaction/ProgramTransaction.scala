@@ -4,7 +4,7 @@
 //import co.topl.attestation.proposition.PublicKeyCurve25519Proposition
 //import co.topl.modifier.box.{ BoxId, PolyBox }
 //import com.google.common.primitives.Ints
-//import scorex.crypto.hash.Blake2b256
+//import co.topl.crypto.hash.Blake2b256
 //
 //import scala.util.Try
 //

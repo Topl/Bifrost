@@ -1,4 +1,4 @@
-package co.topl.utils
+package co.topl.utils.codecs
 
 import cats.Eq
 import cats.data.{Validated, ValidatedNec}
@@ -57,7 +57,7 @@ object AsBytes {
   }
 
   trait Instances {
-    val identityBytesEncoder: AsBytes[Infallible, Array[Byte]] = infallible(identity)
+    implicit val identityBytesEncoder: AsBytes[Infallible, Array[Byte]] = infallible(identity)
 
     implicit def asBytesEq[T](implicit ev: AsBytes[_, T]): Eq[T] =
       (x: T, y: T) =>
@@ -118,11 +118,16 @@ object FromBytes {
   }
 
   trait ToOps {
+    import AsBytes.implicits.toEncoderOps
+
     implicit def toDecoderOps(target: Array[Byte]): Ops = new Ops(target)
+
+    implicit def toDecoderOps[V](target: V)(implicit encoder: AsBytes[Infallible, V]): Ops =
+      new Ops(target.infalliblyEncodeAsBytes)
   }
 
   trait Instances {
-    val identityBytesDecoder: FromBytes[Infallible, Array[Byte]] = infallible(identity)
+    implicit val identityBytesDecoder: FromBytes[Infallible, Array[Byte]] = infallible(identity)
   }
 
   object implicits extends ToOps with Instances

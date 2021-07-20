@@ -1,10 +1,9 @@
 package utils.serialization
 
-import java.nio.ByteBuffer
-
 import akka.util.ByteString
 import utils.ByteArrayBuilder
 
+import java.nio.ByteBuffer
 import scala.util.Try
 
 trait GjalSerializer[Content] extends Serializer[Content, Content, Reader, Writer] {

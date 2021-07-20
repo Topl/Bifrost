@@ -2,7 +2,7 @@ package co.topl.akkahttprpc
 
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.testkit.ScalatestRouteTest
+import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.ThrowableSupport.Verbose.verboseThrowableCodec
@@ -17,6 +17,9 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{EitherValues, Inside, OptionValues}
 import RpcEncoders._
+import akka.actor.ActorSystem
+
+import scala.concurrent.duration._
 import scala.concurrent.Future
 
 class RpcSpec
@@ -33,6 +36,12 @@ class RpcSpec
   import RpcSpec._
 
   it should "successfully handle an RPC call" in {
+    implicit val timeout: Duration = 5.seconds
+
+    // https://stackoverflow.com/questions/32214005
+    // /request-was-neither-completed-nor-rejected-within-1-second-scala-spray-testing
+    implicit def default(implicit system: ActorSystem): RouteTestTimeout = RouteTestTimeout(5.seconds)
+
     val underTest = normalRoute
 
     Post(

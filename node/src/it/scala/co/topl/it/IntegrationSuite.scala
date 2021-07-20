@@ -99,5 +99,5 @@ trait IntegrationSuite
     f(node)
 
   protected def addressFromBytes(b: Array[Byte]): Address =
-    Address(Evidence(PublicKeyPropositionCurve25519.typePrefix, Evidence.EvidenceContent @@ b))
+    Address(Evidence(PublicKeyPropositionCurve25519.typePrefix, Evidence.EvidenceContent(b)))
 }
