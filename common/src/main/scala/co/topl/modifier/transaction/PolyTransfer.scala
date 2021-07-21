@@ -4,7 +4,7 @@ import co.topl.attestation._
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TxType
-import co.topl.modifier.transaction.TransferTransaction.{encodeFrom, BoxParams, TransferCreationState}
+import co.topl.modifier.transaction.TransferTransaction.{BoxParams, TransferCreationState, encodeFrom}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.codecs.Int128Codec
 import co.topl.utils.{Identifiable, Identifier, Int128}
@@ -14,13 +14,14 @@ import io.circe.{Decoder, Encoder, HCursor}
 import java.time.Instant
 import scala.util.Try
 import scala.Iterable
+import scala.collection.immutable.ListMap
 
 case class PolyTransfer[
   P <: Proposition: EvidenceProducer: Identifiable
 ](
   override val from:        IndexedSeq[(Address, Box.Nonce)],
   override val to:          IndexedSeq[(Address, SimpleValue)],
-  override val attestation: Map[P, Proof[P]],
+  override val attestation: ListMap[P, Proof[P]],
   override val fee:         Int128,
   override val timestamp:   Long,
   override val data:        Option[String] = None,
@@ -84,7 +85,7 @@ object PolyTransfer {
         // ensure there are sufficient funds from the sender boxes to create all outputs
         require(availableToSpend >= amtToSpend, "Insufficient funds available to create transaction.")
 
-        PolyTransfer[P](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data, minting = false)
+        PolyTransfer[P](inputs, outputs, ListMap(), fee, Instant.now.toEpochMilli, data, minting = false)
       }
 
   /** construct input and output box sequence for a transfer transaction */
@@ -133,12 +134,12 @@ object PolyTransfer {
         minting   <- c.downField("minting").as[Boolean]
       } yield (propType match {
         case PublicKeyPropositionCurve25519.`typeString` =>
-          c.downField("signatures").as[Map[PublicKeyPropositionCurve25519, SignatureCurve25519]].map {
+          c.downField("signatures").as[ListMap[PublicKeyPropositionCurve25519, SignatureCurve25519]].map {
             new PolyTransfer[PublicKeyPropositionCurve25519](from, to, _, fee, timestamp, data, minting)
           }
 
         case ThresholdPropositionCurve25519.`typeString` =>
-          c.downField("signatures").as[Map[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]].map {
+          c.downField("signatures").as[ListMap[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]].map {
             new PolyTransfer[ThresholdPropositionCurve25519](from, to, _, fee, timestamp, data, minting)
           }
       }) match {

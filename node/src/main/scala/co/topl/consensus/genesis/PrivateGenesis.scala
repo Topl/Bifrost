@@ -46,7 +46,7 @@ case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implic
     val txInput = (
       IndexedSeq(),
       (genesisAcct.publicImage.address -> SimpleValue(0L)) +: addresses.map(_ -> SimpleValue(balance)).toIndexedSeq,
-      Map(genesisAcct.publicImage -> SignatureCurve25519.genesis),
+      ListMap(genesisAcct.publicImage -> SignatureCurve25519.genesis),
       Int128(0),
       0L,
       None,

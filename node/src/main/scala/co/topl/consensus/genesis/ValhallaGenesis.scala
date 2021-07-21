@@ -52,7 +52,7 @@ case object ValhallaGenesis extends GenesisProvider {
     val txInput = (
       IndexedSeq(),
       memberKeys.zip(members.values.map(SimpleValue(_))).toIndexedSeq,
-      Map(genesisAcct.publicImage -> SignatureCurve25519.genesis),
+      ListMap(genesisAcct.publicImage -> SignatureCurve25519.genesis),
       Int128(0),
       0L,
       None,

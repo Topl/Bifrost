@@ -1,7 +1,8 @@
 package co.topl.network
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import co.topl.modifier.NodeViewModifier.{idsToString, ModifierTypeId}
+import co.topl.modifier.NodeViewModifier.{ModifierTypeId, idsToString}
+import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ModifierId, NodeViewModifier}
@@ -9,16 +10,13 @@ import co.topl.network.ModifiersStatus.Requested
 import co.topl.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
 import co.topl.network.message.{InvSpec, MessageSpec, ModifiersSpec, RequestModifierSpec, SyncInfo, SyncInfoSpec, _}
 import co.topl.network.peer.{ConnectedPeer, PenaltyType}
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{
-  GetNodeViewChanges,
-  ModifiersFromRemote,
-  TransactionsFromRemote
-}
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.state.StateReader
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
+import co.topl.utils.encode.Base16
 import co.topl.utils.serialization.BifrostSerializer
 import co.topl.utils.{Logging, MalformedModifierError}
 
@@ -489,6 +487,14 @@ class NodeViewSynchronizer[
         case Success(mod) if id == mod.id =>
           Some(mod)
         case _ =>
+          println(s"id: $id")
+          val block: Block = BlockSerializer.parseBytes(bytes).get
+          println(s"block: ${block.id}")
+          println(s"bytes hex: ${Base16.encode(bytes)}")
+          println(s"block hex: ${Base16.encode(block.bytes)}")
+          println(s"${id == block.id}")
+          println(s"sameelements: ${id.bytes sameElements block.id.bytes}")
+          println(s"${Base16.encode(id.bytes)}")
           /** Penalize peer and do nothing - it will be switched to correct state on CheckDelivery */
           penalizeMisbehavingPeer(remote)
           log.warn(s"Failed to parse modifier with declared id $id from $remote")
