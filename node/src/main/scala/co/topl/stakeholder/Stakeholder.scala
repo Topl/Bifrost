@@ -6,6 +6,7 @@ import co.topl.primitives.{ActorRefWrapper, Fch, Kes, KeyFile, Keys, Parameters,
 import io.iohk.iodb.ByteArrayWrapper
 import co.topl.components.{Block, Serializer, Tine, Wallet}
 import co.topl.history.{BlockStorage, ChainStorage, StateStorage, WalletStorage}
+import co.topl.settings.AppSettings
 
 import scala.math.BigInt
 import scala.util.Random
@@ -33,7 +34,8 @@ class Stakeholder(
                    inputKeyFile:Option[KeyFile],
                    inputDataDir:Option[String],
                    inputPassword:Option[String],
-                   inputKeyDir:Option[String]
+                   inputKeyDir:Option[String],
+                   override val settings: AppSettings
                  )
   extends ChainSelection
   with Forging
@@ -149,7 +151,7 @@ class Stakeholder(
 
 object Stakeholder {
 
-  def props(seed:Array[Byte],index:Int,ref:Seq[akka.actor.ActorRef]): Props =
+  def props(seed:Array[Byte],index:Int,ref:Seq[akka.actor.ActorRef],settings: AppSettings): Props =
     Props(
       new Stakeholder(
         seed,
@@ -158,7 +160,8 @@ object Stakeholder {
         None,
         None,
         None,
-        None
+        None,
+        settings
       )
     ).withDispatcher(Parameters.stakeholderEC)
 
@@ -169,7 +172,8 @@ object Stakeholder {
              keyFile: KeyFile,
              dir:String,
              password:String,
-             kdir:String): Props =
+             kdir:String,
+             settings: AppSettings): Props =
     Props(
       new Stakeholder(
         seed,
@@ -178,7 +182,8 @@ object Stakeholder {
         Some(keyFile),
         Some(dir),
         Some(password),
-        Some(kdir)
+        Some(kdir),
+        settings
       )
     ).withDispatcher(Parameters.stakeholderEC)
 }

@@ -228,7 +228,7 @@ trait Receive extends Members {
               val startId:SlotId = value.id
               val depth:Int = value.depth
               tineProvider = Try{
-                ActorRefWrapper(context.actorOf(TineProvider.props(blocks,localRef), "RequestTineProvider"))
+                ActorRefWrapper(context.actorOf(TineProvider.props(blocks,localRef,settings), "RequestTineProvider"))
               }.toOption
               tineProvider match {
                 case Some(ref:ActorRefWrapper) =>
@@ -267,7 +267,7 @@ trait Receive extends Members {
             val startId:SlotId = localChain.getLastActiveSlot(value.slot).get
             val depth:Int = tineMaxDepth
             tineProvider = Try{
-              ActorRefWrapper(context.actorOf(TineProvider.props(blocks,localRef), "BootstrapProvider"))
+              ActorRefWrapper(context.actorOf(TineProvider.props(blocks,localRef,settings), "BootstrapProvider"))
             }.toOption
             tineProvider match {
               case Some(ref:ActorRefWrapper) =>

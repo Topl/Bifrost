@@ -6,6 +6,7 @@ import io.iohk.iodb.ByteArrayWrapper
 import co.topl.primitives.{ActorRefWrapper, Fch, Kes, KeyFile, Keys, Parameters, Ratio, Sig, SimpleTypes, Vrf}
 import co.topl.components.{Block, Serializer, Tine, Transaction, Wallet}
 import co.topl.history.{BlockStorage, ChainStorage, StateStorage, WalletStorage}
+import co.topl.settings.AppSettings
 
 import scala.concurrent.duration._
 import scala.math.BigInt
@@ -82,6 +83,8 @@ trait Members extends SimpleTypes with Actor with Timers {
   val kesStoreInterval:Int = Parameters.kesStoreInterval
   val useStableIntervalTerm:Boolean = Parameters.useStableIntervalTerm
   val forging_window:Int = Parameters.forging_window
+
+  val settings:AppSettings
 
   val localRef:ActorRefWrapper
   val holderIndex:Int

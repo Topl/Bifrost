@@ -3,7 +3,6 @@ package co.topl.providers
 import java.io.{BufferedWriter, File, FileWriter}
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-
 import akka.actor.{ActorPath, PoisonPill, Props}
 import com.google.common.cache.LoadingCache
 import io.iohk.iodb.ByteArrayWrapper
@@ -15,6 +14,7 @@ import co.topl.history.{BlockStorage, ChainStorage, StateStorage, WalletStorage}
 import co.topl.primitives._
 import co.topl.stakeholder._
 import co.topl.primitives.Base58
+import co.topl.settings.AppSettings
 
 import scala.math.BigInt
 import scala.reflect.io.Path
@@ -32,7 +32,7 @@ import scala.util.{Failure, Random, Success, Try}
   * F_INIT and G_CLOCK functionalities
   */
 
-class Coordinator(inputSeed:Array[Byte],inputRef:Seq[ActorRefWrapper])
+class Coordinator(inputSeed:Array[Byte],inputRef:Seq[ActorRefWrapper],settings:AppSettings)
   extends ChainSelection
     with Forging
     with Ledger
@@ -849,7 +849,7 @@ class Coordinator(inputSeed:Array[Byte],inputRef:Seq[ActorRefWrapper])
 }
 
 object Coordinator {
-  def props(inputSeed:Array[Byte],ref:Seq[akka.actor.ActorRef]): Props =
-    Props(new Coordinator(inputSeed,ref.map(ActorRefWrapper(_)(ActorRefWrapper.routerRef(ref.head)))))
+  def props(inputSeed:Array[Byte],ref:Seq[akka.actor.ActorRef],settings:AppSettings): Props =
+    Props(new Coordinator(inputSeed,ref.map(ActorRefWrapper(_)(ActorRefWrapper.routerRef(ref.head))),settings:AppSettings))
       .withDispatcher(Parameters.coordinatorEC)
 }

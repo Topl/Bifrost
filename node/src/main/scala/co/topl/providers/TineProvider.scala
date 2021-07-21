@@ -6,6 +6,7 @@ import co.topl.cases._
 import co.topl.components.{Block, Serializer}
 import co.topl.history.BlockStorage
 import co.topl.primitives._
+import co.topl.settings.AppSettings
 
 import scala.concurrent.Await
 import scala.math.BigInt
@@ -19,7 +20,7 @@ import scala.util.control.Breaks.{break, breakable}
   * @param routerRef actor ref to send network messages to
   */
 
-class TineProvider(blockStorage: BlockStorage,localRef:ActorRefWrapper)(implicit routerRef:ActorRefWrapper)
+class TineProvider(blockStorage: BlockStorage,localRef:ActorRefWrapper,settings:AppSettings)(implicit routerRef:ActorRefWrapper)
   extends Actor with Timers with Types {
   val sig:Sig = new Sig
   val serializer:Serializer = new Serializer
@@ -134,6 +135,6 @@ object TineProvider extends SimpleTypes {
 
   case object Done
 
-  def props(blockStorage: BlockStorage,localRef:ActorRefWrapper)(implicit routerRef:ActorRefWrapper):Props =
-    Props(new TineProvider(blockStorage,localRef)).withDispatcher(Parameters.tineProviderEC)
+  def props(blockStorage: BlockStorage,localRef:ActorRefWrapper,settings:AppSettings)(implicit routerRef:ActorRefWrapper):Props =
+    Props(new TineProvider(blockStorage,localRef,settings:AppSettings)).withDispatcher(Parameters.tineProviderEC)
 }
