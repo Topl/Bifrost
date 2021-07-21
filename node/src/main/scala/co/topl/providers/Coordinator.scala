@@ -225,7 +225,7 @@ class Coordinator(inputSeed:Array[Byte],inputRef:Seq[ActorRefWrapper])
     case Register =>
       blocks.restoreBlock((0,genBlockKey)) match {
         case Some(b:Block) =>
-          genesisBlock = Some(Block(hash(b.prosomoHeader,serializer),b.blockHeader,b.blockBody,b.genesisSet))
+          genesisBlock = Some(Block(hash(b.tetraHeader,serializer),b.blockHeader,b.blockBody,b.genesisSet))
           verifyBlock(genesisBlock.get)
           println("Recovered Genesis Block")
         case None => Try{
@@ -234,7 +234,7 @@ class Coordinator(inputSeed:Array[Byte],inputRef:Seq[ActorRefWrapper])
           val blockTxt : Array[String] = Source.fromResource("genesis/blockData").getLines.toArray
           serializer.fromBytes(new ByteStream(Base58.decode(blockTxt.head).get,DeserializeGenesisBlock)) match {
             case b: Block =>
-              genesisBlock = Some(Block(hash(b.prosomoHeader, serializer), b.blockHeader, b.blockBody, b.genesisSet))
+              genesisBlock = Some(Block(hash(b.tetraHeader, serializer), b.blockHeader, b.blockBody, b.genesisSet))
               verifyBlock(genesisBlock.get)
               println("Recovered Genesis Block")
             case _ =>

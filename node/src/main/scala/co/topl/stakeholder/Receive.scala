@@ -69,7 +69,7 @@ trait Receive extends Members {
       if (!actorStalled && !SharedData.limiterFlag) Try{
         val foundBlock = blocks.knownInCache((value.block.slot,value.block.id))
         if (!foundBlock) {
-          val b:BlockHeader = value.block.prosomoHeader
+          val b:BlockHeader = value.block.tetraHeader
           val bHash = hash(b,serializer)
           val bSlot = b._3
           val bRho = b._5
@@ -168,7 +168,7 @@ trait Receive extends Members {
                 blocks.add(block)
               } else {println("Error: invalid returned block")}
             }
-            val b = block.prosomoHeader
+            val b = block.tetraHeader
             val bHash = hash(b,serializer)
             val bSlot = b._3
             val bRho = b._5
@@ -554,7 +554,7 @@ trait Receive extends Members {
 
     /**accepts genesis block from coordinator */
     case gb:GenBlock =>
-      genBlockHash = hash(gb.b.prosomoHeader,serializer)
+      genBlockHash = hash(gb.b.tetraHeader,serializer)
       println("Holder "+holderIndex.toString+" got genesis block "+Base58.encode(genBlockHash.data))
       assert(genBlockHash == gb.b.id)
       assert(verifyBlock(gb.b))

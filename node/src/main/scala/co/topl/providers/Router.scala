@@ -51,7 +51,7 @@ class Router(seed:Array[Byte], inputRef:Seq[ActorRefWrapper],settings:AppSetting
   val useFencing = Parameters.useFencing
   val useGui = Parameters.useGui
   val numMessageProcessors = Parameters.numMessageProcessors
-  val prosomoMessageSpecs = Parameters.prosomoMessageSpecs
+  val tetraMessageSpecs = Parameters.tetraMessageSpecs
   val networkController:ActorRefWrapper = inputRef.head
   val peerManager:ActorRefWrapper = inputRef(1)
   implicit val routerRef: ActorRefWrapper = {
@@ -732,7 +732,7 @@ class Router(seed:Array[Byte], inputRef:Seq[ActorRefWrapper],settings:AppSetting
       }
       sender() ! "done"
     case Register =>
-      networkController ! RegisterMessageSpecs(prosomoMessageSpecs, self)
+      networkController ! RegisterMessageSpecs(tetraMessageSpecs, self)
       if (Parameters.useRouterSystem) {
         var i = 0
         egressRoutees = Seq.fill(7) {

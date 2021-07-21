@@ -55,7 +55,7 @@ class BlockStorage(dir:String,serializer: Serializer) extends SimpleTypes {
     })
 
   def add(block:Block):Unit = {
-    val blockHeader = block.prosomoHeader
+    val blockHeader = block.tetraHeader
     headerStoreCache.get(blockHeader._3/one_ninth_epoch).update(Seq(),Seq(block.id -> ByteArrayWrapper(serializer.getBytes(blockHeader))))
     if (blockHeader._3 == 0) {
       bodyStoreCache.get(blockHeader._3/one_ninth_epoch).update(Seq(),Seq(block.id -> ByteArrayWrapper(serializer.getGenesisBytes(
@@ -70,7 +70,7 @@ class BlockStorage(dir:String,serializer: Serializer) extends SimpleTypes {
   }
 
   def store(key:ByteArrayWrapper,block:Block):Unit = {
-    val blockHeader = block.prosomoHeader
+    val blockHeader = block.tetraHeader
     headerStoreCache.get(blockHeader._3/one_ninth_epoch).update(Seq(),Seq(key -> ByteArrayWrapper(serializer.getBytes(blockHeader))))
     if (blockHeader._3 == 0) {
       bodyStoreCache.get(blockHeader._3/one_ninth_epoch).update(Seq(),Seq(key -> ByteArrayWrapper(serializer.getGenesisBytes(

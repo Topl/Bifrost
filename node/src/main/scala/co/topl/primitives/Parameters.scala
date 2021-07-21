@@ -17,20 +17,11 @@ import scala.concurrent.{Await, Future}
 import scala.math.BigInt
 import scala.util.{Failure, Success, Try}
 
-/**
-  * AMS 2020:
-  * Consensus and network parameters are initialized here from application.conf
-  * Command line arguments are read in as either a *.conf file in the project directory or as a HOCON formatted string
-  * E.g.  executing "./prosomo server.conf settings.conf input{params{mySetting=set}}" would read in the following order
-  *     application.conf, server.conf, settings.conf, input{params{mySetting=set}}
-  * F_INIT functionality
-  */
-
 object Parameters {
   val fch = new Fch
   val ecx = new Ecx
   val dataBaseCID: ByteArrayWrapper = ByteArrayWrapper(fch.hash("LOCAL_CHAIN"))
-  val prosomoNodeUID:String = Base58.encode(fch.hash(java.util.UUID.randomUUID.toString))
+  val tetraNodeUID:String = Base58.encode(fch.hash(java.util.UUID.randomUUID.toString))
   //tag for identifying ledger entries
   val genesisBytes: ByteArrayWrapper = ByteArrayWrapper(fch.hash("GENESIS".getBytes))
   println("Checking external IP at http://checkip.amazonaws.com")
@@ -52,7 +43,7 @@ object Parameters {
 
     Try{localConfig.getString("scorex.network.agentName")}.toOption match {
       case Some(name) if name != "bootstrap" =>
-        val str = "input{scorex{network{agentName=\""+s"${name}_${prosomoNodeUID.take(8)}"+"\"}}}"
+        val str = "input{scorex{network{agentName=\""+s"${name}_${tetraNodeUID.take(8)}"+"\"}}}"
         Try{
           localConfig = ConfigFactory.parseString(str).getConfig("input").withFallback(localConfig)
         }.toOption match {
@@ -61,7 +52,7 @@ object Parameters {
         }
       case Some(name) if name == "bootstrap" =>
       case None =>
-        val str = "input{scorex{network{agentName=\""+s"prosomo_${prosomoNodeUID.take(8)}"+"\"}}}"
+        val str = "input{scorex{network{agentName=\""+s"tetra_${tetraNodeUID.take(8)}"+"\"}}}"
         Try{
           localConfig = ConfigFactory.parseString(str).getConfig("input").withFallback(localConfig)
         }.toOption match {
@@ -287,7 +278,7 @@ object Parameters {
   val stakeScale:Double = config.getDouble("params.stakeScale")
   val initStakeMin:Double = config.getDouble("params.initStakeMin")
   val timeServer:String = config.getString("params.timeServer")
-  val prosomoMessageSpecs = Seq(
+  val tetraMessageSpecs = Seq(
     DiffuseDataSpec,
     HelloSpec,
     RequestBlockSpec,

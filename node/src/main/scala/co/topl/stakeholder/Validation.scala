@@ -35,7 +35,7 @@ trait Validation extends Members with Types {
   }
 
   def verifyBlock(b:Block): Boolean = {
-    val header = b.prosomoHeader
+    val header = b.tetraHeader
     val headerVer = verifyBlockHeader(header)
     val ledgerVer = if (header._3 == 0) {
       b.genesisSet match {

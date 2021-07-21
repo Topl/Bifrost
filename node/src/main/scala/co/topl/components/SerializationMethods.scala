@@ -793,7 +793,7 @@ trait SerializationMethods extends SimpleTypes {
 
   private def sBlock(block:Block):Array[Byte] = {
     val idBytes = block.id.data
-    val headerBytes = getBytes(block.prosomoHeader)
+    val headerBytes = getBytes(block.tetraHeader)
     val bodyBytes = {
       if (block.slot == 0) {
         getGenesisBytes(block.genesisSet.get)
