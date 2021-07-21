@@ -180,6 +180,11 @@ object AssetTransfer {
           c.downField("signatures").as[Map[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]].map {
             new AssetTransfer[ThresholdPropositionCurve25519](from, to, _, fee, timestamp, data, minting)
           }
+
+        case PublicKeyPropositionEd25519.`typeString` =>
+          c.downField("signatures").as[Map[PublicKeyPropositionEd25519, SignatureEd25519]].map {
+            new AssetTransfer[PublicKeyPropositionEd25519](from, to, _, fee, timestamp, data, minting)
+          }
       }) match {
         case Right(tx) => tx
         case Left(ex)  => throw ex

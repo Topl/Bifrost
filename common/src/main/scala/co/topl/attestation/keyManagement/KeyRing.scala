@@ -24,6 +24,7 @@ class KeyRing[
   keyfileCompanion: KeyfileCompanion[S, KF]
 ) {
 
+  // PK is a type defined in Secret. There's more information in this video: https://youtu.be/63syJfNoDPI
   type PK = S#PK
   type PR = S#PR
 
