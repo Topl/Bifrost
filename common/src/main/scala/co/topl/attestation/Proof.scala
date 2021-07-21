@@ -1,7 +1,7 @@
 package co.topl.attestation
 
 import cats.implicits._
-import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519, Secret}
+import co.topl.attestation.keyManagement.PrivateKeyEd25519
 import co.topl.attestation.serialization.ProofSerializer
 import co.topl.crypto.signatures.{Curve25519, Signature}
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, Secret}
@@ -189,8 +189,8 @@ case class SignatureEd25519(private[attestation] val sig: Signature)
   private val ec = new Ed25519
 
   require(
-    signatureLength == 0 || signatureLength == ec.SignatureLength,
-    s"$signatureLength != ${ec.SignatureLength}"
+    signatureLength == 0 || signatureLength == Ed25519.SignatureLength,
+    s"$signatureLength != ${Ed25519.SignatureLength}"
   )
 
   def isValid(proposition: PublicKeyPropositionEd25519, message: Array[Byte]): Boolean =
