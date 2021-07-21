@@ -27,7 +27,8 @@ import java.nio.{ByteBuffer, ByteOrder}
 case class ExtendedPrivateKeyEd25519(
   leftKey:   ByteVector32,
   rightKey:  ByteVector32,
-  chainCode: ByteVector32
+  chainCode: ByteVector32,
+  path: Seq[DerivedKeyIndex]
 ) {
 
   // Note: BigInt expects Big-Endian, but SLIP/BIP-ED25519 need Little-Endian
@@ -109,7 +110,7 @@ case class ExtendedPrivateKeyEd25519(
         ByteOrdering.LittleEndian
       )
 
-    ExtendedPrivateKeyEd25519.validate(ExtendedPrivateKeyEd25519(nextLeft, nextRight, nextChainCode))
+    ExtendedPrivateKeyEd25519.validate(ExtendedPrivateKeyEd25519(nextLeft, nextRight, nextChainCode, path :+ index))
   }
 
   /**
@@ -182,7 +183,8 @@ object ExtendedPrivateKeyEd25519 {
     ExtendedPrivateKeyEd25519(
       SizedByteVector[ByteVector32].fit(k.slice(0, 32), ByteOrdering.LittleEndian),
       SizedByteVector[ByteVector32].fit(k.slice(32, 64), ByteOrdering.LittleEndian),
-      SizedByteVector[ByteVector32].fit(iRight, ByteOrdering.LittleEndian)
+      SizedByteVector[ByteVector32].fit(iRight, ByteOrdering.LittleEndian),
+      Seq()
     )
   }
 
@@ -195,7 +197,8 @@ object ExtendedPrivateKeyEd25519 {
     new ExtendedPrivateKeyEd25519(
       SizedByteVector[ByteVector32].fit(value.leftKey.toArray.clone(), ByteOrdering.LittleEndian),
       SizedByteVector[ByteVector32].fit(value.rightKey.toArray.clone(), ByteOrdering.LittleEndian),
-      SizedByteVector[ByteVector32].fit(value.chainCode.toArray.clone(), ByteOrdering.LittleEndian)
+      SizedByteVector[ByteVector32].fit(value.chainCode.toArray.clone(), ByteOrdering.LittleEndian),
+      value.path
     )
 
   /**
