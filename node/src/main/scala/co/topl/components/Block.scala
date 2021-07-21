@@ -20,15 +20,15 @@ case class Block(identifier:ByteArrayWrapper,
     val header = blockHeader.get
     (header._10,header._1)
   }
-  def prosomoHeader:BlockHeader = blockHeader.get
-  def pid:BlockId = prosomoHeader._1
-  def ledger:Hash = prosomoHeader._2
-  def slot:Slot = prosomoHeader._3
-  def certificate:Cert = prosomoHeader._4
-  def nonce:Rho = prosomoHeader._5
-  def proof:Pi = prosomoHeader._6
-  def signature:ForgingSignature = prosomoHeader._7
-  def kes_key:PublicKey = prosomoHeader._8
-  def number:BlockNumber = prosomoHeader._9
-  def parentSlot:Slot = prosomoHeader._10
+  def tetraHeader:BlockHeader = blockHeader.get
+  def pid:BlockId = tetraHeader._1
+  def ledger:Hash = tetraHeader._2
+  def slot:Slot = tetraHeader._3
+  def certificate:Cert = tetraHeader._4
+  def nonce:Rho = tetraHeader._5
+  def proof:Pi = tetraHeader._6
+  def signature:ForgingSignature = tetraHeader._7
+  def kes_key:PublicKey = tetraHeader._8
+  def number:BlockNumber = tetraHeader._9
+  def parentSlot:Slot = tetraHeader._10
 }
