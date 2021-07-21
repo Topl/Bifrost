@@ -1,7 +1,7 @@
 package co.topl.crypto.signatures
 
-import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.crypto.hash.sha256
+import co.topl.crypto.{PrivateKey, PublicKey}
 import org.whispersystems.curve25519.OpportunisticCurve25519Provider
 
 import java.lang.reflect.Constructor

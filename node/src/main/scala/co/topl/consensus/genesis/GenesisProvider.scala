@@ -2,7 +2,7 @@ package co.topl.consensus.genesis
 
 import co.topl.attestation.Address
 import co.topl.attestation.AddressCodec.implicits._
-import co.topl.attestation.keyManagement.PrivateKeyCurve25519
+import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519}
 import co.topl.consensus.Forger.ChainParams
 import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.modifier.ModifierId
@@ -20,8 +20,11 @@ trait GenesisProvider extends Logging {
 
   implicit val networkPrefix: NetworkPrefix
 
-  protected lazy val genesisAcct: PrivateKeyCurve25519 =
+  protected lazy val genesisAcctCruve25519: PrivateKeyCurve25519 =
     new PrivateKeyCurve25519(PrivateKey(Array.fill(32)(2: Byte)), PublicKey(Array.fill(32)(2: Byte)))
+
+  protected lazy val genesisAcctEd25519: PrivateKeyEd25519 =
+    new PrivateKeyEd25519(PrivateKey(Array.fill(32)(2: Byte)), PublicKey(Array.fill(32)(2: Byte)))
 
   protected lazy val totalStake: Int128 = members.values.sum
 
