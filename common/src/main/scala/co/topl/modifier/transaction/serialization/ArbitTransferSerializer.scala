@@ -97,6 +97,10 @@ object ArbitTransferSerializer extends BifrostSerializer[ArbitTransfer[_ <: Prop
       case ThresholdPropositionCurve25519.`typePrefix` =>
         val sigs = signatures.asInstanceOf[ListMap[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]]
         ArbitTransfer(from, to, sigs, fee, timestamp, data, minting)
+
+      case PublicKeyPropositionEd25519.`typePrefix` =>
+        val sigs = signatures.asInstanceOf[Map[PublicKeyPropositionEd25519, SignatureEd25519]]
+        ArbitTransfer(from, to, sigs, fee, timestamp, data, minting)
     }
   }
 }

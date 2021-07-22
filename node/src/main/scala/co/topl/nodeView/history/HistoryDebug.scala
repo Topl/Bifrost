@@ -39,7 +39,7 @@ class HistoryDebug(hr: HistoryReader[Block, _ <: SyncInfo]) {
   def averageDelay(id: ModifierId, blockNum: Int): Try[Long] = Try {
     val block = hr.modifierById(id).get
     val prevTimes = hr.getTimestampsFrom(block, blockNum)
-    (prevTimes drop 1, prevTimes).zipped.map(_ - _).sum / (prevTimes.length)
+    prevTimes.drop(1).lazyZip(prevTimes).map(_ - _).sum / (prevTimes.length)
   }
 
   /**

@@ -16,7 +16,6 @@ class LevelDBSpec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers
-    with CommonGenerators
     with NodeGenerators
     with FileUtils {
 
@@ -51,7 +50,7 @@ class LevelDBSpec
       tx.newBoxes
         .foreach(b => require(blocksStorage.get(b.id.hash.value).isDefined))
 
-    forAll(validBifrostTransactionSeqGen) { txs =>
+    forAll(bifrostTransactionSeqGen) { txs =>
       whenever(txs.length >= 2) {
         blocksStorage.rollbackTo(Array[Byte](1))
 
@@ -87,7 +86,7 @@ class LevelDBSpec
 
     var ids: Seq[ModifierId] = Seq()
 
-    forAll(blockGen) { block =>
+    forAll(blockCurve25519Gen) { block =>
       ids = block.id +: ids
       writeBlock(block)
       blocksStorage.get(block.id.getIdBytes).isDefined shouldBe true

@@ -45,8 +45,10 @@ case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implic
 
     val txInput = (
       IndexedSeq(),
-      (genesisAcct.publicImage.address -> SimpleValue(0L)) +: addresses.map(_ -> SimpleValue(balance)).toIndexedSeq,
-      ListMap(genesisAcct.publicImage -> SignatureCurve25519.genesis),
+      (genesisAcctCurve25519.publicImage.address -> SimpleValue(0L)) +: addresses
+        .map(_ -> SimpleValue(balance))
+        .toIndexedSeq,
+      ListMap(genesisAcctCurve25519.publicImage -> SignatureCurve25519.genesis),
       Int128(0),
       0L,
       None,
@@ -74,7 +76,7 @@ case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implic
       )
     )
 
-    val generatorBox = ArbitBox(genesisAcct.publicImage.generateEvidence, 0, SimpleValue(privateTotalStake))
+    val generatorBox = ArbitBox(genesisAcctCurve25519.publicImage.generateEvidence, 0, SimpleValue(privateTotalStake))
 
     val signature = SignatureCurve25519.genesis
 
@@ -83,7 +85,7 @@ case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implic
         ModifierId.genesisParentId,
         0L,
         generatorBox,
-        genesisAcct.publicImage,
+        genesisAcctCurve25519.publicImage,
         signature,
         1L,
         initialDifficulty,
