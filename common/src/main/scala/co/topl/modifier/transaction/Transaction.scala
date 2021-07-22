@@ -56,7 +56,7 @@ object Transaction {
 
   def updateAttestation[
     P <: Proposition
-  ](tx: Transaction[_, P])(f: Array[Byte] => Map[P, Proof[P]]): Map[P, Proof[P]] =
+  ](tx: Transaction[_, P])(f: Array[Byte] => ListMap[P, Proof[P]]): ListMap[P, Proof[P]] =
     tx.attestation ++ f(tx.messageToSign)
 
   def nonceFromDigest(digest: Digest32): Box.Nonce =

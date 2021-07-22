@@ -1,7 +1,7 @@
 package co.topl.network
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import co.topl.modifier.NodeViewModifier.{ModifierTypeId, idsToString}
+import co.topl.modifier.NodeViewModifier.{idsToString, ModifierTypeId}
 import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
 import co.topl.modifier.transaction.Transaction
@@ -10,7 +10,11 @@ import co.topl.network.ModifiersStatus.Requested
 import co.topl.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
 import co.topl.network.message.{InvSpec, MessageSpec, ModifiersSpec, RequestModifierSpec, SyncInfo, SyncInfoSpec, _}
 import co.topl.network.peer.{ConnectedPeer, PenaltyType}
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{
+  GetNodeViewChanges,
+  ModifiersFromRemote,
+  TransactionsFromRemote
+}
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.mempool.MemPoolReader
@@ -498,6 +502,7 @@ class NodeViewSynchronizer[
           println(s"${id == block.id}")
           println(s"sameelements: ${id.bytes sameElements block.id.bytes}")
           println(s"${Base16.encode(id.bytes)}")
+
           /** Penalize peer and do nothing - it will be switched to correct state on CheckDelivery */
           penalizeMisbehavingPeer(remote)
           log.warn(s"Failed to parse modifier with declared id $id from $remote")

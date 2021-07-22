@@ -96,7 +96,7 @@ object AssetTransferSerializer extends BifrostSerializer[AssetTransfer[_ <: Prop
         AssetTransfer(from, to, sigs, fee, timestamp, data, minting)
 
       case PublicKeyPropositionEd25519.`typePrefix` =>
-        val sigs = signatures.asInstanceOf[Map[PublicKeyPropositionEd25519, SignatureEd25519]]
+        val sigs = signatures.asInstanceOf[ListMap[PublicKeyPropositionEd25519, SignatureEd25519]]
         AssetTransfer(from, to, sigs, fee, timestamp, data, minting)
     }
   }

@@ -4,7 +4,7 @@ import co.topl.attestation._
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TxType
-import co.topl.modifier.transaction.TransferTransaction.{BoxParams, TransferCreationState, encodeFrom}
+import co.topl.modifier.transaction.TransferTransaction.{encodeFrom, BoxParams, TransferCreationState}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.codecs.Int128Codec
 import co.topl.utils.{Identifiable, Identifier, Int128}
@@ -157,7 +157,7 @@ object ArbitTransfer {
           }
 
         case PublicKeyPropositionEd25519.`typeString` =>
-          c.downField("signatures").as[Map[PublicKeyPropositionEd25519, SignatureEd25519]].map {
+          c.downField("signatures").as[ListMap[PublicKeyPropositionEd25519, SignatureEd25519]].map {
             new ArbitTransfer[PublicKeyPropositionEd25519](from, to, _, fee, timestamp, data, minting)
           }
       }) match {

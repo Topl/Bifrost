@@ -99,7 +99,7 @@ object PolyTransferSerializer extends BifrostSerializer[PolyTransfer[_ <: Propos
         PolyTransfer(from, to, sigs, fee, timestamp, data, minting)
 
       case PublicKeyPropositionEd25519.`typePrefix` =>
-        val sigs = signatures.asInstanceOf[Map[PublicKeyPropositionEd25519, SignatureEd25519]]
+        val sigs = signatures.asInstanceOf[ListMap[PublicKeyPropositionEd25519, SignatureEd25519]]
         PolyTransfer(from, to, sigs, fee, timestamp, data, minting)
     }
   }
