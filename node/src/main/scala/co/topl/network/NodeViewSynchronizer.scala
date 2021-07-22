@@ -1,7 +1,7 @@
 package co.topl.network
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import co.topl.modifier.NodeViewModifier.{ModifierTypeId, idsToString}
+import co.topl.modifier.NodeViewModifier.{idsToString, ModifierTypeId}
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ModifierId, NodeViewModifier}
@@ -9,7 +9,11 @@ import co.topl.network.ModifiersStatus.Requested
 import co.topl.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
 import co.topl.network.message.{InvSpec, MessageSpec, ModifiersSpec, RequestModifierSpec, SyncInfo, SyncInfoSpec, _}
 import co.topl.network.peer.{ConnectedPeer, PenaltyType}
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{
+  GetNodeViewChanges,
+  ModifiersFromRemote,
+  TransactionsFromRemote
+}
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.mempool.MemPoolReader
