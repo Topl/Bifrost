@@ -76,8 +76,6 @@ class Storage(private[history] val storage: LDBVersionedStore, private val cache
   def modifierById(id: ModifierId): Option[Block] =
     id.getModType match {
       case Block.modifierTypeId =>
-        println(s"modifierById id: $id")
-        println(s"modifierById block: ${blockCache.get(id.getIdBytes).map(b => BlockSerializer.parseBytes(b.tail))}")
         blockCache
           .get(id.getIdBytes)
           .flatMap(bwBlock => BlockSerializer.parseBytes(bwBlock.tail).toOption)

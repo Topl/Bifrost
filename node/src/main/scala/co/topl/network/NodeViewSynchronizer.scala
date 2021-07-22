@@ -494,15 +494,6 @@ class NodeViewSynchronizer[
         case Success(mod) if id == mod.id =>
           Some(mod)
         case _ =>
-          println(s"id: $id")
-          val block: Block = BlockSerializer.parseBytes(bytes).get
-          println(s"block: ${block.id}")
-          println(s"bytes hex: ${Base16.encode(bytes)}")
-          println(s"block hex: ${Base16.encode(block.bytes)}")
-          println(s"${id == block.id}")
-          println(s"sameelements: ${id.bytes sameElements block.id.bytes}")
-          println(s"${Base16.encode(id.bytes)}")
-
           /** Penalize peer and do nothing - it will be switched to correct state on CheckDelivery */
           penalizeMisbehavingPeer(remote)
           log.warn(s"Failed to parse modifier with declared id $id from $remote")
