@@ -93,8 +93,8 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
     // A beforeAll step generates 3 keys.  We need 7 more to hit 10.
     keyRing.generateNewKeyPairs(7)
     setProtocolMngr(settings)
-    genesisBlock = PrivateGenesis(keyRing.addresses, settings).formNewBlock._1
     consensusStorage = ConsensusStorage(settings, appContext.networkType)
+    genesisBlock = PrivateGenesis(keyRing.addresses, settings).formNewBlock._1
   }
 }
 

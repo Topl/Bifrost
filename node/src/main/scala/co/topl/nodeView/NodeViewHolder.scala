@@ -8,16 +8,17 @@ import akka.actor.typed.{ActorRef, ActorSystem, _}
 import akka.pattern.StatusReply
 import akka.util.Timeout
 import cats.data.{EitherT, Writer}
-import co.topl.consensus.LocallyGeneratedModifier
+import co.topl.consensus.LocallyGeneratedBlock
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.Block
+import co.topl.modifier.NodeViewModifier.ModifierTypeId
+import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.history.{GenericHistory, History}
 import co.topl.nodeView.state.{MinimalState, State}
-import co.topl.settings.{AppSettings, NodeViewReady}
+import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider
 import co.topl.utils.actors.SortedCache
@@ -105,6 +106,42 @@ object NodeViewHolder {
         extends ReceivableMessage
   }
 
+  sealed abstract class Event
+  sealed abstract class ChangeEvent extends Event
+  sealed abstract class OutcomeEvent extends Event
+
+  object Events {
+
+    case object ChangedHistory extends ChangeEvent
+
+    case object ChangedMempool extends ChangeEvent
+
+    case object ChangedState extends ChangeEvent
+    case class NewOpenSurface(newSurface: Seq[ModifierId]) extends Event
+
+    /** @param immediateFailure a flag indicating whether a transaction was invalid by the moment it was received. */
+    case class FailedTransaction(transactionId: ModifierId, error: Throwable, immediateFailure: Boolean)
+        extends OutcomeEvent
+
+    case class SuccessfulTransaction[TX <: Transaction.TX](transaction: TX) extends OutcomeEvent
+
+    case class StartingPersistentModifierApplication[PMOD <: PersistentNodeViewModifier](modifier: PMOD) extends Event
+
+    case class SyntacticallyFailedModification[PMOD <: PersistentNodeViewModifier](modifier: PMOD, error: Throwable)
+        extends OutcomeEvent
+
+    case class SemanticallyFailedModification[PMOD <: PersistentNodeViewModifier](modifier: PMOD, error: Throwable)
+        extends OutcomeEvent
+
+    case class SyntacticallySuccessfulModifier[PMOD <: PersistentNodeViewModifier](modifier: PMOD) extends OutcomeEvent
+
+    case class SemanticallySuccessfulModifier[PMOD <: PersistentNodeViewModifier](modifier: PMOD) extends OutcomeEvent
+
+    case class DownloadRequest(modifierTypeId: ModifierTypeId, modifierId: ModifierId) extends Event
+
+    case object RollbackFailed extends Event
+  }
+
   def apply(
     appSettings:            AppSettings,
     initialState:           () => Future[NodeView]
@@ -137,23 +174,16 @@ object NodeViewHolder {
             context.spawn(SortedCache(), "NodeViewModifiersCache")
 
           Receptionist(system).ref.tell(Receptionist.Register(serviceKey, context.self))
-          system.eventStream.tell(EventStream.Publish(NodeViewReady(context.self)))
           system.eventStream.tell(
-            EventStream.Subscribe[LocallyGeneratedModifier](
+            EventStream.Subscribe[LocallyGeneratedBlock](
               context.messageAdapter(locallyGeneratedModifier =>
                 ReceivableMessages.WriteBlocks(List(locallyGeneratedModifier.block))
               )
             )
           )
-          system.eventStream.tell(
-            EventStream.Subscribe[LocallyGeneratedTransaction](
-              context.messageAdapter(locallyGeneratedTransaction =>
-                ReceivableMessages.WriteTransactions(List(locallyGeneratedTransaction.transaction))
-              )
-            )
-          )
 
           popBlock(cache, nodeView)(context)
+          context.log.info("Initialization complete")
           stash.unstashAll(initialized(nodeView, cache))
         case (_, ReceivableMessages.InitializationFailed(reason)) =>
           throw reason
@@ -214,7 +244,7 @@ object NodeViewHolder {
 
   private def eventStreamWriterHandler[T](writer: Writer[List[Any], T])(implicit system: ActorSystem[_]): T = {
     val (changes, t) = writer.run
-    (changes :+ NodeViewChanged).map(EventStream.Publish(_)).foreach(system.eventStream.tell)
+    changes.map(EventStream.Publish(_)).foreach(system.eventStream.tell)
     t
   }
 
@@ -232,11 +262,14 @@ object NodeViewHolder {
     )
 }
 
+trait NodeViewReader {
+  def withNodeView[T](f: ReadableNodeView => T): EitherT[Future, NodeViewHolderInterface.ReadFailure, T]
+}
+
 /**
  * A generic interface for interacting with a NodeView
  */
-trait NodeViewHolderInterface {
-  def withNodeView[T](f:    ReadableNodeView => T): EitherT[Future, NodeViewHolderInterface.ReadFailure, T]
+trait NodeViewHolderInterface extends NodeViewReader {
   def applyBlocks(blocks:   Iterable[Block]): EitherT[Future, NodeViewHolderInterface.ApplyFailure, Done]
   def applyTransactions(tx: Transaction.TX): EitherT[Future, NodeViewHolderInterface.ApplyFailure, Done]
 
@@ -339,13 +372,3 @@ class ActorNodeViewHolderInterface(actorRef: ActorRef[NodeViewHolder.ReceivableM
       .askWithStatus[Done](NodeViewHolder.ReceivableMessages.Read(_ => Done, _))
   }
 }
-
-/**
- * A generic signal indicating that _something_ in the NodeView changed
- */
-case object NodeViewChanged
-
-/**
- * A signal indicating that a transaction was received from RPC
- */
-case class LocallyGeneratedTransaction(transaction: Transaction.TX)

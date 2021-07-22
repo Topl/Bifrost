@@ -3,7 +3,7 @@ package co.topl.network
 import akka.actor.{Actor, ActorRef, Props}
 import co.topl.network.NetworkController.ReceivableMessages._
 import co.topl.network.peer.{InMemoryPeerDatabase, PeerInfo, PeerSpec, PenaltyType}
-import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
+import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.{Logging, NetworkUtils, TimeProvider}
 
 import java.net.{InetAddress, InetSocketAddress}
@@ -24,7 +24,7 @@ class PeerManager(settings: AppSettings, appContext: AppContext)(implicit timePr
 
   override def preStart(): Unit =
     /** register for application initialization message */
-    context.system.eventStream.subscribe(self, classOf[NodeViewReady])
+    log.info(s"${Console.YELLOW}PeerManager transitioning to the operational state${Console.RESET}")
 
   /** fill database with peers from config file if empty */
   if (peerDatabase.isEmpty) {
@@ -38,17 +38,8 @@ class PeerManager(settings: AppSettings, appContext: AppContext)(implicit timePr
 
   // ----------- CONTEXT ----------- //
   override def receive: Receive =
-    initialization orElse nonsense
-
-  private def operational: Receive =
     peersManagement orElse
     nonsense
-
-  // ----------- MESSAGE PROCESSING FUNCTIONS ----------- //
-  private def initialization: Receive = { case NodeViewReady(_) =>
-    log.info(s"${Console.YELLOW}PeerManager transitioning to the operational state${Console.RESET}")
-    context become operational
-  }
 
   private def peersManagement: Receive = {
 

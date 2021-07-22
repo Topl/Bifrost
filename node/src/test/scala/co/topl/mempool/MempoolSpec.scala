@@ -11,7 +11,7 @@ import co.topl.network.message.BifrostSyncInfo
 import co.topl.network.utils.NetworkTimeProvider
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.mempool.MemPoolReader
-import co.topl.nodeView.{LocallyGeneratedTransaction, NodeViewHolder}
+import co.topl.nodeView.NodeViewHolder
 import co.topl.utils.{CommonGenerators, NodeGenerators, TimeProvider}
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
@@ -65,7 +65,7 @@ class MempoolSpec
   ) {
     val txs = getHistory.bestBlock.transactions
 
-    txs.foreach(tx => actorSystem.eventStream.tell(EventStream.Publish(LocallyGeneratedTransaction(tx))))
+    txs.foreach(tx => actorSystem.eventStream.tell(EventStream.Publish(???)))
     txs.foreach(tx => getMempool.contains(tx) shouldBe false)
   }
 

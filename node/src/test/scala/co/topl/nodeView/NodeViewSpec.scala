@@ -3,7 +3,6 @@ package co.topl.nodeView
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
-import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
 import co.topl.nodeView.NodeViewTestHelpers.TestIn
 import co.topl.nodeView.mempool.MemPool
 import co.topl.utils._
@@ -61,7 +60,7 @@ class NodeViewSpec
       withGenesisNodeView { testIn =>
         val (events, updatedNodeView) = testIn.nodeView.withTransaction(tx).run
         updatedNodeView.mempool.contains(tx.id) shouldBe true
-        events shouldBe List(SuccessfulTransaction[Transaction.TX](tx))
+        events shouldBe List(NodeViewHolder.Events.SuccessfulTransaction[Transaction.TX](tx))
       }
     }
   }
@@ -77,7 +76,7 @@ class NodeViewSpec
         val (events, updatedNodeView) = testIn.nodeView.withTransaction(tx).run
         updatedNodeView.mempool.contains(tx.id) shouldBe false
 
-        val List(failedTransaction: FailedTransaction) = events
+        val List(failedTransaction: NodeViewHolder.Events.FailedTransaction) = events
 
         failedTransaction.transactionId shouldBe tx.id
       }
@@ -101,11 +100,11 @@ class NodeViewSpec
         updatedNodeView2.mempool.contains(tx.id) shouldBe false
         import org.scalatest.Inspectors._
         forExactly(1, events) { e =>
-          e shouldBe ChangedMempool
+          e shouldBe NodeViewHolder.Events.ChangedMempool
         }
         forExactly(1, events) { e =>
-          e shouldBe a[FailedTransaction]
-          e.asInstanceOf[FailedTransaction].transactionId shouldBe tx.id
+          e shouldBe a[NodeViewHolder.Events.FailedTransaction]
+          e.asInstanceOf[NodeViewHolder.Events.FailedTransaction].transactionId shouldBe tx.id
         }
       }
     }
@@ -141,13 +140,13 @@ class NodeViewSpec
         testIn.nodeView.withBlock(block).run
 
       events shouldBe List(
-        StartingPersistentModifierApplication(block),
-        SyntacticallySuccessfulModifier(block),
-        NewOpenSurface(List(genesisBlock.id)),
-        ChangedHistory,
-        SemanticallySuccessfulModifier(block),
-        ChangedState,
-        ChangedMempool
+        NodeViewHolder.Events.StartingPersistentModifierApplication(block),
+        NodeViewHolder.Events.SyntacticallySuccessfulModifier(block),
+        NodeViewHolder.Events.NewOpenSurface(List(genesisBlock.id)),
+        NodeViewHolder.Events.ChangedHistory,
+        NodeViewHolder.Events.SemanticallySuccessfulModifier(block),
+        NodeViewHolder.Events.ChangedState,
+        NodeViewHolder.Events.ChangedMempool
       )
       updatedNodeView.history.modifierById(block.id).value shouldBe block
     }
@@ -168,8 +167,8 @@ class NodeViewSpec
 
       events should have size 2
 
-      events(0) shouldBe StartingPersistentModifierApplication(block)
-      events(1).asInstanceOf[SyntacticallyFailedModification[Block]].modifier shouldBe block
+      events(0) shouldBe NodeViewHolder.Events.StartingPersistentModifierApplication(block)
+      events(1).asInstanceOf[NodeViewHolder.Events.SyntacticallyFailedModification[Block]].modifier shouldBe block
       updatedNodeView.history.modifierById(block.id) shouldBe None
     }
   }

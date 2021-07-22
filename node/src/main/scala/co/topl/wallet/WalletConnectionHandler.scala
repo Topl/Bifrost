@@ -10,7 +10,7 @@ import co.topl.attestation.AddressCodec.implicits.Base58DataOps
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.block.{Block, BloomFilter, PersistentNodeViewModifier}
 import co.topl.modifier.transaction._
-import co.topl.network.NodeViewSynchronizer.ReceivableMessages.SemanticallySuccessfulModifier
+import co.topl.nodeView.NodeViewHolder
 import co.topl.settings.{AppContext, AppSettings, RPCApiSettings}
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.Logging
@@ -46,7 +46,7 @@ class WalletConnectionHandler[
   var remoteWalletAddresses: Option[Set[Address]] = None
 
   override def preStart(): Unit =
-    context.system.eventStream.subscribe(self, classOf[SemanticallySuccessfulModifier[PMOD]])
+    context.system.eventStream.subscribe(self, classOf[NodeViewHolder.Events.SemanticallySuccessfulModifier[PMOD]])
 
   private val apiServiceHandlers =
     PartialFunction.empty[(String, Vector[Json], String), Future[Json]]
@@ -62,7 +62,7 @@ class WalletConnectionHandler[
 
     case GetRemoteWalletRef => sender() ! remoteWalletActor
 
-    case SemanticallySuccessfulModifier(block: Block) => handleNewBlock(block)
+    case NodeViewHolder.Events.SemanticallySuccessfulModifier(block: Block) => handleNewBlock(block)
 
   }
 

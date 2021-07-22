@@ -18,17 +18,13 @@ import co.topl.modifier.box.ProgramId
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.Broadcast
 import co.topl.network.NetworkController.ReceivableMessages.SendToNetwork
-import co.topl.network.NodeViewSynchronizer.ReceivableMessages.{
-  ChangedMempool,
-  ChangedState,
-  SemanticallySuccessfulModifier
-}
+
 import co.topl.network.message.{InvData, InvSpec, Message}
 import co.topl.nodeView.CleanupWorker.RunCleanup
 import co.topl.nodeView.MempoolAuditor.CleanupDone
 import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.state.StateReader
-import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
+import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Logging, TimeProvider}
 
@@ -72,8 +68,10 @@ class MempoolAuditor(
     )
 
   override def preStart(): Unit = {
-    context.system.eventStream.subscribe(self, classOf[SemanticallySuccessfulModifier[_]])
-    context.system.eventStream.subscribe(self, classOf[NodeViewReady])
+    context.system.eventStream.subscribe(self, classOf[NodeViewHolder.Events.SemanticallySuccessfulModifier[_]])
+    context.system.eventStream.subscribe(self, classOf[NodeViewHolder.Events.ChangedState.type])
+    context.system.eventStream.subscribe(self, classOf[NodeViewHolder.Events.ChangedMempool.type])
+    log.info(s"${Console.YELLOW}MemPool Auditor transitioning to the operational state${Console.RESET}")
   }
 
   override def postRestart(reason: Throwable): Unit = {
@@ -90,15 +88,7 @@ class MempoolAuditor(
   ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
   override def receive: Receive =
-    initialization orElse
-    nonsense
-
-  private def initialization: Receive = {
-    /** wait to start processing until the NodeViewHolder is ready * */
-    case NodeViewReady(_) =>
-      log.info(s"${Console.YELLOW}MemPool Auditor transitioning to the operational state${Console.RESET}")
-      context become awaiting
-  }
+    awaiting orElse nonsense
 
   private def withNodeView[T](f: ReadableNodeView => T): Future[T] = {
     import akka.actor.typed.scaladsl.AskPattern._
@@ -111,13 +101,14 @@ class MempoolAuditor(
   }
 
   private def awaiting: Receive = {
-    case SemanticallySuccessfulModifier(_: Block) | SemanticallySuccessfulModifier(_: BlockHeader) =>
+    case NodeViewHolder.Events.SemanticallySuccessfulModifier(_: Block) |
+        NodeViewHolder.Events.SemanticallySuccessfulModifier(_: BlockHeader) =>
       withNodeView(view => initiateCleanup(view.state, view.memPool))
 
-    case ChangedMempool =>
+    case NodeViewHolder.Events.ChangedMempool =>
       withNodeView(view => initiateCleanup(view.state, view.memPool))
 
-    case ChangedState =>
+    case NodeViewHolder.Events.ChangedState =>
       withNodeView(view => initiateCleanup(view.state, view.memPool))
 
     case _ => nonsense

@@ -18,6 +18,7 @@ import co.topl.nodeView._
 import co.topl.rpc.ToplRpcServer
 import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.TimeProvider
 import io.circe.Encoder
 
 import java.net.InetSocketAddress
@@ -33,6 +34,8 @@ object Heimdall {
 
   sealed abstract class ReceivableMessage
 
+  private case object NodeViewHolderReady extends ReceivableMessage
+
   private case object BindExternalTraffic extends ReceivableMessage
   private case class P2PTrafficBound(address: InetSocketAddress) extends ReceivableMessage
 
@@ -44,11 +47,40 @@ object Heimdall {
    */
   def apply(settings: AppSettings, appContext: AppContext): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
-      val state = prepareActors(settings, appContext)
+      implicit def system: ActorSystem[_] = context.system
+      implicit val timeout: Timeout = Timeout(10.minutes)
+      context.log.info("Initializing KeyManager and NodeViewHolder")
+      val (keyManagerRef, nodeViewHolderRef, timeProvider) = prepareNodeViewActor(settings, appContext)
+      context.pipeToSelf(new ActorNodeViewHolderInterface(nodeViewHolderRef).onReady()) {
+        case Failure(exception) => Fail(exception)
+        case Success(_)         => NodeViewHolderReady
+      }
+      awaitingNodeViewReady(settings, appContext, keyManagerRef, nodeViewHolderRef)(timeProvider)
+    }
 
-      context.self.tell(BindExternalTraffic)
+  /**
+   * The state in which a KeyManager and NodeViewHolder exist, but the NodeViewHolder is still loading and can't
+   * handle any traffic yet.  Heimdall delays creating the rest of the actors until the NodeViewHolder is ready.
+   */
+  private def awaitingNodeViewReady(
+    settings:              AppSettings,
+    appContext:            AppContext,
+    keyManagerRef:         CActorRef,
+    nodeViewRef:           ActorRef[NodeViewHolder.ReceivableMessage]
+  )(implicit timeProvider: TimeProvider): Behavior[ReceivableMessage] =
+    Behaviors.receivePartial {
+      case (context, NodeViewHolderReady) =>
+        implicit def ctx: ActorContext[ReceivableMessage] = context
+        context.log.info(
+          "Initializing PeerManager, NetworkController, Forger, MemPoolAuditor, PeerSynchronizer, and NodeViewSynchronizer"
+        )
+        val state = prepareActors(settings, appContext, keyManagerRef, nodeViewRef)
 
-      withActors(settings, appContext, state)
+        context.self.tell(BindExternalTraffic)
+
+        withActors(settings, appContext, state)
+      case (_, Fail(throwable)) =>
+        throw throwable
     }
 
   /**
@@ -94,6 +126,7 @@ object Heimdall {
       case (context, RPCTrafficBound(service, binding)) =>
         context.log.info(s"${Console.YELLOW}HTTP server bound to ${binding.localAddress}${Console.RESET}")
 
+        context.log.info("Bifrost initialized")
         running(State(state, service))
 
       case (_, Fail(reason)) =>
@@ -167,20 +200,12 @@ object Heimdall {
     HttpService(settings.rpcApi, bifrostRpcServer)
   }
 
-  private def prepareActors(settings: AppSettings, appContext: AppContext)(implicit
-    context:                          ActorContext[ReceivableMessage]
-  ): ChildActorState = {
+  private def prepareNodeViewActor(settings: AppSettings, appContext: AppContext)(implicit
+    context:                                 ActorContext[ReceivableMessage]
+  ): (CActorRef, ActorRef[NodeViewHolder.ReceivableMessage], TimeProvider) = {
     import context.executionContext
-
-    implicit val system: ActorSystem[_] = context.system
     implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
-
-    implicit val timeProvider: NetworkTimeProvider = new NetworkTimeProvider(settings.ntp)
-
-    val peerManager = context.actorOf(PeerManagerRef.props(settings, appContext), PeerManager.actorName)
-    val networkController = context.actorOf(
-      NetworkControllerRef.props(settings, peerManager, appContext, IO(Tcp)(context.system.toClassic))
-    )
+    implicit val timeProvider: NetworkTimeProvider = new NetworkTimeProvider(settings.ntp)(context.system)
 
     val keyManagerRef = context.actorOf(KeyManagerRef.props(settings, appContext), KeyManager.actorName)
 
@@ -203,6 +228,30 @@ object Heimdall {
         DispatcherSelector.fromConfig("bifrost.application.node-view.dispatcher")
       )
     }
+
+    (keyManagerRef, nodeViewHolderRef, timeProvider)
+
+  }
+
+  private def prepareActors(
+    settings:          AppSettings,
+    appContext:        AppContext,
+    keyManagerRef:     CActorRef,
+    nodeViewHolderRef: ActorRef[NodeViewHolder.ReceivableMessage]
+  )(implicit
+    context:      ActorContext[ReceivableMessage],
+    timeProvider: TimeProvider
+  ): ChildActorState = {
+
+    import context.executionContext
+
+    implicit val system: ActorSystem[_] = context.system
+    implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
+
+    val peerManager = context.actorOf(PeerManagerRef.props(settings, appContext), PeerManager.actorName)
+    val networkController = context.actorOf(
+      NetworkControllerRef.props(settings, peerManager, appContext, IO(Tcp)(context.system.toClassic))
+    )
 
     val forgerRef = {
       implicit val timeout: Timeout = Timeout(10.seconds)

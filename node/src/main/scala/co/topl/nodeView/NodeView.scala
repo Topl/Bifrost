@@ -11,7 +11,6 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.box.ProgramId
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.validation.implicits._
-import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.history.{GenericHistory, History, HistoryReader}
@@ -134,7 +133,7 @@ trait NodeViewBlockOps {
   ): Writer[List[Any], NodeView] = {
     import cats.implicits._
     if (!history.contains(block.id)) {
-      Writer[List[Any], NodeView](List(StartingPersistentModifierApplication(block)), this)
+      Writer[List[Any], NodeView](List(NodeViewHolder.Events.StartingPersistentModifierApplication(block)), this)
         .flatMap { nodeView =>
           block.transactions.traverse(_.semanticValidation(nodeView.state)) match {
             case Validated.Valid(_) =>
@@ -147,9 +146,9 @@ trait NodeViewBlockOps {
                   log.debug("Applying valid blockId={} to state with progressInfo={}", block.id, progressInfo)
                   Writer[List[Any], NodeView](
                     List(
-                      SyntacticallySuccessfulModifier(block),
-                      NewOpenSurface(openSurfaceIdsBeforeUpdate),
-                      ChangedHistory
+                      NodeViewHolder.Events.SyntacticallySuccessfulModifier(block),
+                      NodeViewHolder.Events.NewOpenSurface(openSurfaceIdsBeforeUpdate),
+                      NodeViewHolder.Events.ChangedHistory
                     ),
                     nodeView
                   )
@@ -163,14 +162,14 @@ trait NodeViewBlockOps {
                                 val newMemPool = nodeView.updateMemPool(progressInfo.toRemove, blocksApplied, mempool)
                                 log.info("Block blockId={} applied to state successfully", block.id)
                                 Writer[List[Any], NodeView](
-                                  List(ChangedState, ChangedMempool),
+                                  List(NodeViewHolder.Events.ChangedState, NodeViewHolder.Events.ChangedMempool),
                                   NodeView(newHistory, newMinState, newMemPool)
                                 )
 
                               case Failure(e) =>
                                 log.error(s"Error applying state for blockId=${block.id} block=$block", e)
                                 Writer[List[Any], NodeView](
-                                  List(SemanticallyFailedModification(block, e)),
+                                  List(NodeViewHolder.Events.SemanticallyFailedModification(block, e)),
                                   nodeView.copy(history = newHistory)
                                 )
                             }
@@ -183,7 +182,7 @@ trait NodeViewBlockOps {
                 case Failure(e) =>
                   log.error(s"Error applying history for blockId=${block.id} block=$block", e)
                   Writer[List[Any], NodeView](
-                    List(SyntacticallyFailedModification(block, e)),
+                    List(NodeViewHolder.Events.SyntacticallyFailedModification(block, e)),
                     nodeView
                   )
               }
@@ -206,7 +205,7 @@ trait NodeViewBlockOps {
   }
 
   private def requestDownloads(pi: ProgressInfo[Block]): Writer[List[Any], Unit] =
-    Writer.tell[List[Any]](pi.toDownload.toList.map((DownloadRequest.apply _).tupled))
+    Writer.tell[List[Any]](pi.toDownload.toList.map((NodeViewHolder.Events.DownloadRequest.apply _).tupled))
 
   private def trimChainSuffix(suffix: IndexedSeq[Block], rollbackPoint: ModifierId): IndexedSeq[Block] = {
     val idx = suffix.indexWhere(_.id == rollbackPoint)
@@ -290,7 +289,7 @@ trait NodeViewBlockOps {
               )
           case Failure(e) =>
             log.error("Rollback failed: ", e)
-            Writer.tell(List(RollbackFailed))
+            Writer.tell(List(NodeViewHolder.Events.RollbackFailed))
             //todo: what to return here? the situation is totally wrong
             ???
         }
@@ -321,14 +320,14 @@ trait NodeViewBlockOps {
                 case Success(stateAfterApply) =>
                   val newHis = history.reportModifierIsValid(modToApply)
                   Writer(
-                    List(SemanticallySuccessfulModifier(modToApply)),
+                    List(NodeViewHolder.Events.SemanticallySuccessfulModifier(modToApply)),
                     UpdateInformation(newHis, stateAfterApply, None, None, updateInfoWriter.value.suffix :+ modToApply)
                   )
 
                 case Failure(e) =>
                   val (newHis, newProgressInfo) = history.reportModifierIsInvalid(modToApply, progressInfo)
                   Writer(
-                    List(SemanticallyFailedModification(modToApply, e)),
+                    List(NodeViewHolder.Events.SemanticallyFailedModification(modToApply, e)),
                     UpdateInformation(
                       newHis,
                       updateInfoWriter.value.state,
@@ -362,15 +361,15 @@ trait NodeViewTransactionOps {
         mempool.put(tx, timeProvider.time) match {
           case Success(pool) =>
             log.debug(s"Unconfirmed transaction $tx added to the memory pool")
-            Writer(List(SuccessfulTransaction[Transaction.TX](tx)), copy(mempool = pool))
+            Writer(List(NodeViewHolder.Events.SuccessfulTransaction[Transaction.TX](tx)), copy(mempool = pool))
 
           case Failure(e) =>
-            Writer(List(FailedTransaction(tx.id, e, immediateFailure = true)), this)
+            Writer(List(NodeViewHolder.Events.FailedTransaction(tx.id, e, immediateFailure = true)), this)
         }
 
       case Left(e) =>
         Writer(
-          List(FailedTransaction(tx.id, new Exception(e.head.toString), immediateFailure = true)),
+          List(NodeViewHolder.Events.FailedTransaction(tx.id, new Exception(e.head.toString), immediateFailure = true)),
           this
         )
     }
@@ -380,7 +379,9 @@ trait NodeViewTransactionOps {
     val updatedPool = mempool.filter(tx => !ids.contains(tx.id))
     val e = new Exception("Became invalid")
     Writer(
-      List(ChangedMempool) ++ ids.map(FailedTransaction(_, e, immediateFailure = false)),
+      List(NodeViewHolder.Events.ChangedMempool) ++ ids.map(
+        NodeViewHolder.Events.FailedTransaction(_, e, immediateFailure = false)
+      ),
       copy(mempool = updatedPool)
     )
   }

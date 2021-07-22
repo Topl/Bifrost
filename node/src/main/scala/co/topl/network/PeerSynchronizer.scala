@@ -7,7 +7,7 @@ import co.topl.network.NetworkController.ReceivableMessages.{PenalizePeer, Regis
 import co.topl.network.PeerManager.ReceivableMessages.{AddPeerIfEmpty, RecentlySeenPeers}
 import co.topl.network.message._
 import co.topl.network.peer.{ConnectedPeer, PeerInfo, PeerSpec, PenaltyType}
-import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
+import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.Logging
 import shapeless.syntax.typeable._
 
@@ -43,7 +43,8 @@ class PeerSynchronizer(
     networkControllerRef ! RegisterMessageSpecs(appContext.peerSyncRemoteMessages.toSeq, self)
 
     /** register for application initialization message */
-    context.system.eventStream.subscribe(self, classOf[NodeViewReady])
+    log.info(s"${Console.YELLOW}PeerSynchronizer transitioning to the operational state${Console.RESET}")
+    scheduleGetPeers()
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
@@ -51,18 +52,8 @@ class PeerSynchronizer(
 
   // ----------- CONTEXT ----------- //
   override def receive: Receive =
-    initialization orElse nonsense
-
-  private def operational: Receive =
     processDataFromPeer orElse
     nonsense
-
-  // ----------- MESSAGE PROCESSING FUNCTIONS ----------- //
-  private def initialization: Receive = { case NodeViewReady(_) =>
-    log.info(s"${Console.YELLOW}PeerSynchronizer transitioning to the operational state${Console.RESET}")
-    context become operational
-    scheduleGetPeers()
-  }
 
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////

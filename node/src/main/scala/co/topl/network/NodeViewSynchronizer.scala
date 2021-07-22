@@ -12,7 +12,7 @@ import co.topl.network.message.{InvSpec, MessageSpec, ModifiersSpec, RequestModi
 import co.topl.network.peer.{ConnectedPeer, PenaltyType}
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.{NodeViewHolder, ReadableNodeView}
-import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
+import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.serialization.BifrostSerializer
 import co.topl.utils.{Logging, MalformedModifierError, TimeProvider}
 
@@ -69,17 +69,19 @@ class NodeViewSynchronizer(
     /** register as a handler for synchronization-specific types of messages */
     networkControllerRef ! RegisterMessageSpecs(appContext.nodeViewSyncRemoteMessages.toSeq, self)
 
-    /** register for application initialization message */
-    context.system.eventStream.subscribe(self, classOf[NodeViewReady])
-
     /** register as a listener for peers got connected (handshaked) or disconnected */
     context.system.eventStream.subscribe(self, classOf[HandshakedPeer])
     context.system.eventStream.subscribe(self, classOf[DisconnectedPeer])
 
     /** subscribe for all the node view holder events involving modifiers and transactions */
-    context.system.eventStream.subscribe(self, classOf[ModificationOutcome])
-    context.system.eventStream.subscribe(self, classOf[DownloadRequest])
+    context.system.eventStream.subscribe(self, classOf[NodeViewHolder.OutcomeEvent])
+    context.system.eventStream.subscribe(self, classOf[NodeViewHolder.Events.DownloadRequest])
     context.system.eventStream.subscribe(self, classOf[ModifiersProcessingResult[Block]])
+
+    log.info(s"${Console.YELLOW}NodeViewSynchronizer transitioning to the operational state${Console.RESET}")
+
+    /** schedules a SendLocalSyncInfo message to be sent at a fixed interval */
+    statusTracker.scheduleSendSyncInfo()
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
@@ -87,26 +89,12 @@ class NodeViewSynchronizer(
 
   // ----------- CONTEXT ----------- //
   override def receive: Receive =
-    initialization orElse nonsense
-
-  private def operational: Receive =
     processDataFromPeer orElse
     processSyncStatus orElse
     manageModifiers orElse
     viewHolderEvents orElse
     peerManagerEvents orElse
     nonsense
-
-  // ----------- MESSAGE PROCESSING FUNCTIONS ----------- //
-  private def initialization: Receive = { case NodeViewReady(_) =>
-    log.info(s"${Console.YELLOW}NodeViewSynchronizer transitioning to the operational state${Console.RESET}")
-
-    /** schedules a SendLocalSyncInfo message to be sent at a fixed interval */
-    statusTracker.scheduleSendSyncInfo()
-
-    /** set the state of the actor */
-    context.become(operational)
-  }
 
   protected def processSyncStatus: Receive = {
     /** send local sync status to a peer */
@@ -117,7 +105,7 @@ class NodeViewSynchronizer(
   protected def manageModifiers: Receive = {
 
     /** Request data from any remote node */
-    case DownloadRequest(modifierTypeId, modifierId) =>
+    case NodeViewHolder.Events.DownloadRequest(modifierTypeId, modifierId) =>
       withNodeView(view => deliveryTracker.status(modifierId, view.history))
         .foreach(status =>
           if (status == ModifiersStatus.Unknown) requestDownload(modifierTypeId, Seq(modifierId), None)
@@ -143,27 +131,27 @@ class NodeViewSynchronizer(
 
   protected def viewHolderEvents: Receive = {
     /** Update status of the modifier as Held and announce the new valid modifier if a transaction is successful */
-    case SuccessfulTransaction(tx) =>
+    case NodeViewHolder.Events.SuccessfulTransaction(tx) =>
       deliveryTracker.setHeld(tx.id)
       broadcastModifierInv(tx)
 
     /** Set modifier as invalid and penalize peer if this invalid modifier is the first one from the peer */
-    case FailedTransaction(id, _, immediateFailure) =>
+    case NodeViewHolder.Events.FailedTransaction(id, _, immediateFailure) =>
       val senderOpt = deliveryTracker.setInvalid(id)
 
       /** penalize sender only in case transaction was invalidated at first validation. */
       if (immediateFailure) senderOpt.foreach(penalizeMisbehavingPeer)
 
-    case SyntacticallySuccessfulModifier(mod) =>
+    case NodeViewHolder.Events.SyntacticallySuccessfulModifier(mod) =>
       deliveryTracker.setHeld(mod.id)
 
-    case SyntacticallyFailedModification(mod, _) =>
+    case NodeViewHolder.Events.SyntacticallyFailedModification(mod, _) =>
       deliveryTracker.setInvalid(mod.id).foreach(penalizeMisbehavingPeer)
 
-    case SemanticallySuccessfulModifier(mod) =>
+    case NodeViewHolder.Events.SemanticallySuccessfulModifier(mod) =>
       broadcastModifierInv(mod)
 
-    case SemanticallyFailedModification(mod, _) =>
+    case NodeViewHolder.Events.SemanticallyFailedModification(mod, _) =>
       deliveryTracker.setInvalid(mod.id).foreach(penalizeMisbehavingPeer)
 
     case ModifiersProcessingResult(applied: Seq[Block], cleared: Seq[Block]) =>
@@ -576,13 +564,6 @@ object NodeViewSynchronizer {
 
     trait PeerManagerEvent
 
-    trait NodeViewHolderEvent
-
-    trait NodeViewChange extends NodeViewHolderEvent
-
-    /** hierarchy of events regarding modifiers application outcome */
-    trait ModificationOutcome extends NodeViewHolderEvent
-
     case class ResponseFromLocal[M <: NodeViewModifier](
       source:         ConnectedPeer,
       modifierTypeId: ModifierTypeId,
@@ -606,48 +587,16 @@ object NodeViewSynchronizer {
 
     case class DisconnectedPeer(remote: InetSocketAddress) extends PeerManagerEvent
 
-    case object ChangedHistory extends NodeViewChange
-
-    case object ChangedMempool extends NodeViewChange
-
-    case object ChangedState extends NodeViewChange
-
-    case class NewOpenSurface(newSurface: Seq[ModifierId]) extends NodeViewHolderEvent
-
-    case class StartingPersistentModifierApplication[PMOD <: PersistentNodeViewModifier](modifier: PMOD)
-        extends NodeViewHolderEvent
-
-    case class DownloadRequest(modifierTypeId: ModifierTypeId, modifierId: ModifierId) extends NodeViewHolderEvent
-
     /**
      * After application of batch of modifiers from cache to History, NodeViewHolder sends this message,
      * containing all just applied modifiers and cleared from cache
      */
     case class ModifiersProcessingResult[PMOD <: PersistentNodeViewModifier](applied: Seq[PMOD], cleared: Seq[PMOD])
 
-    /** @param immediateFailure a flag indicating whether a transaction was invalid by the moment it was received. */
-    case class FailedTransaction(transactionId: ModifierId, error: Throwable, immediateFailure: Boolean)
-        extends ModificationOutcome
-
-    case class SuccessfulTransaction[TX <: Transaction.TX](transaction: TX) extends ModificationOutcome
-
-    case class SyntacticallyFailedModification[PMOD <: PersistentNodeViewModifier](modifier: PMOD, error: Throwable)
-        extends ModificationOutcome
-
-    case class SemanticallyFailedModification[PMOD <: PersistentNodeViewModifier](modifier: PMOD, error: Throwable)
-        extends ModificationOutcome
-
-    case class SyntacticallySuccessfulModifier[PMOD <: PersistentNodeViewModifier](modifier: PMOD)
-        extends ModificationOutcome
-
-    case class SemanticallySuccessfulModifier[PMOD <: PersistentNodeViewModifier](modifier: PMOD)
-        extends ModificationOutcome
-
     /** getLocalSyncInfo messages */
     case object SendLocalSyncInfo
 
     //todo: consider sending info on the rollback
-    case object RollbackFailed extends NodeViewHolderEvent
   }
 }
 

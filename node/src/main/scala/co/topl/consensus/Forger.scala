@@ -11,7 +11,7 @@ import cats.implicits._
 import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
 import co.topl.consensus.genesis.{HelGenesis, PrivateGenesis, ToplnetGenesis, ValhallaGenesis}
 import co.topl.modifier.block.Block
-import co.topl.nodeView.NodeViewHolderInterface
+import co.topl.nodeView.NodeViewReader
 import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.NetworkType._
 import co.topl.utils.{Int128, NetworkType, TimeProvider}
@@ -39,8 +39,6 @@ object Forger {
 
     case class StopForging(replyTo: ActorRef[Done]) extends ReceivableMessage
 
-    case object NodeViewHolderReady extends ReceivableMessage
-
     private[consensus] case object InitializationComplete extends ReceivableMessage
 
     private[consensus] case object ForgerTick extends ReceivableMessage
@@ -54,32 +52,48 @@ object Forger {
   case class ChainParams(totalStake: Int128, difficulty: Long)
 
   def behavior(
-    settings:                AppSettings,
-    appContext:              AppContext,
-    fetchKeyView:            () => Future[KeyView],
-    fetchStartupKeyView:     () => Future[StartupKeyView],
-    nodeViewHolderInterface: NodeViewHolderInterface
-  )(implicit networkPrefix:  NetworkPrefix, timeProvider: TimeProvider): Behavior[ReceivableMessage] =
+    settings:               AppSettings,
+    appContext:             AppContext,
+    fetchKeyView:           () => Future[KeyView],
+    fetchStartupKeyView:    () => Future[StartupKeyView],
+    nodeViewReader:         NodeViewReader
+  )(implicit networkPrefix: NetworkPrefix, timeProvider: TimeProvider): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
+      import context.executionContext
       context.system.receptionist.tell(Receptionist.Register(serviceKey, context.self))
 
       protocolMngr = ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
       consensusStorage = ConsensusStorage(settings, appContext.networkType)
 
-      context.pipeToSelf(nodeViewHolderInterface.onReady())(
-        _.fold(ReceivableMessages.Terminate, _ => ReceivableMessages.NodeViewHolderReady)
-      )
-
       context.log.info(s"${Console.YELLOW}Forging will start after initialization${Console.RESET}")
+
+      context.pipeToSelf(checkPrivateForging(appContext, fetchStartupKeyView))(
+        _.fold(ReceivableMessages.Terminate, _ => ReceivableMessages.InitializationComplete)
+      )
 
       new ForgerBehaviors(
         settings,
-        appContext,
         fetchKeyView,
-        fetchStartupKeyView,
-        nodeViewHolderInterface
+        nodeViewReader
       ).uninitialized(forgeWhenReady = settings.forging.forgeOnStartup)
 
+    }
+
+  /**
+   * If this node is running a private or local network, verify that a rewards address is set
+   */
+  private def checkPrivateForging(appContext: AppContext, fetchStartupKeyView: () => Future[StartupKeyView])(implicit
+    ec:                                       ExecutionContext
+  ): Future[Done] =
+    if (Seq(PrivateTestnet, LocalTestnet).contains(appContext.networkType)) {
+      fetchStartupKeyView().flatMap {
+        case keyView if keyView.rewardAddr.nonEmpty =>
+          Future.successful(Done)
+        case _ =>
+          Future.failed(new IllegalStateException("Forging requires a rewards address"))
+      }
+    } else {
+      Future.successful(Done)
     }
 
   def genesisBlock(settings: AppSettings, networkType: NetworkType, fetchStartupKeyView: () => Future[StartupKeyView])(
@@ -115,12 +129,10 @@ object Forger {
 }
 
 private class ForgerBehaviors(
-  settings:                AppSettings,
-  appContext:              AppContext,
-  fetchKeyView:            () => Future[KeyView],
-  fetchStartupKeyView:     () => Future[StartupKeyView],
-  nodeViewHolderInterface: NodeViewHolderInterface
-)(implicit context:        ActorContext[Forger.ReceivableMessage], networkPrefix: NetworkPrefix, timeProvider: TimeProvider) {
+  settings:         AppSettings,
+  fetchKeyView:     () => Future[KeyView],
+  nodeViewReader:   NodeViewReader
+)(implicit context: ActorContext[Forger.ReceivableMessage], networkPrefix: NetworkPrefix, timeProvider: TimeProvider) {
   import context.executionContext
   implicit private val log: Logger = context.log
 
@@ -155,11 +167,6 @@ private class ForgerBehaviors(
       case ReceivableMessages.StopForging(replyTo) =>
         replyTo.tell(Done)
         uninitialized(forgeWhenReady = false)
-      case ReceivableMessages.NodeViewHolderReady =>
-        context.pipeToSelf(checkPrivateForging())(
-          _.fold(ReceivableMessages.Terminate, _ => ReceivableMessages.InitializationComplete)
-        )
-        Behaviors.same
       case ReceivableMessages.InitializationComplete =>
         context.log.info(s"${Console.YELLOW}Forger is initialized${Console.RESET}")
         if (forgeWhenReady) context.self.tell(ReceivableMessages.StartForging(context.system.ignoreRef))
@@ -183,11 +190,13 @@ private class ForgerBehaviors(
           replyTo.tell(Done)
           Behaviors.same
         case ReceivableMessages.ForgerTick =>
-          forgeNewBlock()
+          context.pipeToSelf(nextBlock().value)(result =>
+            ReceivableMessages.ForgeAttemptComplete(result.toEither.leftMap(ForgingError).flatten)
+          )
           Behaviors.same
         case ReceivableMessages.ForgeAttemptComplete(result) =>
           logResult(result)
-          result.foreach(block => context.system.eventStream.tell(EventStream.Publish(LocallyGeneratedModifier(block))))
+          result.foreach(block => context.system.eventStream.tell(EventStream.Publish(LocallyGeneratedBlock(block))))
           result match {
             case Left(ForgeFailure(Forge.NoRewardsAddressSpecified)) |
                 Left(ForgeFailure(Forge.LeaderElectionFailure(LeaderElection.NoAddressesAvailable))) =>
@@ -206,42 +215,17 @@ private class ForgerBehaviors(
     }
 
   /**
-   * If this node is running a private or local network, verify that a rewards address is set
+   * Forge the "next" block based on the "current" NodeView
    */
-  private def checkPrivateForging(): Future[Done] =
-    if (Seq(PrivateTestnet, LocalTestnet).contains(appContext.networkType)) {
-      fetchStartupKeyView().flatMap {
-        case keyView if keyView.rewardAddr.nonEmpty =>
-          Future.successful(Done)
-        case _ =>
-          Future.failed(new IllegalStateException("Forging requires a rewards address"))
-      }
-    } else {
-      Future.successful(Done)
-    }
-
-  /**
-   * Fetch the necessary dependencies to forge a new block.  Then, forge a new block
-   * and pipe the attempt result back to the actor.
-   */
-  private def forgeNewBlock(): Unit =
-    context.pipeToSelf(
-      prepareForgeDependencies()
-        .subflatMap(_.forge.leftMap(ForgeFailure))
-        .value
-    )(result => ReceivableMessages.ForgeAttemptComplete(result.toEither.leftMap(ForgingError).flatten))
-
-  /**
-   * Fetch the dependencies needed to forge a new block at the _current_ state/history.
-   */
-  private def prepareForgeDependencies(): EitherT[Future, ForgerFailure, Forge.Dependencies] =
+  private def nextBlock(): EitherT[Future, ForgerFailure, Block] =
     EitherT(fetchKeyView().map(Right(_)).recover { case e => Left(ForgingError(e)) })
       .flatMap(keyView =>
-        nodeViewHolderInterface
-          .withNodeView(Forge.Dependencies.fromNodeView(_, keyView, settings.forging.minTransactionFee))
+        nodeViewReader
+          .withNodeView(Forge.fromNodeView(_, keyView, settings.forging.minTransactionFee))
           .leftMap(e => ForgingError(e.reason))
           .subflatMap(_.leftMap(ForgeFailure))
       )
+      .subflatMap(_.make.leftMap(ForgeFailure))
 
   /**
    * Log the result of a forging attempt
@@ -311,4 +295,4 @@ class ActorForgerInterface(actorRef: ActorRef[Forger.ReceivableMessage])(implici
  * A broadcastable signal indicating that a new block was forged locally
  * @param block The new block that was forged
  */
-case class LocallyGeneratedModifier(block: Block)
+case class LocallyGeneratedBlock(block: Block)
