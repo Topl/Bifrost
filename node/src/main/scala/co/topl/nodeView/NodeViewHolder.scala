@@ -257,8 +257,7 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
       context.system.eventStream.publish(StartingPersistentModifierApplication(pmod))
 
       def isBlockTxsValidated: Boolean =
-        if (consensusCheckpoints.contains(pmod.id)
-          || pmod.transactions.forall(_.semanticValidation(minimalState()).isValid))
+        consensusCheckpoints.contains(pmod.id) || pmod.transactions.forall(_.semanticValidation(minimalState()).isValid)
 
         // check that the transactions are semantically valid
       if (isBlockTxsValidated) {
