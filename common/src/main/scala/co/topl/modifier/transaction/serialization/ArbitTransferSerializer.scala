@@ -74,7 +74,7 @@ object ArbitTransferSerializer extends BifrostSerializer[ArbitTransfer[_ <: Prop
     }
 
     val signaturesLength: Int = r.getUInt().toIntExact
-    val signatures = Map((0 until signaturesLength).map { _ =>
+    val signatures = ListMap((0 until signaturesLength).map { _ =>
       val prop = PropositionSerializer.parse(r)
       val sig = ProofSerializer.parse(r)
       prop -> sig
