@@ -16,7 +16,7 @@ import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.modifier.transaction.validation.implicits._
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
-import co.topl.nodeView.NodeViewHolder.{consensusCheckpoints, UpdateInformation}
+import co.topl.nodeView.NodeViewHolder.{UpdateInformation, consensusCheckpoints}
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
@@ -524,7 +524,13 @@ object NodeViewHolder {
   val consensusCheckpoints: Seq[ModifierId] = Seq(
     ModifierId.fromBase58(
       Base58Data.unsafe("29QHPjqyLB1QN6DhArf125Nu3qfgKLcPRnZGvaCX8qDNf")
-    ) // block height 255181 Valhalla testnet
+    ), // block height 255181 Valhalla testnet
+    ModifierId.fromBase58(
+      Base58Data.unsafe("2AsEgm1548vbwos8qqfe1qwwBF6Ef1mzKnRhPvZpALM2A")
+    ), // block height 262558 Valhalla testnet
+    ModifierId.fromBase58(
+      Base58Data.unsafe("293EqLkRWEEjV8aW99w4xXeyescvriYXytHdSn7LudSd1")
+    ) // block height 262875 Valhalla testnet
   )
 }
 
