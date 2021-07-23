@@ -95,14 +95,15 @@ trait RPCMockState
 
     forgerRef = system.toTyped.systemActorOf(
       Forger.behavior(
-        settings,
-        appContext,
+        settings.forging.blockGenerationDelay,
+        settings.forging.minTransactionFee,
+        settings.forging.forgeOnStartup,
         () => (keyManagerRef ? KeyManager.ReceivableMessages.GetKeyView).mapTo[KeyView],
         () =>
           (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
             .mapTo[Try[StartupKeyView]]
             .flatMap(Future.fromTry),
-        new ActorNodeViewHolderInterface(nodeViewHolderRef)(system.toTyped, timeout)
+        new ActorNodeViewHolderInterface(nodeViewHolderRef)(system.toTyped, implicitly[Timeout])
       ),
       Forger.ActorName
     )

@@ -185,9 +185,6 @@ object KeyManagerRef {
       new KeyManager(settings, appContext)
     ).withDispatcher("bifrost.application.key-manager.dispatcher")
 
-  def apply(name: String, settings: AppSettings, appContext: AppContext)(implicit system: ActorSystem): ActorRef =
-    system.actorOf(props(settings, appContext)(appContext.networkType.netPrefix), name)
-
 }
 
 sealed trait UnlockKeyFailure

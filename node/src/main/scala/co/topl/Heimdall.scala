@@ -2,7 +2,7 @@ package co.topl
 
 import akka.actor.typed.scaladsl.adapter._
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, ActorSystem, Behavior, DispatcherSelector}
+import akka.actor.typed.{ActorRef, ActorSystem, Behavior, DispatcherSelector, PostStop}
 import akka.actor.{ActorRef => CActorRef}
 import akka.http.scaladsl.Http
 import akka.io.{IO, Tcp}
@@ -49,8 +49,15 @@ object Heimdall {
     Behaviors.setup { implicit context =>
       implicit def system: ActorSystem[_] = context.system
       implicit val timeout: Timeout = Timeout(10.minutes)
+
+      context.log.info("Initializing ProtocolVersioner and ConsensusStorage")
+      protocolMngr = ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
+      consensusStorage = ConsensusStorage(settings, appContext.networkType)
+
       context.log.info("Initializing KeyManager and NodeViewHolder")
       val (keyManagerRef, nodeViewHolderRef, timeProvider) = prepareNodeViewActor(settings, appContext)
+      context.watch(keyManagerRef)
+      context.watch(nodeViewHolderRef)
       context.pipeToSelf(new ActorNodeViewHolderInterface(nodeViewHolderRef).onReady()) {
         case Failure(exception) => Fail(exception)
         case Success(_)         => NodeViewHolderReady
@@ -76,6 +83,12 @@ object Heimdall {
         )
         val state = prepareActors(settings, appContext, keyManagerRef, nodeViewRef)
 
+        context.watch(state.forger)
+        context.watch(state.networkController)
+        context.watch(state.peerSynchronizer)
+        context.watch(state.nodeViewSynchronizer)
+        context.watch(state.mempoolAuditor)
+
         context.self.tell(BindExternalTraffic)
 
         withActors(settings, appContext, state)
@@ -91,7 +104,7 @@ object Heimdall {
     appContext: AppContext,
     state:      ChildActorState
   ): Behavior[ReceivableMessage] =
-    Behaviors.receive {
+    Behaviors.receivePartial {
       case (context, BindExternalTraffic) =>
         implicit val bindTimeout: Timeout = Timeout(10.seconds)
         context.pipeToSelf(
@@ -123,11 +136,11 @@ object Heimdall {
         }
         Behaviors.same
 
-      case (context, RPCTrafficBound(service, binding)) =>
+      case (context, RPCTrafficBound(_, binding)) =>
         context.log.info(s"${Console.YELLOW}HTTP server bound to ${binding.localAddress}${Console.RESET}")
 
         context.log.info("Bifrost initialized")
-        running(State(state, service))
+        running(State(state, binding))
 
       case (_, Fail(reason)) =>
         throw reason
@@ -141,6 +154,10 @@ object Heimdall {
     Behaviors
       .receivePartial[ReceivableMessage] { case (_, Fail(throwable)) =>
         throw throwable
+      }
+      .receiveSignal { case (_, PostStop) =>
+        state.httpBinding.unbind()
+        Behaviors.same
       }
 
   private case class ChildActorState(
@@ -156,7 +173,7 @@ object Heimdall {
 
   private case class State(
     childActorState: ChildActorState,
-    httpService:     HttpService
+    httpBinding:     Http.ServerBinding
   )
 
   private def httpService(
@@ -257,8 +274,9 @@ object Heimdall {
       implicit val timeout: Timeout = Timeout(10.seconds)
       context.spawn(
         Forger.behavior(
-          settings,
-          appContext,
+          settings.forging.blockGenerationDelay,
+          settings.forging.minTransactionFee,
+          settings.forging.forgeOnStartup,
           () => (keyManagerRef ? KeyManager.ReceivableMessages.GetKeyView).mapTo[KeyView],
           () =>
             (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)

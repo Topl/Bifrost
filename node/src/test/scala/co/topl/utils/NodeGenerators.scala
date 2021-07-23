@@ -13,6 +13,7 @@ import co.topl.nodeView.history.{BlockProcessor, History, InMemoryKeyValueStore,
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppContext, AppSettings, StartupOpts, Version}
 import co.topl.utils.StringDataTypes.Latin1Data
+import com.typesafe.config.Config
 import org.scalacheck.Gen
 import org.scalatest.Suite
 
@@ -20,19 +21,24 @@ import java.nio.file.Files
 import scala.util.Random
 
 trait TestSettings {
+  implicit def settings: AppSettings = TestSettings.defaultSettings
+  implicit def appContext: AppContext = TestSettings.defaultAppContext
+}
+
+object TestSettings {
   private val settingsFilename = "node/src/test/resources/application-test.conf"
 
-  implicit lazy val settings: AppSettings = {
-    val s = AppSettings.read(StartupOpts(Some(settingsFilename)))._1
+  val (defaultSettings: AppSettings, defaultConfig: Config) = {
+    val (s, c) = AppSettings.read(StartupOpts(Some(settingsFilename)))
     s.copy(
       application = s.application.copy(
         dataDir = Some(Files.createTempDirectory("bifrost-test-data").toString)
       )
-    )
+    ) -> c
   }
 
-  implicit lazy val appContext: AppContext =
-    new AppContext(settings, StartupOpts(), None)
+  val defaultAppContext: AppContext =
+    new AppContext(defaultSettings, StartupOpts(), None)
 }
 
 trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with TestSettings {

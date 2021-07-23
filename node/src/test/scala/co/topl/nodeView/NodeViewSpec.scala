@@ -131,7 +131,7 @@ class NodeViewSpec
     (() => timeProvider.time)
       .expects()
       .once()
-      .returning(genesisBlock.timestamp + 1000)
+      .returning(Long.MaxValue)
 
     withGenesisNodeView { testIn =>
       val block = nextBlock(genesisBlock, testIn.nodeView)

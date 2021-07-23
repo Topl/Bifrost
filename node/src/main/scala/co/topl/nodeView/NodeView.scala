@@ -244,8 +244,6 @@ trait NodeViewBlockOps {
    *    earlier than a rollback point of an initial progressInfo.
    *  / --------------------------------------------------------------------------------------------------------------- *
    */
-  // TODO tailrec
-  //  @tailrec
   def updateState(
     history:       GenericHistory[Block, BifrostSyncInfo, History],
     state:         MinimalState[Block, State],

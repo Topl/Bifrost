@@ -2,7 +2,6 @@ package co.topl.consensus
 
 import akka.Done
 import akka.actor.typed.eventstream.EventStream
-import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
@@ -12,12 +11,12 @@ import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
 import co.topl.consensus.genesis.{HelGenesis, PrivateGenesis, ToplnetGenesis, ValhallaGenesis}
 import co.topl.modifier.block.Block
 import co.topl.nodeView.NodeViewReader
-import co.topl.settings.{AppContext, AppSettings}
+import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType._
 import co.topl.utils.{Int128, NetworkType, TimeProvider}
 import org.slf4j.Logger
 
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
 import scala.util.Try
@@ -28,8 +27,6 @@ import scala.util.Try
 object Forger {
 
   val ActorName = "forger"
-
-  val serviceKey: ServiceKey[ReceivableMessage] = ServiceKey[ReceivableMessage](ActorName)
 
   sealed trait ReceivableMessage
 
@@ -52,40 +49,39 @@ object Forger {
   case class ChainParams(totalStake: Int128, difficulty: Long)
 
   def behavior(
-    settings:               AppSettings,
-    appContext:             AppContext,
+    blockGenerationDelay:   FiniteDuration,
+    minTransactionFee:      Int128,
+    forgeOnStartup:         Boolean,
     fetchKeyView:           () => Future[KeyView],
     fetchStartupKeyView:    () => Future[StartupKeyView],
     nodeViewReader:         NodeViewReader
   )(implicit networkPrefix: NetworkPrefix, timeProvider: TimeProvider): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
       import context.executionContext
-      context.system.receptionist.tell(Receptionist.Register(serviceKey, context.self))
-
-      protocolMngr = ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
-      consensusStorage = ConsensusStorage(settings, appContext.networkType)
 
       context.log.info(s"${Console.YELLOW}Forging will start after initialization${Console.RESET}")
 
-      context.pipeToSelf(checkPrivateForging(appContext, fetchStartupKeyView))(
+      context.pipeToSelf(checkPrivateForging(fetchStartupKeyView))(
         _.fold(ReceivableMessages.Terminate, _ => ReceivableMessages.InitializationComplete)
       )
 
       new ForgerBehaviors(
-        settings,
+        blockGenerationDelay,
+        minTransactionFee,
         fetchKeyView,
         nodeViewReader
-      ).uninitialized(forgeWhenReady = settings.forging.forgeOnStartup)
+      ).uninitialized(forgeWhenReady = forgeOnStartup)
 
     }
 
   /**
    * If this node is running a private or local network, verify that a rewards address is set
    */
-  private def checkPrivateForging(appContext: AppContext, fetchStartupKeyView: () => Future[StartupKeyView])(implicit
-    ec:                                       ExecutionContext
+  private def checkPrivateForging(fetchStartupKeyView: () => Future[StartupKeyView])(implicit
+    ec:                                                ExecutionContext,
+    networkPrefix:                                     NetworkPrefix
   ): Future[Done] =
-    if (Seq(PrivateTestnet, LocalTestnet).contains(appContext.networkType)) {
+    if (Seq(PrivateTestnet.netPrefix, LocalTestnet.netPrefix).contains(networkPrefix)) {
       fetchStartupKeyView().flatMap {
         case keyView if keyView.rewardAddr.nonEmpty =>
           Future.successful(Done)
@@ -129,10 +125,11 @@ object Forger {
 }
 
 private class ForgerBehaviors(
-  settings:         AppSettings,
-  fetchKeyView:     () => Future[KeyView],
-  nodeViewReader:   NodeViewReader
-)(implicit context: ActorContext[Forger.ReceivableMessage], networkPrefix: NetworkPrefix, timeProvider: TimeProvider) {
+  blockGenerationDelay: FiniteDuration,
+  minTransactionFee:    Int128,
+  fetchKeyView:         () => Future[KeyView],
+  nodeViewReader:       NodeViewReader
+)(implicit context:     ActorContext[Forger.ReceivableMessage], networkPrefix: NetworkPrefix, timeProvider: TimeProvider) {
   import context.executionContext
   implicit private val log: Logger = context.log
 
@@ -205,7 +202,7 @@ private class ForgerBehaviors(
               log.info("Forger transitioning to idle state")
               idle
             case _ =>
-              scheduler.startSingleTimer(ReceivableMessages.ForgerTick, settings.forging.blockGenerationDelay)
+              scheduler.startSingleTimer(ReceivableMessages.ForgerTick, blockGenerationDelay)
               Behaviors.same
           }
         case ReceivableMessages.Terminate(reason) =>
@@ -221,7 +218,7 @@ private class ForgerBehaviors(
     EitherT(fetchKeyView().map(Right(_)).recover { case e => Left(ForgingError(e)) })
       .flatMap(keyView =>
         nodeViewReader
-          .withNodeView(Forge.fromNodeView(_, keyView, settings.forging.minTransactionFee))
+          .withNodeView(Forge.fromNodeView(_, keyView, minTransactionFee))
           .leftMap(e => ForgingError(e.reason))
           .subflatMap(_.leftMap(ForgeFailure))
       )

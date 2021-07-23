@@ -1,6 +1,6 @@
 package co.topl.consensus
 
-import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import akka.actor.testkit.typed.scaladsl.{LoggingTestKit, ManualTime, ScalaTestWithActorTestKit}
 import akka.actor.typed.eventstream.EventStream
 import cats.data.EitherT
 import cats.implicits._
@@ -21,11 +21,11 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{Inspectors, OptionValues}
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 
 class ForgerSpec
-    extends ScalaTestWithActorTestKit
+    extends ScalaTestWithActorTestKit(ManualTime.config.withFallback(TestSettings.defaultConfig))
     with AnyFlatSpecLike
     with TestSettings
     with InMemoryKeyFileTestHelper
@@ -39,8 +39,12 @@ class ForgerSpec
 
   implicit def ec: ExecutionContext = system.executionContext
 
-  private val specialSettings =
-    settings.copy(forging = settings.forging.copy(forgeOnStartup = false, blockGenerationDelay = 1.seconds))
+  private val blockGenerationDelay = 1.seconds
+  private val minTransactionFee: Int128 = 0
+
+  // ManualTime allows us to manually control the ActorSystem scheduler, which makes this test more predictable on
+  // limited-hardware machines
+  private val manualTime: ManualTime = ManualTime()
 
   it should "generate a new block every 'blockGenerationDelay' seconds" in {
 
@@ -74,11 +78,9 @@ class ForgerSpec
       .withNodeView[Forge](_: ReadableNodeView => Forge))
       .expects(*)
       .anyNumberOfTimes()
-//      .onCall { case f: Function1[ReadableNodeView, Forge] =>
-      .onCall((f: Function1[ReadableNodeView, Forge]) =>
+      .onCall((f: (ReadableNodeView) => Forge) =>
         EitherT.pure[Future, NodeViewHolderInterface.ReadFailure](f(nodeView))
       )
-//      }
 
     (() => nodeView.history.height)
       .expects()
@@ -115,8 +117,9 @@ class ForgerSpec
       .onCall((a: Address) => Some(List(ArbitBox(a.evidence, nonce = Long.MaxValue, value = SimpleValue(1)))))
 
     val behavior = Forger.behavior(
-      specialSettings,
-      appContext,
+      blockGenerationDelay,
+      minTransactionFee,
+      forgeOnStartup = false,
       fetchKeyView,
       fetchStartupKeyView,
       reader
@@ -125,17 +128,28 @@ class ForgerSpec
     val probe = createTestProbe[LocallyGeneratedBlock]()
 
     system.eventStream.tell(EventStream.Subscribe(probe.ref))
-
-    val ref = spawn(behavior)
-
-    ref.tell(Forger.ReceivableMessages.StartForging(system.ignoreRef))
     var blocks: List[Block] = Nil
-    for (_ <- 0 to 3) {
-      blocks :+= probe.receiveMessage().block
-      Thread.sleep(specialSettings.forging.blockGenerationDelay.toMillis)
-    }
 
-    blocks.distinct should contain theSameElementsInOrderAs blocks
+    val newBlockCount = 4
+
+    LoggingTestKit.info("Forging will start after initialization").expect {
+      LoggingTestKit.info("Forger is initialized").expect {
+        LoggingTestKit.info("Starting forging").expect {
+          LoggingTestKit.debug("New local block").withOccurrences(newBlockCount + 1).expect {
+            val ref = spawn(behavior)
+
+            ref.tell(Forger.ReceivableMessages.StartForging(system.ignoreRef))
+            for (_ <- 0 until newBlockCount) {
+              blocks :+= probe.receiveMessage(1.seconds).block
+              // Manually advance the clock forward a delay amount
+              manualTime.timePasses(blockGenerationDelay)
+            }
+
+          }
+          blocks.distinct should contain theSameElementsInOrderAs blocks
+        }
+      }
+    }
   }
 
   it should "fail if private forging does not specify a rewards address" in {
@@ -156,15 +170,18 @@ class ForgerSpec
       .returning(Future.successful(StartupKeyView(keyView.addresses, keyView.rewardAddr)))
     val reader = mock[NodeViewReader]
     val behavior = Forger.behavior(
-      specialSettings,
-      appContext,
+      blockGenerationDelay,
+      minTransactionFee,
+      forgeOnStartup = true,
       fetchKeyView,
       fetchStartupKeyView,
       reader
     )
 
-    val ref = spawn(behavior)
-    createTestProbe().expectTerminated(ref)
+    LoggingTestKit.error("Forging requires a rewards address").expect {
+      val ref = spawn(behavior)
+      createTestProbe().expectTerminated(ref)
+    }
   }
 
 }
