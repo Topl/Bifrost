@@ -108,7 +108,6 @@ class TransactionValidationSpec
   property("Attempting to validate an AssetTransfer with metadata of invalid length should error") {
     forAll(stringGen) { metadata =>
       whenever(metadata.length >= 128) {
-//        println(metadata)
         val tx = assetTransferEd25519Gen.sample.get
         val assetValue = assetValueEd25519Gen.sample.get.copy(metadata = Some(metadata))
         val invalidDataTx = tx.copy(to = IndexedSeq((assetValue.assetCode.issuer, assetValue)))

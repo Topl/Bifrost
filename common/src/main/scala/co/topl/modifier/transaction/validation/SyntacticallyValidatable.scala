@@ -182,8 +182,8 @@ class TransferTransactionSyntacticallyValidatable[T <: TokenValueHolder, P <: Pr
                 _._2 match {
                   case assetValue: AssetValue =>
                     assetValue.metadata.forall(_.getValidLatin1Bytes match {
-                      case Some(metadata) => metadata.length <= 127
-                      case None           => false
+                      case Some(bytes) => bytes.length <= 127
+                      case None        => false
                     })
                   case _ => true
                 }
