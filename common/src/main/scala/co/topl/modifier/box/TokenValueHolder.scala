@@ -90,15 +90,16 @@ case class AssetValue(
   metadata:              Option[String] = None
 ) extends TokenValueHolder(quantity) {
 
-  require(
-    metadata
-      .forall(
-        _.getValidLatin1Bytes
-          .getOrElse(throw new Exception("String is not valid Latin-1"))
-          .length <= AssetValue.metadataLimit
-      ),
-    "Metadata string must be less than 128 Latin-1 characters"
-  )
+  //TODO: Jing - do we keep this check?
+  //  require(
+  //    metadata
+  //      .forall(
+  //        _.getValidLatin1Bytes
+  //          .getOrElse(throw new Exception("String is not valid Latin-1"))
+  //          .length <= AssetValue.metadataLimit
+  //      ),
+  //    "Metadata string must be less than 128 Latin-1 characters"
+  //  )
 }
 
 object AssetValue extends BifrostSerializer[AssetValue] {
