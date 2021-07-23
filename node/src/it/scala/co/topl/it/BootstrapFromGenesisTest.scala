@@ -23,7 +23,7 @@ class BootstrapFromGenesisTest
   val initialForgeTarget: Int128 = 1024 + 50
   val newNodeForgeDuration: FiniteDuration = 10.seconds
   val targetBlockTime: FiniteDuration = 50.milli
-  val syncWindow: FiniteDuration = 30.seconds
+  val syncWindow: FiniteDuration = 1.minutes
   val seed: String = "BootstrapFromGenesisTest" + System.currentTimeMillis()
 
   "A new node can sync its genesis block with an old node" in {
@@ -98,6 +98,7 @@ class BootstrapFromGenesisTest
 
     logger.info("Stopping forging on both nodes")
 
+    oldNode.run(ToplRpc.Admin.StopForging.rpc)(ToplRpc.Admin.StopForging.Params()).value
     newNode.run(ToplRpc.Admin.StopForging.rpc)(ToplRpc.Admin.StopForging.Params()).value
 
     logger.info(s"Waiting $syncWindow for the nodes to sync")
