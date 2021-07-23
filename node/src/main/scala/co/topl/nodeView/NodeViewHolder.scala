@@ -7,6 +7,7 @@ import akka.actor.typed.scaladsl._
 import akka.actor.typed.{ActorRef, ActorSystem, _}
 import akka.pattern.StatusReply
 import akka.util.Timeout
+import cats.Show
 import cats.data.{EitherT, Writer}
 import co.topl.consensus.LocallyGeneratedBlock
 import co.topl.modifier.ModifierId
@@ -150,28 +151,30 @@ object NodeViewHolder {
       context.pipeToSelf(initialState())(
         _.fold(ReceivableMessages.InitializationFailed, ReceivableMessages.Initialized)
       )
-      uninitialized
+      uninitialized(appSettings.network.maxModifiersCacheSize)
     }
 
   final private val UninitializedStashSize = 150
 
   implicit private val blockOrdering: Ordering[Block] = (a, b) => a.height.compareTo(b.height)
 
+  implicit private val blockShow: Show[Block] = block => s"blockId=${block.id}"
+
   /**
    * The starting state of a NodeViewHolder actor.  It does not have a NodeView yet, so something in the background should
    * be fetching a NodeView and forwarding it to this uninitialized state.
    * @return A Behavior that is uninitialized
    */
-  private def uninitialized(implicit
-    networkPrefix: NetworkPrefix,
-    timeProvider:  TimeProvider
+  private def uninitialized(cacheSize: Int)(implicit
+    networkPrefix:                     NetworkPrefix,
+    timeProvider:                      TimeProvider
   ): Behavior[ReceivableMessage] =
     Behaviors.withStash(UninitializedStashSize)(stash =>
       Behaviors.receivePartial {
         case (context, ReceivableMessages.Initialized(nodeView)) =>
           implicit val system: ActorSystem[_] = context.system
           val cache =
-            context.spawn(SortedCache(), "NodeViewModifiersCache")
+            context.spawn(SortedCache(cacheSize), "NodeViewModifiersCache")
 
           Receptionist(system).ref.tell(Receptionist.Register(serviceKey, context.self))
           system.eventStream.tell(

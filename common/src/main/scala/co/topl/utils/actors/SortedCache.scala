@@ -2,6 +2,8 @@ package co.topl.utils.actors
 
 import akka.actor.typed._
 import akka.actor.typed.scaladsl._
+import cats.Show
+import cats.implicits._
 
 /**
  * A SortedCache is an actor that holds onto items in a sorted collection.  An item can be asynchronously popped off
@@ -20,8 +22,16 @@ object SortedCache {
 
   final val DefaultItemPopLimit = 50
 
-  def apply[T: Ordering](itemPopLimit: Int = DefaultItemPopLimit): Behavior[ReceivableMessage[T]] =
-    stateful(Map.empty, Impl(Nil, itemPopLimit))
+  def apply[T: Ordering: Show](
+    itemLimit:    Int = Int.MaxValue,
+    itemPopLimit: Int = DefaultItemPopLimit
+  ): Behavior[ReceivableMessage[T]] =
+    Behaviors.setup { context =>
+      stateful(
+        Map.empty,
+        Impl(Nil, itemLimit, itemPopLimit, onEvict = t => context.log.info("Evicting entry {}", t.show))
+      )
+    }
 
   private def stateful[T: Ordering](
     stash: Map[ActorRef[T], ReceivableMessages.Pop[T]],
@@ -47,7 +57,12 @@ object SortedCache {
   implicit private def poppableItemOrdering[T](implicit ordering: Ordering[T]): Ordering[PoppableItem[T]] = (a, b) =>
     ordering.compare(a.item, b.item)
 
-  private[actors] case class Impl[T: Ordering](items: List[PoppableItem[T]], itemPopLimit: Int) {
+  private[actors] case class Impl[T: Ordering](
+    items:        List[PoppableItem[T]],
+    itemLimit:    Int,
+    itemPopLimit: Int,
+    onEvict:      T => Unit
+  ) {
 
     def append(others: IterableOnce[T]): Impl[T] =
       copy(
@@ -57,16 +72,22 @@ object SortedCache {
     def pop(isViable: T => Boolean): (Impl[T], Option[T]) =
       items.indexWhere(poppableBlock => isViable(poppableBlock.item)) match {
         case -1 =>
-          // TODO: Logging when an entry is evicted
           (copy(items.map(_.incremented).filterNot(_.poppedCount >= itemPopLimit)), None)
         case index =>
           val (popped, candidate, unpopped) = {
             val (a, b) = items.splitAt(index)
             (a, b.head, b.tail)
           }
+          val incremented =
+            popped.map(_.incremented)
+          val (popLimitNonEvicted, popLimitEvicted) =
+            incremented.partition(_.poppedCount >= itemPopLimit)
+
+          val (finalItems, sizeEvicted) =
+            (popLimitNonEvicted ++ unpopped).splitAt(itemLimit - 1)
+          (popLimitEvicted ++ sizeEvicted).map(_.item).foreach(onEvict)
           (
-            // TODO: Logging when an entry is evicted
-            copy(popped.map(_.incremented).filterNot(_.poppedCount >= itemPopLimit) ++ unpopped),
+            copy(finalItems),
             Some(candidate.item)
           )
       }

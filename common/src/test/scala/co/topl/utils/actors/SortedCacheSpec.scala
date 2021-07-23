@@ -1,16 +1,18 @@
 package co.topl.utils.actors
 
+import org.scalatest.OptionValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class SortedCacheSpec extends AnyFlatSpec with Matchers {
+class SortedCacheSpec extends AnyFlatSpec with Matchers with OptionValues {
 
   behavior of "PoppableItemsCache.Impl"
 
-  private val limit = 50
+  private val popLimit = 50
+  private val sizeLimit = 50
 
   it should "pop None when empty" in {
-    val empty = SortedCache.Impl[TestItem](Nil, limit)
+    val empty = SortedCache.Impl[TestItem](Nil, popLimit, sizeLimit, _ => ())
     val (nextCache, popped) =
       empty.pop(_ => true)
 
@@ -19,7 +21,7 @@ class SortedCacheSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "insert and pop a value" in {
-    val empty = SortedCache.Impl[TestItem](Nil, limit)
+    val empty = SortedCache.Impl[TestItem](Nil, popLimit, sizeLimit, _ => ())
     val withItem =
       empty.append(List(TestItem("1a", 1)))
     val (nextCache, popped) =
@@ -29,13 +31,13 @@ class SortedCacheSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "evict a non-viable candidate after max attempts" in {
-    val limit = 3
-    val empty = SortedCache.Impl[TestItem](Nil, limit)
+    val popLimit = 3
+    val empty = SortedCache.Impl[TestItem](Nil, sizeLimit, popLimit, _ => ())
     val withItem =
       empty.append(List(TestItem("1a", 1)))
 
     val implAfter2Attempts =
-      (0 until (limit - 1)).foldLeft(withItem) { (impl, _) =>
+      (0 until (popLimit - 1)).foldLeft(withItem) { (impl, _) =>
         val (next, popped) =
           impl.pop(_ => false)
         popped shouldBe None
@@ -50,7 +52,7 @@ class SortedCacheSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "pop a sorted candidate if it is viable" in {
-    val empty = SortedCache.Impl[TestItem](Nil, limit)
+    val empty = SortedCache.Impl[TestItem](Nil, popLimit, sizeLimit, _ => ())
     val withItems =
       empty.append(List(TestItem("2a", 2), TestItem("1a", 1)))
 
@@ -69,7 +71,7 @@ class SortedCacheSpec extends AnyFlatSpec with Matchers {
 
   it should "not pop a sorted candidate if it is not viable" in {
     val viableCandidates = Set("2a")
-    val empty = SortedCache.Impl[TestItem](Nil, limit)
+    val empty = SortedCache.Impl[TestItem](Nil, popLimit, sizeLimit, _ => ())
     val withItems =
       empty.append(List(TestItem("2a", 2), TestItem("1a", 1)))
 
@@ -80,6 +82,29 @@ class SortedCacheSpec extends AnyFlatSpec with Matchers {
 
     withoutItem2a.pop(item => viableCandidates.contains(item.id))._2 shouldBe None
 
+  }
+
+  it should "evict entries if the cache grows too large" in {
+
+    var evicted: List[TestItem] = Nil
+
+    val empty = SortedCache.Impl[TestItem](Nil, popLimit, sizeLimit, evicted :+= _)
+    val withItems =
+      empty.append(List.tabulate(sizeLimit + 10)(idx => TestItem(s"${idx}a", idx)))
+
+    val withSizeLimitPopped =
+      (0 until sizeLimit).foldLeft(withItems) { case (impl, idx) =>
+        val (nextImpl, popped) =
+          impl.pop(_ => true)
+        popped.value shouldBe TestItem(s"${idx}a", idx)
+        nextImpl
+      }
+
+    withSizeLimitPopped shouldBe empty
+
+    withSizeLimitPopped.pop(_ => true)._2 shouldBe None
+
+    evicted shouldBe (sizeLimit until (sizeLimit + 10)).toList.map(idx => TestItem(s"${idx}a", idx))
   }
 
 }

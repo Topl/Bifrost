@@ -103,7 +103,7 @@ class ForgeSpec
     val keyView =
       KeyView(keyRingCurve25519.addresses, None, keyRingCurve25519.signWithAddress, keyRingCurve25519.lookupPublicKey)
 
-    val forge = Forge.fromNodeView(nodeView, keyView, 0).left.value shouldBe Forge.NoRewardsAddressSpecified
+    Forge.fromNodeView(nodeView, keyView, 0).left.value shouldBe Forge.NoRewardsAddressSpecified
 
   }
 
@@ -159,7 +159,7 @@ class ForgeSpec
           keyRingCurve25519.lookupPublicKey
         )
 
-      val forge = Forge.fromNodeView(nodeView, keyView, 0).left.value shouldBe Forge.LeaderElectionFailure(
+      Forge.fromNodeView(nodeView, keyView, 0).left.value shouldBe Forge.LeaderElectionFailure(
         LeaderElection.NoBoxesEligible
       )
     }
