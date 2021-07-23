@@ -20,11 +20,9 @@ object SortedCache {
     case class Pop[T](isViable: T => Boolean, replyTo: ActorRef[T]) extends ReceivableMessage[T]
   }
 
-  final val DefaultItemPopLimit = 50
-
   def apply[T: Ordering: Show](
     itemLimit:    Int = Int.MaxValue,
-    itemPopLimit: Int = DefaultItemPopLimit
+    itemPopLimit: Int = Int.MaxValue
   ): Behavior[ReceivableMessage[T]] =
     Behaviors.setup { context =>
       stateful(

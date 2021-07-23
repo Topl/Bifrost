@@ -174,7 +174,7 @@ object NodeViewHolder {
         case (context, ReceivableMessages.Initialized(nodeView)) =>
           implicit val system: ActorSystem[_] = context.system
           val cache =
-            context.spawn(SortedCache(cacheSize), "NodeViewModifiersCache")
+            context.spawn(SortedCache(cacheSize, itemPopLimit = cacheSize), "NodeViewModifiersCache")
 
           Receptionist(system).ref.tell(Receptionist.Register(serviceKey, context.self))
           system.eventStream.tell(

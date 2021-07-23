@@ -23,7 +23,7 @@ class BootstrapFromGenesisTest
   val initialForgeTarget: Int128 = 1024 + 50
   val newNodeForgeDuration: FiniteDuration = 10.seconds
   val targetBlockTime: FiniteDuration = 50.milli
-  val syncWindow: FiniteDuration = 1.minutes
+  val syncWindow: FiniteDuration = 30.seconds
   val seed: String = "BootstrapFromGenesisTest" + System.currentTimeMillis()
 
   "A new node can sync its genesis block with an old node" in {
