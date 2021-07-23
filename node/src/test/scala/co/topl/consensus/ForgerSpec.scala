@@ -48,13 +48,18 @@ class ForgerSpec
 
   it should "generate a new block every 'blockGenerationDelay' seconds" in {
 
-    val parentBlock = blockGen.pureApply(Gen.Parameters.default, Seed.random())
+    val parentBlock = blockCurve25519Gen.pureApply(Gen.Parameters.default, Seed.random())
 
     implicit val timeProvider: TimeProvider = mock[TimeProvider]
 
-    val rewardsAddress = keyRing.addresses.head
+    val rewardsAddress = keyRingCurve25519.addresses.head
     val keyView =
-      KeyView(keyRing.addresses, Some(rewardsAddress), keyRing.signWithAddress, keyRing.lookupPublicKey)
+      KeyView(
+        keyRingCurve25519.addresses,
+        Some(rewardsAddress),
+        keyRingCurve25519.signWithAddress,
+        keyRingCurve25519.lookupPublicKey
+      )
 
     val fetchKeyView = mockFunction[Future[KeyView]]
     fetchKeyView
@@ -155,7 +160,7 @@ class ForgerSpec
   it should "fail if private forging does not specify a rewards address" in {
     implicit val timeProvider: TimeProvider = mock[TimeProvider]
     val keyView =
-      KeyView(keyRing.addresses, None, keyRing.signWithAddress, keyRing.lookupPublicKey)
+      KeyView(keyRingCurve25519.addresses, None, keyRingCurve25519.signWithAddress, keyRingCurve25519.lookupPublicKey)
 
     val fetchKeyView = mockFunction[Future[KeyView]]
     fetchKeyView

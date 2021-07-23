@@ -2,18 +2,13 @@ package co.topl.nodeView.history
 
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.utils.{CommonGenerators, NodeGenerators}
+import co.topl.utils.NodeGenerators
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class BifrostHistorySpec
-    extends AnyPropSpec
-    with ScalaCheckPropertyChecks
-    with Matchers
-    with CommonGenerators
-    with NodeGenerators {
+class BifrostHistorySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers with NodeGenerators {
 
   var history: History = _
 
@@ -27,7 +22,7 @@ class BifrostHistorySpec
     var ids: Seq[ModifierId] = Seq()
 
     /* Apply blocks and ensure that they are stored */
-    forAll(blockGen) { blockTemp =>
+    forAll(blockCurve25519Gen) { blockTemp =>
       val block = blockTemp.copy(parentId = history.bestBlockId)
 
       history = history.append(block).get._1

@@ -115,7 +115,7 @@ trait RPCMockState
       nodeViewHolderRef,
       _.copy(state = genesisState)
     )(system.toTyped)
-    km.context.become(km.receive(keyRing, Some(keyRing.addresses.head)))
+    km.context.become(km.receive(keyRingCurve25519, Some(keyRingCurve25519.addresses.head)))
 
     rpcServer = {
       implicit val typedSystem: akka.actor.typed.ActorSystem[_] = system.toTyped

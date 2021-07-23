@@ -34,7 +34,7 @@ class ForgeSpec
   implicit private def implicitLogger: Logger = logger.underlying
 
   property("successfully create from a ReadableNodeView") {
-    forAll(blockGen.map(_.copy(timestamp = 1))) { parentBlock =>
+    forAll(blockCurve25519Gen.map(_.copy(timestamp = 1))) { parentBlock =>
       implicit val timeProvider: TimeProvider = mock[TimeProvider]
       val nodeView = ReadableNodeView(
         mock[HistoryReader[Block, BifrostSyncInfo]],
@@ -69,7 +69,7 @@ class ForgeSpec
         .expects(parentBlock, 3)
         .returning(Vector(parentBlock.timestamp))
 
-      val rewardsAddress = keyRing.addresses.head
+      val rewardsAddress = keyRingCurve25519.addresses.head
 
       (nodeView.state
         .getTokenBoxes(_: Address))
@@ -78,7 +78,12 @@ class ForgeSpec
         .onCall((a: Address) => Some(List(ArbitBox(a.evidence, nonce = Long.MaxValue, value = SimpleValue(1)))))
 
       val keyView =
-        KeyView(keyRing.addresses, Some(rewardsAddress), keyRing.signWithAddress, keyRing.lookupPublicKey)
+        KeyView(
+          keyRingCurve25519.addresses,
+          Some(rewardsAddress),
+          keyRingCurve25519.signWithAddress,
+          keyRingCurve25519.lookupPublicKey
+        )
 
       val forge = Forge.fromNodeView(nodeView, keyView, 0).value
 
@@ -96,14 +101,14 @@ class ForgeSpec
       mock[MemPoolReader[Transaction.TX]]
     )
     val keyView =
-      KeyView(keyRing.addresses, None, keyRing.signWithAddress, keyRing.lookupPublicKey)
+      KeyView(keyRingCurve25519.addresses, None, keyRingCurve25519.signWithAddress, keyRingCurve25519.lookupPublicKey)
 
     val forge = Forge.fromNodeView(nodeView, keyView, 0).left.value shouldBe Forge.NoRewardsAddressSpecified
 
   }
 
   property("fail to create if there is a LeaderElection failure") {
-    forAll(blockGen.map(_.copy(timestamp = 1))) { parentBlock =>
+    forAll(blockCurve25519Gen.map(_.copy(timestamp = 1))) { parentBlock =>
       implicit val timeProvider: TimeProvider = mock[TimeProvider]
       val nodeView = ReadableNodeView(
         mock[HistoryReader[Block, BifrostSyncInfo]],
@@ -138,7 +143,7 @@ class ForgeSpec
         .expects(parentBlock, 3)
         .returning(Vector(parentBlock.timestamp))
 
-      val rewardsAddress = keyRing.addresses.head
+      val rewardsAddress = keyRingCurve25519.addresses.head
 
       (nodeView.state
         .getTokenBoxes(_: Address))
@@ -147,7 +152,12 @@ class ForgeSpec
         .onCall((a: Address) => Some(List(ArbitBox(a.evidence, nonce = Long.MaxValue, value = SimpleValue(1)))))
 
       val keyView =
-        KeyView(keyRing.addresses, Some(rewardsAddress), keyRing.signWithAddress, keyRing.lookupPublicKey)
+        KeyView(
+          keyRingCurve25519.addresses,
+          Some(rewardsAddress),
+          keyRingCurve25519.signWithAddress,
+          keyRingCurve25519.lookupPublicKey
+        )
 
       val forge = Forge.fromNodeView(nodeView, keyView, 0).left.value shouldBe Forge.LeaderElectionFailure(
         LeaderElection.NoBoxesEligible

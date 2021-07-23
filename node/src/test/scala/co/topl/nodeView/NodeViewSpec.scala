@@ -30,7 +30,7 @@ class NodeViewSpec
 
   property("Rewards transactions are removed from transactions extracted from a block being rolled back") {
     withGenesisNodeView { testIn =>
-      forAll(blockGen) { block =>
+      forAll(blockCurve25519Gen) { block =>
         implicit val timeProvider: TimeProvider = mock[TimeProvider]
         (() => timeProvider.time)
           .expects()
@@ -50,18 +50,19 @@ class NodeViewSpec
   }
 
   property("NodeView can include syntactically valid transactions") {
-    val addressA :: _ = keyRing.addresses.toList
-    forAll(signedPolyTransferGen(positiveMediumIntGen.map(nonce => IndexedSeq((addressA, nonce))), keyRing)) { tx =>
-      implicit val timeProvider: TimeProvider = mock[TimeProvider]
-      (() => timeProvider.time)
-        .expects()
-        .once()
-        .returning(10)
-      withGenesisNodeView { testIn =>
-        val (events, updatedNodeView) = testIn.nodeView.withTransaction(tx).run
-        updatedNodeView.mempool.contains(tx.id) shouldBe true
-        events shouldBe List(NodeViewHolder.Events.SuccessfulTransaction[Transaction.TX](tx))
-      }
+    val addressA :: _ = keyRingCurve25519.addresses.toList
+    forAll(signedPolyTransferGen(positiveMediumIntGen.map(nonce => IndexedSeq((addressA, nonce))), keyRingCurve25519)) {
+      tx =>
+        implicit val timeProvider: TimeProvider = mock[TimeProvider]
+        (() => timeProvider.time)
+          .expects()
+          .once()
+          .returning(10)
+        withGenesisNodeView { testIn =>
+          val (events, updatedNodeView) = testIn.nodeView.withTransaction(tx).run
+          updatedNodeView.mempool.contains(tx.id) shouldBe true
+          events shouldBe List(NodeViewHolder.Events.SuccessfulTransaction[Transaction.TX](tx))
+        }
     }
   }
 
@@ -89,24 +90,25 @@ class NodeViewSpec
       .expects()
       .anyNumberOfTimes()
       .returning(10)
-    val addressA :: _ = keyRing.addresses.toList
-    forAll(signedPolyTransferGen(positiveMediumIntGen.map(nonce => IndexedSeq((addressA, nonce))), keyRing)) { tx =>
-      withGenesisNodeView { testIn =>
-        val (_, updatedNodeView1) = testIn.nodeView.withTransaction(tx).run
-        updatedNodeView1.mempool.contains(tx.id) shouldBe true
+    val addressA :: _ = keyRingCurve25519.addresses.toList
+    forAll(signedPolyTransferGen(positiveMediumIntGen.map(nonce => IndexedSeq((addressA, nonce))), keyRingCurve25519)) {
+      tx =>
+        withGenesisNodeView { testIn =>
+          val (_, updatedNodeView1) = testIn.nodeView.withTransaction(tx).run
+          updatedNodeView1.mempool.contains(tx.id) shouldBe true
 
-        val (events, updatedNodeView2) =
-          updatedNodeView1.withoutTransactions(List(tx.id)).run
-        updatedNodeView2.mempool.contains(tx.id) shouldBe false
-        import org.scalatest.Inspectors._
-        forExactly(1, events) { e =>
-          e shouldBe NodeViewHolder.Events.ChangedMempool
+          val (events, updatedNodeView2) =
+            updatedNodeView1.withoutTransactions(List(tx.id)).run
+          updatedNodeView2.mempool.contains(tx.id) shouldBe false
+          import org.scalatest.Inspectors._
+          forExactly(1, events) { e =>
+            e shouldBe NodeViewHolder.Events.ChangedMempool
+          }
+          forExactly(1, events) { e =>
+            e shouldBe a[NodeViewHolder.Events.FailedTransaction]
+            e.asInstanceOf[NodeViewHolder.Events.FailedTransaction].transactionId shouldBe tx.id
+          }
         }
-        forExactly(1, events) { e =>
-          e shouldBe a[NodeViewHolder.Events.FailedTransaction]
-          e.asInstanceOf[NodeViewHolder.Events.FailedTransaction].transactionId shouldBe tx.id
-        }
-      }
     }
   }
 

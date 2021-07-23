@@ -21,7 +21,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
 
     txs = bifrostTransactionSeqGen.sample.get
     txId = txs.head.id.toString
-    block = blockGen.sample.get.copy(transactions = txs)
+    block = blockCurve25519Gen.sample.get.copy(transactions = txs)
 
     import akka.actor.typed.scaladsl.adapter._
     TestableNodeViewHolder.setNodeView(

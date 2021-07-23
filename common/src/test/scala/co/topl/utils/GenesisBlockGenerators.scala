@@ -23,7 +23,6 @@ trait GenesisBlockGenerators {
     keyRing:                KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
     address:                Address
   )(implicit networkPrefix: NetworkPrefix): Gen[Block] = {
-
     val height: Long = 1L
     val difficulty = 1000000000000000000L
     val version: PNVMVersion = 1: Byte

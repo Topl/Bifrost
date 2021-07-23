@@ -228,7 +228,10 @@ class NodeViewSynchronizer(
           peerOpt match {
             /** this is the case that we are continuing to wait on a specific peer to respond */
             case Some(peer) if underMaxAttempts =>
-              /** a remote peer sent `Inv` for this modifier, wait for delivery from that peer until the number of checks exceeds the maximum */
+              /**
+               * a remote peer sent `Inv` for this modifier, wait for delivery from that peer until the number of
+               * checks exceeds the maximum
+               */
               log.info(s"Peer ${peer.toString} has not delivered requested modifier $modifierId on time")
               penalizeNonDeliveringPeer(peer)
 

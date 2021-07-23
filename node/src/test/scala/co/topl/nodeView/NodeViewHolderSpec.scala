@@ -40,7 +40,7 @@ class NodeViewHolderSpec
       .onCall(() => System.currentTimeMillis())
 
     genesisActorTest { testIn =>
-      val addressA :: addressB :: _ = keyRing.addresses.toList
+      val addressA :: addressB :: _ = keyRingCurve25519.addresses.toList
       val polyTransfer = {
         val base = PolyTransfer
           .createRaw[PublicKeyPropositionCurve25519](
@@ -52,7 +52,7 @@ class NodeViewHolderSpec
             data = None
           )
           .get
-        base.copy(attestation = keyRing.generateAttestation(addressB)(base.messageToSign))
+        base.copy(attestation = keyRingCurve25519.generateAttestation(addressB)(base.messageToSign))
       }
       val transactions = List(polyTransfer)
       testIn.actorRef.tell(NodeViewHolder.ReceivableMessages.WriteTransactions(transactions))
@@ -93,7 +93,7 @@ class NodeViewHolderSpec
       .onCall(() => System.currentTimeMillis())
 
     genesisActorTest { testIn =>
-      val nextBlocks = generateBlocks(List(genesisBlock), keyRing.addresses.head).take(3).toList
+      val nextBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head).take(3).toList
       testIn.actorRef.tell(ReceivableMessages.WriteBlocks(nextBlocks))
       Thread.sleep(2.seconds.toMillis)
       forAll(nextBlocks) { block =>
@@ -112,7 +112,7 @@ class NodeViewHolderSpec
       .onCall(() => System.currentTimeMillis())
 
     genesisActorTest { testIn =>
-      val nextBlocks = generateBlocks(List(genesisBlock), keyRing.addresses.head).take(3).toList
+      val nextBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head).take(3).toList
       // Insert blocks 2 and 3, but not block 1
       testIn.actorRef.tell(ReceivableMessages.WriteBlocks(nextBlocks.takeRight(2)))
       Thread.sleep(2.seconds.toMillis)

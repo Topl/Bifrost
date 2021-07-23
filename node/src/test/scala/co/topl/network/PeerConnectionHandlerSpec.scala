@@ -6,19 +6,16 @@ import akka.io.{IO, Tcp}
 import akka.testkit.TestKit
 import co.topl.network.message.MessageSerializer
 import co.topl.network.utils.NetworkTimeProvider
-import co.topl.utils.{CommonGenerators, NodeGenerators, TimeProvider}
+import co.topl.utils.{NodeGenerators, TimeProvider}
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.propspec.AnyPropSpecLike
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import java.net.InetSocketAddress
 
 class PeerConnectionHandlerSpec
     extends TestKit(ActorSystem("PCHSpec"))
     with AnyPropSpecLike
-    with ScalaCheckPropertyChecks
     with Matchers
-    with CommonGenerators
     with NodeGenerators {
 
   implicit val timeProvider: TimeProvider = new NetworkTimeProvider(settings.ntp)(system.toTyped)

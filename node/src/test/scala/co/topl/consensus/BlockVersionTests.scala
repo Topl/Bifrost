@@ -22,7 +22,7 @@ class BlockVersionTests extends MockState with NodeGenerators with DiskKeyFileTe
     setProtocolMngr(settings)
 
     fstVersion = protocolMngr.applicable.map(_.blockVersion).min.get
-    genesisBlockOldestVersion = genesisBlockGen(keyRing).sample.get.copy(version = fstVersion)
+    genesisBlockOldestVersion = genesisBlockGen(keyRingCurve25519).sample.get.copy(version = fstVersion)
     history = generateHistory(genesisBlockOldestVersion)
     state = createState(genesisBlockOldestVersion)
   }
@@ -40,7 +40,7 @@ class BlockVersionTests extends MockState with NodeGenerators with DiskKeyFileTe
     val blocksCount: Int = blocksToAppend + 1 // with genesis block
 
     for (_ <- 1 to blocksToAppend) {
-      val oneBlock: Block = blockGen.sample.get.copy(
+      val oneBlock: Block = blockCurve25519Gen.sample.get.copy(
         parentId = history.bestBlockId,
         transactions = Seq(),
         version = blockVersion(history.height + 1)
@@ -65,7 +65,7 @@ class BlockVersionTests extends MockState with NodeGenerators with DiskKeyFileTe
 
   property("Applying genesis block to history/state with different available versions should be successful") {
     for (version <- protocolMngr.applicable.map(_.blockVersion.get)) {
-      val genesisBlockWithVersion: Block = genesisBlockGen(keyRing).sample.get.copy(version = version)
+      val genesisBlockWithVersion: Block = genesisBlockGen(keyRingCurve25519).sample.get.copy(version = version)
       history = generateHistory(genesisBlockWithVersion)
       history.modifierById(genesisBlockWithVersion.id).isDefined shouldBe true
       state = createState(genesisBlockWithVersion)

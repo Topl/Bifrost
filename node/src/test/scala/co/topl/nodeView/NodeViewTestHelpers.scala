@@ -20,12 +20,12 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
   protected var genesisBlock: Block = _
 
   protected def nextBlock(parent: Block, nodeView: NodeView): Block = {
-    val forgerAddress = keyRing.addresses.head
+    val forgerAddress = keyRingCurve25519.addresses.head
     val timestamp = parent.timestamp + 50000
     val arbitBox = LeaderElection
       .getEligibleBox(
         parent,
-        keyRing.addresses,
+        keyRingCurve25519.addresses,
         timestamp,
         nodeView.state
       )
@@ -44,10 +44,10 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
     val rewards = {
       val base = Rewards(Nil, forgerAddress, parent.id, timestamp).get
       base.map {
-        case b: PolyTransfer[PublicKeyPropositionCurve25519] =>
-          b.copy(attestation = keyRing.generateAttestation(forgerAddress)(b.messageToSign))
-        case a: ArbitTransfer[PublicKeyPropositionCurve25519] =>
-          a.copy(attestation = keyRing.generateAttestation(forgerAddress)(a.messageToSign))
+        case b: PolyTransfer[_] =>
+          b.copy(attestation = keyRingCurve25519.generateAttestation(forgerAddress)(b.messageToSign))
+        case a: ArbitTransfer[_] =>
+          a.copy(attestation = keyRingCurve25519.generateAttestation(forgerAddress)(a.messageToSign))
       }
     }
     Block
@@ -56,7 +56,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
         timestamp = timestamp,
         txs = rewards,
         generatorBox = arbitBox,
-        publicKey = keyRing.lookupPublicKey(forgerAddress).get,
+        publicKey = keyRingCurve25519.lookupPublicKey(forgerAddress).get,
         height = parent.height + 1,
         difficulty = calcNewBaseDifficulty(
           parent.height + 1,
@@ -64,7 +64,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
           previousTimestamps :+ timestamp
         ),
         version = 1: Byte
-      )(keyRing.signWithAddress(forgerAddress))
+      )(keyRingCurve25519.signWithAddress(forgerAddress))
       .get
   }
 
@@ -91,10 +91,10 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
   override protected def beforeAll(): Unit = {
     super.beforeAll()
     // A beforeAll step generates 3 keys.  We need 7 more to hit 10.
-    keyRing.generateNewKeyPairs(7)
+    keyRingCurve25519.generateNewKeyPairs(7)
     setProtocolMngr(settings)
     consensusStorage = ConsensusStorage(settings, appContext.networkType)
-    genesisBlock = PrivateGenesis(keyRing.addresses, settings).formNewBlock._1
+    genesisBlock = PrivateGenesis(keyRingCurve25519.addresses, settings).formNewBlock._1
   }
 }
 
