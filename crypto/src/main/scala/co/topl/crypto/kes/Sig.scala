@@ -7,7 +7,7 @@ import co.topl.crypto.signatures.eddsa.Ed25519
   * Signing functionality used in MMM construction
   */
 
-class Sig extends Sig {
+class Sig {
   val ec = new Ed25519
   def generatePublicKey(sk:Array[Byte],skOff:Int,pk:Array[Byte],pkOff:Int):Unit =
     ec.generatePublicKey(sk:Array[Byte],skOff:Int,pk:Array[Byte],pkOff: Int)
