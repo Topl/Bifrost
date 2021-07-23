@@ -38,20 +38,12 @@ import scala.util.{Random, Success, Try}
 class Router(seed:Array[Byte], inputRef:Seq[ActorRefWrapper],settings:AppSettings) extends Actor
   with Types
   with Timers {
-  val waitTime = Parameters.waitTime
-  val delay_ms_byte = Parameters.delay_ms_byte
-  val delay_ms_km = Parameters.delay_ms_km
-  val delay_ms_noise = Parameters.delay_ms_noise
-  val commandUpdateTime = Parameters.commandUpdateTime
-  val txProbability = Parameters.txProbability
-  val maxTransfer = Parameters.maxTransfer
-  val slotT = Parameters.slotT
-  val sk_ecx = Parameters.sk_ecx
-  val pk_ecx = Parameters.pk_ecx
-  val useFencing = Parameters.useFencing
-  val useGui = Parameters.useGui
-  val numMessageProcessors = Parameters.numMessageProcessors
-  val tetraMessageSpecs = Parameters.tetraMessageSpecs
+  val waitTime = TetraParameters.waitTime
+  val slotT = TetraParameters.slotT
+  val sk_ecx = TetraParameters.sk_ecx
+  val pk_ecx = TetraParameters.pk_ecx
+  val numMessageProcessors = TetraParameters.numMessageProcessors
+  val tetraMessageSpecs = TetraParameters.tetraMessageSpecs
   val networkController:ActorRefWrapper = inputRef.head
   val peerManager:ActorRefWrapper = inputRef(1)
   implicit val routerRef: ActorRefWrapper = {
@@ -559,13 +551,6 @@ class Router(seed:Array[Byte], inputRef:Seq[ActorRefWrapper],settings:AppSetting
           holdersPosition += (holder->(rng.nextDouble()*180.0-90.0,rng.nextDouble()*360.0-180.0))
         }
       }
-      if (useFencing) {
-        for (holder<-holders.filterNot(_.remote)) {
-          if (!holderReady.keySet.contains(holder)) {
-            holderReady += (holder->false)
-          }
-        }
-      }
       timers.startPeriodicTimer(ActorPathSendTimerKey, ActorPathSendTimerKey, 10.seconds)
       updatePeerInfo()
       localRoutees.foreach(ref=>ref ! HoldersWithPosition(holders.filterNot(_.remote),holdersPosition))
@@ -713,7 +698,6 @@ class Router(seed:Array[Byte], inputRef:Seq[ActorRefWrapper],settings:AppSetting
           holdersOut ::= holder
         }
       }
-      if (useGui) Try{SharedData.guiPeerInfo -= peerName}
       egressRoutees.foreach(_ ! RouterPeerInfo(pathToPeer, holdersToRemove, bootStrapJobs, holders))
       ingressRoutees.foreach(_ ! RouterPeerInfo(pathToPeer, holdersToRemove, bootStrapJobs, holders))
       //println("Peer removed: "+peerName+", Number of peers: "+holders.count(_.remote).toString)
@@ -733,7 +717,7 @@ class Router(seed:Array[Byte], inputRef:Seq[ActorRefWrapper],settings:AppSetting
       sender() ! "done"
     case Register =>
       networkController ! RegisterMessageSpecs(tetraMessageSpecs, self)
-      if (Parameters.useRouterSystem) {
+      if (TetraParameters.useRouterSystem) {
         var i = 0
         egressRoutees = Seq.fill(7) {
           val ref = context.actorOf(Router.props(
@@ -796,5 +780,5 @@ class Router(seed:Array[Byte], inputRef:Seq[ActorRefWrapper],settings:AppSetting
 
 object Router {
   def props(seed:Array[Byte],ref:Seq[akka.actor.ActorRef],settings:AppSettings): Props =
-    Props(new Router(seed,ref.map(ActorRefWrapper.routerRef),settings)).withDispatcher(Parameters.routerEC)
+    Props(new Router(seed,ref.map(ActorRefWrapper.routerRef),settings)).withDispatcher(TetraParameters.routerEC)
 }

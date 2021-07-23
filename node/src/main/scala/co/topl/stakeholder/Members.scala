@@ -3,7 +3,7 @@ package co.topl.stakeholder
 import akka.actor.{Actor, ActorPath, Timers}
 import com.google.common.cache.LoadingCache
 import io.iohk.iodb.ByteArrayWrapper
-import co.topl.primitives.{ActorRefWrapper, Fch, Kes, KeyFile, Keys, Parameters, Ratio, Sig, SimpleTypes, Vrf}
+import co.topl.primitives.{ActorRefWrapper, Fch, Kes, KeyFile, Keys, TetraParameters, Ratio, Sig, SimpleTypes, Vrf}
 import co.topl.components.{Block, Serializer, Tine, Transaction, Wallet}
 import co.topl.history.{BlockStorage, ChainStorage, StateStorage, WalletStorage}
 import co.topl.settings.AppSettings
@@ -23,66 +23,37 @@ trait Members extends SimpleTypes with Actor with Timers {
   implicit val routerRef:ActorRefWrapper
   implicit val blocks:BlockStorage
 
-  val devMode:Boolean = Parameters.devMode
-  var useGui:Boolean = Parameters.useGui
-  val dataBaseCID: ByteArrayWrapper = Parameters.dataBaseCID
-  val genesisBytes: ByteArrayWrapper = Parameters.genesisBytes
-  val inputSeedString:String = Parameters.inputSeedString
-  val numGenesisHolders:Int = Parameters.numGenesisHolders
-  val holderIndexMin:Int = Parameters.holderIndexMin
-  val holderIndexMax:Int = Parameters.holderIndexMax
-  val slotT:Long = Parameters.slotT
-  val useRouting:Boolean = Parameters.useRouting
-  val delta_s:Int = Parameters.delta_s
-  val o_n:Int = Parameters.o_n
-  val m_f:Ratio = Parameters.m_f
-  val f_dynamic:Boolean = Parameters.f_dynamic
-  val testStrategy:String = Parameters.testStrategy
-  val m_f_range:Array[Ratio] = Parameters.m_f_range
-  val m_f_B:Ratio = Parameters.m_f_B
-  val gamma:Slot = Parameters.gamma
-  val slot_gap:Slot = Parameters.slot_gap
-  val kappa:Int = Parameters.kappa
-  val k_bar:Int = Parameters.k_bar
-  val useMaxValidTK:Boolean = Parameters.useMaxValidTK
-  val k_n:Int = Parameters.k_n
-  val epochLength:Int = Parameters.epochLength
-  val one_third_epoch:Int = Parameters.one_third_epoch
-  val slotWindow:Int = Parameters.slotWindow
-  val confirmationDepth:Int = Parameters.confirmationDepth
-  val initStakeMax:Double = Parameters.initStakeMax
-  val maxTransfer:Double = Parameters.maxTransfer
-  val forgerReward:BigInt = Parameters.forgerReward
-  val fee_r:Ratio = Parameters.fee_r
-  val numGossipers:Int = Parameters.numGossipers
-  val numGossipersForge:Int = Parameters.numGossipersForge
-  val tineMaxTries:Int = Parameters.tineMaxTries
-  val tineMaxDepth:Int = Parameters.tineMaxDepth
-  val tineBootstrappingDepth:Int = Parameters.tineBootstrappingDepth
-  val dataOutInterval:Int = Parameters.dataOutInterval
-  val waitTime:FiniteDuration = Parameters.waitTime
-  val updateTime:FiniteDuration = Parameters.updateTime
-  val commandUpdateTime:FiniteDuration = Parameters.commandUpdateTime
-  val txPerBlock:Int = Parameters.txPerBlock
-  var transactionFlag:Boolean = Parameters.transactionFlag
-  var txProbability:Double = Parameters.txProbability
-  val printFlag:Boolean = Parameters.printFlag
-  val timingFlag:Boolean = Parameters.timingFlag
-  val dataOutFlag:Boolean = Parameters.dataOutFlag
-  val useFencing:Boolean = Parameters.useFencing
-  val chainStoreInterval:Int = Parameters.chainStoreInterval
-  val dataFileDir:String = Parameters.dataFileDir
-  val refreshInterval:Int = Parameters.refreshInterval
-  val stakeDistribution:String = Parameters.stakeDistribution
-  val stakeScale:Double = Parameters.stakeScale
-  val resourceScale:Double = Parameters.resourceScale
-  val initStakeMin:Double = Parameters.initStakeMin
-  val timeServer:String = Parameters.timeServer
-  val maxBlockNumber:Int = Parameters.maxBlockNumber
-  val simLabel:String = Parameters.simLabel
-  val kesStoreInterval:Int = Parameters.kesStoreInterval
-  val useStableIntervalTerm:Boolean = Parameters.useStableIntervalTerm
-  val forging_window:Int = Parameters.forging_window
+  val dataBaseCID: ByteArrayWrapper = TetraParameters.dataBaseCID
+  val genesisBytes: ByteArrayWrapper = TetraParameters.genesisBytes
+  val slotT:Long = TetraParameters.slotT
+  val o_n:Int = TetraParameters.o_n
+  val m_f:Ratio = TetraParameters.m_f
+  val f_dynamic:Boolean = TetraParameters.f_dynamic
+  val testStrategy:String = TetraParameters.testStrategy
+  val m_f_range:Array[Ratio] = TetraParameters.m_f_range
+  val m_f_B:Ratio = TetraParameters.m_f_B
+  val gamma:Slot = TetraParameters.gamma
+  val slot_gap:Slot = TetraParameters.slot_gap
+  val kappa:Int = TetraParameters.kappa
+  val k_bar:Int = TetraParameters.k_bar
+  val useMaxValidTK:Boolean = TetraParameters.useMaxValidTK
+  val k_n:Int = TetraParameters.k_n
+  val epochLength:Int = TetraParameters.epochLength
+  val one_third_epoch:Int = TetraParameters.one_third_epoch
+  val slotWindow:Int = TetraParameters.slotWindow
+  val numGossipers:Int = TetraParameters.numGossipers
+  val numGossipersForge:Int = TetraParameters.numGossipersForge
+  val tineMaxTries:Int = TetraParameters.tineMaxTries
+  val tineMaxDepth:Int = TetraParameters.tineMaxDepth
+  val tineBootstrappingDepth:Int = TetraParameters.tineBootstrappingDepth
+  val waitTime:FiniteDuration = TetraParameters.waitTime
+  val updateTime:FiniteDuration = TetraParameters.updateTime
+  val chainStoreInterval:Int = TetraParameters.chainStoreInterval
+  val dataFileDir:String = TetraParameters.dataFileDir
+  val refreshInterval:Int = TetraParameters.refreshInterval
+  val timeServer:String = TetraParameters.timeServer
+  val kesStoreInterval:Int = TetraParameters.kesStoreInterval
+  val forging_window:Int = TetraParameters.forging_window
 
   val settings:AppSettings
 
@@ -133,13 +104,10 @@ trait Members extends SimpleTypes with Actor with Timers {
   var t1:Long
   var localSlot:Slot
   var currentEpoch:Int
-  var updating:Boolean
-  var actorStalled:Boolean
   var coordinatorRef:ActorRefWrapper
   var txCounter:Int
   var adversary:Boolean
   var covert:Boolean
-  var forgeAll:Boolean
 
   var bootStrapLock:Boolean
   var helloLock:Boolean

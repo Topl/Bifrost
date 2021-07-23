@@ -84,14 +84,7 @@ trait Staking extends Members {
     }
   }
 
-  def baseSlot(s:Slot):Slot = if(useStableIntervalTerm) {
-    s match {
-      case _ if s <= 0 => s
-      case _ => forging_window*(s/forging_window+1)
-    }
-  } else {
-    s
-  }
+  def baseSlot(s:Slot):Slot = s
 
   val factorial_cache:Array[BigInt] = (0 to o_n).toArray.map(i=>factorial(i))
 

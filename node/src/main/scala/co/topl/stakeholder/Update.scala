@@ -98,18 +98,9 @@ trait Update extends Members {
     */
 
   def update():Unit = timeFlag{
-    if (SharedData.error) actorStalled = true
-    if (!actorStalled && !updating && !helloLock) {
-      updating = true
-      if (SharedData.killFlag) {
-        timers.cancelAll
-        updating = false
-      }
+    if (!helloLock) {
       while (globalSlot > localSlot) {
         localSlot += 1
-        if (dataOutFlag && localSlot % dataOutInterval == 0) {
-          coordinatorRef ! WriteFile
-        }
         updateEpoch(localSlot,currentEpoch,eta,localChain,None) match {
           case result:(Int,Eta) if result._1 > currentEpoch =>
             currentEpoch = result._1
@@ -132,39 +123,13 @@ trait Update extends Members {
               case None =>
             }
             keys.alpha = alphaCache.get.get(keys.pkw)
-            if (holderIndex == SharedData.printingHolder && printFlag) {
-              println("Current Epoch = " + currentEpoch.toString)
-              println("Holder " + holderIndex.toString + " alpha = " + keys.alpha.toDouble+"\nEta:"+Base58.encode(eta))
-            }
+            println("Current Epoch = " + currentEpoch.toString)
+            println("Holder " + holderIndex.toString + " alpha = " + keys.alpha.toDouble+"\nEta:"+Base58.encode(eta))
             inbox = Map()
           case _ =>
         }
-        if (globalSlot == localSlot && updating) {
-          if (maxBlockNumber > 0) {
-            if (holderIndex == SharedData.printingHolder) {
-              if (blocks.get(localChain.head).get.number >= maxBlockNumber) {
-                val f_eff = blocks.get(localChain.head).get.number.toDouble/localChain.lastActiveSlot(globalSlot).get
-                val delta_dist = localChain.slotIntervalDist
-                println(s"<f> = $f_eff")
-                println("Histogram:")
-                delta_dist.foreach(e=> println(e._1.toString+" "+e._2.toString))
-                val file = new File(inputSeedString+"_"+simLabel+"_hist.dat")
-                val bw = new BufferedWriter(new FileWriter(file))
-                bw.write(s"<f> = $f_eff")
-                bw.newLine()
-                delta_dist.foreach(e => {
-                  bw.write(e._1.toString+" "+e._2.toString)
-                  bw.newLine()
-                })
-                bw.close()
-                actorStalled = true
-                SharedData.killFlag = true
-              }
-            }
-          }
-          if (!useFencing) {
-            forgeBlock(keys)
-          }
+        if (globalSlot == localSlot) {
+          forgeBlock(keys)
           if (globalSlot%kesStoreInterval == (phase*kesStoreInterval).toInt) {
             val keyTime = keys.sk_kes.time(kes)
             if (keyTime < globalSlot) {
@@ -177,97 +142,9 @@ trait Update extends Members {
           }
         }
       }
-      if (!useFencing) while (tinePoolWithPrefix.nonEmpty && updating) {
+      while (tinePoolWithPrefix.nonEmpty) {
         selectTine()
       }
-      if (useFencing) roundBlock match {
-        case 0 =>
-          forgeBlock(keys)
-          roundBlock = 1
-          routerRef ! Flag(selfWrapper,"updateSlot")
-        case _ if chainUpdateLock =>
-          if (tinePoolWithPrefix.isEmpty) {
-            chainUpdateLock = false
-          } else {
-            if (holderIndex == SharedData.printingHolder && printFlag) {
-              println("Holder " + holderIndex.toString + " Checking Tine")
-            }
-            selectTine()
-          }
-        case _ =>
-      }
-      if (holderIndex == SharedData.printingHolder) SharedData.numTxsMempool = memPool.keySet.size
-      if (holderIndex == SharedData.printingHolder && useGui && globalSlot > 0) {
-        SharedData.walletInfo =
-          (wallet.getNumPending,wallet.getConfirmedTxCounter,wallet.getConfirmedBalance,wallet.getPendingBalance)
-        SharedData.issueTxInfo = Some((keys.pkw,inbox))
-        SharedData.selfWrapper = Some(selfWrapper)
-        SharedData.blockTime = {
-          val head = localChain.head
-          globalSlot.toDouble/getBlockHeader(head).get._9.toDouble
-        }
-        SharedData.activeSlots = 1.0/SharedData.blockTime
-        SharedData.txsPerSecond = {
-          var net = 0
-          for (entry<-localState.toSeq) {
-            net += entry._2._3
-          }
-          net.toDouble/globalSlot.toDouble
-        }
-        SharedData.activePeers = holders.size
-        SharedData.activeStake = {
-          var out = 0.0
-          for (info<-inbox) {
-            val pks = info._2._2
-            out += relativeStake(ByteArrayWrapper(pks._1++pks._2++pks._3),stakingState).toDouble
-          }
-          out += relativeStake(keys.pkw,stakingState).toDouble
-          out
-        }
-        for (holder<-holders) {
-          inbox.toList.find(info=>info._2._1 == holder) match {
-            case Some(inboxInfo) => Try{
-              val hpks:PublicKeys = inboxInfo._2._2
-              val hpk:PublicKeyW = ByteArrayWrapper(hpks._1++hpks._2++hpks._3)
-              val str = holder.actorPath.toString
-              wallet.confirmedState.get(hpk) match {
-                case Some(st) =>
-                  val ha = relativeStake(hpk,wallet.confirmedState).toDouble
-                  SharedData.confirmedBalance = SharedData.confirmedBalance + (str->st._1)
-                  SharedData.confirmedAlpha = SharedData.confirmedAlpha + (str->ha)
-                case None =>
-              }
-              stakingState.get(hpk) match {
-                case Some(st) =>
-                  val ha = relativeStake(hpk,stakingState).toDouble
-                  SharedData.stakingBalance = SharedData.stakingBalance + (str->st._1)
-                  SharedData.stakingAlpha = SharedData.stakingAlpha + (str->ha)
-                case None =>
-              }
-            }
-            case None =>
-          }
-        }
-        Try{
-          val hpk:PublicKeyW = keys.pkw
-          val str = selfWrapper.actorPath.toString
-          wallet.confirmedState.get(hpk) match {
-            case Some(st) =>
-              val ha = relativeStake(hpk,wallet.confirmedState).toDouble
-              SharedData.confirmedBalance = SharedData.confirmedBalance + (str->st._1)
-              SharedData.confirmedAlpha = SharedData.confirmedAlpha + (str->ha)
-            case None =>
-          }
-          stakingState.get(hpk) match {
-            case Some(st) =>
-              val ha = relativeStake(hpk,stakingState).toDouble
-              SharedData.stakingBalance = SharedData.stakingBalance + (str->st._1)
-              SharedData.stakingAlpha = SharedData.stakingAlpha + (str->ha)
-            case None =>
-          }
-        }
-      }
-      updating = false
     }
   }
 

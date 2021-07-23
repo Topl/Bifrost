@@ -3,7 +3,7 @@ package co.topl.history
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache, RemovalNotification}
 import io.iohk.iodb.ByteArrayWrapper
 import co.topl.components.Serializer
-import co.topl.primitives.{ByteStream, Fch, LDBStore, SharedData, Types, Parameters}
+import co.topl.primitives.{ByteStream, Fch, LDBStore, SharedData, Types, TetraParameters}
 import co.topl.primitives.Base58
 import scala.util.Try
 
@@ -14,8 +14,8 @@ import scala.util.Try
 
 class StateStorage(dir:String,serializer:Serializer) extends Types {
   import co.topl.components.Serializer._
-  val cacheSize = Parameters.cacheSize
-  val one_ninth_epoch = Parameters.one_ninth_epoch
+  val cacheSize = TetraParameters.cacheSize
+  val one_ninth_epoch = TetraParameters.one_ninth_epoch
   val dbCacheSize = 4
   type DB = LDBStore
   val fch:Fch = new Fch

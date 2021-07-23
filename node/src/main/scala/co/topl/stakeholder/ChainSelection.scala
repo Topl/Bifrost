@@ -61,7 +61,7 @@ trait ChainSelection extends Members {
                         bootStrapLock = true
                         if (tine.maxSlot.get - tine.minSlot.get > slotWindow) tine.loadCache()
                         bootStrapJob = job._1
-                        if (holderIndex == SharedData.printingHolder && printFlag) println(
+                        println(
                           "Holder " + holderIndex.toString
                             + " Looking for Parent Tine, Job:"+job._1
                             +" Tries:"+counter.toString+" Length:"+tineLength+" Tines:"+tinePool.keySet.size
@@ -77,7 +77,7 @@ trait ChainSelection extends Members {
                       }
                   }
                 } else {
-                  if (holderIndex == SharedData.printingHolder && printFlag) println(
+                  println(
                     "Holder " + holderIndex.toString
                       + " Looking for Parent Block, Job:"+job._1
                       +" Tries:"+counter.toString+" Length:"+tine.numActive+" Tines:"+tinePool.keySet.size
@@ -98,7 +98,7 @@ trait ChainSelection extends Members {
 
     if (foundAncestor) {
       if (tine.notSparsePast(prefix.get)) {
-        if (holderIndex == SharedData.printingHolder && printFlag) {
+        {
           val tl = tine.numActive
           println(s"Tine length = ${tl} Common prefix slot = ${prefix.get}")
           tineLengthList ::= tl.toDouble
@@ -231,9 +231,8 @@ trait ChainSelection extends Members {
       }
 
       def adoptTine():Unit = {
-        if (holderIndex == SharedData.printingHolder && printFlag)
-          if (bnt>bnl) println(s"Tine Adopted  $bnt  >  $bnl")
-          else println(s"Tine Adopted  $bnt  T  $bnl")
+        if (bnt>bnl) println(s"Tine Adopted  $bnt  >  $bnl")
+        else println(s"Tine Adopted  $bnt  T  $bnl")
         val reorgTine = localChain.slice(prefix+1,globalSlot)
         if (!reorgTine.isEmpty) collectLedger(reorgTine)
         collectLedger(tine)
@@ -302,8 +301,7 @@ trait ChainSelection extends Members {
       }
 
       def dropTine():Unit = {
-        if (holderIndex == SharedData.printingHolder && printFlag)
-          println(s"Tine Rejected $bnt  <= $bnl")
+        println(s"Tine Rejected $bnt  <= $bnl")
         collectLedger(tine)
         for (id <- localChain.slice(prefix+1,globalSlot).ordered) {
           val blockLedger:TransactionSeq = blocks.get(id).get.blockBody.get
@@ -382,8 +380,7 @@ trait ChainSelection extends Members {
     }
 
     def adoptTine():Unit = {
-      if (holderIndex == SharedData.printingHolder && printFlag)
-        println(s"Tine Adopted  $bnt  >  $bnl")
+      println(s"Tine Adopted  $bnt  >  $bnl")
       localChain.reorg(prefix,tine)
       val newHeadSlot = localChain.head._1
       history.get(localChain.head) match {
@@ -434,8 +431,7 @@ trait ChainSelection extends Members {
     }
 
     def dropTine():Unit = {
-      if (holderIndex == SharedData.printingHolder && printFlag)
-        println(s"Tine Rejected $bnt  <= $bnl")
+      println(s"Tine Rejected $bnt  <= $bnl")
       tinePoolWithPrefix = tinePoolWithPrefix.dropRight(1)
     }
 

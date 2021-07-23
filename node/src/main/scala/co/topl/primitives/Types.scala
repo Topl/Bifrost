@@ -84,9 +84,6 @@ trait Types extends SimpleTypes {
     ))
   }
 
-
-
-
   def hash(input:String,serializer: Serializer): Hash = {
     ByteArrayWrapper(fch.hash(serializer.getBytes(input)))
   }

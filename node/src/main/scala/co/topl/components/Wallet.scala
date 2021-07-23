@@ -3,7 +3,7 @@ package co.topl.components
 import io.iohk.iodb.ByteArrayWrapper
 import co.topl.primitives.{Fch, Sig, Types}
 import co.topl.stakeholder.Transactions
-import co.topl.primitives.Parameters
+import co.topl.primitives.TetraParameters
 import scala.collection.immutable.ListMap
 import scala.math.BigInt
 import scala.util.Random
@@ -15,7 +15,7 @@ import scala.util.Random
   */
 
 case class Wallet(pkw:ByteArrayWrapper) extends Types with Transactions {
-  val fee_r = Parameters.fee_r
+  val fee_r = TetraParameters.fee_r
   var pendingTxsOut:Map[Sid,Transaction] = Map()
   var availableBalance:BigInt = 0
   var totalBalance:BigInt = 0

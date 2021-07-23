@@ -9,8 +9,6 @@ import co.topl.primitives._
 import co.topl.settings.AppSettings
 
 import scala.concurrent.Await
-import scala.math.BigInt
-import scala.util.Random
 import scala.util.control.Breaks.{break, breakable}
 
 /**
@@ -25,9 +23,8 @@ class TineProvider(blockStorage: BlockStorage,localRef:ActorRefWrapper,settings:
   val sig:Sig = new Sig
   val serializer:Serializer = new Serializer
   override val fch = new Fch
-  val printFlag = Parameters.printFlag
-  val waitTime = Parameters.waitTime
-  val requestTineInterval = Parameters.requestTineInterval
+  val waitTime = TetraParameters.waitTime
+  val requestTineInterval = TetraParameters.requestTineInterval
 
   def send(sender:ActorRefWrapper, ref:ActorRefWrapper, command: Any): Unit = {
     implicit val timeout:Timeout = Timeout(waitTime)
@@ -51,9 +48,6 @@ class TineProvider(blockStorage: BlockStorage,localRef:ActorRefWrapper,settings:
       nextBlocks:Option[Array[SlotId]],
       inbox:Option[Map[Sid,(ActorRefWrapper,PublicKeys)]]
     ) =>
-      if (holderIndex == SharedData.printingHolder && printFlag) {
-        println("Holder " + holderIndex.toString + " Was Requested Tine")
-      }
       var returnedIdList:List[SlotId] = List()
       var id:SlotId = startId
       if (job == -1) {
@@ -107,9 +101,6 @@ class TineProvider(blockStorage: BlockStorage,localRef:ActorRefWrapper,settings:
           }
         }
       }
-      if (holderIndex == SharedData.printingHolder && printFlag) {
-        println("Holder " + holderIndex.toString + " Returned Tine")
-      }
       self ! PoisonPill
   }
 
@@ -136,5 +127,5 @@ object TineProvider extends SimpleTypes {
   case object Done
 
   def props(blockStorage: BlockStorage,localRef:ActorRefWrapper,settings:AppSettings)(implicit routerRef:ActorRefWrapper):Props =
-    Props(new TineProvider(blockStorage,localRef,settings:AppSettings)).withDispatcher(Parameters.tineProviderEC)
+    Props(new TineProvider(blockStorage,localRef,settings:AppSettings)).withDispatcher(TetraParameters.tineProviderEC)
 }

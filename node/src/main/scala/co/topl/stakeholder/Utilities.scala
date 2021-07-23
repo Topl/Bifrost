@@ -31,7 +31,7 @@ trait Utilities extends Members with Types {
     * @return
     */
   def timeFlag[R](block: => R): R = {
-    if (timingFlag && holderIndex == 0) {
+    {
       val t0 = System.nanoTime()
       val result = block
       val t1 = System.nanoTime()
@@ -41,8 +41,6 @@ trait Utilities extends Members with Types {
         println(Console.YELLOW  + "Warning: method call elapsed time " + tString + "s > slotT" + Console.RESET)
       }
       result
-    } else {
-      block
     }
   }
 

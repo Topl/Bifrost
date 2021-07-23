@@ -6,7 +6,7 @@ import co.topl.history.BlockStorage
 import co.topl.primitives.SimpleTypes
 import co.topl.primitives.Base58
 import co.topl.primitives.Types._
-import co.topl.primitives.Parameters
+import co.topl.primitives.TetraParameters
 
 import scala.collection.mutable
 import scala.util.{Try,Success,Failure}
@@ -765,8 +765,8 @@ case class Tine(var best:mutable.SortedMap[BigInt,SlotId] = mutable.SortedMap(),
 
 object Tine extends SimpleTypes {
 
-  val databaseInterval: Slot = Parameters.one_third_epoch
-  val slotWindow: Slot = Parameters.slotWindow
+  val databaseInterval: Slot = TetraParameters.one_third_epoch
+  val slotWindow: Slot = TetraParameters.slotWindow
 
   type SlotData = (Slot,BlockId,Rho)
   type TineCache = Array[SlotData]

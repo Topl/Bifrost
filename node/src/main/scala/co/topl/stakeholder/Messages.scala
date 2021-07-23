@@ -3,7 +3,7 @@ package co.topl.stakeholder
 import akka.util.Timeout
 import co.topl.cases._
 import co.topl.history.BlockStorage
-import co.topl.primitives.{ActorRefWrapper, Parameters}
+import co.topl.primitives.{ActorRefWrapper, TetraParameters}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -46,16 +46,10 @@ trait Messages extends Members {
     */
 
   def send(sender:ActorRefWrapper, ref:ActorRefWrapper, command: Any): Unit = {
-    if (useRouting && !useFencing) {
-      if (ref.remote) {
-        routerRef ! MessageFromLocalToRemote(sender,ref.path, command)
-      } else {
-        localRef ! MessageFromLocalToLocal(sender, ref, command)
-      }
-    } else if (useFencing) {
-      routerRef ! MessageFromLocalToLocalId(BigInt(fch.hash(rng.nextString(64))),sender,ref,command)
+    if (ref.remote) {
+      routerRef ! MessageFromLocalToRemote(sender,ref.path, command)
     } else {
-      ref ! command
+      localRef ! MessageFromLocalToLocal(sender, ref, command)
     }
   }
 
@@ -67,16 +61,10 @@ trait Messages extends Members {
 
   def send(sender:ActorRefWrapper, holders:List[ActorRefWrapper], command: Any): Unit = {
     for (holder <- holders){
-      if (useRouting && !useFencing) {
-        if (holder.remote) {
-          routerRef ! MessageFromLocalToRemote(sender,holder.path, command)
-        } else {
-          localRef ! MessageFromLocalToLocal(sender, holder, command)
-        }
-      } else if (useFencing) {
-        routerRef ! MessageFromLocalToLocalId(BigInt(fch.hash(rng.nextString(64))),sender,holder,command)
+      if (holder.remote) {
+        routerRef ! MessageFromLocalToRemote(sender,holder.path, command)
       } else {
-        holder ! command
+        localRef ! MessageFromLocalToLocal(sender, holder, command)
       }
     }
   }

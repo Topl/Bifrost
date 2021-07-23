@@ -2,7 +2,7 @@ package co.topl.stakeholder
 
 import akka.actor.{ActorPath, Props}
 import com.google.common.cache.LoadingCache
-import co.topl.primitives.{ActorRefWrapper, Fch, Kes, KeyFile, Keys, Parameters, Ratio, Sig, Vrf}
+import co.topl.primitives.{ActorRefWrapper, Fch, Kes, KeyFile, Keys, TetraParameters, Ratio, Sig, Vrf}
 import io.iohk.iodb.ByteArrayWrapper
 import co.topl.components.{Block, Serializer, Tine, Wallet}
 import co.topl.history.{BlockStorage, ChainStorage, StateStorage, WalletStorage}
@@ -54,7 +54,7 @@ class Stakeholder(
   val seed:Array[Byte] = inputSeed
   val serializer:Serializer = new Serializer
   val storageDir:String = inputDataDir match {
-    case None => "coordinator/"+dataFileDir+"_"+simLabel+self.path.toStringWithoutAddress.drop(5)
+    case None => "coordinator/"+dataFileDir+"_"+self.path.toStringWithoutAddress.drop(5)
     case Some(dir) => dir
   }
   implicit val blocks:BlockStorage = new BlockStorage(storageDir,serializer)
@@ -85,22 +85,14 @@ class Stakeholder(
     case None => storageDir+"/keys/"
     case Some(dir) => dir
   }
-  var chainUpdateLock = false
   var localState:State = Map()
   var eta:Eta = Array()
   var stakingState:State = Map()
   var memPool:MemPool = Map()
-  var diffuseSent = false
   //list of all or some of the stakeholders, including self, that the stakeholder is aware of
   var holders: List[ActorRefWrapper] = List()
-  //gossipers offset
-  var gOff = 0
-  //number of tries to issue hello in slots
-  var numHello = 0
   //map of all session IDs and public keys associated with holders in holder list
   var inbox:Map[Sid,(ActorRefWrapper,PublicKeys)] = Map()
-  //total number of times this stakeholder was elected slot leader
-  var blocksForged = 0
   //slot time as determined from coordinator clock
   var globalSlot = 0
   //all tines that are pending built from new blocks that are received
@@ -115,8 +107,6 @@ class Stakeholder(
   var genBlockHash: Hash = ByteArrayWrapper(Array())
   //genesis block
   var genesisBlock: Option[Block] = None
-  //placeholder for forged block if elected slot leader
-  var roundBlock: Int = 0
   //start system time set by coordinator
   var t0:Long = 0
   var t1:Long = 0
@@ -124,20 +114,8 @@ class Stakeholder(
   var localSlot = 0
   //current epoch that is being processed by stakeholder
   var currentEpoch = 0
-  //lock for update message
-  var updating = false
-  //lock for stalling stakeholder
-  var actorStalled = false
   //ref of coordinator actor
   var coordinatorRef:ActorRefWrapper = _
-  //total number of transactions issued
-  var txCounter = 0
-  //toggle if holder is adversary
-  var adversary:Boolean = false
-  //toggle for covert mining
-  var covert:Boolean = false
-  //toggle for nothing-at-stake forging
-  var forgeAll:Boolean = false
 
   var bootStrapLock:Boolean = true
   var helloLock:Boolean = true
@@ -163,7 +141,7 @@ object Stakeholder {
         None,
         settings
       )
-    ).withDispatcher(Parameters.stakeholderEC)
+    ).withDispatcher(TetraParameters.stakeholderEC)
 
   def props(
              seed:Array[Byte],
@@ -185,6 +163,6 @@ object Stakeholder {
         Some(kdir),
         settings
       )
-    ).withDispatcher(Parameters.stakeholderEC)
+    ).withDispatcher(TetraParameters.stakeholderEC)
 }
 

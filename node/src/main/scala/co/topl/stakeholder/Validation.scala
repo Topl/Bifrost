@@ -50,21 +50,17 @@ trait Validation extends Members with Types {
     } else {
       b.blockBody match {
         case Some(txs:TransactionSeq) =>
-          if (txs.length <= txPerBlock){
-            if (txs.nonEmpty) {
-              val (out1,out2) = (hash(txs,serializer) == header._2 , txs.map(verifyTransaction).reduceLeft(_ && _))
-              if (!out1) println("Error: txs hash failed")
-              if (!out2) println("Error: txs verify failed")
-              out1 && out2
-            } else {
-              val out = hash(txs,serializer) == header._2
-              if (!out) println("Error: empty txs failed hash")
-              out
-            }
+          if (txs.nonEmpty) {
+            val (out1,out2) = (hash(txs,serializer) == header._2 , txs.map(verifyTransaction).reduceLeft(_ && _))
+            if (!out1) println("Error: txs hash failed")
+            if (!out2) println("Error: txs verify failed")
+            out1 && out2
           } else {
-            println("Error: txs length greater than tx/block")
-            false
+            val out = hash(txs,serializer) == header._2
+            if (!out) println("Error: empty txs failed hash")
+            out
           }
+
         case _ => println("Error: tx set match in block verify"); false
       }
     }

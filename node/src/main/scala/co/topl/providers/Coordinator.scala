@@ -93,8 +93,6 @@ class Coordinator(inputSeed:Array[Byte],inputRef:Seq[ActorRefWrapper],settings:A
   var t1:Long = 0
   var localSlot = 0
   var currentEpoch: Slot = -1
-  var updating = false
-  var actorStalled = false
   var coordinatorRef:ActorRefWrapper = _
   var txCounter = 0
   var adversary:Boolean = false
@@ -121,7 +119,7 @@ class Coordinator(inputSeed:Array[Byte],inputRef:Seq[ActorRefWrapper],settings:A
   var parties: List[List[ActorRefWrapper]] = List()
   var t:Slot = 0
   var actorPaused = false
-  var cmdQueue:Map[Slot,List[String]] = Parameters.inputCommands
+  var cmdQueue:Map[Slot,List[String]] = TetraParameters.inputCommands
 
   var fileWriter:Any = 0
   var graphWriter:Any = 0
@@ -275,7 +273,7 @@ class Coordinator(inputSeed:Array[Byte],inputRef:Seq[ActorRefWrapper],settings:A
       case newBlock:Block => genesisBlock = Some(newBlock)
     }
     blocks.store(genBlockKey,genesisBlock.get)
-    if (Parameters.writeGenBlock) {
+    if (TetraParameters.writeGenBlock) {
       val file = new File("src/main/resources/genesis/blockData")
       val bw = new BufferedWriter(new FileWriter(file))
       bw.write(Base58.encode(serializer.getBytes(genesisBlock.get)))
@@ -851,5 +849,5 @@ class Coordinator(inputSeed:Array[Byte],inputRef:Seq[ActorRefWrapper],settings:A
 object Coordinator {
   def props(inputSeed:Array[Byte],ref:Seq[akka.actor.ActorRef],settings:AppSettings): Props =
     Props(new Coordinator(inputSeed,ref.map(ActorRefWrapper(_)(ActorRefWrapper.routerRef(ref.head))),settings:AppSettings))
-      .withDispatcher(Parameters.coordinatorEC)
+      .withDispatcher(TetraParameters.coordinatorEC)
 }

@@ -41,7 +41,7 @@ trait Receive extends Members {
       **/
 
     case value:SendTx =>
-      if (!actorStalled) Try{
+      Try{
         if (!memPool.keySet.contains(value.transaction.sid) && localState.keySet.contains(value.transaction.sender)) {
           if (localState(value.transaction.sender)._3 <= value.transaction.nonce) {
             if (verifyTransaction(value.transaction)) {
@@ -50,9 +50,6 @@ trait Receive extends Members {
             }
           }
         }
-      }
-      if (useFencing) {
-        routerRef ! Flag(selfWrapper,"passData")
       }
 
     /**
@@ -66,7 +63,7 @@ trait Receive extends Members {
       **/
 
     case value:SendBlock =>
-      if (!actorStalled && !SharedData.limiterFlag) Try{
+      Try{
         val foundBlock = blocks.knownInCache((value.block.slot,value.block.id))
         if (!foundBlock) {
           val b:BlockHeader = value.block.tetraHeader
@@ -98,14 +95,12 @@ trait Receive extends Members {
               }
               if (!bootStrapLock) {
                 if (tinePool.keySet.size > tineMaxTries) {
-                  if (holderIndex == SharedData.printingHolder && printFlag)
-                    println("Holder " + holderIndex.toString + " Dropping Tine")
+                  println("Holder " + holderIndex.toString + " Dropping Tine")
                   tinePool -= tinePool.keySet.min
                 } else {
                   for (entry <- tinePool) {
                     if (entry._2._1.head._1 <= globalSlot-slotWindow || !holders.contains(entry._2._5)) {
-                      if (holderIndex == SharedData.printingHolder && printFlag)
-                        println("Holder " + holderIndex.toString + " Dropping Tine")
+                      println("Holder " + holderIndex.toString + " Dropping Tine")
                       tinePool -= entry._1
                     }
                   }
@@ -119,29 +114,20 @@ trait Receive extends Members {
           } else {println("error: invalid block")}
         }
       }
-      if (useFencing) {
-        chainUpdateLock = true
-        while (chainUpdateLock) {
-          update()
-        }
-        routerRef ! Flag(selfWrapper,"passData")
-      }
 
     /**
       * Block passing for tinepool functionality, returned blocks are added to block database
       **/
 
     case value:ReturnBlocks =>
-      if (!actorStalled) Try{
+      Try{
         def blockToId(b:Block):SlotId = (b.slot,b.id)
         for (block <- value.blocks) {
           if (value.job >= 0 && tinePool.keySet.contains(value.job) && !helloLock) {
             if (bootStrapLock) {
               if (!blocks.knownIfPresent(blockToId(block))) {
                 if (verifyBlock(block)) {
-                  if (holderIndex == SharedData.printingHolder && printFlag) {
-                    println("Holder " + holderIndex.toString + " Got Block "+Base58.encode(block.id.data))
-                  }
+                  println("Holder " + holderIndex.toString + " Got Block "+Base58.encode(block.id.data))
                   blocks.add(block)
                 } else {println("Error: invalid returned block")}
               }
@@ -151,9 +137,7 @@ trait Receive extends Members {
             } else {
               if (!blocks.knownInCache(blockToId(block))) {
                 if (verifyBlock(block)) {
-                  if (holderIndex == SharedData.printingHolder && printFlag) {
-                    println("Holder " + holderIndex.toString + " Got Block "+Base58.encode(block.id.data))
-                  }
+                  println("Holder " + holderIndex.toString + " Got Block "+Base58.encode(block.id.data))
                   blocks.add(block)
                 } else {println("Error: invalid returned block")}
               }
@@ -162,9 +146,7 @@ trait Receive extends Members {
           } else if (value.job == -1 && helloLock) {
             if (!blocks.knownInCache(blockToId(block))) {
               if (verifyBlock(block)) {
-                if (holderIndex == SharedData.printingHolder && printFlag) {
-                  println("Holder " + holderIndex.toString + " Got Block "+Base58.encode(block.id.data))
-                }
+                println("Holder " + holderIndex.toString + " Got Block "+Base58.encode(block.id.data))
                 blocks.add(block)
               } else {println("Error: invalid returned block")}
             }
@@ -183,34 +165,20 @@ trait Receive extends Members {
           }
         }
       }
-      if (useFencing) Try{
-        chainUpdateLock = true
-        while (chainUpdateLock) {
-          update()
-        }
-        routerRef ! Flag(selfWrapper,"passData")
-      }
 
     /**
       * Block requesting for tinepool functionality, parent ids that are not found are requested from peers
       **/
 
     case value:RequestBlock =>
-      if (!actorStalled) Try{
-        if (holderIndex == SharedData.printingHolder && printFlag) {
-          println("Holder " + holderIndex.toString + " Was Requested Block")
-        }
+      Try{
+        println("Holder " + holderIndex.toString + " Was Requested Block")
         blocks.getIfInCache(value.id) match {
           case Some(returnedBlock:Block) =>
             send(selfWrapper,value.sender,ReturnBlocks(List(returnedBlock),value.job,selfWrapper))
-            if (holderIndex == SharedData.printingHolder && printFlag) {
-              println("Holder " + holderIndex.toString + " Returned Block")
-            }
+            println("Holder " + holderIndex.toString + " Returned Block")
           case None =>
         }
-      }
-      if (useFencing) {
-        routerRef ! Flag(selfWrapper,"passData")
       }
 
     /**
@@ -221,7 +189,7 @@ trait Receive extends Members {
       **/
 
     case value:RequestTine =>
-      if (!actorStalled) Try{
+      Try{
         tineProvider match {
           case None =>
             if (value.depth <= tineMaxDepth) {
@@ -248,9 +216,6 @@ trait Receive extends Members {
           case _ =>
         }
       }
-      if (useFencing) {
-        routerRef ! Flag(selfWrapper,"passData")
-      }
 
     case TineProvider.Done =>
       tineProvider = None
@@ -261,7 +226,7 @@ trait Receive extends Members {
       **/
 
     case value:Hello =>
-      if (!actorStalled) Try{
+      Try{
         tineProvider match {
           case None =>
             val startId:SlotId = localChain.getLastActiveSlot(value.slot).get
@@ -285,9 +250,6 @@ trait Receive extends Members {
             }
           case _ =>
         }
-      }
-      if (useFencing) {
-        routerRef ! Flag(selfWrapper,"passData")
       }
 
     /**
@@ -352,44 +314,6 @@ trait Receive extends Members {
         println(s"Holder $holderIndex Bootstrap Job not in Tinepool")
         bootStrapJob = -1
         bootStrapLock = false
-      }
-
-
-    /**issue a transaction generated by the coordinator and send it to the list of gossipers*/
-    case value:IssueTx =>
-      if (!actorStalled) Try{
-        inbox.toSeq.find(_._2._1 == value.ref) match {
-          case Some(data:(Sid,(ActorRefWrapper,PublicKeys))) =>
-            val pks = data._2._2
-              val pkw = ByteArrayWrapper(pks._1 ++ pks._2 ++ pks._3)
-              wallet.issueTx((pkw,value.delta),keys.sk_sig,sig,rng,serializer) match {
-                case Some(trans:Transaction) =>
-                  walletStorage.store(wallet,serializer)
-                  txCounter += 1
-                  memPool += (trans.sid->(trans,0))
-                  send(selfWrapper,gossipSet(selfWrapper,holders), SendTx(trans,selfWrapper))
-                case _ =>
-            }
-          case None =>
-        }
-      }
-      if (useFencing) {
-        routerRef ! Flag(selfWrapper,"passData")
-      }
-
-    case value:IssueTxToAddress =>
-      if (!actorStalled) {
-        wallet.issueTx((value.recip,value.delta),keys.sk_sig,sig,rng,serializer) match {
-          case Some(trans:Transaction) =>
-            walletStorage.store(wallet,serializer)
-            txCounter += 1
-            memPool += (trans.sid->(trans,0))
-            send(selfWrapper,gossipSet(selfWrapper,holders), SendTx(trans,selfWrapper))
-          case _ =>
-        }
-      }
-      if (useFencing) {
-        routerRef ! Flag(selfWrapper,"passData")
       }
 
     /**sends holder information for populating inbox*/
@@ -519,12 +443,10 @@ trait Receive extends Members {
 
     /**starts the timer that repeats the update command*/
     case Run =>
-      if (!useFencing) {
-        timers.startSingleTimer(Update,Update,updateTime)
-        timers.startPeriodicTimer(GetTime, GetTime, updateTime)
-        timers.startSingleTimer(Refresh,Refresh,slotT * (refreshInterval * rng.nextDouble).toInt.millis)
-        scheduleDiffuse()
-      }
+      timers.startSingleTimer(Update,Update,updateTime)
+      timers.startPeriodicTimer(GetTime, GetTime, updateTime)
+      timers.startSingleTimer(Refresh,Refresh,slotT * (refreshInterval * rng.nextDouble).toInt.millis)
+      scheduleDiffuse()
       self ! BootstrapJob
 
     case Refresh =>
@@ -542,7 +464,7 @@ trait Receive extends Members {
       sender() ! "done"
 
     /**sets the slot from coordinator time*/
-    case value:GetTime => if (!actorStalled) {
+    case value:GetTime => {
       t1 = value.t1
       globalSlot = ((value.t1 - t0) / slotT).toInt
     }
@@ -575,19 +497,7 @@ trait Receive extends Members {
       if (clear) inbox = Map()
       sender() ! "done"
 
-    /************************************* Research and Testing ******************************************/
-
-    case RequestState =>
-      sender() ! GetState(stakingState)
-
-    case RequestBlockTree =>
-      sender() ! GetBlockTree(blocks,0)
-
-    /**when stalled actor will do nothing when messages are received*/
-    case StallActor =>
-      if (!actorStalled) {actorStalled = true}
-      else {actorStalled = false}
-      sender() ! "done"
+    /************************************* Testing ******************************************/
 
     /**prints inbox */
     case Inbox =>
@@ -601,19 +511,14 @@ trait Receive extends Members {
       holders.foreach(r=>println(r.actorPath.toString))
       sender() ! "done"
 
-    case GetBalance =>
-      val netAvailable = wallet.getConfirmedBalance
-      val netTotal = wallet.getPendingBalance
-      println(s"Holder $holderIndex available balance: $netAvailable , total balance: $netTotal")
-
     /**prints stats */
     case Verify =>
       val trueChain = verifyChain(localChain, genBlockHash)
-      println("Holder "+holderIndex.toString + ": t = " + localSlot.toString + ", alpha = " + keys.alpha.toDouble + ", blocks forged = "
-        + blocksForged.toString + "\nChain length = " + localChain.numActive.toString + ", Valid chain = "
+      println("Holder "+holderIndex.toString + ": t = " + localSlot.toString + ", alpha = " + keys.alpha.toDouble
+        + "\nChain length = " + localChain.numActive.toString + ", Valid chain = "
         + trueChain.toString)
       var chainBytes:Array[Byte] = Array()
-      for (id <- localChain.slice(0,localSlot-confirmationDepth).ordered) {
+      for (id <- localChain.slice(0,localSlot).ordered) {
         getBlockHeader(id) match {
           case Some(b:BlockHeader) => chainBytes ++= fch.hash(serializer.getBytes(b))
           case _ =>
@@ -632,10 +537,10 @@ trait Receive extends Members {
 
     /**prints stats */
     case Status =>
-      println("Holder "+holderIndex.toString + ": t = " + localSlot.toString + ", alpha = " + keys.alpha.toDouble + ", blocks forged = "
-        + blocksForged.toString + "\nChain length = " + localChain.numActive.toString+", MemPool Size = "+memPool.size)
+      println("Holder "+holderIndex.toString + ": t = " + localSlot.toString + ", alpha = " + keys.alpha.toDouble
+        + "\nChain length = " + localChain.numActive.toString+", MemPool Size = "+memPool.size)
       var chainBytes:Array[Byte] = Array()
-      for (id <- localChain.slice(0,localSlot-confirmationDepth).ordered) {
+      for (id <- localChain.slice(0,localSlot).ordered) {
         getBlockHeader(id) match {
           case Some(b:BlockHeader) =>
             chainBytes ++= fch.hash(serializer.getBytes(b))
@@ -668,78 +573,9 @@ trait Receive extends Members {
       println("Chain hash: " + Base58.encode(fch.hash(chainBytes))+"\n")
       sender() ! "done"
 
-    /**writes data point to file*/
-    case value:WriteFile => if (!actorStalled) {
-      value.fw match {
-        case fileWriter: BufferedWriter =>
-          val fileString = (
-            holderIndex.toString + " "
-              + globalSlot.toString + " "
-              + keys.alpha.toDouble + " "
-              + blocksForged.toString + " "
-              + localChain.numActive.toString + " "
-              + "\n"
-            )
-          fileWriter.write(fileString)
-        case _ => println("error: data file writer not initialized")
-      }
-    }
-
-
-    case value:GetSlot =>
-      if (!actorStalled) {
-        if (roundBlock == 0) globalSlot += 1
-        assert(globalSlot == value.s)
-        while (roundBlock == 0) {
-          roundBlock = roundBlock
-          update()
-        }
-      } else {
-        if (useFencing) {routerRef ! Flag(selfWrapper,"updateSlot")}
-      }
-      sender() ! "done"
-
-    case "endStep" => if (useFencing) {
-      roundBlock = 0
-      routerRef ! Flag(selfWrapper,"endStep")
-    }
-
-    case "passData" => if (useFencing) {
-      routerRef ! Flag(selfWrapper,"passData")
-    }
-
-    case value:Adversary =>
-      value.s match {
-        case "" =>
-          if (adversary) {
-            adversary=false
-          } else {
-            adversary=true
-          }
-        case "covert" =>
-          if (covert) {
-            adversary=false
-            covert=false
-          } else {
-            adversary=true
-            covert=true
-          }
-        case "nas" =>
-          if (forgeAll) {
-            adversary = false
-            forgeAll = false
-          } else {
-            adversary = true
-            forgeAll = true
-          }
-        case _ => println("error: Adversary command unknown")
-      }
-      sender() ! "done"
-
-
-    case unknown:Any => if (!actorStalled) {
+    case unknown:Any =>
       print("Error: received unknown message ")
       println(unknown.getClass.toString)
-    }
+
   }
 }
