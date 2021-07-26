@@ -96,7 +96,7 @@ class TransactionValidationSpec
   }
 
   property("Attempting to validate an AssetTransfer with data of invalid length should error") {
-    forAll(stringGen) { data =>
+    forAll(stringGen) { data: String =>
       whenever(data.length >= 128) {
         val tx = assetTransferEd25519Gen.sample.get
         val invalidDataTx = tx.copy(data = Some(data))
@@ -106,22 +106,26 @@ class TransactionValidationSpec
   }
 
   property("Attempting to validate an AssetTransfer with metadata of invalid length should error") {
-    forAll(stringGen) { metadata =>
+    forAll(stringGen) { metadata: String =>
       whenever(metadata.length >= 128) {
         val tx = assetTransferEd25519Gen.sample.get
         val assetValue = assetValueEd25519Gen.sample.get.copy(metadata = Some(metadata))
         val invalidDataTx = tx.copy(to = IndexedSeq((assetValue.assetCode.issuer, assetValue)))
-        invalidDataTx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](DataTooLong)
+
+        println(invalidDataTx.syntacticValidation)
+        invalidDataTx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](MetadataTooLong)
       }
     }
   }
 
   property("Attempting to validate an AssetTransfer with non-latin1 metadata should error") {
     forAll(assetTransferEd25519Gen) { tx =>
-      val metadata = "ˇ"
+      val metadata: String = "ˇ"
       val assetValue = assetValueEd25519Gen.sample.get.copy(metadata = Some(metadata))
       val invalidDataTx = tx.copy(to = IndexedSeq((assetValue.assetCode.issuer, assetValue)))
-      invalidDataTx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](DataNotLatin1)
+      println(invalidDataTx.syntacticValidation)
+
+      invalidDataTx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](MetadataNotLatin1)
     }
   }
 

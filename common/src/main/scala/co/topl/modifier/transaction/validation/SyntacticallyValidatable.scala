@@ -173,7 +173,7 @@ class TransferTransactionSyntacticallyValidatable[T <: TokenValueHolder, P <: Pr
                 }
               },
               tx,
-              DataNotLatin1
+              MetadataNotLatin1
             )
           )
           .combine(
@@ -181,15 +181,12 @@ class TransferTransactionSyntacticallyValidatable[T <: TokenValueHolder, P <: Pr
               tx.to.forall {
                 _._2 match {
                   case assetValue: AssetValue =>
-                    assetValue.metadata.forall(_.getValidLatin1Bytes match {
-                      case Some(bytes) => bytes.length <= 127
-                      case None        => false
-                    })
+                    assetValue.metadata.forall(_.length <= 127)
                   case _ => true
                 }
               },
               tx,
-              DataTooLong
+              MetadataTooLong
             )
           )
     }
@@ -285,6 +282,8 @@ case object InvalidSendAmount extends SyntacticValidationFailure
 case object InvalidTimestamp extends SyntacticValidationFailure
 case object DataNotLatin1 extends SyntacticValidationFailure
 case object DataTooLong extends SyntacticValidationFailure
+case object MetadataNotLatin1 extends SyntacticValidationFailure
+case object MetadataTooLong extends SyntacticValidationFailure
 case object UnsatisfiedProposition extends SyntacticValidationFailure
 case object PropositionEvidenceMismatch extends SyntacticValidationFailure
 case object MintingMissingIssuersSignature extends SyntacticValidationFailure
