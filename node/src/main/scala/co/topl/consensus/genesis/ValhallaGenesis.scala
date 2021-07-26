@@ -11,6 +11,7 @@ import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Int128, NetworkType}
 
+import scala.collection.immutable.ListMap
 import scala.util.Try
 
 case object ValhallaGenesis extends GenesisProvider {
@@ -53,7 +54,7 @@ case object ValhallaGenesis extends GenesisProvider {
     val txInput = (
       IndexedSeq(),
       memberKeys.zip(members.values.map(SimpleValue(_))).toIndexedSeq,
-      Map(genesisAcct.publicImage -> SignatureCurve25519.genesis),
+      ListMap(genesisAcct.publicImage -> SignatureCurve25519.genesis),
       Int128(0),
       0L,
       None,

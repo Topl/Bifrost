@@ -15,6 +15,7 @@ import co.topl.nodeView.state.State
 import co.topl.settings.AppSettings
 import org.scalacheck.Gen
 
+import scala.collection.immutable.ListMap
 import scala.util.{Failure, Random, Success}
 
 trait ValidGenerators extends CoreGenerators {
@@ -53,7 +54,7 @@ trait ValidGenerators extends CoreGenerators {
 
     val tx = PolyTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
     val sig = key._1.sign(tx.messageToSign)
-    tx.copy(attestation = Map(key._2 -> sig))
+    tx.copy(attestation = ListMap(key._2 -> sig))
   }
 
   lazy val validArbitTransferGen: Gen[ArbitTransfer[_]] = for {

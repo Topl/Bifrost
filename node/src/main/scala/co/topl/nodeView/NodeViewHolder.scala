@@ -3,8 +3,9 @@ package co.topl.nodeView
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
-import co.topl.consensus.Forger
+import co.topl.consensus.{Forger, Hiccups}
 import co.topl.consensus.Forger.ReceivableMessages.GenerateGenesis
+import co.topl.consensus.Hiccups.HiccupBlock
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier, TransactionCarryingPersistentNodeViewModifier}
@@ -251,8 +252,12 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
     if (!history().contains(pmod.id)) {
       context.system.eventStream.publish(StartingPersistentModifierApplication(pmod))
 
+      def validateBlockTxs: Boolean =
+        Hiccups.semanticValidation.contains(HiccupBlock(pmod.id.toString, pmod.height, np)) ||
+        pmod.transactions.forall(_.semanticValidate(minimalState()).isSuccess)
+
       // check that the transactions are semantically valid
-      if (pmod.transactions.forall(_.semanticValidate(minimalState()).isSuccess)) {
+      if (validateBlockTxs) {
         log.info(s"Apply modifier ${pmod.id} of type ${pmod.modifierTypeId} to nodeViewHolder")
 
         // append the block to history

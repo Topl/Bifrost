@@ -29,6 +29,7 @@ import scorex.crypto.signatures.{Curve25519, Signature}
 import scorex.util.encode.Base58
 
 import scala.collection.SortedSet
+import scala.collection.immutable.ListMap
 import scala.util.{Random, Try}
 
 /**
@@ -329,10 +330,10 @@ trait CoreGenerators extends Logging {
       thresholdPropositionCurve25519Gen.sample.get
   }
 
-  lazy val attestationGen: Gen[Map[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]] = for {
+  lazy val attestationGen: Gen[ListMap[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]] = for {
     prop <- propositionGen
     sig  <- signatureGen
-  } yield Map(prop -> sig)
+  } yield ListMap(prop -> sig)
 
   lazy val oneOfNPropositionGen: Gen[(Set[PrivateKeyCurve25519], ThresholdPropositionCurve25519)] = for {
     n <- positiveTinyIntGen

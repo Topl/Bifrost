@@ -14,6 +14,7 @@ import io.circe.Json
 import io.circe.syntax.EncoderOps
 import scorex.crypto.hash.Blake2b256
 
+import scala.collection.immutable.ListMap
 import scala.util.Try
 
 abstract class TransferTransaction[
@@ -22,7 +23,7 @@ abstract class TransferTransaction[
 ](
   val from:        IndexedSeq[(Address, Box.Nonce)],
   val to:          IndexedSeq[(Address, T)],
-  val attestation: Map[P, Proof[P]],
+  val attestation: ListMap[P, Proof[P]],
   val fee:         Int128,
   val timestamp:   Long,
   val data:        Option[String],

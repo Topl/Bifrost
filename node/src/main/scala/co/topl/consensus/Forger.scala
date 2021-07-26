@@ -22,6 +22,7 @@ import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.NetworkType._
 import co.topl.utils.{Int128, Logging, TimeProvider}
 
+import scala.collection.immutable.ListMap
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.ClassTag
@@ -399,12 +400,12 @@ class Forger[
     val signingFunction = sign(matchingAddr)
 
     // use the secret key that owns the successful box to sign the rewards transactions
-    val getAttMap: TX => Map[PublicKeyPropositionCurve25519, SignatureCurve25519] = (tx: TX) => {
+    val getAttMap: TX => ListMap[PublicKeyPropositionCurve25519, SignatureCurve25519] = (tx: TX) => {
       val sig = signingFunction(tx.messageToSign) match {
         case Success(sig) => sig
         case Failure(ex)  => throw ex
       }
-      Map(publicKey -> sig)
+      ListMap(publicKey -> sig)
     }
 
     val signedRewards = rawRewards.map {

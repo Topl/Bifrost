@@ -12,6 +12,7 @@ import com.google.common.primitives.Longs
 import io.circe.{Decoder, Encoder, HCursor}
 import scorex.crypto.hash.Digest32
 
+import scala.collection.immutable.ListMap
 import scala.util.Try
 
 abstract class Transaction[+T, P <: Proposition: Identifiable] extends NodeViewModifier {
@@ -26,7 +27,7 @@ abstract class Transaction[+T, P <: Proposition: Identifiable] extends NodeViewM
 
   val newBoxes: Traversable[Box[T]]
 
-  val attestation: Map[P, Proof[P]]
+  val attestation: ListMap[P, Proof[P]]
 
   val fee: Int128
 
@@ -63,7 +64,7 @@ object Transaction {
 
   def updateAttestation[
     P <: Proposition
-  ](tx: Transaction[_, P])(f: Array[Byte] => Map[P, Proof[P]]): Map[P, Proof[P]] =
+  ](tx: Transaction[_, P])(f: Array[Byte] => ListMap[P, Proof[P]]): ListMap[P, Proof[P]] =
     tx.attestation ++ f(tx.messageToSign)
 
   def nonceFromDigest(digest: Digest32): Box.Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))

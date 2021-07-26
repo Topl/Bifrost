@@ -12,6 +12,7 @@ import co.topl.settings.AppSettings
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
 
+import scala.collection.immutable.ListMap
 import scala.util.Try
 
 case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implicit
@@ -45,7 +46,7 @@ case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implic
     val txInput = (
       IndexedSeq(),
       (genesisAcct.publicImage.address -> SimpleValue(0L)) +: addresses.map(_ -> SimpleValue(balance)).toIndexedSeq,
-      Map(genesisAcct.publicImage -> SignatureCurve25519.genesis),
+      ListMap(genesisAcct.publicImage -> SignatureCurve25519.genesis),
       Int128(0),
       0L,
       None,
