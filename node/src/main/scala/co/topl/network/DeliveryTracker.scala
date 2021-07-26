@@ -102,10 +102,10 @@ class DeliveryTracker(nvsRef: ActorRef, context: ActorContext, networkSettings: 
         setRequested(id, typeId, None)
         false
 
-      /** case for transitioning to ask anyone for the modifier */
+      /** case for keep asking anyone for the modifier * */
       case None if checks < maxDeliveryChecks =>
-        setRequested(id, typeId, None)
-        false
+        setRequested(id, typeId, None, checks)
+        true
 
       /** case where we've exhausted attempts to get the modifier so stop checking for it */
       case _ =>
