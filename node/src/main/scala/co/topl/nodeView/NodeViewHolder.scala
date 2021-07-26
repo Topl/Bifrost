@@ -258,7 +258,7 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
 
       def isBlockTxsValidated: Boolean =
         Hiccups.semanticValidation.contains(HiccupBlock(pmod.id.toString, pmod.height, np)) ||
-          pmod.transactions.forall(_.semanticValidation(minimalState()).isValid)
+        pmod.transactions.forall(_.semanticValidation(minimalState()).isValid)
 
       // check that the transactions are semantically valid
       if (isBlockTxsValidated) {

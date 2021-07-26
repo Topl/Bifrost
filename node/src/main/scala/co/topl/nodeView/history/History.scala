@@ -28,7 +28,8 @@ class History(
   val storage:        Storage, //todo: JAA - make this private[history]
   fullBlockProcessor: BlockProcessor,
   validators:         Seq[BlockValidator[Block]]
-)(implicit np: NetworkPrefix) extends GenericHistory[Block, BifrostSyncInfo, History]
+)(implicit np:        NetworkPrefix)
+    extends GenericHistory[Block, BifrostSyncInfo, History]
     with Logging {
 
   override type NVCT = History

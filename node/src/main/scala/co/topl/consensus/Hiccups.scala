@@ -39,17 +39,25 @@ object Hiccups {
    * Represents hiccups with block validation that should be ignored in history appends.
    */
   val blockValidation: Seq[HiccupBlock] = Seq(
-    // Valhalla
+    HiccupBlock(
+      "25A6uT3GrnEd8kVA8caZVedeGoCzy7Qojb2UvZtpDBtbc",
+      927870,
+      ValhallaTestnet.netPrefix
+    ),
+    HiccupBlock(
+      "xvVKLeN2k2KJgpcENgo6fTJtxou7wz58YutVXR9SRHkj",
+      928143,
+      ValhallaTestnet.netPrefix
+    ),
     HiccupBlock(
       "21oHt9kQaKRn5wnTvBPG1wUaeUGAVBKPQMbh1ZjFqviu4",
       928865,
       ValhallaTestnet.netPrefix
     ),
-    // Valhalla
     HiccupBlock(
       "xNtkkMJd3oHd9W8iHdrNoJR8KZ6KdZYDUTh7rWeBkgtE",
       929061,
       ValhallaTestnet.netPrefix
-    ),
+    )
   )
 }
