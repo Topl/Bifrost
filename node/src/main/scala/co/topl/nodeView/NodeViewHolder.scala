@@ -6,8 +6,9 @@ import akka.pattern.ask
 import akka.util.Timeout
 import cats.data.EitherT
 import co.topl.catsakka.AskException
-import co.topl.consensus.Forger
+import co.topl.consensus.{Forger, Hiccups}
 import co.topl.consensus.Forger.ReceivableMessages.GenerateGenesis
+import co.topl.consensus.Hiccups.HiccupBlock
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier, TransactionCarryingPersistentNodeViewModifier}
@@ -16,7 +17,7 @@ import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.modifier.transaction.validation.implicits._
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
-import co.topl.nodeView.NodeViewHolder.{UpdateInformation, consensusCheckpoints}
+import co.topl.nodeView.NodeViewHolder.UpdateInformation
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
@@ -24,7 +25,6 @@ import co.topl.nodeView.state.State
 import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.serialization.BifrostSerializer
 
 import scala.annotation.tailrec
@@ -257,7 +257,8 @@ class NodeViewHolder(settings: AppSettings, appContext: AppContext)(implicit ec:
       context.system.eventStream.publish(StartingPersistentModifierApplication(pmod))
 
       def isBlockTxsValidated: Boolean =
-        consensusCheckpoints.contains(pmod.id) || pmod.transactions.forall(_.semanticValidation(minimalState()).isValid)
+        Hiccups.semanticValidation.contains(HiccupBlock(pmod.id.toString, pmod.height, np)) ||
+          pmod.transactions.forall(_.semanticValidation(minimalState()).isValid)
 
       // check that the transactions are semantically valid
       if (isBlockTxsValidated) {
@@ -520,18 +521,6 @@ object NodeViewHolder {
     case class EliminateTransactions(ids: Seq[ModifierId])
 
   }
-
-  val consensusCheckpoints: Seq[ModifierId] = Seq(
-    ModifierId.fromBase58(
-      Base58Data.unsafe("29QHPjqyLB1QN6DhArf125Nu3qfgKLcPRnZGvaCX8qDNf")
-    ), // block height 255181 Valhalla testnet
-    ModifierId.fromBase58(
-      Base58Data.unsafe("2AsEgm1548vbwos8qqfe1qwwBF6Ef1mzKnRhPvZpALM2A")
-    ), // block height 262558 Valhalla testnet
-    ModifierId.fromBase58(
-      Base58Data.unsafe("293EqLkRWEEjV8aW99w4xXeyescvriYXytHdSn7LudSd1")
-    ) // block height 262875 Valhalla testnet
-  )
 }
 
 ////////////////////////////////////////////////////////////////////////////////////

@@ -65,7 +65,9 @@ package object consensus {
    */
   def calcTarget(stakeAmount: Int128, timeDelta: Long, difficulty: Long, parentHeight: Long): BigInt =
     (BigInt(stakeAmount.toByteArray) * BigInt(difficulty) * BigInt(timeDelta)) /
-    (BigInt(consensusStorage.totalStake.toByteArray) * targetBlockTime(parentHeight).toUnit(MILLISECONDS).toLong)
+    (BigInt(consensusStorage.totalStake.toByteArray) * BigInt(
+      targetBlockTime(parentHeight).toUnit(MILLISECONDS).toLong
+    ))
 
   /**
    * Calculate the block difficulty according to
