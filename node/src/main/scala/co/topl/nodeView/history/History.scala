@@ -1,7 +1,7 @@
 package co.topl.nodeView.history
 
 import co.topl.consensus.Hiccups.HiccupBlock
-import co.topl.consensus.{BlockValidator, DifficultyBlockValidator, Hiccups, SyntaxBlockValidator}
+import co.topl.consensus.{BlockValidator, DifficultyBlockValidator, Hiccups, SyntaxBlockValidator, TimestampValidator}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block
@@ -497,7 +497,8 @@ object History extends Logging {
 
     val validators = Seq(
       new DifficultyBlockValidator(storage, blockProcessor),
-      new SyntaxBlockValidator
+      new SyntaxBlockValidator,
+      new TimestampValidator(storage)
     )
 
     new History(storage, blockProcessor, validators)
