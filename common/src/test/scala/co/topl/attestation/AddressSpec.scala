@@ -1,20 +1,18 @@
 package co.topl.attestation
 
 import cats.scalatest.{ValidatedMatchers, ValidatedNecMatchers}
+import co.topl.attestation.AddressCodec.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.encode.Base58
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.codecs.implicits._
 import co.topl.utils.{CommonGenerators, NetworkType}
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-import co.topl.utils.codecs.implicits._
-import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.attestation.AddressCodec.implicits._
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 class AddressSpec
     extends AnyPropSpec
-    with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers
     with CommonGenerators
@@ -23,7 +21,7 @@ class AddressSpec
     with ValidatedNecMatchers {
 
   property("Applying address string with incorrect networkPrefix will result in error") {
-    forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
+    forAll(propositionGen) { pubkey: Proposition =>
       val twoNetworkType = scala.util.Random.shuffle(NetworkType.all).take(2)
       val fstNetworkType: NetworkType = twoNetworkType.head
       val secNetworkType: NetworkType = twoNetworkType.last
@@ -41,7 +39,7 @@ class AddressSpec
   }
 
   property("Applying address with incorrect content that doesn't match the checksum will result in error") {
-    forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
+    forAll(propositionGen) { pubkey: Proposition =>
       implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
       val address: Address = pubkey.address
       val addressBytes: Array[Byte] = address.infalliblyEncodeAsBytes
@@ -59,7 +57,7 @@ class AddressSpec
   }
 
   property("Applying address with incorrect checksum will result in error") {
-    forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
+    forAll(propositionGen) { pubkey: Proposition =>
       implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
       val address: Address = pubkey.address
       val addrByte: Array[Byte] = address.bytes
@@ -76,7 +74,7 @@ class AddressSpec
   }
 
   property("Applying address with incorrect length will result in error") {
-    forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
+    forAll(propositionGen) { pubkey: Proposition =>
       implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
       val address: Address = pubkey.address
       val addrByte: Array[Byte] = address.bytes
@@ -93,7 +91,7 @@ class AddressSpec
   }
 
   property("Applying address with incorrect NetworkPrefix will result in error") {
-    forAll(propositionGen) { pubkey: PublicKeyPropositionCurve25519 =>
+    forAll(propositionGen) { pubkey: Proposition =>
       implicit val networkPrefix: NetworkPrefix = -42: Byte
       val address: Address = pubkey.address
       val addrBase58: Base58Data = address.encodeAsBase58

@@ -12,6 +12,7 @@ import co.topl.settings.AppSettings
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
 
+import scala.collection.immutable.ListMap
 import scala.util.Try
 
 case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implicit
@@ -22,7 +23,7 @@ case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implic
 
   override protected val blockVersion: PNVMVersion = settings.application.version.blockByte
 
-  override protected val members: Map[String, Int128] = Map("Not implemented here" -> 0L)
+  override protected val members: ListMap[String, Int128] = ListMap("Not implemented here" -> 0L)
 
   override def getGenesisBlock: Try[(Block, ChainParams)] = Try(formNewBlock)
 
@@ -44,8 +45,10 @@ case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implic
 
     val txInput = (
       IndexedSeq(),
-      (genesisAcct.publicImage.address -> SimpleValue(0L)) +: addresses.map(_ -> SimpleValue(balance)).toIndexedSeq,
-      Map(genesisAcct.publicImage -> SignatureCurve25519.genesis),
+      (genesisAcctCruve25519.publicImage.address -> SimpleValue(0L)) +: addresses
+        .map(_ -> SimpleValue(balance))
+        .toIndexedSeq,
+      Map(genesisAcctCruve25519.publicImage -> SignatureCurve25519.genesis),
       Int128(0),
       0L,
       None,
@@ -73,7 +76,7 @@ case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implic
       )
     )
 
-    val generatorBox = ArbitBox(genesisAcct.publicImage.generateEvidence, 0, SimpleValue(privateTotalStake))
+    val generatorBox = ArbitBox(genesisAcctCruve25519.publicImage.generateEvidence, 0, SimpleValue(privateTotalStake))
 
     val signature = SignatureCurve25519.genesis
 
@@ -82,7 +85,7 @@ case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implic
         ModifierId.genesisParentId,
         0L,
         generatorBox,
-        genesisAcct.publicImage,
+        genesisAcctCruve25519.publicImage,
         signature,
         1L,
         initialDifficulty,
