@@ -69,8 +69,6 @@ class MempoolAuditor(
 
   override def preStart(): Unit = {
     context.system.eventStream.subscribe(self, classOf[NodeViewHolder.Events.SemanticallySuccessfulModifier[_]])
-    context.system.eventStream.subscribe(self, classOf[NodeViewHolder.Events.ChangedState.type])
-    context.system.eventStream.subscribe(self, classOf[NodeViewHolder.Events.ChangedMempool.type])
     log.info(s"${Console.YELLOW}MemPool Auditor transitioning to the operational state${Console.RESET}")
   }
 
@@ -90,27 +88,10 @@ class MempoolAuditor(
   override def receive: Receive =
     awaiting orElse nonsense
 
-  private def withNodeView[T](f: ReadableNodeView => T): Future[T] = {
-    import akka.actor.typed.scaladsl.AskPattern._
-    import akka.actor.typed.scaladsl.adapter._
-
-    import scala.concurrent.duration._
-    implicit val timeout: Timeout = Timeout(10.seconds)
-    implicit val typedSystem: akka.actor.typed.ActorSystem[_] = context.system.toTyped
-    nodeViewHolderRef.askWithStatus[T](NodeViewHolder.ReceivableMessages.Read(f, _))
-  }
-
   private def awaiting: Receive = {
     case NodeViewHolder.Events.SemanticallySuccessfulModifier(_: Block) |
         NodeViewHolder.Events.SemanticallySuccessfulModifier(_: BlockHeader) =>
-      withNodeView(view => initiateCleanup(view.state, view.memPool))
-
-    case NodeViewHolder.Events.ChangedMempool =>
-      withNodeView(view => initiateCleanup(view.state, view.memPool))
-
-    case NodeViewHolder.Events.ChangedState =>
-      withNodeView(view => initiateCleanup(view.state, view.memPool))
-
+      initiateCleanup()
     case _ => nonsense
   }
 
@@ -130,9 +111,9 @@ class MempoolAuditor(
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
 
-  private def initiateCleanup(state: StateReader[ProgramId, Address], mempool: MemPoolReader[Transaction.TX]): Unit = {
+  private def initiateCleanup(): Unit = {
     log.info("Initiating cleanup. Switching to working mode")
-    worker ! RunCleanup(state, mempool)
+    worker ! RunCleanup
     context become working // ignore other triggers until work is done
   }
 
@@ -151,6 +132,16 @@ class MempoolAuditor(
           networkControllerRef ! SendToNetwork(msg, Broadcast)
         }
       )
+  }
+
+  private def withNodeView[T](f: ReadableNodeView => T): Future[T] = {
+    import akka.actor.typed.scaladsl.AskPattern._
+    import akka.actor.typed.scaladsl.adapter._
+
+    import scala.concurrent.duration._
+    implicit val timeout: Timeout = Timeout(10.seconds)
+    implicit val typedSystem: akka.actor.typed.ActorSystem[_] = context.system.toTyped
+    nodeViewHolderRef.askWithStatus[T](NodeViewHolder.ReceivableMessages.Read(f, _))
   }
 }
 
