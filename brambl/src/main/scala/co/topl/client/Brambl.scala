@@ -4,11 +4,12 @@ import co.topl.akkahttprpc.{CustomError, RpcClientFailure, RpcErrorFailure}
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, EvidenceProducer, Proof, Proposition}
 import co.topl.modifier.transaction._
+import co.topl.utils.Extensions.IterableOnceOps
 import co.topl.utils.Identifiable
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Json
 
-import scala.collection.immutable.{ListMap, Set}
+import scala.collection.immutable.Set
 import scala.util.{Failure, Success}
 
 object Brambl {
@@ -64,7 +65,7 @@ object Brambl {
 
     val msg2Sign = transaction.messageToSign
     val signFunc = (addr: Address) => f(addr)(msg2Sign)
-    val signatures = ListMap.from(addresses.map(signFunc).reduce(_ ++ _))
+    val signatures = addresses.map(signFunc).reduce(_ ++ _).toListMap
 
     // I know this is eliminated by erasure but unsure how to fix at the moment and I've already restrited
     // Brambl to only work with PublicKey props at the moment so this shouldn't fail.
