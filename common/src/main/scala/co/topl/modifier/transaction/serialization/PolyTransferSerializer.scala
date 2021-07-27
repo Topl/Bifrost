@@ -7,7 +7,7 @@ import co.topl.modifier.transaction.PolyTransfer
 import co.topl.utils.Extensions._
 import co.topl.utils.Int128
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
-import co.topl.utils.Extensions.IterableOnceOps
+import co.topl.utils.Extensions.IterableOps
 
 import scala.collection.immutable.ListMap
 import scala.language.existentials

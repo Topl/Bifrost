@@ -4,7 +4,7 @@ import co.topl.akkahttprpc.{CustomError, RpcClientFailure, RpcErrorFailure}
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, EvidenceProducer, Proof, Proposition}
 import co.topl.modifier.transaction._
-import co.topl.utils.Extensions.IterableOnceOps
+import co.topl.utils.Extensions.IterableOps
 import co.topl.utils.Identifiable
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Json

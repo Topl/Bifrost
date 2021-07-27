@@ -17,7 +17,7 @@ import co.topl.rpc.implicits.client._
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import io.circe.syntax.EncoderOps
-import co.topl.utils.Extensions.IterableOnceOps
+import co.topl.utils.Extensions.IterableOps
 
 import scala.collection.immutable.ListMap
 import scala.concurrent.{ExecutionContext, Future}

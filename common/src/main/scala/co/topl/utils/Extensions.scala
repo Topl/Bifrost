@@ -1,10 +1,9 @@
 package co.topl.utils
 
 import java.nio.charset.{Charset, StandardCharsets}
-import scala.collection.IterableOnce
 import scala.reflect.ClassTag
 import scala.collection.compat.BuildFrom
-import scala.collection.immutable.ListMap
+import scala.collection.immutable.{Iterable, ListMap}
 
 object Extensions {
 
@@ -128,7 +127,7 @@ object Extensions {
 
   }
 
-  implicit class IterableOnceOps[K, V](val s: IterableOnce[(K, V)]) {
-    def toListMap: ListMap[K, V] = s.iterator.foldLeft(ListMap[K, V]())((a, b) => a ++ ListMap(b))
+  implicit class IterableOps[K, V](val iterable: Iterable[(K, V)]) {
+    def toListMap: ListMap[K, V] = iterable.foldLeft(ListMap[K, V]())(_ ++ ListMap(_))
   }
 }
