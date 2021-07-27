@@ -2,6 +2,7 @@ package co.topl.consensus
 
 import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.attestation._
+import co.topl.attestation.keyManagement._
 import co.topl.consensus.Forger.ChainParams
 import co.topl.consensus.genesis.GenesisProvider
 import co.topl.modifier.ModifierId
@@ -13,11 +14,16 @@ import co.topl.settings.AppSettings
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
 
+import scala.collection.SortedSet
 import scala.collection.immutable.ListMap
 import scala.util.Try
 
-case class TestGenesis(addressesCurve25519: Set[Address], addressesEd25519: Set[Address], settings: AppSettings)(
-  implicit val networkPrefix:               NetworkPrefix
+case class TestGenesis(
+  keyRingCurve25519: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+  keyRingEd25519:    KeyRing[PrivateKeyEd25519, KeyfileEd25519],
+  settings:          AppSettings
+)(implicit
+  val networkPrefix: NetworkPrefix
 ) extends GenesisProvider {
 
   override protected val blockChecksum: ModifierId = ModifierId.empty
@@ -41,8 +47,28 @@ case class TestGenesis(addressesCurve25519: Set[Address], addressesEd25519: Set[
     .getOrElse(10, 1000000L, 1000000000000000000L)
 
   def formNewBlock: (Block, ChainParams) = {
+    val addressesCurve25519 = keyRingCurve25519.addresses
+    val addressesEd25519 = keyRingEd25519.addresses
+
+    val propositionsThresholdCurve25519 =
+      for (threshold <- 2 to addressesCurve25519.size)
+        yield ThresholdPropositionCurve25519(
+          threshold,
+          SortedSet[PublicKeyPropositionCurve25519]() ++ addressesCurve25519.flatMap(
+            keyRingCurve25519.lookupPublicKey(_).toOption
+          )
+        )
+
+    val addressesThresholdCurve25519 = propositionsThresholdCurve25519.map(_.address).toSet
+
+    val genesisThresholdPublicKey = ThresholdPropositionCurve25519(
+      0,
+      SortedSet[PublicKeyPropositionCurve25519](genesisAcctCruve25519.publicImage)
+    )
+
     // map the members to their balances then continue as normal
-    val privateTotalStake = (addressesCurve25519.size + addressesEd25519.size) * balance
+    val privateTotalStake =
+      (addressesCurve25519.size + addressesEd25519.size + addressesThresholdCurve25519.size) * balance
 
     val txInputCurve25519 = (
       IndexedSeq(),
@@ -50,6 +76,16 @@ case class TestGenesis(addressesCurve25519: Set[Address], addressesEd25519: Set[
         .map(_ -> SimpleValue(balance))
         .toIndexedSeq,
       Map(genesisAcctCruve25519.publicImage -> SignatureCurve25519.genesis),
+      Int128(0),
+      0L,
+      None,
+      true
+    )
+
+    val txInputThresholdCurve25519 = (
+      IndexedSeq(),
+      addressesThresholdCurve25519.map(_ -> SimpleValue(balance)).toIndexedSeq,
+      Map(genesisThresholdPublicKey -> ThresholdSignatureCurve25519.genesis),
       Int128(0),
       0L,
       None,
@@ -71,12 +107,13 @@ case class TestGenesis(addressesCurve25519: Set[Address], addressesEd25519: Set[
     val txs = Seq(
       (ArbitTransfer[PublicKeyPropositionCurve25519] _).tupled(txInputCurve25519),
       (PolyTransfer[PublicKeyPropositionCurve25519] _).tupled(txInputCurve25519),
+      (ArbitTransfer[ThresholdPropositionCurve25519] _).tupled(txInputThresholdCurve25519),
+      (PolyTransfer[ThresholdPropositionCurve25519] _).tupled(txInputThresholdCurve25519),
       (ArbitTransfer[PublicKeyPropositionEd25519] _).tupled(txInputEd25519),
       (PolyTransfer[PublicKeyPropositionEd25519] _).tupled(txInputEd25519)
     )
 
     val generatorBox = ArbitBox(genesisAcctCruve25519.publicImage.generateEvidence, 0, SimpleValue(privateTotalStake))
-
     val signature = SignatureCurve25519.genesis
 
     val block =

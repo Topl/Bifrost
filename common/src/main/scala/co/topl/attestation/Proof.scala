@@ -165,7 +165,11 @@ object ThresholdSignatureCurve25519 {
     Base58Data.validated(str).map(apply).valueOr(err => throw new Exception(s"Invalid Base-58 String: $err"))
 
   /** Helper function to create empty signatures */
-  def empty(): ThresholdSignatureCurve25519 = ThresholdSignatureCurve25519(Set[SignatureCurve25519]())
+  lazy val empty: ThresholdSignatureCurve25519 = ThresholdSignatureCurve25519(Set[SignatureCurve25519]())
+
+  lazy val genesis: ThresholdSignatureCurve25519 = ThresholdSignatureCurve25519(
+    Set[SignatureCurve25519](SignatureCurve25519(Signature(Array.fill(SignatureCurve25519.signatureSize)(1: Byte))))
+  )
 
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html
