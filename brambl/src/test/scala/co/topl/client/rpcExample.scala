@@ -14,6 +14,7 @@ import co.topl.rpc.ToplRpc
 import co.topl.rpc.ToplRpc.NodeView._
 import co.topl.rpc.ToplRpc.Transaction.{BroadcastTx, RawArbitTransfer, RawAssetTransfer, RawPolyTransfer}
 import co.topl.rpc.implicits.client._
+import co.topl.utils.Extensions.IterableOps
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import io.circe.syntax.EncoderOps
@@ -156,7 +157,7 @@ object CreateAnDSendRawPolyTransfer {
       genKeys()
       val msg2Sign = rawTx.messageToSign
       val signFunc = (addr: Address) => keyRing.generateAttestation(addr)(msg2Sign)
-      val signatures = ListMap.from(keyRing.addresses.map(signFunc).reduce(_ ++ _))
+      val signatures = keyRing.addresses.map(signFunc).reduce(_ ++ _).toListMap
       Future(rawTx.copy(attestation = signatures))
     }
     broadcastTx <- ToplRpc.Transaction.BroadcastTx.rpc(ToplRpc.Transaction.BroadcastTx.Params(signTx))
@@ -192,7 +193,7 @@ object CreateAnDSendRawArbitTransfer {
       genKeys()
       val msg2Sign = rawTx.messageToSign
       val signFunc = (addr: Address) => keyRing.generateAttestation(addr)(msg2Sign)
-      val signatures = ListMap.from(keyRing.addresses.map(signFunc).reduce(_ ++ _))
+      val signatures = keyRing.addresses.map(signFunc).reduce(_ ++ _).toListMap
       Future(rawTx.copy(attestation = signatures))
     }
     broadcastTx <- ToplRpc.Transaction.BroadcastTx.rpc(ToplRpc.Transaction.BroadcastTx.Params(signTx))
@@ -229,7 +230,7 @@ object CreateAnDSendRawAssetMintingTransfer {
       genKeys()
       val msg2Sign = rawTx.messageToSign
       val signFunc = (addr: Address) => keyRing.generateAttestation(addr)(msg2Sign)
-      val signatures = ListMap.from(keyRing.addresses.map(signFunc).reduce(_ ++ _))
+      val signatures = keyRing.addresses.map(signFunc).reduce(_ ++ _).toListMap
       Future(rawTx.copy(attestation = signatures))
     }
     broadcastTx <- ToplRpc.Transaction.BroadcastTx.rpc(ToplRpc.Transaction.BroadcastTx.Params(signTx))
@@ -265,7 +266,7 @@ object CreateAnDSendRawAssetTransfer {
       genKeys()
       val msg2Sign = rawTx.messageToSign
       val signFunc = (addr: Address) => keyRing.generateAttestation(addr)(msg2Sign)
-      val signatures = ListMap.from(keyRing.addresses.map(signFunc).reduce(_ ++ _))
+      val signatures = keyRing.addresses.map(signFunc).reduce(_ ++ _).toListMap
       Future(rawTx.copy(attestation = signatures))
     }
     broadcastTx <- ToplRpc.Transaction.BroadcastTx.rpc(ToplRpc.Transaction.BroadcastTx.Params(signTx))

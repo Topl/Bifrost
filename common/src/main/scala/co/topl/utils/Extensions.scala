@@ -3,6 +3,7 @@ package co.topl.utils
 import java.nio.charset.{Charset, StandardCharsets}
 import scala.reflect.ClassTag
 import scala.collection.compat.BuildFrom
+import scala.collection.immutable.{Iterable, ListMap}
 
 object Extensions {
 
@@ -124,5 +125,9 @@ object Extensions {
     // returns the byte array of a string after ensuring utf-8 encoding
     def getValidUTF8Bytes: Option[Array[Byte]] = getValidBytes(s, StandardCharsets.UTF_8)
 
+  }
+
+  implicit class IterableOps[K, V](val iterable: Iterable[(K, V)]) {
+    def toListMap: ListMap[K, V] = iterable.foldLeft(ListMap[K, V]())(_ ++ ListMap(_))
   }
 }
