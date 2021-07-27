@@ -16,6 +16,7 @@ object Hiccups {
   case class HiccupBlock(id: String, height: Long, networkPrefix: NetworkPrefix)
 
   object HiccupBlock {
+
     def apply(block: Block)(implicit networkPrefix: NetworkPrefix): HiccupBlock =
       HiccupBlock(block.id.toString, block.height, networkPrefix)
   }
