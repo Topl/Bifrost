@@ -1,6 +1,7 @@
 package co.topl.consensus
 
 import co.topl.consensus
+import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
@@ -145,6 +146,22 @@ class SyntaxBlockValidator extends BlockValidator[Block] {
         }
 
       case _ => // do nothing
+    }
+  }
+}
+
+class TimestampValidator(storage: Storage) extends BlockValidator[Block] {
+
+  private def blockTimestamp(id: ModifierId): Option[TimeProvider.Time] = storage.timestampOf(id)
+
+  override def validate(block: Block): Try[Unit] = Try {
+    blockTimestamp(block.parentId) match {
+      case Some(parentTimestamp) =>
+        require(
+          block.timestamp > parentTimestamp,
+          s"Block timestamp ${block.timestamp} is earlier than parent timestamp $parentTimestamp"
+        )
+      case None => throw new Error("Parent id of block not found")
     }
   }
 }
