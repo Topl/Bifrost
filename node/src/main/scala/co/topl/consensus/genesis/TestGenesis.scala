@@ -48,7 +48,7 @@ case class TestGenesis(addressesCurve25519: Set[Address], addressesEd25519: Set[
       (genesisAcctCruve25519.publicImage.address -> SimpleValue(0L)) +: addressesCurve25519
         .map(_ -> SimpleValue(balance))
         .toIndexedSeq,
-      Map(genesisAcctCruve25519.publicImage -> SignatureCurve25519.genesis),
+      ListMap(genesisAcctCruve25519.publicImage -> SignatureCurve25519.genesis),
       Int128(0),
       0L,
       None,
@@ -60,7 +60,7 @@ case class TestGenesis(addressesCurve25519: Set[Address], addressesEd25519: Set[
       (genesisAcctEd25519.publicImage.address -> SimpleValue(0L)) +: addressesEd25519
         .map(_ -> SimpleValue(balance))
         .toIndexedSeq,
-      Map(genesisAcctEd25519.publicImage -> SignatureEd25519.genesis),
+      ListMap(genesisAcctEd25519.publicImage -> SignatureEd25519.genesis),
       Int128(0),
       0L,
       None,

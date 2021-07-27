@@ -48,7 +48,7 @@ case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implic
       (genesisAcctCruve25519.publicImage.address -> SimpleValue(0L)) +: addresses
         .map(_ -> SimpleValue(balance))
         .toIndexedSeq,
-      Map(genesisAcctCruve25519.publicImage -> SignatureCurve25519.genesis),
+      ListMap(genesisAcctCruve25519.publicImage -> SignatureCurve25519.genesis),
       Int128(0),
       0L,
       None,
