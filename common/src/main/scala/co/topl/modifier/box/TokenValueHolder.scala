@@ -3,7 +3,9 @@ package co.topl.modifier.box
 import co.topl.attestation.Address
 import co.topl.utils.Extensions.StringOps
 import co.topl.utils.Int128
+import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.codecs.Int128Codec
+import co.topl.utils.codecs.implicits._
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
@@ -122,12 +124,12 @@ object AssetValue extends BifrostSerializer[AssetValue] {
     for {
       quantity     <- c.get[Int128]("quantity")(Int128Codec.jsonDecoder)
       assetCode    <- c.downField("assetCode").as[AssetCode]
-      securityRoot <- c.downField("securityRoot").as[Option[String]]
+      securityRoot <- c.downField("securityRoot").as[Option[Base58Data]]
       metadata     <- c.downField("metadata").as[Option[String]]
     } yield {
       val sr = securityRoot match {
-        case Some(str) => SecurityRoot(str)
-        case None      => SecurityRoot.empty
+        case Some(data) => SecurityRoot.fromBase58(data)
+        case None       => SecurityRoot.empty
       }
 
       AssetValue(quantity, assetCode, sr, metadata)

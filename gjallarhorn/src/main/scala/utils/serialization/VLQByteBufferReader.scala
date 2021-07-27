@@ -1,8 +1,8 @@
 package utils.serialization
 
-import java.nio.ByteBuffer
-
 import utils.serialization.Reader.Aux
+
+import java.nio.ByteBuffer
 
 /**
  * Not thread safe

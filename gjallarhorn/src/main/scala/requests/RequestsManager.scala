@@ -1,8 +1,8 @@
 package requests
 
 import akka.actor.{Actor, ActorRef}
-import akka.util.Timeout
 import akka.pattern.{ask, pipe}
+import akka.util.Timeout
 import io.circe.Json
 import utils.Logging
 

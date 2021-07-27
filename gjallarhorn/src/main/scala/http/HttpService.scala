@@ -4,11 +4,13 @@ import akka.http.scaladsl.model.headers.{HttpOrigin, Origin}
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
+import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.hash.digest.Digest32
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.encode.Base58
 import io.circe.Json
 import io.circe.parser.parse
-import scorex.crypto.hash.{Blake2b256, Digest32}
 import requests.{ApiResponse, ApiRoute, ErrorResponse, SuccessResponse}
-import scorex.util.encode.Base58
 import settings.RPCApiSettings
 
 import scala.concurrent.{Await, Future}
@@ -25,7 +27,7 @@ final case class HttpService(apiServices: Seq[ApiRoute], settings: RPCApiSetting
 
   private lazy val apiKeyHash: Option[Array[Byte]] =
     if (settings.apiKeyHash == "") None
-    else Base58.decode(settings.apiKeyHash).toOption
+    else Base58Data.validated(settings.apiKeyHash).map(_.value).toOption
 
   private val apiServiceHandlers: PartialFunction[(String, Vector[Json], String), Future[Json]] =
     apiServices
@@ -115,10 +117,10 @@ final case class HttpService(apiServices: Seq[ApiRoute], settings: RPCApiSetting
    * @return true if api key is valid, false otherwise
    */
   private def isValid(keyOpt: Option[String]): Boolean = {
-    lazy val keyHash: Option[Digest32] = keyOpt.map(Blake2b256(_))
+    lazy val keyHash: Option[Digest32] = keyOpt.map(k => blake2b256.hash(k.getBytes))
     (apiKeyHash, keyHash) match {
       case (None, _)                      => true
-      case (Some(expected), Some(passed)) => expected sameElements passed
+      case (Some(expected), Some(passed)) => expected sameElements passed.value
       case _                              => false
     }
   }

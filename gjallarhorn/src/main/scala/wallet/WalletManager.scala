@@ -4,19 +4,19 @@ import akka.actor.{Actor, ActorRef}
 import akka.pattern.ask
 import akka.util.Timeout
 import attestation.Address
-import io.circe.{parser, Json}
+import cats.syntax.show._
 import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
-import utils.Logging
-import cats.syntax.show._
+import io.circe.{parser, Json}
 import keymanager.KeyManager.{ChangeNetwork, GetAllKeyfiles}
 import keymanager.networkPrefix
 import modifier.{Box, BoxId, Transaction}
 import settings.NetworkType
+import utils.Logging
 
 import scala.collection.mutable.{Map => MMap}
-import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext}
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -155,7 +155,7 @@ class WalletManager(keyManagerRef: ActorRef)(implicit ec: ExecutionContext) exte
       )
     }
     (keyManagerRef ? ChangeNetwork(bifrostNetwork)).onComplete {
-      case Success(networkResponse: Try[Json]) =>
+      case Success(networkResponse: Try[Json] @unchecked) =>
         networkResponse match {
           case Success(networkJson) =>
             assert(
