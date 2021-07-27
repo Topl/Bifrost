@@ -176,7 +176,7 @@ class TransactionValidationSpec
     }
   }
 
-  property("Generated PolyTransfer Tx should be valid") {
+  property("Randomly generated PolyTransfer Tx should be valid") {
     forAll(validPolyTransferGen(keyRingCurve25519, keyRingEd25519, genesisState)) { tx =>
       tx.syntacticValidation should beValid[TransferTx](tx)
     }
