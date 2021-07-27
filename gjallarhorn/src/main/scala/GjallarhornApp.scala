@@ -3,6 +3,8 @@ import akka.http.scaladsl.Http
 import akka.pattern.ask
 import akka.util.Timeout
 import attestation.Address
+import http.{GjallarhornOfflineApiRoute, GjallarhornOnlineApiRoute, HttpService, KeyManagementApiRoute}
+import io.circe.Json
 import io.circe.syntax._
 import http.{GjallarhornOfflineApiRoute, GjallarhornOnlineApiRoute, HttpService, KeyManagementApiRoute}
 import io.circe.Json
@@ -13,10 +15,10 @@ import settings.{AppSettings, StartupOpts}
 import utils.Logging
 import wallet.{DeadLetterListener, WalletManager}
 
-import scala.concurrent.{Await, ExecutionContextExecutor}
-import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContextExecutor}
 import scala.reflect.io.Path
+import scala.util.{Failure, Success, Try}
 
 /**
  * Gjallarhorn is the wallet application for Bifrost, the Topl blockchain.

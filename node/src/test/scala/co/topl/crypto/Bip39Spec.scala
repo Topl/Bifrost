@@ -4,7 +4,7 @@
 //import co.topl.utils.Logging
 //import org.scalatest.flatspec.AnyFlatSpec
 //import org.scalatest.matchers.should.Matchers
-//import scorex.crypto.hash.Blake2b256
+//import co.topl.crypto.hash.Blake2b256
 //
 ///*
 // * Test class for verifying BIP39 phrase translator class

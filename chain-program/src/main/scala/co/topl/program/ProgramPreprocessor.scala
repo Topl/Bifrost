@@ -2,6 +2,8 @@ package co.topl.program
 
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.utils.Gzip
+import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
+import co.topl.utils.StringDataTypes.Base58Data
 import com.oracle.js.parser.ir.visitor.NodeVisitor
 import com.oracle.js.parser.ir.{FunctionNode, LexicalContext, Node, VarNode}
 import com.oracle.js.parser.{
@@ -17,7 +19,8 @@ import com.oracle.js.parser.{
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
-import scorex.util.encode.Base64
+import co.topl.utils.encode.Base58
+import co.topl.utils.codecs.implicits._
 
 import java.nio.file.{Files, Path}
 import scala.collection.mutable
@@ -127,7 +130,7 @@ object ProgramPreprocessor {
       .map(_.as[(String, String)] match { case Right(re) => re; case Left(ex) => throw ex })
       .map { pair =>
         val pub = PublicKeyPropositionCurve25519(pair._1)
-        val sig = SignatureCurve25519(pair._2)
+        val sig = SignatureCurve25519(Base58Data.unsafe(pair._2))
         pub -> sig
       }
 
@@ -329,7 +332,7 @@ object ProgramPreprocessor {
     Map(
       //"state" -> Base64.encode(Gzip.encode(ByteString(state.noSpaces.getBytes)).toArray[Byte]).asJson,
       "name"      -> p.name.asJson,
-      "initjs"    -> Base64.encode(Gzip.compress(p.initjs.getBytes)).asJson,
+      "initjs"    -> Base58.encode(Gzip.compress(p.initjs.getBytes)).asJson,
       "interface" -> p.interface.map(a => a._1 -> a._2.map(_.asJson).asJson).asJson,
       "variables" -> p.variables.asJson,
       "code"      -> p.code.map(a => a._1 -> a._2).asJson,
@@ -340,15 +343,15 @@ object ProgramPreprocessor {
     for {
       //state <- c.downField("state").as[String]
       name      <- c.downField("name").as[String]
-      initjs    <- c.downField("initjs").as[String]
+      initjs    <- c.downField("initjs").as[Base58Data]
       interface <- c.downField("interface").as[Map[String, Seq[String]]]
       variables <- c.downField("variables").as[Json]
       code      <- c.downField("code").as[Map[String, String]]
       signed    <- c.downField("signed").as[Option[(String, String)]]
     } yield {
 
-      def decodeGzip(zippedStr: String): String = {
-        val zipped: Array[Byte] = Base64.decode(zippedStr).get
+      def decodeGzip(zippedStr: Base58Data): String = {
+        val zipped: Array[Byte] = zippedStr.value
         val unzipped: Array[Byte] = Gzip.decompress(zipped)
         new String(unzipped)
       }
@@ -362,7 +365,7 @@ object ProgramPreprocessor {
         code,
         signed.map { pair =>
           val pub = PublicKeyPropositionCurve25519(pair._1)
-          val sig = SignatureCurve25519(pair._2)
+          val sig = SignatureCurve25519(Base58Data.unsafe(pair._2))
           pub -> sig
         }
       )

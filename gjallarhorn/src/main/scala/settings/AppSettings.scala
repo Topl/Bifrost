@@ -1,12 +1,12 @@
 package settings
 
-import java.io.File
-
 import com.typesafe.config.Config
+import http.NamespaceSelector
 import pureconfig._
 import pureconfig.generic.semiauto._
-import http.NamespaceSelector
 import utils.Logging
+
+import java.io.File
 import scala.concurrent.duration.FiniteDuration
 
 case class ApplicationSettings(

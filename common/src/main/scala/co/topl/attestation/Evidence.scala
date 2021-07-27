@@ -1,12 +1,18 @@
 package co.topl.attestation
 
+import cats.implicits._
+import co.topl.crypto.hash.digest.Digest
+import co.topl.utils.codecs.implicits._
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import scorex.util.encode.Base58
-import supertagged.TaggedType
+import io.estatico.newtype.macros.newtype
+import io.estatico.newtype.ops._
 
+import scala.language.implicitConversions
 import scala.util.{Failure, Success}
 
 /**
@@ -21,7 +27,7 @@ final class Evidence private (private val evBytes: Array[Byte]) extends BytesSer
   override type M = Evidence
   override def serializer: BifrostSerializer[Evidence] = Evidence
 
-  override def toString: String = Base58.encode(bytes)
+  override def toString: String = bytes.encodeAsBase58.show
 
   override def equals(obj: Any): Boolean = obj match {
     case ec: Evidence => bytes sameElements ec.bytes
@@ -35,31 +41,33 @@ object Evidence extends BifrostSerializer[Evidence] {
   // below are types and values used enforce the behavior of evidence
   type EvidenceTypePrefix = Byte
 
-  object EvidenceContent extends TaggedType[Array[Byte]]
-  type EvidenceContent = EvidenceContent.Type
+  @newtype
+  case class EvidenceContent(value: Array[Byte])
+
+  object EvidenceContent {
+    def apply[D: Digest](d: D): EvidenceContent = d.infalliblyEncodeAsBytes.coerce
+  }
 
   val contentLength = 32 //bytes (this is generally the output of a Blake2b-256 bit hash)
   val size: Int = 1 + contentLength //length of typePrefix + contentLength
 
   def apply(typePrefix: EvidenceTypePrefix, content: EvidenceContent): Evidence = {
-    require(content.length == contentLength, "Invalid evidence: incorrect EvidenceContent length")
+    require(content.value.length == contentLength, "Invalid evidence: incorrect EvidenceContent length")
 
-    parseBytes(typePrefix +: content) match {
+    parseBytes(typePrefix +: content.value) match {
       case Success(ec) => ec
       case Failure(ex) => throw ex
     }
   }
 
-  private def apply(str: String): Evidence =
-    Base58.decode(str) match {
-      case Success(bytes) =>
-        require(bytes.length == size, "Invalid evidence: incorrect evidence length")
-        parseBytes(bytes) match {
-          case Success(ec) => ec
-          case Failure(ex) => throw ex
-        }
-      case Failure(e) => throw e
+  private def apply(data: Base58Data): Evidence = {
+    val bytes = data.value
+    require(bytes.length == size, "Invalid evidence: incorrect evidence length")
+    parseBytes(bytes) match {
+      case Success(ec) => ec
+      case Failure(ex) => throw ex
     }
+  }
 
   override def serialize(obj: Evidence, w: Writer): Unit =
     w.putBytes(obj.evBytes)
@@ -73,6 +81,6 @@ object Evidence extends BifrostSerializer[Evidence] {
   // https://circe.github.io/circe/codecs/custom-codecs.html
   implicit val jsonEncoder: Encoder[Evidence] = (ec: Evidence) => ec.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[Evidence] = (ec: Evidence) => ec.toString
-  implicit val jsonDecoder: Decoder[Evidence] = Decoder.decodeString.map(apply)
-  implicit val jsonKeyDecoder: KeyDecoder[Evidence] = (str: String) => Some(apply(str))
+  implicit val jsonDecoder: Decoder[Evidence] = Decoder[Base58Data].map(apply)
+  implicit val jsonKeyDecoder: KeyDecoder[Evidence] = KeyDecoder[Base58Data].map(apply)
 }
