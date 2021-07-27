@@ -1,5 +1,6 @@
 package co.topl.consensus
 
+import co.topl.modifier.block.Block
 import co.topl.utils.NetworkType.{NetworkPrefix, ValhallaTestnet}
 
 /**
@@ -13,6 +14,11 @@ object Hiccups {
    * @param height the height of the block
    */
   case class HiccupBlock(id: String, height: Long, networkPrefix: NetworkPrefix)
+
+  object HiccupBlock {
+    def apply(block: Block)(implicit networkPrefix: NetworkPrefix): HiccupBlock =
+      HiccupBlock(block.id.toString, block.height, networkPrefix)
+  }
 
   /**
    * Represent hiccups with semantic validation that should be ignored in node view holder checks.
