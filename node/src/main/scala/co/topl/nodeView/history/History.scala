@@ -82,11 +82,7 @@ class History(
 
     // test new block against all validators
     val validationResults =
-      if (
-        !isGenesis(block) && !Hiccups.blockValidation.contains(
-          HiccupBlock(block.id.toString, block.height, networkPrefix)
-        )
-      ) {
+      if (!isGenesis(block) && !Hiccups.blockValidation.contains(HiccupBlock(block))) {
         validators.map(_.validate(block)).map {
           case Failure(e) =>
             log.warn(s"Block validation failed", e)
