@@ -127,7 +127,4 @@ object Extensions {
 
   }
 
-  implicit class IterableOps[K, V](val iterable: Iterable[(K, V)]) {
-    def toListMap: ListMap[K, V] = iterable.foldLeft(ListMap[K, V]())(_ ++ ListMap(_))
-  }
 }
