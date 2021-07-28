@@ -28,7 +28,7 @@ case class ExtendedPrivateKeyEd25519(
   leftKey:   ByteVector32,
   rightKey:  ByteVector32,
   chainCode: ByteVector32,
-  path: Seq[DerivedKeyIndex]
+  path:      Seq[DerivedKeyIndex]
 ) {
 
   // Note: BigInt expects Big-Endian, but SLIP/BIP-ED25519 need Little-Endian
