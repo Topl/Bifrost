@@ -92,7 +92,7 @@ case class ExtendedPrivateKeyEd25519(
     val nextRight =
       SizedByteVector[ByteVector32].fit(
         ByteBuffer
-          .wrap(((zRight + rightNumber) % (2 ^ 256)).toByteArray.reverse)
+          .wrap(((zRight + rightNumber) % (BigInt(2).pow(256))).toByteArray.reverse)
           .order(ByteOrder.LITTLE_ENDIAN)
       )
 
