@@ -4,6 +4,8 @@ import akka.util.ByteString
 import co.topl.api.RPCMockState
 import co.topl.attestation.Address
 import co.topl.modifier.box.AssetCode
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.codecs.implicits.base58JsonDecoder
 import co.topl.utils.encode.Base58
 import co.topl.utils.IdiomaticScalaTransition.implicits._
 import io.circe.Json
@@ -59,12 +61,11 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
 
       val sigTx = for {
         rawTx   <- res.hcursor.downField("result").get[Json]("rawTx")
-        message <- res.hcursor.downField("result").get[String]("messageToSign")
+        message <- res.hcursor.downField("result").get[Base58Data]("messageToSign")
       } yield {
         val sig = senderPropType match {
-          case "PublicKeyCurve25519" =>
-            keyRingCurve25519.generateAttestation(sender)(Base58.decode(message).getOrThrow())
-          case "PublicKeyEd25519" => keyRingEd25519.generateAttestation(sender)(Base58.decode(message).getOrThrow())
+          case "PublicKeyCurve25519" => keyRingCurve25519.generateAttestation(sender)(message.value)
+          case "PublicKeyEd25519"    => keyRingEd25519.generateAttestation(sender)(message.value)
         }
         val signatures: Json = Map(
           "signatures" -> sig.asJson
@@ -103,12 +104,11 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
 
       val sigTx = for {
         rawTx   <- res.hcursor.downField("result").get[Json]("rawTx")
-        message <- res.hcursor.downField("result").get[String]("messageToSign")
+        message <- res.hcursor.downField("result").get[Base58Data]("messageToSign")
       } yield {
         val sig = senderPropType match {
-          case "PublicKeyCurve25519" =>
-            keyRingCurve25519.generateAttestation(sender)(Base58.decode(message).getOrThrow())
-          case "PublicKeyEd25519" => keyRingEd25519.generateAttestation(sender)(Base58.decode(message).getOrThrow())
+          case "PublicKeyCurve25519" => keyRingCurve25519.generateAttestation(sender)(message.value)
+          case "PublicKeyEd25519"    => keyRingEd25519.generateAttestation(sender)(message.value)
         }
         val signatures: Json = Map(
           "signatures" -> sig.asJson
@@ -162,12 +162,11 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
 
       val sigTx = for {
         rawTx   <- res.hcursor.downField("result").get[Json]("rawTx")
-        message <- res.hcursor.downField("result").get[String]("messageToSign")
+        message <- res.hcursor.downField("result").get[Base58Data]("messageToSign")
       } yield {
         val sig = senderPropType match {
-          case "PublicKeyCurve25519" =>
-            keyRingCurve25519.generateAttestation(sender)(Base58.decode(message).getOrThrow())
-          case "PublicKeyEd25519" => keyRingEd25519.generateAttestation(sender)(Base58.decode(message).getOrThrow())
+          case "PublicKeyCurve25519" => keyRingCurve25519.generateAttestation(sender)(message.value)
+          case "PublicKeyEd25519"    => keyRingEd25519.generateAttestation(sender)(message.value)
         }
         val signatures: Json = Map(
           "signatures" -> sig.asJson

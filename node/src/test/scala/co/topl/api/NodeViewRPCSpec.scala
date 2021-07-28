@@ -19,7 +19,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
 
     txs = bifrostTransactionSeqGen.sample.get
     txId = txs.head.id.toString
-    block = blockGen.sample.get.copy(transactions = txs)
+    block = blockCurve25519Gen.sample.get.copy(transactions = txs)
 
     view()._1.storage.update(block, isBest = false)
     view()._3.putWithoutCheck(txs, block.timestamp)

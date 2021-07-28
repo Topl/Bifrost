@@ -1,17 +1,14 @@
 package co.topl.attestation.keyManagement
 
-import cats.implicits._
 import co.topl.attestation.Address
-import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signatures.Ed25519
-import co.topl.utils.codecs.implicits._
-import co.topl.utils.Extensions.StringOps
+import co.topl.crypto.{PrivateKey, PublicKey}
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.SecureRandom.randomBytes
-import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
-import co.topl.utils.encode.Base58
+import co.topl.utils.codecs.implicits._
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
@@ -37,11 +34,11 @@ object KeyfileEd25519 {
     Map(
       "crypto" -> Map(
         "cipher"       -> "aes-256-ctr".asJson,
-        "cipherParams" -> Map("iv" -> Base58.encode(kf.iv).asJson).asJson,
-        "cipherText"   -> Base58.encode(kf.cipherText).asJson,
+        "cipherParams" -> Map("iv" -> kf.iv.encodeAsBase58.asJson).asJson,
+        "cipherText"   -> kf.cipherText.encodeAsBase58.asJson,
         "kdf"          -> "scrypt".asJson,
-        "kdfSalt"      -> Base58.encode(kf.salt).asJson,
-        "mac"          -> Base58.encode(kf.mac).asJson
+        "kdfSalt"      -> kf.salt.encodeAsBase58.asJson,
+        "mac"          -> kf.mac.encodeAsBase58.asJson
       ).asJson,
       "address" -> kf.address.asJson
     ).asJson
@@ -68,15 +65,15 @@ object KeyfileEd25519Companion extends KeyfileCompanion[PrivateKeyEd25519, Keyfi
    * @param password string used to encrypt the private key when saved to disk
    * @return
    */
-  override def encryptSecretSafe(secretKey: PrivateKeyEd25519, password: Latin1Data)(implicit
-    networkPrefix:                          NetworkPrefix
+  def encryptSecretSafe(secretKey: PrivateKeyEd25519, password: Latin1Data)(implicit
+    networkPrefix:                 NetworkPrefix
   ): KeyfileEd25519 = {
     // get random bytes to obfuscate the cipher
     val salt = randomBytes(32)
     val ivData = randomBytes(16)
 
     // calculate the deterministic key used to create the cipher
-    val derivedKey = getDerivedKey(password.show, salt)
+    val derivedKey = getDerivedKey(password, salt)
 
     // encrypt private key
     val (cipherText, mac) = getAESResult(derivedKey, ivData, secretKey.bytes, encrypt = true)
@@ -88,10 +85,10 @@ object KeyfileEd25519Companion extends KeyfileCompanion[PrivateKeyEd25519, Keyfi
     new KeyfileEd25519(address, cipherText, mac, salt, ivData)
   }
 
-  override def decryptSecretSafe(encryptedKeyFile: KeyfileEd25519, password: Latin1Data)(implicit
-    networkPrefix:                                 NetworkPrefix
+  def decryptSecretSafe(encryptedKeyFile: KeyfileEd25519, password: Latin1Data)(implicit
+    networkPrefix:                        NetworkPrefix
   ): Try[PrivateKeyEd25519] = Try {
-    val derivedKey = getDerivedKey(password.show, encryptedKeyFile.salt)
+    val derivedKey = getDerivedKey(password, encryptedKeyFile.salt)
     val calcMAC = getMAC(derivedKey, encryptedKeyFile.cipherText)
 
     require(calcMAC sameElements encryptedKeyFile.mac, "MAC does not match. Try again")
@@ -130,10 +127,7 @@ object KeyfileEd25519Companion extends KeyfileCompanion[PrivateKeyEd25519, Keyfi
     val keyfile = parse(src.mkString) match {
       case Left(ex) => throw ex
       case Right(json) =>
-        json.as[KeyfileEd25519] match {
-          case Left(ex)  => throw new Exception(s"Could not parse KeyFile: $ex")
-          case Right(kf) => kf
-        }
+        json.as[KeyfileEd25519].getOrThrow(ex => new Exception(s"Could not parse KeyFile: $ex"))
     }
 
     // close the stream and return the keyfile
@@ -146,8 +140,8 @@ object KeyfileEd25519Companion extends KeyfileCompanion[PrivateKeyEd25519, Keyfi
    * @param salt
    * @return
    */
-  private def getDerivedKey(password: String, salt: Array[Byte]): Array[Byte] = {
-    val passwordBytes = password.getValidLatin1Bytes.getOrElse(throw new Exception("String is not valid Latin-1"))
+  private def getDerivedKey(password: Latin1Data, salt: Array[Byte]): Array[Byte] = {
+    val passwordBytes = password.infalliblyEncodeAsBytes
     SCrypt.generate(passwordBytes, salt, scala.math.pow(2, 18).toInt, 8, 1, 32)
   }
 
@@ -184,5 +178,4 @@ object KeyfileEd25519Companion extends KeyfileCompanion[PrivateKeyEd25519, Keyfi
 
     (outputText, mac)
   }
-
 }

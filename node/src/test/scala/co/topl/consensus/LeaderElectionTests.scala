@@ -17,7 +17,7 @@ class LeaderElectionTests extends AnyFlatSpec with MockFactory with CommonGenera
     Base58Data.unsafe("AUAvJqLKc8Un3C6bC4aj8WgHZo74vamvX8Kdm6MhtdXgw51cGfix").decodeAddress.toEither.value
 
   "getEligibleBox" should "return NoAddressesAvailable when no addresses provided" in {
-    forAll(blockGen) { parent =>
+    forAll(blockCurve25519Gen) { parent =>
       val stateReader = mock[LeaderElection.SR]
       val addresses = Set[Address]()
       val expectedResult = Left(NoAddressesAvailable)
@@ -29,7 +29,7 @@ class LeaderElectionTests extends AnyFlatSpec with MockFactory with CommonGenera
   }
 
   "getEligibleBox" should "return NoArbitBoxesAvailable when no addresses contain arbit boxes" in {
-    forAll(blockGen) { parent =>
+    forAll(blockCurve25519Gen) { parent =>
       val stateReader = mock[LeaderElection.SR]
       (stateReader.getTokenBoxes _)
         .expects(address)

@@ -1,9 +1,9 @@
 package co.topl.attestation
 
 import co.topl.attestation.AddressCodec.implicits._
-import co.topl.utils.codecs.implicits._
 import co.topl.utils.NodeGenerators
 import co.topl.utils.StringDataTypes.Latin1Data
+import co.topl.utils.codecs.implicits._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
@@ -35,29 +35,25 @@ class KeySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with NodeG
   }
 
   property("Once we lock the generated address, it will be removed from the secrets set in the keyRing") {
-    keyRingCurve25519.removeFromKeyring(addressCurve25519)
 
     /** There will be a warning for locking again if a key is already locked */
+    keyRingCurve25519.removeFromKeyring(addressCurve25519)
     keyRingCurve25519.removeFromKeyring(addressCurve25519)
     keyRingCurve25519.addresses.contains(addressCurve25519) shouldBe false
 
     keyRingEd25519.removeFromKeyring(addressEd25519)
-
-    /** There will be a warning for locking again if a key is already locked */
     keyRingEd25519.removeFromKeyring(addressEd25519)
     keyRingEd25519.addresses.contains(addressEd25519) shouldBe false
   }
 
   property("Once unlocked, the address will be accessible from the keyRing again") {
-    keyRingCurve25519.DiskOps.unlockKeyFile(addressCurve25519.encodeAsBase58, password)
 
     /** There will be a warning for unlocking again if a key is already unlocked */
+    keyRingCurve25519.DiskOps.unlockKeyFile(addressCurve25519.encodeAsBase58, password)
     keyRingCurve25519.DiskOps.unlockKeyFile(addressCurve25519.encodeAsBase58, password)
     keyRingCurve25519.addresses.contains(addressCurve25519) shouldBe true
 
     keyRingEd25519.DiskOps.unlockKeyFile(addressEd25519.encodeAsBase58, password)
-
-    /** There will be a warning for unlocking again if a key is already unlocked */
     keyRingEd25519.DiskOps.unlockKeyFile(addressEd25519.encodeAsBase58, password)
     keyRingEd25519.addresses.contains(addressEd25519) shouldBe true
   }
