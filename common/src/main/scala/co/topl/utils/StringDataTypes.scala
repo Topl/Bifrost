@@ -21,12 +21,12 @@ object StringDataTypes {
    */
   //@newtype
   case class Latin1Data private (value: Array[Byte]) {
-    override def equals(obj: Any): Boolean = {
+
+    override def equals(obj: Any): Boolean =
       obj match {
         case o: Latin1Data => java.util.Arrays.equals(value, o.value)
-        case _ => false
+        case _             => false
       }
-    }
 
     override def hashCode(): Int =
       java.util.Arrays.hashCode(value)
