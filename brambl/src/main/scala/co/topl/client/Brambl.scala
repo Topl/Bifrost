@@ -60,11 +60,11 @@ object Brambl {
   def signTransaction[P <: Proposition: EvidenceProducer: Identifiable, TX <: Transaction[_, P]](
     addresses:   Set[Address],
     transaction: TX
-  )(f:           Address => Array[Byte] => Map[P, Proof[P]]): Either[RpcClientFailure, Transaction.TX] = {
+  )(f:           Address => Array[Byte] => ListMap[P, Proof[P]]): Either[RpcClientFailure, Transaction.TX] = {
 
     val msg2Sign = transaction.messageToSign
     val signFunc = (addr: Address) => f(addr)(msg2Sign)
-    val signatures = ListMap.from(addresses.map(signFunc).reduce(_ ++ _))
+    val signatures = addresses.map(signFunc).reduce(_ ++ _)
 
     // I know this is eliminated by erasure but unsure how to fix at the moment and I've already restrited
     // Brambl to only work with PublicKey props at the moment so this shouldn't fail.

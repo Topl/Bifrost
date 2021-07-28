@@ -3,6 +3,7 @@ package co.topl.utils
 import java.nio.charset.{Charset, StandardCharsets}
 import scala.reflect.ClassTag
 import scala.collection.compat.BuildFrom
+import scala.collection.immutable.{Iterable, ListMap}
 
 object Extensions {
 
@@ -125,4 +126,5 @@ object Extensions {
     def getValidUTF8Bytes: Option[Array[Byte]] = getValidBytes(s, StandardCharsets.UTF_8)
 
   }
+
 }
