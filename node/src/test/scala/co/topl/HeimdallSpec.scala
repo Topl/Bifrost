@@ -23,9 +23,9 @@ class HeimdallSpec
   it should "crash if a child actor crashes" in {
     val ref = spawn(
       Heimdall.apply(
-        settings.copy(forging =
-          // Setting `numTestnetAccts` to 0 results in a KeyManager exception
-          settings.forging.copy(privateTestnet = settings.forging.privateTestnet.map(_.copy(numTestnetAccts = 0)))
+        settings.copy(application =
+          // Setting `keyFileDir` to None results in a KeyManager exception
+          settings.application.copy(keyFileDir = None)
         ),
         appContext
       )

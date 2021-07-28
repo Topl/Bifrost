@@ -2,7 +2,7 @@ package co.topl
 
 import akka.actor.typed.scaladsl.adapter._
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, ActorSystem, Behavior, DispatcherSelector, PostStop}
+import akka.actor.typed._
 import akka.actor.{ActorRef => CActorRef}
 import akka.http.scaladsl.Http
 import akka.io.{IO, Tcp}
@@ -34,13 +34,17 @@ object Heimdall {
 
   sealed abstract class ReceivableMessage
 
-  private case object NodeViewHolderReady extends ReceivableMessage
+  object ReceivableMessages {
+    private[Heimdall] case object NodeViewHolderReady extends ReceivableMessage
+    private[Heimdall] case object NetworkControllerReady extends ReceivableMessage
 
-  private case object BindExternalTraffic extends ReceivableMessage
-  private case class P2PTrafficBound(address: InetSocketAddress) extends ReceivableMessage
+    private[Heimdall] case object BindExternalTraffic extends ReceivableMessage
+    private[Heimdall] case class P2PTrafficBound(address: InetSocketAddress) extends ReceivableMessage
 
-  private case class RPCTrafficBound(httpService: HttpService, binding: Http.ServerBinding) extends ReceivableMessage
-  case class Fail(throwable: Throwable) extends ReceivableMessage
+    private[Heimdall] case class RPCTrafficBound(httpService: HttpService, binding: Http.ServerBinding)
+        extends ReceivableMessage
+    case class Fail(throwable: Throwable) extends ReceivableMessage
+  }
 
   /**
    * A guardian behavior which creates all of the child actors needed to run Bifrost.
@@ -54,15 +58,18 @@ object Heimdall {
       protocolMngr = ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
       consensusStorage = ConsensusStorage(settings, appContext.networkType)
 
+      implicit val timeProvider: NetworkTimeProvider = new NetworkTimeProvider(settings.ntp)(context.system)
+
       context.log.info("Initializing KeyManager and NodeViewHolder")
-      val (keyManagerRef, nodeViewHolderRef, timeProvider) = prepareNodeViewActor(settings, appContext)
-      context.watch(keyManagerRef)
-      context.watch(nodeViewHolderRef)
-      context.pipeToSelf(new ActorNodeViewHolderInterface(nodeViewHolderRef).onReady()) {
-        case Failure(exception) => Fail(exception)
-        case Success(_)         => NodeViewHolderReady
+
+      val state = prepareKeyManagerAndNodeViewActors(settings, appContext)
+      context.watch(state.keyManager)
+      context.watch(state.nodeViewHolder)
+      context.pipeToSelf(new ActorNodeViewHolderInterface(state.nodeViewHolder).onReady()) {
+        case Failure(exception) => ReceivableMessages.Fail(exception)
+        case Success(_)         => ReceivableMessages.NodeViewHolderReady
       }
-      awaitingNodeViewReady(settings, appContext, keyManagerRef, nodeViewHolderRef)(timeProvider)
+      awaitingNodeViewReady(settings, appContext, state)(timeProvider)
     }
 
   /**
@@ -72,56 +79,70 @@ object Heimdall {
   private def awaitingNodeViewReady(
     settings:              AppSettings,
     appContext:            AppContext,
-    keyManagerRef:         CActorRef,
-    nodeViewRef:           ActorRef[NodeViewHolder.ReceivableMessage]
+    state:                 NodeViewHolderInitializingState
   )(implicit timeProvider: TimeProvider): Behavior[ReceivableMessage] =
     Behaviors.receivePartial {
-      case (context, NodeViewHolderReady) =>
+      case (context, ReceivableMessages.NodeViewHolderReady) =>
         implicit def ctx: ActorContext[ReceivableMessage] = context
-        context.log.info(
-          "Initializing PeerManager, NetworkController, Forger, MemPoolAuditor, PeerSynchronizer, and NodeViewSynchronizer"
-        )
-        val state = prepareActors(settings, appContext, keyManagerRef, nodeViewRef)
-
-        context.watch(state.forger)
-        context.watch(state.networkController)
-        context.watch(state.peerSynchronizer)
-        context.watch(state.nodeViewSynchronizer)
-        context.watch(state.mempoolAuditor)
-
-        context.self.tell(BindExternalTraffic)
-
-        withActors(settings, appContext, state)
-      case (_, Fail(throwable)) =>
+        context.log.info("Initializing PeerManager, NetworkController, Forger, and MemPoolAuditor")
+        val nextState = prepareNetworkControllerState(settings, appContext, state)
+        context.watch(nextState.forger)
+        context.watch(nextState.networkController)
+        context.watch(nextState.peerManager)
+        context.watch(nextState.mempoolAuditor)
+        context.self.tell(ReceivableMessages.NetworkControllerReady)
+        awaitingNetworkControllerReady(settings, appContext, nextState)
+      case (_, ReceivableMessages.Fail(throwable)) =>
         throw throwable
     }
+
+  private def awaitingNetworkControllerReady(
+    settings:              AppSettings,
+    appContext:            AppContext,
+    state:                 NetworkControllerInitializingState
+  )(implicit timeProvider: TimeProvider): Behavior[ReceivableMessage] = Behaviors.receivePartial {
+    case (context, ReceivableMessages.NetworkControllerReady) =>
+      context.log.info(
+        "Initializing PeerSynchronizer and NodeViewSynchronizer"
+      )
+      implicit def ctx: ActorContext[ReceivableMessage] = context
+
+      val nextState = prepareRemainingActors(settings, appContext, state)
+
+      context.watch(nextState.peerSynchronizer)
+      context.watch(nextState.nodeViewSynchronizer)
+
+      context.self.tell(ReceivableMessages.BindExternalTraffic)
+
+      awaitingBindExternalTraffic(settings, appContext, nextState)
+  }
 
   /**
    * The Heimdall state in which the child actors have been created but more initialization is needed.
    */
-  private def withActors(
+  private def awaitingBindExternalTraffic(
     settings:   AppSettings,
     appContext: AppContext,
-    state:      ChildActorState
+    state:      ActorsInitializedState
   ): Behavior[ReceivableMessage] =
     Behaviors.receivePartial {
-      case (context, BindExternalTraffic) =>
+      case (context, ReceivableMessages.BindExternalTraffic) =>
         implicit val bindTimeout: Timeout = Timeout(10.seconds)
         context.pipeToSelf(
           state.networkController.ask(NetworkController.ReceivableMessages.BindP2P).mapTo[Future[Tcp.Event]].flatten
         ) {
           case Success(Tcp.Bound(address)) =>
-            P2PTrafficBound(address)
+            ReceivableMessages.P2PTrafficBound(address)
           case Success(f: Tcp.CommandFailed) =>
-            Fail(f.cause.getOrElse(new IllegalArgumentException(f.toString())))
+            ReceivableMessages.Fail(f.cause.getOrElse(new IllegalArgumentException(f.toString())))
           case Success(f) =>
-            Fail(new IllegalArgumentException(f.toString))
+            ReceivableMessages.Fail(new IllegalArgumentException(f.toString))
           case Failure(exception) =>
-            Fail(exception)
+            ReceivableMessages.Fail(exception)
         }
         Behaviors.same
 
-      case (context, P2PTrafficBound(p2pAddress)) =>
+      case (context, ReceivableMessages.P2PTrafficBound(p2pAddress)) =>
         context.log.info(s"${Console.YELLOW}P2P protocol bound to $p2pAddress${Console.RESET}")
         val service =
           httpService(settings, appContext, state.keyManager, state.forger, state.nodeViewHolder)(context.system)
@@ -131,18 +152,18 @@ object Heimdall {
         /** trigger the HTTP server bind and check that the bind is successful. Terminate the application on failure */
         implicit val system: ActorSystem[_] = context.system
         context.pipeToSelf(Http().newServerAt(httpHost, httpPort).bind(service.compositeRoute)) {
-          case Success(binding)   => RPCTrafficBound(service, binding)
-          case Failure(exception) => Fail(exception)
+          case Success(binding)   => ReceivableMessages.RPCTrafficBound(service, binding)
+          case Failure(exception) => ReceivableMessages.Fail(exception)
         }
         Behaviors.same
 
-      case (context, RPCTrafficBound(_, binding)) =>
+      case (context, ReceivableMessages.RPCTrafficBound(_, binding)) =>
         context.log.info(s"${Console.YELLOW}HTTP server bound to ${binding.localAddress}${Console.RESET}")
 
         context.log.info("Bifrost initialized")
         running(State(state, binding))
 
-      case (_, Fail(reason)) =>
+      case (_, ReceivableMessages.Fail(reason)) =>
         throw reason
     }
 
@@ -152,7 +173,7 @@ object Heimdall {
    */
   private def running(state: State): Behavior[ReceivableMessage] =
     Behaviors
-      .receivePartial[ReceivableMessage] { case (_, Fail(throwable)) =>
+      .receivePartial[ReceivableMessage] { case (_, ReceivableMessages.Fail(throwable)) =>
         throw throwable
       }
       .receiveSignal { case (_, PostStop) =>
@@ -160,7 +181,21 @@ object Heimdall {
         Behaviors.same
       }
 
-  private case class ChildActorState(
+  private case class NodeViewHolderInitializingState(
+    keyManager:     CActorRef,
+    nodeViewHolder: ActorRef[NodeViewHolder.ReceivableMessage]
+  )
+
+  private case class NetworkControllerInitializingState(
+    keyManager:        CActorRef,
+    nodeViewHolder:    ActorRef[NodeViewHolder.ReceivableMessage],
+    peerManager:       CActorRef,
+    networkController: CActorRef,
+    forger:            ActorRef[Forger.ReceivableMessage],
+    mempoolAuditor:    CActorRef
+  )
+
+  private case class ActorsInitializedState(
     peerManager:          CActorRef,
     networkController:    CActorRef,
     keyManager:           CActorRef,
@@ -172,7 +207,7 @@ object Heimdall {
   )
 
   private case class State(
-    childActorState: ChildActorState,
+    childActorState: ActorsInitializedState,
     httpBinding:     Http.ServerBinding
   )
 
@@ -217,12 +252,12 @@ object Heimdall {
     HttpService(settings.rpcApi, bifrostRpcServer)
   }
 
-  private def prepareNodeViewActor(settings: AppSettings, appContext: AppContext)(implicit
-    context:                                 ActorContext[ReceivableMessage]
-  ): (CActorRef, ActorRef[NodeViewHolder.ReceivableMessage], TimeProvider) = {
+  private def prepareKeyManagerAndNodeViewActors(settings: AppSettings, appContext: AppContext)(implicit
+    context:                                               ActorContext[ReceivableMessage],
+    timeProvider:                                          TimeProvider
+  ): NodeViewHolderInitializingState = {
     import context.executionContext
     implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
-    implicit val timeProvider: NetworkTimeProvider = new NetworkTimeProvider(settings.ntp)(context.system)
 
     val keyManagerRef = context.actorOf(KeyManagerRef.props(settings, appContext), KeyManager.actorName)
 
@@ -246,24 +281,22 @@ object Heimdall {
       )
     }
 
-    (keyManagerRef, nodeViewHolderRef, timeProvider)
-
+    NodeViewHolderInitializingState(keyManagerRef, nodeViewHolderRef)
   }
 
-  private def prepareActors(
-    settings:          AppSettings,
-    appContext:        AppContext,
-    keyManagerRef:     CActorRef,
-    nodeViewHolderRef: ActorRef[NodeViewHolder.ReceivableMessage]
+  private def prepareNetworkControllerState(
+    settings:   AppSettings,
+    appContext: AppContext,
+    state:      NodeViewHolderInitializingState
   )(implicit
     context:      ActorContext[ReceivableMessage],
     timeProvider: TimeProvider
-  ): ChildActorState = {
+  ): NetworkControllerInitializingState = {
 
     import context.executionContext
 
-    implicit val system: ActorSystem[_] = context.system
-    implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
+    implicit def system: ActorSystem[_] = context.system
+    implicit def networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
     val peerManager = context.actorOf(PeerManagerRef.props(settings, appContext), PeerManager.actorName)
     val networkController = context.actorOf(
@@ -277,39 +310,58 @@ object Heimdall {
           settings.forging.blockGenerationDelay,
           settings.forging.minTransactionFee,
           settings.forging.forgeOnStartup,
-          () => (keyManagerRef ? KeyManager.ReceivableMessages.GetKeyView).mapTo[KeyView],
+          () => (state.keyManager ? KeyManager.ReceivableMessages.GetKeyView).mapTo[KeyView],
           () =>
-            (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
+            (state.keyManager ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
               .mapTo[Try[StartupKeyView]]
               .flatMap(Future.fromTry),
-          new ActorNodeViewHolderInterface(nodeViewHolderRef)
+          new ActorNodeViewHolderInterface(state.nodeViewHolder)
         ),
         Forger.ActorName
       )
     }
 
     val mempoolAuditor = context.actorOf(
-      MempoolAuditorRef.props(settings, appContext, nodeViewHolderRef, networkController),
+      MempoolAuditorRef.props(settings, appContext, state.nodeViewHolder, networkController),
       MempoolAuditor.actorName
     )
 
+    NetworkControllerInitializingState(
+      state.keyManager,
+      state.nodeViewHolder,
+      peerManager,
+      networkController,
+      forgerRef,
+      mempoolAuditor
+    )
+  }
+
+  private def prepareRemainingActors(
+    settings:   AppSettings,
+    appContext: AppContext,
+    state:      NetworkControllerInitializingState
+  )(implicit
+    context:      ActorContext[ReceivableMessage],
+    timeProvider: TimeProvider
+  ): ActorsInitializedState = {
+
     val peerSynchronizer = context.actorOf(
-      PeerSynchronizerRef.props(networkController, peerManager, settings, appContext),
+      PeerSynchronizerRef.props(state.networkController, state.peerManager, settings, appContext),
       PeerSynchronizer.actorName
     )
 
     val nodeViewSynchronizer = context.actorOf(
-      NodeViewSynchronizerRef.props(networkController, nodeViewHolderRef, settings, appContext),
+      NodeViewSynchronizerRef.props(state.networkController, state.nodeViewHolder, settings, appContext),
       NodeViewSynchronizer.actorName
     )
 
-    ChildActorState(
-      peerManager,
-      networkController,
-      keyManagerRef,
-      forgerRef,
-      nodeViewHolderRef,
-      mempoolAuditor,
+    ActorsInitializedState(
+      state.peerManager,
+      state.networkController,
+      state.keyManager,
+      state.forger,
+      state.nodeViewHolder,
+      state.mempoolAuditor,
       peerSynchronizer,
       nodeViewSynchronizer
     )

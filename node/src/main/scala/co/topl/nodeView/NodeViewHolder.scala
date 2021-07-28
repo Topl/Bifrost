@@ -4,7 +4,7 @@ import akka.Done
 import akka.actor.typed.eventstream.EventStream
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl._
-import akka.actor.typed.{ActorRef, ActorSystem, _}
+import akka.actor.typed._
 import akka.pattern.StatusReply
 import akka.util.Timeout
 import cats.Show
@@ -14,7 +14,6 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
 import co.topl.modifier.transaction.Transaction
-import co.topl.modifier.transaction.Transaction.TX
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.history.{GenericHistory, History}
@@ -24,7 +23,7 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider
 import co.topl.utils.actors.SortedCache
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.Future
 import scala.util.Try
 
 /**
@@ -156,7 +155,7 @@ object NodeViewHolder {
 
   final private val UninitializedStashSize = 150
 
-  implicit private val blockOrdering: Ordering[Block] = (a, b) => a.height.compareTo(b.height)
+  implicit private val blockOrdering: Ordering[Block] = Ordering.by(_.height)
 
   implicit private val blockShow: Show[Block] = block => s"blockId=${block.id}"
 
@@ -286,44 +285,6 @@ object NodeViewHolderInterface {
   case class ReadFailure(reason: Throwable)
   case class ApplyFailure(reason: Throwable)
   case class UnapplyFailure(reason: Throwable)
-}
-
-/**
- * A NodeViewHolderInterface that waits for a NodeViewHolder#serviceKey is available in the Receptionist
- * @param system An ActorSystem in which a NodeViewHolder actor will be initialized
- */
-class DelayedNodeViewHolderInterface(implicit system: ActorSystem[_]) extends NodeViewHolderInterface {
-  import akka.actor.typed.scaladsl.AskPattern._
-  import system.executionContext
-
-  private val refPromise: Promise[NodeViewHolderInterface] = {
-    import scala.concurrent.duration._
-    implicit val timeout: Timeout = Timeout(2.seconds)
-    Promise().completeWith(
-      system.receptionist
-        .ask[Receptionist.Listing](Receptionist.Subscribe(NodeViewHolder.serviceKey, _))
-        .map(_.serviceInstances(NodeViewHolder.serviceKey).head)
-        .map(new ActorNodeViewHolderInterface(_))
-    )
-  }
-
-  override def withNodeView[T](f: ReadableNodeView => T): EitherT[Future, NodeViewHolderInterface.ReadFailure, T] =
-    EitherT.liftF(refPromise.future).flatMap(_.withNodeView(f))
-
-  override def applyBlocks(blocks: Iterable[Block]): EitherT[Future, NodeViewHolderInterface.ApplyFailure, Done] =
-    EitherT.liftF(refPromise.future).flatMap(_.applyBlocks(blocks))
-
-  override def applyTransactions(tx: TX): EitherT[Future, NodeViewHolderInterface.ApplyFailure, Done] =
-    EitherT.liftF(refPromise.future).flatMap(_.applyTransactions(tx))
-
-  override def unapplyTransactions(
-    transactionIds: Iterable[ModifierId]
-  ): EitherT[Future, NodeViewHolderInterface.UnapplyFailure, Done] =
-    EitherT.liftF(refPromise.future).flatMap(_.unapplyTransactions(transactionIds))
-
-  override def onReady(): Future[Done] =
-    refPromise.future.flatMap(_.onReady())
-
 }
 
 /**

@@ -9,14 +9,14 @@ import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.{EitherValues, Ignore, Inspectors}
+import org.scalatest.{DoNotDiscover, EitherValues, Inspectors}
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
 // NOTE: This test currently fails because block difficulties diverge between nodes.  When nodes re-join, the blocks
 // can't be properly appended.
-@Ignore
+@DoNotDiscover
 class ChainSelectionTest
     extends AnyFreeSpec
     with Matchers
@@ -29,7 +29,7 @@ class ChainSelectionTest
   private val maxStake = 200000000000000000L
 
   val nodeCount: Int = 4
-  val initialForgeCountTarget: Int128 = 5
+  val initialForgeCountTarget: Int128 = 50
   val syncedForgeDuration: FiniteDuration = 10.seconds
   val seed: String = "ChainSelectionTest" + System.currentTimeMillis()
 

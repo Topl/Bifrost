@@ -62,28 +62,30 @@ object SortedCache {
     onEvict:      T => Unit
   ) {
 
-    def append(others: IterableOnce[T]): Impl[T] =
-      copy(
-        (items ++ others.iterator.map(PoppableItem(_, 0))).sorted
-      )
+    def append(others: IterableOnce[T]): Impl[T] = {
+      val (finalItems, sizeEvicted) =
+        (items ++ others.iterator.map(PoppableItem(_, 0))).sorted.splitAt(itemLimit)
+      sizeEvicted.map(_.item).foreach(onEvict)
+      copy(finalItems)
+    }
 
     def pop(isViable: T => Boolean): (Impl[T], Option[T]) =
       items.indexWhere(poppableBlock => isViable(poppableBlock.item)) match {
         case -1 =>
-          (copy(items.map(_.incremented).filterNot(_.poppedCount >= itemPopLimit)), None)
+          val incremented =
+            items.map(_.incremented)
+          val (popLimitNonEvicted, popLimitEvicted) =
+            incremented.partition(_.poppedCount < itemPopLimit)
+          popLimitEvicted.map(_.item).foreach(onEvict)
+          (copy(popLimitNonEvicted), None)
         case index =>
-          val (popped, candidate, unpopped) = {
-            val (a, b) = items.splitAt(index)
-            (a, b.head, b.tail)
-          }
+          val (popped, candidate :: unpopped) =
+            items.splitAt(index)
           val incremented =
             popped.map(_.incremented)
-          val (popLimitNonEvicted, popLimitEvicted) =
-            incremented.partition(_.poppedCount >= itemPopLimit)
-
-          val (finalItems, sizeEvicted) =
-            (popLimitNonEvicted ++ unpopped).splitAt(itemLimit - 1)
-          (popLimitEvicted ++ sizeEvicted).map(_.item).foreach(onEvict)
+          val (finalItems, popLimitEvicted) =
+            (incremented ++ unpopped).partition(_.poppedCount < itemPopLimit)
+          popLimitEvicted.map(_.item).foreach(onEvict)
           (
             copy(finalItems),
             Some(candidate.item)
