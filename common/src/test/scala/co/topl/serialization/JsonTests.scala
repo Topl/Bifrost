@@ -21,23 +21,17 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 class JsonTests extends AnyPropSpec with Matchers with ScalaCheckDrivenPropertyChecks with CommonGenerators {
 
-  property("PublicKeyPropositionCurve25519 json") {
+  property("PublicKeyProposition json") {
     forAll(propositionCurve25519Gen)(prop => prop.asJson.as[PublicKeyPropositionCurve25519] shouldEqual Right(prop))
-  }
-
-  property("PublicKeyPropositionEd25519 json") {
     forAll(propositionEd25519Gen)(prop => prop.asJson.as[PublicKeyPropositionEd25519] shouldEqual Right(prop))
   }
 
-  property("SignatureCurve25519 json") {
+  property("Signature json") {
     forAll(signatureCurve25519Gen)(sig => sig.asJson.as[SignatureCurve25519] shouldEqual Right(sig))
-  }
-
-  property("SignatureEd25519 json") {
     forAll(signatureEd25519Gen)(sig => sig.asJson.as[SignatureEd25519] shouldEqual Right(sig))
   }
 
-  property("KeyfileCurve25519 json") {
+  property("Keyfile json") {
     forAll(keyCurve25519Gen) { key =>
       val keyfile = KeyfileCurve25519Companion.encryptSecret(key._1, "test")
       keyfile.asJson.as[KeyfileCurve25519] match {
@@ -50,9 +44,7 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckDrivenPropertyC
         case Left(e) => e
       }
     }
-  }
 
-  property("KeyfileEd25519 json") {
     forAll(keyEd25519Gen) { key =>
       val keyfile = KeyfileEd25519Companion.encryptSecret(key._1, "test")
       keyfile.asJson.as[KeyfileEd25519] match {
@@ -128,11 +120,11 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckDrivenPropertyC
   }
 
   property("FullBlock json") {
-    forAll(blockGen)(block => block.asJson.as[Block] shouldEqual Right(block))
+    forAll(blockCurve25519Gen)(block => block.asJson.as[Block] shouldEqual Right(block))
   }
 
   property("BlockHeader json") {
-    forAll(blockGen) { block =>
+    forAll(blockCurve25519Gen) { block =>
       val header = block.toComponents._1
       header.asJson.as[BlockHeader] match {
         case Right(value) =>
@@ -154,13 +146,13 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckDrivenPropertyC
   }
 
   property("BlockBody json") {
-    forAll(blockGen) { block =>
+    forAll(blockCurve25519Gen) { block =>
       val body = block.toComponents._2
       body.asJson.as[BlockBody] shouldEqual Right(body)
     }
   }
 
   property("BloomFilter json") {
-    forAll(blockGen)(block => block.bloomFilter.asJson.as[BloomFilter] shouldEqual Right(block.bloomFilter))
+    forAll(blockCurve25519Gen)(block => block.bloomFilter.asJson.as[BloomFilter] shouldEqual Right(block.bloomFilter))
   }
 }

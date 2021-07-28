@@ -22,7 +22,7 @@ class BifrostHistorySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
     var ids: Seq[ModifierId] = Seq()
 
     /* Apply blocks and ensure that they are stored */
-    forAll(blockGen) { blockTemp =>
+    forAll(blockCurve25519Gen) { blockTemp =>
       val block = blockTemp.copy(parentId = history.bestBlockId)
 
       history = history.append(block).get._1

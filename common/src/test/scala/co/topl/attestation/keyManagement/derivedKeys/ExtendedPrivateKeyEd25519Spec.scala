@@ -105,7 +105,7 @@ class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
 
         val signature = privateKey.sign(messageToSign)
 
-        val isValidSignature = ed25519.verify(signature.sig, messageToSign, publicKey)
+        val isValidSignature = ed25519.verify(signature.sigBytes, messageToSign, publicKey)
 
         isValidSignature shouldBe true
       }
@@ -123,7 +123,7 @@ class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
 
     val ec = new Ed25519
 
-    val isValid = ec.verify(signature.sig, message, publicKey)
+    val isValid = ec.verify(signature.sigBytes, message, publicKey)
 
     isValid shouldBe true
   }
@@ -139,7 +139,7 @@ class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
 
     val ec = new Ed25519
 
-    val isValid = ec.verify(signature.sig, message, publicKey)
+    val isValid = ec.verify(signature.sigBytes, message, publicKey)
 
     isValid shouldBe true
   }

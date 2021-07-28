@@ -2,7 +2,7 @@ package co.topl.modifier.transaction.validation
 
 import cats.data.NonEmptyChain
 import cats.scalatest.{ValidatedMatchers, ValidatedNecMatchers}
-import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
+import co.topl.attestation.{Address, Proposition, PublicKeyPropositionCurve25519, PublicKeyPropositionEd25519}
 import co.topl.modifier.box._
 import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.validation.implicits._
@@ -24,16 +24,42 @@ class TransactionValidationSpec
     with ValidatedMatchers
     with ValidatedNecMatchers {
 
-  type TransferTx = TransferTransaction[TokenValueHolder, PublicKeyPropositionCurve25519]
+  type TransferTx = TransferTransaction[TokenValueHolder, _ <: Proposition]
 
   property("Randomly generated AssetTransfer Tx should be valid") {
-    forAll(validAssetTransfer(keyRingCurve25519, genesisState, minting = true)) { tx =>
+    forAll(validAssetTransferGen(keyRingCurve25519, keyRingEd25519, genesisState, minting = true)) { tx =>
       tx.syntacticValidation should beValid[TransferTx](tx)
     }
   }
 
   property("AssetTransfer with minting = true should fail if no PolyBoxes are provided") {
-    val gen = validAssetTransfer(keyRingCurve25519, genesisState, fee = 0, minting = true).map { tx =>
+    val genCurve25519 = validAssetTransferCurve25519Gen(keyRingCurve25519, genesisState, fee = 0, minting = true).map {
+      tx =>
+        val fromWithoutPolys: IndexedSeq[(Address, Box.Nonce)] = tx.from
+          .map { case (address, nonce) =>
+            val boxId = BoxId.idFromEviNonce(address.evidence, nonce)
+            val box = genesisState.getBox(boxId).get
+            (address, nonce, box)
+          }
+          .collect { case (address, nonce, _: AssetBox) =>
+            (address, nonce)
+          }
+
+        val noPolyRawTx = tx.copy(from = fromWithoutPolys)
+        val sender = keyRingCurve25519.addresses.head
+        noPolyRawTx.copy(attestation =
+          Transaction.updateAttestation(noPolyRawTx)(keyRingCurve25519.generateAttestation(sender))
+        )
+    }
+    forAll(genCurve25519)(tx =>
+      tx.semanticValidation(genesisState) should haveInvalidC[SemanticValidationFailure](
+        SyntacticSemanticValidationFailure(
+          NonEmptyChain(NoInputBoxesSpecified)
+        )
+      )
+    )
+
+    val genEd25519 = validAssetTransferEd25519Gen(keyRingEd25519, genesisState, fee = 0, minting = true).map { tx =>
       val fromWithoutPolys: IndexedSeq[(Address, Box.Nonce)] = tx.from
         .map { case (address, nonce) =>
           val boxId = BoxId.idFromEviNonce(address.evidence, nonce)
@@ -45,12 +71,12 @@ class TransactionValidationSpec
         }
 
       val noPolyRawTx = tx.copy(from = fromWithoutPolys)
-      val sender = keyRingCurve25519.addresses.head
+      val sender = keyRingEd25519.addresses.head
       noPolyRawTx.copy(attestation =
-        Transaction.updateAttestation(noPolyRawTx)(keyRingCurve25519.generateAttestation(sender))
+        Transaction.updateAttestation(noPolyRawTx)(keyRingEd25519.generateAttestation(sender))
       )
     }
-    forAll(gen)(tx =>
+    forAll(genEd25519)(tx =>
       tx.semanticValidation(genesisState) should haveInvalidC[SemanticValidationFailure](
         SyntacticSemanticValidationFailure(
           NonEmptyChain(NoInputBoxesSpecified)
@@ -70,7 +96,7 @@ class TransactionValidationSpec
   }
 
   property("Randomly generated ArbitTransfer Tx should be valid") {
-    forAll(validArbitTransfer(keyRingCurve25519, genesisState)) { tx =>
+    forAll(validArbitTransferGen(keyRingCurve25519, keyRingEd25519, genesisState)) { tx =>
       tx.syntacticValidation should beValid[TransferTx](tx)
     }
   }
@@ -85,8 +111,8 @@ class TransactionValidationSpec
   }
 
   property("ArbitTransfer should fail if no PolyBoxes are provided") {
-    val gen =
-      validArbitTransfer(keyRingCurve25519, genesisState, fee = 0)
+    val genCurve25519 =
+      validArbitTransferCurve25519Gen(keyRingCurve25519, genesisState, fee = 0)
         .map { tx =>
           val fromWithoutPolys: IndexedSeq[(Address, Box.Nonce)] = tx.from
             .map { case (address, nonce) =>
@@ -101,7 +127,33 @@ class TransactionValidationSpec
           signTx(tx.copy(from = fromWithoutPolys))
 
         }
-    forAll(gen) { tx =>
+    forAll(genCurve25519) { tx =>
+      tx.semanticValidation(genesisState) should haveInvalidC[SemanticValidationFailure](
+        InputFeeChangeOutputUnequalNonMinting(
+          1000000,
+          0,
+          0
+        )
+      )
+    }
+
+    val genEd25519 =
+      validArbitTransferEd25519Gen(keyRingEd25519, genesisState, fee = 0)
+        .map { tx =>
+          val fromWithoutPolys: IndexedSeq[(Address, Box.Nonce)] = tx.from
+            .map { case (address, nonce) =>
+              val boxId = BoxId.idFromEviNonce(address.evidence, nonce)
+              val box = genesisState.getBox(boxId).get
+              (address, nonce, box)
+            }
+            .collect { case (address, nonce, _: ArbitBox) =>
+              (address, nonce)
+            }
+
+          signTx(tx.copy(from = fromWithoutPolys))
+
+        }
+    forAll(genEd25519) { tx =>
       tx.semanticValidation(genesisState) should haveInvalidC[SemanticValidationFailure](
         InputFeeChangeOutputUnequalNonMinting(
           1000000,
@@ -114,7 +166,7 @@ class TransactionValidationSpec
 
   property("Transactions created on a specific network should not be accepted on any other network") {
     val otherNetworks = NetworkType.all.filterNot(_ == PrivateTestnet)
-    forAll(validAssetTransfer(keyRingCurve25519, genesisState, minting = true)) { tx =>
+    forAll(validAssetTransferGen(keyRingCurve25519, keyRingEd25519, genesisState, minting = true)) { tx =>
       otherNetworks.foreach { netType =>
         tx.syntacticValidation(netType.netPrefix) should haveInvalidC[SyntacticValidationFailure](
           MintingMissingIssuersSignature
@@ -125,7 +177,7 @@ class TransactionValidationSpec
   }
 
   property("Generated PolyTransfer Tx should be valid") {
-    forAll(validPolyTransfer(keyRingCurve25519, genesisState)) { tx =>
+    forAll(validPolyTransferGen(keyRingCurve25519, keyRingEd25519, genesisState)) { tx =>
       tx.syntacticValidation should beValid[TransferTx](tx)
     }
   }
@@ -139,45 +191,96 @@ class TransactionValidationSpec
   }
 
   property("Transaction with negative fee should be invalid") {
-    forAll(validPolyTransfer(keyRingCurve25519, genesisState).map(tx => signTx(tx.copy(fee = -1)))) { tx =>
+    forAll(validPolyTransferCurve25519Gen(keyRingCurve25519, genesisState).map(tx => signTx(tx.copy(fee = -1)))) { tx =>
+      tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](NegativeFeeFailure)
+    }
+
+    forAll(validPolyTransferEd25519Gen(keyRingEd25519, genesisState).map(tx => signTx(tx.copy(fee = -1)))) { tx =>
       tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](NegativeFeeFailure)
     }
   }
 
   property("Transaction with negative timestamp should be invalid") {
-    forAll(validPolyTransfer(keyRingCurve25519, genesisState).map(tx => signTx(tx.copy(timestamp = -1)))) { tx =>
+    forAll(
+      validPolyTransferCurve25519Gen(keyRingCurve25519, genesisState).map(tx => signTx(tx.copy(timestamp = -1)))
+    ) { tx =>
+      tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](InvalidTimestamp)
+    }
+
+    forAll(validPolyTransferEd25519Gen(keyRingEd25519, genesisState).map(tx => signTx(tx.copy(timestamp = -1)))) { tx =>
       tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](InvalidTimestamp)
     }
   }
 
   property("Transaction with non-latin1 data should be invalid") {
     val data = "ˇ"
-    forAll(validPolyTransfer(keyRingCurve25519, genesisState).map(tx => signTx(tx.copy(data = Some(data))))) { tx =>
+
+    forAll(
+      validPolyTransferCurve25519Gen(keyRingCurve25519, genesisState).map(tx => signTx(tx.copy(data = Some(data))))
+    ) { tx =>
+      tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](DataNotLatin1)
+    }
+
+    forAll(
+      validPolyTransferEd25519Gen(keyRingEd25519, genesisState).map(tx => signTx(tx.copy(data = Some(data))))
+    ) { tx =>
       tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](DataNotLatin1)
     }
   }
 
   property("Transaction with data length > 128 bytes should be invalid") {
     val data = Random.alphanumeric.take(512).mkString
+
     forAll(
-      validPolyTransfer(keyRingCurve25519, genesisState).map(tx => signTx(tx.copy(data = Some(data))))
+      validPolyTransferCurve25519Gen(keyRingCurve25519, genesisState).map(tx => signTx(tx.copy(data = Some(data))))
+    ) { tx =>
+      tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](DataTooLong)
+    }
+
+    forAll(
+      validPolyTransferEd25519Gen(keyRingEd25519, genesisState).map(tx => signTx(tx.copy(data = Some(data))))
     ) { tx =>
       tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](DataTooLong)
     }
   }
 
-  private def signTx(tx: PolyTransfer[PublicKeyPropositionCurve25519]): PolyTransfer[PublicKeyPropositionCurve25519] =
+  private def signTx(
+    tx: PolyTransfer[PublicKeyPropositionCurve25519]
+  ): PolyTransfer[PublicKeyPropositionCurve25519] =
     tx.copy(attestation =
       Transaction.updateAttestation(tx)(keyRingCurve25519.generateAttestation(tx.from.map(_._1).toSet))
     )
 
-  private def signTx(tx: ArbitTransfer[PublicKeyPropositionCurve25519]): ArbitTransfer[PublicKeyPropositionCurve25519] =
+  private def signTx(tx: => PolyTransfer[PublicKeyPropositionEd25519]): PolyTransfer[PublicKeyPropositionEd25519] =
+    tx.copy(attestation =
+      Transaction.updateAttestation(tx)(keyRingEd25519.generateAttestation(tx.from.map(_._1).toSet))
+    )
+
+  private def signTx(
+    tx: ArbitTransfer[PublicKeyPropositionCurve25519]
+  ): ArbitTransfer[PublicKeyPropositionCurve25519] =
     tx.copy(attestation =
       Transaction.updateAttestation(tx)(keyRingCurve25519.generateAttestation(tx.from.map(_._1).toSet))
     )
 
-  private def signTx(tx: AssetTransfer[PublicKeyPropositionCurve25519]): AssetTransfer[PublicKeyPropositionCurve25519] =
+  private def signTx(
+    tx: => ArbitTransfer[PublicKeyPropositionEd25519]
+  ): ArbitTransfer[PublicKeyPropositionEd25519] =
+    tx.copy(attestation =
+      Transaction.updateAttestation(tx)(keyRingEd25519.generateAttestation(tx.from.map(_._1).toSet))
+    )
+
+  private def signTx(
+    tx: AssetTransfer[PublicKeyPropositionCurve25519]
+  ): AssetTransfer[PublicKeyPropositionCurve25519] =
     tx.copy(attestation =
       Transaction.updateAttestation(tx)(keyRingCurve25519.generateAttestation(tx.from.map(_._1).toSet))
+    )
+
+  private def signTx(
+    tx: => AssetTransfer[PublicKeyPropositionEd25519]
+  ): AssetTransfer[PublicKeyPropositionEd25519] =
+    tx.copy(attestation =
+      Transaction.updateAttestation(tx)(keyRingEd25519.generateAttestation(tx.from.map(_._1).toSet))
     )
 }

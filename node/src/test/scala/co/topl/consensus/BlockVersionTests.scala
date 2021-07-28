@@ -40,7 +40,7 @@ class BlockVersionTests extends MockState with GenesisBlockGenerators {
     val blocksCount: Int = blocksToAppend + 1 // with genesis block
 
     for (_ <- 1 to blocksToAppend) {
-      val oneBlock: Block = blockGen.sample.get.copy(
+      val oneBlock: Block = blockCurve25519Gen.sample.get.copy(
         parentId = history.bestBlockId,
         transactions = Seq(),
         version = blockVersion(history.height + 1)

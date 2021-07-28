@@ -22,7 +22,7 @@ class BlockValidatorSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
   }
 
   property("A block with a timestamp older than its parent should never result in a hit") {
-    forAll(blockGen) { blockTemp =>
+    forAll(blockCurve25519Gen) { blockTemp =>
       val block = blockTemp.copy(parentId = history.bestBlockId)
       val nextBlock = block.copy(timestamp = block.timestamp - 1, parentId = block.id)
       val newHistory = history.append(block).get._1
