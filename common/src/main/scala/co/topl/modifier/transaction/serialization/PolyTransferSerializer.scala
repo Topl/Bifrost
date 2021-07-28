@@ -4,10 +4,9 @@ import co.topl.attestation._
 import co.topl.attestation.serialization.{ProofSerializer, PropositionSerializer}
 import co.topl.modifier.box.{AssetValue, SimpleValue, TokenValueHolder}
 import co.topl.modifier.transaction.PolyTransfer
-import co.topl.utils.Extensions._
 import co.topl.utils.Int128
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
-import co.topl.utils.Extensions.IterableOps
+import co.topl.utils.Extensions._
 
 import scala.collection.immutable.ListMap
 import scala.language.existentials
@@ -75,11 +74,11 @@ object PolyTransferSerializer extends BifrostSerializer[PolyTransfer[_ <: Propos
     }
 
     val signaturesLength: Int = r.getUInt().toIntExact
-    val signatures = (0 until signaturesLength).map { _ =>
+    val signatures = ListMap((0 until signaturesLength).map { _ =>
       val prop = PropositionSerializer.parse(r)
       val sig = ProofSerializer.parse(r)
       prop -> sig
-    }.toListMap
+    }: _*)
 
     val fee: Int128 = r.getInt128()
     val timestamp: Long = r.getULong()
