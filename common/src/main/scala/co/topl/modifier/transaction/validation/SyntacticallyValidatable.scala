@@ -7,7 +7,6 @@ import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.attestation.Proposition
 import co.topl.modifier.box._
 import co.topl.modifier.transaction._
-import co.topl.utils.Extensions.StringOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import simulacrum._
 
@@ -165,23 +164,7 @@ class TransferTransactionSyntacticallyValidatable[T <: TokenValueHolder, P <: Pr
               tx.to.forall {
                 _._2 match {
                   case assetValue: AssetValue =>
-                    assetValue.metadata.forall(_.getValidLatin1Bytes match {
-                      case Some(_) => true
-                      case None    => false
-                    })
-                  case _ => true
-                }
-              },
-              tx,
-              MetadataNotLatin1
-            )
-          )
-          .combine(
-            Validated.condNec(
-              tx.to.forall {
-                _._2 match {
-                  case assetValue: AssetValue =>
-                    assetValue.metadata.forall(_.length <= 127)
+                    assetValue.metadata.forall(_.value.length <= 127)
                   case _ => true
                 }
               },
@@ -196,9 +179,7 @@ class TransferTransactionSyntacticallyValidatable[T <: TokenValueHolder, P <: Pr
   ): ValidatedNec[SyntacticValidationFailure, TransferTransaction[T, P]] =
     tx.data.fold(tx.validNec[SyntacticValidationFailure])(data =>
       Validated
-        .fromOption(data.getValidLatin1Bytes, DataNotLatin1)
-        .toValidatedNec[SyntacticValidationFailure, Array[Byte]]
-        .andThen(bytes => Validated.condNec(bytes.length <= 127, tx, DataTooLong))
+        .condNec(data.value.length <= 127, tx, DataTooLong)
     )
 
   private[transaction] def propositionSatisfiedValidation(
@@ -280,9 +261,7 @@ case object NegativeFeeFailure extends SyntacticValidationFailure
 case object NoInputBoxesSpecified extends SyntacticValidationFailure
 case object InvalidSendAmount extends SyntacticValidationFailure
 case object InvalidTimestamp extends SyntacticValidationFailure
-case object DataNotLatin1 extends SyntacticValidationFailure
 case object DataTooLong extends SyntacticValidationFailure
-case object MetadataNotLatin1 extends SyntacticValidationFailure
 case object MetadataTooLong extends SyntacticValidationFailure
 case object UnsatisfiedProposition extends SyntacticValidationFailure
 case object PropositionEvidenceMismatch extends SyntacticValidationFailure

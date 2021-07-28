@@ -6,14 +6,15 @@ import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.TransferTransaction.{encodeFrom, BoxParams, TransferCreationState}
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.codecs.Int128Codec
+import co.topl.utils.codecs.implicits._
 import co.topl.utils.{Identifiable, Identifier, Int128}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 
 import java.time.Instant
 import scala.util.Try
-import scala.Iterable
 
 case class ArbitTransfer[
   P <: Proposition: EvidenceProducer: Identifiable
@@ -23,7 +24,7 @@ case class ArbitTransfer[
   override val attestation: Map[P, Proof[P]],
   override val fee:         Int128,
   override val timestamp:   Long,
-  override val data:        Option[String] = None,
+  override val data:        Option[Latin1Data] = None,
   override val minting:     Boolean
 ) extends TransferTransaction[SimpleValue, P](from, to, attestation, fee, timestamp, data, minting) {
 
@@ -71,7 +72,7 @@ object ArbitTransfer {
     changeAddress:        Address,
     consolidationAddress: Address,
     fee:                  Int128,
-    data:                 Option[String]
+    data:                 Option[Latin1Data]
   ): Try[ArbitTransfer[P]] =
     TransferTransaction
       .getSenderBoxesAndCheckPolyBalance(boxReader, sender, fee, "Arbits")
@@ -141,7 +142,7 @@ object ArbitTransfer {
         to        <- c.downField("to").as[IndexedSeq[(Address, SimpleValue)]]
         fee       <- c.get[Int128]("fee")(Int128Codec.jsonDecoder)
         timestamp <- c.downField("timestamp").as[Long]
-        data      <- c.downField("data").as[Option[String]]
+        data      <- c.downField("data").as[Option[Latin1Data]]
         propType  <- c.downField("propositionType").as[String]
         minting   <- c.downField("minting").as[Boolean]
       } yield (propType match {

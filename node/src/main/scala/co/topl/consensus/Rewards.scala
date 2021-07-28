@@ -5,6 +5,7 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.box.SimpleValue
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.utils.Int128
+import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.TimeProvider.Time
 
 import scala.util.Try
@@ -23,7 +24,8 @@ object ArbitReward {
       Map[PublicKeyPropositionCurve25519, SignatureCurve25519](),
       fee,
       forgeTime,
-      Some(parentId.toString + "_"), // the underscore is for letting miners add their own message in the future
+      // the underscore is for letting miners add their own message in the future
+      Some(Latin1Data.unsafe(parentId.toString + "_")),
       minting = true
     )
 }
@@ -43,7 +45,8 @@ object PolyReward {
       Map[PublicKeyPropositionCurve25519, SignatureCurve25519](),
       fee,
       forgeTime,
-      Some(parentId.toString + "_"), // the underscore is for letting miners add their own message in the future
+      // the underscore is for letting miners add their own message in the future
+      Some(Latin1Data.unsafe(parentId.toString + "_")),
       minting = true
     )
 }

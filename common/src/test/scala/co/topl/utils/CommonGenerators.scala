@@ -38,6 +38,8 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
 
   lazy val dataStringGen: Gen[String] = Gen.alphaNumStr.suchThat(data => data.length <= 127 && data.nonEmpty)
 
+  lazy val latin1DataGen: Gen[Latin1Data] = dataStringGen.map(Latin1Data.unsafe)
+
   lazy val shortNameGen: Gen[String] = for {
     n   <- Gen.choose(0, AssetCode.shortNameLimit)
     str <- Gen.listOfN(n, Gen.alphaNumChar).map(_.mkString)
@@ -139,7 +141,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     //assetVersion <- Arbitrary.arbitrary[Byte]
     shortName <- shortNameGen
     issuer    <- addressGen
-    data      <- dataStringGen
+    data      <- latin1DataGen
   } yield {
     // TODO: Hard coded as 1, but change this to arbitrary in the future
     val assetVersion = 1: Byte
@@ -156,7 +158,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     //assetVersion <- Arbitrary.arbitrary[Byte]
     shortName <- shortNameGen
     issuer    <- addressGen
-    data      <- dataStringGen
+    data      <- latin1DataGen
   } yield {
     // TODO: Hard coded as 1, but change this to arbitrary in the future
     val assetVersion = 1: Byte
@@ -325,13 +327,13 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   lazy val assetValueCurve25519Gen: Gen[AssetValue] = for {
     quantity  <- positiveLongGen
     assetCode <- assetCodeCurve25519Gen
-    data      <- dataStringGen
+    data      <- latin1DataGen
   } yield AssetValue(quantity, assetCode, metadata = Some(data))
 
   lazy val assetValueEd25519Gen: Gen[AssetValue] = for {
     quantity  <- positiveLongGen
     assetCode <- assetCodeEd25519Gen
-    data      <- dataStringGen
+    data      <- latin1DataGen
   } yield AssetValue(quantity, assetCode, metadata = Some(data))
 
   lazy val assetValueGen: Gen[AssetValue] = Gen.oneOf(assetValueCurve25519Gen, assetValueEd25519Gen)
@@ -377,7 +379,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     attestation <- attestationCurve25519Gen
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
-    data        <- dataStringGen
+    data        <- latin1DataGen
   } yield PolyTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
 
   lazy val polyTransferEd25519Gen: Gen[PolyTransfer[PublicKeyPropositionEd25519]] = for {
@@ -386,7 +388,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     attestation <- attestationEd25519Gen
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
-    data        <- dataStringGen
+    data        <- latin1DataGen
   } yield PolyTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
 
   lazy val polyTransferGen: Gen[PolyTransfer[_ <: Proposition]] =
@@ -398,7 +400,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     attestation <- attestationCurve25519Gen
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
-    data        <- dataStringGen
+    data        <- latin1DataGen
   } yield ArbitTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
 
   lazy val arbitTransferEd25519Gen: Gen[ArbitTransfer[PublicKeyPropositionEd25519]] = for {
@@ -407,7 +409,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     attestation <- attestationEd25519Gen
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
-    data        <- dataStringGen
+    data        <- latin1DataGen
   } yield ArbitTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
 
   lazy val arbitTransferGen: Gen[ArbitTransfer[_ <: Proposition]] =
@@ -419,7 +421,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     attestation <- attestationCurve25519Gen
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
-    data        <- dataStringGen
+    data        <- latin1DataGen
   } yield AssetTransfer(from, to, attestation, fee, timestamp, Some(data), minting = true)
 
   lazy val assetTransferEd25519Gen: Gen[AssetTransfer[PublicKeyPropositionEd25519]] = for {
@@ -428,7 +430,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     attestation <- attestationEd25519Gen
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
-    data        <- dataStringGen
+    data        <- latin1DataGen
   } yield AssetTransfer(from, to, attestation, fee, timestamp, Some(data), minting = true)
 
   lazy val assetTransferGen: Gen[AssetTransfer[_ <: Proposition]] =
