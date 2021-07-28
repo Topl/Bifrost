@@ -27,7 +27,7 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckDrivenPropertyC
   }
 
   property("ThresholdProposition json") {
-    forAll(oneOfNPropositionCurve25519Gen) { case (_, prop) =>
+    forAll(thresholdPropositionCurve25519Gen) { case (_, prop) =>
       prop.asJson.as[ThresholdPropositionCurve25519] shouldEqual Right(prop)
     }
   }
