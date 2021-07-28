@@ -84,7 +84,6 @@ object SimpleValue extends BifrostSerializer[SimpleValue] {
 }
 
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
-// TODO: Jing - we will need a 127Latin1 metadata value class
 case class AssetValue(
   override val quantity: Int128,
   assetCode:             AssetCode,
