@@ -131,24 +131,22 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
     //       (i.e. the check should fail quickly)
     require(proposition.pubKeyProps.size >= proposition.threshold)
 
-    var unusedProps: Map[PublicKeyPropositionCurve25519, Boolean] =
-      proposition.pubKeyProps.map(_ -> true).toMap
-
+    //TODO: Jing - change this in the future to keeping a decreasing sequence of prop and sig
     // only need to check until the threshold is exceeded
-    val numValidSigs = signatures.foldLeft(0) { (acc, sig) =>
-      if (acc < proposition.threshold) {
-        proposition.pubKeyProps
-          .find(prop => unusedProps(prop) && Curve25519.verify(sig.sigBytes, message, prop.pubKeyBytes)) match {
-          case Some(prop) =>
-            unusedProps += (prop -> false)
-            acc + 1
-          case None =>
-            acc
-        }
-      } else acc
+    val numValidSigs = signatures.foldLeft((0, proposition.pubKeyProps.map(_ -> true).toMap)) {
+      case ((acc, unusedProps), sig) =>
+        if (acc < proposition.threshold) {
+          proposition.pubKeyProps
+            .find(prop => unusedProps(prop) && Curve25519.verify(sig.sigBytes, message, prop.pubKeyBytes)) match {
+            case Some(prop) =>
+              (acc + 1, unusedProps + (prop -> false))
+            case None =>
+              (acc, unusedProps)
+          }
+        } else (acc, unusedProps)
     }
 
-    require(numValidSigs >= proposition.threshold)
+    require(numValidSigs._1 >= proposition.threshold)
   }.isSuccess
 
 }
