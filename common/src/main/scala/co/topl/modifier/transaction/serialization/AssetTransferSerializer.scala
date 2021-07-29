@@ -1,11 +1,14 @@
 package co.topl.modifier.transaction.serialization
 
+import cats.implicits._
 import co.topl.attestation._
 import co.topl.attestation.serialization.{ProofSerializer, PropositionSerializer}
 import co.topl.modifier.box.TokenValueHolder
 import co.topl.modifier.transaction.AssetTransfer
 import co.topl.utils.Extensions._
 import co.topl.utils.Int128
+import co.topl.utils.StringDataTypes.Latin1Data
+import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 import scala.collection.immutable.ListMap
@@ -44,9 +47,9 @@ object AssetTransferSerializer extends BifrostSerializer[AssetTransfer[_ <: Prop
     /* timestamp: Long */
     w.putULong(obj.timestamp)
 
-    /* data: Option[String] */
+    /* data: Option[Latin1Data] */
     w.putOption(obj.data) { (writer, d) =>
-      writer.putByteString(d)
+      writer.putByteString(new String(d.value))
     }
 
     /* minting: Boolean */
@@ -80,8 +83,8 @@ object AssetTransferSerializer extends BifrostSerializer[AssetTransfer[_ <: Prop
     val fee: Int128 = r.getInt128()
     val timestamp: Long = r.getULong()
 
-    val data: Option[String] = r.getOption {
-      r.getByteString()
+    val data: Option[Latin1Data] = r.getOption {
+      Latin1Data.unsafe(r.getByteString())
     }
 
     val minting: Boolean = r.getBoolean()

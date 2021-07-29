@@ -6,7 +6,9 @@ import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.TransferTransaction.{encodeFrom, BoxParams, TransferCreationState}
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.codecs.Int128Codec
+import co.topl.utils.codecs.implicits._
 import co.topl.utils.{Identifiable, Identifier, Int128}
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
@@ -24,7 +26,7 @@ case class AssetTransfer[
   override val attestation: ListMap[P, Proof[P]],
   override val fee:         Int128,
   override val timestamp:   Long,
-  override val data:        Option[String] = None,
+  override val data:        Option[Latin1Data] = None,
   override val minting:     Boolean = false
 ) extends TransferTransaction[TokenValueHolder, P](from, to, attestation, fee, timestamp, data, minting) {
 
@@ -72,7 +74,7 @@ object AssetTransfer {
     changeAddress:               Address,
     consolidationAddress:        Address,
     fee:                         Int128,
-    data:                        Option[String],
+    data:                        Option[Latin1Data],
     minting:                     Boolean
   )(implicit evidenceProducerEv: EvidenceProducer[P], identifiableEv: Identifiable[P]): Try[AssetTransfer[P]] = {
 
@@ -168,7 +170,7 @@ object AssetTransfer {
         to        <- c.downField("to").as[IndexedSeq[(Address, TokenValueHolder)]]
         fee       <- c.get[Int128]("fee")(Int128Codec.jsonDecoder)
         timestamp <- c.downField("timestamp").as[Long]
-        data      <- c.downField("data").as[Option[String]]
+        data      <- c.downField("data").as[Option[Latin1Data]]
         minting   <- c.downField("minting").as[Boolean]
         propType  <- c.downField("propositionType").as[String]
       } yield (propType match {

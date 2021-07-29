@@ -1,10 +1,12 @@
 package co.topl.consensus
 
+import cats.implicits._
 import co.topl.consensus
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
+import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.TimeProvider
 
 import scala.util.{Failure, Try}
@@ -122,7 +124,7 @@ class SyntaxBlockValidator extends BlockValidator[Block] {
               "The inflation amount in the block must match the output of the Arbit rewards transaction"
             )
             require(
-              tx.data.fold(false)(_.split("_").head == block.parentId.toString),
+              tx.data.fold(false)(_.show.split("_").head == block.parentId.toString),
               "Arbit reward transactions must contain the parent id of their minting block"
             )
 
@@ -138,7 +140,7 @@ class SyntaxBlockValidator extends BlockValidator[Block] {
               "The sum of the fees in the block must match the output of the Poly rewards transaction"
             )
             require(
-              tx.data.fold(false)(_.split("_").head == block.parentId.toString),
+              tx.data.fold(false)(_.show.split("_").head == block.parentId.toString),
               "Poly reward transactions must contain the parent id of their minting block"
             )
 
