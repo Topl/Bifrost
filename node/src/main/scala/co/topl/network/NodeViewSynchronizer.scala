@@ -107,12 +107,15 @@ class NodeViewSynchronizer(
     /** Request data from any remote node */
     case NodeViewHolder.Events.DownloadRequest(modifierTypeId, modifierId) =>
       withNodeView(view => deliveryTracker.status(modifierId, view.history))
-        .foreach(status =>
-          if (status == ModifiersStatus.Unknown) requestDownload(modifierTypeId, Seq(modifierId), None)
-        )
+        .onComplete {
+          case Success(status) =>
+            if (status == ModifiersStatus.Unknown) requestDownload(modifierTypeId, Seq(modifierId), None)
+          case Failure(exception) =>
+            log.error("Failed deliveryTracker.status", exception)
+        }
 
     /** Respond with data from the local node */
-    case ResponseFromLocal(peer, _, modifiers: Seq[NodeViewModifier]) =>
+    case ResponseFromLocal(peer, _, modifiers) =>
       /** retrieve the serializer for the modifier and then send to the remote peer */
       modifiers.headOption.foreach { head =>
         val modType = head.modifierTypeId
@@ -154,7 +157,7 @@ class NodeViewSynchronizer(
     case NodeViewHolder.Events.SemanticallyFailedModification(mod, _) =>
       deliveryTracker.setInvalid(mod.id).foreach(penalizeMisbehavingPeer)
 
-    case ModifiersProcessingResult(applied: Seq[Block], cleared: Seq[Block]) =>
+    case ModifiersProcessingResult(applied, cleared) =>
       /** stop processing for cleared modifiers */
       /** applied modifiers state was already changed at `SyntacticallySuccessfulModifier` */
       cleared.foreach(m => deliveryTracker.setUnknown(m.id))
@@ -182,7 +185,7 @@ class NodeViewSynchronizer(
    * @param m the modifier to be broadcast
    * @tparam M the type of modifier
    */
-  protected def broadcastModifierInv[M <: NodeViewModifier](m: M): Unit = {
+  protected def broadcastModifierInv(m: NodeViewModifier): Unit = {
     val msg = Message(invSpec, Right(InvData(m.modifierTypeId, Seq(m.id))), None)
     networkControllerRef ! SendToNetwork(msg, Broadcast)
   }
@@ -193,7 +196,7 @@ class NodeViewSynchronizer(
    * when our modifier is not synced yet, but no modifiers are expected from other peers
    * or request modifiers we need with known ids, that are not applied yet.
    */
-  protected def requestMoreModifiers(applied: Seq[Block]): Unit = {}
+  protected def requestMoreModifiers(applied: Seq[PersistentNodeViewModifier]): Unit = {}
 
   /**
    * Handles checking the status of modifiers that we have asked peers for using the `requestDownload` method.
@@ -258,10 +261,13 @@ class NodeViewSynchronizer(
   protected def sendSync(): Unit = {
     val peers = statusTracker.peersToSyncWith()
     withNodeView(_.history.syncInfo)
-      .foreach(syncInfo =>
-        if (peers.nonEmpty)
-          networkControllerRef ! SendToNetwork(Message(syncInfoSpec, Right(syncInfo), None), SendToPeers(peers))
-      )
+      .onComplete {
+        case Success(syncInfo) =>
+          if (peers.nonEmpty)
+            networkControllerRef ! SendToNetwork(Message(syncInfoSpec, Right(syncInfo), None), SendToPeers(peers))
+        case Failure(exception) =>
+          log.error("Failed history.syncInfo", exception)
+      }
   }
 
   protected def penalizeNonDeliveringPeer(peer: ConnectedPeer): Unit =
@@ -288,32 +294,36 @@ class NodeViewSynchronizer(
    */
   private def gotRemoteSyncInfo(syncInfo: BifrostSyncInfo, remote: ConnectedPeer): Unit =
     withNodeView(state => (state.history.continuationIds(syncInfo, desiredInvObjects), state.history.compare(syncInfo)))
-      .foreach { case (ext, comparison) =>
-        if (!(ext.nonEmpty || comparison != Younger))
-          log.warn("Extension is empty while comparison is younger")
+      .onComplete {
+        case Success((ext, comparison)) =>
+          if (!(ext.nonEmpty || comparison != Younger))
+            log.warn("Extension is empty while comparison is younger")
 
-        statusTracker.updateStatus(remote, comparison)
+          statusTracker.updateStatus(remote, comparison)
 
-        comparison match {
-          case Unknown =>
-            //todo: should we ban peer if its status is unknown after getting info from it?
-            log.warn("Peer status is still unknown")
+          comparison match {
+            case Unknown =>
+              //todo: should we ban peer if its status is unknown after getting info from it?
+              log.warn("Peer status is still unknown")
 
-          case Nonsense =>
-            log.warn("Got nonsense")
+            case Nonsense =>
+              log.warn("Got nonsense")
 
-          case Younger | Fork =>
-            log.debug(
-              s"Comparison with $remote having starting points ${idsToString(syncInfo.startingPoints)}. " +
-              s"Comparison result is $comparison. Sending extension of length ${ext.length}"
-            )
-            log.debug(s"Extension ids: ${idsToString(ext)}")
+            case Younger | Fork =>
+              log.debug(
+                s"Comparison with $remote having starting points ${idsToString(syncInfo.startingPoints)}. " +
+                s"Comparison result is $comparison. Sending extension of length ${ext.length}"
+              )
+              log.debug(s"Extension ids: ${idsToString(ext)}")
 
-            sendExtension(remote, comparison, ext)
+              sendExtension(remote, comparison, ext)
 
-          /** does nothing for `Equal` and `Older` */
-          case _ =>
-        }
+            /** does nothing for `Equal` and `Older` */
+            case _ =>
+          }
+        case Failure(exception) =>
+          log.error("Failed gotRemoteSyncInfo", exception)
+
       }
 
   /**
@@ -348,9 +358,12 @@ class NodeViewSynchronizer(
           invData.ids.filter(mid => deliveryTracker.status(mid, view.history) == ModifiersStatus.Unknown)
       }
     )
-      .foreach(newModifierIds =>
-        if (newModifierIds.nonEmpty) requestDownload(invData.typeId, newModifierIds, Some(remote))
-      )
+      .onComplete {
+        case Success(newModifierIds) =>
+          if (newModifierIds.nonEmpty) requestDownload(invData.typeId, newModifierIds, Some(remote))
+        case Failure(exception) =>
+          log.error("Failed gotRemoteInventory", exception)
+      }
 
   /**
    * Our node needs modifiers of type `modifierTypeId` with ids `modifierIds`
@@ -389,13 +402,16 @@ class NodeViewSynchronizer(
         case Block.modifierTypeId       => invData.ids.flatMap(id => view.history.modifierById(id))
       }
     )
-      .foreach { objs =>
-        log.debug(
-          s"Requested ${invData.ids.length} modifiers ${invData.toString}, " +
-          s"sending ${objs.length} modifiers ${idsToString(invData.typeId, objs.map(_.id))} "
-        )
+      .onComplete {
+        case Success(objs) =>
+          log.debug(
+            s"Requested ${invData.ids.length} modifiers ${invData.toString}, " +
+            s"sending ${objs.length} modifiers ${idsToString(invData.typeId, objs.map(_.id))} "
+          )
 
-        self ! ResponseFromLocal(remote, invData.typeId, objs)
+          self ! ResponseFromLocal(remote, invData.typeId, objs)
+        case Failure(exception) =>
+          log.error("Failed gotModifierRequest", exception)
       }
 
   /**
@@ -416,18 +432,23 @@ class NodeViewSynchronizer(
     import akka.actor.typed.scaladsl.adapter._
     implicit val typedSender: typed.ActorRef[Any] = context.self.toTyped
     modifierSerializers.get(typeId) match {
-      case Some(serializer: BifrostSerializer[Transaction.TX]) if typeId == Transaction.modifierTypeId =>
+      // @unchecked because `typeId == Transaction.modifierTypeId` indicates the serializer type
+      case Some(serializer: BifrostSerializer[Transaction.TX @unchecked]) if typeId == Transaction.modifierTypeId =>
         /** parse all transactions and send them to node view holder */
         val parsed = parseModifiers(requestedModifiers, serializer, remote)
         viewHolderRef.tell(NodeViewHolder.ReceivableMessages.WriteTransactions(parsed))
 
-      case Some(serializer: BifrostSerializer[Block]) if typeId == Block.modifierTypeId =>
+      // @unchecked because `typeId == Transaction.modifierTypeId` indicates the serializer type
+      case Some(serializer: BifrostSerializer[Block @unchecked]) if typeId == Block.modifierTypeId =>
         /** parse all modifiers and put them to modifiers cache */
         val parsed = parseModifiers(requestedModifiers, serializer, remote)
         withNodeView(view => parsed.filter(validateAndSetStatus(view, remote, _)).collect { case b: Block => b })
-          .foreach(valid =>
-            if (valid.nonEmpty) viewHolderRef.tell(NodeViewHolder.ReceivableMessages.WriteBlocks(valid))
-          )
+          .onComplete {
+            case Success(valid) =>
+              if (valid.nonEmpty) viewHolderRef.tell(NodeViewHolder.ReceivableMessages.WriteBlocks(valid))
+            case Failure(exception) =>
+              log.error("Failed validateAndSetStatus", exception)
+          }
 
       case _ =>
         log.error(s"Undefined serializer for modifier of type $typeId")

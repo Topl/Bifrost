@@ -18,7 +18,6 @@ import co.topl.modifier.box.ProgramId
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.Broadcast
 import co.topl.network.NetworkController.ReceivableMessages.SendToNetwork
-
 import co.topl.network.message.{InvData, InvSpec, Message}
 import co.topl.nodeView.CleanupWorker.RunCleanup
 import co.topl.nodeView.MempoolAuditor.CleanupDone
@@ -30,6 +29,7 @@ import co.topl.utils.{Logging, TimeProvider}
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.util.{Failure, Success}
 
 /**
  * Controls mempool cleanup workflow. Watches NodeView events and delegates
@@ -139,18 +139,21 @@ class MempoolAuditor(
   private def rebroadcastTransactions(ids: Seq[ModifierId]): Unit = {
     log.debug("Rebroadcasting transactions")
     withNodeView(view => view.memPool.getAll(ids))
-      .foreach(transactions =>
-        transactions.foreach { tx =>
-          log.info(s"Rebroadcasting $tx")
-          val msg = Message(
-            new InvSpec(settings.network.maxInvObjects),
-            Right(InvData(Transaction.modifierTypeId, Seq(tx.id))),
-            None
-          )
+      .onComplete {
+        case Success(transactions) =>
+          transactions.foreach { tx =>
+            log.info(s"Rebroadcasting $tx")
+            val msg = Message(
+              new InvSpec(settings.network.maxInvObjects),
+              Right(InvData(Transaction.modifierTypeId, Seq(tx.id))),
+              None
+            )
 
-          networkControllerRef ! SendToNetwork(msg, Broadcast)
-        }
-      )
+            networkControllerRef ! SendToNetwork(msg, Broadcast)
+          }
+        case Failure(exception) =>
+          log.error("Failed rebroadcastTransactions", exception)
+      }
   }
 }
 
