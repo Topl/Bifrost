@@ -96,7 +96,7 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
   }
 
   property("PolyBox serialization") {
-    forAll(polyBoxGen) { b: PolyBox =>``
+    forAll(polyBoxGen) { b: PolyBox =>
       val parsed = BoxSerializer
         .parseBytes(BoxSerializer.toBytes(b))
         .get
