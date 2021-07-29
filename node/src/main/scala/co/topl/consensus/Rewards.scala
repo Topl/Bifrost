@@ -8,6 +8,7 @@ import co.topl.utils.Int128
 import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.TimeProvider.Time
 
+import scala.collection.immutable.ListMap
 import scala.util.Try
 
 object ArbitReward {
@@ -21,7 +22,7 @@ object ArbitReward {
     ArbitTransfer(
       IndexedSeq(),
       IndexedSeq((rewardAdr, SimpleValue(consensusStorage.inflation))),
-      Map[PublicKeyPropositionCurve25519, SignatureCurve25519](),
+      ListMap[PublicKeyPropositionCurve25519, SignatureCurve25519](),
       fee,
       forgeTime,
       // the underscore is for letting miners add their own message in the future
@@ -42,7 +43,7 @@ object PolyReward {
     PolyTransfer(
       IndexedSeq(),
       IndexedSeq((rewardAdr, SimpleValue(amount))),
-      Map[PublicKeyPropositionCurve25519, SignatureCurve25519](),
+      ListMap[PublicKeyPropositionCurve25519, SignatureCurve25519](),
       fee,
       forgeTime,
       // the underscore is for letting miners add their own message in the future
