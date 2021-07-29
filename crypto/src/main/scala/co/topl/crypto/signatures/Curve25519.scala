@@ -35,6 +35,15 @@ object Curve25519 extends EllipticCurveSignatureScheme {
     privateKey -> publicKey
   }
 
+  override def createKeyPair: (PrivateKey, PublicKey) = {
+    val random = new Array[Byte](KeyLength)
+    new java.security.SecureRandom().nextBytes(random)
+    val privateKey = PrivateKey(provider.generatePrivateKey(random))
+    val publicKey = PublicKey(provider.generatePublicKey(privateKey.value))
+
+    privateKey -> publicKey
+  }
+
   override def sign(privateKey: PrivateKey, message: MessageToSign): Signature = {
     require(privateKey.value.length == KeyLength)
     Signature(provider.calculateSignature(provider.getRandom(SignatureLength), privateKey.value, message))
