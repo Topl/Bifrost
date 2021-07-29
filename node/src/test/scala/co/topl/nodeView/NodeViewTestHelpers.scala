@@ -19,8 +19,9 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
 
   protected var genesisBlock: Block = _
 
-  protected def nextBlock(parent: Block, nodeView: NodeView): Block = {
-    val forgerAddress = keyRingCurve25519.addresses.head
+  protected var defaultForgerAddress: Address = _
+
+  protected def nextBlock(parent: Block, nodeView: NodeView, forgerAddress: Address = defaultForgerAddress): Block = {
     val timestamp = parent.timestamp + 50000
     val arbitBox = LeaderElection
       .getEligibleBox(
@@ -95,6 +96,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
     setProtocolMngr(settings)
     consensusStorage = ConsensusStorage(settings, appContext.networkType)
     genesisBlock = PrivateGenesis(keyRingCurve25519.addresses, settings).formNewBlock._1
+    defaultForgerAddress = keyRingCurve25519.addresses.head
   }
 }
 
