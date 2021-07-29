@@ -19,7 +19,6 @@ object StringDataTypes {
    * Byte data represented by Latin-1 encoded text.
    * @param value the data bytes
    */
-  //@newtype
   case class Latin1Data private (value: Array[Byte]) {
 
     override def equals(obj: Any): Boolean =
@@ -39,7 +38,6 @@ object StringDataTypes {
      * @param bytes the underlying data
      * @return a `Latin1Data` instance
      */
-    //def fromData(bytes: Array[Byte]): Latin1Data = new BytesWrapper(bytes).coerce
     def fromData(bytes: Array[Byte]): Latin1Data = Latin1Data(bytes)
 
     /**
@@ -48,8 +46,6 @@ object StringDataTypes {
      * @param from the `String` to create the `Latin1Data` from.
      * @return a `DataEncodingValidationResult` representing a validation error or the `Latin1Data`
      */
-//    def validated(from: String): DataEncodingValidationResult[Latin1Data] =
-//      from.getValidLatin1Bytes.toValidNec(InvalidCharacter).map(new BytesWrapper(_)).map(_.coerce)
     def validated(from: String): DataEncodingValidationResult[Latin1Data] =
       from.getValidLatin1Bytes.toValidNec(InvalidCharacter).map(Latin1Data(_))
 
