@@ -97,24 +97,19 @@ class TransactionValidationSpec
   }
 
   property("Attempting to validate an AssetTransfer with data of invalid length should error") {
-    forAll(stringGen) { data: String =>
-      whenever(data.length >= 128) {
-        val tx = assetTransferEd25519Gen.sample.get
-        val invalidDataTx = tx.copy(data = Some(Latin1Data.unsafe(data)))
-        invalidDataTx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](DataTooLong)
-      }
+    forAll(invalidDataStringGen) { data: String =>
+      val tx = assetTransferEd25519Gen.sample.get
+      val invalidDataTx = tx.copy(data = Some(Latin1Data.unsafe(data)))
+      invalidDataTx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](DataTooLong)
     }
   }
 
   property("Attempting to validate an AssetTransfer with metadata of invalid length should error") {
-    forAll(stringGen) { metadata: String =>
-      whenever(metadata.length >= 128) {
-        val tx = assetTransferEd25519Gen.sample.get
-        val assetValue = assetValueEd25519Gen.sample.get.copy(metadata = Some(Latin1Data.unsafe(metadata)))
-        val invalidDataTx = tx.copy(to = IndexedSeq((assetValue.assetCode.issuer, assetValue)))
-
-        invalidDataTx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](MetadataTooLong)
-      }
+    forAll(invalidDataStringGen) { metadata: String =>
+      val tx = assetTransferEd25519Gen.sample.get
+      val assetValue = assetValueEd25519Gen.sample.get.copy(metadata = Some(Latin1Data.unsafe(metadata)))
+      val invalidDataTx = tx.copy(to = IndexedSeq((assetValue.assetCode.issuer, assetValue)))
+      invalidDataTx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](MetadataTooLong)
     }
   }
 
