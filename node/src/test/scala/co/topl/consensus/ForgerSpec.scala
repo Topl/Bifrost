@@ -151,6 +151,7 @@ class ForgerSpec
             }
 
           }
+          blocks should have size newBlockCount
           blocks.distinct should contain theSameElementsInOrderAs blocks
         }
       }
