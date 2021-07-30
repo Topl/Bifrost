@@ -1,13 +1,13 @@
 package co.topl.nodeView.state
 
 import co.topl.attestation.Address
+import co.topl.db.LDBVersionedStore
 import co.topl.modifier.box.{Box, BoxId, TokenBox, TokenValueHolder}
-import co.topl.nodeView.{KeyValueStore, LSMKeyValueStore}
 import co.topl.nodeView.state.MinimalState.VersionTag
+import co.topl.nodeView.{KeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
 import com.google.common.primitives.Longs
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import java.io.File
 import scala.util.Try
@@ -106,20 +106,20 @@ class TokenBoxRegistry(protected val storage: KeyValueStore, nodeKeys: Option[Se
 
   private def saveToStore(newVersion: VersionTag, toDelete: Seq[K], toUpdate: Seq[(K, Seq[V])]): Try[Unit] = Try {
     storage.update(
-      ByteArrayWrapper(newVersion.bytes),
-      toDelete.map(k => ByteArrayWrapper(registryInput(k))),
+      newVersion.bytes,
+      toDelete.map(k => registryInput(k)),
       toUpdate.map { case (key, value) =>
-        ByteArrayWrapper(registryInput(key)) -> ByteArrayWrapper(value.flatMap(Longs.toByteArray).toArray)
+        registryInput(key) -> value.flatMap(Longs.toByteArray).toArray
       }
     )
   }
 
   override def rollbackTo(version: VersionTag): Try[TokenBoxRegistry] = Try {
-    if (storage.latestVersion().exists(_.data sameElements version.bytes)) {
+    if (storage.latestVersion().exists(_ sameElements version.bytes)) {
       this
     } else {
       log.debug(s"Rolling back TokenBoxRegistry to: ${version.toString}")
-      storage.rollback(ByteArrayWrapper(version.bytes))
+      storage.rollback(version.bytes)
       new TokenBoxRegistry(storage, nodeKeys)
     }
   }
@@ -138,7 +138,7 @@ object TokenBoxRegistry extends Logging {
 
       val file = new File(s"$dataDir/tokenBoxRegistry")
       file.mkdirs()
-      val storage = new LSMKeyValueStore(new LSMStore(file, keySize = Address.addressSize))
+      val storage = new LDBKeyValueStore(new LDBVersionedStore(file, keepVersions = 100))
 
       Some(new TokenBoxRegistry(storage, nodeKeys))
 

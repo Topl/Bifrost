@@ -60,7 +60,7 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
 //
 //    val iFile = new File(s"$dataDir/blocks")
 //    iFile.mkdirs()
-//    val blockStorage = new LSMStore(iFile)
+//    val blockStorage = new LDBVersionedStore(iFile, 100)
 
     val storage =
       new Storage(new InMemoryKeyValueStore, keySize = 32)

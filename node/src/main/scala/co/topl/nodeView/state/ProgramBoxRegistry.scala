@@ -1,11 +1,11 @@
 package co.topl.nodeView.state
 
+import co.topl.db.LDBVersionedStore
 import co.topl.modifier.box.{BoxId, ProgramBox, ProgramId}
-import co.topl.nodeView.{KeyValueStore, LSMKeyValueStore}
 import co.topl.nodeView.state.MinimalState.VersionTag
+import co.topl.nodeView.{KeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import java.io.File
 import scala.util.{Failure, Success, Try}
@@ -68,10 +68,10 @@ class ProgramBoxRegistry(protected val storage: KeyValueStore)
           .foldLeft((Seq[K](), Seq[(K, V)]()))((acc, progId) => (acc._1 ++ progId._1, acc._2 ++ progId._2))
 
       storage.update(
-        ByteArrayWrapper(newVersion.bytes),
-        deleted.map(k => ByteArrayWrapper(registryInput(k))),
+        newVersion.bytes,
+        deleted.map(k => registryInput(k)),
         updated.map { case (key, value) =>
-          ByteArrayWrapper(registryInput(key)) -> ByteArrayWrapper(value.hash.value)
+          registryInput(key) -> value.hash.value
         }
       )
 
@@ -84,11 +84,11 @@ class ProgramBoxRegistry(protected val storage: KeyValueStore)
     }
 
   override def rollbackTo(version: VersionTag): Try[ProgramBoxRegistry] = Try {
-    if (storage.latestVersion().exists(_.data sameElements version.bytes)) {
+    if (storage.latestVersion().exists(_ sameElements version.bytes)) {
       this
     } else {
       log.debug(s"Rolling back ProgramBoxRegistry to: ${version.toString}")
-      storage.rollback(ByteArrayWrapper(version.bytes))
+      storage.rollback(version.bytes)
       new ProgramBoxRegistry(storage)
     }
   }
@@ -107,7 +107,7 @@ object ProgramBoxRegistry extends Logging {
 
       val file = new File(s"$dataDir/programBoxRegistry")
       file.mkdirs()
-      val storage = new LSMKeyValueStore(new LSMStore(file, keySize = ProgramId.size))
+      val storage = new LDBKeyValueStore(new LDBVersionedStore(file, keepVersions = 100))
 
       Some(new ProgramBoxRegistry(storage))
 

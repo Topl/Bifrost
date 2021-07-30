@@ -15,6 +15,7 @@ import co.topl.utils.{Int128, TimeProvider}
 import org.slf4j.Logger
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 
+import scala.collection.immutable.ListMap
 import scala.util.Try
 
 /**
@@ -55,7 +56,7 @@ case class Forge(
 
       // use the secret key that owns the successful box to sign the rewards transactions
       getAttMap = (tx: Transaction.TX) =>
-        signingFunction(tx.messageToSign).map(signature => Map(publicKey -> signature)).getOrThrow()
+        signingFunction(tx.messageToSign).map(signature => ListMap(publicKey -> signature)).getOrThrow()
 
       signedRewards = rawRewards.map {
         case tx: ArbitTransfer[_] => tx.copy(attestation = getAttMap(tx))

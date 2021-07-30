@@ -48,7 +48,7 @@ object LeaderElection extends Logging {
           val hit = calcHit(parent)(box)
           val calculatedTarget =
             calcTarget(box.value.quantity, timestamp - parent.timestamp, parent.difficulty, parent.height)
-          if (hit < calculatedTarget) return Right(box)
+          if (BigInt(hit) < calculatedTarget) return Right(box)
         }
         Left(NoBoxesEligible)
       } else {

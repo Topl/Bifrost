@@ -1,13 +1,17 @@
 package co.topl.modifier.transaction.serialization
 
+import cats.implicits._
 import co.topl.attestation._
 import co.topl.attestation.serialization.{ProofSerializer, PropositionSerializer}
 import co.topl.modifier.box.TokenValueHolder
 import co.topl.modifier.transaction.AssetTransfer
 import co.topl.utils.Extensions._
 import co.topl.utils.Int128
+import co.topl.utils.StringDataTypes.Latin1Data
+import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
+import scala.collection.immutable.ListMap
 import scala.language.existentials
 
 object AssetTransferSerializer extends BifrostSerializer[AssetTransfer[_ <: Proposition]] {
@@ -43,9 +47,9 @@ object AssetTransferSerializer extends BifrostSerializer[AssetTransfer[_ <: Prop
     /* timestamp: Long */
     w.putULong(obj.timestamp)
 
-    /* data: Option[String] */
+    /* data: Option[Latin1Data] */
     w.putOption(obj.data) { (writer, d) =>
-      writer.putByteString(d)
+      writer.putByteString(new String(d.value))
     }
 
     /* minting: Boolean */
@@ -70,7 +74,7 @@ object AssetTransferSerializer extends BifrostSerializer[AssetTransfer[_ <: Prop
     }
 
     val signaturesLength: Int = r.getUInt().toIntExact
-    val signatures = Map((0 until signaturesLength).map { _ =>
+    val signatures = ListMap((0 until signaturesLength).map { _ =>
       val prop = PropositionSerializer.parse(r)
       val sig = ProofSerializer.parse(r)
       prop -> sig
@@ -79,23 +83,23 @@ object AssetTransferSerializer extends BifrostSerializer[AssetTransfer[_ <: Prop
     val fee: Int128 = r.getInt128()
     val timestamp: Long = r.getULong()
 
-    val data: Option[String] = r.getOption {
-      r.getByteString()
+    val data: Option[Latin1Data] = r.getOption {
+      Latin1Data.unsafe(r.getByteString())
     }
 
     val minting: Boolean = r.getBoolean()
 
     propTypePrefix match {
       case PublicKeyPropositionCurve25519.`typePrefix` =>
-        val sigs = signatures.asInstanceOf[Map[PublicKeyPropositionCurve25519, SignatureCurve25519]]
+        val sigs = signatures.asInstanceOf[ListMap[PublicKeyPropositionCurve25519, SignatureCurve25519]]
         AssetTransfer(from, to, sigs, fee, timestamp, data, minting)
 
       case ThresholdPropositionCurve25519.`typePrefix` =>
-        val sigs = signatures.asInstanceOf[Map[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]]
+        val sigs = signatures.asInstanceOf[ListMap[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]]
         AssetTransfer(from, to, sigs, fee, timestamp, data, minting)
 
       case PublicKeyPropositionEd25519.`typePrefix` =>
-        val sigs = signatures.asInstanceOf[Map[PublicKeyPropositionEd25519, SignatureEd25519]]
+        val sigs = signatures.asInstanceOf[ListMap[PublicKeyPropositionEd25519, SignatureEd25519]]
         AssetTransfer(from, to, sigs, fee, timestamp, data, minting)
     }
   }

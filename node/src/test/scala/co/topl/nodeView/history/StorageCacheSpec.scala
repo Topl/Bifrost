@@ -1,10 +1,10 @@
 package co.topl.nodeView.history
 
 import co.topl.consensus.consensusHelper.setProtocolMngr
+import co.topl.db.LDBVersionedStore
 import co.topl.modifier.block.Block
-import co.topl.nodeView.{CacheLayerKeyValueStore, LSMKeyValueStore}
+import co.topl.nodeView.{CacheLayerKeyValueStore, LDBKeyValueStore}
 import co.topl.utils.NodeGenerators
-import io.iohk.iodb.ByteArrayWrapper
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
@@ -23,7 +23,7 @@ class StorageCacheSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks w
   }
 
   property("The genesis block is stored in cache") {
-    val genesisBlockId = ByteArrayWrapper(Array.fill(32)(-1: Byte))
+    val genesisBlockId = Array.fill(32)(-1: Byte)
 
     history.storage.keyValueStore
       .asInstanceOf[CacheLayerKeyValueStore]
@@ -32,7 +32,7 @@ class StorageCacheSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks w
   }
 
   property("Cache should invalidate all entry when it's rolled back in storage") {
-    val bestBlockIdKey = ByteArrayWrapper(Array.fill(32)(-1: Byte))
+    val bestBlockIdKey = Array.fill(32)(-1: Byte)
 
     /* Append a new block, make sure it is updated in cache, then drop it */
     val fstBlock: Block = blockCurve25519Gen.sample.get.copy(parentId = history.bestBlockId)
@@ -81,8 +81,8 @@ class StorageCacheSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks w
       history.storage.keyValueStore
         .asInstanceOf[CacheLayerKeyValueStore]
         .cache
-        .getIfPresent(ByteArrayWrapper(block.id.getIdBytes)) shouldEqual
-      history.storage.keyValueStore.get(ByteArrayWrapper(block.id.getIdBytes))
+        .getIfPresent(block.id.getIdBytes) shouldEqual
+      history.storage.keyValueStore.get(block.id.getIdBytes)
     }
   }
 
@@ -120,8 +120,6 @@ class StorageCacheSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks w
   }
 
   override def generateHistory(genesisBlock: Block): History = {
-    import io.iohk.iodb.LSMStore
-
     import java.io.File
     import scala.concurrent.duration._
     import scala.util.Random
@@ -129,9 +127,9 @@ class StorageCacheSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks w
 
     val iFile = new File(s"$dataDir/blocks")
     iFile.mkdirs()
-    val blockStorage = new LSMStore(iFile)
+    val blockStorage = new LDBVersionedStore(iFile, 100)
     val storage =
-      new Storage(new CacheLayerKeyValueStore(new LSMKeyValueStore(blockStorage), 10.minutes, 20000), keySize = 32)
+      new Storage(new CacheLayerKeyValueStore(new LDBKeyValueStore(blockStorage), 10.minutes, 20000), keySize = 32)
     //we don't care about validation here
     val validators = Seq()
 

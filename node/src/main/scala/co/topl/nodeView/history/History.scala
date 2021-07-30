@@ -1,18 +1,20 @@
 package co.topl.nodeView.history
 
-import co.topl.consensus.{BlockValidator, DifficultyBlockValidator, SyntaxBlockValidator}
+import co.topl.consensus.Hiccups.HiccupBlock
+import co.topl.consensus._
+import co.topl.db.LDBVersionedStore
 import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.message.BifrostSyncInfo
-import co.topl.nodeView.{CacheLayerKeyValueStore, LSMKeyValueStore}
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.History.GenesisParentId
+import co.topl.nodeView.{CacheLayerKeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
+import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Logging, TimeProvider}
-import io.iohk.iodb.LSMStore
 
 import java.io.File
 import scala.annotation.tailrec
@@ -25,10 +27,11 @@ import scala.util.{Failure, Success, Try}
  * @param validators rule sets that dictate validity of blocks in the history
  */
 class History(
-  val storage:        Storage, //todo: JAA - make this private[history]
-  fullBlockProcessor: BlockProcessor,
-  validators:         Seq[BlockValidator[Block]]
-) extends GenericHistory[Block, BifrostSyncInfo, History]
+  val storage:            Storage, //todo: JAA - make this private[history]
+  fullBlockProcessor:     BlockProcessor,
+  validators:             Seq[BlockValidator[Block]]
+)(implicit networkPrefix: NetworkPrefix)
+    extends GenericHistory[Block, BifrostSyncInfo, History]
     with AutoCloseable
     with Logging {
 
@@ -82,12 +85,11 @@ class History(
 
     // test new block against all validators
     val validationResults =
-      if (!isGenesis(block)) {
+      if (!isGenesis(block) && !Hiccups.blockValidation.contains(HiccupBlock(block))) {
         validators.map(_.validate(block)).map {
           case Failure(e) =>
             log.warn(s"Block validation failed", e)
             false
-
           case _ => true
         }
       } else Seq(true) // skipping validation for genesis block
@@ -493,14 +495,14 @@ object History extends Logging {
       file.mkdirs()
 
       import scala.concurrent.duration._
-      val blockStorageDB = new LSMStore(file)
+      val blockStorageDB = new LDBVersionedStore(file, 100)
       new Storage(
         new CacheLayerKeyValueStore(
-          new LSMKeyValueStore(blockStorageDB),
+          new LDBKeyValueStore(blockStorageDB),
           settings.application.cacheExpire.millis,
           settings.application.cacheSize
         ),
-        blockStorageDB.keySize
+        keySize = 32
       )
     }
 
@@ -514,7 +516,8 @@ object History extends Logging {
 
     val validators = Seq(
       new DifficultyBlockValidator(storage, blockProcessor),
-      new SyntaxBlockValidator
+      new SyntaxBlockValidator,
+      new TimestampValidator(storage)
     )
 
     new History(storage, blockProcessor, validators)

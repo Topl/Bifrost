@@ -3,6 +3,7 @@ package co.topl.nodeView.state
 import cats.data.ValidatedNec
 import co.topl.attestation.Address
 import co.topl.attestation.AddressCodec.implicits.Base58DataOps
+import co.topl.db.LDBVersionedStore
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
@@ -11,7 +12,7 @@ import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.validation._
 import co.topl.modifier.transaction.validation.implicits._
 import co.topl.nodeView.state.MinimalState.VersionTag
-import co.topl.nodeView.{KeyValueStore, LSMKeyValueStore}
+import co.topl.nodeView.{KeyValueStore, LDBKeyValueStore, LSMKeyValueStore}
 import co.topl.settings.AppSettings
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.Logging
@@ -307,7 +308,7 @@ object State extends Logging {
   def readOrGenerate(settings: AppSettings)(implicit networkPrefix: NetworkPrefix): State = {
     val sFile = stateFile(settings)
     sFile.mkdirs()
-    val storage = new LSMKeyValueStore(new LSMStore(sFile, keySize = BoxId.size))
+    val storage = new LDBKeyValueStore(new LDBVersionedStore(sFile, keepVersions = 100))
 
     apply(settings, storage, TokenBoxRegistry.readOrGenerate(settings, _), ProgramBoxRegistry.readOrGenerate(settings))
   }

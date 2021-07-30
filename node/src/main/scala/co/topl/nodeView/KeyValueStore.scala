@@ -1,85 +1,96 @@
 package co.topl.nodeView
 
+import co.topl.db.LDBVersionedStore
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
 trait KeyValueStore extends AutoCloseable {
 
   def update(
-    version:  ByteArrayWrapper,
-    toRemove: Iterable[ByteArrayWrapper],
-    toAdd:    Iterable[(ByteArrayWrapper, ByteArrayWrapper)]
+    version:  Array[Byte],
+    toRemove: Iterable[Array[Byte]],
+    toAdd:    Iterable[(Array[Byte], Array[Byte])]
   ): Unit
-  def rollback(version: ByteArrayWrapper): Unit
-  def get(key:          ByteArrayWrapper): Option[ByteArrayWrapper]
-  def latestVersion(): Option[ByteArrayWrapper]
+  def rollback(version: Array[Byte]): Unit
+  def get(key:          Array[Byte]): Option[Array[Byte]]
+  def latestVersion(): Option[Array[Byte]]
 }
 
-class LSMKeyValueStore(lsmStore: LSMStore) extends KeyValueStore {
+class LDBKeyValueStore(ldbStore: LDBVersionedStore) extends KeyValueStore {
 
   override def update(
-    version:  ByteArrayWrapper,
-    toRemove: Iterable[ByteArrayWrapper],
-    toAdd:    Iterable[(ByteArrayWrapper, ByteArrayWrapper)]
+    version:  Array[Byte],
+    toRemove: Iterable[Array[Byte]],
+    toAdd:    Iterable[(Array[Byte], Array[Byte])]
   ): Unit =
-    lsmStore.update(version, toRemove, toAdd)
+    ldbStore.update(version, toRemove, toAdd)
 
-  override def rollback(version: ByteArrayWrapper): Unit =
-    lsmStore.rollback(version)
+  override def rollback(version: Array[Byte]): Unit =
+    ldbStore.rollbackTo(version)
 
-  override def get(key: ByteArrayWrapper): Option[ByteArrayWrapper] =
-    lsmStore.get(key)
+  override def get(key: Array[Byte]): Option[Array[Byte]] =
+    ldbStore.get(key)
 
   override def close(): Unit =
-    lsmStore.close()
+    ldbStore.close()
 
-  override def latestVersion(): Option[ByteArrayWrapper] =
-    lsmStore.lastVersionID
+  override def latestVersion(): Option[Array[Byte]] =
+    ldbStore.lastVersionID
 }
 
 class CacheLayerKeyValueStore(underlying: KeyValueStore, cacheExpiration: FiniteDuration, cacheSize: Int)
     extends KeyValueStore {
 
-  type KEY = ByteArrayWrapper
-  type VAL = ByteArrayWrapper
-
-  private[nodeView] val cache: LoadingCache[KEY, Option[VAL]] = CacheBuilder
+  private[nodeView] val cache: LoadingCache[CacheLayerKeyValueStore.WrappedBytes, Option[Array[Byte]]] = CacheBuilder
     .newBuilder()
     .expireAfterAccess(cacheExpiration.toMillis, MILLISECONDS)
     .maximumSize(cacheSize)
-    .build[KEY, Option[VAL]](
-      new CacheLoader[KEY, Option[VAL]] {
+    .build[CacheLayerKeyValueStore.WrappedBytes, Option[Array[Byte]]](
+      new CacheLoader[CacheLayerKeyValueStore.WrappedBytes, Option[Array[Byte]]] {
 
-        def load(key: KEY): Option[VAL] =
-          underlying.get(key)
+        def load(key: CacheLayerKeyValueStore.WrappedBytes): Option[Array[Byte]] =
+          underlying.get(key.bytes)
       }
     )
 
   override def update(
-    version:  ByteArrayWrapper,
-    toRemove: Iterable[ByteArrayWrapper],
-    toAdd:    Iterable[(ByteArrayWrapper, ByteArrayWrapper)]
+    version:  Array[Byte],
+    toRemove: Iterable[Array[Byte]],
+    toAdd:    Iterable[(Array[Byte], Array[Byte])]
   ): Unit = {
     underlying.update(version, toRemove, toAdd)
     toRemove.foreach(cache.invalidate)
     toAdd
-      .map { case (key, value) => key -> Some(value) }
+      .map { case (key, value) => new CacheLayerKeyValueStore.WrappedBytes(key) -> Some(value) }
       .foreach((cache.put _).tupled)
   }
 
-  override def rollback(version: ByteArrayWrapper): Unit = {
+  override def rollback(version: Array[Byte]): Unit = {
     underlying.rollback(version)
     cache.invalidateAll()
   }
 
-  override def get(key: ByteArrayWrapper): Option[ByteArrayWrapper] =
-    cache.get(key)
+  override def get(key: Array[Byte]): Option[Array[Byte]] =
+    cache.get(new CacheLayerKeyValueStore.WrappedBytes(key))
 
   override def close(): Unit =
     underlying.close()
 
-  override def latestVersion(): Option[KEY] =
+  override def latestVersion(): Option[Array[Byte]] =
     underlying.latestVersion()
+}
+
+object CacheLayerKeyValueStore {
+
+  private class WrappedBytes(val bytes: Array[Byte]) {
+
+    override def equals(obj: Any): Boolean = obj match {
+      case o: Array[Byte] => java.util.Arrays.equals(bytes, o)
+      case _              => false
+    }
+
+    override def hashCode(): Int = java.util.Arrays.hashCode(bytes)
+  }
+
 }
