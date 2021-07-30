@@ -1,6 +1,7 @@
 package co.topl.nodeView.history
 
-import co.topl.consensus.{BlockValidator, DifficultyBlockValidator, SyntaxBlockValidator}
+import co.topl.consensus.Hiccups.HiccupBlock
+import co.topl.consensus.{BlockValidator, DifficultyBlockValidator, Hiccups, SyntaxBlockValidator, TimestampValidator}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block
@@ -8,9 +9,10 @@ import co.topl.modifier.transaction.Transaction
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.History.GenesisParentId
+import co.topl.db.LDBVersionedStore
 import co.topl.settings.AppSettings
+import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Logging, TimeProvider}
-import io.iohk.iodb.LSMStore
 
 import java.io.File
 import scala.annotation.tailrec
@@ -26,7 +28,8 @@ class History(
   val storage:        Storage, //todo: JAA - make this private[history]
   fullBlockProcessor: BlockProcessor,
   validators:         Seq[BlockValidator[Block]]
-) extends GenericHistory[Block, BifrostSyncInfo, History]
+)(implicit np:        NetworkPrefix)
+    extends GenericHistory[Block, BifrostSyncInfo, History]
     with Logging {
 
   override type NVCT = History
@@ -79,12 +82,11 @@ class History(
 
     // test new block against all validators
     val validationResults =
-      if (!isGenesis(block)) {
+      if (!isGenesis(block) && !Hiccups.blockValidation.contains(HiccupBlock(block))) {
         validators.map(_.validate(block)).map {
           case Failure(e) =>
             log.warn(s"Block validation failed", e)
             false
-
           case _ => true
         }
       } else Seq(true) // skipping validation for genesis block
@@ -481,13 +483,13 @@ object History extends Logging {
 
   val GenesisParentId: ModifierId = ModifierId.genesisParentId
 
-  def readOrGenerate(settings: AppSettings): History = {
+  def readOrGenerate(settings: AppSettings)(implicit np: NetworkPrefix): History = {
 
     /** Setup persistent on-disk storage */
     val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
     val file = new File(s"$dataDir/blocks")
     file.mkdirs()
-    val blockStorageDB = new LSMStore(file)
+    val blockStorageDB = new LDBVersionedStore(file, 100)
     val storage = new Storage(blockStorageDB, settings.application.cacheExpire, settings.application.cacheSize)
 
     /** This in-memory cache helps us to keep track of tines sprouting off the canonical chain */
@@ -495,7 +497,8 @@ object History extends Logging {
 
     val validators = Seq(
       new DifficultyBlockValidator(storage, blockProcessor),
-      new SyntaxBlockValidator
+      new SyntaxBlockValidator,
+      new TimestampValidator(storage)
     )
 
     new History(storage, blockProcessor, validators)
