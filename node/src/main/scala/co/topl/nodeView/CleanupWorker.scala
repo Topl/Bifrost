@@ -1,19 +1,16 @@
 package co.topl.nodeView
 
-import akka.actor.Actor
-import co.topl.attestation.Address
+import akka.actor.{Actor, ActorRef}
+import akka.util.Timeout
 import co.topl.modifier.ModifierId
-import co.topl.modifier.box.ProgramId
-import co.topl.modifier.transaction.Transaction
-import co.topl.nodeView.CleanupWorker.RunCleanup
+import co.topl.nodeView.CleanupWorker.{CleanupDecision, RunCleanup}
 import co.topl.nodeView.MempoolAuditor.CleanupDone
-import co.topl.nodeView.mempool.MemPoolReader
-import co.topl.nodeView.state.StateReader
 import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Logging, TimeProvider}
 
 import scala.collection.immutable.TreeSet
+import scala.concurrent.Future
 
 /**
  * Performs mempool validation task on demand.
@@ -28,9 +25,6 @@ class CleanupWorker(
 ) extends Actor
     with Logging {
 
-  type SR = StateReader[ProgramId, Address]
-  type MR = MemPoolReader[Transaction.TX]
-
   // keep some number of recently validated transactions in order
   // to avoid validating the same transactions too many times.
   private var validatedIndex: TreeSet[ModifierId] = TreeSet.empty[ModifierId]
@@ -41,55 +35,60 @@ class CleanupWorker(
     log.info("Cleanup worker started")
 
   override def receive: Receive = {
-    case RunCleanup(state: SR, mempool: MR) =>
-      val validIds = runCleanup(state, mempool)
-        .take(settings.application.rebroadcastCount)
-      sender() ! CleanupDone(validIds)
+    case RunCleanup =>
+      import akka.pattern.pipe
+      import context.dispatcher
+      val s = sender()
+      withNodeView(splitIds(_, s))
+        .pipeTo(context.self)
+
+    case CleanupDecision(validatedIds, idsToInvalidate, sender) =>
+      sender ! CleanupDone(validatedIds.take(settings.application.rebroadcastCount))
+      log.info(s"${idsToInvalidate.size} transactions from mempool were invalidated")
+      nodeViewHolderRef.tell(NodeViewHolder.ReceivableMessages.EliminateTransactions(idsToInvalidate))
+      if (epochNr < Int.MaxValue) epochNr += 1 else epochNr = 0
+      if (epochNr % CleanupWorker.RevisionInterval == 0) {
+        // drop old index in order to check potentially outdated transactions again.
+        validatedIndex = TreeSet(validatedIds: _*)
+      } else {
+        validatedIndex ++= validatedIds
+      }
 
     //Should not be here, if non-expected signal comes, check logic
     case a: Any => log.warn(s"Strange input: $a")
   }
 
-  private def runCleanup(state: SR, mempool: MR): Seq[ModifierId] = {
-    val (validated, toEliminate) = validatePool(state, mempool)
-    if (toEliminate.nonEmpty) {
-      log.info(s"${toEliminate.size} transactions from mempool were invalidated")
-      nodeViewHolderRef ! NodeViewHolder.ReceivableMessages.EliminateTransactions(toEliminate)
-    }
-    validated
-  }
-
   /**
    * Checks if the outputs of unconfirmed transactions exists in state or if the transaction has become
    *  stale (by exceeding the mempoolTimeout). If either are true, the transaction is removed from the mempool
-   * @return - a sequence of recently validated transactions id's to be rebroadcast and a sequence of ids to remove
    */
-  private def validatePool(stateReader: SR, mempool: MR): (Seq[ModifierId], Seq[ModifierId]) = {
+  private def splitIds(nodeView: ReadableNodeView, replyTo: ActorRef): CleanupDecision = {
+    val (valid, invalid) =
+      nodeView.memPool
+        .take(100)(-_.dateAdded)
+        .filterNot(utx => validatedIndex.contains(utx.tx.id))
+        .foldLeft((Seq[ModifierId](), Seq[ModifierId]()))({
+          case ((validAcc: Seq[ModifierId], invalidAcc: Seq[ModifierId]), utx) =>
+            // if any newly created box matches a box already in the UTXO set, remove the transaction
+            val boxAlreadyExists = utx.tx.newBoxes.exists(b => nodeView.state.getBox(b.id).isDefined)
+            val txTimeout =
+              (timeProvider.time - utx.dateAdded) > settings.application.mempoolTimeout.toMillis
 
-    // Check transactions sorted by priority. Parent transaction comes before its children.
-    val (validatedIds, invalidatedIds) = mempool
-      .take(100)(-_.dateAdded)
-      .filterNot(utx => validatedIndex.contains(utx.tx.id))
-      .foldLeft((Seq[ModifierId](), Seq[ModifierId]()))({
-        case ((validAcc: Seq[ModifierId], invalidAcc: Seq[ModifierId]), utx) =>
-          // if any newly created box matches a box already in the UTXO set, remove the transaction
-          val boxAlreadyExists = utx.tx.newBoxes.exists(b => stateReader.getBox(b.id).isDefined)
-          val txTimeout =
-            (timeProvider.time - utx.dateAdded) > settings.application.mempoolTimeout.toMillis
+            if (boxAlreadyExists | txTimeout) (validAcc, utx.tx.id +: invalidAcc)
+            else (utx.tx.id +: validAcc, invalidAcc)
+        })
 
-          if (boxAlreadyExists | txTimeout) (validAcc, utx.tx.id +: invalidAcc)
-          else (utx.tx.id +: validAcc, invalidAcc)
-      })
+    CleanupDecision(valid, invalid, replyTo)
+  }
 
-    if (epochNr < Int.MaxValue) epochNr += 1 else epochNr = 0
-    if (epochNr % CleanupWorker.RevisionInterval == 0) {
-      // drop old index in order to check potentially outdated transactions again.
-      validatedIndex = TreeSet(validatedIds: _*)
-    } else {
-      validatedIndex ++= validatedIds
-    }
+  private def withNodeView[T](f: ReadableNodeView => T): Future[T] = {
+    import akka.actor.typed.scaladsl.AskPattern._
+    import akka.actor.typed.scaladsl.adapter._
 
-    validatedIds -> invalidatedIds
+    import scala.concurrent.duration._
+    implicit val timeout: Timeout = Timeout(10.seconds)
+    implicit val typedSystem: akka.actor.typed.ActorSystem[_] = context.system.toTyped
+    nodeViewHolderRef.askWithStatus[T](NodeViewHolder.ReceivableMessages.Read(f, _))
   }
 
 }
@@ -104,12 +103,8 @@ object CleanupWorker {
    */
   val RevisionInterval: Int = 4
 
-  /**
-   * A command to run (partial) memory pool cleanup
-   *
-   * @param stateReader - a state implementation which provides transaction validation
-   * @param mempool - mempool reader instance
-   */
-  case class RunCleanup(stateReader: StateReader[ProgramId, Address], mempool: MemPoolReader[Transaction.TX])
+  case object RunCleanup
+
+  private case class CleanupDecision(validatedIds: Seq[ModifierId], idsToInvalidate: Seq[ModifierId], replyTo: ActorRef)
 
 }
