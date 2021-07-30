@@ -133,13 +133,13 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
 
     //TODO: Jing - change this in the future to keeping a decreasing sequence of prop and sig
     // only need to check until the threshold is exceeded
-    val numValidSigs = signatures.foldLeft((0, proposition.pubKeyProps.map(_ -> true).toMap)) {
+    val numValidSigs = signatures.foldLeft((0, proposition.pubKeyProps)) {
       case ((acc, unusedProps), sig) =>
         if (acc < proposition.threshold) {
-          proposition.pubKeyProps
+          unusedProps
             .find(prop => unusedProps(prop) && Curve25519.verify(sig.sigBytes, message, prop.pubKeyBytes)) match {
             case Some(prop) =>
-              (acc + 1, unusedProps + (prop -> false))
+              (acc + 1, unusedProps - prop)
             case None =>
               (acc, unusedProps)
           }
