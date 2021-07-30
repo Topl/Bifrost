@@ -10,9 +10,13 @@ import scala.math.BigInt
   * periods’, Advances in Cryptology Eurocrypt ’02, LNCS 2332,
   * Springer, pp.400–417.
   *
-  * Provides forward secure signatures that cannot be reforged with a leaked private key that has been updated
-  * Number of time steps is determined by logl argument upon key generation, practically unbounded for logl = 7
-  * Sum compostion is based on underlying signing routine
+  * Provides forward secure signatures that cannot be reforged with a leaked private key that has been updated.
+  *
+  * Number of time steps is determined by logl argument upon key generation, theoretically unbounded for
+  *   log(l)/log(2) = 7 in the asymmetric product composition assuming integer time steps.
+  *
+  * Sum composition is based on underlying signing routine and the number of time steps is configurable by specifying
+  * a tree height log(l)/log(2), yielding l time steps.
   */
 
 abstract class MMM {
@@ -94,7 +98,7 @@ abstract class MMM {
     * @param t binary tree for which the key is to be calculated
     * @return binary array public key
     */
-  private def sumGetPublicKey(t: Tree[Array[Byte]]): Array[Byte] = {
+  def sumGetPublicKey(t: Tree[Array[Byte]]): Array[Byte] = {
     t match {
       case n: Node[Array[Byte]] =>
         val pk0 = n.v.slice(seedBytes, seedBytes + pkBytes)
@@ -113,7 +117,7 @@ abstract class MMM {
     * @param i height of tree
     * @return binary tree at time step 0
     */
-  private def sumGenerateKey(seed: Array[Byte],i:Int):Tree[Array[Byte]] = {
+  def sumGenerateKey(seed: Array[Byte],i:Int):Tree[Array[Byte]] = {
 
     // generate the binary tree with the pseudorandom number generator
     def sumKeyGenMerkle(seed: Array[Byte],i:Int): Tree[Array[Byte]] = {
@@ -229,7 +233,7 @@ abstract class MMM {
     * @param pk root of the Merkle tree
     * @return true if pk is the root of the Merkle tree, false if otherwise
     */
-  private def sumVerifyKeyPair(t: Tree[Array[Byte]], pk:Array[Byte]): Boolean = {
+  def sumVerifyKeyPair(t: Tree[Array[Byte]], pk:Array[Byte]): Boolean = {
     //loops through the tree to verify Merkle witness path
     def loop(t: Tree[Array[Byte]]): Boolean = {
       t match {
@@ -275,7 +279,7 @@ abstract class MMM {
     * @param t time step key is to be updated to
     * @return updated key to be written to key
     */
-  private def sumUpdate(key: Tree[Array[Byte]],t:Int): Tree[Array[Byte]] = {
+  def sumUpdate(key: Tree[Array[Byte]],t:Int): Tree[Array[Byte]] = {
     //checks if the sub tree is right most
     def isRightBranch(t: Tree[Array[Byte]]): Boolean = {
       t match {
@@ -358,7 +362,7 @@ abstract class MMM {
     * @param t time step key is to be updated to
     * @return updated key to be written to key
     */
-  private def sumUpdateFast(key: Tree[Array[Byte]],t:Int): Tree[Array[Byte]] = {
+  def sumUpdateFast(key: Tree[Array[Byte]],t:Int): Tree[Array[Byte]] = {
     val T = exp(key.height)
     val keyTime = sumGetKeyTimeStep(key)
     if (t<T && keyTime < t){
@@ -426,7 +430,7 @@ abstract class MMM {
     * @param step  current time step of signing key sk
     * @return byte array signature
     */
-  private def sumSign(sk: Tree[Array[Byte]],m: Array[Byte],step:Int): Array[Byte] = {
+  def sumSign(sk: Tree[Array[Byte]],m: Array[Byte],step:Int): Array[Byte] = {
     assert(step == sumGetKeyTimeStep(sk))
     assert(sumVerifyKeyPair(sk,sumGetPublicKey(sk)))
     val stepBytesBigInt = BigInt(step).toByteArray
@@ -466,7 +470,7 @@ abstract class MMM {
     * @param sig signature to be verified
     * @return true if the signature is valid false if otherwise
     */
-  private def sumVerify(pk: Array[Byte],m: Array[Byte],sig: Array[Byte]): Boolean = {
+  def sumVerify(pk: Array[Byte],m: Array[Byte],sig: Array[Byte]): Boolean = {
     val pkSeq = sig.drop(sigBytes+pkBytes+seedBytes)
     val stepBytes = sig.slice(sigBytes+pkBytes,sigBytes+pkBytes+seedBytes)
     val step = BigInt(stepBytes)
@@ -498,7 +502,7 @@ abstract class MMM {
     * @param key binary tree key
     * @return time step
     */
-  private def sumGetKeyTimeStep(key: Tree[Array[Byte]]): Int = {
+  def sumGetKeyTimeStep(key: Tree[Array[Byte]]): Int = {
     key match {
       case n: Node[Array[Byte]] =>
         val left = n.l match {
@@ -654,7 +658,7 @@ abstract class MMM {
     exp(tl)-1+ti
   }
 
-  def getKeyTimeStep(key: PrivateKey): Long = {
+  def getKeyTimeStep(key: ProductPrivateKey): Long = {
     val L = key.L
     val Si = key.Si
     val tl = sumGetKeyTimeStep(L)
