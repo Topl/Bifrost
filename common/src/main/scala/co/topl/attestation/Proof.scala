@@ -131,7 +131,6 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
     //       (i.e. the check should fail quickly)
     require(proposition.pubKeyProps.size >= proposition.threshold)
 
-    //TODO: Jing - change this in the future to keeping a decreasing sequence of prop and sig
     // only need to check until the threshold is exceeded
     val numValidSigs = signatures.foldLeft((0, proposition.pubKeyProps)) {
       case ((acc, unusedProps), sig) =>
