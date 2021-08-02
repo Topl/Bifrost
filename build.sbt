@@ -18,6 +18,8 @@ inThisBuild(List(
   parallelExecution := false
 ))
 
+enablePlugins(ReproducibleBuildsPlugin, ReproducibleBuildsAssemblyPlugin)
+
 lazy val commonSettings = Seq(
   sonatypeCredentialHost := "s01.oss.sonatype.org",
   scalacOptions ++= commonScalacOptions,
