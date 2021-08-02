@@ -5,9 +5,9 @@ import co.topl.attestation.{PublicKeyPropositionEd25519, SignatureEd25519}
 import co.topl.crypto.PublicKey
 import co.topl.crypto.hash.sha512
 import co.topl.crypto.signatures.{Ed25519, Signature}
-import co.topl.utils.SizedByteVector
-import co.topl.utils.SizedByteVector.Types.{ByteVector28, ByteVector32}
-import co.topl.utils.SizedByteVector.implicits._
+import co.topl.utils.SizedByteCollection
+import co.topl.utils.SizedByteCollection.Types.{ByteVector28, ByteVector32}
+import co.topl.utils.SizedByteCollection.implicits._
 import co.topl.utils.serialization.BifrostSerializer
 import scodec.bits.{ByteOrdering, ByteVector}
 
@@ -39,12 +39,15 @@ case class ExtendedPrivateKeyEd25519(
    * Gets the public key paired with this private key.
    * @return a `PublicKey` for verifying signatures made with this private key
    */
-  def publicKey: PublicKey = {
+  def publicKey: ExtendedPublicKeyEd25519 = {
     val ed25519 = new Ed25519
     val pk = new Array[Byte](ed25519.PUBLIC_KEY_SIZE)
     ed25519.scalarMultBaseEncoded(leftKey.toArray, pk, 0)
 
-    PublicKey(pk)
+    ExtendedPublicKeyEd25519(
+      SizedByteCollection[ByteVector32].fit(pk, ByteOrdering.LittleEndian),
+      chainCode
+    )
   }
 
   /**
@@ -59,29 +62,29 @@ case class ExtendedPrivateKeyEd25519(
       case s: SoftIndex =>
         hmac512WithKey(
           chainCode.toVector,
-          ByteVector(0x00.toByte) ++ ByteVector(publicKey.value) ++ s.bytes.toVector
+          ByteVector(0x02.toByte) ++ publicKey.bytes.toVector ++ s.bytes.toVector
         )
       case h: HardenedIndex =>
         hmac512WithKey(
           chainCode.toVector,
-          ByteVector(0x02.toByte) ++ leftKey.toVector ++ rightKey.toVector ++ h.bytes.toVector
+          ByteVector(0x00.toByte) ++ leftKey.toVector ++ rightKey.toVector ++ h.bytes.toVector
         )
     }
 
     val zLeft =
       BigInt(
         1,
-        SizedByteVector[ByteVector28].fit(z.slice(0, 28), ByteOrdering.LittleEndian).toArray.reverse
+        SizedByteCollection[ByteVector28].fit(z.slice(0, 28), ByteOrdering.LittleEndian).toArray.reverse
       )
 
     val zRight =
       BigInt(
         1,
-        SizedByteVector[ByteVector32].fit(z.slice(32, 64), ByteOrdering.LittleEndian).toArray.reverse
+        SizedByteCollection[ByteVector32].fit(z.slice(32, 64), ByteOrdering.LittleEndian).toArray.reverse
       )
 
     val nextLeft =
-      SizedByteVector[ByteVector32].fit(
+      SizedByteCollection[ByteVector32].fit(
         ByteBuffer
           .wrap(
             (zLeft * 8 + leftNumber).toByteArray.reverse
@@ -90,23 +93,26 @@ case class ExtendedPrivateKeyEd25519(
       )
 
     val nextRight =
-      SizedByteVector[ByteVector32].fit(
+      SizedByteCollection[ByteVector32].fit(
         ByteBuffer
           .wrap(((zRight + rightNumber) % (BigInt(2).pow(256))).toByteArray.reverse)
           .order(ByteOrder.LITTLE_ENDIAN)
       )
 
     val nextChainCode =
-      SizedByteVector[ByteVector32].fit(
-        index match {
+      SizedByteCollection[ByteVector32].fit(
+        (index match {
           case b: SoftIndex =>
             hmac512WithKey(
               chainCode.toVector,
-              ByteVector(0x03.toByte) ++ ByteVector(publicKey.value) ++ b.bytes.toVector
+              ByteVector(0x03.toByte) ++ publicKey.bytes.toVector ++ b.bytes.toVector
             )
           case h: HardenedIndex =>
-            hmac512WithKey(chainCode.toVector, ByteVector(0x01.toByte) ++ rightKey.toVector ++ h.bytes.toVector)
-        },
+            hmac512WithKey(
+              chainCode.toVector,
+              ByteVector(0x01.toByte) ++ leftKey.toVector ++ rightKey.toVector ++ h.bytes.toVector
+            )
+        }).slice(32, 64),
         ByteOrdering.LittleEndian
       )
 
@@ -129,7 +135,7 @@ case class ExtendedPrivateKeyEd25519(
 
     val h: Array[Byte] = mutableKey.leftKey.toArray ++ mutableKey.rightKey.toArray
     val s: Array[Byte] = mutableKey.leftKey.toArray
-    val pk: Array[Byte] = mutableKey.publicKey.value
+    val pk: Array[Byte] = mutableKey.publicKey.bytes.toArray
     val m: Array[Byte] = message
 
     ec.implSign(ec.shaDigest, h, s, pk, 0, ctx, phflag, m, 0, m.length, resultSig, 0)
@@ -139,7 +145,7 @@ case class ExtendedPrivateKeyEd25519(
 
   lazy val serializer: BifrostSerializer[ExtendedPrivateKeyEd25519] = ExtendedPrivateKeyEd25519Serializer
 
-  lazy val publicImage: PublicKeyPropositionEd25519 = PublicKeyPropositionEd25519(publicKey)
+  lazy val publicImage: PublicKeyPropositionEd25519 = PublicKeyPropositionEd25519(PublicKey(publicKey.bytes.toArray))
 }
 
 object ExtendedPrivateKeyEd25519 {
@@ -160,7 +166,7 @@ object ExtendedPrivateKeyEd25519 {
    * @param password the password (optional)
    * @return a root `ExtendedPrivateKey`
    */
-  def fromMnemonic(m: Mnemonic, password: Option[String]): ExtendedPrivateKeyEd25519 = fromSeed(m(password))
+  def fromMnemonic(m: Mnemonic, password: String): ExtendedPrivateKeyEd25519 = fromSeed(m(password))
 
   /**
    * Creates a root `ExtendedPrivateKey` from the given seed.
@@ -171,19 +177,19 @@ object ExtendedPrivateKeyEd25519 {
    */
   def fromSeed(seed: Array[Byte]): ExtendedPrivateKeyEd25519 = {
     val i =
-      hmac512WithKey(ByteVector.view("ed25519 cardano seed".getBytes(StandardCharsets.UTF_8)), ByteVector.view(seed))
+      hmac512WithKey(ByteVector("ed25519 cardano seed".getBytes(StandardCharsets.UTF_8)), ByteVector(seed))
 
     val iLeft = i.slice(0, 32)
     val iRight = i.slice(32, 64)
 
-    val k = sha512.hash(iLeft.toArray).value
+    val k: Array[Byte] = sha512.hash(iLeft.toArray).value
     k(0) = (k(0) & 0xf8).toByte
     k(31) = ((k(31) & 0x1f) | 0x40).toByte
 
     ExtendedPrivateKeyEd25519(
-      SizedByteVector[ByteVector32].fit(k.slice(0, 32), ByteOrdering.LittleEndian),
-      SizedByteVector[ByteVector32].fit(k.slice(32, 64), ByteOrdering.LittleEndian),
-      SizedByteVector[ByteVector32].fit(iRight, ByteOrdering.LittleEndian),
+      SizedByteCollection[ByteVector32].fit(k.slice(0, 32), ByteOrdering.LittleEndian),
+      SizedByteCollection[ByteVector32].fit(k.slice(32, 64), ByteOrdering.LittleEndian),
+      SizedByteCollection[ByteVector32].fit(iRight, ByteOrdering.LittleEndian),
       Seq()
     )
   }
@@ -195,9 +201,9 @@ object ExtendedPrivateKeyEd25519 {
    */
   def copy(value: ExtendedPrivateKeyEd25519): ExtendedPrivateKeyEd25519 =
     new ExtendedPrivateKeyEd25519(
-      SizedByteVector[ByteVector32].fit(value.leftKey.toArray.clone(), ByteOrdering.LittleEndian),
-      SizedByteVector[ByteVector32].fit(value.rightKey.toArray.clone(), ByteOrdering.LittleEndian),
-      SizedByteVector[ByteVector32].fit(value.chainCode.toArray.clone(), ByteOrdering.LittleEndian),
+      SizedByteCollection[ByteVector32].fit(value.leftKey.toArray.clone(), ByteOrdering.LittleEndian),
+      SizedByteCollection[ByteVector32].fit(value.rightKey.toArray.clone(), ByteOrdering.LittleEndian),
+      SizedByteCollection[ByteVector32].fit(value.chainCode.toArray.clone(), ByteOrdering.LittleEndian),
       value.path
     )
 

@@ -1,8 +1,8 @@
 package co.topl.attestation.keyManagement.derivedKeys
 
-import co.topl.utils.SizedByteVector
-import co.topl.utils.SizedByteVector.Types.ByteVector4
-import co.topl.utils.SizedByteVector.implicits._
+import co.topl.utils.SizedByteCollection
+import co.topl.utils.SizedByteCollection.Types.ByteVector4
+import co.topl.utils.SizedByteCollection.implicits._
 
 import java.nio.{ByteBuffer, ByteOrder}
 
@@ -23,7 +23,7 @@ trait DerivedKeyIndex {
    */
   val bytes: ByteVector4 =
     // cut off top 4 significant bytes since representation is an unsigned integer
-    SizedByteVector[ByteVector4]
+    SizedByteCollection[ByteVector4]
       .fit(ByteBuffer.allocate(longByteSize).order(ByteOrder.LITTLE_ENDIAN).putLong(value))
 }
 
@@ -37,7 +37,7 @@ object DerivedKeyIndex {
    * Lower bound is `2^31` or 2147483648.
    * Upper bound is `2^32` or 4294967296.
    */
-  private val hardenedIndex: Long = 2147483648L
+  val hardenedIndex: Long = 2147483648L
 
   /**
    * Instantiates a new soft-index value.

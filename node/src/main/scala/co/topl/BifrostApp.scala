@@ -6,6 +6,7 @@ import akka.io.Tcp
 import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.akkahttprpc.{ThrowableData, ThrowableSupport}
+import co.topl.attestation.keyManagement.mnemonicSeed.Mnemonic
 import co.topl.consensus._
 import co.topl.http.HttpService
 import co.topl.modifier.block.Block

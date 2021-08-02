@@ -16,7 +16,7 @@ object Mnemonic {
   /**
    * A mnemonic represents a function that takes in an optional password and returns a seed
    */
-  type Mnemonic = Option[Password] => Seed
+  type Mnemonic = Password => Seed
 
   /*
    * ENT = entropy
@@ -186,10 +186,10 @@ object Mnemonic {
    * @return the mnemonic function
    */
   private def mnemonicFromValidatedPhrase(validatedPhrase: String): Mnemonic =
-    (password: Option[String]) =>
+    (password: String) =>
       Pbkdf2Sha512.generateKey(
         validatedPhrase.getBytes("UTF-8"),
-        ("mnemonic" + password.getOrElse("")).getBytes("UTF-8"),
+        ("mnemonic" + password).getBytes("UTF-8"),
         64,
         2048
       )

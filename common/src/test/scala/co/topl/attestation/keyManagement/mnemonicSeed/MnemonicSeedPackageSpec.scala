@@ -47,10 +47,9 @@ class MnemonicSeedPackageSpec
   }
 
   property("phrase should output the same seed if same password") {
-    forAll(stringGen) { s =>
+    forAll(stringGen) { password =>
       val phrase = "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic"
       val mnemonic = Mnemonic.fromPhrase(phrase, Mnemonic12, English).getOrElse(throw new Error("Invalid mnemonic!"))
-      val password = Some(s)
 
       val firstAttempt = mnemonic(password)
       val secondAttempt = mnemonic(password)
@@ -60,16 +59,14 @@ class MnemonicSeedPackageSpec
   }
 
   property("phrase should output a different if different password") {
-    forAll(stringGen, stringGen) { (s1, s2) =>
+    forAll(stringGen, stringGen) { (password1, password2) =>
       val phrase = "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic"
       val mnemonic = Mnemonic.fromPhrase(phrase, Mnemonic12, English).getOrElse(throw new Error("Invalid mnemonic!"))
-      val password1 = Some(s1)
-      val password2 = Some(s2)
 
       val firstAttempt = mnemonic(password1)
       val secondAttempt = mnemonic(password2)
 
-      if (s1 != s2) firstAttempt sameElements secondAttempt shouldBe false
+      if (password1 != password2) firstAttempt sameElements secondAttempt shouldBe false
     }
   }
 
@@ -239,7 +236,7 @@ class MnemonicSeedPackageSpec
 
   property("test vectors should pass") {
     testVectors.foreach { vector =>
-      val result = vector.mnemonic(Some("TREZOR"))
+      val result = vector.mnemonic("TREZOR")
       val hexResult = Base16.encode(result)
 
       hexResult shouldBe vector.seed
@@ -257,7 +254,7 @@ class MnemonicSeedPackageSpec
   }
 
   property("mnemonic with extra whitespace has same seed as single spaced") {
-    val password: Option[String] = None
+    val password = ""
 
     val expectedSeed = Mnemonic
       .fromPhrase(
@@ -290,7 +287,7 @@ class MnemonicSeedPackageSpec
   }
 
   property("mnemonic with capital letters has same seed as lowercase") {
-    val password: Option[String] = None
+    val password = ""
 
     val expectedSeed = Mnemonic
       .fromPhrase(

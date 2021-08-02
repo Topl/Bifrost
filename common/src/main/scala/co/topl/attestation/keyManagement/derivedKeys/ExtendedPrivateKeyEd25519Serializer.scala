@@ -1,8 +1,8 @@
 package co.topl.attestation.keyManagement.derivedKeys
 
-import co.topl.utils.SizedByteVector
-import co.topl.utils.SizedByteVector.Types.ByteVector32
-import co.topl.utils.SizedByteVector.implicits._
+import co.topl.utils.SizedByteCollection
+import co.topl.utils.SizedByteCollection.Types.ByteVector32
+import co.topl.utils.SizedByteCollection.implicits._
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 import scodec.bits.ByteOrdering
 
@@ -20,9 +20,9 @@ object ExtendedPrivateKeyEd25519Serializer extends BifrostSerializer[ExtendedPri
     val chainCode = r.getBytes(ByteVector32.size)
 
     ExtendedPrivateKeyEd25519(
-      SizedByteVector[ByteVector32].fit(leftKey, ByteOrdering.LittleEndian),
-      SizedByteVector[ByteVector32].fit(rightKey, ByteOrdering.LittleEndian),
-      SizedByteVector[ByteVector32].fit(chainCode, ByteOrdering.LittleEndian),
+      SizedByteCollection[ByteVector32].fit(leftKey, ByteOrdering.LittleEndian),
+      SizedByteCollection[ByteVector32].fit(rightKey, ByteOrdering.LittleEndian),
+      SizedByteCollection[ByteVector32].fit(chainCode, ByteOrdering.LittleEndian),
       // Branden TODO: figure out how to serialize/deserialize the derivation path
       Seq()
     )

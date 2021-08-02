@@ -13,7 +13,7 @@ package object derivedKeys {
     mac.update(data.toArray, 0, data.length.toInt)
     val out = new Array[Byte](64)
     mac.doFinal(out, 0)
-    ByteVector.view(out)
+    ByteVector(out)
   }
 
 }
