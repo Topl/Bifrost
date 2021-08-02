@@ -14,9 +14,6 @@ import org.scalatest.{DoNotDiscover, EitherValues, Inspectors}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-// NOTE: This test currently fails because block difficulties diverge between nodes.  When nodes re-join, the blocks
-// can't be properly appended.
-@DoNotDiscover
 class ChainSelectionTest
     extends AnyFreeSpec
     with Matchers
