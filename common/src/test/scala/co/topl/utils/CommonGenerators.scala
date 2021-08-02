@@ -9,7 +9,7 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.Box.Nonce
-import co.topl.modifier.box.{ProgramId, _}
+import co.topl.modifier.box._
 import co.topl.modifier.transaction._
 import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.codecs.implicits._
@@ -38,12 +38,12 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   lazy val stringGen: Gen[String] = Gen.alphaNumStr.suchThat(_.nonEmpty)
 
   lazy val invalidDataStringGen: Gen[String] = for {
-    n   <- Gen.choose(128, 256)
+    n   <- Gen.choose(Byte.MaxValue + 1, Byte.MaxValue * 2)
     str <- Gen.listOfN(n, Gen.alphaNumChar).map(_.mkString)
   } yield str
 
   lazy val dataStringGen: Gen[String] = for {
-    n   <- Gen.choose(0, 127)
+    n   <- Gen.choose(0, Byte.MaxValue)
     str <- Gen.listOfN(n, Gen.alphaNumChar).map(_.mkString)
   } yield str
 
