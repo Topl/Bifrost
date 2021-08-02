@@ -1,9 +1,9 @@
 package co.topl.nodeView
 
-import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
+import co.topl.attestation.Address
 import co.topl.consensus.consensusHelper.setProtocolMngr
 import co.topl.consensus.genesis.PrivateGenesis
-import co.topl.consensus.{calcNewBaseDifficulty, consensusStorage, ConsensusStorage, LeaderElection, Rewards}
+import co.topl.consensus._
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
@@ -19,9 +19,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
 
   protected var genesisBlock: Block = _
 
-  protected var defaultForgerAddress: Address = _
-
-  protected def nextBlock(parent: Block, nodeView: NodeView, forgerAddress: Address = defaultForgerAddress): Block = {
+  protected def nextBlock(parent: Block, nodeView: NodeView, forgerAddress: Address): Block = {
     val timestamp = parent.timestamp + 50000
     val arbitBox = LeaderElection
       .getEligibleBox(
@@ -32,23 +30,28 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
       )
       .toOption
       .get
-    nextBlock(parent, arbitBox, nodeView.history.getTimestampsFrom(parent, 3), forgerAddress)
+    nextBlock(
+      parent,
+      arbitBox,
+      nodeView.history.getTimestampsFrom(parent, 3),
+      keyRingCurve25519.addresses.find(_.evidence == arbitBox.evidence).get
+    )
   }
 
   protected def nextBlock(
     parent:             Block,
     arbitBox:           ArbitBox,
     previousTimestamps: Seq[TimeProvider.Time],
-    forgerAddress:      Address
+    rewardsAddress:     Address
   ): Block = {
     val timestamp = parent.timestamp + 50000
     val rewards = {
-      val base = Rewards(Nil, forgerAddress, parent.id, timestamp).get
+      val base = Rewards(Nil, rewardsAddress, parent.id, timestamp).get
       base.map {
         case b: PolyTransfer[_] =>
-          b.copy(attestation = keyRingCurve25519.generateAttestation(forgerAddress)(b.messageToSign))
+          b.copy(attestation = keyRingCurve25519.generateAttestation(keyRingCurve25519.addresses)(b.messageToSign))
         case a: ArbitTransfer[_] =>
-          a.copy(attestation = keyRingCurve25519.generateAttestation(forgerAddress)(a.messageToSign))
+          a.copy(attestation = keyRingCurve25519.generateAttestation(keyRingCurve25519.addresses)(a.messageToSign))
       }
     }
     Block
@@ -57,7 +60,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
         timestamp = timestamp,
         txs = rewards,
         generatorBox = arbitBox,
-        publicKey = keyRingCurve25519.lookupPublicKey(forgerAddress).get,
+        publicKey = keyRingCurve25519.lookupPublicKey(rewardsAddress).get,
         height = parent.height + 1,
         difficulty = calcNewBaseDifficulty(
           parent.height + 1,
@@ -65,7 +68,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
           previousTimestamps :+ timestamp
         ),
         version = 1: Byte
-      )(keyRingCurve25519.signWithAddress(forgerAddress))
+      )(keyRingCurve25519.signWithAddress(rewardsAddress))
       .get
   }
 
@@ -96,7 +99,6 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
     setProtocolMngr(settings)
     consensusStorage = ConsensusStorage(settings, appContext.networkType)
     genesisBlock = PrivateGenesis(keyRingCurve25519.addresses, settings).formNewBlock._1
-    defaultForgerAddress = keyRingCurve25519.addresses.head
   }
 }
 

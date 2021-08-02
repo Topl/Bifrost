@@ -75,7 +75,8 @@ class NodeViewHolderSpec
       .onCall(() => System.currentTimeMillis())
 
     genesisActorTest { testIn =>
-      val next = nextBlock(testIn.testIn.nodeView.history.bestBlock, testIn.testIn.nodeView)
+      val next =
+        nextBlock(testIn.testIn.nodeView.history.bestBlock, testIn.testIn.nodeView, keyRingCurve25519.addresses.head)
       testIn.actorRef.tell(ReceivableMessages.WriteBlocks(List(next)))
 
       Thread.sleep(1.seconds.toMillis)

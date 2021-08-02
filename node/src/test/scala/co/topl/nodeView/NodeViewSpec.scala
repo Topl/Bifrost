@@ -136,7 +136,7 @@ class NodeViewSpec
       .returning(Long.MaxValue)
 
     withGenesisNodeView { testIn =>
-      val block = nextBlock(genesisBlock, testIn.nodeView)
+      val block = nextBlock(genesisBlock, testIn.nodeView, keyRingCurve25519.addresses.head)
 
       val (events, updatedNodeView) =
         testIn.nodeView.withBlock(block).run
@@ -162,7 +162,7 @@ class NodeViewSpec
       .never()
 
     withGenesisNodeView { testIn =>
-      val block = nextBlock(genesisBlock, testIn.nodeView).copy(difficulty = -1)
+      val block = nextBlock(genesisBlock, testIn.nodeView, keyRingCurve25519.addresses.head).copy(difficulty = -1)
 
       val (events, updatedNodeView) =
         testIn.nodeView.withBlock(block).run
