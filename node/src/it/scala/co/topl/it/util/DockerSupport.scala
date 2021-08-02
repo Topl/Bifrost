@@ -67,7 +67,7 @@ class DockerSupport(dockerClient: DockerClient)(implicit system: ActorSystem) ex
       .cmd(cmd: _*)
       .hostname(name)
       .hostConfig(hostConfig)
-      .exposedPorts(BifrostDockerNode.RpcPort.toString, BifrostDockerNode.NetworkPort.toString, "9083")
+      .exposedPorts(BifrostDockerNode.RpcPort.toString, BifrostDockerNode.NetworkPort.toString, "9083", "5005")
       .build()
   }
 
