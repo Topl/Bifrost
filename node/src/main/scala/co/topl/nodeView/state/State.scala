@@ -12,14 +12,13 @@ import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.validation._
 import co.topl.modifier.transaction.validation.implicits._
 import co.topl.nodeView.state.MinimalState.VersionTag
-import co.topl.nodeView.{KeyValueStore, LDBKeyValueStore, LSMKeyValueStore}
+import co.topl.nodeView.{KeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.encode.Base58
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import java.io.File
 import scala.reflect.ClassTag
@@ -138,11 +137,11 @@ case class State(
       None
     }
 
-    if (storage.latestVersion().exists(_.data sameElements version.bytes)) {
+    if (storage.latestVersion().exists(_ sameElements version.bytes)) {
       this
     } else {
       log.debug(s"Rollback State to $version from version ${this.version.toString}")
-      storage.rollback(ByteArrayWrapper(version.bytes))
+      storage.rollback(version.bytes)
 
       State(version, storage, updatedTBR, updatedPBR, nodeKeys)
     }
@@ -189,7 +188,7 @@ case class State(
       val boxesToAdd = (nodeKeys match {
         case Some(keys) => stateChanges.toAppend.filter(b => keys.contains(Address(b.evidence)))
         case None       => stateChanges.toAppend
-      }).map(b => ByteArrayWrapper(b.id.hash.value) -> ByteArrayWrapper(b.bytes))
+      }).map(b => b.id.hash.value -> b.bytes)
 
       val boxIdsToRemove = (nodeKeys match {
         case Some(keys) =>
@@ -199,7 +198,7 @@ case class State(
             .map(b => b.id)
 
         case None => stateChanges.boxIdsToRemove
-      }).map(b => ByteArrayWrapper(b.hash.value))
+      }).map(b => b.hash.value)
 
       // enforce that the input id's must not match any of the output id's (added emptiness checks for testing)
       require(
@@ -209,8 +208,8 @@ case class State(
 
       log.debug(
         s"Attempting update to State from version ${version.toString} to version $newVersion. " +
-        s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b.data))}. " +
-        s"Adding boxes ${boxesToAdd.map(b => Base58.encode(b._1.data))}."
+        s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b))}. " +
+        s"Adding boxes ${boxesToAdd.map(b => Base58.encode(b._1))}."
       )
 
       storage
@@ -221,7 +220,7 @@ case class State(
               require(
                 getBox(id).isDefined,
                 s"Box id: $id not found in state version: " +
-                s"${Base58.encode(latestVersion.data)}. Aborting state update"
+                s"${Base58.encode(latestVersion)}. Aborting state update"
               )
             }
         )
@@ -245,7 +244,7 @@ case class State(
         case _ => None
       }
 
-      storage.update(ByteArrayWrapper(newVersion.bytes), boxIdsToRemove, boxesToAdd)
+      storage.update(newVersion.bytes, boxIdsToRemove, boxesToAdd)
 
       // create updated instance of state
       val newState = State(newVersion, storage, updatedTBR, updatedPBR, nodeKeys)
@@ -322,7 +321,7 @@ object State extends Logging {
     val version: VersionTag =
       storage
         .latestVersion()
-        .fold(Option(ModifierId.empty))(bw => ModifierId.parseBytes(bw.data).toOption)
+        .fold(Option(ModifierId.empty))(bw => ModifierId.parseBytes(bw).toOption)
         .getOrElse(throw new Error("Unable to define state version during initialization"))
 
     // node keys are a set of keys that this node will restrict its state to update

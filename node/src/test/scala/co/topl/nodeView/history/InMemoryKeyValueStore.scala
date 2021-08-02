@@ -1,56 +1,54 @@
 package co.topl.nodeView.history
 
 import co.topl.nodeView.KeyValueStore
-import io.iohk.iodb.ByteArrayWrapper
 
 class InMemoryKeyValueStore extends KeyValueStore {
   import InMemoryKeyValueStore._
-  var state: Map[ByteArrayWrapper, ByteArrayWrapper] = Map.empty
+  var state: Map[WrappedBytes, Array[Byte]] = Map.empty
   var changes: List[ChangeSet] = Nil
 
   override def update(
-    version:  ByteArrayWrapper,
-    toRemove: Iterable[ByteArrayWrapper],
-    toAdd:    Iterable[(ByteArrayWrapper, ByteArrayWrapper)]
+    version:  Array[Byte],
+    toRemove: Iterable[Array[Byte]],
+    toAdd:    Iterable[(Array[Byte], Array[Byte])]
   ): Unit = {
     val changeSet = ChangeSet(
       version,
-      toRemove.toList.map(key => Remove(key, state(key))) ++ toAdd.map { case (key, value) =>
-        if (state.contains(key))
-          Update(key, state(key), value)
+      toRemove.toList.map(key => Remove(key, state(new WrappedBytes(key)))) ++ toAdd.map { case (key, value) =>
+        if (state.contains(new WrappedBytes(key)))
+          Update(key, state(new WrappedBytes(key)), value)
         else
           Insert(key, value)
       }
     )
-    state --= toRemove
-    state ++= toAdd.map { case (k, v) => k -> v }
+    state --= toRemove.map(new WrappedBytes(_))
+    state ++= toAdd.map { case (k, v) => new WrappedBytes(k) -> v }
     changes :+= changeSet
   }
 
-  override def rollback(version: ByteArrayWrapper): Unit = {
-    val wrappedVersion = version
-    require(changes.exists(_.version == wrappedVersion))
+  override def rollback(version: Array[Byte]): Unit = {
+    require(changes.exists(_.version sameElements version))
     def revertLatest(): Unit = {
       val latest = changes.last
       changes = changes.init
       latest.changes.foreach {
         case Insert(key, _) =>
-          state -= key
+          state -= new WrappedBytes(key)
         case Update(key, previous, _) =>
-          state += (key -> previous)
+          state += (new WrappedBytes(key) -> previous)
         case Remove(key, previous) =>
-          state += (key -> previous)
+          state += (new WrappedBytes(key) -> previous)
       }
     }
-    while (changes.nonEmpty && changes.head.version != wrappedVersion) revertLatest()
+    while (changes.nonEmpty && !java.util.Arrays.equals(changes.head.version, version)) revertLatest()
   }
 
-  override def get(key: ByteArrayWrapper): Option[ByteArrayWrapper] =
-    state.get(key)
+  override def get(key: Array[Byte]): Option[Array[Byte]] =
+    state.get(new WrappedBytes(key))
 
   override def close(): Unit = {}
 
-  override def latestVersion(): Option[ByteArrayWrapper] =
+  override def latestVersion(): Option[Array[Byte]] =
     changes.lastOption.map(_.version)
 }
 
@@ -58,9 +56,19 @@ object InMemoryKeyValueStore {
 
   def empty(): InMemoryKeyValueStore = new InMemoryKeyValueStore
 
-  case class ChangeSet(version: ByteArrayWrapper, changes: List[Change])
+  case class ChangeSet(version: Array[Byte], changes: List[Change])
   sealed abstract class Change
-  case class Insert(key: ByteArrayWrapper, value: ByteArrayWrapper) extends Change
-  case class Update(key: ByteArrayWrapper, previous: ByteArrayWrapper, value: ByteArrayWrapper) extends Change
-  case class Remove(key: ByteArrayWrapper, previous: ByteArrayWrapper) extends Change
+  case class Insert(key: Array[Byte], value: Array[Byte]) extends Change
+  case class Update(key: Array[Byte], previous: Array[Byte], value: Array[Byte]) extends Change
+  case class Remove(key: Array[Byte], previous: Array[Byte]) extends Change
+
+  class WrappedBytes(val bytes: Array[Byte]) {
+
+    override def equals(obj: Any): Boolean = obj match {
+      case o: WrappedBytes => java.util.Arrays.equals(bytes, o.bytes)
+      case _               => false
+    }
+
+    override def hashCode(): Int = java.util.Arrays.hashCode(bytes)
+  }
 }

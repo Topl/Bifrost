@@ -28,7 +28,8 @@ class StorageCacheSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks w
     history.storage.keyValueStore
       .asInstanceOf[CacheLayerKeyValueStore]
       .cache
-      .getIfPresent(genesisBlockId) shouldEqual history.storage.keyValueStore.get(genesisBlockId)
+      .getIfPresent(new CacheLayerKeyValueStore.WrappedBytes(genesisBlockId)) shouldEqual history.storage.keyValueStore
+      .get(genesisBlockId)
   }
 
   property("Cache should invalidate all entry when it's rolled back in storage") {
@@ -41,7 +42,7 @@ class StorageCacheSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks w
     history.storage.keyValueStore
       .asInstanceOf[CacheLayerKeyValueStore]
       .cache
-      .getIfPresent(bestBlockIdKey) should not be null
+      .getIfPresent(new CacheLayerKeyValueStore.WrappedBytes(bestBlockIdKey)) should not be null
 
     history = history.drop(fstBlock.id)
 
@@ -81,7 +82,7 @@ class StorageCacheSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks w
       history.storage.keyValueStore
         .asInstanceOf[CacheLayerKeyValueStore]
         .cache
-        .getIfPresent(block.id.getIdBytes) shouldEqual
+        .getIfPresent(new CacheLayerKeyValueStore.WrappedBytes(block.id.getIdBytes)) shouldEqual
       history.storage.keyValueStore.get(block.id.getIdBytes)
     }
   }

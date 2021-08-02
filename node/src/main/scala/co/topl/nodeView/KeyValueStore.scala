@@ -83,11 +83,11 @@ class CacheLayerKeyValueStore(underlying: KeyValueStore, cacheExpiration: Finite
 
 object CacheLayerKeyValueStore {
 
-  private class WrappedBytes(val bytes: Array[Byte]) {
+  private[nodeView] class WrappedBytes(val bytes: Array[Byte]) {
 
     override def equals(obj: Any): Boolean = obj match {
-      case o: Array[Byte] => java.util.Arrays.equals(bytes, o)
-      case _              => false
+      case o: WrappedBytes => java.util.Arrays.equals(bytes, o.bytes)
+      case _               => false
     }
 
     override def hashCode(): Int = java.util.Arrays.hashCode(bytes)

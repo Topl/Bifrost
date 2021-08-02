@@ -486,7 +486,7 @@ object History extends Logging {
 
   val GenesisParentId: ModifierId = ModifierId.genesisParentId
 
-  def readOrGenerate(settings: AppSettings): History = {
+  def readOrGenerate(settings: AppSettings)(implicit networkPrefix: NetworkPrefix): History = {
     val storage = {
 
       /** Setup persistent on-disk storage */
@@ -509,7 +509,7 @@ object History extends Logging {
     apply(settings, storage)
   }
 
-  def apply(settings: AppSettings, storage: Storage): History = {
+  def apply(settings: AppSettings, storage: Storage)(implicit networkPrefix: NetworkPrefix): History = {
 
     /** This in-memory cache helps us to keep track of tines sprouting off the canonical chain */
     val blockProcessor = BlockProcessor(settings.network.maxChainCacheDepth)

@@ -1,7 +1,6 @@
 package co.topl.nodeView.state
 
 import co.topl.nodeView.KeyValueStore
-import io.iohk.iodb.ByteArrayWrapper
 
 trait StoreInterface extends AutoCloseable {
 
@@ -9,7 +8,7 @@ trait StoreInterface extends AutoCloseable {
 
   /** method to retrieve data from storage */
   protected def getFromStorage(id: Array[Byte]): Option[Array[Byte]] =
-    storage.get(ByteArrayWrapper(id)).map(_.data)
+    storage.get(id)
 
   /** method to close storage on termination */
   override def close(): Unit =
