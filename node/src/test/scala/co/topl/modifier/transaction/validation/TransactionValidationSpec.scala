@@ -109,8 +109,8 @@ class TransactionValidationSpec
   property("Attempting to validate an AssetTransfer with metadata of invalid length should error") {
     forAll(stringGen) { metadata: String =>
       whenever(metadata.length >= 128) {
-        val tx = assetTransferEd25519Gen.sample.get
-        val assetValue = assetValueEd25519Gen.sample.get.copy(metadata = Some(Latin1Data.unsafe(metadata)))
+        val tx = sampleUntilNonEmpty(assetTransferEd25519Gen)
+        val assetValue = sampleUntilNonEmpty(assetValueEd25519Gen).copy(metadata = Some(Latin1Data.unsafe(metadata)))
         val invalidDataTx = tx.copy(to = IndexedSeq((assetValue.assetCode.issuer, assetValue)))
 
         invalidDataTx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](MetadataTooLong)

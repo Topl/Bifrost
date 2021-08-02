@@ -517,7 +517,7 @@ object History extends Logging {
     val validators = Seq(
       new DifficultyBlockValidator(storage, blockProcessor),
       new SyntaxBlockValidator,
-      new TimestampValidator(storage)
+      new TimestampValidator(storage, blockProcessor)
     )
 
     new History(storage, blockProcessor, validators)

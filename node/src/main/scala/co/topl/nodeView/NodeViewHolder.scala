@@ -218,7 +218,7 @@ object NodeViewHolder {
           // TODO: Should we hold onto the block in the cache?
           // TODO: Ban-list bad blocks?
           val newNodeView = eventStreamWriterHandler(nodeView.withBlock(block))
-          popBlock(cache, nodeView)(context)
+          popBlock(cache, newNodeView)(context)
           initialized(newNodeView, cache)
 
         case (context, ReceivableMessages.WriteTransactions(transactions)) =>

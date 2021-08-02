@@ -14,6 +14,12 @@ import org.scalatest.{EitherValues, Inspectors}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
+/**
+ * This test creates ~4 nodes that share the same seed but are not configured to talk to each other (meaning they
+ * are siloed from one another).  After allowing each node to forge its own unique chain, the nodes are restarted with
+ * communication enabled.  The nodes are expected to share the blocks they've forged with the other nodes, and each
+ * node should independently agree that one chain is the best.
+ */
 class ChainSelectionTest
     extends AnyFreeSpec
     with Matchers
@@ -71,6 +77,13 @@ class ChainSelectionTest
       )
       .futureValue(Timeout(10.minutes))
 
+    nodes
+      .map(node => node.containerId -> node.run(ToplRpc.NodeView.Head.rpc)(ToplRpc.NodeView.Head.Params()).value)
+      .toMap
+      .foreach { case (containerId, bestBlock) =>
+        logger.info(s"containerId=$containerId bestBlockId=${bestBlock.bestBlockId} height=${bestBlock.height}")
+      }
+
     logger.info("Restarting nodes with connected config")
     nodes.foreach(_.reconfigure(connectedConfig))
     Thread.sleep(5.seconds.toMillis)
@@ -82,18 +95,26 @@ class ChainSelectionTest
     nodes.foreach(_.run(ToplRpc.Admin.StartForging.rpc)(ToplRpc.Admin.StartForging.Params()).value)
     Thread.sleep(syncedForgeDuration.toMillis)
 
-    logger.info("Stopping forging and allowing nodes to sync for a bit longer")
-    nodes.foreach(_.run(ToplRpc.Admin.StopForging.rpc)(ToplRpc.Admin.StopForging.Params()).value)
+    logger.info("Stopping forging on nodes 2, 3, and 4")
+    nodes.tail.foreach(_.run(ToplRpc.Admin.StopForging.rpc)(ToplRpc.Admin.StopForging.Params()).value)
+    Thread.sleep(5.seconds.toMillis)
+    logger.info("Stopping forging on node1")
+    nodes.head.run(ToplRpc.Admin.StopForging.rpc)(ToplRpc.Admin.StopForging.Params()).value
+    logger.info("Allowing nodes to sync for 30 seconds")
     Thread.sleep(30.seconds.toMillis)
 
     logger.info("Comparing node heads")
 
-    val bestBlocks = nodes.map(_.run(ToplRpc.NodeView.Head.rpc)(ToplRpc.NodeView.Head.Params()).value)
+    val bestBlocks = nodes
+      .map(node => node.containerId -> node.run(ToplRpc.NodeView.Head.rpc)(ToplRpc.NodeView.Head.Params()).value)
+      .toMap
 
-    logger.info(s"Best blocks: $bestBlocks")
+    bestBlocks.foreach { case (containerId, bestBlock) =>
+      logger.info(s"containerId=$containerId bestBlockId=${bestBlock.bestBlockId} height=${bestBlock.height}")
+    }
 
-    bestBlocks.map(_.height).toSet should have size 1
-    bestBlocks.map(_.bestBlockId).toSet should have size 1
+    bestBlocks.values.map(_.height).toSet should have size 1
+    bestBlocks.values.map(_.bestBlockId).toSet should have size 1
   }
 
 }
