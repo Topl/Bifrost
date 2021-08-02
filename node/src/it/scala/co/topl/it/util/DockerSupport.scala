@@ -48,6 +48,7 @@ class DockerSupport(dockerClient: DockerClient)(implicit system: ActorSystem) ex
         "-Dcom.sun.management.jmxremote.ssl=false",
         "-Dcom.sun.management.jmxremote.local.only=false",
         "-Dcom.sun.management.jmxremote.authenticate=false",
+        "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005",
         "--apiKeyHash",
         NodeRpcApi.ApiKeyHashBase58,
         "-c",
