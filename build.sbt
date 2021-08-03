@@ -24,12 +24,12 @@ lazy val commonSettings = Seq(
   scalacOptions ++= commonScalacOptions,
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
-  // wartremoverErrors := Warts.unsafe // settings for wartremover
+//  wartremoverErrors := Warts.unsafe, // settings for wartremover
   Compile / unmanagedSourceDirectories += {
     val sourceDir = (Compile / sourceDirectory).value
     CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2, n)) if n >= 13 => sourceDir / "scala-2.13+"
-      case _ => sourceDir / "scala-2.12-"
+      case _                       => sourceDir / "scala-2.12-"
     }
   },
   Test / testOptions ++= Seq(
@@ -45,7 +45,8 @@ lazy val commonSettings = Seq(
   resolvers ++= Seq(
     "Typesafe Repository" at "https://repo.typesafe.com/typesafe/releases/",
     "Sonatype Staging" at "https://s01.oss.sonatype.org/content/repositories/staging",
-    "Sonatype Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots/"
+    "Sonatype Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots/",
+    "Bintray" at "https://jcenter.bintray.com/"
   )
 )
 
@@ -79,6 +80,8 @@ lazy val assemblySettings = Seq(
     case ps if ps.endsWith(".xml") => MergeStrategy.first
     case PathList(ps @ _*) if ps.last endsWith "module-info.class" =>
       MergeStrategy.discard // https://github.com/sbt/sbt-assembly/issues/370
+    case x if x.contains("simulacrum") => MergeStrategy.last
+    case PathList("org", "iq80", "leveldb", xs @ _*) => MergeStrategy.first
     case PathList("module-info.java")  => MergeStrategy.discard
     case PathList("local.conf")        => MergeStrategy.discard
     case "META-INF/truffle/instrument" => MergeStrategy.concat
@@ -153,12 +156,13 @@ def versionFmt(out: sbtdynver.GitDescribeOutput): String = {
 
 def fallbackVersion(d: java.util.Date): String = s"HEAD-${sbtdynver.DynVer timestamp d}"
 
-lazy val bifrost = project.in(file("."))
+lazy val bifrost = project
+  .in(file("."))
   .settings(
     moduleName := "bifrost",
     commonSettings,
     publish / skip := true,
-    crossScalaVersions := Nil,
+    crossScalaVersions := Nil
   )
   .configs(IntegrationTest)
   .aggregate(
@@ -168,6 +172,7 @@ lazy val bifrost = project.in(file("."))
     toplRpc,
     gjallarhorn,
     benchmarking,
+    crypto,
     brambl
   )
   .dependsOn(
@@ -177,12 +182,14 @@ lazy val bifrost = project.in(file("."))
     benchmarking
   )
 
-lazy val node = project.in(file("node"))
+lazy val node = project
+  .in(file("node"))
   .settings(
     name := "node",
     commonSettings,
     assemblySettings,
     Defaults.itSettings,
+    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
@@ -202,16 +209,19 @@ lazy val node = project.in(file("node"))
   .dependsOn(common % "compile->compile;test->test", toplRpc)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
-lazy val common = project.in(file("common"))
+lazy val common = project
+  .in(file("common"))
   .settings(
     name := "common",
     commonSettings,
     publishSettings,
     libraryDependencies ++= Dependencies.common
   )
+  .dependsOn(crypto)
   .settings(scalamacrosParadiseSettings)
 
-lazy val chainProgram = project.in(file("chain-program"))
+lazy val chainProgram = project
+  .in(file("chain-program"))
   .settings(
     name := "chain-program",
     commonSettings,
@@ -221,7 +231,8 @@ lazy val chainProgram = project.in(file("chain-program"))
   .dependsOn(common)
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
-lazy val brambl = project.in(file("brambl"))
+lazy val brambl = project
+  .in(file("brambl"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
     name := "brambl",
@@ -229,11 +240,12 @@ lazy val brambl = project.in(file("brambl"))
     publishSettings,
     libraryDependencies ++= Dependencies.brambl,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "co.topl.buildinfo.brambl",
+    buildInfoPackage := "co.topl.buildinfo.brambl"
   )
   .dependsOn(toplRpc, common)
 
-lazy val akkaHttpRpc = project.in(file("akka-http-rpc"))
+lazy val akkaHttpRpc = project
+  .in(file("akka-http-rpc"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
     name := "akka-http-rpc",
@@ -241,10 +253,11 @@ lazy val akkaHttpRpc = project.in(file("akka-http-rpc"))
     publishSettings,
     libraryDependencies ++= Dependencies.akkaHttpRpc,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "co.topl.buildinfo.akkahttprpc",
+    buildInfoPackage := "co.topl.buildinfo.akkahttprpc"
   )
 
-lazy val toplRpc = project.in(file("topl-rpc"))
+lazy val toplRpc = project
+  .in(file("topl-rpc"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
     name := "topl-rpc",
@@ -252,22 +265,27 @@ lazy val toplRpc = project.in(file("topl-rpc"))
     publishSettings,
     libraryDependencies ++= Dependencies.toplRpc,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "co.topl.buildinfo.toplrpc",
+    buildInfoPackage := "co.topl.buildinfo.toplrpc"
   )
   .dependsOn(akkaHttpRpc, common)
 
-lazy val gjallarhorn = project.in(file("gjallarhorn"))
+lazy val gjallarhorn = project
+  .in(file("gjallarhorn"))
   .settings(
     name := "gjallarhorn",
     commonSettings,
+    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
     publish / skip := true,
     Defaults.itSettings,
     libraryDependencies ++= Dependencies.gjallarhorn
   )
+  .dependsOn(crypto, common)
   .configs(IntegrationTest)
   .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings(scalamacrosParadiseSettings)
 
-lazy val benchmarking = project.in(file("benchmark"))
+lazy val benchmarking = project
+  .in(file("benchmark"))
   .settings(
     name := "benchmark",
     commonSettings,
@@ -278,6 +296,18 @@ lazy val benchmarking = project.in(file("benchmark"))
   .enablePlugins(JmhPlugin)
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
+lazy val crypto = project
+  .in(file("crypto"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "crypto",
+    commonSettings,
+    publishSettings,
+    scalamacrosParadiseSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.crypto",
+    libraryDependencies ++= Dependencies.crypto,
+  )
 
 addCommandAlias("checkPR", "; scalafixAll --check; scalafmtCheckAll; test")
 addCommandAlias("preparePR", "; scalafixAll; scalafmtAll; test")

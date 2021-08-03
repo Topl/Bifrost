@@ -1,8 +1,8 @@
 package settings
 
-import java.io.File
 import net.ceedubs.ficus.readers.ValueReader
-import com.typesafe.config.Config
+
+import java.io.File
 
 trait SettingsReaders {
 

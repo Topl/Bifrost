@@ -10,6 +10,7 @@ import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer}
 import co.topl.utils.Int128
+import co.topl.utils.StringDataTypes.Latin1Data
 
 object ToplRpc {
 
@@ -299,7 +300,7 @@ object ToplRpc {
         changeAddress:        Address,
         consolidationAddress: Address,
         minting:              Boolean,
-        data:                 Option[String]
+        data:                 Option[Latin1Data]
       )
 
       case class Response(rawTx: AssetTransfer[Proposition], messageToSign: String)
@@ -340,7 +341,7 @@ object ToplRpc {
         fee:                  Int128,
         changeAddress:        Address,
         consolidationAddress: Address,
-        data:                 Option[String]
+        data:                 Option[Latin1Data]
       )
 
       case class Response(rawTx: ArbitTransfer[Proposition], messageToSign: String)
@@ -379,7 +380,7 @@ object ToplRpc {
         recipients:      NonEmptyChain[(Address, Int128)],
         fee:             Int128,
         changeAddress:   Address,
-        data:            Option[String]
+        data:            Option[Latin1Data]
       )
 
       case class Response(rawTx: PolyTransfer[Proposition], messageToSign: String)

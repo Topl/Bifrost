@@ -53,19 +53,13 @@ object Dependencies {
     "io.circe" %% "circe-parser" % circeVersion
   )
 
-  val crypto = Seq(
-    "org.scorexfoundation" %% "scrypto"         % "2.1.10",
-    "org.bouncycastle"      % "bcprov-jdk15on"  % "1.68",
-    "org.whispersystems"    % "curve25519-java" % "0.5.0"
-  )
-
   val misc = Seq(
-    "com.chuusai"     %% "shapeless"   % "2.3.5",
-    "com.iheart"      %% "ficus"       % "1.5.0",
-    "org.rudogma"     %% "supertagged" % "1.5",
-    "org.scalanlp"    %% "breeze"      % "1.1",
-    "io.netty"         % "netty"       % "3.10.6.Final",
-    "com.google.guava" % "guava"       % "30.1.1-jre"
+    "com.chuusai"     %% "shapeless" % "2.3.5",
+    "com.iheart"      %% "ficus"     % "1.5.0",
+    "org.scalanlp"    %% "breeze"    % "1.1",
+    "io.netty"         % "netty"     % "3.10.6.Final",
+    "com.google.guava" % "guava"     % "30.1.1-jre",
+    "io.estatico"     %% "newtype"   % "0.4.4"
   )
 
   val monitoring = Seq(
@@ -83,13 +77,15 @@ object Dependencies {
 
   val node: Seq[ModuleID] = {
     Seq(
-      "com.typesafe.akka"          %% "akka-cluster"  % akkaVersion,
-      "com.typesafe.akka"          %% "akka-remote"   % akkaVersion,
-      "com.typesafe"                % "config"        % "1.4.1",
-      "com.lihaoyi"                %% "mainargs"      % "0.2.1",
-      "net.jpountz.lz4"             % "lz4"           % "1.3.0",
-      "com.github.julien-truffaut" %% "monocle-core"  % "3.0.0-M5",
-      "com.github.julien-truffaut" %% "monocle-macro" % "3.0.0-M5"
+      "com.typesafe.akka"          %% "akka-cluster"   % akkaVersion,
+      "com.typesafe.akka"          %% "akka-remote"    % akkaVersion,
+      "com.typesafe"                % "config"         % "1.4.1",
+      "com.lihaoyi"                %% "mainargs"       % "0.2.1",
+      "net.jpountz.lz4"             % "lz4"            % "1.3.0",
+      "com.github.julien-truffaut" %% "monocle-core"   % "3.0.0-M5",
+      "com.github.julien-truffaut" %% "monocle-macro"  % "3.0.0-M5",
+      "org.ethereum"                % "leveldbjni-all" % "1.18.3",
+      "org.iq80.leveldb"            % "leveldb"        % "0.12"
     ) ++
     logging ++
     test ++
@@ -97,26 +93,26 @@ object Dependencies {
     akka ++
     network ++
     circe ++
-    crypto ++
     misc ++
     monitoring
   }
 
   lazy val common: Seq[ModuleID] = {
     Seq(
-      "com.typesafe.akka" %% "akka-actor" % akkaVersion,
-      "org.typelevel"     %% "simulacrum" % "1.0.0"
+      "com.typesafe.akka"      %% "akka-actor"              % akkaVersion,
+      "org.typelevel"          %% "simulacrum"              % "1.0.0",
+      "org.scala-lang.modules" %% "scala-collection-compat" % "2.4.4"
     ) ++
     logging ++
     circe ++
-    crypto ++
     test
   }
 
   lazy val chainProgram: Seq[ModuleID] =
     Seq(
-      "io.circe" %% "circe-core"   % circeVersion,
-      "io.circe" %% "circe-parser" % circeVersion
+      "io.circe"               %% "circe-core"              % circeVersion,
+      "io.circe"               %% "circe-parser"            % circeVersion,
+      "org.scala-lang.modules" %% "scala-collection-compat" % "2.4.4"
     ) ++
     test ++
     graal
@@ -126,9 +122,10 @@ object Dependencies {
 
   lazy val akkaHttpRpc: Seq[ModuleID] =
     Seq(
-      "de.heikoseeberger" %% "akka-http-circe" % "1.36.0",
-      "io.circe"          %% "circe-optics"    % circeVersion,
-      "io.circe"          %% "circe-generic"   % circeVersion
+      "de.heikoseeberger"      %% "akka-http-circe"         % "1.36.0",
+      "io.circe"               %% "circe-optics"            % circeVersion,
+      "io.circe"               %% "circe-generic"           % circeVersion,
+      "org.scala-lang.modules" %% "scala-collection-compat" % "2.4.4"
     ) ++
     circe ++
     akka ++
@@ -136,7 +133,8 @@ object Dependencies {
 
   lazy val toplRpc: Seq[ModuleID] =
     Seq(
-      "io.circe" %% "circe-generic" % circeVersion
+      "io.circe"               %% "circe-generic"           % circeVersion,
+      "org.scala-lang.modules" %% "scala-collection-compat" % "2.4.4"
     ) ++
     circe ++
     test
@@ -149,7 +147,6 @@ object Dependencies {
     ) ++
     akka ++
     test ++
-    crypto ++
     circe ++
     logging ++
     misc ++
@@ -158,4 +155,13 @@ object Dependencies {
 
   lazy val benchmarking: Seq[ModuleID] = Seq()
 
+  lazy val crypto: Seq[ModuleID] =
+    Seq(
+      "org.typelevel" %% "simulacrum" % "1.0.0",
+      "org.typelevel" %% "cats-core"  % "2.3.0",
+      "org.bouncycastle"   % "bcprov-jdk15on"  % "1.68",
+      "org.whispersystems" % "curve25519-java" % "0.5.0"
+    ) ++
+    misc ++
+    test
 }

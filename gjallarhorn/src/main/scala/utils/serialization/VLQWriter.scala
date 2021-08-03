@@ -1,8 +1,8 @@
 package utils.serialization
 
-import java.util
-
 import utils.ZigZagEncoder._
+
+import java.util
 
 trait VLQWriter extends Writer {
 

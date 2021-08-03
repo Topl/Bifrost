@@ -1,17 +1,15 @@
 package co.topl.nodeView.state
 
 import co.topl.modifier.block.Block
-import co.topl.utils.{CommonGenerators, FileUtils, NodeGenerators}
+import co.topl.utils.{FileUtils, NodeGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 trait MockState
     extends AnyPropSpec
-    with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers
-    with CommonGenerators
     with NodeGenerators
     with FileUtils {
 

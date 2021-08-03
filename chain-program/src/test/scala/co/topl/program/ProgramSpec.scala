@@ -1,19 +1,18 @@
 package co.topl.program
 
-import java.time.Instant
-
 import co.topl.attestation.PublicKeyPropositionCurve25519
+import co.topl.crypto.PublicKey
+import co.topl.crypto.signatures.Curve25519
 import io.circe.{Json, JsonObject}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-import scorex.crypto.signatures.{Curve25519, PublicKey}
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
+import java.time.Instant
 import scala.util.{Failure, Success, Try}
 
 class ProgramSpec
     extends AnyPropSpec
-    with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers
     with ProgramGenerators {
@@ -36,7 +35,7 @@ class ProgramSpec
     ).json
 
   def getMockPublicKeyProposition(fillByte: Byte): PublicKeyPropositionCurve25519 =
-    PublicKeyPropositionCurve25519(PublicKey @@ Array.fill(Curve25519.KeyLength)(fillByte))
+    PublicKeyPropositionCurve25519(PublicKey(Array.fill(Curve25519.KeyLength)(fillByte)))
 
   property("Can create program") {
     Try {

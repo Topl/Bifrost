@@ -10,16 +10,17 @@ import cats.implicits._
 import co.topl.akkahttprpc.implicits.client.rpcToClient
 import co.topl.akkahttprpc.utils.Retry
 import co.topl.akkahttprpc.{RequestModifier, Rpc, RpcClientFailure, RpcError}
+import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.hash.digest.Digest32
 import co.topl.modifier.ModifierId
 import co.topl.rpc.ToplRpc
 import co.topl.rpc.ToplRpc.NodeView.TransactionById
 import co.topl.rpc.implicits.client._
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.encode.Base58
 import co.topl.utils.{Int128, NetworkType}
 import com.spotify.docker.client.DockerClient
 import io.circe._
-import scorex.crypto.hash.{Blake2b256, Digest32}
-import scorex.util.encode.Base58
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -80,8 +81,8 @@ case class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem, 
 object NodeRpcApi {
 
   val ApiKey = "integration-test-key"
-  val ApiKeyHash: Digest32 = Blake2b256(ApiKey)
-  val ApiKeyHashBase58: String = Base58.encode(ApiKeyHash)
+  val ApiKeyHash: Digest32 = blake2b256.hash(ApiKey.getBytes)
+  val ApiKeyHashBase58: String = Base58.encode(ApiKeyHash.value)
 
   def apply(node: BifrostDockerNode)(implicit system: ActorSystem, dockerClient: DockerClient): NodeRpcApi = {
     val host = dockerClient.inspectContainer(node.containerId).networkSettings().ipAddress()

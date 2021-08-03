@@ -5,6 +5,7 @@ import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.PersistentNodeViewModifier
 import co.topl.network.message.SyncInfo
 import co.topl.nodeView.NodeViewComponent
+import co.topl.utils.StringDataTypes.Base58Data
 
 import scala.util.Try
 
@@ -58,7 +59,12 @@ trait GenericHistory[
 
   def modifierById(modifierId: ModifierId): Option[PM]
 
-  def modifierById(modifierId: String): Option[PM] = Try(ModifierId(modifierId)).toOption.flatMap(modifierById)
+  def modifierById(modifierId: String): Option[PM] =
+    Base58Data
+      .validated(modifierId)
+      .map(ModifierId.fromBase58)
+      .toOption
+      .flatMap(modifierById)
 
   def modifierByHeight(height: Long): Option[PM]
 

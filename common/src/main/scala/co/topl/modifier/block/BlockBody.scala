@@ -7,7 +7,6 @@ import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
-import supertagged.@@
 
 case class BlockBody(id: ModifierId, parentId: ModifierId, transactions: Seq[Transaction.TX], version: PNVMVersion)
     extends TransactionCarryingPersistentNodeViewModifier[Transaction.TX] {
@@ -18,7 +17,7 @@ case class BlockBody(id: ModifierId, parentId: ModifierId, transactions: Seq[Tra
 
 object BlockBody {
 
-  val modifierTypeId: Byte @@ NodeViewModifier.ModifierTypeId.Tag = ModifierTypeId @@ (5: Byte)
+  val modifierTypeId: NodeViewModifier.ModifierTypeId = ModifierTypeId(5: Byte)
 
   implicit val jsonEncoder: Encoder[BlockBody] = { b: BlockBody =>
     Map(

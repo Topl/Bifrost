@@ -3,10 +3,13 @@ package co.topl.attestation
 import cats.Semigroup
 import cats.data.{Validated, ValidatedNec}
 import cats.implicits._
+import co.topl.crypto.hash.blake2b256
+import co.topl.utils.codecs.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.{AsBytes, FromBytes, Infallible, NetworkType}
-import scorex.crypto.hash.Blake2b256
-import scorex.util.encode.Base58
+import co.topl.utils.NetworkType
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.codecs.{AsBytes, FromBytes, Infallible}
+import co.topl.utils.codecs.implicits.toDecoderOps
 
 import scala.language.implicitConversions
 
@@ -29,24 +32,10 @@ object AddressCodec {
     implicit val addressToBytes: AsBytes[Infallible, Address] =
       AsBytes.infallible[Address](address => address.bytes ++ address.bytes.checksum)
 
-    implicit class AddressOps(address: Address) {
-
-      import AsBytes.implicits._
-
-      def base58Encoded: String =
-        Base58.encode(address.infalliblyEncodeAsBytes)
-    }
-
-    implicit class StringOps(value: String) {
-
-      import FromBytes.implicits._
+    implicit class Base58DataOps(value: Base58Data) {
 
       def decodeAddress(implicit networkPrefix: NetworkPrefix): ValidatedNec[AddressValidationError, Address] =
-        Validated
-          .fromTry(Base58.decode(value))
-          .leftMap(_ => NotBase58)
-          .toValidatedNec
-          .andThen((bytes: Array[Byte]) => bytes.decodeTo[AddressValidationError, Address])
+        value.decodeTo[AddressValidationError, Address]
     }
 
     implicit class ByteArrayOps(bytes: Array[Byte]) {
@@ -56,7 +45,7 @@ object AddressCodec {
        *
        * @return a 4 byte checksum value
        */
-      def checksum: Array[Byte] = Blake2b256(bytes).take(ChecksumLength)
+      def checksum: Array[Byte] = blake2b256.hash(bytes).value.take(ChecksumLength)
     }
 
   }
@@ -108,7 +97,6 @@ object AddressCodec {
 sealed abstract class AddressValidationError
 case object InvalidNetworkPrefix extends AddressValidationError
 case object InvalidAddress extends AddressValidationError
-case object NotBase58 extends AddressValidationError
 case object NetworkTypeMismatch extends AddressValidationError
 case object InvalidAddressLength extends AddressValidationError
 case object InvalidChecksum extends AddressValidationError

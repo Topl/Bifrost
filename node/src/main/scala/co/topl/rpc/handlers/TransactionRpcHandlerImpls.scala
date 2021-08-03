@@ -2,16 +2,24 @@ package co.topl.rpc.handlers
 
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
-import co.topl.attestation.{Address, Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
+import co.topl.attestation.{
+  Address,
+  Proposition,
+  PublicKeyPropositionCurve25519,
+  PublicKeyPropositionEd25519,
+  ThresholdPropositionCurve25519
+}
 import co.topl.modifier.box.SimpleValue
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
 import co.topl.modifier.transaction.validation.implicits._
 import co.topl.nodeView.state.State
 import co.topl.nodeView.{BroadcastTxFailureException, GetStateFailureException, NodeViewHolderInterface}
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
+import co.topl.utils.codecs.implicits._
+import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.encode.Base58
 import io.circe.Encoder
-import scorex.util.encode.Base58
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
@@ -34,8 +42,8 @@ class TransactionRpcHandlerImpls(
           .fromTry(transferTry)
           .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
           .toEitherT[Future]
-        messageToSign = Base58.encode(transfer.messageToSign)
-      } yield ToplRpc.Transaction.RawAssetTransfer.Response(transfer, messageToSign)
+        messageToSign = transfer.messageToSign.encodeAsBase58
+      } yield ToplRpc.Transaction.RawAssetTransfer.Response(transfer, messageToSign.show)
 
   override val rawArbitTransfer: ToplRpc.Transaction.RawArbitTransfer.rpc.ServerHandler =
     params =>
@@ -47,8 +55,8 @@ class TransactionRpcHandlerImpls(
           .fromTry(transferTry)
           .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
           .toEitherT[Future]
-        messageToSign = Base58.encode(transfer.messageToSign)
-      } yield ToplRpc.Transaction.RawArbitTransfer.Response(transfer, messageToSign)
+        messageToSign = transfer.messageToSign.encodeAsBase58
+      } yield ToplRpc.Transaction.RawArbitTransfer.Response(transfer, messageToSign.show)
 
   override val rawPolyTransfer: ToplRpc.Transaction.RawPolyTransfer.rpc.ServerHandler =
     params =>
@@ -60,8 +68,8 @@ class TransactionRpcHandlerImpls(
           .fromTry(transferTry)
           .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
           .toEitherT[Future]
-        messageToSign = Base58.encode(transfer.messageToSign)
-      } yield ToplRpc.Transaction.RawPolyTransfer.Response(transfer, messageToSign)
+        messageToSign = transfer.messageToSign.encodeAsBase58
+      } yield ToplRpc.Transaction.RawPolyTransfer.Response(transfer, messageToSign.show)
 
   override val broadcastTx: ToplRpc.Transaction.BroadcastTx.rpc.ServerHandler =
     params =>
@@ -80,6 +88,7 @@ class TransactionRpcHandlerImpls(
     val createRaw = params.propositionType match {
       case PublicKeyPropositionCurve25519.`typeString` => AssetTransfer.createRaw[PublicKeyPropositionCurve25519] _
       case ThresholdPropositionCurve25519.`typeString` => AssetTransfer.createRaw[ThresholdPropositionCurve25519] _
+      case PublicKeyPropositionEd25519.`typeString`    => AssetTransfer.createRaw[PublicKeyPropositionEd25519] _
     }
 
     createRaw(
@@ -105,6 +114,7 @@ class TransactionRpcHandlerImpls(
     val createRaw = params.propositionType match {
       case PublicKeyPropositionCurve25519.`typeString` => ArbitTransfer.createRaw[PublicKeyPropositionCurve25519] _
       case ThresholdPropositionCurve25519.`typeString` => ArbitTransfer.createRaw[ThresholdPropositionCurve25519] _
+      case PublicKeyPropositionEd25519.`typeString`    => ArbitTransfer.createRaw[PublicKeyPropositionEd25519] _
     }
 
     createRaw(
@@ -128,10 +138,9 @@ class TransactionRpcHandlerImpls(
   ): Try[PolyTransfer[Proposition]] = {
     val f =
       params.propositionType match {
-        case PublicKeyPropositionCurve25519.`typeString` =>
-          PolyTransfer.createRaw[PublicKeyPropositionCurve25519] _
-        case ThresholdPropositionCurve25519.`typeString` =>
-          PolyTransfer.createRaw[ThresholdPropositionCurve25519] _
+        case PublicKeyPropositionCurve25519.`typeString` => PolyTransfer.createRaw[PublicKeyPropositionCurve25519] _
+        case ThresholdPropositionCurve25519.`typeString` => PolyTransfer.createRaw[ThresholdPropositionCurve25519] _
+        case PublicKeyPropositionEd25519.`typeString`    => PolyTransfer.createRaw[PublicKeyPropositionEd25519] _
       }
 
     f(

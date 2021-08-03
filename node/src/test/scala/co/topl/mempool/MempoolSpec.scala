@@ -8,28 +8,21 @@ import co.topl.modifier.transaction.Transaction
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.{ChangedHistory, ChangedMempool}
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetNodeViewChanges, LocallyGeneratedTransaction}
+import co.topl.nodeView.NodeViewHolderRef
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.mempool.MemPoolReader
-import co.topl.nodeView.NodeViewHolderRef
 import co.topl.settings.{AppContext, StartupOpts}
-import co.topl.utils.{CommonGenerators, NodeGenerators}
-import org.scalatest.{BeforeAndAfterAll, DoNotDiscover}
+import co.topl.utils.NodeGenerators
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.{BeforeAndAfterAll, DoNotDiscover}
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContext}
 
 @DoNotDiscover
-class MempoolSpec
-    extends AnyPropSpec
-    with ScalaCheckPropertyChecks
-    with Matchers
-    with CommonGenerators
-    with NodeGenerators
-    with BeforeAndAfterAll {
+class MempoolSpec extends AnyPropSpec with Matchers with NodeGenerators with BeforeAndAfterAll {
 
   implicit private val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
   implicit private val executionContext: ExecutionContext = actorSystem.dispatcher

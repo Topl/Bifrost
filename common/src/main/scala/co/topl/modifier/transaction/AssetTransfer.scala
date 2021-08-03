@@ -6,7 +6,9 @@ import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.TransferTransaction.{encodeFrom, BoxParams, TransferCreationState}
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.codecs.Int128Codec
+import co.topl.utils.codecs.implicits._
 import co.topl.utils.{Identifiable, Identifier, Int128}
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
@@ -14,16 +16,17 @@ import io.circe.{Decoder, Encoder, HCursor}
 import java.time.Instant
 import scala.util.Try
 import scala.Iterable
+import scala.collection.immutable.ListMap
 
 case class AssetTransfer[
   P <: Proposition: EvidenceProducer: Identifiable
 ](
   override val from:        IndexedSeq[(Address, Box.Nonce)],
   override val to:          IndexedSeq[(Address, TokenValueHolder)],
-  override val attestation: Map[P, Proof[P]],
+  override val attestation: ListMap[P, Proof[P]],
   override val fee:         Int128,
   override val timestamp:   Long,
-  override val data:        Option[String] = None,
+  override val data:        Option[Latin1Data] = None,
   override val minting:     Boolean = false
 ) extends TransferTransaction[TokenValueHolder, P](from, to, attestation, fee, timestamp, data, minting) {
 
@@ -71,7 +74,7 @@ object AssetTransfer {
     changeAddress:               Address,
     consolidationAddress:        Address,
     fee:                         Int128,
-    data:                        Option[String],
+    data:                        Option[Latin1Data],
     minting:                     Boolean
   )(implicit evidenceProducerEv: EvidenceProducer[P], identifiableEv: Identifiable[P]): Try[AssetTransfer[P]] = {
 
@@ -96,7 +99,7 @@ object AssetTransfer {
         // ensure there are sufficient funds from the sender boxes to create all outputs
         require(availableToSpend >= amtToSpend, "Insufficient funds available to create transaction.")
 
-        AssetTransfer[P](inputs, outputs, Map(), fee, Instant.now.toEpochMilli, data, minting)
+        AssetTransfer[P](inputs, outputs, ListMap(), fee, Instant.now.toEpochMilli, data, minting)
       }
   }
 
@@ -167,18 +170,23 @@ object AssetTransfer {
         to        <- c.downField("to").as[IndexedSeq[(Address, TokenValueHolder)]]
         fee       <- c.get[Int128]("fee")(Int128Codec.jsonDecoder)
         timestamp <- c.downField("timestamp").as[Long]
-        data      <- c.downField("data").as[Option[String]]
+        data      <- c.downField("data").as[Option[Latin1Data]]
         minting   <- c.downField("minting").as[Boolean]
         propType  <- c.downField("propositionType").as[String]
       } yield (propType match {
         case PublicKeyPropositionCurve25519.`typeString` =>
-          c.downField("signatures").as[Map[PublicKeyPropositionCurve25519, SignatureCurve25519]].map {
+          c.downField("signatures").as[ListMap[PublicKeyPropositionCurve25519, SignatureCurve25519]].map {
             new AssetTransfer[PublicKeyPropositionCurve25519](from, to, _, fee, timestamp, data, minting)
           }
 
         case ThresholdPropositionCurve25519.`typeString` =>
-          c.downField("signatures").as[Map[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]].map {
+          c.downField("signatures").as[ListMap[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]].map {
             new AssetTransfer[ThresholdPropositionCurve25519](from, to, _, fee, timestamp, data, minting)
+          }
+
+        case PublicKeyPropositionEd25519.`typeString` =>
+          c.downField("signatures").as[ListMap[PublicKeyPropositionEd25519, SignatureEd25519]].map {
+            new AssetTransfer[PublicKeyPropositionEd25519](from, to, _, fee, timestamp, data, minting)
           }
       }) match {
         case Right(tx) => tx
