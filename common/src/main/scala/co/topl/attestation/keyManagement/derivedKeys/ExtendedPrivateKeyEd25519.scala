@@ -24,11 +24,11 @@ import java.nio.{ByteBuffer, ByteOrder}
  * @param rightKey the right 32 bytes of the private key
  * @param chainCode the 32-byte chain code
  */
-case class ExtendedPrivateKeyEd25519(
-  leftKey:   ByteVector32,
-  rightKey:  ByteVector32,
-  chainCode: ByteVector32,
-  path:      Seq[DerivedKeyIndex]
+class ExtendedPrivateKeyEd25519(
+  val leftKey:   ByteVector32,
+  val rightKey:  ByteVector32,
+  val chainCode: ByteVector32,
+  val path:      Seq[DerivedKeyIndex]
 ) {
 
   // Note: BigInt expects Big-Endian, but SLIP/BIP-ED25519 need Little-Endian
@@ -37,9 +37,9 @@ case class ExtendedPrivateKeyEd25519(
 
   /**
    * Gets the public key paired with this private key.
-   * @return a `PublicKey` for verifying signatures made with this private key
+   * @return a `ExtendedPublicKeyEd25519` for verifying signatures made with this private key
    */
-  def publicKey: ExtendedPublicKeyEd25519 = {
+  def public: ExtendedPublicKeyEd25519 = {
     val ed25519 = new Ed25519
     val pk = new Array[Byte](ed25519.PUBLIC_KEY_SIZE)
     ed25519.scalarMultBaseEncoded(leftKey.toArray, pk, 0)
@@ -52,17 +52,20 @@ case class ExtendedPrivateKeyEd25519(
 
   /**
    * Deterministically derives a child `ExtendedPrivateKey` at the given index from this extended private key.
+   *
+   * Follows section V.C from BIP32-ED25519 spec.
+   *
    * @param index the index of the child key to derive
    * @return the derived `ExtendedPrivateKey`
    */
-  def deriveChildKey(
+  def derive(
     index: DerivedKeyIndex
   ): Either[ExtendedPrivateKeyEd25519.InvalidDerivedKey, ExtendedPrivateKeyEd25519] = {
     val z = index match {
       case s: SoftIndex =>
         hmac512WithKey(
           chainCode.toVector,
-          ByteVector(0x02.toByte) ++ publicKey.bytes.toVector ++ s.bytes.toVector
+          ByteVector(0x02.toByte) ++ public.bytes.toVector ++ s.bytes.toVector
         )
       case h: HardenedIndex =>
         hmac512WithKey(
@@ -105,7 +108,7 @@ case class ExtendedPrivateKeyEd25519(
           case b: SoftIndex =>
             hmac512WithKey(
               chainCode.toVector,
-              ByteVector(0x03.toByte) ++ publicKey.bytes.toVector ++ b.bytes.toVector
+              ByteVector(0x03.toByte) ++ public.bytes.toVector ++ b.bytes.toVector
             )
           case h: HardenedIndex =>
             hmac512WithKey(
@@ -135,7 +138,7 @@ case class ExtendedPrivateKeyEd25519(
 
     val h: Array[Byte] = mutableKey.leftKey.toArray ++ mutableKey.rightKey.toArray
     val s: Array[Byte] = mutableKey.leftKey.toArray
-    val pk: Array[Byte] = mutableKey.publicKey.bytes.toArray
+    val pk: Array[Byte] = mutableKey.public.bytes.toArray
     val m: Array[Byte] = message
 
     ec.implSign(ec.shaDigest, h, s, pk, 0, ctx, phflag, m, 0, m.length, resultSig, 0)
@@ -145,7 +148,7 @@ case class ExtendedPrivateKeyEd25519(
 
   lazy val serializer: BifrostSerializer[ExtendedPrivateKeyEd25519] = ExtendedPrivateKeyEd25519Serializer
 
-  lazy val publicImage: PublicKeyPropositionEd25519 = PublicKeyPropositionEd25519(PublicKey(publicKey.bytes.toArray))
+  lazy val publicImage: PublicKeyPropositionEd25519 = PublicKeyPropositionEd25519(PublicKey(public.bytes.toArray))
 }
 
 object ExtendedPrivateKeyEd25519 {
@@ -159,6 +162,14 @@ object ExtendedPrivateKeyEd25519 {
    * Equivalent to `2^252 + 27742317777372353535851937790883648493`
    */
   val edBaseN: BigInt = BigInt("7237005577332262213973186563042994240857116359379907606001950938285454250989")
+
+  def apply(
+    leftKey:   ByteVector32,
+    rightKey:  ByteVector32,
+    chainCode: ByteVector32,
+    path:      Seq[DerivedKeyIndex]
+  ): ExtendedPrivateKeyEd25519 =
+    new ExtendedPrivateKeyEd25519(leftKey, rightKey, chainCode, path)
 
   /**
    * Generates a root `ExtendedPrivateKey` from a mnemonic phrase and an optional password.
@@ -200,7 +211,7 @@ object ExtendedPrivateKeyEd25519 {
    * @return the copied `ExtendedPrivateKey`
    */
   def copy(value: ExtendedPrivateKeyEd25519): ExtendedPrivateKeyEd25519 =
-    new ExtendedPrivateKeyEd25519(
+    ExtendedPrivateKeyEd25519(
       SizedByteCollection[ByteVector32].fit(value.leftKey.toArray.clone(), ByteOrdering.LittleEndian),
       SizedByteCollection[ByteVector32].fit(value.rightKey.toArray.clone(), ByteOrdering.LittleEndian),
       SizedByteCollection[ByteVector32].fit(value.chainCode.toArray.clone(), ByteOrdering.LittleEndian),

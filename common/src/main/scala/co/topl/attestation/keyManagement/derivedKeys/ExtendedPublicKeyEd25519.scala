@@ -7,7 +7,25 @@ import co.topl.utils.SizedByteCollection.implicits._
 import co.topl.utils.SizedByteCollection.Types.ByteVector32
 import scodec.bits.ByteOrdering
 
+/**
+ * An ED-25519 Extended public key.
+ *
+ * See https://drive.google.com/file/d/0ByMtMw2hul0EMFJuNnZORDR2NDA/view?resourcekey=0-5yJh8wV--HB7ve2NuqfQ6A
+ * for the BIP32-ED25519 specification
+ *
+ * @param bytes the bytes representing the verification key
+ * @param chainCode the chaincode which matches the private key to the public key
+ */
 class ExtendedPublicKeyEd25519(val bytes: ByteVector32, val chainCode: ByteVector32) {
+
+  /**
+   * Deterministically derives a child public key located at the given soft index.
+   *
+   * Follows section V.D from the BIP32-ED25519 spec.
+   *
+   * @param index the index of the key to derive
+   * @return an extended public key
+   */
   def derive(index: SoftIndex): ExtendedPublicKeyEd25519 = {
     val z = hmac512WithKey(chainCode.toVector, (0x02.toByte +: bytes.toVector) ++ index.bytes.toVector)
 
@@ -43,6 +61,10 @@ class ExtendedPublicKeyEd25519(val bytes: ByteVector32, val chainCode: ByteVecto
     ExtendedPublicKeyEd25519(nextPk, nextChainCode)
   }
 
+  /**
+   * Gets the `PublicKey` from this `ExtendedPublicKeyEd25519` value.
+   * @return the Ed25519 public key as a `PublicKey`
+   */
   def toPublicKey: PublicKey = PublicKey(bytes.toArray)
 }
 

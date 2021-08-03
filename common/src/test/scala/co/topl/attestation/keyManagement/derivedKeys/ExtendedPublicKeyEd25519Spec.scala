@@ -34,7 +34,7 @@ class ExtendedPublicKeyEd25519Spec extends AnyFlatSpec {
         Seq()
       )
 
-    val derivedPub = rootKey.publicKey.derive(SoftIndex(0))
+    val derivedPub = rootKey.public.derive(SoftIndex(0))
 
     Base16.encode(derivedPub.bytes.toArray ++ derivedPub.chainCode.toArray) shouldBe expectedDerivedPublic
   }
@@ -44,15 +44,15 @@ class ExtendedPublicKeyEd25519Spec extends AnyFlatSpec {
       val root = ExtendedPrivateKeyEd25519.fromSeed(seed.getBytes)
 
       val derivedPrv = path.foldLeft(root.asRight[InvalidDerivedKey]) {
-        case (Right(key), step) => key.deriveChildKey(DerivedKeyIndex.hardened(step))
+        case (Right(key), step) => key.derive(DerivedKeyIndex.hardened(step))
         case (error, _)         => error
       }
 
       // do not test invalid keys
       derivedPrv.foreach { privateKey =>
-        val childDerivedPubKey = privateKey.publicKey.derive(SoftIndex(pubIndex))
+        val childDerivedPubKey = privateKey.public.derive(SoftIndex(pubIndex))
 
-        privateKey.deriveChildKey(SoftIndex(pubIndex)).foreach { derivedChildPrvKey =>
+        privateKey.derive(SoftIndex(pubIndex)).foreach { derivedChildPrvKey =>
           val messageToSign = message.getBytes
 
           val ed25519 = new Ed25519

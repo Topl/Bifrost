@@ -3,8 +3,6 @@ package co.topl.attestation.keyManagement.derivedKeys
 import cats.implicits._
 import co.topl.attestation.SignatureEd25519
 import co.topl.attestation.keyManagement.derivedKeys.ExtendedPrivateKeyEd25519.InvalidDerivedKey
-import co.topl.attestation.keyManagement.mnemonicSeed.Mnemonic.Mnemonic15
-import co.topl.attestation.keyManagement.mnemonicSeed.{English, Mnemonic}
 import co.topl.crypto.signatures.Ed25519
 import co.topl.utils.SizedByteCollection
 import co.topl.utils.SizedByteCollection.Types.ByteVector32
@@ -67,7 +65,7 @@ class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
   it should "create correct root public key with test vector #1 seed" in {
     ExtendedPrivateKeyEd25519
       .fromSeed(testVector1Seed.value)
-      .publicKey
+      .public
       .bytes
       .encodeAsBase16
       .shouldBe(Base16Data.unsafe("83e3ecaf57f90f022c45e10d1b8cb78499c30819515ad9a81ad82139fdb12a90"))
@@ -76,7 +74,7 @@ class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
   it should "create correct root public key with test vector #2 seed" in {
     ExtendedPrivateKeyEd25519
       .fromSeed(testVector2Seed.value)
-      .publicKey
+      .public
       .bytes
       .encodeAsBase16
       .shouldBe(Base16Data.unsafe("eea170f0ef97b59d22907cb429888029721ed67d3e7a1b56b81731086ab7db64"))
@@ -101,7 +99,7 @@ class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
   it should "create a valid signing root key with test vector #1" in {
     val root = ExtendedPrivateKeyEd25519.fromSeed(testVector1Seed.value)
 
-    val publicKey = root.publicKey
+    val publicKey = root.public
 
     val message = "test".getBytes
 
@@ -117,7 +115,7 @@ class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
   it should "create a valid signing root key with test vector #2" in {
     val root = ExtendedPrivateKeyEd25519.fromSeed(testVector2Seed.value)
 
-    val publicKey = root.publicKey
+    val publicKey = root.public
 
     val message = "test".getBytes
 
@@ -135,13 +133,13 @@ class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
       val root = ExtendedPrivateKeyEd25519.fromSeed(seed.getBytes)
 
       val derivedKey = path.foldLeft(root.asRight[InvalidDerivedKey]) {
-        case (Right(key), step) => key.deriveChildKey(DerivedKeyIndex.hardened(step))
+        case (Right(key), step) => key.derive(DerivedKeyIndex.hardened(step))
         case (error, _)         => error
       }
 
       // do not test invalid keys
       derivedKey.foreach { privateKey =>
-        val publicKey = privateKey.publicKey
+        val publicKey = privateKey.public
 
         val messageToSign = message.getBytes
 
@@ -158,14 +156,13 @@ class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
 
   "ExtendedPrivateKeyEd25519" should "pass child key derivation and signing test vector from rust-cardano" in {
     val rootKeyBytes: Array[Byte] =
-      Array(
-        0xf8, 0xa2, 0x92, 0x31, 0xee, 0x38, 0xd6, 0xc5, 0xbf, 0x71, 0x5d, 0x5b, 0xac, 0x21, 0xc7, 0x50, 0x57, 0x7a,
-        0xa3, 0x79, 0x8b, 0x22, 0xd7, 0x9d, 0x65, 0xbf, 0x97, 0xd6, 0xfa, 0xde, 0xa1, 0x5a, 0xdc, 0xd1, 0xee, 0x1a,
-        0xbd, 0xf7, 0x8b, 0xd4, 0xbe, 0x64, 0x73, 0x1a, 0x12, 0xde, 0xb9, 0x4d, 0x36, 0x71, 0x78, 0x41, 0x12, 0xeb,
-        0x6f, 0x36, 0x4b, 0x87, 0x18, 0x51, 0xfd, 0x1c, 0x9a, 0x24, 0x73, 0x84, 0xdb, 0x9a, 0xd6, 0x00, 0x3b, 0xbd,
-        0x08, 0xb3, 0xb1, 0xdd, 0xc0, 0xd0, 0x7a, 0x59, 0x72, 0x93, 0xff, 0x85, 0xe9, 0x61, 0xbf, 0x25, 0x2b, 0x33,
-        0x12, 0x62, 0xed, 0xdf, 0xad, 0x0d
-      ).map(_.toByte)
+      Base16Data.unsafe(
+        "f8a29231ee38d6c5bf715d5bac21c750577aa3798b22d79d65bf97d6fadea15adcd1ee1abdf78bd4be64731a12deb94" +
+          "d3671784112eb6f364b871851fd1c9a247384db9ad6003bbd08b3b1ddc0d07a597293ff85e961bf252b331262eddfad0d"
+      ).value
+
+    import co.topl.utils.StringDataTypes.implicits._
+    println(rootKeyBytes.encodeAsBase16.show)
 
     val rootKey =
       ExtendedPrivateKeyEd25519(
@@ -176,26 +173,22 @@ class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
       )
 
     val expectedChildKey: Array[Byte] =
-      Array(
-        0x60, 0xd3, 0x99, 0xda, 0x83, 0xef, 0x80, 0xd8, 0xd4, 0xf8, 0xd2, 0x23, 0x23, 0x9e, 0xfd, 0xc2, 0xb8, 0xfe,
-        0xf3, 0x87, 0xe1, 0xb5, 0x21, 0x91, 0x37, 0xff, 0xb4, 0xe8, 0xfb, 0xde, 0xa1, 0x5a, 0xdc, 0x93, 0x66, 0xb7,
-        0xd0, 0x03, 0xaf, 0x37, 0xc1, 0x13, 0x96, 0xde, 0x9a, 0x83, 0x73, 0x4e, 0x30, 0xe0, 0x5e, 0x85, 0x1e, 0xfa,
-        0x32, 0x74, 0x5c, 0x9c, 0xd7, 0xb4, 0x27, 0x12, 0xc8, 0x90, 0x60, 0x87, 0x63, 0x77, 0x0e, 0xdd, 0xf7, 0x72,
-        0x48, 0xab, 0x65, 0x29, 0x84, 0xb2, 0x1b, 0x84, 0x97, 0x60, 0xd1, 0xda, 0x74, 0xa6, 0xf5, 0xbd, 0x63, 0x3c,
-        0xe4, 0x1a, 0xdc, 0xee, 0xf0, 0x7a
-      ).map(_.toByte)
+      Base16Data.unsafe(
+        "60d399da83ef80d8d4f8d223239efdc2b8fef387e1b5219137ffb4e8fbdea15adc9366b7d003af37c11396de9a837" +
+          "34e30e05e851efa32745c9cd7b42712c890608763770eddf77248ab652984b21b849760d1da74a6f5bd633ce41adceef07a"
+      ).value
 
     val expectedSignature: Array[Byte] =
-      Array(
-        0x90, 0x19, 0x4d, 0x57, 0xcd, 0xe4, 0xfd, 0xad, 0xd0, 0x1e, 0xb7, 0xcf, 0x16, 0x17, 0x80, 0xc2, 0x77, 0xe1,
-        0x29, 0xfc, 0x71, 0x35, 0xb9, 0x77, 0x79, 0xa3, 0x26, 0x88, 0x37, 0xe4, 0xcd, 0x2e, 0x94, 0x44, 0xb9, 0xbb,
-        0x91, 0xc0, 0xe8, 0x4d, 0x23, 0xbb, 0xa8, 0x70, 0xdf, 0x3c, 0x4b, 0xda, 0x91, 0xa1, 0x10, 0xef, 0x73, 0x56,
-        0x38, 0xfa, 0x7a, 0x34, 0xea, 0x20, 0x46, 0xd4, 0xbe, 0x04
-      ).map(_.toByte)
+      Base16Data.unsafe(
+        "90194d57cde4fdadd01eb7cf161780c277e129fc7135b97779a3268837e4cd2e9444b9bb91c0e84d23bba870df3c4bda" +
+          "91a110ef735638fa7a34ea2046d4be04"
+      ).value
+
+    println(expectedSignature.encodeAsBase16.show)
 
     val childKey =
       rootKey
-        .deriveChildKey(DerivedKeyIndex.hardened(0))
+        .derive(DerivedKeyIndex.hardened(0))
         .getOrElse(throw new Exception("invalid child key"))
 
     val childKeyBytes =
@@ -209,30 +202,42 @@ class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
 
   it should "pass generated test vector #1" in {
     val `root private key` =
-      "f0d0f18e6ab029166fe4e89519ab64f42aa870fc2791fc472840c3a1ba507347fee30dcae1ae3941bde71e9ddd19eef33d0a7b91" +
-        "aaa4137cea6ef4ea3c27f96a1189e5ec0628974ed7846b594ed0ee2d3ef2d8f5b91d1860ffb0a065159df8be"
+      Base16Data.unsafe(
+        "f0d0f18e6ab029166fe4e89519ab64f42aa870fc2791fc472840c3a1ba507347fee30dcae1ae3941bde71e9ddd19eef33d0a7b91" +
+          "aaa4137cea6ef4ea3c27f96a1189e5ec0628974ed7846b594ed0ee2d3ef2d8f5b91d1860ffb0a065159df8be"
+      )
 
     val `expected m/'0 private key` =
-      "b859fdcdafa6a4552e5d4a18c44b79daf1d40f1600f6745768ddcbd9bc507347b7b1cdaf0d837051ed203813f7f3c518ae8046fbd4" +
-        "de106bf1cde33496825a390f2f8270d4724314a2a4f7175cd5765c35dffbf5ccbbfc4f8497297e9e68510f"
+      Base16Data.unsafe(
+        "b859fdcdafa6a4552e5d4a18c44b79daf1d40f1600f6745768ddcbd9bc507347b7b1cdaf0d837051ed203813f7f3c518ae8046fbd4" +
+          "de106bf1cde33496825a390f2f8270d4724314a2a4f7175cd5765c35dffbf5ccbbfc4f8497297e9e68510f"
+      )
 
     val `expected m/'0 public key` =
-      "b983b958d41fbdfecf6c0010ac667efa3cecb02ba27099afd13bc0ef0f82e60c0f2f8270d4724314a2a4f7175cd5765c35df" +
-        "fbf5ccbbfc4f8497297e9e68510f"
+      Base16Data.unsafe(
+        "b983b958d41fbdfecf6c0010ac667efa3cecb02ba27099afd13bc0ef0f82e60c0f2f8270d4724314a2a4f7175cd5765c35df" +
+          "fbf5ccbbfc4f8497297e9e68510f"
+      )
 
     val `expected m/'0/'100 private key` =
-      "30c9ae886a00e5524223d96824b28b1aff0419c6026dd07509e5b5a4c15073473890a9decc12d0400869d6daf095092863bba4" +
-        "5363b8e33c257e70bf7d3548aacce7b986e25839573c044c389cf8f76d8adcc6f723df9f98bfa1308f0c35282c"
+      Base16Data.unsafe(
+        "30c9ae886a00e5524223d96824b28b1aff0419c6026dd07509e5b5a4c15073473890a9decc12d0400869d6daf095092863bba4" +
+          "5363b8e33c257e70bf7d3548aacce7b986e25839573c044c389cf8f76d8adcc6f723df9f98bfa1308f0c35282c"
+      )
 
     val `expected m/'0/'100 public key` =
-      "4b95248060cc3bd0fee38cddf2c54b5e155a38de5cfe1846873355b35cc07566cce7b986e25839573c044c389cf8f76d8adcc6f723" +
-        "df9f98bfa1308f0c35282c"
+      Base16Data.unsafe(
+        "4b95248060cc3bd0fee38cddf2c54b5e155a38de5cfe1846873355b35cc07566cce7b986e25839573c044c389cf8f76d8adcc6f723" +
+          "df9f98bfa1308f0c35282c"
+      )
 
     val `expected m/'0/'100/55 public key` =
-      "8e59beac508fcd431c0b7b2dae81686adf45c76c0e32af7af779ecdf78adb8fb3a5c3099aeffe333f39d4107b1f59227a7e5713b9451" +
-        "8033a763a542ea289ee8"
+      Base16Data.unsafe(
+        "8e59beac508fcd431c0b7b2dae81686adf45c76c0e32af7af779ecdf78adb8fb3a5c3099aeffe333f39d4107b1f59227a7e5713b9451" +
+          "8033a763a542ea289ee8"
+      )
 
-    val rootKeyBytes = Base16.decode(`root private key`).getOrElse(throw new Error())
+    val rootKeyBytes = `root private key`.value
 
     val rootKey =
       ExtendedPrivateKeyEd25519(
@@ -243,63 +248,70 @@ class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
       )
 
     val `actual m/'0 private key` =
-      rootKey.deriveChildKey(DerivedKeyIndex.hardened(0)).getOrElse(throw new Error())
+      rootKey.derive(DerivedKeyIndex.hardened(0)).getOrElse(throw new Error())
 
-    Base16.encode((
-        `actual m/'0 private key`.leftKey.toVector ++
-          `actual m/'0 private key`.rightKey.toVector ++
-          `actual m/'0 private key`.chainCode.toVector
-    ).toArray) shouldBe `expected m/'0 private key`
-
+    (
+      `actual m/'0 private key`.leftKey.toVector ++
+      `actual m/'0 private key`.rightKey.toVector ++
+      `actual m/'0 private key`.chainCode.toVector
+    ).encodeAsBase16 shouldBe `expected m/'0 private key`
 
     val `actual m/'0 public key` =
-      `actual m/'0 private key`.publicKey
+      `actual m/'0 private key`.public
 
-    Base16.encode((
+    (
       `actual m/'0 public key`.bytes.toVector ++
-        `actual m/'0 public key`.chainCode.toVector
-      ).toArray) shouldBe `expected m/'0 public key`
+      `actual m/'0 public key`.chainCode.toVector
+    ).encodeAsBase16 shouldBe `expected m/'0 public key`
 
     val `actual m/'0/'100 private key` =
-      `actual m/'0 private key`.deriveChildKey(DerivedKeyIndex.hardened(100)).getOrElse(throw new Error())
+      `actual m/'0 private key`
+        .derive(DerivedKeyIndex.hardened(100))
+        .getOrElse(throw new Error("invalid child key"))
 
-    Base16.encode((
+    (
       `actual m/'0/'100 private key`.leftKey.toVector ++
-        `actual m/'0/'100 private key`.rightKey.toVector ++
-        `actual m/'0/'100 private key`.chainCode.toVector
-      ).toArray) shouldBe `expected m/'0/'100 private key`
+      `actual m/'0/'100 private key`.rightKey.toVector ++
+      `actual m/'0/'100 private key`.chainCode.toVector
+    ).encodeAsBase16 shouldBe `expected m/'0/'100 private key`
 
     val `actual m/'0/'100 public key` =
-      `actual m/'0/'100 private key`.publicKey
+      `actual m/'0/'100 private key`.public
 
-    Base16.encode((
+    (
       `actual m/'0/'100 public key`.bytes.toVector ++
-        `actual m/'0/'100 public key`.chainCode.toVector
-      ).toArray) shouldBe `expected m/'0/'100 public key`
+      `actual m/'0/'100 public key`.chainCode.toVector
+    ).encodeAsBase16 shouldBe `expected m/'0/'100 public key`
 
     val `actual m/'0/'100/55 public key` =
       `actual m/'0/'100 public key`.derive(DerivedKeyIndex.soft(55))
 
-    Base16.encode((
+    (
       `actual m/'0/'100/55 public key`.bytes.toVector ++
-        `actual m/'0/'100/55 public key`.chainCode.toVector
-      ).toArray) shouldBe `expected m/'0/'100/55 public key`
+      `actual m/'0/'100/55 public key`.chainCode.toVector
+    ).encodeAsBase16 shouldBe `expected m/'0/'100/55 public key`
   }
 
   it should "pass generated test vector #2" in {
     val `root private key` =
-      "2090d5cdd6bdc4537ed44f109c261f3f8dbe9c17a843a77c035f55c78a723a481c285eee9cf920be4a1e1e3564763ad100fe203b5fd7" +
-        "9f6535943170e53597add20dd0bcf02446e2f607419163f9dbf572393b9c2258d33df59fb0e06112d285"
+      Base16Data.unsafe(
+        "2090d5cdd6bdc4537ed44f109c261f3f8dbe9c17a843a77c035f55c78a723a481c285eee9cf920be4a1e1e3564763ad100fe203b5fd7" +
+          "9f6535943170e53597add20dd0bcf02446e2f607419163f9dbf572393b9c2258d33df59fb0e06112d285"
+      )
 
     val `expected m/'1852/'7091/'0/'0 private key` =
-      "60befd4438750e301c86713f2c1a5178d419ff9434d9d3dcf44b9ea5a1723a48a14867f43dc37a11f4b82c10b5c1e7c6b5cc91bcd8c0" +
-        "29d180f0aca62dee72f92f5d057d61cce1664344538c61c12d99f74a8a6c331a811d8ecb468b36168ef0"
+      Base16Data.unsafe(
+        "60befd4438750e301c86713f2c1a5178d419ff9434d9d3dcf44b9ea5a1723a48a14867f43dc37a11f4b82c10b5c1e7c6b5cc91bcd8c0" +
+          "29d180f0aca62dee72f92f5d057d61cce1664344538c61c12d99f74a8a6c331a811d8ecb468b36168ef0"
+      )
 
     val `expected m/'1852/'7091/'0/'0/0 public key` =
-      "f119694710657f95edf110002ad3974db4c22f330b6b091355cd0b5784f04ba8b415521a3550f1e59fad614aa249aa" +
-        "3245c93005efd63faf8a02ba7787176782"
+      Base16Data.unsafe(
+        "f119694710657f95edf110002ad3974db4c22f330b6b091355cd0b5784f04ba8b415521a3550f1e59fad614aa249aa" +
+          "3245c93005efd63faf8a02ba7787176782"
+      )
 
-    val rootKeyBytes = Base16.decode(`root private key`).getOrElse(throw new Error())
+    val rootKeyBytes = `root private key`.value
 
     val rootKey =
       ExtendedPrivateKeyEd25519(
@@ -311,24 +323,92 @@ class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
 
     val `actual m/'1852/'7091/'0/'0 private key` =
       rootKey
-        .deriveChildKey(DerivedKeyIndex.hardened(1852)).getOrElse(throw new Error())
-        .deriveChildKey(DerivedKeyIndex.hardened(7091)).getOrElse(throw new Error())
-        .deriveChildKey(DerivedKeyIndex.hardened(0)).getOrElse(throw new Error())
-        .deriveChildKey(DerivedKeyIndex.hardened(0)).getOrElse(throw new Error())
+        .derive(DerivedKeyIndex.hardened(1852))
+        .getOrElse(throw new Error("invalid child key"))
+        .derive(DerivedKeyIndex.hardened(7091))
+        .getOrElse(throw new Error("invalid child key"))
+        .derive(DerivedKeyIndex.hardened(0))
+        .getOrElse(throw new Error("invalid child key"))
+        .derive(DerivedKeyIndex.hardened(0))
+        .getOrElse(throw new Error("invalid child key"))
 
-    Base16.encode((
+    (
       `actual m/'1852/'7091/'0/'0 private key`.leftKey.toVector ++
-        `actual m/'1852/'7091/'0/'0 private key`.rightKey.toVector ++
-        `actual m/'1852/'7091/'0/'0 private key`.chainCode.toVector
-      ).toArray) shouldBe `expected m/'1852/'7091/'0/'0 private key`
-
+      `actual m/'1852/'7091/'0/'0 private key`.rightKey.toVector ++
+      `actual m/'1852/'7091/'0/'0 private key`.chainCode.toVector
+    ).encodeAsBase16 shouldBe `expected m/'1852/'7091/'0/'0 private key`
 
     val `actual m/'1852/'7091/'0/'0/0 public key` =
-      `actual m/'1852/'7091/'0/'0 private key`.publicKey.derive(DerivedKeyIndex.soft(0))
+      `actual m/'1852/'7091/'0/'0 private key`.public.derive(DerivedKeyIndex.soft(0))
 
-    Base16.encode((
+    (
       `actual m/'1852/'7091/'0/'0/0 public key`.bytes.toVector ++
-        `actual m/'1852/'7091/'0/'0/0 public key`.chainCode.toVector
-      ).toArray) shouldBe `expected m/'1852/'7091/'0/'0/0 public key`
+      `actual m/'1852/'7091/'0/'0/0 public key`.chainCode.toVector
+      ).encodeAsBase16 shouldBe `expected m/'1852/'7091/'0/'0/0 public key`
+  }
+
+  it should "pass generated test vector #3" in {
+    val rootPrivateKeyBytes =
+      Base16Data.unsafe(
+          "c05377ef282279549898c5a15fe202bc9416c8a26fe81ffe1e19c147c2493549d61547691b72d73947e588ded4967" +
+          "688f82db9628be9bb00c5ad16b5dfaf602ac5f419bd575f8ea23fa1a599b103f85e6325bf2d34b018ff6f2b8cf3f915e19c"
+        ).value
+
+    val rootPublicKeyBytes =
+      Base16Data.unsafe(
+          "2b1b2c00e35c9f9c2dec26ce3ba597504d2fc86862b6035b05340aff8a7ebc4bc5f419bd575f8ea23fa1a599b103f85e6" +
+          "325bf2d34b018ff6f2b8cf3f915e19c"
+        ).value
+
+    val expectedKeyPairs = Seq(
+      (
+        "08d0759cf6f08105738945ea2cd4067f173945173b5fe36a0b5d68c8c84935494585bf3e7b11d687c4d64c73dded58915900dc9bb1" +
+        "3f062a9532a8366dfa971adcd9ae5c4ef31efedef6eedad9698a15f811d1004036b66241385081d41643cf",
+        "7110b5e86240e51b40faaac78a0b92615fe96aed376cdd07255f08ae7ae9ce62dcd9ae5c4ef31efedef6eedad9698a15f811" +
+        "d1004036b66241385081d41643cf",
+        DerivedKeyIndex.soft(0)
+      ),
+      (
+        "888ba4d32953090155cbcbd26bbe6c6d65e7463eb21a3ec95f6b1af4c74935496b723c972aa1de225b9e8c8f3746a034f3cf6" +
+        "7c51e45c4983968b166764cf26c9216b865f39b127515db9ad5591e7fcb908604b9d5056b8b7ac98cf9bd3058c6",
+        "393e6946e843dd3ab9ac314524dec7f822e7776cbe2e084918e71003d0baffbc9216b865f39b127515db9ad5591e7fc" +
+        "b908604b9d5056b8b7ac98cf9bd3058c6",
+        DerivedKeyIndex.soft(1)
+      ),
+      (
+        "c0b712f4c0e2df68d0054112efb081a7fdf8a3ca920994bf555c40e4c249354993f774ae91005da8c69b2c4c59fa80d741ecea" +
+        "6722262a6b4576d259cf60ef30c05763f0b510942627d0c8b414358841a19748ec43e1135d2f0c4d81583188e1",
+        "906d68169c8bbfc3f0cd901461c4c824e9ab7cdbaf38b7b6bd66e54da0411109c05763f0b510942627d0c8b414358841a19748" +
+        "ec43e1135d2f0c4d81583188e1",
+        DerivedKeyIndex.soft(2)
+      )
+    )
+
+    val rootPrivateKey =
+      ExtendedPrivateKeyEd25519(
+        SizedByteCollection[ByteVector32].fit(rootPrivateKeyBytes.slice(0, 32), ByteOrdering.LittleEndian),
+        SizedByteCollection[ByteVector32].fit(rootPrivateKeyBytes.slice(32, 64), ByteOrdering.LittleEndian),
+        SizedByteCollection[ByteVector32].fit(rootPrivateKeyBytes.slice(64, 96), ByteOrdering.LittleEndian),
+        Seq()
+      )
+
+    val rootPublicKey =
+      ExtendedPublicKeyEd25519(
+        SizedByteCollection[ByteVector32].fit(rootPublicKeyBytes.slice(0, 32), ByteOrdering.LittleEndian),
+        SizedByteCollection[ByteVector32].fit(rootPublicKeyBytes.slice(32, 64), ByteOrdering.LittleEndian)
+      )
+
+    expectedKeyPairs.foreach { case (expectedXprv, expectedXpub, idx) =>
+      val xprvResult = rootPrivateKey.derive(idx).getOrElse(throw new Error("invalid child key"))
+
+      (xprvResult.leftKey.toVector ++ xprvResult.rightKey.toVector ++ xprvResult.chainCode.toVector).encodeAsBase16
+        .shouldBe(Base16Data.unsafe(expectedXprv))
+
+      val xpubResult = rootPublicKey.derive(idx)
+
+      (xpubResult.bytes.toVector ++ xpubResult.chainCode.toVector).encodeAsBase16
+        .shouldBe(Base16Data.unsafe(expectedXpub))
+    }
+
   }
 }

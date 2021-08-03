@@ -5,10 +5,12 @@ import co.topl.utils.SizedByteCollection
 import co.topl.utils.SizedByteCollection.InvalidSize
 import co.topl.utils.SizedByteCollection.Types._
 import co.topl.utils.SizedByteCollection.implicits._
+import scodec.bits.ByteVector
 
 object SizedByteCollectionCodec {
 
   trait AsBytesInstances {
+    implicit val byteVectorAsBytes: AsBytes[Infallible, ByteVector] = AsBytes.infallible(_.toArray)
     implicit val byteVector128AsBytes: AsBytes[Infallible, ByteVector128] = AsBytes.infallible(_.toArray)
     implicit val byteVector64AsBytes: AsBytes[Infallible, ByteVector64] = AsBytes.infallible(_.toArray)
     implicit val byteVector32AsBytes: AsBytes[Infallible, ByteVector32] = AsBytes.infallible(_.toArray)
@@ -17,6 +19,9 @@ object SizedByteCollectionCodec {
   }
 
   trait FromBytesInstances {
+
+    implicit val byteVectorFromBytes: FromBytes[Infallible, ByteVector] =
+      FromBytes.infallible(ByteVector(_))
 
     implicit val byteVector128FromBytes: FromBytes[InvalidSize, ByteVector128] =
       bytes => SizedByteCollection[ByteVector128].validated(bytes).toValidatedNec
