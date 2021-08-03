@@ -12,13 +12,11 @@ import co.topl.akkahttprpc.utils.Retry
 import co.topl.akkahttprpc.{RequestModifier, Rpc, RpcClientFailure, RpcError}
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.crypto.hash.implicits._
 import co.topl.modifier.ModifierId
 import co.topl.rpc.ToplRpc
 import co.topl.rpc.ToplRpc.NodeView.TransactionById
 import co.topl.rpc.implicits.client._
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.codecs.implicits._
 import co.topl.utils.encode.Base58
 import co.topl.utils.{Int128, NetworkType}
 import com.spotify.docker.client.DockerClient
