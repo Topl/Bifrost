@@ -48,7 +48,7 @@ trait KVStoreReader extends AutoCloseable {
         val value = next.getValue
         if (cond(key, value)) bf += (key -> value)
       }
-      bf.toIterator
+      bf.iterator
     } finally {
       iter.close()
       ro.snapshot().close()
@@ -103,14 +103,11 @@ trait KVStoreReader extends AutoCloseable {
           false
         }
       iter.seek(start)
-      val bf = mutable.ArrayBuffer.empty[(K, V)]
-      while (iter.hasNext && check(iter.peekNext.getKey)) {
-        val next = iter.next()
-        val key = next.getKey
-        val value = next.getValue
-        bf += (key -> value)
-      }
-      bf.toArray[(K, V)]
+      import scala.jdk.CollectionConverters._
+      iter.asScala
+        .takeWhile(entry => check(entry.getKey))
+        .map(entry => entry.getKey -> entry.getValue)
+        .toSeq
     } finally {
       iter.close()
       ro.snapshot().close()

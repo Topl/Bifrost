@@ -248,6 +248,8 @@ private class ForgerBehaviors(
             log.debug("No rewards address was specified.  Stopping forging.")
           case Forge.ForgingError(error) =>
             log.warn("Forger was eligible to forge a new block, but an error occurred.", error)
+          case Forge.ArbitBoxKeyNotFound =>
+            log.warn("Key for selected ArbitBox not found in KeyRing.")
         }
     }
 }

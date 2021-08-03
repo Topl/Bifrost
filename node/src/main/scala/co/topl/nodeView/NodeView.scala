@@ -253,7 +253,7 @@ trait NodeViewBlockOps {
     requestDownloads(progressInfo)
       .map(_ => this)
       .flatMap { nodeView =>
-        val (stateToApplyTry: Try[State], suffixTrimmed: IndexedSeq[Block]) =
+        val (stateToApplyTry, suffixTrimmed) =
           if (progressInfo.chainSwitchingNeeded) {
             @SuppressWarnings(Array("org.wartremover.warts.OptionPartial"))
             val branchingPoint = progressInfo.branchPoint.get //todo: .get
