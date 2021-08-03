@@ -143,7 +143,7 @@ object Dependencies {
     Seq(
       "com.typesafe.akka"     %% "akka-cluster" % akkaVersion,
       "com.typesafe.akka"     %% "akka-remote"  % akkaVersion,
-      "com.github.pureconfig" %% "pureconfig"   % "0.15.0"
+      "com.github.pureconfig" %% "pureconfig"   % "0.16.0"
     ) ++
     akka ++
     test ++
