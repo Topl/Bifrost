@@ -100,7 +100,7 @@ object Dependencies {
   lazy val common: Seq[ModuleID] = {
     Seq(
       "com.typesafe.akka"      %% "akka-actor"              % akkaVersion,
-      "org.typelevel"          %% "simulacrum"              % "1.0.0",
+      "org.typelevel"          %% "simulacrum"              % "1.0.1",
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.4.4"
     ) ++
     logging ++
@@ -157,7 +157,7 @@ object Dependencies {
 
   lazy val crypto: Seq[ModuleID] =
     Seq(
-      "org.typelevel" %% "simulacrum" % "1.0.0",
+      "org.typelevel" %% "simulacrum" % "1.0.1",
       "org.typelevel" %% "cats-core"  % "2.3.0",
       "org.bouncycastle"   % "bcprov-jdk15on"  % "1.68",
       "org.whispersystems" % "curve25519-java" % "0.5.0"
