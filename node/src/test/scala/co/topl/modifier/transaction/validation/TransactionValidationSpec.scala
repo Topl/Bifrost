@@ -9,6 +9,7 @@ import co.topl.modifier.transaction.validation.implicits._
 import co.topl.utils.NetworkType.PrivateTestnet
 import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.{NetworkType, NodeGenerators}
+import org.scalacheck.Gen
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
@@ -249,6 +250,11 @@ class TransactionValidationSpec
       tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](DataTooLong)
     }
   }
+
+  lazy val invalidDataStringGen: Gen[String] = for {
+    n   <- Gen.choose(Byte.MaxValue + 1, Byte.MaxValue * 2)
+    str <- Gen.listOfN(n, Gen.alphaNumChar).map(_.mkString)
+  } yield str
 
   private def signTx(
     tx: PolyTransfer[PublicKeyPropositionCurve25519]

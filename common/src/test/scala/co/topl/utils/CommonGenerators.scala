@@ -37,17 +37,10 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
 
   lazy val stringGen: Gen[String] = Gen.alphaNumStr.suchThat(_.nonEmpty)
 
-  lazy val invalidDataStringGen: Gen[String] = for {
-    n   <- Gen.choose(Byte.MaxValue + 1, Byte.MaxValue * 2)
-    str <- Gen.listOfN(n, Gen.alphaNumChar).map(_.mkString)
-  } yield str
-
-  lazy val dataStringGen: Gen[String] = for {
+  lazy val latin1DataGen: Gen[Latin1Data] = (for {
     n   <- Gen.choose(0, Byte.MaxValue)
     str <- Gen.listOfN(n, Gen.alphaNumChar).map(_.mkString)
-  } yield str
-
-  lazy val latin1DataGen: Gen[Latin1Data] = dataStringGen.map(Latin1Data.unsafe)
+  } yield str).map(Latin1Data.unsafe)
 
   lazy val shortNameGen: Gen[String] = for {
     n   <- Gen.choose(0, AssetCode.shortNameLimit)
