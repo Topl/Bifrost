@@ -5,7 +5,7 @@ package co.topl.crypto.kes
   * Key evolving scheme instantiated with Ed25519 and b2b256 fast cryptographic hash using MMM construction
   */
 
-class KeyEvolvingSignature extends MMM {
+class KeyEvolvingSignatureScheme extends MMM {
   override val fch: Fch = new Fch
   override val sig: Sig = new Sig
   override val seedBytes: Int = 32

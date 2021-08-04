@@ -6,12 +6,12 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import scala.util.{Try,Success,Failure}
 import java.security.SecureRandom
 
-class KeyEvolvingSignatureSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
+class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
 
   property("Sum Composition Keypair Evolution Test") {
     val passed = Try {
       val rnd: SecureRandom = new SecureRandom()
-      val kes:KeyEvolvingSignature = new KeyEvolvingSignature
+      val kes:KeyEvolvingSignatureScheme = new KeyEvolvingSignatureScheme
       var t = 0
       val logl = 7
       val l = scala.math.pow(2, logl).toInt
@@ -61,7 +61,7 @@ class KeyEvolvingSignatureSpec extends AnyPropSpec with ScalaCheckDrivenProperty
   property("Sum Composition Signature Test") {
     val passed = Try {
       val rnd: SecureRandom = new SecureRandom()
-      val kes:KeyEvolvingSignature = new KeyEvolvingSignature
+      val kes:KeyEvolvingSignatureScheme = new KeyEvolvingSignatureScheme
       var t = 0
       val message = rnd.generateSeed(2048)
       val logl = 7
@@ -101,7 +101,7 @@ class KeyEvolvingSignatureSpec extends AnyPropSpec with ScalaCheckDrivenProperty
     val passed = Try {
       Console.println("Testing MMM product composition")
       val rnd: SecureRandom = new SecureRandom()
-      val kes:KeyEvolvingSignature = new KeyEvolvingSignature
+      val kes:KeyEvolvingSignatureScheme = new KeyEvolvingSignatureScheme
       var t = 0
       val message = rnd.generateSeed(2048)
       val seed1 = rnd.generateSeed(32)

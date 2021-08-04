@@ -1,7 +1,7 @@
 package co.topl.attestation.keyManagement.stakingKeys
 
 import com.google.common.primitives.{Bytes, Ints, Longs}
-import co.topl.crypto.kes.{Empty, KeyEvolvingSignature, Leaf, Node, Tree}
+import co.topl.crypto.kes.{Empty, KeyEvolvingSignatureScheme, Leaf, Node, Tree}
 import co.topl.crypto.signatures.eddsa.ECVRF25519
 import co.topl.crypto.hash.FastCryptographicHash
 import io.circe.parser.parse
@@ -21,7 +21,6 @@ import java.time.temporal.ChronoUnit
 import scala.util.{Failure, Success, Try}
 
 /**
-  * AMS 2021:
   * File loader for staking keys, updates KES key with secure erasure on disk and encrypts/decrypts staking keys
   * @param ledger_id ledger public address of the forging account
   * @param vrf_info encryption info for VRF keypair
@@ -44,8 +43,8 @@ case class StakingKeyFile(ledger_id:Array[Byte],
     * @param vrf instantiated Verifiable Random Function scheme
     * @return Some(StakingKeys) if password is correct, None if error in decryption
     */
-  def getStakingKeys(password:String,kes:KeyEvolvingSignature,vrf:ECVRF25519):Option[StakingKeys] = Try{
-    StakingKeys(ledger_id,decryptVrfSK(password,vrf).get,vrf_info.pubKey,decryptKesSK(password,kes).get,kes_info.pubKey)
+  def getStakingKeys(password:String, kes:KeyEvolvingSignatureScheme, vrf:ECVRF25519):Option[StakingPrivateKey] = Try{
+    StakingPrivateKey(decryptVrfSK(password,vrf).get,vrf_info.pubKey,decryptKesSK(password,kes).get)
   }.toOption
 
   private def decryptVrfSK(password: String, vrf:ECVRF25519): Option[Array[Byte]] = Try{
@@ -59,7 +58,7 @@ case class StakingKeyFile(ledger_id:Array[Byte],
     decrypted
   }.toOption
 
-  private def decryptKesSK(password: String, kes:KeyEvolvingSignature): Option[ForgingKey] = Try{
+  private def decryptKesSK(password: String, kes:KeyEvolvingSignatureScheme): Option[ForgingKey] = Try{
     val kes_sk_MK = {
       val derivedKey = getDerivedKey(password, kes_info.salt)
       val (decrypted, mac_check) = decryptAES(derivedKey, kes_info.iv, kes_info.cipherText)
@@ -135,7 +134,7 @@ object StakingKeyFile {
                    password:String,
                    defaultKeyDir: String,
                    vrf:ECVRF25519,
-                   kes:KeyEvolvingSignature,
+                   kes:KeyEvolvingSignatureScheme,
                    slot:Long
                  ):StakingKeyFile = {
     val newKeys = StakingKeys(fch.hash(uuid)++fch.hash(uuid),ledger_id,vrf,kes,slot)
