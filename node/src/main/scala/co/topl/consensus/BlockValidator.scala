@@ -152,9 +152,10 @@ class SyntaxBlockValidator extends BlockValidator[Block] {
   }
 }
 
-class TimestampValidator(storage: Storage) extends BlockValidator[Block] {
+class TimestampValidator(storage: Storage, blockProcessor: BlockProcessor) extends BlockValidator[Block] {
 
-  private def blockTimestamp(id: ModifierId): Option[TimeProvider.Time] = storage.timestampOf(id)
+  private def blockTimestamp(id: ModifierId): Option[TimeProvider.Time] =
+    blockProcessor.getCacheBlock(id).map(_.block.timestamp).orElse(storage.timestampOf(id))
 
   override def validate(block: Block): Try[Unit] = Try {
     blockTimestamp(block.parentId) match {
@@ -163,7 +164,7 @@ class TimestampValidator(storage: Storage) extends BlockValidator[Block] {
           block.timestamp > parentTimestamp,
           s"Block timestamp ${block.timestamp} is earlier than parent timestamp $parentTimestamp"
         )
-      case None => throw new Error("Parent id of block not found")
+      case None => throw new Error(s"Could not find timestamp for parent blockId=${block.parentId}")
     }
   }
 }

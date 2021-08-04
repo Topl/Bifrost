@@ -7,6 +7,7 @@ import co.topl.attestation.{
   ThresholdSignatureCurve25519
 }
 import co.topl.utils.CommonGenerators
+import co.topl.utils.GeneratorOps.GeneratorOps
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
@@ -25,7 +26,7 @@ class MultiSignatureCurve25519Spec
   ) {
 
     forAll(keyPairSetCurve25519Gen) { s: Set[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] =>
-      val message = nonEmptyBytesGen.sample.get
+      val message = nonEmptyBytesGen.sampleFirst()
       val signatures = s.map(_._1.sign(message))
       val pubKeyProps = SortedSet[PublicKeyPropositionCurve25519]() ++ s.map(_._2)
       val oneOfNProposition = ThresholdPropositionCurve25519(1, pubKeyProps)
@@ -42,7 +43,7 @@ class MultiSignatureCurve25519Spec
   ) {
 
     forAll(keyPairSetCurve25519Gen) { s: Set[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] =>
-      val message = nonEmptyBytesGen.sample.get
+      val message = nonEmptyBytesGen.sampleFirst()
       val signatures = s.map(_._1.sign(message))
       val pubKeyProps = SortedSet[PublicKeyPropositionCurve25519]() ++ s.map(_._2)
       val oneOfNProposition = ThresholdPropositionCurve25519(2, pubKeyProps)
