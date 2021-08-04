@@ -371,10 +371,6 @@ trait Receive extends Members {
         }
         keys = keyFile.get.getKeys(password,serializer,sig,vrf,kes)
       }
-      println("Configuring wallet...")
-      time {
-        wallet = walletStorage.restore(serializer,keys.pkw)
-      }
       println("Setting up local chain...")
       time{
         chainStorage.restore(dataBaseCID,serializer) match {
@@ -452,7 +448,6 @@ trait Receive extends Members {
     case Refresh =>
       blocks.refresh()
       history.refresh()
-      walletStorage.refresh()
       timers.startPeriodicTimer(Refresh,Refresh,slotT*refreshInterval.millis)
 
     case GetTime =>
@@ -547,7 +542,6 @@ trait Receive extends Members {
           case _ =>
         }
       }
-      SharedData.txCounter += txCounter
       var txCount = 0
       var allTx:List[Sid] = List()
       var duplicatesFound = false

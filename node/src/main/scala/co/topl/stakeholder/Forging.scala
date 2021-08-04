@@ -35,10 +35,7 @@ trait Forging extends Members with Types {
     val psk:Slot = getNthParentId(localChain.head,kappa-1)._1
 
     def testThenForge(test:Rho,thr:Ratio): Unit = if (compare(test, thr)) {
-      def metaInfo:String = {
-        "forger_index:"+holderIndex.toString+",adversarial:"+adversary
-          .toString+",eta:"+Base58.encode(eta)+",epoch:"+currentEpoch.toString
-      }
+      def metaInfo:String = "ep_nonce:"+Base58.encode(eta)+",ep:"+currentEpoch.toString
       val bn:Int = pb._9 + 1
       val txs:TransactionSeq = chooseLedger(forgerKeys.pkw,memPool,localState)
       val pi: Pi = vrf.vrfProof(

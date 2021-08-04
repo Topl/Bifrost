@@ -21,20 +21,6 @@ import scala.concurrent.duration._
 import scala.math.BigInt
 import scala.util.{Random, Success, Try}
 
-/**
-  * AMS 2020:
-  * Router Actor
-  * Primary interface between Stakeholder system and network controller,
-  * All messages from local and remote are processed here or in a set of child actors handled by the registered actor,
-  * Starts a system of routees for ingress and egress traffic
-  * A separate local only instance calculates simulation delay messages for local to local comms
-  * Acts as remote interface, should only communicate with Stakeholder and Network Controller,
-  * Ingress messages are authenticated with Ecx X25519 Hash Mac
-  * F^Delta^_{N-MC} multicast network functionality
-  * @param seed entropy for randomness
-  * @param inputRef network controller refs
-  */
-
 class Router(seed:Array[Byte], inputRef:Seq[ActorRefWrapper],settings:AppSettings) extends Actor
   with Types
   with Timers {

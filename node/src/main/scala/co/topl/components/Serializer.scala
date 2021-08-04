@@ -26,7 +26,6 @@ object Serializer {
   case object DeserializeBoolean
   case object DeserializeChain
   case object DeserializeForgingKey
-  case object DeserializeWallet
   case object DeserializeDiffuse
   case object DeserializeHello
   case object DeserializeRequestBlock

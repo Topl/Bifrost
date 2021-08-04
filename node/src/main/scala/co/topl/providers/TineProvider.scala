@@ -11,13 +11,6 @@ import co.topl.settings.AppSettings
 import scala.concurrent.Await
 import scala.util.control.Breaks.{break, breakable}
 
-/**
-  * AMS 2020:
-  * Provider for remote TinePool syncing, used only for bootstrapping peers
-  * @param blockStorage block database to be checked, should be thread safe with read/write locks
-  * @param routerRef actor ref to send network messages to
-  */
-
 class TineProvider(blockStorage: BlockStorage,localRef:ActorRefWrapper,settings:AppSettings)(implicit routerRef:ActorRefWrapper)
   extends Actor with Timers with Types {
   val sig:Sig = new Sig

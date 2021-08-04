@@ -238,7 +238,7 @@ trait ChainSelection extends Members {
         collectLedger(tine)
         if (!reorgTine.isEmpty) for (id <- reorgTine.ordered) {
           val ledger:TransactionSeq = blocks.get(id).get.blockBody.get
-          wallet.add(ledger)
+          //wallet.add(ledger)
         }
         for (id <- tine.ordered) {
           val blockLedger:TransactionSeq = blocks.get(id).get.blockBody.get

@@ -8,14 +8,6 @@ import co.topl.primitives._
 import scala.collection.mutable
 import scala.math.BigInt
 
-/**
-  * AMS 2020:
-  * Byte serializers for all types and classes,
-  * getBytes are statically type cast for performance,
-  * parse bytes uses pattern matching to identify class to be parsed,
-  * Each actor has its own serializer object for better concurrency
-  */
-
 //noinspection ScalaStyle
 
 trait SerializationMethods extends SimpleTypes {
@@ -113,7 +105,6 @@ trait SerializationMethods extends SimpleTypes {
   def getBytes(idList:List[BlockId]):Array[Byte] = sIdList(idList)
   def getBytes(bool:Boolean):Array[Byte] = sBoolean(bool)
   def getBytes(chain:Tine):Array[Byte] = sChain(chain)
-  def getBytes(wallet:Wallet):Array[Byte] = sWallet(wallet)
   def getBytes(forgingKey:ForgingKey):Array[Byte] = sForgingKey(forgingKey)
   def getBytes(block:Block):Array[Byte] = sBlock(block)
 
@@ -131,7 +122,6 @@ trait SerializationMethods extends SimpleTypes {
       case DeserializeState => dState(input)
       case DeserializeChain => dChain(input)
       case DeserializeForgingKey => dForgingKey(input)
-      case DeserializeWallet => dWallet(input)
       case DeserializeBlock => dBlock(input)
       case DeserializeGenesisBlock => dBlock(input)
       case DeserializeDiffuse => dDiffuse(input)
@@ -860,54 +850,5 @@ trait SerializationMethods extends SimpleTypes {
     out
   }
 
-  private def sWallet(wallet: Wallet):Array[Byte] = {
-    val stateBytes1 = getBytes(wallet.issueState)
-    val stateBytes2 = getBytes(wallet.confirmedState)
-    val output = Bytes.concat(
-      wallet.pkw.data,
-      sTxMap(wallet.pendingTxsOut),
-      getBytes(wallet.availableBalance),
-      getBytes(wallet.totalBalance),
-      getBytes(wallet.txCounter),
-      getBytes(wallet.confirmedTxCounter),
-      getBytes(wallet.netStake),
-      getBytes(wallet.netStake0),
-      Ints.toByteArray(stateBytes1.length),
-      stateBytes1,
-      Ints.toByteArray(stateBytes2.length),
-      stateBytes2
-    )
-    output
-  }
-
-  private def dWallet(stream: ByteStream):Wallet = {
-    val out1:ByteArrayWrapper = ByteArrayWrapper(stream.get(pkw_length))
-    val out = components.Wallet(out1)
-    val out2len = stream.getInt
-    val b1 = new ByteStream(stream.get(out2len),stream.caseObject)
-    out.pendingTxsOut = dTxMap(b1)
-    val out3len = stream.getInt
-    val b2 = new ByteStream(stream.get(out3len),stream.caseObject)
-    out.availableBalance = dBigInt(b2)
-    val out4len = stream.getInt
-    val b3 = new ByteStream(stream.get(out4len),stream.caseObject)
-    out.totalBalance = dBigInt(b3)
-    out.txCounter = stream.getInt
-    out.confirmedTxCounter = stream.getInt
-    val out5len = stream.getInt
-    val b4 = new ByteStream(stream.get(out5len),stream.caseObject)
-    out.netStake = dBigInt(b4)
-    val out6len = stream.getInt
-    val b5 = new ByteStream(stream.get(out6len),stream.caseObject)
-    out.netStake0 = dBigInt(b5)
-    val out7len = stream.getInt
-    val b6 = new ByteStream(stream.get(out7len),stream.caseObject)
-    out.issueState = dState(b6)
-    val out8len = stream.getInt
-    val b7 = new ByteStream(stream.get(out8len),stream.caseObject)
-    out.confirmedState = dState(b7)
-    assert(stream.empty)
-    out
-  }
 
 }

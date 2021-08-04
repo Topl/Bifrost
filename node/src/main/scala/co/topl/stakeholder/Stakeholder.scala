@@ -4,8 +4,8 @@ import akka.actor.{ActorPath, Props}
 import com.google.common.cache.LoadingCache
 import co.topl.primitives.{ActorRefWrapper, Fch, Kes, KeyFile, Keys, TetraParameters, Ratio, Sig, Vrf}
 import io.iohk.iodb.ByteArrayWrapper
-import co.topl.components.{Block, Serializer, Tine, Wallet}
-import co.topl.history.{BlockStorage, ChainStorage, StateStorage, WalletStorage}
+import co.topl.components.{Block, Serializer, Tine}
+import co.topl.history.{BlockStorage, ChainStorage, StateStorage}
 import co.topl.settings.AppSettings
 
 import scala.math.BigInt
@@ -60,14 +60,12 @@ class Stakeholder(
   implicit val blocks:BlockStorage = new BlockStorage(storageDir,serializer)
   val localChain:Tine = new Tine
   val chainStorage = new ChainStorage(storageDir)
-  val walletStorage = new WalletStorage(storageDir)
   val vrf = new Vrf
   val kes = new Kes
   val sig = new Sig
   override val fch = new Fch
   val rng:Random = new Random(BigInt(seed).toLong)
   var keys:Keys = Keys(seed,sig,vrf,kes,0)
-  var wallet:Wallet = Wallet(keys.pkw)
   val history:StateStorage = new StateStorage(storageDir,serializer)
   val holderId:ActorPath = self.path
   val sessionId:Sid = ByteArrayWrapper(fch.hash(holderId.toString))

@@ -30,6 +30,7 @@ trait Ledger extends Members {
     */
 
   def updateLocalState(ls:State, c:Tine): Option[State] = ???
+
   def updateLocalState(ls:State, id:SlotId):Option[State] = ???
 
   def trimMemPool(): Unit = ???

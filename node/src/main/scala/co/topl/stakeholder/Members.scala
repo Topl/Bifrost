@@ -4,8 +4,8 @@ import akka.actor.{Actor, ActorPath, Timers}
 import com.google.common.cache.LoadingCache
 import io.iohk.iodb.ByteArrayWrapper
 import co.topl.primitives.{ActorRefWrapper, Fch, Kes, KeyFile, Keys, TetraParameters, Ratio, Sig, SimpleTypes, Vrf}
-import co.topl.components.{Block, Serializer, Tine, Transaction, Wallet}
-import co.topl.history.{BlockStorage, ChainStorage, StateStorage, WalletStorage}
+import co.topl.components.{Block, Serializer, Tine, Transaction}
+import co.topl.history.{BlockStorage, ChainStorage, StateStorage}
 import co.topl.settings.AppSettings
 
 import scala.concurrent.duration._
@@ -63,7 +63,6 @@ trait Members extends SimpleTypes with Actor with Timers {
   val serializer:Serializer
   val storageDir:String
   val localChain:Tine
-  val walletStorage:WalletStorage
   val vrf:Vrf
   val kes:Kes
   val sig:Sig
@@ -80,34 +79,25 @@ trait Members extends SimpleTypes with Actor with Timers {
   var derivedKey:Array[Byte]
   var salt:Array[Byte]
   var keyDir:String
-  var wallet:Wallet
   var keys:Keys
   var keyFile:Option[KeyFile]
   var localState:State
   var eta:Eta
   var stakingState:State
   var memPool:MemPool
-  var chainUpdateLock:Boolean
   var holders: List[ActorRefWrapper]
-  var gOff:Int
-  var numHello:Int
   var inbox:Map[Sid,(ActorRefWrapper,PublicKeys)]
-  var blocksForged:Int
   var globalSlot:Slot
   var tinePool:Map[Int,(Tine,Int,Int,Int,ActorRefWrapper)]
   var tinePoolWithPrefix:Array[(Tine,Slot,Int)]
   var tineCounter:Int
   var genBlockHeader:BlockHeader
   var genBlockHash:Hash
-  var roundBlock:Int
   var t0:Long
   var t1:Long
   var localSlot:Slot
   var currentEpoch:Int
   var coordinatorRef:ActorRefWrapper
-  var txCounter:Int
-  var adversary:Boolean
-  var covert:Boolean
 
   var bootStrapLock:Boolean
   var helloLock:Boolean
