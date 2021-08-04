@@ -8,7 +8,7 @@ import co.topl.utils.Identifiable
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Json
 
-import scala.collection.immutable.Set
+import scala.collection.immutable.{ListMap, Set}
 import scala.util.{Failure, Success}
 
 object Brambl {
@@ -60,7 +60,7 @@ object Brambl {
   def signTransaction[P <: Proposition: EvidenceProducer: Identifiable, TX <: Transaction[_, P]](
     addresses:   Set[Address],
     transaction: TX
-  )(f:           Address => Array[Byte] => Map[P, Proof[P]]): Either[RpcClientFailure, Transaction.TX] = {
+  )(f:           Address => Array[Byte] => ListMap[P, Proof[P]]): Either[RpcClientFailure, Transaction.TX] = {
 
     val msg2Sign = transaction.messageToSign
     val signFunc = (addr: Address) => f(addr)(msg2Sign)
