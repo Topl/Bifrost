@@ -172,40 +172,6 @@ object ExtendedPrivateKeyEd25519 {
     new ExtendedPrivateKeyEd25519(leftKey, rightKey, chainCode, path)
 
   /**
-   * Generates a root `ExtendedPrivateKey` from a mnemonic phrase and an optional password.
-   * @param m the mnemonic phrase
-   * @param password the password (optional)
-   * @return a root `ExtendedPrivateKey`
-   */
-  def fromMnemonic(m: Mnemonic, password: String): ExtendedPrivateKeyEd25519 = fromSeed(m(password))
-
-  /**
-   * Creates a root `ExtendedPrivateKey` from the given seed.
-   * See https://github.com/satoshilabs/slips/blob/master/slip-0023.md
-   * for specification.
-   * @param seed the seed to generate from
-   * @return a root `ExtendedPrivateKey`
-   */
-  def fromSeed(seed: Array[Byte]): ExtendedPrivateKeyEd25519 = {
-    val i =
-      hmac512WithKey(ByteVector("ed25519 cardano seed".getBytes(StandardCharsets.UTF_8)), ByteVector(seed))
-
-    val iLeft = i.slice(0, 32)
-    val iRight = i.slice(32, 64)
-
-    val k: Array[Byte] = sha512.hash(iLeft.toArray).value
-    k(0) = (k(0) & 0xf8).toByte
-    k(31) = ((k(31) & 0x1f) | 0x40).toByte
-
-    ExtendedPrivateKeyEd25519(
-      SizedByteCollection[ByteVector32].fit(k.slice(0, 32), ByteOrdering.LittleEndian),
-      SizedByteCollection[ByteVector32].fit(k.slice(32, 64), ByteOrdering.LittleEndian),
-      SizedByteCollection[ByteVector32].fit(iRight, ByteOrdering.LittleEndian),
-      Seq()
-    )
-  }
-
-  /**
    * Creates a copy of an `ExtendedPrivateKey`.
    * @param value the private key to copy
    * @return the copied `ExtendedPrivateKey`

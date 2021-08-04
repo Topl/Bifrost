@@ -1,14 +1,16 @@
 package co.topl.attestation.keyManagement.mnemonicSeed
 
-import cats.implicits._
 import co.topl.attestation.keyManagement.mnemonicSeed.Mnemonic._
 import co.topl.utils.CommonGenerators
 import co.topl.utils.IdiomaticScalaTransition.implicits._
-import co.topl.utils.encode.Base16
+import co.topl.utils.StringDataTypes.Base16Data
 import org.scalacheck.Gen
+import org.scalatest.matchers.must.Matchers.{be, not}
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import co.topl.utils.SizedByteCollection.implicits._
+import co.topl.utils.codecs.implicits._
 
 class MnemonicSeedPackageSpec
     extends AnyPropSpec
@@ -46,7 +48,7 @@ class MnemonicSeedPackageSpec
     mnemonic shouldBe Left(InvalidChecksum())
   }
 
-  property("phrase should output the same seed if same password") {
+  property("phrase should output the same private key if same password") {
     forAll(stringGen) { password =>
       val phrase = "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic"
       val mnemonic = Mnemonic.fromPhrase(phrase, Mnemonic12, English).getOrElse(throw new Error("Invalid mnemonic!"))
@@ -54,11 +56,13 @@ class MnemonicSeedPackageSpec
       val firstAttempt = mnemonic(password)
       val secondAttempt = mnemonic(password)
 
-      firstAttempt shouldBe secondAttempt
+      firstAttempt.leftKey shouldBe secondAttempt.leftKey
+      firstAttempt.rightKey shouldBe secondAttempt.rightKey
+      firstAttempt.chainCode shouldBe secondAttempt.chainCode
     }
   }
 
-  property("phrase should output a different if different password") {
+  property("phrase should output a different private key if different password") {
     forAll(stringGen, stringGen) { (password1, password2) =>
       val phrase = "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic"
       val mnemonic = Mnemonic.fromPhrase(phrase, Mnemonic12, English).getOrElse(throw new Error("Invalid mnemonic!"))
@@ -66,7 +70,11 @@ class MnemonicSeedPackageSpec
       val firstAttempt = mnemonic(password1)
       val secondAttempt = mnemonic(password2)
 
-      if (password1 != password2) firstAttempt sameElements secondAttempt shouldBe false
+      if (password1 != password2) {
+        firstAttempt.leftKey should not be secondAttempt.leftKey
+        firstAttempt.rightKey should not be secondAttempt.rightKey
+        firstAttempt.chainCode should not be secondAttempt.chainCode
+      }
     }
   }
 
@@ -95,154 +103,6 @@ class MnemonicSeedPackageSpec
   entropyLengthTest(28, Mnemonic21)
   entropyLengthTest(32, Mnemonic24)
 
-  case class Bip39TestVector(mnemonic: Mnemonic, seed: String)
-
-  // expected password for all test vectors is TREZOR
-  val testVectors: Seq[Bip39TestVector] = Seq(
-    mnemonic12TestVector(
-      "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
-      "c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4" +
-      "ab7c81b2f001698e7463b04"
-    ),
-    mnemonic12TestVector(
-      "legal winner thank year wave sausage worth useful legal winner thank yellow",
-      "2e8905819b8723fe2c1d161860e5ee1830318dbf49a83bd451cfb8440c28bd6fa457fe1296106559a3c80937a1c1069be3a3a5bd3" +
-      "81ee6260e8d9739fce1f607"
-    ),
-    mnemonic12TestVector(
-      "letter advice cage absurd amount doctor acoustic avoid letter advice cage above",
-      "d71de856f81a8acc65e6fc851a38d4d7ec216fd0796d0a6827a3ad6ed5511a30fa280f12eb2e47ed2ac03b5c462a0358d18d69fe4" +
-      "f985ec81778c1b370b652a8"
-    ),
-    mnemonic12TestVector(
-      "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong",
-      "ac27495480225222079d7be181583751e86f571027b0497b5b5d11218e0a8a13332572917f0f8e5a589620c6f15b11c61dee32765" +
-      "1a14c34e18231052e48c069"
-    ),
-    mnemonic18TestVector(
-      "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon " +
-      "abandon abandon abandon abandon agent",
-      "035895f2f481b1b0f01fcf8c289c794660b289981a78f8106447707fdd9666ca06da5a9a565181599b79f53b844d8a71dd9f439c5" +
-      "2a3d7b3e8a79c906ac845fa"
-    ),
-    mnemonic18TestVector(
-      "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal " +
-      "will",
-      "f2b94508732bcbacbcc020faefecfc89feafa6649a5491b8c952cede496c214a0c7b3c392d168748f2d4a612bada0753b52a1c7ac" +
-      "53c1e93abd5c6320b9e95dd"
-    ),
-    mnemonic18TestVector(
-      "letter advice cage absurd amount doctor acoustic avoid letter advice cage absurd amount doctor acoustic " +
-      "avoid letter always",
-      "107d7c02a5aa6f38c58083ff74f04c607c2d2c0ecc55501dadd72d025b751bc27fe913ffb796f841c49b1d33b610cf0e91d3aa239" +
-      "027f5e99fe4ce9e5088cd65"
-    ),
-    mnemonic18TestVector(
-      "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo when",
-      "0cd6e5d827bb62eb8fc1e262254223817fd068a74b5b449cc2f667c3f1f985a76379b43348d952e2265b4cd129090758b3e3c2c49" +
-      "103b5051aac2eaeb890a528"
-    ),
-    mnemonic24TestVector(
-      "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon " +
-      "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art",
-      "bda85446c68413707090a52022edd26a1c9462295029f2e60cd7c4f2bbd3097170af7a4d73245cafa9c3cca8d561a7c3de6f5d4a1" +
-      "0be8ed2a5e608d68f92fcc8"
-    ),
-    mnemonic24TestVector(
-      "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal " +
-      "winner thank year wave sausage worth title",
-      "bc09fca1804f7e69da93c2f2028eb238c227f2e9dda30cd63699232578480a4021b146ad717fbb7e451ce9eb835f43620bf5c514d" +
-      "b0f8add49f5d121449d3e87"
-    ),
-    mnemonic24TestVector(
-      "letter advice cage absurd amount doctor acoustic avoid letter advice cage absurd amount doctor acoustic " +
-      "avoid letter advice cage absurd amount doctor acoustic bless",
-      "c0c519bd0e91a2ed54357d9d1ebef6f5af218a153624cf4f2da911a0ed8f7a09e2ef61af0aca007096df430022f7a2b6fb91661a9" +
-      "589097069720d015e4e982f"
-    ),
-    mnemonic24TestVector(
-      "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo vote",
-      "dd48c104698c30cfe2b6142103248622fb7bb0ff692eebb00089b32d22484e1613912f0a5b694407be899ffd31ed3992c456cdf60" +
-      "f5d4564b8ba3f05a69890ad"
-    ),
-    mnemonic12TestVector(
-      "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic",
-      "274ddc525802f7c828d8ef7ddbcdc5304e87ac3535913611fbbfa986d0c9e5476c91689f9c8a54fd55bd38606aa6a8595ad213d4c" +
-      "9c9f9aca3fb217069a41028"
-    ),
-    mnemonic18TestVector(
-      "gravity machine north sort system female filter attitude volume fold club stay feature office ecology " +
-      "stable narrow fog",
-      "628c3827a8823298ee685db84f55caa34b5cc195a778e52d45f59bcf75aba68e4d7590e101dc414bc1bbd5737666fbbef35d1f190" +
-      "3953b66624f910feef245ac"
-    ),
-    mnemonic24TestVector(
-      "hamster diagram private dutch cause delay private meat slide toddler razor book happy fancy gospel " +
-      "tennis maple dilemma loan word shrug inflict delay length",
-      "64c87cde7e12ecf6704ab95bb1408bef047c22db4cc7491c4271d170a1b213d20b385bc1588d9c7b38f1b39d415665b8a9030c9ec" +
-      "653d75e65f847d8fc1fc440"
-    ),
-    mnemonic12TestVector(
-      "scheme spot photo card baby mountain device kick cradle pact join borrow",
-      "ea725895aaae8d4c1cf682c1bfd2d358d52ed9f0f0591131b559e2724bb234fca05aa9c02c57407e04ee9dc3b454aa63fbff483a8" +
-      "b11de949624b9f1831a9612"
-    ),
-    mnemonic18TestVector(
-      "horn tenant knee talent sponsor spell gate clip pulse soap slush warm silver nephew swap uncle crack brave",
-      "fd579828af3da1d32544ce4db5c73d53fc8acc4ddb1e3b251a31179cdb71e853c56d2fcb11aed39898ce6c34b10b5382772db8796" +
-      "e52837b54468aeb312cfc3d"
-    ),
-    mnemonic24TestVector(
-      "panda eyebrow bullet gorilla call smoke muffin taste mesh discover soft ostrich alcohol speed nation flash" +
-      " devote level hobby quick inner drive ghost inside",
-      "72be8e052fc4919d2adf28d5306b5474b0069df35b02303de8c1729c9538dbb6fc2d731d5f832193cd9fb6aeecbc469594a70e3dd" +
-      "50811b5067f3b88b28c3e8d"
-    ),
-    mnemonic12TestVector(
-      "cat swing flag economy stadium alone churn speed unique patch report train",
-      "deb5f45449e615feff5640f2e49f933ff51895de3b4381832b3139941c57b59205a42480c52175b6efcffaa58a2503887c1e8b36" +
-      "3a707256bdd2b587b46541f5"
-    ),
-    mnemonic18TestVector(
-      "light rule cinnamon wrap drastic word pride squirrel upgrade then income fatal apart sustain crack supply" +
-      " proud access",
-      "4cbdff1ca2db800fd61cae72a57475fdc6bab03e441fd63f96dabd1f183ef5b782925f00105f318309a7e9c3ea6967c7801e46c8" +
-      "a58082674c860a37b93eda02"
-    ),
-    mnemonic24TestVector(
-      "all hour make first leader extend hole alien behind guard gospel lava path output census museum junior " +
-      "mass reopen famous sing advance salt reform",
-      "26e975ec644423f4a4c4f4215ef09b4bd7ef924e85d1d17c4cf3f136c2863cf6df0a475045652c57eb5fb41513ca2a2d67722b77e" +
-      "954b4b3fc11f7590449191d"
-    ),
-    mnemonic12TestVector(
-      "vessel ladder alter error federal sibling chat ability sun glass valve picture",
-      "2aaa9242daafcee6aa9d7269f17d4efe271e1b9a529178d7dc139cd18747090bf9d60295d0ce74309a78852a9caadf0af48aae1c6" +
-      "253839624076224374bc63f"
-    ),
-    mnemonic18TestVector(
-      "scissors invite lock maple supreme raw rapid void congress muscle digital elegant little brisk hair " +
-      "mango congress clump",
-      "7b4a10be9d98e6cba265566db7f136718e1398c71cb581e1b2f464cac1ceedf4f3e274dc270003c670ad8d02c4558b2f8e39edea2" +
-      "775c9e232c7cb798b069e88"
-    ),
-    mnemonic24TestVector(
-      "void come effort suffer camp survey warrior heavy shoot primary clutch crush open amazing screen " +
-      "patrol group space point ten exist slush involve unfold",
-      "01f5bced59dec48e362f2c45b5de68b9fd6c92c6634f44d6d40aab69056506f0e35524a518034ddc1192e1dacd32c1ed3eaa3c3b1" +
-      "31c88ed8e7e54c49a5d0998"
-    )
-  )
-
-  property("test vectors should pass") {
-    testVectors.foreach { vector =>
-      val result = vector.mnemonic("TREZOR")
-      val hexResult = Base16.encode(result)
-
-      hexResult shouldBe vector.seed
-    }
-  }
-
   property("mnemonic with extra whitespace is valid") {
     val mnemonic = Mnemonic.fromPhrase(
       "vessel ladder alter error  federal sibling chat   ability sun glass valve picture",
@@ -256,7 +116,7 @@ class MnemonicSeedPackageSpec
   property("mnemonic with extra whitespace has same seed as single spaced") {
     val password = ""
 
-    val expectedSeed = Mnemonic
+    val expectedKey = Mnemonic
       .fromPhrase(
         "vessel ladder alter error federal sibling chat ability sun glass valve picture",
         Mnemonic12,
@@ -264,7 +124,7 @@ class MnemonicSeedPackageSpec
       )
       .getOrThrow()(password)
 
-    val seed = Mnemonic
+    val result = Mnemonic
       .fromPhrase(
         "vessel ladder alter error  federal sibling chat   ability sun glass valve picture",
         Mnemonic12,
@@ -272,7 +132,9 @@ class MnemonicSeedPackageSpec
       )
       .getOrThrow()(password)
 
-    seed shouldBe expectedSeed
+    result.leftKey shouldBe expectedKey.leftKey
+    result.rightKey shouldBe expectedKey.rightKey
+    result.chainCode shouldBe expectedKey.chainCode
   }
 
   property("mnemonic with capital letters is valid") {
@@ -289,7 +151,7 @@ class MnemonicSeedPackageSpec
   property("mnemonic with capital letters has same seed as lowercase") {
     val password = ""
 
-    val expectedSeed = Mnemonic
+    val expectedKey = Mnemonic
       .fromPhrase(
         "legal winner thank year wave sausage worth useful legal " +
         "winner thank year wave sausage worth useful legal will",
@@ -298,7 +160,7 @@ class MnemonicSeedPackageSpec
       )
       .getOrThrow()(password)
 
-    val seed = Mnemonic
+    val result = Mnemonic
       .fromPhrase(
         "Legal Winner Thank Year Wave Sausage Worth Useful Legal " +
         "Winner Thank Year Wave Sausage Worth Useful Legal Will",
@@ -307,7 +169,9 @@ class MnemonicSeedPackageSpec
       )
       .getOrThrow()(password)
 
-    seed shouldBe expectedSeed
+    result.leftKey shouldBe expectedKey.leftKey
+    result.rightKey shouldBe expectedKey.rightKey
+    result.chainCode shouldBe expectedKey.chainCode
   }
 
   property("mnemonic with unusual characters is invalid") {
@@ -323,27 +187,79 @@ class MnemonicSeedPackageSpec
     mnemonic shouldBe Left(InvalidWords())
   }
 
-  def mnemonic12TestVector(phrase: String, seed: String): Bip39TestVector =
-    Bip39TestVector(
-      Mnemonic
-        .fromPhrase(phrase, Mnemonic12, English)
-        .valueOr(err => throw new Error(s"Invalid length 12 mnemonic: $phrase, $err")),
-      seed
-    )
+  case class TestVector(
+    name:       String,
+    phrase:     String,
+    size:       MnemonicSize,
+    language:   Language,
+    password:   String,
+    privateKey: String
+  )
 
-  def mnemonic18TestVector(phrase: String, seed: String): Bip39TestVector =
-    Bip39TestVector(
-      Mnemonic
-        .fromPhrase(phrase, Mnemonic18, English)
-        .valueOr(err => throw new Error(s"Invalid length 12 mnemonic: $phrase, $err")),
-      seed
+  val testVectors = Seq(
+    TestVector(
+      "Test Vector #1",
+      "buyer bomb chapter carbon chair grid wheel protect giraffe spike pupil model",
+      Mnemonic12,
+      English,
+      "dinner",
+      "10d6d266fc36cce2ee95197c968983b1b8a0cf26030068f0aa6d7603515d2749ff030cd54551eaeef0b2d22305d6984c1313b" +
+      "855775f6bfb9fc4aff1a8aa837e43773dc6ead8b276897e03687a943ffa795f35c4dfc438f307106509ba96bf36"
+    ),
+    TestVector(
+      "Test Vector #2",
+      "vessel erase town arrow girl emotion siren better fork approve spare convince sauce amused clap",
+      Mnemonic15,
+      English,
+      "heart",
+      "105c0659a289eb1899ad891da6022155729fe7b4cd59399cf82abd5df6e7024714a4cfd8efde026641d43fb4945dbc1d83934" +
+      "fbea856264f1198a4f9e34fc79dadd5982a6cb2a9ad628f4197945ab8170071af566c188c4ee35ee589a7792fed"
+    ),
+    TestVector(
+      "Test Vector #3",
+      "model abandon genius figure shiver craft surround sister permit output network swift slush lumber " +
+      "dune license run sugar",
+      Mnemonic18,
+      English,
+      "describe",
+      "f8018c7179445139ab5b437e66c6109bed6879dd603a278bccec3bc6a020c25ed10a9a14b6351f0a4b68b164ada673f731738a9" +
+      "62da627b399d7c5cd2fb3616a67d34d5baaf63a7c5a8159dec79de21a937a03baeb05548c91d7e2c5d648cf4e"
+    ),
+    TestVector(
+      "Test Vector #4",
+      "acquire pretty ocean screen assist purity exchange memory universe attitude sense charge fragile emerge " +
+      "quick home asthma intact gloom giant gather",
+      Mnemonic21,
+      English,
+      "manager",
+      "90e7716fce3ee6b32c3a8c89d54cb01a63596c9a19c270cfcfdff29b9c585555beba8d3d4113558a3411267c454b2215fc5f1bb" +
+      "429d7751f051a88942d9e3c7a8c61503b5b06f56bd3873a2fab636d87e064b3b3dca5a329646dedaab1e02c05"
+    ),
+    TestVector(
+      "Test Vector #5",
+      "nice demise viable bonus flavor genre kick nominee supreme couple tattoo shadow ethics swamp rebuild pencil " +
+      "rebuild pet ignore define seek fire wrong harvest",
+      Mnemonic24,
+      English,
+      "exact",
+      "98df2e07e25a733a6d2a2636b2bd67408687fb1da399abc164ed258a98b9655f1997507da125e2d77a0c2f168a866ea8fe9a7c0e27fb" +
+      "772b287a702d9742fb9fe14b0893136596df5de01ec9b6487a865bd415cb8a6ca96eb582e81777802461"
     )
+  )
 
-  def mnemonic24TestVector(phrase: String, seed: String): Bip39TestVector =
-    Bip39TestVector(
-      Mnemonic
-        .fromPhrase(phrase, Mnemonic24, English)
-        .valueOr(err => throw new Error(s"Invalid length 12 mnemonic: $phrase, $err")),
-      seed
-    )
+  def testVectorTest(tv: TestVector): Unit =
+    property(s"Entropy Test: ${tv.name}") {
+      val expectedPrivateKeyBase16 = Base16Data.unsafe(tv.privateKey)
+
+      val mnemonic = Mnemonic.fromPhrase(tv.phrase, tv.size, tv.language).getOrThrow()
+
+      val pkResult = mnemonic(tv.password)
+
+      val pkResultBase16 =
+        (pkResult.leftKey.toVector ++ pkResult.rightKey.toVector ++ pkResult.chainCode.toVector).encodeAsBase16
+
+      pkResultBase16 shouldBe expectedPrivateKeyBase16
+    }
+
+  testVectors.foreach(testVectorTest)
 }

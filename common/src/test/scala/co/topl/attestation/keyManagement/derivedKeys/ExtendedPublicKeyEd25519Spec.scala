@@ -1,22 +1,14 @@
 package co.topl.attestation.keyManagement.derivedKeys
 
-import cats.implicits._
-import co.topl.attestation.keyManagement.derivedKeys.ExtendedPrivateKeyEd25519.InvalidDerivedKey
-import co.topl.crypto.signatures.Ed25519
 import co.topl.utils.SizedByteCollection
-import co.topl.utils.SizedByteCollection.implicits._
 import co.topl.utils.SizedByteCollection.Types.ByteVector32
+import co.topl.utils.SizedByteCollection.implicits._
 import co.topl.utils.encode.Base16
-import org.scalacheck.Gen
-import org.scalacheck.Gen.asciiStr
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks.forAll
 import scodec.bits.ByteOrdering
 
 class ExtendedPublicKeyEd25519Spec extends AnyFlatSpec {
-
-  private val positiveIntListGen: Gen[List[Int]] = Gen.listOf(Gen.chooseNum(0, Int.MaxValue))
 
   "ExtendedPublicKeyEd25519.derive" should "pass test vectors" in {
     val rootPrv =
@@ -37,33 +29,5 @@ class ExtendedPublicKeyEd25519Spec extends AnyFlatSpec {
     val derivedPub = rootKey.public.derive(SoftIndex(0))
 
     Base16.encode(derivedPub.bytes.toArray ++ derivedPub.chainCode.toArray) shouldBe expectedDerivedPublic
-  }
-
-  "ExtendedPublicKeyEd25519.derive" should "generate a valid public key" in {
-    forAll(asciiStr, asciiStr, positiveIntListGen, Gen.chooseNum(0, Int.MaxValue)) { (seed, message, path, pubIndex) =>
-      val root = ExtendedPrivateKeyEd25519.fromSeed(seed.getBytes)
-
-      val derivedPrv = path.foldLeft(root.asRight[InvalidDerivedKey]) {
-        case (Right(key), step) => key.derive(DerivedKeyIndex.hardened(step))
-        case (error, _)         => error
-      }
-
-      // do not test invalid keys
-      derivedPrv.foreach { privateKey =>
-        val childDerivedPubKey = privateKey.public.derive(SoftIndex(pubIndex))
-
-        privateKey.derive(SoftIndex(pubIndex)).foreach { derivedChildPrvKey =>
-          val messageToSign = message.getBytes
-
-          val ed25519 = new Ed25519
-
-          val signature = derivedChildPrvKey.sign(messageToSign)
-
-          val isValidSignature = ed25519.verify(signature.sigBytes, messageToSign, childDerivedPubKey.toPublicKey)
-
-          isValidSignature shouldBe true
-        }
-      }
-    }
   }
 }
