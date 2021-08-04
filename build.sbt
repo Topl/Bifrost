@@ -3,7 +3,7 @@ import sbtassembly.MergeStrategy
 import Dependencies._
 
 val scala212 = "2.12.14"
-val scala213 = "2.13.5"
+val scala213 = "2.13.6"
 
 inThisBuild(List(
   organization := "co.topl",
