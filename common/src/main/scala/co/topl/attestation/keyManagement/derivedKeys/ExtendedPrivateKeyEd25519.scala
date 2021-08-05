@@ -208,7 +208,6 @@ object ExtendedPrivateKeyEd25519 {
     implicit val fromMnemonic: FromMnemonic[Password => ExtendedPrivateKeyEd25519] = {
       // ignore the phrase and just use initial entropy
       (entropy: Mnemonic.Entropy, _) => (password: Password) =>
-
         // first do a PBDKF2-HMAC-SHA512 per the SLIP2-0023 spec
         val seed = Pbkdf2Sha512.generateKey(
           password.getBytes,
