@@ -19,6 +19,7 @@ import org.scalatest.Suite
 
 import java.io.File
 import java.nio.file.Files
+import scala.collection.immutable.ListMap
 import scala.util.Random
 
 trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
@@ -144,7 +145,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
 
     val signatures = keyRing.generateAttestation(keyRing.addresses)(rawTx.messageToSign).values.toSet
     val thresholdSignature = ThresholdSignatureCurve25519(signatures)
-    val attestation = Map(addressesToPropMap(sender) -> thresholdSignature)
+    val attestation = ListMap(addressesToPropMap(sender) -> thresholdSignature)
 
     rawTx.copy(attestation = attestation)
   }
@@ -252,7 +253,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
 
     val signatures = keyRing.generateAttestation(keyRing.addresses)(rawTx.messageToSign).values.toSet
     val thresholdSignature = ThresholdSignatureCurve25519(signatures)
-    val attestation = Map(addressesToPropMap(sender) -> thresholdSignature)
+    val attestation = ListMap(addressesToPropMap(sender) -> thresholdSignature)
 
     rawTx.copy(attestation = attestation)
   }
@@ -357,7 +358,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
 
     val signatures = keyRing.generateAttestation(keyRing.addresses)(rawTx.messageToSign).values.toSet
     val thresholdSignature = ThresholdSignatureCurve25519(signatures)
-    val attestation = Map(addressesToPropMap(sender) -> thresholdSignature)
+    val attestation = ListMap(addressesToPropMap(sender) -> thresholdSignature)
 
     rawTx.copy(attestation = attestation)
   }
