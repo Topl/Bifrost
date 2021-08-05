@@ -106,7 +106,7 @@ class AssetTransferRPCSpec extends TransferRPCTestMethods {
         3
       )
       val attestation: Json = Map("signatures" -> attestationCurve25519Gen.sample.get.asJson).asJson
-      testBroadcastInvalidTx(tx.hcursor.downField("signatures").delete.top.get.deepMerge(attestation))
+      testBroadcastTxInvalidProp(tx.hcursor.downField("signatures").delete.top.get.deepMerge(attestation))
     }
   }
 }

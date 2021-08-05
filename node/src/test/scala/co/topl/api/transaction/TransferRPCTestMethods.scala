@@ -35,7 +35,7 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
     }
   }
 
-  def testBroadcastInvalidTx(tx: Json): Unit = {
+  def testBroadcastTxInvalidProp(tx: Json): Unit = {
     val requestBody = ByteString(s"""
       |{
       | "jsonrpc": "2.0",
