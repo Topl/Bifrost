@@ -84,7 +84,9 @@ case class TestGenesis(
 
     val txInputThresholdCurve25519 = (
       IndexedSeq(),
-      addressesThresholdCurve25519.map(_ -> SimpleValue(balance)).toIndexedSeq,
+      (genesisThresholdPublicKey.address -> SimpleValue(0L)) +: addressesThresholdCurve25519
+        .map(_ -> SimpleValue(balance))
+        .toIndexedSeq,
       Map(genesisThresholdPublicKey -> ThresholdSignatureCurve25519.genesis),
       Int128(0),
       0L,
