@@ -24,7 +24,7 @@ lazy val commonSettings = Seq(
   scalacOptions ++= commonScalacOptions,
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
-  // wartremoverErrors := Warts.unsafe // settings for wartremover
+//  wartremoverErrors := Warts.unsafe, // settings for wartremover
   Compile / unmanagedSourceDirectories += {
     val sourceDir = (Compile / sourceDirectory).value
     CrossVersion.partialVersion(scalaVersion.value) match {
@@ -45,7 +45,8 @@ lazy val commonSettings = Seq(
   resolvers ++= Seq(
     "Typesafe Repository" at "https://repo.typesafe.com/typesafe/releases/",
     "Sonatype Staging" at "https://s01.oss.sonatype.org/content/repositories/staging",
-    "Sonatype Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots/"
+    "Sonatype Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots/",
+    "Bintray" at "https://jcenter.bintray.com/"
   )
 )
 
@@ -72,20 +73,21 @@ lazy val assemblySettings = Seq(
   assembly / mainClass := Some("co.topl.BifrostApp"),
   assembly / test := {},
   assemblyJarName := s"bifrost-${version.value}.jar",
-  assembly / assemblyMergeStrategy ~= { old: ((String) => MergeStrategy) =>
-    {
-      case ps if ps.endsWith(".SF")  => MergeStrategy.discard
-      case ps if ps.endsWith(".DSA") => MergeStrategy.discard
-      case ps if ps.endsWith(".RSA") => MergeStrategy.discard
-      case ps if ps.endsWith(".xml") => MergeStrategy.first
-      case PathList(ps @ _*) if ps.last endsWith "module-info.class" =>
-        MergeStrategy.discard // https://github.com/sbt/sbt-assembly/issues/370
-      case PathList("module-info.java")  => MergeStrategy.discard
-      case PathList("local.conf")        => MergeStrategy.discard
-      case "META-INF/truffle/instrument" => MergeStrategy.concat
-      case "META-INF/truffle/language"   => MergeStrategy.rename
-      case x                             => old(x)
-    }
+  assembly / assemblyMergeStrategy ~= { old: ((String) => MergeStrategy) => {
+    case ps if ps.endsWith(".SF")  => MergeStrategy.discard
+    case ps if ps.endsWith(".DSA") => MergeStrategy.discard
+    case ps if ps.endsWith(".RSA") => MergeStrategy.discard
+    case ps if ps.endsWith(".xml") => MergeStrategy.first
+    case PathList(ps @ _*) if ps.last endsWith "module-info.class" =>
+      MergeStrategy.discard // https://github.com/sbt/sbt-assembly/issues/370
+    case x if x.contains("simulacrum") => MergeStrategy.last
+    case PathList("org", "iq80", "leveldb", xs @ _*) => MergeStrategy.first
+    case PathList("module-info.java")  => MergeStrategy.discard
+    case PathList("local.conf")        => MergeStrategy.discard
+    case "META-INF/truffle/instrument" => MergeStrategy.concat
+    case "META-INF/truffle/language"   => MergeStrategy.rename
+    case x                             => old(x)
+  }
   },
   assembly / assemblyExcludedJars := {
     val cp = (assembly / fullClasspath).value
@@ -116,6 +118,7 @@ lazy val scalamacrosParadiseSettings =
       }
     }
   )
+
 lazy val commonScalacOptions = Seq(
   "-deprecation",
   "-feature",
@@ -167,16 +170,9 @@ lazy val bifrost = project
     common,
     akkaHttpRpc,
     toplRpc,
-    gjallarhorn,
     benchmarking,
     crypto,
     brambl
-  )
-  .dependsOn(
-    node,
-    common,
-    gjallarhorn,
-    benchmarking
   )
 
 lazy val node = project
@@ -266,20 +262,21 @@ lazy val toplRpc = project
   )
   .dependsOn(akkaHttpRpc, common)
 
-lazy val gjallarhorn = project
-  .in(file("gjallarhorn"))
-  .settings(
-    name := "gjallarhorn",
-    commonSettings,
-    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
-    publish / skip := true,
-    Defaults.itSettings,
-    libraryDependencies ++= Dependencies.gjallarhorn
-  )
-  .dependsOn(crypto, common)
-  .configs(IntegrationTest)
-  .disablePlugins(sbtassembly.AssemblyPlugin)
-  .settings(scalamacrosParadiseSettings)
+// This module has fallen out of sync with the rest of the codebase and is not currently needed
+//lazy val gjallarhorn = project
+//  .in(file("gjallarhorn"))
+//  .settings(
+//    name := "gjallarhorn",
+//    commonSettings,
+//    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
+//    publish / skip := true,
+//    Defaults.itSettings,
+//    libraryDependencies ++= Dependencies.gjallarhorn
+//  )
+//  .dependsOn(crypto, common)
+//  .configs(IntegrationTest)
+//  .disablePlugins(sbtassembly.AssemblyPlugin)
+//  .settings(scalamacrosParadiseSettings)
 
 lazy val benchmarking = project
   .in(file("benchmark"))
