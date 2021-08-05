@@ -245,6 +245,16 @@ class MnemonicSpec
       "exact",
       "98df2e07e25a733a6d2a2636b2bd67408687fb1da399abc164ed258a98b9655f1997507da125e2d77a0c2f168a866ea8fe9a7c0e27fb" +
       "772b287a702d9742fb9fe14b0893136596df5de01ec9b6487a865bd415cb8a6ca96eb582e81777802461"
+    ),
+    TestVector(
+      "Test Vector #6",
+      "toss enrich steak utility dolphin cushion jeans work ski angle total alley trade poem february whisper toe " +
+        "office half assume keep shift also fade",
+      Mnemonic24,
+      English,
+      "",
+      "686657f893d3d2c14bc3ab93d693bfbc868a621790d8aca64317834ed3aa85537d8d094a432cb852bb3b8617aeab621c0459b84a6d24" +
+        "80735b4e3ff8bff11657944aaad3c8b7633eafb5871de4122241728ce5d5edd8268472c7c980252fc55b"
     )
   )
 
