@@ -2,6 +2,7 @@ package co.topl.api.transaction
 
 import co.topl.attestation.Address
 import co.topl.modifier.box.AssetCode
+import co.topl.utils.GeneratorOps.GeneratorOps
 import co.topl.utils.StringDataTypes.Latin1Data
 import io.circe.syntax._
 
@@ -22,7 +23,7 @@ class AssetTransferRPCSpec extends TransferRPCTestMethods {
     addressCurve25519recv = keyRingCurve25519.addresses.tail.head
     addressEd25519send = keyRingEd25519.addresses.head
     addressEd25519recv = keyRingEd25519.addresses.tail.head
-    recipients = assetToSeqGen.sample.get.asJson.toString()
+    recipients = assetToSeqGen.sampleFirst().asJson.toString()
     assetCodeCurve25519 = AssetCode(1: Byte, addressCurve25519send, Latin1Data.unsafe("test"))
     assetCodeEd25519 = AssetCode(1: Byte, addressEd25519send, Latin1Data.unsafe("test"))
   }
