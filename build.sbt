@@ -170,16 +170,9 @@ lazy val bifrost = project
     common,
     akkaHttpRpc,
     toplRpc,
-    gjallarhorn,
     benchmarking,
     crypto,
     brambl
-  )
-  .dependsOn(
-    node,
-    common,
-    gjallarhorn,
-    benchmarking
   )
 
 lazy val node = project
@@ -269,20 +262,21 @@ lazy val toplRpc = project
   )
   .dependsOn(akkaHttpRpc, common)
 
-lazy val gjallarhorn = project
-  .in(file("gjallarhorn"))
-  .settings(
-    name := "gjallarhorn",
-    commonSettings,
-    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
-    publish / skip := true,
-    Defaults.itSettings,
-    libraryDependencies ++= Dependencies.gjallarhorn
-  )
-  .dependsOn(crypto, common)
-  .configs(IntegrationTest)
-  .disablePlugins(sbtassembly.AssemblyPlugin)
-  .settings(scalamacrosParadiseSettings)
+// This module has fallen out of sync with the rest of the codebase and is not currently needed
+//lazy val gjallarhorn = project
+//  .in(file("gjallarhorn"))
+//  .settings(
+//    name := "gjallarhorn",
+//    commonSettings,
+//    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
+//    publish / skip := true,
+//    Defaults.itSettings,
+//    libraryDependencies ++= Dependencies.gjallarhorn
+//  )
+//  .dependsOn(crypto, common)
+//  .configs(IntegrationTest)
+//  .disablePlugins(sbtassembly.AssemblyPlugin)
+//  .settings(scalamacrosParadiseSettings)
 
 lazy val benchmarking = project
   .in(file("benchmark"))
