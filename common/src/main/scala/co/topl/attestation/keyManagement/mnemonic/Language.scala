@@ -1,4 +1,4 @@
-package co.topl.attestation.keyManagement.mnemonicSeed
+package co.topl.attestation.keyManagement.mnemonic
 
 import cats.implicits._
 import co.topl.crypto.hash.sha256
@@ -6,6 +6,9 @@ import co.topl.crypto.hash.sha256
 import scala.util.Try
 import scala.language.implicitConversions
 
+/**
+ * A failure to import a word list into a collection.
+ */
 sealed trait WordListFailure
 case class FileReadFailure(exception: Throwable) extends WordListFailure
 case class InvalidChecksum() extends WordListFailure

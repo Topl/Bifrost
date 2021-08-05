@@ -1,17 +1,15 @@
 package co.topl.attestation.keyManagement.derivedKeys
 
-import co.topl.attestation.keyManagement.mnemonicSeed.Mnemonic.Mnemonic
+import co.topl.attestation.keyManagement.mnemonic.{FromMnemonic, Mnemonic}
 import co.topl.attestation.{PublicKeyPropositionEd25519, SignatureEd25519}
-import co.topl.crypto.PublicKey
-import co.topl.crypto.hash.sha512
 import co.topl.crypto.signatures.{Ed25519, Signature}
+import co.topl.crypto.{Pbkdf2Sha512, PublicKey}
 import co.topl.utils.SizedByteCollection
 import co.topl.utils.SizedByteCollection.Types.{ByteVector28, ByteVector32}
 import co.topl.utils.SizedByteCollection.implicits._
 import co.topl.utils.serialization.BifrostSerializer
 import scodec.bits.{ByteOrdering, ByteVector}
 
-import java.nio.charset.StandardCharsets
 import java.nio.{ByteBuffer, ByteOrder}
 
 /**
@@ -157,6 +155,11 @@ object ExtendedPrivateKeyEd25519 {
   type InvalidDerivedKey = InvalidDerivedKey.type
 
   /**
+   * The type of the password used alongside a mnemonic to generate an `ExtendedPrivateKeyEd25519`
+   */
+  type Password = String
+
+  /**
    * ED-25519 Base Order N
    *
    * Equivalent to `2^252 + 27742317777372353535851937790883648493`
@@ -192,4 +195,41 @@ object ExtendedPrivateKeyEd25519 {
    */
   def validate(value: ExtendedPrivateKeyEd25519): Either[InvalidDerivedKey, ExtendedPrivateKeyEd25519] =
     Either.cond(value.leftNumber % edBaseN != 0, value, InvalidDerivedKey)
+
+  trait Instances {
+
+    /**
+     * `FromMnemonic` type-class instance to convert a mnemonic and its entropy into a function which
+     * takes in a password and returns an `ExtendedPrivateKeyEd25519`.
+     *
+     * Follows the SLIP-0023 specification:
+     * https://github.com/satoshilabs/slips/blob/master/slip-0023.md
+     */
+    implicit val fromMnemonic: FromMnemonic[Password => ExtendedPrivateKeyEd25519] = {
+      // ignore the phrase and just use initial entropy
+      (entropy: Mnemonic.Entropy, _) => (password: Password) =>
+
+        // first do a PBDKF2-HMAC-SHA512 per the SLIP2-0023 spec
+        val seed = Pbkdf2Sha512.generateKey(
+          password.getBytes,
+          entropy,
+          96,
+          4096
+        )
+
+        // turn seed into a valid ExtendedPrivateKeyEd25519 per the SLIP-0023 spec
+        seed(0) = (seed(0) & 0xf8).toByte
+        seed(31) = ((seed(31) & 0x1f) | 0x40).toByte
+
+        ExtendedPrivateKeyEd25519(
+          SizedByteCollection[ByteVector32].fit(seed.slice(0, 32), ByteOrdering.LittleEndian),
+          SizedByteCollection[ByteVector32].fit(seed.slice(32, 64), ByteOrdering.LittleEndian),
+          SizedByteCollection[ByteVector32].fit(seed.slice(64, 96), ByteOrdering.LittleEndian),
+          Seq()
+        )
+    }
+  }
+
+  trait Implicits extends Instances
+  object implicits extends Implicits
 }

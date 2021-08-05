@@ -1,6 +1,6 @@
-package co.topl.attestation.keyManagement.mnemonicSeed
+package co.topl.attestation.keyManagement.mnemonic
 
-import co.topl.attestation.keyManagement.mnemonicSeed.Mnemonic._
+import co.topl.attestation.keyManagement.mnemonic.Mnemonic._
 import co.topl.utils.CommonGenerators
 import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.StringDataTypes.Base16Data
@@ -11,8 +11,9 @@ import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import co.topl.utils.SizedByteCollection.implicits._
 import co.topl.utils.codecs.implicits._
+import co.topl.attestation.keyManagement.derivedKeys.ExtendedPrivateKeyEd25519.implicits._
 
-class MnemonicSeedPackageSpec
+class MnemonicSpec
     extends AnyPropSpec
     with CommonGenerators
     with ScalaCheckPropertyChecks
@@ -20,7 +21,7 @@ class MnemonicSeedPackageSpec
 
   property("12 phrase mnemonic with valid words should be valid") {
     val phrase = "cat swing flag economy stadium alone churn speed unique patch report train"
-    val mnemonic = Mnemonic.fromPhrase(phrase, Mnemonic12, English)
+    val mnemonic = Mnemonic.derive(phrase, Mnemonic12, English)
 
     mnemonic.isRight shouldBe true
   }
@@ -28,7 +29,7 @@ class MnemonicSeedPackageSpec
   property("12 phrase mnemonic with invalid word length should be invalid") {
     val phrase = "result fresh margin life life filter vapor trim"
 
-    val mnemonic = Mnemonic.fromPhrase(phrase, Mnemonic12, English)
+    val mnemonic = Mnemonic.derive(phrase, Mnemonic12, English)
 
     mnemonic shouldBe Left(InvalidWordLength())
   }
@@ -36,14 +37,14 @@ class MnemonicSeedPackageSpec
   property("12 phrase mnemonic with invalid words should be invalid") {
     val phrase = "amber glue hallway can truth drawer wave flex cousin grace close compose"
 
-    val mnemonic = Mnemonic.fromPhrase(phrase, Mnemonic12, English)
+    val mnemonic = Mnemonic.derive(phrase, Mnemonic12, English)
 
     mnemonic shouldBe Left(InvalidWords())
   }
 
   property("12 phrase mnemonic with valid words and invalid checksum should be invalid") {
     val phrase = "ugly wire busy skate slice kidney razor eager bicycle struggle aerobic picnic"
-    val mnemonic = Mnemonic.fromPhrase(phrase, Mnemonic12, English)
+    val mnemonic = Mnemonic.derive(phrase, Mnemonic12, English)
 
     mnemonic shouldBe Left(InvalidChecksum())
   }
@@ -51,7 +52,7 @@ class MnemonicSeedPackageSpec
   property("phrase should output the same private key if same password") {
     forAll(stringGen) { password =>
       val phrase = "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic"
-      val mnemonic = Mnemonic.fromPhrase(phrase, Mnemonic12, English).getOrElse(throw new Error("Invalid mnemonic!"))
+      val mnemonic = Mnemonic.derive(phrase, Mnemonic12, English).getOrElse(throw new Error("Invalid mnemonic!"))
 
       val firstAttempt = mnemonic(password)
       val secondAttempt = mnemonic(password)
@@ -65,10 +66,10 @@ class MnemonicSeedPackageSpec
   property("phrase should output a different private key if different password") {
     forAll(stringGen, stringGen) { (password1, password2) =>
       val phrase = "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic"
-      val mnemonic = Mnemonic.fromPhrase(phrase, Mnemonic12, English).getOrElse(throw new Error("Invalid mnemonic!"))
+      val keyGen = Mnemonic.derive(phrase, Mnemonic12, English).getOrElse(throw new Error("Invalid mnemonic!"))
 
-      val firstAttempt = mnemonic(password1)
-      val secondAttempt = mnemonic(password2)
+      val firstAttempt = keyGen(password1)
+      val secondAttempt = keyGen(password2)
 
       if (password1 != password2) {
         firstAttempt.leftKey should not be secondAttempt.leftKey
@@ -80,7 +81,7 @@ class MnemonicSeedPackageSpec
 
   property("from UUID should return valid mnemonic with size 12") {
     forAll(Gen.uuid) { uuid =>
-      val mnemonic = Mnemonic.fromUuid(uuid, English)
+      val mnemonic = Mnemonic.derive(uuid, English)
 
       mnemonic.isRight shouldBe true
     }
@@ -90,7 +91,7 @@ class MnemonicSeedPackageSpec
     property(s"from entropy of length $bytes should be valid") {
       forAll(specificLengthBytesGen(bytes)) { entropy =>
         if (entropy.length == bytes) {
-          val mnemonic = Mnemonic.fromEntropy(entropy, expected, English)
+          val mnemonic = Mnemonic.derive(entropy, expected, English)
 
           mnemonic.isRight shouldBe true
         }
@@ -104,7 +105,7 @@ class MnemonicSeedPackageSpec
   entropyLengthTest(32, Mnemonic24)
 
   property("mnemonic with extra whitespace is valid") {
-    val mnemonic = Mnemonic.fromPhrase(
+    val mnemonic = Mnemonic.derive(
       "vessel ladder alter error  federal sibling chat   ability sun glass valve picture",
       Mnemonic12,
       English
@@ -117,7 +118,7 @@ class MnemonicSeedPackageSpec
     val password = ""
 
     val expectedKey = Mnemonic
-      .fromPhrase(
+      .derive(
         "vessel ladder alter error federal sibling chat ability sun glass valve picture",
         Mnemonic12,
         English
@@ -125,7 +126,7 @@ class MnemonicSeedPackageSpec
       .getOrThrow()(password)
 
     val result = Mnemonic
-      .fromPhrase(
+      .derive(
         "vessel ladder alter error  federal sibling chat   ability sun glass valve picture",
         Mnemonic12,
         English
@@ -138,7 +139,7 @@ class MnemonicSeedPackageSpec
   }
 
   property("mnemonic with capital letters is valid") {
-    val mnemonic = Mnemonic.fromPhrase(
+    val mnemonic = Mnemonic.derive(
       "Legal Winner Thank Year Wave Sausage Worth Useful Legal " +
       "Winner Thank Year Wave Sausage Worth Useful Legal Will",
       Mnemonic18,
@@ -152,7 +153,7 @@ class MnemonicSeedPackageSpec
     val password = ""
 
     val expectedKey = Mnemonic
-      .fromPhrase(
+      .derive(
         "legal winner thank year wave sausage worth useful legal " +
         "winner thank year wave sausage worth useful legal will",
         Mnemonic18,
@@ -161,7 +162,7 @@ class MnemonicSeedPackageSpec
       .getOrThrow()(password)
 
     val result = Mnemonic
-      .fromPhrase(
+      .derive(
         "Legal Winner Thank Year Wave Sausage Worth Useful Legal " +
         "Winner Thank Year Wave Sausage Worth Useful Legal Will",
         Mnemonic18,
@@ -175,7 +176,7 @@ class MnemonicSeedPackageSpec
   }
 
   property("mnemonic with unusual characters is invalid") {
-    val mnemonic = Mnemonic.fromPhrase(
+    val mnemonic = Mnemonic.derive(
       "voi\uD83D\uDD25d come effort suffer camp su\uD83D\uDD25rvey warrior heavy shoot primary" +
       " clutch c\uD83D\uDD25rush" +
       " open amazing screen " +
@@ -251,9 +252,7 @@ class MnemonicSeedPackageSpec
     property(s"Entropy Test: ${tv.name}") {
       val expectedPrivateKeyBase16 = Base16Data.unsafe(tv.privateKey)
 
-      val mnemonic = Mnemonic.fromPhrase(tv.phrase, tv.size, tv.language).getOrThrow()
-
-      val pkResult = mnemonic(tv.password)
+      val pkResult = Mnemonic.derive(tv.phrase, tv.size, tv.language).getOrThrow()(tv.password)
 
       val pkResultBase16 =
         (pkResult.leftKey.toVector ++ pkResult.rightKey.toVector ++ pkResult.chainCode.toVector).encodeAsBase16

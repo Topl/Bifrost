@@ -7,7 +7,7 @@ import scodec.bits.ByteVector
 
 package object derivedKeys {
 
-  def hmac512WithKey(key: ByteVector, data: ByteVector): ByteVector = {
+  private[derivedKeys] def hmac512WithKey(key: ByteVector, data: ByteVector): ByteVector = {
     val mac = new HMac(new SHA512Digest())
     mac.init(new KeyParameter(key.toArray))
     mac.update(data.toArray, 0, data.length.toInt)
@@ -15,5 +15,7 @@ package object derivedKeys {
     mac.doFinal(out, 0)
     ByteVector(out)
   }
+
+  object implicits extends ExtendedPrivateKeyEd25519.Implicits
 
 }
