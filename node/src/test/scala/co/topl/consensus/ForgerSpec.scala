@@ -1,5 +1,6 @@
 package co.topl.consensus
 
+import akka.Done
 import akka.actor.testkit.typed.scaladsl.{LoggingTestKit, ManualTime, ScalaTestWithActorTestKit}
 import akka.actor.typed.eventstream.EventStream
 import cats.data.EitherT
@@ -46,7 +47,7 @@ class ForgerSpec
   // limited-hardware machines
   private val manualTime: ManualTime = ManualTime()
 
-  it should "generate a new block every 'blockGenerationDelay' seconds" in {
+  it should "attempt to generate a new block every 'blockGenerationDelay' seconds" in {
 
     val parentBlock = blockCurve25519Gen.pureApply(Gen.Parameters.default, Seed.random())
 
@@ -131,30 +132,88 @@ class ForgerSpec
     )
 
     val probe = createTestProbe[LocallyGeneratedBlock]()
+    val initializedProbe = createTestProbe[Done]()
 
+    // The probe reads [LocallyGeneratedBlock] messages from the EventStream
     system.eventStream.tell(EventStream.Subscribe(probe.ref))
     var blocks: List[Block] = Nil
 
     val newBlockCount = 4
 
-    LoggingTestKit.info("Forging will start after initialization").expect {
-      LoggingTestKit.info("Forger is initialized").expect {
-        LoggingTestKit.info("Starting forging").expect {
-          LoggingTestKit.debug("New local block").withOccurrences(newBlockCount + 1).expect {
-            val ref = spawn(behavior)
+    LoggingTestKit.info("Forger is initialized").expect {
+      LoggingTestKit.info("Starting forging").expect {
+        LoggingTestKit.debug("New local block").withOccurrences(newBlockCount + 1).expect {
+          val ref = spawn(behavior)
 
-            ref.tell(Forger.ReceivableMessages.StartForging(system.ignoreRef))
-            for (_ <- 0 until newBlockCount) {
-              blocks :+= probe.receiveMessage(1.seconds).block
-              // Manually advance the clock forward a delay amount
-              manualTime.timePasses(blockGenerationDelay)
-            }
+          ref.tell(Forger.ReceivableMessages.StartForging(initializedProbe.ref))
+          initializedProbe.expectMessage(2.seconds, Done)
 
+          for (_ <- 0 until newBlockCount) {
+            blocks :+= probe.receiveMessage(1.seconds).block
+            // Manually advance the clock forward a delay amount
+            manualTime.timePasses(blockGenerationDelay)
           }
-          blocks should have size newBlockCount
-          blocks.distinct should contain theSameElementsInOrderAs blocks
+
         }
+        blocks should have size newBlockCount
+        blocks.distinct should contain theSameElementsInOrderAs blocks
       }
+    }
+  }
+
+  it should "continue to attempt blocks after an unexpected exception" in {
+
+    implicit val timeProvider: TimeProvider = mock[TimeProvider]
+
+    (() => timeProvider.time)
+      .expects()
+      .never()
+
+    val rewardsAddress = keyRingCurve25519.addresses.head
+    val keyView =
+      KeyView(
+        keyRingCurve25519.addresses,
+        Some(rewardsAddress),
+        keyRingCurve25519.signWithAddress,
+        keyRingCurve25519.lookupPublicKey
+      )
+
+    val fetchKeyView = mockFunction[Future[KeyView]]
+    fetchKeyView
+      .expects()
+      .anyNumberOfTimes()
+      .returning(Future.failed(new Exception("Expected failure")))
+
+    val fetchStartupKeyView = mockFunction[Future[StartupKeyView]]
+    fetchStartupKeyView
+      .expects()
+      .once()
+      .returning(Future.successful(StartupKeyView(keyView.addresses, keyView.rewardAddr)))
+
+    val reader = mock[NodeViewReader]
+
+    val behavior = Forger.behavior(
+      blockGenerationDelay,
+      minTransactionFee,
+      forgeOnStartup = false,
+      fetchKeyView,
+      fetchStartupKeyView,
+      reader
+    )
+
+    val probe = createTestProbe[LocallyGeneratedBlock]()
+
+    system.eventStream.tell(EventStream.Subscribe(probe.ref))
+
+    val newBlockCount = 4
+
+    val ref = spawn(behavior)
+    ref.tell(Forger.ReceivableMessages.StartForging(system.ignoreRef))
+
+    for (_ <- 0 until newBlockCount) {
+      probe.expectNoMessage(1.seconds)
+      // Manually advance the clock forward a delay amount
+      manualTime.timePasses(blockGenerationDelay)
     }
   }
 
@@ -166,8 +225,7 @@ class ForgerSpec
     val fetchKeyView = mockFunction[Future[KeyView]]
     fetchKeyView
       .expects()
-      .anyNumberOfTimes()
-      .returning(Future.successful(keyView))
+      .never()
 
     val fetchStartupKeyView = mockFunction[Future[StartupKeyView]]
     fetchStartupKeyView

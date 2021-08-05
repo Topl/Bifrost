@@ -59,7 +59,9 @@ object Forger {
     Behaviors.setup { implicit context =>
       import context.executionContext
 
-      context.log.info(s"${Console.YELLOW}Forging will start after initialization${Console.RESET}")
+      if (forgeOnStartup) {
+        context.log.info(s"${Console.YELLOW}Forging will start after initialization${Console.RESET}")
+      }
 
       context.pipeToSelf(checkPrivateForging(fetchStartupKeyView))(
         _.fold(ReceivableMessages.Terminate, _ => ReceivableMessages.InitializationComplete)
