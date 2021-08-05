@@ -10,7 +10,6 @@ import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
 import org.scalatest.EitherValues
-import org.scalatest.Inside.inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -49,9 +48,19 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
       |""".stripMargin)
 
     httpPOST(requestBody) ~> route ~> check {
-      inside(parse(responseAs[String])) { case Left(e) =>
-        e.getMessage should startWith("expected json value")
-      }
+      val res = parse(responseAs[String]).value.hcursor
+        .downField("error")
+        .downField("data")
+        .downField("errors")
+        .as[Seq[Json]]
+        .value
+        .head
+        .hcursor
+        .get[Json]("message")
+        .value
+        .toString
+
+      res should include("Invalid proposition generation")
     }
   }
 

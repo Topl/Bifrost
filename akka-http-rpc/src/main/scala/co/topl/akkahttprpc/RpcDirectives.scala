@@ -7,12 +7,13 @@ import co.topl.akkahttprpc.RpcErrorCodecs._
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
 import io.circe.generic.semiauto._
 import io.circe.syntax._
-import io.circe.{Decoder, Encoder, _}
+import io.circe._
 
 import java.util.UUID
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.implicitConversions
+import scala.util.Try
 
 trait RpcDirectives {
 
@@ -72,9 +73,13 @@ trait RpcDirectives {
     context:          RpcContext,
     throwableEncoder: Encoder[ThrowableData]
   ): Directive1[RpcParams] =
-    context.params
-      .as[RpcParams]
-      .leftMap(InvalidParametersError(_))
+    Try(
+      context.params
+        .as[RpcParams]
+        .leftMap(InvalidParametersError(_))
+    ).toEither
+      .leftMap(throwable => InvalidParametersError(DecodingFailure.fromThrowable(throwable, Nil)))
+      .flatten
       .fold(completeRpc(_).toDirective, provide)
 
   def rpcContext: Directive1[RpcContext] =
