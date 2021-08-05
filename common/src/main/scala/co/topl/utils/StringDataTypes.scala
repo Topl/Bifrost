@@ -19,8 +19,17 @@ object StringDataTypes {
    * Byte data represented by Latin-1 encoded text.
    * @param value the data bytes
    */
-  @newtype
-  class Latin1Data(val value: Array[Byte])
+  case class Latin1Data private (value: Array[Byte]) {
+
+    override def equals(obj: Any): Boolean =
+      obj match {
+        case o: Latin1Data => java.util.Arrays.equals(value, o.value)
+        case _             => false
+      }
+
+    override def hashCode(): Int =
+      java.util.Arrays.hashCode(value)
+  }
 
   object Latin1Data {
 
@@ -29,7 +38,7 @@ object StringDataTypes {
      * @param bytes the underlying data
      * @return a `Latin1Data` instance
      */
-    def fromData(bytes: Array[Byte]): Latin1Data = bytes.coerce
+    def fromData(bytes: Array[Byte]): Latin1Data = Latin1Data(bytes)
 
     /**
      * Creates a `Latin1Data` value from a `String`.
@@ -38,7 +47,7 @@ object StringDataTypes {
      * @return a `DataEncodingValidationResult` representing a validation error or the `Latin1Data`
      */
     def validated(from: String): DataEncodingValidationResult[Latin1Data] =
-      from.getValidLatin1Bytes.toValidNec(InvalidCharacter).map(_.coerce)
+      from.getValidLatin1Bytes.toValidNec(InvalidCharacter).map(Latin1Data(_))
 
     /**
      * Unsafely creates a `Latin1Data` instance from a `String`.
