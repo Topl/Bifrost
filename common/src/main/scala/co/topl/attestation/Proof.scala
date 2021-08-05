@@ -132,17 +132,16 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
     require(proposition.pubKeyProps.size >= proposition.threshold)
 
     // only need to check until the threshold is exceeded
-    val numValidSigs = signatures.foldLeft((0, proposition.pubKeyProps)) {
-      case ((acc, unusedProps), sig) =>
-        if (acc < proposition.threshold) {
-          unusedProps
-            .find(prop => unusedProps(prop) && Curve25519.verify(sig.sigBytes, message, prop.pubKeyBytes)) match {
-            case Some(prop) =>
-              (acc + 1, unusedProps.diff(Set(prop)))
-            case None =>
-              (acc, unusedProps)
-          }
-        } else (acc, unusedProps)
+    val numValidSigs = signatures.foldLeft((0, proposition.pubKeyProps)) { case ((acc, unusedProps), sig) =>
+      if (acc < proposition.threshold) {
+        unusedProps
+          .find(prop => unusedProps(prop) && Curve25519.verify(sig.sigBytes, message, prop.pubKeyBytes)) match {
+          case Some(prop) =>
+            (acc + 1, unusedProps.diff(Set(prop)))
+          case None =>
+            (acc, unusedProps)
+        }
+      } else (acc, unusedProps)
     }
 
     require(numValidSigs._1 >= proposition.threshold)
