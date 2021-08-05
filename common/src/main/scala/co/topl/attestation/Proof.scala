@@ -138,7 +138,7 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
           unusedProps
             .find(prop => unusedProps(prop) && Curve25519.verify(sig.sigBytes, message, prop.pubKeyBytes)) match {
             case Some(prop) =>
-              (acc + 1, unusedProps - prop)
+              (acc + 1, unusedProps.diff(Set(prop)))
             case None =>
               (acc, unusedProps)
           }
