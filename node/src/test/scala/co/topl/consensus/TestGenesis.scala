@@ -1,6 +1,6 @@
 package co.topl.consensus
 
-import co.topl.attestation.EvidenceProducer.Syntax._
+import co.topl.attestation.EvidenceProducer.Syntax.ProducerOps
 import co.topl.attestation._
 import co.topl.attestation.keyManagement._
 import co.topl.consensus.Forger.ChainParams
@@ -55,7 +55,7 @@ case class TestGenesis(
 
     val genesisThresholdPublicKey = ThresholdPropositionCurve25519(
       0,
-      SortedSet[PublicKeyPropositionCurve25519](genesisAcctCruve25519.publicImage)
+      SortedSet[PublicKeyPropositionCurve25519](genesisAcctCurve25519.publicImage)
     )
 
     // map the members to their balances then continue as normal
@@ -64,10 +64,10 @@ case class TestGenesis(
 
     val txInputCurve25519 = (
       IndexedSeq(),
-      (genesisAcctCruve25519.publicImage.address -> SimpleValue(0L)) +: addressesCurve25519
+      (genesisAcctCurve25519.publicImage.address -> SimpleValue(0L)) +: addressesCurve25519
         .map(_ -> SimpleValue(balance))
         .toIndexedSeq,
-      Map(genesisAcctCruve25519.publicImage -> SignatureCurve25519.genesis),
+      ListMap(genesisAcctCurve25519.publicImage -> SignatureCurve25519.genesis),
       Int128(0),
       0L,
       None,
@@ -79,7 +79,7 @@ case class TestGenesis(
       (genesisThresholdPublicKey.address -> SimpleValue(0L)) +: addressesThresholdCurve25519
         .map(_ -> SimpleValue(balance))
         .toIndexedSeq,
-      Map(genesisThresholdPublicKey -> ThresholdSignatureCurve25519.genesis),
+      ListMap(genesisThresholdPublicKey -> ThresholdSignatureCurve25519.genesis),
       Int128(0),
       0L,
       None,
@@ -91,7 +91,7 @@ case class TestGenesis(
       (genesisAcctEd25519.publicImage.address -> SimpleValue(0L)) +: addressesEd25519
         .map(_ -> SimpleValue(balance))
         .toIndexedSeq,
-      Map(genesisAcctEd25519.publicImage -> SignatureEd25519.genesis),
+      ListMap(genesisAcctEd25519.publicImage -> SignatureEd25519.genesis),
       Int128(0),
       0L,
       None,
@@ -107,7 +107,7 @@ case class TestGenesis(
       (PolyTransfer[PublicKeyPropositionEd25519] _).tupled(txInputEd25519)
     )
 
-    val generatorBox = ArbitBox(genesisAcctCruve25519.publicImage.generateEvidence, 0, SimpleValue(privateTotalStake))
+    val generatorBox = ArbitBox(genesisAcctCurve25519.publicImage.generateEvidence, 0, SimpleValue(privateTotalStake))
     val signature = SignatureCurve25519.genesis
 
     val block =
@@ -115,7 +115,7 @@ case class TestGenesis(
         ModifierId.genesisParentId,
         0L,
         generatorBox,
-        genesisAcctCruve25519.publicImage,
+        genesisAcctCurve25519.publicImage,
         signature,
         1L,
         initialDifficulty,

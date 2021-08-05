@@ -2,6 +2,7 @@ package co.topl.api.transaction
 
 import co.topl.attestation.Address
 import co.topl.modifier.box.AssetCode
+import co.topl.utils.GeneratorOps.GeneratorOps
 import co.topl.utils.StringDataTypes.Latin1Data
 import io.circe.Json
 import io.circe.syntax._

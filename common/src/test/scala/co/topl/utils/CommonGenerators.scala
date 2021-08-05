@@ -20,6 +20,7 @@ import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.Suite
 
 import scala.collection.SortedSet
+import scala.collection.immutable.ListMap
 import scala.util.Random
 
 /**
@@ -35,6 +36,10 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     generator.pureApply(Gen.Parameters.default, Seed.random())
 
   lazy val stringGen: Gen[String] = Gen.alphaNumStr.suchThat(_.nonEmpty)
+
+  lazy val dataStringGen: Gen[String] = Gen.alphaNumStr.suchThat(data => data.length <= 127 && data.nonEmpty)
+
+  lazy val latin1DataGen: Gen[Latin1Data] = dataStringGen.map(Latin1Data.unsafe)
 
   lazy val shortNameGen: Gen[String] = for {
     n   <- Gen.choose(0, AssetCode.shortNameLimit)
@@ -138,7 +143,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     //assetVersion <- Arbitrary.arbitrary[Byte]
     shortName <- shortNameGen
     issuer    <- addressGen
-    data      <- stringGen
+    data      <- latin1DataGen
   } yield {
     // TODO: Hard coded as 1, but change this to arbitrary in the future
     val assetVersion = 1: Byte
@@ -155,7 +160,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     //assetVersion <- Arbitrary.arbitrary[Byte]
     shortName <- shortNameGen
     issuer    <- addressGen
-    data      <- stringGen
+    data      <- latin1DataGen
   } yield {
     // TODO: Hard coded as 1, but change this to arbitrary in the future
     val assetVersion = 1: Byte
@@ -324,13 +329,13 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   lazy val assetValueCurve25519Gen: Gen[AssetValue] = for {
     quantity  <- positiveLongGen
     assetCode <- assetCodeCurve25519Gen
-    data      <- stringGen
+    data      <- latin1DataGen
   } yield AssetValue(quantity, assetCode, metadata = Some(data))
 
   lazy val assetValueEd25519Gen: Gen[AssetValue] = for {
     quantity  <- positiveLongGen
     assetCode <- assetCodeEd25519Gen
-    data      <- stringGen
+    data      <- latin1DataGen
   } yield AssetValue(quantity, assetCode, metadata = Some(data))
 
   lazy val assetValueGen: Gen[AssetValue] = Gen.oneOf(assetValueCurve25519Gen, assetValueEd25519Gen)
@@ -376,7 +381,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     attestation <- attestationCurve25519Gen
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
-    data        <- stringGen
+    data        <- latin1DataGen
   } yield PolyTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
 
   lazy val polyTransferThresholdCurve25519Gen: Gen[PolyTransfer[ThresholdPropositionCurve25519]] = for {
@@ -385,7 +390,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     attestation <- attestationThresholdCurve25519Gen
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
-    data        <- stringGen
+    data        <- latin1DataGen
   } yield PolyTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
 
   lazy val polyTransferEd25519Gen: Gen[PolyTransfer[PublicKeyPropositionEd25519]] = for {
@@ -394,7 +399,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     attestation <- attestationEd25519Gen
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
-    data        <- stringGen
+    data        <- latin1DataGen
   } yield PolyTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
 
   lazy val polyTransferGen: Gen[PolyTransfer[_ <: Proposition]] =
@@ -406,7 +411,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     attestation <- attestationCurve25519Gen
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
-    data        <- stringGen
+    data        <- latin1DataGen
   } yield ArbitTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
 
   lazy val arbitTransferThresholdCurve25519Gen: Gen[ArbitTransfer[ThresholdPropositionCurve25519]] = for {
@@ -415,7 +420,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     attestation <- attestationThresholdCurve25519Gen
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
-    data        <- stringGen
+    data        <- latin1DataGen
   } yield ArbitTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
 
   lazy val arbitTransferEd25519Gen: Gen[ArbitTransfer[PublicKeyPropositionEd25519]] = for {
@@ -424,7 +429,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     attestation <- attestationEd25519Gen
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
-    data        <- stringGen
+    data        <- latin1DataGen
   } yield ArbitTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
 
   lazy val arbitTransferGen: Gen[ArbitTransfer[_ <: Proposition]] =
@@ -432,11 +437,11 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
 
   lazy val assetTransferCurve25519Gen: Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = for {
     from        <- fromSeqCurve25519Gen
-    to          <- assetToSeqGen //TODO: Jing - Does this need to use specific signature scheme?
+    to          <- assetToSeqGen
     attestation <- attestationCurve25519Gen
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
-    data        <- stringGen
+    data        <- latin1DataGen
   } yield AssetTransfer(from, to, attestation, fee, timestamp, Some(data), minting = true)
 
   lazy val assetTransferThresholdCurve25519Gen: Gen[AssetTransfer[ThresholdPropositionCurve25519]] = for {
@@ -445,16 +450,16 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     attestation <- attestationThresholdCurve25519Gen
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
-    data        <- stringGen
+    data        <- latin1DataGen
   } yield AssetTransfer(from, to, attestation, fee, timestamp, Some(data), minting = true)
 
   lazy val assetTransferEd25519Gen: Gen[AssetTransfer[PublicKeyPropositionEd25519]] = for {
     from        <- fromSeqEd25519Gen
-    to          <- assetToSeqGen //TODO: Jing - Does this need to use specific signature scheme?
+    to          <- assetToSeqGen
     attestation <- attestationEd25519Gen
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
-    data        <- stringGen
+    data        <- latin1DataGen
   } yield AssetTransfer(from, to, attestation, fee, timestamp, Some(data), minting = true)
 
   lazy val assetTransferGen: Gen[AssetTransfer[_ <: Proposition]] =
@@ -488,23 +493,24 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     seqLen <- positiveTinyIntGen
   } yield ((0 until seqLen) map { _ => sampleUntilNonEmpty(keyCurve25519Gen) }).toSet
 
-  lazy val attestationCurve25519Gen: Gen[Map[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]] =
+  lazy val attestationCurve25519Gen
+    : Gen[ListMap[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]] =
     for {
       prop <- propositionCurve25519Gen
       sig  <- signatureCurve25519Gen
-    } yield Map(prop -> sig)
+    } yield ListMap(prop -> sig)
 
   lazy val attestationThresholdCurve25519Gen
-    : Gen[Map[ThresholdPropositionCurve25519, Proof[ThresholdPropositionCurve25519]]] =
+    : Gen[ListMap[ThresholdPropositionCurve25519, Proof[ThresholdPropositionCurve25519]]] =
     for {
       prop <- thresholdPropositionCurve25519Gen
       sig  <- thresholdSignatureCurve25519Gen
-    } yield Map(prop._2 -> sig)
+    } yield ListMap(prop._2 -> sig)
 
-  lazy val attestationEd25519Gen: Gen[Map[PublicKeyPropositionEd25519, Proof[PublicKeyPropositionEd25519]]] = for {
+  lazy val attestationEd25519Gen: Gen[ListMap[PublicKeyPropositionEd25519, Proof[PublicKeyPropositionEd25519]]] = for {
     prop <- propositionEd25519Gen
     sig  <- signatureEd25519Gen
-  } yield Map(prop -> sig)
+  } yield ListMap(prop -> sig)
 
   lazy val attestationGen: Gen[Map[_ <: Proposition, Proof[_ <: Proposition]]] =
     Gen.oneOf(attestationCurve25519Gen, attestationThresholdCurve25519Gen, attestationEd25519Gen)
