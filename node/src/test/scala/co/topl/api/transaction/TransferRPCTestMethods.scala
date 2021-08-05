@@ -2,28 +2,28 @@ package co.topl.api.transaction
 
 import akka.util.ByteString
 import co.topl.api.RPCMockState
-import co.topl.attestation.Address
+import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, ThresholdSignatureCurve25519}
 import co.topl.modifier.box.AssetCode
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.codecs.implicits.base58JsonDecoder
-import co.topl.utils.encode.Base58
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
 import org.scalatest.EitherValues
+import org.scalatest.Inside.inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState with EitherValues {
 
-  def testBroadcastTx(tx: String): Unit = {
+  def testBroadcastTx(tx: Json): Unit = {
     val requestBody = ByteString(s"""
       |{
       | "jsonrpc": "2.0",
       | "id": "2",
       | "method": "topl_broadcastTx",
       | "params": [{
-      |   "tx": $tx
+      |   "tx": ${tx.toString}
       | }]
       |}
       |""".stripMargin)
@@ -36,7 +36,26 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
     }
   }
 
-  def testCreateSignPolyTransfer(sender: Address, recipient: Address, senderPropType: String, amount: Int): String = {
+  def testBroadcastInvalidTx(tx: Json): Unit = {
+    val requestBody = ByteString(s"""
+      |{
+      | "jsonrpc": "2.0",
+      | "id": "2",
+      | "method": "topl_broadcastTx",
+      | "params": [{
+      |   "tx": ${tx.toString}
+      | }]
+      |}
+      |""".stripMargin)
+
+    httpPOST(requestBody) ~> route ~> check {
+      inside(parse(responseAs[String])) { case Left(e) =>
+        e.getMessage should startWith("expected json value")
+      }
+    }
+  }
+
+  def testCreateSignPolyTransfer(sender: Address, recipient: Address, senderPropType: String, amount: Int): Json = {
     val requestBody = ByteString(s"""
       |{
       | "jsonrpc": "2.0",
@@ -65,6 +84,12 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
         val sig = senderPropType match {
           case "PublicKeyCurve25519" => keyRingCurve25519.generateAttestation(sender)(message.value)
           case "PublicKeyEd25519"    => keyRingEd25519.generateAttestation(sender)(message.value)
+          case "ThresholdCurve25519" =>
+            val thresholdProp = propsThresholdCurve25519.filter(_.address == sender).head
+            val addresses = thresholdProp.pubKeyProps.toSet[PublicKeyPropositionCurve25519].map(_.address)
+            val signatures = keyRingCurve25519.generateAttestation(addresses)(message.value).values.toSet
+            val thresholdSignature = ThresholdSignatureCurve25519(signatures)
+            Map(thresholdProp -> thresholdSignature)
         }
         val signatures: Json = Map(
           "signatures" -> sig.asJson
@@ -73,13 +98,13 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
       }
 
       (res \\ "error").isEmpty shouldBe true
-      (res \\ "result").head.asObject.isDefined shouldBe true
+      (sigTx.value \\ "signatures").head.asObject.isDefined shouldBe true
 
-      sigTx.value.toString
+      sigTx.value
     }
   }
 
-  def testCreateSignArbitTransfer(sender: Address, recipient: Address, senderPropType: String, amount: Int): String = {
+  def testCreateSignArbitTransfer(sender: Address, recipient: Address, senderPropType: String, amount: Int): Json = {
     val requestBody = ByteString(s"""
       |{
       | "jsonrpc": "2.0",
@@ -108,6 +133,12 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
         val sig = senderPropType match {
           case "PublicKeyCurve25519" => keyRingCurve25519.generateAttestation(sender)(message.value)
           case "PublicKeyEd25519"    => keyRingEd25519.generateAttestation(sender)(message.value)
+          case "ThresholdCurve25519" =>
+            val thresholdProp = propsThresholdCurve25519.filter(_.address == sender).head
+            val addresses = thresholdProp.pubKeyProps.toSet[PublicKeyPropositionCurve25519].map(_.address)
+            val signatures = keyRingCurve25519.generateAttestation(addresses)(message.value).values.toSet
+            val thresholdSignature = ThresholdSignatureCurve25519(signatures)
+            Map(thresholdProp -> thresholdSignature)
         }
         val signatures: Json = Map(
           "signatures" -> sig.asJson
@@ -116,9 +147,9 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
       }
 
       (res \\ "error").isEmpty shouldBe true
-      (res \\ "result").head.asObject.isDefined shouldBe true
+      (sigTx.value \\ "signatures").head.asObject.isDefined shouldBe true
 
-      sigTx.value.toString
+      sigTx.value
     }
   }
 
@@ -128,7 +159,7 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
     assetCode:      AssetCode,
     senderPropType: String,
     amount:         Int
-  ): String = {
+  ): Json = {
     val requestBody = ByteString(s"""
       |{
       | "jsonrpc": "2.0",
@@ -166,6 +197,12 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
         val sig = senderPropType match {
           case "PublicKeyCurve25519" => keyRingCurve25519.generateAttestation(sender)(message.value)
           case "PublicKeyEd25519"    => keyRingEd25519.generateAttestation(sender)(message.value)
+          case "ThresholdCurve25519" =>
+            val thresholdProp = propsThresholdCurve25519.filter(_.address == sender).head
+            val addresses = thresholdProp.pubKeyProps.toSet[PublicKeyPropositionCurve25519].map(_.address)
+            val signatures = keyRingCurve25519.generateAttestation(addresses)(message.value).values.toSet
+            val thresholdSignature = ThresholdSignatureCurve25519(signatures)
+            Map(thresholdProp -> thresholdSignature)
         }
         val signatures: Json = Map(
           "signatures" -> sig.asJson
@@ -174,9 +211,9 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
       }
 
       (res \\ "error").isEmpty shouldBe true
-      (res \\ "result").head.asObject.isDefined shouldBe true
+      (sigTx.value \\ "signatures").head.asObject.isDefined shouldBe true
 
-      sigTx.getOrElse("").toString
+      sigTx.value
     }
   }
 }
