@@ -4,6 +4,7 @@ import co.topl.consensus.consensusHelper.setProtocolMngr
 import co.topl.db.LDBVersionedStore
 import co.topl.modifier.block.Block
 import co.topl.nodeView.{CacheLayerKeyValueStore, LDBKeyValueStore}
+import co.topl.utils.GeneratorOps.GeneratorOps
 import co.topl.utils.NodeGenerators
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
@@ -36,7 +37,7 @@ class StorageCacheSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks w
     val bestBlockIdKey = Array.fill(32)(-1: Byte)
 
     /* Append a new block, make sure it is updated in cache, then drop it */
-    val fstBlock: Block = blockCurve25519Gen.sample.get.copy(parentId = history.bestBlockId)
+    val fstBlock: Block = blockCurve25519Gen.sampleFirst().copy(parentId = history.bestBlockId)
     history = history.append(fstBlock).get._1
 
     history.storage.keyValueStore
@@ -113,7 +114,7 @@ class StorageCacheSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks w
    */
 
   property("blockLoader should correctly return a block from storage not found in cache") {
-    val block: Block = blockCurve25519Gen.sample.get.copy(parentId = history.bestBlockId)
+    val block: Block = blockCurve25519Gen.sampleFirst().copy(parentId = history.bestBlockId)
     history = history.append(block).get._1
 
     history.storage.keyValueStore.asInstanceOf[CacheLayerKeyValueStore].cache.invalidateAll()
