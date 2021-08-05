@@ -77,7 +77,7 @@ class AssetTransferRPCSpec extends TransferRPCTestMethods {
         testCreateSignAssetTransfer(
           addressThresholdCurve25519Fst,
           addressThresholdCurve25519Sec,
-          assetCodeEd25519Fst,
+          assetCodeThresholdCurve25519Fst,
           propTypeThresholdCurve25519,
           3
         )
