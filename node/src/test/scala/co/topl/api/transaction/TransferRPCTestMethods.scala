@@ -48,18 +48,7 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
       |""".stripMargin)
 
     httpPOST(requestBody) ~> route ~> check {
-      val res = parse(responseAs[String]).value.hcursor
-        .downField("error")
-        .downField("data")
-        .downField("errors")
-        .as[Seq[Json]]
-        .value
-        .head
-        .hcursor
-        .get[Json]("message")
-        .value
-        .toString
-
+      val res = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
       res should include("Invalid proposition generation")
     }
   }

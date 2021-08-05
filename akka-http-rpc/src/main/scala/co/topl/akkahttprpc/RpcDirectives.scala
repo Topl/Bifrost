@@ -5,9 +5,9 @@ import akka.http.scaladsl.server._
 import cats.implicits._
 import co.topl.akkahttprpc.RpcErrorCodecs._
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
+import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.syntax._
-import io.circe._
 
 import java.util.UUID
 import scala.concurrent.ExecutionContext
