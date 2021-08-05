@@ -19,7 +19,6 @@ import org.scalatest.Suite
 
 import java.io.File
 import java.nio.file.Files
-import scala.collection.SortedSet
 import scala.util.Random
 
 trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
@@ -43,7 +42,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
   } yield new Version(first, second, third)
 
   lazy val genesisBlock: Block =
-    TestGenesis(keyRingCurve25519, keyRingEd25519, settings).getGenesisBlock.get._1
+    TestGenesis(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, settings).getGenesisBlock.get._1
 
   def genesisBlockId: ModifierId = genesisBlock.id
 
@@ -77,9 +76,9 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
   } yield 0 until seqLen map { _ =>
     val g: Gen[TX] = sampleUntilNonEmpty(
       Gen.oneOf(
-        validPolyTransferGen(keyRingCurve25519, keyRingEd25519, genesisState),
-        validArbitTransferGen(keyRingCurve25519, keyRingEd25519, genesisState),
-        validAssetTransferGen(keyRingCurve25519, keyRingEd25519, genesisState, minting = true)
+        validPolyTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, genesisState),
+        validArbitTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, genesisState),
+        validAssetTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, genesisState, minting = true)
       )
     )
     sampleUntilNonEmpty(g)
@@ -115,29 +114,21 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
 
   def validPolyTransferThresholdCurve25519Gen(
     keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+    props:   Set[ThresholdPropositionCurve25519],
     state:   State,
     fee:     Long = 1L
   ): Gen[PolyTransfer[ThresholdPropositionCurve25519]] = {
 
-    val propositionsThresholdCurve25519 =
-      for (threshold <- 2 to keyRingCurve25519.addresses.size)
-        yield ThresholdPropositionCurve25519(
-          threshold,
-          SortedSet[PublicKeyPropositionCurve25519]() ++ keyRingCurve25519.addresses.flatMap(
-            keyRingCurve25519.lookupPublicKey(_).toOption
-          )
-        )
+    val addresses = props.map(_.address)
+    val addressesToPropMap = props.map(prop => (prop.address, prop)).toMap
 
-    val addressesThresholdCurve25519 = propositionsThresholdCurve25519.map(_.address).toSet
-    val addressesToPropMap = propositionsThresholdCurve25519.map(prop => (prop.address, prop)).toMap
-
-    val availablePolys: Seq[(Address, Int128)] = sumBoxes(collectBoxes(addressesThresholdCurve25519, state), "PolyBox")
+    val availablePolys: Seq[(Address, Int128)] = sumBoxes(collectBoxes(addresses, state), "PolyBox")
     val (sender, poly): (Address, Int128) = availablePolys(Random.nextInt(availablePolys.length))
     val polyAmount = SimpleValue(Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, poly.longValue() - 1))) - fee)
 
     val recipients = {
       val address: Address =
-        addressesThresholdCurve25519.filterNot(_ == sender).toSeq(Random.nextInt(addressesThresholdCurve25519.size - 1))
+        addresses.filterNot(_ == sender).toSeq(Random.nextInt(addresses.size - 1))
       IndexedSeq((address, polyAmount))
     }
     val rawTx = PolyTransfer
@@ -151,11 +142,11 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
       )
       .get
 
-    val signatures = keyRing.addresses.flatMap(keyRing.signWithAddress(_)(rawTx.messageToSign).toOption)
-    val signatureThresholdCurve25519 = ThresholdSignatureCurve25519(signatures)
-    val attestationThresholdCurve25519 = Map(addressesToPropMap(sender) -> signatureThresholdCurve25519)
+    val signatures = keyRing.generateAttestation(keyRing.addresses)(rawTx.messageToSign).values.toSet
+    val thresholdSignature = ThresholdSignatureCurve25519(signatures)
+    val attestation = Map(addressesToPropMap(sender) -> thresholdSignature)
 
-    rawTx.copy(attestation = attestationThresholdCurve25519)
+    rawTx.copy(attestation = attestation)
   }
 
   def validPolyTransferEd25519Gen(
@@ -187,14 +178,15 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
   }
 
   def validPolyTransferGen(
-    keyRingCurve25519: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-    keyRingEd25519:    KeyRing[PrivateKeyEd25519, KeyfileEd25519],
-    state:             State,
-    fee:               Long = 1L
+    keyRingCurve25519:        KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+    keyRingEd25519:           KeyRing[PrivateKeyEd25519, KeyfileEd25519],
+    propsThresholdCurve25519: Set[ThresholdPropositionCurve25519],
+    state:                    State,
+    fee:                      Long = 1L
   ): Gen[PolyTransfer[_ <: Proposition]] =
     Gen.oneOf(
       validPolyTransferCurve25519Gen(keyRingCurve25519, state, fee),
-      validPolyTransferThresholdCurve25519Gen(keyRingCurve25519, state, fee),
+      validPolyTransferThresholdCurve25519Gen(keyRingCurve25519, propsThresholdCurve25519, state, fee),
       validPolyTransferEd25519Gen(keyRingEd25519, state, fee)
     )
 
@@ -228,30 +220,22 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
   }
 
   def validArbitTransferThresholdCurve25519Gen(
-    keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-    state:   State,
-    fee:     Long = 1L
+    keyRing:      KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+    propositions: Set[ThresholdPropositionCurve25519],
+    state:        State,
+    fee:          Long = 1L
   ): Gen[ArbitTransfer[ThresholdPropositionCurve25519]] = {
 
-    val propositionsThresholdCurve25519 =
-      for (threshold <- 2 to keyRingCurve25519.addresses.size)
-        yield ThresholdPropositionCurve25519(
-          threshold,
-          SortedSet[PublicKeyPropositionCurve25519]() ++ keyRingCurve25519.addresses.flatMap(
-            keyRingCurve25519.lookupPublicKey(_).toOption
-          )
-        )
+    val addresses = propositions.map(_.address)
+    val addressesToPropMap = propositions.map(prop => (prop.address, prop)).toMap
 
-    val addressesThresholdCurve25519 = propositionsThresholdCurve25519.map(_.address).toSet
-    val addressesToPropMap = propositionsThresholdCurve25519.map(prop => (prop.address, prop)).toMap
-
-    val availableArbits = sumBoxes(collectBoxes(addressesThresholdCurve25519, state), "ArbitBox")
+    val availableArbits = sumBoxes(collectBoxes(addresses, state), "ArbitBox")
     val (sender, arbit) = availableArbits(Random.nextInt(availableArbits.length))
     val arbitAmount = SimpleValue(Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, arbit.longValue() - 1))) - fee)
 
     val recipients = {
       val address: Address =
-        addressesThresholdCurve25519.filterNot(_ == sender).toSeq(Random.nextInt(addressesThresholdCurve25519.size - 1))
+        addresses.filterNot(_ == sender).toSeq(Random.nextInt(addresses.size - 1))
       IndexedSeq((address, arbitAmount))
     }
     val rawTx = ArbitTransfer
@@ -266,11 +250,11 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
       )
       .get
 
-    val signatures = keyRing.addresses.flatMap(keyRing.signWithAddress(_)(rawTx.messageToSign).toOption)
-    val signatureThresholdCurve25519 = ThresholdSignatureCurve25519(signatures)
-    val attestationThresholdCurve25519 = Map(addressesToPropMap(sender) -> signatureThresholdCurve25519)
+    val signatures = keyRing.generateAttestation(keyRing.addresses)(rawTx.messageToSign).values.toSet
+    val thresholdSignature = ThresholdSignatureCurve25519(signatures)
+    val attestation = Map(addressesToPropMap(sender) -> thresholdSignature)
 
-    rawTx.copy(attestation = attestationThresholdCurve25519)
+    rawTx.copy(attestation = attestation)
   }
 
   def validArbitTransferEd25519Gen(
@@ -303,14 +287,15 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
   }
 
   def validArbitTransferGen(
-    keyRingCurve25519: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-    keyRingEd25519:    KeyRing[PrivateKeyEd25519, KeyfileEd25519],
-    state:             State,
-    fee:               Long = 1L
+    keyRingCurve25519:        KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+    keyRingEd25519:           KeyRing[PrivateKeyEd25519, KeyfileEd25519],
+    propsThresholdCurve25519: Set[ThresholdPropositionCurve25519],
+    state:                    State,
+    fee:                      Long = 1L
   ): Gen[ArbitTransfer[_ <: Proposition]] =
     Gen.oneOf(
       validArbitTransferCurve25519Gen(keyRingCurve25519, state, fee),
-      validArbitTransferThresholdCurve25519Gen(keyRingCurve25519, state, fee),
+      validArbitTransferThresholdCurve25519Gen(keyRingCurve25519, propsThresholdCurve25519, state, fee),
       validArbitTransferEd25519Gen(keyRingEd25519, state, fee)
     )
 
@@ -342,25 +327,17 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
   }
 
   def validAssetTransferThresholdCurve25519Gen(
-    keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-    state:   State,
-    fee:     Long = 1L,
-    minting: Boolean = false
+    keyRing:      KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+    propositions: Set[ThresholdPropositionCurve25519],
+    state:        State,
+    fee:          Long = 1L,
+    minting:      Boolean = false
   ): Gen[AssetTransfer[ThresholdPropositionCurve25519]] = {
 
-    val propositionsThresholdCurve25519 =
-      for (threshold <- 2 to keyRingCurve25519.addresses.size)
-        yield ThresholdPropositionCurve25519(
-          threshold,
-          SortedSet[PublicKeyPropositionCurve25519]() ++ keyRingCurve25519.addresses.flatMap(
-            keyRingCurve25519.lookupPublicKey(_).toOption
-          )
-        )
+    val addresses = propositions.map(_.address)
+    val addressesToPropMap = propositions.map(prop => (prop.address, prop)).toMap
 
-    val addressesThresholdCurve25519 = propositionsThresholdCurve25519.map(_.address).toSet
-    val addressesToPropMap = propositionsThresholdCurve25519.map(prop => (prop.address, prop)).toMap
-
-    val sender = addressesThresholdCurve25519.head
+    val sender = addresses.head
     val asset = AssetValue(1, AssetCode(1: Byte, sender, Latin1Data.unsafe("test")), SecurityRoot.empty)
     val recipients = IndexedSeq((sender, asset))
 
@@ -378,11 +355,11 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
       )
       .get
 
-    val signatures = keyRing.addresses.flatMap(keyRing.signWithAddress(_)(rawTx.messageToSign).toOption)
-    val signatureThresholdCurve25519 = ThresholdSignatureCurve25519(signatures)
-    val attestationThresholdCurve25519 = Map(addressesToPropMap(sender) -> signatureThresholdCurve25519)
+    val signatures = keyRing.generateAttestation(keyRing.addresses)(rawTx.messageToSign).values.toSet
+    val thresholdSignature = ThresholdSignatureCurve25519(signatures)
+    val attestation = Map(addressesToPropMap(sender) -> thresholdSignature)
 
-    rawTx.copy(attestation = attestationThresholdCurve25519)
+    rawTx.copy(attestation = attestation)
   }
 
   def validAssetTransferEd25519Gen(
@@ -413,15 +390,16 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
   }
 
   def validAssetTransferGen(
-    keyRingCurve25519: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-    keyRingEd25519:    KeyRing[PrivateKeyEd25519, KeyfileEd25519],
-    state:             State,
-    fee:               Long = 1L,
-    minting:           Boolean = false
+    keyRingCurve25519:        KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+    keyRingEd25519:           KeyRing[PrivateKeyEd25519, KeyfileEd25519],
+    propsThresholdCurve25519: Set[ThresholdPropositionCurve25519],
+    state:                    State,
+    fee:                      Long = 1L,
+    minting:                  Boolean = false
   ): Gen[AssetTransfer[_ <: Proposition]] =
     Gen.oneOf(
       validAssetTransferCurve25519Gen(keyRingCurve25519, state, fee, minting),
-      validAssetTransferThresholdCurve25519Gen(keyRingCurve25519, state, fee, minting),
+      validAssetTransferThresholdCurve25519Gen(keyRingCurve25519, propsThresholdCurve25519, state, fee, minting),
       validAssetTransferEd25519Gen(keyRingEd25519, state, fee, minting)
     )
 

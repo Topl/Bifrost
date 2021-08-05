@@ -19,9 +19,10 @@ import scala.collection.immutable.ListMap
 import scala.util.Try
 
 case class TestGenesis(
-  keyRingCurve25519: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-  keyRingEd25519:    KeyRing[PrivateKeyEd25519, KeyfileEd25519],
-  settings:          AppSettings
+  keyRingCurve25519:               KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+  keyRingEd25519:                  KeyRing[PrivateKeyEd25519, KeyfileEd25519],
+  propositionsThresholdCurve25519: Set[ThresholdPropositionCurve25519],
+  settings:                        AppSettings
 )(implicit
   val networkPrefix: NetworkPrefix
 ) extends GenesisProvider {
@@ -50,16 +51,7 @@ case class TestGenesis(
     val addressesCurve25519 = keyRingCurve25519.addresses
     val addressesEd25519 = keyRingEd25519.addresses
 
-    val propositionsThresholdCurve25519 =
-      for (threshold <- 2 to addressesCurve25519.size)
-        yield ThresholdPropositionCurve25519(
-          threshold,
-          SortedSet[PublicKeyPropositionCurve25519]() ++ addressesCurve25519.flatMap(
-            keyRingCurve25519.lookupPublicKey(_).toOption
-          )
-        )
-
-    val addressesThresholdCurve25519 = propositionsThresholdCurve25519.map(_.address).toSet
+    val addressesThresholdCurve25519 = propositionsThresholdCurve25519.map(_.address)
 
     val genesisThresholdPublicKey = ThresholdPropositionCurve25519(
       0,
