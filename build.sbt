@@ -1,6 +1,5 @@
 import sbt.Keys.{homepage, organization, test}
 import sbtassembly.MergeStrategy
-import Dependencies._
 
 val scala212 = "2.12.13"
 val scala213 = "2.13.5"
@@ -18,6 +17,8 @@ inThisBuild(List(
   },
   parallelExecution := false
 ))
+
+enablePlugins(ReproducibleBuildsPlugin, ReproducibleBuildsAssemblyPlugin)
 
 lazy val commonSettings = Seq(
   sonatypeCredentialHost := "s01.oss.sonatype.org",
@@ -170,16 +171,9 @@ lazy val bifrost = project
     common,
     akkaHttpRpc,
     toplRpc,
-    gjallarhorn,
     benchmarking,
     crypto,
     brambl
-  )
-  .dependsOn(
-    node,
-    common,
-    gjallarhorn,
-    benchmarking
   )
 
 lazy val node = project
@@ -269,20 +263,21 @@ lazy val toplRpc = project
   )
   .dependsOn(akkaHttpRpc, common)
 
-lazy val gjallarhorn = project
-  .in(file("gjallarhorn"))
-  .settings(
-    name := "gjallarhorn",
-    commonSettings,
-    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
-    publish / skip := true,
-    Defaults.itSettings,
-    libraryDependencies ++= Dependencies.gjallarhorn
-  )
-  .dependsOn(crypto, common)
-  .configs(IntegrationTest)
-  .disablePlugins(sbtassembly.AssemblyPlugin)
-  .settings(scalamacrosParadiseSettings)
+// This module has fallen out of sync with the rest of the codebase and is not currently needed
+//lazy val gjallarhorn = project
+//  .in(file("gjallarhorn"))
+//  .settings(
+//    name := "gjallarhorn",
+//    commonSettings,
+//    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
+//    publish / skip := true,
+//    Defaults.itSettings,
+//    libraryDependencies ++= Dependencies.gjallarhorn
+//  )
+//  .dependsOn(crypto, common)
+//  .configs(IntegrationTest)
+//  .disablePlugins(sbtassembly.AssemblyPlugin)
+//  .settings(scalamacrosParadiseSettings)
 
 lazy val benchmarking = project
   .in(file("benchmark"))
