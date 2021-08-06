@@ -249,12 +249,12 @@ class MnemonicSpec
     TestVector(
       "Test Vector #6",
       "toss enrich steak utility dolphin cushion jeans work ski angle total alley trade poem february whisper toe " +
-        "office half assume keep shift also fade",
+      "office half assume keep shift also fade",
       Mnemonic24,
       English,
       "",
       "686657f893d3d2c14bc3ab93d693bfbc868a621790d8aca64317834ed3aa85537d8d094a432cb852bb3b8617aeab621c0459b84a6d24" +
-        "80735b4e3ff8bff11657944aaad3c8b7633eafb5871de4122241728ce5d5edd8268472c7c980252fc55b"
+      "80735b4e3ff8bff11657944aaad3c8b7633eafb5871de4122241728ce5d5edd8268472c7c980252fc55b"
     )
   )
 
