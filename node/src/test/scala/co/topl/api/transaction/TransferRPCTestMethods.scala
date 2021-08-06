@@ -186,7 +186,7 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
       """.stripMargin)
 
     httpPOST(requestBody) ~> route ~> check {
-      val res = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
+      val res = parse(responseAs[String]).value
 
       val sigTx = for {
         rawTx   <- res.hcursor.downField("result").get[Json]("rawTx")
