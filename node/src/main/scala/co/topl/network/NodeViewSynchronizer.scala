@@ -8,9 +8,9 @@ import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.network.ModifiersStatus.Requested
 import co.topl.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
-import co.topl.network.message.{InvSpec, MessageSpec, ModifiersSpec, RequestModifierSpec, SyncInfo, SyncInfoSpec, _}
+import co.topl.network.message._
 import co.topl.network.peer.{ConnectedPeer, PenaltyType}
-import co.topl.nodeView.history.GenericHistory._
+import co.topl.nodeView.history.GenericHistory
 import co.topl.nodeView.{NodeViewHolder, ReadableNodeView}
 import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.serialization.BifrostSerializer
@@ -19,7 +19,7 @@ import co.topl.utils.{Logging, MalformedModifierError, TimeProvider}
 import java.net.InetSocketAddress
 import scala.annotation.tailrec
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 /**
  * A component which is synchronizing local node view (locked inside NodeViewHolder) with the p2p network.
@@ -94,6 +94,7 @@ class NodeViewSynchronizer(
     manageModifiers orElse
     viewHolderEvents orElse
     peerManagerEvents orElse
+    localEvents orElse
     nonsense
 
   protected def processSyncStatus: Receive = {
@@ -106,13 +107,15 @@ class NodeViewSynchronizer(
 
     /** Request data from any remote node */
     case NodeViewHolder.Events.DownloadRequest(modifierTypeId, modifierId) =>
-      withNodeView(view => deliveryTracker.status(modifierId, view.history))
-        .onComplete {
-          case Success(status) =>
-            if (status == ModifiersStatus.Unknown) requestDownload(modifierTypeId, Seq(modifierId), None)
-          case Failure(exception) =>
-            log.error("Failed deliveryTracker.status", exception)
-        }
+      if (deliveryTracker.status(modifierId) == ModifiersStatus.Unknown)
+        withNodeView(_.history.contains(modifierId))
+          .onComplete {
+            case Success(historyAlreadyContains) =>
+              if (historyAlreadyContains)
+                self ! RequestDownloads(modifierTypeId, Seq(modifierId), None, previouslyRequested = false)
+            case Failure(exception) =>
+              log.error("Failed deliveryTracker.status", exception)
+          }
 
     /** Respond with data from the local node */
     case ResponseFromLocal(peer, _, modifiers) =>
@@ -166,10 +169,32 @@ class NodeViewSynchronizer(
 
   protected def peerManagerEvents: Receive = {
     case HandshakedPeer(remote) =>
-      statusTracker.updateStatus(remote, Unknown)
+      statusTracker.updateStatus(remote, GenericHistory.Unknown)
 
     case DisconnectedPeer(remote) =>
       statusTracker.clearStatus(remote)
+  }
+
+  protected def localEvents: Receive = {
+    case BlockApplicableResult(Success(results), remote) =>
+      results.foreach { case (block, result) =>
+        handleValidation(result, remote, block)
+      }
+
+      val validBlocks =
+        results
+          .collect { case (block, Success(_)) =>
+            block
+          }
+
+      if (validBlocks.nonEmpty)
+        viewHolderRef.tell(NodeViewHolder.ReceivableMessages.WriteBlocks(validBlocks))
+    case BlockApplicableResult(Failure(e), _) =>
+      log.error("Failed validateAndSetStatus", e)
+    case RequestDownloads(modifierTypeId, modifierIds, remoteOpt, previouslyRequested) =>
+      val unknownModifierIds = modifierIds.filter(deliveryTracker.status(_) == ModifiersStatus.Unknown)
+      if (unknownModifierIds.nonEmpty)
+        requestDownload(modifierTypeId, unknownModifierIds, remoteOpt, previouslyRequested)
   }
 
   protected def nonsense: Receive = { case nonsense: Any =>
@@ -296,20 +321,20 @@ class NodeViewSynchronizer(
     withNodeView(state => (state.history.continuationIds(syncInfo, desiredInvObjects), state.history.compare(syncInfo)))
       .onComplete {
         case Success((ext, comparison)) =>
-          if (!(ext.nonEmpty || comparison != Younger))
+          if (!(ext.nonEmpty || comparison != GenericHistory.Younger))
             log.warn("Extension is empty while comparison is younger")
 
           statusTracker.updateStatus(remote, comparison)
 
           comparison match {
-            case Unknown =>
+            case GenericHistory.Unknown =>
               //todo: should we ban peer if its status is unknown after getting info from it?
               log.warn("Peer status is still unknown")
 
-            case Nonsense =>
+            case GenericHistory.Nonsense =>
               log.warn("Got nonsense")
 
-            case Younger | Fork =>
+            case GenericHistory.Younger | GenericHistory.Fork =>
               log.debug(
                 s"Comparison with $remote having starting points ${idsToString(syncInfo.startingPoints)}. " +
                 s"Comparison result is $comparison. Sending extension of length ${ext.length}"
@@ -335,7 +360,7 @@ class NodeViewSynchronizer(
    */
   def sendExtension(
     remote: ConnectedPeer,
-    status: HistoryComparisonResult,
+    status: GenericHistory.HistoryComparisonResult,
     ext:    Seq[(ModifierTypeId, ModifierId)]
   ): Unit =
     ext.groupBy(_._2.getModType).view.mapValues(_.map(_._2)).foreach { case (mid, mods) =>
@@ -351,16 +376,19 @@ class NodeViewSynchronizer(
    */
   private def gotRemoteInventory(invData: InvData, remote: ConnectedPeer): Unit =
     withNodeView(view =>
-      invData.typeId match {
-        case Transaction.modifierTypeId =>
-          invData.ids.filter(mid => deliveryTracker.status(mid, view.memPool) == ModifiersStatus.Unknown)
-        case _ =>
-          invData.ids.filter(mid => deliveryTracker.status(mid, view.history) == ModifiersStatus.Unknown)
-      }
+      invData.ids.filterNot(
+        invData.typeId match {
+          case Transaction.modifierTypeId =>
+            view.memPool.contains
+          case _ =>
+            view.history.contains
+        }
+      )
     )
       .onComplete {
         case Success(newModifierIds) =>
-          if (newModifierIds.nonEmpty) requestDownload(invData.typeId, newModifierIds, Some(remote))
+          if (newModifierIds.nonEmpty)
+            self ! RequestDownloads(invData.typeId, newModifierIds, Some(remote), previouslyRequested = false)
         case Failure(exception) =>
           log.error("Failed gotRemoteInventory", exception)
       }
@@ -442,13 +470,10 @@ class NodeViewSynchronizer(
       case Some(serializer: BifrostSerializer[Block @unchecked]) if typeId == Block.modifierTypeId =>
         /** parse all modifiers and put them to modifiers cache */
         val parsed = parseModifiers(requestedModifiers, serializer, remote)
-        withNodeView(view => parsed.filter(validateAndSetStatus(view, remote, _)).collect { case b: Block => b })
-          .onComplete {
-            case Success(valid) =>
-              if (valid.nonEmpty) viewHolderRef.tell(NodeViewHolder.ReceivableMessages.WriteBlocks(valid))
-            case Failure(exception) =>
-              log.error("Failed validateAndSetStatus", exception)
-          }
+        withNodeView(view => parsed.map(block => block -> view.history.applicableTry(block)))
+          .onComplete(
+            self ! BlockApplicableResult(_, remote)
+          )
 
       case _ =>
         log.error(s"Undefined serializer for modifier of type $typeId")
@@ -485,17 +510,15 @@ class NodeViewSynchronizer(
    * @param pmod a persistent modifier (block) received from a remote peer
    * @return boolean flagging whether the modifier was expected and ensuring it is syntactically valid
    */
-  private def validateAndSetStatus(view: ReadableNodeView, remote: ConnectedPeer, pmod: Block): Boolean =
-    view.history.applicableTry(pmod) match {
+  private def handleValidation(applicableTryResult: Try[Unit], remote: ConnectedPeer, pmod: Block): Unit =
+    applicableTryResult match {
       case Failure(e: MalformedModifierError) =>
         log.warn(s"Modifier ${pmod.id} is permanently invalid", e)
         deliveryTracker.setInvalid(pmod.id)
         penalizeMisbehavingPeer(remote)
-        false
 
       case _ =>
         deliveryTracker.setReceived(pmod.id, remote)
-        true
     }
 
   protected def penalizeMisbehavingPeer(peer: ConnectedPeer): Unit =
@@ -603,7 +626,7 @@ object NodeViewSynchronizer {
 
     case class OtherNodeSyncingStatus[SI <: SyncInfo](
       remote:    ConnectedPeer,
-      status:    HistoryComparisonResult,
+      status:    GenericHistory.HistoryComparisonResult,
       extension: Seq[(ModifierTypeId, ModifierId)]
     )
 
@@ -616,6 +639,18 @@ object NodeViewSynchronizer {
      * containing all just applied modifiers and cleared from cache
      */
     case class ModifiersProcessingResult[PMOD <: PersistentNodeViewModifier](applied: Seq[PMOD], cleared: Seq[PMOD])
+
+    private[NodeViewSynchronizer] case class BlockApplicableResult(
+      resultsTry: Try[Iterable[(Block, Try[Unit])]],
+      remote:     ConnectedPeer
+    )
+
+    private[NodeViewSynchronizer] case class RequestDownloads(
+      modifierTypeId:      ModifierTypeId,
+      modifierIds:         Seq[ModifierId],
+      remote:              Option[ConnectedPeer],
+      previouslyRequested: Boolean
+    )
 
     /** getLocalSyncInfo messages */
     case object SendLocalSyncInfo

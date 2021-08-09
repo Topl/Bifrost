@@ -4,7 +4,8 @@ import akka.actor.typed.ActorSystem
 import cats.data.{Validated, Writer}
 import cats.implicits._
 import co.topl.attestation.Address
-import co.topl.consensus.Forger
+import co.topl.consensus.Hiccups.HiccupBlock
+import co.topl.consensus.{Forger, Hiccups}
 import co.topl.consensus.KeyManager.StartupKeyView
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -135,8 +136,14 @@ trait NodeViewBlockOps {
     if (!history.contains(block.id)) {
       Writer[List[Any], NodeView](List(NodeViewHolder.Events.StartingPersistentModifierApplication(block)), this)
         .flatMap { nodeView =>
-          block.transactions.traverse(_.semanticValidation(nodeView.state)) match {
-            case Validated.Valid(_) =>
+          val semanticallyValidated =
+            if (Hiccups.semanticValidation.contains(HiccupBlock(block))) {
+              log.info("Skipping semantic validation for HiccupBlock.  blockId={}", block.id)
+              block.transactions.validNec
+            } else
+              block.transactions.traverse(_.semanticValidation(nodeView.state))
+          semanticallyValidated match {
+            case Validated.Valid(a) =>
               log.info("Applying valid blockId={} to history", block.id)
               val openSurfaceIdsBeforeUpdate = history.openSurfaceIds()
 

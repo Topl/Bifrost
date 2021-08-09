@@ -83,9 +83,17 @@ class History(
 
     log.debug(s"Trying to append block ${block.id} to history")
 
+    val isHiccupBlock =
+      if (Hiccups.blockValidation.contains(HiccupBlock(block))) {
+        log.debug(s"Skipping block validation for HiccupBlock.  blockId=${block.id}")
+        true
+      } else {
+        false
+      }
+
     // test new block against all validators
     val validationResults =
-      if (!isGenesis(block) && !Hiccups.blockValidation.contains(HiccupBlock(block))) {
+      if (!isGenesis(block) && !isHiccupBlock) {
         validators.map(_.validate(block)).map {
           case Failure(e) =>
             log.warn(s"Block validation failed", e)
