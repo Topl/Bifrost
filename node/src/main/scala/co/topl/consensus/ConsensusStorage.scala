@@ -3,8 +3,9 @@ package co.topl.consensus
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.hash.digest.implicits._
-import co.topl.modifier.ModifierId
 import co.topl.db.LDBVersionedStore
+import co.topl.modifier.ModifierId
+import co.topl.nodeView.{KeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType.{LocalTestnet, PrivateTestnet}
 import co.topl.utils.{Int128, Logging, NetworkType}
@@ -17,7 +18,7 @@ import java.io.File
  * @param storage the LSM store to persist values in
  * @param defaultTotalStake should be 10000000 for private and local testnet, and 200000000000000000L otherwise
  */
-class ConsensusStorage(storage: Option[LDBVersionedStore], private val defaultTotalStake: Int128) extends Logging {
+class ConsensusStorage(storage: Option[KeyValueStore], private val defaultTotalStake: Int128) extends Logging {
 
   private def byteArrayWrappedKey(name: String): Digest32 = blake2b256.hash(name.getBytes)
 
@@ -123,7 +124,7 @@ object ConsensusStorage {
     val file = new File(s"$dataDir/consensus")
     file.mkdirs()
 
-    val versionedStore = new LDBVersionedStore(file, 100)
+    val versionedStore = new LDBKeyValueStore(new LDBVersionedStore(file, 100))
 
     // todo: JAA - we need to find a better pattern than this. I see why it is the most straightforward for now,
     //       but maybe we elevate the ConsensusStorage interface up to a sealed abstract class and have two instances?

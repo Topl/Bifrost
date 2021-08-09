@@ -12,9 +12,9 @@ trait KeyValueStore extends AutoCloseable {
     toRemove: Iterable[Array[Byte]],
     toAdd:    Iterable[(Array[Byte], Array[Byte])]
   ): Unit
-  def rollback(version: Array[Byte]): Unit
-  def get(key:          Array[Byte]): Option[Array[Byte]]
-  def latestVersion(): Option[Array[Byte]]
+  def rollbackTo(version: Array[Byte]): Unit
+  def get(key:            Array[Byte]): Option[Array[Byte]]
+  def latestVersionId(): Option[Array[Byte]]
 }
 
 class LDBKeyValueStore(ldbStore: LDBVersionedStore) extends KeyValueStore {
@@ -26,7 +26,7 @@ class LDBKeyValueStore(ldbStore: LDBVersionedStore) extends KeyValueStore {
   ): Unit =
     ldbStore.update(version, toRemove, toAdd)
 
-  override def rollback(version: Array[Byte]): Unit =
+  override def rollbackTo(version: Array[Byte]): Unit =
     ldbStore.rollbackTo(version)
 
   override def get(key: Array[Byte]): Option[Array[Byte]] =
@@ -35,8 +35,8 @@ class LDBKeyValueStore(ldbStore: LDBVersionedStore) extends KeyValueStore {
   override def close(): Unit =
     ldbStore.close()
 
-  override def latestVersion(): Option[Array[Byte]] =
-    ldbStore.lastVersionID
+  override def latestVersionId(): Option[Array[Byte]] =
+    ldbStore.lastVersionID()
 }
 
 class CacheLayerKeyValueStore(underlying: KeyValueStore, cacheExpiration: FiniteDuration, cacheSize: Int)
@@ -66,8 +66,8 @@ class CacheLayerKeyValueStore(underlying: KeyValueStore, cacheExpiration: Finite
       .foreach((cache.put _).tupled)
   }
 
-  override def rollback(version: Array[Byte]): Unit = {
-    underlying.rollback(version)
+  override def rollbackTo(version: Array[Byte]): Unit = {
+    underlying.rollbackTo(version)
     cache.invalidateAll()
   }
 
@@ -77,8 +77,8 @@ class CacheLayerKeyValueStore(underlying: KeyValueStore, cacheExpiration: Finite
   override def close(): Unit =
     underlying.close()
 
-  override def latestVersion(): Option[Array[Byte]] =
-    underlying.latestVersion()
+  override def latestVersionId(): Option[Array[Byte]] =
+    underlying.latestVersionId()
 }
 
 object CacheLayerKeyValueStore {

@@ -84,11 +84,11 @@ class ProgramBoxRegistry(protected val storage: KeyValueStore)
     }
 
   override def rollbackTo(version: VersionTag): Try[ProgramBoxRegistry] = Try {
-    if (storage.latestVersion().exists(_ sameElements version.bytes)) {
+    if (storage.latestVersionId().exists(_ sameElements version.bytes)) {
       this
     } else {
       log.debug(s"Rolling back ProgramBoxRegistry to: ${version.toString}")
-      storage.rollback(version.bytes)
+      storage.rollbackTo(version.bytes)
       new ProgramBoxRegistry(storage)
     }
   }

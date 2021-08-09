@@ -137,11 +137,11 @@ case class State(
       None
     }
 
-    if (storage.latestVersion().exists(_ sameElements version.bytes)) {
+    if (storage.latestVersionId().exists(_ sameElements version.bytes)) {
       this
     } else {
       log.debug(s"Rollback State to $version from version ${this.version.toString}")
-      storage.rollback(version.bytes)
+      storage.rollbackTo(version.bytes)
 
       State(version, storage, updatedTBR, updatedPBR, nodeKeys)
     }
@@ -213,7 +213,7 @@ case class State(
       )
 
       storage
-        .latestVersion()
+        .latestVersionId()
         .foreach(latestVersion =>
           stateChanges.boxIdsToRemove
             .foreach { id =>
@@ -320,7 +320,7 @@ object State extends Logging {
   )(implicit networkPrefix: NetworkPrefix): State = {
     val version: VersionTag =
       storage
-        .latestVersion()
+        .latestVersionId()
         .fold(Option(ModifierId.empty))(bw => ModifierId.parseBytes(bw).toOption)
         .getOrElse(throw new Error("Unable to define state version during initialization"))
 

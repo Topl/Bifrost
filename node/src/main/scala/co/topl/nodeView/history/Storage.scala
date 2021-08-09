@@ -13,7 +13,10 @@ import com.google.common.primitives.Longs
 
 import scala.util.Try
 
-class Storage(private[nodeView] val keyValueStore: KeyValueStore, keySize: Int) extends Logging {
+class Storage(
+  private[nodeView] val keyValueStore: KeyValueStore,
+  keySize:                             Int
+) extends Logging {
 
   private val bestBlockIdKey = Array.fill(keySize)(-1: Byte)
 
@@ -184,6 +187,6 @@ class Storage(private[nodeView] val keyValueStore: KeyValueStore, keySize: Int) 
    * @param parentId is the parent id of the block intended to be removed
    */
   def rollback(parentId: ModifierId): Try[Unit] = Try {
-    keyValueStore.rollback(parentId.bytes)
+    keyValueStore.rollbackTo(parentId.bytes)
   }
 }

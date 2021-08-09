@@ -115,11 +115,11 @@ class TokenBoxRegistry(protected val storage: KeyValueStore, nodeKeys: Option[Se
   }
 
   override def rollbackTo(version: VersionTag): Try[TokenBoxRegistry] = Try {
-    if (storage.latestVersion().exists(_ sameElements version.bytes)) {
+    if (storage.latestVersionId().exists(_ sameElements version.bytes)) {
       this
     } else {
       log.debug(s"Rolling back TokenBoxRegistry to: ${version.toString}")
-      storage.rollback(version.bytes)
+      storage.rollbackTo(version.bytes)
       new TokenBoxRegistry(storage, nodeKeys)
     }
   }

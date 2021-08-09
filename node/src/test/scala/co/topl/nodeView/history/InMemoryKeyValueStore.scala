@@ -26,7 +26,7 @@ class InMemoryKeyValueStore extends KeyValueStore {
     changes :+= changeSet
   }
 
-  override def rollback(version: Array[Byte]): Unit = {
+  override def rollbackTo(version: Array[Byte]): Unit = {
     require(changes.exists(_.version sameElements version))
     def revertLatest(): Unit = {
       val latest = changes.last
@@ -48,7 +48,7 @@ class InMemoryKeyValueStore extends KeyValueStore {
 
   override def close(): Unit = {}
 
-  override def latestVersion(): Option[Array[Byte]] =
+  override def latestVersionId(): Option[Array[Byte]] =
     changes.lastOption.map(_.version)
 }
 

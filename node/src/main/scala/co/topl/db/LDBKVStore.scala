@@ -8,7 +8,7 @@ import co.topl.utils.Logging
  *
  * Both keys and values are var-sized byte arrays.
  */
-class LDBKVStore(protected val db: DB) extends KVStoreReader with Logging {
+class LDBKVStore(protected val db: DB) extends LDBKVStoreReader with Logging {
 
   def update(toInsert: Seq[(K, V)], toRemove: Seq[K]): Unit = {
     val batch = db.createWriteBatch()
