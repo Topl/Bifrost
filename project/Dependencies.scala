@@ -2,10 +2,10 @@ import sbt._
 
 object Dependencies {
 
-  val akkaVersion = "2.6.15"
-  val akkaHttpVersion = "10.2.5"
+  val akkaVersion = "2.6.14"
+  val akkaHttpVersion = "10.2.6"
   val circeVersion = "0.14.1"
-  val kamonVersion = "2.1.21"
+  val kamonVersion = "2.1.17"
   val graalVersion = "21.1.0"
 
   val logging = Seq(
