@@ -65,3 +65,8 @@ case object Japanese
 case object Korean extends Language("korean.txt", "f04f70b26cfef84474ff56582e798bcbc1a5572877d14c88ec66551272688c73")
 
 case object Spanish extends Language("spanish.txt", "a556a26c6a5bb36db0fb7d8bf579cb7465fcaeec03957c0dda61b569962d9da5")
+
+case object Czech extends Language("czech.txt", "f9016943461800f7870363b4c301c814dbcb8f4de801e6c87d859eba840469d5")
+
+case object Portuguese
+    extends Language("portuguese.txt", "eed387d44cf8f32f60754527e265230d8019e8a2277937c71ef812e7a46c93fd")
