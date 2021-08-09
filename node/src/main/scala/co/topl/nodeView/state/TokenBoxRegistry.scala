@@ -1,8 +1,8 @@
 package co.topl.nodeView.state
 
 import co.topl.attestation.Address
+import co.topl.db.{LDBVersionedStore, VersionedKVStore}
 import co.topl.modifier.box.{Box, BoxId, TokenBox, TokenValueHolder}
-import co.topl.db.LDBVersionedStore
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
@@ -17,7 +17,7 @@ import scala.util.Try
  * @param storage Persistent storage object for saving the TokenBoxRegistry to disk
  * @param nodeKeys set of node keys that denote the state this node will maintain (useful for personal wallet nodes)
  */
-class TokenBoxRegistry(protected val storage: LDBVersionedStore, nodeKeys: Option[Set[Address]])
+class TokenBoxRegistry(protected val storage: VersionedKVStore, nodeKeys: Option[Set[Address]])
     extends Registry[TokenBoxRegistry.K, TokenBoxRegistry.V] {
 
   import TokenBoxRegistry.{K, V}
@@ -114,7 +114,7 @@ class TokenBoxRegistry(protected val storage: LDBVersionedStore, nodeKeys: Optio
   }
 
   override def rollbackTo(version: VersionTag): Try[TokenBoxRegistry] = Try {
-    if (storage.lastVersionID.exists(_ sameElements version.bytes)) {
+    if (storage.lastVersionID().exists(_ sameElements version.bytes)) {
       this
     } else {
       log.debug(s"Rolling back TokenBoxRegistry to: ${version.toString}")
