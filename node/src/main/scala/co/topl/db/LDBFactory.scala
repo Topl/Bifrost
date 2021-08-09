@@ -86,8 +86,7 @@ case class StoreRegistry(factory: DBFactory) extends DBFactory with Logging {
         log.error(
           s"Failed to initialize storage: $x. Please check that directory $path exists and is not used by some other active node"
         )
-        java.lang.System.exit(2)
-        null
+        throw x
     } finally lock.writeLock().unlock()
   }
 
@@ -123,8 +122,7 @@ object LDBFactory extends Logging {
           s"Failed to initialize storage: $x. Please check that directory $path could be accessed " +
           s"and is not used by some other active node"
         )
-        java.lang.System.exit(2)
-        null
+        throw x
     }
   }
 

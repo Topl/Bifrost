@@ -260,7 +260,7 @@ lazy val toplRpc = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.toplrpc"
   )
-  .dependsOn(akkaHttpRpc, common, crypto)
+  .dependsOn(akkaHttpRpc, common)
 
 // This module has fallen out of sync with the rest of the codebase and is not currently needed
 //lazy val gjallarhorn = project

@@ -56,11 +56,14 @@ case class Forge(
 
       // use the secret key that owns the successful box to sign the rewards transactions
       getAttMap = (tx: Transaction.TX) =>
-        signingFunction(tx.messageToSign).map(signature => ListMap(publicKey -> signature)).getOrThrow()
+        signingFunction(tx.messageToSign)
+          .map(signature => ListMap(publicKey -> signature))
+          .toEither
+          .leftMap(Forge.ForgingError)
 
-      signedRewards = rawRewards.map {
-        case tx: ArbitTransfer[_] => tx.copy(attestation = getAttMap(tx))
-        case tx: PolyTransfer[_]  => tx.copy(attestation = getAttMap(tx))
+      signedRewards <- rawRewards.traverse {
+        case tx: ArbitTransfer[_] => getAttMap(tx).map(attestation => tx.copy(attestation = attestation))
+        case tx: PolyTransfer[_]  => getAttMap(tx).map(attestation => tx.copy(attestation = attestation))
       }
 
       // calculate the newly forged blocks updated difficulty

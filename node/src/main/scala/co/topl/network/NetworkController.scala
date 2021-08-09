@@ -80,7 +80,6 @@ class NetworkController(
     businessLogic orElse
     peerCommands orElse
     connectionEvents orElse
-    // TODO: Is it okay to do this in the "operational" state?
     registerMessageSpecs orElse
     nonsense
 

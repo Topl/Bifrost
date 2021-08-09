@@ -29,7 +29,7 @@ import scala.util.{Failure, Success, Try}
  * applicable to it or not. Also has methods to get a closed box, to apply a persistent modifier, and to roll back
  * to a previous version.
  *
- * @param storage singleton Iodb storage instance
+ * @param storage singleton storage instance
  * @param version blockId used to identify each block. Also used for rollback
  *                //@param timestamp timestamp of the block that results in this state
  */

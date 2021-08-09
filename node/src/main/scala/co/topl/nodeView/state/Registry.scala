@@ -55,10 +55,11 @@ trait Registry[K, V] extends StoreInterface with Logging {
    */
   protected def getBox[BX: ClassTag](key: K, state: SR): Option[Seq[BX]] =
     lookup(key)
-      .map(boxIds =>
-        boxIds
-          .to(LazyList)
-          .flatMap(state.getBox)
-          .collect { case box: BX => box }
-      )
+      .map {
+        _.map(state.getBox)
+          .flatMap {
+            case Some(box: BX) => Some(box)
+            case _             => None
+          }
+      }
 }
