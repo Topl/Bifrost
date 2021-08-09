@@ -1,8 +1,9 @@
 package co.topl.nodeView
 
 import akka.actor.{Actor, ActorRef}
+import akka.pattern.pipe
 import akka.util.Timeout
-import co.topl.modifier.ModifierId
+import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.CleanupWorker.{CleanupDecision, RunCleanup}
 import co.topl.nodeView.MempoolAuditor.CleanupDone
 import co.topl.settings.AppSettings
@@ -25,9 +26,13 @@ class CleanupWorker(
 ) extends Actor
     with Logging {
 
+  implicit private val orderTransactions: Ordering[Transaction.TX] = Ordering.by(_.id)
+
+  import context.dispatcher
+
   // keep some number of recently validated transactions in order
   // to avoid validating the same transactions too many times.
-  private var validatedIndex: TreeSet[ModifierId] = TreeSet.empty[ModifierId]
+  private var validatedIndex: TreeSet[Transaction.TX] = TreeSet.empty[Transaction.TX]
   // count validation sessions in order to perform index cleanup.
   private var epochNr: Int = 0
 
@@ -36,22 +41,24 @@ class CleanupWorker(
 
   override def receive: Receive = {
     case RunCleanup =>
-      import akka.pattern.pipe
-      import context.dispatcher
       val s = sender()
       withNodeView(splitIds(_, s))
         .pipeTo(context.self)
 
-    case CleanupDecision(validatedIds, idsToInvalidate, sender) =>
-      sender ! CleanupDone(validatedIds.take(settings.application.rebroadcastCount))
-      log.info(s"${idsToInvalidate.size} transactions from mempool were invalidated")
-      nodeViewHolderRef.tell(NodeViewHolder.ReceivableMessages.EliminateTransactions(idsToInvalidate))
+    case CleanupDecision(validatedTransactions, invalidatedTransactions, sender) =>
+      sender ! CleanupDone(validatedTransactions.take(settings.application.rebroadcastCount))
+      if (invalidatedTransactions.nonEmpty) {
+        log.info(s"${invalidatedTransactions.size} transactions from mempool were invalidated")
+        nodeViewHolderRef.tell(
+          NodeViewHolder.ReceivableMessages.EliminateTransactions(invalidatedTransactions.map(_.id))
+        )
+      }
       if (epochNr < Int.MaxValue) epochNr += 1 else epochNr = 0
       if (epochNr % CleanupWorker.RevisionInterval == 0) {
         // drop old index in order to check potentially outdated transactions again.
-        validatedIndex = TreeSet(validatedIds: _*)
+        validatedIndex = TreeSet(validatedTransactions: _*)
       } else {
-        validatedIndex ++= validatedIds
+        validatedIndex ++= validatedTransactions
       }
 
     //Should not be here, if non-expected signal comes, check logic
@@ -66,17 +73,16 @@ class CleanupWorker(
     val (valid, invalid) =
       nodeView.memPool
         .take(100)(-_.dateAdded)
-        .filterNot(utx => validatedIndex.contains(utx.tx.id))
-        .foldLeft((Seq[ModifierId](), Seq[ModifierId]()))({
-          case ((validAcc: Seq[ModifierId], invalidAcc: Seq[ModifierId]), utx) =>
-            // if any newly created box matches a box already in the UTXO set, remove the transaction
-            val boxAlreadyExists = utx.tx.newBoxes.exists(b => nodeView.state.getBox(b.id).isDefined)
-            val txTimeout =
-              (timeProvider.time - utx.dateAdded) > settings.application.mempoolTimeout.toMillis
+        .filterNot(utx => validatedIndex.contains(utx.tx))
+        .foldLeft((Seq[Transaction.TX](), Seq[Transaction.TX]())) { case ((validAcc, invalidAcc), utx) =>
+          // if any newly created box matches a box already in the UTXO set, remove the transaction
+          val boxAlreadyExists = utx.tx.newBoxes.exists(b => nodeView.state.getBox(b.id).isDefined)
+          val txTimeout =
+            (timeProvider.time - utx.dateAdded) > settings.application.mempoolTimeout.toMillis
 
-            if (boxAlreadyExists | txTimeout) (validAcc, utx.tx.id +: invalidAcc)
-            else (utx.tx.id +: validAcc, invalidAcc)
-        })
+          if (boxAlreadyExists || txTimeout) (validAcc, utx.tx +: invalidAcc)
+          else (utx.tx +: validAcc, invalidAcc)
+        }
 
     CleanupDecision(valid, invalid, replyTo)
   }
@@ -105,6 +111,10 @@ object CleanupWorker {
 
   case object RunCleanup
 
-  private case class CleanupDecision(validatedIds: Seq[ModifierId], idsToInvalidate: Seq[ModifierId], replyTo: ActorRef)
+  private case class CleanupDecision(
+    validatedTransactions:   Seq[Transaction.TX],
+    invalidatedTransactions: Seq[Transaction.TX],
+    replyTo:                 ActorRef
+  )
 
 }

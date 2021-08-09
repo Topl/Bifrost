@@ -11,25 +11,19 @@ import akka.actor.{
   Props
 }
 import akka.util.Timeout
-import co.topl.attestation.Address
-import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, BlockHeader}
-import co.topl.modifier.box.ProgramId
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.Broadcast
 import co.topl.network.NetworkController.ReceivableMessages.SendToNetwork
 import co.topl.network.message.{InvData, InvSpec, Message}
 import co.topl.nodeView.CleanupWorker.RunCleanup
 import co.topl.nodeView.MempoolAuditor.CleanupDone
-import co.topl.nodeView.mempool.MemPoolReader
-import co.topl.nodeView.state.StateReader
 import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Logging, TimeProvider}
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
 
 /**
  * Controls mempool cleanup workflow. Watches NodeView events and delegates
@@ -44,8 +38,6 @@ class MempoolAuditor(
 )(implicit timeProvider: TimeProvider)
     extends Actor
     with Logging {
-
-  import context.dispatcher
 
   implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
@@ -117,35 +109,22 @@ class MempoolAuditor(
     context become working // ignore other triggers until work is done
   }
 
-  private def rebroadcastTransactions(ids: Seq[ModifierId]): Unit = {
-    log.debug("Rebroadcasting transactions")
-    withNodeView(view => view.memPool.getAll(ids))
-      .onComplete {
-        case Success(transactions) =>
-          transactions.foreach { tx =>
-            log.info(s"Rebroadcasting $tx")
-            val msg = Message(
-              new InvSpec(settings.network.maxInvObjects),
-              Right(InvData(Transaction.modifierTypeId, Seq(tx.id))),
-              None
-            )
+  private def rebroadcastTransactions(transactions: Seq[Transaction.TX]): Unit =
+    if (transactions.nonEmpty) {
+      log.debug("Rebroadcasting transactions")
+      transactions.foreach { tx =>
+        log.info(s"Rebroadcasting $tx")
+        val msg = Message(
+          new InvSpec(settings.network.maxInvObjects),
+          Right(InvData(Transaction.modifierTypeId, Seq(tx.id))),
+          None
+        )
 
-            networkControllerRef ! SendToNetwork(msg, Broadcast)
-          }
-        case Failure(exception) =>
-          log.error("Failed rebroadcastTransactions", exception)
+        networkControllerRef ! SendToNetwork(msg, Broadcast)
       }
-  }
-
-  private def withNodeView[T](f: ReadableNodeView => T): Future[T] = {
-    import akka.actor.typed.scaladsl.AskPattern._
-    import akka.actor.typed.scaladsl.adapter._
-
-    import scala.concurrent.duration._
-    implicit val timeout: Timeout = Timeout(10.seconds)
-    implicit val typedSystem: akka.actor.typed.ActorSystem[_] = context.system.toTyped
-    nodeViewHolderRef.askWithStatus[T](NodeViewHolder.ReceivableMessages.Read(f, _))
-  }
+    } else {
+      log.debug("No transactions to rebroadcast")
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -155,7 +134,7 @@ object MempoolAuditor {
 
   val actorName = "mempoolAuditor"
 
-  case class CleanupDone(toBeBroadcast: Seq[ModifierId])
+  case class CleanupDone(toBeBroadcast: Seq[Transaction.TX])
 
 }
 

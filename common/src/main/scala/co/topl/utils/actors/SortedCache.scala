@@ -8,8 +8,6 @@ import cats.implicits._
 /**
  * A SortedCache is an actor that holds onto items in a sorted collection.  An item can be asynchronously popped off
  * when needed.
- *
- * TODO: Timeout
  */
 object SortedCache {
 
@@ -64,7 +62,7 @@ object SortedCache {
 
     def append(others: IterableOnce[T]): Impl[T] = {
       val (finalItems, sizeEvicted) =
-        (items ++ others.iterator.map(PoppableItem(_, 0))).sorted.splitAt(itemLimit)
+        (items ++ others.iterator.map(PoppableItem(_, 0))).distinct.sorted.splitAt(itemLimit)
       sizeEvicted.map(_.item).foreach(onEvict)
       copy(finalItems)
     }
