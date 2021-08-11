@@ -79,7 +79,7 @@ trait RpcDirectives {
         .leftMap(InvalidParametersError(_))
     ).toEither
       .leftMap(throwable => InvalidParametersError(DecodingFailure.fromThrowable(throwable, Nil)))
-      .flatten
+      .flatMap(identity)
       .fold(completeRpc(_).toDirective, provide)
 
   def rpcContext: Directive1[RpcContext] =
