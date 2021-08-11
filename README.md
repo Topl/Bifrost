@@ -57,8 +57,6 @@ To keep up with our development
 
 - View open [issues](https://github.com/Topl/Project-Bifrost/issues)!
 
-- Join chat with us on [Zulip](https://impact.zulipchat.com/join/register/)!
-
 
 License
 -------
