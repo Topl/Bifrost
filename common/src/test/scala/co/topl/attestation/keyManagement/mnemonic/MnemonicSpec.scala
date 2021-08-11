@@ -197,6 +197,8 @@ class MnemonicSpec
     privateKey: String
   )
 
+  // Test Vectors
+  // https://topl.atlassian.net/wiki/spaces/Bifrost/pages/294813812/HD+Wallet+Protocols+and+Test+Vectors
   val testVectors = Seq(
     TestVector(
       "Test Vector #1",

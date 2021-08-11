@@ -7,7 +7,7 @@ import co.topl.utils.SizedBytes.Types._
 import co.topl.utils.SizedBytes.implicits._
 import scodec.bits.ByteVector
 
-object SizedByteCollectionCodec {
+object SizedBytesCodec {
 
   trait AsBytesInstances {
     implicit val byteVectorAsBytes: AsBytes[Infallible, ByteVector] = AsBytes.infallible(_.toArray)

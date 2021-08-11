@@ -11,8 +11,7 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import scodec.bits.ByteOrdering
 
 // Test Vectors:
-// https://topl.atlassian.net/wiki/spaces/Bifrost/pages/294813812/
-// HD+Wallet+Protocols+and+Test+Vectors?atlOrigin=eyJpIjoiZTYxN2Y3Njc3OWZiNGRjNDkxZDE5NzgwZjMyZDdiNjEiLCJwIjoiYyJ9
+// https://topl.atlassian.net/wiki/spaces/Bifrost/pages/294813812/HD+Wallet+Protocols+and+Test+Vectors
 class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
 
   "ExtendedPrivateKeyEd25519" should "pass generated test vector #3" in {
