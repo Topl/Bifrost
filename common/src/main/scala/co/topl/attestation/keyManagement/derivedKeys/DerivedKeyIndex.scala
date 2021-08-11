@@ -1,8 +1,8 @@
 package co.topl.attestation.keyManagement.derivedKeys
 
-import co.topl.utils.SizedByteCollection
-import co.topl.utils.SizedByteCollection.Types.ByteVector4
-import co.topl.utils.SizedByteCollection.implicits._
+import co.topl.utils.SizedBytes
+import co.topl.utils.SizedBytes.Types.ByteVector4
+import co.topl.utils.SizedBytes.implicits._
 
 import java.nio.{ByteBuffer, ByteOrder}
 
@@ -23,7 +23,7 @@ trait DerivedKeyIndex {
    */
   val bytes: ByteVector4 =
     // cut off top 4 significant bytes since representation is an unsigned integer
-    SizedByteCollection[ByteVector4]
+    SizedBytes[ByteVector4]
       .fit(ByteBuffer.allocate(longByteSize).order(ByteOrder.LITTLE_ENDIAN).putLong(value))
 }
 

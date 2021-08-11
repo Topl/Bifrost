@@ -4,9 +4,9 @@ import co.topl.attestation.keyManagement.mnemonic.{FromMnemonic, Mnemonic}
 import co.topl.attestation.{PublicKeyPropositionEd25519, SignatureEd25519}
 import co.topl.crypto.signatures.{Ed25519, Signature}
 import co.topl.crypto.{Pbkdf2Sha512, PublicKey}
-import co.topl.utils.SizedByteCollection
-import co.topl.utils.SizedByteCollection.Types.{ByteVector28, ByteVector32}
-import co.topl.utils.SizedByteCollection.implicits._
+import co.topl.utils.SizedBytes
+import co.topl.utils.SizedBytes.Types.{ByteVector28, ByteVector32}
+import co.topl.utils.SizedBytes.implicits._
 import co.topl.utils.serialization.BifrostSerializer
 import scodec.bits.{ByteOrdering, ByteVector}
 
@@ -43,7 +43,7 @@ class ExtendedPrivateKeyEd25519(
     ed25519.scalarMultBaseEncoded(leftKey.toArray, pk, 0)
 
     ExtendedPublicKeyEd25519(
-      SizedByteCollection[ByteVector32].fit(pk, ByteOrdering.LittleEndian),
+      SizedBytes[ByteVector32].fit(pk, ByteOrdering.LittleEndian),
       chainCode
     )
   }
@@ -75,17 +75,17 @@ class ExtendedPrivateKeyEd25519(
     val zLeft =
       BigInt(
         1,
-        SizedByteCollection[ByteVector28].fit(z.slice(0, 28), ByteOrdering.LittleEndian).toArray.reverse
+        SizedBytes[ByteVector28].fit(z.slice(0, 28), ByteOrdering.LittleEndian).toArray.reverse
       )
 
     val zRight =
       BigInt(
         1,
-        SizedByteCollection[ByteVector32].fit(z.slice(32, 64), ByteOrdering.LittleEndian).toArray.reverse
+        SizedBytes[ByteVector32].fit(z.slice(32, 64), ByteOrdering.LittleEndian).toArray.reverse
       )
 
     val nextLeft =
-      SizedByteCollection[ByteVector32].fit(
+      SizedBytes[ByteVector32].fit(
         ByteBuffer
           .wrap(
             (zLeft * 8 + leftNumber).toByteArray.reverse
@@ -94,14 +94,14 @@ class ExtendedPrivateKeyEd25519(
       )
 
     val nextRight =
-      SizedByteCollection[ByteVector32].fit(
+      SizedBytes[ByteVector32].fit(
         ByteBuffer
           .wrap(((zRight + rightNumber) % (BigInt(2).pow(256))).toByteArray.reverse)
           .order(ByteOrder.LITTLE_ENDIAN)
       )
 
     val nextChainCode =
-      SizedByteCollection[ByteVector32].fit(
+      SizedBytes[ByteVector32].fit(
         (index match {
           case b: SoftIndex =>
             hmac512WithKey(
@@ -181,9 +181,9 @@ object ExtendedPrivateKeyEd25519 {
    */
   def copy(value: ExtendedPrivateKeyEd25519): ExtendedPrivateKeyEd25519 =
     ExtendedPrivateKeyEd25519(
-      SizedByteCollection[ByteVector32].fit(value.leftKey.toArray.clone(), ByteOrdering.LittleEndian),
-      SizedByteCollection[ByteVector32].fit(value.rightKey.toArray.clone(), ByteOrdering.LittleEndian),
-      SizedByteCollection[ByteVector32].fit(value.chainCode.toArray.clone(), ByteOrdering.LittleEndian),
+      SizedBytes[ByteVector32].fit(value.leftKey.toArray.clone(), ByteOrdering.LittleEndian),
+      SizedBytes[ByteVector32].fit(value.rightKey.toArray.clone(), ByteOrdering.LittleEndian),
+      SizedBytes[ByteVector32].fit(value.chainCode.toArray.clone(), ByteOrdering.LittleEndian),
       value.path
     )
 
@@ -221,9 +221,9 @@ object ExtendedPrivateKeyEd25519 {
         seed(31) = ((seed(31) & 0x1f) | 0x40).toByte
 
         ExtendedPrivateKeyEd25519(
-          SizedByteCollection[ByteVector32].fit(seed.slice(0, 32), ByteOrdering.LittleEndian),
-          SizedByteCollection[ByteVector32].fit(seed.slice(32, 64), ByteOrdering.LittleEndian),
-          SizedByteCollection[ByteVector32].fit(seed.slice(64, 96), ByteOrdering.LittleEndian),
+          SizedBytes[ByteVector32].fit(seed.slice(0, 32), ByteOrdering.LittleEndian),
+          SizedBytes[ByteVector32].fit(seed.slice(32, 64), ByteOrdering.LittleEndian),
+          SizedBytes[ByteVector32].fit(seed.slice(64, 96), ByteOrdering.LittleEndian),
           Seq()
         )
     }

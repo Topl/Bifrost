@@ -3,8 +3,8 @@ package co.topl.attestation.keyManagement.mnemonic
 import cats.implicits._
 import co.topl.crypto.hash.sha256
 
-import scala.util.Try
 import scala.language.implicitConversions
+import scala.util.Try
 
 /**
  * A failure to import a word list into a collection.
@@ -20,22 +20,24 @@ case class InvalidChecksum() extends WordListFailure
  * @param hash     the SHA-256 hash of the words for verification
  */
 sealed abstract class Language(val filePath: String, val hash: String) {
+  import Language._
+
   private val wordlistDirectory: String = "bip-0039"
 
   /**
    * The valid set of words for the language.
    */
-  lazy val words: Either[WordListFailure, IndexedSeq[String]] =
+  lazy val words: Either[WordListFailure, WordList] =
     Try(scala.io.Source.fromResource(s"$wordlistDirectory/$filePath").getLines.toIndexedSeq).toEither
       .leftMap(FileReadFailure)
-      .flatMap(validatePhraseList)
+      .flatMap(validateWordList)
 
   /**
    * Verifies the wordlist for the given language by calculating the SHA-256 hash
    *
    * @return a validated word list or a `WordListFailure` of type `InvalidChecksum`
    */
-  private def validatePhraseList(words: IndexedSeq[String]): Either[WordListFailure, IndexedSeq[String]] =
+  private def validateWordList(words: WordList): Either[WordListFailure, WordList] =
     Either.cond(
       sha256
         .hash(words.mkString.getBytes("UTF-8"))
@@ -45,6 +47,13 @@ sealed abstract class Language(val filePath: String, val hash: String) {
       words,
       InvalidChecksum()
     )
+}
+
+object Language {
+  /**
+   * Represents a list of valid words for generating a mnemonic phrase.
+   */
+  type WordList = IndexedSeq[String]
 }
 
 case object ChineseSimplified

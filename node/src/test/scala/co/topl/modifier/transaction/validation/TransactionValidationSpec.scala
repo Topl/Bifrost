@@ -29,7 +29,9 @@ class TransactionValidationSpec
   type TransferTx = TransferTransaction[TokenValueHolder, _ <: Proposition]
 
   property("Randomly generated AssetTransfer Tx should be valid") {
-    forAll(validAssetTransferGen(keyRingCurve25519, keyRingEd25519, genesisState, minting = true)) { tx =>
+    forAll(
+      validAssetTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, genesisState, minting = true)
+    ) { tx =>
       tx.syntacticValidation should beValid[TransferTx](tx)
     }
   }
@@ -120,7 +122,7 @@ class TransactionValidationSpec
   }
 
   property("Randomly generated ArbitTransfer Tx should be valid") {
-    forAll(validArbitTransferGen(keyRingCurve25519, keyRingEd25519, genesisState)) { tx =>
+    forAll(validArbitTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, genesisState)) { tx =>
       tx.syntacticValidation should beValid[TransferTx](tx)
     }
   }
@@ -190,7 +192,9 @@ class TransactionValidationSpec
 
   property("Transactions created on a specific network should not be accepted on any other network") {
     val otherNetworks = NetworkType.all.filterNot(_ == PrivateTestnet)
-    forAll(validAssetTransferGen(keyRingCurve25519, keyRingEd25519, genesisState, minting = true)) { tx =>
+    forAll(
+      validAssetTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, genesisState, minting = true)
+    ) { tx =>
       otherNetworks.foreach { netType =>
         tx.syntacticValidation(netType.netPrefix) should haveInvalidC[SyntacticValidationFailure](
           MintingMissingIssuersSignature
@@ -200,8 +204,8 @@ class TransactionValidationSpec
     }
   }
 
-  property("Generated PolyTransfer Tx should be valid") {
-    forAll(validPolyTransferGen(keyRingCurve25519, keyRingEd25519, genesisState)) { tx =>
+  property("Randomly generated PolyTransfer Tx should be valid") {
+    forAll(validPolyTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, genesisState)) { tx =>
       tx.syntacticValidation should beValid[TransferTx](tx)
     }
   }

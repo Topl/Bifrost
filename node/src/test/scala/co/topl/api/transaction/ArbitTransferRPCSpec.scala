@@ -1,52 +1,82 @@
 package co.topl.api.transaction
 
 import co.topl.attestation.Address
-import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.codecs.implicits.base58JsonDecoder
-import co.topl.utils.encode.Base58
 import io.circe.Json
-import io.circe.parser.parse
 import io.circe.syntax._
-import org.scalatest.EitherValues
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 
 class ArbitTransferRPCSpec extends TransferRPCTestMethods {
 
-  var addressCurve25519send: Address = _
-  var addressCurve25519recv: Address = _
-  var addressEd25519send: Address = _
-  var addressEd25519recv: Address = _
+  var addressCurve25519Fst: Address = _
+  var addressCurve25519Sec: Address = _
+  var addressEd25519Fst: Address = _
+  var addressEd25519Sec: Address = _
+  var addressThresholdCurve25519Fst: Address = _
+  var addressThresholdCurve25519Sec: Address = _
 
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    addressCurve25519send = keyRingCurve25519.addresses.head
-    addressCurve25519recv = keyRingCurve25519.addresses.tail.head
-    addressEd25519send = keyRingEd25519.addresses.head
-    addressEd25519recv = keyRingEd25519.addresses.tail.head
+    addressCurve25519Fst = keyRingCurve25519.addresses.head
+    addressCurve25519Sec = keyRingCurve25519.addresses.last
+    addressEd25519Fst = keyRingEd25519.addresses.head
+    addressEd25519Sec = keyRingEd25519.addresses.last
+    addressThresholdCurve25519Fst = propsThresholdCurve25519.head.address
+    addressThresholdCurve25519Sec = propsThresholdCurve25519.last.address
   }
 
   "ArbitTransfer RPC" should {
     "Create, sign and broadcast new arbit transfer raw transaction from a Curve25519 address to itself" in {
-      val tx = testCreateSignArbitTransfer(addressCurve25519send, addressCurve25519recv, propTypeCurve25519, 3)
+      val tx = testCreateSignArbitTransfer(addressCurve25519Fst, addressCurve25519Sec, propTypeCurve25519, 3)
       testBroadcastTx(tx)
     }
 
     "Create, sign and broadcast new arbit transfer raw transaction from a Curve25519 address to an Ed25519 address" +
     " address" in {
-      val tx = testCreateSignArbitTransfer(addressCurve25519send, addressEd25519send, propTypeCurve25519, 3)
+      val tx = testCreateSignArbitTransfer(addressCurve25519Fst, addressEd25519Fst, propTypeCurve25519, 3)
       testBroadcastTx(tx)
     }
 
     "Create, sign and broadcast new arbit transfer raw transaction from an Ed25519 address to itself" in {
-      val tx = testCreateSignArbitTransfer(addressEd25519send, addressEd25519recv, propTypeEd25519, 3)
+      val tx = testCreateSignArbitTransfer(addressEd25519Fst, addressEd25519Sec, propTypeEd25519, 3)
       testBroadcastTx(tx)
     }
 
     "Create, sign and broadcast new arbit transfer raw transaction from an Ed25519 address to a Curve25519 address" in {
-      val tx = testCreateSignArbitTransfer(addressEd25519send, addressCurve25519send, propTypeEd25519, 3)
+      val tx = testCreateSignArbitTransfer(addressEd25519Fst, addressCurve25519Fst, propTypeEd25519, 3)
       testBroadcastTx(tx)
+    }
+
+    "Create, sign and broadcast new arbit transfer from a threshold Curve25519 address to an address of same type" in {
+      val tx =
+        testCreateSignArbitTransfer(
+          addressThresholdCurve25519Fst,
+          addressThresholdCurve25519Sec,
+          propTypeThresholdCurve25519,
+          3
+        )
+      testBroadcastTx(tx)
+    }
+
+    "Create, sign and broadcast new arbit transfer from a threshold Curve25519 address to a Ed25519 address" in {
+      val tx =
+        testCreateSignArbitTransfer(
+          addressThresholdCurve25519Fst,
+          addressEd25519Fst,
+          propTypeThresholdCurve25519,
+          3
+        )
+      testBroadcastTx(tx)
+    }
+
+    "Threshold transaction with invalid attestation type should error" in {
+      val tx = testCreateSignArbitTransfer(
+        addressThresholdCurve25519Fst,
+        addressCurve25519Sec,
+        propTypeThresholdCurve25519,
+        3
+      )
+      val attestation: Json = Map("signatures" -> attestationCurve25519Gen.sample.get.asJson).asJson
+      testBroadcastTxInvalidProp(tx.hcursor.downField("signatures").delete.top.get.deepMerge(attestation))
     }
   }
 }

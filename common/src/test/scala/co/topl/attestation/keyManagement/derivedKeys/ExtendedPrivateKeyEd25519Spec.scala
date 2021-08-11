@@ -1,9 +1,9 @@
 package co.topl.attestation.keyManagement.derivedKeys
 
 import co.topl.attestation.SignatureEd25519
-import co.topl.utils.SizedByteCollection
-import co.topl.utils.SizedByteCollection.Types.ByteVector32
-import co.topl.utils.SizedByteCollection.implicits._
+import co.topl.utils.SizedBytes
+import co.topl.utils.SizedBytes.Types.ByteVector32
+import co.topl.utils.SizedBytes.implicits._
 import co.topl.utils.StringDataTypes.Base16Data
 import co.topl.utils.codecs.implicits._
 import org.scalatest.flatspec.AnyFlatSpec
@@ -58,16 +58,16 @@ class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
 
     val rootPrivateKey =
       ExtendedPrivateKeyEd25519(
-        SizedByteCollection[ByteVector32].fit(rootPrivateKeyBytes.slice(0, 32), ByteOrdering.LittleEndian),
-        SizedByteCollection[ByteVector32].fit(rootPrivateKeyBytes.slice(32, 64), ByteOrdering.LittleEndian),
-        SizedByteCollection[ByteVector32].fit(rootPrivateKeyBytes.slice(64, 96), ByteOrdering.LittleEndian),
+        SizedBytes[ByteVector32].fit(rootPrivateKeyBytes.slice(0, 32), ByteOrdering.LittleEndian),
+        SizedBytes[ByteVector32].fit(rootPrivateKeyBytes.slice(32, 64), ByteOrdering.LittleEndian),
+        SizedBytes[ByteVector32].fit(rootPrivateKeyBytes.slice(64, 96), ByteOrdering.LittleEndian),
         Seq()
       )
 
     val rootPublicKey =
       ExtendedPublicKeyEd25519(
-        SizedByteCollection[ByteVector32].fit(rootPublicKeyBytes.slice(0, 32), ByteOrdering.LittleEndian),
-        SizedByteCollection[ByteVector32].fit(rootPublicKeyBytes.slice(32, 64), ByteOrdering.LittleEndian)
+        SizedBytes[ByteVector32].fit(rootPublicKeyBytes.slice(0, 32), ByteOrdering.LittleEndian),
+        SizedBytes[ByteVector32].fit(rootPublicKeyBytes.slice(32, 64), ByteOrdering.LittleEndian)
       )
 
     expectedKeyPairs.foreach { case (expectedXprv, expectedXpub, idx) =>
@@ -124,9 +124,9 @@ class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
 
     val rootKey =
       ExtendedPrivateKeyEd25519(
-        SizedByteCollection[ByteVector32].fit(rootKeyBytes.slice(0, 32), ByteOrdering.LittleEndian),
-        SizedByteCollection[ByteVector32].fit(rootKeyBytes.slice(32, 64), ByteOrdering.LittleEndian),
-        SizedByteCollection[ByteVector32].fit(rootKeyBytes.slice(64, 96), ByteOrdering.LittleEndian),
+        SizedBytes[ByteVector32].fit(rootKeyBytes.slice(0, 32), ByteOrdering.LittleEndian),
+        SizedBytes[ByteVector32].fit(rootKeyBytes.slice(32, 64), ByteOrdering.LittleEndian),
+        SizedBytes[ByteVector32].fit(rootKeyBytes.slice(64, 96), ByteOrdering.LittleEndian),
         Seq()
       )
 
@@ -198,9 +198,9 @@ class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
 
     val rootKey =
       ExtendedPrivateKeyEd25519(
-        SizedByteCollection[ByteVector32].fit(rootKeyBytes.slice(0, 32), ByteOrdering.LittleEndian),
-        SizedByteCollection[ByteVector32].fit(rootKeyBytes.slice(32, 64), ByteOrdering.LittleEndian),
-        SizedByteCollection[ByteVector32].fit(rootKeyBytes.slice(64, 96), ByteOrdering.LittleEndian),
+        SizedBytes[ByteVector32].fit(rootKeyBytes.slice(0, 32), ByteOrdering.LittleEndian),
+        SizedBytes[ByteVector32].fit(rootKeyBytes.slice(32, 64), ByteOrdering.LittleEndian),
+        SizedBytes[ByteVector32].fit(rootKeyBytes.slice(64, 96), ByteOrdering.LittleEndian),
         Seq()
       )
 
@@ -241,9 +241,9 @@ class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
 
     val rootKey =
       ExtendedPrivateKeyEd25519(
-        SizedByteCollection[ByteVector32].fit(rootKeyBytes.slice(0, 32), ByteOrdering.LittleEndian),
-        SizedByteCollection[ByteVector32].fit(rootKeyBytes.slice(32, 64), ByteOrdering.LittleEndian),
-        SizedByteCollection[ByteVector32].fit(rootKeyBytes.slice(64, 96), ByteOrdering.LittleEndian),
+        SizedBytes[ByteVector32].fit(rootKeyBytes.slice(0, 32), ByteOrdering.LittleEndian),
+        SizedBytes[ByteVector32].fit(rootKeyBytes.slice(32, 64), ByteOrdering.LittleEndian),
+        SizedBytes[ByteVector32].fit(rootKeyBytes.slice(64, 96), ByteOrdering.LittleEndian),
         Seq()
       )
 

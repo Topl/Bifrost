@@ -1,9 +1,9 @@
 package co.topl.utils
 
-import co.topl.utils.SizedByteCollection.InvalidSize
-import co.topl.utils.SizedByteCollection.Types.{ByteVector128, ByteVector28, ByteVector32, ByteVector4}
+import co.topl.utils.SizedBytes.InvalidSize
+import co.topl.utils.SizedBytes.Types.{ByteVector128, ByteVector28, ByteVector32, ByteVector4}
 import org.scalatest.flatspec.AnyFlatSpec
-import co.topl.utils.SizedByteCollection.implicits._
+import co.topl.utils.SizedBytes.implicits._
 import org.scalacheck.Prop.forAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
@@ -11,11 +11,11 @@ import scodec.bits.ByteVector
 
 class SizedByteCollectionSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenPropertyChecks {
 
-  def testCollection[T: SizedByteCollection](collectionName: String, expectedSize: Int): Unit =
+  def testCollection[T: SizedBytes](collectionName: String, expectedSize: Int): Unit =
     collectionName should s"validate byte arrays if size is $expectedSize" in {
       forAll { (bytes: Array[Byte]) =>
-        if (bytes.length == expectedSize) SizedByteCollection[T].validated(bytes).isRight shouldBe true
-        else SizedByteCollection[T].validated(bytes).isLeft shouldBe true
+        if (bytes.length == expectedSize) SizedBytes[T].validated(bytes).isRight shouldBe true
+        else SizedBytes[T].validated(bytes).isLeft shouldBe true
       }
     }
 

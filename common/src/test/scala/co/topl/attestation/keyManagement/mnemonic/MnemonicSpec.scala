@@ -9,7 +9,7 @@ import org.scalatest.matchers.must.Matchers.{be, not}
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-import co.topl.utils.SizedByteCollection.implicits._
+import co.topl.utils.SizedBytes.implicits._
 import co.topl.utils.codecs.implicits._
 import co.topl.attestation.keyManagement.derivedKeys.ExtendedPrivateKeyEd25519.implicits._
 

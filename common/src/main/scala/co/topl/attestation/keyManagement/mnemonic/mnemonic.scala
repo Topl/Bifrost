@@ -8,11 +8,11 @@ package object mnemonic {
   private[mnemonic] val indexLen = 11
 
   /**
-   * Converts a mnemonic index into a binary representation.
+   * Converts an integer into a binary representation with 11 bits.
    * @param i the index to convert
-   * @return the binary representation as a `String`
+   * @return the 11-bit binary representation as a `String`
    */
-  private[mnemonic] def toBinaryIndex(i: Int): String =
+  private[mnemonic] def toBinaryStringWith11Bits(i: Int): String =
     String.format("%11s", BigInt(i).toString(2)).replace(' ', '0')
 
   /**
@@ -20,7 +20,7 @@ package object mnemonic {
    * @param b the byte to convert
    * @return the binary representation as a `String`
    */
-  private[mnemonic] def toBinaryByte(b: Byte): String =
+  private[mnemonic] def toBinaryString(b: Byte): String =
     String.format("%8s", BigInt(b & 0xff).toString(2)).replace(' ', '0')
 
 }

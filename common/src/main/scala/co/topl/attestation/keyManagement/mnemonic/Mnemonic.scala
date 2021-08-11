@@ -1,6 +1,7 @@
 package co.topl.attestation.keyManagement.mnemonic
 
 import cats.implicits._
+import co.topl.attestation.keyManagement.mnemonic.Language.WordList
 import co.topl.crypto.hash.sha256
 
 import java.util.UUID
@@ -81,7 +82,7 @@ object Mnemonic {
       phraseWords = phrase.toLowerCase.split("\\s+").map(_.trim).toIndexedSeq
       validWordLength <- validateWordLength(phraseWords, size.wordLength)
       validWords      <- validateWords(validWordLength, wordList)
-      validChecksum   <- validateChecksum(validWords, wordList, size.checksumLength, size.entropyLength)
+      validChecksum   <- validateChecksum(validWords, wordList, size)
     } yield deriveFromValidatedPhrase(validChecksum, wordList, size)
 
   /**
@@ -109,35 +110,35 @@ object Mnemonic {
    * @return either a `CreateMnemonicFailure` or a valid mnemonic of the given size
    */
   def derive[T: FromMnemonic](
-    entropy:  Array[Byte],
+    entropy:  Entropy,
     size:     MnemonicSize,
     language: Language
   ): Either[CreateMnemonicFailure, T] =
     for {
       validEntropy <- Either.cond(entropy.length * byteLen == size.entropyLength, entropy, InvalidWordLength())
       wordList     <- language.words.leftMap(BadWordList)
-      binaryString = validEntropy.map(toBinaryByte).mkString("")
-      binaryHashes = sha256.hash(validEntropy).value.map(toBinaryByte)
-      phrase = phraseFromBinaryString(binaryString, binaryHashes, size, wordList)
+      phraseBinary = validEntropy.map(toBinaryString).mkString("")
+      entropyHash = sha256.hash(validEntropy).value.map(toBinaryString)
+      phrase = phraseFromBinaryString(phraseBinary, entropyHash, size, wordList)
     } yield deriveFromValidatedPhrase(phrase, wordList, size)
 
   /**
    * Creates a mnemonic phrase from the given string of binary numbers (0,1) and binary hashes of the original entropy
    * bytes.
    *
-   * @param binaryString the binary string to convert to a mnemonic
-   * @param binaryHashes the hashes of the original entropy bytes
+   * @param phraseBinary the binary string to convert to a mnemonic
+   * @param entropyHashBytes the hashes of the original entropy bytes
    * @param size         the size of the mnemonic
    * @param wordList     the word list to create the mnemonic from
    * @return a mnemonic phrase
    */
   private def phraseFromBinaryString(
-    binaryString: String,
-    binaryHashes: Array[String],
-    size:         MnemonicSize,
-    wordList:     IndexedSeq[String]
-  ): IndexedSeq[String] =
-    (binaryString + binaryHashes(0).slice(0, size.checksumLength))
+    phraseBinary:     String,
+    entropyHashBytes: Array[String],
+    size:             MnemonicSize,
+    wordList:         WordList
+  ): Phrase =
+    (phraseBinary + entropyHashBytes(0).slice(0, size.checksumLength))
       .grouped(indexLen)
       .toArray
       .map(Integer.parseInt(_, 2))
@@ -145,67 +146,69 @@ object Mnemonic {
 
   /**
    * Validates that the length of the given mnemonic phrase matches the expected length.
-   * @param words the mnemonic phrase
+   * @param phrase the mnemonic phrase
    * @param expected the expected length of the phrase
    * @return a `CreateMnemonicFailure` if invalid or the validated phrase
    */
   private def validateWordLength(
-    words:    IndexedSeq[String],
+    phrase:   Phrase,
     expected: Int
   ): Either[CreateMnemonicFailure, IndexedSeq[String]] =
     Either.cond(
-      words.length == expected,
-      words,
+      phrase.length == expected,
+      phrase,
       InvalidWordLength()
     )
 
   /**
    * Validates that the given set of words exists in the given word list.
-   * @param words the mnemonic phrase to validate
+   * @param phrase the mnemonic phrase to validate
    * @param expected the word list to check against
    * @return a `CreateMnemonicFailure` if invalid or the validated phrase
    */
   private def validateWords(
-    words:    IndexedSeq[String],
-    expected: IndexedSeq[String]
+    phrase:   Phrase,
+    expected: WordList
   ): Either[CreateMnemonicFailure, IndexedSeq[String]] =
     Either.cond(
-      words.forall(expected.contains),
-      words,
+      phrase.forall(expected.contains),
+      phrase,
       InvalidWords()
     )
 
   /**
    * Validates the checksum of the given mnemonic phrase.
-   * @param words the mnemonic phrase
-   * @param wordsList the BIP-0039 word list
-   * @param checksumLength the length of the mnemonic checksum
-   * @param entropyLength the length of the mnemonic entropy
+   * @param phrase the mnemonic phrase
+   * @param wordList the BIP-0039 word list
+   * @param size the expected mnemonic size
    * @return a `CreateMnemonicFailure` if invalid or the validated phrase
    */
   private def validateChecksum(
-    words:          IndexedSeq[String],
-    wordsList:      IndexedSeq[String],
-    checksumLength: Int,
-    entropyLength:  Int
-  ): Either[CreateMnemonicFailure, IndexedSeq[String]] = {
-    val phraseBin: String = words.map(wordsList.indexOf(_)).map(toBinaryIndex).mkString
-    val phraseHashBin: List[String] =
+    phrase:   Phrase,
+    wordList: WordList,
+    size:     MnemonicSize
+  ): Either[CreateMnemonicFailure, Phrase] = {
+    // the phrase converted to binary with each word being 11 bits
+    val phraseBinary: String = phrase.map(wordList.indexOf(_)).map(toBinaryStringWith11Bits).mkString
+
+    val entropyHash: List[String] =
       sha256
         .hash(
-          phraseBin
-            .slice(0, entropyLength)
+          // get the first `entropyLength` number of bits and hash the resulting byte array
+          phraseBinary
+            .slice(0, size.entropyLength)
             .grouped(byteLen)
             .toArray
             .map(Integer.parseInt(_, 2).toByte)
         )
         .value
-        .map(toBinaryByte)
+        .map(toBinaryString)
         .toList
 
     Either.cond(
-      phraseBin.substring(entropyLength) == phraseHashBin.head.slice(0, checksumLength),
-      words,
+      // checksum section of phrase should be equal to hash of the entropy section
+      phraseBinary.substring(size.entropyLength) == entropyHash.head.slice(0, size.checksumLength),
+      phrase,
       InvalidChecksum()
     )
   }
@@ -217,8 +220,8 @@ object Mnemonic {
    * @return a `Mnemonic` value that can be used to derive an extended private key
    */
   private def deriveFromValidatedPhrase[T: FromMnemonic](
-    validatedPhrase: IndexedSeq[String],
-    wordList:        IndexedSeq[String],
+    validatedPhrase: Phrase,
+    wordList:        WordList,
     size:            MnemonicSize
   ): T =
     FromMnemonic[T].deriveFrom(
@@ -228,21 +231,28 @@ object Mnemonic {
 
   /**
    * Creates a byte array of entropy from a valid mnemonic phrase.
-   * @param words the mnemonic phrase
-   * @param wordsList the word list
+   *
+   * The steps of this function are a reversal of the steps documented at
+   * https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
+   * under the `Generating the mnemonic` section.
+   *
+   * @param phrase the mnemonic phrase
+   * @param wordList the word list
    * @param size the mnemonic size
    * @return the entropy representing the mnemonic phrase
    */
   private def entropyFromValidatedPhrase(
-    words:     IndexedSeq[String],
-    wordsList: IndexedSeq[String],
-    size:      MnemonicSize
-  ): Array[Byte] =
-    words
-      .map(wordsList.indexOf(_))
-      .map(toBinaryIndex)
+    phrase:   Phrase,
+    wordList: WordList,
+    size:     MnemonicSize
+  ): Entropy =
+    phrase
+      .map(wordList.indexOf(_))
+      // map indices to 11 bit representations
+      .map(toBinaryStringWith11Bits)
       .mkString
       .slice(0, size.entropyLength)
+      // group into bytes
       .grouped(byteLen)
       .map(Integer.parseInt(_, 2))
       .map(_.toByte)

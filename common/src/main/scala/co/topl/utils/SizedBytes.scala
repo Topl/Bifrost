@@ -13,7 +13,7 @@ import scala.language.implicitConversions
  * @tparam T the underlying type of the collection
  */
 @typeclass
-trait SizedByteCollection[T] {
+trait SizedBytes[T] {
 
   /**
    * The size of the byte vector
@@ -25,14 +25,14 @@ trait SizedByteCollection[T] {
    * @param vector the `ByteVector` to validate and wrap as a `SizedByteCollection` of type `T`
    * @return the validated `T` if the vector is of the specified size or an `InvalidSize` error
    */
-  def validated(vector: ByteVector): Either[SizedByteCollection.InvalidSize, T]
+  def validated(vector: ByteVector): Either[SizedBytes.InvalidSize, T]
 
   /**
    * Validates that the given `Array[Byte]` is of the expected size.
    * @param array the `Array[Byte]` to validate and transform into collection `T`
    * @return the validated `T` if the array is of the specified size or an `InvalidSize` error
    */
-  def validated(array: Array[Byte]): Either[SizedByteCollection.InvalidSize, T] = validated(ByteVector(array))
+  def validated(array: Array[Byte]): Either[SizedBytes.InvalidSize, T] = validated(ByteVector(array))
 
   /**
    * Fits the given `ByteVector` into a `T` with the expected size.
@@ -78,7 +78,7 @@ trait SizedByteCollection[T] {
   def toArray(t: T): Array[Byte] = toVector(t).toArray
 }
 
-object SizedByteCollection {
+object SizedBytes {
 
   /**
    * Represents the error when a given byte collection is the wrong size.
@@ -98,8 +98,8 @@ object SizedByteCollection {
     collectionSize:  Int,
     constructorFunc: ByteVector => T,
     toVectorFunc:    T => ByteVector
-  ): SizedByteCollection[T] =
-    new SizedByteCollection[T] {
+  ): SizedBytes[T] =
+    new SizedBytes[T] {
       override val size: Int = collectionSize
 
       override def validated(vector: ByteVector): Either[InvalidSize, T] =
@@ -145,8 +145,8 @@ object SizedByteCollection {
       /**
        * An instance of the `SizedByteCollection` type-class for `ByteVector128`
        */
-      val sizedByteCollection: SizedByteCollection[ByteVector128] =
-        SizedByteCollection.instance(size, _.coerce, _.value)
+      val sizedByteCollection: SizedBytes[ByteVector128] =
+        SizedBytes.instance(size, _.coerce, _.value)
     }
 
     /**
@@ -162,7 +162,7 @@ object SizedByteCollection {
       /**
        * An instance of the `SizedByteCollection` type-class for `ByteVector64`
        */
-      val sizedByteCollection: SizedByteCollection[ByteVector64] = SizedByteCollection.instance(size, _.coerce, _.value)
+      val sizedByteCollection: SizedBytes[ByteVector64] = SizedBytes.instance(size, _.coerce, _.value)
     }
 
     /**
@@ -178,7 +178,7 @@ object SizedByteCollection {
       /**
        * An instance of the `SizedByteCollection` type-class for `ByteVector32`
        */
-      val sizedByteCollection: SizedByteCollection[ByteVector32] = SizedByteCollection.instance(size, _.coerce, _.value)
+      val sizedByteCollection: SizedBytes[ByteVector32] = SizedBytes.instance(size, _.coerce, _.value)
     }
 
     /**
@@ -194,7 +194,7 @@ object SizedByteCollection {
       /**
        * An instance of the `SizedByteCollection` type-class for `ByteVector28`
        */
-      val sizedByteCollection: SizedByteCollection[ByteVector28] = SizedByteCollection.instance(size, _.coerce, _.value)
+      val sizedByteCollection: SizedBytes[ByteVector28] = SizedBytes.instance(size, _.coerce, _.value)
     }
 
     /**
@@ -210,19 +210,19 @@ object SizedByteCollection {
     object ByteVector4 {
       val size: Int = 4
 
-      val sizedByteCollection: SizedByteCollection[ByteVector4] = SizedByteCollection.instance(size, _.coerce, _.value)
+      val sizedByteCollection: SizedBytes[ByteVector4] = SizedBytes.instance(size, _.coerce, _.value)
     }
   }
 
   trait Instances {
     import Types._
 
-    implicit val byteVector128: SizedByteCollection[ByteVector128] = ByteVector128.sizedByteCollection
-    implicit val byteVector64: SizedByteCollection[ByteVector64] = ByteVector64.sizedByteCollection
-    implicit val byteVector32: SizedByteCollection[ByteVector32] = ByteVector32.sizedByteCollection
-    implicit val byteVector28: SizedByteCollection[ByteVector28] = ByteVector28.sizedByteCollection
-    implicit val byteVector4: SizedByteCollection[ByteVector4] = ByteVector4.sizedByteCollection
+    implicit val byteVector128: SizedBytes[ByteVector128] = ByteVector128.sizedByteCollection
+    implicit val byteVector64: SizedBytes[ByteVector64] = ByteVector64.sizedByteCollection
+    implicit val byteVector32: SizedBytes[ByteVector32] = ByteVector32.sizedByteCollection
+    implicit val byteVector28: SizedBytes[ByteVector28] = ByteVector28.sizedByteCollection
+    implicit val byteVector4: SizedBytes[ByteVector4] = ByteVector4.sizedByteCollection
   }
 
-  object implicits extends Instances with SizedByteCollection.ToSizedByteCollectionOps
+  object implicits extends Instances with SizedBytes.ToSizedBytesOps
 }

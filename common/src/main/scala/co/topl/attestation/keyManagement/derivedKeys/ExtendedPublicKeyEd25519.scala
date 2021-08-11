@@ -2,9 +2,9 @@ package co.topl.attestation.keyManagement.derivedKeys
 
 import co.topl.crypto.PublicKey
 import co.topl.crypto.signatures.Ed25519
-import co.topl.utils.SizedByteCollection
-import co.topl.utils.SizedByteCollection.implicits._
-import co.topl.utils.SizedByteCollection.Types.ByteVector32
+import co.topl.utils.SizedBytes
+import co.topl.utils.SizedBytes.implicits._
+import co.topl.utils.SizedBytes.Types.ByteVector32
 import scodec.bits.ByteOrdering
 
 /**
@@ -33,7 +33,7 @@ class ExtendedPublicKeyEd25519(val bytes: ByteVector32, val chainCode: ByteVecto
 
     val ed = new Ed25519
 
-    val zLMult8 = SizedByteCollection[ByteVector32].fit(
+    val zLMult8 = SizedBytes[ByteVector32].fit(
       (8 * BigInt(1, zL.reverse.toArray)).toByteArray.reverse,
       ByteOrdering.LittleEndian
     )
@@ -49,10 +49,10 @@ class ExtendedPublicKeyEd25519(val bytes: ByteVector32, val chainCode: ByteVecto
     val nextPublicKeyBytes = new Array[Byte](ed.KeyLength)
     ed.encodePoint(scaledZL, nextPublicKeyBytes, 0)
 
-    val nextPk = SizedByteCollection[ByteVector32].fit(nextPublicKeyBytes, ByteOrdering.LittleEndian)
+    val nextPk = SizedBytes[ByteVector32].fit(nextPublicKeyBytes, ByteOrdering.LittleEndian)
 
     val nextChainCode =
-      SizedByteCollection[ByteVector32].fit(
+      SizedBytes[ByteVector32].fit(
         hmac512WithKey(chainCode.toVector, (0x03.toByte +: bytes.toVector) ++ index.bytes.toVector)
           .slice(32, 64),
         ByteOrdering.LittleEndian

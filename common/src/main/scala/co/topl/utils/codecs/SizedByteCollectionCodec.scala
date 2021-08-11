@@ -1,10 +1,10 @@
 package co.topl.utils.codecs
 
 import cats.implicits._
-import co.topl.utils.SizedByteCollection
-import co.topl.utils.SizedByteCollection.InvalidSize
-import co.topl.utils.SizedByteCollection.Types._
-import co.topl.utils.SizedByteCollection.implicits._
+import co.topl.utils.SizedBytes
+import co.topl.utils.SizedBytes.InvalidSize
+import co.topl.utils.SizedBytes.Types._
+import co.topl.utils.SizedBytes.implicits._
 import scodec.bits.ByteVector
 
 object SizedByteCollectionCodec {
@@ -24,19 +24,19 @@ object SizedByteCollectionCodec {
       FromBytes.infallible(ByteVector(_))
 
     implicit val byteVector128FromBytes: FromBytes[InvalidSize, ByteVector128] =
-      bytes => SizedByteCollection[ByteVector128].validated(bytes).toValidatedNec
+      bytes => SizedBytes[ByteVector128].validated(bytes).toValidatedNec
 
     implicit val byteVector64FromBytes: FromBytes[InvalidSize, ByteVector64] =
-      bytes => SizedByteCollection[ByteVector64].validated(bytes).toValidatedNec
+      bytes => SizedBytes[ByteVector64].validated(bytes).toValidatedNec
 
     implicit val byteVector32FromBytes: FromBytes[InvalidSize, ByteVector32] =
-      bytes => SizedByteCollection[ByteVector32].validated(bytes).toValidatedNec
+      bytes => SizedBytes[ByteVector32].validated(bytes).toValidatedNec
 
     implicit val byteVector28FromBytes: FromBytes[InvalidSize, ByteVector28] =
-      bytes => SizedByteCollection[ByteVector28].validated(bytes).toValidatedNec
+      bytes => SizedBytes[ByteVector28].validated(bytes).toValidatedNec
 
     implicit val byteVector4FromBytes: FromBytes[InvalidSize, ByteVector4] =
-      bytes => SizedByteCollection[ByteVector4].validated(bytes).toValidatedNec
+      bytes => SizedBytes[ByteVector4].validated(bytes).toValidatedNec
   }
 
   trait Instances extends AsBytesInstances with FromBytesInstances
