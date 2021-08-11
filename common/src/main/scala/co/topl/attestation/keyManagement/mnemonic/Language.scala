@@ -50,6 +50,7 @@ sealed abstract class Language(val filePath: String, val hash: String) {
 }
 
 object Language {
+
   /**
    * Represents a list of valid words for generating a mnemonic phrase.
    */
