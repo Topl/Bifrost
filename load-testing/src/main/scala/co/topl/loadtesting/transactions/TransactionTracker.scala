@@ -13,17 +13,26 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
 
 object TransactionTracker {
+
+  sealed trait TransactionResult
+  case class TransactionConfirmed(txId: ModifierId, seconds: Int) extends TransactionResult
+  case class TransactionUnconfirmed(txId: ModifierId) extends TransactionResult
+
   def apply(wait: Int, txId: ModifierId)
            (implicit
             networkPrefix: NetworkPrefix,
             actorSystem: ActorSystem,
             requestModifier: RequestModifier,
             ec: ExecutionContext
-           ): Future[(Boolean, Int)] =
+           ): Future[TransactionResult] =
     Source(1 to wait)
       .throttle(1, 1.second)
       .map(count => (count, TransactionById.Params(txId)))
       .mapAsync(1)(x => TransactionById.rpc(x._2).value.map((x._1, _)))
       .takeWhile(_._2.isLeft, inclusive = true)
-      .runFold((false, 0))((_, x) => (x._2.isRight, x._1))
+      .runFold(TransactionUnconfirmed(txId): TransactionResult) {
+        case (x: TransactionConfirmed, _) => x
+        case (_, (time, result)) if result.isRight => TransactionConfirmed(txId, time)
+        case _ => TransactionUnconfirmed(txId)
+      }
 }

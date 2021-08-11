@@ -12,6 +12,7 @@ import co.topl.akkahttprpc.{RequestModifier, RpcClientFailure}
 import co.topl.attestation.Address
 import co.topl.loadtesting.KeysActor
 import co.topl.loadtesting.PolyUserActor.NoContacts
+import co.topl.modifier.box.AssetCode
 import co.topl.rpc.ToplRpc
 import co.topl.rpc.ToplRpc.Transaction.BroadcastTx
 import co.topl.utils.NetworkType.NetworkPrefix
@@ -28,6 +29,15 @@ object TransactionActor {
     replyTo: ActorRef[Either[RpcClientFailure, BroadcastTx.Response]]
   ) extends Command
 
+  case class SendAssets(
+    from:    Address,
+    to:      Address,
+    code:    AssetCode,
+    amount:  Int,
+    minting: Boolean,
+    replyTp: ActorRef[Either[RpcClientFailure, BroadcastTx.Response]]
+  ) extends Command
+
   case class GetBalance(replyTo: ActorRef[Either[RpcClientFailure, ToplRpc.NodeView.Balances.Response]]) extends Command
 
   def apply(keys:    ActorRef[KeysActor.Command], addr: Address)(implicit
@@ -40,19 +50,20 @@ object TransactionActor {
       implicit val ec: ExecutionContext = context.executionContext
       implicit val actorSystem: ActorSystem = context.system.classicSystem
 
-      update(keys, addr)
+      withState(keys, addr)
     }
 
-  def update(keys:   ActorRef[KeysActor.Command], address: Address)(implicit
-    netPrefix:       NetworkPrefix,
-    requestModifier: RequestModifier,
-    system:          ActorSystem,
-    scheduler:       Scheduler,
-    timeout:         Timeout,
-    ec:              ExecutionContext
+  def withState(keys: ActorRef[KeysActor.Command], address: Address)(implicit
+    netPrefix:        NetworkPrefix,
+    requestModifier:  RequestModifier,
+    system:           ActorSystem,
+    scheduler:        Scheduler,
+    timeout:          Timeout,
+    ec:               ExecutionContext
   ): Behavior[TransactionActor.Command] =
     Behaviors.receive { (context, message) =>
       message match {
+
         case SendPolys(to, amount, replyTo) =>
           context.log.debug(s"sending $amount polys from $address to $to")
 
@@ -64,10 +75,23 @@ object TransactionActor {
               case Right(value)  => value
               case Left(failure) => failure.asLeft
             }
-            .to(Sink.foreach(replyTo ! _))
-            .run()
+            .runForeach(replyTo ! _)
 
           Behaviors.same
+
+        case SendAssets(from, to, code, amount, minting, replyTo) =>
+          Source
+            .single(AssetTransferFlow.Req(code, amount, minting, from, to))
+            .via(AssetTransferFlow(keys))
+            .viaRight(BroadcastFlow())
+            .map {
+              case Right(value) => value
+              case Left(failure) => failure.asLeft
+            }
+            .runForeach(replyTo ! _)
+
+          Behaviors.same
+
         case GetBalance(replyTo) =>
           context.log.debug(s"retrieving balance of $address")
 
@@ -75,8 +99,7 @@ object TransactionActor {
             .single(address)
             .via(BalanceFlow())
             .wireTap(x => context.log.debug(s"result of balance request: $x"))
-            .to(Sink.foreach(replyTo ! _))
-            .run()
+            .runForeach(replyTo ! _)
 
           Behaviors.same
       }

@@ -48,14 +48,14 @@ object PolyUserActor {
     requestModifier: RequestModifier
   ): Behavior[Command] =
     Behaviors.setup { context =>
-      val txActor = context.spawn(TransactionActor(keys, addr), s"TransactionActor_$addr")
+      val txActor = context.spawn(TransactionActor(keys, addr), s"TransactionActor_PolyUser_$addr")
       implicit val system: ActorSystem = context.system.classicSystem
       implicit val ec: ExecutionContext = context.executionContext
 
-      update(0, addr, keys, txActor, List(), statsPath)
+      withState(0, addr, keys, txActor, List(), statsPath)
     }
 
-  def update(
+  def withState(
               balance:          Int,
               addr:             Address,
               keys:             ActorRef[KeysActor.Command],
@@ -74,7 +74,7 @@ object PolyUserActor {
 
         case AddContacts(users) =>
           context.log.debug(s"${users.length} new contacts added to $addr contacts list")
-          update(balance, addr, keys, transactionActor, contacts ++ users, statsPath)
+          withState(balance, addr, keys, transactionActor, contacts ++ users, statsPath)
 
         case UpdateBalance(replyTo: ActorRef[NotUsed]) =>
           context.log.debug(s"updating balance for address $addr")
@@ -99,7 +99,7 @@ object PolyUserActor {
 
           replyTo ! NotUsed
 
-          update(balance, addr, keys, transactionActor, contacts, statsPath)
+          withState(balance, addr, keys, transactionActor, contacts, statsPath)
 
         case TrySendPolys(replyTo) =>
           val transactionRequest = for {
@@ -126,8 +126,7 @@ object PolyUserActor {
               case Left(err: RpcClientFailure) => RpcFailure(err).asLeft
               case Right(response) => response.asRight
             }
-            .to(Sink.foreach(replyTo ! _))
-            .run()
+            .runForeach(replyTo ! _)
 
           Behaviors.same
       }
