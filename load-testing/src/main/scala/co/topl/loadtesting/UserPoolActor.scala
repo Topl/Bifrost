@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.stream.Materializer
-import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.stream.scaladsl.{Flow, Source}
 import akka.util.Timeout
 import akka.{Done, NotUsed}
 import cats.Show
@@ -22,6 +22,10 @@ import scala.concurrent.ExecutionContext
 import scala.util.Random
 
 object UserPoolActor {
+
+  case class UserData(address: Address, actorRef: ActorRef[UserActor.Command])
+
+  case class PoolState(users: List[UserData], keys: ActorRef[KeysActor.Command], statisticsFile: String)
 
   sealed trait PolyTransferResult
   case class PolyTransferSuccess(txId: ModifierId, confirmationDelay: Int) extends PolyTransferResult
@@ -66,12 +70,11 @@ object UserPoolActor {
     }
   }
 
-  import PolyTransferResult._
   import AssetTransferResult._
+  import PolyTransferResult._
 
   sealed trait Command
   case class AddUsers(addresses: Set[Address]) extends Command
-  case class UserPolyLoop(user: PolyUserActor.UserData) extends Command
 
   private val transactionTrackingTimeout = 60
 
@@ -85,8 +88,8 @@ object UserPoolActor {
     actorSystem:      ActorSystem,
     requestModifier:  RequestModifier,
     executionContext: ExecutionContext
-  ): Flow[Either[PolyUserActor.SendPolysFailure, Response], Option[PolyTransferResult], NotUsed] =
-    Flow[Either[PolyUserActor.SendPolysFailure, BroadcastTx.Response]]
+  ): Flow[Either[UserActor.SendPolysFailure, Response], Option[PolyTransferResult], NotUsed] =
+    Flow[Either[UserActor.SendPolysFailure, BroadcastTx.Response]]
       .viaRight(
         Flow[BroadcastTx.Response]
           .mapAsync(1)(r => TransactionTracker(transactionTrackingTimeout, r.id))
@@ -97,11 +100,11 @@ object UserPoolActor {
           .map(_.some)
       )
       .viaLeft(
-        Flow[PolyUserActor.SendPolysFailure]
+        Flow[UserActor.SendPolysFailure]
           .map {
-            case PolyUserActor.NotEnoughPolys(_)   => None
-            case PolyUserActor.NoContacts          => None
-            case PolyUserActor.RpcFailure(failure) => PolyTransferFailure(failure).some
+            case UserActor.NotEnoughPolysForPolyTx(_) => None
+            case UserActor.NoContacts                 => None
+            case UserActor.PolysRpcFailure(failure)   => PolyTransferFailure(failure).some
           }
       )
       .map {
@@ -114,8 +117,8 @@ object UserPoolActor {
     actorSystem:      ActorSystem,
     requestModifier:  RequestModifier,
     executionContext: ExecutionContext
-  ): Flow[Either[AssetUserActor.SendAssetsFailure, Response], Option[AssetTransferResult], NotUsed] =
-    Flow[Either[AssetUserActor.SendAssetsFailure, BroadcastTx.Response]]
+  ): Flow[Either[UserActor.SendAssetsFailure, Response], Option[AssetTransferResult], NotUsed] =
+    Flow[Either[UserActor.SendAssetsFailure, BroadcastTx.Response]]
       .viaRight(
         Flow[BroadcastTx.Response]
           .mapAsync(1)(r => TransactionTracker(transactionTrackingTimeout, r.id))
@@ -126,8 +129,8 @@ object UserPoolActor {
           .map(_.some)
       )
       .viaLeft(
-        Flow[AssetUserActor.SendAssetsFailure]
-          .map { case AssetUserActor.RpcFailure(failure) =>
+        Flow[UserActor.SendAssetsFailure]
+          .map { case UserActor.AssetsRpcFailure(failure) =>
             AssetTransferFailure(failure).some
           }
       )
@@ -136,11 +139,11 @@ object UserPoolActor {
         case Right(value) => value
       }
 
-  private def polyUserLoop(user: PolyUserActor.UserData, statsFile: String)(implicit
-    networkPrefix:               NetworkPrefix,
-    requestModifier:             RequestModifier,
-    timeout:                     Timeout,
-    parentContext:               ActorContext[_]
+  private def userLoop(user: UserData, statsFile: String)(implicit
+    networkPrefix:           NetworkPrefix,
+    requestModifier:         RequestModifier,
+    timeout:                 Timeout,
+    parentContext:           ActorContext[_]
   ): Behavior[Done] =
     LoopActor[Done](
       { (_, loopContext) =>
@@ -151,56 +154,68 @@ object UserPoolActor {
         // wait between 100 and 1000 ms
         Thread.sleep(new Random().between(100, 1000))
 
+        val random = new Random()
+        val sendPolys = random.nextBoolean()
+
         Source
           .single(NotUsed)
-          .via(tryPolyTxFlow(user.actorRef))
-          .via(trackPolyTx)
-          .via(filterByDefinedFlow)
-          .wireTap(logToConsoleSink[PolyTransferResult])
-          .wireTap(StatisticsSink[PolyTransferResult](statsFile))
+          .via(
+            if (sendPolys)
+              tryPolyTxFlow(user.actorRef)
+                .via(trackPolyTx)
+                .via(filterByDefinedFlow)
+                .wireTap(logToConsoleSink[PolyTransferResult])
+                .wireTap(StatisticsSink[PolyTransferResult](statsFile))
+                .map(_ => NotUsed)
+            else
+              tryAssetTxFlow(user.actorRef)
+                .via(trackAssetTx)
+                .via(filterByDefinedFlow)
+                .wireTap(logToConsoleSink[AssetTransferResult])
+                .wireTap(StatisticsSink[AssetTransferResult](statsFile))
+                .map(_ => NotUsed)
+          )
           .run()
       },
       _ => Done
     )
 
-  private def assetUserLoop(user: AssetUserActor.UserData, statsFile: String)(implicit
-    networkPrefix:                NetworkPrefix,
-    requestModifier:              RequestModifier,
-    timeout:                      Timeout,
-    parentContext:                ActorContext[_]
-  ): Behavior[Done] =
-    LoopActor[Done](
-      { (_, loopContext) =>
-        implicit val loopMaterializer: Materializer = Materializer(loopContext)
-        implicit val loopActorSystem: ActorSystem = loopContext.system.classicSystem
-        implicit val loopEc: ExecutionContext = loopContext.executionContext
+  private def addUsers(users: Set[Address], state: PoolState, context: ActorContext[Command])(implicit
+    networkPrefix:            NetworkPrefix,
+    timeout:                  Timeout,
+    requestModifier:          RequestModifier
+  ) = {
+    val newUsers =
+      users.map(addr => UserData(addr, context.spawn(UserActor(addr, state.keys, state.statisticsFile), addr.toString)))
 
-        // wait between 100 and 1000 ms
-        Thread.sleep(new Random().between(100, 1000))
+    // add new users to existing users contacts
+    state.users.foreach(_.actorRef ! UserActor.AddContacts(newUsers.map(_.address).toList))
 
-        Source
-          .single(NotUsed)
-          .via(tryAssetTxFlow(user.actorRef))
-          .via(trackAssetTx)
-          .via(filterByDefinedFlow)
-          .wireTap(logToConsoleSink[AssetTransferResult])
-          .wireTap(StatisticsSink[AssetTransferResult](statsFile))
-          .run()
-      },
-      _ => Done
-    )
+    // add new users to all new users contacts (including selves)
+    newUsers.foreach(_.actorRef ! UserActor.AddContacts(newUsers.map(_.address).toList))
+
+    // add existing users to all new users contacts
+    newUsers.foreach(_.actorRef ! UserActor.AddContacts(state.users.map(_.address)))
+
+    implicit val parentContext: ActorContext[Command] = context
+
+    // start new users
+    newUsers.foreach { user =>
+      val loopActor = context.spawn(userLoop(user, state.statisticsFile), s"UserLoop_${user.address.toString}")
+      loopActor ! Done
+    }
+
+    withState(state.copy(users = state.users ++ newUsers))
+  }
 
   def apply(
     keys:                   ActorRef[KeysActor.Command],
     statsFile:              String
   )(implicit networkPrefix: NetworkPrefix, timeout: Timeout, requestModifier: RequestModifier): Behavior[Command] =
-    withState(List(), List(), keys, statsFile)
+    withState(PoolState(List(), keys, statsFile))
 
   def withState(
-    polyUsers:  List[PolyUserActor.UserData],
-    assetUsers: List[AssetUserActor.UserData],
-    keys:       ActorRef[KeysActor.Command],
-    statsFile:  String
+    state: PoolState
   )(implicit
     networkPrefix:   NetworkPrefix,
     timeout:         Timeout,
@@ -212,49 +227,7 @@ object UserPoolActor {
       implicit val ec: ExecutionContext = context.executionContext
 
       message match {
-        case AddUsers(addresses) =>
-          val newPolyUsers =
-            addresses.map(addr =>
-              PolyUserActor.UserData(
-                addr,
-                context.spawn(PolyUserActor(addr, keys, statsFile), s"PolyUser_${addr.toString}")
-              )
-            )
-
-          val newAssetUsers =
-            addresses.map(addr =>
-              AssetUserActor.UserData(
-                addr,
-                context.spawn(AssetUserActor(addr, keys, statsFile), s"AssetUser_${addr.toString}")
-              )
-            )
-
-          // add new users to existing users contacts
-          polyUsers.foreach(_.actorRef ! PolyUserActor.AddContacts(newPolyUsers.toList))
-          assetUsers.foreach(_.actorRef ! AssetUserActor.AddContacts(newAssetUsers.toList))
-
-          // add new users to all new users contacts (including selves)
-          newPolyUsers.foreach(_.actorRef ! PolyUserActor.AddContacts(newPolyUsers.toList))
-          newAssetUsers.foreach(_.actorRef ! AssetUserActor.AddContacts(newAssetUsers.toList))
-
-          // add existing users to all new users contacts
-          newPolyUsers.foreach(_.actorRef ! PolyUserActor.AddContacts(polyUsers))
-          newAssetUsers.foreach(_.actorRef ! AssetUserActor.AddContacts(assetUsers))
-
-          implicit val parentContext: ActorContext[Command] = context
-
-          // start new users
-          newPolyUsers.foreach { user =>
-            val loopActor = context.spawn(polyUserLoop(user, statsFile), s"PolyUserLoop_${user.addr}")
-            loopActor ! Done
-          }
-
-          newAssetUsers.foreach { user =>
-            val loopActor = context.spawn(assetUserLoop(user, statsFile), s"AssetUserLoop_${user.addr}")
-            loopActor ! Done
-          }
-
-          withState(polyUsers ++ newPolyUsers, assetUsers ++ newAssetUsers, keys, statsFile)
+        case AddUsers(addresses) => addUsers(addresses, state, context)
       }
     }
 }

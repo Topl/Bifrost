@@ -22,9 +22,9 @@ object SimulationActor {
   case object Stop extends Command
 
   def apply(statsFile: String)(implicit
-    networkPrefix:   NetworkPrefix,
-    timeout:         Timeout,
-    requestModifier: RequestModifier
+    networkPrefix:     NetworkPrefix,
+    timeout:           Timeout,
+    requestModifier:   RequestModifier
   ): Behavior[Command] =
     Behaviors.setup { context =>
       val keys = context.spawn(KeysActor(), "keys")
@@ -41,7 +41,6 @@ object SimulationActor {
 
       message match {
         case AddUsers(numUsers, seed) =>
-
           val createKeysFlow: Flow[Any, Try[Set[Address]], NotUsed] =
             ActorFlow.ask(keys)((_: Any, replyTo: ActorRef[Try[Set[Address]]]) =>
               KeysActor.GenerateKeyPairs(seed, numUsers, replyTo)

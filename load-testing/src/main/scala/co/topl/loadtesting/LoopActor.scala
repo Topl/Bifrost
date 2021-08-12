@@ -20,7 +20,7 @@ object LoopActor {
         case state: State =>
           context.pipeToSelf(behavior(state, context)) {
             case Success(state) => state
-            case Failure(err)    => onFailure(err)
+            case Failure(err)   => onFailure(err)
           }
           Behaviors.same
       }

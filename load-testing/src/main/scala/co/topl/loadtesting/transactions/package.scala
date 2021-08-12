@@ -9,10 +9,10 @@ import scala.collection.immutable.ListMap
 import scala.concurrent.Future
 
 package object transactions {
-  def signMessage(address: Address,
-                          message: Array[Byte],
-                          keys: ActorRef[KeysActor.Command]
-                         )(implicit timeout: Timeout, scheduler: Scheduler
-                         ): Future[ListMap[PublicKeyPropositionCurve25519, SignatureCurve25519]] =
+
+  def signMessage(address: Address, message: Array[Byte], keys: ActorRef[KeysActor.Command])(implicit
+    timeout:               Timeout,
+    scheduler:             Scheduler
+  ): Future[ListMap[PublicKeyPropositionCurve25519, SignatureCurve25519]] =
     keys.ask(KeysActor.SignMessage(address, message, _))
 }

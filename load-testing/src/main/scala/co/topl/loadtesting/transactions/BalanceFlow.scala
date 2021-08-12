@@ -16,11 +16,11 @@ import scala.concurrent.ExecutionContext
 object BalanceFlow {
 
   def apply()(implicit
-           networkPrefix: NetworkPrefix,
-           classicSystem: ActorSystem,
-           requestModifier: RequestModifier,
-           executionContext: ExecutionContext
-          ): Flow[Address, Either[RpcClientFailure, Response], NotUsed] =
+    networkPrefix:    NetworkPrefix,
+    classicSystem:    ActorSystem,
+    requestModifier:  RequestModifier,
+    executionContext: ExecutionContext
+  ): Flow[Address, Either[RpcClientFailure, Response], NotUsed] =
     Flow[Address]
       .map(List(_))
       .map(Balances.Params)

@@ -36,7 +36,7 @@ object AssetTransferFlow {
       data = None
     )
 
-  def apply(keys: ActorRef[KeysActor.Command])(implicit
+  def apply(keys:    ActorRef[KeysActor.Command])(implicit
     networkPrefix:   NetworkPrefix,
     requestModifier: RequestModifier,
     ec:              ExecutionContext,

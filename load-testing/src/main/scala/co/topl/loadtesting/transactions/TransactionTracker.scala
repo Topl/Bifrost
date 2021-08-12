@@ -18,21 +18,20 @@ object TransactionTracker {
   case class TransactionConfirmed(txId: ModifierId, seconds: Int) extends TransactionResult
   case class TransactionUnconfirmed(txId: ModifierId) extends TransactionResult
 
-  def apply(wait: Int, txId: ModifierId)
-           (implicit
-            networkPrefix: NetworkPrefix,
-            actorSystem: ActorSystem,
-            requestModifier: RequestModifier,
-            ec: ExecutionContext
-           ): Future[TransactionResult] =
+  def apply(wait:    Int, txId: ModifierId)(implicit
+    networkPrefix:   NetworkPrefix,
+    actorSystem:     ActorSystem,
+    requestModifier: RequestModifier,
+    ec:              ExecutionContext
+  ): Future[TransactionResult] =
     Source(1 to wait)
       .throttle(1, 1.second)
       .map(count => (count, TransactionById.Params(txId)))
       .mapAsync(1)(x => TransactionById.rpc(x._2).value.map((x._1, _)))
       .takeWhile(_._2.isLeft, inclusive = true)
       .runFold(TransactionUnconfirmed(txId): TransactionResult) {
-        case (x: TransactionConfirmed, _) => x
+        case (x: TransactionConfirmed, _)          => x
         case (_, (time, result)) if result.isRight => TransactionConfirmed(txId, time)
-        case _ => TransactionUnconfirmed(txId)
+        case _                                     => TransactionUnconfirmed(txId)
       }
 }

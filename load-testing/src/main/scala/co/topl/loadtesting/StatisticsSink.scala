@@ -3,14 +3,8 @@ package co.topl.loadtesting
 import akka.NotUsed
 import akka.stream.scaladsl.{FileIO, Flow, Sink}
 import akka.util.ByteString
-import simulacrum.typeclass
 
 import java.nio.file.{Paths, StandardOpenOption}
-
-@typeclass
-trait ToStatisticsCsvLog[T] {
-  def toLog(t: T): String
-}
 
 object StatisticsSink {
 

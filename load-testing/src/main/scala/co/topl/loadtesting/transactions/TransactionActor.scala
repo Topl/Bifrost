@@ -1,17 +1,14 @@
 package co.topl.loadtesting.transactions
 
-import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.actor.typed.{ActorRef, Behavior, Scheduler}
-import akka.stream.scaladsl.{Sink, Source}
 import akka.actor.typed.scaladsl.Behaviors
-import akka.stream.typed.scaladsl.ActorSink
+import akka.actor.typed.{ActorRef, Behavior, Scheduler}
+import akka.stream.scaladsl.Source
 import akka.util.Timeout
 import cats.implicits._
 import co.topl.akkahttprpc.{RequestModifier, RpcClientFailure}
 import co.topl.attestation.Address
 import co.topl.loadtesting.KeysActor
-import co.topl.loadtesting.PolyUserActor.NoContacts
 import co.topl.modifier.box.AssetCode
 import co.topl.rpc.ToplRpc
 import co.topl.rpc.ToplRpc.Transaction.BroadcastTx
@@ -85,7 +82,7 @@ object TransactionActor {
             .via(AssetTransferFlow(keys))
             .viaRight(BroadcastFlow())
             .map {
-              case Right(value) => value
+              case Right(value)  => value
               case Left(failure) => failure.asLeft
             }
             .runForeach(replyTo ! _)

@@ -5,7 +5,7 @@ import akka.util.Timeout
 import co.topl.client.Provider
 import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType._
-import mainargs.{arg, main, ParserForMethods, TokensReader}
+import mainargs.{ParserForMethods, TokensReader, arg, main}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
@@ -42,7 +42,7 @@ object LoadTestingApp {
     @arg(short = 'u') uri:            String,
     @arg(short = 'a') apiKey:         String,
     @arg(short = 's') seed:           String = "test",
-    @arg(short = 's') statisticsPath: String = "./stats.csv",
+    @arg(short = 'o') statisticsPath: String = "./stats.csv",
     @arg(short = 't') timeoutSeconds: Int = 30
   ): Unit = {
     val provider: Provider = network match {

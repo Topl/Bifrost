@@ -33,13 +33,13 @@ object PolyTransferFlow {
       data = None
     )
 
-  def apply(keys: ActorRef[KeysActor.Command])(implicit
-                                              networkPrefix: NetworkPrefix,
-                                              requestModifier: RequestModifier,
-                                              ec: ExecutionContext,
-                                              actorSystem: ActorSystem,
-                                              timeout: Timeout,
-                                              scheduler: Scheduler
+  def apply(keys:    ActorRef[KeysActor.Command])(implicit
+    networkPrefix:   NetworkPrefix,
+    requestModifier: RequestModifier,
+    ec:              ExecutionContext,
+    actorSystem:     ActorSystem,
+    timeout:         Timeout,
+    scheduler:       Scheduler
   ): Flow[Req, Either[RpcClientFailure, PolyTransfer[PublicKeyPropositionCurve25519]], NotUsed] =
     Flow[Req]
       .map(params)
@@ -47,11 +47,11 @@ object PolyTransferFlow {
       .viaRight(
         Flow[RawPolyTransfer.Response]
           .map(_.rawTx)
-          .mapAsync(1)(tx => {
+          .mapAsync(1) { tx =>
             for {
               signedTx <- signMessage(tx.from.head._1, tx.messageToSign, keys)
             } yield tx.copy(attestation = signedTx)
-          })
+          }
       )
 
 }

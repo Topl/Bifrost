@@ -16,12 +16,13 @@ import scala.concurrent.ExecutionContext
 
 object BroadcastFlow {
 
-  def apply()(
-            implicit requestModifier: RequestModifier,
-            ec: ExecutionContext, materializer: Materializer,
-            classicSystem: ActorSystem,
-            networkPrefix: NetworkPrefix
-          ): Flow[TX, Either[RpcClientFailure, Response], NotUsed] =
+  def apply()(implicit
+    requestModifier: RequestModifier,
+    ec:              ExecutionContext,
+    materializer:    Materializer,
+    classicSystem:   ActorSystem,
+    networkPrefix:   NetworkPrefix
+  ): Flow[TX, Either[RpcClientFailure, Response], NotUsed] =
     Flow[TX]
       .map(BroadcastTx.Params)
       .mapAsync(1)(BroadcastTx.rpc(_).value)
