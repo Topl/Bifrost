@@ -1,13 +1,11 @@
 package co.topl.consensus.genesis
 
-import co.topl.attestation.EvidenceProducer.Syntax._
-import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.attestation.SignatureCurve25519
 import co.topl.consensus.Forger.ChainParams
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
-import co.topl.modifier.box.{ArbitBox, SimpleValue}
-import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
+import co.topl.modifier.box.SimpleValue
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.{Int128, NetworkType}
@@ -20,7 +18,7 @@ case object HelGenesis extends GenesisProvider {
   implicit val networkPrefix: NetworkPrefix = NetworkType.HelTestnet.netPrefix
 
   override protected val blockChecksum: ModifierId =
-    ModifierId.fromBase58(Base58Data.unsafe("29jsARiMtRqoE5Z8okN6fddDVN4HHeDb7vdvsaEPVzgXD"))
+    ModifierId.fromBase58(Base58Data.unsafe("vKjyX77HLRUiihjWofSsacNEdDGMaJpNJTQMXkRyJkP2"))
 
   override protected val blockVersion: PNVMVersion = 1: Byte
 
@@ -51,40 +49,15 @@ case object HelGenesis extends GenesisProvider {
 
   def getGenesisBlock: Try[(Block, ChainParams)] = Try {
 
-    val txInput = (
+    val txInput: GenesisTransactionParams = GenesisTransactionParams(
       IndexedSeq(),
       memberKeys.zip(members.values.map(SimpleValue(_))).toIndexedSeq,
       ListMap(genesisAcctCurve25519.publicImage -> SignatureCurve25519.genesis),
       Int128(0),
       0L,
       None,
-      true
+      minting = true
     )
-
-    val txs = Seq(
-      ArbitTransfer[PublicKeyPropositionCurve25519](
-        txInput._1,
-        txInput._2,
-        txInput._3,
-        txInput._4,
-        txInput._5,
-        txInput._6,
-        txInput._7
-      ),
-      PolyTransfer[PublicKeyPropositionCurve25519](
-        txInput._1,
-        txInput._2,
-        txInput._3,
-        txInput._4,
-        txInput._5,
-        txInput._6,
-        txInput._7
-      )
-    )
-
-    val generatorBox = ArbitBox(genesisAcctCurve25519.publicImage.generateEvidence, 0, SimpleValue(totalStake))
-
-    val signature = SignatureCurve25519.genesis
 
     val block =
       Block(
@@ -95,7 +68,7 @@ case object HelGenesis extends GenesisProvider {
         signature,
         1L,
         initialDifficulty,
-        txs,
+        generateGenesisTransaction(txInput),
         blockVersion
       )
 
@@ -105,7 +78,7 @@ case object HelGenesis extends GenesisProvider {
       s"with id ${block.id} does not match the required block for the chosen network mode.${Console.RESET}"
     )
 
-    log.debug(s"Initialize state with transaction ${txs.head} with boxes ${txs.head.newBoxes}")
+    log.debug(s"Initialize state with block $block")
 
     (block, ChainParams(totalStake, initialDifficulty))
   }
