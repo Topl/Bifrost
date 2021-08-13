@@ -15,11 +15,15 @@ import co.topl.rpc.ToplRpc
 import co.topl.rpc.ToplRpc.Transaction.RawPolyTransfer
 import co.topl.rpc.implicits.client._
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.StringDataTypes.Latin1Data
 import com.nike.fleam.implicits._
 
 import scala.concurrent.ExecutionContext
+import scala.util.Random
 
 object PolyTransferFlow {
+
+  private val random = new Random()
 
   case class Req(from: Address, to: Address, amount: Int)
 
@@ -30,7 +34,7 @@ object PolyTransferFlow {
       recipients = NonEmptyChain((request.to, request.amount)),
       fee = 100,
       changeAddress = request.from,
-      data = None
+      data = Some(Latin1Data.unsafe(random.alphanumeric.take(random.between(0, 127)).mkString))
     )
 
   def apply(keys:    ActorRef[KeysActor.Command])(implicit

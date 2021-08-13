@@ -16,11 +16,15 @@ import co.topl.rpc.ToplRpc
 import co.topl.rpc.ToplRpc.Transaction.RawAssetTransfer
 import co.topl.rpc.implicits.client._
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.StringDataTypes.Latin1Data
 import com.nike.fleam.implicits._
 
 import scala.concurrent.ExecutionContext
+import scala.util.Random
 
 object AssetTransferFlow {
+
+  private val random = new Random()
 
   case class Req(assetCode: AssetCode, amount: Int, minting: Boolean, from: Address, to: Address)
 
@@ -33,7 +37,7 @@ object AssetTransferFlow {
       changeAddress = request.from,
       consolidationAddress = request.from,
       minting = request.minting,
-      data = None
+      data = Some(Latin1Data.unsafe(random.alphanumeric.take(random.between(0, 127)).mkString))
     )
 
   def apply(keys:    ActorRef[KeysActor.Command])(implicit

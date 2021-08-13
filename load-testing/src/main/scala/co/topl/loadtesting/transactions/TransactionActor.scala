@@ -3,6 +3,7 @@ package co.topl.loadtesting.transactions
 import akka.actor.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior, Scheduler}
+import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 import akka.util.Timeout
 import cats.implicits._
@@ -59,6 +60,8 @@ object TransactionActor {
     ec:               ExecutionContext
   ): Behavior[TransactionActor.Command] =
     Behaviors.receive { (context, message) =>
+      implicit val materializer: Materializer = Materializer(context)
+
       message match {
 
         case SendPolys(to, amount, replyTo) =>
