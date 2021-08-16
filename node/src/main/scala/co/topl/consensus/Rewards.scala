@@ -21,7 +21,10 @@ object ArbitReward {
   ): ArbitTransfer[PublicKeyPropositionCurve25519] =
     ArbitTransfer(
       IndexedSeq(),
-      IndexedSeq((rewardAdr, SimpleValue(consensusStorage.inflation))), //TODO: fix `feeChagngeOutput` bug #1536
+      IndexedSeq(
+        (rewardAdr, SimpleValue(0)), // feeChangeOutput (Polys)
+        (rewardAdr, SimpleValue(consensusStorage.inflation)) // coinOutput (Arbits)
+      ),
       ListMap[PublicKeyPropositionCurve25519, SignatureCurve25519](),
       fee,
       forgeTime,

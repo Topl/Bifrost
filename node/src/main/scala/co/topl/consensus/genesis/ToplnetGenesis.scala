@@ -24,7 +24,7 @@ case object ToplnetGenesis extends GenesisProvider {
 
   override protected val initialDifficulty: Long = 1000000000000000000L
 
-  override protected val members: ListMap[String, Int128] = ListMap(
+  override protected[genesis] val members: ListMap[String, Int128] = ListMap(
     "9caWb2hfQdRceaSBdhh9yxNTyVzTKvDn5HEUdi2oaQ77hpZRhPS" -> 10000000000000000L,
     "9dGWgpcR7kJw2HsWNPed4J7e8Vn61vwKHwLjrUawuXR1vcYC4QB" -> 10000000000000000L,
     "9d42DjKEQ2CTiC6sF8WjLGGTrr7wRYWDB1urGVvBJkQRDYvxyFf" -> 10000000000000000L,
