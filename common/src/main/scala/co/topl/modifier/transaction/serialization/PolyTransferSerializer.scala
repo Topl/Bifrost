@@ -8,7 +8,7 @@ import co.topl.modifier.transaction.PolyTransfer
 import co.topl.utils.Extensions._
 import co.topl.utils.Int128
 import co.topl.utils.StringDataTypes.implicits._
-import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
+import co.topl.utils.serialization.{stringCharacterSet, BifrostSerializer, Reader, Writer}
 import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.StringDataTypes.implicits._
 
@@ -50,7 +50,7 @@ object PolyTransferSerializer extends BifrostSerializer[PolyTransfer[_ <: Propos
 
     /* data: Option[String] */
     w.putOption(obj.data) { (writer, d) =>
-      writer.putByteString(new String(d.value))
+      writer.putByteString(new String(d.value, stringCharacterSet))
     }
 
     /* minting: Boolean */
