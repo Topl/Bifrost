@@ -1,8 +1,8 @@
 package co.topl.db
 
-import java.util.concurrent.locks.ReentrantReadWriteLock
 import org.iq80.leveldb.{DB, ReadOptions}
 
+import java.util.concurrent.locks.ReentrantReadWriteLock
 import scala.collection.mutable
 import scala.util.Try
 

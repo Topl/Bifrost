@@ -9,7 +9,7 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.Box.Nonce
-import co.topl.modifier.box.{ProgramId, _}
+import co.topl.modifier.box._
 import co.topl.modifier.transaction._
 import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.codecs.implicits._
@@ -85,7 +85,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   private lazy val tinyIntMax = 10
   private lazy val medIntMax = 100
 
-  private lazy val int128Min: Int128 = Int128.MaxValue
+  private lazy val int128Min: Int128 = Int128.MinValue
   private lazy val int128Max: Int128 = Int128.MaxValue
 
   implicit lazy val int128Chooser: Gen.Choose[Int128] =

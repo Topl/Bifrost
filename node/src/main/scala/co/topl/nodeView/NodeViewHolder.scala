@@ -1,10 +1,10 @@
 package co.topl.nodeView
 
 import akka.Done
+import akka.actor.typed._
 import akka.actor.typed.eventstream.EventStream
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl._
-import akka.actor.typed._
 import akka.pattern.StatusReply
 import akka.util.Timeout
 import cats.Show

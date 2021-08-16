@@ -10,7 +10,6 @@ import akka.actor.{
   OneForOneStrategy,
   Props
 }
-import akka.util.Timeout
 import co.topl.modifier.block.{Block, BlockHeader}
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.Broadcast
@@ -22,7 +21,6 @@ import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Logging, TimeProvider}
 
-import scala.concurrent.Future
 import scala.concurrent.duration._
 
 /**

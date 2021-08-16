@@ -1,11 +1,5 @@
 package requests
 
-import akka.actor.{Actor, ActorRef}
-import akka.pattern.{ask, pipe}
-import akka.util.Timeout
-import io.circe.Json
-import utils.Logging
-
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 

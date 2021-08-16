@@ -4,12 +4,12 @@ import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.crypto.PublicKey
 import co.topl.modifier.box.{CodeBox, StateBox}
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.codecs.implicits._
 import co.topl.utils.exceptions.{ChainProgramException, JsonParsingException}
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.{Context, Value}
-import co.topl.utils.codecs.implicits._
-import co.topl.utils.StringDataTypes.Base58Data
 
 import scala.util.Try
 

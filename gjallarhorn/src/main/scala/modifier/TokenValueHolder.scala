@@ -1,12 +1,5 @@
 package modifier
 
-import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.codecs.implicits._
-import crypto.{AssetCode, SecurityRoot}
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, HCursor}
-import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
-
 /**
  * An abstract class for the type of values (or tokens) held in boxes
  * @param quantity the quantity of the value held in the box

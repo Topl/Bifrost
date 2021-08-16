@@ -1,7 +1,7 @@
 package cats.scalatest
 
-import org.scalatest.matchers.{MatchResult, Matcher}
 import cats.data.ValidatedNec
+import org.scalatest.matchers.{MatchResult, Matcher}
 
 trait ValidatedNecMatchers {
 

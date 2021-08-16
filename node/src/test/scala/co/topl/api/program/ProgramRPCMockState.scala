@@ -4,7 +4,6 @@ import co.topl.api.RPCMockState
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.box._
-import co.topl.nodeView.state
 import co.topl.utils.GeneratorOps.GeneratorOps
 import io.circe.syntax._
 import org.scalatest.matchers.should

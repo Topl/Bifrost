@@ -1,7 +1,5 @@
 package settings
 
-import attestation.AddressEncoder.NetworkPrefix
-
 sealed abstract class NetworkType(
   val verboseName:      String,
   val netPrefix:        NetworkPrefix,

@@ -5,8 +5,8 @@ import cats.data.{Validated, Writer}
 import cats.implicits._
 import co.topl.attestation.Address
 import co.topl.consensus.Hiccups.HiccupBlock
-import co.topl.consensus.{Forger, Hiccups}
 import co.topl.consensus.KeyManager.StartupKeyView
+import co.topl.consensus.{Forger, Hiccups}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ProgramId

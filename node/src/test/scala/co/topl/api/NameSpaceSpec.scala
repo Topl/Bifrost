@@ -2,7 +2,7 @@ package co.topl.api
 
 import akka.actor.typed.scaladsl.adapter._
 import akka.http.scaladsl.server.Route
-import akka.util.{ByteString, Timeout}
+import akka.util.ByteString
 import co.topl.akkahttprpc.MethodNotFoundError
 import co.topl.akkahttprpc.ThrowableSupport.Standard._
 import co.topl.consensus.{ActorForgerInterface, ActorKeyManagerInterface}

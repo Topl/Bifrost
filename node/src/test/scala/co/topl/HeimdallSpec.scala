@@ -4,8 +4,8 @@ import akka.actor.testkit.typed.scaladsl.{ManualTime, ScalaTestWithActorTestKit}
 import co.topl.nodeView.NodeViewTestHelpers
 import co.topl.utils.{CommonGenerators, InMemoryKeyFileTestHelper, TestSettings}
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{Inspectors, OptionValues}
 import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.{Inspectors, OptionValues}
 
 import java.nio.file.Files
 

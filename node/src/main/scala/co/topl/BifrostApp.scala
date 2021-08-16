@@ -1,13 +1,7 @@
 package co.topl
 
 import akka.actor.typed._
-import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.Transaction
-import co.topl.network.message.BifrostSyncInfo
 import co.topl.network.utils.UPnPGateway
-import co.topl.nodeView.history.History
-import co.topl.nodeView.mempool.MemPool
-import co.topl.nodeView.state.State
 import co.topl.settings._
 import co.topl.utils.Logging
 import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}

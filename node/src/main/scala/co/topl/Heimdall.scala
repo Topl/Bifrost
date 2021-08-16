@@ -1,8 +1,8 @@
 package co.topl
 
+import akka.actor.typed._
 import akka.actor.typed.scaladsl.adapter._
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import akka.actor.typed._
 import akka.actor.{ActorRef => CActorRef}
 import akka.http.scaladsl.Http
 import akka.io.{IO, Tcp}

@@ -1,7 +1,7 @@
 package co.topl.db
 
-import org.iq80.leveldb.DB
 import co.topl.utils.Logging
+import org.iq80.leveldb.DB
 
 /**
  * A LevelDB wrapper providing a convenient non-versioned database interface.

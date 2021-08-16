@@ -1,24 +1,6 @@
-import _root_.requests.{Requests, RequestsManager}
-import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.pattern.ask
-import akka.util.{ByteString, Timeout}
-import attestation.AddressEncoder.NetworkPrefix
-import attestation.{Address, PublicKeyPropositionCurve25519}
-import crypto.AssetCode
-import io.circe.{Json, parser}
-import keymanager.KeyManager.GenerateKeyFile
-import keymanager.KeyManagerRef
-import modifier.{Box, BoxId, Transaction}
-import org.scalatest.flatspec.AsyncFlatSpec
-import org.scalatest.matchers.should.Matchers
-import settings.ChainProvider
-import wallet.WalletManager
-import wallet.WalletManager._
-
 import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContextExecutor}
-import scala.reflect.io.Path
 import scala.util.{Failure, Success, Try}
 
 /**

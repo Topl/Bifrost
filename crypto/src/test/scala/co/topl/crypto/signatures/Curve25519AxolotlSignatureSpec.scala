@@ -1,7 +1,7 @@
 package co.topl.crypto.signatures
 
-import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.crypto.utils.Hex
+import co.topl.crypto.{PrivateKey, PublicKey}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks

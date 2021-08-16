@@ -1,9 +1,9 @@
 package co.topl.nodeView
 
 import co.topl.attestation.Address
+import co.topl.consensus._
 import co.topl.consensus.consensusHelper.setProtocolMngr
 import co.topl.consensus.genesis.PrivateGenesis
-import co.topl.consensus._
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}

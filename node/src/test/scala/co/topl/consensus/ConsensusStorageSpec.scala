@@ -1,10 +1,9 @@
 package co.topl.consensus
 
-import co.topl.db.{LDBVersionedStore, VersionedLDBKVStore}
-import co.topl.utils.CommonGenerators
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.implicits._
 import co.topl.nodeView.KeyValueStore
+import co.topl.utils.CommonGenerators
 import com.google.common.primitives.Longs
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec

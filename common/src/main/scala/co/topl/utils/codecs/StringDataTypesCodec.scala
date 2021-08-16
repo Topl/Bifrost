@@ -3,7 +3,6 @@ package co.topl.utils.codecs
 import cats.data.ValidatedNec
 import cats.implicits._
 import co.topl.utils.StringDataTypes._
-import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.encode.{Base16, Base58}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}

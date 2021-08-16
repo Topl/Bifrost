@@ -2,7 +2,7 @@ package co.topl.rpc
 
 import co.topl.akkahttprpc.RpcError
 import co.topl.attestation.Address
-import co.topl.nodeView.state.{State, StateReader}
+import co.topl.nodeView.state.StateReader
 
 package object handlers {
 

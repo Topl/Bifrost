@@ -4,7 +4,7 @@ import cats.data.NonEmptyChain
 import cats.implicits._
 import io.circe.generic.semiauto._
 import io.circe.syntax._
-import io.circe.{Decoder, Encoder, _}
+import io.circe._
 
 trait RpcErrorCodecs {
 

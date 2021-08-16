@@ -13,7 +13,6 @@ import co.topl.nodeView.state.StateReader
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Int128, TimeProvider}
 import org.slf4j.Logger
-import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 
 import scala.collection.immutable.ListMap
 import scala.util.Try

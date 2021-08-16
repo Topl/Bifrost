@@ -1,7 +1,5 @@
 package utils.serialization
 
-import akka.util.ByteString
-
 import java.nio.ByteOrder
 
 class VLQByteStringWriter extends VLQWriter {

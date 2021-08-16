@@ -1,11 +1,10 @@
 package co.topl.db
 
 import co.topl.utils.Logging
+import org.iq80.leveldb.{DB, DBFactory, DBIterator, Options, Range, ReadOptions, Snapshot, WriteBatch, WriteOptions}
 
 import java.io.File
 import java.util.concurrent.locks.ReentrantReadWriteLock
-import org.iq80.leveldb.{DB, DBFactory, DBIterator, Options, Range, ReadOptions, Snapshot, WriteBatch, WriteOptions}
-
 import scala.collection.mutable
 
 /**

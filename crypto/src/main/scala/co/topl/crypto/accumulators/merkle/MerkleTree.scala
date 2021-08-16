@@ -1,9 +1,9 @@
 package co.topl.crypto.accumulators.merkle
 
 import co.topl.crypto.accumulators.{LeafData, Side}
+import co.topl.crypto.hash.Hash
 import co.topl.crypto.hash.digest.Digest
 import co.topl.crypto.hash.digest.implicits._
-import co.topl.crypto.hash.Hash
 
 import scala.annotation.tailrec
 import scala.collection.mutable
