@@ -1,86 +1,82 @@
 package co.topl.api.transaction
 
-import akka.util.ByteString
-import co.topl.api.RPCMockState
 import co.topl.attestation.Address
-import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.codecs.implicits.base58JsonDecoder
-import co.topl.utils.encode.Base58
 import io.circe.Json
-import io.circe.parser.parse
 import io.circe.syntax._
-import org.scalatest.EitherValues
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 
-class ArbitTransferRPCSpec extends AnyWordSpec with Matchers with RPCMockState with EitherValues {
+class ArbitTransferRPCSpec extends TransferRPCTestMethods {
 
-  var address: Address = _
-  var tx = ""
+  var addressCurve25519Fst: Address = _
+  var addressCurve25519Sec: Address = _
+  var addressEd25519Fst: Address = _
+  var addressEd25519Sec: Address = _
+  var addressThresholdCurve25519Fst: Address = _
+  var addressThresholdCurve25519Sec: Address = _
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    address = keyRing.addresses.head
+
+    addressCurve25519Fst = keyRingCurve25519.addresses.head
+    addressCurve25519Sec = keyRingCurve25519.addresses.last
+    addressEd25519Fst = keyRingEd25519.addresses.head
+    addressEd25519Sec = keyRingEd25519.addresses.last
+    addressThresholdCurve25519Fst = propsThresholdCurve25519.head.address
+    addressThresholdCurve25519Sec = propsThresholdCurve25519.last.address
   }
 
   "ArbitTransfer RPC" should {
-    "Create new arbit transfer raw transaction" in {
-      val requestBody = ByteString(s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "2",
-           |   "method": "topl_rawArbitTransfer",
-           |   "params": [{
-           |     "propositionType": "PublicKeyCurve25519",
-           |     "recipients": [["$address", "1"]],
-           |     "sender": ["$address"],
-           |     "changeAddress": "$address",
-           |     "consolidationAddress": "$address",
-           |     "minting": "false",
-           |     "fee": "1",
-           |     "data": ""
-           |   }]
-           |}
-        """.stripMargin)
-
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).value
-
-        val sigTx = for {
-          rawTx   <- res.hcursor.downField("result").get[Json]("rawTx")
-          message <- res.hcursor.downField("result").get[Base58Data]("messageToSign")
-        } yield {
-          val sig = keyRing.generateAttestation(address)(message.value)
-          val signatures: Json = Map(
-            "signatures" -> sig.asJson
-          ).asJson
-          rawTx.deepMerge(signatures)
-        }
-
-        tx = sigTx.value.toString
-
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").head.asObject.isDefined shouldBe true
-      }
+    "Create, sign and broadcast new arbit transfer raw transaction from a Curve25519 address to itself" in {
+      val tx = testCreateSignArbitTransfer(addressCurve25519Fst, addressCurve25519Sec, propTypeCurve25519, 3)
+      testBroadcastTx(tx)
     }
 
-    "Broadcast signed ArbitTransfer transaction" in {
-      val requestBody = ByteString(s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "2",
-           |   "method": "topl_broadcastTx",
-           |   "params": [{
-           |     "tx": $tx
-           |   }]
-           |}
-           |""".stripMargin)
+    "Create, sign and broadcast new arbit transfer raw transaction from a Curve25519 address to an Ed25519 address" +
+    " address" in {
+      val tx = testCreateSignArbitTransfer(addressCurve25519Fst, addressEd25519Fst, propTypeCurve25519, 3)
+      testBroadcastTx(tx)
+    }
 
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).value
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").head.asObject.isDefined shouldBe true
-      }
+    "Create, sign and broadcast new arbit transfer raw transaction from an Ed25519 address to itself" in {
+      val tx = testCreateSignArbitTransfer(addressEd25519Fst, addressEd25519Sec, propTypeEd25519, 3)
+      testBroadcastTx(tx)
+    }
+
+    "Create, sign and broadcast new arbit transfer raw transaction from an Ed25519 address to a Curve25519 address" in {
+      val tx = testCreateSignArbitTransfer(addressEd25519Fst, addressCurve25519Fst, propTypeEd25519, 3)
+      testBroadcastTx(tx)
+    }
+
+    "Create, sign and broadcast new arbit transfer from a threshold Curve25519 address to an address of same type" in {
+      val tx =
+        testCreateSignArbitTransfer(
+          addressThresholdCurve25519Fst,
+          addressThresholdCurve25519Sec,
+          propTypeThresholdCurve25519,
+          3
+        )
+      testBroadcastTx(tx)
+    }
+
+    "Create, sign and broadcast new arbit transfer from a threshold Curve25519 address to a Ed25519 address" in {
+      val tx =
+        testCreateSignArbitTransfer(
+          addressThresholdCurve25519Fst,
+          addressEd25519Fst,
+          propTypeThresholdCurve25519,
+          3
+        )
+      testBroadcastTx(tx)
+    }
+
+    "Threshold transaction with invalid attestation type should error" in {
+      val tx = testCreateSignArbitTransfer(
+        addressThresholdCurve25519Fst,
+        addressCurve25519Sec,
+        propTypeThresholdCurve25519,
+        3
+      )
+      val attestation: Json = Map("signatures" -> attestationCurve25519Gen.sample.get.asJson).asJson
+      testBroadcastTxInvalidProp(tx.hcursor.downField("signatures").delete.top.get.deepMerge(attestation))
     }
   }
 }

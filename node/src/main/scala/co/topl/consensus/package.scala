@@ -63,9 +63,11 @@ package object consensus {
    * @param parentHeight parent block height
    * @return the target value
    */
-  def calcTarget(stakeAmount: Int128, timeDelta: Long, difficulty: Long, parentHeight: Long): Int128 =
-    (stakeAmount * difficulty * timeDelta) /
-    (consensusStorage.totalStake * targetBlockTime(parentHeight).toUnit(MILLISECONDS).toLong)
+  def calcTarget(stakeAmount: Int128, timeDelta: Long, difficulty: Long, parentHeight: Long): BigInt =
+    (BigInt(stakeAmount.toByteArray) * BigInt(difficulty) * BigInt(timeDelta)) /
+    (BigInt(consensusStorage.totalStake.toByteArray) * BigInt(
+      targetBlockTime(parentHeight).toUnit(MILLISECONDS).toLong
+    ))
 
   /**
    * Calculate the block difficulty according to
@@ -77,7 +79,7 @@ package object consensus {
    */
   def calcNewBaseDifficulty(newHeight: Long, prevDifficulty: Long, prevTimes: Seq[TimeProvider.Time]): Long = {
 
-    val averageDelay = (prevTimes drop 1, prevTimes).zipped.map(_ - _).sum / (prevTimes.length - 1)
+    val averageDelay = prevTimes.drop(1).lazyZip(prevTimes).map(_ - _).sum / (prevTimes.length - 1)
     val targetTimeMilli = targetBlockTime(newHeight).toUnit(MILLISECONDS)
 
     // magic numbers here (1.1, 0.9, and 0.64) are straight from NXT

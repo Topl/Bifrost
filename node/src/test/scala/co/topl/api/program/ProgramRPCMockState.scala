@@ -5,6 +5,7 @@ import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.box._
 import co.topl.nodeView.state
+import co.topl.utils.GeneratorOps.GeneratorOps
 import io.circe.syntax._
 import org.scalatest.matchers.should
 
@@ -14,9 +15,9 @@ trait ProgramRPCMockState extends RPCMockState with should.Matchers {
     // Manually manipulate state
     state.directlyAddPBRStorage(version, boxes, view()._2)
 
-  lazy val (signSk, signPk) = sampleUntilNonEmpty(keyPairSetGen).head
+  lazy val (signSk, signPk) = sampleUntilNonEmpty(keyPairSetCurve25519Gen).head
 
-  val publicKey: PublicKeyPropositionCurve25519 = propositionGen.sample.get
+  val publicKey: PublicKeyPropositionCurve25519 = propositionCurve25519Gen.sampleFirst()
   val address: Address = publicKey.address
 
   val fees: Map[String, Int] = Map(publicKey.toString -> 500)
@@ -32,16 +33,16 @@ trait ProgramRPCMockState extends RPCMockState with should.Matchers {
        |}
        |""".stripMargin
 
-  val stateBox: StateBox = StateBox(address.evidence, 0L, programIdGen.sample.get, Map("a" -> 0, "b" -> 1).asJson)
+  val stateBox: StateBox = StateBox(address.evidence, 0L, programIdGen.sampleFirst(), Map("a" -> 0, "b" -> 1).asJson)
 
   val codeBox: CodeBox = CodeBox(
     address.evidence,
     1L,
-    programIdGen.sample.get,
+    programIdGen.sampleFirst(),
     Seq("add = function(x,y) { a = x + y; return a }"),
     Map("add" -> Seq("Number", "Number"))
   )
 
   val executionBox: ExecutionBox =
-    ExecutionBox(address.evidence, 2L, programIdGen.sample.get, Seq(stateBox.value), Seq(codeBox.value))
+    ExecutionBox(address.evidence, 2L, programIdGen.sampleFirst(), Seq(stateBox.value), Seq(codeBox.value))
 }

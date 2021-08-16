@@ -1,7 +1,7 @@
 package co.topl.crypto.signatures
 
-import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.crypto.hash.sha256
+import co.topl.crypto.{PrivateKey, PublicKey}
 import org.whispersystems.curve25519.OpportunisticCurve25519Provider
 
 import java.lang.reflect.Constructor
@@ -30,6 +30,15 @@ object Curve25519 extends EllipticCurveSignatureScheme {
   override def createKeyPair(seed: Array[Byte]): (PrivateKey, PublicKey) = {
     val hashedSeed = sha256.hash(seed)
     val privateKey = PrivateKey(provider.generatePrivateKey(hashedSeed.value))
+    val publicKey = PublicKey(provider.generatePublicKey(privateKey.value))
+
+    privateKey -> publicKey
+  }
+
+  override def createKeyPair: (PrivateKey, PublicKey) = {
+    val random = new Array[Byte](KeyLength)
+    new java.security.SecureRandom().nextBytes(random)
+    val privateKey = PrivateKey(provider.generatePrivateKey(random))
     val publicKey = PublicKey(provider.generatePublicKey(privateKey.value))
 
     privateKey -> publicKey

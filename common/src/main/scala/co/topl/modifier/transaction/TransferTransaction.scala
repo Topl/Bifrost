@@ -5,14 +5,15 @@ import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.BoxReader
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.box.{Box, _}
+import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.{Identifiable, Int128}
-import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
 import scala.util.Try
 import scala.Iterable
+import scala.collection.immutable.ListMap
 
 abstract class TransferTransaction[
   +T <: TokenValueHolder,
@@ -20,10 +21,10 @@ abstract class TransferTransaction[
 ](
   val from:                        IndexedSeq[(Address, Box.Nonce)],
   val to:                          IndexedSeq[(Address, T)],
-  val attestation:                 Map[P, Proof[P]],
+  val attestation:                 ListMap[P, Proof[P]],
   val fee:                         Int128,
   val timestamp:                   Long,
-  val data:                        Option[String],
+  val data:                        Option[Latin1Data],
   val minting:                     Boolean
 )(implicit val evidenceProducerEv: EvidenceProducer[P], identifiableEv: Identifiable[P])
     extends Transaction[TokenValueHolder, P] {
@@ -45,7 +46,7 @@ abstract class TransferTransaction[
 
   override def messageToSign: Array[Byte] =
     super.messageToSign ++
-    data.fold(Array(0: Byte))(_.getBytes) :+ (if (minting) 1: Byte else 0: Byte)
+    data.fold(Array(0: Byte))(_.value) :+ (if (minting) 1: Byte else 0: Byte)
 
 }
 

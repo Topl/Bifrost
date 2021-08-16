@@ -9,6 +9,7 @@ import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.{Int128, NetworkType}
 
 import scala.collection.immutable.ListMap
@@ -18,7 +19,8 @@ case object ToplnetGenesis extends GenesisProvider {
 
   implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
 
-  override protected val blockChecksum: ModifierId = ModifierId("y2srCtQZiV2XkYfhjgmyxZQE8SZcETQrxZjKGHGuFjv7")
+  override protected val blockChecksum: ModifierId =
+    ModifierId.fromBase58(Base58Data.unsafe("y2srCtQZiV2XkYfhjgmyxZQE8SZcETQrxZjKGHGuFjv7"))
 
   override protected val blockVersion: PNVMVersion = 1: Byte
 
@@ -52,7 +54,7 @@ case object ToplnetGenesis extends GenesisProvider {
     val txInput = (
       IndexedSeq(),
       memberKeys.zip(members.values.map(SimpleValue(_))).toIndexedSeq,
-      Map(genesisAcct.publicImage -> SignatureCurve25519.genesis),
+      ListMap(genesisAcctCurve25519.publicImage -> SignatureCurve25519.genesis),
       Int128(0),
       0L,
       None,
@@ -80,7 +82,7 @@ case object ToplnetGenesis extends GenesisProvider {
       )
     )
 
-    val generatorBox = ArbitBox(genesisAcct.publicImage.generateEvidence, 0, SimpleValue(totalStake))
+    val generatorBox = ArbitBox(genesisAcctCurve25519.publicImage.generateEvidence, 0, SimpleValue(totalStake))
 
     val signature = SignatureCurve25519.genesis
 
@@ -89,7 +91,7 @@ case object ToplnetGenesis extends GenesisProvider {
         ModifierId.genesisParentId,
         0L,
         generatorBox,
-        genesisAcct.publicImage,
+        genesisAcctCurve25519.publicImage,
         signature,
         1L,
         initialDifficulty,

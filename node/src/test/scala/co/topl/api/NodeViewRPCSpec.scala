@@ -3,6 +3,7 @@ package co.topl.api
 import akka.util.ByteString
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.TX
+import co.topl.utils.GeneratorOps.GeneratorOps
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
@@ -17,9 +18,9 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    txs = bifrostTransactionSeqGen.sample.get
+    txs = bifrostTransactionSeqGen.sampleFirst()
     txId = txs.head.id.toString
-    block = blockGen.sample.get.copy(transactions = txs)
+    block = blockCurve25519Gen.sampleFirst().copy(transactions = txs)
 
     view()._1.storage.update(block, isBest = false)
     view()._3.putWithoutCheck(txs, block.timestamp)

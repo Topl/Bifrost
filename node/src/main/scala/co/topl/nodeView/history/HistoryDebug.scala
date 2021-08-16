@@ -39,7 +39,7 @@ class HistoryDebug(hr: HistoryReader[Block, _ <: SyncInfo]) {
   def averageDelay(id: ModifierId, blockNum: Int): Try[Long] = Try {
     val block = hr.modifierById(id).get
     val prevTimes = hr.getTimestampsFrom(block, blockNum)
-    (prevTimes drop 1, prevTimes).zipped.map(_ - _).sum / (prevTimes.length)
+    prevTimes.drop(1).lazyZip(prevTimes).map(_ - _).sum / (prevTimes.length)
   }
 
   /**
@@ -100,8 +100,8 @@ class HistoryDebug(hr: HistoryReader[Block, _ <: SyncInfo]) {
 //    getBlockIdsByBloom(f).flatMap { b =>
 //      modifierById(b).get.transactions.filter { tx =>
 //        tx.bloomTopics.exists { txTopic =>
-//          val txBloomsWrapper = ByteArrayWrapper(txTopic)
-//          val queryBloomsWrapper = queryBloomTopics.map(ByteArrayWrapper(_))
+//          val txBloomsWrapper = (txTopic)
+//          val queryBloomsWrapper = queryBloomTopics.map((_))
 //          queryBloomsWrapper.contains(txBloomsWrapper)
 //        }
 //      }
