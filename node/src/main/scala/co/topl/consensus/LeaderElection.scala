@@ -4,12 +4,12 @@ import co.topl.attestation.Address
 import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 import co.topl.consensus.LeaderElectionProsomo.Config
 import co.topl.consensus.crypto.{Ratio, Vrf}
+import co.topl.crypto.signatures.Curve25519
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, ProgramId}
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.StateReader
 import co.topl.utils.{Logging, TimeProvider}
-import scorex.crypto.signatures.Curve25519
 
 import scala.collection.Set
 import scala.util.Random
@@ -92,13 +92,13 @@ object LeaderElectionProsomo extends Logging {
    * @return a hit if the key has been elected for the slot
    */
   def getHit(
-              key: Key,
-              relativeStake: Ratio,
-              slot: Slot,
-              slotDiff: Slot, // diff between current slot and parent slot
-              epochNonce: Nonce,
-              config: Config
-            ): Option[Hit] = {
+    key:           Key,
+    relativeStake: Ratio,
+    slot:          Slot,
+    slotDiff:      Slot, // diff between current slot and parent slot
+    epochNonce:    Nonce,
+    config:        Config
+  ): Option[Hit] = {
     // private key is 33 bytes, with the first being the type byte (unneeded)
     val privateKeyBytes = key.privateKey.tail
 
@@ -116,14 +116,14 @@ object LeaderElectionProsomo extends Logging {
   }
 
   /** Calculates log(1-f(slot-parentSlot)) or log(1-f) depending on the configuration */
-  def mFunction(slotDiff: Int, config: Config): Ratio = {
+  def mFunction(slotDiff: Int, config: Config): Ratio =
     // use sawtooth curve if local dynamic difficulty is enabled
     if (slotDiff <= config.lddCutoff)
       ProsomoMath.logOneMinus(
         ProsomoMath.lddGapSawtooth(slotDiff, config.lddCutoff, config.amplitude),
-        config.precision)
+        config.precision
+      )
     else ProsomoMath.logOneMinus(config.baselineDifficulty, config.precision)
-  }
 
   /**
    * Gets the required threshold for the given parameters.
@@ -149,9 +149,8 @@ object LeaderElectionProsomo extends Logging {
   def isSlotLeaderForThreshold(threshold: Ratio)(proof: Proof): Boolean =
     threshold > proof
       .zip(1 to proof.length) // zip with indexes starting from 1
-      .foldLeft(Ratio(0)) {
-        case (net, (byte, i)) =>
-          net + Ratio(BigInt(byte & 0xff), BigInt(2).pow(8 * i))
+      .foldLeft(Ratio(0)) { case (net, (byte, i)) =>
+        net + Ratio(BigInt(byte & 0xff), BigInt(2).pow(8 * i))
       }
 
   case class VrfProof(vrf: Vrf, proofFunc: String => Proof) {
@@ -163,12 +162,13 @@ object LeaderElectionProsomo extends Logging {
   }
 
   object VrfProof {
+
     def apply(secret: SecretKey, epochNonce: Nonce, slot: Slot): VrfProof = {
       val vrf = new Vrf()
       VrfProof(
         vrf,
-        (token: String) =>
-          vrf.vrfProof(secret, epochNonce ++ secret ++ BigInt(slot).toByteArray ++ token.getBytes))
+        (token: String) => vrf.vrfProof(secret, epochNonce ++ secret ++ BigInt(slot).toByteArray ++ token.getBytes)
+      )
     }
   }
 }
@@ -199,17 +199,18 @@ object LeaderElectionTester extends App {
   val epochNonce = randomBytes(32)
 
   // test out hits on slots 1 to 500
-  val numberHits = (1 to 300).map(x =>
-    LeaderElectionProsomo.getHit(
-      key,
-      relativeStake,
-      x,
-      x,
-      epochNonce,
-      Config(0, 16, Ratio(1, 15), Ratio(2, 5))
-    ))
+  val numberHits = (1 to 300)
+    .map(x =>
+      LeaderElectionProsomo.getHit(
+        key,
+        relativeStake,
+        x,
+        x,
+        epochNonce,
+        Config(0, 16, Ratio(1, 15), Ratio(2, 5))
+      )
+    )
     .count(_.isDefined)
 
   println(numberHits)
 }
-
