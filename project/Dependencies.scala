@@ -53,14 +53,17 @@ object Dependencies {
     "io.circe" %% "circe-parser" % circeVersion
   )
 
+  val newType = Seq(
+    "io.estatico" %% "newtype" % "0.4.4"
+  )
+
   val misc = Seq(
     "com.chuusai"     %% "shapeless" % "2.3.7",
     "com.iheart"      %% "ficus"     % "1.5.0",
     "org.scalanlp"    %% "breeze"    % "1.2",
     "io.netty"         % "netty"     % "3.10.6.Final",
-    "com.google.guava" % "guava"     % "30.1.1-jre",
-    "io.estatico"     %% "newtype"   % "0.4.4"
-  )
+    "com.google.guava" % "guava"     % "30.1.1-jre"
+  ) ++ newType
 
   val monitoring = Seq(
     "io.kamon" %% "kamon-core"     % kamonVersion,
@@ -73,6 +76,14 @@ object Dependencies {
     "org.graalvm.sdk"     % "graal-sdk"   % graalVersion,
     "org.graalvm.js"      % "js"          % graalVersion,
     "org.graalvm.truffle" % "truffle-api" % graalVersion
+  )
+
+  val cats = Seq(
+    "org.typelevel" %% "cats-core" % "2.3.1"
+  )
+
+  val simulacrum = Seq(
+    "org.typelevel" %% "simulacrum" % "1.0.1"
   )
 
   val node: Seq[ModuleID] = {
@@ -97,16 +108,15 @@ object Dependencies {
     monitoring
   }
 
-  lazy val common: Seq[ModuleID] = {
+  lazy val common: Seq[ModuleID] =
     Seq(
       "com.typesafe.akka"      %% "akka-actor"              % akkaVersion,
-      "org.typelevel"          %% "simulacrum"              % "1.0.1",
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.5.0"
     ) ++
     logging ++
     circe ++
+    simulacrum ++
     test
-  }
 
   lazy val chainProgram: Seq[ModuleID] =
     Seq(
@@ -157,11 +167,14 @@ object Dependencies {
 
   lazy val crypto: Seq[ModuleID] =
     Seq(
-      "org.typelevel"     %% "simulacrum"      % "1.0.0",
-      "org.typelevel"     %% "cats-core"       % "2.3.1",
       "org.bouncycastle"   % "bcprov-jdk15on"  % "1.69",
       "org.whispersystems" % "curve25519-java" % "0.5.0"
     ) ++
     misc ++
+    cats ++
+    simulacrum ++
     test
+
+  lazy val models: Seq[ModuleID] =
+    cats ++ simulacrum ++ newType
 }

@@ -173,7 +173,8 @@ lazy val bifrost = project
     toplRpc,
     benchmarking,
     crypto,
-    brambl
+    brambl,
+    models
   )
 
 lazy val node = project
@@ -250,6 +251,21 @@ lazy val akkaHttpRpc = project
     buildInfoPackage := "co.topl.buildinfo.akkahttprpc"
   )
 
+lazy val models = project
+  .in(file("models"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "models",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.models"
+  )
+  .settings(scalamacrosParadiseSettings)
+  .settings(
+    libraryDependencies ++= Dependencies.models
+  )
+
 lazy val toplRpc = project
   .in(file("topl-rpc"))
   .enablePlugins(BuildInfoPlugin)
@@ -257,6 +273,7 @@ lazy val toplRpc = project
     name := "topl-rpc",
     commonSettings,
     publishSettings,
+    scalamacrosParadiseSettings,
     libraryDependencies ++= Dependencies.toplRpc,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.toplrpc"
@@ -298,11 +315,11 @@ lazy val crypto = project
     name := "crypto",
     commonSettings,
     publishSettings,
-    scalamacrosParadiseSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.crypto",
     libraryDependencies ++= Dependencies.crypto,
   )
+  .settings(scalamacrosParadiseSettings)
 
 addCommandAlias("checkPR", "; scalafixAll --check; scalafmtCheckAll; test")
 addCommandAlias("preparePR", "; scalafixAll; scalafmtAll; test")
