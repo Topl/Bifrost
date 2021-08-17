@@ -12,7 +12,7 @@ class SortedCacheSpec extends AnyFlatSpec with Matchers with OptionValues {
   private val sizeLimit = 50
 
   it should "pop None when empty" in {
-    val empty = SortedCache.Impl[TestItem](Nil, popLimit, sizeLimit, _ => ())
+    val empty = SortedCache.Impl[TestItem](IndexedSeq.empty, popLimit, sizeLimit, _ => ())
     val (nextCache, popped) =
       empty.pop(_ => true)
 
@@ -21,7 +21,7 @@ class SortedCacheSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "insert and pop a value" in {
-    val empty = SortedCache.Impl[TestItem](Nil, popLimit, sizeLimit, _ => ())
+    val empty = SortedCache.Impl[TestItem](IndexedSeq.empty, popLimit, sizeLimit, _ => ())
     val withItem =
       empty.append(List(TestItem("1a", 1)))
     val (nextCache, popped) =
@@ -32,7 +32,7 @@ class SortedCacheSpec extends AnyFlatSpec with Matchers with OptionValues {
 
   it should "evict a non-viable candidate after max attempts" in {
     val popLimit = 3
-    val empty = SortedCache.Impl[TestItem](Nil, sizeLimit, popLimit, _ => ())
+    val empty = SortedCache.Impl[TestItem](IndexedSeq.empty, sizeLimit, popLimit, _ => ())
     val withItem =
       empty.append(List(TestItem("1a", 1)))
 
@@ -52,7 +52,7 @@ class SortedCacheSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "pop a sorted candidate if it is viable" in {
-    val empty = SortedCache.Impl[TestItem](Nil, popLimit, sizeLimit, _ => ())
+    val empty = SortedCache.Impl[TestItem](IndexedSeq.empty, popLimit, sizeLimit, _ => ())
     val withItems =
       empty.append(List(TestItem("2a", 2), TestItem("1a", 1)))
 
@@ -71,7 +71,7 @@ class SortedCacheSpec extends AnyFlatSpec with Matchers with OptionValues {
 
   it should "not pop a sorted candidate if it is not viable" in {
     val viableCandidates = Set("2a")
-    val empty = SortedCache.Impl[TestItem](Nil, popLimit, sizeLimit, _ => ())
+    val empty = SortedCache.Impl[TestItem](IndexedSeq.empty, popLimit, sizeLimit, _ => ())
     val withItems =
       empty.append(List(TestItem("2a", 2), TestItem("1a", 1)))
 
@@ -88,7 +88,7 @@ class SortedCacheSpec extends AnyFlatSpec with Matchers with OptionValues {
 
     var evicted: List[TestItem] = Nil
 
-    val empty = SortedCache.Impl[TestItem](Nil, popLimit, sizeLimit, evicted :+= _)
+    val empty = SortedCache.Impl[TestItem](IndexedSeq.empty, popLimit, sizeLimit, evicted :+= _)
     val withItems =
       empty.append(List.tabulate(sizeLimit + 10)(idx => TestItem(s"${idx}a", idx)))
 
