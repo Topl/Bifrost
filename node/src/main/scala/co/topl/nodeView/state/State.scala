@@ -3,6 +3,7 @@ package co.topl.nodeView.state
 import cats.data.ValidatedNec
 import co.topl.attestation.Address
 import co.topl.attestation.AddressCodec.implicits.Base58DataOps
+import co.topl.db.{LDBVersionedStore, VersionedKVStore}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
@@ -10,7 +11,6 @@ import co.topl.modifier.box.serialization.BoxSerializer
 import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.validation._
 import co.topl.modifier.transaction.validation.implicits._
-import co.topl.db.LDBVersionedStore
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.settings.AppSettings
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
@@ -34,7 +34,7 @@ import scala.util.{Failure, Success, Try}
  */
 case class State(
   override val version:      VersionTag,
-  protected val storage:     LDBVersionedStore,
+  protected val storage:     VersionedKVStore,
   private[state] val tbrOpt: Option[TokenBoxRegistry] = None,
   private[state] val pbrOpt: Option[ProgramBoxRegistry] = None,
   nodeKeys:                  Option[Set[Address]] = None
@@ -135,7 +135,7 @@ case class State(
       None
     }
 
-    if (storage.lastVersionID.exists(_ sameElements version.bytes)) {
+    if (storage.lastVersionID().exists(_ sameElements version.bytes)) {
       this
     } else {
       log.debug(s"Rollback State to $version from version ${this.version.toString}")
@@ -210,13 +210,13 @@ case class State(
         s"Adding boxes ${boxesToAdd.map(b => Base58.encode(b._1))}."
       )
 
-      if (storage.lastVersionID.isDefined) {
+      if (storage.lastVersionID().isDefined) {
         stateChanges.boxIdsToRemove
           .foreach { id =>
             require(
               getBox(id).isDefined,
               s"Box id: $id not found in state version: " +
-              s"${Base58.encode(storage.lastVersionID.get)}. Aborting state update"
+              s"${Base58.encode(storage.lastVersionID().get)}. Aborting state update"
             )
           }
       }
@@ -306,7 +306,8 @@ object State extends Logging {
     val storage = new LDBVersionedStore(sFile, 1000)
 
     val version: VersionTag =
-      storage.lastVersionID
+      storage
+        .lastVersionID()
         .fold(Option(ModifierId.empty))(bw => ModifierId.parseBytes(bw).toOption)
         .getOrElse(throw new Error("Unable to define state version during initialization"))
 

@@ -1,6 +1,7 @@
 package co.topl.api.program
 
 import akka.util.ByteString
+import co.topl.utils.GeneratorOps.GeneratorOps
 import io.circe.parser.parse
 import io.circe.syntax._
 import org.scalatest.DoNotDiscover
@@ -11,7 +12,7 @@ class ProgramCallSpec extends ProgramRPCMockState {
   "programCall" should {
 
     val boxState = Seq(stateBox, codeBox, executionBox)
-    val version = modifierIdGen.sample.get
+    val version = modifierIdGen.sampleFirst()
 
     directlyAddPBRStorage(version, boxState)
 
