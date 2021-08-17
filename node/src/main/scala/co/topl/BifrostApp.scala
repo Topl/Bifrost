@@ -20,6 +20,7 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.rpc.ToplRpcServer
 import co.topl.settings._
+import co.topl.tools.exporter.Exporter
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.wallet.{WalletConnectionHandler, WalletConnectionHandlerRef}
@@ -237,10 +238,16 @@ object BifrostApp extends Logging {
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
 
-  def main(args: Array[String]): Unit = ParserForClass[StartupOpts].constructEither(args.toIndexedSeq) match {
-    case Right(parsedArgs) => new BifrostApp(parsedArgs).run()
-    case Left(e)           => throw new Exception(e)
+  def main(args: Array[String]): Unit = args.headOption.getOrElse("") match {
+    case "export" => Exporter.main(args.tail)
+    case _        => startNode(args)
   }
+
+  private def startNode(args: Array[String]): Unit =
+    ParserForClass[StartupOpts].constructEither(args.toIndexedSeq) match {
+      case Right(parsedArgs) => new BifrostApp(parsedArgs).run()
+      case Left(e)           => throw new Exception(e)
+    }
 
   def forceStopApplication(code: Int = 1): Nothing = sys.exit(code)
 
