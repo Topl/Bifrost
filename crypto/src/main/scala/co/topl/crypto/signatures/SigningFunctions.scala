@@ -13,11 +13,7 @@ trait SigningFunctions {
 
   def createKeyPair(seed: Array[Byte]): (PrivateKey, PublicKey)
 
-  def createKeyPair: (PrivateKey, PublicKey) = {
-    val seed = new Array[Byte](KeyLength)
-    new SecureRandom().nextBytes(seed) // modifies seed
-    createKeyPair(seed)
-  }
+  def createKeyPair: (PrivateKey, PublicKey)
 
   def sign(privateKey: PrivateKey, message: MessageToSign): Signature
 
