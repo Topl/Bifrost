@@ -174,7 +174,10 @@ lazy val bifrost = project
     benchmarking,
     crypto,
     brambl,
-    models
+    models,
+    typeclasses,
+    ledger,
+    consensus
   )
 
 lazy val node = project
@@ -265,6 +268,58 @@ lazy val models = project
   .settings(
     libraryDependencies ++= Dependencies.models
   )
+
+lazy val byteCodecs = project
+  .in(file("byte-codecs"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "byte-codecs",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.codecs.bytes"
+  )
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(models)
+
+lazy val typeclasses = project
+  .in(file("typeclasses"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "typeclasses",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.typeclasses"
+  )
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(models)
+
+lazy val ledger = project
+  .in(file("ledger"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "ledger",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.ledger"
+  )
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(models, byteCodecs, typeclasses)
+
+lazy val consensus = project
+  .in(file("consensus"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "consensus",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.consensus"
+  )
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(models, byteCodecs, typeclasses)
 
 lazy val toplRpc = project
   .in(file("topl-rpc"))

@@ -1,10 +1,10 @@
 package co.topl
 
-import scala.collection.immutable.ListMap
+import scala.collection.immutable.{ArraySeq, ListMap}
 
 package object models {
   type Nonce = Long
-  type Bytes = Array[Byte]
+  type Bytes = ArraySeq.ofByte
   type TypePrefix = Byte
   type TypedIdentifier = (Byte, Bytes)
   type Int128 = Sized.Max[BigInt, Lengths.`128`.type]
@@ -18,5 +18,5 @@ package object models {
   type TaktikosBoxReference = (TaktikosAddress, Nonce)
   type PolyOutput = (Address, Int128)
   type ArbitOutput = (Address, Int128)
-  type AssetOutput = (Address, AssetValue)
+  type AssetOutput = (Address, Asset.Value)
 }

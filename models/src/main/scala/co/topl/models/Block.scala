@@ -1,5 +1,7 @@
 package co.topl.models
 
+sealed abstract class Block
+
 case class BlockV1(
   parentId:     TypedIdentifier,
   timestamp:    Timestamp,
@@ -9,7 +11,7 @@ case class BlockV1(
   height:       Long,
   difficulty:   Long,
   transactions: Seq[Transaction]
-)
+) extends Block
 
 case class BlockV2(
   parentId:       TypedIdentifier,
@@ -19,4 +21,4 @@ case class BlockV2(
   slot:           Long,
   vrfCertificate: Bytes,
   kesCertificate: Bytes
-)
+) extends Block

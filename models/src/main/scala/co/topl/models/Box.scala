@@ -1,11 +1,14 @@
 package co.topl.models
 
-import co.topl.models.StringDataTypes.Latin1Data
+sealed abstract class Box
 
-case class PolyBox(evidence: Evidence, nonce: Nonce, value: Int128)
-case class ArbitBox(evidence: Evidence, nonce: Nonce, value: Int128)
-case class AssetBox(evidence: Evidence, nonce: Nonce, value: AssetValue)
-case class RegistrationBox(registration: Registration, signature: Signature)
+case class PolyBox(evidence: Evidence, nonce: Nonce, value: Int128) extends Box
+
+case class ArbitBox(evidence: Evidence, nonce: Nonce, value: Int128) extends Box
+
+case class AssetBox(evidence: Evidence, nonce: Nonce, value: Asset.Value) extends Box
+
+case class RegistrationBox(registration: Registration, signature: Signature) extends Box
 
 case class TaktikosBox(
   taktikosAddress: TaktikosAddress,
@@ -13,12 +16,4 @@ case class TaktikosBox(
   value:           Int128,
   registration:    Registration,
   signature:       Signature
-)
-
-case class AssetValue(
-  quantity:     Int128,
-  assetCode:    AssetCode,
-  securityRoot: Bytes,
-  metadata:     Option[Sized.Max[Latin1Data, Lengths.`127`.type]]
-)
-case class AssetCode(version: Byte, issuer: Address, shortName: String)
+) extends Box

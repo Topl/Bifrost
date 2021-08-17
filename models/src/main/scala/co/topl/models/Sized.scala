@@ -63,16 +63,3 @@ object HasLength {
   object implicits extends Instances
 
 }
-
-object QuickTest extends App {
-  import HasLength.implicits._
-
-  val strictStringTest: Either[Sized.InvalidLength, Sized.Strict[String, Lengths.`4`.type]] =
-    Sized.strict("Test", Lengths.`4`)
-
-  val maxStringTest: Either[Sized.InvalidLength, Sized.Max[String, Lengths.`4`.type]] =
-    Sized.max("a", Lengths.`4`)
-
-  val strictArrayTest: Either[Sized.InvalidLength, Sized.Strict[Array[Byte], Lengths.`32`.type]] =
-    Sized.strict(Array[Byte](1, 2, 3, 4), Lengths.`32`) // Should result in a Left
-}
