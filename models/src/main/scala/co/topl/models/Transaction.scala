@@ -44,10 +44,3 @@ case class TetraTransfer(
   feeOutput:             PolyOutput,
   outputTaktikosBoxData: (TaktikosAddress, Int128, Registration, Signature)
 ) extends Transaction
-
-case class TetraRegistration(
-  polyBoxRef:                BoxReference,
-  taktikosBoxRef:            TaktikosBoxReference,
-  feeOutput:                 PolyOutput,
-  outputRegistrationBoxData: (Registration, Signature)
-) extends Transaction

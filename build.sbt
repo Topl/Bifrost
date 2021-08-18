@@ -319,7 +319,20 @@ lazy val consensus = project
     buildInfoPackage := "co.topl.buildinfo.consensus"
   )
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, byteCodecs, typeclasses)
+  .dependsOn(models, typeclasses)
+
+lazy val minting = project
+  .in(file("minting"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "minting",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.minting"
+  )
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(models, typeclasses)
 
 lazy val toplRpc = project
   .in(file("topl-rpc"))

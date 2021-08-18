@@ -4,14 +4,18 @@ import cats.implicits._
 import co.topl.codecs.bytes.BasicCodecs._
 import co.topl.codecs.bytes.ByteCodec.implicits._
 import co.topl.codecs.bytes.ByteCodecInstances._
+import co.topl.ledger.Persistence.implicits._
 import co.topl.models._
-import co.topl.typeclasses.Chainable
-import co.topl.typeclasses.Chainable.ops._
-import co.topl.typeclasses.ChainableInstances._
-import co.topl.typeclasses.Identifiable.ops._
-import co.topl.typeclasses.IdentifiableInstances._
-import co.topl.typeclasses.ContainsTransactions.ops._
+import co.topl.typeclasses.ChainableValidation.Instances._
+import co.topl.typeclasses.ChainableValidation.ops._
+import co.topl.typeclasses.ContainsHeight.Instances._
+import co.topl.typeclasses.ContainsHeight.ops._
+import co.topl.typeclasses.ContainsParent.Instances._
+import co.topl.typeclasses.ContainsParent.ops._
 import co.topl.typeclasses.ContainsTransactions.Instances._
+import co.topl.typeclasses.ContainsTransactions.ops._
+import co.topl.typeclasses.Identifiable.Instances._
+import co.topl.typeclasses.Identifiable.ops._
 
 import scala.collection.immutable.ArraySeq
 
@@ -22,11 +26,11 @@ case class Ledger(
   private val transactionPersistence: Persistence,
   private val metaPersistence:        Persistence,
   currentHead:                        Block
-) {
+) extends Seq[Block] {
 
   def withBlock(block: Block): Either[Ledger.Failure, Ledger] =
     Either
-      .cond(block.canChainTo(currentHead), block, Ledger.InvalidBlockParentType(block, currentHead))
+      .cond(block.isChildOf(currentHead), block, Ledger.InvalidBlockParentType(block, currentHead))
       .map(block =>
         applyStateModifications(block)
           .applyTransactionModifications(block)
@@ -53,12 +57,12 @@ case class Ledger(
     )
   }
 
-  def rollback(): Either[Ledger.Failure, Ledger] = {
-    val parentId = Chainable[Block].parentId(currentHead)
-    getBlock(parentId)
-      .toRight(Ledger.NonExistentParent(parentId))
+  def rollback(): Either[Ledger.Failure, Ledger] =
+    currentHead.parentId
+      .toRight(Ledger.CurrentlyAtGenesis)
+      .flatMap(parentId => getBlock(parentId).toRight(Ledger.NonExistentParent(parentId)))
       .map { parent =>
-        val parentIdBytes = parentId.bytes
+        val parentIdBytes = parent.id.bytes
         Ledger(
           boxPersistence.rollbackTo(parentIdBytes),
           addressPersistence.rollbackTo(parentIdBytes),
@@ -68,10 +72,16 @@ case class Ledger(
           parent
         )
       }
-  }
 
   def getBlock(blockId: TypedIdentifier): Option[Block] =
     blockPersistence.read(List(blockId.bytes)).headOption.flatMap(_._2).map(_.decoded[Block])
+
+  def getBlockAtHeight(height: Long): Option[Block] =
+    blockPersistence
+      .read(List(new Bytes("height".bytes.unsafeArray ++ BigInt(height).toByteArray)))
+      .headOption
+      .flatMap(_._2)
+      .map(_.decoded[Block])
 
   def getTransaction(transactionId: TypedIdentifier): Option[Transaction] =
     blockPersistence.read(List(transactionId.bytes)).headOption.flatMap(_._2).map(_.decoded[Transaction])
@@ -93,11 +103,35 @@ case class Ledger(
       .map(_.decoded[List[TypedIdentifier]])
       .getOrElse(Nil)
       .traverse(id => getBox(id).toRight(Ledger.BoxNotFound(id)))
+
+  override def length: Int = (currentHead.height - 1).toInt
+
+  override def iterator: Iterator[Block] =
+    iteratorFromHeight(1)
+
+  def iteratorFromHeight(height: Long): Iterator[Block] =
+    Iterator
+      .iterate(getBlockAtHeight(height))(_.map(_.height + 1).flatMap(getBlockAtHeight))
+      .takeWhile(_.nonEmpty)
+      .collect { case Some(b) => b }
+
+  def iteratorFromBlock(blockId: TypedIdentifier): Iterator[Block] =
+    Iterator
+      .iterate(getBlock(blockId))(_.map(_.height + 1).flatMap(getBlockAtHeight))
+      .takeWhile(_.nonEmpty)
+      .collect { case Some(b) => b }
+
+  def reverseIteratorFromBlock(blockId: TypedIdentifier): Iterator[Block] =
+    Iterator
+      .iterate(getBlock(blockId))(_.map(_.parentId).flatMap(getBlock))
+      .takeWhile(_.nonEmpty)
+      .collect { case Some(b) => b }
 }
 
 object Ledger {
   sealed abstract class Failure
   case class ParentHeadMismatch(currentHeadId: TypedIdentifier, newBlockId: TypedIdentifier) extends Failure
+  case object CurrentlyAtGenesis extends Failure
   case class NonExistentParent(parentBlockId: TypedIdentifier) extends Failure
   case class BoxNotFound(boxId: TypedIdentifier) extends Failure
   case class InvalidBlockParentType(block: Block, parentBlock: Block) extends Failure

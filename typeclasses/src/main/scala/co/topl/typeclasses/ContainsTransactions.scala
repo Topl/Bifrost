@@ -3,6 +3,9 @@ package co.topl.typeclasses
 import co.topl.models.{Block, BlockV1, BlockV2, Transaction}
 import simulacrum.{op, typeclass}
 
+/**
+ * Satisfies that T contains transactions
+ */
 @typeclass trait ContainsTransactions[T] {
   @op("transactions") def transactionsOf(t: T): Seq[Transaction]
 }

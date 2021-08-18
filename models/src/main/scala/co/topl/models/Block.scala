@@ -19,6 +19,6 @@ case class BlockV2(
   height:         Long,
   transactions:   Seq[Transaction],
   slot:           Long,
-  vrfCertificate: Bytes,
-  kesCertificate: Bytes
+  vrfCertificate: VrfCertificate,
+  kesCertificate: KesCertificate
 ) extends Block
