@@ -1,6 +1,6 @@
 package co.topl.tools.exporter
 
-import org.mongodb.scala.{result, Document, MongoClient, MongoDatabase, Observable}
+import org.mongodb.scala.{result, Document, MongoClient, MongoDatabase}
 
 import scala.concurrent.Future
 
@@ -20,7 +20,7 @@ class MongoExport(uri: String) extends Exportable {
     .insertOne(Document(ele))
     .toFuture()
 
-  def close(): Unit = client.close()
+  override def close(): Unit = client.close()
 
 }
 

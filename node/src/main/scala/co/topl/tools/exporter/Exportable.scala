@@ -4,9 +4,12 @@ import scala.concurrent.Future
 
 trait Exportable {
 
-  type T
+  type T <: Future[_]
 
   // Format and write a new row/document/etc
   def insert(element: String): T
+
+  // close connection to writer
+  def close(): Unit
 
 }
