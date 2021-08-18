@@ -1,13 +1,14 @@
 package co.topl.attestation.keyManagement.derivedKeys
 
-import co.topl.attestation.keyManagement.mnemonic.{FromMnemonic, Mnemonic}
+import co.topl.attestation.keyManagement.mnemonic.{Entropy, FromEntropy}
 import co.topl.attestation.{PublicKeyPropositionEd25519, SignatureEd25519}
 import co.topl.crypto.signatures.{Ed25519, Signature}
 import co.topl.crypto.{Pbkdf2Sha512, PublicKey}
 import co.topl.utils.SizedBytes
-import co.topl.utils.SizedBytes.Types.{ByteVector28, ByteVector32}
+import co.topl.utils.SizedBytes.Types.{ByteVector28, ByteVector32, ByteVector96}
 import co.topl.utils.SizedBytes.implicits._
 import co.topl.utils.serialization.BifrostSerializer
+import scodec.bits.ByteOrdering.LittleEndian
 import scodec.bits.{ByteOrdering, ByteVector}
 
 import java.nio.{ByteBuffer, ByteOrder}
@@ -25,8 +26,7 @@ import java.nio.{ByteBuffer, ByteOrder}
 class ExtendedPrivateKeyEd25519(
   val leftKey:   ByteVector32,
   val rightKey:  ByteVector32,
-  val chainCode: ByteVector32,
-  val path:      Seq[DerivedKeyIndex]
+  val chainCode: ByteVector32
 ) {
 
   // Note: BigInt expects Big-Endian, but SLIP/BIP-ED25519 need Little-Endian
@@ -117,7 +117,7 @@ class ExtendedPrivateKeyEd25519(
         ByteOrdering.LittleEndian
       )
 
-    ExtendedPrivateKeyEd25519.validate(ExtendedPrivateKeyEd25519(nextLeft, nextRight, nextChainCode, path :+ index))
+    ExtendedPrivateKeyEd25519.validate(ExtendedPrivateKeyEd25519(nextLeft, nextRight, nextChainCode))
   }
 
   /**
@@ -166,13 +166,54 @@ object ExtendedPrivateKeyEd25519 {
    */
   val edBaseN: BigInt = BigInt("7237005577332262213973186563042994240857116359379907606001950938285454250989")
 
+  /**
+   * Instantiates an `ExtendedPrivateKeyEd25519` from a 32-byte left/right key and 32-byte chain code
+   * with little-endian ordering
+   * @param leftKey the 32-byte left key
+   * @param rightKey the 32-byte right key
+   * @param chainCode the 32-byte chain code
+   * @return the `ExtendedPrivateKeyEd25519` representing the bytes
+   */
   def apply(
     leftKey:   ByteVector32,
     rightKey:  ByteVector32,
-    chainCode: ByteVector32,
-    path:      Seq[DerivedKeyIndex]
+    chainCode: ByteVector32
   ): ExtendedPrivateKeyEd25519 =
-    new ExtendedPrivateKeyEd25519(leftKey, rightKey, chainCode, path)
+    new ExtendedPrivateKeyEd25519(leftKey, rightKey, chainCode)
+
+  /**
+   * Instantiates an `ExtendedPrivateKeyEd25519` from a 96-byte vector with little endian ordering.
+   * @param bytes 96 bytes representing the left/right keys with a chain code in little-endian
+   * @return an `ExtendedPrivateKeyEd25519` representing the bytes
+   */
+  def apply(bytes: ByteVector96): ExtendedPrivateKeyEd25519 =
+    new ExtendedPrivateKeyEd25519(
+      SizedBytes[ByteVector32].fit(bytes.value.slice(0, 32), ByteOrdering.LittleEndian),
+      SizedBytes[ByteVector32].fit(bytes.value.slice(32, 64), ByteOrdering.LittleEndian),
+      SizedBytes[ByteVector32].fit(bytes.value.slice(64, 96), ByteOrdering.LittleEndian)
+    )
+
+  /**
+   * Instantiates an `ExtendedPrivateKeyEd25519` from entropy and a password.
+   * @param entropy some random entropy
+   * @param password an optional password for an extra layer of security
+   * @return an `ExtendedPrivateKeyEd25519`
+   */
+  def apply(entropy: Entropy, password: Password): ExtendedPrivateKeyEd25519 = {
+    // first do a PBDKF2-HMAC-SHA512 per the SLIP2-0023 spec
+    val seed = Pbkdf2Sha512.generateKey(
+      password.getBytes,
+      entropy.value,
+      96,
+      4096
+    )
+
+    // turn seed into a valid ExtendedPrivateKeyEd25519 per the SLIP-0023 spec
+    seed(0) = (seed(0) & 0xf8).toByte
+    seed(31) = ((seed(31) & 0x1f) | 0x40).toByte
+
+    ExtendedPrivateKeyEd25519(SizedBytes[ByteVector96].fit(seed, LittleEndian))
+  }
 
   /**
    * Creates a copy of an `ExtendedPrivateKey`.
@@ -183,8 +224,7 @@ object ExtendedPrivateKeyEd25519 {
     ExtendedPrivateKeyEd25519(
       SizedBytes[ByteVector32].fit(value.leftKey.toArray.clone(), ByteOrdering.LittleEndian),
       SizedBytes[ByteVector32].fit(value.rightKey.toArray.clone(), ByteOrdering.LittleEndian),
-      SizedBytes[ByteVector32].fit(value.chainCode.toArray.clone(), ByteOrdering.LittleEndian),
-      value.path
+      SizedBytes[ByteVector32].fit(value.chainCode.toArray.clone(), ByteOrdering.LittleEndian)
     )
 
   /**
@@ -198,37 +238,9 @@ object ExtendedPrivateKeyEd25519 {
 
   trait Instances {
 
-    /**
-     * `FromMnemonic` type-class instance to convert a mnemonic and its entropy into a function which
-     * takes in a password and returns an `ExtendedPrivateKeyEd25519`.
-     *
-     * Follows the SLIP-0023 specification:
-     * https://github.com/satoshilabs/slips/blob/master/slip-0023.md
-     */
-    implicit val fromMnemonic: FromMnemonic[Password => ExtendedPrivateKeyEd25519] = {
-      // ignore the phrase and just use initial entropy
-      (entropy: Mnemonic.Entropy, _) => (password: Password) =>
-        // first do a PBDKF2-HMAC-SHA512 per the SLIP2-0023 spec
-        val seed = Pbkdf2Sha512.generateKey(
-          password.getBytes,
-          entropy,
-          96,
-          4096
-        )
-
-        // turn seed into a valid ExtendedPrivateKeyEd25519 per the SLIP-0023 spec
-        seed(0) = (seed(0) & 0xf8).toByte
-        seed(31) = ((seed(31) & 0x1f) | 0x40).toByte
-
-        ExtendedPrivateKeyEd25519(
-          SizedBytes[ByteVector32].fit(seed.slice(0, 32), ByteOrdering.LittleEndian),
-          SizedBytes[ByteVector32].fit(seed.slice(32, 64), ByteOrdering.LittleEndian),
-          SizedBytes[ByteVector32].fit(seed.slice(64, 96), ByteOrdering.LittleEndian),
-          Seq()
-        )
-    }
+    implicit def fromEntropy: FromEntropy[Password => ExtendedPrivateKeyEd25519] =
+      entropy => password => ExtendedPrivateKeyEd25519(entropy, password)
   }
 
-  trait Implicits extends Instances
-  object implicits extends Implicits
+  object implicits extends Instances
 }

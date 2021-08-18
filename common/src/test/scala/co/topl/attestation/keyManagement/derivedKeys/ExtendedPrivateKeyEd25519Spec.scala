@@ -1,18 +1,31 @@
 package co.topl.attestation.keyManagement.derivedKeys
 
 import co.topl.attestation.SignatureEd25519
-import co.topl.utils.SizedBytes
-import co.topl.utils.SizedBytes.Types.ByteVector32
+import co.topl.attestation.keyManagement.derivedKeys.ExtendedPrivateKeyEd25519.Password
+import co.topl.attestation.keyManagement.derivedKeys.implicits._
+import co.topl.attestation.keyManagement.mnemonic.Language.{English, LanguageWordList}
+import co.topl.attestation.keyManagement.mnemonic.MnemonicSize.Mnemonic12
+import co.topl.attestation.keyManagement.mnemonic.{derive, Entropy, Phrase}
+import co.topl.utils.IdiomaticScalaTransition.implicits._
+import co.topl.utils.SizedBytes.Types.{ByteVector32, ByteVector96}
 import co.topl.utils.SizedBytes.implicits._
 import co.topl.utils.StringDataTypes.Base16Data
 import co.topl.utils.codecs.implicits._
+import co.topl.utils.{CommonGenerators, SizedBytes}
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scodec.bits.ByteOrdering
+import scodec.bits.ByteOrdering.LittleEndian
 
 // Test Vectors:
 // https://topl.atlassian.net/wiki/spaces/Bifrost/pages/294813812/HD+Wallet+Protocols+and+Test+Vectors
-class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
+class ExtendedPrivateKeyEd25519Spec
+    extends AnyFlatSpec
+    with ScalaCheckPropertyChecks
+    with ScalaCheckDrivenPropertyChecks
+    with CommonGenerators
+    with Matchers {
 
   "ExtendedPrivateKeyEd25519" should "pass generated test vector #3" in {
     val rootPrivateKeyBytes =
@@ -55,13 +68,7 @@ class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
       )
     )
 
-    val rootPrivateKey =
-      ExtendedPrivateKeyEd25519(
-        SizedBytes[ByteVector32].fit(rootPrivateKeyBytes.slice(0, 32), ByteOrdering.LittleEndian),
-        SizedBytes[ByteVector32].fit(rootPrivateKeyBytes.slice(32, 64), ByteOrdering.LittleEndian),
-        SizedBytes[ByteVector32].fit(rootPrivateKeyBytes.slice(64, 96), ByteOrdering.LittleEndian),
-        Seq()
-      )
+    val rootPrivateKey = ExtendedPrivateKeyEd25519(SizedBytes[ByteVector96].fit(rootPrivateKeyBytes, LittleEndian))
 
     val rootPublicKey =
       ExtendedPublicKeyEd25519(
@@ -125,8 +132,7 @@ class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
       ExtendedPrivateKeyEd25519(
         SizedBytes[ByteVector32].fit(rootKeyBytes.slice(0, 32), ByteOrdering.LittleEndian),
         SizedBytes[ByteVector32].fit(rootKeyBytes.slice(32, 64), ByteOrdering.LittleEndian),
-        SizedBytes[ByteVector32].fit(rootKeyBytes.slice(64, 96), ByteOrdering.LittleEndian),
-        Seq()
+        SizedBytes[ByteVector32].fit(rootKeyBytes.slice(64, 96), ByteOrdering.LittleEndian)
       )
 
     val `actual m/'0 private key` =
@@ -199,8 +205,7 @@ class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
       ExtendedPrivateKeyEd25519(
         SizedBytes[ByteVector32].fit(rootKeyBytes.slice(0, 32), ByteOrdering.LittleEndian),
         SizedBytes[ByteVector32].fit(rootKeyBytes.slice(32, 64), ByteOrdering.LittleEndian),
-        SizedBytes[ByteVector32].fit(rootKeyBytes.slice(64, 96), ByteOrdering.LittleEndian),
-        Seq()
+        SizedBytes[ByteVector32].fit(rootKeyBytes.slice(64, 96), ByteOrdering.LittleEndian)
       )
 
     val `actual m/'1852/'7091/'0/'0 private key` =
@@ -242,8 +247,7 @@ class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
       ExtendedPrivateKeyEd25519(
         SizedBytes[ByteVector32].fit(rootKeyBytes.slice(0, 32), ByteOrdering.LittleEndian),
         SizedBytes[ByteVector32].fit(rootKeyBytes.slice(32, 64), ByteOrdering.LittleEndian),
-        SizedBytes[ByteVector32].fit(rootKeyBytes.slice(64, 96), ByteOrdering.LittleEndian),
-        Seq()
+        SizedBytes[ByteVector32].fit(rootKeyBytes.slice(64, 96), ByteOrdering.LittleEndian)
       )
 
     val expectedChildKey: Array[Byte] =
@@ -274,5 +278,44 @@ class ExtendedPrivateKeyEd25519Spec extends AnyFlatSpec {
 
     childKeyBytes shouldBe expectedChildKey
     signatureResult.sigBytes shouldBe expectedSignature
+  }
+
+  "Key from mnemonic phrase" should "output same the key with the same password" in {
+    val createKey =
+      derive[Password => ExtendedPrivateKeyEd25519](
+        "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic",
+        Mnemonic12,
+        English
+      ).getOrThrow()
+
+    forAll(stringGen) { password =>
+      val firstAttempt = createKey(password)
+      val secondAttempt = createKey(password)
+
+      firstAttempt.leftKey shouldBe secondAttempt.leftKey
+      firstAttempt.rightKey shouldBe secondAttempt.rightKey
+      firstAttempt.chainCode shouldBe secondAttempt.chainCode
+    }
+  }
+
+  it should "output a different key with a different password" in {
+
+    val createKey =
+      derive[Password => ExtendedPrivateKeyEd25519](
+        "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic",
+        Mnemonic12,
+        English
+      ).getOrThrow()
+
+    forAll(stringGen, stringGen) { (password1, password2) =>
+      val firstAttempt = createKey(password1)
+      val secondAttempt = createKey(password2)
+
+      if (password1 != password2) {
+        firstAttempt.leftKey should not be secondAttempt.leftKey
+        firstAttempt.rightKey should not be secondAttempt.rightKey
+        firstAttempt.chainCode should not be secondAttempt.chainCode
+      }
+    }
   }
 }

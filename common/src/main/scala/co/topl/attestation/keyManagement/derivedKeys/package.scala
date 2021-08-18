@@ -16,6 +16,5 @@ package object derivedKeys {
     ByteVector(out)
   }
 
-  object implicits extends ExtendedPrivateKeyEd25519.Implicits
-
+  object implicits extends ExtendedPrivateKeyEd25519.Instances with ExtendedPublicKeyEd25519.Instances
 }

@@ -1,12 +1,12 @@
 package co.topl.attestation.keyManagement.derivedKeys
 
 import co.topl.utils.SizedBytes
-import co.topl.utils.SizedBytes.Types.ByteVector32
+import co.topl.utils.SizedBytes.Types.ByteVector96
 import co.topl.utils.SizedBytes.implicits._
 import co.topl.utils.encode.Base16
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
-import scodec.bits.ByteOrdering
+import scodec.bits.ByteOrdering.LittleEndian
 
 class ExtendedPublicKeyEd25519Spec extends AnyFlatSpec {
 
@@ -19,12 +19,7 @@ class ExtendedPublicKeyEd25519Spec extends AnyFlatSpec {
     val rootPrvBytes = Base16.decode(rootPrv).getOrElse(throw new Error())
 
     val rootKey =
-      ExtendedPrivateKeyEd25519(
-        SizedBytes[ByteVector32].fit(rootPrvBytes.slice(0, 32), ByteOrdering.LittleEndian),
-        SizedBytes[ByteVector32].fit(rootPrvBytes.slice(32, 64), ByteOrdering.LittleEndian),
-        SizedBytes[ByteVector32].fit(rootPrvBytes.slice(64, 96), ByteOrdering.LittleEndian),
-        Seq()
-      )
+      ExtendedPrivateKeyEd25519(SizedBytes[ByteVector96].fit(rootPrvBytes, LittleEndian))
 
     val derivedPub = rootKey.public.derive(SoftIndex(0))
 

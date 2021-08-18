@@ -1,6 +1,7 @@
 package co.topl.attestation.keyManagement.mnemonic
 
 import cats.implicits._
+import co.topl.attestation.keyManagement.mnemonic.Language._
 import org.scalatest.funspec.AnyFunSpec
 
 class LanguageSpec extends AnyFunSpec {
@@ -22,7 +23,7 @@ class LanguageSpec extends AnyFunSpec {
     languages.foreach { lang =>
       describe(lang.toString) {
         it("should have a valid checksum with included word list") {
-          lang.words.valueOr(err => throw new Error(s"Invalid word list: $err"))
+          LanguageWordList.validated(lang).valueOr(err => throw new Error(s"Invalid word list: $err"))
         }
       }
     }

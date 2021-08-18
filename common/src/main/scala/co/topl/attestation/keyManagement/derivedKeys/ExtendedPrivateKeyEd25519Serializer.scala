@@ -22,9 +22,7 @@ object ExtendedPrivateKeyEd25519Serializer extends BifrostSerializer[ExtendedPri
     ExtendedPrivateKeyEd25519(
       SizedBytes[ByteVector32].fit(leftKey, ByteOrdering.LittleEndian),
       SizedBytes[ByteVector32].fit(rightKey, ByteOrdering.LittleEndian),
-      SizedBytes[ByteVector32].fit(chainCode, ByteOrdering.LittleEndian),
-      // Branden TODO: figure out how to serialize/deserialize the derivation path
-      Seq()
+      SizedBytes[ByteVector32].fit(chainCode, ByteOrdering.LittleEndian)
     )
   }
 }

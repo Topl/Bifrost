@@ -3,9 +3,12 @@ package co.topl.attestation.keyManagement.derivedKeys
 import co.topl.crypto.PublicKey
 import co.topl.crypto.signatures.Ed25519
 import co.topl.utils.SizedBytes
+import co.topl.utils.SizedBytes.Types.{ByteVector32, ByteVector64}
 import co.topl.utils.SizedBytes.implicits._
-import co.topl.utils.SizedBytes.Types.ByteVector32
 import scodec.bits.ByteOrdering
+import scodec.bits.ByteOrdering.LittleEndian
+
+import scala.language.implicitConversions
 
 /**
  * An ED-25519 Extended public key.
@@ -70,6 +73,29 @@ class ExtendedPublicKeyEd25519(val bytes: ByteVector32, val chainCode: ByteVecto
 
 object ExtendedPublicKeyEd25519 {
 
-  def apply(bytes: ByteVector32, chaincode: ByteVector32): ExtendedPublicKeyEd25519 =
-    new ExtendedPublicKeyEd25519(bytes, chaincode)
+  /**
+   * Instantiates an `ExtendedPublicEd25519` from a 32-byte public key and 32-byte chain code
+   * @param publicKey the 32-byte public key byte representation in little endian order
+   * @param chaincode the 32-byte chain code byte representation in little endian order
+   * @return an instance of `ExtendedPublicEd25519`
+   */
+  def apply(publicKey: ByteVector32, chaincode: ByteVector32): ExtendedPublicKeyEd25519 =
+    new ExtendedPublicKeyEd25519(publicKey, chaincode)
+
+  /**
+   * Instantiates an `ExtendedPublicKeyEd25519` from a 64-byte vector containing a public key and chain code.
+   * @param bytes the 64 bytes representing the public key and chain code in little endian order
+   * @return an instance of `ExtendedPublicKeyEd25519`
+   */
+  def apply(bytes: ByteVector64): ExtendedPublicKeyEd25519 =
+    new ExtendedPublicKeyEd25519(
+      SizedBytes[ByteVector32].fit(bytes.value.slice(0, 32), LittleEndian),
+      SizedBytes[ByteVector32].fit(bytes.value.slice(32, 64), LittleEndian)
+    )
+
+  trait Instances {
+    implicit def toPublicKey(key: ExtendedPublicKeyEd25519): PublicKey = key.toPublicKey
+  }
+
+  object implicits extends Instances
 }
