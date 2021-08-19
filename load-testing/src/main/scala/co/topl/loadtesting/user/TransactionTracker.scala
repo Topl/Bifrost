@@ -1,12 +1,12 @@
-package co.topl.loadtesting.transactions
+package co.topl.loadtesting.user
 
+import co.topl.rpc.implicits.client._
+import co.topl.akkahttprpc.implicits.client._
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Source
 import co.topl.akkahttprpc.RequestModifier
-import co.topl.akkahttprpc.implicits.client._
 import co.topl.modifier.ModifierId
 import co.topl.rpc.ToplRpc.NodeView.TransactionById
-import co.topl.rpc.implicits.client._
 import co.topl.utils.NetworkType.NetworkPrefix
 
 import scala.concurrent.duration.DurationInt
@@ -24,7 +24,7 @@ object TransactionTracker {
     requestModifier: RequestModifier,
     ec:              ExecutionContext
   ): Future[TransactionResult] =
-    Source(1 to wait)
+    Source(LazyList.from(0))
       .throttle(1, 1.second)
       .map(count => (count, TransactionById.Params(txId)))
       .mapAsync(1)(x => TransactionById.rpc(x._2).value.map((x._1, _)))

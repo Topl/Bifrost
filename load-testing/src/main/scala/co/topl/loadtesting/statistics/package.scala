@@ -1,12 +1,14 @@
 package co.topl.loadtesting
 
 import akka.NotUsed
+import akka.stream.IOResult
 import akka.stream.scaladsl.{FileIO, Flow, Sink}
 import akka.util.ByteString
 import simulacrum.typeclass
 
 import java.nio.file.{Paths, StandardOpenOption}
 import scala.language.implicitConversions
+import scala.concurrent.Future
 
 package object statistics {
 
@@ -39,10 +41,8 @@ package object statistics {
      * @tparam T the type of value to generate a CSV friendly log from
      * @return `NotUsed` signalling completion
      */
-    def apply[T: ToStatisticsCsvLog](path: String): Sink[T, NotUsed] =
-      Flow[T]
-        .map(_.toCsvLog)
-        .map(s => ByteString(s + "\n"))
-        .to(FileIO.toPath(Paths.get(path), options = Set(StandardOpenOption.CREATE, StandardOpenOption.APPEND)))
+    def apply[T: ToStatisticsCsvLog](path: String): Sink[T, Future[IOResult]] =
+          FileIO.toPath(Paths.get(path), options = Set(StandardOpenOption.CREATE, StandardOpenOption.APPEND))
+            .contramap[T](t => ByteString(t.toCsvLog + "\n"))
   }
 }

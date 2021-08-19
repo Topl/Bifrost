@@ -1,6 +1,7 @@
 package co.topl.loadtesting
 
-import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.ActorSystem
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
@@ -10,7 +11,6 @@ import akka.{Done, NotUsed}
 import co.topl.akkahttprpc.RequestModifier
 import co.topl.attestation.Address
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.loadtesting.userpool.UserPoolActor
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -33,6 +33,8 @@ object SimulationActor {
    */
   case object Stop extends Command
 
+  private case class SpawnUsers(users: List[(Address, Behavior[NotUsed])]) extends Command
+
   /**
    * Instantiates a new simulation behavior accepting commands messages of type `Command`.
    * @param statsFile the statistics file to output results to
@@ -41,16 +43,17 @@ object SimulationActor {
    * @param requestModifier the HTTP request modifier for sending RPC messages to Bifrost
    * @return an instance of `Behavior[Command]`
    */
-  def apply(statsFile: String)(implicit
+  def apply(outputDirectory: String)(implicit
     networkPrefix:     NetworkPrefix,
     timeout:           Timeout,
     requestModifier:   RequestModifier
   ): Behavior[Command] =
     Behaviors.setup { context =>
       val keys = context.spawn(KeysActor(), "keys")
-      val users = context.spawn(UserPoolActor(keys, statsFile), "userpool")
 
-      withState(keys, users)
+      implicit val actorSystem = context.system.classicSystem
+
+      withState(outputDirectory, keys)
     }
 
   /**
@@ -60,36 +63,39 @@ object SimulationActor {
    * @param timeout the amount of time to wait for actor responses
    * @return an actor behavior of type `Behavior[Command]`
    */
-  def withState(keys: ActorRef[KeysActor.Command], users: ActorRef[UserPoolActor.Command])(implicit
-    timeout:          Timeout
+  def withState(outputDirectory: String, keys: ActorRef[KeysActor.Command])(implicit
+    timeout:          Timeout,
+    actorSystem:      ActorSystem,
+    networkPrefix:    NetworkPrefix,
+    requestModifier:  RequestModifier
   ): Behavior[Command] =
     Behaviors.receive { (context, message) =>
       implicit val materializer: Materializer = Materializer(context)
+      implicit val currentContext: ActorContext[Command] = context
 
       message match {
         case AddUsers(numUsers, seed) =>
-
-          /**
-           * Flow to create new keys in the key ring and get back the created addresses.
-           */
-        val createKeysFlow: Flow[Any, Try[Set[Address]], NotUsed] =
-            ActorFlow.ask(keys)((_: Any, replyTo: ActorRef[Try[Set[Address]]]) =>
-              KeysActor.GenerateKeyPairs(seed, numUsers, replyTo)
-            )
-
-          /**
-           * Flow to add new users to the user pool from a given set of addresses.
-           */
-          val addUsersSink: Sink[Try[Set[Address]], Future[Done]] =
-            Sink.foreach(addresses => users ! UserPoolActor.AddUsers(addresses.get))
-
           Source
             .single(NotUsed)
             // ask keys actor to generate new addresses
-            .via(createKeysFlow)
+            .via(
+              ActorFlow.ask(keys)((_: Any, replyTo: ActorRef[Try[Set[Address]]]) =>
+                KeysActor.GenerateKeyPairs(seed, numUsers, replyTo)
+              )
+            )
             // send new addresses to the user pool to create new users
-            .to(addUsersSink)
-            .run()
+            .map(_.get.toList)
+            .via(userpool.createUsersFlow(userpool.actionsList(outputDirectory), keys))
+            .runForeach(users => context.self ! SpawnUsers(users))
+
+          Behaviors.same
+
+        case SpawnUsers(users) =>
+          users.foreach { user =>
+            val newUser = context.spawn(user._2, s"User_${user._1}")
+
+            newUser ! NotUsed
+          }
 
           Behaviors.same
 

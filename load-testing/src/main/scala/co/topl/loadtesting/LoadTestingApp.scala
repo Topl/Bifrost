@@ -32,18 +32,18 @@ object LoadTestingApp {
    * @param uri a Bifrost node to connect to
    * @param apiKey the Bifrost node's API key
    * @param seed the user address generation seed
-   * @param statisticsPath a path to an output of results
+   * @param outputDirectory a path to a directory for results output
    * @param timeoutSeconds a general akka timeout (fix)
    */
   @main
   def run(
-    @arg(short = 'n') network:        NetworkType,
-    @arg(short = 'c') userCount:      Int,
-    @arg(short = 'u') uri:            String,
-    @arg(short = 'a') apiKey:         String,
-    @arg(short = 's') seed:           String = "test",
-    @arg(short = 'o') statisticsPath: String = "./stats.csv",
-    @arg(short = 't') timeoutSeconds: Int = 30
+    @arg(short = 'n') network:         NetworkType,
+    @arg(short = 'c') userCount:       Int,
+    @arg(short = 'u') uri:             String,
+    @arg(short = 'a') apiKey:          String,
+    @arg(short = 's') seed:            String = "test",
+    @arg(short = 'o') outputDirectory: String = "./stats",
+    @arg(short = 't') timeoutSeconds:  Int = 30
   ): Unit = {
     val provider: Provider = network match {
       case PrivateTestnet  => new Provider.PrivateTestNet(uri, apiKey)
@@ -56,7 +56,7 @@ object LoadTestingApp {
     implicit val timeout: Timeout = timeoutSeconds.seconds
 
     implicit val actorSystem: ActorSystem[SimulationActor.Command] =
-      ActorSystem[SimulationActor.Command](SimulationActor(statisticsPath), "simulation")
+      ActorSystem[SimulationActor.Command](SimulationActor(outputDirectory), "simulation")
 
     actorSystem ! SimulationActor.AddUsers(userCount, seed)
 
