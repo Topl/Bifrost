@@ -3,11 +3,11 @@ package co.topl.loadtesting
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.Materializer
-import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.stream.scaladsl.{Flow, Source}
 import cats.Show
 import cats.implicits._
-import co.topl.akkahttprpc.implicits.client._
 import co.topl.akkahttprpc._
+import co.topl.akkahttprpc.implicits.client._
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.loadtesting.statistics.{StatisticsSink, ToStatisticsCsvLog}
 import co.topl.modifier.ModifierId
@@ -19,6 +19,7 @@ import co.topl.rpc.implicits.client._
 import co.topl.utils.NetworkType.NetworkPrefix
 import com.nike.fleam.implicits._
 
+import java.time.LocalDateTime
 import scala.collection.immutable.ListMap
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
@@ -130,8 +131,9 @@ package object user {
         case _                                     => TransactionUnconfirmed()
       }
 
-  implicit val txBroadcastToCsv: ToStatisticsCsvLog[ModifierId] =
-    modifierId => s"Transaction Broadcast, $modifierId"
+  implicit val txBroadcastToCsv: ToStatisticsCsvLog[(ModifierId, LocalDateTime)] = { case (modifierId, timestamp) =>
+    s"Transaction Broadcast, $modifierId, $timestamp"
+  }
 
   /**
    * Side-affecting operation that users should call when they broadcast a transaction.
@@ -139,10 +141,11 @@ package object user {
    * @param txId the ID of the broacast transaction
    * @param materializer an Akka stream materializer
    */
-  def onTxBroadcast(outputPath: String)(txId: ModifierId)(implicit materializer: Materializer): Unit = {
+  def onTxBroadcast(outputPath: String)(txId: ModifierId, timestamp: LocalDateTime)(implicit
+    materializer:               Materializer
+  ): Unit =
     // log broadcasted TX to CSV file
-    Source.single(txId).to(StatisticsSink(outputPath)).run()
-  }
+    Source.single((txId, timestamp)).to(StatisticsSink(outputPath)).run()
 
   object implicits extends SendAssetsAction.Instances with SendPolysAction.Instances
 }

@@ -2,23 +2,17 @@ package co.topl.loadtesting
 
 import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.actor.typed.scaladsl.ActorContext
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import akka.stream.typed.scaladsl.ActorFlow
 import akka.util.Timeout
 import cats.data.NonEmptyList
-import cats.implicits._
-import co.topl.akkahttprpc.{RequestModifier, RpcClientFailure}
+import co.topl.akkahttprpc.RequestModifier
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
-import co.topl.loadtesting
-import co.topl.loadtesting.statistics.{StatisticsSink, ToStatisticsCsvLog}
 import co.topl.loadtesting.user.implicits._
 import co.topl.loadtesting.user.{userFlow, SendAssetsAction, SendPolysAction}
-import co.topl.modifier.ModifierId
 import co.topl.utils.NetworkType.NetworkPrefix
-import com.nike.fleam.implicits._
 
 import scala.collection.immutable.ListMap
 import scala.concurrent.duration.DurationInt

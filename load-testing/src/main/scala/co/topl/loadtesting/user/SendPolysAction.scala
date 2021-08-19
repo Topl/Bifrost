@@ -21,6 +21,7 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Latin1Data
 import com.nike.fleam.implicits._
 
+import java.time.LocalDateTime
 import scala.collection.immutable.ListMap
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -37,12 +38,12 @@ case class SendPolysAction(
   fee:           Int,
   logSuccess:    SendPolysAction.Success => Unit,
   logFailure:    SendPolysAction.Failure => Unit,
-  onTxBroadcast: ModifierId => Unit
+  onTxBroadcast: (ModifierId, LocalDateTime) => Unit
 )
 
 object SendPolysAction {
 
-  case class Success(txId: ModifierId, confirmationTime: Int)
+  case class Success(txId: ModifierId, confirmationTime: Int, timestamp: LocalDateTime)
 
   sealed trait Failure
 
@@ -189,13 +190,13 @@ object SendPolysAction {
       .eitherMapAsync(1)(tx => sign(tx.messageToSign).map(signature => tx.copy(attestation = signature)))
       .viaRight(
         broadcastTxFlow
-          .viaRight(Flow[BroadcastTx.Response].wireTap(x => action.onTxBroadcast(x.id)))
+          .viaRight(Flow[BroadcastTx.Response].wireTap(x => action.onTxBroadcast(x.id, LocalDateTime.now())))
           .eitherLeftMap(RpcFailure(_): Failure)
       )
       .eitherFlatMap(x => x)
       .eitherFlatMapAsync(1)(tx =>
         trackTx(tx.id).map {
-          case TransactionConfirmed(seconds) => Success(tx.id, seconds).asRight
+          case TransactionConfirmed(seconds) => Success(tx.id, seconds, LocalDateTime.now()).asRight
           case TransactionUnconfirmed()      => Unconfirmed(tx.id).asLeft
         }
       )
@@ -212,7 +213,7 @@ object SendPolysAction {
     ): UserAction[SendPolysAction, Failure, Success] = executeActionFlow
 
     implicit val sendPolysSuccessToCsv: ToStatisticsCsvLog[Success] =
-      success => s"Poly Transfer, ${success.txId}, ${success.confirmationTime}"
+      success => s"Poly Transfer, ${success.txId}, ${success.confirmationTime}, ${success.timestamp}"
 
     implicit val sendPolysFailureToCsv: ToStatisticsCsvLog[Failure] = {
       case Unconfirmed(txId)           => s"Poly Transfer Unconfirmed, $txId"
@@ -228,7 +229,8 @@ object SendPolysAction {
     implicit val sendPolysSuccessShow: Show[Success] =
       success =>
         s"${Console.GREEN}Poly Transfer: " +
-        s"TX ID - ${success.txId}, Time - ${success.confirmationTime}${Console.RESET}"
+        s"TX ID - ${success.txId}, Confirmation Time - ${success.confirmationTime}, " +
+        s"Timestamp - ${success.timestamp} ${Console.RESET}"
 
     implicit val sendPolysFailureShow: Show[Failure] = {
       case Unconfirmed(txId) =>

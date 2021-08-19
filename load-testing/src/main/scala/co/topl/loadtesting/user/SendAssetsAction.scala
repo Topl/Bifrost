@@ -19,8 +19,10 @@ import co.topl.rpc.ToplRpc.Transaction.{BroadcastTx, RawAssetTransfer}
 import co.topl.rpc.implicits.client._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Latin1Data
+import co.topl.utils.TimeProvider.Time
 import com.nike.fleam.implicits._
 
+import java.time.LocalDateTime
 import scala.collection.immutable.ListMap
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -37,12 +39,12 @@ case class SendAssetsAction(
   fee:                  Int,
   logSuccess:           SendAssetsAction.Success => Unit,
   logFailure:           SendAssetsAction.Failure => Unit,
-  onTxBroadcast:        ModifierId => Unit
+  onTxBroadcast:        (ModifierId, LocalDateTime) => Unit
 )
 
 object SendAssetsAction {
 
-  case class Success(txId: ModifierId, confirmationTime: Int)
+  case class Success(txId: ModifierId, confirmationTime: Int, timestamp: LocalDateTime)
 
   sealed trait Failure
 
@@ -210,7 +212,7 @@ object SendAssetsAction {
       // broadcast the asset transaction if it was created successfully
       .viaRight(
         broadcastTxFlow
-          .viaRight(Flow[BroadcastTx.Response].wireTap(x => action.onTxBroadcast(x.id)))
+          .viaRight(Flow[BroadcastTx.Response].wireTap(x => action.onTxBroadcast(x.id, LocalDateTime.now())))
           .eitherLeftMap(RpcFailure(_): Failure)
       )
       // flatten the broadcast result into an action result
@@ -218,7 +220,7 @@ object SendAssetsAction {
       // track the transaction until it is added to a block
       .eitherFlatMapAsync(1)(tx =>
         trackTx(tx.id).map {
-          case TransactionConfirmed(seconds) => Success(tx.id, seconds).asRight
+          case TransactionConfirmed(seconds) => Success(tx.id, seconds, LocalDateTime.now()).asRight
           case TransactionUnconfirmed()      => Unconfirmed(tx.id).asLeft
         }
       )
@@ -236,7 +238,7 @@ object SendAssetsAction {
     ): UserAction[SendAssetsAction, Failure, Success] = executeActionFlow
 
     implicit val sendAssetsSuccessToCsv: ToStatisticsCsvLog[Success] =
-      success => s"Asset Transfer, ${success.txId}, ${success.confirmationTime}"
+      success => s"Asset Transfer, ${success.txId}, ${success.confirmationTime}, ${success.timestamp}"
 
     implicit val sendAssetsFailureToCsv: ToStatisticsCsvLog[Failure] = {
       case Unconfirmed(txId)           => s"Asset Transfer Unconfirmed, $txId"
@@ -252,7 +254,8 @@ object SendAssetsAction {
     implicit val sendAssetsSuccessShow: Show[Success] =
       success =>
         s"${Console.GREEN}Asset Transfer: " +
-        s"TX ID - ${success.txId}, Time - ${success.confirmationTime}${Console.RESET}"
+        s"TX ID - ${success.txId}, Confirmation Time - ${success.confirmationTime}, " +
+        s"Timestamp - ${success.timestamp}${Console.RESET}"
 
     implicit val sendAssetsFailureShow: Show[Failure] = {
       case Unconfirmed(txId) =>
