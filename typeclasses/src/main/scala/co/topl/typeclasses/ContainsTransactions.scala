@@ -1,6 +1,6 @@
 package co.topl.typeclasses
 
-import co.topl.models.{Block, BlockV1, BlockV2, Transaction}
+import co.topl.models.{BlockBodyV2, BlockV1, Transaction}
 import simulacrum.{op, typeclass}
 
 /**
@@ -14,9 +14,7 @@ object ContainsTransactions {
 
   object Instances {
 
-    implicit val blockContainsTransactions: ContainsTransactions[Block] = {
-      case b: BlockV1 => b.transactions
-      case b: BlockV2 => b.transactions
-    }
+    implicit val blockBodyV2: ContainsTransactions[BlockBodyV2] = _.transactions
+    implicit val blockV1: ContainsTransactions[BlockV1] = _.transactions
   }
 }

@@ -3,6 +3,7 @@ package co.topl.typeclasses
 import cats.implicits._
 import cats.kernel.Semigroup
 import co.topl.models._
+import co.topl.typeclasses.ContainsTransactions.ops._
 import simulacrum.{op, typeclass}
 
 /**
@@ -18,15 +19,14 @@ object ModifiesState {
 
   object Instances {
 
-    import StateModifications._
     import ModifiesState.ops._
+    import StateModifications._
 
     implicit val transactionStateModifier: ModifiesState[Transaction] =
       tx => ???
 
-    implicit val blockStateModifier: ModifiesState[Block] = { case b: BlockV1 =>
-      b.transactions.map(_.stateModifications).fold(StateModifications(Set.empty, Set.empty))(_.combine(_))
-    }
+    implicit def containsTransactionsModifier[T: ContainsTransactions]: ModifiesState[T] =
+      _.transactions.map(_.stateModifications).fold(StateModifications(Set.empty, Set.empty))(_.combine(_))
   }
 }
 

@@ -86,6 +86,10 @@ object Dependencies {
     "org.typelevel" %% "simulacrum" % "1.0.1"
   )
 
+  val bouncyCastle = Seq(
+    "org.bouncycastle" % "bcprov-jdk15on" % "1.69"
+  )
+
   val node: Seq[ModuleID] = {
     Seq(
       "com.typesafe.akka"          %% "akka-cluster"   % akkaVersion,
@@ -167,10 +171,10 @@ object Dependencies {
 
   lazy val crypto: Seq[ModuleID] =
     Seq(
-      "org.bouncycastle"   % "bcprov-jdk15on"  % "1.69",
       "org.whispersystems" % "curve25519-java" % "0.5.0"
     ) ++
     misc ++
+    bouncyCastle ++
     cats ++
     simulacrum ++
     test

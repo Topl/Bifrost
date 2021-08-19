@@ -9,7 +9,7 @@ package object models {
   type TypedIdentifier = TypedBytes
   type Int128 = Sized.Max[BigInt, Lengths.`128`.type]
   type Timestamp = Long
-  type Slot = Long
+  type Slot = Int
   type Attestation = ListMap[Proposition, Proof]
   type Registration = Bytes
   type Signature = Bytes

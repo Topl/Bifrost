@@ -1,8 +1,6 @@
 package co.topl.minting
 
 import co.topl.models._
-import co.topl.typeclasses.ContainsHeight.Instances._
-import co.topl.typeclasses.ContainsHeight.ops._
 import co.topl.typeclasses.Identifiable.Instances._
 import co.topl.typeclasses.Identifiable.ops._
 
@@ -17,27 +15,33 @@ import scala.concurrent.{ExecutionContext, Future}
  */
 class BlockMint(
   getCurrentTime:   () => Timestamp,
-  nextTransactions: Block => Future[Seq[Transaction]],
-  elect:            Block => Future[BlockMint.Election]
+  nextTransactions: BlockV2 => Future[Seq[Transaction]],
+  elect:            BlockHeaderV2 => Future[BlockMint.Election]
 )(implicit ec:      ExecutionContext)
-    extends Mint[Block] {
+    extends Mint[BlockV2] {
 
-  override def nextValue(parentBlock: Block): Future[Block] =
+  override def nextValue(parentBlock: BlockV2): Future[BlockV2] =
     for {
-      BlockMint.Election(slot, vrfCertificate, kesCertificate) <- elect(parentBlock)
+      BlockMint.Election(slot, vrfCertificate, kesCertificate) <- elect(parentBlock.headerV2)
       transactions                                             <- nextTransactions(parentBlock)
       timestamp = getCurrentTime()
-    } yield BlockV2(
-      parentId = parentBlock.id,
-      timestamp = timestamp,
-      height = parentBlock.height,
-      transactions = transactions,
-      slot = slot,
-      vrfCertificate = vrfCertificate,
-      kesCertificate = kesCertificate
-    )
+      body = BlockBodyV2(
+        transactions = transactions,
+        parentHeaderId = parentBlock.headerV2.id
+      )
+      header = BlockHeaderV2(
+        parentHeaderId = parentBlock.headerV2.id,
+        blockBodyId = body.id,
+        timestamp = timestamp,
+        height = parentBlock.headerV2.height,
+        slot = slot,
+        vrfCertificate = vrfCertificate,
+        kesCertificate = kesCertificate
+      )
+    } yield BlockV2(header, body)
 }
 
 object BlockMint {
+  // TODO: `kesCertificate` isn't part of the election process
   case class Election(slot: Slot, vrfCertificate: VrfCertificate, kesCertificate: KesCertificate)
 }

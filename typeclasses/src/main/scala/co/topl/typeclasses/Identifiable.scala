@@ -8,16 +8,16 @@ import simulacrum.{op, typeclass}
  */
 @typeclass trait Identifiable[T] {
   @op("id") def idOf(t: T): TypedIdentifier
+  def typePrefix: TypePrefix
 }
 
 object Identifiable {
 
   object Instances {
 
-    implicit val identifiableBlock: Identifiable[Block] = {
-      case b: BlockV1 => ???
-      case b: BlockV2 => ???
-    }
+    implicit val identifiableBlockHeaderV2: Identifiable[BlockHeaderV2] = ???
+    implicit val identifiableBlockBodyV2: Identifiable[BlockBodyV2] = ???
+    implicit val identifiableBlockV1: Identifiable[BlockV1] = ???
 
     implicit val transactionIdentifiable: Identifiable[Transaction] = ???
   }
@@ -27,7 +27,8 @@ object IdentifierTypes {
 
   object Block {
     val V1: TypePrefix = 1: Byte
-    val V2: TypePrefix = 4: Byte
+    val HeaderV2: TypePrefix = 4: Byte
+    val BodyV2: TypePrefix = 4: Byte
   }
 
   val Transaction: TypePrefix = 3: Byte

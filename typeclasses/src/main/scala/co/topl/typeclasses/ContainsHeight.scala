@@ -14,9 +14,7 @@ object ContainsHeight {
 
   object Instances {
 
-    implicit val blockContainsHeight: ContainsHeight[Block] = {
-      case b: BlockV1 => b.height
-      case b: BlockV2 => b.height
-    }
+    implicit val blockHeaderV2: ContainsHeight[BlockHeaderV2] = _.height
+    implicit val blockV1: ContainsHeight[BlockV1] = _.height
   }
 }

@@ -15,7 +15,7 @@ object Persistence {
   trait Ops {
 
     implicit class StringOps(string: String) {
-      def bytes: Bytes = new Bytes(string.getBytes(StandardCharsets.UTF_8))
+      def bytes: Bytes = Bytes(string.getBytes(StandardCharsets.UTF_8))
     }
   }
 

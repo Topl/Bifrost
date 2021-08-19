@@ -15,7 +15,7 @@ object ContainsParent {
   object Instances {
 
     implicit val blockContainsParent: ContainsParent[Block] = new ContainsParent[Block] {
-      val GenesisBlockIdBytes: Bytes = new Bytes(Array.fill[Byte](32)(0))
+      val GenesisBlockIdBytes: Bytes = Bytes(Array.fill[Byte](32)(0))
 
       override def parentIdOf(t: Block): Option[(Byte, Bytes)] = {
         val rawParentId = t match {
@@ -24,7 +24,7 @@ object ContainsParent {
           case b: BlockV2 =>
             b.parentId
         }
-        Some(rawParentId).filterNot(_._2 == GenesisBlockIdBytes)
+        Some(rawParentId).filterNot(_.dataBytes == GenesisBlockIdBytes)
       }
     }
   }

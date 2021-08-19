@@ -14,15 +14,14 @@ object ContainsTimestamp {
 
   object Instances {
 
-    implicit val blockTimestamped: ContainsTimestamp[Block] = {
-      case b: BlockV1 => b.timestamp
-      case b: BlockV2 => b.timestamp
-    }
+    implicit val blockHeaderV2: ContainsTimestamp[BlockHeaderV2] = _.timestamp
+    implicit val blockV1: ContainsTimestamp[BlockV1] = _.timestamp
 
     implicit val transactionTimestamped: ContainsTimestamp[Transaction] = {
       case t: ArbitTransfer => t.timestamp
       case t: PolyTransfer  => t.timestamp
       case t: AssetTransfer => t.timestamp
+      case _                => ???
     }
   }
 }

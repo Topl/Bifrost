@@ -1,7 +1,7 @@
 package co.topl.consensus
 
 import co.topl.consensus.crypto.{Ratio, Vrf}
-import co.topl.models.{Bytes, Nonce}
+import co.topl.models.{Bytes, Nonce, Slot}
 
 object LeaderElection {
 

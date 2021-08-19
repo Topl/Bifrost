@@ -1,7 +1,6 @@
 package co.topl.models
 
-sealed abstract class Block
-
+// id = hash(blockBytes)
 case class BlockV1(
   parentId:     TypedIdentifier,
   timestamp:    Timestamp,
@@ -11,14 +10,24 @@ case class BlockV1(
   height:       Long,
   difficulty:   Long,
   transactions: Seq[Transaction]
-) extends Block
+)
 
-case class BlockV2(
-  parentId:       TypedIdentifier,
+// id = hash(headerBytes)
+case class BlockHeaderV2(
+  parentHeaderId: TypedIdentifier,
+  blockBodyId:    TypedIdentifier,
   timestamp:      Timestamp,
   height:         Long,
-  transactions:   Seq[Transaction],
-  slot:           Long,
+  slot:           Slot,
   vrfCertificate: VrfCertificate,
   kesCertificate: KesCertificate
-) extends Block
+)
+
+// id = hash(bodyBytes)
+case class BlockBodyV2(
+  parentHeaderId: TypedIdentifier,
+  transactions:   Seq[Transaction]
+)
+
+// This is a synthetic type, and is not "identifiable"
+case class BlockV2(headerV2: BlockHeaderV2, blockBodyV2: BlockBodyV2)

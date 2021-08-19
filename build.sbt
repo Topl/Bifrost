@@ -4,19 +4,21 @@ import sbtassembly.MergeStrategy
 val scala212 = "2.12.14"
 val scala213 = "2.13.6"
 
-inThisBuild(List(
-  organization := "co.topl",
-  scalaVersion := scala213,
-  crossScalaVersions := Seq(scala212, scala213),
-  versionScheme := Some("early-semver"),
-  dynverSeparator := "-",
-  version := dynverGitDescribeOutput.value.mkVersion(versionFmt, fallbackVersion(dynverCurrentDate.value)),
-  dynver := {
-    val d = new java.util.Date
-    sbtdynver.DynVer.getGitDescribeOutput(d).mkVersion(versionFmt, fallbackVersion(d))
-  },
-  parallelExecution := false
-))
+inThisBuild(
+  List(
+    organization := "co.topl",
+    scalaVersion := scala213,
+    crossScalaVersions := Seq(scala212, scala213),
+    versionScheme := Some("early-semver"),
+    dynverSeparator := "-",
+    version := dynverGitDescribeOutput.value.mkVersion(versionFmt, fallbackVersion(dynverCurrentDate.value)),
+    dynver := {
+      val d = new java.util.Date
+      sbtdynver.DynVer.getGitDescribeOutput(d).mkVersion(versionFmt, fallbackVersion(d))
+    },
+    parallelExecution := false
+  )
+)
 
 enablePlugins(ReproducibleBuildsPlugin, ReproducibleBuildsAssemblyPlugin)
 
@@ -74,21 +76,22 @@ lazy val assemblySettings = Seq(
   assembly / mainClass := Some("co.topl.BifrostApp"),
   assembly / test := {},
   assemblyJarName := s"bifrost-${version.value}.jar",
-  assembly / assemblyMergeStrategy ~= { old: ((String) => MergeStrategy) => {
-    case ps if ps.endsWith(".SF")  => MergeStrategy.discard
-    case ps if ps.endsWith(".DSA") => MergeStrategy.discard
-    case ps if ps.endsWith(".RSA") => MergeStrategy.discard
-    case ps if ps.endsWith(".xml") => MergeStrategy.first
-    case PathList(ps @ _*) if ps.last endsWith "module-info.class" =>
-      MergeStrategy.discard // https://github.com/sbt/sbt-assembly/issues/370
-    case x if x.contains("simulacrum") => MergeStrategy.last
-    case PathList("org", "iq80", "leveldb", xs @ _*) => MergeStrategy.first
-    case PathList("module-info.java")  => MergeStrategy.discard
-    case PathList("local.conf")        => MergeStrategy.discard
-    case "META-INF/truffle/instrument" => MergeStrategy.concat
-    case "META-INF/truffle/language"   => MergeStrategy.rename
-    case x                             => old(x)
-  }
+  assembly / assemblyMergeStrategy ~= { old: ((String) => MergeStrategy) =>
+    {
+      case ps if ps.endsWith(".SF")  => MergeStrategy.discard
+      case ps if ps.endsWith(".DSA") => MergeStrategy.discard
+      case ps if ps.endsWith(".RSA") => MergeStrategy.discard
+      case ps if ps.endsWith(".xml") => MergeStrategy.first
+      case PathList(ps @ _*) if ps.last endsWith "module-info.class" =>
+        MergeStrategy.discard // https://github.com/sbt/sbt-assembly/issues/370
+      case x if x.contains("simulacrum")               => MergeStrategy.last
+      case PathList("org", "iq80", "leveldb", xs @ _*) => MergeStrategy.first
+      case PathList("module-info.java")                => MergeStrategy.discard
+      case PathList("local.conf")                      => MergeStrategy.discard
+      case "META-INF/truffle/instrument"               => MergeStrategy.concat
+      case "META-INF/truffle/language"                 => MergeStrategy.rename
+      case x                                           => old(x)
+    }
   },
   assembly / assemblyExcludedJars := {
     val cp = (assembly / fullClasspath).value
@@ -198,7 +201,7 @@ lazy val node = project
     dockerLabels ++= Map(
       "bifrost.version" -> version.value
     ),
-    libraryDependencies ++= Dependencies.node,
+    libraryDependencies ++= Dependencies.node
   )
   .configs(IntegrationTest)
   .settings(
@@ -268,6 +271,7 @@ lazy val models = project
   .settings(
     libraryDependencies ++= Dependencies.models
   )
+  .settings(libraryDependencies ++= Dependencies.test)
 
 lazy val byteCodecs = project
   .in(file("byte-codecs"))
@@ -279,6 +283,7 @@ lazy val byteCodecs = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.codecs.bytes"
   )
+  .settings(libraryDependencies ++= Dependencies.test)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models)
 
@@ -292,6 +297,7 @@ lazy val typeclasses = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.typeclasses"
   )
+  .settings(libraryDependencies ++= Dependencies.test)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models)
 
@@ -305,6 +311,7 @@ lazy val ledger = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.ledger"
   )
+  .settings(libraryDependencies ++= Dependencies.test)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, byteCodecs, typeclasses)
 
@@ -317,6 +324,10 @@ lazy val consensus = project
     publishSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.consensus"
+  )
+  .settings(libraryDependencies ++= Dependencies.test)
+  .settings(
+    libraryDependencies ++= Dependencies.bouncyCastle
   )
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, typeclasses)
@@ -331,8 +342,23 @@ lazy val minting = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.minting"
   )
+  .settings(libraryDependencies ++= Dependencies.test)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, typeclasses)
+
+lazy val fullNode = project
+  .in(file("full-node"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "full-node",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.fullnode"
+  )
+  .settings(libraryDependencies ++= Dependencies.test)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(models, typeclasses, ledger, consensus, minting)
 
 lazy val toplRpc = project
   .in(file("topl-rpc"))
@@ -385,7 +411,7 @@ lazy val crypto = project
     publishSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.crypto",
-    libraryDependencies ++= Dependencies.crypto,
+    libraryDependencies ++= Dependencies.crypto
   )
   .settings(scalamacrosParadiseSettings)
 
