@@ -9,23 +9,23 @@ import simulacrum.{op, typeclass}
 /**
  * Satisfies that T can modify the state of Boxes
  */
-@typeclass trait ModifiesState[T] {
+@typeclass trait ModifiesBoxState[T] {
 
   @op("stateModifications") def stateModificationsOf(t: T): StateModifications
 
 }
 
-object ModifiesState {
+object ModifiesBoxState {
 
   object Instances {
 
-    import ModifiesState.ops._
+    import ModifiesBoxState.ops._
     import StateModifications._
 
-    implicit val transactionStateModifier: ModifiesState[Transaction] =
+    implicit val transactionStateModifier: ModifiesBoxState[Transaction] =
       tx => ???
 
-    implicit def containsTransactionsModifier[T: ContainsTransactions]: ModifiesState[T] =
+    implicit def containsTransactionsModifier[T: ContainsTransactions]: ModifiesBoxState[T] =
       _.transactions.map(_.stateModifications).fold(StateModifications(Set.empty, Set.empty))(_.combine(_))
   }
 }

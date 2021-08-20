@@ -6,8 +6,6 @@ import co.topl.codecs.bytes.ByteCodec.implicits._
 import co.topl.codecs.bytes.ByteCodecInstances._
 import co.topl.ledger.Persistence.implicits._
 import co.topl.models._
-import co.topl.typeclasses.ChainableValidation.Instances._
-import co.topl.typeclasses.ChainableValidation.ops._
 import co.topl.typeclasses.ContainsHeight.Instances._
 import co.topl.typeclasses.ContainsHeight.ops._
 import co.topl.typeclasses.ContainsParent.Instances._

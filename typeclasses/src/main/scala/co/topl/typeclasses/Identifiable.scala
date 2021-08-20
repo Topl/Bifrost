@@ -3,6 +3,8 @@ package co.topl.typeclasses
 import co.topl.models._
 import simulacrum.{op, typeclass}
 
+import java.nio.charset.StandardCharsets
+
 /**
  * Satisfies that T can be uniquely identified
  */
@@ -15,11 +17,39 @@ object Identifiable {
 
   object Instances {
 
-    implicit val identifiableBlockHeaderV2: Identifiable[BlockHeaderV2] = ???
-    implicit val identifiableBlockBodyV2: Identifiable[BlockBodyV2] = ???
-    implicit val identifiableBlockV1: Identifiable[BlockV1] = ???
+    implicit val identifiableBlockHeaderV2: Identifiable[BlockHeaderV2] =
+      new Identifiable[BlockHeaderV2] {
 
-    implicit val transactionIdentifiable: Identifiable[Transaction] = ???
+        override def idOf(t: BlockHeaderV2): TypedIdentifier =
+          (TypedBytes(IdentifierTypes.Block.HeaderV2 +: Bytes(s"header${t.height}".getBytes(StandardCharsets.UTF_8))))
+
+        override def typePrefix: TypePrefix = IdentifierTypes.Block.HeaderV2
+      }
+
+    implicit val identifiableBlockBodyV2: Identifiable[BlockBodyV2] =
+      new Identifiable[BlockBodyV2] {
+
+        override def idOf(t: BlockBodyV2): TypedIdentifier =
+          (TypedBytes(
+            IdentifierTypes.Block.BodyV2 +: Bytes(s"bodyChildOf${t.parentHeaderId}".getBytes(StandardCharsets.UTF_8))
+          ))
+
+        override def typePrefix: TypePrefix = IdentifierTypes.Block.BodyV2
+      }
+
+    implicit val identifiableBlockV1: Identifiable[BlockV1] =
+      new Identifiable[BlockV1] {
+        override def idOf(t: BlockV1): TypedIdentifier = ???
+
+        override def typePrefix: TypePrefix = ???
+      }
+
+    implicit val transactionIdentifiable: Identifiable[Transaction] =
+      new Identifiable[Transaction] {
+        override def idOf(t: Transaction): TypedIdentifier = ???
+
+        override def typePrefix: TypePrefix = ???
+      }
   }
 }
 

@@ -1,5 +1,9 @@
 package co.topl
 
+import io.estatico.newtype.macros.newtype
+
+import io.estatico.newtype.ops._
+
 import scala.collection.immutable.{ArraySeq, ListMap}
 
 package object models {
@@ -25,5 +29,16 @@ package object models {
 
   object Bytes {
     def apply(array: Array[Byte]): Bytes = new ArraySeq.ofByte(array)
+  }
+
+  @newtype case class TypedBytes(allBytes: Bytes) {
+    def typePrefix: TypePrefix = allBytes.head
+    def dataBytes: Bytes = allBytes.tail
+  }
+
+  object TypedBytes {
+
+    def apply(prefix: TypePrefix, dataBytes: Bytes): TypedBytes =
+      dataBytes.prepended(prefix).coerce
   }
 }

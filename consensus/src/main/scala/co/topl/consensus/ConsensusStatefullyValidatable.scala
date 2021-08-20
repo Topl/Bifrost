@@ -31,14 +31,16 @@ class ConsensusStatefullyValidatable
     } yield ConsensusValidation.ValidatedBlockHeader(header)
   }
 
-  private[typeclasses] def vrfVerification(
+  private[consensus] def vrfVerification(
     header: BlockHeaderV2,
     state:  ConsensusValidation.State
-  ): Either[ConsensusValidation.Failure, BlockHeaderV2] =
-    Either.cond(???, header, ConsensusValidation.Failures.InvalidVrfCertificate(header.vrfCertificate))
+  ): Either[ConsensusValidation.Failure, BlockHeaderV2] = // TODO
+    Either.cond(true, header, ConsensusValidation.Failures.InvalidVrfCertificate(header.vrfCertificate))
 }
 
 object ConsensusValidation {
+
+  implicit val instance: ConsensusStatefullyValidatable = new ConsensusStatefullyValidatable
 
   sealed abstract class Failure
 

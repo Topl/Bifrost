@@ -1,9 +1,9 @@
 package co.topl.minting
 
-import simulacrum.typeclass
+import simulacrum.{op, typeclass}
 
 import scala.concurrent.Future
 
 @typeclass trait Mint[T] {
-  def nextValue(previousValue: T): Future[T]
+  @op("nextValue") def nextValueAfter(previousValue: T): Future[T]
 }

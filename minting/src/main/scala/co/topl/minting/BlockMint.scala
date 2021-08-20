@@ -20,7 +20,7 @@ class BlockMint(
 )(implicit ec:      ExecutionContext)
     extends Mint[BlockV2] {
 
-  override def nextValue(parentBlock: BlockV2): Future[BlockV2] =
+  override def nextValueAfter(parentBlock: BlockV2): Future[BlockV2] =
     for {
       BlockMint.Election(slot, vrfCertificate, kesCertificate) <- elect(parentBlock.headerV2)
       transactions                                             <- nextTransactions(parentBlock)
@@ -33,7 +33,7 @@ class BlockMint(
         parentHeaderId = parentBlock.headerV2.id,
         blockBodyId = body.id,
         timestamp = timestamp,
-        height = parentBlock.headerV2.height,
+        height = parentBlock.headerV2.height + 1,
         slot = slot,
         vrfCertificate = vrfCertificate,
         kesCertificate = kesCertificate

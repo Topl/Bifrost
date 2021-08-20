@@ -14,18 +14,10 @@ object ContainsParent {
 
   object Instances {
 
-    implicit val blockContainsParent: ContainsParent[Block] = new ContainsParent[Block] {
-      val GenesisBlockIdBytes: Bytes = Bytes(Array.fill[Byte](32)(0))
+    implicit val blockHeaderV2ContainsParent: ContainsParent[BlockHeaderV2] =
+      header => Some(header.parentHeaderId).filterNot(_.dataBytes == BlockGenesis.ParentId)
 
-      override def parentIdOf(t: Block): Option[(Byte, Bytes)] = {
-        val rawParentId = t match {
-          case b: BlockV1 =>
-            b.parentId
-          case b: BlockV2 =>
-            b.parentId
-        }
-        Some(rawParentId).filterNot(_.dataBytes == GenesisBlockIdBytes)
-      }
-    }
+    implicit val blockV1ContainsParent: ContainsParent[BlockV1] =
+      block => Some(block.parentId).filterNot(_.dataBytes == BlockGenesis.ParentId)
   }
 }

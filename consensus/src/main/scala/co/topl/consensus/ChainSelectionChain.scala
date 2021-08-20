@@ -9,37 +9,23 @@ import co.topl.typeclasses.StatefulCursorChain
 
 import scala.concurrent.{ExecutionContext, Future}
 
-trait ChainSelectionChain[F[_], StateF[_], StateFailure]
-    extends StatefulCursorChain[
-      F,
-      BlockHeaderV2,
-      ChainSelectionChain.State[StateF, StateFailure],
-      ChainSelectionChain.Failure
-    ] {
-  override type P <: ChainSelectionChain[F, StateF, StateFailure]
-}
-
-object ChainSelectionChain {
-
-  sealed abstract class Failure
-
-  object Failures {
-    case class ConsensusValidationFailure(failure: ConsensusValidation.Failure) extends Failure
-  }
-
-  trait State[F[_], Failure] {
-    type S <: State[F, Failure]
-
-    def epochNonce: EitherT[F, Failure, Bytes]
-    def totalStake: EitherT[F, Failure, Int128]
-    def stakeFor(address: TaktikosAddress): EitherT[F, Failure, Int128]
-
-    def apply(value: BlockHeaderV2): EitherT[F, Failure, S]
-    def unapply(): EitherT[F, Failure, S]
-  }
-}
-
-case class ChainSelectionChainImpl[StateF[_], StateFailure](
+/**
+ * A `StatefulCursorChain` which tracks a chain of Block Headers.  The `State` is represented as lookup methods
+ * needed for the provided `ConsensusStatefullyValidatable`
+ * @param latestBlockId The ID of the tip/canonical head of the chain
+ * @param firstBlockId The ID of the genesis/first block ID
+ * @param nextBlockId The ID of the optional child of `currentBlock`
+ * @param currentBlock The block header currently pointed to by the cursor
+ * @param getBlock helper method to fetch a block header
+ * @param childIdOf helper method to fetch the optional child of the current block
+ * @param totalStake helper method to fetch the current total stake
+ * @param stakeFor helper method to fetch the stake owned by some address
+ * @param epochNonce helper method to determine the current epoch nonce
+ * @param append helper method to persist a new block
+ * @param removeLatest helper method to rollback the latest block
+ * @param consensusStatefullyValidatable helper to validate block headers
+ */
+case class ChainSelectionChain[StateF[_], StateFailure](
   latestBlockId: TypedIdentifier,
   firstBlockId:  TypedIdentifier,
   nextBlockId:   Option[TypedIdentifier],
@@ -49,11 +35,16 @@ case class ChainSelectionChainImpl[StateF[_], StateFailure](
   totalStake:    () => Int128,
   stakeFor:      Address => Option[Int128],
   epochNonce:    () => Nonce,
-  append:        BlockHeaderV2 => (),
-  removeLatest:  () => ()
+  append:        BlockHeaderV2 => Unit,
+  removeLatest:  () => Unit
 )(implicit ec:   ExecutionContext, consensusStatefullyValidatable: ConsensusStatefullyValidatable)
-    extends ChainSelectionChain[Future, StateF, StateFailure] {
-  override type P = ChainSelectionChainImpl[StateF, StateFailure]
+    extends StatefulCursorChain[
+      Future,
+      BlockHeaderV2,
+      ChainSelectionChain.State[StateF, StateFailure],
+      ChainSelectionChain.Failure
+    ] {
+  override type P = ChainSelectionChain[StateF, StateFailure]
 
   /**
    * Fetches the state associated with the tip of the chain
@@ -134,13 +125,13 @@ case class ChainSelectionChainImpl[StateF[_], StateFailure](
 
   private def consensusValidationState(): ConsensusValidation.State =
     new ConsensusValidation.State {
-      override def epochNonce: Nonce = ChainSelectionChainImpl.this.epochNonce()
+      override def epochNonce: Nonce = ChainSelectionChain.this.epochNonce()
 
-      override def totalStake: Int128 = ChainSelectionChainImpl.this.totalStake()
+      override def totalStake: Int128 = ChainSelectionChain.this.totalStake()
 
       override def parentBlockHeader: BlockHeaderV2 = currentBlock
 
-      override def stakeFor(address: Address): Option[Int128] = ChainSelectionChainImpl.this.stakeFor(address)
+      override def stakeFor(address: Address): Option[Int128] = ChainSelectionChain.this.stakeFor(address)
     }
 
   /**
@@ -164,4 +155,24 @@ case class ChainSelectionChainImpl[StateF[_], StateFailure](
 
           (newChain, currentBlock)
         }
+}
+
+object ChainSelectionChain {
+
+  sealed abstract class Failure
+
+  object Failures {
+    case class ConsensusValidationFailure(failure: ConsensusValidation.Failure) extends Failure
+  }
+
+  trait State[F[_], Failure] {
+    type S <: State[F, Failure]
+
+    def epochNonce: EitherT[F, Failure, Bytes]
+    def totalStake: EitherT[F, Failure, Int128]
+    def stakeFor(address: TaktikosAddress): EitherT[F, Failure, Int128]
+
+    def apply(value: BlockHeaderV2): EitherT[F, Failure, S]
+    def unapply(): EitherT[F, Failure, S]
+  }
 }
