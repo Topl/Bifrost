@@ -1,9 +1,9 @@
 package co.topl.attestation.keyManagement.stakingKeys
 
 import com.google.common.primitives.{Bytes, Ints, Longs}
-import co.topl.crypto.kes.{Empty, KeyEvolvingSignatureScheme, Leaf, Node, Tree}
-import co.topl.crypto.signatures.eddsa.ECVRF25519
+import co.topl.crypto.kes.keys._
 import co.topl.crypto.hash.FastCryptographicHash
+import co.topl.crypto.kes.construction.KeyData
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}
@@ -21,44 +21,26 @@ import java.time.temporal.ChronoUnit
 import scala.util.{Failure, Success, Try}
 
 /**
-  * File loader for staking keys, updates KES key with secure erasure on disk and encrypts/decrypts staking keys
-  * @param ledger_id ledger public address of the forging account
-  * @param vrf_info encryption info for VRF keypair
+  * File loader for evolving keys, updates KES key with secure erasure on disk and encrypts/decrypts the keys
   * @param kes_info encryption info for KES keypair
   * @param fileName this key configuration on disk
   * @param oldFileName previous key configuration on disk as backup
   */
 
-case class StakingKeyFile(ledger_id:Array[Byte],
-                          vrf_info:CipherInfo,
-                          kes_info:CipherInfo,
+
+case class ProductKeyFile(kes_info:CipherInfo,
                           fileName:String,
                           oldFileName:String) {
-  import StakingKeyFile._
+  import ProductKeyFile._
 
   /**
-    * Decrypt the staking keys from vrf_info and kes_info cipher information
+    * Decrypt the symmetricKey  from kes_info cipher information
     * @param password pass phrase used in AES encryption scheme
-    * @param kes instantiated Key Evolving Signature scheme
-    * @param vrf instantiated Verifiable Random Function scheme
-    * @return Some(StakingKeys) if password is correct, None if error in decryption
+    * @return
     */
-  def getStakingKeys(password:String, kes:KeyEvolvingSignatureScheme, vrf:ECVRF25519):Option[StakingPrivateKey] = Try{
-    StakingPrivateKey(decryptVrfSK(password,vrf).get,vrf_info.pubKey,decryptKesSK(password,kes).get)
-  }.toOption
+  def getKey(password:String): Try[SymmetricKey] = decryptKesSK(password)
 
-  private def decryptVrfSK(password: String, vrf:ECVRF25519): Option[Array[Byte]] = Try{
-    val derivedKey = getDerivedKey(password, vrf_info.salt)
-    val macTest = fch.hash(derivedKey.slice(16, 32) ++ vrf_info.cipherText)
-    require(macTest sameElements vrf_info.mac, "Error: MAC does not match. Try again")
-    val (decrypted, _) = getAESResult(derivedKey, vrf_info.iv, vrf_info.cipherText, encrypt = false)
-    val pk_test = Array.fill(vrf.PUBLIC_KEY_SIZE){0x00.toByte}
-    vrf.generatePublicKey(decrypted,0,pk_test,0)
-    require(vrf_info.pubKey sameElements pk_test, "Error: PublicKey in file is invalid")
-    decrypted
-  }.toOption
-
-  private def decryptKesSK(password: String, kes:KeyEvolvingSignatureScheme): Option[ForgingKey] = Try{
+  private def decryptKesSK(password: String): Try[SymmetricKey] = Try{
     val kes_sk_MK = {
       val derivedKey = getDerivedKey(password, kes_info.salt)
       val (decrypted, mac_check) = decryptAES(derivedKey, kes_info.iv, kes_info.cipherText)
@@ -66,13 +48,13 @@ case class StakingKeyFile(ledger_id:Array[Byte],
       val byteStream = new ByteStream(decrypted,None)
       val numBytes = byteStream.getInt
       val decryptedMK = serializer.fromBytes(
-        new ByteStream(byteStream.get(numBytes),DeserializeForgingKey)
-      ) match {case mk:ForgingKey => mk}
-      require(kes_info.pubKey sameElements decryptedMK.getPublicKey(kes), "Error: PublicKey in file is invalid")
+        new ByteStream(byteStream.get(numBytes),DeserializeSymmetricKey)
+      ) match {case mk:SymmetricKey => mk}
+      require(kes_info.pubKey sameElements decryptedMK.getVerificationKey.bytes, "Error: PublicKey in file is invalid")
       decryptedMK
     }
     kes_sk_MK
-  }.toOption
+  }
 
   /**
     * Json representation written to disk
@@ -81,24 +63,6 @@ case class StakingKeyFile(ledger_id:Array[Byte],
   lazy val json: Json = {
     val map0 = Map("oldFileName" -> oldFileName.asJson,"fileName" -> fileName.asJson)
     val map1 = {
-      Map("publicKey_ledger" -> Base58.encode(ledger_id).asJson)
-    }
-    val map2 = {
-      Map(
-        "crypto_vrf" -> Map(
-          "cipher" -> "aes-256-ctr".asJson,
-          "cipherParams" -> Map(
-            "iv" -> Base58.encode(vrf_info.iv).asJson
-          ).asJson,
-          "cipherText" -> Base58.encode(vrf_info.cipherText).asJson,
-          "kdf" -> "scrypt".asJson,
-          "kdfSalt" -> Base58.encode(vrf_info.salt).asJson,
-          "mac" -> Base58.encode(vrf_info.mac).asJson
-        ).asJson,
-        "publicKey_vrf" -> Base58.encode(vrf_info.pubKey).asJson,
-      )
-    }
-    val map3 = {
       Map(
         "crypto_kes" -> Map(
           "cipher" -> "aes-256-ctr".asJson,
@@ -113,49 +77,36 @@ case class StakingKeyFile(ledger_id:Array[Byte],
         "publicKey_kes" -> Base58.encode(kes_info.pubKey).asJson
       )
     }
-    (map0++map1++map2++map3).asJson
+    (map0++map1).asJson
   }
 }
 
-object StakingKeyFile {
+object ProductKeyFile {
 
   /**
-    * Create a new set of staking keys and save it to the specified directory
-    * @param ledger_id ledger commitment unique identifier
+    * Create a new symmetricKey and save it to the specified directory
     * @param password pass phrase used in AES encryption scheme
     * @param defaultKeyDir file folder location for storage
-    * @param vrf instantiated Verifiable Random Function scheme
-    * @param kes instantiated Key Evolving Signature scheme
-    * @param slot the current global slot of the protocol that sets the minimum valid slot for the staking keys
-    * @return new staking key file with randomly generated public private key pairs
+    * @param offset offset of the key
+    * @return new key file with randomly generated public private key pairs
     */
   def newFromSeed(
-                   ledger_id:Array[Byte],
                    password:String,
                    defaultKeyDir: String,
-                   vrf:ECVRF25519,
-                   kes:KeyEvolvingSignatureScheme,
-                   slot:Long
-                 ):StakingKeyFile = {
-    val newKeys = StakingKeys(fch.hash(uuid)++fch.hash(uuid),ledger_id,vrf,kes,slot)
-    val vrf_info = {
-      val salt = fch.hash(uuid)
-      val ivData = fch.hash(uuid).slice(0, 16)
-      val derivedKey = getDerivedKey(password, salt)
-      val (cipherText, mac) = getAESResult(derivedKey, ivData, newKeys.get.sk_vrf, encrypt = true)
-      CipherInfo(newKeys.get.pk_vrf, cipherText, mac, salt, ivData)
-    }
+                   offset:Long
+                 ):ProductKeyFile = {
+    val newKey = SymmetricKey.newFromSeed(fch.hash(uuid),offset)
     val kes_info = {
       val salt = fch.hash(uuid)
       val ivData = fch.hash(uuid).slice(0, 16)
       val derivedKey = getDerivedKey(password, salt)
-      val keyBytes:Array[Byte] = serializer.getBytes(newKeys.get.sk_kes)
+      val keyBytes:Array[Byte] = serializer.getBytes(newKey)
       val (cipherText, mac) = encryptAES(derivedKey, ivData, keyBytes)
-      CipherInfo(newKeys.get.pk_kes, cipherText, mac, salt, ivData)
+      CipherInfo(newKey.getVerificationKey.bytes, cipherText, mac, salt, ivData)
     }
     val dateString = Instant.now().truncatedTo(ChronoUnit.MILLIS).toString.replace(":", "-")
-    val fileName = s"$defaultKeyDir/$dateString-${Base58.encode(newKeys.get.fullPublicAddress)}.json"
-    val newKeyFile = new StakingKeyFile(ledger_id,vrf_info,kes_info,fileName,"NEWKEY")
+    val fileName = s"$defaultKeyDir/$dateString-${Base58.encode(newKey.getVerificationKey.bytes)}.json"
+    val newKeyFile = new ProductKeyFile(kes_info,fileName,"NEWKEY")
     val file = new File(fileName)
     file.getParentFile.mkdirs
     val w = new BufferedWriter(new FileWriter(file))
@@ -166,8 +117,8 @@ object StakingKeyFile {
 
   /**
     * Update procedure with secure erasure of old files
-    * @param keyFile old staking key file to be updated
-    * @param forgingKey forging key at a time step higher than that presently in keyFile
+    * @param keyFile old key file to be updated
+    * @param updatedKey key at a time step higher than that presently in keyFile
     * @param password pass phrase used in AES encryption scheme
     * @param defaultKeyDir file folder location for storage
     * @param salt random bytes used to as an input to derivedKey
@@ -175,29 +126,27 @@ object StakingKeyFile {
     * @return
     */
 
-  def updateStakingKeyFile(
-              keyFile:StakingKeyFile,
-              forgingKey: ForgingKey,
-              password:String,
-              defaultKeyDir: String,
-              salt:Array[Byte] = fch.hash(uuid),
-              derivedKey:Array[Byte] = Array()
-            ):Option[StakingKeyFile] = Try {
-    val ledger_id = keyFile.ledger_id
-    val vrf_info = keyFile.vrf_info
+  def updateKeyFile(
+                            keyFile:ProductKeyFile,
+                            updatedKey: SymmetricKey,
+                            password:String,
+                            defaultKeyDir: String,
+                            salt:Array[Byte] = fch.hash(uuid),
+                            derivedKey:Array[Byte] = Array()
+            ):Option[ProductKeyFile] = Try {
     val kes_info = {
       val ivData = fch.hash(uuid).slice(0, 16)
       val (cipherText, mac) = if (derivedKey.isEmpty) {
-        encryptAES(getDerivedKey(password, salt), ivData, serializer.getBytes(forgingKey))
+        encryptAES(getDerivedKey(password, salt), ivData, serializer.getBytes(updatedKey))
       } else {
-        encryptAES(derivedKey, ivData, serializer.getBytes(forgingKey))
+        encryptAES(derivedKey, ivData, serializer.getBytes(updatedKey))
       }
       CipherInfo(keyFile.kes_info.pubKey, cipherText, mac, salt, ivData)
     }
     val dateString = Instant.now().truncatedTo(ChronoUnit.MILLIS).toString.replace(":", "-")
     val fileName = s"$defaultKeyDir/" +
-      s"$dateString-${Base58.encode(ledger_id ++ keyFile.vrf_info.pubKey ++ keyFile.kes_info.pubKey)}.json"
-    val newKeyFile = StakingKeyFile(ledger_id,vrf_info,kes_info,fileName,keyFile.fileName)
+      s"$dateString-${Base58.encode(keyFile.kes_info.pubKey)}.json"
+    val newKeyFile = ProductKeyFile(kes_info,fileName,keyFile.fileName)
     val w = new BufferedWriter(new FileWriter(fileName))
     w.write(newKeyFile.json.toString())
     w.close()
@@ -206,31 +155,31 @@ object StakingKeyFile {
   }.toOption
 
   /**
-    * Parses specified key file into a staking key file
+    * Parses specified key file into key file
     * @param filename path of the json file
     * @return
     */
 
-  def readFile(filename:String): StakingKeyFile = {
+  def readFile(filename:String): ProductKeyFile = {
     val jsonString:String = {
       val src = scala.io.Source.fromFile(filename)
       val out = src.mkString
       src.close()
       out
     }
-    parse(jsonString).right.get.as[StakingKeyFile] match {
-      case Right(f: StakingKeyFile) => f
+    parse(jsonString).right.get.as[ProductKeyFile] match {
+      case Right(f: ProductKeyFile) => f
       case Left(e) => throw new Exception(s"Could not parse KeyFile: $e")
     }
   }
 
   /**
-    * Restores the most recent staking key file in the specified directory
+    * Restores the most recent key file in the specified directory
     * @param storageDir folder containing one or more json key files
     * @return
     */
 
-  def restore(storageDir:String): Option[StakingKeyFile] = {
+  def restore(storageDir:String): Option[ProductKeyFile] = {
     def getListOfFiles(dir: String):List[File] = {
       val d = new File(dir)
       if (d.exists && d.isDirectory) {
@@ -239,11 +188,11 @@ object StakingKeyFile {
         List[File]()
       }
     }
-    var recoveredKey:Option[StakingKeyFile] = None
+    var recoveredKey:Option[ProductKeyFile] = None
     var files = getListOfFiles(s"$storageDir/")
     while (files.nonEmpty) {
       Try{readFile(files.head.getPath)} match {
-        case Success(keyFile:StakingKeyFile) =>
+        case Success(keyFile:ProductKeyFile) =>
           recoveredKey match {
             case None => recoveredKey = Some(keyFile)
             case _ => deleteOldFile(files.head.getPath)
@@ -257,31 +206,31 @@ object StakingKeyFile {
     recoveredKey
   }
 
-  private case object DeserializeForgingKey
+  private case object DeserializeSymmetricKey
 
   private class Serializer {
-
+    import co.topl.crypto.kes.construction.{Tree,Node,Leaf,Empty}
     val pk_length: Int = 32
     val sig_length: Int = 64
     val hash_length: Int = 32
 
-    def getBytes(forgingKey:ForgingKey):Array[Byte] = sForgingKey(forgingKey)
+    def getBytes(key:SymmetricKey):Array[Byte] = sProductKey(key)
 
-    def fromBytes(input:ByteStream): Any = dForgingKey(input)
+    def fromBytes(input:ByteStream): Any = dProductKey(input)
 
-    private def sForgingKey(key: ForgingKey):Array[Byte] = {
+    private def sProductKey(key: SymmetricKey):Array[Byte] = {
       Bytes.concat(
-        sTree(key.L),
-        sTree(key.Si),
-        Ints.toByteArray(key.sig.length),
-        key.sig,
-        key.pki,
-        key.rp,
-        Longs.toByteArray(key.offset)
+        sTree(key.data.superScheme),
+        sTree(key.data.subScheme),
+        Ints.toByteArray(key.data.subSchemeSignature.length),
+        key.data.subSchemeSignature,
+        key.data.subSchemePublicKey,
+        key.data.subSchemeSeed,
+        Longs.toByteArray(key.data.offset)
       )
     }
 
-    private def dForgingKey(stream:ByteStream):ForgingKey = {
+    private def dProductKey(stream:ByteStream):SymmetricKey = {
       val out1len = stream.getInt
       val out1Bytes = new ByteStream(stream.get(out1len),stream.caseObject)
       val out1 = dTree(out1Bytes)
@@ -294,7 +243,7 @@ object StakingKeyFile {
       val out5 = stream.get(hash_length)
       val out6 = stream.getLong
       assert(stream.empty)
-      ForgingKey(out1,out2,out3,out4,out5,out6)
+      SymmetricKey(KeyData(out1,out2,out3,out4,out5,out6))
     }
 
     private def sTree(tree:Tree[Array[Byte]]):Array[Byte] = {
@@ -344,8 +293,7 @@ object StakingKeyFile {
 
   private class ByteStream(var data:Array[Byte],co:Any) {
     def get(n:Int):Array[Byte] = {
-      if (n>data.length) println("Error: ByteStream reached early end of stream")
-      assert(n<=data.length)
+      require(n<=data.length,"Error: ByteStream reached early end of stream")
       val out = data.take(n)
       data = data.drop(n)
       out
@@ -417,29 +365,15 @@ object StakingKeyFile {
     }
   }
 
-  private implicit val decodeKeyFile: Decoder[StakingKeyFile] = (c: HCursor) => for {
+  private implicit val decodeKeyFile: Decoder[ProductKeyFile] = (c: HCursor) => for {
     fileName <- c.downField("fileName").as[String]
     oldFileName <- c.downField("oldFileName").as[String]
-    publicKey_ledger <-     c.downField("publicKey_ledger").as[String]
-    pubKeyString_vrf <-     c.downField("publicKey_vrf").as[String]
-    cipherTextString_vrf <-    c.downField("crypto_vrf").downField("cipherText").as[String]
-    macString_vrf <-           c.downField("crypto_vrf").downField("mac").as[String]
-    saltString_vrf <-          c.downField("crypto_vrf").downField("kdfSalt").as[String]
-    ivString_vrf <-            c.downField("crypto_vrf").downField("cipherParams").downField("iv").as[String]
     pubKeyString_kes <-     c.downField("publicKey_kes").as[String]
     cipherTextString_kes <-    c.downField("crypto_kes").downField("cipherText").as[String]
     macString_kes <-           c.downField("crypto_kes").downField("mac").as[String]
     saltString_kes <-          c.downField("crypto_kes").downField("kdfSalt").as[String]
     ivString_kes <-            c.downField("crypto_kes").downField("cipherParams").downField("iv").as[String]
   } yield {
-    val ledger_id = Base58.decode(publicKey_ledger).toOption.get
-    val vrf_info = CipherInfo(
-        Base58.decode(pubKeyString_vrf).toOption.get,
-        Base58.decode(cipherTextString_vrf).toOption.get,
-        Base58.decode(macString_vrf).toOption.get,
-        Base58.decode(saltString_vrf).toOption.get,
-        Base58.decode(ivString_vrf).toOption.get
-      )
     val kes_info = CipherInfo(
         Base58.decode(pubKeyString_kes).toOption.get,
         Base58.decode(cipherTextString_kes).toOption.get,
@@ -447,6 +381,6 @@ object StakingKeyFile {
         Base58.decode(saltString_kes).toOption.get,
         Base58.decode(ivString_kes).toOption.get
       )
-    new StakingKeyFile(ledger_id,vrf_info,kes_info,fileName,oldFileName)
+    new ProductKeyFile(kes_info,fileName,oldFileName)
   }
 }

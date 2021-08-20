@@ -1,5 +1,7 @@
 package co.topl.crypto.kes
 
+import co.topl.crypto.kes.construction.{Fch, MMM, Sig}
+
 /**
   * AMS 2021:
   * Key evolving scheme instantiated with Ed25519 and b2b256 fast cryptographic hash using MMM construction
@@ -13,4 +15,7 @@ class KeyEvolvingSignatureScheme extends MMM {
   override val skBytes: Int = 32
   override val sigBytes: Int = 64
   override val hashBytes: Int = 32
+  override val asymmetricLogL: Int = 7
+  override val symmetricLogL: Int = 9
+  override val pkLength: Int = hashBytes
 }

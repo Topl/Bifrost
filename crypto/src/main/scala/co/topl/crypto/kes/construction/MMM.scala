@@ -1,4 +1,8 @@
-package co.topl.crypto.kes
+package co.topl.crypto.kes.construction
+
+import co.topl.crypto.kes.keys.{AsymmetricKey, PublicKey, SumPrivateKey, SymmetricKey}
+import co.topl.crypto.kes.{signatures, _}
+import co.topl.crypto.kes.signatures.{AsymmetricSignature, ProductSignature, SymmetricSignature}
 
 import scala.math.BigInt
 
@@ -28,18 +32,16 @@ abstract class MMM {
   val skBytes:Int
   val sigBytes:Int
   val hashBytes:Int
-  val mmmPkLength:Int = hashBytes
-
-  val logl = 7
-
-  type KesKeyBytes = (Tree[Array[Byte]],Tree[Array[Byte]],Array[Byte],Array[Byte],Array[Byte])
-  type KesSignature = (Array[Byte],Array[Byte],Array[Byte])
+  val pkLength:Int
+  val asymmetricLogL:Int
+  val symmetricLogL:Int
 
   /**
     * Exponent base two of the argument
     * @param n integer
     * @return 2 to the n
     */
+
   private def exp(n: Int): Int = {
     scala.math.pow(2,n).toInt
   }
@@ -63,6 +65,7 @@ abstract class MMM {
     * @param seed input entropy for keypair generation
     * @return byte array sk||pk
     */
+
   private def sKeypairFast(seed: Array[Byte]): Array[Byte] = {
     val sk = fch.hash(seed)
     val pk = Array.fill(32){0x00.toByte}
@@ -76,6 +79,7 @@ abstract class MMM {
     * @param sk SIG secret key to be signed
     * @return SIG signature
     */
+
   private def sSign(m: Array[Byte], sk: Array[Byte]): Array[Byte] = {
     val signature: Array[Byte] = Array.fill(sigBytes){0x00.toByte}
     sig.sign(sk,0,m,0,m.length,signature,0)
@@ -89,6 +93,7 @@ abstract class MMM {
     * @param pk public key corresponding to signature
     * @return true if valid signature, false if otherwise
     */
+
   private def sVerify(m: Array[Byte], signature: Array[Byte], pk: Array[Byte]): Boolean = {
     sig.verify(signature,0,pk,0,m,0,m.length)
   }
@@ -98,7 +103,8 @@ abstract class MMM {
     * @param t binary tree for which the key is to be calculated
     * @return binary array public key
     */
-  def sumGetPublicKey(t: Tree[Array[Byte]]): Array[Byte] = {
+
+  def sumCompositionGetPublicKey(t: Tree[Array[Byte]]): Array[Byte] = {
     t match {
       case n: Node[Array[Byte]] =>
         val pk0 = n.v.slice(seedBytes, seedBytes + pkBytes)
@@ -117,7 +123,8 @@ abstract class MMM {
     * @param i height of tree
     * @return binary tree at time step 0
     */
-  def sumGenerateKey(seed: Array[Byte],i:Int):Tree[Array[Byte]] = {
+
+  def sumCompositionGenerateKey(seed: Array[Byte], i:Int):Tree[Array[Byte]] = {
 
     // generate the binary tree with the pseudorandom number generator
     def sumKeyGenMerkle(seed: Array[Byte],i:Int): Tree[Array[Byte]] = {
@@ -233,7 +240,8 @@ abstract class MMM {
     * @param pk root of the Merkle tree
     * @return true if pk is the root of the Merkle tree, false if otherwise
     */
-  def sumVerifyKeyPair(t: Tree[Array[Byte]], pk:Array[Byte]): Boolean = {
+
+  def sumCompositionVerifyKeyPair(t: Tree[Array[Byte]], pk:Array[Byte]): Boolean = {
     //loops through the tree to verify Merkle witness path
     def loop(t: Tree[Array[Byte]]): Boolean = {
       t match {
@@ -270,7 +278,7 @@ abstract class MMM {
         case _ => false
       }
     }
-    (pk sameElements sumGetPublicKey(t)) && loop(t)
+    (pk sameElements sumCompositionGetPublicKey(t)) && loop(t)
   }
 
   /**
@@ -279,7 +287,8 @@ abstract class MMM {
     * @param t time step key is to be updated to
     * @return updated key to be written to key
     */
-  def sumUpdate(key: Tree[Array[Byte]],t:Int): Tree[Array[Byte]] = {
+
+  def sumCompositionUpdate(key: Tree[Array[Byte]], t:Int): Tree[Array[Byte]] = {
     //checks if the sub tree is right most
     def isRightBranch(t: Tree[Array[Byte]]): Boolean = {
       t match {
@@ -328,7 +337,7 @@ abstract class MMM {
             assert(fch.hash(keyPair.slice(skBytes,skBytes+pkBytes)) sameElements n.v.slice(seedBytes+pkBytes,seedBytes+2*pkBytes))
             Node(n.v,Empty,Leaf(keyPair))
           } else if (cutBranch) {
-            Node(n.v,Empty,sumGenerateKey(n.v.slice(0,seedBytes),n.height-1))
+            Node(n.v,Empty,sumCompositionGenerateKey(n.v.slice(0,seedBytes),n.height-1))
           } else if (leftIsNode && rightIsEmpty) {
             Node(n.v,loop(left),Empty)
           } else if (leftIsEmpty && rightIsNode) {
@@ -341,7 +350,7 @@ abstract class MMM {
       }
     }
     val T = exp(key.height)
-    val keyTime = sumGetKeyTimeStep(key)
+    val keyTime = getSumCompositionKeyTimeStep(key)
     //steps key through time steps one at a time until key step == t
     if (t<T && keyTime < t){
       var tempKey = key
@@ -362,9 +371,10 @@ abstract class MMM {
     * @param t time step key is to be updated to
     * @return updated key to be written to key
     */
+
   def sumUpdateFast(key: Tree[Array[Byte]],t:Int): Tree[Array[Byte]] = {
     val T = exp(key.height)
-    val keyTime = sumGetKeyTimeStep(key)
+    val keyTime = getSumCompositionKeyTimeStep(key)
     if (t<T && keyTime < t){
       def constructKey(step:Int,input:Tree[Array[Byte]]):Tree[Array[Byte]] = {
         input match {
@@ -397,7 +407,7 @@ abstract class MMM {
               } else if (leftIsEmpty && rightIsNode) {
                 Node(n.v, Empty, constructKey(nextStep,right))
               } else if (rightIsEmpty && leftIsNode) {
-                val subKey = sumGenerateKey(n.v.slice(0,seedBytes),n.height-1)
+                val subKey = sumCompositionGenerateKey(n.v.slice(0,seedBytes),n.height-1)
                 Node(n.v,Empty,constructKey(nextStep,subKey))
               } else {
                 n
@@ -430,9 +440,10 @@ abstract class MMM {
     * @param step  current time step of signing key sk
     * @return byte array signature
     */
-  def sumSign(sk: Tree[Array[Byte]],m: Array[Byte],step:Int): Array[Byte] = {
-    assert(step == sumGetKeyTimeStep(sk))
-    assert(sumVerifyKeyPair(sk,sumGetPublicKey(sk)))
+
+  def sumCompositionSign(sk: Tree[Array[Byte]], m: Array[Byte], step:Int): Array[Byte] = {
+    assert(step == getSumCompositionKeyTimeStep(sk))
+    assert(sumCompositionVerifyKeyPair(sk,sumCompositionGetPublicKey(sk)))
     val stepBytesBigInt = BigInt(step).toByteArray
     val stepBytes = Array.fill(seedBytes-stepBytesBigInt.length){0x00.toByte}++stepBytesBigInt
     //loop that generates the signature of m++step and stacks up the witness path of the key
@@ -470,7 +481,8 @@ abstract class MMM {
     * @param sig signature to be verified
     * @return true if the signature is valid false if otherwise
     */
-  def sumVerify(pk: Array[Byte],m: Array[Byte],sig: Array[Byte]): Boolean = {
+
+  def sumCompositionVerify(pk: Array[Byte], m: Array[Byte], sig: Array[Byte], t:Int): Boolean = {
     val pkSeq = sig.drop(sigBytes+pkBytes+seedBytes)
     val stepBytes = sig.slice(sigBytes+pkBytes,sigBytes+pkBytes+seedBytes)
     val step = BigInt(stepBytes)
@@ -494,7 +506,7 @@ abstract class MMM {
       }
     }
     pkLogic &= pk sameElements fch.hash(pkSeq.slice(pkSeq.length-2*pkBytes,pkSeq.length))
-    sVerify(m++stepBytes,sig.slice(0,sigBytes),sig.slice(sigBytes,sigBytes+pkBytes)) && pkLogic
+    sVerify(m++stepBytes,sig.slice(0,sigBytes),sig.slice(sigBytes,sigBytes+pkBytes)) && pkLogic && step.toInt == t
   }
 
   /**
@@ -502,16 +514,17 @@ abstract class MMM {
     * @param key binary tree key
     * @return time step
     */
-  def sumGetKeyTimeStep(key: Tree[Array[Byte]]): Int = {
+
+  def getSumCompositionKeyTimeStep(key: Tree[Array[Byte]]): Int = {
     key match {
       case n: Node[Array[Byte]] =>
         val left = n.l match {
-          case n: Node[Array[Byte]] => sumGetKeyTimeStep(n)
+          case n: Node[Array[Byte]] => getSumCompositionKeyTimeStep(n)
           case _: Leaf[Array[Byte]] => 0
           case _ => 0
         }
         val right = n.r match {
-          case n: Node[Array[Byte]] => sumGetKeyTimeStep(n)+exp(n.height)
+          case n: Node[Array[Byte]] => getSumCompositionKeyTimeStep(n)+exp(n.height)
           case _: Leaf[Array[Byte]] => 1
           case _ => 0
         }
@@ -526,73 +539,45 @@ abstract class MMM {
     * @param seed input entropy for key generation
     * @return
     */
-  def generateKey(seed: Array[Byte]): KesKeyBytes = {
+
+  def generateAsymmetricProductKey(seed: Array[Byte],offset:Long): AsymmetricKey = {
     val r = PRNG(seed)
     val rp = PRNG(r._2)
     //super-scheme sum composition
-    val L = sumGenerateKey(r._1,logl)
+    val L = sumCompositionGenerateKey(r._1,asymmetricLogL)
     //sub-scheme sum composition
-    val Si = sumGenerateKey(rp._1,0)
-    val pki = sumGetPublicKey(Si)
-    val sig = sumSign(L,pki,0)
-    assert(sumVerify(sumGetPublicKey(L),pki,sig))
-    (L,Si,sig,pki,rp._2)
+    val Si = sumCompositionGenerateKey(rp._1,0)
+    val pki = sumCompositionGetPublicKey(Si)
+    val sig = sumCompositionSign(L,pki,0)
+    AsymmetricKey(KeyData(L,Si,sig,pki,rp._2,offset))
+  }
+
+  def generateSymmetricProductKey(seed: Array[Byte],offset:Long): SymmetricKey = {
+    val r = PRNG(seed)
+    val rp = PRNG(r._2)
+    //super-scheme sum composition
+    val L = sumCompositionGenerateKey(r._1,symmetricLogL)
+    //sub-scheme sum composition
+    val Si = sumCompositionGenerateKey(rp._1,symmetricLogL)
+    val pki = sumCompositionGetPublicKey(Si)
+    val sig = sumCompositionSign(L,pki,0)
+    SymmetricKey(KeyData(L,Si,sig,pki,rp._2,offset))
   }
 
   /**
-    * Updates the key in the MMM composition (product composition with increasing height for
-    * Si as L increments)
-    * @param key  MMM key to be updated
-    * @param t time step key is to be updated to
-    * @return updated MMM key
-    */
-  def updateKey(key: KesKeyBytes, t:Int): KesKeyBytes = {
-    val keyTime = getKeyTimeStep(key)
-    var L = key._1
-    var Si = key._2
-    var sig = key._3
-    var pki = key._4
-    var seed = key._5
-    val Tl = exp(L.height)
-    var Ti = exp(Si.height)
-    var tl = sumGetKeyTimeStep(L)
-    var ti = sumGetKeyTimeStep(Si)
-    if (keyTime < t) {
-      for(_ <- keyTime+1 to t) {
-        tl = sumGetKeyTimeStep(L)
-        ti = sumGetKeyTimeStep(Si)
-        if (ti+1 < Ti) {
-          Si = sumUpdate(Si, ti + 1)
-        } else if (tl < Tl) {
-          val r = PRNG(seed)
-          Si = sumGenerateKey(r._1, tl + 1)
-          pki = sumGetPublicKey(Si)
-          seed = r._2
-          Ti = exp(Si.height)
-          L = sumUpdate(L, tl + 1)
-          tl = sumGetKeyTimeStep(L)
-          sig = sumSign(L,pki,tl)
-        } else {
-          println("Error: max time steps reached")
-        }
-      }
-    }
-    (L,Si,sig,pki,seed)
-  }
-
-  /**
-    * Fast version on updateKey, should be equivalent input and output
+    * Updates product keys to the specified time step
     * @param key input key
     * @param t_in input desired time step
     * @return  updated key
     */
-  def updateKeyFast(key: KesKeyBytes, t_in:Int): KesKeyBytes = {
-    val keyTime = getKeyTimeStep(key)
-    var L = key._1
-    var Si = key._2
-    var sig = key._3
-    var pki = key._4
-    var seed = key._5
+
+  def updateAsymmetricProductKey(key: AsymmetricKey, t_in:Int): AsymmetricKey = {
+    val keyTime = getAsymmetricProductKeyTimeStep(key)
+    var L = key.data.superScheme
+    var Si = key.data.subScheme
+    var sig = key.data.subSchemeSignature
+    var pki = key.data.subSchemePublicKey
+    var seed = key.data.subSchemeSeed
     def timeStepModLog2(t:Int):(Int,Int) = {
       if (t == 0) {
         (0,0)
@@ -617,53 +602,94 @@ abstract class MMM {
     val (tl_in,ti_in) = timeStepModLog2(t_in)
     if (keyTime < t_in) {
       val Tl = exp(L.height)
-      val tl = sumGetKeyTimeStep(L)
+      val tl = getSumCompositionKeyTimeStep(L)
       var currentLeaf = tl
       if (tl < Tl) while(tl_in>currentLeaf) {
         val r = PRNG(seed)
         seed = r._2
         currentLeaf += 1
         if (currentLeaf == tl_in) {
-          Si = sumGenerateKey(r._1, tl_in)
-          pki = sumGetPublicKey(Si)
-          L = sumUpdate(L, tl_in)
-          sig = sumSign(L,pki,tl_in)
+          Si = sumCompositionGenerateKey(r._1, tl_in)
+          pki = sumCompositionGetPublicKey(Si)
+          L = sumCompositionUpdate(L, tl_in)
+          sig = sumCompositionSign(L,pki,tl_in)
         } else {
-          L = sumUpdate(L, currentLeaf)
+          L = sumCompositionUpdate(L, currentLeaf)
         }
       } else {
         println("Error: max time steps reached")
       }
       val Ti = exp(Si.height)
-      val ti = sumGetKeyTimeStep(Si)
+      val ti = getSumCompositionKeyTimeStep(Si)
       if (ti_in < Ti && ti_in > 0 && ti<ti_in) {
         Si = sumUpdateFast(Si, ti_in)
       }
     } else {
       println("Error: t less than given keyTime")
     }
-    (L,Si,sig,pki,seed)
+    AsymmetricKey(KeyData(L,Si,sig,pki,seed,key.data.offset))
   }
+
+  def updateSymmetricProductKey(key: SymmetricKey, t_in:Int): SymmetricKey = {
+    val symmetricStepsL = exp(symmetricLogL)
+    val keyTime = getSymmetricProductKeyTimeStep(key)
+    var L = key.data.superScheme
+    var Si = key.data.subScheme
+    var sig = key.data.subSchemeSignature
+    var pki = key.data.subSchemePublicKey
+    var seed = key.data.subSchemeSeed
+
+    def treeTimeSteps(t:Int):(Int,Int) = {
+      val tl = t / symmetricStepsL
+      val ti = t % symmetricStepsL
+      (tl,ti)
+    }
+    val (tl_in,ti_in) = treeTimeSteps(t_in)
+    if (keyTime < t_in) {
+      val tl = getSumCompositionKeyTimeStep(L)
+      var currentLeaf = tl
+      if (tl < symmetricStepsL) while(tl_in>currentLeaf) {
+        val r = PRNG(seed)
+        seed = r._2
+        currentLeaf += 1
+        if (currentLeaf == tl_in) {
+          Si = sumCompositionGenerateKey(r._1, symmetricLogL)
+          pki = sumCompositionGetPublicKey(Si)
+          L = sumCompositionUpdate(L, tl_in)
+          sig = sumCompositionSign(L,pki,tl_in)
+        } else {
+          L = sumCompositionUpdate(L, currentLeaf)
+        }
+      } else {
+        println("Error: max time steps reached")
+      }
+      val ti = getSumCompositionKeyTimeStep(Si)
+      if (ti_in < symmetricStepsL && ti_in > 0 && ti<ti_in) {
+        Si = sumUpdateFast(Si, ti_in)
+      }
+    } else {
+      println("Error: t less than given keyTime")
+    }
+    SymmetricKey(KeyData(L,Si,sig,pki,seed,key.data.offset))
+  }
+
 
   /**
     * Get the current time step of an MMM key
     * @param key MMM key to be inspected
     * @return Current time step of key
     */
-  def getKeyTimeStep(key: KesKeyBytes): Int = {
-    val L = key._1
-    val Si = key._2
-    val tl = sumGetKeyTimeStep(L)
-    val ti = sumGetKeyTimeStep(Si)
-    exp(tl)-1+ti
+
+  def getAsymmetricProductKeyTimeStep(key: AsymmetricKey): Int = {
+    val tl = getSumCompositionKeyTimeStep(key.data.superScheme)
+    val ti = getSumCompositionKeyTimeStep(key.data.subScheme)
+    exp(tl)-1 + ti
   }
 
-  def getKeyTimeStep(key: ProductPrivateKey): Long = {
-    val L = key.L
-    val Si = key.Si
-    val tl = sumGetKeyTimeStep(L)
-    val ti = sumGetKeyTimeStep(Si)
-    exp(tl)-1+ti+key.offset
+  def getSymmetricProductKeyTimeStep(key: SymmetricKey): Int = {
+    val tl = getSumCompositionKeyTimeStep(key.data.superScheme)
+    val ti = getSumCompositionKeyTimeStep(key.data.subScheme)
+    exp(symmetricLogL) * tl + ti
   }
 
   /**
@@ -672,14 +698,25 @@ abstract class MMM {
     * @param m message to be signed
     * @return signature of m
     */
-  def sign(key: KesKeyBytes, m: Array[Byte]): KesSignature = {
-    val keyTime = BigInt(getKeyTimeStep(key)).toByteArray
-    val Si = key._2
-    val sigi = key._3
-    val pki = key._4
-    val ti = sumGetKeyTimeStep(Si)
-    val sigm = sumSign(Si,m++keyTime,ti)
-    (sigi,sigm,pki)
+
+  def signAsymmetricProduct(key: AsymmetricKey, m: Array[Byte]): ProductSignature = {
+    val keyTime = BigInt(getAsymmetricProductKeyTimeStep(key)).toByteArray
+    val Si = key.data.subScheme
+    val sigi = key.data.subSchemeSignature
+    val pki = key.data.subSchemePublicKey
+    val ti = getSumCompositionKeyTimeStep(Si)
+    val sigm = sumCompositionSign(Si,m++keyTime,ti)
+    AsymmetricSignature(sigi,sigm,PublicKey(pki),key.data.offset,PublicKey(publicKey(key)))
+  }
+
+  def signSymmetricProduct(key: SymmetricKey, m: Array[Byte]): ProductSignature = {
+    val keyTime = BigInt(getSymmetricProductKeyTimeStep(key)).toByteArray
+    val Si = key.data.subScheme
+    val sigi = key.data.subSchemeSignature
+    val pki = key.data.subSchemePublicKey
+    val ti = getSumCompositionKeyTimeStep(Si)
+    val sigm = sumCompositionSign(Si,m++keyTime,ti)
+    SymmetricSignature(sigi,sigm,PublicKey(pki),key.data.offset,PublicKey(publicKey(key)))
   }
 
   /**
@@ -689,13 +726,24 @@ abstract class MMM {
     * @param sig signature to be verified
     * @return true if signature is valid false if otherwise
     */
-  def verify(pk: Array[Byte], m: Array[Byte], sig: KesSignature, t: Int): Boolean = {
-    val sigi = sig._1
-    val sigm = sig._2
-    val pki = sig._3
-    val stepL = BigInt(sigi.slice(sigBytes+pkBytes,sigBytes+pkBytes+seedBytes)).toInt
-    val stepSi = BigInt(sigm.slice(sigBytes+pkBytes,sigBytes+pkBytes+seedBytes)).toInt
-    sumVerify(pk,pki,sigi) && sumVerify(pki,m++BigInt(t).toByteArray,sigm) && (t==exp(stepL)-1+stepSi)
+
+  def verifyProductSignature(m: Array[Byte], sig: ProductSignature, t: Int): Boolean = {
+    sig match {
+      case AsymmetricSignature(sigi,sigm,pki,_,pkl) =>
+        val stepL = BigInt(sigi.slice(sigBytes+pkBytes,sigBytes+pkBytes+seedBytes)).toInt
+        val stepSi = BigInt(sigm.slice(sigBytes+pkBytes,sigBytes+pkBytes+seedBytes)).toInt
+        (sumCompositionVerify(pkl.bytes,pki.bytes,sigi,stepL)
+            && sumCompositionVerify(pki.bytes,m++BigInt(t).toByteArray,sigm,stepSi)
+            && t == exp(stepL) - 1 + stepSi)
+      case SymmetricSignature(sigi,sigm,pki,_,pkl) =>
+        val stepL = BigInt(sigi.slice(sigBytes+pkBytes,sigBytes+pkBytes+seedBytes)).toInt
+        val stepSi = BigInt(sigm.slice(sigBytes+pkBytes,sigBytes+pkBytes+seedBytes)).toInt
+            (
+              sumCompositionVerify(pkl.bytes,pki.bytes,sigi,stepL)
+                && sumCompositionVerify(pki.bytes,m++BigInt(t).toByteArray,sigm,stepSi)
+                && t == exp(symmetricLogL) * stepL + stepSi
+              )
+    }
   }
 
   /**
@@ -703,8 +751,17 @@ abstract class MMM {
     * @param key input key
     * @return public key
     */
-  def publicKey(key: KesKeyBytes):  Array[Byte] = {
-    sumGetPublicKey(key._1)
+
+  def publicKey(key: AsymmetricKey):  Array[Byte] = {
+    sumCompositionGetPublicKey(key.data.superScheme)
+  }
+
+  def publicKey(key: SymmetricKey):  Array[Byte] = {
+    sumCompositionGetPublicKey(key.data.superScheme)
+  }
+
+  def publicKey(key: SumPrivateKey):  Array[Byte] = {
+    sumCompositionGetPublicKey(key.L)
   }
 
 }

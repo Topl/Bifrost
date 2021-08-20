@@ -1,7 +1,7 @@
-package co.topl.crypto.kes
+package co.topl.crypto.kes.construction
 
-import co.topl.crypto.hash.{digest, Blake2b, Blake2bHash, Hash}
 import co.topl.crypto.hash.digest.Digest32
+import co.topl.crypto.hash.{Blake2b, Blake2bHash, Hash, digest}
 
 /**
  * AMS 2021:
