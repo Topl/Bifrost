@@ -5,21 +5,25 @@ import co.topl.utils.Int128
 
 import scala.annotation.tailrec
 
-class Int128Serde {
+object Int128Codec {
 
   @tailrec
-  private def parseHelper(
+  private def decodeHelper(
     currentBytes:   Array[Byte],
     remainingBytes: LazyList[Byte],
     iteration:      Int
-  ): ParseResult[Int128, LazyList[Byte]] =
+  ): DecoderResult[Int128] =
     if (iteration >= Int128.numBytes) (Int128(currentBytes), remainingBytes).asRight
     else
       remainingBytes match {
-        case head #:: tail => parseHelper(currentBytes :+ head, tail, iteration + 1)
+        case head #:: tail => decodeHelper(currentBytes :+ head, tail, iteration + 1)
         case _             => ParseFailure.asLeft
       }
 
-  def parse(from: LazyList[Byte]): ParseResult[Int128, LazyList[Byte]] =
-    parseHelper(currentBytes = Array(), remainingBytes = from, iteration = 0)
+  def decode(from: LazyList[Byte]): DecoderResult[Int128] =
+    decodeHelper(currentBytes = Array(), remainingBytes = from, iteration = 0)
+
+  trait Implicits {
+    implicit val lazyInt128Decoder: LazyBytesDecoder[Int128] = decode
+  }
 }

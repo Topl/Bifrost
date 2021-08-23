@@ -2,13 +2,17 @@ package co.topl.utils.codecs.binary
 
 import co.topl.utils.serialization.ZigZagEncoder.decodeZigZagInt
 
-object IntSerde {
+object IntCodec {
 
-  def parse(from: LazyList[Byte]): ParseResult[Int, LazyList[Byte]] =
+  def decode(from: LazyList[Byte]): DecoderResult[Int] =
     for {
-      uLongParseResult <- ULongSerde.parse(from)
+      uLongParseResult <- ULongCodec.decode(from)
       remainingBytes = uLongParseResult._2
       uLongValue = uLongParseResult._1
       intValue = decodeZigZagInt(uLongValue.toInt)
     } yield (intValue, remainingBytes)
+
+  trait Implicits {
+    implicit val lazyIntDecoder: LazyBytesDecoder[Int] = decode
+  }
 }

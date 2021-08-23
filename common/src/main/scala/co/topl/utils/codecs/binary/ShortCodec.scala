@@ -2,13 +2,17 @@ package co.topl.utils.codecs.binary
 
 import co.topl.utils.serialization.ZigZagEncoder.decodeZigZagInt
 
-object ShortSerde {
+object ShortCodec {
 
-  def parse(from: LazyList[Byte]): ParseResult[Short, LazyList[Byte]] =
+  def decode(from: LazyList[Byte]): DecoderResult[Short] =
     for {
-      uLongParseResult <- ULongSerde.parse(from)
+      uLongParseResult <- ULongCodec.decode(from)
       remainingBytes = uLongParseResult._2
       intValue = uLongParseResult._1.toInt
       short = decodeZigZagInt(intValue).toShort
     } yield (short, remainingBytes)
+
+  trait Implicits {
+    implicit def lazyShortDecoder: LazyBytesDecoder[Short] = decode
+  }
 }
