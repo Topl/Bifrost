@@ -36,9 +36,8 @@ object Exporter extends Logging {
     val futures: IndexedSeq[Future[_]] = connection.dataType match {
       case DataType.Block =>
         for {
-          height    <- 1L to bestBlock.height
-          block     <- history.modifierByHeight(height)
-          blockJson <- flattenFields(block.asJson)
+          height <- 1L to bestBlock.height
+          block  <- history.modifierByHeight(height)
         } yield {
           val formattedBlock: Json = flattenFields(block.asJson).fold(block.asJson)(Json.fromFields)
           connection.insert(Seq(formattedBlock.toString))
@@ -47,8 +46,7 @@ object Exporter extends Logging {
         for {
           height <- 1L to bestBlock.height
           block  <- history.modifierByHeight(height)
-          tx     <- Option(block.transactions)
-        } yield connection.insert(tx.map(_.asJson.toString))
+        } yield connection.insert(block.transactions.map(_.asJson.toString))
       // TODO: Decide if the set of all boxes that have existed or the current set of boxes should be returned
       case DataType.Box => ???
     }
