@@ -4,12 +4,12 @@ import org.mongodb.scala.{result, Document, MongoClient, MongoDatabase}
 
 import scala.concurrent.Future
 
-class MongoExport(uri: String, dt: DataType) extends Exportable {
+class MongoExport(uri: String, database: String, collection: String, dt: DataType) extends Exportable {
 
   override type T = Future[_ <: result.InsertManyResult]
 
   private val client = open(uri)
-  private val db = createDatabase("bifrost")
+  private val db = createDatabase(database)
   override val dataType: DataType = dt
 
   private def open(uri: String): MongoClient = MongoClient(uri)
@@ -17,7 +17,7 @@ class MongoExport(uri: String, dt: DataType) extends Exportable {
   private def createDatabase(db: String): MongoDatabase = client.getDatabase(db)
 
   override def insert(ele: Seq[String]): T = db
-    .getCollection(dataType.name)
+    .getCollection(collection)
     .insertMany(ele.map(Document(_)))
     .toFuture()
 
@@ -27,5 +27,5 @@ class MongoExport(uri: String, dt: DataType) extends Exportable {
 
 object MongoExport {
 
-  def apply(uri: String, dt: DataType): MongoExport = new MongoExport(uri, dt)
+  def apply(uri: String, db: String, coll: String, dt: DataType): MongoExport = new MongoExport(uri, db, coll, dt)
 }

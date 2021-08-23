@@ -28,15 +28,14 @@ object Exporter extends Logging {
     }
   )
 
-  private def export(connection: Exportable, history: History): Unit = {
+  private def export(connection: Exportable, history: History, start: Long = 1L, end: Long): Unit = {
 
     val startTime = System.currentTimeMillis()
-    val bestBlock = history.bestBlock
 
     val futures: IndexedSeq[Future[_]] = connection.dataType match {
       case DataType.Block =>
         for {
-          height <- 1L to bestBlock.height
+          height <- start to end
           block  <- history.modifierByHeight(height)
         } yield {
           val formattedBlock: Json = flattenFields(block.asJson).fold(block.asJson)(Json.fromFields)
@@ -44,7 +43,7 @@ object Exporter extends Logging {
         }
       case DataType.Transaction =>
         for {
-          height <- 1L to bestBlock.height
+          height <- start to end
           block  <- history.modifierByHeight(height)
         } yield connection.insert(block.transactions.map(_.asJson.toString))
       // TODO: Decide if the set of all boxes that have existed or the current set of boxes should be returned
@@ -69,7 +68,15 @@ object Exporter extends Logging {
       short = 't',
       doc = "Specify type of data to export e.g. 'blocks', 'transactions', or 'boxes'. Default is block"
     )
-    dataType:    String = "block",
+    dataType: String = "block",
+    @arg(name = "start", doc = "The block height to start from")
+    start: Option[Long],
+    @arg(name = "end", doc = "The block height to end on")
+    end: Option[Long],
+    @arg(name = "database", doc = "The name of the database to connect to")
+    database: Option[String],
+    @arg(name = "collection", doc = "The name of the collection to write to")
+    collection:  Option[String],
     startupOpts: StartupOpts
   ): Unit = {
 
@@ -78,11 +85,17 @@ object Exporter extends Logging {
       case None        => throw new Exception(s"An invalid data type was provided")
     }
 
-    val mongo = MongoExport(uriOpt.getOrElse("mongodb://localhost"), dt)
+    val mongo =
+      MongoExport(
+        uriOpt.getOrElse("mongodb://localhost"),
+        database.getOrElse("bifrost"),
+        collection.getOrElse(dt.name),
+        dt
+      )
     val (settings, config) = AppSettings.read(startupOpts)
     val history = initHistory(settings, startupOpts.networkTypeOpt.getOrElse(NetworkType.PrivateTestnet).netPrefix)
 
-    export(mongo, history)
+    export(mongo, history, start.getOrElse(1L), end.getOrElse(history.bestBlock.height))
   }
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
