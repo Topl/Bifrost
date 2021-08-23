@@ -3,11 +3,11 @@ package co.topl.tools.exporter
 sealed abstract class DataType(val name: String)
 
 object DataType {
-  case object Block extends DataType("block")
+  case object Block extends DataType("blocks")
 
-  case object Transaction extends DataType("transaction")
+  case object Transaction extends DataType("transactions")
 
-  case object Box extends DataType("box")
+  case object Box extends DataType("boxes")
 
   lazy val all: Seq[DataType] = Seq(Block, Transaction, Box)
 

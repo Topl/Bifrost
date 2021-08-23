@@ -6,6 +6,7 @@ import co.topl.utils.{Logging, NetworkType}
 import co.topl.utils.NetworkType.NetworkPrefix
 import mainargs.{arg, main, ParserForMethods}
 import co.topl.settings.StartupOptsImplicits._
+import io.circe.Json
 import io.circe.syntax._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -15,9 +16,17 @@ import scala.util.{Failure, Success}
 
 object Exporter extends Logging {
 
-  import co.topl.tools.exporter.DataType
-
   private def initHistory(settings: AppSettings, np: NetworkPrefix): History = History.readOrGenerate(settings)(np)
+
+  def flattenFields(value: Json): Option[Iterable[(String, Json)]] = value.asObject.map(
+    _.toIterable.flatMap { case (k, v) =>
+      flattenFields(v) match {
+        case None => List(k -> v)
+        case Some(fields) =>
+          fields.map { case (k, v) => k -> v }
+      }
+    }
+  )
 
   private def export(connection: Exportable, history: History): Unit = {
 
@@ -27,15 +36,20 @@ object Exporter extends Logging {
     val futures: IndexedSeq[Future[_]] = connection.dataType match {
       case DataType.Block =>
         for {
-          height <- 1L to bestBlock.height
-          block  <- history.modifierByHeight(height)
-        } yield connection.insert(Seq(block.toString))
+          height    <- 1L to bestBlock.height
+          block     <- history.modifierByHeight(height)
+          blockJson <- flattenFields(block.asJson)
+        } yield {
+          val formattedBlock: Json = flattenFields(block.asJson).fold(block.asJson)(Json.fromFields)
+          connection.insert(Seq(formattedBlock.toString))
+        }
       case DataType.Transaction =>
         for {
           height <- 1L to bestBlock.height
           block  <- history.modifierByHeight(height)
           tx     <- Option(block.transactions)
         } yield connection.insert(tx.map(_.asJson.toString))
+      // TODO: Decide if the set of all boxes that have existed or the current set of boxes should be returned
       case DataType.Box => ???
     }
 
@@ -55,7 +69,7 @@ object Exporter extends Logging {
     @arg(
       name = "type",
       short = 't',
-      doc = "Specify type of data to export e.g. blocks, or transactions. Default is block"
+      doc = "Specify type of data to export e.g. 'blocks', 'transactions', or 'boxes'. Default is block"
     )
     dataType:    String = "block",
     startupOpts: StartupOpts
