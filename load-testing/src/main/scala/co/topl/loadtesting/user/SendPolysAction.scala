@@ -10,7 +10,7 @@ import cats.implicits._
 import co.topl.akkahttprpc.implicits.client._
 import co.topl.akkahttprpc._
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
-import co.topl.loadtesting.statistics.{StatisticsSink, ToStatisticsCsvLog}
+import co.topl.loadtesting.statistics._
 import co.topl.loadtesting.user.SendAssetsAction.{Failure, Success}
 import co.topl.modifier.ModifierId
 import co.topl.rpc.ToplRpc
@@ -72,7 +72,7 @@ object SendPolysAction {
 
     // log the success result to the console and to a csv output file
     println(success.show)
-    Source.single(success).to(StatisticsSink(outputPath)).run()
+    Source.single(success).to(toCsvSink(outputPath)).run()
   }
 
   /**
@@ -89,7 +89,7 @@ object SendPolysAction {
       case failure                           =>
         // log the failure result to the console and the csv output file
         println(failure.show)
-        Source.single(failure).to(StatisticsSink("./stats/failures.csv")).run()
+        Source.single(failure).to(toCsvSink(outputPath)).run()
     }
   }
 
@@ -183,23 +183,30 @@ object SendPolysAction {
     requestModifier:  RequestModifier
   ): Flow[Balances.Entry, Either[Failure, Success], NotUsed] =
     Flow[Balances.Entry]
+      // check that the user's poly balance is greater than or equal to the fee plus the amount of polys to send
       .map(checkPolyBalance(address, action.fee + action.amountToSend, _).leftMap(x => x: Failure))
+      // create a raw poly transaction
       .eitherMap(_ => generateTransaction(action.amountToSend, action.fee, address, contacts))
       .eitherFlatMapAsync(1)(params => RawPolyTransfer.rpc(params).leftMap(RpcFailure).value)
       .eitherMap(_.rawTx)
+      // sign the raw transaction
       .eitherMapAsync(1)(tx => sign(tx.messageToSign).map(signature => tx.copy(attestation = signature)))
+      // broadcast the poly transaction if it was created successfully
       .viaRight(
         broadcastTxFlow
           .viaRight(Flow[BroadcastTx.Response].wireTap(x => action.onTxBroadcast(x.id, LocalDateTime.now())))
           .eitherLeftMap(RpcFailure(_): Failure)
       )
+      // flatten the broadcast result into an action result
       .eitherFlatMap(x => x)
+      // track the transaction until it is added to a block
       .eitherFlatMapAsync(1)(tx =>
         trackTx(tx.id).map {
           case TransactionConfirmed(seconds) => Success(tx.id, seconds, LocalDateTime.now()).asRight
           case TransactionUnconfirmed()      => Unconfirmed(tx.id).asLeft
         }
       )
+      // log the result to the console and csv outputs
       .viaRight(Flow[Success].wireTap(action.logSuccess))
       .viaLeft(Flow[Failure].wireTap(action.logFailure))
 

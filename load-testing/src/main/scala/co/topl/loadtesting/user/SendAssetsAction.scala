@@ -10,7 +10,7 @@ import cats.implicits._
 import co.topl.akkahttprpc._
 import co.topl.akkahttprpc.implicits.client._
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
-import co.topl.loadtesting.statistics.{StatisticsSink, ToStatisticsCsvLog}
+import co.topl.loadtesting.statistics._
 import co.topl.modifier.ModifierId
 import co.topl.modifier.box.{AssetCode, AssetValue}
 import co.topl.rpc.ToplRpc
@@ -77,7 +77,7 @@ object SendAssetsAction {
 
     // log the success result to the console and to a csv output file
     println(success.show)
-    Source.single(success).to(StatisticsSink(outputPath)).run()
+    Source.single(success).to(toCsvSink(outputPath)).run()
   }
 
   /**
@@ -94,7 +94,7 @@ object SendAssetsAction {
       case failure                            =>
         // log the failure result to the console and the csv output file
         println(failure.show)
-        Source.single(failure).to(StatisticsSink(outputPath)).run()
+        Source.single(failure).to(toCsvSink(outputPath)).run()
     }
   }
 

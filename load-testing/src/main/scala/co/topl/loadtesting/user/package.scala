@@ -9,7 +9,7 @@ import cats.implicits._
 import co.topl.akkahttprpc._
 import co.topl.akkahttprpc.implicits.client._
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
-import co.topl.loadtesting.statistics.{StatisticsSink, ToStatisticsCsvLog}
+import co.topl.loadtesting.statistics._
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.rpc.ToplRpc.NodeView.{Balances, TransactionById}
@@ -88,6 +88,7 @@ package object user {
   ): Flow[NotUsed, UserActionResult[F, S], NotUsed] =
     Flow[NotUsed]
       .map(_ => List(address))
+      // lookup the balance for the user's address
       .map(Balances.Params)
       .mapAsync(1)(Balances.rpc(_).value)
       .eitherLeftMap(failure => BalanceUpdateFailed(failure).asLeft[F])
@@ -95,7 +96,9 @@ package object user {
         Flow[Balances.Response]
           .map(response => response(address))
       )
+      // run the provided user action
       .viaRight(userAction.actionFlow(action, address, contacts, sign))
+      // flatten the action result into a `UserActionResult`
       .eitherFlatMap {
         case Right(success) => success.asRight
         case Left(failure)  => failure.asRight.asLeft
@@ -119,7 +122,11 @@ package object user {
     actorSystem:     ActorSystem,
     requestModifier: RequestModifier,
     ec:              ExecutionContext
-  ): Future[TransactionResult] =
+  ): Future[TransactionResult] = {
+    /*
+    Sends transaction status requests once every second and stops when a transaction is signaled as completed.
+    Runs a fold on the requests until a transaction is confirmed and returns the time.
+     */
     Source(LazyList.from(0))
       .throttle(1, 1.second)
       .map(count => (count, TransactionById.Params(txId)))
@@ -130,6 +137,7 @@ package object user {
         case (_, (time, result)) if result.isRight => TransactionConfirmed(time)
         case _                                     => TransactionUnconfirmed()
       }
+  }
 
   implicit val txBroadcastToCsv: ToStatisticsCsvLog[(ModifierId, LocalDateTime)] = { case (modifierId, timestamp) =>
     s"Transaction Broadcast, $modifierId, $timestamp"
@@ -145,7 +153,7 @@ package object user {
     materializer:               Materializer
   ): Unit =
     // log broadcasted TX to CSV file
-    Source.single((txId, timestamp)).to(StatisticsSink(outputPath)).run()
+    Source.single((txId, timestamp)).to(toCsvSink(outputPath)).run()
 
   object implicits extends SendAssetsAction.Instances with SendPolysAction.Instances
 }
