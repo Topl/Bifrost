@@ -6,8 +6,10 @@ trait Exportable {
 
   type T <: Future[_]
 
+  def dataType: DataType
+
   // Format and write a new row/document/etc
-  def insert(element: String): T
+  def insert(element: Seq[String]): T
 
   // close connection to writer
   def close(): Unit
