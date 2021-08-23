@@ -12,7 +12,7 @@ import co.topl.crypto.kes.signatures.ProductSignature
   * to the time step of the signature since signatures include the offset
   */
 
-case class SymmetricKey(data:KeyData) extends ProductPrivateKey {
+case class SymmetricKey(override val data:KeyData) extends ProductPrivateKey {
 
   import SymmetricKey._
 

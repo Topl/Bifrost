@@ -12,7 +12,7 @@ import co.topl.crypto.kes.construction.KeyData
   * to the time step of the signature since signatures include the offset
   */
 
-case class AsymmetricKey(data:KeyData) extends ProductPrivateKey {
+case class AsymmetricKey(override val data:KeyData) extends ProductPrivateKey {
   import AsymmetricKey._
 
   def update(globalTimeStep:Long): AsymmetricKey = {
