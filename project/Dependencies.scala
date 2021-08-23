@@ -101,7 +101,8 @@ object Dependencies {
     Seq(
       "com.typesafe.akka"      %% "akka-actor"              % akkaVersion,
       "org.typelevel"          %% "simulacrum"              % "1.0.1",
-      "org.scala-lang.modules" %% "scala-collection-compat" % "2.5.0"
+      "org.scala-lang.modules" %% "scala-collection-compat" % "2.5.0",
+      "org.scodec"             %% "scodec-bits"             % "1.1.27"
     ) ++
     logging ++
     circe ++
