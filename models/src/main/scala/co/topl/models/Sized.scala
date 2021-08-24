@@ -10,7 +10,7 @@ object Sized {
     type L = Length
   }
 
-  def strict[Data: HasLength, L <: Length](data: Data, length: L): Either[InvalidLength, Strict[Data, L]] = {
+  def strict[Data: HasLength, L <: Length](data: Data)(implicit length: L): Either[InvalidLength, Strict[Data, L]] = {
     val dataLength = implicitly[HasLength[Data]].length(data)
     Either.cond(
       dataLength == length.value,
@@ -19,7 +19,7 @@ object Sized {
     )
   }
 
-  def max[Data: HasLength, L <: Length](data: Data, length: L): Either[InvalidLength, Max[Data, L]] = {
+  def max[Data: HasLength, L <: Length](data: Data)(implicit length: L): Either[InvalidLength, Max[Data, L]] = {
     val dataLength = implicitly[HasLength[Data]].length(data)
     Either.cond(
       dataLength <= length.value,
@@ -34,15 +34,17 @@ object Sized {
 sealed abstract class Length(val value: Int)
 
 object Lengths {
-  case object Empty extends Length(0)
-  case object `1` extends Length(1)
-  case object `2` extends Length(2)
-  case object `4` extends Length(4)
-  case object `32` extends Length(32)
-  case object `58` extends Length(58)
-  case object `64` extends Length(64)
-  case object `127` extends Length(127)
-  case object `128` extends Length(128)
+  implicit case object Empty extends Length(0)
+  implicit case object `1` extends Length(1)
+  implicit case object `2` extends Length(2)
+  implicit case object `4` extends Length(4)
+  implicit case object `32` extends Length(32)
+  implicit case object `58` extends Length(58)
+  implicit case object `64` extends Length(64)
+  implicit case object `80` extends Length(80)
+  implicit case object `96` extends Length(96)
+  implicit case object `127` extends Length(127)
+  implicit case object `128` extends Length(128)
 }
 
 trait HasLength[T] {
@@ -52,6 +54,9 @@ trait HasLength[T] {
 object HasLength {
 
   trait Instances {
+
+    implicit def bytesLength: HasLength[Bytes] =
+      _.length
 
     implicit def arrayLength[T]: HasLength[Array[T]] =
       _.length

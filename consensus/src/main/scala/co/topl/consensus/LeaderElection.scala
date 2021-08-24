@@ -1,27 +1,38 @@
 package co.topl.consensus
 
-import co.topl.consensus.crypto.{Ratio, Vrf}
-import co.topl.models.{Bytes, Nonce, Slot}
+import co.topl.consensus.crypto.Vrf
+import co.topl.models.HasLength.implicits._
+import co.topl.models.Lengths._
+import co.topl.models._
+import co.topl.typeclasses.RatioOps.implicits._
 
 object LeaderElection {
 
   sealed abstract class Failure
 
   object Failures {
-    case class ThresholdNotMet(threshold: Ratio, proof: Proof) extends Failure
+    case class ThresholdNotMet(threshold: Ratio, proof: Bytes) extends Failure
   }
 
-  case class Key(privateKey: SecretKey, publicKey: PublicKey)
-
-  case class Certificate(publicKey: PublicKey, proofHash: Hash, testProof: Proof, threshold: Ratio)
-
-  case class Hit(cert: Certificate, proof: Proof)
+  case class Hit(cert: VrfCertificate, proof: Bytes, slot: Slot)
 
   case class Config(lddCutoff: Int, precision: Int, baselineDifficulty: Ratio, amplitude: Ratio)
 
+  def hits(
+    secret:        Secrets.Ed25519,
+    relativeStake: Ratio,
+    fromSlot:      Slot,
+    epochNonce:    Nonce,
+    config:        Config
+  ): LazyList[Hit] =
+    LazyList
+      .from(fromSlot + 1)
+      .map(slot => getHit(secret, relativeStake, slot, slot - fromSlot, epochNonce, config))
+      .collect { case Right(hit) => hit }
+
   /**
    * Gets if the given key is elected for the given slot.
-   * @param key the key to stake with
+   * @param secret the key to stake with
    * @param relativeStake the key's relative stake in the chain
    * @param slot the current slot number
    * @param slotDiff the number of slots since the parent slot
@@ -30,7 +41,7 @@ object LeaderElection {
    * @return a hit if the key has been elected for the slot
    */
   def getHit(
-    key:           Key,
+    secret:        Secrets.Ed25519,
     relativeStake: Ratio,
     slot:          Slot,
     slotDiff:      Slot, // diff between current slot and parent slot
@@ -38,7 +49,7 @@ object LeaderElection {
     config:        Config
   ): Either[Failure, Hit] = {
     // private key is 33 bytes, with the first being the type byte (unneeded)
-    val privateKeyBytes = key.privateKey.dataBytes
+    val privateKeyBytes = secret.privateKey.bytes.data
 
     // create VRF for current state
     val vrf = VrfProof(privateKeyBytes, epochNonce, slot)
@@ -50,7 +61,15 @@ object LeaderElection {
 
     Either.cond(
       isSlotLeaderForThreshold(threshold)(proof),
-      Hit(Certificate(key.publicKey, vrf.testProofHashed, proof, threshold), vrf.nonceProof),
+      Hit(
+        VrfCertificate(
+          secret.publicKey,
+          Sized.strict[Bytes, Lengths.`64`.type](vrf.testProofHashed).toOption.get,
+          Sized.strict[Bytes, Lengths.`80`.type](proof).toOption.get
+        ),
+        vrf.nonceProof,
+        slot
+      ),
       Failures.ThresholdNotMet(threshold, proof)
     )
   }
@@ -86,17 +105,17 @@ object LeaderElection {
    * @param proof the proof output
    * @return true if elected slot leader and false otherwise
    */
-  def isSlotLeaderForThreshold(threshold: Ratio)(proof: Proof): Boolean =
+  def isSlotLeaderForThreshold(threshold: Ratio)(proof: Bytes): Boolean =
     threshold > proof
       .zip(1 to proof.length) // zip with indexes starting from 1
       .foldLeft(Ratio(0)) { case (net, (byte, i)) =>
         net + Ratio(BigInt(byte & 0xff), BigInt(2).pow(8 * i))
       }
 
-  case class VrfProof(vrf: Vrf, proofFunc: String => Proof) {
-    lazy val testProof: Proof = proofFunc("TEST")
-    lazy val nonceProof: Proof = proofFunc("NONCE")
-    lazy val testProofHashed: Proof = hash(testProof.unsafeArray.asInstanceOf[Array[Byte]])
+  case class VrfProof(vrf: Vrf, proofFunc: String => Bytes) {
+    lazy val testProof: Bytes = proofFunc("TEST")
+    lazy val nonceProof: Bytes = proofFunc("NONCE")
+    lazy val testProofHashed: Hash = hash(testProof.unsafeArray.asInstanceOf[Array[Byte]])
 
     def hash(input: Array[Byte]): Hash = Bytes(vrf.Sha512(input))
   }

@@ -1,23 +1,24 @@
 package co.topl.fullnode
 
+import cats.Id
 import cats.data.OptionT
-import co.topl.consensus.crypto.Ratio
 import co.topl.consensus.{ChainSelectionChain, LeaderElection}
-import co.topl.minting.BlockMint
 import co.topl.minting.Mint.ops._
+import co.topl.minting.{BlockMint, StakingKeys}
+import co.topl.models.HasLength.implicits._
+import co.topl.models.Lengths._
 import co.topl.models._
 import co.topl.typeclasses.BlockGenesis
 import co.topl.typeclasses.Identifiable.Instances._
 import co.topl.typeclasses.Identifiable.ops._
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
 
 object FullNode extends App {
 
   val slotTime = 10.millis
   val SlotsPerEpoch = 5000
+  val RelativeStake = Ratio(1, 10)
 
   val leaderElectionConfig = LeaderElection
     .Config(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
@@ -25,41 +26,56 @@ object FullNode extends App {
   val genesisBlock =
     BlockGenesis(Nil).create()
 
-  implicit val mint: BlockMint = {
+  private val epoch: Epoch = 1
+  private val epochNonce: Nonce = Bytes(Array(1))
+
+  private val stakingKeys: StakingKeys[Id] =
+    new StakingKeys[Id] {
+
+      private val _vrfKey =
+        Secrets.Ed25519(
+          PrivateKeys.Ed25519(Sized.strict[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(1))).toOption.get),
+          PublicKeys.Ed25519(Sized.strict[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(1))).toOption.get)
+        )
+
+      private val _kesKey =
+        Secrets.Ed25519(
+          PrivateKeys.Ed25519(Sized.strict[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(1))).toOption.get),
+          PublicKeys.Ed25519(Sized.strict[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(1))).toOption.get)
+        )
+
+      override def vrfKey(): Id[Secrets.Ed25519] = _vrfKey
+
+      override def kesKey(): Id[Secrets.Ed25519] = _kesKey
+
+      override def stakingAddress(): Id[TaktikosAddress] = ???
+
+      override def evolveKes(): Id[Unit] = ???
+    }
+
+  implicit val mint: BlockMint[Id] = {
+    val key = Secrets.Ed25519(
+      PrivateKeys.Ed25519(Sized.strict[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(1))).toOption.get),
+      PublicKeys.Ed25519(Sized.strict[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(1))).toOption.get)
+    )
     def elect(parent: BlockHeaderV2) = {
-      var hit: LeaderElection.Hit = None.orNull
-      var slot = parent.slot + 1
-      val key = LeaderElection.Key(
-        TypedBytes(Bytes(Array.fill[Byte](33)(1))),
-        TypedBytes(Bytes(Array.fill[Byte](33)(1)))
-      )
       val startTime = System.currentTimeMillis()
-      // TODO: Pre-compute for the current epoch
-      while (hit == null) {
-        LeaderElection
-          .getHit(
-            key,
-            relativeStake = Ratio(1, 10),
-            slot = slot,
-            slotDiff = slot - parent.slot,
-            epochNonce = chainSelectionState.epochNonce,
-            leaderElectionConfig
-          )
-          .foreach(hit = _)
-        slot += 1
-      }
-      val slotDiff = slot - parent.slot
+      val hit = LeaderElection
+        .hits(key, RelativeStake, fromSlot = parent.slot, epochNonce, leaderElectionConfig)
+        .head
+
+      val slotDiff = hit.slot - parent.slot
       Thread.sleep(((slotDiff.toLong * slotTime.toMillis) - (System.currentTimeMillis() - startTime)).max(0L))
       BlockMint.Election(
-        slot = slot,
-        vrfCertificate = Bytes(Array.fill(32)(1)), // TODO: Serialize res.cert
+        slot = hit.slot,
+        hit.cert,
         kesCertificate = Bytes(Array.fill(32)(1))
       )
     }
-    new BlockMint(
+    new BlockMint[Id](
       getCurrentTime = () => System.currentTimeMillis(),
-      nextTransactions = _ => Future.successful(Nil),
-      elect = parent => Future(elect(parent))
+      nextTransactions = _ => Nil,
+      elect = parent => elect(parent)
     )
   }
 
@@ -67,15 +83,15 @@ object FullNode extends App {
 
   private val chainSelectionState = new ChainSelectionState(genesisBlock)
 
-  val chainSelectionChainImpl: ChainSelectionChain[Future, Throwable] =
-    ChainSelectionChain[Future, Throwable](
+  val chainSelectionChainImpl: ChainSelectionChain[Id, Id, Throwable] =
+    ChainSelectionChain[Id, Id, Throwable](
       latestBlockId = genesisBlock.headerV2.id,
       firstBlockId = genesisBlock.headerV2.id,
       nextBlockId = None,
       currentBlock = chainSelectionState.currentBlock,
-      getBlock = id => Future.successful(chainSelectionState.headersMap(id)),
+      getBlock = id => chainSelectionState.headersMap(id),
       childIdOf = parentId => OptionT.fromOption(chainSelectionState.headerChildMap.get(parentId)),
-      totalStake = () => Sized.max(chainSelectionState.stakeMap.values.map(_.data).sum, Lengths.`128`).toOption.get,
+      totalStake = () => chainSelectionState.totalStake().toOption.get,
       stakeFor = address => chainSelectionState.stakeMap.get(address),
       epochNonce = () => chainSelectionState.epochNonce,
       append = header => chainSelectionState.append(header),
@@ -85,17 +101,12 @@ object FullNode extends App {
   val blockChainIterator =
     Iterator.iterate(chainSelectionChainImpl) { impl =>
       val BlockV2(newHeader, newBody) =
-        Await.result(
-          BlockV2(impl.currentBlock, chainSelectionState.currentBlockBody).nextValue,
-          2.minutes
-        )
+        BlockV2(impl.currentBlock, chainSelectionState.currentBlockBody).nextValue
+
       chainSelectionState.currentBlockBody = newBody
-      Await.result(
-        impl
-          .appendToLatest(newHeader)
-          .valueOrF(e => Future.failed(new Exception(e.toString))),
-        2.seconds
-      )
+      impl
+        .appendToLatest(newHeader)
+        .valueOr(f => throw new Exception(f.toString))
     }
 
   blockChainIterator
@@ -123,13 +134,18 @@ class ChainSelectionState(genesisBlock: BlockV2) {
   var currentBlock = genesisBlock.headerV2
   var currentBlockBody = genesisBlock.blockBodyV2
 
-  val append = (header: BlockHeaderV2) => {
+  def totalStake()(implicit
+    hasLength: HasLength[BigInt]
+  ): Either[Sized.InvalidLength, Sized.Max[BigInt, Lengths.`128`.type]] =
+    Sized.max(stakeMap.values.map(_.data).sum)
+
+  def append(header: BlockHeaderV2) = {
     headersMap += (header.id           -> header)
     headerChildMap += (currentBlock.id -> header.id)
     currentBlock = header
   }
 
-  val removeLatest = () => {
+  def removeLatest() = {
     headersMap -= currentBlock.id
     headerChildMap -= currentBlock.parentHeaderId
     currentBlock = headersMap(currentBlock.parentHeaderId)

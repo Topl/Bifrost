@@ -21,7 +21,7 @@ object Identifiable {
       new Identifiable[BlockHeaderV2] {
 
         override def idOf(t: BlockHeaderV2): TypedIdentifier =
-          (TypedBytes(IdentifierTypes.Block.HeaderV2 +: Bytes(s"header${t.height}".getBytes(StandardCharsets.UTF_8))))
+          TypedBytes(IdentifierTypes.Block.HeaderV2 +: Bytes(s"header${t.height}".getBytes(StandardCharsets.UTF_8)))
 
         override def typePrefix: TypePrefix = IdentifierTypes.Block.HeaderV2
       }
@@ -30,9 +30,9 @@ object Identifiable {
       new Identifiable[BlockBodyV2] {
 
         override def idOf(t: BlockBodyV2): TypedIdentifier =
-          (TypedBytes(
+          TypedBytes(
             IdentifierTypes.Block.BodyV2 +: Bytes(s"bodyChildOf${t.parentHeaderId}".getBytes(StandardCharsets.UTF_8))
-          ))
+          )
 
         override def typePrefix: TypePrefix = IdentifierTypes.Block.BodyV2
       }

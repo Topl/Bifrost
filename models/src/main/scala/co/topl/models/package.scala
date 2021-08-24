@@ -18,14 +18,18 @@ package object models {
   type Registration = Bytes
   type Signature = Bytes
   type Evidence = Bytes
+  type Epoch = Long
   type Address = TypedIdentifier
   type BoxReference = (Address, Nonce)
   type TaktikosBoxReference = (TaktikosAddress, Nonce)
   type PolyOutput = (Address, Int128)
   type ArbitOutput = (Address, Int128)
   type AssetOutput = (Address, Asset.Value)
-  type VrfCertificate = Bytes
   type KesCertificate = Bytes
+
+  type Account = Propositions.PublicKeyEd25519
+  type Root = Propositions.PublicKeyEd25519
+  type StakeAddress = Propositions.PublicKeyEd25519
 
   object Bytes {
     def apply(array: Array[Byte]): Bytes = new ArraySeq.ofByte(array)

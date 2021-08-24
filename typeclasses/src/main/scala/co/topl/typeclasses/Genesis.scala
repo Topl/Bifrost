@@ -1,5 +1,7 @@
 package co.topl.typeclasses
 
+import co.topl.models.HasLength.implicits._
+import co.topl.models.Lengths._
 import co.topl.models._
 import co.topl.typeclasses.Identifiable.Instances._
 import co.topl.typeclasses.Identifiable.ops._
@@ -14,7 +16,12 @@ import simulacrum.typeclass
 
 object BlockGenesis {
   val ParentId: TypedIdentifier = TypedBytes(IdentifierTypes.Block.HeaderV2, Bytes(Array.fill[Byte](32)(0)))
-  val VrfCertificate: Bytes = Bytes(Array.fill[Byte](32)(0))
+
+  val vrfCertificate: VrfCertificate = VrfCertificate(
+    PublicKeys.Ed25519(Sized.strict[Bytes, Lengths.`32`.type](Bytes(Array.fill(32)(0: Byte))).toOption.get),
+    Sized.strict[Bytes, Lengths.`64`.type](Bytes(Array.fill(64)(0: Byte))).toOption.get,
+    Sized.strict[Bytes, Lengths.`80`.type](Bytes(Array.fill(80)(0: Byte))).toOption.get
+  )
   val KesCertificate: Bytes = Bytes(Array.fill[Byte](32)(0))
 
   def apply(transactions: Seq[Transaction]): Genesis[BlockV2] = { () =>
@@ -30,7 +37,7 @@ object BlockGenesis {
         timestamp = 0L,
         height = 1,
         slot = 0,
-        vrfCertificate = VrfCertificate,
+        vrfCertificate = vrfCertificate,
         kesCertificate = KesCertificate
       ),
       body

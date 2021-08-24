@@ -1,9 +1,23 @@
 package co.topl.minting
 
-import simulacrum.{op, typeclass}
+trait Mint[F[_], T] {
+  def nextValueAfter(previousValue: T): F[T]
+}
 
-import scala.concurrent.Future
+object Mint {
 
-@typeclass trait Mint[T] {
-  @op("nextValue") def nextValueAfter(previousValue: T): Future[T]
+  trait Ops[F[_], T] {
+    def typeClassInstance: Mint[F, T]
+    def self: T
+    def nextValue: F[T] = typeClassInstance.nextValueAfter(self)
+  }
+
+  object ops {
+
+    implicit def toOps[F[_], T](target: T)(implicit m: Mint[F, T]): Ops[F, T] =
+      new Ops[F, T] {
+        override def typeClassInstance: Mint[F, T] = m
+        override def self: T = target
+      }
+  }
 }

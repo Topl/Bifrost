@@ -7,7 +7,7 @@ import co.topl.typeclasses.StatefullyValidatable
 import io.estatico.newtype.macros.newtype
 import io.estatico.newtype.ops._
 
-class ConsensusStatefullyValidatable
+object ConsensusStatefullyValidatable
     extends StatefullyValidatable[
       ConsensusValidation.State,
       BlockHeaderV2,
@@ -40,7 +40,7 @@ class ConsensusStatefullyValidatable
 
 object ConsensusValidation {
 
-  implicit val instance: ConsensusStatefullyValidatable = new ConsensusStatefullyValidatable
+  implicit val instance: ConsensusStatefullyValidatable.type = ConsensusStatefullyValidatable
 
   sealed abstract class Failure
 

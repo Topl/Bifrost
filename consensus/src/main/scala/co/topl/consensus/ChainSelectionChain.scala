@@ -1,13 +1,12 @@
 package co.topl.consensus
 
+import cats.Monad
 import cats.data.{EitherT, OptionT}
 import cats.implicits._
 import co.topl.models._
 import co.topl.typeclasses.Identifiable.Instances._
 import co.topl.typeclasses.Identifiable.ops._
 import co.topl.typeclasses.StatefulCursorChain
-
-import scala.concurrent.{ExecutionContext, Future}
 
 /**
  * A `StatefulCursorChain` which tracks a chain of Block Headers.  The `State` is represented as lookup methods
@@ -25,32 +24,32 @@ import scala.concurrent.{ExecutionContext, Future}
  * @param removeLatest helper method to rollback the latest block
  * @param consensusStatefullyValidatable helper to validate block headers
  */
-case class ChainSelectionChain[StateF[_], StateFailure](
-  latestBlockId: TypedIdentifier,
-  firstBlockId:  TypedIdentifier,
-  nextBlockId:   Option[TypedIdentifier],
-  currentBlock:  BlockHeaderV2,
-  getBlock:      TypedIdentifier => Future[BlockHeaderV2],
-  childIdOf:     TypedIdentifier => OptionT[Future, TypedIdentifier],
-  totalStake:    () => Int128,
-  stakeFor:      Address => Option[Int128],
-  epochNonce:    () => Nonce,
-  append:        BlockHeaderV2 => Unit,
-  removeLatest:  () => Unit
-)(implicit ec:   ExecutionContext, consensusStatefullyValidatable: ConsensusStatefullyValidatable)
+case class ChainSelectionChain[F[_]: Monad, StateF[_], StateFailure](
+  latestBlockId:                           TypedIdentifier,
+  firstBlockId:                            TypedIdentifier,
+  nextBlockId:                             Option[TypedIdentifier],
+  currentBlock:                            BlockHeaderV2,
+  getBlock:                                TypedIdentifier => F[BlockHeaderV2],
+  childIdOf:                               TypedIdentifier => OptionT[F, TypedIdentifier],
+  totalStake:                              () => Int128,
+  stakeFor:                                Address => Option[Int128],
+  epochNonce:                              () => Nonce,
+  append:                                  BlockHeaderV2 => Unit,
+  removeLatest:                            () => Unit
+)(implicit consensusStatefullyValidatable: ConsensusStatefullyValidatable.type)
     extends StatefulCursorChain[
-      Future,
+      F,
       BlockHeaderV2,
       ChainSelectionChain.State[StateF, StateFailure],
       ChainSelectionChain.Failure
     ] {
-  override type P = ChainSelectionChain[StateF, StateFailure]
+  override type P = ChainSelectionChain[F, StateF, StateFailure]
 
   /**
    * Fetches the state associated with the tip of the chain
    */
-  override def latestState()
-    : EitherT[Future, ChainSelectionChain.Failure, ChainSelectionChain.State[StateF, StateFailure]] = ???
+  override def latestState(): EitherT[F, ChainSelectionChain.Failure, ChainSelectionChain.State[StateF, StateFailure]] =
+    ???
 
   /**
    * Fetch the item to which the cursor currently points
@@ -61,7 +60,7 @@ case class ChainSelectionChain[StateF[_], StateFailure](
   /**
    * Returns a PersistentChain in which the cursor points to the first item of the chain
    */
-  override def moveFirst: Future[P] =
+  override def moveFirst: F[P] =
     for {
       firstBlock <- getBlock(firstBlockId)
       nextBlock  <- childIdOf(firstBlockId).semiflatMap(getBlock).value
@@ -70,14 +69,14 @@ case class ChainSelectionChain[StateF[_], StateFailure](
   /**
    * Returns a PersistentChain in which the cursor points to the tip/latest of the chain
    */
-  override def moveLatest: Future[P] =
+  override def moveLatest: F[P] =
     getBlock(latestBlockId).map(h => copy(currentBlock = h, nextBlockId = None))
 
   /**
    * Returns a PersistentChain in which the cursor points to the previous item in the chain.
    * If no previous item exists, None is returned.
    */
-  override def movePrevious: OptionT[Future, P] =
+  override def movePrevious: OptionT[F, P] =
     if (currentBlock.id == firstBlockId) OptionT.none
     else
       OptionT.liftF(
@@ -88,9 +87,9 @@ case class ChainSelectionChain[StateF[_], StateFailure](
    * Returns a PersistentChain in which the cursor points to the next item in the chain.
    * If no next item exists, None is returned.
    */
-  override def moveNext: OptionT[Future, P] =
+  override def moveNext: OptionT[F, P] =
     OptionT
-      .fromOption[Future](nextBlockId)
+      .fromOption[F](nextBlockId)
       .flatMap(nextBlockId =>
         OptionT
           .liftF(getBlock(nextBlockId))
@@ -104,7 +103,7 @@ case class ChainSelectionChain[StateF[_], StateFailure](
    * Points the cursor to the latest item and attempts to append the given item T to it.
    * If non-applicable or invalid, a Failure is returned
    */
-  override def appendToLatest(t: BlockHeaderV2): EitherT[Future, ChainSelectionChain.Failure, P] =
+  override def appendToLatest(t: BlockHeaderV2): EitherT[F, ChainSelectionChain.Failure, P] =
     if (latestBlockId != currentBlock.id)
       EitherT.liftF(moveLatest).flatMap(_.appendToLatest(t))
     else
@@ -138,8 +137,8 @@ case class ChainSelectionChain[StateF[_], StateFailure](
    * Points the cursor to the latest item and attempts to remove it.
    * If currently at `first`, None is instead returned. Otherwise, (the new chain, the removed value) is returned.
    */
-  override def popLatest(): OptionT[Future, (P, BlockHeaderV2)] =
-    if (currentBlock.id == firstBlockId) OptionT.none[Future, (P, BlockHeaderV2)]
+  override def popLatest(): OptionT[F, (P, BlockHeaderV2)] =
+    if (currentBlock.id == firstBlockId) OptionT.none[F, (P, BlockHeaderV2)]
     else if (currentBlock.id != latestBlockId) OptionT.liftF(moveLatest).flatMap(_.popLatest())
     else
       OptionT
