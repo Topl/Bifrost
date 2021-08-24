@@ -1,8 +1,12 @@
 package co.topl.utils.codecs.binary
 
 object UIntCodec {
-  type UInt = Long
 
+  /**
+   * Decodes a `UInt` value from a lazy list of bytes.
+   * @param from the list of bytes to decode a `UInt` value from
+   * @return if successful, a decoded `UInt` value and the remaining non-decoded bytes
+   */
   def decode(from: LazyList[Byte]): DecoderResult[UInt] =
     for {
       uLongParseResult <- ULongCodec.decode(from)

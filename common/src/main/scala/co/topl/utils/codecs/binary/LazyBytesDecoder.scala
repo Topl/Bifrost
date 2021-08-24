@@ -6,8 +6,14 @@ import co.topl.utils.codecs.FromBytes
 import simulacrum.typeclass
 
 @typeclass
-trait LazyBytesDecoder[T] {
-  def decodeLazy(bytes: LazyList[Byte]): DecoderResult[T]
+trait LazyBytesDecoder[A] {
+  def decodeLazy(bytes: LazyList[Byte]): DecoderResult[A]
+
+  def map[B](f: (A, LazyList[Byte]) => (B, LazyList[Byte])): LazyBytesDecoder[B] =
+    bytes =>
+      for {
+        aResult <- decodeLazy(bytes)
+      } yield f(aResult._1, aResult._2)
 }
 
 object LazyBytesDecoder {

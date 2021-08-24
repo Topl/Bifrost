@@ -5,16 +5,16 @@ import scala.annotation.tailrec
 
 object ULongCodec {
 
-  type ULong = Long
-
   /**
-   * Recursive function to decode an unsigned `Long` from a list of bytes using the VLQ method.
+   * Recursive function to decode a `ULong` from a list of bytes using the VLQ method.
    *
    * Original Java Source:
+   *
    * http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java
    * /core/src/main/java/com/google/protobuf/CodedInputStream.java#L2653
    *
-   * Faster Java Source:
+   * Faster Java Source
+   *
    * http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java
    * /core/src/main/java/com/google/protobuf/CodedInputStream.java#L1085
    *
@@ -22,30 +22,30 @@ object ULongCodec {
    * @param shift the current shift to apply to the next byte
    * @param remainingBytes the remaining bytes to parse
    * @param iteration the current iteration of the recursive loop
-   * @return a `ParseResult` with a decoded `Long` and remaining bytes if successful
+   * @return if successful, a decoded `ULong` value and the remaining non-decoded bytes
    */
   @tailrec
   private def decodeHelper(
     currentResult:  ULong,
     shift:          Int,
-    remainingBytes: LazyList[Byte],
-    iteration:      Int
+    remainingBytes: LazyList[Byte]
   ): DecoderResult[ULong] =
-    (iteration, remainingBytes) match {
-      case (i, _) if i >= 64                          => (currentResult, remainingBytes).asRight
-      case (_, (head #:: tail)) if (head & 0x80) == 0 => (currentResult, remainingBytes).asRight
+    (shift, remainingBytes) match {
+      case (s, _) if s >= 64 => (currentResult, remainingBytes).asRight
+      case (_, (head #:: tail)) if (head & 0x80) == 0 =>
+        (currentResult | ((head & 0x7f).toLong << shift), tail).asRight
       case (_, (head #:: tail)) =>
-        decodeHelper(currentResult | ((head & 0x7f).toLong << shift), shift + 7, tail, iteration + 1)
+        decodeHelper(currentResult | ((head & 0x7f).toLong << shift), shift + 7, tail)
       case _ => ParseFailure.asLeft
     }
 
   /**
-   * Attempts to parse a `Long` value from a given list of bytes
-   * @param from the bytes to parse a long from
-   * @return a `ParseResult` with a decoded `Long` and remaining bytes if successful
+   * Decodes a `ULong` value from a lazy list of bytes.
+   * @param from the list of bytes to decode a `ULong` value from
+   * @return if successful, a decoded `ULong` value and the remaining non-decoded bytes
    */
   def decode(from: LazyList[Byte]): DecoderResult[ULong] =
-    decodeHelper(currentResult = 0, shift = 0, remainingBytes = from, iteration = 0)
+    decodeHelper(currentResult = 0, shift = 0, remainingBytes = from)
 
   trait Implicits {
     implicit def lazyULongDecoder: LazyBytesDecoder[ULong] = decode

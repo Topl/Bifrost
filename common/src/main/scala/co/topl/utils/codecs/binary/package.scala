@@ -19,25 +19,27 @@ package object binary {
   type ByteString = String
   type IntString = String
 
+  type UShort = Int
+  type UInt = Long
+  type ULong = Long
+
   /**
    * Helper method for recursively parsing a list of bytes into a string value.
-   * @param size the number of bytes to parse into a string
-   * @param iteration the current iteration count of bytes read
+   * @param targetSize the target number of bytes to parse into a string
    * @param current the current list of bytes that will be converted into a string
    * @param remaining the remaining bytes that have not yet been parsed
    * @return a `ParseResult` which returns a string on success
    */
   @tailrec
   private[binary] def stringParsingHelper(
-    size:      Int,
-    iteration: Int,
-    current:   List[Byte],
-    remaining: LazyList[Byte]
+    targetSize: Int,
+    current:    List[Byte],
+    remaining:  LazyList[Byte]
   ): DecoderResult[String] =
-    if (size >= iteration) (new String(current.toArray), remaining).asRight
+    if (current.length >= targetSize) (new String(current.toArray), remaining).asRight
     else
       remaining match {
-        case head #:: tail => stringParsingHelper(size, iteration + 1, current :+ head, tail)
+        case head #:: tail => stringParsingHelper(targetSize, current :+ head, tail)
         case _             => ParseFailure.asLeft
       }
 

@@ -128,6 +128,8 @@ trait VLQReader extends Reader {
    */
   @inline override def getIntString(): String = {
     val size = getUInt().toIntExact
-    new String(getBytes(size))
+    val bytes = getBytes(size)
+    val result = new String(bytes)
+    result
   }
 }

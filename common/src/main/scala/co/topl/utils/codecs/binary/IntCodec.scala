@@ -4,6 +4,11 @@ import co.topl.utils.serialization.ZigZagEncoder.decodeZigZagInt
 
 object IntCodec {
 
+  /**
+   * Decodes an `Int` value from a lazy list of bytes.
+   * @param from the list of bytes to decode a `Int` value from
+   * @return if successful, a decoded `Int` value and the remaining non-decoded bytes
+   */
   def decode(from: LazyList[Byte]): DecoderResult[Int] =
     for {
       uLongParseResult <- ULongCodec.decode(from)

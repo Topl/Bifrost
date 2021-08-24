@@ -1,8 +1,12 @@
 package co.topl.utils.codecs.binary
 
 object UShortCodec {
-  type UShort = Int
 
+  /**
+   * Decodes a `UShort` value from a lazy list of bytes.
+   * @param from the list of bytes to decode a `UShort` value from
+   * @return if successful, a decoded `UShort` value and the remaining non-decoded bytes
+   */
   def decode(from: LazyList[Byte]): DecoderResult[UShort] =
     for {
       uLongParseResult <- ULongCodec.decode(from)
