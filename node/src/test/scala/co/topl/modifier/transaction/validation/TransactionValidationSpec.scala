@@ -7,6 +7,7 @@ import co.topl.modifier.box._
 import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.validation.implicits._
 import co.topl.utils.NetworkType.PrivateTestnet
+import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.{NetworkType, NodeGenerators}
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
@@ -14,6 +15,7 @@ import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 import scala.util.Random
+import co.topl.utils.GeneratorOps.GeneratorOps
 
 class TransactionValidationSpec
     extends AnyPropSpec
@@ -27,7 +29,9 @@ class TransactionValidationSpec
   type TransferTx = TransferTransaction[TokenValueHolder, _ <: Proposition]
 
   property("Randomly generated AssetTransfer Tx should be valid") {
-    forAll(validAssetTransferGen(keyRingCurve25519, keyRingEd25519, genesisState, minting = true)) { tx =>
+    forAll(
+      validAssetTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, genesisState, minting = true)
+    ) { tx =>
       tx.syntacticValidation should beValid[TransferTx](tx)
     }
   }
@@ -95,8 +99,30 @@ class TransactionValidationSpec
     }
   }
 
+  property("Attempting to validate an AssetTransfer with data of invalid length should error") {
+    forAll(stringGen) { data: String =>
+      whenever(data.length >= 128) {
+        val tx = assetTransferEd25519Gen.sampleFirst()
+        val invalidDataTx = tx.copy(data = Some(Latin1Data.unsafe(data)))
+        invalidDataTx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](DataTooLong)
+      }
+    }
+  }
+
+  property("Attempting to validate an AssetTransfer with metadata of invalid length should error") {
+    forAll(stringGen) { metadata: String =>
+      whenever(metadata.length >= 128) {
+        val tx = assetTransferEd25519Gen.sampleFirst()
+        val assetValue = assetValueEd25519Gen.sampleFirst().copy(metadata = Some(Latin1Data.unsafe(metadata)))
+        val invalidDataTx = tx.copy(to = IndexedSeq((assetValue.assetCode.issuer, assetValue)))
+
+        invalidDataTx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](MetadataTooLong)
+      }
+    }
+  }
+
   property("Randomly generated ArbitTransfer Tx should be valid") {
-    forAll(validArbitTransferGen(keyRingCurve25519, keyRingEd25519, genesisState)) { tx =>
+    forAll(validArbitTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, genesisState)) { tx =>
       tx.syntacticValidation should beValid[TransferTx](tx)
     }
   }
@@ -166,7 +192,9 @@ class TransactionValidationSpec
 
   property("Transactions created on a specific network should not be accepted on any other network") {
     val otherNetworks = NetworkType.all.filterNot(_ == PrivateTestnet)
-    forAll(validAssetTransferGen(keyRingCurve25519, keyRingEd25519, genesisState, minting = true)) { tx =>
+    forAll(
+      validAssetTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, genesisState, minting = true)
+    ) { tx =>
       otherNetworks.foreach { netType =>
         tx.syntacticValidation(netType.netPrefix) should haveInvalidC[SyntacticValidationFailure](
           MintingMissingIssuersSignature
@@ -176,8 +204,8 @@ class TransactionValidationSpec
     }
   }
 
-  property("Generated PolyTransfer Tx should be valid") {
-    forAll(validPolyTransferGen(keyRingCurve25519, keyRingEd25519, genesisState)) { tx =>
+  property("Randomly generated PolyTransfer Tx should be valid") {
+    forAll(validPolyTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, genesisState)) { tx =>
       tx.syntacticValidation should beValid[TransferTx](tx)
     }
   }
@@ -212,33 +240,21 @@ class TransactionValidationSpec
     }
   }
 
-  property("Transaction with non-latin1 data should be invalid") {
-    val data = "ˇ"
-
-    forAll(
-      validPolyTransferCurve25519Gen(keyRingCurve25519, genesisState).map(tx => signTx(tx.copy(data = Some(data))))
-    ) { tx =>
-      tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](DataNotLatin1)
-    }
-
-    forAll(
-      validPolyTransferEd25519Gen(keyRingEd25519, genesisState).map(tx => signTx(tx.copy(data = Some(data))))
-    ) { tx =>
-      tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](DataNotLatin1)
-    }
-  }
-
   property("Transaction with data length > 128 bytes should be invalid") {
     val data = Random.alphanumeric.take(512).mkString
 
     forAll(
-      validPolyTransferCurve25519Gen(keyRingCurve25519, genesisState).map(tx => signTx(tx.copy(data = Some(data))))
+      validPolyTransferCurve25519Gen(keyRingCurve25519, genesisState).map(tx =>
+        signTx(tx.copy(data = Some(Latin1Data.unsafe(data))))
+      )
     ) { tx =>
       tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](DataTooLong)
     }
 
     forAll(
-      validPolyTransferEd25519Gen(keyRingEd25519, genesisState).map(tx => signTx(tx.copy(data = Some(data))))
+      validPolyTransferEd25519Gen(keyRingEd25519, genesisState).map(tx =>
+        signTx(tx.copy(data = Some(Latin1Data.unsafe(data))))
+      )
     ) { tx =>
       tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](DataTooLong)
     }

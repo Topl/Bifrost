@@ -7,7 +7,6 @@ import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.attestation.Proposition
 import co.topl.modifier.box._
 import co.topl.modifier.transaction._
-import co.topl.utils.Extensions.StringOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import simulacrum._
 
@@ -152,10 +151,27 @@ class TransferTransactionSyntacticallyValidatable[T <: TokenValueHolder, P <: Pr
         tx.validNec
       case _: PolyTransfer[_] =>
         Validated.condNec(tx.from.nonEmpty, tx, NoInputBoxesSpecified)
-      case _: ArbitTransfer[_] | _: AssetTransfer[_] =>
+      case _: ArbitTransfer[_] =>
         Validated
           .condNec(tx.from.nonEmpty, tx, NoInputBoxesSpecified)
           .combine(Validated.condNec(tx.to.size >= 2, tx, NonPolyTxInsufficientOutputs))
+      case _: AssetTransfer[_] =>
+        Validated
+          .condNec(tx.from.nonEmpty, tx, NoInputBoxesSpecified)
+          .combine(Validated.condNec(tx.to.size >= 2, tx, NonPolyTxInsufficientOutputs))
+          .combine(
+            Validated.condNec(
+              tx.to.forall {
+                _._2 match {
+                  case assetValue: AssetValue =>
+                    assetValue.metadata.forall(_.value.length <= 127)
+                  case _ => true
+                }
+              },
+              tx,
+              MetadataTooLong
+            )
+          )
     }
 
   private[transaction] def dataValidation(
@@ -163,9 +179,7 @@ class TransferTransactionSyntacticallyValidatable[T <: TokenValueHolder, P <: Pr
   ): ValidatedNec[SyntacticValidationFailure, TransferTransaction[T, P]] =
     tx.data.fold(tx.validNec[SyntacticValidationFailure])(data =>
       Validated
-        .fromOption(data.getValidLatin1Bytes, DataNotLatin1)
-        .toValidatedNec[SyntacticValidationFailure, Array[Byte]]
-        .andThen(bytes => Validated.condNec(bytes.length <= 128, tx, DataTooLong))
+        .condNec(data.value.length <= 127, tx, DataTooLong)
     )
 
   private[transaction] def propositionSatisfiedValidation(
@@ -247,8 +261,8 @@ case object NegativeFeeFailure extends SyntacticValidationFailure
 case object NoInputBoxesSpecified extends SyntacticValidationFailure
 case object InvalidSendAmount extends SyntacticValidationFailure
 case object InvalidTimestamp extends SyntacticValidationFailure
-case object DataNotLatin1 extends SyntacticValidationFailure
 case object DataTooLong extends SyntacticValidationFailure
+case object MetadataTooLong extends SyntacticValidationFailure
 case object UnsatisfiedProposition extends SyntacticValidationFailure
 case object PropositionEvidenceMismatch extends SyntacticValidationFailure
 case object MintingMissingIssuersSignature extends SyntacticValidationFailure
