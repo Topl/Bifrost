@@ -173,6 +173,7 @@ lazy val bifrost = project
     node,
     common,
     akkaHttpRpc,
+    models,
     toplRpc,
     benchmarking,
     crypto,
@@ -385,7 +386,6 @@ lazy val levelDb = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.leveldb"
   )
-
 
 // This module has fallen out of sync with the rest of the codebase and is not currently needed
 //lazy val gjallarhorn = project
