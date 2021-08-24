@@ -170,6 +170,7 @@ lazy val bifrost = project
     node,
     common,
     akkaHttpRpc,
+    models,
     toplRpc,
     benchmarking,
     crypto,
@@ -249,6 +250,22 @@ lazy val akkaHttpRpc = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.akkahttprpc"
   )
+
+lazy val models = project
+  .in(file("models"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "models",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.models"
+  )
+  .settings(scalamacrosParadiseSettings)
+  .settings(
+    libraryDependencies ++= Dependencies.models
+  )
+  .settings(libraryDependencies ++= Dependencies.test)
 
 lazy val toplRpc = project
   .in(file("topl-rpc"))
