@@ -7,6 +7,7 @@ import simulacrum.typeclass
 import co.topl.utils.Extensions.LongOps
 
 import java.nio.ByteBuffer
+import java.nio.charset.{Charset, StandardCharsets}
 import java.util
 import scala.annotation.tailrec
 
@@ -23,6 +24,8 @@ package object binary {
   type UInt = Long
   type ULong = Long
 
+  val stringCharacterSet: Charset = StandardCharsets.UTF_8
+
   /**
    * Helper method for recursively parsing a list of bytes into a string value.
    * @param targetSize the target number of bytes to parse into a string
@@ -36,7 +39,7 @@ package object binary {
     current:    List[Byte],
     remaining:  LazyList[Byte]
   ): DecoderResult[String] =
-    if (current.length >= targetSize) (new String(current.toArray), remaining).asRight
+    if (current.length >= targetSize) (new String(current.toArray, stringCharacterSet), remaining).asRight
     else
       remaining match {
         case head #:: tail => stringParsingHelper(targetSize, current :+ head, tail)
