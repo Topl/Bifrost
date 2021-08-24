@@ -27,15 +27,42 @@ object ConsensusStatefullyValidatable
       _ <- test(header.slot > parent.slot, NonForwardSlot(header.slot, parent.slot))
       _ <- test(header.timestamp > parent.timestamp, NonForwardTimestamp(header.timestamp, parent.timestamp))
       _ <- test(header.parentHeaderId == parent.id, ParentMismatch(header.parentHeaderId, parent.id))
+
+      // TODO: Generate test value for party (unique address) and slot,
+      // and then compare normalized test value to the threshold
+
+      // Cryptographic soundness of the proofs
       _ <- vrfVerification(header, state)
+      _ <- kesVerification(header, state)
     } yield ConsensusValidation.ValidatedBlockHeader(header)
   }
 
+  /**
+   * Requires the epoch nonce, thus stateful
+   */
   private[consensus] def vrfVerification(
     header: BlockHeaderV2,
     state:  ConsensusValidation.State
   ): Either[ConsensusValidation.Failure, BlockHeaderV2] = // TODO
-    Either.cond(true, header, ConsensusValidation.Failures.InvalidVrfCertificate(header.vrfCertificate))
+    Either.cond(
+      // TODO: header.vrfCertificate.publicKey
+      true,
+      header,
+      ConsensusValidation.Failures.InvalidVrfCertificate(header.vrfCertificate)
+    )
+
+  /**
+   * Requires the epoch nonce, thus stateful
+   */
+  private[consensus] def kesVerification(
+    header: BlockHeaderV2,
+    state:  ConsensusValidation.State
+  ): Either[ConsensusValidation.Failure, BlockHeaderV2] = // TODO
+    Either.cond(
+      true,
+      header,
+      ConsensusValidation.Failures.InvalidKesCertificate(header.kesCertificate)
+    )
 }
 
 object ConsensusValidation {
@@ -49,6 +76,7 @@ object ConsensusValidation {
     case class NonForwardTimestamp(timestamp: Timestamp, parentTimestamp: Timestamp) extends Failure
     case class ParentMismatch(expectedParentId: TypedIdentifier, parentId: TypedIdentifier) extends Failure
     case class InvalidVrfCertificate(vrfCertificate: VrfCertificate) extends Failure
+    case class InvalidKesCertificate(kesCertificate: KesCertificate) extends Failure
   }
 
   trait State {

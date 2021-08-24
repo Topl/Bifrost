@@ -1,9 +1,10 @@
 package co.topl.consensus
 
 import co.topl.consensus.crypto.Vrf
-import co.topl.models.HasLength.implicits._
-import co.topl.models.Lengths._
+import co.topl.models.utility.HasLength.implicits._
+import co.topl.models.utility.Lengths._
 import co.topl.models._
+import co.topl.models.utility.{Lengths, Ratio, Sized}
 import co.topl.typeclasses.RatioOps.implicits._
 
 object LeaderElection {
@@ -19,14 +20,14 @@ object LeaderElection {
   case class Config(lddCutoff: Int, precision: Int, baselineDifficulty: Ratio, amplitude: Ratio)
 
   def hits(
-    secret:        Secrets.Ed25519,
+    secret:        Secrets.Vrf,
     relativeStake: Ratio,
     fromSlot:      Slot,
     epochNonce:    Nonce,
     config:        Config
   ): LazyList[Hit] =
     LazyList
-      .from(fromSlot + 1)
+      .unfold(fromSlot)(s => Some(s + 1, s + 1))
       .map(slot => getHit(secret, relativeStake, slot, slot - fromSlot, epochNonce, config))
       .collect { case Right(hit) => hit }
 
@@ -41,15 +42,15 @@ object LeaderElection {
    * @return a hit if the key has been elected for the slot
    */
   def getHit(
-    secret:        Secrets.Ed25519,
+    secret:        Secrets.Vrf,
     relativeStake: Ratio,
     slot:          Slot,
-    slotDiff:      Slot, // diff between current slot and parent slot
+    slotDiff:      Long, // diff between current slot and parent slot
     epochNonce:    Nonce,
     config:        Config
   ): Either[Failure, Hit] = {
     // private key is 33 bytes, with the first being the type byte (unneeded)
-    val privateKeyBytes = secret.privateKey.bytes.data
+    val privateKeyBytes = secret.privateKey.ed25519.bytes.data
 
     // create VRF for current state
     val vrf = VrfProof(privateKeyBytes, epochNonce, slot)
@@ -75,7 +76,7 @@ object LeaderElection {
   }
 
   /** Calculates log(1-f(slot-parentSlot)) or log(1-f) depending on the configuration */
-  def mFunction(slotDiff: Int, config: Config): Ratio =
+  def mFunction(slotDiff: Long, config: Config): Ratio =
     // use sawtooth curve if local dynamic difficulty is enabled
     if (slotDiff <= config.lddCutoff)
       ProsomoMath.logOneMinus(
@@ -91,7 +92,7 @@ object LeaderElection {
    * @param config configuration settings
    * @return the election threshold
    */
-  def getThreshold(relativeStake: Ratio, slotDiff: Int, config: Config): Ratio = {
+  def getThreshold(relativeStake: Ratio, slotDiff: Long, config: Config): Ratio = {
     val mFValue = mFunction(slotDiff, config)
     val base = mFValue * relativeStake
 
@@ -147,6 +148,6 @@ object ProsomoMath {
     (1 to precision).foldLeft(Ratio(0))((total, value) => total - (f.pow(value) / value))
 
   // Local Dynamic Difficulty curve
-  def lddGapSawtooth(slotDiff: Int, lddCutoff: Int, amplitude: Ratio): Ratio = Ratio(slotDiff, lddCutoff) * amplitude
+  def lddGapSawtooth(slotDiff: Long, lddCutoff: Int, amplitude: Ratio): Ratio = Ratio(slotDiff, lddCutoff) * amplitude
 
 }

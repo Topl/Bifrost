@@ -1,11 +1,10 @@
-package co.topl.models
+package co.topl.models.utility
 
 import cats.data.ValidatedNec
 import cats.implicits._
 import cats.{Eq, Show}
 
 import java.nio.charset.StandardCharsets
-import scala.language.implicitConversions
 
 object StringDataTypes {
 

@@ -1,7 +1,7 @@
 package co.topl
 
+import co.topl.models.utility.{Lengths, Sized}
 import io.estatico.newtype.macros.newtype
-
 import io.estatico.newtype.ops._
 
 import scala.collection.immutable.{ArraySeq, ListMap}
@@ -13,7 +13,7 @@ package object models {
   type TypedIdentifier = TypedBytes
   type Int128 = Sized.Max[BigInt, Lengths.`128`.type]
   type Timestamp = Long
-  type Slot = Int
+  type Slot = Long
   type Attestation = ListMap[Proposition, Proof]
   type Registration = Bytes
   type Signature = Bytes
@@ -25,7 +25,9 @@ package object models {
   type PolyOutput = (Address, Int128)
   type ArbitOutput = (Address, Int128)
   type AssetOutput = (Address, Asset.Value)
-  type KesCertificate = Bytes
+
+  type TxRoot = Sized.Strict[Bytes, Lengths.`32`.type]
+  type BloomFilter = Sized.Strict[Bytes, Lengths.`256`.type]
 
   type Account = Propositions.PublicKeyEd25519
   type Root = Propositions.PublicKeyEd25519

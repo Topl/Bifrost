@@ -1,7 +1,8 @@
 package co.topl.models
 
 import cats.data.NonEmptyChain
-import co.topl.models.StringDataTypes.Latin1Data
+import co.topl.models.utility.{Lengths, Sized}
+import co.topl.models.utility.StringDataTypes.Latin1Data
 
 sealed abstract class Transaction
 

@@ -1,6 +1,7 @@
 package co.topl.models
 
-import co.topl.models.StringDataTypes.Latin1Data
+import co.topl.models.utility.{Lengths, Sized}
+import co.topl.models.utility.StringDataTypes.Latin1Data
 
 object Asset {
 

@@ -374,6 +374,19 @@ lazy val toplRpc = project
   )
   .dependsOn(akkaHttpRpc, common)
 
+lazy val levelDb = project
+  .in(file("leveldb"))
+  .settings(
+    name := "leveldb",
+    commonSettings,
+    publishSettings,
+    scalamacrosParadiseSettings,
+    libraryDependencies ++= Dependencies.levelDb ++ Dependencies.simulacrum,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.leveldb"
+  )
+
+
 // This module has fallen out of sync with the rest of the codebase and is not currently needed
 //lazy val gjallarhorn = project
 //  .in(file("gjallarhorn"))

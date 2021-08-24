@@ -3,7 +3,9 @@ package co.topl.consensus
 import cats.Monad
 import cats.data.{EitherT, OptionT}
 import cats.implicits._
+import co.topl.models.utility.HasLength.implicits._
 import co.topl.models._
+import co.topl.models.utility.{Lengths, Sized}
 import co.topl.typeclasses.Identifiable.Instances._
 import co.topl.typeclasses.Identifiable.ops._
 import co.topl.typeclasses.StatefulCursorChain
@@ -17,39 +19,36 @@ import co.topl.typeclasses.StatefulCursorChain
  * @param currentBlock The block header currently pointed to by the cursor
  * @param getBlock helper method to fetch a block header
  * @param childIdOf helper method to fetch the optional child of the current block
- * @param totalStake helper method to fetch the current total stake
- * @param stakeFor helper method to fetch the stake owned by some address
+ * @param relativeStakeFor helper method to fetch the relative stake owned by some address
  * @param epochNonce helper method to determine the current epoch nonce
  * @param append helper method to persist a new block
  * @param removeLatest helper method to rollback the latest block
  * @param consensusStatefullyValidatable helper to validate block headers
  */
-case class ChainSelectionChain[F[_]: Monad, StateF[_], StateFailure](
+case class ChainSelectionChain[F[_]: Monad, StateFailure](
   latestBlockId:                           TypedIdentifier,
   firstBlockId:                            TypedIdentifier,
   nextBlockId:                             Option[TypedIdentifier],
   currentBlock:                            BlockHeaderV2,
   getBlock:                                TypedIdentifier => F[BlockHeaderV2],
   childIdOf:                               TypedIdentifier => OptionT[F, TypedIdentifier],
-  totalStake:                              () => Int128,
-  stakeFor:                                Address => Option[Int128],
-  epochNonce:                              () => Nonce,
-  append:                                  BlockHeaderV2 => Unit,
-  removeLatest:                            () => Unit
+  state:                                   ChainSelectionChain.State[F, StateFailure]
 )(implicit consensusStatefullyValidatable: ConsensusStatefullyValidatable.type)
     extends StatefulCursorChain[
       F,
       BlockHeaderV2,
-      ChainSelectionChain.State[StateF, StateFailure],
+      ChainSelectionChain.State[F, StateFailure],
       ChainSelectionChain.Failure
     ] {
-  override type P = ChainSelectionChain[F, StateF, StateFailure]
+  override type P = ChainSelectionChain[F, StateFailure]
+
+  private val ZeroStake = Sized.max[BigInt, Lengths.`128`.type](0: BigInt)
 
   /**
    * Fetches the state associated with the tip of the chain
    */
-  override def latestState(): EitherT[F, ChainSelectionChain.Failure, ChainSelectionChain.State[StateF, StateFailure]] =
-    ???
+  override def latestState(): EitherT[F, ChainSelectionChain.Failure, ChainSelectionChain.State[F, StateFailure]] =
+    EitherT.pure[F, ChainSelectionChain.Failure](state)
 
   /**
    * Fetch the item to which the cursor currently points
@@ -107,30 +106,36 @@ case class ChainSelectionChain[F[_]: Monad, StateF[_], StateFailure](
     if (latestBlockId != currentBlock.id)
       EitherT.liftF(moveLatest).flatMap(_.appendToLatest(t))
     else
-      EitherT.fromEither(
-        consensusStatefullyValidatable
-          .validate(t, consensusValidationState())
-          .leftMap(ChainSelectionChain.Failures.ConsensusValidationFailure)
-          .map(_.header)
-          .map { header =>
-            append(header)
-            copy(
-              currentBlock = header,
-              nextBlockId = None,
-              latestBlockId = header.id
+      EitherT
+        .fromEither[F](
+          consensusStatefullyValidatable
+            .validate(t, consensusValidationState())
+            .leftMap(ChainSelectionChain.Failures.ConsensusValidationFailure)
+            .map(_.header)
+        )
+        .flatMap { header =>
+          state
+            .apply(header)
+            .leftMap(ChainSelectionChain.Failures.StateFailure(_): ChainSelectionChain.Failure)
+            .map(newState =>
+              copy(
+                currentBlock = header,
+                nextBlockId = None,
+                latestBlockId = header.id,
+                state = newState
+              )
             )
-          }
-      )
+        }
 
   private def consensusValidationState(): ConsensusValidation.State =
     new ConsensusValidation.State {
-      override def epochNonce: Nonce = ChainSelectionChain.this.epochNonce()
+      override def epochNonce: Nonce = ???
 
-      override def totalStake: Int128 = ChainSelectionChain.this.totalStake()
+      override def totalStake: Int128 = ???
 
       override def parentBlockHeader: BlockHeaderV2 = currentBlock
 
-      override def stakeFor(address: Address): Option[Int128] = ChainSelectionChain.this.stakeFor(address)
+      override def stakeFor(address: Address): Option[Int128] = ???
     }
 
   /**
@@ -143,16 +148,19 @@ case class ChainSelectionChain[F[_]: Monad, StateF[_], StateFailure](
     else
       OptionT
         .liftF(getBlock(currentBlock.parentHeaderId))
-        .map { parentHeader =>
-          removeLatest()
-          val newChain: P =
-            copy(
-              currentBlock = parentHeader,
-              nextBlockId = None,
-              latestBlockId = currentBlock.parentHeaderId
+        .flatMap { parentHeader =>
+          state
+            .unapply()
+            .toOption
+            .map(newState =>
+              copy(
+                currentBlock = parentHeader,
+                nextBlockId = None,
+                latestBlockId = currentBlock.parentHeaderId,
+                state = newState
+              )
             )
-
-          (newChain, currentBlock)
+            .map(_ -> currentBlock)
         }
 }
 
@@ -162,14 +170,14 @@ object ChainSelectionChain {
 
   object Failures {
     case class ConsensusValidationFailure(failure: ConsensusValidation.Failure) extends Failure
+    case class StateFailure[Reason](failure: Reason) extends Failure
   }
 
   trait State[F[_], Failure] {
     type S <: State[F, Failure]
 
     def epochNonce: EitherT[F, Failure, Bytes]
-    def totalStake: EitherT[F, Failure, Int128]
-    def stakeFor(address: TaktikosAddress): EitherT[F, Failure, Int128]
+    def relativeStakeFor(address: TaktikosAddress): EitherT[F, Failure, Int128]
 
     def apply(value: BlockHeaderV2): EitherT[F, Failure, S]
     def unapply(): EitherT[F, Failure, S]

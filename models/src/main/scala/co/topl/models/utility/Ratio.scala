@@ -1,20 +1,20 @@
-package co.topl.models
+package co.topl.models.utility
 
 import scala.annotation.tailrec
 
-case class Ratio(numererator: BigInt, denominator: BigInt, greatestCommonDenominator: BigInt) {
+case class Ratio(numerator: BigInt, denominator: BigInt, greatestCommonDenominator: BigInt) {
 
-  override def toString =
-    numererator + (if (denominator != 1) ("/" + denominator) else "")
+  override def toString(): String =
+    numerator.toString + (if (denominator != 1) ("/" + denominator) else "")
 
   override def equals(that: Any): Boolean =
     that match {
-      case that: Ratio => numererator == that.numererator && denominator == that.denominator
+      case that: Ratio => numerator == that.numerator && denominator == that.denominator
       case _           => false
     }
 
-  override val hashCode: Slot =
-    41 * numererator.hashCode() + denominator.hashCode()
+  override def hashCode: Int =
+    41 * numerator.hashCode() + denominator.hashCode()
 }
 
 object Ratio {

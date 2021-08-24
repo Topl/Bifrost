@@ -31,7 +31,7 @@ object Identifiable {
 
         override def idOf(t: BlockBodyV2): TypedIdentifier =
           TypedBytes(
-            IdentifierTypes.Block.BodyV2 +: Bytes(s"bodyChildOf${t.parentHeaderId}".getBytes(StandardCharsets.UTF_8))
+            IdentifierTypes.Block.BodyV2 +: Bytes(s"bodyOf${t.headerId}".getBytes(StandardCharsets.UTF_8))
           )
 
         override def typePrefix: TypePrefix = IdentifierTypes.Block.BodyV2
