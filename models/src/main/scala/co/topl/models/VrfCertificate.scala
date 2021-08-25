@@ -7,6 +7,6 @@ package co.topl.models
  */
 case class VrfCertificate(
   vkVRF:      PublicKeys.Vrf,
-  nonceProof: Proofs.Nonce,
-  testProof:  Proofs.VrfTest
+  nonceProof: Proofs.Consensus.Nonce,
+  testProof:  Proofs.Consensus.VrfTest
 )

@@ -65,8 +65,8 @@ object LeaderElection {
       Hit(
         VrfCertificate(
           secret.publicKey,
-          Sized.strict[Bytes, Lengths.`64`.type](vrf.testProofHashed).toOption.get,
-          Sized.strict[Bytes, Lengths.`80`.type](proof).toOption.get
+          Sized.strict[Bytes, Lengths.`80`.type](vrf.testProof).toOption.get,
+          Sized.strict[Bytes, Lengths.`80`.type](vrf.nonceProof).toOption.get
         ),
         vrf.nonceProof,
         slot

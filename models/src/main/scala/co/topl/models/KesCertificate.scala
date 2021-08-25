@@ -5,7 +5,7 @@ package co.topl.models
  */
 case class KesCertificate(
   vkKES:      PublicKeys.Kes,
-  kesProof:   Proofs.Kes,
-  blockProof: Proofs.Block,
+  kesProof:   Proofs.Consensus.KesCertificate,
+  mmmProof:   Proofs.Consensus.MMM,
   slotOffset: Long
 )
