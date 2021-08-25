@@ -9,7 +9,6 @@ import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader
 import io.circe.Encoder
 import io.estatico.newtype.macros.newtype
 
-import scala.Predef.->
 import scala.language.implicitConversions
 import scala.util.{Failure, Success}
 
