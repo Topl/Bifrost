@@ -31,7 +31,7 @@ object NodeViewModifier extends BifrostSerializer[NodeViewModifier] {
   val modifierIdSize: Int = ModifierId.size // bytes (1 byte modifierTypeId + 32 modiifierId)
 
   @newtype
-  case class nodeModifierTypeId(value: Byte)
+  case class ModifierTypeId(value: Byte)
 
   val modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
     Map(Block.modifierTypeId -> BlockSerializer, Transaction.modifierTypeId -> TransactionSerializer)
