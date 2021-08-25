@@ -4,7 +4,8 @@ import co.topl.attestation._
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TxType
-import co.topl.modifier.transaction.TransferTransaction.{encodeFrom, BoxParams, TransferCreationState}
+import co.topl.modifier.transaction.TransferTransaction.{BoxParams, TransferCreationState, encodeFrom}
+import co.topl.modifier.transaction.builder.polyTransfer.PolyTransferBuildStrategy
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.codecs.Int128Codec
@@ -12,6 +13,8 @@ import co.topl.utils.codecs.implicits._
 import co.topl.utils.{Identifiable, Identifier, Int128}
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
+import co.topl.modifier.transaction.builder.polyTransfer.implicits._
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 
 import java.time.Instant
 import scala.util.Try
@@ -58,54 +61,9 @@ object PolyTransfer {
     Identifier(typeString, typePrefix)
   }
 
-  /**
-   * @param boxReader
-   * @param toReceive
-   * @param sender
-   * @param fee
-   * @param data
-   * @return
-   */
-  def createRaw[
-    P <: Proposition: EvidenceProducer: Identifiable
-  ](
-    boxReader:     BoxReader[ProgramId, Address],
-    toReceive:     IndexedSeq[(Address, SimpleValue)],
-    sender:        IndexedSeq[Address],
-    changeAddress: Address,
-    fee:           Int128,
-    data:          Option[Latin1Data]
-  ): Try[PolyTransfer[P]] =
-    TransferTransaction
-      .getSenderBoxesAndCheckPolyBalance(boxReader, sender, fee, "Polys") // you always get Polys back
-      .map { txInputState =>
-        // compute the amount of tokens that will be sent to the recipients
-        val amtToSpend = toReceive.map(_._2.quantity).sum
-
-        // create the list of inputs and outputs (senderChangeOut & recipientOut)
-        val (availableToSpend, inputs, outputs) = ioTransfer(txInputState, toReceive, changeAddress, fee, amtToSpend)
-        // ensure there are sufficient funds from the sender boxes to create all outputs
-        require(availableToSpend >= amtToSpend, "Insufficient funds available to create transaction.")
-
-        PolyTransfer[P](inputs, outputs, ListMap(), fee, Instant.now.toEpochMilli, data, minting = false)
-      }
-
-  /** construct input and output box sequence for a transfer transaction */
-  private def ioTransfer(
-    txInputState:  TransferCreationState,
-    toReceive:     IndexedSeq[(Address, SimpleValue)],
-    changeAddress: Address,
-    fee:           Int128,
-    amtToSpend:    Int128
-  ): (Int128, IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, SimpleValue)]) = {
-
-    val availableToSpend = txInputState.polyBalance - fee
-    val inputs = txInputState.senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce))
-    val outputs = (changeAddress, SimpleValue(txInputState.polyBalance - fee - amtToSpend)) +: toReceive
-    val filterZeroChange = outputs.filter(_._2.quantity > 0)
-
-    (availableToSpend, inputs, filterZeroChange)
-  }
+  def fromBuildStrategy[T: PolyTransferBuildStrategy, P <: Proposition: EvidenceProducer: Identifiable](
+    strategy: T
+  ): PolyTransfer[P] = strategy.execute.getOrThrow()
 
   implicit def jsonEncoder[P <: Proposition]: Encoder[PolyTransfer[P]] = { tx: PolyTransfer[P] =>
     Map(
