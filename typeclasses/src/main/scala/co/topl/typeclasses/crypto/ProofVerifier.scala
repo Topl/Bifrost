@@ -1,19 +1,27 @@
 package co.topl.typeclasses.crypto
 
-import co.topl.models.{Bytes, KesCertificate, VrfCertificate}
+import co.topl.models._
+import simulacrum.{op, typeclass}
 
 /**
  * Public-Private Key Verifier
  */
-trait KeyVerifier[T, Message, Proof] {
-  def verify(t: T, messageToSign: Bytes, proof: Bytes): Boolean
+@typeclass trait ProofVerifier[T, P <: Proof] {
+  @op("verify") def verifyWith[Data: Signable](t: T, data: Data, proof: P): Boolean
 }
 
-object KeyVerifier {}
+object ProofVerifier {
+
+  object Instances {
+    implicit val publicKeyCurve25519: ProofVerifier[PublicKeys.Curve25519, Proofs.SignatureCurve25519] = ???
+    implicit val publicKeyEd25519: ProofVerifier[PublicKeys.Ed25519, Proofs.SignatureEd25519] = ???
+    implicit val publicKeyVrf: ProofVerifier[PublicKeys.Vrf] = ???
+    implicit val publicKeyKes: ProofVerifier[PublicKeys.Kes] = ???
+  }
+}
 
 trait CertificateVerifier[T] {
   def verify(t: T): Boolean
-
 }
 
 object CertificateVerifier {

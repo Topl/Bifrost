@@ -1,3 +1,3 @@
 package co.topl.typeclasses.crypto
 
-trait Instantiation {}
+trait Instantiation[T] {}

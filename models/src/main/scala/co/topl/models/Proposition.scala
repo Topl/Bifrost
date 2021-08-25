@@ -61,6 +61,14 @@ object Proofs {
 
   case class Existence(id: TypedIdentifier) extends Proof
 
+  case class Nonce(bytes: Sized.Strict[Bytes, Lengths.`64`.type]) extends Proof
+
+  case class VrfTest(bytes: Sized.Strict[Bytes, Lengths.`80`.type]) extends Proof
+
+  case class Kes(bytes: Sized.Strict[Bytes, Lengths.`64`.type]) extends Proof
+
+  case class Block(bytes: Sized.Strict[Bytes, Lengths.`1440`.type]) extends Proof
+
 }
 
 sealed trait PublicKey

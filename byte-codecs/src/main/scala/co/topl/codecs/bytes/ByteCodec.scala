@@ -1,8 +1,9 @@
 package co.topl.codecs.bytes
 
 import co.topl.models.Bytes
+import simulacrum.typeclass
 
-trait ByteCodec[T] {
+@typeclass trait ByteCodec[T] {
   def encode(t:      T, writer: ByteWriter): ByteWriter
   def decode(reader: ByteReader): (T, ByteReader)
 }
