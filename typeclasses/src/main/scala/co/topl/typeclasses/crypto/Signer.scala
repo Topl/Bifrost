@@ -3,6 +3,8 @@ package co.topl.typeclasses.crypto
 import co.topl.models.{Bytes, PublicKey}
 import simulacrum.{op, typeclass}
 
+import scala.language.implicitConversions
+
 trait Signer {
   def sign[Data: Signable](data: Data): Bytes
   def verificationKey: PublicKey

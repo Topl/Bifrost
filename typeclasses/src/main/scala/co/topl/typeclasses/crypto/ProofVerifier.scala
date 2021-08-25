@@ -78,9 +78,9 @@ object CertificateVerifier {
           "nonce".getBytes(StandardCharsets.UTF_8) ++ epochNonce.toArray
         )
 
-    implicit def kesCertificateVerifier(blockHeaderV2: BlockHeaderV2): CertificateVerifier[KesCertificate] =
+    implicit def kesCertificateVerifier(header: BlockHeaderV2): CertificateVerifier[KesCertificate] =
       certificate =>
-        certificate.mmmProof.satisfies(Propositions.Consensus.PublicKeyKes(certificate.vkKES), blockHeaderV2) &&
+        certificate.mmmProof.satisfies(Propositions.Consensus.PublicKeyKes(certificate.vkKES), header) &&
         certificate.kesProof.satisfies(
           Propositions.Consensus.PublicKeyKes(certificate.vkKES),
           // TODO: certificate.vkKES.bytes incorrect here

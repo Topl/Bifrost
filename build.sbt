@@ -174,6 +174,7 @@ lazy val bifrost = project
     common,
     akkaHttpRpc,
     models,
+    typeclasses,
     toplRpc,
     benchmarking,
     crypto,

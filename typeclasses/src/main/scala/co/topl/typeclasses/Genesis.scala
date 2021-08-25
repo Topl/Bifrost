@@ -4,10 +4,10 @@ import co.topl.models._
 import co.topl.models.utility.HasLength.implicits._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.{Lengths, Sized}
-import co.topl.typeclasses.Identifiable.Instances._
-import co.topl.typeclasses.Identifiable.ops._
 import co.topl.typeclasses.ContainsTransactions.Instances._
 import co.topl.typeclasses.ContainsTransactions.ops._
+import co.topl.typeclasses.Identifiable.Instances._
+import co.topl.typeclasses.Identifiable.ops._
 import simulacrum.typeclass
 
 /**
@@ -24,8 +24,8 @@ object BlockGenesis {
     PublicKeys.Vrf(
       PublicKeys.Ed25519(Sized.strict[Bytes, PublicKeys.Ed25519.Length](Bytes(Array.fill(32)(0: Byte))).toOption.get)
     ),
-    Sized.strict[Bytes, Lengths.`64`.type](Bytes(Array.fill(64)(0: Byte))).toOption.get,
-    Sized.strict[Bytes, Lengths.`80`.type](Bytes(Array.fill(80)(0: Byte))).toOption.get
+    Proofs.Consensus.Nonce(Sized.strict[Bytes, Lengths.`80`.type](Bytes(Array.fill(80)(0: Byte))).toOption.get),
+    Proofs.Consensus.VrfTest(Sized.strict[Bytes, Lengths.`80`.type](Bytes(Array.fill(80)(0: Byte))).toOption.get)
   )
 
   val kesCertificate: KesCertificate =
@@ -34,8 +34,10 @@ object BlockGenesis {
         Sized.strict[Bytes, PublicKeys.Kes.Length](Bytes(Array.fill(32)(0: Byte))).toOption.get,
         slot = 0
       ),
-      Sized.strict[Bytes, Lengths.`64`.type](Bytes(Array.fill(64)(0: Byte))).toOption.get,
-      Sized.strict[Bytes, Lengths.`1440`.type](Bytes(Array.fill(1440)(0: Byte))).toOption.get,
+      Proofs.Consensus.KesCertificate(
+        Sized.strict[Bytes, Lengths.`64`.type](Bytes(Array.fill(64)(0: Byte))).toOption.get
+      ),
+      Proofs.Consensus.MMM(Sized.strict[Bytes, Lengths.`1440`.type](Bytes(Array.fill(1440)(0: Byte))).toOption.get),
       slotOffset = 0
     )
 

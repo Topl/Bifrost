@@ -15,12 +15,3 @@ object Signable {
     implicit val byteArray: Signable[Array[Byte]] = Bytes(_)
   }
 }
-
-object Test extends App {
-  import Signable.Instances._
-  import Signable.ops._
-
-  val polyTransfer: PolyTransfer = ???
-
-  val bytes: Bytes = polyTransfer.signableBytes
-}
