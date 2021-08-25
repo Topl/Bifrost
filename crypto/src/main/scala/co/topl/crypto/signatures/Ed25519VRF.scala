@@ -22,6 +22,15 @@ class Ed25519VRF extends eddsa.ECVRF25519 with EllipticCurveSignatureScheme {
     (PrivateKey(sk), PublicKey(pk))
   }
 
+  override def createKeyPair: (PrivateKey, PublicKey) = {
+    val sk: Array[Byte] = new Array[Byte](SECRET_KEY_SIZE)
+    val pk: Array[Byte] = new Array[Byte](PUBLIC_KEY_SIZE)
+    val random = SecureRandom.getInstance("SHA1PRNG")
+    generatePrivateKey(random, sk)
+    generatePublicKey(sk, 0, pk, 0)
+    (PrivateKey(sk), PublicKey(pk))
+  }
+
   override def sign(privateKey: PrivateKey, message: MessageToSign): Signature = {
     require(privateKey.value.length == SECRET_KEY_SIZE)
     Signature(vrfProof(privateKey.value,message))

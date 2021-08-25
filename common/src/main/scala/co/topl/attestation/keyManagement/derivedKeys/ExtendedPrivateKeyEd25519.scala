@@ -139,7 +139,7 @@ class ExtendedPrivateKeyEd25519(
     val pk: Array[Byte] = mutableKey.public.bytes.toArray
     val m: Array[Byte] = message
 
-    ec.implSign(ec.shaDigest, h, s, pk, 0, ctx, phflag, m, 0, m.length, resultSig, 0)
+    ec.implSign(ec.sha512Digest, h, s, pk, 0, ctx, phflag, m, 0, m.length, resultSig, 0)
 
     SignatureEd25519(Signature(resultSig))
   }
