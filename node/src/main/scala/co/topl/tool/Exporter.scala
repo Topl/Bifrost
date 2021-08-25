@@ -1,13 +1,14 @@
-package co.topl.tools.exporter
+package co.topl.tool
 
 import co.topl.nodeView.history.History
 import co.topl.settings.{AppSettings, StartupOpts}
-import co.topl.utils.{Logging, NetworkType}
+import co.topl.tools.exporter.{DataType, Exportable, MongoExport}
 import co.topl.utils.NetworkType.NetworkPrefix
-import mainargs.{arg, main, ParserForMethods}
+import co.topl.utils.{Logging, NetworkType}
 import co.topl.settings.StartupOptsImplicits._
 import io.circe.Json
-import io.circe.syntax._
+import io.circe.syntax.EncoderOps
+import mainargs.{arg, main, ParserForMethods}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration

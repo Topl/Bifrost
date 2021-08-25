@@ -20,7 +20,7 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.rpc.ToplRpcServer
 import co.topl.settings._
-import co.topl.tools.exporter.Exporter
+import co.topl.tool.Exporter
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.wallet.{WalletConnectionHandler, WalletConnectionHandlerRef}

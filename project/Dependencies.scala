@@ -141,7 +141,7 @@ object Dependencies {
     circe ++
     test
 
-  lazy val gjallarhorn: Seq[ModuleID] = {
+  lazy val gjallarhorn: Seq[ModuleID] =
     Seq(
       "com.typesafe.akka"     %% "akka-cluster" % akkaVersion,
       "com.typesafe.akka"     %% "akka-remote"  % akkaVersion,
@@ -153,7 +153,6 @@ object Dependencies {
     logging ++
     misc ++
     it
-  }
 
   lazy val benchmarking: Seq[ModuleID] = Seq()
 
@@ -166,4 +165,9 @@ object Dependencies {
     ) ++
     misc ++
     test
+
+  lazy val tools: Seq[ModuleID] =
+    Seq(
+      "org.mongodb.scala" %% "mongo-scala-driver" % "4.2.3"
+    )
 }
