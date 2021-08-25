@@ -7,7 +7,18 @@ Before you begin however, please be sure to read our [Contributor Code of Conduc
 
 **STOP RIGHT NOW AND READ THE CONTRIBUTOR LICENSE AGREEMENT AND CODE OF CONDUCT**
 
-Getting Started
+<a name="communication"></a>
+## Communication channels
+
+Before you get lost in the repository, here are a few starting points
+for you to check out. You might find that others have had similar
+questions or that your question rather belongs in one place than another.
+
+* Chat: https://discord.gg/CHaG8utU
+* Website: https://www.topl.co/
+* Twitter: https://twitter.com/topl_protocol
+
+Getting StartedΩ
 ---------------
 If you have played around with the client and found some issues that crashes the client, be sure to submit an [Issue](https://github.com/Topl/Bifrost/issues)
 * Make sure you have a GitHub account
