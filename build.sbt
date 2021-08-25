@@ -171,6 +171,7 @@ lazy val bifrost = project
     common,
     akkaHttpRpc,
     models,
+    typeclasses,
     toplRpc,
     benchmarking,
     crypto,
@@ -266,6 +267,20 @@ lazy val models = project
     libraryDependencies ++= Dependencies.models
   )
   .settings(libraryDependencies ++= Dependencies.test)
+
+lazy val typeclasses = project
+  .in(file("typeclasses"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "typeclasses",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.typeclasses"
+  )
+  .settings(libraryDependencies ++= Dependencies.test)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(models)
 
 lazy val toplRpc = project
   .in(file("topl-rpc"))
