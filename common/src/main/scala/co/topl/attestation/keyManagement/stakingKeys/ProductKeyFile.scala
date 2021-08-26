@@ -82,7 +82,7 @@ object ProductKeyFile {
     * @param offset offset of the key
     * @return new key file with randomly generated public private key pairs
     */
-  def newFromSeed(
+  def newRandomKeyFile(
                    password:String,
                    defaultKeyDir: String,
                    offset:Long
@@ -98,6 +98,30 @@ object ProductKeyFile {
     }
     val dateString = Instant.now().truncatedTo(ChronoUnit.MILLIS).toString.replace(":", "-")
     val fileName = s"$defaultKeyDir/$dateString-${Base58.encode(newKey.getVerificationKey.bytes)}.json"
+    val newKeyFile = new ProductKeyFile(kes_info,fileName,"NEWKEY")
+    val file = new File(fileName)
+    file.getParentFile.mkdirs
+    val w = new BufferedWriter(new FileWriter(file))
+    w.write(newKeyFile.json.toString())
+    w.close()
+    newKeyFile
+  }
+
+  def newKeyFile(
+                        password:String,
+                        defaultKeyDir: String,
+                        symmetricKey: SymmetricKey
+                      ):ProductKeyFile = {
+    val kes_info = {
+      val salt = blake2b256.hash(uuid).value
+      val ivData = blake2b256.hash(uuid).value.slice(0, 16)
+      val derivedKey = getDerivedKey(password, salt)
+      val keyBytes:Array[Byte] = symmetricKey.getBytes
+      val (cipherText, mac) = encryptAES(derivedKey, ivData, keyBytes)
+      CipherInfo(symmetricKey.getVerificationKey.bytes, cipherText, mac, salt, ivData)
+    }
+    val dateString = Instant.now().truncatedTo(ChronoUnit.MILLIS).toString.replace(":", "-")
+    val fileName = s"$defaultKeyDir/$dateString-${Base58.encode(symmetricKey.getVerificationKey.bytes)}.json"
     val newKeyFile = new ProductKeyFile(kes_info,fileName,"NEWKEY")
     val file = new File(fileName)
     file.getParentFile.mkdirs
