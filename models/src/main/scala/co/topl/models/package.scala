@@ -5,6 +5,7 @@ import io.estatico.newtype.macros.newtype
 import io.estatico.newtype.ops._
 
 import scala.collection.immutable.{ArraySeq, ListMap}
+import scala.language.implicitConversions
 
 package object models {
   type Bytes = ArraySeq[Byte]

@@ -18,6 +18,12 @@ object Propositions {
 
   case class Existence() extends Proposition
 
+  object Consensus {
+    case class PublicKeyVrf(key: PublicKeys.Vrf) extends Proposition
+
+    case class PublicKeyKes(key: PublicKeys.Kes) extends Proposition
+  }
+
 }
 
 // TODO: Secrets for payment vs. staking
@@ -61,6 +67,21 @@ object Proofs {
 
   case class Existence(id: TypedIdentifier) extends Proof
 
+  object Consensus {
+    case class Nonce(bytes: Sized.Strict[Bytes, Lengths.`80`.type]) extends Proof
+
+    case class VrfTest(bytes: Sized.Strict[Bytes, Lengths.`80`.type]) extends Proof
+
+    /**
+     * Signature with a normal signing routine
+     */
+    case class KesCertificate(bytes: Sized.Strict[Bytes, Lengths.`64`.type]) extends Proof
+
+    /**
+     * Signature with a witness path that corresponds to MMM construction
+     */
+    case class MMM(bytes: Sized.Strict[Bytes, Lengths.`1440`.type]) extends Proof
+  }
 }
 
 sealed trait PublicKey
