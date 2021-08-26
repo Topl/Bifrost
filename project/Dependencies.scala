@@ -36,11 +36,13 @@ object Dependencies {
   val akka = Seq(
     "com.typesafe.akka" %% "akka-actor"          % akkaVersion,
     "com.typesafe.akka" %% "akka-stream"         % akkaVersion,
+    "com.typesafe.akka" %% "akka-stream-typed"   % akkaVersion,
     "com.typesafe.akka" %% "akka-http"           % akkaHttpVersion,
     "com.typesafe.akka" %% "akka-http-core"      % akkaHttpVersion,
     "com.typesafe.akka" %% "akka-slf4j"          % akkaVersion,
     "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion     % Test,
-    "com.typesafe.akka" %% "akka-http-testkit"   % akkaHttpVersion % Test
+    "com.typesafe.akka" %% "akka-http-testkit"   % akkaHttpVersion % Test,
+    "com.typesafe.akka" %% "akka-actor-typed"    % akkaVersion
   )
 
   val network = Seq(
@@ -119,7 +121,8 @@ object Dependencies {
   lazy val common: Seq[ModuleID] = {
     Seq(
       "com.typesafe.akka"      %% "akka-actor"              % akkaVersion,
-      "org.scala-lang.modules" %% "scala-collection-compat" % "2.5.0"
+      "org.scala-lang.modules" %% "scala-collection-compat" % "2.5.0",
+      "org.scodec"             %% "scodec-bits"             % "1.1.27"
     ) ++
     logging ++
     circe ++
@@ -186,5 +189,14 @@ object Dependencies {
 
   lazy val models: Seq[ModuleID] =
     cats ++ simulacrum ++ newType
+
+  lazy val loadTesting: Seq[ModuleID] = {
+    Seq(
+      "com.lihaoyi"    %% "mainargs" % "0.2.1",
+      "com.nike.fleam" %% "fleam"    % "7.0.0"
+    ) ++
+    akka ++
+    circe
+  }
 
 }

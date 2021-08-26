@@ -336,5 +336,15 @@ lazy val crypto = project
     libraryDependencies ++= Dependencies.crypto,
   )
 
+lazy val loadTesting = project
+  .in(file("load-testing"))
+  .settings(
+    name := "load-testing",
+    commonSettings,
+    scalamacrosParadiseSettings,
+    libraryDependencies ++= Dependencies.loadTesting
+  )
+  .dependsOn(common, brambl)
+
 addCommandAlias("checkPR", "; scalafixAll --check; scalafmtCheckAll; test")
 addCommandAlias("preparePR", "; scalafixAll; scalafmtAll; test")

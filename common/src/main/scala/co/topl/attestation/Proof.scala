@@ -187,8 +187,8 @@ case class SignatureEd25519(private[attestation] val sigBytes: Signature)
   private val ec = new Ed25519
 
   require(
-    signatureLength == 0 || signatureLength == ec.SignatureLength,
-    s"$signatureLength != ${ec.SignatureLength}"
+    signatureLength == 0 || signatureLength == Ed25519.SignatureLength,
+    s"$signatureLength != ${Ed25519.SignatureLength}"
   )
 
   def isValid(proposition: PublicKeyPropositionEd25519, message: Array[Byte]): Boolean =
