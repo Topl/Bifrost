@@ -13,6 +13,7 @@ import co.topl.db.LDBVersionedStore
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppSettings, StartupOpts, Version}
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.StringDataTypes.Latin1Data
 import org.scalacheck.Gen
 import org.scalatest.Suite
@@ -100,15 +101,14 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
       IndexedSeq((address, polyAmount))
     }
     val rawTx = PolyTransfer
-      .createRaw[PublicKeyPropositionCurve25519](
+      .validatedFromState[PublicKeyPropositionCurve25519](
         state,
         recipients,
         IndexedSeq(sender),
         changeAddress = sender,
         fee,
         data = None
-      )
-      .get
+      ).getOrThrow()
 
     rawTx.copy(attestation = Transaction.updateAttestation(rawTx)(keyRing.generateAttestation(sender)))
   }
@@ -133,7 +133,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
       IndexedSeq((address, polyAmount))
     }
     val rawTx = PolyTransfer
-      .createRaw[ThresholdPropositionCurve25519](
+      .validatedFromState[ThresholdPropositionCurve25519](
         state,
         recipients,
         IndexedSeq(sender),
@@ -141,7 +141,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
         fee,
         data = None
       )
-      .get
+      .getOrThrow()
 
     val signatures = keyRing.generateAttestation(keyRing.addresses)(rawTx.messageToSign).values.toSet
     val thresholdSignature = ThresholdSignatureCurve25519(signatures)
@@ -165,7 +165,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
       IndexedSeq((address, polyAmount))
     }
     val rawTx = PolyTransfer
-      .createRaw[PublicKeyPropositionEd25519](
+      .validatedFromState[PublicKeyPropositionEd25519](
         state,
         recipients,
         IndexedSeq(sender),
@@ -173,7 +173,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
         fee,
         data = None
       )
-      .get
+      .getOrThrow()
 
     rawTx.copy(attestation = Transaction.updateAttestation(rawTx)(keyRing.generateAttestation(sender)))
   }

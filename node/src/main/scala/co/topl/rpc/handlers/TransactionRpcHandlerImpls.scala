@@ -9,17 +9,23 @@ import co.topl.attestation.{
   PublicKeyPropositionEd25519,
   ThresholdPropositionCurve25519
 }
-import co.topl.modifier.box.SimpleValue
+import co.topl.modifier.BoxReader
+import co.topl.modifier.box.{ProgramId, SimpleValue}
+import co.topl.modifier.transaction.PolyTransfer.Validation.ValidationResult
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
 import co.topl.modifier.transaction.validation.implicits._
 import co.topl.nodeView.state.State
 import co.topl.nodeView.{BroadcastTxFailureException, GetStateFailureException, NodeViewHolderInterface}
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
+import co.topl.utils.{Int128, StringDataTypes}
 import co.topl.utils.codecs.implicits._
 import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.encode.Base58
 import io.circe.Encoder
+import shapeless.syntax.std.tuple.productTupleOps
+import co.topl.utils.IdiomaticScalaTransition.implicits._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
@@ -135,12 +141,15 @@ class TransactionRpcHandlerImpls(
     params:          ToplRpc.Transaction.RawPolyTransfer.Params,
     state:           State,
     senderAddresses: List[Address]
-  ): Try[PolyTransfer[Proposition]] = {
+  ): Try[PolyTransfer[Proposition]] = Try {
     val f =
       params.propositionType match {
-        case PublicKeyPropositionCurve25519.`typeString` => PolyTransfer.createRaw[PublicKeyPropositionCurve25519] _
-        case ThresholdPropositionCurve25519.`typeString` => PolyTransfer.createRaw[ThresholdPropositionCurve25519] _
-        case PublicKeyPropositionEd25519.`typeString`    => PolyTransfer.createRaw[PublicKeyPropositionEd25519] _
+        case PublicKeyPropositionCurve25519.`typeString` =>
+          PolyTransfer.validatedFromState[PublicKeyPropositionCurve25519] _
+        case ThresholdPropositionCurve25519.`typeString` =>
+          PolyTransfer.validatedFromState[ThresholdPropositionCurve25519] _
+        case PublicKeyPropositionEd25519.`typeString` =>
+          PolyTransfer.validatedFromState[PublicKeyPropositionEd25519] _
       }
 
     f(
@@ -150,7 +159,7 @@ class TransactionRpcHandlerImpls(
       params.changeAddress,
       params.fee,
       params.data
-    )
+    ).getOrThrow()
   }.collect { case p: PolyTransfer[Proposition @unchecked] => p }
 
   private def processTransaction(tx: Transaction.TX) =
