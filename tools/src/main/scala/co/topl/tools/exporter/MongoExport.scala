@@ -1,12 +1,12 @@
 package co.topl.tools.exporter
 
-import org.mongodb.scala.{result, Document, MongoClient, MongoDatabase}
+import org.mongodb.scala.result.InsertManyResult
+import org.mongodb.scala.{Document, MongoClient, MongoDatabase}
 
 import scala.concurrent.Future
 
-class MongoExport(uri: String, database: String, collection: String, dt: DataType) extends Exportable {
-
-  override type T = Future[_ <: result.InsertManyResult]
+class MongoExport(uri: String, database: String, collection: String, dt: DataType)
+    extends Exportable[InsertManyResult] {
 
   private val client = open(uri)
   private val db = createDatabase(database)
@@ -16,7 +16,7 @@ class MongoExport(uri: String, database: String, collection: String, dt: DataTyp
 
   private def createDatabase(db: String): MongoDatabase = client.getDatabase(db)
 
-  override def insert(ele: Seq[String]): T = db
+  override def insert(ele: Seq[String]): Future[InsertManyResult] = db
     .getCollection(collection)
     .insertMany(ele.map(Document(_)))
     .toFuture()
