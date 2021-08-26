@@ -170,6 +170,8 @@ lazy val bifrost = project
     node,
     common,
     akkaHttpRpc,
+    models,
+    typeclasses,
     toplRpc,
     benchmarking,
     crypto,
@@ -250,6 +252,36 @@ lazy val akkaHttpRpc = project
     buildInfoPackage := "co.topl.buildinfo.akkahttprpc"
   )
 
+lazy val models = project
+  .in(file("models"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "models",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.models"
+  )
+  .settings(scalamacrosParadiseSettings)
+  .settings(
+    libraryDependencies ++= Dependencies.models
+  )
+  .settings(libraryDependencies ++= Dependencies.test)
+
+lazy val typeclasses = project
+  .in(file("typeclasses"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "typeclasses",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.typeclasses"
+  )
+  .settings(libraryDependencies ++= Dependencies.test)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(models)
+
 lazy val toplRpc = project
   .in(file("topl-rpc"))
   .enablePlugins(BuildInfoPlugin)
@@ -303,6 +335,16 @@ lazy val crypto = project
     buildInfoPackage := "co.topl.buildinfo.crypto",
     libraryDependencies ++= Dependencies.crypto,
   )
+
+lazy val loadTesting = project
+  .in(file("load-testing"))
+  .settings(
+    name := "load-testing",
+    commonSettings,
+    scalamacrosParadiseSettings,
+    libraryDependencies ++= Dependencies.loadTesting
+  )
+  .dependsOn(common, brambl)
 
 addCommandAlias("checkPR", "; scalafixAll --check; scalafmtCheckAll; test")
 addCommandAlias("preparePR", "; scalafixAll; scalafmtAll; test")
