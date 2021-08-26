@@ -19,16 +19,12 @@ object LeaderElection {
 
   case class Config(lddCutoff: Int, precision: Int, baselineDifficulty: Ratio, amplitude: Ratio)
 
-  def hits(
-    secret:        Secrets.Vrf,
-    relativeStake: Ratio,
-    fromSlot:      Slot,
-    epochNonce:    Nonce,
+  def hits(secret: Secrets.Vrf, relativeStake: Ratio, fromSlot: Slot, epochNonce: Nonce)(implicit
     config:        Config
   ): LazyList[Hit] =
     LazyList
       .unfold(fromSlot)(s => Some(s + 1, s + 1))
-      .map(slot => getHit(secret, relativeStake, slot, slot - fromSlot, epochNonce, config))
+      .map(slot => getHit(secret, relativeStake, slot, slot - fromSlot, epochNonce))
       .collect { case Right(hit) => hit }
 
   /**
@@ -42,13 +38,12 @@ object LeaderElection {
    * @return a hit if the key has been elected for the slot
    */
   def getHit(
-    secret:        Secrets.Vrf,
-    relativeStake: Ratio,
-    slot:          Slot,
-    slotDiff:      Long, // diff between current slot and parent slot
-    epochNonce:    Nonce,
-    config:        Config
-  ): Either[Failure, Hit] = {
+    secret:          Secrets.Vrf,
+    relativeStake:   Ratio,
+    slot:            Slot,
+    slotDiff:        Long, // diff between current slot and parent slot
+    epochNonce:      Nonce
+  )(implicit config: Config): Either[Failure, Hit] = {
     // private key is 33 bytes, with the first being the type byte (unneeded)
     val privateKeyBytes = secret.privateKey.ed25519.bytes.data
 
@@ -58,15 +53,15 @@ object LeaderElection {
     // get the proof used for testing slot eligibility
     val proof = vrf.testProof
 
-    val threshold = getThreshold(relativeStake, slotDiff, config)
+    val threshold = getThreshold(relativeStake, slotDiff)
 
     Either.cond(
       isSlotLeaderForThreshold(threshold)(proof),
       Hit(
         VrfCertificate(
           secret.publicKey,
-          Sized.strict[Bytes, Lengths.`80`.type](vrf.testProof).toOption.get,
-          Sized.strict[Bytes, Lengths.`80`.type](vrf.nonceProof).toOption.get
+          Proofs.Consensus.Nonce(Sized.strict[Bytes, Lengths.`80`.type](vrf.nonceProof).toOption.get),
+          Proofs.Consensus.VrfTest(Sized.strict[Bytes, Lengths.`80`.type](vrf.testProof).toOption.get)
         ),
         vrf.nonceProof,
         slot
@@ -92,7 +87,7 @@ object LeaderElection {
    * @param config configuration settings
    * @return the election threshold
    */
-  def getThreshold(relativeStake: Ratio, slotDiff: Long, config: Config): Ratio = {
+  def getThreshold(relativeStake: Ratio, slotDiff: Long)(implicit config: Config): Ratio = {
     val mFValue = mFunction(slotDiff, config)
     val base = mFValue * relativeStake
 
@@ -106,9 +101,9 @@ object LeaderElection {
    * @param proof the proof output
    * @return true if elected slot leader and false otherwise
    */
-  def isSlotLeaderForThreshold(threshold: Ratio)(proof: Bytes): Boolean =
-    threshold > proof
-      .zip(1 to proof.length) // zip with indexes starting from 1
+  def isSlotLeaderForThreshold(threshold: Ratio)(proofHash: Bytes): Boolean =
+    threshold > proofHash
+      .zip(1 to proofHash.length) // zip with indexes starting from 1
       .foldLeft(Ratio(0)) { case (net, (byte, i)) =>
         net + Ratio(BigInt(byte & 0xff), BigInt(2).pow(8 * i))
       }
@@ -118,7 +113,7 @@ object LeaderElection {
     lazy val nonceProof: Bytes = proofFunc("NONCE")
     lazy val testProofHashed: Hash = hash(testProof.unsafeArray.asInstanceOf[Array[Byte]])
 
-    def hash(input: Array[Byte]): Hash = Bytes(vrf.Sha512(input))
+    def hash(input: Array[Byte]): Hash = Bytes(vrf.vrfProofToHash().Sha512(input))
   }
 
   object VrfProof {

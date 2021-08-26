@@ -10,8 +10,12 @@ import simulacrum.{op, typeclass}
 object Signable {
 
   object Instances {
-    implicit val polyTransfer: Signable[PolyTransfer] = ???
-    implicit val blockHeaderV2: Signable[BlockHeaderV2] = ???
+
+    implicit val polyTransfer: Signable[PolyTransfer] =
+      _ => Bytes(Array.fill[Byte](1024)(0))
+
+    implicit val blockHeaderV2: Signable[BlockHeaderV2] =
+      _ => Bytes(Array.fill[Byte](1024)(0))
     implicit val byteArray: Signable[Array[Byte]] = Bytes(_)
   }
 }

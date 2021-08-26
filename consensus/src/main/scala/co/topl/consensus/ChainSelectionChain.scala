@@ -5,7 +5,7 @@ import cats.data.{EitherT, OptionT}
 import cats.implicits._
 import co.topl.models.utility.HasLength.implicits._
 import co.topl.models._
-import co.topl.models.utility.{Lengths, Sized}
+import co.topl.models.utility.{Lengths, Ratio, Sized}
 import co.topl.typeclasses.Identifiable.Instances._
 import co.topl.typeclasses.Identifiable.ops._
 import co.topl.typeclasses.StatefulCursorChain
@@ -33,7 +33,7 @@ case class ChainSelectionChain[F[_]: Monad, StateFailure](
   getBlock:                                TypedIdentifier => F[BlockHeaderV2],
   childIdOf:                               TypedIdentifier => OptionT[F, TypedIdentifier],
   state:                                   ChainSelectionChain.State[F, StateFailure]
-)(implicit consensusStatefullyValidatable: ConsensusStatefullyValidatable.type)
+)(implicit consensusStatefullyValidatable: ConsensusStatefullyValidatable[F])
     extends StatefulCursorChain[
       F,
       BlockHeaderV2,
@@ -129,13 +129,11 @@ case class ChainSelectionChain[F[_]: Monad, StateFailure](
 
   private def consensusValidationState(): ConsensusValidation.State =
     new ConsensusValidation.State {
-      override def epochNonce: Nonce = ???
-
-      override def totalStake: Int128 = ???
+      override def epochNonce: Nonce = state.epochNonce
 
       override def parentBlockHeader: BlockHeaderV2 = currentBlock
 
-      override def stakeFor(address: Address): Option[Int128] = ???
+      override def relativeStakeFor(address: TaktikosAddress): Option[Ratio] = ???
     }
 
   /**

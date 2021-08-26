@@ -1,5 +1,6 @@
 package co.topl.typeclasses.crypto
 
+import cats.{Monoid, MonoidK}
 import co.topl.models.{Bytes, PublicKey}
 import simulacrum.{op, typeclass}
 
@@ -41,4 +42,9 @@ object ContainsEvolvingSigner {
         override def typeclassInstance: ContainsEvolvingSigner[F, T] = containsEvolvingSigner
       }
   }
+}
+
+@typeclass trait Unfoldable[T] {
+  def initial: T
+  def unfold(t: T): T
 }

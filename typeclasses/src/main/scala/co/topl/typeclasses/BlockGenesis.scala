@@ -1,5 +1,6 @@
 package co.topl.typeclasses
 
+import cats.Eval
 import co.topl.models._
 import co.topl.models.utility.HasLength.implicits._
 import co.topl.models.utility.Lengths._
@@ -8,14 +9,6 @@ import co.topl.typeclasses.ContainsTransactions.Instances._
 import co.topl.typeclasses.ContainsTransactions.ops._
 import co.topl.typeclasses.Identifiable.Instances._
 import co.topl.typeclasses.Identifiable.ops._
-import simulacrum.typeclass
-
-/**
- * Satisfies that a genesis/first/initial instance of T can be created
- */
-@typeclass trait Genesis[T] {
-  def create(): T
-}
 
 object BlockGenesis {
   val ParentId: TypedIdentifier = TypedBytes(IdentifierTypes.Block.HeaderV2, Bytes(Array.fill[Byte](32)(0)))
@@ -41,7 +34,7 @@ object BlockGenesis {
       slotOffset = 0
     )
 
-  def apply(transactions: Seq[Transaction]): Genesis[BlockV2] = { () =>
+  def apply(transactions: Seq[Transaction]): Eval[BlockV2] = Eval.later {
     val address = TaktikosAddress(
       Sized.strict[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(0))).toOption.get,
       Sized.strict[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(0))).toOption.get,

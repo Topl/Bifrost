@@ -39,9 +39,10 @@ case class AssetTransfer(
   minting:      Boolean
 ) extends Transaction
 
+// Not needed for phase 0
 case class TetraTransfer(
   arbitBoxRef:           BoxReference,
-  registrationBoxRef:    TaktikosBoxReference,
+  registrationBoxRef:    Box[Box.Values.TaktikosRegistration],
   feeOutput:             PolyOutput,
   outputTaktikosBoxData: (TaktikosAddress, Int128, Registration, Signature)
 ) extends Transaction

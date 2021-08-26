@@ -2,7 +2,7 @@ package co.topl.fullnode
 
 import cats.Id
 import cats.data.{EitherT, OptionT, State}
-import co.topl.consensus.{ChainSelectionChain, LeaderElection}
+import co.topl.consensus.{ChainSelectionChain, ConsensusStatefullyValidatable, LeaderElection}
 import co.topl.minting.BlockMint
 import co.topl.minting.Mint.ops._
 import co.topl.models._
@@ -21,11 +21,12 @@ object FullNode extends App {
   val SlotsPerEpoch = 5000
   val RelativeStake = Ratio(1, 10)
 
-  val leaderElectionConfig = LeaderElection
-    .Config(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
+  implicit val leaderElectionConfig: LeaderElection.Config =
+    LeaderElection
+      .Config(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
 
   val genesisBlock =
-    BlockGenesis(Nil).create()
+    BlockGenesis(Nil).value
 
   private val epoch: Epoch = 1
   private val epochNonce: Nonce = Bytes(Array(1))
@@ -63,10 +64,9 @@ object FullNode extends App {
 
   implicit val mint: BlockMint[Id] = {
     def elect(parent: BlockHeaderV2) = {
-      val key = kesKey.runA(initialKesKey -> 0).value
       val startTime = System.currentTimeMillis()
       val hit = LeaderElection
-        .hits(vrfKey, RelativeStake, fromSlot = parent.slot, epochNonce, leaderElectionConfig)
+        .hits(vrfKey, RelativeStake, fromSlot = parent.slot, epochNonce)
         .head
 
       val slotDiff = hit.slot - parent.slot
@@ -85,8 +85,10 @@ object FullNode extends App {
         val secret = kesKey.runA(initialKesKey -> 0).value
         KesCertificate(
           secret.publicKey,
-          Sized.strict[Bytes, Lengths.`64`.type](Bytes(Array.fill[Byte](64)(0))).toOption.get,
-          Sized.strict[Bytes, Lengths.`1440`.type](Bytes(Array.fill[Byte](1440)(0))).toOption.get,
+          Proofs.Consensus.KesCertificate(
+            Sized.strict[Bytes, Lengths.`64`.type](Bytes(Array.fill[Byte](64)(0))).toOption.get
+          ),
+          Proofs.Consensus.MMM(Sized.strict[Bytes, Lengths.`1440`.type](Bytes(Array.fill[Byte](1440)(0))).toOption.get),
           slotOffset = slot
         )
       }
@@ -94,6 +96,9 @@ object FullNode extends App {
   }
 
   private val chainSelectionState = new ChainSelectionState(genesisBlock)
+
+  implicit val consensusStatefullyValidatable: ConsensusStatefullyValidatable[Id] =
+    new ConsensusStatefullyValidatable[Id]()
 
   val chainSelectionChainImpl: ChainSelectionChain[Id, Throwable] =
     ChainSelectionChain[Id, Throwable](
