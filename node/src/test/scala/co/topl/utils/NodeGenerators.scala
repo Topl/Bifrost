@@ -101,14 +101,15 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
       IndexedSeq((address, polyAmount))
     }
     val rawTx = PolyTransfer
-      .validatedFromState[PublicKeyPropositionCurve25519](
+      .createRaw[PublicKeyPropositionCurve25519](
         state,
         recipients,
         IndexedSeq(sender),
         changeAddress = sender,
         fee,
         data = None
-      ).getOrThrow()
+      )
+      .getOrThrow()
 
     rawTx.copy(attestation = Transaction.updateAttestation(rawTx)(keyRing.generateAttestation(sender)))
   }
@@ -133,7 +134,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
       IndexedSeq((address, polyAmount))
     }
     val rawTx = PolyTransfer
-      .validatedFromState[ThresholdPropositionCurve25519](
+      .createRaw[ThresholdPropositionCurve25519](
         state,
         recipients,
         IndexedSeq(sender),
@@ -165,7 +166,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
       IndexedSeq((address, polyAmount))
     }
     val rawTx = PolyTransfer
-      .validatedFromState[PublicKeyPropositionEd25519](
+      .createRaw[PublicKeyPropositionEd25519](
         state,
         recipients,
         IndexedSeq(sender),
@@ -322,7 +323,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
         data = None,
         minting
       )
-      .get
+      .getOrThrow()
 
     rawTx.copy(attestation = Transaction.updateAttestation(rawTx)(keyRing.generateAttestation(sender)))
   }
@@ -354,7 +355,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
         data = None,
         minting
       )
-      .get
+      .getOrThrow()
 
     val signatures = keyRing.generateAttestation(keyRing.addresses)(rawTx.messageToSign).values.toSet
     val thresholdSignature = ThresholdSignatureCurve25519(signatures)
@@ -385,7 +386,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
         data = None,
         minting
       )
-      .get
+      .getOrThrow()
 
     rawTx.copy(attestation = Transaction.updateAttestation(rawTx)(keyRing.generateAttestation(sender)))
   }

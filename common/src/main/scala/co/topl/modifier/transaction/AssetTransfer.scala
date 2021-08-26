@@ -1,5 +1,6 @@
 package co.topl.modifier.transaction
 
+import cats.implicits._
 import co.topl.attestation._
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
@@ -57,94 +58,159 @@ object AssetTransfer {
     Identifier(typeString, typePrefix)
   }
 
-  /**
-   * @param boxReader
-   * @param toReceive
-   * @param sender
-   * @param fee
-   * @param data
-   * @return
-   */
-  def createRaw[
-    P <: Proposition
-  ](
-    boxReader:                   BoxReader[ProgramId, Address],
-    toReceive:                   IndexedSeq[(Address, AssetValue)],
-    sender:                      IndexedSeq[Address],
-    changeAddress:               Address,
-    consolidationAddress:        Address,
-    fee:                         Int128,
-    data:                        Option[Latin1Data],
-    minting:                     Boolean
-  )(implicit evidenceProducerEv: EvidenceProducer[P], identifiableEv: Identifiable[P]): Try[AssetTransfer[P]] = {
+  object Validation {
+    sealed trait InvalidAssetTransfer
 
-    val assetCode =
-      toReceive
-        .map(_._2.assetCode)
-        .toSet
-        .ensuring(_.size == 1, s"Found multiple asset codes when only one was expected")
-        .head
+    case object EmptyPolyInputs extends InvalidAssetTransfer
+    type EmptyPolyInputs = EmptyPolyInputs.type
 
-    TransferTransaction
-      .getSenderBoxesAndCheckPolyBalance(boxReader, sender, fee, "Assets", Some(assetCode))
-      .map { txState =>
-        // compute the amount of tokens that will be sent to the recipients
-        val amtToSpend = toReceive.map(_._2.quantity).sum
+    case object DuplicatePolyInputs extends InvalidAssetTransfer
+    type DuplicatePolyInputs = DuplicatePolyInputs.type
 
-        // create the list of inputs and outputs (senderChangeOut & recipientOut)
-        val (availableToSpend, inputs, outputs) =
-          if (minting) ioMint(txState, toReceive, changeAddress, fee)
-          else ioTransfer(txState, toReceive, changeAddress, consolidationAddress, fee, amtToSpend, assetCode)
+    case object DuplicateAssetInputs extends InvalidAssetTransfer
+    type DuplicateAssetInputs = DuplicateAssetInputs.type
 
-        // ensure there are sufficient funds from the sender boxes to create all outputs
-        require(availableToSpend >= amtToSpend, "Insufficient funds available to create transaction.")
+    case object DuplicateAssetCodes extends InvalidAssetTransfer
+    type DuplicateAssetCodes = DuplicateAssetCodes.type
 
-        AssetTransfer[P](inputs, outputs, ListMap(), fee, Instant.now.toEpochMilli, data, minting)
-      }
+    case object DifferentInputOutputCodes extends InvalidAssetTransfer
+    type DifferentInputOutputCodes = DifferentInputOutputCodes.type
+
+    case object EmptyAssetInputs extends InvalidAssetTransfer
+    type EmptyAssetInputs = EmptyAssetInputs.type
+
+    case object EmptyRecipients extends InvalidAssetTransfer
+    type EmptyRecipients = EmptyRecipients.type
+
+    case object DuplicateRecipients extends InvalidAssetTransfer
+    type DuplicateRecipients = DuplicateRecipients.type
+
+    case object InsufficientPolyFunds extends InvalidAssetTransfer
+    type InsufficientPolyFunds = InsufficientPolyFunds.type
+
+    case object InsufficientAssetFunds extends InvalidAssetTransfer
+    type InsufficientAssetFunds = InsufficientAssetFunds.type
+
+    type ValidationResult[T] = Either[InvalidAssetTransfer, T]
+
+    def validatePolyInputs(
+      polyBoxes: IndexedSeq[(Address, PolyBox)]
+    ): ValidationResult[IndexedSeq[(Address, PolyBox)]] =
+      for {
+        _ <- Either.cond(polyBoxes.nonEmpty, polyBoxes, EmptyPolyInputs)
+        _ <- Either.cond(polyBoxes.distinctBy(_._2.nonce).length == polyBoxes.length, polyBoxes, DuplicatePolyInputs)
+      } yield polyBoxes
+
+    def validateAssetInputs(
+      assetBoxes: IndexedSeq[(Address, AssetBox)],
+      minting:    Boolean
+    ): ValidationResult[IndexedSeq[(Address, AssetBox)]] =
+      if (!minting)
+        for {
+          _ <- Either.cond(assetBoxes.nonEmpty, assetBoxes, EmptyAssetInputs)
+          _ <- Either.cond(assetBoxes.distinctBy(_._2.nonce).length == 1, assetBoxes, DuplicateAssetInputs)
+          _ <- Either.cond(assetBoxes.distinctBy(_._2.value.assetCode).length == 1, assetBoxes, DuplicateAssetCodes)
+        } yield assetBoxes
+      else assetBoxes.asRight
+
+    def validateRecipients(
+      recipients: IndexedSeq[(Address, AssetValue)]
+    ): ValidationResult[IndexedSeq[(Address, AssetValue)]] =
+      for {
+        _ <- Either.cond(recipients.nonEmpty, recipients, EmptyRecipients)
+        _ <- Either.cond(recipients.distinctBy(_._1).length == recipients.length, recipients, DuplicateRecipients)
+        _ <- Either.cond(recipients.distinctBy(_._2.assetCode).length == 1, recipients, DuplicateAssetCodes)
+      } yield recipients
+
+    def validateSameAssetCode(
+      expectedAssetCode: AssetCode,
+      assetBoxes:        IndexedSeq[(Address, AssetBox)],
+      minting:           Boolean
+    ): ValidationResult[AssetCode] =
+      if (!minting)
+        Either.cond(
+          assetBoxes.head._2.value.assetCode == expectedAssetCode,
+          expectedAssetCode,
+          DifferentInputOutputCodes
+        )
+      else
+        expectedAssetCode.asRight
+
+    def validateFeeFunds(funds: Int128, feeAmount: Int128): ValidationResult[Int128] =
+      Either.cond(funds >= feeAmount, funds - feeAmount, InsufficientPolyFunds)
+
+    def validateAssetPaymentFunds(funds: Int128, paymentAmount: Int128, minting: Boolean): ValidationResult[Int128] =
+      if (!minting) Either.cond(funds >= paymentAmount, funds - paymentAmount, InsufficientAssetFunds)
+      else Int128(0).asRight
   }
 
-  /** Construct input and output box sequences for a minting transaction */
-  private def ioMint(
-    txInputState:  TransferCreationState,
-    toReceive:     IndexedSeq[(Address, AssetValue)],
-    changeAddress: Address,
-    fee:           Int128
-  ): (Int128, IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, TokenValueHolder)]) = {
-    val availableToSpend = Int128.MaxValue // you cannot mint more than the max number we can represent
-    val inputs = txInputState.senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce))
-    val outputs = (changeAddress, SimpleValue(txInputState.polyBalance - fee)) +: toReceive
+  import Validation._
 
-    (availableToSpend, inputs, outputs)
-  }
-
-  /** construct input and output box sequence for a transfer transaction */
-  private def ioTransfer(
-    txInputState:         TransferCreationState,
-    toReceive:            IndexedSeq[(Address, AssetValue)],
+  def validated[P <: Proposition: EvidenceProducer: Identifiable](
+    polyBoxes:            IndexedSeq[(Address, PolyBox)],
+    assetBoxes:           IndexedSeq[(Address, AssetBox)],
+    recipients:           IndexedSeq[(Address, AssetValue)],
     changeAddress:        Address,
     consolidationAddress: Address,
     fee:                  Int128,
-    amtToSpend:           Int128,
-    assetCode:            AssetCode
-  ): (Int128, IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, TokenValueHolder)]) = {
+    data:                 Option[Latin1Data],
+    minting:              Boolean
+  ): ValidationResult[AssetTransfer[P]] =
+    for {
+      _ <- validatePolyInputs(polyBoxes)
+      _ <- validateAssetInputs(assetBoxes, minting)
+      _ <- validateRecipients(recipients)
+      assetCode = recipients.head._2.assetCode
+      _          <- validateSameAssetCode(assetCode, assetBoxes, minting)
+      polyChange <- validateFeeFunds(boxFunds(polyBoxes), fee)
+      assetPayment = recipients.map(_._2.quantity).sum
+      assetChange <- validateAssetPaymentFunds(boxFunds(assetBoxes), assetPayment, minting)
+      assetBoxNonces = assetBoxes.map(box => box._1 -> box._2.nonce)
+      polyBoxNonces = polyBoxes.map(box => box._1 -> box._2.nonce)
+      changeOutput = changeAddress       -> SimpleValue(polyChange)
+      assetOutput = consolidationAddress -> AssetValue(assetChange, assetCode)
+      nonZeroOutputs = (IndexedSeq(changeOutput, assetOutput) ++ recipients).filter(_._2.quantity > 0)
+    } yield AssetTransfer[P](
+      polyBoxNonces ++ assetBoxNonces,
+      nonZeroOutputs,
+      ListMap(), // unsigned tx
+      fee,
+      Instant.now.toEpochMilli,
+      data,
+      minting
+    )
 
-    val availableToSpend =
-      txInputState.senderBoxes
-        .getOrElse("Asset", throw new Exception(s"No Assets found with assetCode $assetCode"))
-        .map(_._3.value.quantity)
-        .sum
-
-    // create the list of inputs and outputs (senderChangeOut & recipientOut)
-    val inputs = txInputState.senderBoxes("Asset").map(bxs => (bxs._2, bxs._3.nonce)) ++
-      txInputState.senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce))
-
-    val outputs = IndexedSeq(
-      (changeAddress, SimpleValue(txInputState.polyBalance - fee)),
-      (consolidationAddress, AssetValue(availableToSpend - amtToSpend, assetCode))
-    ) ++ toReceive
-
-    (availableToSpend, inputs, outputs)
-  }
+  def createRaw[P <: Proposition: EvidenceProducer: Identifiable](
+    boxReader:            BoxReader[ProgramId, Address],
+    recipients:           IndexedSeq[(Address, AssetValue)],
+    sender:               IndexedSeq[Address],
+    changeAddress:        Address,
+    consolidationAddress: Address,
+    fee:                  Int128,
+    data:                 Option[Latin1Data],
+    minting:              Boolean
+  ): ValidationResult[AssetTransfer[P]] =
+    for {
+      assetCode <- recipients.headOption.map(_._2.assetCode.asRight).getOrElse(EmptyRecipients.asLeft)
+      (polyBoxes, assetBoxes) =
+        sender
+          .map(addr => addr -> boxReader.getTokenBoxes(addr).getOrElse(IndexedSeq()))
+          .flatMap((senderBoxes: (Address, Seq[TokenBox[TokenValueHolder]])) => senderBoxes._2.map(senderBoxes._1 -> _))
+          .foldLeft((IndexedSeq[(Address, PolyBox)](), IndexedSeq[(Address, AssetBox)]())) {
+            case ((polyBoxes, assetBoxes), (addr: Address, box: PolyBox))  => (polyBoxes :+ (addr -> box), assetBoxes)
+            case ((polyBoxes, assetBoxes), (addr: Address, box: AssetBox)) => (polyBoxes, assetBoxes :+ (addr -> box))
+          }
+      assetTransfer <- validated(
+        polyBoxes,
+        assetBoxes,
+        recipients,
+        changeAddress,
+        consolidationAddress,
+        fee,
+        data,
+        minting
+      )
+    } yield assetTransfer
 
   implicit def jsonEncoder[P <: Proposition]: Encoder[AssetTransfer[P]] = { tx: AssetTransfer[P] =>
     Map(

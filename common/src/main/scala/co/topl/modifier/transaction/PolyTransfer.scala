@@ -4,7 +4,7 @@ import co.topl.attestation._
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TxType
-import co.topl.modifier.transaction.TransferTransaction.{BoxParams, encodeFrom, getSenderBoxesForTx}
+import co.topl.modifier.transaction.TransferTransaction.{encodeFrom, getSenderBoxesForTx, BoxParams}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.codecs.Int128Codec
@@ -76,8 +76,6 @@ object PolyTransfer {
 
     type ValidationResult[T] = Either[InvalidPolyTransfer, T]
 
-    def polyFunds(fromBoxes: IndexedSeq[(Address, PolyBox)]): Int128 = fromBoxes.map(_._2.value.quantity).sum
-
     def validateNonEmptyInputs(
       boxes: IndexedSeq[(Address, PolyBox)]
     ): ValidationResult[IndexedSeq[(Address, PolyBox)]] =
@@ -117,7 +115,7 @@ object PolyTransfer {
       _             <- validateUniqueInputs(fromBoxes)
       _             <- validateNonEmptyRecipients(recipients)
       _             <- validateUniqueRecipients(recipients)
-      amountToSpend <- validateFeeFunds(polyFunds(fromBoxes), fee)
+      amountToSpend <- validateFeeFunds(boxFunds(fromBoxes), fee)
       paymentAmount = recipients.map(_._2.quantity).sum
       changeAmount <- validatePaymentFunds(amountToSpend, paymentAmount)
       changeRecipient = changeAddress -> SimpleValue(changeAmount)
@@ -133,7 +131,7 @@ object PolyTransfer {
       minting = false
     )
 
-  def validatedFromState[P <: Proposition: EvidenceProducer: Identifiable](
+  def createRaw[P <: Proposition: EvidenceProducer: Identifiable](
     boxReader:     BoxReader[ProgramId, Address],
     recipients:    IndexedSeq[(Address, SimpleValue)],
     sender:        IndexedSeq[Address],
@@ -146,7 +144,7 @@ object PolyTransfer {
       .flatMap((senderBoxes: (Address, Seq[TokenBox[TokenValueHolder]])) => senderBoxes._2.map(senderBoxes._1 -> _))
       .foldLeft(IndexedSeq[(Address, PolyBox)]()) {
         case (polyBoxes, (addr: Address, box: PolyBox)) => polyBoxes :+ (addr -> box)
-        case (polyBoxes, _) => polyBoxes
+        case (polyBoxes, _)                             => polyBoxes
       }
 
     validated(polyBoxes, recipients, changeAddress, fee, data)

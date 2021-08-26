@@ -90,11 +90,14 @@ class TransactionRpcHandlerImpls(
     params:          ToplRpc.Transaction.RawAssetTransfer.Params,
     state:           State,
     senderAddresses: List[Address]
-  ): Try[AssetTransfer[Proposition]] = {
+  ): Try[AssetTransfer[Proposition]] = Try {
     val createRaw = params.propositionType match {
-      case PublicKeyPropositionCurve25519.`typeString` => AssetTransfer.createRaw[PublicKeyPropositionCurve25519] _
-      case ThresholdPropositionCurve25519.`typeString` => AssetTransfer.createRaw[ThresholdPropositionCurve25519] _
-      case PublicKeyPropositionEd25519.`typeString`    => AssetTransfer.createRaw[PublicKeyPropositionEd25519] _
+      case PublicKeyPropositionCurve25519.`typeString` =>
+        AssetTransfer.createRaw[PublicKeyPropositionCurve25519] _
+      case ThresholdPropositionCurve25519.`typeString` =>
+        AssetTransfer.createRaw[ThresholdPropositionCurve25519] _
+      case PublicKeyPropositionEd25519.`typeString` =>
+        AssetTransfer.createRaw[PublicKeyPropositionEd25519] _
     }
 
     createRaw(
@@ -106,11 +109,8 @@ class TransactionRpcHandlerImpls(
       params.fee,
       params.data,
       params.minting
-    )
-      .collect { case p: AssetTransfer[Proposition @unchecked] =>
-        p
-      }
-  }
+    ).getOrThrow()
+  }.collect { case p: AssetTransfer[Proposition @unchecked] => p }
 
   private def tryCreateArbitTransfer(
     params:          ToplRpc.Transaction.RawArbitTransfer.Params,
@@ -145,11 +145,11 @@ class TransactionRpcHandlerImpls(
     val f =
       params.propositionType match {
         case PublicKeyPropositionCurve25519.`typeString` =>
-          PolyTransfer.validatedFromState[PublicKeyPropositionCurve25519] _
+          PolyTransfer.createRaw[PublicKeyPropositionCurve25519] _
         case ThresholdPropositionCurve25519.`typeString` =>
-          PolyTransfer.validatedFromState[ThresholdPropositionCurve25519] _
+          PolyTransfer.createRaw[ThresholdPropositionCurve25519] _
         case PublicKeyPropositionEd25519.`typeString` =>
-          PolyTransfer.validatedFromState[PublicKeyPropositionEd25519] _
+          PolyTransfer.createRaw[PublicKeyPropositionEd25519] _
       }
 
     f(
