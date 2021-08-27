@@ -5,23 +5,23 @@ import co.topl.crypto.hash.FastCryptographicHash
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import scala.util.{Try,Success,Failure}
+import scala.util.{Failure, Success, Try}
 import java.security.SecureRandom
 
 class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
 
-  property ("Test all VRF vectors") {
+  property("Test all VRF vectors") {
     val passed = Try {
-      val vrf:ECVRF25519 = new ECVRF25519
-      val fch:FastCryptographicHash = new FastCryptographicHash
+      val vrf: ECVRF25519 = new ECVRF25519
+      val fch: FastCryptographicHash = new FastCryptographicHash
       var proof: Array[Byte] = Array()
       var alpha: Array[Byte] = Array()
       var beta: Array[Byte] = Array()
       for (i <- 0 until 5) {
-        val sk:Array[Byte] = Array.fill(vrf.SECRET_KEY_SIZE){0x00}
-        val pk:Array[Byte] = Array.fill(vrf.PUBLIC_KEY_SIZE){0x00}
-        vrf.generatePrivateKey(random = new SecureRandom,sk)
-        vrf.generatePublicKey(sk,0,pk,0)
+        val sk: Array[Byte] = Array.fill(vrf.SECRET_KEY_SIZE)(0x00)
+        val pk: Array[Byte] = Array.fill(vrf.PUBLIC_KEY_SIZE)(0x00)
+        vrf.generatePrivateKey(random = new SecureRandom, sk)
+        vrf.generatePublicKey(sk, 0, pk, 0)
         //println("Private Key")
         //println(binaryArrayToHex(sk))
         //println("Public Key")
@@ -41,11 +41,10 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
 
       def uuid: String = java.util.UUID.randomUUID.toString
 
-      def binaryArrayToHex(b: Array[Byte]): String = {
+      def binaryArrayToHex(b: Array[Byte]): String =
         b.map("%02x" format _).mkString
-      }
 
-      def hex2bytes(hex: String): Array[Byte] = {
+      def hex2bytes(hex: String): Array[Byte] =
         if (hex.contains(" ")) {
           hex.split(" ").map(Integer.parseInt(_, 16).toByte)
         } else if (hex.contains("-")) {
@@ -53,7 +52,6 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
         } else {
           hex.sliding(2, 2).toArray.map(Integer.parseInt(_, 16).toByte)
         }
-      }
 
       /*
       SK = 9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60
@@ -82,10 +80,14 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
         assert(vrf.verifyKeyPair(sk, pk))
         alpha = Array()
         proof = vrf.vrfProof(sk, alpha)
-        val proofTest = hex2bytes("9275df67a68c8745c0ff97b48201ee6db447f7c93b23ae24cdc2400f52fdb08a1a6ac7ec71bf9c9c76e96ee4675ebff60625af28718501047bfd87b810c2d2139b73c23bd69de66360953a642c2a330a")
-        assert(proofTest sameElements  proof)
+        val proofTest = hex2bytes(
+          "9275df67a68c8745c0ff97b48201ee6db447f7c93b23ae24cdc2400f52fdb08a1a6ac7ec71bf9c9c76e96ee4675ebff60625af28718501047bfd87b810c2d2139b73c23bd69de66360953a642c2a330a"
+        )
+        assert(proofTest sameElements proof)
         beta = vrf.vrfProofToHash(proof)
-        val betaTest = hex2bytes("a64c292ec45f6b252828aff9a02a0fe88d2fcc7f5fc61bb328f03f4c6c0657a9d26efb23b87647ff54f71cd51a6fa4c4e31661d8f72b41ff00ac4d2eec2ea7b3")
+        val betaTest = hex2bytes(
+          "a64c292ec45f6b252828aff9a02a0fe88d2fcc7f5fc61bb328f03f4c6c0657a9d26efb23b87647ff54f71cd51a6fa4c4e31661d8f72b41ff00ac4d2eec2ea7b3"
+        )
         assert(betaTest sameElements beta)
         //println("Alpha:")
         //println(binaryArrayToHex(alpha))
@@ -123,10 +125,14 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
         assert(vrf.verifyKeyPair(sk, pk))
         alpha = Array(0x72.toByte)
         proof = vrf.vrfProof(sk, alpha)
-        val proofTest = hex2bytes("84a63e74eca8fdd64e9972dcda1c6f33d03ce3cd4d333fd6cc789db12b5a7b9d03f1cb6b2bf7cd81a2a20bacf6e1c04e59f2fa16d9119c73a45a97194b504fb9a5c8cf37f6da85e03368d6882e511008")
+        val proofTest = hex2bytes(
+          "84a63e74eca8fdd64e9972dcda1c6f33d03ce3cd4d333fd6cc789db12b5a7b9d03f1cb6b2bf7cd81a2a20bacf6e1c04e59f2fa16d9119c73a45a97194b504fb9a5c8cf37f6da85e03368d6882e511008"
+        )
         assert(proofTest sameElements proof)
         beta = vrf.vrfProofToHash(proof)
-        val betaTest = hex2bytes("cddaa399bb9c56d3be15792e43a6742fb72b1d248a7f24fd5cc585b232c26c934711393b4d97284b2bcca588775b72dc0b0f4b5a195bc41f8d2b80b6981c784e")
+        val betaTest = hex2bytes(
+          "cddaa399bb9c56d3be15792e43a6742fb72b1d248a7f24fd5cc585b232c26c934711393b4d97284b2bcca588775b72dc0b0f4b5a195bc41f8d2b80b6981c784e"
+        )
         assert(betaTest sameElements beta)
         //println("Alpha:")
         //println(binaryArrayToHex(alpha))
@@ -164,10 +170,14 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
         assert(vrf.verifyKeyPair(sk, pk))
         alpha = Array(0xaf.toByte, 0x82.toByte)
         proof = vrf.vrfProof(sk, alpha)
-        val proofTest = hex2bytes("aca8ade9b7f03e2b149637629f95654c94fc9053c225ec21e5838f193af2b727b84ad849b0039ad38b41513fe5a66cdd2367737a84b488d62486bd2fb110b4801a46bfca770af98e059158ac563b690f")
+        val proofTest = hex2bytes(
+          "aca8ade9b7f03e2b149637629f95654c94fc9053c225ec21e5838f193af2b727b84ad849b0039ad38b41513fe5a66cdd2367737a84b488d62486bd2fb110b4801a46bfca770af98e059158ac563b690f"
+        )
         assert(proofTest sameElements proof)
         beta = vrf.vrfProofToHash(proof)
-        val betaTest = hex2bytes("d938b2012f2551b0e13a49568612effcbdca2aed5d1d3a13f47e180e01218916e049837bd246f66d5058e56d3413dbbbad964f5e9f160a81c9a1355dcd99b453")
+        val betaTest = hex2bytes(
+          "d938b2012f2551b0e13a49568612effcbdca2aed5d1d3a13f47e180e01218916e049837bd246f66d5058e56d3413dbbbad964f5e9f160a81c9a1355dcd99b453"
+        )
         assert(betaTest sameElements beta)
         //println("Alpha:")
         //println(binaryArrayToHex(alpha))

@@ -3,7 +3,7 @@ package co.topl.crypto.kes
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import scala.util.{Try,Success,Failure}
+import scala.util.{Failure, Success, Try}
 import java.security.SecureRandom
 
 class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
@@ -11,7 +11,7 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
   property("Sum Composition Key Size and Signature Size") {
     val passed = Try {
       val rnd: SecureRandom = new SecureRandom()
-      val kes:KeyEvolvingSignatureScheme = new KeyEvolvingSignatureScheme
+      val kes: KeyEvolvingSignatureScheme = new KeyEvolvingSignatureScheme
       var t = 0
       val logl = 9
       val l = scala.math.pow(2, logl).toInt
@@ -25,38 +25,39 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
       //println(kes.skBytes * logl + 2 * kes.pkBytes + 3 * kes.hashBytes * logl)
       //println("Tree Byte Length:")
       var data: Array[Byte] = Array()
-      for (item <- sk.toSeq) {
+      for (item <- sk.toSeq)
         data = data ++ item
-      }
       //println(data.length)
       t += (l * 3) / 4 + 1
       val sk_evolved = kes.sumCompositionUpdate(sk, t)
       var data2: Array[Byte] = Array()
-      for (item <- sk.toSeq) {
+      for (item <- sk.toSeq)
         data2 = data2 ++ item
-      }
-      require(data.length == data2.length,"Evolved key length did not match initial length")
-      require(kes.sumCompositionVerifyKeyPair(sk_evolved, pk),"Evolved Key did not produce the same public key as original")
-      val signature = kes.sumCompositionSign(sk_evolved,Array(),t)
+      require(data.length == data2.length, "Evolved key length did not match initial length")
+      require(
+        kes.sumCompositionVerifyKeyPair(sk_evolved, pk),
+        "Evolved Key did not produce the same public key as original"
+      )
+      val signature = kes.sumCompositionSign(sk_evolved, Array(), t)
       //println("Signature Length: "+signature.length.toString)
-      val prodKey = kes.generateAsymmetricProductKey(seed1,0)
-      val productSignature = kes.signAsymmetricProduct(prodKey,Array())
+      val prodKey = kes.generateAsymmetricProductKey(seed1, 0)
+      val productSignature = kes.signAsymmetricProduct(prodKey, Array())
       productSignature match {
         case signatures.AsymmetricSignature(sigi, sigm, pki, offset, pkl) =>
-          //println("Product Sig Length t 0: "+(sigi.length+sigm.length+pki.bytes.length).toString)
+        //println("Product Sig Length t 0: "+(sigi.length+sigm.length+pki.bytes.length).toString)
         case _ =>
       }
       var oldSigSize = 0
-      var prodKey2 = kes.generateAsymmetricProductKey(seed1,0)
+      var prodKey2 = kes.generateAsymmetricProductKey(seed1, 0)
       var i = 0
       while (oldSigSize < 1500) {
         i += 1
-        prodKey2 = kes.updateAsymmetricProductKey(prodKey2,i)
-        val productSignature2 = kes.signAsymmetricProduct(prodKey2,Array())
+        prodKey2 = kes.updateAsymmetricProductKey(prodKey2, i)
+        val productSignature2 = kes.signAsymmetricProduct(prodKey2, Array())
         productSignature2 match {
           case signatures.AsymmetricSignature(sigi, sigm, pki, offset, pkl) =>
-            val sigSize = sigi.length+sigm.length+pki.bytes.length
-            if (sigSize>oldSigSize) {
+            val sigSize = sigi.length + sigm.length + pki.bytes.length
+            if (sigSize > oldSigSize) {
               oldSigSize = sigSize
               //println("Product Sig Length t "+i.toString+": "+sigSize.toString)
               //println(sigi.length,sigm.length,pki.bytes.length)
@@ -78,7 +79,7 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
   property("Sum Composition Keypair Evolution Test") {
     val passed = Try {
       val rnd: SecureRandom = new SecureRandom()
-      val kes:KeyEvolvingSignatureScheme = new KeyEvolvingSignatureScheme
+      val kes: KeyEvolvingSignatureScheme = new KeyEvolvingSignatureScheme
       var t = 0
       val logl = 7
       val l = scala.math.pow(2, logl).toInt
@@ -95,14 +96,13 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
       //println(kes.skBytes * logl + 2 * kes.pkBytes + 3 * kes.hashBytes * logl)
       //println("Tree Byte Length:")
       var data: Array[Byte] = Array()
-      for (item <- sk.toSeq) {
+      for (item <- sk.toSeq)
         data = data ++ item
-      }
       //println(data.length)
       //println("Private Key Time Step:")
       //println(kes.getSumCompositionKeyTimeStep(sk))
       //println("Verifying key pair")
-      require(kes.sumCompositionVerifyKeyPair(sk, pk),"Keypair did not validate")
+      require(kes.sumCompositionVerifyKeyPair(sk, pk), "Keypair did not validate")
       //println("Private Key Update:")
       t += (l * 3) / 4 + 1
       val sk_evolved = kes.sumCompositionUpdate(sk, t)
@@ -110,11 +110,17 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
       //println("t: " + t.toString)
       //println("Tree height: " + sk.height.toString)
       //println("Verifying key pair")
-      require(pk sameElements kes.sumCompositionGetPublicKey(sk_evolved),"Evolved Key did not produce the same public key as original")
-      require(kes.sumCompositionVerifyKeyPair(sk_evolved, pk),"Evolved Key did not produce the same public key as original")
-      require(!kes.sumCompositionVerifyKeyPair(sk2, pk),"Invalid keypair verified sumVerifyKeyPair")
-      require(!kes.sumCompositionVerifyKeyPair(sk, pk2),"Invalid keypair verified sumVerifyKeyPair")
-      require(kes.sumCompositionVerifyKeyPair(sk2, pk2),"Valid Key pair failed to validate sumVerifyKeyPair")
+      require(
+        pk sameElements kes.sumCompositionGetPublicKey(sk_evolved),
+        "Evolved Key did not produce the same public key as original"
+      )
+      require(
+        kes.sumCompositionVerifyKeyPair(sk_evolved, pk),
+        "Evolved Key did not produce the same public key as original"
+      )
+      require(!kes.sumCompositionVerifyKeyPair(sk2, pk), "Invalid keypair verified sumVerifyKeyPair")
+      require(!kes.sumCompositionVerifyKeyPair(sk, pk2), "Invalid keypair verified sumVerifyKeyPair")
+      require(kes.sumCompositionVerifyKeyPair(sk2, pk2), "Valid Key pair failed to validate sumVerifyKeyPair")
     } match {
       case Success(_) =>
         true
@@ -128,7 +134,7 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
   property("Sum Composition Signature Test") {
     val passed = Try {
       val rnd: SecureRandom = new SecureRandom()
-      val kes:KeyEvolvingSignatureScheme = new KeyEvolvingSignatureScheme
+      val kes: KeyEvolvingSignatureScheme = new KeyEvolvingSignatureScheme
       var t = 0
       val message = rnd.generateSeed(2048)
       val logl = 7
@@ -145,15 +151,15 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
       sk2 = kes.sumCompositionUpdate(sk2, t)
       val sig11 = kes.sumCompositionSign(sk1, message, t)
       val sig21 = kes.sumCompositionSign(sk2, message, t)
-      require(kes.sumCompositionVerify(pk1, message, sig11,t),"Signature 11 did not verify")
-      require(kes.sumCompositionVerify(pk2, message, sig21,t),"Signature 21 did not verify")
+      require(kes.sumCompositionVerify(pk1, message, sig11, t), "Signature 11 did not verify")
+      require(kes.sumCompositionVerify(pk2, message, sig21, t), "Signature 21 did not verify")
       t = (l * 3) / 4 + 1
       sk1 = kes.sumCompositionUpdate(sk1, t)
       sk2 = kes.sumCompositionUpdate(sk2, t)
       val sig12 = kes.sumCompositionSign(sk1, message, t)
       val sig22 = kes.sumCompositionSign(sk2, message, t)
-      require(kes.sumCompositionVerify(pk1, message, sig12,t),"Signature 12 did not verify")
-      require(kes.sumCompositionVerify(pk2, message, sig22,t),"Signature 22 did not verify")
+      require(kes.sumCompositionVerify(pk1, message, sig12, t), "Signature 12 did not verify")
+      require(kes.sumCompositionVerify(pk2, message, sig22, t), "Signature 22 did not verify")
     } match {
       case Success(_) =>
         true
@@ -171,7 +177,7 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
       var t = 0
       val message = rnd.generateSeed(2048)
       val seed1 = rnd.generateSeed(32)
-      var prodKey = keys.AsymmetricKey.newFromSeed(seed1,0)
+      var prodKey = keys.AsymmetricKey.newFromSeed(seed1, 0)
       //println("Product key time step:")
       //println(prodKey.timeStepPlusOffset)
       //println("Updating MMM product key")
@@ -191,7 +197,7 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
       //println("product sign")
       var sigProd = prodKey.sign(message)
       //println("product verify")
-      assert(KesVerifier.verify(message, sigProd,t))
+      assert(KesVerifier.verify(message, sigProd, t))
 
       t += 100
       //println("Product key time step:")
@@ -201,7 +207,7 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
 
       sigProd = prodKey.sign(message)
       //println("product verify")
-      assert(KesVerifier.verify(message, sigProd,t))
+      assert(KesVerifier.verify(message, sigProd, t))
 
       t += 2000
       //println("Product key time step:")
@@ -222,7 +228,7 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
 
       sigProd = prodKey.sign(message)
       //println("product verify")
-      assert(KesVerifier.verify(message, sigProd,t))
+      assert(KesVerifier.verify(message, sigProd, t))
       //println("Product key time step: " + prodKey.timeStep.toString)
       //println("t: " + t.toString)
     } match {
@@ -242,7 +248,7 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
       var t = 0
       val message = rnd.generateSeed(2048)
       val seed1 = rnd.generateSeed(32)
-      var prodKey = keys.SymmetricKey.newFromSeed(seed1,0)
+      var prodKey = keys.SymmetricKey.newFromSeed(seed1, 0)
       //println("Product key time step:")
       //println(prodKey.timeStepPlusOffset)
       //println("Updating MMM product key")
@@ -263,7 +269,7 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
       var sigProd = prodKey.sign(message)
       //println("product verify")
       //println(prodKey.timeStep)
-      assert(KesVerifier.verify(message, sigProd,t))
+      assert(KesVerifier.verify(message, sigProd, t))
 
       t += 100
       //println("Product key time step:")
@@ -273,7 +279,7 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
 
       sigProd = prodKey.sign(message)
       //println("product verify")
-      assert(KesVerifier.verify(message, sigProd,t))
+      assert(KesVerifier.verify(message, sigProd, t))
 
       t += 2000
       //println("Product key time step:")
@@ -294,7 +300,7 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
 
       sigProd = prodKey.sign(message)
       //println("product verify")
-      assert(KesVerifier.verify(message, sigProd,t))
+      assert(KesVerifier.verify(message, sigProd, t))
       //println("Product key time step: " + prodKey.timeStep.toString)
       //println("t: " + t.toString)
     } match {
