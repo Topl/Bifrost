@@ -318,5 +318,15 @@ lazy val tools = project
     libraryDependencies ++= Dependencies.tools
   )
 
+lazy val loadTesting = project
+  .in(file("load-testing"))
+  .settings(
+    name := "load-testing",
+    commonSettings,
+    scalamacrosParadiseSettings,
+    libraryDependencies ++= Dependencies.loadTesting
+  )
+  .dependsOn(common, brambl)
+
 addCommandAlias("checkPR", "; scalafixAll --check; scalafmtCheckAll; test")
 addCommandAlias("preparePR", "; scalafixAll; scalafmtAll; test")
