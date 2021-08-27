@@ -4,6 +4,7 @@ import co.topl.crypto.kes.keys.{AsymmetricKey, PublicKey, SumPrivateKey, Symmetr
 import co.topl.crypto.kes.{signatures, _}
 import co.topl.crypto.kes.signatures.{AsymmetricSignature, ProductSignature, SymmetricSignature}
 
+import java.security.SecureRandom
 import scala.math.BigInt
 
 /**
@@ -35,6 +36,8 @@ abstract class MMM {
   val pkLength: Int
   val asymmetricLogL: Int
   val symmetricLogL: Int
+
+  val random = new SecureRandom()
 
   /**
    * Exponent base two of the argument
@@ -331,6 +334,7 @@ abstract class MMM {
           }
           val cutBranch = isRightBranch(left)
           if (rightIsEmpty && leftIsLeaf) {
+            left.toSeqInorder.foreach(random.nextBytes)
             val keyPair = sKeypairFast(n.v.slice(0, seedBytes))
             assert(
               fch.hash(keyPair.slice(skBytes, skBytes + pkBytes)) sameElements n.v
@@ -338,6 +342,7 @@ abstract class MMM {
             )
             Node(n.v, Empty, Leaf(keyPair))
           } else if (cutBranch) {
+            left.toSeqInorder.foreach(random.nextBytes)
             Node(n.v, Empty, sumCompositionGenerateKey(n.v.slice(0, seedBytes), n.height - 1))
           } else if (leftIsNode && rightIsEmpty) {
             Node(n.v, loop(left), Empty)
@@ -400,6 +405,7 @@ abstract class MMM {
             val nextStep = step % e
             if (step >= e) {
               if (rightIsEmpty && leftIsLeaf) {
+                left.toSeqInorder.foreach(random.nextBytes)
                 val keyPair = sKeypairFast(n.v.slice(0, seedBytes))
                 assert(
                   fch.hash(keyPair.slice(skBytes, skBytes + pkBytes)) sameElements n.v
@@ -409,6 +415,7 @@ abstract class MMM {
               } else if (leftIsEmpty && rightIsNode) {
                 Node(n.v, Empty, constructKey(nextStep, right))
               } else if (rightIsEmpty && leftIsNode) {
+                left.toSeqInorder.foreach(random.nextBytes)
                 val subKey = sumCompositionGenerateKey(n.v.slice(0, seedBytes), n.height - 1)
                 Node(n.v, Empty, constructKey(nextStep, subKey))
               } else {
