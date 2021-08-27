@@ -5,7 +5,7 @@ import co.topl.crypto.{PrivateKey, PublicKey}
 
 import java.security.SecureRandom
 
-class Ed25519 extends eddsa.Ed25519 with EllipticCurveSignatureScheme {
+class Ed25519VRF extends eddsa.ECVRF25519 with EllipticCurveSignatureScheme {
   override val SignatureLength: Int = SIGNATURE_SIZE
   override val KeyLength: Int = SECRET_KEY_SIZE
 
@@ -16,6 +16,7 @@ class Ed25519 extends eddsa.Ed25519 with EllipticCurveSignatureScheme {
     val random = SecureRandom.getInstance("SHA1PRNG")
 
     random.setSeed(hashedSeed.value)
+
     generatePrivateKey(random, sk)
     generatePublicKey(sk, 0, pk, 0)
     (PrivateKey(sk), PublicKey(pk))
@@ -24,8 +25,7 @@ class Ed25519 extends eddsa.Ed25519 with EllipticCurveSignatureScheme {
   override def createKeyPair: (PrivateKey, PublicKey) = {
     val sk: Array[Byte] = new Array[Byte](SECRET_KEY_SIZE)
     val pk: Array[Byte] = new Array[Byte](PUBLIC_KEY_SIZE)
-    val random = new SecureRandom()
-
+    val random = SecureRandom.getInstance("SHA1PRNG")
     generatePrivateKey(random, sk)
     generatePublicKey(sk, 0, pk, 0)
     (PrivateKey(sk), PublicKey(pk))
@@ -33,18 +33,20 @@ class Ed25519 extends eddsa.Ed25519 with EllipticCurveSignatureScheme {
 
   override def sign(privateKey: PrivateKey, message: MessageToSign): Signature = {
     require(privateKey.value.length == SECRET_KEY_SIZE)
-    val sig = new Array[Byte](SIGNATURE_SIZE)
-    sign(privateKey.value, 0, message, 0, message.length, sig, 0)
-    Signature(sig)
+    Signature(vrfProof(privateKey.value, message))
   }
 
   override def verify(signature: Signature, message: MessageToSign, publicKey: PublicKey): Boolean =
     signature.value.length == SIGNATURE_SIZE &&
     publicKey.value.length == PUBLIC_KEY_SIZE &&
-    verify(signature.value, 0, publicKey.value, 0, message, 0, message.length)
+    vrfVerify(publicKey.value, message, signature.value)
+
+  def proofToHash(signature: Signature): Array[Byte] =
+    vrfProofToHash(signature.value)
 }
 
-object Ed25519 {
+object Ed25519VRF {
   val SignatureLength: Int = 64
   val KeyLength: Int = 32
+  val HashLength: Int = 64
 }
