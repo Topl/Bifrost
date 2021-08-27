@@ -2,6 +2,7 @@ package co.topl.nodeView.history
 
 import co.topl.consensus.consensusHelper.setProtocolMngr
 import co.topl.modifier.block.Block
+import co.topl.utils.GeneratorOps.GeneratorOps
 import co.topl.utils.{CommonGenerators, NodeGenerators}
 import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
@@ -41,7 +42,7 @@ class StorageCacheSpec
     val bestBlockIdKey = genesisBlock.parentId
 
     /* Append a new block, make sure it is updated in cache, then drop it */
-    val fstBlock: Block = blockCurve25519Gen.sample.get.copy(parentId = history.bestBlockId)
+    val fstBlock: Block = blockCurve25519Gen.sampleFirst().copy(parentId = history.bestBlockId)
     history = history.append(fstBlock).get._1
 
     history.storage.blockCache.getIfPresent(bestBlockIdKey) should not be null
@@ -107,7 +108,7 @@ class StorageCacheSpec
    */
 
   property("blockLoader should correctly return a block from storage not found in cache") {
-    val block: Block = blockCurve25519Gen.sample.get.copy(parentId = history.bestBlockId)
+    val block: Block = blockCurve25519Gen.sampleFirst().copy(parentId = history.bestBlockId)
     val tempHistory = history.append(block).get._1
 
     tempHistory.storage.blockCache.invalidateAll()
