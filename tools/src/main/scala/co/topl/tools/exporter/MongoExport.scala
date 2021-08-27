@@ -5,8 +5,7 @@ import org.mongodb.scala.{Document, MongoClient, MongoDatabase}
 
 import scala.concurrent.Future
 
-class MongoExport(uri: String, database: String, collection: String, dt: DataType)
-    extends Exportable[InsertManyResult] {
+class MongoExport(uri: String, database: String, collection: String, dt: DataType) extends Exportable {
 
   private val client = open(uri)
   private val db = createDatabase(database)
