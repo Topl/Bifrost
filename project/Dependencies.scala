@@ -79,15 +79,16 @@ object Dependencies {
 
   val node: Seq[ModuleID] = {
     Seq(
-      "com.typesafe.akka"          %% "akka-cluster"   % akkaVersion,
-      "com.typesafe.akka"          %% "akka-remote"    % akkaVersion,
-      "com.typesafe"                % "config"         % "1.4.1",
-      "com.lihaoyi"                %% "mainargs"       % "0.2.1",
-      "net.jpountz.lz4"             % "lz4"            % "1.3.0",
-      "com.github.julien-truffaut" %% "monocle-core"   % "3.0.0-M6",
-      "com.github.julien-truffaut" %% "monocle-macro"  % "3.0.0-M6",
-      "org.ethereum"                % "leveldbjni-all" % "1.18.3",
-      "org.iq80.leveldb"            % "leveldb"        % "0.12"
+      "com.typesafe.akka"          %% "akka-cluster"       % akkaVersion,
+      "com.typesafe.akka"          %% "akka-remote"        % akkaVersion,
+      "com.typesafe"                % "config"             % "1.4.1",
+      "com.lihaoyi"                %% "mainargs"           % "0.2.1",
+      "net.jpountz.lz4"             % "lz4"                % "1.3.0",
+      "com.github.julien-truffaut" %% "monocle-core"       % "3.0.0-M6",
+      "com.github.julien-truffaut" %% "monocle-macro"      % "3.0.0-M6",
+      "org.ethereum"                % "leveldbjni-all"     % "1.18.3",
+      "org.iq80.leveldb"            % "leveldb"            % "0.12",
+      "org.mongodb.scala"          %% "mongo-scala-driver" % "4.2.3"
     ) ++
     logging ++
     test ++
@@ -142,7 +143,7 @@ object Dependencies {
     circe ++
     test
 
-  lazy val gjallarhorn: Seq[ModuleID] = {
+  lazy val gjallarhorn: Seq[ModuleID] =
     Seq(
       "com.typesafe.akka"     %% "akka-cluster" % akkaVersion,
       "com.typesafe.akka"     %% "akka-remote"  % akkaVersion,
@@ -154,7 +155,6 @@ object Dependencies {
     logging ++
     misc ++
     it
-  }
 
   lazy val benchmarking: Seq[ModuleID] = Seq()
 
@@ -168,6 +168,11 @@ object Dependencies {
     misc ++
     test
 
+  lazy val tools: Seq[ModuleID] =
+    Seq(
+      "org.mongodb.scala" %% "mongo-scala-driver" % "4.2.3"
+    )
+  
   lazy val loadTesting: Seq[ModuleID] = {
     Seq(
       "com.lihaoyi"    %% "mainargs" % "0.2.1",
