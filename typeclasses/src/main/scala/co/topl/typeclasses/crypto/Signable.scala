@@ -9,7 +9,7 @@ import simulacrum.{op, typeclass}
 
 object Signable {
 
-  object Instances {
+  trait Instances {
 
     implicit val polyTransfer: Signable[PolyTransfer] =
       _ => Bytes(Array.fill[Byte](1024)(0))
@@ -18,4 +18,5 @@ object Signable {
       _ => Bytes(Array.fill[Byte](1024)(0))
     implicit val byteArray: Signable[Array[Byte]] = Bytes(_)
   }
+  object Instances extends Instances
 }

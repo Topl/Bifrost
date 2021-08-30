@@ -14,7 +14,7 @@ import simulacrum.{op, typeclass}
 
 object ContainsEvidence {
 
-  object Instances {
+  trait Instances {
 
     implicit val ratioContainsEvidence: ContainsEvidence[Ratio] =
       ratio =>
@@ -25,4 +25,5 @@ object ContainsEvidence {
           .toOption
           .get
   }
+  object Instances extends Instances
 }

@@ -40,7 +40,7 @@ object ProofVerifier {
 
   object ops extends Implicits
 
-  object Instances {
+  trait Instances {
 
     implicit val publicKeyCurve25519: ProofVerifier[Proofs.SignatureCurve25519, Propositions.PublicKeyCurve25519] =
       new ProofVerifier[Proofs.SignatureCurve25519, Propositions.PublicKeyCurve25519] {
@@ -134,6 +134,8 @@ object ProofVerifier {
         ): Boolean = true // TODO
       }
   }
+
+  object Instances extends Instances
 }
 
 @typeclass trait CertificateVerifier[T] {

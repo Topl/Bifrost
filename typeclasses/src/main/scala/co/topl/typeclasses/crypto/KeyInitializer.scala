@@ -17,7 +17,7 @@ import simulacrum.typeclass
 
 object KeyInitializer {
 
-  object Instances {
+  trait Instances {
 
     implicit val functor: Functor[KeyInitializer] =
       new Functor[KeyInitializer] {
@@ -57,4 +57,5 @@ object KeyInitializer {
         KeyPairs.Vrf(PrivateKeys.Vrf(edKeyPair.privateKey), PublicKeys.Vrf(edKeyPair.publicKey))
       )
   }
+  object Instances extends Instances
 }
