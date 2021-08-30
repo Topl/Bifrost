@@ -42,8 +42,3 @@ object ContainsEvolvingSigner {
       }
   }
 }
-
-@typeclass trait Unfoldable[T] {
-  def initial: T
-  def unfold(t: T): T
-}
