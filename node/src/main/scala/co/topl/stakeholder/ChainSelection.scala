@@ -1,7 +1,7 @@
 package co.topl.stakeholder
 
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
-import io.iohk.iodb.ByteArrayWrapper
+import co.topl.stakeholder.primitives.ByteArrayWrapper
 import co.topl.stakeholder.cases.{BootstrapJob, RequestBlock, RequestTine, SendTx}
 import co.topl.stakeholder.components.{Tine, Transaction}
 import co.topl.stakeholder.primitives.{ActorRefWrapper, Ratio, SharedData}

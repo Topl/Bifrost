@@ -1,7 +1,7 @@
 package co.topl.stakeholder.history
 
 import co.topl.stakeholder.primitives.{ByteStream, Fch, LDBStore, Types, Ratio}
-import io.iohk.iodb.ByteArrayWrapper
+import co.topl.stakeholder.primitives.ByteArrayWrapper
 import co.topl.stakeholder.components.Serializer
 
 /**

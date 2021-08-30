@@ -3,7 +3,7 @@ package co.topl.stakeholder
 import java.io.{BufferedWriter, File, FileWriter}
 
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
-import io.iohk.iodb.ByteArrayWrapper
+import co.topl.stakeholder.primitives.ByteArrayWrapper
 import co.topl.stakeholder.cases.{Flag, WriteFile}
 import co.topl.stakeholder.components.Tine
 import co.topl.stakeholder.primitives.{KeyFile, Ratio, SharedData}

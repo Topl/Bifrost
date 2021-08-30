@@ -1,7 +1,7 @@
 package co.topl.stakeholder.history
 
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache, RemovalNotification}
-import io.iohk.iodb.ByteArrayWrapper
+import co.topl.stakeholder.primitives.ByteArrayWrapper
 import co.topl.stakeholder.components.{Block, Serializer}
 import co.topl.stakeholder.primitives.{ByteStream, LDBStore, SharedData, SimpleTypes, TetraParameters}
 import co.topl.stakeholder.primitives.Base58

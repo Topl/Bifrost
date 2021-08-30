@@ -5,7 +5,7 @@ import java.io.BufferedWriter
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import co.topl.stakeholder.primitives.{ActorRefWrapper, Kes, KeyFile, Ratio, SharedData, Sig, Vrf}
 import co.topl.stakeholder.providers.TineProvider
-import io.iohk.iodb.ByteArrayWrapper
+import co.topl.stakeholder.primitives.ByteArrayWrapper
 
 import scala.concurrent.duration._
 import co.topl.stakeholder.cases._

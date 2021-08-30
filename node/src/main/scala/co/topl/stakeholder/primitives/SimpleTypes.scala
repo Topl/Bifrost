@@ -1,6 +1,6 @@
 package co.topl.stakeholder.primitives
 
-import io.iohk.iodb.ByteArrayWrapper
+import co.topl.stakeholder.primitives.ByteArrayWrapper
 import co.topl.stakeholder.components.Transaction
 import scala.collection.mutable
 import scala.math.BigInt

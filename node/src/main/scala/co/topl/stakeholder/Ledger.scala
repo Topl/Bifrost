@@ -1,6 +1,6 @@
 package co.topl.stakeholder
 
-import io.iohk.iodb.ByteArrayWrapper
+import co.topl.stakeholder.primitives.ByteArrayWrapper
 import co.topl.stakeholder.cases.SendTx
 import co.topl.stakeholder.components.{Tine, Transaction}
 import co.topl.stakeholder.primitives.SharedData

@@ -5,7 +5,7 @@ import java.net.URL
 
 import akka.util.Timeout
 import com.typesafe.config.{Config, ConfigFactory}
-import io.iohk.iodb.ByteArrayWrapper
+import co.topl.stakeholder.primitives.ByteArrayWrapper
 
 import scala.concurrent.duration._
 import co.topl.stakeholder.remote._

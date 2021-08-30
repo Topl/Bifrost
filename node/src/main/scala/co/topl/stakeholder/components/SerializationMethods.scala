@@ -1,7 +1,7 @@
 package co.topl.stakeholder.components
 
 import com.google.common.primitives.{Bytes, Ints, Longs}
-import io.iohk.iodb.ByteArrayWrapper
+import co.topl.stakeholder.primitives.ByteArrayWrapper
 import co.topl.stakeholder.components
 import co.topl.stakeholder.primitives._
 

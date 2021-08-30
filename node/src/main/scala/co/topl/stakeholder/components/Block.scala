@@ -1,6 +1,6 @@
 package co.topl.stakeholder.components
 
-import io.iohk.iodb.ByteArrayWrapper
+import co.topl.stakeholder.primitives.ByteArrayWrapper
 import co.topl.stakeholder.primitives.SimpleTypes
 import co.topl.stakeholder.primitives.Types.{BlockHeader,GenesisSeq,TransactionSeq}
 

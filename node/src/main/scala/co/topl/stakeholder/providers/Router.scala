@@ -3,7 +3,7 @@ package co.topl.stakeholder.providers
 import akka.actor.{Actor, ActorPath, Props, Timers}
 import akka.util.Timeout
 import com.google.common.primitives.Bytes
-import io.iohk.iodb.ByteArrayWrapper
+import co.topl.stakeholder.primitives.ByteArrayWrapper
 import co.topl.stakeholder.cases._
 import co.topl.stakeholder.components.Serializer
 import co.topl.stakeholder.primitives.{ActorRefWrapper, _}

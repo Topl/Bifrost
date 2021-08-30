@@ -1,6 +1,6 @@
 package co.topl.stakeholder.primitives
 
-import io.iohk.iodb.ByteArrayWrapper
+import co.topl.stakeholder.primitives.ByteArrayWrapper
 import scala.util.Try
 
 /**

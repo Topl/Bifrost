@@ -3,7 +3,7 @@ package co.topl.stakeholder.primitives
 import java.security.MessageDigest
 
 import com.google.common.primitives.Bytes
-import io.iohk.iodb.ByteArrayWrapper
+import co.topl.stakeholder.primitives.ByteArrayWrapper
 import co.topl.stakeholder.components.{Serializer, Transaction}
 
 /**

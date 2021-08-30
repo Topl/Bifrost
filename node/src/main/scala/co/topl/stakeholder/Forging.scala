@@ -1,6 +1,6 @@
 package co.topl.stakeholder
 
-import io.iohk.iodb.ByteArrayWrapper
+import co.topl.stakeholder.primitives.ByteArrayWrapper
 import co.topl.stakeholder.cases.SendBlock
 import co.topl.stakeholder.components.{Block, Tine}
 import co.topl.stakeholder.primitives.{Keys, ForgingKey, Ratio, SharedData, Types}
