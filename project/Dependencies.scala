@@ -2,7 +2,7 @@ import sbt._
 
 object Dependencies {
 
-  val akkaVersion = "2.6.15"
+  val akkaVersion = "2.6.16"
   val akkaHttpVersion = "10.2.6"
   val circeVersion = "0.14.1"
   val kamonVersion = "2.1.21"
@@ -161,7 +161,7 @@ object Dependencies {
     circe ++
     test
 
-  lazy val gjallarhorn: Seq[ModuleID] = {
+  lazy val gjallarhorn: Seq[ModuleID] =
     Seq(
       "com.typesafe.akka"     %% "akka-cluster" % akkaVersion,
       "com.typesafe.akka"     %% "akka-remote"  % akkaVersion,
@@ -173,7 +173,6 @@ object Dependencies {
     logging ++
     misc ++
     it
-  }
 
   lazy val benchmarking: Seq[ModuleID] = Seq()
 
@@ -189,6 +188,11 @@ object Dependencies {
 
   lazy val models: Seq[ModuleID] =
     cats ++ simulacrum ++ newType
+
+  lazy val tools: Seq[ModuleID] =
+    Seq(
+      "org.mongodb.scala" %% "mongo-scala-driver" % "4.2.3"
+    )
 
   lazy val loadTesting: Seq[ModuleID] = {
     Seq(
