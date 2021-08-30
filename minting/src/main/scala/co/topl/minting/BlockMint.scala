@@ -14,25 +14,14 @@ import co.topl.typeclasses.Identifiable.ops._
 
 /**
  * A `Mint` which produces Blocks.
- * @param getCurrentTime A function which fetches the current timestamp
- * @param nextTransactions A function which fetches a collection of transactions that are valid based on the
- *                         provided (head/parent) Block. This should include "Reward" transactions.
- * @param elect A function which asynchronously determines the slot and certificates for the next Block
  */
-class BlockMint[F[_]](
-  address:            TaktikosAddress,
-  getCurrentTime:     () => Timestamp,
-  nextTransactions:   BlockV2 => F[Seq[Transaction]],
-  elect:              BlockHeaderV2 => BlockMint.Election,
-  nextKesCertificate: Slot => F[KesCertificate]
-)(implicit fMonad:    Monad[F])
-    extends Mint[F, BlockV2] {
+class BlockMint[F[_]: Monad](interpreter: BlockMint.Algebra[F]) extends Mint[F, BlockV2] {
 
   override def nextValueAfter(parentBlock: BlockV2): F[BlockV2] = {
-    val BlockMint.Election(slot, vrfCertificate, threshold) = elect(parentBlock.headerV2)
-    nextTransactions(parentBlock).flatMap { transactions =>
-      nextKesCertificate(slot).map { kesCertificate =>
-        val timestamp = getCurrentTime()
+    val BlockMint.Election(slot, vrfCertificate, threshold) = interpreter.elect(parentBlock.headerV2)
+    interpreter.unconfirmedTransactions(parentBlock).flatMap { transactions =>
+      interpreter.nextKesCertificate(slot).map { kesCertificate =>
+        val timestamp = interpreter.currentTime()
         val header = BlockHeaderV2(
           parentHeaderId = parentBlock.headerV2.id,
           txRoot = transactions.merkleTree,
@@ -44,7 +33,7 @@ class BlockMint[F[_]](
           kesCertificate = kesCertificate,
           thresholdEvidence = threshold.evidence,
           metadata = None,
-          address = address
+          address = interpreter.address
         )
         val body = BlockBodyV2(
           transactions = transactions,
@@ -58,4 +47,32 @@ class BlockMint[F[_]](
 
 object BlockMint {
   case class Election(slot: Slot, vrfCertificate: VrfCertificate, threshold: Ratio)
+
+  trait Algebra[F[_]] {
+
+    /**
+     * The staking address
+     */
+    def address: TaktikosAddress
+
+    /**
+     * The current global-clock timestamp
+     */
+    def currentTime(): Timestamp
+
+    /**
+     * All valid unconfirmed transactions at the particular block
+     */
+    def unconfirmedTransactions(block: BlockV2): F[Seq[Transaction]]
+
+    /**
+     * Elect the next slot and certificate based on the given parent
+     */
+    def elect(parent: BlockHeaderV2): BlockMint.Election
+
+    /**
+     * The KES certificate for the particular target slot
+     */
+    def nextKesCertificate(slot: Slot): F[KesCertificate]
+  }
 }

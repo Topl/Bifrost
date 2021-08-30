@@ -68,31 +68,34 @@ object FullNode extends App {
     } yield Secrets.Kes(privateKey, publicKey)
 
   implicit def mint(implicit inMemoryChain: InMemoryChain): BlockMint[Id] = {
-    def elect(parent: BlockHeaderV2) = {
-      val startTime = System.currentTimeMillis()
-      val hit = LeaderElection
-        .hits(
-          vrfKey,
-          inMemoryChain.relativeStake(stakerEvidence),
-          fromSlot = parent.slot,
-          inMemoryChain.epochNonce
-        )
-        .head
+    val interpreter = new BlockMint.Algebra[Id] {
+      def address: TaktikosAddress = taktikosAddress
 
-      val slotDiff = hit.slot - parent.slot
-      Thread.sleep(((slotDiff * slotTime.toMillis) - (System.currentTimeMillis() - startTime)).max(0L))
-      BlockMint.Election(
-        slot = hit.slot,
-        hit.cert,
-        hit.threshold
-      )
-    }
-    new BlockMint[Id](
-      address = taktikosAddress,
-      getCurrentTime = () => System.currentTimeMillis(),
-      nextTransactions = _ => Nil,
-      elect = parent => elect(parent),
-      nextKesCertificate = slot => {
+      def currentTime(): Timestamp = System.currentTimeMillis()
+
+      def unconfirmedTransactions(block: BlockV2): Id[Seq[Transaction]] = Nil
+
+      def elect(parent: BlockHeaderV2): BlockMint.Election = {
+        val startTime = System.currentTimeMillis()
+        val hit = LeaderElection
+          .hits(
+            vrfKey,
+            inMemoryChain.relativeStake(stakerEvidence),
+            fromSlot = parent.slot,
+            inMemoryChain.epochNonce
+          )
+          .head
+
+        val slotDiff = hit.slot - parent.slot
+        Thread.sleep(((slotDiff * slotTime.toMillis) - (System.currentTimeMillis() - startTime)).max(0L))
+        BlockMint.Election(
+          slot = hit.slot,
+          hit.cert,
+          hit.threshold
+        )
+      }
+
+      def nextKesCertificate(slot: Slot): Id[KesCertificate] = {
         val secret = initialKesKey
         KesCertificate(
           secret.publicKey,
@@ -103,7 +106,8 @@ object FullNode extends App {
           slotOffset = slot
         )
       }
-    )
+    }
+    new BlockMint[Id](interpreter)
   }
 
   val initialState =
