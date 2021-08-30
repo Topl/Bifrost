@@ -2,10 +2,10 @@ package co.topl.stakeholder
 
 import akka.actor.{ActorPath, Props}
 import com.google.common.cache.LoadingCache
-import co.topl.primitives.{ActorRefWrapper, Fch, Kes, KeyFile, Keys, TetraParameters, Ratio, Sig, Vrf}
+import co.topl.stakeholder.primitives.{ActorRefWrapper, Fch, Kes, KeyFile, Keys, TetraParameters, Ratio, Sig, Vrf}
 import io.iohk.iodb.ByteArrayWrapper
-import co.topl.components.{Block, Serializer, Tine}
-import co.topl.history.{BlockStorage, ChainStorage, StateStorage}
+import co.topl.stakeholder.components.{Block, Serializer, Tine}
+import co.topl.stakeholder.history.{BlockStorage, ChainStorage, StateStorage}
 import co.topl.settings.AppSettings
 
 import scala.math.BigInt

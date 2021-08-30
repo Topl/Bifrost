@@ -1,6 +1,6 @@
 package co.topl.stakeholder
 
-import co.topl.primitives.Types
+import co.topl.stakeholder.primitives.Types
 
 /**
   * AMS 2020:

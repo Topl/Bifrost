@@ -1,9 +1,9 @@
 package co.topl.stakeholder
 
 import akka.util.Timeout
-import co.topl.cases._
-import co.topl.history.BlockStorage
-import co.topl.primitives.{ActorRefWrapper, TetraParameters}
+import co.topl.stakeholder.cases._
+import co.topl.stakeholder.history.BlockStorage
+import co.topl.stakeholder.primitives.{ActorRefWrapper, TetraParameters}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._

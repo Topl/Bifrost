@@ -2,9 +2,9 @@ package co.topl.stakeholder
 
 import com.google.common.primitives.Ints
 import io.iohk.iodb.ByteArrayWrapper
-import co.topl.components.{Block, Tine, Transaction}
-import co.topl.primitives.{Ratio, SharedData, Types}
-import co.topl.primitives.Base58
+import co.topl.stakeholder.components.{Block, Tine, Transaction}
+import co.topl.stakeholder.primitives.{Ratio, SharedData, Types}
+import co.topl.stakeholder.primitives.Base58
 
 import scala.math.BigInt
 import scala.util.control.Breaks.{break, breakable}

@@ -1,9 +1,9 @@
 package co.topl.stakeholder
 
-import co.topl.components.Tine
-import co.topl.primitives.{Ratio, SharedData}
+import co.topl.stakeholder.components.Tine
+import co.topl.stakeholder.primitives.{Ratio, SharedData}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
-import co.topl.primitives.Base58
+import co.topl.stakeholder.primitives.Base58
 
 import scala.math.BigInt
 

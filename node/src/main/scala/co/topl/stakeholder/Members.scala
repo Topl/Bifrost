@@ -3,9 +3,9 @@ package co.topl.stakeholder
 import akka.actor.{Actor, ActorPath, Timers}
 import com.google.common.cache.LoadingCache
 import io.iohk.iodb.ByteArrayWrapper
-import co.topl.primitives.{ActorRefWrapper, Fch, Kes, KeyFile, Keys, TetraParameters, Ratio, Sig, SimpleTypes, Vrf}
-import co.topl.components.{Block, Serializer, Tine, Transaction}
-import co.topl.history.{BlockStorage, ChainStorage, StateStorage}
+import co.topl.stakeholder.primitives.{ActorRefWrapper, Fch, Kes, KeyFile, Keys, TetraParameters, Ratio, Sig, SimpleTypes, Vrf}
+import co.topl.stakeholder.components.{Block, Serializer, Tine, Transaction}
+import co.topl.stakeholder.history.{BlockStorage, ChainStorage, StateStorage}
 import co.topl.settings.AppSettings
 
 import scala.concurrent.duration._

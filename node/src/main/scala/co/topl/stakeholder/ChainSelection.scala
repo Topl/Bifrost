@@ -2,10 +2,10 @@ package co.topl.stakeholder
 
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import io.iohk.iodb.ByteArrayWrapper
-import co.topl.cases.{BootstrapJob, RequestBlock, RequestTine, SendTx}
-import co.topl.components.{Tine, Transaction}
-import co.topl.primitives.{ActorRefWrapper, Ratio, SharedData}
-import co.topl.primitives.Base58
+import co.topl.stakeholder.cases.{BootstrapJob, RequestBlock, RequestTine, SendTx}
+import co.topl.stakeholder.components.{Tine, Transaction}
+import co.topl.stakeholder.primitives.{ActorRefWrapper, Ratio, SharedData}
+import co.topl.stakeholder.primitives.Base58
 
 import scala.util.{Failure, Success, Try}
 import scala.util.control.Breaks.{break, breakable}

@@ -4,10 +4,10 @@ import java.io.{BufferedWriter, File, FileWriter}
 
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import io.iohk.iodb.ByteArrayWrapper
-import co.topl.cases.{Flag, WriteFile}
-import co.topl.components.Tine
-import co.topl.primitives.{KeyFile, Ratio, SharedData}
-import co.topl.primitives.Base58
+import co.topl.stakeholder.cases.{Flag, WriteFile}
+import co.topl.stakeholder.components.Tine
+import co.topl.stakeholder.primitives.{KeyFile, Ratio, SharedData}
+import co.topl.stakeholder.primitives.Base58
 
 import scala.util.Try
 

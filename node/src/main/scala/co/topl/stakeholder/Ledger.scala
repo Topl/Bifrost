@@ -1,10 +1,10 @@
 package co.topl.stakeholder
 
 import io.iohk.iodb.ByteArrayWrapper
-import co.topl.cases.SendTx
-import co.topl.components.{Tine, Transaction}
-import co.topl.primitives.SharedData
-import co.topl.primitives.Base58
+import co.topl.stakeholder.cases.SendTx
+import co.topl.stakeholder.components.{Tine, Transaction}
+import co.topl.stakeholder.primitives.SharedData
+import co.topl.stakeholder.primitives.Base58
 
 import scala.collection.immutable.ListMap
 import scala.math.BigInt

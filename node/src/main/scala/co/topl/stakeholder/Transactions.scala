@@ -1,8 +1,8 @@
 package co.topl.stakeholder
 
-import co.topl.components.{Serializer, Transaction}
-import co.topl.primitives.Types.{PublicKeyW, State}
-import co.topl.primitives.{Ratio, Sig}
+import co.topl.stakeholder.components.{Serializer, Transaction}
+import co.topl.stakeholder.primitives.Types.{PublicKeyW, State}
+import co.topl.stakeholder.primitives.{Ratio, Sig}
 import scala.math.BigInt
 
 /**

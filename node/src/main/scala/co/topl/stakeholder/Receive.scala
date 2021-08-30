@@ -3,14 +3,14 @@ package co.topl.stakeholder
 import java.io.BufferedWriter
 
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
-import co.topl.primitives.{ActorRefWrapper, Kes, KeyFile, Ratio, SharedData, Sig, Vrf}
-import co.topl.providers.TineProvider
+import co.topl.stakeholder.primitives.{ActorRefWrapper, Kes, KeyFile, Ratio, SharedData, Sig, Vrf}
+import co.topl.stakeholder.providers.TineProvider
 import io.iohk.iodb.ByteArrayWrapper
 
 import scala.concurrent.duration._
-import co.topl.cases._
-import co.topl.components.{Block, Tine, Transaction}
-import co.topl.primitives.Base58
+import co.topl.stakeholder.cases._
+import co.topl.stakeholder.components.{Block, Tine, Transaction}
+import co.topl.stakeholder.primitives.Base58
 
 import scala.math.BigInt
 import scala.util.Random

@@ -1,10 +1,10 @@
 package co.topl.stakeholder
 
 import io.iohk.iodb.ByteArrayWrapper
-import co.topl.cases.SendBlock
-import co.topl.components.{Block, Tine}
-import co.topl.primitives.{Keys, ForgingKey, Ratio, SharedData, Types}
-import co.topl.primitives.Base58
+import co.topl.stakeholder.cases.SendBlock
+import co.topl.stakeholder.components.{Block, Tine}
+import co.topl.stakeholder.primitives.{Keys, ForgingKey, Ratio, SharedData, Types}
+import co.topl.stakeholder.primitives.Base58
 import scala.math.BigInt
 import scala.util.Try
 
