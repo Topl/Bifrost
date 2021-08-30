@@ -1,14 +1,15 @@
 package co.topl.modifier.box
 
 import co.topl.attestation.Address
-import co.topl.utils.Extensions.StringOps
 import co.topl.utils.Int128
-import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import co.topl.utils.codecs.Int128Codec
 import co.topl.utils.codecs.implicits._
-import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
+import co.topl.utils.serialization.{stringCharacterSet, BifrostSerializer, BytesSerializable, Reader, Writer}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
+
+import java.nio.charset.StandardCharsets
 
 sealed abstract class TokenValueHolder(val quantity: Int128) extends BytesSerializable {
   override type M = TokenValueHolder
@@ -87,19 +88,8 @@ case class AssetValue(
   override val quantity: Int128,
   assetCode:             AssetCode,
   securityRoot:          SecurityRoot = SecurityRoot.empty,
-  metadata:              Option[String] = None
-) extends TokenValueHolder(quantity) {
-
-  require(
-    metadata
-      .forall(
-        _.getValidLatin1Bytes
-          .getOrElse(throw new Exception("String is not valid Latin-1"))
-          .length <= AssetValue.metadataLimit
-      ),
-    "Metadata string must be less than 128 Latin-1 characters"
-  )
-}
+  metadata:              Option[Latin1Data] = None
+) extends TokenValueHolder(quantity)
 
 object AssetValue extends BifrostSerializer[AssetValue] {
 
@@ -108,7 +98,7 @@ object AssetValue extends BifrostSerializer[AssetValue] {
 
   // bytes (34 bytes for issuer Address + 8 bytes for asset short name)
   val assetCodeSize: Int = Address.addressSize + 8
-  val metadataLimit: Int = 128 // bytes of Latin-1 encoded string
+  val metadataLimit: Byte = 127 // bytes of Latin-1 encoded string
 
   implicit val jsonEncoder: Encoder[AssetValue] = { (value: AssetValue) =>
     Map(
@@ -125,7 +115,7 @@ object AssetValue extends BifrostSerializer[AssetValue] {
       quantity     <- c.get[Int128]("quantity")(Int128Codec.jsonDecoder)
       assetCode    <- c.downField("assetCode").as[AssetCode]
       securityRoot <- c.downField("securityRoot").as[Option[Base58Data]]
-      metadata     <- c.downField("metadata").as[Option[String]]
+      metadata     <- c.downField("metadata").as[Option[Latin1Data]]
     } yield {
       val sr = securityRoot match {
         case Some(data) => SecurityRoot.fromBase58(data)
@@ -140,7 +130,7 @@ object AssetValue extends BifrostSerializer[AssetValue] {
     AssetCode.serialize(obj.assetCode, w)
     SecurityRoot.serialize(obj.securityRoot, w)
     w.putOption(obj.metadata) { (writer, metadata) =>
-      writer.putByteString(metadata)
+      writer.putByteString(new String(metadata.value, stringCharacterSet))
     }
   }
 
@@ -148,8 +138,8 @@ object AssetValue extends BifrostSerializer[AssetValue] {
     val quantity = r.getInt128()
     val assetCode = AssetCode.parse(r)
     val securityRoot = SecurityRoot.parse(r)
-    val metadata: Option[String] = r.getOption {
-      r.getByteString()
+    val metadata: Option[Latin1Data] = r.getOption {
+      Latin1Data.unsafe(r.getByteString())
     }
 
     AssetValue(quantity, assetCode, securityRoot, metadata)

@@ -1,9 +1,8 @@
 import sbt.Keys.{homepage, organization, test}
 import sbtassembly.MergeStrategy
-import Dependencies._
 
-val scala212 = "2.12.13"
-val scala213 = "2.13.5"
+val scala212 = "2.12.14"
+val scala213 = "2.13.6"
 
 inThisBuild(List(
   organization := "co.topl",
@@ -19,12 +18,14 @@ inThisBuild(List(
   parallelExecution := false
 ))
 
+enablePlugins(ReproducibleBuildsPlugin, ReproducibleBuildsAssemblyPlugin)
+
 lazy val commonSettings = Seq(
   sonatypeCredentialHost := "s01.oss.sonatype.org",
   scalacOptions ++= commonScalacOptions,
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
-  // wartremoverErrors := Warts.unsafe // settings for wartremover
+//  wartremoverErrors := Warts.unsafe, // settings for wartremover
   Compile / unmanagedSourceDirectories += {
     val sourceDir = (Compile / sourceDirectory).value
     CrossVersion.partialVersion(scalaVersion.value) match {
@@ -45,7 +46,8 @@ lazy val commonSettings = Seq(
   resolvers ++= Seq(
     "Typesafe Repository" at "https://repo.typesafe.com/typesafe/releases/",
     "Sonatype Staging" at "https://s01.oss.sonatype.org/content/repositories/staging",
-    "Sonatype Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots/"
+    "Sonatype Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots/",
+    "Bintray" at "https://jcenter.bintray.com/"
   )
 )
 
@@ -72,20 +74,21 @@ lazy val assemblySettings = Seq(
   assembly / mainClass := Some("co.topl.BifrostApp"),
   assembly / test := {},
   assemblyJarName := s"bifrost-${version.value}.jar",
-  assembly / assemblyMergeStrategy ~= { old: ((String) => MergeStrategy) =>
-    {
-      case ps if ps.endsWith(".SF")  => MergeStrategy.discard
-      case ps if ps.endsWith(".DSA") => MergeStrategy.discard
-      case ps if ps.endsWith(".RSA") => MergeStrategy.discard
-      case ps if ps.endsWith(".xml") => MergeStrategy.first
-      case PathList(ps @ _*) if ps.last endsWith "module-info.class" =>
-        MergeStrategy.discard // https://github.com/sbt/sbt-assembly/issues/370
-      case PathList("module-info.java")  => MergeStrategy.discard
-      case PathList("local.conf")        => MergeStrategy.discard
-      case "META-INF/truffle/instrument" => MergeStrategy.concat
-      case "META-INF/truffle/language"   => MergeStrategy.rename
-      case x                             => old(x)
-    }
+  assembly / assemblyMergeStrategy ~= { old: ((String) => MergeStrategy) => {
+    case ps if ps.endsWith(".SF")  => MergeStrategy.discard
+    case ps if ps.endsWith(".DSA") => MergeStrategy.discard
+    case ps if ps.endsWith(".RSA") => MergeStrategy.discard
+    case ps if ps.endsWith(".xml") => MergeStrategy.first
+    case PathList(ps @ _*) if ps.last endsWith "module-info.class" =>
+      MergeStrategy.discard // https://github.com/sbt/sbt-assembly/issues/370
+    case x if x.contains("simulacrum") => MergeStrategy.last
+    case PathList("org", "iq80", "leveldb", xs @ _*) => MergeStrategy.first
+    case PathList("module-info.java")  => MergeStrategy.discard
+    case PathList("local.conf")        => MergeStrategy.discard
+    case "META-INF/truffle/instrument" => MergeStrategy.concat
+    case "META-INF/truffle/language"   => MergeStrategy.rename
+    case x                             => old(x)
+  }
   },
   assembly / assemblyExcludedJars := {
     val cp = (assembly / fullClasspath).value
@@ -116,6 +119,7 @@ lazy val scalamacrosParadiseSettings =
       }
     }
   )
+
 lazy val commonScalacOptions = Seq(
   "-deprecation",
   "-feature",
@@ -166,17 +170,13 @@ lazy val bifrost = project
     node,
     common,
     akkaHttpRpc,
+    models,
+    typeclasses,
     toplRpc,
-    gjallarhorn,
     benchmarking,
     crypto,
-    brambl
-  )
-  .dependsOn(
-    node,
-    common,
-    gjallarhorn,
-    benchmarking
+    brambl,
+    tools
   )
 
 lazy val node = project
@@ -187,6 +187,7 @@ lazy val node = project
     assemblySettings,
     Defaults.itSettings,
     crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
+    Compile / run / mainClass := Some("co.topl.BifrostApp"),
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
@@ -203,7 +204,7 @@ lazy val node = project
   .settings(
     IntegrationTest / parallelExecution := false
   )
-  .dependsOn(common % "compile->compile;test->test", toplRpc)
+  .dependsOn(common % "compile->compile;test->test", toplRpc, tools)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
 lazy val common = project
@@ -253,6 +254,36 @@ lazy val akkaHttpRpc = project
     buildInfoPackage := "co.topl.buildinfo.akkahttprpc"
   )
 
+lazy val models = project
+  .in(file("models"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "models",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.models"
+  )
+  .settings(scalamacrosParadiseSettings)
+  .settings(
+    libraryDependencies ++= Dependencies.models
+  )
+  .settings(libraryDependencies ++= Dependencies.test)
+
+lazy val typeclasses = project
+  .in(file("typeclasses"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "typeclasses",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.typeclasses"
+  )
+  .settings(libraryDependencies ++= Dependencies.test)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(models)
+
 lazy val toplRpc = project
   .in(file("topl-rpc"))
   .enablePlugins(BuildInfoPlugin)
@@ -266,20 +297,21 @@ lazy val toplRpc = project
   )
   .dependsOn(akkaHttpRpc, common)
 
-lazy val gjallarhorn = project
-  .in(file("gjallarhorn"))
-  .settings(
-    name := "gjallarhorn",
-    commonSettings,
-    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
-    publish / skip := true,
-    Defaults.itSettings,
-    libraryDependencies ++= Dependencies.gjallarhorn
-  )
-  .dependsOn(crypto, common)
-  .configs(IntegrationTest)
-  .disablePlugins(sbtassembly.AssemblyPlugin)
-  .settings(scalamacrosParadiseSettings)
+// This module has fallen out of sync with the rest of the codebase and is not currently needed
+//lazy val gjallarhorn = project
+//  .in(file("gjallarhorn"))
+//  .settings(
+//    name := "gjallarhorn",
+//    commonSettings,
+//    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
+//    publish / skip := true,
+//    Defaults.itSettings,
+//    libraryDependencies ++= Dependencies.gjallarhorn
+//  )
+//  .dependsOn(crypto, common)
+//  .configs(IntegrationTest)
+//  .disablePlugins(sbtassembly.AssemblyPlugin)
+//  .settings(scalamacrosParadiseSettings)
 
 lazy val benchmarking = project
   .in(file("benchmark"))
@@ -305,6 +337,28 @@ lazy val crypto = project
     buildInfoPackage := "co.topl.buildinfo.crypto",
     libraryDependencies ++= Dependencies.crypto,
   )
+
+lazy val tools = project
+  .in(file("tools"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "tools",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.tools",
+    libraryDependencies ++= Dependencies.tools
+  )
+
+lazy val loadTesting = project
+  .in(file("load-testing"))
+  .settings(
+    name := "load-testing",
+    commonSettings,
+    scalamacrosParadiseSettings,
+    libraryDependencies ++= Dependencies.loadTesting
+  )
+  .dependsOn(common, brambl)
 
 addCommandAlias("checkPR", "; scalafixAll --check; scalafmtCheckAll; test")
 addCommandAlias("preparePR", "; scalafixAll; scalafmtAll; test")
