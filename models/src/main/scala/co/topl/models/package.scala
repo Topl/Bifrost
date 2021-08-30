@@ -25,7 +25,7 @@ package object models {
   type TaktikosBoxReference = (TaktikosAddress, Nonce)
   type PolyOutput = (Address, Int128)
   type ArbitOutput = (Address, Int128)
-  type AssetOutput = (Address, Asset.Value)
+  type AssetOutput = (Address, Box.Values.Asset)
 
   type TxRoot = Sized.Strict[Bytes, Lengths.`32`.type]
   type BloomFilter = Sized.Strict[Bytes, Lengths.`256`.type]

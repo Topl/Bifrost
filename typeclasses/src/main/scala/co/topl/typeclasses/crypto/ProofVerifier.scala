@@ -121,7 +121,7 @@ object ProofVerifier {
           proof:       Proofs.Consensus.KesCertificate,
           proposition: Propositions.Consensus.PublicKeyKes,
           data:        Data
-        ): Boolean = ???
+        ): Boolean = true // TODO
       }
 
     implicit val consensusMMM: ProofVerifier[Proofs.Consensus.MMM, Propositions.Consensus.PublicKeyKes] =
@@ -131,7 +131,7 @@ object ProofVerifier {
           proof:       Proofs.Consensus.MMM,
           proposition: Propositions.Consensus.PublicKeyKes,
           data:        Data
-        ): Boolean = ???
+        ): Boolean = true // TODO
       }
   }
 }
@@ -157,7 +157,7 @@ object CertificateVerifier {
           "nonce".getBytes(StandardCharsets.UTF_8) ++ epochNonce.toArray
         )
 
-    implicit def kesCertificateVerifier(header: BlockHeaderV2): CertificateVerifier[KesCertificate] =
+    implicit def kesCertificateVerifier(implicit header: BlockHeaderV2): CertificateVerifier[KesCertificate] =
       certificate =>
         certificate.mmmProof.satisfies(Propositions.Consensus.PublicKeyKes(certificate.vkKES), header) &&
         certificate.kesProof.satisfies(

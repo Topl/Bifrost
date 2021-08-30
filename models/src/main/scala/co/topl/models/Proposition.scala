@@ -53,6 +53,15 @@ object Secrets {
 
 }
 
+sealed trait KeyPair
+
+object KeyPairs {
+  case class Curve25519(privateKey: PrivateKeys.Curve25519, publicKey: PublicKeys.Curve25519) extends KeyPair
+  case class Ed25519(privateKey: PrivateKeys.Ed25519, publicKey: PublicKeys.Ed25519) extends KeyPair
+  case class Vrf(privateKey: PrivateKeys.Vrf, publicKey: PublicKeys.Vrf) extends KeyPair
+  case class Kes(privateKey: PrivateKeys.Kes, publicKey: PublicKeys.Kes) extends KeyPair
+}
+
 sealed trait Proof
 
 object Proofs {

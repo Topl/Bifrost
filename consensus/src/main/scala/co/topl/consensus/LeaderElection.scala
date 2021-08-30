@@ -15,11 +15,11 @@ object LeaderElection {
     case class ThresholdNotMet(threshold: Ratio, proof: Bytes) extends Failure
   }
 
-  case class Hit(cert: VrfCertificate, proof: Bytes, slot: Slot)
+  case class Hit(cert: VrfCertificate, proof: Bytes, slot: Slot, threshold: Ratio)
 
   case class Config(lddCutoff: Int, precision: Int, baselineDifficulty: Ratio, amplitude: Ratio)
 
-  def hits(secret: Secrets.Vrf, relativeStake: Ratio, fromSlot: Slot, epochNonce: Nonce)(implicit
+  def hits(secret: KeyPairs.Vrf, relativeStake: Ratio, fromSlot: Slot, epochNonce: Nonce)(implicit
     config:        Config
   ): LazyList[Hit] =
     LazyList
@@ -38,7 +38,7 @@ object LeaderElection {
    * @return a hit if the key has been elected for the slot
    */
   def getHit(
-    secret:          Secrets.Vrf,
+    secret:          KeyPairs.Vrf,
     relativeStake:   Ratio,
     slot:            Slot,
     slotDiff:        Long, // diff between current slot and parent slot
@@ -64,7 +64,8 @@ object LeaderElection {
           Proofs.Consensus.VrfTest(Sized.strict[Bytes, Lengths.`80`.type](vrf.testProof).toOption.get)
         ),
         vrf.nonceProof,
-        slot
+        slot,
+        threshold
       ),
       Failures.ThresholdNotMet(threshold, proof)
     )
@@ -111,9 +112,9 @@ object LeaderElection {
   case class VrfProof(vrf: Vrf, proofFunc: String => Bytes) {
     lazy val testProof: Bytes = proofFunc("TEST")
     lazy val nonceProof: Bytes = proofFunc("NONCE")
-    lazy val testProofHashed: Hash = hash(testProof.unsafeArray.asInstanceOf[Array[Byte]])
+    lazy val testProofHashed: Hash = hash(testProof.toArray)
 
-    def hash(input: Array[Byte]): Hash = Bytes(vrf.vrfProofToHash().Sha512(input))
+    def hash(input: Array[Byte]): Hash = Bytes(vrf.vrfProofToHash(input))
   }
 
   object VrfProof {
@@ -125,7 +126,7 @@ object LeaderElection {
         (token: String) =>
           Bytes(
             vrf.vrfProof(
-              secretData.unsafeArray.asInstanceOf[Array[Byte]],
+              secretData.toArray,
               (epochNonce ++ secretData ++ BigInt(slot).toByteArray ++ token.getBytes).toArray[Byte]
             )
           )

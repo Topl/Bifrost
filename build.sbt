@@ -301,21 +301,7 @@ lazy val typeclasses = project
   )
   .settings(libraryDependencies ++= Dependencies.test)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models)
-
-lazy val ledger = project
-  .in(file("ledger"))
-  .enablePlugins(BuildInfoPlugin)
-  .settings(
-    name := "ledger",
-    commonSettings,
-    publishSettings,
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "co.topl.buildinfo.ledger"
-  )
-  .settings(libraryDependencies ++= Dependencies.test)
-  .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, byteCodecs, typeclasses)
+  .dependsOn(models, crypto, byteCodecs)
 
 lazy val consensus = project
   .in(file("consensus"))
@@ -332,7 +318,7 @@ lazy val consensus = project
     libraryDependencies ++= Dependencies.bouncyCastle
   )
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, typeclasses)
+  .dependsOn(models, typeclasses, crypto, byteCodecs)
 
 lazy val minting = project
   .in(file("minting"))
@@ -346,7 +332,7 @@ lazy val minting = project
   )
   .settings(libraryDependencies ++= Dependencies.test)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, typeclasses)
+  .dependsOn(models, typeclasses, crypto, byteCodecs)
 
 lazy val fullNode = project
   .in(file("full-node"))
@@ -358,9 +344,9 @@ lazy val fullNode = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.fullnode"
   )
-  .settings(libraryDependencies ++= Dependencies.test)
+  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.fullNode)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, typeclasses, ledger, consensus, minting)
+  .dependsOn(models, typeclasses, consensus, minting)
 
 lazy val toplRpc = project
   .in(file("topl-rpc"))
@@ -375,18 +361,6 @@ lazy val toplRpc = project
     buildInfoPackage := "co.topl.buildinfo.toplrpc"
   )
   .dependsOn(akkaHttpRpc, common)
-
-lazy val levelDb = project
-  .in(file("leveldb"))
-  .settings(
-    name := "leveldb",
-    commonSettings,
-    publishSettings,
-    scalamacrosParadiseSettings,
-    libraryDependencies ++= Dependencies.levelDb ++ Dependencies.simulacrum,
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "co.topl.buildinfo.leveldb"
-  )
 
 // This module has fallen out of sync with the rest of the codebase and is not currently needed
 //lazy val gjallarhorn = project

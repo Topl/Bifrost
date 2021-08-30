@@ -1,6 +1,6 @@
 package co.topl.models.utility
 
-import co.topl.models.Bytes
+import co.topl.models.{Bytes, TypedBytes}
 import co.topl.models.utility.StringDataTypes.Latin1Data
 
 object Sized {
@@ -75,6 +75,9 @@ object HasLength {
 
     implicit val latin1DataLength: HasLength[Latin1Data] =
       _.value.length
+
+    implicit val typedDataLength: HasLength[TypedBytes] =
+      _.allBytes.length
   }
 
   object implicits extends Instances

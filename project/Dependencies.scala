@@ -33,7 +33,10 @@ object Dependencies {
     "com.typesafe.akka" %% "akka-http-testkit"   % akkaHttpVersion % "it"
   )
 
-  val akka = Seq(
+  def akka(name: String): ModuleID =
+    "com.typesafe.akka" %% s"akka-$name" % akkaVersion
+
+  val allAkka = Seq(
     "com.typesafe.akka" %% "akka-actor"          % akkaVersion,
     "com.typesafe.akka" %% "akka-stream"         % akkaVersion,
     "com.typesafe.akka" %% "akka-http"           % akkaHttpVersion,
@@ -109,7 +112,7 @@ object Dependencies {
     logging ++
     test ++
     it ++
-    akka ++
+    allAkka ++
     network ++
     circe ++
     misc ++
@@ -146,7 +149,7 @@ object Dependencies {
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.5.0"
     ) ++
     circe ++
-    akka ++
+    allAkka ++
     test
 
   lazy val toplRpc: Seq[ModuleID] =
@@ -163,7 +166,7 @@ object Dependencies {
       "com.typesafe.akka"     %% "akka-remote"  % akkaVersion,
       "com.github.pureconfig" %% "pureconfig"   % "0.16.0"
     ) ++
-    akka ++
+    allAkka ++
     test ++
     circe ++
     logging ++
@@ -185,5 +188,8 @@ object Dependencies {
 
   lazy val models: Seq[ModuleID] =
     cats ++ simulacrum ++ newType
+
+  lazy val fullNode: Seq[ModuleID] =
+    Seq(akka("actor"), akka("actor-typed"), akka("stream"))
 
 }

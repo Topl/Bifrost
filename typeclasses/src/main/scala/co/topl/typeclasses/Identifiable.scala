@@ -70,4 +70,6 @@ object IdentifierTypes {
     val Registration: TypePrefix = 4: Byte
     val Taktikos: TypePrefix = 5: Byte
   }
+
+  val RatioEvidence = 6: Byte
 }

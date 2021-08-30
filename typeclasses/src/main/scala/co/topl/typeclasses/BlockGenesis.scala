@@ -50,7 +50,12 @@ object BlockGenesis {
         slot = 0,
         vrfCertificate = vrfCertificate,
         kesCertificate = kesCertificate,
-        thresholdEvidence = Sized.strict[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(0))).toOption.get,
+        thresholdEvidence = Sized
+          .strict[TypedBytes, Lengths.`33`.type](
+            TypedBytes(IdentifierTypes.RatioEvidence, Bytes(Array.fill[Byte](32)(0)))
+          )
+          .toOption
+          .get,
         metadata = None,
         address = address
       )

@@ -7,7 +7,7 @@ import co.topl.models.utility.StringDataTypes.Latin1Data
 case class BlockV1(
   parentId:     TypedIdentifier,
   timestamp:    Timestamp,
-  generatorBox: ArbitBox,
+  generatorBox: Box[Box.Values.Arbit],
   publicKey:    Bytes,
   signature:    Bytes,
   height:       Long,
@@ -27,7 +27,7 @@ case class BlockHeaderV2(
   slot:              Slot,
   vrfCertificate:    VrfCertificate,
   kesCertificate:    KesCertificate,
-  thresholdEvidence: Sized.Strict[Bytes, Lengths.`32`.type],
+  thresholdEvidence: Evidence,
   // TODO: Discussion on mint signatures
   metadata: Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
   address:  TaktikosAddress

@@ -1,6 +1,5 @@
 package co.topl.typeclasses.crypto
 
-import cats.{Monoid, MonoidK}
 import co.topl.models.{Bytes, PublicKey}
 import simulacrum.{op, typeclass}
 
