@@ -37,19 +37,12 @@ Table 1: Parameters of Ed25519
  * Directly ported from BouncyCastle implementation of Ed25519 RFC8032 https://tools.ietf.org/html/rfc8032
  * Licensing: https://www.bouncycastle.org/licence.html
  * Copyright (c) 2000 - 2021 The Legion of the Bouncy Castle Inc. (https://www.bouncycastle.org)
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
- * documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
- * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
- * Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
- * WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
- * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-private[crypto] trait EC {
+trait EC {
 
   val x25519Field: X25519Field = new X25519Field
 
@@ -149,7 +142,33 @@ private[crypto] trait EC {
     def reset(): Unit = digest.reset()
   }
 
-  val shaDigest: SHA512Digest = new SHA512Digest
+  class SHA256Digest {
+
+    val digest: MessageDigest = MessageDigest.getInstance("SHA-256")
+
+    def Sha256(bytes: Array[Byte]): Array[Byte] = {
+      digest.reset()
+      digest.update(bytes)
+      digest.digest()
+    }
+
+    def getAlgorithmName: String = "SHA-256"
+
+    def getDigestSize: Int = 32
+
+    def update(in: Byte): Unit = digest.update(in)
+
+    def update(in: Array[Byte], inOff: Int, len: Int): Unit = digest.update(in, inOff, len)
+
+    def doFinal(out: Array[Byte], outOff: Int): Int =
+      digest.digest(out, outOff, out.length)
+
+    def reset(): Unit = digest.reset()
+  }
+
+  val sha512Digest: SHA512Digest = new SHA512Digest
+
+  val sha256Digest: SHA256Digest = new SHA256Digest
 
   def mulAddTo256(x: Array[Int], y: Array[Int], zz: Array[Int]): Int = {
     val y_0: Long = y(0) & M
@@ -386,7 +405,7 @@ private[crypto] trait EC {
         val bit = word16 & 1
         if (bit == carry) {
           j += 1
-          break()
+          break
         }
         var digit = (word16 & mask) + carry
         carry = digit & sign
@@ -842,7 +861,7 @@ private[crypto] trait EC {
           x25519Field.cnegate(sign, p.xyd)
           pointAddPrecomp(p, r)
         }
-        if ({ cOff -= PRECOMP_TEETH; cOff } < 0) break()
+        if ({ cOff -= PRECOMP_TEETH; cOff } < 0) break
         pointDouble(r)
       }
     }
@@ -877,7 +896,7 @@ private[crypto] trait EC {
           val index = (wp ^ sign) >>> 1
           pointAddVar(sign != 0, tp(index), r)
         }
-        if ({ bit -= 1; bit } < 0) break()
+        if ({ bit -= 1; bit } < 0) break
         pointDouble(r)
       }
     }

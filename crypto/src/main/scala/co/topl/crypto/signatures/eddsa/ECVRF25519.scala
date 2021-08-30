@@ -9,7 +9,7 @@ import java.security.SecureRandom
  * https://tools.ietf.org/html/draft-irtf-cfrg-vrf-04
  */
 
-private[crypto] class ECVRF25519 extends EC {
+class ECVRF25519 extends EC {
   val suite: Array[Byte] = Array(0x03.toByte)
   val cofactor: Array[Byte] = Array.fill(SCALAR_BYTES)(0x00.toByte)
   val zeroScalar: Array[Byte] = Array.fill(SCALAR_BYTES)(0x00.toByte)
@@ -29,9 +29,9 @@ private[crypto] class ECVRF25519 extends EC {
     random.nextBytes(k)
 
   def generatePublicKey(sk: Array[Byte], skOff: Int, pk: Array[Byte], pkOff: Int): Unit = {
-    val h = new Array[Byte](shaDigest.getDigestSize)
-    shaDigest.update(sk, skOff, SECRET_KEY_SIZE)
-    shaDigest.doFinal(h, 0)
+    val h = new Array[Byte](sha512Digest.getDigestSize)
+    sha512Digest.update(sk, skOff, SECRET_KEY_SIZE)
+    sha512Digest.doFinal(h, 0)
     val s = new Array[Byte](SCALAR_BYTES)
     pruneScalar(h, 0, s)
     scalarMultBaseEncoded(s, pk, pkOff)
@@ -63,9 +63,9 @@ private[crypto] class ECVRF25519 extends EC {
   }
 
   def pruneHash(s: Array[Byte]): Array[Byte] = {
-    val h: Array[Byte] = new Array[Byte](shaDigest.getDigestSize)
-    shaDigest.update(s, 0, SECRET_KEY_SIZE)
-    shaDigest.doFinal(h, 0)
+    val h: Array[Byte] = new Array[Byte](sha512Digest.getDigestSize)
+    sha512Digest.update(s, 0, SECRET_KEY_SIZE)
+    sha512Digest.doFinal(h, 0)
     h.update(0, (h(0) & 0xf8).toByte)
     h.update(SCALAR_BYTES - 1, (h(SCALAR_BYTES - 1) & 0x7f).toByte)
     h.update(SCALAR_BYTES - 1, (h(SCALAR_BYTES - 1) | 0x40).toByte)
@@ -147,9 +147,9 @@ private[crypto] class ECVRF25519 extends EC {
     while (!isPoint) {
       val ctr_byte = Array(ctr.toByte)
       val input = suite ++ one ++ Y ++ a ++ ctr_byte
-      val output = new Array[Byte](shaDigest.getDigestSize)
-      shaDigest.update(input, 0, input.length)
-      shaDigest.doFinal(output, 0)
+      val output = new Array[Byte](sha512Digest.getDigestSize)
+      sha512Digest.update(input, 0, input.length)
+      sha512Digest.doFinal(output, 0)
       java.lang.System.arraycopy(output, 0, hash, 0, POINT_BYTES)
       isPoint = decodePointVar(hash, 0, negate = false, H)
       if (isPoint) {
@@ -186,7 +186,7 @@ private[crypto] class ECVRF25519 extends EC {
     val two: Array[Byte] = Array(0x02.toByte)
     var str: Array[Byte] = suite ++ two
     val r: Array[Byte] = Array.fill(POINT_BYTES)(0x00.toByte)
-    val out: Array[Byte] = new Array[Byte](shaDigest.getDigestSize)
+    val out: Array[Byte] = new Array[Byte](sha512Digest.getDigestSize)
     encodePoint(p1, r, 0)
     str = str ++ r
     encodePoint(p2, r, 0)
@@ -195,8 +195,8 @@ private[crypto] class ECVRF25519 extends EC {
     str = str ++ r
     encodePoint(p4, r, 0)
     str = str ++ r
-    shaDigest.update(str, 0, str.length)
-    shaDigest.doFinal(out, 0)
+    sha512Digest.update(str, 0, str.length)
+    sha512Digest.doFinal(out, 0)
     out.take(C_BYTES) ++ Array.fill(SCALAR_BYTES - C_BYTES)(0x00.toByte)
   }
 
@@ -216,12 +216,12 @@ private[crypto] class ECVRF25519 extends EC {
    */
 
   private def ECVRF_nonce_generation_RFC8032(sk: Array[Byte], h: Array[Byte]): Array[Byte] = {
-    val out: Array[Byte] = new Array[Byte](shaDigest.getDigestSize)
-    shaDigest.update(sk, 0, SECRET_KEY_SIZE)
-    shaDigest.doFinal(out, 0)
+    val out: Array[Byte] = new Array[Byte](sha512Digest.getDigestSize)
+    sha512Digest.update(sk, 0, SECRET_KEY_SIZE)
+    sha512Digest.doFinal(out, 0)
     val trunc_hashed_sk = out.drop(SCALAR_BYTES) ++ h
-    shaDigest.update(trunc_hashed_sk, 0, trunc_hashed_sk.length)
-    shaDigest.doFinal(out, 0)
+    sha512Digest.update(trunc_hashed_sk, 0, trunc_hashed_sk.length)
+    sha512Digest.doFinal(out, 0)
     val k_string = out
     reduceScalar(k_string)
   }
@@ -386,9 +386,9 @@ private[crypto] class ECVRF25519 extends EC {
     val cg_enc = Array.fill(POINT_BYTES)(0x00.toByte)
     encodePoint(cg, cg_enc, 0)
     val input = suite ++ three ++ cg_enc
-    val out = new Array[Byte](shaDigest.getDigestSize)
-    shaDigest.update(input, 0, input.length)
-    shaDigest.doFinal(out, 0)
+    val out = new Array[Byte](sha512Digest.getDigestSize)
+    sha512Digest.update(input, 0, input.length)
+    sha512Digest.doFinal(out, 0)
     out
   }
 

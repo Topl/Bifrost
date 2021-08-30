@@ -2,7 +2,7 @@ import sbt._
 
 object Dependencies {
 
-  val akkaVersion = "2.6.15"
+  val akkaVersion = "2.6.16"
   val akkaHttpVersion = "10.2.6"
   val circeVersion = "0.14.1"
   val kamonVersion = "2.1.21"
@@ -39,11 +39,13 @@ object Dependencies {
   val allAkka = Seq(
     "com.typesafe.akka" %% "akka-actor"          % akkaVersion,
     "com.typesafe.akka" %% "akka-stream"         % akkaVersion,
+    "com.typesafe.akka" %% "akka-stream-typed"   % akkaVersion,
     "com.typesafe.akka" %% "akka-http"           % akkaHttpVersion,
     "com.typesafe.akka" %% "akka-http-core"      % akkaHttpVersion,
     "com.typesafe.akka" %% "akka-slf4j"          % akkaVersion,
     "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion     % Test,
-    "com.typesafe.akka" %% "akka-http-testkit"   % akkaHttpVersion % Test
+    "com.typesafe.akka" %% "akka-http-testkit"   % akkaHttpVersion % Test,
+    "com.typesafe.akka" %% "akka-actor-typed"    % akkaVersion
   )
 
   val network = Seq(
@@ -122,7 +124,8 @@ object Dependencies {
   lazy val common: Seq[ModuleID] =
     Seq(
       "com.typesafe.akka"      %% "akka-actor"              % akkaVersion,
-      "org.scala-lang.modules" %% "scala-collection-compat" % "2.5.0"
+      "org.scala-lang.modules" %% "scala-collection-compat" % "2.5.0",
+      "org.scodec"             %% "scodec-bits"             % "1.1.27"
     ) ++
     logging ++
     circe ++
@@ -160,7 +163,7 @@ object Dependencies {
     circe ++
     test
 
-  lazy val gjallarhorn: Seq[ModuleID] = {
+  lazy val gjallarhorn: Seq[ModuleID] =
     Seq(
       "com.typesafe.akka"     %% "akka-cluster" % akkaVersion,
       "com.typesafe.akka"     %% "akka-remote"  % akkaVersion,
@@ -172,7 +175,6 @@ object Dependencies {
     logging ++
     misc ++
     it
-  }
 
   lazy val benchmarking: Seq[ModuleID] = Seq()
 
@@ -191,5 +193,19 @@ object Dependencies {
 
   lazy val fullNode: Seq[ModuleID] =
     Seq(akka("actor"), akka("actor-typed"), akka("stream"))
+
+  lazy val tools: Seq[ModuleID] =
+    Seq(
+      "org.mongodb.scala" %% "mongo-scala-driver" % "4.2.3"
+    )
+
+  lazy val loadTesting: Seq[ModuleID] = {
+    Seq(
+      "com.lihaoyi"    %% "mainargs" % "0.2.1",
+      "com.nike.fleam" %% "fleam"    % "7.0.0"
+    ) ++
+    allAkka ++
+    circe
+  }
 
 }

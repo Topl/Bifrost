@@ -8,19 +8,12 @@ import java.util
  * Ed25519 ported from BouncyCastle
  * Licensing: https://www.bouncycastle.org/licence.html
  * Copyright (c) 2000 - 2021 The Legion of the Bouncy Castle Inc. (https://www.bouncycastle.org)
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
- * documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
- * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
- * Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
- * WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
- * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-private[crypto] class ECEd25519 extends EC {
+class Ed25519 extends EC {
 
   def dom2(d: SHA512Digest, phflag: Byte, ctx: Array[Byte]): Unit =
     if (ctx.nonEmpty) {
@@ -34,9 +27,9 @@ private[crypto] class ECEd25519 extends EC {
     random.nextBytes(k)
 
   def generatePublicKey(sk: Array[Byte], skOff: Int, pk: Array[Byte], pkOff: Int): Unit = {
-    val h = new Array[Byte](shaDigest.getDigestSize)
-    shaDigest.update(sk, skOff, SECRET_KEY_SIZE)
-    shaDigest.doFinal(h, 0)
+    val h = new Array[Byte](sha512Digest.getDigestSize)
+    sha512Digest.update(sk, skOff, SECRET_KEY_SIZE)
+    sha512Digest.doFinal(h, 0)
     val s = new Array[Byte](SCALAR_BYTES)
     pruneScalar(h, 0, s)
 
@@ -87,14 +80,14 @@ private[crypto] class ECEd25519 extends EC {
     sigOff: Int
   ): Unit = {
     if (!checkContextVar(ctx, phflag)) throw new IllegalArgumentException("ctx")
-    val h = new Array[Byte](shaDigest.getDigestSize)
-    shaDigest.update(sk, skOff, SECRET_KEY_SIZE)
-    shaDigest.doFinal(h, 0)
+    val h = new Array[Byte](sha512Digest.getDigestSize)
+    sha512Digest.update(sk, skOff, SECRET_KEY_SIZE)
+    sha512Digest.doFinal(h, 0)
     val s = new Array[Byte](SCALAR_BYTES)
     pruneScalar(h, 0, s)
     val pk = new Array[Byte](POINT_BYTES)
     scalarMultBaseEncoded(s, pk, 0)
-    implSign(shaDigest, h, s, pk, 0, ctx, phflag, m, mOff, mLen, sig, sigOff)
+    implSign(sha512Digest, h, s, pk, 0, ctx, phflag, m, mOff, mLen, sig, sigOff)
   }
 
   def implSign(
@@ -111,12 +104,12 @@ private[crypto] class ECEd25519 extends EC {
     sigOff: Int
   ): Unit = {
     if (!checkContextVar(ctx, phflag)) throw new IllegalArgumentException("ctx")
-    val h = new Array[Byte](shaDigest.getDigestSize)
-    shaDigest.update(sk, skOff, SECRET_KEY_SIZE)
-    shaDigest.doFinal(h, 0)
+    val h = new Array[Byte](sha512Digest.getDigestSize)
+    sha512Digest.update(sk, skOff, SECRET_KEY_SIZE)
+    sha512Digest.doFinal(h, 0)
     val s = new Array[Byte](SCALAR_BYTES)
     pruneScalar(h, 0, s)
-    implSign(shaDigest, h, s, pk, pkOff, ctx, phflag, m, mOff, mLen, sig, sigOff)
+    implSign(sha512Digest, h, s, pk, pkOff, ctx, phflag, m, mOff, mLen, sig, sigOff)
   }
 
   def implVerify(
@@ -137,12 +130,12 @@ private[crypto] class ECEd25519 extends EC {
     if (!checkScalarVar(S)) return false
     val pA = new PointExt
     if (!decodePointVar(pk, pkOff, negate = true, pA)) return false
-    val h = new Array[Byte](shaDigest.getDigestSize)
-    dom2(shaDigest, phflag, ctx)
-    shaDigest.update(R, 0, POINT_BYTES)
-    shaDigest.update(pk, pkOff, POINT_BYTES)
-    shaDigest.update(m, mOff, mLen)
-    shaDigest.doFinal(h, 0)
+    val h = new Array[Byte](sha512Digest.getDigestSize)
+    dom2(sha512Digest, phflag, ctx)
+    sha512Digest.update(R, 0, POINT_BYTES)
+    sha512Digest.update(pk, pkOff, POINT_BYTES)
+    sha512Digest.update(m, mOff, mLen)
+    sha512Digest.doFinal(h, 0)
     val k = reduceScalar(h)
     val nS = new Array[Int](SCALAR_INTS)
     decodeScalar(S, 0, nS)
@@ -155,15 +148,7 @@ private[crypto] class ECEd25519 extends EC {
     util.Arrays.equals(check, R)
   }
 
-  def sign(
-    sk:     Array[Byte],
-    skOff:  Int,
-    m:      Array[Byte],
-    mOff:   Int,
-    mLen:   Int,
-    sig:    Array[Byte],
-    sigOff: Int
-  ): Unit = {
+  def sign(sk: Array[Byte], skOff: Int, m: Array[Byte], mOff: Int, mLen: Int, sig: Array[Byte], sigOff: Int): Unit = {
     val ctx: Array[Byte] = Array.empty
     val phflag: Byte = 0x00
     implSign(sk, skOff, ctx, phflag, m, mOff, mLen, sig, sigOff)
