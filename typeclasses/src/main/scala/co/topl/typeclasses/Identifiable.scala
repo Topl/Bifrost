@@ -26,6 +26,7 @@ object Identifiable {
         override def typePrefix: TypePrefix = IdentifierTypes.Block.HeaderV2
       }
 
+    // TODO: hash(blockHeaderId ++ txRoot)
     implicit val identifiableBlockBodyV2: Identifiable[BlockBodyV2] =
       new Identifiable[BlockBodyV2] {
 

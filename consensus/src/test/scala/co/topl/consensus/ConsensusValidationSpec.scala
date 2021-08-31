@@ -140,8 +140,7 @@ class ConsensusValidationSpec
         .once()
         .returning(OptionT.pure[Id](relativeStake))
 
-      // TODO: Re-enable
-      child.validatedUsing(interpreter) //.value.value.header shouldBe child
+      child.validatedUsing(interpreter).value.value.header shouldBe child
     }
   }
 

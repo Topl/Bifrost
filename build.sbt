@@ -304,6 +304,20 @@ lazy val typeclasses = project
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, crypto, byteCodecs)
 
+lazy val algebras = project
+  .in(file("algebras"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "algebras",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.algebras"
+  )
+  .settings(libraryDependencies ++= Dependencies.test)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(models, crypto, byteCodecs)
+
 lazy val consensus = project
   .in(file("consensus"))
   .enablePlugins(BuildInfoPlugin)
@@ -333,7 +347,7 @@ lazy val minting = project
   )
   .settings(libraryDependencies ++= Dependencies.test)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, typeclasses, crypto, byteCodecs)
+  .dependsOn(models, typeclasses, crypto, byteCodecs, algebras)
 
 lazy val fullNode = project
   .in(file("full-node"))

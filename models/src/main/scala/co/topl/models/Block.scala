@@ -12,8 +12,8 @@ case class BlockV1(
   signature:    Bytes,
   height:       Long,
   difficulty:   Long,
-  txRoot:       Sized.Strict[Bytes, Lengths.`32`.type],
-  bloomFilter:  Sized.Strict[Bytes, Lengths.`256`.type],
+  txRoot:       TxRoot,
+  bloomFilter:  BloomFilter,
   transactions: Seq[Transaction]
 )
 
@@ -33,7 +33,7 @@ case class BlockHeaderV2(
   address:  TaktikosAddress
 )
 
-// id = hash(bodyBytes)
+// id = hash(headerId, txRoot)
 case class BlockBodyV2(
   headerId:     TypedIdentifier,
   transactions: Seq[Transaction]

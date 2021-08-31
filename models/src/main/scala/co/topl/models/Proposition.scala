@@ -27,6 +27,11 @@ object Propositions {
 }
 
 // TODO: Secrets for payment vs. staking
+
+/**
+ * Used in the creation of a Proof
+ * TODO: Rename Secret
+ */
 sealed trait Secret
 
 object Secrets {

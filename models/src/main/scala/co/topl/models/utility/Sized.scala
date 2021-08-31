@@ -41,6 +41,7 @@ object Lengths {
   implicit case object `1` extends Length(1)
   implicit case object `2` extends Length(2)
   implicit case object `4` extends Length(4)
+  implicit case object `8` extends Length(8)
   implicit case object `32` extends Length(32)
   implicit case object `33` extends Length(33)
   implicit case object `58` extends Length(58)
