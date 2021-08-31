@@ -57,14 +57,77 @@ object ArbitTransfer {
     Identifier(typeString, typePrefix)
   }
 
-  /**
-   * @param boxReader
-   * @param toReceive
-   * @param sender
-   * @param fee
-   * @param data
-   * @return
-   */
+  object Validation {
+    sealed trait InvalidArbitTransfer
+
+    case object InsufficientFunds extends InvalidArbitTransfer
+
+    case object EmptyPolyInputs extends InvalidArbitTransfer
+
+    case object DuplicatePolyInputs extends InvalidArbitTransfer
+
+    case object EmptyArbitInputs extends InvalidArbitTransfer
+
+    case object DuplicateArbitInputs extends InvalidArbitTransfer
+
+    case object NoRecipients extends InvalidArbitTransfer
+
+    case object NonUniqueRecipients extends InvalidArbitTransfer
+
+    type ValidationResult[T] = Either[InvalidArbitTransfer, T]
+
+    def validatePolyBoxes(polyBoxes: IndexedSeq[(Address, PolyBox)]): ValidationResult[IndexedSeq[(Address, PolyBox)]] =
+      for {
+        _ <- Either.cond(polyBoxes.nonEmpty, polyBoxes, EmptyPolyInputs)
+        _ <- Either.cond(polyBoxes.distinctBy(_._2.nonce).length == polyBoxes.length, polyBoxes, DuplicatePolyInputs)
+      } yield polyBoxes
+
+    def validateArbitBoxes(
+      arbitBoxes: IndexedSeq[(Address, ArbitBox)]
+    ): ValidationResult[IndexedSeq[(Address, ArbitBox)]] =
+      for {
+        _ <- Either.cond(arbitBoxes.nonEmpty, arbitBoxes, EmptyArbitInputs)
+        _ <- Either.cond(
+          arbitBoxes.distinctBy(_._2.nonce).length == arbitBoxes.length,
+          arbitBoxes,
+          DuplicateArbitInputs
+        )
+      } yield arbitBoxes
+
+    def validateRecipients(
+      recipients: IndexedSeq[(Address, SimpleValue)]
+    ): ValidationResult[IndexedSeq[(Address, SimpleValue)]] =
+      for {
+        _ <- Either.cond(recipients.nonEmpty, recipients, NoRecipients)
+        _ <- Either.cond(recipients.distinctBy(_._1).length == recipients.length, recipients, NonUniqueRecipients)
+      } yield recipients
+
+    def validateFeeFunds(funds: Int128, feeAmount: Int128): ValidationResult[Int128] =
+      Either.cond(funds >= feeAmount, funds - feeAmount, InsufficientFunds)
+
+    def validatePaymentFunds(funds: Int128, paymentAmount: Int128): ValidationResult[Int128] =
+      Either.cond(funds >= paymentAmount, funds - paymentAmount, InsufficientFunds)
+
+  }
+
+  import Validation._
+
+  def validated[P <: Proposition: EvidenceProducer: Identifiable](
+    polyBoxes:     IndexedSeq[(Address, PolyBox)],
+    arbitBoxes:    IndexedSeq[(Address, ArbitBox)],
+    recipients:    IndexedSeq[(Address, SimpleValue)],
+    changeAddress: Address,
+    fee:           Int128,
+    data:          Option[Latin1Data]
+  ): ValidationResult[ArbitTransfer[P]] =
+    for {
+      _ <- validatePolyBoxes(polyBoxes)
+      _ <- validateArbitBoxes(arbitBoxes)
+      _ <- validateRecipients(recipients)
+      change <- validateFeeFunds(polyBoxes.map(_._2.value.quantity).sum, fee)
+      changeBox = changeAddress -> SimpleValue(change)
+    }
+
   def createRaw[
     P <: Proposition: EvidenceProducer: Identifiable
   ](

@@ -199,6 +199,7 @@ object AssetTransfer {
           .foldLeft((IndexedSeq[(Address, PolyBox)](), IndexedSeq[(Address, AssetBox)]())) {
             case ((polyBoxes, assetBoxes), (addr: Address, box: PolyBox))  => (polyBoxes :+ (addr -> box), assetBoxes)
             case ((polyBoxes, assetBoxes), (addr: Address, box: AssetBox)) => (polyBoxes, assetBoxes :+ (addr -> box))
+            case (boxes, _) => boxes
           }
       assetTransfer <- validated(
         polyBoxes,

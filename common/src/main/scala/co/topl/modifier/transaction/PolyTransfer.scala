@@ -139,13 +139,14 @@ object PolyTransfer {
     fee:           Int128,
     data:          Option[Latin1Data]
   ): ValidationResult[PolyTransfer[P]] = {
-    val polyBoxes = sender
-      .map(addr => addr -> boxReader.getTokenBoxes(addr).getOrElse(IndexedSeq()))
-      .flatMap((senderBoxes: (Address, Seq[TokenBox[TokenValueHolder]])) => senderBoxes._2.map(senderBoxes._1 -> _))
-      .foldLeft(IndexedSeq[(Address, PolyBox)]()) {
-        case (polyBoxes, (addr: Address, box: PolyBox)) => polyBoxes :+ (addr -> box)
-        case (polyBoxes, _)                             => polyBoxes
-      }
+    val polyBoxes =
+      sender
+        .map(addr => addr -> boxReader.getTokenBoxes(addr).getOrElse(IndexedSeq()))
+        .flatMap((senderBoxes: (Address, Seq[TokenBox[TokenValueHolder]])) => senderBoxes._2.map(senderBoxes._1 -> _))
+        .foldLeft(IndexedSeq[(Address, PolyBox)]()) {
+          case (polyBoxes, (addr: Address, box: PolyBox)) => polyBoxes :+ (addr -> box)
+          case (polyBoxes, _)                             => polyBoxes
+        }
 
     validated(polyBoxes, recipients, changeAddress, fee, data)
   }
