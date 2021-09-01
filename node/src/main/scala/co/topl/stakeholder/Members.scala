@@ -98,7 +98,7 @@ trait Members extends SimpleTypes with Actor with Timers {
   var localSlot:Slot
   var currentEpoch:Int
   var coordinatorRef:ActorRefWrapper
-
+  var localClockOffset:Long
   var bootStrapLock:Boolean
   var helloLock:Boolean
   var bootStrapJob:Int
@@ -177,5 +177,6 @@ trait Members extends SimpleTypes with Actor with Timers {
   def chooseLedger(pkw:PublicKeyW,mp:MemPool,s:State):TransactionSeq
   def timeFlag[R](block: => R):R
   def time[R](block: => R):R
+  def globalTime:Long
 
 }

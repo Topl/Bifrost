@@ -2,14 +2,14 @@ package co.topl.stakeholder
 
 import akka.actor.{ActorPath, Props}
 import com.google.common.cache.LoadingCache
-import co.topl.stakeholder.primitives.{ActorRefWrapper, Fch, Kes, KeyFile, Keys, TetraParameters, Ratio, Sig, Vrf}
-import co.topl.stakeholder.primitives.ByteArrayWrapper
+import co.topl.stakeholder.primitives.{ActorRefWrapper, ByteArrayWrapper, Fch, Kes, KeyFile, Keys, NTPClient, Ratio, Sig, TetraParameters, Vrf}
 import co.topl.stakeholder.components.{Block, Serializer, Tine}
 import co.topl.stakeholder.history.{BlockStorage, ChainStorage, StateStorage}
 import co.topl.settings.AppSettings
+import co.topl.stakeholder.cases.GetTime
 
 import scala.math.BigInt
-import scala.util.Random
+import scala.util.{Failure, Random, Success, Try}
 
 /**
   * AMS 2020:
@@ -50,7 +50,7 @@ class Stakeholder(
   with Validation
 {
   implicit val routerRef:ActorRefWrapper = inputRef.head
-  val localRef:ActorRefWrapper = inputRef(1)
+  val localRef:ActorRefWrapper = inputRef.head
   val seed:Array[Byte] = inputSeed
   val serializer:Serializer = new Serializer
   val storageDir:String = inputDataDir match {
@@ -123,6 +123,30 @@ class Stakeholder(
   var thresholdCache: Option[LoadingCache[(Ratio,Slot), Ratio]] = None
   var networkDelayList: List[Double] = List(0.0)
   var tineLengthList: List[Double] = List(0.0)
+
+  var localClockOffset:Long = 0
+
+  def globalTime:Long = {
+    System.currentTimeMillis()+localClockOffset
+  }
+
+  def syncGlobalClock(): Unit = {
+    var notSynced = true
+    while (notSynced) Try{
+      val ntpClient = new NTPClient
+      ntpClient.getOffset(Array(TetraParameters.timeServer))
+    } match {
+      case Success(value) =>
+        localClockOffset = value
+        notSynced = false
+      case Failure(_) =>
+        println("Error: could not fetch global time, trying again...")
+    }
+
+  }
+
+  syncGlobalClock()
+
 }
 
 object Stakeholder {

@@ -451,7 +451,7 @@ trait Receive extends Members {
       timers.startPeriodicTimer(Refresh,Refresh,slotT*refreshInterval.millis)
 
     case GetTime =>
-      coordinatorRef ! GetTime
+      sender() ! GetTime(globalTime)
 
     /**sets the initial time*/
     case value:SetClock =>
