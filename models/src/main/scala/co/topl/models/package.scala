@@ -10,6 +10,7 @@ import scala.language.implicitConversions
 package object models {
   type Bytes = ArraySeq[Byte]
   type Nonce = Bytes
+  type Evidence = Sized.Strict[TypedBytes, Lengths.`33`.type]
   type TypePrefix = Byte
   type TypedIdentifier = TypedBytes
   type Int128 = Sized.Max[BigInt, Lengths.`128`.type]
@@ -18,14 +19,13 @@ package object models {
   type Attestation = ListMap[Proposition, Proof]
   type Registration = Bytes
   type Signature = Bytes
-  type Evidence = Bytes
   type Epoch = Long
   type Address = TypedIdentifier
   type BoxReference = (Address, Nonce)
   type TaktikosBoxReference = (TaktikosAddress, Nonce)
   type PolyOutput = (Address, Int128)
   type ArbitOutput = (Address, Int128)
-  type AssetOutput = (Address, Asset.Value)
+  type AssetOutput = (Address, Box.Values.Asset)
 
   type TxRoot = Sized.Strict[Bytes, Lengths.`32`.type]
   type BloomFilter = Sized.Strict[Bytes, Lengths.`256`.type]

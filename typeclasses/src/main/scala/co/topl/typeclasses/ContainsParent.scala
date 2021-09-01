@@ -12,7 +12,7 @@ import simulacrum.{op, typeclass}
 
 object ContainsParent {
 
-  object Instances {
+  trait Instances {
 
     implicit val blockHeaderV2ContainsParent: ContainsParent[BlockHeaderV2] =
       header => Some(header.parentHeaderId).filterNot(_.dataBytes == BlockGenesis.ParentId)
@@ -20,4 +20,5 @@ object ContainsParent {
     implicit val blockV1ContainsParent: ContainsParent[BlockV1] =
       block => Some(block.parentId).filterNot(_.dataBytes == BlockGenesis.ParentId)
   }
+  object Instances extends Instances
 }

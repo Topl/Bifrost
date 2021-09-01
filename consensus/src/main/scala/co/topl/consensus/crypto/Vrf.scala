@@ -1,8 +1,6 @@
 package co.topl.consensus.crypto
 
 import co.topl.consensus.crypto.Ed25519VRF.{PointAccum, PointExt}
-
-import java.security.SecureRandom
 import org.bouncycastle.crypto.generators.Ed25519KeyPairGenerator
 import org.bouncycastle.crypto.params.{
   Ed25519KeyGenerationParameters,

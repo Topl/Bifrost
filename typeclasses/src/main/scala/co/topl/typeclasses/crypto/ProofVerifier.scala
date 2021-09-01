@@ -2,6 +2,7 @@ package co.topl.typeclasses.crypto
 
 import co.topl.models._
 import co.topl.typeclasses.crypto.Signable.Instances._
+import simulacrum.{op, typeclass}
 
 import java.nio.charset.StandardCharsets
 import scala.language.implicitConversions
@@ -39,26 +40,106 @@ object ProofVerifier {
 
   object ops extends Implicits
 
-  object Instances {
-    implicit val publicKeyCurve25519: ProofVerifier[Proofs.SignatureCurve25519, Propositions.PublicKeyCurve25519] = ???
-    implicit val publicKeyEd25519: ProofVerifier[Proofs.SignatureEd25519, Propositions.PublicKeyEd25519] = ???
+  trait Instances {
+
+    implicit val publicKeyCurve25519: ProofVerifier[Proofs.SignatureCurve25519, Propositions.PublicKeyCurve25519] =
+      new ProofVerifier[Proofs.SignatureCurve25519, Propositions.PublicKeyCurve25519] {
+
+        override def verifyWith[Data: Signable](
+          proof:       Proofs.SignatureCurve25519,
+          proposition: Propositions.PublicKeyCurve25519,
+          data:        Data
+        ): Boolean = ???
+      }
+
+    implicit val publicKeyEd25519: ProofVerifier[Proofs.SignatureEd25519, Propositions.PublicKeyEd25519] =
+      new ProofVerifier[Proofs.SignatureEd25519, Propositions.PublicKeyEd25519] {
+
+        override def verifyWith[Data: Signable](
+          proof:       Proofs.SignatureEd25519,
+          proposition: Propositions.PublicKeyEd25519,
+          data:        Data
+        ): Boolean = ???
+      }
 
     implicit val thresholdCurve25519
-      : ProofVerifier[Proofs.ThresholdSignatureCurve25519, Propositions.ThresholdCurve25519] = ???
-    implicit val thresholdEd25519: ProofVerifier[Proofs.ThresholdSignatureEd25519, Propositions.ThresholdEd25519] = ???
-    implicit val existence: ProofVerifier[Proofs.Existence, Propositions.Existence] = ???
-    implicit val consensusVrfTest: ProofVerifier[Proofs.Consensus.VrfTest, Propositions.Consensus.PublicKeyVrf] = ???
-    implicit val consensusVrfNonce: ProofVerifier[Proofs.Consensus.Nonce, Propositions.Consensus.PublicKeyVrf] = ???
+      : ProofVerifier[Proofs.ThresholdSignatureCurve25519, Propositions.ThresholdCurve25519] =
+      new ProofVerifier[Proofs.ThresholdSignatureCurve25519, Propositions.ThresholdCurve25519] {
+
+        override def verifyWith[Data: Signable](
+          proof:       Proofs.ThresholdSignatureCurve25519,
+          proposition: Propositions.ThresholdCurve25519,
+          data:        Data
+        ): Boolean = ???
+      }
+
+    implicit val thresholdEd25519: ProofVerifier[Proofs.ThresholdSignatureEd25519, Propositions.ThresholdEd25519] =
+      new ProofVerifier[Proofs.ThresholdSignatureEd25519, Propositions.ThresholdEd25519] {
+
+        override def verifyWith[Data: Signable](
+          proof:       Proofs.ThresholdSignatureEd25519,
+          proposition: Propositions.ThresholdEd25519,
+          data:        Data
+        ): Boolean = true
+      }
+
+    implicit val existence: ProofVerifier[Proofs.Existence, Propositions.Existence] =
+      new ProofVerifier[Proofs.Existence, Propositions.Existence] {
+
+        override def verifyWith[Data: Signable](
+          proof:       Proofs.Existence,
+          proposition: Propositions.Existence,
+          data:        Data
+        ): Boolean = ???
+      }
+
+    implicit val consensusVrfTest: ProofVerifier[Proofs.Consensus.VrfTest, Propositions.Consensus.PublicKeyVrf] =
+      new ProofVerifier[Proofs.Consensus.VrfTest, Propositions.Consensus.PublicKeyVrf] {
+
+        override def verifyWith[Data: Signable](
+          proof:       Proofs.Consensus.VrfTest,
+          proposition: Propositions.Consensus.PublicKeyVrf,
+          data:        Data
+        ): Boolean = true
+      }
+
+    implicit val consensusVrfNonce: ProofVerifier[Proofs.Consensus.Nonce, Propositions.Consensus.PublicKeyVrf] =
+      new ProofVerifier[Proofs.Consensus.Nonce, Propositions.Consensus.PublicKeyVrf] {
+
+        override def verifyWith[Data: Signable](
+          proof:       Proofs.Consensus.Nonce,
+          proposition: Propositions.Consensus.PublicKeyVrf,
+          data:        Data
+        ): Boolean = true
+      }
 
     implicit val consensusKesCertificate
       : ProofVerifier[Proofs.Consensus.KesCertificate, Propositions.Consensus.PublicKeyKes] =
-      ???
-    implicit val consensusMMM: ProofVerifier[Proofs.Consensus.MMM, Propositions.Consensus.PublicKeyKes] = ???
+      new ProofVerifier[Proofs.Consensus.KesCertificate, Propositions.Consensus.PublicKeyKes] {
+
+        override def verifyWith[Data: Signable](
+          proof:       Proofs.Consensus.KesCertificate,
+          proposition: Propositions.Consensus.PublicKeyKes,
+          data:        Data
+        ): Boolean = true // TODO
+      }
+
+    implicit val consensusMMM: ProofVerifier[Proofs.Consensus.MMM, Propositions.Consensus.PublicKeyKes] =
+      new ProofVerifier[Proofs.Consensus.MMM, Propositions.Consensus.PublicKeyKes] {
+
+        override def verifyWith[Data: Signable](
+          proof:       Proofs.Consensus.MMM,
+          proposition: Propositions.Consensus.PublicKeyKes,
+          data:        Data
+        ): Boolean = true // TODO
+      }
   }
+
+  object Instances extends Instances
 }
 
-trait CertificateVerifier[T] {
-  def verify(t: T): Boolean
+@typeclass trait CertificateVerifier[T] {
+  @op("verify") def verificationOf(t: T): Boolean
 }
 
 object CertificateVerifier {
@@ -68,7 +149,7 @@ object CertificateVerifier {
     import ProofVerifier.Instances._
     import ProofVerifier.ops._
 
-    implicit def vrfCertificateVerifier(epochNonce: Nonce): CertificateVerifier[VrfCertificate] =
+    implicit def vrfCertificateVerifier(implicit epochNonce: Nonce): CertificateVerifier[VrfCertificate] =
       certificate =>
         certificate.testProof.satisfies(
           Propositions.Consensus.PublicKeyVrf(certificate.vkVRF),
@@ -78,7 +159,7 @@ object CertificateVerifier {
           "nonce".getBytes(StandardCharsets.UTF_8) ++ epochNonce.toArray
         )
 
-    implicit def kesCertificateVerifier(header: BlockHeaderV2): CertificateVerifier[KesCertificate] =
+    implicit def kesCertificateVerifier(implicit header: BlockHeaderV2): CertificateVerifier[KesCertificate] =
       certificate =>
         certificate.mmmProof.satisfies(Propositions.Consensus.PublicKeyKes(certificate.vkKES), header) &&
         certificate.kesProof.satisfies(
