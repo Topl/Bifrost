@@ -5,7 +5,7 @@ import cats.data.{NonEmptyChain, OptionT, StateT}
 import cats.implicits._
 import co.topl.algebras.Clock
 import co.topl.consensus.ConsensusValidation.implicits._
-import co.topl.consensus.crypto.Vrf
+import co.topl.crypto.signatures.Ed25519VRF
 import co.topl.consensus.{ConsensusValidation, LeaderElection}
 import co.topl.models._
 import co.topl.models.utility.HasLength.implicits._
@@ -26,8 +26,8 @@ object FullNode extends App {
     LeaderElection
       .Config(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
 
-  implicit val vrf: Vrf =
-    new Vrf
+  implicit val vrf: Ed25519VRF = new Ed25519VRF
+  vrf.precompute()
 
   implicit val clock: Clock[Id] = new SyncClock
 

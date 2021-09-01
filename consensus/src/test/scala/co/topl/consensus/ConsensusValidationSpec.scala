@@ -3,7 +3,7 @@ package co.topl.consensus
 import cats.Id
 import cats.data.OptionT
 import co.topl.consensus.ConsensusValidation.implicits._
-import co.topl.consensus.crypto.Vrf
+import co.topl.crypto.signatures.Ed25519VRF
 import co.topl.models._
 import co.topl.models.utility.HasLength.implicits._
 import co.topl.models.utility.StringDataTypes.Latin1Data
@@ -38,7 +38,7 @@ class ConsensusValidationSpec
     LeaderElection
       .Config(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
 
-  implicit val vrf: Vrf = new Vrf
+  implicit val vrf: Ed25519VRF = new Ed25519VRF
 
   it should "invalidate blocks with non-forward slot" in {
     forAll(headerGen(slotGen = Gen.chooseNum(50L, 100L)), headerGen(slotGen = Gen.chooseNum[Long](20, 49))) {

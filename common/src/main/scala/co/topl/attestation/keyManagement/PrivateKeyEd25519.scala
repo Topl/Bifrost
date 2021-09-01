@@ -9,9 +9,10 @@ import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 case class PrivateKeyEd25519(private val privateKey: PrivateKey, private val publicKey: PublicKey) extends Secret {
 
+  import PrivateKeyEd25519.ec
+
   private val privateKeyLength = privateKey.value.length
   private val publicKeyLength = publicKey.value.length
-  private val ec = new Ed25519
 
   require(privateKeyLength == ec.KeyLength, s"$privateKeyLength == ${ec.KeyLength}")
   require(publicKeyLength == ec.KeyLength, s"$publicKeyLength == ${ec.KeyLength}")
@@ -37,9 +38,10 @@ case class PrivateKeyEd25519(private val privateKey: PrivateKey, private val pub
 
 object PrivateKeyEd25519 extends BifrostSerializer[PrivateKeyEd25519] {
 
+  private val ec = new Ed25519
+
   implicit val secretGenerator: SecretGenerator[PrivateKeyEd25519] =
     SecretGenerator.instance[PrivateKeyEd25519] { seed: Array[Byte] =>
-      val ec = new Ed25519
       val (sk, pk) = ec.createKeyPair(seed)
       val secret: PrivateKeyEd25519 = PrivateKeyEd25519(sk, pk)
       secret -> secret.publicImage

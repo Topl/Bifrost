@@ -21,6 +21,8 @@ import scala.language.implicitConversions
  */
 class ExtendedPublicKeyEd25519(val bytes: ByteVector32, val chainCode: ByteVector32) {
 
+  import ExtendedPublicKeyEd25519.ed
+
   /**
    * Deterministically derives a child public key located at the given soft index.
    *
@@ -33,8 +35,6 @@ class ExtendedPublicKeyEd25519(val bytes: ByteVector32, val chainCode: ByteVecto
     val z = hmac512WithKey(chainCode.toVector, (0x02.toByte +: bytes.toVector) ++ index.bytes.toVector)
 
     val zL = z.slice(0, 28)
-
-    val ed = new Ed25519
 
     val zLMult8 = SizedBytes[ByteVector32].fit(
       (8 * BigInt(1, zL.reverse.toArray)).toByteArray.reverse,
@@ -72,6 +72,8 @@ class ExtendedPublicKeyEd25519(val bytes: ByteVector32, val chainCode: ByteVecto
 }
 
 object ExtendedPublicKeyEd25519 {
+
+  val ed = new Ed25519
 
   /**
    * Instantiates an `ExtendedPublicEd25519` from a 32-byte public key and 32-byte chain code

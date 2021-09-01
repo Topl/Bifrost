@@ -29,6 +29,8 @@ class ExtendedPrivateKeyEd25519(
   val chainCode: ByteVector32
 ) {
 
+  import ExtendedPrivateKeyEd25519.ed25519
+
   // Note: BigInt expects Big-Endian, but SLIP/BIP-ED25519 need Little-Endian
   val leftNumber: BigInt = BigInt(1, leftKey.toArray.reverse)
   val rightNumber: BigInt = BigInt(1, rightKey.toArray.reverse)
@@ -38,7 +40,6 @@ class ExtendedPrivateKeyEd25519(
    * @return a `ExtendedPublicKeyEd25519` for verifying signatures made with this private key
    */
   def public: ExtendedPublicKeyEd25519 = {
-    val ed25519 = new Ed25519
     val pk = new Array[Byte](ed25519.PUBLIC_KEY_SIZE)
     ed25519.scalarMultBaseEncoded(leftKey.toArray, pk, 0)
 
@@ -150,7 +151,7 @@ class ExtendedPrivateKeyEd25519(
 }
 
 object ExtendedPrivateKeyEd25519 {
-
+  val ed25519 = new Ed25519
   case object InvalidDerivedKey
   type InvalidDerivedKey = InvalidDerivedKey.type
 

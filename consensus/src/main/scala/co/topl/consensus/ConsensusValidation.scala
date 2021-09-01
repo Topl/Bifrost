@@ -3,7 +3,7 @@ package co.topl.consensus
 import cats.Monad
 import cats.data.{EitherT, OptionT}
 import cats.implicits._
-import co.topl.consensus.crypto.Vrf
+import co.topl.crypto.signatures.Ed25519VRF
 import co.topl.crypto.hash.blake2b256
 import co.topl.models._
 import co.topl.models.utility.HasLength.implicits._
@@ -29,7 +29,7 @@ object ConsensusValidation {
      */
     def validatedUsing[F[_]: Monad](interpreter: Algebra[F])(implicit
       leaderElectionConfig:                      LeaderElection.Config,
-      vrf:                                       Vrf
+      vrf:                                       Ed25519VRF
     ): EitherT[F, Failure, ValidatedBlockHeader] = {
       def test(
         f:       => Boolean,
@@ -114,7 +114,7 @@ object ConsensusValidation {
       threshold: Ratio
     )(implicit
       leaderElectionConfig: LeaderElection.Config,
-      vrf:                  Vrf
+      vrf:                  Ed25519VRF
     ): Either[ConsensusValidation.Failure, BlockHeaderV2] =
       Either.cond(
         LeaderElection.isSlotLeaderForThreshold(threshold)(
