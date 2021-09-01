@@ -1,9 +1,9 @@
 package co.topl.nodeView.history
 
-import co.topl.db.LDBVersionedStore
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.hash.digest.implicits._
+import co.topl.db.VersionedKVStore
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.block.{Block, BloomFilter}
@@ -15,7 +15,7 @@ import com.google.common.primitives.Longs
 import scala.concurrent.duration.MILLISECONDS
 import scala.util.Try
 
-class Storage(private[history] val storage: LDBVersionedStore, private val cacheExpire: Int, private val cacheSize: Int)
+class Storage(private[history] val storage: VersionedKVStore, private val cacheExpire: Int, private val cacheSize: Int)
     extends Logging {
   /* ------------------------------- Cache Initialization ------------------------------- */
   type KEY = Array[Byte]

@@ -7,6 +7,7 @@ import co.topl.utils.codecs.implicits._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import co.topl.utils.GeneratorOps.GeneratorOps
 
 class KeySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with NodeGenerators with Matchers {
 
@@ -75,11 +76,11 @@ class KeySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with NodeG
   }
 
   property("Trying to sign a message with an address not on the keyRing will fail") {
-    val randAddrCurve25519: Address = addressCurve25519Gen.sample.get
+    val randAddrCurve25519: Address = addressCurve25519Gen.sampleFirst()
     val errorCurve25519 = intercept[Exception](keyRingCurve25519.signWithAddress(randAddrCurve25519)(messageByte))
     errorCurve25519.getMessage shouldEqual "Unable to find secret for the given address"
 
-    val randAddrEd25519: Address = addressEd25519Gen.sample.get
+    val randAddrEd25519: Address = addressEd25519Gen.sampleFirst()
     val errorEd25519 = intercept[Exception](keyRingEd25519.signWithAddress(randAddrEd25519)(messageByte))
     errorEd25519.getMessage shouldEqual "Unable to find secret for the given address"
   }
@@ -87,14 +88,14 @@ class KeySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with NodeG
   property("The proof from signing with an address should only be valid for the corresponding proposition") {
     val propCurve25519 = keyRingCurve25519.lookupPublicKey(addressCurve25519).get
     val newAddrCurve25519: Address =
-      keyRingCurve25519.DiskOps.generateKeyFile(Latin1Data.unsafe(stringGen.sample.get)).get
+      keyRingCurve25519.DiskOps.generateKeyFile(Latin1Data.unsafe(stringGen.sampleFirst())).get
     val newPropCurve25519 = keyRingCurve25519.lookupPublicKey(newAddrCurve25519).get
     val newProofCurve25519 = keyRingCurve25519.signWithAddress(newAddrCurve25519)(messageByte).get
     newProofCurve25519.isValid(propCurve25519, messageByte) shouldBe false
     newProofCurve25519.isValid(newPropCurve25519, messageByte) shouldBe true
 
     val propEd25519 = keyRingEd25519.lookupPublicKey(addressEd25519).get
-    val newAddrEd25519: Address = keyRingEd25519.DiskOps.generateKeyFile(Latin1Data.unsafe(stringGen.sample.get)).get
+    val newAddrEd25519: Address = keyRingEd25519.DiskOps.generateKeyFile(Latin1Data.unsafe(stringGen.sampleFirst())).get
     val newPropEd25519 = keyRingEd25519.lookupPublicKey(newAddrEd25519).get
     val newProofEd25519 = keyRingEd25519.signWithAddress(newAddrEd25519)(messageByte).get
     newProofEd25519.isValid(propEd25519, messageByte) shouldBe false

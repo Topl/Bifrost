@@ -1,10 +1,10 @@
 package co.topl.db
 
 import java.util.concurrent.locks.ReentrantReadWriteLock
-
 import org.iq80.leveldb.{DB, ReadOptions}
 
 import scala.collection.mutable
+import scala.util.Try
 
 /**
  * Basic interface for reading from LevelDB key-value storage.
@@ -125,5 +125,21 @@ trait KVStoreReader extends AutoCloseable {
     try db.close()
     finally lock.writeLock().unlock()
   }
+
+}
+
+trait VersionedKVStore extends KVStoreReader {
+
+  type VersionID = Array[Byte]
+
+  def update(
+    versionID: VersionID,
+    toRemove:  Iterable[Array[Byte]],
+    toUpdate:  Iterable[(Array[Byte], Array[Byte])]
+  ): Unit
+
+  def rollbackTo(versionID: VersionID): Try[Unit]
+
+  def lastVersionID(): Option[VersionID]
 
 }
