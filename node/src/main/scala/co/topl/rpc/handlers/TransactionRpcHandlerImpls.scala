@@ -123,18 +123,19 @@ class TransactionRpcHandlerImpls(
       case PublicKeyPropositionEd25519.`typeString`    => ArbitTransfer.createRaw[PublicKeyPropositionEd25519] _
     }
 
-    createRaw(
-      state,
-      params.recipients.map { case (address, amount) => address -> SimpleValue(amount) }.toNonEmptyVector.toVector,
-      senderAddresses.toIndexedSeq,
-      params.changeAddress,
-      params.consolidationAddress,
-      params.fee,
-      params.data
-    )
-      .collect { case p: ArbitTransfer[Proposition @unchecked] =>
-        p
-      }
+    Try {
+      createRaw(
+        state,
+        params.recipients.map { case (address, amount) => address -> SimpleValue(amount) }.toNonEmptyVector.toVector,
+        senderAddresses.toIndexedSeq,
+        params.changeAddress,
+        params.consolidationAddress,
+        params.fee,
+        params.data
+      ).getOrThrow()
+    }.collect { case p: ArbitTransfer[Proposition @unchecked] =>
+      p
+    }
   }
 
   private def tryCreatePolyTransfer(

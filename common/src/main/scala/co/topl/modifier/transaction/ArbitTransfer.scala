@@ -113,21 +113,34 @@ object ArbitTransfer {
   import Validation._
 
   def validated[P <: Proposition: EvidenceProducer: Identifiable](
-    polyBoxes:     IndexedSeq[(Address, PolyBox)],
-    arbitBoxes:    IndexedSeq[(Address, ArbitBox)],
-    recipients:    IndexedSeq[(Address, SimpleValue)],
-    changeAddress: Address,
-    fee:           Int128,
-    data:          Option[Latin1Data]
+    polyBoxes:            IndexedSeq[(Address, PolyBox)],
+    arbitBoxes:           IndexedSeq[(Address, ArbitBox)],
+    recipients:           IndexedSeq[(Address, SimpleValue)],
+    changeAddress:        Address,
+    consolidationAddress: Address,
+    fee:                  Int128,
+    data:                 Option[Latin1Data]
   ): ValidationResult[ArbitTransfer[P]] =
     for {
-      _ <- validatePolyBoxes(polyBoxes)
-      _ <- validateArbitBoxes(arbitBoxes)
-      _ <- validateRecipients(recipients)
-      change <- validateFeeFunds(polyBoxes.map(_._2.value.quantity).sum, fee)
-      changeBox = changeAddress -> SimpleValue(change)
-    }
+      _           <- validatePolyBoxes(polyBoxes)
+      _           <- validateArbitBoxes(arbitBoxes)
+      _           <- validateRecipients(recipients)
+      change      <- validateFeeFunds(polyBoxes.map(_._2.value.quantity).sum, fee)
+      arbitChange <- validatePaymentFunds(arbitBoxes.map(_._2.value.quantity).sum, recipients.map(_._2.quantity).sum)
+      changeOutput = changeAddress             -> SimpleValue(change)
+      arbitChangeOutput = consolidationAddress -> SimpleValue(arbitChange)
+      nonZeroOutputs = (changeOutput +: arbitChangeOutput +: recipients).filter(_._2.quantity > 0)
+    } yield ArbitTransfer[P](
+      (polyBoxes ++ arbitBoxes).map(x => x._1 -> x._2.nonce),
+      nonZeroOutputs,
+      ListMap(), // unsigned tx
+      fee,
+      Instant.now.toEpochMilli,
+      data,
+      minting = false
+    )
 
+  @deprecated("use TransferBuilder.build instead")
   def createRaw[
     P <: Proposition: EvidenceProducer: Identifiable
   ](
@@ -138,49 +151,26 @@ object ArbitTransfer {
     consolidationAddress: Address,
     fee:                  Int128,
     data:                 Option[Latin1Data]
-  ): Try[ArbitTransfer[P]] =
-    TransferTransaction
-      .getSenderBoxesAndCheckPolyBalance(boxReader, sender, fee, "Arbits")
-      .map { txState =>
-        // compute the amount of tokens that will be sent to the recipients
-        val amtToSpend = toReceive.map(_._2.quantity).sum
+  ): ValidationResult[ArbitTransfer[P]] = {
+    val (polyBoxes, arbitBoxes) =
+      sender
+        .map(addr => addr -> boxReader.getTokenBoxes(addr).getOrElse(IndexedSeq()))
+        .flatMap((senderBoxes: (Address, Seq[TokenBox[TokenValueHolder]])) => senderBoxes._2.map(senderBoxes._1 -> _))
+        .foldLeft((IndexedSeq[(Address, PolyBox)](), IndexedSeq[(Address, ArbitBox)]())) {
+          case ((polyBoxes, arbitBoxes), (addr: Address, box: PolyBox))  => (polyBoxes :+ (addr -> box), arbitBoxes)
+          case ((polyBoxes, arbitBoxes), (addr: Address, box: ArbitBox)) => (polyBoxes, arbitBoxes :+ (addr -> box))
+          case (boxes, _)                                                => boxes
+        }
 
-        // create the list of inputs and outputs (senderChangeOut & recipientOut)
-        val (availableToSpend, inputs, outputs) =
-          ioTransfer(txState, toReceive, changeAddress, consolidationAddress, fee, amtToSpend)
-
-        // ensure there are sufficient funds from the sender boxes to create all outputs
-        require(availableToSpend >= amtToSpend, "Insufficient funds available to create transaction.")
-
-        ArbitTransfer[P](inputs, outputs, ListMap(), fee, Instant.now.toEpochMilli, data, minting = false)
-      }
-
-  /** construct input and output box sequence for a transfer transaction */
-  private def ioTransfer(
-    txInputState:         TransferCreationState,
-    toReceive:            IndexedSeq[(Address, SimpleValue)],
-    changeAddress:        Address,
-    consolidationAddress: Address,
-    fee:                  Int128,
-    amtToSpend:           Int128
-  ): (Int128, IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, SimpleValue)]) = {
-
-    val availableToSpend =
-      txInputState.senderBoxes
-        .getOrElse("Arbit", throw new Exception(s"No Arbit funds available for the transaction"))
-        .map(_._3.value.quantity)
-        .sum
-
-    val inputs =
-      txInputState.senderBoxes("Arbit").map(bxs => (bxs._2, bxs._3.nonce)) ++
-      txInputState.senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce))
-
-    val outputs = IndexedSeq(
-      (changeAddress, SimpleValue(txInputState.polyBalance - fee)),
-      (consolidationAddress, SimpleValue(availableToSpend - amtToSpend))
-    ) ++ toReceive
-
-    (availableToSpend, inputs, outputs)
+    validated(
+      polyBoxes,
+      arbitBoxes,
+      toReceive,
+      changeAddress,
+      consolidationAddress,
+      fee,
+      data
+    )
   }
 
   implicit def jsonEncoder[P <: Proposition]: Encoder[ArbitTransfer[P]] = { tx: ArbitTransfer[P] =>

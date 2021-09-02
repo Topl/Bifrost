@@ -180,6 +180,7 @@ object AssetTransfer {
       minting
     )
 
+  @deprecated("use TransferBuilder.build instead")
   def createRaw[P <: Proposition: EvidenceProducer: Identifiable](
     boxReader:            BoxReader[ProgramId, Address],
     recipients:           IndexedSeq[(Address, AssetValue)],
@@ -189,29 +190,28 @@ object AssetTransfer {
     fee:                  Int128,
     data:                 Option[Latin1Data],
     minting:              Boolean
-  ): ValidationResult[AssetTransfer[P]] =
-    for {
-      assetCode <- recipients.headOption.map(_._2.assetCode.asRight).getOrElse(EmptyRecipients.asLeft)
-      (polyBoxes, assetBoxes) =
-        sender
-          .map(addr => addr -> boxReader.getTokenBoxes(addr).getOrElse(IndexedSeq()))
-          .flatMap((senderBoxes: (Address, Seq[TokenBox[TokenValueHolder]])) => senderBoxes._2.map(senderBoxes._1 -> _))
-          .foldLeft((IndexedSeq[(Address, PolyBox)](), IndexedSeq[(Address, AssetBox)]())) {
-            case ((polyBoxes, assetBoxes), (addr: Address, box: PolyBox))  => (polyBoxes :+ (addr -> box), assetBoxes)
-            case ((polyBoxes, assetBoxes), (addr: Address, box: AssetBox)) => (polyBoxes, assetBoxes :+ (addr -> box))
-            case (boxes, _) => boxes
-          }
-      assetTransfer <- validated(
-        polyBoxes,
-        assetBoxes,
-        recipients,
-        changeAddress,
-        consolidationAddress,
-        fee,
-        data,
-        minting
-      )
-    } yield assetTransfer
+  ): ValidationResult[AssetTransfer[P]] = {
+    val (polyBoxes, assetBoxes) =
+      sender
+        .map(addr => addr -> boxReader.getTokenBoxes(addr).getOrElse(IndexedSeq()))
+        .flatMap((senderBoxes: (Address, Seq[TokenBox[TokenValueHolder]])) => senderBoxes._2.map(senderBoxes._1 -> _))
+        .foldLeft((IndexedSeq[(Address, PolyBox)](), IndexedSeq[(Address, AssetBox)]())) {
+          case ((polyBoxes, assetBoxes), (addr: Address, box: PolyBox))  => (polyBoxes :+ (addr -> box), assetBoxes)
+          case ((polyBoxes, assetBoxes), (addr: Address, box: AssetBox)) => (polyBoxes, assetBoxes :+ (addr -> box))
+          case (boxes, _)                                                => boxes
+        }
+
+    validated(
+      polyBoxes,
+      assetBoxes,
+      recipients,
+      changeAddress,
+      consolidationAddress,
+      fee,
+      data,
+      minting
+    )
+  }
 
   implicit def jsonEncoder[P <: Proposition]: Encoder[AssetTransfer[P]] = { tx: AssetTransfer[P] =>
     Map(

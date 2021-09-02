@@ -3,13 +3,22 @@ package co.topl.utils
 import co.topl.attestation._
 import co.topl.attestation.keyManagement._
 import co.topl.consensus.TestGenesis
-import co.topl.modifier.ModifierId
+import co.topl.db.LDBVersionedStore
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.Box.identifier
 import co.topl.modifier.box._
+import co.topl.modifier.transaction.ArbitTransfer.Validation.InvalidArbitTransfer
+import co.topl.modifier.transaction.AssetTransfer.Validation.InvalidAssetTransfer
+import co.topl.modifier.transaction.PolyTransfer.Validation.InvalidPolyTransfer
 import co.topl.modifier.transaction.Transaction.TX
+import co.topl.modifier.transaction.builder.BoxPickingStrategy
+import co.topl.modifier.transaction.builder.TransferBlueprints.{
+  ArbitTransferBlueprint,
+  AssetTransferBlueprint,
+  PolyTransferBlueprint
+}
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
-import co.topl.db.LDBVersionedStore
+import co.topl.modifier.{transaction, ModifierId}
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppSettings, StartupOpts, Version}
@@ -17,6 +26,7 @@ import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.StringDataTypes.Latin1Data
 import org.scalacheck.Gen
 import org.scalatest.Suite
+import co.topl.modifier.transaction.builder.implicits._
 
 import java.io.File
 import java.nio.file.Files
@@ -100,16 +110,20 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
       val address: Address = keyRing.addresses.filterNot(_ == sender).toSeq(Random.nextInt(keyRing.addresses.size - 1))
       IndexedSeq((address, polyAmount))
     }
-    val rawTx = PolyTransfer
-      .createRaw[PublicKeyPropositionCurve25519](
-        state,
-        recipients,
-        IndexedSeq(sender),
-        changeAddress = sender,
-        fee,
-        data = None
-      )
-      .getOrThrow()
+
+    val rawTx =
+      transaction.builder
+        .buildTransfer[PolyTransferBlueprint, InvalidPolyTransfer, PolyTransfer[
+          PublicKeyPropositionCurve25519
+        ], BoxPickingStrategy.All](
+          PolyTransferBlueprint(recipients),
+          List(sender),
+          state,
+          sender,
+          fee,
+          BoxPickingStrategy.All
+        )
+        .getOrThrow()
 
     rawTx.copy(attestation = Transaction.updateAttestation(rawTx)(keyRing.generateAttestation(sender)))
   }
@@ -133,16 +147,20 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
         addresses.filterNot(_ == sender).toSeq(Random.nextInt(addresses.size - 1))
       IndexedSeq((address, polyAmount))
     }
-    val rawTx = PolyTransfer
-      .createRaw[ThresholdPropositionCurve25519](
-        state,
-        recipients,
-        IndexedSeq(sender),
-        changeAddress = sender,
-        fee,
-        data = None
-      )
-      .getOrThrow()
+
+    val rawTx =
+      transaction.builder
+        .buildTransfer[PolyTransferBlueprint, InvalidPolyTransfer, PolyTransfer[
+          ThresholdPropositionCurve25519
+        ], BoxPickingStrategy.All](
+          PolyTransferBlueprint(recipients),
+          List(sender),
+          state,
+          sender,
+          fee,
+          BoxPickingStrategy.All
+        )
+        .getOrThrow()
 
     val signatures = keyRing.generateAttestation(keyRing.addresses)(rawTx.messageToSign).values.toSet
     val thresholdSignature = ThresholdSignatureCurve25519(signatures)
@@ -165,14 +183,17 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
       val address: Address = keyRing.addresses.filterNot(_ == sender).toSeq(Random.nextInt(keyRing.addresses.size - 1))
       IndexedSeq((address, polyAmount))
     }
-    val rawTx = PolyTransfer
-      .createRaw[PublicKeyPropositionEd25519](
+
+    val rawTx = transaction.builder
+      .buildTransfer[PolyTransferBlueprint, InvalidPolyTransfer, PolyTransfer[
+        PublicKeyPropositionEd25519
+      ], BoxPickingStrategy.All](
+        PolyTransferBlueprint(recipients),
+        List(sender),
         state,
-        recipients,
-        IndexedSeq(sender),
-        changeAddress = sender,
+        sender,
         fee,
-        data = None
+        BoxPickingStrategy.All
       )
       .getOrThrow()
 
@@ -206,17 +227,20 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
       val address = keyRing.addresses.filterNot(_ == sender).toSeq(Random.nextInt(keyRing.addresses.size - 1))
       IndexedSeq((address, arbitAmount))
     }
-    val rawTx = ArbitTransfer
-      .createRaw[PublicKeyPropositionCurve25519](
-        state,
-        recipients,
-        IndexedSeq(sender),
-        changeAddress = sender,
-        consolidationAddress = sender,
-        fee,
-        data = None
-      )
-      .get
+
+    val rawTx =
+      transaction.builder
+        .buildTransfer[ArbitTransferBlueprint, InvalidArbitTransfer, ArbitTransfer[
+          PublicKeyPropositionCurve25519
+        ], BoxPickingStrategy.All](
+          ArbitTransferBlueprint(sender, recipients),
+          List(sender),
+          state,
+          sender,
+          fee,
+          BoxPickingStrategy.All
+        )
+        .getOrThrow()
 
     rawTx.copy(attestation = Transaction.updateAttestation(rawTx)(keyRing.generateAttestation(sender)))
   }
@@ -240,17 +264,20 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
         addresses.filterNot(_ == sender).toSeq(Random.nextInt(addresses.size - 1))
       IndexedSeq((address, arbitAmount))
     }
-    val rawTx = ArbitTransfer
-      .createRaw[PublicKeyPropositionCurve25519](
-        state,
-        recipients,
-        IndexedSeq(sender),
-        changeAddress = sender,
-        consolidationAddress = sender,
-        fee,
-        data = None
-      )
-      .get
+
+    val rawTx =
+      transaction.builder
+        .buildTransfer[ArbitTransferBlueprint, InvalidArbitTransfer, ArbitTransfer[
+          PublicKeyPropositionCurve25519
+        ], BoxPickingStrategy.All](
+          ArbitTransferBlueprint(sender, recipients),
+          List(sender),
+          state,
+          sender,
+          fee,
+          BoxPickingStrategy.All
+        )
+        .getOrThrow()
 
     val signatures = keyRing.generateAttestation(keyRing.addresses)(rawTx.messageToSign).values.toSet
     val thresholdSignature = ThresholdSignatureCurve25519(signatures)
@@ -273,17 +300,20 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
       val address = keyRing.addresses.filterNot(_ == sender).toSeq(Random.nextInt(keyRing.addresses.size - 1))
       IndexedSeq((address, arbitAmount))
     }
-    val rawTx = ArbitTransfer
-      .createRaw[PublicKeyPropositionEd25519](
-        state,
-        recipients,
-        IndexedSeq(sender),
-        changeAddress = sender,
-        consolidationAddress = sender,
-        fee,
-        data = None
-      )
-      .get
+
+    val rawTx =
+      transaction.builder
+        .buildTransfer[ArbitTransferBlueprint, InvalidArbitTransfer, ArbitTransfer[
+          PublicKeyPropositionEd25519
+        ], BoxPickingStrategy.All](
+          ArbitTransferBlueprint(sender, recipients),
+          List(sender),
+          state,
+          sender,
+          fee,
+          BoxPickingStrategy.All
+        )
+        .getOrThrow()
 
     rawTx.copy(attestation = Transaction.updateAttestation(rawTx)(keyRing.generateAttestation(sender)))
   }
@@ -311,19 +341,19 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
     val asset = AssetValue(1, AssetCode(1: Byte, sender, Latin1Data.unsafe("test")), SecurityRoot.empty)
     val recipients = IndexedSeq((sender, asset))
 
-    // todo: This should not be using the create raw function because we are testing too many things then!
-    val rawTx = AssetTransfer
-      .createRaw[PublicKeyPropositionCurve25519](
-        state,
-        recipients,
-        IndexedSeq(sender),
-        changeAddress = sender,
-        consolidationAddress = sender,
-        fee,
-        data = None,
-        minting
-      )
-      .getOrThrow()
+    val rawTx =
+      transaction.builder
+        .buildTransfer[AssetTransferBlueprint, InvalidAssetTransfer, AssetTransfer[
+          PublicKeyPropositionCurve25519
+        ], BoxPickingStrategy.All](
+          AssetTransferBlueprint(sender, recipients, minting),
+          List(sender),
+          state,
+          sender,
+          fee,
+          BoxPickingStrategy.All
+        )
+        .getOrThrow()
 
     rawTx.copy(attestation = Transaction.updateAttestation(rawTx)(keyRing.generateAttestation(sender)))
   }
@@ -343,19 +373,19 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
     val asset = AssetValue(1, AssetCode(1: Byte, sender, Latin1Data.unsafe("test")), SecurityRoot.empty)
     val recipients = IndexedSeq((sender, asset))
 
-    // todo: This should not be using the create raw function because we are testing too many things then!
-    val rawTx = AssetTransfer
-      .createRaw[PublicKeyPropositionCurve25519](
-        state,
-        recipients,
-        IndexedSeq(sender),
-        changeAddress = sender,
-        consolidationAddress = sender,
-        fee,
-        data = None,
-        minting
-      )
-      .getOrThrow()
+    val rawTx =
+      transaction.builder
+        .buildTransfer[AssetTransferBlueprint, InvalidAssetTransfer, AssetTransfer[
+          PublicKeyPropositionCurve25519
+        ], BoxPickingStrategy.All](
+          AssetTransferBlueprint(sender, recipients, minting),
+          List(sender),
+          state,
+          sender,
+          fee,
+          BoxPickingStrategy.All
+        )
+        .getOrThrow()
 
     val signatures = keyRing.generateAttestation(keyRing.addresses)(rawTx.messageToSign).values.toSet
     val thresholdSignature = ThresholdSignatureCurve25519(signatures)
@@ -374,19 +404,19 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
     val asset = AssetValue(1, AssetCode(1: Byte, sender, Latin1Data.unsafe("test")), SecurityRoot.empty)
     val recipients = IndexedSeq((sender, asset))
 
-    // todo: This should not be using the create raw function because we are testing too many things then!
-    val rawTx = AssetTransfer
-      .createRaw[PublicKeyPropositionEd25519](
-        state,
-        recipients,
-        IndexedSeq(sender),
-        changeAddress = sender,
-        consolidationAddress = sender,
-        fee,
-        data = None,
-        minting
-      )
-      .getOrThrow()
+    val rawTx =
+      transaction.builder
+        .buildTransfer[AssetTransferBlueprint, InvalidAssetTransfer, AssetTransfer[
+          PublicKeyPropositionEd25519
+        ], BoxPickingStrategy.All](
+          AssetTransferBlueprint(sender, recipients, minting),
+          List(sender),
+          state,
+          sender,
+          fee,
+          BoxPickingStrategy.All
+        )
+        .getOrThrow()
 
     rawTx.copy(attestation = Transaction.updateAttestation(rawTx)(keyRing.generateAttestation(sender)))
   }

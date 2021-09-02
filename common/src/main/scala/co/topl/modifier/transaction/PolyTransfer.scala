@@ -131,6 +131,7 @@ object PolyTransfer {
       minting = false
     )
 
+  @deprecated("use TransferBuilder.build instead")
   def createRaw[P <: Proposition: EvidenceProducer: Identifiable](
     boxReader:     BoxReader[ProgramId, Address],
     recipients:    IndexedSeq[(Address, SimpleValue)],
