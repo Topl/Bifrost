@@ -183,8 +183,9 @@ object ThresholdSignatureCurve25519 {
 case class SignatureEd25519(private[attestation] val sigBytes: Signature)
     extends ProofOfKnowledge[PrivateKeyEd25519, PublicKeyPropositionEd25519] {
 
+  import SignatureEd25519.ec
+
   private val signatureLength = sigBytes.value.length
-  private val ec = new Ed25519
 
   require(
     signatureLength == 0 || signatureLength == Ed25519.SignatureLength,
@@ -196,6 +197,7 @@ case class SignatureEd25519(private[attestation] val sigBytes: Signature)
 }
 
 object SignatureEd25519 {
+  private val ec = new Ed25519
   lazy val signatureSize: Int = Ed25519.SignatureLength
 
   /** Helper function to create empty signatures */

@@ -1,6 +1,6 @@
 package co.topl.consensus
 
-import co.topl.consensus.crypto.Vrf
+import co.topl.crypto.signatures.Ed25519VRF
 import co.topl.models.utility.HasLength.implicits._
 import co.topl.models.utility.Lengths._
 import co.topl.models._
@@ -109,7 +109,7 @@ object LeaderElection {
         net + Ratio(BigInt(byte & 0xff), BigInt(2).pow(8 * i))
       }
 
-  case class VrfProof(vrf: Vrf, proofFunc: String => Bytes) {
+  case class VrfProof(vrf: Ed25519VRF, proofFunc: String => Bytes) {
     lazy val testProof: Bytes = proofFunc("TEST")
     lazy val nonceProof: Bytes = proofFunc("NONCE")
     lazy val testProofHashed: Hash = hash(testProof.toArray)
@@ -118,9 +118,10 @@ object LeaderElection {
   }
 
   object VrfProof {
+    val vrf = new Ed25519VRF
+    vrf.precompute()
 
-    def apply(secretData: Bytes, epochNonce: Nonce, slot: Slot): VrfProof = {
-      val vrf = new Vrf()
+    def apply(secretData: Bytes, epochNonce: Nonce, slot: Slot): VrfProof =
       VrfProof(
         vrf,
         (token: String) =>
@@ -131,7 +132,6 @@ object LeaderElection {
             )
           )
       )
-    }
   }
 }
 

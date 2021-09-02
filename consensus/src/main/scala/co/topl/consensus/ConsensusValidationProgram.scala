@@ -4,7 +4,8 @@ import cats.Monad
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.algebras.Clock
-import co.topl.consensus.crypto.Vrf
+import co.topl.consensus.vrf.ProofToHash
+import co.topl.crypto.signatures.Signature
 import co.topl.models._
 import co.topl.models.utility.Ratio
 import co.topl.typeclasses.ContainsEvidence.Instances._
@@ -21,13 +22,10 @@ import java.nio.charset.StandardCharsets
 import scala.language.implicitConversions
 
 class ConsensusValidationProgram[F[_]: Monad](
-  epochNoncesInterpreter:   EpochNoncesAlgebra[F],
-  relativeStakeInterpreter: RelativeStateLookupAlgebra[F],
-  clockInterpreter:         Clock[F]
-)(implicit
-  leaderElectionConfig: LeaderElection.Config,
-  vrf:                  Vrf
-) {
+  epochNoncesInterpreter:        EpochNoncesAlgebra[F],
+  relativeStakeInterpreter:      RelativeStateLookupAlgebra[F],
+  clockInterpreter:              Clock[F]
+)(implicit leaderElectionConfig: LeaderElection.Config) {
   import ConsensusValidationProgram._
 
   def validate(child: BlockHeaderV2, parent: BlockHeaderV2): EitherT[F, Failure, ValidatedBlockHeader] = {
@@ -101,7 +99,7 @@ class ConsensusValidationProgram[F[_]: Monad](
     Either.cond(
       LeaderElection.isSlotLeaderForThreshold(threshold)(
         Bytes(
-          vrf.vrfProofToHash(header.vrfCertificate.testProof.bytes.data.toArray)
+          ProofToHash.digest(Signature(header.vrfCertificate.testProof.bytes.data.toArray))
         )
       ) || true, // TODO: This check currently does not seem to work
       header,

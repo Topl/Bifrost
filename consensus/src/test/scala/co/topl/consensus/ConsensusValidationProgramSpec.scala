@@ -3,7 +3,6 @@ package co.topl.consensus
 import cats.Id
 import cats.data.OptionT
 import co.topl.algebras.Clock
-import co.topl.consensus.crypto.Vrf
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility.{Lengths, Ratio}
@@ -30,8 +29,6 @@ class ConsensusValidationProgramSpec
   implicit val leaderElectionConfig: LeaderElection.Config =
     LeaderElection
       .Config(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
-
-  implicit val vrf: Vrf = new Vrf
 
   it should "invalidate blocks with non-forward slot" in {
     forAll(headerGen(slotGen = Gen.chooseNum(50L, 100L)), headerGen(slotGen = Gen.chooseNum[Long](20, 49))) {
@@ -86,8 +83,8 @@ class ConsensusValidationProgramSpec
     }
   }
 
-  // TODO: Re-enable once Proof Verification is implemented
-  ignore should "invalidate blocks with incorrect VRF certificate for a particular nonce" in {
+  // TODO: Implement and enable these tests
+  ignore should "invalidate blocks with syntactically incorrect VRF certificate for a particular nonce" in {
     forAll(
       headerGen(
         slotGen = Gen.chooseNum(0L, 50L),
@@ -122,7 +119,11 @@ class ConsensusValidationProgramSpec
     }
   }
 
-  // TODO: VRF Mismatch Test
+  ignore should "invalidate blocks with a syntactically incorrect KES certificate" in {}
+
+  ignore should "invalidate blocks with a semantically incorrect registration verification" in {}
+
+  ignore should "invalidate blocks with an insufficient VRF threshold" in {}
 
   it should "validate valid blocks" in {
     forAll(
