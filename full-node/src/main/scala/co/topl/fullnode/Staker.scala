@@ -1,22 +1,14 @@
 package co.topl.fullnode
 
 import cats.Id
-import cats.implicits._
 import co.topl.algebras.Clock
 import co.topl.consensus.LeaderElection
-import co.topl.crypto.hash.blake2b256
-import co.topl.fullnode.FullNode.taktikosAddress
 import co.topl.minting.BlockMint
+import co.topl.models._
 import co.topl.models.utility.HasLength.implicits._
 import co.topl.models.utility.{Lengths, Ratio, Sized}
-import co.topl.models._
 
 case class Staker(address: TaktikosAddress)(implicit clock: Clock[Id], leaderElectionConfig: LeaderElection.Config) {
-
-  val Right(stakerEvidence) =
-    Sized.strict[TypedBytes, Lengths.`33`.type](
-      TypedBytes(1: Byte, Bytes(blake2b256.hash(address.stakingVerificationKey.data.toArray).value))
-    )
 
   private val Right(vrfKey) =
     for {
@@ -54,7 +46,12 @@ case class Staker(address: TaktikosAddress)(implicit clock: Clock[Id], leaderEle
 
   implicit val mint: BlockMint[Id] = new BlockMint[Id]
 
-  def mintBlock(head: BlockV2, transactions: List[Transaction], relativeStake: Evidence => Ratio, epochNonce: Nonce) = {
+  def mintBlock(
+    head:          BlockV2,
+    transactions:  List[Transaction],
+    relativeStake: TaktikosAddress => Ratio,
+    epochNonce:    Nonce
+  ): BlockV2 = {
     val interpreter = new BlockMint.Algebra[Id] {
       def address: TaktikosAddress = Staker.this.address
 
@@ -64,7 +61,7 @@ case class Staker(address: TaktikosAddress)(implicit clock: Clock[Id], leaderEle
         val hit = LeaderElection
           .hits(
             vrfKey,
-            relativeStake(stakerEvidence),
+            relativeStake(address),
             fromSlot = parent.slot,
             epochNonce
           )
@@ -85,6 +82,8 @@ case class Staker(address: TaktikosAddress)(implicit clock: Clock[Id], leaderEle
     val unsignedBlock =
       mint.next(interpreter)
     clock.delayedUntilSlot(unsignedBlock.slot)
+    // Check for cancellation
+    // Evolve KES
     unsignedBlock.signed(nextKesCertificate(unsignedBlock.slot))
   }
 

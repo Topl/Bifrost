@@ -4,9 +4,8 @@ import cats.Id
 import cats.data.{NonEmptyChain, OptionT, StateT}
 import cats.implicits._
 import co.topl.algebras.Clock
-import co.topl.consensus.ConsensusValidation.implicits._
 import co.topl.consensus.crypto.Vrf
-import co.topl.consensus.{ConsensusValidation, LeaderElection}
+import co.topl.consensus.{ConsensusValidationProgram, LeaderElection, RelativeStateLookupAlgebra}
 import co.topl.models._
 import co.topl.models.utility.HasLength.implicits._
 import co.topl.models.utility.Lengths._
@@ -14,8 +13,6 @@ import co.topl.models.utility._
 import co.topl.typeclasses.BlockGenesis
 import co.topl.typeclasses.Identifiable.Instances._
 import co.topl.typeclasses.Identifiable.ops._
-
-import scala.concurrent.duration._
 
 object FullNode extends App {
 
@@ -31,37 +28,35 @@ object FullNode extends App {
 
   implicit val clock: Clock[Id] = new SyncClock
 
-  private val Right(taktikosAddress: TaktikosAddress) =
+  private val Right(stakerAddress: TaktikosAddress) =
     for {
       paymentVerificationKeyHash <- Sized.strict[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(1)))
       stakingVerificationKey     <- Sized.strict[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(1)))
       signature                  <- Sized.strict[Bytes, Lengths.`64`.type](Bytes(Array.fill[Byte](64)(1)))
     } yield TaktikosAddress(paymentVerificationKeyHash, stakingVerificationKey, signature)
 
-  val staker = Staker(taktikosAddress)
+  val staker = Staker(stakerAddress)
 
   val initialState =
     InMemoryState(
       NonEmptyChain(Tine(NonEmptyChain(BlockGenesis(Nil).value))),
-      Map(staker.stakerEvidence -> stakerRelativeStake),
+      Map(stakerAddress -> stakerRelativeStake),
       Bytes(Array.fill[Byte](4)(0))
     )
 
   val stateT =
     StateT[Id, InMemoryState, BlockV2] { implicit state =>
       val newBlock =
-        staker.mintBlock(state.head, Nil, state.relativeStake, state.epochNonce)
-      newBlock.headerV2
-        .validatedUsing[Id](
-          new ConsensusValidation.Algebra[Id] {
-            override def epochNonce: Id[Nonce] = state.epochNonce
+        staker.mintBlock(state.head, transactions = Nil, state.relativeStake, state.epochNonce)
 
-            override def parentBlockHeader: Id[BlockHeaderV2] = state.head.headerV2
-
-            override def relativeStakeFor(evidence: Evidence): OptionT[Id, Ratio] =
-              OptionT.fromOption(state.relativeStake.get(evidence))
-          }
-        )
+      new ConsensusValidationProgram[Id](
+        _ => OptionT.pure[Id](state.epochNonce),
+        new RelativeStateLookupAlgebra[Id] {
+          def lookup(epoch: Epoch)(address: TaktikosAddress): OptionT[Id, Ratio] =
+            OptionT.fromOption(state.relativeStake.get(address))
+        },
+        clock
+      ).validate(newBlock.headerV2, state.head.headerV2)
         .valueOr(f => throw new Exception(f.toString))
 
       state.append(newBlock) -> newBlock

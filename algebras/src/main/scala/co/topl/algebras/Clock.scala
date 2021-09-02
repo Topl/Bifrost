@@ -12,4 +12,6 @@ trait Clock[F[_]] {
   def currentTimestamp(): Timestamp
   def delayedUntilSlot(slot:           Slot): F[Unit]
   def delayedUntilTimestamp(timestamp: Timestamp): F[Unit]
+
+  def epochOf(slot: Slot): Epoch = slot / slotsPerEpoch
 }

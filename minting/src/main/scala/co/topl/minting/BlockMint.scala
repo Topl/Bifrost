@@ -23,12 +23,10 @@ class BlockMint[F[_]: Monad] extends Mint[F, BlockMint.UnsignedBlock, BlockMint.
   override def next(interpreter: BlockMint.Algebra[F]): F[BlockMint.UnsignedBlock] = {
     val BlockMint.Election(slot, vrfCertificate, threshold) = interpreter.elect(interpreter.currentHead.headerV2)
     interpreter.unconfirmedTransactions.map { transactions =>
-      val timestamp = interpreter.clock.currentTimestamp()
       BlockMint.UnsignedBlock(
         parentHeaderId = interpreter.currentHead.headerV2.id,
         txRoot = transactions.merkleTree,
         bloomFilter = transactions.bloomFilter,
-        timestamp = timestamp,
         height = interpreter.currentHead.headerV2.height + 1,
         slot = slot,
         vrfCertificate = vrfCertificate,
@@ -49,7 +47,6 @@ object BlockMint {
     parentHeaderId:    TypedIdentifier,
     txRoot:            TxRoot,
     bloomFilter:       BloomFilter,
-    timestamp:         Timestamp,
     height:            Long,
     slot:              Slot,
     vrfCertificate:    VrfCertificate,
@@ -59,12 +56,12 @@ object BlockMint {
     transactions:      Seq[Transaction]
   ) {
 
-    def signed(kesCertificate: KesCertificate): BlockV2 = {
+    def signed[F[_]](kesCertificate: KesCertificate)(implicit clock: Clock[F]): BlockV2 = {
       val header = BlockHeaderV2(
         parentHeaderId = parentHeaderId,
         txRoot = transactions.merkleTree,
         bloomFilter = transactions.bloomFilter,
-        timestamp = timestamp,
+        timestamp = clock.currentTimestamp(),
         height = height,
         slot = slot,
         vrfCertificate = vrfCertificate,

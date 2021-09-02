@@ -5,7 +5,7 @@ import co.topl.codecs.bytes.ByteCodec.implicits._
 import co.topl.crypto.hash.blake2b256
 import co.topl.models.utility.HasLength.implicits._
 import co.topl.models.utility.{Lengths, Ratio, Sized}
-import co.topl.models.{Bytes, Evidence, TypedBytes}
+import co.topl.models.{Bytes, Evidence, IdentifierTypes, TypedBytes}
 import simulacrum.{op, typeclass}
 
 @typeclass trait ContainsEvidence[T] {
