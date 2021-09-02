@@ -12,9 +12,9 @@ import simulacrum.{op, typeclass}
 
 object ContainsHeight {
 
-  object Instances {
-
+  trait Instances {
     implicit val blockHeaderV2: ContainsHeight[BlockHeaderV2] = _.height
     implicit val blockV1: ContainsHeight[BlockV1] = _.height
   }
+  object Instances extends Instances
 }

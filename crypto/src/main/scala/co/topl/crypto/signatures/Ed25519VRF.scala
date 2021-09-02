@@ -41,8 +41,6 @@ class Ed25519VRF extends eddsa.ECVRF25519 with EllipticCurveSignatureScheme {
     publicKey.value.length == PUBLIC_KEY_SIZE &&
     vrfVerify(publicKey.value, message, signature.value)
 
-  def proofToHash(signature: Signature): Array[Byte] =
-    vrfProofToHash(signature.value)
 }
 
 object Ed25519VRF {

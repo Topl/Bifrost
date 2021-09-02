@@ -15,7 +15,7 @@ import java.nio.charset.StandardCharsets
 
 object Identifiable {
 
-  object Instances {
+  trait Instances {
 
     implicit val identifiableBlockHeaderV2: Identifiable[BlockHeaderV2] =
       new Identifiable[BlockHeaderV2] {
@@ -26,6 +26,7 @@ object Identifiable {
         override def typePrefix: TypePrefix = IdentifierTypes.Block.HeaderV2
       }
 
+    // TODO: hash(blockHeaderId ++ txRoot)
     implicit val identifiableBlockBodyV2: Identifiable[BlockBodyV2] =
       new Identifiable[BlockBodyV2] {
 
@@ -51,6 +52,7 @@ object Identifiable {
         override def typePrefix: TypePrefix = ???
       }
   }
+  object Instances extends Instances
 }
 
 object IdentifierTypes {
@@ -70,4 +72,6 @@ object IdentifierTypes {
     val Registration: TypePrefix = 4: Byte
     val Taktikos: TypePrefix = 5: Byte
   }
+
+  val RatioEvidence = 6: Byte
 }

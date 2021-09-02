@@ -12,7 +12,7 @@ import simulacrum.{op, typeclass}
 
 object ContainsTimestamp {
 
-  object Instances {
+  trait Instances {
 
     implicit val blockHeaderV2: ContainsTimestamp[BlockHeaderV2] = _.timestamp
     implicit val blockV1: ContainsTimestamp[BlockV1] = _.timestamp
@@ -24,4 +24,5 @@ object ContainsTimestamp {
       case _                => ???
     }
   }
+  object Instances extends Instances
 }

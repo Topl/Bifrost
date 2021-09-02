@@ -2,6 +2,7 @@ package co.topl.typeclasses.crypto
 
 import co.topl.models.{Bytes, PublicKey}
 import simulacrum.{op, typeclass}
+
 import scala.language.implicitConversions
 
 trait Signer {
