@@ -440,7 +440,7 @@ trait Receive extends Members {
     /**starts the timer that repeats the update command*/
     case Run =>
       timers.startSingleTimer(Update,Update,updateTime)
-      timers.startPeriodicTimer(GetTime, GetTime, updateTime)
+      timers.startTimerWithFixedDelay(GetTime, GetTime, updateTime)
       timers.startSingleTimer(Refresh,Refresh,slotT * (refreshInterval * rng.nextDouble).toInt.millis)
       scheduleDiffuse()
       self ! BootstrapJob
@@ -448,7 +448,7 @@ trait Receive extends Members {
     case Refresh =>
       blocks.refresh()
       history.refresh()
-      timers.startPeriodicTimer(Refresh,Refresh,slotT*refreshInterval.millis)
+      timers.startTimerWithFixedDelay(Refresh,Refresh,slotT*refreshInterval.millis)
 
     case GetTime =>
       sender() ! GetTime(globalTime)

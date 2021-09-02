@@ -5,7 +5,6 @@ import akka.http.scaladsl.Http
 import akka.io.Tcp
 import akka.pattern.ask
 import akka.util.Timeout
-import co.topl.BifrostApp.log
 import co.topl.akkahttprpc.{ThrowableData, ThrowableSupport}
 import co.topl.consensus._
 import co.topl.http.HttpService
@@ -129,6 +128,7 @@ class StakeholderDemoApp(startupOpts: StartupOpts) extends NodeLogging with Runn
       "Stakeholder"
     )
 
+
   /** Sequence of actors for cleanly shutting now the application */
   private val actorsToStop: Seq[ActorRef] = Seq(
     peerManagerRef,
@@ -142,7 +142,7 @@ class StakeholderDemoApp(startupOpts: StartupOpts) extends NodeLogging with Runn
   ) ++ walletConnectionHandlerRef ++ Seq(routerRef,stakeholderRef)
 
   /** hook for initiating the shutdown procedure */
-  sys.addShutdownHook(BifrostApp.shutdown(actorSystem, actorsToStop))
+  sys.addShutdownHook(StakeholderDemoApp.shutdown(actorSystem, actorsToStop))
 
   implicit val throwableEncoder: Encoder[ThrowableData] =
     ThrowableSupport.verbose(settings.rpcApi.verboseAPI)
@@ -181,7 +181,7 @@ class StakeholderDemoApp(startupOpts: StartupOpts) extends NodeLogging with Runn
   } catch {
     case e: Throwable =>
       log.error(s"${Console.RED}Unexpected error when checking for JVMCI: $e ${Console.RESET}")
-      BifrostApp.shutdown(actorSystem, actorsToStop)
+      StakeholderDemoApp.shutdown(actorSystem, actorsToStop)
   }
 
   /** Is the system using the JVMCI compiler for normal compilations? */
@@ -212,7 +212,7 @@ class StakeholderDemoApp(startupOpts: StartupOpts) extends NodeLogging with Runn
         case Some(e) => log.error(message, e)
         case _       => log.error(message)
       }
-      BifrostApp.shutdown(actorSystem, actorsToStop)
+      StakeholderDemoApp.shutdown(actorSystem, actorsToStop)
     }
 
     /** Trigger the P2P network bind and check that the protocol bound successfully. */
@@ -235,7 +235,7 @@ class StakeholderDemoApp(startupOpts: StartupOpts) extends NodeLogging with Runn
           s"Terminating application!${Console.RESET}",
           ex
         )
-        BifrostApp.shutdown(actorSystem, actorsToStop)
+        StakeholderDemoApp.shutdown(actorSystem, actorsToStop)
     }
 
   }
@@ -262,7 +262,7 @@ object StakeholderDemoApp extends Logging {
 
   private def startNode(args: Array[String]): Unit =
     ParserForClass[StartupOpts].constructEither(args.toIndexedSeq) match {
-      case Right(parsedArgs) => new BifrostApp(parsedArgs).run()
+      case Right(parsedArgs) => new StakeholderDemoApp(parsedArgs).run()
       case Left(e)           => throw new Exception(e)
     }
 

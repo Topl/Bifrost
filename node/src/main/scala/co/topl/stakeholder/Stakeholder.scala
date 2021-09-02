@@ -7,6 +7,7 @@ import co.topl.stakeholder.components.{Block, Serializer, Tine}
 import co.topl.stakeholder.history.{BlockStorage, ChainStorage, StateStorage}
 import co.topl.settings.AppSettings
 import co.topl.stakeholder.cases.GetTime
+import co.topl.utils.Logging
 
 import scala.math.BigInt
 import scala.util.{Failure, Random, Success, Try}
@@ -130,8 +131,8 @@ class Stakeholder(
     System.currentTimeMillis()+localClockOffset
   }
 
-  def syncGlobalClock(): Unit = {
-    var notSynced = true
+  var notSynced = true
+  def syncGlobalClock(): Unit = if (notSynced) {
     while (notSynced) Try{
       val ntpClient = new NTPClient
       ntpClient.getOffset(Array(TetraParameters.timeServer))
@@ -139,8 +140,10 @@ class Stakeholder(
       case Success(value) =>
         localClockOffset = value
         notSynced = false
+        log.info("Global time synchronized, starting...")
+        self ! cases.Run
       case Failure(_) =>
-        println("Error: could not fetch global time, trying again...")
+        log.warn("Error: could not fetch global time, trying again...")
     }
 
   }

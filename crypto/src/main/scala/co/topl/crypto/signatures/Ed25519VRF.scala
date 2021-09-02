@@ -46,7 +46,7 @@ class Ed25519VRF extends eddsa.ECVRF25519 with EllipticCurveSignatureScheme {
 }
 
 object Ed25519VRF {
-  val SignatureLength: Int = 64
+  val SignatureLength: Int = 80
   val KeyLength: Int = 32
   val HashLength: Int = 64
 }

@@ -3,10 +3,11 @@ package co.topl.stakeholder
 import akka.actor.{Actor, ActorPath, Timers}
 import com.google.common.cache.LoadingCache
 import co.topl.stakeholder.primitives.ByteArrayWrapper
-import co.topl.stakeholder.primitives.{ActorRefWrapper, Fch, Kes, KeyFile, Keys, TetraParameters, Ratio, Sig, SimpleTypes, Vrf}
+import co.topl.stakeholder.primitives.{ActorRefWrapper, Fch, Kes, KeyFile, Keys, Ratio, Sig, SimpleTypes, TetraParameters, Vrf}
 import co.topl.stakeholder.components.{Block, Serializer, Tine, Transaction}
 import co.topl.stakeholder.history.{BlockStorage, ChainStorage, StateStorage}
 import co.topl.settings.AppSettings
+import co.topl.utils.Logging
 
 import scala.concurrent.duration._
 import scala.math.BigInt
@@ -18,7 +19,7 @@ import scala.util.Random
   * All members required to execute Ouroboros routines and maintain state, mempool, tinepool, and wallet
   */
 
-trait Members extends SimpleTypes with Actor with Timers {
+trait Members extends SimpleTypes with Actor with Timers with Logging {
 
   implicit val routerRef:ActorRefWrapper
   implicit val blocks:BlockStorage
