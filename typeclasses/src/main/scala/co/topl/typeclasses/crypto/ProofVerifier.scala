@@ -1,7 +1,7 @@
 package co.topl.typeclasses.crypto
 
 import co.topl.crypto.PublicKey
-import co.topl.crypto.signatures.{Curve25519, Ed25519, Signature}
+import co.topl.crypto.signatures.{Curve25519, Ed25519, Ed25519VRF, Signature}
 import co.topl.models._
 import co.topl.typeclasses.crypto.Signable.ops._
 
@@ -28,7 +28,7 @@ object ProofVerifier {
 
   trait Implicits {
 
-    implicit def asOps[Proof, Proposition](
+    implicit def asVerifierOps[Proof, Proposition](
       p:                 Proof
     )(implicit verifier: ProofVerifier[Proof, Proposition]): Ops[Proof, Proposition] =
       new Ops[Proof, Proposition] {
@@ -156,7 +156,11 @@ object ProofVerifier {
           proof:       Proofs.Consensus.VrfTest,
           proposition: Propositions.Consensus.PublicKeyVrf,
           data:        Data
-        ): Boolean = true // TODO
+        ): Boolean = Ed25519VRF.instance.vrfVerify(
+          proposition.key.ed25519.bytes.data.toArray,
+          data.signableBytes.toArray,
+          proof.bytes.data.toArray
+        )
       }
 
     implicit val consensusVrfNonce: ProofVerifier[Proofs.Consensus.Nonce, Propositions.Consensus.PublicKeyVrf] =
@@ -166,7 +170,11 @@ object ProofVerifier {
           proof:       Proofs.Consensus.Nonce,
           proposition: Propositions.Consensus.PublicKeyVrf,
           data:        Data
-        ): Boolean = true // TODO
+        ): Boolean = Ed25519VRF.instance.vrfVerify(
+          proposition.key.ed25519.bytes.data.toArray,
+          data.signableBytes.toArray,
+          proof.bytes.data.toArray
+        )
       }
 
     implicit val consensusKesCertificate

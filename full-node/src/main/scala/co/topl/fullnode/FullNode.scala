@@ -1,7 +1,7 @@
 package co.topl.fullnode
 
 import cats.Id
-import cats.data.{NonEmptyChain, OptionT, StateT}
+import cats.data.{OptionT, StateT}
 import cats.implicits._
 import co.topl.algebras.Clock
 import co.topl.consensus.{ConsensusValidationProgram, LeaderElection, RelativeStateLookupAlgebra}
@@ -13,6 +13,9 @@ import co.topl.models.utility._
 import co.topl.typeclasses.BlockGenesis
 import co.topl.typeclasses.Identifiable.Instances._
 import co.topl.typeclasses.Identifiable.ops._
+import co.topl.typeclasses.crypto.KeyInitializer
+import KeyInitializer.Instances._
+import co.topl.crypto.hash.blake2b256
 
 object FullNode extends App {
 
@@ -28,43 +31,58 @@ object FullNode extends App {
 
   implicit val clock: Clock[Id] = new SyncClock
 
-  private val Right(stakerAddress: TaktikosAddress) =
+  private val Right(stakerAddress: TaktikosAddress) = {
+    val stakingVerificationKey = KeyInitializer[KeyPairs.Ed25519].random().publicKey.bytes
     for {
-      paymentVerificationKeyHash <- Sized.strict[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(1)))
-      stakingVerificationKey     <- Sized.strict[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(1)))
-      signature                  <- Sized.strict[Bytes, Lengths.`64`.type](Bytes(Array.fill[Byte](64)(1)))
+      paymentVerificationKeyHash <- Sized.strict[Bytes, Lengths.`32`.type](
+        Bytes(blake2b256.hash(KeyInitializer[KeyPairs.Ed25519].random().publicKey.bytes.data.toArray).value)
+      )
+      signature <- Sized.strict[Bytes, Lengths.`64`.type](Bytes(Array.fill[Byte](64)(1)))
     } yield TaktikosAddress(paymentVerificationKeyHash, stakingVerificationKey, signature)
+  }
 
   val staker = Staker(stakerAddress)
 
   val initialState =
     InMemoryState(
-      NonEmptyChain(Tine(NonEmptyChain(BlockGenesis(Nil).value))),
-      Map(stakerAddress -> stakerRelativeStake),
-      Bytes(Array.fill[Byte](4)(0))
+      BlockGenesis(Nil).value,
+      Map.empty,
+      Map.empty,
+      Map(0L -> Map(stakerAddress -> stakerRelativeStake)),
+      Map(0L -> Bytes(Array.fill[Byte](4)(0)))
     )
 
   val stateT =
-    StateT[Id, InMemoryState, BlockV2] { implicit state =>
-      val newBlock =
-        staker.mintBlock(state.head, transactions = Nil, state.relativeStake, state.epochNonce)
+    StateT[Id, InMemoryState, Option[BlockV2]] { implicit state =>
+      staker
+        .mintBlock(
+          state.canonicalHead,
+          transactions = Nil,
+          epoch => address => state.relativeStakes.get(epoch).flatMap(_.get(address)),
+          epoch => state.epochNonce(epoch)
+        )
+        .value match {
+        case Some(newBlock) =>
+          new ConsensusValidationProgram[Id](
+            epoch => state.epochNonce.get(epoch).toOptionT[Id],
+            new RelativeStateLookupAlgebra[Id] {
+              def lookup(epoch: Epoch)(address: TaktikosAddress): OptionT[Id, Ratio] =
+                OptionT.fromOption(state.relativeStakes(epoch).get(address))
+            },
+            clock
+          ).validate(newBlock.headerV2, state.canonicalHead.headerV2)
+            .valueOr(f => throw new Exception(f.toString))
 
-      new ConsensusValidationProgram[Id](
-        _ => OptionT.pure[Id](state.epochNonce),
-        new RelativeStateLookupAlgebra[Id] {
-          def lookup(epoch: Epoch)(address: TaktikosAddress): OptionT[Id, Ratio] =
-            OptionT.fromOption(state.relativeStake.get(address))
-        },
-        clock
-      ).validate(newBlock.headerV2, state.head.headerV2)
-        .valueOr(f => throw new Exception(f.toString))
-
-      state.append(newBlock) -> newBlock
+          state.append(newBlock) -> Some(newBlock)
+        case _ =>
+          state -> None
+      }
     }
 
   LazyList
     .unfold(initialState)(stateT.run(_).swap.some)
-    .takeWhile(_.headerV2.slot < clock.slotsPerEpoch)
+    .takeWhile(_.nonEmpty)
+    .collect { case Some(newBlock) => newBlock }
     .foreach { head =>
       println(
         s"Applied headerId=${new String(head.headerV2.id.dataBytes.toArray)}" +

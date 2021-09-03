@@ -1,8 +1,7 @@
 package co.topl.typeclasses.crypto
 
 import cats.Functor
-import cats.implicits._
-import co.topl.crypto.signatures.Ed25519
+import co.topl.crypto.signatures.{Ed25519, Ed25519VRF}
 import co.topl.models._
 import co.topl.models.utility.HasLength.implicits._
 import co.topl.models.utility.Lengths._
@@ -53,9 +52,25 @@ object KeyInitializer {
       }
 
     implicit val vrfInitializer: KeyInitializer[KeyPairs.Vrf] =
-      ed25519Initializer.map(edKeyPair =>
-        KeyPairs.Vrf(PrivateKeys.Vrf(edKeyPair.privateKey), PublicKeys.Vrf(edKeyPair.publicKey))
-      )
+      new KeyInitializer[KeyPairs.Vrf] {
+
+        def random(): KeyPairs.Vrf =
+          (fromLib _).tupled(Ed25519VRF.instance.createKeyPair)
+
+        def fromSeed(seed: Bytes): KeyPairs.Vrf =
+          (fromLib _).tupled(Ed25519VRF.instance.createKeyPair(seed.toArray))
+
+        private def fromLib(sk: co.topl.crypto.PrivateKey, pk: co.topl.crypto.PublicKey): KeyPairs.Vrf = {
+          for {
+            edSkBytes <- Sized.strict[Bytes, PrivateKeys.Ed25519.Length](Bytes(sk.value))
+            edPkBytes <- Sized.strict[Bytes, PublicKeys.Ed25519.Length](Bytes(pk.value))
+          } yield KeyPairs.Vrf(
+            PrivateKeys.Vrf(PrivateKeys.Ed25519(edSkBytes)),
+            PublicKeys.Vrf(PublicKeys.Ed25519(edPkBytes))
+          )
+        }.toOption.get
+
+      }
   }
   object Instances extends Instances
 }

@@ -3,6 +3,7 @@ package co.topl.consensus
 import cats.Id
 import cats.data.OptionT
 import co.topl.algebras.Clock
+import Clock.implicits._
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility.{Lengths, Ratio}
@@ -10,6 +11,7 @@ import co.topl.typeclasses.ContainsEvidence.Instances._
 import co.topl.typeclasses.ContainsEvidence.ops._
 import co.topl.typeclasses.Identifiable.Instances._
 import co.topl.typeclasses.Identifiable.ops._
+import co.topl.typeclasses.crypto.KeyInitializer
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
@@ -127,14 +129,14 @@ class ConsensusValidationProgramSpec
 
   it should "validate valid blocks" in {
     forAll(
-      headerGen(),
+      headerGen(slotGen = Gen.const[Long](5000)),
       kesCertificateGen,
       genSizedStrictBytes[Lengths.`32`.type]().flatMap(txRoot =>
         genSizedStrictBytes[Lengths.`256`.type]()
           .flatMap(bloomFilter => epochNonceGen.map(nonce => (txRoot, bloomFilter, nonce)))
       ),
       relativeStakeGen,
-      vrfSecretGen,
+      Gen.const(KeyInitializer.Instances.vrfInitializer.random()),
       taktikosAddressGen
     ) { case (parent, kesCertificate, (txRoot, bloomFilter, epochNonce), relativeStake, vrfSecret, address) =>
       val nonceInterpreter = mock[EpochNoncesAlgebra[Id]]
@@ -142,7 +144,7 @@ class ConsensusValidationProgramSpec
       val clockInterpreter = mock[Clock[Id]]
       val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
 
-      val hit = LeaderElection.hits(vrfSecret, relativeStake, parent.slot + 1, epochNonce).head
+      val hit = LeaderElection.hits(vrfSecret, relativeStake, parent.slot + 1, parent.slot + 999, epochNonce).next()
       val child =
         BlockHeaderV2(
           parentHeaderId = parent.id,
@@ -158,18 +160,17 @@ class ConsensusValidationProgramSpec
           address = address
         )
 
-      (clockInterpreter
-        .epochOf(_: Slot))
-        .expects(child.slot)
+      (() => clockInterpreter.slotsPerEpoch)
+        .expects()
         .anyNumberOfTimes()
-        .returning(5)
+        .returning(1000)
 
       (nonceInterpreter
         .nonceForEpoch(_: Epoch))
         // The clock puts the child block in epoch 5, so validation should be concerned with epoch 5-2=3
         .expects(3L)
         .anyNumberOfTimes()
-        .returning(OptionT.pure[Id](Bytes(Array(1: Byte))))
+        .returning(OptionT.pure[Id](epochNonce))
 
       (relativeStakeInterpreter
         .lookup(_: Epoch)(_: TaktikosAddress))

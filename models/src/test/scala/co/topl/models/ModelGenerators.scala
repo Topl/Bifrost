@@ -12,7 +12,7 @@ trait ModelGenerators {
     Gen.long.map(BigInt(_).toByteArray).map(Bytes(_))
 
   def relativeStakeGen: Gen[Ratio] =
-    Gen.chooseNum(1L, 10L).flatMap(denominator => Ratio(1L, denominator))
+    Gen.chooseNum(1L, 5L).flatMap(denominator => Ratio(1L, denominator))
 
   def vrfSecretGen: Gen[KeyPairs.Vrf] =
     for {

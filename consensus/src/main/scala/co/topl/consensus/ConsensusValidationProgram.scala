@@ -4,6 +4,7 @@ import cats.Monad
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.algebras.Clock
+import Clock.implicits._
 import co.topl.consensus.vrf.ProofToHash
 import co.topl.crypto.signatures.Signature
 import co.topl.models._
@@ -101,7 +102,7 @@ class ConsensusValidationProgram[F[_]: Monad](
         Bytes(
           ProofToHash.digest(Signature(header.vrfCertificate.testProof.bytes.data.toArray))
         )
-      ) || true, // TODO: This check currently does not seem to work
+      ),
       header,
       ConsensusValidationProgram.Failures.IneligibleVrfCertificate(threshold, header.vrfCertificate)
     )
@@ -129,10 +130,10 @@ class ConsensusValidationProgram[F[_]: Monad](
         EitherT.cond[F](
           certificate.testProof.satisfies(
             Propositions.Consensus.PublicKeyVrf(certificate.vkVRF),
-            "test".getBytes(StandardCharsets.UTF_8) ++ epochNonce.toArray
-          ) && certificate.testProof.satisfies(
+            epochNonce.toArray ++ BigInt(header.slot).toByteArray ++ "TEST".getBytes(StandardCharsets.UTF_8)
+          ) && certificate.nonceProof.satisfies(
             Propositions.Consensus.PublicKeyVrf(certificate.vkVRF),
-            "nonce".getBytes(StandardCharsets.UTF_8) ++ epochNonce.toArray
+            epochNonce.toArray ++ BigInt(header.slot).toByteArray ++ "NONCE".getBytes(StandardCharsets.UTF_8)
           ),
           header,
           ConsensusValidationProgram.Failures.InvalidVrfCertificate(header.vrfCertificate)

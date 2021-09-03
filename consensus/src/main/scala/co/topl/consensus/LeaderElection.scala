@@ -7,6 +7,8 @@ import co.topl.models._
 import co.topl.models.utility.{Lengths, Ratio, Sized}
 import co.topl.typeclasses.RatioOps.implicits._
 
+import java.nio.charset.StandardCharsets
+
 object LeaderElection {
 
   sealed abstract class Failure
@@ -19,11 +21,10 @@ object LeaderElection {
 
   case class Config(lddCutoff: Int, precision: Int, baselineDifficulty: Ratio, amplitude: Ratio)
 
-  def hits(secret: KeyPairs.Vrf, relativeStake: Ratio, fromSlot: Slot, epochNonce: Nonce)(implicit
+  def hits(secret: KeyPairs.Vrf, relativeStake: Ratio, fromSlot: Slot, untilSlot: Slot, epochNonce: Nonce)(implicit
     config:        Config
-  ): LazyList[Hit] =
-    LazyList
-      .unfold(fromSlot)(s => Some(s + 1, s + 1))
+  ): Iterator[Hit] =
+    ((fromSlot + 1) until untilSlot).iterator
       .map(slot => getHit(secret, relativeStake, slot, slot - fromSlot, epochNonce))
       .collect { case Right(hit) => hit }
 
@@ -50,13 +51,10 @@ object LeaderElection {
     // create VRF for current state
     val vrf = VrfProof(privateKeyBytes, epochNonce, slot)
 
-    // get the proof used for testing slot eligibility
-    val proof = vrf.testProof
-
     val threshold = getThreshold(relativeStake, slotDiff)
 
     Either.cond(
-      isSlotLeaderForThreshold(threshold)(proof),
+      isSlotLeaderForThreshold(threshold)(vrf.testProofHashed),
       Hit(
         VrfCertificate(
           secret.publicKey,
@@ -67,7 +65,7 @@ object LeaderElection {
         slot,
         threshold
       ),
-      Failures.ThresholdNotMet(threshold, proof)
+      Failures.ThresholdNotMet(threshold, vrf.testProof)
     )
   }
 
@@ -128,7 +126,7 @@ object LeaderElection {
           Bytes(
             vrf.vrfProof(
               secretData.toArray,
-              (epochNonce ++ secretData ++ BigInt(slot).toByteArray ++ token.getBytes).toArray[Byte]
+              epochNonce.toArray ++ BigInt(slot).toByteArray ++ token.getBytes(StandardCharsets.UTF_8)
             )
           )
       )
