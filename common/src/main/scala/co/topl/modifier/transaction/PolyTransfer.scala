@@ -108,7 +108,8 @@ object PolyTransfer {
     recipients:    IndexedSeq[(Address, SimpleValue)],
     changeAddress: Address,
     fee:           Int128,
-    data:          Option[Latin1Data]
+    data:          Option[Latin1Data],
+    minting:       Boolean
   ): ValidationResult[PolyTransfer[P]] =
     for {
       _             <- validateNonEmptyInputs(fromBoxes)
@@ -128,7 +129,7 @@ object PolyTransfer {
       fee,
       Instant.now.toEpochMilli,
       data,
-      minting = false
+      minting
     )
 
   @deprecated("use TransferBuilder.build instead")
@@ -149,7 +150,7 @@ object PolyTransfer {
           case (polyBoxes, _)                             => polyBoxes
         }
 
-    validated(polyBoxes, recipients, changeAddress, fee, data)
+    validated(polyBoxes, recipients, changeAddress, fee, data, false)
   }
 
   implicit def jsonEncoder[P <: Proposition]: Encoder[PolyTransfer[P]] = { tx: PolyTransfer[P] =>

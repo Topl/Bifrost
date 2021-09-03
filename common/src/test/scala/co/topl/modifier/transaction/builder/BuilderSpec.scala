@@ -4,16 +4,15 @@ import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box.{PolyBox, ProgramId, SimpleValue}
 import co.topl.modifier.transaction.PolyTransfer.Validation.InvalidPolyTransfer
-import co.topl.modifier.transaction.builder.TransferBlueprints.PolyTransferBlueprint
+import co.topl.modifier.transaction.builder.implicits._
 import co.topl.modifier.transaction.{builder, PolyTransfer}
 import co.topl.utils.CommonGenerators
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import co.topl.modifier.transaction.builder.implicits._
-import org.scalatest.EitherValues
 
 import scala.util.Random
 
@@ -36,16 +35,19 @@ class TransferBuilderSpec
 
         (boxReader.getTokenBoxes _).expects(sender).returns(Some(polyBoxes))
 
-        val buildResult =
-          builder.buildTransfer[PolyTransferBlueprint, InvalidPolyTransfer, PolyTransfer[
+        val buildResult: Either[InvalidPolyTransfer, PolyTransfer[PublicKeyPropositionCurve25519]] =
+          builder.buildTransfer[SimpleValue, InvalidPolyTransfer, PolyTransfer[
             PublicKeyPropositionCurve25519
-          ], BoxPickingStrategy.All.type](
-            PolyTransferBlueprint(IndexedSeq(recipient -> SimpleValue(polyBoxes.map(_.value.quantity).sum))),
-            List(sender),
-            boxReader,
-            sender,
-            0,
-            BoxPickingStrategy.All
+          ], BoxPickingStrategy.All](
+            senders = IndexedSeq(sender),
+            recipients = IndexedSeq(recipient -> SimpleValue(polyBoxes.map(_.value.quantity).sum)),
+            boxReader = boxReader,
+            feeChangeAddress = sender,
+            consolidationAddress = sender,
+            fee = 0,
+            data = None,
+            minting = false,
+            strategy = BoxPickingStrategy.All
           )
 
         // check that the same nonces are in the result as in the inputs
@@ -62,16 +64,19 @@ class TransferBuilderSpec
 
         (boxReader.getTokenBoxes _).expects(sender).returns(Some(polyBoxes))
 
-        val buildResult =
-          builder.buildTransfer[PolyTransferBlueprint, InvalidPolyTransfer, PolyTransfer[
+        val buildResult: Either[InvalidPolyTransfer, PolyTransfer[PublicKeyPropositionCurve25519]] =
+          builder.buildTransfer[SimpleValue, InvalidPolyTransfer, PolyTransfer[
             PublicKeyPropositionCurve25519
           ], BoxPickingStrategy.Specific](
-            PolyTransferBlueprint(IndexedSeq(recipient -> SimpleValue(specificBox.value.quantity))),
-            List(sender),
-            boxReader,
-            sender,
-            0,
-            BoxPickingStrategy.Specific(IndexedSeq(specificBox.nonce))
+            senders = IndexedSeq(sender),
+            recipients = IndexedSeq(recipient -> SimpleValue(specificBox.value.quantity)),
+            boxReader = boxReader,
+            feeChangeAddress = sender,
+            consolidationAddress = sender,
+            fee = 0,
+            data = None,
+            minting = false,
+            strategy = BoxPickingStrategy.Specific(IndexedSeq(specificBox.nonce))
           )
 
         // check that the nonces are the same
@@ -91,15 +96,18 @@ class TransferBuilderSpec
         (boxReader.getTokenBoxes _).expects(sender).returns(Some(polyBoxes))
 
         val buildResult =
-          builder.buildTransfer[PolyTransferBlueprint, InvalidPolyTransfer, PolyTransfer[
+          builder.buildTransfer[SimpleValue, InvalidPolyTransfer, PolyTransfer[
             PublicKeyPropositionCurve25519
           ], BoxPickingStrategy.SmallestFirst](
-            PolyTransferBlueprint(IndexedSeq(recipient -> smallestBox.value)),
-            List(sender),
-            boxReader,
-            sender,
-            0,
-            BoxPickingStrategy.SmallestFirst(0, smallestBox.value.quantity, 0)
+            senders = IndexedSeq(sender),
+            recipients = IndexedSeq(recipient -> smallestBox.value),
+            boxReader = boxReader,
+            feeChangeAddress = sender,
+            consolidationAddress = sender,
+            fee = 0,
+            data = None,
+            minting = false,
+            strategy = BoxPickingStrategy.SmallestFirst(0, smallestBox.value.quantity, 0)
           )
 
         // check that the only box used is the smallest one

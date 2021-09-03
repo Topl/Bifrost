@@ -4,7 +4,7 @@ import co.topl.attestation.Address
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box.{ArbitBox, AssetBox, PolyBox, ProgramId}
 import co.topl.modifier.transaction.builder.BoxPickingStrategy.implicits._
-import co.topl.modifier.transaction.builder.TransferBlueprint.implicits._
+import co.topl.modifier.transaction.builder.ValueTransferBlueprint.implicits._
 import co.topl.utils.Int128
 import co.topl.utils.StringDataTypes.Latin1Data
 
@@ -16,15 +16,17 @@ package object builder {
     assets: IndexedSeq[(Address, AssetBox)]
   )
 
-  def buildTransfer[Blueprint, Failure, Transfer, Strategy: BoxPickingStrategy](
-    blueprint:                  Blueprint,
-    senders:                    List[Address],
+  def buildTransfer[Value, Failure, Transfer, Strategy: BoxPickingStrategy](
+    senders:                    IndexedSeq[Address],
+    recipients:                 IndexedSeq[(Address, Value)],
     boxReader:                  BoxReader[ProgramId, Address],
-    changeAddress:              Address,
+    feeChangeAddress:           Address,
+    consolidationAddress:       Address,
     fee:                        Int128,
-    strategy:                   Strategy,
-    data:                       Option[Latin1Data] = None
-  )(implicit transferBlueprint: TransferBlueprint[Blueprint, Failure, Transfer]): Either[Failure, Transfer] = {
+    data:                       Option[Latin1Data] = None,
+    minting:                    Boolean = false,
+    strategy:                   Strategy = BoxPickingStrategy.All
+  )(implicit transferBlueprint: ValueTransferBlueprint[Value, Failure, Transfer]): Either[Failure, Transfer] = {
     val userBoxes = senders.flatMap(addr => boxReader.getTokenBoxes(addr).getOrElse(List()).map(addr -> _))
 
     val tokenSpecificBoxes = userBoxes.foldLeft(TokenBoxes(IndexedSeq(), IndexedSeq(), IndexedSeq())) {
@@ -36,13 +38,18 @@ package object builder {
 
     val pickedBoxes = strategy.pick(tokenSpecificBoxes)
 
-    blueprint.compileTransfer[Failure, Transfer](pickedBoxes, senders, changeAddress, fee, data)
+    transferBlueprint.compileBlueprint(
+      pickedBoxes,
+      recipients,
+      feeChangeAddress,
+      consolidationAddress,
+      fee,
+      data,
+      minting
+    )
   }
 
-  trait Implicits
-      extends TransferBlueprints.Implicits
-      with BoxPickingStrategy.Implicits
-      with TransferBlueprint.Implicits
+  trait Implicits extends BoxPickingStrategy.Implicits with ValueTransferBlueprint.Implicits
 
   object implicits extends Implicits
 

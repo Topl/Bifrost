@@ -119,7 +119,8 @@ object ArbitTransfer {
     changeAddress:        Address,
     consolidationAddress: Address,
     fee:                  Int128,
-    data:                 Option[Latin1Data]
+    data:                 Option[Latin1Data],
+    minting:              Boolean
   ): ValidationResult[ArbitTransfer[P]] =
     for {
       _           <- validatePolyBoxes(polyBoxes)
@@ -137,7 +138,7 @@ object ArbitTransfer {
       fee,
       Instant.now.toEpochMilli,
       data,
-      minting = false
+      minting
     )
 
   @deprecated("use TransferBuilder.build instead")
@@ -169,7 +170,8 @@ object ArbitTransfer {
       changeAddress,
       consolidationAddress,
       fee,
-      data
+      data,
+      false
     )
   }
 

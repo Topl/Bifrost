@@ -12,11 +12,6 @@ import co.topl.modifier.transaction.AssetTransfer.Validation.InvalidAssetTransfe
 import co.topl.modifier.transaction.PolyTransfer.Validation.InvalidPolyTransfer
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction.builder.BoxPickingStrategy
-import co.topl.modifier.transaction.builder.TransferBlueprints.{
-  ArbitTransferBlueprint,
-  AssetTransferBlueprint,
-  PolyTransferBlueprint
-}
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
 import co.topl.modifier.{transaction, ModifierId}
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
@@ -113,15 +108,15 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
 
     val rawTx =
       transaction.builder
-        .buildTransfer[PolyTransferBlueprint, InvalidPolyTransfer, PolyTransfer[
+        .buildTransfer[SimpleValue, InvalidPolyTransfer, PolyTransfer[
           PublicKeyPropositionCurve25519
         ], BoxPickingStrategy.All](
-          PolyTransferBlueprint(recipients),
-          List(sender),
+          IndexedSeq(sender),
+          recipients,
           state,
           sender,
-          fee,
-          BoxPickingStrategy.All
+          sender,
+          fee
         )
         .getOrThrow()
 
@@ -150,15 +145,15 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
 
     val rawTx =
       transaction.builder
-        .buildTransfer[PolyTransferBlueprint, InvalidPolyTransfer, PolyTransfer[
+        .buildTransfer[SimpleValue, InvalidPolyTransfer, PolyTransfer[
           ThresholdPropositionCurve25519
         ], BoxPickingStrategy.All](
-          PolyTransferBlueprint(recipients),
-          List(sender),
+          IndexedSeq(sender),
+          recipients,
           state,
           sender,
-          fee,
-          BoxPickingStrategy.All
+          sender,
+          fee
         )
         .getOrThrow()
 
@@ -185,15 +180,15 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
     }
 
     val rawTx = transaction.builder
-      .buildTransfer[PolyTransferBlueprint, InvalidPolyTransfer, PolyTransfer[
+      .buildTransfer[SimpleValue, InvalidPolyTransfer, PolyTransfer[
         PublicKeyPropositionEd25519
       ], BoxPickingStrategy.All](
-        PolyTransferBlueprint(recipients),
-        List(sender),
+        IndexedSeq(sender),
+        recipients,
         state,
         sender,
-        fee,
-        BoxPickingStrategy.All
+        sender,
+        fee
       )
       .getOrThrow()
 
@@ -230,15 +225,15 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
 
     val rawTx =
       transaction.builder
-        .buildTransfer[ArbitTransferBlueprint, InvalidArbitTransfer, ArbitTransfer[
+        .buildTransfer[SimpleValue, InvalidArbitTransfer, ArbitTransfer[
           PublicKeyPropositionCurve25519
         ], BoxPickingStrategy.All](
-          ArbitTransferBlueprint(sender, recipients),
-          List(sender),
+          IndexedSeq(sender),
+          recipients,
           state,
           sender,
-          fee,
-          BoxPickingStrategy.All
+          sender,
+          fee
         )
         .getOrThrow()
 
@@ -267,15 +262,15 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
 
     val rawTx =
       transaction.builder
-        .buildTransfer[ArbitTransferBlueprint, InvalidArbitTransfer, ArbitTransfer[
+        .buildTransfer[SimpleValue, InvalidArbitTransfer, ArbitTransfer[
           PublicKeyPropositionCurve25519
         ], BoxPickingStrategy.All](
-          ArbitTransferBlueprint(sender, recipients),
-          List(sender),
+          IndexedSeq(sender),
+          recipients,
           state,
           sender,
-          fee,
-          BoxPickingStrategy.All
+          sender,
+          fee
         )
         .getOrThrow()
 
@@ -303,15 +298,15 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
 
     val rawTx =
       transaction.builder
-        .buildTransfer[ArbitTransferBlueprint, InvalidArbitTransfer, ArbitTransfer[
+        .buildTransfer[SimpleValue, InvalidArbitTransfer, ArbitTransfer[
           PublicKeyPropositionEd25519
         ], BoxPickingStrategy.All](
-          ArbitTransferBlueprint(sender, recipients),
-          List(sender),
+          IndexedSeq(sender),
+          recipients,
           state,
           sender,
-          fee,
-          BoxPickingStrategy.All
+          sender,
+          fee
         )
         .getOrThrow()
 
@@ -343,15 +338,16 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
 
     val rawTx =
       transaction.builder
-        .buildTransfer[AssetTransferBlueprint, InvalidAssetTransfer, AssetTransfer[
+        .buildTransfer[AssetValue, InvalidAssetTransfer, AssetTransfer[
           PublicKeyPropositionCurve25519
         ], BoxPickingStrategy.All](
-          AssetTransferBlueprint(sender, recipients, minting),
-          List(sender),
+          IndexedSeq(sender),
+          recipients,
           state,
           sender,
+          sender,
           fee,
-          BoxPickingStrategy.All
+          minting = minting
         )
         .getOrThrow()
 
@@ -375,15 +371,16 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
 
     val rawTx =
       transaction.builder
-        .buildTransfer[AssetTransferBlueprint, InvalidAssetTransfer, AssetTransfer[
+        .buildTransfer[AssetValue, InvalidAssetTransfer, AssetTransfer[
           PublicKeyPropositionCurve25519
         ], BoxPickingStrategy.All](
-          AssetTransferBlueprint(sender, recipients, minting),
-          List(sender),
+          IndexedSeq(sender),
+          recipients,
           state,
           sender,
+          sender,
           fee,
-          BoxPickingStrategy.All
+          minting = minting
         )
         .getOrThrow()
 
@@ -406,15 +403,16 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
 
     val rawTx =
       transaction.builder
-        .buildTransfer[AssetTransferBlueprint, InvalidAssetTransfer, AssetTransfer[
+        .buildTransfer[AssetValue, InvalidAssetTransfer, AssetTransfer[
           PublicKeyPropositionEd25519
         ], BoxPickingStrategy.All](
-          AssetTransferBlueprint(sender, recipients, minting),
-          List(sender),
+          IndexedSeq(sender),
+          recipients,
           state,
           sender,
+          sender,
           fee,
-          BoxPickingStrategy.All
+          minting = minting
         )
         .getOrThrow()
 
