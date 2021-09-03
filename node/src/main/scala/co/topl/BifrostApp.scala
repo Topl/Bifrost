@@ -3,6 +3,7 @@ package co.topl
 import akka.actor.typed._
 import co.topl.network.utils.UPnPGateway
 import co.topl.settings._
+import co.topl.tool.Exporter
 import co.topl.utils.Logging
 import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -93,10 +94,16 @@ object BifrostApp extends Logging {
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
 
-  def main(args: Array[String]): Unit = ParserForClass[StartupOpts].constructEither(args.toIndexedSeq) match {
-    case Right(parsedArgs) => new BifrostApp(parsedArgs)
-    case Left(e)           => throw new Exception(e)
+  def main(args: Array[String]): Unit = args.headOption.getOrElse("") match {
+    case "export" => Exporter.main(args.tail)
+    case _        => startNode(args)
   }
+
+  private def startNode(args: Array[String]): Unit =
+    ParserForClass[StartupOpts].constructEither(args.toIndexedSeq) match {
+      case Right(parsedArgs) => new BifrostApp(parsedArgs)
+      case Left(e)           => throw new Exception(e)
+    }
 
   def forceStopApplication(code: Int = 1): Nothing = sys.exit(code)
 }
