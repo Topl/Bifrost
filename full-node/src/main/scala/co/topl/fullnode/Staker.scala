@@ -2,17 +2,20 @@ package co.topl.fullnode
 
 import cats.Id
 import cats.data.OptionT
-import co.topl.algebras.Clock
-import Clock.implicits._
+import co.topl.algebras.ClockAlgebra
+import ClockAlgebra.implicits._
 import co.topl.consensus.LeaderElection
-import co.topl.minting.BlockMint
+import co.topl.minting.BlockMintProgram
 import co.topl.models._
 import co.topl.models.utility.HasLength.implicits._
 import co.topl.models.utility.{Lengths, Ratio, Sized}
 import co.topl.typeclasses.crypto.KeyInitializer
 import co.topl.typeclasses.crypto.KeyInitializer.Instances.vrfInitializer
 
-case class Staker(address: TaktikosAddress)(implicit clock: Clock[Id], leaderElectionConfig: LeaderElection.Config) {
+case class Staker(address: TaktikosAddress)(implicit
+  clock:                   ClockAlgebra[Id],
+  leaderElectionConfig:    LeaderElection.Config
+) {
 
   private val vrfKey =
     KeyInitializer[KeyPairs.Vrf].random()
@@ -39,7 +42,7 @@ case class Staker(address: TaktikosAddress)(implicit clock: Clock[Id], leaderEle
     )
   }
 
-  implicit val mint: BlockMint[Id] = new BlockMint[Id]
+  implicit val mint: BlockMintProgram[Id] = new BlockMintProgram[Id]
 
   def mintBlock(
     head:          BlockV2,
@@ -47,25 +50,25 @@ case class Staker(address: TaktikosAddress)(implicit clock: Clock[Id], leaderEle
     relativeStake: Epoch => TaktikosAddress => Option[Ratio],
     epochNonce:    Epoch => Nonce
   ): OptionT[Id, BlockV2] = {
-    val interpreter = new BlockMint.Algebra[Id] {
+    val interpreter = new BlockMintProgram.Algebra[Id] {
       def address: TaktikosAddress = Staker.this.address
 
       def unconfirmedTransactions: Id[Seq[Transaction]] = transactions
 
-      def elect(parent: BlockHeaderV2): Option[BlockMint.Election] = {
-        val epoch = clock.epochOf(parent.slot)
+      def elect(parent: BlockHeaderV2): Option[BlockMintProgram.Election] = {
+        val epoch = clockInterpreter.epochOf(parent.slot)
         relativeStake(epoch)(address).flatMap(relStake =>
           LeaderElection
             .hits(
               vrfKey,
               relStake,
               fromSlot = parent.slot,
-              untilSlot = clock.epochBoundary(epoch).end,
+              untilSlot = clockInterpreter.epochBoundary(epoch).end,
               epochNonce(epoch)
             )
             .nextOption()
             .map(hit =>
-              BlockMint.Election(
+              BlockMintProgram.Election(
                 slot = hit.slot,
                 hit.cert,
                 hit.threshold
@@ -76,7 +79,7 @@ case class Staker(address: TaktikosAddress)(implicit clock: Clock[Id], leaderEle
 
       def canonicalHead: BlockV2 = head
 
-      def clock: Clock[Id] = Staker.this.clock
+      def clockInterpreter: ClockAlgebra[Id] = Staker.this.clock
     }
     mint
       .next(interpreter)

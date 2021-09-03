@@ -2,9 +2,8 @@ package co.topl.consensus
 
 import cats.Monad
 import cats.data.EitherT
-import cats.implicits._
-import co.topl.algebras.Clock
-import Clock.implicits._
+import co.topl.algebras.ClockAlgebra
+import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.consensus.vrf.ProofToHash
 import co.topl.crypto.signatures.Signature
 import co.topl.models._
@@ -22,58 +21,87 @@ import io.estatico.newtype.ops._
 import java.nio.charset.StandardCharsets
 import scala.language.implicitConversions
 
+/**
+ * A program which validates if a child block header can be chained to a parent block header
+ */
 class ConsensusValidationProgram[F[_]: Monad](
   epochNoncesInterpreter:        EpochNoncesAlgebra[F],
   relativeStakeInterpreter:      RelativeStateLookupAlgebra[F],
-  clockInterpreter:              Clock[F]
+  clockInterpreter:              ClockAlgebra[F]
 )(implicit leaderElectionConfig: LeaderElection.Config) {
   import ConsensusValidationProgram._
 
-  def validate(child: BlockHeaderV2, parent: BlockHeaderV2): EitherT[F, Failure, ValidatedBlockHeader] = {
-    def test(
-      f:       => Boolean,
-      invalid: => Failure
-    ): Either[Failure, BlockHeaderV2] =
-      Either.cond(f, child, invalid)
+  /**
+   * Indicates if the provided child header can be chained to the provided parent header using the program's interpreters
+   */
+  def validate(child: BlockHeaderV2, parent: BlockHeaderV2): EitherT[F, Failure, ValidatedBlockHeader] =
+    statelessValidate(child, parent)
+      .map(_.header)
+      .flatMap(minimalStateValidate(_).map(_.header))
+      .flatMap(fullStateValidate(_, parent))
 
-    test(child.slot > parent.slot, Failures.NonForwardSlot(child.slot, parent.slot))
-      .toEitherT[F]
-      .subflatMap(header =>
-        test(
-          header.timestamp > parent.timestamp,
-          Failures.NonForwardTimestamp(header.timestamp, parent.timestamp)
+  /**
+   * Validations which require no state other than a "parent" block (syntax-based)
+   */
+  private[consensus] def statelessValidate(
+    child:  BlockHeaderV2,
+    parent: BlockHeaderV2
+  ): EitherT[F, Failure, ValidatedBlockHeader] =
+    EitherT
+      .cond[F](child.slot > parent.slot, child, Failures.NonForwardSlot(child.slot, parent.slot))
+      .flatMap(child =>
+        EitherT.cond[F](
+          child.timestamp > parent.timestamp,
+          child,
+          Failures.NonForwardTimestamp(child.timestamp, parent.timestamp)
         )
       )
-      .subflatMap(header =>
-        test(header.parentHeaderId == parent.id, Failures.ParentMismatch(header.parentHeaderId, parent.id))
+      .flatMap(child =>
+        EitherT.cond[F](
+          child.parentHeaderId == parent.id,
+          ValidatedBlockHeader(child),
+          Failures.ParentMismatch(child.parentHeaderId, parent.id)
+        )
       )
-      .flatMap(vrfVerification)
+
+  /**
+   * Validations which require just the epoch nonce
+   */
+  private[consensus] def minimalStateValidate(child: BlockHeaderV2): EitherT[F, Failure, ValidatedBlockHeader] =
+    vrfVerification(child)
       .subflatMap(kesVerification)
-      .flatMap(registrationVerification)
-      .flatMap(header =>
-        thresholdFor(header, parent)
-          .subflatMap(threshold =>
-            vrfThresholdVerification(header, threshold)
-              .flatMap(header => eligibilityVerification(header, threshold))
-          )
-      )
-      .map(header => ConsensusValidationProgram.ValidatedBlockHeader(header))
-  }
+      .map(ValidatedBlockHeader(_))
 
-  private def relativeStakeFor(header: BlockHeaderV2): EitherT[F, ConsensusValidationProgram.Failure, Ratio] =
-    relativeStakeInterpreter
-      .lookup(historicalEpoch(header))(header.address)
-      .toRight(ConsensusValidationProgram.Failures.InvalidVrfThreshold(Ratio(0)))
+  /**
+   * Validations which require a full consensus state (stake distribution and registration)
+   */
+  private[consensus] def fullStateValidate(
+    child:  BlockHeaderV2,
+    parent: BlockHeaderV2
+  ): EitherT[F, Failure, ValidatedBlockHeader] =
+    registrationVerification(child).flatMap(child =>
+      vrfThresholdFor(child, parent)
+        .subflatMap(threshold =>
+          vrfThresholdVerification(child, threshold)
+            .flatMap(header => eligibilityVerification(header, threshold))
+        )
+        .map(ValidatedBlockHeader(_))
+    )
 
-  private def thresholdFor(
-    header: BlockHeaderV2,
+  /**
+   * Determines the VRF threshold for the given child
+   */
+  private def vrfThresholdFor(
+    child:  BlockHeaderV2,
     parent: BlockHeaderV2
   ): EitherT[F, ConsensusValidationProgram.Failure, Ratio] =
-    relativeStakeFor(header)
+    relativeStakeInterpreter
+      .lookup(historicalEpoch(child))(child.address)
+      .toRight(ConsensusValidationProgram.Failures.InvalidVrfThreshold(Ratio(0)): ConsensusValidationProgram.Failure)
       .map(relativeStake =>
         LeaderElection.getThreshold(
           relativeStake,
-          header.slot - parent.slot
+          child.slot - parent.slot
         )
       )
 
@@ -108,7 +136,7 @@ class ConsensusValidationProgram[F[_]: Monad](
     )
 
   /**
-   * Epoch N-2 Snapshot data
+   * Verifies the staker's registration
    */
   private[consensus] def registrationVerification(
     header: BlockHeaderV2

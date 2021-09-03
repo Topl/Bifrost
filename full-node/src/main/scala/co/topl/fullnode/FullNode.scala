@@ -3,7 +3,7 @@ package co.topl.fullnode
 import cats.Id
 import cats.data.{OptionT, StateT}
 import cats.implicits._
-import co.topl.algebras.Clock
+import co.topl.algebras.ClockAlgebra
 import co.topl.consensus.{ConsensusValidationProgram, LeaderElection, RelativeStateLookupAlgebra}
 import co.topl.crypto.signatures.Ed25519VRF
 import co.topl.models._
@@ -29,7 +29,7 @@ object FullNode extends App {
   implicit val vrf: Ed25519VRF = new Ed25519VRF
   vrf.precompute()
 
-  implicit val clock: Clock[Id] = new SyncClock
+  implicit val clock: ClockAlgebra[Id] = new SyncClockInterpreter
 
   private val Right(stakerAddress: TaktikosAddress) = {
     val stakingVerificationKey = KeyInitializer[KeyPairs.Ed25519].random().publicKey.bytes

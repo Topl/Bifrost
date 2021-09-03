@@ -6,7 +6,7 @@ import scala.collection.immutable.NumericRange
 import scala.concurrent.duration.FiniteDuration
 import scala.language.implicitConversions
 
-trait Clock[F[_]] {
+trait ClockAlgebra[F[_]] {
   def slotLength: FiniteDuration
   def slotsPerEpoch: Long
   def currentEpoch(): Epoch
@@ -16,10 +16,10 @@ trait Clock[F[_]] {
   def delayedUntilTimestamp(timestamp: Timestamp): F[Unit]
 }
 
-object Clock {
+object ClockAlgebra {
 
   trait Ops[F[_]] {
-    val clock: Clock[F]
+    val clock: ClockAlgebra[F]
 
     def epochOf(slot: Slot): Epoch = slot / clock.slotsPerEpoch
 
@@ -29,8 +29,8 @@ object Clock {
 
   trait AsOps {
 
-    implicit def asClockOps[F[_]](c: Clock[F]): Ops[F] = new Ops[F] {
-      val clock: Clock[F] = c
+    implicit def asClockOps[F[_]](c: ClockAlgebra[F]): Ops[F] = new Ops[F] {
+      val clock: ClockAlgebra[F] = c
     }
   }
 

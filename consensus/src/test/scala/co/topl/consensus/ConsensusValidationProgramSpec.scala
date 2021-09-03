@@ -2,7 +2,7 @@ package co.topl.consensus
 
 import cats.Id
 import cats.data.OptionT
-import co.topl.algebras.Clock
+import co.topl.algebras.ClockAlgebra
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility.{Lengths, Ratio}
@@ -37,7 +37,7 @@ class ConsensusValidationProgramSpec
         whenever(child.slot <= parent.slot) {
           val nonceInterpreter = mock[EpochNoncesAlgebra[Id]]
           val relativeStakeInterpreter = mock[RelativeStateLookupAlgebra[Id]]
-          val clockInterpreter = mock[Clock[Id]]
+          val clockInterpreter = mock[ClockAlgebra[Id]]
           val underTest =
             new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
 
@@ -52,7 +52,7 @@ class ConsensusValidationProgramSpec
       whenever(child.slot > parent.slot && child.timestamp <= parent.timestamp) {
         val nonceInterpreter = mock[EpochNoncesAlgebra[Id]]
         val relativeStakeInterpreter = mock[RelativeStateLookupAlgebra[Id]]
-        val clockInterpreter = mock[Clock[Id]]
+        val clockInterpreter = mock[ClockAlgebra[Id]]
         val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
 
         underTest.validate(child, parent).value.left.value shouldBe ConsensusValidationProgram.Failures
@@ -75,7 +75,7 @@ class ConsensusValidationProgramSpec
       whenever(child.slot > parent.slot && child.timestamp > parent.timestamp && child.parentHeaderId != parent.id) {
         val nonceInterpreter = mock[EpochNoncesAlgebra[Id]]
         val relativeStakeInterpreter = mock[RelativeStateLookupAlgebra[Id]]
-        val clockInterpreter = mock[Clock[Id]]
+        val clockInterpreter = mock[ClockAlgebra[Id]]
         val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
 
         underTest.validate(child, parent).value.left.value shouldBe ConsensusValidationProgram.Failures
@@ -99,7 +99,7 @@ class ConsensusValidationProgramSpec
     ) { case (parent, child) =>
       val nonceInterpreter = mock[EpochNoncesAlgebra[Id]]
       val relativeStakeInterpreter = mock[RelativeStateLookupAlgebra[Id]]
-      val clockInterpreter = mock[Clock[Id]]
+      val clockInterpreter = mock[ClockAlgebra[Id]]
       val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
 
       (() => clockInterpreter.slotsPerEpoch)
@@ -136,7 +136,7 @@ class ConsensusValidationProgramSpec
     ) { case (parent, kesCertificate, (txRoot, bloomFilter, epochNonce), relativeStake, vrfSecret, address) =>
       val nonceInterpreter = mock[EpochNoncesAlgebra[Id]]
       val relativeStakeInterpreter = mock[RelativeStateLookupAlgebra[Id]]
-      val clockInterpreter = mock[Clock[Id]]
+      val clockInterpreter = mock[ClockAlgebra[Id]]
       val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
 
       val hit = LeaderElection.hits(vrfSecret, relativeStake, parent.slot + 1, parent.slot + 999, epochNonce).next()
@@ -195,7 +195,7 @@ class ConsensusValidationProgramSpec
     ) { case (parent, kesCertificate, (txRoot, bloomFilter, epochNonce), relativeStake, vrfSecret, address) =>
       val nonceInterpreter = mock[EpochNoncesAlgebra[Id]]
       val relativeStakeInterpreter = mock[RelativeStateLookupAlgebra[Id]]
-      val clockInterpreter = mock[Clock[Id]]
+      val clockInterpreter = mock[ClockAlgebra[Id]]
       val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
 
       val hit = LeaderElection.hits(vrfSecret, relativeStake, parent.slot + 1, parent.slot + 999, epochNonce).next()
