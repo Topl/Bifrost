@@ -6,6 +6,7 @@ import co.topl.models._
 import co.topl.typeclasses.crypto.Signable.ops._
 
 import scala.language.implicitConversions
+import scala.util.Try
 
 trait ProofVerifier[Proof, Proposition] {
 
@@ -156,11 +157,14 @@ object ProofVerifier {
           proof:       Proofs.Consensus.VrfTest,
           proposition: Propositions.Consensus.PublicKeyVrf,
           data:        Data
-        ): Boolean = Ed25519VRF.instance.vrfVerify(
-          proposition.key.ed25519.bytes.data.toArray,
-          data.signableBytes.toArray,
-          proof.bytes.data.toArray
-        )
+        ): Boolean =
+          Try(
+            Ed25519VRF.instance.vrfVerify(
+              proposition.key.ed25519.bytes.data.toArray,
+              data.signableBytes.toArray,
+              proof.bytes.data.toArray
+            )
+          ).getOrElse(false)
       }
 
     implicit val consensusVrfNonce: ProofVerifier[Proofs.Consensus.Nonce, Propositions.Consensus.PublicKeyVrf] =
@@ -170,11 +174,13 @@ object ProofVerifier {
           proof:       Proofs.Consensus.Nonce,
           proposition: Propositions.Consensus.PublicKeyVrf,
           data:        Data
-        ): Boolean = Ed25519VRF.instance.vrfVerify(
-          proposition.key.ed25519.bytes.data.toArray,
-          data.signableBytes.toArray,
-          proof.bytes.data.toArray
-        )
+        ): Boolean = Try(
+          Ed25519VRF.instance.vrfVerify(
+            proposition.key.ed25519.bytes.data.toArray,
+            data.signableBytes.toArray,
+            proof.bytes.data.toArray
+          )
+        ).getOrElse(false)
       }
 
     implicit val consensusKesCertificate

@@ -3,7 +3,6 @@ package co.topl.consensus
 import cats.Id
 import cats.data.OptionT
 import co.topl.algebras.Clock
-import Clock.implicits._
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility.{Lengths, Ratio}
@@ -85,8 +84,7 @@ class ConsensusValidationProgramSpec
     }
   }
 
-  // TODO: Implement and enable these tests
-  ignore should "invalidate blocks with syntactically incorrect VRF certificate for a particular nonce" in {
+  it should "invalidate blocks with syntactically incorrect VRF certificate for a particular nonce" in {
     forAll(
       headerGen(
         slotGen = Gen.chooseNum(0L, 50L),
@@ -104,15 +102,14 @@ class ConsensusValidationProgramSpec
       val clockInterpreter = mock[Clock[Id]]
       val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
 
-      (clockInterpreter
-        .epochOf(_: Slot))
-        .expects(child.slot)
+      (() => clockInterpreter.slotsPerEpoch)
+        .expects()
         .anyNumberOfTimes()
-        .returning(1)
+        .returning(1000)
 
       (nonceInterpreter
         .nonceForEpoch(_: Epoch))
-        .expects(1L)
+        .expects(0L)
         .anyNumberOfTimes()
         .returning(OptionT.pure[Id](Bytes(Array(1: Byte))))
 
@@ -125,7 +122,64 @@ class ConsensusValidationProgramSpec
 
   ignore should "invalidate blocks with a semantically incorrect registration verification" in {}
 
-  ignore should "invalidate blocks with an insufficient VRF threshold" in {}
+  ignore should "invalidate blocks with an insufficient VRF threshold" in {
+    forAll(
+      headerGen(slotGen = Gen.const[Long](5000)),
+      kesCertificateGen,
+      genSizedStrictBytes[Lengths.`32`.type]().flatMap(txRoot =>
+        genSizedStrictBytes[Lengths.`256`.type]()
+          .flatMap(bloomFilter => epochNonceGen.map(nonce => (txRoot, bloomFilter, nonce)))
+      ),
+      relativeStakeGen,
+      Gen.const(KeyInitializer.Instances.vrfInitializer.random()),
+      taktikosAddressGen
+    ) { case (parent, kesCertificate, (txRoot, bloomFilter, epochNonce), relativeStake, vrfSecret, address) =>
+      val nonceInterpreter = mock[EpochNoncesAlgebra[Id]]
+      val relativeStakeInterpreter = mock[RelativeStateLookupAlgebra[Id]]
+      val clockInterpreter = mock[Clock[Id]]
+      val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
+
+      val hit = LeaderElection.hits(vrfSecret, relativeStake, parent.slot + 1, parent.slot + 999, epochNonce).next()
+      val child =
+        BlockHeaderV2(
+          parentHeaderId = parent.id,
+          txRoot = txRoot,
+          bloomFilter = bloomFilter,
+          timestamp = System.currentTimeMillis(),
+          height = parent.height + 1,
+          slot = hit.slot,
+          vrfCertificate = hit.cert,
+          kesCertificate = kesCertificate,
+          thresholdEvidence = hit.threshold.evidence,
+          metadata = None,
+          address = address
+        )
+
+      (() => clockInterpreter.slotsPerEpoch)
+        .expects()
+        .anyNumberOfTimes()
+        .returning(1000)
+
+      (nonceInterpreter
+        .nonceForEpoch(_: Epoch))
+        // The clock puts the child block in epoch 5, so validation should be concerned with epoch 5-2=3
+        .expects(3L)
+        .anyNumberOfTimes()
+        .returning(OptionT.pure[Id](epochNonce))
+
+      (relativeStakeInterpreter
+        .lookup(_: Epoch)(_: TaktikosAddress))
+        .expects(3L, *)
+        .once()
+        .returning(OptionT.pure[Id](Ratio(0)))
+
+      underTest
+        .validate(child, parent)
+        .value
+        .left
+        .value shouldBe a[ConsensusValidationProgram.Failures.InvalidVrfThreshold]
+    }
+  }
 
   it should "validate valid blocks" in {
     forAll(
