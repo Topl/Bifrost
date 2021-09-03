@@ -9,8 +9,6 @@ import co.topl.utils.serialization.{stringCharacterSet, BifrostSerializer, Bytes
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 
-import java.nio.charset.StandardCharsets
-
 sealed abstract class TokenValueHolder(val quantity: Int128) extends BytesSerializable {
   override type M = TokenValueHolder
 

@@ -1,10 +1,9 @@
-package co.topl.consensus
+package co.topl.consensus.genesis
 
 import co.topl.attestation.EvidenceProducer.Syntax.ProducerOps
-import co.topl.attestation._
 import co.topl.attestation.keyManagement._
+import co.topl.attestation._
 import co.topl.consensus.Forger.ChainParams
-import co.topl.consensus.genesis.GenesisProvider
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
@@ -31,7 +30,7 @@ case class TestGenesis(
 
   override protected val blockVersion: PNVMVersion = settings.application.version.blockByte
 
-  override protected val members: ListMap[String, Int128] = ListMap("Not implemented here" -> 0L)
+  override protected[genesis] val members: ListMap[String, Int128] = ListMap("Not implemented here" -> 0L)
 
   override def getGenesisBlock: Try[(Block, ChainParams)] = Try(formNewBlock)
 

@@ -2,7 +2,7 @@ package co.topl.utils
 
 import co.topl.attestation._
 import co.topl.attestation.keyManagement._
-import co.topl.consensus.TestGenesis
+import co.topl.consensus.genesis.TestGenesis
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.Box.identifier
