@@ -24,7 +24,7 @@ case object HelGenesis extends GenesisProvider {
 
   override protected val initialDifficulty: Long = 1000000000000000000L
 
-  override protected val members: ListMap[String, Int128] = ListMap(
+  override protected[genesis] val members: ListMap[String, Int128] = ListMap(
     "5jcDCMqoNEzFGdg2rmaa5fxDd1SwksSrFYQGEhB5XF1acofm2hru" -> 10000000000000000L,
     "5jbmpLZid5i6GydGYmm98eULWNJJBvstmk8qZVoKoidzrv4dMXUD" -> 10000000000000000L,
     "5jc1FLTr4m3kZAKndrfQtDRBLAMhdZAPFRDbp7RxaLH5fUhM5Jun" -> 10000000000000000L,

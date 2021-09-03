@@ -25,7 +25,7 @@ case object ValhallaGenesis extends GenesisProvider {
 
   override protected val initialDifficulty: Long = 1000000000000000000L
 
-  override protected val members: ListMap[String, Int128] = ListMap(
+  override protected[genesis] val members: ListMap[String, Int128] = ListMap(
     "3NLFmkjhx9aUh7mEcoAZjdWoU5UL5hD77L5ouQXtd11d5LgrMfQM" -> 10000000000000000L,
     "3NKx8PobhPkukn9s3Pg7j9xUUTRNRNSFwcEZdKHgNt4oRU5UJnZu" -> 10000000000000000L,
     "3NLcZmubgTAGxpk3y8ByEgMaTqYMLVMi9FfZg82gawgjByWdpzNB" -> 10000000000000000L,

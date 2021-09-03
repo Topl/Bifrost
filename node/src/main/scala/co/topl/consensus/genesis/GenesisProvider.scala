@@ -42,7 +42,7 @@ trait GenesisProvider extends Logging {
 
   protected val initialDifficulty: Long
 
-  protected val members: ListMap[String, Int128]
+  protected[genesis] val members: ListMap[String, Int128]
 
   def getGenesisBlock: Try[(Block, ChainParams)]
 

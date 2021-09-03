@@ -21,8 +21,6 @@ case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implic
 
   override protected val blockVersion: PNVMVersion = settings.application.version.blockByte
 
-  override protected val members: ListMap[String, Int128] = ListMap("Not implemented here" -> 0L)
-
   override def getGenesisBlock: Try[(Block, ChainParams)] = Try(formNewBlock)
 
   /**
@@ -36,6 +34,11 @@ case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implic
       (settings.numTestnetAccts, settings.testnetBalance, settings.initialDifficulty)
     }
     .getOrElse(10, 1000000L, 1000000000000000000L)
+
+  override protected[genesis] val members: ListMap[String, Int128] = ListMap.from(
+    addresses
+      .map(_.toString -> balance)
+  )
 
   def formNewBlock: (Block, ChainParams) = {
     // map the members to their balances then continue as normal
