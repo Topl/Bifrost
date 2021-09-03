@@ -122,7 +122,7 @@ class ConsensusValidationProgramSpec
 
   ignore should "invalidate blocks with a semantically incorrect registration verification" in {}
 
-  ignore should "invalidate blocks with an insufficient VRF threshold" in {
+  it should "invalidate blocks with an insufficient VRF threshold" in {
     forAll(
       headerGen(slotGen = Gen.const[Long](5000)),
       kesCertificateGen,
