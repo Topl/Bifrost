@@ -90,6 +90,8 @@ class ConsensusValidationProgramSpec
         slotGen = Gen.chooseNum(0L, 50L),
         timestampGen = Gen.chooseNum(0L, 50L)
       ).flatMap(parent =>
+        // The child block has a generated VRF Certificate (generated test/nonce proofs), meaning the proofs will not
+        // match the epoch nonce `[1]` used in the test body
         headerGen(
           slotGen = Gen.chooseNum(51L, 100L),
           timestampGen = Gen.chooseNum(51L, 100L)
@@ -111,6 +113,7 @@ class ConsensusValidationProgramSpec
         .nonceForEpoch(_: Epoch))
         .expects(0L)
         .anyNumberOfTimes()
+        // This epoch nonce does not satisfy the generated VRF certificate
         .returning(OptionT.pure[Id](Bytes(Array(1: Byte))))
 
       underTest.validate(child, parent).value.left.value shouldBe ConsensusValidationProgram.Failures

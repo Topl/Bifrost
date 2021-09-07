@@ -48,19 +48,19 @@ class ConsensusValidationProgram[F[_]: Monad](
     parent: BlockHeaderV2
   ): EitherT[F, Failure, ValidatedBlockHeader] =
     EitherT
-      .cond[F](child.slot > parent.slot, child, Failures.NonForwardSlot(child.slot, parent.slot))
+      .cond[F](child.slot > parent.slot, child, Failures.NonForwardSlot(child.slot, parent.slot): Failure)
       .flatMap(child =>
         EitherT.cond[F](
           child.timestamp > parent.timestamp,
           child,
-          Failures.NonForwardTimestamp(child.timestamp, parent.timestamp)
+          Failures.NonForwardTimestamp(child.timestamp, parent.timestamp): Failure
         )
       )
       .flatMap(child =>
         EitherT.cond[F](
           child.parentHeaderId == parent.id,
           ValidatedBlockHeader(child),
-          Failures.ParentMismatch(child.parentHeaderId, parent.id)
+          Failures.ParentMismatch(child.parentHeaderId, parent.id): Failure
         )
       )
 
