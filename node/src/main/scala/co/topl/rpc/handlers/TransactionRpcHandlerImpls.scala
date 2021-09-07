@@ -2,30 +2,24 @@ package co.topl.rpc.handlers
 
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
-import co.topl.attestation.{
-  Address,
-  Proposition,
-  PublicKeyPropositionCurve25519,
-  PublicKeyPropositionEd25519,
-  ThresholdPropositionCurve25519
-}
-import co.topl.modifier.BoxReader
-import co.topl.modifier.box.{ProgramId, SimpleValue}
-import co.topl.modifier.transaction.PolyTransfer.Validation.ValidationResult
-import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
+import co.topl.attestation._
+import co.topl.modifier.box.{AssetValue, SimpleValue}
+import co.topl.modifier.transaction
+import co.topl.modifier.transaction.ArbitTransfer.Validation.InvalidArbitTransfer
+import co.topl.modifier.transaction.AssetTransfer.Validation.InvalidAssetTransfer
+import co.topl.modifier.transaction.PolyTransfer.Validation.InvalidPolyTransfer
+import co.topl.modifier.transaction.builder.BoxPickingStrategy
 import co.topl.modifier.transaction.validation.implicits._
+import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.state.State
 import co.topl.nodeView.{BroadcastTxFailureException, GetStateFailureException, NodeViewHolderInterface}
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
-import co.topl.utils.{Int128, StringDataTypes}
-import co.topl.utils.codecs.implicits._
-import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.encode.Base58
+import co.topl.utils.StringDataTypes.implicits._
+import co.topl.utils.codecs.implicits._
 import io.circe.Encoder
-import shapeless.syntax.std.tuple.productTupleOps
-import co.topl.utils.IdiomaticScalaTransition.implicits._
+import co.topl.modifier.transaction.builder.implicits._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
@@ -93,22 +87,32 @@ class TransactionRpcHandlerImpls(
   ): Try[AssetTransfer[Proposition]] = Try {
     val createRaw = params.propositionType match {
       case PublicKeyPropositionCurve25519.`typeString` =>
-        AssetTransfer.createRaw[PublicKeyPropositionCurve25519] _
+        transaction.builder
+          .buildTransfer[AssetValue, InvalidAssetTransfer, AssetTransfer[
+            PublicKeyPropositionCurve25519
+          ], BoxPickingStrategy.All] _
       case ThresholdPropositionCurve25519.`typeString` =>
-        AssetTransfer.createRaw[ThresholdPropositionCurve25519] _
+        transaction.builder
+          .buildTransfer[AssetValue, InvalidAssetTransfer, AssetTransfer[
+            ThresholdPropositionCurve25519
+          ], BoxPickingStrategy.All] _
       case PublicKeyPropositionEd25519.`typeString` =>
-        AssetTransfer.createRaw[PublicKeyPropositionEd25519] _
+        transaction.builder
+          .buildTransfer[AssetValue, InvalidAssetTransfer, AssetTransfer[
+            PublicKeyPropositionEd25519
+          ], BoxPickingStrategy.All] _
     }
 
     createRaw(
-      state,
-      params.recipients.toNonEmptyVector.toVector,
       senderAddresses.toIndexedSeq,
+      params.recipients.toList.toIndexedSeq,
+      state,
       params.changeAddress,
-      params.consolidationAddress,
       params.fee,
+      Some(params.consolidationAddress),
       params.data,
-      params.minting
+      params.minting,
+      BoxPickingStrategy.All
     ).getOrThrow()
   }.collect { case p: AssetTransfer[Proposition @unchecked] => p }
 
@@ -116,50 +120,71 @@ class TransactionRpcHandlerImpls(
     params:          ToplRpc.Transaction.RawArbitTransfer.Params,
     state:           State,
     senderAddresses: List[Address]
-  ): Try[ArbitTransfer[Proposition]] = {
+  ): Try[ArbitTransfer[Proposition]] = Try {
     val createRaw = params.propositionType match {
-      case PublicKeyPropositionCurve25519.`typeString` => ArbitTransfer.createRaw[PublicKeyPropositionCurve25519] _
-      case ThresholdPropositionCurve25519.`typeString` => ArbitTransfer.createRaw[ThresholdPropositionCurve25519] _
-      case PublicKeyPropositionEd25519.`typeString`    => ArbitTransfer.createRaw[PublicKeyPropositionEd25519] _
+      case PublicKeyPropositionCurve25519.`typeString` =>
+        transaction.builder
+          .buildTransfer[SimpleValue, InvalidArbitTransfer, ArbitTransfer[
+            PublicKeyPropositionCurve25519
+          ], BoxPickingStrategy.All] _
+      case ThresholdPropositionCurve25519.`typeString` =>
+        transaction.builder
+          .buildTransfer[SimpleValue, InvalidArbitTransfer, ArbitTransfer[
+            ThresholdPropositionCurve25519
+          ], BoxPickingStrategy.All] _
+      case PublicKeyPropositionEd25519.`typeString` =>
+        transaction.builder
+          .buildTransfer[SimpleValue, InvalidArbitTransfer, ArbitTransfer[
+            PublicKeyPropositionEd25519
+          ], BoxPickingStrategy.All] _
     }
 
-    Try {
-      createRaw(
-        state,
-        params.recipients.map { case (address, amount) => address -> SimpleValue(amount) }.toNonEmptyVector.toVector,
-        senderAddresses.toIndexedSeq,
-        params.changeAddress,
-        params.consolidationAddress,
-        params.fee,
-        params.data
-      ).getOrThrow()
-    }.collect { case p: ArbitTransfer[Proposition @unchecked] =>
-      p
-    }
-  }
+    createRaw(
+      senderAddresses.toIndexedSeq,
+      params.recipients.toList.toIndexedSeq.map(tup => tup._1 -> SimpleValue(tup._2)),
+      state,
+      params.changeAddress,
+      params.fee,
+      Some(params.consolidationAddress),
+      params.data,
+      false,
+      BoxPickingStrategy.All
+    ).getOrThrow()
+  }.collect { case p: ArbitTransfer[Proposition @unchecked] => p }
 
   private def tryCreatePolyTransfer(
     params:          ToplRpc.Transaction.RawPolyTransfer.Params,
     state:           State,
     senderAddresses: List[Address]
   ): Try[PolyTransfer[Proposition]] = Try {
-    val f =
-      params.propositionType match {
-        case PublicKeyPropositionCurve25519.`typeString` =>
-          PolyTransfer.createRaw[PublicKeyPropositionCurve25519] _
-        case ThresholdPropositionCurve25519.`typeString` =>
-          PolyTransfer.createRaw[ThresholdPropositionCurve25519] _
-        case PublicKeyPropositionEd25519.`typeString` =>
-          PolyTransfer.createRaw[PublicKeyPropositionEd25519] _
-      }
+    val createRaw = params.propositionType match {
+      case PublicKeyPropositionCurve25519.`typeString` =>
+        transaction.builder
+          .buildTransfer[SimpleValue, InvalidPolyTransfer, PolyTransfer[
+            PublicKeyPropositionCurve25519
+          ], BoxPickingStrategy.All] _
+      case ThresholdPropositionCurve25519.`typeString` =>
+        transaction.builder
+          .buildTransfer[SimpleValue, InvalidPolyTransfer, PolyTransfer[
+            ThresholdPropositionCurve25519
+          ], BoxPickingStrategy.All] _
+      case PublicKeyPropositionEd25519.`typeString` =>
+        transaction.builder
+          .buildTransfer[SimpleValue, InvalidPolyTransfer, PolyTransfer[
+            PublicKeyPropositionEd25519
+          ], BoxPickingStrategy.All] _
+    }
 
-    f(
-      state,
-      params.recipients.map { case (address, v) => address -> SimpleValue(v) }.toNonEmptyVector.toVector,
+    createRaw(
       senderAddresses.toIndexedSeq,
+      params.recipients.toList.toIndexedSeq.map(tup => tup._1 -> SimpleValue(tup._2)),
+      state,
       params.changeAddress,
       params.fee,
-      params.data
+      None,
+      params.data,
+      false,
+      BoxPickingStrategy.All
     ).getOrThrow()
   }.collect { case p: PolyTransfer[Proposition @unchecked] => p }
 

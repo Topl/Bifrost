@@ -180,7 +180,7 @@ object AssetTransfer {
       minting
     )
 
-  @deprecated("use TransferBuilder.build instead")
+  @deprecated("use co.topl.modifier.transaction.builder.buildTransfer instead")
   def createRaw[P <: Proposition: EvidenceProducer: Identifiable](
     boxReader:            BoxReader[ProgramId, Address],
     recipients:           IndexedSeq[(Address, AssetValue)],

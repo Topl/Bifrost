@@ -115,7 +115,6 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
           recipients,
           state,
           sender,
-          sender,
           fee
         )
         .getOrThrow()
@@ -152,7 +151,6 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
           recipients,
           state,
           sender,
-          sender,
           fee
         )
         .getOrThrow()
@@ -186,7 +184,6 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
         IndexedSeq(sender),
         recipients,
         state,
-        sender,
         sender,
         fee
       )
@@ -232,7 +229,6 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
           recipients,
           state,
           sender,
-          sender,
           fee
         )
         .getOrThrow()
@@ -269,7 +265,6 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
           recipients,
           state,
           sender,
-          sender,
           fee
         )
         .getOrThrow()
@@ -304,7 +299,6 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
           IndexedSeq(sender),
           recipients,
           state,
-          sender,
           sender,
           fee
         )
@@ -345,7 +339,6 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
           recipients,
           state,
           sender,
-          sender,
           fee,
           minting = minting
         )
@@ -378,7 +371,6 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
           recipients,
           state,
           sender,
-          sender,
           fee,
           minting = minting
         )
@@ -409,7 +401,6 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
           IndexedSeq(sender),
           recipients,
           state,
-          sender,
           sender,
           fee,
           minting = minting

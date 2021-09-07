@@ -45,8 +45,8 @@ package object builder {
     recipients:                 IndexedSeq[(Address, Value)],
     boxReader:                  BoxReader[ProgramId, Address],
     feeChangeAddress:           Address,
-    consolidationAddress:       Address,
     fee:                        Int128,
+    consolidationAddress:       Option[Address] = None,
     data:                       Option[Latin1Data] = None,
     minting:                    Boolean = false,
     strategy:                   Strategy = BoxPickingStrategy.All
@@ -71,7 +71,7 @@ package object builder {
       pickedBoxes,
       recipients,
       feeChangeAddress,
-      consolidationAddress,
+      consolidationAddress.getOrElse(feeChangeAddress), // consolidation is same as fee change address by default
       fee,
       data,
       minting
