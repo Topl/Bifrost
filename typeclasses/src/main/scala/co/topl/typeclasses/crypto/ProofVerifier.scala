@@ -1,11 +1,12 @@
 package co.topl.typeclasses.crypto
 
+import co.topl.crypto.PublicKey
+import co.topl.crypto.signatures.{Curve25519, Ed25519, Ed25519VRF, Signature}
 import co.topl.models._
-import co.topl.typeclasses.crypto.Signable.Instances._
-import simulacrum.{op, typeclass}
+import co.topl.typeclasses.crypto.Signable.ops._
 
-import java.nio.charset.StandardCharsets
 import scala.language.implicitConversions
+import scala.util.Try
 
 trait ProofVerifier[Proof, Proposition] {
 
@@ -28,7 +29,7 @@ object ProofVerifier {
 
   trait Implicits {
 
-    implicit def asOps[Proof, Proposition](
+    implicit def asVerifierOps[Proof, Proposition](
       p:                 Proof
     )(implicit verifier: ProofVerifier[Proof, Proposition]): Ops[Proof, Proposition] =
       new Ops[Proof, Proposition] {
@@ -49,7 +50,11 @@ object ProofVerifier {
           proof:       Proofs.SignatureCurve25519,
           proposition: Propositions.PublicKeyCurve25519,
           data:        Data
-        ): Boolean = ???
+        ): Boolean = Curve25519.verify(
+          Signature(proof.bytes.fold(Array.emptyByteArray)(_.data.toArray)),
+          data.signableBytes.toArray,
+          PublicKey(proposition.key.bytes.data.toArray)
+        )
       }
 
     implicit val publicKeyEd25519: ProofVerifier[Proofs.SignatureEd25519, Propositions.PublicKeyEd25519] =
@@ -59,7 +64,11 @@ object ProofVerifier {
           proof:       Proofs.SignatureEd25519,
           proposition: Propositions.PublicKeyEd25519,
           data:        Data
-        ): Boolean = ???
+        ): Boolean = new Ed25519().verify(
+          Signature(proof.bytes.fold(Array.emptyByteArray)(_.data.toArray)),
+          data.signableBytes.toArray,
+          PublicKey(proposition.key.bytes.data.toArray)
+        )
       }
 
     implicit val thresholdCurve25519
@@ -70,7 +79,31 @@ object ProofVerifier {
           proof:       Proofs.ThresholdSignatureCurve25519,
           proposition: Propositions.ThresholdCurve25519,
           data:        Data
-        ): Boolean = ???
+        ): Boolean = {
+          val dataBytes = data.signableBytes.toArray
+          proposition.propositions.size >= proposition.threshold && {
+            val (validSignatureCount, _) =
+              proof.signatures
+                .foldLeft((0, proposition.propositions)) { case ((acc, unusedProps), sig) =>
+                  if (acc < proposition.threshold) {
+                    unusedProps
+                      .find(prop =>
+                        unusedProps(prop) && Curve25519.verify(
+                          Signature(sig.bytes.fold(Array.emptyByteArray)(_.data.toArray)),
+                          dataBytes,
+                          PublicKey(prop.bytes.data.toArray)
+                        )
+                      ) match {
+                      case Some(prop) =>
+                        (acc + 1, unusedProps.diff(Set(prop)))
+                      case None =>
+                        (acc, unusedProps)
+                    }
+                  } else (acc, unusedProps)
+                }
+            validSignatureCount >= proposition.threshold
+          }
+        }
       }
 
     implicit val thresholdEd25519: ProofVerifier[Proofs.ThresholdSignatureEd25519, Propositions.ThresholdEd25519] =
@@ -80,7 +113,31 @@ object ProofVerifier {
           proof:       Proofs.ThresholdSignatureEd25519,
           proposition: Propositions.ThresholdEd25519,
           data:        Data
-        ): Boolean = true
+        ): Boolean = {
+          val dataBytes = data.signableBytes.toArray
+          proposition.propositions.size >= proposition.threshold && {
+            val (validSignatureCount, _) =
+              proof.signatures
+                .foldLeft((0, proposition.propositions)) { case ((acc, unusedProps), sig) =>
+                  if (acc < proposition.threshold) {
+                    unusedProps
+                      .find(prop =>
+                        unusedProps(prop) && new Ed25519().verify(
+                          Signature(sig.bytes.fold(Array.emptyByteArray)(_.data.toArray)),
+                          dataBytes,
+                          PublicKey(prop.bytes.data.toArray)
+                        )
+                      ) match {
+                      case Some(prop) =>
+                        (acc + 1, unusedProps.diff(Set(prop)))
+                      case None =>
+                        (acc, unusedProps)
+                    }
+                  } else (acc, unusedProps)
+                }
+            validSignatureCount >= proposition.threshold
+          }
+        }
       }
 
     implicit val existence: ProofVerifier[Proofs.Existence, Propositions.Existence] =
@@ -90,7 +147,7 @@ object ProofVerifier {
           proof:       Proofs.Existence,
           proposition: Propositions.Existence,
           data:        Data
-        ): Boolean = ???
+        ): Boolean = true // TODO
       }
 
     implicit val consensusVrfTest: ProofVerifier[Proofs.Consensus.VrfTest, Propositions.Consensus.PublicKeyVrf] =
@@ -100,7 +157,14 @@ object ProofVerifier {
           proof:       Proofs.Consensus.VrfTest,
           proposition: Propositions.Consensus.PublicKeyVrf,
           data:        Data
-        ): Boolean = true
+        ): Boolean =
+          Try(
+            Ed25519VRF.instance.vrfVerify(
+              proposition.key.ed25519.bytes.data.toArray,
+              data.signableBytes.toArray,
+              proof.bytes.data.toArray
+            )
+          ).getOrElse(false)
       }
 
     implicit val consensusVrfNonce: ProofVerifier[Proofs.Consensus.Nonce, Propositions.Consensus.PublicKeyVrf] =
@@ -110,7 +174,13 @@ object ProofVerifier {
           proof:       Proofs.Consensus.Nonce,
           proposition: Propositions.Consensus.PublicKeyVrf,
           data:        Data
-        ): Boolean = true
+        ): Boolean = Try(
+          Ed25519VRF.instance.vrfVerify(
+            proposition.key.ed25519.bytes.data.toArray,
+            data.signableBytes.toArray,
+            proof.bytes.data.toArray
+          )
+        ).getOrElse(false)
       }
 
     implicit val consensusKesCertificate
@@ -136,36 +206,4 @@ object ProofVerifier {
   }
 
   object Instances extends Instances
-}
-
-@typeclass trait CertificateVerifier[T] {
-  @op("verify") def verificationOf(t: T): Boolean
-}
-
-object CertificateVerifier {
-
-  object Instances {
-
-    import ProofVerifier.Instances._
-    import ProofVerifier.ops._
-
-    implicit def vrfCertificateVerifier(implicit epochNonce: Nonce): CertificateVerifier[VrfCertificate] =
-      certificate =>
-        certificate.testProof.satisfies(
-          Propositions.Consensus.PublicKeyVrf(certificate.vkVRF),
-          "test".getBytes(StandardCharsets.UTF_8) ++ epochNonce.toArray
-        ) && certificate.testProof.satisfies(
-          Propositions.Consensus.PublicKeyVrf(certificate.vkVRF),
-          "nonce".getBytes(StandardCharsets.UTF_8) ++ epochNonce.toArray
-        )
-
-    implicit def kesCertificateVerifier(implicit header: BlockHeaderV2): CertificateVerifier[KesCertificate] =
-      certificate =>
-        certificate.mmmProof.satisfies(Propositions.Consensus.PublicKeyKes(certificate.vkKES), header) &&
-        certificate.kesProof.satisfies(
-          Propositions.Consensus.PublicKeyKes(certificate.vkKES),
-          // TODO: certificate.vkKES.bytes incorrect here
-          certificate.vkKES.bytes.data.toArray ++ BigInt(certificate.slotOffset).toByteArray
-        )
-  }
 }

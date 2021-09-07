@@ -1,34 +1,24 @@
 package co.topl.fullnode
 
 import cats.Id
-import cats.implicits._
-import co.topl.algebras.Clock
+import cats.data.OptionT
+import co.topl.algebras.ClockAlgebra
+import ClockAlgebra.implicits._
 import co.topl.consensus.LeaderElection
-import co.topl.crypto.hash.blake2b256
-import co.topl.fullnode.FullNode.taktikosAddress
-import co.topl.minting.BlockMint
+import co.topl.minting.BlockMintProgram
+import co.topl.models._
 import co.topl.models.utility.HasLength.implicits._
 import co.topl.models.utility.{Lengths, Ratio, Sized}
-import co.topl.models._
+import co.topl.typeclasses.crypto.KeyInitializer
+import co.topl.typeclasses.crypto.KeyInitializer.Instances.vrfInitializer
 
-case class Staker(address: TaktikosAddress)(implicit clock: Clock[Id], leaderElectionConfig: LeaderElection.Config) {
+case class Staker(address: TaktikosAddress)(implicit
+  clock:                   ClockAlgebra[Id],
+  leaderElectionConfig:    LeaderElection.Config
+) {
 
-  val Right(stakerEvidence) =
-    Sized.strict[TypedBytes, Lengths.`33`.type](
-      TypedBytes(1: Byte, Bytes(blake2b256.hash(address.stakingVerificationKey.data.toArray).value))
-    )
-
-  private val Right(vrfKey) =
-    for {
-      privateKey <- Sized
-        .strict[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(1)))
-        .map(PrivateKeys.Ed25519(_))
-        .map(PrivateKeys.Vrf)
-      publicKey <- Sized
-        .strict[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(1)))
-        .map(PublicKeys.Ed25519(_))
-        .map(PublicKeys.Vrf)
-    } yield KeyPairs.Vrf(privateKey, publicKey)
+  private val vrfKey =
+    KeyInitializer[KeyPairs.Vrf].random()
 
   private val Right(initialKesKey) =
     for {
@@ -52,40 +42,51 @@ case class Staker(address: TaktikosAddress)(implicit clock: Clock[Id], leaderEle
     )
   }
 
-  implicit val mint: BlockMint[Id] = new BlockMint[Id]
+  implicit val mint: BlockMintProgram[Id] = new BlockMintProgram[Id]
 
-  def mintBlock(head: BlockV2, transactions: List[Transaction], relativeStake: Evidence => Ratio, epochNonce: Nonce) = {
-    val interpreter = new BlockMint.Algebra[Id] {
+  def mintBlock(
+    head:          BlockV2,
+    transactions:  List[Transaction],
+    relativeStake: Epoch => TaktikosAddress => Option[Ratio],
+    epochNonce:    Epoch => Nonce
+  ): OptionT[Id, BlockV2] = {
+    val interpreter = new BlockMintProgram.Algebra[Id] {
       def address: TaktikosAddress = Staker.this.address
 
       def unconfirmedTransactions: Id[Seq[Transaction]] = transactions
 
-      def elect(parent: BlockHeaderV2): BlockMint.Election = {
-        val hit = LeaderElection
-          .hits(
-            vrfKey,
-            relativeStake(stakerEvidence),
-            fromSlot = parent.slot,
-            epochNonce
-          )
-          .head
-
-        BlockMint.Election(
-          slot = hit.slot,
-          hit.cert,
-          hit.threshold
+      def elect(parent: BlockHeaderV2): Option[BlockMintProgram.Election] = {
+        val epoch = clockInterpreter.epochOf(parent.slot)
+        relativeStake(epoch)(address).flatMap(relStake =>
+          LeaderElection
+            .hits(
+              vrfKey,
+              relStake,
+              fromSlot = parent.slot,
+              untilSlot = clockInterpreter.epochBoundary(epoch).end,
+              epochNonce(epoch)
+            )
+            .nextOption()
+            .map(hit =>
+              BlockMintProgram.Election(
+                slot = hit.slot,
+                hit.cert,
+                hit.threshold
+              )
+            )
         )
       }
 
-      def currentHead: BlockV2 = head
+      def canonicalHead: BlockV2 = head
 
-      def clock: Clock[Id] = Staker.this.clock
+      def clockInterpreter: ClockAlgebra[Id] = Staker.this.clock
     }
-
-    val unsignedBlock =
-      mint.next(interpreter)
-    clock.delayedUntilSlot(unsignedBlock.slot)
-    unsignedBlock.signed(nextKesCertificate(unsignedBlock.slot))
+    mint
+      .next(interpreter)
+      .semiflatTap(unsignedBlock => clock.delayedUntilSlot(unsignedBlock.slot))
+      // Check for cancellation
+      // Evolve KES
+      .map(unsignedBlock => unsignedBlock.signed(nextKesCertificate(unsignedBlock.slot)))
   }
 
 }
