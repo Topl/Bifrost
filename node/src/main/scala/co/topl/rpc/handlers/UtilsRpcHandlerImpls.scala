@@ -10,10 +10,10 @@ import co.topl.modifier.box.AssetCode
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
 import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import co.topl.utils.StringDataTypes.implicits._
-import co.topl.utils.encode.Base58
+import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import co.topl.utils.codecs.implicits._
+import co.topl.utils.encode.Base58
 import io.circe.Encoder
 
 import java.security.SecureRandom

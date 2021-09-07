@@ -1,8 +1,5 @@
 package wallet
 
-import akka.actor.{Actor, DeadLetter}
-import utils.Logging
-
 /**
  * Actor used for debugging when dead letters are received.
  */

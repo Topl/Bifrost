@@ -3,7 +3,7 @@ package co.topl.it
 import co.topl.it.util._
 import co.topl.rpc.ToplRpc
 import co.topl.utils.Int128
-import Int128._
+import co.topl.utils.Int128._
 import com.typesafe.config.ConfigFactory
 import org.scalatest.Inspectors
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
@@ -98,6 +98,7 @@ class BootstrapFromGenesisTest
 
     logger.info("Stopping forging on both nodes")
 
+    oldNode.run(ToplRpc.Admin.StopForging.rpc)(ToplRpc.Admin.StopForging.Params()).value
     newNode.run(ToplRpc.Admin.StopForging.rpc)(ToplRpc.Admin.StopForging.Params()).value
 
     logger.info(s"Waiting $syncWindow for the nodes to sync")

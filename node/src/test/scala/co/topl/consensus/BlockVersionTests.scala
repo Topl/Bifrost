@@ -6,9 +6,9 @@ import co.topl.modifier.block.Block
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.{MockState, State}
 import co.topl.utils.GeneratorOps.GeneratorOps
-import co.topl.utils.GenesisBlockGenerators
+import co.topl.utils.{DiskKeyFileTestHelper, GenesisBlockGenerators, NodeGenerators}
 
-class BlockVersionTests extends MockState with GenesisBlockGenerators {
+class BlockVersionTests extends MockState with NodeGenerators with DiskKeyFileTestHelper with GenesisBlockGenerators {
 
   /** Generate a history and state with a genesis block of the oldest version in the configuration */
   var fstVersion: Byte = _
@@ -23,7 +23,7 @@ class BlockVersionTests extends MockState with GenesisBlockGenerators {
     setProtocolMngr(settings)
 
     fstVersion = protocolMngr.applicable.map(_.blockVersion).min.get
-    genesisBlockOldestVersion = genesisBlockGen.sampleFirst().copy(version = fstVersion)
+    genesisBlockOldestVersion = genesisBlockGen(keyRingCurve25519).sampleFirst().copy(version = fstVersion)
     history = generateHistory(genesisBlockOldestVersion)
     state = createState(genesisBlockOldestVersion)
   }
@@ -68,7 +68,7 @@ class BlockVersionTests extends MockState with GenesisBlockGenerators {
 
   property("Applying genesis block to history/state with different available versions should be successful") {
     for (version <- protocolMngr.applicable.map(_.blockVersion.get)) {
-      val genesisBlockWithVersion: Block = genesisBlockGen.sampleFirst().copy(version = version)
+      val genesisBlockWithVersion: Block = genesisBlockGen(keyRingCurve25519).sampleFirst().copy(version = version)
       history = generateHistory(genesisBlockWithVersion)
       history.modifierById(genesisBlockWithVersion.id).isDefined shouldBe true
       state = createState(genesisBlockWithVersion)

@@ -34,7 +34,7 @@ object KeyfileEd25519 {
     Map(
       "crypto" -> Map(
         "cipher"       -> "aes-256-ctr".asJson,
-        "cipherParams" -> Map("iv" -> kf.iv.encodeAsBase58.asJson).asJson,
+        "cipherParams" -> Map("iv" -> kf.iv.encodeAsBase58).asJson,
         "cipherText"   -> kf.cipherText.encodeAsBase58.asJson,
         "kdf"          -> "scrypt".asJson,
         "kdfSalt"      -> kf.salt.encodeAsBase58.asJson,

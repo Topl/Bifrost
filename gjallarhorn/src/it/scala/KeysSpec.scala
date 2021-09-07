@@ -1,14 +1,4 @@
-import attestation.AddressEncoder.NetworkPrefix
-import attestation.{Address, PrivateKeyCurve25519, PublicKeyPropositionCurve25519}
-import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.hash.digest.Digest32
-import crypto.KeyfileCurve25519
-import keymanager.Keys
-import org.scalatest.flatspec.AsyncFlatSpec
-import org.scalatest.matchers.should.Matchers
-
 import java.io.File
-import scala.reflect.io.Path
 import scala.util.{Failure, Success, Try}
 
 /**

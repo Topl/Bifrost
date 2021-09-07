@@ -1,23 +1,5 @@
-import akka.actor.{ActorRef, ActorSystem, DeadLetter, PoisonPill, Props}
-import akka.http.scaladsl.Http
-import akka.pattern.ask
-import akka.util.Timeout
-import attestation.Address
-import http.{GjallarhornOfflineApiRoute, GjallarhornOnlineApiRoute, HttpService, KeyManagementApiRoute}
-import io.circe.Json
-import io.circe.syntax._
-import http.{GjallarhornOfflineApiRoute, GjallarhornOnlineApiRoute, HttpService, KeyManagementApiRoute}
-import io.circe.Json
-import keymanager.KeyManager.GenerateKeyFile
-import keymanager.KeyManagerRef
-import requests.{ApiRoute, Requests}
-import settings.{AppSettings, StartupOpts}
-import utils.Logging
-import wallet.{DeadLetterListener, WalletManager}
-
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContextExecutor}
-import scala.reflect.io.Path
 import scala.util.{Failure, Success, Try}
 
 /**

@@ -1,25 +1,5 @@
 package http
 
-import akka.actor.{ActorRef, ActorRefFactory}
-import akka.pattern.ask
-import attestation.Address
-import attestation.AddressEncoder.NetworkPrefix
-import io.circe.Json
-import io.circe.syntax._
-import keymanager.{networkPrefix, Bip39}
-import keymanager.KeyManager.{
-  ChangeKeyfileDir,
-  GenerateKeyFile,
-  GetAllKeyfiles,
-  GetKeyfileDir,
-  GetOpenKeyfiles,
-  ImportKeyfile,
-  LockKeyFile,
-  UnlockKeyFile
-}
-import requests.ApiRoute
-import settings.RPCApiSettings
-
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}

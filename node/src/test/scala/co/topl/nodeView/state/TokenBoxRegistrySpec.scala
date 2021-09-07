@@ -45,5 +45,5 @@ class TokenBoxRegistrySpec extends MockState with ScalaCheckDrivenPropertyChecks
   }
 
   override def afterAll(): Unit =
-    state.closeStorage()
+    state.close()
 }

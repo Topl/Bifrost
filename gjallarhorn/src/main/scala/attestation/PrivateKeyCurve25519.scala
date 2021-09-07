@@ -1,12 +1,5 @@
 package attestation
 
-import co.topl.crypto.implicits._
-import co.topl.crypto.{PrivateKey, PublicKey}
-import co.topl.crypto.signatures.Curve25519
-import cats.implicits._
-import crypto.KeyfileCurve25519
-import utils.serialization.{GjalSerializer, Reader, Writer}
-
 /**
  * A Secret corresponding to a PublicKeyCurve25519 proposition.
  * @param privKey - array of bytes that form the private key

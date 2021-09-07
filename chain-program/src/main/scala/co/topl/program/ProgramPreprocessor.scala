@@ -2,8 +2,9 @@ package co.topl.program
 
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.utils.Gzip
-import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.codecs.implicits._
+import co.topl.utils.encode.Base58
 import com.oracle.js.parser.ir.visitor.NodeVisitor
 import com.oracle.js.parser.ir.{FunctionNode, LexicalContext, Node, VarNode}
 import com.oracle.js.parser.{
@@ -19,8 +20,6 @@ import com.oracle.js.parser.{
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
-import co.topl.utils.encode.Base58
-import co.topl.utils.codecs.implicits._
 
 import java.nio.file.{Files, Path}
 import scala.collection.mutable

@@ -2,9 +2,9 @@ package co.topl.attestation
 
 import cats.implicits._
 import co.topl.crypto.hash.digest.Digest
-import co.topl.utils.codecs.implicits._
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.StringDataTypes.implicits._
+import co.topl.utils.codecs.implicits._
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps

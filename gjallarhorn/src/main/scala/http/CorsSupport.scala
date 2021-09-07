@@ -1,12 +1,5 @@
 package http
 
-import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
-import akka.http.scaladsl.model.HttpMethods._
-import akka.http.scaladsl.model.headers._
-import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
-import akka.http.scaladsl.server.Directive.addByNameNullaryApply
-import akka.http.scaladsl.server.{Directive0, Directives, Route}
-
 trait CorsSupport extends Directives {
 
   private val corsResponseHeaders: List[ModeledHeader] = List[ModeledHeader](
