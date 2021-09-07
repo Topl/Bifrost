@@ -173,7 +173,8 @@ lazy val bifrost = project
     toplRpc,
     benchmarking,
     crypto,
-    brambl
+    brambl,
+    tools
   )
 
 lazy val node = project
@@ -184,6 +185,7 @@ lazy val node = project
     assemblySettings,
     Defaults.itSettings,
     crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
+    Compile / run / mainClass := Some("co.topl.BifrostApp"),
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
@@ -200,7 +202,7 @@ lazy val node = project
   .settings(
     IntegrationTest / parallelExecution := false
   )
-  .dependsOn(common % "compile->compile;test->test", toplRpc)
+  .dependsOn(common % "compile->compile;test->test", toplRpc, tools)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
 lazy val common = project
@@ -302,6 +304,18 @@ lazy val crypto = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.crypto",
     libraryDependencies ++= Dependencies.crypto,
+  )
+
+lazy val tools = project
+  .in(file("tools"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "tools",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.tools",
+    libraryDependencies ++= Dependencies.tools
   )
 
 lazy val loadTesting = project

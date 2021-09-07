@@ -5,7 +5,7 @@ import co.topl.utils.Int128
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import co.topl.utils.codecs.Int128Codec
 import co.topl.utils.codecs.implicits._
-import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
+import co.topl.utils.serialization.{stringCharacterSet, BifrostSerializer, BytesSerializable, Reader, Writer}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 
@@ -128,7 +128,7 @@ object AssetValue extends BifrostSerializer[AssetValue] {
     AssetCode.serialize(obj.assetCode, w)
     SecurityRoot.serialize(obj.securityRoot, w)
     w.putOption(obj.metadata) { (writer, metadata) =>
-      writer.putByteString(new String(metadata.value))
+      writer.putByteString(new String(metadata.value, stringCharacterSet))
     }
   }
 

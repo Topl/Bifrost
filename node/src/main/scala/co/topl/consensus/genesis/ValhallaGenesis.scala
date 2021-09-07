@@ -1,13 +1,12 @@
 package co.topl.consensus.genesis
 
-import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.Forger.ChainParams
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
-import co.topl.modifier.box.{ArbitBox, SimpleValue}
-import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
+import co.topl.modifier.box.SimpleValue
+import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, TransferTransaction}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.{Int128, NetworkType}
@@ -26,7 +25,7 @@ case object ValhallaGenesis extends GenesisProvider {
 
   override protected val initialDifficulty: Long = 1000000000000000000L
 
-  override protected val members: ListMap[String, Int128] = ListMap(
+  override protected[genesis] val members: ListMap[String, Int128] = ListMap(
     "3NLFmkjhx9aUh7mEcoAZjdWoU5UL5hD77L5ouQXtd11d5LgrMfQM" -> 10000000000000000L,
     "3NKx8PobhPkukn9s3Pg7j9xUUTRNRNSFwcEZdKHgNt4oRU5UJnZu" -> 10000000000000000L,
     "3NLcZmubgTAGxpk3y8ByEgMaTqYMLVMi9FfZg82gawgjByWdpzNB" -> 10000000000000000L,
@@ -49,42 +48,46 @@ case object ValhallaGenesis extends GenesisProvider {
     "3NKcfNkLkdQfuVdXt74sNYFX8PLFsNLVeqbs7PWzBu6iS3tA6KVZ" -> 10000000000000000L
   )
 
+  /**
+   * JAA - 2021.08.12 - There was a bug present in the Valhalla genesis block due to an unspecified feeChangeOutput in
+   * the 'to' field of the Arbit transfer. To maintain compatibility with the chain we overrise the correct method to
+   * the previous incorrect implementation.
+   */
+  override protected def generateGenesisTransaction(
+    params: GenesisTransactionParams
+  ): Seq[TransferTransaction[SimpleValue, PublicKeyPropositionCurve25519]] =
+    Seq(
+      ArbitTransfer[PublicKeyPropositionCurve25519](
+        params.from,
+        params.to,
+        params.signatures,
+        params.fee,
+        params.timestamp,
+        params.data,
+        params.minting
+      ),
+      PolyTransfer[PublicKeyPropositionCurve25519](
+        params.from,
+        params.to,
+        params.signatures,
+        params.fee,
+        params.timestamp,
+        params.data,
+        params.minting
+      )
+    )
+
   def getGenesisBlock: Try[(Block, ChainParams)] = Try {
 
-    val txInput = (
+    val txInput: GenesisTransactionParams = GenesisTransactionParams(
       IndexedSeq(),
       memberKeys.zip(members.values.map(SimpleValue(_))).toIndexedSeq,
       ListMap(genesisAcctCurve25519.publicImage -> SignatureCurve25519.genesis),
       Int128(0),
       0L,
       None,
-      true
+      minting = true
     )
-
-    val txs = Seq(
-      ArbitTransfer[PublicKeyPropositionCurve25519](
-        txInput._1,
-        txInput._2,
-        txInput._3,
-        txInput._4,
-        txInput._5,
-        txInput._6,
-        txInput._7
-      ),
-      PolyTransfer[PublicKeyPropositionCurve25519](
-        txInput._1,
-        txInput._2,
-        txInput._3,
-        txInput._4,
-        txInput._5,
-        txInput._6,
-        txInput._7
-      )
-    )
-
-    val generatorBox = ArbitBox(genesisAcctCurve25519.publicImage.generateEvidence, 0, SimpleValue(totalStake))
-
-    val signature = SignatureCurve25519.genesis
 
     val block =
       Block(
@@ -95,7 +98,7 @@ case object ValhallaGenesis extends GenesisProvider {
         signature,
         1L,
         initialDifficulty,
-        txs,
+        generateGenesisTransaction(txInput),
         blockVersion
       )
 
@@ -105,7 +108,7 @@ case object ValhallaGenesis extends GenesisProvider {
       s"with id ${block.id} does not match the required block for the chosen network mode.${Console.RESET}"
     )
 
-    log.debug(s"Initialize state with transaction ${txs.head} with boxes ${txs.head.newBoxes}")
+    log.debug(s"Initialize state with block $block")
 
     (block, ChainParams(totalStake, initialDifficulty))
   }
