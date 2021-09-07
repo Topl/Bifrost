@@ -28,6 +28,7 @@ import io.circe.Encoder
 import co.topl.stakeholder.Stakeholder
 import co.topl.stakeholder.providers._
 import co.topl.crypto.hash.blake2b256
+import co.topl.stakeholder.cases.GetTime
 import co.topl.tool.Exporter
 import co.topl.utils.Logging
 import kamon.Kamon
@@ -228,7 +229,8 @@ class StakeholderDemoApp(startupOpts: StartupOpts) extends NodeLogging with Runn
     Http().newServerAt(httpHost, httpPort).bind(httpService.compositeRoute).onComplete {
       case Success(serverBinding) =>
         log.info(s"${Console.YELLOW}HTTP server bound to ${serverBinding.localAddress}${Console.RESET}")
-
+        log.info(s"${Console.YELLOW}Starting Stakeholder...${Console.RESET}")
+        stakeholderRef ! GetTime
       case Failure(ex) =>
         log.error(
           s"${Console.YELLOW}Failed to bind to $httpHost:$httpPort. " +

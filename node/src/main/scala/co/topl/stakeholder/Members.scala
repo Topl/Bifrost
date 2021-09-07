@@ -2,8 +2,7 @@ package co.topl.stakeholder
 
 import akka.actor.{Actor, ActorPath, Timers}
 import com.google.common.cache.LoadingCache
-import co.topl.stakeholder.primitives.ByteArrayWrapper
-import co.topl.stakeholder.primitives.{ActorRefWrapper, Fch, Kes, KeyFile, Keys, Ratio, Sig, SimpleTypes, TetraParameters, Vrf}
+import co.topl.stakeholder.primitives.{ActorRefWrapper, ByteArrayWrapper, Fch, Kes, KeyFile, Keys, NTPClient, Ratio, Sig, SimpleTypes, TetraParameters, Vrf}
 import co.topl.stakeholder.components.{Block, Serializer, Tine, Transaction}
 import co.topl.stakeholder.history.{BlockStorage, ChainStorage, StateStorage}
 import co.topl.settings.AppSettings
@@ -11,7 +10,7 @@ import co.topl.utils.Logging
 
 import scala.concurrent.duration._
 import scala.math.BigInt
-import scala.util.Random
+import scala.util.{Failure, Random, Success, Try}
 
 /**
   * AMS 2020:
@@ -179,5 +178,8 @@ trait Members extends SimpleTypes with Actor with Timers with Logging {
   def timeFlag[R](block: => R):R
   def time[R](block: => R):R
   def globalTime:Long
+
+  var notSynced:Boolean
+  def syncGlobalClock():Unit
 
 }

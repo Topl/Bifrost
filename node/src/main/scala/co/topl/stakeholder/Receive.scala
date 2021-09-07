@@ -1,7 +1,5 @@
 package co.topl.stakeholder
 
-import java.io.BufferedWriter
-
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import co.topl.stakeholder.primitives.{ActorRefWrapper, Kes, KeyFile, Ratio, SharedData, Sig, Vrf}
 import co.topl.stakeholder.providers.TineProvider
@@ -30,6 +28,8 @@ trait Receive extends Members {
       * Primary runtime loop for consensus
       **/
     case Update =>
+      t1 = globalTime
+      globalSlot = ((t1 - t0) / slotT).toInt
       update()
       timers.startSingleTimer(Update,Update,updateTime)
 
@@ -440,7 +440,6 @@ trait Receive extends Members {
     /**starts the timer that repeats the update command*/
     case Run =>
       timers.startSingleTimer(Update,Update,updateTime)
-      timers.startTimerWithFixedDelay(GetTime, GetTime, updateTime)
       timers.startSingleTimer(Refresh,Refresh,slotT * (refreshInterval * rng.nextDouble).toInt.millis)
       scheduleDiffuse()
       self ! BootstrapJob
@@ -451,7 +450,7 @@ trait Receive extends Members {
       timers.startTimerWithFixedDelay(Refresh,Refresh,slotT*refreshInterval.millis)
 
     case GetTime =>
-      sender() ! GetTime(globalTime)
+      syncGlobalClock()
 
     /**sets the initial time*/
     case value:SetClock =>

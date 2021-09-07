@@ -1,6 +1,8 @@
 package co.topl.stakeholder
 
-import co.topl.stakeholder.primitives.Types
+import co.topl.stakeholder.primitives.{NTPClient, TetraParameters, Types}
+
+import scala.util.{Failure, Success, Try}
 
 /**
   * AMS 2020:
@@ -52,6 +54,23 @@ trait Utilities extends Members with Types {
     val tString = "%6.6f".format(outTime)
     println("Elapsed time: " + tString + " s")
     result
+  }
+
+  var notSynced = true
+  def syncGlobalClock(): Unit = if (notSynced) {
+    while (notSynced) Try{
+      val ntpClient = new NTPClient
+      ntpClient.getOffset(Array(TetraParameters.timeServer))
+    } match {
+      case Success(value) =>
+        localClockOffset = value
+        notSynced = false
+        log.info("Global time synchronized, starting...")
+        t0 = globalTime
+        self ! cases.Run
+      case Failure(_) =>
+        log.warn("Error: could not fetch global time, trying again...")
+    }
   }
 
 }
