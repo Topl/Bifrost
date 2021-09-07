@@ -20,8 +20,7 @@ import scala.util.Try
  * @param dir - folder to store data
  * @param keepVersions - number of versions to keep
  */
-class LDBVersionedStore(protected val dir: File, val keepVersions: Int) extends KVStoreReader {
-  type VersionID = Array[Byte]
+class LDBVersionedStore(protected val dir: File, val keepVersions: Int) extends VersionedLDBKVStore {
 
   type LSN = Long // logical serial number: type used to provide order of records in undo list
 
@@ -111,7 +110,7 @@ class LDBVersionedStore(protected val dir: File, val keepVersions: Int) extends 
     } finally iterator.close()
   }
 
-  def lastVersionID: Option[VersionID] =
+  def lastVersionID(): Option[VersionID] =
     lastVersion
 
   def versionIdExists(versionID: VersionID): Boolean = {

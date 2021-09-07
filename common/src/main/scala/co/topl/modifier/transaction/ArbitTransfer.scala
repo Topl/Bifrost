@@ -14,9 +14,8 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 
 import java.time.Instant
-import scala.util.Try
-import scala.Iterable
 import scala.collection.immutable.ListMap
+import scala.util.Try
 
 case class ArbitTransfer[
   P <: Proposition: EvidenceProducer: Identifiable

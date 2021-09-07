@@ -1,6 +1,7 @@
 package co.topl.api.program
 
 import akka.util.ByteString
+import co.topl.utils.GeneratorOps.GeneratorOps
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.DoNotDiscover
@@ -12,7 +13,7 @@ class ProgramTransferSpec extends ProgramRPCMockState {
 
     val boxState = Seq(stateBox, codeBox, executionBox)
 
-    val version = modifierIdGen.sample.get
+    val version = modifierIdGen.sampleFirst()
 
     directlyAddPBRStorage(version, boxState)
 

@@ -1,8 +1,5 @@
 package attestation.serialization
 
-import attestation._
-import utils.serialization.{GjalSerializer, Reader, Writer}
-
 /**
  * For serializing a signature
  */

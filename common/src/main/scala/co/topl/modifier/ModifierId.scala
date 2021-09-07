@@ -1,19 +1,19 @@
 package co.topl.modifier
 
 import cats.implicits._
-import co.topl.crypto.hash.digest.implicits._
-import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.hash.digest.Digest32
+import co.topl.crypto.hash.digest.implicits._
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.StringDataTypes.implicits._
+import co.topl.utils.codecs.implicits._
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import co.topl.utils.codecs.implicits._
 
 class ModifierId private (private val value: Array[Byte]) extends BytesSerializable {
 

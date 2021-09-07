@@ -1,10 +1,5 @@
 package modifier
 
-import attestation.Evidence
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, HCursor}
-import utils.serialization.{BytesSerializable, GjalSerializer}
-
 /**
  * This class is used to encode and decode transactions received from Bifrost
  * @param newBoxes the set of new boxes found in the received transaction

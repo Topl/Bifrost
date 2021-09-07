@@ -10,7 +10,7 @@ import io.circe.syntax.EncoderOps
 import java.io.{BufferedWriter, FileWriter}
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Try}
 
 trait Keyfile[S <: Secret] {
   val address: Address

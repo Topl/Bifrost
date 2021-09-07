@@ -1,16 +1,17 @@
 package co.topl.nodeView.state
 
-import co.topl.db.LDBVersionedStore
+import co.topl.nodeView.KeyValueStore
 
-trait StoreInterface {
+trait StoreInterface extends AutoCloseable {
 
-  protected val storage: LDBVersionedStore
+  protected val storage: KeyValueStore
 
   /** method to retrieve data from storage */
   protected def getFromStorage(id: Array[Byte]): Option[Array[Byte]] =
     storage.get(id)
 
   /** method to close storage on termination */
-  def closeStorage(): Unit = storage.close()
+  override def close(): Unit =
+    storage.close()
 
 }

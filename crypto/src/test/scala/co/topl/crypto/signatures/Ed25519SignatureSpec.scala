@@ -25,7 +25,7 @@ class Ed25519SignatureSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChec
 
   property("with Ed25519, keyPairs generated with the same seed should be the same") {
     forAll { seedBytes: Array[Byte] =>
-      whenever(seedBytes.size != 0) {
+      whenever(seedBytes.length != 0) {
         val ec = new Ed25519
         val keyPair1 = ec.createKeyPair(seedBytes)
         val keyPair2 = ec.createKeyPair(seedBytes)
@@ -122,5 +122,4 @@ class Ed25519SignatureSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChec
     )
     sig.value.sameElements(specSig) shouldBe true
   }
-
 }

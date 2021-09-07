@@ -1,8 +1,5 @@
 package utils.serialization
 
-import akka.util.ByteString
-import utils.ByteArrayBuilder
-
 import java.nio.ByteBuffer
 import scala.util.Try
 

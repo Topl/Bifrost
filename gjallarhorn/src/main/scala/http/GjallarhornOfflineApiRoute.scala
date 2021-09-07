@@ -1,21 +1,5 @@
 package http
 
-import akka.actor.{ActorRef, ActorRefFactory}
-import akka.pattern.ask
-import attestation.AddressEncoder.NetworkPrefix
-import attestation.{Address, Proposition, PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
-import co.topl.utils.encode.Base58
-import crypto.AssetCode
-import http.GjallarhornOfflineApiRoute.updateConfigFile
-import io.circe.syntax._
-import io.circe.{HCursor, Json}
-import keymanager.KeyManager._
-import keymanager.networkPrefix
-import modifier._
-import requests.ApiRoute
-import settings.{ApplicationSettings, ChainProvider, RPCApiSettings}
-import wallet.WalletManager.GetWallet
-
 import java.io._
 import java.time.Instant
 import scala.collection.mutable.{Map => MMap}

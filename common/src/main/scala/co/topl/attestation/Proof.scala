@@ -132,23 +132,19 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
     require(proposition.pubKeyProps.size >= proposition.threshold)
 
     // only need to check until the threshold is exceeded
-    val numValidSigs = signatures.foldLeft(0) { (acc, sig) =>
+    val numValidSigs = signatures.foldLeft((0, proposition.pubKeyProps)) { case ((acc, unusedProps), sig) =>
       if (acc < proposition.threshold) {
-        if (
-          proposition.pubKeyProps
-            .exists(prop => Curve25519.verify(sig.sigBytes, message, prop.pubKeyBytes))
-        ) {
-          1
-        } else {
-          0
+        unusedProps
+          .find(prop => unusedProps(prop) && Curve25519.verify(sig.sigBytes, message, prop.pubKeyBytes)) match {
+          case Some(prop) =>
+            (acc + 1, unusedProps.diff(Set(prop)))
+          case None =>
+            (acc, unusedProps)
         }
-      } else {
-        0
-      }
+      } else (acc, unusedProps)
     }
 
-    require(numValidSigs >= proposition.threshold)
-
+    require(numValidSigs._1 >= proposition.threshold)
   }.isSuccess
 
 }
@@ -165,7 +161,11 @@ object ThresholdSignatureCurve25519 {
     Base58Data.validated(str).map(apply).valueOr(err => throw new Exception(s"Invalid Base-58 String: $err"))
 
   /** Helper function to create empty signatures */
-  def empty(): ThresholdSignatureCurve25519 = ThresholdSignatureCurve25519(Set[SignatureCurve25519]())
+  lazy val empty: ThresholdSignatureCurve25519 = ThresholdSignatureCurve25519(Set[SignatureCurve25519]())
+
+  lazy val genesis: ThresholdSignatureCurve25519 = ThresholdSignatureCurve25519(
+    Set[SignatureCurve25519](SignatureCurve25519(Signature(Array.fill(SignatureCurve25519.signatureSize)(1: Byte))))
+  )
 
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html
@@ -187,8 +187,8 @@ case class SignatureEd25519(private[attestation] val sigBytes: Signature)
   private val ec = new Ed25519
 
   require(
-    signatureLength == 0 || signatureLength == ec.SignatureLength,
-    s"$signatureLength != ${ec.SignatureLength}"
+    signatureLength == 0 || signatureLength == Ed25519.SignatureLength,
+    s"$signatureLength != ${Ed25519.SignatureLength}"
   )
 
   def isValid(proposition: PublicKeyPropositionEd25519, message: Array[Byte]): Boolean =

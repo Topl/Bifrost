@@ -1,18 +1,5 @@
 package modifier
 
-import attestation.Proposition
-import cats.implicits._
-import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.hash.digest.Digest32
-import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.encode.Base58
-import com.google.common.primitives.Ints
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import io.estatico.newtype.macros.newtype
-import modifier.ModifierId.ModifierTypeId
-import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
-
 import scala.language.implicitConversions
 import scala.util.Try
 

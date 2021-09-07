@@ -1,8 +1,5 @@
 package requests
 
-import io.circe.Json
-import io.circe.syntax._
-
 trait ApiResponse {
 
   val success: Boolean

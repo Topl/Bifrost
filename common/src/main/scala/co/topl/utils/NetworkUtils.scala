@@ -1,7 +1,6 @@
 package co.topl.utils
 
 import java.net.{Inet4Address, InetSocketAddress, NetworkInterface}
-
 import scala.jdk.CollectionConverters._
 
 object NetworkUtils {
