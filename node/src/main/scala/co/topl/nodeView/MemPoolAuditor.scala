@@ -9,7 +9,7 @@ import co.topl.modifier.transaction.Transaction
 import co.topl.network.Broadcast
 import co.topl.network.NetworkController.ReceivableMessages.SendToNetwork
 import co.topl.network.message.{InvData, InvSpec, Message}
-import co.topl.nodeView.MemPoolAuditorTyped.ReceivableMessage.RunCleanup
+import co.topl.nodeView.MemPoolAuditor.ReceivableMessage.RunCleanup
 import co.topl.nodeView.NodeViewHolder.Events.SemanticallySuccessfulModifier
 import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType.NetworkPrefix
@@ -25,7 +25,7 @@ import scala.util.{Failure, Success}
  * mempool cleanup task to [[CleanupWorker]] when needed.
  * Adapted from ErgoPlatform available at https://github.com/ergoplatform/ergo
  */
-object MemPoolAuditorTyped {
+object MemPoolAuditor {
 
   val actorName = "mempoolAuditor"
 
@@ -73,8 +73,8 @@ private class MemPoolAuditorBehaviors(
   nodeViewHolderRef:    ActorRef[NodeViewHolder.ReceivableMessage],
   networkControllerRef: CActorRef,
   settings:             AppSettings
-)(implicit context:     ActorContext[MemPoolAuditorTyped.ReceivableMessage], timeProvider: TimeProvider) {
-  import MemPoolAuditorTyped._
+)(implicit context:     ActorContext[MemPoolAuditor.ReceivableMessage], timeProvider: TimeProvider) {
+  import MemPoolAuditor._
   implicit private val log: Logger = context.log
   implicit private val orderTransactions: Ordering[Transaction.TX] = Ordering.by(_.id)
 
@@ -116,7 +116,6 @@ private class MemPoolAuditorBehaviors(
         }
 
       case ReceivableMessage.CleanupDone(ids) =>
-        //TODO: Jing - remove color
         log.info(s"Cleanup done. Switching to idle mode")
         rebroadcastTransactions(ids)
         idle(validatedIndex, epochNr)
@@ -139,14 +138,14 @@ private class MemPoolAuditorBehaviors(
         .filterNot(utx => validatedIndex.contains(utx.tx))
         .foldLeft((Seq[Transaction.TX](), Seq[Transaction.TX]())) { case ((validAcc, invalidAcc), utx) =>
           // if any newly created box matches a box already in the UTXO set, remove the transaction
-          val boxAlreadyExists = utx.tx.newBoxes.exists(b => nodeView.state.getBox(b.id).isDefined)
+          val newBoxAlreadyExists = utx.tx.newBoxes.exists(b => nodeView.state.getBox(b.id).isDefined)
+          val inputBoxAlreadyUsed = utx.tx.boxIdsToOpen.exists(id => nodeView.state.getBox(id).isEmpty)
           val txTimeout =
             (timeProvider.time - utx.dateAdded) > settings.application.mempoolTimeout.toMillis
 
-          if (boxAlreadyExists || txTimeout) (validAcc, utx.tx +: invalidAcc)
+          if (newBoxAlreadyExists || inputBoxAlreadyUsed || txTimeout) (validAcc, utx.tx +: invalidAcc)
           else (utx.tx +: validAcc, invalidAcc)
         }
-
 
     ReceivableMessage.CleanupDecision(valid, invalid)
   }
