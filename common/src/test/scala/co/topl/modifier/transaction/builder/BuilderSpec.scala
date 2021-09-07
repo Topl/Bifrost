@@ -1,5 +1,6 @@
 package co.topl.modifier.transaction.builder
 
+import cats.implicits._
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box.{PolyBox, ProgramId, SimpleValue}
@@ -107,7 +108,7 @@ class TransferBuilderSpec
             fee = 0,
             data = None,
             minting = false,
-            strategy = BoxPickingStrategy.SmallestFirst(0, smallestBox.value.quantity, 0)
+            strategy = BoxPickingStrategy.SmallestFirst(None, smallestBox.value.quantity.some, None)
           )
 
         // check that the only box used is the smallest one

@@ -11,8 +11,25 @@ import co.topl.utils.{Identifiable, Int128}
 
 import scala.language.implicitConversions
 
+/**
+ * Defines a blueprint for creating a transfer transaction from a set of input parameters.
+ * @tparam Value the value of the token to send
+ * @tparam Failure the type of validation failure that can occur
+ * @tparam Transfer the type of transfer that is generated
+ */
 trait ValueTransferBlueprint[Value, Failure, Transfer] {
 
+  /**
+   * Compiles a set of parameters into a value transfer transaction using the given blueprint.
+   * @param availableBoxes the available boxes that can be used as inputs
+   * @param recipients the addresses that will receive token boxes as part of the transfer
+   * @param feeChangeAddress the address that should receive any change after paying the transaction fee
+   * @param consolidationAddress the address that should recieve any change after paying tokens to the recipients
+   * @param fee the fee amount to pay
+   * @param data the metadata text to add to the transaction
+   * @param minting whether or not the output token boxes should be minted
+   * @return either a transfer transaction of type `Transfer` or a validation failure of type `Failure`
+   */
   def compileBlueprint(
     availableBoxes:       TokenBoxes,
     recipients:           IndexedSeq[(Address, Value)],
@@ -26,6 +43,11 @@ trait ValueTransferBlueprint[Value, Failure, Transfer] {
 
 object ValueTransferBlueprint {
 
+  /**
+   * Defines a `ValueTransferBlueprint` type-class instance for `PolyTransfer` for a given proposition.
+   * @tparam P the type of proposition on the poly transfer
+   * @return a type-class instance of `ValueTransferBlueprint` for `PolyTransfer`
+   */
   private def polyTransferBlueprint[P <: Proposition: EvidenceProducer: Identifiable]
     : ValueTransferBlueprint[SimpleValue, InvalidPolyTransfer, PolyTransfer[P]] =
     (
@@ -38,6 +60,11 @@ object ValueTransferBlueprint {
       minting:        Boolean
     ) => PolyTransfer.validated[P](availableBoxes.polys, recipients, changeAddress, fee, data, minting)
 
+  /**
+   * Defines a `ValueTransferBlueprint` type-class instance for `ArbitTransfer` for a given proposition.
+   * @tparam P the type of proposition on the arbit transfer
+   * @return a type-class instance of `ValueTransferBlueprint` for `ArbitTransfer`
+   */
   private def arbitTransferBlueprint[P <: Proposition: EvidenceProducer: Identifiable]
     : ValueTransferBlueprint[SimpleValue, InvalidArbitTransfer, ArbitTransfer[P]] =
     (
@@ -60,6 +87,11 @@ object ValueTransferBlueprint {
         minting
       )
 
+  /**
+   * Defines a `ValueTransferBlueprint` type-class instance for `AssetTransfer` for a given proposition.
+   * @tparam P the type of proposition on the asset transfer
+   * @return a type-class instance of `ValueTransferBlueprint` for `AssetTransfer`
+   */
   private def assetTransferBlueprint[P <: Proposition: EvidenceProducer: Identifiable]
     : ValueTransferBlueprint[AssetValue, InvalidAssetTransfer, AssetTransfer[P]] =
     (

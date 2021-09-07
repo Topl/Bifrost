@@ -1,10 +1,14 @@
 package co.topl.modifier.transaction.builder
 
 import co.topl.attestation.Address
-import co.topl.modifier.box.{ArbitBox, AssetBox, Box, PolyBox}
+import co.topl.modifier.box.{ArbitBox, AssetBox, AssetCode, Box, PolyBox, SimpleValue, TokenBox, TokenValueHolder}
 import co.topl.utils.Int128
 import simulacrum.typeclass
 
+/**
+ * Defines a strategy for choosing which boxes should be used as inputs for a transfer transaction.
+ * @tparam T the type of strategy to use to filter the input token boxes
+ */
 @typeclass
 trait BoxPickingStrategy[T] {
   def pick(strategy: T, boxes: TokenBoxes): TokenBoxes
@@ -12,31 +16,58 @@ trait BoxPickingStrategy[T] {
 
 object BoxPickingStrategy {
 
+  /**
+   * Chooses all token boxes available to addresses sending tokens in a transaction.
+   */
   case object All
   type All = All.type
 
-  case class SmallestFirst(arbitsUntil: Int128, polysUntil: Int128, assetsUntil: Int128)
+  /**
+   * Parameters for choosing the smallest boxes first until a certain limit.
+   * @param arbitsUntil choose arbit boxes until this value is reached
+   * @param polysUntil choose poly boxes until this value is reached
+   * @param assetsUntil choose asset boxes until this value is reached
+   */
+  case class SmallestFirst(
+    arbitsUntil: Option[Int128],
+    polysUntil:  Option[Int128],
+    assetsUntil: Option[(AssetCode, Int128)]
+  )
 
+  /**
+   * Parameters for choosing specific boxes defined by a set of box nonces.
+   * @param boxNonces the set of nonces to filter boxes by
+   */
   case class Specific(boxNonces: IndexedSeq[Box.Nonce])
 
   trait Instances {
+
     implicit val allStrategy: BoxPickingStrategy[All.type] = (_, boxes) => boxes
 
     implicit val smallestStrategy: BoxPickingStrategy[SmallestFirst] = { (strategy, boxes) =>
-      val arbitBoxes = boxes.arbits.sortBy(_._2.value.quantity).foldLeft(IndexedSeq[(Address, ArbitBox)]()) {
-        case (selected, _) if selected.map(_._2.value.quantity).sum >= strategy.arbitsUntil => selected
-        case (selected, box)                                                                => selected :+ box
-      }
+      def takeBoxesUntil[T <: TokenBox[TokenValueHolder]](
+        boxes: IndexedSeq[(Address, T)],
+        until: Int128
+      ): IndexedSeq[(Address, T)] =
+        boxes.sortBy(_._2.value.quantity).foldLeft(IndexedSeq[(Address, T)]()) {
+          // take boxes until the sum of all selected boxes is greater-than-or-equal-to the requested amount
+          case (selected, _) if selected.map(_._2.value.quantity).sum >= until => selected
+          case (selected, box)                                                 => selected :+ box
+        }
 
-      val polyBoxes = boxes.polys.sortBy(_._2.value.quantity).foldLeft(IndexedSeq[(Address, PolyBox)]()) {
-        case (selected, _) if selected.map(_._2.value.quantity).sum >= strategy.polysUntil => selected
-        case (selected, box)                                                               => selected :+ box
-      }
+      val arbitBoxes: IndexedSeq[(Address, ArbitBox)] =
+        strategy.arbitsUntil.map(takeBoxesUntil(boxes.arbits, _)).getOrElse(IndexedSeq[(Address, ArbitBox)]())
 
-      val assetBoxes = boxes.assets.sortBy(_._2.value.quantity).foldLeft(IndexedSeq[(Address, AssetBox)]()) {
-        case (selected, _) if selected.map(_._2.value.quantity).sum >= strategy.assetsUntil => selected
-        case (selected, box)                                                                => selected :+ box
-      }
+      val polyBoxes: IndexedSeq[(Address, PolyBox)] =
+        strategy.polysUntil.map(takeBoxesUntil(boxes.polys, _)).getOrElse(IndexedSeq[(Address, PolyBox)]())
+
+      val assetBoxes: IndexedSeq[(Address, AssetBox)] =
+        strategy.assetsUntil
+          .map(takeUntil =>
+            // filter out any asset boxes of a different asset code
+            takeBoxesUntil(boxes.assets.filter(box => box._2.value.assetCode == takeUntil._1), takeUntil._2)
+          )
+          .getOrElse(IndexedSeq[(Address, AssetBox)]())
 
       TokenBoxes(arbitBoxes, polyBoxes, assetBoxes)
     }
