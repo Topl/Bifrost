@@ -17,10 +17,7 @@ jobs:
     working_directory: ~/repo
 
     environment:
-      SBT_VERSION: 1.5.0
-      # Customize the JVM maximum heap limit
-      JVM_OPTS: -Xmx3600m
-      #SBT_OPTS: -XX:MaxMetaspaceSize=512M -Xmx6G # <- Graal is saying this is was deprecated
+      SBT_VERSION: 1.5.5
       TERM: dumb
 
     steps:
@@ -30,7 +27,7 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           key: sbt-cache
-      - run: cat /dev/null | sbt + update
+      - run: sbt + update
 
       - save_cache:
           paths:
@@ -40,7 +37,7 @@ jobs:
           key: v1-dependencies--{{ checksum "build.sbt" }}
 
       # run tests!
-      - run: cat /dev/null | sbt -mem 2048 checkPR
+      - run: sbt checkPR
 
 workflows:
   version: 2
