@@ -1,5 +1,8 @@
 package co.topl.utils.codecs.binary
 
+import cats.implicits._
+import co.topl.utils.UnsignedNumbers.UInt
+
 object UIntCodec {
 
   /**
@@ -12,7 +15,7 @@ object UIntCodec {
       uLongParseResult <- ULongCodec.decode(from)
       remainingBytes = uLongParseResult._2
       uLong = uLongParseResult._1
-      uInt <- Either.cond(uLong >= 0L && uLong <= 0xffffffffL, uLong, ParseFailure)
+      uInt <- UInt.validated(uLong).leftMap(_ => DecoderFailure)
     } yield (uInt, remainingBytes)
 
   trait Implicits {

@@ -8,13 +8,13 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
-class ByteStringCodecSpec
+class SmallStringCodecSpec
     extends AnyFlatSpec
     with CommonGenerators
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers {
-  "ByteStringCodec Decoder" should "be able to decode VLQByteStringWriter output" in {
+  "SmallStringCodec Decoder" should "be able to decode VLQByteStringWriter output" in {
     forAll(Gen.asciiStr) { stringValue =>
       val vlqWriter = new VLQByteStringWriter
 
@@ -22,9 +22,9 @@ class ByteStringCodecSpec
 
       val bytes = vlqWriter.result()
 
-      val decoderResult = ByteStringCodec.decode(LazyList.from(bytes)).getOrThrow()
+      val decoderResult: (SmallString, LazyList[Byte]) = SmallStringCodec.decode(LazyList.from(bytes)).getOrThrow()
 
-      decoderResult._1 shouldBe stringValue
+      decoderResult._1.value shouldBe stringValue
       decoderResult._2 shouldBe empty
     }
   }
@@ -37,7 +37,7 @@ class ByteStringCodecSpec
 
       val bytes = vlqWriter.result() ++ leftover
 
-      val decoderResult = ByteStringCodec.decode(LazyList.from(bytes)).getOrThrow()
+      val decoderResult = SmallStringCodec.decode(LazyList.from(bytes)).getOrThrow()
 
       decoderResult._2.toArray shouldBe leftover
     }

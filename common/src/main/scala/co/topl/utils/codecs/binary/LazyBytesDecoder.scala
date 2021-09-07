@@ -21,6 +21,6 @@ object LazyBytesDecoder {
     }
   }
 
-  object implicits extends Implicits
+  object implicits extends Implicits with ToLazyBytesDecoderOps
 
 }

@@ -1,5 +1,8 @@
 package co.topl.utils.codecs.binary
 
+import cats.implicits._
+import co.topl.utils.UnsignedNumbers.UShort
+
 object UShortCodec {
 
   /**
@@ -12,7 +15,7 @@ object UShortCodec {
       uLongParseResult <- ULongCodec.decode(from)
       remainingBytes = uLongParseResult._2
       intValue = uLongParseResult._1.toInt
-      uShort <- Either.cond(intValue >= 0 && intValue <= 0xffff, intValue, ParseFailure)
+      uShort <- UShort.validated(intValue).leftMap(_ => DecoderFailure)
     } yield (uShort, remainingBytes)
 
   trait Implicits {

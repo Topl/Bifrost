@@ -23,7 +23,7 @@ object Int128Codec {
     else
       remainingBytes match {
         case head #:: tail => decodeHelper(currentBytes :+ head, tail)
-        case _             => ParseFailure.asLeft
+        case _             => DecoderFailure.asLeft
       }
 
   /**

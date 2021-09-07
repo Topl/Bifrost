@@ -13,7 +13,7 @@ object BooleanCodec {
     from match {
       case head #:: tail => (head == 0x01, tail).asRight
       // in the case when the byte list is empty
-      case _ => ParseFailure.asLeft
+      case _ => DecoderFailure.asLeft
     }
 
   trait Implicits {

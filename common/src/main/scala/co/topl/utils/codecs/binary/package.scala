@@ -1,27 +1,23 @@
 package co.topl.utils.codecs
 
 import cats.implicits._
-import co.topl.utils.Int128
-import co.topl.utils.serialization.ZigZagEncoder._
-import simulacrum.typeclass
-import co.topl.utils.Extensions.LongOps
+import io.estatico.newtype.macros.newtype
+import io.estatico.newtype.ops._
 
-import java.nio.ByteBuffer
 import java.nio.charset.{Charset, StandardCharsets}
-import java.util
 import scala.annotation.tailrec
+
+import scala.language.implicitConversions
 
 package object binary {
 
-  case object ParseFailure
-  type DecoderFailure = ParseFailure.type
+  case object ValidationFailure
+  type ValidationFailure = ValidationFailure.type
+
+  case object DecoderFailure
+  type DecoderFailure = DecoderFailure.type
   type DecoderResult[T] = Either[DecoderFailure, (T, LazyList[Byte])]
 
-  type ByteString = String
-  type IntString = String
-
-  type UShort = Int
-  type UInt = Long
   type ULong = Long
 
   val stringCharacterSet: Charset = StandardCharsets.UTF_8
@@ -43,14 +39,66 @@ package object binary {
     else
       remaining match {
         case head #:: tail => stringParsingHelper(targetSize, current :+ head, tail)
-        case _             => ParseFailure.asLeft
+        case _             => DecoderFailure.asLeft
       }
+
+  /**
+   * Represents a string with a byte representation of 255 bytes or less.
+   * @param value the string representation
+   */
+  @newtype
+  class SmallString(val value: String)
+
+  object SmallString {
+
+    val maxBytes: Int = 255
+
+    def validated(from: String): Either[ValidationFailure, SmallString] = {
+      val bytes = from.getBytes(stringCharacterSet)
+
+      Either.cond(bytes.length <= maxBytes, from.coerce, ValidationFailure)
+    }
+
+    def unsafe(from: String): SmallString =
+      validated(from)
+        .getOrElse(
+          throw new IllegalArgumentException(
+            s"value length is outside the bounds of 0 and $maxBytes"
+          )
+        )
+  }
+
+  /**
+   * Represents a string with a byte representation of 2^31^-1 bytes or less.
+   * @param value the byte representation of a UTF-8 encoded string
+   */
+  @newtype
+  class IntString(val value: String)
+
+  object IntString {
+
+    val maxBytes: Int = Int.MaxValue
+
+    def validated(from: String): Either[ValidationFailure, IntString] = {
+      val bytes = from.getBytes(stringCharacterSet)
+
+      Either.cond(bytes.length <= maxBytes, from.coerce, ValidationFailure)
+    }
+
+    def unsafe(from: String): IntString =
+      validated(from)
+        .getOrElse(
+          throw new IllegalArgumentException(
+            s"value length is outside the bounds of 0 and $maxBytes"
+          )
+        )
+  }
 
   trait Implicits
       extends LazyBytesDecoder.Implicits
       with LazyBytesDecoder.ToLazyBytesDecoderOps
       with BooleanCodec.Implicits
-      with ByteStringCodec.Implicits
+      with SmallStringCodec.Implicits
       with Int128Codec.Implicits
       with IntCodec.Implicits
       with IntStringCodec.Implicits

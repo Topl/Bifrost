@@ -17,7 +17,7 @@ object OptionCodec {
     from match {
       case head #:: tail if head != 0 => LazyBytesDecoder[T].decodeLazy(tail).map(result => (result._1.some, result._2))
       case head #:: tail if head == 0 => (None, tail).asRight
-      case _                          => ParseFailure.asLeft
+      case _                          => DecoderFailure.asLeft
     }
 
   trait Implicits {

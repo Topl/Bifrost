@@ -22,11 +22,9 @@ class IntStringCodecSpec
 
       val bytes = vlqWriter.result()
 
-      val vlqReader = new VLQByteStringReader(bytes)
-      val vlqResult = vlqReader.getIntString()
       val decoderResult = IntStringCodec.decode(LazyList.from(bytes)).getOrThrow()
 
-      decoderResult._1 shouldBe stringValue
+      decoderResult._1.value shouldBe stringValue
       decoderResult._2 shouldBe empty
     }
   }

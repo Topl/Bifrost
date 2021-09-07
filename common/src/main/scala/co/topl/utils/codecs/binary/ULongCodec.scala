@@ -31,12 +31,17 @@ object ULongCodec {
     remainingBytes: LazyList[Byte]
   ): DecoderResult[ULong] =
     (shift, remainingBytes) match {
+      // we are done decoding a ULong when the shift value is beyond the index 63
       case (s, _) if s >= 64 => (currentResult, remainingBytes).asRight
-      case (_, (head #:: tail)) if (head & 0x80) == 0 =>
+      // we are done decoding a ULong if we encounter a 0x80-valued byte
+      case (_, head #:: tail) if (head & 0x80) == 0 =>
+        // decode the next byte into the output ULong value at the slot defined by the shift amount, then complete
         (currentResult | ((head & 0x7f).toLong << shift), tail).asRight
-      case (_, (head #:: tail)) =>
+      case (_, head #:: tail) =>
+        // decode the next byte into the output ULong value and attempt a decode on the next byte with an updated shift
         decodeHelper(currentResult | ((head & 0x7f).toLong << shift), shift + 7, tail)
-      case _ => ParseFailure.asLeft
+      // fails because there are no bytes left to decode and we didn't encounter a 0x80 byte
+      case _ => DecoderFailure.asLeft
     }
 
   /**

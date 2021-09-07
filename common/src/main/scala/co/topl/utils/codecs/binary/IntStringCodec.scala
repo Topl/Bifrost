@@ -1,8 +1,8 @@
 package co.topl.utils.codecs.binary
 
 import cats.implicits._
-import co.topl.utils.Extensions.LongOps
 import scala.util.Try
+import co.topl.utils.Extensions.LongOps
 
 object IntStringCodec {
 
@@ -13,14 +13,18 @@ object IntStringCodec {
    */
   def decode(from: LazyList[Byte]): DecoderResult[IntString] =
     for {
+      // parse expected size of string
       uIntParseResult <- UIntCodec.decode(from)
       size <-
-        Try(uIntParseResult._1.toIntExact).toEither
-          .leftMap(_ => ParseFailure)
+        Try(uIntParseResult._1.value.toIntExact).toEither
+          .leftMap(_ => DecoderFailure)
       remainingBytes = uIntParseResult._2
+      // parse string from bytes
       stringParseResult <-
         stringParsingHelper(targetSize = size, current = List(), remaining = remainingBytes)
-    } yield stringParseResult
+      // validate string length
+      intStringParseResult <- IntString.validated(stringParseResult._1).leftMap(_ => DecoderFailure)
+    } yield intStringParseResult -> stringParseResult._2
 
   trait Implicits {
     implicit val lazyIntStringDecoder: LazyBytesDecoder[IntString] = decode
