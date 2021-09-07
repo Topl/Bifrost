@@ -30,7 +30,7 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           key: sbt-cache
-      - run: cat /dev/null | sbt test:compile
+      - run: cat /dev/null | sbt + test:compile
 
       - save_cache:
           paths:
@@ -40,7 +40,7 @@ jobs:
           key: v1-dependencies--{{ checksum "build.sbt" }}
 
       # run tests!
-      - run: cat /dev/null | sbt -mem 2048 test:test
+      - run: cat /dev/null | sbt -mem 2048 + test:test
 
 workflows:
   version: 2

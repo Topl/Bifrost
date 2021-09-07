@@ -211,6 +211,7 @@ lazy val common = project
     name := "common",
     commonSettings,
     publishSettings,
+    crossScalaVersions := Seq(scala212, scala213),
     libraryDependencies ++= Dependencies.common
   )
   .dependsOn(crypto)
@@ -234,6 +235,7 @@ lazy val brambl = project
     name := "brambl",
     commonSettings,
     publishSettings,
+    crossScalaVersions := Seq(scala212, scala213),
     libraryDependencies ++= Dependencies.brambl,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.brambl"
@@ -247,6 +249,7 @@ lazy val akkaHttpRpc = project
     name := "akka-http-rpc",
     commonSettings,
     publishSettings,
+    crossScalaVersions := Seq(scala212, scala213),
     libraryDependencies ++= Dependencies.akkaHttpRpc,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.akkahttprpc"
@@ -259,6 +262,7 @@ lazy val toplRpc = project
     name := "topl-rpc",
     commonSettings,
     publishSettings,
+    crossScalaVersions := Seq(scala212, scala213),
     libraryDependencies ++= Dependencies.toplRpc,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.toplrpc"
@@ -300,6 +304,7 @@ lazy val crypto = project
     commonSettings,
     publishSettings,
     scalamacrosParadiseSettings,
+    crossScalaVersions := Seq(scala212, scala213),
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.crypto",
     libraryDependencies ++= Dependencies.crypto,
@@ -312,6 +317,7 @@ lazy val tools = project
     name := "tools",
     commonSettings,
     publishSettings,
+    crossScalaVersions := Seq(scala212, scala213),
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.tools",
     libraryDependencies ++= Dependencies.tools
@@ -327,5 +333,5 @@ lazy val loadTesting = project
   )
   .dependsOn(common, brambl)
 
-addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; test; clean; ++${scala212} compile")
-addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; test; clean; ++${scala212} compile")
+addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; + test")
+addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; + test")
