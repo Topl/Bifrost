@@ -1,18 +1,5 @@
 package http
 
-import akka.http.scaladsl.model.headers.{HttpOrigin, Origin}
-import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
-import akka.http.scaladsl.server.Route
-import akka.util.Timeout
-import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.hash.digest.Digest32
-import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.encode.Base58
-import io.circe.Json
-import io.circe.parser.parse
-import requests.{ApiResponse, ApiRoute, ErrorResponse, SuccessResponse}
-import settings.RPCApiSettings
-
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 

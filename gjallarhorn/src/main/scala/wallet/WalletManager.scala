@@ -1,19 +1,5 @@
 package wallet
 
-import akka.actor.{Actor, ActorRef}
-import akka.pattern.ask
-import akka.util.Timeout
-import attestation.Address
-import cats.syntax.show._
-import io.circe.parser.parse
-import io.circe.syntax.EncoderOps
-import io.circe.{parser, Json}
-import keymanager.KeyManager.{ChangeNetwork, GetAllKeyfiles}
-import keymanager.networkPrefix
-import modifier.{Box, BoxId, Transaction}
-import settings.NetworkType
-import utils.Logging
-
 import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}

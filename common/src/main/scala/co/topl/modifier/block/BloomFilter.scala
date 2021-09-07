@@ -4,10 +4,10 @@ import cats.implicits.toShow
 import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.codecs.implicits._
+import co.topl.utils.codecs.{AsBytes, FromBytes, Infallible}
 import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
-import co.topl.utils.codecs.{AsBytes, FromBytes, Infallible}
-import co.topl.utils.codecs.implicits._
 import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyEncoder}

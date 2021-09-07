@@ -1,7 +1,5 @@
 package utils.serialization
 
-import utils.serialization.Reader.Aux
-
 import java.nio.ByteBuffer
 
 /**

@@ -1,8 +1,5 @@
 package utils.serialization
 
-import utils.ByteArrayBuilder
-import utils.serialization.Writer.Aux
-
 /**
  * Not thread safe
  */

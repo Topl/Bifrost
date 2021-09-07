@@ -2,10 +2,10 @@ package co.topl.program
 
 import cats.implicits._
 import co.topl.utils.Gzip
+import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.codecs.implicits._
 import io.circe.syntax._
 import io.circe.{Decoder, Json}
-import co.topl.utils.StringDataTypes.Base58Data
 
 case class ExecutionBuilderTerms(terms: String) {
   /*  */
@@ -43,6 +43,6 @@ object ExecutionBuilderTerms {
       }
       .emap {
         case Right(terms) => decodeGzip(terms).map(ExecutionBuilderTerms(_)).leftMap(_.toString)
-        case Left(terms) => terms.asRight[String]
+        case Left(terms)  => terms.asRight[String]
       }
 }

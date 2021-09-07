@@ -2,9 +2,9 @@ package co.topl.nodeView.state
 
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.modifier.box.StateBox
+import co.topl.utils.GeneratorOps.GeneratorOps
 import io.circe.Json
 import io.circe.syntax._
-import co.topl.utils.GeneratorOps.GeneratorOps
 
 class ProgramBoxRegistrySpec extends MockState {
 

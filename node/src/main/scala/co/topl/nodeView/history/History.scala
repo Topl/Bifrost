@@ -1,7 +1,8 @@
 package co.topl.nodeView.history
 
 import co.topl.consensus.Hiccups.HiccupBlock
-import co.topl.consensus.{BlockValidator, DifficultyBlockValidator, Hiccups, SyntaxBlockValidator, TimestampValidator}
+import co.topl.consensus._
+import co.topl.db.LDBVersionedStore
 import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block
@@ -9,8 +10,9 @@ import co.topl.modifier.transaction.Transaction
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.History.GenesisParentId
-import co.topl.db.LDBVersionedStore
+import co.topl.nodeView.{CacheLayerKeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Logging, TimeProvider}
 
@@ -25,11 +27,12 @@ import scala.util.{Failure, Success, Try}
  * @param validators rule sets that dictate validity of blocks in the history
  */
 class History(
-  val storage:        Storage, //todo: JAA - make this private[history]
-  fullBlockProcessor: BlockProcessor,
-  validators:         Seq[BlockValidator[Block]]
-)(implicit np:        NetworkPrefix)
+  val storage:            Storage, //todo: JAA - make this private[history]
+  fullBlockProcessor:     BlockProcessor,
+  validators:             Seq[BlockValidator[Block]]
+)(implicit networkPrefix: NetworkPrefix)
     extends GenericHistory[Block, BifrostSyncInfo, History]
+    with AutoCloseable
     with Logging {
 
   override type NVCT = History
@@ -41,9 +44,9 @@ class History(
   lazy val difficulty: Long = storage.difficultyAt(bestBlockId)
 
   /** Public method to close storage */
-  def closeStorage(): Unit = {
+  override def close(): Unit = {
     log.info("Attempting to close history storage")
-    storage.storage.close()
+    storage.keyValueStore.close()
   }
 
   /** If there's no history, even genesis block */
@@ -80,9 +83,17 @@ class History(
 
     log.debug(s"Trying to append block ${block.id} to history")
 
+    val isHiccupBlock =
+      if (Hiccups.blockValidation.contains(HiccupBlock(block))) {
+        log.debug(s"Skipping block validation for HiccupBlock.  blockId=${block.id}")
+        true
+      } else {
+        false
+      }
+
     // test new block against all validators
     val validationResults =
-      if (!isGenesis(block) && !Hiccups.blockValidation.contains(HiccupBlock(block))) {
+      if (!isGenesis(block) && !isHiccupBlock) {
         validators.map(_.validate(block)).map {
           case Failure(e) =>
             log.warn(s"Block validation failed", e)
@@ -119,7 +130,7 @@ class History(
 
               // check if we need to update storage after checking for forks
               if (forkProgInfo.branchPoint.nonEmpty) {
-                storage.rollback(forkProgInfo.branchPoint.get)
+                storage.rollback(forkProgInfo.branchPoint.get).getOrThrow()
 
                 forkProgInfo.toApply.foreach(b => storage.update(b, isBest = true))
               }
@@ -152,11 +163,11 @@ class History(
    */
   override def drop(modifierId: ModifierId): History = {
 
-    val block = storage.modifierById(modifierId).map { case b: Block => b }.get
+    val block = storage.modifierById(modifierId).get
     val parentBlock = storage.modifierById(block.parentId).get
 
     log.debug(s"Failed to apply block. Rollback BifrostState to ${parentBlock.id} from version ${block.id}")
-    storage.rollback(parentBlock.id)
+    storage.rollback(parentBlock.id).getOrThrow()
     new History(storage, fullBlockProcessor, validators)
   }
 
@@ -483,14 +494,30 @@ object History extends Logging {
 
   val GenesisParentId: ModifierId = ModifierId.genesisParentId
 
-  def readOrGenerate(settings: AppSettings)(implicit np: NetworkPrefix): History = {
+  def readOrGenerate(settings: AppSettings)(implicit networkPrefix: NetworkPrefix): History = {
+    val storage = {
 
-    /** Setup persistent on-disk storage */
-    val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
-    val file = new File(s"$dataDir/blocks")
-    file.mkdirs()
-    val blockStorageDB = new LDBVersionedStore(file, 100)
-    val storage = new Storage(blockStorageDB, settings.application.cacheExpire, settings.application.cacheSize)
+      /** Setup persistent on-disk storage */
+      val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
+      val file = new File(s"$dataDir/blocks")
+      file.mkdirs()
+
+      import scala.concurrent.duration._
+      val blockStorageDB = new LDBVersionedStore(file, 100)
+      new Storage(
+        new CacheLayerKeyValueStore(
+          new LDBKeyValueStore(blockStorageDB),
+          settings.application.cacheExpire.millis,
+          settings.application.cacheSize
+        ),
+        keySize = 32
+      )
+    }
+
+    apply(settings, storage)
+  }
+
+  def apply(settings: AppSettings, storage: Storage)(implicit networkPrefix: NetworkPrefix): History = {
 
     /** This in-memory cache helps us to keep track of tines sprouting off the canonical chain */
     val blockProcessor = BlockProcessor(settings.network.maxChainCacheDepth)

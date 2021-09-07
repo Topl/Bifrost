@@ -1,9 +1,5 @@
 package attestation.serialization
 
-import attestation.{PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
-import utils.Extensions._
-import utils.serialization.{GjalSerializer, Reader, Writer}
-
 /**
  * For serializing a ThresholdProposition
  */
