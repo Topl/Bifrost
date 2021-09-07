@@ -289,7 +289,6 @@ lazy val benchmarking = project
     publish / skip := true,
     libraryDependencies ++= Dependencies.benchmarking
   )
-  .dependsOn(node % "compile->compile;test->test")
   .enablePlugins(JmhPlugin)
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
@@ -328,5 +327,5 @@ lazy val loadTesting = project
   )
   .dependsOn(common, brambl)
 
-addCommandAlias("checkPR", "; scalafixAll --check; scalafmtCheckAll; test")
-addCommandAlias("preparePR", "; scalafixAll; scalafmtAll; test")
+addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; test; clean; ++${scala212} compile")
+addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; test; clean; ++${scala212} compile")
