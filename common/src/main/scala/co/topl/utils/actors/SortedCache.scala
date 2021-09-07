@@ -106,7 +106,7 @@ object SortedCache {
      * Inserts the given items T into the items cache.  If the cache overflows, items are evicted and the `onEvict`
      * function is called.
      */
-    def append(others: IterableOnce[T]): Impl[T] = {
+    def append(others: Iterable[T]): Impl[T] = {
       // For future optimization: `.distinct.sorted` is expensive.  Is it cheaper to use a SortedSet instead?
       val (finalItems, sizeEvicted) =
         (items ++ others.iterator.map(PoppableItem(_, 0))).distinct.sorted.splitAt(itemLimit)

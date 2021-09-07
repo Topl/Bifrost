@@ -68,7 +68,7 @@ object Transaction {
     case _: AssetTransfer[_] => AssetTransfer.identifier.getId
   }
 
-  implicit def jsonTypedEncoder[T, P <: Proposition]: Encoder[Transaction[T, P]] = { case tx: Transaction[_, _] =>
+  implicit def jsonTypedEncoder[T, P <: Proposition]: Encoder[Transaction[T, P]] = { tx =>
     jsonEncoder(tx)
   }
 
