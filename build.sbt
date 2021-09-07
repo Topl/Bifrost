@@ -7,7 +7,6 @@ val scala213 = "2.13.6"
 inThisBuild(List(
   organization := "co.topl",
   scalaVersion := scala213,
-  crossScalaVersions := Seq(scala212, scala213),
   versionScheme := Some("early-semver"),
   dynverSeparator := "-",
   version := dynverGitDescribeOutput.value.mkVersion(versionFmt, fallbackVersion(dynverCurrentDate.value)),
@@ -33,6 +32,7 @@ lazy val commonSettings = Seq(
       case _                       => sourceDir / "scala-2.12-"
     }
   },
+  crossScalaVersions := Seq(scala212, scala213),
   Test / testOptions ++= Seq(
     Tests.Argument("-oD", "-u", "target/test-reports"),
     Tests.Argument(TestFrameworks.ScalaCheck, "-verbosity", "2"),
@@ -184,7 +184,7 @@ lazy val node = project
     commonSettings,
     assemblySettings,
     Defaults.itSettings,
-    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
+    crossScalaVersions := Seq(scala213), // The `monocle` library does not support Scala 2.12
     Compile / run / mainClass := Some("co.topl.BifrostApp"),
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
@@ -211,7 +211,6 @@ lazy val common = project
     name := "common",
     commonSettings,
     publishSettings,
-    crossScalaVersions := Seq(scala212, scala213),
     libraryDependencies ++= Dependencies.common
   )
   .dependsOn(crypto)
@@ -235,7 +234,6 @@ lazy val brambl = project
     name := "brambl",
     commonSettings,
     publishSettings,
-    crossScalaVersions := Seq(scala212, scala213),
     libraryDependencies ++= Dependencies.brambl,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.brambl"
@@ -249,7 +247,6 @@ lazy val akkaHttpRpc = project
     name := "akka-http-rpc",
     commonSettings,
     publishSettings,
-    crossScalaVersions := Seq(scala212, scala213),
     libraryDependencies ++= Dependencies.akkaHttpRpc,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.akkahttprpc"
@@ -262,7 +259,6 @@ lazy val toplRpc = project
     name := "topl-rpc",
     commonSettings,
     publishSettings,
-    crossScalaVersions := Seq(scala212, scala213),
     libraryDependencies ++= Dependencies.toplRpc,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.toplrpc"
@@ -275,7 +271,6 @@ lazy val toplRpc = project
 //  .settings(
 //    name := "gjallarhorn",
 //    commonSettings,
-//    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
 //    publish / skip := true,
 //    Defaults.itSettings,
 //    libraryDependencies ++= Dependencies.gjallarhorn
@@ -304,7 +299,6 @@ lazy val crypto = project
     commonSettings,
     publishSettings,
     scalamacrosParadiseSettings,
-    crossScalaVersions := Seq(scala212, scala213),
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.crypto",
     libraryDependencies ++= Dependencies.crypto,
@@ -317,7 +311,6 @@ lazy val tools = project
     name := "tools",
     commonSettings,
     publishSettings,
-    crossScalaVersions := Seq(scala212, scala213),
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.tools",
     libraryDependencies ++= Dependencies.tools
