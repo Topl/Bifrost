@@ -481,8 +481,12 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   lazy val assetTransferGen: Gen[AssetTransfer[_ <: Proposition]] =
     Gen.oneOf(assetTransferCurve25519Gen, assetTransferThresholdCurve25519Gen, assetTransferEd25519Gen)
 
-  lazy val transferGen: Gen[TransferTransaction[_ <: TokenValueHolder, _ <: Proposition]] =
-    Gen.oneOf(polyTransferGen, arbitTransferGen, assetTransferGen)
+  lazy val transferGen: Gen[Transaction.TX] =
+    Gen.oneOf(
+      polyTransferGen.map { t: Transaction.TX => t },
+      arbitTransferGen.map { t: Transaction.TX => t },
+      assetTransferGen.map { t: Transaction.TX => t }
+    )
 
   lazy val propTypes: Gen[String] = sampleUntilNonEmpty(
     Gen.oneOf(
@@ -531,10 +535,14 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   lazy val attestationGen: Gen[Map[_ <: Proposition, Proof[_ <: Proposition]]] =
     Gen.oneOf(attestationCurve25519Gen, attestationThresholdCurve25519Gen, attestationEd25519Gen)
 
-  val transactionTypes: Seq[Gen[Transaction.TX]] =
-    Seq(polyTransferGen, arbitTransferGen, assetTransferGen)
+  lazy val transactionTypes: Seq[Gen[TransferTransaction[_ <: TokenValueHolder, _ <: Proposition]]] =
+    Seq(
+      polyTransferGen.map { t: TransferTransaction[_ <: TokenValueHolder, _ <: Proposition] => t },
+      arbitTransferGen.map { t: TransferTransaction[_ <: TokenValueHolder, _ <: Proposition] => t },
+      assetTransferGen.map { t: TransferTransaction[_ <: TokenValueHolder, _ <: Proposition] => t }
+    )
 
-  lazy val bifrostTransactionSeqGen: Gen[Seq[Transaction.TX]] = for {
+  lazy val bifrostTransactionSeqGen: Gen[Seq[Transaction[_ <: TokenValueHolder, _ <: Proposition]]] = for {
     seqLen <- positiveMediumIntGen
   } yield 0 until seqLen map { _ =>
     sampleUntilNonEmpty(sampleUntilNonEmpty(Gen.oneOf(transactionTypes)))

@@ -120,7 +120,7 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckDrivenPropertyC
   }
 
   property("Transaction json") {
-    forAll(transferGen) { tx: Transaction.TX =>
+    forAll(transferGen) { tx =>
       tx.asJson.as[Transaction.TX] shouldEqual Right(tx)
     }
   }
