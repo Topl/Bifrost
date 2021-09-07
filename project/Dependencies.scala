@@ -23,7 +23,7 @@ object Dependencies {
     "com.spotify"         % "docker-client"     % "8.16.0"  % "test",
     "org.asynchttpclient" % "async-http-client" % "2.12.3"  % "test",
     "org.scalamock"      %% "scalamock"         % "5.1.0"   % "test",
-    "com.ironcorelabs"   %% "cats-scalatest"    % "3.0.8"   % "test"
+    "com.ironcorelabs"   %% "cats-scalatest"    % "3.1.1"   % "test"
   )
 
   val it = Seq(
