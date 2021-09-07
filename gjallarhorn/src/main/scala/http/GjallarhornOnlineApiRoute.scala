@@ -1,19 +1,5 @@
 package http
 
-import akka.actor.{ActorNotFound, ActorRef, ActorRefFactory, ActorSystem, PoisonPill, Props}
-import akka.pattern.ask
-import attestation.Address
-import attestation.AddressEncoder.NetworkPrefix
-import crypto.AssetCode
-import io.circe.Json
-import io.circe.syntax._
-import keymanager.KeyManager._
-import modifier.AssetValue
-import requests.{ApiRoute, Requests, RequestsManager}
-import settings.{ApplicationSettings, RPCApiSettings}
-import utils.Logging
-import wallet.WalletManager.{ConnectToBifrost, DisconnectFromBifrost, GetConnection}
-
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}

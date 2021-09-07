@@ -1,11 +1,5 @@
 package settings
 
-import com.typesafe.config.Config
-import http.NamespaceSelector
-import pureconfig._
-import pureconfig.generic.semiauto._
-import utils.Logging
-
 import java.io.File
 import scala.concurrent.duration.FiniteDuration
 

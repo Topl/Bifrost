@@ -1,8 +1,8 @@
 package co.topl.db
 
-import java.util.concurrent.locks.ReentrantReadWriteLock
 import org.iq80.leveldb.{DB, ReadOptions}
 
+import java.util.concurrent.locks.ReentrantReadWriteLock
 import scala.collection.mutable
 import scala.util.Try
 
@@ -10,7 +10,7 @@ import scala.util.Try
  * Basic interface for reading from LevelDB key-value storage.
  * Both keys and values are var-sized byte arrays.
  */
-trait KVStoreReader extends AutoCloseable {
+trait LDBKVStoreReader extends AutoCloseable {
 
   type K = Array[Byte]
   type V = Array[Byte]
@@ -48,7 +48,7 @@ trait KVStoreReader extends AutoCloseable {
         val value = next.getValue
         if (cond(key, value)) bf += (key -> value)
       }
-      bf.toIterator
+      bf.iterator
     } finally {
       iter.close()
       ro.snapshot().close()
@@ -103,14 +103,11 @@ trait KVStoreReader extends AutoCloseable {
           false
         }
       iter.seek(start)
-      val bf = mutable.ArrayBuffer.empty[(K, V)]
-      while (iter.hasNext && check(iter.peekNext.getKey)) {
-        val next = iter.next()
-        val key = next.getKey
-        val value = next.getValue
-        bf += (key -> value)
-      }
-      bf.toArray[(K, V)]
+      import scala.jdk.CollectionConverters._
+      iter.asScala
+        .takeWhile(entry => check(entry.getKey))
+        .map(entry => entry.getKey -> entry.getValue)
+        .toSeq
     } finally {
       iter.close()
       ro.snapshot().close()
@@ -128,7 +125,7 @@ trait KVStoreReader extends AutoCloseable {
 
 }
 
-trait VersionedKVStore extends KVStoreReader {
+trait VersionedLDBKVStore extends LDBKVStoreReader {
 
   type VersionID = Array[Byte]
 

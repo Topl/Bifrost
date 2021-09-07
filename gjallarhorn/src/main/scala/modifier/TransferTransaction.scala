@@ -1,19 +1,7 @@
 package modifier
 
-import attestation.AddressEncoder.NetworkPrefix
-import attestation.{Evidence, _}
-import co.topl.crypto.hash.blake2b256
-import com.google.common.primitives.{Ints, Longs}
-import crypto.AssetCode
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, HCursor, Json}
-import modifier.ModifierId.ModifierTypeId
-import modifier.TransferTransaction.BoxParams
-import utils.{Identifiable, Identifier}
-
 import scala.collection.mutable.{Map => MMap}
 import scala.util.Try
-import scala.Iterable
 
 /**
  * A transfer transaction which can be a: poly transaction, arbit transaction or asset transaction

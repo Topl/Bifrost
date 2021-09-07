@@ -1,19 +1,18 @@
 package co.topl.modifier.transaction
 
-import co.topl.attestation.{Evidence, _}
+import co.topl.attestation._
 import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.BoxReader
 import co.topl.modifier.block.BloomFilter.BloomTopic
-import co.topl.modifier.box.{Box, _}
+import co.topl.modifier.box._
 import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.{Identifiable, Int128}
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
-import scala.util.Try
-import scala.Iterable
 import scala.collection.immutable.ListMap
+import scala.util.Try
 
 abstract class TransferTransaction[
   +T <: TokenValueHolder,

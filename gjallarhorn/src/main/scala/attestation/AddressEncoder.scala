@@ -1,13 +1,5 @@
 package attestation
 
-import cats.data.Validated.{Invalid, Valid}
-import cats.implicits._
-import co.topl.crypto.hash.blake2b256
-import co.topl.utils.codecs.implicits._
-import co.topl.utils.encode.Base58
-import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.StringDataTypes.implicits._
-
 import scala.util.{Failure, Try}
 
 /**

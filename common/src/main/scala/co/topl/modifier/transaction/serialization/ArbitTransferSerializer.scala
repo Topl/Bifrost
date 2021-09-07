@@ -1,6 +1,5 @@
 package co.topl.modifier.transaction.serialization
 
-import cats.implicits._
 import co.topl.attestation._
 import co.topl.attestation.serialization.{ProofSerializer, PropositionSerializer}
 import co.topl.modifier.box.{SimpleValue, TokenValueHolder}
@@ -8,7 +7,6 @@ import co.topl.modifier.transaction.ArbitTransfer
 import co.topl.utils.Extensions._
 import co.topl.utils.Int128
 import co.topl.utils.StringDataTypes.Latin1Data
-import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.serialization.{stringCharacterSet, BifrostSerializer, Reader, Writer}
 
 import scala.collection.immutable.ListMap

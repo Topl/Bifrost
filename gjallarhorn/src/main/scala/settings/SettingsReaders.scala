@@ -1,7 +1,5 @@
 package settings
 
-import net.ceedubs.ficus.readers.ValueReader
-
 import java.io.File
 
 trait SettingsReaders {
