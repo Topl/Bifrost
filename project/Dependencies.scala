@@ -90,7 +90,7 @@ object Dependencies {
       "com.github.julien-truffaut" %% "monocle-macro"      % "3.0.0-M6",
       "org.ethereum"                % "leveldbjni-all"     % "1.18.3",
       "org.iq80.leveldb"            % "leveldb"            % "0.12",
-      "org.mongodb.scala"          %% "mongo-scala-driver" % "4.2.3"
+      "org.mongodb.scala"          %% "mongo-scala-driver" % "4.3.2"
     ) ++
     logging ++
     test ++
@@ -172,7 +172,7 @@ object Dependencies {
 
   lazy val tools: Seq[ModuleID] =
     Seq(
-      "org.mongodb.scala" %% "mongo-scala-driver" % "4.2.3"
+      "org.mongodb.scala" %% "mongo-scala-driver" % "4.3.2"
     )
   
   lazy val loadTesting: Seq[ModuleID] = {
