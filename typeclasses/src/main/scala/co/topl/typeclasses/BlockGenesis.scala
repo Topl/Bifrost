@@ -12,7 +12,7 @@ import co.topl.typeclasses.Identifiable.ops._
 
 object BlockGenesis {
   val ParentId: TypedIdentifier = TypedBytes(IdentifierTypes.Block.HeaderV2, Bytes(Array.fill[Byte](32)(0)))
-
+  val ParentSlot: Slot = -1
   val vrfCertificate: VrfCertificate = VrfCertificate(
     PublicKeys.Vrf(
       PublicKeys.Ed25519(Sized.strict[Bytes, PublicKeys.Ed25519.Length](Bytes(Array.fill(32)(0: Byte))).toOption.get)
@@ -43,6 +43,7 @@ object BlockGenesis {
     val header =
       BlockHeaderV2(
         parentHeaderId = ParentId,
+        parentSlot = ParentSlot,
         txRoot = transactions.merkleTree,
         bloomFilter = transactions.bloomFilter,
         timestamp = 0L,

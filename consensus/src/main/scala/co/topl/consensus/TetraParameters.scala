@@ -1,66 +1,13 @@
-package co.topl.stakeholder.primitives
+package co.topl.consensus
 
-import java.io.{BufferedReader, InputStreamReader}
-import java.net.URL
-
-import akka.util.Timeout
 import com.typesafe.config.{Config, ConfigFactory}
-
 import scala.concurrent.duration._
-import co.topl.stakeholder.remote._
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, Future}
-import scala.util.Try
+import co.topl.models.utility.Ratio
+import co.topl.typeclasses.RatioOps.implicits._
 
 object TetraParameters {
-  val fch = new Fch
-  val ecx = new Ecx
-  val dataBaseCID: ByteArrayWrapper = ByteArrayWrapper(fch.hash("LOCAL_CHAIN"))
-  val tetraNodeUID:String = Base58.encode(fch.hash(java.util.UUID.randomUUID.toString))
-  //tag for identifying ledger entries
-  val genesisBytes: ByteArrayWrapper = ByteArrayWrapper(fch.hash("GENESIS".getBytes))
-  println("Checking external IP at http://checkip.amazonaws.com")
-  val declaredAddressFromRemote: Option[String] = Try{
-    implicit val timeout:Timeout = Timeout(1.seconds)
-    val future = Future({
-      val whatismyip = new URL("http://checkip.amazonaws.com")
-      val in:BufferedReader = new BufferedReader(new InputStreamReader(
-        whatismyip.openStream()))
-      in.readLine()
-    })
-    val result = Await.result(future,timeout.duration)
-    result
-  }.toOption
 
-  def getConfig:Config = {
-    val baseConfig = ConfigFactory.load
-    var localConfig = baseConfig
-
-    Try{localConfig.getString("scorex.network.agentName")}.toOption match {
-      case Some(name) if name != "bootstrap" =>
-        val str = "input{scorex{network{agentName=\""+s"${name}_${tetraNodeUID.take(8)}"+"\"}}}"
-        Try{
-          localConfig = ConfigFactory.parseString(str).getConfig("input").withFallback(localConfig)
-        }.toOption match {
-          case None => println("Error: input not parsed")
-          case _ =>
-        }
-      case Some(name) if name == "bootstrap" =>
-      case None =>
-        val str = "input{scorex{network{agentName=\""+s"tetra_${tetraNodeUID.take(8)}"+"\"}}}"
-        Try{
-          localConfig = ConfigFactory.parseString(str).getConfig("input").withFallback(localConfig)
-        }.toOption match {
-          case None => println("Error: input not parsed")
-          case _ =>
-        }
-    }
-    localConfig
-  }
-
-  lazy val config:Config = getConfig
-
+  lazy val config:Config = ConfigFactory.load
   //duration of slot in milliseconds
   val slotT:Long = (config.getInt("params.slotT")).toLong
   //interval between return blocks in tine provider
@@ -128,9 +75,6 @@ object TetraParameters {
   //number of message processors
   val numMessageProcessors:Int = config.getInt("params.numMessageProcessors")
   //node secret for HMAC used in each router actor
-  val sk_ecx:Array[Byte] = ecx.generateSK
-  //public key for HMAC used in each router actor
-  val pk_ecx:Array[Byte] = ecx.scalarMultBasePoint(sk_ecx)
 
   val stakeholderEC:String = config.getString("params.stakeholderEC")
   val routerEC:String = config.getString("params.routerEC")
@@ -145,14 +89,5 @@ object TetraParameters {
   val cacheSize:Int = config.getInt("params.cacheSize")
   val refreshInterval:Int = config.getInt("params.refreshInterval")
   val timeServer:String = config.getString("params.timeServer")
-  val tetraMessageSpecs = Seq(
-    DiffuseDataSpec,
-    HelloSpec,
-    RequestBlockSpec,
-    RequestTineSpec,
-    ReturnBlocksSpec,
-    SendBlockSpec,
-    SendTxSpec,
-    HoldersFromRemoteSpec
-  )
+
 }

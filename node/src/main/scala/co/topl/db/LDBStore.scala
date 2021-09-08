@@ -1,4 +1,4 @@
-package co.topl.stakeholder.primitives
+package co.topl.db
 
 import java.io.File
 import java.util.concurrent.locks.ReentrantReadWriteLock
@@ -6,13 +6,14 @@ import org.iq80.leveldb._
 import org.iq80.leveldb.impl.Iq80DBFactory._
 
 /**
-  * AMS 2020:
   * Disk storage database using LevelDB
-  * this is the primary disk storage interface used for consensus
   * @param dir database directory
   */
 
 case class LDBStore(dir:String) {
+
+  type K = Array[Byte]
+  type V = Array[Byte]
 
   private val lock:ReentrantReadWriteLock = new ReentrantReadWriteLock()
 
@@ -38,34 +39,34 @@ case class LDBStore(dir:String) {
     }
   }
 
-  def get(key:ByteArrayWrapper):Option[ByteArrayWrapper] = {
+  def get(key:K):Option[V] = {
     lock.readLock().lock()
     val result = try {
-      Option(database.get(key.data))
+      Option(database.get(key))
     } finally {
       lock.readLock().unlock()
     }
     result match {
-      case Some(bytes:Array[Byte]) => Some(ByteArrayWrapper(bytes))
+      case Some(bytes:Array[Byte]) => Some(bytes)
       case _ => None
     }
   }
 
-  def known(key:ByteArrayWrapper):Boolean = {
+  def known(key:K):Boolean = {
     get(key) match {
-      case Some(bytes:ByteArrayWrapper) => true
+      case Some(_) => true
       case None => false
     }
   }
 
-  def update(remove:Seq[ByteArrayWrapper],insert:Seq[(ByteArrayWrapper,ByteArrayWrapper)]):Unit = {
+  def update(remove:Seq[K],insert:Seq[(K,V)]):Unit = {
     val dbBatch = database.createWriteBatch()
     try {
       for (entry <- remove) {
-        dbBatch.delete(entry.data)
+        dbBatch.delete(entry)
       }
       for (entry <- insert) {
-        dbBatch.put(entry._1.data,entry._2.data)
+        dbBatch.put(entry._1,entry._2)
       }
       database.write(dbBatch)
     } finally {

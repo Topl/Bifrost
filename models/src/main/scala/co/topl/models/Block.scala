@@ -20,6 +20,7 @@ case class BlockV1(
 // id = hash(headerBytes)
 case class BlockHeaderV2(
   parentHeaderId:    TypedIdentifier,
+  parentSlot:        Slot,
   txRoot:            TxRoot,
   bloomFilter:       BloomFilter,
   timestamp:         Timestamp,
@@ -31,7 +32,9 @@ case class BlockHeaderV2(
   // TODO: Discussion on mint signatures
   metadata: Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
   address:  TaktikosAddress
-)
+) {
+  def parentSlotId:SlotId = (parentSlot,parentHeaderId)
+}
 
 // id = hash(headerId, txRoot)
 case class BlockBodyV2(

@@ -28,6 +28,11 @@ object Ratio {
   def apply(i: Int): Ratio = Ratio(i: BigInt, 1: BigInt)
   def apply(n: Int, d: Int): Ratio = apply(n: BigInt, d: BigInt)
 
+  def apply(double: Double,prec:Int): Ratio = {
+    val d = BigInt(10).pow(prec)
+    val n = (BigDecimal(double).setScale(prec, BigDecimal.RoundingMode.DOWN)*BigDecimal(d)).toBigInt
+    new Ratio(n, d, gcd(n,d))
+  }
   @tailrec
   private def gcd(a: BigInt, b: BigInt): BigInt =
     if (b == 0) a else gcd(b, a % b)
