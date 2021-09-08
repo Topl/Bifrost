@@ -7,11 +7,11 @@ import co.topl.utils.Extensions.LongOps
 object IntStringCodec {
 
   /**
-   * Decodes an `IntString` value from a lazy list of bytes.
-   * @param from the list of bytes to decode a `IntString` value from
+   * Decodes an `IntString` value from a set of bytes.
+   * @param from the bytes to decode an `IntString` value from
    * @return if successful, a decoded `IntString` value and the remaining non-decoded bytes
    */
-  def decode(from: LazyList[Byte]): DecoderResult[IntString] =
+  def decode(from: Iterable[Byte]): DecoderResult[IntString] =
     for {
       // parse expected size of string
       uIntParseResult <- UIntCodec.decode(from)
@@ -21,12 +21,12 @@ object IntStringCodec {
       remainingBytes = uIntParseResult._2
       // parse string from bytes
       stringParseResult <-
-        stringParsingHelper(targetSize = size, current = List(), remaining = remainingBytes)
+        stringParsingHelper(targetSize = size, current = Array(), remaining = remainingBytes)
       // validate string length
       intStringParseResult <- IntString.validated(stringParseResult._1).leftMap(_ => DecoderFailure)
     } yield intStringParseResult -> stringParseResult._2
 
   trait Implicits {
-    implicit val lazyIntStringDecoder: LazyBytesDecoder[IntString] = decode
+    implicit val intStringDecoder: IterableBytesDecoder[IntString] = decode
   }
 }

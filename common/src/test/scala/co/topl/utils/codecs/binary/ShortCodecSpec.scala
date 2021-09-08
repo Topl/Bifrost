@@ -22,7 +22,7 @@ class ShortCodecSpec
 
       val bytes = vlqWriter.result()
 
-      val decoderResult = ShortCodec.decode(LazyList.from(bytes)).getOrThrow()
+      val decoderResult = ShortCodec.decode(bytes.toList).getOrThrow()
 
       decoderResult._1 shouldBe shortValue
       decoderResult._2 shouldBe empty
@@ -37,7 +37,7 @@ class ShortCodecSpec
 
       val bytes = vlqWriter.result() ++ leftover
 
-      val decoderResult = ShortCodec.decode(LazyList.from(bytes)).getOrThrow()
+      val decoderResult = ShortCodec.decode(bytes.toList).getOrThrow()
 
       decoderResult._2.toArray shouldBe leftover
     }

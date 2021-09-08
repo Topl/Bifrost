@@ -21,7 +21,7 @@ class ULongCodecSpec
 
       val uLongBytes = vlqWriter.result()
 
-      val decoderResult = ULongCodec.decode(LazyList.from(uLongBytes)).getOrThrow()
+      val decoderResult = ULongCodec.decode(uLongBytes.toList).getOrThrow()
 
       decoderResult._1 shouldBe longValue
       decoderResult._2 shouldBe empty
@@ -36,7 +36,7 @@ class ULongCodecSpec
 
       val bytes = vlqWriter.result() ++ leftover
 
-      val decoderResult = ULongCodec.decode(LazyList.from(bytes)).getOrThrow()
+      val decoderResult = ULongCodec.decode(bytes.toList).getOrThrow()
 
       decoderResult._2.toArray shouldBe leftover
     }

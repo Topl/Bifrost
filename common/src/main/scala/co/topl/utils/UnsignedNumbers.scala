@@ -7,9 +7,6 @@ import scala.language.implicitConversions
 
 object UnsignedNumbers {
 
-  case object ValidationFailure
-  type ValidationFailure = ValidationFailure.type
-
   /**
    * Represents an unsigned `Short` number with a max value of 65535.
    * @param value the underlying number representation as an Int value
@@ -19,11 +16,14 @@ object UnsignedNumbers {
 
   object UShort {
 
+    sealed trait ValidationFailure
+    case object OutOfBounds extends ValidationFailure
+
     val min: Int = 0
     val max: Int = 0xffff
 
     def validated(from: Int): Either[ValidationFailure, UShort] =
-      Either.cond(from >= min && from <= max, from.coerce, ValidationFailure)
+      Either.cond(from >= min && from <= max, from.coerce, OutOfBounds)
 
     def unsafe(from: Int): UShort =
       validated(from).getOrElse(
@@ -40,13 +40,16 @@ object UnsignedNumbers {
 
   object UInt {
 
+    sealed trait ValidationFailure
+    case object OutOfBounds extends ValidationFailure
+
     val min: Long = 0
     val max: Long = 0xffffffffL
 
     def apply(uShort: UShort): UInt = uShort.value.toLong.coerce
 
     def validated(from: Long): Either[ValidationFailure, UInt] =
-      Either.cond(from >= min && from <= max, from.coerce, ValidationFailure)
+      Either.cond(from >= min && from <= max, from.coerce, OutOfBounds)
 
     def unsafe(from: Long): UInt =
       validated(from)

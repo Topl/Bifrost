@@ -22,7 +22,7 @@ class BooleanCodecSpec
 
       val bytes = vlqWriter.result()
 
-      val decoderResult = BooleanCodec.decode(LazyList.from(bytes)).getOrThrow()
+      val decoderResult = BooleanCodec.decode(bytes.toList).getOrThrow()
 
       decoderResult._1 shouldBe booleanValue
       decoderResult._2 shouldBe empty
@@ -37,7 +37,7 @@ class BooleanCodecSpec
 
       val bytes = vlqWriter.result() ++ leftover
 
-      val decoderResult = BooleanCodec.decode(LazyList.from(bytes)).getOrThrow()
+      val decoderResult = BooleanCodec.decode(bytes.toList).getOrThrow()
 
       decoderResult._2.toArray shouldBe leftover
     }

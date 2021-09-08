@@ -5,11 +5,11 @@ import co.topl.utils.serialization.ZigZagEncoder.decodeZigZagInt
 object IntCodec {
 
   /**
-   * Decodes an `Int` value from a lazy list of bytes.
-   * @param from the list of bytes to decode a `Int` value from
+   * Decodes an `Int` value from a set of bytes.
+   * @param from the bytes to decode an `Int` value from
    * @return if successful, a decoded `Int` value and the remaining non-decoded bytes
    */
-  def decode(from: LazyList[Byte]): DecoderResult[Int] =
+  def decode(from: Iterable[Byte]): DecoderResult[Int] =
     for {
       uLongParseResult <- ULongCodec.decode(from)
       remainingBytes = uLongParseResult._2
@@ -18,6 +18,6 @@ object IntCodec {
     } yield (intValue, remainingBytes)
 
   trait Implicits {
-    implicit val lazyIntDecoder: LazyBytesDecoder[Int] = decode
+    implicit val intDecoder: IterableBytesDecoder[Int] = decode
   }
 }

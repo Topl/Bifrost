@@ -11,19 +11,16 @@ import scala.language.implicitConversions
 
 package object binary {
 
-  case object ValidationFailure
-  type ValidationFailure = ValidationFailure.type
-
   case object DecoderFailure
   type DecoderFailure = DecoderFailure.type
-  type DecoderResult[T] = Either[DecoderFailure, (T, LazyList[Byte])]
+  type DecoderResult[T] = Either[DecoderFailure, (T, Iterable[Byte])]
 
   type ULong = Long
 
   val stringCharacterSet: Charset = StandardCharsets.UTF_8
 
   /**
-   * Helper method for recursively parsing a list of bytes into a string value.
+   * Helper method for recursively parsing an iterable of bytes into a string value.
    * @param targetSize the target number of bytes to parse into a string
    * @param current the current list of bytes that will be converted into a string
    * @param remaining the remaining bytes that have not yet been parsed
@@ -32,14 +29,14 @@ package object binary {
   @tailrec
   private[binary] def stringParsingHelper(
     targetSize: Int,
-    current:    List[Byte],
-    remaining:  LazyList[Byte]
+    current:    Array[Byte],
+    remaining:  Iterable[Byte]
   ): DecoderResult[String] =
-    if (current.length >= targetSize) (new String(current.toArray, stringCharacterSet), remaining).asRight
+    if (current.length >= targetSize) (new String(current, stringCharacterSet), remaining).asRight
     else
       remaining match {
-        case head #:: tail => stringParsingHelper(targetSize, current :+ head, tail)
-        case _             => DecoderFailure.asLeft
+        case head :: tail => stringParsingHelper(targetSize, current :+ head, tail)
+        case _            => DecoderFailure.asLeft
       }
 
   /**
@@ -51,12 +48,15 @@ package object binary {
 
   object SmallString {
 
+    sealed trait ValidationFailure
+    case object InvalidByteSize extends ValidationFailure
+
     val maxBytes: Int = 255
 
     def validated(from: String): Either[ValidationFailure, SmallString] = {
       val bytes = from.getBytes(stringCharacterSet)
 
-      Either.cond(bytes.length <= maxBytes, from.coerce, ValidationFailure)
+      Either.cond(bytes.length <= maxBytes, from.coerce, InvalidByteSize)
     }
 
     def unsafe(from: String): SmallString =
@@ -77,12 +77,15 @@ package object binary {
 
   object IntString {
 
+    sealed trait ValidationFailure
+    case object InvalidByteSize extends ValidationFailure
+
     val maxBytes: Int = Int.MaxValue
 
     def validated(from: String): Either[ValidationFailure, IntString] = {
       val bytes = from.getBytes(stringCharacterSet)
 
-      Either.cond(bytes.length <= maxBytes, from.coerce, ValidationFailure)
+      Either.cond(bytes.length <= maxBytes, from.coerce, InvalidByteSize)
     }
 
     def unsafe(from: String): IntString =
@@ -95,8 +98,7 @@ package object binary {
   }
 
   trait Implicits
-      extends LazyBytesDecoder.Implicits
-      with LazyBytesDecoder.ToLazyBytesDecoderOps
+      extends IterableBytesDecoder.Implicits
       with BooleanCodec.Implicits
       with SmallStringCodec.Implicits
       with Int128Codec.Implicits

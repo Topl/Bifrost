@@ -22,7 +22,7 @@ class IntStringCodecSpec
 
       val bytes = vlqWriter.result()
 
-      val decoderResult = IntStringCodec.decode(LazyList.from(bytes)).getOrThrow()
+      val decoderResult = IntStringCodec.decode(bytes.toList).getOrThrow()
 
       decoderResult._1.value shouldBe stringValue
       decoderResult._2 shouldBe empty
@@ -37,7 +37,7 @@ class IntStringCodecSpec
 
       val bytes = vlqWriter.result() ++ leftover
 
-      val decoderResult = IntStringCodec.decode(LazyList.from(bytes)).getOrThrow()
+      val decoderResult = IntStringCodec.decode(bytes.toList).getOrThrow()
 
       decoderResult._2.toArray shouldBe leftover
     }

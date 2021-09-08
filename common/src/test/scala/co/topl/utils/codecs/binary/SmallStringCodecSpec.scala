@@ -22,7 +22,7 @@ class SmallStringCodecSpec
 
       val bytes = vlqWriter.result()
 
-      val decoderResult: (SmallString, LazyList[Byte]) = SmallStringCodec.decode(LazyList.from(bytes)).getOrThrow()
+      val decoderResult = SmallStringCodec.decode(bytes.toList).getOrThrow()
 
       decoderResult._1.value shouldBe stringValue
       decoderResult._2 shouldBe empty
@@ -37,7 +37,7 @@ class SmallStringCodecSpec
 
       val bytes = vlqWriter.result() ++ leftover
 
-      val decoderResult = SmallStringCodec.decode(LazyList.from(bytes)).getOrThrow()
+      val decoderResult = SmallStringCodec.decode(bytes.toList).getOrThrow()
 
       decoderResult._2.toArray shouldBe leftover
     }
