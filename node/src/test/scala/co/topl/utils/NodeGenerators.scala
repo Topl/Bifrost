@@ -115,7 +115,8 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
           recipients,
           state,
           sender,
-          fee
+          fee,
+          BoxPickingStrategy.All
         )
         .getOrThrow()
 
@@ -151,7 +152,8 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
           recipients,
           state,
           sender,
-          fee
+          fee,
+          BoxPickingStrategy.All
         )
         .getOrThrow()
 
@@ -185,7 +187,8 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
         recipients,
         state,
         sender,
-        fee
+        fee,
+        BoxPickingStrategy.All
       )
       .getOrThrow()
 
@@ -229,7 +232,8 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
           recipients,
           state,
           sender,
-          fee
+          fee,
+          BoxPickingStrategy.All
         )
         .getOrThrow()
 
@@ -265,7 +269,8 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
           recipients,
           state,
           sender,
-          fee
+          fee,
+          BoxPickingStrategy.All
         )
         .getOrThrow()
 
@@ -300,7 +305,8 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
           recipients,
           state,
           sender,
-          fee
+          fee,
+          BoxPickingStrategy.All
         )
         .getOrThrow()
 
@@ -340,6 +346,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
           state,
           sender,
           fee,
+          BoxPickingStrategy.All,
           minting = minting
         )
         .getOrThrow()
@@ -372,6 +379,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
           state,
           sender,
           fee,
+          BoxPickingStrategy.All,
           minting = minting
         )
         .getOrThrow()
@@ -403,6 +411,7 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
           state,
           sender,
           fee,
+          BoxPickingStrategy.All,
           minting = minting
         )
         .getOrThrow()

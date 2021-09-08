@@ -109,10 +109,10 @@ class TransactionRpcHandlerImpls(
       state,
       params.changeAddress,
       params.fee,
+      BoxPickingStrategy.All,
       Some(params.consolidationAddress),
       params.data,
-      params.minting,
-      BoxPickingStrategy.All
+      params.minting
     ).getOrThrow()
   }.collect { case p: AssetTransfer[Proposition @unchecked] => p }
 
@@ -145,10 +145,10 @@ class TransactionRpcHandlerImpls(
       state,
       params.changeAddress,
       params.fee,
+      BoxPickingStrategy.All,
       Some(params.consolidationAddress),
       params.data,
-      false,
-      BoxPickingStrategy.All
+      false
     ).getOrThrow()
   }.collect { case p: ArbitTransfer[Proposition @unchecked] => p }
 
@@ -181,10 +181,10 @@ class TransactionRpcHandlerImpls(
       state,
       params.changeAddress,
       params.fee,
+      BoxPickingStrategy.All,
       None,
       params.data,
-      false,
-      BoxPickingStrategy.All
+      false
     ).getOrThrow()
   }.collect { case p: PolyTransfer[Proposition @unchecked] => p }
 

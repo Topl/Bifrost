@@ -27,8 +27,9 @@ package object builder {
    * @param recipients a set of recipients and the amount of tokens they should receive
    * @param boxReader a state reader which provides available boxes for a given address
    * @param feeChangeAddress the address to send fee change to
-   * @param consolidationAddress the address to send extra tokens to
    * @param fee the fee to pay for the transaction
+   * @param consolidationAddress the address to send extra tokens to, by default, the fee change address is used when
+   *                             `None` is provided
    * @param data the metadata text to add to the transaction
    * @param minting whether or not the output tokens should be minted into existence
    * @param strategy the strategy parameters for choosing which input boxes should be selected
@@ -38,7 +39,7 @@ package object builder {
    * @tparam Failure the type of failure that can occur during the transaction validation
    * @tparam Transfer the output type of created transfer
    * @tparam Strategy the strategy to use for picking transaction input boxes
-   * @return
+   * @return if valid transfer params are provided, instantiates a transfer transaction to be signed and broadcast
    */
   def buildTransfer[Value, Failure, Transfer, Strategy: BoxPickingStrategy](
     senders:                    IndexedSeq[Address],
@@ -46,10 +47,10 @@ package object builder {
     boxReader:                  BoxReader[ProgramId, Address],
     feeChangeAddress:           Address,
     fee:                        Int128,
+    strategy:                   Strategy,
     consolidationAddress:       Option[Address] = None,
     data:                       Option[Latin1Data] = None,
-    minting:                    Boolean = false,
-    strategy:                   Strategy = BoxPickingStrategy.All
+    minting:                    Boolean = false
   )(implicit transferBlueprint: ValueTransferBlueprint[Value, Failure, Transfer]): Either[Failure, Transfer] = {
 
     // get available boxes to send
