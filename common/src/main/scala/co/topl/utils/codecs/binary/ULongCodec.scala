@@ -1,58 +1,39 @@
 package co.topl.utils.codecs.binary
 
-import cats.implicits._
-import scala.annotation.tailrec
+import scodec.bits.BitVector
+import scodec.{Attempt, DecodeResult, Decoder, Err}
 
 object ULongCodec {
 
-  /**
-   * Recursive function to decode a `ULong` from a set of bytes using the VLQ method.
-   *
-   * Original Java Source:
-   *
-   * http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java
-   * /core/src/main/java/com/google/protobuf/CodedInputStream.java#L2653
-   *
-   * Faster Java Source
-   *
-   * http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java
-   * /core/src/main/java/com/google/protobuf/CodedInputStream.java#L1085
-   *
-   * @param currentResult the current result as of this step
-   * @param shift the current shift to apply to the next byte
-   * @param remainingBytes the remaining bytes to parse
-   * @param iteration the current iteration of the recursive loop
-   * @return if successful, a decoded `ULong` value and the remaining non-decoded bytes
-   */
-  @tailrec
-  private def decodeHelper(
-    currentResult:  ULong,
-    shift:          Int,
-    remainingBytes: Iterable[Byte]
-  ): DecoderResult[ULong] =
-    (shift, remainingBytes) match {
-      // we are done decoding a ULong when the shift value is beyond the index 63
-      case (s, _) if s >= 64 => (currentResult, remainingBytes).asRight
-      // we are done decoding a ULong if we encounter a 0x80-valued byte
-      case (_, head :: tail) if (head & 0x80) == 0 =>
-        // decode the next byte into the output ULong value at the slot defined by the shift amount, then complete
-        (currentResult | ((head & 0x7f).toLong << shift), tail).asRight
-      case (_, head :: tail) =>
-        // decode the next byte into the output ULong value and attempt a decode on the next byte with an updated shift
-        decodeHelper(currentResult | ((head & 0x7f).toLong << shift), shift + 7, tail)
-      // fails because there are no bytes left to decode and we didn't encounter a 0x80 byte
-      case _ => DecoderFailure.asLeft
+  private val `0x7f` = BitVector(0x7f)
+  private val `0x80` = BitVector(0x80)
+  private val `0 bitvector` = BitVector(0)
+
+  def decode(from: BitVector): Attempt[DecodeResult[ULong]] = {
+    var result: Long = 0
+    var iteration = 0
+
+    while (iteration < 10) {
+      val bitPointer = iteration * byteSize
+
+      if (from.length < bitPointer + byteSize)
+        return Attempt.failure(Err.insufficientBits(bitPointer + byteSize, from.length))
+
+      val b = from.slice(bitPointer, bitPointer + byteSize)
+
+      result = result | ((b & `0x7f`).toLong() << iteration * 7)
+
+      if ((b & `0x80`) === `0 bitvector`)
+        return Attempt.successful(DecodeResult(result, from.drop(bitPointer + byteSize)))
+
+      iteration += 1
     }
 
-  /**
-   * Decodes a `ULong` value from a set of bytes.
-   * @param from the collection of bytes to decode a `ULong` value from
-   * @return if successful, a decoded `ULong` value and the remaining non-decoded bytes
-   */
-  def decode(from: Iterable[Byte]): DecoderResult[ULong] =
-    decodeHelper(currentResult = 0, shift = 0, remainingBytes = from)
+    Attempt.failure(Err("Unexpected bytes remaining."))
+  }
 
   trait Implicits {
-    implicit def uLongDecoder: IterableBytesDecoder[ULong] = decode
+    implicit def uLongDecoder: Decoder[ULong] = decode
   }
+
 }

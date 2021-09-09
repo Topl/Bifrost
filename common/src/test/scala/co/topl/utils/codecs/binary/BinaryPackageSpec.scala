@@ -5,6 +5,7 @@ import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import scodec.bits.BitVector
 
 class BinaryPackageSpec
     extends AnyFlatSpec

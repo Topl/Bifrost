@@ -1,12 +1,13 @@
 package co.topl.utils.codecs.binary
 
 import co.topl.utils.CommonGenerators
-import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
+import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.serialization.VLQByteStringWriter
 import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import scodec.bits.BitVector
 
 class UShortCodecSpec
     extends AnyFlatSpec
@@ -15,6 +16,7 @@ class UShortCodecSpec
     with ScalaCheckDrivenPropertyChecks
     with Matchers {
   "UShortCodec Decoder" should "be able to decode VLQByteStringWriter output" in {
+    // TODO: make max value an int
     forAll(Gen.choose(0.toShort, Short.MaxValue)) { shortValue =>
       val vlqWriter = new VLQByteStringWriter
 
@@ -22,10 +24,10 @@ class UShortCodecSpec
 
       val bytes = vlqWriter.result()
 
-      val decoderResult = UShortCodec.decode(bytes.toList).getOrThrow()
+      val decoderResult = UShortCodec.decode(BitVector(bytes)).getOrThrow()
 
-      decoderResult._1 shouldBe shortValue
-      decoderResult._2 shouldBe empty
+      decoderResult.value shouldBe shortValue
+      decoderResult.remainder shouldBe empty
     }
   }
 
@@ -37,9 +39,9 @@ class UShortCodecSpec
 
       val bytes = vlqWriter.result() ++ leftover
 
-      val decoderResult = UShortCodec.decode(bytes.toList).getOrThrow()
+      val decoderResult = UShortCodec.decode(BitVector(bytes)).getOrThrow()
 
-      decoderResult._2.toArray shouldBe leftover
+      decoderResult.remainder.toByteArray shouldBe leftover
     }
   }
 }

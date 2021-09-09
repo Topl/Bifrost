@@ -1,12 +1,13 @@
 package co.topl.utils.codecs.binary
 
 import co.topl.utils.CommonGenerators
-import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
+import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.serialization.VLQByteStringWriter
 import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import scodec.bits.BitVector
 
 class LongCodecSpec
     extends AnyFlatSpec
@@ -22,10 +23,10 @@ class LongCodecSpec
 
       val bytes = vlqWriter.result()
 
-      val decoderResult = LongCodec.decode(bytes.toList).getOrThrow()
+      val decoderResult = LongCodec.decode(BitVector(bytes)).getOrThrow()
 
-      decoderResult._1 shouldBe longValue
-      decoderResult._2 shouldBe empty
+      decoderResult.value shouldBe longValue
+      decoderResult.remainder shouldBe empty
     }
   }
 
@@ -37,9 +38,9 @@ class LongCodecSpec
 
       val bytes = vlqWriter.result() ++ leftover
 
-      val decoderResult = LongCodec.decode(bytes.toList).getOrThrow()
+      val decoderResult = LongCodec.decode(BitVector(bytes)).getOrThrow()
 
-      decoderResult._2.toArray shouldBe leftover
+      decoderResult.remainder.toByteArray shouldBe leftover
     }
   }
 }

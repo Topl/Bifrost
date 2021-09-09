@@ -34,17 +34,17 @@ object Dependencies {
   )
 
   val akka = Seq(
-		"com.typesafe.akka" %% "akka-actor"               % akkaVersion,
-		"com.typesafe.akka" %% "akka-actor-typed"         % akkaVersion,
-		"com.typesafe.akka" %% "akka-stream"              % akkaVersion,
-		"com.typesafe.akka" %% "akka-stream-typed"        % akkaVersion,
-		"com.typesafe.akka" %% "akka-http"                % akkaHttpVersion,
-		"com.typesafe.akka" %% "akka-http-core"           % akkaHttpVersion,
-		"com.typesafe.akka" %% "akka-slf4j"               % akkaVersion,
-		"com.typesafe.akka" %% "akka-testkit"             % akkaVersion     % Test,
-		"com.typesafe.akka" %% "akka-actor-testkit-typed" % akkaVersion     % Test,
-		"com.typesafe.akka" %% "akka-stream-testkit"      % akkaVersion     % Test,
-		"com.typesafe.akka" %% "akka-http-testkit"        % akkaHttpVersion % Test
+    "com.typesafe.akka" %% "akka-actor"               % akkaVersion,
+    "com.typesafe.akka" %% "akka-actor-typed"         % akkaVersion,
+    "com.typesafe.akka" %% "akka-stream"              % akkaVersion,
+    "com.typesafe.akka" %% "akka-stream-typed"        % akkaVersion,
+    "com.typesafe.akka" %% "akka-http"                % akkaHttpVersion,
+    "com.typesafe.akka" %% "akka-http-core"           % akkaHttpVersion,
+    "com.typesafe.akka" %% "akka-slf4j"               % akkaVersion,
+    "com.typesafe.akka" %% "akka-testkit"             % akkaVersion     % Test,
+    "com.typesafe.akka" %% "akka-actor-testkit-typed" % akkaVersion     % Test,
+    "com.typesafe.akka" %% "akka-stream-testkit"      % akkaVersion     % Test,
+    "com.typesafe.akka" %% "akka-http-testkit"        % akkaHttpVersion % Test
   )
 
   val network = Seq(
@@ -106,7 +106,8 @@ object Dependencies {
     Seq(
       "org.typelevel"          %% "simulacrum"              % "1.0.1",
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.5.0",
-      "org.scodec"             %% "scodec-bits"             % "1.1.27"
+      "org.scodec"             %% "scodec-bits"             % "1.1.27",
+      "org.scodec"             %% "scodec-core"             % "1.11.8"
     ) ++
     logging ++
     circe ++
@@ -174,7 +175,7 @@ object Dependencies {
     Seq(
       "org.mongodb.scala" %% "mongo-scala-driver" % "4.2.3"
     )
-  
+
   lazy val loadTesting: Seq[ModuleID] = {
     Seq(
       "com.lihaoyi"    %% "mainargs" % "0.2.1",

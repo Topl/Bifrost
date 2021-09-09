@@ -2,23 +2,24 @@ package co.topl.utils.codecs.binary
 
 import cats.implicits._
 import co.topl.utils.UnsignedNumbers.UInt
+import scodec.{Attempt, DecodeResult, Decoder, Err}
+import scodec.bits.BitVector
 
 object UIntCodec {
 
-  /**
-   * Decodes a `UInt` value from a set of bytes.
-   * @param from the list of bytes to decode a `UInt` value from
-   * @return if successful, a decoded `UInt` value and the remaining non-decoded bytes
-   */
-  def decode(from: Iterable[Byte]): DecoderResult[UInt] =
-    for {
-      uLongParseResult <- ULongCodec.decode(from)
-      remainingBytes = uLongParseResult._2
-      uLong = uLongParseResult._1
-      uInt <- UInt.validated(uLong).leftMap(_ => DecoderFailure)
-    } yield (uInt, remainingBytes)
+  def decode(from: BitVector): Attempt[DecodeResult[UInt]] =
+    ULongCodec
+      .decode(from)
+      .flatMap(result =>
+        Attempt.fromEither(
+          UInt
+            .validated(result.value)
+            .leftMap(failure => Err(failure.toString))
+            .map(DecodeResult(_, result.remainder))
+        )
+      )
 
   trait Implicits {
-    implicit def uIntDecoder: IterableBytesDecoder[UInt] = decode
+    implicit def uIntDecoder: Decoder[UInt] = decode
   }
 }

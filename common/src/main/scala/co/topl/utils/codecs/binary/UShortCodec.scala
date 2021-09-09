@@ -2,23 +2,24 @@ package co.topl.utils.codecs.binary
 
 import cats.implicits._
 import co.topl.utils.UnsignedNumbers.UShort
+import scodec.{Attempt, DecodeResult, Decoder, Err}
+import scodec.bits.BitVector
 
 object UShortCodec {
 
-  /**
-   * Decodes a `UShort` value from a set of bytes.
-   * @param from the collection of bytes to decode a `UShort` value from
-   * @return if successful, a decoded `UShort` value and the remaining non-decoded bytes
-   */
-  def decode(from: Iterable[Byte]): DecoderResult[UShort] =
-    for {
-      uLongParseResult <- ULongCodec.decode(from)
-      remainingBytes = uLongParseResult._2
-      intValue = uLongParseResult._1.toInt
-      uShort <- UShort.validated(intValue).leftMap(_ => DecoderFailure)
-    } yield (uShort, remainingBytes)
+  def decode(from: BitVector): Attempt[DecodeResult[UShort]] =
+    ULongCodec
+      .decode(from)
+      .flatMap(result =>
+        Attempt.fromEither(
+          UShort
+            .validated(result.value.toInt)
+            .leftMap(failure => Err(failure.toString))
+            .map(DecodeResult(_, result.remainder))
+        )
+      )
 
   trait Implicits {
-    implicit def uShortDecoder: IterableBytesDecoder[UShort] = decode
+    implicit def uShortDecoder: Decoder[UShort] = decode
   }
 }

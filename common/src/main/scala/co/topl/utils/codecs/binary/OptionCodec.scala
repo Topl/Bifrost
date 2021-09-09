@@ -1,26 +1,23 @@
 package co.topl.utils.codecs.binary
 
 import cats.implicits._
+import scodec.{Attempt, DecodeResult, Decoder, Err}
+import scodec.bits.BitVector
 
 object OptionCodec {
 
-  /**
-   * Decodes an `Option` value of type `T` from a set of bytes.
-   *
-   * The type `T` must have an accompanying instance of the `IterableBytesDecoder` type-class.
-   *
-   * @param from the bytes to decode an `Option` value from
-   * @tparam T the type wrapped inside of the option
-   * @return if successful, a decoded `Option` value of type `T` and the remaining non-decoded bytes
-   */
-  def decode[T: IterableBytesDecoder](from: Iterable[Byte]): DecoderResult[Option[T]] =
-    from match {
-      case head :: tail if head != 0 => IterableBytesDecoder[T].decode(tail).map(result => (result._1.some, result._2))
-      case head :: tail if head == 0 => (None, tail).asRight
-      case _                         => DecoderFailure.asLeft
+  private val `0 bitVector`: BitVector = BitVector(0)
+
+  def decode[T: Decoder](from: BitVector): Attempt[DecodeResult[Option[T]]] =
+    if (from.length < byteSize) Attempt.failure(Err.insufficientBits(byteSize, from.length))
+    else {
+      val (byteBits, remaining) = from.splitAt(byteSize)
+
+      if (byteBits === `0 bitVector`) Attempt.successful(DecodeResult(None, remaining))
+      else Decoder[T].decode(remaining).map(_.map(_.some))
     }
 
   trait Implicits {
-    implicit def optionDecoder[T: IterableBytesDecoder]: IterableBytesDecoder[Option[T]] = decode
+    implicit def optionDecoder[T: Decoder]: Decoder[Option[T]] = decode[T]
   }
 }

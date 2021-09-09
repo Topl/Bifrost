@@ -1,23 +1,15 @@
 package co.topl.utils.codecs.binary
 
 import co.topl.utils.serialization.ZigZagEncoder.decodeZigZagLong
+import scodec.{Attempt, DecodeResult, Decoder}
+import scodec.bits.BitVector
 
 object LongCodec {
 
-  /**
-   * Decodes a `Long` value from a set of bytes.
-   * @param from the bytes to decode a `Long` value from
-   * @return if successful, a decoded `Long` value and the remaining non-decoded bytes
-   */
-  def decode(from: Iterable[Byte]): DecoderResult[Long] =
-    for {
-      uLongParseResult <- ULongCodec.decode(from)
-      remainingBytes = uLongParseResult._2
-      uLong = uLongParseResult._1
-      long = decodeZigZagLong(uLong)
-    } yield (long, remainingBytes)
+  def decode(from: BitVector): Attempt[DecodeResult[Long]] =
+    ULongCodec.decode(from).map(result => result.map(decodeZigZagLong))
 
   trait Implicits {
-    implicit val longDecoder: IterableBytesDecoder[Long] = decode
+    implicit val longDecoder: Decoder[Long] = decode
   }
 }

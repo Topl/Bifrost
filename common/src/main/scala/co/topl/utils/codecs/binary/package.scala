@@ -1,43 +1,18 @@
 package co.topl.utils.codecs
 
-import cats.implicits._
 import io.estatico.newtype.macros.newtype
 import io.estatico.newtype.ops._
 
 import java.nio.charset.{Charset, StandardCharsets}
-import scala.annotation.tailrec
-
 import scala.language.implicitConversions
 
 package object binary {
 
-  case object DecoderFailure
-  type DecoderFailure = DecoderFailure.type
-  type DecoderResult[T] = Either[DecoderFailure, (T, Iterable[Byte])]
-
   type ULong = Long
 
-  val stringCharacterSet: Charset = StandardCharsets.UTF_8
+  val byteSize: Int = 8
 
-  /**
-   * Helper method for recursively parsing an iterable of bytes into a string value.
-   * @param targetSize the target number of bytes to parse into a string
-   * @param current the current list of bytes that will be converted into a string
-   * @param remaining the remaining bytes that have not yet been parsed
-   * @return a `ParseResult` which returns a string on success
-   */
-  @tailrec
-  private[binary] def stringParsingHelper(
-    targetSize: Int,
-    current:    Array[Byte],
-    remaining:  Iterable[Byte]
-  ): DecoderResult[String] =
-    if (current.length >= targetSize) (new String(current, stringCharacterSet), remaining).asRight
-    else
-      remaining match {
-        case head :: tail => stringParsingHelper(targetSize, current :+ head, tail)
-        case _            => DecoderFailure.asLeft
-      }
+  val stringCharacterSet: Charset = StandardCharsets.UTF_8
 
   /**
    * Represents a string with a byte representation of 255 bytes or less.
@@ -98,8 +73,7 @@ package object binary {
   }
 
   trait Implicits
-      extends IterableBytesDecoder.Implicits
-      with BooleanCodec.Implicits
+      extends BooleanCodec.Implicits
       with SmallStringCodec.Implicits
       with Int128Codec.Implicits
       with IntCodec.Implicits
@@ -112,4 +86,5 @@ package object binary {
       with UShortCodec.Implicits
 
   object implicits extends Implicits
+
 }
