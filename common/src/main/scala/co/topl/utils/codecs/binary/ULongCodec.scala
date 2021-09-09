@@ -1,7 +1,9 @@
 package co.topl.utils.codecs.binary
 
 import scodec.bits.BitVector
-import scodec.{Attempt, DecodeResult, Decoder, Err}
+import scodec.{Attempt, Codec, DecodeResult, Decoder, Encoder, Err, SizeBound}
+
+import java.util
 
 object ULongCodec {
 
@@ -32,8 +34,34 @@ object ULongCodec {
     Attempt.failure(Err("Unexpected bytes remaining."))
   }
 
+  def encode(value: ULong): Attempt[BitVector] = {
+    var bytePosition = 0
+    var output = BitVector.empty
+    var runningValue = value
+
+    while (true)
+      if ((runningValue & ~0x7fL) == 0) {
+        output = output.splice(bytePosition * byteSize, BitVector(runningValue.asInstanceOf[Byte]))
+        bytePosition += 1
+        return Attempt.successful(output)
+      } else {
+        output =
+          output.splice(bytePosition * byteSize, BitVector(((runningValue.asInstanceOf[Int] & 0x7f) | 0x80).toByte))
+        runningValue >>>= 7
+      }
+    Attempt.successful(output)
+  }
+
   trait Implicits {
-    implicit def uLongDecoder: Decoder[ULong] = decode
+    implicit val uLongDecoder: Decoder[ULong] = decode
+
+    implicit val uLongEncoder: Encoder[ULong] = new Encoder[ULong] {
+      override def encode(value: ULong): Attempt[BitVector] = ULongCodec.encode(value)
+
+      override def sizeBound: SizeBound = SizeBound.bounded(8, 64)
+    }
+
+    implicit val uLongCodec = Codec(uLongEncoder, uLongDecoder)
   }
 
 }

@@ -1,7 +1,11 @@
 package co.topl.utils.codecs
 
+import cats.implicits._
+import cats.data.ValidatedNec
 import io.estatico.newtype.macros.newtype
 import io.estatico.newtype.ops._
+import scodec.{Decoder, Encoder, Err}
+import scodec.bits.BitVector
 
 import java.nio.charset.{Charset, StandardCharsets}
 import scala.language.implicitConversions
@@ -72,6 +76,15 @@ package object binary {
         )
   }
 
+  trait Instances {
+
+    implicit def decoderToFromBytes[T: Decoder]: FromBytes[Err, T] = bytes =>
+      Decoder[T].decode(BitVector(bytes)).toEither.map(_.value).toValidatedNec
+
+    implicit def encoderToAsBytes[T: Encoder]: AsBytes[Err, T] = value =>
+      Encoder[T].encode(value).toEither.map(_.toByteArray).toValidatedNec
+  }
+
   trait Implicits
       extends BooleanCodec.Implicits
       with SmallStringCodec.Implicits
@@ -84,6 +97,7 @@ package object binary {
       with UIntCodec.Implicits
       with ULongCodec.Implicits
       with UShortCodec.Implicits
+      with Instances
 
   object implicits extends Implicits
 

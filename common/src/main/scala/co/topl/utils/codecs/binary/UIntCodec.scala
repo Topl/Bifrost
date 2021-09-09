@@ -2,7 +2,7 @@ package co.topl.utils.codecs.binary
 
 import cats.implicits._
 import co.topl.utils.UnsignedNumbers.UInt
-import scodec.{Attempt, DecodeResult, Decoder, Err}
+import scodec.{Attempt, Codec, DecodeResult, Decoder, Encoder, Err, SizeBound}
 import scodec.bits.BitVector
 
 object UIntCodec {
@@ -19,7 +19,17 @@ object UIntCodec {
         )
       )
 
+  def encode(value: UInt): Attempt[BitVector] = ULongCodec.encode(value.value)
+
   trait Implicits {
-    implicit def uIntDecoder: Decoder[UInt] = decode
+    implicit val uIntDecoder: Decoder[UInt] = decode
+
+    implicit val uIntEncoder: Encoder[UInt] = new Encoder[UInt] {
+      override def encode(value: UInt): Attempt[BitVector] = UIntCodec.encode(value)
+
+      override def sizeBound: SizeBound = SizeBound.atMost(64)
+    }
+
+    implicit val uIntCoded: Codec[UInt] = Codec(uIntEncoder, uIntDecoder)
   }
 }
