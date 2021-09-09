@@ -1,6 +1,5 @@
 package co.topl.stakeholder.primitives
 
-
 import java.io.Serializable
 import java.nio.ByteBuffer
 import java.util
@@ -18,12 +17,12 @@ object ByteArrayWrapper {
  * Wraps byte array and provides hashCode, equals and compare methods.
  */
 case class ByteArrayWrapper(data: Array[Byte])
-  extends Serializable
+    extends Serializable
     with Comparable[ByteArrayWrapper]
     with Ordered[ByteArrayWrapper] {
 
   /** alternative constructor which takes array size and creates new empty array */
-  def this(size:Int) = this(new Array[Byte](size))
+  def this(size: Int) = this(new Array[Byte](size))
 
   def size = data.length
 
@@ -33,7 +32,7 @@ case class ByteArrayWrapper(data: Array[Byte])
 
   override def equals(o: Any): Boolean =
     o.isInstanceOf[ByteArrayWrapper] &&
-      util.Arrays.equals(data, o.asInstanceOf[ByteArrayWrapper].data)
+    util.Arrays.equals(data, o.asInstanceOf[ByteArrayWrapper].data)
 
   override def hashCode: Int = Utils.byteArrayHashCode(data)
 

@@ -146,6 +146,7 @@ class ConsensusValidationProgramSpec
       val child =
         BlockHeaderV2(
           parentHeaderId = parent.id,
+          parentSlot = parent.slot,
           txRoot = txRoot,
           bloomFilter = bloomFilter,
           timestamp = System.currentTimeMillis(),
@@ -205,6 +206,7 @@ class ConsensusValidationProgramSpec
       val child =
         BlockHeaderV2(
           parentHeaderId = parent.id,
+          parentSlot = parent.slot,
           txRoot = txRoot,
           bloomFilter = bloomFilter,
           timestamp = System.currentTimeMillis(),

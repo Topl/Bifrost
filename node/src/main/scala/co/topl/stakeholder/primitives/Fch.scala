@@ -1,14 +1,14 @@
 package co.topl.stakeholder.primitives
 
-import co.topl.crypto.hash.{Blake2b, Blake2bHash, Hash, digest, Message}
+import co.topl.crypto.hash.{digest, Blake2b, Blake2bHash, Hash, Message}
 import co.topl.crypto.hash.digest.Digest32
 
 /**
-  * AMS 2020:
-  * Fast Crypto Hash as a class for actor system
-  * Primary hash algorithm system wide
-  * G_RO functionality
-  */
+ * AMS 2020:
+ * Fast Crypto Hash as a class for actor system
+ * Primary hash algorithm system wide
+ * G_RO functionality
+ */
 
 class Fch {
   import digest.implicits._

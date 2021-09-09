@@ -9,27 +9,26 @@ import co.topl.stakeholder.primitives.{ByteStream, Mac}
 import co.topl.stakeholder.remote.SpecTypes.requestTineCode
 
 /**
-  * AMS 2020:
-  * Used for bootstrapping when the tine building procedure reaches a set depth
-  * Providerized response, one provider per stakeholder instance sends a limited rate of blocks per second
-  */
+ * AMS 2020:
+ * Used for bootstrapping when the tine building procedure reaches a set depth
+ * Providerized response, one provider per stakeholder instance sends a limited rate of blocks per second
+ */
 
-object RequestTineSpec extends MessageSpecV1[(Mac,Array[Byte])] with SerializationMethods {
+object RequestTineSpec extends MessageSpecV1[(Mac, Array[Byte])] with SerializationMethods {
   override val messageCode: MessageCode = requestTineCode
   override val messageName: String = "Request Blocks"
 
-  override def parse(r: Reader): (Mac,Array[Byte]) = {
+  override def parse(r: Reader): (Mac, Array[Byte]) = {
     val mac = {
-      fromBytes(new ByteStream(r.getBytes(mac_length),DeserializeMac)) match {
-        case result:Mac@unchecked => result
+      fromBytes(new ByteStream(r.getBytes(mac_length), DeserializeMac)) match {
+        case result: Mac @unchecked => result
       }
     }
-    (mac,r.getBytes(r.remaining))
+    (mac, r.getBytes(r.remaining))
   }
 
-  override def serialize(obj: (Mac,Array[Byte]), w: Writer): Unit = {
+  override def serialize(obj: (Mac, Array[Byte]), w: Writer): Unit = {
     w.putBytes(getBytes(obj._1))
     w.putBytes(obj._2)
   }
 }
-

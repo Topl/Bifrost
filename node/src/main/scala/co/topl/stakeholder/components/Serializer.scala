@@ -3,15 +3,15 @@ package co.topl.stakeholder.components
 import co.topl.stakeholder.primitives._
 
 /**
-  * AMS 2020:
-  * Serializer class for actors
-  */
+ * AMS 2020:
+ * Serializer class for actors
+ */
 
 class Serializer extends SimpleTypes with SerializationMethods
 
 /**
-  * Deserialize pattern matching, feel free to add distinct case objects for new classes to be parsed
-  */
+ * Deserialize pattern matching, feel free to add distinct case objects for new classes to be parsed
+ */
 
 object Serializer {
   case object DeserializeBlock

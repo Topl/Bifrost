@@ -1,13 +1,13 @@
 package co.topl.stakeholder.primitives
 
-
 import scala.util.Try
 
 /**
-  * A custom form of base58 is used to encode Scorex addresses.
-  */
+ * A custom form of base58 is used to encode Scorex addresses.
+ */
 object Base58 {
   val Alphabet: String = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
   private val DecodeTable = Array(
     0, 1, 2, 3, 4, 5, 6, 7, 8, -1, -1, -1, -1, -1, -1, -1, 9, 10, 11, 12, 13, 14, 15, 16, -1, 17, 18, 19, 20, 21, -1,
     22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, -1, -1, -1, -1, -1, -1, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, -1,
@@ -28,9 +28,12 @@ object Base58 {
       s.insert(0, Alphabet.charAt(bi.intValue))
     }
     // Convert leading zeros too.
-    input.takeWhile(_ == 0).foldLeft(s) { case (ss, _) =>
-      ss.insert(0, Alphabet.charAt(0))
-    }.toString()
+    input
+      .takeWhile(_ == 0)
+      .foldLeft(s) { case (ss, _) =>
+        ss.insert(0, Alphabet.charAt(0))
+      }
+      .toString()
   }
 
   def decode(input: String): Try[Array[Byte]] = Try {
@@ -54,11 +57,13 @@ object Base58 {
   }
 
   private def decodeToBigInteger(input: String): BigInt =
-  // Work backwards through the string.
-    input.foldRight((BigInt(0), BigInt(1))) { case (ch, (bi, k)) =>
-      val alphaIndex = toBase58(ch).ensuring(_ != -1, "Wrong char in Base58 string")
-      (bi + BigInt(alphaIndex) * k, k * Base)
-    }._1
+    // Work backwards through the string.
+    input
+      .foldRight((BigInt(0), BigInt(1))) { case (ch, (bi, k)) =>
+        val alphaIndex = toBase58(ch).ensuring(_ != -1, "Wrong char in Base58 string")
+        (bi + BigInt(alphaIndex) * k, k * Base)
+      }
+      ._1
 
   private def toBase58(c: Char): Int = {
     val x = c.toInt

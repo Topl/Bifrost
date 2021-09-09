@@ -6,15 +6,15 @@ import org.iq80.leveldb._
 import org.iq80.leveldb.impl.Iq80DBFactory._
 
 /**
-  * AMS 2020:
-  * Disk storage database using LevelDB
-  * this is the primary disk storage interface used for consensus
-  * @param dir database directory
-  */
+ * AMS 2020:
+ * Disk storage database using LevelDB
+ * this is the primary disk storage interface used for consensus
+ * @param dir database directory
+ */
 
-case class LDBStore(dir:String) {
+case class LDBStore(dir: String) {
 
-  private val lock:ReentrantReadWriteLock = new ReentrantReadWriteLock()
+  private val lock: ReentrantReadWriteLock = new ReentrantReadWriteLock()
 
   val iFile = new File(dir)
   iFile.mkdirs()
@@ -26,60 +26,48 @@ case class LDBStore(dir:String) {
   op.cacheSize(0)
   op.maxOpenFiles(10)
   op.compressionType(CompressionType.SNAPPY)
-  var database:DB = factory.open(iFile, op)
+  var database: DB = factory.open(iFile, op)
 
-  def refresh():Unit = {
+  def refresh(): Unit = {
     lock.readLock().lock()
     try {
       database.close()
       database = factory.open(iFile, op)
-    } finally {
-      lock.readLock().unlock()
-    }
+    } finally lock.readLock().unlock()
   }
 
-  def get(key:ByteArrayWrapper):Option[ByteArrayWrapper] = {
+  def get(key: ByteArrayWrapper): Option[ByteArrayWrapper] = {
     lock.readLock().lock()
-    val result = try {
-      Option(database.get(key.data))
-    } finally {
-      lock.readLock().unlock()
-    }
+    val result =
+      try Option(database.get(key.data))
+      finally lock.readLock().unlock()
     result match {
-      case Some(bytes:Array[Byte]) => Some(ByteArrayWrapper(bytes))
-      case _ => None
+      case Some(bytes: Array[Byte]) => Some(ByteArrayWrapper(bytes))
+      case _                        => None
     }
   }
 
-  def known(key:ByteArrayWrapper):Boolean = {
+  def known(key: ByteArrayWrapper): Boolean =
     get(key) match {
-      case Some(bytes:ByteArrayWrapper) => true
-      case None => false
+      case Some(bytes: ByteArrayWrapper) => true
+      case None                          => false
     }
-  }
 
-  def update(remove:Seq[ByteArrayWrapper],insert:Seq[(ByteArrayWrapper,ByteArrayWrapper)]):Unit = {
+  def update(remove: Seq[ByteArrayWrapper], insert: Seq[(ByteArrayWrapper, ByteArrayWrapper)]): Unit = {
     val dbBatch = database.createWriteBatch()
     try {
-      for (entry <- remove) {
+      for (entry <- remove)
         dbBatch.delete(entry.data)
-      }
-      for (entry <- insert) {
-        dbBatch.put(entry._1.data,entry._2.data)
-      }
+      for (entry <- insert)
+        dbBatch.put(entry._1.data, entry._2.data)
       database.write(dbBatch)
-    } finally {
-      dbBatch.close()
-    }
+    } finally dbBatch.close()
   }
 
   def close(): Unit = {
     lock.writeLock().lock()
-    try {
-      database.close()
-    } finally {
-      lock.writeLock().unlock()
-    }
+    try database.close()
+    finally lock.writeLock().unlock()
   }
 
 }
