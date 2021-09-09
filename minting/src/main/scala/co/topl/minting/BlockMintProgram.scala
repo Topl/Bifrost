@@ -1,8 +1,9 @@
 package co.topl.minting
 
 import cats._
-import cats.syntax.functor._
-import co.topl.algebras.Clock
+import cats.data.OptionT
+import cats.implicits._
+import co.topl.algebras.ClockAlgebra
 import co.topl.models._
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{Lengths, Ratio, Sized}
@@ -18,38 +19,38 @@ import co.topl.typeclasses.Identifiable.ops._
  * except for a KES Certificate.  This allows for a delayed creation of a KES certificate until it is actually needed,
  * thus allowing for "cancellation" of this Mint attempt in the event that a better parent block arrives.
  */
-class BlockMint[F[_]: Monad] extends Mint[F, BlockMint.UnsignedBlock, BlockMint.Algebra[F]] {
+class BlockMintProgram[F[_]: Monad] {
 
-  override def next(interpreter: BlockMint.Algebra[F]): F[BlockMint.UnsignedBlock] = {
-    val BlockMint.Election(slot, vrfCertificate, threshold) = interpreter.elect(interpreter.currentHead.headerV2)
-    interpreter.unconfirmedTransactions.map { transactions =>
-      val timestamp = interpreter.clock.currentTimestamp()
-      BlockMint.UnsignedBlock(
-        parentHeaderId = interpreter.currentHead.headerV2.id,
-        txRoot = transactions.merkleTree,
-        bloomFilter = transactions.bloomFilter,
-        timestamp = timestamp,
-        height = interpreter.currentHead.headerV2.height + 1,
-        slot = slot,
-        vrfCertificate = vrfCertificate,
-        thresholdEvidence = threshold.evidence,
-        metadata = None,
-        address = interpreter.address,
-        transactions = transactions
-      )
-    }
-  }
+  def next(interpreter: BlockMintProgram.Algebra[F]): OptionT[F, BlockMintProgram.UnsignedBlock] =
+    interpreter
+      .elect(interpreter.canonicalHead.headerV2)
+      .toOptionT[F]
+      .semiflatMap { case BlockMintProgram.Election(slot, vrfCertificate, threshold) =>
+        interpreter.unconfirmedTransactions.map { transactions =>
+          BlockMintProgram.UnsignedBlock(
+            parentHeaderId = interpreter.canonicalHead.headerV2.id,
+            txRoot = transactions.merkleTree,
+            bloomFilter = transactions.bloomFilter,
+            height = interpreter.canonicalHead.headerV2.height + 1,
+            slot = slot,
+            vrfCertificate = vrfCertificate,
+            thresholdEvidence = threshold.evidence,
+            metadata = None,
+            address = interpreter.address,
+            transactions = transactions
+          )
+        }
+      }
 
 }
 
-object BlockMint {
+object BlockMintProgram {
   case class Election(slot: Slot, vrfCertificate: VrfCertificate, threshold: Ratio)
 
   case class UnsignedBlock(
     parentHeaderId:    TypedIdentifier,
     txRoot:            TxRoot,
     bloomFilter:       BloomFilter,
-    timestamp:         Timestamp,
     height:            Long,
     slot:              Slot,
     vrfCertificate:    VrfCertificate,
@@ -59,12 +60,12 @@ object BlockMint {
     transactions:      Seq[Transaction]
   ) {
 
-    def signed(kesCertificate: KesCertificate): BlockV2 = {
+    def signed[F[_]](kesCertificate: KesCertificate)(implicit clock: ClockAlgebra[F]): BlockV2 = {
       val header = BlockHeaderV2(
         parentHeaderId = parentHeaderId,
         txRoot = transactions.merkleTree,
         bloomFilter = transactions.bloomFilter,
-        timestamp = timestamp,
+        timestamp = clock.currentTimestamp(),
         height = height,
         slot = slot,
         vrfCertificate = vrfCertificate,
@@ -97,10 +98,10 @@ object BlockMint {
     /**
      * Elect the next slot and certificate based on the given parent
      */
-    def elect(parent: BlockHeaderV2): BlockMint.Election
+    def elect(parent: BlockHeaderV2): Option[BlockMintProgram.Election]
 
-    def currentHead: BlockV2
+    def canonicalHead: BlockV2
 
-    def clock: Clock[F]
+    def clockInterpreter: ClockAlgebra[F]
   }
 }

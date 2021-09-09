@@ -47,4 +47,7 @@ object Ed25519VRF {
   val SignatureLength: Int = 80
   val KeyLength: Int = 32
   val HashLength: Int = 64
+
+  val instance = new Ed25519VRF
+  instance.precompute()
 }

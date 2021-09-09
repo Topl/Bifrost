@@ -1,15 +1,13 @@
 package co.topl.fullnode
 
 import cats.Id
-import co.topl.algebras.Clock
+import co.topl.algebras.ClockAlgebra
 import co.topl.models.{Epoch, Slot, Timestamp}
 
 import scala.concurrent.duration._
 
-class SyncClock extends Clock[Id] {
-  val slotLength: FiniteDuration = 10.millis
-
-  val slotsPerEpoch: Long = 5000
+class SyncClockInterpreter(val slotLength: FiniteDuration = 1.millis, val slotsPerEpoch: Long = 5000)
+    extends ClockAlgebra[Id] {
 
   private val startTime = currentTimestamp()
 

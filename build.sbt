@@ -180,8 +180,12 @@ lazy val bifrost = project
     crypto,
     brambl,
     models,
+    algebras,
     typeclasses,
+    minting,
+    byteCodecs,
     consensus,
+    fullNode,
     tools
   )
 
@@ -302,7 +306,7 @@ lazy val typeclasses = project
   )
   .settings(libraryDependencies ++= Dependencies.test)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, crypto, byteCodecs)
+  .dependsOn(models % "compile->compile;test->test", crypto, byteCodecs)
 
 lazy val algebras = project
   .in(file("algebras"))
@@ -333,7 +337,7 @@ lazy val consensus = project
     libraryDependencies ++= Dependencies.bouncyCastle
   )
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, typeclasses, crypto, byteCodecs)
+  .dependsOn(models % "compile->compile;test->test", typeclasses, crypto, byteCodecs, algebras)
 
 lazy val minting = project
   .in(file("minting"))

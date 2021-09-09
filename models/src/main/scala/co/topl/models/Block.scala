@@ -17,7 +17,7 @@ case class BlockV1(
   transactions: Seq[Transaction]
 )
 
-// id = hash(headerBytes)
+// id = hash(headerBytes) INCLUDING kesCertificate proofs
 case class BlockHeaderV2(
   parentHeaderId:    TypedIdentifier,
   parentSlot:        Slot,
@@ -42,6 +42,5 @@ case class BlockBodyV2(
   transactions: Seq[Transaction]
 )
 
-// TODO: ID references, block bodies <-> block headers
 // This is a synthetic type, and is not "identifiable"
 case class BlockV2(headerV2: BlockHeaderV2, blockBodyV2: BlockBodyV2)

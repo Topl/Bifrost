@@ -1,12 +1,11 @@
 package co.topl.fullnode
 
 import cats.Id
-import cats.data.{NonEmptyChain, OptionT, StateT}
+import cats.data.{OptionT, StateT}
 import cats.implicits._
-import co.topl.algebras.Clock
-import co.topl.consensus.ConsensusValidation.implicits._
+import co.topl.algebras.ClockAlgebra
+import co.topl.consensus.{ConsensusValidationProgram, LeaderElection, RelativeStateLookupAlgebra}
 import co.topl.crypto.signatures.Ed25519VRF
-import co.topl.consensus.{ConsensusValidation, LeaderElection}
 import co.topl.models._
 import co.topl.models.utility.HasLength.implicits._
 import co.topl.models.utility.Lengths._
@@ -14,8 +13,9 @@ import co.topl.models.utility._
 import co.topl.typeclasses.BlockGenesis
 import co.topl.typeclasses.Identifiable.Instances._
 import co.topl.typeclasses.Identifiable.ops._
-
-import scala.concurrent.duration._
+import co.topl.typeclasses.crypto.KeyInitializer
+import KeyInitializer.Instances._
+import co.topl.crypto.hash.blake2b256
 
 object FullNode extends App {
 
@@ -29,47 +29,60 @@ object FullNode extends App {
   implicit val vrf: Ed25519VRF = new Ed25519VRF
   vrf.precompute()
 
-  implicit val clock: Clock[Id] = new SyncClock
+  implicit val clock: ClockAlgebra[Id] = new SyncClockInterpreter
 
-  private val Right(taktikosAddress: TaktikosAddress) =
+  private val Right(stakerAddress: TaktikosAddress) = {
+    val stakingVerificationKey = KeyInitializer[KeyPairs.Ed25519].random().publicKey.bytes
     for {
-      paymentVerificationKeyHash <- Sized.strict[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(1)))
-      stakingVerificationKey     <- Sized.strict[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(1)))
-      signature                  <- Sized.strict[Bytes, Lengths.`64`.type](Bytes(Array.fill[Byte](64)(1)))
+      paymentVerificationKeyHash <- Sized.strict[Bytes, Lengths.`32`.type](
+        Bytes(blake2b256.hash(KeyInitializer[KeyPairs.Ed25519].random().publicKey.bytes.data.toArray).value)
+      )
+      signature <- Sized.strict[Bytes, Lengths.`64`.type](Bytes(Array.fill[Byte](64)(1)))
     } yield TaktikosAddress(paymentVerificationKeyHash, stakingVerificationKey, signature)
+  }
 
-  val staker = Staker(taktikosAddress)
+  val staker = Staker(stakerAddress)
 
   val initialState =
     InMemoryState(
-      NonEmptyChain(Tine(NonEmptyChain(BlockGenesis(Nil).value))),
-      Map(staker.stakerEvidence -> stakerRelativeStake),
-      Bytes(Array.fill[Byte](4)(0))
+      BlockGenesis(Nil).value,
+      Map.empty,
+      Map.empty,
+      Map(0L -> Map(stakerAddress -> stakerRelativeStake)),
+      Map(0L -> Bytes(Array.fill[Byte](4)(0)))
     )
 
   val stateT =
-    StateT[Id, InMemoryState, BlockV2] { implicit state =>
-      val newBlock =
-        staker.mintBlock(state.head, Nil, state.relativeStake, state.epochNonce)
-      newBlock.headerV2
-        .validatedUsing[Id](
-          new ConsensusValidation.Algebra[Id] {
-            override def epochNonce: Id[Nonce] = state.epochNonce
-
-            override def parentBlockHeader: Id[BlockHeaderV2] = state.head.headerV2
-
-            override def relativeStakeFor(evidence: Evidence): OptionT[Id, Ratio] =
-              OptionT.fromOption(state.relativeStake.get(evidence))
-          }
+    StateT[Id, InMemoryState, Option[BlockV2]] { implicit state =>
+      staker
+        .mintBlock(
+          state.canonicalHead,
+          transactions = Nil,
+          epoch => address => state.relativeStakes.get(epoch).flatMap(_.get(address)),
+          epoch => state.epochNonce(epoch)
         )
-        .valueOr(f => throw new Exception(f.toString))
+        .value match {
+        case Some(newBlock) =>
+          new ConsensusValidationProgram[Id](
+            epoch => state.epochNonce.get(epoch).toOptionT[Id],
+            new RelativeStateLookupAlgebra[Id] {
+              def lookup(epoch: Epoch)(address: TaktikosAddress): OptionT[Id, Ratio] =
+                OptionT.fromOption(state.relativeStakes(epoch).get(address))
+            },
+            clock
+          ).validate(newBlock.headerV2, state.canonicalHead.headerV2)
+            .valueOr(f => throw new Exception(f.toString))
 
-      state.append(newBlock) -> newBlock
+          state.append(newBlock) -> Some(newBlock)
+        case _ =>
+          state -> None
+      }
     }
 
   LazyList
     .unfold(initialState)(stateT.run(_).swap.some)
-    .takeWhile(_.headerV2.slot < clock.slotsPerEpoch)
+    .takeWhile(_.nonEmpty)
+    .collect { case Some(newBlock) => newBlock }
     .foreach { head =>
       println(
         s"Applied headerId=${new String(head.headerV2.id.dataBytes.toArray)}" +

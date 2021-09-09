@@ -34,7 +34,9 @@ object ContainsEvolvingSigner {
 
   trait Implicits {
 
-    implicit def asOps[F[_], T](t: T)(implicit containsEvolvingSigner: ContainsEvolvingSigner[F, T]): Ops[F, T] =
+    implicit def asEvolvingSignerOps[F[_], T](
+      t:                               T
+    )(implicit containsEvolvingSigner: ContainsEvolvingSigner[F, T]): Ops[F, T] =
       new Ops[F, T] {
         override def value: T = t
 

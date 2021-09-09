@@ -7,10 +7,14 @@ object Sized {
 
   class Strict[Data, Length] private[Sized] (val data: Data) extends AnyVal {
     type L = Length
+
+    override def toString: String = s"Sized.Strict(${data.toString})"
   }
 
   class Max[Data, Length] private[Sized] (val data: Data) extends AnyVal {
     type L = Length
+
+    override def toString: String = s"Sized.Max(${data.toString})"
   }
 
   def strict[Data: HasLength, L <: Length](data: Data)(implicit length: L): Either[InvalidLength, Strict[Data, L]] = {
