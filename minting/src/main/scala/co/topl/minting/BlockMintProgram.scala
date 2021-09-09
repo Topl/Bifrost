@@ -29,6 +29,7 @@ class BlockMintProgram[F[_]: Monad] {
         interpreter.unconfirmedTransactions.map { transactions =>
           BlockMintProgram.UnsignedBlock(
             parentHeaderId = interpreter.canonicalHead.headerV2.id,
+            parentSlot = interpreter.canonicalHead.headerV2.slot,
             txRoot = transactions.merkleTree,
             bloomFilter = transactions.bloomFilter,
             height = interpreter.canonicalHead.headerV2.height + 1,
@@ -49,6 +50,7 @@ object BlockMintProgram {
 
   case class UnsignedBlock(
     parentHeaderId:    TypedIdentifier,
+    parentSlot:        Slot,
     txRoot:            TxRoot,
     bloomFilter:       BloomFilter,
     height:            Long,
@@ -63,6 +65,7 @@ object BlockMintProgram {
     def signed[F[_]](kesCertificate: KesCertificate)(implicit clock: ClockAlgebra[F]): BlockV2 = {
       val header = BlockHeaderV2(
         parentHeaderId = parentHeaderId,
+        parentSlot = parentSlot,
         txRoot = transactions.merkleTree,
         bloomFilter = transactions.bloomFilter,
         timestamp = clock.currentTimestamp(),
