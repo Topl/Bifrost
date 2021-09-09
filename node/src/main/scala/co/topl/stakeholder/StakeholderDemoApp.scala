@@ -1,4 +1,4 @@
-package co.topl
+package co.topl.stakeholder
 
 import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.http.scaladsl.Http
@@ -7,6 +7,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.akkahttprpc.{ThrowableData, ThrowableSupport}
 import co.topl.consensus._
+import co.topl.crypto.hash.blake2b256
 import co.topl.http.HttpService
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
@@ -20,17 +21,15 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.rpc.ToplRpcServer
 import co.topl.settings._
+import co.topl.stakeholder.cases.GetTime
+import co.topl.stakeholder.providers._
+import co.topl.tool.Exporter
+import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.wallet.{WalletConnectionHandler, WalletConnectionHandlerRef}
 import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.circe.Encoder
-import co.topl.stakeholder.Stakeholder
-import co.topl.stakeholder.providers._
-import co.topl.crypto.hash.blake2b256
-import co.topl.stakeholder.cases.GetTime
-import co.topl.tool.Exporter
-import co.topl.utils.Logging
 import kamon.Kamon
 import mainargs.ParserForClass
 
@@ -246,8 +245,6 @@ class StakeholderDemoApp(startupOpts: StartupOpts) extends NodeLogging with Runn
 
 /** This is the primary application object and is the entry point for Bifrost to begin execution */
 object StakeholderDemoApp extends Logging {
-
-  import StartupOptsImplicits._
 
   /** Check if Kamon instrumentation should be started. */
   /** DO NOT MOVE!! This must happen before anything else! */
