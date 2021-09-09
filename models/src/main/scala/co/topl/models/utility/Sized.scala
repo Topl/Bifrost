@@ -55,7 +55,9 @@ object Lengths {
   implicit case object `127` extends Length(127)
   implicit case object `128` extends Length(128)
   implicit case object `256` extends Length(256)
-  implicit case object `1440` extends Length(1440)
+  implicit case object `704` extends Length(704)
+  implicit case object `1448` extends Length(1448)
+  implicit case object `2724` extends Length(2724)
 }
 
 trait HasLength[T] {

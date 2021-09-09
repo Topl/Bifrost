@@ -3,7 +3,7 @@ package co.topl.models
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{Lengths, Sized}
 
-case class Box[V <: Box.Value](evidence: Evidence, nonce: Nonce, value: V)
+case class Box[V <: Box.Value](evidence: Evidence, nonce: BoxNonce, value: V)
 
 object Box {
   sealed abstract class Value

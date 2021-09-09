@@ -5,10 +5,11 @@ import co.topl.models.utility.Lengths._
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{Length, Lengths, Ratio, Sized}
 import org.scalacheck.Gen
+import org.scalacheck.Gen.posNum
 
 trait ModelGenerators {
 
-  def epochNonceGen: Gen[Nonce] =
+  def epochNonceGen: Gen[Eta] =
     Gen.long.map(BigInt(_).toByteArray).map(Bytes(_))
 
   def relativeStakeGen: Gen[Ratio] =
@@ -20,20 +21,28 @@ trait ModelGenerators {
       privateKey <- genSizedStrictBytes[Lengths.`32`.type]().map(PrivateKeys.Ed25519(_)).map(PrivateKeys.Vrf)
     } yield KeyPairs.Vrf(privateKey, publicKey)
 
+  def mmmProofGen: Gen[Proofs.Consensus.MMM] =
+    for {
+      sigi   <- genSizedStrictBytes[Lengths.`704`.type]().map(_.data)
+      sigm   <- genSizedStrictBytes[Lengths.`704`.type]().map(_.data)
+      pki    <- genSizedStrictBytes[Lengths.`32`.type]().map(_.data)
+      offset <- posNum[Long]
+      pkl    <- genSizedStrictBytes[Lengths.`32`.type]().map(_.data)
+    } yield Proofs.Consensus.MMM(sigi, sigm, pki, offset, pkl)
+
   def vrfCertificateGen: Gen[VrfCertificate] =
     for {
       publicKey  <- genSizedStrictBytes[Lengths.`32`.type]().map(PublicKeys.Ed25519(_)).map(PublicKeys.Vrf)
-      nonceProof <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Consensus.Nonce)
-      testProof  <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Consensus.VrfTest)
+      nonceProof <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Consensus.Nonce(_))
+      testProof  <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Consensus.VrfTest(_))
     } yield VrfCertificate(publicKey, nonceProof, testProof)
 
   def kesCertificateGen: Gen[KesCertificate] =
     for {
-      publicKey     <- genSizedStrictBytes[Lengths.`32`.type]().map(PublicKeys.Kes(_, 0))
-      kesProof      <- genSizedStrictBytes[Lengths.`64`.type]().map(Proofs.Consensus.KesCertificate)
-      mmmProof      <- genSizedStrictBytes[Lengths.`1440`.type]().map(Proofs.Consensus.MMM)
-      slotOffsetGen <- Gen.chooseNum[Long](1, 1000)
-    } yield KesCertificate(publicKey, kesProof, mmmProof, slotOffsetGen)
+      publicKey <- genSizedStrictBytes[Lengths.`32`.type]().map(PublicKeys.Kes(_, 0))
+      kesProof  <- genSizedStrictBytes[Lengths.`64`.type]().map(Proofs.Consensus.KesCertificate(_))
+      mmmProof  <- mmmProofGen
+    } yield KesCertificate(publicKey, kesProof, mmmProof)
 
   def taktikosAddressGen: Gen[TaktikosAddress] =
     for {

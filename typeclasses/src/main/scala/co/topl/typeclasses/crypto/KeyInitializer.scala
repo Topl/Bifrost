@@ -1,12 +1,16 @@
 package co.topl.typeclasses.crypto
 
 import cats.Functor
+import co.topl.crypto.kes.KeyEvolvingSignatureScheme
+import co.topl.crypto.kes.keys.SymmetricKey
 import co.topl.crypto.signatures.{Ed25519, Ed25519VRF}
 import co.topl.models._
 import co.topl.models.utility.HasLength.implicits._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.Sized
 import simulacrum.typeclass
+
+import java.security.SecureRandom
 
 @typeclass trait KeyInitializer[KP] {
   self =>
@@ -67,6 +71,28 @@ object KeyInitializer {
           } yield KeyPairs.Vrf(
             PrivateKeys.Vrf(PrivateKeys.Ed25519(edSkBytes)),
             PublicKeys.Vrf(PublicKeys.Ed25519(edPkBytes))
+          )
+        }.toOption.get
+
+      }
+
+    implicit val kesInitializer: KeyInitializer[KeyPairs.Kes] =
+      new KeyInitializer[KeyPairs.Kes] {
+        private val scheme = new KeyEvolvingSignatureScheme
+
+        def random(): KeyPairs.Kes =
+          fromLib(scheme.generateSymmetricProductKey(new SecureRandom().generateSeed(32), offset = 0)) // TODO: Seed?
+
+        def fromSeed(seed: Bytes): KeyPairs.Kes =
+          fromLib(scheme.generateSymmetricProductKey(seed.toArray, offset = 0))
+
+        private def fromLib(key: SymmetricKey): KeyPairs.Kes = {
+          for {
+            skBytes <- Sized.strict[Bytes, PrivateKeys.Kes.Length](Bytes(key.getBytes))
+            vkBytes <- Sized.strict[Bytes, PublicKeys.Kes.Length](Bytes(key.getVerificationKey.bytes))
+          } yield KeyPairs.Kes(
+            PrivateKeys.Kes(skBytes),
+            PublicKeys.Kes(vkBytes, slot = 0)
           )
         }.toOption.get
 

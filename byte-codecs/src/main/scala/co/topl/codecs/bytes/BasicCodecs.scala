@@ -1,7 +1,9 @@
 package co.topl.codecs.bytes
 
 import co.topl.models._
-import co.topl.models.utility.Ratio
+import co.topl.models.utility.{Ratio, Sized}
+import co.topl.models.utility.Lengths._
+import co.topl.models.utility.HasLength.implicits._
 
 object BasicCodecs {
 
@@ -14,7 +16,12 @@ object BasicCodecs {
 
   implicit val taktikosAddressCodec: ByteCodec[TaktikosAddress] =
     new ByteCodec[TaktikosAddress] {
-      override def encode(t: TaktikosAddress, writer: Writer): Unit = ???
+
+      override def encode(t: TaktikosAddress, writer: Writer): Unit = {
+        writer.putBytes(t.paymentVerificationKeyHash.data.toArray)
+        writer.putBytes(t.stakingVerificationKey.data.toArray)
+        writer.putBytes(t.signature.data.toArray)
+      }
 
       override def decode(reader: Reader): TaktikosAddress = ???
     }
@@ -64,6 +71,28 @@ object BasicCodecs {
       Ratio(
         BigInt(reader.getBytes(reader.getInt())),
         BigInt(reader.getBytes(reader.getInt()))
+      )
+  }
+
+  implicit val vrfCertificateCodec: ByteCodec[VrfCertificate] = new ByteCodec[VrfCertificate] {
+
+    override def encode(t: VrfCertificate, writer: Writer): Unit = {
+      writer.putBytes(t.vkVRF.ed25519.bytes.data.toArray)
+      writer.putBytes(t.nonceProof.bytes.data.toArray)
+      writer.putBytes(t.testProof.bytes.data.toArray)
+    }
+
+    override def decode(reader: Reader): VrfCertificate =
+      VrfCertificate(
+        PublicKeys.Vrf(
+          PublicKeys.Ed25519(Sized.strict[Bytes, PublicKeys.Ed25519.Length](Bytes(reader.getBytes(32))).toOption.get)
+        ), // TODO
+        Proofs.Consensus.Nonce(
+          Sized.strict[Bytes, Proofs.Consensus.Nonce.Length](Bytes(reader.getBytes(80))).toOption.get
+        ), // TODO
+        Proofs.Consensus.VrfTest(
+          Sized.strict[Bytes, Proofs.Consensus.VrfTest.Length](Bytes(reader.getBytes(80))).toOption.get
+        ) // TODO
       )
   }
 }

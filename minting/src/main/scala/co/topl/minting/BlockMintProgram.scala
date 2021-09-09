@@ -60,12 +60,12 @@ object BlockMintProgram {
     transactions:      Seq[Transaction]
   ) {
 
-    def signed[F[_]](kesCertificate: KesCertificate)(implicit clock: ClockAlgebra[F]): BlockV2 = {
+    def signed[F[_]](kesCertificate: KesCertificate, timestamp: Timestamp): BlockV2 = {
       val header = BlockHeaderV2(
         parentHeaderId = parentHeaderId,
         txRoot = transactions.merkleTree,
         bloomFilter = transactions.bloomFilter,
-        timestamp = clock.currentTimestamp(),
+        timestamp = timestamp,
         height = height,
         slot = slot,
         vrfCertificate = vrfCertificate,

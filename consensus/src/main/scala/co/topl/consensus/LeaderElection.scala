@@ -21,7 +21,7 @@ object LeaderElection {
 
   case class Config(lddCutoff: Int, precision: Int, baselineDifficulty: Ratio, amplitude: Ratio)
 
-  def hits(secret: KeyPairs.Vrf, relativeStake: Ratio, fromSlot: Slot, untilSlot: Slot, epochNonce: Nonce)(implicit
+  def hits(secret: KeyPairs.Vrf, relativeStake: Ratio, fromSlot: Slot, untilSlot: Slot, epochNonce: Eta)(implicit
     config:        Config
   ): Iterator[Hit] =
     ((fromSlot + 1) until untilSlot).iterator
@@ -43,7 +43,7 @@ object LeaderElection {
     relativeStake:   Ratio,
     slot:            Slot,
     slotDiff:        Long, // diff between current slot and parent slot
-    epochNonce:      Nonce
+    epochNonce:      Eta
   )(implicit config: Config): Either[Failure, Hit] = {
     // private key is 33 bytes, with the first being the type byte (unneeded)
     val privateKeyBytes = secret.privateKey.ed25519.bytes.data
@@ -119,7 +119,7 @@ object LeaderElection {
     val vrf = new Ed25519VRF
     vrf.precompute()
 
-    def apply(secretData: Bytes, epochNonce: Nonce, slot: Slot): VrfProof =
+    def apply(secretData: Bytes, epochNonce: Eta, slot: Slot): VrfProof =
       VrfProof(
         vrf,
         (token: String) =>

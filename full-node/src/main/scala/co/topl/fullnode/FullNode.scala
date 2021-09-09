@@ -4,7 +4,9 @@ import cats.Id
 import cats.data.{OptionT, StateT}
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
-import co.topl.consensus.{ConsensusValidationProgram, LeaderElection, RelativeStateLookupAlgebra}
+import co.topl.algebras.ClockAlgebra.implicits._
+import co.topl.consensus.{ConsensusValidationProgram, LeaderElection, VrfRelativeStateLookupAlgebra}
+import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signatures.Ed25519VRF
 import co.topl.models._
 import co.topl.models.utility.HasLength.implicits._
@@ -14,8 +16,7 @@ import co.topl.typeclasses.BlockGenesis
 import co.topl.typeclasses.Identifiable.Instances._
 import co.topl.typeclasses.Identifiable.ops._
 import co.topl.typeclasses.crypto.KeyInitializer
-import KeyInitializer.Instances._
-import co.topl.crypto.hash.blake2b256
+import co.topl.typeclasses.crypto.KeyInitializer.Instances._
 
 object FullNode extends App {
 
@@ -58,16 +59,17 @@ object FullNode extends App {
         .mintBlock(
           state.canonicalHead,
           transactions = Nil,
-          epoch => address => state.relativeStakes.get(epoch).flatMap(_.get(address)),
-          epoch => state.epochNonce(epoch)
+          header => address => state.relativeStakes.get(clock.epochOf(header.slot)).flatMap(_.get(address)),
+          header => state.epochNonce(clock.epochOf(header.slot))
         )
         .value match {
         case Some(newBlock) =>
           new ConsensusValidationProgram[Id](
-            epoch => state.epochNonce.get(epoch).toOptionT[Id],
-            new RelativeStateLookupAlgebra[Id] {
-              def lookup(epoch: Epoch)(address: TaktikosAddress): OptionT[Id, Ratio] =
-                OptionT.fromOption(state.relativeStakes(epoch).get(address))
+            header => state.epochNonce(clock.epochOf(header.slot)),
+            new VrfRelativeStateLookupAlgebra[Id] {
+
+              def lookupAt(block: BlockHeaderV2)(address: TaktikosAddress): OptionT[Id, Ratio] =
+                OptionT.fromOption(state.relativeStakes(clock.epochOf(block.slot)).get(address))
             },
             clock
           ).validate(newBlock.headerV2, state.canonicalHead.headerV2)

@@ -710,7 +710,7 @@ abstract class MMM {
    * @return signature of m
    */
 
-  def signAsymmetricProduct(key: AsymmetricKey, m: Array[Byte]): ProductSignature = {
+  def signAsymmetricProduct(key: AsymmetricKey, m: Array[Byte]): AsymmetricSignature = {
     val keyTime = BigInt(getAsymmetricProductKeyTimeStep(key)).toByteArray
     val Si = key.data.subScheme
     val sigi = key.data.subSchemeSignature
@@ -720,7 +720,7 @@ abstract class MMM {
     AsymmetricSignature(sigi, sigm, PublicKey(pki), key.data.offset, PublicKey(publicKey(key)))
   }
 
-  def signSymmetricProduct(key: SymmetricKey, m: Array[Byte]): ProductSignature = {
+  def signSymmetricProduct(key: SymmetricKey, m: Array[Byte]): SymmetricSignature = {
     val keyTime = BigInt(getSymmetricProductKeyTimeStep(key)).toByteArray
     val Si = key.data.subScheme
     val sigi = key.data.subSchemeSignature

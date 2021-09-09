@@ -35,8 +35,8 @@ class ConsensusValidationProgramSpec
     forAll(headerGen(slotGen = Gen.chooseNum(50L, 100L)), headerGen(slotGen = Gen.chooseNum[Long](20, 49))) {
       case (parent, child) =>
         whenever(child.slot <= parent.slot) {
-          val nonceInterpreter = mock[EpochNoncesAlgebra[Id]]
-          val relativeStakeInterpreter = mock[RelativeStateLookupAlgebra[Id]]
+          val nonceInterpreter = mock[EtaAlgebra[Id]]
+          val relativeStakeInterpreter = mock[VrfRelativeStateLookupAlgebra[Id]]
           val clockInterpreter = mock[ClockAlgebra[Id]]
           val underTest =
             new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
@@ -50,8 +50,8 @@ class ConsensusValidationProgramSpec
   it should "invalidate blocks with non-forward timestamp" in {
     forAll(headerGen(), headerGen()) { case (parent, child) =>
       whenever(child.slot > parent.slot && child.timestamp <= parent.timestamp) {
-        val nonceInterpreter = mock[EpochNoncesAlgebra[Id]]
-        val relativeStakeInterpreter = mock[RelativeStateLookupAlgebra[Id]]
+        val nonceInterpreter = mock[EtaAlgebra[Id]]
+        val relativeStakeInterpreter = mock[VrfRelativeStateLookupAlgebra[Id]]
         val clockInterpreter = mock[ClockAlgebra[Id]]
         val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
 
@@ -73,8 +73,8 @@ class ConsensusValidationProgramSpec
       )
     ) { case (parent, child) =>
       whenever(child.slot > parent.slot && child.timestamp > parent.timestamp && child.parentHeaderId != parent.id) {
-        val nonceInterpreter = mock[EpochNoncesAlgebra[Id]]
-        val relativeStakeInterpreter = mock[RelativeStateLookupAlgebra[Id]]
+        val nonceInterpreter = mock[EtaAlgebra[Id]]
+        val relativeStakeInterpreter = mock[VrfRelativeStateLookupAlgebra[Id]]
         val clockInterpreter = mock[ClockAlgebra[Id]]
         val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
 
@@ -99,8 +99,8 @@ class ConsensusValidationProgramSpec
           .map(parent -> _.copy(parentHeaderId = parent.id))
       )
     ) { case (parent, child) =>
-      val nonceInterpreter = mock[EpochNoncesAlgebra[Id]]
-      val relativeStakeInterpreter = mock[RelativeStateLookupAlgebra[Id]]
+      val nonceInterpreter = mock[EtaAlgebra[Id]]
+      val relativeStakeInterpreter = mock[VrfRelativeStateLookupAlgebra[Id]]
       val clockInterpreter = mock[ClockAlgebra[Id]]
       val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
 
@@ -110,11 +110,11 @@ class ConsensusValidationProgramSpec
         .returning(1000)
 
       (nonceInterpreter
-        .nonceForEpoch(_: Epoch))
-        .expects(0L)
+        .etaOf(_: BlockHeaderV2))
+        .expects(child)
         .anyNumberOfTimes()
         // This epoch nonce does not satisfy the generated VRF certificate
-        .returning(OptionT.pure[Id](Bytes(Array(1: Byte))))
+        .returning(Bytes(Array(1: Byte)))
 
       underTest.validate(child, parent).value.left.value shouldBe ConsensusValidationProgram.Failures
         .InvalidVrfCertificate(child.vrfCertificate)
@@ -137,8 +137,8 @@ class ConsensusValidationProgramSpec
       Gen.const(KeyInitializer.Instances.vrfInitializer.random()),
       taktikosAddressGen
     ) { case (parent, kesCertificate, (txRoot, bloomFilter, epochNonce), relativeStake, vrfSecret, address) =>
-      val nonceInterpreter = mock[EpochNoncesAlgebra[Id]]
-      val relativeStakeInterpreter = mock[RelativeStateLookupAlgebra[Id]]
+      val nonceInterpreter = mock[EtaAlgebra[Id]]
+      val relativeStakeInterpreter = mock[VrfRelativeStateLookupAlgebra[Id]]
       val clockInterpreter = mock[ClockAlgebra[Id]]
       val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
 
@@ -164,15 +164,14 @@ class ConsensusValidationProgramSpec
         .returning(1000)
 
       (nonceInterpreter
-        .nonceForEpoch(_: Epoch))
-        // The clock puts the child block in epoch 5, so validation should be concerned with epoch 5-2=3
-        .expects(3L)
+        .etaOf(_: BlockHeaderV2))
+        .expects(child)
         .anyNumberOfTimes()
-        .returning(OptionT.pure[Id](epochNonce))
+        .returning(epochNonce)
 
       (relativeStakeInterpreter
-        .lookup(_: Epoch)(_: TaktikosAddress))
-        .expects(3L, *)
+        .lookupAt(_: BlockHeaderV2)(_: TaktikosAddress))
+        .expects(child, *)
         .once()
         .returning(OptionT.pure[Id](Ratio(0)))
 
@@ -196,8 +195,8 @@ class ConsensusValidationProgramSpec
       Gen.const(KeyInitializer.Instances.vrfInitializer.random()),
       taktikosAddressGen
     ) { case (parent, kesCertificate, (txRoot, bloomFilter, epochNonce), relativeStake, vrfSecret, address) =>
-      val nonceInterpreter = mock[EpochNoncesAlgebra[Id]]
-      val relativeStakeInterpreter = mock[RelativeStateLookupAlgebra[Id]]
+      val nonceInterpreter = mock[EtaAlgebra[Id]]
+      val relativeStakeInterpreter = mock[VrfRelativeStateLookupAlgebra[Id]]
       val clockInterpreter = mock[ClockAlgebra[Id]]
       val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
 
@@ -223,15 +222,14 @@ class ConsensusValidationProgramSpec
         .returning(1000)
 
       (nonceInterpreter
-        .nonceForEpoch(_: Epoch))
-        // The clock puts the child block in epoch 5, so validation should be concerned with epoch 5-2=3
-        .expects(3L)
+        .etaOf(_: BlockHeaderV2))
+        .expects(child)
         .anyNumberOfTimes()
-        .returning(OptionT.pure[Id](epochNonce))
+        .returning(epochNonce)
 
       (relativeStakeInterpreter
-        .lookup(_: Epoch)(_: TaktikosAddress))
-        .expects(3L, *)
+        .lookupAt(_: BlockHeaderV2)(_: TaktikosAddress))
+        .expects(child, *)
         .once()
         .returning(OptionT.pure[Id](relativeStake))
 

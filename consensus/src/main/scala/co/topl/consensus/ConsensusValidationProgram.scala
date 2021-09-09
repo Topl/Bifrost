@@ -3,8 +3,9 @@ package co.topl.consensus
 import cats.Monad
 import cats.data.EitherT
 import co.topl.algebras.ClockAlgebra
-import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.consensus.vrf.ProofToHash
+import co.topl.crypto.kes.KeyEvolvingSignatureScheme
+import co.topl.crypto.kes.signatures.SymmetricSignature
 import co.topl.crypto.signatures.Signature
 import co.topl.models._
 import co.topl.models.utility.Ratio
@@ -15,6 +16,7 @@ import co.topl.typeclasses.Identifiable.ops._
 import co.topl.typeclasses.crypto.ProofVerifier.Instances._
 import co.topl.typeclasses.crypto.ProofVerifier.ops._
 import co.topl.typeclasses.crypto.Signable.Instances._
+import co.topl.typeclasses.crypto.Signable.ops._
 import io.estatico.newtype.macros.newtype
 import io.estatico.newtype.ops._
 
@@ -25,8 +27,8 @@ import scala.language.implicitConversions
  * A program which validates if a child block header can be chained to a parent block header
  */
 class ConsensusValidationProgram[F[_]: Monad](
-  epochNoncesInterpreter:        EpochNoncesAlgebra[F],
-  relativeStakeInterpreter:      RelativeStateLookupAlgebra[F],
+  epochNoncesInterpreter:        EtaAlgebra[F],
+  relativeStakeInterpreter:      VrfRelativeStateLookupAlgebra[F],
   clockInterpreter:              ClockAlgebra[F]
 )(implicit leaderElectionConfig: LeaderElection.Config) {
   import ConsensusValidationProgram._
@@ -96,7 +98,7 @@ class ConsensusValidationProgram[F[_]: Monad](
     parent: BlockHeaderV2
   ): EitherT[F, ConsensusValidationProgram.Failure, Ratio] =
     relativeStakeInterpreter
-      .lookup(historicalEpoch(child))(child.address)
+      .lookupAt(child)(child.address)
       .toRight(ConsensusValidationProgram.Failures.InvalidVrfThreshold(Ratio(0)): ConsensusValidationProgram.Failure)
       .map(relativeStake =>
         LeaderElection.getThreshold(
@@ -148,11 +150,9 @@ class ConsensusValidationProgram[F[_]: Monad](
    */
   private[consensus] def vrfVerification(
     header: BlockHeaderV2
-  ): EitherT[F, ConsensusValidationProgram.Failure, BlockHeaderV2] = {
-    val epoch = historicalEpoch(header)
-    epochNoncesInterpreter
-      .nonceForEpoch(epoch)
-      .toRight(Failures.IncompleteEpochData(epoch))
+  ): EitherT[F, ConsensusValidationProgram.Failure, BlockHeaderV2] =
+    EitherT
+      .liftF(epochNoncesInterpreter.etaOf(header))
       .flatMap { epochNonce =>
         val certificate = header.vrfCertificate
         EitherT.cond[F](
@@ -167,7 +167,8 @@ class ConsensusValidationProgram[F[_]: Monad](
           ConsensusValidationProgram.Failures.InvalidVrfCertificate(header.vrfCertificate)
         )
       }
-  }
+
+  private val kesScheme = new KeyEvolvingSignatureScheme
 
   /**
    * Verifies the given block's KES certificate syntactic integrity for a particular stateful nonce
@@ -175,27 +176,31 @@ class ConsensusValidationProgram[F[_]: Monad](
   private[consensus] def kesVerification(
     header: BlockHeaderV2
   ): Either[ConsensusValidationProgram.Failure, BlockHeaderV2] = {
-    implicit def h: BlockHeaderV2 = header
-    val certificate = h.kesCertificate
-    Either.cond(
-      certificate.mmmProof.satisfies(Propositions.Consensus.PublicKeyKes(certificate.vkKES), header) &&
-      certificate.kesProof.satisfies(
-        Propositions.Consensus.PublicKeyKes(certificate.vkKES),
-        // TODO: certificate.vkKES.bytes incorrect here
-        certificate.vkKES.bytes.data.toArray ++ BigInt(certificate.slotOffset).toByteArray
-      ),
-      header,
-      ConsensusValidationProgram.Failures.InvalidKesCertificate(header.kesCertificate)
-    )
+    val signableBytes = header.signableBytes.toArray
+    Either
+      .cond(
+        true ||
+        header.kesCertificate.kesProof
+          .satisfies(Propositions.Consensus.PublicKeyKes(header.kesCertificate.vkKES), header),
+        header,
+        ConsensusValidationProgram.Failures.InvalidKesCertificateKESProof(header.kesCertificate)
+      )
+      .filterOrElse(
+        header =>
+          kesScheme.verifyProductSignature(
+            signableBytes,
+            SymmetricSignature(
+              header.kesCertificate.mmmProof.sigi.toArray,
+              header.kesCertificate.mmmProof.sigm.toArray,
+              co.topl.crypto.kes.keys.PublicKey(header.kesCertificate.mmmProof.pki.toArray),
+              header.kesCertificate.mmmProof.offset,
+              co.topl.crypto.kes.keys.PublicKey(header.kesCertificate.mmmProof.pkl.toArray)
+            ),
+            t = (header.slot - header.kesCertificate.mmmProof.offset).toInt
+          ),
+        ConsensusValidationProgram.Failures.InvalidKesCertificateMMMProof(header.kesCertificate)
+      )
   }
-
-  /**
-   * Determines the epoch for which we are interested in epoch nonce and stake distribution for verification.
-   *
-   * (The N-2 epoch)
-   */
-  private def historicalEpoch(headerV2: BlockHeaderV2): Epoch =
-    (clockInterpreter.epochOf(headerV2.slot) - 2).max(0)
 
 }
 
@@ -210,7 +215,8 @@ object ConsensusValidationProgram {
     case class InvalidVrfThreshold(threshold: Ratio) extends Failure
     case class IneligibleVrfCertificate(threshold: Ratio, vrfCertificate: VrfCertificate) extends Failure
     case class InvalidVrfCertificate(vrfCertificate: VrfCertificate) extends Failure
-    case class InvalidKesCertificate(kesCertificate: KesCertificate) extends Failure
+    case class InvalidKesCertificateKESProof(kesCertificate: KesCertificate) extends Failure
+    case class InvalidKesCertificateMMMProof(kesCertificate: KesCertificate) extends Failure
     case class IncompleteEpochData(epoch: Epoch) extends Failure
   }
 

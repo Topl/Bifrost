@@ -11,7 +11,7 @@ case class InMemoryState(
   blocks:         Map[TypedIdentifier, BlockV2],
   orphans:        Map[TypedIdentifier, BlockV2],
   relativeStakes: Map[Epoch, Map[TaktikosAddress, Ratio]],
-  epochNonce:     Map[Epoch, Nonce]
+  epochNonce:     Map[Epoch, Eta]
 ) {
 
   def append(child: BlockV2): InMemoryState =

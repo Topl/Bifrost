@@ -42,8 +42,7 @@ class BlockGenesisSpec extends AnyFlatSpec with Matchers with EitherValues with 
     val cert = block.headerV2.kesCertificate
     forAll(cert.vkKES.bytes.data)(_ shouldBe (0: Byte))
     forAll(cert.kesProof.bytes.data)(_ shouldBe (0: Byte))
-    forAll(cert.mmmProof.bytes.data)(_ shouldBe (0: Byte))
-    cert.slotOffset shouldBe 0L
+    forAll(cert.mmmProof.sigi)(_ shouldBe (0: Byte))
     cert.vkKES.slot shouldBe 0L
   }
 

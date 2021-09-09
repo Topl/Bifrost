@@ -6,7 +6,7 @@ import co.topl.models.{Epoch, Slot, Timestamp}
 
 import scala.concurrent.duration._
 
-class SyncClockInterpreter(val slotLength: FiniteDuration = 1.millis, val slotsPerEpoch: Long = 5000)
+class SyncClockInterpreter(val slotLength: FiniteDuration = 1.millis, val slotsPerEpoch: Long = 6000)
     extends ClockAlgebra[Id] {
 
   private val startTime = currentTimestamp()

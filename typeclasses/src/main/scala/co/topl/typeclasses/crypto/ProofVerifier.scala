@@ -191,17 +191,11 @@ object ProofVerifier {
           proof:       Proofs.Consensus.KesCertificate,
           proposition: Propositions.Consensus.PublicKeyKes,
           data:        Data
-        ): Boolean = true // TODO
-      }
-
-    implicit val consensusMMM: ProofVerifier[Proofs.Consensus.MMM, Propositions.Consensus.PublicKeyKes] =
-      new ProofVerifier[Proofs.Consensus.MMM, Propositions.Consensus.PublicKeyKes] {
-
-        override def verifyWith[Data: Signable](
-          proof:       Proofs.Consensus.MMM,
-          proposition: Propositions.Consensus.PublicKeyKes,
-          data:        Data
-        ): Boolean = true // TODO
+        ): Boolean = publicKeyEd25519.verifyWith(
+          Proofs.SignatureEd25519(Some(proof.bytes)),
+          Propositions.PublicKeyEd25519(PublicKeys.Ed25519(proposition.key.bytes)),
+          data
+        )
       }
   }
 

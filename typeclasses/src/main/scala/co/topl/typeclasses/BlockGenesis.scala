@@ -32,8 +32,13 @@ object BlockGenesis {
       Proofs.Consensus.KesCertificate(
         zeroBytes(Lengths.`64`)
       ),
-      Proofs.Consensus.MMM(zeroBytes(Lengths.`1440`)),
-      slotOffset = 0
+      Proofs.Consensus.MMM(
+        Bytes(Array.fill(704)(0)),
+        Bytes(Array.fill(704)(0)),
+        Bytes(Array.fill(32)(0)),
+        0,
+        Bytes(Array.fill(32)(0))
+      )
     )
 
   def apply(transactions: Seq[Transaction]): Eval[BlockV2] = Eval.later {

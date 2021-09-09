@@ -421,6 +421,7 @@ lazy val crypto = project
     libraryDependencies ++= Dependencies.crypto
   )
   .settings(scalamacrosParadiseSettings)
+  .dependsOn(models)
 
 lazy val tools = project
   .in(file("tools"))

@@ -9,7 +9,9 @@ import scala.language.implicitConversions
 
 package object models {
   type Bytes = ArraySeq[Byte]
-  type Nonce = Bytes
+  type BoxNonce = Long
+  // Epoch Nonce, 32 Bytes
+  type Eta = Bytes
   type Evidence = Sized.Strict[TypedBytes, Lengths.`33`.type]
   type TypePrefix = Byte
   type TypedIdentifier = TypedBytes
@@ -21,8 +23,8 @@ package object models {
   type Signature = Bytes
   type Epoch = Long
   type Address = TypedIdentifier
-  type BoxReference = (Address, Nonce)
-  type TaktikosBoxReference = (TaktikosAddress, Nonce)
+  type BoxReference = (Address, Eta)
+  type TaktikosBoxReference = (TaktikosAddress, Eta)
   type PolyOutput = (Address, Int128)
   type ArbitOutput = (Address, Int128)
   type AssetOutput = (Address, Box.Values.Asset)

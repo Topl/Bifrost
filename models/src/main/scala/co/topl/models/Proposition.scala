@@ -71,30 +71,53 @@ sealed trait Proof
 
 object Proofs {
 
-  case class SignatureCurve25519(bytes: Option[Sized.Strict[Bytes, PrivateKeys.Curve25519.Length]]) extends Proof
+  case class SignatureCurve25519(bytes: Option[Sized.Strict[Bytes, SignatureCurve25519.Length]]) extends Proof
+
+  object SignatureCurve25519 {
+    type Length = Lengths.`64`.type
+  }
 
   case class ThresholdSignatureCurve25519(signatures: Set[SignatureCurve25519]) extends Proof
 
-  case class SignatureEd25519(bytes: Option[Sized.Strict[Bytes, PrivateKeys.Ed25519.Length]]) extends Proof
+  case class SignatureEd25519(bytes: Option[Sized.Strict[Bytes, SignatureEd25519.Length]]) extends Proof
+
+  object SignatureEd25519 {
+    type Length = Lengths.`64`.type
+  }
 
   case class ThresholdSignatureEd25519(signatures: Set[SignatureEd25519]) extends Proof
 
   case class Existence(id: TypedIdentifier) extends Proof
 
   object Consensus {
-    case class Nonce(bytes: Sized.Strict[Bytes, Lengths.`80`.type]) extends Proof
+    case class Nonce(bytes: Sized.Strict[Bytes, Nonce.Length]) extends Proof
+
+    object Nonce {
+      type Length = Lengths.`80`.type
+    }
 
     case class VrfTest(bytes: Sized.Strict[Bytes, Lengths.`80`.type]) extends Proof
+
+    object VrfTest {
+      type Length = Lengths.`80`.type
+    }
 
     /**
      * Signature with a normal signing routine
      */
     case class KesCertificate(bytes: Sized.Strict[Bytes, Lengths.`64`.type]) extends Proof
 
+    object KesCertificate {
+      type Length = Lengths.`64`.type
+    }
+
     /**
      * Signature with a witness path that corresponds to MMM construction
+     *
+     * @see [co.topl.crypto.kes.signatures.SymmetricSignature]
      */
-    case class MMM(bytes: Sized.Strict[Bytes, Lengths.`1440`.type]) extends Proof
+    case class MMM(sigi: Bytes, sigm: Bytes, pki: Bytes, offset: Long, pkl: Bytes)
+        extends Proof // TODO: Changed this to Sized 1440
   }
 }
 
@@ -136,6 +159,6 @@ object PrivateKeys {
   }
 
   object Kes {
-    type Length = Lengths.`32`.type
+    type Length = Lengths.`2724`.type
   }
 }
