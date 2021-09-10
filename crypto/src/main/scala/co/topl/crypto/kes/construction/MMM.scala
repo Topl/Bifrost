@@ -37,7 +37,11 @@ abstract class MMM {
   val asymmetricLogL: Int
   val symmetricLogL: Int
 
-  val random = new SecureRandom()
+  private val exp_symmetricLogL = exp(symmetricLogL)
+
+  val maxSymmetricKeyTimeSteps:Int = exp_symmetricLogL*exp_symmetricLogL
+
+  private val random = new SecureRandom()
 
   /**
    * Exponent base two of the argument
@@ -642,7 +646,7 @@ abstract class MMM {
   }
 
   def updateSymmetricProductKey(key: SymmetricKey, t_in: Int): SymmetricKey = {
-    val symmetricStepsL = exp(symmetricLogL)
+    val symmetricStepsL = exp_symmetricLogL
     val keyTime = getSymmetricProductKeyTimeStep(key)
     var L = key.data.superScheme
     var Si = key.data.subScheme
@@ -671,8 +675,7 @@ abstract class MMM {
         } else {
           L = sumCompositionUpdate(L, currentLeaf)
         }
-      }
-      else {
+      } else {
         println("Error: max time steps reached")
       }
       val ti = getSumCompositionKeyTimeStep(Si)
@@ -700,7 +703,7 @@ abstract class MMM {
   def getSymmetricProductKeyTimeStep(key: SymmetricKey): Int = {
     val tl = getSumCompositionKeyTimeStep(key.data.superScheme)
     val ti = getSumCompositionKeyTimeStep(key.data.subScheme)
-    exp(symmetricLogL) * tl + ti
+    exp_symmetricLogL * tl + ti
   }
 
   /**
@@ -752,7 +755,7 @@ abstract class MMM {
         (
           sumCompositionVerify(pkl.bytes, pki.bytes, sigi, stepL)
           && sumCompositionVerify(pki.bytes, m ++ BigInt(t).toByteArray, sigm, stepSi)
-          && t == exp(symmetricLogL) * stepL + stepSi
+          && t == exp_symmetricLogL * stepL + stepSi
         )
     }
 
