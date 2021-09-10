@@ -22,16 +22,19 @@ object BooleanCodec {
     if (value) Attempt.successful(trueByteBitVector)
     else Attempt.successful(falseByteBitVector)
 
+  val codec: Codec[Boolean] = new Codec[Boolean] {
+    override def decode(bits: BitVector): Attempt[DecodeResult[Boolean]] = BooleanCodec.decode(bits)
+
+    override def encode(value: Boolean): Attempt[BitVector] = BooleanCodec.encode(value)
+
+    override def sizeBound: SizeBound = SizeBound.exact(byteSize)
+  }
+
+  trait Codecs {
+    val bool: Codec[Boolean] = codec
+  }
+
   trait Implicits {
-
-    implicit val booleanDecoder: Decoder[Boolean] = decode
-
-    implicit val booleanEncoder: Encoder[Boolean] = new Encoder[Boolean] {
-      override def encode(value: Boolean): Attempt[BitVector] = BooleanCodec.encode(value)
-
-      override def sizeBound: SizeBound = SizeBound.exact(byteSize)
-    }
-
-    implicit val booleanCodec: Codec[Boolean] = Codec(booleanEncoder, booleanDecoder)
+    implicit val booleanImplicitCodec: Codec[Boolean] = codec
   }
 }

@@ -1,7 +1,7 @@
 package co.topl.utils.codecs.binary
 
 import cats.implicits._
-import scodec.{Attempt, DecodeResult, Decoder, Encoder, Err, SizeBound}
+import scodec.{Attempt, Codec, DecodeResult, Decoder, Encoder, Err, SizeBound}
 import scodec.bits.BitVector
 
 object OptionCodec {
@@ -25,13 +25,19 @@ object OptionCodec {
       case None    => Attempt.successful(noneBitVector)
     }
 
+  def codec[T: Codec]: Codec[Option[T]] = new Codec[Option[T]] {
+    override def decode(bits: BitVector): Attempt[DecodeResult[Option[T]]] = OptionCodec.decode(bits)
+
+    override def encode(value: Option[T]): Attempt[BitVector] = OptionCodec.encode(value)
+
+    override def sizeBound: SizeBound = Codec[T].sizeBound + SizeBound.exact(byteSize)
+  }
+
+  trait Codecs {
+    def option[T: Codec]: Codec[Option[T]] = OptionCodec.codec
+  }
+
   trait Implicits {
-    implicit def optionDecoder[T: Decoder]: Decoder[Option[T]] = decode[T]
-
-    implicit def optionEncoder[T: Encoder]: Encoder[Option[T]] = new Encoder[Option[T]] {
-      override def encode(value: Option[T]): Attempt[BitVector] = OptionCodec.encode[T](value)
-
-      override def sizeBound: SizeBound = Encoder[T].sizeBound + byteSize
-    }
+    implicit def optionImplicitCodec[T: Codec]: Codec[Option[T]] = OptionCodec.codec
   }
 }

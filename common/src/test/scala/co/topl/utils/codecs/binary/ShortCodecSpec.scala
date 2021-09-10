@@ -1,8 +1,9 @@
 package co.topl.utils.codecs.binary
 
+import akka.util.ByteString
 import co.topl.utils.CommonGenerators
 import co.topl.utils.IdiomaticScalaTransition.implicits._
-import co.topl.utils.serialization.VLQByteStringWriter
+import co.topl.utils.serialization.{VLQByteStringReader, VLQByteStringWriter}
 import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -41,6 +42,19 @@ class ShortCodecSpec
       val decoderResult = ShortCodec.decode(BitVector(bytes)).getOrThrow()
 
       decoderResult.remainder.toByteArray shouldBe leftover
+    }
+  }
+
+  "ShortCodec Encoder" should "produce an encoded value that is decodable by VLQByteStringReader" in {
+    forAll(Gen.choose(Short.MinValue, Short.MaxValue)) { shortValue =>
+      val bits = ShortCodec.encode(shortValue).getOrThrow()
+
+      val byteString = ByteString(bits.toByteArray)
+      val vlqReader = new VLQByteStringReader(byteString)
+
+      val parsedResult = vlqReader.getShort()
+
+      parsedResult shouldBe shortValue
     }
   }
 }

@@ -1,35 +1,38 @@
 package co.topl.utils.codecs.binary
 
-import cats.implicits._
-import co.topl.utils.UnsignedNumbers.UInt
-import scodec.{Attempt, Codec, DecodeResult, Decoder, Encoder, Err, SizeBound}
 import scodec.bits.BitVector
+import scodec.{Attempt, Codec, DecodeResult, Decoder, Encoder, Err, SizeBound}
 
 object UIntCodec {
+
+  val minValue: Long = 0
+  val maxValue: Long = 0xffffffffL
 
   def decode(from: BitVector): Attempt[DecodeResult[UInt]] =
     ULongCodec
       .decode(from)
       .flatMap(result =>
-        Attempt.fromEither(
-          UInt
-            .validated(result.value)
-            .leftMap(failure => Err(failure.toString))
-            .map(DecodeResult(_, result.remainder))
-        )
+        if (result.value >= minValue && result.value <= maxValue) Attempt.successful(result)
+        else Attempt.failure(Err("UInt value is outside of valid range."))
       )
 
-  def encode(value: UInt): Attempt[BitVector] = ULongCodec.encode(value.value)
+  def encode(value: UInt): Attempt[BitVector] = ULongCodec.encode(value)
+
+  val codec = new Codec[UInt] {
+    override def decode(bits: BitVector): Attempt[DecodeResult[UInt]] = UIntCodec.decode(bits)
+
+    override def encode(value: UInt): Attempt[BitVector] = UIntCodec.encode(value)
+
+    override def sizeBound: SizeBound = ULongCodec.codec.sizeBound
+  }
+
+  trait Codecs {
+
+    val uInt: Codec[UInt] = codec
+  }
 
   trait Implicits {
-    implicit val uIntDecoder: Decoder[UInt] = decode
 
-    implicit val uIntEncoder: Encoder[UInt] = new Encoder[UInt] {
-      override def encode(value: UInt): Attempt[BitVector] = UIntCodec.encode(value)
-
-      override def sizeBound: SizeBound = SizeBound.atMost(64)
-    }
-
-    implicit val uIntCoded: Codec[UInt] = Codec(uIntEncoder, uIntDecoder)
+    implicit val uIntImplicitCodec: Codec[UInt] = codec
   }
 }

@@ -1,51 +1,56 @@
 package co.topl.utils.codecs.binary
 
-import cats.implicits._
 import co.topl.utils.Extensions.LongOps
-import co.topl.utils.UnsignedNumbers.UInt
 import scodec.bits.BitVector
-import scodec.{Attempt, DecodeResult, Decoder, Encoder, Err, SizeBound}
+import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
 
 object IntStringCodec {
 
-  private val maxBitSize: Long = IntString.maxBytes.toLong * byteSize
+  val maxBytes: Int = Int.MaxValue
+
+  private val maxBitSize: Long = maxBytes.toLong * byteSize
 
   def decode(from: BitVector): Attempt[DecodeResult[IntString]] =
     UIntCodec.decode(from).flatMap { result =>
-      val stringBitSize = result.value.value.toIntExact * byteSize
+      val stringBitSize = result.value.toIntExact * byteSize
 
       if (result.remainder.length < stringBitSize)
         Attempt.failure(Err.insufficientBits(stringBitSize, result.remainder.length))
       else {
         val (stringBits, remaining) = result.remainder.splitAt(stringBitSize)
 
-        Attempt.fromEither(
-          IntString
-            .validated(new String(stringBits.toByteArray, stringCharacterSet))
-            .leftMap(failure => Err(failure.toString))
-            .map(DecodeResult(_, remaining))
-        )
+        val stringBytes = stringBits.toByteArray
+        val stringBytesLength = stringBytes.length
+
+        if (stringBytesLength <= maxBytes)
+          Attempt.successful(DecodeResult(new String(stringBytes, stringCharacterSet), remaining))
+        else
+          Attempt.failure(Err("IntString value is outside of valid range."))
       }
     }
 
   def encode(value: IntString): Attempt[BitVector] = {
-    val byteRepr = value.value.getBytes(stringCharacterSet)
+    val byteRepr = value.getBytes(stringCharacterSet)
 
     val byteLength = byteRepr.length
 
-    Attempt
-      .fromEither(UInt.validated(byteLength).leftMap(failure => Err(failure.toString)))
-      .flatMap(UIntCodec.encode)
-      .map(_ ++ BitVector(byteRepr))
+    if (byteLength <= maxBytes) UIntCodec.encode(byteLength).map(_ ++ BitVector(byteRepr))
+    else Attempt.failure(Err("IntString value is outside of valid range."))
+  }
+
+  val codec: Codec[IntString] = new Codec[IntString] {
+    override def decode(bits: BitVector): Attempt[DecodeResult[IntString]] = IntStringCodec.decode(bits)
+
+    override def encode(value: IntString): Attempt[BitVector] = IntStringCodec.encode(value)
+
+    override def sizeBound: SizeBound = UIntCodec.codec.sizeBound + SizeBound.atMost(maxBitSize)
+  }
+
+  trait Codecs {
+    val intString: Codec[IntString] = codec
   }
 
   trait Implicits {
-    implicit val intStringDecoder: Decoder[IntString] = decode
-
-    implicit val intStringEncoder: Encoder[IntString] = new Encoder[IntString] {
-      override def encode(value: IntString): Attempt[BitVector] = IntStringCodec.encode(value)
-
-      override def sizeBound: SizeBound = SizeBound.atMost(maxBitSize)
-    }
+    implicit val intStringImplicitCodec: Codec[IntString] = codec
   }
 }

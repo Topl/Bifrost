@@ -35,33 +35,35 @@ object ULongCodec {
   }
 
   def encode(value: ULong): Attempt[BitVector] = {
-    var bytePosition = 0
     var output = BitVector.empty
     var runningValue = value
 
     while (true)
       if ((runningValue & ~0x7fL) == 0) {
-        output = output.splice(bytePosition * byteSize, BitVector(runningValue.asInstanceOf[Byte]))
-        bytePosition += 1
+        output = output ++ BitVector(runningValue.asInstanceOf[Byte])
         return Attempt.successful(output)
       } else {
-        output =
-          output.splice(bytePosition * byteSize, BitVector(((runningValue.asInstanceOf[Int] & 0x7f) | 0x80).toByte))
+        output = output ++ BitVector(((runningValue.asInstanceOf[Int] & 0x7f) | 0x80).toByte)
         runningValue >>>= 7
       }
+
     Attempt.successful(output)
   }
 
+  val codec: Codec[ULong] = new Codec[ULong] {
+    override def decode(bits: BitVector): Attempt[DecodeResult[ULong]] = ULongCodec.decode(bits)
+
+    override def encode(value: ULong): Attempt[BitVector] = ULongCodec.encode(value)
+
+    override def sizeBound: SizeBound = SizeBound.bounded(8, 64)
+  }
+
+  trait Codecs {
+    val uLong: Codec[ULong] = codec
+  }
+
   trait Implicits {
-    implicit val uLongDecoder: Decoder[ULong] = decode
-
-    implicit val uLongEncoder: Encoder[ULong] = new Encoder[ULong] {
-      override def encode(value: ULong): Attempt[BitVector] = ULongCodec.encode(value)
-
-      override def sizeBound: SizeBound = SizeBound.bounded(8, 64)
-    }
-
-    implicit val uLongCodec = Codec(uLongEncoder, uLongDecoder)
+    val uLongImplicitCodec: Codec[ULong] = codec
   }
 
 }

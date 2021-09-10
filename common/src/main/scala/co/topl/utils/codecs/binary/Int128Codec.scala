@@ -18,15 +18,19 @@ object Int128Codec {
 
   def encode(value: Int128): Attempt[BitVector] = Attempt.successful(BitVector(value.toByteArray))
 
+  val codec: Codec[Int128] = new Codec[Int128] {
+    override def decode(bits: BitVector): Attempt[DecodeResult[Int128]] = Int128Codec.decode(bits)
+
+    override def encode(value: Int128): Attempt[BitVector] = Int128Codec.encode(value)
+
+    override def sizeBound: SizeBound = SizeBound.exact(int128BitSize)
+  }
+
+  trait Codecs {
+    val int128: Codec[Int128] = codec
+  }
+
   trait Implicits {
-    implicit val int128Decoder: Decoder[Int128] = decode
-
-    implicit val int128Encoder: Encoder[Int128] = new Encoder[Int128] {
-      override def encode(value: Int128): Attempt[BitVector] = Int128Codec.encode(value)
-
-      override def sizeBound: SizeBound = SizeBound.exact(int128BitSize)
-    }
-
-    implicit val in128Codec: Codec[Int128] = Codec(int128Encoder, int128Decoder)
+    implicit val int128ImplicitCodec: Codec[Int128] = codec
   }
 }

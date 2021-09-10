@@ -1,8 +1,9 @@
 package co.topl.utils.codecs.binary
 
+import akka.util.ByteString
 import co.topl.utils.CommonGenerators
 import co.topl.utils.IdiomaticScalaTransition.implicits._
-import co.topl.utils.serialization.VLQByteStringWriter
+import co.topl.utils.serialization.{VLQByteStringReader, VLQByteStringWriter}
 import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -41,6 +42,20 @@ class LongCodecSpec
       val decoderResult = LongCodec.decode(BitVector(bytes)).getOrThrow()
 
       decoderResult.remainder.toByteArray shouldBe leftover
+    }
+  }
+
+  "LongCodec Encoder" should "produce an encoded value that is decodable by VLQByteStringReader" in {
+    forAll(positiveLongGen) { longValue =>
+      val encodedBits = LongCodec.encode(longValue).getOrThrow()
+
+      val encodedByteString = ByteString(encodedBits.toByteArray)
+
+      val vlqReader = new VLQByteStringReader(encodedByteString)
+
+      val result = vlqReader.getLong()
+
+      result shouldBe longValue
     }
   }
 }

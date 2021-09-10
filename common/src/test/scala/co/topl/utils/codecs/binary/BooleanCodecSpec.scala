@@ -1,8 +1,9 @@
 package co.topl.utils.codecs.binary
 
+import akka.util.ByteString
 import co.topl.utils.CommonGenerators
 import co.topl.utils.IdiomaticScalaTransition.implicits._
-import co.topl.utils.serialization.VLQByteStringWriter
+import co.topl.utils.serialization.{VLQByteStringReader, VLQByteStringWriter}
 import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -41,6 +42,20 @@ class BooleanCodecSpec
       val decoderResult = BooleanCodec.decode(BitVector(bytes)).getOrThrow()
 
       decoderResult.remainder.toByteArray shouldBe leftover
+    }
+  }
+
+  "BooleanCodec Encoder" should "produce an encoded value that is decodable by VLQByteStringReader" in {
+    forAll(Gen.oneOf(true, false)) { booleanValue =>
+      val encodedBits = BooleanCodec.encode(booleanValue).getOrThrow()
+
+      val encodedByteString = ByteString(encodedBits.toByteArray)
+
+      val vlqReader = new VLQByteStringReader(encodedByteString)
+
+      val result = vlqReader.getBoolean()
+
+      result shouldBe booleanValue
     }
   }
 }

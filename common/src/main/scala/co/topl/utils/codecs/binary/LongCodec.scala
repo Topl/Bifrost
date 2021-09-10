@@ -1,7 +1,7 @@
 package co.topl.utils.codecs.binary
 
-import co.topl.utils.serialization.ZigZagEncoder.decodeZigZagLong
-import scodec.{Attempt, DecodeResult, Decoder, Encoder, SizeBound}
+import co.topl.utils.serialization.ZigZagEncoder.{decodeZigZagLong, encodeZigZagLong}
+import scodec.{Attempt, Codec, DecodeResult, Decoder, Encoder, SizeBound}
 import scodec.bits.BitVector
 
 object LongCodec {
@@ -10,15 +10,21 @@ object LongCodec {
     ULongCodec.decode(from).map(result => result.map(decodeZigZagLong))
 
   def encode(value: Long): Attempt[BitVector] =
-    ULongCodec.encode(value)
+    ULongCodec.encode(encodeZigZagLong(value))
+
+  val codec: Codec[Long] = new Codec[Long] {
+    override def decode(bits: BitVector): Attempt[DecodeResult[Long]] = LongCodec.decode(bits)
+
+    override def encode(value: Long): Attempt[BitVector] = LongCodec.encode(value)
+
+    override def sizeBound: SizeBound = SizeBound.atMost(64)
+  }
+
+  trait Codecs {
+    val long: Codec[Long] = codec
+  }
 
   trait Implicits {
-    implicit val longDecoder: Decoder[Long] = decode
-
-    implicit val longEncoder: Encoder[Long] = new Encoder[Long] {
-      override def encode(value: ULong): Attempt[BitVector] = LongCodec.encode(value)
-
-      override def sizeBound: SizeBound = SizeBound.atMost(64)
-    }
+    implicit val longImplicitCodec: Codec[Long] = codec
   }
 }

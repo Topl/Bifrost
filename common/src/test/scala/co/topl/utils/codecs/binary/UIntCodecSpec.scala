@@ -1,8 +1,9 @@
 package co.topl.utils.codecs.binary
 
+import akka.util.ByteString
 import co.topl.utils.CommonGenerators
 import co.topl.utils.IdiomaticScalaTransition.implicits._
-import co.topl.utils.serialization.VLQByteStringWriter
+import co.topl.utils.serialization.{VLQByteStringReader, VLQByteStringWriter}
 import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -41,6 +42,19 @@ class UIntCodecSpec
       val decoderResult = UIntCodec.decode(BitVector(bytes)).getOrThrow()
 
       decoderResult.remainder.toByteArray shouldBe leftover
+    }
+  }
+
+  "UIntCodec Encoder" should "produce an encoded value that is decodable by VLQByteStringReader" in {
+    forAll(Gen.choose(0, Int.MaxValue)) { intValue =>
+      val bits = UIntCodec.encode(intValue).getOrThrow()
+
+      val byteString = ByteString(bits.toByteArray)
+      val vlqReader = new VLQByteStringReader(byteString)
+
+      val parsedResult = vlqReader.getUInt()
+
+      parsedResult shouldBe intValue
     }
   }
 }
