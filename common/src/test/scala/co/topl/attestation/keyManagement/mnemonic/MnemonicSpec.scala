@@ -1,6 +1,6 @@
 package co.topl.attestation.keyManagement.mnemonic
 
-import co.topl.attestation.keyManagement.derivedKeys.ExtendedPrivateKeyEd25519
+import co.topl.attestation.keyManagement.derivedKeys.{DerivedKeyIndex, ExtendedPrivateKeyEd25519, HardenedIndex}
 import co.topl.attestation.keyManagement.derivedKeys.ExtendedPrivateKeyEd25519.Password
 import co.topl.attestation.keyManagement.derivedKeys.implicits._
 import co.topl.attestation.keyManagement.mnemonic.Language._
@@ -14,6 +14,8 @@ import co.topl.utils.encode.Base58
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import co.topl.utils.StringDataTypes.implicits._
+import scodec.bits.ByteVector
 
 class MnemonicSpec
     extends AnyPropSpec
@@ -233,4 +235,127 @@ class MnemonicSpec
     }
 
   testVectors.foreach(testVectorTest)
+
+  // test cloned from
+  // https://topl.atlassian.net/wiki/spaces/CORE/pages/304023492/HD+Wallet+Protocols+and+Test+Vectors#HD-Wallet-End-to-End-Testing-(Including-Topl-Path-Adoption)
+  property("end-to-end wallet test") {
+    val mnemonic =
+      "rude stadium move tumble spice vocal undo butter cargo win valid session question walk indoor nothing wagon " +
+      "column artefact monster fold gallery receive just"
+
+    val expectedEntropy = Base16Data.unsafe("bcfa7e43752d19eabb38fa22bf6bc3622af9ed1cc4b6f645b833c7a5a8be2ce3")
+
+    val expectedRootSecretKey = Array(96, 249, 52, 37, 2, 242, 129, 98, 144, 42, 35, 10, 200, 70, 234, 226, 191, 128,
+      189, 162, 101, 199, 33, 204, 244, 162, 251, 123, 224, 5, 169, 82, 186, 45, 243, 37, 227, 205, 182, 7, 208, 57,
+      128, 99, 76, 154, 225, 153, 74, 251, 187, 85, 255, 203, 211, 15, 37, 159, 28, 208, 47, 147, 223, 181, 210, 29, 46,
+      86, 214, 104, 176, 227, 183, 2, 178, 90, 191, 101, 200, 238, 47, 13, 252, 193, 55, 195, 171, 182, 252, 40, 230, 7,
+      224, 166, 150, 38).map(_ - 128).map(_.toByte).encodeAsBase16
+
+    val expectedRootPublicKey = Array(253, 64, 158, 130, 189, 225, 97, 110, 184, 208, 233, 128, 2, 39, 175, 217, 100,
+      136, 124, 89, 136, 15, 61, 206, 117, 233, 129, 25, 77, 162, 54, 127, 210, 29, 46, 86, 214, 104, 176, 227, 183, 2,
+      178, 90, 191, 101, 200, 238, 47, 13, 252, 193, 55, 195, 171, 182, 252, 40, 230, 7, 224, 166, 150, 38)
+      .map(_ - 128)
+      .map(_.toByte)
+      .encodeAsBase16
+
+    val `expected m/1852' secret` = Array(152, 193, 146, 176, 14, 80, 232, 241, 116, 247, 86, 132, 223, 27, 66, 200,
+      150, 212, 89, 116, 18, 243, 128, 224, 96, 49, 229, 51, 229, 5, 169, 82, 106, 43, 229, 118, 94, 193, 114, 12, 86,
+      189, 167, 107, 189, 168, 237, 126, 169, 20, 136, 97, 76, 57, 51, 66, 178, 121, 128, 194, 75, 168, 42, 214, 98,
+      237, 219, 103, 97, 162, 146, 58, 67, 30, 220, 241, 45, 149, 80, 27, 29, 197, 206, 1, 42, 112, 205, 187, 169, 247,
+      184, 155, 199, 107, 66, 45).map(_ - 128).map(_.toByte).encodeAsBase16
+
+    val `expected m/1852'/7091' secret` = Array(40, 90, 59, 48, 248, 49, 113, 29, 19, 184, 66, 109, 175, 169, 70, 220,
+      45, 64, 138, 174, 128, 229, 15, 51, 229, 239, 238, 55, 235, 5, 169, 82, 228, 168, 119, 19, 201, 154, 10, 225, 200,
+      54, 244, 178, 24, 230, 20, 67, 166, 214, 37, 84, 138, 53, 255, 152, 80, 1, 160, 176, 98, 18, 142, 192, 122, 108,
+      49, 21, 118, 56, 155, 14, 163, 226, 5, 37, 57, 242, 128, 132, 89, 211, 248, 233, 111, 28, 165, 79, 18, 253, 12,
+      241, 164, 222, 15, 234).map(_ - 128).map(_.toByte).encodeAsBase16
+
+    val `expected m/1852'/7091'/0' secret` = Array(176, 59, 153, 97, 81, 27, 213, 102, 130, 90, 7, 172, 220, 215, 59,
+      140, 197, 161, 150, 216, 53, 93, 95, 80, 147, 225, 67, 135, 237, 5, 169, 82, 215, 133, 92, 157, 179, 210, 75, 155,
+      79, 22, 46, 166, 63, 198, 171, 234, 229, 112, 8, 21, 139, 162, 126, 189, 149, 23, 87, 77, 125, 88, 45, 230, 47,
+      185, 9, 7, 186, 1, 143, 212, 192, 81, 74, 152, 63, 237, 92, 120, 89, 96, 94, 26, 15, 204, 242, 14, 109, 236, 185,
+      129, 214, 240, 4, 71).map(_ - 128).map(_.toByte).encodeAsBase16
+
+    val `expected m/1852'/7091'/0'/0 secret` = Array(112, 68, 174, 39, 151, 26, 100, 186, 188, 113, 177, 244, 77, 197,
+      201, 100, 104, 35, 67, 78, 203, 229, 184, 82, 15, 59, 131, 63, 245, 5, 169, 82, 171, 97, 70, 255, 76, 38, 242,
+      159, 109, 129, 5, 53, 37, 92, 57, 143, 163, 157, 198, 183, 210, 217, 250, 11, 105, 114, 146, 43, 164, 153, 205,
+      221, 185, 33, 31, 242, 112, 76, 96, 202, 208, 43, 39, 246, 139, 211, 223, 194, 237, 91, 23, 14, 108, 196, 158,
+      221, 177, 106, 68, 20, 30, 135, 198, 150).map(_ - 128).map(_.toByte).encodeAsBase16
+
+    val `expected m/1852'/7091'/0'/0/0 secret` = Array(0, 132, 28, 86, 117, 12, 232, 42, 163, 16, 242, 103, 47, 78, 138,
+      169, 113, 34, 49, 107, 185, 180, 13, 151, 117, 168, 141, 84, 250, 5, 169, 82, 115, 227, 62, 246, 128, 140, 73,
+      212, 183, 103, 104, 125, 7, 142, 119, 177, 77, 227, 198, 198, 46, 74, 34, 98, 130, 129, 24, 18, 143, 114, 128,
+      152, 19, 36, 64, 40, 223, 42, 120, 38, 23, 203, 38, 210, 248, 44, 87, 219, 223, 73, 72, 251, 140, 90, 255, 147,
+      70, 160, 168, 255, 10, 0, 149, 165).map(_ - 128).map(_.toByte).encodeAsBase16
+
+    val `expected m/1852'/7091'/0'/0/0 verify` = Array(226, 35, 14, 109, 119, 178, 28, 0, 125, 142, 242, 28, 228, 8, 46,
+      88, 201, 48, 146, 95, 139, 126, 130, 228, 108, 222, 47, 149, 215, 168, 44, 84, 19, 36, 64, 40, 223, 42, 120, 38,
+      23, 203, 38, 210, 248, 44, 87, 219, 223, 73, 72, 251, 140, 90, 255, 147, 70, 160, 168, 255, 10, 0, 149, 165)
+      .map(_ - 128)
+      .map(_.toByte)
+      .encodeAsBase16
+
+    val languageWordList = LanguageWordList.validated(English).getOrThrow()
+
+    val mnemonicPhrase = Phrase.validated(mnemonic, Mnemonic24, languageWordList).getOrThrow()
+
+    val entropy = Entropy.fromPhrase(mnemonicPhrase, languageWordList, Mnemonic24)
+
+    val rootTest = ExtendedPrivateKeyEd25519(Entropy.validated(expectedEntropy.value, Mnemonic24).getOrThrow(), "")
+
+    import cats.implicits._
+
+    println((rootTest.leftKey.toArray ++ rootTest.rightKey.toArray ++ rootTest.chainCode.toArray).encodeAsBase16.show)
+
+//    entropy.value.encodeAsBase16 shouldBe expectedEntropy
+
+    val rootKey = ExtendedPrivateKeyEd25519(entropy, "")
+
+    (rootKey.leftKey.toArray ++
+    rootKey.rightKey.toArray ++
+    rootKey.chainCode.toArray).encodeAsBase16 shouldBe expectedRootSecretKey
+
+    val rootPublicKey = rootKey.public
+
+    (rootPublicKey.bytes.toArray ++
+    rootPublicKey.chainCode.toArray).encodeAsBase16 shouldBe expectedRootPublicKey
+
+    val `m/1852' secret` = rootKey.derive(DerivedKeyIndex.hardened(1852)).getOrThrow()
+
+    (`m/1852' secret`.leftKey.toArray ++
+    `m/1852' secret`.rightKey.toArray ++
+    `m/1852' secret`.chainCode.toArray).encodeAsBase16 shouldBe `expected m/1852' secret`
+
+    val `m/1852'/7091' secret` = `m/1852' secret`.derive(DerivedKeyIndex.hardened(7091)).getOrThrow()
+
+    (`m/1852'/7091' secret`.leftKey.toArray ++
+    `m/1852'/7091' secret`.rightKey.toArray ++
+    `m/1852'/7091' secret`.chainCode.toArray).encodeAsBase16 shouldBe `expected m/1852'/7091' secret`
+
+    val `m/1852'/7091'/0' secret` =
+      `m/1852'/7091' secret`.derive(DerivedKeyIndex.hardened(0)).getOrThrow()
+
+    (`m/1852'/7091'/0' secret`.leftKey.toArray ++
+    `m/1852'/7091'/0' secret`.rightKey.toArray ++
+    `m/1852'/7091'/0' secret`.chainCode.toArray).encodeAsBase16 shouldBe `expected m/1852'/7091'/0' secret`
+
+    val `m/1852'/7091'/0'/0 secret` =
+      `m/1852'/7091'/0' secret`.derive(DerivedKeyIndex.soft(0)).getOrThrow()
+
+    (`m/1852'/7091'/0'/0 secret`.leftKey.toArray ++
+    `m/1852'/7091'/0'/0 secret`.rightKey.toArray ++
+    `m/1852'/7091'/0'/0 secret`.chainCode.toArray).encodeAsBase16 shouldBe `expected m/1852'/7091'/0'/0 secret`
+
+    val `m/1852'/7091'/0'/0/0 secret` =
+      `m/1852'/7091'/0'/0 secret`.derive(DerivedKeyIndex.soft(0)).getOrThrow()
+
+    (`m/1852'/7091'/0'/0/0 secret`.leftKey.toArray ++
+    `m/1852'/7091'/0'/0/0 secret`.rightKey.toArray ++
+    `m/1852'/7091'/0'/0/0 secret`.chainCode.toArray).encodeAsBase16 shouldBe `expected m/1852'/7091'/0'/0/0 secret`
+
+    val `m/1852'/7091'/0'/0/0 verify` = `m/1852'/7091'/0'/0/0 secret`.public
+
+    (`m/1852'/7091'/0'/0/0 verify`.bytes.toArray ++
+    `m/1852'/7091'/0'/0/0 verify`.chainCode.toArray).encodeAsBase16 shouldBe `expected m/1852'/7091'/0'/0/0 verify`
+  }
 }
