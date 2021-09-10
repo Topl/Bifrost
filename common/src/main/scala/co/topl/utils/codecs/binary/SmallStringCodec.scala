@@ -13,12 +13,12 @@ object SmallStringCodec {
       for {
         // split input by size bits and remaining
         sizeSplitTuple <-
-          Either.cond(from.length < byteSize, from.splitAt(byteSize), Err.insufficientBits(byteSize, from.length))
-        stringSizeBits = sizeSplitTuple._1.toInt(signed = false)
+          Either.cond(from.length >= byteSize, from.splitAt(byteSize), Err.insufficientBits(byteSize, from.length))
+        stringSizeBits = sizeSplitTuple._1.toInt(signed = false) * byteSize
         // split remaining from size split by string and remaining
         stringSplitTuple <-
           Either.cond(
-            sizeSplitTuple._2.length < stringSizeBits,
+            sizeSplitTuple._2.length >= stringSizeBits,
             sizeSplitTuple._2.splitAt(stringSizeBits),
             Err.insufficientBits(stringSizeBits, sizeSplitTuple._2.length)
           )

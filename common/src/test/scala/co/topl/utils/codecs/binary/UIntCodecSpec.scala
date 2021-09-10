@@ -31,7 +31,7 @@ class UIntCodecSpec
     }
   }
 
-  it should "return additional leftover bytes after parsing UInt" in {
+  it should "return additional leftover bytes after parsing" in {
     forAll(Gen.choose(0, Int.MaxValue), nonEmptyBytesGen) { (intValue, leftover) =>
       val vlqWriter = new VLQByteStringWriter
 
@@ -55,6 +55,16 @@ class UIntCodecSpec
       val parsedResult = vlqReader.getUInt()
 
       parsedResult shouldBe intValue
+    }
+  }
+
+  "UIntCodec" should "be able to successfully decode an encoded value" in {
+    forAll(Gen.choose(0, Int.MaxValue)) { value =>
+      val encodedBits = UIntCodec.encode(value).getOrThrow()
+
+      val decodedValue = UIntCodec.decode(encodedBits).getOrThrow()
+
+      decodedValue.value shouldBe value
     }
   }
 }

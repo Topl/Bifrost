@@ -31,7 +31,7 @@ class SmallStringCodecSpec
     }
   }
 
-  it should "return additional leftover bytes after parsing ByteString" in {
+  it should "return additional leftover bytes after parsing" in {
     forAll(Gen.asciiStr, nonEmptyBytesGen) { (stringValue, leftover) =>
       val vlqWriter = new VLQByteStringWriter
 
@@ -45,7 +45,7 @@ class SmallStringCodecSpec
     }
   }
 
-  "SmallString Encoder" should "produce an encoded value that is decodable by VLQByteStringReader" in {
+  "SmallStringCodec Encoder" should "produce an encoded value that is decodable by VLQByteStringReader" in {
     forAll(Gen.asciiStr) { stringValue =>
       val encodedBits = SmallStringCodec.encode(stringValue).getOrThrow()
 
@@ -56,6 +56,16 @@ class SmallStringCodecSpec
       val result = vlqReader.getByteString()
 
       result shouldBe stringValue
+    }
+  }
+
+  "SmallStringCodec" should "be able to successfully decode an encoded value" in {
+    forAll(Gen.asciiStr) { value =>
+      val encodedBits = SmallStringCodec.encode(value).getOrThrow()
+
+      val decodedValue = SmallStringCodec.decode(encodedBits).getOrThrow()
+
+      decodedValue.value shouldBe value
     }
   }
 }

@@ -31,7 +31,7 @@ class LongCodecSpec
     }
   }
 
-  it should "return additional leftover bytes after parsing Long" in {
+  it should "return additional leftover bytes after parsing" in {
     forAll(Gen.choose(Long.MinValue, Long.MaxValue), nonEmptyBytesGen) { (longValue, leftover) =>
       val vlqWriter = new VLQByteStringWriter
 
@@ -56,6 +56,16 @@ class LongCodecSpec
       val result = vlqReader.getLong()
 
       result shouldBe longValue
+    }
+  }
+
+  "LongCodec" should "be able to successfully decode an encoded value" in {
+    forAll(positiveLongGen) { value =>
+      val encodedBits = LongCodec.encode(value).getOrThrow()
+
+      val decodedValue = LongCodec.decode(encodedBits).getOrThrow()
+
+      decodedValue.value shouldBe value
     }
   }
 }

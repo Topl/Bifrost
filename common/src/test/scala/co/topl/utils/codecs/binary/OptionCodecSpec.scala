@@ -35,7 +35,7 @@ class OptionCodecSpec
     }
   }
 
-  it should "return additional leftover bytes after parsing Option" in {
+  it should "return additional leftover bytes after parsing" in {
     forAll(Gen.option(positiveLongGen), nonEmptyBytesGen) { (longOptionValue, leftover) =>
       val vlqWriter = new VLQByteStringWriter
 
@@ -61,6 +61,16 @@ class OptionCodecSpec
       val parsedResult = vlqReader.getOption[Long](vlqReader.getLong())
 
       parsedResult shouldBe longOptionValue
+    }
+  }
+
+  "OptionCodec" should "be able to successfully decode an encoded value" in {
+    forAll(Gen.option(positiveLongGen)) { value =>
+      val encodedBits = OptionCodec.encode(value).getOrThrow()
+
+      val decodedValue = OptionCodec.decode(encodedBits).getOrThrow()
+
+      decodedValue.value shouldBe value
     }
   }
 }

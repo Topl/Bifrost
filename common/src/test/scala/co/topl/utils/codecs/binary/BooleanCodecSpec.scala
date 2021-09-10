@@ -31,7 +31,7 @@ class BooleanCodecSpec
     }
   }
 
-  it should "return additional leftover bytes after parsing Boolean" in {
+  it should "return additional leftover bytes after parsing" in {
     forAll(Gen.oneOf(true, false), nonEmptyBytesGen) { (booleanValue, leftover) =>
       val vlqWriter = new VLQByteStringWriter
 
@@ -56,6 +56,16 @@ class BooleanCodecSpec
       val result = vlqReader.getBoolean()
 
       result shouldBe booleanValue
+    }
+  }
+
+  "BooleanCodec" should "be able to successfully decode an encoded value" in {
+    forAll(Gen.oneOf(true, false)) { value =>
+      val encodedBits = BooleanCodec.encode(value).getOrThrow()
+
+      val decodedValue = BooleanCodec.decode(encodedBits).getOrThrow()
+
+      decodedValue.value shouldBe value
     }
   }
 }

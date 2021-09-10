@@ -31,7 +31,7 @@ class IntStringCodecSpec
     }
   }
 
-  it should "return additional leftover bytes after parsing IntString" in {
+  it should "return additional leftover bytes after parsing" in {
     forAll(Gen.asciiStr, nonEmptyBytesGen) { (stringValue, leftover) =>
       val vlqWriter = new VLQByteStringWriter
 
@@ -56,6 +56,16 @@ class IntStringCodecSpec
       val result = vlqReader.getIntString()
 
       result shouldBe intStringValue
+    }
+  }
+
+  "IntCodec" should "be able to successfully decode an encoded value" in {
+    forAll(Gen.asciiStr) { value =>
+      val encodedBits = IntStringCodec.encode(value).getOrThrow()
+
+      val decodedValue = IntStringCodec.decode(encodedBits).getOrThrow()
+
+      decodedValue.value shouldBe value
     }
   }
 }

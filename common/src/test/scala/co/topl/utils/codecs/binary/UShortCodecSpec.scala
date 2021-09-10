@@ -32,7 +32,7 @@ class UShortCodecSpec
     }
   }
 
-  it should "return additional leftover bytes after parsing UShort" in {
+  it should "return additional leftover bytes after parsing" in {
     forAll(Gen.choose(0.toShort, Short.MaxValue), nonEmptyBytesGen) { (shortValue, leftover) =>
       val vlqWriter = new VLQByteStringWriter
 
@@ -56,6 +56,16 @@ class UShortCodecSpec
       val parsedResult = vlqReader.getUShort()
 
       parsedResult shouldBe shortValue
+    }
+  }
+
+  "UShortCodec" should "be able to successfully decode an encoded value" in {
+    forAll(Gen.choose(0.toShort, Short.MaxValue)) { value =>
+      val encodedBits = UShortCodec.encode(value).getOrThrow()
+
+      val decodedValue = UShortCodec.decode(encodedBits).getOrThrow()
+
+      decodedValue.value shouldBe value
     }
   }
 }
