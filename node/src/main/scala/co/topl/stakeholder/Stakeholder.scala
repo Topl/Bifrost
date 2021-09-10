@@ -79,7 +79,7 @@ class Stakeholder(
   val history: StateStorage = new StateStorage(storageDir, serializer)
   val holderId: ActorPath = self.path
   val sessionId: Sid = ByteArrayWrapper(fch.hash(holderId.toString))
-  val phase: Double = rng.nextDouble
+  val phase: Double = rng.nextDouble()
   val selfWrapper: ActorRefWrapper = ActorRefWrapper(self)
 
   //stakeholder password, set at runtime, for research runs with deterministic entropy

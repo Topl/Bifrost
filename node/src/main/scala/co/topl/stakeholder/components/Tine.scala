@@ -163,6 +163,7 @@ case class Tine(
             loadingCache.put(cacheKey, append(cache, newEntry))
             maxSlot = Some(slotId._1)
             wasUpdated = true
+          case _ => assert(false)
         }
         minSlot match {
           case Some(slot) if slotId._1 < slot =>
@@ -180,6 +181,7 @@ case class Tine(
             assert(cache.isEmpty)
             assert(wasUpdated)
             minSlot = Some(slotId._1)
+          case _ => assert(false)
         }
         best.get(cacheKey) match {
           case Some(bestId) if slotId._1 >= bestId._1 =>
@@ -189,6 +191,7 @@ case class Tine(
           case None =>
             assert(cache.isEmpty)
             best += (cacheKey -> slotId)
+          case _ => assert(false)
         }
         assert(wasUpdated)
     }

@@ -59,10 +59,10 @@ class TineProvider(blockStorage: BlockStorage, localRef: ActorRefWrapper, settin
                     ref,
                     ReturnBlocks(List(block), -1, holderRef)
                   )
-                case None => break
+                case None => break()
               }
             } else {
-              break
+              break()
             }
             Thread.sleep(requestTineInterval)
           }
@@ -90,7 +90,7 @@ class TineProvider(blockStorage: BlockStorage, localRef: ActorRefWrapper, settin
                   ReturnBlocks(List(block), job, holderRef)
                 )
                 id = block.parentSlotId
-              case None => break
+              case None => break()
             }
             Thread.sleep(requestTineInterval)
           }

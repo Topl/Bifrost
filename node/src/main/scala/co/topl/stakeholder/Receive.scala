@@ -461,7 +461,7 @@ trait Receive extends Members {
     /** starts the timer that repeats the update command */
     case Run =>
       timers.startSingleTimer(Update, Update, updateTime)
-      timers.startSingleTimer(Refresh, Refresh, slotT * (refreshInterval * rng.nextDouble).toInt.millis)
+      timers.startSingleTimer(Refresh, Refresh, slotT * (refreshInterval * rng.nextDouble()).toInt.millis)
       scheduleDiffuse()
       self ! BootstrapJob
 

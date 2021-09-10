@@ -40,7 +40,7 @@ trait ChainSelection extends Members {
             if (localChain.get(parentId._1).contains(parentId)) {
               prefix = Some(parentId._1)
               assert(localChain.get(prefix.get).get == parentId)
-              break
+              break()
             } else {
               if (blocks.knownInCache(parentId)) {
                 getBlockHeader(parentId) match {

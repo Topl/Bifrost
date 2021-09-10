@@ -47,7 +47,7 @@ object TetraParameters {
           case _    =>
         }
       case Some(name) if name == "bootstrap" =>
-      case None =>
+      case None | _ =>
         val str = "input{scorex{network{agentName=\"" + s"tetra_${tetraNodeUID.take(8)}" + "\"}}}"
         Try {
           localConfig = ConfigFactory.parseString(str).getConfig("input").withFallback(localConfig)

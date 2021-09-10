@@ -148,6 +148,7 @@ case class Tine(
             loadingCache.put(cacheKey, append(cache, newEntry))
             maxSlot = Some(slotId._1)
             wasUpdated = true
+          case _ => assert(false)
         }
         minSlot match {
           case Some(slot) if slotId._1 < slot =>
@@ -165,6 +166,7 @@ case class Tine(
             assert(cache.isEmpty)
             assert(wasUpdated)
             minSlot = Some(slotId._1)
+          case _ => assert(false)
         }
         best.get(cacheKey) match {
           case Some(bestId) if slotId._1 >= bestId._1 =>
@@ -174,6 +176,7 @@ case class Tine(
           case None =>
             assert(cache.isEmpty)
             best += (cacheKey -> slotId)
+          case _ => assert(false)
         }
         assert(wasUpdated)
     }
@@ -282,7 +285,7 @@ case class Tine(
               for (index <- min / databaseInterval to (t.minSlot.get - 1) / databaseInterval) {
                 val cacheKey = BigInt(index)
                 val newCache = cache.get(cacheKey).filter(data => data._1 < t.minSlot.get && data._1 >= min)
-                out = Bytes.concat(out, Bytes.concat(newCache.map(entry => entry._3.data): _*))
+                out = Bytes.concat(out, Bytes.concat(newCache.map(entry => entry._3.data).toIndexedSeq: _*))
               }
               Bytes.concat(out, t.orderedNonceData(t.minSlot.get, max, tine))
           }
@@ -290,13 +293,13 @@ case class Tine(
           tineDB match {
             case Left(cache) =>
               val newCache = cache.filter(data => data._1 <= max && data._1 >= min)
-              Bytes.concat(newCache.map(entry => entry._3.data): _*)
+              Bytes.concat(newCache.map(entry => entry._3.data).toIndexedSeq: _*)
             case Right(cache) =>
               var out: Bytes = Bytes.empty
               for (index <- min / databaseInterval to max / databaseInterval) {
                 val cacheKey = BigInt(index)
                 val newCache = cache.get(cacheKey).filter(data => data._1 <= max && data._1 >= min)
-                out = Bytes.concat(out, Bytes.concat(newCache.map(entry => entry._3.data): _*))
+                out = Bytes.concat(out, Bytes.concat(newCache.map(entry => entry._3.data).toIndexedSeq: _*))
               }
               out
           }

@@ -2,6 +2,7 @@ package co.topl.stakeholder.primitives
 
 import scala.math.BigInt
 import java.math.BigInteger
+import scala.annotation.tailrec
 import scala.language.implicitConversions
 
 /**
@@ -25,6 +26,7 @@ case class Ratio(n: BigInt, d: BigInt) {
   val denom: BigInt = d / g
   require(denom != 0)
 
+  @tailrec
   private def gcd(a: BigInt, b: BigInt): BigInt =
     if (b == 0) a else gcd(b, a % b)
 
@@ -110,16 +112,16 @@ case class Ratio(n: BigInt, d: BigInt) {
 
   // ---
 
-  override def toString = numer + (if (denom != 1) ("/" + denom) else "")
+  override def toString: String = numer.toString() + (if (denom != 1) "/" + denom.toString() else "")
 
-  def toDouble = this.toBigDecimal.toDouble
+  def toDouble: Double = this.toBigDecimal.toDouble
 
-  override def equals(that: Any) = that match {
+  override def equals(that: Any): Boolean = that match {
     case that: Ratio => numer == that.numer && denom == that.denom
     case _           => false
   }
 
-  override val hashCode = 41 * numer.hashCode() + denom.hashCode()
+  override val hashCode: Int = 41 * numer.hashCode() + denom.hashCode()
 }
 
 object Ratio {
@@ -150,8 +152,8 @@ object Ratio {
     override def parseString(str: String): Option[Ratio] = None
   }
 
-  implicit def intToRatio(i:    Int) = apply(i)
-  implicit def doubleToRatio(d: Double, p: Int) = apply(d, p)
+  implicit def intToRatio(i:    Int): Ratio = apply(i)
+  implicit def doubleToRatio(d: Double, p: Int): Ratio = apply(d, p)
 }
 
 trait RatioIsFractional extends Fractional[Ratio] {
@@ -168,5 +170,5 @@ trait RatioIsFractional extends Fractional[Ratio] {
 }
 
 trait RatioOrdering extends Ordering[Ratio] {
-  def compare(a: Ratio, b: Ratio) = a.bigdecValue compare b.bigdecValue
+  def compare(a: Ratio, b: Ratio): Int = a.bigdecValue compare b.bigdecValue
 }

@@ -24,7 +24,7 @@ case class ByteArrayWrapper(data: Array[Byte])
   /** alternative constructor which takes array size and creates new empty array */
   def this(size: Int) = this(new Array[Byte](size))
 
-  def size = data.length
+  def size: Int = data.length
 
   require(data != null)
 
@@ -34,18 +34,11 @@ case class ByteArrayWrapper(data: Array[Byte])
     o.isInstanceOf[ByteArrayWrapper] &&
     util.Arrays.equals(data, o.asInstanceOf[ByteArrayWrapper].data)
 
-  override def hashCode: Int = Utils.byteArrayHashCode(data)
+  override def hashCode: Int = util.Arrays.hashCode(data)
 
-  override def compareTo(o: ByteArrayWrapper): Int = Utils.BYTE_ARRAY_COMPARATOR.compare(this.data, o.data)
+  override def compareTo(o: ByteArrayWrapper): Int = util.Arrays.compare(this.data, o.data)
 
   override def compare(that: ByteArrayWrapper): Int = compareTo(that)
 
-  override def toString: String = {
-    val v = if (size == 8) {
-      Utils.getLong(data, 0).toString + "L"
-    } else {
-      javax.xml.bind.DatatypeConverter.printHexBinary(data)
-    }
-    getClass.getSimpleName + "[" + v + "]"
-  }
+  override def toString: String = data.map("%02x" format _).mkString
 }

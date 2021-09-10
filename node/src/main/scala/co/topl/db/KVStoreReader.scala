@@ -48,7 +48,7 @@ trait KVStoreReader extends AutoCloseable {
         val value = next.getValue
         if (cond(key, value)) bf += (key -> value)
       }
-      bf.toIterator
+      bf.iterator
     } finally {
       iter.close()
       ro.snapshot().close()

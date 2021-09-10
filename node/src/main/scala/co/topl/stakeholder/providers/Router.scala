@@ -150,7 +150,7 @@ class Router(seed: Array[Byte], inputRef: Seq[ActorRefWrapper], settings: AppSet
       roundDone = false
 
     case Run =>
-      timers.startPeriodicTimer(Update, Update, 1.nano)
+      timers.startTimerAtFixedRate(Update, Update, 1.nano)
       coordinatorRef ! NextSlot
 
     case value: CoordRef =>
@@ -569,7 +569,7 @@ class Router(seed: Array[Byte], inputRef: Seq[ActorRefWrapper], settings: AppSet
         if (!holdersPosition.keySet.contains(holder)) {
           holdersPosition += (holder -> (rng.nextDouble() * 180.0 - 90.0, rng.nextDouble() * 360.0 - 180.0))
         }
-      timers.startPeriodicTimer(ActorPathSendTimerKey, ActorPathSendTimerKey, 10.seconds)
+      timers.startTimerAtFixedRate(ActorPathSendTimerKey, ActorPathSendTimerKey, 10.seconds)
       updatePeerInfo()
       localRoutees.foreach(ref => ref ! HoldersWithPosition(holders.filterNot(_.remote), holdersPosition))
       sender() ! "done"
@@ -775,7 +775,7 @@ class Router(seed: Array[Byte], inputRef: Seq[ActorRefWrapper], settings: AppSet
       localRoutees = Seq.fill(numMessageProcessors) {
         val ref = context.actorOf(
           Router.props(
-            fch.hash(seed + s"loc$i"),
+            fch.hash("%sloc%d".format(seed, i)),
             inputRef.map(_.actorRef) ++ Seq(self, coordinatorRef.actorRef),
             settings
           ),
@@ -792,7 +792,7 @@ class Router(seed: Array[Byte], inputRef: Seq[ActorRefWrapper], settings: AppSet
         egressRoutees = Seq.fill(7) {
           val ref = context.actorOf(
             Router.props(
-              fch.hash(seed + s"egr$i"),
+              fch.hash("%segr%d".format(seed, i)),
               inputRef.map(_.actorRef) ++ Seq(self, coordinatorRef.actorRef),
               settings
             ),
@@ -805,7 +805,7 @@ class Router(seed: Array[Byte], inputRef: Seq[ActorRefWrapper], settings: AppSet
         ingressRoutees = Seq.fill(7) {
           val ref = context.actorOf(
             Router.props(
-              fch.hash(seed + s"ing$i"),
+              fch.hash("%sing%d".format(seed, i)),
               inputRef.map(_.actorRef) ++ Seq(self, coordinatorRef.actorRef),
               settings
             ),

@@ -103,7 +103,7 @@ case class KeyFile(
       case Success(value: ForgingKey) => value
       case Failure(exception) =>
         exception.printStackTrace()
-        SharedData.throwError
+        SharedData.throwError()
         new ForgingKey
     }
     out.pk_kes = kes_info._1
@@ -358,9 +358,13 @@ object KeyFile {
       src.close()
       out
     }
-    parse(jsonString).right.get.as[KeyFile] match {
-      case Right(f: KeyFile) => f
-      case Left(e)           => throw new Exception(s"Could not parse KeyFile: $e")
+    parse(jsonString) match {
+      case Right(json: Json) =>
+        json.as[KeyFile] match {
+          case Right(f: KeyFile) => f
+          case Left(e)           => throw new Exception(s"Could not parse KeyFile: $e")
+        }
+      case Left(e) => throw new Exception(s"Could not parse KeyFile: $e")
     }
   }
 
