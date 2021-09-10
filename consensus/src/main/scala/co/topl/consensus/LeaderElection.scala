@@ -1,5 +1,6 @@
 package co.topl.consensus
 
+import co.topl.consensus.vrf.ProofToHash
 import co.topl.crypto.signatures.Ed25519VRF
 import co.topl.models.utility.HasLength.implicits._
 import co.topl.models.utility.Lengths._
@@ -50,17 +51,17 @@ object LeaderElection {
 
     // create VRF for current state
     val vrf = VrfProof(privateKeyBytes, epochNonce, slot)
-
+    val vrfCertificate = VrfCertificate(
+      secret.publicKey,
+      Proofs.Consensus.Nonce(Sized.strict[Bytes, Lengths.`80`.type](vrf.nonceProof).toOption.get),
+      Proofs.Consensus.VrfTest(Sized.strict[Bytes, Lengths.`80`.type](vrf.testProof).toOption.get)
+    )
     val threshold = getThreshold(relativeStake, slotDiff)
 
     Either.cond(
-      isSlotLeaderForThreshold(threshold)(vrf.testProofHashed),
+      isSlotLeaderForThreshold(threshold)(ProofToHash.digest(vrfCertificate.testProof)),
       Hit(
-        VrfCertificate(
-          secret.publicKey,
-          Proofs.Consensus.Nonce(Sized.strict[Bytes, Lengths.`80`.type](vrf.nonceProof).toOption.get),
-          Proofs.Consensus.VrfTest(Sized.strict[Bytes, Lengths.`80`.type](vrf.testProof).toOption.get)
-        ),
+        vrfCertificate,
         vrf.nonceProof,
         slot,
         threshold
@@ -100,9 +101,9 @@ object LeaderElection {
    * @param proof the proof output
    * @return true if elected slot leader and false otherwise
    */
-  def isSlotLeaderForThreshold(threshold: Ratio)(proofHash: Bytes): Boolean =
-    threshold > proofHash
-      .zip(1 to proofHash.length) // zip with indexes starting from 1
+  def isSlotLeaderForThreshold(threshold: Ratio)(proofHash: Rho): Boolean =
+    threshold > proofHash.data
+      .zip(1 to proofHash.data.length) // zip with indexes starting from 1
       .foldLeft(Ratio(0)) { case (net, (byte, i)) =>
         net + Ratio(BigInt(byte & 0xff), BigInt(2).pow(8 * i))
       }
@@ -110,9 +111,6 @@ object LeaderElection {
   case class VrfProof(vrf: Ed25519VRF, proofFunc: String => Bytes) {
     lazy val testProof: Bytes = proofFunc("TEST")
     lazy val nonceProof: Bytes = proofFunc("NONCE")
-    lazy val testProofHashed: Hash = hash(testProof.toArray)
-
-    def hash(input: Array[Byte]): Hash = Bytes(vrf.vrfProofToHash(input))
   }
 
   object VrfProof {
