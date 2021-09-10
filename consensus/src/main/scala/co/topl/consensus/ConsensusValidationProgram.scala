@@ -15,7 +15,7 @@ import co.topl.typeclasses.Identifiable.Instances._
 import co.topl.typeclasses.Identifiable.ops._
 import co.topl.typeclasses.crypto.ProofVerifier.Instances._
 import co.topl.typeclasses.crypto.ProofVerifier.ops._
-import co.topl.typeclasses.crypto.Signable.Instances._
+import co.topl.typeclasses.crypto.Signable.instances._
 import co.topl.typeclasses.crypto.Signable.ops._
 import io.estatico.newtype.macros.newtype
 import io.estatico.newtype.ops._
@@ -153,15 +153,15 @@ class ConsensusValidationProgram[F[_]: Monad](
   ): EitherT[F, ConsensusValidationProgram.Failure, BlockHeaderV2] =
     EitherT
       .liftF(epochNoncesInterpreter.etaOf(header))
-      .flatMap { epochNonce =>
+      .flatMap { eta =>
         val certificate = header.vrfCertificate
         EitherT.cond[F](
           certificate.testProof.satisfies(
             Propositions.Consensus.PublicKeyVrf(certificate.vkVRF),
-            epochNonce.toArray ++ BigInt(header.slot).toByteArray ++ "TEST".getBytes(StandardCharsets.UTF_8)
+            eta.data.toArray ++ BigInt(header.slot).toByteArray ++ "TEST".getBytes(StandardCharsets.UTF_8)
           ) && certificate.nonceProof.satisfies(
             Propositions.Consensus.PublicKeyVrf(certificate.vkVRF),
-            epochNonce.toArray ++ BigInt(header.slot).toByteArray ++ "NONCE".getBytes(StandardCharsets.UTF_8)
+            eta.data.toArray ++ BigInt(header.slot).toByteArray ++ "NONCE".getBytes(StandardCharsets.UTF_8)
           ),
           header,
           ConsensusValidationProgram.Failures.InvalidVrfCertificate(header.vrfCertificate)

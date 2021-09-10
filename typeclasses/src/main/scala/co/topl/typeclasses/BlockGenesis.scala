@@ -13,7 +13,7 @@ import co.topl.typeclasses.Identifiable.ops._
 object BlockGenesis {
 
   private def zeroBytes[L <: Length](implicit l: L): Sized.Strict[Bytes, L] =
-    Sized.strict[Bytes, L](Bytes(Array.fill(l.value)(0: Byte))).toOption.get
+    Sized.strictUnsafe[Bytes, L](Bytes(Array.fill(l.value)(0: Byte)))
 
   val ParentId: TypedIdentifier = TypedBytes(IdentifierTypes.Block.HeaderV2, Bytes(Array.fill[Byte](32)(0)))
 
@@ -27,10 +27,12 @@ object BlockGenesis {
     KesCertificate(
       PublicKeys.Kes(
         zeroBytes[PublicKeys.Kes.Length],
-        slot = 0
+        offset = 0
       ),
       Proofs.Consensus.KesCertificate(
-        zeroBytes(Lengths.`64`)
+        zeroBytes[Proofs.Consensus.KesCertificate.SignatureLength],
+        zeroBytes[Proofs.Consensus.KesCertificate.ExtendedPublicKeyLength],
+        zeroBytes[Proofs.Consensus.KesCertificate.ChainCodeLength]
       ),
       Proofs.Consensus.MMM(
         Bytes(Array.fill(704)(0)),

@@ -13,10 +13,10 @@ import co.topl.models.utility.HasLength.implicits._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility._
 import co.topl.typeclasses.BlockGenesis
-import co.topl.typeclasses.Identifiable.Instances._
-import co.topl.typeclasses.Identifiable.ops._
-import co.topl.typeclasses.crypto.KeyInitializer
+import co.topl.typeclasses.crypto.ContainsVerificationKey.instances.ed25519ContainsVerificationKey
 import co.topl.typeclasses.crypto.KeyInitializer.Instances._
+import co.topl.typeclasses.crypto.{ContainsVerificationKey, KeyInitializer}
+import co.topl.typeclasses.ShowInstances._
 
 object FullNode extends App {
 
@@ -33,13 +33,18 @@ object FullNode extends App {
   implicit val clock: ClockAlgebra[Id] = new SyncClockInterpreter
 
   private val Right(stakerAddress: TaktikosAddress) = {
-    val stakingVerificationKey = KeyInitializer[KeyPairs.Ed25519].random().publicKey.bytes
+    val stakingKey = KeyInitializer[PrivateKeys.Ed25519].random()
+    val stakingVerificationKey =
+      implicitly[ContainsVerificationKey[PrivateKeys.Ed25519, PublicKeys.Ed25519]].verificationKeyOf(stakingKey)
+    val paymentKey = KeyInitializer[PrivateKeys.Ed25519].random()
+    val paymentVerificationKey =
+      implicitly[ContainsVerificationKey[PrivateKeys.Ed25519, PublicKeys.Ed25519]].verificationKeyOf(paymentKey)
     for {
       paymentVerificationKeyHash <- Sized.strict[Bytes, Lengths.`32`.type](
-        Bytes(blake2b256.hash(KeyInitializer[KeyPairs.Ed25519].random().publicKey.bytes.data.toArray).value)
+        Bytes(blake2b256.hash(paymentVerificationKey.bytes.data.toArray).value)
       )
       signature <- Sized.strict[Bytes, Lengths.`64`.type](Bytes(Array.fill[Byte](64)(1)))
-    } yield TaktikosAddress(paymentVerificationKeyHash, stakingVerificationKey, signature)
+    } yield TaktikosAddress(paymentVerificationKeyHash, stakingVerificationKey.bytes, signature)
   }
 
   val staker = Staker(stakerAddress)
@@ -50,7 +55,7 @@ object FullNode extends App {
       Map.empty,
       Map.empty,
       Map(0L -> Map(stakerAddress -> stakerRelativeStake)),
-      Map(0L -> Bytes(Array.fill[Byte](4)(0)))
+      Map(0L -> Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0))))
     )
 
   val stateT =
@@ -86,13 +91,7 @@ object FullNode extends App {
     .takeWhile(_.nonEmpty)
     .collect { case Some(newBlock) => newBlock }
     .foreach { head =>
-      println(
-        s"Applied headerId=${new String(head.headerV2.id.dataBytes.toArray)}" +
-        s" to parentHeaderId=${new String(head.headerV2.parentHeaderId.dataBytes.toArray)}" +
-        s" at height=${head.headerV2.height}" +
-        s" at slot=${head.headerV2.slot}" +
-        s" at timestamp=${head.headerV2.timestamp}"
-      )
+      println(show"Applied ${head.headerV2}")
     }
 
   println("Completed epoch")

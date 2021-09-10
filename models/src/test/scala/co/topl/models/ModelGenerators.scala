@@ -9,8 +9,8 @@ import org.scalacheck.Gen.posNum
 
 trait ModelGenerators {
 
-  def epochNonceGen: Gen[Eta] =
-    Gen.long.map(BigInt(_).toByteArray).map(Bytes(_))
+  def etaGen: Gen[Eta] =
+    genSizedStrictBytes[Lengths.`32`.type]()
 
   def relativeStakeGen: Gen[Ratio] =
     Gen.chooseNum(1L, 5L).flatMap(denominator => Ratio(1L, denominator))
@@ -30,6 +30,13 @@ trait ModelGenerators {
       pkl    <- genSizedStrictBytes[Lengths.`32`.type]().map(_.data)
     } yield Proofs.Consensus.MMM(sigi, sigm, pki, offset, pkl)
 
+  def kesProofGen: Gen[Proofs.Consensus.KesCertificate] =
+    for {
+      sig       <- genSizedStrictBytes[Proofs.Consensus.KesCertificate.SignatureLength]()
+      publicKey <- genSizedStrictBytes[Proofs.Consensus.KesCertificate.ExtendedPublicKeyLength]()
+      chainCode <- genSizedStrictBytes[Proofs.Consensus.KesCertificate.ChainCodeLength]()
+    } yield Proofs.Consensus.KesCertificate(sig, publicKey, chainCode)
+
   def vrfCertificateGen: Gen[VrfCertificate] =
     for {
       publicKey  <- genSizedStrictBytes[Lengths.`32`.type]().map(PublicKeys.Ed25519(_)).map(PublicKeys.Vrf)
@@ -40,7 +47,7 @@ trait ModelGenerators {
   def kesCertificateGen: Gen[KesCertificate] =
     for {
       publicKey <- genSizedStrictBytes[Lengths.`32`.type]().map(PublicKeys.Kes(_, 0))
-      kesProof  <- genSizedStrictBytes[Lengths.`64`.type]().map(Proofs.Consensus.KesCertificate(_))
+      kesProof  <- kesProofGen
       mmmProof  <- mmmProofGen
     } yield KesCertificate(publicKey, kesProof, mmmProof)
 
@@ -56,7 +63,7 @@ trait ModelGenerators {
       genSizedStrictBytes[Lengths.`32`.type]().map(sized => TypedBytes(IdentifierTypes.Block.HeaderV2, sized.data)),
     txRootGen:         Gen[TxRoot] = genSizedStrictBytes[Lengths.`32`.type](),
     bloomFilterGen:    Gen[BloomFilter] = genSizedStrictBytes[Lengths.`256`.type](),
-    timestampGen:      Gen[Timestamp] = Gen.chooseNum(0L, 500L),
+    timestampGen:      Gen[Timestamp] = Gen.chooseNum(0L, 50L),
     heightGen:         Gen[Long] = Gen.chooseNum(0L, 20L),
     slotGen:           Gen[Slot] = Gen.chooseNum(0L, 50L),
     vrfCertificateGen: Gen[VrfCertificate] = vrfCertificateGen,

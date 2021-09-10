@@ -1,12 +1,14 @@
 package co.topl.typeclasses.crypto
 
-import co.topl.crypto.signatures.Ed25519
+import co.topl.crypto.kes.KeyEvolvingSignatureScheme
+import co.topl.crypto.kes.keys.{ProductPrivateKey, SymmetricKey}
 import co.topl.models.Proofs.Consensus
 import co.topl.models._
 import co.topl.models.utility.HasLength.implicits._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.Sized
-import co.topl.typeclasses.crypto.Signable.ops._
+import com.google.common.primitives.Ints
+import simulacrum.{op, typeclass}
 
 import scala.language.implicitConversions
 
@@ -57,15 +59,9 @@ object Proves {
 
         def proveWith[Data: Signable](t: PrivateKeys.Kes, data: Data): Consensus.KesCertificate =
           Consensus.KesCertificate(
-            Sized
-              .strict[Bytes, Proofs.Consensus.KesCertificate.Length](
-                Bytes(Array.fill[Byte](64)(0))
-//                Bytes(
-//                  new Ed25519().sign(co.topl.crypto.PrivateKey(t.bytes.data.toArray), data.signableBytes.toArray).value
-//                )
-              )
-              .toOption
-              .get
+            Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0))),
+            Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0))),
+            Sized.strictUnsafe[Bytes, Consensus.KesCertificate.ChainCodeLength](Bytes(Array.fill[Byte](32)(0)))
           )
       }
   }
@@ -76,6 +72,33 @@ trait Verifiable[Prf <: Proof, Prop <: Proposition] {
   def verify[Data: Signable](proof: Prf, proposition: Prop, data: Data): Boolean
 }
 
-trait Evolves[F[_], T] {
-  def evolve(t: T): F[T]
+@typeclass trait Evolves[T] {
+  @op("evolveSteps") def evolve(t: T, timesteps: Long): T
+}
+
+object Evolves {
+
+  trait Instances {
+
+    implicit val kesPrivateKeyEvolves: Evolves[PrivateKeys.Kes] = {
+      val scheme = new KeyEvolvingSignatureScheme
+      (key, timesteps) => {
+        val symmetricKey =
+          SymmetricKey(
+            ProductPrivateKey.deserializeProductKey(
+              Ints.toByteArray(
+                key.bytes.data.toArray.length
+              ) ++ key.bytes.data.toArray
+            )
+          )
+        val updatedSymmetricKey =
+          scheme.updateSymmetricProductKey(symmetricKey, timesteps.toInt) // TODO: toInt?
+        PrivateKeys.Kes(
+          Sized.strictUnsafe(Bytes(ProductPrivateKey.serializer.getBytes(updatedSymmetricKey)))
+        )
+      }
+    }
+  }
+
+  object instances extends Instances
 }

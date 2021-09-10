@@ -41,9 +41,9 @@ class BlockGenesisSpec extends AnyFlatSpec with Matchers with EitherValues with 
   it should "have all zeros for the KES Certificate" in {
     val cert = block.headerV2.kesCertificate
     forAll(cert.vkKES.bytes.data)(_ shouldBe (0: Byte))
-    forAll(cert.kesProof.bytes.data)(_ shouldBe (0: Byte))
+    forAll(cert.kesProof.signature.data)(_ shouldBe (0: Byte))
     forAll(cert.mmmProof.sigi)(_ shouldBe (0: Byte))
-    cert.vkKES.slot shouldBe 0L
+    cert.vkKES.offset shouldBe 0L
   }
 
   it should "have all zeros for the thresholdEvidence" in {

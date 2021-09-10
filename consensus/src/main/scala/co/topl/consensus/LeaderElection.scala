@@ -1,11 +1,13 @@
 package co.topl.consensus
 
 import co.topl.crypto.signatures.Ed25519VRF
+import co.topl.models._
 import co.topl.models.utility.HasLength.implicits._
 import co.topl.models.utility.Lengths._
-import co.topl.models._
 import co.topl.models.utility.{Lengths, Ratio, Sized}
 import co.topl.typeclasses.RatioOps.implicits._
+import co.topl.typeclasses.crypto.ContainsVerificationKey
+import co.topl.typeclasses.crypto.ContainsVerificationKey.instances.vrfContainsVerificationKey
 
 import java.nio.charset.StandardCharsets
 
@@ -21,7 +23,7 @@ object LeaderElection {
 
   case class Config(lddCutoff: Int, precision: Int, baselineDifficulty: Ratio, amplitude: Ratio)
 
-  def hits(secret: KeyPairs.Vrf, relativeStake: Ratio, fromSlot: Slot, untilSlot: Slot, epochNonce: Eta)(implicit
+  def hits(secret: PrivateKeys.Vrf, relativeStake: Ratio, fromSlot: Slot, untilSlot: Slot, epochNonce: Eta)(implicit
     config:        Config
   ): Iterator[Hit] =
     ((fromSlot + 1) until untilSlot).iterator
@@ -39,14 +41,14 @@ object LeaderElection {
    * @return a hit if the key has been elected for the slot
    */
   def getHit(
-    secret:          KeyPairs.Vrf,
+    secret:          PrivateKeys.Vrf,
     relativeStake:   Ratio,
     slot:            Slot,
     slotDiff:        Long, // diff between current slot and parent slot
     epochNonce:      Eta
   )(implicit config: Config): Either[Failure, Hit] = {
     // private key is 33 bytes, with the first being the type byte (unneeded)
-    val privateKeyBytes = secret.privateKey.ed25519.bytes.data
+    val privateKeyBytes = secret.ed25519.bytes.data
 
     // create VRF for current state
     val vrf = VrfProof(privateKeyBytes, epochNonce, slot)
@@ -57,9 +59,9 @@ object LeaderElection {
       isSlotLeaderForThreshold(threshold)(vrf.testProofHashed),
       Hit(
         VrfCertificate(
-          secret.publicKey,
-          Proofs.Consensus.Nonce(Sized.strict[Bytes, Lengths.`80`.type](vrf.nonceProof).toOption.get),
-          Proofs.Consensus.VrfTest(Sized.strict[Bytes, Lengths.`80`.type](vrf.testProof).toOption.get)
+          implicitly[ContainsVerificationKey[PrivateKeys.Vrf, PublicKeys.Vrf]].verificationKeyOf(secret),
+          Proofs.Consensus.Nonce(Sized.strictUnsafe(vrf.nonceProof)),
+          Proofs.Consensus.VrfTest(Sized.strictUnsafe(vrf.testProof))
         ),
         vrf.nonceProof,
         slot,
@@ -119,14 +121,14 @@ object LeaderElection {
     val vrf = new Ed25519VRF
     vrf.precompute()
 
-    def apply(secretData: Bytes, epochNonce: Eta, slot: Slot): VrfProof =
+    def apply(secretData: Bytes, eta: Eta, slot: Slot): VrfProof =
       VrfProof(
         vrf,
         (token: String) =>
           Bytes(
             vrf.vrfProof(
               secretData.toArray,
-              epochNonce.toArray ++ BigInt(slot).toByteArray ++ token.getBytes(StandardCharsets.UTF_8)
+              eta.data.toArray ++ BigInt(slot).toByteArray ++ token.getBytes(StandardCharsets.UTF_8)
             )
           )
       )

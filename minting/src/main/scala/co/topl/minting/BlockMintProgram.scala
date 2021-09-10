@@ -5,8 +5,7 @@ import cats.data.OptionT
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.models._
-import co.topl.models.utility.StringDataTypes.Latin1Data
-import co.topl.models.utility.{Lengths, Ratio, Sized}
+import co.topl.models.utility.Ratio
 import co.topl.typeclasses.ContainsEvidence.Instances._
 import co.topl.typeclasses.ContainsEvidence.ops._
 import co.topl.typeclasses.ContainsTransactions.Instances._
@@ -21,23 +20,27 @@ import co.topl.typeclasses.Identifiable.ops._
  */
 class BlockMintProgram[F[_]: Monad] {
 
-  def next(interpreter: BlockMintProgram.Algebra[F]): OptionT[F, BlockMintProgram.UnsignedBlock] =
+  def next(interpreter: BlockMintProgram.Algebra[F]): OptionT[F, BlockMintProgram.Out] =
     interpreter
       .elect(interpreter.canonicalHead.headerV2)
       .toOptionT[F]
       .semiflatMap { case BlockMintProgram.Election(slot, vrfCertificate, threshold) =>
         interpreter.unconfirmedTransactions.map { transactions =>
-          BlockMintProgram.UnsignedBlock(
-            parentHeaderId = interpreter.canonicalHead.headerV2.id,
-            txRoot = transactions.merkleTree,
-            bloomFilter = transactions.bloomFilter,
-            height = interpreter.canonicalHead.headerV2.height + 1,
-            slot = slot,
-            vrfCertificate = vrfCertificate,
-            thresholdEvidence = threshold.evidence,
-            metadata = None,
-            address = interpreter.address,
-            transactions = transactions
+          BlockMintProgram.Out(
+            timestamp =>
+              BlockHeaderV2.Unsigned(
+                parentHeaderId = interpreter.canonicalHead.headerV2.id,
+                txRoot = transactions.merkleTree,
+                bloomFilter = transactions.bloomFilter,
+                timestamp = timestamp,
+                height = interpreter.canonicalHead.headerV2.height + 1,
+                slot = slot,
+                vrfCertificate = vrfCertificate,
+                thresholdEvidence = threshold.evidence,
+                metadata = None,
+                address = interpreter.address
+              ),
+            transactions
           )
         }
       }
@@ -47,32 +50,22 @@ class BlockMintProgram[F[_]: Monad] {
 object BlockMintProgram {
   case class Election(slot: Slot, vrfCertificate: VrfCertificate, threshold: Ratio)
 
-  case class UnsignedBlock(
-    parentHeaderId:    TypedIdentifier,
-    txRoot:            TxRoot,
-    bloomFilter:       BloomFilter,
-    height:            Long,
-    slot:              Slot,
-    vrfCertificate:    VrfCertificate,
-    thresholdEvidence: Evidence,
-    metadata:          Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
-    address:           TaktikosAddress,
-    transactions:      Seq[Transaction]
-  ) {
+  case class Out(unsignedHeaderF: Timestamp => BlockHeaderV2.Unsigned, transactions: Seq[Transaction]) {
 
     def signed[F[_]](kesCertificate: KesCertificate, timestamp: Timestamp): BlockV2 = {
+      val unsignedHeader = unsignedHeaderF(timestamp)
       val header = BlockHeaderV2(
-        parentHeaderId = parentHeaderId,
+        parentHeaderId = unsignedHeader.parentHeaderId,
         txRoot = transactions.merkleTree,
         bloomFilter = transactions.bloomFilter,
-        timestamp = timestamp,
-        height = height,
-        slot = slot,
-        vrfCertificate = vrfCertificate,
+        timestamp = unsignedHeader.timestamp,
+        height = unsignedHeader.height,
+        slot = unsignedHeader.slot,
+        vrfCertificate = unsignedHeader.vrfCertificate,
         kesCertificate = kesCertificate,
-        thresholdEvidence = thresholdEvidence,
-        metadata = metadata,
-        address = address
+        thresholdEvidence = unsignedHeader.thresholdEvidence,
+        metadata = unsignedHeader.metadata,
+        address = unsignedHeader.address
       )
       val body = BlockBodyV2(
         transactions = transactions,
@@ -80,7 +73,6 @@ object BlockMintProgram {
       )
       BlockV2(header, body)
     }
-
   }
 
   trait Algebra[F[_]] {

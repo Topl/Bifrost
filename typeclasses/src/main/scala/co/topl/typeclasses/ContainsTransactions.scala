@@ -14,11 +14,11 @@ import Lengths._
 
   @op("merkleTree") def merkleTreeOf(t: T): Sized.Strict[Bytes, Lengths.`32`.type] =
     // TODO
-    Sized.strict[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(1))).toOption.get
+    Sized.strictUnsafe[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(1)))
 
   @op("bloomFilter") def bloomFilterOf(t: T): BloomFilter =
     // TODO
-    Sized.strict[Bytes, Lengths.`256`.type](Bytes(Array.fill[Byte](256)(1))).toOption.get
+    Sized.strictUnsafe[Bytes, Lengths.`256`.type](Bytes(Array.fill[Byte](256)(1)))
 }
 
 object ContainsTransactions {

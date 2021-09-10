@@ -33,6 +33,22 @@ case class BlockHeaderV2(
   address:  TaktikosAddress
 )
 
+object BlockHeaderV2 {
+
+  case class Unsigned(
+    parentHeaderId:    TypedIdentifier,
+    txRoot:            TxRoot,
+    bloomFilter:       BloomFilter,
+    timestamp:         Timestamp,
+    height:            Long,
+    slot:              Slot,
+    vrfCertificate:    VrfCertificate,
+    thresholdEvidence: Evidence,
+    metadata:          Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
+    address:           TaktikosAddress
+  )
+}
+
 // id = hash(headerId, txRoot)
 case class BlockBodyV2(
   headerId:     TypedIdentifier,

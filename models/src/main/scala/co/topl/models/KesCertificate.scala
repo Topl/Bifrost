@@ -6,5 +6,5 @@ package co.topl.models
 case class KesCertificate(
   vkKES:    PublicKeys.Kes,
   kesProof: Proofs.Consensus.KesCertificate,
-  mmmProof: Proofs.Consensus.MMM // From Product Composition
+  mmmProof: Proofs.Consensus.MMM
 )

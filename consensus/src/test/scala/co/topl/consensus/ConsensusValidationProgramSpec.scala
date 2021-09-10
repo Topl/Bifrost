@@ -3,6 +3,8 @@ package co.topl.consensus
 import cats.Id
 import cats.data.OptionT
 import co.topl.algebras.ClockAlgebra
+import co.topl.consensus.KesCertifies.instances._
+import co.topl.consensus.KesCertifies.ops._
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility.{Lengths, Ratio}
@@ -10,7 +12,10 @@ import co.topl.typeclasses.ContainsEvidence.Instances._
 import co.topl.typeclasses.ContainsEvidence.ops._
 import co.topl.typeclasses.Identifiable.Instances._
 import co.topl.typeclasses.Identifiable.ops._
+import co.topl.typeclasses.crypto.Evolves.instances._
+import co.topl.typeclasses.crypto.Evolves.ops._
 import co.topl.typeclasses.crypto.KeyInitializer
+import co.topl.typeclasses.crypto.KeyInitializer.Instances.kesInitializer
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
@@ -49,7 +54,7 @@ class ConsensusValidationProgramSpec
 
   it should "invalidate blocks with non-forward timestamp" in {
     forAll(headerGen(), headerGen()) { case (parent, child) =>
-      whenever(child.slot > parent.slot && child.timestamp <= parent.timestamp) {
+      whenever(child.slot > parent.slot && parent.timestamp >= child.timestamp) {
         val nonceInterpreter = mock[EtaAlgebra[Id]]
         val relativeStakeInterpreter = mock[VrfRelativeStateLookupAlgebra[Id]]
         val clockInterpreter = mock[ClockAlgebra[Id]]
@@ -72,7 +77,9 @@ class ConsensusValidationProgramSpec
         timestampGen = Gen.chooseNum(51L, 100L)
       )
     ) { case (parent, child) =>
-      whenever(child.slot > parent.slot && child.timestamp > parent.timestamp && child.parentHeaderId != parent.id) {
+      whenever(
+        child.slot > parent.slot && child.timestamp > parent.timestamp && child.parentHeaderId != parent.id
+      ) {
         val nonceInterpreter = mock[EtaAlgebra[Id]]
         val relativeStakeInterpreter = mock[VrfRelativeStateLookupAlgebra[Id]]
         val clockInterpreter = mock[ClockAlgebra[Id]]
@@ -97,8 +104,9 @@ class ConsensusValidationProgramSpec
           timestampGen = Gen.chooseNum(51L, 100L)
         )
           .map(parent -> _.copy(parentHeaderId = parent.id))
-      )
-    ) { case (parent, child) =>
+      ),
+      etaGen
+    ) { case ((parent, child), eta) =>
       val nonceInterpreter = mock[EtaAlgebra[Id]]
       val relativeStakeInterpreter = mock[VrfRelativeStateLookupAlgebra[Id]]
       val clockInterpreter = mock[ClockAlgebra[Id]]
@@ -114,7 +122,7 @@ class ConsensusValidationProgramSpec
         .expects(child)
         .anyNumberOfTimes()
         // This epoch nonce does not satisfy the generated VRF certificate
-        .returning(Bytes(Array(1: Byte)))
+        .returning(eta)
 
       underTest.validate(child, parent).value.left.value shouldBe ConsensusValidationProgram.Failures
         .InvalidVrfCertificate(child.vrfCertificate)
@@ -128,23 +136,22 @@ class ConsensusValidationProgramSpec
   it should "invalidate blocks with an insufficient VRF threshold" in {
     forAll(
       headerGen(slotGen = Gen.const[Long](5000)),
-      kesCertificateGen,
       genSizedStrictBytes[Lengths.`32`.type]().flatMap(txRoot =>
         genSizedStrictBytes[Lengths.`256`.type]()
-          .flatMap(bloomFilter => epochNonceGen.map(nonce => (txRoot, bloomFilter, nonce)))
+          .flatMap(bloomFilter => etaGen.map(nonce => (txRoot, bloomFilter, nonce)))
       ),
       relativeStakeGen,
       Gen.const(KeyInitializer.Instances.vrfInitializer.random()),
       taktikosAddressGen
-    ) { case (parent, kesCertificate, (txRoot, bloomFilter, epochNonce), relativeStake, vrfSecret, address) =>
+    ) { case (parent, (txRoot, bloomFilter, eta), relativeStake, vrfSecret, address) =>
       val nonceInterpreter = mock[EtaAlgebra[Id]]
       val relativeStakeInterpreter = mock[VrfRelativeStateLookupAlgebra[Id]]
       val clockInterpreter = mock[ClockAlgebra[Id]]
       val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
 
-      val hit = LeaderElection.hits(vrfSecret, relativeStake, parent.slot + 1, parent.slot + 999, epochNonce).next()
-      val child =
-        BlockHeaderV2(
+      val hit = LeaderElection.hits(vrfSecret, relativeStake, parent.slot + 1, parent.slot + 999, eta).next()
+      val unsigned =
+        BlockHeaderV2.Unsigned(
           parentHeaderId = parent.id,
           txRoot = txRoot,
           bloomFilter = bloomFilter,
@@ -152,10 +159,29 @@ class ConsensusValidationProgramSpec
           height = parent.height + 1,
           slot = hit.slot,
           vrfCertificate = hit.cert,
-          kesCertificate = kesCertificate,
           thresholdEvidence = hit.threshold.evidence,
           metadata = None,
           address = address
+        )
+
+      val kesKey = {
+        implicit val slot: Slot = 0
+        KeyInitializer[PrivateKeys.Kes].random().evolveSteps(unsigned.slot)
+      }
+
+      val child =
+        BlockHeaderV2(
+          parentHeaderId = unsigned.parentHeaderId,
+          txRoot = unsigned.txRoot,
+          bloomFilter = unsigned.bloomFilter,
+          timestamp = unsigned.timestamp,
+          height = unsigned.height,
+          slot = unsigned.slot,
+          vrfCertificate = unsigned.vrfCertificate,
+          kesCertificate = kesKey.certify(unsigned),
+          thresholdEvidence = unsigned.thresholdEvidence,
+          metadata = unsigned.metadata,
+          address = unsigned.address
         )
 
       (() => clockInterpreter.slotsPerEpoch)
@@ -167,7 +193,7 @@ class ConsensusValidationProgramSpec
         .etaOf(_: BlockHeaderV2))
         .expects(child)
         .anyNumberOfTimes()
-        .returning(epochNonce)
+        .returning(eta)
 
       (relativeStakeInterpreter
         .lookupAt(_: BlockHeaderV2)(_: TaktikosAddress))
@@ -186,23 +212,22 @@ class ConsensusValidationProgramSpec
   it should "validate valid blocks" in {
     forAll(
       headerGen(slotGen = Gen.const[Long](5000)),
-      kesCertificateGen,
       genSizedStrictBytes[Lengths.`32`.type]().flatMap(txRoot =>
         genSizedStrictBytes[Lengths.`256`.type]()
-          .flatMap(bloomFilter => epochNonceGen.map(nonce => (txRoot, bloomFilter, nonce)))
+          .flatMap(bloomFilter => etaGen.map(nonce => (txRoot, bloomFilter, nonce)))
       ),
       relativeStakeGen,
       Gen.const(KeyInitializer.Instances.vrfInitializer.random()),
       taktikosAddressGen
-    ) { case (parent, kesCertificate, (txRoot, bloomFilter, epochNonce), relativeStake, vrfSecret, address) =>
+    ) { case (parent, (txRoot, bloomFilter, eta), relativeStake, vrfSecret, address) =>
       val nonceInterpreter = mock[EtaAlgebra[Id]]
       val relativeStakeInterpreter = mock[VrfRelativeStateLookupAlgebra[Id]]
       val clockInterpreter = mock[ClockAlgebra[Id]]
       val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
 
-      val hit = LeaderElection.hits(vrfSecret, relativeStake, parent.slot + 1, parent.slot + 999, epochNonce).next()
-      val child =
-        BlockHeaderV2(
+      val hit = LeaderElection.hits(vrfSecret, relativeStake, parent.slot + 1, parent.slot + 999, eta).next()
+      val unsigned =
+        BlockHeaderV2.Unsigned(
           parentHeaderId = parent.id,
           txRoot = txRoot,
           bloomFilter = bloomFilter,
@@ -210,10 +235,29 @@ class ConsensusValidationProgramSpec
           height = parent.height + 1,
           slot = hit.slot,
           vrfCertificate = hit.cert,
-          kesCertificate = kesCertificate,
           thresholdEvidence = hit.threshold.evidence,
           metadata = None,
           address = address
+        )
+
+      val kesKey = {
+        implicit val slot: Slot = 0
+        KeyInitializer[PrivateKeys.Kes].random().evolveSteps(unsigned.slot)
+      }
+
+      val child =
+        BlockHeaderV2(
+          parentHeaderId = unsigned.parentHeaderId,
+          txRoot = unsigned.txRoot,
+          bloomFilter = unsigned.bloomFilter,
+          timestamp = unsigned.timestamp,
+          height = unsigned.height,
+          slot = unsigned.slot,
+          vrfCertificate = unsigned.vrfCertificate,
+          kesCertificate = kesKey.certify(unsigned),
+          thresholdEvidence = unsigned.thresholdEvidence,
+          metadata = unsigned.metadata,
+          address = unsigned.address
         )
 
       (() => clockInterpreter.slotsPerEpoch)
@@ -225,7 +269,7 @@ class ConsensusValidationProgramSpec
         .etaOf(_: BlockHeaderV2))
         .expects(child)
         .anyNumberOfTimes()
-        .returning(epochNonce)
+        .returning(eta)
 
       (relativeStakeInterpreter
         .lookupAt(_: BlockHeaderV2)(_: TaktikosAddress))

@@ -4,6 +4,9 @@ import co.topl.models._
 import simulacrum.{op, typeclass}
 
 import java.nio.charset.StandardCharsets
+import co.topl.codecs.bytes.BasicCodecs._
+import co.topl.codecs.bytes.ByteCodec.implicits._
+import co.topl.crypto.hash.blake2b256
 
 /**
  * Satisfies that T can be uniquely identified
@@ -20,8 +23,19 @@ object Identifiable {
     implicit val identifiableBlockHeaderV2: Identifiable[BlockHeaderV2] =
       new Identifiable[BlockHeaderV2] {
 
-        override def idOf(t: BlockHeaderV2): TypedIdentifier =
-          TypedBytes(IdentifierTypes.Block.HeaderV2 +: Bytes(s"header${t.height}".getBytes(StandardCharsets.UTF_8)))
+        override def idOf(header: BlockHeaderV2): TypedIdentifier = {
+          val bytes =
+            header.parentHeaderId.allBytes ++ header.txRoot.data ++ header.bloomFilter.data ++ Bytes(
+              BigInt(header.timestamp).toByteArray
+            ) ++
+            Bytes(BigInt(header.height).toByteArray) ++
+            Bytes(BigInt(header.slot).toByteArray) ++
+            header.vrfCertificate.bytes ++
+            Bytes(header.metadata.fold(Array.emptyByteArray)(_.data.value)) ++
+            header.address.bytes
+
+          TypedBytes(IdentifierTypes.Block.HeaderV2 +: Bytes(blake2b256.hash(bytes.toArray).value))
+        }
 
         override def typePrefix: TypePrefix = IdentifierTypes.Block.HeaderV2
       }

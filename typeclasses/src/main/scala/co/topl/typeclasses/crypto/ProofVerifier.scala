@@ -192,7 +192,7 @@ object ProofVerifier {
           proposition: Propositions.Consensus.PublicKeyKes,
           data:        Data
         ): Boolean = publicKeyEd25519.verifyWith(
-          Proofs.SignatureEd25519(Some(proof.bytes)),
+          Proofs.SignatureEd25519(Some(proof.signature)),
           Propositions.PublicKeyEd25519(PublicKeys.Ed25519(proposition.key.bytes)),
           data
         )

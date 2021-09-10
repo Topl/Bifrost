@@ -1,6 +1,5 @@
 package co.topl.fullnode
 
-import cats.data.NonEmptyChain
 import co.topl.models.utility.Ratio
 import co.topl.models._
 import co.topl.typeclasses.Identifiable.Instances._

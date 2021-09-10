@@ -10,8 +10,7 @@ import scala.language.implicitConversions
 package object models {
   type Bytes = ArraySeq[Byte]
   type BoxNonce = Long
-  // Epoch Nonce, 32 Bytes
-  type Eta = Bytes
+  type Eta = Sized.Strict[Bytes, Lengths.`32`.type]
   type Evidence = Sized.Strict[TypedBytes, Lengths.`33`.type]
   type TypePrefix = Byte
   type TypedIdentifier = TypedBytes

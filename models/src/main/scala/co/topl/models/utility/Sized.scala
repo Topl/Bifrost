@@ -26,6 +26,12 @@ object Sized {
     )
   }
 
+  def strictUnsafe[Data: HasLength, L <: Length](data: Data)(implicit length: L): Strict[Data, L] = {
+    val dataLength = implicitly[HasLength[Data]].length(data)
+    require(dataLength == length.value)
+    new Strict(data)
+  }
+
   def max[Data: HasLength, L <: Length](data: Data)(implicit length: L): Either[InvalidLength, Max[Data, L]] = {
     val dataLength = implicitly[HasLength[Data]].length(data)
     Either.cond(
@@ -33,6 +39,12 @@ object Sized {
       new Max(data),
       InvalidLength(dataLength)
     )
+  }
+
+  def maxUnsafe[Data: HasLength, L <: Length](data: Data)(implicit length: L): Strict[Data, L] = {
+    val dataLength = implicitly[HasLength[Data]].length(data)
+    require(dataLength <= length.value)
+    new Strict(data)
   }
 
   case class InvalidLength(length: Int)

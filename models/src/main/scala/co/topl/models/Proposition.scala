@@ -105,10 +105,16 @@ object Proofs {
     /**
      * Signature with a normal signing routine
      */
-    case class KesCertificate(bytes: Sized.Strict[Bytes, Lengths.`64`.type]) extends Proof
+    case class KesCertificate(
+      signature:         Sized.Strict[Bytes, KesCertificate.SignatureLength],
+      extendedPublicKey: Sized.Strict[Bytes, KesCertificate.ExtendedPublicKeyLength],
+      chainCode:         Sized.Strict[Bytes, KesCertificate.ChainCodeLength]
+    ) extends Proof
 
     object KesCertificate {
-      type Length = Lengths.`64`.type
+      type SignatureLength = Lengths.`64`.type
+      type ExtendedPublicKeyLength = Lengths.`32`.type
+      type ChainCodeLength = Lengths.`32`.type
     }
 
     /**
@@ -116,8 +122,7 @@ object Proofs {
      *
      * @see [co.topl.crypto.kes.signatures.SymmetricSignature]
      */
-    case class MMM(sigi: Bytes, sigm: Bytes, pki: Bytes, offset: Long, pkl: Bytes)
-        extends Proof // TODO: Changed this to Sized 1440
+    case class MMM(sigi: Bytes, sigm: Bytes, pki: Bytes, offset: Long, pkl: Bytes) extends Proof
   }
 }
 
@@ -127,7 +132,7 @@ object PublicKeys {
   case class Curve25519(bytes: Sized.Strict[Bytes, Curve25519.Length]) extends PublicKey
   case class Ed25519(bytes: Sized.Strict[Bytes, Ed25519.Length]) extends PublicKey
   case class Vrf(ed25519: Ed25519) extends PublicKey
-  case class Kes(bytes: Sized.Strict[Bytes, Kes.Length], slot: Slot) extends PublicKey
+  case class Kes(bytes: Sized.Strict[Bytes, Kes.Length], offset: Long) extends PublicKey
 
   object Ed25519 {
     type Length = Lengths.`32`.type

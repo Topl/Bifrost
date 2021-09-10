@@ -4,21 +4,16 @@ import cats.Id
 import cats.data.OptionT
 import co.topl.algebras.ClockAlgebra
 import co.topl.algebras.ClockAlgebra.implicits._
-import co.topl.codecs.bytes.BasicCodecs._
-import co.topl.codecs.bytes.ByteCodec.implicits._
+import co.topl.consensus.KesCertifies.instances._
+import co.topl.consensus.KesCertifies.ops._
 import co.topl.consensus.LeaderElection
-import co.topl.crypto.kes.KeyEvolvingSignatureScheme
-import co.topl.crypto.kes.keys.{ProductPrivateKey, SymmetricKey}
 import co.topl.minting.BlockMintProgram
-import co.topl.minting.BlockMintProgram.UnsignedBlock
 import co.topl.models._
-import co.topl.models.utility.HasLength.implicits._
-import co.topl.models.utility.{Ratio, Sized}
+import co.topl.models.utility.Ratio
+import co.topl.typeclasses.crypto.Evolves.instances._
+import co.topl.typeclasses.crypto.Evolves.ops._
+import co.topl.typeclasses.crypto.KeyInitializer
 import co.topl.typeclasses.crypto.KeyInitializer.Instances._
-import co.topl.typeclasses.crypto.Proves.instances._
-import co.topl.typeclasses.crypto.Signable.Instances._
-import co.topl.typeclasses.crypto.{KeyInitializer, Proves}
-import com.google.common.primitives.Ints
 
 case class Staker(address: TaktikosAddress)(implicit
   clock:                   ClockAlgebra[Id],
@@ -26,67 +21,16 @@ case class Staker(address: TaktikosAddress)(implicit
 ) {
 
   private val vrfKey =
-    KeyInitializer[KeyPairs.Vrf].random()
+    KeyInitializer[PrivateKeys.Vrf].random()
 
-  private val initialKesKey =
-    KeyInitializer[KeyPairs.Kes].random()
+  private var currentKesKey: PrivateKeys.Kes = {
+    implicit val slot: Slot = 0L
+    KeyInitializer[PrivateKeys.Kes].random()
+  }
 
-  private var currentKesKey: KeyPairs.Kes =
-    initialKesKey
-
-  private val scheme = new KeyEvolvingSignatureScheme
-
-  def nextKesCertificate(unsignedBlock: UnsignedBlock, timestamp: Timestamp): Id[KesCertificate] = {
-    val message =
-      unsignedBlock.parentHeaderId.allBytes ++ unsignedBlock.txRoot.data ++ unsignedBlock.bloomFilter.data ++ Bytes(
-        BigInt(timestamp).toByteArray
-      ) ++
-      Bytes(BigInt(unsignedBlock.height).toByteArray) ++
-      Bytes(BigInt(unsignedBlock.slot).toByteArray) ++
-      unsignedBlock.vrfCertificate.bytes ++
-      Bytes(unsignedBlock.metadata.fold(Array.emptyByteArray)(_.data.value)) ++
-      unsignedBlock.address.bytes
-
-    val newSymmetricKey = scheme.updateSymmetricProductKey(
-      SymmetricKey(
-        ProductPrivateKey.deserializeProductKey(
-          Ints.toByteArray(
-            currentKesKey.privateKey.bytes.data.toArray.length
-          ) ++ currentKesKey.privateKey.bytes.data.toArray
-        )
-      ),
-      unsignedBlock.slot.toInt
-    )
-
-    currentKesKey = KeyPairs.Kes(
-      PrivateKeys.Kes(
-        Sized
-          .strict[Bytes, PrivateKeys.Kes.Length](Bytes(ProductPrivateKey.serializer.getBytes(newSymmetricKey)))
-          .toOption
-          .get
-      ),
-      PublicKeys.Kes(
-        Sized.strict[Bytes, PublicKeys.Kes.Length](Bytes(scheme.publicKey(newSymmetricKey))).toOption.get,
-        unsignedBlock.slot
-      )
-    )
-
-    val kesProof =
-      implicitly[Proves[PrivateKeys.Kes, Proofs.Consensus.KesCertificate]]
-        .proveWith(currentKesKey.privateKey, message.toArray)
-
-    val mmmProof = {
-      val privKeyByteArray = currentKesKey.privateKey.bytes.data.toArray
-      val sig =
-        scheme.signSymmetricProduct(
-          SymmetricKey(
-            ProductPrivateKey.deserializeProductKey(Ints.toByteArray(privKeyByteArray.length) ++ privKeyByteArray)
-          ),
-          message.toArray
-        )
-      Proofs.Consensus.MMM(Bytes(sig.sigi), Bytes(sig.sigm), Bytes(sig.pki.bytes), sig.offset, Bytes(sig.pkl.bytes))
-    }
-    KesCertificate(currentKesKey.publicKey, kesProof, mmmProof)
+  def nextKesCertificate(unsignedBlock: BlockHeaderV2.Unsigned): Id[KesCertificate] = {
+    currentKesKey = currentKesKey.evolveSteps(unsignedBlock.slot)
+    currentKesKey.certify(unsignedBlock)
   }
 
   implicit val mint: BlockMintProgram[Id] = new BlockMintProgram[Id]
@@ -130,11 +74,11 @@ case class Staker(address: TaktikosAddress)(implicit
     }
     mint
       .next(interpreter)
-      .semiflatTap(unsignedBlock => clock.delayedUntilSlot(unsignedBlock.slot))
-      // Check for cancellation
-      .map { unsignedBlock =>
+      .semiflatTap(out => clock.delayedUntilSlot(out.unsignedHeaderF(clock.currentTimestamp()).slot))
+      // TODO Check for cancellation
+      .map { out =>
         val timestamp = clock.currentTimestamp()
-        unsignedBlock.signed(nextKesCertificate(unsignedBlock, timestamp), timestamp)
+        out.signed(nextKesCertificate(out.unsignedHeaderF(timestamp)), timestamp)
       }
   }
 
