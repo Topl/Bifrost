@@ -59,6 +59,7 @@ object Dependencies {
 
   val misc = Seq(
     "com.chuusai"     %% "shapeless" % "2.3.7",
+    "com.iheart"      %% "ficus"     % "1.5.1",
     "com.iheart"      %% "ficus"     % "1.5.0",
     "org.scalanlp"    %% "breeze"    % "1.3",
     "io.netty"         % "netty"     % "3.10.6.Final",
