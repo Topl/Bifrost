@@ -21,7 +21,7 @@ class AdminRpcHandlerImpls(forgerInterface: ForgerInterface, keyManagerInterface
         .leftMap(e => ToplRpcErrors.genericFailure(e.toString): RpcError)
         .subflatMap {
           case addr if params.address == addr.toString => Map(addr -> "unlocked").asRight
-          case _                                       => InvalidParametersError.adhoc("address", "Decrypted address does not match requested address").asLeft
+          case _ => InvalidParametersError.adhoc("address", "Decrypted address does not match requested address").asLeft
         }
 
   override val lockKeyfile: ToplRpc.Admin.LockKeyfile.rpc.ServerHandler =
