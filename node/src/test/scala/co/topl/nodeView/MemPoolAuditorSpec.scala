@@ -66,7 +66,8 @@ class MemPoolAuditorSpec
       Thread.sleep(0.5.seconds.toMillis)
       testIn.testIn.nodeView.mempool.modifierById(transactions.head.id).value shouldBe transactions.head
       Thread.sleep(1.seconds.toMillis)
-      system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier))
+      // Using genesisBlock since the memPoolAuditor doesn't care which specific block passed the checks
+      system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(genesisBlock)))
       Thread.sleep(0.5.seconds.toMillis)
       testIn.testIn.nodeView.mempool.modifierById(transactions.head.id) shouldBe None
     }
@@ -102,7 +103,6 @@ class MemPoolAuditorSpec
       system.eventStream.tell(EventStream.Subscribe(probe.ref))
 
       testIn.nodeViewHolderRef.tell(NodeViewHolder.ReceivableMessages.WriteTransactions(List(fstTx)))
-      system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier))
       Thread.sleep(0.3.seconds.toMillis)
       testIn.testIn.nodeView.mempool.modifierById(fstTx.id).value shouldBe fstTx
 
@@ -114,7 +114,6 @@ class MemPoolAuditorSpec
 
       testIn.forgerRef.tell(Forger.ReceivableMessages.StopForging(system.ignoreRef))
       testIn.nodeViewHolderRef.tell(NodeViewHolder.ReceivableMessages.WriteTransactions(List(secTx)))
-      system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier))
       Thread.sleep(0.5.seconds.toMillis)
       testIn.testIn.nodeView.mempool.modifierById(fstTx.id) shouldBe None
     }
