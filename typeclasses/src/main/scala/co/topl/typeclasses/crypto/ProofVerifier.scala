@@ -59,12 +59,13 @@ object ProofVerifier {
 
     implicit val publicKeyEd25519: ProofVerifier[Proofs.SignatureEd25519, Propositions.PublicKeyEd25519] =
       new ProofVerifier[Proofs.SignatureEd25519, Propositions.PublicKeyEd25519] {
+        private val ed25519 = new Ed25519()
 
         override def verifyWith[Data: Signable](
           proof:       Proofs.SignatureEd25519,
           proposition: Propositions.PublicKeyEd25519,
           data:        Data
-        ): Boolean = new Ed25519().verify(
+        ): Boolean = ed25519.verify(
           Signature(proof.bytes.fold(Array.emptyByteArray)(_.data.toArray)),
           data.signableBytes.toArray,
           PublicKey(proposition.key.bytes.data.toArray)
@@ -109,6 +110,8 @@ object ProofVerifier {
     implicit val thresholdEd25519: ProofVerifier[Proofs.ThresholdSignatureEd25519, Propositions.ThresholdEd25519] =
       new ProofVerifier[Proofs.ThresholdSignatureEd25519, Propositions.ThresholdEd25519] {
 
+        private val ed25519 = new Ed25519()
+
         override def verifyWith[Data: Signable](
           proof:       Proofs.ThresholdSignatureEd25519,
           proposition: Propositions.ThresholdEd25519,
@@ -122,7 +125,7 @@ object ProofVerifier {
                   if (acc < proposition.threshold) {
                     unusedProps
                       .find(prop =>
-                        unusedProps(prop) && new Ed25519().verify(
+                        unusedProps(prop) && ed25519.verify(
                           Signature(sig.bytes.fold(Array.emptyByteArray)(_.data.toArray)),
                           dataBytes,
                           PublicKey(prop.bytes.data.toArray)

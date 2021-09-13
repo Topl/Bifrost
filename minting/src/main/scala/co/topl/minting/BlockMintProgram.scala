@@ -52,7 +52,7 @@ object BlockMintProgram {
 
   case class Out(unsignedHeaderF: Timestamp => BlockHeaderV2.Unsigned, transactions: Seq[Transaction]) {
 
-    def signed[F[_]](kesCertificate: KesCertificate, timestamp: Timestamp): BlockV2 = {
+    def signed(kesCertificate: KesCertificate, timestamp: Timestamp): BlockV2 = {
       val unsignedHeader = unsignedHeaderF(timestamp)
       val header = BlockHeaderV2(
         parentHeaderId = unsignedHeader.parentHeaderId,
