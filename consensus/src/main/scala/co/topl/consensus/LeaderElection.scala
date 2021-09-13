@@ -1,10 +1,11 @@
 package co.topl.consensus
 
+import co.topl.consensus.vrf.ProofToHash
 import co.topl.crypto.signatures.Ed25519VRF
 import co.topl.models._
 import co.topl.models.utility.HasLength.implicits._
 import co.topl.models.utility.Lengths._
-import co.topl.models.utility.{Lengths, Ratio, Sized}
+import co.topl.models.utility.{Ratio, Sized}
 import co.topl.typeclasses.RatioOps.implicits._
 import co.topl.typeclasses.crypto.ContainsVerificationKey
 import co.topl.typeclasses.crypto.ContainsVerificationKey.instances.vrfContainsVerificationKey
@@ -16,10 +17,10 @@ object LeaderElection {
   sealed abstract class Failure
 
   object Failures {
-    case class ThresholdNotMet(threshold: Ratio, proof: Bytes) extends Failure
+    case class ThresholdNotMet(threshold: Ratio, proof: Proofs.Consensus.VrfTest) extends Failure
   }
 
-  case class Hit(cert: VrfCertificate, proof: Bytes, slot: Slot, threshold: Ratio)
+  case class Hit(cert: VrfCertificate, slot: Slot, threshold: Ratio)
 
   case class Config(lddCutoff: Int, precision: Int, baselineDifficulty: Ratio, amplitude: Ratio)
 
@@ -52,18 +53,16 @@ object LeaderElection {
 
     // create VRF for current state
     val vrf = VrfProof(privateKeyBytes, epochNonce, slot)
-
     val threshold = getThreshold(relativeStake, slotDiff)
 
     Either.cond(
-      isSlotLeaderForThreshold(threshold)(vrf.testProofHashed),
+      isSlotLeaderForThreshold(threshold)(ProofToHash.digest(vrf.testProof)),
       Hit(
         VrfCertificate(
           implicitly[ContainsVerificationKey[PrivateKeys.Vrf, PublicKeys.Vrf]].verificationKeyOf(secret),
           Proofs.Consensus.Nonce(Sized.strictUnsafe(vrf.nonceProof)),
           Proofs.Consensus.VrfTest(Sized.strictUnsafe(vrf.testProof))
         ),
-        vrf.nonceProof,
         slot,
         threshold
       ),
@@ -102,19 +101,16 @@ object LeaderElection {
    * @param proof the proof output
    * @return true if elected slot leader and false otherwise
    */
-  def isSlotLeaderForThreshold(threshold: Ratio)(proofHash: Bytes): Boolean =
-    threshold > proofHash
-      .zip(1 to proofHash.length) // zip with indexes starting from 1
+  def isSlotLeaderForThreshold(threshold: Ratio)(proofHash: Rho): Boolean =
+    threshold > proofHash.data
+      .zip(1 to proofHash.data.length) // zip with indexes starting from 1
       .foldLeft(Ratio(0)) { case (net, (byte, i)) =>
         net + Ratio(BigInt(byte & 0xff), BigInt(2).pow(8 * i))
       }
 
   case class VrfProof(vrf: Ed25519VRF, proofFunc: String => Bytes) {
-    lazy val testProof: Bytes = proofFunc("TEST")
-    lazy val nonceProof: Bytes = proofFunc("NONCE")
-    lazy val testProofHashed: Hash = hash(testProof.toArray)
-
-    def hash(input: Array[Byte]): Hash = Bytes(vrf.vrfProofToHash(input))
+    lazy val testProof: Proofs.Consensus.VrfTest = Proofs.Consensus.VrfTest(Sized.strictUnsafe(proofFunc("TEST")))
+    lazy val nonceProof: Proofs.Consensus.Nonce = Proofs.Consensus.Nonce(Sized.strictUnsafe(proofFunc("NONCE")))
   }
 
   object VrfProof {

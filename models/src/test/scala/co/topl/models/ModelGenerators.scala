@@ -61,6 +61,7 @@ trait ModelGenerators {
   def headerGen(
     parentHeaderIdGen: Gen[TypedIdentifier] =
       genSizedStrictBytes[Lengths.`32`.type]().map(sized => TypedBytes(IdentifierTypes.Block.HeaderV2, sized.data)),
+    parentSlotGen:     Gen[Slot] = Gen.chooseNum(0L, 50L),
     txRootGen:         Gen[TxRoot] = genSizedStrictBytes[Lengths.`32`.type](),
     bloomFilterGen:    Gen[BloomFilter] = genSizedStrictBytes[Lengths.`256`.type](),
     timestampGen:      Gen[Timestamp] = Gen.chooseNum(0L, 50L),
@@ -81,6 +82,7 @@ trait ModelGenerators {
   ): Gen[BlockHeaderV2] =
     for {
       parentHeaderID <- parentHeaderIdGen
+      parentSlot     <- parentSlotGen
       txRoot         <- txRootGen
       bloomFilter    <- bloomFilterGen
       timestamp      <- timestampGen
@@ -93,6 +95,7 @@ trait ModelGenerators {
       address        <- addressGen
     } yield BlockHeaderV2(
       parentHeaderID,
+      parentSlot,
       txRoot,
       bloomFilter,
       timestamp,

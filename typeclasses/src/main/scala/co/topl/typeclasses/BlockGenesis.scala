@@ -16,6 +16,7 @@ object BlockGenesis {
     Sized.strictUnsafe[Bytes, L](Bytes(Array.fill(l.value)(0: Byte)))
 
   val ParentId: TypedIdentifier = TypedBytes(IdentifierTypes.Block.HeaderV2, Bytes(Array.fill[Byte](32)(0)))
+  val ParentSlot: Slot = -1
 
   val vrfCertificate: VrfCertificate = VrfCertificate(
     PublicKeys.Vrf(PublicKeys.Ed25519(zeroBytes[PublicKeys.Ed25519.Length])),
@@ -52,6 +53,7 @@ object BlockGenesis {
     val header =
       BlockHeaderV2(
         parentHeaderId = ParentId,
+        parentSlot = ParentSlot,
         txRoot = transactions.merkleTree,
         bloomFilter = transactions.bloomFilter,
         timestamp = 0L,

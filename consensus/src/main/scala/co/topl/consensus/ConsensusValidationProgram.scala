@@ -128,11 +128,7 @@ class ConsensusValidationProgram[F[_]: Monad](
     threshold: Ratio
   ): Either[ConsensusValidationProgram.Failure, BlockHeaderV2] =
     Either.cond(
-      LeaderElection.isSlotLeaderForThreshold(threshold)(
-        Bytes(
-          ProofToHash.digest(Signature(header.vrfCertificate.testProof.bytes.data.toArray))
-        )
-      ),
+      LeaderElection.isSlotLeaderForThreshold(threshold)(ProofToHash.digest(header.vrfCertificate.testProof)),
       header,
       ConsensusValidationProgram.Failures.IneligibleVrfCertificate(threshold, header.vrfCertificate)
     )

@@ -153,6 +153,7 @@ class ConsensusValidationProgramSpec
       val unsigned =
         BlockHeaderV2.Unsigned(
           parentHeaderId = parent.id,
+          parentSlot = parent.slot,
           txRoot = txRoot,
           bloomFilter = bloomFilter,
           timestamp = System.currentTimeMillis(),
@@ -229,6 +230,7 @@ class ConsensusValidationProgramSpec
       val unsigned =
         BlockHeaderV2.Unsigned(
           parentHeaderId = parent.id,
+          parentSlot = parent.slot,
           txRoot = txRoot,
           bloomFilter = bloomFilter,
           timestamp = System.currentTimeMillis(),

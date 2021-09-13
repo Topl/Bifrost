@@ -27,16 +27,31 @@ package object models {
   type PolyOutput = (Address, Int128)
   type ArbitOutput = (Address, Int128)
   type AssetOutput = (Address, Box.Values.Asset)
-
+  type SlotId = (Slot, TypedIdentifier)
   type TxRoot = Sized.Strict[Bytes, Lengths.`32`.type]
   type BloomFilter = Sized.Strict[Bytes, Lengths.`256`.type]
-
+  type Rho = Sized.Strict[Bytes, Lengths.`64`.type]
   type Account = Propositions.PublicKeyEd25519
   type Root = Propositions.PublicKeyEd25519
   type StakeAddress = Propositions.PublicKeyEd25519
 
   object Bytes {
-    def apply(array: Array[Byte]): Bytes = new ArraySeq.ofByte(array)
+    def apply(array:       Array[Byte]): Bytes = new ArraySeq.ofByte(array)
+    def toByteArray(bytes: Bytes): Array[Byte] = bytes.toArray
+
+    def concat(arrays: Bytes*): Bytes = {
+      var length = 0
+      for (array <- arrays)
+        length += array.length
+      val result = new Array[Byte](length)
+      var pos = 0
+      for (array <- arrays) {
+        System.arraycopy(array, 0, result, pos, array.length)
+        pos += array.length
+      }
+      Bytes(result)
+    }
+    def empty: Bytes = Bytes(Array())
   }
 
   @newtype case class TypedBytes(allBytes: Bytes) {

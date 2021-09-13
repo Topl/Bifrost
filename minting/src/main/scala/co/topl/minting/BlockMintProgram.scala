@@ -30,6 +30,7 @@ class BlockMintProgram[F[_]: Monad] {
             timestamp =>
               BlockHeaderV2.Unsigned(
                 parentHeaderId = interpreter.canonicalHead.headerV2.id,
+                parentSlot = interpreter.canonicalHead.headerV2.slot,
                 txRoot = transactions.merkleTree,
                 bloomFilter = transactions.bloomFilter,
                 timestamp = timestamp,
@@ -56,6 +57,7 @@ object BlockMintProgram {
       val unsignedHeader = unsignedHeaderF(timestamp)
       val header = BlockHeaderV2(
         parentHeaderId = unsignedHeader.parentHeaderId,
+        parentSlot = unsignedHeader.parentSlot,
         txRoot = transactions.merkleTree,
         bloomFilter = transactions.bloomFilter,
         timestamp = unsignedHeader.timestamp,

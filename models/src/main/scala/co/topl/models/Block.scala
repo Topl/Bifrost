@@ -20,6 +20,7 @@ case class BlockV1(
 // id = hash(headerBytes) INCLUDING kesCertificate proofs
 case class BlockHeaderV2(
   parentHeaderId:    TypedIdentifier,
+  parentSlot:        Slot,
   txRoot:            TxRoot,
   bloomFilter:       BloomFilter,
   timestamp:         Timestamp,
@@ -31,12 +32,15 @@ case class BlockHeaderV2(
   // TODO: Discussion on mint signatures
   metadata: Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
   address:  TaktikosAddress
-)
+) {
+  def parentSlotId: SlotId = (parentSlot, parentHeaderId)
+}
 
 object BlockHeaderV2 {
 
   case class Unsigned(
     parentHeaderId:    TypedIdentifier,
+    parentSlot:        Slot,
     txRoot:            TxRoot,
     bloomFilter:       BloomFilter,
     timestamp:         Timestamp,
