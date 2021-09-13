@@ -9,6 +9,7 @@ import akka.io.{IO, Tcp}
 import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.consensus.{Forger, LocallyGeneratedBlock}
 import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
+import co.topl.modifier.block.Block
 import co.topl.modifier.box.SimpleValue
 import co.topl.modifier.transaction.PolyTransfer
 import co.topl.network.{NetworkControllerRef, PeerManager, PeerManagerRef}
@@ -107,7 +108,8 @@ class MemPoolAuditorSpec
       testIn.testIn.nodeView.mempool.modifierById(fstTx.id).value shouldBe fstTx
 
       testIn.forgerRef.tell(Forger.ReceivableMessages.StartForging(system.ignoreRef))
-      val forgedBlock = probe.receiveMessage(1.seconds).block
+      val forgedBlock: Block = probe.receiveMessage(1.seconds).block
+      forgedBlock.transactions.map(_.id).contains(fstTx.id) shouldBe true
       Thread.sleep(1.seconds.toMillis)
       testIn.testIn.nodeView.mempool.modifierById(fstTx.id) shouldBe None
 
