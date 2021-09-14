@@ -9,7 +9,7 @@ import co.topl.modifier.transaction.Transaction
 import co.topl.network.Broadcast
 import co.topl.network.NetworkController.ReceivableMessages.SendToNetwork
 import co.topl.network.message.{InvData, InvSpec, Message}
-import co.topl.nodeView.MemPoolAuditor.ReceivableMessage.RunCleanup
+import co.topl.nodeView.MemPoolAuditor.ReceivableMessages.RunCleanup
 import co.topl.nodeView.NodeViewHolder.Events.SemanticallySuccessfulModifier
 import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType.NetworkPrefix
@@ -31,11 +31,9 @@ object MemPoolAuditor {
 
   sealed abstract class ReceivableMessage
 
-  object ReceivableMessage {
+  object ReceivableMessages {
 
     private[nodeView] case class CleanupDone(toBeBroadcast: Seq[Transaction.TX]) extends ReceivableMessage
-
-    private[nodeView] case object GotSemanticallySuccessfulModifier extends ReceivableMessage
 
     private[nodeView] case object RunCleanup extends ReceivableMessage
 
@@ -59,7 +57,7 @@ object MemPoolAuditor {
 
       system.eventStream.tell(
         EventStream.Subscribe[SemanticallySuccessfulModifier[_]](
-          context.messageAdapter(_ => ReceivableMessage.GotSemanticallySuccessfulModifier)
+          context.messageAdapter(_ => ReceivableMessages.RunCleanup)
         )
       )
       context.log.info(s"${Console.YELLOW}MemPool Auditor transitioning to the operational state${Console.RESET}")
@@ -84,43 +82,38 @@ private class MemPoolAuditorBehaviors(
    */
   val RevisionInterval: Int = 4
 
-  def idle(validatedIndex: TreeSet[Transaction.TX], epochNr: Int): Behavior[ReceivableMessage] =
-    Behaviors.receiveMessagePartial[ReceivableMessage] { case ReceivableMessage.GotSemanticallySuccessfulModifier =>
-      context.self.tell(RunCleanup)
-      active(validatedIndex, epochNr)
+  def idle(validatedTx: TreeSet[Transaction.TX], iteration: Int): Behavior[ReceivableMessage] =
+    Behaviors.receiveMessagePartial[ReceivableMessage] { case ReceivableMessages.RunCleanup =>
+      context.pipeToSelf(withNodeView(splitIds(validatedTx, _))) {
+        case Success(decision)  => decision
+        case Failure(exception) => ReceivableMessages.Fail(exception)
+      }
+      active(validatedTx, iteration)
     }
 
-  private def active(validatedIndex: TreeSet[Transaction.TX], epochNr: Int): Behavior[ReceivableMessage] =
+  private def active(validatedTx: TreeSet[Transaction.TX], iteration: Int): Behavior[ReceivableMessage] =
     Behaviors.receiveMessagePartial[ReceivableMessage] {
-      case ReceivableMessage.RunCleanup =>
-        context.pipeToSelf(withNodeView(splitIds(validatedIndex, _))) {
-          case Success(decision)  => decision
-          case Failure(exception) => ReceivableMessage.Fail(exception)
-        }
-        Behaviors.same
 
-      case ReceivableMessage.CleanupDecision(validatedTransactions, invalidatedTransactions) =>
-        context.self.tell(
-          ReceivableMessage.CleanupDone(validatedTransactions.take(settings.application.rebroadcastCount))
-        )
+      case ReceivableMessages.CleanupDecision(validatedTransactions, invalidatedTransactions) =>
         if (invalidatedTransactions.nonEmpty) {
           log.info(s"${invalidatedTransactions.size} transactions from mempool were invalidated")
           nodeViewHolderRef ! NodeViewHolder.ReceivableMessages.EliminateTransactions(invalidatedTransactions.map(_.id))
         }
-        val newEpochNr = if (epochNr < Int.MaxValue) epochNr + 1 else 0
-        if (epochNr % RevisionInterval == 0) {
-          // drop old index in order to check potentially outdated transactions again.
-          active(TreeSet(validatedTransactions: _*), newEpochNr)
-        } else {
-          active(validatedIndex ++ validatedTransactions, newEpochNr)
+        if (validatedTransactions.nonEmpty) {
+          rebroadcastTransactions(validatedTransactions.take(settings.application.rebroadcastCount))
         }
 
-      case ReceivableMessage.CleanupDone(ids) =>
         log.info(s"Cleanup done. Switching to idle mode")
-        rebroadcastTransactions(ids)
-        idle(validatedIndex, epochNr)
 
-      case ReceivableMessage.Fail(throwable) =>
+        val newIteration = if (iteration < Int.MaxValue) iteration + 1 else 0
+        if (newIteration % RevisionInterval == 0) {
+          // drop old index in order to check potentially outdated transactions again.
+          idle(TreeSet.empty ++ validatedTransactions, newIteration)
+        } else {
+          idle(validatedTx ++ validatedTransactions, newIteration)
+        }
+
+      case ReceivableMessages.Fail(throwable) =>
         throw throwable
     }
 
@@ -131,23 +124,23 @@ private class MemPoolAuditorBehaviors(
   private def splitIds(
     validatedIndex:        TreeSet[Transaction.TX],
     nodeView:              ReadableNodeView
-  )(implicit timeProvider: TimeProvider): ReceivableMessage.CleanupDecision = {
+  )(implicit timeProvider: TimeProvider): ReceivableMessages.CleanupDecision = {
     val (valid, invalid) =
       nodeView.memPool
-        .take(100)(-_.dateAdded)
+        .take(Int.MaxValue)(-_.dateAdded)
         .filterNot(utx => validatedIndex.contains(utx.tx))
         .foldLeft((Seq[Transaction.TX](), Seq[Transaction.TX]())) { case ((validAcc, invalidAcc), utx) =>
           // if any newly created box matches a box already in the UTXO set, remove the transaction
-          val newBoxAlreadyExists = utx.tx.newBoxes.exists(b => nodeView.state.getBox(b.id).isDefined)
-          val inputBoxAlreadyUsed = utx.tx.boxIdsToOpen.exists(id => nodeView.state.getBox(id).isEmpty)
+          lazy val newBoxAlreadyExists = utx.tx.newBoxes.exists(b => nodeView.state.getBox(b.id).isDefined)
+          lazy val inputBoxAlreadyUsed = utx.tx.boxIdsToOpen.exists(id => nodeView.state.getBox(id).isEmpty)
           val txTimeout =
             (timeProvider.time - utx.dateAdded) > settings.application.mempoolTimeout.toMillis
 
-          if (newBoxAlreadyExists || inputBoxAlreadyUsed || txTimeout) (validAcc, utx.tx +: invalidAcc)
+          if (txTimeout || newBoxAlreadyExists || inputBoxAlreadyUsed) (validAcc, utx.tx +: invalidAcc)
           else (utx.tx +: validAcc, invalidAcc)
         }
 
-    ReceivableMessage.CleanupDecision(valid, invalid)
+    ReceivableMessages.CleanupDecision(valid, invalid)
   }
 
   private def withNodeView[T](f: ReadableNodeView => T): Future[T] = {
@@ -159,20 +152,15 @@ private class MemPoolAuditorBehaviors(
     nodeViewHolderRef.askWithStatus[T](NodeViewHolder.ReceivableMessages.Read(f, _))
   }
 
-  private def rebroadcastTransactions(transactions: Seq[Transaction.TX]): Unit =
-    if (transactions.nonEmpty) {
-      log.debug("Rebroadcasting transactions")
-      transactions.foreach { tx =>
-        log.info(s"Rebroadcasting $tx")
-        val msg = Message(
-          new InvSpec(settings.network.maxInvObjects),
-          Right(InvData(Transaction.modifierTypeId, Seq(tx.id))),
-          None
-        )
+  private def rebroadcastTransactions(transactions: Seq[Transaction.TX]): Unit = {
+    log.debug("Rebroadcasting transactions")
 
-        networkControllerRef ! SendToNetwork(msg, Broadcast)
-      }
-    } else {
-      log.debug("No transactions to rebroadcast")
-    }
+    val msg = Message(
+      new InvSpec(settings.network.maxInvObjects),
+      Right(InvData(Transaction.modifierTypeId, transactions.map(_.id))),
+      None
+    )
+
+    networkControllerRef ! SendToNetwork(msg, Broadcast)
+  }
 }

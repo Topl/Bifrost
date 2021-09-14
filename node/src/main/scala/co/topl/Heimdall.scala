@@ -321,13 +321,11 @@ object Heimdall {
       )
     }
 
-    val mempoolAuditor = {
-      implicit val timeout: Timeout = Timeout(10.seconds)
+    val mempoolAuditor =
       context.spawn(
         MemPoolAuditor(state.nodeViewHolder, networkController, settings),
         MemPoolAuditor.actorName
       )
-    }
 
     NetworkControllerInitializingState(
       state.keyManager,
