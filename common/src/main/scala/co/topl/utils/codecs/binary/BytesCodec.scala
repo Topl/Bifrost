@@ -1,13 +1,13 @@
 package co.topl.utils.codecs.binary
 
-import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
 import scodec.bits.BitVector
+import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
 
 object BytesCodec {
 
   def decode(from: BitVector, size: Int): Attempt[DecodeResult[Array[Byte]]] = {
     val requiredBits = size * byteSize
-    if (from.length < size * byteSize) Attempt.failure(Err.insufficientBits(requiredBits, from.length))
+    if (from.length < requiredBits) Attempt.failure(Err.insufficientBits(requiredBits, from.length))
     else {
       val (decodedBits, remaining) = from.splitAt(requiredBits)
 

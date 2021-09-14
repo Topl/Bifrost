@@ -1,8 +1,8 @@
 package co.topl.utils.codecs.binary
 
 import co.topl.utils.serialization.ZigZagEncoder.{decodeZigZagInt, encodeZigZagInt}
-import scodec.{Attempt, Codec, DecodeResult, Decoder, SizeBound}
 import scodec.bits.BitVector
+import scodec.{Attempt, Codec, DecodeResult, SizeBound}
 
 object ShortCodec {
 

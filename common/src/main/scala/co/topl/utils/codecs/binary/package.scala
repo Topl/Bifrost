@@ -14,7 +14,7 @@ package object binary {
   type UShort = Int
 
   type IntString = String
-  type SmallString = String
+  type ByteString = String
 
   val byteSize: Int = 8
 
@@ -39,7 +39,7 @@ package object binary {
       with LongCodec.Implicits
       with OptionCodec.Implicits
       with ShortCodec.Implicits
-      with SmallStringCodec.Implicits
+      with ByteStringCodec.Implicits
       with UIntCodec.Implicits
       with ULongCodec.Implicits
 
@@ -55,7 +55,7 @@ package object binary {
       with LongCodec.Codecs
       with OptionCodec.Codecs
       with ShortCodec.Codecs
-      with SmallStringCodec.Codecs
+      with ByteStringCodec.Codecs
       with UIntCodec.Codecs
       with ULongCodec.Codecs
 

@@ -1,7 +1,7 @@
 package co.topl.utils.codecs.binary
 
 import scodec.bits.BitVector
-import scodec.{Attempt, Codec, DecodeResult, Decoder, Encoder, Err, SizeBound}
+import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
 
 object UIntCodec {
 
@@ -23,7 +23,7 @@ object UIntCodec {
 
     override def encode(value: UInt): Attempt[BitVector] = UIntCodec.encode(value)
 
-    override def sizeBound: SizeBound = ULongCodec.codec.sizeBound
+    override def sizeBound: SizeBound = SizeBound.atMost(32)
   }
 
   trait Codecs {

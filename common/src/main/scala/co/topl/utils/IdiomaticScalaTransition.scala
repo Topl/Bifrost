@@ -55,7 +55,7 @@ private[topl] object IdiomaticScalaTransition {
 
   trait ToTryOps {
 
-    implicit def toEitherOps[R](v: Try[R]): TryOps[R] = new TryOps[R] {
+    implicit def toTryOps[R](v: Try[R]): TryOps[R] = new TryOps[R] {
       def instance: Try[R] = v
     }
   }

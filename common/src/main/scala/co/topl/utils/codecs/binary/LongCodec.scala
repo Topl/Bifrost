@@ -1,8 +1,8 @@
 package co.topl.utils.codecs.binary
 
 import co.topl.utils.serialization.ZigZagEncoder.{decodeZigZagLong, encodeZigZagLong}
-import scodec.{Attempt, Codec, DecodeResult, Decoder, Encoder, SizeBound}
 import scodec.bits.BitVector
+import scodec.{Attempt, Codec, DecodeResult, SizeBound}
 
 object LongCodec {
 

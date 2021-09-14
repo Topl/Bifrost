@@ -2,7 +2,7 @@ package co.topl.utils.codecs.binary
 
 import co.topl.utils.Int128
 import scodec.bits.BitVector
-import scodec.{Attempt, Codec, DecodeResult, Decoder, Encoder, Err, SizeBound}
+import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
 
 object Int128Codec {
 

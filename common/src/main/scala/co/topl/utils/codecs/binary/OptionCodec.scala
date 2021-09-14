@@ -1,8 +1,8 @@
 package co.topl.utils.codecs.binary
 
 import cats.implicits._
-import scodec.{Attempt, Codec, DecodeResult, Decoder, Encoder, Err, SizeBound}
 import scodec.bits.BitVector
+import scodec.{Attempt, Codec, DecodeResult, Decoder, Encoder, Err, SizeBound}
 
 object OptionCodec {
 

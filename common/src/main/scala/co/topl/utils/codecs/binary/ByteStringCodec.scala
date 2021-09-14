@@ -1,14 +1,13 @@
 package co.topl.utils.codecs.binary
 
-import cats.implicits._
 import scodec.bits.BitVector
-import scodec.{Attempt, Codec, DecodeResult, Decoder, Err, SizeBound}
+import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
 
-object SmallStringCodec {
+object ByteStringCodec {
 
   val maxBytes: Int = 255
 
-  def decode(from: BitVector): Attempt[DecodeResult[SmallString]] =
+  def decode(from: BitVector): Attempt[DecodeResult[ByteString]] =
     Attempt.fromEither(
       for {
         // split input by size bits and remaining
@@ -32,7 +31,7 @@ object SmallStringCodec {
       } yield DecodeResult(smallString, stringSplitTuple._2)
     )
 
-  def encode(value: SmallString): Attempt[BitVector] = {
+  def encode(value: ByteString): Attempt[BitVector] = {
     val byteRepr = value.getBytes(stringCharacterSet)
 
     val byteLength = byteRepr.length
@@ -41,19 +40,19 @@ object SmallStringCodec {
     else Attempt.failure(Err("SmallString value is outside of valid range."))
   }
 
-  val codec: Codec[SmallString] = new Codec[SmallString] {
-    override def decode(bits: BitVector): Attempt[DecodeResult[SmallString]] = SmallStringCodec.decode(bits)
+  val codec: Codec[ByteString] = new Codec[ByteString] {
+    override def decode(bits: BitVector): Attempt[DecodeResult[ByteString]] = ByteStringCodec.decode(bits)
 
-    override def encode(value: SmallString): Attempt[BitVector] = SmallStringCodec.encode(value)
+    override def encode(value: ByteString): Attempt[BitVector] = ByteStringCodec.encode(value)
 
     override def sizeBound: SizeBound = UIntCodec.codec.sizeBound + SizeBound.atMost(maxBytes * byteSize)
   }
 
   trait Codecs {
-    val smallString: Codec[SmallString] = codec
+    val smallString: Codec[ByteString] = codec
   }
 
   trait Implicits {
-    implicit val smallStringImplicitCodec: Codec[SmallString] = codec
+    implicit val smallStringImplicitCodec: Codec[ByteString] = codec
   }
 }

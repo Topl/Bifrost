@@ -1,7 +1,7 @@
 package co.topl.utils.codecs.binary
 
 import scodec.bits.BitVector
-import scodec.{Attempt, Codec, DecodeResult, Decoder, Encoder, Err, SizeBound}
+import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
 
 object BooleanCodec {
 

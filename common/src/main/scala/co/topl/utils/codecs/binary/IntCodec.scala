@@ -1,8 +1,8 @@
 package co.topl.utils.codecs.binary
 
 import co.topl.utils.serialization.ZigZagEncoder.{decodeZigZagInt, encodeZigZagInt}
-import scodec.{Attempt, Codec, DecodeResult, Decoder, Encoder, SizeBound}
 import scodec.bits.BitVector
+import scodec.{Attempt, Codec, DecodeResult, SizeBound}
 
 object IntCodec {
 
@@ -16,7 +16,7 @@ object IntCodec {
 
     override def encode(value: UShort): Attempt[BitVector] = IntCodec.encode(value)
 
-    override def sizeBound: SizeBound = SizeBound.atMost(64)
+    override def sizeBound: SizeBound = SizeBound.atMost(32)
   }
 
   trait Codecs {

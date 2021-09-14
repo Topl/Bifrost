@@ -95,8 +95,8 @@ trait VLQWriter extends Writer {
    *          see note above)
    */
   @inline override def putULong(x: Long): this.type = {
-    var position = 0
     val buffer = new Array[Byte](10)
+    var position = 0
     var value = x
     // should be fast if java -> scala conversion did not botched it
     // source: http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java/core/src/main/java/com/google/protobuf/CodedOutputStream.java#L1387

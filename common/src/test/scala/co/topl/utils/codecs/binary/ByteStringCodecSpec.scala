@@ -10,7 +10,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scodec.bits.BitVector
 
-class SmallStringCodecSpec
+class ByteStringCodecSpec
     extends AnyFlatSpec
     with CommonGenerators
     with ScalaCheckPropertyChecks
@@ -24,7 +24,7 @@ class SmallStringCodecSpec
 
       val bytes = vlqWriter.result()
 
-      val decoderResult = SmallStringCodec.decode(BitVector(bytes)).getOrThrow()
+      val decoderResult = ByteStringCodec.decode(BitVector(bytes)).getOrThrow()
 
       decoderResult.value shouldBe stringValue
       decoderResult.remainder shouldBe empty
@@ -39,7 +39,7 @@ class SmallStringCodecSpec
 
       val bytes = vlqWriter.result() ++ leftover
 
-      val decoderResult = SmallStringCodec.decode(BitVector(bytes)).getOrThrow()
+      val decoderResult = ByteStringCodec.decode(BitVector(bytes)).getOrThrow()
 
       decoderResult.remainder.toByteArray shouldBe leftover
     }
@@ -47,7 +47,7 @@ class SmallStringCodecSpec
 
   "SmallStringCodec Encoder" should "produce an encoded value that is decodable by VLQByteStringReader" in {
     forAll(Gen.asciiStr) { stringValue =>
-      val encodedBits = SmallStringCodec.encode(stringValue).getOrThrow()
+      val encodedBits = ByteStringCodec.encode(stringValue).getOrThrow()
 
       val encodedByteString = ByteString(encodedBits.toByteArray)
 
@@ -61,9 +61,9 @@ class SmallStringCodecSpec
 
   "SmallStringCodec" should "be able to successfully decode an encoded value" in {
     forAll(Gen.asciiStr) { value =>
-      val encodedBits = SmallStringCodec.encode(value).getOrThrow()
+      val encodedBits = ByteStringCodec.encode(value).getOrThrow()
 
-      val decodedValue = SmallStringCodec.decode(encodedBits).getOrThrow()
+      val decodedValue = ByteStringCodec.decode(encodedBits).getOrThrow()
 
       decodedValue.value shouldBe value
     }

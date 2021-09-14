@@ -12,7 +12,7 @@ import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.History.GenesisParentId
 import co.topl.nodeView.{CacheLayerKeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
-import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
+import co.topl.utils.IdiomaticScalaTransition.implicits.toTryOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Logging, TimeProvider}
 
