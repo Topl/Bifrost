@@ -13,7 +13,7 @@ object NetworkType {
 
   type NetworkPrefix = Byte
 
-  lazy val all: Seq[NetworkType] = Seq(Mainnet, ValhallaTestnet, HelTestnet, LocalTestnet, PrivateTestnet)
+  lazy val all: Seq[NetworkType] = Seq(Mainnet, ValhallaTestnet, HelTestnet, PrivateTestnet)
 
   def pickNetworkType(name:          String): Option[NetworkType] = all.find(_.verboseName == name)
   def pickNetworkType(networkPrefix: NetworkPrefix): Option[NetworkType] = all.find(_.netPrefix == networkPrefix)
@@ -23,8 +23,6 @@ object NetworkType {
   case object ValhallaTestnet extends NetworkType("valhalla", 16.toByte)
 
   case object HelTestnet extends NetworkType("hel", 32.toByte)
-
-  case object LocalTestnet extends NetworkType("local", 48.toByte)
 
   case object PrivateTestnet extends NetworkType("private", 64.toByte)
 
