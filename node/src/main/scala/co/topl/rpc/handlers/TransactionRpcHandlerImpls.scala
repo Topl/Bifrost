@@ -1,43 +1,47 @@
 package co.topl.rpc.handlers
 
+import akka.actor.typed.ActorSystem
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
 import co.topl.attestation._
-import co.topl.modifier.box.{AssetValue, SimpleValue}
+import co.topl.modifier.box.{AssetValue, ProgramId, SimpleValue}
 import co.topl.modifier.transaction
 import co.topl.modifier.transaction.ArbitTransfer.Validation.InvalidArbitTransfer
 import co.topl.modifier.transaction.AssetTransfer.Validation.InvalidAssetTransfer
 import co.topl.modifier.transaction.PolyTransfer.Validation.InvalidPolyTransfer
 import co.topl.modifier.transaction.builder.BoxPickingStrategy
+import co.topl.modifier.transaction.builder.implicits._
 import co.topl.modifier.transaction.validation.implicits._
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
-import co.topl.nodeView.state.State
-import co.topl.nodeView.{BroadcastTxFailureException, GetStateFailureException, NodeViewHolderInterface}
+import co.topl.nodeView.state.StateReader
+import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView}
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.codecs.implicits._
 import io.circe.Encoder
-import co.topl.modifier.transaction.builder.implicits._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import scala.util.Try
 
 class TransactionRpcHandlerImpls(
   nodeViewHolderInterface: NodeViewHolderInterface
 )(implicit
-  ec:               ExecutionContext,
+  system:           ActorSystem[_],
   throwableEncoder: Encoder[ThrowableData],
   networkPrefix:    NetworkPrefix
 ) extends ToplRpcHandlers.Transaction {
 
+  import system.executionContext
+
   override val rawAssetTransfer: ToplRpc.Transaction.RawAssetTransfer.rpc.ServerHandler =
     params =>
       for {
-        state           <- currentState()
-        senderAddresses <- checkAddresses(params.sender.toList, state).toEitherT[Future]
-        transferTry = tryCreateAssetTransfer(params, state, senderAddresses)
+        transferTry <- withNodeView(view =>
+          checkAddresses(params.sender.toList, view.state)
+            .map(tryCreateAssetTransfer(params, view.state, _))
+        ).subflatMap(identity)
         transfer <- Either
           .fromTry(transferTry)
           .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
@@ -48,9 +52,10 @@ class TransactionRpcHandlerImpls(
   override val rawArbitTransfer: ToplRpc.Transaction.RawArbitTransfer.rpc.ServerHandler =
     params =>
       for {
-        state           <- currentState()
-        senderAddresses <- checkAddresses(params.sender.toList, state).toEitherT[Future]
-        transferTry = tryCreateArbitTransfer(params, state, senderAddresses)
+        transferTry <- withNodeView(view =>
+          checkAddresses(params.sender.toList, view.state)
+            .map(tryCreateArbitTransfer(params, view.state, _))
+        ).subflatMap(identity)
         transfer <- Either
           .fromTry(transferTry)
           .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
@@ -61,9 +66,10 @@ class TransactionRpcHandlerImpls(
   override val rawPolyTransfer: ToplRpc.Transaction.RawPolyTransfer.rpc.ServerHandler =
     params =>
       for {
-        state           <- currentState()
-        senderAddresses <- checkAddresses(params.sender.toList, state).toEitherT[Future]
-        transferTry = tryCreatePolyTransfer(params, state, senderAddresses)
+        transferTry <- withNodeView(view =>
+          checkAddresses(params.sender.toList, view.state)
+            .map(tryCreatePolyTransfer(params, view.state, _))
+        ).subflatMap(identity)
         transfer <- Either
           .fromTry(transferTry)
           .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
@@ -82,7 +88,7 @@ class TransactionRpcHandlerImpls(
 
   private def tryCreateAssetTransfer(
     params:          ToplRpc.Transaction.RawAssetTransfer.Params,
-    state:           State,
+    state:           StateReader[ProgramId, Address],
     senderAddresses: List[Address]
   ): Try[AssetTransfer[Proposition]] = Try {
     val createRaw = params.propositionType match {
@@ -118,7 +124,7 @@ class TransactionRpcHandlerImpls(
 
   private def tryCreateArbitTransfer(
     params:          ToplRpc.Transaction.RawArbitTransfer.Params,
-    state:           State,
+    state:           StateReader[ProgramId, Address],
     senderAddresses: List[Address]
   ): Try[ArbitTransfer[Proposition]] = Try {
     val createRaw = params.propositionType match {
@@ -154,7 +160,7 @@ class TransactionRpcHandlerImpls(
 
   private def tryCreatePolyTransfer(
     params:          ToplRpc.Transaction.RawPolyTransfer.Params,
-    state:           State,
+    state:           StateReader[ProgramId, Address],
     senderAddresses: List[Address]
   ): Try[PolyTransfer[Proposition]] = Try {
     val createRaw = params.propositionType match {
@@ -189,12 +195,14 @@ class TransactionRpcHandlerImpls(
   }.collect { case p: PolyTransfer[Proposition @unchecked] => p }
 
   private def processTransaction(tx: Transaction.TX) =
-    nodeViewHolderInterface.broadcastTransaction(tx).leftMap { case BroadcastTxFailureException(throwable) =>
+    nodeViewHolderInterface.applyTransactions(tx).leftMap { case NodeViewHolderInterface.ApplyFailure(throwable) =>
       CustomError.fromThrowable(throwable): RpcError
     }
 
-  private def currentState() =
-    nodeViewHolderInterface.getState().leftMap { case GetStateFailureException(throwable) =>
-      CustomError.fromThrowable(throwable): RpcError
-    }
+  private def withNodeView[T](f: ReadableNodeView => T) =
+    nodeViewHolderInterface
+      .withNodeView(f)
+      .leftMap { case NodeViewHolderInterface.ReadFailure(throwable) =>
+        CustomError.fromThrowable(throwable): RpcError
+      }
 }

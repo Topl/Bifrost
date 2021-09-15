@@ -9,7 +9,7 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.Box.Nonce
-import co.topl.modifier.box.{ProgramId, _}
+import co.topl.modifier.box._
 import co.topl.modifier.transaction._
 import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.codecs.implicits._
@@ -85,7 +85,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   private lazy val tinyIntMax = 10
   private lazy val medIntMax = 100
 
-  private lazy val int128Min: Int128 = Int128.MaxValue
+  private lazy val int128Min: Int128 = Int128.MinValue
   private lazy val int128Max: Int128 = Int128.MaxValue
 
   implicit lazy val int128Chooser: Gen.Choose[Int128] =
@@ -393,6 +393,22 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     data        <- latin1DataGen
   } yield PolyTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
 
+  def signedPolyTransferGen(
+    from:    Gen[IndexedSeq[(Address, Nonce)]],
+    keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519]
+  ): Gen[PolyTransfer[keyRing.PK]] = for {
+    from      <- from
+    to        <- toSeqGen
+    fee       <- positiveLongGen
+    timestamp <- positiveLongGen
+    data      <- latin1DataGen
+  } yield {
+    val base =
+      PolyTransfer[PublicKeyPropositionCurve25519](from, to, ListMap.empty, fee, timestamp, Some(data), minting = false)
+
+    base.copy(attestation = keyRing.generateAttestation(from.map(_._1).toSet)(base.messageToSign))
+  }
+
   lazy val polyTransferEd25519Gen: Gen[PolyTransfer[PublicKeyPropositionEd25519]] = for {
     from        <- fromSeqEd25519Gen
     to          <- toSeqGen
@@ -465,8 +481,12 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   lazy val assetTransferGen: Gen[AssetTransfer[_ <: Proposition]] =
     Gen.oneOf(assetTransferCurve25519Gen, assetTransferThresholdCurve25519Gen, assetTransferEd25519Gen)
 
-  lazy val transferGen: Gen[TransferTransaction[_ <: TokenValueHolder, _ <: Proposition]] =
-    Gen.oneOf(polyTransferGen, arbitTransferGen, assetTransferGen)
+  lazy val transferGen: Gen[Transaction.TX] =
+    Gen.oneOf(
+      polyTransferGen.map { t: Transaction.TX => t },
+      arbitTransferGen.map { t: Transaction.TX => t },
+      assetTransferGen.map { t: Transaction.TX => t }
+    )
 
   lazy val propTypes: Gen[String] = sampleUntilNonEmpty(
     Gen.oneOf(
@@ -515,10 +535,14 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   lazy val attestationGen: Gen[Map[_ <: Proposition, Proof[_ <: Proposition]]] =
     Gen.oneOf(attestationCurve25519Gen, attestationThresholdCurve25519Gen, attestationEd25519Gen)
 
-  val transactionTypes: Seq[Gen[Transaction.TX]] =
-    Seq(polyTransferGen, arbitTransferGen, assetTransferGen)
+  lazy val transactionTypes: Seq[Gen[TransferTransaction[_ <: TokenValueHolder, _ <: Proposition]]] =
+    Seq(
+      polyTransferGen.map { t: TransferTransaction[_ <: TokenValueHolder, _ <: Proposition] => t },
+      arbitTransferGen.map { t: TransferTransaction[_ <: TokenValueHolder, _ <: Proposition] => t },
+      assetTransferGen.map { t: TransferTransaction[_ <: TokenValueHolder, _ <: Proposition] => t }
+    )
 
-  lazy val bifrostTransactionSeqGen: Gen[Seq[Transaction.TX]] = for {
+  lazy val bifrostTransactionSeqGen: Gen[Seq[Transaction[_ <: TokenValueHolder, _ <: Proposition]]] = for {
     seqLen <- positiveMediumIntGen
   } yield 0 until seqLen map { _ =>
     sampleUntilNonEmpty(sampleUntilNonEmpty(Gen.oneOf(transactionTypes)))

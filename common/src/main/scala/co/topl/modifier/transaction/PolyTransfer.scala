@@ -15,6 +15,7 @@ import io.circe.{Decoder, Encoder, HCursor}
 
 import java.time.Instant
 import scala.collection.immutable.ListMap
+import scala.util.Try
 
 case class PolyTransfer[
   P <: Proposition: EvidenceProducer: Identifiable

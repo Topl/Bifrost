@@ -1,7 +1,5 @@
 package http
 
-import pureconfig._
-
 /** A case class used in AppSettings to note the state of the different API endpoints */
 case class NamespaceSelector(
   private val wallet:       Boolean,

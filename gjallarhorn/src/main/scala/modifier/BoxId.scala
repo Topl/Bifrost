@@ -1,16 +1,5 @@
 package modifier
 
-import cats.implicits._
-import attestation.Evidence
-import co.topl.utils.codecs.implicits._
-import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.hash.digest.Digest32
-import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.StringDataTypes.implicits._
-import com.google.common.primitives.{Ints, Longs}
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-
 /**
  * The ID for a [[Box]]. It is a 32 byte identifier
  * @param hashBytes the bytes used to create the id

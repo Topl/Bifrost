@@ -1,13 +1,5 @@
 package keymanager
 
-import attestation.AddressEncoder.NetworkPrefix
-import attestation.{Address, Secret, SecretGenerator}
-import co.topl.crypto.hash.blake2b256
-import co.topl.utils.SecureRandom.randomBytes
-import com.google.common.primitives.Ints
-import settings.NetworkType
-import utils.Logging
-
 import java.io.File
 import scala.collection.mutable.{Map => MMap}
 import scala.util.{Failure, Success, Try}

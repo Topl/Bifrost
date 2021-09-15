@@ -7,7 +7,6 @@ val scala213 = "2.13.6"
 inThisBuild(List(
   organization := "co.topl",
   scalaVersion := scala213,
-  crossScalaVersions := Seq(scala212, scala213),
   versionScheme := Some("early-semver"),
   dynverSeparator := "-",
   version := dynverGitDescribeOutput.value.mkVersion(versionFmt, fallbackVersion(dynverCurrentDate.value)),
@@ -33,6 +32,7 @@ lazy val commonSettings = Seq(
       case _                       => sourceDir / "scala-2.12-"
     }
   },
+  crossScalaVersions := Seq(scala212, scala213),
   Test / testOptions ++= Seq(
     Tests.Argument("-oD", "-u", "target/test-reports"),
     Tests.Argument(TestFrameworks.ScalaCheck, "-verbosity", "2"),
@@ -173,7 +173,8 @@ lazy val bifrost = project
     toplRpc,
     benchmarking,
     crypto,
-    brambl
+    brambl,
+    tools
   )
 
 lazy val node = project
@@ -183,7 +184,8 @@ lazy val node = project
     commonSettings,
     assemblySettings,
     Defaults.itSettings,
-    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
+    crossScalaVersions := Seq(scala213), // The `monocle` library does not support Scala 2.12
+    Compile / run / mainClass := Some("co.topl.BifrostApp"),
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
@@ -200,7 +202,7 @@ lazy val node = project
   .settings(
     IntegrationTest / parallelExecution := false
   )
-  .dependsOn(common % "compile->compile;test->test", toplRpc)
+  .dependsOn(common % "compile->compile;test->test", toplRpc, tools)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
 lazy val common = project
@@ -269,7 +271,6 @@ lazy val toplRpc = project
 //  .settings(
 //    name := "gjallarhorn",
 //    commonSettings,
-//    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
 //    publish / skip := true,
 //    Defaults.itSettings,
 //    libraryDependencies ++= Dependencies.gjallarhorn
@@ -287,7 +288,6 @@ lazy val benchmarking = project
     publish / skip := true,
     libraryDependencies ++= Dependencies.benchmarking
   )
-  .dependsOn(node % "compile->compile;test->test")
   .enablePlugins(JmhPlugin)
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
@@ -304,5 +304,27 @@ lazy val crypto = project
     libraryDependencies ++= Dependencies.crypto,
   )
 
-addCommandAlias("checkPR", "; scalafixAll --check; scalafmtCheckAll; test")
-addCommandAlias("preparePR", "; scalafixAll; scalafmtAll; test")
+lazy val tools = project
+  .in(file("tools"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "tools",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.tools",
+    libraryDependencies ++= Dependencies.tools
+  )
+
+lazy val loadTesting = project
+  .in(file("load-testing"))
+  .settings(
+    name := "load-testing",
+    commonSettings,
+    scalamacrosParadiseSettings,
+    libraryDependencies ++= Dependencies.loadTesting
+  )
+  .dependsOn(common, brambl)
+
+addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; + test")
+addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; + test")

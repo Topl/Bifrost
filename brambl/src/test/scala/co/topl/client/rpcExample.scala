@@ -5,9 +5,9 @@ import cats.data.{EitherT, NonEmptyChain}
 import cats.implicits._
 import co.topl.akkahttprpc.RpcClientFailure
 import co.topl.akkahttprpc.implicits.client.rpcToClient
+import co.topl.attestation.AddressCodec.implicits._
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
-import co.topl.attestation.AddressCodec.implicits._
 import co.topl.client.Provider.PrivateTestNet
 import co.topl.modifier.box.{AssetCode, AssetValue}
 import co.topl.rpc.ToplRpc
@@ -57,6 +57,7 @@ object exampleState {
 }
 
 object CreateANewKeyInTheKeyRing {
+
   import exampleState._
   import provider._
 
@@ -70,6 +71,7 @@ object CreateANewKeyInTheKeyRing {
 }
 
 object ReinstateAKeyFile {
+
   import exampleState._
   import provider._
 
@@ -94,6 +96,7 @@ object ReinstateAKeyFile {
 }
 
 object FailedToReinstateAKeyFile {
+
   import exampleState._
   import provider._
 

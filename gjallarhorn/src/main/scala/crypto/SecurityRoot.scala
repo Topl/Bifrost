@@ -1,17 +1,5 @@
 package crypto
 
-import cats.implicits._
-import co.topl.crypto.hash.digest.Digest32
-import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.encode.Base58
-import co.topl.utils.codecs.implicits._
-import com.google.common.primitives.Ints
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder}
-import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
-
-import scala.util.Try
-
 /**
  * SecurityRoot is currently used for AssetValues.
  * A cryptographic commitment to an accumulator that is used for membership proofs

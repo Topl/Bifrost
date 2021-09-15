@@ -1,9 +1,9 @@
 package co.topl.crypto.accumulators.merkle
 
 import co.topl.crypto.accumulators.LeafData
+import co.topl.crypto.hash.Hash
 import co.topl.crypto.hash.digest.Digest
 import co.topl.crypto.hash.digest.implicits._
-import co.topl.crypto.hash.Hash
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 

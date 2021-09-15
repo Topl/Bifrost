@@ -1,8 +1,6 @@
 package co.topl.utils.encode
 
-import cats.Show
 import cats.implicits._
-import co.topl.utils.StringDataTypes.Base58Data
 
 /* Forked from https://github.com/ScorexFoundation/scorex-util/tree/master/src/main/scala/scorex/util/encode */
 
