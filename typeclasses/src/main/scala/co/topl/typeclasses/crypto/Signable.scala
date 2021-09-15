@@ -32,6 +32,7 @@ object Signable {
         unsignedBlockHeaderV2Signable.signableBytesOf(
           BlockHeaderV2.Unsigned(
             header.parentHeaderId,
+            header.parentSlot,
             header.txRoot,
             header.bloomFilter,
             header.timestamp,

@@ -6,7 +6,6 @@ import co.topl.algebras.ClockAlgebra
 import co.topl.consensus.vrf.ProofToHash
 import co.topl.crypto.kes.KeyEvolvingSignatureScheme
 import co.topl.crypto.kes.signatures.SymmetricSignature
-import co.topl.crypto.signatures.Signature
 import co.topl.models._
 import co.topl.models.utility.Ratio
 import co.topl.typeclasses.ContainsEvidence.Instances._
@@ -28,9 +27,9 @@ import scala.language.implicitConversions
  */
 class ConsensusValidationProgram[F[_]: Monad](
   epochNoncesInterpreter:        EtaAlgebra[F],
-  relativeStakeInterpreter:      VrfRelativeStateLookupAlgebra[F],
+  relativeStakeInterpreter:      VrfRelativeStakeLookupAlgebra[F],
   clockInterpreter:              ClockAlgebra[F]
-)(implicit leaderElectionConfig: LeaderElection.Config) {
+)(implicit leaderElectionConfig: Vrf.Config) {
   import ConsensusValidationProgram._
 
   /**
@@ -209,8 +208,8 @@ object ConsensusValidationProgram {
     case class NonForwardTimestamp(timestamp: Timestamp, parentTimestamp: Timestamp) extends Failure
     case class ParentMismatch(expectedParentId: TypedIdentifier, parentId: TypedIdentifier) extends Failure
     case class InvalidVrfThreshold(threshold: Ratio) extends Failure
-    case class IneligibleVrfCertificate(threshold: Ratio, vrfCertificate: VrfCertificate) extends Failure
-    case class InvalidVrfCertificate(vrfCertificate: VrfCertificate) extends Failure
+    case class IneligibleVrfCertificate(threshold: Ratio, vrfCertificate: Vrf.Certificate) extends Failure
+    case class InvalidVrfCertificate(vrfCertificate: Vrf.Certificate) extends Failure
     case class InvalidKesCertificateKESProof(kesCertificate: KesCertificate) extends Failure
     case class InvalidKesCertificateMMMProof(kesCertificate: KesCertificate) extends Failure
     case class IncompleteEpochData(epoch: Epoch) extends Failure

@@ -37,9 +37,11 @@ abstract class MMM {
   val asymmetricLogL: Int
   val symmetricLogL: Int
 
-  private val exp_symmetricLogL = exp(symmetricLogL)
+  private lazy val exp_symmetricLogL =
+    exp(symmetricLogL)
 
-  val maxSymmetricKeyTimeSteps:Int = exp_symmetricLogL*exp_symmetricLogL
+  lazy val maxSymmetricKeyTimeSteps: Int =
+    exp_symmetricLogL * exp_symmetricLogL
 
   private val random = new SecureRandom()
 
@@ -675,7 +677,8 @@ abstract class MMM {
         } else {
           L = sumCompositionUpdate(L, currentLeaf)
         }
-      } else {
+      }
+      else {
         println("Error: max time steps reached")
       }
       val ti = getSumCompositionKeyTimeStep(Si)

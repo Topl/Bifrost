@@ -32,31 +32,36 @@ class ConsensusValidationProgramSpec
 
   behavior of "ConsensusValidation"
 
-  implicit val leaderElectionConfig: LeaderElection.Config =
-    LeaderElection
+  implicit val leaderElectionConfig: Vrf.Config =
+    Vrf
       .Config(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
 
   it should "invalidate blocks with non-forward slot" in {
-    forAll(headerGen(slotGen = Gen.chooseNum(50L, 100L)), headerGen(slotGen = Gen.chooseNum[Long](20, 49))) {
-      case (parent, child) =>
-        whenever(child.slot <= parent.slot) {
-          val nonceInterpreter = mock[EtaAlgebra[Id]]
-          val relativeStakeInterpreter = mock[VrfRelativeStateLookupAlgebra[Id]]
-          val clockInterpreter = mock[ClockAlgebra[Id]]
-          val underTest =
-            new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
+    forAll(
+      headerGen(slotGen = Gen.chooseNum[Slot](50L, 100L)),
+      headerGen(slotGen = Gen.chooseNum[Slot](0, 49))
+    ) { case (parent, child) =>
+      whenever(child.slot <= parent.slot) {
+        val nonceInterpreter = mock[EtaAlgebra[Id]]
+        val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[Id]]
+        val clockInterpreter = mock[ClockAlgebra[Id]]
+        val underTest =
+          new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
 
-          underTest.validate(child, parent).value.left.value shouldBe ConsensusValidationProgram.Failures
-            .NonForwardSlot(child.slot, parent.slot)
-        }
+        underTest.validate(child, parent).value.left.value shouldBe ConsensusValidationProgram.Failures
+          .NonForwardSlot(child.slot, parent.slot)
+      }
     }
   }
 
   it should "invalidate blocks with non-forward timestamp" in {
-    forAll(headerGen(), headerGen()) { case (parent, child) =>
+    forAll(
+      headerGen(timestampGen = Gen.chooseNum[Timestamp](51, 100), slotGen = Gen.chooseNum[Slot](0, 50)),
+      headerGen(timestampGen = Gen.chooseNum[Timestamp](0, 50), slotGen = Gen.chooseNum[Slot](51, 100))
+    ) { case (parent, child) =>
       whenever(child.slot > parent.slot && parent.timestamp >= child.timestamp) {
         val nonceInterpreter = mock[EtaAlgebra[Id]]
-        val relativeStakeInterpreter = mock[VrfRelativeStateLookupAlgebra[Id]]
+        val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[Id]]
         val clockInterpreter = mock[ClockAlgebra[Id]]
         val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
 
@@ -81,7 +86,7 @@ class ConsensusValidationProgramSpec
         child.slot > parent.slot && child.timestamp > parent.timestamp && child.parentHeaderId != parent.id
       ) {
         val nonceInterpreter = mock[EtaAlgebra[Id]]
-        val relativeStakeInterpreter = mock[VrfRelativeStateLookupAlgebra[Id]]
+        val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[Id]]
         val clockInterpreter = mock[ClockAlgebra[Id]]
         val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
 
@@ -108,7 +113,7 @@ class ConsensusValidationProgramSpec
       etaGen
     ) { case ((parent, child), eta) =>
       val nonceInterpreter = mock[EtaAlgebra[Id]]
-      val relativeStakeInterpreter = mock[VrfRelativeStateLookupAlgebra[Id]]
+      val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[Id]]
       val clockInterpreter = mock[ClockAlgebra[Id]]
       val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
 
@@ -145,7 +150,7 @@ class ConsensusValidationProgramSpec
       taktikosAddressGen
     ) { case (parent, (txRoot, bloomFilter, eta), relativeStake, vrfSecret, address) =>
       val nonceInterpreter = mock[EtaAlgebra[Id]]
-      val relativeStakeInterpreter = mock[VrfRelativeStateLookupAlgebra[Id]]
+      val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[Id]]
       val clockInterpreter = mock[ClockAlgebra[Id]]
       val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
 
@@ -166,13 +171,14 @@ class ConsensusValidationProgramSpec
         )
 
       val kesKey = {
-        implicit val slot: Slot = 0
-        KeyInitializer[PrivateKeys.Kes].random().evolveSteps(unsigned.slot)
+        implicit val slot: Slot = 5000
+        KeyInitializer[PrivateKeys.Kes].random().evolveSteps(unsigned.slot - slot)
       }
 
       val child =
         BlockHeaderV2(
           parentHeaderId = unsigned.parentHeaderId,
+          parentSlot = unsigned.parentSlot,
           txRoot = unsigned.txRoot,
           bloomFilter = unsigned.bloomFilter,
           timestamp = unsigned.timestamp,
@@ -222,7 +228,7 @@ class ConsensusValidationProgramSpec
       taktikosAddressGen
     ) { case (parent, (txRoot, bloomFilter, eta), relativeStake, vrfSecret, address) =>
       val nonceInterpreter = mock[EtaAlgebra[Id]]
-      val relativeStakeInterpreter = mock[VrfRelativeStateLookupAlgebra[Id]]
+      val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[Id]]
       val clockInterpreter = mock[ClockAlgebra[Id]]
       val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
 
@@ -243,13 +249,14 @@ class ConsensusValidationProgramSpec
         )
 
       val kesKey = {
-        implicit val slot: Slot = 0
-        KeyInitializer[PrivateKeys.Kes].random().evolveSteps(unsigned.slot)
+        implicit val slot: Slot = 5000
+        KeyInitializer[PrivateKeys.Kes].random().evolveSteps(unsigned.slot - slot)
       }
 
       val child =
         BlockHeaderV2(
           parentHeaderId = unsigned.parentHeaderId,
+          parentSlot = unsigned.parentSlot,
           txRoot = unsigned.txRoot,
           bloomFilter = unsigned.bloomFilter,
           timestamp = unsigned.timestamp,

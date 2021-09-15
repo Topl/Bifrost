@@ -37,12 +37,12 @@ trait ModelGenerators {
       chainCode <- genSizedStrictBytes[Proofs.Consensus.KesCertificate.ChainCodeLength]()
     } yield Proofs.Consensus.KesCertificate(sig, publicKey, chainCode)
 
-  def vrfCertificateGen: Gen[VrfCertificate] =
+  def vrfCertificateGen: Gen[Vrf.Certificate] =
     for {
       publicKey  <- genSizedStrictBytes[Lengths.`32`.type]().map(PublicKeys.Ed25519(_)).map(PublicKeys.Vrf)
       nonceProof <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Consensus.Nonce(_))
       testProof  <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Consensus.VrfTest(_))
-    } yield VrfCertificate(publicKey, nonceProof, testProof)
+    } yield Vrf.Certificate(publicKey, nonceProof, testProof)
 
   def kesCertificateGen: Gen[KesCertificate] =
     for {
@@ -67,7 +67,7 @@ trait ModelGenerators {
     timestampGen:      Gen[Timestamp] = Gen.chooseNum(0L, 50L),
     heightGen:         Gen[Long] = Gen.chooseNum(0L, 20L),
     slotGen:           Gen[Slot] = Gen.chooseNum(0L, 50L),
-    vrfCertificateGen: Gen[VrfCertificate] = vrfCertificateGen,
+    vrfCertificateGen: Gen[Vrf.Certificate] = vrfCertificateGen,
     kesCertificateGen: Gen[KesCertificate] = kesCertificateGen,
     thresholdEvidenceGen: Gen[Evidence] = genSizedStrictBytes[Lengths.`32`.type]().map(b =>
       Sized.strict[TypedBytes, Lengths.`33`.type](TypedBytes(1: Byte, b.data)).toOption.get

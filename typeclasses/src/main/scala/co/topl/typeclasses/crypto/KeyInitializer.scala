@@ -55,7 +55,7 @@ object KeyInitializer {
         private val scheme = new KeyEvolvingSignatureScheme
 
         def random(): PrivateKeys.Kes =
-          fromLib(scheme.generateSymmetricProductKey(new SecureRandom().generateSeed(32), offset = slot)) // TODO: Seed?
+          fromLib(scheme.generateSymmetricProductKey(new SecureRandom().generateSeed(32), offset = slot))
 
         def fromSeed(seed: Bytes): PrivateKeys.Kes =
           fromLib(scheme.generateSymmetricProductKey(seed.toArray, offset = slot))

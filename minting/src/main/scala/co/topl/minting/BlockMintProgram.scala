@@ -49,7 +49,7 @@ class BlockMintProgram[F[_]: Monad] {
 }
 
 object BlockMintProgram {
-  case class Election(slot: Slot, vrfCertificate: VrfCertificate, threshold: Ratio)
+  case class Election(slot: Slot, vrfCertificate: Vrf.Certificate, threshold: Ratio)
 
   case class Out(unsignedHeaderF: Timestamp => BlockHeaderV2.Unsigned, transactions: Seq[Transaction]) {
 

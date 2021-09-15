@@ -26,7 +26,7 @@ case class BlockHeaderV2(
   timestamp:         Timestamp,
   height:            Long,
   slot:              Slot,
-  vrfCertificate:    VrfCertificate,
+  vrfCertificate:    Vrf.Certificate,
   kesCertificate:    KesCertificate,
   thresholdEvidence: Evidence,
   // TODO: Discussion on mint signatures
@@ -46,7 +46,7 @@ object BlockHeaderV2 {
     timestamp:         Timestamp,
     height:            Long,
     slot:              Slot,
-    vrfCertificate:    VrfCertificate,
+    vrfCertificate:    Vrf.Certificate,
     thresholdEvidence: Evidence,
     metadata:          Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
     address:           TaktikosAddress

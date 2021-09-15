@@ -5,7 +5,7 @@ import cats.data.{OptionT, StateT}
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.algebras.ClockAlgebra.implicits._
-import co.topl.consensus.{ConsensusValidationProgram, LeaderElection, VrfRelativeStateLookupAlgebra}
+import co.topl.consensus.{ConsensusValidationProgram, LeaderElection, VrfRelativeStakeLookupAlgebra}
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signatures.Ed25519VRF
 import co.topl.models._
@@ -23,8 +23,8 @@ object FullNode extends App {
   val stakerRelativeStake =
     Ratio(1, 5)
 
-  implicit val leaderElectionConfig: LeaderElection.Config =
-    LeaderElection
+  implicit val vrfConfig: Vrf.Config =
+    Vrf
       .Config(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
 
   implicit val vrf: Ed25519VRF = new Ed25519VRF
@@ -71,7 +71,7 @@ object FullNode extends App {
         case Some(newBlock) =>
           new ConsensusValidationProgram[Id](
             header => state.epochNonce(clock.epochOf(header.slot)),
-            new VrfRelativeStateLookupAlgebra[Id] {
+            new VrfRelativeStakeLookupAlgebra[Id] {
 
               def lookupAt(block: BlockHeaderV2)(address: TaktikosAddress): OptionT[Id, Ratio] =
                 OptionT.fromOption(state.relativeStakes(clock.epochOf(block.slot)).get(address))

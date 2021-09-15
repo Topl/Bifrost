@@ -14,7 +14,7 @@ trait EtaAlgebra[F[_]] {
   def etaOf(block: BlockHeaderV2): F[Eta]
 }
 
-trait VrfRelativeStateLookupAlgebra[F[_]] {
+trait VrfRelativeStakeLookupAlgebra[F[_]] {
 
   /**
    * Retrieves the relative stake corresponding to the provided address in the N-2 epoch of the given block

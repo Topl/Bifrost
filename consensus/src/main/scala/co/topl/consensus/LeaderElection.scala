@@ -20,13 +20,9 @@ object LeaderElection {
     case class ThresholdNotMet(threshold: Ratio, proof: Proofs.Consensus.VrfTest) extends Failure
   }
 
-  case class Hit(cert: VrfCertificate, slot: Slot, threshold: Ratio)
-
-  case class Config(lddCutoff: Int, precision: Int, baselineDifficulty: Ratio, amplitude: Ratio)
-
   def hits(secret: PrivateKeys.Vrf, relativeStake: Ratio, fromSlot: Slot, untilSlot: Slot, epochNonce: Eta)(implicit
-    config:        Config
-  ): Iterator[Hit] =
+    config:        Vrf.Config
+  ): Iterator[Vrf.Hit] =
     ((fromSlot + 1) until untilSlot).iterator
       .map(slot => getHit(secret, relativeStake, slot, slot - fromSlot, epochNonce))
       .collect { case Right(hit) => hit }
@@ -47,7 +43,7 @@ object LeaderElection {
     slot:            Slot,
     slotDiff:        Long, // diff between current slot and parent slot
     epochNonce:      Eta
-  )(implicit config: Config): Either[Failure, Hit] = {
+  )(implicit config: Vrf.Config): Either[Failure, Vrf.Hit] = {
     // private key is 33 bytes, with the first being the type byte (unneeded)
     val privateKeyBytes = secret.ed25519.bytes.data
 
@@ -57,11 +53,11 @@ object LeaderElection {
 
     Either.cond(
       isSlotLeaderForThreshold(threshold)(ProofToHash.digest(vrf.testProof)),
-      Hit(
-        VrfCertificate(
+      Vrf.Hit(
+        Vrf.Certificate(
           implicitly[ContainsVerificationKey[PrivateKeys.Vrf, PublicKeys.Vrf]].verificationKeyOf(secret),
-          Proofs.Consensus.Nonce(Sized.strictUnsafe(vrf.nonceProof)),
-          Proofs.Consensus.VrfTest(Sized.strictUnsafe(vrf.testProof))
+          vrf.nonceProof,
+          vrf.testProof
         ),
         slot,
         threshold
@@ -71,7 +67,7 @@ object LeaderElection {
   }
 
   /** Calculates log(1-f(slot-parentSlot)) or log(1-f) depending on the configuration */
-  def mFunction(slotDiff: Long, config: Config): Ratio =
+  def mFunction(slotDiff: Long, config: Vrf.Config): Ratio =
     // use sawtooth curve if local dynamic difficulty is enabled
     if (slotDiff <= config.lddCutoff)
       ProsomoMath.logOneMinus(
@@ -87,7 +83,7 @@ object LeaderElection {
    * @param config configuration settings
    * @return the election threshold
    */
-  def getThreshold(relativeStake: Ratio, slotDiff: Long)(implicit config: Config): Ratio = {
+  def getThreshold(relativeStake: Ratio, slotDiff: Long)(implicit config: Vrf.Config): Ratio = {
     val mFValue = mFunction(slotDiff, config)
     val base = mFValue * relativeStake
 
@@ -140,6 +136,7 @@ object ProsomoMath {
     (1 to precision).foldLeft(Ratio(0))((total, value) => total - (f.pow(value) / value))
 
   // Local Dynamic Difficulty curve
-  def lddGapSawtooth(slotDiff: Long, lddCutoff: Int, amplitude: Ratio): Ratio = Ratio(slotDiff, lddCutoff) * amplitude
+  def lddGapSawtooth(slotDiff: Long, lddCutoff: Int, amplitude: Ratio): Ratio =
+    Ratio(BigInt(slotDiff), BigInt(lddCutoff)) * amplitude
 
 }

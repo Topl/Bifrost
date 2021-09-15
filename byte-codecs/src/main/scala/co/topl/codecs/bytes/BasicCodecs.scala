@@ -74,16 +74,16 @@ object BasicCodecs {
       )
   }
 
-  implicit val vrfCertificateCodec: ByteCodec[VrfCertificate] = new ByteCodec[VrfCertificate] {
+  implicit val vrfCertificateCodec: ByteCodec[Vrf.Certificate] = new ByteCodec[Vrf.Certificate] {
 
-    override def encode(t: VrfCertificate, writer: Writer): Unit = {
+    override def encode(t: Vrf.Certificate, writer: Writer): Unit = {
       writer.putBytes(t.vkVRF.ed25519.bytes.data.toArray)
       writer.putBytes(t.nonceProof.bytes.data.toArray)
       writer.putBytes(t.testProof.bytes.data.toArray)
     }
 
-    override def decode(reader: Reader): VrfCertificate =
-      VrfCertificate(
+    override def decode(reader: Reader): Vrf.Certificate =
+      Vrf.Certificate(
         PublicKeys.Vrf(
           PublicKeys.Ed25519(Sized.strict[Bytes, PublicKeys.Ed25519.Length](Bytes(reader.getBytes(32))).toOption.get)
         ), // TODO

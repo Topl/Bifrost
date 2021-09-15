@@ -79,10 +79,10 @@ object HdKesKeyFile {
    * @return new key file with randomly generated public private key pairs
    */
   def newRandomKeyFile(
-                        password:      String,
-                        defaultKeyDir: String,
-                        maxTimeSteps: Int
-                      ): HdKesKeyFile = {
+    password:      String,
+    defaultKeyDir: String,
+    maxTimeSteps:  Int
+  ): HdKesKeyFile = {
     val newKey = HdKesScheme(maxTimeSteps)
     val kes_info = {
       val salt = blake2b256.hash(uuid).value
@@ -104,10 +104,10 @@ object HdKesKeyFile {
   }
 
   def newKeyFile(
-                  password:      String,
-                  defaultKeyDir: String,
-                  hdKesScheme: HdKesScheme
-                ): HdKesKeyFile = {
+    password:      String,
+    defaultKeyDir: String,
+    hdKesScheme:   HdKesScheme
+  ): HdKesKeyFile = {
     val kes_info = {
       val salt = blake2b256.hash(uuid).value
       val ivData = blake2b256.hash(uuid).value.slice(0, 16)
@@ -140,13 +140,13 @@ object HdKesKeyFile {
    */
 
   def updateKeyFile(
-                     keyFile:       HdKesKeyFile,
-                     updatedKey:    HdKesScheme,
-                     password:      String,
-                     defaultKeyDir: String,
-                     salt:          Array[Byte] = blake2b256.hash(uuid).value,
-                     derivedKey:    Array[Byte] = Array()
-                   ): Option[HdKesKeyFile] = Try {
+    keyFile:       HdKesKeyFile,
+    updatedKey:    HdKesScheme,
+    password:      String,
+    defaultKeyDir: String,
+    salt:          Array[Byte] = blake2b256.hash(uuid).value,
+    derivedKey:    Array[Byte] = Array()
+  ): Option[HdKesKeyFile] = Try {
     val kes_info = {
       val ivData = blake2b256.hash(uuid).value.slice(0, 16)
       val (cipherText, mac) = if (derivedKey.isEmpty) {
@@ -226,11 +226,11 @@ object HdKesKeyFile {
     SCrypt.generate(password.getBytes(StandardCharsets.UTF_8), salt, scala.math.pow(2, 14).toInt, 8, 1, 32)
 
   private def getAESResult(
-                            derivedKey: Array[Byte],
-                            ivData:     Array[Byte],
-                            inputText:  Array[Byte],
-                            encrypt:    Boolean
-                          ): (Array[Byte], Array[Byte]) = {
+    derivedKey: Array[Byte],
+    ivData:     Array[Byte],
+    inputText:  Array[Byte],
+    encrypt:    Boolean
+  ): (Array[Byte], Array[Byte]) = {
     val cipherParams = new ParametersWithIV(new KeyParameter(derivedKey), ivData)
     val aesCtr = new BufferedBlockCipher(new SICBlockCipher(new AESEngine))
     aesCtr.init(encrypt, cipherParams)
@@ -241,10 +241,10 @@ object HdKesKeyFile {
   }
 
   private def encryptAES(
-                          derivedKey: Array[Byte],
-                          ivData:     Array[Byte],
-                          inputText:  Array[Byte]
-                        ): (Array[Byte], Array[Byte]) = {
+    derivedKey: Array[Byte],
+    ivData:     Array[Byte],
+    inputText:  Array[Byte]
+  ): (Array[Byte], Array[Byte]) = {
     val cipherParams = new ParametersWithIV(new KeyParameter(derivedKey), ivData)
     val aesCtr = new BufferedBlockCipher(new SICBlockCipher(new AESEngine))
     aesCtr.init(true, cipherParams)
@@ -256,10 +256,10 @@ object HdKesKeyFile {
   }
 
   private def decryptAES(
-                          derivedKey: Array[Byte],
-                          ivData:     Array[Byte],
-                          inputText:  Array[Byte]
-                        ): (Array[Byte], Array[Byte]) = {
+    derivedKey: Array[Byte],
+    ivData:     Array[Byte],
+    inputText:  Array[Byte]
+  ): (Array[Byte], Array[Byte]) = {
     val cipherParams = new ParametersWithIV(new KeyParameter(derivedKey), ivData)
     val aesCtr = new BufferedBlockCipher(new SICBlockCipher(new AESEngine))
     aesCtr.init(false, cipherParams)

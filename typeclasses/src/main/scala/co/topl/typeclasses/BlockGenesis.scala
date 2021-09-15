@@ -18,7 +18,7 @@ object BlockGenesis {
   val ParentId: TypedIdentifier = TypedBytes(IdentifierTypes.Block.HeaderV2, Bytes(Array.fill[Byte](32)(0)))
   val ParentSlot: Slot = -1
 
-  val vrfCertificate: VrfCertificate = VrfCertificate(
+  val vrfCertificate: Vrf.Certificate = Vrf.Certificate(
     PublicKeys.Vrf(PublicKeys.Ed25519(zeroBytes[PublicKeys.Ed25519.Length])),
     Proofs.Consensus.Nonce(zeroBytes(Lengths.`80`)),
     Proofs.Consensus.VrfTest(zeroBytes(Lengths.`80`))

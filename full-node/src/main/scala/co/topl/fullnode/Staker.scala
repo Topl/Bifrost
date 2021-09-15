@@ -12,12 +12,12 @@ import co.topl.models._
 import co.topl.models.utility.Ratio
 import co.topl.typeclasses.crypto.Evolves.instances._
 import co.topl.typeclasses.crypto.Evolves.ops._
-import co.topl.typeclasses.crypto.KeyInitializer
 import co.topl.typeclasses.crypto.KeyInitializer.Instances._
+import co.topl.typeclasses.crypto.{ContainsVerificationKey, KeyInitializer}
 
 case class Staker(address: TaktikosAddress)(implicit
   clock:                   ClockAlgebra[Id],
-  leaderElectionConfig:    LeaderElection.Config
+  vrfConfig:               Vrf.Config
 ) {
 
   private val vrfKey =
@@ -29,7 +29,10 @@ case class Staker(address: TaktikosAddress)(implicit
   }
 
   def nextKesCertificate(unsignedBlock: BlockHeaderV2.Unsigned): Id[KesCertificate] = {
-    currentKesKey = currentKesKey.evolveSteps(unsignedBlock.slot)
+    import ContainsVerificationKey.instances._
+    val currentOffset =
+      implicitly[ContainsVerificationKey[PrivateKeys.Kes, PublicKeys.Kes]].verificationKeyOf(currentKesKey).offset
+    currentKesKey = currentKesKey.evolveSteps(unsignedBlock.slot - currentOffset)
     currentKesKey.certify(unsignedBlock)
   }
 

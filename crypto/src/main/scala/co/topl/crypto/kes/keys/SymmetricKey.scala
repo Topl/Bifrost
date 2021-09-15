@@ -37,7 +37,7 @@ object SymmetricKey {
 
   val kes: KeyEvolvingSignatureScheme = new KeyEvolvingSignatureScheme
 
-  val maxKeyTimeSteps:Int = kes.maxSymmetricKeyTimeSteps
+  val maxKeyTimeSteps: Int = kes.maxSymmetricKeyTimeSteps
 
   def newFromSeed(seed: Array[Byte], offset: Long): SymmetricKey =
     kes.generateSymmetricProductKey(seed, offset)
