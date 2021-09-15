@@ -7,6 +7,11 @@ object ByteStringCodec {
 
   val maxBytes: Int = 255
 
+  /**
+   * Attempts to decode a `String` with max length 255 from a vector of bits.
+   * @param from a bit vector of encoded data
+   * @return if successful, a `String` value and the left-over encoded bits, otherwise an error
+   */
   def decode(from: BitVector): Attempt[DecodeResult[ByteString]] =
     Attempt.fromEither(
       for {
@@ -22,7 +27,7 @@ object ByteStringCodec {
             Err.insufficientBits(stringSizeBits, sizeSplitTuple._2.length)
           )
         stringBytes = stringSplitTuple._1.toByteArray
-        // run validation on parsed string
+        // run length validation on parsed string
         smallString <- Either.cond(
           stringBytes.length <= maxBytes,
           new String(stringBytes, stringCharacterSet),
@@ -31,6 +36,11 @@ object ByteStringCodec {
       } yield DecodeResult(smallString, stringSplitTuple._2)
     )
 
+  /**
+   * Attempts to encode a `String` with max length 255 into a vector of bits.
+   * @param value the `String` value to encode
+   * @return if successful, a vector of encoded bits, otherwise an error
+   */
   def encode(value: ByteString): Attempt[BitVector] = {
     val byteRepr = value.getBytes(stringCharacterSet)
 
@@ -40,6 +50,9 @@ object ByteStringCodec {
     else Attempt.failure(Err("SmallString value is outside of valid range."))
   }
 
+  /**
+   * Codec type-class instance for encoding/decoding a `String` with a maximum length of 255.
+   */
   val codec: Codec[ByteString] = new Codec[ByteString] {
     override def decode(bits: BitVector): Attempt[DecodeResult[ByteString]] = ByteStringCodec.decode(bits)
 

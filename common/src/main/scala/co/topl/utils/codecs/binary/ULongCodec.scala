@@ -11,7 +11,11 @@ object ULongCodec {
 
   /**
    * Attempts to decode a `ULong` value from the given vector of bits.
+   *
    * This process is outlined more generally at https://developers.google.com/protocol-buffers/docs/encoding#varints
+   *
+   * Original source: http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java/core/src/main/java/com/google/protobuf/CodedInputStream.java#L2653
+   *
    * @param from the bit vector to attempt a `ULong` decode from
    * @return if the attempt is successful, a `ULong` value and the left-over bits, otherwise an error
    */
@@ -47,6 +51,16 @@ object ULongCodec {
     Attempt.failure(Err("Unexpected bytes remaining."))
   }
 
+  /**
+   * Attempts to encode a `ULong` value to a vector of bits.
+   *
+   * This process is outlined more generally at https://developers.google.com/protocol-buffers/docs/encoding#varints
+   *
+   * Original source: http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java/core/src/main/java/com/google/protobuf/CodedOutputStream.java#L1387
+   *
+   * @param value the `ULong` to encode
+   * @return if successful, a bit vector of encoded data, otherwise an error
+   */
   def encode(value: ULong): Attempt[BitVector] = {
     var output = BitVector.empty
     var runningValue = value
@@ -69,6 +83,9 @@ object ULongCodec {
     Attempt.successful(output)
   }
 
+  /**
+   * `Codec` type-class for encoding/decoding a `ULong` value to/from a bit vector.
+   */
   val codec: Codec[ULong] = new Codec[ULong] {
     override def decode(bits: BitVector): Attempt[DecodeResult[ULong]] = ULongCodec.decode(bits)
 

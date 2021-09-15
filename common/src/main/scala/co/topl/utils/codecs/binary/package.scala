@@ -16,8 +16,14 @@ package object binary {
   type IntString = String
   type ByteString = String
 
+  /**
+   * The number of bits in a byte.
+   */
   val byteSize: Int = 8
 
+  /**
+   * The default character set to use for all `String` encoding/decoding.
+   */
   val stringCharacterSet: Charset = StandardCharsets.UTF_8
 
   trait Instances {

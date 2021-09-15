@@ -10,6 +10,12 @@ object OptionCodec {
 
   private val someBitVector: BitVector = BitVector(1)
 
+  /**
+   * Attempts to decode an `Option[T]` value from a bit vector.
+   * @param from the bit vector of encoded data
+   * @tparam T the wrapped type in the `Option` value with an associated `Decoder` type-class instance
+   * @return if successful, an `Option[T]` and the left-over bits, otherwise an error
+   */
   def decode[T: Decoder](from: BitVector): Attempt[DecodeResult[Option[T]]] =
     if (from.length < byteSize) Attempt.failure(Err.insufficientBits(byteSize, from.length))
     else {
@@ -19,12 +25,23 @@ object OptionCodec {
       else Decoder[T].decode(remaining).map(_.map(_.some))
     }
 
+  /**
+   * Attempts to encode an `Option[T]` value as a bit vector.
+   * @param value the option value to encode
+   * @tparam T the wrapped type in the `Option` value with an associated `Encoder` type-class instance
+   * @return if successful, a bit vector representing an `Option[T]`, otherwise an error
+   */
   def encode[T: Encoder](value: Option[T]): Attempt[BitVector] =
     value match {
       case Some(v) => Encoder[T].encode(v).map(someBitVector ++ _)
       case None    => Attempt.successful(noneBitVector)
     }
 
+  /**
+   * Creates a `Codec` type-class instance for `Option[T]` to encode/decode from a bit vector.
+   * @tparam T the wrapped type of the option with an associated `Codec` type-class instance
+   * @return a `Codec` instance for encoding/decoding an `Option[T]`
+   */
   def codec[T: Codec]: Codec[Option[T]] = new Codec[Option[T]] {
     override def decode(bits: BitVector): Attempt[DecodeResult[Option[T]]] = OptionCodec.decode(bits)
 
