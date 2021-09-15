@@ -50,7 +50,8 @@ lazy val commonSettings = Seq(
     "Sonatype Staging" at "https://s01.oss.sonatype.org/content/repositories/staging",
     "Sonatype Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots/",
     "Bintray" at "https://jcenter.bintray.com/"
-  )
+  ),
+  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full)
 )
 
 lazy val publishSettings = Seq(
@@ -421,7 +422,7 @@ lazy val crypto = project
     libraryDependencies ++= Dependencies.crypto
   )
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models)
+  .dependsOn(models, byteCodecs)
 
 lazy val tools = project
   .in(file("tools"))

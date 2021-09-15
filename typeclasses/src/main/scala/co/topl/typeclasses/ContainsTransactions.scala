@@ -3,7 +3,7 @@ package co.topl.typeclasses
 import co.topl.models.utility.{Lengths, Sized}
 import co.topl.models.{BlockBodyV2, BlockV1, BloomFilter, Bytes, Transaction}
 import simulacrum.{op, typeclass}
-import co.topl.models.utility.HasLength.implicits._
+import co.topl.models.utility.HasLength.instances._
 import Lengths._
 
 /**

@@ -3,10 +3,10 @@ package co.topl.consensus
 import co.topl.crypto.kes.KeyEvolvingSignatureScheme
 import co.topl.crypto.kes.keys.{ProductPrivateKey, SymmetricKey}
 import co.topl.models._
-import co.topl.typeclasses.crypto.ContainsVerificationKey.instances._
-import co.topl.typeclasses.crypto.Proves.instances._
-import co.topl.typeclasses.crypto.Signable.ops._
-import co.topl.typeclasses.crypto.{ContainsVerificationKey, Proves, Signable}
+import co.topl.crypto.typeclasses.ContainsVerificationKey.instances._
+import co.topl.crypto.typeclasses.Proves.instances._
+import co.topl.crypto.typeclasses.Signable.ops._
+import co.topl.crypto.typeclasses.{ContainsVerificationKey, Proves, Signable}
 import com.google.common.primitives.Ints
 import simulacrum.{op, typeclass}
 import Signable.instances._

@@ -1,4 +1,4 @@
-package co.topl.typeclasses.crypto
+package co.topl.crypto.typeclasses
 
 import co.topl.codecs.bytes.BasicCodecs._
 import co.topl.codecs.bytes.ByteCodec.implicits._

@@ -1,10 +1,12 @@
 package co.topl.consensus
 
-import cats.Id
-import cats.data.OptionT
-import co.topl.algebras.ClockAlgebra
+import cats.implicits._
 import co.topl.consensus.KesCertifies.instances._
 import co.topl.consensus.KesCertifies.ops._
+import co.topl.crypto.typeclasses.Evolves.instances._
+import co.topl.crypto.typeclasses.Evolves.ops._
+import co.topl.crypto.typeclasses.KeyInitializer
+import co.topl.crypto.typeclasses.KeyInitializer.Instances.kesInitializer
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility.{Lengths, Ratio}
@@ -12,10 +14,6 @@ import co.topl.typeclasses.ContainsEvidence.Instances._
 import co.topl.typeclasses.ContainsEvidence.ops._
 import co.topl.typeclasses.Identifiable.Instances._
 import co.topl.typeclasses.Identifiable.ops._
-import co.topl.typeclasses.crypto.Evolves.instances._
-import co.topl.typeclasses.crypto.Evolves.ops._
-import co.topl.typeclasses.crypto.KeyInitializer
-import co.topl.typeclasses.crypto.KeyInitializer.Instances.kesInitializer
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
@@ -23,7 +21,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class ConsensusValidationProgramSpec
+class ConsensusValidationSpec
     extends AnyFlatSpec
     with ScalaCheckDrivenPropertyChecks
     with Matchers
@@ -32,9 +30,12 @@ class ConsensusValidationProgramSpec
 
   behavior of "ConsensusValidation"
 
-  implicit val leaderElectionConfig: Vrf.Config =
-    Vrf
-      .Config(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
+  type EvalF[A] = Either[ConsensusValidation.Eval.Failure, A]
+
+  private val leaderElectionInterpreter =
+    LeaderElection.Eval.make[EvalF](
+      Vrf.Config(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
+    )
 
   it should "invalidate blocks with non-forward slot" in {
     forAll(
@@ -42,13 +43,12 @@ class ConsensusValidationProgramSpec
       headerGen(slotGen = Gen.chooseNum[Slot](0, 49))
     ) { case (parent, child) =>
       whenever(child.slot <= parent.slot) {
-        val nonceInterpreter = mock[EtaAlgebra[Id]]
-        val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[Id]]
-        val clockInterpreter = mock[ClockAlgebra[Id]]
+        val nonceInterpreter = mock[EtaAlgebra[EvalF]]
+        val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
         val underTest =
-          new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
+          ConsensusValidation.Eval.make[EvalF](nonceInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
 
-        underTest.validate(child, parent).value.left.value shouldBe ConsensusValidationProgram.Failures
+        underTest.validate(child, parent).left.value shouldBe ConsensusValidation.Eval.Failures
           .NonForwardSlot(child.slot, parent.slot)
       }
     }
@@ -60,12 +60,12 @@ class ConsensusValidationProgramSpec
       headerGen(timestampGen = Gen.chooseNum[Timestamp](0, 50), slotGen = Gen.chooseNum[Slot](51, 100))
     ) { case (parent, child) =>
       whenever(child.slot > parent.slot && parent.timestamp >= child.timestamp) {
-        val nonceInterpreter = mock[EtaAlgebra[Id]]
-        val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[Id]]
-        val clockInterpreter = mock[ClockAlgebra[Id]]
-        val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
+        val nonceInterpreter = mock[EtaAlgebra[EvalF]]
+        val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
+        val underTest =
+          ConsensusValidation.Eval.make[EvalF](nonceInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
 
-        underTest.validate(child, parent).value.left.value shouldBe ConsensusValidationProgram.Failures
+        underTest.validate(child, parent).left.value shouldBe ConsensusValidation.Eval.Failures
           .NonForwardTimestamp(child.timestamp, parent.timestamp)
       }
     }
@@ -85,12 +85,12 @@ class ConsensusValidationProgramSpec
       whenever(
         child.slot > parent.slot && child.timestamp > parent.timestamp && child.parentHeaderId != parent.id
       ) {
-        val nonceInterpreter = mock[EtaAlgebra[Id]]
-        val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[Id]]
-        val clockInterpreter = mock[ClockAlgebra[Id]]
-        val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
+        val etaInterpreter = mock[EtaAlgebra[EvalF]]
+        val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
+        val underTest =
+          ConsensusValidation.Eval.make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
 
-        underTest.validate(child, parent).value.left.value shouldBe ConsensusValidationProgram.Failures
+        underTest.validate(child, parent).left.value shouldBe ConsensusValidation.Eval.Failures
           .ParentMismatch(child.parentHeaderId, parent.id)
       }
     }
@@ -112,24 +112,19 @@ class ConsensusValidationProgramSpec
       ),
       etaGen
     ) { case ((parent, child), eta) =>
-      val nonceInterpreter = mock[EtaAlgebra[Id]]
-      val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[Id]]
-      val clockInterpreter = mock[ClockAlgebra[Id]]
-      val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
+      val etaInterpreter = mock[EtaAlgebra[EvalF]]
+      val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
+      val underTest =
+        ConsensusValidation.Eval.make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
 
-      (() => clockInterpreter.slotsPerEpoch)
-        .expects()
-        .anyNumberOfTimes()
-        .returning(1000)
-
-      (nonceInterpreter
+      (etaInterpreter
         .etaOf(_: BlockHeaderV2))
         .expects(child)
         .anyNumberOfTimes()
         // This epoch nonce does not satisfy the generated VRF certificate
-        .returning(eta)
+        .returning(eta.pure[EvalF])
 
-      underTest.validate(child, parent).value.left.value shouldBe ConsensusValidationProgram.Failures
+      underTest.validate(child, parent).left.value shouldBe ConsensusValidation.Eval.Failures
         .InvalidVrfCertificate(child.vrfCertificate)
     }
   }
@@ -149,12 +144,16 @@ class ConsensusValidationProgramSpec
       Gen.const(KeyInitializer.Instances.vrfInitializer.random()),
       taktikosAddressGen
     ) { case (parent, (txRoot, bloomFilter, eta), relativeStake, vrfSecret, address) =>
-      val nonceInterpreter = mock[EtaAlgebra[Id]]
-      val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[Id]]
-      val clockInterpreter = mock[ClockAlgebra[Id]]
-      val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
+      val etaInterpreter = mock[EtaAlgebra[EvalF]]
+      val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
+      val underTest =
+        ConsensusValidation.Eval.make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
 
-      val hit = LeaderElection.hits(vrfSecret, relativeStake, parent.slot + 1, parent.slot + 999, eta).next()
+      val Some(hit) = LazyList
+        .from(parent.slot.toInt + 1)
+        .collectFirstSome(s =>
+          leaderElectionInterpreter.getHit(vrfSecret, relativeStake, s, s - parent.slot, eta).value
+        )
       val unsigned =
         BlockHeaderV2.Unsigned(
           parentHeaderId = parent.id,
@@ -191,28 +190,22 @@ class ConsensusValidationProgramSpec
           address = unsigned.address
         )
 
-      (() => clockInterpreter.slotsPerEpoch)
-        .expects()
-        .anyNumberOfTimes()
-        .returning(1000)
-
-      (nonceInterpreter
+      (etaInterpreter
         .etaOf(_: BlockHeaderV2))
         .expects(child)
         .anyNumberOfTimes()
-        .returning(eta)
+        .returning(eta.pure[EvalF])
 
       (relativeStakeInterpreter
         .lookupAt(_: BlockHeaderV2)(_: TaktikosAddress))
         .expects(child, *)
         .once()
-        .returning(OptionT.pure[Id](Ratio(0)))
+        .returning(Ratio(0).pure[EvalF])
 
       underTest
         .validate(child, parent)
-        .value
         .left
-        .value shouldBe a[ConsensusValidationProgram.Failures.InvalidVrfThreshold]
+        .value shouldBe a[ConsensusValidation.Eval.Failures.InvalidVrfThreshold]
     }
   }
 
@@ -227,12 +220,16 @@ class ConsensusValidationProgramSpec
       Gen.const(KeyInitializer.Instances.vrfInitializer.random()),
       taktikosAddressGen
     ) { case (parent, (txRoot, bloomFilter, eta), relativeStake, vrfSecret, address) =>
-      val nonceInterpreter = mock[EtaAlgebra[Id]]
-      val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[Id]]
-      val clockInterpreter = mock[ClockAlgebra[Id]]
-      val underTest = new ConsensusValidationProgram[Id](nonceInterpreter, relativeStakeInterpreter, clockInterpreter)
+      val etaInterpreter = mock[EtaAlgebra[EvalF]]
+      val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
+      val underTest =
+        ConsensusValidation.Eval.make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
 
-      val hit = LeaderElection.hits(vrfSecret, relativeStake, parent.slot + 1, parent.slot + 999, eta).next()
+      val Some(hit) = LazyList
+        .from(parent.slot.toInt + 1)
+        .collectFirstSome(s =>
+          leaderElectionInterpreter.getHit(vrfSecret, relativeStake, s, s - parent.slot, eta).value
+        )
       val unsigned =
         BlockHeaderV2.Unsigned(
           parentHeaderId = parent.id,
@@ -269,24 +266,19 @@ class ConsensusValidationProgramSpec
           address = unsigned.address
         )
 
-      (() => clockInterpreter.slotsPerEpoch)
-        .expects()
-        .anyNumberOfTimes()
-        .returning(1000)
-
-      (nonceInterpreter
+      (etaInterpreter
         .etaOf(_: BlockHeaderV2))
         .expects(child)
         .anyNumberOfTimes()
-        .returning(eta)
+        .returning(eta.pure[EvalF])
 
       (relativeStakeInterpreter
         .lookupAt(_: BlockHeaderV2)(_: TaktikosAddress))
         .expects(child, *)
         .once()
-        .returning(OptionT.pure[Id](relativeStake))
+        .returning(relativeStake.pure[EvalF])
 
-      underTest.validate(child, parent).value.value.header shouldBe child
+      underTest.validate(child, parent).value.header shouldBe child
     }
   }
 

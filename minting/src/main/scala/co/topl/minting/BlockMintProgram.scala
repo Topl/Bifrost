@@ -3,7 +3,6 @@ package co.topl.minting
 import cats._
 import cats.data.OptionT
 import cats.implicits._
-import co.topl.algebras.ClockAlgebra
 import co.topl.models._
 import co.topl.models.utility.Ratio
 import co.topl.typeclasses.ContainsEvidence.Instances._
@@ -20,31 +19,33 @@ import co.topl.typeclasses.Identifiable.ops._
  */
 class BlockMintProgram[F[_]: Monad] {
 
-  def next(interpreter: BlockMintProgram.Algebra[F]): OptionT[F, BlockMintProgram.Out] =
-    interpreter
-      .elect(interpreter.canonicalHead.headerV2)
-      .toOptionT[F]
-      .semiflatMap { case BlockMintProgram.Election(slot, vrfCertificate, threshold) =>
-        interpreter.unconfirmedTransactions.map { transactions =>
-          BlockMintProgram.Out(
-            timestamp =>
-              BlockHeaderV2.Unsigned(
-                parentHeaderId = interpreter.canonicalHead.headerV2.id,
-                parentSlot = interpreter.canonicalHead.headerV2.slot,
-                txRoot = transactions.merkleTree,
-                bloomFilter = transactions.bloomFilter,
-                timestamp = timestamp,
-                height = interpreter.canonicalHead.headerV2.height + 1,
-                slot = slot,
-                vrfCertificate = vrfCertificate,
-                thresholdEvidence = threshold.evidence,
-                metadata = None,
-                address = interpreter.address
-              ),
-            transactions
-          )
-        }
-      }
+  def next(interpreter: BlockMintProgram.Algebra[F]): F[Option[BlockMintProgram.Out]] =
+    interpreter.canonicalHead
+      .map(_.headerV2)
+      .flatMap(header =>
+        OptionT(interpreter.elect(header)).semiflatMap {
+          case BlockMintProgram.Election(slot, vrfCertificate, threshold) =>
+            (interpreter.unconfirmedTransactions, interpreter.address).mapN { (transactions, address) =>
+              BlockMintProgram.Out(
+                timestamp =>
+                  BlockHeaderV2.Unsigned(
+                    parentHeaderId = header.id,
+                    parentSlot = header.slot,
+                    txRoot = transactions.merkleTree,
+                    bloomFilter = transactions.bloomFilter,
+                    timestamp = timestamp,
+                    height = header.height + 1,
+                    slot = slot,
+                    vrfCertificate = vrfCertificate,
+                    thresholdEvidence = threshold.evidence,
+                    metadata = None,
+                    address = address
+                  ),
+                transactions
+              )
+            }
+        }.value
+      )
 
 }
 
@@ -82,7 +83,7 @@ object BlockMintProgram {
     /**
      * The staking address
      */
-    def address: TaktikosAddress
+    def address: F[TaktikosAddress]
 
     /**
      * All valid unconfirmed transactions at the currentHead
@@ -92,10 +93,8 @@ object BlockMintProgram {
     /**
      * Elect the next slot and certificate based on the given parent
      */
-    def elect(parent: BlockHeaderV2): Option[BlockMintProgram.Election]
+    def elect(parent: BlockHeaderV2): F[Option[BlockMintProgram.Election]]
 
-    def canonicalHead: BlockV2
-
-    def clockInterpreter: ClockAlgebra[F]
+    def canonicalHead: F[BlockV2]
   }
 }

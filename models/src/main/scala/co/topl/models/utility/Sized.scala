@@ -99,6 +99,6 @@ object HasLength {
       _.allBytes.length
   }
 
-  object implicits extends Instances
+  object instances extends Instances
 
 }

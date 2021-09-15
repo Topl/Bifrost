@@ -1,9 +1,9 @@
-package co.topl.typeclasses.crypto
+package co.topl.crypto.typeclasses
 
 import co.topl.crypto.kes.KeyEvolvingSignatureScheme
 import co.topl.crypto.kes.keys.{ProductPrivateKey, SymmetricKey}
 import co.topl.crypto.signatures.Ed25519
-import co.topl.models.utility.HasLength.implicits._
+import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.Sized
 import co.topl.models._

@@ -18,7 +18,11 @@ trait ShowInstances {
 
   implicit val showBlockHeaderV2: Show[BlockHeaderV2] =
     header =>
-      show"BlockHeader(id=${header.id} parentId=${header.parentHeaderId} height=${header.height} slot=${header.slot} timestamp=${Instant.ofEpochMilli(header.timestamp).toString})"
+      show"BlockHeader(id=${header.id}" +
+      show" parentId=${header.parentHeaderId}" +
+      show" height=${header.height}" +
+      show" slot=${header.slot}" +
+      show" timestamp=${Instant.ofEpochMilli(header.timestamp).toString})"
 }
 
 object ShowInstances extends ShowInstances

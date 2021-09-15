@@ -2,7 +2,7 @@ package co.topl.typeclasses
 
 import cats.Eval
 import co.topl.models._
-import co.topl.models.utility.HasLength.implicits._
+import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.{Length, Lengths, Sized}
 import co.topl.typeclasses.ContainsTransactions.Instances._
@@ -61,12 +61,8 @@ object BlockGenesis {
         slot = 0,
         vrfCertificate = vrfCertificate,
         kesCertificate = kesCertificate,
-        thresholdEvidence = Sized
-          .strict[TypedBytes, Lengths.`33`.type](
-            TypedBytes(IdentifierTypes.RatioEvidence, Bytes(Array.fill[Byte](32)(0)))
-          )
-          .toOption
-          .get,
+        thresholdEvidence =
+          Sized.strictUnsafe(TypedBytes(IdentifierTypes.RatioEvidence, Bytes(Array.fill[Byte](32)(0)))),
         metadata = None,
         address = address
       )

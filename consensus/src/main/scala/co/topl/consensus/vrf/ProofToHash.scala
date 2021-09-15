@@ -4,7 +4,7 @@ import co.topl.crypto.signatures.Ed25519VRF
 import co.topl.models._
 import co.topl.models.utility.{Lengths, Sized}
 import co.topl.models.utility.Lengths._
-import co.topl.models.utility.HasLength.implicits._
+import co.topl.models.utility.HasLength.instances._
 
 object ProofToHash {
   val vrf = new Ed25519VRF

@@ -1,9 +1,11 @@
 package co.topl.codecs.bytes
 
+import co.topl.models.Proofs.Consensus
 import co.topl.models._
-import co.topl.models.utility.{Ratio, Sized}
+import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
-import co.topl.models.utility.HasLength.implicits._
+import co.topl.models.utility.{Ratio, Sized}
+import ByteCodec.ops._
 
 object BasicCodecs {
 
@@ -85,14 +87,98 @@ object BasicCodecs {
     override def decode(reader: Reader): Vrf.Certificate =
       Vrf.Certificate(
         PublicKeys.Vrf(
-          PublicKeys.Ed25519(Sized.strict[Bytes, PublicKeys.Ed25519.Length](Bytes(reader.getBytes(32))).toOption.get)
-        ), // TODO
+          PublicKeys.Ed25519(
+            Sized
+              .strictUnsafe(
+                Bytes(reader.getBytes(implicitly[PublicKeys.Ed25519.Length].value))
+              )
+          )
+        ),
         Proofs.Consensus.Nonce(
-          Sized.strict[Bytes, Proofs.Consensus.Nonce.Length](Bytes(reader.getBytes(80))).toOption.get
-        ), // TODO
+          Sized
+            .strictUnsafe(
+              Bytes(reader.getBytes(implicitly[Proofs.Consensus.Nonce.Length].value))
+            )
+        ),
         Proofs.Consensus.VrfTest(
-          Sized.strict[Bytes, Proofs.Consensus.VrfTest.Length](Bytes(reader.getBytes(80))).toOption.get
-        ) // TODO
+          Sized
+            .strictUnsafe(
+              Bytes(reader.getBytes(implicitly[Proofs.Consensus.VrfTest.Length].value))
+            )
+        )
+      )
+  }
+
+  implicit val kesCertificateProofCodec: ByteCodec[Proofs.Consensus.KesCertificate] =
+    new ByteCodec[Proofs.Consensus.KesCertificate] {
+
+      def encode(t: Proofs.Consensus.KesCertificate, writer: Writer): Unit = {
+        writer.putBytes(t.signature.data.toArray)
+        writer.putBytes(t.extendedPublicKey.data.toArray)
+        writer.putBytes(t.chainCode.data.toArray)
+      }
+
+      def decode(reader: Reader): Proofs.Consensus.KesCertificate =
+        Proofs.Consensus.KesCertificate(
+          Sized
+            .strictUnsafe(
+              Bytes(reader.getBytes(implicitly[Proofs.Consensus.KesCertificate.SignatureLength].value))
+            ),
+          Sized
+            .strictUnsafe(
+              Bytes(reader.getBytes(implicitly[Proofs.Consensus.KesCertificate.ExtendedPublicKeyLength].value))
+            ),
+          Sized
+            .strictUnsafe(
+              Bytes(reader.getBytes(implicitly[Proofs.Consensus.KesCertificate.ChainCodeLength].value))
+            )
+        )
+
+    }
+
+  implicit val mmmProofCodec: ByteCodec[Proofs.Consensus.MMM] =
+    new ByteCodec[Consensus.MMM] {
+
+      def encode(t: Consensus.MMM, writer: Writer): Unit = {
+        writer.putBytes(t.sigi.toArray)
+        writer.putBytes(t.sigm.toArray)
+        writer.putBytes(t.pki.toArray)
+        writer.putLong(t.offset)
+        writer.putBytes(t.pkl.toArray)
+      }
+
+      def decode(reader: Reader): Consensus.MMM = ???
+    }
+
+  implicit val kesPublicKeyCodec: ByteCodec[PublicKeys.Kes] = new ByteCodec[PublicKeys.Kes] {
+
+    def encode(t: PublicKeys.Kes, writer: Writer): Unit = {
+      writer.putBytes(t.bytes.data.toArray)
+      writer.putLong(t.offset)
+    }
+
+    def decode(reader: Reader): PublicKeys.Kes =
+      PublicKeys.Kes(
+        Sized
+          .strictUnsafe(
+            Bytes(reader.getBytes(implicitly[PublicKeys.Kes.Length].value))
+          ),
+        reader.getLong()
+      )
+  }
+
+  implicit val kesCertificateCodec: ByteCodec[KesCertificate] = new ByteCodec[KesCertificate] {
+
+    override def encode(t: KesCertificate, writer: Writer): Unit = {
+      t.kesProof.writeBytesTo(writer)
+      t.mmmProof.writeBytesTo(writer)
+    }
+
+    override def decode(reader: Reader): KesCertificate =
+      KesCertificate(
+        ByteCodec[PublicKeys.Kes].decode(reader),
+        ByteCodec[Proofs.Consensus.KesCertificate].decode(reader),
+        ByteCodec[Proofs.Consensus.MMM].decode(reader)
       )
   }
 }

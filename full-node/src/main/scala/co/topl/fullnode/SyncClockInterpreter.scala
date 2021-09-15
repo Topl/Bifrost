@@ -1,29 +1,34 @@
 package co.topl.fullnode
 
-import cats.Id
+import cats.Applicative
+import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.models.{Epoch, Slot, Timestamp}
 
 import scala.concurrent.duration._
 
-class SyncClockInterpreter(val slotLength: FiniteDuration = 1.millis, val slotsPerEpoch: Long = 6000)
-    extends ClockAlgebra[Id] {
+class SyncClockInterpreter[F[_]: Applicative](_slotLength: FiniteDuration = 100.millis, _slotsPerEpoch: Long = 600)
+    extends ClockAlgebra[F] {
 
-  private val startTime = currentTimestamp()
+  private val startTime = System.currentTimeMillis()
 
-  def currentEpoch(): Epoch = currentSlot() / slotsPerEpoch
+  def slotLength: F[FiniteDuration] = _slotLength.pure[F]
 
-  def currentSlot(): Slot = (currentTimestamp() - startTime) / slotLength.toMillis
+  def slotsPerEpoch: F[Epoch] = _slotsPerEpoch.pure[F]
 
-  def currentTimestamp(): Timestamp = System.currentTimeMillis()
+  def currentEpoch(): F[Epoch] =
+    (currentSlot(), slotsPerEpoch).mapN(_ / _)
 
-  def delayedUntilSlot(slot: Slot): Id[Unit] = {
-    val durationMs = (slot - currentSlot()) * slotLength.toMillis
-    if (durationMs > 0) Thread.sleep(durationMs)
-  }
+  def currentSlot(): F[Slot] =
+    currentTimestamp().map(currentTimestamp => (currentTimestamp - startTime) / _slotLength.toMillis)
 
-  def delayedUntilTimestamp(timestamp: Timestamp): Id[Unit] = {
-    val durationMs = timestamp - currentTimestamp()
-    if (durationMs > 0) Thread.sleep(durationMs)
-  }
+  def currentTimestamp(): F[Timestamp] = System.currentTimeMillis().pure[F]
+
+  def delayedUntilSlot(slot: Slot): F[Unit] =
+    currentSlot()
+      .map(currentSlot => (slot - currentSlot) * _slotLength.toMillis)
+      .map(delay => if (delay > 0) Thread.sleep(delay))
+
+  def delayedUntilTimestamp(timestamp: Timestamp): F[Unit] =
+    currentTimestamp().map(timestamp - _).map(Thread.sleep)
 }

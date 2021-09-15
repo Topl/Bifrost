@@ -1,9 +1,9 @@
-package co.topl.typeclasses.crypto
+package co.topl.crypto.typeclasses
 
 import co.topl.crypto.PublicKey
 import co.topl.crypto.signatures.{Curve25519, Ed25519, Ed25519VRF, Signature}
+import co.topl.crypto.typeclasses.Signable.ops._
 import co.topl.models._
-import co.topl.typeclasses.crypto.Signable.ops._
 
 import scala.language.implicitConversions
 import scala.util.Try
