@@ -1,6 +1,6 @@
 package co.topl.crypto.kes.signatures
 
-import co.topl.crypto.kes.keys.PublicKey
+import co.topl.crypto.PublicKey
 
 trait ProductSignature
 

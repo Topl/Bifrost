@@ -1,7 +1,8 @@
 package co.topl.crypto.kes.construction
 
-import co.topl.crypto.kes.keys.{AsymmetricKey, PublicKey, SumPrivateKey, SymmetricKey}
-import co.topl.crypto.kes.{signatures, _}
+import co.topl.crypto.kes.keys.{AsymmetricKey, SumPrivateKey, SymmetricKey}
+import co.topl.crypto.PublicKey
+import co.topl.crypto.signatures.Signature
 import co.topl.crypto.kes.signatures.{AsymmetricSignature, ProductSignature, SymmetricSignature}
 
 import java.security.SecureRandom
@@ -37,9 +38,9 @@ abstract class MMM {
   val asymmetricLogL: Int
   val symmetricLogL: Int
 
-  private val exp_symmetricLogL = exp(symmetricLogL)
+  private lazy val exp_symmetricLogL = exp(symmetricLogL)
 
-  val maxSymmetricKeyTimeSteps:Int = exp_symmetricLogL*exp_symmetricLogL
+  lazy val maxSymmetricKeyTimeSteps: Int = exp_symmetricLogL * exp_symmetricLogL
 
   private val random = new SecureRandom()
 
@@ -567,7 +568,7 @@ abstract class MMM {
     AsymmetricKey(KeyData(L, Si, sig, pki, rp._2, offset))
   }
 
-  def generateSymmetricProductKey(seed: Array[Byte], offset: Long): SymmetricKey = {
+  def generateProductKeyData(seed: Array[Byte], offset: Long): KeyData = {
     val r = PRNG(seed)
     val rp = PRNG(r._2)
     //super-scheme sum composition
@@ -576,7 +577,7 @@ abstract class MMM {
     val Si = sumCompositionGenerateKey(rp._1, symmetricLogL)
     val pki = sumCompositionGetPublicKey(Si)
     val sig = sumCompositionSign(L, pki, 0)
-    SymmetricKey(KeyData(L, Si, sig, pki, rp._2, offset))
+    KeyData(L, Si, sig, pki, rp._2, offset)
   }
 
   /**
@@ -675,7 +676,8 @@ abstract class MMM {
         } else {
           L = sumCompositionUpdate(L, currentLeaf)
         }
-      } else {
+      }
+      else {
         println("Error: max time steps reached")
       }
       val ti = getSumCompositionKeyTimeStep(Si)
@@ -685,7 +687,7 @@ abstract class MMM {
     } else {
       println("Error: t less than given keyTime")
     }
-    SymmetricKey(KeyData(L, Si, sig, pki, seed, key.data.offset))
+    SymmetricKey(KeyData(L, Si, sig, pki, seed, key.data.offset), key.signature)
   }
 
   /**
@@ -713,7 +715,7 @@ abstract class MMM {
    * @return signature of m
    */
 
-  def signAsymmetricProduct(key: AsymmetricKey, m: Array[Byte]): ProductSignature = {
+  def signAsymmetricProduct(key: AsymmetricKey, m: Array[Byte]): AsymmetricSignature = {
     val keyTime = BigInt(getAsymmetricProductKeyTimeStep(key)).toByteArray
     val Si = key.data.subScheme
     val sigi = key.data.subSchemeSignature
@@ -723,7 +725,7 @@ abstract class MMM {
     AsymmetricSignature(sigi, sigm, PublicKey(pki), key.data.offset, PublicKey(publicKey(key)))
   }
 
-  def signSymmetricProduct(key: SymmetricKey, m: Array[Byte]): ProductSignature = {
+  def signSymmetricProduct(key: SymmetricKey, m: Array[Byte]): SymmetricSignature = {
     val keyTime = BigInt(getSymmetricProductKeyTimeStep(key)).toByteArray
     val Si = key.data.subScheme
     val sigi = key.data.subSchemeSignature
@@ -746,15 +748,15 @@ abstract class MMM {
       case AsymmetricSignature(sigi, sigm, pki, _, pkl) =>
         val stepL = BigInt(sigi.slice(sigBytes + pkBytes, sigBytes + pkBytes + seedBytes)).toInt
         val stepSi = BigInt(sigm.slice(sigBytes + pkBytes, sigBytes + pkBytes + seedBytes)).toInt
-        (sumCompositionVerify(pkl.bytes, pki.bytes, sigi, stepL)
-        && sumCompositionVerify(pki.bytes, m ++ BigInt(t).toByteArray, sigm, stepSi)
+        (sumCompositionVerify(pkl.value, pki.value, sigi, stepL)
+        && sumCompositionVerify(pki.value, m ++ BigInt(t).toByteArray, sigm, stepSi)
         && t == exp(stepL) - 1 + stepSi)
       case SymmetricSignature(sigi, sigm, pki, _, pkl) =>
         val stepL = BigInt(sigi.slice(sigBytes + pkBytes, sigBytes + pkBytes + seedBytes)).toInt
         val stepSi = BigInt(sigm.slice(sigBytes + pkBytes, sigBytes + pkBytes + seedBytes)).toInt
         (
-          sumCompositionVerify(pkl.bytes, pki.bytes, sigi, stepL)
-          && sumCompositionVerify(pki.bytes, m ++ BigInt(t).toByteArray, sigm, stepSi)
+          sumCompositionVerify(pkl.value, pki.value, sigi, stepL)
+          && sumCompositionVerify(pki.value, m ++ BigInt(t).toByteArray, sigm, stepSi)
           && t == exp_symmetricLogL * stepL + stepSi
         )
     }
@@ -773,5 +775,8 @@ abstract class MMM {
 
   def publicKey(key: SumPrivateKey): Array[Byte] =
     sumCompositionGetPublicKey(key.L)
+
+  def publicKey(key: KeyData): Array[Byte] =
+    sumCompositionGetPublicKey(key.superScheme)
 
 }

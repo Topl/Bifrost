@@ -126,12 +126,11 @@ class ExtendedPrivateKeyEd25519(
    * @param message the message to sign serialized as a `MessageToSign`
    * @return the signature
    */
-  def sign(message: Array[Byte]): SignatureEd25519 = {
+  def sign(message: Array[Byte]): Signature = {
     // signing is a mutable process
     val mutableKey: ExtendedPrivateKeyEd25519 = ExtendedPrivateKeyEd25519.copy(this)
-    val ec = new Ed25519
 
-    val resultSig = new Array[Byte](ec.SIGNATURE_SIZE)
+    val resultSig = new Array[Byte](ed25519.SIGNATURE_SIZE)
     val ctx: Array[Byte] = Array.empty
     val phflag: Byte = 0x00
 
@@ -140,9 +139,9 @@ class ExtendedPrivateKeyEd25519(
     val pk: Array[Byte] = mutableKey.public.bytes.toArray
     val m: Array[Byte] = message
 
-    ec.implSign(ec.sha512Digest, h, s, pk, 0, ctx, phflag, m, 0, m.length, resultSig, 0)
+    ed25519.implSign(ed25519.sha512Digest, h, s, pk, 0, ctx, phflag, m, 0, m.length, resultSig, 0)
 
-    SignatureEd25519(Signature(resultSig))
+    Signature(resultSig)
   }
 
   lazy val serializer: BifrostSerializer[ExtendedPrivateKeyEd25519] = ExtendedPrivateKeyEd25519Serializer
