@@ -8,10 +8,11 @@ import co.topl.nodeView.history.History
 import co.topl.utils.GeneratorOps.GeneratorOps
 import io.circe.Json
 import io.circe.parser.parse
+import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
+class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with EitherValues {
 
   var txs: Seq[TX] = _
   var txId: String = _
@@ -76,6 +77,31 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
         ((res \\ "result").head \\ "txId").head.asString.get shouldEqual txId
       }
       view().mempool.remove(txs.head)
+    }
+
+    "Return correct error response when a invalid id is used for querying transactions" in {
+      val invalidId: String = "=" ++ txId.tail
+      val modifierQueryMethods = Seq("topl_transactionById", "topl_transactionFromMempool", "topl_blockById")
+      val idTypes = Seq("transactionId", "transactionId", "blockId")
+      def requestBody(idType: String, rpcMethod: String): ByteString = ByteString(s"""
+        |{
+        |   "jsonrpc": "2.0",
+        |   "id": "1",
+        |   "method": "$rpcMethod",
+        |   "params": [{
+        |      "$idType": "$invalidId"
+        |   }]
+        |}
+        |
+          """.stripMargin)
+
+      idTypes.zip(modifierQueryMethods).map { case (idType, rpcMethod) =>
+        httpPOST(requestBody(idType, rpcMethod)) ~> route ~> check {
+          val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
+          res should include("Value is not Base 58")
+        }
+      }
+
     }
 
     "Get a confirmed transaction by id" in {
