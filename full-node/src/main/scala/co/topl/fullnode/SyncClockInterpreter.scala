@@ -7,7 +7,7 @@ import co.topl.models.{Epoch, Slot, Timestamp}
 
 import scala.concurrent.duration._
 
-class SyncClockInterpreter[F[_]: Applicative](_slotLength: FiniteDuration = 100.millis, _slotsPerEpoch: Long = 600)
+class SyncClockInterpreter[F[_]: Applicative](_slotLength: FiniteDuration = 10.millis, _slotsPerEpoch: Long = 600)
     extends ClockAlgebra[F] {
 
   private val startTime = System.currentTimeMillis()

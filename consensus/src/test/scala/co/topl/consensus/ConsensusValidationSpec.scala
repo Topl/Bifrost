@@ -1,19 +1,14 @@
 package co.topl.consensus
 
 import cats.implicits._
-import co.topl.consensus.KesCertifies.instances._
-import co.topl.consensus.KesCertifies.ops._
-import co.topl.crypto.typeclasses.Evolves.instances._
-import co.topl.crypto.typeclasses.Evolves.ops._
+import co.topl.algebras.{EtaLookupAlgebra, VrfRelativeStakeLookupAlgebra}
 import co.topl.crypto.typeclasses.KeyInitializer
 import co.topl.crypto.typeclasses.KeyInitializer.Instances.kesInitializer
+import co.topl.crypto.typeclasses.implicits._
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility.{Lengths, Ratio}
-import co.topl.typeclasses.ContainsEvidence.Instances._
-import co.topl.typeclasses.ContainsEvidence.ops._
-import co.topl.typeclasses.Identifiable.Instances._
-import co.topl.typeclasses.Identifiable.ops._
+import co.topl.typeclasses.implicits._
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
@@ -32,10 +27,11 @@ class ConsensusValidationSpec
 
   type EvalF[A] = Either[ConsensusValidation.Eval.Failure, A]
 
+  val vrfConfig =
+    Vrf.Config(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
+
   private val leaderElectionInterpreter =
-    LeaderElection.Eval.make[EvalF](
-      Vrf.Config(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
-    )
+    LeaderElection.Threshold.Eval.make[EvalF](vrfConfig)
 
   it should "invalidate blocks with non-forward slot" in {
     forAll(
@@ -118,8 +114,8 @@ class ConsensusValidationSpec
         ConsensusValidation.Eval.make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
 
       (etaInterpreter
-        .etaOf(_: BlockHeaderV2))
-        .expects(child)
+        .etaOf(_: BlockHeaderV2, _: Slot))
+        .expects(child, child.slot)
         .anyNumberOfTimes()
         // This epoch nonce does not satisfy the generated VRF certificate
         .returning(eta.pure[EvalF])
@@ -149,11 +145,12 @@ class ConsensusValidationSpec
       val underTest =
         ConsensusValidation.Eval.make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
 
+      val vrfHit = LeaderElection.Hit.Eval.make[EvalF](vrfSecret, leaderElectionInterpreter)
+
       val Some(hit) = LazyList
         .from(parent.slot.toInt + 1)
-        .collectFirstSome(s =>
-          leaderElectionInterpreter.getHit(vrfSecret, relativeStake, s, s - parent.slot, eta).value
-        )
+        .collectFirstSome(s => vrfHit.getHit(relativeStake, s, s - parent.slot, eta).value)
+
       val unsigned =
         BlockHeaderV2.Unsigned(
           parentHeaderId = parent.id,
@@ -191,16 +188,16 @@ class ConsensusValidationSpec
         )
 
       (etaInterpreter
-        .etaOf(_: BlockHeaderV2))
-        .expects(child)
+        .etaOf(_: BlockHeaderV2, _: Slot))
+        .expects(child, child.slot)
         .anyNumberOfTimes()
         .returning(eta.pure[EvalF])
 
       (relativeStakeInterpreter
-        .lookupAt(_: BlockHeaderV2)(_: TaktikosAddress))
-        .expects(child, *)
+        .lookupAt(_: BlockHeaderV2, _: Slot, _: TaktikosAddress))
+        .expects(child, child.slot, *)
         .once()
-        .returning(Ratio(0).pure[EvalF])
+        .returning(Ratio(0).some.pure[EvalF])
 
       underTest
         .validate(child, parent)
@@ -224,12 +221,11 @@ class ConsensusValidationSpec
       val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
       val underTest =
         ConsensusValidation.Eval.make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
+      val vrfHit = LeaderElection.Hit.Eval.make[EvalF](vrfSecret, leaderElectionInterpreter)
 
       val Some(hit) = LazyList
         .from(parent.slot.toInt + 1)
-        .collectFirstSome(s =>
-          leaderElectionInterpreter.getHit(vrfSecret, relativeStake, s, s - parent.slot, eta).value
-        )
+        .collectFirstSome(s => vrfHit.getHit(relativeStake, s, s - parent.slot, eta).value)
       val unsigned =
         BlockHeaderV2.Unsigned(
           parentHeaderId = parent.id,
@@ -267,18 +263,18 @@ class ConsensusValidationSpec
         )
 
       (etaInterpreter
-        .etaOf(_: BlockHeaderV2))
-        .expects(child)
+        .etaOf(_: BlockHeaderV2, _: Slot))
+        .expects(child, child.slot)
         .anyNumberOfTimes()
         .returning(eta.pure[EvalF])
 
       (relativeStakeInterpreter
-        .lookupAt(_: BlockHeaderV2)(_: TaktikosAddress))
-        .expects(child, *)
+        .lookupAt(_: BlockHeaderV2, _: Slot, _: TaktikosAddress))
+        .expects(child, child.slot, *)
         .once()
-        .returning(relativeStake.pure[EvalF])
+        .returning(relativeStake.some.pure[EvalF])
 
-      underTest.validate(child, parent).value.header shouldBe child
+      underTest.validate(child, parent).value shouldBe child
     }
   }
 

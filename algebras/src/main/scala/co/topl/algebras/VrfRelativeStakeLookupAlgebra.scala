@@ -11,5 +11,5 @@ trait VrfRelativeStakeLookupAlgebra[F[_]] {
    * @param currentSlot For validation purposes, this value is usually just block.slot.  When minting a new block, this
    *                    value corresponds to the forward-moving slot when determining VRF eligibility.
    */
-  def lookupAt(block: BlockHeaderV2, currentSlot: Slot)(address: TaktikosAddress): F[Option[Ratio]]
+  def lookupAt(block: BlockHeaderV2, currentSlot: Slot, address: TaktikosAddress): F[Option[Ratio]]
 }

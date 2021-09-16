@@ -5,7 +5,7 @@ import cats.implicits._
 import co.topl.algebras.{
   BlockHeaderValidationAlgebra,
   EtaLookupAlgebra,
-  LeaderElectionAlgebra,
+  LeaderElectionThresholdAlgebra,
   VrfRelativeStakeLookupAlgebra
 }
 import co.topl.consensus.vrf.ProofToHash
@@ -50,7 +50,7 @@ object ConsensusValidation {
     def make[F[_]: MonadError[*[_], Failure]](
       epochNoncesInterpreter:   EtaLookupAlgebra[F],
       relativeStakeInterpreter: VrfRelativeStakeLookupAlgebra[F],
-      leaderElection:           LeaderElectionAlgebra[F]
+      leaderElection:           LeaderElectionThresholdAlgebra[F]
     ): BlockHeaderValidationAlgebra[F] = new BlockHeaderValidationAlgebra[F] {
 
       def validate(child: BlockHeaderV2, parent: BlockHeaderV2): F[BlockHeaderV2] =
@@ -103,7 +103,7 @@ object ConsensusValidation {
         parent: BlockHeaderV2
       ): F[Ratio] =
         relativeStakeInterpreter
-          .lookupAt(child, child.slot)(child.address)
+          .lookupAt(child, child.slot, child.address)
           .flatMap(relativeStake =>
             leaderElection.getThreshold(
               relativeStake.getOrElse(Ratio(0)),

@@ -3,8 +3,6 @@ package co.topl.crypto.typeclasses
 import co.topl.crypto.kes.KeyEvolvingSignatureScheme
 import co.topl.crypto.kes.keys.{ProductPrivateKey, SymmetricKey}
 import co.topl.models._
-import co.topl.crypto.typeclasses._
-import co.topl.crypto.typeclasses.implicits._
 import com.google.common.primitives.Ints
 import simulacrum.{op, typeclass}
 
@@ -21,6 +19,10 @@ object KesCertifies {
         private val scheme = new KeyEvolvingSignatureScheme
 
         def certifyWith(t: PrivateKeys.Kes, data: BlockHeaderV2.Unsigned): KesCertificate = {
+          import ContainsVerificationKey.instances._
+          import Proves.instances._
+          import Signable.instances._
+          import Signable.ops._
           val currentSymmetricKey =
             SymmetricKey(
               ProductPrivateKey.deserializeProductKey(

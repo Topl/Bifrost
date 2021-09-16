@@ -1,34 +1,42 @@
 package co.topl.fullnode
 
-import cats.data.{OptionT, StateT}
+import cats._
 import cats.implicits._
-import cats.{Id, _}
-import co.topl.algebras.{ClockAlgebra, LeaderElectionAlgebra, VrfRelativeStakeLookupAlgebra}
 import co.topl.algebras.ClockAlgebra.implicits._
-import co.topl.consensus.ConsensusValidation.Eval
+import co.topl.algebras._
 import co.topl.consensus.{ConsensusValidation, LeaderElection}
 import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.signatures.Ed25519VRF
-import co.topl.crypto.typeclasses.ContainsVerificationKey.instances.ed25519ContainsVerificationKey
-import co.topl.crypto.typeclasses.KeyInitializer.Instances._
+import co.topl.crypto.typeclasses.implicits._
 import co.topl.crypto.typeclasses.{ContainsVerificationKey, KeyInitializer}
+import co.topl.minting.{BlockMint, BlockSigning, Staker}
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility._
 import co.topl.typeclasses.BlockGenesis
+import co.topl.typeclasses.implicits._
+
+import scala.concurrent.duration._
 
 object FullNode extends App {
 
   val stakerRelativeStake =
     Ratio(1, 5)
 
-  def leaderElection[F[_]: Monad]: LeaderElectionAlgebra[F] = LeaderElection.Eval.make(
-    Vrf
-      .Config(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
+  def leaderElectionThreshold[F[_]: Monad]: LeaderElectionThresholdAlgebra[F] =
+    LeaderElection.Threshold.Eval.make(
+      Vrf
+        .Config(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
+    )
+
+  private val stakerVrfKey = KeyInitializer[PrivateKeys.Vrf].random()
+
+  def leaderElectionHit[F[_]: Monad]: LeaderElectionHitAlgebra[F] = LeaderElection.Hit.Eval.make(
+    stakerVrfKey,
+    leaderElectionThreshold
   )
 
-  implicit val clock: ClockAlgebra[Id] = new SyncClockInterpreter
+  def clock[F[_]: Applicative]: ClockAlgebra[F] = new SyncClockInterpreter(10.milli, 600)
 
   private val Right(stakerAddress: TaktikosAddress) = {
     val stakingKey = KeyInitializer[PrivateKeys.Ed25519].random()
@@ -45,67 +53,83 @@ object FullNode extends App {
     } yield TaktikosAddress(paymentVerificationKeyHash, stakingVerificationKey.bytes, signature)
   }
 
-  val staker =
-    Staker.Eval.make[Id](stakerAddress, clock, leaderElection[Id])
-
-  val initialState =
+  private var inMemoryState: InMemoryState =
     InMemoryState(
       BlockGenesis(Nil).value,
       Map.empty,
       Map.empty,
-      Map(0L -> Map(stakerAddress -> stakerRelativeStake)),
-      Map(0L -> Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0))))
+      List
+        .tabulate(10)(idx => idx.toLong -> Map(stakerAddress -> stakerRelativeStake))
+        .toMap,
+      List
+        .tabulate(10)(idx => idx.toLong -> Sized.strictUnsafe[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(0))))
+        .toMap
     )
 
-  private def consensusValidationEval(state: InMemoryState) =
+  def relativeStakeLookup[F[_]: Applicative]: VrfRelativeStakeLookupAlgebra[F] =
+    (block: BlockHeaderV2, currentSlot: Slot, address: TaktikosAddress) =>
+      clock[F].epochOf(block.slot).map(inMemoryState.relativeStakes(_).get(address))
+
+  def etaLookup[F[_]: Applicative]: EtaLookupAlgebra[F] =
+    (block: BlockHeaderV2, currentSlot: Slot) =>
+      clock[F]
+        .epochOf(currentSlot)
+        .map(inMemoryState.epochNonce)
+
+  val staker: Staker[Id] = {
+    val evolver: KeyEvolverAlgebra[Id] =
+      new KeyEvolverAlgebra[Id] {
+
+        private var key = {
+          implicit val slot: Slot = 0
+          KeyInitializer[PrivateKeys.Kes].random()
+        }
+
+        def evolvedKey(slot: Slot): Id[PrivateKeys.Kes] = {
+          key = key.evolveSteps(slot)
+          key.pure[Id]
+        }
+      }
+    Staker.Eval.make[Id](
+      stakerAddress,
+      clock,
+      leaderElectionHit,
+      BlockMint.Eval.make(stakerAddress),
+      BlockSigning.Eval.make(clock, evolver),
+      relativeStakeLookup,
+      etaLookup
+    )
+  }
+
+  val consensusValidation =
     ConsensusValidation.Eval
       .make[Either[ConsensusValidation.Eval.Failure, *]](
-        (header, slot) =>
-          clock
-            .epochOf(slot)
-            .map(state.epochNonce)
-            .nonEmptyTraverse(Right(_): Either[ConsensusValidation.Eval.Failure, Eta]),
-        new VrfRelativeStakeLookupAlgebra[Either[ConsensusValidation.Eval.Failure, *]] {
-
-          def lookupAt(
-            block:       BlockHeaderV2,
-            currentSlot: Slot
-          )(address:     TaktikosAddress): Either[ConsensusValidation.Eval.Failure, Option[Ratio]] =
-            clock.epochOf(block.slot).map(state.relativeStakes(_).get(address)).asRight
-        },
-        leaderElection[Either[ConsensusValidation.Eval.Failure, *]]
+        etaLookup,
+        relativeStakeLookup,
+        leaderElectionThreshold
       )
 
-  val stateT =
-    StateT[Id, InMemoryState, Option[BlockV2]] { implicit state =>
-      staker
-        .mintBlock(
-          state.canonicalHead,
-          transactions = Nil,
-          header => address => clock.epochOf(header.slot).map(state.relativeStakes.get(_).flatMap(_.get(address))),
-          header => clock.epochOf(header.slot).map(state.epochNonce)
-        )
-        .fmap {
-          case Some(newBlock: BlockV2) =>
-            consensusValidationEval(state)
-              .validate(newBlock.headerV2, state.canonicalHead.headerV2)
-              .handleError(f => throw new Exception(f.toString))
-
-            state.append(newBlock) -> Some(newBlock)
-          case _ =>
-            state -> None
-        }
+  val c = clock[Id]
+  c.delayedUntilSlot(c.currentSlot() + 1)
+  var s = c.currentSlot()
+  while (s <= 2400) {
+    staker
+      .mintBlock(inMemoryState.canonicalHead, Nil, s)
+      .foreach { nextBlock =>
+        consensusValidation
+          .validate(nextBlock.headerV2, inMemoryState.canonicalHead.headerV2)
+          .recover { case e =>
+            throw new Exception(e.toString)
+          }
+        inMemoryState = inMemoryState.append(nextBlock)
+        println(s"Appended block ${nextBlock.headerV2.show}")
+      }
+    val epoch = c.epochOf(s)
+    if (c.epochBoundary(epoch).start == s) {
+      println(s"Starting epoch=$epoch")
     }
-
-  LazyList
-    .unfold(initialState)(stateT.run(_).swap.some)
-    .takeWhile(_.nonEmpty)
-    .collect { case Some(newBlock) => newBlock }
-    .foreach { head =>
-      import co.topl.typeclasses.ShowInstances._
-      println(s"Applied ${head.headerV2.show}")
-    }
-
-  println("Completed epoch")
+    c.delayedUntilSlot(s + 1)
+    s = s + 1
+  }
 
 }

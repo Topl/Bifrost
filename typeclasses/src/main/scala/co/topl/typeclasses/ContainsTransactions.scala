@@ -25,9 +25,9 @@ object ContainsTransactions {
 
   trait Instances {
 
-    implicit val transactionsContainsTransactions: ContainsTransactions[Seq[Transaction]] = identity
-    implicit val blockBodyV2: ContainsTransactions[BlockBodyV2] = _.transactions
-    implicit val blockV1: ContainsTransactions[BlockV1] = _.transactions
+    implicit val transactionsContainsTransactionsContainsTransactions: ContainsTransactions[Seq[Transaction]] = identity
+    implicit val blockBodyV2ContainsTransactions: ContainsTransactions[BlockBodyV2] = _.transactions
+    implicit val blockV1ContainsTransactions: ContainsTransactions[BlockV1] = _.transactions
   }
   object Instances extends Instances
 }

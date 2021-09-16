@@ -1,9 +1,9 @@
 package co.topl.algebras
 
 import co.topl.models.utility.Ratio
-import co.topl.models.{Eta, PrivateKeys, Rho, Slot, Vrf}
+import co.topl.models.{Eta, PrivateKeys, Proofs, Rho, Slot, Vrf}
 
-trait LeaderElectionAlgebra[F[_]] {
+trait LeaderElectionHitAlgebra[F[_]] {
 
   def nextHit(
     relativeStake: Ratio,
@@ -18,7 +18,9 @@ trait LeaderElectionAlgebra[F[_]] {
     slotDiff:      Long,
     eta:           Eta
   ): F[Option[Vrf.Hit]]
+}
 
+trait LeaderElectionThresholdAlgebra[F[_]] {
   def getThreshold(relativeStake: Ratio, slotDiff: Long): F[Ratio]
 
   def isSlotLeaderForThreshold(threshold: Ratio)(proofHash: Rho): F[Boolean]
