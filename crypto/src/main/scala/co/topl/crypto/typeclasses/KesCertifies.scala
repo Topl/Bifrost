@@ -1,15 +1,12 @@
-package co.topl.consensus
+package co.topl.crypto.typeclasses
 
 import co.topl.crypto.kes.KeyEvolvingSignatureScheme
 import co.topl.crypto.kes.keys.{ProductPrivateKey, SymmetricKey}
 import co.topl.models._
-import co.topl.crypto.typeclasses.ContainsVerificationKey.instances._
-import co.topl.crypto.typeclasses.Proves.instances._
-import co.topl.crypto.typeclasses.Signable.ops._
-import co.topl.crypto.typeclasses.{ContainsVerificationKey, Proves, Signable}
+import co.topl.crypto.typeclasses._
+import co.topl.crypto.typeclasses.implicits._
 import com.google.common.primitives.Ints
 import simulacrum.{op, typeclass}
-import Signable.instances._
 
 @typeclass trait KesCertifies[T] {
   @op("certify") def certifyWith(t: T, unsignedBlock: BlockHeaderV2.Unsigned): KesCertificate

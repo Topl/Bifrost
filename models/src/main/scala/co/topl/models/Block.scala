@@ -61,3 +61,11 @@ case class BlockBodyV2(
 
 // This is a synthetic type, and is not "identifiable"
 case class BlockV2(headerV2: BlockHeaderV2, blockBodyV2: BlockBodyV2)
+
+object BlockV2 {
+
+  case class Unsigned(
+    unsignedHeader: BlockHeaderV2.Unsigned,
+    transactions:   Seq[Transaction]
+  )
+}

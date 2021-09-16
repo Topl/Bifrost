@@ -1,7 +1,7 @@
 package co.topl.algebras
 
+import cats.Apply
 import cats.implicits._
-import cats.{Apply, Functor, Semigroupal}
 import co.topl.models.{Epoch, Slot, Timestamp}
 
 import scala.collection.immutable.NumericRange
@@ -20,24 +20,17 @@ trait ClockAlgebra[F[_]] {
 
 object ClockAlgebra {
 
-  trait Ops[F[_]] {
-    val clock: ClockAlgebra[F]
-    implicit def A: Apply[F]
+  trait Implicits {
 
-    def epochOf(slot: Slot): F[Epoch] = clock.slotsPerEpoch.map(slot /)
+    implicit final class ClockOps[F[_]: Apply](clock: ClockAlgebra[F]) {
 
-    def epochBoundary(epoch: Epoch): F[NumericRange.Inclusive[Slot]] =
-      clock.slotsPerEpoch.map(slotsPerEpoch => (epoch * slotsPerEpoch) to (((epoch + 1) * slotsPerEpoch) - 1))
-  }
+      def epochOf(slot: Slot): F[Epoch] = clock.slotsPerEpoch.map(slot /)
 
-  trait AsOps {
+      def epochBoundary(epoch: Epoch): F[NumericRange.Inclusive[Slot]] =
+        clock.slotsPerEpoch.map(slotsPerEpoch => (epoch * slotsPerEpoch) to (((epoch + 1) * slotsPerEpoch) - 1))
 
-    implicit def asClockOps[F[_]](c: ClockAlgebra[F])(implicit a: Apply[F]): Ops[F] = new Ops[F] {
-      val clock: ClockAlgebra[F] = c
-
-      implicit def A: Apply[F] = a
     }
   }
 
-  object implicits extends AsOps
+  object implicits extends Implicits
 }

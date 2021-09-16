@@ -3,15 +3,10 @@ package co.topl.fullnode
 import cats.Monad
 import cats.data.OptionT
 import cats.implicits._
-import co.topl.algebras.ClockAlgebra
 import co.topl.algebras.ClockAlgebra.implicits._
-import co.topl.consensus.KesCertifies.instances._
-import co.topl.consensus.KesCertifies.ops._
-import co.topl.consensus.LeaderElection
-import co.topl.crypto.typeclasses.Evolves.instances._
-import co.topl.crypto.typeclasses.Evolves.ops._
-import co.topl.crypto.typeclasses.KeyInitializer.Instances._
-import co.topl.crypto.typeclasses.{ContainsVerificationKey, KeyInitializer}
+import co.topl.algebras.{ClockAlgebra, LeaderElectionAlgebra}
+import co.topl.crypto.typeclasses._
+import co.topl.crypto.typeclasses.implicits._
 import co.topl.minting.BlockMintProgram
 import co.topl.models._
 import co.topl.models.utility.Ratio
@@ -33,7 +28,7 @@ object Staker {
     def make[F[_]: Monad](
       stakerAddress:  TaktikosAddress,
       clock:          ClockAlgebra[F],
-      leaderElection: LeaderElection[F]
+      leaderElection: LeaderElectionAlgebra[F]
     ): Staker[F] =
       new Staker[F] {
 

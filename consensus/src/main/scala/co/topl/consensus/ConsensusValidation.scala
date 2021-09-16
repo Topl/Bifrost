@@ -2,28 +2,21 @@ package co.topl.consensus
 
 import cats.MonadError
 import cats.implicits._
+import co.topl.algebras.{
+  BlockHeaderValidationAlgebra,
+  EtaLookupAlgebra,
+  LeaderElectionAlgebra,
+  VrfRelativeStakeLookupAlgebra
+}
 import co.topl.consensus.vrf.ProofToHash
 import co.topl.crypto.kes.KesVerifier
-import co.topl.crypto.typeclasses.ProofVerifier.Instances._
-import co.topl.crypto.typeclasses.ProofVerifier.ops._
-import co.topl.crypto.typeclasses.Signable.instances._
+import co.topl.crypto.typeclasses.implicits._
 import co.topl.models._
 import co.topl.models.utility.Ratio
-import co.topl.typeclasses.ContainsEvidence.Instances._
-import co.topl.typeclasses.ContainsEvidence.ops._
-import co.topl.typeclasses.Identifiable.Instances._
-import co.topl.typeclasses.Identifiable.ops._
+import co.topl.typeclasses.implicits._
 
 import java.nio.charset.StandardCharsets
 import scala.language.implicitConversions
-
-trait ConsensusValidation[F[_]] {
-
-  /**
-   * Indicates if the claimed child is a valid descendent of the parent
-   */
-  def validate(child: BlockHeaderV2, parent: BlockHeaderV2): F[ValidatedBlockHeader]
-}
 
 /**
  * A program which validates if a child block header can be chained to a parent block header
@@ -55,15 +48,14 @@ object ConsensusValidation {
     }
 
     def make[F[_]: MonadError[*[_], Failure]](
-      epochNoncesInterpreter:   EtaAlgebra[F],
+      epochNoncesInterpreter:   EtaLookupAlgebra[F],
       relativeStakeInterpreter: VrfRelativeStakeLookupAlgebra[F],
-      leaderElection:           LeaderElection[F]
-    ): ConsensusValidation[F] = new ConsensusValidation[F] {
+      leaderElection:           LeaderElectionAlgebra[F]
+    ): BlockHeaderValidationAlgebra[F] = new BlockHeaderValidationAlgebra[F] {
 
-      def validate(child: BlockHeaderV2, parent: BlockHeaderV2): F[ValidatedBlockHeader] =
+      def validate(child: BlockHeaderV2, parent: BlockHeaderV2): F[BlockHeaderV2] =
         statelessValidate(child, parent)
-          .map(_.header)
-          .flatMap(minimalStateValidate(_).map(_.header))
+          .flatMap(minimalStateValidate)
           .flatMap(fullStateValidate(_, parent))
 
       /**
@@ -72,7 +64,7 @@ object ConsensusValidation {
       private[consensus] def statelessValidate(
         child:  BlockHeaderV2,
         parent: BlockHeaderV2
-      ): F[ValidatedBlockHeader] =
+      ): F[BlockHeaderV2] =
         child
           .pure[F]
           .ensure(Failures.NonForwardSlot(child.slot, parent.slot))(child => child.slot > parent.slot)
@@ -80,15 +72,13 @@ object ConsensusValidation {
             child.timestamp > parent.timestamp
           )
           .ensureOr(child => Failures.ParentMismatch(child.parentHeaderId, parent.id))(_.parentHeaderId == parent.id)
-          .map(ValidatedBlockHeader(_))
 
       /**
        * Validations which require just the epoch nonce
        */
-      private[consensus] def minimalStateValidate(child: BlockHeaderV2): F[ValidatedBlockHeader] =
+      private[consensus] def minimalStateValidate(child: BlockHeaderV2): F[BlockHeaderV2] =
         vrfVerification(child)
           .flatMap(kesVerification)
-          .map(ValidatedBlockHeader(_))
 
       /**
        * Validations which require a full consensus state (stake distribution and registration)
@@ -96,14 +86,13 @@ object ConsensusValidation {
       private[consensus] def fullStateValidate(
         child:  BlockHeaderV2,
         parent: BlockHeaderV2
-      ): F[ValidatedBlockHeader] =
+      ): F[BlockHeaderV2] =
         registrationVerification(child).flatMap(child =>
           vrfThresholdFor(child, parent)
             .flatMap(threshold =>
               vrfThresholdVerification(child, threshold)
                 .flatMap(header => eligibilityVerification(header, threshold))
             )
-            .map(ValidatedBlockHeader(_))
         )
 
       /**
@@ -114,10 +103,10 @@ object ConsensusValidation {
         parent: BlockHeaderV2
       ): F[Ratio] =
         relativeStakeInterpreter
-          .lookupAt(child)(child.address)
+          .lookupAt(child, child.slot)(child.address)
           .flatMap(relativeStake =>
             leaderElection.getThreshold(
-              relativeStake,
+              relativeStake.getOrElse(Ratio(0)),
               child.slot - parent.slot
             )
           )
@@ -158,7 +147,7 @@ object ConsensusValidation {
         header: BlockHeaderV2
       ): F[BlockHeaderV2] =
         epochNoncesInterpreter
-          .etaOf(header)
+          .etaOf(header, header.slot)
           .flatMap { eta =>
             import co.topl.crypto.typeclasses.Proposes.implicits._
             import co.topl.crypto.typeclasses.Proposes.instances._

@@ -3,10 +3,10 @@ package co.topl.fullnode
 import cats.data.{OptionT, StateT}
 import cats.implicits._
 import cats.{Id, _}
-import co.topl.algebras.ClockAlgebra
+import co.topl.algebras.{ClockAlgebra, LeaderElectionAlgebra, VrfRelativeStakeLookupAlgebra}
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.consensus.ConsensusValidation.Eval
-import co.topl.consensus.{ConsensusValidation, LeaderElection, VrfRelativeStakeLookupAlgebra}
+import co.topl.consensus.{ConsensusValidation, LeaderElection}
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signatures.Ed25519VRF
 import co.topl.crypto.typeclasses.ContainsVerificationKey.instances.ed25519ContainsVerificationKey
@@ -23,7 +23,7 @@ object FullNode extends App {
   val stakerRelativeStake =
     Ratio(1, 5)
 
-  def leaderElection[F[_]: Monad]: LeaderElection[F] = LeaderElection.Eval.make(
+  def leaderElection[F[_]: Monad]: LeaderElectionAlgebra[F] = LeaderElection.Eval.make(
     Vrf
       .Config(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
   )
@@ -46,7 +46,7 @@ object FullNode extends App {
   }
 
   val staker =
-    Staker.Eval.make[Id](stakerAddress, clock, leaderElection)
+    Staker.Eval.make[Id](stakerAddress, clock, leaderElection[Id])
 
   val initialState =
     InMemoryState(
@@ -60,19 +60,18 @@ object FullNode extends App {
   private def consensusValidationEval(state: InMemoryState) =
     ConsensusValidation.Eval
       .make[Either[ConsensusValidation.Eval.Failure, *]](
-        header =>
+        (header, slot) =>
           clock
-            .epochOf(header.slot)
+            .epochOf(slot)
             .map(state.epochNonce)
             .nonEmptyTraverse(Right(_): Either[ConsensusValidation.Eval.Failure, Eta]),
         new VrfRelativeStakeLookupAlgebra[Either[ConsensusValidation.Eval.Failure, *]] {
 
           def lookupAt(
-            block:   BlockHeaderV2
-          )(address: TaktikosAddress): Either[ConsensusValidation.Eval.Failure, Ratio] =
-            OptionT(clock.epochOf(block.slot).map(state.relativeStakes(_).get(address)))
-              .getOrElse(Ratio(0))
-              .asRight
+            block:       BlockHeaderV2,
+            currentSlot: Slot
+          )(address:     TaktikosAddress): Either[ConsensusValidation.Eval.Failure, Option[Ratio]] =
+            clock.epochOf(block.slot).map(state.relativeStakes(_).get(address)).asRight
         },
         leaderElection[Either[ConsensusValidation.Eval.Failure, *]]
       )

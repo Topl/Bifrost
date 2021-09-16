@@ -3,50 +3,67 @@ package co.topl.minting
 import cats._
 import cats.data.OptionT
 import cats.implicits._
+import co.topl.algebras.ClockAlgebra.implicits._
+import co.topl.algebras._
 import co.topl.models._
 import co.topl.models.utility.Ratio
-import co.topl.typeclasses.ContainsEvidence.Instances._
-import co.topl.typeclasses.ContainsEvidence.ops._
-import co.topl.typeclasses.ContainsTransactions.Instances._
-import co.topl.typeclasses.ContainsTransactions.ops._
-import co.topl.typeclasses.Identifiable.Instances._
-import co.topl.typeclasses.Identifiable.ops._
+import co.topl.typeclasses.implicits._
 
 /**
  * A `Mint` which produces "Unsigned" Blocks.  An UnsignedBlock has all of the components needed to form a BlockV2
  * except for a KES Certificate.  This allows for a delayed creation of a KES certificate until it is actually needed,
  * thus allowing for "cancellation" of this Mint attempt in the event that a better parent block arrives.
  */
-class BlockMintProgram[F[_]: Monad] {
+object BlockMint {
 
-  def next(interpreter: BlockMintProgram.Algebra[F]): F[Option[BlockMintProgram.Out]] =
-    interpreter.canonicalHead
-      .map(_.headerV2)
-      .flatMap(header =>
-        OptionT(interpreter.elect(header)).semiflatMap {
-          case BlockMintProgram.Election(slot, vrfCertificate, threshold) =>
-            (interpreter.unconfirmedTransactions, interpreter.address).mapN { (transactions, address) =>
-              BlockMintProgram.Out(
-                timestamp =>
-                  BlockHeaderV2.Unsigned(
-                    parentHeaderId = header.id,
-                    parentSlot = header.slot,
-                    txRoot = transactions.merkleTree,
-                    bloomFilter = transactions.bloomFilter,
-                    timestamp = timestamp,
-                    height = header.height + 1,
-                    slot = slot,
-                    vrfCertificate = vrfCertificate,
-                    thresholdEvidence = threshold.evidence,
-                    metadata = None,
-                    address = address
-                  ),
-                transactions
+  object Eval {
+
+    def make[F[_]: Monad](
+      address:                TaktikosAddress,
+      clock:                  ClockAlgebra[F],
+      leaderElection:         LeaderElectionAlgebra[F],
+      vrfRelativeStakeLookup: VrfRelativeStakeLookupAlgebra[F],
+      etaLookup:              EtaLookupAlgebra[F]
+    ): BlockMintAlgebra[F] = new BlockMintAlgebra[F] {
+
+      private def findHit(parent: BlockHeaderV2, fromSlot: Slot): F[Vrf.Hit] =
+        clock
+          .epochOf(fromSlot)
+          .flatMap(clock.epochBoundary)
+          .flatMap(epochBoundary =>
+            etaLookup
+              .etaOf(parent, fromSlot)
+              .flatMap(eta =>
+                OptionT(vrfRelativeStakeLookup.lookupAt(parent, fromSlot)(address))
+                  .flatMap(relativeStake =>
+                    OptionT(leaderElection.nextHit(relativeStake, parent.slot, epochBoundary.end, eta))
+                  )
+                  .getOrElseF(findHit(parent, (epochBoundary.end: Long) + 1))
               )
-            }
-        }.value
-      )
+          )
 
+      def mint(parent: BlockHeaderV2, transactions: Seq[Transaction]): F[Timestamp => BlockV2.Unsigned] =
+        findHit(parent, parent.slot)
+          .map { hit: Vrf.Hit => (timestamp: Timestamp) =>
+            BlockV2.Unsigned(
+              BlockHeaderV2.Unsigned(
+                parentHeaderId = parent.id,
+                parentSlot = parent.slot,
+                txRoot = transactions.merkleTree,
+                bloomFilter = transactions.bloomFilter,
+                timestamp = timestamp,
+                height = parent.height + 1,
+                slot = hit.slot,
+                vrfCertificate = hit.cert,
+                thresholdEvidence = hit.threshold.evidence,
+                metadata = None,
+                address = address
+              ),
+              transactions
+            )
+          }
+    }
+  }
 }
 
 object BlockMintProgram {
