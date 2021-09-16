@@ -36,7 +36,7 @@ trait Synchronizer extends Actor with Logging {
 
       /** If a message could not be parsed, penalize the remote peer */
       case Failure(e) =>
-        log.error(s"Failed to deserialize data from ${source}: ", e)
+        log.error(s"Failed to deserialize data from $source: ", e)
         penalizeMaliciousPeer(source)
     }
 

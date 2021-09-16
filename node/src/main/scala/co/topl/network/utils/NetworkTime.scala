@@ -33,6 +33,7 @@ class NetworkTimeProvider(ntpSettings: NetworkTimeProviderSettings)(implicit sys
   private val client = new NTPUDPClient()
   client.setDefaultTimeout(ntpSettings.timeout.toMillis.toInt)
   client.open()
+
   CoordinatedShutdown(system).addTask(CoordinatedShutdown.PhaseServiceStop, "Shutdown-NTP")(() =>
     Future.successful {
       client.close()
