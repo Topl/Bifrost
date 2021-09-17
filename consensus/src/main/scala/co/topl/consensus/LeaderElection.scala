@@ -2,7 +2,7 @@ package co.topl.consensus
 
 import cats.implicits._
 import cats.{Applicative, Monad}
-import co.topl.algebras.{LeaderElectionHitAlgebra, LeaderElectionThresholdAlgebra}
+import co.topl.algebras.{LeaderElectionEligibilityAlgebra, LeaderElectionHitAlgebra}
 import co.topl.consensus.vrf.ProofToHash
 import co.topl.crypto.signatures.Ed25519VRF
 import co.topl.crypto.typeclasses._
@@ -23,56 +23,33 @@ object LeaderElection {
 
       def make[F[_]: Monad](
         secret:               PrivateKeys.Vrf,
-        thresholdInterpreter: LeaderElectionThresholdAlgebra[F]
+        thresholdInterpreter: LeaderElectionEligibilityAlgebra[F]
       ): LeaderElectionHitAlgebra[F] =
-        new LeaderElectionHitAlgebra[F] {
-
-          def getHit(
-            relativeStake: Ratio,
-            slot:          Slot,
-            slotDiff:      Epoch,
-            eta:           Eta
-          ): F[Option[Vrf.Hit]] =
-            thresholdInterpreter
-              .getThreshold(relativeStake, slotDiff)
-              .flatMap { threshold =>
-                val testProof = VrfProof.test(secret, eta, slot)
-                thresholdInterpreter
-                  .isSlotLeaderForThreshold(threshold)(ProofToHash.digest(testProof))
-                  .map(isSlotLeader =>
-                    if (isSlotLeader)
-                      Vrf
-                        .Hit(
-                          Vrf.Certificate(
-                            implicitly[ContainsVerificationKey[PrivateKeys.Vrf, PublicKeys.Vrf]]
-                              .verificationKeyOf(secret),
-                            VrfProof.nonce(secret, eta, slot),
-                            testProof
-                          ),
-                          slot,
-                          threshold
-                        )
-                        .some
-                    else
-                      none[Vrf.Hit]
-                  )
-              }
-
-          def nextHit(
-            relativeStake: Ratio,
-            initialSlot:   Slot,
-            maxSlot:       Epoch,
-            eta:           Eta
-          ): F[Option[Vrf.Hit]] =
-            (initialSlot, None: Option[Vrf.Hit])
-              .iterateUntilM { case (slot, _) =>
-                getHit(relativeStake, slot + 1, slot + 1 - slot, eta)
-                  .map((slot + 1) -> _)
-              } { case (slot, previousHit) =>
-                slot > maxSlot || previousHit.nonEmpty
-              }
-              .map(_._2)
-        }
+        (relativeStake: Ratio, slot: Slot, slotDiff: Epoch, eta: Eta) =>
+          thresholdInterpreter
+            .getThreshold(relativeStake, slotDiff)
+            .flatMap { threshold =>
+              val testProof = VrfProof.test(secret, eta, slot)
+              thresholdInterpreter
+                .isSlotLeaderForThreshold(threshold)(ProofToHash.digest(testProof))
+                .map(isSlotLeader =>
+                  if (isSlotLeader)
+                    Vrf
+                      .Hit(
+                        Vrf.Certificate(
+                          implicitly[ContainsVerificationKey[PrivateKeys.Vrf, PublicKeys.Vrf]]
+                            .verificationKeyOf(secret),
+                          VrfProof.nonce(secret, eta, slot),
+                          testProof
+                        ),
+                        slot,
+                        threshold
+                      )
+                      .some
+                  else
+                    none[Vrf.Hit]
+                )
+            }
 
       object VrfProof {
 
@@ -108,8 +85,8 @@ object LeaderElection {
 
     object Eval {
 
-      def make[F[_]: Applicative](config: Vrf.Config): LeaderElectionThresholdAlgebra[F] =
-        new LeaderElectionThresholdAlgebra[F] {
+      def make[F[_]: Applicative](config: Vrf.Config): LeaderElectionEligibilityAlgebra[F] =
+        new LeaderElectionEligibilityAlgebra[F] {
 
           def getThreshold(relativeStake: Ratio, slotDiff: Long): F[Ratio] = {
             val mFValue = mFunction(slotDiff, config)

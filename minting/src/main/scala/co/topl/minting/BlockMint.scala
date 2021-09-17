@@ -1,6 +1,7 @@
 package co.topl.minting
 
 import cats._
+import cats.data.OptionT
 import cats.implicits._
 import co.topl.algebras._
 import co.topl.models._
@@ -16,26 +17,33 @@ object BlockMint {
   object Eval {
 
     def make[F[_]: Monad](
-      address: TaktikosAddress
-    ): BlockMintAlgebra[F] = (parent: BlockHeaderV2, transactions: Seq[Transaction], hit: Vrf.Hit) =>
-      (
-        (timestamp: Timestamp) =>
-          BlockV2.Unsigned(
-            BlockHeaderV2.Unsigned(
-              parentHeaderId = parent.id,
-              parentSlot = parent.slot,
-              txRoot = transactions.merkleTree,
-              bloomFilter = transactions.bloomFilter,
-              timestamp = timestamp,
-              height = parent.height + 1,
-              slot = hit.slot,
-              vrfCertificate = hit.cert,
-              thresholdEvidence = hit.threshold.evidence,
-              metadata = None,
-              address = address
-            ),
-            transactions
-          )
-      ).pure[F]
+      staker: StakingAlgebra[F],
+      clock:  ClockAlgebra[F]
+    ): BlockMintAlgebra[F] = (parent: BlockHeaderV2, transactions: Seq[Transaction], slot: Slot) =>
+      OptionT(staker.elect(parent, slot))
+        .semiflatMap(hit =>
+          (staker.address, clock.currentTimestamp())
+            .mapN((address, timestamp) =>
+              BlockV2
+                .Unsigned(
+                  BlockHeaderV2.Unsigned(
+                    parentHeaderId = parent.id,
+                    parentSlot = parent.slot,
+                    txRoot = transactions.merkleTree,
+                    bloomFilter = transactions.bloomFilter,
+                    timestamp = timestamp,
+                    height = parent.height + 1,
+                    slot = hit.slot,
+                    vrfCertificate = hit.cert,
+                    thresholdEvidence = hit.threshold.evidence,
+                    metadata = None,
+                    address = address
+                  ),
+                  transactions
+                )
+            )
+            .flatMap(staker.certifyBlock)
+        )
+        .value
   }
 }

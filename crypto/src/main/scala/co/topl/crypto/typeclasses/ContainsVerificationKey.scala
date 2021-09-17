@@ -9,11 +9,16 @@ import co.topl.models.utility.Sized
 import co.topl.models._
 import com.google.common.primitives.Ints
 
-trait ContainsVerificationKey[T <: PrivateKey, VK <: PublicKey] {
+trait ContainsVerificationKey[T, VK] {
   def verificationKeyOf(privateKey: T): VK
 }
 
 object ContainsVerificationKey {
+
+  def apply[SK, VK](implicit
+    containsVerificationKey: ContainsVerificationKey[SK, VK]
+  ): ContainsVerificationKey[SK, VK] =
+    containsVerificationKey
 
   trait Instances {
 

@@ -8,6 +8,9 @@ import scala.collection.immutable.NumericRange
 import scala.concurrent.duration.FiniteDuration
 import scala.language.implicitConversions
 
+/**
+ * Provides global slot, epoch, and timing operations
+ */
 trait ClockAlgebra[F[_]] {
   def slotLength: F[FiniteDuration]
   def slotsPerEpoch: F[Long]

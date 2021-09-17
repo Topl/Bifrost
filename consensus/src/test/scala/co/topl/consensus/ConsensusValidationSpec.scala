@@ -3,7 +3,6 @@ package co.topl.consensus
 import cats.implicits._
 import co.topl.algebras.{EtaLookupAlgebra, VrfRelativeStakeLookupAlgebra}
 import co.topl.crypto.typeclasses.KeyInitializer
-import co.topl.crypto.typeclasses.KeyInitializer.Instances.kesInitializer
 import co.topl.crypto.typeclasses.implicits._
 import co.topl.models.ModelGenerators._
 import co.topl.models._
@@ -27,11 +26,10 @@ class ConsensusValidationSpec
 
   type EvalF[A] = Either[ConsensusValidation.Eval.Failure, A]
 
-  val vrfConfig =
-    Vrf.Config(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
-
   private val leaderElectionInterpreter =
-    LeaderElection.Threshold.Eval.make[EvalF](vrfConfig)
+    LeaderElection.Threshold.Eval.make[EvalF](
+      Vrf.Config(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
+    )
 
   it should "invalidate blocks with non-forward slot" in {
     forAll(
