@@ -1,4 +1,4 @@
-package co.topl.fullnode
+package co.topl.demo
 
 import co.topl.models.utility.Ratio
 import co.topl.models._

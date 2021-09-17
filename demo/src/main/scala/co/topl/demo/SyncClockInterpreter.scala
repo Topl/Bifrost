@@ -1,4 +1,4 @@
-package co.topl.fullnode
+package co.topl.demo
 
 import cats.Applicative
 import cats.implicits._

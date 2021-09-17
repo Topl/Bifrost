@@ -186,7 +186,7 @@ lazy val bifrost = project
     minting,
     byteCodecs,
     consensus,
-    fullNode,
+    demo,
     tools
   )
 
@@ -354,15 +354,15 @@ lazy val minting = project
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, typeclasses, crypto, byteCodecs, algebras)
 
-lazy val fullNode = project
-  .in(file("full-node"))
+lazy val demo = project
+  .in(file("demo"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
-    name := "full-node",
+    name := "demo",
     commonSettings,
     publishSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "co.topl.buildinfo.fullnode"
+    buildInfoPackage := "co.topl.buildinfo.demo"
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.fullNode)
   .settings(scalamacrosParadiseSettings)

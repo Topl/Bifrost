@@ -3,18 +3,13 @@ package co.topl.minting
 import cats.Monad
 import cats.data.OptionT
 import cats.implicits._
-import co.topl.algebras.{
-  BlockMintAlgebra,
-  BlockSigningAlgebra,
-  ClockAlgebra,
-  EtaLookupAlgebra,
-  LeaderElectionHitAlgebra,
-  VrfRelativeStakeLookupAlgebra
-}
-import co.topl.crypto.typeclasses._
-import co.topl.crypto.typeclasses.implicits._
+import co.topl.algebras._
 import co.topl.models._
 
+/**
+ * A Staker attempts to construct a signed block at some given slot using some given parent.
+ * @tparam F
+ */
 trait Staker[F[_]] {
 
   def mintBlock(

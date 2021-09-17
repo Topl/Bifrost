@@ -1,6 +1,5 @@
 package co.topl.crypto.typeclasses
 
-import co.topl.models.Proofs.Consensus
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
@@ -19,11 +18,13 @@ object Proves {
     implicit val kesPrivateKeyProves: Proves[PrivateKeys.Kes, Proofs.Consensus.KesCertificate] =
       new Proves[PrivateKeys.Kes, Proofs.Consensus.KesCertificate] {
 
-        def proveWith[Data: Signable](t: PrivateKeys.Kes, data: Data): Consensus.KesCertificate =
-          Consensus.KesCertificate(
+        def proveWith[Data: Signable](t: PrivateKeys.Kes, data: Data): Proofs.Consensus.KesCertificate =
+          Proofs.Consensus.KesCertificate(
             Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0))),
             Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0))),
-            Sized.strictUnsafe(Bytes(Array.fill[Byte](implicitly[Consensus.KesCertificate.ChainCodeLength].value)(0)))
+            Sized.strictUnsafe(
+              Bytes(Array.fill[Byte](implicitly[Proofs.Consensus.KesCertificate.ChainCodeLength].value)(0))
+            )
           )
       }
   }

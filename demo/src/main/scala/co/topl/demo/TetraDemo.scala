@@ -1,4 +1,4 @@
-package co.topl.fullnode
+package co.topl.demo
 
 import cats._
 import cats.implicits._
@@ -18,7 +18,7 @@ import co.topl.typeclasses.implicits._
 
 import scala.concurrent.duration._
 
-object FullNode extends App {
+object TetraDemo extends App {
 
   val stakerRelativeStake =
     Ratio(1, 5)
