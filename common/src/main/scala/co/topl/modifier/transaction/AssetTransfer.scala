@@ -100,7 +100,7 @@ object AssetTransfer {
     ): ValidationResult[IndexedSeq[(Address, PolyBox)]] =
       for {
         _ <- Either.cond(polyBoxes.nonEmpty, polyBoxes, EmptyPolyInputs)
-        _ <- Either.cond(polyBoxes.distinctBy(_._2.nonce).length == polyBoxes.length, polyBoxes, DuplicatePolyInputs)
+        _ <- Either.cond(polyBoxes.map(_._2.nonce).distinct.length == polyBoxes.length, polyBoxes, DuplicatePolyInputs)
       } yield polyBoxes
 
     def validateAssetInputs(
@@ -110,8 +110,8 @@ object AssetTransfer {
       if (!minting)
         for {
           _ <- Either.cond(assetBoxes.nonEmpty, assetBoxes, EmptyAssetInputs)
-          _ <- Either.cond(assetBoxes.distinctBy(_._2.nonce).length == 1, assetBoxes, DuplicateAssetInputs)
-          _ <- Either.cond(assetBoxes.distinctBy(_._2.value.assetCode).length == 1, assetBoxes, DuplicateAssetCodes)
+          _ <- Either.cond(assetBoxes.map(_._2.nonce).distinct.length == 1, assetBoxes, DuplicateAssetInputs)
+          _ <- Either.cond(assetBoxes.map(_._2.value.assetCode).distinct.length == 1, assetBoxes, DuplicateAssetCodes)
         } yield assetBoxes
       else assetBoxes.asRight
 
@@ -120,8 +120,8 @@ object AssetTransfer {
     ): ValidationResult[IndexedSeq[(Address, AssetValue)]] =
       for {
         _ <- Either.cond(recipients.nonEmpty, recipients, EmptyRecipients)
-        _ <- Either.cond(recipients.distinctBy(_._1).length == recipients.length, recipients, DuplicateRecipients)
-        _ <- Either.cond(recipients.distinctBy(_._2.assetCode).length == 1, recipients, DuplicateAssetCodes)
+        _ <- Either.cond(recipients.map(_._1).distinct.length == recipients.length, recipients, DuplicateRecipients)
+        _ <- Either.cond(recipients.map(_._2.assetCode).distinct.length == 1, recipients, DuplicateAssetCodes)
       } yield recipients
 
     def validateSameAssetCode(

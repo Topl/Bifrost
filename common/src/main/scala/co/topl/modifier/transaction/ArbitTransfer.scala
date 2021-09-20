@@ -78,7 +78,7 @@ object ArbitTransfer {
     def validatePolyBoxes(polyBoxes: IndexedSeq[(Address, PolyBox)]): ValidationResult[IndexedSeq[(Address, PolyBox)]] =
       for {
         _ <- Either.cond(polyBoxes.nonEmpty, polyBoxes, EmptyPolyInputs)
-        _ <- Either.cond(polyBoxes.distinctBy(_._2.nonce).length == polyBoxes.length, polyBoxes, DuplicatePolyInputs)
+        _ <- Either.cond(polyBoxes.map(_._2.nonce).distinct.length == polyBoxes.length, polyBoxes, DuplicatePolyInputs)
       } yield polyBoxes
 
     def validateArbitBoxes(
@@ -87,7 +87,7 @@ object ArbitTransfer {
       for {
         _ <- Either.cond(arbitBoxes.nonEmpty, arbitBoxes, EmptyArbitInputs)
         _ <- Either.cond(
-          arbitBoxes.distinctBy(_._2.nonce).length == arbitBoxes.length,
+          arbitBoxes.map(_._2.nonce).distinct.length == arbitBoxes.length,
           arbitBoxes,
           DuplicateArbitInputs
         )
@@ -98,7 +98,7 @@ object ArbitTransfer {
     ): ValidationResult[IndexedSeq[(Address, SimpleValue)]] =
       for {
         _ <- Either.cond(recipients.nonEmpty, recipients, NoRecipients)
-        _ <- Either.cond(recipients.distinctBy(_._1).length == recipients.length, recipients, NonUniqueRecipients)
+        _ <- Either.cond(recipients.map(_._1).distinct.length == recipients.length, recipients, NonUniqueRecipients)
       } yield recipients
 
     def validateFeeFunds(funds: Int128, feeAmount: Int128): ValidationResult[Int128] =

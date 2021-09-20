@@ -83,7 +83,7 @@ object PolyTransfer {
       Either.cond(boxes.nonEmpty, boxes, NoInputBoxes)
 
     def validateUniqueInputs(boxes: IndexedSeq[(Address, PolyBox)]): ValidationResult[IndexedSeq[(Address, PolyBox)]] =
-      Either.cond(boxes.distinctBy(_._2.nonce).length == boxes.length, boxes, NonUniqueInputs)
+      Either.cond(boxes.map(_._2.nonce).distinct.length == boxes.length, boxes, NonUniqueInputs)
 
     def validateNonEmptyRecipients(
       recipients: IndexedSeq[(Address, SimpleValue)]
@@ -93,7 +93,7 @@ object PolyTransfer {
     def validateUniqueRecipients(
       recipients: IndexedSeq[(Address, SimpleValue)]
     ): ValidationResult[IndexedSeq[(Address, SimpleValue)]] =
-      Either.cond(recipients.distinctBy(_._1).length == recipients.length, recipients, NonUniqueRecipients)
+      Either.cond(recipients.map(_._1).distinct.length == recipients.length, recipients, NonUniqueRecipients)
 
     def validateFeeFunds(funds: Int128, feeAmount: Int128): ValidationResult[Int128] =
       Either.cond(funds >= feeAmount, funds - feeAmount, InsufficientFunds)
