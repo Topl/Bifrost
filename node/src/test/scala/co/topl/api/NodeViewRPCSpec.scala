@@ -42,12 +42,12 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
   "NodeView RPC" should {
     "Get first 100 transactions in mempool" in {
       val requestBody = ByteString(s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "1",
-           |   "method": "topl_mempool",
-           |   "params": [{}]
-           |}
+        |{
+        |   "jsonrpc": "2.0",
+        |   "id": "1",
+        |   "method": "topl_mempool",
+        |   "params": [{}]
+        |}
           """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
@@ -59,15 +59,15 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
 
     "Get transaction from the mempool by id" in {
       val requestBody = ByteString(s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "1",
-           |   "method": "topl_transactionFromMempool",
-           |   "params": [{
-           |      "transactionId": "$txId"
-           |   }]
-           |}
-           |
+        |{
+        |   "jsonrpc": "2.0",
+        |   "id": "1",
+        |   "method": "topl_transactionFromMempool",
+        |   "params": [{
+        |      "transactionId": "$txId"
+        |   }]
+        |}
+        |
           """.stripMargin)
 
       view().mempool.putWithoutCheck(Seq(txs.head), block.timestamp)
@@ -114,15 +114,15 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
     "Get a confirmed transaction by id" in {
 
       val requestBody = ByteString(s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "1",
-           |   "method": "topl_transactionById",
-           |   "params": [{
-           |      "transactionId": "$txId"
-           |   }]
-           |}
-           |
+        |{
+        |   "jsonrpc": "2.0",
+        |   "id": "1",
+        |   "method": "topl_transactionById",
+        |   "params": [{
+        |      "transactionId": "$txId"
+        |   }]
+        |}
+        |
           """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
@@ -135,16 +135,16 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
 
     "Get block by id" in {
       val requestBody = ByteString(s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |
-           |   "id": "1",
-           |   "method": "topl_blockById",
-           |   "params": [{
-           |      "blockId": "${block.id}"
-           |   }]
-           |}
-           |
+        |{
+        |   "jsonrpc": "2.0",
+        |
+        |   "id": "1",
+        |   "method": "topl_blockById",
+        |   "params": [{
+        |      "blockId": "${block.id}"
+        |   }]
+        |}
+        |
           """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
