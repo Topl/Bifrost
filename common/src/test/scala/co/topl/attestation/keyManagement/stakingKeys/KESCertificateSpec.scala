@@ -1,6 +1,9 @@
 package co.topl.attestation.keyManagement.stakingKeys
 
-import co.topl.crypto.kes.{keys, KesVerifier}
+import co.topl.attestation.keyManagement.derivedKeys.ExtendedPrivateKeyEd25519
+import co.topl.attestation.keyManagement.mnemonic
+import co.topl.crypto.kes.keys.SymmetricKey
+import co.topl.crypto.kes.KesVerifier
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
@@ -10,7 +13,7 @@ import java.security.SecureRandom
 import java.util.Comparator
 import scala.util.{Failure, Success, Try}
 
-class ProductKeyFileSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
+class KESCertificateSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
 
   protected var keyFileDir: Path = _
 
@@ -31,15 +34,20 @@ class ProductKeyFileSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
     beforeAll()
     val passed = Try {
       val password = "password"
+      val signer = ExtendedPrivateKeyEd25519(mnemonic.Entropy.fromUuid(java.util.UUID.randomUUID()), password)
       val rnd: SecureRandom = new SecureRandom()
-      var productKeyFile: ProductKeyFile = ProductKeyFile.newRandomKeyFile(password, keyFileDir.toString, 0)
-      var prodKey = productKeyFile.getKey(password).get
+      val kesKey = SymmetricKey.newFromSeed(rnd.generateSeed(32), 0, signer.sign)
+      var certFile: SymmetricKeyFile = SymmetricKeyFile.newKeyFile(
+        password,
+        keyFileDir.toString,
+        kesKey
+      )
+      var prodKey = certFile.getKey(password).get
       var t = 0
       val message = rnd.generateSeed(2048)
-
       t += 1
       prodKey = prodKey.update(t)
-      productKeyFile = ProductKeyFile.updateKeyFile(productKeyFile, prodKey, password, keyFileDir.toString).get
+      certFile = SymmetricKeyFile.updateKeyFile(certFile, prodKey, password, keyFileDir.toString).get
       t += 10
       prodKey = prodKey.update(t)
       var sigProd = prodKey.sign(message)
@@ -47,19 +55,20 @@ class ProductKeyFileSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
 
       t += 100
       prodKey = prodKey.update(t)
-      productKeyFile = ProductKeyFile.updateKeyFile(productKeyFile, prodKey, password, keyFileDir.toString).get
+      certFile = SymmetricKeyFile.updateKeyFile(certFile, prodKey, password, keyFileDir.toString).get
+      prodKey = certFile.getKey(password).get
       sigProd = prodKey.sign(message)
       assert(KesVerifier.verify(message, sigProd, t))
       t += 1000
       prodKey = prodKey.update(t)
-      productKeyFile = ProductKeyFile.updateKeyFile(productKeyFile, prodKey, password, keyFileDir.toString).get
+      certFile = SymmetricKeyFile.updateKeyFile(certFile, prodKey, password, keyFileDir.toString).get
       t += 10000
       prodKey = prodKey.update(t)
-      productKeyFile = ProductKeyFile.updateKeyFile(productKeyFile, prodKey, password, keyFileDir.toString).get
+      certFile = SymmetricKeyFile.updateKeyFile(certFile, prodKey, password, keyFileDir.toString).get
       t += 100000
       prodKey = prodKey.update(t)
-      productKeyFile = ProductKeyFile.updateKeyFile(productKeyFile, prodKey, password, keyFileDir.toString).get
-      prodKey = productKeyFile.getKey(password).get
+      certFile = SymmetricKeyFile.updateKeyFile(certFile, prodKey, password, keyFileDir.toString).get
+      prodKey = certFile.getKey(password).get
       sigProd = prodKey.sign(message)
       assert(KesVerifier.verify(message, sigProd, t))
 

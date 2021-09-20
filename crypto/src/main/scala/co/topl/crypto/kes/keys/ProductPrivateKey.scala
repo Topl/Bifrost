@@ -3,6 +3,7 @@ package co.topl.crypto.kes.keys
 import co.topl.crypto.kes.construction.KeyData
 import co.topl.crypto.kes.signatures.ProductSignature
 import com.google.common.primitives.{Bytes, Ints, Longs}
+import co.topl.crypto.PublicKey
 
 abstract class ProductPrivateKey {
   import ProductPrivateKey._
@@ -12,14 +13,12 @@ abstract class ProductPrivateKey {
   def getVerificationKey: PublicKey
   def timeStepPlusOffset: Long
   def timeStep: Long
-
   def getBytes: Array[Byte] = serializer.getBytes(this)
-
 }
 
 object ProductPrivateKey {
 
-  private case object DeserializeKey
+  case object DeserializeKey
 
   class Serializer {
     import co.topl.crypto.kes.construction.{Empty, Leaf, Node, Tree}
@@ -28,6 +27,7 @@ object ProductPrivateKey {
     val hash_length: Int = 32
 
     def getBytes(key: ProductPrivateKey): Array[Byte] = sProductKey(key.data)
+    def getBytes(key: KeyData): Array[Byte] = sProductKey(key)
 
     def fromBytes(input: ByteStream): Any = dProductKey(input)
 
@@ -101,7 +101,7 @@ object ProductPrivateKey {
     }
   }
 
-  private class ByteStream(var data: Array[Byte], co: Any) {
+  class ByteStream(var data: Array[Byte], co: Any) {
 
     def get(n: Int): Array[Byte] = {
       require(n <= data.length, "Error: ByteStream reached early end of stream")
@@ -133,7 +133,11 @@ object ProductPrivateKey {
     val numBytes = byteStream.getInt
     serializer.fromBytes(
       new ByteStream(byteStream.get(numBytes), DeserializeKey)
-    ) match { case kd: KeyData => kd }
+    ) match {
+      case kd: KeyData =>
+        require(byteStream.empty, "byte stream non-empty")
+        kd
+    }
   }
 
 }

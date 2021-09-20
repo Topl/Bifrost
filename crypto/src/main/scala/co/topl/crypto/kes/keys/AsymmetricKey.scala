@@ -1,8 +1,9 @@
 package co.topl.crypto.kes.keys
 
-import co.topl.crypto.kes.signatures.ProductSignature
+import co.topl.crypto.kes.signatures.AsymmetricSignature
 import co.topl.crypto.kes.KeyEvolvingSignatureScheme
 import co.topl.crypto.kes.construction.KeyData
+import co.topl.crypto.PublicKey
 
 /**
  * AMS 2021:
@@ -18,7 +19,7 @@ case class AsymmetricKey(override val data: KeyData) extends ProductPrivateKey {
   def update(globalTimeStep: Long): AsymmetricKey =
     kes.updateAsymmetricProductKey(this, (globalTimeStep - data.offset).toInt)
 
-  def sign(message: Array[Byte]): ProductSignature =
+  def sign(message: Array[Byte]): AsymmetricSignature =
     kes.signAsymmetricProduct(this, message)
 
   def getVerificationKey: PublicKey =

@@ -1,6 +1,5 @@
 package co.topl.attestation.keyManagement.stakingKeys
 
-import co.topl.attestation.SignatureEd25519
 import co.topl.crypto.kes
 import co.topl.attestation.keyManagement.derivedKeys.{
   DerivedKeyIndex,
@@ -9,10 +8,10 @@ import co.topl.attestation.keyManagement.derivedKeys.{
   SoftIndex
 }
 import co.topl.attestation.keyManagement.mnemonic
-import co.topl.attestation.keyManagement.stakingKeys.HdKesScheme.serializer
 import co.topl.crypto.kes.keys.SymmetricKey
+import co.topl.crypto.hash.blake2b256
 import com.google.common.primitives.{Bytes, Ints, Longs}
-import scodec.bits.{ByteOrdering, ByteVector}
+import scodec.bits.ByteOrdering
 import co.topl.utils.SizedBytes
 import co.topl.utils.SizedBytes.Types.ByteVector32
 import co.topl.utils.SizedBytes.implicits._
@@ -21,24 +20,30 @@ import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
 case class HdKesScheme(
+  registrationSlot:    Long,
   rootVerificationKey: ExtendedPublicKeyEd25519,
   privateKeySet:       mutable.Map[SoftIndex, ExtendedPrivateKeyEd25519]
 ) {
 
-  def deriveVerificationKey(index: SoftIndex): ExtendedPublicKeyEd25519 =
-    rootVerificationKey.derive(index)
+  import HdKesScheme.serializer
 
-  def generateKESKey(index: SoftIndex, previousOffset: Long): (SignatureEd25519, SymmetricKey) = Try {
-    require(privateKeySet.keySet.contains(index), s"Key set does not contain index ${index.value}")
-    require(!privateKeySet.keySet.exists(_.value < index.value), s"Key set contains indices below ${index.value}")
-    val sk_KES = kes.keys.SymmetricKey.newFromSeed(
-      privateKeySet(index).leftKey.value.toArray,
-      previousOffset + index.value * SymmetricKey.maxKeyTimeSteps
+  def deriveVerificationKey(index: Int): ExtendedPublicKeyEd25519 =
+    rootVerificationKey.derive(SoftIndex(index))
+
+  def generateKESKey(index: Int): SymmetricKey = Try {
+    val softIndex = SoftIndex(index)
+    require(privateKeySet.keySet.contains(softIndex), s"Key set does not contain index ${softIndex.value}")
+    require(
+      !privateKeySet.keySet.exists(_.value < softIndex.value),
+      s"Key set contains indices below ${softIndex.value}"
     )
-    val vk_KES = sk_KES.getVerificationKey
-    val sign_vk_KES = privateKeySet(index).sign(vk_KES.bytes)
-    privateKeySet.remove(index)
-    (sign_vk_KES, sk_KES)
+    val sk_KES = kes.keys.SymmetricKey.newFromSeed(
+      blake2b256.hash(privateKeySet(softIndex).leftKey.value.toArray).value,
+      registrationSlot + softIndex.value * SymmetricKey.maxKeyTimeSteps,
+      privateKeySet(softIndex).sign
+    )
+    privateKeySet.remove(softIndex)
+    sk_KES
   } match {
     case Success(value) => value
     case Failure(e)     => throw new Exception(s"HD KES Key Derivation Failed: $e")
@@ -50,11 +55,12 @@ case class HdKesScheme(
 
 object HdKesScheme {
 
-  def apply(totalNumberOfKeys: Int): HdKesScheme = {
+  def apply(totalNumberOfKeys: Int, registrationSlot: Long): HdKesScheme = {
     val skm = ExtendedPrivateKeyEd25519(mnemonic.Entropy.fromUuid(java.util.UUID.randomUUID()), "")
     val skIndex = Array.range(0, totalNumberOfKeys).map(DerivedKeyIndex.soft)
     val pkm = skm.public
     val newScheme = new HdKesScheme(
+      registrationSlot,
       pkm,
       mutable.Map(skIndex.zip(skIndex.map(skm.derive(_).toOption.get)).toSeq: _*)
     )
@@ -71,6 +77,7 @@ object HdKesScheme {
 
     private def sHdKesScheme(key: HdKesScheme): Array[Byte] =
       Bytes.concat(
+        Longs.toByteArray(key.registrationSlot),
         key.rootVerificationKey.bytes.value.toArray,
         key.rootVerificationKey.chainCode.value.toArray,
         Ints.toByteArray(key.privateKeySet.keySet.size),
@@ -87,22 +94,23 @@ object HdKesScheme {
       )
 
     private def dHdKesScheme(stream: ByteStream): HdKesScheme = {
-      val out1 = SizedBytes[ByteVector32].fit(stream.get(ByteVector32.size), ByteOrdering.LittleEndian)
+      val out1 = stream.getLong
       val out2 = SizedBytes[ByteVector32].fit(stream.get(ByteVector32.size), ByteOrdering.LittleEndian)
-      val out3len = stream.getInt
+      val out3 = SizedBytes[ByteVector32].fit(stream.get(ByteVector32.size), ByteOrdering.LittleEndian)
+      val out4len = stream.getInt
       var i = 0
-      val out3: mutable.Map[SoftIndex, ExtendedPrivateKeyEd25519] = mutable.Map.empty
-      while (i < out3len) {
+      val out4: mutable.Map[SoftIndex, ExtendedPrivateKeyEd25519] = mutable.Map.empty
+      while (i < out4len) {
         val index = SoftIndex(stream.getLong)
         val leftKey = SizedBytes[ByteVector32].fit(stream.get(ByteVector32.size), ByteOrdering.LittleEndian)
         val rightKey = SizedBytes[ByteVector32].fit(stream.get(ByteVector32.size), ByteOrdering.LittleEndian)
         val chainCode = SizedBytes[ByteVector32].fit(stream.get(ByteVector32.size), ByteOrdering.LittleEndian)
         val sk = new ExtendedPrivateKeyEd25519(leftKey, rightKey, chainCode)
-        out3 += (index -> sk)
+        out4 += (index -> sk)
         i += 1
       }
       assert(stream.empty)
-      HdKesScheme(ExtendedPublicKeyEd25519(out1, out2), out3)
+      HdKesScheme(out1, ExtendedPublicKeyEd25519(out2, out3), out4)
     }
   }
 

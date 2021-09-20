@@ -27,8 +27,8 @@ import scala.util.{Failure, Success, Try}
  * @param oldFileName previous key configuration on disk as backup
  */
 
-case class ProductKeyFile(kes_info: CipherInfo, fileName: String, oldFileName: String) {
-  import ProductKeyFile._
+case class SymmetricKeyFile(kes_info: CipherInfo, fileName: String, oldFileName: String) {
+  import SymmetricKeyFile._
 
   /**
    * Decrypt the symmetricKey  from kes_info cipher information
@@ -41,8 +41,8 @@ case class ProductKeyFile(kes_info: CipherInfo, fileName: String, oldFileName: S
     val derivedKey = getDerivedKey(password, kes_info.salt)
     val (decrypted, mac_check) = decryptAES(derivedKey, kes_info.iv, kes_info.cipherText)
     require(mac_check sameElements kes_info.mac, "Error: MAC does not match")
-    val decryptedKey = SymmetricKey(ProductPrivateKey.deserializeProductKey(decrypted))
-    require(kes_info.pubKey sameElements decryptedKey.getVerificationKey.bytes, "Error: PublicKey in file is invalid")
+    val decryptedKey = SymmetricKey.deserializeSymmetricKey(decrypted)
+    require(kes_info.pubKey sameElements decryptedKey.getVerificationKey.value, "Error: PublicKey in file is invalid")
     decryptedKey
   }
 
@@ -70,56 +70,24 @@ case class ProductKeyFile(kes_info: CipherInfo, fileName: String, oldFileName: S
   }
 }
 
-object ProductKeyFile {
-
-  /**
-   * Create a new symmetricKey and save it to the specified directory
-   * @param password pass phrase used in AES encryption scheme
-   * @param defaultKeyDir file folder location for storage
-   * @param offset offset of the key
-   * @return new key file with randomly generated public private key pairs
-   */
-  def newRandomKeyFile(
-    password:      String,
-    defaultKeyDir: String,
-    offset:        Long
-  ): ProductKeyFile = {
-    val newKey = SymmetricKey.newFromSeed(blake2b256.hash(uuid).value, offset)
-    val kes_info = {
-      val salt = blake2b256.hash(uuid).value
-      val ivData = blake2b256.hash(uuid).value.slice(0, 16)
-      val derivedKey = getDerivedKey(password, salt)
-      val keyBytes: Array[Byte] = newKey.getBytes
-      val (cipherText, mac) = encryptAES(derivedKey, ivData, keyBytes)
-      CipherInfo(newKey.getVerificationKey.bytes, cipherText, mac, salt, ivData)
-    }
-    val dateString = Instant.now().truncatedTo(ChronoUnit.MILLIS).toString.replace(":", "-")
-    val fileName = s"$defaultKeyDir/$dateString-${Base58.encode(newKey.getVerificationKey.bytes)}.json"
-    val newKeyFile = new ProductKeyFile(kes_info, fileName, "NEWKEY")
-    val file = new File(fileName)
-    file.getParentFile.mkdirs
-    val w = new BufferedWriter(new FileWriter(file))
-    w.write(newKeyFile.json.toString())
-    w.close()
-    newKeyFile
-  }
+object SymmetricKeyFile {
 
   def newKeyFile(
     password:      String,
     defaultKeyDir: String,
     symmetricKey:  SymmetricKey
-  ): ProductKeyFile = {
+  ): SymmetricKeyFile = {
     val kes_info = {
       val salt = blake2b256.hash(uuid).value
       val ivData = blake2b256.hash(uuid).value.slice(0, 16)
       val derivedKey = getDerivedKey(password, salt)
       val keyBytes: Array[Byte] = symmetricKey.getBytes
       val (cipherText, mac) = encryptAES(derivedKey, ivData, keyBytes)
-      CipherInfo(symmetricKey.getVerificationKey.bytes, cipherText, mac, salt, ivData)
+      CipherInfo(symmetricKey.getVerificationKey.value, cipherText, mac, salt, ivData)
     }
     val dateString = Instant.now().truncatedTo(ChronoUnit.MILLIS).toString.replace(":", "-")
-    val fileName = s"$defaultKeyDir/$dateString-${Base58.encode(symmetricKey.getVerificationKey.bytes)}.json"
-    val newKeyFile = new ProductKeyFile(kes_info, fileName, "NEWKEY")
+    val fileName = s"$defaultKeyDir/$dateString-${Base58.encode(symmetricKey.getVerificationKey.value)}.json"
+    val newKeyFile = new SymmetricKeyFile(kes_info, fileName, "NEWKEY")
     val file = new File(fileName)
     file.getParentFile.mkdirs
     val w = new BufferedWriter(new FileWriter(file))
@@ -140,13 +108,13 @@ object ProductKeyFile {
    */
 
   def updateKeyFile(
-    keyFile:       ProductKeyFile,
+    keyFile:       SymmetricKeyFile,
     updatedKey:    SymmetricKey,
     password:      String,
     defaultKeyDir: String,
     salt:          Array[Byte] = blake2b256.hash(uuid).value,
     derivedKey:    Array[Byte] = Array()
-  ): Option[ProductKeyFile] = Try {
+  ): Option[SymmetricKeyFile] = Try {
     val kes_info = {
       val ivData = blake2b256.hash(uuid).value.slice(0, 16)
       val (cipherText, mac) = if (derivedKey.isEmpty) {
@@ -159,7 +127,7 @@ object ProductKeyFile {
     val dateString = Instant.now().truncatedTo(ChronoUnit.MILLIS).toString.replace(":", "-")
     val fileName = s"$defaultKeyDir/" +
       s"$dateString-${Base58.encode(keyFile.kes_info.pubKey)}.json"
-    val newKeyFile = ProductKeyFile(kes_info, fileName, keyFile.fileName)
+    val newKeyFile = SymmetricKeyFile(kes_info, fileName, keyFile.fileName)
     val w = new BufferedWriter(new FileWriter(fileName))
     w.write(newKeyFile.json.toString())
     w.close()
@@ -173,7 +141,7 @@ object ProductKeyFile {
    * @return
    */
 
-  def readFile(filename: String): ProductKeyFile = {
+  def readFile(filename: String): SymmetricKeyFile = {
     val jsonString: String = {
       val src = scala.io.Source.fromFile(filename)
       val out = src.mkString
@@ -182,7 +150,7 @@ object ProductKeyFile {
     }
     parse(jsonString) match {
       case Right(f: Json) =>
-        f.as[ProductKeyFile]
+        f.as[SymmetricKeyFile]
           .getOrElse(
             throw new Exception("Product Key File could not be parsed from Json")
           )
@@ -196,7 +164,7 @@ object ProductKeyFile {
    * @return
    */
 
-  def restore(storageDir: String): Option[ProductKeyFile] = {
+  def restore(storageDir: String): Option[SymmetricKeyFile] = {
     def getListOfFiles(dir: String): List[File] = {
       val d = new File(dir)
       if (d.exists && d.isDirectory) {
@@ -205,11 +173,11 @@ object ProductKeyFile {
         List[File]()
       }
     }
-    var recoveredKey: Option[ProductKeyFile] = None
+    var recoveredKey: Option[SymmetricKeyFile] = None
     var files = getListOfFiles(s"$storageDir/")
     while (files.nonEmpty)
       Try(readFile(files.head.getPath)) match {
-        case Success(keyFile: ProductKeyFile) =>
+        case Success(keyFile: SymmetricKeyFile) =>
           recoveredKey match {
             case None => recoveredKey = Some(keyFile)
             case _    => deleteOldFile(files.head.getPath)
@@ -295,7 +263,7 @@ object ProductKeyFile {
       file.delete()
     }
 
-  implicit private val decodeKeyFile: Decoder[ProductKeyFile] = (c: HCursor) =>
+  implicit private val decodeKeyFile: Decoder[SymmetricKeyFile] = (c: HCursor) =>
     for {
       fileName             <- c.downField("fileName").as[String]
       oldFileName          <- c.downField("oldFileName").as[String]
@@ -312,6 +280,6 @@ object ProductKeyFile {
         Base58.decode(saltString_kes).toOption.get,
         Base58.decode(ivString_kes).toOption.get
       )
-      new ProductKeyFile(kes_info, fileName, oldFileName)
+      new SymmetricKeyFile(kes_info, fileName, oldFileName)
     }
 }

@@ -1,6 +1,6 @@
 package co.topl.attestation.keyManagement.derivedKeys
 
-import co.topl.attestation.SignatureEd25519
+import co.topl.attestation.{PublicKeyPropositionEd25519, SignatureEd25519}
 import co.topl.attestation.keyManagement.derivedKeys.ExtendedPrivateKeyEd25519.Password
 import co.topl.attestation.keyManagement.derivedKeys.implicits._
 import co.topl.attestation.keyManagement.mnemonic.Language.{English, LanguageWordList}
@@ -17,6 +17,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scodec.bits.ByteOrdering
 import scodec.bits.ByteOrdering.LittleEndian
+import co.topl.crypto.signatures.Ed25519
 
 // Test Vectors:
 // https://topl.atlassian.net/wiki/spaces/Bifrost/pages/294813812/HD+Wallet+Protocols+and+Test+Vectors
@@ -274,10 +275,16 @@ class ExtendedPrivateKeyEd25519Spec
     val childKeyBytes =
       childKey.leftKey.value.toArray ++ childKey.rightKey.value.toArray ++ childKey.chainCode.value.toArray
 
-    val signatureResult: SignatureEd25519 = childKey.sign("Hello World".getBytes("UTF-8"))
+    val signatureResult: SignatureEd25519 = SignatureEd25519(childKey.sign("Hello World".getBytes("UTF-8")))
 
     childKeyBytes shouldBe expectedChildKey
     signatureResult.sigBytes shouldBe expectedSignature
+    val ec = new Ed25519
+    ec.precompute()
+    require(
+      ec.verify(signatureResult.sigBytes, "Hello World".getBytes("UTF-8"), childKey.public),
+      "Signature did not verify"
+    )
   }
 
   "Key from mnemonic phrase" should "output same the key with the same password" in {
