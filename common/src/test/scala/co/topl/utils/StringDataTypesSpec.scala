@@ -10,6 +10,7 @@ import org.scalatest.matchers.should.Matchers.{an, convertToAnyShouldWrapper}
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 class StringDataTypesSpec extends AnyFlatSpec with ScalaCheckDrivenPropertyChecks with ScalaCheckPropertyChecks {
+
   "Latin-1 Encoded String" should "be valid if only contains letters and numbers" in {
     forAll(Gen.alphaNumStr) { alphaNum =>
       Latin1Data.validated(alphaNum).isValid shouldBe true
@@ -66,6 +67,7 @@ class StringDataTypesSpec extends AnyFlatSpec with ScalaCheckDrivenPropertyCheck
 
     areEqual shouldBe true
   }
+
   "Base-58 Encoded String" should "be valid when any alpha-numeric string except containing 0, O, I, and l" in {
     forAll(Gen.asciiStr) { asciiStr =>
       if (isValidBase58(asciiStr))

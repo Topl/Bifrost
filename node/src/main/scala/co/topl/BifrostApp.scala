@@ -31,6 +31,7 @@ class BifrostApp(startupOpts: StartupOpts) extends NodeLogging {
 
   /** save runtime environment into a variable for reference throughout the application */
   protected val appContext = new AppContext(settings, startupOpts, upnpGateway)
+
   log.debug(
     s"${Console.MAGENTA}Runtime network parameters:" +
     s"type - ${appContext.networkType.verboseName}, " +
