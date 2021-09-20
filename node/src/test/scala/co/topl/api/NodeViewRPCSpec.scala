@@ -80,28 +80,35 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
     }
 
     "Return correct error response when a invalid id is used for querying transactions" in {
-      val invalidId: String = "=" ++ txId.tail
+      val invalidCharId: String = "=" ++ txId.tail
+      val invalidLengthId: String = txId.tail
       val modifierQueryMethods = Seq("topl_transactionById", "topl_transactionFromMempool", "topl_blockById")
       val idTypes = Seq("transactionId", "transactionId", "blockId")
-      def requestBody(idType: String, rpcMethod: String): ByteString = ByteString(s"""
+      def requestBody(idType: String, rpcMethod: String, txId: String): ByteString = ByteString(s"""
         |{
         |   "jsonrpc": "2.0",
         |   "id": "1",
         |   "method": "$rpcMethod",
         |   "params": [{
-        |      "$idType": "$invalidId"
+        |      "$idType": "$txId"
         |   }]
         |}
         |
           """.stripMargin)
 
       idTypes.zip(modifierQueryMethods).map { case (idType, rpcMethod) =>
-        httpPOST(requestBody(idType, rpcMethod)) ~> route ~> check {
+        httpPOST(requestBody(idType, rpcMethod, invalidCharId)) ~> route ~> check {
           val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
           res should include("Value is not Base 58")
         }
       }
 
+      idTypes.zip(modifierQueryMethods).map { case (idType, rpcMethod) =>
+        httpPOST(requestBody(idType, rpcMethod, invalidLengthId)) ~> route ~> check {
+          val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
+          res should include("Invalid size for ModifierId")
+        }
+      }
     }
 
     "Get a confirmed transaction by id" in {
