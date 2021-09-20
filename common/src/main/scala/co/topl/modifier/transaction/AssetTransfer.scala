@@ -5,7 +5,7 @@ import co.topl.attestation._
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TxType
-import co.topl.modifier.transaction.TransferTransaction.{encodeFrom, BoxParams, TransferCreationState}
+import co.topl.modifier.transaction.TransferTransaction.{encodeFrom, BoxParams}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.codecs.Int128Codec
@@ -16,7 +16,6 @@ import io.circe.{Decoder, Encoder, HCursor}
 
 import java.time.Instant
 import scala.collection.immutable.ListMap
-import scala.util.Try
 
 case class AssetTransfer[
   P <: Proposition: EvidenceProducer: Identifiable
