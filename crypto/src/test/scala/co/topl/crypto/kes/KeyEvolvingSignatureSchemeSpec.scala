@@ -3,8 +3,10 @@ package co.topl.crypto.kes
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+
 import scala.util.{Failure, Success, Try}
 import java.security.SecureRandom
+import co.topl.crypto.signatures.Signature
 
 class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
 
@@ -56,7 +58,7 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
         val productSignature2 = kes.signAsymmetricProduct(prodKey2, Array())
         productSignature2 match {
           case signatures.AsymmetricSignature(sigi, sigm, pki, offset, pkl) =>
-            val sigSize = sigi.length + sigm.length + pki.bytes.length
+            val sigSize = sigi.length + sigm.length + pki.value.length
             if (sigSize > oldSigSize) {
               oldSigSize = sigSize
               //println("Product Sig Length t "+i.toString+": "+sigSize.toString)
@@ -174,7 +176,7 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
     val passed = Try {
       //println("Testing MMM asymmetric product keys")
       val rnd: SecureRandom = new SecureRandom()
-      var t = 0
+      var t = 0L
       val message = rnd.generateSeed(2048)
       val seed1 = rnd.generateSeed(32)
       var prodKey = keys.AsymmetricKey.newFromSeed(seed1, 0)
@@ -245,10 +247,13 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
     val passed = Try {
       //Console.println("Testing MMM asymmetric product keys")
       val rnd: SecureRandom = new SecureRandom()
+      //dummy sign operation
+      def sign(m: Array[Byte]): Signature =
+        Signature(m)
       var t = 0
       val message = rnd.generateSeed(2048)
       val seed1 = rnd.generateSeed(32)
-      var prodKey = keys.SymmetricKey.newFromSeed(seed1, 0)
+      var prodKey = keys.SymmetricKey.newFromSeed(seed1, 0, sign)
       //println("Product key time step:")
       //println(prodKey.timeStepPlusOffset)
       //println("Updating MMM product key")

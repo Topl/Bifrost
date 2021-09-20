@@ -38,10 +38,23 @@ class Ed25519 extends eddsa.Ed25519 with EllipticCurveSignatureScheme {
     Signature(sig)
   }
 
+  def sign(privateKey: Array[Byte], message: Array[Byte]): Signature = {
+    require(privateKey.length == SECRET_KEY_SIZE)
+    val sig = new Array[Byte](SIGNATURE_SIZE)
+    sign(privateKey, 0, message, 0, message.length, sig, 0)
+    Signature(sig)
+  }
+
   override def verify(signature: Signature, message: MessageToSign, publicKey: PublicKey): Boolean =
     signature.value.length == SIGNATURE_SIZE &&
     publicKey.value.length == PUBLIC_KEY_SIZE &&
     verify(signature.value, 0, publicKey.value, 0, message, 0, message.length)
+
+  def verify(signature: Array[Byte], message: Array[Byte], publicKey: Array[Byte]): Boolean =
+    signature.length == SIGNATURE_SIZE &&
+    publicKey.length == PUBLIC_KEY_SIZE &&
+    verify(signature, 0, publicKey, 0, message, 0, message.length)
+
 }
 
 object Ed25519 {
