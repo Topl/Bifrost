@@ -51,7 +51,7 @@ object LeaderElection {
                 )
             }
 
-      object VrfProof {
+      private object VrfProof {
 
         private val TestTokenBytes = "TEST".getBytes(StandardCharsets.UTF_8)
         private val NonceTokenBytes = "NONCE".getBytes(StandardCharsets.UTF_8)
@@ -112,7 +112,7 @@ object LeaderElection {
               .pure[F]
 
           /** Calculates log(1-f(slot-parentSlot)) or log(1-f) depending on the configuration */
-          def mFunction(slotDiff: Long, config: Vrf.Config): Ratio =
+          private def mFunction(slotDiff: Long, config: Vrf.Config): Ratio =
             // use sawtooth curve if local dynamic difficulty is enabled
             if (slotDiff <= config.lddCutoff)
               ProsomoMath.logOneMinus(
@@ -126,7 +126,7 @@ object LeaderElection {
   }
 }
 
-object ProsomoMath {
+private object ProsomoMath {
 
   def factorial(n: Int): BigInt = (1 to n).product
 

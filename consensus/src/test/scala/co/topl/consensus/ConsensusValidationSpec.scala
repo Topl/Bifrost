@@ -40,7 +40,8 @@ class ConsensusValidationSpec
         val nonceInterpreter = mock[EtaLookupAlgebra[EvalF]]
         val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
         val underTest =
-          ConsensusValidation.Eval.make[EvalF](nonceInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
+          ConsensusValidation.Eval.Stateful
+            .make[EvalF](nonceInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
 
         underTest.validate(child, parent).left.value shouldBe ConsensusValidation.Eval.Failures
           .NonForwardSlot(child.slot, parent.slot)
@@ -57,7 +58,8 @@ class ConsensusValidationSpec
         val nonceInterpreter = mock[EtaLookupAlgebra[EvalF]]
         val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
         val underTest =
-          ConsensusValidation.Eval.make[EvalF](nonceInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
+          ConsensusValidation.Eval.Stateful
+            .make[EvalF](nonceInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
 
         underTest.validate(child, parent).left.value shouldBe ConsensusValidation.Eval.Failures
           .NonForwardTimestamp(child.timestamp, parent.timestamp)
@@ -82,7 +84,8 @@ class ConsensusValidationSpec
         val etaInterpreter = mock[EtaLookupAlgebra[EvalF]]
         val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
         val underTest =
-          ConsensusValidation.Eval.make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
+          ConsensusValidation.Eval.Stateful
+            .make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
 
         underTest.validate(child, parent).left.value shouldBe ConsensusValidation.Eval.Failures
           .ParentMismatch(child.parentHeaderId, parent.id)
@@ -109,7 +112,8 @@ class ConsensusValidationSpec
       val etaInterpreter = mock[EtaLookupAlgebra[EvalF]]
       val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
       val underTest =
-        ConsensusValidation.Eval.make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
+        ConsensusValidation.Eval.Stateful
+          .make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
 
       (etaInterpreter
         .etaOf(_: BlockHeaderV2, _: Slot))
@@ -141,7 +145,8 @@ class ConsensusValidationSpec
       val etaInterpreter = mock[EtaLookupAlgebra[EvalF]]
       val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
       val underTest =
-        ConsensusValidation.Eval.make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
+        ConsensusValidation.Eval.Stateful
+          .make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
 
       val vrfHit = LeaderElection.Hit.Eval.make[EvalF](vrfSecret, leaderElectionInterpreter)
 
@@ -218,7 +223,8 @@ class ConsensusValidationSpec
       val etaInterpreter = mock[EtaLookupAlgebra[EvalF]]
       val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
       val underTest =
-        ConsensusValidation.Eval.make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
+        ConsensusValidation.Eval.Stateful
+          .make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
       val vrfHit = LeaderElection.Hit.Eval.make[EvalF](vrfSecret, leaderElectionInterpreter)
 
       val Some(hit) = LazyList

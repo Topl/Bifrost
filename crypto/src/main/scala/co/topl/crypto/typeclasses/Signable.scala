@@ -2,7 +2,7 @@ package co.topl.crypto.typeclasses
 
 import co.topl.codecs.bytes.BasicCodecs._
 import co.topl.codecs.bytes.ByteCodec.implicits._
-import co.topl.models.{BlockHeaderV2, Bytes, PolyTransfer, PublicKeys}
+import co.topl.models.{BlockHeaderV2, Bytes, PublicKeys}
 import simulacrum.{op, typeclass}
 
 @typeclass trait Signable[T] {
@@ -12,9 +12,6 @@ import simulacrum.{op, typeclass}
 object Signable {
 
   trait Instances {
-
-    implicit val polyTransferSignable: Signable[PolyTransfer] =
-      _ => Bytes(Array.fill[Byte](1024)(0))
 
     implicit val unsignedBlockHeaderV2Signable: Signable[BlockHeaderV2.Unsigned] =
       unsignedBlock =>

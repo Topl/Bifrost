@@ -364,7 +364,7 @@ lazy val demo = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.demo"
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.fullNode)
+  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.demo)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, typeclasses, consensus, minting)
 
