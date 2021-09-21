@@ -1,5 +1,6 @@
 package co.topl.modifier.transaction
 
+import cats.implicits._
 import co.topl.attestation._
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
@@ -151,7 +152,7 @@ object ArbitTransfer {
     consolidationAddress: Address,
     fee:                  Int128,
     data:                 Option[Latin1Data]
-  ): ValidationResult[ArbitTransfer[P]] = {
+  ): Try[ArbitTransfer[P]] = {
     val (polyBoxes, arbitBoxes) =
       sender
         .map(addr => addr -> boxReader.getTokenBoxes(addr).getOrElse(IndexedSeq()))
@@ -171,7 +172,7 @@ object ArbitTransfer {
       fee,
       data,
       false
-    )
+    ).leftMap(failure => new Exception(failure.toString)).toTry
   }
 
   implicit def jsonEncoder[P <: Proposition]: Encoder[ArbitTransfer[P]] = { tx: ArbitTransfer[P] =>

@@ -30,7 +30,7 @@ trait ValueTransferBlueprint[Value, Failure, Transfer] {
    * @param minting whether or not the output token boxes should be minted
    * @return either a transfer transaction of type `Transfer` or a validation failure of type `Failure`
    */
-  def compileBlueprint(
+  def compile(
     availableBoxes:       TokenBoxes,
     recipients:           IndexedSeq[(Address, Value)],
     feeChangeAddress:     Address,

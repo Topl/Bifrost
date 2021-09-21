@@ -16,6 +16,7 @@ import io.circe.{Decoder, Encoder, HCursor}
 
 import java.time.Instant
 import scala.collection.immutable.ListMap
+import scala.util.Try
 
 case class AssetTransfer[
   P <: Proposition: EvidenceProducer: Identifiable
@@ -195,7 +196,7 @@ object AssetTransfer {
     fee:                  Int128,
     data:                 Option[Latin1Data],
     minting:              Boolean
-  ): ValidationResult[AssetTransfer[P]] = {
+  ): Try[AssetTransfer[P]] = {
     val (polyBoxes, assetBoxes) =
       sender
         .map(addr => addr -> boxReader.getTokenBoxes(addr).getOrElse(IndexedSeq()))
@@ -215,7 +216,7 @@ object AssetTransfer {
       fee,
       data,
       minting
-    )
+    ).leftMap(failure => new Exception(failure.toString)).toTry
   }
 
   implicit def jsonEncoder[P <: Proposition]: Encoder[AssetTransfer[P]] = { tx: AssetTransfer[P] =>

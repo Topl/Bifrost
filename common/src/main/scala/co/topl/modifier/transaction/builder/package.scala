@@ -68,7 +68,7 @@ package object builder {
     val pickedBoxes = strategy.pick(tokenSpecificBoxes)
 
     // compile a transfer transaction using all the available parameters
-    transferBlueprint.compileBlueprint(
+    transferBlueprint.compile(
       pickedBoxes,
       recipients,
       feeChangeAddress,

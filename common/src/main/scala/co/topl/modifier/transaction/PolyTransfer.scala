@@ -1,5 +1,6 @@
 package co.topl.modifier.transaction
 
+import cats.implicits._
 import co.topl.attestation._
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
@@ -15,6 +16,7 @@ import io.circe.{Decoder, Encoder, HCursor}
 
 import java.time.Instant
 import scala.collection.immutable.ListMap
+import scala.util.Try
 
 case class PolyTransfer[
   P <: Proposition: EvidenceProducer: Identifiable
@@ -140,7 +142,7 @@ object PolyTransfer {
     changeAddress: Address,
     fee:           Int128,
     data:          Option[Latin1Data]
-  ): ValidationResult[PolyTransfer[P]] = {
+  ): Try[PolyTransfer[P]] = {
     val polyBoxes =
       sender
         .map(addr => addr -> boxReader.getTokenBoxes(addr).getOrElse(IndexedSeq()))
@@ -151,6 +153,8 @@ object PolyTransfer {
         }
 
     validated(polyBoxes, recipients, changeAddress, fee, data, false)
+      .leftMap(failure => new Exception(failure.toString))
+      .toTry
   }
 
   implicit def jsonEncoder[P <: Proposition]: Encoder[PolyTransfer[P]] = { tx: PolyTransfer[P] =>

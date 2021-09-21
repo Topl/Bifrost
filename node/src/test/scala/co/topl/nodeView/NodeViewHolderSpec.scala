@@ -5,7 +5,11 @@ import akka.actor.typed.ActorRef
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, SimpleValue}
+import co.topl.modifier.transaction
 import co.topl.modifier.transaction.PolyTransfer
+import co.topl.modifier.transaction.PolyTransfer.Validation.InvalidPolyTransfer
+import co.topl.modifier.transaction.builder.BoxPickingStrategy
+import co.topl.modifier.transaction.builder.implicits._
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages
 import co.topl.nodeView.NodeViewHolderSpec.TestInWithActor
 import co.topl.nodeView.NodeViewTestHelpers.TestIn
@@ -43,16 +47,19 @@ class NodeViewHolderSpec
     genesisActorTest { testIn =>
       val addressA :: addressB :: _ = keyRingCurve25519.addresses.toList
       val polyTransfer = {
-        val base = PolyTransfer
-          .createRaw[PublicKeyPropositionCurve25519](
-            testIn.testIn.nodeView.state,
-            recipients = IndexedSeq((addressA, SimpleValue(10))),
-            sender = IndexedSeq(addressB),
-            changeAddress = addressB,
-            fee = 0,
-            data = None
-          )
-          .getOrThrow()
+        val base =
+          transaction.builder
+            .buildTransfer[SimpleValue, InvalidPolyTransfer, PolyTransfer[
+              PublicKeyPropositionCurve25519
+            ], BoxPickingStrategy.All](
+              IndexedSeq(addressB),
+              IndexedSeq((addressA, SimpleValue(10))),
+              testIn.testIn.nodeView.state,
+              addressB,
+              0,
+              BoxPickingStrategy.All
+            )
+            .getOrThrow()
         base.copy(attestation = keyRingCurve25519.generateAttestation(addressB)(base.messageToSign))
       }
       val transactions = List(polyTransfer)
