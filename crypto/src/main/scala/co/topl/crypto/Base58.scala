@@ -1,8 +1,6 @@
-package co.topl.typeclasses
+package co.topl.crypto
 
 import cats.implicits._
-
-/* Forked from https://github.com/ScorexFoundation/scorex-util/tree/master/src/main/scala/scorex/util/encode */
 
 object Base58 {
 

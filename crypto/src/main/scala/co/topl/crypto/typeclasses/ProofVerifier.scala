@@ -51,7 +51,7 @@ object ProofVerifier {
           proposition: Propositions.PublicKeyCurve25519,
           data:        Data
         ): Boolean = Curve25519.verify(
-          Signature(proof.bytes.fold(Array.emptyByteArray)(_.data.toArray)),
+          Signature(proof.bytes.data.toArray),
           data.signableBytes.toArray,
           PublicKey(proposition.key.bytes.data.toArray)
         )
@@ -66,7 +66,7 @@ object ProofVerifier {
           proposition: Propositions.PublicKeyEd25519,
           data:        Data
         ): Boolean = ed25519.verify(
-          Signature(proof.bytes.fold(Array.emptyByteArray)(_.data.toArray)),
+          Signature(proof.bytes.data.toArray),
           data.signableBytes.toArray,
           PublicKey(proposition.key.bytes.data.toArray)
         )
@@ -90,7 +90,7 @@ object ProofVerifier {
                     unusedProps
                       .find(prop =>
                         unusedProps(prop) && Curve25519.verify(
-                          Signature(sig.bytes.fold(Array.emptyByteArray)(_.data.toArray)),
+                          Signature(sig.bytes.data.toArray),
                           dataBytes,
                           PublicKey(prop.bytes.data.toArray)
                         )
@@ -126,7 +126,7 @@ object ProofVerifier {
                     unusedProps
                       .find(prop =>
                         unusedProps(prop) && ed25519.verify(
-                          Signature(sig.bytes.fold(Array.emptyByteArray)(_.data.toArray)),
+                          Signature(sig.bytes.data.toArray),
                           dataBytes,
                           PublicKey(prop.bytes.data.toArray)
                         )
@@ -195,7 +195,7 @@ object ProofVerifier {
           proposition: Propositions.Consensus.PublicKeyKes,
           data:        Data
         ): Boolean = publicKeyEd25519.verifyWith(
-          Proofs.SignatureEd25519(Some(proof.signature)),
+          Proofs.SignatureEd25519(proof.signature),
           Propositions.PublicKeyEd25519(PublicKeys.Ed25519(proposition.key.bytes)),
           data
         )

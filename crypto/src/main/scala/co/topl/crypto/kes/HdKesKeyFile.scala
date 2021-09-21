@@ -1,7 +1,7 @@
-package co.topl.attestation.keyManagement.stakingKeys
+package co.topl.crypto.kes
 
+import co.topl.crypto.Base58
 import co.topl.crypto.hash.blake2b256
-import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
 import io.circe.{Decoder, HCursor, Json}
 import io.circe.parser.parse
@@ -81,11 +81,11 @@ object HdKesKeyFile {
       val derivedKey = getDerivedKey(password, salt)
       val keyBytes: Array[Byte] = hdKesScheme.getBytes
       val (cipherText, mac) = encryptAES(derivedKey, ivData, keyBytes)
-      CipherInfo(hdKesScheme.rootVerificationKey.bytes.value.toArray, cipherText, mac, salt, ivData)
+      CipherInfo(hdKesScheme.rootVerificationKey.bytes.data.toArray, cipherText, mac, salt, ivData)
     }
     val dateString = Instant.now().truncatedTo(ChronoUnit.MILLIS).toString.replace(":", "-")
     val fileName =
-      s"$defaultKeyDir/$dateString-${Base58.encode(hdKesScheme.rootVerificationKey.bytes.value.toArray)}.json"
+      s"$defaultKeyDir/$dateString-${Base58.encode(hdKesScheme.rootVerificationKey.bytes.data.toArray)}.json"
     val newKeyFile = new HdKesKeyFile(kes_info, fileName, "NEWKEY")
     val file = new File(fileName)
     file.getParentFile.mkdirs

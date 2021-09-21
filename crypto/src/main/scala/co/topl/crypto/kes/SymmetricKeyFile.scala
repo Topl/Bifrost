@@ -1,8 +1,9 @@
-package co.topl.attestation.keyManagement.stakingKeys
+package co.topl.crypto.kes
 
-import com.google.common.primitives.Ints
-import co.topl.crypto.kes.keys._
+import co.topl.crypto.Base58
 import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.kes.keys._
+import com.google.common.primitives.Ints
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}
@@ -11,7 +12,6 @@ import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
 import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
-import co.topl.utils.encode.Base58
 
 import java.io.{BufferedWriter, File, FileWriter, RandomAccessFile}
 import java.nio.charset.StandardCharsets

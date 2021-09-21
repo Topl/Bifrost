@@ -2,6 +2,7 @@ package co.topl.typeclasses
 
 import cats.Show
 import cats.implicits._
+import co.topl.crypto.Base58
 import co.topl.models._
 import co.topl.typeclasses.Identifiable.Instances._
 import co.topl.typeclasses.Identifiable.ops._

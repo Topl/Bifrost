@@ -71,7 +71,7 @@ sealed trait Proof
 
 object Proofs {
 
-  case class SignatureCurve25519(bytes: Option[Sized.Strict[Bytes, SignatureCurve25519.Length]]) extends Proof
+  case class SignatureCurve25519(bytes: Sized.Strict[Bytes, SignatureCurve25519.Length]) extends Proof
 
   object SignatureCurve25519 {
     type Length = Lengths.`64`.type
@@ -79,7 +79,7 @@ object Proofs {
 
   case class ThresholdSignatureCurve25519(signatures: Set[SignatureCurve25519]) extends Proof
 
-  case class SignatureEd25519(bytes: Option[Sized.Strict[Bytes, SignatureEd25519.Length]]) extends Proof
+  case class SignatureEd25519(bytes: Sized.Strict[Bytes, SignatureEd25519.Length]) extends Proof
 
   object SignatureEd25519 {
     type Length = Lengths.`64`.type
@@ -130,12 +130,25 @@ sealed trait PublicKey
 
 object PublicKeys {
   case class Curve25519(bytes: Sized.Strict[Bytes, Curve25519.Length]) extends PublicKey
+
   case class Ed25519(bytes: Sized.Strict[Bytes, Ed25519.Length]) extends PublicKey
+
+  case class ExtendedEd25519(
+    bytes:     Sized.Strict[Bytes, Ed25519.Length],
+    chainCode: Sized.Strict[Bytes, ExtendedEd25519.ChainCodeLength]
+  ) extends PublicKey
+
   case class Vrf(ed25519: Ed25519) extends PublicKey
+
   case class Kes(bytes: Sized.Strict[Bytes, Kes.Length], offset: Long) extends PublicKey
 
   object Ed25519 {
     type Length = Lengths.`32`.type
+  }
+
+  object ExtendedEd25519 {
+    type Length = Lengths.`32`.type
+    type ChainCodeLength = Lengths.`32`.type
   }
 
   object Curve25519 {
@@ -152,6 +165,12 @@ sealed trait PrivateKey
 object PrivateKeys {
   case class Curve25519(bytes: Sized.Strict[Bytes, Curve25519.Length]) extends PrivateKey
   case class Ed25519(bytes: Sized.Strict[Bytes, Ed25519.Length]) extends PrivateKey
+
+  case class ExtendedEd25519(
+    leftKey:   Sized.Strict[Bytes, ExtendedEd25519.LeftLength],
+    rightKey:  Sized.Strict[Bytes, ExtendedEd25519.RightLength],
+    chainCode: Sized.Strict[Bytes, ExtendedEd25519.ChainCodeLength]
+  ) extends PrivateKey
   case class Vrf(ed25519: Ed25519) extends PrivateKey
   case class Kes(bytes: Sized.Strict[Bytes, Kes.Length]) extends PrivateKey
 
@@ -159,11 +178,17 @@ object PrivateKeys {
     type Length = Lengths.`32`.type
   }
 
+  object ExtendedEd25519 {
+    type LeftLength = Lengths.`32`.type
+    type RightLength = Lengths.`32`.type
+    type ChainCodeLength = Lengths.`32`.type
+  }
+
   object Curve25519 {
     type Length = Lengths.`32`.type
   }
 
   object Kes {
-    type Length = Lengths.`2724`.type
+    type Length = Lengths.`2788`.type
   }
 }

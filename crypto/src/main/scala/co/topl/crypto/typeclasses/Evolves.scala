@@ -20,14 +20,7 @@ object Evolves {
     implicit val kesPrivateKeyEvolves: Evolves[PrivateKeys.Kes] = {
       val scheme = new KeyEvolvingSignatureScheme
       (key, timesteps) => {
-        val symmetricKey =
-          SymmetricKey(
-            ProductPrivateKey.deserializeProductKey(
-              Ints.toByteArray(
-                key.bytes.data.toArray.length
-              ) ++ key.bytes.data.toArray
-            )
-          )
+        val symmetricKey = SymmetricKey.deserializeSymmetricKey(key.bytes.data.toArray)
         val updatedSymmetricKey =
           scheme.updateSymmetricProductKey(symmetricKey, timesteps.toInt) // TODO: toInt?
         PrivateKeys.Kes(

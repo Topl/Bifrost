@@ -183,6 +183,7 @@ object Dependencies {
       "org.whispersystems" % "curve25519-java" % "0.5.0"
     ) ++
     misc ++
+    circe ++
     bouncyCastle ++
     cats ++
     simulacrum ++

@@ -1,4 +1,4 @@
-package co.topl.attestation.keyManagement.stakingKeys
+package co.topl.crypto.kes
 
 case class CipherInfo(
   pubKey:     Array[Byte],

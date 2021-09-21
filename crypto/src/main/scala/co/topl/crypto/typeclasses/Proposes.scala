@@ -1,6 +1,7 @@
 package co.topl.crypto.typeclasses
 
 import co.topl.models.{Proposition, Propositions, PublicKeys}
+import scala.language.implicitConversions
 
 trait Proposes[T, Prop <: Proposition] {
   def propositionOf(t: T): Prop

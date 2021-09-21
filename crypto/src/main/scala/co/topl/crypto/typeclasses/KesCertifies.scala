@@ -23,14 +23,7 @@ object KesCertifies {
           import Proves.instances._
           import Signable.instances._
           import Signable.ops._
-          val currentSymmetricKey =
-            SymmetricKey(
-              ProductPrivateKey.deserializeProductKey(
-                Ints.toByteArray(
-                  t.bytes.data.toArray.length
-                ) ++ t.bytes.data.toArray
-              )
-            )
+          val currentSymmetricKey = SymmetricKey.deserializeSymmetricKey(t.bytes.data.toArray)
 
           val publicKey =
             implicitly[ContainsVerificationKey[PrivateKeys.Kes, PublicKeys.Kes]].verificationKeyOf(t)
@@ -48,9 +41,9 @@ object KesCertifies {
             Proofs.Consensus.MMM(
               Bytes(sig.sigi),
               Bytes(sig.sigm),
-              Bytes(sig.pki.bytes),
+              Bytes(sig.pki.value),
               sig.offset,
-              Bytes(sig.pkl.bytes)
+              Bytes(sig.pkl.value)
             )
           }
           KesCertificate(publicKey, kesProof, mmmProof)

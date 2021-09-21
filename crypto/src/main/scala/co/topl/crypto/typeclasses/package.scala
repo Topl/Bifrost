@@ -17,4 +17,6 @@ package object typeclasses {
       with Signable.ToSignableOps
       with KesCertifies.Instances
       with KesCertifies.ToKesCertifiesOps
+      with SoftDerivative.Instances
+      with SoftDerivative.ToSoftDerivativeOps
 }

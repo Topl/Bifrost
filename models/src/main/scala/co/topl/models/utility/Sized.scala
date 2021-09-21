@@ -28,7 +28,7 @@ object Sized {
 
   def strictUnsafe[Data: HasLength, L <: Length](data: Data)(implicit length: L): Strict[Data, L] = {
     val dataLength = implicitly[HasLength[Data]].length(data)
-    require(dataLength == length.value)
+    require(dataLength == length.value, s"data.length ($dataLength) did not equal target length (${length.value})")
     new Strict(data)
   }
 
@@ -69,7 +69,7 @@ object Lengths {
   implicit case object `256` extends Length(256)
   implicit case object `704` extends Length(704)
   implicit case object `1448` extends Length(1448)
-  implicit case object `2724` extends Length(2724)
+  implicit case object `2788` extends Length(2788)
 }
 
 trait HasLength[T] {

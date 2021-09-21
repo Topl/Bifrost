@@ -1,11 +1,15 @@
 package co.topl.crypto.kes.keys
 
+import co.topl.crypto.PublicKey
+import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.kes.KeyEvolvingSignatureScheme
 import co.topl.crypto.kes.construction.KeyData
 import co.topl.crypto.kes.signatures.SymmetricSignature
-import co.topl.crypto.PublicKey
-import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.signatures.{Ed25519, Signature}
+import co.topl.crypto.signatures.Ed25519
+import co.topl.models.utility.HasLength.instances._
+import co.topl.models.utility.Lengths._
+import co.topl.models.utility.Sized
+import co.topl.models.{Bytes, Proofs}
 import com.google.common.primitives.Longs
 
 /**
@@ -16,7 +20,7 @@ import com.google.common.primitives.Longs
  * to the time step of the signature since signatures include the offset
  */
 
-case class SymmetricKey(override val data: KeyData, signature: Signature) extends ProductPrivateKey {
+case class SymmetricKey(override val data: KeyData, signature: Proofs.SignatureEd25519) extends ProductPrivateKey {
 
   import SymmetricKey._
 
@@ -35,7 +39,7 @@ case class SymmetricKey(override val data: KeyData, signature: Signature) extend
   def timeStep: Long =
     kes.getSymmetricProductKeyTimeStep(this)
 
-  override def getBytes: Array[Byte] = signature.value ++ ProductPrivateKey.serializer.getBytes(data)
+  override def getBytes: Array[Byte] = signature.bytes.data.toArray ++ ProductPrivateKey.serializer.getBytes(data)
 
 }
 
@@ -45,10 +49,10 @@ object SymmetricKey {
 
   val maxKeyTimeSteps: Int = kes.maxSymmetricKeyTimeSteps
 
-  def newFromSeed(seed: Array[Byte], offset: Long, signer: Array[Byte] => Signature): SymmetricKey = {
+  def newFromSeed(seed: Array[Byte], offset: Long, signer: Bytes => Proofs.SignatureEd25519): SymmetricKey = {
     val kd = kes.generateProductKeyData(seed, offset)
     val m = blake2b256.hash(kes.publicKey(kd) ++ Longs.toByteArray(offset)).value
-    val signature = signer(m)
+    val signature = signer(Bytes(m))
     SymmetricKey(kd, signature)
   }
 
@@ -65,7 +69,7 @@ object SymmetricKey {
       )
     ) match {
       case kd: KeyData =>
-        SymmetricKey(kd, Signature(sigBytes))
+        SymmetricKey(kd, Proofs.SignatureEd25519(Sized.strictUnsafe(Bytes(sigBytes))))
     }
   }
 

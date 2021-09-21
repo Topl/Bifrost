@@ -1,16 +1,17 @@
-package co.topl.attestation.keyManagement.stakingKeys
+package co.topl.crypto.kes
 
-import co.topl.attestation.keyManagement.derivedKeys.ExtendedPrivateKeyEd25519
-import co.topl.attestation.keyManagement.mnemonic
 import co.topl.crypto.kes.keys.SymmetricKey
-import co.topl.crypto.kes.KesVerifier
+import co.topl.crypto.mnemonic.Entropy
+import co.topl.crypto.typeclasses.{KeyInitializer, Proves}
+import co.topl.crypto.typeclasses.implicits._
+import co.topl.models.{PrivateKeys, Proofs}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 import java.nio.file.{Files, Path}
 import java.security.SecureRandom
-import java.util.Comparator
+import java.util.{Comparator, UUID}
 import scala.util.{Failure, Success, Try}
 
 class KESCertificateSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
@@ -34,9 +35,14 @@ class KESCertificateSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
     beforeAll()
     val passed = Try {
       val password = "password"
-      val signer = ExtendedPrivateKeyEd25519(mnemonic.Entropy.fromUuid(java.util.UUID.randomUUID()), password)
+      implicit val entropy: Entropy = Entropy.fromUuid(UUID.randomUUID())
+      val signer = KeyInitializer[String => PrivateKeys.ExtendedEd25519].random()(password)
       val rnd: SecureRandom = new SecureRandom()
-      val kesKey = SymmetricKey.newFromSeed(rnd.generateSeed(32), 0, signer.sign)
+      val kesKey = SymmetricKey.newFromSeed(
+        rnd.generateSeed(32),
+        0,
+        bytes => Proves[PrivateKeys.ExtendedEd25519, Proofs.SignatureEd25519].proveWith(signer, bytes.toArray)
+      )
       var certFile: SymmetricKeyFile = SymmetricKeyFile.newKeyFile(
         password,
         keyFileDir.toString,

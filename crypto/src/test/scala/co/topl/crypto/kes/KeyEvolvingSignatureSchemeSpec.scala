@@ -7,6 +7,9 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import scala.util.{Failure, Success, Try}
 import java.security.SecureRandom
 import co.topl.crypto.signatures.Signature
+import co.topl.models.Proofs
+import co.topl.models.utility.Sized
+import co.topl.models.utility.HasLength.instances._
 
 class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
 
@@ -253,7 +256,7 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
       var t = 0
       val message = rnd.generateSeed(2048)
       val seed1 = rnd.generateSeed(32)
-      var prodKey = keys.SymmetricKey.newFromSeed(seed1, 0, sign)
+      var prodKey = keys.SymmetricKey.newFromSeed(seed1, 0, bytes => Proofs.SignatureEd25519(Sized.strictUnsafe(bytes)))
       //println("Product key time step:")
       //println(prodKey.timeStepPlusOffset)
       //println("Updating MMM product key")
