@@ -71,8 +71,8 @@ object AssetTransfer {
     case object DuplicateAssetInputs extends InvalidAssetTransfer
     type DuplicateAssetInputs = DuplicateAssetInputs.type
 
-    case object DuplicateAssetCodes extends InvalidAssetTransfer
-    type DuplicateAssetCodes = DuplicateAssetCodes.type
+    case object MultipleAssetCodes extends InvalidAssetTransfer
+    type DuplicateAssetCodes = MultipleAssetCodes.type
 
     case object DifferentInputOutputCodes extends InvalidAssetTransfer
     type DifferentInputOutputCodes = DifferentInputOutputCodes.type
@@ -109,8 +109,12 @@ object AssetTransfer {
       if (!minting)
         for {
           _ <- Either.cond(assetBoxes.nonEmpty, assetBoxes, EmptyAssetInputs)
-          _ <- Either.cond(assetBoxes.map(_._2.nonce).distinct.length == 1, assetBoxes, DuplicateAssetInputs)
-          _ <- Either.cond(assetBoxes.map(_._2.value.assetCode).distinct.length == 1, assetBoxes, DuplicateAssetCodes)
+          _ <- Either.cond(
+            assetBoxes.map(_._2.nonce).distinct.length == assetBoxes.length,
+            assetBoxes,
+            DuplicateAssetInputs
+          )
+          _ <- Either.cond(assetBoxes.map(_._2.value.assetCode).distinct.length == 1, assetBoxes, MultipleAssetCodes)
         } yield assetBoxes
       else assetBoxes.asRight
 
@@ -120,7 +124,7 @@ object AssetTransfer {
       for {
         _ <- Either.cond(recipients.nonEmpty, recipients, EmptyRecipients)
         _ <- Either.cond(recipients.map(_._1).distinct.length == recipients.length, recipients, DuplicateRecipients)
-        _ <- Either.cond(recipients.map(_._2.assetCode).distinct.length == 1, recipients, DuplicateAssetCodes)
+        _ <- Either.cond(recipients.map(_._2.assetCode).distinct.length == 1, recipients, MultipleAssetCodes)
       } yield recipients
 
     def validateSameAssetCode(
