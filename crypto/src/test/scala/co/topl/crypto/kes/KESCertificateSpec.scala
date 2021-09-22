@@ -4,7 +4,7 @@ import co.topl.crypto.kes.keys.SymmetricKey
 import co.topl.crypto.mnemonic.Entropy
 import co.topl.crypto.typeclasses.{KeyInitializer, Proves}
 import co.topl.crypto.typeclasses.implicits._
-import co.topl.models.{PrivateKeys, Proofs}
+import co.topl.models.{Proofs, SecretKeys}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
@@ -36,12 +36,12 @@ class KESCertificateSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
     val passed = Try {
       val password = "password"
       implicit val entropy: Entropy = Entropy.fromUuid(UUID.randomUUID())
-      val signer = KeyInitializer[String => PrivateKeys.ExtendedEd25519].random()(password)
+      val signer = KeyInitializer[String => SecretKeys.ExtendedEd25519].random()(password)
       val rnd: SecureRandom = new SecureRandom()
       val kesKey = SymmetricKey.newFromSeed(
         rnd.generateSeed(32),
         0,
-        bytes => Proves[PrivateKeys.ExtendedEd25519, Proofs.SignatureEd25519].proveWith(signer, bytes.toArray)
+        bytes => Proves[SecretKeys.ExtendedEd25519, Proofs.SignatureEd25519].proveWith(signer, bytes.toArray)
       )
       var certFile: SymmetricKeyFile = SymmetricKeyFile.newKeyFile(
         password,

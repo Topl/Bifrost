@@ -19,15 +19,15 @@ object BlockGenesis {
   val ParentSlot: Slot = -1
 
   val vrfCertificate: Vrf.Certificate = Vrf.Certificate(
-    PublicKeys.Vrf(PublicKeys.Ed25519(zeroBytes[PublicKeys.Ed25519.Length])),
+    VerificationKeys.Vrf(VerificationKeys.Ed25519(zeroBytes[VerificationKeys.Ed25519.Length])),
     Proofs.Consensus.Nonce(zeroBytes(Lengths.`80`)),
     Proofs.Consensus.VrfTest(zeroBytes(Lengths.`80`))
   )
 
   val kesCertificate: KesCertificate =
     KesCertificate(
-      PublicKeys.Kes(
-        zeroBytes[PublicKeys.Kes.Length],
+      VerificationKeys.Kes(
+        zeroBytes[VerificationKeys.Kes.Length],
         offset = 0
       ),
       Proofs.Consensus.KesCertificate(

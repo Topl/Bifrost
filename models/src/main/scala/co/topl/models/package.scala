@@ -34,6 +34,7 @@ package object models {
   type Account = Propositions.PublicKeyEd25519
   type Root = Propositions.PublicKeyEd25519
   type StakeAddress = Propositions.PublicKeyEd25519
+  type Digest32 = Sized.Strict[Bytes, Lengths.`32`.type]
 
   object Bytes {
     def apply(array:       Array[Byte]): Bytes = new ArraySeq.ofByte(array)

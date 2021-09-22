@@ -10,9 +10,9 @@ object Vrf {
    * @param testProof SIGMA "test":  sign("test" + epochNonce, skVRF)
    */
   case class Certificate(
-    vkVRF:      PublicKeys.Vrf,
-    nonceProof: Proofs.Consensus.Nonce,
-    testProof:  Proofs.Consensus.VrfTest
+    vkVRF:      VerificationKeys.Vrf,
+    nonceProof: Proofs.Vrf.Nonce,
+    testProof:  Proofs.Vrf.Test
   )
 
   case class Hit(cert: Certificate, slot: Slot, threshold: Ratio)

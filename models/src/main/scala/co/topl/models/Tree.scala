@@ -1,4 +1,4 @@
-package co.topl.crypto.kes.construction
+package co.topl.models
 
 import scala.language.postfixOps
 

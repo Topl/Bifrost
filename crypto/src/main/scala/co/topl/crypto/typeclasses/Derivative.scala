@@ -1,11 +1,13 @@
 package co.topl.crypto.typeclasses
 
+import co.topl.codecs.bytes.BasicCodecs._
+import co.topl.codecs.bytes.ByteCodec.implicits._
 import co.topl.crypto.signatures.Ed25519
 import co.topl.crypto.typeclasses.ContainsVerificationKey.instances._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.{Lengths, Sized}
-import co.topl.models.{Bytes, PrivateKeys, PublicKeys}
+import co.topl.models.{Bytes, SecretKeys, VerificationKeys}
 import org.bouncycastle.crypto.digests.SHA512Digest
 import org.bouncycastle.crypto.macs.HMac
 import org.bouncycastle.crypto.params.KeyParameter
@@ -31,7 +33,7 @@ object SoftDerivative {
 
     private val ed = new Ed25519
 
-    implicit val extendedEd25519SKDerivative: SoftDerivative[PrivateKeys.ExtendedEd25519] = { (t, index) =>
+    implicit val extendedEd25519SKDerivative: SoftDerivative[SecretKeys.ExtendedEd25519] = { (t, index) =>
       // Note: BigInt expects Big-Endian, but SLIP/BIP-ED25519 need Little-Endian
       val leftNumber: BigInt = BigInt(1, t.leftKey.data.toArray.reverse)
 
@@ -40,12 +42,13 @@ object SoftDerivative {
 
       val rightNumber: BigInt = BigInt(1, t.rightKey.data.toArray.reverse)
 
-      val public = ContainsVerificationKey[PrivateKeys.ExtendedEd25519, PublicKeys.ExtendedEd25519].verificationKeyOf(t)
+      val public =
+        ContainsVerificationKey[SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519].verificationKeyOf(t)
 
       val z =
         Derivative.hmac512WithKey(
           t.chainCode.data,
-          Bytes(Array(0x02.toByte)) ++ public.bytes.data ++ index.bytes.data
+          Bytes(Array(0x02.toByte)) ++ public.bytes ++ index.bytes.data
         )
 
       val zLeft =
@@ -79,21 +82,21 @@ object SoftDerivative {
           Derivative
             .hmac512WithKey(
               t.chainCode.data,
-              Bytes(Array(0x03.toByte)) ++ public.bytes.data ++ index.bytes.data
+              Bytes(Array(0x03.toByte)) ++ public.bytes ++ index.bytes.data
             )
             .slice(32, 64)
             .toArray
         )
 
-      PrivateKeys.ExtendedEd25519(
+      SecretKeys.ExtendedEd25519(
         Sized.strictUnsafe(nextLeft),
         Sized.strictUnsafe(nextRight),
         Sized.strictUnsafe(nextChainCode)
       )
     }
 
-    implicit val extendedEd25519VKDerivative: SoftDerivative[PublicKeys.ExtendedEd25519] = { (t, index) =>
-      val z = Derivative.hmac512WithKey(t.chainCode.data, (0x02.toByte +: t.bytes.data) ++ index.bytes.data)
+    implicit val extendedEd25519VKDerivative: SoftDerivative[VerificationKeys.ExtendedEd25519] = { (t, index) =>
+      val z = Derivative.hmac512WithKey(t.chainCode.data, (0x02.toByte +: t.bytes) ++ index.bytes.data)
 
       val zL = z.slice(0, 28)
 
@@ -104,7 +107,7 @@ object SoftDerivative {
       ed.scalarMultBase(zLMult8.toArray, scaledZL)
 
       val publicKeyPoint = new ed.PointExt
-      ed.decodePointVar(t.bytes.data.toArray, 0, negate = false, publicKeyPoint)
+      ed.decodePointVar(t.bytes.toArray, 0, negate = false, publicKeyPoint)
 
       ed.pointAddVar(negate = false, publicKeyPoint, scaledZL)
 
@@ -115,11 +118,11 @@ object SoftDerivative {
 
       val nextChainCode =
         Derivative
-          .hmac512WithKey(t.chainCode.data, (0x03.toByte +: t.bytes.data) ++ index.bytes.data)
+          .hmac512WithKey(t.chainCode.data, (0x03.toByte +: t.bytes) ++ index.bytes.data)
           .slice(32, 64)
 
-      PublicKeys.ExtendedEd25519(
-        Sized.strictUnsafe(nextPk),
+      VerificationKeys.ExtendedEd25519(
+        VerificationKeys.Ed25519(Sized.strictUnsafe(nextPk)),
         Sized.strictUnsafe(nextChainCode)
       )
     }

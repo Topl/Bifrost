@@ -1,4 +1,4 @@
-package co.topl.algebras
+package co.topl.consensus.algebras
 
 import co.topl.models.BlockHeaderV2
 

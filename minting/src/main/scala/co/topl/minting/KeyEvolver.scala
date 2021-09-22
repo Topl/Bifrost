@@ -2,24 +2,21 @@ package co.topl.minting
 
 import cats.Applicative
 import cats.implicits._
-import co.topl.algebras.KeyEvolverAlgebra
-import co.topl.crypto.typeclasses.ContainsVerificationKey
 import co.topl.crypto.typeclasses.implicits._
-import co.topl.models.{PrivateKeys, PublicKeys, Slot}
+import co.topl.minting.algebras.KeyEvolverAlgebra
+import co.topl.models.{SecretKeys, Slot}
 
 object KeyEvolver {
 
   object InMemory {
 
-    def make[F[_]: Applicative](initialKey: PrivateKeys.Kes): KeyEvolverAlgebra[F] =
+    def make[F[_]: Applicative](initialKey: SecretKeys.SymmetricMMM): KeyEvolverAlgebra[F] =
       new KeyEvolverAlgebra[F] {
 
         private var key = initialKey
 
-        def evolvedKey(slot: Slot): F[PrivateKeys.Kes] = {
-          key = key.evolveSteps(
-            slot - ContainsVerificationKey[PrivateKeys.Kes, PublicKeys.Kes].verificationKeyOf(key).offset
-          )
+        def evolvedKey(slot: Slot): F[SecretKeys.SymmetricMMM] = {
+          key = key.evolveSteps(slot - key.data.offset)
           key.pure[F]
         }
       }

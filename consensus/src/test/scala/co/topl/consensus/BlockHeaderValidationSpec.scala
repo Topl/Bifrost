@@ -1,7 +1,7 @@
 package co.topl.consensus
 
 import cats.implicits._
-import co.topl.algebras.{EtaLookupAlgebra, VrfRelativeStakeLookupAlgebra}
+import co.topl.algebras.{EtaValidationAlgebra, VrfRelativeStakeLookupAlgebra}
 import co.topl.crypto.typeclasses.KeyInitializer
 import co.topl.crypto.typeclasses.implicits._
 import co.topl.models.ModelGenerators._
@@ -15,7 +15,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class ConsensusValidationSpec
+class BlockHeaderValidationSpec
     extends AnyFlatSpec
     with ScalaCheckDrivenPropertyChecks
     with Matchers
@@ -24,10 +24,10 @@ class ConsensusValidationSpec
 
   behavior of "ConsensusValidation"
 
-  type EvalF[A] = Either[ConsensusValidation.Eval.Failure, A]
+  type EvalF[A] = Either[BlockHeaderValidation.Eval.Failure, A]
 
   private val leaderElectionInterpreter =
-    LeaderElection.Threshold.Eval.make[EvalF](
+    LeaderElectionValidation.Threshold.Eval.make[EvalF](
       Vrf.Config(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
     )
 
@@ -37,13 +37,13 @@ class ConsensusValidationSpec
       headerGen(slotGen = Gen.chooseNum[Slot](0, 49))
     ) { case (parent, child) =>
       whenever(child.slot <= parent.slot) {
-        val nonceInterpreter = mock[EtaLookupAlgebra[EvalF]]
+        val nonceInterpreter = mock[EtaValidationAlgebra[EvalF]]
         val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
         val underTest =
-          ConsensusValidation.Eval.Stateful
+          BlockHeaderValidation.Eval.Stateful
             .make[EvalF](nonceInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
 
-        underTest.validate(child, parent).left.value shouldBe ConsensusValidation.Eval.Failures
+        underTest.validate(child, parent).left.value shouldBe BlockHeaderValidation.Eval.Failures
           .NonForwardSlot(child.slot, parent.slot)
       }
     }
@@ -55,13 +55,13 @@ class ConsensusValidationSpec
       headerGen(timestampGen = Gen.chooseNum[Timestamp](0, 50), slotGen = Gen.chooseNum[Slot](51, 100))
     ) { case (parent, child) =>
       whenever(child.slot > parent.slot && parent.timestamp >= child.timestamp) {
-        val nonceInterpreter = mock[EtaLookupAlgebra[EvalF]]
+        val nonceInterpreter = mock[EtaValidationAlgebra[EvalF]]
         val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
         val underTest =
-          ConsensusValidation.Eval.Stateful
+          BlockHeaderValidation.Eval.Stateful
             .make[EvalF](nonceInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
 
-        underTest.validate(child, parent).left.value shouldBe ConsensusValidation.Eval.Failures
+        underTest.validate(child, parent).left.value shouldBe BlockHeaderValidation.Eval.Failures
           .NonForwardTimestamp(child.timestamp, parent.timestamp)
       }
     }
@@ -81,13 +81,13 @@ class ConsensusValidationSpec
       whenever(
         child.slot > parent.slot && child.timestamp > parent.timestamp && child.parentHeaderId != parent.id
       ) {
-        val etaInterpreter = mock[EtaLookupAlgebra[EvalF]]
+        val etaInterpreter = mock[EtaValidationAlgebra[EvalF]]
         val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
         val underTest =
-          ConsensusValidation.Eval.Stateful
+          BlockHeaderValidation.Eval.Stateful
             .make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
 
-        underTest.validate(child, parent).left.value shouldBe ConsensusValidation.Eval.Failures
+        underTest.validate(child, parent).left.value shouldBe BlockHeaderValidation.Eval.Failures
           .ParentMismatch(child.parentHeaderId, parent.id)
       }
     }
@@ -109,10 +109,10 @@ class ConsensusValidationSpec
       ),
       etaGen
     ) { case ((parent, child), eta) =>
-      val etaInterpreter = mock[EtaLookupAlgebra[EvalF]]
+      val etaInterpreter = mock[EtaValidationAlgebra[EvalF]]
       val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
       val underTest =
-        ConsensusValidation.Eval.Stateful
+        BlockHeaderValidation.Eval.Stateful
           .make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
 
       (etaInterpreter
@@ -122,7 +122,7 @@ class ConsensusValidationSpec
         // This epoch nonce does not satisfy the generated VRF certificate
         .returning(eta.pure[EvalF])
 
-      underTest.validate(child, parent).left.value shouldBe ConsensusValidation.Eval.Failures
+      underTest.validate(child, parent).left.value shouldBe BlockHeaderValidation.Eval.Failures
         .InvalidVrfCertificate(child.vrfCertificate)
     }
   }
@@ -142,13 +142,13 @@ class ConsensusValidationSpec
       Gen.const(KeyInitializer.Instances.vrfInitializer.random()),
       taktikosAddressGen
     ) { case (parent, (txRoot, bloomFilter, eta), relativeStake, vrfSecret, address) =>
-      val etaInterpreter = mock[EtaLookupAlgebra[EvalF]]
+      val etaInterpreter = mock[EtaValidationAlgebra[EvalF]]
       val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
       val underTest =
-        ConsensusValidation.Eval.Stateful
+        BlockHeaderValidation.Eval.Stateful
           .make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
 
-      val vrfHit = LeaderElection.Hit.Eval.make[EvalF](vrfSecret, leaderElectionInterpreter)
+      val vrfHit = LeaderElectionValidation.Hit.Eval.make[EvalF](vrfSecret, leaderElectionInterpreter)
 
       val Some(hit) = LazyList
         .from(parent.slot.toInt + 1)
@@ -171,7 +171,7 @@ class ConsensusValidationSpec
 
       val kesKey = {
         implicit val slot: Slot = 5000
-        KeyInitializer[PrivateKeys.Kes].random().evolveSteps(unsigned.slot - slot)
+        KeyInitializer[SecretKeys.SymmetricMMM].random().evolveSteps(unsigned.slot - slot)
       }
 
       val child =
@@ -205,7 +205,7 @@ class ConsensusValidationSpec
       underTest
         .validate(child, parent)
         .left
-        .value shouldBe a[ConsensusValidation.Eval.Failures.InvalidVrfThreshold]
+        .value shouldBe a[BlockHeaderValidation.Eval.Failures.InvalidVrfThreshold]
     }
   }
 
@@ -220,12 +220,12 @@ class ConsensusValidationSpec
       Gen.const(KeyInitializer.Instances.vrfInitializer.random()),
       taktikosAddressGen
     ) { case (parent, (txRoot, bloomFilter, eta), relativeStake, vrfSecret, address) =>
-      val etaInterpreter = mock[EtaLookupAlgebra[EvalF]]
+      val etaInterpreter = mock[EtaValidationAlgebra[EvalF]]
       val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
       val underTest =
-        ConsensusValidation.Eval.Stateful
+        BlockHeaderValidation.Eval.Stateful
           .make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
-      val vrfHit = LeaderElection.Hit.Eval.make[EvalF](vrfSecret, leaderElectionInterpreter)
+      val vrfHit = LeaderElectionValidation.Hit.Eval.make[EvalF](vrfSecret, leaderElectionInterpreter)
 
       val Some(hit) = LazyList
         .from(parent.slot.toInt + 1)
@@ -247,7 +247,7 @@ class ConsensusValidationSpec
 
       val kesKey = {
         implicit val slot: Slot = 5000
-        KeyInitializer[PrivateKeys.Kes].random().evolveSteps(unsigned.slot - slot)
+        KeyInitializer[SecretKeys.SymmetricMMM].random().evolveSteps(unsigned.slot - slot)
       }
 
       val child =

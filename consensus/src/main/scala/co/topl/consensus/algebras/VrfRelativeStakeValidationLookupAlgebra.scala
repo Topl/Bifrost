@@ -1,9 +1,9 @@
-package co.topl.algebras
+package co.topl.consensus.algebras
 
 import co.topl.models.utility.Ratio
-import co.topl.models.{BlockHeaderV2, Slot, TaktikosAddress}
+import co.topl.models.{SlotId, TaktikosAddress}
 
-trait VrfRelativeStakeLookupAlgebra[F[_]] {
+trait VrfRelativeStakeValidationLookupAlgebra[F[_]] {
 
   /**
    * Retrieves the relative stake corresponding to the provided address in the N-2 epoch of the given block
@@ -11,5 +11,5 @@ trait VrfRelativeStakeLookupAlgebra[F[_]] {
    * @param currentSlot For validation purposes, this value is usually just block.slot.  When minting a new block, this
    *                    value corresponds to the forward-moving slot when determining VRF eligibility.
    */
-  def lookupAt(block: BlockHeaderV2, currentSlot: Slot, address: TaktikosAddress): F[Option[Ratio]]
+  def lookupAt(slotId: SlotId, address: TaktikosAddress): F[Option[Ratio]]
 }

@@ -24,61 +24,56 @@ object KeyInitializer {
 
   trait Instances {
 
-    implicit val ed25519Initializer: KeyInitializer[PrivateKeys.Ed25519] =
-      new KeyInitializer[PrivateKeys.Ed25519] {
+    implicit val ed25519Initializer: KeyInitializer[SecretKeys.Ed25519] =
+      new KeyInitializer[SecretKeys.Ed25519] {
         private val instance = new Ed25519
 
-        override def random(): PrivateKeys.Ed25519 =
+        override def random(): SecretKeys.Ed25519 =
           (fromInstanceTypes _).tupled(instance.createKeyPair)
 
-        override def fromSeed(seed: Bytes): PrivateKeys.Ed25519 =
+        override def fromSeed(seed: Bytes): SecretKeys.Ed25519 =
           (fromInstanceTypes _).tupled(instance.createKeyPair(seed.toArray))
 
         private def fromInstanceTypes(priv: co.topl.crypto.PrivateKey, pub: co.topl.crypto.PublicKey) =
-          PrivateKeys.Ed25519(
-            Sized.strictUnsafe[Bytes, PrivateKeys.Ed25519.Length](Bytes(priv.value))
+          SecretKeys.Ed25519(
+            Sized.strictUnsafe[Bytes, SecretKeys.Ed25519.Length](Bytes(priv.value))
           )
       }
 
-    implicit val vrfInitializer: KeyInitializer[PrivateKeys.Vrf] =
-      new KeyInitializer[PrivateKeys.Vrf] {
+    implicit val vrfInitializer: KeyInitializer[SecretKeys.Vrf] =
+      new KeyInitializer[SecretKeys.Vrf] {
 
-        def random(): PrivateKeys.Vrf =
+        def random(): SecretKeys.Vrf =
           (fromLib _).tupled(Ed25519VRF.instance.createKeyPair)
 
-        def fromSeed(seed: Bytes): PrivateKeys.Vrf =
+        def fromSeed(seed: Bytes): SecretKeys.Vrf =
           (fromLib _).tupled(Ed25519VRF.instance.createKeyPair(seed.toArray))
 
-        private def fromLib(sk: co.topl.crypto.PrivateKey, pk: co.topl.crypto.PublicKey): PrivateKeys.Vrf =
-          PrivateKeys.Vrf(PrivateKeys.Ed25519(Sized.strictUnsafe(Bytes(sk.value))))
+        private def fromLib(sk: co.topl.crypto.PrivateKey, pk: co.topl.crypto.PublicKey): SecretKeys.Vrf =
+          SecretKeys.Vrf(SecretKeys.Ed25519(Sized.strictUnsafe(Bytes(sk.value))))
       }
 
-    implicit def kesInitializer(implicit slot: Slot): KeyInitializer[PrivateKeys.Kes] =
-      new KeyInitializer[PrivateKeys.Kes] {
+    implicit def kesInitializer(implicit slot: Slot): KeyInitializer[SecretKeys.SymmetricMMM] =
+      new KeyInitializer[SecretKeys.SymmetricMMM] {
         private val scheme = new KeyEvolvingSignatureScheme
 
-        def random(): PrivateKeys.Kes =
-          fromLib(
-            SymmetricKey.newFromSeed(
-              new SecureRandom().generateSeed(32),
-              offset = slot,
-              // TODO:
-              signer = _ => Proofs.SignatureEd25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0))))
-            )
+        def random(): SecretKeys.SymmetricMMM =
+          SymmetricKey.newFromSeed(
+            new SecureRandom().generateSeed(32),
+            offset = slot,
+            // TODO:
+            signer = _ => Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0))))
           )
 
-        def fromSeed(seed: Bytes): PrivateKeys.Kes =
-          fromLib(SymmetricKey.newFromSeed(seed.toArray, offset = slot, signer = ???))
-
-        private def fromLib(key: SymmetricKey): PrivateKeys.Kes =
-          PrivateKeys.Kes(Sized.strictUnsafe(Bytes(key.getBytes)))
+        def fromSeed(seed: Bytes): SecretKeys.SymmetricMMM =
+          SymmetricKey.newFromSeed(seed.toArray, offset = slot, signer = ???)
 
       }
 
-    implicit def extendedEd25519Initializer(implicit entropy: Entropy): KeyInitializer[PrivateKeys.ExtendedEd25519] =
-      new KeyInitializer[PrivateKeys.ExtendedEd25519] {
+    implicit def extendedEd25519Initializer(implicit entropy: Entropy): KeyInitializer[SecretKeys.ExtendedEd25519] =
+      new KeyInitializer[SecretKeys.ExtendedEd25519] {
 
-        def random(): PrivateKeys.ExtendedEd25519 =
+        def random(): SecretKeys.ExtendedEd25519 =
           fromSeed(
             Bytes(
               Pbkdf2Sha512.generateKey(
@@ -90,7 +85,7 @@ object KeyInitializer {
             )
           )
 
-        def fromSeed(seed: Bytes): PrivateKeys.ExtendedEd25519 = {
+        def fromSeed(seed: Bytes): SecretKeys.ExtendedEd25519 = {
           // first do a PBDKF2-HMAC-SHA512 per the SLIP2-0023 spec
           val seed = Pbkdf2Sha512.generateKey(
             Array.emptyByteArray,
@@ -101,20 +96,20 @@ object KeyInitializer {
           // turn seed into a valid ExtendedPrivateKeyEd25519 per the SLIP-0023 spec
           seed(0) = (seed(0) & 0xf8).toByte
           seed(31) = ((seed(31) & 0x1f) | 0x40).toByte
-          PrivateKeys.ExtendedEd25519(
-            Sized.strictUnsafe[Bytes, PrivateKeys.ExtendedEd25519.LeftLength](Bytes(seed.slice(0, 32))),
-            Sized.strictUnsafe[Bytes, PrivateKeys.ExtendedEd25519.RightLength](Bytes(seed.slice(0, 32))),
-            Sized.strictUnsafe[Bytes, PrivateKeys.ExtendedEd25519.ChainCodeLength](Bytes(seed.slice(0, 32)))
+          SecretKeys.ExtendedEd25519(
+            Sized.strictUnsafe[Bytes, SecretKeys.ExtendedEd25519.LeftLength](Bytes(seed.slice(0, 32))),
+            Sized.strictUnsafe[Bytes, SecretKeys.ExtendedEd25519.RightLength](Bytes(seed.slice(0, 32))),
+            Sized.strictUnsafe[Bytes, SecretKeys.ExtendedEd25519.ChainCodeLength](Bytes(seed.slice(0, 32)))
           )
         }
       }
 
     implicit def extendedEd25519PasswordInitializer(implicit
       entropy: Entropy
-    ): KeyInitializer[String => PrivateKeys.ExtendedEd25519] =
-      new KeyInitializer[String => PrivateKeys.ExtendedEd25519] {
+    ): KeyInitializer[String => SecretKeys.ExtendedEd25519] =
+      new KeyInitializer[String => SecretKeys.ExtendedEd25519] {
 
-        def random(): String => PrivateKeys.ExtendedEd25519 =
+        def random(): String => SecretKeys.ExtendedEd25519 =
           password =>
             fromSeed(
               Bytes(
@@ -127,17 +122,17 @@ object KeyInitializer {
               )
             )(password)
 
-        def fromSeed(seed: Bytes): String => PrivateKeys.ExtendedEd25519 = {
+        def fromSeed(seed: Bytes): String => SecretKeys.ExtendedEd25519 = {
           // The password is already assumed to be encapsulated by the seed
           _ =>
             val seedArray = seed.toArray
             // turn seed into a valid ExtendedPrivateKeyEd25519 per the SLIP-0023 spec
             seedArray(0) = (seedArray(0) & 0xf8).toByte
             seedArray(31) = ((seedArray(31) & 0x1f) | 0x40).toByte
-            PrivateKeys.ExtendedEd25519(
-              Sized.strictUnsafe[Bytes, PrivateKeys.ExtendedEd25519.LeftLength](Bytes(seedArray.slice(0, 32))),
-              Sized.strictUnsafe[Bytes, PrivateKeys.ExtendedEd25519.RightLength](Bytes(seedArray.slice(0, 32))),
-              Sized.strictUnsafe[Bytes, PrivateKeys.ExtendedEd25519.ChainCodeLength](Bytes(seedArray.slice(0, 32)))
+            SecretKeys.ExtendedEd25519(
+              Sized.strictUnsafe[Bytes, SecretKeys.ExtendedEd25519.LeftLength](Bytes(seedArray.slice(0, 32))),
+              Sized.strictUnsafe[Bytes, SecretKeys.ExtendedEd25519.RightLength](Bytes(seedArray.slice(0, 32))),
+              Sized.strictUnsafe[Bytes, SecretKeys.ExtendedEd25519.ChainCodeLength](Bytes(seedArray.slice(0, 32)))
             )
         }
       }

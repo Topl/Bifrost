@@ -15,12 +15,6 @@ trait ModelGenerators {
   def relativeStakeGen: Gen[Ratio] =
     Gen.chooseNum(1L, 5L).flatMap(denominator => Ratio(1L, denominator))
 
-  def vrfSecretGen: Gen[KeyPairs.Vrf] =
-    for {
-      publicKey  <- genSizedStrictBytes[Lengths.`32`.type]().map(PublicKeys.Ed25519(_)).map(PublicKeys.Vrf)
-      privateKey <- genSizedStrictBytes[Lengths.`32`.type]().map(PrivateKeys.Ed25519(_)).map(PrivateKeys.Vrf)
-    } yield KeyPairs.Vrf(privateKey, publicKey)
-
   def mmmProofGen: Gen[Proofs.Consensus.MMM] =
     for {
       sigi   <- genSizedStrictBytes[Lengths.`704`.type]().map(_.data)
@@ -39,14 +33,14 @@ trait ModelGenerators {
 
   def vrfCertificateGen: Gen[Vrf.Certificate] =
     for {
-      publicKey  <- genSizedStrictBytes[Lengths.`32`.type]().map(PublicKeys.Ed25519(_)).map(PublicKeys.Vrf)
+      publicKey  <- genSizedStrictBytes[Lengths.`32`.type]().map(VerificationKeys.Ed25519(_)).map(VerificationKeys.Vrf)
       nonceProof <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Consensus.Nonce(_))
       testProof  <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Consensus.VrfTest(_))
     } yield Vrf.Certificate(publicKey, nonceProof, testProof)
 
   def kesCertificateGen: Gen[KesCertificate] =
     for {
-      publicKey <- genSizedStrictBytes[Lengths.`32`.type]().map(PublicKeys.Kes(_, 0))
+      publicKey <- genSizedStrictBytes[Lengths.`32`.type]().map(VerificationKeys.Kes(_, 0))
       kesProof  <- kesProofGen
       mmmProof  <- mmmProofGen
     } yield KesCertificate(publicKey, kesProof, mmmProof)

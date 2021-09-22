@@ -2,8 +2,9 @@ package co.topl.minting
 
 import cats.Monad
 import cats.implicits._
-import co.topl.algebras.{BlockSigningAlgebra, ClockAlgebra, KeyEvolverAlgebra}
+import co.topl.algebras.ClockAlgebra
 import co.topl.crypto.typeclasses.implicits._
+import co.topl.minting.algebras.{BlockSigningAlgebra, KeyEvolverAlgebra}
 import co.topl.models.{BlockBodyV2, BlockHeaderV2, BlockV2}
 import co.topl.typeclasses.implicits._
 

@@ -1,4 +1,4 @@
-package co.topl.algebras
+package co.topl.minting.algebras
 
 import co.topl.models._
 

@@ -9,7 +9,7 @@ import co.topl.crypto.typeclasses.implicits._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.Sized
-import co.topl.models.{Bytes, PrivateKeys, Proofs, PublicKeys}
+import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
 import com.google.common.primitives
 
 import java.util.UUID
@@ -18,13 +18,13 @@ import scala.util.{Failure, Success, Try}
 
 case class HdKesScheme(
   registrationSlot:    Long,
-  rootVerificationKey: PublicKeys.ExtendedEd25519,
-  privateKeySet:       mutable.Map[Derivative.KeyIndexes.Soft, PrivateKeys.ExtendedEd25519]
+  rootVerificationKey: VerificationKeys.ExtendedEd25519,
+  privateKeySet:       mutable.Map[Derivative.KeyIndexes.Soft, SecretKeys.ExtendedEd25519]
 ) {
 
   import HdKesScheme.serializer
 
-  def deriveVerificationKey(index: Int): PublicKeys.ExtendedEd25519 =
+  def deriveVerificationKey(index: Int): VerificationKeys.ExtendedEd25519 =
     rootVerificationKey.softDerive(Derivative.KeyIndexes.Soft(index))
 
   def generateKESKey(index: Int): SymmetricKey = Try {
@@ -38,7 +38,7 @@ case class HdKesScheme(
       blake2b256.hash(privateKeySet(softIndex).leftKey.data.toArray).value,
       registrationSlot + softIndex.value * SymmetricKey.maxKeyTimeSteps,
       bytes =>
-        Proves[PrivateKeys.ExtendedEd25519, Proofs.SignatureEd25519].proveWith(privateKeySet(softIndex), bytes.toArray)
+        Proves[SecretKeys.ExtendedEd25519, Proofs.SignatureEd25519].proveWith(privateKeySet(softIndex), bytes.toArray)
     )
     privateKeySet.remove(softIndex)
     sk_KES
@@ -55,9 +55,10 @@ object HdKesScheme {
 
   def apply(totalNumberOfKeys: Int, registrationSlot: Long): HdKesScheme = {
     implicit val entropy: Entropy = Entropy.fromUuid(UUID.randomUUID())
-    val skm = KeyInitializer[PrivateKeys.ExtendedEd25519].random()
+    val skm = KeyInitializer[SecretKeys.ExtendedEd25519].random()
     val skIndex = Array.range(0, totalNumberOfKeys).map(idx => Derivative.KeyIndexes.Soft(idx.toLong))
-    val pkm = ContainsVerificationKey[PrivateKeys.ExtendedEd25519, PublicKeys.ExtendedEd25519].verificationKeyOf(skm)
+    val pkm =
+      ContainsVerificationKey[SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519].verificationKeyOf(skm)
     new HdKesScheme(
       registrationSlot,
       pkm,
@@ -97,13 +98,13 @@ object HdKesScheme {
       val out3 = stream.get(32)
       val out4len = stream.getInt
       var i = 0
-      val out4: mutable.Map[Derivative.KeyIndexes.Soft, PrivateKeys.ExtendedEd25519] = mutable.Map.empty
+      val out4: mutable.Map[Derivative.KeyIndexes.Soft, SecretKeys.ExtendedEd25519] = mutable.Map.empty
       while (i < out4len) {
         val index = Derivative.KeyIndexes.Soft(stream.getLong)
         val leftKey = Bytes(stream.get(32))
         val rightKey = Bytes(stream.get(32))
         val chainCode = Bytes(stream.get(32))
-        val sk = PrivateKeys.ExtendedEd25519(
+        val sk = SecretKeys.ExtendedEd25519(
           Sized.strictUnsafe(leftKey),
           Sized.strictUnsafe(rightKey),
           Sized.strictUnsafe(chainCode)
@@ -114,7 +115,7 @@ object HdKesScheme {
       assert(stream.empty)
       HdKesScheme(
         out1,
-        PublicKeys.ExtendedEd25519(Sized.strictUnsafe(Bytes(out2)), Sized.strictUnsafe(Bytes(out3))),
+        VerificationKeys.ExtendedEd25519(Sized.strictUnsafe(Bytes(out2)), Sized.strictUnsafe(Bytes(out3))),
         out4
       )
     }

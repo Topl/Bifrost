@@ -2,12 +2,7 @@ package co.topl.consensus
 
 import cats.MonadError
 import cats.implicits._
-import co.topl.algebras.{
-  BlockHeaderValidationAlgebra,
-  EtaLookupAlgebra,
-  LeaderElectionEligibilityAlgebra,
-  VrfRelativeStakeLookupAlgebra
-}
+import co.topl.consensus.algebras._
 import co.topl.consensus.vrf.ProofToHash
 import co.topl.crypto.kes.KesVerifier
 import co.topl.crypto.typeclasses.implicits._
@@ -15,37 +10,14 @@ import co.topl.models._
 import co.topl.models.utility.Ratio
 import co.topl.typeclasses.implicits._
 
-import java.nio.charset.StandardCharsets
 import scala.language.implicitConversions
 
 /**
  * Interpreters for the ConsensusValidationAlgebra
  */
-object ConsensusValidation {
+object BlockHeaderValidation {
 
   object Eval {
-
-    sealed abstract class Failure
-
-    object Failures {
-      case class NonForwardSlot(slot: Slot, parentSlot: Slot) extends Failure
-
-      case class NonForwardTimestamp(timestamp: Timestamp, parentTimestamp: Timestamp) extends Failure
-
-      case class ParentMismatch(expectedParentId: TypedIdentifier, parentId: TypedIdentifier) extends Failure
-
-      case class InvalidVrfThreshold(threshold: Ratio) extends Failure
-
-      case class IneligibleVrfCertificate(threshold: Ratio, vrfCertificate: Vrf.Certificate) extends Failure
-
-      case class InvalidVrfCertificate(vrfCertificate: Vrf.Certificate) extends Failure
-
-      case class InvalidKesCertificateKESProof(kesCertificate: KesCertificate) extends Failure
-
-      case class InvalidKesCertificateMMMProof(kesCertificate: KesCertificate) extends Failure
-
-      case class IncompleteEpochData(epoch: Epoch) extends Failure
-    }
 
     object Stateless {
 
@@ -58,12 +30,16 @@ object ConsensusValidation {
               child.timestamp > parent.timestamp
             )
             .ensureOr(child => Failures.ParentMismatch(child.parentHeaderId, parent.id))(_.parentHeaderId == parent.id)
+            .ensureOr(child => Failures.NonForwardHeight(child.height, parent.height))(
+              _.height == parent.height + 1
+            )
     }
 
     object MinimalState {
 
+      // TODO: Validate incoming blocks are not past the *global* slot
       def make[F[_]: MonadError[*[_], Failure]](
-        epochNoncesInterpreter: EtaLookupAlgebra[F]
+        etaInterpreter: EtaValidationAlgebra[F]
       ): BlockHeaderValidationAlgebra[F] = new BlockHeaderValidationAlgebra[F] {
         private val statelessInterpreter = Stateless.make[F]
 
@@ -77,20 +53,24 @@ object ConsensusValidation {
          * Verifies the given block's VRF certificate syntactic integrity for a particular stateful nonce
          */
         private[consensus] def vrfVerification(header: BlockHeaderV2): F[BlockHeaderV2] =
-          epochNoncesInterpreter
-            .etaOf(header, header.slot)
+          etaInterpreter
+            .etaOf((header.slot, header.id))
             .flatMap { eta =>
               val certificate = header.vrfCertificate
               header
                 .pure[F]
-                .ensureOr(header => Failures.InvalidVrfCertificate(header.vrfCertificate))(header =>
+                .ensureOr(header => Failures.InvalidVrfCertificateTestProof(header.vrfCertificate.testProof))(header =>
                   certificate.testProof.satisfies(
                     certificate.vkVRF.proposition,
-                    eta.data.toArray ++ BigInt(header.slot).toByteArray ++ "TEST".getBytes(StandardCharsets.UTF_8)
-                  ) && certificate.nonceProof.satisfies(
-                    certificate.vkVRF.proposition,
-                    eta.data.toArray ++ BigInt(header.slot).toByteArray ++ "NONCE".getBytes(StandardCharsets.UTF_8)
+                    LeaderElectionValidation.VrfArgument(eta, header.slot, LeaderElectionValidation.Tokens.Test)
                   )
+                )
+                .ensureOr(header => Failures.InvalidVrfCertificateNonceProof(header.vrfCertificate.nonceProof))(
+                  header =>
+                    certificate.nonceProof.satisfies(
+                      certificate.vkVRF.proposition,
+                      LeaderElectionValidation.VrfArgument(eta, header.slot, LeaderElectionValidation.Tokens.Nonce)
+                    )
                 )
             }
 
@@ -100,11 +80,17 @@ object ConsensusValidation {
         private[consensus] def kesVerification(header: BlockHeaderV2): F[BlockHeaderV2] =
           header
             .pure[F]
+            //
             .ensureOr(header => Failures.InvalidKesCertificateKESProof(header.kesCertificate))(header =>
+              // Did the skHD
+              // Does the KES proof satisfy vkHD using data (vkKES)
               true ||
               header.kesCertificate.kesProof
-                .satisfies(Propositions.Consensus.PublicKeyKes(header.kesCertificate.vkKES), header)
+                .satisfies(Propositions.PublicKeyEd25519(header.kesCertificate.vkHD), header.kesCertificate.vkKES)
             )
+            // TODO: Is `vki` committed to?
+            // MMM Verification
+            // Check signature against block bytes
             .ensureOr(header => Failures.InvalidKesCertificateMMMProof(header.kesCertificate))(header =>
               KesVerifier.verify(header, header.kesCertificate.mmmProof, header.slot)
             )
@@ -114,9 +100,9 @@ object ConsensusValidation {
     object Stateful {
 
       def make[F[_]: MonadError[*[_], Failure]](
-        epochNoncesInterpreter:   EtaLookupAlgebra[F],
-        relativeStakeInterpreter: VrfRelativeStakeLookupAlgebra[F],
-        leaderElection:           LeaderElectionEligibilityAlgebra[F]
+        epochNoncesInterpreter:   EtaValidationAlgebra[F],
+        relativeStakeInterpreter: VrfRelativeStakeValidationLookupAlgebra[F],
+        leaderElection:           LeaderElectionValidationAlgebra[F]
       ): BlockHeaderValidationAlgebra[F] = new BlockHeaderValidationAlgebra[F] {
 
         private val minimalStateInterpreter = MinimalState.make[F](epochNoncesInterpreter)
@@ -139,7 +125,7 @@ object ConsensusValidation {
          */
         private def vrfThresholdFor(child: BlockHeaderV2, parent: BlockHeaderV2): F[Ratio] =
           relativeStakeInterpreter
-            .lookupAt(child, child.slot, child.address)
+            .lookupAt((child.slot, child.id), child.address)
             .flatMap(relativeStake =>
               leaderElection.getThreshold(
                 relativeStake.getOrElse(Ratio(0)),
@@ -166,11 +152,40 @@ object ConsensusValidation {
 
         /**
          * Verifies the staker's registration
+         * 1. Does the hash of the vkvrf that was included in the block header == TaktikosRegistration.vrfCommitment in the registration box
+         * 2. Is the vki (header.cert.vkHD) in the set committed to by vkm.  What is the index for extended VK?
+         *      TaktikosRegistration.extendedVk.evolve(index) == header.cert.vkHD
          */
         private[consensus] def registrationVerification(header: BlockHeaderV2): F[BlockHeaderV2] =
           header.pure[F]
 
       }
     }
+  }
+
+  sealed abstract class Failure
+
+  object Failures {
+    case class NonForwardSlot(slot: Slot, parentSlot: Slot) extends Failure
+
+    case class NonForwardTimestamp(timestamp: Timestamp, parentTimestamp: Timestamp) extends Failure
+
+    case class NonForwardHeight(height: Long, parentHeight: Long) extends Failure
+
+    case class ParentMismatch(expectedParentId: TypedIdentifier, parentId: TypedIdentifier) extends Failure
+
+    case class InvalidVrfThreshold(threshold: Ratio) extends Failure
+
+    case class IneligibleVrfCertificate(threshold: Ratio, vrfCertificate: Vrf.Certificate) extends Failure
+
+    case class InvalidVrfCertificateTestProof(proof: Proofs.Vrf.Test) extends Failure
+
+    case class InvalidVrfCertificateNonceProof(proof: Proofs.Vrf.Nonce) extends Failure
+
+    case class InvalidKesCertificateKESProof(kesCertificate: KesCertificate) extends Failure
+
+    case class InvalidKesCertificateMMMProof(kesCertificate: KesCertificate) extends Failure
+
+    case class IncompleteEpochData(epoch: Epoch) extends Failure
   }
 }

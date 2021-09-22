@@ -1,6 +1,6 @@
 package co.topl.crypto.typeclasses
 
-import co.topl.models.{Proposition, Propositions, PublicKeys}
+import co.topl.models.{Proposition, Propositions, VerificationKeys}
 import scala.language.implicitConversions
 
 trait Proposes[T, Prop <: Proposition] {
@@ -29,13 +29,13 @@ object Proposes {
 
   trait Instances {
 
-    implicit val ed25519Proposes: Proposes[PublicKeys.Ed25519, Propositions.PublicKeyEd25519] =
+    implicit val ed25519Proposes: Proposes[VerificationKeys.Ed25519, Propositions.PublicKeyEd25519] =
       t => Propositions.PublicKeyEd25519(t)
 
-    implicit val vrfProposes: Proposes[PublicKeys.Vrf, Propositions.Consensus.PublicKeyVrf] =
+    implicit val vrfProposes: Proposes[VerificationKeys.Vrf, Propositions.Consensus.PublicKeyVrf] =
       t => Propositions.Consensus.PublicKeyVrf(t)
 
-    implicit val kesProposes: Proposes[PublicKeys.Kes, Propositions.Consensus.PublicKeyKes] =
+    implicit val kesProposes: Proposes[VerificationKeys.Kes, Propositions.Consensus.PublicKeyKes] =
       t => Propositions.Consensus.PublicKeyKes(t)
   }
 

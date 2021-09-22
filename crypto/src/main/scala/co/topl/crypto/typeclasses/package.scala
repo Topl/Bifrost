@@ -4,6 +4,7 @@ package object typeclasses {
 
   object implicits
       extends ContainsVerificationKey.Instances
+      with ContainsVerificationKey.Implicits
       with Evolves.Instances
       with Evolves.ToEvolvesOps
       with KeyInitializer.Instances

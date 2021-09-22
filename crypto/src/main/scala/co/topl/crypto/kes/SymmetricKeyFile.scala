@@ -3,6 +3,8 @@ package co.topl.crypto.kes
 import co.topl.crypto.Base58
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.kes.keys._
+import co.topl.crypto.typeclasses.implicits._
+import co.topl.models.{SecretKeys, VerificationKeys}
 import com.google.common.primitives.Ints
 import io.circe.parser.parse
 import io.circe.syntax._
@@ -35,14 +37,17 @@ case class SymmetricKeyFile(kes_info: CipherInfo, fileName: String, oldFileName:
    * @param password pass phrase used in AES encryption scheme
    * @return
    */
-  def getKey(password: String): Try[SymmetricKey] = decryptKesSK(password)
+  def getKey(password: String): Try[SecretKeys.SymmetricMMM] = decryptKesSK(password)
 
-  private def decryptKesSK(password: String): Try[SymmetricKey] = Try {
+  private def decryptKesSK(password: String): Try[SecretKeys.SymmetricMMM] = Try {
     val derivedKey = getDerivedKey(password, kes_info.salt)
     val (decrypted, mac_check) = decryptAES(derivedKey, kes_info.iv, kes_info.cipherText)
     require(mac_check sameElements kes_info.mac, "Error: MAC does not match")
     val decryptedKey = SymmetricKey.deserializeSymmetricKey(decrypted)
-    require(kes_info.pubKey sameElements decryptedKey.getVerificationKey.value, "Error: PublicKey in file is invalid")
+    require(
+      kes_info.pubKey sameElements decryptedKey.verificationKey[VerificationKeys.Kes].bytes.data.toArray,
+      "Error: PublicKey in file is invalid"
+    )
     decryptedKey
   }
 
@@ -75,13 +80,13 @@ object SymmetricKeyFile {
   def newKeyFile(
     password:      String,
     defaultKeyDir: String,
-    symmetricKey:  SymmetricKey
+    symmetricKey:  SecretKeys.SymmetricMMM
   ): SymmetricKeyFile = {
     val kes_info = {
       val salt = blake2b256.hash(uuid).value
       val ivData = blake2b256.hash(uuid).value.slice(0, 16)
       val derivedKey = getDerivedKey(password, salt)
-      val keyBytes: Array[Byte] = symmetricKey.getBytes
+      val keyBytes: Array[Byte] = symmetricKey.bytes.toArray
       val (cipherText, mac) = encryptAES(derivedKey, ivData, keyBytes)
       CipherInfo(symmetricKey.getVerificationKey.value, cipherText, mac, salt, ivData)
     }
@@ -109,7 +114,7 @@ object SymmetricKeyFile {
 
   def updateKeyFile(
     keyFile:       SymmetricKeyFile,
-    updatedKey:    SymmetricKey,
+    updatedKey:    SecretKeys.SymmetricMMM,
     password:      String,
     defaultKeyDir: String,
     salt:          Array[Byte] = blake2b256.hash(uuid).value,

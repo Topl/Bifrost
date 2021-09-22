@@ -4,6 +4,7 @@ import cats._
 import cats.data.OptionT
 import cats.implicits._
 import co.topl.algebras._
+import co.topl.minting.algebras.{BlockMintAlgebra, StakingAlgebra}
 import co.topl.models._
 import co.topl.typeclasses.implicits._
 

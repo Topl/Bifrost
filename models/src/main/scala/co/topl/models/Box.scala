@@ -24,7 +24,11 @@ object Box {
     }
 
     // Note: We don't need to worry about these for phase 0
-    case class TaktikosRegistration(registration: Registration, signature: Signature) extends Value
+    case class TaktikosRegistration(
+      vrfCommitment:    Sized.Strict[Bytes, Lengths.`32`.type],
+      extendedVk:       VerificationKeys.ExtendedEd25519,
+      registrationSlot: Slot
+    ) extends Value
     case class TaktikosDelegation(address: TaktikosAddress) extends Value
   }
 }

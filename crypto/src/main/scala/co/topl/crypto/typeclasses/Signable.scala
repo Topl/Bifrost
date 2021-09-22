@@ -2,7 +2,7 @@ package co.topl.crypto.typeclasses
 
 import co.topl.codecs.bytes.BasicCodecs._
 import co.topl.codecs.bytes.ByteCodec.implicits._
-import co.topl.models.{BlockHeaderV2, Bytes, PublicKeys}
+import co.topl.models.{BlockHeaderV2, Bytes, VerificationKeys}
 import simulacrum.{op, typeclass}
 
 @typeclass trait Signable[T] {
@@ -42,8 +42,8 @@ object Signable {
           )
         )
 
-    implicit val kesPublicKeySignable: Signable[PublicKeys.Kes] =
-      vk => vk.bytes.data ++ Bytes(BigInt(vk.offset).toByteArray)
+    implicit val kesPublicKeySignable: Signable[VerificationKeys.Kes] =
+      vk => vk.bytes.data
 
     implicit val byteArray: Signable[Array[Byte]] = Bytes(_)
   }

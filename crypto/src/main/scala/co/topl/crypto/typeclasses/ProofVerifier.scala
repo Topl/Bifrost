@@ -43,11 +43,11 @@ object ProofVerifier {
 
   trait Instances {
 
-    implicit val publicKeyCurve25519: ProofVerifier[Proofs.SignatureCurve25519, Propositions.PublicKeyCurve25519] =
-      new ProofVerifier[Proofs.SignatureCurve25519, Propositions.PublicKeyCurve25519] {
+    implicit val publicKeyCurve25519: ProofVerifier[Proofs.Signature.Curve25519, Propositions.PublicKeyCurve25519] =
+      new ProofVerifier[Proofs.Signature.Curve25519, Propositions.PublicKeyCurve25519] {
 
         override def verifyWith[Data: Signable](
-          proof:       Proofs.SignatureCurve25519,
+          proof:       Proofs.Signature.Curve25519,
           proposition: Propositions.PublicKeyCurve25519,
           data:        Data
         ): Boolean = Curve25519.verify(
@@ -57,12 +57,12 @@ object ProofVerifier {
         )
       }
 
-    implicit val publicKeyEd25519: ProofVerifier[Proofs.SignatureEd25519, Propositions.PublicKeyEd25519] =
-      new ProofVerifier[Proofs.SignatureEd25519, Propositions.PublicKeyEd25519] {
+    implicit val publicKeyEd25519: ProofVerifier[Proofs.Signature.Ed25519, Propositions.PublicKeyEd25519] =
+      new ProofVerifier[Proofs.Signature.Ed25519, Propositions.PublicKeyEd25519] {
         private val ed25519 = new Ed25519()
 
         override def verifyWith[Data: Signable](
-          proof:       Proofs.SignatureEd25519,
+          proof:       Proofs.Signature.Ed25519,
           proposition: Propositions.PublicKeyEd25519,
           data:        Data
         ): Boolean = ed25519.verify(
@@ -73,11 +73,11 @@ object ProofVerifier {
       }
 
     implicit val thresholdCurve25519
-      : ProofVerifier[Proofs.ThresholdSignatureCurve25519, Propositions.ThresholdCurve25519] =
-      new ProofVerifier[Proofs.ThresholdSignatureCurve25519, Propositions.ThresholdCurve25519] {
+      : ProofVerifier[Proofs.Threshold.SignatureCurve25519, Propositions.ThresholdCurve25519] =
+      new ProofVerifier[Proofs.Threshold.SignatureCurve25519, Propositions.ThresholdCurve25519] {
 
         override def verifyWith[Data: Signable](
-          proof:       Proofs.ThresholdSignatureCurve25519,
+          proof:       Proofs.Threshold.SignatureCurve25519,
           proposition: Propositions.ThresholdCurve25519,
           data:        Data
         ): Boolean = {
@@ -107,13 +107,13 @@ object ProofVerifier {
         }
       }
 
-    implicit val thresholdEd25519: ProofVerifier[Proofs.ThresholdSignatureEd25519, Propositions.ThresholdEd25519] =
-      new ProofVerifier[Proofs.ThresholdSignatureEd25519, Propositions.ThresholdEd25519] {
+    implicit val thresholdEd25519: ProofVerifier[Proofs.Threshold.SignatureEd25519, Propositions.ThresholdEd25519] =
+      new ProofVerifier[Proofs.Threshold.SignatureEd25519, Propositions.ThresholdEd25519] {
 
         private val ed25519 = new Ed25519()
 
         override def verifyWith[Data: Signable](
-          proof:       Proofs.ThresholdSignatureEd25519,
+          proof:       Proofs.Threshold.SignatureEd25519,
           proposition: Propositions.ThresholdEd25519,
           data:        Data
         ): Boolean = {
@@ -153,11 +153,11 @@ object ProofVerifier {
         ): Boolean = true // TODO
       }
 
-    implicit val consensusVrfTest: ProofVerifier[Proofs.Consensus.VrfTest, Propositions.Consensus.PublicKeyVrf] =
-      new ProofVerifier[Proofs.Consensus.VrfTest, Propositions.Consensus.PublicKeyVrf] {
+    implicit val consensusVrfTest: ProofVerifier[Proofs.Vrf.Test, Propositions.Consensus.PublicKeyVrf] =
+      new ProofVerifier[Proofs.Vrf.Test, Propositions.Consensus.PublicKeyVrf] {
 
         override def verifyWith[Data: Signable](
-          proof:       Proofs.Consensus.VrfTest,
+          proof:       Proofs.Vrf.Test,
           proposition: Propositions.Consensus.PublicKeyVrf,
           data:        Data
         ): Boolean =
@@ -170,11 +170,11 @@ object ProofVerifier {
           ).getOrElse(false)
       }
 
-    implicit val consensusVrfNonce: ProofVerifier[Proofs.Consensus.Nonce, Propositions.Consensus.PublicKeyVrf] =
-      new ProofVerifier[Proofs.Consensus.Nonce, Propositions.Consensus.PublicKeyVrf] {
+    implicit val consensusVrfNonce: ProofVerifier[Proofs.Vrf.Nonce, Propositions.Consensus.PublicKeyVrf] =
+      new ProofVerifier[Proofs.Vrf.Nonce, Propositions.Consensus.PublicKeyVrf] {
 
         override def verifyWith[Data: Signable](
-          proof:       Proofs.Consensus.Nonce,
+          proof:       Proofs.Vrf.Nonce,
           proposition: Propositions.Consensus.PublicKeyVrf,
           data:        Data
         ): Boolean = Try(
@@ -184,21 +184,6 @@ object ProofVerifier {
             proof.bytes.data.toArray
           )
         ).getOrElse(false)
-      }
-
-    implicit val consensusKesCertificate
-      : ProofVerifier[Proofs.Consensus.KesCertificate, Propositions.Consensus.PublicKeyKes] =
-      new ProofVerifier[Proofs.Consensus.KesCertificate, Propositions.Consensus.PublicKeyKes] {
-
-        override def verifyWith[Data: Signable](
-          proof:       Proofs.Consensus.KesCertificate,
-          proposition: Propositions.Consensus.PublicKeyKes,
-          data:        Data
-        ): Boolean = publicKeyEd25519.verifyWith(
-          Proofs.SignatureEd25519(proof.signature),
-          Propositions.PublicKeyEd25519(PublicKeys.Ed25519(proposition.key.bytes)),
-          data
-        )
       }
   }
 
