@@ -9,7 +9,6 @@ import co.topl.modifier.transaction.Transaction
 import co.topl.network.Broadcast
 import co.topl.network.NetworkController.ReceivableMessages.SendToNetwork
 import co.topl.network.message.{InvData, InvSpec, Message}
-import co.topl.nodeView.MemPoolAuditor.ReceivableMessages.RunCleanup
 import co.topl.nodeView.NodeViewHolder.Events.SemanticallySuccessfulModifier
 import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType.NetworkPrefix
@@ -88,10 +87,10 @@ private class MemPoolAuditorBehaviors(
         case Success(decision)  => decision
         case Failure(exception) => ReceivableMessages.Fail(exception)
       }
-      active(validatedTx, iteration)
+      awaitingDecision(validatedTx, iteration)
     }
 
-  private def active(validatedTx: TreeSet[Transaction.TX], iteration: Int): Behavior[ReceivableMessage] =
+  private def awaitingDecision(validatedTx: TreeSet[Transaction.TX], iteration: Int): Behavior[ReceivableMessage] =
     Behaviors.receiveMessagePartial[ReceivableMessage] {
 
       case ReceivableMessages.CleanupDecision(validatedTransactions, invalidatedTransactions) =>
