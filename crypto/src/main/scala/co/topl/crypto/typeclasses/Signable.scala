@@ -35,7 +35,7 @@ object Signable {
             header.timestamp,
             header.height,
             header.slot,
-            header.vrfCertificate,
+            header.eligibibilityCertificate,
             header.thresholdEvidence,
             header.metadata,
             header.address

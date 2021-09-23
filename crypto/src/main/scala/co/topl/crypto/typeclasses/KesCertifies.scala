@@ -5,7 +5,7 @@ import co.topl.models._
 import simulacrum.{op, typeclass}
 
 @typeclass trait KesCertifies[T] {
-  @op("certify") def certifyWith(t: T, unsignedBlock: BlockHeaderV2.Unsigned): KesCertificate
+  @op("certify") def certifyWith(t: T, unsignedBlock: BlockHeaderV2.Unsigned): OperationalCertificate
 }
 
 object KesCertifies {
@@ -16,7 +16,7 @@ object KesCertifies {
       new KesCertifies[SecretKeys.SymmetricMMM] {
         private val scheme = new KeyEvolvingSignatureScheme
 
-        def certifyWith(t: SecretKeys.SymmetricMMM, data: BlockHeaderV2.Unsigned): KesCertificate = {
+        def certifyWith(t: SecretKeys.SymmetricMMM, data: BlockHeaderV2.Unsigned): OperationalCertificate = {
           import ContainsVerificationKey.instances._
           import Signable.instances._
           import Signable.ops._
@@ -41,7 +41,7 @@ object KesCertifies {
               sig.pkl
             )
           }
-          KesCertificate(publicKey, ???, kesProof, mmmProof)
+          OperationalCertificate(publicKey, ???, kesProof, mmmProof)
         }
       }
   }

@@ -4,7 +4,6 @@ import cats.MonadError
 import cats.implicits._
 import co.topl.consensus.algebras._
 import co.topl.consensus.vrf.ProofToHash
-import co.topl.crypto.kes.KesVerifier
 import co.topl.crypto.typeclasses.implicits._
 import co.topl.models._
 import co.topl.models.utility.Ratio
@@ -56,21 +55,22 @@ object BlockHeaderValidation {
           etaInterpreter
             .etaOf((header.slot, header.id))
             .flatMap { eta =>
-              val certificate = header.vrfCertificate
+              val certificate = header.eligibibilityCertificate
               header
                 .pure[F]
-                .ensureOr(header => Failures.InvalidVrfCertificateTestProof(header.vrfCertificate.testProof))(header =>
-                  certificate.testProof.satisfies(
+                .ensureOr(header => Failures.InvalidEligibilityCertificateTestProof(certificate.vrfTestSig))(header =>
+                  certificate.vrfTestSig.satisfies(
                     certificate.vkVRF.proposition,
                     LeaderElectionValidation.VrfArgument(eta, header.slot, LeaderElectionValidation.Tokens.Test)
                   )
                 )
-                .ensureOr(header => Failures.InvalidVrfCertificateNonceProof(header.vrfCertificate.nonceProof))(
-                  header =>
-                    certificate.nonceProof.satisfies(
-                      certificate.vkVRF.proposition,
-                      LeaderElectionValidation.VrfArgument(eta, header.slot, LeaderElectionValidation.Tokens.Nonce)
-                    )
+                .ensureOr(header =>
+                  Failures.InvalidEligibilityCertificateNonceProof(header.eligibibilityCertificate.vrfNonceSig)
+                )(header =>
+                  certificate.vrfNonceSig.satisfies(
+                    certificate.vkVRF.proposition,
+                    LeaderElectionValidation.VrfArgument(eta, header.slot, LeaderElectionValidation.Tokens.Nonce)
+                  )
                 )
             }
 
@@ -81,19 +81,15 @@ object BlockHeaderValidation {
           header
             .pure[F]
             //
-            .ensureOr(header => Failures.InvalidKesCertificateKESProof(header.kesCertificate))(header =>
+            .ensureOr(header => Failures.InvalidKesCertificateKESProof(header.operationalCertificate))(header =>
               // Did the skHD
               // Does the KES proof satisfy vkHD using data (vkKES)
-              true ||
-              header.kesCertificate.kesProof
-                .satisfies(Propositions.PublicKeyEd25519(header.kesCertificate.vkHD), header.kesCertificate.vkKES)
+              true
             )
             // TODO: Is `vki` committed to?
             // MMM Verification
             // Check signature against block bytes
-            .ensureOr(header => Failures.InvalidKesCertificateMMMProof(header.kesCertificate))(header =>
-              KesVerifier.verify(header, header.kesCertificate.mmmProof, header.slot)
-            )
+            .ensureOr(header => Failures.InvalidKesCertificateMMMProof(header.operationalCertificate))(header => true)
       }
     }
 
@@ -146,8 +142,8 @@ object BlockHeaderValidation {
          */
         private[consensus] def eligibilityVerification(header: BlockHeaderV2, threshold: Ratio): F[BlockHeaderV2] =
           leaderElection
-            .isSlotLeaderForThreshold(threshold)(ProofToHash.digest(header.vrfCertificate.testProof))
-            .ensure(Failures.IneligibleVrfCertificate(threshold, header.vrfCertificate))(identity)
+            .isSlotLeaderForThreshold(threshold)(ProofToHash.digest(header.eligibibilityCertificate.vrfTestSig))
+            .ensure(Failures.IneligibleCertificate(threshold, header.eligibibilityCertificate))(identity)
             .map(_ => header)
 
         /**
@@ -176,15 +172,15 @@ object BlockHeaderValidation {
 
     case class InvalidVrfThreshold(threshold: Ratio) extends Failure
 
-    case class IneligibleVrfCertificate(threshold: Ratio, vrfCertificate: Vrf.Certificate) extends Failure
+    case class IneligibleCertificate(threshold: Ratio, eligibilityCertificate: EligibilityCertificate) extends Failure
 
-    case class InvalidVrfCertificateTestProof(proof: Proofs.Vrf.Test) extends Failure
+    case class InvalidEligibilityCertificateTestProof(proof: Proofs.Signature.VrfEd25519) extends Failure
 
-    case class InvalidVrfCertificateNonceProof(proof: Proofs.Vrf.Nonce) extends Failure
+    case class InvalidEligibilityCertificateNonceProof(proof: Proofs.Signature.VrfEd25519) extends Failure
 
-    case class InvalidKesCertificateKESProof(kesCertificate: KesCertificate) extends Failure
+    case class InvalidKesCertificateKESProof(kesCertificate: OperationalCertificate) extends Failure
 
-    case class InvalidKesCertificateMMMProof(kesCertificate: KesCertificate) extends Failure
+    case class InvalidKesCertificateMMMProof(kesCertificate: OperationalCertificate) extends Failure
 
     case class IncompleteEpochData(epoch: Epoch) extends Failure
   }

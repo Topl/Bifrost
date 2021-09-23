@@ -153,11 +153,11 @@ object ProofVerifier {
         ): Boolean = true // TODO
       }
 
-    implicit val consensusVrfTest: ProofVerifier[Proofs.Vrf.Test, Propositions.Consensus.PublicKeyVrf] =
-      new ProofVerifier[Proofs.Vrf.Test, Propositions.Consensus.PublicKeyVrf] {
+    implicit val signatureVrfEd25519: ProofVerifier[Proofs.Signature.VrfEd25519, Propositions.Consensus.PublicKeyVrf] =
+      new ProofVerifier[Proofs.Signature.VrfEd25519, Propositions.Consensus.PublicKeyVrf] {
 
         override def verifyWith[Data: Signable](
-          proof:       Proofs.Vrf.Test,
+          proof:       Proofs.Signature.VrfEd25519,
           proposition: Propositions.Consensus.PublicKeyVrf,
           data:        Data
         ): Boolean =
@@ -168,22 +168,6 @@ object ProofVerifier {
               proof.bytes.data.toArray
             )
           ).getOrElse(false)
-      }
-
-    implicit val consensusVrfNonce: ProofVerifier[Proofs.Vrf.Nonce, Propositions.Consensus.PublicKeyVrf] =
-      new ProofVerifier[Proofs.Vrf.Nonce, Propositions.Consensus.PublicKeyVrf] {
-
-        override def verifyWith[Data: Signable](
-          proof:       Proofs.Vrf.Nonce,
-          proposition: Propositions.Consensus.PublicKeyVrf,
-          data:        Data
-        ): Boolean = Try(
-          Ed25519VRF.instance.vrfVerify(
-            proposition.key.ed25519.bytes.data.toArray,
-            data.signableBytes.toArray,
-            proof.bytes.data.toArray
-          )
-        ).getOrElse(false)
       }
   }
 

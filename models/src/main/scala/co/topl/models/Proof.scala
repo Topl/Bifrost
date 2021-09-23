@@ -51,20 +51,8 @@ object Proofs {
       sigSumJ:     SumProduct,
       sigSumK:     SumProduct
     ) extends Proof
-  }
 
-  object Vrf {
-    case class Nonce(bytes: Sized.Strict[Bytes, Nonce.Length]) extends Proof
-
-    object Nonce {
-      type Length = Lengths.`80`.type
-    }
-
-    case class Test(bytes: Sized.Strict[Bytes, Test.Length]) extends Proof
-
-    object Test {
-      type Length = Lengths.`80`.type
-    }
+    case class VrfEd25519(bytes: Sized.Strict[Bytes, Lengths.`80`.type]) extends Proof
   }
 
   object Threshold {
@@ -74,13 +62,13 @@ object Proofs {
 
   case class Existence(id: TypedIdentifier) extends Proof
 
-  object Consensus {
-
-    /**
-     * Signature with a witness path that corresponds to MMM construction
-     *
-     * @see [co.topl.crypto.kes.signatures.SymmetricSignature]
-     */
-    case class MMM(sigi: Bytes, sigm: Bytes, pki: Bytes, offset: Long, pkl: Bytes) extends Proof
-  }
+//  object Consensus {
+//
+//    /**
+//     * Signature with a witness path that corresponds to MMM construction
+//     *
+//     * @see [co.topl.crypto.kes.signatures.SymmetricSignature]
+//     */
+//    case class MMM(sigi: Bytes, sigm: Bytes, pki: Bytes, offset: Long, pkl: Bytes) extends Proof
+//  }
 }

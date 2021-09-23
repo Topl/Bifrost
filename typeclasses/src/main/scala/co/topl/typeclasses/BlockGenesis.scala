@@ -24,7 +24,7 @@ object BlockGenesis {
     Proofs.Consensus.VrfTest(zeroBytes(Lengths.`80`))
   )
 
-  val kesCertificate: KesCertificate =
+  val kesCertificate: OperationalCertificate =
     KesCertificate(
       VerificationKeys.Kes(
         zeroBytes[VerificationKeys.Kes.Length],
@@ -59,8 +59,8 @@ object BlockGenesis {
         timestamp = 0L,
         height = 1,
         slot = 0,
-        vrfCertificate = vrfCertificate,
-        kesCertificate = kesCertificate,
+        eligibibilityCertificate = vrfCertificate,
+        operationalCertificate = kesCertificate,
         thresholdEvidence =
           Sized.strictUnsafe(TypedBytes(IdentifierTypes.RatioEvidence, Bytes(Array.fill[Byte](32)(0)))),
         metadata = None,

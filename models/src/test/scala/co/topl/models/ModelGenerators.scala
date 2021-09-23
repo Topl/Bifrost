@@ -38,7 +38,7 @@ trait ModelGenerators {
       testProof  <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Consensus.VrfTest(_))
     } yield Vrf.Certificate(publicKey, nonceProof, testProof)
 
-  def kesCertificateGen: Gen[KesCertificate] =
+  def kesCertificateGen: Gen[OperationalCertificate] =
     for {
       publicKey <- genSizedStrictBytes[Lengths.`32`.type]().map(VerificationKeys.Kes(_, 0))
       kesProof  <- kesProofGen
@@ -62,7 +62,7 @@ trait ModelGenerators {
     heightGen:         Gen[Long] = Gen.chooseNum(0L, 20L),
     slotGen:           Gen[Slot] = Gen.chooseNum(0L, 50L),
     vrfCertificateGen: Gen[Vrf.Certificate] = vrfCertificateGen,
-    kesCertificateGen: Gen[KesCertificate] = kesCertificateGen,
+    kesCertificateGen: Gen[OperationalCertificate] = kesCertificateGen,
     thresholdEvidenceGen: Gen[Evidence] = genSizedStrictBytes[Lengths.`32`.type]().map(b =>
       Sized.strict[TypedBytes, Lengths.`33`.type](TypedBytes(1: Byte, b.data)).toOption.get
     ),

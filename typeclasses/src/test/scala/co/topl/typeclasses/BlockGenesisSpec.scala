@@ -32,14 +32,14 @@ class BlockGenesisSpec extends AnyFlatSpec with Matchers with EitherValues with 
   }
 
   it should "have all zeros for the VRF Certificate" in {
-    val cert = block.headerV2.vrfCertificate
+    val cert = block.headerV2.eligibibilityCertificate
     forAll(cert.vkVRF.ed25519.bytes.data)(_ shouldBe (0: Byte))
     forAll(cert.testProof.bytes.data)(_ shouldBe (0: Byte))
     forAll(cert.nonceProof.bytes.data)(_ shouldBe (0: Byte))
   }
 
   it should "have all zeros for the KES Certificate" in {
-    val cert = block.headerV2.kesCertificate
+    val cert = block.headerV2.operationalCertificate
     forAll(cert.vkKES.bytes.data)(_ shouldBe (0: Byte))
     forAll(cert.kesProof.signature.data)(_ shouldBe (0: Byte))
     forAll(cert.mmmProof.sigi)(_ shouldBe (0: Byte))

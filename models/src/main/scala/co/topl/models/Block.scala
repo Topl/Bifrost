@@ -1,7 +1,7 @@
 package co.topl.models
 
-import co.topl.models.utility.{Lengths, Sized}
 import co.topl.models.utility.StringDataTypes.Latin1Data
+import co.topl.models.utility.{Lengths, Sized}
 
 // id = hash(blockBytes)
 case class BlockV1(
@@ -19,16 +19,16 @@ case class BlockV1(
 
 // id = hash(headerBytes) INCLUDING kesCertificate proofs
 case class BlockHeaderV2(
-  parentHeaderId:    TypedIdentifier,
-  parentSlot:        Slot,
-  txRoot:            TxRoot,
-  bloomFilter:       BloomFilter,
-  timestamp:         Timestamp,
-  height:            Long,
-  slot:              Slot,
-  vrfCertificate:    Vrf.Certificate,
-  kesCertificate:    KesCertificate,
-  thresholdEvidence: Evidence,
+  parentHeaderId:           TypedIdentifier,
+  parentSlot:               Slot,
+  txRoot:                   TxRoot,
+  bloomFilter:              BloomFilter,
+  timestamp:                Timestamp,
+  height:                   Long,
+  slot:                     Slot,
+  eligibibilityCertificate: EligibilityCertificate,
+  operationalCertificate:   OperationalCertificate,
+  thresholdEvidence:        Evidence,
   // TODO: Discussion on mint signatures
   metadata: Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
   address:  TaktikosAddress
@@ -39,17 +39,17 @@ case class BlockHeaderV2(
 object BlockHeaderV2 {
 
   case class Unsigned(
-    parentHeaderId:    TypedIdentifier,
-    parentSlot:        Slot,
-    txRoot:            TxRoot,
-    bloomFilter:       BloomFilter,
-    timestamp:         Timestamp,
-    height:            Long,
-    slot:              Slot,
-    vrfCertificate:    Vrf.Certificate,
-    thresholdEvidence: Evidence,
-    metadata:          Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
-    address:           TaktikosAddress
+    parentHeaderId:           TypedIdentifier,
+    parentSlot:               Slot,
+    txRoot:                   TxRoot,
+    bloomFilter:              BloomFilter,
+    timestamp:                Timestamp,
+    height:                   Long,
+    slot:                     Slot,
+    eligibibilityCertificate: EligibilityCertificate,
+    thresholdEvidence:        Evidence,
+    metadata:                 Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
+    address:                  TaktikosAddress
   )
 }
 

@@ -170,15 +170,15 @@ object BasicCodecs {
       )
   }
 
-  implicit val kesCertificateCodec: ByteCodec[KesCertificate] = new ByteCodec[KesCertificate] {
+  implicit val kesCertificateCodec: ByteCodec[OperationalCertificate] = new ByteCodec[OperationalCertificate] {
 
-    override def encode(t: KesCertificate, writer: Writer): Unit = {
+    override def encode(t: OperationalCertificate, writer: Writer): Unit = {
       t.kesProof.writeBytesTo(writer)
       t.mmmProof.writeBytesTo(writer)
     }
 
-    override def decode(reader: Reader): KesCertificate =
-      KesCertificate(
+    override def decode(reader: Reader): OperationalCertificate =
+      OperationalCertificate(
         ByteCodec[VerificationKeys.Kes].decode(reader),
         ByteCodec[VerificationKeys.Ed25519].decode(reader),
         ByteCodec[Proofs.Signature.Ed25519].decode(reader),

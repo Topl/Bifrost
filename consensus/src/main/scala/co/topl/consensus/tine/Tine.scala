@@ -39,7 +39,10 @@ case class Tine(
             while (buildTine)
               blocks.restoreHeader(testId) match {
                 case Some(header) =>
-                  out = prepend(out, (header.slot, testId._2, ProofToHash.digest(header.vrfCertificate.nonceProof)))
+                  out = prepend(
+                    out,
+                    (header.slot, testId._2, ProofToHash.digest(header.eligibibilityCertificate.nonceProof))
+                  )
                   if (header.parentSlot < minSlot.get || BigInt(header.parentSlot / databaseInterval) != epoch3rd) {
                     buildTine = false
                   } else {
@@ -648,14 +651,14 @@ case class Tine(
           assert(maxSlot.get == cache.last._1)
           var id: SlotId = toSlotId(cache.last)
           var block: BlockHeaderV2 = blocks.getHeader(id).get
-          var nonce: Rho = ProofToHash.digest(block.vrfCertificate.nonceProof)
+          var nonce: Rho = ProofToHash.digest(block.eligibibilityCertificate.nonceProof)
           assert(nonce == cache.last._3)
           for (entry <- cache.reverse.tail) {
             val pid = block.parentSlotId
             assert(toSlotId(entry) == pid)
             id = pid
             block = blocks.getHeader(id).get
-            nonce = ProofToHash.digest(block.vrfCertificate.nonceProof)
+            nonce = ProofToHash.digest(block.eligibibilityCertificate.nonceProof)
             assert(nonce == entry._3)
           }
         } else {
@@ -679,14 +682,14 @@ case class Tine(
             })
             assert(id == best(value._1))
             var block: BlockHeaderV2 = blocks.getHeader(id).get
-            var nonce: Rho = ProofToHash.digest(block.vrfCertificate.nonceProof)
+            var nonce: Rho = ProofToHash.digest(block.eligibibilityCertificate.nonceProof)
             assert(nonce == cache.last._3)
             for (entry <- cache.reverse.tail) {
               val pid = block.parentSlotId
               assert(toSlotId(entry) == pid)
               id = pid
               block = blocks.getHeader(id).get
-              nonce = ProofToHash.digest(block.vrfCertificate.nonceProof)
+              nonce = ProofToHash.digest(block.eligibibilityCertificate.nonceProof)
               assert(nonce == entry._3)
             }
             if (id._1 > 0) cachePid = Some(blocks.getHeader(id).get.parentSlotId)

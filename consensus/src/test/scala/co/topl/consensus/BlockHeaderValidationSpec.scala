@@ -123,7 +123,7 @@ class BlockHeaderValidationSpec
         .returning(eta.pure[EvalF])
 
       underTest.validate(child, parent).left.value shouldBe BlockHeaderValidation.Eval.Failures
-        .InvalidVrfCertificate(child.vrfCertificate)
+        .InvalidVrfCertificate(child.eligibibilityCertificate)
     }
   }
 
@@ -183,8 +183,8 @@ class BlockHeaderValidationSpec
           timestamp = unsigned.timestamp,
           height = unsigned.height,
           slot = unsigned.slot,
-          vrfCertificate = unsigned.vrfCertificate,
-          kesCertificate = kesKey.certify(unsigned),
+          eligibibilityCertificate = unsigned.vrfCertificate,
+          operationalCertificate = kesKey.certify(unsigned),
           thresholdEvidence = unsigned.thresholdEvidence,
           metadata = unsigned.metadata,
           address = unsigned.address
@@ -259,8 +259,8 @@ class BlockHeaderValidationSpec
           timestamp = unsigned.timestamp,
           height = unsigned.height,
           slot = unsigned.slot,
-          vrfCertificate = unsigned.vrfCertificate,
-          kesCertificate = kesKey.certify(unsigned),
+          eligibibilityCertificate = unsigned.vrfCertificate,
+          operationalCertificate = kesKey.certify(unsigned),
           thresholdEvidence = unsigned.thresholdEvidence,
           metadata = unsigned.metadata,
           address = unsigned.address
