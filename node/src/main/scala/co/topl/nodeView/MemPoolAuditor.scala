@@ -151,6 +151,7 @@ private class MemPoolAuditorBehaviors(
     nodeViewHolderRef.askWithStatus[T](NodeViewHolder.ReceivableMessages.Read(f, _))
   }
 
+  // TODO: Jing - Consider changing this to just sending the ids to the networkController and let it form the message
   private def rebroadcastTransactions(transactions: Seq[Transaction.TX]): Unit = {
     log.debug("Rebroadcasting transactions")
 
