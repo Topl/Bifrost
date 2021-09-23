@@ -13,6 +13,8 @@ import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCu
 import co.topl.loadtesting.statistics._
 import co.topl.modifier.ModifierId
 import co.topl.modifier.box.{AssetCode, AssetValue}
+import co.topl.modifier.transaction.unsigned.Builder.BoxPickingStrategies
+import co.topl.modifier.transaction.unsigned.PropositionTypes
 import co.topl.rpc.ToplRpc
 import co.topl.rpc.ToplRpc.NodeView.Balances
 import co.topl.rpc.ToplRpc.Transaction.{BroadcastTx, RawAssetTransfer}
@@ -161,7 +163,7 @@ object SendAssetsAction {
     contacts:             List[Address]
   ): RawAssetTransfer.Params =
     ToplRpc.Transaction.RawAssetTransfer.Params(
-      propositionType = PublicKeyPropositionCurve25519.typeString,
+      propositionType = PropositionTypes.PublicKeyCurve25519,
       sender = NonEmptyChain(address),
       recipients = NonEmptyChain(
         random.shuffle(contacts).headOption.getOrElse(address) ->
@@ -174,7 +176,8 @@ object SendAssetsAction {
       changeAddress = address,
       consolidationAddress = address,
       minting = balances.Boxes.AssetBox.isEmpty,
-      data = Some(Latin1Data.unsafe(random.alphanumeric.take(random.between(0, 127)).mkString))
+      data = Some(Latin1Data.unsafe(random.alphanumeric.take(random.between(0, 127)).mkString)),
+      boxAlgorithm = BoxPickingStrategies.All
     )
 
   /**

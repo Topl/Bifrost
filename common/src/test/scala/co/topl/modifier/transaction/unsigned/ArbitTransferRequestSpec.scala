@@ -1,7 +1,8 @@
-package co.topl.modifier.transaction
+package co.topl.modifier.transaction.unsigned
 
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.modifier.box.{ArbitBox, PolyBox, SimpleValue}
+import co.topl.modifier.transaction.ArbitTransfer
 import co.topl.utils.CommonGenerators
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
@@ -10,7 +11,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class ArbitTransferSpec
+class ArbitTransferRequestSpec
     extends AnyFlatSpec
     with CommonGenerators
     with Matchers
@@ -18,7 +19,7 @@ class ArbitTransferSpec
     with MockFactory
     with EitherValues {
 
-  "ArbitTransferSpec.validated" should "be invalid if not enough funds for fee" in {
+  "unsignedTxFromArbitTransferRequest" should "be invalid if not enough funds for fee" in {
     forAll(polyBoxGen, Gen.listOf(polyBoxGen), arbitBoxGen, Gen.listOf(arbitBoxGen), addressGen, addressGen) {
       (
         firstFeeBox:     PolyBox,
@@ -28,23 +29,24 @@ class ArbitTransferSpec
         sender:          Address,
         recipient:       Address
       ) =>
-        val feeBoxes = firstFeeBox +: otherFeeBoxes
-        val arbitBoxes = firstArbitBox +: otherArbitBoxes
-        val fee = feeBoxes.map(_.value.quantity).sum + 100000
+        val feeBoxes = otherFeeBoxes.prepended(firstFeeBox).map(sender -> _)
+        val arbitBoxes = otherArbitBoxes.prepended(firstArbitBox).map(sender -> _)
+        val fee = feeBoxes.map(_._2.value.quantity).sum + 100000
 
-        val result = ArbitTransfer.validated[PublicKeyPropositionCurve25519](
-          feeBoxes.map(sender -> _).toIndexedSeq,
-          arbitBoxes.map(sender -> _).toIndexedSeq,
-          IndexedSeq(recipient -> SimpleValue(100)),
+        val request = TransferRequests.ArbitTransferRequest(
+          List(sender),
+          List(recipient -> 100),
           sender,
           sender,
           fee,
           None,
-          false
+          PropositionTypes.PublicKeyEd25519
         )
 
+        val result = fromArbitTransferRequest(request, feeBoxes, arbitBoxes)
+
         result shouldBe Symbol("left")
-        result.left.value shouldBe ArbitTransfer.Validation.InsufficientFunds
+        result.left.value shouldBe UnsignedTransferFailures.InsufficientFeeFunds
     }
   }
 
@@ -58,22 +60,25 @@ class ArbitTransferSpec
         sender:          Address,
         recipient:       Address
       ) =>
-        val feeBoxes = firstFeeBox +: otherFeeBoxes
-        val arbitBoxes = firstArbitBox +: otherArbitBoxes
+        val feeBoxes = otherFeeBoxes.prepended(firstFeeBox).map(sender -> _)
+        val arbitBoxes = otherArbitBoxes.prepended(firstArbitBox).map(sender -> _)
 
-        val result = ArbitTransfer.validated[PublicKeyPropositionCurve25519](
-          feeBoxes.map(sender -> _).toIndexedSeq,
-          arbitBoxes.map(sender -> _).toIndexedSeq,
-          IndexedSeq(recipient -> SimpleValue(arbitBoxes.map(_.value.quantity).sum + 10000)),
+        val toSend = arbitBoxes.map(_._2.value.quantity).sum + 10000
+
+        val request = TransferRequests.ArbitTransferRequest(
+          List(sender),
+          List(recipient -> toSend),
           sender,
           sender,
           0,
           None,
-          false
+          PropositionTypes.PublicKeyEd25519
         )
 
+        val result = fromArbitTransferRequest(request, feeBoxes, arbitBoxes)
+
         result shouldBe Symbol("left")
-        result.left.value shouldBe ArbitTransfer.Validation.InsufficientFunds
+        result.left.value shouldBe UnsignedTransferFailures.InsufficientPaymentFunds
     }
   }
 
@@ -85,21 +90,22 @@ class ArbitTransferSpec
         sender:          Address,
         recipient:       Address
       ) =>
-        val arbitBoxes = firstArbitBox +: otherArbitBoxes
+        val arbitBoxes = otherArbitBoxes.prepended(firstArbitBox).map(sender -> _)
 
-        val result = ArbitTransfer.validated[PublicKeyPropositionCurve25519](
-          IndexedSeq(),
-          arbitBoxes.map(sender -> _).toIndexedSeq,
-          IndexedSeq(recipient -> SimpleValue(1)),
+        val request = TransferRequests.ArbitTransferRequest(
+          List(sender),
+          List(recipient -> 1),
           sender,
           sender,
           0,
           None,
-          false
+          PropositionTypes.PublicKeyEd25519
         )
 
+        val result = fromArbitTransferRequest(request, List(), arbitBoxes)
+
         result shouldBe Symbol("left")
-        result.left.value shouldBe ArbitTransfer.Validation.EmptyPolyInputs
+        result.left.value shouldBe UnsignedTransferFailures.EmptyInputs
     }
   }
 
@@ -111,21 +117,22 @@ class ArbitTransferSpec
         sender:        Address,
         recipient:     Address
       ) =>
-        val feeBoxes = firstFeeBox +: otherFeeBoxes
+        val feeBoxes = otherFeeBoxes.prepended(firstFeeBox).map(sender -> _)
 
-        val result = ArbitTransfer.validated[PublicKeyPropositionCurve25519](
-          feeBoxes.map(sender -> _).toIndexedSeq,
-          IndexedSeq(),
-          IndexedSeq(recipient -> SimpleValue(1)),
+        val request = TransferRequests.ArbitTransferRequest(
+          List(sender),
+          List(recipient -> 1),
           sender,
           sender,
           0,
           None,
-          false
+          PropositionTypes.PublicKeyEd25519
         )
 
+        val result = fromArbitTransferRequest(request, feeBoxes, List())
+
         result shouldBe Symbol("left")
-        result.left.value shouldBe ArbitTransfer.Validation.EmptyArbitInputs
+        result.left.value shouldBe UnsignedTransferFailures.EmptyInputs
     }
   }
 
@@ -139,22 +146,23 @@ class ArbitTransferSpec
         sender:          Address,
         recipient:       Address
       ) =>
-        val feeBoxes = firstFeeBox +: otherFeeBoxes
-        val arbitBoxes = firstArbitBox +: otherArbitBoxes
+        val feeBoxes = otherFeeBoxes.prepended(firstFeeBox).map(sender -> _)
+        val arbitBoxes = otherArbitBoxes.prepended(firstArbitBox).map(sender -> _)
 
-        val result = ArbitTransfer.validated[PublicKeyPropositionCurve25519](
-          (feeBoxes ++ feeBoxes).map(sender -> _).toIndexedSeq,
-          arbitBoxes.map(sender -> _).toIndexedSeq,
-          IndexedSeq(recipient -> SimpleValue(100)),
+        val request = TransferRequests.ArbitTransferRequest(
+          List(sender),
+          List(recipient -> 100),
           sender,
           sender,
           0,
           None,
-          false
+          PropositionTypes.PublicKeyEd25519
         )
 
+        val result = fromArbitTransferRequest(request, feeBoxes ++ feeBoxes, arbitBoxes)
+
         result shouldBe Symbol("left")
-        result.left.value shouldBe ArbitTransfer.Validation.DuplicatePolyInputs
+        result.left.value shouldBe UnsignedTransferFailures.DuplicateInputs
     }
   }
 
@@ -168,22 +176,23 @@ class ArbitTransferSpec
         sender:          Address,
         recipient:       Address
       ) =>
-        val feeBoxes = firstFeeBox +: otherFeeBoxes
-        val arbitBoxes = firstArbitBox +: otherArbitBoxes
+        val feeBoxes = otherFeeBoxes.prepended(firstFeeBox).map(sender -> _)
+        val arbitBoxes = otherArbitBoxes.prepended(firstArbitBox).map(sender -> _)
 
-        val result = ArbitTransfer.validated[PublicKeyPropositionCurve25519](
-          feeBoxes.map(sender -> _).toIndexedSeq,
-          (arbitBoxes ++ arbitBoxes).map(sender -> _).toIndexedSeq,
-          IndexedSeq(recipient -> SimpleValue(100)),
+        val request = TransferRequests.ArbitTransferRequest(
+          List(sender),
+          List(recipient -> 100),
           sender,
           sender,
           0,
           None,
-          false
+          PropositionTypes.PublicKeyEd25519
         )
 
+        val result = fromArbitTransferRequest(request, feeBoxes, arbitBoxes ++ arbitBoxes)
+
         result shouldBe Symbol("left")
-        result.left.value shouldBe ArbitTransfer.Validation.DuplicateArbitInputs
+        result.left.value shouldBe UnsignedTransferFailures.DuplicateInputs
     }
   }
 
@@ -196,22 +205,23 @@ class ArbitTransferSpec
         otherArbitBoxes: List[ArbitBox],
         sender:          Address
       ) =>
-        val feeBoxes = firstFeeBox +: otherFeeBoxes
-        val arbitBoxes = firstArbitBox +: otherArbitBoxes
+        val feeBoxes = otherFeeBoxes.prepended(firstFeeBox).map(sender -> _)
+        val arbitBoxes = otherArbitBoxes.prepended(firstArbitBox).map(sender -> _)
 
-        val result = ArbitTransfer.validated[PublicKeyPropositionCurve25519](
-          feeBoxes.map(sender -> _).toIndexedSeq,
-          arbitBoxes.map(sender -> _).toIndexedSeq,
-          IndexedSeq(),
+        val request = TransferRequests.ArbitTransferRequest(
+          List(sender),
+          List(),
           sender,
           sender,
           0,
           None,
-          false
+          PropositionTypes.PublicKeyEd25519
         )
 
+        val result = fromArbitTransferRequest(request, feeBoxes, arbitBoxes)
+
         result shouldBe Symbol("left")
-        result.left.value shouldBe ArbitTransfer.Validation.NoRecipients
+        result.left.value shouldBe UnsignedTransferFailures.EmptyRecipients
     }
   }
 
@@ -225,22 +235,23 @@ class ArbitTransferSpec
         sender:          Address,
         recipient:       Address
       ) =>
-        val feeBoxes = firstFeeBox +: otherFeeBoxes
-        val arbitBoxes = firstArbitBox +: otherArbitBoxes
+        val feeBoxes = otherFeeBoxes.prepended(firstFeeBox).map(sender -> _)
+        val arbitBoxes = otherArbitBoxes.prepended(firstArbitBox).map(sender -> _)
 
-        val result = ArbitTransfer.validated[PublicKeyPropositionCurve25519](
-          feeBoxes.map(sender -> _).toIndexedSeq,
-          arbitBoxes.map(sender -> _).toIndexedSeq,
-          IndexedSeq(recipient -> SimpleValue(100), recipient -> SimpleValue(100)),
+        val request = TransferRequests.ArbitTransferRequest(
+          List(sender),
+          List(recipient -> 100, recipient -> 100),
           sender,
           sender,
           0,
           None,
-          false
+          PropositionTypes.PublicKeyEd25519
         )
 
+        val result = fromArbitTransferRequest(request, feeBoxes, arbitBoxes)
+
         result shouldBe Symbol("left")
-        result.left.value shouldBe ArbitTransfer.Validation.NonUniqueRecipients
+        result.left.value shouldBe UnsignedTransferFailures.DuplicateRecipients
     }
   }
 
@@ -254,19 +265,20 @@ class ArbitTransferSpec
         sender:          Address,
         recipient:       Address
       ) =>
-        val feeBoxes = firstFeeBox +: otherFeeBoxes
-        val arbitBoxes = firstArbitBox +: otherArbitBoxes
+        val feeBoxes = otherFeeBoxes.prepended(firstFeeBox).map(sender -> _)
+        val arbitBoxes = otherArbitBoxes.prepended(firstArbitBox).map(sender -> _)
 
-        val result = ArbitTransfer.validated[PublicKeyPropositionCurve25519](
-          feeBoxes.map(sender -> _).toIndexedSeq,
-          arbitBoxes.map(sender -> _).toIndexedSeq,
-          IndexedSeq(recipient -> SimpleValue(1)),
+        val request = TransferRequests.ArbitTransferRequest(
+          List(sender),
+          List(recipient -> 100),
           sender,
           sender,
           0,
           None,
-          false
+          PropositionTypes.PublicKeyEd25519
         )
+
+        val result = fromArbitTransferRequest(request, feeBoxes, arbitBoxes)
 
         result shouldBe Symbol("right")
     }

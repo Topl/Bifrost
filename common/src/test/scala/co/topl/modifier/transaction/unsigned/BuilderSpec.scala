@@ -1,12 +1,10 @@
-package co.topl.modifier.transaction.builder
+package co.topl.modifier.transaction.unsigned
 
 import cats.implicits._
-import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
+import co.topl.attestation.Address
 import co.topl.modifier.BoxReader
 import co.topl.modifier.box.{PolyBox, ProgramId, SimpleValue}
-import co.topl.modifier.transaction.PolyTransfer.Validation.InvalidPolyTransfer
-import co.topl.modifier.transaction.builder.implicits._
-import co.topl.modifier.transaction.{builder, PolyTransfer}
+import co.topl.modifier.transaction.unsigned.Builder.BoxPickingStrategies
 import co.topl.utils.CommonGenerators
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
@@ -36,19 +34,16 @@ class TransferBuilderSpec
 
         (boxReader.getTokenBoxes _).expects(sender).returns(Some(polyBoxes))
 
-        val buildResult: Either[InvalidPolyTransfer, PolyTransfer[PublicKeyPropositionCurve25519]] =
-          builder.buildTransfer[SimpleValue, InvalidPolyTransfer, PolyTransfer[
-            PublicKeyPropositionCurve25519
-          ], BoxPickingStrategy.All](
-            senders = IndexedSeq(sender),
-            recipients = IndexedSeq(recipient -> SimpleValue(polyBoxes.map(_.value.quantity).sum)),
-            boxReader = boxReader,
-            feeChangeAddress = sender,
-            fee = 0,
-            data = None,
-            minting = false,
-            strategy = BoxPickingStrategy.All
-          )
+        val request = TransferRequests.PolyTransferRequest(
+          List(sender),
+          List(recipient -> polyBoxes.map(_.value.quantity).sum),
+          sender,
+          0,
+          None,
+          PropositionTypes.PublicKeyEd25519
+        )
+
+        val buildResult = Builder.buildTransfer(boxReader, request, BoxPickingStrategies.All)
 
         // check that the same nonces are in the result as in the inputs
         buildResult.value.from.map(_._2).sorted shouldBe polyBoxes.map(_.nonce).sorted
@@ -64,19 +59,16 @@ class TransferBuilderSpec
 
         (boxReader.getTokenBoxes _).expects(sender).returns(Some(polyBoxes))
 
-        val buildResult: Either[InvalidPolyTransfer, PolyTransfer[PublicKeyPropositionCurve25519]] =
-          builder.buildTransfer[SimpleValue, InvalidPolyTransfer, PolyTransfer[
-            PublicKeyPropositionCurve25519
-          ], BoxPickingStrategy.Specific](
-            senders = IndexedSeq(sender),
-            recipients = IndexedSeq(recipient -> SimpleValue(specificBox.value.quantity)),
-            boxReader = boxReader,
-            feeChangeAddress = sender,
-            fee = 0,
-            data = None,
-            minting = false,
-            strategy = BoxPickingStrategy.Specific(IndexedSeq(specificBox.nonce))
-          )
+        val request = TransferRequests.PolyTransferRequest(
+          List(sender),
+          List(recipient -> specificBox.value.quantity),
+          sender,
+          0,
+          None,
+          PropositionTypes.PublicKeyEd25519
+        )
+
+        val buildResult = Builder.buildTransfer(boxReader, request, BoxPickingStrategies.Specific(List(specificBox.id)))
 
         // check that the nonces are the same
         buildResult.value.from.map(_._2).sorted shouldBe List(specificBox).map(_.nonce).sorted
@@ -94,19 +86,16 @@ class TransferBuilderSpec
 
         (boxReader.getTokenBoxes _).expects(sender).returns(Some(polyBoxes))
 
-        val buildResult =
-          builder.buildTransfer[SimpleValue, InvalidPolyTransfer, PolyTransfer[
-            PublicKeyPropositionCurve25519
-          ], BoxPickingStrategy.SmallestFirst](
-            senders = IndexedSeq(sender),
-            recipients = IndexedSeq(recipient -> smallestBox.value),
-            boxReader = boxReader,
-            feeChangeAddress = sender,
-            fee = 0,
-            data = None,
-            minting = false,
-            strategy = BoxPickingStrategy.SmallestFirst(None, smallestBox.value.quantity.some, None)
-          )
+        val request = TransferRequests.PolyTransferRequest(
+          List(sender),
+          List(recipient -> smallestBox.value.quantity),
+          sender,
+          0,
+          None,
+          PropositionTypes.PublicKeyEd25519
+        )
+
+        val buildResult = Builder.buildTransfer(boxReader, request, BoxPickingStrategies.SmallestFirst)
 
         // check that the only box used is the smallest one
         buildResult.value.from.map(_._2).sorted shouldBe List(smallestBox).map(_.nonce).sorted

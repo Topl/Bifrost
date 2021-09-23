@@ -6,15 +6,15 @@ import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.TransferTransaction.{encodeFrom, BoxParams}
+import co.topl.modifier.transaction.unsigned.Builder.BoxPickingStrategies
+import co.topl.modifier.transaction.unsigned.{PropositionType, PropositionTypes, TokenValue, TransferRequests}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Latin1Data
-import co.topl.utils.codecs.Int128Codec
-import co.topl.utils.codecs.implicits._
 import co.topl.utils.{Identifiable, Identifier, Int128}
+import co.topl.utils.codecs.implicits._
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
 
-import java.time.Instant
 import scala.collection.immutable.ListMap
 import scala.util.Try
 
@@ -58,83 +58,6 @@ object PolyTransfer {
     Identifier(typeString, typePrefix)
   }
 
-  object Validation {
-    sealed trait InvalidPolyTransfer
-
-    case object InsufficientFunds extends InvalidPolyTransfer
-    type InsufficientFunds = InsufficientFunds.type
-
-    case object NoInputBoxes extends InvalidPolyTransfer
-    type NoInputBoxes = NoInputBoxes.type
-
-    case object NonUniqueInputs extends InvalidPolyTransfer
-    type NonUniqueInputs = NonUniqueInputs.type
-
-    case object NoRecipients extends InvalidPolyTransfer
-    type NoRecipients = NoRecipients.type
-
-    case object NonUniqueRecipients extends InvalidPolyTransfer
-    type NonUniqueRecipients = NonUniqueRecipients.type
-
-    type ValidationResult[T] = Either[InvalidPolyTransfer, T]
-
-    def validateNonEmptyInputs(
-      boxes: IndexedSeq[(Address, PolyBox)]
-    ): ValidationResult[IndexedSeq[(Address, PolyBox)]] =
-      Either.cond(boxes.nonEmpty, boxes, NoInputBoxes)
-
-    def validateUniqueInputs(boxes: IndexedSeq[(Address, PolyBox)]): ValidationResult[IndexedSeq[(Address, PolyBox)]] =
-      Either.cond(boxes.map(_._2.nonce).distinct.length == boxes.length, boxes, NonUniqueInputs)
-
-    def validateNonEmptyRecipients(
-      recipients: IndexedSeq[(Address, SimpleValue)]
-    ): ValidationResult[IndexedSeq[(Address, SimpleValue)]] =
-      Either.cond(recipients.nonEmpty, recipients, NoRecipients)
-
-    def validateUniqueRecipients(
-      recipients: IndexedSeq[(Address, SimpleValue)]
-    ): ValidationResult[IndexedSeq[(Address, SimpleValue)]] =
-      Either.cond(recipients.map(_._1).distinct.length == recipients.length, recipients, NonUniqueRecipients)
-
-    def validateFeeFunds(funds: Int128, feeAmount: Int128): ValidationResult[Int128] =
-      Either.cond(funds >= feeAmount, funds - feeAmount, InsufficientFunds)
-
-    def validatePaymentFunds(funds: Int128, paymentAmount: Int128): ValidationResult[Int128] =
-      Either.cond(funds >= paymentAmount, funds - paymentAmount, InsufficientFunds)
-  }
-
-  import Validation._
-
-  def validated[P <: Proposition: EvidenceProducer: Identifiable](
-    fromBoxes:     IndexedSeq[(Address, PolyBox)],
-    recipients:    IndexedSeq[(Address, SimpleValue)],
-    changeAddress: Address,
-    fee:           Int128,
-    data:          Option[Latin1Data],
-    minting:       Boolean
-  ): ValidationResult[PolyTransfer[P]] =
-    for {
-      _             <- validateNonEmptyInputs(fromBoxes)
-      _             <- validateUniqueInputs(fromBoxes)
-      _             <- validateNonEmptyRecipients(recipients)
-      _             <- validateUniqueRecipients(recipients)
-      amountToSpend <- validateFeeFunds(boxFunds(fromBoxes), fee)
-      paymentAmount = recipients.map(_._2.quantity).sum
-      changeAmount <- validatePaymentFunds(amountToSpend, paymentAmount)
-      changeRecipient = changeAddress -> SimpleValue(changeAmount)
-      nonZeroRecipients = (changeRecipient +: recipients).filter(_._2.quantity > 0)
-      fromBoxNonces = fromBoxes.map(box => box._1 -> box._2.nonce)
-    } yield PolyTransfer[P](
-      fromBoxNonces,
-      nonZeroRecipients,
-      ListMap(), // unsigned
-      fee,
-      Instant.now.toEpochMilli,
-      data,
-      minting
-    )
-
-  @deprecated("use co.topl.modifier.transaction.builder.buildTransfer instead")
   def createRaw[P <: Proposition: EvidenceProducer: Identifiable](
     boxReader:     BoxReader[ProgramId, Address],
     recipients:    IndexedSeq[(Address, SimpleValue)],
@@ -143,16 +66,32 @@ object PolyTransfer {
     fee:           Int128,
     data:          Option[Latin1Data]
   ): Try[PolyTransfer[P]] = {
-    val polyBoxes =
-      sender
-        .map(addr => addr -> boxReader.getTokenBoxes(addr).getOrElse(IndexedSeq()))
-        .flatMap((senderBoxes: (Address, Seq[TokenBox[TokenValueHolder]])) => senderBoxes._2.map(senderBoxes._1 -> _))
-        .foldLeft(IndexedSeq[(Address, PolyBox)]()) {
-          case (polyBoxes, (addr: Address, box: PolyBox)) => polyBoxes :+ (addr -> box)
-          case (polyBoxes, _)                             => polyBoxes
-        }
 
-    validated(polyBoxes, recipients, changeAddress, fee, data, false)
+    val propositionType = PropositionType.fromPropositionId(Identifiable[P].getId).get
+
+    val request =
+      TransferRequests.PolyTransferRequest(
+        sender.toList,
+        recipients.map(x => x._1 -> x._2.quantity).toList,
+        changeAddress,
+        fee,
+        data,
+        propositionType
+      )
+
+    unsigned.Builder
+      .buildTransfer(boxReader, request, BoxPickingStrategies.All)
+      .map(unsignedTx =>
+        PolyTransfer[P](
+          unsignedTx.from.toIndexedSeq,
+          unsignedTx.to.map(x => x._1 -> TokenValue.getTokenValueHolder(x._2).asInstanceOf[SimpleValue]).toIndexedSeq,
+          ListMap(),
+          unsignedTx.fee,
+          unsignedTx.timestamp,
+          unsignedTx.data,
+          unsignedTx.minting
+        )
+      )
       .leftMap(failure => new Exception(failure.toString))
       .toTry
   }
@@ -167,7 +106,7 @@ object PolyTransfer {
       "from"            -> encodeFrom(tx.from),
       "to"              -> tx.to.asJson,
       "signatures"      -> tx.attestation.asJson,
-      "fee"             -> tx.fee.asJson(Int128Codec.jsonEncoder),
+      "fee"             -> tx.fee.asJson,
       "timestamp"       -> tx.timestamp.asJson,
       "minting"         -> tx.minting.asJson,
       "data"            -> tx.data.asJson
@@ -179,7 +118,7 @@ object PolyTransfer {
       for {
         from      <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
         to        <- c.downField("to").as[IndexedSeq[(Address, SimpleValue)]]
-        fee       <- c.get[Int128]("fee")(Int128Codec.jsonDecoder)
+        fee       <- c.get[Int128]("fee")
         timestamp <- c.downField("timestamp").as[Long]
         data      <- c.downField("data").as[Option[Latin1Data]]
         propType  <- c.downField("propositionType").as[String]

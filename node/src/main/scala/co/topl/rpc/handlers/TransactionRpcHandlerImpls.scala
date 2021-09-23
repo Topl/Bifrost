@@ -4,26 +4,24 @@ import akka.actor.typed.ActorSystem
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
 import co.topl.attestation._
-import co.topl.modifier.box.{AssetValue, ProgramId, SimpleValue}
-import co.topl.modifier.transaction
-import co.topl.modifier.transaction.ArbitTransfer.Validation.InvalidArbitTransfer
-import co.topl.modifier.transaction.AssetTransfer.Validation.InvalidAssetTransfer
-import co.topl.modifier.transaction.PolyTransfer.Validation.InvalidPolyTransfer
-import co.topl.modifier.transaction.builder.BoxPickingStrategy
-import co.topl.modifier.transaction.builder.implicits._
+import co.topl.modifier.box.ProgramId
+import co.topl.modifier.transaction.unsigned.implicits._
+import co.topl.modifier.transaction.unsigned.{
+  TransferRequests,
+  UnsignedTransferTransaction,
+  UnsignedTransferTransactionResult
+}
 import co.topl.modifier.transaction.validation.implicits._
-import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
+import co.topl.modifier.transaction.{unsigned, Transaction}
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView}
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
-import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.codecs.implicits._
 import io.circe.Encoder
 
 import scala.concurrent.Future
-import scala.util.Try
 
 class TransactionRpcHandlerImpls(
   nodeViewHolderInterface: NodeViewHolderInterface
@@ -38,43 +36,43 @@ class TransactionRpcHandlerImpls(
   override val rawAssetTransfer: ToplRpc.Transaction.RawAssetTransfer.rpc.ServerHandler =
     params =>
       for {
-        transferTry <- withNodeView(view =>
+        unsignedTx <- withNodeView(view =>
           checkAddresses(params.sender.toList, view.state)
-            .map(tryCreateAssetTransfer(params, view.state, _))
+            .map(_ => createAssetTransfer(params, view.state))
         ).subflatMap(identity)
-        transfer <- Either
-          .fromTry(transferTry)
+        transfer <- unsignedTx
+          .leftMap(failure => new Error(failure.show))
           .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
           .toEitherT[Future]
-        messageToSign = transfer.messageToSign.encodeAsBase58
+        messageToSign = UnsignedTransferTransaction.getMessageToSign(transfer).encodeAsBase58
       } yield ToplRpc.Transaction.RawAssetTransfer.Response(transfer, messageToSign.show)
 
   override val rawArbitTransfer: ToplRpc.Transaction.RawArbitTransfer.rpc.ServerHandler =
     params =>
       for {
-        transferTry <- withNodeView(view =>
+        unsignedTx <- withNodeView(view =>
           checkAddresses(params.sender.toList, view.state)
-            .map(tryCreateArbitTransfer(params, view.state, _))
+            .map(_ => createArbitTransfer(params, view.state))
         ).subflatMap(identity)
-        transfer <- Either
-          .fromTry(transferTry)
+        transfer <- unsignedTx
+          .leftMap(failure => new Error(failure.show))
           .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
           .toEitherT[Future]
-        messageToSign = transfer.messageToSign.encodeAsBase58
+        messageToSign = UnsignedTransferTransaction.getMessageToSign(transfer).encodeAsBase58
       } yield ToplRpc.Transaction.RawArbitTransfer.Response(transfer, messageToSign.show)
 
   override val rawPolyTransfer: ToplRpc.Transaction.RawPolyTransfer.rpc.ServerHandler =
     params =>
       for {
-        transferTry <- withNodeView(view =>
+        unsignedTx <- withNodeView(view =>
           checkAddresses(params.sender.toList, view.state)
-            .map(tryCreatePolyTransfer(params, view.state, _))
+            .map(_ => tryCreatePolyTransfer(params, view.state))
         ).subflatMap(identity)
-        transfer <- Either
-          .fromTry(transferTry)
+        transfer <- unsignedTx
+          .leftMap(failure => new Error(failure.show))
           .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
           .toEitherT[Future]
-        messageToSign = transfer.messageToSign.encodeAsBase58
+        messageToSign = UnsignedTransferTransaction.getMessageToSign(transfer).encodeAsBase58
       } yield ToplRpc.Transaction.RawPolyTransfer.Response(transfer, messageToSign.show)
 
   override val broadcastTx: ToplRpc.Transaction.BroadcastTx.rpc.ServerHandler =
@@ -86,113 +84,60 @@ class TransactionRpcHandlerImpls(
         _ <- processTransaction(transaction)
       } yield transaction
 
-  private def tryCreateAssetTransfer(
-    params:          ToplRpc.Transaction.RawAssetTransfer.Params,
-    state:           StateReader[ProgramId, Address],
-    senderAddresses: List[Address]
-  ): Try[AssetTransfer[Proposition]] = Try {
-    val createRaw = params.propositionType match {
-      case PublicKeyPropositionCurve25519.`typeString` =>
-        transaction.builder
-          .buildTransfer[AssetValue, InvalidAssetTransfer, AssetTransfer[
-            PublicKeyPropositionCurve25519
-          ], BoxPickingStrategy.All] _
-      case ThresholdPropositionCurve25519.`typeString` =>
-        transaction.builder
-          .buildTransfer[AssetValue, InvalidAssetTransfer, AssetTransfer[
-            ThresholdPropositionCurve25519
-          ], BoxPickingStrategy.All] _
-      case PublicKeyPropositionEd25519.`typeString` =>
-        transaction.builder
-          .buildTransfer[AssetValue, InvalidAssetTransfer, AssetTransfer[
-            PublicKeyPropositionEd25519
-          ], BoxPickingStrategy.All] _
-    }
+  private def createAssetTransfer(
+    params: ToplRpc.Transaction.RawAssetTransfer.Params,
+    state:  StateReader[ProgramId, Address]
+  ): UnsignedTransferTransactionResult =
+    unsigned.Builder
+      .buildTransfer(
+        state,
+        TransferRequests.AssetTransferRequest(
+          params.sender.toList,
+          params.recipients.toList,
+          params.changeAddress,
+          params.consolidationAddress,
+          params.fee,
+          params.data,
+          params.minting,
+          params.propositionType
+        ),
+        params.boxAlgorithm
+      )
 
-    createRaw(
-      senderAddresses.toIndexedSeq,
-      params.recipients.toList.toIndexedSeq,
+  private def createArbitTransfer(
+    params: ToplRpc.Transaction.RawArbitTransfer.Params,
+    state:  StateReader[ProgramId, Address]
+  ): UnsignedTransferTransactionResult =
+    unsigned.Builder.buildTransfer(
       state,
-      params.changeAddress,
-      params.fee,
-      BoxPickingStrategy.All,
-      Some(params.consolidationAddress),
-      params.data,
-      params.minting
-    ).getOrThrow()
-  }.collect { case p: AssetTransfer[Proposition @unchecked] => p }
-
-  private def tryCreateArbitTransfer(
-    params:          ToplRpc.Transaction.RawArbitTransfer.Params,
-    state:           StateReader[ProgramId, Address],
-    senderAddresses: List[Address]
-  ): Try[ArbitTransfer[Proposition]] = Try {
-    val createRaw = params.propositionType match {
-      case PublicKeyPropositionCurve25519.`typeString` =>
-        transaction.builder
-          .buildTransfer[SimpleValue, InvalidArbitTransfer, ArbitTransfer[
-            PublicKeyPropositionCurve25519
-          ], BoxPickingStrategy.All] _
-      case ThresholdPropositionCurve25519.`typeString` =>
-        transaction.builder
-          .buildTransfer[SimpleValue, InvalidArbitTransfer, ArbitTransfer[
-            ThresholdPropositionCurve25519
-          ], BoxPickingStrategy.All] _
-      case PublicKeyPropositionEd25519.`typeString` =>
-        transaction.builder
-          .buildTransfer[SimpleValue, InvalidArbitTransfer, ArbitTransfer[
-            PublicKeyPropositionEd25519
-          ], BoxPickingStrategy.All] _
-    }
-
-    createRaw(
-      senderAddresses.toIndexedSeq,
-      params.recipients.toList.toIndexedSeq.map(tup => tup._1 -> SimpleValue(tup._2)),
-      state,
-      params.changeAddress,
-      params.fee,
-      BoxPickingStrategy.All,
-      Some(params.consolidationAddress),
-      params.data,
-      false
-    ).getOrThrow()
-  }.collect { case p: ArbitTransfer[Proposition @unchecked] => p }
+      TransferRequests.ArbitTransferRequest(
+        params.sender.toList,
+        params.recipients.toList,
+        params.changeAddress,
+        params.consolidationAddress,
+        params.fee,
+        params.data,
+        params.propositionType
+      ),
+      params.boxAlgorithm
+    )
 
   private def tryCreatePolyTransfer(
-    params:          ToplRpc.Transaction.RawPolyTransfer.Params,
-    state:           StateReader[ProgramId, Address],
-    senderAddresses: List[Address]
-  ): Try[PolyTransfer[Proposition]] = Try {
-    val createRaw = params.propositionType match {
-      case PublicKeyPropositionCurve25519.`typeString` =>
-        transaction.builder
-          .buildTransfer[SimpleValue, InvalidPolyTransfer, PolyTransfer[
-            PublicKeyPropositionCurve25519
-          ], BoxPickingStrategy.All] _
-      case ThresholdPropositionCurve25519.`typeString` =>
-        transaction.builder
-          .buildTransfer[SimpleValue, InvalidPolyTransfer, PolyTransfer[
-            ThresholdPropositionCurve25519
-          ], BoxPickingStrategy.All] _
-      case PublicKeyPropositionEd25519.`typeString` =>
-        transaction.builder
-          .buildTransfer[SimpleValue, InvalidPolyTransfer, PolyTransfer[
-            PublicKeyPropositionEd25519
-          ], BoxPickingStrategy.All] _
-    }
-
-    createRaw(
-      senderAddresses.toIndexedSeq,
-      params.recipients.toList.toIndexedSeq.map(tup => tup._1 -> SimpleValue(tup._2)),
+    params: ToplRpc.Transaction.RawPolyTransfer.Params,
+    state:  StateReader[ProgramId, Address]
+  ): UnsignedTransferTransactionResult =
+    unsigned.Builder.buildTransfer(
       state,
-      params.changeAddress,
-      params.fee,
-      BoxPickingStrategy.All,
-      None,
-      params.data,
-      false
-    ).getOrThrow()
-  }.collect { case p: PolyTransfer[Proposition @unchecked] => p }
+      TransferRequests.PolyTransferRequest(
+        params.sender.toList,
+        params.recipients.toList,
+        params.changeAddress,
+        params.fee,
+        params.data,
+        params.propositionType
+      ),
+      params.boxAlgorithm
+    )
 
   private def processTransaction(tx: Transaction.TX) =
     nodeViewHolderInterface.applyTransactions(tx).leftMap { case NodeViewHolderInterface.ApplyFailure(throwable) =>

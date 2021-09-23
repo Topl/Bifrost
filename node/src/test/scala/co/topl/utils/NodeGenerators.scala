@@ -3,16 +3,12 @@ package co.topl.utils
 import co.topl.attestation._
 import co.topl.attestation.keyManagement._
 import co.topl.consensus.genesis.TestGenesis
-import co.topl.modifier.{transaction, ModifierId}
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.Box.identifier
 import co.topl.modifier.box._
-import co.topl.modifier.transaction.ArbitTransfer.Validation.InvalidArbitTransfer
-import co.topl.modifier.transaction.AssetTransfer.Validation.InvalidAssetTransfer
-import co.topl.modifier.transaction.PolyTransfer.Validation.InvalidPolyTransfer
 import co.topl.modifier.transaction.Transaction.TX
-import co.topl.modifier.transaction.builder.BoxPickingStrategy
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
+import co.topl.modifier.{transaction, ModifierId}
 import co.topl.nodeView.history.{BlockProcessor, History, InMemoryKeyValueStore, Storage}
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppContext, AppSettings, StartupOpts, Version}
@@ -20,7 +16,6 @@ import co.topl.utils.StringDataTypes.Latin1Data
 import com.typesafe.config.Config
 import org.scalacheck.Gen
 import org.scalatest.Suite
-import co.topl.modifier.transaction.builder.implicits._
 import co.topl.utils.IdiomaticScalaTransition.implicits._
 
 import java.nio.file.Files
@@ -117,16 +112,14 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
     }
 
     val rawTx =
-      transaction.builder
-        .buildTransfer[SimpleValue, InvalidPolyTransfer, PolyTransfer[
-          PublicKeyPropositionCurve25519
-        ], BoxPickingStrategy.All](
-          IndexedSeq(sender),
-          recipients,
+      PolyTransfer
+        .createRaw[PublicKeyPropositionCurve25519](
           state,
+          recipients,
+          IndexedSeq(sender),
           sender,
           fee,
-          BoxPickingStrategy.All
+          None
         )
         .getOrThrow()
 
@@ -154,16 +147,14 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
     }
 
     val rawTx =
-      transaction.builder
-        .buildTransfer[SimpleValue, InvalidPolyTransfer, PolyTransfer[
-          ThresholdPropositionCurve25519
-        ], BoxPickingStrategy.All](
-          IndexedSeq(sender),
-          recipients,
+      PolyTransfer
+        .createRaw[ThresholdPropositionCurve25519](
           state,
+          recipients,
+          IndexedSeq(sender),
           sender,
           fee,
-          BoxPickingStrategy.All
+          None
         )
         .getOrThrow()
 
@@ -189,18 +180,17 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
       IndexedSeq((address, polyAmount))
     }
 
-    val rawTx = transaction.builder
-      .buildTransfer[SimpleValue, InvalidPolyTransfer, PolyTransfer[
-        PublicKeyPropositionEd25519
-      ], BoxPickingStrategy.All](
-        IndexedSeq(sender),
-        recipients,
-        state,
-        sender,
-        fee,
-        BoxPickingStrategy.All
-      )
-      .getOrThrow()
+    val rawTx =
+      PolyTransfer
+        .createRaw[PublicKeyPropositionEd25519](
+          state,
+          recipients,
+          IndexedSeq(sender),
+          sender,
+          fee,
+          None
+        )
+        .getOrThrow()
 
     rawTx.copy(attestation = Transaction.updateAttestation(rawTx)(keyRing.generateAttestation(sender)))
   }
@@ -234,16 +224,15 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
     }
 
     val rawTx =
-      transaction.builder
-        .buildTransfer[SimpleValue, InvalidArbitTransfer, ArbitTransfer[
-          PublicKeyPropositionCurve25519
-        ], BoxPickingStrategy.All](
-          IndexedSeq(sender),
-          recipients,
+      ArbitTransfer
+        .createRaw[PublicKeyPropositionCurve25519](
           state,
+          recipients,
+          IndexedSeq(sender),
+          sender,
           sender,
           fee,
-          BoxPickingStrategy.All
+          None
         )
         .getOrThrow()
 
@@ -271,16 +260,15 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
     }
 
     val rawTx =
-      transaction.builder
-        .buildTransfer[SimpleValue, InvalidArbitTransfer, ArbitTransfer[
-          PublicKeyPropositionCurve25519
-        ], BoxPickingStrategy.All](
-          IndexedSeq(sender),
-          recipients,
+      ArbitTransfer
+        .createRaw[ThresholdPropositionCurve25519](
           state,
+          recipients,
+          IndexedSeq(sender),
+          sender,
           sender,
           fee,
-          BoxPickingStrategy.All
+          None
         )
         .getOrThrow()
 
@@ -307,16 +295,15 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
     }
 
     val rawTx =
-      transaction.builder
-        .buildTransfer[SimpleValue, InvalidArbitTransfer, ArbitTransfer[
-          PublicKeyPropositionEd25519
-        ], BoxPickingStrategy.All](
-          IndexedSeq(sender),
-          recipients,
+      ArbitTransfer
+        .createRaw[PublicKeyPropositionEd25519](
           state,
+          recipients,
+          IndexedSeq(sender),
+          sender,
           sender,
           fee,
-          BoxPickingStrategy.All
+          None
         )
         .getOrThrow()
 
@@ -347,17 +334,16 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
     val recipients = IndexedSeq((sender, asset))
 
     val rawTx =
-      transaction.builder
-        .buildTransfer[AssetValue, InvalidAssetTransfer, AssetTransfer[
-          PublicKeyPropositionCurve25519
-        ], BoxPickingStrategy.All](
-          IndexedSeq(sender),
-          recipients,
+      AssetTransfer
+        .createRaw[PublicKeyPropositionCurve25519](
           state,
+          recipients,
+          IndexedSeq(sender),
+          sender,
           sender,
           fee,
-          BoxPickingStrategy.All,
-          minting = minting
+          None,
+          minting
         )
         .getOrThrow()
 
@@ -380,17 +366,16 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
     val recipients = IndexedSeq((sender, asset))
 
     val rawTx =
-      transaction.builder
-        .buildTransfer[AssetValue, InvalidAssetTransfer, AssetTransfer[
-          PublicKeyPropositionCurve25519
-        ], BoxPickingStrategy.All](
-          IndexedSeq(sender),
-          recipients,
+      AssetTransfer
+        .createRaw[ThresholdPropositionCurve25519](
           state,
+          recipients,
+          IndexedSeq(sender),
+          sender,
           sender,
           fee,
-          BoxPickingStrategy.All,
-          minting = minting
+          None,
+          minting
         )
         .getOrThrow()
 
@@ -412,17 +397,16 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
     val recipients = IndexedSeq((sender, asset))
 
     val rawTx =
-      transaction.builder
-        .buildTransfer[AssetValue, InvalidAssetTransfer, AssetTransfer[
-          PublicKeyPropositionEd25519
-        ], BoxPickingStrategy.All](
-          IndexedSeq(sender),
-          recipients,
+      AssetTransfer
+        .createRaw[PublicKeyPropositionEd25519](
           state,
+          recipients,
+          IndexedSeq(sender),
+          sender,
           sender,
           fee,
-          BoxPickingStrategy.All,
-          minting = minting
+          None,
+          minting
         )
         .getOrThrow()
 
