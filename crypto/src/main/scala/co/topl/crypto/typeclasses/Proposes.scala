@@ -32,11 +32,11 @@ object Proposes {
     implicit val ed25519Proposes: Proposes[VerificationKeys.Ed25519, Propositions.PublicKeyEd25519] =
       t => Propositions.PublicKeyEd25519(t)
 
-    implicit val vrfProposes: Proposes[VerificationKeys.Vrf, Propositions.Consensus.PublicKeyVrf] =
-      t => Propositions.Consensus.PublicKeyVrf(t)
+    implicit val vrfProposes: Proposes[VerificationKeys.Vrf, Propositions.VerificationKeyVRF] =
+      t => Propositions.VerificationKeyVRF(t)
 
-    implicit val kesProposes: Proposes[VerificationKeys.Kes, Propositions.Consensus.PublicKeyKes] =
-      t => Propositions.Consensus.PublicKeyKes(t)
+    implicit val kesProposes: Proposes[VerificationKeys.HdKes, Propositions.VerificationKeyHdKES] =
+      t => Propositions.VerificationKeyHdKES(t)
   }
 
   object instances extends Instances

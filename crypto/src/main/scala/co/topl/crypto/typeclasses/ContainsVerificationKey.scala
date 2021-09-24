@@ -49,9 +49,10 @@ object ContainsVerificationKey {
     implicit val vrfContainsVerificationKey: ContainsVerificationKey[SecretKeys.Vrf, VerificationKeys.Vrf] =
       key => VerificationKeys.Vrf(ed25519ContainsVerificationKey.verificationKeyOf(key.ed25519))
 
-    implicit val kesContainsVerificationKey: ContainsVerificationKey[SecretKeys.SymmetricMMM, VerificationKeys.Kes] = {
+    implicit val kesContainsVerificationKey
+      : ContainsVerificationKey[SecretKeys.SymmetricMMM, VerificationKeys.HdKes] = {
       val scheme = new KeyEvolvingSignatureScheme
-      key => VerificationKeys.Kes(Sized.strictUnsafe(Bytes(scheme.publicKey(key))))
+      key => VerificationKeys.HdKes(Sized.strictUnsafe(Bytes(scheme.publicKey(key))))
     }
   }
 

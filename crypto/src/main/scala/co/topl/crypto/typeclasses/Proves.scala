@@ -26,6 +26,7 @@ object Proves {
         private val ed = new Ed25519
 
         def proveWith[Data: Signable](t: SecretKeys.ExtendedEd25519, data: Data): Proofs.Signature.Ed25519 = {
+          // TODO: Move this to a different implementation file
           val signatureArray: Array[Byte] = new Array[Byte](ed.SIGNATURE_SIZE)
           val ctx: Array[Byte] = Array.emptyByteArray
           val phflag: Byte = 0x00
@@ -38,19 +39,7 @@ object Proves {
           Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(signatureArray)))
         }
       }
-
-    implicit val kesPrivateKeyProves: Proves[SecretKeys.SymmetricMMM, Proofs.Signature.HdKes] =
-      new Proves[SecretKeys.SymmetricMMM, Proofs.Signature.HdKes] {
-
-        def proveWith[Data: Signable](t: SecretKeys.SymmetricMMM, data: Data): Proofs.Signature.HdKes =
-          Proofs.Signature.HdKes(
-            i = 0,
-            vkI = ???,
-            ecSignature = ???,
-            sigSumJ = ???,
-            sigSumK = ???
-          )
-      }
   }
+
   object instances extends Instances
 }

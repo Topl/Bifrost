@@ -15,12 +15,12 @@ object Propositions {
 
   case class ThresholdEd25519(threshold: Int, propositions: SortedSet[VerificationKeys.Ed25519]) extends Proposition
 
+  case class PublicKeyExtendedEd25519(key: VerificationKeys.ExtendedEd25519) extends Proposition
+
   case class Existence() extends Proposition
 
-  object Consensus {
-    case class PublicKeyVrf(key: VerificationKeys.Vrf) extends Proposition
+  case class VerificationKeyVRF(key: VerificationKeys.Vrf) extends Proposition
 
-    case class PublicKeyKes(key: VerificationKeys.Kes) extends Proposition
-  }
+  case class VerificationKeyHdKES(key: VerificationKeys.HdKes) extends Proposition
 
 }

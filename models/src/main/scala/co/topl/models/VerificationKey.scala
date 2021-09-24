@@ -19,7 +19,7 @@ object VerificationKeys {
   /**
    * @param bytes Merkle Root
    */
-  case class Kes(bytes: Sized.Strict[Bytes, Kes.Length]) extends VerificationKey
+  case class HdKes(xvkM: ExtendedEd25519, t: Long) extends VerificationKey
 
   object Ed25519 {
     type Length = Lengths.`32`.type
@@ -34,7 +34,7 @@ object VerificationKeys {
     type Length = Lengths.`32`.type
   }
 
-  object Kes {
+  object HdKes {
     type Length = Lengths.`32`.type
   }
 }

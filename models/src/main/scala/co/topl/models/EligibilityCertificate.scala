@@ -9,5 +9,5 @@ case class EligibilityCertificate(
   vrfNonceSig:       Proofs.Signature.VrfEd25519,
   vrfTestSig:        Proofs.Signature.VrfEd25519,
   vkVRF:             VerificationKeys.Vrf,
-  thresholdEvidence: Digest32
+  thresholdEvidence: Evidence
 )

@@ -58,15 +58,13 @@ object BlockHeaderValidation {
               val certificate = header.eligibibilityCertificate
               header
                 .pure[F]
-                .ensureOr(header => Failures.InvalidEligibilityCertificateTestProof(certificate.vrfTestSig))(header =>
+                .ensure(Failures.InvalidEligibilityCertificateTestProof(certificate.vrfTestSig))(header =>
                   certificate.vrfTestSig.satisfies(
                     certificate.vkVRF.proposition,
                     LeaderElectionValidation.VrfArgument(eta, header.slot, LeaderElectionValidation.Tokens.Test)
                   )
                 )
-                .ensureOr(header =>
-                  Failures.InvalidEligibilityCertificateNonceProof(header.eligibibilityCertificate.vrfNonceSig)
-                )(header =>
+                .ensure(Failures.InvalidEligibilityCertificateNonceProof(certificate.vrfNonceSig))(header =>
                   certificate.vrfNonceSig.satisfies(
                     certificate.vkVRF.proposition,
                     LeaderElectionValidation.VrfArgument(eta, header.slot, LeaderElectionValidation.Tokens.Nonce)
@@ -135,7 +133,9 @@ object BlockHeaderValidation {
         private[consensus] def vrfThresholdVerification(header: BlockHeaderV2, threshold: Ratio): F[BlockHeaderV2] =
           header
             .pure[F]
-            .ensure(Failures.InvalidVrfThreshold(threshold))(header => header.thresholdEvidence == threshold.evidence)
+            .ensure(Failures.InvalidVrfThreshold(threshold))(header =>
+              header.eligibibilityCertificate.thresholdEvidence === threshold.evidence
+            )
 
         /**
          * Verify that the block's staker is eligible using their relative stake distribution

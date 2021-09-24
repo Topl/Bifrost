@@ -27,7 +27,7 @@ object BlockGenesis {
   val kesCertificate: OperationalCertificate =
     KesCertificate(
       VerificationKeys.Kes(
-        zeroBytes[VerificationKeys.Kes.Length],
+        zeroBytes[VerificationKeys.HdKes.Length],
         offset = 0
       ),
       Proofs.Consensus.KesCertificate(

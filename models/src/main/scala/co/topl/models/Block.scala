@@ -28,7 +28,6 @@ case class BlockHeaderV2(
   slot:                     Slot,
   eligibibilityCertificate: EligibilityCertificate,
   operationalCertificate:   OperationalCertificate,
-  thresholdEvidence:        Evidence,
   // TODO: Discussion on mint signatures
   metadata: Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
   address:  TaktikosAddress
@@ -47,7 +46,6 @@ object BlockHeaderV2 {
     height:                   Long,
     slot:                     Slot,
     eligibibilityCertificate: EligibilityCertificate,
-    thresholdEvidence:        Evidence,
     metadata:                 Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
     address:                  TaktikosAddress
   )

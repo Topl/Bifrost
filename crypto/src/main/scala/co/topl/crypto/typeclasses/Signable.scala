@@ -2,7 +2,7 @@ package co.topl.crypto.typeclasses
 
 import co.topl.codecs.bytes.BasicCodecs._
 import co.topl.codecs.bytes.ByteCodec.implicits._
-import co.topl.models.{BlockHeaderV2, Bytes, VerificationKeys}
+import co.topl.models.{BlockHeaderV2, Bytes}
 import simulacrum.{op, typeclass}
 
 @typeclass trait Signable[T] {
@@ -20,7 +20,7 @@ object Signable {
         ) ++
         Bytes(BigInt(unsignedBlock.height).toByteArray) ++
         Bytes(BigInt(unsignedBlock.slot).toByteArray) ++
-        unsignedBlock.vrfCertificate.bytes ++
+        unsignedBlock.eligibibilityCertificate.bytes ++
         Bytes(unsignedBlock.metadata.fold(Array.emptyByteArray)(_.data.value)) ++
         unsignedBlock.address.bytes
 
@@ -36,14 +36,10 @@ object Signable {
             header.height,
             header.slot,
             header.eligibibilityCertificate,
-            header.thresholdEvidence,
             header.metadata,
             header.address
           )
         )
-
-    implicit val kesPublicKeySignable: Signable[VerificationKeys.Kes] =
-      vk => vk.bytes.data
 
     implicit val byteArray: Signable[Array[Byte]] = Bytes(_)
   }

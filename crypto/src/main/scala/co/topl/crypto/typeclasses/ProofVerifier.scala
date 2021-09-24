@@ -153,12 +153,12 @@ object ProofVerifier {
         ): Boolean = true // TODO
       }
 
-    implicit val signatureVrfEd25519: ProofVerifier[Proofs.Signature.VrfEd25519, Propositions.Consensus.PublicKeyVrf] =
-      new ProofVerifier[Proofs.Signature.VrfEd25519, Propositions.Consensus.PublicKeyVrf] {
+    implicit val signatureVrfEd25519: ProofVerifier[Proofs.Signature.VrfEd25519, Propositions.VerificationKeyVRF] =
+      new ProofVerifier[Proofs.Signature.VrfEd25519, Propositions.VerificationKeyVRF] {
 
         override def verifyWith[Data: Signable](
           proof:       Proofs.Signature.VrfEd25519,
-          proposition: Propositions.Consensus.PublicKeyVrf,
+          proposition: Propositions.VerificationKeyVRF,
           data:        Data
         ): Boolean =
           Try(

@@ -45,7 +45,7 @@ case class SymmetricKeyFile(kes_info: CipherInfo, fileName: String, oldFileName:
     require(mac_check sameElements kes_info.mac, "Error: MAC does not match")
     val decryptedKey = SymmetricKey.deserializeSymmetricKey(decrypted)
     require(
-      kes_info.pubKey sameElements decryptedKey.verificationKey[VerificationKeys.Kes].bytes.data.toArray,
+      kes_info.pubKey sameElements decryptedKey.verificationKey[VerificationKeys.HdKes].bytes.data.toArray,
       "Error: PublicKey in file is invalid"
     )
     decryptedKey
