@@ -2,7 +2,7 @@ package co.topl.nodeView
 
 import akka.actor.typed.eventstream.EventStream
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
+import akka.actor.typed.{ActorRef, ActorSystem, Behavior, SupervisorStrategy}
 import akka.actor.{ActorRef => CActorRef}
 import akka.util.Timeout
 import co.topl.modifier.transaction.Transaction
@@ -17,6 +17,7 @@ import org.slf4j.Logger
 
 import scala.collection.immutable.TreeSet
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 /**
@@ -49,21 +50,27 @@ object MemPoolAuditor {
     nodeViewHolderRef:      ActorRef[NodeViewHolder.ReceivableMessage],
     networkControllerRef:   CActorRef,
     settings:               AppSettings
-  )(implicit networkPrefix: NetworkPrefix, timeProvider: TimeProvider): Behavior[ReceivableMessage] =
-    Behaviors.setup { implicit context =>
-      implicit val system: ActorSystem[_] = context.system
-      implicit val orderTransactions: Ordering[Transaction.TX] = Ordering.by(_.id)
+  )(implicit networkPrefix: NetworkPrefix, timeProvider: TimeProvider): Behavior[ReceivableMessage] = {
+    val backoff =
+      SupervisorStrategy.restartWithBackoff(minBackoff = 1.seconds, maxBackoff = 30.seconds, randomFactor = 0.1)
 
-      system.eventStream.tell(
-        EventStream.Subscribe[SemanticallySuccessfulModifier[_]](
-          context.messageAdapter(_ => ReceivableMessages.RunCleanup)
+    Behaviors
+      .supervise(Behaviors.setup[ReceivableMessage] { implicit context =>
+        implicit val system: ActorSystem[_] = context.system
+        implicit val orderTransactions: Ordering[Transaction.TX] = Ordering.by(_.id)
+
+        system.eventStream.tell(
+          EventStream.Subscribe[SemanticallySuccessfulModifier[_]](
+            context.messageAdapter(_ => ReceivableMessages.RunCleanup)
+          )
         )
-      )
-      context.log.info(s"${Console.YELLOW}MemPool Auditor transitioning to the operational state${Console.RESET}")
+        context.log.info(s"${Console.YELLOW}MemPool Auditor transitioning to the operational state${Console.RESET}")
 
-      new MemPoolAuditorBehaviors(nodeViewHolderRef, networkControllerRef, settings)
-        .idle(TreeSet.empty[Transaction.TX], 0)
-    }
+        new MemPoolAuditorBehaviors(nodeViewHolderRef, networkControllerRef, settings)
+          .idle(TreeSet.empty[Transaction.TX], 0)
+      })
+      .onFailure(backoff)
+  }
 }
 
 private class MemPoolAuditorBehaviors(
