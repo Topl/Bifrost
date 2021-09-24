@@ -17,4 +17,5 @@ package object typeclasses {
       with Identifiable.ToIdentifiableOps
       with RatioOps.Implicits
       with ShowInstances
+      with EqInstances
 }

@@ -32,7 +32,16 @@ object TetraDemo extends App {
         .Config(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
     )
 
-  private val stakerVrfKey = KeyInitializer[SecretKeys.Vrf].random()
+  private val stakerVrfKey =
+    KeyInitializer[SecretKeys.Vrf].random()
+
+  val stakerRegistration: Box.Values.TaktikosRegistration =
+    Box.Values.TaktikosRegistration(
+      vrfCommitment = stakerVrfKey.ed25519
+        .prove[Proofs.Signature.Ed25519, VerificationKeys.Vrf],
+      extendedVk = ???,
+      registrationSlot = 0
+    )
 
   val leaderElectionHit: LeaderElectionMintingAlgebra[F] = LeaderElectionMinting.Eval.make(
     stakerVrfKey,
@@ -67,6 +76,9 @@ object TetraDemo extends App {
         .tabulate(10)(idx => idx.toLong -> Map(stakerAddress -> stakerRelativeStake))
         .toMap,
       List
+        .tabulate(10)(idx => idx.toLong -> Map(stakerAddress -> stakerRegistration))
+        .toMap,
+      List
         .tabulate(10)(idx => idx.toLong -> Sized.strictUnsafe[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(0))))
         .toMap
     )
@@ -95,7 +107,8 @@ object TetraDemo extends App {
       .make(
         slotId => clock.epochOf(slotId._1).map(inMemoryState.epochNonce),
         (slotId, address) => clock.epochOf(slotId._1).map(epoch => inMemoryState.relativeStakes(epoch).get(address)),
-        leaderElectionThreshold
+        leaderElectionThreshold,
+        (slotId, address) => clock.epochOf(slotId._1).map(epoch => inMemoryState.registrations(epoch).get(address))
       )
 
   for {

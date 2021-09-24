@@ -38,7 +38,7 @@ case class HdKesScheme(
       blake2b256.hash(privateKeySet(softIndex).leftKey.data.toArray).value,
       registrationSlot + softIndex.value * SymmetricKey.maxKeyTimeSteps,
       bytes =>
-        Proves[SecretKeys.ExtendedEd25519, Proofs.SignatureEd25519].proveWith(privateKeySet(softIndex), bytes.toArray)
+        Prover[SecretKeys.ExtendedEd25519, Proofs.SignatureEd25519].proveWith(privateKeySet(softIndex), bytes.toArray)
     )
     privateKeySet.remove(softIndex)
     sk_KES

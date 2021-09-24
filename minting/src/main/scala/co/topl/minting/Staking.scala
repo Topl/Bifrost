@@ -3,6 +3,7 @@ package co.topl.minting
 import cats.Monad
 import cats.data.OptionT
 import cats.implicits._
+import co.topl.minting.algebras.LeaderElectionMintingAlgebra.VrfHit
 import co.topl.minting.algebras._
 import co.topl.models._
 
@@ -19,7 +20,7 @@ object Staking {
     ): StakingAlgebra[F] = new StakingAlgebra[F] {
       def address: F[TaktikosAddress] = a.pure[F]
 
-      def elect(parent: BlockHeaderV2, slot: Slot): F[Option[Vrf.Hit]] =
+      def elect(parent: BlockHeaderV2, slot: Slot): F[Option[VrfHit]] =
         etaLookup
           .etaOf(slot)
           .flatMap(eta =>

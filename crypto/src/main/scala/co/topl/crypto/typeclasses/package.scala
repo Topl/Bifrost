@@ -11,9 +11,10 @@ package object typeclasses {
       with KeyInitializer.ToKeyInitializerOps
       with ProofVerifier.Instances
       with ProofVerifier.Implicits
-      with Proposes.Instances
-      with Proposes.implicits
-      with Proves.Instances
+      with Proposer.Instances
+      with Proposer.implicits
+      with Prover.Instances
+      with Prover.Implicits
       with Signable.Instances
       with Signable.ToSignableOps
       with KesCertifies.Instances

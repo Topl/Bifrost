@@ -7,8 +7,15 @@ import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.Sized
 
+/**
+ * Indicates that some value T can produce a Verification Key
+ */
 trait ContainsVerificationKey[T, VK] {
-  def verificationKeyOf(privateKey: T): VK
+
+  /**
+   * Constructs a verification key using the given value T
+   */
+  def verificationKeyOf(t: T): VK
 }
 
 object ContainsVerificationKey {
@@ -24,6 +31,10 @@ object ContainsVerificationKey {
 
       def verificationKey[VK](implicit containsVerificationKey: ContainsVerificationKey[SK, VK]): VK =
         containsVerificationKey.verificationKeyOf(t)
+
+      def vk[VK](implicit containsVerificationKey: ContainsVerificationKey[SK, VK]): VK =
+        verificationKey
+
     }
   }
 
@@ -52,7 +63,7 @@ object ContainsVerificationKey {
     implicit val kesContainsVerificationKey
       : ContainsVerificationKey[SecretKeys.SymmetricMMM, VerificationKeys.HdKes] = {
       val scheme = new KeyEvolvingSignatureScheme
-      key => VerificationKeys.HdKes(Sized.strictUnsafe(Bytes(scheme.publicKey(key))))
+      key => ???
     }
   }
 

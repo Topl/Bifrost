@@ -2,10 +2,15 @@ package co.topl.crypto.typeclasses
 
 import co.topl.codecs.bytes.BasicCodecs._
 import co.topl.codecs.bytes.ByteCodec.implicits._
-import co.topl.models.{BlockHeaderV2, Bytes}
+import co.topl.models.{BlockHeaderV2, Bytes, VerificationKeys}
 import simulacrum.{op, typeclass}
 
 @typeclass trait Signable[T] {
+
+  /**
+   * Turns some value into an array of bytes that can be used in a signing routine
+   * @param t A value that can be represented as bytes
+   */
   @op("signableBytes") def signableBytesOf(t: T): Bytes
 }
 
@@ -41,7 +46,10 @@ object Signable {
           )
         )
 
-    implicit val byteArray: Signable[Array[Byte]] = Bytes(_)
+    implicit val byteArraySignable: Signable[Array[Byte]] = Bytes(_)
+
+    implicit val vkVrfSignable: Signable[VerificationKeys.Vrf] =
+      _.ed25519.bytes.data
   }
   object instances extends Instances
 }

@@ -127,7 +127,7 @@ object BasicCodecs {
       t.vrfNonceSig.writeBytesTo(writer)
       t.vrfTestSig.writeBytesTo(writer)
       t.vkVRF.writeBytesTo(writer)
-      writer.putBytes(t.thresholdEvidence.data.toArray)
+      writer.putBytes(t.thresholdEvidence.data.allBytes.toArray)
     }
 
     override def decode(reader: Reader): EligibilityCertificate =

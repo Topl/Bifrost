@@ -16,7 +16,15 @@ import java.security.SecureRandom
 
 @typeclass trait KeyInitializer[SK] {
   self =>
+
+  /**
+   * Creates a random secret key
+   */
   def random(): SK
+
+  /**
+   * Creates a secret key from the given seed
+   */
   def fromSeed(seed: Bytes): SK
 }
 

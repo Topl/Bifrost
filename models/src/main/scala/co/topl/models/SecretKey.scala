@@ -1,6 +1,6 @@
 package co.topl.models
 
-import co.topl.models.utility.{Lengths, Sized}
+import co.topl.models.utility.{Lengths, Sized, Tree}
 
 sealed trait SecretKey
 

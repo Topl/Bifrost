@@ -1,7 +1,7 @@
 package co.topl.minting.algebras
 
 import co.topl.models.utility.Ratio
-import co.topl.models.{Eta, Slot, Vrf}
+import co.topl.models.{EligibilityCertificate, Eta, Slot, Vrf}
 
 /**
  * Assists with constructing VRF Hits at some particular slot.  Interpreters are meant to encapsulate
@@ -14,5 +14,9 @@ trait LeaderElectionMintingAlgebra[F[_]] {
     slot:          Slot,
     slotDiff:      Long,
     eta:           Eta
-  ): F[Option[Vrf.Hit]]
+  ): F[Option[LeaderElectionMintingAlgebra.VrfHit]]
+}
+
+object LeaderElectionMintingAlgebra {
+  case class VrfHit(cert: EligibilityCertificate, slot: Slot, threshold: Ratio)
 }

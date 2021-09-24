@@ -15,7 +15,14 @@ import simulacrum.{op, typeclass}
 
 import java.nio.{ByteBuffer, ByteOrder}
 
+/**
+ * Represents a value that can be further derived using some index
+ */
 @typeclass trait SoftDerivative[T] {
+
+  /**
+   * Derives a new value T at some index using a previous value of T
+   */
   @op("softDerive") def softDerivativeOf(t: T, index: Derivative.KeyIndexes.Soft): T
 }
 

@@ -1,4 +1,4 @@
-package co.topl.models
+package co.topl.models.utility
 
 import scala.language.postfixOps
 

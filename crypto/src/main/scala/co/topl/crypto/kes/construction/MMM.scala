@@ -2,6 +2,7 @@ package co.topl.crypto.kes.construction
 
 import co.topl.crypto.kes.keys.{AsymmetricKey, SumPrivateKey, SymmetricKey}
 import co.topl.models._
+import co.topl.models.utility.{Empty, Leaf, Node, Tree}
 
 import java.security.SecureRandom
 import scala.math.BigInt

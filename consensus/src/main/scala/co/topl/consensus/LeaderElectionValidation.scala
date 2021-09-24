@@ -27,6 +27,8 @@ object LeaderElectionValidation {
     }
   }
 
+  case class VrfConfig(lddCutoff: Int, precision: Int, baselineDifficulty: Ratio, amplitude: Ratio)
+
   case class VrfArgument(eta: Eta, slot: Slot, token: Token)
 
   implicit val signableVrfArgument: Signable[VrfArgument] =
@@ -34,7 +36,7 @@ object LeaderElectionValidation {
 
   object Eval {
 
-    def make[F[_]: Applicative](config: Vrf.Config): LeaderElectionValidationAlgebra[F] =
+    def make[F[_]: Applicative](config: VrfConfig): LeaderElectionValidationAlgebra[F] =
       new LeaderElectionValidationAlgebra[F] {
 
         def getThreshold(relativeStake: Ratio, slotDiff: Long): F[Ratio] = {
@@ -61,7 +63,7 @@ object LeaderElectionValidation {
             .pure[F]
 
         /** Calculates log(1-f(slot-parentSlot)) or log(1-f) depending on the configuration */
-        private def mFunction(slotDiff: Long, config: Vrf.Config): Ratio =
+        private def mFunction(slotDiff: Long, config: VrfConfig): Ratio =
           // use sawtooth curve if local dynamic difficulty is enabled
           if (slotDiff <= config.lddCutoff)
             ProsomoMath.logOneMinus(

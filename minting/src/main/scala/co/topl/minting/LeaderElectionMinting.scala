@@ -8,6 +8,7 @@ import co.topl.consensus.vrf.ProofToHash
 import co.topl.crypto.signatures.Ed25519VRF
 import co.topl.crypto.typeclasses.implicits._
 import co.topl.minting.algebras.LeaderElectionMintingAlgebra
+import co.topl.minting.algebras.LeaderElectionMintingAlgebra.VrfHit
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
@@ -25,51 +26,41 @@ object LeaderElectionMinting {
         thresholdInterpreter
           .getThreshold(relativeStake, slotDiff)
           .flatMap { threshold =>
-            val testProof = VrfProof.test(secret, eta, slot)
+            val testProof =
+              VrfProof(secret, LeaderElectionValidation.VrfArgument(eta, slot, LeaderElectionValidation.Tokens.Test))
             thresholdInterpreter
               .isSlotLeaderForThreshold(threshold)(ProofToHash.digest(testProof))
               .map(isSlotLeader =>
                 if (isSlotLeader)
-                  Vrf
-                    .Hit(
-                      Vrf.Certificate(
-                        secret.verificationKey[VerificationKeys.Vrf],
-                        VrfProof.nonce(secret, eta, slot),
-                        testProof
+                  VrfHit(
+                    EligibilityCertificate(
+                      VrfProof(
+                        secret,
+                        LeaderElectionValidation.VrfArgument(eta, slot, LeaderElectionValidation.Tokens.Nonce)
                       ),
-                      slot,
-                      threshold
-                    )
-                    .some
+                      testProof,
+                      secret.verificationKey[VerificationKeys.Vrf],
+                      ???
+                    ),
+                    slot,
+                    threshold
+                  ).some
                 else
-                  none[Vrf.Hit]
+                  none[VrfHit]
               )
           }
 
     object VrfProof {
 
-      private def proofBytes(
-        skVrf: SecretKeys.Vrf,
-        arg:   LeaderElectionValidation.VrfArgument
-      ): Bytes =
-        Bytes(
-          Ed25519VRF.instance.vrfProof(
-            skVrf.ed25519.bytes.data.toArray,
-            arg.signableBytes.toArray
-          )
-        )
-
-      def test(skVrf: SecretKeys.Vrf, eta: Eta, slot: Slot): Proofs.Vrf.Test =
-        Proofs.Vrf.Test(
+      def apply(skVrf: SecretKeys.Vrf, arg: LeaderElectionValidation.VrfArgument): Proofs.Signature.VrfEd25519 =
+        Proofs.Signature.VrfEd25519(
           Sized.strictUnsafe(
-            proofBytes(skVrf, LeaderElectionValidation.VrfArgument(eta, slot, LeaderElectionValidation.Tokens.Test))
-          )
-        )
-
-      def nonce(skVrf: SecretKeys.Vrf, eta: Eta, slot: Slot): Proofs.Vrf.Nonce =
-        Proofs.Vrf.Nonce(
-          Sized.strictUnsafe(
-            proofBytes(skVrf, LeaderElectionValidation.VrfArgument(eta, slot, LeaderElectionValidation.Tokens.Nonce))
+            Bytes(
+              Ed25519VRF.instance.vrfProof(
+                skVrf.ed25519.bytes.data.toArray,
+                arg.signableBytes.toArray
+              )
+            )
           )
         )
     }

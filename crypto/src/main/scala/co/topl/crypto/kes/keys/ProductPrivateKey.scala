@@ -1,6 +1,7 @@
 package co.topl.crypto.kes.keys
 
 import co.topl.models._
+import co.topl.models.utility.{Empty, Leaf, Node, Tree}
 import com.google.common.primitives.{Ints, Longs}
 
 //abstract class ProductPrivateKey {

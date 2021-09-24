@@ -2,7 +2,7 @@ package co.topl.crypto.kes
 
 import co.topl.crypto.kes.keys.SymmetricKey
 import co.topl.crypto.mnemonic.Entropy
-import co.topl.crypto.typeclasses.{KeyInitializer, Proves}
+import co.topl.crypto.typeclasses.{KeyInitializer, Prover}
 import co.topl.crypto.typeclasses.implicits._
 import co.topl.models.{Proofs, SecretKeys}
 import org.scalatest.matchers.should.Matchers
@@ -41,7 +41,7 @@ class KESCertificateSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
       val kesKey = SymmetricKey.newFromSeed(
         rnd.generateSeed(32),
         0,
-        bytes => Proves[SecretKeys.ExtendedEd25519, Proofs.SignatureEd25519].proveWith(signer, bytes.toArray)
+        bytes => Prover[SecretKeys.ExtendedEd25519, Proofs.SignatureEd25519].proveWith(signer, bytes.toArray)
       )
       var certFile: SymmetricKeyFile = SymmetricKeyFile.newKeyFile(
         password,

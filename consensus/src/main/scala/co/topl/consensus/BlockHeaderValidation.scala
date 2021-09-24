@@ -1,12 +1,14 @@
 package co.topl.consensus
 
 import cats.MonadError
+import cats.data.OptionT
 import cats.implicits._
 import co.topl.consensus.algebras._
 import co.topl.consensus.vrf.ProofToHash
+import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.typeclasses.implicits._
 import co.topl.models._
-import co.topl.models.utility.Ratio
+import co.topl.models.utility.{Lengths, Ratio, Sized}
 import co.topl.typeclasses.implicits._
 
 import scala.language.implicitConversions
@@ -96,7 +98,8 @@ object BlockHeaderValidation {
       def make[F[_]: MonadError[*[_], Failure]](
         epochNoncesInterpreter:   EtaValidationAlgebra[F],
         relativeStakeInterpreter: VrfRelativeStakeValidationLookupAlgebra[F],
-        leaderElection:           LeaderElectionValidationAlgebra[F]
+        leaderElection:           LeaderElectionValidationAlgebra[F],
+        registrationInterpreter:  RegistrationLookupAlgebra[F]
       ): BlockHeaderValidationAlgebra[F] = new BlockHeaderValidationAlgebra[F] {
 
         private val minimalStateInterpreter = MinimalState.make[F](epochNoncesInterpreter)
@@ -153,7 +156,16 @@ object BlockHeaderValidation {
          *      TaktikosRegistration.extendedVk.evolve(index) == header.cert.vkHD
          */
         private[consensus] def registrationVerification(header: BlockHeaderV2): F[BlockHeaderV2] =
-          header.pure[F]
+          OptionT(registrationInterpreter.registrationOf((header.slot, header.id), header.address))
+            .map(_.vrfCommitment)
+            .ensureOr(
+              Failures.RegistrationCommitmentMismatch(_, header.eligibibilityCertificate.vkVRF)
+            )(
+              _.data.toArray === blake2b256
+                .hash(header.eligibibilityCertificate.vkVRF.ed25519.bytes.data.toArray)
+                .value
+            )
+            .getOrElseF(Failures.Unregistered(header.address).raiseError[F, BlockHeaderV2])
 
       }
     }
@@ -182,6 +194,12 @@ object BlockHeaderValidation {
 
     case class InvalidKesCertificateMMMProof(kesCertificate: OperationalCertificate) extends Failure
 
-    case class IncompleteEpochData(epoch: Epoch) extends Failure
+    case class Unregistered(address: TaktikosAddress) extends Failure
+
+    case class RegistrationCommitmentMismatch(
+      vrfCommitment: Sized.Strict[Bytes, Lengths.`32`.type],
+      vkVrf:         VerificationKeys.Vrf
+    ) extends Failure
+
   }
 }

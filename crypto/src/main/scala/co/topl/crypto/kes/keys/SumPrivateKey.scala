@@ -3,7 +3,7 @@ package co.topl.crypto.kes.keys
 import co.topl.crypto.kes.KeyEvolvingSignatureScheme
 import co.topl.crypto.kes.signatures.SumSignature
 import co.topl.crypto.PublicKey
-import co.topl.models.Tree
+import co.topl.models.utility.Tree
 
 case class SumPrivateKey(L: Tree[Array[Byte]], offset: Long) {
 

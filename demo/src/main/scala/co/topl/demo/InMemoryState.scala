@@ -10,6 +10,7 @@ case class InMemoryState(
   blocks:         Map[TypedIdentifier, BlockV2],
   orphans:        Map[TypedIdentifier, BlockV2],
   relativeStakes: Map[Epoch, Map[TaktikosAddress, Ratio]],
+  registrations:  Map[Epoch, Map[TaktikosAddress, Box.Values.TaktikosRegistration]],
   epochNonce:     Map[Epoch, Eta]
 ) {
 
