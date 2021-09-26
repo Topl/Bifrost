@@ -7,10 +7,9 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.AssetCode.AssetCodeVersion
 import co.topl.modifier.box._
-import co.topl.modifier.transaction.Transaction.TX
-import co.topl.modifier.transaction.unsigned.Builder.BoxPickingStrategy
-import co.topl.modifier.transaction.unsigned.{PropositionType, UnsignedTransferTransaction}
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer}
+import co.topl.modifier.transaction.Transaction.TX
+import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithm, BoxSelectionAlgorithms}
 import co.topl.utils.Int128
 import co.topl.utils.StringDataTypes.Latin1Data
 
@@ -295,18 +294,18 @@ object ToplRpc {
        * @param data Data string which can be associated with this transaction(may be empty)
        */
       case class Params(
-        propositionType:      PropositionType,
-        sender:               NonEmptyChain[Address],
-        recipients:           NonEmptyChain[(Address, AssetValue)],
-        fee:                  Int128,
-        changeAddress:        Address,
-        consolidationAddress: Address,
-        minting:              Boolean,
-        data:                 Option[Latin1Data],
-        boxAlgorithm:         BoxPickingStrategy
+        propositionType:       String,
+        sender:                NonEmptyChain[Address],
+        recipients:            NonEmptyChain[(Address, AssetValue)],
+        fee:                   Int128,
+        changeAddress:         Address,
+        consolidationAddress:  Address,
+        minting:               Boolean,
+        data:                  Option[Latin1Data],
+        boxSelectionAlgorithm: BoxSelectionAlgorithm = BoxSelectionAlgorithms.All
       )
 
-      case class Response(rawTx: UnsignedTransferTransaction, messageToSign: String)
+      case class Response(rawTx: AssetTransfer[Proposition], messageToSign: String)
     }
 
     object RawArbitTransfer {
@@ -338,17 +337,17 @@ object ToplRpc {
        * @param data Data string which can be associated with this transaction(may be empty)
        */
       case class Params(
-        propositionType:      PropositionType,
-        sender:               NonEmptyChain[Address],
-        recipients:           NonEmptyChain[(Address, Int128)],
-        fee:                  Int128,
-        changeAddress:        Address,
-        consolidationAddress: Address,
-        data:                 Option[Latin1Data],
-        boxAlgorithm:         BoxPickingStrategy
+        propositionType:       String,
+        sender:                NonEmptyChain[Address],
+        recipients:            NonEmptyChain[(Address, Int128)],
+        fee:                   Int128,
+        changeAddress:         Address,
+        consolidationAddress:  Address,
+        data:                  Option[Latin1Data],
+        boxSelectionAlgorithm: BoxSelectionAlgorithm = BoxSelectionAlgorithms.All
       )
 
-      case class Response(rawTx: UnsignedTransferTransaction, messageToSign: String)
+      case class Response(rawTx: ArbitTransfer[Proposition], messageToSign: String)
     }
 
     object RawPolyTransfer {
@@ -379,16 +378,16 @@ object ToplRpc {
        * @param data Data string which can be associated with this transaction(may be empty)
        */
       case class Params(
-        propositionType: PropositionType,
-        sender:          NonEmptyChain[Address],
-        recipients:      NonEmptyChain[(Address, Int128)],
-        fee:             Int128,
-        changeAddress:   Address,
-        data:            Option[Latin1Data],
-        boxAlgorithm:    BoxPickingStrategy
+        propositionType:       String,
+        sender:                NonEmptyChain[Address],
+        recipients:            NonEmptyChain[(Address, Int128)],
+        fee:                   Int128,
+        changeAddress:         Address,
+        data:                  Option[Latin1Data],
+        boxSelectionAlgorithm: BoxSelectionAlgorithm
       )
 
-      case class Response(rawTx: UnsignedTransferTransaction, messageToSign: String)
+      case class Response(rawTx: PolyTransfer[Proposition], messageToSign: String)
     }
 
     object BroadcastTx {

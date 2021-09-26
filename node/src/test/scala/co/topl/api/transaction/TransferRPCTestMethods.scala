@@ -67,7 +67,8 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
       |   "consolidationAddress": "$sender",
       |   "minting": "false",
       |   "fee": "1",
-      |   "data": ""
+      |   "data": "",
+      |   "boxSelectionAlgorithm": { "All": {} }
       | }]
       |}
       """.stripMargin)
@@ -116,7 +117,8 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
                                     |   "consolidationAddress": "$sender",
                                     |   "minting": "false",
                                     |   "fee": "1",
-                                    |   "data": ""
+                                    |   "data": "",
+                                    |   "boxSelectionAlgorithm": { "All": {} }
                                     | }]
                                     |}
       """.stripMargin)
@@ -180,7 +182,8 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
                                     |   "consolidationAddress": "$sender",
                                     |   "fee": "1",
                                     |   "minting": true,
-                                    |   "data": ""
+                                    |   "data": "",
+                                    |   "boxSelectionAlgorithm": { "All": {} }
                                     | }]
                                     |}
       """.stripMargin)

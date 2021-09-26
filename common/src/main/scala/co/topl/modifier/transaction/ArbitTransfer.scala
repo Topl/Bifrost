@@ -1,23 +1,17 @@
 package co.topl.modifier.transaction
 
-import cats.implicits._
 import co.topl.attestation._
-import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.TransferTransaction.{encodeFrom, BoxParams}
-import co.topl.modifier.transaction.unsigned.Builder.BoxPickingStrategies
-import co.topl.modifier.transaction.unsigned.{PropositionType, TransferRequests}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Latin1Data
-import co.topl.utils.codecs.Int128Codec
 import co.topl.utils.codecs.implicits._
 import co.topl.utils.{Identifiable, Identifier, Int128}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 
 import scala.collection.immutable.ListMap
-import scala.util.Try
 
 case class ArbitTransfer[
   P <: Proposition: EvidenceProducer: Identifiable
@@ -56,48 +50,6 @@ object ArbitTransfer {
 
   implicit def identifier[P <: Proposition]: Identifiable[ArbitTransfer[P]] = Identifiable.instance { () =>
     Identifier(typeString, typePrefix)
-  }
-
-  def createRaw[
-    P <: Proposition: EvidenceProducer: Identifiable
-  ](
-    boxReader:            BoxReader[ProgramId, Address],
-    toReceive:            IndexedSeq[(Address, SimpleValue)],
-    sender:               IndexedSeq[Address],
-    changeAddress:        Address,
-    consolidationAddress: Address,
-    fee:                  Int128,
-    data:                 Option[Latin1Data]
-  ): Try[ArbitTransfer[P]] = {
-
-    val propositionType = PropositionType.fromPropositionId(Identifiable[P].getId).get
-
-    val request =
-      TransferRequests.ArbitTransferRequest(
-        sender.toList,
-        toReceive.map(x => x._1 -> x._2.quantity).toList,
-        changeAddress,
-        consolidationAddress,
-        fee,
-        data,
-        propositionType
-      )
-
-    unsigned.Builder
-      .buildTransfer(boxReader, request, BoxPickingStrategies.All)
-      .map(unsignedTx =>
-        ArbitTransfer[P](
-          unsignedTx.from.toIndexedSeq,
-          unsignedTx.to.toIndexedSeq.asInstanceOf[IndexedSeq[(Address, SimpleValue)]],
-          ListMap(),
-          unsignedTx.fee,
-          unsignedTx.timestamp,
-          unsignedTx.data,
-          unsignedTx.minting
-        )
-      )
-      .leftMap(failure => new Exception(failure.toString))
-      .toTry
   }
 
   implicit def jsonEncoder[P <: Proposition]: Encoder[ArbitTransfer[P]] = { tx: ArbitTransfer[P] =>

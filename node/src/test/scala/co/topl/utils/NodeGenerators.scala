@@ -7,6 +7,12 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.box.Box.identifier
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TX
+import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithms, TransferBuilder}
+import co.topl.modifier.transaction.builder.TransferRequests.{
+  ArbitTransferRequest,
+  AssetTransferRequest,
+  PolyTransferRequest
+}
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
 import co.topl.modifier.{transaction, ModifierId}
 import co.topl.nodeView.history.{BlockProcessor, History, InMemoryKeyValueStore, Storage}
@@ -104,22 +110,19 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
 
     val availablePolys = sumBoxes(collectBoxes(keyRing.addresses, state), "PolyBox")
     val (sender, poly) = availablePolys(Random.nextInt(availablePolys.length))
-    val polyAmount = SimpleValue(Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, poly.longValue() - 1))) - fee)
+    val polyAmount = Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, poly.longValue() - 1))) - fee
 
     val recipients = {
       val address: Address = keyRing.addresses.filterNot(_ == sender).toSeq(Random.nextInt(keyRing.addresses.size - 1))
-      IndexedSeq((address, polyAmount))
+      List((address, polyAmount))
     }
 
     val rawTx =
-      PolyTransfer
-        .createRaw[PublicKeyPropositionCurve25519](
+      TransferBuilder
+        .buildUnsignedPolyTransfer[PublicKeyPropositionCurve25519](
           state,
-          recipients,
-          IndexedSeq(sender),
-          sender,
-          fee,
-          None
+          PolyTransferRequest(List(sender), recipients, sender, fee, None),
+          BoxSelectionAlgorithms.All
         )
         .getOrThrow()
 
@@ -138,23 +141,20 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
 
     val availablePolys: Seq[(Address, Int128)] = sumBoxes(collectBoxes(addresses, state), "PolyBox")
     val (sender, poly): (Address, Int128) = availablePolys(Random.nextInt(availablePolys.length))
-    val polyAmount = SimpleValue(Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, poly.longValue() - 1))) - fee)
+    val polyAmount = Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, poly.longValue() - 1))) - fee
 
     val recipients = {
       val address: Address =
         addresses.filterNot(_ == sender).toSeq(Random.nextInt(addresses.size - 1))
-      IndexedSeq((address, polyAmount))
+      List((address, polyAmount))
     }
 
     val rawTx =
-      PolyTransfer
-        .createRaw[ThresholdPropositionCurve25519](
+      TransferBuilder
+        .buildUnsignedPolyTransfer[PublicKeyPropositionCurve25519](
           state,
-          recipients,
-          IndexedSeq(sender),
-          sender,
-          fee,
-          None
+          PolyTransferRequest(List(sender), recipients, sender, fee, None),
+          BoxSelectionAlgorithms.All
         )
         .getOrThrow()
 
@@ -173,22 +173,19 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
 
     val availablePolys = sumBoxes(collectBoxes(keyRing.addresses, state), "PolyBox")
     val (sender, poly) = availablePolys(Random.nextInt(availablePolys.length))
-    val polyAmount = SimpleValue(Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, poly.longValue() - 1))) - fee)
+    val polyAmount = Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, poly.longValue() - 1))) - fee
 
     val recipients = {
       val address: Address = keyRing.addresses.filterNot(_ == sender).toSeq(Random.nextInt(keyRing.addresses.size - 1))
-      IndexedSeq((address, polyAmount))
+      List((address, polyAmount))
     }
 
     val rawTx =
-      PolyTransfer
-        .createRaw[PublicKeyPropositionEd25519](
+      TransferBuilder
+        .buildUnsignedPolyTransfer[PublicKeyPropositionEd25519](
           state,
-          recipients,
-          IndexedSeq(sender),
-          sender,
-          fee,
-          None
+          PolyTransferRequest(List(sender), recipients, sender, fee, None),
+          BoxSelectionAlgorithms.All
         )
         .getOrThrow()
 
@@ -216,23 +213,19 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
 
     val availableArbits = sumBoxes(collectBoxes(keyRing.addresses, state), "ArbitBox")
     val (sender, arbit) = availableArbits(Random.nextInt(availableArbits.length))
-    val arbitAmount = SimpleValue(Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, arbit.longValue() - 1))) - fee)
+    val arbitAmount = Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, arbit.longValue() - 1))) - fee
 
     val recipients = {
       val address = keyRing.addresses.filterNot(_ == sender).toSeq(Random.nextInt(keyRing.addresses.size - 1))
-      IndexedSeq((address, arbitAmount))
+      List((address, arbitAmount))
     }
 
     val rawTx =
-      ArbitTransfer
-        .createRaw[PublicKeyPropositionCurve25519](
+      TransferBuilder
+        .buildUnsignedArbitTransfer[PublicKeyPropositionCurve25519](
           state,
-          recipients,
-          IndexedSeq(sender),
-          sender,
-          sender,
-          fee,
-          None
+          ArbitTransferRequest(List(sender), recipients, sender, sender, fee, None),
+          BoxSelectionAlgorithms.All
         )
         .getOrThrow()
 
@@ -251,24 +244,20 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
 
     val availableArbits = sumBoxes(collectBoxes(addresses, state), "ArbitBox")
     val (sender, arbit) = availableArbits(Random.nextInt(availableArbits.length))
-    val arbitAmount = SimpleValue(Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, arbit.longValue() - 1))) - fee)
+    val arbitAmount = Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, arbit.longValue() - 1))) - fee
 
     val recipients = {
       val address: Address =
         addresses.filterNot(_ == sender).toSeq(Random.nextInt(addresses.size - 1))
-      IndexedSeq((address, arbitAmount))
+      List((address, arbitAmount))
     }
 
     val rawTx =
-      ArbitTransfer
-        .createRaw[ThresholdPropositionCurve25519](
+      TransferBuilder
+        .buildUnsignedArbitTransfer[ThresholdPropositionCurve25519](
           state,
-          recipients,
-          IndexedSeq(sender),
-          sender,
-          sender,
-          fee,
-          None
+          ArbitTransferRequest(List(sender), recipients, sender, sender, fee, None),
+          BoxSelectionAlgorithms.All
         )
         .getOrThrow()
 
@@ -287,23 +276,19 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
 
     val availableArbits = sumBoxes(collectBoxes(keyRing.addresses, state), "ArbitBox")
     val (sender, arbit) = availableArbits(Random.nextInt(availableArbits.length))
-    val arbitAmount = SimpleValue(Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, arbit.longValue() - 1))) - fee)
+    val arbitAmount = Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, arbit.longValue() - 1))) - fee
 
     val recipients = {
       val address = keyRing.addresses.filterNot(_ == sender).toSeq(Random.nextInt(keyRing.addresses.size - 1))
-      IndexedSeq((address, arbitAmount))
+      List((address, arbitAmount))
     }
 
     val rawTx =
-      ArbitTransfer
-        .createRaw[PublicKeyPropositionEd25519](
+      TransferBuilder
+        .buildUnsignedArbitTransfer[PublicKeyPropositionEd25519](
           state,
-          recipients,
-          IndexedSeq(sender),
-          sender,
-          sender,
-          fee,
-          None
+          ArbitTransferRequest(List(sender), recipients, sender, sender, fee, None),
+          BoxSelectionAlgorithms.All
         )
         .getOrThrow()
 
@@ -331,19 +316,14 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
   ): Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = {
     val sender = keyRing.addresses.head
     val asset = AssetValue(1, AssetCode(1: Byte, sender, Latin1Data.unsafe("test")), SecurityRoot.empty)
-    val recipients = IndexedSeq((sender, asset))
+    val recipients = List((sender, asset))
 
     val rawTx =
-      AssetTransfer
-        .createRaw[PublicKeyPropositionCurve25519](
+      TransferBuilder
+        .buildUnsignedAssetTransfer[PublicKeyPropositionCurve25519](
           state,
-          recipients,
-          IndexedSeq(sender),
-          sender,
-          sender,
-          fee,
-          None,
-          minting
+          AssetTransferRequest(List(sender), recipients, sender, sender, fee, None, minting),
+          BoxSelectionAlgorithms.All
         )
         .getOrThrow()
 
@@ -363,19 +343,14 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
 
     val sender = addresses.head
     val asset = AssetValue(1, AssetCode(1: Byte, sender, Latin1Data.unsafe("test")), SecurityRoot.empty)
-    val recipients = IndexedSeq((sender, asset))
+    val recipients = List((sender, asset))
 
     val rawTx =
-      AssetTransfer
-        .createRaw[ThresholdPropositionCurve25519](
+      TransferBuilder
+        .buildUnsignedAssetTransfer[ThresholdPropositionCurve25519](
           state,
-          recipients,
-          IndexedSeq(sender),
-          sender,
-          sender,
-          fee,
-          None,
-          minting
+          AssetTransferRequest(List(sender), recipients, sender, sender, fee, None, minting),
+          BoxSelectionAlgorithms.All
         )
         .getOrThrow()
 
@@ -394,19 +369,14 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
   ): Gen[AssetTransfer[PublicKeyPropositionEd25519]] = {
     val sender = keyRing.addresses.head
     val asset = AssetValue(1, AssetCode(1: Byte, sender, Latin1Data.unsafe("test")), SecurityRoot.empty)
-    val recipients = IndexedSeq((sender, asset))
+    val recipients = List((sender, asset))
 
     val rawTx =
-      AssetTransfer
-        .createRaw[PublicKeyPropositionEd25519](
+      TransferBuilder
+        .buildUnsignedAssetTransfer[PublicKeyPropositionEd25519](
           state,
-          recipients,
-          IndexedSeq(sender),
-          sender,
-          sender,
-          fee,
-          None,
-          minting
+          AssetTransferRequest(List(sender), recipients, sender, sender, fee, None, minting),
+          BoxSelectionAlgorithms.All
         )
         .getOrThrow()
 

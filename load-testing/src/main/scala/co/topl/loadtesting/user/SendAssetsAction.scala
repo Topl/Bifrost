@@ -13,15 +13,13 @@ import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCu
 import co.topl.loadtesting.statistics._
 import co.topl.modifier.ModifierId
 import co.topl.modifier.box.{AssetCode, AssetValue}
-import co.topl.modifier.transaction.unsigned.Builder.BoxPickingStrategies
-import co.topl.modifier.transaction.unsigned.PropositionTypes
+import co.topl.modifier.transaction.builder.BoxSelectionAlgorithms
 import co.topl.rpc.ToplRpc
 import co.topl.rpc.ToplRpc.NodeView.Balances
 import co.topl.rpc.ToplRpc.Transaction.{BroadcastTx, RawAssetTransfer}
 import co.topl.rpc.implicits.client._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Latin1Data
-import co.topl.utils.TimeProvider.Time
 import com.nike.fleam.implicits._
 
 import java.time.LocalDateTime
@@ -163,7 +161,7 @@ object SendAssetsAction {
     contacts:             List[Address]
   ): RawAssetTransfer.Params =
     ToplRpc.Transaction.RawAssetTransfer.Params(
-      propositionType = PropositionTypes.PublicKeyCurve25519,
+      propositionType = PublicKeyPropositionCurve25519.typeString,
       sender = NonEmptyChain(address),
       recipients = NonEmptyChain(
         random.shuffle(contacts).headOption.getOrElse(address) ->
@@ -177,7 +175,7 @@ object SendAssetsAction {
       consolidationAddress = address,
       minting = balances.Boxes.AssetBox.isEmpty,
       data = Some(Latin1Data.unsafe(random.alphanumeric.take(random.between(0, 127)).mkString)),
-      boxAlgorithm = BoxPickingStrategies.All
+      boxSelectionAlgorithm = BoxSelectionAlgorithms.All
     )
 
   /**
