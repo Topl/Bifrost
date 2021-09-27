@@ -14,38 +14,16 @@ import scala.collection.immutable.ListMap
 object TransferBuilder {
 
   /**
-   * Represents a set of available boxes for use in a transaction.
-   * @param arbits the available arbit boxes
-   * @param polys the available poly boxes
-   * @param assets the available asset boxes
+   * Gets the available boxes a list of addresses owns.
+   * @param addresses the list of addresses to get boxes for
+   * @param state the current state of unopened boxes
+   * @return a set of available boxes a `TokenBoxes` type
    */
-  private case class TokenBoxes(
-    arbits: List[(Address, ArbitBox)],
-    polys:  List[(Address, PolyBox)],
-    assets: List[(Address, AssetBox)]
-  )
-
-  /**
-   * Takes boxes from the provided list until a certain quantity of funds is reached.
-   * @param target the target quantity
-   * @param boxes the boxes to take from
-   * @tparam S the type of the boxes TokenValueHolder
-   * @tparam T the type of the boxes TokenBox
-   * @return a set of boxes with a quantity
-   */
-  private def takeBoxesUntilQuantity[S <: TokenValueHolder, T <: TokenBox[S]](
-    target: Int128,
-    boxes:  List[(Address, T)]
-  ): List[(Address, T)] =
-    boxes
-      .foldLeft((Int128(0), List[(Address, T)]())) {
-        case ((sum, result), _) if sum >= target => sum                         -> result
-        case ((sum, result), box)                => sum + box._2.value.quantity -> (result :+ box)
-      }
-      ._2
-
-  private def getAvailableBoxes(senders: List[Address], state: BoxReader[ProgramId, Address]): TokenBoxes =
-    senders
+  private def getAvailableBoxes(
+    addresses: List[Address],
+    state:     BoxReader[ProgramId, Address]
+  ): TokenBoxes =
+    addresses
       .flatMap(addr =>
         state
           .getTokenBoxes(addr)
@@ -53,82 +31,11 @@ object TransferBuilder {
           .map(addr -> _)
       )
       .foldLeft(TokenBoxes(List(), List(), List())) {
-        case (boxes, (addr, box: PolyBox))  => boxes.copy(polys = boxes.polys :+ (addr -> box))
-        case (boxes, (addr, box: ArbitBox)) => boxes.copy(arbits = boxes.arbits :+ (addr -> box))
-        case (boxes, (addr, box: AssetBox)) => boxes.copy(assets = boxes.assets :+ (addr -> box))
+        case (boxes, (addr, box: PolyBox))  => boxes.copy(polys = (addr -> box) :: boxes.polys)
+        case (boxes, (addr, box: ArbitBox)) => boxes.copy(arbits = (addr -> box) :: boxes.arbits)
+        case (boxes, (addr, box: AssetBox)) => boxes.copy(assets = (addr -> box) :: boxes.assets)
         case (boxes, _)                     => boxes
       }
-
-  private def pickBoxesWithSorting(
-    boxes:        TokenBoxes,
-    request:      TransferRequest,
-    sortQuantity: TokenValueHolder => Int128
-  ): TokenBoxes =
-    request match {
-      case TransferRequests.PolyTransferRequest(_, to, _, fee, _) =>
-        val polyBoxes = takeBoxesUntilQuantity[SimpleValue, PolyBox](
-          fee + to.map(_._2).sum,
-          boxes.polys.sortBy(box => sortQuantity(box._2.value))
-        )
-        TokenBoxes(List(), polyBoxes, List())
-
-      case TransferRequests.AssetTransferRequest(_, _, _, _, fee, _, true) =>
-        val polyBoxes =
-          takeBoxesUntilQuantity[SimpleValue, PolyBox](fee, boxes.polys.sortBy(box => sortQuantity(box._2.value)))
-        TokenBoxes(List(), polyBoxes, List())
-
-      case TransferRequests.AssetTransferRequest(_, to, _, _, fee, _, false) =>
-        val polyBoxes =
-          takeBoxesUntilQuantity[SimpleValue, PolyBox](fee, boxes.polys.sortBy(box => sortQuantity(box._2.value)))
-
-        val assetBoxes =
-          boxes.assets.headOption
-            .map(_._2.value.assetCode)
-            .map(assetCode =>
-              takeBoxesUntilQuantity[AssetValue, AssetBox](
-                to.map(_._2.quantity).sum,
-                boxes.assets
-                  .filter(_._2.value.assetCode == assetCode)
-                  .sortBy(box => sortQuantity(box._2.value))
-              )
-            )
-            .getOrElse(List())
-
-        TokenBoxes(List(), polyBoxes, assetBoxes)
-
-      case TransferRequests.ArbitTransferRequest(_, to, _, _, fee, _) =>
-        val polyBoxes =
-          takeBoxesUntilQuantity[SimpleValue, PolyBox](fee, boxes.polys.sortBy(box => sortQuantity(box._2.value)))
-
-        val arbitBoxes = takeBoxesUntilQuantity[SimpleValue, ArbitBox](
-          to.map(_._2).sum,
-          boxes.arbits.sortBy(box => sortQuantity(box._2.value))
-        )
-
-        TokenBoxes(arbitBoxes, polyBoxes, List())
-    }
-
-  private def pickSpecificBoxes(ids: List[BoxId], boxes: TokenBoxes, request: TransferRequest): TokenBoxes =
-    request match {
-      case _: TransferRequests.PolyTransferRequest =>
-        boxes.copy(polys = boxes.polys.filter(box => ids.contains(box._2.id)))
-      case _: TransferRequests.ArbitTransferRequest =>
-        boxes.copy(arbits = boxes.arbits.filter(box => ids.contains(box._2.id)))
-      case _: TransferRequests.AssetTransferRequest =>
-        boxes.copy(assets = boxes.assets.filter(box => ids.contains(box._2.id)))
-    }
-
-  private def pickBoxes(boxes: TokenBoxes, algorithm: BoxSelectionAlgorithm, request: TransferRequest): TokenBoxes =
-    algorithm match {
-      case BoxSelectionAlgorithms.All => boxes
-      case BoxSelectionAlgorithms.SmallestFirst =>
-        pickBoxesWithSorting(boxes, request, _.quantity)
-      case BoxSelectionAlgorithms.LargestFirst =>
-        // sort box quantity by negative value which results in largest first
-        pickBoxesWithSorting(boxes, request, -_.quantity)
-      case BoxSelectionAlgorithms.Specific(ids) =>
-        pickSpecificBoxes(ids, boxes, request)
-    }
 
   /**
    * Calculates the value of funds contained inside of the provided boxes.
@@ -152,7 +59,9 @@ object TransferBuilder {
     boxSelection: BoxSelectionAlgorithm
   ): Either[BuildTransferFailure, PolyTransfer[P]] = {
     val availableBoxes = getAvailableBoxes(request.from, boxReader)
-    val filteredBoxes = pickBoxes(availableBoxes, boxSelection, request)
+
+    // filter the available boxes as specified in the box selection algorithm
+    val filteredBoxes = BoxSelectionAlgorithm.pickBoxes(boxSelection, availableBoxes, request)
 
     for {
       _             <- validateNonEmptyInputs[SimpleValue, PolyBox](filteredBoxes.polys)
@@ -191,7 +100,9 @@ object TransferBuilder {
     boxSelection: BoxSelectionAlgorithm
   ): Either[BuildTransferFailure, AssetTransfer[P]] = {
     val availableBoxes = getAvailableBoxes(request.from, boxReader)
-    val filteredBoxes = pickBoxes(availableBoxes, boxSelection, request)
+
+    // filter the available boxes as specified in the box selection algorithm
+    val filteredBoxes = BoxSelectionAlgorithm.pickBoxes(boxSelection, availableBoxes, request)
 
     for {
       _ <- validateNonEmptyInputs[SimpleValue, PolyBox](filteredBoxes.polys)
@@ -236,7 +147,9 @@ object TransferBuilder {
     boxSelection: BoxSelectionAlgorithm
   ): Either[BuildTransferFailure, ArbitTransfer[P]] = {
     val availableBoxes = getAvailableBoxes(request.from, boxReader)
-    val filteredBoxes = pickBoxes(availableBoxes, boxSelection, request)
+
+    // filter the available boxes as specified in the box selection algorithm
+    val filteredBoxes = BoxSelectionAlgorithm.pickBoxes(boxSelection, availableBoxes, request)
 
     for {
       _      <- validateNonEmptyInputs[SimpleValue, PolyBox](filteredBoxes.polys)
