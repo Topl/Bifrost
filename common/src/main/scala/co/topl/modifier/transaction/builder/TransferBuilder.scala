@@ -25,14 +25,22 @@ object TransferBuilder {
     assets: List[(Address, AssetBox)]
   )
 
+  /**
+   * Takes boxes from the provided list until a certain quantity of funds is reached.
+   * @param target the target quantity
+   * @param boxes the boxes to take from
+   * @tparam S the type of the boxes TokenValueHolder
+   * @tparam T the type of the boxes TokenBox
+   * @return a set of boxes with a quantity
+   */
   private def takeBoxesUntilQuantity[S <: TokenValueHolder, T <: TokenBox[S]](
-    x:     Int128,
-    boxes: List[(Address, T)]
+    target: Int128,
+    boxes:  List[(Address, T)]
   ): List[(Address, T)] =
     boxes
       .foldLeft((Int128(0), List[(Address, T)]())) {
-        case ((sum, result), _) if sum >= x => sum                         -> result
-        case ((sum, result), box)           => sum + box._2.value.quantity -> (result :+ box)
+        case ((sum, result), _) if sum >= target => sum                         -> result
+        case ((sum, result), box)                => sum + box._2.value.quantity -> (result :+ box)
       }
       ._2
 
@@ -122,9 +130,22 @@ object TransferBuilder {
         pickSpecificBoxes(ids, boxes, request)
     }
 
+  /**
+   * Calculates the value of funds contained inside of the provided boxes.
+   * @param fromBoxes a list of address/box tuples to sum together
+   * @return the amount of funds contained within the boxes
+   */
   private def boxFunds(fromBoxes: List[(Address, Box[TokenValueHolder])]): Int128 =
     fromBoxes.map(_._2.value.quantity).sum
 
+  /**
+   * Builds an unsigned poly transfer from a box state, a request, and an algorithm for box selection.
+   * @param boxReader the state of UTXO boxes
+   * @param request the `PolyTransferRequest` to build an unsigned TX from
+   * @param boxSelection the selection algorithm for choosing which boxes should be transaction inputs
+   * @tparam P the proposition type
+   * @return an unsigned `PolyTransfer` transaction if successful, or a `BuildTransferFailure` if an error occurred
+   */
   def buildUnsignedPolyTransfer[P <: Proposition: Identifiable: EvidenceProducer](
     boxReader:    BoxReader[ProgramId, Address],
     request:      TransferRequests.PolyTransferRequest,
@@ -156,6 +177,14 @@ object TransferBuilder {
     )
   }
 
+  /**
+   * Builds an unsigned asset transfer from a box state, a request, and an algorithm for box selection.
+   * @param boxReader the state of UTXO boxes
+   * @param request the `PolyTransferRequest` to build an unsigned TX from
+   * @param boxSelection the selection algorithm for choosing which boxes should be inputs
+   * @tparam P the proposition type
+   * @return an unsigned `PolyTransfer` transaction if successful, or a `BuildTransferFailure` if an error occurred
+   */
   def buildUnsignedAssetTransfer[P <: Proposition: Identifiable: EvidenceProducer](
     boxReader:    BoxReader[ProgramId, Address],
     request:      TransferRequests.AssetTransferRequest,
@@ -193,6 +222,14 @@ object TransferBuilder {
     )
   }
 
+  /**
+   * Builds an unsigned arbit transfer from a box state, a request, and an algorithm for box selection.
+   * @param boxReader the state of UTXO boxes
+   * @param request the `AssetTransferRequest` to build an unsigned TX from
+   * @param boxSelection the selection algorithm for choosing which boxes should be transaction inputs
+   * @tparam P the proposition type
+   * @return an unsigned `AssetTransfer` transaction if successful, or a `BuildTransferFailure` if an error occurred
+   */
   def buildUnsignedArbitTransfer[P <: Proposition: Identifiable: EvidenceProducer](
     boxReader:    BoxReader[ProgramId, Address],
     request:      TransferRequests.ArbitTransferRequest,
