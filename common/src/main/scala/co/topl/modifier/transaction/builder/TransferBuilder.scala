@@ -14,38 +14,6 @@ import scala.collection.immutable.ListMap
 object TransferBuilder {
 
   /**
-   * Gets the available boxes a list of addresses owns.
-   * @param addresses the list of addresses to get boxes for
-   * @param state the current state of unopened boxes
-   * @return a set of available boxes a `TokenBoxes` type
-   */
-  private def getAvailableBoxes(
-    addresses: List[Address],
-    state:     BoxReader[ProgramId, Address]
-  ): TokenBoxes =
-    addresses
-      .flatMap(addr =>
-        state
-          .getTokenBoxes(addr)
-          .getOrElse(List())
-          .map(addr -> _)
-      )
-      .foldLeft(TokenBoxes(List(), List(), List())) {
-        case (boxes, (addr, box: PolyBox))  => boxes.copy(polys = (addr -> box) :: boxes.polys)
-        case (boxes, (addr, box: ArbitBox)) => boxes.copy(arbits = (addr -> box) :: boxes.arbits)
-        case (boxes, (addr, box: AssetBox)) => boxes.copy(assets = (addr -> box) :: boxes.assets)
-        case (boxes, _)                     => boxes
-      }
-
-  /**
-   * Calculates the value of funds contained inside of the provided boxes.
-   * @param fromBoxes a list of address/box tuples to sum together
-   * @return the amount of funds contained within the boxes
-   */
-  private def boxFunds(fromBoxes: List[(Address, Box[TokenValueHolder])]): Int128 =
-    fromBoxes.map(_._2.value.quantity).sum
-
-  /**
    * Builds an unsigned poly transfer from a box state, a request, and an algorithm for box selection.
    * @param boxReader the state of UTXO boxes
    * @param request the `PolyTransferRequest` to build an unsigned TX from
@@ -180,4 +148,36 @@ object TransferBuilder {
       false
     )
   }
+
+  /**
+   * Gets the available boxes a list of addresses owns.
+   * @param addresses the list of addresses to get boxes for
+   * @param state the current state of unopened boxes
+   * @return a set of available boxes a `TokenBoxes` type
+   */
+  private def getAvailableBoxes(
+    addresses: List[Address],
+    state:     BoxReader[ProgramId, Address]
+  ): TokenBoxes =
+    addresses
+      .flatMap(addr =>
+        state
+          .getTokenBoxes(addr)
+          .getOrElse(List())
+          .map(addr -> _)
+      )
+      .foldLeft(TokenBoxes(List(), List(), List())) {
+        case (boxes, (addr, box: PolyBox))  => boxes.copy(polys = (addr -> box) :: boxes.polys)
+        case (boxes, (addr, box: ArbitBox)) => boxes.copy(arbits = (addr -> box) :: boxes.arbits)
+        case (boxes, (addr, box: AssetBox)) => boxes.copy(assets = (addr -> box) :: boxes.assets)
+        case (boxes, _)                     => boxes
+      }
+
+  /**
+   * Calculates the value of funds contained inside of the provided boxes.
+   * @param fromBoxes a list of address/box tuples to sum together
+   * @return the amount of funds contained within the boxes
+   */
+  private def boxFunds(fromBoxes: List[(Address, Box[TokenValueHolder])]): Int128 =
+    fromBoxes.map(_._2.value.quantity).sum
 }

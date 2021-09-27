@@ -302,7 +302,7 @@ object ToplRpc {
         consolidationAddress:  Address,
         minting:               Boolean,
         data:                  Option[Latin1Data],
-        boxSelectionAlgorithm: BoxSelectionAlgorithm = BoxSelectionAlgorithms.All
+        boxSelectionAlgorithm: BoxSelectionAlgorithm
       )
 
       case class Response(rawTx: AssetTransfer[Proposition], messageToSign: String)
@@ -344,7 +344,7 @@ object ToplRpc {
         changeAddress:         Address,
         consolidationAddress:  Address,
         data:                  Option[Latin1Data],
-        boxSelectionAlgorithm: BoxSelectionAlgorithm = BoxSelectionAlgorithms.All
+        boxSelectionAlgorithm: BoxSelectionAlgorithm
       )
 
       case class Response(rawTx: ArbitTransfer[Proposition], messageToSign: String)

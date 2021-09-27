@@ -68,7 +68,7 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
       |   "minting": "false",
       |   "fee": "1",
       |   "data": "",
-      |   "boxSelectionAlgorithm": { "All": {} }
+      |   "boxSelectionAlgorithm": "All"
       | }]
       |}
       """.stripMargin)
@@ -118,7 +118,7 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
                                     |   "minting": "false",
                                     |   "fee": "1",
                                     |   "data": "",
-                                    |   "boxSelectionAlgorithm": { "All": {} }
+                                    |   "boxSelectionAlgorithm": "All"
                                     | }]
                                     |}
       """.stripMargin)
@@ -183,7 +183,7 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
                                     |   "fee": "1",
                                     |   "minting": true,
                                     |   "data": "",
-                                    |   "boxSelectionAlgorithm": { "All": {} }
+                                    |   "boxSelectionAlgorithm": "All"
                                     | }]
                                     |}
       """.stripMargin)

@@ -1,32 +1,48 @@
 package co.topl.modifier.transaction.builder
 
+import akka.actor.typed.internal.jfr.DeliveryConsumerCreated
 import co.topl.attestation.Address
-import co.topl.modifier.BoxReader
-import co.topl.modifier.box.{
-  ArbitBox,
-  AssetBox,
-  AssetValue,
-  BoxId,
-  PolyBox,
-  ProgramId,
-  SimpleValue,
-  TokenBox,
-  TokenValueHolder
-}
+import co.topl.modifier.box._
 import co.topl.utils.Int128
-import io.circe.{Decoder, Encoder}
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
+import io.circe.syntax.EncoderOps
+import io.circe.{Decoder, Encoder, Json}
+import cats.syntax.functor._
 
 sealed trait BoxSelectionAlgorithm
 
 object BoxSelectionAlgorithms {
   case object All extends BoxSelectionAlgorithm
+  type All = All.type
   case object SmallestFirst extends BoxSelectionAlgorithm
+  type SmallestFirst = SmallestFirst.type
   case object LargestFirst extends BoxSelectionAlgorithm
+  type LargestFirst = LargestFirst.type
   case class Specific(ids: List[BoxId]) extends BoxSelectionAlgorithm
 }
 
 object BoxSelectionAlgorithm {
+
+  /**
+   * Picks boxes to use in a transfer transaction based on the type of algorithm provided.
+   * @param boxes the available boxes to spend in a transaction
+   * @param algorithm the selection algorithm to apply to the boxes
+   * @param request the request for the transfer that the boxes will be used in
+   * @return a set of token boxes that should be used for a transfer transaction
+   */
+  def pickBoxes(algorithm: BoxSelectionAlgorithm, boxes: TokenBoxes, request: TransferRequest): TokenBoxes =
+    algorithm match {
+      case BoxSelectionAlgorithms.All =>
+        pickAllBoxes(boxes, request)
+      case BoxSelectionAlgorithms.SmallestFirst =>
+        // _.quantity will sort boxes from smallest to largest
+        pickBoxesWithSorting(boxes, request, _.quantity)
+      case BoxSelectionAlgorithms.LargestFirst =>
+        // -_.quantity will sort boxes from largest to smallest
+        pickBoxesWithSorting(boxes, request, -_.quantity)
+      case BoxSelectionAlgorithms.Specific(ids) =>
+        pickSpecificBoxes(ids, boxes, request)
+    }
 
   /**
    * Takes boxes from the provided list until a certain quantity of funds is reached.
@@ -139,27 +155,37 @@ object BoxSelectionAlgorithm {
       case _ => boxes
     }
 
-  /**
-   * Picks boxes to use in a transfer transaction based on the type of algorithm provided.
-   * @param boxes the available boxes to spend in a transaction
-   * @param algorithm the selection algorithm to apply to the boxes
-   * @param request the request for the transfer that the boxes will be used in
-   * @return a set of token boxes that should be used for a transfer transaction
-   */
-  def pickBoxes(algorithm: BoxSelectionAlgorithm, boxes: TokenBoxes, request: TransferRequest): TokenBoxes =
-    algorithm match {
-      case BoxSelectionAlgorithms.All =>
-        pickAllBoxes(boxes, request)
-      case BoxSelectionAlgorithms.SmallestFirst =>
-        // _.quantity will sort boxes from smallest to largest
-        pickBoxesWithSorting(boxes, request, _.quantity)
-      case BoxSelectionAlgorithms.LargestFirst =>
-        // -_.quantity will sort boxes from largest to smallest
-        pickBoxesWithSorting(boxes, request, -_.quantity)
-      case BoxSelectionAlgorithms.Specific(ids) =>
-        pickSpecificBoxes(ids, boxes, request)
-    }
+  val jsonEncoder: Encoder[BoxSelectionAlgorithm] = {
+    case BoxSelectionAlgorithms.All           => "All".asJson
+    case BoxSelectionAlgorithms.LargestFirst  => "LargestFirst".asJson
+    case BoxSelectionAlgorithms.SmallestFirst => "SmallestFirst".asJson
+    case BoxSelectionAlgorithms.Specific(ids) =>
+      Json.obj(
+        "Specific" -> Json.obj(
+          "ids" -> ids.asJson
+        )
+      )
+  }
 
-  val jsonDecoder: Decoder[BoxSelectionAlgorithm] = deriveDecoder
-  val jsonEncoder: Encoder[BoxSelectionAlgorithm] = deriveEncoder
+  val jsonDecoder: Decoder[BoxSelectionAlgorithm] =
+    List[Decoder[BoxSelectionAlgorithm]](
+      Decoder[String].emap(str => Either.cond(str == "All", BoxSelectionAlgorithms.All, "value is not of type 'All'")),
+      Decoder[String].emap(str =>
+        Either.cond(str == "LargestFirst", BoxSelectionAlgorithms.LargestFirst, "value is not of type 'LargestFirst'")
+      ),
+      Decoder[String].emap(str =>
+        Either.cond(
+          str == "SmallestFirst",
+          BoxSelectionAlgorithms.SmallestFirst,
+          "value is not of type 'SmallestFirst'"
+        )
+      ),
+      Decoder.instance(hcursor =>
+        hcursor
+          .downField("Specific")
+          .downField("ids")
+          .as[List[BoxId]]
+          .map(BoxSelectionAlgorithms.Specific)
+      )
+    ).reduceLeft(_ or _)
 }
