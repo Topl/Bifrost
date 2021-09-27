@@ -36,6 +36,31 @@ trait RpcDirectives {
   implicit def rpcErrorAsRejection(rpcError: RpcError): Rejection =
     RpcErrorRejection(rpcError)
 
+  def rpcRoutes(builder: RpcServer.Builder): Route =
+    rpcContext { implicit ctx =>
+      builder.handlers.get(ctx.method) match {
+        case Some(handler) =>
+          implicit val paramsDecoder: Decoder[handler.Params] =
+            handler.paramsDecoder.asInstanceOf[Decoder[handler.Params]]
+          implicit val responseEncoder: Encoder[handler.Response] =
+            handler.successResponseEncoder.asInstanceOf[Encoder[handler.Response]]
+          implicit val throwableEncoder: Encoder[ThrowableData] =
+            handler.throwableEncoder
+          rpcParameters[handler.Params](ctx, paramsDecoder, throwableEncoder) { params =>
+            extractExecutionContext { implicit ec: ExecutionContext =>
+              onComplete(
+                handler.handler
+                  .asInstanceOf[Rpc.ServerHandler[handler.Params, handler.Response]]
+                  .apply(params)
+                  .map(r => SuccessRpcResponse(ctx.id, ctx.jsonrpc, r.asJson))
+                  .value
+              )(_.toEither.leftMap(recoverToRpcError).flatMap(identity).fold(completeRpc, completeRpc))
+            }
+          }
+        case _ => reject(RpcErrorRejection(MethodNotFoundError(ctx.method)))
+      }
+    }
+
   def rpcRoute[RpcParams: Decoder, SuccessResult: Encoder](
     method:                    String,
     handler:                   Rpc.ServerHandler[RpcParams, SuccessResult]
@@ -69,8 +94,9 @@ trait RpcDirectives {
   )(implicit rpcContext: RpcContext, throwableEncoder: Encoder[ThrowableData]): StandardRoute =
     completeRpc(rpcErrorToFailureResponse(rpcContext, error))
 
-  def rpcParameters[RpcParams: Decoder](implicit
+  def rpcParameters[RpcParams](implicit
     context:          RpcContext,
+    paramsDecoder:    Decoder[RpcParams],
     throwableEncoder: Encoder[ThrowableData]
   ): Directive1[RpcParams] =
     Try(

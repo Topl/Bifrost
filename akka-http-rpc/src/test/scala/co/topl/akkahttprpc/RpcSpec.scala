@@ -144,6 +144,57 @@ class RpcSpec
     }
   }
 
+  it should "choose the correct handler from the Builder pattern" in {
+
+    val underTest =
+      RpcServer.Builder.empty
+        .append(Rpc[TestMethodParams, TestMethodSuccess]("test_method2"))(params =>
+          TestMethodSuccess(params.userId.length).asRight[RpcError].toEitherT[Future]
+        )
+        .append(normalRpc)(normalRpcHandler)
+        .route
+
+    Post(
+      "/",
+      Map(
+        "id"      -> "1".asJson,
+        "jsonrpc" -> "2.0".asJson,
+        "method"  -> "test_method1".asJson,
+        "params"  -> TestMethodParams("abcdef").asJson
+      ).asJson
+    ) ~> underTest ~> check {
+      val json = responseAs[Json]
+
+      root.id.string.getOption(json).value shouldBe "1"
+      root.result.value.int.getOption(json).value shouldBe 6
+    }
+  }
+
+  it should "return a MethodNotFoundError when valid RPC format is provided but the method is not known in the builder pattern" in {
+
+    val underTest =
+      RpcServer.Builder.empty
+        .append(Rpc[TestMethodParams, TestMethodSuccess]("test_method2"))(params =>
+          TestMethodSuccess(params.userId.length).asRight[RpcError].toEitherT[Future]
+        )
+        .append(normalRpc)(normalRpcHandler)
+        .route
+
+    Post(
+      "/",
+      Map(
+        "id"      -> "1".asJson,
+        "jsonrpc" -> "2.0".asJson,
+        "method"  -> "unknown_method".asJson,
+        "params"  -> Json.obj()
+      ).asJson
+    ) ~> underTest ~> check {
+      inside(rejection) { case RpcErrorRejection(e) =>
+        e shouldBe MethodNotFoundError("unknown_method")
+      }
+    }
+  }
+
   it should "return a InvalidParametersError when valid RPC format is provided but the parameters do not match the method" in {
     val underTest = normalRoute
 
@@ -208,11 +259,14 @@ class RpcSpec
     }
   }
 
-  private def normalRoute: Route = {
-    val rpc = Rpc[TestMethodParams, TestMethodSuccess]("test_method1")
-    rpc.serve(params => TestMethodSuccess(params.userId.length).asRight[RpcError].toEitherT[Future])
+  private def normalRoute: Route =
+    normalRpc.serve(normalRpcHandler)
 
-  }
+  private def normalRpc =
+    Rpc[TestMethodParams, TestMethodSuccess]("test_method1")
+
+  private def normalRpcHandler = (params: TestMethodParams) =>
+    TestMethodSuccess(params.userId.length).asRight[RpcError].toEitherT[Future]
 
 }
 

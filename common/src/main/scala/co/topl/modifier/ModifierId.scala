@@ -50,7 +50,11 @@ object ModifierId extends BifrostSerializer[ModifierId] {
 
   implicit val jsonEncoder: Encoder[ModifierId] = (id: ModifierId) => id.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[ModifierId] = (id: ModifierId) => id.toString
-  implicit val jsonDecoder: Decoder[ModifierId] = Decoder[Base58Data].map(ModifierId.fromBase58)
+
+  implicit val jsonDecoder: Decoder[ModifierId] =
+    Decoder[Base58Data]
+      .ensure(_.value.length == ModifierId.size, "Invalid size for ModifierId")
+      .map(ModifierId.fromBase58)
   implicit val jsonKeyDecoder: KeyDecoder[ModifierId] = KeyDecoder[Base58Data].map(ModifierId.fromBase58)
 
   /**

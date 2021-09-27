@@ -79,7 +79,7 @@ class KeyManager(settings: AppSettings, appContext: AppContext)(implicit np: Net
     // If the keyring is not already populated and this is a private/local testnet, generate the keys
     // this is for when you have started up a private network and are attempting to resume it using
     // the same seed you used previously to continue forging
-    if (keyRing.addresses.isEmpty && Seq(PrivateTestnet, LocalTestnet).contains(appContext.networkType)) {
+    if (keyRing.addresses.isEmpty && PrivateTestnet == appContext.networkType) {
       settings.forging.privateTestnet match {
         case Some(sfp) =>
           val (numAccts, seed) = (sfp.numTestnetAccts, sfp.genesisSeed)
