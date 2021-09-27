@@ -62,22 +62,22 @@ object TransferBuilder {
 
     // filter the available boxes as specified in the box selection algorithm
     val filteredBoxes = BoxSelectionAlgorithm.pickBoxes(boxSelection, availableBoxes, request)
+    val inputPolys = filteredBoxes.polys
 
     for {
-      _             <- validateNonEmptyInputs[SimpleValue, PolyBox](filteredBoxes.polys)
-      _             <- validateUniqueInputs[SimpleValue, PolyBox](filteredBoxes.polys)
-      _             <- validateNonEmptyRecipients(request.to)
-      _             <- validateUniqueRecipients(request.to)
-      amountToSpend <- validateFeeFunds(boxFunds(filteredBoxes.polys), request.fee)
-      paymentAmount = request.to.map(_._2).sum
-      changeAmount <- validatePaymentFunds(amountToSpend, paymentAmount)
+      _                      <- validateNonEmptyInputs[SimpleValue, PolyBox](inputPolys)
+      _                      <- validateUniqueInputs[SimpleValue, PolyBox](inputPolys)
+      _                      <- validateNonEmptyRecipients(request.to)
+      _                      <- validateUniqueRecipients(request.to)
+      polysAvailableAfterFee <- validateFeeFunds(boxFunds(inputPolys), request.fee)
+      amountOwed = request.to.map(_._2).sum
+      changeAmount <- validatePaymentFunds(polysAvailableAfterFee, amountOwed)
       changeRecipient = request.changeAddress -> SimpleValue(changeAmount)
       recipientValues = request.to.map(x => x._1 -> SimpleValue(x._2))
-      nonZeroRecipients = (changeRecipient +: recipientValues).filter(x => x._2.quantity > 0)
-      fromBoxNonces = filteredBoxes.polys.map(box => box._1 -> box._2.nonce)
+      fromBoxNonces = inputPolys.map(box => box._1 -> box._2.nonce)
     } yield PolyTransfer[P](
       fromBoxNonces.toIndexedSeq,
-      nonZeroRecipients.toIndexedSeq,
+      (changeRecipient +: recipientValues).toIndexedSeq,
       ListMap(),
       request.fee,
       Instant.now.toEpochMilli,
@@ -103,11 +103,13 @@ object TransferBuilder {
 
     // filter the available boxes as specified in the box selection algorithm
     val filteredBoxes = BoxSelectionAlgorithm.pickBoxes(boxSelection, availableBoxes, request)
+    val inputPolys = filteredBoxes.polys
+    val inputAssets = filteredBoxes.assets
 
     for {
-      _ <- validateNonEmptyInputs[SimpleValue, PolyBox](filteredBoxes.polys)
-      _ <- validateUniqueInputs[SimpleValue, PolyBox](filteredBoxes.polys)
-      _ <- validateAssetInputs(filteredBoxes.assets, request.minting)
+      _ <- validateNonEmptyInputs[SimpleValue, PolyBox](inputPolys)
+      _ <- validateUniqueInputs[SimpleValue, PolyBox](inputPolys)
+      _ <- validateAssetInputs(inputAssets, request.minting)
       _ <- validateNonEmptyRecipients(request.to)
       _ <- validateUniqueRecipients(request.to)
       assetCode = request.to.head._2.assetCode
@@ -115,16 +117,16 @@ object TransferBuilder {
       polyChange <- validateFeeFunds(boxFunds(filteredBoxes.polys), request.fee)
       assetPayment = request.to.map(_._2.quantity).sum
       assetChange <-
+        // no input assets required when minting
         if (!request.minting) validatePaymentFunds(boxFunds(filteredBoxes.assets), assetPayment)
         else Int128(0).asRight
-      assetBoxNonces = filteredBoxes.assets.map(box => box._1 -> box._2.nonce)
-      polyBoxNonces = filteredBoxes.polys.map(box => box._1 -> box._2.nonce)
-      changeOutput = request.changeAddress       -> SimpleValue(polyChange)
-      assetOutput = request.consolidationAddress -> AssetValue(assetChange, assetCode)
-      nonZeroOutputs = (changeOutput +: assetOutput +: request.to).filter(x => x._2.quantity > 0)
+      assetBoxNonces = inputAssets.map(box => box._1 -> box._2.nonce)
+      polyBoxNonces = inputPolys.map(box => box._1 -> box._2.nonce)
+      changeOutput = request.changeAddress             -> SimpleValue(polyChange)
+      assetChangeOutput = request.consolidationAddress -> AssetValue(assetChange, assetCode)
     } yield AssetTransfer[P](
       (polyBoxNonces ++ assetBoxNonces).toIndexedSeq,
-      nonZeroOutputs.toIndexedSeq,
+      IndexedSeq(changeOutput, assetChangeOutput) ++ request.to,
       ListMap(),
       request.fee,
       Instant.now.toEpochMilli,
@@ -150,26 +152,27 @@ object TransferBuilder {
 
     // filter the available boxes as specified in the box selection algorithm
     val filteredBoxes = BoxSelectionAlgorithm.pickBoxes(boxSelection, availableBoxes, request)
+    val inputPolys = filteredBoxes.polys
+    val inputArbits = filteredBoxes.arbits
 
     for {
-      _      <- validateNonEmptyInputs[SimpleValue, PolyBox](filteredBoxes.polys)
-      _      <- validateUniqueInputs[SimpleValue, PolyBox](filteredBoxes.polys)
-      _      <- validateNonEmptyInputs[SimpleValue, ArbitBox](filteredBoxes.arbits)
-      _      <- validateUniqueInputs[SimpleValue, ArbitBox](filteredBoxes.arbits)
+      _      <- validateNonEmptyInputs[SimpleValue, PolyBox](inputPolys)
+      _      <- validateUniqueInputs[SimpleValue, PolyBox](inputPolys)
+      _      <- validateNonEmptyInputs[SimpleValue, ArbitBox](inputArbits)
+      _      <- validateUniqueInputs[SimpleValue, ArbitBox](inputArbits)
       _      <- validateNonEmptyRecipients(request.to)
       _      <- validateUniqueRecipients(request.to)
-      change <- validateFeeFunds(filteredBoxes.polys.map(_._2.value.quantity).sum, request.fee)
-      arbitsAvailable = filteredBoxes.arbits.map(_._2.value.quantity).sum
-      arbitsToSend = request.to.map(_._2).sum
-      arbitChange <- validatePaymentFunds(arbitsAvailable, arbitsToSend)
+      change <- validateFeeFunds(inputPolys.map(_._2.value.quantity).sum, request.fee)
+      arbitsAvailable = inputArbits.map(_._2.value.quantity).sum
+      arbitsOwed = request.to.map(_._2).sum
+      arbitChange <- validatePaymentFunds(arbitsAvailable, arbitsOwed)
       changeOutput = request.changeAddress             -> SimpleValue(change)
       arbitChangeOutput = request.consolidationAddress -> SimpleValue(arbitChange)
       arbitOutputs = request.to.map(x => x._1 -> SimpleValue(x._2))
-      nonZeroOutputs = (changeOutput +: arbitChangeOutput +: arbitOutputs).filter(x => x._2.quantity > 0)
-      inputBoxNonces = (filteredBoxes.polys ++ filteredBoxes.arbits).map(x => x._1 -> x._2.nonce)
+      inputBoxNonces = (inputPolys ++ inputArbits).map(x => x._1 -> x._2.nonce)
     } yield ArbitTransfer[P](
       inputBoxNonces.toIndexedSeq,
-      nonZeroOutputs.toIndexedSeq,
+      IndexedSeq(changeOutput, arbitChangeOutput) ++ arbitOutputs,
       ListMap(),
       request.fee,
       Instant.now.toEpochMilli,
