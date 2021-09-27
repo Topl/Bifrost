@@ -227,7 +227,8 @@ class BuildUnsignedAssetTransferSpec
             .buildUnsignedAssetTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
 
         result shouldBe Symbol("left")
-        result.left.value shouldBe BuildTransferFailures.DifferentInputOutputCodes
+        // non-matching input assets will be filtered out by box selection algorithm
+        result.left.value shouldBe BuildTransferFailures.EmptyInputs
     }
   }
 
@@ -265,8 +266,8 @@ class BuildUnsignedAssetTransferSpec
   }
 
   it should "return invalid if there are no recipients" in {
-    forAll(polyBoxGen, Gen.listOf(polyBoxGen), addressGen, positiveLongGen, boolGen) {
-      (firstPolyBox, otherPolyBoxes, sender, boxNonce, minting) =>
+    forAll(polyBoxGen, Gen.listOf(polyBoxGen), addressGen, positiveLongGen) {
+      (firstPolyBox, otherPolyBoxes, sender, boxNonce) =>
         val polyInputs = firstPolyBox :: otherPolyBoxes
         val assetCode = AssetCode(1.toByte, sender, Latin1Data.unsafe("test1"))
         val inputAssetBox = AssetBox(sender.evidence, boxNonce, AssetValue(100, assetCode))
@@ -284,13 +285,14 @@ class BuildUnsignedAssetTransferSpec
           sender,
           0,
           None,
-          minting
+          true
         )
 
         val result = TransferBuilder
           .buildUnsignedAssetTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
 
         result shouldBe Symbol("left")
+        // input assets will be filtered out because there are no matching asset codes to send to
         result.left.value shouldBe BuildTransferFailures.EmptyRecipients
     }
   }
@@ -326,41 +328,6 @@ class BuildUnsignedAssetTransferSpec
 
         result shouldBe Symbol("left")
         result.left.value shouldBe BuildTransferFailures.DuplicateRecipients
-    }
-  }
-
-  it should "return invalid if multiple asset codes are used as inputs" in {
-    forAll(polyBoxGen, Gen.listOf(polyBoxGen), addressGen, positiveLongGen) {
-      (firstPolyBox, otherPolyBoxes, sender, boxNonce) =>
-        val polyInputs = firstPolyBox :: otherPolyBoxes
-        val assetCode1 = AssetCode(1.toByte, sender, Latin1Data.unsafe("test1"))
-        val assetCode2 = AssetCode(1.toByte, sender, Latin1Data.unsafe("test2"))
-        val inputAssetBoxes =
-          List(
-            AssetBox(sender.evidence, boxNonce, AssetValue(100, assetCode1)),
-            AssetBox(sender.evidence, boxNonce + 1, AssetValue(100, assetCode2))
-          )
-        val senders = List(sender)
-        val recipients = List(sender -> AssetValue(10, assetCode1))
-
-        val boxReader = mock[BoxReader[ProgramId, Address]]
-        (boxReader.getTokenBoxes _).expects(sender).returns(Some(polyInputs ++ inputAssetBoxes))
-
-        val request = TransferRequests.AssetTransferRequest(
-          senders,
-          recipients,
-          sender,
-          sender,
-          0,
-          None,
-          false
-        )
-
-        val result = TransferBuilder
-          .buildUnsignedAssetTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
-
-        result shouldBe Symbol("left")
-        result.left.value shouldBe BuildTransferFailures.DuplicateAssetCodes
     }
   }
 }
