@@ -103,7 +103,7 @@ object Heimdall {
   )(implicit timeProvider: TimeProvider): Behavior[ReceivableMessage] = Behaviors.receivePartial {
     case (context, ReceivableMessages.NetworkControllerReady) =>
       context.log.info(
-        "Initializing PeerSynchronizer and NodeViewSynchronizer"
+        "Initializing PeerSynchronizer, NodeViewSynchronizer, and ChainReplicator"
       )
       implicit def ctx: ActorContext[ReceivableMessage] = context
 
@@ -111,6 +111,7 @@ object Heimdall {
 
       context.watch(nextState.peerSynchronizer)
       context.watch(nextState.nodeViewSynchronizer)
+      context.watch(nextState.chainReplicator)
 
       context.self.tell(ReceivableMessages.BindExternalTraffic)
 
@@ -203,7 +204,8 @@ object Heimdall {
     nodeViewHolder:       ActorRef[NodeViewHolder.ReceivableMessage],
     mempoolAuditor:       CActorRef,
     peerSynchronizer:     CActorRef,
-    nodeViewSynchronizer: CActorRef
+    nodeViewSynchronizer: CActorRef,
+    chainReplicator:      ActorRef[ChainReplicator.ReceivableMessage]
   )
 
   private case class State(
@@ -355,6 +357,11 @@ object Heimdall {
       NodeViewSynchronizer.actorName
     )
 
+    val chainReplicator = context.spawn(
+      ChainReplicator(state.nodeViewHolder, settings.application.enableChainReplicator),
+      ChainReplicator.actorName
+    )
+
     ActorsInitializedState(
       state.peerManager,
       state.networkController,
@@ -363,7 +370,8 @@ object Heimdall {
       state.nodeViewHolder,
       state.mempoolAuditor,
       peerSynchronizer,
-      nodeViewSynchronizer
+      nodeViewSynchronizer,
+      chainReplicator
     )
   }
 
