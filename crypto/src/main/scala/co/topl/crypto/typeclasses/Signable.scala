@@ -25,7 +25,7 @@ object Signable {
         ) ++
         Bytes(BigInt(unsignedBlock.height).toByteArray) ++
         Bytes(BigInt(unsignedBlock.slot).toByteArray) ++
-        unsignedBlock.eligibibilityCertificate.bytes ++
+        unsignedBlock.eligibilityCertificate.bytes ++
         Bytes(unsignedBlock.metadata.fold(Array.emptyByteArray)(_.data.value)) ++
         unsignedBlock.address.bytes
 

@@ -3,15 +3,25 @@ package co.topl.codecs.bytes
 import co.topl.codecs.bytes.ByteCodec.ops._
 import co.topl.models.Proofs.Signature
 import co.topl.models._
-import co.topl.models.utility.Ratio
+import co.topl.models.utility.HasLength.instances._
+import co.topl.models.utility.Lengths._
+import co.topl.models.utility.{Length, Ratio, Sized}
 
 object BasicCodecs {
 
-  implicit val typedIdentifierCodec: ByteCodec[TypedIdentifier] =
-    new ByteCodec[TypedIdentifier] {
-      override def encode(t: TypedIdentifier, writer: Writer): Unit = ???
+  implicit def strictSizedBytesCodec[L <: Length](implicit l: L): ByteCodec[Sized.Strict[Bytes, L]] =
+    new ByteCodec[Sized.Strict[Bytes, L]] {
+      def encode(t: Sized.Strict[Bytes, L], writer: Writer): Unit = writer.putBytes(t.data.toArray)
 
-      override def decode(reader: Reader): TypedIdentifier = ???
+      def decode(reader: Reader): Sized.Strict[Bytes, L] = Sized.strictUnsafe(Bytes(reader.getBytes(l.value)))
+    }
+
+  implicit def strictSizedTypedBytesCodec[L <: Length](implicit l: L): ByteCodec[Sized.Strict[TypedBytes, L]] =
+    new ByteCodec[Sized.Strict[TypedBytes, L]] {
+      def encode(t: Sized.Strict[TypedBytes, L], writer: Writer): Unit = writer.putBytes(t.data.allBytes.toArray)
+
+      def decode(reader: Reader): Sized.Strict[TypedBytes, L] =
+        Sized.strictUnsafe(TypedBytes(Bytes(reader.getBytes(l.value))))
     }
 
   implicit val taktikosAddressCodec: ByteCodec[TaktikosAddress] =
@@ -135,7 +145,8 @@ object BasicCodecs {
         ByteCodec[Proofs.Signature.VrfEd25519].decode(reader),
         ByteCodec[Proofs.Signature.VrfEd25519].decode(reader),
         ByteCodec[VerificationKeys.Vrf].decode(reader),
-        ???
+        ByteCodec[Evidence].decode(reader),
+        ByteCodec[Eta].decode(reader)
       )
   }
 

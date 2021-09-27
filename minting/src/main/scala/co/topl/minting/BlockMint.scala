@@ -35,8 +35,7 @@ object BlockMint {
                     timestamp = timestamp,
                     height = parent.height + 1,
                     slot = hit.slot,
-                    vrfCertificate = hit.cert,
-                    thresholdEvidence = hit.threshold.evidence,
+                    eligibilityCertificate = hit.cert,
                     metadata = None,
                     address = address
                   ),

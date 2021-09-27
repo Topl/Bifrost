@@ -1,7 +1,12 @@
 package co.topl.consensus
 
 import cats.implicits._
-import co.topl.algebras.{EtaValidationAlgebra, VrfRelativeStakeLookupAlgebra}
+import co.topl.consensus.LeaderElectionValidation.VrfConfig
+import co.topl.consensus.algebras.{
+  EtaValidationAlgebra,
+  RegistrationLookupAlgebra,
+  VrfRelativeStakeValidationLookupAlgebra
+}
 import co.topl.crypto.typeclasses.KeyInitializer
 import co.topl.crypto.typeclasses.implicits._
 import co.topl.models.ModelGenerators._
@@ -24,11 +29,11 @@ class BlockHeaderValidationSpec
 
   behavior of "ConsensusValidation"
 
-  type EvalF[A] = Either[BlockHeaderValidation.Eval.Failure, A]
+  type EvalF[A] = Either[BlockHeaderValidation.Failure, A]
 
   private val leaderElectionInterpreter =
-    LeaderElectionValidation.Threshold.Eval.make[EvalF](
-      Vrf.Config(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
+    LeaderElectionValidation.Eval.make[EvalF](
+      VrfConfig(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
     )
 
   it should "invalidate blocks with non-forward slot" in {
@@ -38,12 +43,13 @@ class BlockHeaderValidationSpec
     ) { case (parent, child) =>
       whenever(child.slot <= parent.slot) {
         val nonceInterpreter = mock[EtaValidationAlgebra[EvalF]]
-        val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
+        val relativeStakeInterpreter = mock[VrfRelativeStakeValidationLookupAlgebra[EvalF]]
+        val registrationInterpreter = mock[RegistrationLookupAlgebra[EvalF]]
         val underTest =
           BlockHeaderValidation.Eval.Stateful
-            .make[EvalF](nonceInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
+            .make[EvalF](nonceInterpreter, relativeStakeInterpreter, leaderElectionInterpreter, registrationInterpreter)
 
-        underTest.validate(child, parent).left.value shouldBe BlockHeaderValidation.Eval.Failures
+        underTest.validate(child, parent).left.value shouldBe BlockHeaderValidation.Failures
           .NonForwardSlot(child.slot, parent.slot)
       }
     }
@@ -56,12 +62,13 @@ class BlockHeaderValidationSpec
     ) { case (parent, child) =>
       whenever(child.slot > parent.slot && parent.timestamp >= child.timestamp) {
         val nonceInterpreter = mock[EtaValidationAlgebra[EvalF]]
-        val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
+        val relativeStakeInterpreter = mock[VrfRelativeStakeValidationLookupAlgebra[EvalF]]
+        val registrationInterpreter = mock[RegistrationLookupAlgebra[EvalF]]
         val underTest =
           BlockHeaderValidation.Eval.Stateful
-            .make[EvalF](nonceInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
+            .make[EvalF](nonceInterpreter, relativeStakeInterpreter, leaderElectionInterpreter, registrationInterpreter)
 
-        underTest.validate(child, parent).left.value shouldBe BlockHeaderValidation.Eval.Failures
+        underTest.validate(child, parent).left.value shouldBe BlockHeaderValidation.Failures
           .NonForwardTimestamp(child.timestamp, parent.timestamp)
       }
     }
@@ -82,12 +89,13 @@ class BlockHeaderValidationSpec
         child.slot > parent.slot && child.timestamp > parent.timestamp && child.parentHeaderId != parent.id
       ) {
         val etaInterpreter = mock[EtaValidationAlgebra[EvalF]]
-        val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
+        val relativeStakeInterpreter = mock[VrfRelativeStakeValidationLookupAlgebra[EvalF]]
+        val registrationInterpreter = mock[RegistrationLookupAlgebra[EvalF]]
         val underTest =
           BlockHeaderValidation.Eval.Stateful
-            .make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
+            .make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter, registrationInterpreter)
 
-        underTest.validate(child, parent).left.value shouldBe BlockHeaderValidation.Eval.Failures
+        underTest.validate(child, parent).left.value shouldBe BlockHeaderValidation.Failures
           .ParentMismatch(child.parentHeaderId, parent.id)
       }
     }
@@ -110,20 +118,20 @@ class BlockHeaderValidationSpec
       etaGen
     ) { case ((parent, child), eta) =>
       val etaInterpreter = mock[EtaValidationAlgebra[EvalF]]
-      val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
+      val relativeStakeInterpreter = mock[VrfRelativeStakeValidationLookupAlgebra[EvalF]]
+      val registrationInterpreter = mock[RegistrationLookupAlgebra[EvalF]]
       val underTest =
         BlockHeaderValidation.Eval.Stateful
-          .make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
+          .make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter, registrationInterpreter)
 
       (etaInterpreter
-        .etaOf(_: BlockHeaderV2, _: Slot))
-        .expects(child, child.slot)
+        .etaOf(_: SlotId))
+        .expects((child.slot, child.id))
         .anyNumberOfTimes()
         // This epoch nonce does not satisfy the generated VRF certificate
         .returning(eta.pure[EvalF])
 
-      underTest.validate(child, parent).left.value shouldBe BlockHeaderValidation.Eval.Failures
-        .InvalidVrfCertificate(child.eligibibilityCertificate)
+      underTest.validate(child, parent).left.value shouldBe a[BlockHeaderValidation.Failures.IneligibleCertificate]
     }
   }
 
@@ -143,12 +151,13 @@ class BlockHeaderValidationSpec
       taktikosAddressGen
     ) { case (parent, (txRoot, bloomFilter, eta), relativeStake, vrfSecret, address) =>
       val etaInterpreter = mock[EtaValidationAlgebra[EvalF]]
-      val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
+      val relativeStakeInterpreter = mock[VrfRelativeStakeValidationLookupAlgebra[EvalF]]
+      val registrationInterpreter = mock[RegistrationLookupAlgebra[EvalF]]
       val underTest =
         BlockHeaderValidation.Eval.Stateful
-          .make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
+          .make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter, registrationInterpreter)
 
-      val vrfHit = LeaderElectionValidation.Hit.Eval.make[EvalF](vrfSecret, leaderElectionInterpreter)
+      val vrfHit = LeaderElectionValidation.Eval.make[EvalF](vrfSecret, leaderElectionInterpreter)
 
       val Some(hit) = LazyList
         .from(parent.slot.toInt + 1)
@@ -163,8 +172,7 @@ class BlockHeaderValidationSpec
           timestamp = System.currentTimeMillis(),
           height = parent.height + 1,
           slot = hit.slot,
-          vrfCertificate = hit.cert,
-          thresholdEvidence = hit.threshold.evidence,
+          eligibilityCertificate = hit.cert,
           metadata = None,
           address = address
         )
@@ -183,29 +191,28 @@ class BlockHeaderValidationSpec
           timestamp = unsigned.timestamp,
           height = unsigned.height,
           slot = unsigned.slot,
-          eligibibilityCertificate = unsigned.vrfCertificate,
-          operationalCertificate = kesKey.certify(unsigned),
-          thresholdEvidence = unsigned.thresholdEvidence,
+          eligibibilityCertificate = unsigned.eligibilityCertificate,
+          operationalCertificate = ???,
           metadata = unsigned.metadata,
           address = unsigned.address
         )
 
       (etaInterpreter
-        .etaOf(_: BlockHeaderV2, _: Slot))
-        .expects(child, child.slot)
+        .etaOf(_: SlotId))
+        .expects((child.slot, child.id))
         .anyNumberOfTimes()
         .returning(eta.pure[EvalF])
 
       (relativeStakeInterpreter
-        .lookupAt(_: BlockHeaderV2, _: Slot, _: TaktikosAddress))
-        .expects(child, child.slot, *)
+        .lookupAt(_: SlotId, _: TaktikosAddress))
+        .expects((child.slot, child.id), *)
         .once()
         .returning(Ratio(0).some.pure[EvalF])
 
       underTest
         .validate(child, parent)
         .left
-        .value shouldBe a[BlockHeaderValidation.Eval.Failures.InvalidVrfThreshold]
+        .value shouldBe a[BlockHeaderValidation.Failures.InvalidVrfThreshold]
     }
   }
 
@@ -221,11 +228,12 @@ class BlockHeaderValidationSpec
       taktikosAddressGen
     ) { case (parent, (txRoot, bloomFilter, eta), relativeStake, vrfSecret, address) =>
       val etaInterpreter = mock[EtaValidationAlgebra[EvalF]]
-      val relativeStakeInterpreter = mock[VrfRelativeStakeLookupAlgebra[EvalF]]
+      val relativeStakeInterpreter = mock[VrfRelativeStakeValidationLookupAlgebra[EvalF]]
+      val registrationInterpreter = mock[RegistrationLookupAlgebra[EvalF]]
       val underTest =
         BlockHeaderValidation.Eval.Stateful
-          .make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter)
-      val vrfHit = LeaderElectionValidation.Hit.Eval.make[EvalF](vrfSecret, leaderElectionInterpreter)
+          .make[EvalF](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter, registrationInterpreter)
+      val vrfHit = LeaderElectionValidation.Eval.make[EvalF](vrfSecret, leaderElectionInterpreter)
 
       val Some(hit) = LazyList
         .from(parent.slot.toInt + 1)
@@ -239,8 +247,7 @@ class BlockHeaderValidationSpec
           timestamp = System.currentTimeMillis(),
           height = parent.height + 1,
           slot = hit.slot,
-          vrfCertificate = hit.cert,
-          thresholdEvidence = hit.threshold.evidence,
+          eligibilityCertificate = hit.cert,
           metadata = None,
           address = address
         )
@@ -259,24 +266,23 @@ class BlockHeaderValidationSpec
           timestamp = unsigned.timestamp,
           height = unsigned.height,
           slot = unsigned.slot,
-          eligibibilityCertificate = unsigned.vrfCertificate,
+          eligibibilityCertificate = unsigned.eligibilityCertificate,
           operationalCertificate = kesKey.certify(unsigned),
-          thresholdEvidence = unsigned.thresholdEvidence,
           metadata = unsigned.metadata,
           address = unsigned.address
         )
 
       (etaInterpreter
-        .etaOf(_: BlockHeaderV2, _: Slot))
-        .expects(child, child.slot)
+        .etaOf(_: SlotId))
+        .expects((child.slot, child.id))
         .anyNumberOfTimes()
         .returning(eta.pure[EvalF])
 
       (relativeStakeInterpreter
-        .lookupAt(_: BlockHeaderV2, _: Slot, _: TaktikosAddress))
-        .expects(child, child.slot, *)
+        .lookupAt(_: SlotId, _: TaktikosAddress))
+        .expects((child.slot, child.id), *)
         .once()
-        .returning(relativeStake.some.pure[EvalF])
+        .returning(Ratio(0).some.pure[EvalF])
 
       underTest.validate(child, parent).value shouldBe child
     }

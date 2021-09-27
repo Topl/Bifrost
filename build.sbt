@@ -184,7 +184,6 @@ lazy val bifrost = project
     brambl,
     models,
     algebras,
-    typeclasses,
     minting,
     byteCodecs,
     consensus,

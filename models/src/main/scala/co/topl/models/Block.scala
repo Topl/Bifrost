@@ -38,16 +38,16 @@ case class BlockHeaderV2(
 object BlockHeaderV2 {
 
   case class Unsigned(
-    parentHeaderId:           TypedIdentifier,
-    parentSlot:               Slot,
-    txRoot:                   TxRoot,
-    bloomFilter:              BloomFilter,
-    timestamp:                Timestamp,
-    height:                   Long,
-    slot:                     Slot,
-    eligibibilityCertificate: EligibilityCertificate,
-    metadata:                 Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
-    address:                  TaktikosAddress
+    parentHeaderId:         TypedIdentifier,
+    parentSlot:             Slot,
+    txRoot:                 TxRoot,
+    bloomFilter:            BloomFilter,
+    timestamp:              Timestamp,
+    height:                 Long,
+    slot:                   Slot,
+    eligibilityCertificate: EligibilityCertificate,
+    metadata:               Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
+    address:                TaktikosAddress
   )
 }
 

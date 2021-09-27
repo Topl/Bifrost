@@ -60,6 +60,9 @@ object BlockHeaderValidation {
               val certificate = header.eligibibilityCertificate
               header
                 .pure[F]
+                .ensure(Failures.InvalidEligibilityCertificateEta(header.eligibibilityCertificate.eta, eta))(header =>
+                  header.eligibibilityCertificate.eta === eta
+                )
                 .ensure(Failures.InvalidEligibilityCertificateTestProof(certificate.vrfTestSig))(header =>
                   certificate.vrfTestSig.satisfies(
                     certificate.vkVRF.proposition,
@@ -185,6 +188,8 @@ object BlockHeaderValidation {
     case class InvalidVrfThreshold(threshold: Ratio) extends Failure
 
     case class IneligibleCertificate(threshold: Ratio, eligibilityCertificate: EligibilityCertificate) extends Failure
+
+    case class InvalidEligibilityCertificateEta(claimedEta: Eta, actualEta: Eta) extends Failure
 
     case class InvalidEligibilityCertificateTestProof(proof: Proofs.Signature.VrfEd25519) extends Failure
 

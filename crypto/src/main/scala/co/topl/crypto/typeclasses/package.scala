@@ -17,8 +17,6 @@ package object typeclasses {
       with Prover.Implicits
       with Signable.Instances
       with Signable.ToSignableOps
-      with KesCertifies.Instances
-      with KesCertifies.ToKesCertifiesOps
       with SoftDerivative.Instances
       with SoftDerivative.ToSoftDerivativeOps
 }
