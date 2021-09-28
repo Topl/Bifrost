@@ -359,7 +359,7 @@ object Heimdall {
     )
 
     val chainReplicator = context.spawn(
-      ChainReplicator(state.nodeViewHolder, settings.application.enableChainReplicator),
+      ChainReplicator(state.nodeViewHolder, settings),
       ChainReplicator.actorName
     )
 
