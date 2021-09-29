@@ -29,7 +29,7 @@ object VrfProof {
         private val testProofs: TrieMap[Eta, LongMap[Signature.VrfEd25519]] = TrieMap.empty
         private val rhos: TrieMap[Eta, LongMap[Rho]] = TrieMap.empty
 
-        def precomputeForEpoch(epoch: Epoch, eta: Eta): F[Unit] =
+        def precomputeForEpoch(epoch: Epoch, previousEta: Eta): F[Unit] =
           clock
             .epochRange(epoch)
             .map(boundary =>
@@ -37,7 +37,7 @@ object VrfProof {
                 boundary.map { slot =>
                   slot -> compute(
                     skVrf,
-                    LeaderElectionValidation.VrfArgument(eta, slot, LeaderElectionValidation.Tokens.Test)
+                    LeaderElectionValidation.VrfArgument(previousEta, slot, LeaderElectionValidation.Tokens.Test)
                   )
                 }
               )
@@ -46,8 +46,8 @@ object VrfProof {
               testProofsForEta -> LongMap.from(testProofsForEta.view.mapValues(ProofToHash.digest))
             )
             .flatTap { case (testProofsForEta, rhosForEta) =>
-              testProofs.addOne(eta -> testProofsForEta)
-              rhos.addOne(eta       -> rhosForEta)
+              testProofs.addOne(previousEta -> testProofsForEta)
+              rhos.addOne(previousEta       -> rhosForEta)
               Applicative[F].unit
             }
             .void

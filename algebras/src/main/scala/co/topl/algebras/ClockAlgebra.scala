@@ -25,6 +25,8 @@ trait ClockAlgebra[F[_]] {
 
 object ClockAlgebra {
 
+  type EpochBoundary = NumericRange.Inclusive[Slot]
+
   trait Implicits {
 
     implicit final class ClockOps[F[_]: Apply](clock: ClockAlgebra[F]) {
@@ -32,7 +34,7 @@ object ClockAlgebra {
       def epochOf(slot: Slot): F[Epoch] = clock.slotsPerEpoch.map(numberOfSlots => slot / numberOfSlots)
 
       // TODO: Make sure that boundary calculations are correct
-      def epochRange(epoch: Epoch): F[NumericRange.Inclusive[Slot]] =
+      def epochRange(epoch: Epoch): F[EpochBoundary] =
         clock.slotsPerEpoch.map(slotsPerEpoch => (epoch * slotsPerEpoch) to (((epoch + 1) * slotsPerEpoch) - 1))
 
     }

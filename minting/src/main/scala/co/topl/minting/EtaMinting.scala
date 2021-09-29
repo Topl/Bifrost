@@ -17,7 +17,12 @@ object EtaMinting {
       clock: ClockAlgebra[F]
     ): EtaMintingAlgebra[F] =
       (globalSlot: Slot) =>
-        OptionT(clock.epochOf(globalSlot).flatMap(state.lookupEta))
-          .getOrElseF(new IllegalStateException(s"Eta not found for slot=$globalSlot").raiseError[F, Eta])
+        clock
+          .epochOf(globalSlot)
+          .map(_ - 1)
+          .flatMap(epoch =>
+            OptionT(state.lookupEta(epoch))
+              .getOrElseF(new IllegalStateException(s"Eta not found for epoch=$epoch").raiseError[F, Eta])
+          )
   }
 }

@@ -13,7 +13,7 @@ object InMemoryState {
 
   object Eval {
 
-    def make[F[_]: Applicative](
+    def make[F[_]: Monad](
       genesisBlock:          BlockV2,
       initialBlocks:         Map[TypedIdentifier, BlockV2] = Map.empty,
       initialRelativeStakes: Map[Epoch, Map[TaktikosAddress, Ratio]] = Map.empty,
@@ -58,6 +58,14 @@ object InMemoryState {
 
         def writeEta(epoch: Epoch, eta: Eta): F[Unit] =
           (_etas += (epoch -> eta)).pure[F]
+
+        def foldRelativeStakes[S](epoch: Epoch)(s: S)(f: (S, (TaktikosAddress, Ratio)) => F[S]): F[S] =
+          _relativeStakes(epoch).to(LazyList).foldLeftM(s)(f)
+
+        def foldRegistrations[S](epoch: Epoch)(s: S)(
+          f:                            (S, (TaktikosAddress, Box.Values.TaktikosRegistration)) => F[S]
+        ): F[S] =
+          _registrations(epoch).to(LazyList).foldLeftM(s)(f)
       }
   }
 }

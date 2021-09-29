@@ -1,7 +1,7 @@
 package co.topl.consensus
 
+import cats.MonadError
 import cats.data.OptionT
-import cats.{Monad, MonadError}
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras.{BlockchainState, ClockAlgebra}
@@ -18,6 +18,7 @@ object EtaValidation {
     ): EtaValidationAlgebra[F] = (slotId: (Slot, TypedIdentifier)) =>
       clock
         .epochOf(slotId._1)
+        .map(_ - 1)
         .flatMap(epoch =>
           OptionT(state.lookupEta(epoch))
             .getOrElseF(new IllegalStateException(s"Eta not found for epoch=$epoch").raiseError[F, Eta])

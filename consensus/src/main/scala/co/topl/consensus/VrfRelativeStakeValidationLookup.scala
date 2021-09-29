@@ -18,7 +18,8 @@ object VrfRelativeStakeValidationLookup {
       (slotId: (Slot, TypedIdentifier), address: TaktikosAddress) =>
         clock
           .epochOf(slotId._1)
-          .flatMap(epoch => state.lookupRelativeStake(epoch)(address))
+          .map(e => (e - 1).max(0))
+          .flatMap(state.lookupRelativeStake(_)(address))
   }
 
 }

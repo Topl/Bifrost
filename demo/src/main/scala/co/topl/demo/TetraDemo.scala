@@ -25,8 +25,18 @@ object TetraDemo extends App {
 
   type F[A] = Either[Throwable, A]
 
+  implicit def logger[F[_]: Applicative]: LoggerAlgebra[F] =
+    new LoggerAlgebra[F] {
+
+      def debug(message: String): F[Unit] =
+        println("[DEBUG] " + message).pure[F]
+
+      def info(message: String): F[Unit] =
+        println("[INFO] " + message).pure[F]
+    }
+
   val stakerRelativeStake =
-    Ratio(1, 2)
+    Ratio(9, 10)
 
   val leaderElectionThreshold: LeaderElectionValidationAlgebra[F] =
     LeaderElectionValidation.Eval.make(
@@ -78,15 +88,9 @@ object TetraDemo extends App {
 
   val state = InMemoryState.Eval.make[F](
     BlockGenesis(Nil).value,
-    initialRelativeStakes = List
-      .tabulate(10)(idx => idx.toLong -> Map(stakerAddress -> stakerRelativeStake))
-      .toMap,
-    initialRegistrations = List
-      .tabulate(10)(idx => idx.toLong -> Map(stakerAddress -> stakerRegistration))
-      .toMap,
-    initialEtas = List
-      .tabulate(10)(idx => idx.toLong -> Sized.strictUnsafe[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(0))))
-      .toMap
+    initialRelativeStakes = Map(0L -> Map(stakerAddress -> stakerRelativeStake)),
+    initialRegistrations = Map(0L -> Map(stakerAddress -> stakerRegistration)),
+    initialEtas = Map(-1L -> Sized.strictUnsafe[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(0))))
   )
 
   val mint: BlockMintAlgebra[F] =
@@ -106,31 +110,17 @@ object TetraDemo extends App {
       clock
     )
 
-  val headerValidationMapK =
-    λ[Either[BlockHeaderValidation.Failure, *] ~> Either[Throwable, *]](
-      _.leftMap(e => new IllegalArgumentException(e.toString))
-    )
-
-  val antiHeaderValidationMapK =
-    λ[Either[Throwable, *] ~> Either[BlockHeaderValidation.Failure, *]](
-      _.leftMap(e => ???)
-    )
-
-  type VF[A] = Either[BlockHeaderValidation.Failure, A]
-  val clockK: ClockAlgebra[VF] = clock.mapK(antiHeaderValidationMapK)
-
   val headerValidation: BlockHeaderValidationAlgebra[F] =
     BlockHeaderValidation.Eval.Stateful
-      .make[VF](
-        EtaValidation.Eval.make[F](state, clock).mapK(antiHeaderValidationMapK),
-        VrfRelativeStakeValidationLookup.Eval.make[F](state, clock).mapK(antiHeaderValidationMapK),
-        leaderElectionThreshold.mapK(antiHeaderValidationMapK),
-        RegistrationLookup.Eval.make[F](state, clock).mapK(antiHeaderValidationMapK)
+      .make[F](
+        EtaValidation.Eval.make(state, clock),
+        VrfRelativeStakeValidationLookup.Eval.make(state, clock),
+        leaderElectionThreshold,
+        RegistrationLookup.Eval.make(state, clock)
       )
-      .mapK(headerValidationMapK)
 
   DemoProgram
-    .run[F](epochs = 4, clock, mint, headerValidation, vrfProof, state)
+    .run[F](clock, mint, headerValidation, vrfProof, state, EtaCalculation.Eval.make(state, clock))
     .onError { case e =>
       throw e
     }
