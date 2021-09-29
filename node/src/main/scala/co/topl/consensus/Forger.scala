@@ -131,7 +131,7 @@ private class ForgerBehaviors(
   minTransactionFee:    Int128,
   fetchKeyView:         () => Future[KeyView],
   nodeViewReader:       NodeViewReader
-)(implicit context:     ActorContext[Forger.ReceivableMessage], networkPrefix: NetworkPrefix, timeProvider: TimeProvider) {
+)(implicit context: ActorContext[Forger.ReceivableMessage], networkPrefix: NetworkPrefix, timeProvider: TimeProvider) {
   import context.executionContext
   implicit private val log: Logger = context.log
 

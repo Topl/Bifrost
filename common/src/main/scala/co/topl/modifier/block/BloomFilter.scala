@@ -76,6 +76,7 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
   // NOTE - these values are highly dependent on the length of the bloom filter, manipulate carefully
   private val idxMask: Int =
     size - 1 /* 2047 -> 0000 0111 1111 1111 - mask for taking the low-order 11 bits of the byte pairs */
+
   private val longElemMask: Int =
     size - 64 /* 1984 -> 0000 0111 1100 0000 - mask for finding the long to modify */
   private val bitElemMask: Int = 63 /*   63 -> 0000 0000 0011 1111 - mask for finding the bit to modify */
