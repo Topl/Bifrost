@@ -2,6 +2,7 @@ package co.topl.algebras
 
 import cats.Apply
 import cats.implicits._
+import cats.tagless._
 import co.topl.models.{Epoch, Slot, Timestamp}
 
 import scala.collection.immutable.NumericRange
@@ -11,6 +12,7 @@ import scala.language.implicitConversions
 /**
  * Provides global slot, epoch, and timing operations
  */
+@autoFunctorK
 trait ClockAlgebra[F[_]] {
   def slotLength: F[FiniteDuration]
   def slotsPerEpoch: F[Long]

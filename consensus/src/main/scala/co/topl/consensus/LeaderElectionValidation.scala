@@ -39,6 +39,8 @@ object LeaderElectionValidation {
     def make[F[_]: Applicative](config: VrfConfig): LeaderElectionValidationAlgebra[F] =
       new LeaderElectionValidationAlgebra[F] {
 
+        // TODO: Cache of relative stake for each address
+
         def getThreshold(relativeStake: Ratio, slotDiff: Long): F[Ratio] = {
           val mFValue = mFunction(slotDiff, config)
           val base = mFValue * relativeStake

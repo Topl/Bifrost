@@ -87,6 +87,10 @@ object Dependencies {
     "org.typelevel" %% "cats-core" % "2.3.1"
   )
 
+  val catsTagless = Seq(
+    "org.typelevel" %% "cats-tagless-macros" % "0.14.0"
+  )
+
   val simulacrum = Seq(
     "org.typelevel" %% "simulacrum" % "1.0.1"
   )
@@ -193,7 +197,7 @@ object Dependencies {
     cats ++ simulacrum ++ newType
 
   lazy val demo: Seq[ModuleID] =
-    Seq(akka("actor"), akka("actor-typed"), akka("stream"))
+    Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++ catsTagless
 
   lazy val tools: Seq[ModuleID] =
     Seq(

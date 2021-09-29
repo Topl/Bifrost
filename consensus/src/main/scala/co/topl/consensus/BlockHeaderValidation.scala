@@ -159,7 +159,9 @@ object BlockHeaderValidation {
          *      TaktikosRegistration.extendedVk.evolve(index) == header.cert.vkHD
          */
         private[consensus] def registrationVerification(header: BlockHeaderV2): F[BlockHeaderV2] =
-          OptionT(registrationInterpreter.registrationOf((header.slot, header.id), header.address))
+          OptionT(
+            registrationInterpreter.registrationOf((header.slot, header.id), header.address)
+          )
             .map(_.vrfCommitment)
             .ensureOr(
               Failures.RegistrationCommitmentMismatch(_, header.eligibibilityCertificate.vkVRF)
@@ -168,6 +170,7 @@ object BlockHeaderValidation {
                 .hash(header.eligibibilityCertificate.vkVRF.ed25519.bytes.data.toArray)
                 .value
             )
+            .map(_ => header)
             .getOrElseF(Failures.Unregistered(header.address).raiseError[F, BlockHeaderV2])
 
       }

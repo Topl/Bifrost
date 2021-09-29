@@ -320,7 +320,7 @@ lazy val algebras = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.algebras"
   )
-  .settings(libraryDependencies ++= Dependencies.test)
+  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsTagless)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, crypto, byteCodecs)
 
@@ -336,7 +336,7 @@ lazy val consensus = project
   )
   .settings(libraryDependencies ++= Dependencies.test)
   .settings(
-    libraryDependencies ++= Dependencies.bouncyCastle
+    libraryDependencies ++= Dependencies.bouncyCastle ++ Dependencies.catsTagless
   )
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test", typeclasses, crypto, byteCodecs, algebras)
@@ -351,7 +351,7 @@ lazy val minting = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.minting"
   )
-  .settings(libraryDependencies ++= Dependencies.test)
+  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsTagless)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, typeclasses, crypto, byteCodecs, algebras, consensus)
 

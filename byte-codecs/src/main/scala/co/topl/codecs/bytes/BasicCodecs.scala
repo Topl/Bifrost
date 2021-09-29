@@ -24,6 +24,17 @@ object BasicCodecs {
         Sized.strictUnsafe(TypedBytes(Bytes(reader.getBytes(l.value))))
     }
 
+  implicit def seqCodec[T: ByteCodec]: ByteCodec[Seq[T]] = new ByteCodec[Seq[T]] {
+
+    def encode(t: Seq[T], writer: Writer): Unit = {
+      writer.putInt(t.length)
+      t.foreach(_.writeBytesTo(writer))
+    }
+
+    def decode(reader: Reader): Seq[T] =
+      Seq.fill(reader.getInt())(ByteCodec[T].decode(reader))
+  }
+
   implicit val taktikosAddressCodec: ByteCodec[TaktikosAddress] =
     new ByteCodec[TaktikosAddress] {
 
@@ -85,9 +96,13 @@ object BasicCodecs {
   }
 
   implicit val publicKeyEd25519Codec: ByteCodec[VerificationKeys.Ed25519] = new ByteCodec[VerificationKeys.Ed25519] {
-    def encode(t: VerificationKeys.Ed25519, writer: Writer): Unit = ???
 
-    def decode(reader: Reader): VerificationKeys.Ed25519 = ???
+    def encode(t: VerificationKeys.Ed25519, writer: Writer): Unit =
+      t.bytes.writeBytesTo(writer)
+
+    def decode(reader: Reader): VerificationKeys.Ed25519 =
+      VerificationKeys.Ed25519(ByteCodec[Sized.Strict[Bytes, VerificationKeys.Ed25519.Length]].decode(reader))
+
   }
 
   implicit val privateKeyEd25519Codec: ByteCodec[SecretKeys.Ed25519] = new ByteCodec[SecretKeys.Ed25519] {
@@ -98,9 +113,17 @@ object BasicCodecs {
 
   implicit val publicKeyExtendedEd25519Codec: ByteCodec[VerificationKeys.ExtendedEd25519] =
     new ByteCodec[VerificationKeys.ExtendedEd25519] {
-      def encode(t: VerificationKeys.ExtendedEd25519, writer: Writer): Unit = ???
 
-      def decode(reader: Reader): VerificationKeys.ExtendedEd25519 = ???
+      def encode(t: VerificationKeys.ExtendedEd25519, writer: Writer): Unit = {
+        t.ed25519.writeBytesTo(writer)
+        t.chainCode.writeBytesTo(writer)
+      }
+
+      def decode(reader: Reader): VerificationKeys.ExtendedEd25519 =
+        VerificationKeys.ExtendedEd25519(
+          ByteCodec[VerificationKeys.Ed25519].decode(reader),
+          ByteCodec[Sized.Strict[Bytes, VerificationKeys.ExtendedEd25519.ChainCodeLength]].decode(reader)
+        )
     }
 
   implicit val privateKeyExtendedEd25519Codec: ByteCodec[SecretKeys.ExtendedEd25519] =
@@ -112,23 +135,32 @@ object BasicCodecs {
 
   implicit val proofSignatureEd25519Codec: ByteCodec[Proofs.Signature.Ed25519] =
     new ByteCodec[Proofs.Signature.Ed25519] {
-      def encode(t: Proofs.Signature.Ed25519, writer: Writer): Unit = ???
 
-      def decode(reader: Reader): Proofs.Signature.Ed25519 = ???
+      def encode(t: Proofs.Signature.Ed25519, writer: Writer): Unit =
+        t.bytes.writeBytesTo(writer)
+
+      def decode(reader: Reader): Proofs.Signature.Ed25519 =
+        Signature.Ed25519(ByteCodec[Sized.Strict[Bytes, Signature.Ed25519.Length]].decode(reader))
     }
 
   implicit val vrfSignatureCodec: ByteCodec[Proofs.Signature.VrfEd25519] =
     new ByteCodec[Signature.VrfEd25519] {
-      def encode(t: Signature.VrfEd25519, writer: Writer): Unit = ???
 
-      def decode(reader: Reader): Signature.VrfEd25519 = ???
+      def encode(t: Signature.VrfEd25519, writer: Writer): Unit =
+        t.bytes.writeBytesTo(writer)
+
+      def decode(reader: Reader): Signature.VrfEd25519 =
+        Signature.VrfEd25519(ByteCodec[Sized.Strict[Bytes, Signature.VrfEd25519.Length]].decode(reader))
     }
 
   implicit val vkVrfCodec: ByteCodec[VerificationKeys.Vrf] =
     new ByteCodec[VerificationKeys.Vrf] {
-      def encode(t: VerificationKeys.Vrf, writer: Writer): Unit = ???
 
-      def decode(reader: Reader): VerificationKeys.Vrf = ???
+      def encode(t: VerificationKeys.Vrf, writer: Writer): Unit =
+        t.ed25519.writeBytesTo(writer)
+
+      def decode(reader: Reader): VerificationKeys.Vrf =
+        VerificationKeys.Vrf(ByteCodec[VerificationKeys.Ed25519].decode(reader))
     }
 
   implicit val vrfCertificateCodec: ByteCodec[EligibilityCertificate] = new ByteCodec[EligibilityCertificate] {
@@ -164,8 +196,32 @@ object BasicCodecs {
       )
   }
 
+  implicit val sumProductSignatureCodec: ByteCodec[Proofs.Signature.SumProduct] = new ByteCodec[Signature.SumProduct] {
+
+    def encode(t: Signature.SumProduct, writer: Writer): Unit = {
+      t.ecSignature.writeBytesTo(writer)
+      t.vkK.writeBytesTo(writer)
+      t.witness.writeBytesTo(writer)
+    }
+
+    def decode(reader: Reader): Signature.SumProduct =
+      Signature.SumProduct(
+        ByteCodec[Proofs.Signature.Ed25519].decode(reader),
+        ByteCodec[VerificationKeys.Ed25519].decode(reader),
+        reader.getLong(),
+        ByteCodec[Seq[VerificationKeys.Ed25519]].decode(reader)
+      )
+  }
+
   implicit val hdKesSignatureCodec: ByteCodec[Proofs.Signature.HdKes] = new ByteCodec[Signature.HdKes] {
-    def encode(t: Signature.HdKes, writer: Writer): Unit = ???
+
+    def encode(t: Signature.HdKes, writer: Writer): Unit = {
+      writer.putLong(t.i)
+      t.vkI.writeBytesTo(writer)
+      t.ecSignature.writeBytesTo(writer)
+      t.sigSumJ.writeBytesTo(writer)
+      t.sigSumK.writeBytesTo(writer)
+    }
 
     def decode(reader: Reader): Signature.HdKes = ???
   }

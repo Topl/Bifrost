@@ -1,8 +1,11 @@
 package co.topl.demo
 
+import cats._
 import cats.implicits._
+import cats.tagless.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras._
+import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LeaderElectionValidationAlgebra}
 import co.topl.crypto.hash.blake2b256
@@ -15,41 +18,47 @@ import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility._
 import co.topl.typeclasses._
-import co.topl.typeclasses.implicits._
 
 import scala.concurrent.duration._
 
 object TetraDemo extends App {
 
-  type F[A] = Either[BlockHeaderValidation.Failure, A]
+  type F[A] = Either[Throwable, A]
 
   val stakerRelativeStake =
     Ratio(1, 2)
 
   val leaderElectionThreshold: LeaderElectionValidationAlgebra[F] =
     LeaderElectionValidation.Eval.make(
-      Vrf
-        .Config(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
+      VrfConfig(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
     )
 
   private val stakerVrfKey =
     KeyInitializer[SecretKeys.Vrf].random()
 
+  // TODO
   val stakerRegistration: Box.Values.TaktikosRegistration =
     Box.Values.TaktikosRegistration(
-      vrfCommitment = stakerVrfKey.ed25519
-        .prove[Proofs.Signature.Ed25519, VerificationKeys.Vrf],
-      extendedVk = ???,
+      vrfCommitment = Sized.strictUnsafe(
+        Bytes(blake2b256.hash(stakerVrfKey.verificationKey[VerificationKeys.Vrf].signableBytes.toArray).value)
+      ),
+      extendedVk = VerificationKeys.ExtendedEd25519(
+        VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
+        Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))
+      ),
       registrationSlot = 0
     )
 
-  val leaderElectionHit: LeaderElectionMintingAlgebra[F] = LeaderElectionMinting.Eval.make(
-    stakerVrfKey,
-    leaderElectionThreshold
-  )
-
   val clock: ClockAlgebra[F] =
     new SyncClockInterpreter[F](100.milli, 150)
+
+  val vrfProof = VrfProof.Eval.make[F](stakerVrfKey, clock)
+
+  val leaderElectionHit: LeaderElectionMintingAlgebra[F] = LeaderElectionMinting.Eval.make(
+    stakerVrfKey,
+    leaderElectionThreshold,
+    vrfProof
+  )
 
   private val stakerAddress: TaktikosAddress = {
     val stakingKey = KeyInitializer[SecretKeys.Ed25519].random()
@@ -67,21 +76,18 @@ object TetraDemo extends App {
     )
   }
 
-  private var inMemoryState: InMemoryState =
-    InMemoryState(
-      BlockGenesis(Nil).value,
-      Map.empty,
-      Map.empty,
-      List
-        .tabulate(10)(idx => idx.toLong -> Map(stakerAddress -> stakerRelativeStake))
-        .toMap,
-      List
-        .tabulate(10)(idx => idx.toLong -> Map(stakerAddress -> stakerRegistration))
-        .toMap,
-      List
-        .tabulate(10)(idx => idx.toLong -> Sized.strictUnsafe[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(0))))
-        .toMap
-    )
+  val state = InMemoryState.Eval.make[F](
+    BlockGenesis(Nil).value,
+    initialRelativeStakes = List
+      .tabulate(10)(idx => idx.toLong -> Map(stakerAddress -> stakerRelativeStake))
+      .toMap,
+    initialRegistrations = List
+      .tabulate(10)(idx => idx.toLong -> Map(stakerAddress -> stakerRegistration))
+      .toMap,
+    initialEtas = List
+      .tabulate(10)(idx => idx.toLong -> Sized.strictUnsafe[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(0))))
+      .toMap
+  )
 
   val mint: BlockMintAlgebra[F] =
     BlockMint.Eval.make(
@@ -89,67 +95,44 @@ object TetraDemo extends App {
         stakerAddress,
         leaderElectionHit,
         BlockSigning.Eval.make(
-          clock,
           KeyEvolver.InMemory.make {
             implicit val slot: Slot = 0
             KeyInitializer[SecretKeys.SymmetricMMM].random()
           }
         ),
-        (currentSlot: Slot, address: TaktikosAddress) =>
-          clock.epochOf(currentSlot).map(epoch => inMemoryState.relativeStakes(epoch).get(address)),
-        (slot: Slot) => clock.epochOf(slot).map(inMemoryState.epochNonce)
+        VrfRelativeStakeMintingLookup.Eval.make(state, clock),
+        EtaMinting.Eval.make(state, clock)
       ),
       clock
     )
 
-  val consensusValidation: BlockHeaderValidationAlgebra[F] =
-    BlockHeaderValidation.Eval.Stateful
-      .make(
-        slotId => clock.epochOf(slotId._1).map(inMemoryState.epochNonce),
-        (slotId, address) => clock.epochOf(slotId._1).map(epoch => inMemoryState.relativeStakes(epoch).get(address)),
-        leaderElectionThreshold,
-        (slotId, address) => clock.epochOf(slotId._1).map(epoch => inMemoryState.registrations(epoch).get(address))
-      )
+  val headerValidationMapK =
+    λ[Either[BlockHeaderValidation.Failure, *] ~> Either[Throwable, *]](
+      _.leftMap(e => new IllegalArgumentException(e.toString))
+    )
 
-  for {
-    initialSlot <- clock.currentSlot()
-    _           <- clock.delayedUntilSlot(initialSlot + 1)
-    currentSlot <- clock.currentSlot()
-    _ <- currentSlot.iterateWhileM(slot =>
-      // Mint a new block
-      mint
-        .mint(inMemoryState.canonicalHead.headerV2, Nil, slot)
-        .map(
-          _.foreach { nextBlock =>
-            // If a block was minted at this slot, attempt to validate it
-            consensusValidation
-              .validate(nextBlock.headerV2, inMemoryState.canonicalHead.headerV2)
-              .onError { case e =>
-                throw new IllegalArgumentException(e.toString)
-              }
-            // If valid, append the block and log it
-            inMemoryState = inMemoryState.append(nextBlock)
-            println(s"Appended block ${nextBlock.headerV2.show}")
-          }
-        )
-        .flatMap(_ =>
-          // Log potential epoch change
-          clock
-            .epochOf(slot)
-            .flatMap(epoch =>
-              clock
-                .epochRange(epoch)
-                .map(boundary =>
-                  if ((boundary.start: Slot) == slot) {
-                    println(s"Starting epoch=$epoch")
-                  } else {}
-                )
-            )
-        )
-        // Delay until the next slot
-        .flatMap(_ => clock.delayedUntilSlot(slot + 1))
-        .map(_ => slot + 1)
-    )(slot => slot <= 600)
-  } yield ()
+  val antiHeaderValidationMapK =
+    λ[Either[Throwable, *] ~> Either[BlockHeaderValidation.Failure, *]](
+      _.leftMap(e => ???)
+    )
+
+  type VF[A] = Either[BlockHeaderValidation.Failure, A]
+  val clockK: ClockAlgebra[VF] = clock.mapK(antiHeaderValidationMapK)
+
+  val headerValidation: BlockHeaderValidationAlgebra[F] =
+    BlockHeaderValidation.Eval.Stateful
+      .make[VF](
+        EtaValidation.Eval.make[F](state, clock).mapK(antiHeaderValidationMapK),
+        VrfRelativeStakeValidationLookup.Eval.make[F](state, clock).mapK(antiHeaderValidationMapK),
+        leaderElectionThreshold.mapK(antiHeaderValidationMapK),
+        RegistrationLookup.Eval.make[F](state, clock).mapK(antiHeaderValidationMapK)
+      )
+      .mapK(headerValidationMapK)
+
+  DemoProgram
+    .run[F](epochs = 4, clock, mint, headerValidation, vrfProof, state)
+    .onError { case e =>
+      throw e
+    }
 
 }

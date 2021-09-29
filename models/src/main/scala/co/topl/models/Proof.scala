@@ -52,7 +52,11 @@ object Proofs {
       sigSumK:     SumProduct
     ) extends Proof
 
-    case class VrfEd25519(bytes: Sized.Strict[Bytes, Lengths.`80`.type]) extends Proof
+    case class VrfEd25519(bytes: Sized.Strict[Bytes, VrfEd25519.Length]) extends Proof
+
+    object VrfEd25519 {
+      type Length = Lengths.`80`.type
+    }
   }
 
   object Threshold {
