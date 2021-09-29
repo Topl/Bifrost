@@ -5,6 +5,7 @@ import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
 import co.topl.attestation._
 import co.topl.modifier.box.ProgramId
+import co.topl.modifier.transaction.builder.BuildTransferFailure.implicits._
 import co.topl.modifier.transaction.builder.{BuildTransferFailure, TransferBuilder, TransferRequests}
 import co.topl.modifier.transaction.validation.implicits._
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
@@ -15,7 +16,6 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.codecs.implicits._
 import io.circe.Encoder
-import co.topl.modifier.transaction.builder.BuildTransferFailure.implicits._
 
 import scala.concurrent.Future
 
@@ -116,6 +116,8 @@ class TransactionRpcHandlerImpls(
           transferRequest,
           params.boxSelectionAlgorithm
         )
+      // need to cast to type AssetTransfer[Proposition] because the P type param in AssetTransfer
+      // is invariant and not co-variant
     }).map(_.asInstanceOf[AssetTransfer[Proposition]])
   }
 
@@ -153,6 +155,8 @@ class TransactionRpcHandlerImpls(
           transferRequest,
           params.boxSelectionAlgorithm
         )
+      // need to cast to type ArbitTransfer[Proposition] because the P type param in ArbitTransfer
+      // is invariant and not co-variant
     }).map(_.asInstanceOf[ArbitTransfer[Proposition]])
   }
 
@@ -189,6 +193,8 @@ class TransactionRpcHandlerImpls(
           transferRequest,
           params.boxSelectionAlgorithm
         )
+      // need to cast to type PolyTransfer[Proposition] because the P type param in PolyTransfer
+      // is invariant and not co-variant
     }).map(_.asInstanceOf[PolyTransfer[Proposition]])
   }
 
