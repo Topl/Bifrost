@@ -15,7 +15,7 @@ class MongoExport(uri: String, database: String, collection: String, dt: DataTyp
 
   private def createDatabase(db: String): MongoDatabase = client.getDatabase(db)
 
-  def checkDatabase(): Future[Seq[String]] = db.listCollectionNames().toFuture()
+  def checkValidConnection(): Future[Seq[String]] = db.listCollectionNames().toFuture()
 
   override def insert(ele: Seq[String]): Future[InsertManyResult] = db
     .getCollection(collection)

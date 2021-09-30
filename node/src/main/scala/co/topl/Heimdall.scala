@@ -111,7 +111,7 @@ object Heimdall {
 
       context.watch(nextState.peerSynchronizer)
       context.watch(nextState.nodeViewSynchronizer)
-      context.watch(nextState.chainReplicator)
+      if (settings.chainReplicator.enableChainReplicator) context.watch(nextState.chainReplicator)
 
       context.self.tell(ReceivableMessages.BindExternalTraffic)
 

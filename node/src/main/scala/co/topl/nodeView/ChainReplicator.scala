@@ -1,20 +1,15 @@
 package co.topl.nodeView
 
-import akka.Done
 import akka.actor.typed.eventstream.EventStream
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
-import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.NodeViewHolder.Events.SemanticallySuccessfulModifier
 import co.topl.settings.AppSettings
 import co.topl.tools.exporter.{DataType, MongoExport}
 import io.circe.syntax.EncoderOps
-import org.mongodb.scala.result
 import org.slf4j.Logger
 
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success}
 
 object ChainReplicator {
@@ -27,17 +22,13 @@ object ChainReplicator {
 
     private[nodeView] case class ExportBlocks(blocks: Seq[Block]) extends ReceivableMessage
 
-    private[nodeView] case class AppendSuccess(result: String) extends ReceivableMessage
+    private[nodeView] case class InsertionSuccess(result: String) extends ReceivableMessage
 
-    private[nodeView] case class AppendFailure(result: String) extends ReceivableMessage
+    private[nodeView] case class InsertionFailure(result: String) extends ReceivableMessage
 
     private[nodeView] case object Rollback extends ReceivableMessage
 
     private[nodeView] case object CheckDatabaseComplete extends ReceivableMessage
-
-    private[nodeView] case class StartReplicating(replyTo: ActorRef[Done]) extends ReceivableMessage
-
-    private[nodeView] case class StopReplicating(replyTo: ActorRef[Done]) extends ReceivableMessage
 
     private[nodeView] case class Terminate(reason: Throwable) extends ReceivableMessage
   }
@@ -62,13 +53,11 @@ object ChainReplicator {
           DataType.Block
         )
 
-//      context.pipeToSelf(mongo.checkDatabase())(
-//        _.fold(ReceivableMessages.Terminate, result => ReceivableMessages.CheckDatabaseComplete)
-//      )
-
-      context.pipeToSelf(mongo.checkDatabase()) {
-        case Success(result) => context.log.info(s"${Console.GREEN}Collections: $result${Console.RESET}"); ReceivableMessages.CheckDatabaseComplete
-        case Failure(e) => ReceivableMessages.Terminate(new Exception("Failed to query the database"))
+      context.pipeToSelf(mongo.checkValidConnection()) {
+        case Success(result) =>
+          context.log.info(s"${Console.GREEN}Found collections in database: $result${Console.RESET}")
+          ReceivableMessages.CheckDatabaseComplete
+        case Failure(e) => ReceivableMessages.Terminate(new Exception(s"Failed to query the database: $e"))
       }
 
       new ChainReplicator(mongo, nodeViewHodlerRef).uninitialized(settings.chainReplicator.enableChainReplicator)
@@ -88,54 +77,35 @@ private class ChainReplicator(
 
   def uninitialized(replicateWhenReady: Boolean): Behavior[ReceivableMessage] =
     Behaviors.receiveMessagePartial[ReceivableMessage] {
-      case ReceivableMessages.StartReplicating(replyTo) =>
-        replyTo.tell(Done)
-        uninitialized(replicateWhenReady = true)
-      case ReceivableMessages.StopReplicating(replyTo) =>
-        replyTo.tell(Done)
-        uninitialized(replicateWhenReady = false)
       case ReceivableMessages.CheckDatabaseComplete =>
-        log.info(s"${Console.GREEN}Chain replicator is ready${Console.RESET}")
         if (replicateWhenReady) {
-          context.self.tell(ReceivableMessages.StartReplicating(context.system.ignoreRef))
+          log.info(s"${Console.GREEN}Chain replicator is ready${Console.RESET}")
           active
         } else {
-          paused
+          Behaviors.stopped { () =>
+            log.info(
+              s"${Console.GREEN}Not initializing chain replicator since enableChainReplicator " +
+              s"is turned off${Console.RESET}"
+            )
+          }
         }
-      case ReceivableMessages.Terminate(reason) =>
-        throw reason
-    }
-
-  def paused: Behavior[ReceivableMessage] =
-    Behaviors.receiveMessagePartial[ReceivableMessage] {
-      case ReceivableMessages.StartReplicating(replyTo) =>
-        replyTo.tell(Done)
-        active
-      case ReceivableMessages.StopReplicating(replyTo) =>
-        replyTo.tell(Done)
-        Behaviors.same
       case ReceivableMessages.Terminate(reason) =>
         throw reason
     }
 
   def active: Behavior[ReceivableMessage] =
     Behaviors.receiveMessagePartial[ReceivableMessage] {
-      case ReceivableMessages.StartReplicating(replyTo) =>
-        replyTo.tell(Done)
-        Behaviors.same
-      case ReceivableMessages.StopReplicating(replyTo) =>
-        replyTo.tell(Done)
-        paused
       case ReceivableMessages.ExportBlocks(blocks) =>
-        context.pipeToSelf(mongo.insert(blocks.map(_.asJson(blockEncoder).toString))) {
-          case Success(result) => ReceivableMessages.AppendSuccess(result.toString)
-          case Failure(e) => ReceivableMessages.AppendFailure(e.toString)
+        val blocksString = blocks.map(_.asJson(blockEncoder).toString)
+        context.pipeToSelf(mongo.insert(blocksString)) {
+          case Success(result) => ReceivableMessages.InsertionSuccess(result.toString)
+          case Failure(e)      => ReceivableMessages.InsertionFailure(e.toString)
         }
         Behaviors.same
-      case ReceivableMessages.AppendSuccess(result) =>
+      case ReceivableMessages.InsertionSuccess(result) =>
         log.info(s"${Console.GREEN}$result${Console.RESET}")
         Behaviors.same
-      case ReceivableMessages.AppendFailure(failure) =>
+      case ReceivableMessages.InsertionFailure(failure) =>
         log.info(s"${Console.RED}$failure${Console.RESET}")
         Behaviors.same
       case ReceivableMessages.Terminate(reason) =>
