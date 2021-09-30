@@ -4,16 +4,20 @@ import cats.data.{EitherT, OptionT}
 import cats.implicits._
 import cats.{Applicative, Monad, MonadError}
 import co.topl.algebras.ClockAlgebra.implicits._
-import co.topl.algebras.{BlockchainState, ClockAlgebra, LoggerAlgebra}
+import co.topl.algebras.{BlockchainState, ClockAlgebra}
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, EtaCalculationAlgebra}
 import co.topl.minting.algebras.{BlockMintAlgebra, VrfProofAlgebra}
+import co.topl.models._
 import co.topl.models.utility.Ratio
-import co.topl.models.{BlockHeaderV2, Box, Epoch, Slot, TaktikosAddress}
 import co.topl.typeclasses.implicits._
+import org.typelevel.log4cats.Logger
 
 object DemoProgram {
 
-  def run[F[_]: MonadError[*[_], Throwable]: LoggerAlgebra](
+  /**
+   * A forever-running program which traverses epochs, starting from 0
+   */
+  def run[F[_]: MonadError[*[_], Throwable]: Logger](
     clock:            ClockAlgebra[F],
     mint:             BlockMintAlgebra[F],
     headerValidation: BlockHeaderValidationAlgebra[F],
@@ -21,14 +25,30 @@ object DemoProgram {
     state:            BlockchainState[F],
     etaCalculation:   EtaCalculationAlgebra[F]
   ): F[Unit] =
-    0
-      .iterateForeverM(epoch =>
-        handleEpoch(epoch, Option.when(epoch == 0)(1), clock, mint, headerValidation, vrfProof, state, etaCalculation)
-          .as(epoch + 1)
-      )
-      .void
+    for {
+      initialSlot  <- clock.currentSlot().map(_.min(1L))
+      initialEpoch <- clock.epochOf(initialSlot)
+      _ <- initialEpoch
+        .iterateForeverM(epoch =>
+          handleEpoch(
+            epoch,
+            Option.when(epoch == initialEpoch)(initialSlot),
+            clock,
+            mint,
+            headerValidation,
+            vrfProof,
+            state,
+            etaCalculation
+          )
+            .as(epoch + 1)
+        )
+        .void
+    } yield ()
 
-  private def handleEpoch[F[_]: MonadError[*[_], Throwable]: LoggerAlgebra](
+  /**
+   * Perform the operations for an epoch
+   */
+  private def handleEpoch[F[_]: MonadError[*[_], Throwable]: Logger](
     epoch:            Epoch,
     fromSlot:         Option[Slot],
     clock:            ClockAlgebra[F],
@@ -38,48 +58,54 @@ object DemoProgram {
     state:            BlockchainState[F],
     etaCalculation:   EtaCalculationAlgebra[F]
   ): F[Unit] =
-    clock
-      .epochRange(epoch)
-      .flatMap(boundary =>
-        startEpoch(epoch, boundary, state, vrfProof) >>
-        traverseEpoch(fromSlot, epoch, boundary, clock, mint, headerValidation, state, etaCalculation) >>
-        finishEpoch(epoch, state)
-      )
+    for {
+      boundary <- clock.epochRange(epoch)
+      _        <- startEpoch(epoch, boundary, state, vrfProof)
+      _        <- traverseEpoch(fromSlot, epoch, boundary, clock, mint, headerValidation, state, etaCalculation)
+      _        <- finishEpoch(epoch, state)
+    } yield ()
 
-  private def startEpoch[F[_]: MonadError[*[_], Throwable]: LoggerAlgebra](
+  /**
+   * Perform operations at the start of the epoch
+   */
+  private def startEpoch[F[_]: MonadError[*[_], Throwable]: Logger](
     epoch:    Epoch,
     boundary: ClockAlgebra.EpochBoundary,
     state:    BlockchainState[F],
     vrfProof: VrfProofAlgebra[F]
   ): F[Unit] =
-    LoggerAlgebra[F].info(s"Starting epoch=$epoch (${boundary.start}..${boundary.end})").pure[F] >>
-    LoggerAlgebra[F].info("Precomputing VRF data").pure[F] >>
-    state
-      .lookupEta(epoch - 1)
-      .flatMap(
-        _.fold(new IllegalStateException(s"Unknown Eta for epoch=${epoch - 1}").raiseError[F, Unit])(
-          vrfProof.precomputeForEpoch(epoch, _)
-        )
-      )
+    for {
+      _ <- Logger[F].info(s"Starting epoch=$epoch (${boundary.start}..${boundary.end})")
+      _ <- Logger[F].info("Precomputing VRF data")
+      previousEta <- OptionT(state.lookupEta(epoch - 1))
+        .getOrElseF(new IllegalStateException(s"Unknown Eta for epoch=${epoch - 1}").raiseError[F, Eta])
+      _ <- vrfProof.precomputeForEpoch(epoch, previousEta)
+    } yield ()
 
-  private def finishEpoch[F[_]: Monad: LoggerAlgebra](epoch: Epoch, state: BlockchainState[F]): F[Unit] =
-    LoggerAlgebra[F].info(s"Finishing epoch=$epoch").pure[F] >>
-    LoggerAlgebra[F].info("Populating registrations for next epoch").pure[F] >>
-    // TODO: This should pull data from a registry/state, but for now just copy from the previous epoch
-    state
-      .foldRegistrations(epoch)(Map.empty[TaktikosAddress, Box.Values.TaktikosRegistration]) {
-        case (acc, (address, registration)) => acc.updated(address, registration).pure[F]
-      }
-      .flatMap(newRegistrations => state.writeRegistrations(epoch + 1, newRegistrations)) >>
-    LoggerAlgebra[F].info("Populating relative stake distributions for next epoch").pure[F] >>
-    // TODO: This should pull data from a registry/state, but for now just copy from the previous epoch
-    state
-      .foldRelativeStakes(epoch)(Map.empty[TaktikosAddress, Ratio]) { case (acc, (address, stake)) =>
-        acc.updated(address, stake).pure[F]
-      }
-      .flatMap(newRelativeStakes => state.writeRelativeStakes(epoch + 1, newRelativeStakes))
+  /**
+   * Perform operations at the completion of an epoch
+   */
+  private def finishEpoch[F[_]: Monad: Logger](epoch: Epoch, state: BlockchainState[F]): F[Unit] =
+    for {
+      _ <- Logger[F].info(s"Finishing epoch=$epoch")
+      _ <- Logger[F].info("Populating registrations for next epoch")
+      newRegistrations <- state
+        .foldRegistrations(epoch)(Map.empty[TaktikosAddress, Box.Values.TaktikosRegistration]) {
+          case (acc, (address, registration)) => acc.updated(address, registration).pure[F]
+        }
+      _ <- state.writeRegistrations(epoch + 1, newRegistrations)
+      _ <- Logger[F].info("Populating relative stake distributions for next epoch")
+      newRelativeStakes <- state
+        .foldRelativeStakes(epoch)(Map.empty[TaktikosAddress, Ratio]) { case (acc, (address, stake)) =>
+          acc.updated(address, stake).pure[F]
+        }
+      _ <- state.writeRelativeStakes(epoch + 1, newRelativeStakes)
+    } yield ()
 
-  private def traverseEpoch[F[_]: MonadError[*[_], Throwable]: LoggerAlgebra](
+  /**
+   * Iterate through the epoch slot-by-slot
+   */
+  private def traverseEpoch[F[_]: MonadError[*[_], Throwable]: Logger](
     fromSlot:         Option[Slot],
     epoch:            Epoch,
     boundary:         ClockAlgebra.EpochBoundary,
@@ -88,49 +114,50 @@ object DemoProgram {
     headerValidation: BlockHeaderValidationAlgebra[F],
     state:            BlockchainState[F],
     etaCalculation:   EtaCalculationAlgebra[F]
-  ): F[Unit] =
+  ): F[Unit] = {
+    val twoThirdsSlot = (boundary.length * 2 / 3) + boundary.start
     fromSlot
-      .foldLeft(boundary.to(LazyList)) { case (boundary, fromSlot) => boundary.dropWhile(_ < fromSlot) }
-      .traverse_(slot =>
-        clock
-          .delayedUntilSlot(slot) >>
-        processSlot(slot, mint, headerValidation, state) >>
-        Applicative[F].whenA((slot - boundary.start) === (boundary.length * 2 / 3))(
-          handleTwoThirdsEvent(epoch, state, etaCalculation)
-        )
-      )
+      .getOrElse(boundary.start)
+      .iterateUntilM(slot =>
+        for {
+          _ <- clock.delayedUntilSlot(slot)
+          _ <- processSlot(slot, mint, headerValidation, state)
+          _ <- Applicative[F].whenA(slot === twoThirdsSlot)(handleTwoThirdsEvent(epoch, state, etaCalculation))
+        } yield slot + 1
+      )(_ >= boundary.end)
+      .void
+  }
 
-  private def processSlot[F[_]: MonadError[*[_], Throwable]: LoggerAlgebra](
+  private def processSlot[F[_]: Monad: Logger](
     slot:             Slot,
     mint:             BlockMintAlgebra[F],
     headerValidation: BlockHeaderValidationAlgebra[F],
     state:            BlockchainState[F]
   ): F[Unit] =
+    Logger[F].debug(s"Processing slot=$slot") >>
     state.canonicalHead
       .flatMap(canonicalHead =>
-        // Mint a new block
+        // Attempt to mint a new block
         OptionT(mint.mint(canonicalHead.headerV2, Nil, slot))
-          .semiflatMap { nextBlock =>
+          .semiflatMap(nextBlock =>
             // If a block was minted at this slot, attempt to validate it
-            EitherT(
-              headerValidation
-                .validate(nextBlock.headerV2, canonicalHead.headerV2)
-            )
+            EitherT(headerValidation.validate(nextBlock.headerV2, canonicalHead.headerV2))
               .semiflatTap(_ => state.append(nextBlock))
-              .semiflatTap(header => LoggerAlgebra[F].info(s"Appended block ${header.show}").pure[F])
-              .valueOrF(e => new IllegalArgumentException(e.toString).raiseError[F, BlockHeaderV2])
-          }
+              .semiflatTap(header => Logger[F].info(s"Appended block ${header.show}"))
+              .void
+              .valueOrF(e => Logger[F].warn(s"Invalid block header. reason=$e block=${nextBlock.headerV2.show}"))
+          )
           .value
           .void
       )
 
-  private def handleTwoThirdsEvent[F[_]: MonadError[*[_], Throwable]: LoggerAlgebra](
+  private def handleTwoThirdsEvent[F[_]: MonadError[*[_], Throwable]: Logger](
     epoch:          Epoch,
     state:          BlockchainState[F],
     etaCalculation: EtaCalculationAlgebra[F]
   ): F[Unit] =
     for {
-      _       <- LoggerAlgebra[F].info(s"Handling 2/3 event for epoch=$epoch").pure[F]
+      _       <- Logger[F].info(s"Handling 2/3 event for epoch=$epoch")
       nextEta <- etaCalculation.calculate(epoch)
       _       <- state.writeEta(epoch, nextEta)
     } yield ()

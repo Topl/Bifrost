@@ -41,17 +41,14 @@ object LeaderElectionValidation {
 
         // TODO: Cache of relative stake for each address
 
-        def getThreshold(relativeStake: Ratio, slotDiff: Long): F[Ratio] =
-          Applicative[F].unit.productREval(
-            cats.Eval.later {
-              val mFValue = mFunction(slotDiff, config)
-              val base = mFValue * relativeStake
+        def getThreshold(relativeStake: Ratio, slotDiff: Long): F[Ratio] = {
+          val mFValue = mFunction(slotDiff, config)
+          val base = mFValue * relativeStake
 
-              (1 to config.precision)
-                .foldLeft(Ratio(0))((total, i) => total - (base.pow(i) * Ratio(BigInt(1), ProsomoMath.factorial(i))))
-                .pure[F]
-            }
-          )
+          (1 to config.precision)
+            .foldLeft(Ratio(0))((total, i) => total - (base.pow(i) * Ratio(BigInt(1), ProsomoMath.factorial(i))))
+            .pure[F]
+        }
 
         /**
          * Determines if the given proof meets the threshold to be elected slot leader

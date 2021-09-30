@@ -1,9 +1,8 @@
 package co.topl.demo
 
-import cats._
-import cats.implicits._
-import cats.tagless.implicits._
-import co.topl.algebras.ClockAlgebra.implicits._
+import akka.actor.typed.ActorSystem
+import akka.util.Timeout
+import cats.effect.{IO, IOApp}
 import co.topl.algebras._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
@@ -18,22 +17,16 @@ import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility._
 import co.topl.typeclasses._
+import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.concurrent.duration._
 
-object TetraDemo extends App {
+object TetraDemo extends IOApp.Simple {
 
-  type F[A] = Either[Throwable, A]
+  type F[A] = IO[A]
 
-  implicit def logger[F[_]: Applicative]: LoggerAlgebra[F] =
-    new LoggerAlgebra[F] {
-
-      def debug(message: String): F[Unit] =
-        println("[DEBUG] " + message).pure[F]
-
-      def info(message: String): F[Unit] =
-        println("[INFO] " + message).pure[F]
-    }
+  implicit val logger: Logger[F] = Slf4jLogger.getLogger[F]
 
   val stakerRelativeStake =
     Ratio(9, 10)
@@ -60,7 +53,7 @@ object TetraDemo extends App {
     )
 
   val clock: ClockAlgebra[F] =
-    new SyncClockInterpreter[F](100.milli, 150)
+    CatsTemporalClock.Eval.make[F](100.milli, 150)
 
   val vrfProof = VrfProof.Eval.make[F](stakerVrfKey, clock)
 
@@ -86,12 +79,24 @@ object TetraDemo extends App {
     )
   }
 
-  val state = InMemoryState.Eval.make[F](
-    BlockGenesis(Nil).value,
-    initialRelativeStakes = Map(0L -> Map(stakerAddress -> stakerRelativeStake)),
-    initialRegistrations = Map(0L -> Map(stakerAddress -> stakerRegistration)),
-    initialEtas = Map(-1L -> Sized.strictUnsafe[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(0))))
-  )
+  implicit private val system: ActorSystem[NodeViewHolder.ReceivableMessage] =
+    ActorSystem(
+      NodeViewHolder(
+        NodeView(
+          BlockGenesis(Nil).value,
+          Map.empty,
+          Map(0L  -> Map(stakerAddress -> stakerRelativeStake)),
+          Map(0L  -> Map(stakerAddress -> stakerRegistration)),
+          Map(-1L -> Sized.strictUnsafe[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(0))))
+        )
+      ),
+      "TetraDemo"
+    )
+
+  implicit val timeout: Timeout = Timeout(5.seconds)
+
+  val state: BlockchainState[F] =
+    NodeViewHolder.StateEval.make[F](system)
 
   val mint: BlockMintAlgebra[F] =
     BlockMint.Eval.make(
@@ -119,10 +124,6 @@ object TetraDemo extends App {
         RegistrationLookup.Eval.make(state, clock)
       )
 
-  DemoProgram
+  val run: IO[Unit] = DemoProgram
     .run[F](clock, mint, headerValidation, vrfProof, state, EtaCalculation.Eval.make(state, clock))
-    .onError { case e =>
-      throw e
-    }
-
 }

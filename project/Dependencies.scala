@@ -12,7 +12,8 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.4",
     "ch.qos.logback"              % "logback-classic" % "1.2.5",
     "ch.qos.logback"              % "logback-core"    % "1.2.5",
-    "org.slf4j"                   % "slf4j-api"       % "1.7.32"
+    "org.slf4j"                   % "slf4j-api"       % "1.7.32",
+    "org.typelevel"              %% "log4cats-slf4j"  % "2.1.1"
   )
 
   val test = Seq(
@@ -85,6 +86,10 @@ object Dependencies {
 
   val cats = Seq(
     "org.typelevel" %% "cats-core" % "2.3.1"
+  )
+
+  val catsEffect = Seq(
+    "org.typelevel" %% "cats-effect" % "3.2.8"
   )
 
   val catsTagless = Seq(
@@ -197,7 +202,7 @@ object Dependencies {
     cats ++ simulacrum ++ newType
 
   lazy val demo: Seq[ModuleID] =
-    Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++ catsTagless
+    Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++ catsTagless ++ logging
 
   lazy val tools: Seq[ModuleID] =
     Seq(
