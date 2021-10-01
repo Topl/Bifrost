@@ -351,7 +351,7 @@ lazy val minting = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.minting"
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsTagless)
+  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsTagless ++ Dependencies.catsEffect)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, typeclasses, crypto, byteCodecs, algebras, consensus)
 

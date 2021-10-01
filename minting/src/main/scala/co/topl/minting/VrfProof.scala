@@ -1,5 +1,6 @@
 package co.topl.minting
 
+import cats.effect.Sync
 import cats.implicits._
 import cats.{Applicative, Monad}
 import co.topl.algebras.ClockAlgebra
@@ -23,44 +24,48 @@ object VrfProof {
 
   object Eval {
 
-    def make[F[_]: Monad](skVrf: SecretKeys.Vrf, clock: ClockAlgebra[F]): VrfProofAlgebra[F] =
+    def make[F[_]: Monad: Sync](skVrf: SecretKeys.Vrf, clock: ClockAlgebra[F]): VrfProofAlgebra[F] =
       new VrfProofAlgebra[F] {
 
         private val testProofs: TrieMap[Eta, LongMap[Signature.VrfEd25519]] = TrieMap.empty
         private val rhos: TrieMap[Eta, LongMap[Rho]] = TrieMap.empty
 
         def precomputeForEpoch(epoch: Epoch, previousEta: Eta): F[Unit] =
-          clock
-            .epochRange(epoch)
-            .map(boundary =>
-              LongMap.from(
-                boundary.map { slot =>
-                  slot -> compute(
-                    skVrf,
-                    LeaderElectionValidation.VrfArgument(previousEta, slot, LeaderElectionValidation.Tokens.Test)
-                  )
-                }
+          Sync[F]
+            .defer(clock.epochRange(epoch))
+            .flatMap(boundary =>
+              Sync[F].delay(
+                LongMap.from(
+                  boundary.map { slot =>
+                    slot -> compute(
+                      skVrf,
+                      LeaderElectionValidation.VrfArgument(previousEta, slot, LeaderElectionValidation.Tokens.Test)
+                    )
+                  }
+                )
               )
             )
             .map(testProofsForEta =>
               testProofsForEta -> LongMap.from(testProofsForEta.view.mapValues(ProofToHash.digest))
             )
             .flatTap { case (testProofsForEta, rhosForEta) =>
-              testProofs.addOne(previousEta -> testProofsForEta)
-              rhos.addOne(previousEta       -> rhosForEta)
-              Applicative[F].unit
+              Sync[F].delay {
+                testProofs.addOne(previousEta -> testProofsForEta)
+                rhos.addOne(previousEta       -> rhosForEta)
+              }
             }
             .void
 
         def testProofForSlot(slot: Slot, eta: Eta): F[Signature.VrfEd25519] =
-          testProofs(eta)(slot).pure[F]
+          Sync[F].delay(testProofs(eta)(slot))
 
         def nonceProofForSlot(slot: Slot, eta: Eta): F[Signature.VrfEd25519] =
-          compute(skVrf, LeaderElectionValidation.VrfArgument(eta, slot, LeaderElectionValidation.Tokens.Nonce))
-            .pure[F]
+          Sync[F].delay(
+            compute(skVrf, LeaderElectionValidation.VrfArgument(eta, slot, LeaderElectionValidation.Tokens.Nonce))
+          )
 
         def rhoForSlot(slot: Slot, eta: Eta): F[Rho] =
-          rhos(eta)(slot).pure[F]
+          Sync[F].delay(rhos(eta)(slot))
       }
   }
 

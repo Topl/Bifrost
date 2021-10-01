@@ -3,6 +3,7 @@ package co.topl.demo
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
+import cats.data.OptionT
 import cats.effect.kernel.Async
 import cats.implicits._
 import cats.{Defer, Monad}
@@ -36,10 +37,10 @@ object NodeViewHolder {
 
         import akka.actor.typed.scaladsl.AskPattern._
 
-        def genesis: F[BlockV2] =
+        val genesis: F[BlockV2] =
           withNodeView(nodeView => (nodeView, nodeView.genesisBlock))
 
-        def canonicalHead: F[BlockV2] =
+        val canonicalHead: F[BlockV2] =
           withNodeView(nodeView =>
             (
               nodeView,
@@ -52,7 +53,12 @@ object NodeViewHolder {
           withNodeView(nodeView => (nodeView.copy(blocks = nodeView.blocks + (blockV2.headerV2.id -> blockV2)), ()))
 
         def lookupBlock(id: TypedIdentifier): F[Option[BlockV2]] =
-          withNodeView(nodeView => (nodeView, nodeView.blocks.get(id)))
+          genesis.flatMap(genesis =>
+            OptionT
+              .when[F, BlockV2](genesis.headerV2.id === id)(genesis)
+              .orElseF(withNodeView(nodeView => (nodeView, nodeView.blocks.get(id))))
+              .value
+          )
 
         def lookupRelativeStake(epoch: Epoch)(address: TaktikosAddress): F[Option[Ratio]] =
           withNodeView(nodeView => (nodeView, nodeView.relativeStakes.get(epoch).flatMap(_.get(address))))

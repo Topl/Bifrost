@@ -2,7 +2,9 @@ package co.topl.demo
 
 import akka.actor.typed.ActorSystem
 import akka.util.Timeout
-import cats.effect.{IO, IOApp}
+import cats.implicits._
+import cats.effect.kernel.Sync
+import cats.effect.{Async, IO, IOApp}
 import co.topl.algebras._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
@@ -11,7 +13,7 @@ import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.typeclasses._
 import co.topl.crypto.typeclasses.implicits._
 import co.topl.minting._
-import co.topl.minting.algebras.{BlockMintAlgebra, LeaderElectionMintingAlgebra}
+import co.topl.minting.algebras.{BlockMintAlgebra, VrfProofAlgebra}
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
@@ -24,26 +26,19 @@ import scala.concurrent.duration._
 
 object TetraDemo extends IOApp.Simple {
 
-  type F[A] = IO[A]
-
-  implicit val logger: Logger[F] = Slf4jLogger.getLogger[F]
-
-  val stakerRelativeStake =
-    Ratio(9, 10)
-
-  val leaderElectionThreshold: LeaderElectionValidationAlgebra[F] =
-    LeaderElectionValidation.Eval.make(
-      VrfConfig(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
-    )
+  // Create stubbed/sample/demo data
 
   private val stakerVrfKey =
     KeyInitializer[SecretKeys.Vrf].random()
 
-  // TODO
-  val stakerRegistration: Box.Values.TaktikosRegistration =
+  private val stakerRegistration: Box.Values.TaktikosRegistration =
     Box.Values.TaktikosRegistration(
       vrfCommitment = Sized.strictUnsafe(
-        Bytes(blake2b256.hash(stakerVrfKey.verificationKey[VerificationKeys.Vrf].signableBytes.toArray).value)
+        Bytes(
+          blake2b256
+            .hash(stakerVrfKey.verificationKey[VerificationKeys.Vrf].signableBytes.toArray)
+            .value
+        )
       ),
       extendedVk = VerificationKeys.ExtendedEd25519(
         VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
@@ -51,17 +46,6 @@ object TetraDemo extends IOApp.Simple {
       ),
       registrationSlot = 0
     )
-
-  val clock: ClockAlgebra[F] =
-    CatsTemporalClock.Eval.make[F](100.milli, 150)
-
-  val vrfProof = VrfProof.Eval.make[F](stakerVrfKey, clock)
-
-  val leaderElectionHit: LeaderElectionMintingAlgebra[F] = LeaderElectionMinting.Eval.make(
-    stakerVrfKey,
-    leaderElectionThreshold,
-    vrfProof
-  )
 
   private val stakerAddress: TaktikosAddress = {
     val stakingKey = KeyInitializer[SecretKeys.Ed25519].random()
@@ -79,30 +63,54 @@ object TetraDemo extends IOApp.Simple {
     )
   }
 
+  private val initialNodeView =
+    NodeView(
+      BlockGenesis(Nil).value,
+      Map.empty,
+      Map(0L  -> Map(stakerAddress -> Ratio(9, 10))),
+      Map(0L  -> Map(stakerAddress -> stakerRegistration)),
+      Map(-1L -> Sized.strictUnsafe[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(0))))
+    )
+
+  // Actor system initialization
+
   implicit private val system: ActorSystem[NodeViewHolder.ReceivableMessage] =
     ActorSystem(
-      NodeViewHolder(
-        NodeView(
-          BlockGenesis(Nil).value,
-          Map.empty,
-          Map(0L  -> Map(stakerAddress -> stakerRelativeStake)),
-          Map(0L  -> Map(stakerAddress -> stakerRegistration)),
-          Map(-1L -> Sized.strictUnsafe[Bytes, Lengths.`32`.type](Bytes(Array.fill[Byte](32)(0))))
-        )
-      ),
+      NodeViewHolder(initialNodeView),
       "TetraDemo"
     )
 
-  implicit val timeout: Timeout = Timeout(5.seconds)
+  // Interpreter initialization
 
-  val state: BlockchainState[F] =
+  type F[A] = IO[A]
+
+  implicit private val logger: Logger[F] = Slf4jLogger.getLogger[F]
+
+  private val leaderElectionThreshold: LeaderElectionValidationAlgebra[F] =
+    LeaderElectionValidation.Eval.make(
+      VrfConfig(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
+    )
+
+  private val clock: ClockAlgebra[F] =
+    AkkaSchedulerClock.Eval.make(100.milli, 150)
+
+  private val vrfProofConstruction: VrfProofAlgebra[F] =
+    VrfProof.Eval.make[F](stakerVrfKey, clock)
+
+  implicit private val timeout: Timeout = Timeout(5.seconds)
+
+  private val state: BlockchainState[F] =
     NodeViewHolder.StateEval.make[F](system)
 
-  val mint: BlockMintAlgebra[F] =
+  private val mint: BlockMintAlgebra[F] =
     BlockMint.Eval.make(
       Staking.Eval.make(
         stakerAddress,
-        leaderElectionHit,
+        LeaderElectionMinting.Eval.make(
+          stakerVrfKey,
+          leaderElectionThreshold,
+          vrfProofConstruction
+        ),
         BlockSigning.Eval.make(
           KeyEvolver.InMemory.make {
             implicit val slot: Slot = 0
@@ -115,7 +123,7 @@ object TetraDemo extends IOApp.Simple {
       clock
     )
 
-  val headerValidation: BlockHeaderValidationAlgebra[F] =
+  private val headerValidation: BlockHeaderValidationAlgebra[F] =
     BlockHeaderValidation.Eval.Stateful
       .make[F](
         EtaValidation.Eval.make(state, clock),
@@ -124,6 +132,11 @@ object TetraDemo extends IOApp.Simple {
         RegistrationLookup.Eval.make(state, clock)
       )
 
+  // Program definition
+
   val run: IO[Unit] = DemoProgram
-    .run[F](clock, mint, headerValidation, vrfProof, state, EtaCalculation.Eval.make(state, clock))
+    .run[F](clock, mint, headerValidation, vrfProofConstruction, state, EtaCalculation.Eval.make(state, clock))
+    .guarantee(
+      Sync[F].delay(system.terminate()).flatMap(_ => Async[F].fromFuture(system.whenTerminated.pure[F])).void
+    )
 }

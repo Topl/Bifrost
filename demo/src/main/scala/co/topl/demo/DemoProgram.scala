@@ -15,7 +15,7 @@ import org.typelevel.log4cats.Logger
 object DemoProgram {
 
   /**
-   * A forever-running program which traverses epochs, starting from 0
+   * A forever-running program which traverses epochs and the slots within the epochs
    */
   def run[F[_]: MonadError[*[_], Throwable]: Logger](
     clock:            ClockAlgebra[F],
@@ -83,26 +83,6 @@ object DemoProgram {
     } yield ()
 
   /**
-   * Perform operations at the completion of an epoch
-   */
-  private def finishEpoch[F[_]: Monad: Logger](epoch: Epoch, state: BlockchainState[F]): F[Unit] =
-    for {
-      _ <- Logger[F].info(s"Finishing epoch=$epoch")
-      _ <- Logger[F].info("Populating registrations for next epoch")
-      newRegistrations <- state
-        .foldRegistrations(epoch)(Map.empty[TaktikosAddress, Box.Values.TaktikosRegistration]) {
-          case (acc, (address, registration)) => acc.updated(address, registration).pure[F]
-        }
-      _ <- state.writeRegistrations(epoch + 1, newRegistrations)
-      _ <- Logger[F].info("Populating relative stake distributions for next epoch")
-      newRelativeStakes <- state
-        .foldRelativeStakes(epoch)(Map.empty[TaktikosAddress, Ratio]) { case (acc, (address, stake)) =>
-          acc.updated(address, stake).pure[F]
-        }
-      _ <- state.writeRelativeStakes(epoch + 1, newRelativeStakes)
-    } yield ()
-
-  /**
    * Iterate through the epoch slot-by-slot
    */
   private def traverseEpoch[F[_]: MonadError[*[_], Throwable]: Logger](
@@ -161,4 +141,25 @@ object DemoProgram {
       nextEta <- etaCalculation.calculate(epoch)
       _       <- state.writeEta(epoch, nextEta)
     } yield ()
+
+  /**
+   * Perform operations at the completion of an epoch
+   */
+  private def finishEpoch[F[_]: Monad: Logger](epoch: Epoch, state: BlockchainState[F]): F[Unit] =
+    for {
+      _ <- Logger[F].info(s"Finishing epoch=$epoch")
+      _ <- Logger[F].info("Populating registrations for next epoch")
+      newRegistrations <- state
+        .foldRegistrations(epoch)(Map.empty[TaktikosAddress, Box.Values.TaktikosRegistration]) {
+          case (acc, (address, registration)) => acc.updated(address, registration).pure[F]
+        }
+      _ <- state.writeRegistrations(epoch + 1, newRegistrations)
+      _ <- Logger[F].info("Populating relative stake distributions for next epoch")
+      newRelativeStakes <- state
+        .foldRelativeStakes(epoch)(Map.empty[TaktikosAddress, Ratio]) { case (acc, (address, stake)) =>
+          acc.updated(address, stake).pure[F]
+        }
+      _ <- state.writeRelativeStakes(epoch + 1, newRelativeStakes)
+    } yield ()
+
 }

@@ -13,8 +13,8 @@ object CatsTemporalClock {
   object Eval {
 
     def make[F[_]: Monad: Temporal](
-      _slotLength:    FiniteDuration = 10.millis,
-      _slotsPerEpoch: Long = 600
+      _slotLength:    FiniteDuration,
+      _slotsPerEpoch: Long
     ): ClockAlgebra[F] =
       new ClockAlgebra[F] {
         private val startTime = System.currentTimeMillis()
@@ -33,13 +33,13 @@ object CatsTemporalClock {
 
         def delayedUntilSlot(slot: Slot): F[Unit] =
           currentSlot()
-            .map(currentSlot => (slot - currentSlot) * _slotLength.toMillis)
-            .map(delay => if (delay > 0) Thread.sleep(delay))
+            .map(currentSlot => (slot - currentSlot) * _slotLength)
+            .flatMap(delay => if (delay.toMillis > 0) F.sleep(delay) else F.unit)
 
         def delayedUntilTimestamp(timestamp: Timestamp): F[Unit] =
           currentTimestamp()
             .map(currentTimestamp => (timestamp - currentTimestamp).millis)
-            .flatMap(Temporal[F].sleep)
+            .flatMap(F.sleep)
       }
   }
 }
