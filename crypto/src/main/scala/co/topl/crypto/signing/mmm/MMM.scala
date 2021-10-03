@@ -1,6 +1,5 @@
-package co.topl.crypto.kes.construction
+package co.topl.crypto.signing.mmm
 
-import co.topl.crypto.kes.keys.{AsymmetricKey, SumPrivateKey, SymmetricKey}
 import co.topl.models._
 import co.topl.models.utility.{Empty, Leaf, Node, Tree}
 
@@ -24,10 +23,10 @@ import scala.math.BigInt
  * a tree height log(l)/log(2), yielding l time steps.
  */
 
-abstract class MMM {
+abstract class MMM[H,S] {
 
-  val fch: Fch
-  val sig: Sig
+  val fch: H
+  val sig: S
   val seedBytes: Int
   val pkBytes: Int
   val skBytes: Int
@@ -714,24 +713,24 @@ abstract class MMM {
    * @return signature of m
    */
 
-  def signAsymmetricProduct(key: SecretKeys.AsymmetricMMM, m: Array[Byte]): Proofs.Consensus.MMM = {
+  def signAsymmetricProduct(key: SecretKeys.AsymmetricMMM, m: Array[Byte]): Proofs.Consensus.HdKes = {
     val keyTime = BigInt(getAsymmetricProductKeyTimeStep(key)).toByteArray
     val Si = key.data.subScheme
     val sigi = key.data.subSchemeSignature
     val pki = key.data.subSchemePublicKey
     val ti = getSumCompositionKeyTimeStep(Si)
     val sigm = sumCompositionSign(Si, m ++ keyTime, ti)
-    Proofs.Consensus.MMM(sigi, Bytes(sigm), pki, key.data.offset, Bytes(publicKey(key)))
+    Proofs.Consensus.HdKes(sigi, Bytes(sigm), pki, key.data.offset, Bytes(publicKey(key)))
   }
 
-  def signSymmetricProduct(key: SecretKeys.SymmetricMMM, m: Array[Byte]): Proofs.Consensus.MMM = {
+  def signSymmetricProduct(key: SecretKeys.SymmetricMMM, m: Array[Byte]): Proofs.Signature. = {
     val keyTime = BigInt(getSymmetricProductKeyTimeStep(key)).toByteArray
     val Si = key.data.subScheme
     val sigi = key.data.subSchemeSignature
     val pki = key.data.subSchemePublicKey
     val ti = getSumCompositionKeyTimeStep(Si)
     val sigm = sumCompositionSign(Si, m ++ keyTime, ti)
-    Proofs.Consensus.MMM(sigi, Bytes(sigm), pki, key.data.offset, Bytes(publicKey(key)))
+    Proofs.Consensus.HdKes(sigi, Bytes(sigm), pki, key.data.offset, Bytes(publicKey(key)))
   }
 
   /**
@@ -742,9 +741,9 @@ abstract class MMM {
    * @return true if signature is valid false if otherwise
    */
 
-  def verifySymmetricProductSignature(m: Array[Byte], sig: Proofs.Consensus.MMM, t: Int): Boolean =
+  def verifySymmetricProductSignature(m: Array[Byte], sig: Proofs.Consensus.HdKes, t: Int): Boolean =
     sig match {
-      case Proofs.Consensus.MMM(sigi, sigm, pki, _, pkl) =>
+      case Proofs.Consensus.HdKes(sigi, sigm, pki, _, pkl) =>
         val stepL = BigInt(sigi.slice(sigBytes + pkBytes, sigBytes + pkBytes + seedBytes).toArray).toInt
         val stepSi = BigInt(sigm.slice(sigBytes + pkBytes, sigBytes + pkBytes + seedBytes).toArray).toInt
         (
@@ -762,9 +761,9 @@ abstract class MMM {
    * @return true if signature is valid false if otherwise
    */
 
-  def verifyAsymmetricProductSignature(m: Array[Byte], sig: Proofs.Consensus.MMM, t: Int): Boolean =
+  def verifyAsymmetricProductSignature(m: Array[Byte], sig: Proofs.Signature.HdKes, t: Int): Boolean =
     sig match {
-      case Proofs.Consensus.MMM(sigi, sigm, pki, _, pkl) =>
+      case Proofs.Signature.HdKes(sigi, sigm, pki, _, pkl) =>
         val stepL = BigInt(sigi.slice(sigBytes + pkBytes, sigBytes + pkBytes + seedBytes).toArray).toInt
         val stepSi = BigInt(sigm.slice(sigBytes + pkBytes, sigBytes + pkBytes + seedBytes).toArray).toInt
         (sumCompositionVerify(pkl.toArray, pki.toArray, sigi.toArray, stepL)
