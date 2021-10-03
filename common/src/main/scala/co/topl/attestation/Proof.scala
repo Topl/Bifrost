@@ -4,7 +4,8 @@ import cats.implicits._
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519, Secret}
 import co.topl.attestation.serialization.ProofSerializer
 import co.topl.crypto.PublicKey
-import co.topl.crypto.signatures.{Curve25519, Ed25519, Signature}
+import co.topl.crypto.signatures.Signature
+import co.topl.crypto.signing.{Curve25519, Ed25519}
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.codecs.implicits._

@@ -1,7 +1,7 @@
 package co.topl.crypto.typeclasses
 
 import co.topl.crypto.kes.KeyEvolvingSignatureScheme
-import co.topl.crypto.signatures.Ed25519
+import co.topl.crypto.signing.Ed25519
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._

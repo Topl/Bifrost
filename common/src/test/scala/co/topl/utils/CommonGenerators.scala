@@ -4,7 +4,8 @@ import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
 import co.topl.attestation.keyManagement._
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.crypto.signatures.{Curve25519, Ed25519, Signature}
+import co.topl.crypto.signatures.Signature
+import co.topl.crypto.signing.Curve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
@@ -540,7 +541,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     Gen.listOfN(ModifierId.size, Arbitrary.arbitrary[Byte]).map(li => ModifierId.parseBytes(li.toArray).get)
 
   lazy val keyCurve25519Gen: Gen[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] =
-    genBytesList(Curve25519.KeyLength).map(s => PrivateKeyCurve25519.secretGenerator.generateSecret(s))
+    genBytesList(Curve25519.vkLength).map(s => PrivateKeyCurve25519.secretGenerator.generateSecret(s))
 
   lazy val keyEd25519Gen: Gen[(PrivateKeyEd25519, PublicKeyPropositionEd25519)] =
     genBytesList(Ed25519.KeyLength).map(s => PrivateKeyEd25519.secretGenerator.generateSecret(s))

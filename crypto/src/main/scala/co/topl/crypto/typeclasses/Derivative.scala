@@ -2,7 +2,7 @@ package co.topl.crypto.typeclasses
 
 import co.topl.codecs.bytes.BasicCodecs._
 import co.topl.codecs.bytes.ByteCodec.implicits._
-import co.topl.crypto.signatures.Ed25519
+import co.topl.crypto.signing.Ed25519
 import co.topl.crypto.typeclasses.ContainsVerificationKey.instances._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._

@@ -1,7 +1,8 @@
 package co.topl.crypto.typeclasses
 
 import co.topl.crypto.PublicKey
-import co.topl.crypto.signatures.{Curve25519, Ed25519, Ed25519VRF, Signature}
+import co.topl.crypto.signatures.Signature
+import co.topl.crypto.signing.{Curve25519, Ed25519}
 import co.topl.crypto.typeclasses.Signable.ops._
 import co.topl.models._
 

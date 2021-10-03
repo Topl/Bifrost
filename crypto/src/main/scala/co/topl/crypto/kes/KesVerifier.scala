@@ -3,7 +3,8 @@ package co.topl.crypto.kes
 import co.topl.crypto.PublicKey
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.kes.signatures.{AsymmetricSignature, ProductSignature, SumSignature, SymmetricSignature}
-import co.topl.crypto.signatures.{Ed25519, Signature}
+import co.topl.crypto.signatures.Signature
+import co.topl.crypto.signing.Ed25519
 import co.topl.crypto.typeclasses.Signable
 import co.topl.crypto.typeclasses.Signable.ops._
 import co.topl.models.{Proofs, Slot}

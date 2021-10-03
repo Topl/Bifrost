@@ -5,7 +5,8 @@ import co.topl.attestation.keyManagement.derivedKeys.ExtendedPrivateKeyEd25519.P
 import co.topl.attestation.keyManagement.derivedKeys.implicits._
 import co.topl.attestation.keyManagement.mnemonic.Language.{English, LanguageWordList}
 import co.topl.attestation.keyManagement.mnemonic.MnemonicSize.Mnemonic12
-import co.topl.attestation.keyManagement.mnemonic.{derive, Entropy, Phrase}
+import co.topl.attestation.keyManagement.mnemonic.{Entropy, Phrase, derive}
+import co.topl.crypto.signing.Ed25519
 import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.SizedBytes.Types.{ByteVector32, ByteVector96}
 import co.topl.utils.SizedBytes.implicits._
@@ -17,7 +18,6 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scodec.bits.ByteOrdering
 import scodec.bits.ByteOrdering.LittleEndian
-import co.topl.crypto.signatures.Ed25519
 
 // Test Vectors:
 // https://topl.atlassian.net/wiki/spaces/Bifrost/pages/294813812/HD+Wallet+Protocols+and+Test+Vectors

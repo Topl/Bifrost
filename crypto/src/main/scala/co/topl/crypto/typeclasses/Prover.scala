@@ -1,6 +1,6 @@
 package co.topl.crypto.typeclasses
 
-import co.topl.crypto.signatures.Ed25519
+import co.topl.crypto.signing.Ed25519
 import co.topl.crypto.typeclasses.Signable.ops._
 import co.topl.models.Proofs.Signature
 import co.topl.models._

@@ -1,6 +1,6 @@
 package co.topl.crypto.signing.mmm
 
-import co.topl.crypto.signatures.eddsa.Ed25519
+import co.topl.crypto.signing.eddsa.Ed25519
 
 /**
  * AMS 2021:

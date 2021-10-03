@@ -2,7 +2,7 @@ package co.topl.crypto.kes.keys
 
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.kes.KeyEvolvingSignatureScheme
-import co.topl.crypto.signatures.Ed25519
+import co.topl.crypto.signing.Ed25519
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.Sized

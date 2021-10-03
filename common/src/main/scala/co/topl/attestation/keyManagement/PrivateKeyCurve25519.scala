@@ -3,7 +3,7 @@ package co.topl.attestation.keyManagement
 import cats.implicits._
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.crypto.implicits._
-import co.topl.crypto.signatures.Curve25519
+import co.topl.crypto.signing.Curve25519
 import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
@@ -12,8 +12,8 @@ class PrivateKeyCurve25519(private val privateKey: PrivateKey, private val publi
   private val privateKeyLength = privateKey.value.length
   private val publicKeyLength = publicKey.value.length
 
-  require(privateKeyLength == Curve25519.KeyLength, s"$privateKeyLength == ${Curve25519.KeyLength}")
-  require(publicKeyLength == Curve25519.KeyLength, s"$publicKeyLength == ${Curve25519.KeyLength}")
+  require(privateKeyLength == Curve25519.vkLength, s"$privateKeyLength == ${Curve25519.vkLength}")
+  require(publicKeyLength == Curve25519.vkLength, s"$publicKeyLength == ${Curve25519.vkLength}")
 
   override type S = PrivateKeyCurve25519
   override type PK = PublicKeyPropositionCurve25519
@@ -52,6 +52,6 @@ object PrivateKeyCurve25519 extends BifrostSerializer[PrivateKeyCurve25519] {
   }
 
   override def parse(r: Reader): PrivateKeyCurve25519 =
-    new PrivateKeyCurve25519(PrivateKey(r.getBytes(Curve25519.KeyLength)), PublicKey(r.getBytes(Curve25519.KeyLength)))
+    new PrivateKeyCurve25519(PrivateKey(r.getBytes(Curve25519.vkLength)), PublicKey(r.getBytes(Curve25519.vkLength)))
 
 }

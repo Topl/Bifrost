@@ -1,4 +1,4 @@
-package co.topl.crypto.signatures.eddsa
+package co.topl.crypto.signing.eddsa
 
 /**
  * AMS 2021:

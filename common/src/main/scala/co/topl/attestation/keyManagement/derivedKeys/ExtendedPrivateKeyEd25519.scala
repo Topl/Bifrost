@@ -2,7 +2,8 @@ package co.topl.attestation.keyManagement.derivedKeys
 
 import co.topl.attestation.keyManagement.mnemonic.{Entropy, FromEntropy}
 import co.topl.attestation.{PublicKeyPropositionEd25519, SignatureEd25519}
-import co.topl.crypto.signatures.{Ed25519, Signature}
+import co.topl.crypto.signatures.Signature
+import co.topl.crypto.signing.Ed25519
 import co.topl.crypto.{Pbkdf2Sha512, PublicKey}
 import co.topl.utils.SizedBytes
 import co.topl.utils.SizedBytes.Types.{ByteVector28, ByteVector32, ByteVector96}

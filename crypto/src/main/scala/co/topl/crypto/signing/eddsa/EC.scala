@@ -1,4 +1,4 @@
-package co.topl.crypto.signatures.eddsa
+package co.topl.crypto.signing.eddsa
 
 import java.security.MessageDigest
 import java.util

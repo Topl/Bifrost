@@ -6,10 +6,10 @@ import scala.language.implicitConversions
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 
-package object signatures {
+package object signing {
+  @newtype
+  case class MessageToSign(value: Array[Byte])
 
   @newtype
-  case class Signature(value: Array[Byte])
-
-  type MessageToSign = Array[Byte]
+  case class Seed(value: Array[Byte])
 }

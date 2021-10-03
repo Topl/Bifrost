@@ -1,7 +1,7 @@
 package co.topl.attestation.keyManagement.derivedKeys
 
 import co.topl.crypto.PublicKey
-import co.topl.crypto.signatures.Ed25519
+import co.topl.crypto.signing.Ed25519
 import co.topl.utils.SizedBytes
 import co.topl.utils.SizedBytes.Types.{ByteVector32, ByteVector64}
 import co.topl.utils.SizedBytes.implicits._

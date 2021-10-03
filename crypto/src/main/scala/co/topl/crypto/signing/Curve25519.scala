@@ -1,0 +1,82 @@
+package co.topl.crypto.signing
+
+import co.topl.crypto.hash.sha256
+import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.Sized
+import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
+import org.whispersystems.curve25519.OpportunisticCurve25519Provider
+
+import java.lang.reflect.Constructor
+
+/* Forked from https://github.com/input-output-hk/scrypto */
+
+class Curve25519
+    extends EllipticCurveSignatureScheme[
+      SecretKeys.Curve25519,
+      VerificationKeys.Curve25519,
+      Proofs.Signature.Curve25519
+    ] {
+
+  override val SignatureLength: Int = Curve25519.SignatureLength
+  override val KeyLength: Int = Curve25519.KeyLength
+
+  /* todo: dirty hack, switch to logic as described in WhisperSystem's Curve25519 tutorial when
+              it would be possible to pass a random seed from outside, see
+              https://github.com/WhisperSystems/curve25519-java/pull/7
+   */
+  private val provider: OpportunisticCurve25519Provider = {
+    val constructor = classOf[OpportunisticCurve25519Provider].getDeclaredConstructors.head
+      .asInstanceOf[Constructor[OpportunisticCurve25519Provider]]
+    constructor.setAccessible(true)
+    constructor.newInstance()
+  }
+
+  override def createKeyPair(seed: Seed): (SecretKeys.Curve25519, VerificationKeys.Curve25519) = {
+    val hashedSeed = sha256.hash(seed.value)
+    val privateKey = SecretKeys.Curve25519(Sized.strictUnsafe(Bytes(provider.generatePrivateKey(hashedSeed.value))))
+    val publicKey = VerificationKeys.Curve25519(
+      Sized.strictUnsafe(Bytes(provider.generatePublicKey(Bytes.toByteArray(privateKey.bytes.data))))
+    )
+
+    privateKey -> publicKey
+  }
+
+  override def createKeyPair: (SecretKeys.Curve25519, VerificationKeys.Curve25519) = {
+    val random = new Array[Byte](KeyLength)
+    new java.security.SecureRandom().nextBytes(random)
+    createKeyPair(Seed(random))
+  }
+
+  override def sign(
+    privateKey: SecretKeys.Curve25519,
+    message:    MessageToSign
+  ): Proofs.Signature.Curve25519 =
+    Proofs.Signature.Curve25519(
+      Sized.strictUnsafe(
+        provider.calculateSignature(
+          provider.getRandom(SignatureLength),
+          Bytes.toByteArray(privateKey.bytes.data),
+          message.value
+        )
+      )
+    )
+
+  override def verify(
+    signature: Proofs.Signature.Curve25519,
+    message:   MessageToSign,
+    publicKey: VerificationKeys.Curve25519
+  ): Boolean =
+    signature.bytes.data.length == SignatureLength &&
+    publicKey.bytes.data.length == KeyLength &&
+    provider.verifySignature(
+      Bytes.toByteArray(publicKey.bytes.data),
+      message.value,
+      Bytes.toByteArray(signature.bytes.data)
+    )
+
+}
+
+object Curve25519 {
+  val SignatureLength: Int = 64
+  val KeyLength: Int = 32
+}

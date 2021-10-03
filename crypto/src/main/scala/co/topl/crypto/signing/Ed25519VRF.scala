@@ -1,11 +1,11 @@
-package co.topl.crypto.signatures
+package co.topl.crypto.signing
 
 import co.topl.crypto.hash.sha256
 import co.topl.crypto.{PrivateKey, PublicKey}
 
 import java.security.SecureRandom
 
-class Ed25519VRF extends eddsa.ECVRF25519 with EllipticCurveSignatureScheme {
+class Ed25519VRF extends co.topl.crypto.signing.eddsa.ECVRF25519 with EllipticCurveSignatureScheme {
   override val SignatureLength: Int = SIGNATURE_SIZE
   override val KeyLength: Int = SECRET_KEY_SIZE
 

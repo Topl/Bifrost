@@ -1,6 +1,6 @@
 package co.topl.crypto.signatures
 
-import eddsa.ECVRF25519
+import co.topl.crypto.signing.eddsa.ECVRF25519
 import co.topl.crypto.hash.FastCryptographicHash
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec

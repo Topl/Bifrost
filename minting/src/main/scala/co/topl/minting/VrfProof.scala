@@ -8,7 +8,7 @@ import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.consensus.LeaderElectionValidation
 import co.topl.consensus.LeaderElectionValidation.signableVrfArgument
 import co.topl.consensus.vrf.ProofToHash
-import co.topl.crypto.signatures.Ed25519VRF
+import co.topl.crypto.signing.Ed25519VRF
 import co.topl.crypto.typeclasses.implicits._
 import co.topl.minting.algebras.VrfProofAlgebra
 import co.topl.models.Proofs.Signature
