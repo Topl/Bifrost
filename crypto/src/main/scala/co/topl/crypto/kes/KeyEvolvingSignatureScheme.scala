@@ -1,8 +1,8 @@
 package co.topl.crypto.kes
 
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.crypto.hash.{Blake2bHash, digest}
-import co.topl.crypto.signing.mmm.{MMM, Sig}
+import co.topl.crypto.hash.{digest, Blake2bHash}
+import co.topl.crypto.signing.kes.{MMM, Sig}
 
 /**
  * AMS 2021:

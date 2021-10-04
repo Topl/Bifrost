@@ -1,4 +1,4 @@
-package co.topl.crypto.signing.mmm
+package co.topl.crypto.signing.kes
 
 import co.topl.models._
 import co.topl.models.utility.{Empty, Leaf, Node, Tree}

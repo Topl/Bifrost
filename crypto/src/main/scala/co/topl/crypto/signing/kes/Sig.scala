@@ -1,4 +1,4 @@
-package co.topl.crypto.signing.mmm
+package co.topl.crypto.signing.kes
 
 import co.topl.crypto.signing.eddsa.Ed25519
 
