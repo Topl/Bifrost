@@ -66,13 +66,14 @@ object Proofs {
 
   case class Existence(id: TypedIdentifier) extends Proof
 
-//  object Consensus {
-//
-//    /**
-//     * Signature with a witness path that corresponds to MMM construction
-//     *
-//     * @see [co.topl.crypto.kes.signatures.SymmetricSignature]
-//     */
-//    case class MMM(sigi: Bytes, sigm: Bytes, pki: Bytes, offset: Long, pkl: Bytes) extends Proof
-//  }
+  // TODO: Delete
+  object Consensus {
+
+    /**
+     * Signature with a witness path that corresponds to MMM construction
+     *
+     * @see [co.topl.crypto.kes.signatures.SymmetricSignature]
+     */
+    case class MMM(sigi: Bytes, sigm: Bytes, pki: Bytes, offset: Long, pkl: Bytes) extends Proof
+  }
 }

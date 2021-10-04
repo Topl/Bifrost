@@ -17,28 +17,32 @@ import com.google.common.primitives.Longs
  * to the time step of the signature since signatures include the offset
  */
 
-//case class SymmetricKey(override val data: KeyData, signature: Proofs.SignatureEd25519) extends ProductPrivateKey {
-//
-//  import SymmetricKey._
-//
-//  def update(globalTimeStep: Long): SymmetricKey =
-//    kes.updateSymmetricProductKey(this, (globalTimeStep - data.offset).toInt)
-//
-//  def sign(message: Array[Byte]): SymmetricSignature =
-//    kes.signSymmetricProduct(this, message)
-//
-//  def getVerificationKey: PublicKey =
-//    PublicKey(kes.publicKey(this))
-//
-//  def timeStepPlusOffset: Long =
-//    kes.getSymmetricProductKeyTimeStep(this) + data.offset
-//
-//  def timeStep: Long =
-//    kes.getSymmetricProductKeyTimeStep(this)
-//
-//  override def getBytes: Array[Byte] = signature.bytes.data.toArray ++ ProductPrivateKey.serializer.getBytes(data)
-//
-//}
+case class SymmetricKey(override val data: KeyData, signature: Proofs.Signature.Ed25519) extends ProductPrivateKey {
+
+  import SymmetricKey._
+
+  private def asModel: SecretKeys.SymmetricMMM = SecretKeys.SymmetricMMM(data, signature)
+
+  def update(globalTimeStep: Long): SymmetricKey = {
+    val m = kes.updateSymmetricProductKey(asModel, (globalTimeStep - data.offset).toInt)
+    SymmetricKey(m.data, m.signature)
+  }
+
+  def sign(message: Bytes): Proofs.Consensus.MMM =
+    ???
+
+  def getVerificationKey: PublicKey =
+    PublicKey(kes.publicKey(asModel))
+
+  def timeStepPlusOffset: Long =
+    kes.getSymmetricProductKeyTimeStep(asModel) + data.offset
+
+  def timeStep: Long =
+    kes.getSymmetricProductKeyTimeStep(asModel)
+
+  override def getBytes: Bytes = signature.bytes.data ++ ProductPrivateKey.serializer.getBytes(data)
+
+}
 
 object SymmetricKey {
 

@@ -46,7 +46,7 @@ case class SymmetricKeyFile(kes_info: CipherInfo, fileName: String, oldFileName:
     val decryptedKey = SymmetricKey.deserializeSymmetricKey(decrypted)
     // TODO
     require(
-      kes_info.pubKey sameElements decryptedKey.vk[VerificationKeys.HdKes].xvkM.ed25519.bytes.data.toArray,
+      kes_info.pubKey sameElements decryptedKey.vk[VerificationKeys.HdKes].xvkM.ed25519.bytes.data.toArray[Byte],
       "Error: PublicKey in file is invalid"
     )
     decryptedKey
@@ -87,12 +87,12 @@ object SymmetricKeyFile {
       val salt = blake2b256.hash(uuid).value
       val ivData = blake2b256.hash(uuid).value.slice(0, 16)
       val derivedKey = getDerivedKey(password, salt)
-      val keyBytes: Array[Byte] = symmetricKey.bytes.toArray
+      val keyBytes: Array[Byte] = ??? //symmetricKey.bytes.toArray
       val (cipherText, mac) = encryptAES(derivedKey, ivData, keyBytes)
-      CipherInfo(symmetricKey.getVerificationKey.value, cipherText, mac, salt, ivData)
+      CipherInfo(???, cipherText, mac, salt, ivData)
     }
     val dateString = Instant.now().truncatedTo(ChronoUnit.MILLIS).toString.replace(":", "-")
-    val fileName = s"$defaultKeyDir/$dateString-${Base58.encode(symmetricKey.getVerificationKey.value)}.json"
+    val fileName = s"$defaultKeyDir/$dateString-${Base58.encode(???)}.json"
     val newKeyFile = new SymmetricKeyFile(kes_info, fileName, "NEWKEY")
     val file = new File(fileName)
     file.getParentFile.mkdirs
@@ -124,9 +124,9 @@ object SymmetricKeyFile {
     val kes_info = {
       val ivData = blake2b256.hash(uuid).value.slice(0, 16)
       val (cipherText, mac) = if (derivedKey.isEmpty) {
-        encryptAES(getDerivedKey(password, salt), ivData, updatedKey.getBytes)
+        encryptAES(getDerivedKey(password, salt), ivData, ???)
       } else {
-        encryptAES(derivedKey, ivData, updatedKey.getBytes)
+        encryptAES(derivedKey, ivData, ???)
       }
       CipherInfo(keyFile.kes_info.pubKey, cipherText, mac, salt, ivData)
     }
