@@ -1,53 +1,52 @@
 package co.topl.crypto.signing
 
 import co.topl.crypto.hash.sha256
-import co.topl.crypto.{PrivateKey, PublicKey}
+import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.Sized
+import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
 
 import java.security.SecureRandom
 
-class Ed25519VRF extends co.topl.crypto.signing.eddsa.ECVRF25519 with EllipticCurveSignatureScheme {
+class Ed25519VRF
+    extends eddsa.ECVRF25519
+    with EllipticCurveSignatureScheme[SecretKeys.VrfEd25519, VerificationKeys.VrfEd25519, Proofs.Signature.VrfEd25519] {
   override val SignatureLength: Int = SIGNATURE_SIZE
   override val KeyLength: Int = SECRET_KEY_SIZE
 
-  override def createKeyPair(seed: Array[Byte]): (PrivateKey, PublicKey) = {
-    val sk: Array[Byte] = new Array[Byte](SECRET_KEY_SIZE)
-    val pk: Array[Byte] = new Array[Byte](PUBLIC_KEY_SIZE)
-    val hashedSeed = sha256.hash(seed)
+  override def createKeyPair(seed: Seed): (SecretKeys.VrfEd25519, VerificationKeys.VrfEd25519) = {
+    val sk: Sized.Strict[Bytes, SecretKeys.VrfEd25519.Length] = Sized.strictUnsafe(new Array[Byte](SECRET_KEY_SIZE))
+    val pk: Sized.Strict[Bytes, VerificationKeys.VrfEd25519.Length] =
+      Sized.strictUnsafe(new Array[Byte](PUBLIC_KEY_SIZE))
+    val hashedSeed = sha256.hash(seed.value)
     val random = SecureRandom.getInstance("SHA1PRNG")
 
     random.setSeed(hashedSeed.value)
 
-    generatePrivateKey(random, sk)
-    generatePublicKey(sk, 0, pk, 0)
-    (PrivateKey(sk), PublicKey(pk))
+    generatePrivateKey(random, Bytes.toByteArray(sk.data))
+    generatePublicKey(Bytes.toByteArray(sk.data), 0, Bytes.toByteArray(pk.data), 0)
+    (SecretKeys.VrfEd25519(sk), VerificationKeys.VrfEd25519(pk))
   }
 
-  override def createKeyPair: (PrivateKey, PublicKey) = {
-    val sk: Array[Byte] = new Array[Byte](SECRET_KEY_SIZE)
-    val pk: Array[Byte] = new Array[Byte](PUBLIC_KEY_SIZE)
+  override def createKeyPair: (SecretKeys.VrfEd25519, VerificationKeys.VrfEd25519) = {
     val random = SecureRandom.getInstance("SHA1PRNG")
-    generatePrivateKey(random, sk)
-    generatePublicKey(sk, 0, pk, 0)
-    (PrivateKey(sk), PublicKey(pk))
+    createKeyPair(Seed(random.generateSeed(128)))
   }
 
-  override def sign(privateKey: PrivateKey, message: MessageToSign): Signature = {
-    require(privateKey.value.length == SECRET_KEY_SIZE)
-    Signature(vrfProof(privateKey.value, message))
-  }
+  override def sign(privateKey: SecretKeys.VrfEd25519, message: MessageToSign): Proofs.Signature.VrfEd25519 =
+    Proofs.Signature.VrfEd25519(Sized.strictUnsafe(vrfProof(Bytes.toByteArray(privateKey.bytes.data), message.value)))
 
-  override def verify(signature: Signature, message: MessageToSign, publicKey: PublicKey): Boolean =
-    signature.value.length == SIGNATURE_SIZE &&
-    publicKey.value.length == PUBLIC_KEY_SIZE &&
-    vrfVerify(publicKey.value, message, signature.value)
+  override def verify(
+    signature: Proofs.Signature.VrfEd25519,
+    message:   MessageToSign,
+    publicKey: VerificationKeys.VrfEd25519
+  ): Boolean =
+    signature.bytes.data.length == SIGNATURE_SIZE &&
+    publicKey.bytes.data.length == PUBLIC_KEY_SIZE &&
+    vrfVerify(Bytes.toByteArray(publicKey.bytes.data), message.value, Bytes.toByteArray(signature.bytes.data))
 
 }
 
 object Ed25519VRF {
-  val SignatureLength: Int = 80
-  val KeyLength: Int = 32
-  val HashLength: Int = 64
-
   val instance = new Ed25519VRF
   instance.precompute()
 }

@@ -75,3 +75,7 @@ class Ed25519
     Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(signatureArray)))
   }
 }
+
+object Ed25519 {
+  val instance = new Ed25519
+}

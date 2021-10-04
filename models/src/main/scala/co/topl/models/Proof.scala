@@ -19,44 +19,47 @@ object Proofs {
       type Length = Lengths.`64`.type
     }
 
-    /**
-     * @param ecSignature (elliptic curve)
-     * @param vkK
-     * @param index
-     * @param witness
-     */
-    case class SumProduct(
+    case class VrfEd25519(bytes: Sized.Strict[Bytes, VrfEd25519.Length]) extends Proof
+
+    object VrfEd25519 {
+      type Length = Lengths.`80`.type
+    }
+
+    case class KesMmmSum(
       ecSignature: Signature.Ed25519,
       vkK:         VerificationKeys.Ed25519,
       index:       Long, // `k` or `j` depending on context
       witness:     Seq[VerificationKeys.Ed25519]
     ) extends Proof
 
-    case class SymmetricProduct(
-      sigSumJ: SumProduct,
-      sigSumK: SumProduct
-    ) extends Proof
+    object KesMmmSum {
+      ///type Length = ???
+    }
 
-    /**
-     * @param i
-     * @param vkI
-     * @param ecSignature (elliptic curve) sign(L_i, sk_i)
-     * @param sigSumJ _.ecSignature = sign(O_j, sk_j)
-     * @param sigSumK _.ecSignature = sign(m, skK)
-     */
-    case class HdKes(
+    case class KesMmmSymmetricProduct() extends Proof
+
+    object KesMmmSymmetricProduct {
+      ///type Length = ???
+    }
+
+    case class KesMmmAsymmetricProduct() extends Proof
+
+    object KesMmmAsymmetricProduct {
+      ///type Length = ???
+    }
+
+    case class HdKesMmmSum(
       i:           Long,
       vkI:         VerificationKeys.Ed25519,
       ecSignature: Signature.Ed25519,
-      sigSumJ:     SumProduct,
-      sigSumK:     SumProduct
+      sigSumJ:     KesMmmSum,
+      sigSumK:     KesMmmSum
     ) extends Proof
 
-    case class VrfEd25519(bytes: Sized.Strict[Bytes, VrfEd25519.Length]) extends Proof
-
-    object VrfEd25519 {
-      type Length = Lengths.`80`.type
+    object HdKesMmmSum {
+      type Length = Lengths.`32`.type
     }
+
   }
 
   object Threshold {

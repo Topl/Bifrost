@@ -79,4 +79,6 @@ class Curve25519
 object Curve25519 {
   val SignatureLength: Int = 64
   val KeyLength: Int = 32
+
+  val instance = new Curve25519
 }
