@@ -1,11 +1,8 @@
 package co.topl.algebras
 
-import cats.tagless.{autoContravariantK, autoFunctorK}
 import co.topl.models.{BlockV2, Box, Epoch, Eta, TaktikosAddress, TypedIdentifier}
 import co.topl.models.utility.Ratio
 
-@autoFunctorK
-@autoContravariantK
 trait BlockchainState[F[_]] {
   def genesis: F[BlockV2]
   def canonicalHead: F[BlockV2]

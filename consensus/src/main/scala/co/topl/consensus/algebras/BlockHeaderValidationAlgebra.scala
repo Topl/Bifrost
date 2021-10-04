@@ -1,10 +1,8 @@
 package co.topl.consensus.algebras
 
 import co.topl.models.BlockHeaderV2
-import cats.tagless._
 import co.topl.consensus.BlockHeaderValidationFailure
 
-@autoFunctorK
 trait BlockHeaderValidationAlgebra[F[_]] {
 
   /**
