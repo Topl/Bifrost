@@ -1,8 +1,8 @@
 package co.topl.consensus
 
+import cats.MonadError
 import cats.data.OptionT
 import cats.implicits._
-import cats.{Foldable, MonadError}
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras.{BlockchainState, ClockAlgebra}
 import co.topl.consensus.algebras.EtaCalculationAlgebra
@@ -39,7 +39,7 @@ object EtaCalculation {
               } else {
                 gatherRhoValues(genesis.headerV2, head.headerV2, epochRange)
               }
-            nextEta <- calculate(previousEta, rhoValues)
+            nextEta <- calculate(previousEta, epoch, rhoValues)
           } yield nextEta
 
         private def gatherRhoValues(
@@ -66,16 +66,27 @@ object EtaCalculation {
               slot >= epochRange.start && (slot - epochRange.start) <= (epochRange.length * 2 / 3)
             }.map(_._2))
 
-        private def calculate[C[_]: Foldable](previousEta: Eta, rhoValues: C[Rho]): F[Eta] =
+        private def calculate(previousEta: Eta, epoch: Epoch, rhoValues: Iterable[Rho]): F[Eta] =
           Sized
             .strictUnsafe[Bytes, Lengths.`32`.type](
               Bytes(
                 blake2b256
-                  .hash(None, (List(previousEta.data) ++ rhoValues.toIterable.map(_.data)).map(_.toArray): _*)
+                  .hash(
+                    None,
+                    EtaCalculationArgs(previousEta, epoch, rhoValues).digestMessages: _*
+                  )
                   .value
               )
             )
             .pure[F]
       }
   }
+}
+
+private case class EtaCalculationArgs(previousEta: Eta, epoch: Epoch, rhoValues: Iterable[Rho]) {
+
+  def digestMessages: List[Array[Byte]] =
+    (List(previousEta.data) ++ List(Bytes(BigInt(epoch).toByteArray)) ++ rhoValues
+      .map(_.data))
+      .map(_.toArray)
 }

@@ -106,6 +106,7 @@ class EtaCalculationSpec
     val expected =
       EtaCalculationSpec.expectedEta(
         previousEta,
+        epoch,
         args.map(_._2).map(ProofToHash.digest)
       )
 
@@ -152,12 +153,14 @@ class EtaCalculationSpec
     val expected =
       EtaCalculationSpec.expectedEta(
         previousEta,
+        epoch,
         List(ProofToHash.digest(genesis.headerV2.eligibibilityCertificate.vrfNonceSig))
       )
 
     actual shouldBe expected
   }
 
+  // TODO: For this situation, destroy the node.  "Hard Fault"
   it should "compute the eta for an epoch with no blocks" in {
     val state = mock[BlockchainState[F]]
     val clock = mock[ClockAlgebra[F]]
@@ -198,6 +201,7 @@ class EtaCalculationSpec
     val expected =
       EtaCalculationSpec.expectedEta(
         previousEta,
+        epoch,
         Nil
       )
 
@@ -207,15 +211,18 @@ class EtaCalculationSpec
 
 object EtaCalculationSpec {
 
-  private[consensus] def expectedEta(previousEta: Eta, rhoValues: List[Rho]): Eta =
+  private[consensus] def expectedEta(previousEta: Eta, epoch: Epoch, rhoValues: List[Rho]): Eta = {
+    val messages: List[Bytes] =
+      List(previousEta.data) ++ List(Bytes(BigInt(epoch).toByteArray)) ++ rhoValues.map(_.data)
     Sized.strictUnsafe(
       Bytes(
         blake2b256
           .hash(
             None,
-            (previousEta.data :: rhoValues.map(_.data)).map(_.toArray): _*
+            messages.map(_.toArray): _*
           )
           .value
       )
     )
+  }
 }

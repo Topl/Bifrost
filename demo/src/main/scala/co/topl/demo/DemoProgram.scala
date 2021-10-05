@@ -32,7 +32,7 @@ object DemoProgram {
         .iterateForeverM(epoch =>
           handleEpoch(
             epoch,
-            Option.when(epoch == initialEpoch)(initialSlot),
+            Option.when(epoch === initialEpoch)(initialSlot),
             clock,
             mint,
             headerValidation,
