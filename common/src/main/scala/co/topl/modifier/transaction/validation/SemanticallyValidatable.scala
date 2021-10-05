@@ -97,6 +97,7 @@ trait SemanticallyValidatableInstances {
 
 class TransferTransactionSemanticallyValidatable[T <: TokenValueHolder, P <: Proposition]
     extends SemanticallyValidatable[TransferTransaction[T, P]] {
+
   import SemanticValidation._
   import implicits._
 

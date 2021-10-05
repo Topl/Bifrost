@@ -57,6 +57,7 @@ object exampleState {
 }
 
 object CreateANewKeyInTheKeyRing {
+
   import exampleState._
   import provider._
 
@@ -70,6 +71,7 @@ object CreateANewKeyInTheKeyRing {
 }
 
 object ReinstateAKeyFile {
+
   import exampleState._
   import provider._
 
@@ -94,6 +96,7 @@ object ReinstateAKeyFile {
 }
 
 object FailedToReinstateAKeyFile {
+
   import exampleState._
   import provider._
 

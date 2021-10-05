@@ -7,7 +7,7 @@ import co.topl.db.LDBVersionedStore
 import co.topl.modifier.ModifierId
 import co.topl.nodeView.{KeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
-import co.topl.utils.NetworkType.{LocalTestnet, PrivateTestnet}
+import co.topl.utils.NetworkType.PrivateTestnet
 import co.topl.utils.{Int128, Logging, NetworkType}
 import com.google.common.primitives.Longs
 
@@ -117,7 +117,7 @@ object ConsensusStorage {
   def apply(settings: AppSettings, networkType: NetworkType): ConsensusStorage = {
     val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
     val defaultTotalStake = networkType match {
-      case PrivateTestnet | LocalTestnet =>
+      case PrivateTestnet =>
         settings.forging.privateTestnet.map(sfp => sfp.numTestnetAccts * sfp.testnetBalance).getOrElse(10000000L)
       case _ => 200000000000000000L // todo: JAA - this should be with other genesis consensus parameters
     }

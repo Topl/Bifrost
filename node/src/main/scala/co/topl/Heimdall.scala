@@ -192,7 +192,7 @@ object Heimdall {
     peerManager:       CActorRef,
     networkController: CActorRef,
     forger:            ActorRef[Forger.ReceivableMessage],
-    mempoolAuditor:    CActorRef
+    mempoolAuditor:    ActorRef[MemPoolAuditor.ReceivableMessage]
   )
 
   private case class ActorsInitializedState(
@@ -201,7 +201,7 @@ object Heimdall {
     keyManager:           CActorRef,
     forger:               ActorRef[Forger.ReceivableMessage],
     nodeViewHolder:       ActorRef[NodeViewHolder.ReceivableMessage],
-    mempoolAuditor:       CActorRef,
+    mempoolAuditor:       ActorRef[MemPoolAuditor.ReceivableMessage],
     peerSynchronizer:     CActorRef,
     nodeViewSynchronizer: CActorRef
   )
@@ -321,10 +321,11 @@ object Heimdall {
       )
     }
 
-    val mempoolAuditor = context.actorOf(
-      MempoolAuditorRef.props(settings, appContext, state.nodeViewHolder, networkController),
-      MempoolAuditor.actorName
-    )
+    val mempoolAuditor =
+      context.spawn(
+        MemPoolAuditor(state.nodeViewHolder, networkController, settings),
+        MemPoolAuditor.actorName
+      )
 
     NetworkControllerInitializingState(
       state.keyManager,
