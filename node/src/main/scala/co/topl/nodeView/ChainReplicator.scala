@@ -27,7 +27,7 @@ object ChainReplicator {
 
     private[nodeView] case class ExportBlocks(blocks: Seq[Block]) extends ReceivableMessage
 
-    private[nodeView] case class InsertionSuccess(result: String) extends ReceivableMessage
+    private[nodeView] case class InsertionSuccess(result: Int) extends ReceivableMessage
 
     private[nodeView] case class InsertionFailure(error: String) extends ReceivableMessage
 
@@ -115,25 +115,31 @@ private class ChainReplicator(
   private def active(blockCheckStart: Long, timers: TimerScheduler[ReceivableMessage]): Behavior[ReceivableMessage] =
     Behaviors.receiveMessagePartial[ReceivableMessage] {
       case ReceivableMessages.GotNewBlock(block) =>
+        log.info(s"${Console.GREEN}Got new block at height: ${block.height}${Console.RESET}")
         context.self ! ReceivableMessages.ExportBlocks(Seq(block))
-        timers.startSingleTimer(ReceivableMessages.CheckMissingBlocks(block.height), 1.seconds)
+        if (settings.checkMissingBlock)
+          timers.startSingleTimer(ReceivableMessages.CheckMissingBlocks(block.height), 1.seconds)
         Behaviors.same
+
       case ReceivableMessages.ExportBlocks(blocks) =>
         if (blocks.nonEmpty) {
           val blocksString = blocks.map(_.asJson(blockEncoder).toString)
           context.pipeToSelf(mongo.insert(blocksString)) {
-            case Success(result) => ReceivableMessages.InsertionSuccess(result.toString)
+            case Success(result) => ReceivableMessages.InsertionSuccess(result.getInsertedIds.size)
             case Failure(e)      => ReceivableMessages.InsertionFailure(e.toString)
           }
         }
         Behaviors.same
+
       case ReceivableMessages.InsertionSuccess(result) =>
         // cleanup the log info
-        log.info(s"${Console.GREEN}$result${Console.RESET}")
+        log.info(s"${Console.GREEN}Successfully inserted $result blocks into AppView${Console.RESET}")
         Behaviors.same
+
       case ReceivableMessages.InsertionFailure(failure) =>
-        log.info(s"${Console.RED}$failure${Console.RESET}")
+        log.error(s"${Console.RED}$failure${Console.RESET}")
         Behaviors.same
+
       case ReceivableMessages.CheckMissingBlocks(maxHeight) =>
         val blockCheckEnd: Long = blockCheckStart + settings.numberOfBlocksToCheck
         if (maxHeight >= blockCheckEnd) {
@@ -145,20 +151,28 @@ private class ChainReplicator(
           }
         }
         Behaviors.same
+
       case ReceivableMessages.CheckHeightsSuccess(existingHeights) =>
         val exisitingHeightsSet = existingHeights.toSet
         val blockCheckEnd: Long = blockCheckStart + settings.numberOfBlocksToCheck
         val missingBlockHeights = (blockCheckStart to blockCheckEnd).filterNot(exisitingHeightsSet.contains)
-        val getBlockAtHeightFuture = exportBlocksAtHeight(missingBlockHeights)(_)
-        context.pipeToSelf(withNodeView(getBlockAtHeightFuture)) {
-          case Success(exportBlocks) => exportBlocks
-          case Failure(e)            => ReceivableMessages.getBlocksNodeViewFailure(e.toString)
+        if (missingBlockHeights.nonEmpty) {
+          val getBlockAtHeightFuture = exportBlocksAtHeight(missingBlockHeights)(_)
+          context.pipeToSelf(withNodeView(getBlockAtHeightFuture)) {
+            case Success(exportBlocks) => exportBlocks
+            case Failure(e)            => ReceivableMessages.getBlocksNodeViewFailure(e.toString)
+          }
         }
-
         active(blockCheckEnd + 1, timers)
-      case ReceivableMessages.CheckHeightsFailure(failure) =>
-        log.info(s"${Console.RED}$failure${Console.RESET}")
+
+      case ReceivableMessages.getBlocksNodeViewFailure(failure) =>
+        log.error(s"${Console.RED}$failure${Console.RESET}")
         Behaviors.same
+
+      case ReceivableMessages.CheckHeightsFailure(failure) =>
+        log.error(s"${Console.RED}$failure${Console.RESET}")
+        Behaviors.same
+
       case ReceivableMessages.Terminate(reason) =>
         throw reason
     }
@@ -167,6 +181,7 @@ private class ChainReplicator(
     blockHeights: Seq[Long]
   )(nodeView:     ReadableNodeView): ReceivableMessages.ExportBlocks = {
     val blocks = blockHeights.flatMap(nodeView.history.modifierByHeight)
+    log.info(s"${Console.GREEN}Inserting blocks at height: $blockHeights${Console.RESET}")
     ReceivableMessages.ExportBlocks(blocks)
   }
 
