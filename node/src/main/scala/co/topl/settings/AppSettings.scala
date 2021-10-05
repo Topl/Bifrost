@@ -94,18 +94,20 @@ case class GjallarhornSettings(
 
 case class ChainReplicatorSettings(
   enableChainReplicator: Boolean,
+  checkMissingBlock:     Boolean,
+  numberOfBlocksToCheck: Int,
   uri:                   Option[String],
   database:              Option[String],
   collection:            Option[String]
 )
 
 case class AppSettings(
-  application:    ApplicationSettings,
-  network:        NetworkSettings,
-  gjallarhorn:    GjallarhornSettings,
-  forging:        ForgingSettings,
-  rpcApi:         RPCApiSettings,
-  ntp:            NetworkTimeProviderSettings,
+  application:     ApplicationSettings,
+  network:         NetworkSettings,
+  gjallarhorn:     GjallarhornSettings,
+  forging:         ForgingSettings,
+  rpcApi:          RPCApiSettings,
+  ntp:             NetworkTimeProviderSettings,
   chainReplicator: ChainReplicatorSettings
 )
 
