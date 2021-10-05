@@ -111,12 +111,10 @@ object TetraDemo extends IOApp.Simple {
           leaderElectionThreshold,
           vrfProofConstruction
         ),
-        BlockSigning.Eval.make(
-          KeyEvolver.InMemory.make {
-            implicit val slot: Slot = 0
-            KeyInitializer[SecretKeys.SymmetricMMM].random()
-          }
-        ),
+        KeyEvolver.InMemory.make {
+          implicit val slot: Slot = 0
+          KeyInitializer[SecretKeys.SymmetricMMM].random()
+        },
         VrfRelativeStakeMintingLookup.Eval.make(state, clock),
         EtaMinting.Eval.make(state, clock)
       ),

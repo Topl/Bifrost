@@ -1,10 +1,8 @@
 package co.topl.minting.algebras
 
-import cats.tagless.autoFunctorK
 import co.topl.models.{Slot, TaktikosAddress}
 import co.topl.models.utility.Ratio
 
-@autoFunctorK
 trait VrfRelativeStakeMintingLookupAlgebra[F[_]] {
 
   /**

@@ -1,10 +1,8 @@
 package co.topl.consensus.algebras
 
-import cats.tagless.autoFunctorK
 import co.topl.models.utility.Ratio
 import co.topl.models.{SlotId, TaktikosAddress}
 
-@autoFunctorK
 trait VrfRelativeStakeValidationLookupAlgebra[F[_]] {
 
   /**

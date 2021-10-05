@@ -1,16 +1,14 @@
 package co.topl.algebras
 
-import cats.tagless.{autoContravariantK, autoFunctorK}
-import co.topl.models.{BlockV2, Box, Epoch, Eta, TaktikosAddress, TypedIdentifier}
+import co.topl.models.{BlockHeaderV2, BlockV2, Box, Epoch, Eta, TaktikosAddress, TypedIdentifier}
 import co.topl.models.utility.Ratio
 
-@autoFunctorK
-@autoContravariantK
 trait BlockchainState[F[_]] {
   def genesis: F[BlockV2]
   def canonicalHead: F[BlockV2]
   def append(blockV2:              BlockV2): F[Unit]
   def lookupBlock(id:              TypedIdentifier): F[Option[BlockV2]]
+  def lookupBlockHeader(id:        TypedIdentifier): F[Option[BlockHeaderV2]]
   def lookupRelativeStake(epoch:   Epoch)(address:        TaktikosAddress): F[Option[Ratio]]
   def writeRelativeStakes(epoch:   Epoch, relativeStakes: Map[TaktikosAddress, Ratio]): F[Unit]
   def foldRelativeStakes[S](epoch: Epoch)(s:              S)(f: (S, (TaktikosAddress, Ratio)) => F[S]): F[S]

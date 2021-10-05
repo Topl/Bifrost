@@ -52,8 +52,7 @@ lazy val commonSettings = Seq(
     "Bintray" at "https://jcenter.bintray.com/"
   ),
   addCompilerPlugin("org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full),
-  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
-  addCompilerPlugin("org.augustjune" %% "context-applied" % "0.1.4")
+  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1")
 )
 
 lazy val publishSettings = Seq(
@@ -320,7 +319,7 @@ lazy val algebras = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.algebras"
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsTagless)
+  .settings(libraryDependencies ++= Dependencies.test)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, crypto, byteCodecs)
 
@@ -336,7 +335,7 @@ lazy val consensus = project
   )
   .settings(libraryDependencies ++= Dependencies.test)
   .settings(
-    libraryDependencies ++= Dependencies.bouncyCastle ++ Dependencies.catsTagless
+    libraryDependencies ++= Dependencies.bouncyCastle
   )
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test", typeclasses, crypto, byteCodecs, algebras)
@@ -351,7 +350,7 @@ lazy val minting = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.minting"
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsTagless ++ Dependencies.catsEffect)
+  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsEffect)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, typeclasses, crypto, byteCodecs, algebras, consensus)
 

@@ -5,6 +5,7 @@ import co.topl.models.utility.Lengths._
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{Length, Lengths, Ratio, Sized}
 import org.scalacheck.Gen
+import org.scalacheck.rng.Seed
 
 trait ModelGenerators {
 
@@ -16,8 +17,8 @@ trait ModelGenerators {
 
   def eligibilityCertificateGen: Gen[EligibilityCertificate] =
     for {
-      nonceProof <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Signature.VrfEd25519)
-      testProof  <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Signature.VrfEd25519)
+      nonceProof <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Signature.VrfEd25519(_))
+      testProof  <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Signature.VrfEd25519(_))
       vkVrf      <- ed25519VkGen.map(VerificationKeys.Vrf)
       thresholdEvidence <- genSizedStrictBytes[Lengths.`32`.type]().map(b =>
         Sized.strict[TypedBytes, Lengths.`33`.type](TypedBytes(1: Byte, b.data)).toOption.get
@@ -128,6 +129,10 @@ trait ModelGenerators {
       .containerOfN[Array, Byte](l.value, byteGen)
       .map(Bytes(_))
       .map(Sized.strict[Bytes, L](_).toOption.get)
+
+  implicit class GenHelper[T](gen: Gen[T]) {
+    def first: T = gen.pureApply(Gen.Parameters.default, Seed.random())
+  }
 }
 
 object ModelGenerators extends ModelGenerators

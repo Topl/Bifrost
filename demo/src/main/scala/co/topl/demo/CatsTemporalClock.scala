@@ -34,12 +34,12 @@ object CatsTemporalClock {
         def delayedUntilSlot(slot: Slot): F[Unit] =
           currentSlot()
             .map(currentSlot => (slot - currentSlot) * _slotLength)
-            .flatMap(delay => if (delay.toMillis > 0) F.sleep(delay) else F.unit)
+            .flatMap(delay => if (delay.toMillis > 0) Temporal[F].sleep(delay) else Applicative[F].unit)
 
         def delayedUntilTimestamp(timestamp: Timestamp): F[Unit] =
           currentTimestamp()
             .map(currentTimestamp => (timestamp - currentTimestamp).millis)
-            .flatMap(F.sleep)
+            .flatMap(Temporal[F].sleep)
       }
   }
 }

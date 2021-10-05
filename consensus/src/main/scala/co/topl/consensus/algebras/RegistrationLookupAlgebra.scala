@@ -1,9 +1,7 @@
 package co.topl.consensus.algebras
 
-import cats.tagless.autoFunctorK
 import co.topl.models.{Box, SlotId, TaktikosAddress}
 
-@autoFunctorK
 trait RegistrationLookupAlgebra[F[_]] {
 
   /**

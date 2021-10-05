@@ -1,9 +1,7 @@
 package co.topl.consensus.algebras
 
-import cats.tagless.autoFunctorK
 import co.topl.models.{Eta, SlotId}
 
-@autoFunctorK
 trait EtaValidationAlgebra[F[_]] {
 
   /**

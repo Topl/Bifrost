@@ -1,7 +1,7 @@
 package co.topl.crypto.kes.keys
 
 import co.topl.crypto.kes.KeyEvolvingSignatureScheme
-import co.topl.models.SecretKeys
+import co.topl.models.{Bytes, KeyData, Proofs, SecretKeys}
 
 /**
  * AMS 2021:
@@ -11,25 +11,28 @@ import co.topl.models.SecretKeys
  * to the time step of the signature since signatures include the offset
  */
 
-//case class AsymmetricKey(override val data: KeyData) extends ProductPrivateKey {
-//  import AsymmetricKey._
-//
-//  def update(globalTimeStep: Long): AsymmetricKey =
-//    kes.updateAsymmetricProductKey(this, (globalTimeStep - data.offset).toInt)
-//
-//  def sign(message: Array[Byte]): AsymmetricSignature =
-//    kes.signAsymmetricProduct(this, message)
-//
-//  def getVerificationKey: PublicKey =
-//    PublicKey(kes.publicKey(this))
-//
-//  def timeStepPlusOffset: Long =
-//    kes.getAsymmetricProductKeyTimeStep(this) + data.offset
-//
-//  def timeStep: Long =
-//    kes.getAsymmetricProductKeyTimeStep(this)
-//
-//}
+case class AsymmetricKey(override val data: KeyData) extends ProductPrivateKey {
+  import AsymmetricKey._
+
+  private def asModel: SecretKeys.AsymmetricMMM = SecretKeys.AsymmetricMMM(data)
+
+  def update(globalTimeStep: Long): AsymmetricKey =
+    AsymmetricKey(kes.updateAsymmetricProductKey(asModel, (globalTimeStep - data.offset).toInt).data)
+
+  def sign(message: Bytes): Proofs.Consensus.MMM =
+    kes.signAsymmetricProduct(asModel, message.toArray)
+
+  def getVerificationKey: PublicKey =
+    PublicKey(kes.publicKey(asModel))
+
+  def timeStepPlusOffset: Long =
+    kes.getAsymmetricProductKeyTimeStep(asModel) + data.offset
+
+  def timeStep: Long =
+    kes.getAsymmetricProductKeyTimeStep(asModel)
+
+  def getBytes: Bytes = ProductPrivateKey.serializer.getBytes(data)
+}
 
 object AsymmetricKey {
 

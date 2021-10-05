@@ -4,16 +4,15 @@ import co.topl.models._
 import co.topl.models.utility.{Empty, Leaf, Node, Tree}
 import com.google.common.primitives.{Ints, Longs}
 
-//abstract class ProductPrivateKey {
-//  import ProductPrivateKey._
-//  val data: KeyData
-//  def update(globalTimeStep: Long): ProductPrivateKey
-//  def sign(message:          Bytes): ProductSignature
-//  def getVerificationKey: PublicKey
-//  def timeStepPlusOffset: Long
-//  def timeStep: Long
-//  def getBytes: Bytes = serializer.getBytes(this)
-//}
+abstract class ProductPrivateKey {
+  val data: KeyData
+  def update(globalTimeStep: Long): ProductPrivateKey
+  def sign(message:          Bytes): Proofs.Consensus.MMM
+  def getVerificationKey: PublicKey
+  def timeStepPlusOffset: Long
+  def timeStep: Long
+  def getBytes: Bytes
+}
 
 object ProductPrivateKey {
 

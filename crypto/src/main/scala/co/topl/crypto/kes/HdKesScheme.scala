@@ -27,7 +27,7 @@ case class HdKesScheme(
   def deriveVerificationKey(index: Int): VerificationKeys.ExtendedEd25519 =
     rootVerificationKey.softDerive(Derivative.KeyIndexes.Soft(index))
 
-  def generateKESKey(index: Int): SymmetricKey = Try {
+  def generateKESKey(index: Int): Nothing = Try {
     val softIndex = Derivative.KeyIndexes.Soft(index)
     require(privateKeySet.keySet.contains(softIndex), s"Key set does not contain index ${softIndex.value}")
     require(
@@ -38,12 +38,12 @@ case class HdKesScheme(
       blake2b256.hash(privateKeySet(softIndex).leftKey.data.toArray).value,
       registrationSlot + softIndex.value * SymmetricKey.maxKeyTimeSteps,
       bytes =>
-        Prover[SecretKeys.ExtendedEd25519, Proofs.SignatureEd25519].proveWith(privateKeySet(softIndex), bytes.toArray)
+        Prover[SecretKeys.ExtendedEd25519, Proofs.Signature.Ed25519].proveWith(privateKeySet(softIndex), bytes.toArray)
     )
     privateKeySet.remove(softIndex)
     sk_KES
   } match {
-    case Success(value) => value
+    case Success(value) => ???
     case Failure(e)     => throw new Exception(s"HD KES Key Derivation Failed: $e")
   }
 
@@ -77,7 +77,7 @@ object HdKesScheme {
     private def sHdKesScheme(key: HdKesScheme): Array[Byte] =
       primitives.Bytes.concat(
         primitives.Longs.toByteArray(key.registrationSlot),
-        key.rootVerificationKey.bytes.data.toArray,
+        ???,
         key.rootVerificationKey.chainCode.data.toArray,
         primitives.Ints.toByteArray(key.privateKeySet.keySet.size),
         primitives.Bytes.concat(
@@ -115,7 +115,8 @@ object HdKesScheme {
       assert(stream.empty)
       HdKesScheme(
         out1,
-        VerificationKeys.ExtendedEd25519(Sized.strictUnsafe(Bytes(out2)), Sized.strictUnsafe(Bytes(out3))),
+        VerificationKeys
+          .ExtendedEd25519(VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(out2))), Sized.strictUnsafe(Bytes(out3))),
         out4
       )
     }
