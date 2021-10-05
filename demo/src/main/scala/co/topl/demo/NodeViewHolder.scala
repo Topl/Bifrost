@@ -60,6 +60,9 @@ object NodeViewHolder {
               .value
           )
 
+        def lookupBlockHeader(id: TypedIdentifier): F[Option[BlockHeaderV2]] =
+          OptionT(lookupBlock(id)).map(_.headerV2).value
+
         def lookupRelativeStake(epoch: Epoch)(address: TaktikosAddress): F[Option[Ratio]] =
           withNodeView(nodeView => (nodeView, nodeView.relativeStakes.get(epoch).flatMap(_.get(address))))
 
@@ -99,6 +102,7 @@ object NodeViewHolder {
           Async[F].fromFuture(
             Defer[F].defer(actorRef.ask[T](Run[T](f, _)).pure[F])
           )
+
       }
   }
 }

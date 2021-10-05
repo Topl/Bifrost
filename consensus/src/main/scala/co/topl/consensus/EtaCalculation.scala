@@ -26,30 +26,45 @@ object EtaCalculation {
         override def calculate(epoch: Epoch): F[Eta] =
           for {
             epochN1 <- (epoch - 1).pure[F]
-            eta <- OptionT(state.lookupEta(epochN1))
+            previousEta <- OptionT(state.lookupEta(epochN1))
               .getOrElseF(new IllegalStateException(s"Unknown Eta for epoch=$epochN1").raiseError[F, Eta])
             genesis    <- state.genesis
             head       <- state.canonicalHead
-            epochStart <- clock.epochRange(epoch).map(_.start)
-            blockProofHashes <- List(
-              (
-                head.headerV2.parentHeaderId,
-                ProofToHash.digest(head.headerV2.eligibibilityCertificate.vrfNonceSig),
-                head.headerV2.slot
-              )
-            ).iterateWhileM(acc =>
-              OptionT(state.lookupBlock(acc.head._1))
-                .map(_.headerV2)
-                .map(h => (h.parentHeaderId, ProofToHash.digest(h.eligibibilityCertificate.vrfNonceSig), h.slot))
-                .getOrElseF(
-                  new IllegalStateException(s"Unknown Block id=${acc.head._1}")
-                    .raiseError[F, (TypedIdentifier, Rho, Slot)]
-                )
-                .map(_ :: acc)
-            )(blocks => blocks.head._3 >= epochStart && blocks.head._1 =!= genesis.headerV2.id)
-              .map(_.map(_._2))
-            nextEta <- calculate(eta, blockProofHashes)
+            epochRange <- clock.epochRange(epoch)
+            rhoValues: List[Rho] <-
+              if (head === genesis) {
+                if (epoch === 0L)
+                  List(ProofToHash.digest(genesis.headerV2.eligibibilityCertificate.vrfNonceSig)).pure[F]
+                else Nil.pure[F]
+              } else {
+                gatherRhoValues(genesis.headerV2, head.headerV2, epochRange)
+              }
+            nextEta <- calculate(previousEta, rhoValues)
           } yield nextEta
+
+        private def gatherRhoValues(
+          genesis:    BlockHeaderV2,
+          head:       BlockHeaderV2,
+          epochRange: ClockAlgebra.EpochBoundary
+        ) =
+          List(
+            (
+              head.parentHeaderId,
+              ProofToHash.digest(head.eligibibilityCertificate.vrfNonceSig),
+              head.slot
+            )
+          ).iterateWhileM(acc =>
+            OptionT(state.lookupBlockHeader(acc.head._1))
+              .map(h => (h.parentHeaderId, ProofToHash.digest(h.eligibibilityCertificate.vrfNonceSig), h.slot))
+              .getOrElseF(
+                new IllegalStateException(s"Unknown Block id=${acc.head._1}")
+                  .raiseError[F, (TypedIdentifier, Rho, Slot)]
+              )
+              .map(_ :: acc)
+          )(blocks => blocks.head._3 >= epochRange.start && blocks.head._1 =!= genesis.id)
+            .map(_.filter { case (_, _, slot) =>
+              slot >= epochRange.start && (slot - epochRange.start) <= (epochRange.length * 2 / 3)
+            }.map(_._2))
 
         private def calculate[C[_]: Foldable](previousEta: Eta, rhoValues: C[Rho]): F[Eta] =
           Sized

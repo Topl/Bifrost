@@ -3,7 +3,7 @@ package co.topl.typeclasses
 import cats.Eq
 import cats.implicits._
 import co.topl.models.utility.Sized
-import co.topl.models.{Bytes, TypedBytes}
+import co.topl.models.{BlockHeaderV2, BlockV2, Bytes, TypedBytes}
 
 trait EqInstances {
 
@@ -21,4 +21,10 @@ trait EqInstances {
 
   implicit def sizedStrictEq[T: Eq, L]: Eq[Sized.Strict[T, L]] =
     (a, b) => a.data === b.data
+
+  implicit val blockV2Eq: Eq[BlockV2] =
+    Eq.fromUniversalEquals
+
+  implicit val blockHeaderV2Eq: Eq[BlockHeaderV2] =
+    Eq.fromUniversalEquals
 }

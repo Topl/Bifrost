@@ -373,7 +373,7 @@ object BlockHeaderValidationSpec {
     Box.Values
       .TaktikosRegistration(
         Sized.strictUnsafe(
-          Bytes((blake2b256.hash(vkVrf.ed25519.bytes.data.toArray): co.topl.crypto.hash.digest.Digest32).value)
+          Bytes(blake2b256.hash(vkVrf.ed25519.bytes.data.toArray).value)
         ),
         VerificationKeys.ExtendedEd25519(
           VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),

@@ -139,6 +139,7 @@ object DemoProgram {
     for {
       _       <- Logger[F].info(s"Handling 2/3 event for epoch=$epoch")
       nextEta <- etaCalculation.calculate(epoch)
+      _       <- Logger[F].info(s"Computed eta=$nextEta for epoch=$epoch")
       _       <- state.writeEta(epoch, nextEta)
     } yield ()
 
