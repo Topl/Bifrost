@@ -99,7 +99,7 @@ object TetraDemo extends IOApp.Simple {
 
   implicit private val timeout: Timeout = Timeout(5.seconds)
 
-  private val state: BlockchainState[F] =
+  private val state: ConsensusState[F] =
     NodeViewHolder.StateEval.make[F](system)
 
   private val mint: BlockMintAlgebra[F] =

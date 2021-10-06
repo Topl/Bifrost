@@ -4,7 +4,7 @@ import cats.data.{EitherT, OptionT}
 import cats.implicits._
 import cats.{Applicative, Monad, MonadError}
 import co.topl.algebras.ClockAlgebra.implicits._
-import co.topl.algebras.{BlockchainState, ClockAlgebra}
+import co.topl.algebras.{ClockAlgebra, ConsensusState}
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, EtaCalculationAlgebra}
 import co.topl.minting.algebras.{BlockMintAlgebra, VrfProofAlgebra}
 import co.topl.models._
@@ -22,7 +22,7 @@ object DemoProgram {
     mint:             BlockMintAlgebra[F],
     headerValidation: BlockHeaderValidationAlgebra[F],
     vrfProof:         VrfProofAlgebra[F],
-    state:            BlockchainState[F],
+    state:            ConsensusState[F],
     etaCalculation:   EtaCalculationAlgebra[F]
   ): F[Unit] =
     for {
@@ -55,7 +55,7 @@ object DemoProgram {
     mint:             BlockMintAlgebra[F],
     headerValidation: BlockHeaderValidationAlgebra[F],
     vrfProof:         VrfProofAlgebra[F],
-    state:            BlockchainState[F],
+    state:            ConsensusState[F],
     etaCalculation:   EtaCalculationAlgebra[F]
   ): F[Unit] =
     for {
@@ -71,7 +71,7 @@ object DemoProgram {
   private def startEpoch[F[_]: MonadError[*[_], Throwable]: Logger](
     epoch:    Epoch,
     boundary: ClockAlgebra.EpochBoundary,
-    state:    BlockchainState[F],
+    state:    ConsensusState[F],
     vrfProof: VrfProofAlgebra[F]
   ): F[Unit] =
     for {
@@ -92,7 +92,7 @@ object DemoProgram {
     clock:            ClockAlgebra[F],
     mint:             BlockMintAlgebra[F],
     headerValidation: BlockHeaderValidationAlgebra[F],
-    state:            BlockchainState[F],
+    state:            ConsensusState[F],
     etaCalculation:   EtaCalculationAlgebra[F]
   ): F[Unit] = {
     val twoThirdsSlot = (boundary.length * 2 / 3) + boundary.start
@@ -112,7 +112,7 @@ object DemoProgram {
     slot:             Slot,
     mint:             BlockMintAlgebra[F],
     headerValidation: BlockHeaderValidationAlgebra[F],
-    state:            BlockchainState[F]
+    state:            ConsensusState[F]
   ): F[Unit] =
     Logger[F].debug(s"Processing slot=$slot") >>
     state.canonicalHead
@@ -133,7 +133,7 @@ object DemoProgram {
 
   private def handleTwoThirdsEvent[F[_]: MonadError[*[_], Throwable]: Logger](
     epoch:          Epoch,
-    state:          BlockchainState[F],
+    state:          ConsensusState[F],
     etaCalculation: EtaCalculationAlgebra[F]
   ): F[Unit] =
     for {
@@ -146,7 +146,7 @@ object DemoProgram {
   /**
    * Perform operations at the completion of an epoch
    */
-  private def finishEpoch[F[_]: Monad: Logger](epoch: Epoch, state: BlockchainState[F]): F[Unit] =
+  private def finishEpoch[F[_]: Monad: Logger](epoch: Epoch, state: ConsensusState[F]): F[Unit] =
     for {
       _ <- Logger[F].info(s"Finishing epoch=$epoch")
       _ <- Logger[F].info("Populating registrations for next epoch")
