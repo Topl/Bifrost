@@ -1,19 +1,17 @@
 package co.topl.crypto.kes.keys
 
-import co.topl.crypto.kes.construction.KeyData
-import co.topl.crypto.kes.signatures.ProductSignature
-import com.google.common.primitives.{Bytes, Ints, Longs}
-import co.topl.crypto.PublicKey
+import co.topl.models._
+import co.topl.models.utility.{Empty, Leaf, Node, Tree}
+import com.google.common.primitives.{Ints, Longs}
 
 abstract class ProductPrivateKey {
-  import ProductPrivateKey._
   val data: KeyData
   def update(globalTimeStep: Long): ProductPrivateKey
-  def sign(message:          Array[Byte]): ProductSignature
+  def sign(message:          Bytes): Proofs.Consensus.MMM
   def getVerificationKey: PublicKey
   def timeStepPlusOffset: Long
   def timeStep: Long
-  def getBytes: Array[Byte] = serializer.getBytes(this)
+  def getBytes: Bytes
 }
 
 object ProductPrivateKey {
@@ -21,25 +19,23 @@ object ProductPrivateKey {
   case object DeserializeKey
 
   class Serializer {
-    import co.topl.crypto.kes.construction.{Empty, Leaf, Node, Tree}
     val pk_length: Int = 32
     val sig_length: Int = 64
     val hash_length: Int = 32
 
-    def getBytes(key: ProductPrivateKey): Array[Byte] = sProductKey(key.data)
-    def getBytes(key: KeyData): Array[Byte] = sProductKey(key)
+    def getBytes(key: KeyData): Bytes = sProductKey(key)
 
     def fromBytes(input: ByteStream): Any = dProductKey(input)
 
-    private def sProductKey(key: KeyData): Array[Byte] =
+    private def sProductKey(key: KeyData): Bytes =
       Bytes.concat(
         sTree(key.superScheme),
         sTree(key.subScheme),
-        Ints.toByteArray(key.subSchemeSignature.length),
+        Bytes(Ints.toByteArray(key.subSchemeSignature.length)),
         key.subSchemeSignature,
         key.subSchemePublicKey,
         key.subSchemeSeed,
-        Longs.toByteArray(key.offset)
+        Bytes(Longs.toByteArray(key.offset))
       )
 
     private def dProductKey(stream: ByteStream): KeyData = {
@@ -58,42 +54,42 @@ object ProductPrivateKey {
       KeyData(out1, out2, out3, out4, out5, out6)
     }
 
-    private def sTree(tree: Tree[Array[Byte]]): Array[Byte] = {
-      def treeToBytes(t: Tree[Array[Byte]]): Array[Byte] =
+    private def sTree(tree: Tree[Array[Byte]]): Bytes = {
+      def treeToBytes(t: Tree[Array[Byte]]): Bytes =
         t match {
           case n: Node[Array[Byte]] =>
             n.l match {
               case Empty =>
                 n.r match {
                   case ll: Leaf[Array[Byte]] =>
-                    Ints.toByteArray(2) ++ n.v ++ Ints.toByteArray(0) ++ ll.v
+                    Bytes(Ints.toByteArray(2)) ++ n.v ++ Ints.toByteArray(0) ++ ll.v
                   case nn: Node[Array[Byte]] =>
-                    Ints.toByteArray(2) ++ n.v ++ treeToBytes(nn)
+                    Bytes(Ints.toByteArray(2)) ++ n.v ++ treeToBytes(nn)
                 }
               case ll: Leaf[Array[Byte]] =>
-                Ints.toByteArray(1) ++ n.v ++ Ints.toByteArray(0) ++ ll.v
+                Bytes(Ints.toByteArray(1)) ++ n.v ++ Ints.toByteArray(0) ++ ll.v
               case nn: Node[Array[Byte]] =>
-                Ints.toByteArray(1) ++ n.v ++ treeToBytes(nn)
+                Bytes(Ints.toByteArray(1)) ++ n.v ++ treeToBytes(nn)
             }
           case l: Leaf[Array[Byte]] =>
-            Ints.toByteArray(0) ++ l.v
+            Bytes(Ints.toByteArray(0)) ++ l.v
         }
       val output = treeToBytes(tree)
-      Ints.toByteArray(output.length) ++ output
+      Bytes(Ints.toByteArray(output.length)) ++ output
     }
 
     private def dTree(stream: ByteStream): Tree[Array[Byte]] = {
       def buildTree: Tree[Array[Byte]] =
         stream.getInt match {
           case 0 =>
-            val bytes: Array[Byte] = stream.get(sig_length)
-            Leaf(bytes)
+            val bytes: Bytes = stream.get(sig_length)
+            Leaf(bytes.toArray)
           case 1 =>
-            val bytes: Array[Byte] = stream.get(hash_length + sig_length)
-            Node(bytes, buildTree, Empty)
+            val bytes: Bytes = stream.get(hash_length + sig_length)
+            Node(bytes.toArray, buildTree, Empty)
           case 2 =>
-            val bytes: Array[Byte] = stream.get(hash_length + sig_length)
-            Node(bytes, Empty, buildTree)
+            val bytes: Bytes = stream.get(hash_length + sig_length)
+            Node(bytes.toArray, Empty, buildTree)
         }
       val out = buildTree
       assert(stream.empty)
@@ -101,26 +97,26 @@ object ProductPrivateKey {
     }
   }
 
-  class ByteStream(var data: Array[Byte], co: Any) {
+  class ByteStream(var data: Bytes, co: Any) {
 
-    def get(n: Int): Array[Byte] = {
+    def get(n: Int): Bytes = {
       require(n <= data.length, "Error: ByteStream reached early end of stream")
       val out = data.take(n)
       data = data.drop(n)
       out
     }
 
-    def getAll: Array[Byte] = {
+    def getAll: Bytes = {
       val out = data
-      data = Array()
+      data = Bytes(Array.emptyByteArray)
       out
     }
 
     def getInt: Int =
-      Ints.fromByteArray(get(4))
+      Ints.fromByteArray(get(4).toArray)
 
     def getLong: Long =
-      Longs.fromByteArray(get(8))
+      Longs.fromByteArray(get(8).toArray)
     def empty: Boolean = data.isEmpty
     def length: Int = data.length
     def caseObject: Any = co
@@ -128,7 +124,7 @@ object ProductPrivateKey {
 
   val serializer: Serializer = new Serializer
 
-  def deserializeProductKey(bytes: Array[Byte]): KeyData = {
+  def deserializeProductKey(bytes: Bytes): KeyData = {
     val byteStream = new ByteStream(bytes, None)
     val numBytes = byteStream.getInt
     serializer.fromBytes(

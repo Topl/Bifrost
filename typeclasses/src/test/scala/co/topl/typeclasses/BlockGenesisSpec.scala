@@ -31,24 +31,16 @@ class BlockGenesisSpec extends AnyFlatSpec with Matchers with EitherValues with 
     forAll(address.paymentVerificationKeyHash.data)(_ shouldBe (0: Byte))
   }
 
-  it should "have all zeros for the VRF Certificate" in {
-    val cert = block.headerV2.vrfCertificate
+  it should "have all zeros for the Eligibility Certificate" in {
+    val cert = block.headerV2.eligibibilityCertificate
     forAll(cert.vkVRF.ed25519.bytes.data)(_ shouldBe (0: Byte))
-    forAll(cert.testProof.bytes.data)(_ shouldBe (0: Byte))
-    forAll(cert.nonceProof.bytes.data)(_ shouldBe (0: Byte))
+    forAll(cert.vrfNonceSig.bytes.data)(_ shouldBe (0: Byte))
+    forAll(cert.vrfTestSig.bytes.data)(_ shouldBe (0: Byte))
+    forAll(cert.thresholdEvidence.data.dataBytes)(_ shouldBe (0: Byte))
+    forAll(cert.eta.data)(_ shouldBe (0: Byte))
   }
 
-  it should "have all zeros for the KES Certificate" in {
-    val cert = block.headerV2.kesCertificate
-    forAll(cert.vkKES.bytes.data)(_ shouldBe (0: Byte))
-    forAll(cert.kesProof.bytes.data)(_ shouldBe (0: Byte))
-    forAll(cert.mmmProof.bytes.data)(_ shouldBe (0: Byte))
-    cert.slotOffset shouldBe 0L
-    cert.vkKES.slot shouldBe 0L
-  }
-
-  it should "have all zeros for the thresholdEvidence" in {
-    forAll(block.headerV2.thresholdEvidence.data.dataBytes)(_ shouldBe (0: Byte))
-  }
+  // TODO
+  ignore should "have all zeros for the Operational Certificate" in {}
 
 }

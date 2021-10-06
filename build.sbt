@@ -50,7 +50,9 @@ lazy val commonSettings = Seq(
     "Sonatype Staging" at "https://s01.oss.sonatype.org/content/repositories/staging",
     "Sonatype Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots/",
     "Bintray" at "https://jcenter.bintray.com/"
-  )
+  ),
+  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full),
+  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1")
 )
 
 lazy val publishSettings = Seq(
@@ -181,11 +183,10 @@ lazy val bifrost = project
     brambl,
     models,
     algebras,
-    typeclasses,
     minting,
     byteCodecs,
     consensus,
-    fullNode,
+    demo,
     tools
   )
 
@@ -349,21 +350,21 @@ lazy val minting = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.minting"
   )
-  .settings(libraryDependencies ++= Dependencies.test)
+  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsEffect)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, typeclasses, crypto, byteCodecs, algebras)
+  .dependsOn(models, typeclasses, crypto, byteCodecs, algebras, consensus)
 
-lazy val fullNode = project
-  .in(file("full-node"))
+lazy val demo = project
+  .in(file("demo"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
-    name := "full-node",
+    name := "demo",
     commonSettings,
     publishSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "co.topl.buildinfo.fullnode"
+    buildInfoPackage := "co.topl.buildinfo.demo"
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.fullNode)
+  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.demo ++ Dependencies.catsEffect)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, typeclasses, consensus, minting)
 
@@ -421,6 +422,7 @@ lazy val crypto = project
     libraryDependencies ++= Dependencies.crypto
   )
   .settings(scalamacrosParadiseSettings)
+  .dependsOn(models, byteCodecs)
 
 lazy val tools = project
   .in(file("tools"))

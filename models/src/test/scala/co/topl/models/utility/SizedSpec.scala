@@ -1,7 +1,7 @@
 package co.topl.models.utility
 
 import co.topl.models.Bytes
-import co.topl.models.utility.HasLength.implicits._
+import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues

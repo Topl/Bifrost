@@ -3,7 +3,7 @@ package co.topl.models
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{Lengths, Sized}
 
-case class Box[V <: Box.Value](evidence: Evidence, nonce: Nonce, value: V)
+case class Box[V <: Box.Value](evidence: Evidence, nonce: BoxNonce, value: V)
 
 object Box {
   sealed abstract class Value
@@ -24,7 +24,11 @@ object Box {
     }
 
     // Note: We don't need to worry about these for phase 0
-    case class TaktikosRegistration(registration: Registration, signature: Signature) extends Value
+    case class TaktikosRegistration(
+      vrfCommitment:    Sized.Strict[Bytes, Lengths.`32`.type],
+      extendedVk:       VerificationKeys.ExtendedEd25519,
+      registrationSlot: Slot
+    ) extends Value
     case class TaktikosDelegation(address: TaktikosAddress) extends Value
   }
 }

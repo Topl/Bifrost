@@ -26,6 +26,12 @@ object Sized {
     )
   }
 
+  def strictUnsafe[Data: HasLength, L <: Length](data: Data)(implicit length: L): Strict[Data, L] = {
+    val dataLength = implicitly[HasLength[Data]].length(data)
+    require(dataLength == length.value, s"data.length ($dataLength) did not equal target length (${length.value})")
+    new Strict(data)
+  }
+
   def max[Data: HasLength, L <: Length](data: Data)(implicit length: L): Either[InvalidLength, Max[Data, L]] = {
     val dataLength = implicitly[HasLength[Data]].length(data)
     Either.cond(
@@ -33,6 +39,12 @@ object Sized {
       new Max(data),
       InvalidLength(dataLength)
     )
+  }
+
+  def maxUnsafe[Data: HasLength, L <: Length](data: Data)(implicit length: L): Strict[Data, L] = {
+    val dataLength = implicitly[HasLength[Data]].length(data)
+    require(dataLength <= length.value)
+    new Strict(data)
   }
 
   case class InvalidLength(length: Int)
@@ -55,7 +67,9 @@ object Lengths {
   implicit case object `127` extends Length(127)
   implicit case object `128` extends Length(128)
   implicit case object `256` extends Length(256)
-  implicit case object `1440` extends Length(1440)
+  implicit case object `704` extends Length(704)
+  implicit case object `1448` extends Length(1448)
+  implicit case object `2788` extends Length(2788)
 }
 
 trait HasLength[T] {
@@ -85,6 +99,6 @@ object HasLength {
       _.allBytes.length
   }
 
-  object implicits extends Instances
+  object instances extends Instances
 
 }

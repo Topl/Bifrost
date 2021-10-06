@@ -2,7 +2,7 @@ package co.topl.codecs.bytes
 
 import co.topl.codecs.bytes.ZigZagEncoder.{decodeZigZagInt, decodeZigZagLong}
 import co.topl.models._
-import co.topl.models.utility.HasLength.implicits._
+import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.{Lengths, Sized}
 

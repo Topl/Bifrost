@@ -14,15 +14,16 @@ object ContainsTimestamp {
 
   trait Instances {
 
-    implicit val blockHeaderV2: ContainsTimestamp[BlockHeaderV2] = _.timestamp
-    implicit val blockV1: ContainsTimestamp[BlockV1] = _.timestamp
+    implicit val blockHeaderV2ContainsTimestamp: ContainsTimestamp[BlockHeaderV2] = _.timestamp
+    implicit val blockV1ContainsTimestamp: ContainsTimestamp[BlockV1] = _.timestamp
 
-    implicit val transactionTimestamped: ContainsTimestamp[Transaction] = {
+    implicit val transactionContainsTimestamp: ContainsTimestamp[Transaction] = {
       case t: ArbitTransfer => t.timestamp
       case t: PolyTransfer  => t.timestamp
       case t: AssetTransfer => t.timestamp
       case _                => ???
     }
   }
-  object Instances extends Instances
+
+  object instances extends Instances
 }

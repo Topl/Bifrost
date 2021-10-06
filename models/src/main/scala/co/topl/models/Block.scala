@@ -1,7 +1,7 @@
 package co.topl.models
 
-import co.topl.models.utility.{Lengths, Sized}
 import co.topl.models.utility.StringDataTypes.Latin1Data
+import co.topl.models.utility.{Lengths, Sized}
 
 // id = hash(blockBytes)
 case class BlockV1(
@@ -19,21 +19,36 @@ case class BlockV1(
 
 // id = hash(headerBytes) INCLUDING kesCertificate proofs
 case class BlockHeaderV2(
-  parentHeaderId:    TypedIdentifier,
-  parentSlot:        Slot,
-  txRoot:            TxRoot,
-  bloomFilter:       BloomFilter,
-  timestamp:         Timestamp,
-  height:            Long,
-  slot:              Slot,
-  vrfCertificate:    VrfCertificate,
-  kesCertificate:    KesCertificate,
-  thresholdEvidence: Evidence,
+  parentHeaderId:           TypedIdentifier,
+  parentSlot:               Slot,
+  txRoot:                   TxRoot,
+  bloomFilter:              BloomFilter,
+  timestamp:                Timestamp,
+  height:                   Long,
+  slot:                     Slot,
+  eligibibilityCertificate: EligibilityCertificate,
+  operationalCertificate:   OperationalCertificate,
   // TODO: Discussion on mint signatures
   metadata: Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
   address:  TaktikosAddress
 ) {
   def parentSlotId: SlotId = (parentSlot, parentHeaderId)
+}
+
+object BlockHeaderV2 {
+
+  case class Unsigned(
+    parentHeaderId:         TypedIdentifier,
+    parentSlot:             Slot,
+    txRoot:                 TxRoot,
+    bloomFilter:            BloomFilter,
+    timestamp:              Timestamp,
+    height:                 Long,
+    slot:                   Slot,
+    eligibilityCertificate: EligibilityCertificate,
+    metadata:               Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
+    address:                TaktikosAddress
+  )
 }
 
 // id = hash(headerId, txRoot)
@@ -44,3 +59,11 @@ case class BlockBodyV2(
 
 // This is a synthetic type, and is not "identifiable"
 case class BlockV2(headerV2: BlockHeaderV2, blockBodyV2: BlockBodyV2)
+
+object BlockV2 {
+
+  case class Unsigned(
+    unsignedHeader: BlockHeaderV2.Unsigned,
+    transactions:   Seq[Transaction]
+  )
+}
