@@ -159,7 +159,7 @@ private class ChainReplicator(
     (withNodeView(blocksAtHeight(missingBlockHeights)(_)))
   }
 
-  private private def blocksAtHeight(
+  private def blocksAtHeight(
     blockHeights: Seq[Long]
   )(nodeView:     ReadableNodeView): Option[Seq[Block]] = {
     // TODO: Jing - add function in nodeView.history to get multiple modifier at heights
@@ -168,7 +168,7 @@ private class ChainReplicator(
     else None
   }
 
-  private private def withNodeView[T](f: ReadableNodeView => T): Future[T] = {
+  private def withNodeView[T](f: ReadableNodeView => T): Future[T] = {
     import akka.actor.typed.scaladsl.AskPattern._
 
     import scala.concurrent.duration._
