@@ -294,6 +294,7 @@ class ActorNodeViewHolderInterface(actorRef: ActorRef[NodeViewHolder.ReceivableM
   system:                                    ActorSystem[_],
   timeout:                                   Timeout
 ) extends NodeViewHolderInterface {
+
   import akka.actor.typed.scaladsl.AskPattern._
   import cats.implicits._
   import system.executionContext
