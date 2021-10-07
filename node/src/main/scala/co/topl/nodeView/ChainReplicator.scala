@@ -14,7 +14,6 @@ import io.circe.syntax.EncoderOps
 import org.mongodb.scala.result.InsertManyResult
 import org.slf4j.Logger
 
-import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
@@ -82,6 +81,7 @@ private class ChainReplicator(
   import ChainReplicator._
   import co.topl.tool.Exporter.blockEncoder
 
+  /** The actor waits for the database check to complete, stops if chain repliactor is turned off in settings */
   def uninitialized(
     replicateWhenReady: Boolean,
     timers:             TimerScheduler[ReceivableMessage]
@@ -101,18 +101,25 @@ private class ChainReplicator(
         }
 
       case ReceivableMessages.Terminate(reason) =>
+        timers.cancelAll()
         throw reason
     }
 
+  /**
+   * The actor exports new blocks from NodeViewHolder
+   * If checkMissingBlock is turned on, start finding and exporting blocks at missing heights found in a height range
+   * in the database after set amount of time
+   * @param blockCheckStart the height at which the new round of CheckMissingBlocks starts
+   */
   private def active(blockCheckStart: Long, timers: TimerScheduler[ReceivableMessage]): Behavior[ReceivableMessage] =
     Behaviors.receivePartial[ReceivableMessage] {
       case (context, ReceivableMessages.GotNewBlock(block)) =>
         implicit val ec: ExecutionContext = context.executionContext
         if (settings.checkMissingBlock)
-          timers.startSingleTimer(ReceivableMessages.CheckMissingBlocks(block.height), 1.seconds)
+          timers.startSingleTimer(ReceivableMessages.CheckMissingBlocks(block.height), settings.checkMissingDelay)
         exportBlocks(Seq(block)).onComplete {
           case Success(_) => log.info(s"${Console.GREEN}Inserted new block at height: ${block.height}${Console.RESET}")
-          case Failure(e) => log.error(s"${Console.RED}$e${Console.RESET}")
+          case Failure(err) => log.error(s"${Console.RED}$err${Console.RESET}")
         }
         Behaviors.same
 
@@ -140,15 +147,28 @@ private class ChainReplicator(
         }
 
       case (_, ReceivableMessages.Terminate(reason)) =>
+        timers.cancelAll()
         throw reason
     }
 
+  /**
+   * Export a sequence of blocks to the AppView
+   * @param blocks sequence  of block to be inserted in AppView
+   * @return Insertion result from the database
+   */
   private def exportBlocks(blocks: Seq[Block]): Future[InsertManyResult] = {
     implicit val ec: ExecutionContext = context.executionContext
     val blocksString = blocks.map(_.asJson(blockEncoder).toString)
     mongo.insert(blocksString)
   }
 
+  /**
+   * Given the height range of the database check, and the heights where at least one block exists in range, return the
+   * blocks at missing heights from NodeView
+   * @param blockCheckStart the start height of the database check
+   * @param existingHeights the sequence of heights where at least one block exists in the AppView
+   * @return optional sequence of blocks that are missing in the AppView
+   */
   private def missingBlocks(
     blockCheckStart: Long,
     existingHeights: Seq[Long]
@@ -156,9 +176,15 @@ private class ChainReplicator(
     val exisitingHeightsSet = existingHeights.toSet
     val blockCheckEnd: Long = blockCheckStart + settings.numberOfBlocksToCheck
     val missingBlockHeights = (blockCheckStart to blockCheckEnd).filterNot(exisitingHeightsSet.contains)
-    (withNodeView(blocksAtHeight(missingBlockHeights)(_)))
+    withNodeView(blocksAtHeight(missingBlockHeights)(_))
   }
 
+  /**
+   * Access the NodeView and gets the blocks at given heights
+   * @param blockHeights the heights of the blocks needed
+   * @param nodeView NodeView
+   * @return optional sequence of blocks at given heights
+   */
   private def blocksAtHeight(
     blockHeights: Seq[Long]
   )(nodeView:     ReadableNodeView): Option[Seq[Block]] = {

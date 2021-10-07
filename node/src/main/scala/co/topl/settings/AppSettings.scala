@@ -95,6 +95,7 @@ case class GjallarhornSettings(
 case class ChainReplicatorSettings(
   enableChainReplicator: Boolean,
   checkMissingBlock:     Boolean,
+  checkMissingDelay:     FiniteDuration,
   numberOfBlocksToCheck: Int,
   uri:                   Option[String],
   database:              Option[String],
