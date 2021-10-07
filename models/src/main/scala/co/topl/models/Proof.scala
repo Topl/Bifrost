@@ -49,7 +49,7 @@ object Proofs {
       ///type Length = ???
     }
 
-    case class HdKesSum(
+    case class HdKesSymProd(
 //                            i:           Long,
 //                            vkI:         VerificationKeys.Ed25519,
 //                            ecSignature: Signature.Ed25519,
@@ -58,7 +58,7 @@ object Proofs {
       bytes: Array[Byte]
     ) extends Proof
 
-    object HdKesSum {
+    object HdKesSymProd {
       type Length = Lengths.`32`.type
     }
 

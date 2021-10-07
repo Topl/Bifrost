@@ -4,8 +4,7 @@ import co.topl.crypto.Pbkdf2Sha512
 import co.topl.crypto.kes.KeyEvolvingSignatureScheme
 import co.topl.crypto.kes.keys.SymmetricKey
 import co.topl.crypto.mnemonic.Entropy
-import co.topl.crypto.signatures.Ed25519VRF
-import co.topl.crypto.signing.Ed25519
+import co.topl.crypto.signing.{Ed25519, Seed}
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
@@ -41,12 +40,12 @@ object KeyInitializer {
           (fromInstanceTypes _).tupled(instance.createKeyPair)
 
         override def fromSeed(seed: Bytes): SecretKeys.Ed25519 =
-          (fromInstanceTypes _).tupled(instance.createKeyPair(seed.toArray))
+          (fromInstanceTypes _).tupled(instance.createKeyPair(Seed(seed.toArray)))
 
-        private def fromInstanceTypes(priv: co.topl.crypto.PrivateKey, pub: co.topl.crypto.PublicKey) =
-          SecretKeys.Ed25519(
+        private def fromInstanceTypes(priv: SecretKeys.Ed25519, pub: VerificationKeys.Ed25519) =
+          (SecretKeys.Ed25519(
             Sized.strictUnsafe[Bytes, SecretKeys.Ed25519.Length](Bytes(priv.value))
-          )
+          ))
       }
 
     implicit val vrfInitializer: KeyInitializer[SecretKeys.Vrf] =

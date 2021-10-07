@@ -43,13 +43,7 @@ object SecretKeys {
   }
 
   case class KesSymmetricProduct(
-    superScheme:        Tree[Array[Byte]],
-    subScheme:          Tree[Array[Byte]],
-    subSchemeSignature: Bytes,
-    subSchemePublicKey: Bytes,
-    subSchemeSeed:      Bytes,
-    offset:             Long,
-    signature:          Proofs.Signature.Ed25519
+    data: KeyData
   ) extends SecretKey
 
   object KesSymmetricProduct {
@@ -57,21 +51,16 @@ object SecretKeys {
   }
 
   case class KesAsymmetricProduct(
-    superScheme:        Tree[Array[Byte]],
-    subScheme:          Tree[Array[Byte]],
-    subSchemeSignature: Bytes,
-    subSchemePublicKey: Bytes,
-    subSchemeSeed:      Bytes,
-    offset:             Long
+    data: KeyData
   ) extends SecretKey
 
   object KesAsymmetricProduct {
     ///type Length = ???
   }
 
-  case class HdKesSum(tree: Tree[Array[Byte]]) extends SecretKey
+  case class HdKesSymProd(tree: Tree[Array[Byte]]) extends SecretKey
 
-  object HdKesSum {
+  object HdKesSymProd {
     ///type Length = ???
   }
 

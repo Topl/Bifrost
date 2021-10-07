@@ -1,5 +1,6 @@
 package co.topl.crypto.signing
 
+import co.topl.models.utility.HasLength.instances._
 import co.topl.models.Bytes
 import co.topl.models.utility.{Lengths, Sized}
 import org.bouncycastle.crypto.digests.SHA512Digest
@@ -36,7 +37,7 @@ package object bip32ed25519 {
      */
     val bytes: Sized.Strict[Bytes, Lengths.`4`.type] =
       // cut off top 4 significant bytes since representation is an unsigned integer
-      Sized.strictUnsafe[(
+      Sized.strictUnsafe(
         Bytes(ByteBuffer.allocate(longByteSize).order(ByteOrder.LITTLE_ENDIAN).putLong(value).array().take(4))
       )
   }

@@ -1,21 +1,10 @@
 package co.topl.crypto.signing
 
+import co.topl.crypto.signing.kes.SumComposition
 import co.topl.models.Proofs.Signature
 import co.topl.models.{SecretKeys, VerificationKeys}
 
-class KesSum
-    extends kes.KesEd25519Blake2b256
-//    with EllipticCurveSignatureScheme[
-//      SecretKeys.KesSum,
-//      VerificationKeys.KesSum,
-//      Proofs.Signature.KesSum
-//    ]
-//    with EvolvingSignatureScheme[
-//      SecretKeys.KesSum,
-//      VerificationKeys.KesSum,
-//      Long
-//    ]
-    {
+class KesSum extends SumComposition {
 
 //  override val SignatureLength: Int = ???
 //  override val KeyLength: Int = ???
@@ -25,7 +14,7 @@ class KesSum
     val sk = sumCompositionGenerateKey(seed.value, height)
     val pk = sumCompositionGetPublicKey(sk)
 
-    // todo:
+    // todo: fix offset
     (SecretKeys.KesSum(sk, 0), VerificationKeys.KesSum(pk))
   }
 
@@ -36,10 +25,11 @@ class KesSum
     signature: Signature.KesSum,
     message:   MessageToSign,
     verifyKey: VerificationKeys.KesSum,
-    index: Int
+    index:     Int
   ): Boolean = sumCompositionVerify(verifyKey.bytes, message.value, signature.bytes, index: Int)
 
-  def deriveSecret(secretKey: SecretKeys.KesSum, index: Int): SecretKeys.KesSum = SecretKeys.KesSum(sumCompositionUpdate(secretKey.tree, index))
+  def deriveSecret(secretKey: SecretKeys.KesSum, index: Int): SecretKeys.KesSum =
+    SecretKeys.KesSum(sumCompositionUpdate(secretKey.tree, index), secretKey.offset)
 
   def deriveVerification(
     verificationKey: VerificationKeys.KesSum,

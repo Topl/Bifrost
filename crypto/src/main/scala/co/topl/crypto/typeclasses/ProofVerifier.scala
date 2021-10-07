@@ -1,10 +1,10 @@
 package co.topl.crypto.typeclasses
 
-import co.topl.crypto.PublicKey
-import co.topl.crypto.signatures.Signature
-import co.topl.crypto.signing.{Curve25519, Ed25519}
+import co.topl.crypto.signing.{Curve25519, Ed25519, Ed25519VRF, MessageToSign}
 import co.topl.crypto.typeclasses.Signable.ops._
 import co.topl.models._
+import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.Sized
 
 import scala.language.implicitConversions
 import scala.util.Try
@@ -46,15 +46,16 @@ object ProofVerifier {
 
     implicit val publicKeyCurve25519: ProofVerifier[Proofs.Signature.Curve25519, Propositions.PublicKeyCurve25519] =
       new ProofVerifier[Proofs.Signature.Curve25519, Propositions.PublicKeyCurve25519] {
+        private val curve25519 = new Curve25519()
 
         override def verifyWith[Data: Signable](
           proof:       Proofs.Signature.Curve25519,
           proposition: Propositions.PublicKeyCurve25519,
           data:        Data
-        ): Boolean = Curve25519.verify(
-          Signature(proof.bytes.data.toArray),
-          data.signableBytes.toArray,
-          PublicKey(proposition.key.bytes.data.toArray)
+        ): Boolean = curve25519.verify(
+          proof,
+          MessageToSign(data.signableBytes.toArray),
+          VerificationKeys.Curve25519(Sized.strictUnsafe(proposition.key.bytes.data.toArray))
         )
       }
 
@@ -67,15 +68,16 @@ object ProofVerifier {
           proposition: Propositions.PublicKeyEd25519,
           data:        Data
         ): Boolean = ed25519.verify(
-          Signature(proof.bytes.data.toArray),
-          data.signableBytes.toArray,
-          PublicKey(proposition.key.bytes.data.toArray)
+          Proofs.Signature.Ed25519(Sized.strictUnsafe(proof.bytes.data.toArray)),
+          MessageToSign(data.signableBytes.toArray),
+          VerificationKeys.Ed25519(Sized.strictUnsafe(proposition.key.bytes.data.toArray))
         )
       }
 
     implicit val thresholdCurve25519
       : ProofVerifier[Proofs.Threshold.SignatureCurve25519, Propositions.ThresholdCurve25519] =
       new ProofVerifier[Proofs.Threshold.SignatureCurve25519, Propositions.ThresholdCurve25519] {
+        private val curve25519 = new Curve25519()
 
         override def verifyWith[Data: Signable](
           proof:       Proofs.Threshold.SignatureCurve25519,
@@ -90,10 +92,12 @@ object ProofVerifier {
                   if (acc < proposition.threshold) {
                     unusedProps
                       .find(prop =>
-                        unusedProps(prop) && Curve25519.verify(
-                          Signature(sig.bytes.data.toArray),
-                          dataBytes,
-                          PublicKey(prop.bytes.data.toArray)
+                        unusedProps(prop) && curve25519.verify(
+                          Proofs.Signature.Curve25519(
+                            Sized.strictUnsafe(sig.bytes.data.toArray)
+                          ),
+                          MessageToSign(dataBytes),
+                          VerificationKeys.Curve25519(Sized.strictUnsafe(prop.bytes.data.toArray))
                         )
                       ) match {
                       case Some(prop) =>
@@ -127,9 +131,9 @@ object ProofVerifier {
                     unusedProps
                       .find(prop =>
                         unusedProps(prop) && ed25519.verify(
-                          Signature(sig.bytes.data.toArray),
-                          dataBytes,
-                          PublicKey(prop.bytes.data.toArray)
+                          Proofs.Signature.Ed25519(Sized.strictUnsafe(sig.bytes.data.toArray)),
+                          MessageToSign(data.signableBytes.toArray),
+                          VerificationKeys.Ed25519(Sized.strictUnsafe(prop.bytes.data.toArray))
                         )
                       ) match {
                       case Some(prop) =>
@@ -164,7 +168,7 @@ object ProofVerifier {
         ): Boolean =
           Try(
             Ed25519VRF.instance.vrfVerify(
-              proposition.key.ed25519.bytes.data.toArray,
+              proposition.key.bytes.data.toArray,
               data.signableBytes.toArray,
               proof.bytes.data.toArray
             )
