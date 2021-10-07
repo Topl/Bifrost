@@ -1,9 +1,13 @@
 package co.topl.crypto.signing.kes
 
+import co.topl.crypto.hash.digest.Digest32
 import co.topl.models._
 import co.topl.models.utility.{Empty, Leaf, Node, Tree}
+import co.topl.crypto.hash.{Blake2b, Blake2bHash, Hash, digest}
+import co.topl.crypto.signing.eddsa.Ed25519
 
 import java.security.SecureRandom
+import scala.language.implicitConversions
 import scala.math.BigInt
 
 /**
@@ -23,18 +27,22 @@ import scala.math.BigInt
  * a tree height log(l)/log(2), yielding l time steps.
  */
 
-abstract class MMM[H,S] {
+abstract class KesEd25519Blake2b256 {
 
-  val fch: H
-  val sig: S
-  val seedBytes: Int
-  val pkBytes: Int
-  val skBytes: Int
-  val sigBytes: Int
-  val hashBytes: Int
-  val pkLength: Int
-  val asymmetricLogL: Int
-  val symmetricLogL: Int
+  val hash: Array[Byte] => Array[Byte] = { (input: Array[Byte]) =>
+    import digest.implicits._
+    val blake2b256: Hash[Blake2b, Digest32] = new Blake2bHash[Digest32] {}
+    blake2b256.hash(input).value
+  }
+  val sig: Ed25519 = new Ed25519
+  val seedBytes: Int = 32
+  val pkBytes: Int = 32
+  val skBytes: Int = 32
+  val sigBytes: Int = 64
+  val hashBytes: Int = 32
+  val asymmetricLogL: Int = 7
+  val symmetricLogL: Int = 9
+  val pkLength: Int = hashBytes
 
   private lazy val exp_symmetricLogL = exp(symmetricLogL)
 
@@ -60,8 +68,8 @@ abstract class MMM[H,S] {
    */
 
   private def PRNG(k: Array[Byte]): (Array[Byte], Array[Byte]) = {
-    val r1 = fch.hash(k)
-    val r2 = fch.hash(r1 ++ k)
+    val r1 = hash(k)
+    val r2 = hash(r1 ++ k)
     (r1, r2)
   }
 
@@ -72,7 +80,7 @@ abstract class MMM[H,S] {
    */
 
   private def sKeypairFast(seed: Array[Byte]): Array[Byte] = {
-    val sk = fch.hash(seed)
+    val sk = hash(seed)
     val pk = Array.fill(32)(0x00.toByte)
     sig.generatePublicKey(sk, 0, pk, 0)
     sk ++ pk
@@ -113,10 +121,10 @@ abstract class MMM[H,S] {
       case n: Node[Array[Byte]] =>
         val pk0 = n.v.slice(seedBytes, seedBytes + pkBytes)
         val pk1 = n.v.slice(seedBytes + pkBytes, seedBytes + 2 * pkBytes)
-        fch.hash(pk0 ++ pk1)
+        hash(pk0 ++ pk1)
       case l: Leaf[Array[Byte]] =>
-        fch.hash(
-          fch.hash(l.v.slice(seedBytes, seedBytes + pkBytes)) ++ fch.hash(l.v.slice(seedBytes, seedBytes + pkBytes))
+        hash(
+          hash(l.v.slice(seedBytes, seedBytes + pkBytes)) ++ hash(l.v.slice(seedBytes, seedBytes + pkBytes))
         )
       case _ => Array()
     }
@@ -195,14 +203,14 @@ abstract class MMM[H,S] {
               sk1 = rightVal.slice(seedBytes, seedBytes + skBytes)
               pk1 = rightVal.slice(seedBytes + skBytes, seedBytes + skBytes + pkBytes)
               assert(n.v sameElements r1)
-              Node(n.v ++ fch.hash(pk0) ++ fch.hash(pk1), Leaf(sk0 ++ pk0), Leaf(sk1 ++ pk1))
+              Node(n.v ++ hash(pk0) ++ hash(pk1), Leaf(sk0 ++ pk0), Leaf(sk1 ++ pk1))
             } else {
               pk00 = leftVal.slice(seedBytes, seedBytes + pkBytes)
               pk01 = leftVal.slice(seedBytes + pkBytes, seedBytes + 2 * pkBytes)
               pk10 = rightVal.slice(seedBytes, seedBytes + pkBytes)
               pk11 = rightVal.slice(seedBytes + pkBytes, seedBytes + 2 * pkBytes)
-              pk0 = fch.hash(pk00 ++ pk01)
-              pk1 = fch.hash(pk10 ++ pk11)
+              pk0 = hash(pk00 ++ pk01)
+              pk1 = hash(pk10 ++ pk11)
               Node(n.v ++ pk0 ++ pk1, left, right)
             }
           case l: Leaf[Array[Byte]] =>
@@ -257,20 +265,20 @@ abstract class MMM[H,S] {
             case nn: Node[Array[Byte]] =>
               pk00 = nn.v.slice(seedBytes, seedBytes + pkBytes)
               pk01 = nn.v.slice(seedBytes + pkBytes, seedBytes + 2 * pkBytes)
-              pk0 = fch.hash(pk00 ++ pk01)
+              pk0 = hash(pk00 ++ pk01)
               loop(nn) && (pk0 sameElements n.v.slice(seedBytes, seedBytes + pkBytes))
             case ll: Leaf[Array[Byte]] =>
-              fch.hash(ll.v.slice(skBytes, skBytes + pkBytes)) sameElements n.v.slice(seedBytes, seedBytes + pkBytes)
+              hash(ll.v.slice(skBytes, skBytes + pkBytes)) sameElements n.v.slice(seedBytes, seedBytes + pkBytes)
             case _ => true
           }
           val right = n.r match {
             case nn: Node[Array[Byte]] =>
               pk10 = nn.v.slice(seedBytes, seedBytes + pkBytes)
               pk11 = nn.v.slice(seedBytes + pkBytes, seedBytes + 2 * pkBytes)
-              pk1 = fch.hash(pk10 ++ pk11)
+              pk1 = hash(pk10 ++ pk11)
               loop(nn) && (pk1 sameElements n.v.slice(seedBytes + pkBytes, seedBytes + 2 * pkBytes))
             case ll: Leaf[Array[Byte]] =>
-              fch.hash(ll.v.slice(skBytes, skBytes + pkBytes)) sameElements n.v.slice(
+              hash(ll.v.slice(skBytes, skBytes + pkBytes)) sameElements n.v.slice(
                 seedBytes + pkBytes,
                 seedBytes + 2 * pkBytes
               )
@@ -278,8 +286,8 @@ abstract class MMM[H,S] {
           }
           left && right
         case l: Leaf[Array[Byte]] =>
-          fch.hash(
-            fch.hash(l.v.slice(skBytes, skBytes + pkBytes)) ++ fch.hash(l.v.slice(skBytes, skBytes + pkBytes))
+          hash(
+            hash(l.v.slice(skBytes, skBytes + pkBytes)) ++ hash(l.v.slice(skBytes, skBytes + pkBytes))
           ) sameElements pk
         case _ => false
       }
@@ -340,7 +348,7 @@ abstract class MMM[H,S] {
             left.toSeqInorder.foreach(random.nextBytes)
             val keyPair = sKeypairFast(n.v.slice(0, seedBytes))
             assert(
-              fch.hash(keyPair.slice(skBytes, skBytes + pkBytes)) sameElements n.v
+              hash(keyPair.slice(skBytes, skBytes + pkBytes)) sameElements n.v
                 .slice(seedBytes + pkBytes, seedBytes + 2 * pkBytes)
             )
             Node(n.v, Empty, Leaf(keyPair))
@@ -411,7 +419,7 @@ abstract class MMM[H,S] {
                 left.toSeqInorder.foreach(random.nextBytes)
                 val keyPair = sKeypairFast(n.v.slice(0, seedBytes))
                 assert(
-                  fch.hash(keyPair.slice(skBytes, skBytes + pkBytes)) sameElements n.v
+                  hash(keyPair.slice(skBytes, skBytes + pkBytes)) sameElements n.v
                     .slice(seedBytes + pkBytes, seedBytes + 2 * pkBytes)
                 )
                 Node(n.v, Empty, Leaf(keyPair))
@@ -477,8 +485,7 @@ abstract class MMM[H,S] {
           }
           left ++ right ++ n.v.slice(seedBytes, seedBytes + 2 * pkBytes)
         case l: Leaf[Array[Byte]] =>
-          sSign(m ++ stepBytes, l.v.slice(0, skBytes)) ++ l.v.slice(skBytes, skBytes + pkBytes) ++ stepBytes ++ fch
-            .hash(l.v.slice(skBytes, skBytes + pkBytes)) ++ fch.hash(l.v.slice(skBytes, skBytes + pkBytes))
+          sSign(m ++ stepBytes, l.v.slice(0, skBytes)) ++ l.v.slice(skBytes, skBytes + pkBytes) ++ stepBytes ++ hash(l.v.slice(skBytes, skBytes + pkBytes)) ++ hash(l.v.slice(skBytes, skBytes + pkBytes))
         case _ =>
           Array()
       }
@@ -499,9 +506,9 @@ abstract class MMM[H,S] {
     val step = BigInt(stepBytes)
     var pkLogic = true
     if (step % 2 == 0) {
-      pkLogic &= fch.hash(sig.slice(sigBytes, sigBytes + pkBytes)) sameElements pkSeq.slice(0, pkBytes)
+      pkLogic &= hash(sig.slice(sigBytes, sigBytes + pkBytes)) sameElements pkSeq.slice(0, pkBytes)
     } else {
-      pkLogic &= fch.hash(sig.slice(sigBytes, sigBytes + pkBytes)) sameElements pkSeq.slice(pkBytes, 2 * pkBytes)
+      pkLogic &= hash(sig.slice(sigBytes, sigBytes + pkBytes)) sameElements pkSeq.slice(pkBytes, 2 * pkBytes)
     }
     for (i <- 0 to pkSeq.length / pkBytes - 4 by 2) {
       val pk0: Array[Byte] = pkSeq.slice((i + 2) * pkBytes, (i + 3) * pkBytes)
@@ -511,12 +518,12 @@ abstract class MMM[H,S] {
       val pk10: Array[Byte] = pkSeq.slice(i * pkBytes, (i + 1) * pkBytes)
       val pk11: Array[Byte] = pkSeq.slice((i + 1) * pkBytes, (i + 2) * pkBytes)
       if ((step.toInt / exp(i / 2 + 1)) % 2 == 0) {
-        pkLogic &= pk0 sameElements fch.hash(pk00 ++ pk01)
+        pkLogic &= pk0 sameElements hash(pk00 ++ pk01)
       } else {
-        pkLogic &= pk1 sameElements fch.hash(pk10 ++ pk11)
+        pkLogic &= pk1 sameElements hash(pk10 ++ pk11)
       }
     }
-    pkLogic &= pk sameElements fch.hash(pkSeq.slice(pkSeq.length - 2 * pkBytes, pkSeq.length))
+    pkLogic &= pk sameElements hash(pkSeq.slice(pkSeq.length - 2 * pkBytes, pkSeq.length))
     sVerify(
       m ++ stepBytes,
       sig.slice(0, sigBytes),
@@ -554,7 +561,7 @@ abstract class MMM[H,S] {
    * @return
    */
 
-  def generateAsymmetricProductKey(seed: Array[Byte], offset: Long): SecretKeys.AsymmetricMMM = {
+  def generateAsymmetricProductKey(seed: Array[Byte], offset: Long): KeyData = {
     val r = PRNG(seed)
     val rp = PRNG(r._2)
     //super-scheme sum composition
@@ -563,7 +570,7 @@ abstract class MMM[H,S] {
     val Si = sumCompositionGenerateKey(rp._1, 0)
     val pki = sumCompositionGetPublicKey(Si)
     val sig = sumCompositionSign(L, pki, 0)
-    SecretKeys.AsymmetricMMM(KeyData(L, Si, Bytes(sig), Bytes(pki), Bytes(rp._2), offset))
+    KeyData(L, Si, Bytes(sig), Bytes(pki), Bytes(rp._2), offset)
   }
 
   def generateProductKeyData(seed: Array[Byte], offset: Long): KeyData = {
@@ -585,13 +592,13 @@ abstract class MMM[H,S] {
    * @return  updated key
    */
 
-  def updateAsymmetricProductKey(key: SecretKeys.AsymmetricMMM, t_in: Int): SecretKeys.AsymmetricMMM = {
+  def updateAsymmetricProductKey(key: KeyData, t_in: Int): KeyData = {
     val keyTime = getAsymmetricProductKeyTimeStep(key)
-    var L = key.data.superScheme
-    var Si = key.data.subScheme
-    var sig = key.data.subSchemeSignature.toArray
-    var pki = key.data.subSchemePublicKey.toArray
-    var seed = key.data.subSchemeSeed.toArray
+    var L = key.superScheme
+    var Si = key.subScheme
+    var sig = key.subSchemeSignature.toArray
+    var pki = key.subSchemePublicKey.toArray
+    var seed = key.subSchemeSeed.toArray
     def timeStepModLog2(t: Int): (Int, Int) =
       if (t == 0) {
         (0, 0)
@@ -641,17 +648,17 @@ abstract class MMM[H,S] {
     } else {
       println("Error: t less than given keyTime")
     }
-    SecretKeys.AsymmetricMMM(KeyData(L, Si, Bytes(sig), Bytes(pki), Bytes(seed), key.data.offset))
+    KeyData(L, Si, Bytes(sig), Bytes(pki), Bytes(seed), key.offset)
   }
 
-  def updateSymmetricProductKey(key: SecretKeys.SymmetricMMM, t_in: Int): SecretKeys.SymmetricMMM = {
+  def updateSymmetricProductKey(key: KeyData, t_in: Int): KeyData = {
     val symmetricStepsL = exp_symmetricLogL
     val keyTime = getSymmetricProductKeyTimeStep(key)
-    var L = key.data.superScheme
-    var Si = key.data.subScheme
-    var sig = key.data.subSchemeSignature.toArray
-    var pki = key.data.subSchemePublicKey.toArray
-    var seed = key.data.subSchemeSeed.toArray
+    var L = key.superScheme
+    var Si = key.subScheme
+    var sig = key.subSchemeSignature.toArray
+    var pki = key.subSchemePublicKey.toArray
+    var seed = key.subSchemeSeed.toArray
 
     def treeTimeSteps(t: Int): (Int, Int) = {
       val tl = t / symmetricStepsL
@@ -685,7 +692,7 @@ abstract class MMM[H,S] {
     } else {
       println("Error: t less than given keyTime")
     }
-    SecretKeys.SymmetricMMM(KeyData(L, Si, Bytes(sig), Bytes(pki), Bytes(seed), key.data.offset), key.signature)
+    KeyData(L, Si, Bytes(sig), Bytes(pki), Bytes(seed), key.data.offset), key.signature)
   }
 
   /**
@@ -694,15 +701,15 @@ abstract class MMM[H,S] {
    * @return Current time step of key
    */
 
-  def getAsymmetricProductKeyTimeStep(key: SecretKeys.AsymmetricMMM): Int = {
-    val tl = getSumCompositionKeyTimeStep(key.data.superScheme)
-    val ti = getSumCompositionKeyTimeStep(key.data.subScheme)
+  def getAsymmetricProductKeyTimeStep(key: KeyData): Int = {
+    val tl = getSumCompositionKeyTimeStep(key.superScheme)
+    val ti = getSumCompositionKeyTimeStep(key.subScheme)
     exp(tl) - 1 + ti
   }
 
-  def getSymmetricProductKeyTimeStep(key: SecretKeys.SymmetricMMM): Int = {
-    val tl = getSumCompositionKeyTimeStep(key.data.superScheme)
-    val ti = getSumCompositionKeyTimeStep(key.data.subScheme)
+  def getSymmetricProductKeyTimeStep(key: KeyData): Int = {
+    val tl = getSumCompositionKeyTimeStep(key.superScheme)
+    val ti = getSumCompositionKeyTimeStep(key.subScheme)
     exp_symmetricLogL * tl + ti
   }
 
@@ -713,7 +720,7 @@ abstract class MMM[H,S] {
    * @return signature of m
    */
 
-  def signAsymmetricProduct(key: SecretKeys.AsymmetricMMM, m: Array[Byte]): Proofs.Consensus.HdKes = {
+  def signAsymmetricProduct(key: KeyData, m: Array[Byte]): Proofs.Consensus.HdKes = {
     val keyTime = BigInt(getAsymmetricProductKeyTimeStep(key)).toByteArray
     val Si = key.data.subScheme
     val sigi = key.data.subSchemeSignature
@@ -723,14 +730,14 @@ abstract class MMM[H,S] {
     Proofs.Consensus.HdKes(sigi, Bytes(sigm), pki, key.data.offset, Bytes(publicKey(key)))
   }
 
-  def signSymmetricProduct(key: SecretKeys.SymmetricMMM, m: Array[Byte]): Proofs.Signature. = {
+  def signSymmetricProduct(key: KeyData, m: Array[Byte]): Proofs.Signature. = {
     val keyTime = BigInt(getSymmetricProductKeyTimeStep(key)).toByteArray
-    val Si = key.data.subScheme
-    val sigi = key.data.subSchemeSignature
-    val pki = key.data.subSchemePublicKey
+    val Si = key.subScheme
+    val sigi = key.subSchemeSignature
+    val pki = key.subSchemePublicKey
     val ti = getSumCompositionKeyTimeStep(Si)
     val sigm = sumCompositionSign(Si, m ++ keyTime, ti)
-    Proofs.Consensus.HdKes(sigi, Bytes(sigm), pki, key.data.offset, Bytes(publicKey(key)))
+    KeyData(sigi, Bytes(sigm), pki, key.offset, Bytes(publicKey(key)))
   }
 
   /**

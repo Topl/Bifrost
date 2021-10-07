@@ -36,27 +36,42 @@ object SecretKeys {
     type Length = Lengths.`32`.type //todo: check this value
   }
 
-  case class KesMmmSum() extends SecretKey
+  case class KesSum(tree: Tree[Array[Byte]], offset: Long) extends SecretKey
 
-  object KesMmmSum {
+  object KesSum {
     ///type Length = ???
   }
 
-  case class KesMmmSymmetricProduct() extends SecretKey
+  case class KesSymmetricProduct(
+    superScheme:        Tree[Array[Byte]],
+    subScheme:          Tree[Array[Byte]],
+    subSchemeSignature: Bytes,
+    subSchemePublicKey: Bytes,
+    subSchemeSeed:      Bytes,
+    offset:             Long,
+    signature:          Proofs.Signature.Ed25519
+  ) extends SecretKey
 
-  object KesMmmSymmetricProduct {
+  object KesSymmetricProduct {
     ///type Length = ???
   }
 
-  case class KesMmmAsymmetricProduct() extends SecretKey
+  case class KesAsymmetricProduct(
+    superScheme:        Tree[Array[Byte]],
+    subScheme:          Tree[Array[Byte]],
+    subSchemeSignature: Bytes,
+    subSchemePublicKey: Bytes,
+    subSchemeSeed:      Bytes,
+    offset:             Long
+  ) extends SecretKey
 
-  object KesMmmAsymmetricProduct {
+  object KesAsymmetricProduct {
     ///type Length = ???
   }
 
-  case class HdKesMmmSum() extends SecretKey
+  case class HdKesSum(tree: Tree[Array[Byte]]) extends SecretKey
 
-  object HdKesMmmSum {
+  object HdKesSum {
     ///type Length = ???
   }
 

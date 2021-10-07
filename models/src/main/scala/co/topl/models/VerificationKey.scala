@@ -33,27 +33,30 @@ object VerificationKeys {
     type Length = Lengths.`32`.type
   }
 
-  case class KesMmmSum() extends VerificationKey
+  case class KesSum(bytes: Array[Byte]) extends VerificationKey
 
-  object KesMmmSum {
+  object KesSum {
     ///type Length = ???
   }
 
-  case class KesMmmSymmetricProduct() extends VerificationKey
+  case class KesSymmetricProduct(bytes: Array[Byte]) extends VerificationKey
 
-  object KesMmmSymmetricProduct {
+  object KesSymmetricProduct {
     ///type Length = ???
   }
 
-  case class KesMmmAsymmetricProduct() extends VerificationKey
+  case class KesAsymmetricProduct(bytes: Array[Byte]) extends VerificationKey
 
-  object KesMmmAsymmetricProduct {
+  object KesAsymmetricProduct {
     ///type Length = ???
   }
 
-  case class HdKesMmmSum(xvkM: ExtendedEd25519, t: Long) extends VerificationKey
+  case class HdKesSum(
+//                       xvkM: ExtendedEd25519,
+//                       t: Long,
+                       bytes: Array[Byte]) extends VerificationKey
 
-  object HdKes {
+  object HdKesSum {
     type Length = Lengths.`32`.type
   }
 

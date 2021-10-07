@@ -25,38 +25,40 @@ object Proofs {
       type Length = Lengths.`80`.type
     }
 
-    case class KesMmmSum(
-      ecSignature: Signature.Ed25519,
-      vkK:         VerificationKeys.Ed25519,
-      index:       Long, // `k` or `j` depending on context
-      witness:     Seq[VerificationKeys.Ed25519]
+    case class KesSum(
+//      ecSignature: Signature.Ed25519,
+//      vkK:         VerificationKeys.Ed25519,
+//      index:       Long, // `k` or `j` depending on context
+//      witness:     Seq[VerificationKeys.Ed25519]
+      bytes: Array[Byte]
     ) extends Proof
 
-    object KesMmmSum {
+    object KesSum {
       ///type Length = ???
     }
 
-    case class KesMmmSymmetricProduct() extends Proof
+    case class KesSymmetricProduct(bytes: Array[Byte]) extends Proof
 
-    object KesMmmSymmetricProduct {
+    object KesSymmetricProduct {
       ///type Length = ???
     }
 
-    case class KesMmmAsymmetricProduct() extends Proof
+    case class KesAsymmetricProduct(bytes: Array[Byte]) extends Proof
 
-    object KesMmmAsymmetricProduct {
+    object KesAsymmetricProduct {
       ///type Length = ???
     }
 
-    case class HdKesMmmSum(
-      i:           Long,
-      vkI:         VerificationKeys.Ed25519,
-      ecSignature: Signature.Ed25519,
-      sigSumJ:     KesMmmSum,
-      sigSumK:     KesMmmSum
+    case class HdKesSum(
+//                            i:           Long,
+//                            vkI:         VerificationKeys.Ed25519,
+//                            ecSignature: Signature.Ed25519,
+//                            sigSumJ:     KesSum,
+//                            sigSumK:     KesSum
+      bytes: Array[Byte]
     ) extends Proof
 
-    object HdKesMmmSum {
+    object HdKesSum {
       type Length = Lengths.`32`.type
     }
 
