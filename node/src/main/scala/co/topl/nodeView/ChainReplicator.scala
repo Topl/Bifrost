@@ -17,6 +17,10 @@ import org.slf4j.Logger
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
+/**
+ * Chain replicator listens to info about new blocks from NodeViewHolder and updates the AppView with new blocks
+ * It could also find the previously missing blocks and send them to the AppView
+ */
 object ChainReplicator {
 
   val actorName = "ChainReplicator"
