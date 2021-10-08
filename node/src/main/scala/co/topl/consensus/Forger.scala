@@ -83,7 +83,7 @@ object Forger {
     ec:                                                ExecutionContext,
     networkPrefix:                                     NetworkPrefix
   ): Future[Done] =
-    if (Seq(PrivateTestnet.netPrefix, LocalTestnet.netPrefix).contains(networkPrefix)) {
+    if (PrivateTestnet.netPrefix == networkPrefix) {
       fetchStartupKeyView().flatMap {
         case keyView if keyView.rewardAddr.nonEmpty =>
           Future.successful(Done)
@@ -110,7 +110,7 @@ object Forger {
       case Mainnet         => Future.fromTry(initializeFromChainParamsAndGetBlock(ToplnetGenesis.getGenesisBlock))
       case ValhallaTestnet => Future.fromTry(initializeFromChainParamsAndGetBlock(ValhallaGenesis.getGenesisBlock))
       case HelTestnet      => Future.fromTry(initializeFromChainParamsAndGetBlock(HelGenesis.getGenesisBlock))
-      case LocalTestnet | PrivateTestnet =>
+      case PrivateTestnet =>
         fetchStartupKeyView()
           .map(view => PrivateGenesis(view.addresses, settings).getGenesisBlock)
           .flatMap(r => Future.fromTry(initializeFromChainParamsAndGetBlock(r)))
@@ -131,7 +131,7 @@ private class ForgerBehaviors(
   minTransactionFee:    Int128,
   fetchKeyView:         () => Future[KeyView],
   nodeViewReader:       NodeViewReader
-)(implicit context:     ActorContext[Forger.ReceivableMessage], networkPrefix: NetworkPrefix, timeProvider: TimeProvider) {
+)(implicit context: ActorContext[Forger.ReceivableMessage], networkPrefix: NetworkPrefix, timeProvider: TimeProvider) {
   import context.executionContext
   implicit private val log: Logger = context.log
 

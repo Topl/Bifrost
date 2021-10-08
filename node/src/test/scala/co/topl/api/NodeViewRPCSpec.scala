@@ -8,10 +8,11 @@ import co.topl.nodeView.history.History
 import co.topl.utils.GeneratorOps.GeneratorOps
 import io.circe.Json
 import io.circe.parser.parse
+import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
+class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with EitherValues {
 
   var txs: Seq[TX] = _
   var txId: String = _
@@ -41,12 +42,12 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
   "NodeView RPC" should {
     "Get first 100 transactions in mempool" in {
       val requestBody = ByteString(s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "1",
-           |   "method": "topl_mempool",
-           |   "params": [{}]
-           |}
+        |{
+        |   "jsonrpc": "2.0",
+        |   "id": "1",
+        |   "method": "topl_mempool",
+        |   "params": [{}]
+        |}
           """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
@@ -58,15 +59,15 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
 
     "Get transaction from the mempool by id" in {
       val requestBody = ByteString(s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "1",
-           |   "method": "topl_transactionFromMempool",
-           |   "params": [{
-           |      "transactionId": "$txId"
-           |   }]
-           |}
-           |
+        |{
+        |   "jsonrpc": "2.0",
+        |   "id": "1",
+        |   "method": "topl_transactionFromMempool",
+        |   "params": [{
+        |      "transactionId": "$txId"
+        |   }]
+        |}
+        |
           """.stripMargin)
 
       view().mempool.putWithoutCheck(Seq(txs.head), block.timestamp)
@@ -78,18 +79,66 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
       view().mempool.remove(txs.head)
     }
 
+    "Return correct error response when an id with non-base58 character is used for querying transactions" in {
+      val invalidCharId: String = "=" ++ txId.tail
+      val modifierQueryMethods = Seq("topl_transactionById", "topl_transactionFromMempool", "topl_blockById")
+      val idTypes = Seq("transactionId", "transactionId", "blockId")
+      def requestBody(idType: String, rpcMethod: String, txId: String): ByteString = ByteString(s"""
+        |{
+        |   "jsonrpc": "2.0",
+        |   "id": "1",
+        |   "method": "$rpcMethod",
+        |   "params": [{
+        |      "$idType": "$txId"
+        |   }]
+        |}
+        |
+          """.stripMargin)
+
+      idTypes.zip(modifierQueryMethods).map { case (idType, rpcMethod) =>
+        httpPOST(requestBody(idType, rpcMethod, invalidCharId)) ~> route ~> check {
+          val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
+          res should include("Value is not Base 58")
+        }
+      }
+    }
+
+    "Return correct error response when an id with incorrect size is used for querying transactions" in {
+      val invalidLengthId: String = txId.tail
+      val modifierQueryMethods = Seq("topl_transactionById", "topl_transactionFromMempool", "topl_blockById")
+      val idTypes = Seq("transactionId", "transactionId", "blockId")
+      def requestBody(idType: String, rpcMethod: String, txId: String): ByteString = ByteString(s"""
+        |{
+        |   "jsonrpc": "2.0",
+        |   "id": "1",
+        |   "method": "$rpcMethod",
+        |   "params": [{
+        |      "$idType": "$txId"
+        |   }]
+        |}
+        |
+          """.stripMargin)
+
+      idTypes.zip(modifierQueryMethods).map { case (idType, rpcMethod) =>
+        httpPOST(requestBody(idType, rpcMethod, invalidLengthId)) ~> route ~> check {
+          val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
+          res should include("Invalid size for ModifierId")
+        }
+      }
+    }
+
     "Get a confirmed transaction by id" in {
 
       val requestBody = ByteString(s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "1",
-           |   "method": "topl_transactionById",
-           |   "params": [{
-           |      "transactionId": "$txId"
-           |   }]
-           |}
-           |
+        |{
+        |   "jsonrpc": "2.0",
+        |   "id": "1",
+        |   "method": "topl_transactionById",
+        |   "params": [{
+        |      "transactionId": "$txId"
+        |   }]
+        |}
+        |
           """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
@@ -102,16 +151,16 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
 
     "Get block by id" in {
       val requestBody = ByteString(s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |
-           |   "id": "1",
-           |   "method": "topl_blockById",
-           |   "params": [{
-           |      "blockId": "${block.id}"
-           |   }]
-           |}
-           |
+        |{
+        |   "jsonrpc": "2.0",
+        |
+        |   "id": "1",
+        |   "method": "topl_blockById",
+        |   "params": [{
+        |      "blockId": "${block.id}"
+        |   }]
+        |}
+        |
           """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
