@@ -111,7 +111,10 @@ object Heimdall {
 
       context.watch(nextState.peerSynchronizer)
       context.watch(nextState.nodeViewSynchronizer)
-      if (settings.chainReplicator.enableChainReplicator) context.watch(nextState.chainReplicator)
+      nextState.chainReplicator match {
+        case Some(chainReplicator) => context.watch(chainReplicator)
+        case None                  =>
+      }
 
       context.self.tell(ReceivableMessages.BindExternalTraffic)
 
@@ -205,7 +208,7 @@ object Heimdall {
     mempoolAuditor:       ActorRef[MemPoolAuditor.ReceivableMessage],
     peerSynchronizer:     CActorRef,
     nodeViewSynchronizer: CActorRef,
-    chainReplicator:      ActorRef[ChainReplicator.ReceivableMessage]
+    chainReplicator:      Option[ActorRef[ChainReplicator.ReceivableMessage]]
   )
 
   private case class State(
@@ -358,10 +361,15 @@ object Heimdall {
       NodeViewSynchronizer.actorName
     )
 
-    val chainReplicator = context.spawn(
-      ChainReplicator(state.nodeViewHolder, settings.chainReplicator),
-      ChainReplicator.actorName
-    )
+    val chainReplicator: Option[ActorRef[ChainReplicator.ReceivableMessage]] =
+      if (settings.chainReplicator.enableChainReplicator)
+        Some(
+          context.spawn(
+            ChainReplicator(state.nodeViewHolder, settings.chainReplicator),
+            ChainReplicator.actorName
+          )
+        )
+      else None
 
     ActorsInitializedState(
       state.peerManager,

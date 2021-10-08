@@ -66,10 +66,7 @@ object ChainReplicator {
         case Failure(e) => ReceivableMessages.Terminate(e)
       }
 
-      Behaviors.withTimers(timers =>
-        new ChainReplicator(mongo, nodeViewHodlerRef, settings)
-          .uninitialized(settings.enableChainReplicator, timers)
-      )
+      Behaviors.withTimers(timers => new ChainReplicator(mongo, nodeViewHodlerRef, settings).uninitialized(timers))
     }
 }
 
@@ -86,23 +83,11 @@ private class ChainReplicator(
   import co.topl.tool.Exporter.blockEncoder
 
   /** The actor waits for the database check to complete, stops if chain repliactor is turned off in settings */
-  def uninitialized(
-    replicateWhenReady: Boolean,
-    timers:             TimerScheduler[ReceivableMessage]
-  ): Behavior[ReceivableMessage] =
+  def uninitialized(timers: TimerScheduler[ReceivableMessage]): Behavior[ReceivableMessage] =
     Behaviors.receiveMessagePartial[ReceivableMessage] {
       case ReceivableMessages.CheckDatabaseComplete =>
-        if (replicateWhenReady) {
-          log.info(s"${Console.GREEN}Chain replicator is ready${Console.RESET}")
-          active(0, timers)
-        } else {
-          Behaviors.stopped { () =>
-            log.info(
-              s"${Console.GREEN}Not initializing chain replicator since enableChainReplicator " +
-              s"is turned off${Console.RESET}"
-            )
-          }
-        }
+        log.info(s"${Console.GREEN}Chain replicator is ready${Console.RESET}")
+        active(0, timers)
 
       case ReceivableMessages.Terminate(reason) =>
         timers.cancelAll()
