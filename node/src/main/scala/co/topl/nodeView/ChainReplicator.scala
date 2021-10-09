@@ -87,7 +87,7 @@ private class ChainReplicator(
     Behaviors.receiveMessagePartial[ReceivableMessage] {
       case ReceivableMessages.CheckDatabaseComplete =>
         log.info(s"${Console.GREEN}Chain replicator is ready${Console.RESET}")
-        active(0, timers)
+        active(settings.checkMissingStartHeight, timers)
 
       case ReceivableMessages.Terminate(reason) =>
         timers.cancelAll()

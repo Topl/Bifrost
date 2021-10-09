@@ -93,13 +93,14 @@ case class GjallarhornSettings(
 )
 
 case class ChainReplicatorSettings(
-  enableChainReplicator: Boolean,
-  checkMissingBlock:     Boolean,
-  checkMissingDelay:     FiniteDuration,
-  numberOfBlocksToCheck: Int,
-  uri:                   Option[String],
-  database:              Option[String],
-  collection:            Option[String]
+  enableChainReplicator:   Boolean,
+  checkMissingBlock:       Boolean,
+  checkMissingStartHeight: Long,
+  checkMissingDelay:       FiniteDuration,
+  numberOfBlocksToCheck:   Int,
+  uri:                     Option[String],
+  database:                Option[String],
+  collection:              Option[String]
 )
 
 case class AppSettings(
