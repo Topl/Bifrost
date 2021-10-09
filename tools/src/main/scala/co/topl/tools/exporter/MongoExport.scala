@@ -28,7 +28,7 @@ class MongoExport(uri: String, database: String, collection: String, dt: DataTyp
     .getCollection(collection)
     .find(and(gte("height", start), lte("height", end)))
     .projection(Projections.fields(Projections.include("height"), Projections.excludeId()))
-    .map(_.head._2.asInt32().getValue.toLong)
+    .map(_.head._2.asInt64().getValue)
     .toFuture()
 
   override def close(): Unit = client.close()
