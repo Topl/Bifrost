@@ -6,6 +6,8 @@ import scala.math.BigInt
 
 class ProdAsymComp extends SumComposition {
 
+  val asymmetricLogL: Int = 7
+
   def generateAsymmetricProductKey(seed: Array[Byte], offset: Long): KeyData = {
     val r = PRNG(seed)
     val rp = PRNG(r._2)

@@ -36,9 +36,6 @@ case class AsymmetricKey(override val data: KeyData) extends ProductPrivateKey {
 
 object AsymmetricKey {
 
-  val kes: KeyEvolvingSignatureScheme = new KeyEvolvingSignatureScheme
 
-  def newFromSeed(seed: Array[Byte], offset: Long): SecretKeys.AsymmetricMMM =
-    kes.generateAsymmetricProductKey(seed, offset)
 
 }

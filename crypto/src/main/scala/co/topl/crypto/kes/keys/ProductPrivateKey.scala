@@ -1,7 +1,7 @@
 package co.topl.crypto.kes.keys
 
 import co.topl.models._
-import co.topl.models.utility.{Empty, Leaf, Node, Tree}
+import co.topl.models.utility.{Empty, Leaf, Node, BinaryTree}
 import com.google.common.primitives.{Ints, Longs}
 
 abstract class ProductPrivateKey {
@@ -54,8 +54,8 @@ object ProductPrivateKey {
       KeyData(out1, out2, out3, out4, out5, out6)
     }
 
-    private def sTree(tree: Tree[Array[Byte]]): Bytes = {
-      def treeToBytes(t: Tree[Array[Byte]]): Bytes =
+    private def sTree(tree: BinaryTree[Array[Byte]]): Bytes = {
+      def treeToBytes(t: BinaryTree[Array[Byte]]): Bytes =
         t match {
           case n: Node[Array[Byte]] =>
             n.l match {
@@ -78,8 +78,8 @@ object ProductPrivateKey {
       Bytes(Ints.toByteArray(output.length)) ++ output
     }
 
-    private def dTree(stream: ByteStream): Tree[Array[Byte]] = {
-      def buildTree: Tree[Array[Byte]] =
+    private def dTree(stream: ByteStream): BinaryTree[Array[Byte]] = {
+      def buildTree: BinaryTree[Array[Byte]] =
         stream.getInt match {
           case 0 =>
             val bytes: Bytes = stream.get(sig_length)

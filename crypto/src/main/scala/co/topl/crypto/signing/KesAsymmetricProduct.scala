@@ -1,5 +1,6 @@
 package co.topl.crypto.signing
 
+import co.topl.crypto.kes.KeyEvolvingSignatureScheme
 import co.topl.crypto.signing.kes.ProdAsymComp
 import co.topl.models.Proofs.Signature
 import co.topl.models.{KeyData, SecretKeys, VerificationKeys}
@@ -33,4 +34,8 @@ class KesAsymmetricProduct extends ProdAsymComp {
   //  def deriveSecret(secretKey: SecretKeys.KesAsymmetricProduct, index: Int): SecretKeys.KesAsymmetricProduct =
   //    SecretKeys.KesAsymmetricProduct(sumCompositionUpdate(secretKey.data.superScheme, index))
 
+}
+
+object KesAsymmetricProduct {
+  val instance: KesAsymmetricProduct = new KesAsymmetricProduct
 }

@@ -19,13 +19,7 @@ trait KesEd25519Blake2b256 {
   val skBytes: Int = 32
   val sigBytes: Int = 64
   val hashBytes: Int = 32
-  val asymmetricLogL: Int = 7
-  val symmetricLogL: Int = 9
   val pkLength: Int = hashBytes
-
-  protected lazy val exp_symmetricLogL: Int = exp(symmetricLogL)
-
-  lazy val maxSymmetricKeyTimeSteps: Int = exp_symmetricLogL * exp_symmetricLogL
 
   protected val random = new SecureRandom()
 

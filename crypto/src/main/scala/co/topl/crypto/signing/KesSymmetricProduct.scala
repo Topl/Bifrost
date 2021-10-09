@@ -30,3 +30,7 @@ class KesSymmetricProduct extends ProdSymComp {
 //  def deriveSecret(secretKey: SecretKeys.KesSymmetricProduct, index: Int): SecretKeys.KesSymmetricProduct =
 //    SecretKeys.KesSymmetricProduct(sumCompositionUpdate(secretKey.data.superScheme, index))
 }
+
+object KesSymmetricProduct {
+  val instance: KesSymmetricProduct = new KesSymmetricProduct
+}

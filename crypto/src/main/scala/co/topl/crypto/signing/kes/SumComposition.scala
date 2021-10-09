@@ -1,12 +1,8 @@
 package co.topl.crypto.signing.kes
 
-import co.topl.crypto.hash.digest.Digest32
 import co.topl.models._
-import co.topl.models.utility.{Empty, Leaf, Node, Tree}
-import co.topl.crypto.hash.{digest, Blake2b, Blake2bHash, Hash}
-import co.topl.crypto.signing.eddsa.Ed25519
+import co.topl.models.utility.{Empty, Leaf, Node, BinaryTree}
 
-import java.security.SecureRandom
 import scala.language.implicitConversions
 import scala.math.BigInt
 
@@ -35,7 +31,7 @@ class SumComposition extends KesEd25519Blake2b256 {
    * @return binary array public key
    */
 
-  def sumCompositionGetPublicKey(t: Tree[Array[Byte]]): Array[Byte] =
+  def sumCompositionGetPublicKey(t: BinaryTree[Array[Byte]]): Array[Byte] =
     t match {
       case n: Node[Array[Byte]] =>
         val pk0 = n.v.slice(seedBytes, seedBytes + pkBytes)
@@ -56,10 +52,10 @@ class SumComposition extends KesEd25519Blake2b256 {
    * @return binary tree at time step 0
    */
 
-  def sumCompositionGenerateKey(seed: Array[Byte], i: Int): Tree[Array[Byte]] = {
+  def sumCompositionGenerateKey(seed: Array[Byte], i: Int): BinaryTree[Array[Byte]] = {
 
     // generate the binary tree with the pseudorandom number generator
-    def sumKeyGenMerkle(seed: Array[Byte], i: Int): Tree[Array[Byte]] =
+    def sumKeyGenMerkle(seed: Array[Byte], i: Int): BinaryTree[Array[Byte]] =
       if (i == 0) {
         Leaf(seed)
       } else {
@@ -68,7 +64,7 @@ class SumComposition extends KesEd25519Blake2b256 {
       }
 
     // generates the SIG keypairs on each leaf
-    def populateLeaf(t: Tree[Array[Byte]]): Tree[Array[Byte]] =
+    def populateLeaf(t: BinaryTree[Array[Byte]]): BinaryTree[Array[Byte]] =
       t match {
         case n: Node[Array[Byte]] =>
           Node(n.v, populateLeaf(n.l), populateLeaf(n.r))
@@ -79,8 +75,8 @@ class SumComposition extends KesEd25519Blake2b256 {
       }
 
     // generates the Merkle tree of the public keys and stores the hash values on each node
-    def merklePublicKeys(t: Tree[Array[Byte]]): Tree[Array[Byte]] = {
-      def loop(t: Tree[Array[Byte]]): Tree[Array[Byte]] =
+    def merklePublicKeys(t: BinaryTree[Array[Byte]]): BinaryTree[Array[Byte]] = {
+      def loop(t: BinaryTree[Array[Byte]]): BinaryTree[Array[Byte]] =
         t match {
           case n: Node[Array[Byte]] =>
             var sk0: Array[Byte] = Array()
@@ -148,7 +144,7 @@ class SumComposition extends KesEd25519Blake2b256 {
     }
 
     //removes all but the leftmost branch leaving the leftmost leaf
-    def trimTree(t: Tree[Array[Byte]]): Tree[Array[Byte]] =
+    def trimTree(t: BinaryTree[Array[Byte]]): BinaryTree[Array[Byte]] =
       t match {
         case n: Node[Array[Byte]] =>
           Node(n.v, trimTree(n.l), Empty)
@@ -169,9 +165,9 @@ class SumComposition extends KesEd25519Blake2b256 {
    * @return true if pk is the root of the Merkle tree, false if otherwise
    */
 
-  def sumCompositionVerifyKeyPair(t: Tree[Array[Byte]], pk: Array[Byte]): Boolean = {
+  def sumCompositionVerifyKeyPair(t: BinaryTree[Array[Byte]], pk: Array[Byte]): Boolean = {
     //loops through the tree to verify Merkle witness path
-    def loop(t: Tree[Array[Byte]]): Boolean =
+    def loop(t: BinaryTree[Array[Byte]]): Boolean =
       t match {
         case n: Node[Array[Byte]] =>
           var pk0: Array[Byte] = Array()
@@ -220,9 +216,9 @@ class SumComposition extends KesEd25519Blake2b256 {
    * @return updated key to be written to key
    */
 
-  def sumCompositionUpdate(key: Tree[Array[Byte]], t: Int): Tree[Array[Byte]] = {
+  def sumCompositionUpdate(key: BinaryTree[Array[Byte]], t: Int): BinaryTree[Array[Byte]] = {
     //checks if the sub tree is right most
-    def isRightBranch(t: Tree[Array[Byte]]): Boolean =
+    def isRightBranch(t: BinaryTree[Array[Byte]]): Boolean =
       t match {
         case n: Node[Array[Byte]] =>
           val left = n.l match {
@@ -241,7 +237,7 @@ class SumComposition extends KesEd25519Blake2b256 {
       }
 
     //main loop that steps the tree to the next time step
-    def loop(t: Tree[Array[Byte]]): Tree[Array[Byte]] =
+    def loop(t: BinaryTree[Array[Byte]]): BinaryTree[Array[Byte]] =
       t match {
         case n: Node[Array[Byte]] =>
           var leftIsEmpty = false
@@ -306,11 +302,11 @@ class SumComposition extends KesEd25519Blake2b256 {
    * @return updated key to be written to key
    */
 
-  def sumUpdateFast(key: Tree[Array[Byte]], t: Int): Tree[Array[Byte]] = {
+  def sumUpdateFast(key: BinaryTree[Array[Byte]], t: Int): BinaryTree[Array[Byte]] = {
     val T = exp(key.height)
     val keyTime = getSumCompositionKeyTimeStep(key)
     if (t < T && keyTime < t) {
-      def constructKey(step: Int, input: Tree[Array[Byte]]): Tree[Array[Byte]] =
+      def constructKey(step: Int, input: BinaryTree[Array[Byte]]): BinaryTree[Array[Byte]] =
         input match {
           case n: Node[Array[Byte]] =>
             var leftIsEmpty = false
@@ -379,13 +375,13 @@ class SumComposition extends KesEd25519Blake2b256 {
    * @return byte array signature
    */
 
-  def sumCompositionSign(sk: Tree[Array[Byte]], m: Array[Byte], step: Int): Array[Byte] = {
+  def sumCompositionSign(sk: BinaryTree[Array[Byte]], m: Array[Byte], step: Int): Array[Byte] = {
     assert(step == getSumCompositionKeyTimeStep(sk))
     assert(sumCompositionVerifyKeyPair(sk, sumCompositionGetPublicKey(sk)))
     val stepBytesBigInt = BigInt(step).toByteArray
     val stepBytes = Array.fill(seedBytes - stepBytesBigInt.length)(0x00.toByte) ++ stepBytesBigInt
     //loop that generates the signature of m++step and stacks up the witness path of the key
-    def loop(t: Tree[Array[Byte]]): Array[Byte] =
+    def loop(t: BinaryTree[Array[Byte]]): Array[Byte] =
       t match {
         case n: Node[Array[Byte]] =>
           val left = n.l match {
@@ -458,7 +454,7 @@ class SumComposition extends KesEd25519Blake2b256 {
    * @return time step
    */
 
-  def getSumCompositionKeyTimeStep(key: Tree[Array[Byte]]): Int =
+  def getSumCompositionKeyTimeStep(key: BinaryTree[Array[Byte]]): Int =
     key match {
       case n: Node[Array[Byte]] =>
         val left = n.l match {

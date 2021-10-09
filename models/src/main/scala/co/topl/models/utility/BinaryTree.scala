@@ -26,7 +26,7 @@ import scala.language.postfixOps
  *        (bitree-leaf? t) - Should return true if the tree is a leaf (has null left and right children), false otherwise
  */
 
-trait Tree[+A] {
+trait BinaryTree[+A] {
 
   import scala.annotation.tailrec
 
@@ -36,13 +36,13 @@ trait Tree[+A] {
     case Empty      => None
   }
 
-  def left: Option[Tree[A]] = this match {
+  def left: Option[BinaryTree[A]] = this match {
     case n: Node[A] => Some(n.l)
     case _: Leaf[A] => None
     case Empty      => None
   }
 
-  def right: Option[Tree[A]] = this match {
+  def right: Option[BinaryTree[A]] = this match {
     case n: Node[A] => Some(n.r)
     case _: Leaf[A] => None
     case Empty      => None
@@ -51,13 +51,13 @@ trait Tree[+A] {
   /**
    * Represents a deferred evaluation of a node value
    */
-  private case class Eval[A](v: A) extends Tree[A]
+  private case class Eval[A](v: A) extends BinaryTree[A]
 
   /**
    * represents common functionality of all traversal order folds
    */
   @tailrec
-  private def foldLoop[A, B](a: List[Tree[A]], z: B)(f: (B, A) => B)(o: (Node[A], List[Tree[A]]) => List[Tree[A]]): B =
+  private def foldLoop[A, B](a: List[BinaryTree[A]], z: B)(f: (B, A) => B)(o: (Node[A], List[BinaryTree[A]]) => List[BinaryTree[A]]): B =
     a match {
       case (n: Node[A]) :: tl =>
         foldLoop(o(n, tl), z)(f)(o) // never directly evaluate nodes, function o will create new accumulator
@@ -228,7 +228,7 @@ trait Tree[+A] {
    * Definition:  The height of a tree is the length of the path from the root to the deepest node in the tree. A (rooted) tree with only one node (the root) has a height of zero.
    */
   def height: Int = {
-    def loop(t: Tree[A]): Int = t match {
+    def loop(t: BinaryTree[A]): Int = t match {
       case l: Leaf[A] => 1
       case n: Node[A] => Seq(loop(n.left.get), loop(n.right.get)).max + 1
       case _          => 0
@@ -242,7 +242,7 @@ trait Tree[+A] {
    */
   def leafCount: Int = {
     @tailrec
-    def loop(t: List[Tree[A]], z: Int): Int = t match {
+    def loop(t: List[BinaryTree[A]], z: Int): Int = t match {
       case (l: Leaf[A]) :: tl => loop(tl, z + 1)
       case (n: Node[A]) :: tl => loop(n.left.get :: n.right.get :: tl, z)
       case _ :: tl            => loop(tl, z)
@@ -290,6 +290,6 @@ trait Tree[+A] {
 
 }
 
-case class Node[A](v: A, l: Tree[A], r: Tree[A]) extends Tree[A]
-case class Leaf[A](v: A) extends Tree[A]
-case object Empty extends Tree[Nothing]
+case class Node[A](v: A, l: BinaryTree[A], r: BinaryTree[A]) extends BinaryTree[A]
+case class Leaf[A](v: A) extends BinaryTree[A]
+case object Empty extends BinaryTree[Nothing]

@@ -78,4 +78,5 @@ class Ed25519
 
 object Ed25519 {
   val instance = new Ed25519
+  instance.precompute()
 }

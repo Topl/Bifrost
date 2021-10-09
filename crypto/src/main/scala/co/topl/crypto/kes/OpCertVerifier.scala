@@ -2,18 +2,19 @@ package co.topl.crypto.kes
 
 import co.topl.crypto.PublicKey
 import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.kes.signatures.SumSignature
 import co.topl.crypto.signatures.Signature
-import co.topl.crypto.signing.Ed25519
+import co.topl.crypto.signing.{Ed25519, KesSum}
 import co.topl.crypto.typeclasses.Signable
 import co.topl.crypto.typeclasses.Signable.ops._
 import co.topl.models.{Proofs, Slot}
 import com.google.common.primitives.Longs
 
-object KesVerifier {
+object OpCertVerifier {
 
-  val kes: KeyEvolvingSignatureScheme = new KeyEvolvingSignatureScheme
+  val kes: KesSum = new KesSum
   val ec: Ed25519 = new Ed25519
+
+  // todo: fix
 
 //  def verify(message: Array[Byte], sig: AsymmetricSignature, slot: Long): Boolean =
 //    kes.verifyProductSignature(message, sig: ProductSignature, (slot - sig.offset).toInt)
@@ -21,15 +22,16 @@ object KesVerifier {
 //  def verify(message: Array[Byte], sig: SymmetricSignature, slot: Long): Boolean =
 //    kes.verifyProductSignature(message, sig: ProductSignature, (slot - sig.offset).toInt)
 
-  def verify(message: Array[Byte], sig: SumSignature, slot: Long): Boolean =
-    kes.sumCompositionVerify(sig.pkl.value, message, sig.bytes, (slot - sig.offset).toInt)
+  def verify(message: Array[Byte], sig: Proofs.Signature.KesSum, slot: Long): Boolean = true
+    //kes.sumCompositionVerify(sig.pkl.value, message, sig.bytes, (slot - sig.offset).toInt)
 
-  def verify(vk_i: PublicKey, vk_kes: PublicKey, offset: Long, sig: Signature): Boolean = {
-    val m = blake2b256.hash(vk_kes.value ++ Longs.toByteArray(offset)).value.array
-    ec.verify(sig, m, vk_i)
-  }
+  def verify(vk_i: PublicKey, vk_kes: PublicKey, offset: Long, sig: Signature): Boolean = true
+//  {
+//    val m = blake2b256.hash(vk_kes.value ++ Longs.toByteArray(offset)).value.array
+//    ec.verify(sig, m, vk_i)
+//  }
 
-  def verify[Data: Signable](data: Data, proof: Proofs.Signature.HdKes, headerSlot: Slot): Boolean = ???
+  def verify[Data: Signable](data: Data, proof: Proofs.Signature.HdKesSymProd, headerSlot: Slot): Boolean = true
 //    kes.verifyProductSignature(
 //      data.signableBytes.toArray,
 //      SymmetricSignature(

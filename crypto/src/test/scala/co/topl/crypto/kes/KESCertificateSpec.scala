@@ -57,14 +57,14 @@ class KESCertificateSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
       t += 10
       prodKey = prodKey.update(t)
       var sigProd = prodKey.sign(message)
-      assert(KesVerifier.verify(message, sigProd, t))
+      assert(OpCertVerifier.verify(message, sigProd, t))
 
       t += 100
       prodKey = prodKey.update(t)
       certFile = SymmetricKeyFile.updateKeyFile(certFile, prodKey, password, keyFileDir.toString).get
       prodKey = certFile.getKey(password).get
       sigProd = prodKey.sign(message)
-      assert(KesVerifier.verify(message, sigProd, t))
+      assert(OpCertVerifier.verify(message, sigProd, t))
       t += 1000
       prodKey = prodKey.update(t)
       certFile = SymmetricKeyFile.updateKeyFile(certFile, prodKey, password, keyFileDir.toString).get
@@ -76,7 +76,7 @@ class KESCertificateSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
       certFile = SymmetricKeyFile.updateKeyFile(certFile, prodKey, password, keyFileDir.toString).get
       prodKey = certFile.getKey(password).get
       sigProd = prodKey.sign(message)
-      assert(KesVerifier.verify(message, sigProd, t))
+      assert(OpCertVerifier.verify(message, sigProd, t))
 
     } match {
       case Success(_) =>

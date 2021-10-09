@@ -60,3 +60,7 @@ class KesSum extends SumComposition {
 //  ): VerificationKeys.KesSum = ???
 
 }
+
+object KesSum {
+  val instance: KesSum = new KesSum
+}

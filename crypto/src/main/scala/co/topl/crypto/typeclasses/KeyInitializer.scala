@@ -4,7 +4,7 @@ import co.topl.crypto.Pbkdf2Sha512
 import co.topl.crypto.kes.KeyEvolvingSignatureScheme
 import co.topl.crypto.kes.keys.SymmetricKey
 import co.topl.crypto.mnemonic.Entropy
-import co.topl.crypto.signing.{Ed25519, Seed}
+import co.topl.crypto.signing.{Curve25519, Ed25519, Ed25519VRF, Seed}
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
@@ -32,50 +32,35 @@ object KeyInitializer {
 
   trait Instances {
 
+    implicit val curve25519Initializer: KeyInitializer[SecretKeys.Curve25519] =
+      new KeyInitializer[SecretKeys.Curve25519] {
+
+        override def random(): SecretKeys.Curve25519 =
+          Curve25519.instance.createKeyPair._1
+
+        override def fromSeed(seed: Bytes): SecretKeys.Curve25519 =
+          Curve25519.instance.createKeyPair(Seed(seed.toArray))._1
+
+      }
+
     implicit val ed25519Initializer: KeyInitializer[SecretKeys.Ed25519] =
       new KeyInitializer[SecretKeys.Ed25519] {
-        private val instance = new Ed25519
 
         override def random(): SecretKeys.Ed25519 =
-          (fromInstanceTypes _).tupled(instance.createKeyPair)
+          Ed25519.instance.createKeyPair._1
 
         override def fromSeed(seed: Bytes): SecretKeys.Ed25519 =
-          (fromInstanceTypes _).tupled(instance.createKeyPair(Seed(seed.toArray)))
+          Ed25519.instance.createKeyPair(Seed(seed.toArray))._1
 
-        private def fromInstanceTypes(priv: SecretKeys.Ed25519, pub: VerificationKeys.Ed25519) =
-          (SecretKeys.Ed25519(
-            Sized.strictUnsafe[Bytes, SecretKeys.Ed25519.Length](Bytes(priv.value))
-          ))
       }
 
-    implicit val vrfInitializer: KeyInitializer[SecretKeys.Vrf] =
-      new KeyInitializer[SecretKeys.Vrf] {
+    implicit val vrfInitializer: KeyInitializer[SecretKeys.VrfEd25519] =
+      new KeyInitializer[SecretKeys.VrfEd25519] {
 
-        def random(): SecretKeys.Vrf =
-          (fromLib _).tupled(Ed25519VRF.instance.createKeyPair)
+        def random(): SecretKeys.VrfEd25519 = Ed25519VRF.instance.createKeyPair._1
 
-        def fromSeed(seed: Bytes): SecretKeys.Vrf =
-          (fromLib _).tupled(Ed25519VRF.instance.createKeyPair(seed.toArray))
-
-        private def fromLib(sk: co.topl.crypto.PrivateKey, pk: co.topl.crypto.PublicKey): SecretKeys.Vrf =
-          SecretKeys.Vrf(SecretKeys.Ed25519(Sized.strictUnsafe(Bytes(sk.value))))
-      }
-
-    implicit def kesInitializer(implicit slot: Slot): KeyInitializer[SecretKeys.SymmetricMMM] =
-      new KeyInitializer[SecretKeys.SymmetricMMM] {
-        private val scheme = new KeyEvolvingSignatureScheme
-
-        def random(): SecretKeys.SymmetricMMM =
-          SymmetricKey.newFromSeed(
-            new SecureRandom().generateSeed(32),
-            offset = slot,
-            // TODO:
-            signer = _ => Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0))))
-          )
-
-        def fromSeed(seed: Bytes): SecretKeys.SymmetricMMM =
-          SymmetricKey.newFromSeed(seed.toArray, offset = slot, signer = ???)
-
+        def fromSeed(seed: Bytes): SecretKeys.VrfEd25519 =
+          Ed25519VRF.instance.createKeyPair(Seed(seed.toArray))._1
       }
 
     implicit def extendedEd25519Initializer(implicit entropy: Entropy): KeyInitializer[SecretKeys.ExtendedEd25519] =
@@ -143,6 +128,23 @@ object KeyInitializer {
               Sized.strictUnsafe[Bytes, SecretKeys.ExtendedEd25519.ChainCodeLength](Bytes(seedArray.slice(0, 32)))
             )
         }
+      }
+
+    implicit def kesSumInitializer(implicit slot: Slot): KeyInitializer[SecretKeys.KesSum] =
+      new KeyInitializer[SecretKeys.KesSum] {
+        private val scheme = new KeyEvolvingSignatureScheme
+
+        def random(): SecretKeys.KesSum =
+          SymmetricKey.newFromSeed(
+            new SecureRandom().generateSeed(32),
+            offset = slot,
+            // TODO:
+            signer = _ => Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0))))
+          )
+
+        def fromSeed(seed: Bytes): SecretKeys.KesSum =
+          SymmetricKey.newFromSeed(seed.toArray, offset = slot, signer = ???)
+
       }
 
   }

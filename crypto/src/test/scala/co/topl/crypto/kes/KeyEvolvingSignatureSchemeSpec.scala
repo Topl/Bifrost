@@ -202,7 +202,7 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
       //println("product sign")
       var sigProd = prodKey.sign(message)
       //println("product verify")
-      assert(KesVerifier.verify(message, sigProd, t))
+      assert(OpCertVerifier.verify(message, sigProd, t))
 
       t += 100
       //println("Product key time step:")
@@ -212,7 +212,7 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
 
       sigProd = prodKey.sign(message)
       //println("product verify")
-      assert(KesVerifier.verify(message, sigProd, t))
+      assert(OpCertVerifier.verify(message, sigProd, t))
 
       t += 2000
       //println("Product key time step:")
@@ -233,7 +233,7 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
 
       sigProd = prodKey.sign(message)
       //println("product verify")
-      assert(KesVerifier.verify(message, sigProd, t))
+      assert(OpCertVerifier.verify(message, sigProd, t))
       //println("Product key time step: " + prodKey.timeStep.toString)
       //println("t: " + t.toString)
     } match {
@@ -277,7 +277,7 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
       var sigProd = prodKey.sign(message)
       //println("product verify")
       //println(prodKey.timeStep)
-      assert(KesVerifier.verify(message, sigProd, t))
+      assert(OpCertVerifier.verify(message, sigProd, t))
 
       t += 100
       //println("Product key time step:")
@@ -287,7 +287,7 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
 
       sigProd = prodKey.sign(message)
       //println("product verify")
-      assert(KesVerifier.verify(message, sigProd, t))
+      assert(OpCertVerifier.verify(message, sigProd, t))
 
       t += 2000
       //println("Product key time step:")
@@ -308,7 +308,7 @@ class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPr
 
       sigProd = prodKey.sign(message)
       //println("product verify")
-      assert(KesVerifier.verify(message, sigProd, t))
+      assert(OpCertVerifier.verify(message, sigProd, t))
       //println("Product key time step: " + prodKey.timeStep.toString)
       //println("t: " + t.toString)
     } match {

@@ -1,11 +1,14 @@
 package co.topl.crypto.signing.kes
 
-import co.topl.crypto.signing.eddsa.Ed25519
 import co.topl.models.{Bytes, KeyData, Proofs}
 
 import scala.math.BigInt
 
 class ProdSymComp extends SumComposition {
+
+  val symmetricLogL: Int = 9
+  val exp_symmetricLogL: Int = exp(symmetricLogL)
+  val maxSymmetricKeyTimeSteps: Int = exp_symmetricLogL * exp_symmetricLogL
 
   /**
    * Generate key in the MMM composition
@@ -105,7 +108,7 @@ class ProdSymComp extends SumComposition {
    * @return true if signature is valid false if otherwise
    */
 
-  def verifySymmetricProductSignature(m: Array[Byte], sig: Proofs.Signature.KesSymmetricProduct, t: Int): Boolean =
+  def verifySymmetricProductSignature(m: Array[Byte], sig: Array[Byte], t: Int): Boolean =
 //    sig match {
 //      case Proofs.Consensus.HdKes(sigi, sigm, pki, _, pkl) =>
 //        val stepL = BigInt(sigi.slice(sigBytes + pkBytes, sigBytes + pkBytes + seedBytes).toArray).toInt
