@@ -5,25 +5,25 @@ object Dependencies {
   val akkaVersion = "2.6.16"
   val akkaHttpVersion = "10.2.6"
   val circeVersion = "0.14.1"
-  val kamonVersion = "2.1.21"
+  val kamonVersion = "2.2.3"
   val graalVersion = "21.1.0"
 
   val logging = Seq(
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.4",
-    "ch.qos.logback"              % "logback-classic" % "1.2.5",
-    "ch.qos.logback"              % "logback-core"    % "1.2.5",
+    "ch.qos.logback"              % "logback-classic" % "1.2.6",
+    "ch.qos.logback"              % "logback-core"    % "1.2.6",
     "org.slf4j"                   % "slf4j-api"       % "1.7.32"
   )
 
   val test = Seq(
-    "org.scalatest"      %% "scalatest"         % "3.2.9"   % "test",
-    "org.scalactic"      %% "scalactic"         % "3.2.9"   % "test",
+    "org.scalatest"      %% "scalatest"         % "3.2.10"   % "test",
+    "org.scalactic"      %% "scalactic"         % "3.2.10"   % "test",
     "org.scalacheck"     %% "scalacheck"        % "1.15.4"  % "test",
     "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
     "com.spotify"         % "docker-client"     % "8.16.0"  % "test",
     "org.asynchttpclient" % "async-http-client" % "2.12.3"  % "test",
     "org.scalamock"      %% "scalamock"         % "5.1.0"   % "test",
-    "com.ironcorelabs"   %% "cats-scalatest"    % "3.0.8"   % "test"
+    "com.ironcorelabs"   %% "cats-scalatest"    % "3.1.1"   % "test"
   )
 
   val it = Seq(
@@ -59,10 +59,11 @@ object Dependencies {
 
   val misc = Seq(
     "com.chuusai"     %% "shapeless" % "2.3.7",
+    "com.iheart"      %% "ficus"     % "1.5.1",
     "com.iheart"      %% "ficus"     % "1.5.0",
-    "org.scalanlp"    %% "breeze"    % "1.2",
+    "org.scalanlp"    %% "breeze"    % "1.3",
     "io.netty"         % "netty"     % "3.10.6.Final",
-    "com.google.guava" % "guava"     % "30.1.1-jre",
+    "com.google.guava" % "guava"     % "31.0.1-jre",
     "io.estatico"     %% "newtype"   % "0.4.4"
   )
 
@@ -90,7 +91,7 @@ object Dependencies {
       "com.github.julien-truffaut" %% "monocle-macro"      % "3.0.0-M6",
       "org.ethereum"                % "leveldbjni-all"     % "1.18.3",
       "org.iq80.leveldb"            % "leveldb"            % "0.12",
-      "org.mongodb.scala"          %% "mongo-scala-driver" % "4.2.3"
+      "org.mongodb.scala"          %% "mongo-scala-driver" % "4.3.3"
     ) ++
     logging ++
     test ++
@@ -106,7 +107,7 @@ object Dependencies {
     Seq(
       "org.typelevel"          %% "simulacrum"              % "1.0.1",
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.5.0",
-      "org.scodec"             %% "scodec-bits"             % "1.1.27"
+      "org.scodec"             %% "scodec-bits"             % "1.1.29"
     ) ++
     logging ++
     circe ++
@@ -128,7 +129,7 @@ object Dependencies {
 
   lazy val akkaHttpRpc: Seq[ModuleID] =
     Seq(
-      "de.heikoseeberger"      %% "akka-http-circe"         % "1.37.0",
+      "de.heikoseeberger"      %% "akka-http-circe"         % "1.38.2",
       "io.circe"               %% "circe-optics"            % circeVersion,
       "io.circe"               %% "circe-generic"           % circeVersion,
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.5.0"
@@ -163,7 +164,7 @@ object Dependencies {
   lazy val crypto: Seq[ModuleID] =
     Seq(
       "org.typelevel"     %% "simulacrum"      % "1.0.0",
-      "org.typelevel"     %% "cats-core"       % "2.3.1",
+      "org.typelevel"     %% "cats-core"       % "2.6.1",
       "org.bouncycastle"   % "bcprov-jdk15on"  % "1.69",
       "org.whispersystems" % "curve25519-java" % "0.5.0"
     ) ++
@@ -172,7 +173,7 @@ object Dependencies {
 
   lazy val tools: Seq[ModuleID] =
     Seq(
-      "org.mongodb.scala" %% "mongo-scala-driver" % "4.2.3"
+      "org.mongodb.scala" %% "mongo-scala-driver" % "4.3.3"
     )
   
   lazy val loadTesting: Seq[ModuleID] = {
