@@ -292,6 +292,8 @@ object ToplRpc {
        * @param consolidationAddress Address for recipient of unspent Assets
        * @param minting If this is a minting AssetTransfer or not
        * @param data Data string which can be associated with this transaction(may be empty)
+       * @param boxSelectionAlgorithm Algorithm for selecting which boxes should be included in the Asset Transfer.
+       *                              The default value is `All`.
        */
       case class Params(
         propositionType:       String,
@@ -335,6 +337,8 @@ object ToplRpc {
        * @param changeAddress Address for recipient of unspent Arbits
        * @param consolidationAddress Address for recipient of unspent Arbits
        * @param data Data string which can be associated with this transaction(may be empty)
+       * @param boxSelectionAlgorithm Algorithm for selecting which boxes should be included in the Arbit Transfer.
+       *                              The default value is `All`.
        */
       case class Params(
         propositionType:       String,
@@ -376,6 +380,8 @@ object ToplRpc {
        * @param fee Fee for the transfer. Minting AssetTransfer requires fee to be greater than 0
        * @param changeAddress Address for recipient of unspent Polys
        * @param data Data string which can be associated with this transaction(may be empty)
+       * @param boxSelectionAlgorithm Algorithm for selecting which boxes should be included in the Poly Transfer.
+       *                              The default value is `All`.
        */
       case class Params(
         propositionType:       String,
