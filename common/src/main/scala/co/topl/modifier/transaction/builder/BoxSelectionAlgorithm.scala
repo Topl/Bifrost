@@ -1,13 +1,10 @@
 package co.topl.modifier.transaction.builder
 
-import akka.actor.typed.internal.jfr.DeliveryConsumerCreated
 import co.topl.attestation.Address
 import co.topl.modifier.box._
 import co.topl.utils.Int128
-import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, Json}
-import cats.syntax.functor._
 
 sealed trait BoxSelectionAlgorithm
 
