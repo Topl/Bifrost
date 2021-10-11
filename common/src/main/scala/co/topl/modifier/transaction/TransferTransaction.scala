@@ -53,11 +53,6 @@ object TransferTransaction {
 
   case class BoxParams[+T <: TokenValueHolder](evidence: Evidence, nonce: Box.Nonce, value: T)
 
-  case class TransferCreationState(
-    senderBoxes: Map[String, IndexedSeq[(String, Address, TokenBox[TokenValueHolder])]],
-    polyBalance: Int128
-  )
-
   def encodeFrom(from: IndexedSeq[(Address, Box.Nonce)]): Json =
     from.map(x => (x._1.asJson, x._2.toString.asJson)).asJson
 
