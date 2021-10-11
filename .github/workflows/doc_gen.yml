@@ -9,7 +9,6 @@ jobs:
     strategy:
         matrix:
           os: [ubuntu-latest]
-          scala: [2.12.14]
           java: [graalvm-ce-java11@21.0.0]
     
     runs-on: ${{ matrix.os }}
@@ -32,5 +31,5 @@ jobs:
       uses: peaceiris/actions-gh-pages@v3
       with:
         deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
-        publish_dir: ./node/target/scala-2.12/api/
+        publish_dir: ./node/target/scala-2.13/api/
         cname: bifrost.docs.topl.co
