@@ -2,20 +2,19 @@ package co.topl.modifier.transaction
 
 import cats.implicits._
 import co.topl.attestation.AddressCodec.implicits._
-import co.topl.attestation.Evidence.EvidenceContent
-import co.topl.attestation.{Address, Evidence, PublicKeyPropositionCurve25519}
+import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
+import co.topl.modifier.ModifierId
 import co.topl.modifier.box._
-import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithms, TransferBuilder, TransferRequests}
-import co.topl.modifier.{BoxReader, ModifierId}
 import co.topl.utils.CommonGenerators
 import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
-import co.topl.utils.codecs.implicits._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+
+import scala.collection.immutable.ListMap
 
 class TransactionSpec
     extends AnyFlatSpec
@@ -32,52 +31,34 @@ class TransactionSpec
    * https://topl.atlassian.net/wiki/spaces/CORE/pages/359432273/Transaction+ID+Test+Vectors
    */
   it should "be expected value for poly transfer" in {
-    val senderAddress =
-      Base58Data.unsafe("AUAR7UA4Dz4j7hLnyax1KCK6eZH2aRiCqhTGNopmCVSPUV3NBQmT").decodeAddress.getOrThrow()
-    val recipientAddress =
-      Base58Data.unsafe("AUACbR67kDWBbCq3gXVpShwN8Z2jN5Q5Z4Vb1zwAV7ibXqgDr3z3").decodeAddress.getOrThrow()
+    val senderAddress = asAddress("AUAR7UA4Dz4j7hLnyax1KCK6eZH2aRiCqhTGNopmCVSPUV3NBQmT")
 
-    val boxState = mock[BoxReader[ProgramId, Address]]
+    val recipientAddress = asAddress("AUACbR67kDWBbCq3gXVpShwN8Z2jN5Q5Z4Vb1zwAV7ibXqgDr3z3")
 
-    val polyBoxEvidenceData =
-      Base58Data
-        .unsafe("SDW2ANbYzKFQp6J2bQpU3n7gzeoS93kf1H9rqJgwzReW")
-        .infalliblyEncodeAsBytes
+    val polyBoxNonce = 172705280970668827L
 
-    val polyBoxes =
-      List(
-        PolyBox(
-          Evidence(
-            polyBoxEvidenceData.head,
-            EvidenceContent(polyBoxEvidenceData.tail)
-          ),
-          172705280970668827L,
-          SimpleValue(2715996244082522697L)
-        )
-      ).some
-
-    (boxState.getTokenBoxes _).expects(senderAddress).returns(polyBoxes)
+    val timestamp = 1633978713303L
 
     val fee = 100
-    val sendAmount = 100000
-    val data = Latin1Data.unsafe("test-poly-data").some
 
-    val expectedModifierId = ModifierId.fromBase58(Base58Data.fromData(Array.fill(33)(1.toByte)))
+    val polyTransferAmount = 100000
+
+    val data = "test-poly-data"
+
+    val minting = false
+
+    val expectedModifierId = asModifierId("qzs41EUoabyGw2HDQyK3KYm4vBCYbVEcfe8grWYVnceX")
 
     val polyTransfer =
-      TransferBuilder
-        .buildUnsignedPolyTransfer[PublicKeyPropositionCurve25519](
-          boxState,
-          TransferRequests.PolyTransferRequest(
-            List(senderAddress),
-            List(recipientAddress -> sendAmount),
-            senderAddress,
-            fee,
-            data
-          ),
-          BoxSelectionAlgorithms.All
-        )
-        .getOrThrow()
+      PolyTransfer[PublicKeyPropositionCurve25519](
+        IndexedSeq(senderAddress    -> polyBoxNonce),
+        IndexedSeq(recipientAddress -> SimpleValue(polyTransferAmount)),
+        ListMap(),
+        timestamp,
+        fee,
+        Latin1Data.unsafe(data).some,
+        minting
+      )
 
     polyTransfer.id shouldBe expectedModifierId
   }
@@ -87,57 +68,34 @@ class TransactionSpec
    * https://topl.atlassian.net/wiki/spaces/CORE/pages/359432273/Transaction+ID+Test+Vectors
    */
   it should "be expected value for arbit transfer" in {
-    val senderAddress =
-      Base58Data.unsafe("AUB4NNCWeyS6WXXmtDhbfmyPkzfJQVCLkEdqoPuufZ4eUckWUHYc").decodeAddress.getOrThrow()
-    val recipientAddress =
-      Base58Data.unsafe("AUDqwFTaYwCijcPRWtFFyBsk3Mkx8SbhKQGzY6MoUVXQVEgqC5pu").decodeAddress.getOrThrow()
+    val senderAddress = asAddress("AUB4NNCWeyS6WXXmtDhbfmyPkzfJQVCLkEdqoPuufZ4eUckWUHYc")
+
+    val recipientAddress = asAddress("AUDqwFTaYwCijcPRWtFFyBsk3Mkx8SbhKQGzY6MoUVXQVEgqC5pu")
 
     val arbitBoxNonce = 4484383924374665837L
-    val arbitBoxEvidenceData = Base58Data.unsafe("zWk3bC3CCubnkwW1CfzgupN1SFRoBo3yb5MXLLhbMpZn").infalliblyEncodeAsBytes
-    val arbitBoxValue = SimpleValue(393323367829459712L)
 
-    val polyBoxNonce = 3623619089096119025L
-    val polyBoxEvidenceData = Base58Data.unsafe("yV5WsbfKsVwu2syd4ZKb3HDNGck6WXQGRkD5vj8zgf17").infalliblyEncodeAsBytes
-    val polyBoxValue = SimpleValue(1646574889335690014L)
-
-    val boxes =
-      List(
-        ArbitBox(
-          Evidence(arbitBoxEvidenceData.head, EvidenceContent(arbitBoxEvidenceData.tail)),
-          arbitBoxNonce,
-          arbitBoxValue
-        ),
-        PolyBox(
-          Evidence(polyBoxEvidenceData.head, EvidenceContent(polyBoxEvidenceData.tail)),
-          polyBoxNonce,
-          polyBoxValue
-        )
-      ).some
-
-    val boxState = mock[BoxReader[ProgramId, Address]]
-    (boxState.getTokenBoxes _).expects(senderAddress).returns(boxes)
+    val timestamp = 1633979011442L
 
     val fee = 1000
-    val sendAmount = 1400000
-    val data = Latin1Data.unsafe("test-arbit-data").some
 
-    val expectedModifierId = ModifierId.fromBase58(Base58Data.fromData(Array.fill(33)(1.toByte)))
+    val arbitTransferAmount = 1400000
+
+    val data = "test-arbit-data"
+
+    val minting = false
+
+    val expectedModifierId = asModifierId("bVohDkizmv1HD2uyEBF5xh7M4oNyX9rEz5YZ8qavFNsP")
 
     val arbitTransfer =
-      TransferBuilder
-        .buildUnsignedArbitTransfer[PublicKeyPropositionCurve25519](
-          boxState,
-          TransferRequests.ArbitTransferRequest(
-            List(senderAddress),
-            List(recipientAddress -> sendAmount),
-            senderAddress,
-            senderAddress,
-            fee,
-            data
-          ),
-          BoxSelectionAlgorithms.All
-        )
-        .getOrThrow()
+      ArbitTransfer[PublicKeyPropositionCurve25519](
+        IndexedSeq(senderAddress    -> arbitBoxNonce),
+        IndexedSeq(recipientAddress -> SimpleValue(arbitTransferAmount)),
+        ListMap(),
+        timestamp,
+        fee,
+        Latin1Data.unsafe(data).some,
+        minting
+      )
 
     arbitTransfer.id shouldBe expectedModifierId
   }
@@ -147,64 +105,52 @@ class TransactionSpec
    * https://topl.atlassian.net/wiki/spaces/CORE/pages/359432273/Transaction+ID+Test+Vectors
    */
   it should "be expected value for asset transfer" in {
-    val senderAddress =
-      Base58Data.unsafe("AUAH1zvPVDc7N2zGG7iPq6QrE4vcES4Ub4G3rZD5DvAG3CqKCVmv").decodeAddress.getOrThrow()
-    val recipientAddress =
-      Base58Data.unsafe("AU9UNVXo2daiz5mwKizkv52kAXNMamk5FVS1wmbZJA6UgJzRRxu3").decodeAddress.getOrThrow()
+    val senderAddress = asAddress("AUAH1zvPVDc7N2zGG7iPq6QrE4vcES4Ub4G3rZD5DvAG3CqKCVmv")
+
+    val recipientAddress = asAddress("AU9UNVXo2daiz5mwKizkv52kAXNMamk5FVS1wmbZJA6UgJzRRxu3")
 
     val assetBoxNonce = 7120796008434715411L
-    val assetBoxEvidenceData = Base58Data.unsafe("NKz8DEfeuRELz6AKUouLSemmbDHPPt9aaveijw6xyC6m").infalliblyEncodeAsBytes
-    val assetBoxIssuer =
-      Base58Data.unsafe("AUDoKXJJtbUQNi6MJLH2jUjgQhzbd3HTuKPWAG69p2uUtpp59S9N").decodeAddress.getOrThrow()
-    val assetShortName = Base58Data.unsafe("2L").infalliblyDecodeTo[Latin1Data]
-    val assetCode = AssetCode(1.toByte, assetBoxIssuer, assetShortName)
-    val assetBoxValue = AssetValue(6681012911373970621L, assetCode)
 
-    val polyBoxNonce = 4861925802641168057L
-    val polyBoxEvidenceData = Base58Data.unsafe("T9TWteRMNxv8Qjvh5B8qmFzzgDAUFXfF9HAw8XwBWAHP").infalliblyEncodeAsBytes
-    val polyBoxValue = SimpleValue(390983730632400841L)
+    val assetCodeIssuer = asAddress("AUDoKXJJtbUQNi6MJLH2jUjgQhzbd3HTuKPWAG69p2uUtpp59S9N")
 
-    val boxes =
-      List(
-        AssetBox(
-          Evidence(assetBoxEvidenceData.head, EvidenceContent(assetBoxEvidenceData.tail)),
-          assetBoxNonce,
-          assetBoxValue
-        ),
-        PolyBox(
-          Evidence(polyBoxEvidenceData.head, EvidenceContent(polyBoxEvidenceData.tail)),
-          polyBoxNonce,
-          polyBoxValue
-        )
-      ).some
+    val assetCodeShortName = "2L"
 
-    val boxState = mock[BoxReader[ProgramId, Address]]
-    (boxState.getTokenBoxes _).expects(senderAddress).returns(boxes)
+    val assetCodeVersion = 1.toByte
+
+    val timestamp = 1633979336451L
 
     val fee = 554
-    val sendValue = AssetValue(1830000, assetCode)
-    val data = Latin1Data.unsafe("test-asset-data").some
+
+    val assetTransferAmount = 1830000
+
+    val data = "test-asset-data"
+
     val minting = false
 
-    val expectedModifierId = ModifierId.fromBase58(Base58Data.fromData(Array.fill(33)(1.toByte)))
+    val expectedModifierId = asModifierId("rijPy1ABXbtUmUpm2WfmM48RBnkkH5gyKPLUTrgFEKhQ")
 
     val assetTransfer =
-      TransferBuilder
-        .buildUnsignedAssetTransfer[PublicKeyPropositionCurve25519](
-          boxState,
-          TransferRequests.AssetTransferRequest(
-            List(senderAddress),
-            List(recipientAddress -> sendValue),
-            senderAddress,
-            senderAddress,
-            fee,
-            data,
-            minting
-          ),
-          BoxSelectionAlgorithms.All
-        )
-        .getOrThrow()
+      AssetTransfer[PublicKeyPropositionCurve25519](
+        IndexedSeq(senderAddress -> assetBoxNonce),
+        IndexedSeq(
+          recipientAddress -> AssetValue(
+            assetTransferAmount,
+            AssetCode(assetCodeVersion, assetCodeIssuer, Latin1Data.unsafe(assetCodeShortName))
+          )
+        ),
+        ListMap(),
+        timestamp,
+        fee,
+        Latin1Data.unsafe(data).some,
+        minting
+      )
 
     assetTransfer.id shouldBe expectedModifierId
   }
+
+  def asAddress(addressString: String): Address =
+    Base58Data.unsafe(addressString).decodeAddress.getOrThrow()
+
+  def asModifierId(modifierIdString: String): ModifierId =
+    ModifierId.fromBase58(Base58Data.unsafe(modifierIdString))
 }
