@@ -10,12 +10,12 @@ import com.oracle.js.parser.ir.{FunctionNode, LexicalContext, Node, VarNode}
 import com.oracle.js.parser.{
   ErrorManager,
   Lexer,
+  Parser => GraalParser,
   ScriptEnvironment,
   Source,
   Token,
   TokenStream,
-  TokenType,
-  Parser => GraalParser
+  TokenType
 }
 import io.circe._
 import io.circe.syntax._
