@@ -20,10 +20,10 @@ class BootstrapFromGenesisTest
     with ScalaFutures
     with Inspectors {
 
-  val initialForgeTarget: Int128 = 1024 + 50
+  val initialForgeTarget: Int128 = 1500
   val newNodeForgeDuration: FiniteDuration = 10.seconds
   val targetBlockTime: FiniteDuration = 50.milli
-  val syncWindow: FiniteDuration = 30.seconds
+  val syncWindow: FiniteDuration = 10.seconds
   val seed: String = "BootstrapFromGenesisTest" + System.currentTimeMillis()
 
   "A new node can sync its genesis block with an old node" in {
@@ -45,6 +45,8 @@ class BootstrapFromGenesisTest
              |        numTxPerBlock = 100
              |      }
              |    ]
+             |bifrost.network.syncInterval = 250ms
+             |bifrost.network.syncIntervalStable = 1s
              |""".stripMargin
       )
 
@@ -88,6 +90,8 @@ class BootstrapFromGenesisTest
 
     newNode.waitForStartup().futureValue(Timeout(60.seconds)).value
 
+    Thread.sleep(5.seconds.toMillis)
+
     newNode.run(ToplRpc.Admin.LockKeyfile.rpc)(ToplRpc.Admin.LockKeyfile.Params(oldKeyFile)).value
 
     newNode.run(ToplRpc.Admin.StartForging.rpc)(ToplRpc.Admin.StartForging.Params()).value
@@ -105,16 +109,16 @@ class BootstrapFromGenesisTest
 
     Thread.sleep(syncWindow.toMillis)
 
-    val oldNodeHeight: Int128 =
-      oldNode.run(ToplRpc.NodeView.Head.rpc)(ToplRpc.NodeView.Head.Params()).value.height
-    logger.info(s"Old node height=$oldNodeHeight")
+    val oldNodeHead =
+      oldNode.run(ToplRpc.NodeView.Head.rpc)(ToplRpc.NodeView.Head.Params()).value
+    logger.info(s"Old node height=${oldNodeHead.height} bestBlockId=${oldNodeHead.bestBlockId}")
 
-    val newNodeHeight: Int128 =
-      newNode.run(ToplRpc.NodeView.Head.rpc)(ToplRpc.NodeView.Head.Params()).value.height
-    logger.info(s"New node height=$newNodeHeight")
+    val newNodeHead =
+      newNode.run(ToplRpc.NodeView.Head.rpc)(ToplRpc.NodeView.Head.Params()).value
+    logger.info(s"New node height=${newNodeHead.height} bestBlockId=${newNodeHead.bestBlockId}")
 
-    oldNodeHeight shouldBe newNodeHeight +- 1
-    oldNodeHeight should be >= initialForgeTarget
+    oldNodeHead.bestBlock shouldBe newNodeHead.bestBlock
+    oldNodeHead.height should be >= initialForgeTarget
   }
 
 }
