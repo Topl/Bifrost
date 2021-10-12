@@ -107,7 +107,7 @@ object Dependencies {
     Seq(
       "org.typelevel"          %% "simulacrum"              % "1.0.1",
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.5.0",
-      "org.scodec"             %% "scodec-bits"             % "1.1.28"
+      "org.scodec"             %% "scodec-bits"             % "1.1.29"
     ) ++
     logging ++
     circe ++
