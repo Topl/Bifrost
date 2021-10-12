@@ -38,100 +38,100 @@ object SoftDerivative {
     private val edBaseN: BigInt =
       BigInt("7237005577332262213973186563042994240857116359379907606001950938285454250989")
 
-    private val ed = new Ed25519
+    implicit def extendedEd25519SKDerivative(implicit ed25519: Ed25519): SoftDerivative[SecretKeys.ExtendedEd25519] = {
+      (t, index) =>
+        // Note: BigInt expects Big-Endian, but SLIP/BIP-ED25519 need Little-Endian
+        val leftNumber: BigInt = BigInt(1, t.leftKey.data.toArray.reverse)
 
-    implicit val extendedEd25519SKDerivative: SoftDerivative[SecretKeys.ExtendedEd25519] = { (t, index) =>
-      // Note: BigInt expects Big-Endian, but SLIP/BIP-ED25519 need Little-Endian
-      val leftNumber: BigInt = BigInt(1, t.leftKey.data.toArray.reverse)
+        // TODO: Avoid require
+        require(leftNumber % edBaseN != 0)
 
-      // TODO: Avoid require
-      require(leftNumber % edBaseN != 0)
+        val rightNumber: BigInt = BigInt(1, t.rightKey.data.toArray.reverse)
 
-      val rightNumber: BigInt = BigInt(1, t.rightKey.data.toArray.reverse)
+        val public =
+          ContainsVerificationKey[SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519].verificationKeyOf(t)
 
-      val public =
-        ContainsVerificationKey[SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519].verificationKeyOf(t)
+        val z =
+          Derivative.hmac512WithKey(
+            t.chainCode.data,
+            Bytes(Array(0x02.toByte)) ++ public.bytes ++ index.bytes.data
+          )
 
-      val z =
-        Derivative.hmac512WithKey(
-          t.chainCode.data,
-          Bytes(Array(0x02.toByte)) ++ public.bytes ++ index.bytes.data
+        val zLeft =
+          BigInt(1, z.slice(0, 28).reverse.toArray)
+
+        val zRight =
+          BigInt(1, z.slice(32, 64).reverse.toArray)
+
+        val nextLeft =
+          Bytes(
+            ByteBuffer
+              .wrap(
+                (zLeft * 8 + leftNumber).toByteArray.reverse
+              )
+              .order(ByteOrder.LITTLE_ENDIAN)
+              .array()
+              .take(32)
+          )
+
+        val nextRight =
+          Bytes(
+            ByteBuffer
+              .wrap(((zRight + rightNumber) % (BigInt(2).pow(256))).toByteArray.reverse)
+              .order(ByteOrder.LITTLE_ENDIAN)
+              .array()
+              .take(32)
+          )
+
+        val nextChainCode =
+          Bytes(
+            Derivative
+              .hmac512WithKey(
+                t.chainCode.data,
+                Bytes(Array(0x03.toByte)) ++ public.bytes ++ index.bytes.data
+              )
+              .slice(32, 64)
+              .toArray
+          )
+
+        SecretKeys.ExtendedEd25519(
+          Sized.strictUnsafe(nextLeft),
+          Sized.strictUnsafe(nextRight),
+          Sized.strictUnsafe(nextChainCode)
         )
-
-      val zLeft =
-        BigInt(1, z.slice(0, 28).reverse.toArray)
-
-      val zRight =
-        BigInt(1, z.slice(32, 64).reverse.toArray)
-
-      val nextLeft =
-        Bytes(
-          ByteBuffer
-            .wrap(
-              (zLeft * 8 + leftNumber).toByteArray.reverse
-            )
-            .order(ByteOrder.LITTLE_ENDIAN)
-            .array()
-            .take(32)
-        )
-
-      val nextRight =
-        Bytes(
-          ByteBuffer
-            .wrap(((zRight + rightNumber) % (BigInt(2).pow(256))).toByteArray.reverse)
-            .order(ByteOrder.LITTLE_ENDIAN)
-            .array()
-            .take(32)
-        )
-
-      val nextChainCode =
-        Bytes(
-          Derivative
-            .hmac512WithKey(
-              t.chainCode.data,
-              Bytes(Array(0x03.toByte)) ++ public.bytes ++ index.bytes.data
-            )
-            .slice(32, 64)
-            .toArray
-        )
-
-      SecretKeys.ExtendedEd25519(
-        Sized.strictUnsafe(nextLeft),
-        Sized.strictUnsafe(nextRight),
-        Sized.strictUnsafe(nextChainCode)
-      )
     }
 
-    implicit val extendedEd25519VKDerivative: SoftDerivative[VerificationKeys.ExtendedEd25519] = { (t, index) =>
-      val z = Derivative.hmac512WithKey(t.chainCode.data, (0x02.toByte +: t.bytes) ++ index.bytes.data)
+    implicit def extendedEd25519VKDerivative(implicit ed: Ed25519): SoftDerivative[VerificationKeys.ExtendedEd25519] = {
+      (t, index) =>
+        val z = Derivative.hmac512WithKey(t.chainCode.data, (0x02.toByte +: t.bytes) ++ index.bytes.data)
 
-      val zL = z.slice(0, 28)
+        val zL = z.slice(0, 28)
 
-      val zLMult8 =
-        (8 * BigInt(1, zL.reverse.toArray)).toByteArray.reverse.take(32)
+        val zLMult8 =
+          (8 * BigInt(1, zL.reverse.toArray)).toByteArray.reverse.take(32)
 
-      val scaledZL = new ed.PointAccum
-      ed.scalarMultBase(zLMult8.toArray, scaledZL)
+        val scaledZL = new ed.PointAccum
+        ed.scalarMultBase(zLMult8.toArray, scaledZL)
 
-      val publicKeyPoint = new ed.PointExt
-      ed.decodePointVar(t.bytes.toArray, 0, negate = false, publicKeyPoint)
+        val publicKeyPoint = new ed.PointExt
+        ed.decodePointVar(t.bytes.toArray, 0, negate = false, publicKeyPoint)
 
-      ed.pointAddVar(negate = false, publicKeyPoint, scaledZL)
+        ed.pointAddVar(negate = false, publicKeyPoint, scaledZL)
 
-      val nextPublicKeyBytes = new Array[Byte](ed.KeyLength)
-      ed.encodePoint(scaledZL, nextPublicKeyBytes, 0)
+        val nextPublicKeyBytes = new Array[Byte](ed.KeyLength)
+        ed.encodePoint(scaledZL, nextPublicKeyBytes, 0)
 
-      val nextPk = Bytes(nextPublicKeyBytes)
+        val nextPk = Bytes(nextPublicKeyBytes)
 
-      val nextChainCode =
-        Derivative
-          .hmac512WithKey(t.chainCode.data, (0x03.toByte +: t.bytes) ++ index.bytes.data)
-          .slice(32, 64)
+        val nextChainCode =
+          Derivative
+            .hmac512WithKey(t.chainCode.data, (0x03.toByte +: t.bytes) ++ index.bytes.data)
+            .slice(32, 64)
 
-      VerificationKeys.ExtendedEd25519(
-        VerificationKeys.Ed25519(Sized.strictUnsafe(nextPk)),
-        Sized.strictUnsafe(nextChainCode)
-      )
+        VerificationKeys.ExtendedEd25519(
+          VerificationKeys.Ed25519(Sized.strictUnsafe(nextPk)),
+          Sized.strictUnsafe(nextChainCode)
+        )
     }
   }
 }

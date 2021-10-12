@@ -48,14 +48,14 @@ object KeyInitializer {
           )
       }
 
-    implicit val vrfInitializer: KeyInitializer[SecretKeys.Vrf] =
+    implicit def vrfInitializer(implicit ed25519VRF: Ed25519VRF): KeyInitializer[SecretKeys.Vrf] =
       new KeyInitializer[SecretKeys.Vrf] {
 
         def random(): SecretKeys.Vrf =
-          (fromLib _).tupled(Ed25519VRF.instance.createKeyPair)
+          (fromLib _).tupled(ed25519VRF.createKeyPair)
 
         def fromSeed(seed: Bytes): SecretKeys.Vrf =
-          (fromLib _).tupled(Ed25519VRF.instance.createKeyPair(seed.toArray))
+          (fromLib _).tupled(ed25519VRF.createKeyPair(seed.toArray))
 
         private def fromLib(sk: co.topl.crypto.PrivateKey, pk: co.topl.crypto.PublicKey): SecretKeys.Vrf =
           SecretKeys.Vrf(SecretKeys.Ed25519(Sized.strictUnsafe(Bytes(sk.value))))

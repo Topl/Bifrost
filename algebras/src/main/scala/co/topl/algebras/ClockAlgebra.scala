@@ -13,9 +13,10 @@ import scala.language.implicitConversions
  */
 trait ClockAlgebra[F[_]] {
   def slotLength: F[FiniteDuration]
+  // `R`
   def slotsPerEpoch: F[Long]
   def currentEpoch(): F[Epoch]
-  def currentSlot(): F[Slot]
+  def globalSlot(): F[Slot]
   def currentTimestamp(): F[Timestamp]
   def delayedUntilSlot(slot:           Slot): F[Unit]
   def delayedUntilTimestamp(timestamp: Timestamp): F[Unit]

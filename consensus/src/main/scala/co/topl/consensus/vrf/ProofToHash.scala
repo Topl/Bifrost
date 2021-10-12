@@ -7,9 +7,7 @@ import co.topl.models.utility.Lengths._
 import co.topl.models.utility.Sized
 
 object ProofToHash {
-  val vrf = new Ed25519VRF
-  vrf.precompute()
 
-  def digest(signature: Proofs.Signature.VrfEd25519): Rho =
+  def digest(signature: Proofs.Signature.VrfEd25519)(implicit vrf: Ed25519VRF): Rho =
     Sized.strictUnsafe(Bytes(vrf.vrfProofToHash(signature.bytes.data.toArray)))
 }

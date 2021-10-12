@@ -43,6 +43,9 @@ class BlockHeaderValidationSpec
       VrfConfig(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
     )
 
+  implicit private val ed25519Vrf: Ed25519VRF =
+    Ed25519VRF.precomputed()
+
   it should "invalidate blocks with non-forward slot" in {
     forAll(
       headerGen(slotGen = Gen.chooseNum[Slot](50L, 100L)),
@@ -309,7 +312,7 @@ class BlockHeaderValidationSpec
       Proofs.Signature.VrfEd25519(
         Sized.strictUnsafe(
           Bytes(
-            Ed25519VRF.instance.vrfProof(
+            ed25519Vrf.vrfProof(
               skVrf.ed25519.bytes.data.toArray,
               LeaderElectionValidation
                 .VrfArgument(eta, slot, token)

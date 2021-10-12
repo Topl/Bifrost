@@ -26,9 +26,8 @@ object Prover {
   def apply[T, Prf <: Proof](implicit p: Prover[T, Prf]): Prover[T, Prf] = p
 
   trait Instances {
-    private val ed = new Ed25519
 
-    implicit val ed25519Proves: Prover[SecretKeys.Ed25519, Proofs.Signature.Ed25519] =
+    implicit def ed25519Proves(implicit ed: Ed25519): Prover[SecretKeys.Ed25519, Proofs.Signature.Ed25519] =
       new Prover[SecretKeys.Ed25519, Proofs.Signature.Ed25519] {
 
         def proveWith[Data: Signable](t: SecretKeys.Ed25519, data: Data): Signature.Ed25519 =
@@ -37,7 +36,9 @@ object Prover {
           )
       }
 
-    implicit val extendedEd25519Proves: Prover[SecretKeys.ExtendedEd25519, Proofs.Signature.Ed25519] =
+    implicit def extendedEd25519Proves(implicit
+      ed: Ed25519
+    ): Prover[SecretKeys.ExtendedEd25519, Proofs.Signature.Ed25519] =
       new Prover[SecretKeys.ExtendedEd25519, Proofs.Signature.Ed25519] {
 
         def proveWith[Data: Signable](t: SecretKeys.ExtendedEd25519, data: Data): Proofs.Signature.Ed25519 =

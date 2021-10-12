@@ -48,6 +48,9 @@ object Ed25519VRF {
   val KeyLength: Int = 32
   val HashLength: Int = 64
 
-  val instance = new Ed25519VRF
-  instance.precompute()
+  def precomputed(): Ed25519VRF = {
+    val result = new Ed25519VRF
+    result.precompute()
+    result
+  }
 }

@@ -60,6 +60,7 @@ class Ed25519 extends eddsa.Ed25519 with EllipticCurveSignatureScheme {
     verify(signature, 0, publicKey, 0, message, 0, message.length)
 
   def signExtended(t: SecretKeys.ExtendedEd25519, message: Array[Byte]): Proofs.Signature.Ed25519 = {
+    implicit def ed25519: Ed25519 = this
     val signatureArray: Array[Byte] = new Array[Byte](SIGNATURE_SIZE)
     val ctx: Array[Byte] = Array.emptyByteArray
     val phflag: Byte = 0x00

@@ -4,6 +4,7 @@ import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.kes
 import co.topl.crypto.kes.keys.SymmetricKey
 import co.topl.crypto.mnemonic.Entropy
+import co.topl.crypto.signatures.Ed25519
 import co.topl.crypto.typeclasses._
 import co.topl.crypto.typeclasses.implicits._
 import co.topl.models.utility.HasLength.instances._
@@ -24,10 +25,10 @@ case class HdKesScheme(
 
   import HdKesScheme.serializer
 
-  def deriveVerificationKey(index: Int): VerificationKeys.ExtendedEd25519 =
+  def deriveVerificationKey(index: Int)(implicit ed25519: Ed25519): VerificationKeys.ExtendedEd25519 =
     rootVerificationKey.softDerive(Derivative.KeyIndexes.Soft(index))
 
-  def generateKESKey(index: Int): Nothing = Try {
+  def generateKESKey(index: Int)(implicit ed25519: Ed25519): Nothing = Try {
     val softIndex = Derivative.KeyIndexes.Soft(index)
     require(privateKeySet.keySet.contains(softIndex), s"Key set does not contain index ${softIndex.value}")
     require(
@@ -53,7 +54,7 @@ case class HdKesScheme(
 
 object HdKesScheme {
 
-  def apply(totalNumberOfKeys: Int, registrationSlot: Long): HdKesScheme = {
+  def apply(totalNumberOfKeys: Int, registrationSlot: Long)(implicit ed25519: Ed25519): HdKesScheme = {
     implicit val entropy: Entropy = Entropy.fromUuid(UUID.randomUUID())
     val skm = KeyInitializer[SecretKeys.ExtendedEd25519].random()
     val skIndex = Array.range(0, totalNumberOfKeys).map(idx => Derivative.KeyIndexes.Soft(idx.toLong))

@@ -1,15 +1,17 @@
 package co.topl.typeclasses
 
 import cats.Eval
+import co.topl.crypto.hash.blake2b256
 import co.topl.models.VerificationKeys.Ed25519
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.{Length, Lengths, Sized}
-import co.topl.typeclasses.ContainsTransactions.Instances._
-import co.topl.typeclasses.ContainsTransactions.ops._
-import co.topl.typeclasses.Identifiable.Instances._
-import co.topl.typeclasses.Identifiable.ops._
+import co.topl.typeclasses.implicits._
+import co.topl.codecs.bytes.BasicCodecs._
+import co.topl.codecs.bytes.ByteCodec.implicits._
+
+import java.nio.charset.StandardCharsets
 
 object BlockGenesis {
 
@@ -19,12 +21,12 @@ object BlockGenesis {
   val ParentId: TypedIdentifier = TypedBytes(IdentifierTypes.Block.HeaderV2, Bytes(Array.fill[Byte](32)(0)))
   val ParentSlot: Slot = -1
 
-  val vrfCertificate: EligibilityCertificate = EligibilityCertificate(
+  def vrfCertificate(eta: Eta): EligibilityCertificate = EligibilityCertificate(
     Proofs.Signature.VrfEd25519(zeroBytes(Lengths.`80`)),
     Proofs.Signature.VrfEd25519(zeroBytes(Lengths.`80`)),
     VerificationKeys.Vrf(VerificationKeys.Ed25519(zeroBytes[Ed25519.Length])),
     thresholdEvidence = Sized.strictUnsafe(TypedBytes(IdentifierTypes.RatioEvidence, Bytes(Array.fill[Byte](32)(0)))),
-    eta = zeroBytes
+    eta = eta
   )
 
   val kesCertificate: OperationalCertificate =
@@ -56,6 +58,17 @@ object BlockGenesis {
       zeroBytes(Lengths.`32`),
       zeroBytes(Lengths.`64`)
     )
+    val eta: Eta =
+      Sized.strictUnsafe(
+        Bytes(
+          blake2b256
+            .hash(
+              prefix = None,
+              "genesis".getBytes(StandardCharsets.UTF_8) +: transactions.map(_.bytes.toArray[Byte]).toList: _*
+            )
+            .value
+        )
+      )
     val header =
       BlockHeaderV2(
         parentHeaderId = ParentId,
@@ -65,7 +78,7 @@ object BlockGenesis {
         timestamp = 0L,
         height = 1,
         slot = 0,
-        eligibibilityCertificate = vrfCertificate,
+        eligibibilityCertificate = vrfCertificate(eta),
         operationalCertificate = kesCertificate,
         metadata = None,
         address = address

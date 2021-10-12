@@ -3,6 +3,7 @@ package co.topl.minting
 import cats.Monad
 import cats.data.OptionT
 import cats.implicits._
+import co.topl.consensus.algebras.EtaCalculationAlgebra
 import co.topl.minting.algebras.LeaderElectionMintingAlgebra.VrfHit
 import co.topl.minting.algebras._
 import co.topl.models._
@@ -18,13 +19,13 @@ object Staking {
       leaderElection:         LeaderElectionMintingAlgebra[F],
       evolver:                KeyEvolverAlgebra[F],
       vrfRelativeStakeLookup: VrfRelativeStakeMintingLookupAlgebra[F],
-      etaLookup:              EtaMintingAlgebra[F]
+      etaCalculation:         EtaCalculationAlgebra[F]
     ): StakingAlgebra[F] = new StakingAlgebra[F] {
       val address: F[TaktikosAddress] = a.pure[F]
 
       def elect(parent: BlockHeaderV2, slot: Slot): F[Option[VrfHit]] =
-        etaLookup
-          .etaOf(slot)
+        etaCalculation
+          .etaToBe(parent.slotId, slot)
           .flatMap(eta =>
             OptionT(vrfRelativeStakeLookup.lookupAt(slot, a))
               .flatMapF(relativeStake => leaderElection.getHit(relativeStake, slot, slot - parent.slot, eta))

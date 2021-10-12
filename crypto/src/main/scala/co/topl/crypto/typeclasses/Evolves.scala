@@ -12,10 +12,8 @@ object Evolves {
 
   trait Instances {
 
-    implicit val kesPrivateKeyEvolves: Evolves[SecretKeys.SymmetricMMM] = {
-      val scheme = new KeyEvolvingSignatureScheme
+    implicit def kesPrivateKeyEvolves(implicit scheme: KeyEvolvingSignatureScheme): Evolves[SecretKeys.SymmetricMMM] =
       (key, timesteps) => scheme.updateSymmetricProductKey(key, timesteps.toInt) // TODO: toInt?
-    }
   }
 
   object instances extends Instances

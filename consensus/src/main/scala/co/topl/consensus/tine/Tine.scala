@@ -1,10 +1,11 @@
 package co.topl.consensus.tine
 
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
-
 import co.topl.models._
 import co.topl.consensus.vrf.ProofToHash
 import co.topl.consensus.TetraParameters
+import co.topl.crypto.signatures.Ed25519VRF
+
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 import scala.collection.immutable.ArraySeq
@@ -17,6 +18,8 @@ case class Tine(
   import Tine._
 
   val tineCacheSize = 12
+
+  implicit private val ed25519Vrf: Ed25519VRF = Ed25519VRF.precomputed()
 
   /**
    * LoadingCache for restoring segments of tine from the block database,

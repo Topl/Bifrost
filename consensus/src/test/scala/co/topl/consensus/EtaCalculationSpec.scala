@@ -33,6 +33,9 @@ class EtaCalculationSpec
 
   type F[A] = Either[Throwable, A]
 
+  implicit private val ed25519Vrf: Ed25519VRF =
+    Ed25519VRF.precomputed()
+
   it should "compute the eta for an epoch" in {
     val state = mock[ConsensusState[F]]
     val clock = mock[ClockAlgebra[F]]
@@ -46,7 +49,7 @@ class EtaCalculationSpec
       val nonceSignature = Proofs.Signature.VrfEd25519(
         Sized.strictUnsafe(
           Bytes(
-            Ed25519VRF.instance.vrfProof(
+            ed25519Vrf.vrfProof(
               skVrf.ed25519.bytes.data.toArray,
               LeaderElectionValidation
                 .VrfArgument(previousEta, slot, LeaderElectionValidation.Tokens.Nonce)

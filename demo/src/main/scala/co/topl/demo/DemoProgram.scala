@@ -1,11 +1,14 @@
 package co.topl.demo
 
-import cats.data.{EitherT, OptionT}
+import cats.data._
+import cats.effect._
 import cats.implicits._
-import cats.{Applicative, Monad, MonadError}
+import cats.{Monad, MonadError, Parallel}
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras.{ClockAlgebra, ConsensusState}
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, EtaCalculationAlgebra}
+import co.topl.consensus.{LocalChain, SlotData}
+import co.topl.crypto.signatures.Ed25519VRF
 import co.topl.minting.algebras.{BlockMintAlgebra, VrfProofAlgebra}
 import co.topl.models._
 import co.topl.models.utility.Ratio
@@ -17,28 +20,32 @@ object DemoProgram {
   /**
    * A forever-running program which traverses epochs and the slots within the epochs
    */
-  def run[F[_]: MonadError[*[_], Throwable]: Logger](
+  def run[F[_]: MonadError[*[_], Throwable]: Logger: Parallel: Clock: Sync](
     clock:            ClockAlgebra[F],
-    mint:             BlockMintAlgebra[F],
+    mints:            List[BlockMintAlgebra[F]],
     headerValidation: BlockHeaderValidationAlgebra[F],
-    vrfProof:         VrfProofAlgebra[F],
+    vrfProofs:        List[VrfProofAlgebra[F]],
     state:            ConsensusState[F],
-    etaCalculation:   EtaCalculationAlgebra[F]
+    etaCalculation:   EtaCalculationAlgebra[F],
+    localChain:       LocalChain[F]
   ): F[Unit] =
     for {
-      initialSlot  <- clock.currentSlot().map(_.min(1L))
-      initialEpoch <- clock.epochOf(initialSlot)
+      ed25519VrfRef <- Ref.of[F, Ed25519VRF](Ed25519VRF.precomputed())
+      initialSlot   <- clock.globalSlot().map(_.min(1L))
+      initialEpoch  <- clock.epochOf(initialSlot)
       _ <- initialEpoch
         .iterateForeverM(epoch =>
           handleEpoch(
             epoch,
             Option.when(epoch === initialEpoch)(initialSlot),
             clock,
-            mint,
+            mints,
             headerValidation,
-            vrfProof,
+            vrfProofs,
             state,
-            etaCalculation
+            etaCalculation,
+            localChain,
+            ed25519VrfRef
           )
             .as(epoch + 1)
         )
@@ -48,100 +55,141 @@ object DemoProgram {
   /**
    * Perform the operations for an epoch
    */
-  private def handleEpoch[F[_]: MonadError[*[_], Throwable]: Logger](
+  private def handleEpoch[F[_]: MonadError[*[_], Throwable]: Logger: Parallel: Sync](
     epoch:            Epoch,
     fromSlot:         Option[Slot],
     clock:            ClockAlgebra[F],
-    mint:             BlockMintAlgebra[F],
+    mints:            List[BlockMintAlgebra[F]],
     headerValidation: BlockHeaderValidationAlgebra[F],
-    vrfProof:         VrfProofAlgebra[F],
+    vrfProofs:        List[VrfProofAlgebra[F]],
     state:            ConsensusState[F],
-    etaCalculation:   EtaCalculationAlgebra[F]
+    etaCalculation:   EtaCalculationAlgebra[F],
+    localChain:       LocalChain[F],
+    ed25519VrfRef:    Ref[F, Ed25519VRF]
   ): F[Unit] =
     for {
       boundary <- clock.epochRange(epoch)
-      _        <- startEpoch(epoch, boundary, state, vrfProof)
-      _        <- traverseEpoch(fromSlot, epoch, boundary, clock, mint, headerValidation, state, etaCalculation)
-      _        <- finishEpoch(epoch, state)
+      _        <- startEpoch(epoch, boundary, state, vrfProofs, localChain, etaCalculation)
+      _ <- traverseEpoch(
+        fromSlot,
+        boundary,
+        clock,
+        mints,
+        headerValidation,
+        state,
+        localChain,
+        ed25519VrfRef
+      )
+      _ <- finishEpoch(epoch, state)
     } yield ()
 
   /**
    * Perform operations at the start of the epoch
    */
-  private def startEpoch[F[_]: MonadError[*[_], Throwable]: Logger](
-    epoch:    Epoch,
-    boundary: ClockAlgebra.EpochBoundary,
-    state:    ConsensusState[F],
-    vrfProof: VrfProofAlgebra[F]
+  private def startEpoch[F[_]: MonadError[*[_], Throwable]: Logger: Parallel](
+    epoch:          Epoch,
+    boundary:       ClockAlgebra.EpochBoundary,
+    state:          ConsensusState[F],
+    vrfProofs:      List[VrfProofAlgebra[F]],
+    localChain:     LocalChain[F],
+    etaCalculation: EtaCalculationAlgebra[F]
   ): F[Unit] =
     for {
-      _ <- Logger[F].info(s"Starting epoch=$epoch (${boundary.start}..${boundary.end})")
-      _ <- Logger[F].info("Precomputing VRF data")
-      previousEta <- OptionT(state.lookupEta(epoch - 1))
-        .getOrElseF(new IllegalStateException(s"Unknown Eta for epoch=${epoch - 1}").raiseError[F, Eta])
-      _ <- vrfProof.precomputeForEpoch(epoch, previousEta)
+      _      <- Logger[F].info(s"Starting epoch=$epoch (${boundary.start}..${boundary.end})")
+      _      <- Logger[F].info("Precomputing VRF data")
+      headId <- localChain.current.map(_.slotId._2)
+      head <- OptionT(state.lookupBlockHeader(headId))
+        .getOrElseF(new IllegalStateException(show"Missing blockId=$headId").raiseError[F, BlockHeaderV2])
+      nextEta <- etaCalculation.etaToBe(head.slotId, boundary.start)
+      _       <- vrfProofs.traverse(_.precomputeForEpoch(epoch, nextEta))
     } yield ()
 
   /**
    * Iterate through the epoch slot-by-slot
    */
-  private def traverseEpoch[F[_]: MonadError[*[_], Throwable]: Logger](
+  private def traverseEpoch[F[_]: MonadError[*[_], Throwable]: Logger: Parallel: Sync](
     fromSlot:         Option[Slot],
-    epoch:            Epoch,
     boundary:         ClockAlgebra.EpochBoundary,
     clock:            ClockAlgebra[F],
-    mint:             BlockMintAlgebra[F],
+    mints:            List[BlockMintAlgebra[F]],
     headerValidation: BlockHeaderValidationAlgebra[F],
     state:            ConsensusState[F],
-    etaCalculation:   EtaCalculationAlgebra[F]
-  ): F[Unit] = {
-    val twoThirdsSlot = (boundary.length * 2 / 3) + boundary.start
+    localChain:       LocalChain[F],
+    ed25519VrfRef:    Ref[F, Ed25519VRF]
+  ): F[Unit] =
     fromSlot
       .getOrElse(boundary.start)
-      .iterateUntilM(slot =>
+      .iterateUntilM(localSlot =>
         for {
-          _ <- clock.delayedUntilSlot(slot)
-          _ <- processSlot(slot, mint, headerValidation, state)
-          _ <- Applicative[F].whenA(slot === twoThirdsSlot)(handleTwoThirdsEvent(epoch, state, etaCalculation))
-        } yield slot + 1
+          _ <- clock.delayedUntilSlot(localSlot)
+          _ <- processSlot(localSlot, mints, headerValidation, state, localChain, ed25519VrfRef)
+        } yield localSlot + 1
       )(_ >= boundary.end)
       .void
-  }
 
-  private def processSlot[F[_]: Monad: Logger](
+  private def processSlot[F[_]: MonadError[*[_], Throwable]: Logger: Parallel: Sync](
     slot:             Slot,
-    mint:             BlockMintAlgebra[F],
+    mints:            List[BlockMintAlgebra[F]],
     headerValidation: BlockHeaderValidationAlgebra[F],
-    state:            ConsensusState[F]
+    state:            ConsensusState[F],
+    localChain:       LocalChain[F],
+    ed25519VrfRef:    Ref[F, Ed25519VRF]
   ): F[Unit] =
     Logger[F].debug(s"Processing slot=$slot") >>
-    state.canonicalHead
+    localChain.current
+      .flatMap(slotData =>
+        OptionT(state.lookupBlock(slotData.slotId._2))
+          .getOrElseF(new IllegalStateException("BlockNotFound").raiseError[F, BlockV2])
+      )
       .flatMap(canonicalHead =>
         // Attempt to mint a new block
-        OptionT(mint.mint(canonicalHead.headerV2, Nil, slot))
-          .semiflatMap(nextBlock =>
-            // If a block was minted at this slot, attempt to validate it
-            EitherT(headerValidation.validate(nextBlock.headerV2, canonicalHead.headerV2))
-              .semiflatTap(_ => state.append(nextBlock))
-              .semiflatTap(header => Logger[F].info(s"Appended block ${header.show}"))
-              .void
-              .valueOrF(e => Logger[F].warn(s"Invalid block header. reason=$e block=${nextBlock.headerV2.show}"))
+        mints
+          .traverse(
+            _.mint(canonicalHead.headerV2, Nil, slot)
           )
-          .value
-          .void
+          .map(_.flatten)
+          .flatMap(
+            _.traverse(nextBlock =>
+              Logger[F].info(s"Minted block ${nextBlock.headerV2.show}") >>
+              state.append(nextBlock) >>
+              // If a block was minted at this slot, attempt to validate it
+              ed25519VrfRef
+                .modify(implicit ed25519Vrf => ed25519Vrf -> SlotData(nextBlock.headerV2))
+                .flatMap(slotData =>
+                  localChain
+                    .isWorseThan(slotData)
+                    .flatMap(localChainIsWorseThan =>
+                      if (localChainIsWorseThan)
+                        EitherT(headerValidation.validate(nextBlock.headerV2, canonicalHead.headerV2))
+                          .semiflatTap(_ => localChain.adopt(slotData))
+                          .semiflatTap(header => Logger[F].info(s"Adopted local head block id=${header.id.show}"))
+                          .void
+                          .valueOrF(e =>
+                            Logger[F].warn(s"Invalid block header. reason=$e block=${nextBlock.headerV2.show}")
+                          )
+                      else
+                        Logger[F].info(s"Ignoring weaker block header id=${nextBlock.headerV2.id.show}")
+                    )
+                )
+            ).void
+          )
       )
 
-  private def handleTwoThirdsEvent[F[_]: MonadError[*[_], Throwable]: Logger](
-    epoch:          Epoch,
-    state:          ConsensusState[F],
-    etaCalculation: EtaCalculationAlgebra[F]
-  ): F[Unit] =
-    for {
-      _       <- Logger[F].info(s"Handling 2/3 event for epoch=$epoch")
-      nextEta <- etaCalculation.calculate(epoch)
-      _       <- Logger[F].info(s"Computed eta=$nextEta for epoch=$epoch")
-      _       <- state.writeEta(epoch, nextEta)
-    } yield ()
+//  private def handleTwoThirdsEvent[F[_]: MonadError[*[_], Throwable]: Logger](
+//    epoch:          Epoch,
+//    state:          ConsensusState[F],
+//    etaCalculation: EtaCalculationAlgebra[F],
+//    localChain:     LocalChain[F]
+//  ): F[Unit] =
+//    for {
+//      _        <- Logger[F].info(s"Handling 2/3 event for epoch=$epoch")
+//      headData <- localChain.current
+//      head <- OptionT(state.lookupBlockHeader(headData.slotId._2))
+//        .getOrElseF(new IllegalStateException().raiseError[F, BlockHeaderV2])
+//      nextEta <- etaCalculation.calculate(epoch, head)
+//      _       <- Logger[F].info(s"Computed eta=$nextEta for epoch=$epoch")
+//      _       <- state.writeEta(epoch, nextEta)
+//    } yield ()
 
   /**
    * Perform operations at the completion of an epoch

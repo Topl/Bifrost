@@ -40,24 +40,27 @@ object ContainsVerificationKey {
 
   trait Instances {
 
-    private val sharedEd25519 = new Ed25519()
-
-    implicit val ed25519ContainsVerificationKey: ContainsVerificationKey[SecretKeys.Ed25519, VerificationKeys.Ed25519] =
+    implicit def ed25519ContainsVerificationKey(implicit
+      ed25519: Ed25519
+    ): ContainsVerificationKey[SecretKeys.Ed25519, VerificationKeys.Ed25519] =
       key => {
         val pkBytes = new Array[Byte](32)
-        sharedEd25519.generatePublicKey(key.bytes.data.toArray, 0, pkBytes, 0)
+        ed25519.generatePublicKey(key.bytes.data.toArray, 0, pkBytes, 0)
         VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(pkBytes)))
       }
 
-    implicit val extendedEd25519ContainsVerificationKey
-      : ContainsVerificationKey[SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519] =
+    implicit def extendedEd25519ContainsVerificationKey(implicit
+      ed25519: Ed25519
+    ): ContainsVerificationKey[SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519] =
       key => {
-        val vk = new Array[Byte](sharedEd25519.PUBLIC_KEY_SIZE)
-        sharedEd25519.scalarMultBaseEncoded(key.leftKey.data.toArray, vk, 0)
+        val vk = new Array[Byte](ed25519.PUBLIC_KEY_SIZE)
+        ed25519.scalarMultBaseEncoded(key.leftKey.data.toArray, vk, 0)
         VerificationKeys.ExtendedEd25519(VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(vk))), key.chainCode)
       }
 
-    implicit val vrfContainsVerificationKey: ContainsVerificationKey[SecretKeys.Vrf, VerificationKeys.Vrf] =
+    implicit def vrfContainsVerificationKey(implicit
+      ed25519: Ed25519
+    ): ContainsVerificationKey[SecretKeys.Vrf, VerificationKeys.Vrf] =
       key => VerificationKeys.Vrf(ed25519ContainsVerificationKey.verificationKeyOf(key.ed25519))
 
     implicit val kesContainsVerificationKey

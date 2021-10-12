@@ -57,9 +57,10 @@ object ProofVerifier {
         )
       }
 
-    implicit val publicKeyEd25519: ProofVerifier[Proofs.Signature.Ed25519, Propositions.PublicKeyEd25519] =
+    implicit def publicKeyEd25519(implicit
+      ed25519: Ed25519
+    ): ProofVerifier[Proofs.Signature.Ed25519, Propositions.PublicKeyEd25519] =
       new ProofVerifier[Proofs.Signature.Ed25519, Propositions.PublicKeyEd25519] {
-        private val ed25519 = new Ed25519()
 
         override def verifyWith[Data: Signable](
           proof:       Proofs.Signature.Ed25519,
@@ -107,10 +108,10 @@ object ProofVerifier {
         }
       }
 
-    implicit val thresholdEd25519: ProofVerifier[Proofs.Threshold.SignatureEd25519, Propositions.ThresholdEd25519] =
+    implicit def thresholdEd25519(implicit
+      ed25519: Ed25519
+    ): ProofVerifier[Proofs.Threshold.SignatureEd25519, Propositions.ThresholdEd25519] =
       new ProofVerifier[Proofs.Threshold.SignatureEd25519, Propositions.ThresholdEd25519] {
-
-        private val ed25519 = new Ed25519()
 
         override def verifyWith[Data: Signable](
           proof:       Proofs.Threshold.SignatureEd25519,
@@ -153,7 +154,9 @@ object ProofVerifier {
         ): Boolean = true // TODO
       }
 
-    implicit val signatureVrfEd25519: ProofVerifier[Proofs.Signature.VrfEd25519, Propositions.VerificationKeyVRF] =
+    implicit def signatureVrfEd25519(implicit
+      ed25519VRF: Ed25519VRF
+    ): ProofVerifier[Proofs.Signature.VrfEd25519, Propositions.VerificationKeyVRF] =
       new ProofVerifier[Proofs.Signature.VrfEd25519, Propositions.VerificationKeyVRF] {
 
         override def verifyWith[Data: Signable](
@@ -162,7 +165,7 @@ object ProofVerifier {
           data:        Data
         ): Boolean =
           Try(
-            Ed25519VRF.instance.vrfVerify(
+            ed25519VRF.vrfVerify(
               proposition.key.ed25519.bytes.data.toArray,
               data.signableBytes.toArray,
               proof.bytes.data.toArray

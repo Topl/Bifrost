@@ -24,15 +24,15 @@ object CatsTemporalClock {
         def slotsPerEpoch: F[Epoch] = _slotsPerEpoch.pure[F]
 
         def currentEpoch(): F[Epoch] =
-          (currentSlot(), slotsPerEpoch).mapN(_ / _)
+          (globalSlot(), slotsPerEpoch).mapN(_ / _)
 
-        def currentSlot(): F[Slot] =
+        def globalSlot(): F[Slot] =
           currentTimestamp().map(currentTimestamp => (currentTimestamp - startTime) / _slotLength.toMillis)
 
         def currentTimestamp(): F[Timestamp] = System.currentTimeMillis().pure[F]
 
         def delayedUntilSlot(slot: Slot): F[Unit] =
-          currentSlot()
+          globalSlot()
             .map(currentSlot => (slot - currentSlot) * _slotLength)
             .flatMap(delay => if (delay.toMillis > 0) Temporal[F].sleep(delay) else Applicative[F].unit)
 
