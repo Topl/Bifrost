@@ -1,4 +1,4 @@
-package co.topl.utils.codecs.binary
+package co.topl.utils.codecs.binary.valuetypes
 
 import scodec.bits.BitVector
 import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
@@ -44,4 +44,6 @@ object BytesCodec {
   trait Codecs {
     def bytes(size: Int): Codec[Array[Byte]] = codec(size)
   }
+
+  object codecs extends Codecs
 }

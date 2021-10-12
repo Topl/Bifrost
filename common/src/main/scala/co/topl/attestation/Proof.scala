@@ -12,6 +12,7 @@ import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
+import io.estatico.newtype.macros.newtype
 
 import scala.reflect.ClassTag
 import scala.util.Try
@@ -74,7 +75,7 @@ sealed trait ProofOfKnowledge[S <: Secret, P <: KnowledgeProposition[S]] extends
  *
  * @param sigBytes 25519 signature
  */
-case class SignatureCurve25519(private[attestation] val sigBytes: Signature)
+case class SignatureCurve25519(sigBytes: Signature)
     extends ProofOfKnowledge[PrivateKeyCurve25519, PublicKeyPropositionCurve25519] {
 
   private val signatureLength = sigBytes.value.length
@@ -118,7 +119,7 @@ object SignatureCurve25519 {
 
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
-case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set[SignatureCurve25519])
+case class ThresholdSignatureCurve25519(signatures: Set[SignatureCurve25519])
     extends ProofOfKnowledge[PrivateKeyCurve25519, ThresholdPropositionCurve25519] {
 
   signatures.foreach { sig =>
@@ -180,7 +181,7 @@ object ThresholdSignatureCurve25519 {
 
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
-case class SignatureEd25519(private[attestation] val sigBytes: Signature)
+case class SignatureEd25519(sigBytes: Signature)
     extends ProofOfKnowledge[PrivateKeyEd25519, PublicKeyPropositionEd25519] {
 
   private val signatureLength = sigBytes.value.length

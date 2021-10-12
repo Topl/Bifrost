@@ -2,7 +2,7 @@ package co.topl.utils
 
 package object codecs {
 
-  object implicits
+  trait Implicits
       extends AsBytes.Instances
       with AsBytes.ToOps
       with FromBytes.Instances
@@ -11,4 +11,7 @@ package object codecs {
       with StringDataTypesCodec.StringTypesInstances
       with SizedBytesCodec.Instances
       with binary.Implicits
+
+  object implicits extends Implicits
+
 }

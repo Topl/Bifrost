@@ -23,7 +23,7 @@ import scala.util.{Failure, Success}
  *
  * @param evBytes an array of bytes of length 'contentLength' (currently 32 bytes) generated from a proposition
  */
-final class Evidence private (private val evBytes: Array[Byte]) extends BytesSerializable {
+final case class Evidence(evBytes: Array[Byte]) extends BytesSerializable {
   override type M = Evidence
   override def serializer: BifrostSerializer[Evidence] = Evidence
 

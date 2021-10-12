@@ -3,6 +3,7 @@ package co.topl.utils.codecs.binary
 import akka.util.ByteString
 import co.topl.utils.CommonGenerators
 import co.topl.utils.IdiomaticScalaTransition.implicits._
+import co.topl.utils.codecs.binary.valuetypes.ULongCodec
 import co.topl.utils.serialization.{VLQByteStringReader, VLQByteStringWriter}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -15,6 +16,7 @@ class ULongCodecSpec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers {
+
   "ULongCodec Decoder" should "be able to decode VLQByteStringWriter output" in {
     forAll(positiveLongGen) { longValue =>
       val vlqWriter = new VLQByteStringWriter

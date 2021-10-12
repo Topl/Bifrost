@@ -73,8 +73,7 @@ sealed trait KnowledgeProposition[S <: Secret] extends Proposition
 
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
-case class PublicKeyPropositionCurve25519(private[attestation] val pubKeyBytes: PublicKey)
-    extends KnowledgeProposition[PrivateKeyCurve25519] {
+case class PublicKeyPropositionCurve25519(pubKeyBytes: PublicKey) extends KnowledgeProposition[PrivateKeyCurve25519] {
 
   require(
     pubKeyBytes.value.length == Curve25519.KeyLength,
@@ -190,8 +189,7 @@ object ThresholdPropositionCurve25519 {
 
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
-case class PublicKeyPropositionEd25519(private[attestation] val pubKeyBytes: PublicKey)
-    extends KnowledgeProposition[PrivateKeyEd25519] {
+case class PublicKeyPropositionEd25519(pubKeyBytes: PublicKey) extends KnowledgeProposition[PrivateKeyEd25519] {
 
   require(
     pubKeyBytes.value.length == Ed25519.KeyLength,

@@ -1,4 +1,4 @@
-package co.topl.utils.codecs.binary
+package co.topl.utils.codecs.binary.valuetypes
 
 import scodec.bits.BitVector
 import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
@@ -68,4 +68,7 @@ object ByteStringCodec {
   trait Implicits {
     implicit val smallStringImplicitCodec: Codec[ByteString] = codec
   }
+
+  object codecs extends Codecs
+  object implicits extends Implicits
 }

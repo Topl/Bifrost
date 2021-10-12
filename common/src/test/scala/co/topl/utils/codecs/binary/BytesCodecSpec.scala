@@ -3,6 +3,7 @@ package co.topl.utils.codecs.binary
 import akka.util.ByteString
 import co.topl.utils.CommonGenerators
 import co.topl.utils.IdiomaticScalaTransition.implicits.toAttemptOps
+import co.topl.utils.codecs.binary.valuetypes.BytesCodec
 import co.topl.utils.serialization.{VLQByteStringReader, VLQByteStringWriter}
 import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec

@@ -1,4 +1,4 @@
-package co.topl.utils.codecs.binary
+package co.topl.utils.codecs.binary.valuetypes
 
 import co.topl.utils.Extensions.LongOps
 import scodec.bits.BitVector
@@ -69,4 +69,7 @@ object IntStringCodec {
   trait Implicits {
     implicit val intStringImplicitCodec: Codec[IntString] = codec
   }
+
+  object codecs extends Codecs
+  object implicits extends Implicits
 }

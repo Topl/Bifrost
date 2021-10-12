@@ -1,4 +1,4 @@
-package co.topl.utils.codecs.binary
+package co.topl.utils.codecs.binary.valuetypes
 
 import co.topl.utils.serialization.ZigZagEncoder.{decodeZigZagLong, encodeZigZagLong}
 import scodec.bits.BitVector
@@ -40,4 +40,7 @@ object LongCodec {
   trait Implicits {
     implicit val longImplicitCodec: Codec[Long] = codec
   }
+
+  object codecs extends Codecs
+  object implicits extends Implicits
 }

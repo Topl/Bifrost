@@ -3,6 +3,7 @@ package co.topl.utils.codecs.binary
 import akka.util.ByteString
 import co.topl.utils.CommonGenerators
 import co.topl.utils.IdiomaticScalaTransition.implicits._
+import co.topl.utils.codecs.binary.valuetypes.UShortCodec
 import co.topl.utils.serialization.{VLQByteStringReader, VLQByteStringWriter}
 import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
@@ -16,6 +17,7 @@ class UShortCodecSpec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers {
+
   "UShortCodec Decoder" should "be able to decode VLQByteStringWriter output" in {
     // TODO: make max value an int
     forAll(Gen.choose(0.toShort, Short.MaxValue)) { shortValue =>

@@ -3,6 +3,7 @@ package co.topl.utils.codecs.binary
 import akka.util.ByteString
 import co.topl.utils.CommonGenerators
 import co.topl.utils.IdiomaticScalaTransition.implicits._
+import co.topl.utils.codecs.binary.valuetypes.UIntCodec
 import co.topl.utils.serialization.{VLQByteStringReader, VLQByteStringWriter}
 import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
@@ -16,6 +17,7 @@ class UIntCodecSpec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers {
+
   "UIntCodec Decoder" should "be able to decode VLQByteStringWriter output" in {
     forAll(Gen.choose(0, Int.MaxValue)) { intValue =>
       val vlqWriter = new VLQByteStringWriter

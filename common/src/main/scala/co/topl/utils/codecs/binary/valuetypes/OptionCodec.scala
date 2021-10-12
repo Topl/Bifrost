@@ -1,4 +1,4 @@
-package co.topl.utils.codecs.binary
+package co.topl.utils.codecs.binary.valuetypes
 
 import cats.implicits._
 import scodec.bits.BitVector
@@ -57,4 +57,7 @@ object OptionCodec {
   trait Implicits {
     implicit def optionImplicitCodec[T: Codec]: Codec[Option[T]] = OptionCodec.codec
   }
+
+  object codecs extends Codecs
+  object implicits extends Implicits
 }

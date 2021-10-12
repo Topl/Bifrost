@@ -10,6 +10,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scodec.bits.BitVector
 import co.topl.utils.codecs.binary.implicits.longImplicitCodec
+import co.topl.utils.codecs.binary.valuetypes.OptionCodec
 
 class OptionCodecSpec
     extends AnyFlatSpec
