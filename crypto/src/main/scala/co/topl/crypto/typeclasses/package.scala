@@ -17,6 +17,6 @@ package object typeclasses {
       with Prover.Implicits
       with Signable.Instances
       with Signable.ToSignableOps
-      with SoftDerivative.Instances
-      with SoftDerivative.ToSoftDerivativeOps
+//      with SoftDerivative.Instances
+//      with SoftDerivative.ToSoftDerivativeOps
 }

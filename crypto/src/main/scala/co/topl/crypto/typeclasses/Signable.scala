@@ -48,8 +48,8 @@ object Signable {
 
     implicit val byteArraySignable: Signable[Array[Byte]] = Bytes(_)
 
-    implicit val vkVrfSignable: Signable[VerificationKeys.Vrf] =
-      _.ed25519.bytes.data
+    implicit val vkVrfSignable: Signable[VerificationKeys.VrfEd25519] =
+      _.bytes.data
   }
   object instances extends Instances
 }

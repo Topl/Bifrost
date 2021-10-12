@@ -1,6 +1,5 @@
 package co.topl.crypto.typeclasses
 
-import co.topl.crypto.kes.KeyEvolvingSignatureScheme
 import co.topl.models.SecretKeys
 import simulacrum.{op, typeclass}
 
@@ -12,10 +11,7 @@ object Evolves {
 
   trait Instances {
 
-    implicit val kesPrivateKeyEvolves: Evolves[SecretKeys.SymmetricMMM] = {
-      val scheme = new KeyEvolvingSignatureScheme
-      (key, timesteps) => scheme.updateSymmetricProductKey(key, timesteps.toInt) // TODO: toInt?
-    }
+    implicit val kesSumSkEvolve: Evolves[SecretKeys.KesSum] = ???
   }
 
   object instances extends Instances

@@ -59,9 +59,9 @@ object SecretKeys {
     ///type Length = ???
   }
 
-  case class HdKesSymProd(tree: BinaryTree[Array[Byte]]) extends SecretKey
+  case class HdKes(tree: BinaryTree[Array[Byte]]) extends SecretKey
 
-  object HdKesSymProd {
+  object HdKes {
     ///type Length = ???
   }
 

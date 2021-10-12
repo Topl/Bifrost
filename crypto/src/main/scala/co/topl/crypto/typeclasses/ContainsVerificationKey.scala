@@ -1,6 +1,5 @@
 package co.topl.crypto.typeclasses
 
-import co.topl.crypto.kes.KeyEvolvingSignatureScheme
 import co.topl.crypto.signing.Ed25519
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
@@ -57,14 +56,21 @@ object ContainsVerificationKey {
         VerificationKeys.ExtendedEd25519(VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(vk))), key.chainCode)
       }
 
-    implicit val vrfContainsVerificationKey: ContainsVerificationKey[SecretKeys.Vrf, VerificationKeys.Vrf] =
-      key => VerificationKeys.Vrf(ed25519ContainsVerificationKey.verificationKeyOf(key.ed25519))
+    implicit val vrfContainsVerificationKey
+      : ContainsVerificationKey[SecretKeys.VrfEd25519, VerificationKeys.VrfEd25519] =
+      key =>
+        VerificationKeys.VrfEd25519(
+          Sized.strictUnsafe(
+            ed25519ContainsVerificationKey.verificationKeyOf(
+              SecretKeys.Ed25519(key.bytes))
+            )
+          )
 
-    implicit val kesContainsVerificationKey
-      : ContainsVerificationKey[SecretKeys.SymmetricMMM, VerificationKeys.HdKes] = {
-      val scheme = new KeyEvolvingSignatureScheme
-      key => ???
-    }
+//    implicit val kesContainsVerificationKey
+//      : ContainsVerificationKey[SecretKeys.SymmetricMMM, VerificationKeys.HdKes] = {
+//      val scheme = new KeyEvolvingSignatureScheme
+//      key => ???
+//    }
   }
 
   object implicits extends Implicits

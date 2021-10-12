@@ -1,6 +1,5 @@
 package co.topl.crypto.signing
 
-import co.topl.crypto.kes.KeyEvolvingSignatureScheme
 import co.topl.crypto.signing.kes.ProdAsymComp
 import co.topl.models.Proofs.Signature
 import co.topl.models.{KeyData, SecretKeys, VerificationKeys}

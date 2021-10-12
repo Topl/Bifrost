@@ -31,7 +31,7 @@ object OpCertVerifier {
 //    ec.verify(sig, m, vk_i)
 //  }
 
-  def verify[Data: Signable](data: Data, proof: Proofs.Signature.HdKesSymProd, headerSlot: Slot): Boolean = true
+  def verify[Data: Signable](data: Data, proof: Proofs.Signature.HdKes, headerSlot: Slot): Boolean = true
 //    kes.verifyProductSignature(
 //      data.signableBytes.toArray,
 //      SymmetricSignature(

@@ -182,17 +182,17 @@ object BasicCodecs {
       )
   }
 
-  implicit val kesPublicKeyCodec: ByteCodec[VerificationKeys.HdKesSymProd] =
-    new ByteCodec[VerificationKeys.HdKesSymProd] {
+  implicit val kesPublicKeyCodec: ByteCodec[VerificationKeys.HdKes] =
+    new ByteCodec[VerificationKeys.HdKes] {
 
-      def encode(t: VerificationKeys.HdKesSymProd, writer: Writer): Unit = {
+      def encode(t: VerificationKeys.HdKes, writer: Writer): Unit = {
         //todo: fix
 //      t.xvkM.writeBytesTo(writer)
 //      writer.putLong(t.t)
       }
 
-      def decode(reader: Reader): VerificationKeys.HdKesSymProd =
-        VerificationKeys.HdKesSymProd(
+      def decode(reader: Reader): VerificationKeys.HdKes =
+        VerificationKeys.HdKes(
           Array(0: Byte)
           //todo: fix
 //          ByteCodec[VerificationKeys.ExtendedEd25519].decode(reader)

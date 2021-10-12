@@ -51,13 +51,13 @@ object VerificationKeys {
     ///type Length = ???
   }
 
-  case class HdKesSymProd(
+  case class HdKes(
 //                       xvkM: ExtendedEd25519,
 //                       t: Long,
     bytes: Array[Byte]
   ) extends VerificationKey
 
-  object HdKesSymProd {
+  object HdKes {
     type Length = Lengths.`32`.type
   }
 

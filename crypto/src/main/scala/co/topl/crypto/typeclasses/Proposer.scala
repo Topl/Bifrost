@@ -38,7 +38,7 @@ object Proposer {
     implicit val ed25519Proposes: Proposer[VerificationKeys.Ed25519, Propositions.PublicKeyEd25519] =
       t => Propositions.PublicKeyEd25519(t)
 
-    implicit val vrfProposes: Proposer[VerificationKeys.Vrf, Propositions.VerificationKeyVRF] =
+    implicit val vrfProposes: Proposer[VerificationKeys.VrfEd25519, Propositions.VerificationKeyVRF] =
       t => Propositions.VerificationKeyVRF(t)
 
     implicit val kesProposes: Proposer[VerificationKeys.HdKes, Propositions.VerificationKeyHdKES] =

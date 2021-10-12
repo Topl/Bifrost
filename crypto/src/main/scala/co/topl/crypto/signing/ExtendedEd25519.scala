@@ -17,11 +17,6 @@ class ExtendedEd25519
       SecretKeys.ExtendedEd25519,
       VerificationKeys.ExtendedEd25519,
       Proofs.Signature.Ed25519
-    ]
-    with EvolvingSignatureScheme[
-      SecretKeys.ExtendedEd25519,
-      VerificationKeys.ExtendedEd25519,
-      KeyIndex
     ] {
   override val SignatureLength: Int = SIGNATURE_SIZE
   override val KeyLength: Int = SECRET_KEY_SIZE
@@ -82,7 +77,7 @@ class ExtendedEd25519
       message.value.length
     )
 
-  override def deriveSecret(
+  def deriveSecret(
     secretKey: SecretKeys.ExtendedEd25519,
     index:     KeyIndex
   ): SecretKeys.ExtendedEd25519 = {
@@ -139,11 +134,6 @@ class ExtendedEd25519
       Sized.strictUnsafe(nextChainCode)
     )
   }
-
-  override def deriveVerification(
-    verificationKey: VerificationKeys.ExtendedEd25519,
-    index:           KeyIndex
-  ): VerificationKeys.ExtendedEd25519 = ???
 
   def deriveVerification(
     verificationKey: VerificationKeys.ExtendedEd25519,

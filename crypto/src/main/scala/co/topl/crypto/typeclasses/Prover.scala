@@ -1,12 +1,9 @@
 package co.topl.crypto.typeclasses
 
-import co.topl.crypto.signing.Ed25519
+import co.topl.crypto.signing.{Ed25519, MessageToSign}
 import co.topl.crypto.typeclasses.Signable.ops._
 import co.topl.models.Proofs.Signature
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.Lengths._
-import co.topl.models.utility.Sized
 
 import scala.language.implicitConversions
 
@@ -32,9 +29,7 @@ object Prover {
       new Prover[SecretKeys.Ed25519, Proofs.Signature.Ed25519] {
 
         def proveWith[Data: Signable](t: SecretKeys.Ed25519, data: Data): Signature.Ed25519 =
-          Proofs.Signature.Ed25519(
-            Sized.strictUnsafe(Bytes(ed.sign(t.bytes.data.toArray, data.signableBytes.toArray).value))
-          )
+          ed.sign(t, MessageToSign(data.signableBytes.toArray))
       }
 
     implicit val extendedEd25519Proves: Prover[SecretKeys.ExtendedEd25519, Proofs.Signature.Ed25519] =

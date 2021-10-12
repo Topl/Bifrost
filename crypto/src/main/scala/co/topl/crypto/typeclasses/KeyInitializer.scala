@@ -1,8 +1,6 @@
 package co.topl.crypto.typeclasses
 
 import co.topl.crypto.Pbkdf2Sha512
-import co.topl.crypto.kes.KeyEvolvingSignatureScheme
-import co.topl.crypto.kes.keys.SymmetricKey
 import co.topl.crypto.mnemonic.Entropy
 import co.topl.crypto.signing.{Curve25519, Ed25519, Ed25519VRF, Seed}
 import co.topl.models._
@@ -12,7 +10,6 @@ import co.topl.models.utility.Sized
 import simulacrum.typeclass
 
 import java.nio.charset.StandardCharsets
-import java.security.SecureRandom
 
 @typeclass trait KeyInitializer[SK] {
   self =>
@@ -130,22 +127,22 @@ object KeyInitializer {
         }
       }
 
-    implicit def kesSumInitializer(implicit slot: Slot): KeyInitializer[SecretKeys.KesSum] =
-      new KeyInitializer[SecretKeys.KesSum] {
-        private val scheme = new KeyEvolvingSignatureScheme
-
-        def random(): SecretKeys.KesSum =
-          SymmetricKey.newFromSeed(
-            new SecureRandom().generateSeed(32),
-            offset = slot,
-            // TODO:
-            signer = _ => Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0))))
-          )
-
-        def fromSeed(seed: Bytes): SecretKeys.KesSum =
-          SymmetricKey.newFromSeed(seed.toArray, offset = slot, signer = ???)
-
-      }
+//    implicit def kesSumInitializer(implicit slot: Slot): KeyInitializer[SecretKeys.KesSum] =
+//      new KeyInitializer[SecretKeys.KesSum] {
+//        private val scheme = new KeyEvolvingSignatureScheme
+//
+//        def random(): SecretKeys.KesSum =
+//          SymmetricKey.newFromSeed(
+//            new SecureRandom().generateSeed(32),
+//            offset = slot,
+//            // TODO:
+//            signer = _ => Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0))))
+//          )
+//
+//        def fromSeed(seed: Bytes): SecretKeys.KesSum =
+//          SymmetricKey.newFromSeed(seed.toArray, offset = slot, signer = ???)
+//
+//      }
 
   }
   object Instances extends Instances
