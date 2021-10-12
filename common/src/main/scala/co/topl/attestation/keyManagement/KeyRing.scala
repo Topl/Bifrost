@@ -182,10 +182,13 @@ class KeyRing[
      * @param address  Base58 encoded address of the key to unlock
      * @param password - password for the given public key.
      */
-    def unlockKeyFile(address: Base58Data, password: Latin1Data): Try[Address] = {
-      val keyfile = checkValid(address, password)
-      importKeyPairSafe(keyfile, password)
-    }
+    def unlockKeyFile(address: Base58Data, password: Latin1Data): Try[Address] =
+      checkValid(address, password) match {
+        case Success(keyfile) =>
+          importKeyPairSafe(keyfile, password)
+        case Failure(e) =>
+          Failure(e)
+      }
 
     /**
      * @param address
@@ -215,18 +218,20 @@ class KeyRing[
      * @param password        password used to decrypt the keyfile
      * @return the relevant PrivateKey25519 to be processed
      */
-    private def checkValid(address: Base58Data, password: Latin1Data): KF =
-      listKeyFiles()
-        .map {
-          _.filter {
-            _.address == address.decodeAddress.getOrThrow()
-          }
-        } match {
-        case Some(listOfKeyfiles) =>
-          require(listOfKeyfiles.size == 1, s"Cannot find a unique matching keyfile in $keyDirectory")
-          listOfKeyfiles.head
+    private def checkValid(address: Base58Data, password: Latin1Data): Try[KF] =
+      Try {
+        listKeyFiles()
+          .map {
+            _.filter {
+              _.address == address.decodeAddress.getOrThrow()
+            }
+          } match {
+          case Some(listOfKeyfiles) =>
+            require(listOfKeyfiles.size == 1, s"Cannot find a unique matching keyfile in $keyDirectory")
+            listOfKeyfiles.head
 
-        case None => throw new Exception("Unable to find valid keyfile matching the given address")
+          case None => throw new Exception("Unable to find valid keyfile matching the given address")
+        }
       }
   }
 }
