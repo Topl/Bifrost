@@ -3,6 +3,8 @@ package co.topl.utils.codecs
 import cats.Eq
 import cats.data.{Validated, ValidatedNec}
 import cats.implicits._
+import scodec.bits.BitVector
+import scodec.{Decoder, Encoder, Err}
 
 import scala.language.implicitConversions
 
@@ -65,6 +67,9 @@ object AsBytes {
           xBytes <- ev.encode(x).toEither
           yBytes <- ev.encode(y).toEither
         } yield xBytes sameElements yBytes).getOrElse(false)
+
+    implicit def encoderAsBytes[T: Encoder]: AsBytes[Err, T] =
+      value => Encoder[T].encode(value).map(_.toByteArray).toEither.toValidatedNec
   }
 
   object implicits extends ToOps with Instances
@@ -128,6 +133,9 @@ object FromBytes {
 
   trait Instances {
     implicit val identityBytesDecoder: FromBytes[Infallible, Array[Byte]] = infallible(identity)
+
+    implicit def decoderFromBytes[T: Decoder]: FromBytes[Err, T] =
+      bytes => Decoder[T].decode(BitVector(bytes)).map(_.value).toEither.toValidatedNec
   }
 
   object implicits extends ToOps with Instances
