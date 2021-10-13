@@ -58,6 +58,8 @@ object BlockGenesis {
       zeroBytes(Lengths.`32`),
       zeroBytes(Lengths.`64`)
     )
+
+    // TODO: Read "genesis-eta-plaintext" from application.conf, and then hash that value
     val eta: Eta =
       Sized.strictUnsafe(
         Bytes(
@@ -69,6 +71,7 @@ object BlockGenesis {
             .value
         )
       )
+
     val header =
       BlockHeaderV2(
         parentHeaderId = ParentId,

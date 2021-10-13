@@ -3,7 +3,7 @@ package co.topl.typeclasses
 import cats.Eq
 import cats.implicits._
 import co.topl.models.utility.Sized
-import co.topl.models.{BlockHeaderV2, BlockV2, Bytes, TypedBytes}
+import co.topl.models._
 
 trait EqInstances {
 
@@ -27,4 +27,7 @@ trait EqInstances {
 
   implicit val blockHeaderV2Eq: Eq[BlockHeaderV2] =
     Eq.fromUniversalEquals
+
+  implicit val slotIdEq: Eq[SlotId] =
+    (a, b) => a.slot === b.slot && a.blockId === b.blockId
 }

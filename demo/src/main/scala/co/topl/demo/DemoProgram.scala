@@ -97,7 +97,7 @@ object DemoProgram {
     for {
       _      <- Logger[F].info(s"Starting epoch=$epoch (${boundary.start}..${boundary.end})")
       _      <- Logger[F].info("Precomputing VRF data")
-      headId <- localChain.current.map(_.slotId._2)
+      headId <- localChain.head.map(_.slotId.blockId)
       head <- OptionT(state.lookupBlockHeader(headId))
         .getOrElseF(new IllegalStateException(show"Missing blockId=$headId").raiseError[F, BlockHeaderV2])
       nextEta <- etaCalculation.etaToBe(head.slotId, boundary.start)
@@ -135,61 +135,45 @@ object DemoProgram {
     localChain:       LocalChain[F],
     ed25519VrfRef:    Ref[F, Ed25519VRF]
   ): F[Unit] =
-    Logger[F].debug(s"Processing slot=$slot") >>
-    localChain.current
-      .flatMap(slotData =>
-        OptionT(state.lookupBlock(slotData.slotId._2))
-          .getOrElseF(new IllegalStateException("BlockNotFound").raiseError[F, BlockV2])
+    for {
+      _ <- Logger[F].debug(s"Processing slot=$slot")
+      canonicalHead <- localChain.head
+        .flatMap(slotData =>
+          OptionT(state.lookupBlock(slotData.slotId.blockId))
+            .getOrElseF(new IllegalStateException("BlockNotFound").raiseError[F, BlockV2])
+        )
+      mintedBlocks <- mints.traverse(_.mint(canonicalHead.headerV2, Nil, slot)).map(_.flatten)
+      _ <- mintedBlocks.traverse(
+        processMintedBlock(_, headerValidation, state, localChain, ed25519VrfRef, canonicalHead)
       )
-      .flatMap(canonicalHead =>
-        // Attempt to mint a new block
-        mints
-          .traverse(
-            _.mint(canonicalHead.headerV2, Nil, slot)
-          )
-          .map(_.flatten)
-          .flatMap(
-            _.traverse(nextBlock =>
-              Logger[F].info(s"Minted block ${nextBlock.headerV2.show}") >>
-              state.append(nextBlock) >>
-              // If a block was minted at this slot, attempt to validate it
-              ed25519VrfRef
-                .modify(implicit ed25519Vrf => ed25519Vrf -> SlotData(nextBlock.headerV2))
-                .flatMap(slotData =>
-                  localChain
-                    .isWorseThan(slotData)
-                    .flatMap(localChainIsWorseThan =>
-                      if (localChainIsWorseThan)
-                        EitherT(headerValidation.validate(nextBlock.headerV2, canonicalHead.headerV2))
-                          .semiflatTap(_ => localChain.adopt(slotData))
-                          .semiflatTap(header => Logger[F].info(s"Adopted local head block id=${header.id.show}"))
-                          .void
-                          .valueOrF(e =>
-                            Logger[F].warn(s"Invalid block header. reason=$e block=${nextBlock.headerV2.show}")
-                          )
-                      else
-                        Logger[F].info(s"Ignoring weaker block header id=${nextBlock.headerV2.id.show}")
-                    )
-                )
-            ).void
-          )
-      )
+    } yield ()
 
-//  private def handleTwoThirdsEvent[F[_]: MonadError[*[_], Throwable]: Logger](
-//    epoch:          Epoch,
-//    state:          ConsensusState[F],
-//    etaCalculation: EtaCalculationAlgebra[F],
-//    localChain:     LocalChain[F]
-//  ): F[Unit] =
-//    for {
-//      _        <- Logger[F].info(s"Handling 2/3 event for epoch=$epoch")
-//      headData <- localChain.current
-//      head <- OptionT(state.lookupBlockHeader(headData.slotId._2))
-//        .getOrElseF(new IllegalStateException().raiseError[F, BlockHeaderV2])
-//      nextEta <- etaCalculation.calculate(epoch, head)
-//      _       <- Logger[F].info(s"Computed eta=$nextEta for epoch=$epoch")
-//      _       <- state.writeEta(epoch, nextEta)
-//    } yield ()
+  /**
+   * Insert block to local storage and perform chain selection.  If better, validate the block and then adopt it locally.
+   */
+  private def processMintedBlock[F[_]: Monad: Logger](
+    nextBlock:        BlockV2,
+    headerValidation: BlockHeaderValidationAlgebra[F],
+    state:            ConsensusState[F],
+    localChain:       LocalChain[F],
+    ed25519VrfRef:    Ref[F, Ed25519VRF],
+    canonicalHead:    BlockV2
+  ): F[Unit] =
+    for {
+      _                     <- Logger[F].info(s"Minted block ${nextBlock.headerV2.show}")
+      _                     <- state.append(nextBlock)
+      slotData              <- ed25519VrfRef.modify(implicit ed25519Vrf => ed25519Vrf -> SlotData(nextBlock.headerV2))
+      localChainIsWorseThan <- localChain.isWorseThan(slotData)
+      _ <-
+        if (localChainIsWorseThan)
+          EitherT(headerValidation.validate(nextBlock.headerV2, canonicalHead.headerV2))
+            .semiflatTap(_ => localChain.adopt(slotData))
+            .semiflatTap(header => Logger[F].info(show"Adopted local head block id=${header.id}"))
+            .void
+            .valueOrF(e => Logger[F].warn(s"Invalid block header. reason=$e block=${nextBlock.headerV2.show}"))
+        else
+          Logger[F].info(show"Ignoring weaker block header id=${nextBlock.headerV2.id}")
+    } yield ()
 
   /**
    * Perform operations at the completion of an epoch

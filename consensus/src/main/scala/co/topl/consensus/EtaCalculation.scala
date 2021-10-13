@@ -1,7 +1,7 @@
 package co.topl.consensus
 
 import cats.MonadError
-import cats.data.{Chain, EitherT, NonEmptyChain, OptionT}
+import cats.data.{EitherT, NonEmptyChain}
 import cats.effect.{Clock, Sync}
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
@@ -12,6 +12,7 @@ import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.Sized
+import co.topl.typeclasses.BlockGenesis
 import co.topl.typeclasses.implicits._
 import scalacache._
 import scalacache.caffeine.CaffeineCache
@@ -22,28 +23,34 @@ object EtaCalculation {
 
   object Eval {
 
+    implicit private val cacheConfig: CacheConfig = CacheConfig(cacheKeyBuilder = new CacheKeyBuilder {
+
+      def toCacheKey(parts: Seq[Any]): String =
+        parts.map {
+          case s: SlotData => s.slotId.blockId.show
+          case s           => throw new MatchError(s)
+        }.mkString
+
+      def stringToCacheKey(key: String): String = key
+    })
+
     def make[F[_]: Clock: Sync: MonadError[*[_], Throwable]](
       slotDataCache: SlotDataCache[F],
       clock:         ClockAlgebra[F],
       genesisEta:    Eta
-    ): F[EtaCalculationAlgebra[F]] = {
-      implicit val cacheConfig: CacheConfig = CacheConfig(cacheKeyBuilder = new CacheKeyBuilder {
-        def toCacheKey(parts: Seq[Any]): String =
-          parts.map {
-            case s: SlotData => s.slotId._2.show
-            case _           => throw new MatchError()
-          }.mkString
-
-        def stringToCacheKey(key: String): String = key
-      })
+    ): F[EtaCalculationAlgebra[F]] =
       CaffeineCache[F, Eta].map(implicit cache =>
         new EtaCalculationAlgebra[F] {
 
-          override def etaToBe(parentSlotId: (Slot, TypedIdentifier), childSlot: Slot): F[Eta] =
+          override def etaToBe(parentSlotId: SlotId, childSlot: Slot): F[Eta] =
             clock.slotsPerEpoch.flatMap(slotsPerEpoch =>
               if (childSlot < slotsPerEpoch) genesisEta.pure[F]
               else
-                (clock.epochOf(parentSlotId._1), clock.epochOf(childSlot), slotDataCache.get(parentSlotId._2)).tupled
+                (
+                  clock.epochOf(parentSlotId.slot),
+                  clock.epochOf(childSlot),
+                  slotDataCache.get(parentSlotId.blockId)
+                ).tupled
                   .flatMap {
                     case (parentEpoch, childEpoch, parentSlotData) if parentEpoch === childEpoch =>
                       parentSlotData.eta.pure[F]
@@ -59,8 +66,8 @@ object EtaCalculation {
           private def locateTwoThirdsBest(child: SlotData): F[SlotData] =
             for {
               slotsPerEpoch <- clock.slotsPerEpoch
-              twoThirdsBest <- child.iterateUntilM(data => slotDataCache.get(data.parentSlotId._2))(data =>
-                data.slotId._1 % slotsPerEpoch < (slotsPerEpoch * 2 / 3)
+              twoThirdsBest <- child.iterateUntilM(data => slotDataCache.get(data.parentSlotId.blockId))(data =>
+                data.slotId.slot % slotsPerEpoch < (slotsPerEpoch * 2 / 3)
               )
             } yield twoThirdsBest
 
@@ -69,19 +76,14 @@ object EtaCalculation {
            * @param twoThirdsBest The latest block header in some tine, but within the first 2/3 of the epoch
            */
           private def calculate(twoThirdsBest: SlotData): F[Eta] =
-            cachingF(twoThirdsBest)(Some(1.day))(
+            cachingF(twoThirdsBest)(ttl = Some(1.day))(
               for {
-                epoch      <- clock.epochOf(twoThirdsBest.slotId._1)
+                epoch      <- clock.epochOf(twoThirdsBest.slotId.slot)
                 epochRange <- clock.epochRange(epoch)
                 epochData <- collectUntil(twoThirdsBest)(head =>
-                  head.parentSlotId._1 < epochRange.start || head.parentSlotId._1 === 0L
+                  head.parentSlotId.slot < epochRange.start || head.parentSlotId.slot === BlockGenesis.ParentSlot
                 )
-                  .flatMap(result =>
-                    OptionT
-                      .fromOption[F](NonEmptyChain.fromChain(result))
-                      .getOrElseF(new IllegalStateException("Empty Epoch").raiseError[F, NonEmptyChain[SlotData]])
-                  )
-                previousEta <- slotDataCache.get(epochData.head.parentSlotId._2).map(_.eta)
+                previousEta = epochData.head.eta
                 nextEta = calculate(previousEta, epoch, epochData.map(_.rho))
               } yield nextEta
             )
@@ -91,27 +93,23 @@ object EtaCalculation {
            * @param head The starting point for the backwards-traversal
            * @param predicate A condition (applied to the traversal's current earliest block) which stops the traversal
            */
-          private def collectUntil(head: SlotData)(predicate: SlotData => Boolean): F[Chain[SlotData]] =
-            if (predicate(head)) Chain.empty[SlotData].pure[F]
-            else
-              EitherT(
-                NonEmptyChain(head)
-                  .asLeft[NonEmptyChain[SlotData]]
-                  .iterateUntilM {
-                    case Left(acc) =>
-                      if (predicate(acc.head))
-                        acc.asRight[NonEmptyChain[SlotData]].pure[F]
-                      else
-                        slotDataCache
-                          .get(acc.head.parentSlotId._2)
-                          .map(acc.prepend)
-                          .map(_.asLeft[NonEmptyChain[SlotData]])
-                    case r =>
-                      r.pure[F]
-                  }(_.isRight)
-              )
-                .valueOr(identity)
-                .map(_.toChain)
+          private def collectUntil(head: SlotData)(predicate: SlotData => Boolean): F[NonEmptyChain[SlotData]] =
+            EitherT(
+              NonEmptyChain(head)
+                .asLeft[NonEmptyChain[SlotData]]
+                .iterateUntilM {
+                  // Treat "Left" as incomplete
+                  case Left(acc) =>
+                    if (predicate(acc.head))
+                      acc.asRight[NonEmptyChain[SlotData]].pure[F]
+                    else
+                      slotDataCache
+                        .get(acc.head.parentSlotId.blockId)
+                        .map(acc.prepend(_).asLeft[NonEmptyChain[SlotData]])
+                  case r =>
+                    r.pure[F]
+                }(_.isRight)
+            ).merge
 
           /**
            * Calculate a new Eta value once all the nececssary pre-requisites have been gathered
@@ -130,7 +128,6 @@ object EtaCalculation {
               )
         }
       )
-    }
   }
 }
 

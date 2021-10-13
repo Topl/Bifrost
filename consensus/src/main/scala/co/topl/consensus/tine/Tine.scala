@@ -8,7 +8,6 @@ import co.topl.crypto.signatures.Ed25519VRF
 
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
-import scala.collection.immutable.ArraySeq
 
 case class Tine(
   var best:        mutable.SortedMap[BigInt, SlotId] = mutable.SortedMap(),
@@ -44,12 +43,12 @@ case class Tine(
                 case Some(header) =>
                   out = prepend(
                     out,
-                    (header.slot, testId._2, ProofToHash.digest(header.eligibibilityCertificate.vrfNonceSig))
+                    (header.slot, testId.blockId, ProofToHash.digest(header.eligibibilityCertificate.vrfNonceSig))
                   )
                   if (header.parentSlot < minSlot.get || BigInt(header.parentSlot / databaseInterval) != epoch3rd) {
                     buildTine = false
                   } else {
-                    testId = (header.parentSlot, header.parentHeaderId)
+                    testId = SlotId(header.parentSlot, header.parentHeaderId)
                   }
                 case None => buildTine = false
               }
@@ -81,7 +80,7 @@ case class Tine(
         minSlot = None
         maxSlot = None
         best = mutable.SortedMap()
-        cache.foreach(entry => this.update((entry._1, entry._2), entry._3))
+        cache.foreach(entry => this.update(SlotId(entry._1, entry._2), entry._3))
       case _ =>
         tineDB = Right(tineCache)
     }
@@ -108,36 +107,36 @@ case class Tine(
    */
 
   def update(slotId: SlotId, nonce: Rho): Unit = Try {
-    val newEntry = (slotId._1, slotId._2, nonce)
+    val newEntry = (slotId.slot, slotId.blockId, nonce)
     tineDB match {
       case Left(cache) =>
         if (cache.isEmpty) {
-          maxSlot = Some(slotId._1)
-          minSlot = Some(slotId._1)
+          maxSlot = Some(slotId.slot)
+          minSlot = Some(slotId.slot)
           tineDB = Left(append(cache, newEntry))
         } else {
           maxSlot match {
-            case Some(slot) if slotId._1 > slot =>
+            case Some(slot) if slotId.slot > slot =>
               assert(toSlotId(cache.last) == blocks.getHeader(slotId).get.parentSlotId)
               tineDB = Left(append(cache, newEntry))
-              maxSlot = Some(slotId._1)
+              maxSlot = Some(slotId.slot)
             case _ =>
           }
           minSlot match {
-            case Some(slot) if slotId._1 < slot =>
+            case Some(slot) if slotId.slot < slot =>
               assert(slotId == blocks.getHeader(toSlotId(cache.head)).get.parentSlotId)
               tineDB = Left(prepend(cache, newEntry))
-              minSlot = Some(slotId._1)
+              minSlot = Some(slotId.slot)
             case _ =>
           }
         }
       case Right(loadingCache) =>
-        val index = slotId._1 / databaseInterval
+        val index = slotId.slot / databaseInterval
         val cacheKey = BigInt(index)
         val cache: TineCache = loadingCache.get(cacheKey)
         var wasUpdated = false
         maxSlot match {
-          case Some(slot) if slotId._1 > slot =>
+          case Some(slot) if slotId.slot > slot =>
             if (cache.isEmpty) {
               if (index > 0) assert(best(BigInt(index - 1)) == blocks.getHeader(slotId).get.parentSlotId)
             } else {
@@ -145,19 +144,19 @@ case class Tine(
             }
             loadingCache.invalidate(cacheKey)
             loadingCache.put(cacheKey, append(cache, newEntry))
-            maxSlot = Some(slotId._1)
+            maxSlot = Some(slotId.slot)
             wasUpdated = true
-          case Some(slot) if slotId._1 <= slot =>
+          case Some(slot) if slotId.slot <= slot =>
           case None =>
             loadingCache.invalidate(cacheKey)
             assert(cache.isEmpty)
             loadingCache.put(cacheKey, append(cache, newEntry))
-            maxSlot = Some(slotId._1)
+            maxSlot = Some(slotId.slot)
             wasUpdated = true
           case _ => assert(false)
         }
         minSlot match {
-          case Some(slot) if slotId._1 < slot =>
+          case Some(slot) if slotId.slot < slot =>
             if (cache.nonEmpty) {
               assert(slotId == blocks.getHeader(toSlotId(cache.head)).get.parentSlotId)
             } else {
@@ -165,20 +164,20 @@ case class Tine(
             }
             loadingCache.invalidate(cacheKey)
             loadingCache.put(cacheKey, prepend(cache, newEntry))
-            minSlot = Some(slotId._1)
+            minSlot = Some(slotId.slot)
             wasUpdated = true
-          case Some(slot) if slotId._1 >= slot =>
+          case Some(slot) if slotId.slot >= slot =>
           case None =>
             assert(cache.isEmpty)
             assert(wasUpdated)
-            minSlot = Some(slotId._1)
+            minSlot = Some(slotId.slot)
           case _ => assert(false)
         }
         best.get(cacheKey) match {
-          case Some(bestId) if slotId._1 >= bestId._1 =>
+          case Some(bestId) if slotId.slot >= bestId.slot =>
             best -= cacheKey
             best += (cacheKey -> slotId)
-          case Some(bestId) if slotId._1 < bestId._1 =>
+          case Some(bestId) if slotId.slot < bestId.slot =>
           case None =>
             assert(cache.isEmpty)
             best += (cacheKey -> slotId)
@@ -203,7 +202,7 @@ case class Tine(
     if (maxSlot.get == prefix && prefix < tine.minSlot.get) {
       assert(this.head == blocks.getHeader(tine.oldest).get.parentSlotId)
       for (id <- tine.ordered)
-        this.update(id, tine.getNonce(id._1).get)
+        this.update(id, tine.getNonce(id.slot).get)
     } else {
       tineDB match {
         case Left(cache) =>
@@ -215,7 +214,7 @@ case class Tine(
           maxSlot = Some(newMax)
           assert(this.head == blocks.getHeader(tine.oldest).get.parentSlotId)
           for (id <- tine.ordered)
-            this.update(id, tine.getNonce(id._1).get)
+            this.update(id, tine.getNonce(id.slot).get)
         case Right(cache) =>
           val prefixKey = BigInt(prefix / databaseInterval)
           val newCache = cache.get(prefixKey).filter(data => data._1 <= prefix)
@@ -228,7 +227,7 @@ case class Tine(
           best += (prefixKey -> newBest)
           assert(this.head == blocks.getHeader(tine.oldest).get.parentSlotId)
           for (id <- tine.ordered)
-            this.update(id, tine.getNonce(id._1).get)
+            this.update(id, tine.getNonce(id.slot).get)
       }
     }
   } match {
@@ -337,13 +336,13 @@ case class Tine(
     tineDB match {
       case Left(cache) =>
         cache.find(entry => entry._1 == slot) match {
-          case Some(data) => Some((slot, data._2))
+          case Some(data) => Some(SlotId(slot, data._2))
           case None       => None
         }
       case Right(cache) =>
         val cacheKey = BigInt(slot / databaseInterval)
         cache.get(cacheKey).find(entry => entry._1 == slot) match {
-          case Some(data) => Some((slot, data._2))
+          case Some(data) => Some(SlotId(slot, data._2))
           case None       => None
         }
     }
@@ -591,7 +590,7 @@ case class Tine(
       new Tine
     }
 
-  private def toSlotId(data: (Slot, TypedIdentifier, Rho)): SlotId = (data._1, data._2)
+  private def toSlotId(data: (Slot, TypedIdentifier, Rho)): SlotId = SlotId(data._1, data._2)
 
   def ordered: Array[SlotId] = {
     var out: Array[SlotId] = Array()
@@ -675,7 +674,7 @@ case class Tine(
         } else {
           var id: SlotId = best(best.keySet.max)
           var cachePid: Option[SlotId] = None
-          assert(id._1 == maxSlot.get)
+          assert(id.slot == maxSlot.get)
           for (value <- best.toArray.reverse) {
             val cache = loaderCache.get(value._1)
             id = toSlotId(cache.last)
@@ -695,7 +694,7 @@ case class Tine(
               nonce = ProofToHash.digest(block.eligibibilityCertificate.vrfNonceSig)
               assert(nonce == entry._3)
             }
-            if (id._1 > 0) cachePid = Some(blocks.getHeader(id).get.parentSlotId)
+            if (id.slot > 0) cachePid = Some(blocks.getHeader(id).get.parentSlotId)
           }
         }
     }

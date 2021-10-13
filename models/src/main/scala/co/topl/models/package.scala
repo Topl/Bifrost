@@ -27,7 +27,6 @@ package object models {
   type PolyOutput = (Address, Int128)
   type ArbitOutput = (Address, Int128)
   type AssetOutput = (Address, Box.Values.Asset)
-  type SlotId = (Slot, TypedIdentifier)
   type TxRoot = Sized.Strict[Bytes, Lengths.`32`.type]
   type BloomFilter = Sized.Strict[Bytes, Lengths.`256`.type]
   type Rho = Sized.Strict[Bytes, Lengths.`64`.type]
@@ -35,6 +34,8 @@ package object models {
   type Root = Propositions.PublicKeyEd25519
   type StakeAddress = Propositions.PublicKeyEd25519
   type Digest32 = Sized.Strict[Bytes, Lengths.`32`.type]
+
+  case class SlotId(slot: Slot, blockId: TypedIdentifier)
 
   object Bytes {
     def apply(array:       Array[Byte]): Bytes = new ArraySeq.ofByte(array)

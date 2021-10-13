@@ -132,7 +132,7 @@ object BlockHeaderValidation {
            */
           private def vrfThresholdFor(child: BlockHeaderV2, parent: BlockHeaderV2): F[Ratio] =
             relativeStakeInterpreter
-              .lookupAt((child.slot, child.id), child.address)
+              .lookupAt(SlotId(child.slot, child.id), child.address)
               .flatMap(relativeStake =>
                 leaderElection.getThreshold(
                   relativeStake.getOrElse(Ratio(0)),
@@ -186,7 +186,7 @@ object BlockHeaderValidation {
             header: BlockHeaderV2
           ): EitherT[F, BlockHeaderValidationFailure, BlockHeaderV2] =
             OptionT(
-              registrationInterpreter.registrationOf((header.slot, header.id), header.address)
+              registrationInterpreter.registrationOf(SlotId(header.slot, header.id), header.address)
             )
               .map(_.vrfCommitment)
               .toRight(BlockHeaderValidationFailures.Unregistered(header.address): BlockHeaderValidationFailure)

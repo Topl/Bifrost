@@ -27,7 +27,7 @@ trait LocalChain[F[_]] {
   /**
    * The head of the chain that has been adopted locally by this node.
    */
-  def current: F[SlotData]
+  def head: F[SlotData]
 }
 
 object LocalChain {
@@ -40,17 +40,17 @@ object LocalChain {
     ): F[LocalChain[F]] =
       Ref
         .of[F, SlotData](initialHead)
-        .map(head =>
+        .map(headRef =>
           new LocalChain[F] {
 
             def isWorseThan(newHead: SlotData): F[Boolean] =
-              current.flatMap(chainSelection.compare(_, newHead).map(_ < 0))
+              head.flatMap(chainSelection.compare(_, newHead).map(_ < 0))
 
             def adopt(newHead: SlotData): F[Unit] =
-              head.update(_ => newHead)
+              headRef.update(_ => newHead)
 
-            val current: F[SlotData] =
-              Sync[F].defer(head.get)
+            val head: F[SlotData] =
+              headRef.get
           }
         )
   }
