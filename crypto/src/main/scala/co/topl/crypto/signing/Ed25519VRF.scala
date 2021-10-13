@@ -14,9 +14,10 @@ class Ed25519VRF
   override val KeyLength: Int = SECRET_KEY_SIZE
 
   override def createKeyPair(seed: Seed): (SecretKeys.VrfEd25519, VerificationKeys.VrfEd25519) = {
-    val sk: Sized.Strict[Bytes, SecretKeys.VrfEd25519.Length] = Sized.strictUnsafe(new Array[Byte](SECRET_KEY_SIZE))
+    val sk: Sized.Strict[Bytes, SecretKeys.VrfEd25519.Length] =
+      Sized.strictUnsafe(Bytes(new Array[Byte](SECRET_KEY_SIZE)))
     val pk: Sized.Strict[Bytes, VerificationKeys.VrfEd25519.Length] =
-      Sized.strictUnsafe(new Array[Byte](PUBLIC_KEY_SIZE))
+      Sized.strictUnsafe(Bytes(new Array[Byte](PUBLIC_KEY_SIZE)))
     val hashedSeed = sha256.hash(seed.value)
     val random = SecureRandom.getInstance("SHA1PRNG")
 
@@ -33,7 +34,13 @@ class Ed25519VRF
   }
 
   override def sign(privateKey: SecretKeys.VrfEd25519, message: MessageToSign): Proofs.Signature.VrfEd25519 =
-    Proofs.Signature.VrfEd25519(Sized.strictUnsafe(vrfProof(Bytes.toByteArray(privateKey.bytes.data), message.value)))
+    Proofs.Signature.VrfEd25519(
+      Sized.strictUnsafe(
+        Bytes(
+          vrfProof(privateKey.bytes.data.toArray, message.value)
+        )
+      )
+    )
 
   override def verify(
     signature: Proofs.Signature.VrfEd25519,

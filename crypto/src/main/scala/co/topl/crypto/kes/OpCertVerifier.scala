@@ -1,13 +1,8 @@
 package co.topl.crypto.kes
 
-import co.topl.crypto.PublicKey
-import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.signatures.Signature
 import co.topl.crypto.signing.{Ed25519, KesSum}
 import co.topl.crypto.typeclasses.Signable
-import co.topl.crypto.typeclasses.Signable.ops._
 import co.topl.models.{Proofs, Slot}
-import com.google.common.primitives.Longs
 
 object OpCertVerifier {
 
@@ -23,9 +18,9 @@ object OpCertVerifier {
 //    kes.verifyProductSignature(message, sig: ProductSignature, (slot - sig.offset).toInt)
 
   def verify(message: Array[Byte], sig: Proofs.Signature.KesSum, slot: Long): Boolean = true
-    //kes.sumCompositionVerify(sig.pkl.value, message, sig.bytes, (slot - sig.offset).toInt)
+  //kes.sumCompositionVerify(sig.pkl.value, message, sig.bytes, (slot - sig.offset).toInt)
 
-  def verify(vk_i: PublicKey, vk_kes: PublicKey, offset: Long, sig: Signature): Boolean = true
+  //def verify(vk_i: PublicKey, vk_kes: PublicKey, offset: Long, sig: Signature): Boolean = true
 //  {
 //    val m = blake2b256.hash(vk_kes.value ++ Longs.toByteArray(offset)).value.array
 //    ec.verify(sig, m, vk_i)

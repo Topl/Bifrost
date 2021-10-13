@@ -15,8 +15,10 @@ class Ed25519
   override val KeyLength: Int = SECRET_KEY_SIZE
 
   override def createKeyPair(seed: Seed): (SecretKeys.Ed25519, VerificationKeys.Ed25519) = {
-    val sk: Sized.Strict[Bytes, SecretKeys.Ed25519.Length] = Sized.strictUnsafe(new Array[Byte](SECRET_KEY_SIZE))
-    val pk: Sized.Strict[Bytes, VerificationKeys.Ed25519.Length] = Sized.strictUnsafe(new Array[Byte](PUBLIC_KEY_SIZE))
+    val sk: Sized.Strict[Bytes, SecretKeys.Ed25519.Length] =
+      Sized.strictUnsafe(Bytes(new Array[Byte](SECRET_KEY_SIZE)))
+    val pk: Sized.Strict[Bytes, VerificationKeys.Ed25519.Length] =
+      Sized.strictUnsafe(Bytes(new Array[Byte](PUBLIC_KEY_SIZE)))
     val hashedSeed = sha256.hash(seed.value)
     val random = SecureRandom.getInstance("SHA1PRNG")
 
@@ -32,7 +34,8 @@ class Ed25519
   }
 
   override def sign(privateKey: SecretKeys.Ed25519, message: MessageToSign): Proofs.Signature.Ed25519 = {
-    val sig: Sized.Strict[Bytes, Proofs.Signature.Ed25519.Length] = Sized.strictUnsafe(new Array[Byte](SIGNATURE_SIZE))
+    val sig: Sized.Strict[Bytes, Proofs.Signature.Ed25519.Length] =
+      Sized.strictUnsafe(Bytes(new Array[Byte](SIGNATURE_SIZE)))
     sign(
       Bytes.toByteArray(privateKey.bytes.data),
       0,
@@ -71,7 +74,6 @@ class Ed25519
     val vk = t.vk[VerificationKeys.ExtendedEd25519]
     val pk: Array[Byte] = (vk.ed25519.bytes.data ++ vk.chainCode.data).toArray
     implSign(sha512Digest, h, s, pk, 0, ctx, phflag, message, 0, message.length, signatureArray, 0)
-    Sized.strictUnsafe(Bytes(signatureArray))
     Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(signatureArray)))
   }
 }

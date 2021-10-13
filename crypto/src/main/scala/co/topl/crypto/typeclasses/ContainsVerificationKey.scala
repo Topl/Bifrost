@@ -60,11 +60,15 @@ object ContainsVerificationKey {
       : ContainsVerificationKey[SecretKeys.VrfEd25519, VerificationKeys.VrfEd25519] =
       key =>
         VerificationKeys.VrfEd25519(
-          Sized.strictUnsafe(
-            ed25519ContainsVerificationKey.verificationKeyOf(
-              SecretKeys.Ed25519(key.bytes))
-            )
+          Sized.strictUnsafe[Bytes, VerificationKeys.VrfEd25519.Length](
+            ed25519ContainsVerificationKey
+              .verificationKeyOf(
+                SecretKeys.Ed25519(key.bytes)
+              )
+              .bytes
+              .data
           )
+        )
 
 //    implicit val kesContainsVerificationKey
 //      : ContainsVerificationKey[SecretKeys.SymmetricMMM, VerificationKeys.HdKes] = {

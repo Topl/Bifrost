@@ -104,7 +104,7 @@ object KeyfileCurve25519Companion extends KeyfileCompanion[PrivateKeyCurve25519,
       encrypt = false
     ) match {
       case (cipherBytes, _) =>
-        cipherBytes.grouped(Curve25519.vkLength).toSeq match {
+        cipherBytes.grouped(Curve25519.instance.KeyLength).toSeq match {
           case Seq(skBytes, pkBytes) =>
             // recreate the private key
             val privateKey = new PrivateKeyCurve25519(PrivateKey(skBytes), PublicKey(pkBytes))

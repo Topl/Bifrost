@@ -1,5 +1,7 @@
 package co.topl.models
 
+import co.topl.models.utility.Lengths
+
 import scala.collection.immutable.SortedSet
 
 sealed trait Proposition
@@ -7,6 +9,10 @@ sealed trait Proposition
 object Propositions {
 
   case class PublicKeyCurve25519(key: VerificationKeys.Curve25519) extends Proposition
+
+  object PublicKeyCurve25519 {
+    type Length = Lengths.`32`.type
+  }
 
   case class ThresholdCurve25519(threshold: Int, propositions: SortedSet[VerificationKeys.Curve25519])
       extends Proposition

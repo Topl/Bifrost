@@ -55,7 +55,7 @@ object ProofVerifier {
         ): Boolean = curve25519.verify(
           proof,
           MessageToSign(data.signableBytes.toArray),
-          VerificationKeys.Curve25519(Sized.strictUnsafe(proposition.key.bytes.data.toArray))
+          proposition.key
         )
       }
 
@@ -68,9 +68,9 @@ object ProofVerifier {
           proposition: Propositions.PublicKeyEd25519,
           data:        Data
         ): Boolean = ed25519.verify(
-          Proofs.Signature.Ed25519(Sized.strictUnsafe(proof.bytes.data.toArray)),
+          proof,
           MessageToSign(data.signableBytes.toArray),
-          VerificationKeys.Ed25519(Sized.strictUnsafe(proposition.key.bytes.data.toArray))
+          proposition.key
         )
       }
 
@@ -93,11 +93,9 @@ object ProofVerifier {
                     unusedProps
                       .find(prop =>
                         unusedProps(prop) && curve25519.verify(
-                          Proofs.Signature.Curve25519(
-                            Sized.strictUnsafe(sig.bytes.data.toArray)
-                          ),
+                          sig,
                           MessageToSign(dataBytes),
-                          VerificationKeys.Curve25519(Sized.strictUnsafe(prop.bytes.data.toArray))
+                          prop
                         )
                       ) match {
                       case Some(prop) =>
@@ -131,9 +129,9 @@ object ProofVerifier {
                     unusedProps
                       .find(prop =>
                         unusedProps(prop) && ed25519.verify(
-                          Proofs.Signature.Ed25519(Sized.strictUnsafe(sig.bytes.data.toArray)),
+                          sig,
                           MessageToSign(data.signableBytes.toArray),
-                          VerificationKeys.Ed25519(Sized.strictUnsafe(prop.bytes.data.toArray))
+                          prop
                         )
                       ) match {
                       case Some(prop) =>

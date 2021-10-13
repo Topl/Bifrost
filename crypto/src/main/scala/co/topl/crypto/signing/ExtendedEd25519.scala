@@ -1,12 +1,14 @@
 package co.topl.crypto.signing
 
-import co.topl.crypto.Pbkdf2Sha512
+import co.topl.crypto.{KeyIndexes, Pbkdf2Sha512}
 import co.topl.crypto.hash.sha256
 import co.topl.crypto.mnemonic.Entropy
-import co.topl.crypto.signing.bip32ed25519._
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.{Lengths, Sized}
+import co.topl.models.utility.{Bip32Index, Lengths, Sized}
+import org.bouncycastle.crypto.digests.SHA512Digest
+import org.bouncycastle.crypto.macs.HMac
+import org.bouncycastle.crypto.params.KeyParameter
 
 import java.nio.{ByteBuffer, ByteOrder}
 import java.security.SecureRandom
@@ -24,7 +26,7 @@ class ExtendedEd25519
 
   override def createKeyPair(seed: Seed): (SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519) = {
     val skBytes: Sized.Strict[Bytes, SecretKeys.ExtendedEd25519.Length] =
-      Sized.strictUnsafe(new Array[Byte](SECRET_KEY_SIZE))
+      Sized.strictUnsafe(Bytes(new Array[Byte](SECRET_KEY_SIZE)))
     val hashedSeed = sha256.hash(seed.value)
     val random = SecureRandom.getInstance("SHA1PRNG")
 
@@ -57,7 +59,7 @@ class ExtendedEd25519
 
     implSign(sha512Digest, h, s, pk, 0, ctx, phflag, m, 0, m.length, resultSig, 0)
 
-    Proofs.Signature.Ed25519(Sized.strictUnsafe(resultSig))
+    Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(resultSig)))
   }
 
   override def verify(
@@ -79,7 +81,7 @@ class ExtendedEd25519
 
   def deriveSecret(
     secretKey: SecretKeys.ExtendedEd25519,
-    index:     KeyIndex
+    index:     Bip32Index
   ): SecretKeys.ExtendedEd25519 = {
 
     val lNum: BigInt = ExtendedEd25519.leftNumber(secretKey)
@@ -87,9 +89,9 @@ class ExtendedEd25519
     val public: VerificationKeys.ExtendedEd25519 = ExtendedEd25519.generatePublicKey(secretKey)
 
     val z =
-      hmac512WithKey(
-        secretKey.chainCode.data,
-        Bytes(Array(0x02.toByte)) ++ public.ed25519.bytes.data.toArray ++ index.bytes.data
+      ExtendedEd25519.hmac512WithKey(
+        secretKey.chainCode.data.toArray,
+        Array(0x02.toByte) ++ public.ed25519.bytes.data.toArray ++ index.bytes.data
       )
 
     val zLeft =
@@ -120,10 +122,11 @@ class ExtendedEd25519
 
     val nextChainCode =
       Bytes(
-        hmac512WithKey(
-          secretKey.chainCode.data,
-          Bytes(Array(0x03.toByte)) ++ public.ed25519.bytes.data.toArray ++ index.bytes.data
-        )
+        ExtendedEd25519
+          .hmac512WithKey(
+            secretKey.chainCode.data.toArray,
+            Array(0x03.toByte) ++ public.ed25519.bytes.data.toArray ++ index.bytes.data
+          )
           .slice(32, 64)
           .toArray
       )
@@ -137,12 +140,12 @@ class ExtendedEd25519
 
   def deriveVerification(
     verificationKey: VerificationKeys.ExtendedEd25519,
-    index:           KeyIndexes.Soft
+    index:           Bip32Index
   ): VerificationKeys.ExtendedEd25519 = {
 
-    val z = bip32ed25519.hmac512WithKey(
-      verificationKey.chainCode.data,
-      (0x02.toByte +: verificationKey.ed25519.bytes.data.toArray) ++ index.bytes
+    val z = ExtendedEd25519.hmac512WithKey(
+      verificationKey.chainCode.data.toArray,
+      Array(0x02.toByte) ++ verificationKey.ed25519.bytes.data.toArray ++ index.bytes.data
     )
 
     val zL = z.slice(0, 28)
@@ -164,10 +167,11 @@ class ExtendedEd25519
     val nextPk = Bytes(nextPublicKeyBytes)
 
     val nextChainCode =
-      hmac512WithKey(
-        verificationKey.chainCode.data,
-        (0x03.toByte +: verificationKey.ed25519.bytes.data.toArray) ++ index.bytes
-      )
+      ExtendedEd25519
+        .hmac512WithKey(
+          verificationKey.chainCode.data.toArray,
+          Array(0x03.toByte) ++ verificationKey.ed25519.bytes.data.toArray ++ index.bytes.data
+        )
         .slice(32, 64)
 
     VerificationKeys.ExtendedEd25519(
@@ -178,7 +182,7 @@ class ExtendedEd25519
 }
 
 object ExtendedEd25519 {
-  val instance = new Ed25519
+  val instance = new ExtendedEd25519
   instance.precompute()
 
   // Note: BigInt expects Big-Endian, but SLIP/BIP-ED25519 need Little-Endian
@@ -208,12 +212,12 @@ object ExtendedEd25519 {
    * @param bytes 96 bytes representing the left/right keys with a chain code in little-endian
    * @return an `ExtendedPrivateKeyEd25519` representing the bytes
    */
-  def fromBytes(bytes: Sized[Bytes, Lengths.`96`.type]): SecretKeys.ExtendedEd25519 = ???
-  //    new SecretKeys.ExtendedEd25519()(
-  //      SizedBytes[ByteVector32].fit(bytes.value.slice(0, 32), ByteOrdering.LittleEndian),
-  //      SizedBytes[ByteVector32].fit(bytes.value.slice(32, 64), ByteOrdering.LittleEndian),
-  //      SizedBytes[ByteVector32].fit(bytes.value.slice(64, 96), ByteOrdering.LittleEndian)
-  //    )
+  def fromBytes(bytes: Sized.Strict[Bytes, SecretKeys.ExtendedEd25519.Length]): SecretKeys.ExtendedEd25519 =
+    new SecretKeys.ExtendedEd25519(
+      Sized.strictUnsafe(Bytes(bytes.data.slice(0, 32).reverse.toArray)),
+      Sized.strictUnsafe(Bytes(bytes.data.slice(32, 64).reverse.toArray)),
+      Sized.strictUnsafe(Bytes(bytes.data.slice(64, 96).reverse.toArray))
+    )
 
   /**
    * Instantiates an `ExtendedPrivateKeyEd25519` from entropy and a password.
@@ -234,7 +238,7 @@ object ExtendedEd25519 {
     seed(0) = (seed(0) & 0xf8).toByte
     seed(31) = ((seed(31) & 0x1f) | 0x40).toByte
 
-    SecretKeys.ExtendedEd25519(SizedBytes[ByteVector96].fit(seed, LittleEndian))
+    ExtendedEd25519.instance.createKeyPair(Seed(seed))._1
   }
 
   /**
@@ -246,14 +250,16 @@ object ExtendedEd25519 {
   def validate(value: SecretKeys.ExtendedEd25519): Either[InvalidDerivedKey, SecretKeys.ExtendedEd25519] =
     Either.cond(leftNumber(value) % edBaseN != 0, value, InvalidDerivedKey)
 
-  private def generatePrivateKey(sizedSeed: Sized.Strict[Bytes, Lengths.`96`.type]): SecretKeys.ExtendedEd25519 = {
-    val seed = Bytes.toByteArray(sizedSeed.data)
+  private def generatePrivateKey(
+    sizedSeed: Sized.Strict[Bytes, SecretKeys.ExtendedEd25519.Length]
+  ): SecretKeys.ExtendedEd25519 = {
+    val seed = sizedSeed.data.toArray
     // turn seed into a valid ExtendedPrivateKeyEd25519 per the SLIP-0023 spec
     seed(0) = (seed(0) & 0xf8).toByte
     seed(31) = ((seed(31) & 0x1f) | 0x40).toByte
 
     //fromBytes()
-    Sized.strictUnsafe[Bytes, Lengths.`96`.type](Bytes(seed))
+    fromBytes(Sized.strictUnsafe(Bytes(seed)))
   }
 
   private def generatePublicKey(secretKey: SecretKeys.ExtendedEd25519): VerificationKeys.ExtendedEd25519 = {
@@ -261,8 +267,17 @@ object ExtendedEd25519 {
     instance.scalarMultBaseEncoded(Bytes.toByteArray(secretKey.leftKey.data), pk, 0)
 
     VerificationKeys.ExtendedEd25519(
-      SizedBytes[ByteVector32].fit(pk, ByteOrdering.LittleEndian),
+      VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(pk.reverse))),
       secretKey.chainCode
     )
+  }
+
+  private def hmac512WithKey(key: Array[Byte], data: Array[Byte]): Bytes = {
+    val mac = new HMac(new SHA512Digest())
+    mac.init(new KeyParameter(key))
+    mac.update(data, 0, data.length)
+    val out = new Array[Byte](64)
+    mac.doFinal(out, 0)
+    Bytes(out)
   }
 }

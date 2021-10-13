@@ -53,10 +53,12 @@ class Curve25519
   ): Proofs.Signature.Curve25519 =
     Proofs.Signature.Curve25519(
       Sized.strictUnsafe(
-        provider.calculateSignature(
-          provider.getRandom(SignatureLength),
-          Bytes.toByteArray(privateKey.bytes.data),
-          message.value
+        Bytes(
+          provider.calculateSignature(
+            provider.getRandom(SignatureLength),
+            privateKey.bytes.data.toArray,
+            message.value
+          )
         )
       )
     )

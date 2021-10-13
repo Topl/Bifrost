@@ -3,7 +3,7 @@ package co.topl.attestation.keyManagement
 import cats.implicits._
 import co.topl.attestation.{PublicKeyPropositionEd25519, SignatureEd25519}
 import co.topl.crypto.implicits._
-import co.topl.crypto.signing.Ed25519
+import co.topl.crypto.signing.{Ed25519, Seed}
 import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
@@ -42,7 +42,7 @@ object PrivateKeyEd25519 extends BifrostSerializer[PrivateKeyEd25519] {
 
   implicit val secretGenerator: SecretGenerator[PrivateKeyEd25519] =
     SecretGenerator.instance[PrivateKeyEd25519] { seed: Array[Byte] =>
-      val (sk, pk) = ec.createKeyPair(seed)
+      val (sk, pk) = ec.createKeyPair(Seed(seed))
       val secret: PrivateKeyEd25519 = PrivateKeyEd25519(sk, pk)
       secret -> secret.publicImage
     }
@@ -56,6 +56,9 @@ object PrivateKeyEd25519 extends BifrostSerializer[PrivateKeyEd25519] {
   }
 
   override def parse(r: Reader): PrivateKeyEd25519 =
-    PrivateKeyEd25519(PrivateKey(r.getBytes(Ed25519.KeyLength)), PublicKey(r.getBytes(Ed25519.KeyLength)))
+    PrivateKeyEd25519(
+      PrivateKey(r.getBytes(Ed25519.instance.KeyLength)),
+      PublicKey(r.getBytes(Ed25519.instance.KeyLength))
+    )
 
 }

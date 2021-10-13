@@ -10,6 +10,9 @@ package object crypto {
 
   // todo: deprecatee
   @newtype
+  case class Signature(value: Array[Byte])
+
+  @newtype
   case class PrivateKey(value: Array[Byte])
 
   object PrivateKey {
