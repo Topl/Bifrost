@@ -30,7 +30,7 @@ import scala.language.implicitConversions
  * we must apply two additional bit-wise AND operations on each index to find which Long should be changed in the bloom filter and
  * finally which bit of the Long must be flipped.
  */
-class BloomFilter private (private val value: Array[Long]) extends BytesSerializable {
+case class BloomFilter(value: Array[Long]) extends BytesSerializable {
 
   require(
     value.length == BloomFilter.numLongs,
@@ -66,7 +66,7 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
 
   val numBytes: Int = 256 //bytes (2048 bits)
   private val size: Int = numBytes * 8
-  private val numLongs: Int = size / 64 // filter is composed of an array of longs (64 bit elements)
+  val numLongs: Int = size / 64 // filter is composed of an array of longs (64 bit elements)
 
   val empty: BloomFilter = new BloomFilter(Array.fill(numLongs)(0L)) // 2048 element bit array of zeros
 

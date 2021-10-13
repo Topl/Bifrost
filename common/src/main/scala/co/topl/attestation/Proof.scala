@@ -12,7 +12,6 @@ import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import io.estatico.newtype.macros.newtype
 
 import scala.reflect.ClassTag
 import scala.util.Try

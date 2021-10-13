@@ -42,7 +42,7 @@ object BytesCodec {
   }
 
   trait Codecs {
-    def bytes(size: Int): Codec[Array[Byte]] = codec(size)
+    def bytesCodec(size: Int): Codec[Array[Byte]] = codec(size)
   }
 
   object codecs extends Codecs

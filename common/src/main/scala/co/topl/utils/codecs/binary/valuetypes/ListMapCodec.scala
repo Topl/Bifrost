@@ -10,7 +10,7 @@ object ListMapCodec {
 
   def encode[A: Encoder, B: Encoder](value: ListMap[A, B]): Attempt[BitVector] =
     for {
-      encodedSize <- uInt.encode(value.size)
+      encodedSize <- uIntCodec.encode(value.size)
       encodedResult <- value.foldLeft(Attempt.successful(encodedSize)) { case (bitsResult, (k, v)) =>
         for {
           currentBits <- bitsResult
@@ -22,7 +22,7 @@ object ListMapCodec {
 
   def decode[A: Decoder, B: Decoder](from: BitVector): Attempt[DecodeResult[ListMap[A, B]]] =
     for {
-      sizeDecodeResult <- uInt.decode(from)
+      sizeDecodeResult <- uIntCodec.decode(from)
       sizeValue = sizeDecodeResult.value
       sizeRemaining = sizeDecodeResult.remainder
       keyValuePairs <-
@@ -45,20 +45,15 @@ object ListMapCodec {
   def codec[A: Codec, B: Codec]: Codec[ListMap[A, B]] = new Codec[ListMap[A, B]] {
     override def encode(value: ListMap[A, B]): Attempt[BitVector] = ListMapCodec.encode(value)
 
-    override def sizeBound: SizeBound = SizeBound.atLeast(uInt.sizeBound.lowerBound)
+    override def sizeBound: SizeBound = SizeBound.atLeast(uIntCodec.sizeBound.lowerBound)
 
     override def decode(bits: BitVector): Attempt[DecodeResult[ListMap[A, B]]] = ListMapCodec.decode(bits)
   }
 
   trait Codecs {
-    def listMap[A: Codec, B: Codec]: Codec[ListMap[A, B]] = codec
-  }
-
-  trait Implicits {
-    implicit def implicitListMap[A: Codec, B: Codec]: Codec[ListMap[A, B]] = codec
+    implicit def listMapCodec[A: Codec, B: Codec]: Codec[ListMap[A, B]] = codec
   }
 
   object codecs extends Codecs
-  object implicits extends Implicits
 
 }

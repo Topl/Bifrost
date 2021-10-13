@@ -38,14 +38,9 @@ object ListCodec {
   }
 
   trait Codecs {
-    def list[T: Codec]: Codec[List[T]] = codec
-  }
-
-  trait Implicits {
-    implicit def implicitListCodec[T: Codec]: Codec[List[T]] = codec
+    implicit def listCodec[T: Codec]: Codec[List[T]] = codec
   }
 
   object codecs extends Codecs
-  object implicits extends Implicits
 
 }

@@ -1,9 +1,10 @@
 package co.topl.utils.codecs.binary
 
 import cats.implicits._
+import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.codecs.{AsBytes, FromBytes}
 import scodec.bits.BitVector
-import scodec.{Decoder, Encoder, Err, Transform, Transformer}
+import scodec.{Attempt, Codec, Decoder, Encoder, Err, Transform, Transformer}
 
 import java.nio.charset.{Charset, StandardCharsets}
 import scala.collection.SortedSet
@@ -48,26 +49,21 @@ package object valuetypes {
         override def apply[F[_]: Transform](fa: F[List[T]]): F[SortedSet[T]] =
           Transform[F].xmap[List[T], SortedSet[T]](fa, listT => SortedSet[T](listT: _*), sortedSet => sortedSet.toList)
       }
+
+    implicit def listToIndexedSeqTransformer[T]: Transformer[List[T], IndexedSeq[T]] =
+      new Transformer[List[T], IndexedSeq[T]] {
+
+        override def apply[F[_]: Transform](fa: F[List[T]]): F[IndexedSeq[T]] =
+          Transform[F].xmap[List[T], IndexedSeq[T]](fa, listT => listT.toIndexedSeq, seqT => seqT.toList)
+      }
+
+    implicit def listToSeqTransformer[T]: Transformer[List[T], Seq[T]] =
+      new Transformer[List[T], Seq[T]] {
+
+        override def apply[F[_]: Transform](fa: F[List[T]]): F[Seq[T]] =
+          Transform[F].xmap[List[T], Seq[T]](fa, listT => listT.toSeq, seqT => seqT.toList)
+      }
   }
-
-  trait Implicits
-      extends Instances
-      with BooleanCodec.Implicits
-      with ByteCodec.Implicits
-      with ByteStringCodec.Implicits
-      with valuetypes.Int128Codec.Implicits
-      with IntCodec.Implicits
-      with IntStringCodec.Implicits
-      with ListCodec.Implicits
-      with ListMapCodec.Implicits
-      with LongCodec.Implicits
-      with OptionCodec.Implicits
-      with ShortCodec.Implicits
-      with TupleCodec.Implicits
-      with UIntCodec.Implicits
-      with ULongCodec.Implicits
-
-  object implicits extends Implicits
 
   trait Codecs
       extends BooleanCodec.Codecs
@@ -82,9 +78,22 @@ package object valuetypes {
       with LongCodec.Codecs
       with OptionCodec.Codecs
       with ShortCodec.Codecs
+      with StaticArrayCodec.Codecs
       with TupleCodec.Codecs
       with UIntCodec.Codecs
-      with ULongCodec.Codecs
+      with ULongCodec.Codecs {
+
+    implicit val latin1DataCodec: Codec[Latin1Data] =
+      ByteStringCodec.codec.exmapc(byteString =>
+        Latin1Data
+          .validated(byteString)
+          .map(data => Attempt.successful(data))
+          .valueOr(errs => Attempt.failure(Err(errs.toString)))
+      )(latin1Data => Attempt.successful(new String(latin1Data.value, stringCharacterSet)))
+  }
+
+  trait Implicits extends Instances with Codecs
 
   object codecs extends Codecs
+  object implicits extends Implicits
 }

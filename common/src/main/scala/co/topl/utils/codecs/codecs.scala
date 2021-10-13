@@ -10,7 +10,6 @@ package object codecs {
       with CryptoCodec.CryptoCodecInstances
       with StringDataTypesCodec.StringTypesInstances
       with SizedBytesCodec.Instances
-      with binary.Implicits
 
   object implicits extends Implicits
 

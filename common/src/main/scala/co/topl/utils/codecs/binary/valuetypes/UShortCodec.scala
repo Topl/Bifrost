@@ -42,14 +42,9 @@ object UShortCodec {
   }
 
   trait Codecs {
-    val uShort: Codec[UShort] = codec
-  }
-
-  trait Implicits {
-    implicit val uShortImplicitCodec: Codec[UShort] = codec
+    implicit val uShortCodec: Codec[UShort] = codec
   }
 
   object codecs extends Codecs
-  object implicits extends Implicits
 
 }

@@ -36,13 +36,8 @@ object ByteCodec {
   }
 
   trait Codecs {
-    val byte: Codec[Byte] = codec
-  }
-
-  trait Implicits {
-    implicit val byteImplicitCodec: Codec[Byte] = codec
+    implicit val byteCodec: Codec[Byte] = codec
   }
 
   object codecs extends Codecs
-  object implicits extends Implicits
 }

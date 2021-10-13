@@ -40,15 +40,8 @@ object UIntCodec {
   }
 
   trait Codecs {
-
-    val uInt: Codec[UInt] = codec
-  }
-
-  trait Implicits {
-
-    implicit val uIntImplicitCodec: Codec[UInt] = codec
+    implicit val uIntCodec: Codec[UInt] = codec
   }
 
   object codecs extends Codecs
-  object implicits extends Implicits
 }

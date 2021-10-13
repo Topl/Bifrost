@@ -62,13 +62,8 @@ object ByteStringCodec {
   }
 
   trait Codecs {
-    val smallString: Codec[ByteString] = codec
-  }
-
-  trait Implicits {
-    implicit val smallStringImplicitCodec: Codec[ByteString] = codec
+    implicit val byteStringCodec: Codec[ByteString] = codec
   }
 
   object codecs extends Codecs
-  object implicits extends Implicits
 }

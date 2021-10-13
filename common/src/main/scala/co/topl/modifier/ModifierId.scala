@@ -15,7 +15,7 @@ import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 
-class ModifierId private (private val value: Array[Byte]) extends BytesSerializable {
+case class ModifierId(value: Array[Byte]) extends BytesSerializable {
 
   require(value.length == ModifierId.size, s"Invalid size for ModifierId")
 

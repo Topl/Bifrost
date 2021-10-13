@@ -45,13 +45,8 @@ object BooleanCodec {
   }
 
   trait Codecs {
-    val bool: Codec[Boolean] = codec
-  }
-
-  trait Implicits {
-    implicit val booleanImplicitCodec: Codec[Boolean] = codec
+    implicit val boolCodec: Codec[Boolean] = codec
   }
 
   object codecs extends Codecs
-  object implicits extends Implicits
 }

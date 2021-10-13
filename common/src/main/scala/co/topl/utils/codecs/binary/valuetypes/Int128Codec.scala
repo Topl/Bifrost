@@ -40,13 +40,8 @@ object Int128Codec {
   }
 
   trait Codecs {
-    val int128: Codec[Int128] = codec
-  }
-
-  trait Implicits {
-    implicit val int128ImplicitCodec: Codec[Int128] = codec
+    implicit val int128Codec: Codec[Int128] = codec
   }
 
   object codecs extends Codecs
-  object implicits extends Implicits
 }

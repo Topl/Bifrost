@@ -3,14 +3,14 @@ package co.topl.utils.codecs.binary
 import akka.util.ByteString
 import co.topl.utils.CommonGenerators
 import co.topl.utils.IdiomaticScalaTransition.implicits._
+import co.topl.utils.codecs.binary.codecs.longCodec
+import co.topl.utils.codecs.binary.valuetypes.OptionCodec
 import co.topl.utils.serialization.{VLQByteStringReader, VLQByteStringWriter}
 import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scodec.bits.BitVector
-import co.topl.utils.codecs.binary.implicits.longImplicitCodec
-import co.topl.utils.codecs.binary.valuetypes.OptionCodec
 
 class OptionCodecSpec
     extends AnyFlatSpec
@@ -29,7 +29,7 @@ class OptionCodecSpec
 
       val bytes = vlqWriter.result()
 
-      val decoderResult = OptionCodec.decode[Long](BitVector(bytes)).getOrThrow()
+      val decoderResult = OptionCodec.decode[Long](BitVector(bytes))(longCodec).getOrThrow()
 
       decoderResult.value shouldBe longOptionValue
       decoderResult.remainder shouldBe empty
@@ -46,7 +46,7 @@ class OptionCodecSpec
 
       val bytes = vlqWriter.result() ++ leftover
 
-      val decoderResult = OptionCodec.decode[Long](BitVector(bytes)).getOrThrow()
+      val decoderResult = OptionCodec.decode[Long](BitVector(bytes))(longCodec).getOrThrow()
 
       decoderResult.remainder.toByteArray shouldBe leftover
     }
@@ -54,7 +54,7 @@ class OptionCodecSpec
 
   "OptionCodec Encoder" should "produce an encoded value that is decodable by VLQByteStringReader" in {
     forAll(Gen.option(positiveLongGen)) { (longOptionValue) =>
-      val bits = OptionCodec.encode(longOptionValue).getOrThrow()
+      val bits = OptionCodec.encode(longOptionValue)(longCodec).getOrThrow()
 
       val byteString = ByteString(bits.toByteArray)
       val vlqReader = new VLQByteStringReader(byteString)
@@ -67,9 +67,9 @@ class OptionCodecSpec
 
   "OptionCodec" should "be able to successfully decode an encoded value" in {
     forAll(Gen.option(positiveLongGen)) { value =>
-      val encodedBits = OptionCodec.encode(value).getOrThrow()
+      val encodedBits = OptionCodec.encode[Long](value).getOrThrow()
 
-      val decodedValue = OptionCodec.decode(encodedBits).getOrThrow()
+      val decodedValue = OptionCodec.decode[Long](encodedBits).getOrThrow()
 
       decodedValue.value shouldBe value
     }

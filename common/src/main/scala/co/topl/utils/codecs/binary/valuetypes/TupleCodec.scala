@@ -58,17 +58,10 @@ object TupleCodec {
   }
 
   trait Codecs {
-    def tuple[A: Codec, B: Codec]: Codec[(A, B)] = codec[A, B]
+    implicit def tupleCodec[A: Codec, B: Codec]: Codec[(A, B)] = codec[A, B]
 
-    def tuple[A: Codec, B: Codec, C: Codec]: Codec[(A, B, C)] = codec[A, B, C]
-  }
-
-  trait Implicits {
-    implicit def implicitTuple[A: Codec, B: Codec]: Codec[(A, B)] = codec[A, B]
-
-    implicit def implicitTuple[A: Codec, B: Codec, C: Codec]: Codec[(A, B, C)] = codec[A, B, C]
+    implicit def tupleCodec[A: Codec, B: Codec, C: Codec]: Codec[(A, B, C)] = codec[A, B, C]
   }
 
   object codecs extends Codecs
-  object implicits extends Codecs
 }

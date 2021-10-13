@@ -1,8 +1,7 @@
 package co.topl.utils.codecs.binary
 
 package object modifier {
-  trait Implicits
-  trait Codecs
-  object implicits extends Implicits
+  trait Codecs extends box.Codecs with transaction.Codecs
+
   object codecs extends Codecs
 }

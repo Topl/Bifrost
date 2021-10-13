@@ -34,13 +34,8 @@ object LongCodec {
   }
 
   trait Codecs {
-    val long: Codec[Long] = codec
-  }
-
-  trait Implicits {
-    implicit val longImplicitCodec: Codec[Long] = codec
+    implicit val longCodec: Codec[Long] = codec
   }
 
   object codecs extends Codecs
-  object implicits extends Implicits
 }

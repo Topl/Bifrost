@@ -10,7 +10,7 @@ import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder}
 
-class SecurityRoot private (private val root: Array[Byte]) extends BytesSerializable {
+case class SecurityRoot(root: Array[Byte]) extends BytesSerializable {
 
   require(root.length == SecurityRoot.size, "Invalid securityRoot")
 

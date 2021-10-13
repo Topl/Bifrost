@@ -51,13 +51,8 @@ object OptionCodec {
   }
 
   trait Codecs {
-    def option[T: Codec]: Codec[Option[T]] = OptionCodec.codec
-  }
-
-  trait Implicits {
-    implicit def optionImplicitCodec[T: Codec]: Codec[Option[T]] = OptionCodec.codec
+    implicit def optionCodec[T: Codec]: Codec[Option[T]] = OptionCodec.codec
   }
 
   object codecs extends Codecs
-  object implicits extends Implicits
 }
