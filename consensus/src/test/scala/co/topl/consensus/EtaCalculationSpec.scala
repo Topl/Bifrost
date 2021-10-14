@@ -154,7 +154,7 @@ class EtaCalculationSpec
       EtaCalculationSpec.expectedEta(
         previousEta,
         epoch,
-        List(ProofToHash.digest(genesis.headerV2.eligibibilityCertificate.vrfNonceSig))
+        List(ProofToHash.digest(genesis.headerV2.eligibilityCertificate.vrfNonceSig))
       )
 
     actual shouldBe expected

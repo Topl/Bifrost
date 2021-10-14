@@ -1,8 +1,9 @@
 package co.topl.crypto.signing
 
-import co.topl.crypto.{KeyIndexes, Pbkdf2Sha512}
 import co.topl.crypto.hash.sha256
 import co.topl.crypto.mnemonic.Entropy
+import co.topl.crypto.signing.ExtendedEd25519.indexbytes
+import co.topl.crypto.{KeyIndex, KeyIndexes, Pbkdf2Sha512}
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.{Bip32Index, Lengths, Sized}
@@ -81,7 +82,7 @@ class ExtendedEd25519
 
   def deriveSecret(
     secretKey: SecretKeys.ExtendedEd25519,
-    index:     Bip32Index
+    index:     KeyIndexes.Bip32
   ): SecretKeys.ExtendedEd25519 = {
 
     val lNum: BigInt = ExtendedEd25519.leftNumber(secretKey)
@@ -91,7 +92,7 @@ class ExtendedEd25519
     val z =
       ExtendedEd25519.hmac512WithKey(
         secretKey.chainCode.data.toArray,
-        Array(0x02.toByte) ++ public.ed25519.bytes.data.toArray ++ index.bytes.data
+        Array(0x02.toByte) ++ public.ed25519.bytes.data.toArray ++ indexbytes(index).data
       )
 
     val zLeft =
@@ -125,7 +126,7 @@ class ExtendedEd25519
         ExtendedEd25519
           .hmac512WithKey(
             secretKey.chainCode.data.toArray,
-            Array(0x03.toByte) ++ public.ed25519.bytes.data.toArray ++ index.bytes.data
+            Array(0x03.toByte) ++ public.ed25519.bytes.data.toArray ++ indexbytes(index).data
           )
           .slice(32, 64)
           .toArray
@@ -140,12 +141,12 @@ class ExtendedEd25519
 
   def deriveVerification(
     verificationKey: VerificationKeys.ExtendedEd25519,
-    index:           Bip32Index
+    index:           KeyIndexes.Bip32.Soft
   ): VerificationKeys.ExtendedEd25519 = {
 
     val z = ExtendedEd25519.hmac512WithKey(
       verificationKey.chainCode.data.toArray,
-      Array(0x02.toByte) ++ verificationKey.ed25519.bytes.data.toArray ++ index.bytes.data
+      Array(0x02.toByte) ++ verificationKey.ed25519.bytes.data.toArray ++ indexbytes(index).data
     )
 
     val zL = z.slice(0, 28)
@@ -170,7 +171,7 @@ class ExtendedEd25519
       ExtendedEd25519
         .hmac512WithKey(
           verificationKey.chainCode.data.toArray,
-          Array(0x03.toByte) ++ verificationKey.ed25519.bytes.data.toArray ++ index.bytes.data
+          Array(0x03.toByte) ++ verificationKey.ed25519.bytes.data.toArray ++ indexbytes(index).data
         )
         .slice(32, 64)
 
@@ -280,4 +281,20 @@ object ExtendedEd25519 {
     mac.doFinal(out, 0)
     Bytes(out)
   }
+
+  /**
+   * The index representation as a 4-byte vector.
+   */
+  private def indexbytes(index: KeyIndexes.Bip32): Sized.Strict[Bytes, Lengths.`4`.type] =
+    // cut off top 4 significant bytes since representation is an unsigned integer
+    Sized.strictUnsafe(
+      Bytes(
+        ByteBuffer
+          .allocate(java.lang.Long.SIZE)
+          .order(ByteOrder.LITTLE_ENDIAN)
+          .putLong(index.value)
+          .array()
+          .take(4)
+      )
+    )
 }

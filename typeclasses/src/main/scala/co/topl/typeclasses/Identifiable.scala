@@ -30,8 +30,8 @@ object Identifiable {
             ) ++
             Bytes(BigInt(header.height).toByteArray) ++
             Bytes(BigInt(header.slot).toByteArray) ++
-            header.eligibibilityCertificate.bytes ++
-            header.operationalCertificate.bytes ++
+            header.eligibilityCertificate.bytes ++
+            //header.operationalCertificate.bytes ++
             Bytes(header.metadata.fold(Array.emptyByteArray)(_.data.value)) ++
             header.address.bytes
 

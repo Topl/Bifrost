@@ -2,16 +2,17 @@ package co.topl.demo
 
 import akka.actor.typed.ActorSystem
 import akka.util.Timeout
-import cats.implicits._
 import cats.effect.kernel.Sync
 import cats.effect.{Async, IO, IOApp}
+import cats.implicits._
 import co.topl.algebras._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LeaderElectionValidationAlgebra}
+import co.topl.crypto.KeyIndexes.Bip32
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.typeclasses._
-import co.topl.crypto.typeclasses.implicits._
+import co.topl.crypto.typeclasses.implicits.{extendedEd25519Initializer, _}
 import co.topl.minting._
 import co.topl.minting.algebras.{BlockMintAlgebra, VrfProofAlgebra}
 import co.topl.models._
@@ -29,14 +30,14 @@ object TetraDemo extends IOApp.Simple {
   // Create stubbed/sample/demo data
 
   private val stakerVrfKey =
-    KeyInitializer[SecretKeys.Vrf].random()
+    KeyInitializer[SecretKeys.VrfEd25519].random()
 
   private val stakerRegistration: Box.Values.TaktikosRegistration =
     Box.Values.TaktikosRegistration(
       vrfCommitment = Sized.strictUnsafe(
         Bytes(
           blake2b256
-            .hash(stakerVrfKey.verificationKey[VerificationKeys.Vrf].signableBytes.toArray)
+            .hash(stakerVrfKey.verificationKey[VerificationKeys.VrfEd25519].signableBytes.toArray)
             .value
         )
       ),
@@ -112,8 +113,8 @@ object TetraDemo extends IOApp.Simple {
           vrfProofConstruction
         ),
         KeyEvolver.InMemory.make {
-          implicit val slot: Slot = 0
-          KeyInitializer[SecretKeys.SymmetricMMM].random()
+          implicit val index: Bip32.Hardened = Bip32Index.hardened(0)
+          KeyInitializer[SecretKeys.ExtendedEd25519].random()
         },
         VrfRelativeStakeMintingLookup.Eval.make(state, clock),
         EtaMinting.Eval.make(state, clock)

@@ -34,7 +34,7 @@ object EtaCalculation {
             rhoValues: List[Rho] <-
               if (head === genesis) {
                 if (epoch === 0L)
-                  List(ProofToHash.digest(genesis.headerV2.eligibibilityCertificate.vrfNonceSig)).pure[F]
+                  List(ProofToHash.digest(genesis.headerV2.eligibilityCertificate.vrfNonceSig)).pure[F]
                 else Nil.pure[F]
               } else {
                 gatherRhoValues(genesis.headerV2, head.headerV2, epochRange)
@@ -50,12 +50,12 @@ object EtaCalculation {
           List(
             (
               head.parentHeaderId,
-              ProofToHash.digest(head.eligibibilityCertificate.vrfNonceSig),
+              ProofToHash.digest(head.eligibilityCertificate.vrfNonceSig),
               head.slot
             )
           ).iterateWhileM(acc =>
             OptionT(state.lookupBlockHeader(acc.head._1))
-              .map(h => (h.parentHeaderId, ProofToHash.digest(h.eligibibilityCertificate.vrfNonceSig), h.slot))
+              .map(h => (h.parentHeaderId, ProofToHash.digest(h.eligibilityCertificate.vrfNonceSig), h.slot))
               .getOrElseF(
                 new IllegalStateException(s"Unknown Block id=${acc.head._1}")
                   .raiseError[F, (TypedIdentifier, Rho, Slot)]

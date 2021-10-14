@@ -75,14 +75,14 @@ object ProofVerifier {
       }
 
     implicit val thresholdCurve25519
-      : ProofVerifier[Proofs.Threshold.SignatureCurve25519, Propositions.ThresholdCurve25519] =
-      new ProofVerifier[Proofs.Threshold.SignatureCurve25519, Propositions.ThresholdCurve25519] {
+      : ProofVerifier[Proofs.Threshold.Curve25519, Propositions.ThresholdCurve25519] =
+      new ProofVerifier[Proofs.Threshold.Curve25519, Propositions.ThresholdCurve25519] {
         private val curve25519 = new Curve25519()
 
         override def verifyWith[Data: Signable](
-          proof:       Proofs.Threshold.SignatureCurve25519,
-          proposition: Propositions.ThresholdCurve25519,
-          data:        Data
+                                                 proof:       Proofs.Threshold.Curve25519,
+                                                 proposition: Propositions.ThresholdCurve25519,
+                                                 data:        Data
         ): Boolean = {
           val dataBytes = data.signableBytes.toArray
           proposition.propositions.size >= proposition.threshold && {
@@ -110,15 +110,15 @@ object ProofVerifier {
         }
       }
 
-    implicit val thresholdEd25519: ProofVerifier[Proofs.Threshold.SignatureEd25519, Propositions.ThresholdEd25519] =
-      new ProofVerifier[Proofs.Threshold.SignatureEd25519, Propositions.ThresholdEd25519] {
+    implicit val thresholdEd25519: ProofVerifier[Proofs.Threshold.Ed25519, Propositions.ThresholdEd25519] =
+      new ProofVerifier[Proofs.Threshold.Ed25519, Propositions.ThresholdEd25519] {
 
         private val ed25519 = new Ed25519()
 
         override def verifyWith[Data: Signable](
-          proof:       Proofs.Threshold.SignatureEd25519,
-          proposition: Propositions.ThresholdEd25519,
-          data:        Data
+                                                 proof:       Proofs.Threshold.Ed25519,
+                                                 proposition: Propositions.ThresholdEd25519,
+                                                 data:        Data
         ): Boolean = {
           val dataBytes = data.signableBytes.toArray
           proposition.propositions.size >= proposition.threshold && {

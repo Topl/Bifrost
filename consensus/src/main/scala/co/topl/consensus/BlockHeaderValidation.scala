@@ -67,13 +67,13 @@ object BlockHeaderValidation {
           EitherT
             .liftF(etaInterpreter.etaOf((header.slot, header.id)))
             .subflatMap { eta =>
-              val certificate = header.eligibibilityCertificate
+              val certificate = header.eligibilityCertificate
               header
                 .asRight[BlockHeaderValidationFailure]
                 .ensure(
                   BlockHeaderValidationFailures
-                    .InvalidEligibilityCertificateEta(header.eligibibilityCertificate.eta, eta)
-                )(header => header.eligibibilityCertificate.eta === eta)
+                    .InvalidEligibilityCertificateEta(header.eligibilityCertificate.eta, eta)
+                )(header => header.eligibilityCertificate.eta === eta)
                 .ensure(BlockHeaderValidationFailures.InvalidEligibilityCertificateTestProof(certificate.vrfTestSig))(
                   header =>
                     certificate.vrfTestSig.satisfies(
@@ -167,7 +167,7 @@ object BlockHeaderValidation {
           threshold: Ratio
         ): EitherT[F, BlockHeaderValidationFailure, BlockHeaderV2] =
           EitherT.cond(
-            header.eligibibilityCertificate.thresholdEvidence === threshold.evidence,
+            header.eligibilityCertificate.thresholdEvidence === threshold.evidence,
             header,
             BlockHeaderValidationFailures.InvalidVrfThreshold(threshold)
           )
@@ -182,11 +182,11 @@ object BlockHeaderValidation {
           EitherT
             .liftF(
               leaderElection
-                .isSlotLeaderForThreshold(threshold)(ProofToHash.digest(header.eligibibilityCertificate.vrfTestSig))
+                .isSlotLeaderForThreshold(threshold)(ProofToHash.digest(header.eligibilityCertificate.vrfTestSig))
             )
             .ensure(
               BlockHeaderValidationFailures
-                .IneligibleCertificate(threshold, header.eligibibilityCertificate): BlockHeaderValidationFailure
+                .IneligibleCertificate(threshold, header.eligibilityCertificate): BlockHeaderValidationFailure
             )(
               identity
             )
@@ -207,10 +207,10 @@ object BlockHeaderValidation {
             .map(_.vrfCommitment)
             .toRight(BlockHeaderValidationFailures.Unregistered(header.address): BlockHeaderValidationFailure)
             .ensureOr(
-              BlockHeaderValidationFailures.RegistrationCommitmentMismatch(_, header.eligibibilityCertificate.vkVRF)
+              BlockHeaderValidationFailures.RegistrationCommitmentMismatch(_, header.eligibilityCertificate.vkVRF)
             )(
               _.data.toArray === blake2b256
-                .hash(header.eligibibilityCertificate.vkVRF.ed25519.bytes.data.toArray)
+                .hash(header.eligibilityCertificate.vkVRF.bytes.data.toArray)
                 .value
             )
             .map(_ => header)

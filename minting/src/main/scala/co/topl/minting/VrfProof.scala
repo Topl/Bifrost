@@ -24,7 +24,7 @@ object VrfProof {
 
   object Eval {
 
-    def make[F[_]: Monad: Sync](skVrf: SecretKeys.Vrf, clock: ClockAlgebra[F]): VrfProofAlgebra[F] =
+    def make[F[_]: Monad: Sync](skVrf: SecretKeys.VrfEd25519, clock: ClockAlgebra[F]): VrfProofAlgebra[F] =
       new VrfProofAlgebra[F] {
 
         private val testProofs: TrieMap[Eta, LongMap[Signature.VrfEd25519]] = TrieMap.empty
@@ -69,12 +69,12 @@ object VrfProof {
       }
   }
 
-  private def compute(skVrf: SecretKeys.Vrf, arg: LeaderElectionValidation.VrfArgument): Proofs.Signature.VrfEd25519 =
+  private def compute(skVrf: SecretKeys.VrfEd25519, arg: LeaderElectionValidation.VrfArgument): Proofs.Signature.VrfEd25519 =
     Proofs.Signature.VrfEd25519(
       Sized.strictUnsafe(
         Bytes(
           Ed25519VRF.instance.vrfProof(
-            skVrf.ed25519.bytes.data.toArray,
+            skVrf.bytes.data.toArray,
             arg.signableBytes.toArray
           )
         )

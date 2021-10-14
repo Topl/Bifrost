@@ -65,8 +65,8 @@ object Proofs {
   }
 
   object Threshold {
-    case class SignatureCurve25519(signatures: Set[Signature.Curve25519]) extends Proof
-    case class SignatureEd25519(signatures: Set[Signature.Ed25519]) extends Proof
+    case class Curve25519(signatures: Set[Signature.Curve25519]) extends Proof
+    case class Ed25519(signatures: Set[Signature.Ed25519]) extends Proof
   }
 
   case class Existence(id: TypedIdentifier) extends Proof

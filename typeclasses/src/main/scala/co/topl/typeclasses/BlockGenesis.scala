@@ -1,7 +1,7 @@
 package co.topl.typeclasses
 
 import cats.Eval
-import co.topl.models.VerificationKeys.Ed25519
+import co.topl.models.VerificationKeys.VrfEd25519
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
@@ -22,33 +22,36 @@ object BlockGenesis {
   val vrfCertificate: EligibilityCertificate = EligibilityCertificate(
     Proofs.Signature.VrfEd25519(zeroBytes(Lengths.`80`)),
     Proofs.Signature.VrfEd25519(zeroBytes(Lengths.`80`)),
-    VerificationKeys.Vrf(VerificationKeys.Ed25519(zeroBytes[Ed25519.Length])),
+    VerificationKeys.VrfEd25519(VerificationKeys.Ed25519(zeroBytes[VrfEd25519.Length]).bytes),
     thresholdEvidence = Sized.strictUnsafe(TypedBytes(IdentifierTypes.RatioEvidence, Bytes(Array.fill[Byte](32)(0)))),
     eta = zeroBytes
   )
 
-  val kesCertificate: OperationalCertificate =
-    OperationalCertificate(
-      opSig = Proofs.Signature.HdKes(
-        i = 0,
-        vkI = VerificationKeys.Ed25519(zeroBytes),
-        ecSignature = Proofs.Signature.Ed25519(zeroBytes),
-        sigSumJ = Proofs.Signature.SumProduct(
-          ecSignature = Proofs.Signature.Ed25519(zeroBytes),
-          vkK = VerificationKeys.Ed25519(zeroBytes),
-          index = 0,
-          witness = Nil
-        ),
-        sigSumK = Proofs.Signature.SumProduct(
-          ecSignature = Proofs.Signature.Ed25519(zeroBytes),
-          vkK = VerificationKeys.Ed25519(zeroBytes),
-          index = 0,
-          witness = Nil
-        )
-      ),
-      xvkM = VerificationKeys.ExtendedEd25519(VerificationKeys.Ed25519(zeroBytes), zeroBytes),
-      slotR = 0
-    )
+//  val kesCertificate: OperationalCertificate =
+//    OperationalCertificate(
+//      opSig = Proofs.Signature.HdKes(
+//        i = 0,
+//        vkI = VerificationKeys.Ed25519(zeroBytes),
+//        ecSignature = Proofs.Signature.Ed25519(zeroBytes),
+//        sigSumJ = Proofs.Signature.SumProduct(
+//          ecSignature = Proofs.Signature.Ed25519(zeroBytes),
+//          vkK = VerificationKeys.Ed25519(zeroBytes),
+//          index = 0,
+//          witness = Nil
+//        ),
+//        sigSumK = Proofs.Signature.SumProduct(
+//          ecSignature = Proofs.Signature.Ed25519(zeroBytes),
+//          vkK = VerificationKeys.Ed25519(zeroBytes),
+//          index = 0,
+//          witness = Nil
+//        )
+//      ),
+//      xvkM = VerificationKeys.ExtendedEd25519(VerificationKeys.Ed25519(zeroBytes), zeroBytes),
+//      slotR = 0
+//    )
+  val kesCertificate: OperationalCertificate = OperationalCertificate(
+    Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(Array.fill(32)(0: Byte))))
+  )
 
   def apply(transactions: Seq[Transaction]): Eval[BlockV2] = Eval.later {
     val address = TaktikosAddress(
@@ -65,7 +68,7 @@ object BlockGenesis {
         timestamp = 0L,
         height = 1,
         slot = 0,
-        eligibibilityCertificate = vrfCertificate,
+        eligibilityCertificate = vrfCertificate,
         operationalCertificate = kesCertificate,
         metadata = None,
         address = address

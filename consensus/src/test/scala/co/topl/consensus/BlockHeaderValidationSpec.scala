@@ -201,7 +201,7 @@ class BlockHeaderValidationSpec
           timestamp = unsigned.timestamp,
           height = unsigned.height,
           slot = unsigned.slot,
-          eligibibilityCertificate = unsigned.eligibilityCertificate,
+          eligibilityCertificate = unsigned.eligibilityCertificate,
           operationalCertificate = validOperationalCertificate(unsigned),
           metadata = unsigned.metadata,
           address = unsigned.address
@@ -276,7 +276,7 @@ class BlockHeaderValidationSpec
           timestamp = unsigned.timestamp,
           height = unsigned.height,
           slot = unsigned.slot,
-          eligibibilityCertificate = unsigned.eligibilityCertificate,
+          eligibilityCertificate = unsigned.eligibilityCertificate,
           operationalCertificate = validOperationalCertificate(unsigned),
           metadata = unsigned.metadata,
           address = unsigned.address

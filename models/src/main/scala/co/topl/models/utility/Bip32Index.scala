@@ -6,27 +6,27 @@ import co.topl.models.utility.HasLength.instances._
 
 import java.nio.{ByteBuffer, ByteOrder}
 
-sealed trait Bip32Index {
-
-  /**
-   * The size of a `Long` byte representation.
-   */
-  private val longByteSize = 8
-
-  /**
-   * The Index value as a `Long`.
-   */
-  val value: Long
-
-  /**
-   * The index representation as a 4-byte vector.
-   */
-  val bytes: Sized.Strict[Bytes, Lengths.`4`.type] =
-    // cut off top 4 significant bytes since representation is an unsigned integer
-    Sized.strictUnsafe(
-      Bytes(ByteBuffer.allocate(longByteSize).order(ByteOrder.LITTLE_ENDIAN).putLong(value).array().take(4))
-    )
-}
+//sealed trait Bip32Index {
+//
+//  /**
+//   * The size of a `Long` byte representation.
+//   */
+//  private val longByteSize = 8
+//
+//  /**
+//   * The Index value as a `Long`.
+//   */
+//  val value: Long
+//
+//  /**
+//   * The index representation as a 4-byte vector.
+//   */
+//  val bytes: Sized.Strict[Bytes, Lengths.`4`.type] =
+//    // cut off top 4 significant bytes since representation is an unsigned integer
+//    Sized.strictUnsafe(
+//      Bytes(ByteBuffer.allocate(longByteSize).order(ByteOrder.LITTLE_ENDIAN).putLong(value).array().take(4))
+//    )
+//}
 
 object Bip32Index {
 
@@ -35,7 +35,7 @@ object Bip32Index {
    * Lower bound is `2^31` or 2147483648.
    * Upper bound is `2^32` or 4294967296.
    */
-  val hardenedIndex: Long = 2147483648L
+  val hardenedOffset: Long = 2147483648L
 
   /**
    * Instantiates a new soft-index value.
@@ -54,7 +54,7 @@ object Bip32Index {
    * @return a hardened index
    */
   def hardened(value: Int): KeyIndexes.Bip32.Hardened =
-    if (value >= 0) KeyIndexes.Bip32.Hardened(value.toLong + hardenedIndex)
-    else KeyIndexes.Bip32.Hardened(0.toLong + hardenedIndex)
+    if (value >= 0) KeyIndexes.Bip32.Hardened(value.toLong + hardenedOffset)
+    else KeyIndexes.Bip32.Hardened(0.toLong + hardenedOffset)
 
 }

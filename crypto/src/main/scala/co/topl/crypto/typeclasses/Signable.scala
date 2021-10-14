@@ -40,7 +40,7 @@ object Signable {
             header.timestamp,
             header.height,
             header.slot,
-            header.eligibibilityCertificate,
+            header.eligibilityCertificate,
             header.metadata,
             header.address
           )
