@@ -96,11 +96,9 @@ case class ChainReplicatorSettings(
   enableChainReplicator:   Boolean,
   checkMissingBlock:       Boolean,
   checkMissingStartHeight: Long,
-  checkMissingDelay:       FiniteDuration,
-  numberOfBlocksToCheck:   Int,
+  blockCheckSize:          Int,
   uri:                     Option[String],
-  database:                Option[String],
-  collection:              Option[String]
+  database:                Option[String]
 )
 
 case class AppSettings(
