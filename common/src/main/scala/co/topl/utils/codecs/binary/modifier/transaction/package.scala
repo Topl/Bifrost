@@ -16,7 +16,7 @@ package object transaction {
 
   trait Codecs {
 
-    implicit def polyTransferCodec[P <: Proposition: Identifiable: EvidenceProducer](implicit
+    implicit def polyTransferWithPropositionCodec[P <: Proposition: Identifiable: EvidenceProducer](implicit
       propCodec:  Codec[P],
       proofCodec: Codec[Proof[P]]
     ): Codec[PolyTransfer[P]] =
@@ -42,7 +42,7 @@ package object transaction {
         }
         .as[PolyTransfer[P]]
 
-    implicit def arbitTransferCodec[P <: Proposition: Identifiable: EvidenceProducer](implicit
+    implicit def arbitTransferWithPropositionCodec[P <: Proposition: Identifiable: EvidenceProducer](implicit
       propCodec:  Codec[P],
       proofCodec: Codec[Proof[P]]
     ): Codec[ArbitTransfer[P]] =
@@ -68,7 +68,7 @@ package object transaction {
         }
         .as[ArbitTransfer[P]]
 
-    implicit def assetTransferCodec[P <: Proposition: Identifiable: EvidenceProducer](implicit
+    implicit def assetTransferWithPropositionCodec[P <: Proposition: Identifiable: EvidenceProducer](implicit
       propCodec:  Codec[P],
       proofCodec: Codec[Proof[P]]
     ): Codec[AssetTransfer[P]] =
@@ -97,23 +97,47 @@ package object transaction {
     implicit val polyTransferCodec: Codec[PolyTransfer[_ <: Proposition]] =
       discriminated[PolyTransfer[_ <: Proposition]]
         .by(byteCodec)
-        .typecase(PublicKeyPropositionCurve25519.typePrefix, polyTransferCodec[PublicKeyPropositionCurve25519])
-        .typecase(PublicKeyPropositionEd25519.typePrefix, polyTransferCodec[PublicKeyPropositionEd25519])
-        .typecase(ThresholdPropositionCurve25519.typePrefix, polyTransferCodec[ThresholdPropositionCurve25519])
+        .typecase(
+          PublicKeyPropositionCurve25519.typePrefix,
+          polyTransferWithPropositionCodec[PublicKeyPropositionCurve25519]
+        )
+        .typecase(PublicKeyPropositionEd25519.typePrefix, polyTransferWithPropositionCodec[PublicKeyPropositionEd25519])
+        .typecase(
+          ThresholdPropositionCurve25519.typePrefix,
+          polyTransferWithPropositionCodec[ThresholdPropositionCurve25519]
+        )
 
     implicit val arbitTransferCodec: Codec[ArbitTransfer[_ <: Proposition]] =
       discriminated[ArbitTransfer[_ <: Proposition]]
         .by(byteCodec)
-        .typecase(PublicKeyPropositionCurve25519.typePrefix, arbitTransferCodec[PublicKeyPropositionCurve25519])
-        .typecase(PublicKeyPropositionEd25519.typePrefix, arbitTransferCodec[PublicKeyPropositionEd25519])
-        .typecase(ThresholdPropositionCurve25519.typePrefix, arbitTransferCodec[ThresholdPropositionCurve25519])
+        .typecase(
+          PublicKeyPropositionCurve25519.typePrefix,
+          arbitTransferWithPropositionCodec[PublicKeyPropositionCurve25519]
+        )
+        .typecase(
+          PublicKeyPropositionEd25519.typePrefix,
+          arbitTransferWithPropositionCodec[PublicKeyPropositionEd25519]
+        )
+        .typecase(
+          ThresholdPropositionCurve25519.typePrefix,
+          arbitTransferWithPropositionCodec[ThresholdPropositionCurve25519]
+        )
 
     implicit val assetTransferCodec: Codec[AssetTransfer[_ <: Proposition]] =
       discriminated[AssetTransfer[_ <: Proposition]]
         .by(byteCodec)
-        .typecase(PublicKeyPropositionCurve25519.typePrefix, assetTransferCodec[PublicKeyPropositionCurve25519])
-        .typecase(PublicKeyPropositionEd25519.typePrefix, assetTransferCodec[PublicKeyPropositionEd25519])
-        .typecase(ThresholdPropositionCurve25519.typePrefix, assetTransferCodec[ThresholdPropositionCurve25519])
+        .typecase(
+          PublicKeyPropositionCurve25519.typePrefix,
+          assetTransferWithPropositionCodec[PublicKeyPropositionCurve25519]
+        )
+        .typecase(
+          PublicKeyPropositionEd25519.typePrefix,
+          assetTransferWithPropositionCodec[PublicKeyPropositionEd25519]
+        )
+        .typecase(
+          ThresholdPropositionCurve25519.typePrefix,
+          assetTransferWithPropositionCodec[ThresholdPropositionCurve25519]
+        )
 
     implicit val transactionCodec: Codec[Transaction.TX] =
       discriminated[Transaction.TX]
