@@ -2,8 +2,9 @@ package co.topl.demo
 
 import akka.actor.typed.ActorSystem
 import akka.util.Timeout
+import cats.data.OptionT
 import cats.effect.implicits._
-import cats.effect.kernel.{Ref, Sync}
+import cats.effect.kernel.Sync
 import cats.effect.{Async, IO, IOApp}
 import cats.implicits._
 import co.topl.algebras._
@@ -22,6 +23,7 @@ import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility._
 import co.topl.typeclasses._
+import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
@@ -76,10 +78,11 @@ object TetraDemo extends IOApp.Simple {
     Staker(Ratio(1, 5), stakerVrfKey, stakerRegistration, stakerAddress)
   }
 
+  private val genesis =
+    BlockGenesis(Nil).value
+
   private val initialNodeView =
     NodeView(
-      BlockGenesis(Nil).value,
-      Map.empty,
       Map(0L -> stakers.map(staker => staker.address -> staker.relativeStake).toMap),
       Map(0L -> stakers.map(staker => staker.address -> staker.registration).toMap)
     )
@@ -147,18 +150,36 @@ object TetraDemo extends IOApp.Simple {
         )
       }
 
-  private val blockHeaderLookup: BlockHeaderLookup[F] =
-    id => state.lookupBlockHeader(id)
+  private def createBlockStore(
+    headerStore: Store[F, BlockHeaderV2],
+    bodyStore:   Store[F, BlockBodyV2]
+  ): Store[F, BlockV2] =
+    new Store[F, BlockV2] {
+
+      def get(id: TypedIdentifier): F[Option[BlockV2]] =
+        (OptionT(headerStore.get(id)), OptionT(bodyStore.get(id))).tupled.map((BlockV2.apply _).tupled).value
+
+      def put(t: BlockV2): F[Unit] =
+        (headerStore.put(t.headerV2), bodyStore.put(t.blockBodyV2)).tupled.void
+
+      def remove(id: TypedIdentifier): F[Unit] =
+        (headerStore.remove(id), bodyStore.remove(id)).tupled.void
+
+    }
 
   // Program definition
 
   val run: IO[Unit] = {
     for {
-      slotDataCache <- SlotDataCache.Eval.make(blockHeaderLookup)
+      blockHeaderStore <- RefStore.Eval.make[F, BlockHeaderV2]()
+      blockBodyStore   <- RefStore.Eval.make[F, BlockBodyV2]()
+      blockStore = createBlockStore(blockHeaderStore, blockBodyStore)
+      _             <- blockStore.put(genesis)
+      slotDataCache <- SlotDataCache.Eval.make(blockHeaderStore)
       etaCalculation <- EtaCalculation.Eval.make(
         slotDataCache,
         clock,
-        initialNodeView.genesisBlock.headerV2.eligibibilityCertificate.eta
+        genesis.headerV2.eligibibilityCertificate.eta
       )
       headerValidation <- BlockHeaderValidation.Eval.make[F](
         etaCalculation,
@@ -167,7 +188,7 @@ object TetraDemo extends IOApp.Simple {
         RegistrationLookup.Eval.make(state, clock)
       )
       localChain <- LocalChain.Eval.make(
-        SlotData(initialNodeView.genesisBlock.headerV2)(Ed25519VRF.precomputed()),
+        SlotData(genesis.headerV2)(Ed25519VRF.precomputed()),
         ChainSelection.orderT(slotDataCache, 5_000, 200_000)
       )
       constructions <- vrfProofConstructions
@@ -178,6 +199,8 @@ object TetraDemo extends IOApp.Simple {
           headerValidation,
           constructions,
           state,
+          blockHeaderStore,
+          blockStore,
           etaCalculation,
           localChain
         )

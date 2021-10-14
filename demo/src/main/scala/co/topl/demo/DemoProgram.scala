@@ -1,11 +1,11 @@
 package co.topl.demo
 
-import cats.data._
+import cats.data.{EitherT, OptionT}
 import cats.effect._
 import cats.implicits._
 import cats.{Monad, MonadError, Parallel}
 import co.topl.algebras.ClockAlgebra.implicits._
-import co.topl.algebras.{ClockAlgebra, ConsensusState}
+import co.topl.algebras.{ClockAlgebra, ConsensusState, Store}
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, EtaCalculationAlgebra}
 import co.topl.consensus.{LocalChain, SlotData}
 import co.topl.crypto.signatures.Ed25519VRF
@@ -26,12 +26,14 @@ object DemoProgram {
     headerValidation: BlockHeaderValidationAlgebra[F],
     vrfProofs:        List[VrfProofAlgebra[F]],
     state:            ConsensusState[F],
+    headerStore:      Store[F, BlockHeaderV2],
+    blockStore:       Store[F, BlockV2],
     etaCalculation:   EtaCalculationAlgebra[F],
     localChain:       LocalChain[F]
   ): F[Unit] =
     for {
       ed25519VrfRef <- Ref.of[F, Ed25519VRF](Ed25519VRF.precomputed())
-      initialSlot   <- clock.globalSlot().map(_.min(1L))
+      initialSlot   <- clock.globalSlot.map(_.min(1L))
       initialEpoch  <- clock.epochOf(initialSlot)
       _ <- initialEpoch
         .iterateForeverM(epoch =>
@@ -43,6 +45,8 @@ object DemoProgram {
             headerValidation,
             vrfProofs,
             state,
+            headerStore,
+            blockStore,
             etaCalculation,
             localChain,
             ed25519VrfRef
@@ -63,20 +67,23 @@ object DemoProgram {
     headerValidation: BlockHeaderValidationAlgebra[F],
     vrfProofs:        List[VrfProofAlgebra[F]],
     state:            ConsensusState[F],
+    headerStore:      Store[F, BlockHeaderV2],
+    blockStore:       Store[F, BlockV2],
     etaCalculation:   EtaCalculationAlgebra[F],
     localChain:       LocalChain[F],
     ed25519VrfRef:    Ref[F, Ed25519VRF]
   ): F[Unit] =
     for {
       boundary <- clock.epochRange(epoch)
-      _        <- startEpoch(epoch, boundary, state, vrfProofs, localChain, etaCalculation)
+      _        <- startEpoch(epoch, boundary, headerStore, vrfProofs, localChain, etaCalculation)
       _ <- traverseEpoch(
         fromSlot,
         boundary,
         clock,
         mints,
         headerValidation,
-        state,
+        headerStore,
+        blockStore,
         localChain,
         ed25519VrfRef
       )
@@ -89,7 +96,7 @@ object DemoProgram {
   private def startEpoch[F[_]: MonadError[*[_], Throwable]: Logger: Parallel](
     epoch:          Epoch,
     boundary:       ClockAlgebra.EpochBoundary,
-    state:          ConsensusState[F],
+    headerStore:    Store[F, BlockHeaderV2],
     vrfProofs:      List[VrfProofAlgebra[F]],
     localChain:     LocalChain[F],
     etaCalculation: EtaCalculationAlgebra[F]
@@ -98,7 +105,7 @@ object DemoProgram {
       _      <- Logger[F].info(s"Starting epoch=$epoch (${boundary.start}..${boundary.end})")
       _      <- Logger[F].info("Precomputing VRF data")
       headId <- localChain.head.map(_.slotId.blockId)
-      head <- OptionT(state.lookupBlockHeader(headId))
+      head <- OptionT(headerStore.get(headId))
         .getOrElseF(new IllegalStateException(show"Missing blockId=$headId").raiseError[F, BlockHeaderV2])
       nextEta <- etaCalculation.etaToBe(head.slotId, boundary.start)
       _       <- vrfProofs.traverse(_.precomputeForEpoch(epoch, nextEta))
@@ -113,7 +120,8 @@ object DemoProgram {
     clock:            ClockAlgebra[F],
     mints:            List[BlockMintAlgebra[F]],
     headerValidation: BlockHeaderValidationAlgebra[F],
-    state:            ConsensusState[F],
+    headerStore:      Store[F, BlockHeaderV2],
+    blockStore:       Store[F, BlockV2],
     localChain:       LocalChain[F],
     ed25519VrfRef:    Ref[F, Ed25519VRF]
   ): F[Unit] =
@@ -122,7 +130,7 @@ object DemoProgram {
       .iterateUntilM(localSlot =>
         for {
           _ <- clock.delayedUntilSlot(localSlot)
-          _ <- processSlot(localSlot, mints, headerValidation, state, localChain, ed25519VrfRef)
+          _ <- processSlot(localSlot, mints, headerValidation, headerStore, blockStore, localChain, ed25519VrfRef)
         } yield localSlot + 1
       )(_ >= boundary.end)
       .void
@@ -131,7 +139,8 @@ object DemoProgram {
     slot:             Slot,
     mints:            List[BlockMintAlgebra[F]],
     headerValidation: BlockHeaderValidationAlgebra[F],
-    state:            ConsensusState[F],
+    headerStore:      Store[F, BlockHeaderV2],
+    blockStore:       Store[F, BlockV2],
     localChain:       LocalChain[F],
     ed25519VrfRef:    Ref[F, Ed25519VRF]
   ): F[Unit] =
@@ -139,12 +148,12 @@ object DemoProgram {
       _ <- Logger[F].debug(s"Processing slot=$slot")
       canonicalHead <- localChain.head
         .flatMap(slotData =>
-          OptionT(state.lookupBlock(slotData.slotId.blockId))
-            .getOrElseF(new IllegalStateException("BlockNotFound").raiseError[F, BlockV2])
+          OptionT(headerStore.get(slotData.slotId.blockId))
+            .getOrElseF(new IllegalStateException("BlockNotFound").raiseError[F, BlockHeaderV2])
         )
-      mintedBlocks <- mints.traverse(_.mint(canonicalHead.headerV2, Nil, slot)).map(_.flatten)
+      mintedBlocks <- mints.traverse(_.mint(canonicalHead, Nil, slot)).map(_.flatten)
       _ <- mintedBlocks.traverse(
-        processMintedBlock(_, headerValidation, state, localChain, ed25519VrfRef, canonicalHead)
+        processMintedBlock(_, headerValidation, blockStore, localChain, ed25519VrfRef, canonicalHead)
       )
     } yield ()
 
@@ -154,19 +163,19 @@ object DemoProgram {
   private def processMintedBlock[F[_]: Monad: Logger](
     nextBlock:        BlockV2,
     headerValidation: BlockHeaderValidationAlgebra[F],
-    state:            ConsensusState[F],
+    blockStore:       Store[F, BlockV2],
     localChain:       LocalChain[F],
     ed25519VrfRef:    Ref[F, Ed25519VRF],
-    canonicalHead:    BlockV2
+    canonicalHead:    BlockHeaderV2
   ): F[Unit] =
     for {
       _                     <- Logger[F].info(s"Minted block ${nextBlock.headerV2.show}")
-      _                     <- state.append(nextBlock)
+      _                     <- blockStore.put(nextBlock)
       slotData              <- ed25519VrfRef.modify(implicit ed25519Vrf => ed25519Vrf -> SlotData(nextBlock.headerV2))
       localChainIsWorseThan <- localChain.isWorseThan(slotData)
       _ <-
         if (localChainIsWorseThan)
-          EitherT(headerValidation.validate(nextBlock.headerV2, canonicalHead.headerV2))
+          EitherT(headerValidation.validate(nextBlock.headerV2, canonicalHead))
             .semiflatTap(_ => localChain.adopt(slotData))
             .semiflatTap(header => Logger[F].info(show"Adopted local head block id=${header.id}"))
             .void

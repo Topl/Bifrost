@@ -1,7 +1,7 @@
 package co.topl.demo
 
 import cats._
-import cats.effect.Temporal
+import cats.effect._
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.models.{Epoch, Slot, Timestamp}
@@ -12,34 +12,35 @@ object CatsTemporalClock {
 
   object Eval {
 
-    def make[F[_]: Monad: Temporal](
+    def make[F[_]: Async](
       _slotLength:    FiniteDuration,
       _slotsPerEpoch: Long
     ): ClockAlgebra[F] =
       new ClockAlgebra[F] {
         private val startTime = System.currentTimeMillis()
 
-        def slotLength: F[FiniteDuration] = _slotLength.pure[F]
+        val slotLength: F[FiniteDuration] = _slotLength.pure[F]
 
-        def slotsPerEpoch: F[Epoch] = _slotsPerEpoch.pure[F]
+        val slotsPerEpoch: F[Epoch] = _slotsPerEpoch.pure[F]
 
-        def currentEpoch(): F[Epoch] =
-          (globalSlot(), slotsPerEpoch).mapN(_ / _)
+        val currentTimestamp: F[Timestamp] =
+          Sync[F].delay(System.currentTimeMillis())
 
-        def globalSlot(): F[Slot] =
-          currentTimestamp().map(currentTimestamp => (currentTimestamp - startTime) / _slotLength.toMillis)
+        val globalSlot: F[Slot] =
+          currentTimestamp.map(currentTimestamp => (currentTimestamp - startTime) / _slotLength.toMillis)
 
-        def currentTimestamp(): F[Timestamp] = System.currentTimeMillis().pure[F]
+        val currentEpoch: F[Epoch] =
+          (globalSlot, slotsPerEpoch).mapN(_ / _)
 
         def delayedUntilSlot(slot: Slot): F[Unit] =
-          globalSlot()
+          globalSlot
             .map(currentSlot => (slot - currentSlot) * _slotLength)
             .flatMap(delay => if (delay.toMillis > 0) Temporal[F].sleep(delay) else Applicative[F].unit)
 
         def delayedUntilTimestamp(timestamp: Timestamp): F[Unit] =
-          currentTimestamp()
+          currentTimestamp
             .map(currentTimestamp => (timestamp - currentTimestamp).millis)
-            .flatMap(Temporal[F].sleep)
+            .flatMap(delay => if (delay.toMillis > 0) Temporal[F].sleep(delay) else Applicative[F].unit)
       }
   }
 }
