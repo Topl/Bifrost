@@ -1,10 +1,7 @@
 package co.topl.crypto.typeclasses
 
-import co.topl.crypto.signing.Ed25519
+import co.topl.crypto.signing.{Curve25519, Ed25519, Ed25519VRF, ExtendedEd25519}
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.Lengths._
-import co.topl.models.utility.Sized
 
 /**
  * Indicates that some value T can produce a Verification Key
@@ -19,6 +16,7 @@ trait ContainsVerificationKey[T, VK] {
 
 object ContainsVerificationKey {
 
+  // todo: why aren't we using the simulacrum biolerplate here?
   def apply[SK, VK](implicit
     containsVerificationKey: ContainsVerificationKey[SK, VK]
   ): ContainsVerificationKey[SK, VK] =
@@ -39,36 +37,28 @@ object ContainsVerificationKey {
 
   trait Instances {
 
-    private val sharedEd25519 = new Ed25519()
+    implicit val curve25519ContainsVerificationKey
+      : ContainsVerificationKey[SecretKeys.Curve25519, VerificationKeys.Curve25519] =
+      key => {
+        new Curve25519().generatePublicKey(key)
+      }
 
     implicit val ed25519ContainsVerificationKey: ContainsVerificationKey[SecretKeys.Ed25519, VerificationKeys.Ed25519] =
       key => {
-        val pkBytes = new Array[Byte](32)
-        sharedEd25519.generatePublicKey(key.bytes.data.toArray, 0, pkBytes, 0)
-        VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(pkBytes)))
+        new Ed25519().generatePublicKey(key)
       }
 
     implicit val extendedEd25519ContainsVerificationKey
       : ContainsVerificationKey[SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519] =
       key => {
-        val vk = new Array[Byte](sharedEd25519.PUBLIC_KEY_SIZE)
-        sharedEd25519.scalarMultBaseEncoded(key.leftKey.data.toArray, vk, 0)
-        VerificationKeys.ExtendedEd25519(VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(vk))), key.chainCode)
+        new ExtendedEd25519().generatePublicKey(key)
       }
 
     implicit val vrfContainsVerificationKey
       : ContainsVerificationKey[SecretKeys.VrfEd25519, VerificationKeys.VrfEd25519] =
-      key =>
-        VerificationKeys.VrfEd25519(
-          Sized.strictUnsafe[Bytes, VerificationKeys.VrfEd25519.Length](
-            ed25519ContainsVerificationKey
-              .verificationKeyOf(
-                SecretKeys.Ed25519(key.bytes)
-              )
-              .bytes
-              .data
-          )
-        )
+      key => {
+        new Ed25519VRF().generatePublicKey(key)
+      }
 
 //    implicit val kesContainsVerificationKey
 //      : ContainsVerificationKey[SecretKeys.SymmetricMMM, VerificationKeys.HdKes] = {

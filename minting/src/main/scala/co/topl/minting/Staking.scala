@@ -3,12 +3,11 @@ package co.topl.minting
 import cats.Monad
 import cats.data.OptionT
 import cats.implicits._
-import co.topl.crypto.KeyIndexes
 import co.topl.minting.algebras.LeaderElectionMintingAlgebra.VrfHit
 import co.topl.minting.algebras._
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.{Bip32Index, Sized}
+import co.topl.models.utility.Sized
 import co.topl.typeclasses.implicits._
 
 object Staking {
@@ -18,7 +17,7 @@ object Staking {
     def make[F[_]: Monad](
       a:                      TaktikosAddress,
       leaderElection:         LeaderElectionMintingAlgebra[F],
-      evolver:                KeyEvolverAlgebra[KeyIndexes.Bip32, F],
+      evolver:                KeyEvolverAlgebra[F],
       vrfRelativeStakeLookup: VrfRelativeStakeMintingLookupAlgebra[F],
       etaLookup:              EtaMintingAlgebra[F]
     ): StakingAlgebra[F] = new StakingAlgebra[F] {
@@ -35,7 +34,7 @@ object Staking {
 
       def certifyBlock(unsignedBlock: BlockV2.Unsigned): F[BlockV2] =
         evolver
-          .evolveKey(KeyIndexes.Bip32.Hardened(unsignedBlock.unsignedHeader.slot.toInt))
+          .evolveKey(unsignedBlock.unsignedHeader.slot.toInt)
           .map(evolvedKey => temporaryOpCert)
           .map(operationalCertificate =>
             BlockHeaderV2(
@@ -61,7 +60,7 @@ object Staking {
 
       // TODO: Generate a _real_ operational certificate
       val temporaryOpCert: OperationalCertificate = OperationalCertificate(
-        Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(Array.fill(32)(0: Byte))))
+        Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(Array.fill(64)(0: Byte))))
       )
 //
 //      private def temporaryOpCert =

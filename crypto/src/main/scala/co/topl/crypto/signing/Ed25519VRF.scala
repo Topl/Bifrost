@@ -46,10 +46,17 @@ class Ed25519VRF
     signature: Proofs.Signature.VrfEd25519,
     message:   MessageToSign,
     publicKey: VerificationKeys.VrfEd25519
-  ): Boolean =
+  ): Boolean = {
     signature.bytes.data.length == SIGNATURE_SIZE &&
     publicKey.bytes.data.length == PUBLIC_KEY_SIZE &&
     vrfVerify(Bytes.toByteArray(publicKey.bytes.data), message.value, Bytes.toByteArray(signature.bytes.data))
+  }
+
+  def generatePublicKey(secretKey: SecretKeys.VrfEd25519): VerificationKeys.VrfEd25519 = {
+    val pkBytes = new Array[Byte](PUBLIC_KEY_SIZE)
+    generatePublicKey(secretKey.bytes.data.toArray, 0, pkBytes, 0)
+    VerificationKeys.VrfEd25519(Sized.strictUnsafe(Bytes(pkBytes)))
+  }
 
 }
 

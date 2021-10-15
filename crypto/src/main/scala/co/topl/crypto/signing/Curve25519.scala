@@ -76,11 +76,14 @@ class Curve25519
       Bytes.toByteArray(signature.bytes.data)
     )
 
+  def generatePublicKey(secretKey: SecretKeys.Curve25519): VerificationKeys.Curve25519 =
+    VerificationKeys.Curve25519(Sized.strictUnsafe(Bytes(provider.generatePublicKey(secretKey.bytes.data.toArray))))
+
 }
 
 object Curve25519 {
-  val SignatureLength: Int = 64
-  val KeyLength: Int = 32
-
   val instance = new Curve25519
+
+  val SignatureLength: Int = 64
+  val KeyLength: Int = instance.KeyLength
 }

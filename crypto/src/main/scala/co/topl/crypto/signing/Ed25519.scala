@@ -20,6 +20,9 @@ class Ed25519
     val pk: Sized.Strict[Bytes, VerificationKeys.Ed25519.Length] =
       Sized.strictUnsafe(Bytes(new Array[Byte](PUBLIC_KEY_SIZE)))
     val hashedSeed = sha256.hash(seed.value)
+
+    // should we update this?
+    // https://stackoverflow.com/questions/27622625/securerandom-with-nativeprng-vs-sha1prng/27638413
     val random = SecureRandom.getInstance("SHA1PRNG")
 
     random.setSeed(hashedSeed.value)
@@ -65,16 +68,10 @@ class Ed25519
       message.value.length
     )
 
-  def signExtended(t: SecretKeys.ExtendedEd25519, message: Array[Byte]): Proofs.Signature.Ed25519 = {
-    val signatureArray: Array[Byte] = new Array[Byte](SIGNATURE_SIZE)
-    val ctx: Array[Byte] = Array.emptyByteArray
-    val phflag: Byte = 0x00
-    val h: Array[Byte] = (t.leftKey.data ++ t.rightKey.data).toArray
-    val s: Array[Byte] = t.leftKey.data.toArray
-    val vk = t.vk[VerificationKeys.ExtendedEd25519]
-    val pk: Array[Byte] = (vk.ed25519.bytes.data ++ vk.chainCode.data).toArray
-    implSign(sha512Digest, h, s, pk, 0, ctx, phflag, message, 0, message.length, signatureArray, 0)
-    Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(signatureArray)))
+  def generatePublicKey(secretKey: SecretKeys.Ed25519): VerificationKeys.Ed25519 = {
+    val pkBytes = new Array[Byte](PUBLIC_KEY_SIZE)
+    generatePublicKey(secretKey.bytes.data.toArray, 0, pkBytes, 0)
+    VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(pkBytes)))
   }
 }
 

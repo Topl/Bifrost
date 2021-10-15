@@ -1,6 +1,6 @@
 package co.topl.crypto.typeclasses
 
-import co.topl.crypto.signing.{Ed25519, MessageToSign}
+import co.topl.crypto.signing.{Ed25519, ExtendedEd25519, MessageToSign}
 import co.topl.crypto.typeclasses.Signable.ops._
 import co.topl.models.Proofs.Signature
 import co.topl.models._
@@ -23,20 +23,18 @@ object Prover {
   def apply[T, Prf <: Proof](implicit p: Prover[T, Prf]): Prover[T, Prf] = p
 
   trait Instances {
-    private val ed = new Ed25519
-
     implicit val ed25519Proves: Prover[SecretKeys.Ed25519, Proofs.Signature.Ed25519] =
       new Prover[SecretKeys.Ed25519, Proofs.Signature.Ed25519] {
 
         def proveWith[Data: Signable](t: SecretKeys.Ed25519, data: Data): Signature.Ed25519 =
-          ed.sign(t, MessageToSign(data.signableBytes.toArray))
+          new Ed25519().sign(t, MessageToSign(data.signableBytes.toArray))
       }
 
     implicit val extendedEd25519Proves: Prover[SecretKeys.ExtendedEd25519, Proofs.Signature.Ed25519] =
       new Prover[SecretKeys.ExtendedEd25519, Proofs.Signature.Ed25519] {
 
         def proveWith[Data: Signable](t: SecretKeys.ExtendedEd25519, data: Data): Proofs.Signature.Ed25519 =
-          ed.signExtended(t, data.signableBytes.toArray)
+          new ExtendedEd25519().sign(t, MessageToSign(data.signableBytes.toArray))
       }
   }
 

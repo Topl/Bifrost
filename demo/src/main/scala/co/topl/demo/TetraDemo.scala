@@ -9,7 +9,6 @@ import co.topl.algebras._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LeaderElectionValidationAlgebra}
-import co.topl.crypto.KeyIndexes.Bip32
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.typeclasses._
 import co.topl.crypto.typeclasses.implicits.{extendedEd25519Initializer, _}
@@ -113,7 +112,6 @@ object TetraDemo extends IOApp.Simple {
           vrfProofConstruction
         ),
         KeyEvolver.InMemory.make {
-          implicit val index: Bip32.Hardened = Bip32Index.hardened(0)
           KeyInitializer[SecretKeys.ExtendedEd25519].random()
         },
         VrfRelativeStakeMintingLookup.Eval.make(state, clock),

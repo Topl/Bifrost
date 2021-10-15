@@ -76,7 +76,7 @@ package object mnemonic {
    * @param value the underlying bytes of entropy
    */
   @newtype
-  class Entropy(val value: Array[Byte])
+  case class Entropy(val value: Array[Byte])
 
   object Entropy {
 

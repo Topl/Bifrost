@@ -74,6 +74,7 @@ object ProofVerifier {
         )
       }
 
+    // todo: move this logic to an implementation
     implicit val thresholdCurve25519
       : ProofVerifier[Proofs.Threshold.Curve25519, Propositions.ThresholdCurve25519] =
       new ProofVerifier[Proofs.Threshold.Curve25519, Propositions.ThresholdCurve25519] {
@@ -110,6 +111,7 @@ object ProofVerifier {
         }
       }
 
+    // todo: move this logic to an implemntation
     implicit val thresholdEd25519: ProofVerifier[Proofs.Threshold.Ed25519, Propositions.ThresholdEd25519] =
       new ProofVerifier[Proofs.Threshold.Ed25519, Propositions.ThresholdEd25519] {
 

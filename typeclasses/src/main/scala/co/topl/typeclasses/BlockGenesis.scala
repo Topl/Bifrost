@@ -50,7 +50,7 @@ object BlockGenesis {
 //      slotR = 0
 //    )
   val kesCertificate: OperationalCertificate = OperationalCertificate(
-    Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(Array.fill(32)(0: Byte))))
+    Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(Array.fill(64)(0: Byte))))
   )
 
   def apply(transactions: Seq[Transaction]): Eval[BlockV2] = Eval.later {
