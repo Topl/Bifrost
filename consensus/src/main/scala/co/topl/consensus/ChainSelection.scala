@@ -3,7 +3,7 @@ package co.topl.consensus
 import cats._
 import cats.data._
 import cats.implicits._
-import co.topl.models.Slot
+import co.topl.models._
 import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
@@ -12,22 +12,20 @@ import scala.annotation.tailrec
 
 object ChainSelection {
 
-  private val standardOrder: Order[NonEmptyVector[SlotData]] =
+  private val standardOrder: Order[NonEmptyVector[SlotData]] = {
+    val lengthOrder = Order.by[NonEmptyVector[SlotData], Int](_.length)
+    val slotOrder = Order.by[NonEmptyVector[SlotData], Slot](-_.last.slotId.slot)
+    // TODO: Implement proper sorting for `rho` (Byte Array)
+    val rhoOrder = Order.reverse(Order.by[NonEmptyVector[SlotData], Byte](h => h.last.rho.data.toArray.head))
     Order
       .whenEqual(
-        Order.by[NonEmptyVector[SlotData], Int](_.length),
+        lengthOrder,
         Order.whenEqual(
-          Order.by[NonEmptyVector[SlotData], Slot](-_.last.slotId.slot),
-          Order.reverse(
-            // TODO: Detect hash collisions?
-            Order.whenEqual(
-              // TODO: Is it okay to convert `rho` (Byte Array) into a BigInt for ordering?
-              Order.by[NonEmptyVector[SlotData], BigInt](h => BigInt(h.last.rho.data.toArray)),
-              (_, _) => 1 // This may technically violate associativity expectations
-            )
-          )
+          slotOrder,
+          rhoOrder
         )
       )
+  }
 
   /**
    * Between two tines, determines which one is "better"
@@ -49,19 +47,20 @@ object ChainSelection {
     override def compare(x: SlotData, y: SlotData): F[Int] =
       if (x === y) 0.pure[F]
       else
-        Traversal(
+        TineComparisonTraversal(
           NonEmptyVector.one(x),
           NonEmptyVector.one(y),
           useDensityRule = false
         )
           .iterateWhileM(_.next)(!_.sharesCommonAncestor)
           .flatTap {
-            case Traversal(xSegment, ySegment, useDensityRule) if xSegment.length > 1 && ySegment.length > 1 =>
+            case TineComparisonTraversal(xSegment, ySegment, useDensityRule)
+                if xSegment.length > 1 && ySegment.length > 1 =>
               Logger[F].info(
-                s"Performing chain selection" +
-                s" tineX=[${xSegment.length}](${xSegment.head.slotId.show}..${xSegment.last.slotId.show})" +
-                s" tineY=[${ySegment.length}](${ySegment.head.slotId.show}..${ySegment.last.slotId.show})" +
-                s" useDensityRule=$useDensityRule"
+                "Performing chain selection" +
+                show" tineX=[${xSegment.length}](${xSegment.head.slotId}..${xSegment.last.slotId})" +
+                show" tineY=[${ySegment.length}](${ySegment.head.slotId}..${ySegment.last.slotId})" +
+                show" useDensityRule=$useDensityRule"
               )
             case _ =>
               Applicative[F].unit
@@ -69,32 +68,30 @@ object ChainSelection {
           .map(_.comparisonResult)
 
     // TODO: Best data structure for: prepend, length, and "dropRightWhile"?
-    private case class Traversal(
+    private case class TineComparisonTraversal(
       xSegment:       NonEmptyVector[SlotData],
       ySegment:       NonEmptyVector[SlotData],
       useDensityRule: Boolean
     ) {
 
-      def next: F[Traversal] =
+      def next: F[TineComparisonTraversal] = {
+        def buildNextSegment(segment: NonEmptyVector[SlotData], other: NonEmptyVector[SlotData]) =
+          if (segment.head.slotId.slot >= other.head.slotId.slot) {
+            if (segment.head.slotId.slot === 0L) segment.pure[F] // Genesis case
+            else storage.get(segment.head.parentSlotId.blockId).map(_ +: segment)
+          } else segment.pure[F]
         // Prepend/accumulate the next parent header for the xSegment and the ySegment
         for {
-          newXSegment <-
-            if (xSegment.head.slotId.slot >= ySegment.head.slotId.slot) {
-              if (xSegment.head.slotId.slot === 0L) xSegment.pure[F] // Genesis case
-              else storage.get(xSegment.head.parentSlotId.blockId).map(_ +: xSegment)
-            } else xSegment.pure[F]
-          newYSegment <-
-            if (ySegment.head.slotId.slot >= xSegment.head.slotId.slot) {
-              if (ySegment.head.slotId.slot === 0L) ySegment.pure[F] // Genesis case
-              else storage.get(ySegment.head.parentSlotId.blockId).map(_ +: ySegment)
-            } else ySegment.pure[F]
-          newUseChainDensity =
+          newXSegment <- buildNextSegment(xSegment, ySegment)
+          newYSegment <- buildNextSegment(ySegment, xSegment)
+          newUseChainDensity = // Once we've traversed back K number of blocks, switch to the chain density rule
             useDensityRule || (newXSegment.length > kLookback) || (newYSegment.length > kLookback)
-        } yield Traversal(
+        } yield TineComparisonTraversal(
           if (newUseChainDensity) sliceWithinSWindow(newXSegment) else newXSegment,
           if (newUseChainDensity) sliceWithinSWindow(newYSegment) else newYSegment,
           newUseChainDensity
         )
+      }
 
       def sharesCommonAncestor: Boolean =
         xSegment.head === ySegment.head

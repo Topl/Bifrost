@@ -3,11 +3,11 @@ package co.topl.demo
 import cats.data.{EitherT, OptionT}
 import cats.effect._
 import cats.implicits._
-import cats.{Monad, MonadError, Parallel}
+import cats.{Monad, MonadError, Parallel, Show}
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras.{ClockAlgebra, ConsensusState, Store}
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, EtaCalculationAlgebra}
-import co.topl.consensus.{LocalChain, SlotData}
+import co.topl.consensus.{BlockHeaderValidationFailure, LocalChain, SlotData}
 import co.topl.crypto.signatures.Ed25519VRF
 import co.topl.minting.algebras.{BlockMintAlgebra, VrfProofAlgebra}
 import co.topl.models._
@@ -102,7 +102,7 @@ object DemoProgram {
     etaCalculation: EtaCalculationAlgebra[F]
   ): F[Unit] =
     for {
-      _      <- Logger[F].info(s"Starting epoch=$epoch (${boundary.start}..${boundary.end})")
+      _      <- Logger[F].info(show"Starting epoch=$epoch (${boundary.start}..${boundary.end})")
       _      <- Logger[F].info("Precomputing VRF data")
       headId <- localChain.head.map(_.slotId.blockId)
       head <- OptionT(headerStore.get(headId))
@@ -135,6 +135,9 @@ object DemoProgram {
       )(_ >= boundary.end)
       .void
 
+  /**
+   * For each minter, attempt to mint.  For each minted block, process it.
+   */
   private def processSlot[F[_]: MonadError[*[_], Throwable]: Logger: Parallel: Sync](
     slot:             Slot,
     mints:            List[BlockMintAlgebra[F]],
@@ -145,17 +148,20 @@ object DemoProgram {
     ed25519VrfRef:    Ref[F, Ed25519VRF]
   ): F[Unit] =
     for {
-      _ <- Logger[F].debug(s"Processing slot=$slot")
+      _ <- Logger[F].debug(show"Processing slot=$slot")
       canonicalHead <- localChain.head
         .flatMap(slotData =>
           OptionT(headerStore.get(slotData.slotId.blockId))
             .getOrElseF(new IllegalStateException("BlockNotFound").raiseError[F, BlockHeaderV2])
         )
-      mintedBlocks <- mints.traverse(_.mint(canonicalHead, Nil, slot)).map(_.flatten)
+      mintedBlocks <- mints.traverse(_.attemptMint(canonicalHead, Nil, slot)).map(_.flatten)
       _ <- mintedBlocks.traverse(
         processMintedBlock(_, headerValidation, blockStore, localChain, ed25519VrfRef, canonicalHead)
       )
     } yield ()
+
+  implicit private val showBlockHeaderValidationFailure: Show[BlockHeaderValidationFailure] =
+    Show.fromToString
 
   /**
    * Insert block to local storage and perform chain selection.  If better, validate the block and then adopt it locally.
@@ -169,7 +175,7 @@ object DemoProgram {
     canonicalHead:    BlockHeaderV2
   ): F[Unit] =
     for {
-      _                     <- Logger[F].info(s"Minted block ${nextBlock.headerV2.show}")
+      _                     <- Logger[F].info(show"Minted block ${nextBlock.headerV2}")
       _                     <- blockStore.put(nextBlock)
       slotData              <- ed25519VrfRef.modify(implicit ed25519Vrf => ed25519Vrf -> SlotData(nextBlock.headerV2))
       localChainIsWorseThan <- localChain.isWorseThan(slotData)
@@ -179,7 +185,11 @@ object DemoProgram {
             .semiflatTap(_ => localChain.adopt(slotData))
             .semiflatTap(header => Logger[F].info(show"Adopted local head block id=${header.id}"))
             .void
-            .valueOrF(e => Logger[F].warn(s"Invalid block header. reason=$e block=${nextBlock.headerV2.show}"))
+            .valueOrF(e =>
+              Logger[F]
+                .warn(show"Invalid block header. reason=$e block=${nextBlock.headerV2}")
+                .flatTap(_ => blockStore.remove(nextBlock.headerV2.id))
+            )
         else
           Logger[F].info(show"Ignoring weaker block header id=${nextBlock.headerV2.id}")
     } yield ()
@@ -189,7 +199,7 @@ object DemoProgram {
    */
   private def finishEpoch[F[_]: Monad: Logger](epoch: Epoch, state: ConsensusState[F]): F[Unit] =
     for {
-      _ <- Logger[F].info(s"Finishing epoch=$epoch")
+      _ <- Logger[F].info(show"Finishing epoch=$epoch")
       _ <- Logger[F].info("Populating registrations for next epoch")
       newRegistrations <- state
         .foldRegistrations(epoch)(Map.empty[TaktikosAddress, Box.Values.TaktikosRegistration]) {

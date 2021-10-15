@@ -70,7 +70,7 @@ class ChainSelectionSpec
     orderT.compare(xSegment.last, ySegment.last).unsafeRunSync() should be > 0
   }
 
-  it should "use (longest-chain -> lowest slot) rule for equal length tines shorter than the kLookback parameter" in {
+  it should "use lowest-slot rule for equal length tines shorter than the kLookback parameter" in {
     val grandAncestor = createSlotData(9, SlotId(8, TypedBytes(1: Byte, Bytes(Array[Byte](9)))))
     val ancestor = createSlotData(10, grandAncestor.slotId)
     val xSegment = LazyList
@@ -109,7 +109,7 @@ class ChainSelectionSpec
     orderT.compare(xSegment.last, ySegment.last).unsafeRunSync() should be > 0
   }
 
-  it should "use (longest-chain -> lowest rho) rule for equal length tines with equal best slot shorter than the kLookback parameter" in {
+  it should "use lowest-rho rule for equal length tines with equal best slot shorter than the kLookback parameter" in {
     val grandAncestor = createSlotData(9, SlotId(8, TypedBytes(1: Byte, Bytes(Array[Byte](9)))))
     val ancestor = createSlotData(10, grandAncestor.slotId)
     val xSegment = {

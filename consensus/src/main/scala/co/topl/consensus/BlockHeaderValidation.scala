@@ -60,10 +60,10 @@ object BlockHeaderValidation {
                 child => child.timestamp > parent.timestamp
               )
               .ensureOr(child => BlockHeaderValidationFailures.ParentMismatch(child.parentHeaderId, parent.id))(
-                _.parentHeaderId == parent.id
+                _.parentHeaderId === parent.id
               )
               .ensureOr(child => BlockHeaderValidationFailures.NonForwardHeight(child.height, parent.height))(
-                _.height == parent.height + 1
+                _.height === parent.height + 1
               )
 
           /**
