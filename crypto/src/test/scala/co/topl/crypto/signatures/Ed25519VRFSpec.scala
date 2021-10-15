@@ -1,19 +1,23 @@
 package co.topl.crypto.signatures
 
+import co.topl.crypto.hash.digest.Digest32
+import co.topl.crypto.hash.digest.implicits._
+import co.topl.crypto.hash.{Blake2b, Blake2bHash, Hash}
 import co.topl.crypto.signing.eddsa.ECVRF25519
-import co.topl.crypto.hash.FastCryptographicHash
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import scala.util.{Failure, Success, Try}
+
+import java.nio.charset.StandardCharsets
 import java.security.SecureRandom
+import scala.util.{Failure, Success, Try}
 
 class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
 
   property("Test all VRF vectors") {
     val passed = Try {
       val vrf: ECVRF25519 = new ECVRF25519
-      val fch: FastCryptographicHash = new FastCryptographicHash
+      val fch: Hash[Blake2b, Digest32] = new Blake2bHash[Digest32] {}
       var proof: Array[Byte] = Array()
       var alpha: Array[Byte] = Array()
       var beta: Array[Byte] = Array()
@@ -27,7 +31,7 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
         //println("Public Key")
         //println(binaryArrayToHex(pk))
         assert(vrf.verifyKeyPair(sk, pk))
-        alpha = fch.hash(uuid)
+        alpha = fch.hash(uuid.getBytes(StandardCharsets.UTF_8)).value
         proof = vrf.vrfProof(sk, alpha)
         beta = vrf.vrfProofToHash(proof)
         //println("Alpha:")

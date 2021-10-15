@@ -11,6 +11,7 @@ import java.time.Instant
 
 trait ShowInstances {
 
+  // todo: this should use Base58 in Utils?
   implicit val showBytes: Show[Bytes] =
     bytes => Base58.encode(bytes.toArray)
 
