@@ -1,4 +1,4 @@
-package co.topl.crypto.typeclasses
+package co.topl.typeclasses
 
 import co.topl.crypto.mnemonic.Entropy
 import co.topl.crypto.signing._

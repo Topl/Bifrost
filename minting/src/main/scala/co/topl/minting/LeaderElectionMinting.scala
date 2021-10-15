@@ -3,7 +3,6 @@ package co.topl.minting
 import cats.Monad
 import cats.implicits._
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
-import co.topl.crypto.typeclasses.implicits._
 import co.topl.minting.algebras.LeaderElectionMintingAlgebra.VrfHit
 import co.topl.minting.algebras.{LeaderElectionMintingAlgebra, VrfProofAlgebra}
 import co.topl.models._

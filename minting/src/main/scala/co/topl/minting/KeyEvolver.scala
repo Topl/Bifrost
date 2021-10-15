@@ -1,10 +1,10 @@
 package co.topl.minting
 
 import cats.Applicative
-import co.topl.crypto.typeclasses.Evolves
-import co.topl.crypto.typeclasses.Evolves.instances._
 import co.topl.minting.algebras.KeyEvolverAlgebra
 import co.topl.models.{SecretKeys, Slot}
+import co.topl.typeclasses.Evolves
+import co.topl.typeclasses.implicits._
 
 object KeyEvolver {
 

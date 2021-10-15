@@ -6,7 +6,6 @@ import cats.implicits._
 import co.topl.consensus.algebras._
 import co.topl.consensus.vrf.ProofToHash
 import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.typeclasses.implicits._
 import co.topl.models._
 import co.topl.models.utility.Ratio
 import co.topl.typeclasses.implicits._

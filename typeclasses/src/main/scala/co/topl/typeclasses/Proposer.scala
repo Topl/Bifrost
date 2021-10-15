@@ -1,6 +1,7 @@
-package co.topl.crypto.typeclasses
+package co.topl.typeclasses
 
 import co.topl.models.{Proposition, Propositions, VerificationKeys}
+
 import scala.language.implicitConversions
 
 trait Proposer[T, Prop <: Proposition] {

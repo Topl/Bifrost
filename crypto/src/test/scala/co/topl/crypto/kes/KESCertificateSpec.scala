@@ -2,7 +2,7 @@ package co.topl.crypto.kes
 
 import co.topl.crypto.kes.keys.SymmetricKey
 import co.topl.crypto.mnemonic.Entropy
-import co.topl.crypto.typeclasses.{KeyInitializer, Prover}
+import co.topl.crypto.typeclasses.KeyInitializer
 import co.topl.crypto.typeclasses.implicits._
 import co.topl.models.{Proofs, SecretKeys}
 import org.scalatest.matchers.should.Matchers

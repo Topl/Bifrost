@@ -1,4 +1,4 @@
-package co.topl.crypto.typeclasses
+package co.topl.typeclasses
 
 import co.topl.crypto.signing.{Curve25519, Ed25519, Ed25519VRF, ExtendedEd25519}
 import co.topl.models._

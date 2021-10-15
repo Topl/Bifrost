@@ -10,8 +10,6 @@ import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LeaderElectionValidationAlgebra}
 import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.typeclasses._
-import co.topl.crypto.typeclasses.implicits.{extendedEd25519Initializer, _}
 import co.topl.minting._
 import co.topl.minting.algebras.{BlockMintAlgebra, VrfProofAlgebra}
 import co.topl.models._
@@ -19,6 +17,7 @@ import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility._
 import co.topl.typeclasses._
+import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 

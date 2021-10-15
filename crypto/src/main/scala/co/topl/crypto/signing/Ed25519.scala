@@ -1,7 +1,6 @@
 package co.topl.crypto.signing
 
 import co.topl.crypto.hash.sha256
-import co.topl.crypto.typeclasses.implicits.{extendedEd25519ContainsVerificationKey, ContainsVerificationKeyOps}
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.Sized
 import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}

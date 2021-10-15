@@ -1,9 +1,9 @@
-package co.topl.crypto.typeclasses
+package co.topl.typeclasses
 
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519, MessageToSign}
-import co.topl.crypto.typeclasses.Signable.ops._
 import co.topl.models.Proofs.Signature
 import co.topl.models._
+import co.topl.typeclasses.implicits._
 
 import scala.language.implicitConversions
 

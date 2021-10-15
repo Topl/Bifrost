@@ -1,21 +1,20 @@
 package co.topl.minting
 
+import cats.Monad
 import cats.effect.Sync
 import cats.implicits._
-import cats.{Applicative, Monad}
 import co.topl.algebras.ClockAlgebra
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.consensus.LeaderElectionValidation
-import co.topl.consensus.LeaderElectionValidation.signableVrfArgument
 import co.topl.consensus.vrf.ProofToHash
 import co.topl.crypto.signing.Ed25519VRF
-import co.topl.crypto.typeclasses.implicits._
 import co.topl.minting.algebras.VrfProofAlgebra
 import co.topl.models.Proofs.Signature
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.Sized
+import co.topl.typeclasses.implicits._
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.immutable.LongMap
@@ -69,7 +68,10 @@ object VrfProof {
       }
   }
 
-  private def compute(skVrf: SecretKeys.VrfEd25519, arg: LeaderElectionValidation.VrfArgument): Proofs.Signature.VrfEd25519 =
+  private def compute(
+    skVrf: SecretKeys.VrfEd25519,
+    arg:   LeaderElectionValidation.VrfArgument
+  ): Proofs.Signature.VrfEd25519 =
     Proofs.Signature.VrfEd25519(
       Sized.strictUnsafe(
         Bytes(

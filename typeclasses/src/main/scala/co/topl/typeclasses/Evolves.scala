@@ -1,4 +1,4 @@
-package co.topl.crypto.typeclasses
+package co.topl.typeclasses
 
 import co.topl.crypto.mnemonic.Bip32Index
 import co.topl.crypto.signing.ExtendedEd25519
