@@ -7,7 +7,15 @@ import co.topl.models.{KeyData, SecretKeys, VerificationKeys}
 class KesAsymmetricProduct extends ProdAsymComp {
 
   def publicKey(key: SecretKeys.KesAsymmetricProduct): Array[Byte] =
-    sumCompositionGetPublicKey(key.data.superScheme)
+    generateVerificationKey(key.data.superScheme)
+
+  /**
+   * Get the public key of an MMM private key
+   * @param key input key
+   * @return public key
+   */
+  def publicKey(key: KeyData): Array[Byte] =
+    generateVerificationKey(key.superScheme)
 
   def createKeyPair(
     seed:   Seed,
@@ -27,7 +35,7 @@ class KesAsymmetricProduct extends ProdAsymComp {
     message:   MessageToSign,
     verifyKey: VerificationKeys.KesAsymmetricProduct,
     index:     Int
-  ): Boolean = sumCompositionVerify(verifyKey.bytes, message.value, signature.bytes, index: Int)
+  ): Boolean = verify(verifyKey.bytes, message.value, signature.bytes, index: Int)
 
   //todo: fix
   //  def deriveSecret(secretKey: SecretKeys.KesAsymmetricProduct, index: Int): SecretKeys.KesAsymmetricProduct =

@@ -11,25 +11,25 @@ class KesSum extends SumComposition {
   val defaultHeight: Int = ???
 
   def createKeyPair(seed: Seed, height: Int): (SecretKeys.KesSum, VerificationKeys.KesSum) = {
-    val sk = sumCompositionGenerateKey(seed.value, height)
-    val pk = sumCompositionGetPublicKey(sk)
+    val sk = generateSecretKey(seed.value, height)
+    val pk = generateVerificationKey(sk)
 
     // todo: fix offset
     (SecretKeys.KesSum(sk, 0), VerificationKeys.KesSum(pk))
   }
 
   def sign(privateKey: SecretKeys.KesSum, message: MessageToSign, index: Int): Signature.KesSum =
-    Signature.KesSum(sumCompositionSign(privateKey.tree, message.value, index))
+    Signature.KesSum(sign(privateKey.tree, message.value, index))
 
   def verify(
     signature: Signature.KesSum,
     message:   MessageToSign,
     verifyKey: VerificationKeys.KesSum,
     index:     Int
-  ): Boolean = sumCompositionVerify(verifyKey.bytes, message.value, signature.bytes, index: Int)
+  ): Boolean = verify(verifyKey.bytes, message.value, signature.bytes, index: Int)
 
   def deriveSecret(secretKey: SecretKeys.KesSum, index: Int): SecretKeys.KesSum =
-    SecretKeys.KesSum(sumCompositionUpdate(secretKey.tree, index), secretKey.offset)
+    SecretKeys.KesSum(updateKey(secretKey.tree, index), secretKey.offset)
 
   def deriveVerification(
     verificationKey: VerificationKeys.KesSum,

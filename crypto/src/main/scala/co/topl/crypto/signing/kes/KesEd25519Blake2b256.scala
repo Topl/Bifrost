@@ -1,7 +1,7 @@
 package co.topl.crypto.signing.kes
 
-import co.topl.crypto.hash.{digest, Blake2b, Blake2bHash, Hash}
 import co.topl.crypto.hash.digest.Digest32
+import co.topl.crypto.hash.{digest, Blake2b, Blake2bHash, Hash}
 import co.topl.crypto.signing.eddsa.Ed25519
 
 import java.security.SecureRandom
@@ -28,7 +28,6 @@ trait KesEd25519Blake2b256 {
    * @param n integer
    * @return 2 to the n
    */
-
   protected def exp(n: Int): Int =
     scala.math.pow(2, n).toInt
 
@@ -36,13 +35,12 @@ trait KesEd25519Blake2b256 {
    * Pseudorandom number generator used for seed doubling
    * Input must be non-recoverable from output
    * Each output cannot be used to determine one from the other
-   * @param k input seed
+   * @param seed input seed
    * @return tuple of two new seeds
    */
-
-  protected def PRNG(k: Array[Byte]): (Array[Byte], Array[Byte]) = {
-    val r1 = hash(k)
-    val r2 = hash(r1 ++ k)
+  protected def prng(seed: Array[Byte]): (Array[Byte], Array[Byte]) = {
+    val r1 = hash(seed)
+    val r2 = hash(r1 ++ seed)
     (r1, r2)
   }
 
@@ -51,10 +49,9 @@ trait KesEd25519Blake2b256 {
    * @param seed input entropy for keypair generation
    * @return byte array sk||pk
    */
-
-  protected def sKeypairFast(seed: Array[Byte]): Array[Byte] = {
+  protected def sGenKeypair(seed: Array[Byte]): Array[Byte] = {
     val sk = hash(seed)
-    val pk = Array.fill(32)(0x00.toByte)
+    val pk = Array.fill(pkBytes)(0: Byte)
     sig.generatePublicKey(sk, 0, pk, 0)
     sk ++ pk
   }
@@ -65,9 +62,8 @@ trait KesEd25519Blake2b256 {
    * @param sk SIG secret key to be signed
    * @return SIG signature
    */
-
   protected def sSign(m: Array[Byte], sk: Array[Byte]): Array[Byte] = {
-    val signature: Array[Byte] = Array.fill(sigBytes)(0x00.toByte)
+    val signature: Array[Byte] = Array.fill(sigBytes)(0: Byte)
     sig.sign(sk, 0, m, 0, m.length, signature, 0)
     signature
   }
@@ -79,7 +75,6 @@ trait KesEd25519Blake2b256 {
    * @param pk public key corresponding to signature
    * @return true if valid signature, false if otherwise
    */
-
   protected def sVerify(m: Array[Byte], signature: Array[Byte], pk: Array[Byte]): Boolean =
     sig.verify(signature, 0, pk, 0, m, 0, m.length)
 

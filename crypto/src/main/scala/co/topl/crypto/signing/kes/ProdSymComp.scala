@@ -17,14 +17,14 @@ class ProdSymComp extends SumComposition {
    */
 
   def generateSymmetricProductKey(seed: Array[Byte], offset: Long): KeyData = {
-    val r = PRNG(seed)
-    val rp = PRNG(r._2)
+    val r = prng(seed)
+    val rp = prng(r._2)
     //super-scheme sum composition
-    val L = sumCompositionGenerateKey(r._1, symmetricLogL)
+    val L = generateSecretKey(r._1, symmetricLogL)
     //sub-scheme sum composition
-    val Si = sumCompositionGenerateKey(rp._1, symmetricLogL)
-    val pki = sumCompositionGetPublicKey(Si)
-    val sig = sumCompositionSign(L, pki, 0)
+    val Si = generateSecretKey(rp._1, symmetricLogL)
+    val pki = generateVerificationKey(Si)
+    val sig = sign(L, pki, 0)
     KeyData(L, Si, Bytes(sig), Bytes(pki), Bytes(rp._2), offset)
   }
 
@@ -50,27 +50,27 @@ class ProdSymComp extends SumComposition {
     }
     val (tl_in, ti_in) = treeTimeSteps(t_in)
     if (keyTime < t_in) {
-      val tl = getSumCompositionKeyTimeStep(L)
+      val tl = getKeyTime(L)
       var currentLeaf = tl
       if (tl < symmetricStepsL) while (tl_in > currentLeaf) {
-        val r = PRNG(seed)
+        val r = prng(seed)
         seed = r._2
         currentLeaf += 1
         if (currentLeaf == tl_in) {
-          Si = sumCompositionGenerateKey(r._1, symmetricLogL)
-          pki = sumCompositionGetPublicKey(Si)
-          L = sumCompositionUpdate(L, tl_in)
-          sig = sumCompositionSign(L, pki, tl_in)
+          Si = generateSecretKey(r._1, symmetricLogL)
+          pki = generateVerificationKey(Si)
+          L = updateKey(L, tl_in)
+          sig = sign(L, pki, tl_in)
         } else {
-          L = sumCompositionUpdate(L, currentLeaf)
+          L = updateKey(L, currentLeaf)
         }
       }
       else {
         println("Error: max time steps reached")
       }
-      val ti = getSumCompositionKeyTimeStep(Si)
+      val ti = getKeyTime(Si)
       if (ti_in < symmetricStepsL && ti_in > 0 && ti < ti_in) {
-        Si = sumUpdateFast(Si, ti_in)
+        Si = updateKey(Si, ti_in)
       }
     } else {
       println("Error: t less than given keyTime")
@@ -84,8 +84,8 @@ class ProdSymComp extends SumComposition {
    * @return Current time step of key
    */
   def getSymmetricProductKeyTimeStep(key: KeyData): Int = {
-    val tl = getSumCompositionKeyTimeStep(key.superScheme)
-    val ti = getSumCompositionKeyTimeStep(key.subScheme)
+    val tl = getKeyTime(key.superScheme)
+    val ti = getKeyTime(key.subScheme)
     exp_symmetricLogL * tl + ti
   }
 
@@ -94,8 +94,8 @@ class ProdSymComp extends SumComposition {
     val Si = key.subScheme
     val sigi = key.subSchemeSignature
     val pki = key.subSchemePublicKey
-    val ti = getSumCompositionKeyTimeStep(Si)
-    val sigm = sumCompositionSign(Si, m ++ keyTime, ti)
+    val ti = getKeyTime(Si)
+    val sigm = sign(Si, m ++ keyTime, ti)
     //KeyData(sigi, Bytes(sigm), pki, key.offset, Bytes(publicKey(key)))
     Array(0: Byte) //todo: fix
   }
