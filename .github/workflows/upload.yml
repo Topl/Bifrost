@@ -19,12 +19,16 @@ jobs:
         run: sbt node/assembly
 
       - name: find JAR
-        run: |
-          echo "JAR=$(find ./node/target/scala-2.13 -maxdepth 1 -name "*.jar")" >> $GITHUB_ENV
-          echo "OUT_DIR=$(basename ${{ env.JAR }} .jar)" >> $GITHUB_ENV
+        run: echo "JAR=$(find ./node/target/scala-2.13 -maxdepth 1 -name "*.jar")" >> $GITHUB_ENV
 
       - name: generate MD5 checksum
         run: md5sum ${{ env.JAR }} > "${{ env.JAR }}.md5"
+
+      - name: set output directory name
+        run: echo "OUT_DIR=$(basename ${{ env.JAR }} .jar)" >> $GITHUB_ENV
+
+      - name: make output directory
+        run: mkdir ${{ env.OUT_DIR }}
 
       - name: move checksum and jar to separate directory
         run: |
