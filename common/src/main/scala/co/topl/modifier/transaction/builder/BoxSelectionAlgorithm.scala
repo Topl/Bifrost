@@ -134,7 +134,7 @@ object BoxSelectionAlgorithm {
           arbits = boxes.arbits.filter(box => ids.contains(box._2.id)),
           polys = boxes.polys.filter(box => ids.contains(box._2.id))
         )
-      case _: TransferRequests.AssetTransferRequest =>
+      case transfer: TransferRequests.AssetTransferRequest =>
         boxes.copy(
           assets = boxes.assets.filter(box => ids.contains(box._2.id)),
           polys = boxes.polys.filter(box => ids.contains(box._2.id))

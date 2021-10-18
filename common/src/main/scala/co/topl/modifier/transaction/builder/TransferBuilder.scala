@@ -87,13 +87,16 @@ object TransferBuilder {
       assetChange <-
         // no input assets required when minting
         if (!request.minting) validatePaymentFunds(boxFunds(filteredBoxes.assets), assetPayment)
-        else Int128(0).asRight
-      assetBoxNonces = inputAssets.map(box => box._1 -> box._2.nonce)
-      polyBoxNonces = inputPolys.map(box => box._1 -> box._2.nonce)
+        else boxFunds(filteredBoxes.assets).asRight
+      assetInputNonces =
+        // do not use any inputs when minting
+        if (!request.minting) inputAssets.map(box => box._1 -> box._2.nonce)
+        else List()
+      polyInputNonces = inputPolys.map(box => box._1 -> box._2.nonce)
       changeOutput = request.changeAddress             -> SimpleValue(polyChange)
       assetChangeOutput = request.consolidationAddress -> AssetValue(assetChange, assetCode)
     } yield AssetTransfer[P](
-      (polyBoxNonces ++ assetBoxNonces).toIndexedSeq,
+      (polyInputNonces ++ assetInputNonces).toIndexedSeq,
       IndexedSeq(changeOutput, assetChangeOutput) ++ request.to,
       ListMap(),
       request.fee,

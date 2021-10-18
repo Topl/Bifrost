@@ -22,7 +22,9 @@ class BuildUnsignedAssetTransferSpec
 
   val boolGen = Gen.oneOf(true, false)
 
-  "buildUnsignedAssetTransfer" should "return invalid if the fee is greater than the poly input" in {
+  behavior of "buildUnsignedAssetTransfer"
+
+  it should "return invalid if the fee is greater than the poly input" in {
     forAll(polyBoxGen, Gen.listOf(polyBoxGen), addressGen) { (firstFeeBox, otherFeeBoxes, sender) =>
       val polyBoxInputs = firstFeeBox :: otherFeeBoxes
       val fee = polyBoxInputs.map(_.value.quantity).sum + 100
@@ -328,6 +330,33 @@ class BuildUnsignedAssetTransferSpec
 
         result shouldBe Symbol("left")
         result.left.value shouldBe BuildTransferFailures.DuplicateRecipients
+    }
+  }
+
+  it should "return a valid transfer with no asset inputs when minting" in {
+    forAll(polyBoxGen, Gen.listOf(polyBoxGen), addressGen) { (firstPolyBox, otherPolyBoxes, sender) =>
+      val polyInputs = firstPolyBox :: otherPolyBoxes
+      val assetCode = AssetCode(1.toByte, sender, Latin1Data.unsafe("asset"))
+      val existingAsset = AssetBox(sender.evidence, 8000, AssetValue(100, assetCode))
+
+      val boxReader = mock[BoxReader[ProgramId, Address]]
+      (boxReader.getTokenBoxes _).expects(sender).returns(Some(polyInputs :+ existingAsset))
+
+      val request = TransferRequests.AssetTransferRequest(
+        List(sender),
+        List(sender -> AssetValue(6000, assetCode)),
+        sender,
+        sender,
+        0,
+        None,
+        true
+      )
+
+      val result = TransferBuilder
+        .buildUnsignedAssetTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
+
+      result shouldBe Symbol("right")
+      result.value.from.map(_._2) shouldNot contain(8000L)
     }
   }
 }
