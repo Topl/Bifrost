@@ -1,0 +1,25 @@
+name: Postman Integration Tests
+
+on:
+  workflow_dispatch:
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Bifrost
+      uses: actions/checkout@v2
+      with:
+        path: docker-testing
+    - name: Set up GraalVM/JDK
+      uses: olafurpg/setup-scala@v10
+      with:
+        java-version: graalvm-ce-java8@21.0.0
+    - name: Stage Docker Image
+      run: sbt bifrost/docker:stage
+    - name: Run Integration Tests
+      run: docker-compose -f ./postman-integration-testing/docker-compose.yml up --exit-code-from postman
+      
