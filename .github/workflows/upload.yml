@@ -19,7 +19,7 @@ jobs:
         run: sbt node/assembly
 
       - name: find JAR
-        run: JAR=$(find ./node/target/scala-2.13 -maxdepth 1 -name "*.jar")
+        run: echo "JAR=$(find ./node/target/scala-2.13 -maxdepth 1 -name "*.jar")" >> $GITHUB_ENV
 
       - name: Upload artifact
         uses: BetaHuhn/do-spaces-action@v2
@@ -28,5 +28,5 @@ jobs:
           secret_key: ${{ secrets.SECRET_KEY }}
           space_name: ${{ secrets.SPACE_NAME }}
           space_region: ${{ secrets.SPACE_REGION }}
-          source: ${{ JAR }}
+          source: ${{ env.JAR }}
           out_dir: jars
