@@ -1,0 +1,46 @@
+version: "3.3"
+
+services:
+  bifrost:
+    build: ../node/target/docker/stage
+    ports:
+      - 9085:9085
+    command: -s test --apiKeyHash As3ZuwnL9LpoW3wz8HoDpHtZqJ4dhPFFnv87GYrnCYKj
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "--header", "'Content-Type: application/json'",
+          "--header", "'Accept: application/json'",
+          "--header", "'x-api-key: test'",
+          "--data-raw", "'{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"method\":\"topl_info\",\"params\": [{}]}'",
+        ]
+      interval: 5s
+      timeout: 10s
+
+  assistant:
+    image: toplprotocol/postman-integration-testing-server
+    ports:
+      - 3000:3000
+    volumes:
+      - ./keyfile.json:/mnt/keyfile.json
+    command:
+      node ./bin/www /mnt/keyfile.json test http://bifrost:9085 test private
+    links:
+      - bifrost
+
+  postman:
+    image: postman/newman:latest
+    depends_on:
+      - bifrost
+      - assistant
+    volumes:
+      - ./postman_env.json:/mnt/postman_env.json
+    links:
+      - assistant
+      - bifrost
+    command:
+      run https://www.getpostman.com/collections/3468057a1009eebc86bf
+      -e /mnt/postman_env.json
+      --delay-request 500
