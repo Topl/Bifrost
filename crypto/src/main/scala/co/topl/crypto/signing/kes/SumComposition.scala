@@ -1,9 +1,7 @@
 package co.topl.crypto.signing.kes
 
-import co.topl.models._
-import co.topl.models.utility.{Empty, Leaf, Node, BinaryTree}
+import co.topl.models.utility.{BinaryTree, Empty, Leaf, Node}
 
-import scala.language.implicitConversions
 import scala.math.BigInt
 
 /**
