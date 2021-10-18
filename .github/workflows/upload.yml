@@ -1,0 +1,28 @@
+name: Upload Artifacts
+on:
+  push:
+    branches: ["*"]
+    tags: ["*"]
+jobs:
+  build_artifact:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout current branch (full)
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Build fat JAR
+        uses: lokkju/github-action-sbt@v0.2.2
+        with:
+          commands: node/assembly
+
+      - name: Upload artifact
+        uses: BetaHuhn/do-spaces-action@v2
+        with:
+          access_key: ${{ secrets.ACCESS_KEY}}
+          secret_key: ${{ secrets.SECRET_KEY }}
+          space_name: ${{ secrets.SPACE_NAME }}
+          space_region: ${{ secrets.SPACE_REGION }}
+          source: ./node/target/scala-2.13/*.jar
+          out_dir: jars
