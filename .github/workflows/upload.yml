@@ -19,13 +19,16 @@ jobs:
         run: sbt node/assembly
 
       - name: find JAR
-        run: echo "JAR=$(find node/target/scala-2.13 -maxdepth 1 -name "*.jar")" >> $GITHUB_ENV
+        run: echo "JAR=$(find ./node/target/scala-2.13 -maxdepth 1 -name "*.jar")" >> $GITHUB_ENV
 
       - name: generate MD5 checksum
+        working-directory: ./node/target/scala-2.13
         run: md5sum ${{ env.JAR }} > "${{ env.JAR }}.md5"
 
       - name: set output directory name
-        run: echo "OUT_DIR=$(basename ${{ env.JAR }} .jar)" >> $GITHUB_ENV
+        run: |
+          OUT_DIR=$(basename ${{ env.JAR }} .jar)
+          echo "OUT_DIR=${OUT_DIR#bifrost-}" >> $GITHUB_ENV
 
       - name: make output directory
         run: mkdir ${{ env.OUT_DIR }}
@@ -43,4 +46,4 @@ jobs:
           space_name: ${{ secrets.SPACE_NAME }}
           space_region: ${{ secrets.SPACE_REGION }}
           source: ${{ env.OUT_DIR }}
-          out_dir: jars
+          out_dir: "jars/${{ env.OUT_DIR }}"
