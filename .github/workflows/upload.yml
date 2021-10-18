@@ -18,12 +18,15 @@ jobs:
       - name: assemble fat JAR
         run: sbt node/assembly
 
+      - name: find JAR
+        run: JAR=$(find ./node/target/scala-2.13 -maxdepth 1 -name "*.jar")
+
       - name: Upload artifact
         uses: BetaHuhn/do-spaces-action@v2
         with:
-          access_key: ${{ secrets.ACCESS_KEY}}
+          access_key: ${{ secrets.ACCESS_KEY }}
           secret_key: ${{ secrets.SECRET_KEY }}
           space_name: ${{ secrets.SPACE_NAME }}
           space_region: ${{ secrets.SPACE_REGION }}
-          source: ./node/target/scala-2.13/*.jar
+          source: ${{ JAR }}
           out_dir: jars
