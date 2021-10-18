@@ -12,10 +12,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Build fat JAR
-        uses: lokkju/github-action-sbt@v0.2.2
-        with:
-          commands: node/assembly
+      - name: setup-scala
+        uses: olafurpg/setup-scala@v10
+
+      - name: assemble fat JAR
+        run: sbt node/assembly
 
       - name: Upload artifact
         uses: BetaHuhn/do-spaces-action@v2
