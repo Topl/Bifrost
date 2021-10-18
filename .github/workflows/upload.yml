@@ -7,7 +7,7 @@ jobs:
   build_artifact:
     runs-on: ubuntu-20.04
     steps:
-      - name: Checkout current branch (full)
+      - name: checkout current branch (full)
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
@@ -21,12 +21,21 @@ jobs:
       - name: find JAR
         run: echo "JAR=$(find ./node/target/scala-2.13 -maxdepth 1 -name "*.jar")" >> $GITHUB_ENV
 
-      - name: Upload artifact
+      - name: generate MD5 checksum
+        run: md5sum ${{ env.JAR }} > "${{ env.JAR }}.md5"
+
+      - name: move checksum and jar to separate directory
+        run: |
+        echo "OUT_DIR=$(basename ${{ env.JAR }} .jar)" >> $GITHUB_ENV
+        cp "node/target/scala-2.13/${{ env.JAR }}" ${{ env.OUT_DIR }}
+        cp "${{ env.JAR }}.md5" ${{ env.OUT_DIR }}
+
+      - name: upload artifact
         uses: BetaHuhn/do-spaces-action@v2
         with:
           access_key: ${{ secrets.ACCESS_KEY }}
           secret_key: ${{ secrets.SECRET_KEY }}
           space_name: ${{ secrets.SPACE_NAME }}
           space_region: ${{ secrets.SPACE_REGION }}
-          source: ${{ env.JAR }}
+          source: ${{ env.OUT_DIR }}
           out_dir: jars
