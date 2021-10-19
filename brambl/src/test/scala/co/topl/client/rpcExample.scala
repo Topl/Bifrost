@@ -18,7 +18,6 @@ import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
-import cats.implicits._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -97,10 +96,9 @@ object ReinstateMultipleKeyFiles {
 
   println(s"keyRing after generating new keys: ${keyRing.addresses}")
 
-  val keyfiles: Seq[KeyfileCurve25519] = keyfilesGen.collect {
-    case Right(keyfile) =>
-      keyRing.removeFromKeyring(keyfile.address) // side effect mutation of keyRing
-      keyfile
+  val keyfiles: Seq[KeyfileCurve25519] = keyfilesGen.collect { case Right(keyfile) =>
+    keyRing.removeFromKeyring(keyfile.address) // side effect mutation of keyRing
+    keyfile
   }
 
   println(s"keyRing after removing generated keys: ${keyRing.addresses}")
@@ -114,7 +112,7 @@ object ReinstateMultipleKeyFiles {
   println(s"keyRing after re-importing the generated key from Json: ${keyRing.addresses}")
 
   def main(args: Array[String]): Unit = {
-    keyfilesGen.foreach{
+    keyfilesGen.foreach {
       case Left(value)  => println(s"Got some error: $value")
       case Right(value) => println(s"Got a success response: $value")
     }
