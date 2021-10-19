@@ -1,7 +1,7 @@
 name: Upload Artifacts
 on:
   push:
-    branches: ["*"]
+    branches: [main]
     tags: ["*"]
 jobs:
   build_artifact:
