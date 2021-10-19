@@ -1,7 +1,7 @@
 package co.topl.crypto.signatures
 
 import co.topl.crypto.PrivateKey
-import co.topl.crypto.signing.Ed25519
+import co.topl.crypto.signing.{Ed25519, Seed}
 import co.topl.crypto.utils.Hex
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
@@ -13,7 +13,7 @@ class Ed25519SignatureSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChec
     forAll { (seed1: Array[Byte], seed2: Array[Byte], message1: Array[Byte], message2: Array[Byte]) =>
       whenever(!seed1.sameElements(seed2) && !message1.sameElements(message2)) {
         val ec = new Ed25519
-        val keyPair = ec.createKeyPair(seed1)
+        val keyPair = ec.createKeyPair(Seed(seed1))
         val keyPair2 = ec.createKeyPair(seed2)
         val sig = ec.sign(keyPair._1, message1)
 

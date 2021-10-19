@@ -19,7 +19,8 @@ class KesSum extends SumComposition {
   }
 
   def sign(privateKey: SecretKeys.KesSum, message: MessageToSign, index: Int): Signature.KesSum =
-    Signature.KesSum(sign(privateKey.tree, message.value, index))
+    ???
+    ///Signature.KesSum(sign(privateKey.tree, message.value))
 
   def verify(
     signature: Signature.KesSum,
